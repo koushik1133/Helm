@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulated checkout — Blueprint Stage</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  body{margin:0;font-family:"IBM Plex Sans",system-ui,sans-serif;background:#0b1020;color:#e8ecf4;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{background:#141b2e;border:1px solid #26324f;border-radius:16px;max-width:400px;width:100%;padding:28px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#2f6fed,#7c5cff);margin:0 auto 14px}
+  h1{font-size:18px;margin:0 0 4px} .muted{color:#8a95ad;font-size:13px;margin:0 0 18px}
+  .amt{font-family:"IBM Plex Mono",monospace;font-size:34px;font-weight:700;margin:8px 0}
+  .ref{font-family:"IBM Plex Mono",monospace;color:#8a95ad;font-size:12px;margin-bottom:18px}
+  .note{background:#1b2540;border:1px solid #26324f;border-radius:10px;padding:12px;font-size:12px;color:#aab6cf;line-height:1.6}
+  .btn{display:inline-block;margin-top:16px;background:linear-gradient(120deg,#2f6fed,#7c5cff);color:#fff;border:0;border-radius:11px;padding:13px 22px;font-size:15px;font-weight:600;width:100%;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo"></div>
+  <h1>Simulated checkout</h1>
+  <p class="muted">This is a demo of the payment step.</p>
+  <div class="amt" id="amt">₹0</div>
+  <div class="ref" id="ref"></div>
+  <div class="note">In production this opens the real <b>Razorpay</b> payment page. Here, no money moves.
+    Your event manager confirms the payment on their side to complete the booking.</div>
+  <button class="btn" onclick="window.close()">Done</button>
+</div>
+<script>
+  const p=new URLSearchParams(location.search);
+  const amt=parseFloat(p.get("amount")||"0");
+  document.getElementById("amt").textContent="₹"+amt.toLocaleString("en-IN");
+  document.getElementById("ref").textContent="Ref: "+(p.get("ref")||"—");
+</script>
+</body>
+</html>

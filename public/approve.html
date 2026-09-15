@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Approve your event — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  .wrap{max-width:640px;margin:0 auto;padding:24px 18px 60px}
+  header{display:flex;align-items:center;gap:10px;padding:6px 0 18px}
+  .mark{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header b{font-size:15px} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:22px;margin-bottom:16px}
+  h1{font-size:20px;margin:0 0 4px} .sub{color:var(--ink-3);font-size:13px;margin:0 0 4px}
+  .code{font-family:var(--mono);font-weight:600;font-size:16px;color:var(--accent)}
+  .stat{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:20px;vertical-align:middle}
+  .stat.q{background:#eef2ff;color:#4457c8} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.paid{background:#e7f6ee;color:#0f7a43}
+  .rows{margin-top:10px} .r{display:flex;justify-content:space-between;font-size:13px;padding:5px 0;color:var(--ink-2)}
+  .r .amt{font-family:var(--mono);color:var(--ink)} .r.grand{font-size:18px;font-weight:700;color:var(--ink);border-top:1px solid var(--line);margin-top:8px;padding-top:10px}
+  .seclabel{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:700;margin:2px 0 8px}
+  .terms{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;max-height:200px;overflow:auto;font-size:12px;line-height:1.6;color:var(--ink-2)}
+  .terms h4{margin:10px 0 4px;font-size:12px;color:var(--ink)} .terms p{margin:0 0 6px}
+  .fld{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+  .fld label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)}
+  .fld input{height:42px;border:1px solid var(--line);background:var(--panel-2);border-radius:10px;padding:0 12px;font-size:15px;font-family:var(--font);color:var(--ink)}
+  .fld input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .otp input{font-family:var(--mono);letter-spacing:.4em;font-size:20px;text-align:center}
+  .agree{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--ink-2);margin:6px 0 14px;line-height:1.5}
+  .agree input{width:20px;height:20px;margin-top:1px;flex:0 0 auto;accent-color:var(--accent)}
+  .btn{width:100%;height:46px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
+  .btn:disabled{opacity:.55;cursor:default}
+  .msg{border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:12px}
+  .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
+  .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca}
+  .msg.dev{background:#fff7e6;color:#946200;border:1px solid #f2d492;font-family:var(--mono)}
+  .done{text-align:center;padding:8px 0}
+  .done .big{font-size:44px;line-height:1} .done h2{margin:8px 0 4px}
+  .muted{color:var(--ink-3);font-size:12px}
+  footer{text-align:center;color:var(--ink-3);font-size:11px;margin-top:8px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><div class="mark"></div><div><b>Blueprint Stage</b><small>Event approval</small></div></header>
+
+  <div id="loading" class="card"><p class="muted">Loading your event…</p></div>
+  <div id="badlink" class="card" hidden><h1>Link not found</h1><p class="sub">This approval link is invalid or has expired. Please ask your event manager for a new one.</p></div>
+
+  <div id="content" hidden>
+    <!-- Event summary + pricing -->
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div><h1 id="title">Event</h1><p class="sub" id="meta"></p></div>
+        <span class="code" id="code"></span>
+      </div>
+      <div class="rows" id="pricing"></div>
+    </div>
+
+    <!-- Terms -->
+    <div class="card">
+      <div class="seclabel">Terms &amp; conditions <span id="tver" class="muted" style="text-transform:none;letter-spacing:0"></span></div>
+      <div class="terms" id="terms"></div>
+    </div>
+
+    <!-- Approval flow -->
+    <div class="card" id="flow">
+      <div id="msg"></div>
+
+      <div id="step1">
+        <div class="seclabel">① Confirm it's you</div>
+        <div class="fld"><label>Your name</label><input id="c_name" placeholder="Full name"></div>
+        <div class="fld"><label>Mobile number</label><input id="c_phone" inputmode="tel" placeholder="+91 …"></div>
+        <button class="btn primary" id="sendOtp">Send OTP to my phone</button>
+      </div>
+
+      <div id="step2" hidden>
+        <div class="seclabel">② Verify &amp; consent</div>
+        <div class="fld otp"><label>Enter the 6-digit OTP</label><input id="c_otp" maxlength="6" inputmode="numeric" placeholder="––––––"></div>
+        <label class="agree"><input type="checkbox" id="c_agree">
+          <span id="agreeText">I have read and agree to the Terms &amp; Conditions above, and I authorise this event and its charges.</span></label>
+        <button class="btn primary" id="confirmBtn">✓ Confirm &amp; approve</button>
+        <button class="btn" id="resend" style="margin-top:8px">Resend OTP</button>
+      </div>
+
+      <div id="step3" hidden>
+        <div class="done">
+          <div class="big">✅</div>
+          <h2>Approved &amp; consented</h2>
+          <p class="muted" id="approvedNote"></p>
+        </div>
+        <button class="btn primary" id="payBtn" style="margin-top:12px">Proceed to payment</button>
+      </div>
+
+      <div id="step4" hidden>
+        <div class="done"><div class="big">💳</div><h2>Payment link ready</h2>
+          <p class="muted">Complete your payment securely to confirm your booking.</p></div>
+        <a class="btn primary" id="payLink" href="#" style="margin-top:8px" target="_blank" rel="noopener">Pay <span id="payAmt"></span> now →</a>
+        <p class="muted" style="text-align:center;margin-top:10px">A confirmation will be sent to you and your event manager once payment is received.</p>
+      </div>
+
+      <div id="stepPaid" hidden>
+        <div class="done"><div class="big">🎉</div><h2>Payment received</h2>
+          <p class="muted">Your event is confirmed. A receipt has been sent to you and your manager.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>Secured by one-time password verification · your consent is recorded with a timestamped audit trail.<br>Blueprint Stage · event management</footer>
+</div>
+
+<script src="config.js?v=8"></script>
+<script src="store-api.js?v=8"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const inr=(n)=>"₹"+Number(n||0).toLocaleString("en-IN");
+  const token=new URLSearchParams(location.search).get("token");
+
+  // Terms shown to the client (versioned — the exact text is stored with their consent)
+  const TERMS_VERSION="v1-2026-09";
+  const TERMS_HTML=`
+    <h4>1. Quotation & pricing</h4><p>The amounts shown are based on the details provided and include applicable GST (SAC 998596). Final billing may adjust for changes in guest count, scope, or statutory taxes.</p>
+    <h4>2. Booking & payment</h4><p>Your booking is confirmed only upon successful payment against the payment link. Advance/booking amounts, once paid, are subject to the cancellation policy below.</p>
+    <h4>3. Cancellation</h4><p>Cancellations must be made in writing. Refunds, if any, are governed by the timeline agreed with your event manager and applicable deductions for committed vendor costs.</p>
+    <h4>4. Consent</h4><p>By verifying the OTP sent to your mobile and accepting these terms, you confirm you are authorised to approve this event and its charges on behalf of the client, and that the details are correct.</p>
+    <h4>5. Liability & data</h4><p>The organiser is not liable for delays or failures due to circumstances beyond reasonable control. Your contact details are used only to administer this event and its payment.</p>`;
+  const CONSENT_TEXT="I have read and agree to the Terms & Conditions ("+TERMS_VERSION+"), and I authorise this event and its charges.";
+
+  function setMsg(kind,text){ const m=$("#msg"); if(!text){m.innerHTML="";return;} m.innerHTML=`<div class="msg ${kind}">${esc(text)}</div>`; }
+
+  function renderPricing(p){
+    const c=(p&&p.computed)||{}; const rows=[];
+    const add=(l,a)=>rows.push(`<div class="r"><span>${l}</span><span class="amt">${inr(a)}</span></div>`);
+    if(p){
+      add(`Chairs (${p.chairs||0} × ${inr(p.chairPrice||0)})`, (p.chairs||0)*(p.chairPrice||0));
+      if(p.other) add("Other charges", p.other);
+      if(p.catering&&p.catering.mode==='client') rows.push(`<div class="r"><span>Catering</span><span class="amt">Client-provided</span></div>`);
+      else add(`Catering (${p.guests||0} plates × ${inr(p.platePrice||0)}${p.catering&&p.catering.amount?" + "+inr(p.catering.amount):""})`, (c.cateringBucket||0));
+      if(c.serviceCharge) add(`Service charge (${p.serviceChargePct}%)`, c.serviceCharge);
+      rows.push(`<div class="r"><span>Subtotal</span><span class="amt">${inr(c.subtotal||0)}</span></div>`);
+      if(p.placeOfSupply==='inter') add("IGST", c.igst||0); else { add("CGST", c.cgst||0); add("SGST", c.sgst||0); }
+      if(c.discount) rows.push(`<div class="r"><span>Discount</span><span class="amt">− ${inr(c.discount)}</span></div>`);
+    }
+    rows.push(`<div class="r grand"><span>Total payable</span><span class="amt">${inr((p&&p.total)||0)}</span></div>`);
+    return rows.join("");
+  }
+
+  let quote=null;
+  async function load(){
+    if(!token){ $("#loading").hidden=true; $("#badlink").hidden=false; return; }
+    await BPStore.init();
+    try{ quote=await BPStore.approval.getByToken(token); }
+    catch(e){ $("#loading").hidden=true; $("#badlink").hidden=false; return; }
+    $("#loading").hidden=true; $("#content").hidden=false;
+    $("#title").textContent=quote.title||quote.code;
+    $("#code").textContent=quote.code;
+    $("#meta").textContent=(quote.event_type?quote.event_type+" · ":"")+"For "+(quote.client_name||"you");
+    $("#pricing").innerHTML=renderPricing(quote.pricing);
+    $("#terms").innerHTML=TERMS_HTML; $("#tver").textContent="("+TERMS_VERSION+")";
+    if(quote.client_name) $("#c_name").value=quote.client_name;
+    // resume state
+    if(quote.approval_status==='paid'){ showStep('stepPaid'); }
+    else if(quote.approval_status==='approved'){ showStep('step3'); $("#approvedNote").textContent="Recorded on "+new Date().toLocaleString(); }
+  }
+  function showStep(id){ ['step1','step2','step3','step4','stepPaid'].forEach(s=>$('#'+s).hidden=(s!==id)); }
+
+  let phone="";
+  $("#sendOtp").addEventListener("click", async ()=>{
+    setMsg(); const b=$("#sendOtp"); phone=$("#c_phone").value.trim();
+    const name=$("#c_name").value.trim();
+    if(name.length<2){ setMsg("err","Please enter your name."); return; }
+    if(phone.replace(/[^0-9]/g,"").length<8){ setMsg("err","Please enter a valid mobile number."); return; }
+    b.disabled=true; b.textContent="Sending…";
+    try{ const r=await BPStore.approval.requestOtp(token, phone);
+      showStep('step2');
+      if(r && r.dev_code) setMsg("dev","SIMULATION MODE — your OTP is "+r.dev_code+" (in production this is sent by SMS).");
+      else setMsg("ok","An OTP has been sent to "+phone+".");
+    }catch(e){ setMsg("err",(e&&e.message)||"Couldn't send OTP."); }
+    finally{ b.disabled=false; b.textContent="Send OTP to my phone"; }
+  });
+  $("#resend").addEventListener("click", ()=>{ $("#sendOtp").click(); });
+
+  $("#confirmBtn").addEventListener("click", async ()=>{
+    setMsg(); const b=$("#confirmBtn");
+    const code=$("#c_otp").value.trim(), agreed=$("#c_agree").checked;
+    if(code.length!==6){ setMsg("err","Enter the 6-digit OTP."); return; }
+    if(!agreed){ setMsg("err","Please tick the box to accept the terms."); return; }
+    b.disabled=true; b.textContent="Verifying…";
+    try{ await BPStore.approval.verifyConsent(token, phone, code, true, TERMS_VERSION, CONSENT_TEXT, $("#c_name").value.trim(), navigator.userAgent);
+      showStep('step3'); $("#approvedNote").textContent="Recorded on "+new Date().toLocaleString(); setMsg();
+    }catch(e){ setMsg("err",(e&&e.message)||"Verification failed."); }
+    finally{ b.disabled=false; b.textContent="✓ Confirm & approve"; }
+  });
+
+  $("#payBtn").addEventListener("click", async ()=>{
+    setMsg(); const b=$("#payBtn"); b.disabled=true; b.textContent="Preparing…";
+    try{ const r=await BPStore.approval.createPayment(token);
+      if(r.link_url){ $("#payLink").href=r.link_url; $("#payAmt").textContent=inr(r.amount); showStep('step4'); }
+      else if(r.pending_provider){ setMsg("ok","Your payment link is being generated and will be sent to "+phone+" by SMS shortly."); }
+    }catch(e){ setMsg("err",(e&&e.message)||"Couldn't create payment."); b.disabled=false; b.textContent="Proceed to payment"; }
+  });
+
+  load();
+</script>
+</body>
+</html>

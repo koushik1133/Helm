@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blueprint Stage — Event Layout Builder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}   /* the hidden attr must beat any author display rule (.lmodal/.account) */
+  body{margin:0;background:
+    radial-gradient(1200px 600px at 80% -10%, #e6ecff 0%, transparent 55%),
+    radial-gradient(900px 500px at 0% 0%, #efe9ff 0%, transparent 45%), var(--bg);
+    color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+
+  header{display:flex;align-items:center;gap:11px;padding:20px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:17px;margin:0;font-weight:700;letter-spacing:-.01em}
+  header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .badge{margin-left:auto;display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:600;color:var(--ink-2);
+    background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:6px 12px;box-shadow:var(--shadow)}
+  .badge i{width:8px;height:8px;border-radius:50%;background:var(--ink-3)}
+  .badge.supabase i{background:var(--safe)} .badge.server i{background:var(--accent)} .badge.local i{background:var(--warn)}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .account button:hover{border-color:var(--accent)}
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}   /* the `hidden` attr must win over display:flex, else the overlay keeps eating clicks */
+  .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,94vw);padding:26px;display:flex;flex-direction:column}
+  .lsheet h3{margin:0 0 4px;font-size:18px;text-align:center}
+  .lsheet p{margin:0 0 18px;font-size:12px;color:var(--ink-3);text-align:center}
+  .lsheet label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+  .lsheet input{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-size:14px;font-family:var(--font);color:var(--ink)}
+  .lsheet input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
+  .lok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
+
+  /* admin → users panel */
+  .usheet{width:min(620px,96vw);max-height:88vh;overflow:auto;padding:24px}
+  .usheet h3{text-align:left;display:flex;align-items:center;gap:8px}
+  .usheet .close{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:30px;height:30px;font-size:15px;cursor:pointer;color:var(--ink-2)}
+  .usheet .close:hover{border-color:var(--accent)}
+  .utable{width:100%;border-collapse:collapse;margin:6px 0 4px;font-size:13px}
+  .utable th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:6px 8px;border-bottom:1px solid var(--line)}
+  .utable td{padding:7px 8px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+  .utable td.em{font-family:var(--mono);font-size:12px}
+  .utable select{height:30px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:12px;padding:0 6px;color:var(--ink)}
+  .utable .rm{border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:14px;padding:4px 8px;border-radius:6px}
+  .utable .rm:hover{color:#e5484d;background:#fdecec}
+  .utable .me{font-size:9px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:10px;padding:2px 6px;margin-left:6px;vertical-align:middle}
+  .addrow{display:grid;grid-template-columns:1.4fr .8fr 1fr auto;gap:8px;align-items:end;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+  @media (max-width:560px){.addrow{grid-template-columns:1fr 1fr}}
+  .addrow label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);display:flex;flex-direction:column;gap:4px}
+  .addrow input,.addrow select{height:34px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 9px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .addrow input:focus,.addrow select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .addrow .btn{height:34px;font-size:13px;padding:0 16px}
+  .account .users{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+
+  .hero{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;padding:44px 0 30px}
+  @media (max-width:840px){.hero{grid-template-columns:1fr;gap:26px}}
+  .hero h2{font-size:44px;line-height:1.05;margin:0 0 16px;letter-spacing:-.025em}
+  .hero h2 .g{background:linear-gradient(120deg,var(--accent),var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p{font-size:16px;line-height:1.6;color:var(--ink-2);margin:0 0 26px;max-width:44ch}
+  .cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .btn{height:48px;padding:0 22px;border-radius:11px;border:1px solid var(--line);background:var(--panel);color:var(--ink);
+    font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:9px;transition:.14s;box-shadow:var(--shadow)}
+  .btn:hover{transform:translateY(-2px)}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
+  .btn .kbd{font-family:var(--mono);font-size:11px;opacity:.7}
+  .hint{margin-top:14px;font-size:12px;color:var(--ink-3)}
+  .hint b{color:var(--ink-2);font-family:var(--mono)}
+
+  .art{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:14px;overflow:hidden}
+  .art svg{display:block;width:100%;height:auto;border-radius:9px}
+
+  .feats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:14px 0 34px}
+  @media (max-width:840px){.feats{grid-template-columns:1fr 1fr}}
+  .feat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .feat .ic{font-size:18px}
+  .feat h4{margin:8px 0 4px;font-size:13px}
+  .feat p{margin:0;font-size:11.5px;color:var(--ink-3);line-height:1.45}
+
+  .events{padding:6px 0 60px}
+  .events .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .events h3{font-size:15px;margin:0}
+  .events .head a{font-size:12px;color:var(--accent);font-weight:600;cursor:pointer}
+  .elist{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  @media (max-width:840px){.elist{grid-template-columns:1fr}}
+  .ecard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;transition:.12s;cursor:pointer;position:relative}
+  .ecard:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow)}
+  .ecard b{display:block;font-size:14px;font-family:var(--mono);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ecard small{font-size:11px;color:var(--ink-3)}
+  .stat{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:20px;vertical-align:middle}
+  .stat.q{background:#eef2ff;color:#4457c8} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318}
+  .ecard .del{position:absolute;top:10px;right:10px;border:0;background:transparent;color:var(--ink-3);font-size:13px;cursor:pointer;opacity:0;transition:.12s}
+  .ecard:hover .del{opacity:1} .ecard .del:hover{color:#e5484d}
+  .empty{grid-column:1/-1;text-align:center;color:var(--ink-3);padding:30px;border:1px dashed var(--line);border-radius:12px;font-size:13px}
+  footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mark"></div>
+    <div><h1>Blueprint Stage</h1><small>Event Layout Builder</small></div>
+    <span class="badge" id="badge"><i></i><span id="badgeLbl">…</span></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <section class="hero">
+    <div>
+      <h2>Design your event floor in <span class="g">2D & 3D</span>.</h2>
+      <p>Drag-and-drop stages, seating, tables and more onto a to-scale blueprint — then walk it in 3D. Every layout is saved and named for you.</p>
+      <div class="cta">
+        <button class="btn primary" id="createBtn">✨ Generate a quote <span class="kbd" id="nextName">…</span></button>
+        <a class="btn" href="quotes.html">Quotes &amp; confirmations →</a>
+      </div>
+      <div class="hint">Each quote gets a code <b id="nameEg">MMDDYYYY-01</b> automatically. Every save is a new version; confirm a quote to price &amp; lock it.</div>
+    </div>
+    <div class="art" aria-hidden="true">
+      <svg viewBox="0 0 420 300" xmlns="http://www.w3.org/2000/svg">
+        <rect width="420" height="300" rx="10" fill="#f4f7fd"/>
+        <g stroke="#c3d1ea" stroke-width="1">
+          <path d="M0 40h420M0 80h420M0 120h420M0 160h420M0 200h420M0 240h420M0 280h420"/>
+          <path d="M40 0v300M80 0v300M120 0v300M160 0v300M200 0v300M240 0v300M280 0v300M320 0v300M360 0v300M400 0v300"/>
+        </g>
+        <rect x="150" y="26" width="120" height="34" rx="4" fill="#2f6fed" opacity=".85"/>
+        <text x="210" y="47" text-anchor="middle" font-family="IBM Plex Sans" font-size="12" fill="#fff" font-weight="600">STAGE</text>
+        <g fill="#0d9488">
+          <g>
+            <circle cx="120" cy="120" r="4"/><circle cx="140" cy="120" r="4"/><circle cx="160" cy="120" r="4"/>
+            <circle cx="120" cy="140" r="4"/><circle cx="140" cy="140" r="4"/><circle cx="160" cy="140" r="4"/>
+            <circle cx="120" cy="160" r="4"/><circle cx="140" cy="160" r="4"/><circle cx="160" cy="160" r="4"/>
+          </g>
+          <g>
+            <circle cx="260" cy="120" r="4"/><circle cx="280" cy="120" r="4"/><circle cx="300" cy="120" r="4"/>
+            <circle cx="260" cy="140" r="4"/><circle cx="280" cy="140" r="4"/><circle cx="300" cy="140" r="4"/>
+            <circle cx="260" cy="160" r="4"/><circle cx="280" cy="160" r="4"/><circle cx="300" cy="160" r="4"/>
+          </g>
+        </g>
+        <g fill="none" stroke="#7c5cff" stroke-width="2">
+          <circle cx="150" cy="230" r="20"/><circle cx="270" cy="230" r="20"/>
+        </g>
+        <rect x="20" y="260" width="46" height="26" rx="3" fill="#18a558" opacity=".85"/>
+        <text x="43" y="277" text-anchor="middle" font-family="IBM Plex Sans" font-size="10" fill="#fff" font-weight="600">EXIT</text>
+      </svg>
+    </div>
+  </section>
+
+  <section class="feats">
+    <div class="feat"><div class="ic">🪑</div><h4>Real seating</h4><p>Auto-arrange any number of chairs into rows × columns with live previews.</p></div>
+    <div class="feat"><div class="ic">🧊</div><h4>2D & 3D</h4><p>Edit the plan, then orbit a rendered 3D view with move/rotate/scale.</p></div>
+    <div class="feat"><div class="ic">🎪</div><h4>12 templates</h4><p>Rallies, conferences, weddings, festivals — plus a custom generator.</p></div>
+    <div class="feat"><div class="ic">💾</div><h4>Saved &amp; named</h4><p>Every event is stored and dated. Reopen, rename, export any time.</p></div>
+  </section>
+
+  <section class="events">
+    <div class="head"><h3>Your quotes</h3><span><a href="quotes.html" style="margin-right:14px">Manage all →</a><a id="refresh">Refresh</a></span></div>
+    <div class="elist" id="elist"><div class="empty">Loading…</div></div>
+  </section>
+
+  <footer>Blueprint Stage · runs locally · storage: <span id="footMode">detecting…</span></footer>
+</div>
+
+<div class="lmodal" id="loginModal" hidden>
+  <form class="lsheet" id="loginForm">
+    <div class="mark" style="margin:0 auto 14px"></div>
+    <h3>Sign in</h3>
+    <p>Use the account your studio admin created for you.</p>
+    <label>Email<input type="email" id="li_email" autocomplete="username" required></label>
+    <label>Password<input type="password" id="li_pw" autocomplete="current-password" required></label>
+    <div class="lerr" id="li_err" hidden></div>
+    <button class="btn primary" id="li_submit" type="submit" style="width:100%;justify-content:center">Sign in</button>
+  </form>
+</div>
+
+<div class="lmodal" id="usersModal" hidden>
+  <div class="lsheet usheet">
+    <h3>👥 Team members <button class="close" id="um_close" type="button" title="Close">✕</button></h3>
+    <p style="text-align:left;margin:2px 0 14px">Add teammates, change what each role can do, or remove access. Changes apply immediately.</p>
+    <div class="lerr" id="um_err" hidden></div>
+    <div class="lok"  id="um_ok"  hidden></div>
+    <table class="utable"><thead><tr><th>Email</th><th>Role</th><th></th></tr></thead>
+      <tbody id="um_rows"><tr><td colspan="3" style="color:var(--ink-3)">Loading…</td></tr></tbody>
+    </table>
+    <form class="addrow" id="um_add">
+      <label>Email<input type="email" id="um_email" placeholder="name@helm.com" autocomplete="off" required></label>
+      <label>Password<input type="text" id="um_pw" value="helm" required></label>
+      <label>Role<select id="um_role"></select></label>
+      <button class="btn primary" type="submit" id="um_submit">Add user</button>
+    </form>
+    <div class="hint" style="margin-top:10px">Roles: <b>admin</b> manage · <b>planner</b> full events · <b>sales</b> create/edit · <b>operations</b> edit only · <b>crew</b>/<b>client</b> view.</div>
+  </div>
+</div>
+
+<script src="config.js?v=8"></script>
+<script src="store-api.js?v=8"></script>
+<script>
+  const $ = (s) => document.querySelector(s);
+  const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return "—"; } };
+  const esc = (s) => (s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  function setBadge(mode) {
+    const b = $("#badge"), map = { supabase: "Supabase", server: "Server", local: "This browser" };
+    b.className = "badge " + mode; $("#badgeLbl").textContent = map[mode] || mode;
+    $("#footMode").textContent = map[mode] || mode;
+  }
+  function eg() { const d = new Date(); const mm = String(d.getMonth() + 1).padStart(2, "0"), dd = String(d.getDate()).padStart(2, "0");
+    return mm + dd + d.getFullYear(); }
+
+  let summaries = [];
+
+  /* ---- auth UI ---- */
+  function openLogin(){ $("#loginModal").hidden = false; setTimeout(()=>$("#li_email").focus(), 50); }
+  function closeLogin(){ $("#loginModal").hidden = true; $("#li_err").hidden = true; }
+  async function renderAccount() {
+    const el = $("#account");
+    if (!BPStore.auth.enabled()) { el.hidden = true; return; }
+    el.hidden = false;
+    const user = BPStore.auth.user();
+    if (user) {
+      const role = await BPStore.auth.role();
+      const canManage = await BPStore.auth.can("manage");
+      el.innerHTML = `<span class="role">${esc(role||"")}</span><span>${esc(user.email)}</span>`
+        + (canManage ? `<button class="users" id="usersBtn">👥 Users</button>` : "")
+        + `<button id="logoutBtn">Log out</button>`;
+      if (canManage) $("#usersBtn").addEventListener("click", openUsers);
+      $("#logoutBtn").addEventListener("click", async () => { await BPStore.auth.signOut(); location.reload(); });
+    } else {
+      el.innerHTML = `<button id="loginBtn">Sign in</button>`;
+      $("#loginBtn").addEventListener("click", openLogin);
+    }
+  }
+
+  let canCreate = false, canDelete = false;
+  async function load() {
+    await BPStore.init(); setBadge(BPStore.mode());
+    $("#nameEg").textContent = eg() + "-01";
+    await renderAccount();
+    const mustLogin = BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user();
+
+    // Supabase enforces login and nobody's signed in → prompt sign-in, show gated state
+    if (mustLogin) {
+      $("#createBtn").hidden = true;
+      $("#elist").innerHTML = '<div class="empty">Please <b>sign in</b> to view your events.</div>';
+      openLogin(); return;
+    }
+    canCreate = await BPStore.auth.can("create");
+    canDelete = await BPStore.auth.can("delete");
+    $("#createBtn").hidden = !canCreate;                    // only create-capable roles can start new quotes
+    try { summaries = await BPStore.quotes.list(); }
+    catch (err) {
+      $("#elist").innerHTML = '<div class="empty">Couldn\'t load your quotes — ' + esc((err && err.message) || "please try again") + '. <b id="retry" style="cursor:pointer;color:var(--accent)">Retry</b></div>';
+      const r = $("#retry"); if (r) r.addEventListener("click", load);
+      return;
+    }
+    $("#nextName").textContent = BPStore.quotes.nextCode(summaries);
+    renderList();
+  }
+  const inr = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
+  const statBadge = (s) => s === "confirmed" ? '<span class="stat ok">Confirmed</span>'
+    : s === "cancelled" ? '<span class="stat no">Cancelled</span>' : '<span class="stat q">Quote</span>';
+  function renderList() {
+    const host = $("#elist");
+    if (!summaries.length) { host.innerHTML = '<div class="empty">No quotes yet' + (canCreate ? ' — hit <b>Generate a quote</b> to create your first.' : '.') + '</div>'; return; }
+    const sorted = [...summaries].sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+    host.innerHTML = sorted.map((s) =>
+      `<div class="ecard" data-id="${esc(s.id)}">${canDelete ? `<button class="del" data-id="${esc(s.id)}" title="Delete">✕</button>` : ""}
+        <b>${esc(s.code)}</b> ${statBadge(s.status)}
+        <small>${esc(s.title || "")} · v${s.currentVersion}${s.total ? " · " + inr(s.total) : ""} · ${fmtDate(s.updatedAt)}</small></div>`).join("");
+    host.querySelectorAll(".ecard").forEach((c) => c.addEventListener("click", (e) => {
+      if (e.target.classList.contains("del")) return;
+      location.href = "builder.html?quote=" + encodeURIComponent(c.dataset.id);
+    }));
+    host.querySelectorAll(".del").forEach((b) => b.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (!confirm("Delete this quote and all its versions?")) return;
+      try { await BPStore.quotes.remove(b.dataset.id); }
+      catch (err) { alert("Couldn't delete: " + ((err && err.message) || "not permitted")); return; }
+      summaries = summaries.filter((s) => s.id !== b.dataset.id); renderList();
+      $("#nextName").textContent = BPStore.quotes.nextCode(summaries);
+    }));
+  }
+  $("#createBtn").addEventListener("click", async () => {
+    const code = BPStore.quotes.nextCode(summaries);
+    const btn = $("#createBtn"); btn.disabled = true;
+    try {
+      const q = await BPStore.quotes.create(code, code, null, { items: [] }, 0);
+      location.href = "builder.html?quote=" + encodeURIComponent(q.id);
+    } catch (err) { alert("Couldn't start a quote: " + ((err && err.message) || "error")); btn.disabled = false; }
+  });
+  $("#loginForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = $("#li_submit"); btn.disabled = true; btn.textContent = "Signing in…"; $("#li_err").hidden = true;
+    try { await BPStore.auth.signIn($("#li_email").value.trim(), $("#li_pw").value); closeLogin(); await load(); }
+    catch (err) { $("#li_err").textContent = (err && err.message) || "Sign-in failed"; $("#li_err").hidden = false; }
+    finally { btn.disabled = false; btn.textContent = "Sign in"; }
+  });
+  // only allow dismissing by backdrop if the user is already signed in (manual reopen);
+  // when login is required, keep the modal up so there's no dead-end.
+  $("#loginModal").addEventListener("click", (e) => { if (e.target.id === "loginModal" && BPStore.auth.user()) closeLogin(); });
+  $("#refresh").addEventListener("click", load);
+
+  /* ---- admin → users panel ---- */
+  const umErr = (m) => { const e=$("#um_err"); e.textContent=m; e.hidden=false; $("#um_ok").hidden=true; };
+  const umOk  = (m) => { const e=$("#um_ok");  e.textContent=m; e.hidden=false; $("#um_err").hidden=true; };
+  function umClear(){ $("#um_err").hidden=true; $("#um_ok").hidden=true; }
+  const ROLES = ["admin","planner","sales","operations","crew","client"];
+
+  async function openUsers(){
+    umClear();
+    // populate the add-user role picker once
+    const sel=$("#um_role");
+    if(!sel.options.length){ sel.innerHTML = ROLES.map(r=>`<option value="${r}"${r==="crew"?" selected":""}>${r}</option>`).join(""); }
+    $("#usersModal").hidden=false;
+    await renderUsers();
+  }
+  function closeUsers(){ const m=$("#usersModal"); if(m) m.hidden=true; }
+  window.closeUsers = closeUsers;   // reachable from the inline onclick fallback
+
+  async function renderUsers(){
+    const tb=$("#um_rows"), me=BPStore.auth.user();
+    tb.innerHTML = `<tr><td colspan="3" style="color:var(--ink-3)">Loading…</td></tr>`;
+    let users;
+    try { users = await BPStore.auth.admin.listUsers(); }
+    catch(e){ tb.innerHTML=""; umErr((e&&e.message)||"Couldn't load users"); return; }
+    users.sort((a,b)=>(a.email||"").localeCompare(b.email||""));
+    tb.innerHTML = users.map(u=>{
+      const self = me && u.id===me.id;
+      const opts = ROLES.map(r=>`<option value="${r}"${r===u.role?" selected":""}>${r}</option>`).join("");
+      return `<tr data-id="${esc(u.id)}">
+        <td class="em">${esc(u.email||"—")}${self?'<span class="me">you</span>':""}</td>
+        <td><select class="roleSel"${self?" disabled title=\"You can&#39;t change your own role\"":""}>${opts}</select></td>
+        <td style="text-align:right">${self?"":`<button class="rm" title="Remove user">🗑</button>`}</td>
+      </tr>`;
+    }).join("") || `<tr><td colspan="3" style="color:var(--ink-3)">No users.</td></tr>`;
+
+    tb.querySelectorAll(".roleSel").forEach(sel=>sel.addEventListener("change", async (e)=>{
+      const tr=e.target.closest("tr"), id=tr.dataset.id, role=e.target.value; umClear();
+      const prev=[...e.target.options].find(o=>o.defaultSelected);
+      try { await BPStore.auth.admin.setRole(id, role); umOk("Role updated."); e.target.querySelectorAll("option").forEach(o=>o.defaultSelected=o.value===role); }
+      catch(err){ umErr((err&&err.message)||"Update failed"); if(prev) e.target.value=prev.value; }
+    }));
+    tb.querySelectorAll(".rm").forEach(btn=>btn.addEventListener("click", async (e)=>{
+      const tr=e.target.closest("tr"), id=tr.dataset.id, email=tr.querySelector(".em").textContent; umClear();
+      if(!confirm(`Remove ${email}? This deletes their account.`)) return;
+      try { await BPStore.auth.admin.deleteUser(id); await renderUsers(); umOk("User removed."); }
+      catch(err){ umErr((err&&err.message)||"Delete failed"); }
+    }));
+  }
+
+  $("#um_add").addEventListener("submit", async (e)=>{
+    e.preventDefault(); umClear();
+    const email=$("#um_email").value.trim(), pw=$("#um_pw").value, role=$("#um_role").value;
+    const btn=$("#um_submit"); btn.disabled=true; btn.textContent="Adding…";
+    try { await BPStore.auth.admin.createUser(email, pw, role);
+          $("#um_email").value=""; $("#um_pw").value="helm";
+          await renderUsers(); umOk(`Added ${email} as ${role}.`); }
+    catch(err){ umErr((err&&err.message)||"Couldn't add user"); }
+    finally { btn.disabled=false; btn.textContent="Add user"; }
+  });
+  $("#um_close").addEventListener("click", closeUsers);
+  $("#usersModal").addEventListener("click", (e)=>{ if(e.target.id==="usersModal") closeUsers(); });
+  document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && !$("#usersModal").hidden) closeUsers(); });
+
+  load();
+</script>
+</body>
+</html>

@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quotes &amp; Confirmations — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700}
+  header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)}
+  .nav a:hover{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .account button:hover{border-color:var(--accent)}
+
+  .toolbar{display:flex;align-items:center;gap:10px;margin:8px 0 14px;flex-wrap:wrap}
+  .tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px}
+  .tabs button{border:0;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink-2);padding:7px 14px;border-radius:7px;cursor:pointer}
+  .tabs button.on{background:var(--accent);color:#fff}
+  .search{flex:1;min-width:160px;height:38px;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:0 12px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
+  .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.5;cursor:default}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:12px 14px;border-bottom:1px solid var(--line);background:var(--panel-2)}
+  tbody td{padding:12px 14px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+  tbody tr:hover{background:var(--panel-2)}
+  .code{font-family:var(--mono);font-weight:600}
+  .muted{color:var(--ink-3);font-size:11px}
+  .stat{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:20px}
+  .stat.q{background:#eef2ff;color:#4457c8} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318}
+  .stat.ap{background:#e7f6ee;color:#0f7a43} .stat.st{background:#fff7e6;color:#946200}
+  .vsel{height:30px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:var(--mono);font-size:12px;padding:0 6px;color:var(--ink)}
+  .row-actions{display:flex;gap:6px;flex-wrap:wrap}
+  .ic{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:30px;padding:0 10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)}
+  .ic:hover{border-color:var(--accent);color:var(--accent)}
+  .ic.go{color:var(--accent);border-color:var(--accent-soft)}
+  .ic.confirm{color:#0f7a43;border-color:#b6e3ca}
+  .ic.del:hover{color:#e5484d;border-color:#f5c6c6}
+  .empty{text-align:center;color:var(--ink-3);padding:48px;font-size:14px}
+  .amt{font-family:var(--mono);font-weight:600;white-space:nowrap}
+  footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
+
+  /* modal */
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(760px,96vw);max-height:90vh;overflow:auto;padding:24px}
+  .sheet h3{margin:0 0 2px;font-size:18px;display:flex;align-items:center;gap:8px}
+  .sheet .close{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:30px;height:30px;font-size:15px;cursor:pointer;color:var(--ink-2)}
+  .sheet p.sub{margin:0 0 16px;font-size:12px;color:var(--ink-3)}
+  .seclabel{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:700;margin:16px 0 8px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid.three{grid-template-columns:1fr 1fr 1fr}
+  @media (max-width:620px){.grid,.grid.three{grid-template-columns:1fr}}
+  .fld{display:flex;flex-direction:column;gap:4px}
+  .fld label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)}
+  .fld input,.fld select,.fld textarea{height:36px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .fld textarea{height:auto;padding:8px 10px;resize:vertical;min-height:52px}
+  .fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .totals{background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-top:16px}
+  .totals .r{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--ink-2)}
+  .totals .r.grand{font-size:17px;font-weight:700;color:var(--ink);border-top:1px solid var(--line);margin-top:8px;padding-top:10px}
+  .totals .r .amt{color:var(--ink)}
+  .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin:12px 0 0}
+  .modbtns{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+  .taxnote{font-size:11px;color:var(--ink-3);margin-top:6px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Quotes &amp; Confirmations</h1><small>Blueprint Stage</small></div>
+    <nav class="nav"><a href="index.html">Home</a><a href="builder.html">Builder</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div class="toolbar">
+    <div class="tabs" id="tabs">
+      <button data-f="all" class="on">All</button>
+      <button data-f="quote">Quotes</button>
+      <button data-f="confirmed">Confirmed</button>
+    </div>
+    <input id="search" class="search" placeholder="Search code, client, title…">
+    <button class="btn" id="refresh">↻ Refresh</button>
+    <a class="btn primary" href="index.html" id="newBtn">✨ New quote</a>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead><tr>
+        <th>Code</th><th>Event</th><th>Client</th><th>Version</th><th>Status</th>
+        <th style="text-align:right">Total</th><th>Updated</th><th style="text-align:right">Actions</th>
+      </tr></thead>
+      <tbody id="rows"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <footer>Every save is a version · confirm to price &amp; lock · GST per India (SAC 998596, 18%)</footer>
+</div>
+
+<!-- Confirm / pricing modal -->
+<div class="lmodal" id="confirmModal" hidden>
+  <div class="sheet">
+    <h3 id="cm_title">Confirm quote <button class="close" id="cm_close" type="button">✕</button></h3>
+    <p class="sub" id="cm_sub">Collect client details and price the event. Confirming locks a priced snapshot.</p>
+
+    <div class="seclabel">Client &amp; event</div>
+    <div class="grid">
+      <div class="fld"><label>Client name</label><input id="c_name" placeholder="Full name"></div>
+      <div class="fld"><label>Company / host</label><input id="c_company" placeholder="Optional"></div>
+      <div class="fld"><label>Email</label><input id="c_email" type="email" placeholder="name@email.com"></div>
+      <div class="fld"><label>Phone</label><input id="c_phone" placeholder="+91…"></div>
+      <div class="fld"><label>Event date</label><input id="c_date" type="date"></div>
+      <div class="fld"><label>Venue</label><input id="c_venue" placeholder="Venue name"></div>
+      <div class="fld" style="grid-column:1/-1"><label>Venue address</label><input id="c_address" placeholder="Address"></div>
+      <div class="fld" style="grid-column:1/-1"><label>Notes</label><textarea id="c_notes" placeholder="Anything to remember…"></textarea></div>
+    </div>
+
+    <div class="seclabel">Pricing (₹ INR)</div>
+    <div class="grid three">
+      <div class="fld"><label>Chairs (count)</label><input id="p_chairs" type="number" min="0" step="1"></div>
+      <div class="fld"><label>Price / chair</label><input id="p_chairPrice" type="number" min="0" step="1" value="0"></div>
+      <div class="fld"><label>Chair GST %</label><input id="p_gst" type="number" min="0" step="0.5" value="18"></div>
+      <div class="fld"><label>Guests / plates</label><input id="p_guests" type="number" min="0" step="1"></div>
+      <div class="fld"><label>Price / plate</label><input id="p_platePrice" type="number" min="0" step="1" value="0"></div>
+      <div class="fld"><label>Catering GST %</label><input id="p_cgst" type="number" min="0" step="0.5" value="18" title="5% outdoor (no ITC) or 18% (premises)"></div>
+    </div>
+    <div class="grid three" style="margin-top:10px">
+      <div class="fld"><label>Catering source</label>
+        <select id="p_cmode">
+          <option value="inhouse">In-house catering</option>
+          <option value="vendor">Outsourced — vendor</option>
+          <option value="client">Client-provided (no charge)</option>
+        </select>
+      </div>
+      <div class="fld"><label>Vendor name</label><input id="p_vendor" placeholder="If outsourced"></div>
+      <div class="fld"><label>Catering charge ₹</label><input id="p_camount" type="number" min="0" step="1" value="0" title="Extra catering bill beyond per-plate"></div>
+    </div>
+    <div class="grid three" style="margin-top:10px">
+      <div class="fld"><label>Other charges ₹</label><input id="p_other" type="number" min="0" step="1" value="0"></div>
+      <div class="fld"><label>Service charge %</label><input id="p_svc" type="number" min="0" step="0.5" value="0" title="Optional, not a tax"></div>
+      <div class="fld"><label>Discount ₹</label><input id="p_discount" type="number" min="0" step="1" value="0"></div>
+    </div>
+    <div class="grid" style="margin-top:10px">
+      <div class="fld"><label>Place of supply</label>
+        <select id="p_pos">
+          <option value="intra">Intra-state (CGST + SGST)</option>
+          <option value="inter">Inter-state (IGST)</option>
+        </select>
+      </div>
+      <div class="fld"><label>Currency</label><input value="INR — ₹" disabled></div>
+    </div>
+    <div class="taxnote">Only <b>GST</b> applies as a tax in India (VAT/“VST” was replaced by GST in 2017). Catering is 5% (outdoor, no ITC) or 18% (premises). Service charge is optional and not a tax. Confirm with a CA for your case.</div>
+
+    <div class="totals" id="totals"></div>
+    <div class="lerr" id="cm_err" hidden></div>
+
+    <div class="modbtns">
+      <button class="btn" id="cm_savePricing" type="button">Save pricing (keep as quote)</button>
+      <button class="btn primary" id="cm_confirm" type="button">✓ Confirm &amp; lock</button>
+    </div>
+  </div>
+</div>
+
+<!-- Approval link modal -->
+<div class="lmodal" id="linkModal" hidden>
+  <div class="sheet" style="width:min(560px,94vw)">
+    <h3>🔗 Client approval link <button class="close" id="lk_close" type="button">✕</button></h3>
+    <p class="sub">Share this link with the client. They review the terms, verify an OTP on their phone, consent, and pay. You'll see the status update here.</p>
+    <div class="fld"><label>Approval link</label><input id="lk_url" readonly></div>
+    <div class="modbtns">
+      <button class="btn" id="lk_copy" type="button">Copy link</button>
+      <a class="btn primary" id="lk_open" href="#" target="_blank" rel="noopener">Open the client page →</a>
+    </div>
+    <p class="taxnote">In simulation mode the OTP is shown on the client page for testing. Once you deploy the Edge Functions and enable live channels, the OTP and payment link go out by SMS (MSG91) and email (Resend), and payment runs through Razorpay.</p>
+  </div>
+</div>
+
+<!-- Login modal (reused) -->
+<div class="lmodal" id="loginModal" hidden>
+  <form class="sheet" id="loginForm" style="width:min(380px,94vw);text-align:center">
+    <div class="mark" style="margin:0 auto 14px"></div>
+    <h3 style="justify-content:center">Sign in</h3>
+    <p class="sub">Use the account your studio admin created for you.</p>
+    <div class="fld" style="text-align:left;margin-bottom:12px"><label>Email</label><input type="email" id="li_email" required></div>
+    <div class="fld" style="text-align:left;margin-bottom:12px"><label>Password</label><input type="password" id="li_pw" required></div>
+    <div class="lerr" id="li_err" hidden></div>
+    <button class="btn primary" id="li_submit" type="submit" style="width:100%;justify-content:center;margin-top:6px">Sign in</button>
+  </form>
+</div>
+
+<script src="config.js?v=8"></script>
+<script src="store-api.js?v=8"></script>
+<script>
+  const $ = (s)=>document.querySelector(s);
+  const esc = (s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const inr = (n)=>"₹"+Number(n||0).toLocaleString("en-IN");
+  const fmtDate=(iso)=>{try{return new Date(iso).toLocaleDateString();}catch{return "—";}};
+  const statBadge=(s)=> s==="confirmed"?'<span class="stat ok">Confirmed</span>':s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
+  const apprBadge=(a)=> a==="paid"?'<span class="stat ok">Paid</span>':a==="approved"?'<span class="stat ap">Approved</span>':a==="sent"?'<span class="stat st">Sent</span>':"";
+
+  let quotes=[], filter="all", canEdit=false, canDelete=false, canCreate=false;
+  const detailCache={};   // id -> full quote (with versions)
+
+  /* ---------- seat/chair counting from a version's layout ---------- */
+  function countSeats(items){ let seats=0; (items||[]).forEach(i=>{ const p=i.properties||{};
+    if(p.rows&&p.cols) seats+=p.rows*p.cols; else if(p.seats) seats+=p.seats; }); return seats; }
+
+  /* ---------- pricing engine (India GST) ---------- */
+  function calcPricing(p){
+    const chairs=+p.chairs||0, chairPrice=+p.chairPrice||0, guests=+p.guests||0, platePrice=+p.platePrice||0;
+    const mode=(p.catering&&p.catering.mode)||"inhouse", clientCater=mode==="client";
+    const rental = chairs*chairPrice + (+p.other||0);
+    const plateSub = clientCater?0:guests*platePrice;
+    const cateringAmt = clientCater?0:(+((p.catering&&p.catering.amount))||0);
+    const cateringBucket = plateSub + cateringAmt;
+    const gstPct=+p.gstPct||0, cGstPct=clientCater?0:(+((p.catering&&p.catering.gstPct))||0);
+    const svcPct=+p.serviceChargePct||0, discount=+p.discount||0;
+    const serviceCharge = (rental+cateringBucket)*svcPct/100;
+    const subtotal = rental + cateringBucket + serviceCharge;
+    const gstRental = (rental+serviceCharge)*gstPct/100;
+    const gstCatering = cateringBucket*cGstPct/100;
+    const totalGst = gstRental + gstCatering;
+    const interstate = p.placeOfSupply==="inter";
+    const grand = Math.max(0, subtotal + totalGst - discount);
+    return { rental, plateSub, cateringAmt, cateringBucket, serviceCharge, subtotal,
+      gstRental, gstCatering, totalGst,
+      cgst: interstate?0:totalGst/2, sgst: interstate?0:totalGst/2, igst: interstate?totalGst:0,
+      discount, total: Math.round(grand) };
+  }
+
+  /* ---------- auth chip ---------- */
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
+  async function renderAccount(){
+    const el=$("#account"); if(!BPStore.auth.enabled()){ el.hidden=true; return; } el.hidden=false;
+    const u=BPStore.auth.user();
+    if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{ await BPStore.auth.signOut(); location.href="index.html"; });
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); }
+  }
+
+  /* ---------- load + render ---------- */
+  async function load(){
+    await BPStore.init(); await renderAccount();
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ openLogin(); $("#rows").innerHTML='<tr><td colspan="8" class="empty">Please sign in to view quotes.</td></tr>'; return; }
+    canEdit = await BPStore.auth.can("edit"); canDelete = await BPStore.auth.can("delete"); canCreate = await BPStore.auth.can("create");
+    $("#newBtn").hidden = !canCreate;
+    try { quotes = await BPStore.quotes.list(); }
+    catch(e){ $("#rows").innerHTML=`<tr><td colspan="8" class="empty">Couldn't load — ${esc(e&&e.message||"error")}</td></tr>`; return; }
+    render();
+  }
+  function render(){
+    const q=($("#search").value||"").toLowerCase().trim();
+    let list=quotes.filter(x=> filter==="all"?true : x.status===filter);
+    if(q) list=list.filter(x=> (x.code||"").toLowerCase().includes(q) || (x.title||"").toLowerCase().includes(q));
+    list.sort((a,b)=>(b.updatedAt||"").localeCompare(a.updatedAt||""));
+    const tb=$("#rows");
+    if(!list.length){ tb.innerHTML='<tr><td colspan="8" class="empty">No quotes here yet.</td></tr>'; return; }
+    tb.innerHTML=list.map(x=>{
+      const pr=x.pricing||{}; const client=(x.client&&x.client.name)||(pr.client&&pr.client.name)||"";
+      return `<tr data-id="${esc(x.id)}">
+        <td class="code">${esc(x.code)}</td>
+        <td>${esc(x.title||"—")}<div class="muted">${esc(x.eventType||"")}</div></td>
+        <td>${esc(client)||'<span class="muted">—</span>'}</td>
+        <td><select class="vsel" data-role="vsel"><option>v${x.currentVersion}</option></select></td>
+        <td>${statBadge(x.status)} ${apprBadge(x.approvalStatus)}</td>
+        <td style="text-align:right" class="amt">${x.total?inr(x.total):'<span class="muted">—</span>'}</td>
+        <td class="muted">${fmtDate(x.updatedAt)}</td>
+        <td><div class="row-actions" style="justify-content:flex-end">
+          <button class="ic go" data-act="edit">Edit</button>
+          ${canEdit?`<button class="ic confirm" data-act="confirm">${x.status==="confirmed"?"Re-price":"Confirm"}</button>`:""}
+          ${canEdit&&x.status==="confirmed"?`<button class="ic" data-act="link" title="Get the client approval link">🔗 Approve link</button>`:""}
+          ${canEdit&&x.approvalStatus==="approved"?`<button class="ic confirm" data-act="paid" title="Mark payment received (dev)">Mark paid</button>`:""}
+          <button class="ic" data-act="download">Download</button>
+          ${canDelete?`<button class="ic del" data-act="del">✕</button>`:""}
+        </div></td></tr>`;
+    }).join("");
+    // lazy-load versions into each dropdown + wire actions
+    tb.querySelectorAll("tr[data-id]").forEach(tr=>{
+      const id=tr.dataset.id;
+      const sel=tr.querySelector('[data-role="vsel"]');
+      sel.addEventListener("focus",()=>fillVersions(id,sel),{once:true});
+      tr.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>{
+        const act=b.dataset.act, ver=selectedVersion(sel);
+        if(act==="edit") location.href="builder.html?quote="+encodeURIComponent(id)+(ver?"&v="+ver:"");
+        else if(act==="confirm") openConfirm(id);
+        else if(act==="download") downloadQuote(id, ver);
+        else if(act==="link") sendApprovalLink(id);
+        else if(act==="paid") markPaid(id);
+        else if(act==="del") delQuote(id);
+      }));
+    });
+  }
+  function selectedVersion(sel){ const m=/v(\d+)/.exec(sel.value||""); return m?parseInt(m[1],10):null; }
+  async function fillVersions(id,sel){
+    try{ const full=detailCache[id]||(detailCache[id]=await BPStore.quotes.get(id));
+      sel.innerHTML=full.versions.map(v=>`<option value="v${v.versionNo}">v${v.versionNo} · ${v.objectCount} obj · ${fmtDate(v.createdAt)}</option>`).join("");
+    }catch(e){/* keep current */}
+  }
+
+  /* ---------- confirm / pricing modal ---------- */
+  let cmId=null;
+  async function openConfirm(id){
+    cmId=id; $("#cm_err").hidden=true;
+    let full; try{ full=detailCache[id]||(detailCache[id]=await BPStore.quotes.get(id)); }catch(e){ alert("Couldn't open: "+(e&&e.message)); return; }
+    // prefill from stored pricing/client, and counts from the current version
+    const pr=full.pricing||{}, cl=full.client||{};
+    $("#cm_title").firstChild.textContent = (full.status==="confirmed"?"Re-price ":"Confirm ")+full.code+" ";
+    $("#c_name").value=cl.name||""; $("#c_company").value=cl.company||""; $("#c_email").value=cl.email||"";
+    $("#c_phone").value=cl.phone||""; $("#c_date").value=cl.eventDate||""; $("#c_venue").value=cl.venue||"";
+    $("#c_address").value=cl.address||""; $("#c_notes").value=cl.notes||"";
+    // seat counts from current version
+    let seats=0; try{ const v=await BPStore.quotes.getVersion(id, full.currentVersion); seats=countSeats(v.data&&v.data.items); }catch{}
+    $("#p_chairs").value = pr.chairs!=null?pr.chairs:seats;
+    $("#p_guests").value = pr.guests!=null?pr.guests:seats;
+    $("#p_chairPrice").value = pr.chairPrice||0; $("#p_platePrice").value = pr.platePrice||0;
+    $("#p_gst").value = pr.gstPct!=null?pr.gstPct:18;
+    $("#p_cgst").value = (pr.catering&&pr.catering.gstPct)!=null?pr.catering.gstPct:18;
+    $("#p_cmode").value = (pr.catering&&pr.catering.mode)||"inhouse";
+    $("#p_vendor").value = (pr.catering&&pr.catering.vendor)||"";
+    $("#p_camount").value = (pr.catering&&pr.catering.amount)||0;
+    $("#p_other").value = pr.other||0; $("#p_svc").value = pr.serviceChargePct||0; $("#p_discount").value = pr.discount||0;
+    $("#p_pos").value = pr.placeOfSupply||"intra";
+    recalc();
+    $("#confirmModal").hidden=false;
+  }
+  function closeConfirm(){ $("#confirmModal").hidden=true; }
+  function gatherPricing(){
+    return { chairs:+$("#p_chairs").value||0, chairPrice:+$("#p_chairPrice").value||0,
+      guests:+$("#p_guests").value||0, platePrice:+$("#p_platePrice").value||0,
+      gstPct:+$("#p_gst").value||0, other:+$("#p_other").value||0,
+      serviceChargePct:+$("#p_svc").value||0, discount:+$("#p_discount").value||0,
+      placeOfSupply:$("#p_pos").value, currency:"INR",
+      catering:{ mode:$("#p_cmode").value, vendor:$("#p_vendor").value.trim(), amount:+$("#p_camount").value||0, gstPct:+$("#p_cgst").value||0 } };
+  }
+  function gatherClient(){
+    return { name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:$("#c_email").value.trim(),
+      phone:$("#c_phone").value.trim(), eventDate:$("#c_date").value, venue:$("#c_venue").value.trim(),
+      address:$("#c_address").value.trim(), notes:$("#c_notes").value.trim() };
+  }
+  function recalc(){
+    const p=gatherPricing(), t=calcPricing(p), pos=p.placeOfSupply;
+    const taxRows = pos==="inter"
+      ? `<div class="r"><span>IGST</span><span class="amt">${inr(t.igst)}</span></div>`
+      : `<div class="r"><span>CGST</span><span class="amt">${inr(t.cgst)}</span></div><div class="r"><span>SGST</span><span class="amt">${inr(t.sgst)}</span></div>`;
+    $("#totals").innerHTML =
+      `<div class="r"><span>Chairs (${p.chairs} × ${inr(p.chairPrice)})${p.other?` + other ${inr(p.other)}`:""}</span><span class="amt">${inr(t.rental)}</span></div>`+
+      `<div class="r"><span>Catering${p.catering.mode==="client"?" (client-provided)":` (${p.guests} plates × ${inr(p.platePrice)}${p.catering.amount?` + ${inr(p.catering.amount)}`:""})`}</span><span class="amt">${inr(t.cateringBucket)}</span></div>`+
+      (t.serviceCharge?`<div class="r"><span>Service charge (${p.serviceChargePct}%)</span><span class="amt">${inr(t.serviceCharge)}</span></div>`:"")+
+      `<div class="r"><span>Subtotal</span><span class="amt">${inr(t.subtotal)}</span></div>`+
+      taxRows+
+      (t.discount?`<div class="r"><span>Discount</span><span class="amt">− ${inr(t.discount)}</span></div>`:"")+
+      `<div class="r grand"><span>Grand total</span><span class="amt">${inr(t.total)}</span></div>`;
+  }
+  async function savePricing(confirmIt){
+    const btn = confirmIt?$("#cm_confirm"):$("#cm_savePricing"); btn.disabled=true;
+    const p=gatherPricing(), t=calcPricing(p), client=gatherClient();
+    const pricing = { ...p, computed:t, total:t.total, client };
+    try{
+      if(confirmIt) await BPStore.quotes.confirm(cmId, client, pricing);
+      else await BPStore.quotes.updateMeta(cmId, { pricing, client });
+      delete detailCache[cmId];
+      closeConfirm(); await load();
+    }catch(e){ const el=$("#cm_err"); el.textContent=(e&&e.message)||"Save failed"; el.hidden=false; }
+    finally{ btn.disabled=false; }
+  }
+
+  /* ---------- download (printable quote/invoice) ---------- */
+  async function downloadQuote(id, ver){
+    let full; try{ full=detailCache[id]||(detailCache[id]=await BPStore.quotes.get(id)); }catch(e){ alert("Couldn't load"); return; }
+    const p=full.pricing||{}, t=p.computed||calcPricing(p), cl=(p.client)||full.client||{};
+    const isInv=full.status==="confirmed"; const pos=p.placeOfSupply;
+    const line=(l,a)=>`<tr><td>${l}</td><td style="text-align:right">${inr(a)}</td></tr>`;
+    const tax = pos==="inter" ? line("IGST", t.igst||0) : line("CGST", t.cgst||0)+line("SGST", t.sgst||0);
+    const html=`<!doctype html><meta charset=utf8><title>${isInv?"Invoice":"Quotation"} ${full.code}</title>
+    <style>body{font-family:system-ui,sans-serif;max-width:720px;margin:32px auto;color:#141b2e;padding:0 20px}
+    h1{font-size:20px;margin:0} .muted{color:#8a95ad;font-size:12px} table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
+    td,th{padding:8px;border-bottom:1px solid #e6ebf3;text-align:left} .tot td{border:0} .grand td{font-weight:700;font-size:16px;border-top:2px solid #141b2e}
+    .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #141b2e;padding-bottom:14px}
+    .badge{background:#eef2ff;color:#4457c8;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}</style>
+    <div class=head><div><h1>Blueprint Stage</h1><div class=muted>Event ${isInv?"Invoice":"Quotation"}</div></div>
+      <div style="text-align:right"><div style="font-family:monospace;font-weight:700;font-size:16px">${esc(full.code)}</div>
+      <div class=muted>${isInv?"Confirmed "+fmtDate(full.confirmedAt):"Quote v"+full.currentVersion} · ${fmtDate(full.updatedAt)}</div>
+      <span class=badge>${isInv?"CONFIRMED":"QUOTE"}</span></div></div>
+    <table><tr><td class=muted>Client</td><td>${esc(cl.name||"—")}${cl.company?" · "+esc(cl.company):""}</td></tr>
+      ${cl.email?`<tr><td class=muted>Email</td><td>${esc(cl.email)}</td></tr>`:""}
+      ${cl.phone?`<tr><td class=muted>Phone</td><td>${esc(cl.phone)}</td></tr>`:""}
+      ${cl.eventDate?`<tr><td class=muted>Event date</td><td>${esc(cl.eventDate)}</td></tr>`:""}
+      ${cl.venue?`<tr><td class=muted>Venue</td><td>${esc(cl.venue)}${cl.address?", "+esc(cl.address):""}</td></tr>`:""}</table>
+    <table><tr><th>Item</th><th style="text-align:right">Amount</th></tr>
+      ${line(`Chairs (${p.chairs||0} × ${inr(p.chairPrice||0)})`, (p.chairs||0)*(p.chairPrice||0))}
+      ${p.other?line("Other charges", p.other):""}
+      ${p.catering&&p.catering.mode==="client"?`<tr><td>Catering</td><td style="text-align:right">Client-provided</td></tr>`:line(`Catering (${p.guests||0} plates × ${inr(p.platePrice||0)}${p.catering&&p.catering.amount?" + "+inr(p.catering.amount):""})`, (t.cateringBucket||0))}
+      ${t.serviceCharge?line(`Service charge (${p.serviceChargePct}%)`, t.serviceCharge):""}
+      <tr class=tot><td>Subtotal</td><td style="text-align:right">${inr(t.subtotal||0)}</td></tr>
+      ${tax}
+      ${t.discount?`<tr class=tot><td>Discount</td><td style="text-align:right">− ${inr(t.discount)}</td></tr>`:""}
+      <tr class=grand><td>Grand total</td><td style="text-align:right">${inr(t.total||0)}</td></tr></table>
+    <p class=muted>Taxes per Indian GST (event management SAC 998596). ${p.catering&&p.catering.vendor?"Caterer: "+esc(p.catering.vendor)+". ":""}This is a computer-generated document.</p>
+    <script>window.onload=()=>window.print()<\/script>`;
+    const w=window.open("","_blank"); if(w){ w.document.write(html); w.document.close(); }
+    else alert("Popup blocked — allow popups to download/print.");
+  }
+
+  async function delQuote(id){
+    if(!confirm("Delete this quote and all its versions?")) return;
+    try{ await BPStore.quotes.remove(id); quotes=quotes.filter(x=>x.id!==id); delete detailCache[id]; render(); }
+    catch(e){ alert("Couldn't delete: "+((e&&e.message)||"not permitted")); }
+  }
+  // generate/return the per-quote client approval link (OTP + consent + payment)
+  async function sendApprovalLink(id){
+    try{ const tok=await BPStore.approval.generateToken(id);
+      const url=location.origin+"/approve.html?token="+tok;
+      $("#lk_url").value=url; $("#lk_open").href=url; $("#linkModal").hidden=false;
+      await load();   // reflect approval_status=sent
+    }catch(e){ alert("Couldn't create link: "+((e&&e.message)||"error")); }
+  }
+  async function markPaid(id){
+    if(!confirm("Mark this event's payment as received? (In production this is automatic via the Razorpay webhook.)")) return;
+    try{ await BPStore.approval.markPaid(id, "manual-dev"); await load(); }
+    catch(e){ alert("Couldn't mark paid: "+((e&&e.message)||"error")); }
+  }
+
+  /* ---------- wire up ---------- */
+  $("#tabs").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return;
+    $("#tabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); filter=b.dataset.f; render(); });
+  $("#search").addEventListener("input",render);
+  $("#refresh").addEventListener("click",load);
+  $("#lk_close").addEventListener("click",()=>{ $("#linkModal").hidden=true; });
+  $("#linkModal").addEventListener("click",e=>{ if(e.target.id==="linkModal") $("#linkModal").hidden=true; });
+  $("#lk_copy").addEventListener("click",async()=>{ const i=$("#lk_url"); i.select();
+    try{ await navigator.clipboard.writeText(i.value); $("#lk_copy").textContent="Copied ✓"; setTimeout(()=>$("#lk_copy").textContent="Copy link",1500); }
+    catch{ document.execCommand("copy"); } });
+  $("#cm_close").addEventListener("click",closeConfirm);
+  $("#confirmModal").addEventListener("click",e=>{ if(e.target.id==="confirmModal") closeConfirm(); });
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ if(!$("#confirmModal").hidden) closeConfirm(); } });
+  $("#confirmModal").addEventListener("input",e=>{ if(e.target.closest(".grid,.totals")||/^p_/.test(e.target.id)) recalc(); });
+  $("#cm_savePricing").addEventListener("click",()=>savePricing(false));
+  $("#cm_confirm").addEventListener("click",()=>savePricing(true));
+  $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
+    const btn=$("#li_submit"); btn.disabled=true; btn.textContent="Signing in…"; $("#li_err").hidden=true;
+    try{ await BPStore.auth.signIn($("#li_email").value.trim(), $("#li_pw").value); closeLogin(); await load(); }
+    catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign-in failed"; $("#li_err").hidden=false; }
+    finally{ btn.disabled=false; btn.textContent="Sign in"; } });
+  $("#loginModal").addEventListener("click",e=>{ if(e.target.id==="loginModal"&&BPStore.auth.user()) closeLogin(); });
+  load();
+</script>
+</body>
+</html>

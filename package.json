@@ -1,0 +1,13 @@
+{
+  "name": "blueprint-stage",
+  "version": "1.0.0",
+  "description": "2D drag-and-drop event layout & blueprint builder with a persistent REST backend.",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": { "node": ">=18" },
+  "license": "MIT"
+}
