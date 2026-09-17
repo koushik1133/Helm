@@ -207,8 +207,8 @@
   </div>
 </div>
 
-<script src="config.js?v=33"></script>
-<script src="store-api.js?v=33"></script>
+<script src="config.js?v=34"></script>
+<script src="store-api.js?v=34"></script>
 <script>
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return "—"; } };
@@ -235,16 +235,19 @@
     if (user) {
       const role = await BPStore.auth.role();
       const canManage = await BPStore.auth.can("manage");
-      const canEditRole = await BPStore.auth.can("edit");
+      // role-scoped nav (mirrors the per-page access gates)
+      const canPipe = await BPStore.auth.canView("pipeline");   // leads / CRM
+      const canOps  = await BPStore.auth.canView("ops");        // staff / inventory / vendors / calendar
+      const canWork = await BPStore.auth.canView("workspace");  // quotes / events
       el.innerHTML = `<span class="role">${esc(role||"")}</span><span>${esc(user.email)}</span>`
-        + (canEditRole ? `<a class="users" href="leads.html">🎯 Leads</a>` : "")
-        + (canEditRole ? `<a class="users" href="crm.html">🗄 CRM</a>` : "")
-        + (canEditRole ? `<a class="users" href="staff.html">👷 Staff</a>` : "")
-        + (canEditRole ? `<a class="users" href="inventory.html">📦 Inventory</a>` : "")
-        + (canEditRole ? `<a class="users" href="vendors.html">🤝 Vendors</a>` : "")
-        + (canEditRole ? `<a class="users" href="calendar.html">📅 Calendar</a>` : "")
-        + `<a class="users" href="quotes.html">📋 Quotes</a>`
-        + (canEditRole ? `<a class="users" href="control.html">⚙ Control Center</a>` : "")
+        + (canPipe ? `<a class="users" href="leads.html">🎯 Leads</a>` : "")
+        + (canPipe ? `<a class="users" href="crm.html">🗄 CRM</a>` : "")
+        + (canOps ? `<a class="users" href="staff.html">👷 Staff</a>` : "")
+        + (canOps ? `<a class="users" href="inventory.html">📦 Inventory</a>` : "")
+        + (canOps ? `<a class="users" href="vendors.html">🤝 Vendors</a>` : "")
+        + (canOps ? `<a class="users" href="calendar.html">📅 Calendar</a>` : "")
+        + (canWork ? `<a class="users" href="quotes.html">📋 Quotes</a>` : "")
+        + (canManage ? `<a class="users" href="control.html">⚙ Control Center</a>` : "")
         + (canManage ? `<button class="users" id="usersBtn">👥 Users</button>` : "")
         + `<button id="logoutBtn">Log out</button>`;
       if (canManage) $("#usersBtn").addEventListener("click", openUsers);

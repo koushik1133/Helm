@@ -31,6 +31,13 @@
     client:     ["view"],
   };
   const EDIT_ROLES = ["admin", "planner", "sales", "operations"];
+  // which roles may VIEW each area (mirrors phase21-hardening.sql RLS read policies)
+  const VIEW_SCOPE = {
+    finance:   ["admin", "planner", "sales"],                 // budget, settlement, closure, payments, expenses
+    pipeline:  ["admin", "planner", "sales"],                 // leads, CRM, discovery, proposal
+    ops:       ["admin", "planner", "sales", "operations"],   // resources, inventory, staff, vendors, calendar, run-sheet, plan, logistics, ready, command, issues, teardown
+    workspace: ["admin", "planner", "sales", "operations"],   // the event hub (crew/client never see it)
+  };
 
   const supaConfigured = () => !!(CFG.url && CFG.anonKey);
   const now = () => new Date().toISOString();
@@ -143,6 +150,31 @@
     // In non-Supabase (server/local) mode there is no auth ⇒ single-user, full access.
     async can(cap) { if (mode !== "supabase") return true; if (!currentUser) return false; const r = await getRole(); return (ROLE_CAPS[r] || ["view"]).includes(cap); },
     canEdit: async () => { if (mode !== "supabase") return true; if (!currentUser) return false; const r = await getRole(); return EDIT_ROLES.includes(r); },
+    // ---- role-based VIEW scope (must mirror the RLS read policies in phase21-hardening.sql) ----
+    // finance = money pages/tables; pipeline = leads/CRM/discovery/proposal; ops = resources/planning/day-of; workspace = the event hub.
+    async canView(area) {
+      if (mode !== "supabase") return true;          // single-user offline/server mode
+      if (!currentUser) return false;
+      const r = await getRole();
+      return (VIEW_SCOPE[area] || []).includes(r);
+    },
+    // Whole-page guard: if the signed-in role can't view `area`, hide #app and show a
+    // "no access" panel, returning false. Call it right after the login check on a page.
+    async requireView(area) {
+      if (await this.canView(area)) return true;
+      try {
+        document.querySelectorAll("#app").forEach((e) => { e.hidden = true; });
+        ["gate", "notfound"].forEach((idv) => { const g = document.getElementById(idv); if (g) g.hidden = true; });
+        if (!document.getElementById("__noaccess")) {
+          const box = document.createElement("div");
+          box.id = "__noaccess";
+          box.style.cssText = "max-width:520px;margin:64px auto;padding:28px;border-radius:14px;background:#fff;border:1px solid #d7deea;box-shadow:0 10px 30px rgba(20,27,46,.1);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;text-align:center;color:#4a5673";
+          box.innerHTML = '<div style="font-size:34px">🔒</div><h2 style="color:#141b2e;margin:10px 0 6px">No access</h2><p style="margin:0 0 14px">Your role doesn’t have access to this page. Ask an admin if you need it.</p><a href="index.html" style="color:#2f6fed;font-weight:600">← Back to dashboard</a>';
+          document.body.appendChild(box);
+        }
+      } catch (e) { /* non-browser context */ }
+      return false;
+    },
     async signIn(email, password) {
       if (!supa) throw new Error("Supabase not configured");
       const { data, error } = await supa.auth.signInWithPassword({ email, password });
@@ -457,13 +489,13 @@
       return leadId ? a.filter((x) => x.lead_id === leadId) : a;
     },
     // Realtime: call cb on any leads change. Returns a channel with .unsubscribe().
-    subscribe(cb) {
-      if (mode !== "supabase" || !supa) return { unsubscribe() {} };
+    subscribe(cb, onStatus) {
+      if (mode !== "supabase" || !supa) { if (onStatus) onStatus("DISABLED"); return { unsubscribe() {} }; }
       try {
         return supa.channel("leads-rt")
           .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, (payload) => cb && cb(payload))
-          .subscribe();
-      } catch { return { unsubscribe() {} }; }
+          .subscribe((status) => { if (onStatus) onStatus(status); });   // real status: SUBSCRIBED / CHANNEL_ERROR / TIMED_OUT / CLOSED
+      } catch { if (onStatus) onStatus("ERROR"); return { unsubscribe() {} }; }
     },
   };
 
@@ -641,6 +673,8 @@
     },
     // permanently change what you own (e.g. reduce by damaged/lost at teardown)
     async adjustTotal(itemId, delta) {
+      // atomic in Supabase (avoids a lost update when two teardown returns run at once)
+      if (mode === "supabase") return rpc("adjust_inventory_total", { p_item_id: itemId, p_delta: Number(delta || 0) });
       const items = await this.items(true); const it = items.find((i) => i.id === itemId); if (!it) return false;
       return this.updateItem(itemId, { total_qty: Math.max(0, Number(it.total_qty || 0) + Number(delta || 0)) });
     },
@@ -733,7 +767,8 @@
         a.push(row); localStorage.setItem(BOOK_LS, JSON.stringify(a));
       }
       // close the loop: if this covers a flagged need, mark that need outsourced
-      if (b.need_id) { try { await resources.updateNeed(b.need_id, { status: "outsourced" }); } catch {} }
+      if (b.need_id) { try { await resources.updateNeed(b.need_id, { status: "outsourced" }); }
+        catch (e) { console.warn("booking saved, but couldn't mark the resource need outsourced:", (e && e.message) || e); } }
       return row;
     },
     async update(id, patch) {
@@ -1086,7 +1121,7 @@
       const crewIds = [...new Set(tasks.map((t) => t.crew_id))];
       for (const cid of crewIds) { if (have.has(cid)) continue; const p = staffById[cid] || {};
         await this.add(quoteId, { kind: "arrival", who: p.name || "Crew", role: p.department || "Staff", ref_id: cid, status: "expected" }); added++; }
-      for (const b of bk) { if (b.status === "cancelled" || have.has(b.id)) continue; const v = vById[b.vendor_id] || {};
+      for (const b of bk) { if (b.status === "cancelled" || b.status === "enquiry" || have.has(b.id)) continue; const v = vById[b.vendor_id] || {};
         await this.add(quoteId, { kind: "arrival", who: v.name || b.label || "Vendor", role: "vendor", ref_id: b.id, status: "expected" }); added++; }
       return added;
     },

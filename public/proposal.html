@@ -153,12 +153,12 @@
   </form>
 </div>
 
-<script src="config.js?v=33"></script>
-<script src="store-api.js?v=33"></script>
+<script src="config.js?v=34"></script>
+<script src="store-api.js?v=34"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const id=new URLSearchParams(location.search).get("quote");
+  const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const SEV={low:"Low",medium:"Medium",high:"High"};
   let canEdit=false, canDelete=false, palette=[], images=[], scope=[], risks=[], token=null, published=false;
 
@@ -226,6 +226,7 @@
     $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
     if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    if(!(await BPStore.auth.requireView("pipeline"))) return;
     canEdit=await BPStore.auth.can("edit"); canDelete=await BPStore.auth.can("delete");
     let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");

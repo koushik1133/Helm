@@ -120,12 +120,12 @@
   </div>
 </div>
 
-<script src="config.js?v=33"></script>
-<script src="store-api.js?v=33"></script>
+<script src="config.js?v=34"></script>
+<script src="store-api.js?v=34"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const id=new URLSearchParams(location.search).get("quote");
+  const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   let canEdit=false, locked=false, ev=null;
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
@@ -195,6 +195,7 @@
     $("#floorLink").href = id?("builder.html?quote="+encodeURIComponent(id)):"#";
     if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    if(!(await BPStore.auth.requireView("ops"))) return;
     canEdit=await BPStore.auth.can("edit");
     try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");

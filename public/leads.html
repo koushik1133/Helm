@@ -177,8 +177,8 @@
   </div>
 </div>
 
-<script src="config.js?v=33"></script>
-<script src="store-api.js?v=33"></script>
+<script src="config.js?v=34"></script>
+<script src="store-api.js?v=34"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -192,7 +192,7 @@
     {k:"lost",label:"Lost",c:"#e5484d"},
   ];
   let leads=[], canEdit=false, canCreate=false, canDelete=false, filter="", editingId=null;
-  let undoStack=[], redoStack=[], dragging=false, rtChannel=null;
+  let undoStack=[], redoStack=[], dragging=false, rtChannel=null, lastLocalWrite=0;
 
   async function renderAccount(){
     const el=$("#account"); if(!BPStore.auth.enabled()){ el.hidden=true; return; } el.hidden=false;
@@ -298,14 +298,15 @@
     const l=leadById(id); if(!l) return;
     l.status=to; render();                              // optimistic
     if(record){ undoStack.push({id,from,to}); redoStack=[]; updateUndoUI(); }
+    lastLocalWrite=Date.now();
     try{ await BPStore.leads.setStatus(id,to); }
     catch(err){ l.status=from; render(); alert("Couldn't save move — "+(err&&err.message||"error")); }
   }
   function updateUndoUI(){ $("#undoBtn").disabled=!undoStack.length; $("#redoBtn").disabled=!redoStack.length; }
   async function undo(){ const m=undoStack.pop(); if(!m) return; redoStack.push(m); updateUndoUI();
-    const l=leadById(m.id); if(l){ l.status=m.from; render(); try{ await BPStore.leads.setStatus(m.id,m.from); }catch{} } }
+    const l=leadById(m.id); if(l){ l.status=m.from; render(); lastLocalWrite=Date.now(); try{ await BPStore.leads.setStatus(m.id,m.from); }catch{} } }
   async function redo(){ const m=redoStack.pop(); if(!m) return; undoStack.push(m); updateUndoUI();
-    const l=leadById(m.id); if(l){ l.status=m.to; render(); try{ await BPStore.leads.setStatus(m.id,m.to); }catch{} } }
+    const l=leadById(m.id); if(l){ l.status=m.to; render(); lastLocalWrite=Date.now(); try{ await BPStore.leads.setStatus(m.id,m.to); }catch{} } }
   $("#undoBtn").addEventListener("click",undo);
   $("#redoBtn").addEventListener("click",redo);
 
@@ -337,6 +338,7 @@
     closeDetail(); openForm(l); });
   $("#dt_del").addEventListener("click",async()=>{
     if(!confirm("Delete this lead? It stays in the CRM archive.")) return;
+    lastLocalWrite=Date.now();
     try{ await BPStore.leads.remove(editingId); closeDetail(); await load(); }
     catch(err){ alert("Couldn't delete — "+(err&&err.message||"error")); }
   });
@@ -362,7 +364,7 @@
       budget:$("#f_budget").value?Number($("#f_budget").value):null,
       guest_count:$("#f_guests").value?Number($("#f_guests").value):null,
       notes:$("#f_notes").value.trim()||null };
-    $("#lm_save").disabled=true;
+    $("#lm_save").disabled=true; lastLocalWrite=Date.now();
     try{
       if(editingId) await BPStore.leads.update(editingId, patch);
       else await BPStore.leads.add(patch);
@@ -395,11 +397,16 @@
   });
 
   /* ---------- realtime ---------- */
+  let rtReloadTimer=null;
   function startRealtime(){
     if(rtChannel) return;
-    rtChannel = BPStore.leads.subscribe((payload)=>{ if(!dragging){ load(); } });
-    // reflect status pill (best effort — channel has no ready callback here)
-    setTimeout(()=>{ if(BPStore.mode()==="supabase"){ $("#live").classList.add("on"); $("#liveTxt").textContent="live"; } }, 400);
+    rtChannel = BPStore.leads.subscribe(
+      // debounce reloads, and skip while dragging or just after a local write, so our own echo doesn't clobber the board / undo stack
+      ()=>{ if(dragging) return; if(Date.now()-lastLocalWrite<2000) return; clearTimeout(rtReloadTimer); rtReloadTimer=setTimeout(load,300); },
+      // real subscription status → honest pill
+      (status)=>{ const on=status==="SUBSCRIBED"; $("#live").classList.toggle("on",on);
+        $("#liveTxt").textContent = on?"live":(status==="DISABLED"?"offline":"connecting…"); }
+    );
   }
 
   /* ---------- load ---------- */
@@ -411,6 +418,7 @@
   (async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ openLogin(); return; }
+    if(!(await BPStore.auth.requireView("pipeline"))) return;
     canEdit=await BPStore.auth.can("edit"); canCreate=await BPStore.auth.can("create"); canDelete=await BPStore.auth.can("delete");
     $("#newBtn").hidden=!canCreate;
     if(canEdit) $("#ccLink").hidden=false;

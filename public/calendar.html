@@ -98,8 +98,8 @@
   </div>
 </div>
 
-<script src="config.js?v=33"></script>
-<script src="store-api.js?v=33"></script>
+<script src="config.js?v=34"></script>
+<script src="store-api.js?v=34"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -173,6 +173,7 @@
   (async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    if(!(await BPStore.auth.requireView("ops"))) return;
     canEdit=await BPStore.auth.can("edit"); $("#app").hidden=false;
     await load();
   })();

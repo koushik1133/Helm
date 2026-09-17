@@ -90,12 +90,12 @@
   </div>
 </div>
 
-<script src="config.js?v=33"></script>
-<script src="store-api.js?v=33"></script>
+<script src="config.js?v=34"></script>
+<script src="store-api.js?v=34"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const id=new URLSearchParams(location.search).get("quote");
+  const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   let canEdit=false, ev=null, r=null;
   const LINKS={ approval:"quotes.html", menu:"plan.html?quote=", resources:"resources.html?quote=", vendors:"resources.html?quote=",
     staff:"ops.html?quote=", runsheet:"runsheet.html?quote=", payments:"logistics.html?quote=", date:"event.html?id=" };
@@ -156,6 +156,7 @@
     $("#rsLink").href = id?("runsheet.html?quote="+encodeURIComponent(id)):"#";
     if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    if(!(await BPStore.auth.requireView("ops"))) return;
     canEdit=await BPStore.auth.can("edit");
     try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");

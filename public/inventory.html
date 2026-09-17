@@ -147,13 +147,13 @@
   </div>
 </div>
 
-<script src="config.js?v=33"></script>
-<script src="store-api.js?v=33"></script>
+<script src="config.js?v=34"></script>
+<script src="store-api.js?v=34"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const num=(n)=>Number(n||0).toLocaleString("en-IN");
-  const quoteId=new URLSearchParams(location.search).get("quote");
+  const quoteId=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const ST={reserved:"Reserved",allocated:"Allocated",returned:"Returned",cancelled:"Cancelled"};
   let canEdit=false, canDelete=false, avail={}, items=[], reservations=[], editingId=null, filter="", catF="";
 
@@ -267,6 +267,7 @@
   (async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    if(!(await BPStore.auth.requireView("ops"))) return;
     canEdit=await BPStore.auth.can("edit"); canDelete=await BPStore.auth.can("delete");
     $("#app").hidden=false; $("#newBtn").hidden=!canEdit;
     if(quoteId){

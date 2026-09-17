@@ -98,13 +98,13 @@
   </div>
 </div>
 
-<script src="config.js?v=33"></script>
-<script src="store-api.js?v=33"></script>
+<script src="config.js?v=34"></script>
+<script src="store-api.js?v=34"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const inr=(n)=>"₹"+Number(n||0).toLocaleString("en-IN");
-  const id=new URLSearchParams(location.search).get("quote");
+  const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const CHK_ST={open:"Open",done:"Done",na:"N/A"}, PAY_ST={due:"Due",invoiced:"Invoiced",paid:"Paid",waived:"Waived"};
   let canEdit=false, canDelete=false, tab="guests", ev=null;
 
@@ -142,11 +142,11 @@
       <td>${canEdit?`<select class="ssel" data-st="${i.id}">${opts}</select>`:`<span class="st ${i.status}">${CHK_ST[i.status]}</span>`}</td>
       <td>${canDelete?`<button class="rm" data-del="${i.id}">✕</button>`:""}</td></tr>`; }
   function wireChk(){
-    document.querySelectorAll("[data-st]").forEach(s=>s.addEventListener("change",async()=>{ await BPStore.checklist.update(s.dataset.st,{status:s.value}); renderPane(); }));
-    document.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.checklist.remove(b.dataset.del); renderPane(); }));
+    document.querySelectorAll("[data-st]").forEach(s=>s.addEventListener("change",async()=>{ try{ await BPStore.checklist.update(s.dataset.st,{status:s.value}); await renderPane(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
+    document.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.checklist.remove(b.dataset.del); await renderPane(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
   }
   async function addChk(section){ const t=$("#a_title").value.trim(); if(!t){ $("#a_title").focus(); return; }
-    await BPStore.checklist.add(id,{ section, title:t, owner:$("#a_owner").value.trim()||null, due_date:$("#a_due").value||null }); renderPane(); }
+    try{ await BPStore.checklist.add(id,{ section, title:t, owner:$("#a_owner").value.trim()||null, due_date:$("#a_due").value||null }); await renderPane(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } }
 
   async function renderGuests(){
     const items = await BPStore.checklist.list(id,"guests");
@@ -160,15 +160,15 @@
         <tbody>${items.length?items.map(rowGuest).join(""):'<tr><td colspan="4" class="empty">No guest groups yet.</td></tr>'}</tbody></table>
       <div class="totbar"><span>Total expected guests: <b>${total}</b></span><span>${items.length} group${items.length===1?"":"s"}</span></div>`;
     if(canEdit) $("#g_add").addEventListener("click",addGuest);
-    document.querySelectorAll("[data-st]").forEach(s=>s.addEventListener("change",async()=>{ await BPStore.checklist.update(s.dataset.st,{status:s.value}); renderPane(); }));
-    document.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.checklist.remove(b.dataset.del); renderPane(); }));
+    document.querySelectorAll("[data-st]").forEach(s=>s.addEventListener("change",async()=>{ try{ await BPStore.checklist.update(s.dataset.st,{status:s.value}); await renderPane(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
+    document.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.checklist.remove(b.dataset.del); await renderPane(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
   }
   function rowGuest(g){ const opts=["open","done","na"].map(s=>`<option value="${s}" ${s===g.status?"selected":""}>${({open:"Pending",done:"Confirmed",na:"Declined"})[s]}</option>`).join("");
     return `<tr><td><b>${esc(g.title)}</b></td><td class="num">${esc(g.qty!=null?g.qty:0)}</td>
       <td>${canEdit?`<select class="ssel" data-st="${g.id}">${opts}</select>`:esc(g.status)}</td>
       <td>${canDelete?`<button class="rm" data-del="${g.id}">✕</button>`:""}</td></tr>`; }
   async function addGuest(){ const t=$("#g_name").value.trim(); if(!t){ $("#g_name").focus(); return; }
-    await BPStore.checklist.add(id,{ section:"guests", title:t, qty:Number($("#g_qty").value||0) }); renderPane(); }
+    try{ await BPStore.checklist.add(id,{ section:"guests", title:t, qty:Number($("#g_qty").value||0) }); await renderPane(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } }
 
   async function renderPayments(){
     const ms = await BPStore.milestones.list(id);
@@ -186,8 +186,8 @@
         <tbody>${ms.length?ms.map(rowPay).join(""):'<tr><td colspan="5" class="empty">No milestones yet.</td></tr>'}</tbody></table>
       <div class="totbar"><span>Scheduled: <b>${inr(total)}</b></span><span style="color:#0f7a43">Paid: <b>${inr(paid)}</b></span><span style="color:#946200">Outstanding: <b>${inr(due)}</b></span></div>`;
     if(canEdit) $("#m_add").addEventListener("click",addMile);
-    document.querySelectorAll("[data-mst]").forEach(s=>s.addEventListener("change",async()=>{ await BPStore.milestones.setStatus(s.dataset.mst,s.value); renderPane(); }));
-    document.querySelectorAll("[data-mdel]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.milestones.remove(b.dataset.mdel); renderPane(); }));
+    document.querySelectorAll("[data-mst]").forEach(s=>s.addEventListener("change",async()=>{ try{ await BPStore.milestones.setStatus(s.dataset.mst,s.value); await renderPane(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
+    document.querySelectorAll("[data-mdel]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.milestones.remove(b.dataset.mdel); await renderPane(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
     document.querySelectorAll("[data-remind]").forEach(b=>b.addEventListener("click",async()=>{
       const m=ms.find(x=>x.id===b.dataset.remind); if(!phone){ alert("No client phone on this event."); return; }
       try{ await BPStore.milestones.sendReminder(id, phone, {label:m.label, amount:m.amount, due:m.due_date}); b.textContent="Sent ✓"; setTimeout(()=>b.textContent="Remind",1500); }
@@ -198,7 +198,7 @@
       <td>${canEdit?`<select class="ssel" data-mst="${m.id}">${opts}</select>`:`<span class="st ${m.status}">${PAY_ST[m.status]}</span>`}</td>
       <td>${canEdit&&m.status!=="paid"?`<button class="rm" data-remind="${m.id}">Remind</button> `:""}${canDelete?`<button class="rm" data-mdel="${m.id}">✕</button>`:""}</td></tr>`; }
   async function addMile(){ const l=$("#m_label").value.trim(); if(!l){ $("#m_label").focus(); return; }
-    await BPStore.milestones.add(id,{ label:l, due_date:$("#m_due").value||null, amount:Number($("#m_amt").value||0) }); renderPane(); }
+    try{ await BPStore.milestones.add(id,{ label:l, due_date:$("#m_due").value||null, amount:Number($("#m_amt").value||0) }); await renderPane(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
@@ -211,7 +211,10 @@
     $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
     if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    if(!(await BPStore.auth.requireView("ops"))) return;
     canEdit=await BPStore.auth.can("edit"); canDelete=await BPStore.auth.can("delete");
+    // Payments are finance-only — hide that tab (and fall back off it) for roles without finance access
+    if(!(await BPStore.auth.canView("finance"))){ const pb=document.querySelector('#tabs button[data-t="payments"]'); if(pb) pb.hidden=true; if(tab==="payments") tab="guests"; }
     try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
     $("#app").hidden=false;

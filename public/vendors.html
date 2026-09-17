@@ -83,6 +83,7 @@
     </div>
     <input id="search" class="search" placeholder="Search name, service…">
     <span class="spacer"></span>
+    <label style="font-size:12px;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="showInactive"> Show inactive</label>
     <button id="newBtn" class="btn primary" hidden>＋ Add partner</button>
   </div>
 
@@ -105,6 +106,7 @@
     <div id="vm_err" class="err" hidden></div>
     <div class="foot">
       <button class="btn" id="vm_deact" hidden>Deactivate</button>
+      <button class="btn" id="vm_react" hidden>Reactivate</button>
       <span class="spacer"></span>
       <button class="btn" id="vm_cancel">Cancel</button>
       <button class="btn primary" id="vm_save">Save</button>
@@ -122,13 +124,13 @@
   </div>
 </div>
 
-<script src="config.js?v=33"></script>
-<script src="store-api.js?v=33"></script>
+<script src="config.js?v=34"></script>
+<script src="store-api.js?v=34"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const KIND={vendor:"Vendor",freelancer:"Freelancer",rental:"Rental",supplier:"Supplier"};
-  let list=[], canEdit=false, canDelete=false, editingId=null, filter="", kindF="";
+  let list=[], canEdit=false, canDelete=false, editingId=null, filter="", kindF="", showInactive=false;
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
@@ -162,7 +164,7 @@
     $("#v_name").value=v?v.name||"":""; $("#v_kind").value=v?v.kind||"vendor":"vendor"; $("#v_cat").value=v?v.category||"":"";
     $("#v_phone").value=v?v.phone||"":""; $("#v_email").value=v?v.email||"":"";
     $("#v_services").value=v&&Array.isArray(v.services)?v.services.join(", "):""; $("#v_notes").value=v?v.notes||"":"";
-    $("#vm_deact").hidden=!(v&&canEdit&&v.active!==false); $("#vm_err").hidden=true; $("#vModal").hidden=false; setTimeout(()=>$("#v_name").focus(),50);
+    $("#vm_deact").hidden=!(v&&canEdit&&v.active!==false); $("#vm_react").hidden=!(v&&canEdit&&v.active===false); $("#vm_err").hidden=true; $("#vModal").hidden=false; setTimeout(()=>$("#v_name").focus(),50);
   }
   function closeForm(){ $("#vModal").hidden=true; editingId=null; }
   async function save(){
@@ -185,6 +187,9 @@
   $("#vm_save").addEventListener("click",save);
   $("#vm_deact").addEventListener("click",async()=>{ if(!editingId) return; if(!confirm("Deactivate this partner?")) return;
     try{ await BPStore.vendors.update(editingId,{active:false}); closeForm(); await load(); }catch(e){ alert("Couldn't deactivate — "+((e&&e.message)||"error")); } });
+  $("#vm_react").addEventListener("click",async()=>{ if(!editingId) return;
+    try{ await BPStore.vendors.update(editingId,{active:true}); closeForm(); await load(); }catch(e){ alert("Couldn't reactivate — "+((e&&e.message)||"error")); } });
+  $("#showInactive").addEventListener("change",e=>{ showInactive=e.target.checked; load(); });
   $("#vModal").addEventListener("click",e=>{ if(e.target.id==="vModal") closeForm(); });
   $("#search").addEventListener("input",e=>{ filter=e.target.value; render(); });
   $("#kindTabs").addEventListener("click",e=>{ const b=e.target.closest("button[data-k]"); if(!b) return;
@@ -192,13 +197,14 @@
   document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeForm(); } });
 
   async function load(){
-    try{ list=await BPStore.vendors.listAll(false); }
+    try{ list=await BPStore.vendors.listAll(showInactive); }
     catch(e){ $("#grid").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase9-vendors.sql</b>.</div>`; return; }
     render();
   }
   (async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ openLogin(); return; }
+    if(!(await BPStore.auth.requireView("ops"))) return;
     canEdit=await BPStore.auth.can("edit"); canDelete=await BPStore.auth.can("delete");
     $("#newBtn").hidden=!canEdit;
     await load();

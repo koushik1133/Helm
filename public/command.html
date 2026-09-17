@@ -117,12 +117,12 @@
   </div>
 </div>
 
-<script src="config.js?v=33"></script>
-<script src="store-api.js?v=33"></script>
+<script src="config.js?v=34"></script>
+<script src="store-api.js?v=34"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const id=new URLSearchParams(location.search).get("quote");
+  const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const ARR={expected:"Expected",arrived:"Arrived",left:"Left",no_show:"No-show"};
   const CHK={pending:"Pending",done:"Done",issue:"Issue"};
   let canEdit=false, ev=null;
@@ -142,12 +142,12 @@
       <span class="pill ${a.status}">${ARR[a.status]||a.status}</span>
       ${canEdit?`<div class="acts">
         <button class="mini go" data-arr="${a.id}" data-s="arrived">Arrived</button>
+        <button class="mini" data-arr="${a.id}" data-s="left">Left</button>
         <button class="mini no" data-arr="${a.id}" data-s="no_show">No-show</button>
         <button class="mini del" data-del="${a.id}">✕</button></div>`:""}
     </div>`).join("") : '<div class="empty">No one added yet. Pull the team &amp; vendors below.</div>';
     $("#arrRows").querySelectorAll("[data-arr]").forEach(b=>b.addEventListener("click",async()=>{
-      const cur=b.dataset.s; // toggle arrived off back to expected
-      await BPStore.dayops.setStatus(b.dataset.arr, cur); renderArrivals(); }));
+      await BPStore.dayops.setStatus(b.dataset.arr, b.dataset.s); renderArrivals(); }));
     $("#arrRows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.dayops.remove(b.dataset.del); renderArrivals(); }));
   }
   async function renderChecks(){
@@ -180,9 +180,10 @@
     $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
     if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    if(!(await BPStore.auth.requireView("ops"))) return;
     canEdit=await BPStore.auth.can("edit");
     try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
-    $("#b_code").textContent=ev.code||""; $("#b_meta").textContent=[ev.title,ev.eventDate,(ev.startTime?ev.startTime.slice(0,5):"")].filter(Boolean).join(" · ");
+    $("#b_code").textContent=ev.code||""; $("#b_meta").textContent=[ev.title,ev.eventDate].filter(Boolean).join(" · ");
     $("#l_issues").href="issues.html?quote="+encodeURIComponent(id); $("#l_runsheet").href="runsheet.html?quote="+encodeURIComponent(id); $("#l_floor").href="builder.html?quote="+encodeURIComponent(id);
     try{ const p=await BPStore.plan.get(id); if(p&&(p.venue_name||p.access_notes)) $("#b_venue").textContent="📍 "+[p.venue_name,p.access_notes].filter(Boolean).join(" — "); }catch{}
     $("#app").hidden=false; $("#arrTools").hidden=!canEdit; $("#chkAdd").hidden=!canEdit;

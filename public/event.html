@@ -104,8 +104,8 @@
   </form>
 </div>
 
-<script src="config.js?v=33"></script>
-<script src="store-api.js?v=33"></script>
+<script src="config.js?v=34"></script>
+<script src="store-api.js?v=34"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -128,7 +128,7 @@
   ];
   const stageIndex=(k)=>Math.max(0,STAGES.findIndex(s=>s.k===k));
 
-  let ev=null, canEdit=false, tasksSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, closureSummary=null;
+  let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, closureSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
   const budgetRange=()=>{ const d=discSummary&&discSummary.disc; if(!d) return ""; const a=d.budget_min, b=d.budget_max;
     if(a!=null&&b!=null) return inr(a)+"–"+inr(b); if(a!=null) return "from "+inr(a); if(b!=null) return "up to "+inr(b); return ""; };
@@ -145,7 +145,10 @@
     await BPStore.init(); await renderAccount();
     if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    if(!(await BPStore.auth.requireView("workspace"))) return;   // crew/client don't see the workspace
     canEdit = await BPStore.auth.can("edit");
+    canFin  = await BPStore.auth.canView("finance");             // gates the Total + money cards
+    canPipe = await BPStore.auth.canView("pipeline");            // gates the discovery/proposal cards
     try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
     // task summary (operations) — optional
     try{ const t=await BPStore.ops.listTasks(id); tasksSummary={total:t.length, done:t.filter(x=>x.status==='completed').length}; }catch{ tasksSummary=null; }
@@ -160,7 +163,7 @@
       invSummary={ total:rs.length, active:active.length }; }catch{ invSummary=null; }
     // resource plan summary (Phase 8) — optional
     try{ const ck=await BPStore.resources.check(id);
-      resSummary={ total:ck.length, gaps:ck.filter(c=>!c.covered).length }; }catch{ resSummary=null; }
+      resSummary={ total:ck.length, gaps:ck.filter(c=>!c.covered).length, outsourced:ck.filter(c=>c.outsourced).length }; }catch{ resSummary=null; }
     // run-sheet summary (Phase 11) — optional
     try{ const rs=await BPStore.runsheet.list(id); const wt=rs.filter(x=>x.start_time);
       runSummary={ total:rs.length, first: wt.length?wt[0].start_time.slice(0,5):null }; }catch{ runSummary=null; }
@@ -202,7 +205,8 @@
     $("#title").textContent=ev.title||ev.code;
     const cl=ev.client||{};
     $("#meta").textContent=[ev.eventType, cl.name?("for "+cl.name):"", cl.eventDate||""].filter(Boolean).join(" · ")||"No client details yet";
-    $("#total").textContent=evTotal()? inr(evTotal()):"—";
+    $("#total").textContent = canFin ? (evTotal()? inr(evTotal()):"—") : "—";
+    const totWrap=$("#total").closest(".tot"); if(totWrap) totWrap.hidden=!canFin;
     renderDateRow();
 
     const cur=stageIndex(ev.lifecycleStage);
@@ -221,7 +225,6 @@
 
   function renderMods(recommended){
     const cl=ev.client||{};
-    const objs = tasksSummary; // placeholder
     const discSum = discSummary && (discSummary.total || (discSummary.disc))
       ? `${discSummary.total} requirement${discSummary.total===1?"":"s"}${discSummary.must?` · <b>${discSummary.must} must-have${discSummary.must===1?"":"s"}</b>`:""}${budgetRange()?` · budget ${budgetRange()}`:""}`
       : "Meet the client and capture requirements &amp; budget.";
@@ -235,7 +238,7 @@
         acts:[{t: canEdit?"Open proposal":"View proposal", href:"proposal.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"layout", ic:"📐", title:"Floor layout", sum:`Design the 2D/3D plan for this event.`,
         acts:[{t:"Open builder", href:"builder.html?quote="+encodeURIComponent(id), primary:true}] },
-      { key:"quote", ic:"🧾", title:"Quote & pricing", sum:`Version v${ev.currentVersion} · ${evTotal()?inr(evTotal()):"not priced yet"} · <span class="stat ${ev.status==='confirmed'?'ok':'q'}">${ev.status}</span>${fromDisc}`,
+      { key:"quote", ic:"🧾", title:"Quote & pricing", sum:`Version v${ev.currentVersion} · ${canFin?(evTotal()?inr(evTotal()):"not priced yet"):"—"} · <span class="stat ${ev.status==='confirmed'?'ok':'q'}">${ev.status}</span>${fromDisc}`,
         acts:[{t:"Open quotes", href:"quotes.html", primary:true}] },
       { key:"approval", ic:"✅", title:"Client approval", sum: ev.approvalStatus==='none'?"Not sent yet — confirm the quote, then send the approval link.":`Status: <b>${esc(ev.approvalStatus)}</b>`,
         acts:[{t:"Manage in Quotes", href:"quotes.html"}] },
@@ -272,13 +275,14 @@
         sum: budgetSummary && (budgetSummary.estCost || budgetSummary.revenue) ? `${inr(budgetSummary.revenue)} rev · ${inr(budgetSummary.estCost)} cost · <b style="color:${budgetSummary.estMargin>=0?'#0f7a43':'#b42318'}">${inr(budgetSummary.estMargin)} margin${budgetSummary.estMarginPct!=null?` (${budgetSummary.estMarginPct}%)`:""}</b>${budgetSummary.pendingChanges?` · ${budgetSummary.pendingChanges} change${budgetSummary.pendingChanges===1?"":"s"} pending`:""}` : "Track costs vs the quote and see your margin.",
         acts:[{t: canEdit?"Open budget":"View budget", href:"budget.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"resourceplan", ic:"🧩", title:"Resource plan",
-        sum: resSummary && resSummary.total ? `${resSummary.total} need${resSummary.total===1?"":"s"} · ${resSummary.gaps?`<b style="color:#b42318">${resSummary.gaps} gap${resSummary.gaps===1?"":"s"}</b>`:'<span class="stat ok">all in-house</span>'}` : "Map needs and flag what to outsource.",
+        sum: resSummary && resSummary.total ? `${resSummary.total} need${resSummary.total===1?"":"s"} · ${resSummary.gaps?`<b style="color:#b42318">${resSummary.gaps} gap${resSummary.gaps===1?"":"s"}</b>`:(resSummary.outsourced?`<span class="stat ok">all covered</span> · ${resSummary.outsourced} outsourced`:'<span class="stat ok">all in-house</span>')}` : "Map needs and flag what to outsource.",
         acts:[{t: canEdit?"Open resource plan":"View plan", href:"resources.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"inventory", ic:"📦", title:"Inventory & resources",
         sum: invSummary && invSummary.total ? `${invSummary.active} item${invSummary.active===1?"":"s"} reserved / allocated${invSummary.total>invSummary.active?` · ${invSummary.total-invSummary.active} closed`:""}` : "Reserve in-house stock for this event.",
         acts:[{t: canEdit?"Reserve stock":"View inventory", href:"inventory.html?quote="+encodeURIComponent(id), primary:true}] },
     ];
-    $("#mods").innerHTML=cards.map(c=>{
+    const hide=new Set([...(canFin?[]:["budget","settle","closure"]), ...(canPipe?[]:["discovery","proposal"])]);
+    $("#mods").innerHTML=cards.filter(c=>!hide.has(c.key)).map(c=>{
       const reco=recommended.includes(c.key)?"reco":"";
       return `<div class="mod ${reco}"><div class="h"><span class="ic">${c.ic}</span><b>${c.title}</b>${reco?'<span class="stat q" style="margin-left:auto">Next</span>':""}</div>
         <div class="sum">${c.sum}</div>

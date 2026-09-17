@@ -82,8 +82,8 @@
   <footer>Blueprint Stage — the CRM archive is append-only and read-only. Records are written automatically.</footer>
 </div>
 
-<script src="config.js?v=33"></script>
-<script src="store-api.js?v=33"></script>
+<script src="config.js?v=34"></script>
+<script src="store-api.js?v=34"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -123,6 +123,7 @@
   (async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.href="index.html"; return; }
+    if(!(await BPStore.auth.requireView("pipeline"))) return;
     try{ recs = await BPStore.leads.archive(); }
     catch(err){ $("#rows").innerHTML=`<tr><td colspan="10" class="empty">Couldn't load archive — ${esc(err&&err.message||"error")}. Run <b>phase2b-crm.sql</b>.</td></tr>`; return; }
     render();
