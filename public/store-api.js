@@ -740,6 +740,7 @@
       if (mode === "supabase") { const { error } = await supa.from("event_resources").update(patch).eq("id", id); if (error) throw error; return true; }
       const a = readLs(BOOK_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(BOOK_LS, JSON.stringify(a)); } return true;
     },
+    setSettled(id, settled) { return this.update(id, { settled: !!settled, settled_at: settled ? now() : null }); },
     async remove(id) {
       if (mode === "supabase") { const { error } = await supa.from("event_resources").delete().eq("id", id); if (error) throw error; return true; }
       localStorage.setItem(BOOK_LS, JSON.stringify(readLs(BOOK_LS).filter((b) => b.id !== id))); return true;
@@ -1106,8 +1107,46 @@
     },
   };
 
+  /* ---------------- settlement & billing (Phase 19) ---------------- */
+  const EXP_LS = "bp_expenses";
+  const expenses = {
+    async list(quoteId) {
+      if (mode === "supabase") { const { data, error } = await supa.from("expense_claims").select("*").eq("quote_id", quoteId).order("created_at"); if (error) throw error; return data; }
+      return readLs(EXP_LS).filter((e) => e.quote_id === quoteId);
+    },
+    async add(quoteId, e) {
+      if (mode === "supabase") { const { data, error } = await supa.from("expense_claims").insert({ quote_id: quoteId, ...e }).select().single(); if (error) throw error; return data; }
+      const a = readLs(EXP_LS); const row = { id: uid(), quote_id: quoteId, status: "pending", amount: 0, ...e, created_at: now() }; a.push(row); localStorage.setItem(EXP_LS, JSON.stringify(a)); return row;
+    },
+    async setStatus(id, status) {
+      if (mode === "supabase") { const { error } = await supa.from("expense_claims").update({ status }).eq("id", id); if (error) throw error; return true; }
+      const a = readLs(EXP_LS); const r = a.find((x) => x.id === id); if (r) { r.status = status; localStorage.setItem(EXP_LS, JSON.stringify(a)); } return true;
+    },
+    async remove(id) {
+      if (mode === "supabase") { const { error } = await supa.from("expense_claims").delete().eq("id", id); if (error) throw error; return true; }
+      localStorage.setItem(EXP_LS, JSON.stringify(readLs(EXP_LS).filter((e) => e.id !== id))); return true;
+    },
+  };
+  const settlement = {
+    async summary(quoteId) {
+      const [b, ms, bk, exp] = await Promise.all([
+        budget.summary(quoteId), milestones.list(quoteId), bookings.list(quoteId), expenses.list(quoteId),
+      ]);
+      const received = ms.filter((m) => m.status === "paid").reduce((a, m) => a + Number(m.amount || 0), 0);
+      const revenue = b.revenue, balance = revenue - received;
+      const vend = bk.filter((x) => x.status !== "cancelled");
+      const vendorCost = vend.reduce((a, x) => a + Number(x.cost || 0), 0);
+      const vendorAdvance = vend.reduce((a, x) => a + Number(x.advance || 0), 0);
+      const vendorOutstanding = vend.filter((x) => !x.settled).reduce((a, x) => a + Math.max(0, Number(x.cost || 0) - Number(x.advance || 0)), 0);
+      const expTotal = exp.reduce((a, e) => a + Number(e.amount || 0), 0);
+      const expPaid = exp.filter((e) => e.status === "paid").reduce((a, e) => a + Number(e.amount || 0), 0);
+      return { revenue, received, balance, estCost: b.estCost, actCost: b.actCost, estMargin: b.estMargin, actMargin: b.actMargin,
+        milestones: ms, bookings: vend, expenses: exp, vendorCost, vendorAdvance, vendorOutstanding, expTotal, expPaid };
+    },
+  };
+
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, issues,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, issues, expenses, settlement,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

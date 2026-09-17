@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settlement — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .crumb{font-size:12px;color:var(--ink-3);margin:2px 0 14px} .crumb a{color:var(--accent)}
+
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px} @media(max-width:720px){.tiles{grid-template-columns:1fr 1fr}}
+  .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px}
+  .tile .l{font-size:12px;color:var(--ink-3)} .tile .n{font-family:var(--mono);font-weight:700;font-size:21px;margin-top:4px}
+  .tile.bal .n.due{color:#b42318} .tile.bal .n.clear{color:#0f7a43} .tile.margin .n.pos{color:#0f7a43} .tile.margin .n.neg{color:#b42318}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+  .card h2{font-size:15px;margin:0 0 4px} .card .sub{font-size:12px;color:var(--ink-3);margin:0 0 12px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:9px 10px;border-bottom:1px solid var(--line)}
+  th.num,td.num{text-align:right} tbody td{padding:9px 10px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+  .num{font-family:var(--mono)}
+  .st{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .st.pending{background:#fff7e6;color:#946200} .st.approved{background:#eef2ff;color:#4457c8} .st.paid{background:#e7f6ee;color:#0f7a43} .st.rejected{background:#fdecec;color:#b42318}
+  .st.yes{background:#e7f6ee;color:#0f7a43} .st.no{background:#fff7e6;color:#946200}
+  .btn{height:34px;padding:0 13px;border-radius:8px;border:1px solid var(--line);background:var(--panel);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)} .btn:hover{border-color:var(--accent);color:var(--accent)}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;height:36px} .btn.go{color:#0f7a43;border-color:#b6e3ca}
+  .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:28px;padding:0 9px;font-size:11px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#e5484d;border-color:#f5c6c6}
+  .payline{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}
+  .payline input{height:36px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 10px;font-family:var(--mono);font-size:13px;width:140px;text-align:right}
+  .addgrid{display:grid;grid-template-columns:1fr 1.6fr .8fr auto;gap:8px;align-items:end;margin-top:10px} @media(max-width:640px){.addgrid{grid-template-columns:1fr 1fr}}
+  .fld{display:flex;flex-direction:column;gap:4px} .fld label{font-size:11px;font-weight:600;color:var(--ink-2)} .fld input{height:36px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .totbar{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink-2);margin-top:10px;padding-top:10px;border-top:1px solid var(--line-2)} .totbar b{font-family:var(--mono);color:var(--ink)}
+  .empty{text-align:center;color:var(--ink-3);padding:18px;font-size:13px}
+  footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
+  .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px}
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,96vw);padding:24px}
+  .sheet h3{margin:0 0 12px}.foot{display:flex;gap:10px;justify-content:flex-end}.fld2{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}.fld2 label{font-size:11px;font-weight:600;color:var(--ink-2)}.fld2 input{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Settlement &amp; billing</h1><small>Blueprint Stage</small></div>
+    <nav class="nav"><a href="index.html">Home</a><a href="calendar.html">Calendar</a><a href="quotes.html">Quotes</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to open settlement.</p></div>
+  <div id="notfound" class="card" hidden><p style="color:var(--ink-3)">Event not found. Go to <a href="quotes.html" style="color:var(--accent)">Quotes</a>.</p></div>
+
+  <div id="app" hidden>
+    <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
+
+    <div class="tiles">
+      <div class="tile"><div class="l">Invoice total</div><div class="n" id="t_rev">—</div></div>
+      <div class="tile"><div class="l">Received</div><div class="n" id="t_recv">—</div></div>
+      <div class="tile bal"><div class="l">Balance due</div><div class="n" id="t_bal">—</div></div>
+      <div class="tile margin"><div class="l">Final margin</div><div class="n" id="t_mar">—</div></div>
+    </div>
+
+    <div class="card">
+      <h2>💳 Client invoice</h2>
+      <p class="sub">The final bill = quote + approved change orders, less what's already paid.</p>
+      <table><tbody id="invBody"></tbody></table>
+      <div class="payline" id="payLine" hidden>
+        <span style="font-size:13px;color:var(--ink-2)">Record a payment received:</span>
+        <input id="pay_amt" type="number" min="0" placeholder="amount">
+        <button class="btn primary" id="pay_btn">Record payment</button>
+        <span id="pay_msg" style="font-size:12px;color:var(--safe);font-weight:600"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🤝 Vendor settlement</h2>
+      <p class="sub">What you owe partners, and what's settled.</p>
+      <table><thead><tr><th>Partner</th><th class="num">Cost</th><th class="num">Advance</th><th class="num">Outstanding</th><th>Settled</th><th></th></tr></thead>
+        <tbody id="vendBody"><tr><td colspan="6" class="empty">No vendor bookings.</td></tr></tbody></table>
+      <div class="totbar"><span>Owed to vendors: <b id="v_out">₹0</b></span></div>
+    </div>
+
+    <div class="card">
+      <h2>🧾 Staff expense claims</h2>
+      <p class="sub">Reimbursements for the crew — approve, then mark paid.</p>
+      <table><thead><tr><th>Who</th><th>For</th><th class="num">Amount</th><th>Status</th><th></th></tr></thead>
+        <tbody id="expBody"><tr><td colspan="5" class="empty">No claims.</td></tr></tbody></table>
+      <div class="addgrid" id="expAdd" hidden>
+        <div class="fld"><label>Who</label><input id="e_who" placeholder="name"></div>
+        <div class="fld"><label>For</label><input id="e_desc" placeholder="e.g. Fuel, materials"></div>
+        <div class="fld"><label>Amount ₹</label><input id="e_amt" type="number" min="0" value="0"></div>
+        <div class="fld"><label>&nbsp;</label><button class="btn primary" id="e_add">＋ Add</button></div>
+      </div>
+      <div class="totbar"><span>Claims total: <b id="e_tot">₹0</b></span><span>Paid: <b id="e_paid">₹0</b></span></div>
+    </div>
+  </div>
+  <footer>Blueprint Stage — settle the client, the vendors and the crew.</footer>
+</div>
+
+<div id="loginModal" class="lmodal" hidden>
+  <div class="sheet">
+    <h3>Sign in</h3>
+    <div class="fld2"><label>Email</label><input id="li_email" type="email"></div>
+    <div class="fld2"><label>Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden></div>
+    <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
+  </div>
+</div>
+
+<script src="config.js?v=30"></script>
+<script src="store-api.js?v=30"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const inr=(n)=>"₹"+Number(n||0).toLocaleString("en-IN");
+  const id=new URLSearchParams(location.search).get("quote");
+  const EXP={pending:"Pending",approved:"Approved",paid:"Paid",rejected:"Rejected"};
+  let canEdit=false, canDelete=false, s=null;
+
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  function render(){
+    $("#t_rev").textContent=inr(s.revenue); $("#t_recv").textContent=inr(s.received);
+    const bn=$("#t_bal"); bn.textContent=inr(s.balance); bn.className="n "+(s.balance>0?"due":"clear");
+    const mn=$("#t_mar"); mn.textContent=inr(s.actMargin); mn.className="n "+(s.actMargin>=0?"pos":"neg");
+
+    $("#invBody").innerHTML = `
+      <tr><td>Invoice total (quote + approved changes)</td><td class="num">${inr(s.revenue)}</td></tr>
+      <tr><td>Payments received</td><td class="num" style="color:#0f7a43">− ${inr(s.received)}</td></tr>
+      <tr><td><b>Balance due from client</b></td><td class="num"><b style="color:${s.balance>0?'#b42318':'#0f7a43'}">${inr(s.balance)}</b></td></tr>`;
+
+    const byName=(b)=>b.label||"Partner";
+    $("#vendBody").innerHTML = s.bookings.length ? s.bookings.map(b=>{ const out=Math.max(0,Number(b.cost||0)-Number(b.advance||0));
+      return `<tr><td><b>${esc(byName(b))}</b></td><td class="num">${inr(b.cost)}</td><td class="num">${inr(b.advance)}</td>
+        <td class="num">${b.settled?'<span class="st yes">settled</span>':inr(out)}</td>
+        <td><span class="st ${b.settled?'yes':'no'}">${b.settled?'Yes':'No'}</span></td>
+        <td>${canEdit?`<button class="btn ${b.settled?'':'go'}" data-settle="${b.id}" data-v="${b.settled?0:1}">${b.settled?'Unsettle':'Settle'}</button>`:""}</td></tr>`;
+    }).join("") : '<tr><td colspan="6" class="empty">No vendor bookings.</td></tr>';
+    $("#v_out").textContent=inr(s.vendorOutstanding);
+    $("#vendBody").querySelectorAll("[data-settle]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.bookings.setSettled(b.dataset.settle, b.dataset.v==="1"); await load(); }));
+
+    $("#expBody").innerHTML = s.expenses.length ? s.expenses.map(e=>`<tr>
+      <td><b>${esc(e.who)}</b></td><td class="muted">${esc(e.description||"")}</td><td class="num">${inr(e.amount)}</td>
+      <td><span class="st ${e.status}">${EXP[e.status]||e.status}</span></td>
+      <td>${canEdit?`${e.status==='pending'?`<button class="rm" data-est="${e.id}" data-s="approved">Approve</button> `:""}${e.status!=='paid'?`<button class="rm" data-est="${e.id}" data-s="paid">Mark paid</button> `:""}${canDelete?`<button class="rm" data-edel="${e.id}">✕</button>`:""}`:""}</td>
+    </tr>`).join("") : '<tr><td colspan="5" class="empty">No claims.</td></tr>';
+    $("#e_tot").textContent=inr(s.expTotal); $("#e_paid").textContent=inr(s.expPaid);
+    $("#expBody").querySelectorAll("[data-est]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.expenses.setStatus(b.dataset.est,b.dataset.s); await load(); }));
+    $("#expBody").querySelectorAll("[data-edel]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.expenses.remove(b.dataset.edel); await load(); }));
+  }
+
+  async function recordPayment(){ const amt=Number($("#pay_amt").value||0); if(amt<=0) return; $("#pay_btn").disabled=true;
+    try{ await BPStore.milestones.add(id,{ label:"Payment received", amount:amt, status:"paid" }); $("#pay_amt").value=""; $("#pay_msg").textContent="Recorded ✓"; setTimeout(()=>$("#pay_msg").textContent="",1500); await load(); }
+    catch(e){ alert("Couldn't record — "+((e&&e.message)||"error")); } finally{ $("#pay_btn").disabled=false; }
+  }
+  async function addExpense(){ const who=$("#e_who").value.trim(); if(!who){ $("#e_who").focus(); return; }
+    try{ await BPStore.expenses.add(id,{ who, description:$("#e_desc").value.trim()||null, amount:Number($("#e_amt").value||0) }); $("#e_who").value=""; $("#e_desc").value=""; $("#e_amt").value=0; await load(); }
+    catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); }
+  }
+
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
+    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  $("#pay_btn").addEventListener("click",recordPayment);
+  $("#e_add").addEventListener("click",addExpense);
+
+  async function load(){
+    try{ s=await BPStore.settlement.summary(id); }
+    catch(e){ $("#invBody").innerHTML=`<tr><td class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase19-settlement.sql</b>.</td></tr>`; return; }
+    render();
+  }
+  (async ()=>{
+    await BPStore.init(); await renderAccount();
+    $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
+    if(!id){ $("#notfound").hidden=false; return; }
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    canEdit=await BPStore.auth.can("edit"); canDelete=await BPStore.auth.can("delete");
+    let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
+    $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
+    $("#app").hidden=false; $("#payLine").hidden=!canEdit; $("#expAdd").hidden=!canEdit;
+    await load();
+  })();
+</script>
+</body>
+</html>

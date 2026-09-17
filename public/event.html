@@ -104,8 +104,8 @@
   </form>
 </div>
 
-<script src="config.js?v=29"></script>
-<script src="store-api.js?v=29"></script>
+<script src="config.js?v=30"></script>
+<script src="store-api.js?v=30"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -123,12 +123,12 @@
     {k:"resources",label:"Resources",hint:"Map needs, cover in-house, flag the gaps.",mods:["resourceplan","inventory","tasks"]},
     {k:"ready",label:"Ready",hint:"Pass the readiness gate, then brief the team.",mods:["readycheck","runsheet","logistics"]},
     {k:"event_day",label:"Event Day",hint:"Run the day and handle issues live.",mods:["command","issues"]},
-    {k:"settlement",label:"Settlement",hint:"Tear down, then reconcile, invoice and collect.",mods:["teardown","budget","quote"]},
+    {k:"settlement",label:"Settlement",hint:"Tear down, then invoice, settle vendors and collect.",mods:["teardown","settle","budget"]},
     {k:"closed",label:"Closed",hint:"Event complete and archived.",mods:[]},
   ];
   const stageIndex=(k)=>Math.max(0,STAGES.findIndex(s=>s.k===k));
 
-  let ev=null, canEdit=false, tasksSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null;
+  let ev=null, canEdit=false, tasksSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
   const budgetRange=()=>{ const d=discSummary&&discSummary.disc; if(!d) return ""; const a=d.budget_min, b=d.budget_max;
     if(a!=null&&b!=null) return inr(a)+"–"+inr(b); if(a!=null) return "from "+inr(a); if(b!=null) return "up to "+inr(b); return ""; };
@@ -184,6 +184,8 @@
     // teardown summary (Phase 18) — optional
     try{ const rs=await BPStore.inventory.reservations(id); const td=await BPStore.checklist.list(id,"teardown");
       teardownSummary={ retDone:rs.filter(r=>r.status==='returned').length, retTotal:rs.length, tdDone:td.filter(t=>t.status==='done').length, tdTotal:td.length }; }catch{ teardownSummary=null; }
+    // settlement summary (Phase 19) — optional
+    try{ settleSummary=await BPStore.settlement.summary(id); }catch{ settleSummary=null; }
     $("#app").hidden=false;
     render();
   }
@@ -255,6 +257,9 @@
       { key:"logistics", ic:"🚚", title:"Logistics & payments",
         sum: logiSummary && (logiSummary.guests||logiSummary.outstanding) ? `${logiSummary.guests?`${logiSummary.guests} guests`:""}${logiSummary.guests&&logiSummary.outstanding?" · ":""}${logiSummary.outstanding?`<b style="color:#946200">${inr(logiSummary.outstanding)} outstanding</b>`:""}` : "Guests, permits, comms &amp; the payment schedule.",
         acts:[{t: canEdit?"Open logistics":"View logistics", href:"logistics.html?quote="+encodeURIComponent(id), primary:true}] },
+      { key:"settle", ic:"💳", title:"Settlement & billing",
+        sum: settleSummary ? `${settleSummary.balance>0?`<b style="color:#b42318">${inr(settleSummary.balance)} due</b>`:'<span class="stat ok">client settled</span>'}${settleSummary.vendorOutstanding?` · ${inr(settleSummary.vendorOutstanding)} to vendors`:""}` : "Final invoice, vendor settlement &amp; expenses.",
+        acts:[{t: canEdit?"Open settlement":"View settlement", href:"settlement.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"teardown", ic:"📦", title:"Teardown & returns",
         sum: teardownSummary && (teardownSummary.retTotal||teardownSummary.tdTotal) ? `${teardownSummary.retDone}/${teardownSummary.retTotal} stock returned · ${teardownSummary.tdDone}/${teardownSummary.tdTotal} teardown done` : "Return stock, exit vendors, hand over the venue.",
         acts:[{t: canEdit?"Open teardown":"View teardown", href:"teardown.html?quote="+encodeURIComponent(id), primary:true}] },

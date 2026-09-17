@@ -45,6 +45,7 @@ minus the user seed), run in this exact order:
 | 22 | `22-dayops.sql`      | event_day — arrivals + setup checks (Phase 16) |
 | 23 | `23-issues.sql`      | event_issues — live issue tickets + incident log (Phase 17) |
 | 24 | `24-teardown.sql`   | event_checklist adds a 'teardown' section (Phase 18) |
+| 25 | `25-settlement.sql` | event_resources.settled + expense_claims (Phase 19) |
 
 Then, on a brand-new DB only, seed the team logins:
 

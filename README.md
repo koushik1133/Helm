@@ -167,6 +167,14 @@ what each phase added, in plain words.
   and a **Teardown & venue handover** checklist (dismantle, clear, hand back,
   verify). Progress counters show what's left to close.
 
+- **Phase 19 — Settlement & billing.** The final money page. Four tiles: invoice
+  total (quote + approved change orders), received, **balance due**, and **final
+  margin**. A **client invoice** breakdown with a "record a payment received"
+  box; **vendor settlement** (cost / advance / outstanding, with a **Settle**
+  button and total owed); and **staff expense claims** (add → approve → mark
+  paid, with totals). Reuses the budget, payment milestones and vendor bookings —
+  it's the one place to close out the client, the vendors and the crew.
+
 ### Where the data lives
 
 All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per
