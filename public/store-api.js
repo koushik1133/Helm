@@ -194,6 +194,7 @@
         lifecycleStage: q.lifecycle_stage || "quote",
         approvalStatus: q.approval_status || "none", approvalToken: q.approval_token,
         currentVersion: q.current_version, client: q.client || {}, pricing: q.pricing || {}, total: (q.pricing && q.pricing.total) || 0,
+        eventDate: q.event_date || null,
         updatedAt: q.updated_at, createdAt: q.created_at, confirmedAt: q.confirmed_at }));
     },
     async get(id) {
@@ -204,6 +205,7 @@
       return { id: q.id, code: q.code, title: q.title, eventType: q.event_type, status: q.status, lifecycleStage: q.lifecycle_stage || "quote",
         approvalStatus: q.approval_status || "none", approvalToken: q.approval_token, client: q.client || {},
         pricing: q.pricing || {}, currentVersion: q.current_version, createdAt: q.created_at, updatedAt: q.updated_at,
+        eventDate: q.event_date || null,
         confirmedAt: q.confirmed_at, versions: vs.map((v) => ({ id: v.id, versionNo: v.version_no, label: v.label,
           objectCount: v.object_count, createdAt: v.created_at })) };
     },
@@ -234,6 +236,7 @@
     async updateMeta(quoteId, patch) {
       const upd = {}; if (patch.title != null) upd.title = patch.title; if (patch.eventType != null) upd.event_type = patch.eventType;
       if (patch.client) upd.client = patch.client; if (patch.pricing) upd.pricing = patch.pricing; if (patch.status) upd.status = patch.status;
+      if (patch.eventDate !== undefined) upd.event_date = patch.eventDate || null;
       const { data, error } = await supa.from("quotes").update(upd).eq("id", quoteId).select().single(); if (error) throw error; return data;
     },
     async remove(quoteId) { const { error } = await supa.from("quotes").delete().eq("id", quoteId); if (error) throw error; return true; },
@@ -711,6 +714,10 @@
       }
       return readLs(BOOK_LS).filter((b) => b.quote_id === quoteId);
     },
+    async listAll() {
+      if (mode === "supabase") { const { data, error } = await supa.from("event_resources").select("*"); if (error) throw error; return data; }
+      return readLs(BOOK_LS);
+    },
     async add(quoteId, b) {
       let row;
       if (mode === "supabase") {
@@ -734,8 +741,85 @@
     },
   };
 
+  /* ---------------- unified resource calendar + conflicts (Phase 10) ---------------- */
+  const calendar = {
+    // Pull every commitment across all events and detect date clashes.
+    async load() {
+      const [events, invRes, vendorBk, items, team, vends, tasks] = await Promise.all([
+        quotes.list(),
+        inventory.reservations().catch(() => []),
+        bookings.listAll().catch(() => []),
+        inventory.items(true).catch(() => []),
+        staff.list(true).catch(() => []),
+        vendors.listAll(true).catch(() => []),
+        (async () => {
+          if (mode !== "supabase") return readLs("bp_tasks_stub") || [];
+          const { data, error } = await supa.from("event_tasks").select("quote_id,crew_id,title").not("crew_id", "is", null);
+          if (error) throw error; return data;
+        })().catch(() => []),
+      ]);
+      const evById = {}; events.forEach((e) => { evById[e.id] = e; });
+      const itemById = {}; items.forEach((i) => { itemById[i.id] = i; });
+      const staffById = {}; team.forEach((p) => { staffById[p.id] = p; });
+      const vendById = {}; vends.forEach((v) => { vendById[v.id] = v; });
+      const dateOf = (qid) => { const e = evById[qid]; return e ? e.eventDate : null; };
+
+      // ---- conflict detection (only for events that have a date) ----
+      const conflicts = [];
+      // 1) inventory over-commit per item per date
+      const invByItemDate = {};
+      invRes.forEach((r) => {
+        if (!["reserved", "allocated"].includes(r.status)) return;
+        const d = dateOf(r.quote_id); if (!d) return;
+        const k = r.item_id + "|" + d; (invByItemDate[k] = invByItemDate[k] || []).push(r);
+      });
+      Object.entries(invByItemDate).forEach(([k, list]) => {
+        const [itemId, d] = k.split("|"); const item = itemById[itemId]; if (!item) return;
+        const sum = list.reduce((a, r) => a + Number(r.qty || 0), 0);
+        if (sum > Number(item.total_qty || 0)) conflicts.push({ type: "inventory", date: d,
+          label: item.name, detail: `${sum} committed of ${item.total_qty} ${item.unit || ""} across ${new Set(list.map((r) => r.quote_id)).size} events`,
+          events: [...new Set(list.map((r) => r.quote_id))].map((q) => evById[q]) });
+      });
+      // 2) vendor double-booked on a date
+      const vByVendorDate = {};
+      vendorBk.forEach((b) => {
+        if (b.status === "cancelled" || !b.vendor_id) return;
+        const d = dateOf(b.quote_id); if (!d) return;
+        const k = b.vendor_id + "|" + d; (vByVendorDate[k] = vByVendorDate[k] || new Set()).add(b.quote_id);
+      });
+      Object.entries(vByVendorDate).forEach(([k, qset]) => {
+        const [vid, d] = k.split("|"); if (qset.size > 1) { const v = vendById[vid];
+          conflicts.push({ type: "vendor", date: d, label: v ? v.name : "Partner",
+            detail: `booked for ${qset.size} events on this date`, events: [...qset].map((q) => evById[q]) }); }
+      });
+      // 3) staff double-booked on a date
+      const sByStaffDate = {};
+      tasks.forEach((t) => {
+        if (!t.crew_id) return; const d = dateOf(t.quote_id); if (!d) return;
+        const k = t.crew_id + "|" + d; (sByStaffDate[k] = sByStaffDate[k] || new Set()).add(t.quote_id);
+      });
+      Object.entries(sByStaffDate).forEach(([k, qset]) => {
+        const [sid, d] = k.split("|"); if (qset.size > 1) { const p = staffById[sid];
+          conflicts.push({ type: "staff", date: d, label: p ? p.name : "Staff",
+            detail: `assigned to ${qset.size} events on this date`, events: [...qset].map((q) => evById[q]) }); }
+      });
+
+      // ---- per-event commitment rollup (for the agenda) ----
+      const agenda = events.map((e) => {
+        const inv = invRes.filter((r) => r.quote_id === e.id && ["reserved", "allocated"].includes(r.status));
+        const vend = vendorBk.filter((b) => b.quote_id === e.id && b.status !== "cancelled");
+        const crew = [...new Set(tasks.filter((t) => t.quote_id === e.id).map((t) => t.crew_id))];
+        return { event: e, invCount: inv.length, vendCount: vend.length, staffCount: crew.length,
+          items: inv.map((r) => ({ name: (itemById[r.item_id] || {}).name || "item", qty: r.qty })),
+          vendorsList: vend.map((b) => (vendById[b.vendor_id] || {}).name || b.label),
+          staffList: crew.map((c) => (staffById[c] || {}).name || "crew") };
+      });
+      return { agenda, conflicts, counts: { events: events.length, dated: events.filter((e) => e.eventDate).length } };
+    },
+  };
+
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

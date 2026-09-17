@@ -36,6 +36,7 @@ minus the user seed), run in this exact order:
 | 13 | `13-inventory.sql`     | Inventory items + per-event reservations + availability view (Phase 7) |
 | 14 | `14-resource-needs.sql`| Per-event resource needs (capability check flags gaps) (Phase 8) |
 | 15 | `15-vendors.sql`       | vendors.kind + event_resources (external bookings) (Phase 9) |
+| 16 | `16-calendar.sql`     | quotes.event_date + backfill (resource calendar) (Phase 10) |
 
 Then, on a brand-new DB only, seed the team logins:
 

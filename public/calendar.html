@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resource Calendar — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)} .nav a.on{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+
+  h2{font-size:15px;margin:14px 0 10px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+  /* conflicts */
+  .conflict{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid #f5c6c6;background:#fdf2f2;border-radius:11px;margin-bottom:8px}
+  .conflict .ico{font-size:16px}
+  .conflict .t{font-weight:700;font-size:13px} .conflict .d{font-size:12px;color:var(--ink-2)}
+  .conflict .when{margin-left:auto;font-family:var(--mono);font-size:11px;color:#b42318;white-space:nowrap}
+  .ctype{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;margin-left:8px}
+  .ctype.inventory{background:#e7f6ee;color:#0f7a43} .ctype.vendor{background:var(--accent-soft);color:var(--accent)} .ctype.staff{background:#eef2ff;color:#4457c8}
+  .allclear{display:flex;align-items:center;gap:10px;padding:14px;border:1px solid #b6e3ca;background:#eefaf2;border-radius:11px;color:#0f7a43;font-weight:600;font-size:13px}
+
+  /* agenda by date */
+  .day{margin-bottom:16px}
+  .day .hd{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+  .day .hd .dt{font-family:var(--mono);font-weight:700;font-size:14px} .day .hd .wk{color:var(--ink-3);font-size:12px}
+  .ev{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:14px;margin-bottom:8px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  .ev.clash{border-color:#f5c6c6}
+  .ev .code{font-family:var(--mono);font-weight:700;color:var(--accent)}
+  .ev .ttl{font-weight:600;font-size:14px}
+  .ev .chips{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+  .chip{font-size:11px;font-weight:600;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:4px 10px;color:var(--ink-2)}
+  .chip b{color:var(--ink)} .chip.zero{color:var(--ink-3)}
+  .open{border:1px solid var(--line);background:var(--panel);border-radius:8px;height:32px;padding:0 12px;font-size:12px;font-weight:600;cursor:pointer;color:var(--accent)} .open:hover{border-color:var(--accent)}
+  .nodate .ev{opacity:.85}
+  .empty{color:var(--ink-3);font-size:13px;padding:8px 0}
+  .setdate{height:30px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:12px;padding:0 8px;color:var(--ink)}
+  footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,96vw);padding:24px}
+  .sheet h3{margin:0 0 12px}.fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}.fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld input{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit}
+  .foot{display:flex;gap:10px;justify-content:flex-end}.btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}.btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
+  .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Blueprint Stage</h1><small>Resource Calendar</small></div>
+    <nav class="nav"><a href="index.html">Dashboard</a><a href="staff.html">Staff</a><a href="inventory.html">Inventory</a><a href="vendors.html">Vendors</a><a href="calendar.html" class="on">Calendar</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to view the calendar.</p></div>
+
+  <div id="app" hidden>
+    <h2>Conflicts</h2>
+    <div id="conflicts"></div>
+
+    <h2 style="margin-top:20px">Upcoming events &amp; commitments</h2>
+    <div id="agenda"></div>
+
+    <div id="nodateWrap" class="nodate" hidden>
+      <h2 style="margin-top:20px">No date set</h2>
+      <p class="empty">Give these events a date so they appear on the calendar and get conflict-checked.</p>
+      <div id="nodate"></div>
+    </div>
+  </div>
+  <footer>Blueprint Stage — one calendar for staff, stock &amp; partners, with double-booking alerts.</footer>
+</div>
+
+<div id="loginModal" class="lmodal" hidden>
+  <div class="sheet">
+    <h3>Sign in</h3>
+    <div class="fld"><label>Email</label><input id="li_email" type="email"></div>
+    <div class="fld"><label>Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden></div>
+    <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
+  </div>
+</div>
+
+<script src="config.js?v=20"></script>
+<script src="store-api.js?v=20"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const fmtDate=(d)=>{ if(!d) return ""; const dt=new Date(d+"T00:00:00"); return dt.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}); };
+  const weekday=(d)=>{ if(!d) return ""; return new Date(d+"T00:00:00").toLocaleDateString("en-IN",{weekday:"long"}); };
+  let canEdit=false, data=null;
+
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  function renderConflicts(){
+    const cs=data.conflicts.slice().sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+    if(!cs.length){ $("#conflicts").innerHTML='<div class="allclear">✓ No conflicts — every commitment fits.</div>'; return; }
+    const ico={inventory:"📦",vendor:"🤝",staff:"👷"};
+    $("#conflicts").innerHTML=cs.map(c=>`<div class="conflict">
+      <span class="ico">${ico[c.type]||"⚠"}</span>
+      <div><div class="t">${esc(c.label)}<span class="ctype ${c.type}">${c.type}</span></div>
+        <div class="d">${esc(c.detail)} — ${c.events.filter(Boolean).map(e=>esc(e.code)).join(", ")}</div></div>
+      <span class="when">${esc(fmtDate(c.date))}</span></div>`).join("");
+  }
+
+  function eventRow(a, clashDates){
+    const e=a.event; const clash = e.eventDate && clashDates.has(e.eventDate);
+    const chip=(n,l)=>`<span class="chip ${n?'':'zero'}"><b>${n}</b> ${l}</span>`;
+    return `<div class="ev ${clash?'clash':''}">
+      <div><span class="code">${esc(e.code)}</span> <span class="ttl">${esc(e.title||"")}</span>
+        <div style="font-size:12px;color:var(--ink-3)">${esc((e.eventType||""))}</div></div>
+      <div class="chips">
+        ${chip(a.staffCount,"staff")}${chip(a.invCount,"stock")}${chip(a.vendCount,"partners")}
+        <a class="open" href="event.html?id=${encodeURIComponent(e.id)}">Open</a>
+      </div></div>`;
+  }
+
+  function render(){
+    const clashDates=new Set(data.conflicts.map(c=>c.date));
+    renderConflicts();
+    const dated=data.agenda.filter(a=>a.event.eventDate).sort((x,y)=>x.event.eventDate.localeCompare(y.event.eventDate));
+    const byDate={}; dated.forEach(a=>{ (byDate[a.event.eventDate]=byDate[a.event.eventDate]||[]).push(a); });
+    const days=Object.keys(byDate).sort();
+    $("#agenda").innerHTML = days.length ? days.map(d=>`<div class="day">
+      <div class="hd"><span class="dt">${esc(fmtDate(d))}</span><span class="wk">${esc(weekday(d))}</span>${clashDates.has(d)?'<span class="ctype vendor" style="background:#fdecec;color:#b42318">conflict</span>':''}</div>
+      ${byDate[d].map(a=>eventRow(a,clashDates)).join("")}
+    </div>`).join("") : '<div class="empty">No dated events yet.</div>';
+
+    const nodate=data.agenda.filter(a=>!a.event.eventDate);
+    $("#nodateWrap").hidden = !nodate.length;
+    if(nodate.length){ $("#nodate").innerHTML=nodate.map(a=>`<div class="ev">
+      <div><span class="code">${esc(a.event.code)}</span> <span class="ttl">${esc(a.event.title||"")}</span></div>
+      <div class="chips">
+        ${canEdit?`<input type="date" class="setdate" data-set="${a.event.id}">`:""}
+        <a class="open" href="event.html?id=${encodeURIComponent(a.event.id)}">Open</a>
+      </div></div>`).join("");
+      $("#nodate").querySelectorAll("[data-set]").forEach(inp=>inp.addEventListener("change",async()=>{
+        try{ await BPStore.quotes.updateMeta(inp.dataset.set,{eventDate:inp.value||null}); await load(); }
+        catch(e){ alert("Couldn't set date — "+((e&&e.message)||"error")); } }));
+    }
+  }
+
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
+    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+
+  async function load(){
+    try{ data=await BPStore.calendar.load(); }
+    catch(e){ $("#agenda").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase10-calendar.sql</b>.</div>`; return; }
+    render();
+  }
+  (async ()=>{
+    await BPStore.init(); await renderAccount();
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    canEdit=await BPStore.auth.can("edit"); $("#app").hidden=false;
+    await load();
+  })();
+</script>
+</body>
+</html>

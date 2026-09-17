@@ -62,7 +62,7 @@
   <header>
     <a href="index.html" class="mark" title="Home"></a>
     <div><h1>Event Workspace</h1><small>Blueprint Stage</small></div>
-    <nav class="nav"><a href="index.html">Home</a><a href="leads.html">Leads</a><a href="quotes.html">Quotes</a><a href="control.html">Control Center</a></nav>
+    <nav class="nav"><a href="index.html">Home</a><a href="leads.html">Leads</a><a href="calendar.html">Calendar</a><a href="quotes.html">Quotes</a><a href="control.html">Control Center</a></nav>
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
@@ -77,6 +77,7 @@
           <span class="code" id="code"></span> <span id="statusBadge"></span> <span id="apprBadge"></span>
           <div class="ttl" id="title"></div>
           <div class="meta" id="meta"></div>
+          <div class="meta" id="dateRow" style="margin-top:6px"></div>
         </div>
         <div class="tot"><div class="muted">Total</div><div class="amt" id="total">—</div></div>
       </div>
@@ -103,8 +104,8 @@
   </form>
 </div>
 
-<script src="config.js?v=19"></script>
-<script src="store-api.js?v=19"></script>
+<script src="config.js?v=20"></script>
+<script src="store-api.js?v=20"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -175,6 +176,7 @@
     const cl=ev.client||{};
     $("#meta").textContent=[ev.eventType, cl.name?("for "+cl.name):"", cl.eventDate||""].filter(Boolean).join(" · ")||"No client details yet";
     $("#total").textContent=evTotal()? inr(evTotal()):"—";
+    renderDateRow();
 
     const cur=stageIndex(ev.lifecycleStage);
     $("#steps").innerHTML=STAGES.map((s,i)=>{
@@ -227,6 +229,12 @@
     }).join("");
   }
 
+  function renderDateRow(){
+    const el=$("#dateRow"); const d=ev.eventDate||"";
+    if(canEdit){ el.innerHTML=`📅 Event date: <input type="date" id="evDate" value="${esc(d)}" style="height:28px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:12px;padding:0 6px;color:var(--ink)">`;
+      $("#evDate").addEventListener("change",async()=>{ try{ await BPStore.quotes.updateMeta(id,{eventDate:$("#evDate").value||null}); ev.eventDate=$("#evDate").value||null; }catch(e){ alert("Couldn't save date: "+((e&&e.message)||"error")); } });
+    } else { el.innerHTML = d ? ("📅 "+esc(d)) : ""; }
+  }
   async function setStage(k){
     try{ await BPStore.quotes.setStage(id, k); ev.lifecycleStage=k; render(); }
     catch(e){ alert("Couldn't update stage: "+((e&&e.message)||"error")); }

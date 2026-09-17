@@ -95,6 +95,15 @@ what each phase added, in plain words.
   partner against a gap automatically marks that need **Outsourced**, so the plan
   always shows what's still open.
 
+- **Phase 10 — Resource calendar (Block B checkpoint).** One **Calendar** page
+  that lays out every event by date and shows what's committed to each —
+  **staff**, **stock** and **partners** — in one place. It automatically flags
+  **conflicts**: the same stock item over-committed on a date, or the same vendor
+  or staff member double-booked across two events on the same day. Events get an
+  **Event date** (set on the workspace or carried from the lead); any without one
+  are listed separately so you can add it. This closes Block B — a planner can
+  resource an event fully and see clashes before they happen.
+
 ### Where the data lives
 
 All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per
