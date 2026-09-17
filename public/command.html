@@ -79,6 +79,7 @@
         <div class="venue" id="b_venue"></div>
       </div>
       <div class="links">
+        <a id="l_issues" href="#">🎫 Issues</a>
         <a id="l_runsheet" href="#">🗓 Run-sheet</a>
         <a id="l_floor" href="#">📐 Floor</a>
       </div>
@@ -116,8 +117,8 @@
   </div>
 </div>
 
-<script src="config.js?v=27"></script>
-<script src="store-api.js?v=27"></script>
+<script src="config.js?v=28"></script>
+<script src="store-api.js?v=28"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -182,7 +183,7 @@
     canEdit=await BPStore.auth.can("edit");
     try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
     $("#b_code").textContent=ev.code||""; $("#b_meta").textContent=[ev.title,ev.eventDate,(ev.startTime?ev.startTime.slice(0,5):"")].filter(Boolean).join(" · ");
-    $("#l_runsheet").href="runsheet.html?quote="+encodeURIComponent(id); $("#l_floor").href="builder.html?quote="+encodeURIComponent(id);
+    $("#l_issues").href="issues.html?quote="+encodeURIComponent(id); $("#l_runsheet").href="runsheet.html?quote="+encodeURIComponent(id); $("#l_floor").href="builder.html?quote="+encodeURIComponent(id);
     try{ const p=await BPStore.plan.get(id); if(p&&(p.venue_name||p.access_notes)) $("#b_venue").textContent="📍 "+[p.venue_name,p.access_notes].filter(Boolean).join(" — "); }catch{}
     $("#app").hidden=false; $("#arrTools").hidden=!canEdit; $("#chkAdd").hidden=!canEdit;
     try{ await renderArrivals(); await renderChecks(); }catch(e){ $("#arrRows").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase16-dayops.sql</b>.</div>`; }

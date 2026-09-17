@@ -104,8 +104,8 @@
   </form>
 </div>
 
-<script src="config.js?v=27"></script>
-<script src="store-api.js?v=27"></script>
+<script src="config.js?v=28"></script>
+<script src="store-api.js?v=28"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -122,13 +122,13 @@
     {k:"planning",label:"Planning",hint:"Assign tasks, plan resources and build the run-sheet.",mods:["resourceplan","runsheet","budget"]},
     {k:"resources",label:"Resources",hint:"Map needs, cover in-house, flag the gaps.",mods:["resourceplan","inventory","tasks"]},
     {k:"ready",label:"Ready",hint:"Pass the readiness gate, then brief the team.",mods:["readycheck","runsheet","logistics"]},
-    {k:"event_day",label:"Event Day",hint:"Run the day from the command center.",mods:["command","runsheet"]},
+    {k:"event_day",label:"Event Day",hint:"Run the day and handle issues live.",mods:["command","issues"]},
     {k:"settlement",label:"Settlement",hint:"Reconcile costs, invoice and collect payment.",mods:["budget","quote","approval"]},
     {k:"closed",label:"Closed",hint:"Event complete and archived.",mods:[]},
   ];
   const stageIndex=(k)=>Math.max(0,STAGES.findIndex(s=>s.k===k));
 
-  let ev=null, canEdit=false, tasksSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null;
+  let ev=null, canEdit=false, tasksSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
   const budgetRange=()=>{ const d=discSummary&&discSummary.disc; if(!d) return ""; const a=d.budget_min, b=d.budget_max;
     if(a!=null&&b!=null) return inr(a)+"–"+inr(b); if(a!=null) return "from "+inr(a); if(b!=null) return "up to "+inr(b); return ""; };
@@ -179,6 +179,8 @@
     try{ const arr=await BPStore.dayops.list(id,"arrival"); const chk=await BPStore.dayops.list(id,"check");
       daySummary={ here:arr.filter(a=>a.status==='arrived'||a.status==='left').length, arr:arr.length,
         checksDone:chk.filter(c=>c.status==='done').length, checks:chk.length }; }catch{ daySummary=null; }
+    // issues summary (Phase 17) — optional
+    try{ const iss=await BPStore.issues.list(id); issuesSummary={ open:iss.filter(i=>i.status!=='resolved').length, total:iss.length }; }catch{ issuesSummary=null; }
     $("#app").hidden=false;
     render();
   }
@@ -241,6 +243,9 @@
       { key:"command", ic:"🎛️", title:"Event-day command",
         sum: daySummary && (daySummary.arr||daySummary.checks) ? `${daySummary.here}/${daySummary.arr} arrived · ${daySummary.checksDone}/${daySummary.checks} checks done` : "Run the live day — arrivals, attendance &amp; checks.",
         acts:[{t: canEdit?"Open command":"View day", href:"command.html?quote="+encodeURIComponent(id), primary:true}] },
+      { key:"issues", ic:"🎫", title:"Issues & incidents",
+        sum: issuesSummary && issuesSummary.total ? `${issuesSummary.open?`<b style="color:#b42318">${issuesSummary.open} open</b>`:'<span class="stat ok">all clear</span>'} · ${issuesSummary.total} logged` : "Log &amp; resolve live issues and incidents.",
+        acts:[{t: canEdit?"Open issues":"View issues", href:"issues.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"readycheck", ic:"🚦", title:"Readiness gate",
         sum: readySummary ? (readySummary.ready ? '<span class="stat ok">Event Ready ✓</span>' : `<b>${readySummary.criticalPassed}/${readySummary.criticalTotal}</b> checks passed — ${readySummary.criticalTotal-readySummary.criticalPassed} to go`) : "Check the event is ready across everything.",
         acts:[{t:"Open readiness", href:"ready.html?quote="+encodeURIComponent(id), primary:true}] },

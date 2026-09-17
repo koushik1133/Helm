@@ -152,6 +152,14 @@ what each phase added, in plain words.
   checks** panel (mark each **Done / Issue**). Everything saves live so the whole
   team sees the same picture on the day.
 
+- **Phase 17 — Live coordination & issues.** A **Live issues** log with two tabs:
+  **Issues** (operational problems) and **Incidents** (safety). Log one with a
+  title, **severity** (low/medium/high) and owner, then move it **Open → In
+  progress → Resolved** — each keeps its timestamps for the record afterwards. An
+  open-count shows at a glance, a **Raise a billable change →** link jumps to the
+  budget's change-order flow for in-event scope changes, and it's linked from the
+  command center banner.
+
 ### Where the data lives
 
 All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per
