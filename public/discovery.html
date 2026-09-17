@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Discovery — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:960px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .crumb{font-size:12px;color:var(--ink-3);margin:2px 0 14px} .crumb a{color:var(--accent)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
+  .card h2{font-size:15px;margin:0 0 4px} .card .sub{font-size:12px;color:var(--ink-3);margin:0 0 16px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px} @media(max-width:620px){.grid{grid-template-columns:1fr}}
+  .fld{display:flex;flex-direction:column;gap:4px} .fld.full{grid-column:1/-1}
+  .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld input,.fld select,.fld textarea{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .fld textarea{height:auto;min-height:70px;padding:10px 12px;resize:vertical}
+  .btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.4;cursor:default}
+  .foot{display:flex;gap:10px;justify-content:flex-end;margin-top:14px;align-items:center}
+  .ok{color:var(--safe);font-size:12px;font-weight:600} .err{color:#b42318;font-size:12px;font-weight:600}
+  /* requirements */
+  .reqrow{display:grid;grid-template-columns:2fr 1fr .7fr 1.4fr auto;gap:8px;align-items:end;margin-bottom:8px}
+  @media(max-width:620px){.reqrow{grid-template-columns:1fr 1fr}}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+  thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:9px 10px;border-bottom:1px solid var(--line)}
+  tbody td{padding:9px 10px;border-bottom:1px solid var(--line-2)}
+  .pri{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .pri.mandatory{background:#fdecec;color:#b42318}.pri.optional{background:#fff7e6;color:#946200}.pri.nice{background:#eef2ff;color:#4457c8}
+  .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:30px;padding:0 10px;font-size:12px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#e5484d;border-color:#f5c6c6}
+  .empty{color:var(--ink-3);font-size:12px;padding:12px 0}
+  .muted{color:var(--ink-3);font-size:12px}
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,94vw);padding:26px;text-align:center}
+  .lsheet h3{font-size:18px;margin:8px 0 12px} .lsheet label{display:block;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+  .lsheet input{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;margin-bottom:12px;font-family:inherit}
+  .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Discovery &amp; requirements</h1><small>Blueprint Stage</small></div>
+    <nav class="nav"><a href="index.html">Home</a><a href="quotes.html">Quotes</a><a href="leads.html">Leads</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card" hidden><p class="muted">Sign in to open discovery.</p></div>
+  <div id="notfound" class="card" hidden><p class="muted">Event not found. Go to <a href="quotes.html" style="color:var(--accent)">Quotes</a>.</p></div>
+
+  <div id="app" hidden>
+    <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
+
+    <div class="card">
+      <h2>Discovery meeting</h2>
+      <p class="sub">Capture what you learned before quoting. Saved to this event.</p>
+      <div class="grid">
+        <div class="fld"><label>Meeting date</label><input type="date" id="d_date"></div>
+        <div class="fld"><label>Mode</label>
+          <select id="d_mode"><option value="">—</option><option value="in_person">In person</option><option value="call">Phone call</option><option value="video">Video call</option></select></div>
+        <div class="fld full"><label>Location / meeting link</label><input id="d_loc" placeholder="Venue address or video link"></div>
+        <div class="fld full"><label>Who attended</label><input id="d_att" placeholder="e.g. Client + spouse, planner"></div>
+        <div class="fld"><label>Budget — min (₹)</label><input type="number" min="0" id="d_bmin" placeholder="e.g. 400000"></div>
+        <div class="fld"><label>Budget — max (₹)</label><input type="number" min="0" id="d_bmax" placeholder="e.g. 600000"></div>
+        <div class="fld full"><label>Notes</label><textarea id="d_notes" placeholder="Theme ideas, constraints, preferences, must-avoids…"></textarea></div>
+      </div>
+      <div class="foot"><span id="d_msg"></span><button class="btn primary" id="d_save" hidden>Save discovery</button></div>
+    </div>
+
+    <div class="card">
+      <h2>Requirements</h2>
+      <p class="sub">The services the client wants. Tag each as must-have, optional or nice-to-have — these guide the quote.</p>
+      <div id="addReq" class="reqrow" hidden>
+        <div class="fld"><label>Service</label><input id="r_service" placeholder="e.g. Catering (veg), Stage décor"></div>
+        <div class="fld"><label>Priority</label>
+          <select id="r_priority"><option value="mandatory">Must-have</option><option value="optional">Optional</option><option value="nice">Nice-to-have</option></select></div>
+        <div class="fld"><label>Qty</label><input type="number" min="0" id="r_qty" placeholder="#"></div>
+        <div class="fld"><label>Note</label><input id="r_note" placeholder="detail (optional)"></div>
+        <div class="fld"><label>&nbsp;</label><button class="btn primary" id="r_add">＋ Add</button></div>
+      </div>
+      <table>
+        <thead><tr><th>Service</th><th>Priority</th><th>Qty</th><th>Note</th><th></th></tr></thead>
+        <tbody id="reqRows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="lmodal" id="loginModal" hidden>
+  <form class="lsheet" id="loginForm">
+    <div class="mark" style="margin:0 auto 10px"></div><h3>Sign in</h3>
+    <label>Email</label><input type="email" id="li_email" required>
+    <label>Password</label><input type="password" id="li_pw" required>
+    <div class="lerr" id="li_err" hidden></div>
+    <button class="btn primary" id="li_submit" type="submit" style="width:100%;justify-content:center">Sign in</button>
+  </form>
+</div>
+
+<script src="config.js?v=15"></script>
+<script src="store-api.js?v=15"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const inr=(n)=>"₹"+Number(n||0).toLocaleString("en-IN");
+  const id=new URLSearchParams(location.search).get("quote");
+  const PRI={mandatory:"Must-have",optional:"Optional",nice:"Nice-to-have"};
+  let canEdit=false, canDelete=false, reqs=[];
+
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  function renderReqs(){
+    if(!reqs.length){ $("#reqRows").innerHTML='<tr><td colspan="5" class="empty">No requirements captured yet.</td></tr>'; return; }
+    $("#reqRows").innerHTML=reqs.map(r=>`<tr>
+      <td><b>${esc(r.service)}</b></td>
+      <td><span class="pri ${esc(r.priority)}">${esc(PRI[r.priority]||r.priority)}</span></td>
+      <td class="muted">${r.qty!=null?esc(r.qty):""}</td>
+      <td class="muted">${esc(r.note||"")}</td>
+      <td>${canDelete?`<button class="rm" data-id="${r.id}">Remove</button>`:""}</td>
+    </tr>`).join("");
+    $("#reqRows").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{
+      try{ await BPStore.discovery.removeReq(b.dataset.id); reqs=reqs.filter(x=>x.id!==b.dataset.id); renderReqs(); }
+      catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); }
+    }));
+  }
+
+  async function saveDiscovery(){
+    const d={ meet_date:$("#d_date").value||null, mode:$("#d_mode").value||null,
+      location:$("#d_loc").value.trim()||null, attendees:$("#d_att").value.trim()||null,
+      notes:$("#d_notes").value.trim()||null,
+      budget_min:$("#d_bmin").value?Number($("#d_bmin").value):null,
+      budget_max:$("#d_bmax").value?Number($("#d_bmax").value):null };
+    $("#d_save").disabled=true; $("#d_msg").textContent="";
+    try{ await BPStore.discovery.save(id,d); $("#d_msg").className="ok"; $("#d_msg").textContent="Saved ✓"; setTimeout(()=>$("#d_msg").textContent="",2000); }
+    catch(e){ $("#d_msg").className="err"; $("#d_msg").textContent="Couldn't save — "+((e&&e.message)||"error"); }
+    finally{ $("#d_save").disabled=false; }
+  }
+  async function addReq(){
+    const service=$("#r_service").value.trim(); if(!service){ $("#r_service").focus(); return; }
+    const req={ service, priority:$("#r_priority").value, qty:$("#r_qty").value?Number($("#r_qty").value):null, note:$("#r_note").value.trim()||null };
+    $("#r_add").disabled=true;
+    try{ const row=await BPStore.discovery.addReq(id,req); reqs.push(row); renderReqs();
+      $("#r_service").value=""; $("#r_qty").value=""; $("#r_note").value=""; $("#r_service").focus(); }
+    catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); }
+    finally{ $("#r_add").disabled=false; }
+  }
+
+  async function load(){
+    await BPStore.init(); await renderAccount();
+    $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
+    if(!id){ $("#notfound").hidden=false; return; }
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    canEdit=await BPStore.auth.can("edit"); canDelete=await BPStore.auth.can("delete");
+    let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
+    $("#evName").textContent = (ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
+    $("#app").hidden=false;
+    $("#d_save").hidden=!canEdit; $("#addReq").hidden=!canEdit;
+    // prefill discovery
+    try{ const d=await BPStore.discovery.get(id); if(d){
+      $("#d_date").value=d.meet_date||""; $("#d_mode").value=d.mode||""; $("#d_loc").value=d.location||"";
+      $("#d_att").value=d.attendees||""; $("#d_notes").value=d.notes||"";
+      $("#d_bmin").value=d.budget_min!=null?d.budget_min:""; $("#d_bmax").value=d.budget_max!=null?d.budget_max:""; } }catch{}
+    try{ reqs=await BPStore.discovery.listReqs(id); }catch(e){ reqs=[]; }
+    renderReqs();
+    if(!canEdit){ document.querySelectorAll("#app input,#app select,#app textarea").forEach(el=>el.disabled=true); }
+  }
+
+  $("#d_save").addEventListener("click",saveDiscovery);
+  $("#r_add").addEventListener("click",addReq);
+  $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
+    const btn=$("#li_submit"); btn.disabled=true; btn.textContent="Signing in…"; $("#li_err").hidden=true;
+    try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pw").value); closeLogin(); $("#gate").hidden=true; await load(); }
+    catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign-in failed"; $("#li_err").hidden=false; }
+    finally{ btn.disabled=false; btn.textContent="Sign in"; } });
+  load();
+</script>
+</body>
+</html>

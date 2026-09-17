@@ -207,8 +207,8 @@
   </div>
 </div>
 
-<script src="config.js?v=10"></script>
-<script src="store-api.js?v=10"></script>
+<script src="config.js?v=15"></script>
+<script src="store-api.js?v=15"></script>
 <script>
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return "—"; } };
@@ -237,6 +237,8 @@
       const canManage = await BPStore.auth.can("manage");
       const canEditRole = await BPStore.auth.can("edit");
       el.innerHTML = `<span class="role">${esc(role||"")}</span><span>${esc(user.email)}</span>`
+        + (canEditRole ? `<a class="users" href="leads.html">🎯 Leads</a>` : "")
+        + (canEditRole ? `<a class="users" href="crm.html">🗄 CRM</a>` : "")
         + `<a class="users" href="quotes.html">📋 Quotes</a>`
         + (canEditRole ? `<a class="users" href="control.html">⚙ Control Center</a>` : "")
         + (canManage ? `<button class="users" id="usersBtn">👥 Users</button>` : "")
@@ -287,7 +289,7 @@
         <small>${esc(s.title || "")} · v${s.currentVersion}${s.total ? " · " + inr(s.total) : ""} · ${fmtDate(s.updatedAt)}</small></div>`).join("");
     host.querySelectorAll(".ecard").forEach((c) => c.addEventListener("click", (e) => {
       if (e.target.classList.contains("del")) return;
-      location.href = "builder.html?quote=" + encodeURIComponent(c.dataset.id);
+      location.href = "event.html?id=" + encodeURIComponent(c.dataset.id);   // open the Event Workspace hub
     }));
     host.querySelectorAll(".del").forEach((b) => b.addEventListener("click", async (e) => {
       e.stopPropagation();

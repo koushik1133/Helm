@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your Event Proposal — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#f4f1ee;--panel:#fff;--panel-2:#f6f8fc;--ink:#1c2233;--ink-2:#4a5673;--ink-3:#8a8f9e;
+    --line:#e6e1da;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#e7e0ff;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 16px 40px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  .wrap{max-width:820px;margin:0 auto;padding:0 22px 70px}
+  header{display:flex;align-items:center;gap:11px;padding:22px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header b{font-size:15px} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .hero{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:34px;margin-bottom:18px}
+  .hero .kick{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent)}
+  .hero h1{font-size:30px;line-height:1.15;margin:8px 0 4px;letter-spacing:-.02em}
+  .hero .for{color:var(--ink-3);font-size:14px}
+  .hero .theme{display:inline-block;margin-top:14px;background:var(--accent-soft);color:#4a3aa8;border-radius:20px;padding:5px 14px;font-size:13px;font-weight:600}
+  .sec{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:26px;margin-bottom:18px}
+  .sec h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);margin:0 0 14px}
+  .concept{font-size:16px;line-height:1.7;color:var(--ink-2);white-space:pre-wrap}
+  .palette{display:flex;gap:10px;flex-wrap:wrap}
+  .sw{width:56px;height:56px;border-radius:12px;border:1px solid var(--line);position:relative}
+  .sw small{position:absolute;bottom:-18px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:9px;color:var(--ink-3)}
+  .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+  .gallery img{width:100%;height:150px;object-fit:cover;border-radius:12px;border:1px solid var(--line);background:var(--panel-2)}
+  .scope{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:8px} @media(max-width:560px){.scope{grid-template-columns:1fr}}
+  .scope li{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--ink-2);background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .scope li::before{content:"✓";color:var(--accent);font-weight:700}
+  .foot{text-align:center;color:var(--ink-3);font-size:12px;padding:14px}
+  .state{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:40px;text-align:center;color:var(--ink-3)}
+  .spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp 1s linear infinite;margin:0 auto 12px} @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mark"></div><div><b>Blueprint Stage</b><small>Event Proposal</small></div>
+  </header>
+
+  <div id="loading" class="state"><div class="spin"></div>Loading your proposal…</div>
+  <div id="error" class="state" hidden>This proposal link is not available. Please contact your event planner.</div>
+
+  <div id="doc" hidden>
+    <div class="hero">
+      <div class="kick" id="kick">Proposal</div>
+      <h1 id="theme">Your event</h1>
+      <div class="for" id="for"></div>
+      <span class="theme" id="themeChip" hidden></span>
+    </div>
+    <div class="sec" id="conceptSec" hidden><h2>The concept</h2><div class="concept" id="concept"></div></div>
+    <div class="sec" id="paletteSec" hidden><h2>Colour palette</h2><div class="palette" id="palette" style="margin-bottom:14px"></div></div>
+    <div class="sec" id="gallerySec" hidden><h2>Mood &amp; inspiration</h2><div class="gallery" id="gallery"></div></div>
+    <div class="sec" id="scopeSec" hidden><h2>What's included</h2><ul class="scope" id="scope"></ul></div>
+    <div class="foot">This is a proposal for discussion — details may evolve. Prepared by your Blueprint Stage planner.</div>
+  </div>
+</div>
+
+<script src="config.js?v=15"></script>
+<script src="store-api.js?v=15"></script>
+<script>
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const token=new URLSearchParams(location.search).get("token");
+  const $=(s)=>document.querySelector(s);
+  (async ()=>{
+    await BPStore.init();
+    if(!token){ $("#loading").hidden=true; $("#error").hidden=false; return; }
+    let p; try{ p=await BPStore.proposal.getByToken(token); }catch(e){ p=null; }
+    if(!p){ $("#loading").hidden=true; $("#error").hidden=false; return; }
+    $("#loading").hidden=true; $("#doc").hidden=false;
+    $("#theme").textContent = p.theme || p.event_title || "Your event";
+    $("#kick").textContent = (p.event_type ? p.event_type+" · " : "") + "Proposal";
+    $("#for").textContent = [p.client_name?("For "+p.client_name):"", p.event_code].filter(Boolean).join(" · ");
+    if(p.theme && p.event_title && p.theme!==p.event_title){ $("#themeChip").hidden=false; $("#themeChip").textContent=p.event_title; }
+    if(p.concept){ $("#conceptSec").hidden=false; $("#concept").textContent=p.concept; }
+    const pal=Array.isArray(p.palette)?p.palette:[]; if(pal.length){ $("#paletteSec").hidden=false;
+      $("#palette").innerHTML=pal.map(c=>`<div class="sw" style="background:${esc(c)}"><small>${esc(c)}</small></div>`).join(""); }
+    const imgs=Array.isArray(p.images)?p.images:[]; if(imgs.length){ $("#gallerySec").hidden=false;
+      $("#gallery").innerHTML=imgs.map(u=>`<img src="${esc(u)}" alt="inspiration" onerror="this.style.opacity=.25">`).join(""); }
+    const sc=Array.isArray(p.scope)?p.scope:[]; if(sc.length){ $("#scopeSec").hidden=false;
+      $("#scope").innerHTML=sc.map(s=>`<li>${esc(s)}</li>`).join(""); }
+  })();
+</script>
+</body>
+</html>

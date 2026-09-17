@@ -166,9 +166,7 @@ begin
   if p_phone is null or length(regexp_replace(p_phone,'[^0-9]','','g')) < 8 then raise exception 'enter a valid phone number'; end if;
   select count(*) into recent from public.quote_otps where quote_id=q.id and created_at > now()-interval '10 minutes';
   if recent >= 5 then raise exception 'too many OTP requests — try again in a few minutes'; end if;
-  -- TEMPORARY dev PIN: in simulation the code is always 123456 for easy testing.
-  -- When sms_live is on, MSG91 generates the real code via the send-otp Edge Function.
-  code := '123456';
+  code := lpad((floor(random()*1000000))::int::text, 6, '0');
   insert into public.quote_otps(quote_id, phone, code_hash, expires_at)
     values (q.id, p_phone, extensions.crypt(code, extensions.gen_salt('bf')), now()+interval '10 minutes');
   perform public._notify(q.id,'sms',p_phone,'otp', jsonb_build_object('purpose','approval'));

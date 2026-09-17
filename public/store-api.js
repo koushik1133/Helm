@@ -187,11 +187,11 @@
   // Supabase tier (RPC-backed; errors surface). Falls back to localStorage when not in supabase mode.
   const sbq = {
     async list() {
-      const { data, error } = await supa.from("quotes")
-        .select("id,code,title,event_type,status,approval_status,approval_token,current_version,client,pricing,updated_at,created_at,confirmed_at")
-        .order("updated_at", { ascending: false });
+      // select * so a not-yet-migrated column (e.g. lifecycle_stage before its SQL runs) is simply absent, never a 400
+      const { data, error } = await supa.from("quotes").select("*").order("updated_at", { ascending: false });
       if (error) throw error;
       return data.map((q) => ({ id: q.id, code: q.code, title: q.title, eventType: q.event_type, status: q.status,
+        lifecycleStage: q.lifecycle_stage || "quote",
         approvalStatus: q.approval_status || "none", approvalToken: q.approval_token,
         currentVersion: q.current_version, client: q.client || {}, pricing: q.pricing || {}, total: (q.pricing && q.pricing.total) || 0,
         updatedAt: q.updated_at, createdAt: q.created_at, confirmedAt: q.confirmed_at }));
@@ -201,10 +201,15 @@
       const { data: vs, error: e2 } = await supa.from("quote_versions")
         .select("id,version_no,label,object_count,created_at").eq("quote_id", id).order("version_no", { ascending: false });
       if (e2) throw e2;
-      return { id: q.id, code: q.code, title: q.title, eventType: q.event_type, status: q.status, client: q.client || {},
+      return { id: q.id, code: q.code, title: q.title, eventType: q.event_type, status: q.status, lifecycleStage: q.lifecycle_stage || "quote",
+        approvalStatus: q.approval_status || "none", approvalToken: q.approval_token, client: q.client || {},
         pricing: q.pricing || {}, currentVersion: q.current_version, createdAt: q.created_at, updatedAt: q.updated_at,
         confirmedAt: q.confirmed_at, versions: vs.map((v) => ({ id: v.id, versionNo: v.version_no, label: v.label,
           objectCount: v.object_count, createdAt: v.created_at })) };
+    },
+    async setStage(id, stage) {
+      const { data, error } = await supa.rpc("set_lifecycle_stage", { p_quote_id: id, p_stage: stage });
+      if (error) throw error; return data;
     },
     async getVersion(quoteId, versionNo) {
       const { data, error } = await supa.from("quote_versions").select("data,version_no")
@@ -239,10 +244,12 @@
     read() { try { return JSON.parse(localStorage.getItem(LSQ) || "[]"); } catch { return []; } },
     write(v) { try { localStorage.setItem(LSQ, JSON.stringify(v)); } catch {} },
     async list() { return this.read().map((q) => ({ id: q.id, code: q.code, title: q.title, eventType: q.eventType, status: q.status,
+      lifecycleStage: q.lifecycleStage || "quote",
       currentVersion: q.currentVersion, client: q.client || {}, pricing: q.pricing || {}, total: (q.pricing && q.pricing.total) || 0,
       updatedAt: q.updatedAt, createdAt: q.createdAt, confirmedAt: q.confirmedAt })); },
     async get(id) { const q = this.read().find((x) => x.id === id); if (!q) throw new Error("not found");
-      return { ...q, versions: (q.versions || []).map((v) => ({ id: v.id, versionNo: v.versionNo, label: v.label, objectCount: v.objectCount, createdAt: v.createdAt })).sort((a, b) => b.versionNo - a.versionNo) }; },
+      return { ...q, lifecycleStage: q.lifecycleStage || "quote", versions: (q.versions || []).map((v) => ({ id: v.id, versionNo: v.versionNo, label: v.label, objectCount: v.objectCount, createdAt: v.createdAt })).sort((a, b) => b.versionNo - a.versionNo) }; },
+    async setStage(id, stage) { const a = this.read(); const q = a.find((x) => x.id === id); if (q) { q.lifecycleStage = stage; q.updatedAt = now(); this.write(a); } return { stage }; },
     async getVersion(id, no) { const q = this.read().find((x) => x.id === id); const v = q && (q.versions || []).find((v) => v.versionNo === no);
       if (!v) throw new Error("no version"); return { versionNo: no, data: v.data }; },
     async create(code, title, eventType, data, objectCount) { const q = { id: uid(), code, title: title || "Untitled event", eventType,
@@ -269,6 +276,7 @@
     create: (code, title, eventType, data, objectCount) => qt().create(code, title, eventType, data, objectCount),
     addVersion: (id, label, data, objectCount) => qt().addVersion(id, label, data, objectCount),
     confirm: (id, client, pricing) => qt().confirm(id, client, pricing),
+    setStage: (id, stage) => qt().setStage(id, stage),
     updateMeta: (id, patch) => qt().updateMeta(id, patch),
     remove: (id) => qt().remove(id),
     // next MMDDYYYY-NN given a list of quote summaries (uses .code)
@@ -370,8 +378,186 @@
   approval.sendLinkSms = (quoteId, phone, url) => rpc("mgr_notify",
     { p_quote_id: quoteId, p_channel: "sms", p_to: phone, p_kind: "approval_link", p_detail: { url } });
 
+  /* ---------------- leads: pipeline / CRM front (Phase 2 + 2b) ---------------- */
+  const LEAD_LS = "bp_leads";
+  const ARCH_LS = "bp_lead_archive";
+  const readLeadsLs = () => { try { return JSON.parse(localStorage.getItem(LEAD_LS) || "[]"); } catch { return []; } };
+  const writeLeadsLs = (a) => localStorage.setItem(LEAD_LS, JSON.stringify(a));
+  // offline mirror of the DB trigger: append an immutable snapshot to the CRM archive
+  const pushArchiveLs = (action, row) => {
+    try {
+      const a = JSON.parse(localStorage.getItem(ARCH_LS) || "[]");
+      a.unshift({ id: uid(), lead_id: row.id, action, name: row.name, phone: row.phone, email: row.email,
+        source: row.source, event_type: row.event_type, event_date: row.event_date, budget: row.budget,
+        guest_count: row.guest_count, notes: row.notes, status: row.status, quote_id: row.quote_id || null,
+        snapshot: row, archived_at: now() });
+      localStorage.setItem(ARCH_LS, JSON.stringify(a));
+    } catch {}
+  };
+  const leads = {
+    async list() {
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("leads").select("*").order("updated_at", { ascending: false });
+        if (error) throw error; return data;
+      }
+      return readLeadsLs();
+    },
+    async add(lead) {
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("leads").insert(lead).select().single();
+        if (error) throw error; return data;   // DB trigger archives it
+      }
+      const a = readLeadsLs();
+      const row = { id: uid(), status: "new", ...lead, quote_id: null, created_at: now(), updated_at: now() };
+      a.unshift(row); writeLeadsLs(a); pushArchiveLs("created", row); return row;
+    },
+    async setStatus(id, status) {
+      if (mode === "supabase") { const { error } = await supa.from("leads").update({ status }).eq("id", id); if (error) throw error; return true; }
+      const a = readLeadsLs(); const r = a.find((x) => x.id === id);
+      if (r) { r.status = status; r.updated_at = now(); writeLeadsLs(a); pushArchiveLs("updated", r); } return true;
+    },
+    async update(id, patch) {
+      if (mode === "supabase") { const { error } = await supa.from("leads").update(patch).eq("id", id); if (error) throw error; return true; }
+      const a = readLeadsLs(); const r = a.find((x) => x.id === id);
+      if (r) { Object.assign(r, patch, { updated_at: now() }); writeLeadsLs(a); pushArchiveLs("updated", r); } return true;
+    },
+    async remove(id) {
+      if (mode === "supabase") { const { error } = await supa.from("leads").delete().eq("id", id); if (error) throw error; return true; }
+      const a = readLeadsLs(); const r = a.find((x) => x.id === id);
+      if (r) pushArchiveLs("deleted", r);   // archive keeps the record even after delete
+      writeLeadsLs(a.filter((x) => x.id !== id)); return true;
+    },
+    // Convert to a quote (creates + links on first call, returns the linked quote thereafter).
+    async convert(id) {
+      if (mode === "supabase") return rpc("convert_lead_to_quote", { p_lead_id: id });
+      const a = readLeadsLs(); const l = a.find((x) => x.id === id);
+      if (!l) throw new Error("lead not found");
+      if (l.quote_id) return { id: l.quote_id };
+      const code = quotes.nextCode(await lsq.list());
+      const q = await lsq.create(code, (l.name || "Untitled") + (l.event_type ? " — " + l.event_type : ""), l.event_type, { items: [] }, 0);
+      l.status = "quoted"; l.quote_id = q.id; l.updated_at = now(); writeLeadsLs(a); pushArchiveLs("converted", l); return q;
+    },
+    // Read the immutable CRM archive (all snapshots, or just one lead's history).
+    async archive(leadId) {
+      if (mode === "supabase") {
+        let q = supa.from("lead_archive").select("*").order("archived_at", { ascending: false });
+        if (leadId) q = q.eq("lead_id", leadId);
+        const { data, error } = await q; if (error) throw error; return data;
+      }
+      let a = []; try { a = JSON.parse(localStorage.getItem(ARCH_LS) || "[]"); } catch {}
+      return leadId ? a.filter((x) => x.lead_id === leadId) : a;
+    },
+    // Realtime: call cb on any leads change. Returns a channel with .unsubscribe().
+    subscribe(cb) {
+      if (mode !== "supabase" || !supa) return { unsubscribe() {} };
+      try {
+        return supa.channel("leads-rt")
+          .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, (payload) => cb && cb(payload))
+          .subscribe();
+      } catch { return { unsubscribe() {} }; }
+    },
+  };
+
+  /* ---------------- discovery & requirements (Phase 3) ---------------- */
+  const DISC_LS = "bp_discovery", REQ_LS = "bp_requirements";
+  const readLs = (k) => { try { return JSON.parse(localStorage.getItem(k) || "[]"); } catch { return []; } };
+  const discovery = {
+    async get(quoteId) {
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("event_discovery").select("*").eq("quote_id", quoteId).maybeSingle();
+        if (error) throw error; return data || null;
+      }
+      return readLs(DISC_LS).find((d) => d.quote_id === quoteId) || null;
+    },
+    async save(quoteId, d) {
+      if (mode === "supabase") {
+        return rpc("set_discovery", { p_quote_id: quoteId, p_meet_date: d.meet_date || null, p_mode: d.mode || null,
+          p_location: d.location || null, p_attendees: d.attendees || null, p_notes: d.notes || null,
+          p_budget_min: d.budget_min != null ? d.budget_min : null, p_budget_max: d.budget_max != null ? d.budget_max : null });
+      }
+      const a = readLs(DISC_LS).filter((x) => x.quote_id !== quoteId);
+      const row = { quote_id: quoteId, ...d, updated_at: now() }; a.push(row);
+      localStorage.setItem(DISC_LS, JSON.stringify(a)); return row;
+    },
+    async listReqs(quoteId) {
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("event_requirements").select("*").eq("quote_id", quoteId).order("created_at");
+        if (error) throw error; return data;
+      }
+      return readLs(REQ_LS).filter((r) => r.quote_id === quoteId);
+    },
+    async addReq(quoteId, req) {
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("event_requirements").insert({ quote_id: quoteId, ...req }).select().single();
+        if (error) throw error; return data;
+      }
+      const a = readLs(REQ_LS); const row = { id: uid(), quote_id: quoteId, ...req, created_at: now() };
+      a.push(row); localStorage.setItem(REQ_LS, JSON.stringify(a)); return row;
+    },
+    async removeReq(id) {
+      if (mode === "supabase") { const { error } = await supa.from("event_requirements").delete().eq("id", id); if (error) throw error; return true; }
+      localStorage.setItem(REQ_LS, JSON.stringify(readLs(REQ_LS).filter((r) => r.id !== id))); return true;
+    },
+  };
+
+  /* ---------------- proposal & mood-board (Phase 4) ---------------- */
+  const PROP_LS = "bp_proposal", RISK_LS = "bp_risks";
+  const proposal = {
+    async get(quoteId) {
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("event_proposal").select("*").eq("quote_id", quoteId).maybeSingle();
+        if (error) throw error; return data || null;
+      }
+      return readLs(PROP_LS).find((p) => p.quote_id === quoteId) || null;
+    },
+    async save(quoteId, p) {
+      if (mode === "supabase") {
+        return rpc("set_proposal", { p_quote_id: quoteId, p_concept: p.concept || null, p_theme: p.theme || null,
+          p_palette: p.palette || [], p_images: p.images || [], p_scope: p.scope || [] });
+      }
+      const a = readLs(PROP_LS).filter((x) => x.quote_id !== quoteId);
+      const cur = readLs(PROP_LS).find((x) => x.quote_id === quoteId) || {};
+      const row = { quote_id: quoteId, share_token: cur.share_token || null, published: cur.published || false, ...p, updated_at: now() };
+      a.push(row); localStorage.setItem(PROP_LS, JSON.stringify(a)); return row;
+    },
+    async publish(quoteId, published) {
+      if (mode === "supabase") return rpc("publish_proposal", { p_quote_id: quoteId, p_published: !!published });
+      const a = readLs(PROP_LS); let row = a.find((x) => x.quote_id === quoteId);
+      if (!row) { row = { quote_id: quoteId, palette: [], images: [], scope: [] }; a.push(row); }
+      if (!row.share_token && published) row.share_token = uid();
+      row.published = !!published; localStorage.setItem(PROP_LS, JSON.stringify(a));
+      return row.share_token || null;
+    },
+    // public (anon) — client view by token
+    getByToken: (token) => (mode === "supabase" ? rpc("public_get_proposal", { p_token: token })
+      : Promise.resolve((readLs(PROP_LS).find((p) => p.share_token === token && p.published)) || null)),
+    async listRisks(quoteId) {
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("proposal_risks").select("*").eq("quote_id", quoteId).order("created_at");
+        if (error) throw error; return data;
+      }
+      return readLs(RISK_LS).filter((r) => r.quote_id === quoteId);
+    },
+    async addRisk(quoteId, risk) {
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("proposal_risks").insert({ quote_id: quoteId, ...risk }).select().single();
+        if (error) throw error; return data;
+      }
+      const a = readLs(RISK_LS); const row = { id: uid(), quote_id: quoteId, status: "open", ...risk, created_at: now() };
+      a.push(row); localStorage.setItem(RISK_LS, JSON.stringify(a)); return row;
+    },
+    async setRiskStatus(id, status) {
+      if (mode === "supabase") { const { error } = await supa.from("proposal_risks").update({ status }).eq("id", id); if (error) throw error; return true; }
+      const a = readLs(RISK_LS); const r = a.find((x) => x.id === id); if (r) { r.status = status; localStorage.setItem(RISK_LS, JSON.stringify(a)); } return true;
+    },
+    async removeRisk(id) {
+      if (mode === "supabase") { const { error } = await supa.from("proposal_risks").delete().eq("id", id); if (error) throw error; return true; }
+      localStorage.setItem(RISK_LS, JSON.stringify(readLs(RISK_LS).filter((r) => r.id !== id))); return true;
+    },
+  };
+
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

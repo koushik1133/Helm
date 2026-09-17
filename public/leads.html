@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leads &amp; Pipeline — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1500px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700}
+  header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)}
+  .nav a:hover{color:var(--accent)} .nav a.on{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .account button:hover{border-color:var(--accent)}
+
+  .toolbar{display:flex;align-items:center;gap:10px;margin:8px 0 16px;flex-wrap:wrap}
+  .toolbar h2{font-size:15px;margin:0;font-weight:700}
+  .btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
+  .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.4;cursor:default}
+  .btn.icon{padding:0 11px}
+  .search{flex:1;min-width:150px;max-width:260px;height:38px;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:0 12px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .live{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--ink-3)}
+  .live i{width:8px;height:8px;border-radius:50%;background:var(--ink-3)}
+  .live.on i{background:var(--safe);box-shadow:0 0 0 3px rgba(24,165,88,.18)}
+
+  /* pipeline board */
+  .board{display:flex;gap:14px;overflow-x:auto;padding-bottom:24px;align-items:flex-start}
+  .col{flex:0 0 264px;background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:10px;min-height:120px;transition:background .12s,outline-color .12s;outline:2px dashed transparent;outline-offset:-2px}
+  .col.over{background:var(--accent-soft);outline-color:var(--accent)}
+  .col h3{margin:0 0 10px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:700;display:flex;align-items:center;gap:7px}
+  .col h3 .n{margin-left:auto;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:1px 8px;font-size:11px;color:var(--ink-2)}
+  .dot{width:8px;height:8px;border-radius:50%}
+  .lead{background:var(--panel);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);padding:12px;margin-bottom:10px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+  .lead:hover{border-color:var(--accent-soft)}
+  .lead.dragging{opacity:.35}
+  .lead.ghost{position:fixed;left:0;top:0;z-index:200;margin:0;pointer-events:none;box-shadow:0 12px 34px rgba(20,27,46,.28);transform:rotate(2.5deg);cursor:grabbing;opacity:.97}
+  .lead .nm{font-weight:700;font-size:14px}
+  .lead .meta{font-size:11px;color:var(--ink-3);margin-top:3px;line-height:1.5}
+  .lead .amt{font-family:var(--mono);font-weight:600;font-size:12px;color:var(--ink-2);margin-top:2px}
+  .lead .src{display:inline-block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:2px 8px;margin-top:6px}
+  .lead .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .ic{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:30px;padding:0 10px;font-size:11px;font-weight:600;cursor:pointer;color:var(--ink-2)}
+  .ic:hover{border-color:var(--accent);color:var(--accent)}
+  .ic.go{color:var(--accent);border-color:var(--accent-soft)}
+  .colempty{color:var(--ink-3);font-size:11px;text-align:center;padding:14px 6px;border:1px dashed var(--line);border-radius:9px}
+  .hintbar{font-size:11px;color:var(--ink-3);margin:-6px 0 12px}
+  footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
+
+  /* modal */
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(640px,96vw);max-height:90vh;overflow:auto;padding:24px}
+  .sheet h3{margin:0 0 2px;font-size:18px;display:flex;align-items:center;gap:8px}
+  .sheet .close{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:30px;height:30px;font-size:15px;cursor:pointer;color:var(--ink-2)}
+  .sheet p.sub{margin:0 0 16px;font-size:12px;color:var(--ink-3)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:560px){.grid{grid-template-columns:1fr}}
+  .fld{display:flex;flex-direction:column;gap:4px}
+  .fld.full{grid-column:1/-1}
+  .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld input,.fld select,.fld textarea{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .fld textarea{height:auto;padding:10px 12px;min-height:64px;resize:vertical}
+  .sheet .foot{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+  .sheet .foot .left{margin-right:auto}
+  .btn.danger{color:#b42318;border-color:#f5c6c6} .btn.danger:hover{background:#fdecec;border-color:#e5484d}
+  .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px;margin-top:10px}
+
+  /* detail view */
+  .dl{display:grid;grid-template-columns:120px 1fr;gap:8px 14px;margin-top:6px;font-size:13px}
+  .dl dt{color:var(--ink-3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding-top:2px}
+  .dl dd{margin:0;color:var(--ink)}
+  .pill{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-radius:20px;padding:2px 9px;background:var(--accent-soft);color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mark"></div>
+    <div><h1>Blueprint Stage</h1><small>Leads &amp; Pipeline</small></div>
+    <nav class="nav">
+      <a href="index.html">Dashboard</a>
+      <a href="quotes.html">Quotes</a>
+      <a href="leads.html" class="on">Leads</a>
+      <a href="crm.html">CRM archive</a>
+      <a href="control.html" id="ccLink" hidden>Control Center</a>
+    </nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div class="toolbar">
+    <h2>Pipeline</h2>
+    <input id="search" class="search" placeholder="Search name, phone, type…">
+    <span class="live" id="live"><i></i><span id="liveTxt">offline</span></span>
+    <span class="spacer"></span>
+    <button id="undoBtn" class="btn icon" title="Undo (⌘/Ctrl+Z)" disabled>↶ Undo</button>
+    <button id="redoBtn" class="btn icon" title="Redo (⌘/Ctrl+Shift+Z)" disabled>Redo ↷</button>
+    <button id="newBtn" class="btn primary" hidden>＋ New lead</button>
+  </div>
+  <div class="hintbar">Drag a card between columns to change its stage · click a card to view, edit or delete.</div>
+
+  <div id="board" class="board"></div>
+  <footer>Blueprint Stage — every lead is snapshotted to the CRM archive on create, edit, convert &amp; delete.</footer>
+</div>
+
+<!-- detail view -->
+<div id="detailModal" class="lmodal" hidden>
+  <div class="sheet" style="width:min(520px,96vw)">
+    <h3><span id="dt_name">Lead</span><button class="close" id="dt_close">×</button></h3>
+    <p class="sub" id="dt_sub"></p>
+    <dl class="dl" id="dt_body"></dl>
+    <div class="foot">
+      <button class="btn danger left" id="dt_del">Delete</button>
+      <button class="btn" id="dt_close2">Close</button>
+      <button class="btn primary" id="dt_edit">Edit</button>
+    </div>
+  </div>
+</div>
+
+<!-- new / edit lead modal -->
+<div id="leadModal" class="lmodal" hidden>
+  <div class="sheet">
+    <h3><span id="lm_title">＋ New lead</span><button class="close" id="lm_close">×</button></h3>
+    <p class="sub">Capture the enquiry. You can convert it to a quote once it's qualified.</p>
+    <div class="grid">
+      <div class="fld"><label>Contact name *</label><input id="f_name" placeholder="e.g. Priya Sharma"></div>
+      <div class="fld"><label>Phone</label><input id="f_phone" placeholder="+91…"></div>
+      <div class="fld"><label>Email</label><input id="f_email" placeholder="name@email.com"></div>
+      <div class="fld"><label>Source</label>
+        <select id="f_source">
+          <option value="">—</option><option>referral</option><option>website</option>
+          <option>walk-in</option><option>social</option><option>ad</option><option>other</option>
+        </select></div>
+      <div class="fld"><label>Event type</label><input id="f_type" placeholder="e.g. Wedding, Corporate"></div>
+      <div class="fld"><label>Event date</label><input id="f_date" type="date"></div>
+      <div class="fld"><label>Budget (₹)</label><input id="f_budget" type="number" min="0" placeholder="e.g. 500000"></div>
+      <div class="fld"><label>Guest count</label><input id="f_guests" type="number" min="0" placeholder="e.g. 300"></div>
+      <div class="fld full"><label>Notes</label><textarea id="f_notes" placeholder="Anything the planner should know…"></textarea></div>
+    </div>
+    <div id="lm_err" class="err" hidden></div>
+    <div class="foot">
+      <button class="btn" id="lm_cancel">Cancel</button>
+      <button class="btn primary" id="lm_save">Save lead</button>
+    </div>
+  </div>
+</div>
+
+<!-- login modal -->
+<div id="loginModal" class="lmodal" hidden>
+  <div class="sheet" style="width:min(400px,96vw)">
+    <h3><span>Sign in</span><button class="close" id="li_close">×</button></h3>
+    <div class="grid" style="grid-template-columns:1fr">
+      <div class="fld"><label>Email</label><input id="li_email" type="email"></div>
+      <div class="fld"><label>Password</label><input id="li_pass" type="password"></div>
+    </div>
+    <div id="li_err" class="err" hidden></div>
+    <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
+  </div>
+</div>
+
+<script src="config.js?v=15"></script>
+<script src="store-api.js?v=15"></script>
+<script>
+  const $=(s,r=document)=>r.querySelector(s);
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const fmt=(n)=> n==null||n===""?"":"₹"+Number(n).toLocaleString("en-IN");
+  const STAGES=[
+    {k:"new",label:"New",c:"#8a95ad"},
+    {k:"qualified",label:"Qualified",c:"#2f6fed"},
+    {k:"discovery",label:"Discovery",c:"#7c5cff"},
+    {k:"quoted",label:"Quoted",c:"#e8912d"},
+    {k:"won",label:"Won",c:"#18a558"},
+    {k:"lost",label:"Lost",c:"#e5484d"},
+  ];
+  let leads=[], canEdit=false, canCreate=false, canDelete=false, filter="", editingId=null;
+  let undoStack=[], redoStack=[], dragging=false, rtChannel=null;
+
+  async function renderAccount(){
+    const el=$("#account"); if(!BPStore.auth.enabled()){ el.hidden=true; return; } el.hidden=false;
+    const u=BPStore.auth.user();
+    if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{ await BPStore.auth.signOut(); location.href="index.html"; });
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); }
+  }
+
+  function card(l){
+    const canConvert = canCreate && !l.quote_id && l.status!=="lost";
+    const bits=[];
+    if(l.event_type) bits.push(esc(l.event_type));
+    if(l.event_date) bits.push(esc(l.event_date));
+    if(l.guest_count) bits.push(esc(l.guest_count)+" guests");
+    return `<div class="lead" data-id="${l.id}">
+      <div class="nm">${esc(l.name||"—")}</div>
+      <div class="meta">${bits.join(" · ")||"&nbsp;"}${l.phone?"<br>"+esc(l.phone):""}</div>
+      ${l.budget?`<div class="amt">${fmt(l.budget)}</div>`:""}
+      ${l.source?`<span class="src">${esc(l.source)}</span>`:""}
+      ${(l.quote_id||canConvert)?`<div class="acts">
+        ${l.quote_id?`<button class="ic go" data-act="workspace">Workspace →</button>`:""}
+        ${canConvert?`<button class="ic go" data-act="convert">Convert →</button>`:""}
+      </div>`:""}
+    </div>`;
+  }
+
+  function render(){
+    const q=filter.trim().toLowerCase();
+    const shown = q ? leads.filter(l=>[l.name,l.phone,l.email,l.event_type,l.source].some(v=>String(v||"").toLowerCase().includes(q))) : leads;
+    $("#board").innerHTML = STAGES.map(s=>{
+      const items=shown.filter(l=>l.status===s.k);
+      return `<div class="col" data-stage="${s.k}">
+        <h3><span class="dot" style="background:${s.c}"></span>${s.label}<span class="n">${items.length}</span></h3>
+        ${items.map(card).join("")||'<div class="colempty">Drop here</div>'}
+      </div>`;
+    }).join("");
+  }
+
+  const leadById=(id)=>leads.find(l=>l.id===id);
+
+  /* ---------- action buttons on a card (convert / workspace) ---------- */
+  $("#board").addEventListener("click", async (e)=>{
+    const btn=e.target.closest("[data-act]"); if(!btn) return;
+    e.stopPropagation();
+    const id=e.target.closest(".lead").dataset.id, act=btn.dataset.act, l=leadById(id);
+    if(act==="workspace"){ location.href="event.html?id="+encodeURIComponent(l.quote_id); return; }
+    if(act==="convert"){
+      btn.disabled=true; btn.textContent="Converting…";
+      try{ const q=await BPStore.leads.convert(id); location.href="event.html?id="+encodeURIComponent(q.id); }
+      catch(err){ alert("Couldn't convert — "+(err&&err.message||"error")); btn.disabled=false; btn.textContent="Convert →"; }
+    }
+  });
+
+  /* ---------- drag & drop (pointer events: mouse + touch) ---------- */
+  let drag=null;
+  $("#board").addEventListener("pointerdown",(e)=>{
+    if(e.button===1||e.button===2) return;
+    const cardEl=e.target.closest(".lead"); if(!cardEl) return;
+    if(e.target.closest(".acts")) return;            // let action buttons work
+    if(!canEdit){ /* still allow click-to-view */ }
+    drag={ id:cardEl.dataset.id, el:cardEl, x0:e.clientX, y0:e.clientY, ghost:null, moved:false, pid:e.pointerId };
+  });
+  window.addEventListener("pointermove",(e)=>{
+    if(!drag) return;
+    const dx=e.clientX-drag.x0, dy=e.clientY-drag.y0;
+    if(!drag.moved){
+      if(Math.hypot(dx,dy)<6) return;
+      if(!canEdit){ drag=null; return; }             // no drag permission → treat as click only
+      drag.moved=true; dragging=true;
+      const r=drag.el.getBoundingClientRect();
+      drag.offX=drag.x0-r.left; drag.offY=drag.y0-r.top;
+      const g=drag.el.cloneNode(true); g.classList.add("ghost"); g.style.width=r.width+"px";
+      document.body.appendChild(g); drag.ghost=g;
+      drag.el.classList.add("dragging");
+      try{ drag.el.setPointerCapture(drag.pid); }catch{}
+    }
+    drag.ghost.style.left=(e.clientX-drag.offX)+"px";
+    drag.ghost.style.top =(e.clientY-drag.offY)+"px";
+    drag.ghost.style.display="none";
+    const under=document.elementFromPoint(e.clientX,e.clientY);
+    drag.ghost.style.display="";
+    const col=under&&under.closest(".col");
+    document.querySelectorAll(".col.over").forEach(c=>c.classList.remove("over"));
+    if(col) col.classList.add("over");
+  });
+  window.addEventListener("pointerup",(e)=>{
+    if(!drag) return; const st=drag; drag=null;
+    if(!st.moved){ openDetail(st.id); return; }       // it was a tap, not a drag
+    dragging=false;
+    st.ghost.style.display="none";
+    const under=document.elementFromPoint(e.clientX,e.clientY);
+    const col=under&&under.closest(".col");
+    st.ghost.remove(); st.el.classList.remove("dragging");
+    document.querySelectorAll(".col.over").forEach(c=>c.classList.remove("over"));
+    const l=leadById(st.id);
+    if(col && l){ const to=col.dataset.stage; if(to && to!==l.status) moveLead(st.id, l.status, to, true); }
+  });
+  window.addEventListener("pointercancel",()=>{ if(drag&&drag.ghost){ drag.ghost.remove(); drag.el.classList.remove("dragging"); } drag=null; dragging=false; document.querySelectorAll(".col.over").forEach(c=>c.classList.remove("over")); });
+
+  async function moveLead(id, from, to, record){
+    const l=leadById(id); if(!l) return;
+    l.status=to; render();                              // optimistic
+    if(record){ undoStack.push({id,from,to}); redoStack=[]; updateUndoUI(); }
+    try{ await BPStore.leads.setStatus(id,to); }
+    catch(err){ l.status=from; render(); alert("Couldn't save move — "+(err&&err.message||"error")); }
+  }
+  function updateUndoUI(){ $("#undoBtn").disabled=!undoStack.length; $("#redoBtn").disabled=!redoStack.length; }
+  async function undo(){ const m=undoStack.pop(); if(!m) return; redoStack.push(m); updateUndoUI();
+    const l=leadById(m.id); if(l){ l.status=m.from; render(); try{ await BPStore.leads.setStatus(m.id,m.from); }catch{} } }
+  async function redo(){ const m=redoStack.pop(); if(!m) return; undoStack.push(m); updateUndoUI();
+    const l=leadById(m.id); if(l){ l.status=m.to; render(); try{ await BPStore.leads.setStatus(m.id,m.to); }catch{} } }
+  $("#undoBtn").addEventListener("click",undo);
+  $("#redoBtn").addEventListener("click",redo);
+
+  /* ---------- detail view ---------- */
+  function stageLabel(k){ const s=STAGES.find(x=>x.k===k); return s?s.label:k; }
+  function openDetail(id){
+    const l=leadById(id); if(!l) return; editingId=id;
+    $("#dt_name").textContent=l.name||"Lead";
+    $("#dt_sub").textContent = "Stage: "+stageLabel(l.status)+(l.quote_id?" · linked to a quote":"");
+    const rows=[
+      ["Phone", l.phone], ["Email", l.email], ["Source", l.source],
+      ["Event", l.event_type], ["Date", l.event_date],
+      ["Budget", l.budget?fmt(l.budget):""], ["Guests", l.guest_count],
+      ["Notes", l.notes],
+    ].filter(r=>r[1]!=null && r[1]!=="");
+    $("#dt_body").innerHTML = `<dt>Stage</dt><dd><span class="pill">${esc(stageLabel(l.status))}</span></dd>`
+      + rows.map(r=>`<dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd>`).join("");
+    $("#dt_del").hidden=!canDelete;
+    $("#dt_edit").hidden=!canEdit;
+    $("#dt_edit").textContent = l.quote_id ? "Open workspace →" : "Edit";
+    $("#detailModal").hidden=false;
+  }
+  function closeDetail(){ $("#detailModal").hidden=true; }
+  $("#dt_close").addEventListener("click",closeDetail);
+  $("#dt_close2").addEventListener("click",closeDetail);
+  $("#detailModal").addEventListener("click",(e)=>{ if(e.target.id==="detailModal") closeDetail(); });
+  $("#dt_edit").addEventListener("click",()=>{ const l=leadById(editingId);
+    if(l&&l.quote_id){ location.href="event.html?id="+encodeURIComponent(l.quote_id); return; }
+    closeDetail(); openForm(l); });
+  $("#dt_del").addEventListener("click",async()=>{
+    if(!confirm("Delete this lead? It stays in the CRM archive.")) return;
+    try{ await BPStore.leads.remove(editingId); closeDetail(); await load(); }
+    catch(err){ alert("Couldn't delete — "+(err&&err.message||"error")); }
+  });
+
+  /* ---------- new / edit form ---------- */
+  function openForm(lead){
+    editingId = lead ? lead.id : null;
+    $("#lm_title").textContent = lead ? "Edit lead" : "＋ New lead";
+    $("#f_name").value=lead?lead.name||"":""; $("#f_phone").value=lead?lead.phone||"":"";
+    $("#f_email").value=lead?lead.email||"":""; $("#f_source").value=lead?lead.source||"":"";
+    $("#f_type").value=lead?lead.event_type||"":""; $("#f_date").value=lead?lead.event_date||"":"";
+    $("#f_budget").value=lead&&lead.budget!=null?lead.budget:""; $("#f_guests").value=lead&&lead.guest_count!=null?lead.guest_count:"";
+    $("#f_notes").value=lead?lead.notes||"":"";
+    $("#lm_err").hidden=true; $("#leadModal").hidden=false; setTimeout(()=>$("#f_name").focus(),50);
+  }
+  function closeForm(){ $("#leadModal").hidden=true; editingId=null; }
+  async function saveLead(){
+    const name=$("#f_name").value.trim();
+    if(!name){ $("#lm_err").textContent="Contact name is required."; $("#lm_err").hidden=false; return; }
+    const patch={ name, phone:$("#f_phone").value.trim()||null, email:$("#f_email").value.trim()||null,
+      source:$("#f_source").value||null, event_type:$("#f_type").value.trim()||null,
+      event_date:$("#f_date").value||null,
+      budget:$("#f_budget").value?Number($("#f_budget").value):null,
+      guest_count:$("#f_guests").value?Number($("#f_guests").value):null,
+      notes:$("#f_notes").value.trim()||null };
+    $("#lm_save").disabled=true;
+    try{
+      if(editingId) await BPStore.leads.update(editingId, patch);
+      else await BPStore.leads.add(patch);
+      closeForm(); await load();
+    }catch(err){ $("#lm_err").textContent="Couldn't save — "+(err&&err.message||"error"); $("#lm_err").hidden=false; }
+    finally{ $("#lm_save").disabled=false; }
+  }
+  $("#newBtn").addEventListener("click",()=>openForm(null));
+  $("#lm_close").addEventListener("click",closeForm);
+  $("#lm_cancel").addEventListener("click",closeForm);
+  $("#lm_save").addEventListener("click",saveLead);
+  $("#leadModal").addEventListener("click",(e)=>{ if(e.target.id==="leadModal") closeForm(); });
+
+  /* ---------- login ---------- */
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
+  $("#li_close").addEventListener("click",closeLogin);
+  $("#loginModal").addEventListener("click",(e)=>{ if(e.target.id==="loginModal") closeLogin(); });
+  $("#li_go").addEventListener("click",async()=>{
+    try{ await BPStore.auth.signIn($("#li_email").value.trim(), $("#li_pass").value); location.reload(); }
+    catch(err){ $("#li_err").textContent=err&&err.message||"Sign in failed"; $("#li_err").hidden=false; }
+  });
+
+  $("#search").addEventListener("input",(e)=>{ filter=e.target.value; render(); });
+  document.addEventListener("keydown",(e)=>{
+    if(e.key==="Escape"){ closeForm(); closeLogin(); closeDetail(); return; }
+    const mod=e.metaKey||e.ctrlKey; if(!mod) return;
+    if(e.key.toLowerCase()==="z" && !e.shiftKey){ e.preventDefault(); undo(); }
+    else if((e.key.toLowerCase()==="z" && e.shiftKey) || e.key.toLowerCase()==="y"){ e.preventDefault(); redo(); }
+  });
+
+  /* ---------- realtime ---------- */
+  function startRealtime(){
+    if(rtChannel) return;
+    rtChannel = BPStore.leads.subscribe((payload)=>{ if(!dragging){ load(); } });
+    // reflect status pill (best effort — channel has no ready callback here)
+    setTimeout(()=>{ if(BPStore.mode()==="supabase"){ $("#live").classList.add("on"); $("#liveTxt").textContent="live"; } }, 400);
+  }
+
+  /* ---------- load ---------- */
+  async function load(){
+    try{ leads = await BPStore.leads.list(); }
+    catch(err){ $("#board").innerHTML=`<div class="colempty" style="margin:20px">Couldn't load leads — ${esc(err&&err.message||"error")}. Run <b>phase2.sql</b> to create the table.</div>`; return; }
+    render();
+  }
+  (async ()=>{
+    await BPStore.init(); await renderAccount();
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ openLogin(); return; }
+    canEdit=await BPStore.auth.can("edit"); canCreate=await BPStore.auth.can("create"); canDelete=await BPStore.auth.can("delete");
+    $("#newBtn").hidden=!canCreate;
+    if(canEdit) $("#ccLink").hidden=false;
+    await load();
+    startRealtime();
+  })();
+</script>
+</body>
+</html>

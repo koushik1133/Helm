@@ -11,6 +11,67 @@ Node REST API** that persists layouts to disk.
 
 ---
 
+## The event management platform (what each phase added)
+
+Blueprint Stage began as a floor-plan builder. It now runs a full event
+workflow on top of the same app, backed by **Supabase**. Everything for one
+event lives on **one calm page** so the user is never overwhelmed. Here is
+what each phase added, in plain words.
+
+### The main flow (how to use it)
+
+1. Open the **home page** and sign in.
+2. Go to **Leads** and click **＋ New lead** to save an enquiry — name, phone,
+   budget, event type.
+3. **Drag the card** across the pipeline as the deal grows
+   (New → Qualified → Discovery → Quoted → Won / Lost), or **click a card** to
+   view, edit or delete it.
+4. When it is real, click **Convert →**. This turns the lead into an **event**
+   and opens its **Workspace**.
+5. In the Workspace, follow the steps at the top —
+   **Discovery → Proposal → Quote → Confirm → Plan …** — each step has a card
+   that opens the right tool.
+
+### What each phase added
+
+- **Phase 1 — Event Workspace.** One page per event (`event.html?id=`). It
+  shows the event details, a step-by-step lifecycle bar, and a card for each
+  tool (floor plan, quote, approval, tasks). All the numbers are read **live**
+  from the database. The **Advance** button saves the current step.
+
+- **Phase 2 — Leads & pipeline.** A CRM board. Add a lead, **drag it** between
+  columns, **undo / redo**, **click** a card to view / edit / delete, and
+  **Convert** a lead into a real event. Changes save to Supabase and update
+  **live** for everyone viewing.
+
+- **Phase 2b — CRM archive.** Every lead is automatically copied to a safe
+  archive on **create, edit, convert and delete**. The copy **stays even if the
+  lead is deleted**. See it on the **CRM archive** page. It is read-only.
+
+- **Phase 3 — Discovery & requirements.** For each event, record the discovery
+  meeting (date, mode, notes), a **budget range**, and a list of requested
+  services tagged **Must-have / Optional / Nice-to-have**. The Workspace shows
+  this next to the Quote card, so you price from real needs.
+
+- **Phase 4 — Proposal & mood-board.** Build a concept page for the client:
+  theme, **colour palette**, reference images, and what's included. Click
+  **Publish** to get a **private link** the client opens with **no login**.
+  Unpublished proposals cannot be opened. There is also an internal
+  **risk checklist** (never shown to the client).
+
+- **Phase 5 — MVP checkpoint.** Polished and tested the whole path from lead to
+  workspace. A converted lead now opens on the **Discovery** step so the flow
+  reads naturally. This completes the working MVP.
+
+### Where the data lives
+
+All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per
+phase (`phase1-workspace.sql`, `phase2-leads.sql`, …) — and everything together
+in **`supabase/full-schema/complete-setup.sql`** (run once on a fresh database).
+See `supabase/full-schema/README.md` for the exact run order.
+
+---
+
 ## Quick start
 
 ```bash

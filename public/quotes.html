@@ -207,8 +207,8 @@
   </form>
 </div>
 
-<script src="config.js?v=10"></script>
-<script src="store-api.js?v=10"></script>
+<script src="config.js?v=15"></script>
+<script src="store-api.js?v=15"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
   const esc = (s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -291,6 +291,7 @@
         <td style="text-align:right" class="amt">${x.total?inr(x.total):'<span class="muted">—</span>'}</td>
         <td class="muted">${fmtDate(x.updatedAt)}</td>
         <td><div class="row-actions" style="justify-content:flex-end">
+          <button class="ic go" data-act="workspace" title="Open the event workspace">⧉ Open</button>
           <button class="ic go" data-act="edit">Edit</button>
           ${canEdit?`<button class="ic confirm" data-act="confirm">${x.status==="confirmed"?"Re-price":"Confirm"}</button>`:""}
           ${canEdit&&x.status==="confirmed"?`<button class="ic" data-act="link" title="Get the client approval link">🔗 Approve link</button>`:""}
@@ -307,7 +308,8 @@
       sel.addEventListener("focus",()=>fillVersions(id,sel),{once:true});
       tr.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>{
         const act=b.dataset.act, ver=selectedVersion(sel);
-        if(act==="edit") location.href="builder.html?quote="+encodeURIComponent(id)+(ver?"&v="+ver:"");
+        if(act==="workspace") location.href="event.html?id="+encodeURIComponent(id);
+        else if(act==="edit") location.href="builder.html?quote="+encodeURIComponent(id)+(ver?"&v="+ver:"");
         else if(act==="confirm") openConfirm(id);
         else if(act==="download") downloadQuote(id, ver);
         else if(act==="ops") location.href="ops.html?quote="+encodeURIComponent(id);

@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRM Archive — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 24px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700}
+  header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)}
+  .nav a:hover{color:var(--accent)} .nav a.on{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+
+  .toolbar{display:flex;align-items:center;gap:10px;margin:8px 0 14px;flex-wrap:wrap}
+  .toolbar h2{font-size:15px;margin:0;font-weight:700}
+  .sub{font-size:12px;color:var(--ink-3)}
+  .search{height:38px;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:0 12px;font-family:inherit;font-size:13px;color:var(--ink);min-width:200px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap}
+  thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:11px 13px;border-bottom:1px solid var(--line);background:var(--panel-2);position:sticky;top:0}
+  tbody td{padding:10px 13px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+  tbody tr:hover{background:var(--panel-2)}
+  .when{font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+  .act{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .act.created{background:#eef2ff;color:#4457c8}.act.updated{background:#fff7e6;color:#946200}
+  .act.converted{background:#e7f6ee;color:#0f7a43}.act.deleted{background:#fdecec;color:#b42318}
+  .muted{color:var(--ink-3)} .amt{font-family:var(--mono)}
+  .empty{text-align:center;color:var(--ink-3);padding:48px;font-size:14px}
+  footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mark"></div>
+    <div><h1>Blueprint Stage</h1><small>CRM Archive</small></div>
+    <nav class="nav">
+      <a href="index.html">Dashboard</a>
+      <a href="quotes.html">Quotes</a>
+      <a href="leads.html">Leads</a>
+      <a href="crm.html" class="on">CRM archive</a>
+    </nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div class="toolbar">
+    <h2>CRM archive</h2>
+    <span class="sub">Every lead snapshot — kept permanently, even after a lead is deleted.</span>
+    <span class="spacer"></span>
+    <input id="search" class="search" placeholder="Search name, phone, type…">
+  </div>
+
+  <div class="card">
+    <table>
+      <thead><tr>
+        <th>When</th><th>Action</th><th>Name</th><th>Phone</th><th>Source</th>
+        <th>Event</th><th>Date</th><th>Budget</th><th>Guests</th><th>Stage</th>
+      </tr></thead>
+      <tbody id="rows"><tr><td colspan="10" class="empty">Loading…</td></tr></tbody>
+    </table>
+  </div>
+  <footer>Blueprint Stage — the CRM archive is append-only and read-only. Records are written automatically.</footer>
+</div>
+
+<script src="config.js?v=15"></script>
+<script src="store-api.js?v=15"></script>
+<script>
+  const $=(s,r=document)=>r.querySelector(s);
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const fmt=(n)=> n==null||n===""?"":"₹"+Number(n).toLocaleString("en-IN");
+  const when=(t)=>{ if(!t) return ""; const d=new Date(t); return d.toLocaleString("en-IN",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}); };
+  let recs=[], filter="";
+
+  async function renderAccount(){
+    const el=$("#account"); if(!BPStore.auth.enabled()){ el.hidden=true; return; } el.hidden=false;
+    const u=BPStore.auth.user();
+    if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{ await BPStore.auth.signOut(); location.href="index.html"; });
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.href="index.html"); }
+  }
+
+  function render(){
+    const q=filter.trim().toLowerCase();
+    const shown = q ? recs.filter(r=>[r.name,r.phone,r.event_type,r.source,r.action].some(v=>String(v||"").toLowerCase().includes(q))) : recs;
+    if(!shown.length){ $("#rows").innerHTML='<tr><td colspan="10" class="empty">No archive records yet.</td></tr>'; return; }
+    $("#rows").innerHTML = shown.map(r=>`<tr>
+      <td class="when">${esc(when(r.archived_at))}</td>
+      <td><span class="act ${esc(r.action)}">${esc(r.action)}</span></td>
+      <td>${esc(r.name||"—")}</td>
+      <td class="muted">${esc(r.phone||"")}</td>
+      <td class="muted">${esc(r.source||"")}</td>
+      <td>${esc(r.event_type||"")}</td>
+      <td class="muted">${esc(r.event_date||"")}</td>
+      <td class="amt">${r.budget?fmt(r.budget):""}</td>
+      <td class="muted">${r.guest_count!=null?esc(r.guest_count):""}</td>
+      <td class="muted">${esc(r.status||"")}</td>
+    </tr>`).join("");
+  }
+
+  $("#search").addEventListener("input",(e)=>{ filter=e.target.value; render(); });
+
+  (async ()=>{
+    await BPStore.init(); await renderAccount();
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.href="index.html"; return; }
+    try{ recs = await BPStore.leads.archive(); }
+    catch(err){ $("#rows").innerHTML=`<tr><td colspan="10" class="empty">Couldn't load archive — ${esc(err&&err.message||"error")}. Run <b>phase2b-crm.sql</b>.</td></tr>`; return; }
+    render();
+  })();
+</script>
+</body>
+</html>

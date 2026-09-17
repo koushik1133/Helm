@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proposal — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:960px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .crumb{font-size:12px;color:var(--ink-3);margin:2px 0 14px} .crumb a{color:var(--accent)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
+  .card h2{font-size:15px;margin:0 0 4px} .card .sub{font-size:12px;color:var(--ink-3);margin:0 0 16px}
+  .fld{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+  .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld input,.fld select,.fld textarea{border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .fld input{height:38px;padding:0 12px} .fld textarea{min-height:80px;resize:vertical}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .btn.sm{height:32px;padding:0 11px;font-size:12px}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.4;cursor:default}
+  .foot{display:flex;gap:10px;justify-content:flex-end;margin-top:8px;align-items:center}
+  .ok{color:var(--safe);font-size:12px;font-weight:600} .err{color:#b42318;font-size:12px;font-weight:600}
+  .muted{color:var(--ink-3);font-size:12px}
+  /* palette */
+  .swatches{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .sw{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);position:relative;cursor:pointer}
+  .sw span{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--panel);border:1px solid var(--line);font-size:11px;line-height:16px;text-align:center;color:var(--ink-3)}
+  .sw:hover span{color:#e5484d;border-color:#f5c6c6}
+  /* images */
+  .gallery{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+  .thumb{width:120px;height:84px;border-radius:10px;border:1px solid var(--line);object-fit:cover;background:var(--panel-2)}
+  .thumbwrap{position:relative} .thumbwrap .x{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--panel);border:1px solid var(--line);cursor:pointer;font-size:12px;line-height:18px;text-align:center;color:var(--ink-3)} .thumbwrap .x:hover{color:#e5484d;border-color:#f5c6c6}
+  /* scope */
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:5px 11px;font-size:13px;margin:0 6px 6px 0}
+  .chip button{border:0;background:none;cursor:pointer;color:var(--ink-3);font-size:13px} .chip button:hover{color:#e5484d}
+  /* publish */
+  .pub{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .link{flex:1;min-width:200px;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:var(--mono);font-size:12px;color:var(--ink-2)}
+  .badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 10px;border-radius:20px}
+  .badge.draft{background:#fff7e6;color:#946200} .badge.live{background:#e7f6ee;color:#0f7a43}
+  /* risks */
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+  thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:9px 10px;border-bottom:1px solid var(--line)}
+  tbody td{padding:9px 10px;border-bottom:1px solid var(--line-2);vertical-align:top}
+  .sev{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .sev.low{background:#eef2ff;color:#4457c8} .sev.medium{background:#fff7e6;color:#946200} .sev.high{background:#fdecec;color:#b42318}
+  .ssel{height:28px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:11px;padding:0 6px;color:var(--ink)}
+  .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:28px;padding:0 9px;font-size:11px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#e5484d;border-color:#f5c6c6}
+  .reqrow{display:grid;grid-template-columns:1.6fr .8fr 1.6fr auto;gap:8px;align-items:end;margin-bottom:6px} @media(max-width:620px){.reqrow{grid-template-columns:1fr 1fr}}
+  .empty{color:var(--ink-3);font-size:12px;padding:10px 0}
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,94vw);padding:26px;text-align:center}
+  .lsheet h3{font-size:18px;margin:8px 0 12px} .lsheet label{display:block;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+  .lsheet input{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;margin-bottom:12px;font-family:inherit}
+  .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Proposal &amp; mood-board</h1><small>Blueprint Stage</small></div>
+    <nav class="nav"><a href="index.html">Home</a><a href="quotes.html">Quotes</a><a href="leads.html">Leads</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card" hidden><p class="muted">Sign in to open the proposal.</p></div>
+  <div id="notfound" class="card" hidden><p class="muted">Event not found. Go to <a href="quotes.html" style="color:var(--accent)">Quotes</a>.</p></div>
+
+  <div id="app" hidden>
+    <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
+
+    <div class="card">
+      <h2>Concept &amp; design direction</h2>
+      <p class="sub">A short, client-facing story for this event. This is what they'll see on the shared page.</p>
+      <div class="fld"><label>Concept / summary</label><textarea id="p_concept" placeholder="The big idea, mood and experience…"></textarea></div>
+      <div class="fld"><label>Theme</label><input id="p_theme" placeholder="e.g. Pastel garden romance"></div>
+
+      <div class="fld"><label>Colour palette</label>
+        <div class="row"><input type="color" id="p_color" value="#7c5cff" style="width:48px;height:38px;padding:2px"><button class="btn sm" id="p_addColor">＋ Add colour</button></div>
+        <div class="swatches" id="swatches"></div>
+      </div>
+
+      <div class="fld"><label>Reference images (paste image URLs)</label>
+        <div class="row"><input id="p_img" placeholder="https://…/inspiration.jpg" style="flex:1;min-width:200px"><button class="btn sm" id="p_addImg">＋ Add image</button></div>
+        <div class="gallery" id="gallery"></div>
+      </div>
+
+      <div class="fld"><label>Scope — what's included</label>
+        <div class="row"><input id="p_scope" placeholder="e.g. Stage & backdrop décor" style="flex:1;min-width:200px"><button class="btn sm" id="p_addScope">＋ Add item</button></div>
+        <div id="scopeList" style="margin-top:8px"></div>
+      </div>
+
+      <div class="foot"><span id="p_msg"></span><button class="btn primary" id="p_save" hidden>Save proposal</button></div>
+    </div>
+
+    <div class="card">
+      <h2>Share with client</h2>
+      <p class="sub">Publish to create a private link the client can open — no login needed. Unpublish to take it offline.</p>
+      <div class="pub">
+        <span class="badge draft" id="pubBadge">Draft</span>
+        <input class="link" id="shareLink" readonly placeholder="Publish to generate a link">
+        <button class="btn sm" id="copyLink" hidden>Copy</button>
+        <a class="btn sm" id="openView" target="_blank" hidden>Open client view ↗</a>
+        <span class="spacer"></span>
+        <button class="btn primary" id="pubBtn" hidden>Publish</button>
+        <button class="btn" id="unpubBtn" hidden>Unpublish</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Feasibility &amp; risk checklist</h2>
+      <p class="sub">Internal only — never shown to the client. Track what could go wrong and how you'll handle it.</p>
+      <div id="addRisk" class="reqrow" hidden>
+        <div class="fld" style="margin:0"><label>Risk</label><input id="rk_title" placeholder="e.g. Outdoor venue — rain"></div>
+        <div class="fld" style="margin:0"><label>Severity</label><select id="rk_sev"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
+        <div class="fld" style="margin:0"><label>Mitigation</label><input id="rk_mit" placeholder="e.g. Tent on standby"></div>
+        <div class="fld" style="margin:0"><label>&nbsp;</label><button class="btn primary sm" id="rk_add">＋ Add</button></div>
+      </div>
+      <table>
+        <thead><tr><th>Risk</th><th>Severity</th><th>Mitigation</th><th>Status</th><th></th></tr></thead>
+        <tbody id="riskRows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="lmodal" id="loginModal" hidden>
+  <form class="lsheet" id="loginForm">
+    <div class="mark" style="margin:0 auto 10px"></div><h3>Sign in</h3>
+    <label>Email</label><input type="email" id="li_email" required>
+    <label>Password</label><input type="password" id="li_pw" required>
+    <div class="lerr" id="li_err" hidden></div>
+    <button class="btn primary" id="li_submit" type="submit" style="width:100%;justify-content:center">Sign in</button>
+  </form>
+</div>
+
+<script src="config.js?v=15"></script>
+<script src="store-api.js?v=15"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const id=new URLSearchParams(location.search).get("quote");
+  const SEV={low:"Low",medium:"Medium",high:"High"};
+  let canEdit=false, canDelete=false, palette=[], images=[], scope=[], risks=[], token=null, published=false;
+
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  function renderPalette(){ $("#swatches").innerHTML=palette.map((c,i)=>`<div class="sw" style="background:${esc(c)}" title="${esc(c)}" data-i="${i}"><span>×</span></div>`).join("")||'<span class="muted">No colours yet.</span>';
+    if(canEdit) $("#swatches").querySelectorAll(".sw span").forEach(x=>x.addEventListener("click",e=>{e.stopPropagation();palette.splice(+x.parentElement.dataset.i,1);renderPalette();})); }
+  function renderGallery(){ $("#gallery").innerHTML=images.map((u,i)=>`<div class="thumbwrap"><img class="thumb" src="${esc(u)}" alt="ref" onerror="this.style.opacity=.3"><div class="x" data-i="${i}">×</div></div>`).join("")||'<span class="muted">No images yet.</span>';
+    if(canEdit) $("#gallery").querySelectorAll(".x").forEach(x=>x.addEventListener("click",()=>{images.splice(+x.dataset.i,1);renderGallery();})); }
+  function renderScope(){ $("#scopeList").innerHTML=scope.map((s,i)=>`<span class="chip">${esc(s)}${canEdit?`<button data-i="${i}">×</button>`:""}</span>`).join("")||'<span class="muted">No scope items yet.</span>';
+    if(canEdit) $("#scopeList").querySelectorAll(".chip button").forEach(b=>b.addEventListener("click",()=>{scope.splice(+b.dataset.i,1);renderScope();})); }
+
+  function renderPublish(){
+    const link = token ? (location.origin+"/proposal-view.html?token="+token) : "";
+    $("#pubBadge").className="badge "+(published?"live":"draft"); $("#pubBadge").textContent=published?"Published":"Draft";
+    $("#shareLink").value=link;
+    $("#copyLink").hidden=!link; $("#openView").hidden=!(link&&published); if(link) $("#openView").href=link;
+    $("#pubBtn").hidden=!canEdit||published; $("#unpubBtn").hidden=!canEdit||!published;
+  }
+
+  function renderRisks(){
+    if(!risks.length){ $("#riskRows").innerHTML='<tr><td colspan="5" class="empty">No risks logged yet.</td></tr>'; return; }
+    const opts=(cur)=>["open","mitigated","accepted"].map(s=>`<option value="${s}" ${s===cur?"selected":""}>${s[0].toUpperCase()+s.slice(1)}</option>`).join("");
+    $("#riskRows").innerHTML=risks.map(r=>`<tr>
+      <td><b>${esc(r.title)}</b></td>
+      <td><span class="sev ${esc(r.severity)}">${esc(SEV[r.severity]||r.severity)}</span></td>
+      <td class="muted">${esc(r.mitigation||"")}</td>
+      <td>${canEdit?`<select class="ssel" data-id="${r.id}">${opts(r.status)}</select>`:esc(r.status)}</td>
+      <td>${canDelete?`<button class="rm" data-id="${r.id}">Remove</button>`:""}</td>
+    </tr>`).join("");
+    if(canEdit) $("#riskRows").querySelectorAll("select.ssel").forEach(s=>s.addEventListener("change",async()=>{
+      try{ await BPStore.proposal.setRiskStatus(s.dataset.id, s.value); const r=risks.find(x=>x.id===s.dataset.id); if(r) r.status=s.value; }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
+    if(canDelete) $("#riskRows").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{
+      try{ await BPStore.proposal.removeRisk(b.dataset.id); risks=risks.filter(x=>x.id!==b.dataset.id); renderRisks(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
+  }
+
+  async function saveProposal(){
+    $("#p_save").disabled=true; $("#p_msg").textContent="";
+    try{ await BPStore.proposal.save(id,{ concept:$("#p_concept").value.trim()||null, theme:$("#p_theme").value.trim()||null, palette, images, scope });
+      $("#p_msg").className="ok"; $("#p_msg").textContent="Saved ✓"; setTimeout(()=>$("#p_msg").textContent="",2000); }
+    catch(e){ $("#p_msg").className="err"; $("#p_msg").textContent="Couldn't save — "+((e&&e.message)||"error"); }
+    finally{ $("#p_save").disabled=false; }
+  }
+  async function setPublished(v){
+    try{ const t=await BPStore.proposal.publish(id,v); if(t) token=t; published=v; renderPublish(); }
+    catch(e){ alert("Couldn't "+(v?"publish":"unpublish")+" — "+((e&&e.message)||"error")); }
+  }
+  async function addRisk(){
+    const title=$("#rk_title").value.trim(); if(!title){ $("#rk_title").focus(); return; }
+    $("#rk_add").disabled=true;
+    try{ const row=await BPStore.proposal.addRisk(id,{ title, severity:$("#rk_sev").value, mitigation:$("#rk_mit").value.trim()||null });
+      risks.push(row); renderRisks(); $("#rk_title").value=""; $("#rk_mit").value=""; $("#rk_title").focus(); }
+    catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); }
+    finally{ $("#rk_add").disabled=false; }
+  }
+
+  async function load(){
+    await BPStore.init(); await renderAccount();
+    $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
+    if(!id){ $("#notfound").hidden=false; return; }
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    canEdit=await BPStore.auth.can("edit"); canDelete=await BPStore.auth.can("delete");
+    let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
+    $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
+    $("#app").hidden=false;
+    $("#p_save").hidden=!canEdit; $("#addRisk").hidden=!canEdit;
+    try{ const p=await BPStore.proposal.get(id); if(p){
+      $("#p_concept").value=p.concept||""; $("#p_theme").value=p.theme||"";
+      palette=p.palette||[]; images=p.images||[]; scope=p.scope||[]; token=p.share_token||null; published=!!p.published; } }catch{}
+    renderPalette(); renderGallery(); renderScope(); renderPublish();
+    try{ risks=await BPStore.proposal.listRisks(id); }catch{ risks=[]; }
+    renderRisks();
+    if(!canEdit){ document.querySelectorAll("#app input,#app select,#app textarea").forEach(el=>el.disabled=true); }
+  }
+
+  $("#p_addColor").addEventListener("click",()=>{ const c=$("#p_color").value; if(!palette.includes(c)) palette.push(c); renderPalette(); });
+  $("#p_addImg").addEventListener("click",()=>{ const u=$("#p_img").value.trim(); if(u){ images.push(u); $("#p_img").value=""; renderGallery(); } });
+  $("#p_addScope").addEventListener("click",()=>{ const s=$("#p_scope").value.trim(); if(s){ scope.push(s); $("#p_scope").value=""; renderScope(); } });
+  $("#p_img").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#p_addImg").click(); } });
+  $("#p_scope").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#p_addScope").click(); } });
+  $("#p_save").addEventListener("click",saveProposal);
+  $("#pubBtn").addEventListener("click",()=>setPublished(true));
+  $("#unpubBtn").addEventListener("click",()=>setPublished(false));
+  $("#copyLink").addEventListener("click",()=>{ navigator.clipboard&&navigator.clipboard.writeText($("#shareLink").value); $("#copyLink").textContent="Copied ✓"; setTimeout(()=>$("#copyLink").textContent="Copy",1500); });
+  $("#rk_add").addEventListener("click",addRisk);
+  $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
+    const btn=$("#li_submit"); btn.disabled=true; btn.textContent="Signing in…"; $("#li_err").hidden=true;
+    try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pw").value); closeLogin(); $("#gate").hidden=true; await load(); }
+    catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign-in failed"; $("#li_err").hidden=false; }
+    finally{ btn.disabled=false; btn.textContent="Sign in"; } });
+  load();
+</script>
+</body>
+</html>

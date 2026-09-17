@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Event Workspace — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
+  .ev{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap}
+  .ev .code{font-family:var(--mono);font-weight:700;font-size:22px;color:var(--accent)}
+  .ev .ttl{font-size:18px;font-weight:600} .ev .meta{color:var(--ink-3);font-size:13px;margin-top:2px}
+  .ev .tot{margin-left:auto;text-align:right} .ev .tot .amt{font-family:var(--mono);font-weight:700;font-size:20px}
+  .stat{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 9px;border-radius:20px;vertical-align:middle}
+  .stat.q{background:#eef2ff;color:#4457c8} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318} .stat.st{background:#fff7e6;color:#946200}
+  /* lifecycle stepper */
+  .steps{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .step{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink-3);cursor:pointer}
+  .step .n{width:16px;height:16px;border-radius:50%;background:var(--line);color:#fff;font-size:9px;display:inline-flex;align-items:center;justify-content:center}
+  .step.done{background:#e7f6ee;border-color:#b6e3ca;color:#0f7a43} .step.done .n{background:#18a558}
+  .step.active{background:var(--accent);border-color:transparent;color:#fff} .step.active .n{background:rgba(255,255,255,.4)}
+  .step[disabled]{cursor:default;opacity:.9}
+  .nextbar{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .nextbar .hint{font-size:13px;color:var(--ink-2)} .nextbar .hint b{color:var(--ink)}
+  .btn{height:36px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)}
+  /* module cards */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px} @media(max-width:720px){.grid{grid-template-columns:1fr}}
+  .mod{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px;display:flex;flex-direction:column;gap:8px}
+  .mod .h{display:flex;align-items:center;gap:8px} .mod .h .ic{font-size:20px} .mod .h b{font-size:15px}
+  .mod .sum{color:var(--ink-2);font-size:13px;flex:1} .mod .sum .big{font-family:var(--mono);font-weight:700;color:var(--ink)}
+  .mod .act{display:flex;gap:8px;flex-wrap:wrap}
+  .mod.reco{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .muted{color:var(--ink-3);font-size:12px}
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,94vw);padding:26px;text-align:center}
+  .lsheet h3{font-size:18px;margin:8px 0 12px} .lsheet label{display:block;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+  .lsheet input{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;margin-bottom:12px;font-family:inherit}
+  .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Event Workspace</h1><small>Blueprint Stage</small></div>
+    <nav class="nav"><a href="index.html">Home</a><a href="leads.html">Leads</a><a href="quotes.html">Quotes</a><a href="control.html">Control Center</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card" hidden><p class="muted">Sign in to open this event.</p></div>
+  <div id="notfound" class="card" hidden><p class="muted">Event not found. Go to <a href="quotes.html" style="color:var(--accent)">Quotes</a>.</p></div>
+
+  <div id="app" hidden>
+    <div class="card">
+      <div class="ev">
+        <div>
+          <span class="code" id="code"></span> <span id="statusBadge"></span> <span id="apprBadge"></span>
+          <div class="ttl" id="title"></div>
+          <div class="meta" id="meta"></div>
+        </div>
+        <div class="tot"><div class="muted">Total</div><div class="amt" id="total">—</div></div>
+      </div>
+      <div class="steps" id="steps"></div>
+      <div class="nextbar">
+        <div class="hint" id="nextHint"></div>
+        <span class="spacer"></span>
+        <button class="btn primary" id="advBtn" hidden>Advance to next stage →</button>
+      </div>
+    </div>
+
+    <div class="grid" id="mods"></div>
+  </div>
+</div>
+
+<div class="lmodal" id="loginModal" hidden>
+  <form class="lsheet" id="loginForm">
+    <div class="mark" style="margin:0 auto 10px"></div>
+    <h3>Sign in</h3>
+    <label>Email</label><input type="email" id="li_email" required>
+    <label>Password</label><input type="password" id="li_pw" required>
+    <div class="lerr" id="li_err" hidden></div>
+    <button class="btn primary" id="li_submit" type="submit" style="width:100%;justify-content:center">Sign in</button>
+  </form>
+</div>
+
+<script src="config.js?v=15"></script>
+<script src="store-api.js?v=15"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const inr=(n)=>"₹"+Number(n||0).toLocaleString("en-IN");
+  const id=new URLSearchParams(location.search).get("id");
+
+  // the lifecycle — a calm, guided path. Each stage carries the "next action" hint.
+  const STAGES=[
+    {k:"lead",label:"Lead",hint:"Capture the enquiry and qualify it.",mods:["discovery","quote"]},
+    {k:"discovery",label:"Discovery",hint:"Meet the client and capture requirements before quoting.",mods:["discovery","quote"]},
+    {k:"proposal",label:"Proposal",hint:"Share the concept and design direction.",mods:["proposal","layout","quote"]},
+    {k:"quote",label:"Quote",hint:"Design the floor and price the event.",mods:["layout","quote"]},
+    {k:"confirmed",label:"Confirmed",hint:"Get the client's approval, then plan the work.",mods:["approval","tasks"]},
+    {k:"planning",label:"Planning",hint:"Assign tasks and plan resources.",mods:["tasks","layout"]},
+    {k:"resources",label:"Resources",hint:"Allocate staff, inventory and vendors.",mods:["tasks"]},
+    {k:"ready",label:"Ready",hint:"Run the readiness check and brief the team.",mods:["tasks"]},
+    {k:"event_day",label:"Event Day",hint:"Coordinate the live event.",mods:["tasks"]},
+    {k:"settlement",label:"Settlement",hint:"Reconcile scope, invoice and collect payment.",mods:["quote","approval"]},
+    {k:"closed",label:"Closed",hint:"Event complete and archived.",mods:[]},
+  ];
+  const stageIndex=(k)=>Math.max(0,STAGES.findIndex(s=>s.k===k));
+
+  let ev=null, canEdit=false, tasksSummary=null, discSummary=null, propSummary=null;
+  const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
+  const budgetRange=()=>{ const d=discSummary&&discSummary.disc; if(!d) return ""; const a=d.budget_min, b=d.budget_max;
+    if(a!=null&&b!=null) return inr(a)+"–"+inr(b); if(a!=null) return "from "+inr(a); if(b!=null) return "up to "+inr(b); return ""; };
+
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  async function load(){
+    await BPStore.init(); await renderAccount();
+    if(!id){ $("#notfound").hidden=false; return; }
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    canEdit = await BPStore.auth.can("edit");
+    try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
+    // task summary (operations) — optional
+    try{ const t=await BPStore.ops.listTasks(id); tasksSummary={total:t.length, done:t.filter(x=>x.status==='completed').length}; }catch{ tasksSummary=null; }
+    // discovery summary (Phase 3) — optional
+    try{ const d=await BPStore.discovery.get(id); const rq=await BPStore.discovery.listReqs(id);
+      discSummary={ disc:d, total:rq.length, must:rq.filter(r=>r.priority==='mandatory').length }; }catch{ discSummary=null; }
+    // proposal summary (Phase 4) — optional
+    try{ const p=await BPStore.proposal.get(id); propSummary=p; }catch{ propSummary=null; }
+    $("#app").hidden=false;
+    render();
+  }
+
+  const statBadge=(s)=> s==="confirmed"?'<span class="stat ok">Confirmed</span>':s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
+  const apprBadge=(a)=> a==="paid"?'<span class="stat ok">Paid</span>':a==="approved"?'<span class="stat ok">Approved</span>':a==="sent"?'<span class="stat st">Sent for approval</span>':"";
+
+  function render(){
+    $("#code").textContent=ev.code;
+    $("#statusBadge").innerHTML=statBadge(ev.status);
+    $("#apprBadge").innerHTML=apprBadge(ev.approvalStatus);
+    $("#title").textContent=ev.title||ev.code;
+    const cl=ev.client||{};
+    $("#meta").textContent=[ev.eventType, cl.name?("for "+cl.name):"", cl.eventDate||""].filter(Boolean).join(" · ")||"No client details yet";
+    $("#total").textContent=evTotal()? inr(evTotal()):"—";
+
+    const cur=stageIndex(ev.lifecycleStage);
+    $("#steps").innerHTML=STAGES.map((s,i)=>{
+      const cls=i<cur?"done":i===cur?"active":"";
+      return `<button class="step ${cls}" data-k="${s.k}" ${canEdit?"":"disabled"}><span class="n">${i<cur?"✓":i+1}</span>${s.label}</button>`;
+    }).join("");
+    if(canEdit) $("#steps").querySelectorAll(".step").forEach(b=>b.addEventListener("click",()=>setStage(b.dataset.k)));
+    $("#nextHint").innerHTML=`<b>Now:</b> ${esc(STAGES[cur].hint)}`;
+    const adv=$("#advBtn");
+    if(canEdit && cur<STAGES.length-1){ adv.hidden=false; adv.textContent="Advance to "+STAGES[cur+1].label+" →"; adv.onclick=()=>setStage(STAGES[cur+1].k); }
+    else adv.hidden=true;
+
+    renderMods(STAGES[cur].mods);
+  }
+
+  function renderMods(recommended){
+    const cl=ev.client||{};
+    const objs = tasksSummary; // placeholder
+    const discSum = discSummary && (discSummary.total || (discSummary.disc))
+      ? `${discSummary.total} requirement${discSummary.total===1?"":"s"}${discSummary.must?` · <b>${discSummary.must} must-have${discSummary.must===1?"":"s"}</b>`:""}${budgetRange()?` · budget ${budgetRange()}`:""}`
+      : "Meet the client and capture requirements &amp; budget.";
+    const fromDisc = (discSummary && (budgetRange()||discSummary.must))
+      ? `<div class="muted" style="margin-top:4px">From discovery: ${budgetRange()?budgetRange():""}${(budgetRange()&&discSummary.must)?" · ":""}${discSummary.must?discSummary.must+" must-have"+(discSummary.must===1?"":"s"):""}</div>` : "";
+    const cards=[
+      { key:"discovery", ic:"🔎", title:"Discovery & requirements", sum:discSum,
+        acts:[{t: canEdit?"Open discovery":"View discovery", href:"discovery.html?quote="+encodeURIComponent(id), primary:true}] },
+      { key:"proposal", ic:"🎨", title:"Proposal & mood-board",
+        sum: propSummary ? `${propSummary.published?'<span class="stat ok">Published</span>':'<span class="stat q">Draft</span>'} · ${(propSummary.scope&&propSummary.scope.length)||0} scope item${(propSummary.scope&&propSummary.scope.length)===1?"":"s"}${(propSummary.images&&propSummary.images.length)?` · ${propSummary.images.length} image${propSummary.images.length===1?"":"s"}`:""}` : "Compose a shareable concept &amp; mood-board.",
+        acts:[{t: canEdit?"Open proposal":"View proposal", href:"proposal.html?quote="+encodeURIComponent(id), primary:true}] },
+      { key:"layout", ic:"📐", title:"Floor layout", sum:`Design the 2D/3D plan for this event.`,
+        acts:[{t:"Open builder", href:"builder.html?quote="+encodeURIComponent(id), primary:true}] },
+      { key:"quote", ic:"🧾", title:"Quote & pricing", sum:`Version v${ev.currentVersion} · ${evTotal()?inr(evTotal()):"not priced yet"} · <span class="stat ${ev.status==='confirmed'?'ok':'q'}">${ev.status}</span>${fromDisc}`,
+        acts:[{t:"Open quotes", href:"quotes.html", primary:true}] },
+      { key:"approval", ic:"✅", title:"Client approval", sum: ev.approvalStatus==='none'?"Not sent yet — confirm the quote, then send the approval link.":`Status: <b>${esc(ev.approvalStatus)}</b>`,
+        acts:[{t:"Manage in Quotes", href:"quotes.html"}] },
+      { key:"tasks", ic:"🛠️", title:"Tasks & crew", sum: tasksSummary?`${tasksSummary.done}/${tasksSummary.total} tasks done`:"Assign predefined tasks to your crew.",
+        acts:[{t:"Open operations", href:"ops.html?quote="+encodeURIComponent(id), primary:true}] },
+    ];
+    $("#mods").innerHTML=cards.map(c=>{
+      const reco=recommended.includes(c.key)?"reco":"";
+      return `<div class="mod ${reco}"><div class="h"><span class="ic">${c.ic}</span><b>${c.title}</b>${reco?'<span class="stat q" style="margin-left:auto">Next</span>':""}</div>
+        <div class="sum">${c.sum}</div>
+        <div class="act">${c.acts.map(a=>`<a class="btn ${a.primary?'primary':''}" href="${a.href}">${a.t}</a>`).join("")}</div></div>`;
+    }).join("");
+  }
+
+  async function setStage(k){
+    try{ await BPStore.quotes.setStage(id, k); ev.lifecycleStage=k; render(); }
+    catch(e){ alert("Couldn't update stage: "+((e&&e.message)||"error")); }
+  }
+
+  $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
+    const btn=$("#li_submit"); btn.disabled=true; btn.textContent="Signing in…"; $("#li_err").hidden=true;
+    try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pw").value); closeLogin(); $("#gate").hidden=true; await load(); }
+    catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign-in failed"; $("#li_err").hidden=false; }
+    finally{ btn.disabled=false; btn.textContent="Sign in"; } });
+  $("#loginModal").addEventListener("click",e=>{ if(e.target.id==="loginModal"&&BPStore.auth.user()) closeLogin(); });
+  load();
+</script>
+</body>
+</html>
