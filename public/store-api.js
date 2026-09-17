@@ -843,8 +843,73 @@
     },
   };
 
+  /* ---------------- budget vs actuals + change orders (Phase 12) ---------------- */
+  const COST_LS = "bp_costs", CHG_LS = "bp_changes";
+  const budget = {
+    async listCosts(quoteId) {
+      if (mode === "supabase") { const { data, error } = await supa.from("event_costs").select("*").eq("quote_id", quoteId).order("created_at"); if (error) throw error; return data; }
+      return readLs(COST_LS).filter((c) => c.quote_id === quoteId);
+    },
+    async addCost(quoteId, c) {
+      if (mode === "supabase") { const { data, error } = await supa.from("event_costs").insert({ quote_id: quoteId, ...c }).select().single(); if (error) throw error; return data; }
+      const a = readLs(COST_LS); const row = { id: uid(), quote_id: quoteId, estimated: 0, kind: "internal", ...c, created_at: now() }; a.push(row); localStorage.setItem(COST_LS, JSON.stringify(a)); return row;
+    },
+    async updateCost(id, patch) {
+      if (mode === "supabase") { const { error } = await supa.from("event_costs").update(patch).eq("id", id); if (error) throw error; return true; }
+      const a = readLs(COST_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(COST_LS, JSON.stringify(a)); } return true;
+    },
+    async removeCost(id) {
+      if (mode === "supabase") { const { error } = await supa.from("event_costs").delete().eq("id", id); if (error) throw error; return true; }
+      localStorage.setItem(COST_LS, JSON.stringify(readLs(COST_LS).filter((c) => c.id !== id))); return true;
+    },
+    // pull vendor bookings (event_resources) in as vendor cost lines (skips ones already imported)
+    async importVendorCosts(quoteId) {
+      const [bk, costs] = await Promise.all([bookings.list(quoteId), this.listCosts(quoteId)]);
+      const have = new Set(costs.map((c) => c.booking_id).filter(Boolean));
+      let added = 0;
+      for (const b of bk) {
+        if (b.status === "cancelled" || have.has(b.id) || b.cost == null) continue;
+        await this.addCost(quoteId, { category: "Vendor", description: b.label || "Vendor booking", kind: "vendor",
+          estimated: Number(b.cost || 0), actual: null, booking_id: b.id }); added++;
+      }
+      return added;
+    },
+    async listChanges(quoteId) {
+      if (mode === "supabase") { const { data, error } = await supa.from("change_requests").select("*").eq("quote_id", quoteId).order("created_at"); if (error) throw error; return data; }
+      return readLs(CHG_LS).filter((c) => c.quote_id === quoteId);
+    },
+    async addChange(quoteId, c) {
+      if (mode === "supabase") { const { data, error } = await supa.from("change_requests").insert({ quote_id: quoteId, ...c }).select().single(); if (error) throw error; return data; }
+      const a = readLs(CHG_LS); const row = { id: uid(), quote_id: quoteId, status: "requested", price_delta: 0, cost_delta: 0, ...c, created_at: now() }; a.push(row); localStorage.setItem(CHG_LS, JSON.stringify(a)); return row;
+    },
+    async setChangeStatus(id, status) {
+      const patch = { status, decided_at: (status === "requested" ? null : now()) };
+      if (mode === "supabase") { const { error } = await supa.from("change_requests").update(patch).eq("id", id); if (error) throw error; return true; }
+      const a = readLs(CHG_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(CHG_LS, JSON.stringify(a)); } return true;
+    },
+    async removeChange(id) {
+      if (mode === "supabase") { const { error } = await supa.from("change_requests").delete().eq("id", id); if (error) throw error; return true; }
+      localStorage.setItem(CHG_LS, JSON.stringify(readLs(CHG_LS).filter((c) => c.id !== id))); return true;
+    },
+    // revenue / cost / margin rollup (quote total + approved change price deltas)
+    async summary(quoteId) {
+      const [ev, costs, changes] = await Promise.all([quotes.get(quoteId), this.listCosts(quoteId), this.listChanges(quoteId)]);
+      const baseRevenue = (ev && (ev.total != null ? ev.total : (ev.pricing && ev.pricing.total))) || 0;
+      const approved = changes.filter((c) => c.status === "approved");
+      const changeRevenue = approved.reduce((a, c) => a + Number(c.price_delta || 0), 0);
+      const changeCost = approved.reduce((a, c) => a + Number(c.cost_delta || 0), 0);
+      const estCost = costs.reduce((a, c) => a + Number(c.estimated || 0), 0) + changeCost;
+      const actCost = costs.reduce((a, c) => a + (c.actual != null ? Number(c.actual) : 0), 0);
+      const revenue = Number(baseRevenue) + changeRevenue;
+      const estMargin = revenue - estCost, actMargin = revenue - actCost;
+      return { revenue, baseRevenue, changeRevenue, estCost, actCost, changeCost, estMargin, actMargin,
+        estMarginPct: revenue ? Math.round(estMargin / revenue * 100) : null,
+        costs, changes, pendingChanges: changes.filter((c) => c.status === "requested").length };
+    },
+  };
+
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

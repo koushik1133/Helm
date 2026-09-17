@@ -38,6 +38,7 @@ minus the user seed), run in this exact order:
 | 15 | `15-vendors.sql`       | vendors.kind + event_resources (external bookings) (Phase 9) |
 | 16 | `16-calendar.sql`     | quotes.event_date + backfill (resource calendar) (Phase 10) |
 | 17 | `17-runsheet.sql`     | run_sheet_items — timed event-day schedule (Phase 11) |
+| 18 | `18-budget.sql`       | event_costs + change_requests — budget vs actuals (Phase 12) |
 
 Then, on a brand-new DB only, seed the team logins:
 

@@ -112,6 +112,14 @@ what each phase added, in plain words.
   clean sheet to hand to the crew. (Task deadlines and dependencies use the
   scheduling fields already on tasks.)
 
+- **Phase 12 — Budget vs. actuals + change orders.** On an event, open **Budget
+  & margin**. Add **cost lines** (internal / vendor / other) with an
+  **estimated** and later an **actual** amount — or **import vendor bookings** as
+  cost lines in one click. Four tiles show **revenue** (the quote), **estimated
+  cost**, **actual cost** and your **margin** (with %). Raise **change requests**
+  — a priced scope change with what you'll **charge the client** and the **extra
+  cost**; approve one and it rolls into the budget automatically.
+
 ### Where the data lives
 
 All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per
