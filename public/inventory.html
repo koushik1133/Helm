@@ -147,8 +147,8 @@
   </div>
 </div>
 
-<script src="config.js?v=31"></script>
-<script src="store-api.js?v=31"></script>
+<script src="config.js?v=32"></script>
+<script src="store-api.js?v=32"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -244,6 +244,10 @@
   $("#rv_add").addEventListener("click",async()=>{
     const itemId=$("#rv_item").value, qty=Number($("#rv_qty").value||0);
     if(!itemId||qty<=0){ return; }
+    // over-commit guard: warn if this reservation exceeds what's free
+    const a=avail[itemId]||{}; const free=Number(a.available!=null?a.available:(a.total_qty||0));
+    if(qty>free){ const it=items.find(x=>x.id===itemId)||{};
+      if(!confirm(`Only ${free} ${it.unit||""} of ${it.name||"this item"} free — reserving ${qty} will over-commit by ${qty-free}. It'll show as a calendar conflict. Reserve anyway?`)) return; }
     $("#rv_add").disabled=true;
     try{ await BPStore.inventory.reserve(itemId, quoteId, qty, $("#rv_note").value.trim()||null); $("#rv_qty").value=1; $("#rv_note").value=""; await load(); }
     catch(e){ alert("Couldn't reserve — "+((e&&e.message)||"error")); }

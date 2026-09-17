@@ -184,6 +184,21 @@ what each phase added, in plain words.
   lead → discovery → proposal → quote → confirm → plan → resource → ready →
   event day → settle → close.
 
+### Fixes after the full-app test pass (2026-09-17)
+
+After building all 20 phases, the whole app was tested end-to-end with two full
+`(testing)` events. Two issues were fixed:
+
+- **Readiness gate no longer passes on an empty event.** Before, "Resources
+  covered" and "Vendors confirmed" turned green even when *nothing* had been
+  planned. Now an event with no resource needs shows **"no needs mapped yet"** and
+  one with nothing booked shows **"nothing planned"** — so the gate only goes
+  green once you've actually planned the resources.
+- **Inventory warns before you over-book stock.** On the Reserve panel, if you try
+  to hold more than is free, it now asks *"Only N free — reserving X will
+  over-commit… Reserve anyway?"* instead of silently going negative. (Two
+  money-accuracy items in the P&L are noted in `REMINDERS.md` for later.)
+
 ### Where the data lives
 
 All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per
