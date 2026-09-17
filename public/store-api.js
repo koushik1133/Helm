@@ -908,8 +908,36 @@
     },
   };
 
+  /* ---------------- venue + menu/package plan (Phase 13) ---------------- */
+  const PLAN_LS = "bp_plan";
+  const plan = {
+    async get(quoteId) {
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("event_plan").select("*").eq("quote_id", quoteId).maybeSingle();
+        if (error) throw error; return data || null;
+      }
+      return readLs(PLAN_LS).find((p) => p.quote_id === quoteId) || null;
+    },
+    async save(quoteId, p) {
+      if (mode === "supabase") {
+        return rpc("set_event_plan", { p_quote_id: quoteId, p_venue_name: p.venue_name || null, p_venue_address: p.venue_address || null,
+          p_venue_contact: p.venue_contact || null, p_access_notes: p.access_notes || null, p_package: p.package || null, p_menu: p.menu || null });
+      }
+      const a = readLs(PLAN_LS).filter((x) => x.quote_id !== quoteId);
+      const cur = readLs(PLAN_LS).find((x) => x.quote_id === quoteId) || {};
+      const row = { quote_id: quoteId, menu_locked: cur.menu_locked || false, ...p, updated_at: now() };
+      a.push(row); localStorage.setItem(PLAN_LS, JSON.stringify(a)); return row;
+    },
+    async setLock(quoteId, locked) {
+      if (mode === "supabase") return rpc("set_plan_lock", { p_quote_id: quoteId, p_locked: !!locked });
+      const a = readLs(PLAN_LS); let row = a.find((x) => x.quote_id === quoteId);
+      if (!row) { row = { quote_id: quoteId }; a.push(row); }
+      row.menu_locked = !!locked; row.locked_at = locked ? now() : null; localStorage.setItem(PLAN_LS, JSON.stringify(a)); return row;
+    },
+  };
+
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

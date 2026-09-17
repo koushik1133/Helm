@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Event details — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:960px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .crumb{font-size:12px;color:var(--ink-3);margin:2px 0 14px} .crumb a{color:var(--accent)}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
+  .card h2{font-size:15px;margin:0 0 4px;display:flex;align-items:center;gap:8px} .card .sub{font-size:12px;color:var(--ink-3);margin:0 0 14px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px} @media(max-width:620px){.grid{grid-template-columns:1fr}}
+  .fld{display:flex;flex-direction:column;gap:4px;margin-bottom:12px} .fld.full{grid-column:1/-1}
+  .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld input,.fld textarea{border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .fld input{height:38px;padding:0 12px} .fld textarea{min-height:70px;resize:vertical}
+  .fld input:disabled,.fld textarea:disabled{opacity:.7;cursor:not-allowed}
+  .btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.4;cursor:default}
+  .btn.sm{height:32px;padding:0 11px;font-size:12px}
+  .foot{display:flex;gap:10px;justify-content:flex-end;align-items:center;margin-top:4px}
+  .ok{color:var(--safe);font-size:12px;font-weight:600} .muted{color:var(--ink-3);font-size:12px}
+  .lockbadge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 10px;border-radius:20px}
+  .lockbadge.on{background:#e7f6ee;color:#0f7a43} .lockbadge.off{background:#fff7e6;color:#946200}
+  .appr{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .stat{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 10px;border-radius:20px}
+  .stat.none{background:#f1f3f7;color:var(--ink-3)} .stat.sent{background:#fff7e6;color:#946200} .stat.approved{background:#e7f6ee;color:#0f7a43} .stat.paid{background:#e7f6ee;color:#0f7a43}
+  .hist{font-size:12px;color:var(--ink-2);margin-top:8px} .hist div{padding:4px 0;border-bottom:1px solid var(--line-2)}
+  footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
+  .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px}
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,96vw);padding:24px}
+  .sheet h3{margin:0 0 12px}.foot2{display:flex;gap:10px;justify-content:flex-end}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Event details</h1><small>Blueprint Stage</small></div>
+    <nav class="nav"><a href="index.html">Home</a><a href="calendar.html">Calendar</a><a href="quotes.html">Quotes</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card" hidden><p class="muted">Sign in to open event details.</p></div>
+  <div id="notfound" class="card" hidden><p class="muted">Event not found. Go to <a href="quotes.html" style="color:var(--accent)">Quotes</a>.</p></div>
+
+  <div id="app" hidden>
+    <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
+
+    <div class="card">
+      <h2>🏛 Venue &amp; access</h2>
+      <p class="sub">Where the event happens, and how the crew gets in. <a id="floorLink" href="#" style="color:var(--accent)">Open floor layout →</a></p>
+      <div class="grid">
+        <div class="fld"><label>Venue name</label><input id="v_name" placeholder="e.g. Grand Ballroom, Taj"></div>
+        <div class="fld"><label>Venue contact</label><input id="v_contact" placeholder="name / phone"></div>
+        <div class="fld full"><label>Address</label><input id="v_addr" placeholder="Full address"></div>
+        <div class="fld full"><label>Access / load-in notes</label><textarea id="v_access" placeholder="Gate, lift, load-in window, parking, restrictions…"></textarea></div>
+      </div>
+      <div class="foot"><span id="v_msg"></span><button class="btn primary" id="v_save" hidden>Save venue</button></div>
+    </div>
+
+    <div class="card">
+      <h2>🍽 Menu &amp; package <span id="lockBadge" class="lockbadge off" hidden>Draft</span></h2>
+      <p class="sub">Once agreed with the client, lock it — later changes should go through a change order.</p>
+      <div class="fld"><label>Package</label><input id="p_pkg" placeholder="e.g. Gold package — 400 pax"></div>
+      <div class="fld"><label>Menu / service details</label><textarea id="p_menu" placeholder="Courses, dietary options, service style, timings…" style="min-height:110px"></textarea></div>
+      <div class="foot"><span id="p_msg"></span>
+        <button class="btn" id="lockBtn" hidden>🔒 Lock menu</button>
+        <button class="btn primary" id="p_save" hidden>Save menu</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>✅ Client approval</h2>
+      <p class="sub">Tracked from the client approval flow (OTP + consent + payment).</p>
+      <div class="appr"><span>Status:</span> <span id="apprStat" class="stat none">none</span>
+        <span class="spacer"></span><a class="btn sm" href="quotes.html">Manage approval →</a></div>
+      <div class="hist" id="apprHist"></div>
+    </div>
+  </div>
+  <footer>Blueprint Stage — venue, menu and approvals for the event, in one place.</footer>
+</div>
+
+<div id="lockModal" class="lmodal" hidden>
+  <div class="sheet">
+    <h3 id="lockTitle">Lock the menu &amp; package?</h3>
+    <p class="muted" id="lockMsg">Once locked, the fields become read-only. You can unlock later, but the intent is that changes go through a change order.</p>
+    <div class="foot2" style="margin-top:14px"><button class="btn" id="lock_cancel">Cancel</button><button class="btn primary" id="lock_ok">Lock</button></div>
+  </div>
+</div>
+
+<div id="loginModal" class="lmodal" hidden>
+  <div class="sheet">
+    <h3>Sign in</h3>
+    <div class="fld"><label>Email</label><input id="li_email" type="email"></div>
+    <div class="fld"><label>Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden></div>
+    <div class="foot2"><button class="btn primary" id="li_go">Sign in</button></div>
+  </div>
+</div>
+
+<script src="config.js?v=23"></script>
+<script src="store-api.js?v=23"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const id=new URLSearchParams(location.search).get("quote");
+  let canEdit=false, locked=false, ev=null;
+
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  function applyLock(){
+    $("#p_pkg").disabled = locked || !canEdit; $("#p_menu").disabled = locked || !canEdit;
+    $("#lockBadge").hidden=false; $("#lockBadge").className="lockbadge "+(locked?"on":"off"); $("#lockBadge").textContent=locked?"🔒 Locked":"Draft";
+    if(canEdit){ $("#lockBtn").hidden=false; $("#lockBtn").textContent = locked?"🔓 Unlock":"🔒 Lock menu"; $("#p_save").hidden=locked; }
+  }
+
+  async function saveVenue(){
+    $("#v_save").disabled=true; $("#v_msg").textContent="";
+    try{ await BPStore.plan.save(id, gather()); $("#v_msg").className="ok"; $("#v_msg").textContent="Saved ✓"; setTimeout(()=>$("#v_msg").textContent="",1500); }
+    catch(e){ $("#v_msg").className="err"; $("#v_msg").textContent="Couldn't save — "+((e&&e.message)||"error"); }
+    finally{ $("#v_save").disabled=false; }
+  }
+  async function saveMenu(){
+    $("#p_save").disabled=true; $("#p_msg").textContent="";
+    try{ await BPStore.plan.save(id, gather()); $("#p_msg").className="ok"; $("#p_msg").textContent="Saved ✓"; setTimeout(()=>$("#p_msg").textContent="",1500); }
+    catch(e){ $("#p_msg").className="err"; $("#p_msg").textContent="Couldn't save — "+((e&&e.message)||"error"); }
+    finally{ $("#p_save").disabled=false; }
+  }
+  function gather(){ return { venue_name:$("#v_name").value.trim()||null, venue_address:$("#v_addr").value.trim()||null,
+    venue_contact:$("#v_contact").value.trim()||null, access_notes:$("#v_access").value.trim()||null,
+    package:$("#p_pkg").value.trim()||null, menu:$("#p_menu").value.trim()||null }; }
+
+  function openLockModal(){ if(locked){ // unlock immediately
+      doLock(false); return; }
+    $("#lockModal").hidden=false; }
+  async function doLock(v){
+    try{ await BPStore.plan.save(id, gather()); await BPStore.plan.setLock(id, v); locked=v; applyLock(); $("#lockModal").hidden=true; }
+    catch(e){ alert("Couldn't update lock — "+((e&&e.message)||"error")); }
+  }
+
+  async function renderApproval(){
+    const st = ev.approvalStatus||"none"; $("#apprStat").className="stat "+st; $("#apprStat").textContent=st;
+    let lines=[];
+    try{ const cons=await BPStore.approval.consents(id); (cons||[]).slice(0,3).forEach(c=>lines.push(`✍ ${esc(c.client_name||c.phone||"client")} agreed — ${new Date(c.created_at).toLocaleDateString("en-IN")}`)); }catch{}
+    try{ const pays=await BPStore.approval.payments(id); (pays||[]).slice(0,3).forEach(p=>lines.push(`₹ payment ${esc(p.status||"")} — ${new Date(p.created_at).toLocaleDateString("en-IN")}`)); }catch{}
+    $("#apprHist").innerHTML = lines.length ? lines.map(l=>`<div>${l}</div>`).join("") : '<div class="muted">No consent or payment recorded yet.</div>';
+  }
+
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
+    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  $("#v_save").addEventListener("click",saveVenue);
+  $("#p_save").addEventListener("click",saveMenu);
+  $("#lockBtn").addEventListener("click",openLockModal);
+  $("#lock_cancel").addEventListener("click",()=>$("#lockModal").hidden=true);
+  $("#lock_ok").addEventListener("click",()=>doLock(true));
+  $("#lockModal").addEventListener("click",e=>{ if(e.target.id==="lockModal") $("#lockModal").hidden=true; });
+
+  async function load(){
+    try{ const p=await BPStore.plan.get(id); if(p){
+      $("#v_name").value=p.venue_name||""; $("#v_addr").value=p.venue_address||""; $("#v_contact").value=p.venue_contact||""; $("#v_access").value=p.access_notes||"";
+      $("#p_pkg").value=p.package||""; $("#p_menu").value=p.menu||""; locked=!!p.menu_locked; } }
+    catch(e){ if(String(e&&e.message).includes("event_plan")){ $("#v_msg").className="err"; $("#v_msg").textContent="Run phase13-plan.sql to enable saving."; } }
+    applyLock();
+  }
+  (async ()=>{
+    await BPStore.init(); await renderAccount();
+    $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
+    $("#floorLink").href = id?("builder.html?quote="+encodeURIComponent(id)):"#";
+    if(!id){ $("#notfound").hidden=false; return; }
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    canEdit=await BPStore.auth.can("edit");
+    try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
+    $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
+    $("#app").hidden=false; $("#v_save").hidden=!canEdit;
+    await load(); await renderApproval();
+    if(!canEdit){ document.querySelectorAll("#app input,#app textarea").forEach(el=>el.disabled=true); }
+  })();
+</script>
+</body>
+</html>

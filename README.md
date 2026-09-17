@@ -120,6 +120,14 @@ what each phase added, in plain words.
   — a priced scope change with what you'll **charge the client** and the **extra
   cost**; approve one and it rolls into the budget automatically.
 
+- **Phase 13 — Venue, menu lock & approvals.** On an event, open **Venue &
+  menu**. Capture the **venue** (name, address, contact, access/load-in notes),
+  with a link straight to the **floor layout**. Record the agreed **menu &
+  package** and **Lock** it — locked fields turn read-only, so later changes go
+  through a change order (Phase 12). The page also shows a live **client-approval
+  summary** (status + consent/payment history) pulled from the existing
+  OTP/consent flow.
+
 ### Where the data lives
 
 All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per

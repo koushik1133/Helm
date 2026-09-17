@@ -104,8 +104,8 @@
   </form>
 </div>
 
-<script src="config.js?v=22"></script>
-<script src="store-api.js?v=22"></script>
+<script src="config.js?v=23"></script>
+<script src="store-api.js?v=23"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -118,7 +118,7 @@
     {k:"discovery",label:"Discovery",hint:"Meet the client and capture requirements before quoting.",mods:["discovery","quote"]},
     {k:"proposal",label:"Proposal",hint:"Share the concept and design direction.",mods:["proposal","layout","quote"]},
     {k:"quote",label:"Quote",hint:"Design the floor and price the event.",mods:["layout","quote"]},
-    {k:"confirmed",label:"Confirmed",hint:"Get the client's approval, then plan the work.",mods:["approval","tasks"]},
+    {k:"confirmed",label:"Confirmed",hint:"Lock the details and get the client's approval.",mods:["approval","plandetails"]},
     {k:"planning",label:"Planning",hint:"Assign tasks, plan resources and build the run-sheet.",mods:["resourceplan","runsheet","budget"]},
     {k:"resources",label:"Resources",hint:"Map needs, cover in-house, flag the gaps.",mods:["resourceplan","inventory","tasks"]},
     {k:"ready",label:"Ready",hint:"Finalise the run-sheet and brief the team.",mods:["runsheet","tasks"]},
@@ -128,7 +128,7 @@
   ];
   const stageIndex=(k)=>Math.max(0,STAGES.findIndex(s=>s.k===k));
 
-  let ev=null, canEdit=false, tasksSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null;
+  let ev=null, canEdit=false, tasksSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
   const budgetRange=()=>{ const d=discSummary&&discSummary.disc; if(!d) return ""; const a=d.budget_min, b=d.budget_max;
     if(a!=null&&b!=null) return inr(a)+"–"+inr(b); if(a!=null) return "from "+inr(a); if(b!=null) return "up to "+inr(b); return ""; };
@@ -166,6 +166,8 @@
       runSummary={ total:rs.length, first: wt.length?wt[0].start_time.slice(0,5):null }; }catch{ runSummary=null; }
     // budget summary (Phase 12) — optional
     try{ budgetSummary=await BPStore.budget.summary(id); }catch{ budgetSummary=null; }
+    // venue/menu plan summary (Phase 13) — optional
+    try{ planSummary=await BPStore.plan.get(id); }catch{ planSummary=null; }
     $("#app").hidden=false;
     render();
   }
@@ -217,6 +219,9 @@
         acts:[{t:"Open quotes", href:"quotes.html", primary:true}] },
       { key:"approval", ic:"✅", title:"Client approval", sum: ev.approvalStatus==='none'?"Not sent yet — confirm the quote, then send the approval link.":`Status: <b>${esc(ev.approvalStatus)}</b>`,
         acts:[{t:"Manage in Quotes", href:"quotes.html"}] },
+      { key:"plandetails", ic:"🏛", title:"Venue & menu",
+        sum: planSummary && (planSummary.venue_name||planSummary.package||planSummary.menu) ? `${planSummary.venue_name?esc(planSummary.venue_name):"Venue set"}${planSummary.package?` · ${esc(planSummary.package)}`:""} ${planSummary.menu_locked?'<span class="stat ok">Menu locked</span>':'<span class="stat q">Draft</span>'}` : "Set the venue, access and lock the menu/package.",
+        acts:[{t: canEdit?"Open details":"View details", href:"plan.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"tasks", ic:"🛠️", title:"Tasks & crew", sum: tasksSummary?`${tasksSummary.done}/${tasksSummary.total} tasks done`:"Assign predefined tasks to your crew.",
         acts:[{t:"Open operations", href:"ops.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"runsheet", ic:"🗓️", title:"Run-sheet",
