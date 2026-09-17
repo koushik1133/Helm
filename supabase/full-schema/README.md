@@ -32,6 +32,7 @@ minus the user seed), run in this exact order:
 | 09 | `09-discovery.sql`        | `event_discovery` + `event_requirements` + `set_discovery` (Phase 3) |
 | 10 | `10-proposal.sql`        | `event_proposal` + `proposal_risks` + share token RPCs (Phase 4) |
 | 11 | `11-mvp-polish.sql`      | Converted lead opens at Discovery stage (Phase 5 polish) |
+| 12 | `12-staff.sql`          | Staff directory: role/skills/dept/email/rate on crew_members (Phase 6) |
 
 Then, on a brand-new DB only, seed the team logins:
 

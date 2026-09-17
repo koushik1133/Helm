@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Staff Directory — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)} .nav a.on{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+
+  .toolbar{display:flex;align-items:center;gap:10px;margin:8px 0 16px;flex-wrap:wrap}
+  .toolbar h2{font-size:15px;margin:0;font-weight:700}
+  .search{height:38px;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:0 12px;font-family:inherit;font-size:13px;color:var(--ink);min-width:180px;flex:1;max-width:260px}
+  .sel{height:38px;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .chkbox{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-2)}
+  .btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.4;cursor:default}
+  .btn.sm{height:32px;padding:0 11px;font-size:12px}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+  .person{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:8px}
+  .person.off{opacity:.6}
+  .person .top{display:flex;align-items:center;gap:11px}
+  .av{width:42px;height:42px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;display:flex;align-items:center;justify-content:center;font-size:15px;flex:0 0 auto}
+  .person .nm{font-weight:700;font-size:15px} .person .rl{font-size:12px;color:var(--ink-3)}
+  .tags{display:flex;gap:6px;flex-wrap:wrap}
+  .tag{font-size:10px;font-weight:600;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:3px 9px;color:var(--ink-2)}
+  .tag.dept{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+  .tag.emp{background:#e7f6ee;color:#0f7a43;border-color:transparent}
+  .meta{font-size:12px;color:var(--ink-3);line-height:1.5}
+  .person .acts{display:flex;gap:6px;margin-top:auto;padding-top:6px}
+  .ic{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:30px;padding:0 11px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)} .ic:hover{border-color:var(--accent);color:var(--accent)}
+  .empty{text-align:center;color:var(--ink-3);padding:48px;font-size:14px;grid-column:1/-1}
+  .count{font-size:12px;color:var(--ink-3)}
+  footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
+
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(560px,96vw);max-height:90vh;overflow:auto;padding:24px}
+  .sheet h3{margin:0 0 2px;font-size:18px;display:flex;align-items:center;gap:8px}
+  .sheet .close{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:30px;height:30px;font-size:15px;cursor:pointer;color:var(--ink-2)}
+  .sheet p.sub{margin:0 0 16px;font-size:12px;color:var(--ink-3)}
+  .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px} @media(max-width:520px){.fgrid{grid-template-columns:1fr}}
+  .fld{display:flex;flex-direction:column;gap:4px} .fld.full{grid-column:1/-1}
+  .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld input,.fld select{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .foot{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;align-items:center}
+  .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px;margin-top:10px}
+  .lsheet{width:min(400px,96vw);text-align:center} .lsheet input{width:100%}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Blueprint Stage</h1><small>Staff Directory</small></div>
+    <nav class="nav"><a href="index.html">Dashboard</a><a href="leads.html">Leads</a><a href="quotes.html">Quotes</a><a href="staff.html" class="on">Staff</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div class="toolbar">
+    <h2>In-house team</h2>
+    <input id="search" class="search" placeholder="Search name, role, skill…">
+    <select id="deptFilter" class="sel"><option value="">All departments</option></select>
+    <select id="skillFilter" class="sel"><option value="">All skills</option></select>
+    <label class="chkbox"><input type="checkbox" id="showInactive"> Show inactive</label>
+    <span class="count" id="count"></span>
+    <span class="spacer"></span>
+    <button id="newBtn" class="btn primary" hidden>＋ Add staff</button>
+  </div>
+
+  <div id="grid" class="grid"></div>
+  <footer>Blueprint Stage — plan your in-house team first; reach for vendors &amp; freelancers only for the gaps.</footer>
+</div>
+
+<!-- add / edit staff -->
+<div id="staffModal" class="lmodal" hidden>
+  <div class="sheet">
+    <h3><span id="sm_title">＋ Add staff</span><button class="close" id="sm_close">×</button></h3>
+    <p class="sub">Someone on your in-house team. Skills help you match people to event needs.</p>
+    <div class="fgrid">
+      <div class="fld"><label>Name *</label><input id="s_name" placeholder="e.g. Ravi Kumar"></div>
+      <div class="fld"><label>Role / title</label><input id="s_role" placeholder="e.g. Lead planner, AV technician"></div>
+      <div class="fld"><label>Department</label><input id="s_dept" placeholder="e.g. Production, Catering" list="deptList"></div>
+      <div class="fld"><label>Employment</label><select id="s_emp"><option value="">—</option><option value="full_time">Full-time</option><option value="part_time">Part-time</option><option value="on_call">On-call</option></select></div>
+      <div class="fld"><label>Phone *</label><input id="s_phone" placeholder="+91…"></div>
+      <div class="fld"><label>Email</label><input id="s_email" placeholder="name@email.com"></div>
+      <div class="fld"><label>Day rate (₹)</label><input id="s_rate" type="number" min="0" placeholder="optional"></div>
+      <div class="fld"><label>Skills (comma separated)</label><input id="s_skills" placeholder="e.g. lighting, sound, forklift"></div>
+      <div class="fld full"><label>Notes</label><input id="s_notes" placeholder="optional"></div>
+    </div>
+    <datalist id="deptList"></datalist>
+    <div id="sm_err" class="err" hidden></div>
+    <div class="foot">
+      <button class="btn" id="sm_cancel">Cancel</button>
+      <button class="btn primary" id="sm_save">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="loginModal" class="lmodal" hidden>
+  <div class="sheet lsheet">
+    <h3><span>Sign in</span><button class="close" id="li_close">×</button></h3>
+    <div class="fld" style="margin-bottom:10px"><label style="text-align:left">Email</label><input id="li_email" type="email"></div>
+    <div class="fld" style="margin-bottom:10px"><label style="text-align:left">Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden></div>
+    <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
+  </div>
+</div>
+
+<script src="config.js?v=16"></script>
+<script src="store-api.js?v=16"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const EMP={full_time:"Full-time",part_time:"Part-time",on_call:"On-call"};
+  const initials=(n)=>String(n||"?").trim().split(/\s+/).slice(0,2).map(w=>w[0]||"").join("").toUpperCase()||"?";
+  let team=[], canEdit=false, canDelete=false, editingId=null, filter="", deptF="", skillF="", showInactive=false;
+
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  function personCard(s){
+    const skills=Array.isArray(s.skills)?s.skills:[];
+    return `<div class="person ${s.active===false?'off':''}" data-id="${s.id}">
+      <div class="top"><div class="av">${esc(initials(s.name))}</div>
+        <div><div class="nm">${esc(s.name)}</div><div class="rl">${esc(s.role||"—")}</div></div></div>
+      <div class="tags">
+        ${s.department?`<span class="tag dept">${esc(s.department)}</span>`:""}
+        ${s.emp_type?`<span class="tag emp">${esc(EMP[s.emp_type]||s.emp_type)}</span>`:""}
+        ${s.active===false?`<span class="tag">Inactive</span>`:""}
+      </div>
+      ${skills.length?`<div class="tags">${skills.map(k=>`<span class="tag">${esc(k)}</span>`).join("")}</div>`:""}
+      <div class="meta">${[s.phone,s.email].filter(Boolean).map(esc).join(" · ")}${s.day_rate?`<br>₹${Number(s.day_rate).toLocaleString("en-IN")}/day`:""}</div>
+      ${canEdit?`<div class="acts">
+        <button class="ic" data-act="edit">Edit</button>
+        <button class="ic" data-act="toggle">${s.active===false?"Reactivate":"Deactivate"}</button>
+      </div>`:""}
+    </div>`;
+  }
+
+  function applyFacets(){
+    const depts=[...new Set(team.map(s=>s.department).filter(Boolean))].sort();
+    const skills=[...new Set(team.flatMap(s=>Array.isArray(s.skills)?s.skills:[]))].sort();
+    $("#deptFilter").innerHTML='<option value="">All departments</option>'+depts.map(d=>`<option ${d===deptF?"selected":""}>${esc(d)}</option>`).join("");
+    $("#skillFilter").innerHTML='<option value="">All skills</option>'+skills.map(k=>`<option ${k===skillF?"selected":""}>${esc(k)}</option>`).join("");
+    $("#deptList").innerHTML=depts.map(d=>`<option value="${esc(d)}">`).join("");
+  }
+  function render(){
+    const q=filter.trim().toLowerCase();
+    const shown=team.filter(s=>{
+      if(deptF && s.department!==deptF) return false;
+      if(skillF && !(Array.isArray(s.skills)&&s.skills.includes(skillF))) return false;
+      if(q){ const hay=[s.name,s.role,s.department,(s.skills||[]).join(" "),s.email,s.phone].join(" ").toLowerCase(); if(!hay.includes(q)) return false; }
+      return true;
+    });
+    $("#count").textContent=shown.length+" of "+team.length;
+    $("#grid").innerHTML = shown.length ? shown.map(personCard).join("") : '<div class="empty">No staff match. Add your first team member.</div>';
+    $("#grid").querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>{
+      const id=b.closest(".person").dataset.id, s=team.find(x=>x.id===id);
+      if(b.dataset.act==="edit") openForm(s);
+      else toggleActive(s);
+    }));
+  }
+
+  function openForm(s){
+    editingId=s?s.id:null; $("#sm_title").textContent=s?"Edit staff":"＋ Add staff";
+    $("#s_name").value=s?s.name||"":""; $("#s_role").value=s?s.role||"":""; $("#s_dept").value=s?s.department||"":"";
+    $("#s_emp").value=s?s.emp_type||"":""; $("#s_phone").value=s?s.phone||"":""; $("#s_email").value=s?s.email||"":"";
+    $("#s_rate").value=s&&s.day_rate!=null?s.day_rate:""; $("#s_skills").value=s&&Array.isArray(s.skills)?s.skills.join(", "):""; $("#s_notes").value=s?s.notes||"":"";
+    $("#sm_err").hidden=true; $("#staffModal").hidden=false; setTimeout(()=>$("#s_name").focus(),50);
+  }
+  function closeForm(){ $("#staffModal").hidden=true; editingId=null; }
+  async function saveStaff(){
+    const name=$("#s_name").value.trim(), phone=$("#s_phone").value.trim();
+    if(!name){ $("#sm_err").textContent="Name is required."; $("#sm_err").hidden=false; return; }
+    if(!phone){ $("#sm_err").textContent="Phone is required."; $("#sm_err").hidden=false; return; }
+    const skills=$("#s_skills").value.split(",").map(x=>x.trim()).filter(Boolean);
+    const rec={ name, phone, role:$("#s_role").value.trim()||null, department:$("#s_dept").value.trim()||null,
+      emp_type:$("#s_emp").value||null, email:$("#s_email").value.trim()||null,
+      day_rate:$("#s_rate").value?Number($("#s_rate").value):null, skills, notes:$("#s_notes").value.trim()||null };
+    $("#sm_save").disabled=true;
+    try{ if(editingId) await BPStore.staff.update(editingId,rec); else await BPStore.staff.add(rec); closeForm(); await load(); }
+    catch(e){ $("#sm_err").textContent="Couldn't save — "+((e&&e.message)||"error"); $("#sm_err").hidden=false; }
+    finally{ $("#sm_save").disabled=false; }
+  }
+  async function toggleActive(s){
+    try{ await BPStore.staff.setActive(s.id, s.active===false); await load(); }
+    catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); }
+  }
+
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
+  $("#li_close").addEventListener("click",closeLogin);
+  $("#loginModal").addEventListener("click",e=>{ if(e.target.id==="loginModal") closeLogin(); });
+  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
+    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+
+  $("#newBtn").addEventListener("click",()=>openForm(null));
+  $("#sm_close").addEventListener("click",closeForm);
+  $("#sm_cancel").addEventListener("click",closeForm);
+  $("#sm_save").addEventListener("click",saveStaff);
+  $("#staffModal").addEventListener("click",e=>{ if(e.target.id==="staffModal") closeForm(); });
+  $("#search").addEventListener("input",e=>{ filter=e.target.value; render(); });
+  $("#deptFilter").addEventListener("change",e=>{ deptF=e.target.value; render(); });
+  $("#skillFilter").addEventListener("change",e=>{ skillF=e.target.value; render(); });
+  $("#showInactive").addEventListener("change",e=>{ showInactive=e.target.checked; load(); });
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeForm(); closeLogin(); } });
+
+  async function load(){
+    try{ team=await BPStore.staff.list(showInactive); }
+    catch(e){ $("#grid").innerHTML=`<div class="empty">Couldn't load staff — ${esc(e&&e.message||"error")}. Run <b>phase6-staff.sql</b>.</div>`; return; }
+    applyFacets(); render();
+  }
+  (async ()=>{
+    await BPStore.init(); await renderAccount();
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ openLogin(); return; }
+    canEdit=await BPStore.auth.can("edit"); canDelete=await BPStore.auth.can("delete");
+    $("#newBtn").hidden=!canEdit;
+    await load();
+  })();
+</script>
+</body>
+</html>

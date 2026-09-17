@@ -63,6 +63,13 @@ what each phase added, in plain words.
   workspace. A converted lead now opens on the **Discovery** step so the flow
   reads naturally. This completes the working MVP.
 
+- **Phase 6 — In-house staff directory** *(start of Resource Management)*. A
+  **Staff** page where you keep your own team: name, **role**, **department**,
+  **skills**, employment type, phone/email and an optional day rate. Search and
+  filter by department or skill, and mark people active/inactive. The idea: plan
+  your in-house people first, and only reach for outside vendors or freelancers
+  for the gaps.
+
 ### Where the data lives
 
 All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per

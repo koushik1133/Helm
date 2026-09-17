@@ -556,8 +556,41 @@
     },
   };
 
+  /* ---------------- in-house staff directory (Phase 6) ---------------- */
+  const STAFF_LS = "bp_staff";
+  const staff = {
+    async list(includeInactive) {
+      if (mode === "supabase") {
+        let q = supa.from("crew_members").select("*").order("name");
+        if (!includeInactive) q = q.eq("active", true);
+        const { data, error } = await q; if (error) throw error; return data;
+      }
+      const a = readLs(STAFF_LS); return includeInactive ? a : a.filter((s) => s.active !== false);
+    },
+    async add(s) {
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("crew_members").insert(s).select().single();
+        if (error) throw error; return data;
+      }
+      const a = readLs(STAFF_LS); const row = { id: uid(), active: true, skills: [], ...s, created_at: now() };
+      a.push(row); localStorage.setItem(STAFF_LS, JSON.stringify(a)); return row;
+    },
+    async update(id, patch) {
+      if (mode === "supabase") { const { error } = await supa.from("crew_members").update(patch).eq("id", id); if (error) throw error; return true; }
+      const a = readLs(STAFF_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(STAFF_LS, JSON.stringify(a)); } return true;
+    },
+    async setActive(id, active) { return this.update(id, { active: !!active }); },
+    // distinct departments/skills across the team (for filters)
+    async facets() {
+      const list = await this.list(true);
+      const depts = [...new Set(list.map((s) => s.department).filter(Boolean))].sort();
+      const skills = [...new Set(list.flatMap((s) => Array.isArray(s.skills) ? s.skills : []))].sort();
+      return { depts, skills };
+    },
+  };
+
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),
