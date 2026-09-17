@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Run-sheet — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .crumb{font-size:12px;color:var(--ink-3);margin:2px 0 14px} .crumb a{color:var(--accent)}
+
+  .head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+  .head h2{font-size:16px;margin:0}
+  .head .win{font-family:var(--mono);font-size:13px;color:var(--ink-2);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:5px 12px}
+  .btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.4;cursor:default}
+  .btn.sm{height:32px;padding:0 11px;font-size:12px}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+  .addrow{display:grid;grid-template-columns:.7fr .6fr 1.6fr 1fr 1fr auto;gap:8px;align-items:end} @media(max-width:760px){.addrow{grid-template-columns:1fr 1fr}}
+  .fld{display:flex;flex-direction:column;gap:4px} .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld input{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
+
+  .rs{position:relative}
+  .row{display:grid;grid-template-columns:150px 1fr auto;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line-2)}
+  .row .time{font-family:var(--mono);font-weight:700;font-size:14px;color:var(--accent)}
+  .row .time .dur{display:block;font-weight:400;font-size:11px;color:var(--ink-3);margin-top:2px}
+  .row .what b{font-size:14px} .row .what .sub{font-size:12px;color:var(--ink-3);margin-top:2px}
+  .row .who{font-size:12px;color:var(--ink-2)}
+  .tag{display:inline-block;font-size:11px;font-weight:600;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:3px 9px;margin-right:6px;color:var(--ink-2)}
+  .rowacts{display:flex;gap:6px}
+  .ic{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:30px;padding:0 10px;font-size:12px;cursor:pointer;color:var(--ink-3)} .ic:hover{border-color:var(--accent);color:var(--accent)} .ic.del:hover{color:#e5484d;border-color:#f5c6c6}
+  .empty{text-align:center;color:var(--ink-3);padding:30px;font-size:13px}
+  footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
+  .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px}
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,96vw);padding:24px}
+  .sheet h3{margin:0 0 12px}.foot{display:flex;gap:10px;justify-content:flex-end}
+  @media print{ header .nav,.account,#addCard,.rowacts,#printBtn,.crumb,footer{display:none!important} .wrap{max-width:100%} body{background:#fff} .card{box-shadow:none;border:none;padding:0} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Run-sheet</h1><small>Blueprint Stage</small></div>
+    <nav class="nav"><a href="index.html">Home</a><a href="calendar.html">Calendar</a><a href="quotes.html">Quotes</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to open the run-sheet.</p></div>
+  <div id="notfound" class="card" hidden><p style="color:var(--ink-3)">Event not found. Go to <a href="quotes.html" style="color:var(--accent)">Quotes</a>.</p></div>
+
+  <div id="app" hidden>
+    <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
+    <div class="head">
+      <h2 id="rsTitle">Event-day run-sheet</h2>
+      <span class="win" id="win" hidden></span>
+      <span class="spacer"></span>
+      <button class="btn sm" id="printBtn">🖨 Print</button>
+    </div>
+
+    <div class="card" id="addCard" hidden>
+      <div class="addrow">
+        <div class="fld"><label>Start time</label><input type="time" id="r_time"></div>
+        <div class="fld"><label>Mins</label><input type="number" min="0" id="r_dur" placeholder="e.g. 30"></div>
+        <div class="fld"><label>Activity *</label><input id="r_title" placeholder="e.g. Guests arrive / Cake cutting"></div>
+        <div class="fld"><label>Owner</label><input id="r_owner" placeholder="e.g. Front-of-house"></div>
+        <div class="fld"><label>Location</label><input id="r_loc" placeholder="e.g. Main hall"></div>
+        <div class="fld"><label>&nbsp;</label><button class="btn primary" id="r_add">＋ Add</button></div>
+      </div>
+      <div id="addErr" class="err" hidden style="margin-top:8px"></div>
+    </div>
+
+    <div class="card rs">
+      <div id="rows"><div class="empty">Loading…</div></div>
+    </div>
+  </div>
+  <footer>Blueprint Stage — the minute-by-minute plan for the day. Print it or share to the crew.</footer>
+</div>
+
+<!-- edit modal -->
+<div id="editModal" class="lmodal" hidden>
+  <div class="sheet">
+    <h3>Edit item</h3>
+    <div class="fld" style="margin-bottom:8px"><label>Start time</label><input type="time" id="e_time"></div>
+    <div class="fld" style="margin-bottom:8px"><label>Duration (mins)</label><input type="number" min="0" id="e_dur"></div>
+    <div class="fld" style="margin-bottom:8px"><label>Activity</label><input id="e_title"></div>
+    <div class="fld" style="margin-bottom:8px"><label>Owner</label><input id="e_owner"></div>
+    <div class="fld" style="margin-bottom:8px"><label>Location</label><input id="e_loc"></div>
+    <div class="fld" style="margin-bottom:8px"><label>Note</label><input id="e_note"></div>
+    <div class="foot"><button class="btn" id="e_cancel">Cancel</button><button class="btn primary" id="e_save">Save</button></div>
+  </div>
+</div>
+
+<div id="loginModal" class="lmodal" hidden>
+  <div class="sheet">
+    <h3>Sign in</h3>
+    <div class="fld" style="margin-bottom:10px"><label>Email</label><input id="li_email" type="email"></div>
+    <div class="fld" style="margin-bottom:10px"><label>Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden></div>
+    <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
+  </div>
+</div>
+
+<script src="config.js?v=21"></script>
+<script src="store-api.js?v=21"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const id=new URLSearchParams(location.search).get("quote");
+  const hhmm=(t)=> t? t.slice(0,5) : "";
+  const addMin=(t,m)=>{ if(!t||m==null||m==="") return ""; const [h,mi]=t.slice(0,5).split(":").map(Number); const d=new Date(2000,0,1,h,mi+Number(m)); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); };
+  let canEdit=false, canDelete=false, items=[], editingId=null;
+
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  function render(){
+    if(!items.length){ $("#rows").innerHTML='<div class="empty">No run-sheet items yet. Add the first one above.</div>'; $("#win").hidden=true; return; }
+    // day window
+    const withTime=items.filter(i=>i.start_time);
+    if(withTime.length){ const first=hhmm(withTime[0].start_time); const last=withTime[withTime.length-1];
+      const end=addMin(last.start_time,last.duration_min)||hhmm(last.start_time);
+      $("#win").hidden=false; $("#win").textContent="🕒 "+first+" – "+end+" · "+items.length+" items"; }
+    else { $("#win").hidden=false; $("#win").textContent=items.length+" items"; }
+    $("#rows").innerHTML=items.map(i=>{
+      const start=hhmm(i.start_time)||"—"; const end=addMin(i.start_time,i.duration_min);
+      return `<div class="row">
+        <div class="time">${esc(start)}${end?`<span class="dur">to ${esc(end)}${i.duration_min?` · ${esc(i.duration_min)} min`:""}</span>`:(i.duration_min?`<span class="dur">${esc(i.duration_min)} min</span>`:"")}</div>
+        <div class="what"><b>${esc(i.title)}</b>
+          <div class="sub">${i.owner?`<span class="tag">👤 ${esc(i.owner)}</span>`:""}${i.location?`<span class="tag">📍 ${esc(i.location)}</span>`:""}${i.note?esc(i.note):""}</div></div>
+        <div class="rowacts">${canEdit?`<button class="ic" data-edit="${i.id}">Edit</button>`:""}${canDelete?`<button class="ic del" data-del="${i.id}">✕</button>`:""}</div>
+      </div>`;
+    }).join("");
+    $("#rows").querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>openEdit(items.find(x=>x.id===b.dataset.edit))));
+    $("#rows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ if(!confirm("Remove this item?")) return; await BPStore.runsheet.remove(b.dataset.del); await load(); }));
+  }
+
+  async function add(){
+    const title=$("#r_title").value.trim(); if(!title){ $("#addErr").textContent="Activity is required."; $("#addErr").hidden=false; return; }
+    $("#addErr").hidden=true; $("#r_add").disabled=true;
+    try{ await BPStore.runsheet.add(id,{ start_time:$("#r_time").value||null, duration_min:$("#r_dur").value?Number($("#r_dur").value):null,
+      title, owner:$("#r_owner").value.trim()||null, location:$("#r_loc").value.trim()||null });
+      $("#r_title").value=""; $("#r_owner").value=""; $("#r_loc").value=""; $("#r_dur").value=""; await load(); $("#r_time").focus(); }
+    catch(e){ $("#addErr").textContent="Couldn't add — "+((e&&e.message)||"error"); $("#addErr").hidden=false; }
+    finally{ $("#r_add").disabled=false; }
+  }
+  function openEdit(i){ editingId=i.id; $("#e_time").value=hhmm(i.start_time); $("#e_dur").value=i.duration_min!=null?i.duration_min:"";
+    $("#e_title").value=i.title||""; $("#e_owner").value=i.owner||""; $("#e_loc").value=i.location||""; $("#e_note").value=i.note||""; $("#editModal").hidden=false; }
+  async function saveEdit(){ try{ await BPStore.runsheet.update(editingId,{ start_time:$("#e_time").value||null, duration_min:$("#e_dur").value?Number($("#e_dur").value):null,
+      title:$("#e_title").value.trim()||"Untitled", owner:$("#e_owner").value.trim()||null, location:$("#e_loc").value.trim()||null, note:$("#e_note").value.trim()||null });
+      $("#editModal").hidden=true; await load(); }catch(e){ alert("Couldn't save — "+((e&&e.message)||"error")); } }
+
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
+    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  $("#r_add").addEventListener("click",add);
+  $("#r_title").addEventListener("keydown",e=>{ if(e.key==="Enter") add(); });
+  $("#e_cancel").addEventListener("click",()=>$("#editModal").hidden=true);
+  $("#e_save").addEventListener("click",saveEdit);
+  $("#editModal").addEventListener("click",e=>{ if(e.target.id==="editModal") $("#editModal").hidden=true; });
+  $("#printBtn").addEventListener("click",()=>window.print());
+
+  async function load(){
+    try{ items=await BPStore.runsheet.list(id); }
+    catch(e){ $("#rows").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase11-runsheet.sql</b>.</div>`; return; }
+    render();
+  }
+  (async ()=>{
+    await BPStore.init(); await renderAccount();
+    $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
+    if(!id){ $("#notfound").hidden=false; return; }
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    canEdit=await BPStore.auth.can("edit"); canDelete=await BPStore.auth.can("delete");
+    let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
+    $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"")+(ev.eventDate?(" · "+ev.eventDate):"");
+    $("#app").hidden=false; $("#addCard").hidden=!canEdit;
+    await load();
+  })();
+</script>
+</body>
+</html>

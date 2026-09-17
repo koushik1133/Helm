@@ -104,6 +104,14 @@ what each phase added, in plain words.
   are listed separately so you can add it. This closes Block B — a planner can
   resource an event fully and see clashes before they happen.
 
+- **Phase 11 — Run-sheet (event-day schedule)** *(start of Planning)*. On an
+  event, open **Run-sheet** to build the minute-by-minute plan for the day: each
+  row is a **start time**, how long it takes, the **activity**, who **owns** it
+  and **where**. Rows auto-sort by time and show their end time, the header shows
+  the day's window (first start → last end), and a **Print** button gives you a
+  clean sheet to hand to the crew. (Task deadlines and dependencies use the
+  scheduling fields already on tasks.)
+
 ### Where the data lives
 
 All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per

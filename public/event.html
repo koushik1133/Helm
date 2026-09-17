@@ -104,8 +104,8 @@
   </form>
 </div>
 
-<script src="config.js?v=20"></script>
-<script src="store-api.js?v=20"></script>
+<script src="config.js?v=21"></script>
+<script src="store-api.js?v=21"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -119,16 +119,16 @@
     {k:"proposal",label:"Proposal",hint:"Share the concept and design direction.",mods:["proposal","layout","quote"]},
     {k:"quote",label:"Quote",hint:"Design the floor and price the event.",mods:["layout","quote"]},
     {k:"confirmed",label:"Confirmed",hint:"Get the client's approval, then plan the work.",mods:["approval","tasks"]},
-    {k:"planning",label:"Planning",hint:"Assign tasks and plan resources.",mods:["resourceplan","tasks","inventory"]},
+    {k:"planning",label:"Planning",hint:"Assign tasks, plan resources and build the run-sheet.",mods:["resourceplan","runsheet","tasks"]},
     {k:"resources",label:"Resources",hint:"Map needs, cover in-house, flag the gaps.",mods:["resourceplan","inventory","tasks"]},
-    {k:"ready",label:"Ready",hint:"Run the readiness check and brief the team.",mods:["tasks"]},
-    {k:"event_day",label:"Event Day",hint:"Coordinate the live event.",mods:["tasks"]},
+    {k:"ready",label:"Ready",hint:"Finalise the run-sheet and brief the team.",mods:["runsheet","tasks"]},
+    {k:"event_day",label:"Event Day",hint:"Run the day to the run-sheet.",mods:["runsheet","tasks"]},
     {k:"settlement",label:"Settlement",hint:"Reconcile scope, invoice and collect payment.",mods:["quote","approval"]},
     {k:"closed",label:"Closed",hint:"Event complete and archived.",mods:[]},
   ];
   const stageIndex=(k)=>Math.max(0,STAGES.findIndex(s=>s.k===k));
 
-  let ev=null, canEdit=false, tasksSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null;
+  let ev=null, canEdit=false, tasksSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
   const budgetRange=()=>{ const d=discSummary&&discSummary.disc; if(!d) return ""; const a=d.budget_min, b=d.budget_max;
     if(a!=null&&b!=null) return inr(a)+"–"+inr(b); if(a!=null) return "from "+inr(a); if(b!=null) return "up to "+inr(b); return ""; };
@@ -161,6 +161,9 @@
     // resource plan summary (Phase 8) — optional
     try{ const ck=await BPStore.resources.check(id);
       resSummary={ total:ck.length, gaps:ck.filter(c=>!c.covered).length }; }catch{ resSummary=null; }
+    // run-sheet summary (Phase 11) — optional
+    try{ const rs=await BPStore.runsheet.list(id); const wt=rs.filter(x=>x.start_time);
+      runSummary={ total:rs.length, first: wt.length?wt[0].start_time.slice(0,5):null }; }catch{ runSummary=null; }
     $("#app").hidden=false;
     render();
   }
@@ -214,6 +217,9 @@
         acts:[{t:"Manage in Quotes", href:"quotes.html"}] },
       { key:"tasks", ic:"🛠️", title:"Tasks & crew", sum: tasksSummary?`${tasksSummary.done}/${tasksSummary.total} tasks done`:"Assign predefined tasks to your crew.",
         acts:[{t:"Open operations", href:"ops.html?quote="+encodeURIComponent(id), primary:true}] },
+      { key:"runsheet", ic:"🗓️", title:"Run-sheet",
+        sum: runSummary && runSummary.total ? `${runSummary.total} item${runSummary.total===1?"":"s"}${runSummary.first?` · starts ${runSummary.first}`:""}` : "Build the minute-by-minute event-day schedule.",
+        acts:[{t: canEdit?"Open run-sheet":"View run-sheet", href:"runsheet.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"resourceplan", ic:"🧩", title:"Resource plan",
         sum: resSummary && resSummary.total ? `${resSummary.total} need${resSummary.total===1?"":"s"} · ${resSummary.gaps?`<b style="color:#b42318">${resSummary.gaps} gap${resSummary.gaps===1?"":"s"}</b>`:'<span class="stat ok">all in-house</span>'}` : "Map needs and flag what to outsource.",
         acts:[{t: canEdit?"Open resource plan":"View plan", href:"resources.html?quote="+encodeURIComponent(id), primary:true}] },

@@ -818,8 +818,33 @@
     },
   };
 
+  /* ---------------- run-sheet: timed event-day schedule (Phase 11) ---------------- */
+  const RUN_LS = "bp_runsheet";
+  const runsheet = {
+    async list(quoteId) {
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("run_sheet_items").select("*").eq("quote_id", quoteId).order("start_time").order("seq");
+        if (error) throw error; return data;
+      }
+      return readLs(RUN_LS).filter((r) => r.quote_id === quoteId)
+        .sort((a, b) => String(a.start_time || "").localeCompare(String(b.start_time || "")) || (a.seq || 0) - (b.seq || 0));
+    },
+    async add(quoteId, item) {
+      if (mode === "supabase") { const { data, error } = await supa.from("run_sheet_items").insert({ quote_id: quoteId, ...item }).select().single(); if (error) throw error; return data; }
+      const a = readLs(RUN_LS); const row = { id: uid(), quote_id: quoteId, seq: 0, ...item, created_at: now() }; a.push(row); localStorage.setItem(RUN_LS, JSON.stringify(a)); return row;
+    },
+    async update(id, patch) {
+      if (mode === "supabase") { const { error } = await supa.from("run_sheet_items").update(patch).eq("id", id); if (error) throw error; return true; }
+      const a = readLs(RUN_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(RUN_LS, JSON.stringify(a)); } return true;
+    },
+    async remove(id) {
+      if (mode === "supabase") { const { error } = await supa.from("run_sheet_items").delete().eq("id", id); if (error) throw error; return true; }
+      localStorage.setItem(RUN_LS, JSON.stringify(readLs(RUN_LS).filter((r) => r.id !== id))); return true;
+    },
+  };
+
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),
