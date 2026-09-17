@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logistics &amp; payments — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .crumb{font-size:12px;color:var(--ink-3);margin:2px 0 14px} .crumb a{color:var(--accent)}
+
+  .tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:4px;flex-wrap:wrap;margin-bottom:16px}
+  .tabs button{border:0;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink-2);padding:8px 14px;border-radius:8px;cursor:pointer}
+  .tabs button.on{background:var(--accent);color:#fff}
+  .tabs button .b{font-family:var(--mono);font-size:11px;opacity:.75;margin-left:5px}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+  .card h2{font-size:15px;margin:0 0 4px} .card .sub{font-size:12px;color:var(--ink-3);margin:0 0 12px}
+  .addrow{display:grid;gap:8px;align-items:end}
+  .addrow.chk{grid-template-columns:1.8fr 1fr .8fr auto} .addrow.guest{grid-template-columns:2fr .8fr auto} .addrow.pay{grid-template-columns:1.6fr .9fr .9fr auto}
+  @media(max-width:640px){.addrow{grid-template-columns:1fr 1fr!important}}
+  .fld{display:flex;flex-direction:column;gap:4px} .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld input,.fld select{height:36px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .btn{height:36px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.4}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+  thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:9px 10px;border-bottom:1px solid var(--line)}
+  th.num,td.num{text-align:right} tbody td{padding:9px 10px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+  .num{font-family:var(--mono)}
+  .ssel{height:28px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:11px;padding:0 6px;color:var(--ink)}
+  .st{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .st.open{background:#fff7e6;color:#946200} .st.done{background:#e7f6ee;color:#0f7a43} .st.na{background:#f1f3f7;color:var(--ink-3)}
+  .st.due{background:#fff7e6;color:#946200} .st.invoiced{background:#eef2ff;color:#4457c8} .st.paid{background:#e7f6ee;color:#0f7a43} .st.waived{background:#f1f3f7;color:var(--ink-3)}
+  .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:28px;padding:0 9px;font-size:11px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#e5484d;border-color:#f5c6c6}
+  .empty{text-align:center;color:var(--ink-3);padding:22px;font-size:13px}
+  .totbar{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink-2);margin-top:12px;padding-top:10px;border-top:1px solid var(--line-2)}
+  .totbar b{font-family:var(--mono);color:var(--ink)}
+  footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
+  .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px}
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,96vw);padding:24px}
+  .sheet h3{margin:0 0 12px}.foot{display:flex;gap:10px;justify-content:flex-end}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Logistics &amp; payments</h1><small>Blueprint Stage</small></div>
+    <nav class="nav"><a href="index.html">Home</a><a href="calendar.html">Calendar</a><a href="quotes.html">Quotes</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to open this.</p></div>
+  <div id="notfound" class="card" hidden><p style="color:var(--ink-3)">Event not found. Go to <a href="quotes.html" style="color:var(--accent)">Quotes</a>.</p></div>
+
+  <div id="app" hidden>
+    <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
+
+    <div class="tabs" id="tabs">
+      <button data-t="guests" class="on">👥 Guests</button>
+      <button data-t="logistics">🚚 Logistics</button>
+      <button data-t="compliance">📋 Permits</button>
+      <button data-t="comms">📣 Comms</button>
+      <button data-t="payments">💳 Payments</button>
+    </div>
+
+    <div id="pane" class="card"></div>
+  </div>
+  <footer>Blueprint Stage — the moving parts and the money, event by event.</footer>
+</div>
+
+<div id="loginModal" class="lmodal" hidden>
+  <div class="sheet">
+    <h3>Sign in</h3>
+    <div class="fld" style="margin-bottom:10px"><label>Email</label><input id="li_email" type="email"></div>
+    <div class="fld" style="margin-bottom:10px"><label>Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden></div>
+    <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
+  </div>
+</div>
+
+<script src="config.js?v=24"></script>
+<script src="store-api.js?v=24"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const inr=(n)=>"₹"+Number(n||0).toLocaleString("en-IN");
+  const id=new URLSearchParams(location.search).get("quote");
+  const CHK_ST={open:"Open",done:"Done",na:"N/A"}, PAY_ST={due:"Due",invoiced:"Invoiced",paid:"Paid",waived:"Waived"};
+  let canEdit=false, canDelete=false, tab="guests", ev=null;
+
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  const CHK_HELP={ logistics:"Transport, deliveries, movements — who does what, by when.",
+    compliance:"Permits & compliance — licences, insurance, safety sign-offs.",
+    comms:"Who tells whom what, and when — client, crew, vendors, guests." };
+
+  async function renderPane(){
+    if(tab==="payments") return renderPayments();
+    if(tab==="guests") return renderGuests();
+    // generic checklist (logistics / compliance / comms)
+    const items = await BPStore.checklist.list(id, tab);
+    const done = items.filter(i=>i.status==="done").length;
+    $("#pane").innerHTML = `<h2>${tab[0].toUpperCase()+tab.slice(1)}</h2><p class="sub">${CHK_HELP[tab]}</p>
+      ${canEdit?`<div class="addrow chk">
+        <div class="fld"><label>Item</label><input id="a_title" placeholder="what needs doing"></div>
+        <div class="fld"><label>Owner</label><input id="a_owner" placeholder="who"></div>
+        <div class="fld"><label>Due</label><input id="a_due" type="date"></div>
+        <div class="fld"><label>&nbsp;</label><button class="btn primary" id="a_add">＋ Add</button></div></div>`:""}
+      <table><thead><tr><th>Item</th><th>Owner</th><th>Due</th><th>Status</th><th></th></tr></thead>
+        <tbody>${items.length?items.map(rowChk).join(""):'<tr><td colspan="5" class="empty">Nothing here yet.</td></tr>'}</tbody></table>
+      <div class="totbar"><span>${items.length} item${items.length===1?"":"s"} · <b>${done}</b> done</span></div>`;
+    if(canEdit){ $("#a_add").addEventListener("click",()=>addChk(tab)); }
+    wireChk();
+  }
+  function rowChk(i){ const opts=["open","done","na"].map(s=>`<option value="${s}" ${s===i.status?"selected":""}>${CHK_ST[s]}</option>`).join("");
+    return `<tr><td><b>${esc(i.title)}</b>${i.detail?`<div style="font-size:11px;color:var(--ink-3)">${esc(i.detail)}</div>`:""}</td>
+      <td class="muted">${esc(i.owner||"")}</td><td class="muted">${esc(i.due_date||"")}</td>
+      <td>${canEdit?`<select class="ssel" data-st="${i.id}">${opts}</select>`:`<span class="st ${i.status}">${CHK_ST[i.status]}</span>`}</td>
+      <td>${canDelete?`<button class="rm" data-del="${i.id}">✕</button>`:""}</td></tr>`; }
+  function wireChk(){
+    document.querySelectorAll("[data-st]").forEach(s=>s.addEventListener("change",async()=>{ await BPStore.checklist.update(s.dataset.st,{status:s.value}); renderPane(); }));
+    document.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.checklist.remove(b.dataset.del); renderPane(); }));
+  }
+  async function addChk(section){ const t=$("#a_title").value.trim(); if(!t){ $("#a_title").focus(); return; }
+    await BPStore.checklist.add(id,{ section, title:t, owner:$("#a_owner").value.trim()||null, due_date:$("#a_due").value||null }); renderPane(); }
+
+  async function renderGuests(){
+    const items = await BPStore.checklist.list(id,"guests");
+    const total = items.reduce((a,g)=>a+Number(g.qty||0),0);
+    $("#pane").innerHTML = `<h2>Guests</h2><p class="sub">Track expected headcount by group (family, company, VIPs…). Totals help you match seating.</p>
+      ${canEdit?`<div class="addrow guest">
+        <div class="fld"><label>Group</label><input id="g_name" placeholder="e.g. Bride's family"></div>
+        <div class="fld"><label>Headcount</label><input id="g_qty" type="number" min="0" value="0"></div>
+        <div class="fld"><label>&nbsp;</label><button class="btn primary" id="g_add">＋ Add</button></div></div>`:""}
+      <table><thead><tr><th>Group</th><th class="num">Headcount</th><th>Status</th><th></th></tr></thead>
+        <tbody>${items.length?items.map(rowGuest).join(""):'<tr><td colspan="4" class="empty">No guest groups yet.</td></tr>'}</tbody></table>
+      <div class="totbar"><span>Total expected guests: <b>${total}</b></span><span>${items.length} group${items.length===1?"":"s"}</span></div>`;
+    if(canEdit) $("#g_add").addEventListener("click",addGuest);
+    document.querySelectorAll("[data-st]").forEach(s=>s.addEventListener("change",async()=>{ await BPStore.checklist.update(s.dataset.st,{status:s.value}); renderPane(); }));
+    document.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.checklist.remove(b.dataset.del); renderPane(); }));
+  }
+  function rowGuest(g){ const opts=["open","done","na"].map(s=>`<option value="${s}" ${s===g.status?"selected":""}>${({open:"Pending",done:"Confirmed",na:"Declined"})[s]}</option>`).join("");
+    return `<tr><td><b>${esc(g.title)}</b></td><td class="num">${esc(g.qty!=null?g.qty:0)}</td>
+      <td>${canEdit?`<select class="ssel" data-st="${g.id}">${opts}</select>`:esc(g.status)}</td>
+      <td>${canDelete?`<button class="rm" data-del="${g.id}">✕</button>`:""}</td></tr>`; }
+  async function addGuest(){ const t=$("#g_name").value.trim(); if(!t){ $("#g_name").focus(); return; }
+    await BPStore.checklist.add(id,{ section:"guests", title:t, qty:Number($("#g_qty").value||0) }); renderPane(); }
+
+  async function renderPayments(){
+    const ms = await BPStore.milestones.list(id);
+    const total=ms.reduce((a,m)=>a+Number(m.amount||0),0);
+    const paid=ms.filter(m=>m.status==="paid").reduce((a,m)=>a+Number(m.amount||0),0);
+    const due=ms.filter(m=>m.status!=="paid"&&m.status!=="waived").reduce((a,m)=>a+Number(m.amount||0),0);
+    const phone=(ev.client&&(ev.client.phone))||"";
+    $("#pane").innerHTML = `<h2>Payment schedule</h2><p class="sub">Milestones the client pays across the event. Reminders go through the notification outbox.</p>
+      ${canEdit?`<div class="addrow pay">
+        <div class="fld"><label>Milestone</label><input id="m_label" placeholder="e.g. 50% advance"></div>
+        <div class="fld"><label>Due date</label><input id="m_due" type="date"></div>
+        <div class="fld"><label>Amount ₹</label><input id="m_amt" type="number" min="0" value="0"></div>
+        <div class="fld"><label>&nbsp;</label><button class="btn primary" id="m_add">＋ Add</button></div></div>`:""}
+      <table><thead><tr><th>Milestone</th><th>Due</th><th class="num">Amount</th><th>Status</th><th></th></tr></thead>
+        <tbody>${ms.length?ms.map(rowPay).join(""):'<tr><td colspan="5" class="empty">No milestones yet.</td></tr>'}</tbody></table>
+      <div class="totbar"><span>Scheduled: <b>${inr(total)}</b></span><span style="color:#0f7a43">Paid: <b>${inr(paid)}</b></span><span style="color:#946200">Outstanding: <b>${inr(due)}</b></span></div>`;
+    if(canEdit) $("#m_add").addEventListener("click",addMile);
+    document.querySelectorAll("[data-mst]").forEach(s=>s.addEventListener("change",async()=>{ await BPStore.milestones.setStatus(s.dataset.mst,s.value); renderPane(); }));
+    document.querySelectorAll("[data-mdel]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.milestones.remove(b.dataset.mdel); renderPane(); }));
+    document.querySelectorAll("[data-remind]").forEach(b=>b.addEventListener("click",async()=>{
+      const m=ms.find(x=>x.id===b.dataset.remind); if(!phone){ alert("No client phone on this event."); return; }
+      try{ await BPStore.milestones.sendReminder(id, phone, {label:m.label, amount:m.amount, due:m.due_date}); b.textContent="Sent ✓"; setTimeout(()=>b.textContent="Remind",1500); }
+      catch(e){ alert("Couldn't send — "+((e&&e.message)||"error")); } }));
+  }
+  function rowPay(m){ const opts=["due","invoiced","paid","waived"].map(s=>`<option value="${s}" ${s===m.status?"selected":""}>${PAY_ST[s]}</option>`).join("");
+    return `<tr><td><b>${esc(m.label)}</b></td><td class="muted">${esc(m.due_date||"")}</td><td class="num">${inr(m.amount)}</td>
+      <td>${canEdit?`<select class="ssel" data-mst="${m.id}">${opts}</select>`:`<span class="st ${m.status}">${PAY_ST[m.status]}</span>`}</td>
+      <td>${canEdit&&m.status!=="paid"?`<button class="rm" data-remind="${m.id}">Remind</button> `:""}${canDelete?`<button class="rm" data-mdel="${m.id}">✕</button>`:""}</td></tr>`; }
+  async function addMile(){ const l=$("#m_label").value.trim(); if(!l){ $("#m_label").focus(); return; }
+    await BPStore.milestones.add(id,{ label:l, due_date:$("#m_due").value||null, amount:Number($("#m_amt").value||0) }); renderPane(); }
+
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
+    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  $("#tabs").addEventListener("click",e=>{ const b=e.target.closest("button[data-t]"); if(!b) return;
+    tab=b.dataset.t; $("#tabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); renderPane(); });
+
+  (async ()=>{
+    await BPStore.init(); await renderAccount();
+    $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
+    if(!id){ $("#notfound").hidden=false; return; }
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    canEdit=await BPStore.auth.can("edit"); canDelete=await BPStore.auth.can("delete");
+    try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
+    $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
+    $("#app").hidden=false;
+    try{ await renderPane(); }catch(e){ $("#pane").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase14-logistics.sql</b>.</div>`; }
+  })();
+</script>
+</body>
+</html>

@@ -936,8 +936,56 @@
     },
   };
 
+  /* ---------------- logistics / compliance / comms / guests + payments (Phase 14) ---------------- */
+  const CHK_LS = "bp_checklist", MILE_LS = "bp_milestones";
+  const checklist = {
+    async list(quoteId, section) {
+      if (mode === "supabase") {
+        let q = supa.from("event_checklist").select("*").eq("quote_id", quoteId);
+        if (section) q = q.eq("section", section);
+        const { data, error } = await q.order("seq").order("created_at"); if (error) throw error; return data;
+      }
+      return readLs(CHK_LS).filter((c) => c.quote_id === quoteId && (!section || c.section === section));
+    },
+    async add(quoteId, item) {
+      if (mode === "supabase") { const { data, error } = await supa.from("event_checklist").insert({ quote_id: quoteId, ...item }).select().single(); if (error) throw error; return data; }
+      const a = readLs(CHK_LS); const row = { id: uid(), quote_id: quoteId, status: "open", ...item, created_at: now() }; a.push(row); localStorage.setItem(CHK_LS, JSON.stringify(a)); return row;
+    },
+    async update(id, patch) {
+      if (mode === "supabase") { const { error } = await supa.from("event_checklist").update(patch).eq("id", id); if (error) throw error; return true; }
+      const a = readLs(CHK_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(CHK_LS, JSON.stringify(a)); } return true;
+    },
+    async remove(id) {
+      if (mode === "supabase") { const { error } = await supa.from("event_checklist").delete().eq("id", id); if (error) throw error; return true; }
+      localStorage.setItem(CHK_LS, JSON.stringify(readLs(CHK_LS).filter((c) => c.id !== id))); return true;
+    },
+  };
+  const milestones = {
+    async list(quoteId) {
+      if (mode === "supabase") { const { data, error } = await supa.from("payment_milestones").select("*").eq("quote_id", quoteId).order("due_date").order("seq"); if (error) throw error; return data; }
+      return readLs(MILE_LS).filter((m) => m.quote_id === quoteId).sort((a, b) => String(a.due_date || "").localeCompare(String(b.due_date || "")));
+    },
+    async add(quoteId, m) {
+      if (mode === "supabase") { const { data, error } = await supa.from("payment_milestones").insert({ quote_id: quoteId, ...m }).select().single(); if (error) throw error; return data; }
+      const a = readLs(MILE_LS); const row = { id: uid(), quote_id: quoteId, status: "due", amount: 0, ...m, created_at: now() }; a.push(row); localStorage.setItem(MILE_LS, JSON.stringify(a)); return row;
+    },
+    async update(id, patch) {
+      if (mode === "supabase") { const { error } = await supa.from("payment_milestones").update(patch).eq("id", id); if (error) throw error; return true; }
+      const a = readLs(MILE_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(MILE_LS, JSON.stringify(a)); } return true;
+    },
+    async setStatus(id, status) { return this.update(id, { status, paid_at: status === "paid" ? now() : null }); },
+    async remove(id) {
+      if (mode === "supabase") { const { error } = await supa.from("payment_milestones").delete().eq("id", id); if (error) throw error; return true; }
+      localStorage.setItem(MILE_LS, JSON.stringify(readLs(MILE_LS).filter((m) => m.id !== id))); return true;
+    },
+    // reminder via the existing notification outbox (simulated unless channels are live)
+    sendReminder: (quoteId, to, detail) => (mode === "supabase"
+      ? rpc("mgr_notify", { p_quote_id: quoteId, p_channel: "sms", p_to: to, p_kind: "payment_reminder", p_detail: detail || {} })
+      : Promise.resolve({ sent: true, simulated: true })),
+  };
+
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

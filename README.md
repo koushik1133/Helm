@@ -128,6 +128,13 @@ what each phase added, in plain words.
   summary** (status + consent/payment history) pulled from the existing
   OTP/consent flow.
 
+- **Phase 14 — Logistics, permits, guests, comms & payments.** One **Logistics
+  & payments** page with tabs: **Guests** (headcount by group, with a running
+  total), **Logistics** (transport/movements checklist), **Permits** (compliance
+  checklist), **Comms** (who tells whom, when), and **Payments** (the milestone
+  schedule — label, due date, amount, status, with a **Remind** button that goes
+  through the notification outbox, and a Scheduled / Paid / Outstanding total).
+
 ### Where the data lives
 
 All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per

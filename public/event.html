@@ -104,8 +104,8 @@
   </form>
 </div>
 
-<script src="config.js?v=23"></script>
-<script src="store-api.js?v=23"></script>
+<script src="config.js?v=24"></script>
+<script src="store-api.js?v=24"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -121,14 +121,14 @@
     {k:"confirmed",label:"Confirmed",hint:"Lock the details and get the client's approval.",mods:["approval","plandetails"]},
     {k:"planning",label:"Planning",hint:"Assign tasks, plan resources and build the run-sheet.",mods:["resourceplan","runsheet","budget"]},
     {k:"resources",label:"Resources",hint:"Map needs, cover in-house, flag the gaps.",mods:["resourceplan","inventory","tasks"]},
-    {k:"ready",label:"Ready",hint:"Finalise the run-sheet and brief the team.",mods:["runsheet","tasks"]},
+    {k:"ready",label:"Ready",hint:"Finalise the run-sheet, logistics and brief the team.",mods:["runsheet","logistics","tasks"]},
     {k:"event_day",label:"Event Day",hint:"Run the day to the run-sheet.",mods:["runsheet","tasks"]},
     {k:"settlement",label:"Settlement",hint:"Reconcile costs, invoice and collect payment.",mods:["budget","quote","approval"]},
     {k:"closed",label:"Closed",hint:"Event complete and archived.",mods:[]},
   ];
   const stageIndex=(k)=>Math.max(0,STAGES.findIndex(s=>s.k===k));
 
-  let ev=null, canEdit=false, tasksSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null;
+  let ev=null, canEdit=false, tasksSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
   const budgetRange=()=>{ const d=discSummary&&discSummary.disc; if(!d) return ""; const a=d.budget_min, b=d.budget_max;
     if(a!=null&&b!=null) return inr(a)+"–"+inr(b); if(a!=null) return "from "+inr(a); if(b!=null) return "up to "+inr(b); return ""; };
@@ -168,6 +168,11 @@
     try{ budgetSummary=await BPStore.budget.summary(id); }catch{ budgetSummary=null; }
     // venue/menu plan summary (Phase 13) — optional
     try{ planSummary=await BPStore.plan.get(id); }catch{ planSummary=null; }
+    // logistics + payments summary (Phase 14) — optional
+    try{ const g=await BPStore.checklist.list(id,"guests"); const ms=await BPStore.milestones.list(id);
+      const guests=g.reduce((a,x)=>a+Number(x.qty||0),0);
+      const outstanding=ms.filter(m=>m.status!=="paid"&&m.status!=="waived").reduce((a,m)=>a+Number(m.amount||0),0);
+      logiSummary={ guests, outstanding }; }catch{ logiSummary=null; }
     $("#app").hidden=false;
     render();
   }
@@ -227,6 +232,9 @@
       { key:"runsheet", ic:"🗓️", title:"Run-sheet",
         sum: runSummary && runSummary.total ? `${runSummary.total} item${runSummary.total===1?"":"s"}${runSummary.first?` · starts ${runSummary.first}`:""}` : "Build the minute-by-minute event-day schedule.",
         acts:[{t: canEdit?"Open run-sheet":"View run-sheet", href:"runsheet.html?quote="+encodeURIComponent(id), primary:true}] },
+      { key:"logistics", ic:"🚚", title:"Logistics & payments",
+        sum: logiSummary && (logiSummary.guests||logiSummary.outstanding) ? `${logiSummary.guests?`${logiSummary.guests} guests`:""}${logiSummary.guests&&logiSummary.outstanding?" · ":""}${logiSummary.outstanding?`<b style="color:#946200">${inr(logiSummary.outstanding)} outstanding</b>`:""}` : "Guests, permits, comms &amp; the payment schedule.",
+        acts:[{t: canEdit?"Open logistics":"View logistics", href:"logistics.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"budget", ic:"💰", title:"Budget & margin",
         sum: budgetSummary && (budgetSummary.estCost || budgetSummary.revenue) ? `${inr(budgetSummary.revenue)} rev · ${inr(budgetSummary.estCost)} cost · <b style="color:${budgetSummary.estMargin>=0?'#0f7a43':'#b42318'}">${inr(budgetSummary.estMargin)} margin${budgetSummary.estMarginPct!=null?` (${budgetSummary.estMarginPct}%)`:""}</b>${budgetSummary.pendingChanges?` · ${budgetSummary.pendingChanges} change${budgetSummary.pendingChanges===1?"":"s"} pending`:""}` : "Track costs vs the quote and see your margin.",
         acts:[{t: canEdit?"Open budget":"View budget", href:"budget.html?quote="+encodeURIComponent(id), primary:true}] },
