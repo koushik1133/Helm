@@ -1029,8 +1029,53 @@
     markReady: (quoteId) => quotes.setStage(quoteId, "ready"),
   };
 
+  /* ---------------- event-day command center (Phase 16) ---------------- */
+  const DAY_LS = "bp_eventday";
+  const dayops = {
+    async list(quoteId, kind) {
+      if (mode === "supabase") {
+        let q = supa.from("event_day").select("*").eq("quote_id", quoteId);
+        if (kind) q = q.eq("kind", kind);
+        const { data, error } = await q.order("seq").order("created_at"); if (error) throw error; return data;
+      }
+      return readLs(DAY_LS).filter((d) => d.quote_id === quoteId && (!kind || d.kind === kind));
+    },
+    async add(quoteId, item) {
+      if (mode === "supabase") { const { data, error } = await supa.from("event_day").insert({ quote_id: quoteId, ...item }).select().single(); if (error) throw error; return data; }
+      const a = readLs(DAY_LS); const row = { id: uid(), quote_id: quoteId, status: item.kind === "check" ? "pending" : "expected", ...item, created_at: now() }; a.push(row); localStorage.setItem(DAY_LS, JSON.stringify(a)); return row;
+    },
+    async setStatus(id, status) {
+      if (mode === "supabase") { const { error } = await supa.from("event_day").update({ status }).eq("id", id); if (error) throw error; return true; }
+      const a = readLs(DAY_LS); const r = a.find((x) => x.id === id); if (r) { r.status = status; localStorage.setItem(DAY_LS, JSON.stringify(a)); } return true;
+    },
+    async remove(id) {
+      if (mode === "supabase") { const { error } = await supa.from("event_day").delete().eq("id", id); if (error) throw error; return true; }
+      localStorage.setItem(DAY_LS, JSON.stringify(readLs(DAY_LS).filter((d) => d.id !== id))); return true;
+    },
+    // build the arrivals roster from crew assigned (event_tasks) + vendors booked
+    async pullRoster(quoteId) {
+      const existing = await this.list(quoteId, "arrival");
+      const have = new Set(existing.map((e) => e.ref_id).filter(Boolean));
+      let added = 0;
+      const [team, vends, bk, tasks] = await Promise.all([
+        staff.list(true).catch(() => []), vendors.listAll(true).catch(() => []), bookings.list(quoteId).catch(() => []),
+        (async () => { if (mode !== "supabase") return [];
+          const { data, error } = await supa.from("event_tasks").select("crew_id").eq("quote_id", quoteId).not("crew_id", "is", null);
+          if (error) throw error; return data; })().catch(() => []),
+      ]);
+      const staffById = {}; team.forEach((p) => { staffById[p.id] = p; });
+      const vById = {}; vends.forEach((v) => { vById[v.id] = v; });
+      const crewIds = [...new Set(tasks.map((t) => t.crew_id))];
+      for (const cid of crewIds) { if (have.has(cid)) continue; const p = staffById[cid] || {};
+        await this.add(quoteId, { kind: "arrival", who: p.name || "Crew", role: p.department || "Staff", ref_id: cid, status: "expected" }); added++; }
+      for (const b of bk) { if (b.status === "cancelled" || have.has(b.id)) continue; const v = vById[b.vendor_id] || {};
+        await this.add(quoteId, { kind: "arrival", who: v.name || b.label || "Vendor", role: "vendor", ref_id: b.id, status: "expected" }); added++; }
+      return added;
+    },
+  };
+
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

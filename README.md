@@ -144,6 +144,14 @@ what each phase added, in plain words.
   (advances the lifecycle). This closes Block C — an event is provably ready
   before the day.
 
+- **Phase 16 — Event-day command center** *(start of event-day & post-event)*. A
+  live day view: a dark banner with the venue/access and quick links to the
+  run-sheet and floor plan; an **Arrivals & attendance** panel (mark each person
+  **Arrived / No-show**, with a running "here" count) that you **pull** straight
+  from the crew assigned and the vendors booked; and a **Setup & technical
+  checks** panel (mark each **Done / Issue**). Everything saves live so the whole
+  team sees the same picture on the day.
+
 ### Where the data lives
 
 All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per
