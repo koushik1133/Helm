@@ -49,7 +49,8 @@ declare
   -- operational data: + operations. writes stay on can_edit()
   opsd text[] := array['event_resource_needs','event_resources','inventory_items','inventory_reservations',
                        'run_sheet_items','event_plan','event_checklist','event_day','event_issues',
-                       'crew_members','vendors','event_tasks','task_templates'];
+                       'crew_members','vendors','event_tasks','task_templates',
+                       'work_tokens','notifications'];   -- worker links + comms carry PII / access — hide from crew/client
   -- quote core: read = ops; keep create/edit/delete split (operations can edit but not create/delete)
   core text[] := array['quotes','quote_versions','layouts'];
   t text; p record;

@@ -17,6 +17,13 @@ async function hmacHex(secret: string, body: string) {
   const sig = await crypto.subtle.sign("HMAC", key, enc.encode(body));
   return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
+// constant-time string compare — avoids leaking the signature via response timing
+function timingSafeEqual(a: string, b: string) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
 
 async function sendEmail(to: string, subject: string, html: string) {
   const key = Deno.env.get("RESEND_API_KEY"); if (!key || !to) return;
@@ -31,7 +38,7 @@ Deno.serve(async (req) => {
     const raw = await req.text();
     const sig = req.headers.get("x-razorpay-signature") || "";
     const secret = Deno.env.get("RAZORPAY_WEBHOOK_SECRET") || "";
-    if (!secret || (await hmacHex(secret, raw)) !== sig) return new Response("invalid signature", { status: 401 });
+    if (!secret || !timingSafeEqual(await hmacHex(secret, raw), sig)) return new Response("invalid signature", { status: 401 });
 
     const evt = JSON.parse(raw);
     const type = evt.event;
