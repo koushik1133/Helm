@@ -194,7 +194,7 @@
         lifecycleStage: q.lifecycle_stage || "quote",
         approvalStatus: q.approval_status || "none", approvalToken: q.approval_token,
         currentVersion: q.current_version, client: q.client || {}, pricing: q.pricing || {}, total: (q.pricing && q.pricing.total) || 0,
-        eventDate: q.event_date || null, startTime: q.start_time || null, endTime: q.end_time || null,
+        eventDate: q.event_date || null,
         updatedAt: q.updated_at, createdAt: q.created_at, confirmedAt: q.confirmed_at }));
     },
     async get(id) {
@@ -205,7 +205,7 @@
       return { id: q.id, code: q.code, title: q.title, eventType: q.event_type, status: q.status, lifecycleStage: q.lifecycle_stage || "quote",
         approvalStatus: q.approval_status || "none", approvalToken: q.approval_token, client: q.client || {},
         pricing: q.pricing || {}, currentVersion: q.current_version, createdAt: q.created_at, updatedAt: q.updated_at,
-        eventDate: q.event_date || null, startTime: q.start_time || null, endTime: q.end_time || null,
+        eventDate: q.event_date || null,
         confirmedAt: q.confirmed_at, versions: vs.map((v) => ({ id: v.id, versionNo: v.version_no, label: v.label,
           objectCount: v.object_count, createdAt: v.created_at })) };
     },
@@ -237,8 +237,6 @@
       const upd = {}; if (patch.title != null) upd.title = patch.title; if (patch.eventType != null) upd.event_type = patch.eventType;
       if (patch.client) upd.client = patch.client; if (patch.pricing) upd.pricing = patch.pricing; if (patch.status) upd.status = patch.status;
       if (patch.eventDate !== undefined) upd.event_date = patch.eventDate || null;
-      if (patch.startTime !== undefined) upd.start_time = patch.startTime || null;
-      if (patch.endTime !== undefined) upd.end_time = patch.endTime || null;
       const { data, error } = await supa.from("quotes").update(upd).eq("id", quoteId).select().single(); if (error) throw error; return data;
     },
     async remove(quoteId) { const { error } = await supa.from("quotes").delete().eq("id", quoteId); if (error) throw error; return true; },
@@ -764,52 +762,47 @@
       const itemById = {}; items.forEach((i) => { itemById[i.id] = i; });
       const staffById = {}; team.forEach((p) => { staffById[p.id] = p; });
       const vendById = {}; vends.forEach((v) => { vendById[v.id] = v; });
-      // time window [startMs,endMs] for an event; null if it has no date+times
-      const winOf = (qid) => { const e = evById[qid];
-        if (!e || !e.eventDate || !e.startTime || !e.endTime) return null;
-        const s = Date.parse(e.eventDate + "T" + e.startTime), en = Date.parse(e.eventDate + "T" + e.endTime);
-        return (isNaN(s) || isNaN(en) || en <= s) ? null : [s, en]; };
-      const overlaps = (a, b) => a && b && a[0] < b[1] && b[0] < a[1];
-      // find events sharing a resource whose time windows overlap (pairwise)
-      const overlapEvents = (rows) => { const inv = new Set();
-        for (let i = 0; i < rows.length; i++) for (let j = i + 1; j < rows.length; j++)
-          if (rows[i].q !== rows[j].q && overlaps(rows[i].w, rows[j].w)) { inv.add(rows[i].q); inv.add(rows[j].q); }
-        return [...inv]; };
+      const dateOf = (qid) => { const e = evById[qid]; return e ? e.eventDate : null; };
 
-      // ---- conflict detection (time-aware: only overlapping windows clash) ----
+      // ---- conflict detection (only for events that have a date) ----
       const conflicts = [];
-      // 1) inventory over-commit — interval-sweep the windowed reservations per item
-      const invByItem = {};
-      invRes.forEach((r) => { if (!["reserved", "allocated"].includes(r.status)) return;
-        const w = winOf(r.quote_id); if (!w) return;
-        (invByItem[r.item_id] = invByItem[r.item_id] || []).push({ qty: Number(r.qty || 0), w, q: r.quote_id }); });
-      Object.entries(invByItem).forEach(([itemId, list]) => {
-        const item = itemById[itemId]; if (!item) return; const total = Number(item.total_qty || 0);
-        const pts = []; list.forEach((c) => { pts.push({ t: c.w[0], d: c.qty, c }); pts.push({ t: c.w[1], d: -c.qty, c }); });
-        pts.sort((a, b) => a.t - b.t || a.d - b.d);   // ends before starts at the same instant
-        let run = 0; const active = new Set(); let worst = null;
-        pts.forEach((p) => { run += p.d; if (p.d > 0) active.add(p.c); else active.delete(p.c);
-          if (run > total && (!worst || run > worst.run)) worst = { run, active: [...active] }; });
-        if (worst) { const evs = [...new Set(worst.active.map((c) => c.q))].map((q) => evById[q]);
-          conflicts.push({ type: "inventory", date: evs[0] && evs[0].eventDate, label: item.name,
-            detail: `${worst.run} committed of ${total} ${item.unit || ""} at overlapping times across ${evs.length} events`, events: evs }); }
+      // 1) inventory over-commit per item per date
+      const invByItemDate = {};
+      invRes.forEach((r) => {
+        if (!["reserved", "allocated"].includes(r.status)) return;
+        const d = dateOf(r.quote_id); if (!d) return;
+        const k = r.item_id + "|" + d; (invByItemDate[k] = invByItemDate[k] || []).push(r);
       });
-      // 2) vendor double-booked at overlapping times
-      const vByVendor = {};
-      vendorBk.forEach((b) => { if (b.status === "cancelled" || !b.vendor_id) return; const w = winOf(b.quote_id); if (!w) return;
-        (vByVendor[b.vendor_id] = vByVendor[b.vendor_id] || []).push({ w, q: b.quote_id }); });
-      Object.entries(vByVendor).forEach(([vid, list]) => { const evs = overlapEvents(list).map((q) => evById[q]);
-        if (evs.length >= 2) { const v = vendById[vid];
-          conflicts.push({ type: "vendor", date: evs[0] && evs[0].eventDate, label: v ? v.name : "Partner",
-            detail: `booked for ${evs.length} events at overlapping times`, events: evs }); } });
-      // 3) staff double-booked at overlapping times
-      const sByStaff = {};
-      tasks.forEach((t) => { if (!t.crew_id) return; const w = winOf(t.quote_id); if (!w) return;
-        (sByStaff[t.crew_id] = sByStaff[t.crew_id] || []).push({ w, q: t.quote_id }); });
-      Object.entries(sByStaff).forEach(([sid, list]) => { const evs = overlapEvents(list).map((q) => evById[q]);
-        if (evs.length >= 2) { const p = staffById[sid];
-          conflicts.push({ type: "staff", date: evs[0] && evs[0].eventDate, label: p ? p.name : "Staff",
-            detail: `assigned to ${evs.length} events at overlapping times`, events: evs }); } });
+      Object.entries(invByItemDate).forEach(([k, list]) => {
+        const [itemId, d] = k.split("|"); const item = itemById[itemId]; if (!item) return;
+        const sum = list.reduce((a, r) => a + Number(r.qty || 0), 0);
+        if (sum > Number(item.total_qty || 0)) conflicts.push({ type: "inventory", date: d,
+          label: item.name, detail: `${sum} committed of ${item.total_qty} ${item.unit || ""} across ${new Set(list.map((r) => r.quote_id)).size} events`,
+          events: [...new Set(list.map((r) => r.quote_id))].map((q) => evById[q]) });
+      });
+      // 2) vendor double-booked on a date
+      const vByVendorDate = {};
+      vendorBk.forEach((b) => {
+        if (b.status === "cancelled" || !b.vendor_id) return;
+        const d = dateOf(b.quote_id); if (!d) return;
+        const k = b.vendor_id + "|" + d; (vByVendorDate[k] = vByVendorDate[k] || new Set()).add(b.quote_id);
+      });
+      Object.entries(vByVendorDate).forEach(([k, qset]) => {
+        const [vid, d] = k.split("|"); if (qset.size > 1) { const v = vendById[vid];
+          conflicts.push({ type: "vendor", date: d, label: v ? v.name : "Partner",
+            detail: `booked for ${qset.size} events on this date`, events: [...qset].map((q) => evById[q]) }); }
+      });
+      // 3) staff double-booked on a date
+      const sByStaffDate = {};
+      tasks.forEach((t) => {
+        if (!t.crew_id) return; const d = dateOf(t.quote_id); if (!d) return;
+        const k = t.crew_id + "|" + d; (sByStaffDate[k] = sByStaffDate[k] || new Set()).add(t.quote_id);
+      });
+      Object.entries(sByStaffDate).forEach(([k, qset]) => {
+        const [sid, d] = k.split("|"); if (qset.size > 1) { const p = staffById[sid];
+          conflicts.push({ type: "staff", date: d, label: p ? p.name : "Staff",
+            detail: `assigned to ${qset.size} events on this date`, events: [...qset].map((q) => evById[q]) }); }
+      });
 
       // ---- per-event commitment rollup (for the agenda) ----
       const agenda = events.map((e) => {

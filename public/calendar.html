@@ -98,8 +98,8 @@
   </div>
 </div>
 
-<script src="config.js?v=21"></script>
-<script src="store-api.js?v=21"></script>
+<script src="config.js?v=20"></script>
+<script src="store-api.js?v=20"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -124,14 +124,12 @@
       <span class="when">${esc(fmtDate(c.date))}</span></div>`).join("");
   }
 
-  const timeStr=(e)=> (e.startTime&&e.endTime) ? (e.startTime.slice(0,5)+"–"+e.endTime.slice(0,5)) : "";
   function eventRow(a, clashDates){
     const e=a.event; const clash = e.eventDate && clashDates.has(e.eventDate);
     const chip=(n,l)=>`<span class="chip ${n?'':'zero'}"><b>${n}</b> ${l}</span>`;
-    const t=timeStr(e);
     return `<div class="ev ${clash?'clash':''}">
       <div><span class="code">${esc(e.code)}</span> <span class="ttl">${esc(e.title||"")}</span>
-        <div style="font-size:12px;color:var(--ink-3)">${t?("🕒 "+esc(t)+(e.eventType?" · ":"")):""}${esc((e.eventType||""))}${!t?' · <span style="color:var(--warn)">no time set</span>':""}</div></div>
+        <div style="font-size:12px;color:var(--ink-3)">${esc((e.eventType||""))}</div></div>
       <div class="chips">
         ${chip(a.staffCount,"staff")}${chip(a.invCount,"stock")}${chip(a.vendCount,"partners")}
         <a class="open" href="event.html?id=${encodeURIComponent(e.id)}">Open</a>

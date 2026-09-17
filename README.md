@@ -104,12 +104,6 @@ what each phase added, in plain words.
   are listed separately so you can add it. This closes Block B — a planner can
   resource an event fully and see clashes before they happen.
 
-- **Phase 10b — Event times (accurate clash checks).** Each event now has a
-  **start and end time** (set on the workspace, shown on the calendar). A clash
-  means the same resource is committed to two events **whose times actually
-  overlap** — so a morning event and an evening event on the same day no longer
-  clash. Events without times set are simply not time-clashed.
-
 ### Where the data lives
 
 All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per
