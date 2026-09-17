@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Closure &amp; P&amp;L — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:980px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .crumb{font-size:12px;color:var(--ink-3);margin:2px 0 14px} .crumb a{color:var(--accent)}
+
+  .closed-banner{background:linear-gradient(120deg,#eafaf1,#e7f6ee);border:1px solid #b6e3ca;color:#0f7a43;border-radius:14px;padding:14px 18px;margin-bottom:16px;font-weight:700;display:flex;align-items:center;gap:10px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+  .card h2{font-size:15px;margin:0 0 4px} .card .sub{font-size:12px;color:var(--ink-3);margin:0 0 14px}
+  .pl{display:grid;grid-template-columns:1fr auto;gap:8px 14px;font-size:14px}
+  .pl .k{color:var(--ink-2)} .pl .v{font-family:var(--mono);text-align:right}
+  .pl .tot{border-top:1px solid var(--line);padding-top:10px;margin-top:6px;font-weight:700}
+  .pl .v.pos{color:#0f7a43} .pl .v.neg{color:#b42318}
+  .fld{display:flex;flex-direction:column;gap:4px;margin-bottom:12px} .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld input,.fld textarea,.fld select{border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .fld input{height:38px;padding:0 12px} .fld textarea{min-height:64px;resize:vertical}
+  .stars{display:flex;gap:4px} .star{font-size:22px;cursor:pointer;color:var(--line)} .star.on{color:#f5a623}
+  .btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer} .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn.go{background:#18a558;border-color:transparent;color:#fff} .btn:disabled{opacity:.4}
+  .foot{display:flex;gap:10px;align-items:center;justify-content:flex-end;margin-top:6px} .ok{color:var(--safe);font-size:12px;font-weight:600}
+  .rrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-2)} .rrow:last-child{border-bottom:0}
+  .rrow .nm{font-weight:600;font-size:13px} .rrow .kd{font-size:10px;font-weight:700;text-transform:uppercase;color:var(--ink-3)}
+  .rstars{color:#f5a623;font-size:14px;letter-spacing:1px} .rrow .acts{margin-left:auto}
+  .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:28px;padding:0 9px;font-size:11px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#e5484d;border-color:#f5c6c6}
+  .addr{display:grid;grid-template-columns:.8fr 1.4fr auto auto;gap:8px;align-items:end;margin-top:10px} @media(max-width:640px){.addr{grid-template-columns:1fr 1fr}}
+  .empty{color:var(--ink-3);font-size:12px;padding:12px 0}
+  footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
+  .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px}
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,96vw);padding:24px}.sheet h3{margin:0 0 12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Closure &amp; P&amp;L</h1><small>Blueprint Stage</small></div>
+    <nav class="nav"><a href="index.html">Home</a><a href="calendar.html">Calendar</a><a href="quotes.html">Quotes</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to open closure.</p></div>
+  <div id="notfound" class="card" hidden><p style="color:var(--ink-3)">Event not found. Go to <a href="quotes.html" style="color:var(--accent)">Quotes</a>.</p></div>
+
+  <div id="app" hidden>
+    <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
+    <div id="closedBanner" class="closed-banner" hidden>✓ Event closed &amp; archived <span id="closedWhen" style="font-weight:400;color:#0f7a43"></span></div>
+
+    <div class="card">
+      <h2>📊 Profit &amp; loss</h2>
+      <p class="sub">Revenue from the client, less what it cost to deliver.</p>
+      <div class="pl" id="plBody"></div>
+    </div>
+
+    <div class="card">
+      <h2>⭐ Client feedback &amp; testimonial</h2>
+      <div class="fld"><label>Client rating</label><div class="stars" id="stars"></div></div>
+      <div class="fld"><label>Feedback</label><textarea id="c_feedback" placeholder="What did the client say?"></textarea></div>
+      <div class="fld"><label>Testimonial (quotable)</label><textarea id="c_testi" placeholder="A line you can use in marketing…"></textarea></div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:12px"><input type="checkbox" id="c_consent"> Client consents to using photos / testimonial in marketing</label>
+      <div class="fld"><label>Lessons learned (internal)</label><textarea id="c_lessons" placeholder="What to do differently next time…"></textarea></div>
+      <div class="foot"><span id="c_msg"></span><button class="btn primary" id="c_save" hidden>Save</button></div>
+    </div>
+
+    <div class="card">
+      <h2>🤝 Rate vendors &amp; staff</h2>
+      <p class="sub">A quick score to remember who to rebook.</p>
+      <div id="ratings"></div>
+      <div class="addr" id="rateAdd" hidden>
+        <div class="fld" style="margin:0"><label>Type</label><select id="r_kind"><option value="vendor">Vendor</option><option value="staff">Staff</option></select></div>
+        <div class="fld" style="margin:0"><label>Name</label><input id="r_name" list="rnames" placeholder="who"></div>
+        <div class="fld" style="margin:0"><label>Stars</label><select id="r_stars"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div>
+        <div class="fld" style="margin:0"><label>&nbsp;</label><button class="btn primary" id="r_add">＋ Rate</button></div>
+      </div>
+      <datalist id="rnames"></datalist>
+    </div>
+
+    <div class="card">
+      <h2>🗄 Close &amp; archive</h2>
+      <p class="sub">Marks the event complete and moves it to Closed. Follow-up: keep the client warm for the next occasion.</p>
+      <div class="foot" style="justify-content:space-between">
+        <a class="btn" id="followBtn" href="#">＋ Add CRM follow-up lead</a>
+        <button class="btn go" id="closeBtn" hidden>Mark event closed &amp; archived</button>
+      </div>
+    </div>
+  </div>
+  <footer>Blueprint Stage — the event, finished, measured and remembered.</footer>
+</div>
+
+<div id="loginModal" class="lmodal" hidden>
+  <div class="sheet">
+    <h3>Sign in</h3>
+    <div class="fld"><label>Email</label><input id="li_email" type="email"></div>
+    <div class="fld"><label>Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden></div>
+    <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
+  </div>
+</div>
+
+<script src="config.js?v=31"></script>
+<script src="store-api.js?v=31"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const inr=(n)=>"₹"+Number(n||0).toLocaleString("en-IN");
+  const id=new URLSearchParams(location.search).get("quote");
+  let canEdit=false, canDelete=false, ev=null, rating=0, closedAt=null;
+
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  function renderStars(){ $("#stars").innerHTML=[1,2,3,4,5].map(n=>`<span class="star ${n<=rating?'on':''}" data-n="${n}">★</span>`).join("");
+    if(canEdit) $("#stars").querySelectorAll(".star").forEach(s=>s.addEventListener("click",()=>{ rating=Number(s.dataset.n); renderStars(); })); }
+
+  async function renderPL(){
+    const pl=await BPStore.closure.pl(id);
+    $("#plBody").innerHTML=`
+      <div class="k">Revenue (client)</div><div class="v">${inr(pl.revenue)}</div>
+      <div class="k">Delivery cost${pl.actCost?" (actual)":" (estimated)"}</div><div class="v">− ${inr(pl.cost)}</div>
+      <div class="k">Staff expenses paid</div><div class="v">− ${inr(pl.expenses)}</div>
+      <div class="k tot">Profit</div><div class="v tot ${pl.profit>=0?'pos':'neg'}">${inr(pl.profit)}${pl.marginPct!=null?`  ·  ${pl.marginPct}%`:""}</div>`;
+  }
+
+  async function renderRatings(){
+    const items=await BPStore.closure.listRatings(id);
+    $("#ratings").innerHTML = items.length ? items.map(r=>`<div class="rrow">
+      <div><div class="nm">${esc(r.name)} <span class="kd">${esc(r.kind)}</span></div></div>
+      <span class="rstars">${"★".repeat(r.stars)}${"☆".repeat(5-r.stars)}</span>
+      ${canDelete?`<div class="acts"><button class="rm" data-rdel="${r.id}">✕</button></div>`:""}
+    </div>`).join("") : '<div class="empty">No ratings yet.</div>';
+    $("#ratings").querySelectorAll("[data-rdel]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.closure.removeRating(b.dataset.rdel); renderRatings(); }));
+  }
+
+  async function save(){
+    $("#c_save").disabled=true; $("#c_msg").textContent="";
+    try{ await BPStore.closure.save(id,{ client_rating:rating||null, feedback:$("#c_feedback").value.trim()||null,
+      testimonial:$("#c_testi").value.trim()||null, media_consent:$("#c_consent").checked, lessons:$("#c_lessons").value.trim()||null });
+      $("#c_msg").className="ok"; $("#c_msg").textContent="Saved ✓"; setTimeout(()=>$("#c_msg").textContent="",1500); }
+    catch(e){ $("#c_msg").className="err"; $("#c_msg").textContent="Couldn't save — "+((e&&e.message)||"error"); }
+    finally{ $("#c_save").disabled=false; }
+  }
+  async function addRating(){ const name=$("#r_name").value.trim(); if(!name){ $("#r_name").focus(); return; }
+    try{ await BPStore.closure.addRating(id,{ kind:$("#r_kind").value, name, stars:Number($("#r_stars").value) }); $("#r_name").value=""; renderRatings(); }
+    catch(e){ alert("Couldn't rate — "+((e&&e.message)||"error")); } }
+  async function closeEvent(){ if(!confirm("Mark this event closed & archived?")) return;
+    try{ await BPStore.closure.setClosed(id,true); location.reload(); }catch(e){ alert("Couldn't close — "+((e&&e.message)||"error")); } }
+
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
+    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  $("#c_save").addEventListener("click",save);
+  $("#r_add").addEventListener("click",addRating);
+  $("#closeBtn").addEventListener("click",closeEvent);
+
+  async function fillNames(){ try{ const [vs, tm]=await Promise.all([BPStore.vendors.listAll(false).catch(()=>[]), BPStore.staff.list(false).catch(()=>[])]);
+    $("#rnames").innerHTML=[...vs.map(v=>v.name),...tm.map(t=>t.name)].map(n=>`<option value="${esc(n)}">`).join(""); }catch{} }
+
+  (async ()=>{
+    await BPStore.init(); await renderAccount();
+    $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
+    if(!id){ $("#notfound").hidden=false; return; }
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    canEdit=await BPStore.auth.can("edit"); canDelete=await BPStore.auth.can("delete");
+    try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
+    $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
+    $("#followBtn").href="leads.html";
+    $("#app").hidden=false; $("#c_save").hidden=!canEdit; $("#rateAdd").hidden=!canEdit; $("#closeBtn").hidden=!canEdit;
+    renderStars(); await fillNames();
+    try{ await renderPL(); }catch(e){ $("#plBody").innerHTML=`<div class="empty">Couldn't load P&amp;L — ${esc(e&&e.message||"error")}</div>`; }
+    try{ const c=await BPStore.closure.get(id); if(c){ rating=c.client_rating||0; $("#c_feedback").value=c.feedback||""; $("#c_testi").value=c.testimonial||"";
+      $("#c_consent").checked=!!c.media_consent; $("#c_lessons").value=c.lessons||""; closedAt=c.closed_at; renderStars();
+      if(c.closed_at){ $("#closedBanner").hidden=false; $("#closedWhen").textContent="· "+new Date(c.closed_at).toLocaleDateString("en-IN"); } } }
+    catch(e){ if(String(e&&e.message).includes("event_closure")){ $("#c_msg").className="err"; $("#c_msg").textContent="Run phase20-closure.sql to save."; } }
+    try{ await renderRatings(); }catch{}
+    if(!canEdit){ document.querySelectorAll("#app input,#app textarea,#app select").forEach(el=>el.disabled=true); }
+  })();
+</script>
+</body>
+</html>

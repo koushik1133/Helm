@@ -175,6 +175,15 @@ what each phase added, in plain words.
   paid, with totals). Reuses the budget, payment milestones and vendor bookings —
   it's the one place to close out the client, the vendors and the crew.
 
+- **Phase 20 — Closure, feedback, P&L & archive** *(final checkpoint)*. One page
+  to finish an event: a **Profit & loss** (revenue − delivery cost − expenses =
+  profit, with margin %); **client feedback** with a star rating, a quotable
+  **testimonial** and a media-consent tick; **lessons learned**; quick **ratings
+  for vendors & staff**; a **CRM follow-up** link; and **Mark event closed &
+  archived**, which moves the event to Closed. This completes the 20-phase build:
+  lead → discovery → proposal → quote → confirm → plan → resource → ready →
+  event day → settle → close.
+
 ### Where the data lives
 
 All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per

@@ -1145,8 +1145,55 @@
     },
   };
 
+  /* ---------------- closure, feedback, ratings & P&L (Phase 20) ---------------- */
+  const CLOSE_LS = "bp_closure", RATE_LS = "bp_ratings";
+  const closure = {
+    async get(quoteId) {
+      if (mode === "supabase") { const { data, error } = await supa.from("event_closure").select("*").eq("quote_id", quoteId).maybeSingle(); if (error) throw error; return data || null; }
+      return readLs(CLOSE_LS).find((c) => c.quote_id === quoteId) || null;
+    },
+    async save(quoteId, c) {
+      if (mode === "supabase") {
+        return rpc("set_closure", { p_quote_id: quoteId, p_rating: c.client_rating || null, p_feedback: c.feedback || null,
+          p_testimonial: c.testimonial || null, p_media_consent: !!c.media_consent, p_lessons: c.lessons || null });
+      }
+      const a = readLs(CLOSE_LS).filter((x) => x.quote_id !== quoteId);
+      const cur = readLs(CLOSE_LS).find((x) => x.quote_id === quoteId) || {};
+      const row = { quote_id: quoteId, closed_at: cur.closed_at || null, ...c, updated_at: now() }; a.push(row);
+      localStorage.setItem(CLOSE_LS, JSON.stringify(a)); return row;
+    },
+    async setClosed(quoteId, closed) {
+      if (mode === "supabase") return rpc("close_event", { p_quote_id: quoteId, p_closed: !!closed });
+      const a = readLs(CLOSE_LS); let row = a.find((x) => x.quote_id === quoteId);
+      if (!row) { row = { quote_id: quoteId }; a.push(row); }
+      row.closed_at = closed ? now() : null; localStorage.setItem(CLOSE_LS, JSON.stringify(a));
+      try { await lsq.setStage(quoteId, closed ? "closed" : "settlement"); } catch {}
+      return row;
+    },
+    async listRatings(quoteId) {
+      if (mode === "supabase") { const { data, error } = await supa.from("event_ratings").select("*").eq("quote_id", quoteId).order("created_at"); if (error) throw error; return data; }
+      return readLs(RATE_LS).filter((r) => r.quote_id === quoteId);
+    },
+    async addRating(quoteId, r) {
+      if (mode === "supabase") { const { data, error } = await supa.from("event_ratings").insert({ quote_id: quoteId, ...r }).select().single(); if (error) throw error; return data; }
+      const a = readLs(RATE_LS); const row = { id: uid(), quote_id: quoteId, ...r, created_at: now() }; a.push(row); localStorage.setItem(RATE_LS, JSON.stringify(a)); return row;
+    },
+    async removeRating(id) {
+      if (mode === "supabase") { const { error } = await supa.from("event_ratings").delete().eq("id", id); if (error) throw error; return true; }
+      localStorage.setItem(RATE_LS, JSON.stringify(readLs(RATE_LS).filter((r) => r.id !== id))); return true;
+    },
+    // profit & loss for the event
+    async pl(quoteId) {
+      const s = await settlement.summary(quoteId);
+      const cost = s.actCost || s.estCost;          // prefer actuals once entered
+      const profit = s.revenue - cost - s.expPaid;
+      return { revenue: s.revenue, cost, expenses: s.expPaid, profit,
+        marginPct: s.revenue ? Math.round(profit / s.revenue * 100) : null, estCost: s.estCost, actCost: s.actCost };
+    },
+  };
+
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, issues, expenses, settlement,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, issues, expenses, settlement, closure,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),
