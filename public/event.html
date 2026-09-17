@@ -104,8 +104,8 @@
   </form>
 </div>
 
-<script src="config.js?v=28"></script>
-<script src="store-api.js?v=28"></script>
+<script src="config.js?v=29"></script>
+<script src="store-api.js?v=29"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -123,12 +123,12 @@
     {k:"resources",label:"Resources",hint:"Map needs, cover in-house, flag the gaps.",mods:["resourceplan","inventory","tasks"]},
     {k:"ready",label:"Ready",hint:"Pass the readiness gate, then brief the team.",mods:["readycheck","runsheet","logistics"]},
     {k:"event_day",label:"Event Day",hint:"Run the day and handle issues live.",mods:["command","issues"]},
-    {k:"settlement",label:"Settlement",hint:"Reconcile costs, invoice and collect payment.",mods:["budget","quote","approval"]},
+    {k:"settlement",label:"Settlement",hint:"Tear down, then reconcile, invoice and collect.",mods:["teardown","budget","quote"]},
     {k:"closed",label:"Closed",hint:"Event complete and archived.",mods:[]},
   ];
   const stageIndex=(k)=>Math.max(0,STAGES.findIndex(s=>s.k===k));
 
-  let ev=null, canEdit=false, tasksSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null;
+  let ev=null, canEdit=false, tasksSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
   const budgetRange=()=>{ const d=discSummary&&discSummary.disc; if(!d) return ""; const a=d.budget_min, b=d.budget_max;
     if(a!=null&&b!=null) return inr(a)+"–"+inr(b); if(a!=null) return "from "+inr(a); if(b!=null) return "up to "+inr(b); return ""; };
@@ -181,6 +181,9 @@
         checksDone:chk.filter(c=>c.status==='done').length, checks:chk.length }; }catch{ daySummary=null; }
     // issues summary (Phase 17) — optional
     try{ const iss=await BPStore.issues.list(id); issuesSummary={ open:iss.filter(i=>i.status!=='resolved').length, total:iss.length }; }catch{ issuesSummary=null; }
+    // teardown summary (Phase 18) — optional
+    try{ const rs=await BPStore.inventory.reservations(id); const td=await BPStore.checklist.list(id,"teardown");
+      teardownSummary={ retDone:rs.filter(r=>r.status==='returned').length, retTotal:rs.length, tdDone:td.filter(t=>t.status==='done').length, tdTotal:td.length }; }catch{ teardownSummary=null; }
     $("#app").hidden=false;
     render();
   }
@@ -252,6 +255,9 @@
       { key:"logistics", ic:"🚚", title:"Logistics & payments",
         sum: logiSummary && (logiSummary.guests||logiSummary.outstanding) ? `${logiSummary.guests?`${logiSummary.guests} guests`:""}${logiSummary.guests&&logiSummary.outstanding?" · ":""}${logiSummary.outstanding?`<b style="color:#946200">${inr(logiSummary.outstanding)} outstanding</b>`:""}` : "Guests, permits, comms &amp; the payment schedule.",
         acts:[{t: canEdit?"Open logistics":"View logistics", href:"logistics.html?quote="+encodeURIComponent(id), primary:true}] },
+      { key:"teardown", ic:"📦", title:"Teardown & returns",
+        sum: teardownSummary && (teardownSummary.retTotal||teardownSummary.tdTotal) ? `${teardownSummary.retDone}/${teardownSummary.retTotal} stock returned · ${teardownSummary.tdDone}/${teardownSummary.tdTotal} teardown done` : "Return stock, exit vendors, hand over the venue.",
+        acts:[{t: canEdit?"Open teardown":"View teardown", href:"teardown.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"budget", ic:"💰", title:"Budget & margin",
         sum: budgetSummary && (budgetSummary.estCost || budgetSummary.revenue) ? `${inr(budgetSummary.revenue)} rev · ${inr(budgetSummary.estCost)} cost · <b style="color:${budgetSummary.estMargin>=0?'#0f7a43':'#b42318'}">${inr(budgetSummary.estMargin)} margin${budgetSummary.estMarginPct!=null?` (${budgetSummary.estMarginPct}%)`:""}</b>${budgetSummary.pendingChanges?` · ${budgetSummary.pendingChanges} change${budgetSummary.pendingChanges===1?"":"s"} pending`:""}` : "Track costs vs the quote and see your margin.",
         acts:[{t: canEdit?"Open budget":"View budget", href:"budget.html?quote="+encodeURIComponent(id), primary:true}] },

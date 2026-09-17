@@ -160,6 +160,13 @@ what each phase added, in plain words.
   budget's change-order flow for in-event scope changes, and it's linked from the
   command center banner.
 
+- **Phase 18 — Teardown & returns.** After the event, one page to close it out:
+  **In-house inventory returns** — mark each reserved item **Returned** (which
+  frees it for other events) and enter any **damaged/lost** quantity, which comes
+  off what you own; **Vendor & rental exit** — mark each partner returned/off-site;
+  and a **Teardown & venue handover** checklist (dismantle, clear, hand back,
+  verify). Progress counters show what's left to close.
+
 ### Where the data lives
 
 All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per

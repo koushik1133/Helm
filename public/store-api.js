@@ -639,6 +639,11 @@
       if (mode === "supabase") { const { error } = await supa.from("inventory_reservations").delete().eq("id", id); if (error) throw error; return true; }
       localStorage.setItem(RES_LS, JSON.stringify(readLs(RES_LS).filter((r) => r.id !== id))); return true;
     },
+    // permanently change what you own (e.g. reduce by damaged/lost at teardown)
+    async adjustTotal(itemId, delta) {
+      const items = await this.items(true); const it = items.find((i) => i.id === itemId); if (!it) return false;
+      return this.updateItem(itemId, { total_qty: Math.max(0, Number(it.total_qty || 0) + Number(delta || 0)) });
+    },
     // committed & available per item id, from all active reservations
     async availability() {
       const [items, res] = await Promise.all([this.items(false), this.reservations()]);

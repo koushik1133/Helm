@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teardown &amp; returns — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:980px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .crumb{font-size:12px;color:var(--ink-3);margin:2px 0 14px} .crumb a{color:var(--accent)}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+  .card h2{font-size:15px;margin:0 0 2px} .card .sub{font-size:12px;color:var(--ink-3);margin:0 0 12px}
+  .prog{float:right;font-family:var(--mono);font-weight:700;color:var(--accent);font-size:13px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:9px 10px;border-bottom:1px solid var(--line)}
+  th.num,td.num{text-align:right} tbody td{padding:9px 10px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+  .num{font-family:var(--mono)}
+  .st{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .st.reserved{background:#fff7e6;color:#946200} .st.allocated{background:#eef2ff;color:#4457c8} .st.returned{background:#e7f6ee;color:#0f7a43} .st.cancelled{background:#fdecec;color:#b42318}
+  .st.enquiry{background:#f1f3f7;color:var(--ink-3)} .st.booked{background:#fff7e6;color:#946200} .st.confirmed{background:#eef2ff;color:#4457c8} .st.delivered{background:#e7f6ee;color:#0f7a43}
+  .st.open{background:#fff7e6;color:#946200} .st.done{background:#e7f6ee;color:#0f7a43} .st.na{background:#f1f3f7;color:var(--ink-3)}
+  .dmg{width:64px;height:30px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:var(--mono);font-size:12px;padding:0 6px;text-align:right;color:var(--ink)}
+  .btn{height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)} .btn:hover{border-color:var(--accent);color:var(--accent)}
+  .btn.go{color:#0f7a43;border-color:#b6e3ca} .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;height:36px}
+  .addline{display:flex;gap:8px;margin-top:10px}.addline input{flex:1;height:36px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .empty{text-align:center;color:var(--ink-3);padding:20px;font-size:13px}
+  .rowline{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-2)} .rowline:last-child{border-bottom:0}
+  .rowline .nm{font-weight:600;font-size:13px} .rowline .acts{margin-left:auto;display:flex;gap:6px}
+  .ssel{height:28px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:11px;padding:0 6px;color:var(--ink)}
+  .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:28px;padding:0 9px;font-size:11px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#e5484d;border-color:#f5c6c6}
+  footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
+  .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px}
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,96vw);padding:24px}
+  .sheet h3{margin:0 0 12px}.foot{display:flex;gap:10px;justify-content:flex-end}.fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}.fld label{font-size:11px;font-weight:600;color:var(--ink-2)}.fld input{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Teardown &amp; returns</h1><small>Blueprint Stage</small></div>
+    <nav class="nav"><a href="index.html">Home</a><a href="inventory.html">Inventory</a><a href="quotes.html">Quotes</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to open teardown.</p></div>
+  <div id="notfound" class="card" hidden><p style="color:var(--ink-3)">Event not found. Go to <a href="quotes.html" style="color:var(--accent)">Quotes</a>.</p></div>
+
+  <div id="app" hidden>
+    <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
+
+    <div class="card">
+      <h2>📦 In-house inventory returns <span class="prog" id="invProg"></span></h2>
+      <p class="sub">Return stock to free it for other events. Enter any damaged/lost quantity — it comes off what you own.</p>
+      <table><thead><tr><th>Item</th><th class="num">Out</th><th>Status</th><th class="num">Damaged/lost</th><th></th></tr></thead>
+        <tbody id="invRows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody></table>
+    </div>
+
+    <div class="card">
+      <h2>🤝 Vendor &amp; rental exit</h2>
+      <p class="sub">Mark each partner off-site / rentals returned.</p>
+      <div id="bkRows"></div>
+    </div>
+
+    <div class="card">
+      <h2>✅ Teardown &amp; venue handover <span class="prog" id="tdProg"></span></h2>
+      <p class="sub">Dismantle, clear, hand the venue back and verify.</p>
+      <div id="tdRows"></div>
+      <div class="addline" id="tdAdd" hidden><input id="td_title" placeholder="e.g. Venue walkthrough with manager"><button class="btn primary" id="td_addb">＋ Add</button></div>
+    </div>
+  </div>
+  <footer>Blueprint Stage — close the event cleanly: stock back, partners gone, venue handed over.</footer>
+</div>
+
+<div id="loginModal" class="lmodal" hidden>
+  <div class="sheet">
+    <h3>Sign in</h3>
+    <div class="fld"><label>Email</label><input id="li_email" type="email"></div>
+    <div class="fld"><label>Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden></div>
+    <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
+  </div>
+</div>
+
+<script src="config.js?v=29"></script>
+<script src="store-api.js?v=29"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const id=new URLSearchParams(location.search).get("quote");
+  const RES={reserved:"Reserved",allocated:"Allocated",returned:"Returned",cancelled:"Cancelled"};
+  const BK={enquiry:"Enquiry",booked:"Booked",confirmed:"Confirmed",delivered:"Returned/Exited",cancelled:"Cancelled"};
+  const CHK={open:"Open",done:"Done",na:"N/A"};
+  let canEdit=false, canDelete=false, ev=null, itemsById={};
+
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  async function renderInventory(){
+    const [res, items] = await Promise.all([BPStore.inventory.reservations(id), BPStore.inventory.items(true)]);
+    itemsById={}; items.forEach(i=>itemsById[i.id]=i);
+    const returned=res.filter(r=>r.status==="returned").length;
+    $("#invProg").textContent = res.length?`${returned}/${res.length} returned`:"";
+    $("#invRows").innerHTML = res.length ? res.map(r=>{ const it=itemsById[r.item_id]||{name:"(item)"};
+      const active = r.status==="reserved"||r.status==="allocated";
+      return `<tr><td><b>${esc(it.name)}</b></td><td class="num">${esc(r.qty)} ${esc(it.unit||"")}</td>
+        <td><span class="st ${r.status}">${esc(RES[r.status]||r.status)}</span></td>
+        <td class="num">${canEdit&&active?`<input class="dmg" type="number" min="0" value="0" data-dmg="${r.id}">`:"—"}</td>
+        <td>${canEdit&&active?`<button class="btn go" data-ret="${r.id}" data-item="${r.item_id}">Return</button>`:""}</td></tr>`;
+    }).join("") : '<tr><td colspan="5" class="empty">No inventory was reserved for this event.</td></tr>';
+    $("#invRows").querySelectorAll("[data-ret]").forEach(b=>b.addEventListener("click",async()=>{
+      const dmg=Number(($("#invRows").querySelector(`[data-dmg="${b.dataset.ret}"]`)||{}).value||0);
+      try{ await BPStore.inventory.setResStatus(b.dataset.ret,"returned");
+        if(dmg>0) await BPStore.inventory.adjustTotal(b.dataset.item,-dmg);
+        await renderInventory(); }
+      catch(e){ alert("Couldn't return — "+((e&&e.message)||"error")); } }));
+  }
+
+  async function renderBookings(){
+    const bk=await BPStore.bookings.list(id);
+    $("#bkRows").innerHTML = bk.length ? bk.map(b=>`<div class="rowline">
+      <div><div class="nm">${esc(b.label||"Partner")}</div></div>
+      <span class="st ${b.status}">${esc(BK[b.status]||b.status)}</span>
+      ${canEdit&&b.status!=="delivered"&&b.status!=="cancelled"?`<div class="acts"><button class="btn go" data-exit="${b.id}">Mark returned/exited</button></div>`:""}
+    </div>`).join("") : '<div class="empty">No vendors or rentals booked.</div>';
+    $("#bkRows").querySelectorAll("[data-exit]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.bookings.update(b.dataset.exit,{status:"delivered"}); renderBookings(); }));
+  }
+
+  async function renderTeardown(){
+    const items=await BPStore.checklist.list(id,"teardown");
+    const done=items.filter(c=>c.status==="done").length;
+    $("#tdProg").textContent = items.length?`${done}/${items.length} done`:"";
+    $("#tdRows").innerHTML = items.length ? items.map(c=>`<div class="rowline">
+      <div><div class="nm">${esc(c.title)}</div></div>
+      ${canEdit?`<select class="ssel" data-td="${c.id}">${["open","done","na"].map(s=>`<option value="${s}" ${s===c.status?"selected":""}>${CHK[s]}</option>`).join("")}</select>`:`<span class="st ${c.status}">${CHK[c.status]}</span>`}
+      ${canDelete?`<button class="rm" data-tddel="${c.id}">✕</button>`:""}
+    </div>`).join("") : '<div class="empty">No teardown items yet.</div>';
+    $("#tdRows").querySelectorAll("[data-td]").forEach(s=>s.addEventListener("change",async()=>{ await BPStore.checklist.update(s.dataset.td,{status:s.value}); renderTeardown(); }));
+    $("#tdRows").querySelectorAll("[data-tddel]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.checklist.remove(b.dataset.tddel); renderTeardown(); }));
+  }
+
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
+    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  $("#td_addb").addEventListener("click",async()=>{ const t=$("#td_title").value.trim(); if(!t) return; await BPStore.checklist.add(id,{section:"teardown",title:t}); $("#td_title").value=""; renderTeardown(); });
+
+  (async ()=>{
+    await BPStore.init(); await renderAccount();
+    $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
+    if(!id){ $("#notfound").hidden=false; return; }
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    canEdit=await BPStore.auth.can("edit"); canDelete=await BPStore.auth.can("delete");
+    try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
+    $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
+    $("#app").hidden=false; $("#tdAdd").hidden=!canEdit;
+    try{ await renderInventory(); }catch(e){ $("#invRows").innerHTML=`<tr><td colspan="5" class="empty">Couldn't load — ${esc(e&&e.message||"error")}</td></tr>`; }
+    try{ await renderBookings(); }catch(e){ $("#bkRows").innerHTML=`<div class="empty">Couldn't load bookings.</div>`; }
+    try{ await renderTeardown(); }catch(e){ $("#tdRows").innerHTML=`<div class="empty">Couldn't load — run <b>phase18-teardown.sql</b>.</div>`; }
+  })();
+</script>
+</body>
+</html>
