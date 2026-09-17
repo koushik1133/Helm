@@ -207,8 +207,8 @@
   </div>
 </div>
 
-<script src="config.js?v=18"></script>
-<script src="store-api.js?v=18"></script>
+<script src="config.js?v=19"></script>
+<script src="store-api.js?v=19"></script>
 <script>
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return "—"; } };
@@ -241,6 +241,7 @@
         + (canEditRole ? `<a class="users" href="crm.html">🗄 CRM</a>` : "")
         + (canEditRole ? `<a class="users" href="staff.html">👷 Staff</a>` : "")
         + (canEditRole ? `<a class="users" href="inventory.html">📦 Inventory</a>` : "")
+        + (canEditRole ? `<a class="users" href="vendors.html">🤝 Vendors</a>` : "")
         + `<a class="users" href="quotes.html">📋 Quotes</a>`
         + (canEditRole ? `<a class="users" href="control.html">⚙ Control Center</a>` : "")
         + (canManage ? `<button class="users" id="usersBtn">👥 Users</button>` : "")

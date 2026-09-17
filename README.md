@@ -86,6 +86,15 @@ what each phase added, in plain words.
   discovery requirements" seeds the list from what you captured earlier, and you
   can mark a gap **Outsourced** once a vendor/freelancer will cover it.
 
+- **Phase 9 — Vendors, freelancers, rentals & procurement.** A **Vendors** page
+  for your outside partners, each tagged **Vendor / Freelancer / Rental /
+  Supplier**, with services, contact and notes (filter by type, search by
+  service). On an event's **Resource plan**, every gap now has a **Book partner**
+  button: pick a partner, enter cost, advance and whether the contract is signed,
+  and set the status (Enquiry → Booked → Confirmed → Delivered). Booking a
+  partner against a gap automatically marks that need **Outsourced**, so the plan
+  always shows what's still open.
+
 ### Where the data lives
 
 All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per

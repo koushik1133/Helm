@@ -63,7 +63,7 @@
   <header>
     <a href="index.html" class="mark" title="Home"></a>
     <div><h1>Resource plan</h1><small>Blueprint Stage</small></div>
-    <nav class="nav"><a href="index.html">Home</a><a href="staff.html">Staff</a><a href="inventory.html">Inventory</a></nav>
+    <nav class="nav"><a href="index.html">Home</a><a href="staff.html">Staff</a><a href="inventory.html">Inventory</a><a href="vendors.html">Vendors</a></nav>
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
@@ -102,6 +102,37 @@
       </table>
     </div>
     <p class="muted" id="gapHint" hidden></p>
+
+    <div class="card" style="margin-top:16px">
+      <h2>External bookings <span class="muted" style="font-weight:400">— vendors · freelancers · rentals</span></h2>
+      <p class="sub">Book outside partners to cover the gaps. <a href="vendors.html" style="color:var(--accent)">Manage partners →</a></p>
+      <div style="margin-bottom:10px"><button class="btn sm" id="bookBtn" hidden>＋ Book a partner</button></div>
+      <div style="overflow:auto">
+      <table>
+        <thead><tr><th>Partner</th><th>For</th><th class="num">Cost</th><th class="num">Advance</th><th>Contract</th><th>Status</th><th></th></tr></thead>
+        <tbody id="bookRows"><tr><td colspan="7" class="empty">No external bookings yet.</td></tr></tbody>
+      </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="bookModal" class="lmodal" hidden>
+  <div class="sheet">
+    <h3><span id="bm_title">Book a partner</span><button class="close" id="bm_close" style="margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:30px;height:30px;font-size:15px;cursor:pointer;color:var(--ink-3)">×</button></h3>
+    <div class="fld"><label>Covers need</label><input id="bk_label" placeholder="what this covers"></div>
+    <div class="fld" style="margin-top:10px"><label>Partner</label><select id="bk_vendor"></select></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+      <div class="fld"><label>Cost (₹)</label><input id="bk_cost" type="number" min="0" placeholder="optional"></div>
+      <div class="fld"><label>Advance (₹)</label><input id="bk_adv" type="number" min="0" placeholder="optional"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+      <div class="fld"><label>Status</label><select id="bk_status"><option value="enquiry">Enquiry</option><option value="booked" selected>Booked</option><option value="confirmed">Confirmed</option><option value="delivered">Delivered</option></select></div>
+      <div class="fld"><label style="display:flex;align-items:center;gap:6px;height:38px;margin-top:18px"><input type="checkbox" id="bk_contract" style="width:auto;height:auto"> Contract signed</label></div>
+    </div>
+    <div class="fld" style="margin-top:6px"><label>Note</label><input id="bk_note" placeholder="optional"></div>
+    <div id="bm_err" class="err" hidden></div>
+    <div class="foot"><button class="btn" id="bm_cancel">Cancel</button><button class="btn primary" id="bm_save">Save booking</button></div>
   </div>
 </div>
 
@@ -115,15 +146,16 @@
   </div>
 </div>
 
-<script src="config.js?v=18"></script>
-<script src="store-api.js?v=18"></script>
+<script src="config.js?v=19"></script>
+<script src="store-api.js?v=19"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const num=(n)=>Number(n||0).toLocaleString("en-IN");
   const id=new URLSearchParams(location.search).get("quote");
   const KIND={staff:"Staff",inventory:"Inventory",other:"Other"};
-  let canEdit=false, canDelete=false, items=[], checked=[];
+  let canEdit=false, canDelete=false, items=[], checked=[], vendors=[], bookings=[], bookNeed=null;
+  const BK={enquiry:"Enquiry",booked:"Booked",confirmed:"Confirmed",delivered:"Delivered",cancelled:"Cancelled"};
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
@@ -151,7 +183,7 @@
         <td><span class="kind ${c.kind}">${KIND[c.kind]||c.kind}</span></td>
         <td class="num">${num(c.qty)}</td>
         <td class="num">${c.kind==="other"?"—":num(c.have)}</td>
-        <td>${cov}${canEdit&&!c.covered?` <button class="rm" data-out="${c.id}" title="Mark this as handled by a vendor/freelancer">Mark outsourced</button>`:""}${canEdit&&c.outsourced?` <button class="rm" data-reopen="${c.id}">Reopen</button>`:""}</td>
+        <td>${cov}${canEdit&&!c.covered?` <button class="rm" data-book="${c.id}" style="border-color:var(--accent-soft);color:var(--accent)">Book partner</button> <button class="rm" data-out="${c.id}" title="Mark this as handled by a vendor/freelancer">Mark outsourced</button>`:""}${canEdit&&c.outsourced?` <button class="rm" data-reopen="${c.id}">Reopen</button>`:""}</td>
         <td>${canDelete?`<button class="rm" data-del="${c.id}">Remove</button>`:""}</td>
       </tr>`;
     }).join("");
@@ -160,7 +192,57 @@
     $("#rows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.resources.removeNeed(b.dataset.del); await load(); }));
     $("#rows").querySelectorAll("[data-out]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.resources.updateNeed(b.dataset.out,{status:"outsourced"}); await load(); }));
     $("#rows").querySelectorAll("[data-reopen]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.resources.updateNeed(b.dataset.reopen,{status:"open"}); await load(); }));
+    $("#rows").querySelectorAll("[data-book]").forEach(b=>b.addEventListener("click",()=>openBooking(checked.find(c=>c.id===b.dataset.book))));
   }
+
+  function renderBookings(){
+    const byV=Object.fromEntries(vendors.map(v=>[v.id,v]));
+    const byN=Object.fromEntries(checked.map(c=>[c.id,c]));
+    if(!bookings.length){ $("#bookRows").innerHTML='<tr><td colspan="7" class="empty">No external bookings yet.</td></tr>'; return; }
+    $("#bookRows").innerHTML=bookings.map(b=>{
+      const v=byV[b.vendor_id]; const need=b.need_id?byN[b.need_id]:null;
+      const opts=["enquiry","booked","confirmed","delivered","cancelled"].map(s=>`<option value="${s}" ${s===b.status?"selected":""}>${BK[s]}</option>`).join("");
+      return `<tr>
+        <td><b>${esc(v?v.name:(b.label||"Partner"))}</b>${v?`<div class="muted">${esc(KIND[v.kind]||v.kind||"")}</div>`:""}</td>
+        <td>${esc(need?need.label:(b.label||""))}</td>
+        <td class="num">${b.cost!=null?"₹"+num(b.cost):""}</td>
+        <td class="num">${b.advance!=null?"₹"+num(b.advance):""}</td>
+        <td>${b.contract?'<span class="cov ok">✓ Signed</span>':'<span class="muted">—</span>'}</td>
+        <td>${canEdit?`<select class="rm" data-bkstatus="${b.id}" style="height:30px">${opts}</select>`:esc(BK[b.status]||b.status)}</td>
+        <td>${canDelete?`<button class="rm" data-bkdel="${b.id}">Remove</button>`:""}</td>
+      </tr>`;
+    }).join("");
+    $("#bookRows").querySelectorAll("select[data-bkstatus]").forEach(s=>s.addEventListener("change",async()=>{ await BPStore.bookings.update(s.dataset.bkstatus,{status:s.value}); await load(); }));
+    $("#bookRows").querySelectorAll("[data-bkdel]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.bookings.remove(b.dataset.bkdel); await load(); }));
+  }
+
+  function openBooking(need){
+    bookNeed=need||null;
+    $("#bm_title").textContent = need ? "Book a partner for this gap" : "Book a partner";
+    $("#bk_label").value = need ? (need.label||"") : "";
+    $("#bk_vendor").innerHTML = vendors.length ? vendors.map(v=>`<option value="${v.id}">${esc(v.name)} — ${esc(KIND[v.kind]||v.kind||"")}</option>`).join("") : `<option value="">(add partners in Vendors first)</option>`;
+    $("#bk_cost").value=""; $("#bk_adv").value=""; $("#bk_status").value="booked"; $("#bk_contract").checked=false; $("#bk_note").value="";
+    $("#bm_err").hidden=true; $("#bookModal").hidden=false;
+  }
+  function closeBooking(){ $("#bookModal").hidden=true; bookNeed=null; }
+  async function saveBooking(){
+    const vendor_id=$("#bk_vendor").value||null;
+    const label=$("#bk_label").value.trim() || (vendor_id&&vendors.find(v=>v.id===vendor_id)?vendors.find(v=>v.id===vendor_id).name:"Booking");
+    const v=vendors.find(x=>x.id===vendor_id);
+    const rec={ vendor_id, need_id: bookNeed?bookNeed.id:null, kind: v?v.kind:null, label,
+      qty: bookNeed?bookNeed.qty:null,
+      cost:$("#bk_cost").value?Number($("#bk_cost").value):null, advance:$("#bk_adv").value?Number($("#bk_adv").value):null,
+      contract:$("#bk_contract").checked, status:$("#bk_status").value, note:$("#bk_note").value.trim()||null };
+    $("#bm_save").disabled=true;
+    try{ await BPStore.bookings.add(id, rec); closeBooking(); await load(); }
+    catch(e){ $("#bm_err").textContent="Couldn't save — "+((e&&e.message)||"error"); $("#bm_err").hidden=false; }
+    finally{ $("#bm_save").disabled=false; }
+  }
+  $("#bookBtn").addEventListener("click",()=>openBooking(null));
+  $("#bm_close").addEventListener("click",closeBooking);
+  $("#bm_cancel").addEventListener("click",closeBooking);
+  $("#bm_save").addEventListener("click",saveBooking);
+  $("#bookModal").addEventListener("click",e=>{ if(e.target.id==="bookModal") closeBooking(); });
 
   async function addNeed(){
     const kind=$("#n_kind").value, qty=Number($("#n_qty").value||0); if(qty<=0) return;
@@ -202,7 +284,9 @@
       $("#n_item").innerHTML = items.map(i=>`<option value="${i.id}">${esc(i.name)}</option>`).join("");
       checked = await BPStore.resources.check(id);
     }catch(e){ $("#rows").innerHTML=`<tr><td colspan="6" class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase8-resource-needs.sql</b>.</td></tr>`; return; }
-    render();
+    try{ vendors = await BPStore.vendors.listAll(false); }catch{ vendors=[]; }
+    try{ bookings = await BPStore.bookings.list(id); }catch{ bookings=[]; }
+    render(); renderBookings();
   }
   (async ()=>{
     await BPStore.init(); await renderAccount();
@@ -212,7 +296,7 @@
     canEdit=await BPStore.auth.can("edit"); canDelete=await BPStore.auth.can("delete");
     let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
-    $("#app").hidden=false; $("#addCard").hidden=!canEdit; onKind();
+    $("#app").hidden=false; $("#addCard").hidden=!canEdit; $("#bookBtn").hidden=!canEdit; onKind();
     await load();
   })();
 </script>

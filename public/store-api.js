@@ -367,6 +367,12 @@
       const { data, error } = await supa.from("vendors").select("*").eq("active", true).order("name"); if (error) throw error; return data; },
     async add(name, category, phone) { const { data, error } = await supa.from("vendors").insert({ name, category, phone }).select().single(); if (error) throw error; return data; },
     async remove(id) { const { error } = await supa.from("vendors").update({ active: false }).eq("id", id); if (error) throw error; return true; },
+    // Phase 9 — richer directory (kind / email / services)
+    async listAll(includeInactive) { if (!supa) throw new Error("Supabase not configured");
+      let q = supa.from("vendors").select("*").order("name"); if (!includeInactive) q = q.eq("active", true);
+      const { data, error } = await q; if (error) throw error; return data; },
+    async addFull(v) { const { data, error } = await supa.from("vendors").insert(v).select().single(); if (error) throw error; return data; },
+    async update(id, patch) { const { error } = await supa.from("vendors").update(patch).eq("id", id); if (error) throw error; return true; },
   };
   const coupons = {
     async list() { if (!supa) throw new Error("Supabase not configured");
@@ -695,8 +701,41 @@
     },
   };
 
+  /* ---------------- external bookings: vendors/freelancers/rentals (Phase 9) ---------------- */
+  const BOOK_LS = "bp_bookings";
+  const bookings = {
+    async list(quoteId) {
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("event_resources").select("*").eq("quote_id", quoteId).order("created_at");
+        if (error) throw error; return data;
+      }
+      return readLs(BOOK_LS).filter((b) => b.quote_id === quoteId);
+    },
+    async add(quoteId, b) {
+      let row;
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("event_resources").insert({ quote_id: quoteId, ...b }).select().single();
+        if (error) throw error; row = data;
+      } else {
+        const a = readLs(BOOK_LS); row = { id: uid(), quote_id: quoteId, status: "enquiry", contract: false, ...b, created_at: now() };
+        a.push(row); localStorage.setItem(BOOK_LS, JSON.stringify(a));
+      }
+      // close the loop: if this covers a flagged need, mark that need outsourced
+      if (b.need_id) { try { await resources.updateNeed(b.need_id, { status: "outsourced" }); } catch {} }
+      return row;
+    },
+    async update(id, patch) {
+      if (mode === "supabase") { const { error } = await supa.from("event_resources").update(patch).eq("id", id); if (error) throw error; return true; }
+      const a = readLs(BOOK_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(BOOK_LS, JSON.stringify(a)); } return true;
+    },
+    async remove(id) {
+      if (mode === "supabase") { const { error } = await supa.from("event_resources").delete().eq("id", id); if (error) throw error; return true; }
+      localStorage.setItem(BOOK_LS, JSON.stringify(readLs(BOOK_LS).filter((b) => b.id !== id))); return true;
+    },
+  };
+
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

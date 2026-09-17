@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vendors &amp; Partners — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)} .nav a.on{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+
+  .toolbar{display:flex;align-items:center;gap:10px;margin:8px 0 16px;flex-wrap:wrap}
+  .toolbar h2{font-size:15px;margin:0;font-weight:700}
+  .search{height:38px;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:0 12px;font-family:inherit;font-size:13px;color:var(--ink);min-width:170px;flex:1;max-width:240px}
+  .tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px}
+  .tabs button{border:0;background:transparent;font-family:inherit;font-size:12px;font-weight:600;color:var(--ink-2);padding:6px 11px;border-radius:7px;cursor:pointer}
+  .tabs button.on{background:var(--accent);color:#fff}
+  .btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.4;cursor:default}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+  .v{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:8px}
+  .v.off{opacity:.6}
+  .v .nm{font-weight:700;font-size:15px}
+  .kind{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 9px;border-radius:20px}
+  .kind.vendor{background:var(--accent-soft);color:var(--accent)} .kind.freelancer{background:#f2eefc;color:#6b46c1}
+  .kind.rental{background:#e7f6ee;color:#0f7a43} .kind.supplier{background:#fff7e6;color:#946200}
+  .tags{display:flex;gap:6px;flex-wrap:wrap}
+  .tag{font-size:10px;font-weight:600;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:3px 9px;color:var(--ink-2)}
+  .meta{font-size:12px;color:var(--ink-3);line-height:1.5}
+  .v .acts{display:flex;gap:6px;margin-top:auto;padding-top:6px}
+  .ic{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:30px;padding:0 11px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)} .ic:hover{border-color:var(--accent);color:var(--accent)}
+  .empty{text-align:center;color:var(--ink-3);padding:48px;font-size:14px;grid-column:1/-1}
+  footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
+
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(540px,96vw);max-height:90vh;overflow:auto;padding:24px}
+  .sheet h3{margin:0 0 12px;font-size:18px;display:flex;align-items:center;gap:8px}
+  .sheet .close{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:30px;height:30px;font-size:15px;cursor:pointer;color:var(--ink-2)}
+  .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px} @media(max-width:480px){.fgrid{grid-template-columns:1fr}}
+  .fld{display:flex;flex-direction:column;gap:4px} .fld.full{grid-column:1/-1}
+  .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld input,.fld select{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .foot{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;align-items:center}
+  .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px;margin-top:10px}
+  .lsheet{width:min(400px,96vw)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Blueprint Stage</h1><small>Vendors &amp; Partners</small></div>
+    <nav class="nav"><a href="index.html">Dashboard</a><a href="staff.html">Staff</a><a href="inventory.html">Inventory</a><a href="vendors.html" class="on">Vendors</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div class="toolbar">
+    <h2>Vendors &amp; partners</h2>
+    <div class="tabs" id="kindTabs">
+      <button data-k="" class="on">All</button>
+      <button data-k="vendor">Vendors</button>
+      <button data-k="freelancer">Freelancers</button>
+      <button data-k="rental">Rentals</button>
+      <button data-k="supplier">Suppliers</button>
+    </div>
+    <input id="search" class="search" placeholder="Search name, service…">
+    <span class="spacer"></span>
+    <button id="newBtn" class="btn primary" hidden>＋ Add partner</button>
+  </div>
+
+  <div id="grid" class="grid"></div>
+  <footer>Blueprint Stage — your outside partners, ready to fill the gaps your in-house team can't.</footer>
+</div>
+
+<div id="vModal" class="lmodal" hidden>
+  <div class="sheet">
+    <h3><span id="vm_title">＋ Add partner</span><button class="close" id="vm_close">×</button></h3>
+    <div class="fgrid">
+      <div class="fld"><label>Name *</label><input id="v_name" placeholder="e.g. Spotlight AV Rentals"></div>
+      <div class="fld"><label>Type</label><select id="v_kind"><option value="vendor">Vendor</option><option value="freelancer">Freelancer</option><option value="rental">Rental</option><option value="supplier">Supplier</option></select></div>
+      <div class="fld"><label>Category</label><input id="v_cat" placeholder="e.g. Lighting, Catering"></div>
+      <div class="fld"><label>Phone</label><input id="v_phone" placeholder="+91…"></div>
+      <div class="fld"><label>Email</label><input id="v_email" placeholder="name@email.com"></div>
+      <div class="fld"><label>Services (comma separated)</label><input id="v_services" placeholder="e.g. LED walls, trussing"></div>
+      <div class="fld full"><label>Notes</label><input id="v_notes" placeholder="optional"></div>
+    </div>
+    <div id="vm_err" class="err" hidden></div>
+    <div class="foot">
+      <button class="btn" id="vm_deact" hidden>Deactivate</button>
+      <span class="spacer"></span>
+      <button class="btn" id="vm_cancel">Cancel</button>
+      <button class="btn primary" id="vm_save">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="loginModal" class="lmodal" hidden>
+  <div class="sheet lsheet">
+    <h3>Sign in</h3>
+    <div class="fld" style="margin-bottom:10px"><label>Email</label><input id="li_email" type="email"></div>
+    <div class="fld" style="margin-bottom:10px"><label>Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden></div>
+    <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
+  </div>
+</div>
+
+<script src="config.js?v=19"></script>
+<script src="store-api.js?v=19"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const KIND={vendor:"Vendor",freelancer:"Freelancer",rental:"Rental",supplier:"Supplier"};
+  let list=[], canEdit=false, canDelete=false, editingId=null, filter="", kindF="";
+
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  function card(v){
+    const services=Array.isArray(v.services)?v.services:[];
+    return `<div class="v ${v.active===false?'off':''}" data-id="${v.id}">
+      <div style="display:flex;align-items:center;gap:8px"><span class="nm">${esc(v.name)}</span><span class="kind ${esc(v.kind||'vendor')}" style="margin-left:auto">${esc(KIND[v.kind]||v.kind||'Vendor')}</span></div>
+      ${v.category?`<div class="meta">${esc(v.category)}</div>`:""}
+      ${services.length?`<div class="tags">${services.map(s=>`<span class="tag">${esc(s)}</span>`).join("")}</div>`:""}
+      <div class="meta">${[v.phone,v.email].filter(Boolean).map(esc).join(" · ")}</div>
+      ${canEdit?`<div class="acts"><button class="ic" data-edit="${v.id}">Edit</button></div>`:""}
+    </div>`;
+  }
+  function render(){
+    const q=filter.trim().toLowerCase();
+    const shown=list.filter(v=>{
+      if(kindF && (v.kind||'vendor')!==kindF) return false;
+      if(q){ const hay=[v.name,v.category,(v.services||[]).join(" "),v.email,v.phone].join(" ").toLowerCase(); if(!hay.includes(q)) return false; }
+      return true;
+    });
+    $("#grid").innerHTML = shown.length ? shown.map(card).join("") : '<div class="empty">No partners here yet. Add your first one.</div>';
+    $("#grid").querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>openForm(list.find(x=>x.id===b.dataset.edit))));
+  }
+
+  function openForm(v){
+    editingId=v?v.id:null; $("#vm_title").textContent=v?"Edit partner":"＋ Add partner";
+    $("#v_name").value=v?v.name||"":""; $("#v_kind").value=v?v.kind||"vendor":"vendor"; $("#v_cat").value=v?v.category||"":"";
+    $("#v_phone").value=v?v.phone||"":""; $("#v_email").value=v?v.email||"":"";
+    $("#v_services").value=v&&Array.isArray(v.services)?v.services.join(", "):""; $("#v_notes").value=v?v.notes||"":"";
+    $("#vm_deact").hidden=!(v&&canEdit&&v.active!==false); $("#vm_err").hidden=true; $("#vModal").hidden=false; setTimeout(()=>$("#v_name").focus(),50);
+  }
+  function closeForm(){ $("#vModal").hidden=true; editingId=null; }
+  async function save(){
+    const name=$("#v_name").value.trim(); if(!name){ $("#vm_err").textContent="Name is required."; $("#vm_err").hidden=false; return; }
+    const services=$("#v_services").value.split(",").map(x=>x.trim()).filter(Boolean);
+    const rec={ name, kind:$("#v_kind").value, category:$("#v_cat").value.trim()||null, phone:$("#v_phone").value.trim()||null,
+      email:$("#v_email").value.trim()||null, services, notes:$("#v_notes").value.trim()||null };
+    $("#vm_save").disabled=true;
+    try{ if(editingId) await BPStore.vendors.update(editingId,rec); else await BPStore.vendors.addFull(rec); closeForm(); await load(); }
+    catch(e){ $("#vm_err").textContent="Couldn't save — "+((e&&e.message)||"error"); $("#vm_err").hidden=false; }
+    finally{ $("#vm_save").disabled=false; }
+  }
+
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
+    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  $("#newBtn").addEventListener("click",()=>openForm(null));
+  $("#vm_close").addEventListener("click",closeForm);
+  $("#vm_cancel").addEventListener("click",closeForm);
+  $("#vm_save").addEventListener("click",save);
+  $("#vm_deact").addEventListener("click",async()=>{ if(!editingId) return; if(!confirm("Deactivate this partner?")) return;
+    try{ await BPStore.vendors.update(editingId,{active:false}); closeForm(); await load(); }catch(e){ alert("Couldn't deactivate — "+((e&&e.message)||"error")); } });
+  $("#vModal").addEventListener("click",e=>{ if(e.target.id==="vModal") closeForm(); });
+  $("#search").addEventListener("input",e=>{ filter=e.target.value; render(); });
+  $("#kindTabs").addEventListener("click",e=>{ const b=e.target.closest("button[data-k]"); if(!b) return;
+    kindF=b.dataset.k; $("#kindTabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); render(); });
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeForm(); } });
+
+  async function load(){
+    try{ list=await BPStore.vendors.listAll(false); }
+    catch(e){ $("#grid").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase9-vendors.sql</b>.</div>`; return; }
+    render();
+  }
+  (async ()=>{
+    await BPStore.init(); await renderAccount();
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ openLogin(); return; }
+    canEdit=await BPStore.auth.can("edit"); canDelete=await BPStore.auth.can("delete");
+    $("#newBtn").hidden=!canEdit;
+    await load();
+  })();
+</script>
+</body>
+</html>

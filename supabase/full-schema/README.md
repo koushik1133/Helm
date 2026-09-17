@@ -35,6 +35,7 @@ minus the user seed), run in this exact order:
 | 12 | `12-staff.sql`          | Staff directory: role/skills/dept/email/rate on crew_members (Phase 6) |
 | 13 | `13-inventory.sql`     | Inventory items + per-event reservations + availability view (Phase 7) |
 | 14 | `14-resource-needs.sql`| Per-event resource needs (capability check flags gaps) (Phase 8) |
+| 15 | `15-vendors.sql`       | vendors.kind + event_resources (external bookings) (Phase 9) |
 
 Then, on a brand-new DB only, seed the team logins:
 
