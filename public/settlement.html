@@ -126,8 +126,8 @@
   </div>
 </div>
 
-<script src="config.js?v=32"></script>
-<script src="store-api.js?v=32"></script>
+<script src="config.js?v=33"></script>
+<script src="store-api.js?v=33"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -145,7 +145,7 @@
   function render(){
     $("#t_rev").textContent=inr(s.revenue); $("#t_recv").textContent=inr(s.received);
     const bn=$("#t_bal"); bn.textContent=inr(s.balance); bn.className="n "+(s.balance>0?"due":"clear");
-    const mn=$("#t_mar"); mn.textContent=inr(s.actMargin); mn.className="n "+(s.actMargin>=0?"pos":"neg");
+    const mn=$("#t_mar"); mn.textContent=inr(s.finalMargin); mn.className="n "+(s.finalMargin>=0?"pos":"neg");
 
     $("#invBody").innerHTML = `
       <tr><td>Invoice total (quote + approved changes)</td><td class="num">${inr(s.revenue)}</td></tr>

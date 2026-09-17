@@ -899,17 +899,28 @@
     },
     // revenue / cost / margin rollup (quote total + approved change price deltas)
     async summary(quoteId) {
-      const [ev, costs, changes] = await Promise.all([quotes.get(quoteId), this.listCosts(quoteId), this.listChanges(quoteId)]);
+      const [ev, costs, changes, bk] = await Promise.all([quotes.get(quoteId), this.listCosts(quoteId), this.listChanges(quoteId), bookings.list(quoteId).catch(() => [])]);
       const baseRevenue = (ev && (ev.total != null ? ev.total : (ev.pricing && ev.pricing.total))) || 0;
       const approved = changes.filter((c) => c.status === "approved");
       const changeRevenue = approved.reduce((a, c) => a + Number(c.price_delta || 0), 0);
       const changeCost = approved.reduce((a, c) => a + Number(c.cost_delta || 0), 0);
-      const estCost = costs.reduce((a, c) => a + Number(c.estimated || 0), 0) + changeCost;
-      const actCost = costs.reduce((a, c) => a + (c.actual != null ? Number(c.actual) : 0), 0);
+      // vendor bookings not yet imported as cost lines — so vendor spend is never silently missing from cost
+      const importedBk = new Set(costs.map((c) => c.booking_id).filter(Boolean));
+      const vendorExtra = (bk || []).filter((b) => b.status !== "cancelled" && !importedBk.has(b.id) && b.cost != null)
+        .reduce((a, b) => a + Number(b.cost || 0), 0);
+      const lineEst = costs.reduce((a, c) => a + Number(c.estimated || 0), 0);
+      const lineActuals = costs.reduce((a, c) => a + (c.actual != null ? Number(c.actual) : 0), 0);
+      // best-known per line: use the actual where entered, otherwise fall back to that line's estimate
+      const lineBlend = costs.reduce((a, c) => a + (c.actual != null ? Number(c.actual) : Number(c.estimated || 0)), 0);
+      const estCost = lineEst + changeCost + vendorExtra;             // full estimated cost to deliver
+      const actCost = lineActuals;                                    // real money spent so far (entered actuals)
+      const finalCost = lineBlend + changeCost + vendorExtra;         // best-known total cost (actuals where entered, else estimate)
       const revenue = Number(baseRevenue) + changeRevenue;
-      const estMargin = revenue - estCost, actMargin = revenue - actCost;
-      return { revenue, baseRevenue, changeRevenue, estCost, actCost, changeCost, estMargin, actMargin,
+      const estMargin = revenue - estCost, actMargin = revenue - actCost, finalMargin = revenue - finalCost;
+      return { revenue, baseRevenue, changeRevenue, estCost, actCost, finalCost, changeCost, vendorExtra,
+        estMargin, actMargin, finalMargin,
         estMarginPct: revenue ? Math.round(estMargin / revenue * 100) : null,
+        finalMarginPct: revenue ? Math.round(finalMargin / revenue * 100) : null,
         costs, changes, pendingChanges: changes.filter((c) => c.status === "requested").length };
     },
   };
@@ -1140,7 +1151,8 @@
       const vendorOutstanding = vend.filter((x) => !x.settled).reduce((a, x) => a + Math.max(0, Number(x.cost || 0) - Number(x.advance || 0)), 0);
       const expTotal = exp.reduce((a, e) => a + Number(e.amount || 0), 0);
       const expPaid = exp.filter((e) => e.status === "paid").reduce((a, e) => a + Number(e.amount || 0), 0);
-      return { revenue, received, balance, estCost: b.estCost, actCost: b.actCost, estMargin: b.estMargin, actMargin: b.actMargin,
+      return { revenue, received, balance, estCost: b.estCost, actCost: b.actCost, finalCost: b.finalCost,
+        estMargin: b.estMargin, actMargin: b.actMargin, finalMargin: b.finalMargin,
         milestones: ms, bookings: vend, expenses: exp, vendorCost, vendorAdvance, vendorOutstanding, expTotal, expPaid };
     },
   };
@@ -1185,10 +1197,10 @@
     // profit & loss for the event
     async pl(quoteId) {
       const s = await settlement.summary(quoteId);
-      const cost = s.actCost || s.estCost;          // prefer actuals once entered
+      const cost = s.finalCost;                      // best-known total cost: actuals where entered, else the estimate — per line, plus vendor spend & approved change cost
       const profit = s.revenue - cost - s.expPaid;
       return { revenue: s.revenue, cost, expenses: s.expPaid, profit,
-        marginPct: s.revenue ? Math.round(profit / s.revenue * 100) : null, estCost: s.estCost, actCost: s.actCost };
+        marginPct: s.revenue ? Math.round(profit / s.revenue * 100) : null, estCost: s.estCost, actCost: s.actCost, finalCost: s.finalCost };
     },
   };
 

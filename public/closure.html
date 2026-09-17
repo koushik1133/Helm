@@ -119,8 +119,8 @@
   </div>
 </div>
 
-<script src="config.js?v=32"></script>
-<script src="store-api.js?v=32"></script>
+<script src="config.js?v=33"></script>
+<script src="store-api.js?v=33"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -141,7 +141,7 @@
     const pl=await BPStore.closure.pl(id);
     $("#plBody").innerHTML=`
       <div class="k">Revenue (client)</div><div class="v">${inr(pl.revenue)}</div>
-      <div class="k">Delivery cost${pl.actCost?" (actual)":" (estimated)"}</div><div class="v">− ${inr(pl.cost)}</div>
+      <div class="k">Delivery cost${(pl.actCost&&pl.actCost>=pl.finalCost)?" (actual)":pl.actCost?" (actual + est.)":" (estimated)"}</div><div class="v">− ${inr(pl.cost)}</div>
       <div class="k">Staff expenses paid</div><div class="v">− ${inr(pl.expenses)}</div>
       <div class="k tot">Profit</div><div class="v tot ${pl.profit>=0?'pos':'neg'}">${inr(pl.profit)}${pl.marginPct!=null?`  ·  ${pl.marginPct}%`:""}</div>`;
   }
