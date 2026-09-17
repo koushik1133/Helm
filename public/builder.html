@@ -268,6 +268,20 @@
   /* ---------- Modal ---------- */
   [hidden]{display:none!important}
   .qbadge{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-soft,#dbe6ff);border:1px solid var(--line);border-radius:20px;padding:5px 11px;white-space:nowrap}
+  .emptystate{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:5}
+  .viewport.is3d .emptystate{display:none!important}
+  .emptystate .es-card{pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:26px 30px;text-align:center;max-width:420px}
+  .emptystate .es-icon{font-size:40px;line-height:1}
+  .emptystate h3{margin:10px 0 4px;font-size:18px;color:var(--ink)}
+  .emptystate p{margin:0 0 16px;font-size:13px;color:var(--ink-3)}
+  .emptystate .es-btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:12px}
+  .emptystate small{color:var(--ink-3);font-size:11px}
+  .tpl-group{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin:12px 2px 6px}
+  .tpl-group:first-child{margin-top:0}
+  .tpl-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  @media(max-width:520px){.tpl-grid{grid-template-columns:1fr}}
+  .tpl-card{text-align:left;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:11px 13px;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer;transition:.12s}
+  .tpl-card:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-1px)}
   .qbadge.confirmed{color:#0f7a43;background:#e7f6ee;border-color:#b6e3ca}
   .modal{position:fixed;inset:0;background:rgba(20,27,46,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:24px}
   .sheet{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
@@ -463,6 +477,13 @@
 </div>
 
 <!-- CUSTOM EVENT builder -->
+<div class="modal" id="tplModal" hidden>
+  <div class="sheet" style="width:min(560px,94vw)">
+    <div class="sheet-head"><b>Choose a template</b><button class="tbtn icon" id="tplClose" title="Close">✕</button></div>
+    <div class="sheet-body" id="tplBody" style="padding:14px"></div>
+  </div>
+</div>
+
 <div class="modal" id="customModal" hidden>
   <div class="sheet" style="width:min(720px,95vw)">
     <div class="sheet-head">
@@ -559,6 +580,19 @@
     <div class="scroll" id="scroll">
       <svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg>
     </div>
+    <div class="emptystate" id="emptyState" hidden>
+      <div class="es-card">
+        <div class="es-icon">🎪</div>
+        <h3>This event is a blank floor</h3>
+        <p>Start it your way — everything is editable afterwards.</p>
+        <div class="es-btns">
+          <button class="tbtn primary" id="es_template">📋 Load a template</button>
+          <button class="tbtn" id="es_custom">✨ Custom Event</button>
+          <button class="tbtn" id="es_blank">Start blank</button>
+        </div>
+        <small>…or drag any asset from the toolbox on the left onto the floor.</small>
+      </div>
+    </div>
     <!-- 3D rendered view (hidden until 3D mode) -->
     <div class="stage3d" id="stage3d" hidden>
       <canvas id="scene3d"></canvas>
@@ -592,8 +626,8 @@
   </aside>
 </main>
 
-<script src="config.js?v=8"></script>
-<script src="store-api.js?v=8"></script>
+<script src="config.js?v=10"></script>
+<script src="store-api.js?v=10"></script>
 <script>
 /* =========================================================================
    BLUEPRINT STAGE — 2D Event Layout & Blueprint Builder
@@ -935,6 +969,7 @@ function renderAll(){
   renderState();
   updateStatus();
   updateCapacityUI();
+  updateEmptyState();
   if(window.__on3DStateChange) window.__on3DStateChange();   // keep 3D preview in sync
 }
 
@@ -2488,6 +2523,39 @@ window.addEventListener('keydown',e=>{
 /* toast */
 let toastT;
 function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),1600); }
+
+/* empty-floor start guide (shown when an event has no objects, 2D plan only) */
+function updateEmptyState(){
+  const es=$('#emptyState'); if(!es) return;
+  const threeD = $('#stage3d') && !$('#stage3d').hidden;
+  es.hidden = RO || threeD || (store.items && store.items.length>0);
+}
+// clean template picker built from the #preset dropdown's optgroups
+function openTemplatePicker(){
+  const preset=$('#preset'), body=$('#tplBody'); if(!preset||!body) return;
+  let html='';
+  preset.querySelectorAll('optgroup').forEach(g=>{
+    html+=`<div class="tpl-group">${g.label}</div><div class="tpl-grid">`;
+    g.querySelectorAll('option').forEach(o=>{ if(o.value) html+=`<button class="tpl-card" data-k="${o.value}">${o.textContent}</button>`; });
+    html+='</div>';
+  });
+  body.innerHTML=html;
+  body.querySelectorAll('.tpl-card').forEach(c=>c.addEventListener('click',()=>{
+    closeTemplatePicker();
+    if(store.items.length && !confirm('Load this template? It replaces the current floor.')) return;
+    loadTemplate(c.dataset.k); const es=$('#emptyState'); if(es) es.hidden=true;
+  }));
+  $('#tplModal').hidden=false;
+}
+function closeTemplatePicker(){ const m=$('#tplModal'); if(m) m.hidden=true; }
+(function wireEmptyState(){
+  const t=$('#es_template'), c=$('#es_custom'), b=$('#es_blank');
+  if(t) t.addEventListener('click',openTemplatePicker);
+  if(c) c.addEventListener('click',()=>{ if(typeof openCustomModal==='function') openCustomModal(); });
+  if(b) b.addEventListener('click',()=>{ const es=$('#emptyState'); if(es) es.hidden=true; });
+  const tc=$('#tplClose'); if(tc) tc.addEventListener('click',closeTemplatePicker);
+  const tm=$('#tplModal'); if(tm) tm.addEventListener('click',e=>{ if(e.target.id==='tplModal') closeTemplatePicker(); });
+})();
 
 /* ===================================================================
    PERSISTENCE  — REST backend with graceful localStorage fallback

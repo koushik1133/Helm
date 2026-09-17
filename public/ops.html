@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Operations — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+  .evhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .evhead .code{font-family:var(--mono);font-weight:700;font-size:18px;color:var(--accent)}
+  .evhead .ttl{font-size:16px;font-weight:600} .evhead .muted{color:var(--ink-3);font-size:12px}
+  h3{font-size:13px;margin:0 0 12px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
+  .btn{height:36px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
+  .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.5;cursor:default}
+  .btn.sm{height:28px;font-size:12px;padding:0 10px}
+  input,select{height:36px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
+  input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .crewrow{display:grid;grid-template-columns:1.3fr 1fr 1fr auto;gap:8px;align-items:center;margin-bottom:8px}
+  @media(max-width:640px){.crewrow{grid-template-columns:1fr 1fr}}
+  .chip{display:inline-flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-size:12px;margin:0 6px 6px 0}
+  .chip .dep{font-size:9px;font-weight:700;text-transform:uppercase;color:var(--ink-3)}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .tabs button{border:1px solid var(--line);background:var(--panel-2);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;color:var(--ink-2);padding:7px 12px;cursor:pointer}
+  .tabs button.on{background:var(--accent);color:#fff;border-color:transparent}
+  .tasklist{display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:320px;overflow:auto;padding:2px}
+  @media(max-width:640px){.tasklist{grid-template-columns:1fr}}
+  .titem{display:flex;gap:8px;align-items:center;font-size:13px;padding:7px 9px;border:1px solid var(--line-2);border-radius:8px;background:var(--panel-2)}
+  .titem input{width:18px;height:18px;accent-color:var(--accent)}
+  .assignbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+  .grp{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+  .grp .gh{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .grp .gh b{font-size:14px} .grp .gh .ph{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+  .trow{display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 0;border-top:1px solid var(--line-2)}
+  .trow .tt{flex:1} .trow .cat{font-size:10px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em;width:90px}
+  .st{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:20px;white-space:nowrap}
+  .st.unassigned{background:#eceff3;color:#6b7686} .st.assigned{background:#eef2ff;color:#4457c8} .st.accepted{background:#e6f6f2;color:#0f766e}
+  .st.in_progress{background:#fff7e6;color:#946200} .st.completed{background:#e7f6ee;color:#0f7a43} .st.rejected{background:#fdecec;color:#b42318}
+  .muted{color:var(--ink-3);font-size:12px} .empty{text-align:center;color:var(--ink-3);padding:26px;font-size:13px}
+  .linkline{display:flex;gap:8px;align-items:center;margin-top:6px}
+  .linkline input{flex:1;font-family:var(--mono);font-size:11px;height:30px}
+  .msg{border-radius:8px;padding:8px 11px;font-size:13px;margin-bottom:10px}
+  .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca} .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
+  /* login modal */
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,94vw);padding:26px;text-align:center}
+  .lsheet h3{color:var(--ink);text-transform:none;letter-spacing:0;font-size:18px;margin:8px 0 4px}
+  .lsheet label{display:block;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin:0 0 4px}
+  .lsheet input{width:100%;margin-bottom:12px}
+  .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Operations</h1><small>Blueprint Stage</small></div>
+    <nav class="nav"><a href="index.html">Home</a><a href="quotes.html">Quotes</a><a href="builder.html">Builder</a><a href="control.html">Control Center</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card" hidden><p class="muted">Please sign in as a manager to run operations.</p></div>
+  <div id="noquote" class="card" hidden><p class="muted">Open an event from <a href="quotes.html" style="color:var(--accent)">Quotes</a> → Operations.</p></div>
+
+  <div id="app" hidden>
+    <div class="card evhead" id="evhead"></div>
+
+    <div class="card">
+      <h3>Crew</h3>
+      <div id="crewChips"></div>
+      <div class="crewrow" style="margin-top:10px">
+        <input id="cr_name" placeholder="Name (e.g. Karthik)">
+        <input id="cr_phone" placeholder="Phone (+91…)">
+        <select id="cr_dept"></select>
+        <button class="btn" id="cr_add">+ Add crew</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Assign work</h3>
+      <div id="msg"></div>
+      <div class="tabs" id="catTabs"></div>
+      <label style="font-size:12px;color:var(--ink-2);display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <input type="checkbox" id="selAll" style="width:18px;height:18px;accent-color:var(--accent)"> Select all in this category</label>
+      <div class="tasklist" id="taskList"></div>
+      <div class="assignbar">
+        <span class="muted"><b id="selCount">0</b> selected →</span>
+        <select id="assignCrew" style="min-width:180px"></select>
+        <button class="btn primary" id="assignBtn">Assign selected →</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Live status</h3>
+      <div id="dashboard"></div>
+    </div>
+  </div>
+</div>
+
+<div class="lmodal" id="loginModal" hidden>
+  <form class="lsheet" id="loginForm">
+    <div class="mark" style="margin:0 auto 12px"></div>
+    <h3>Sign in</h3>
+    <label>Email</label><input type="email" id="li_email" required>
+    <label>Password</label><input type="password" id="li_pw" required>
+    <div class="lerr" id="li_err" hidden></div>
+    <button class="btn primary" id="li_submit" type="submit" style="width:100%;justify-content:center">Sign in</button>
+  </form>
+</div>
+
+<script src="config.js?v=10"></script>
+<script src="store-api.js?v=10"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const quoteId=new URLSearchParams(location.search).get("quote");
+  const CATS=["Stage","Decoration","Lighting","Catering","Labor","Transportation"];
+  let quote=null, crew=[], tasks=[], tokens=[], activeCat="Stage";
+
+  function setMsg(kind,t){ const m=$("#msg"); if(!t){m.innerHTML="";return;} m.innerHTML=`<div class="msg ${kind}">${esc(t)}</div>`; }
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  async function load(){
+    await BPStore.init(); await renderAccount();
+    if(!quoteId){ $("#noquote").hidden=false; return; }
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    const canEdit=await BPStore.auth.can("edit");
+    try{ quote=await BPStore.quotes.get(quoteId); }
+    catch(e){ $("#noquote").hidden=false; return; }
+    $("#app").hidden=false;
+    $("#evhead").innerHTML=`<span class="code">${esc(quote.code)}</span><span class="ttl">${esc(quote.title||"")}</span>
+      <span class="muted">${esc(quote.eventType||"")} · ${esc(quote.status)}</span>`;
+    // dept + crew dropdowns
+    $("#cr_dept").innerHTML=CATS.map(c=>`<option>${c}</option>`).join("");
+    $("#catTabs").innerHTML=CATS.map(c=>`<button data-c="${c}" class="${c===activeCat?'on':''}">${c}</button>`).join("");
+    $("#catTabs").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ activeCat=b.dataset.c;
+      $("#catTabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); $("#selAll").checked=false; renderTasks(); }));
+    if(!canEdit){ ["cr_add","assignBtn"].forEach(id=>{const e=$("#"+id); if(e)e.disabled=true;}); setMsg("err","Your role is view-only for operations."); }
+    await refresh();
+    renderTasks();
+  }
+  async function refresh(){
+    [crew,tasks,tokens]=await Promise.all([BPStore.ops.listCrew(), BPStore.ops.listTasks(quoteId), BPStore.ops.listTokens(quoteId)]);
+    renderCrew(); renderDashboard();
+    const opts=`<option value="">— pick crew —</option>`+crew.map(c=>`<option value="${c.id}">${esc(c.name)} · ${esc(c.phone)}</option>`).join("");
+    $("#assignCrew").innerHTML=opts;
+  }
+  function renderCrew(){
+    $("#crewChips").innerHTML = crew.length? crew.map(c=>`<span class="chip">${esc(c.name)} <span class="dep">${esc(c.department||"")}</span> · ${esc(c.phone)}</span>`).join("")
+      : '<span class="muted">No crew yet — add people below.</span>';
+  }
+  async function renderTasks(){
+    let tpl; try{ tpl=await BPStore.ops.templates(activeCat); }catch(e){ $("#taskList").innerHTML='<span class="muted">Run operations.sql to load task templates.</span>'; return; }
+    $("#taskList").innerHTML=tpl.map(t=>`<label class="titem"><input type="checkbox" class="tk" value="${esc(t.title)}"> ${esc(t.title)}</label>`).join("");
+    $("#taskList").querySelectorAll(".tk").forEach(c=>c.addEventListener("change",updateSel)); updateSel();
+  }
+  function updateSel(){ $("#selCount").textContent=$("#taskList").querySelectorAll(".tk:checked").length; }
+  $("#selAll") && $("#selAll").addEventListener("change",e=>{ $("#taskList").querySelectorAll(".tk").forEach(c=>c.checked=e.target.checked); updateSel(); });
+
+  $("#assignBtn") && $("#assignBtn").addEventListener("click",async()=>{
+    setMsg();
+    const titles=[...$("#taskList").querySelectorAll(".tk:checked")].map(c=>c.value);
+    const crewId=$("#assignCrew").value;
+    if(!titles.length){ setMsg("err","Select at least one task."); return; }
+    if(!crewId){ setMsg("err","Pick a crew member."); return; }
+    const c=crew.find(x=>x.id===crewId);
+    const b=$("#assignBtn"); b.disabled=true; b.textContent="Assigning…";
+    try{ const r=await BPStore.ops.assignTasks(quoteId, activeCat, titles, c.id, c.name, c.phone);
+      setMsg("ok", `Assigned ${r.tasks_created} ${activeCat} task(s) to ${c.name}. Worker link ready below.`);
+      $("#selAll").checked=false; await refresh(); await renderTasks();
+    }catch(e){ setMsg("err",(e&&e.message)||"Assign failed"); }
+    finally{ b.disabled=false; b.textContent="Assign selected →"; }
+  });
+
+  $("#cr_add") && $("#cr_add").addEventListener("click",async()=>{
+    const name=$("#cr_name").value.trim(), phone=$("#cr_phone").value.trim(), dept=$("#cr_dept").value;
+    if(name.length<2||phone.replace(/[^0-9]/g,"").length<8){ setMsg("err","Enter a valid name and phone."); return; }
+    try{ await BPStore.ops.addCrew(name,phone,dept); $("#cr_name").value="";$("#cr_phone").value=""; await refresh(); setMsg("ok","Crew added."); }
+    catch(e){ setMsg("err",(e&&e.message)||"Couldn't add crew"); }
+  });
+
+  const STATUS_LABEL={unassigned:"Unassigned",assigned:"Assigned",accepted:"Accepted",in_progress:"In progress",completed:"Completed",rejected:"Rejected",cancelled:"Cancelled"};
+  function renderDashboard(){
+    const host=$("#dashboard");
+    if(!tasks.length){ host.innerHTML='<div class="empty">No tasks assigned yet. Pick a category above, select tasks, choose a crew member, and Assign.</div>'; return; }
+    // group by assignee phone
+    const byPhone={}; tasks.forEach(t=>{ const k=t.assignee_phone||"—"; (byPhone[k]=byPhone[k]||[]).push(t); });
+    const tokenFor=(phone)=>{ const w=tokens.find(x=>x.phone===phone); return w? location.origin+"/work.html?token="+w.token : null; };
+    host.innerHTML=Object.entries(byPhone).map(([phone,ts])=>{
+      const name=ts[0].assignee_name||"Unassigned"; const link=tokenFor(phone);
+      const done=ts.filter(t=>t.status==='completed').length;
+      const rows=ts.map(t=>`<div class="trow" data-id="${t.id}">
+        <span class="cat">${esc(t.category)}</span><span class="tt">${esc(t.title)}</span>
+        <span class="st ${t.status}">${STATUS_LABEL[t.status]||t.status}</span>
+        ${['rejected','assigned'].includes(t.status)?`<button class="btn sm reassign">Reassign</button>`:""}</div>`).join("");
+      return `<div class="grp"><div class="gh"><b>${esc(name)}</b><span class="ph">${esc(phone)}</span>
+        <span class="muted">${done}/${ts.length} done</span></div>${rows}
+        ${link?`<div class="linkline"><input readonly value="${esc(link)}"><button class="btn sm copy" data-l="${esc(link)}">Copy link</button></div>
+          <div class="muted" style="margin-top:4px">In simulation the worker link is shown here; when SMS is live it's texted to ${esc(phone)}.</div>`:""}</div>`;
+    }).join("");
+    host.querySelectorAll(".copy").forEach(b=>b.addEventListener("click",async()=>{ try{await navigator.clipboard.writeText(b.dataset.l); b.textContent="Copied ✓"; setTimeout(()=>b.textContent="Copy link",1400);}catch{} }));
+    host.querySelectorAll(".reassign").forEach(b=>b.addEventListener("click",async()=>{
+      const id=b.closest(".trow").dataset.id;
+      const name=prompt("Reassign to which crew? Type their exact name:"); if(!name) return;
+      const c=crew.find(x=>x.name.toLowerCase()===name.trim().toLowerCase());
+      if(!c){ setMsg("err","No active crew named '"+name+"'. Add them first."); return; }
+      try{ await BPStore.ops.reassign(id,c.id,c.name,c.phone); await refresh(); setMsg("ok","Reassigned to "+c.name+"."); }
+      catch(e){ setMsg("err",(e&&e.message)||"Reassign failed"); }
+    }));
+  }
+
+  $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
+    const btn=$("#li_submit"); btn.disabled=true; btn.textContent="Signing in…"; $("#li_err").hidden=true;
+    try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pw").value); closeLogin(); $("#gate").hidden=true; await load(); }
+    catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign-in failed"; $("#li_err").hidden=false; }
+    finally{ btn.disabled=false; btn.textContent="Sign in"; } });
+  $("#loginModal").addEventListener("click",e=>{ if(e.target.id==="loginModal"&&BPStore.auth.user()) closeLogin(); });
+  // live dashboard — poll tasks/statuses so accepts/starts/completes appear without reloading
+  async function refreshDashboard(){ if(!quoteId) return;
+    try{ [tasks,tokens]=await Promise.all([BPStore.ops.listTasks(quoteId), BPStore.ops.listTokens(quoteId)]); renderDashboard(); }catch{} }
+  setInterval(()=>{ if(!document.hidden && !$("#app").hidden) refreshDashboard(); }, 7000);
+  load();
+</script>
+</body>
+</html>

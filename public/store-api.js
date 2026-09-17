@@ -316,8 +316,62 @@
       .select("*").eq("quote_id", quoteId).order("created_at", { ascending: false }); if (error) throw error; return data; },
   };
 
+  /* ---------------- event operations: crew + tasks ---------------- */
+  const ops = {
+    // ---- manager (authenticated) ----
+    async templates(category) { if (!supa) throw new Error("Supabase not configured");
+      let q = supa.from("task_templates").select("category,title,seq").order("category").order("seq");
+      if (category) q = q.eq("category", category);
+      const { data, error } = await q; if (error) throw error; return data; },
+    async categories() { const t = await this.templates(); return [...new Set(t.map((x) => x.category))]; },
+    async listCrew() { if (!supa) throw new Error("Supabase not configured");
+      const { data, error } = await supa.from("crew_members").select("*").eq("active", true).order("name");
+      if (error) throw error; return data; },
+    async addCrew(name, phone, department) { if (!supa) throw new Error("Supabase not configured");
+      const { data, error } = await supa.from("crew_members").insert({ name, phone, department }).select().single();
+      if (error) throw error; return data; },
+    async deactivateCrew(id) { const { error } = await supa.from("crew_members").update({ active: false }).eq("id", id); if (error) throw error; return true; },
+    async listTasks(quoteId) { if (!supa) throw new Error("Supabase not configured");
+      const { data, error } = await supa.from("event_tasks").select("*").eq("quote_id", quoteId).order("category").order("seq");
+      if (error) throw error; return data; },
+    async listTokens(quoteId) { if (!supa) throw new Error("Supabase not configured");
+      const { data, error } = await supa.from("work_tokens").select("token,phone,name").eq("quote_id", quoteId);
+      if (error) throw error; return data; },
+    assignTasks: (quoteId, category, titles, crewId, name, phone) => rpc("assign_tasks",
+      { p_quote_id: quoteId, p_category: category, p_titles: titles, p_crew_id: crewId || null, p_name: name, p_phone: phone }),
+    reassign: (taskId, crewId, name, phone) => rpc("reassign_task",
+      { p_task_id: taskId, p_crew_id: crewId || null, p_name: name, p_phone: phone }),
+    async setEventManager(quoteId, managerId) { const { error } = await supa.from("quotes").update({ manager_id: managerId }).eq("id", quoteId); if (error) throw error; return true; },
+    // ---- worker (no login; token-scoped) ----
+    worker: {
+      getTasks: (token) => rpc("worker_get_tasks", { p_token: token }),
+      respond: (token, taskId, action) => rpc("worker_respond", { p_token: token, p_task_id: taskId, p_action: action }),
+    },
+  };
+
+  /* ---------------- control center: pricing config, vendors, coupons ---------------- */
+  const config = {
+    getPricing: () => rpc("get_pricing_config"),
+    setPricing: (p) => rpc("set_pricing_config", { p }),
+  };
+  const vendors = {
+    async list() { if (!supa) throw new Error("Supabase not configured");
+      const { data, error } = await supa.from("vendors").select("*").eq("active", true).order("name"); if (error) throw error; return data; },
+    async add(name, category, phone) { const { data, error } = await supa.from("vendors").insert({ name, category, phone }).select().single(); if (error) throw error; return data; },
+    async remove(id) { const { error } = await supa.from("vendors").update({ active: false }).eq("id", id); if (error) throw error; return true; },
+  };
+  const coupons = {
+    async list() { if (!supa) throw new Error("Supabase not configured");
+      const { data, error } = await supa.from("coupons").select("*").eq("active", true).order("code"); if (error) throw error; return data; },
+    async add(code, kind, value, note) { const { data, error } = await supa.from("coupons").insert({ code, kind, value, note }).select().single(); if (error) throw error; return data; },
+    async remove(id) { const { error } = await supa.from("coupons").update({ active: false }).eq("id", id); if (error) throw error; return true; },
+  };
+  // extend approval with a manager "send the link by SMS" (simulated unless sms_live)
+  approval.sendLinkSms = (quoteId, phone, url) => rpc("mgr_notify",
+    { p_quote_id: quoteId, p_channel: "sms", p_to: phone, p_kind: "approval_link", p_detail: { url } });
+
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

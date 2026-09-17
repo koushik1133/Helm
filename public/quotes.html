@@ -84,6 +84,8 @@
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin:12px 0 0}
   .modbtns{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
   .taxnote{font-size:11px;color:var(--ink-3);margin-top:6px;line-height:1.5}
+  .msg{border-radius:8px;padding:8px 11px;font-size:13px}
+  .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca} .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
 </style>
 </head>
 <body>
@@ -91,7 +93,7 @@
   <header>
     <a href="index.html" class="mark" title="Home"></a>
     <div><h1>Quotes &amp; Confirmations</h1><small>Blueprint Stage</small></div>
-    <nav class="nav"><a href="index.html">Home</a><a href="builder.html">Builder</a></nav>
+    <nav class="nav"><a href="index.html">Home</a><a href="builder.html">Builder</a><a href="control.html">Control Center</a></nav>
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
@@ -138,41 +140,33 @@
       <div class="fld" style="grid-column:1/-1"><label>Notes</label><textarea id="c_notes" placeholder="Anything to remember…"></textarea></div>
     </div>
 
-    <div class="seclabel">Pricing (₹ INR)</div>
+    <div class="seclabel">Pricing (₹ INR) <span class="muted" id="rateNote" style="text-transform:none;letter-spacing:0"></span></div>
     <div class="grid three">
       <div class="fld"><label>Chairs (count)</label><input id="p_chairs" type="number" min="0" step="1"></div>
-      <div class="fld"><label>Price / chair</label><input id="p_chairPrice" type="number" min="0" step="1" value="0"></div>
-      <div class="fld"><label>Chair GST %</label><input id="p_gst" type="number" min="0" step="0.5" value="18"></div>
       <div class="fld"><label>Guests / plates</label><input id="p_guests" type="number" min="0" step="1"></div>
-      <div class="fld"><label>Price / plate</label><input id="p_platePrice" type="number" min="0" step="1" value="0"></div>
-      <div class="fld"><label>Catering GST %</label><input id="p_cgst" type="number" min="0" step="0.5" value="18" title="5% outdoor (no ITC) or 18% (premises)"></div>
+      <div class="fld"><label>Place of supply</label>
+        <select id="p_pos"><option value="intra">Intra-state (CGST + SGST)</option><option value="inter">Inter-state (IGST)</option></select></div>
     </div>
     <div class="grid three" style="margin-top:10px">
       <div class="fld"><label>Catering source</label>
         <select id="p_cmode">
           <option value="inhouse">In-house catering</option>
           <option value="vendor">Outsourced — vendor</option>
-          <option value="client">Client-provided (no charge)</option>
+          <option value="client">Client-provided (no plate charge)</option>
         </select>
       </div>
-      <div class="fld"><label>Vendor name</label><input id="p_vendor" placeholder="If outsourced"></div>
-      <div class="fld"><label>Catering charge ₹</label><input id="p_camount" type="number" min="0" step="1" value="0" title="Extra catering bill beyond per-plate"></div>
+      <div class="fld"><label>Vendor</label><select id="p_vendor"></select></div>
+      <div class="fld"><label>Catering charge ₹ (extra)</label><input id="p_camount" type="number" min="0" step="1" value="0" title="Any vendor bill on top of per-plate"></div>
     </div>
     <div class="grid three" style="margin-top:10px">
-      <div class="fld"><label>Other charges ₹</label><input id="p_other" type="number" min="0" step="1" value="0"></div>
-      <div class="fld"><label>Service charge %</label><input id="p_svc" type="number" min="0" step="0.5" value="0" title="Optional, not a tax"></div>
+      <div class="fld"><label>Coupon</label><select id="p_coupon"><option value="">— none —</option></select></div>
       <div class="fld"><label>Discount ₹</label><input id="p_discount" type="number" min="0" step="1" value="0"></div>
+      <div class="fld"><label>Discount %</label><input id="p_discountPct" type="number" min="0" max="100" step="0.5" value="0"></div>
     </div>
-    <div class="grid" style="margin-top:10px">
-      <div class="fld"><label>Place of supply</label>
-        <select id="p_pos">
-          <option value="intra">Intra-state (CGST + SGST)</option>
-          <option value="inter">Inter-state (IGST)</option>
-        </select>
-      </div>
-      <div class="fld"><label>Currency</label><input value="INR — ₹" disabled></div>
-    </div>
-    <div class="taxnote">Only <b>GST</b> applies as a tax in India (VAT/“VST” was replaced by GST in 2017). Catering is 5% (outdoor, no ITC) or 18% (premises). Service charge is optional and not a tax. Confirm with a CA for your case.</div>
+    <!-- rates come from the Control Center; kept as hidden inputs so the calculator stays unchanged -->
+    <input type="hidden" id="p_chairPrice"><input type="hidden" id="p_platePrice"><input type="hidden" id="p_gst">
+    <input type="hidden" id="p_cgst"><input type="hidden" id="p_svc"><input type="hidden" id="p_other" value="0">
+    <div class="taxnote">Rates (₹/chair, ₹/plate, GST) are set once in the <a href="control.html" style="color:var(--accent)">Control Center</a>. Enter a coupon or discount here. Only GST applies as a tax in India; confirm with a CA.</div>
 
     <div class="totals" id="totals"></div>
     <div class="lerr" id="cm_err" hidden></div>
@@ -190,8 +184,10 @@
     <h3>🔗 Client approval link <button class="close" id="lk_close" type="button">✕</button></h3>
     <p class="sub">Share this link with the client. They review the terms, verify an OTP on their phone, consent, and pay. You'll see the status update here.</p>
     <div class="fld"><label>Approval link</label><input id="lk_url" readonly></div>
+    <div id="lk_msg"></div>
     <div class="modbtns">
       <button class="btn" id="lk_copy" type="button">Copy link</button>
+      <button class="btn" id="lk_sms" type="button">📱 Send as text message</button>
       <a class="btn primary" id="lk_open" href="#" target="_blank" rel="noopener">Open the client page →</a>
     </div>
     <p class="taxnote">In simulation mode the OTP is shown on the client page for testing. Once you deploy the Edge Functions and enable live channels, the OTP and payment link go out by SMS (MSG91) and email (Resend), and payment runs through Razorpay.</p>
@@ -211,8 +207,8 @@
   </form>
 </div>
 
-<script src="config.js?v=8"></script>
-<script src="store-api.js?v=8"></script>
+<script src="config.js?v=10"></script>
+<script src="store-api.js?v=10"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
   const esc = (s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -237,9 +233,13 @@
     const cateringAmt = clientCater?0:(+((p.catering&&p.catering.amount))||0);
     const cateringBucket = plateSub + cateringAmt;
     const gstPct=+p.gstPct||0, cGstPct=clientCater?0:(+((p.catering&&p.catering.gstPct))||0);
-    const svcPct=+p.serviceChargePct||0, discount=+p.discount||0;
+    const svcPct=+p.serviceChargePct||0;
     const serviceCharge = (rental+cateringBucket)*svcPct/100;
     const subtotal = rental + cateringBucket + serviceCharge;
+    // discount = flat ₹ + discount % of subtotal + coupon (% or ₹)
+    let discount = (+p.discount||0) + subtotal*(+p.discountPct||0)/100;
+    if(p.coupon && p.coupon.value){ discount += p.coupon.kind==="percent" ? subtotal*(+p.coupon.value)/100 : (+p.coupon.value); }
+    discount = Math.min(discount, subtotal);   // never below zero pre-tax
     const gstRental = (rental+serviceCharge)*gstPct/100;
     const gstCatering = cateringBucket*cGstPct/100;
     const totalGst = gstRental + gstCatering;
@@ -294,6 +294,7 @@
           <button class="ic go" data-act="edit">Edit</button>
           ${canEdit?`<button class="ic confirm" data-act="confirm">${x.status==="confirmed"?"Re-price":"Confirm"}</button>`:""}
           ${canEdit&&x.status==="confirmed"?`<button class="ic" data-act="link" title="Get the client approval link">🔗 Approve link</button>`:""}
+          <button class="ic go" data-act="ops" title="Assign & track work">⚙ Ops</button>
           ${canEdit&&x.approvalStatus==="approved"?`<button class="ic confirm" data-act="paid" title="Mark payment received (dev)">Mark paid</button>`:""}
           <button class="ic" data-act="download">Download</button>
           ${canDelete?`<button class="ic del" data-act="del">✕</button>`:""}
@@ -309,6 +310,7 @@
         if(act==="edit") location.href="builder.html?quote="+encodeURIComponent(id)+(ver?"&v="+ver:"");
         else if(act==="confirm") openConfirm(id);
         else if(act==="download") downloadQuote(id, ver);
+        else if(act==="ops") location.href="ops.html?quote="+encodeURIComponent(id);
         else if(act==="link") sendApprovalLink(id);
         else if(act==="paid") markPaid(id);
         else if(act==="del") delQuote(id);
@@ -323,7 +325,7 @@
   }
 
   /* ---------- confirm / pricing modal ---------- */
-  let cmId=null;
+  let cmId=null, cmConfig=null, cmVendors=[], cmCoupons=[], platesEdited=false;
   async function openConfirm(id){
     cmId=id; $("#cm_err").hidden=true;
     let full; try{ full=detailCache[id]||(detailCache[id]=await BPStore.quotes.get(id)); }catch(e){ alert("Couldn't open: "+(e&&e.message)); return; }
@@ -333,29 +335,49 @@
     $("#c_name").value=cl.name||""; $("#c_company").value=cl.company||""; $("#c_email").value=cl.email||"";
     $("#c_phone").value=cl.phone||""; $("#c_date").value=cl.eventDate||""; $("#c_venue").value=cl.venue||"";
     $("#c_address").value=cl.address||""; $("#c_notes").value=cl.notes||"";
+    // central rates + vendors + coupons from the Control Center
+    cmConfig={chairPrice:200,platePrice:500,gstPct:18,cateringGstPct:18,serviceChargePct:0};
+    try{ cmConfig=await BPStore.config.getPricing(); }catch{}
+    try{ cmVendors=await BPStore.vendors.list(); }catch{ cmVendors=[]; }
+    try{ cmCoupons=await BPStore.coupons.list(); }catch{ cmCoupons=[]; }
+    const cfg=cmConfig;
+    $("#rateNote").textContent = `· ₹${cfg.chairPrice}/chair · ₹${cfg.platePrice}/plate · GST ${cfg.gstPct}%  (edit in Control Center)`;
     // seat counts from current version
     let seats=0; try{ const v=await BPStore.quotes.getVersion(id, full.currentVersion); seats=countSeats(v.data&&v.data.items); }catch{}
     $("#p_chairs").value = pr.chairs!=null?pr.chairs:seats;
-    $("#p_guests").value = pr.guests!=null?pr.guests:seats;
-    $("#p_chairPrice").value = pr.chairPrice||0; $("#p_platePrice").value = pr.platePrice||0;
-    $("#p_gst").value = pr.gstPct!=null?pr.gstPct:18;
-    $("#p_cgst").value = (pr.catering&&pr.catering.gstPct)!=null?pr.catering.gstPct:18;
-    $("#p_cmode").value = (pr.catering&&pr.catering.mode)||"inhouse";
+    $("#p_guests").value = pr.guests!=null?pr.guests:(pr.chairs!=null?pr.chairs:seats);   // plates auto = chairs
+    // rates always come from the Control Center config (fixed globally, hidden here)
+    $("#p_chairPrice").value = cfg.chairPrice;
+    $("#p_platePrice").value = cfg.platePrice;
+    $("#p_gst").value = cfg.gstPct;
+    $("#p_cgst").value = cfg.cateringGstPct;
+    $("#p_svc").value = cfg.serviceChargePct||0;
+    $("#p_other").value = pr.other||0;
+    // vendor dropdown (+ add new)
+    $("#p_vendor").innerHTML = `<option value="">— none —</option>`+cmVendors.map(v=>`<option>${esc(v.name)}</option>`).join("")+`<option value="__new">＋ Add new vendor…</option>`;
     $("#p_vendor").value = (pr.catering&&pr.catering.vendor)||"";
+    // coupon dropdown
+    $("#p_coupon").innerHTML = `<option value="">— none —</option>`+cmCoupons.map(c=>`<option value="${esc(c.code)}">${esc(c.code)} (${c.kind==='percent'?c.value+'%':'₹'+c.value})</option>`).join("");
+    $("#p_coupon").value = pr.couponCode||"";
+    $("#p_cmode").value = (pr.catering&&pr.catering.mode)||"inhouse";
     $("#p_camount").value = (pr.catering&&pr.catering.amount)||0;
-    $("#p_other").value = pr.other||0; $("#p_svc").value = pr.serviceChargePct||0; $("#p_discount").value = pr.discount||0;
+    $("#p_discount").value = pr.discount||0; $("#p_discountPct").value = pr.discountPct||0;
     $("#p_pos").value = pr.placeOfSupply||"intra";
+    platesEdited = pr.guests!=null && pr.chairs!=null && pr.guests!==pr.chairs;
     recalc();
     $("#confirmModal").hidden=false;
   }
   function closeConfirm(){ $("#confirmModal").hidden=true; }
   function gatherPricing(){
+    const couponCode=$("#p_coupon").value; const cp=cmCoupons.find(c=>c.code===couponCode)||null;
+    const vsel=$("#p_vendor").value;
     return { chairs:+$("#p_chairs").value||0, chairPrice:+$("#p_chairPrice").value||0,
       guests:+$("#p_guests").value||0, platePrice:+$("#p_platePrice").value||0,
       gstPct:+$("#p_gst").value||0, other:+$("#p_other").value||0,
-      serviceChargePct:+$("#p_svc").value||0, discount:+$("#p_discount").value||0,
+      serviceChargePct:+$("#p_svc").value||0, discount:+$("#p_discount").value||0, discountPct:+$("#p_discountPct").value||0,
+      couponCode: cp?couponCode:"", coupon: cp?{kind:cp.kind,value:cp.value}:null,
       placeOfSupply:$("#p_pos").value, currency:"INR",
-      catering:{ mode:$("#p_cmode").value, vendor:$("#p_vendor").value.trim(), amount:+$("#p_camount").value||0, gstPct:+$("#p_cgst").value||0 } };
+      catering:{ mode:$("#p_cmode").value, vendor: vsel==="__new"?"":vsel, amount:+$("#p_camount").value||0, gstPct:+$("#p_cgst").value||0 } };
   }
   function gatherClient(){
     return { name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:$("#c_email").value.trim(),
@@ -432,9 +454,12 @@
     catch(e){ alert("Couldn't delete: "+((e&&e.message)||"not permitted")); }
   }
   // generate/return the per-quote client approval link (OTP + consent + payment)
+  let lkQuoteId=null, lkPhone="";
   async function sendApprovalLink(id){
     try{ const tok=await BPStore.approval.generateToken(id);
       const url=location.origin+"/approve.html?token="+tok;
+      lkQuoteId=id; $("#lk_msg").innerHTML="";
+      try{ const q=(quotes.find(x=>x.id===id)); lkPhone=(q&&q.client&&q.client.phone)|| (q&&q.pricing&&q.pricing.client&&q.pricing.client.phone) ||""; }catch{ lkPhone=""; }
       $("#lk_url").value=url; $("#lk_open").href=url; $("#linkModal").hidden=false;
       await load();   // reflect approval_status=sent
     }catch(e){ alert("Couldn't create link: "+((e&&e.message)||"error")); }
@@ -455,10 +480,31 @@
   $("#lk_copy").addEventListener("click",async()=>{ const i=$("#lk_url"); i.select();
     try{ await navigator.clipboard.writeText(i.value); $("#lk_copy").textContent="Copied ✓"; setTimeout(()=>$("#lk_copy").textContent="Copy link",1500); }
     catch{ document.execCommand("copy"); } });
+  $("#lk_sms").addEventListener("click",async()=>{
+    const m=$("#lk_msg");
+    if(!lkPhone){ m.innerHTML='<div class="msg err" style="margin:0 0 10px">No client phone on this quote — add one via Confirm first.</div>'; return; }
+    const b=$("#lk_sms"); b.disabled=true; b.textContent="Sending…";
+    try{ const r=await BPStore.approval.sendLinkSms(lkQuoteId, lkPhone, $("#lk_url").value);
+      m.innerHTML=`<div class="msg ok" style="margin:0 0 10px">${r&&r.logged?`Queued to ${esc(lkPhone)} — in simulation it's logged; live it texts via MSG91.`:"Sent."}</div>`;
+    }catch(e){ m.innerHTML=`<div class="msg err" style="margin:0 0 10px">${esc((e&&e.message)||"Couldn't send")}</div>`; }
+    finally{ b.disabled=false; b.textContent="📱 Send as text message"; }
+  });
   $("#cm_close").addEventListener("click",closeConfirm);
   $("#confirmModal").addEventListener("click",e=>{ if(e.target.id==="confirmModal") closeConfirm(); });
   document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ if(!$("#confirmModal").hidden) closeConfirm(); } });
   $("#confirmModal").addEventListener("input",e=>{ if(e.target.closest(".grid,.totals")||/^p_/.test(e.target.id)) recalc(); });
+  // plates auto-follow chairs until the user edits plates
+  $("#p_guests").addEventListener("input",()=>{ platesEdited=true; });
+  $("#p_chairs").addEventListener("input",()=>{ if(!platesEdited) $("#p_guests").value=$("#p_chairs").value; recalc(); });
+  // vendor dropdown: "add new" → create + sync to DB
+  $("#p_vendor").addEventListener("change",async e=>{
+    if(e.target.value!=="__new") return;
+    const name=prompt("New vendor name:"); if(!name){ e.target.value=""; return; }
+    try{ await BPStore.vendors.add(name.trim(),"catering",null); cmVendors=await BPStore.vendors.list();
+      e.target.innerHTML=`<option value="">— none —</option>`+cmVendors.map(v=>`<option>${esc(v.name)}</option>`).join("")+`<option value="__new">＋ Add new vendor…</option>`;
+      e.target.value=name.trim();
+    }catch(err){ alert("Couldn't add vendor: "+((err&&err.message)||"error")); e.target.value=""; }
+  });
   $("#cm_savePricing").addEventListener("click",()=>savePricing(false));
   $("#cm_confirm").addEventListener("click",()=>savePricing(true));
   $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();

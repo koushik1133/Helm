@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My tasks — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  .wrap{max-width:620px;margin:0 auto;padding:24px 16px 60px}
+  header{display:flex;align-items:center;gap:10px;padding:6px 0 16px}
+  .mark{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header b{font-size:15px} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:20px;margin-bottom:14px}
+  h1{font-size:19px;margin:0 0 2px} .sub{color:var(--ink-3);font-size:13px;margin:0}
+  .code{font-family:var(--mono);font-weight:600;color:var(--accent)}
+  .cat{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:700;margin:14px 0 6px}
+  .task{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px}
+  .task .tt{font-size:15px;font-weight:600;margin-bottom:8px}
+  .st{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 9px;border-radius:20px;float:right}
+  .st.assigned{background:#eef2ff;color:#4457c8} .st.accepted{background:#e6f6f2;color:#0f766e}
+  .st.in_progress{background:#fff7e6;color:#946200} .st.completed{background:#e7f6ee;color:#0f7a43} .st.rejected{background:#fdecec;color:#b42318}
+  .acts{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{height:40px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;flex:1;min-width:120px}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
+  .btn.ok{background:var(--accent);border-color:transparent;color:#fff} .btn.no{color:#b42318;border-color:#f5c6c6}
+  .btn:disabled{opacity:.5}
+  .done{color:#0f7a43;font-weight:600;font-size:14px} .rej{color:#b42318;font-weight:600;font-size:14px}
+  .muted{color:var(--ink-3);font-size:12px}
+  .msg{border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:12px}
+  .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
+  footer{text-align:center;color:var(--ink-3);font-size:11px;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><div class="mark"></div><div><b>Blueprint Stage</b><small>Crew tasks</small></div></header>
+  <div id="loading" class="card"><p class="muted">Loading your tasks…</p></div>
+  <div id="badlink" class="card" hidden><h1>Link not found</h1><p class="sub">This task link is invalid. Please ask your manager for a new one.</p></div>
+  <div id="content" hidden>
+    <div class="card">
+      <h1 id="title">Event</h1>
+      <p class="sub">Hi <b id="who"></b> — here are your tasks for <span class="code" id="code"></span>. Accept the ones you can do; the office is tracking progress live.</p>
+    </div>
+    <div id="msg"></div>
+    <div id="tasks"></div>
+  </div>
+  <footer>Blueprint Stage · you only see tasks assigned to you.</footer>
+</div>
+
+<script src="config.js?v=10"></script>
+<script src="store-api.js?v=10"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const token=new URLSearchParams(location.search).get("token");
+  const LABEL={assigned:"Assigned",accepted:"Accepted",in_progress:"In progress",completed:"Completed",rejected:"Rejected"};
+  let data=null;
+  function setMsg(t){ const m=$("#msg"); m.innerHTML=t?`<div class="msg err">${esc(t)}</div>`:""; }
+
+  async function load(){
+    if(!token){ $("#loading").hidden=true; $("#badlink").hidden=false; return; }
+    await BPStore.init();
+    try{ data=await BPStore.ops.worker.getTasks(token); }
+    catch(e){ $("#loading").hidden=true; $("#badlink").hidden=false; return; }
+    $("#loading").hidden=true; $("#content").hidden=false;
+    $("#title").textContent=data.event.title||data.event.code;
+    $("#code").textContent=data.event.code; $("#who").textContent=data.worker.name||"there";
+    render();
+  }
+  function render(){
+    const byCat={}; (data.tasks||[]).forEach(t=>{ (byCat[t.category]=byCat[t.category]||[]).push(t); });
+    const host=$("#tasks");
+    if(!data.tasks.length){ host.innerHTML='<div class="card muted">No tasks assigned to you yet.</div>'; return; }
+    host.innerHTML=Object.entries(byCat).map(([cat,ts])=>`<div class="cat">${esc(cat)}</div>`+
+      ts.map(t=>{
+        let acts="";
+        if(t.status==='assigned') acts=`<button class="btn ok" data-a="accept">✓ Accept</button><button class="btn no" data-a="reject">Reject</button>`;
+        else if(t.status==='accepted') acts=`<button class="btn primary" data-a="start">Start task</button>`;
+        else if(t.status==='in_progress') acts=`<button class="btn primary" data-a="complete">Mark done</button>`;
+        else if(t.status==='completed') acts=`<span class="done">✅ Completed — thank you</span>`;
+        else if(t.status==='rejected') acts=`<span class="rej">Rejected</span>`;
+        return `<div class="task" data-id="${t.id}"><span class="st ${t.status}">${LABEL[t.status]||t.status}</span>
+          <div class="tt">${esc(t.title)}</div><div class="acts">${acts}</div></div>`;
+      }).join("")).join("");
+    host.querySelectorAll(".task").forEach(card=>{
+      card.querySelectorAll("[data-a]").forEach(b=>b.addEventListener("click",()=>respond(card.dataset.id,b.dataset.a,b)));
+    });
+  }
+  async function respond(id,action,btn){
+    setMsg(); btn.disabled=true; const old=btn.textContent; btn.textContent="…";
+    try{ await BPStore.ops.worker.respond(token,id,action); data=await BPStore.ops.worker.getTasks(token); render(); }
+    catch(e){ setMsg((e&&e.message)||"Action failed"); btn.disabled=false; btn.textContent=old; }
+  }
+  load();
+</script>
+</body>
+</html>

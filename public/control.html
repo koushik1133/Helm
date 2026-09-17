@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Control Center — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:960px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
+  h3{font-size:13px;margin:0 0 14px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
+  .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px} @media(max-width:640px){.grid{grid-template-columns:1fr 1fr}}
+  .fld{display:flex;flex-direction:column;gap:5px} .fld label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)}
+  input,select{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 10px;font-family:inherit;font-size:14px;color:var(--ink)}
+  input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .btn{height:38px;padding:0 16px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
+  .btn:hover{border-color:var(--accent)} .btn.sm{height:30px;font-size:12px;padding:0 10px}
+  .row{display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line-2);font-size:13px}
+  .row .g{flex:1} .row .mono{font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+  .addrow{display:grid;grid-template-columns:1.4fr 1fr 1fr auto;gap:8px;align-items:end;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+  @media(max-width:640px){.addrow{grid-template-columns:1fr 1fr}}
+  .msg{border-radius:8px;padding:8px 11px;font-size:13px;margin-bottom:10px}
+  .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca} .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
+  .actions{display:flex;justify-content:flex-end;margin-top:14px}
+  .rm{border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:13px;padding:4px 8px;border-radius:6px} .rm:hover{color:#e5484d;background:#fdecec}
+  /* login modal */
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,94vw);padding:26px;text-align:center}
+  .lsheet h3{color:var(--ink);text-transform:none;letter-spacing:0;font-size:18px;margin:8px 0 12px}
+  .lsheet label{display:block;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+  .lsheet input{width:100%;margin-bottom:12px}
+  .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Control Center</h1><small>Blueprint Stage</small></div>
+    <nav class="nav"><a href="index.html">Home</a><a href="quotes.html">Quotes</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in as a manager to open the Control Center.</p></div>
+
+  <div id="app" hidden>
+    <div id="msg"></div>
+
+    <div class="card">
+      <h3>Default pricing (applies to every new quote)</h3>
+      <div class="grid">
+        <div class="fld"><label>Price / chair (₹)</label><input id="p_chair" type="number" min="0" step="1"></div>
+        <div class="fld"><label>Price / plate (₹)</label><input id="p_plate" type="number" min="0" step="1"></div>
+        <div class="fld"><label>Chair/rental GST %</label><input id="p_gst" type="number" min="0" step="0.5"></div>
+        <div class="fld"><label>Catering GST %</label><input id="p_cgst" type="number" min="0" step="0.5"></div>
+        <div class="fld"><label>Service charge % (optional)</label><input id="p_svc" type="number" min="0" step="0.5"></div>
+      </div>
+      <div class="actions"><button class="btn primary" id="savePricing">Save pricing</button></div>
+    </div>
+
+    <div class="card">
+      <h3>Vendors</h3>
+      <div id="vendorList"></div>
+      <div class="addrow">
+        <input id="v_name" placeholder="Vendor name">
+        <select id="v_cat"><option value="catering">Catering</option><option value="decor">Decor</option><option value="lighting">Lighting</option><option value="transport">Transport</option><option value="general">General</option></select>
+        <input id="v_phone" placeholder="Phone (optional)">
+        <button class="btn" id="v_add">+ Add vendor</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Coupons</h3>
+      <div id="couponList"></div>
+      <div class="addrow">
+        <input id="co_code" placeholder="Code e.g. DIWALI10">
+        <select id="co_kind"><option value="percent">% off</option><option value="flat">₹ off</option></select>
+        <input id="co_val" type="number" min="0" step="1" placeholder="Value">
+        <button class="btn" id="co_add">+ Add coupon</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="lmodal" id="loginModal" hidden>
+  <form class="lsheet" id="loginForm">
+    <div class="mark" style="margin:0 auto 10px"></div>
+    <h3>Sign in</h3>
+    <label>Email</label><input type="email" id="li_email" required>
+    <label>Password</label><input type="password" id="li_pw" required>
+    <div class="lerr" id="li_err" hidden></div>
+    <button class="btn primary" id="li_submit" type="submit" style="width:100%">Sign in</button>
+  </form>
+</div>
+
+<script src="config.js?v=10"></script>
+<script src="store-api.js?v=10"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  function setMsg(k,t){ const m=$("#msg"); m.innerHTML=t?`<div class="msg ${k}">${esc(t)}</div>`:""; }
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  async function load(){
+    await BPStore.init(); await renderAccount();
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    if(!(await BPStore.auth.can("edit"))){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:var(--ink-3)">Your role can\'t edit the Control Center.</p>'; return; }
+    $("#app").hidden=false;
+    try{
+      const p=await BPStore.config.getPricing();
+      $("#p_chair").value=p.chairPrice??200; $("#p_plate").value=p.platePrice??500; $("#p_gst").value=p.gstPct??18;
+      $("#p_cgst").value=p.cateringGstPct??18; $("#p_svc").value=p.serviceChargePct??0;
+    }catch(e){ setMsg("err","Run control-center.sql to enable the Control Center. ("+((e&&e.message)||"")+")"); }
+    await renderVendors(); await renderCoupons();
+  }
+  $("#savePricing").addEventListener("click",async()=>{
+    const p={ chairPrice:+$("#p_chair").value||0, platePrice:+$("#p_plate").value||0, gstPct:+$("#p_gst").value||0,
+      cateringGstPct:+$("#p_cgst").value||0, serviceChargePct:+$("#p_svc").value||0, currency:"INR" };
+    try{ await BPStore.config.setPricing(p); setMsg("ok","Pricing saved — new quotes use these rates."); }
+    catch(e){ setMsg("err",(e&&e.message)||"Save failed"); }
+  });
+
+  async function renderVendors(){
+    let v=[]; try{ v=await BPStore.vendors.list(); }catch{}
+    $("#vendorList").innerHTML = v.length? v.map(x=>`<div class="row"><span class="g">${esc(x.name)} <span class="mono">${esc(x.category||"")}${x.phone?" · "+esc(x.phone):""}</span></span><button class="rm" data-id="${x.id}">Remove</button></div>`).join("") : '<div class="row" style="color:var(--ink-3)">No vendors yet.</div>';
+    $("#vendorList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.vendors.remove(b.dataset.id); renderVendors(); }));
+  }
+  $("#v_add").addEventListener("click",async()=>{
+    const name=$("#v_name").value.trim(); if(name.length<2){ setMsg("err","Enter a vendor name."); return; }
+    try{ await BPStore.vendors.add(name,$("#v_cat").value,$("#v_phone").value.trim()); $("#v_name").value="";$("#v_phone").value=""; renderVendors(); setMsg("ok","Vendor added."); }
+    catch(e){ setMsg("err",(e&&e.message)||"Couldn't add vendor"); }
+  });
+
+  async function renderCoupons(){
+    let c=[]; try{ c=await BPStore.coupons.list(); }catch{}
+    $("#couponList").innerHTML = c.length? c.map(x=>`<div class="row"><span class="g mono">${esc(x.code)}</span><span>${x.kind==='percent'?x.value+'% off':'₹'+x.value+' off'}</span><button class="rm" data-id="${x.id}">Remove</button></div>`).join("") : '<div class="row" style="color:var(--ink-3)">No coupons yet.</div>';
+    $("#couponList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.coupons.remove(b.dataset.id); renderCoupons(); }));
+  }
+  $("#co_add").addEventListener("click",async()=>{
+    const code=$("#co_code").value.trim().toUpperCase(); if(code.length<2){ setMsg("err","Enter a coupon code."); return; }
+    try{ await BPStore.coupons.add(code,$("#co_kind").value,+$("#co_val").value||0,null); $("#co_code").value="";$("#co_val").value=""; renderCoupons(); setMsg("ok","Coupon added."); }
+    catch(e){ setMsg("err",(e&&e.message)||"Couldn't add coupon"); }
+  });
+
+  $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
+    const btn=$("#li_submit"); btn.disabled=true; btn.textContent="Signing in…"; $("#li_err").hidden=true;
+    try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pw").value); closeLogin(); $("#gate").hidden=true; await load(); }
+    catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign-in failed"; $("#li_err").hidden=false; }
+    finally{ btn.disabled=false; btn.textContent="Sign in"; } });
+  load();
+</script>
+</body>
+</html>

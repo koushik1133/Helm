@@ -67,6 +67,8 @@
   .addrow input:focus,.addrow select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   .addrow .btn{height:34px;font-size:13px;padding:0 16px}
   .account .users{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+  .account a.users{display:inline-flex;align-items:center;height:30px;padding:0 12px;border:1px solid transparent;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .account a.users:hover{border-color:var(--accent)}
 
   .hero{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;padding:44px 0 30px}
   @media (max-width:840px){.hero{grid-template-columns:1fr;gap:26px}}
@@ -205,8 +207,8 @@
   </div>
 </div>
 
-<script src="config.js?v=8"></script>
-<script src="store-api.js?v=8"></script>
+<script src="config.js?v=10"></script>
+<script src="store-api.js?v=10"></script>
 <script>
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return "—"; } };
@@ -233,7 +235,10 @@
     if (user) {
       const role = await BPStore.auth.role();
       const canManage = await BPStore.auth.can("manage");
+      const canEditRole = await BPStore.auth.can("edit");
       el.innerHTML = `<span class="role">${esc(role||"")}</span><span>${esc(user.email)}</span>`
+        + `<a class="users" href="quotes.html">📋 Quotes</a>`
+        + (canEditRole ? `<a class="users" href="control.html">⚙ Control Center</a>` : "")
         + (canManage ? `<button class="users" id="usersBtn">👥 Users</button>` : "")
         + `<button id="logoutBtn">Log out</button>`;
       if (canManage) $("#usersBtn").addEventListener("click", openUsers);
