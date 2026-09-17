@@ -1041,8 +1041,9 @@
       return readLs(DAY_LS).filter((d) => d.quote_id === quoteId && (!kind || d.kind === kind));
     },
     async add(quoteId, item) {
-      if (mode === "supabase") { const { data, error } = await supa.from("event_day").insert({ quote_id: quoteId, ...item }).select().single(); if (error) throw error; return data; }
-      const a = readLs(DAY_LS); const row = { id: uid(), quote_id: quoteId, status: item.kind === "check" ? "pending" : "expected", ...item, created_at: now() }; a.push(row); localStorage.setItem(DAY_LS, JSON.stringify(a)); return row;
+      const withDefault = { status: item.kind === "check" ? "pending" : "expected", ...item };
+      if (mode === "supabase") { const { data, error } = await supa.from("event_day").insert({ quote_id: quoteId, ...withDefault }).select().single(); if (error) throw error; return data; }
+      const a = readLs(DAY_LS); const row = { id: uid(), quote_id: quoteId, ...withDefault, created_at: now() }; a.push(row); localStorage.setItem(DAY_LS, JSON.stringify(a)); return row;
     },
     async setStatus(id, status) {
       if (mode === "supabase") { const { error } = await supa.from("event_day").update({ status }).eq("id", id); if (error) throw error; return true; }
