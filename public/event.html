@@ -104,8 +104,8 @@
   </form>
 </div>
 
-<script src="config.js?v=20"></script>
-<script src="store-api.js?v=20"></script>
+<script src="config.js?v=21"></script>
+<script src="store-api.js?v=21"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -230,10 +230,18 @@
   }
 
   function renderDateRow(){
-    const el=$("#dateRow"); const d=ev.eventDate||"";
-    if(canEdit){ el.innerHTML=`📅 Event date: <input type="date" id="evDate" value="${esc(d)}" style="height:28px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:12px;padding:0 6px;color:var(--ink)">`;
-      $("#evDate").addEventListener("change",async()=>{ try{ await BPStore.quotes.updateMeta(id,{eventDate:$("#evDate").value||null}); ev.eventDate=$("#evDate").value||null; }catch(e){ alert("Couldn't save date: "+((e&&e.message)||"error")); } });
-    } else { el.innerHTML = d ? ("📅 "+esc(d)) : ""; }
+    const el=$("#dateRow"); const d=ev.eventDate||"", st=(ev.startTime||"").slice(0,5), en=(ev.endTime||"").slice(0,5);
+    const inp="height:28px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:12px;padding:0 6px;color:var(--ink)";
+    if(canEdit){
+      el.innerHTML=`📅 Date <input type="date" id="evDate" value="${esc(d)}" style="${inp}">`
+        + ` &nbsp;🕒 <input type="time" id="evStart" value="${esc(st)}" style="${inp}"> – <input type="time" id="evEnd" value="${esc(en)}" style="${inp}">`
+        + ` <span id="dateMsg" style="font-size:11px;color:var(--safe);margin-left:6px"></span>`;
+      const save=async()=>{ try{ await BPStore.quotes.updateMeta(id,{eventDate:$("#evDate").value||null, startTime:$("#evStart").value||null, endTime:$("#evEnd").value||null});
+        ev.eventDate=$("#evDate").value||null; ev.startTime=$("#evStart").value||null; ev.endTime=$("#evEnd").value||null;
+        $("#dateMsg").textContent="Saved ✓"; setTimeout(()=>{$("#dateMsg").textContent="";},1500); }
+        catch(e){ alert("Couldn't save: "+((e&&e.message)||"error")); } };
+      $("#evDate").addEventListener("change",save); $("#evStart").addEventListener("change",save); $("#evEnd").addEventListener("change",save);
+    } else { el.innerHTML = d ? ("📅 "+esc(d)+(st&&en?(" · "+esc(st)+"–"+esc(en)):"")) : ""; }
   }
   async function setStage(k){
     try{ await BPStore.quotes.setStage(id, k); ev.lifecycleStage=k; render(); }
