@@ -934,6 +934,13 @@
       if (!row) { row = { quote_id: quoteId }; a.push(row); }
       row.menu_locked = !!locked; row.locked_at = locked ? now() : null; localStorage.setItem(PLAN_LS, JSON.stringify(a)); return row;
     },
+    async setSignoff(quoteId, field, done) {
+      if (mode === "supabase") return rpc("set_plan_signoff", { p_quote_id: quoteId, p_field: field, p_done: !!done });
+      const a = readLs(PLAN_LS); let row = a.find((x) => x.quote_id === quoteId);
+      if (!row) { row = { quote_id: quoteId }; a.push(row); }
+      const k = field === "dry_run" ? "dry_run_at" : "briefing_at"; row[k] = done ? now() : null;
+      localStorage.setItem(PLAN_LS, JSON.stringify(a)); return row;
+    },
   };
 
   /* ---------------- logistics / compliance / comms / guests + payments (Phase 14) ---------------- */
@@ -984,8 +991,46 @@
       : Promise.resolve({ sent: true, simulated: true })),
   };
 
+  /* ---------------- readiness gate: Event Ready checkpoint (Phase 15) ---------------- */
+  const readiness = {
+    async check(quoteId) {
+      const [ev, planRow, resCheck, bk, tasks, ms, rs] = await Promise.all([
+        quotes.get(quoteId),
+        plan.get(quoteId).catch(() => null),
+        resources.check(quoteId).catch(() => []),
+        bookings.list(quoteId).catch(() => []),
+        (async () => { if (mode !== "supabase") return [];
+          const { data, error } = await supa.from("event_tasks").select("crew_id").eq("quote_id", quoteId).not("crew_id", "is", null);
+          if (error) throw error; return data; })().catch(() => []),
+        milestones.list(quoteId).catch(() => []),
+        runsheet.list(quoteId).catch(() => []),
+      ]);
+      const gaps = resCheck.filter((c) => !c.covered).length;
+      const enquiry = bk.filter((b) => b.status === "enquiry").length;
+      const crew = new Set(tasks.map((t) => t.crew_id)).size;
+      const paid = ms.some((m) => m.status === "paid");
+      const checks = [
+        { key: "date", label: "Event date set", critical: true, ok: !!ev.eventDate, detail: ev.eventDate || "not set" },
+        { key: "approval", label: "Client approved", critical: true, ok: ["approved", "paid"].includes(ev.approvalStatus), detail: ev.approvalStatus || "none" },
+        { key: "menu", label: "Menu & package locked", critical: true, ok: !!(planRow && planRow.menu_locked), detail: (planRow && planRow.menu_locked) ? "locked" : "not locked" },
+        { key: "resources", label: "Resources covered (no gaps)", critical: true, ok: gaps === 0, detail: gaps ? (gaps + " gap" + (gaps === 1 ? "" : "s")) : "all covered" },
+        { key: "vendors", label: "Vendors confirmed", critical: true, ok: enquiry === 0, detail: enquiry ? (enquiry + " still enquiry") : (bk.length ? "all confirmed" : "none booked") },
+        { key: "staff", label: "Staff assigned", critical: true, ok: crew > 0, detail: crew ? (crew + " assigned") : "none" },
+        { key: "runsheet", label: "Run-sheet built", critical: true, ok: rs.length > 0, detail: rs.length ? (rs.length + " items") : "empty" },
+        { key: "payments", label: "Advance received", critical: false, ok: paid, detail: paid ? "yes" : "not yet" },
+        { key: "dry_run", label: "Dry run done", critical: true, ok: !!(planRow && planRow.dry_run_at), detail: (planRow && planRow.dry_run_at) ? "done" : "pending", signoff: "dry_run" },
+        { key: "briefing", label: "Team briefed", critical: true, ok: !!(planRow && planRow.briefing_at), detail: (planRow && planRow.briefing_at) ? "done" : "pending", signoff: "briefing" },
+      ];
+      const crit = checks.filter((c) => c.critical);
+      return { checks, passed: checks.filter((c) => c.ok).length, total: checks.length,
+        criticalPassed: crit.filter((c) => c.ok).length, criticalTotal: crit.length, ready: crit.every((c) => c.ok) };
+    },
+    setSignoff: (quoteId, field, done) => plan.setSignoff(quoteId, field, done),
+    markReady: (quoteId) => quotes.setStage(quoteId, "ready"),
+  };
+
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

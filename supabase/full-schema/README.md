@@ -41,6 +41,7 @@ minus the user seed), run in this exact order:
 | 18 | `18-budget.sql`       | event_costs + change_requests — budget vs actuals (Phase 12) |
 | 19 | `19-plan.sql`         | event_plan — venue + menu/package lock (Phase 13) |
 | 20 | `20-logistics.sql`   | event_checklist + payment_milestones (Phase 14) |
+| 21 | `21-readiness.sql`   | event_plan dry-run/briefing sign-offs (Phase 15) |
 
 Then, on a brand-new DB only, seed the team logins:
 

@@ -135,6 +135,15 @@ what each phase added, in plain words.
   schedule — label, due date, amount, status, with a **Remind** button that goes
   through the notification outbox, and a Scheduled / Paid / Outstanding total).
 
+- **Phase 15 — Event Ready checkpoint.** One **readiness gate** that checks the
+  whole event at a glance: event date set, client approved, menu locked,
+  resources covered (no gaps), vendors confirmed, staff assigned, run-sheet
+  built, advance received, plus **dry-run** and **team-brief** sign-offs. Each
+  failing check has a **Fix →** link to the right page. When every critical check
+  is green the banner turns **Event Ready** and you can **Mark Event Ready**
+  (advances the lifecycle). This closes Block C — an event is provably ready
+  before the day.
+
 ### Where the data lives
 
 All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per
