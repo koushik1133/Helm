@@ -77,6 +77,15 @@ what each phase added, in plain words.
   then move each hold **Reserved → Allocated → Returned** as it goes out and
   comes back. Availability updates automatically so you never double-book.
 
+- **Phase 8 — Resource plan (needs + capability check).** On an event, open
+  **Resource plan** and list what it needs — **Staff** (a skill + how many),
+  **Inventory** (an item + quantity), or **Other**. The app **auto-checks** each
+  need against your in-house staff (by skill) and stock (by availability) and
+  labels it **✓ In-house** or **⚠ Gap** (with how many short). A summary shows
+  needs · covered · gaps, so you instantly see what to outsource. "Pull from
+  discovery requirements" seeds the list from what you captured earlier, and you
+  can mark a gap **Outsourced** once a vendor/freelancer will cover it.
+
 ### Where the data lives
 
 All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per

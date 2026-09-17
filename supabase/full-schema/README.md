@@ -34,6 +34,7 @@ minus the user seed), run in this exact order:
 | 11 | `11-mvp-polish.sql`      | Converted lead opens at Discovery stage (Phase 5 polish) |
 | 12 | `12-staff.sql`          | Staff directory: role/skills/dept/email/rate on crew_members (Phase 6) |
 | 13 | `13-inventory.sql`     | Inventory items + per-event reservations + availability view (Phase 7) |
+| 14 | `14-resource-needs.sql`| Per-event resource needs (capability check flags gaps) (Phase 8) |
 
 Then, on a brand-new DB only, seed the team logins:
 

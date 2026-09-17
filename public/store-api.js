@@ -641,8 +641,62 @@
     },
   };
 
+  /* ---------------- resource needs + capability check (Phase 8) ---------------- */
+  const NEED_LS = "bp_resource_needs";
+  const resources = {
+    async listNeeds(quoteId) {
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("event_resource_needs").select("*").eq("quote_id", quoteId).order("created_at");
+        if (error) throw error; return data;
+      }
+      return readLs(NEED_LS).filter((n) => n.quote_id === quoteId);
+    },
+    async addNeed(quoteId, need) {
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("event_resource_needs").insert({ quote_id: quoteId, ...need }).select().single();
+        if (error) throw error; return data;
+      }
+      const a = readLs(NEED_LS); const row = { id: uid(), quote_id: quoteId, status: "open", ...need, created_at: now() };
+      a.push(row); localStorage.setItem(NEED_LS, JSON.stringify(a)); return row;
+    },
+    async updateNeed(id, patch) {
+      if (mode === "supabase") { const { error } = await supa.from("event_resource_needs").update(patch).eq("id", id); if (error) throw error; return true; }
+      const a = readLs(NEED_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(NEED_LS, JSON.stringify(a)); } return true;
+    },
+    async removeNeed(id) {
+      if (mode === "supabase") { const { error } = await supa.from("event_resource_needs").delete().eq("id", id); if (error) throw error; return true; }
+      localStorage.setItem(NEED_LS, JSON.stringify(readLs(NEED_LS).filter((n) => n.id !== id))); return true;
+    },
+    // Capability check: for each need, work out in-house coverage and the gap.
+    // staff need  -> counts active staff whose skills/role match `skill`
+    // inventory need -> uses inventory availability for item_id
+    // other       -> always a gap (must be outsourced)
+    async check(quoteId) {
+      const [needs, team, avail] = await Promise.all([
+        this.listNeeds(quoteId), staff.list(false), inventory.availability(),
+      ]);
+      const matchStaff = (sk) => {
+        const k = String(sk || "").trim().toLowerCase(); if (!k) return 0;
+        return team.filter((p) => {
+          const skills = (Array.isArray(p.skills) ? p.skills : []).map((s) => String(s).toLowerCase());
+          return skills.includes(k) || String(p.role || "").toLowerCase().includes(k) || String(p.department || "").toLowerCase() === k;
+        }).length;
+      };
+      return needs.map((n) => {
+        const qty = Number(n.qty || 0); let have = 0, unit = "", detail = "";
+        if (n.kind === "staff") { have = matchStaff(n.skill); unit = "people"; detail = n.skill || ""; }
+        else if (n.kind === "inventory") { const a = avail[n.item_id]; have = a ? a.available : 0; unit = a ? (a.unit || "") : ""; detail = a ? a.name : "(item removed)"; }
+        else { have = 0; unit = ""; detail = "external"; }
+        const outsourced = n.status === "outsourced";
+        const covered = outsourced || have >= qty;
+        const gap = outsourced ? 0 : Math.max(0, qty - have);
+        return { ...n, have, unit, detail, covered, gap, outsourced };
+      });
+    },
+  };
+
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),
