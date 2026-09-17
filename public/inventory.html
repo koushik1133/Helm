@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inventory — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)} .nav a.on{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .crumb{font-size:12px;color:var(--ink-3);margin:2px 0 14px} .crumb a{color:var(--accent)}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
+  .card h2{font-size:15px;margin:0 0 4px} .card .sub{font-size:12px;color:var(--ink-3);margin:0 0 14px}
+  .toolbar{display:flex;align-items:center;gap:10px;margin:8px 0 14px;flex-wrap:wrap}
+  .toolbar h2{font-size:15px;margin:0;font-weight:700}
+  .search{height:38px;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:0 12px;font-family:inherit;font-size:13px;color:var(--ink);min-width:170px;flex:1;max-width:240px}
+  .sel{height:38px;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.4;cursor:default}
+  .btn.sm{height:32px;padding:0 11px;font-size:12px}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:10px 12px;border-bottom:1px solid var(--line)}
+  tbody td{padding:10px 12px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+  tbody tr:hover{background:var(--panel-2)}
+  .num{font-family:var(--mono);text-align:right}
+  th.num{text-align:right}
+  .cat{font-size:10px;font-weight:700;background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:2px 9px}
+  .avail{font-family:var(--mono);font-weight:700}
+  .avail.low{color:#b42318} .avail.mid{color:#946200} .avail.ok{color:#0f7a43}
+  .stat{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .stat.reserved{background:#fff7e6;color:#946200} .stat.allocated{background:#eef2ff;color:#4457c8}
+  .stat.returned{background:#e7f6ee;color:#0f7a43} .stat.cancelled{background:#fdecec;color:#b42318}
+  .ssel{height:28px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:11px;padding:0 6px;color:var(--ink)}
+  .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:28px;padding:0 9px;font-size:11px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#e5484d;border-color:#f5c6c6}
+  .reserve-row{display:grid;grid-template-columns:2fr .8fr 1.4fr auto;gap:8px;align-items:end} @media(max-width:620px){.reserve-row{grid-template-columns:1fr 1fr}}
+  .fld{display:flex;flex-direction:column;gap:4px} .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld input,.fld select{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .empty{text-align:center;color:var(--ink-3);padding:26px;font-size:13px}
+  footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
+
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(520px,96vw);padding:24px}
+  .sheet h3{margin:0 0 12px;font-size:18px;display:flex;align-items:center;gap:8px}
+  .sheet .close{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:30px;height:30px;font-size:15px;cursor:pointer;color:var(--ink-2)}
+  .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px} @media(max-width:480px){.fgrid{grid-template-columns:1fr}}
+  .foot{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;align-items:center}
+  .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px;margin-top:10px}
+  .lsheet{width:min(400px,96vw)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Blueprint Stage</h1><small>Inventory</small></div>
+    <nav class="nav"><a href="index.html">Dashboard</a><a href="staff.html">Staff</a><a href="quotes.html">Quotes</a><a href="inventory.html" class="on">Inventory</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="app" hidden>
+    <div id="eventBar" class="crumb" hidden></div>
+
+    <!-- per-event reservation panel -->
+    <div id="eventPanel" class="card" hidden>
+      <h2>Reserve for this event</h2>
+      <p class="sub">Hold in-house stock for the event. Reserve now → allocate when it goes out → return when it comes back.</p>
+      <div class="reserve-row">
+        <div class="fld"><label>Item</label><select id="rv_item"></select></div>
+        <div class="fld"><label>Quantity</label><input id="rv_qty" type="number" min="1" value="1"></div>
+        <div class="fld"><label>Note</label><input id="rv_note" placeholder="optional"></div>
+        <div class="fld"><label>&nbsp;</label><button class="btn primary" id="rv_add">Reserve</button></div>
+      </div>
+      <table style="margin-top:14px">
+        <thead><tr><th>Item</th><th class="num">Qty</th><th>Status</th><th></th></tr></thead>
+        <tbody id="resRows"><tr><td colspan="4" class="empty">No reservations yet.</td></tr></tbody>
+      </table>
+    </div>
+
+    <!-- stock manager -->
+    <div class="toolbar">
+      <h2 id="stockTitle">Stock items</h2>
+      <input id="search" class="search" placeholder="Search item…">
+      <select id="catFilter" class="sel"><option value="">All categories</option></select>
+      <span class="spacer"></span>
+      <button id="newBtn" class="btn primary" hidden>＋ Add item</button>
+    </div>
+    <div class="card" style="padding:0;overflow:auto">
+      <table>
+        <thead><tr><th>Item</th><th>Category</th><th class="num">Total</th><th class="num">Committed</th><th class="num">Available</th><th>Unit</th><th></th></tr></thead>
+        <tbody id="stockRows"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to manage inventory.</p></div>
+  <footer>Blueprint Stage — know what you own, and what's committed to each event.</footer>
+</div>
+
+<!-- add / edit item -->
+<div id="itemModal" class="lmodal" hidden>
+  <div class="sheet">
+    <h3><span id="im_title">＋ Add item</span><button class="close" id="im_close">×</button></h3>
+    <div class="fgrid">
+      <div class="fld"><label>Name *</label><input id="i_name" placeholder="e.g. Gold chiavari chair"></div>
+      <div class="fld"><label>Category</label><input id="i_cat" placeholder="e.g. Seating" list="catList"></div>
+      <div class="fld"><label>Total quantity</label><input id="i_qty" type="number" min="0" value="0"></div>
+      <div class="fld"><label>Unit</label><input id="i_unit" placeholder="pcs, sets, m…"></div>
+      <div class="fld" style="grid-column:1/-1"><label>Notes</label><input id="i_notes" placeholder="optional"></div>
+    </div>
+    <datalist id="catList"></datalist>
+    <div id="im_err" class="err" hidden></div>
+    <div class="foot">
+      <button class="btn" id="im_deact" hidden>Deactivate</button>
+      <span class="spacer"></span>
+      <button class="btn" id="im_cancel">Cancel</button>
+      <button class="btn primary" id="im_save">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="loginModal" class="lmodal" hidden>
+  <div class="sheet lsheet">
+    <h3><span>Sign in</span><button class="close" id="li_close">×</button></h3>
+    <div class="fld" style="margin-bottom:10px"><label>Email</label><input id="li_email" type="email"></div>
+    <div class="fld" style="margin-bottom:10px"><label>Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden></div>
+    <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
+  </div>
+</div>
+
+<script src="config.js?v=17"></script>
+<script src="store-api.js?v=17"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const num=(n)=>Number(n||0).toLocaleString("en-IN");
+  const quoteId=new URLSearchParams(location.search).get("quote");
+  const ST={reserved:"Reserved",allocated:"Allocated",returned:"Returned",cancelled:"Cancelled"};
+  let canEdit=false, canDelete=false, avail={}, items=[], reservations=[], editingId=null, filter="", catF="";
+
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  function availClass(a,total){ if(a<=0) return "low"; if(total && a<total*0.2) return "mid"; return "ok"; }
+
+  function renderStock(){
+    const cats=[...new Set(items.map(i=>i.category).filter(Boolean))].sort();
+    $("#catFilter").innerHTML='<option value="">All categories</option>'+cats.map(c=>`<option ${c===catF?"selected":""}>${esc(c)}</option>`).join("");
+    $("#catList").innerHTML=cats.map(c=>`<option value="${esc(c)}">`).join("");
+    const q=filter.trim().toLowerCase();
+    const shown=items.filter(i=>(!catF||i.category===catF)&&(!q||[i.name,i.category].join(" ").toLowerCase().includes(q)));
+    $("#stockRows").innerHTML = shown.length ? shown.map(i=>{
+      const a=avail[i.id]||{committed:0,available:Number(i.total_qty||0)};
+      return `<tr>
+        <td><b>${esc(i.name)}</b></td>
+        <td>${i.category?`<span class="cat">${esc(i.category)}</span>`:""}</td>
+        <td class="num">${num(i.total_qty)}</td>
+        <td class="num">${num(a.committed)}</td>
+        <td class="num avail ${availClass(a.available,Number(i.total_qty))}">${num(a.available)}</td>
+        <td>${esc(i.unit||"")}</td>
+        <td>${canEdit?`<button class="rm" data-edit="${i.id}">Edit</button>`:""}</td>
+      </tr>`;
+    }).join("") : '<tr><td colspan="7" class="empty">No items. Add your first stock item.</td></tr>';
+    $("#stockRows").querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>openItem(items.find(x=>x.id===b.dataset.edit))));
+  }
+
+  function renderEventPanel(){
+    if(!quoteId) return;
+    // item dropdown with available qty
+    $("#rv_item").innerHTML=items.map(i=>{ const a=avail[i.id]||{available:i.total_qty};
+      return `<option value="${i.id}">${esc(i.name)} — ${num(a.available)} ${esc(i.unit||"")} free</option>`; }).join("");
+    const rows=reservations;
+    const byId=Object.fromEntries(items.map(i=>[i.id,i]));
+    $("#resRows").innerHTML = rows.length ? rows.map(r=>{
+      const it=byId[r.item_id]||{name:"(item)"};
+      const opts=["reserved","allocated","returned","cancelled"].map(s=>`<option value="${s}" ${s===r.status?"selected":""}>${ST[s]}</option>`).join("");
+      return `<tr>
+        <td><b>${esc(it.name)}</b>${r.note?`<div style="font-size:11px;color:var(--ink-3)">${esc(r.note)}</div>`:""}</td>
+        <td class="num">${num(r.qty)} ${esc(it.unit||"")}</td>
+        <td>${canEdit?`<select class="ssel" data-res="${r.id}">${opts}</select>`:`<span class="stat ${r.status}">${ST[r.status]}</span>`}</td>
+        <td>${canDelete?`<button class="rm" data-del="${r.id}">Remove</button>`:""}</td>
+      </tr>`;
+    }).join("") : '<tr><td colspan="4" class="empty">No reservations yet.</td></tr>';
+    $("#resRows").querySelectorAll("select[data-res]").forEach(s=>s.addEventListener("change",async()=>{
+      try{ await BPStore.inventory.setResStatus(s.dataset.res, s.value); await load(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); }}));
+    $("#resRows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
+      try{ await BPStore.inventory.removeRes(b.dataset.del); await load(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); }}));
+  }
+
+  function openItem(it){
+    editingId=it?it.id:null; $("#im_title").textContent=it?"Edit item":"＋ Add item";
+    $("#i_name").value=it?it.name||"":""; $("#i_cat").value=it?it.category||"":"";
+    $("#i_qty").value=it?it.total_qty||0:0; $("#i_unit").value=it?it.unit||"":""; $("#i_notes").value=it?it.notes||"":"";
+    $("#im_deact").hidden=!(it&&canEdit); $("#im_err").hidden=true; $("#itemModal").hidden=false; setTimeout(()=>$("#i_name").focus(),50);
+  }
+  function closeItem(){ $("#itemModal").hidden=true; editingId=null; }
+  async function saveItem(){
+    const name=$("#i_name").value.trim(); if(!name){ $("#im_err").textContent="Name is required."; $("#im_err").hidden=false; return; }
+    const rec={ name, category:$("#i_cat").value.trim()||null, total_qty:Number($("#i_qty").value||0), unit:$("#i_unit").value.trim()||null, notes:$("#i_notes").value.trim()||null };
+    $("#im_save").disabled=true;
+    try{ if(editingId) await BPStore.inventory.updateItem(editingId,rec); else await BPStore.inventory.addItem(rec); closeItem(); await load(); }
+    catch(e){ $("#im_err").textContent="Couldn't save — "+((e&&e.message)||"error"); $("#im_err").hidden=false; }
+    finally{ $("#im_save").disabled=false; }
+  }
+
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
+  $("#li_close").addEventListener("click",closeLogin);
+  $("#loginModal").addEventListener("click",e=>{ if(e.target.id==="loginModal") closeLogin(); });
+  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
+    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+
+  $("#newBtn").addEventListener("click",()=>openItem(null));
+  $("#im_close").addEventListener("click",closeItem);
+  $("#im_cancel").addEventListener("click",closeItem);
+  $("#im_save").addEventListener("click",saveItem);
+  $("#im_deact").addEventListener("click",async()=>{ if(!editingId) return; if(!confirm("Deactivate this item?")) return;
+    try{ await BPStore.inventory.updateItem(editingId,{active:false}); closeItem(); await load(); }catch(e){ alert("Couldn't deactivate — "+((e&&e.message)||"error")); } });
+  $("#itemModal").addEventListener("click",e=>{ if(e.target.id==="itemModal") closeItem(); });
+  $("#search").addEventListener("input",e=>{ filter=e.target.value; renderStock(); });
+  $("#catFilter").addEventListener("change",e=>{ catF=e.target.value; renderStock(); });
+  $("#rv_add").addEventListener("click",async()=>{
+    const itemId=$("#rv_item").value, qty=Number($("#rv_qty").value||0);
+    if(!itemId||qty<=0){ return; }
+    $("#rv_add").disabled=true;
+    try{ await BPStore.inventory.reserve(itemId, quoteId, qty, $("#rv_note").value.trim()||null); $("#rv_qty").value=1; $("#rv_note").value=""; await load(); }
+    catch(e){ alert("Couldn't reserve — "+((e&&e.message)||"error")); }
+    finally{ $("#rv_add").disabled=false; }
+  });
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeItem(); closeLogin(); } });
+
+  async function load(){
+    try{
+      items = await BPStore.inventory.items(false);
+      avail = await BPStore.inventory.availability();
+      if(quoteId) reservations = await BPStore.inventory.reservations(quoteId);
+    }catch(e){ $("#stockRows").innerHTML=`<tr><td colspan="7" class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase7-inventory.sql</b>.</td></tr>`; return; }
+    renderStock(); if(quoteId) renderEventPanel();
+  }
+
+  (async ()=>{
+    await BPStore.init(); await renderAccount();
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    canEdit=await BPStore.auth.can("edit"); canDelete=await BPStore.auth.can("delete");
+    $("#app").hidden=false; $("#newBtn").hidden=!canEdit;
+    if(quoteId){
+      $("#eventPanel").hidden=false; $("#eventBar").hidden=false;
+      try{ const ev=await BPStore.quotes.get(quoteId); $("#eventBar").innerHTML=`<a href="event.html?id=${encodeURIComponent(quoteId)}">← Back to workspace</a> · ${esc(ev.code||"")}${ev.title&&ev.title!==ev.code?(" · "+esc(ev.title)):""}`; }catch{}
+      if(!canEdit) $("#eventPanel").querySelectorAll("input,select,button").forEach(el=>el.disabled=true);
+    }
+    await load();
+  })();
+</script>
+</body>
+</html>

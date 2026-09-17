@@ -33,6 +33,7 @@ minus the user seed), run in this exact order:
 | 10 | `10-proposal.sql`        | `event_proposal` + `proposal_risks` + share token RPCs (Phase 4) |
 | 11 | `11-mvp-polish.sql`      | Converted lead opens at Discovery stage (Phase 5 polish) |
 | 12 | `12-staff.sql`          | Staff directory: role/skills/dept/email/rate on crew_members (Phase 6) |
+| 13 | `13-inventory.sql`     | Inventory items + per-event reservations + availability view (Phase 7) |
 
 Then, on a brand-new DB only, seed the team logins:
 

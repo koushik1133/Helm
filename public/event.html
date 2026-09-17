@@ -103,8 +103,8 @@
   </form>
 </div>
 
-<script src="config.js?v=16"></script>
-<script src="store-api.js?v=16"></script>
+<script src="config.js?v=17"></script>
+<script src="store-api.js?v=17"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -118,8 +118,8 @@
     {k:"proposal",label:"Proposal",hint:"Share the concept and design direction.",mods:["proposal","layout","quote"]},
     {k:"quote",label:"Quote",hint:"Design the floor and price the event.",mods:["layout","quote"]},
     {k:"confirmed",label:"Confirmed",hint:"Get the client's approval, then plan the work.",mods:["approval","tasks"]},
-    {k:"planning",label:"Planning",hint:"Assign tasks and plan resources.",mods:["tasks","layout"]},
-    {k:"resources",label:"Resources",hint:"Allocate staff, inventory and vendors.",mods:["tasks"]},
+    {k:"planning",label:"Planning",hint:"Assign tasks and plan resources.",mods:["tasks","inventory","layout"]},
+    {k:"resources",label:"Resources",hint:"Allocate staff, inventory and vendors.",mods:["inventory","tasks"]},
     {k:"ready",label:"Ready",hint:"Run the readiness check and brief the team.",mods:["tasks"]},
     {k:"event_day",label:"Event Day",hint:"Coordinate the live event.",mods:["tasks"]},
     {k:"settlement",label:"Settlement",hint:"Reconcile scope, invoice and collect payment.",mods:["quote","approval"]},
@@ -127,7 +127,7 @@
   ];
   const stageIndex=(k)=>Math.max(0,STAGES.findIndex(s=>s.k===k));
 
-  let ev=null, canEdit=false, tasksSummary=null, discSummary=null, propSummary=null;
+  let ev=null, canEdit=false, tasksSummary=null, discSummary=null, propSummary=null, invSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
   const budgetRange=()=>{ const d=discSummary&&discSummary.disc; if(!d) return ""; const a=d.budget_min, b=d.budget_max;
     if(a!=null&&b!=null) return inr(a)+"–"+inr(b); if(a!=null) return "from "+inr(a); if(b!=null) return "up to "+inr(b); return ""; };
@@ -153,6 +153,10 @@
       discSummary={ disc:d, total:rq.length, must:rq.filter(r=>r.priority==='mandatory').length }; }catch{ discSummary=null; }
     // proposal summary (Phase 4) — optional
     try{ const p=await BPStore.proposal.get(id); propSummary=p; }catch{ propSummary=null; }
+    // inventory summary (Phase 7) — optional
+    try{ const rs=await BPStore.inventory.reservations(id);
+      const active=rs.filter(r=>r.status==='reserved'||r.status==='allocated');
+      invSummary={ total:rs.length, active:active.length }; }catch{ invSummary=null; }
     $("#app").hidden=false;
     render();
   }
@@ -205,6 +209,9 @@
         acts:[{t:"Manage in Quotes", href:"quotes.html"}] },
       { key:"tasks", ic:"🛠️", title:"Tasks & crew", sum: tasksSummary?`${tasksSummary.done}/${tasksSummary.total} tasks done`:"Assign predefined tasks to your crew.",
         acts:[{t:"Open operations", href:"ops.html?quote="+encodeURIComponent(id), primary:true}] },
+      { key:"inventory", ic:"📦", title:"Inventory & resources",
+        sum: invSummary && invSummary.total ? `${invSummary.active} item${invSummary.active===1?"":"s"} reserved / allocated${invSummary.total>invSummary.active?` · ${invSummary.total-invSummary.active} closed`:""}` : "Reserve in-house stock for this event.",
+        acts:[{t: canEdit?"Reserve stock":"View inventory", href:"inventory.html?quote="+encodeURIComponent(id), primary:true}] },
     ];
     $("#mods").innerHTML=cards.map(c=>{
       const reco=recommended.includes(c.key)?"reco":"";

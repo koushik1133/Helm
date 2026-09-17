@@ -589,8 +589,60 @@
     },
   };
 
+  /* ---------------- in-house inventory (Phase 7) ---------------- */
+  const INV_LS = "bp_inventory", RES_LS = "bp_inv_res";
+  const ACTIVE_RES = ["reserved", "allocated"];
+  const inventory = {
+    async items(includeInactive) {
+      if (mode === "supabase") {
+        let q = supa.from("inventory_items").select("*").order("name");
+        if (!includeInactive) q = q.eq("active", true);
+        const { data, error } = await q; if (error) throw error; return data;
+      }
+      const a = readLs(INV_LS); return includeInactive ? a : a.filter((i) => i.active !== false);
+    },
+    async addItem(it) {
+      if (mode === "supabase") { const { data, error } = await supa.from("inventory_items").insert(it).select().single(); if (error) throw error; return data; }
+      const a = readLs(INV_LS); const row = { id: uid(), active: true, total_qty: 0, ...it, created_at: now() }; a.push(row); localStorage.setItem(INV_LS, JSON.stringify(a)); return row;
+    },
+    async updateItem(id, patch) {
+      if (mode === "supabase") { const { error } = await supa.from("inventory_items").update(patch).eq("id", id); if (error) throw error; return true; }
+      const a = readLs(INV_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(INV_LS, JSON.stringify(a)); } return true;
+    },
+    // all active reservations (for availability math), or one event's reservations
+    async reservations(quoteId) {
+      if (mode === "supabase") {
+        let q = supa.from("inventory_reservations").select("*").order("created_at");
+        if (quoteId) q = q.eq("quote_id", quoteId);
+        const { data, error } = await q; if (error) throw error; return data;
+      }
+      const a = readLs(RES_LS); return quoteId ? a.filter((r) => r.quote_id === quoteId) : a;
+    },
+    async reserve(itemId, quoteId, qty, note) {
+      if (mode === "supabase") { const { data, error } = await supa.from("inventory_reservations").insert({ item_id: itemId, quote_id: quoteId, qty, note: note || null }).select().single(); if (error) throw error; return data; }
+      const a = readLs(RES_LS); const row = { id: uid(), item_id: itemId, quote_id: quoteId, qty, status: "reserved", note: note || null, created_at: now() }; a.push(row); localStorage.setItem(RES_LS, JSON.stringify(a)); return row;
+    },
+    async setResStatus(id, status) {
+      if (mode === "supabase") { const { error } = await supa.from("inventory_reservations").update({ status }).eq("id", id); if (error) throw error; return true; }
+      const a = readLs(RES_LS); const r = a.find((x) => x.id === id); if (r) { r.status = status; localStorage.setItem(RES_LS, JSON.stringify(a)); } return true;
+    },
+    async removeRes(id) {
+      if (mode === "supabase") { const { error } = await supa.from("inventory_reservations").delete().eq("id", id); if (error) throw error; return true; }
+      localStorage.setItem(RES_LS, JSON.stringify(readLs(RES_LS).filter((r) => r.id !== id))); return true;
+    },
+    // committed & available per item id, from all active reservations
+    async availability() {
+      const [items, res] = await Promise.all([this.items(false), this.reservations()]);
+      const committed = {};
+      (res || []).forEach((r) => { if (ACTIVE_RES.includes(r.status)) committed[r.item_id] = (committed[r.item_id] || 0) + Number(r.qty || 0); });
+      const map = {};
+      items.forEach((i) => { const c = committed[i.id] || 0; map[i.id] = { ...i, committed: c, available: Number(i.total_qty || 0) - c }; });
+      return map;
+    },
+  };
+
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

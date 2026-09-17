@@ -70,6 +70,13 @@ what each phase added, in plain words.
   your in-house people first, and only reach for outside vendors or freelancers
   for the gaps.
 
+- **Phase 7 — In-house inventory.** An **Inventory** page listing what you own
+  (name, category, quantity, unit). For each item it shows **Total**,
+  **Committed** (held for events) and **Available** (what's left). On an event's
+  Workspace, open **Inventory & resources** to **reserve** stock for that event,
+  then move each hold **Reserved → Allocated → Returned** as it goes out and
+  comes back. Availability updates automatically so you never double-book.
+
 ### Where the data lives
 
 All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per
