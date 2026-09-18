@@ -1127,6 +1127,51 @@
     },
   };
 
+  /* ---------------- guest entry / reception (Phase 22, spec step 56) ---------------- */
+  const GUEST_LS = "bp_guests";
+  const guests = {
+    async list(quoteId) {
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("event_guests").select("*").eq("quote_id", quoteId).order("seq").order("created_at");
+        if (error) throw error; return data;
+      }
+      return readLs(GUEST_LS).filter((g) => g.quote_id === quoteId);
+    },
+    async add(quoteId, g) {
+      if (mode === "supabase") { const { data, error } = await supa.from("event_guests").insert({ quote_id: quoteId, ...g }).select().single(); if (error) throw error; return data; }
+      const a = readLs(GUEST_LS); const row = { id: uid(), quote_id: quoteId, expected: 0, arrived: 0, ...g, created_at: now() }; a.push(row); localStorage.setItem(GUEST_LS, JSON.stringify(a)); return row;
+    },
+    async update(id, patch) {
+      if (mode === "supabase") { const { error } = await supa.from("event_guests").update(patch).eq("id", id); if (error) throw error; return true; }
+      const a = readLs(GUEST_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(GUEST_LS, JSON.stringify(a)); } return true;
+    },
+    // bump the arrived count (never below 0); delta usually +1/-1
+    async checkIn(id, delta) {
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("event_guests").select("arrived").eq("id", id).single();
+        if (error) throw error;
+        return this.update(id, { arrived: Math.max(0, Number((data && data.arrived) || 0) + Number(delta || 0)) });
+      }
+      const a = readLs(GUEST_LS); const g = a.find((x) => x.id === id); const cur = g ? Number(g.arrived || 0) : 0;
+      return this.update(id, { arrived: Math.max(0, cur + Number(delta || 0)) });
+    },
+    async remove(id) {
+      if (mode === "supabase") { const { error } = await supa.from("event_guests").delete().eq("id", id); if (error) throw error; return true; }
+      localStorage.setItem(GUEST_LS, JSON.stringify(readLs(GUEST_LS).filter((g) => g.id !== id))); return true;
+    },
+    // seed the day-of guest groups from the logistics guest list (event_checklist section 'guests')
+    async pullFromLogistics(quoteId) {
+      const existing = await this.list(quoteId);
+      const have = new Set(existing.map((g) => (g.label || "").toLowerCase()));
+      let rows = [];
+      try { rows = await checklist.list(quoteId, "guests"); } catch { rows = []; }
+      let added = 0;
+      for (const r of rows) { const label = r.title || "Guests"; if (have.has(label.toLowerCase())) continue;
+        await this.add(quoteId, { label, expected: Number(r.qty || 0) }); added++; }
+      return added;
+    },
+  };
+
   /* ---------------- live issues & incident log (Phase 17) ---------------- */
   const ISS_LS = "bp_issues";
   const issues = {
@@ -1240,7 +1285,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, issues, expenses, settlement, closure,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, issues, expenses, settlement, closure,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

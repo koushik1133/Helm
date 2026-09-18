@@ -102,6 +102,16 @@
         <div id="chkRows"></div>
         <div class="addline" id="chkAdd" hidden><input id="chk_title" placeholder="e.g. Sound check done"><button class="btn primary" id="chk_addb">＋</button></div>
       </div>
+
+      <div class="card">
+        <h2>👥 Guest reception <span class="prog" id="gstProg"></span></h2>
+        <p class="sub">Welcome desk — check guests in as they arrive.</p>
+        <div id="gstRows"></div>
+        <div style="margin-top:10px" id="gstTools" hidden>
+          <button class="btn" id="gstPull">↧ Pull from guest list</button>
+          <div class="addline"><input id="gst_label" placeholder="Group name…"><input id="gst_exp" type="number" min="0" placeholder="Exp." style="max-width:80px"><button class="btn primary" id="gst_add">＋</button></div>
+        </div>
+      </div>
     </div>
   </div>
   <footer>Blueprint Stage — run the day: who's here, what's checked, what's next.</footer>
@@ -117,8 +127,8 @@
   </div>
 </div>
 
-<script src="config.js?v=34"></script>
-<script src="store-api.js?v=34"></script>
+<script src="config.js?v=35"></script>
+<script src="store-api.js?v=35"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -166,6 +176,21 @@
     $("#chkRows").querySelectorAll("[data-cdel]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.dayops.remove(b.dataset.cdel); renderChecks(); }));
   }
 
+  async function renderGuests(){
+    const items=await BPStore.guests.list(id);
+    const arr=items.reduce((a,g)=>a+Number(g.arrived||0),0), exp=items.reduce((a,g)=>a+Number(g.expected||0),0);
+    $("#gstProg").textContent = items.length? `${arr}/${exp||"?"} in` : "";
+    $("#gstRows").innerHTML = items.length ? items.map(g=>`<div class="row">
+      <div><div class="nm">${esc(g.label)}</div><div class="rl">${Number(g.arrived||0)} of ${Number(g.expected||0)} arrived</div></div>
+      ${canEdit?`<div class="acts">
+        <button class="mini" data-gin="${g.id}" data-d="-1">–</button>
+        <button class="mini go" data-gin="${g.id}" data-d="1">＋ In</button>
+        <button class="mini del" data-gdel="${g.id}">✕</button></div>`:`<span class="pill arrived">${Number(g.arrived||0)}/${Number(g.expected||0)}</span>`}
+    </div>`).join("") : '<div class="empty">No guest groups yet. Pull from the guest list or add one.</div>';
+    $("#gstRows").querySelectorAll("[data-gin]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.guests.checkIn(b.dataset.gin, Number(b.dataset.d)); await renderGuests(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
+    $("#gstRows").querySelectorAll("[data-gdel]").forEach(b=>b.addEventListener("click",async()=>{ if(!confirm("Remove this group?"))return; try{ await BPStore.guests.remove(b.dataset.gdel); renderGuests(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
+  }
+
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
     catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
@@ -174,6 +199,8 @@
     catch(e){ alert("Couldn't pull — "+((e&&e.message)||"error")); } finally{ $("#pullBtn").disabled=false; } });
   $("#arr_add").addEventListener("click",async()=>{ const n=$("#arr_name").value.trim(); if(!n) return; await BPStore.dayops.add(id,{kind:"arrival",who:n,status:"expected"}); $("#arr_name").value=""; renderArrivals(); });
   $("#chk_addb").addEventListener("click",async()=>{ const t=$("#chk_title").value.trim(); if(!t) return; await BPStore.dayops.add(id,{kind:"check",who:t,status:"pending"}); $("#chk_title").value=""; renderChecks(); });
+  $("#gst_add").addEventListener("click",async()=>{ const l=$("#gst_label").value.trim(); if(!l) return; try{ await BPStore.guests.add(id,{label:l, expected:Number($("#gst_exp").value||0)}); $("#gst_label").value=""; $("#gst_exp").value=""; renderGuests(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } });
+  $("#gstPull").addEventListener("click",async()=>{ $("#gstPull").disabled=true; try{ const n=await BPStore.guests.pullFromLogistics(id); await renderGuests(); if(!n) alert("Nothing to pull — add guest groups in Logistics → Guests first."); }catch(e){ alert("Couldn't pull — "+((e&&e.message)||"error")); } finally{ $("#gstPull").disabled=false; } });
 
   (async ()=>{
     await BPStore.init(); await renderAccount();
@@ -186,8 +213,9 @@
     $("#b_code").textContent=ev.code||""; $("#b_meta").textContent=[ev.title,ev.eventDate].filter(Boolean).join(" · ");
     $("#l_issues").href="issues.html?quote="+encodeURIComponent(id); $("#l_runsheet").href="runsheet.html?quote="+encodeURIComponent(id); $("#l_floor").href="builder.html?quote="+encodeURIComponent(id);
     try{ const p=await BPStore.plan.get(id); if(p&&(p.venue_name||p.access_notes)) $("#b_venue").textContent="📍 "+[p.venue_name,p.access_notes].filter(Boolean).join(" — "); }catch{}
-    $("#app").hidden=false; $("#arrTools").hidden=!canEdit; $("#chkAdd").hidden=!canEdit;
+    $("#app").hidden=false; $("#arrTools").hidden=!canEdit; $("#chkAdd").hidden=!canEdit; $("#gstTools").hidden=!canEdit;
     try{ await renderArrivals(); await renderChecks(); }catch(e){ $("#arrRows").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase16-dayops.sql</b>.</div>`; }
+    try{ await renderGuests(); }catch(e){ $("#gstRows").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase22-guest-reception.sql</b>.</div>`; }
   })();
 </script>
 </body>
