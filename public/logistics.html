@@ -98,8 +98,8 @@
   </div>
 </div>
 
-<script src="config.js?v=38"></script>
-<script src="store-api.js?v=38"></script>
+<script src="config.js?v=39"></script>
+<script src="store-api.js?v=39"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -130,11 +130,24 @@
         <div class="fld"><label>Owner</label><input id="a_owner" placeholder="who"></div>
         <div class="fld"><label>Due</label><input id="a_due" type="date"></div>
         <div class="fld"><label>&nbsp;</label><button class="btn primary" id="a_add">＋ Add</button></div></div>`:""}
+      ${canEdit?'<div id="tplBar" style="margin:6px 0 12px"></div>':""}
       <table><thead><tr><th>Item</th><th>Owner</th><th>Due</th><th>Status</th><th></th></tr></thead>
         <tbody>${items.length?items.map(rowChk).join(""):'<tr><td colspan="5" class="empty">Nothing here yet.</td></tr>'}</tbody></table>
       <div class="totbar"><span>${items.length} item${items.length===1?"":"s"} · <b>${done}</b> done</span></div>`;
-    if(canEdit){ $("#a_add").addEventListener("click",()=>addChk(tab)); }
+    if(canEdit){ $("#a_add").addEventListener("click",()=>addChk(tab)); renderTplBar(tab); }
     wireChk();
+  }
+  async function renderTplBar(section){
+    const bar=$("#tplBar"); if(!bar) return;
+    let tpls=[]; try{ tpls=await BPStore.templates.list(section); }catch{ tpls=[]; }
+    if(!tpls.length){ bar.innerHTML=""; return; }
+    bar.innerHTML=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--ink-2)">
+      <span>Apply a template:</span>
+      <select id="tplPick" class="ssel" style="height:32px">${tpls.map(t=>`<option value="${esc(t.id)}">${esc(t.name)} (${(Array.isArray(t.items)?t.items.length:0)})</option>`).join("")}</select>
+      <button class="btn" id="tplApply" style="height:32px">Apply</button></div>`;
+    $("#tplApply").addEventListener("click",async()=>{ const tid=$("#tplPick").value; if(!tid) return; $("#tplApply").disabled=true;
+      try{ const n=await BPStore.templates.applyTo(id,tid); await renderPane(); if(!n) alert("That template has no items."); }
+      catch(e){ alert("Couldn't apply — "+((e&&e.message)||"error")); } });
   }
   function rowChk(i){ const opts=["open","done","na"].map(s=>`<option value="${s}" ${s===i.status?"selected":""}>${CHK_ST[s]}</option>`).join("");
     return `<tr><td><b>${esc(i.title)}</b>${i.detail?`<div style="font-size:11px;color:var(--ink-3)">${esc(i.detail)}</div>`:""}</td>

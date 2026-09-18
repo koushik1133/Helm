@@ -1019,6 +1019,40 @@
       localStorage.setItem(CHK_LS, JSON.stringify(readLs(CHK_LS).filter((c) => c.id !== id))); return true;
     },
   };
+  /* ---------------- reusable checklist templates (Phase 26, spec step 92) ---------------- */
+  const TPL_LS = "bp_tpl";
+  const templates = {
+    async list(section) {
+      if (mode === "supabase") {
+        let q = supa.from("checklist_templates").select("*").order("section").order("name");
+        if (section) q = q.eq("section", section);
+        const { data, error } = await q; if (error) throw error; return data;
+      }
+      return readLs(TPL_LS).filter((t) => !section || t.section === section);
+    },
+    async add(t) {
+      if (mode === "supabase") { const { data, error } = await supa.from("checklist_templates").insert(t).select().single(); if (error) throw error; return data; }
+      const a = readLs(TPL_LS); const row = { id: uid(), section: "logistics", items: [], ...t, created_at: now() }; a.push(row); localStorage.setItem(TPL_LS, JSON.stringify(a)); return row;
+    },
+    async update(id, patch) {
+      if (mode === "supabase") { const { error } = await supa.from("checklist_templates").update(patch).eq("id", id); if (error) throw error; return true; }
+      const a = readLs(TPL_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(TPL_LS, JSON.stringify(a)); } return true;
+    },
+    async remove(id) {
+      if (mode === "supabase") { const { error } = await supa.from("checklist_templates").delete().eq("id", id); if (error) throw error; return true; }
+      localStorage.setItem(TPL_LS, JSON.stringify(readLs(TPL_LS).filter((t) => t.id !== id))); return true;
+    },
+    // apply a template's items into an event's checklist (its section). returns how many were added.
+    async applyTo(quoteId, templateId) {
+      const all = await this.list(); const t = (all || []).find((x) => x.id === templateId);
+      if (!t) throw new Error("template not found");
+      const items = Array.isArray(t.items) ? t.items : [];
+      let added = 0;
+      for (const it of items) { const title = typeof it === "string" ? it : (it && it.title); if (!title) continue;
+        await checklist.add(quoteId, { section: t.section, title }); added++; }
+      return added;
+    },
+  };
   const milestones = {
     async list(quoteId) {
       if (mode === "supabase") { const { data, error } = await supa.from("payment_milestones").select("*").eq("quote_id", quoteId).order("due_date").order("seq"); if (error) throw error; return data; }
@@ -1357,7 +1391,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, settlement, closure,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, settlement, closure,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

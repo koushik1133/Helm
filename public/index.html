@@ -207,8 +207,8 @@
   </div>
 </div>
 
-<script src="config.js?v=38"></script>
-<script src="store-api.js?v=38"></script>
+<script src="config.js?v=39"></script>
+<script src="store-api.js?v=39"></script>
 <script>
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return "—"; } };
@@ -246,6 +246,7 @@
         + (canOps ? `<a class="users" href="inventory.html">📦 Inventory</a>` : "")
         + (canOps ? `<a class="users" href="vendors.html">🤝 Vendors</a>` : "")
         + (canOps ? `<a class="users" href="calendar.html">📅 Calendar</a>` : "")
+        + (canOps ? `<a class="users" href="templates.html">🧩 Templates</a>` : "")
         + (canWork ? `<a class="users" href="quotes.html">📋 Quotes</a>` : "")
         + (canManage ? `<a class="users" href="control.html">⚙ Control Center</a>` : "")
         + (canManage ? `<button class="users" id="usersBtn">👥 Users</button>` : "")
