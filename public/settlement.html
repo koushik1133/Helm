@@ -113,6 +113,20 @@
       </div>
       <div class="totbar"><span>Claims total: <b id="e_tot">₹0</b></span><span>Paid: <b id="e_paid">₹0</b></span></div>
     </div>
+
+    <div class="card">
+      <h2>↩ Refunds &amp; recovery</h2>
+      <p class="sub">Deposits, damage deductions, refunds to the client, and amounts to recover.</p>
+      <table><thead><tr><th>Type</th><th>Reason</th><th class="num">Amount</th><th>Status</th><th></th></tr></thead>
+        <tbody id="refBody"><tr><td colspan="5" class="empty">None.</td></tr></tbody></table>
+      <div class="addgrid" id="refAdd" hidden>
+        <div class="fld"><label>Type</label><select id="r_kind"><option value="refund">Refund to client</option><option value="recovery">Recover from client</option><option value="deduction">Deduction from deposit</option></select></div>
+        <div class="fld"><label>Reason</label><input id="r_reason" placeholder="e.g. Damaged linens"></div>
+        <div class="fld"><label>Amount ₹</label><input id="r_amt" type="number" min="0" value="0"></div>
+        <div class="fld"><label>&nbsp;</label><button class="btn primary" id="r_add">＋ Add</button></div>
+      </div>
+      <div class="totbar"><span>Refunds due: <b id="r_ref">₹0</b></span><span>To recover: <b id="r_rec">₹0</b></span></div>
+    </div>
   </div>
   <footer>Blueprint Stage — settle the client, the vendors and the crew.</footer>
 </div>
@@ -127,8 +141,8 @@
   </div>
 </div>
 
-<script src="config.js?v=36"></script>
-<script src="store-api.js?v=36"></script>
+<script src="config.js?v=37"></script>
+<script src="store-api.js?v=37"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -182,16 +196,40 @@
     catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); }
   }
 
+  const REF={pending:"Pending",approved:"Approved",processed:"Processed",rejected:"Rejected"};
+  const RKIND={refund:"Refund",recovery:"Recovery",deduction:"Deduction"};
+  const refCls=(st)=>st==="processed"?"paid":st==="approved"?"approved":st==="rejected"?"rejected":"pending";
+  async function renderRefunds(){
+    let list=[];
+    try{ list=await BPStore.refunds.list(id); }
+    catch(e){ $("#refBody").innerHTML=`<tr><td colspan="5" class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase24-refunds.sql</b>.</td></tr>`; return; }
+    $("#refBody").innerHTML = list.length ? list.map(r=>`<tr>
+      <td><b>${RKIND[r.kind]||r.kind}</b></td><td class="muted">${esc(r.reason||"")}</td><td class="num">${inr(r.amount)}</td>
+      <td><span class="st ${refCls(r.status)}">${REF[r.status]||r.status}</span></td>
+      <td>${canEdit?`${r.status==='pending'?`<button class="rm" data-rst="${r.id}" data-s="approved">Approve</button> `:""}${(r.status!=='processed'&&r.status!=='rejected')?`<button class="rm" data-rst="${r.id}" data-s="processed">Mark done</button> `:""}${canDelete?`<button class="rm" data-rdel="${r.id}">✕</button>`:""}`:""}</td>
+    </tr>`).join("") : '<tr><td colspan="5" class="empty">None.</td></tr>';
+    const active=list.filter(r=>r.status!=='rejected');
+    $("#r_ref").textContent=inr(active.filter(r=>r.kind==='refund').reduce((a,r)=>a+Number(r.amount||0),0));
+    $("#r_rec").textContent=inr(active.filter(r=>r.kind!=='refund').reduce((a,r)=>a+Number(r.amount||0),0));
+    $("#refBody").querySelectorAll("[data-rst]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.refunds.setStatus(b.dataset.rst,b.dataset.s); await renderRefunds(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
+    $("#refBody").querySelectorAll("[data-rdel]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.refunds.remove(b.dataset.rdel); renderRefunds(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
+  }
+  async function addRefund(){ const amt=Number($("#r_amt").value||0); if(amt<=0){ $("#r_amt").focus(); return; }
+    try{ await BPStore.refunds.add(id,{ kind:$("#r_kind").value, reason:$("#r_reason").value.trim()||null, amount:amt }); $("#r_reason").value=""; $("#r_amt").value=0; await renderRefunds(); }
+    catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); }
+  }
+
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
     catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
   $("#pay_btn").addEventListener("click",recordPayment);
   $("#e_add").addEventListener("click",addExpense);
+  $("#r_add").addEventListener("click",addRefund);
 
   async function load(){
-    try{ s=await BPStore.settlement.summary(id); }
-    catch(e){ $("#invBody").innerHTML=`<tr><td class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase19-settlement.sql</b>.</td></tr>`; return; }
-    render();
+    try{ s=await BPStore.settlement.summary(id); render(); }
+    catch(e){ $("#invBody").innerHTML=`<tr><td class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase19-settlement.sql</b>.</td></tr>`; }
+    await renderRefunds();
   }
   (async ()=>{
     await BPStore.init(); await renderAccount();
@@ -202,7 +240,7 @@
     canEdit=await BPStore.auth.can("edit"); canDelete=await BPStore.auth.can("delete");
     let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
-    $("#app").hidden=false; $("#payLine").hidden=!canEdit; $("#expAdd").hidden=!canEdit;
+    $("#app").hidden=false; $("#payLine").hidden=!canEdit; $("#expAdd").hidden=!canEdit; $("#refAdd").hidden=!canEdit;
     await load();
   })();
 </script>
