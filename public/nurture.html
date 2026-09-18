@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRM nurture — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1040px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+  .card h2{font-size:15px;margin:0 0 4px} .card .sub{font-size:12px;color:var(--ink-3);margin:0 0 12px}
+  .addgrid{display:grid;grid-template-columns:1.2fr .9fr 1fr .9fr .9fr auto;gap:8px;align-items:end} @media(max-width:820px){.addgrid{grid-template-columns:1fr 1fr}}
+  .fld{display:flex;flex-direction:column;gap:4px} .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld input,.fld select{height:36px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .btn{height:36px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer} .btn:hover{border-color:var(--accent)}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:9px 10px;border-bottom:1px solid var(--line)}
+  tbody td{padding:9px 10px;border-bottom:1px solid var(--line-2);vertical-align:middle} .muted{color:var(--ink-3)}
+  .st{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .st.active{background:#eef2ff;color:#4457c8} .st.won{background:#e7f6ee;color:#0f7a43} .st.dormant{background:#f1f3f7;color:var(--ink-3)}
+  .due{background:#fdecec;color:#b42318;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:28px;padding:0 9px;font-size:11px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#e5484d;border-color:#f5c6c6}
+  .lnk{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:28px;padding:0 9px;font-size:11px;cursor:pointer;color:var(--ink-2)} .lnk:hover{border-color:var(--accent);color:var(--accent)}
+  .empty{text-align:center;color:var(--ink-3);padding:22px;font-size:13px}
+  footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
+  .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px}
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,96vw);padding:24px}
+  .sheet h3{margin:0 0 12px}.foot{display:flex;gap:10px;justify-content:flex-end}.fld2{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}.fld2 label{font-size:11px;font-weight:600;color:var(--ink-2)}.fld2 input{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>CRM nurture</h1><small>Blueprint Stage</small></div>
+    <nav class="nav"><a href="index.html">Home</a><a href="leads.html">Leads</a><a href="crm.html">CRM archive</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to open the nurture list.</p></div>
+
+  <div id="app" hidden>
+    <div class="card" id="addCard" hidden>
+      <h2>Add to nurture list</h2>
+      <p class="sub">Keep past & prospective clients warm — set the next follow-up date and the occasion.</p>
+      <div class="addgrid">
+        <div class="fld"><label>Name</label><input id="n_name" placeholder="Client / company"></div>
+        <div class="fld"><label>Phone</label><input id="n_phone" placeholder="optional"></div>
+        <div class="fld"><label>Occasion</label><input id="n_occ" placeholder="e.g. Anniversary"></div>
+        <div class="fld"><label>Occasion date</label><input id="n_occd" type="date"></div>
+        <div class="fld"><label>Next follow-up</label><input id="n_next" type="date"></div>
+        <div class="fld"><label>&nbsp;</label><button class="btn primary" id="n_add">＋ Add</button></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Nurture list <span id="dueCount" style="font-size:12px;color:#b42318;font-weight:600;margin-left:6px"></span></h2>
+      <table>
+        <thead><tr><th>Client</th><th>Occasion</th><th>Next follow-up</th><th>Status</th><th></th></tr></thead>
+        <tbody id="nurBody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <footer>Blueprint Stage — repeat business starts with a timely follow-up.</footer>
+</div>
+
+<div id="loginModal" class="lmodal" hidden>
+  <div class="sheet">
+    <h3>Sign in</h3>
+    <div class="fld2"><label>Email</label><input id="li_email" type="email"></div>
+    <div class="fld2"><label>Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden></div>
+    <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
+  </div>
+</div>
+
+<script src="config.js?v=40"></script>
+<script src="store-api.js?v=40"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const NST={active:"Active",won:"Won",dormant:"Dormant"};
+  const today=()=>new Date().toISOString().slice(0,10);
+  let canEdit=false;
+
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  async function render(){
+    let list=[];
+    try{ list=await BPStore.nurture.list(); }
+    catch(e){ $("#nurBody").innerHTML=`<tr><td colspan="5" class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase27-nurture.sql</b>.</td></tr>`; return; }
+    const td=today();
+    const due=list.filter(n=>n.status==="active" && n.next_followup && n.next_followup<=td).length;
+    $("#dueCount").textContent = due? `${due} follow-up${due===1?"":"s"} due` : "";
+    $("#nurBody").innerHTML = list.length ? list.map(n=>{ const isDue=n.status==="active"&&n.next_followup&&n.next_followup<=td;
+      return `<tr>
+        <td><b>${esc(n.name)}</b><div class="muted" style="font-size:11px">${[n.phone,n.email].filter(Boolean).map(esc).join(" · ")}</div></td>
+        <td>${esc(n.occasion||"")}${n.occasion_date?`<div class="muted" style="font-size:11px">${esc(n.occasion_date)}</div>`:""}</td>
+        <td>${n.next_followup?esc(n.next_followup):'<span class="muted">—</span>'} ${isDue?'<span class="due">Due</span>':""}</td>
+        <td><span class="st ${n.status}">${NST[n.status]||n.status}</span></td>
+        <td>${canEdit?`<button class="lnk" data-done="${n.id}">Followed up</button> <button class="lnk" data-conv="${n.id}">→ Lead</button> <button class="rm" data-del="${n.id}">✕</button>`:""}</td>
+      </tr>`; }).join("") : '<tr><td colspan="5" class="empty">No one on the nurture list yet.</td></tr>';
+    $("#nurBody").querySelectorAll("[data-done]").forEach(b=>b.addEventListener("click",async()=>{
+      // followed up → push next follow-up a year out
+      const d=new Date(); d.setFullYear(d.getFullYear()+1); const next=d.toISOString().slice(0,10);
+      try{ await BPStore.nurture.update(b.dataset.done,{next_followup:next}); await render(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
+    $("#nurBody").querySelectorAll("[data-conv]").forEach(b=>b.addEventListener("click",async()=>{
+      try{ await BPStore.nurture.convertToLead(b.dataset.conv); alert("Added to the leads pipeline ✓"); await render(); }catch(e){ alert("Couldn't convert — "+((e&&e.message)||"error")); } }));
+    $("#nurBody").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ if(!confirm("Remove from nurture?"))return; try{ await BPStore.nurture.remove(b.dataset.del); render(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
+  }
+
+  async function addOne(){ const name=$("#n_name").value.trim(); if(!name){ $("#n_name").focus(); return; }
+    try{ await BPStore.nurture.add({ name, phone:$("#n_phone").value.trim()||null, occasion:$("#n_occ").value.trim()||null,
+        occasion_date:$("#n_occd").value||null, next_followup:$("#n_next").value||null });
+      ["n_name","n_phone","n_occ","n_occd","n_next"].forEach(k=>$("#"+k).value=""); await render(); }
+    catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); }
+  }
+
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
+    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  $("#n_add").addEventListener("click",addOne);
+
+  (async ()=>{
+    await BPStore.init(); await renderAccount();
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    if(!(await BPStore.auth.requireView("pipeline"))) return;
+    canEdit=await BPStore.auth.can("edit");
+    $("#app").hidden=false; $("#addCard").hidden=!canEdit;
+    await render();
+  })();
+</script>
+</body>
+</html>

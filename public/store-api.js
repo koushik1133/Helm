@@ -499,6 +499,40 @@
     },
   };
 
+  /* ---------------- CRM nurture / repeat business (Phase 27, spec step 94) ---------------- */
+  const NURTURE_LS = "bp_nurture";
+  const nurture = {
+    async list() {
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("nurture").select("*").order("next_followup", { nullsFirst: false });
+        if (error) throw error; return data;
+      }
+      return readLs(NURTURE_LS);
+    },
+    async add(n) {
+      if (mode === "supabase") { const { data, error } = await supa.from("nurture").insert(n).select().single(); if (error) throw error; return data; }
+      const a = readLs(NURTURE_LS); const row = { id: uid(), status: "active", ...n, created_at: now() }; a.push(row); localStorage.setItem(NURTURE_LS, JSON.stringify(a)); return row;
+    },
+    async update(id, patch) {
+      if (mode === "supabase") { const { error } = await supa.from("nurture").update(patch).eq("id", id); if (error) throw error; return true; }
+      const a = readLs(NURTURE_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(NURTURE_LS, JSON.stringify(a)); } return true;
+    },
+    async remove(id) {
+      if (mode === "supabase") { const { error } = await supa.from("nurture").delete().eq("id", id); if (error) throw error; return true; }
+      localStorage.setItem(NURTURE_LS, JSON.stringify(readLs(NURTURE_LS).filter((n) => n.id !== id))); return true;
+    },
+    // turn a nurture contact into a fresh pipeline lead (reuses the leads pipeline)
+    async convertToLead(id) {
+      const all = await this.list(); const n = (all || []).find((x) => x.id === id);
+      if (!n) throw new Error("contact not found");
+      const lead = await leads.add({ name: n.name, phone: n.phone || null, email: n.email || null,
+        source: "Repeat / referral", event_type: n.occasion || null, event_date: n.occasion_date || null,
+        notes: n.note || null, status: "new" });
+      await this.update(id, { status: "won" });
+      return lead;
+    },
+  };
+
   /* ---------------- discovery & requirements (Phase 3) ---------------- */
   const DISC_LS = "bp_discovery", REQ_LS = "bp_requirements";
   const readLs = (k) => { try { return JSON.parse(localStorage.getItem(k) || "[]"); } catch { return []; } };
@@ -1391,7 +1425,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, settlement, closure,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

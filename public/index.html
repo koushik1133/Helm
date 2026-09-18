@@ -207,8 +207,8 @@
   </div>
 </div>
 
-<script src="config.js?v=39"></script>
-<script src="store-api.js?v=39"></script>
+<script src="config.js?v=40"></script>
+<script src="store-api.js?v=40"></script>
 <script>
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return "—"; } };
@@ -242,6 +242,7 @@
       el.innerHTML = `<span class="role">${esc(role||"")}</span><span>${esc(user.email)}</span>`
         + (canPipe ? `<a class="users" href="leads.html">🎯 Leads</a>` : "")
         + (canPipe ? `<a class="users" href="crm.html">🗄 CRM</a>` : "")
+        + (canPipe ? `<a class="users" href="nurture.html">🌱 Nurture</a>` : "")
         + (canOps ? `<a class="users" href="staff.html">👷 Staff</a>` : "")
         + (canOps ? `<a class="users" href="inventory.html">📦 Inventory</a>` : "")
         + (canOps ? `<a class="users" href="vendors.html">🤝 Vendors</a>` : "")

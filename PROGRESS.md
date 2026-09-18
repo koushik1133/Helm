@@ -4,10 +4,10 @@ Mapped against `updated_end_to_end_event_planning_flow_with_resource_management.
 (Pre-Event 48 · Event-Day 18 · Post-Event 29). Legend: ✅ done · 🟡 lite (works as a
 status/checklist, no deep engine) · ⛔ not built yet.
 
-## Score
-- **Breadth (a working feature exists): 89 / 95 = ~94%** (✅ + 🟡)
-- **Fully built at depth: 56 / 95 = ~59%** (✅)
-- **Depth-weighted (🟡 counts half): ~76%**
+## Score  _(updated — the 6 not-built steps are now built)_
+- **Breadth (a working feature exists): 95 / 95 = 100%** (✅ + 🟡)
+- **Fully built at depth: 62 / 95 = ~65%** (✅)
+- **Depth-weighted (🟡 counts half): ~83%**
 - **Resource Management module: ~90%** (procurement is the only lite part)
 - **Foundation (auth, 6-role RBAC, 2D/3D builder, quote/approval/pricing, notifications): 100%** — pre-existing, reused, and now RBAC-hardened.
 - **Honest one-liner:** almost every step of the lifecycle has a real, working feature; ~⅓ are deliberately "lite" and 6 aren't built. What's left is *depth* + going live with real channels.
@@ -19,15 +19,15 @@ status/checklist, no deep engine) · ⛔ not built yet.
 ✅ 49 Venue access · ✅ 50 In-house deployment + attendance · ✅ 51 Vendor/freelancer arrival tracking · 🟡 52 Inventory/material movement (allocated; venue-movement lite) · ✅ 53 Setup execution checks · ✅ 54 Technical checks · 🟡 55 Client walkthrough (lite) · ✅ 56 Guest entry/reception (command centre: guest groups, +/− check-in, pull-from-logistics, running total) · 🟡 57 Program execution (run-sheet, no live tick-off) · 🟡 58 Live vendor coordination (via issues) · 🟡 59 Live staff coordination (via issues) · ✅ 60 Live inventory support (command centre: raise stock requests from the catalog or free-text, mark issued/replaced) · ✅ 61 Live issue management · 🟡 62 Client requests during event (via change) · ✅ 63 Scope change during event (billable) · 🟡 64 Event progress tracking (run-sheet, no live delay alerts) · ✅ 65 Safety/emergency incident log · ✅ 66 Event completion
 
 ## POST-EVENT (29) — 17 ✅ · 8 🟡 · 4 ⛔
-✅ 67 Dismantling · ✅ 68 In-house inventory count/return (+damage→stock) · ✅ 69 Rental return · ✅ 70 Vendor exit · ✅ 71 Venue handover (checklist) · 🟡 72 Vendor completion verification · 🟡 73 Client completion acknowledgement · 🟡 74 Scope reconciliation · ✅ 75 Additional charges finalization · 🟡 76 Vendor invoice collection (settlement, no invoice upload) · ✅ 77 Vendor payment settlement · ✅ 78 Client final invoice · ✅ 79 Client payment collection · ✅ 80 Refund/recovery handling (settlement: refunds/recoveries/deductions with approve→processed and running totals) · 🟡 81 Damage/loss handling (stock adjust; no liability case) · 🟡 82 Internal team closure · ✅ 83 Staff overtime/expense claims · ✅ 84 Client feedback + rating + testimonial · ✅ 85 Vendor/freelancer rating · ✅ 86 Event photos/media collection (media.html: add photo/video links, flag client gallery, gallery-preview mode; workspace card) · ✅ 87 Marketing permission (consent flag) · ✅ 88 Profit/loss review · ✅ 89 Financial closure · 🟡 90 Documentation & archive (stamp; no file store) · ✅ 91 Lessons learned · ✅ 92 Template/process update (templates.html: reusable checklist templates by section; "Apply template" on Logistics inserts the items) · 🟡 93 Client relationship management (CRM archive + follow-up link) · ⛔ 94 Repeat business/nurture (occasion reminders) · ✅ 95 Final event closure
+✅ 67 Dismantling · ✅ 68 In-house inventory count/return (+damage→stock) · ✅ 69 Rental return · ✅ 70 Vendor exit · ✅ 71 Venue handover (checklist) · 🟡 72 Vendor completion verification · 🟡 73 Client completion acknowledgement · 🟡 74 Scope reconciliation · ✅ 75 Additional charges finalization · 🟡 76 Vendor invoice collection (settlement, no invoice upload) · ✅ 77 Vendor payment settlement · ✅ 78 Client final invoice · ✅ 79 Client payment collection · ✅ 80 Refund/recovery handling (settlement: refunds/recoveries/deductions with approve→processed and running totals) · 🟡 81 Damage/loss handling (stock adjust; no liability case) · 🟡 82 Internal team closure · ✅ 83 Staff overtime/expense claims · ✅ 84 Client feedback + rating + testimonial · ✅ 85 Vendor/freelancer rating · ✅ 86 Event photos/media collection (media.html: add photo/video links, flag client gallery, gallery-preview mode; workspace card) · ✅ 87 Marketing permission (consent flag) · ✅ 88 Profit/loss review · ✅ 89 Financial closure · 🟡 90 Documentation & archive (stamp; no file store) · ✅ 91 Lessons learned · ✅ 92 Template/process update (templates.html: reusable checklist templates by section; "Apply template" on Logistics inserts the items) · 🟡 93 Client relationship management (CRM archive + follow-up link) · ✅ 94 Repeat business/nurture (nurture.html: nurture list with occasion + next-follow-up dates, "Due" flags, followed-up bump, convert→lead) · ✅ 95 Final event closure
 
-## The 6 not-built (⛔)
-1. **56 Guest entry/reception** — welcome-desk/guest check-in on the day.
-2. **60 Live inventory support** — request/replace stock live during the event.
-3. **80 Refund/recovery handling** — deposits, deductions, refunds engine.
-4. **86 Media collection/gallery** — photos/videos + client gallery (the deferred DAM).
-5. **92 Template/process update** — turn lessons into reusable checklist templates.
-6. **94 Repeat business/nurture** — nurture list + occasion reminders (deferred CRM nurture).
+## The 6 formerly-missing steps — now built ✅
+1. **56 Guest entry/reception** — command-centre welcome-desk check-in (phase22).
+2. **60 Live inventory support** — raise/issue/replace stock on the day (phase23).
+3. **80 Refund/recovery handling** — refunds/recoveries/deductions on settlement (phase24).
+4. **86 Media collection/gallery** — media.html photo/video links + client gallery (phase25).
+5. **92 Template/process update** — reusable checklist templates + apply (phase26).
+6. **94 Repeat business/nurture** — nurture.html list + follow-up dates + convert→lead (phase27).
 
 ## Cross-cutting still to do
 - **Go-live channels** (currently simulated): real payments (Razorpay/Stripe), SMS/OTP (MSG91/Twilio), email (Resend/SendGrid), WhatsApp.
