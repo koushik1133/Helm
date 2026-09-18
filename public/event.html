@@ -104,8 +104,8 @@
   </form>
 </div>
 
-<script src="config.js?v=37"></script>
-<script src="store-api.js?v=37"></script>
+<script src="config.js?v=38"></script>
+<script src="store-api.js?v=38"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -128,7 +128,7 @@
   ];
   const stageIndex=(k)=>Math.max(0,STAGES.findIndex(s=>s.k===k));
 
-  let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, closureSummary=null;
+  let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, closureSummary=null, mediaSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
   const budgetRange=()=>{ const d=discSummary&&discSummary.disc; if(!d) return ""; const a=d.budget_min, b=d.budget_max;
     if(a!=null&&b!=null) return inr(a)+"–"+inr(b); if(a!=null) return "from "+inr(a); if(b!=null) return "up to "+inr(b); return ""; };
@@ -191,6 +191,7 @@
     try{ settleSummary=await BPStore.settlement.summary(id); }catch{ settleSummary=null; }
     // closure / P&L summary (Phase 20) — optional
     try{ const pl=await BPStore.closure.pl(id); const c=await BPStore.closure.get(id); closureSummary={ profit:pl.profit, pct:pl.marginPct, closed:!!(c&&c.closed_at) }; }catch{ closureSummary=null; }
+    try{ const md=await BPStore.media.list(id); mediaSummary={ photos:md.filter(m=>m.kind==='photo').length, videos:md.filter(m=>m.kind==='video').length, gallery:md.filter(m=>m.in_gallery).length, total:md.length }; }catch{ mediaSummary=null; }
     $("#app").hidden=false;
     render();
   }
@@ -265,6 +266,9 @@
       { key:"closure", ic:"📊", title:"Closure & P&L",
         sum: closureSummary ? `${closureSummary.closed?'<span class="stat ok">Closed</span> · ':''}Profit <b style="color:${closureSummary.profit>=0?'#0f7a43':'#b42318'}">${inr(closureSummary.profit)}</b>${closureSummary.pct!=null?` (${closureSummary.pct}%)`:""}` : "Feedback, P&amp;L, ratings &amp; archive.",
         acts:[{t:"Open closure", href:"closure.html?quote="+encodeURIComponent(id), primary:true}] },
+      { key:"media", ic:"📸", title:"Media & gallery",
+        sum: mediaSummary && mediaSummary.total ? `${mediaSummary.photos} photo${mediaSummary.photos===1?"":"s"} · ${mediaSummary.videos} video${mediaSummary.videos===1?"":"s"} · ${mediaSummary.gallery} in gallery` : "Collect photos &amp; videos and pick the client gallery.",
+        acts:[{t: canEdit?"Open media":"View media", href:"media.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"settle", ic:"💳", title:"Settlement & billing",
         sum: settleSummary ? `${settleSummary.balance>0?`<b style="color:#b42318">${inr(settleSummary.balance)} due</b>`:'<span class="stat ok">client settled</span>'}${settleSummary.vendorOutstanding?` · ${inr(settleSummary.vendorOutstanding)} to vendors`:""}` : "Final invoice, vendor settlement &amp; expenses.",
         acts:[{t: canEdit?"Open settlement":"View settlement", href:"settlement.html?quote="+encodeURIComponent(id), primary:true}] },

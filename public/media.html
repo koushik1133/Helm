@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Media &amp; gallery — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
+    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none} img{max-width:100%}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .crumb{font-size:12px;color:var(--ink-3);margin:2px 0 14px} .crumb a{color:var(--accent)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+  .card h2{font-size:15px;margin:0 0 4px} .card .sub{font-size:12px;color:var(--ink-3);margin:0 0 12px}
+  .addgrid{display:grid;grid-template-columns:.8fr 2fr 1.4fr auto;gap:8px;align-items:end} @media(max-width:680px){.addgrid{grid-template-columns:1fr 1fr}}
+  .fld{display:flex;flex-direction:column;gap:4px} .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld input,.fld select{height:36px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .btn{height:36px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer} .btn:hover{border-color:var(--accent)}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
+  .toolbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .toggle{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--ink-2)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+  .m{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);display:flex;flex-direction:column}
+  .m .thumb{aspect-ratio:4/3;background:var(--panel-2);display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .m .thumb img{width:100%;height:100%;object-fit:cover}
+  .m .vid{font-size:34px;color:var(--ink-3)}
+  .m .body{padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+  .m .cap{font-size:13px;font-weight:600;word-break:break-word}
+  .m .row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--ink-2)}
+  .m .row .spacer{margin-left:auto}
+  .badge{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:26px;padding:0 8px;font-size:11px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#e5484d;border-color:#f5c6c6}
+  .empty{text-align:center;color:var(--ink-3);padding:26px;font-size:13px}
+  footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
+  .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px}
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,96vw);padding:24px}
+  .sheet h3{margin:0 0 12px}.foot{display:flex;gap:10px;justify-content:flex-end}.fld2{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}.fld2 label{font-size:11px;font-weight:600;color:var(--ink-2)}.fld2 input{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Media &amp; gallery</h1><small>Blueprint Stage</small></div>
+    <nav class="nav"><a href="index.html">Home</a><a href="calendar.html">Calendar</a><a href="quotes.html">Quotes</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to open media.</p></div>
+  <div id="notfound" class="card" hidden><p style="color:var(--ink-3)">Event not found. Go to <a href="quotes.html" style="color:var(--accent)">Quotes</a>.</p></div>
+
+  <div id="app" hidden>
+    <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
+
+    <div class="card" id="addCard" hidden>
+      <h2>Add media</h2>
+      <p class="sub">Paste a link to a photo or video (Drive, Dropbox, YouTube…). Tick "in gallery" to include it in the client's set.</p>
+      <div class="addgrid">
+        <div class="fld"><label>Type</label><select id="m_kind"><option value="photo">Photo</option><option value="video">Video</option></select></div>
+        <div class="fld"><label>Link (URL)</label><input id="m_url" placeholder="https://…"></div>
+        <div class="fld"><label>Caption</label><input id="m_cap" placeholder="optional"></div>
+        <div class="fld"><label>&nbsp;</label><button class="btn primary" id="m_add">＋ Add</button></div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <span id="mCount" style="font-size:13px;color:var(--ink-2)"></span>
+      <span class="spacer"></span>
+      <label class="toggle"><input type="checkbox" id="galleryOnly"> Client gallery preview</label>
+    </div>
+
+    <div id="mediaGrid" class="grid"></div>
+  </div>
+  <footer>Blueprint Stage — collect the photos & videos and choose the client's gallery.</footer>
+</div>
+
+<div id="loginModal" class="lmodal" hidden>
+  <div class="sheet">
+    <h3>Sign in</h3>
+    <div class="fld2"><label>Email</label><input id="li_email" type="email"></div>
+    <div class="fld2"><label>Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden></div>
+    <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
+  </div>
+</div>
+
+<script src="config.js?v=38"></script>
+<script src="store-api.js?v=38"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
+  let canEdit=false, galleryOnly=false;
+
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  async function render(){
+    let list=[];
+    try{ list=await BPStore.media.list(id); }
+    catch(e){ $("#mediaGrid").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase25-media.sql</b>.</div>`; return; }
+    const shown = galleryOnly ? list.filter(m=>m.in_gallery) : list;
+    const ph=list.filter(m=>m.kind==="photo").length, vd=list.filter(m=>m.kind==="video").length, gal=list.filter(m=>m.in_gallery).length;
+    $("#mCount").textContent = `${ph} photo${ph===1?"":"s"} · ${vd} video${vd===1?"":"s"} · ${gal} in gallery`;
+    $("#mediaGrid").innerHTML = shown.length ? shown.map(m=>`<div class="m">
+      <a class="thumb" href="${esc(m.url)}" target="_blank" rel="noopener">${m.kind==="photo"?`<img src="${esc(m.url)}" loading="lazy" alt="">`:`<span class="vid">▶</span>`}</a>
+      <div class="body">
+        <div class="cap">${esc(m.caption||"(no caption)")}</div>
+        <div class="row">${m.in_gallery?'<span class="badge">Gallery</span>':'<span style="color:var(--ink-3)">Not in gallery</span>'}
+          ${(canEdit&&!galleryOnly)?`<span class="spacer"></span>
+            <label class="toggle"><input type="checkbox" data-gal="${m.id}" ${m.in_gallery?"checked":""}> gallery</label>
+            <button class="rm" data-del="${m.id}">✕</button>`:""}</div>
+      </div>
+    </div>`).join("") : `<div class="empty">${galleryOnly?"Nothing flagged for the client gallery yet.":"No media yet. Paste a photo or video link above."}</div>`;
+    $("#mediaGrid").querySelectorAll("[data-gal]").forEach(c=>c.addEventListener("change",async()=>{ try{ await BPStore.media.update(c.dataset.gal,{in_gallery:c.checked}); await render(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
+    $("#mediaGrid").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ if(!confirm("Remove this item?"))return; try{ await BPStore.media.remove(b.dataset.del); render(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
+  }
+
+  async function addMedia(){ const url=$("#m_url").value.trim(); if(!url){ $("#m_url").focus(); return; }
+    try{ await BPStore.media.add(id,{ kind:$("#m_kind").value, url, caption:$("#m_cap").value.trim()||null, in_gallery:true }); $("#m_url").value=""; $("#m_cap").value=""; await render(); }
+    catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); }
+  }
+
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
+    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  $("#m_add").addEventListener("click",addMedia);
+  $("#galleryOnly").addEventListener("change",e=>{ galleryOnly=e.target.checked; render(); });
+
+  (async ()=>{
+    await BPStore.init(); await renderAccount();
+    $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
+    if(!id){ $("#notfound").hidden=false; return; }
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    if(!(await BPStore.auth.requireView("ops"))) return;
+    canEdit=await BPStore.auth.can("edit");
+    let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
+    $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
+    $("#app").hidden=false; $("#addCard").hidden=!canEdit;
+    await render();
+  })();
+</script>
+</body>
+</html>
