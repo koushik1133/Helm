@@ -112,6 +112,16 @@
           <div class="addline"><input id="gst_label" placeholder="Group name…"><input id="gst_exp" type="number" min="0" placeholder="Exp." style="max-width:80px"><button class="btn primary" id="gst_add">＋</button></div>
         </div>
       </div>
+
+      <div class="card">
+        <h2>📦 Live stock requests <span class="prog" id="stkProg"></span></h2>
+        <p class="sub">Raise, issue or replace stock during the event.</p>
+        <div id="stkRows"></div>
+        <div style="margin-top:10px" id="stkTools" hidden>
+          <div class="addline"><select id="stk_item" style="flex:1;height:34px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)"></select></div>
+          <div class="addline"><input id="stk_label" placeholder="or type an item…"><input id="stk_qty" type="number" min="1" value="1" style="max-width:70px"><button class="btn primary" id="stk_add">＋</button></div>
+        </div>
+      </div>
     </div>
   </div>
   <footer>Blueprint Stage — run the day: who's here, what's checked, what's next.</footer>
@@ -127,8 +137,8 @@
   </div>
 </div>
 
-<script src="config.js?v=35"></script>
-<script src="store-api.js?v=35"></script>
+<script src="config.js?v=36"></script>
+<script src="store-api.js?v=36"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -191,6 +201,29 @@
     $("#gstRows").querySelectorAll("[data-gdel]").forEach(b=>b.addEventListener("click",async()=>{ if(!confirm("Remove this group?"))return; try{ await BPStore.guests.remove(b.dataset.gdel); renderGuests(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
   }
 
+  const STK={requested:"Requested",issued:"Issued",replaced:"Replaced",cancelled:"Cancelled"};
+  const stkPill={requested:"pending",issued:"done",replaced:"left",cancelled:"no_show"};
+  async function renderStock(){
+    const items=await BPStore.stockreq.list(id);
+    const open=items.filter(r=>r.status==="requested").length;
+    $("#stkProg").textContent = items.length? `${open} open` : "";
+    $("#stkRows").innerHTML = items.length ? items.map(r=>`<div class="row">
+      <div><div class="nm">${esc(r.label)} <span class="rl">×${Number(r.qty||1)}</span></div>${r.note?`<div class="rl">${esc(r.note)}</div>`:""}</div>
+      <span class="pill ${stkPill[r.status]||"pending"}">${STK[r.status]||r.status}</span>
+      ${canEdit?`<div class="acts">
+        <button class="mini go" data-stk="${r.id}" data-s="issued">Issued</button>
+        <button class="mini" data-stk="${r.id}" data-s="replaced">Replaced</button>
+        <button class="mini del" data-sdel="${r.id}">✕</button></div>`:""}
+    </div>`).join("") : '<div class="empty">No stock requests. Raise one if something is needed on site.</div>';
+    $("#stkRows").querySelectorAll("[data-stk]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.stockreq.setStatus(b.dataset.stk,b.dataset.s); await renderStock(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
+    $("#stkRows").querySelectorAll("[data-sdel]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.stockreq.remove(b.dataset.sdel); renderStock(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
+  }
+  async function loadStockItems(){
+    try{ const items=await BPStore.inventory.items(false);
+      $("#stk_item").innerHTML='<option value="">— pick a stock item —</option>'+items.map(i=>`<option value="${i.id}" data-name="${esc(i.name)}">${esc(i.name)}</option>`).join(""); }
+    catch{ $("#stk_item").innerHTML='<option value="">— pick a stock item —</option>'; }
+  }
+
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
     catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
@@ -201,6 +234,12 @@
   $("#chk_addb").addEventListener("click",async()=>{ const t=$("#chk_title").value.trim(); if(!t) return; await BPStore.dayops.add(id,{kind:"check",who:t,status:"pending"}); $("#chk_title").value=""; renderChecks(); });
   $("#gst_add").addEventListener("click",async()=>{ const l=$("#gst_label").value.trim(); if(!l) return; try{ await BPStore.guests.add(id,{label:l, expected:Number($("#gst_exp").value||0)}); $("#gst_label").value=""; $("#gst_exp").value=""; renderGuests(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } });
   $("#gstPull").addEventListener("click",async()=>{ $("#gstPull").disabled=true; try{ const n=await BPStore.guests.pullFromLogistics(id); await renderGuests(); if(!n) alert("Nothing to pull — add guest groups in Logistics → Guests first."); }catch(e){ alert("Couldn't pull — "+((e&&e.message)||"error")); } finally{ $("#gstPull").disabled=false; } });
+  $("#stk_add").addEventListener("click",async()=>{ const sel=$("#stk_item"); const free=$("#stk_label").value.trim();
+    let item_id=null,label=free;
+    if(!free && sel.value){ item_id=sel.value; label=sel.options[sel.selectedIndex].dataset.name||sel.options[sel.selectedIndex].textContent; }
+    if(!label){ alert("Pick or type an item."); return; }
+    try{ await BPStore.stockreq.add(id,{item_id,label,qty:Number($("#stk_qty").value||1)}); $("#stk_label").value=""; $("#stk_qty").value=1; sel.value=""; renderStock(); }
+    catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } });
 
   (async ()=>{
     await BPStore.init(); await renderAccount();
@@ -213,9 +252,11 @@
     $("#b_code").textContent=ev.code||""; $("#b_meta").textContent=[ev.title,ev.eventDate].filter(Boolean).join(" · ");
     $("#l_issues").href="issues.html?quote="+encodeURIComponent(id); $("#l_runsheet").href="runsheet.html?quote="+encodeURIComponent(id); $("#l_floor").href="builder.html?quote="+encodeURIComponent(id);
     try{ const p=await BPStore.plan.get(id); if(p&&(p.venue_name||p.access_notes)) $("#b_venue").textContent="📍 "+[p.venue_name,p.access_notes].filter(Boolean).join(" — "); }catch{}
-    $("#app").hidden=false; $("#arrTools").hidden=!canEdit; $("#chkAdd").hidden=!canEdit; $("#gstTools").hidden=!canEdit;
+    $("#app").hidden=false; $("#arrTools").hidden=!canEdit; $("#chkAdd").hidden=!canEdit; $("#gstTools").hidden=!canEdit; $("#stkTools").hidden=!canEdit;
     try{ await renderArrivals(); await renderChecks(); }catch(e){ $("#arrRows").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase16-dayops.sql</b>.</div>`; }
     try{ await renderGuests(); }catch(e){ $("#gstRows").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase22-guest-reception.sql</b>.</div>`; }
+    if(canEdit) loadStockItems();
+    try{ await renderStock(); }catch(e){ $("#stkRows").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase23-live-stock.sql</b>.</div>`; }
   })();
 </script>
 </body>

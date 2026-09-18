@@ -1172,6 +1172,30 @@
     },
   };
 
+  /* ---------------- live inventory support (Phase 23, spec step 60) ---------------- */
+  const STOCKREQ_LS = "bp_stockreq";
+  const stockreq = {
+    async list(quoteId) {
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("event_stock_requests").select("*").eq("quote_id", quoteId).order("created_at", { ascending: false });
+        if (error) throw error; return data;
+      }
+      return readLs(STOCKREQ_LS).filter((r) => r.quote_id === quoteId);
+    },
+    async add(quoteId, r) {
+      if (mode === "supabase") { const { data, error } = await supa.from("event_stock_requests").insert({ quote_id: quoteId, ...r }).select().single(); if (error) throw error; return data; }
+      const a = readLs(STOCKREQ_LS); const row = { id: uid(), quote_id: quoteId, status: "requested", qty: 1, ...r, created_at: now() }; a.unshift(row); localStorage.setItem(STOCKREQ_LS, JSON.stringify(a)); return row;
+    },
+    async setStatus(id, status) {
+      if (mode === "supabase") { const { error } = await supa.from("event_stock_requests").update({ status }).eq("id", id); if (error) throw error; return true; }
+      const a = readLs(STOCKREQ_LS); const r = a.find((x) => x.id === id); if (r) { r.status = status; localStorage.setItem(STOCKREQ_LS, JSON.stringify(a)); } return true;
+    },
+    async remove(id) {
+      if (mode === "supabase") { const { error } = await supa.from("event_stock_requests").delete().eq("id", id); if (error) throw error; return true; }
+      localStorage.setItem(STOCKREQ_LS, JSON.stringify(readLs(STOCKREQ_LS).filter((r) => r.id !== id))); return true;
+    },
+  };
+
   /* ---------------- live issues & incident log (Phase 17) ---------------- */
   const ISS_LS = "bp_issues";
   const issues = {
@@ -1285,7 +1309,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, issues, expenses, settlement, closure,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, settlement, closure,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),
