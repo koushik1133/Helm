@@ -152,6 +152,11 @@
   .rot-handle{fill:var(--accent);stroke:var(--panel);stroke-width:1.5px;cursor:grab}
   .sel-outline{fill:none;stroke:var(--accent);stroke-width:1.5px;stroke-dasharray:5 4}
   .marquee{fill:var(--accent);fill-opacity:.08;stroke:var(--accent);stroke-width:1px;stroke-dasharray:4 3;pointer-events:none}
+  /* measurement overlay (2D "Work" mode) — never intercepts pointer events */
+  .measure{pointer-events:none;color:var(--accent)}
+  .measure .wall{color:var(--c-logistics)}
+  .measure text{fill:currentColor;font-family:var(--mono);font-weight:600}
+  .measure .mbg{fill:var(--panel);stroke:currentColor;stroke-opacity:.4}
 
   .zoombar{position:absolute;right:14px;bottom:14px;display:flex;gap:6px;align-items:center;z-index:7;
     background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:5px;box-shadow:var(--shadow)}
@@ -419,6 +424,10 @@
     <div class="field">
       <label>View</label>
       <div class="seg" id="viewSeg"><button data-v="2d" class="on" title="2D blueprint (edit)">2D Plan</button><button data-v="3d" title="3D rendered view">3D View</button><button data-v="render" title="Ultra-realistic render (image-based lighting)">✦ Render</button></div>
+    </div>
+    <div class="field">
+      <label>Work</label>
+      <div class="seg"><button id="measureBtn" title="Show distances between objects and to the walls">📏 Measure</button></div>
     </div>
   </div>
 
@@ -961,6 +970,9 @@ function renderAll(){
   // --- items ---
   store.items.forEach(it=> svg.appendChild(renderItem(it)));
 
+  // --- measurement overlay (2D "Work" mode) ---
+  if(showMeasure) svg.appendChild(renderMeasurements());
+
   // --- selection overlay(s) + marquee ---
   appendSelectionOverlays();
 
@@ -971,6 +983,63 @@ function renderAll(){
   updateCapacityUI();
   updateEmptyState();
   if(window.__on3DStateChange) window.__on3DStateChange();   // keep 3D preview in sync
+}
+
+let showMeasure = false;   // 2D "Work" measurement overlay toggle
+
+// Build the measurement overlay: edge-to-edge clearances between neighbouring
+// objects (in both directions), plus the selected object's distance to each wall.
+// Labels follow the active unit (ft/m) and stay ~screen-constant across zoom.
+function renderMeasurements(){
+  const P = PX_PER_FT, z = store.view.zoom || 1, s = 1/z;
+  const g = el('g', { class:'measure' });
+  const boxes = store.items
+    .filter(it => it && isFinite(it.x) && isFinite(it.y) && it.width>0 && it.height>0)
+    .map(it => ({ it, l:it.x, r:it.x+it.width, t:it.y, b:it.y+it.height, cx:it.x+it.width/2, cy:it.y+it.height/2 }));
+  const fmt = ft => (Math.round(toU(ft)*10)/10) + ' ' + uLabel();
+
+  function dim(x1,y1,x2,y2, ft, cls){
+    const gg = el('g', cls ? { class:cls } : {});
+    gg.appendChild(el('line',{ x1:x1*P,y1:y1*P,x2:x2*P,y2:y2*P, stroke:'currentColor',
+      'stroke-width':1*s, 'stroke-dasharray':(3*s)+' '+(2*s), 'stroke-opacity':.85 }));
+    const horiz = Math.abs(y1-y2) < 1e-6, tk = 4*s/P;
+    const ends = [[x1,y1],[x2,y2]];
+    ends.forEach(([x,y]) => gg.appendChild(horiz
+      ? el('line',{ x1:x*P,y1:(y-tk)*P,x2:x*P,y2:(y+tk)*P, stroke:'currentColor','stroke-width':1*s,'stroke-opacity':.85 })
+      : el('line',{ x1:(x-tk)*P,y1:y*P,x2:(x+tk)*P,y2:y*P, stroke:'currentColor','stroke-width':1*s,'stroke-opacity':.85 })));
+    const mx=(x1+x2)/2*P, my=(y1+y2)/2*P, txt=fmt(ft);
+    const fs=11*s, wLbl=(txt.length*6.4+8)*s, hLbl=fs+4*s;
+    gg.appendChild(el('rect',{ class:'mbg', x:mx-wLbl/2, y:my-hLbl/2, width:wLbl, height:hLbl, rx:3*s, 'stroke-width':.6*s }));
+    const t=el('text',{ x:mx, y:my+fs*0.34, 'text-anchor':'middle', 'font-size':fs }); t.textContent=txt;
+    gg.appendChild(t);
+    return gg;
+  }
+
+  const EPS=0.1;
+  const yOv=(a,b)=> a.t < b.b-EPS && b.t < a.b-EPS;   // share a vertical band
+  const xOv=(a,b)=> a.l < b.r-EPS && b.l < a.r-EPS;   // share a horizontal band
+
+  boxes.forEach(a=>{   // nearest neighbour to the RIGHT
+    let best=null, bg=Infinity;
+    boxes.forEach(b=>{ if(b===a||!yOv(a,b)) return; const gap=b.l-a.r; if(gap>EPS && gap<bg){ bg=gap; best=b; } });
+    if(best){ const y=(Math.max(a.t,best.t)+Math.min(a.b,best.b))/2; g.appendChild(dim(a.r,y,best.l,y,bg)); }
+  });
+  boxes.forEach(a=>{   // nearest neighbour BELOW
+    let best=null, bg=Infinity;
+    boxes.forEach(b=>{ if(b===a||!xOv(a,b)) return; const gap=b.t-a.b; if(gap>EPS && gap<bg){ bg=gap; best=b; } });
+    if(best){ const x=(Math.max(a.l,best.l)+Math.min(a.r,best.r))/2; g.appendChild(dim(x,a.b,x,best.t,bg)); }
+  });
+
+  if(store.selectedIds.length===1){   // selected object → 4 wall clearances
+    const a=boxes.find(bx=>bx.it.id===store.selectedId);
+    if(a){
+      if(a.l>EPS)         g.appendChild(dim(0,a.cy,a.l,a.cy,a.l,'wall'));
+      if(WORLD.w-a.r>EPS) g.appendChild(dim(a.r,a.cy,WORLD.w,a.cy,WORLD.w-a.r,'wall'));
+      if(a.t>EPS)         g.appendChild(dim(a.cx,0,a.cx,a.t,a.t,'wall'));
+      if(WORLD.h-a.b>EPS) g.appendChild(dim(a.cx,a.b,a.cx,WORLD.h,WORLD.h-a.b,'wall'));
+    }
+  }
+  return g;
 }
 
 function renderItem(it){
@@ -2443,6 +2512,13 @@ $('#unitSeg').querySelectorAll('button').forEach(b=>b.addEventListener('click',(
   $('#cornerUnit').textContent=uLabel();
   renderAll();
 }));
+$('#measureBtn').addEventListener('click',()=>{
+  showMeasure=!showMeasure;
+  $('#measureBtn').classList.toggle('on', showMeasure);
+  // measurements are a 2D-plan tool — pop back to 2D if we're in 3D/Render
+  if(showMeasure){ const b2d=document.querySelector('#viewSeg [data-v="2d"]'); if(b2d && !b2d.classList.contains('on')) b2d.click(); }
+  renderAll();
+});
 $('#snapBtn').addEventListener('click',()=>{ store.grid.snap=!store.grid.snap; $('#snapBtn').classList.toggle('on',store.grid.snap); if(window.__on3DSnapChange) window.__on3DSnapChange(); });
 $('#gridBtn').addEventListener('click',()=>{ store.grid.show=!store.grid.show; $('#gridBtn').classList.toggle('on',store.grid.show); renderAll(); });
 $('#undoBtn').addEventListener('click',undo);

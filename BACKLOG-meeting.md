@@ -34,12 +34,15 @@ Everything requested, grouped into buildable clusters. Legend: ⬜ to build · �
   set times (10:00 AM / 10:00 PM). (Ties into the parked time-aware calendar, Phase 10b.)
 - ⬜ **C4 Special-task recurring alarm.** Every 5 minutes remind until the task is marked complete.
 
-## Cluster D — Layout measurements + quote codes
-- ⬜ **D1 2D measurement "Work" tab** in the layout view: after the render, a button/tab that shows
-  every distance (access→sofa, stage→sofa, sofa→chairs, chairs→…) in all directions, in feet & meters,
-  laid out intelligently with NO overlap. **2D only — do NOT touch the 3D builder internals.**
-- ⬜ **D2 Quote codes from the EVENT date** (e.g. the wedding date / Dec 4), not the creation date,
-  and incorporating event details. (Changes phase28 create_quote / convert.)
+## Cluster D — Layout measurements + quote codes ✅ DONE (commits pending)
+- ✅ **D1 2D measurement "📏 Measure" (Work) toggle** in builder.html toolbar: overlays edge-to-edge
+  clearances between neighbouring objects (both directions) + the selected object's distance to each
+  wall, labelled in the active unit (ft/m, follows the units toggle), auto-switches to 2D, labels
+  stay screen-constant across zoom, pointer-events:none so editing is unaffected. 3D builder untouched.
+- ✅ **D2 Quote codes from the EVENT date** (phase34): create_quote(p_event_date), convert stamps from
+  lead.event_date, rebrand_quote_code() re-issues from the event date (idempotent); quotes.html saves
+  the event_date column + re-brands the draft code.
+- ⬜ **USER TO RUN** `phase34-event-date-codes.sql` (after phase29+28), then live test. (D1 needs no SQL.)
 
 ## Praneeth's own action (not mine)
 - Schedule the stakeholder meeting with Anil, Yum, an event manager; consolidate flow.
