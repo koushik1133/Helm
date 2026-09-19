@@ -341,7 +341,7 @@
         lifecycleStage: q.lifecycle_stage || "quote",
         approvalStatus: q.approval_status || "none", approvalToken: q.approval_token,
         currentVersion: q.current_version, client: q.client || {}, pricing: q.pricing || {}, total: (q.pricing && q.pricing.total) || 0,
-        eventDate: q.event_date || null,
+        eventDate: q.event_date || null, eventTime: q.event_time || null,
         updatedAt: q.updated_at, createdAt: q.created_at, confirmedAt: q.confirmed_at }));
     },
     async get(id) {
@@ -352,7 +352,7 @@
       return { id: q.id, code: q.code, title: q.title, eventType: q.event_type, status: q.status, lifecycleStage: q.lifecycle_stage || "quote",
         approvalStatus: q.approval_status || "none", approvalToken: q.approval_token, client: q.client || {},
         pricing: q.pricing || {}, currentVersion: q.current_version, createdAt: q.created_at, updatedAt: q.updated_at,
-        eventDate: q.event_date || null,
+        eventDate: q.event_date || null, eventTime: q.event_time || null,
         confirmedAt: q.confirmed_at, versions: vs.map((v) => ({ id: v.id, versionNo: v.version_no, label: v.label,
           objectCount: v.object_count, createdAt: v.created_at })) };
     },
@@ -390,6 +390,7 @@
       const upd = {}; if (patch.title != null) upd.title = patch.title; if (patch.eventType != null) upd.event_type = patch.eventType;
       if (patch.client) upd.client = patch.client; if (patch.pricing) upd.pricing = patch.pricing; if (patch.status) upd.status = patch.status;
       if (patch.eventDate !== undefined) upd.event_date = patch.eventDate || null;
+      if (patch.eventTime !== undefined) upd.event_time = patch.eventTime || null;
       const { data, error } = await supa.from("quotes").update(upd).eq("id", quoteId).select().single(); if (error) throw error; return data;
     },
     async remove(quoteId) { const { error } = await supa.from("quotes").delete().eq("id", quoteId); if (error) throw error; return true; },

@@ -105,8 +105,8 @@
   </form>
 </div>
 
-<script src="config.js?v=52"></script>
-<script src="store-api.js?v=52"></script>
+<script src="config.js?v=53"></script>
+<script src="store-api.js?v=53"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -117,8 +117,8 @@
   const STAGES=[
     {k:"lead",label:"Lead",hint:"Capture the enquiry and qualify it.",mods:["discovery","quote"]},
     {k:"discovery",label:"Discovery",hint:"Meet the client and capture requirements before quoting.",mods:["discovery","quote"]},
-    {k:"proposal",label:"Proposal",hint:"Share the concept and design direction.",mods:["proposal","layout","quote"]},
-    {k:"quote",label:"Quote",hint:"Design the floor and price the event.",mods:["layout","quote"]},
+    {k:"proposal",label:"Proposal",hint:"Share the concept and design direction.",mods:["proposal","layout","plandetails","quote"]},
+    {k:"quote",label:"Quote",hint:"Lock the menu first, design the floor, then price the event.",mods:["plandetails","layout","quote"]},
     {k:"confirmed",label:"Confirmed",hint:"Lock the details and get the client's approval.",mods:["approval","plandetails"]},
     {k:"planning",label:"Planning",hint:"Assign tasks, plan resources and build the run-sheet.",mods:["resourceplan","runsheet","budget"]},
     {k:"resources",label:"Resources",hint:"Map needs, cover in-house, flag the gaps.",mods:["resourceplan","inventory","tasks"]},
@@ -219,6 +219,12 @@
 
   function renderMods(recommended){
     const cl=ev.client||{};
+    // menu-before-quote: pricing depends on the veg/non-veg plate mix, so warn until the menu is locked
+    // (only in the pre-confirmation stages — once confirmed/planning onward it's moot)
+    const preConfirm = ["lead","discovery","proposal","quote"].includes(ev.lifecycleStage||"quote");
+    const menuLocked = !!(planSummary && planSummary.menu_locked);
+    const menuGate = (preConfirm && !menuLocked && ev.status!=='confirmed')
+      ? `<div class="stat q" style="display:block;background:#fff7e6;color:#946200;margin:0 0 6px;padding:5px 8px;border-radius:7px">⚠️ Lock the menu first — pricing depends on the veg/non-veg mix.</div>` : "";
     const discSum = discSummary && (discSummary.total || (discSummary.disc))
       ? `${discSummary.total} requirement${discSummary.total===1?"":"s"}${discSummary.must?` · <b>${discSummary.must} must-have${discSummary.must===1?"":"s"}</b>`:""}${budgetRange()?` · budget ${budgetRange()}`:""}`
       : "Meet the client and capture requirements &amp; budget.";
@@ -235,7 +241,7 @@
         acts:[{t: canEdit?"Open proposal":"View proposal", href:"proposal.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"layout", ic:"📐", title:"Floor layout", sum:`Design the 2D/3D plan for this event.`,
         acts:[{t:"Open builder", href:"builder.html?quote="+encodeURIComponent(id), primary:true}] },
-      { key:"quote", ic:"🧾", title:"Quote & pricing", sum:`Version v${ev.currentVersion} · ${canFin?(evTotal()?inr(evTotal()):"not priced yet"):"—"} · <span class="stat ${ev.status==='confirmed'?'ok':'q'}">${ev.status}</span>${fromDisc}`,
+      { key:"quote", ic:"🧾", title:"Quote & pricing", sum:`${menuGate}Version v${ev.currentVersion} · ${canFin?(evTotal()?inr(evTotal()):"not priced yet"):"—"} · <span class="stat ${ev.status==='confirmed'?'ok':'q'}">${ev.status}</span>${fromDisc}`,
         acts:[{t:"Open this quote", href:"quotes.html?focus="+encodeURIComponent(ev.code||id), primary:true}] },
       { key:"approval", ic:"✅", title:"Client approval", sum: ev.approvalStatus==='none'?"Not sent yet — confirm the quote, then send the approval link.":`Status: <b>${esc(ev.approvalStatus)}</b>`,
         acts:[{t:"Manage in Quotes", href:"quotes.html?focus="+encodeURIComponent(ev.code||id)}] },
@@ -294,10 +300,17 @@
   }
 
   function renderDateRow(){
-    const el=$("#dateRow"); const d=ev.eventDate||"";
-    if(canEdit){ el.innerHTML=`📅 Event date: <input type="date" id="evDate" value="${esc(d)}" style="height:28px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:12px;padding:0 6px;color:var(--ink)">`;
-      $("#evDate").addEventListener("change",async()=>{ try{ await BPStore.quotes.updateMeta(id,{eventDate:$("#evDate").value||null}); ev.eventDate=$("#evDate").value||null; }catch(e){ alert("Couldn't save date: "+((e&&e.message)||"error")); } });
-    } else { el.innerHTML = d ? ("📅 "+esc(d)) : ""; }
+    const el=$("#dateRow"); const d=ev.eventDate||"", tm=ev.eventTime||"";
+    const inp="height:28px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:12px;padding:0 6px;color:var(--ink)";
+    // event date & time are decided first — warn while either is missing in the early stages
+    const early = ["lead","discovery","proposal","quote"].includes(ev.lifecycleStage||"quote");
+    const missing = early && (!d || !tm);
+    const warn = missing ? `<span class="stat q" style="background:#fff7e6;color:#946200;margin-left:8px">⚠️ Set the event date &amp; time first</span>` : "";
+    if(canEdit){ el.innerHTML=`📅 Event date: <input type="date" id="evDate" value="${esc(d)}" style="${inp}">
+        <span style="margin-left:8px">🕒 Time:</span> <input type="time" id="evTime" value="${esc(tm)}" style="${inp}">${warn}`;
+      $("#evDate").addEventListener("change",async()=>{ try{ await BPStore.quotes.updateMeta(id,{eventDate:$("#evDate").value||null}); ev.eventDate=$("#evDate").value||null; renderDateRow(); }catch(e){ alert("Couldn't save date: "+((e&&e.message)||"error")); } });
+      $("#evTime").addEventListener("change",async()=>{ try{ await BPStore.quotes.updateMeta(id,{eventTime:$("#evTime").value||null}); ev.eventTime=$("#evTime").value||null; renderDateRow(); }catch(e){ alert("Couldn't save time: "+((e&&e.message)||"error")); } });
+    } else { el.innerHTML = (d||tm) ? ("📅 "+esc(d)+(tm?(" · 🕒 "+esc(tm)):"")) : ""; }
   }
   async function setStage(k){
     try{ await BPStore.quotes.setStage(id, k); ev.lifecycleStage=k; render(); }
