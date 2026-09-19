@@ -508,6 +508,10 @@
     // ---- Phase 35: quality-engineer verification ----
     verify: (taskId, pass, note) => rpc("verify_task", { p_id: taskId, p_pass: !!pass, p_note: note || null }),
     verifySummary: (quoteId) => rpc("task_verify_summary", { p_quote: quoteId }).then(r => (Array.isArray(r) ? r[0] : r)),
+    // ---- Phase 37: scheduling + dependencies ----
+    setSchedule: (taskId, start, end, dependsOn) => rpc("set_task_schedule",
+      { p_id: taskId, p_start: start || null, p_end: end || null, p_depends: dependsOn || null }),
+    runTriggers: (quoteId) => rpc("run_task_triggers", quoteId ? { p_quote: quoteId } : {}),
     async setEventManager(quoteId, managerId) { const { error } = await supa.from("quotes").update({ manager_id: managerId }).eq("id", quoteId); if (error) throw error; return true; },
     // ---- worker (no login; token-scoped) ----
     worker: {

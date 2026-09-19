@@ -31,9 +31,7 @@ Everything requested, grouped into buildable clusters. Legend: ⬜ to build · �
   Pass/Reject for quality/manager/planner/admin. Tested in-browser.
 - ⬜ **C2 Sectioned templates for ~500 tasks** (wedding): stage setup, carpets, backdrops, flower
   decoration, mandapam, lighting, catering, labour, transport. Refine categorization.
-- ⬜ **C3 Task dependencies + time triggers.** Not all parallel: e.g. carpet laying blocked until stage
-  is completed & approved; cleaning strictly after foundational work; auto-trigger dependent tasks at
-  set times (10:00 AM / 10:00 PM). (Ties into the parked time-aware calendar, Phase 10b.)
+- ✅ **C3 Task dependencies + time triggers** — phase37. planned_start + triggered_at; set_task_schedule(); run_task_triggers() notifies scheduled tasks whose time+prerequisite are met (live cron deferred). ops.html shows gate chips (⛔ blocked / ⏱ scheduled / ▶ ready), per-task ⏱ schedule editor, and a "Fire due tasks" button. Tested.
 - ⬜ **C4 Special-task recurring alarm.** Every 5 minutes remind until the task is marked complete.
 - ⬜ **USER TO RUN** `phase35-task-verification.sql` (after phase29+operations), then live test.
 

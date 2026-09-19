@@ -57,6 +57,8 @@
   .st.in_progress{background:#fff7e6;color:#946200} .st.completed{background:#e7f6ee;color:#0f7a43} .st.rejected{background:#fdecec;color:#b42318}
   .qc{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
   .qc.pass{background:#e7f6ee;color:#0f7a43} .qc.pend{background:#eef2ff;color:#4457c8} .qc.rej{background:#fdecec;color:#b42318}
+  .gate{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .gate.blocked{background:#fdecec;color:#b42318} .gate.scheduled{background:#fff7e6;color:#946200} .gate.ready{background:#e6f6f2;color:#0f766e}
   .muted{color:var(--ink-3);font-size:12px} .empty{text-align:center;color:var(--ink-3);padding:26px;font-size:13px}
   .linkline{display:flex;gap:8px;align-items:center;margin-top:6px}
   .linkline input{flex:1;font-family:var(--mono);font-size:11px;height:30px}
@@ -114,7 +116,11 @@
     </div>
 
     <div class="card">
-      <h3>Live status</h3>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <h3 style="margin:0">Live status</h3>
+        <span class="spacer" style="flex:1"></span>
+        <button class="btn sm" id="fireDue" title="Notify assignees of scheduled tasks whose time has come and whose prerequisite is done">▶ Fire due tasks</button>
+      </div>
       <div id="dashboard"></div>
     </div>
   </div>
@@ -131,14 +137,14 @@
   </form>
 </div>
 
-<script src="config.js?v=47"></script>
-<script src="store-api.js?v=47"></script>
+<script src="config.js?v=48"></script>
+<script src="store-api.js?v=48"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   const quoteId=new URLSearchParams(location.search).get("quote");
   let CATS=["Stage setup","Carpets","Backdrops","Flower decoration","Mandapam","Lighting","Catering","Labour","Transport","AV & sound"];
-  let quote=null, crew=[], tasks=[], tokens=[], activeCat=CATS[0], canVerify=false;
+  let quote=null, crew=[], tasks=[], tokens=[], activeCat=CATS[0], canVerify=false, canEditOps=false;
 
   function setMsg(kind,t){ const m=$("#msg"); if(!t){m.innerHTML="";return;} m.innerHTML=`<div class="msg ${kind}">${esc(t)}</div>`; }
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
@@ -155,6 +161,7 @@
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
     const canEdit=await BPStore.auth.can("edit");
     canVerify=['admin','manager','planner','quality'].includes(await BPStore.auth.role());
+    canEditOps=await BPStore.auth.canEditArea("staff");
     try{ quote=await BPStore.quotes.get(quoteId); }
     catch(e){ $("#noquote").hidden=false; return; }
     $("#app").hidden=false;
@@ -217,6 +224,7 @@
     const host=$("#dashboard");
     if(!tasks.length){ host.innerHTML='<div class="empty">No tasks assigned yet. Pick a category above, select tasks, choose a crew member, and Assign.</div>'; return; }
     // group by assignee phone
+    const byId=Object.fromEntries(tasks.map(t=>[t.id,t]));
     const byPhone={}; tasks.forEach(t=>{ const k=t.assignee_phone||"—"; (byPhone[k]=byPhone[k]||[]).push(t); });
     const tokenFor=(phone)=>{ const w=tokens.find(x=>x.phone===phone); return w? location.origin+"/work.html?token="+w.token : null; };
     host.innerHTML=Object.entries(byPhone).map(([phone,ts])=>{
@@ -225,7 +233,9 @@
       const rows=ts.map(t=>`<div class="trow" data-id="${t.id}">
         <span class="cat">${esc(t.category)}</span><span class="tt">${esc(t.title)}</span>
         <span class="st ${t.status}">${STATUS_LABEL[t.status]||t.status}</span>
+        ${gateChip(t,byId)}
         ${verifyChip(t)}
+        ${canEditOps?`<button class="btn sm sched" title="Set start time & prerequisite">⏱</button>`:""}
         ${['rejected','assigned'].includes(t.status)?`<button class="btn sm reassign">Reassign</button>`:""}
         ${canVerify && t.verify_status==='pending' ? `<button class="btn sm vpass">✓ Pass</button><button class="btn sm vrej">✗ Reject</button>`:""}</div>`).join("");
       return `<div class="grp"><div class="gh"><b>${esc(name)}</b><span class="ph">${esc(phone)}</span>
@@ -253,6 +263,7 @@
       try{ await BPStore.ops.verify(id,false,note); await refreshDashboard(); setMsg("ok","Rejected — sent back for rework."); }
       catch(e){ setMsg("err",(e&&e.message)||"Couldn't verify"); }
     }));
+    host.querySelectorAll(".sched").forEach(b=>b.addEventListener("click",()=>scheduleFlow(b.closest(".trow").dataset.id)));
   }
   function verifyChip(t){
     if(t.verify_status==='passed')   return '<span class="qc pass" title="Verified by quality">QC ✓</span>';
@@ -260,6 +271,39 @@
     if(t.verify_status==='pending')  return '<span class="qc pend">QC pending</span>';
     return '';
   }
+  const fmtTime=(iso)=>{ try{ return new Date(iso).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }catch{ return iso; } };
+  function gateChip(t, byId){
+    if(['completed','cancelled'].includes(t.status)) return '';
+    if(t.depends_on){ const d=byId[t.depends_on];
+      if(d && !(d.status==='completed' && d.verify_status==='passed'))
+        return `<span class="gate blocked" title="Waiting for a prerequisite">⛔ waits on ${esc((d.title||'task').slice(0,20))}</span>`; }
+    if(t.planned_start && new Date(t.planned_start) > new Date())
+      return `<span class="gate scheduled">⏱ ${esc(fmtTime(t.planned_start))}</span>`;
+    if(t.planned_start || t.depends_on) return '<span class="gate ready">▶ ready</span>';
+    return '';
+  }
+  async function scheduleFlow(id){
+    const t=tasks.find(x=>x.id===id); if(!t) return;
+    const cur=t.planned_start?new Date(t.planned_start).toISOString().slice(0,16).replace('T',' '):'';
+    const when=prompt('Start time — "YYYY-MM-DD HH:MM" (blank to clear):', cur);
+    if(when===null) return;
+    const startISO = when.trim()? new Date(when.trim().replace(' ','T')).toISOString() : null;
+    if(when.trim() && isNaN(Date.parse(when.trim().replace(' ','T')))){ setMsg('err','Couldn\'t read that date/time.'); return; }
+    const depName=prompt('Depends on which task? Type part of its title (blank = none):', '');
+    if(depName===null) return;
+    let depId=null;
+    if(depName.trim()){ const d=tasks.find(x=>x.id!==id && (x.title||'').toLowerCase().includes(depName.trim().toLowerCase()));
+      if(!d){ setMsg('err','No task matches "'+depName+'".'); return; } depId=d.id; }
+    try{ await BPStore.ops.setSchedule(id, startISO, null, depId); await refreshDashboard(); setMsg('ok','Schedule updated.'); }
+    catch(e){ setMsg('err',(e&&e.message)||'Couldn\'t schedule'); }
+  }
+
+  $("#fireDue") && $("#fireDue").addEventListener("click",async()=>{
+    const b=$("#fireDue"); b.disabled=true;
+    try{ const n=await BPStore.ops.runTriggers(quoteId); setMsg("ok", n?("Fired "+n+" due task"+(n===1?"":"s")+" — assignees notified."):"No tasks due right now."); await refreshDashboard(); }
+    catch(e){ setMsg("err",(e&&e.message)||"Couldn't fire triggers"); }
+    finally{ b.disabled=false; }
+  });
 
   $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
     const btn=$("#li_submit"); btn.disabled=true; btn.textContent="Signing in…"; $("#li_err").hidden=true;
