@@ -121,6 +121,7 @@
         <select id="assignVendor" style="min-width:200px" hidden></select>
         <button class="btn primary" id="assignBtn">Assign selected →</button>
       </div>
+      <div id="suggestBar" style="margin-top:10px"></div>
     </div>
 
     <div class="card">
@@ -147,8 +148,8 @@
   </form>
 </div>
 
-<script src="config.js?v=57"></script>
-<script src="store-api.js?v=57"></script>
+<script src="config.js?v=58"></script>
+<script src="store-api.js?v=58"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -184,10 +185,22 @@
     $("#cr_dept").innerHTML=CATS.map(c=>`<option>${esc(c)}</option>`).join("");
     $("#catTabs").innerHTML=CATS.map(c=>`<button data-c="${esc(c)}" class="${c===activeCat?'on':''}">${esc(c)}</button>`).join("");
     $("#catTabs").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ activeCat=b.dataset.c;
-      $("#catTabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); $("#selAll").checked=false; renderTasks(); }));
+      $("#catTabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); $("#selAll").checked=false; renderTasks(); renderSuggestions(); }));
     if(!canEdit){ ["cr_add","assignBtn"].forEach(id=>{const e=$("#"+id); if(e)e.disabled=true;}); setMsg("err","Your role is view-only for operations."); }
     await refresh();
     renderTasks();
+    renderSuggestions();
+  }
+  // Phase 50 — suggest in-house crew for the active category, ranked by skill + availability
+  async function renderSuggestions(){
+    const host=$("#suggestBar"); if(!host) return;
+    if($("#assignKind").value==="outsourced"){ host.innerHTML=""; return; }
+    let sugg=[]; try{ sugg=await BPStore.staff.suggest({category:activeCat, date:quote&&quote.eventDate, excludeQuote:quoteId, limit:5}); }catch{ host.innerHTML=""; return; }
+    if(!sugg.length){ host.innerHTML=""; return; }
+    host.innerHTML=`<div class="muted" style="margin-bottom:6px">💡 Suggested for ${esc(activeCat)}${quote&&quote.eventDate?" on "+esc(quote.eventDate):""} — click to pick:</div>`+
+      sugg.map(s=>`<button type="button" class="btn sm sugg" data-id="${s.id}" style="margin:0 6px 6px 0;${s.available?'':'opacity:.6'}" title="${s.match?'Skill/department match':'No skill match'}${s.available?'':' · already booked that day'}">
+        ${s.match?'⭐ ':''}${esc(s.name)}${s.department?` · ${esc(s.department)}`:''} ${s.available?'<span style="color:#0f7a43">● free</span>':'<span style="color:#b42318">● busy</span>'}</button>`).join("");
+    host.querySelectorAll(".sugg").forEach(b=>b.addEventListener("click",()=>{ $("#assignKind").value="in_house"; $("#assignCrew").hidden=false; $("#assignVendor").hidden=true; $("#assignCrew").value=b.dataset.id; }));
   }
   async function refresh(){
     [crew,tasks,tokens,vendors]=await Promise.all([BPStore.ops.listCrew(), BPStore.ops.listTasks(quoteId), BPStore.ops.listTokens(quoteId),
@@ -202,6 +215,7 @@
   $("#assignKind") && $("#assignKind").addEventListener("change",()=>{
     const outsource = $("#assignKind").value==="outsourced";
     $("#assignCrew").hidden = outsource; $("#assignVendor").hidden = !outsource;
+    renderSuggestions();
   });
   function renderCrew(){
     $("#crewChips").innerHTML = crew.length? crew.map(c=>`<span class="chip">${esc(c.name)} <span class="dep">${esc(c.department||"")}</span> · ${esc(c.phone)}</span>`).join("")

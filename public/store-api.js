@@ -849,6 +849,35 @@
       const skills = [...new Set(list.flatMap((s) => Array.isArray(s.skills) ? s.skills : []))].sort();
       return { depts, skills };
     },
+    // Phase 50 — suggest in-house crew for a category, ranked by skill match + availability.
+    // Marks anyone already booked on the event's date as busy (one batched query).
+    async suggest({ category, date, excludeQuote, limit } = {}) {
+      const crew = await this.list(false);
+      const cat = (category || "").toLowerCase();
+      // who is busy on this date? (assigned to another event on the same day)
+      let busy = new Set();
+      if (date && mode === "supabase" && supa) {
+        try {
+          const { data: evs } = await supa.from("quotes").select("id").eq("event_date", date);
+          const ids = (evs || []).map((e) => e.id).filter((i) => i !== excludeQuote);
+          if (ids.length) {
+            const { data: ts } = await supa.from("event_tasks").select("crew_id").in("quote_id", ids).not("crew_id", "is", null);
+            (ts || []).forEach((t) => busy.add(t.crew_id));
+          }
+        } catch {}
+      }
+      const scored = crew.map((c) => {
+        const dept = (c.department || "").toLowerCase();
+        const skills = (Array.isArray(c.skills) ? c.skills : []).map((s) => String(s).toLowerCase());
+        const deptMatch = cat && dept && (dept === cat || cat.includes(dept) || dept.includes(cat));
+        const skillMatch = cat && skills.some((s) => s && (cat.includes(s) || s.includes(cat)));
+        const available = !busy.has(c.id);
+        const score = (available ? 100 : 0) + (deptMatch ? 20 : 0) + (skillMatch ? 15 : 0);
+        return { id: c.id, name: c.name, phone: c.phone, department: c.department, skills: c.skills || [],
+          available, match: !!(deptMatch || skillMatch), score };
+      }).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+      return scored.slice(0, limit || 5);
+    },
   };
 
   /* ---------------- in-house inventory (Phase 7) ---------------- */
