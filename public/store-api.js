@@ -30,13 +30,21 @@
     sales:       ["view", "create", "edit"],
     coordinator: ["view", "create", "edit"],
     supervisor:  ["view", "edit"],
+    quality:     ["view", "edit"],
     operations:  ["view", "edit"],
     crew:        ["view"],
     worker:      ["view"],
     client:      ["view"],
   };
-  const EDIT_ROLES = ["admin", "manager", "planner", "sales", "coordinator", "supervisor", "operations"];
-  const ALL_ROLES  = ["admin", "manager", "planner", "sales", "coordinator", "supervisor", "operations", "crew", "worker", "client"];
+  const EDIT_ROLES = ["admin", "manager", "planner", "sales", "coordinator", "supervisor", "quality", "operations"];
+  const ALL_ROLES  = ["admin", "manager", "planner", "sales", "coordinator", "supervisor", "quality", "operations", "crew", "worker", "client"];
+  // friendly labels for the UI (keys stay stable in the DB)
+  const ROLE_LABELS = {
+    admin: "Admin", manager: "Event manager", planner: "Planner", sales: "Sales",
+    coordinator: "Event coordinator", supervisor: "Supervisor", quality: "Quality engineer",
+    operations: "Operations", crew: "Crew", worker: "Worker", client: "Client",
+  };
+  const roleLabel = (r) => ROLE_LABELS[r] || r;
 
   // Fine-grained AREAS the access matrix governs (key must match role_access.area
   // and phase29-role-access.sql). label/icon/page power the Control Center editor
@@ -48,6 +56,7 @@
     { key: "discovery",  label: "Discovery",         icon: "🔎", page: null,             group: "Pipeline" },
     { key: "proposal",   label: "Proposal",          icon: "🎨", page: null,             group: "Pipeline" },
     { key: "quotes",     label: "Quotes & workspace",icon: "📋", page: "quotes.html",    group: "Workspace" },
+    { key: "layouts",    label: "Floor layouts",     icon: "📐", page: null,             group: "Workspace" },
     { key: "staff",      label: "Staff",             icon: "👷", page: "staff.html",     group: "Resources" },
     { key: "inventory",  label: "Inventory",         icon: "📦", page: "inventory.html", group: "Resources" },
     { key: "vendors",    label: "Vendors",           icon: "🤝", page: "vendors.html",   group: "Resources" },
@@ -73,7 +82,7 @@
     finance:   ["finance", "settlement", "closure"],
     pipeline:  ["leads", "crm", "nurture", "discovery", "proposal"],
     ops:       ["staff", "inventory", "vendors", "calendar", "templates", "resources", "runsheet", "plan", "logistics", "ready", "command", "issues", "media"],
-    workspace: ["quotes"],
+    workspace: ["quotes", "layouts"],
     manage:    ["controls", "users"],
   };
   // legacy fallback (used only if phase29 role_access isn't present yet)
@@ -281,6 +290,7 @@
     // ---- admin user management (RPC guarded by is_admin() at the DB) ----
     admin: {
       roles: () => ALL_ROLES.slice(),
+      roleLabel,
       areas: () => AREAS.slice(),
       // the whole access matrix (admin only) → [{role,area,can_view,can_edit}]
       async getAccess() {

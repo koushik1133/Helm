@@ -190,8 +190,8 @@
 
 <!-- Team members + access control now live in the Control Center (control.html#users). -->
 
-<script src="config.js?v=42"></script>
-<script src="store-api.js?v=42"></script>
+<script src="config.js?v=43"></script>
+<script src="store-api.js?v=43"></script>
 <script>
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return "—"; } };
@@ -223,7 +223,7 @@
       const V = {};
       await Promise.all(["leads","crm","nurture","staff","inventory","vendors","calendar","templates","quotes","controls"]
         .map(async (k) => { V[k] = await BPStore.auth.canView(k); }));
-      el.innerHTML = `<span class="role">${esc(role||"")}</span><span>${esc(user.email)}</span>`
+      el.innerHTML = `<span class="role">${esc(BPStore.auth.admin.roleLabel(role)||"")}</span><span>${esc(user.email)}</span>`
         + (V.leads ? `<a class="users" href="leads.html">🎯 Leads</a>` : "")
         + (V.crm ? `<a class="users" href="crm.html">🗄 CRM</a>` : "")
         + (V.nurture ? `<a class="users" href="nurture.html">🌱 Nurture</a>` : "")

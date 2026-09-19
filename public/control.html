@@ -177,8 +177,8 @@
   </form>
 </div>
 
-<script src="config.js?v=42"></script>
-<script src="store-api.js?v=42"></script>
+<script src="config.js?v=43"></script>
+<script src="store-api.js?v=43"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -256,7 +256,7 @@
 
   async function initUsers(){
     const sel=$("#um_role");
-    if(!sel.options.length){ sel.innerHTML = ROLES.map(r=>`<option value="${r}"${r==="crew"?" selected":""}>${r}</option>`).join(""); }
+    if(!sel.options.length){ sel.innerHTML = ROLES.map(r=>`<option value="${r}"${r==="crew"?" selected":""}>${esc(BPStore.auth.admin.roleLabel(r))}</option>`).join(""); }
     await renderUsers();
   }
   async function renderUsers(){
@@ -268,7 +268,7 @@
     users.sort((a,b)=>(a.email||"").localeCompare(b.email||""));
     tb.innerHTML = users.map(u=>{
       const self = me && u.id===me.id;
-      const opts = ROLES.map(r=>`<option value="${r}"${r===u.role?" selected":""}>${r}</option>`).join("");
+      const opts = ROLES.map(r=>`<option value="${r}"${r===u.role?" selected":""}>${esc(BPStore.auth.admin.roleLabel(r))}</option>`).join("");
       return `<tr data-id="${esc(u.id)}">
         <td class="em">${esc(u.email||"—")}${self?'<span class="me">you</span>':""}</td>
         <td><select class="roleSel"${self?" disabled title=\"You can&#39;t change your own role\"":""}>${opts}</select></td>
@@ -305,7 +305,7 @@
 
   async function initMatrix(){
     // role tabs (admin first, shown as locked-full)
-    $("#roleTabs").innerHTML = ROLES.map(r=>`<button class="rtab${r===selRole?" active":""}" data-role="${r}">${esc(r)}</button>`).join("");
+    $("#roleTabs").innerHTML = ROLES.map(r=>`<button class="rtab${r===selRole?" active":""}" data-role="${r}">${esc(BPStore.auth.admin.roleLabel(r))}</button>`).join("");
     $("#roleTabs").querySelectorAll(".rtab").forEach(b=>b.addEventListener("click",()=>{
       selRole=b.dataset.role;
       $("#roleTabs").querySelectorAll(".rtab").forEach(x=>x.classList.toggle("active",x.dataset.role===selRole));
