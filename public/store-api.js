@@ -365,10 +365,16 @@
         .eq("quote_id", quoteId).eq("version_no", versionNo).single();
       if (error) throw error; return { versionNo: data.version_no, data: data.data };
     },
-    async create(code, title, eventType, data, objectCount) {
+    async create(code, title, eventType, data, objectCount, eventDate) {
       const { data: q, error } = await supa.rpc("create_quote",
-        { p_code: code, p_title: title, p_event_type: eventType, p_data: data, p_object_count: objectCount });
+        { p_code: code, p_title: title, p_event_type: eventType, p_data: data, p_object_count: objectCount, p_event_date: eventDate || null });
       if (error) throw error; return Array.isArray(q) ? q[0] : q;
+    },
+    // re-issue the code from the event date (idempotent); returns the (possibly new) code
+    async rebrandCode(quoteId) {
+      if (mode !== "supabase") return null;
+      const { data, error } = await supa.rpc("rebrand_quote_code", { p_quote_id: quoteId });
+      if (error) throw error; return data;
     },
     async addVersion(quoteId, label, data, objectCount) {
       const { data: v, error } = await supa.rpc("add_quote_version",

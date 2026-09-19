@@ -207,8 +207,8 @@
   </form>
 </div>
 
-<script src="config.js?v=44"></script>
-<script src="store-api.js?v=44"></script>
+<script src="config.js?v=45"></script>
+<script src="store-api.js?v=45"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
   const esc = (s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -407,6 +407,11 @@
     try{
       if(confirmIt) await BPStore.quotes.confirm(cmId, client, pricing);
       else await BPStore.quotes.updateMeta(cmId, { pricing, client });
+      // keep the event_date column in sync, then re-brand the code to the event date (draft only)
+      if(client.eventDate){
+        try{ await BPStore.quotes.updateMeta(cmId, { eventDate: client.eventDate });
+             if(!confirmIt) await BPStore.quotes.rebrandCode(cmId); }catch(_){}
+      }
       delete detailCache[cmId];
       closeConfirm(); await load();
     }catch(e){ const el=$("#cm_err"); el.textContent=(e&&e.message)||"Save failed"; el.hidden=false; }
