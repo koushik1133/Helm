@@ -505,6 +505,9 @@
       { p_quote_id: quoteId, p_category: category, p_titles: titles, p_crew_id: crewId || null, p_name: name, p_phone: phone }),
     reassign: (taskId, crewId, name, phone) => rpc("reassign_task",
       { p_task_id: taskId, p_crew_id: crewId || null, p_name: name, p_phone: phone }),
+    // ---- Phase 35: quality-engineer verification ----
+    verify: (taskId, pass, note) => rpc("verify_task", { p_id: taskId, p_pass: !!pass, p_note: note || null }),
+    verifySummary: (quoteId) => rpc("task_verify_summary", { p_quote: quoteId }).then(r => (Array.isArray(r) ? r[0] : r)),
     async setEventManager(quoteId, managerId) { const { error } = await supa.from("quotes").update({ manager_id: managerId }).eq("id", quoteId); if (error) throw error; return true; },
     // ---- worker (no login; token-scoped) ----
     worker: {

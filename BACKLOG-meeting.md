@@ -25,14 +25,17 @@ Everything requested, grouped into buildable clusters. Legend: ⬜ to build · �
 - ⬜ **USER TO RUN** `phase33-inventory-accountability.sql` (after phase29), then live test.
 
 ## Cluster C — Task engine (categorization, verification, dependencies, alarms)
-- ⬜ **C1 QE verification (no photos).** Quality engineer marks a completed task PASS / REJECT.
-  Reject → task returns to the event manager for revision. Event can't be finalized until key tasks pass.
+- ✅ **C1 QE verification (no photos)** — phase35. event_tasks gains verify_status/verified_by/at/note;
+  completing a task auto-queues it (pending); verify_task() pass→passed, reject→rejected + back to
+  in_progress (returns to event manager); task_verify_summary() for gating. ops.html shows QC chips +
+  Pass/Reject for quality/manager/planner/admin. Tested in-browser.
 - ⬜ **C2 Sectioned templates for ~500 tasks** (wedding): stage setup, carpets, backdrops, flower
   decoration, mandapam, lighting, catering, labour, transport. Refine categorization.
 - ⬜ **C3 Task dependencies + time triggers.** Not all parallel: e.g. carpet laying blocked until stage
   is completed & approved; cleaning strictly after foundational work; auto-trigger dependent tasks at
   set times (10:00 AM / 10:00 PM). (Ties into the parked time-aware calendar, Phase 10b.)
 - ⬜ **C4 Special-task recurring alarm.** Every 5 minutes remind until the task is marked complete.
+- ⬜ **USER TO RUN** `phase35-task-verification.sql` (after phase29+operations), then live test.
 
 ## Cluster D — Layout measurements + quote codes ✅ DONE (commits pending)
 - ✅ **D1 2D measurement "📏 Measure" (Work) toggle** in builder.html toolbar: overlays edge-to-edge
