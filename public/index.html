@@ -156,6 +156,7 @@
     <div><h1>Blueprint Stage</h1><small>Event Layout Builder</small></div>
     <span class="spacer" style="flex:1"></span>
     <button id="helpBtn" class="helpbtn" title="Take the guided tour">? Tour</button>
+    <span id="bell"></span>
     <span id="account" class="account" hidden></span>
   </header>
 
@@ -248,8 +249,8 @@
 
 <!-- Team members + access control now live in the Control Center (control.html#users). -->
 
-<script src="config.js?v=53"></script>
-<script src="store-api.js?v=53"></script>
+<script src="config.js?v=55"></script>
+<script src="store-api.js?v=55"></script>
 <script>
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return "—"; } };
@@ -311,6 +312,7 @@
 
     // Supabase enforces login and nobody's signed in → go to the full sign-in page
     if (mustLogin) { location.replace("login.html"); return; }
+    try { await BPStore.bell.mount($("#bell")); } catch {}
     canCreate = await BPStore.auth.can("create");
     canDelete = await BPStore.auth.can("delete");
     $("#createBtn").hidden = !canCreate;                    // only create-capable roles can start new quotes

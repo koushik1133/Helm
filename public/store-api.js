@@ -1683,8 +1683,70 @@
     },
   };
 
+  /* ---------------- notification center: in-app bell (Phase 48) ---------------- */
+  const bell = {
+    feed: (limit) => rpc("bell_feed", limit ? { p_limit: limit } : {}),
+    markSeen: () => rpc("bell_mark_seen", {}),
+    // friendly label + icon for a raw notification kind
+    label(n) {
+      const k = (n.kind || "").toLowerCase(); const d = n.detail || {};
+      const m = {
+        task_assigned: ["🛠️", d.outsourced ? `Tasks outsourced to ${d.vendor || "a vendor"}` : `${d.count || ""} task(s) assigned${d.category ? " · " + d.category : ""}`],
+        task_accept: ["✅", "Task accepted" + (d.worker ? " by " + d.worker : "")],
+        task_reject: ["⛔", "Task rejected" + (d.worker ? " by " + d.worker : "")],
+        task_start: ["▶️", "Task started" + (d.worker ? " by " + d.worker : "")],
+        task_complete: ["🎉", "Task completed" + (d.worker ? " by " + d.worker : "")],
+        task_reminder: ["🔔", "Task reminder" + (d.task ? ": " + d.task : "")],
+        otp: ["🔐", "Approval OTP sent"],
+        approval_link: ["✉️", "Approval link sent"],
+        payment: ["💳", "Payment update"],
+        payment_link: ["💳", "Payment link sent"],
+        payment_received: ["💰", "Payment received"],
+      };
+      const hit = m[k];
+      if (hit) return { icon: hit[0], text: hit[1] };
+      return { icon: "🔔", text: (n.kind || "Update").replace(/_/g, " ") };
+    },
+    // Mount a self-contained bell widget into `el` (works on any page, inline-styled).
+    async mount(el) {
+      if (!el) return;
+      if (!(auth.enabled() && auth.user())) { el.innerHTML = ""; return; }
+      const S = (o) => Object.entries(o).map(([k, v]) => `${k}:${v}`).join(";");
+      el.style.position = "relative";
+      el.innerHTML = `<button id="bpBellBtn" title="Notifications" style="${S({position:'relative',height:'30px',width:'34px','border':'1px solid var(--line,#e8e3db)',background:'var(--panel,#fff)','border-radius':'8px',cursor:'pointer','font-size':'15px'})}">🔔<span id="bpBellDot" hidden style="${S({position:'absolute',top:'-6px',right:'-6px',background:'#e5484d',color:'#fff','font-size':'10px','font-weight':'700','min-width':'16px',height:'16px','line-height':'16px','border-radius':'9px',padding:'0 4px'})}">0</span></button>
+        <div id="bpBellPanel" hidden style="${S({position:'absolute',right:'0',top:'38px',width:'340px','max-width':'86vw',background:'var(--panel,#fff)',border:'1px solid var(--line,#e8e3db)','border-radius':'12px','box-shadow':'0 10px 30px rgba(20,27,46,.18)','z-index':'90',overflow:'hidden'})}">
+          <div style="${S({padding:'10px 14px','border-bottom':'1px solid var(--line,#eee)','font-weight':'700','font-size':'13px',display:'flex','align-items':'center','justify-content':'space-between'})}">Notifications <span id="bpBellClear" style="${S({'font-size':'11px',color:'var(--accent,#6d28d9)',cursor:'pointer','font-weight':'600'})}">Mark all read</span></div>
+          <div id="bpBellList" style="${S({'max-height':'380px','overflow':'auto'})}"><div style="padding:18px;text-align:center;color:#8b8698;font-size:13px">Loading…</div></div>
+        </div>`;
+      const btn = el.querySelector("#bpBellBtn"), dot = el.querySelector("#bpBellDot"),
+            panel = el.querySelector("#bpBellPanel"), list = el.querySelector("#bpBellList");
+      const rel = (iso) => { const s = (Date.now() - new Date(iso).getTime()) / 1000; if (s < 60) return "just now"; if (s < 3600) return Math.floor(s / 60) + "m ago"; if (s < 86400) return Math.floor(s / 3600) + "h ago"; return Math.floor(s / 86400) + "d ago"; };
+      const esc = (t) => (t || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+      const renderList = (items) => {
+        if (!items || !items.length) { list.innerHTML = `<div style="padding:22px;text-align:center;color:#8b8698;font-size:13px">Nothing yet.</div>`; return; }
+        list.innerHTML = items.map((n) => { const L = this.label(n); const href = n.quote_id ? ("event.html?id=" + encodeURIComponent(n.quote_id)) : null;
+          return `<a ${href ? `href="${href}"` : ""} style="${S({display:'flex',gap:'10px',padding:'10px 14px','border-bottom':'1px solid var(--line-2,#f1ede7)','text-decoration':'none',color:'inherit',background:n.unread?'#f6f2ff':'transparent'})}">
+            <span style="font-size:16px">${L.icon}</span>
+            <span style="flex:1;min-width:0"><span style="font-size:13px;font-weight:${n.unread?'700':'500'}">${esc(L.text)}</span>
+              <span style="display:block;font-size:11px;color:#8b8698">${n.event_code ? esc(n.event_code) + " · " : ""}${rel(n.created_at)}</span></span></a>`;
+        }).join("");
+      };
+      const refresh = async () => { try { const f = await this.feed(20);
+        if (f.unread > 0) { dot.hidden = false; dot.textContent = f.unread > 99 ? "99+" : f.unread; } else dot.hidden = true;
+        return f; } catch { return null; } };
+      let f0 = await refresh();
+      btn.addEventListener("click", async (e) => { e.stopPropagation(); const open = panel.hidden;
+        if (open) { panel.hidden = false; let f = null; try { f = await this.feed(20); } catch {} renderList((f && f.items) || []);
+          try { await this.markSeen(); } catch {} dot.hidden = true; } else panel.hidden = true; });
+      el.querySelector("#bpBellClear").addEventListener("click", async (e) => { e.stopPropagation(); try { await this.markSeen(); } catch {} dot.hidden = true;
+        let f = null; try { f = await this.feed(20); } catch {} renderList((f && f.items) || []); });
+      document.addEventListener("click", (e) => { if (!el.contains(e.target)) panel.hidden = true; });
+      setInterval(() => { if (!document.hidden && panel.hidden) refresh(); }, 30000);
+    },
+  };
+
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

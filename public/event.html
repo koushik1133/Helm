@@ -65,6 +65,7 @@
     <div><h1>Event Workspace</h1><small>Blueprint Stage</small></div>
     <nav class="nav"><a href="index.html">Home</a><a href="leads.html">Leads</a><a href="calendar.html">Calendar</a><a href="quotes.html">Quotes</a><a href="control.html">Control Center</a></nav>
     <span class="spacer"></span>
+    <span id="bell"></span>
     <span id="account" class="account" hidden></span>
   </header>
 
@@ -105,8 +106,8 @@
   </form>
 </div>
 
-<script src="config.js?v=53"></script>
-<script src="store-api.js?v=53"></script>
+<script src="config.js?v=55"></script>
+<script src="store-api.js?v=55"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -143,7 +144,7 @@
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
 
   async function load(){
-    await BPStore.init(); await renderAccount();
+    await BPStore.init(); await renderAccount(); try{await BPStore.bell.mount(document.querySelector("#bell"));}catch{}
     if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
     if(!(await BPStore.auth.requireView("workspace"))) return;   // crew/client don't see the workspace

@@ -104,6 +104,7 @@
       <a href="control.html" id="ccLink" hidden>Control Center</a>
     </nav>
     <span class="spacer"></span>
+    <span id="bell"></span>
     <span id="account" class="account" hidden></span>
   </header>
 
@@ -177,8 +178,8 @@
   </div>
 </div>
 
-<script src="config.js?v=53"></script>
-<script src="store-api.js?v=53"></script>
+<script src="config.js?v=55"></script>
+<script src="store-api.js?v=55"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -416,7 +417,7 @@
     render();
   }
   (async ()=>{
-    await BPStore.init(); await renderAccount();
+    await BPStore.init(); await renderAccount(); try{await BPStore.bell.mount(document.querySelector("#bell"));}catch{}
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ openLogin(); return; }
     if(!(await BPStore.auth.requireView("pipeline"))) return;
     canEdit=await BPStore.auth.canEditArea("leads"); canCreate=await BPStore.auth.can("create"); canDelete=await BPStore.auth.can("delete");
