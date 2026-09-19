@@ -72,16 +72,20 @@ end $$;
 -- adds the occasion's day-of-year offset to Jan 1 of the current year; rolls to
 -- next year if it has already passed. Good enough for greetings (no leap crash).
 create or replace function public._next_occasion(p_date date) returns date
-  language sql immutable set search_path = public as $$
-  select case
-    when p_date is null then null
-    else (
-      case when cand < current_date then (cand + interval '1 year')::date else cand end
-    )
-  end
-  from (select (make_date(extract(year from current_date)::int,1,1)
-               + (p_date - make_date(extract(year from p_date)::int,1,1)))::date as cand) s;
-$$;
+  language plpgsql stable set search_path = public as $$
+declare
+  y int := extract(year from current_date)::int;
+  m int; d int; cand date;
+begin
+  if p_date is null then return null; end if;
+  m := extract(month from p_date)::int;
+  d := extract(day from p_date)::int;
+  begin cand := make_date(y, m, d); exception when others then cand := make_date(y, m, 28); end;
+  if cand < current_date then
+    begin cand := make_date(y + 1, m, d); exception when others then cand := make_date(y + 1, m, 28); end;
+  end if;
+  return cand;
+end $$;
 
 -- 6) who has an occasion coming up -----------------------------------------
 create or replace function public.nurture_due(p_within_days int default 30)
