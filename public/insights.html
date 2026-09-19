@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Insights — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#8b8698;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#12a150;--warn:#e8912d;--bad:#e5484d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
+  h2{font-size:20px;margin:0 0 2px} .sub{color:var(--ink-3);font-size:13px;margin:0 0 16px}
+  h3{font-size:13px;margin:0 0 12px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px} @media(max-width:720px){.kpis{grid-template-columns:1fr 1fr}}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:14px 16px}
+  .kpi .n{font-family:var(--mono);font-size:22px;font-weight:700} .kpi .l{font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px} @media(max-width:720px){.grid2{grid-template-columns:1fr}}
+  .bar{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:13px}
+  .bar .lb{width:150px;flex:0 0 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} @media(max-width:640px){.bar .lb{width:110px}}
+  .bar .track{flex:1;height:16px;background:var(--panel-2);border-radius:8px;overflow:hidden;border:1px solid var(--line-2)}
+  .bar .fill{height:100%;border-radius:8px}
+  .bar .v{width:70px;flex:0 0 auto;text-align:right;font-family:var(--mono);font-size:12px;color:var(--ink-2)}
+  .empty{color:var(--ink-3);font-size:13px;padding:14px 0} .muted{color:var(--ink-3);font-size:12px}
+  .pos{color:var(--safe)} .neg{color:var(--bad)}
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,94vw);padding:26px;text-align:center}
+  .lsheet h3{font-size:18px;margin:8px 0 12px;color:var(--ink);text-transform:none;letter-spacing:0} .lsheet label{display:block;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+  .lsheet input{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;margin-bottom:12px;font-family:inherit}
+  .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Insights</h1><small>Blueprint Stage</small></div>
+    <nav class="nav"><a href="index.html">Home</a><a href="calendar.html">Calendar</a><a href="control.html">Control Center</a></nav>
+    <span class="spacer"></span>
+    <span id="bell"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card" hidden><p class="muted">Sign in to view insights.</p></div>
+  <div id="noaccess" class="card" hidden><p class="muted">Your role doesn't have access to insights.</p></div>
+
+  <div id="app" hidden>
+    <h2>Post-event insights</h2>
+    <p class="sub">Where things slip, what walks off, and how your margins trend — across every event.</p>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>🤝 Vendor reliability</h3>
+        <div id="vendors"></div>
+      </div>
+      <div class="card">
+        <h3>⛔ Task rejections by section</h3>
+        <div id="tasks"></div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>📦 Inventory losses — by item</h3>
+        <div id="lossItem"></div>
+      </div>
+      <div class="card">
+        <h3>📦 Inventory losses — over time</h3>
+        <div id="lossMonth"></div>
+      </div>
+    </div>
+
+    <div class="card" id="marginCard">
+      <h3>💰 Margin trend (closed events)</h3>
+      <div id="margins"></div>
+    </div>
+  </div>
+</div>
+
+<div class="lmodal" id="loginModal" hidden>
+  <form class="lsheet" id="loginForm">
+    <div class="mark" style="margin:0 auto 12px"></div>
+    <h3>Sign in</h3>
+    <label>Email</label><input type="email" id="li_email" required>
+    <label>Password</label><input type="password" id="li_pw" required>
+    <div class="lerr" id="li_err" hidden></div>
+    <button class="btn" type="submit" id="li_submit" style="width:100%;height:40px;border:0;border-radius:9px;background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;font-family:inherit;font-weight:700;cursor:pointer">Sign in</button>
+  </form>
+</div>
+
+<script src="config.js?v=59"></script>
+<script src="store-api.js?v=59"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const inr=(n)=>"₹"+Math.round(Number(n||0)).toLocaleString("en-IN");
+  let canFin=false;
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  function bars(host, rows, opts){ opts=opts||{}; const el=$("#"+host);
+    if(!rows.length){ el.innerHTML='<div class="empty">'+(opts.empty||"Nothing yet.")+'</div>'; return; }
+    const max=Math.max(...rows.map(r=>r.value),1);
+    el.innerHTML=rows.map(r=>`<div class="bar"><span class="lb" title="${esc(r.label)}">${esc(r.label)}</span>
+      <span class="track"><span class="fill" style="width:${Math.max(4,Math.round(r.value/max*100))}%;background:${r.color||'var(--accent)'}"></span></span>
+      <span class="v">${esc(r.text!=null?r.text:r.value)}</span></div>`).join("");
+  }
+
+  async function load(){
+    await BPStore.init(); await renderAccount();
+    try{ await BPStore.bell.mount($("#bell")); }catch{}
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    const role=await BPStore.auth.role();
+    const ok = ["admin","manager","planner"].includes(role) || await BPStore.auth.canView("controls");
+    if(!ok){ $("#noaccess").hidden=false; return; }
+    canFin = await BPStore.auth.canView("finance");
+    $("#app").hidden=false;
+    let d; try{ d=await BPStore.insights.summary(); }catch(e){ d=null; }
+    if(!d){ $("#kpis").innerHTML='<div class="muted">Couldn\'t load insights.</div>'; return; }
+    render(d);
+  }
+  function render(d){
+    const totalRejects=d.taskSlips.reduce((a,c)=>a+c.rejected,0);
+    $("#kpis").innerHTML=`
+      <div class="kpi"><div class="n">${d.vendors.length}</div><div class="l">Vendors tracked</div></div>
+      <div class="kpi"><div class="n">${totalRejects}</div><div class="l">QC rejections</div></div>
+      <div class="kpi"><div class="n">${d.losses.total}</div><div class="l">Items lost / not returned</div></div>
+      <div class="kpi"><div class="n ${d.margins.totalProfit>=0?'pos':'neg'}">${canFin?inr(d.margins.totalProfit):'—'}</div><div class="l">Profit · ${d.margins.events.length} closed</div></div>`;
+    // vendor reliability — bar = reject rate
+    bars("vendors", d.vendors.slice(0,8).map(v=>({label:v.name, value:v.rejectRate,
+      text:`${v.rejected}/${v.total} · ${v.rejectRate}%`, color:v.rejectRate>0?'var(--bad)':'var(--safe)'})),
+      {empty:"No outsourced tasks yet."});
+    // task rejections by section
+    bars("tasks", d.taskSlips.slice(0,8).map(c=>({label:c.category, value:c.rejected,
+      text:`${c.rejected} (${c.rejectRate}%)`, color:'var(--warn)'})), {empty:"No rejections — clean record."});
+    // losses by item / month
+    bars("lossItem", d.losses.byItem.slice(0,8).map(i=>({label:i.name, value:i.qty, text:i.qty, color:'var(--bad)'})), {empty:"No losses recorded 🎉"});
+    bars("lossMonth", d.losses.byMonth.slice(-8).map(m=>({label:m.month, value:m.qty, text:m.qty, color:'var(--warn)'})), {empty:"No losses recorded 🎉"});
+    // margins
+    if(!canFin){ $("#marginCard").hidden=true; }
+    else if(!d.margins.events.length){ $("#margins").innerHTML='<div class="empty">No closed events yet.</div>'; }
+    else { const maxRev=Math.max(...d.margins.events.map(e=>Math.abs(e.revenue||0)),1);
+      $("#margins").innerHTML=`<div class="muted" style="margin-bottom:10px">Average margin across closed events: <b>${d.margins.avgMargin!=null?d.margins.avgMargin+"%":"—"}</b></div>`+
+      d.margins.events.map(e=>`<div class="bar"><span class="lb" title="${esc(e.code)}">${esc(e.code)}${e.date?` · ${esc(e.date)}`:""}</span>
+        <span class="track"><span class="fill" style="width:${Math.max(4,Math.round(Math.abs(e.profit||0)/maxRev*100))}%;background:${(e.profit||0)>=0?'var(--safe)':'var(--bad)'}"></span></span>
+        <span class="v ${(e.profit||0)>=0?'pos':'neg'}">${inr(e.profit)}${e.marginPct!=null?` (${e.marginPct}%)`:""}</span></div>`).join(""); }
+  }
+  $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
+    const btn=$("#li_submit"); btn.disabled=true; btn.textContent="Signing in…"; $("#li_err").hidden=true;
+    try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pw").value); closeLogin(); await load(); }
+    catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign-in failed"; $("#li_err").hidden=false; }
+    finally{ btn.disabled=false; btn.textContent="Sign in"; } });
+  load();
+</script>
+</body>
+</html>

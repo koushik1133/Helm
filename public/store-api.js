@@ -1799,6 +1799,51 @@
     },
   };
 
+  /* ---------------- post-event insights (Phase 51) ---------------- */
+  const insights = {
+    async summary() {
+      const empty = { vendors: [], taskSlips: [], losses: { total: 0, byItem: [], byMonth: [] }, margins: { events: [], totalProfit: 0, avgMargin: null } };
+      if (mode !== "supabase" || !supa) return empty;
+      const events = await quotes.list();
+      const [tR, cR, iR] = await Promise.all([
+        supa.from("event_tasks").select("category,status,verify_status,assignee_kind,assignee_name,quote_id"),
+        supa.from("inventory_checkouts").select("item_id,qty_out,qty_in,checked_in_at"),
+        supa.from("inventory_items").select("id,name,unit"),
+      ]);
+      const tasks = tR.data || [], chk = cR.data || [], items = iR.data || [];
+      const itemById = {}; items.forEach((i) => (itemById[i.id] = i));
+      // vendor reliability (outsourced tasks)
+      const vmap = {};
+      tasks.forEach((t) => { if (t.assignee_kind === "outsourced" && t.assignee_name) {
+        const v = vmap[t.assignee_name] || { name: t.assignee_name, total: 0, rejected: 0, completed: 0 };
+        v.total++; if (t.verify_status === "rejected") v.rejected++; if (t.status === "completed") v.completed++; vmap[t.assignee_name] = v; } });
+      const vendors = Object.values(vmap).map((v) => ({ ...v, rejectRate: v.total ? Math.round(v.rejected / v.total * 100) : 0 }))
+        .sort((a, b) => b.rejected - a.rejected || b.total - a.total);
+      // task slippage by category
+      const cmap = {};
+      tasks.forEach((t) => { const c = cmap[t.category] || { category: t.category, total: 0, rejected: 0 };
+        c.total++; if (t.verify_status === "rejected") c.rejected++; cmap[t.category] = c; });
+      const taskSlips = Object.values(cmap).filter((c) => c.rejected > 0)
+        .map((c) => ({ ...c, rejectRate: c.total ? Math.round(c.rejected / c.total * 100) : 0 })).sort((a, b) => b.rejected - a.rejected);
+      // inventory loss trends (qty_out not fully returned)
+      let total = 0; const byItem = {}, byMonth = {};
+      chk.forEach((c) => { const out = Number(c.qty_out || 0); const inn = (c.qty_in != null) ? Number(c.qty_in) : out; const lost = Math.max(0, out - inn);
+        if (lost > 0) { total += lost; const nm = (itemById[c.item_id] || {}).name || "item"; byItem[nm] = (byItem[nm] || 0) + lost;
+          const m = (c.checked_in_at || "").slice(0, 7) || "—"; byMonth[m] = (byMonth[m] || 0) + lost; } });
+      const losses = { total,
+        byItem: Object.entries(byItem).map(([name, qty]) => ({ name, qty })).sort((a, b) => b.qty - a.qty),
+        byMonth: Object.entries(byMonth).map(([month, qty]) => ({ month, qty })).sort((a, b) => a.month.localeCompare(b.month)) };
+      // margin trends across closed events
+      const closed = events.filter((e) => e.lifecycleStage === "closed");
+      const pls = await Promise.all(closed.map((e) => closure.pl(e.id)
+        .then((pl) => ({ code: e.code, date: e.eventDate, profit: pl.profit, marginPct: pl.marginPct, revenue: pl.revenue })).catch(() => null)));
+      const mlist = pls.filter(Boolean).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+      const totalProfit = mlist.reduce((a, x) => a + (x.profit || 0), 0);
+      const avgMargin = mlist.length ? Math.round(mlist.reduce((a, x) => a + (x.marginPct || 0), 0) / mlist.length) : null;
+      return { vendors, taskSlips, losses, margins: { events: mlist, totalProfit, avgMargin } };
+    },
+  };
+
   /* ---------------- audit log (Phase 47) ---------------- */
   const audit = {
     async list(opts) { opts = opts || {}; if (!supa) throw new Error("Supabase not configured");
@@ -1813,7 +1858,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),
