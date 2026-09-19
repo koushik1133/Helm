@@ -36,7 +36,14 @@ Build **only** these, in phases. (Explicitly **removed**: deposit/advance tracki
 
 ---
 
-## BLOCK F — Multi-tenant foundation (pivotal, highest-risk — do before feature blocks)
+## BLOCK F — Multi-tenant foundation (pivotal, highest-risk)
+
+> ⏸️ **DEFERRED to the very end (client decision 2026-09-19).** Awaiting teammate
+> confirmation on approach before building. Phase 42 was drafted then reverted
+> (never applied to the DB). No multi-tenant decisions are locked yet — see the
+> open questions the client is taking to their team. Blocks G–J are being built
+> single-tenant first; when Block F runs at the end, its migration loop retrofits
+> `org_id` onto any new tables those blocks add.
 
 **Model:** shared database, shared schema, **row-level tenant isolation** (standard SaaS pattern at this scale; schema/DB-per-tenant is overkill). Every tenant-scoped row carries `org_id`; RLS forces `org_id = current_org_id()` on every table. Deny-by-default, force RLS, `org_id` never client-writable (set server-side in SECURITY DEFINER RPCs).
 
@@ -125,8 +132,8 @@ Build **only** these, in phases. (Explicitly **removed**: deposit/advance tracki
 - Push each tested phase to GitHub with a plain-words commit; bump `?v=` across pages on any store-api/config change.
 - SQL lands in all copies (`phaseNN-*.sql`, `phaseNN.sql`, `full-schema/NN-*.sql`, `complete-setup.sql`).
 
-## Recommended build order
-**40 → 41** (quick wins) → **42 → 43 → 44** (multi-tenant foundation) → **45, 46** (money/docs) → **47, 48, 49, 50, 51** (visibility/intelligence) → **52, 53** (surfaces) → **54** (polish last).
+## Recommended build order (revised 2026-09-19 — Block F moved to the end)
+**40 → 41** (quick wins ✅ done) → **47, 48, 49, 50, 51** (visibility/intelligence) → **46** (report exports) → **52, 53** (surfaces) → **45** (multi-currency/GST — sits just before F since currency is per-org) → **42 → 43 → 44** (multi-tenant, LAST, pending teammate confirmation) → **54** (polish last).
 
 ## Parked for later (remind the client)
 Deposit/advance tracking + auto payment reminders · WhatsApp channel · deep finance engine · full compliance/permit engine · media DAM · billing/plan tiers for tenants · multi-org membership switcher.
