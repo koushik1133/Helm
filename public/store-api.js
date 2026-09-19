@@ -874,6 +874,56 @@
       items.forEach((i) => { const c = committed[i.id] || 0; map[i.id] = { ...i, committed: c, available: Number(i.total_qty || 0) - c }; });
       return map;
     },
+    // ---- Phase 33: check-out / check-in accountability ----
+    checkouts: {
+      // all checkouts, or just one event's; newest first
+      async list(quoteId) {
+        if (mode !== "supabase") return readLs("bp_checkouts").filter((c) => !quoteId || c.quote_id === quoteId);
+        let q = supa.from("inventory_checkouts").select("*").order("checked_out_at", { ascending: false });
+        if (quoteId) q = q.eq("quote_id", quoteId);
+        const { data, error } = await q; if (error) throw error; return data;
+      },
+      // issue equipment out
+      async out(itemId, quoteId, qty, issuedTo, crewId, note) {
+        if (mode !== "supabase") throw new Error("Check-out needs Supabase");
+        const { data, error } = await supa.rpc("checkout_equipment",
+          { p_item: itemId, p_quote: quoteId || null, p_qty: Number(qty), p_issued_to: issuedTo, p_issued_to_id: crewId || null, p_note: note || null });
+        if (error) throw error; return data;
+      },
+      // bring it back: returned count + who signed off; writeoff reduces stock by the missing amount
+      async in(id, qtyIn, returnedBy, writeoff) {
+        if (mode !== "supabase") throw new Error("Check-in needs Supabase");
+        const { data, error } = await supa.rpc("checkin_equipment",
+          { p_id: id, p_qty_in: Number(qtyIn), p_returned_by: returnedBy || null, p_writeoff: !!writeoff });
+        if (error) throw error; return data;
+      },
+      async remove(id) {
+        if (mode !== "supabase") { localStorage.setItem("bp_checkouts", JSON.stringify(readLs("bp_checkouts").filter((c) => c.id !== id))); return true; }
+        const { error } = await supa.from("inventory_checkouts").delete().eq("id", id); if (error) throw error; return true;
+      },
+    },
+  };
+
+  /* ---------------- chair types (Control Center catalog, Phase 33) ---------------- */
+  const chairTypes = {
+    async list(includeInactive) {
+      if (mode !== "supabase") return readLs("bp_chair_types");
+      let q = supa.from("chair_types").select("*").order("name");
+      if (!includeInactive) q = q.eq("active", true);
+      const { data, error } = await q; if (error) throw error; return data;
+    },
+    async add(name, price) {
+      if (mode !== "supabase") { const a = readLs("bp_chair_types"); const r = { id: uid(), name, price: Number(price || 0), active: true }; a.push(r); localStorage.setItem("bp_chair_types", JSON.stringify(a)); return r; }
+      const { data, error } = await supa.from("chair_types").insert({ name, price: Number(price || 0) }).select().single(); if (error) throw error; return data;
+    },
+    async update(id, patch) {
+      if (mode !== "supabase") { const a = readLs("bp_chair_types"); const r = a.find((x) => x.id === id); if (r) Object.assign(r, patch); localStorage.setItem("bp_chair_types", JSON.stringify(a)); return true; }
+      const { error } = await supa.from("chair_types").update(patch).eq("id", id); if (error) throw error; return true;
+    },
+    async remove(id) {
+      if (mode !== "supabase") { localStorage.setItem("bp_chair_types", JSON.stringify(readLs("bp_chair_types").filter((c) => c.id !== id))); return true; }
+      const { error } = await supa.from("chair_types").update({ active: false }).eq("id", id); if (error) throw error; return true;
+    },
   };
 
   /* ---------------- resource needs + capability check (Phase 8) ---------------- */
@@ -1578,7 +1628,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

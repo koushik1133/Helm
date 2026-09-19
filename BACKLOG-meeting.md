@@ -13,14 +13,16 @@ Everything requested, grouped into buildable clusters. Legend: ⬜ to build · �
 - ✅ **A6 Per-role feature enable/disable control panel** — done (access matrix); A3/A4 refined defaults.
 - ⬜ **USER TO RUN** `phase31-roles-layout.sql` (after phase29), then live per-role test.
 
-## Cluster B — Inventory accountability (the walkie-talkie problem)
-- ⬜ **B1 Priority class A/B/C** on inventory items. A = expensive (walkie-talkies ₹10–15k),
-  C = cheap (plastic chairs ₹400–500, cushion ₹1,000). Show as a badge; filter by class.
-- ⬜ **B2 Chair types in Control Center.** A catalog of chair options (plastic / cushion / …) each
-  with its own price, replacing the single "price per chair". Feeds quotes.
-- ⬜ **B3 Check-out / check-in accountability.** Issue equipment to a crew/coordinator: qty taken,
-  who, event, date. On return: qty returned + a confirmation sign-off → system computes MISSING.
-  Assigned to a named inventory/event coordinator. No photo upload (per meeting). Loss report.
+## Cluster B — Inventory accountability ✅ DONE (phase33, commit pending)
+- ✅ **B1 Priority class A/B/C + unit cost** on inventory items. Badge in the stock table,
+  priority filter, priority+cost fields in the item editor.
+- ✅ **B2 Chair types in Control Center.** `chair_types` catalog (name + price), CRUD in the
+  Pricing tab, seeded Plastic/Cushioned/Chiavari.
+- ✅ **B3 Check-out / check-in accountability.** `inventory_checkouts` + checkout_equipment /
+  checkin_equipment RPCs (stamp who issued / who signed off). Inventory page "Check-out /
+  Check-in" tab: issue form, Out-on-loan list, and a Loss report computing missing units +
+  ₹ value lost (unit_cost × missing); optional write-off reduces stock. No photos.
+- ⬜ **USER TO RUN** `phase33-inventory-accountability.sql` (after phase29), then live test.
 
 ## Cluster C — Task engine (categorization, verification, dependencies, alarms)
 - ⬜ **C1 QE verification (no photos).** Quality engineer marks a completed task PASS / REJECT.

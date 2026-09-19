@@ -135,6 +135,16 @@
         <button class="btn" id="co_add">+ Add coupon</button>
       </div>
     </div>
+
+    <div class="card">
+      <h3>Chair types &amp; prices</h3>
+      <div id="chairList"></div>
+      <div class="addrow" style="grid-template-columns:1.6fr 1fr auto">
+        <input id="ch_name" placeholder="Chair type e.g. Chiavari">
+        <input id="ch_price" type="number" min="0" step="1" placeholder="Price / chair (₹)">
+        <button class="btn" id="ch_add">+ Add chair type</button>
+      </div>
+    </div>
     </div><!-- /pane-pricing -->
 
     <!-- ============ USER CONTROL PANE (admin only) ============ -->
@@ -177,8 +187,8 @@
   </form>
 </div>
 
-<script src="config.js?v=43"></script>
-<script src="store-api.js?v=43"></script>
+<script src="config.js?v=44"></script>
+<script src="store-api.js?v=44"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -205,7 +215,7 @@
       $("#p_chair").value=p.chairPrice??200; $("#p_plate").value=p.platePrice??500; $("#p_gst").value=p.gstPct??18;
       $("#p_cgst").value=p.cateringGstPct??18; $("#p_svc").value=p.serviceChargePct??0;
     }catch(e){ setMsg("err","Run control-center.sql to enable the Control Center. ("+((e&&e.message)||"")+")"); }
-    await renderVendors(); await renderCoupons();
+    await renderVendors(); await renderCoupons(); await renderChairs();
     // Only admins get the User-control tab (add/remove users + access matrix).
     if(isAdmin){
       $("#tab-users").hidden=false;
@@ -248,6 +258,17 @@
     const code=$("#co_code").value.trim().toUpperCase(); if(code.length<2){ setMsg("err","Enter a coupon code."); return; }
     try{ await BPStore.coupons.add(code,$("#co_kind").value,+$("#co_val").value||0,null); $("#co_code").value="";$("#co_val").value=""; renderCoupons(); setMsg("ok","Coupon added."); }
     catch(e){ setMsg("err",(e&&e.message)||"Couldn't add coupon"); }
+  });
+
+  async function renderChairs(){
+    let c=[]; try{ c=await BPStore.chairTypes.list(); }catch{}
+    $("#chairList").innerHTML = c.length? c.map(x=>`<div class="row"><span class="g">${esc(x.name)}</span><span class="mono">₹${Number(x.price||0).toLocaleString("en-IN")}/chair</span><button class="rm" data-id="${x.id}">Remove</button></div>`).join("") : '<div class="row" style="color:var(--ink-3)">No chair types yet — add plastic, cushioned, Chiavari…</div>';
+    $("#chairList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.chairTypes.remove(b.dataset.id); renderChairs(); }));
+  }
+  $("#ch_add").addEventListener("click",async()=>{
+    const name=$("#ch_name").value.trim(); if(name.length<2){ setMsg("err","Enter a chair type name."); return; }
+    try{ await BPStore.chairTypes.add(name,+$("#ch_price").value||0); $("#ch_name").value="";$("#ch_price").value=""; renderChairs(); setMsg("ok","Chair type added."); }
+    catch(e){ setMsg("err",(e&&e.message)||"Couldn't add chair type"); }
   });
 
   /* ---------------- USER CONTROL: team members ---------------- */

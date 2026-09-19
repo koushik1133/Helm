@@ -54,6 +54,16 @@
   .fld input,.fld select{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
   .empty{text-align:center;color:var(--ink-3);padding:26px;font-size:13px}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
+  /* priority badges */
+  .pri{font-size:10px;font-weight:800;width:22px;height:22px;display:inline-grid;place-items:center;border-radius:6px}
+  .pri.A{background:#fdecec;color:#b42318} .pri.B{background:#fff7e6;color:#946200} .pri.C{background:#eef2ff;color:#4457c8}
+  /* sub-tabs */
+  .tabs{display:flex;gap:6px;margin:6px 0 16px;border-bottom:1px solid var(--line)}
+  .tab{appearance:none;border:0;background:transparent;font-family:inherit;font-size:14px;font-weight:600;color:var(--ink-3);padding:10px 16px;border-bottom:2px solid transparent;cursor:pointer;margin-bottom:-1px}
+  .tab:hover{color:var(--ink-2)} .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .miss{background:#fdecec;color:#b42318;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px}
+  .backok{background:#e7f6ee;color:#0f7a43;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px}
+  .onloan{background:#fff7e6;color:#946200;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
 
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
@@ -95,20 +105,59 @@
       </table>
     </div>
 
-    <!-- stock manager -->
+    <div class="tabs">
+      <button class="tab active" data-pane="stock">📦 Stock items</button>
+      <button class="tab" data-pane="loans">🔑 Check-out / Check-in</button>
+    </div>
+
+    <!-- ===== STOCK PANE ===== -->
+    <div id="pane-stock">
     <div class="toolbar">
       <h2 id="stockTitle">Stock items</h2>
       <input id="search" class="search" placeholder="Search item…">
       <select id="catFilter" class="sel"><option value="">All categories</option></select>
+      <select id="priFilter" class="sel"><option value="">All priority</option><option value="A">A — high value</option><option value="B">B — mid</option><option value="C">C — low</option></select>
       <span class="spacer"></span>
       <button id="newBtn" class="btn primary" hidden>＋ Add item</button>
     </div>
     <div class="card" style="padding:0;overflow:auto">
       <table>
-        <thead><tr><th>Item</th><th>Category</th><th class="num">Total</th><th class="num">Committed</th><th class="num">Available</th><th>Unit</th><th></th></tr></thead>
-        <tbody id="stockRows"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+        <thead><tr><th>Item</th><th>Pri</th><th>Category</th><th class="num">Total</th><th class="num">Committed</th><th class="num">Available</th><th class="num">Unit cost</th><th>Unit</th><th></th></tr></thead>
+        <tbody id="stockRows"><tr><td colspan="9" class="empty">Loading…</td></tr></tbody>
       </table>
     </div>
+    </div><!-- /pane-stock -->
+
+    <!-- ===== CHECK-OUT / CHECK-IN PANE ===== -->
+    <div id="pane-loans" hidden>
+      <div class="card" id="coCard">
+        <h2>Check out equipment</h2>
+        <p class="sub">Issue stock to a crew member or coordinator. When it comes back, record how many returned — anything short is flagged in the loss report below. <span id="coEvent" class="onloan" hidden></span></p>
+        <div class="reserve-row" style="grid-template-columns:1.6fr .7fr 1.2fr 1.2fr auto">
+          <div class="fld"><label>Item</label><select id="co_item"></select></div>
+          <div class="fld"><label>Qty out</label><input id="co_qty" type="number" min="1" value="1"></div>
+          <div class="fld"><label>Issued to</label><input id="co_to" placeholder="person's name"></div>
+          <div class="fld"><label>Note</label><input id="co_note" placeholder="optional"></div>
+          <div class="fld"><label>&nbsp;</label><button class="btn primary" id="co_add">Check out</button></div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:0;overflow:auto">
+        <div style="padding:14px 16px 0"><h2 style="margin:0;font-size:15px">Out on loan <span id="loanCount" class="onloan"></span></h2></div>
+        <table>
+          <thead><tr><th>Item</th><th>Pri</th><th class="num">Out</th><th>Issued to</th><th>When</th><th></th></tr></thead>
+          <tbody id="loanRows"><tr><td colspan="6" class="empty">Nothing out on loan.</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="card" style="padding:0;overflow:auto">
+        <div style="padding:14px 16px 4px;display:flex;align-items:center;gap:10px"><h2 style="margin:0;font-size:15px">Loss report</h2><span id="lossTotal"></span></div>
+        <table>
+          <thead><tr><th>Item</th><th class="num">Out</th><th class="num">Back</th><th class="num">Missing</th><th class="num">Value lost</th><th>Signed off</th><th>When</th></tr></thead>
+          <tbody id="lossRows"><tr><td colspan="7" class="empty">No returns recorded yet.</td></tr></tbody>
+        </table>
+      </div>
+    </div><!-- /pane-loans -->
   </div>
 
   <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to manage inventory.</p></div>
@@ -124,6 +173,11 @@
       <div class="fld"><label>Category</label><input id="i_cat" placeholder="e.g. Seating" list="catList"></div>
       <div class="fld"><label>Total quantity</label><input id="i_qty" type="number" min="0" value="0"></div>
       <div class="fld"><label>Unit</label><input id="i_unit" placeholder="pcs, sets, m…"></div>
+      <div class="fld"><label>Priority class</label><select id="i_pri">
+        <option value="A">A — high value / critical (e.g. walkie-talkies)</option>
+        <option value="B">B — mid value</option>
+        <option value="C" selected>C — low value (e.g. plastic chairs)</option></select></div>
+      <div class="fld"><label>Unit cost (₹)</label><input id="i_cost" type="number" min="0" step="1" value="0"></div>
       <div class="fld" style="grid-column:1/-1"><label>Notes</label><input id="i_notes" placeholder="optional"></div>
     </div>
     <datalist id="catList"></datalist>
@@ -147,15 +201,16 @@
   </div>
 </div>
 
-<script src="config.js?v=43"></script>
-<script src="store-api.js?v=43"></script>
+<script src="config.js?v=44"></script>
+<script src="store-api.js?v=44"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const num=(n)=>Number(n||0).toLocaleString("en-IN");
   const quoteId=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const ST={reserved:"Reserved",allocated:"Allocated",returned:"Returned",cancelled:"Cancelled"};
-  let canEdit=false, canDelete=false, avail={}, items=[], reservations=[], editingId=null, filter="", catF="";
+  let canEdit=false, canDelete=false, avail={}, items=[], reservations=[], checkouts=[], editingId=null, filter="", catF="", priF="";
+  const PRI={A:"A",B:"B",C:"C"};
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
@@ -170,19 +225,22 @@
     $("#catFilter").innerHTML='<option value="">All categories</option>'+cats.map(c=>`<option ${c===catF?"selected":""}>${esc(c)}</option>`).join("");
     $("#catList").innerHTML=cats.map(c=>`<option value="${esc(c)}">`).join("");
     const q=filter.trim().toLowerCase();
-    const shown=items.filter(i=>(!catF||i.category===catF)&&(!q||[i.name,i.category].join(" ").toLowerCase().includes(q)));
+    const shown=items.filter(i=>(!catF||i.category===catF)&&(!priF||(i.priority||"C")===priF)&&(!q||[i.name,i.category].join(" ").toLowerCase().includes(q)));
     $("#stockRows").innerHTML = shown.length ? shown.map(i=>{
       const a=avail[i.id]||{committed:0,available:Number(i.total_qty||0)};
+      const p=i.priority||"C";
       return `<tr>
         <td><b>${esc(i.name)}</b></td>
+        <td><span class="pri ${p}" title="Priority ${p}">${p}</span></td>
         <td>${i.category?`<span class="cat">${esc(i.category)}</span>`:""}</td>
         <td class="num">${num(i.total_qty)}</td>
         <td class="num">${num(a.committed)}</td>
         <td class="num avail ${availClass(a.available,Number(i.total_qty))}">${num(a.available)}</td>
+        <td class="num">${Number(i.unit_cost||0)?("₹"+num(i.unit_cost)):'<span style="color:var(--ink-3)">—</span>'}</td>
         <td>${esc(i.unit||"")}</td>
         <td>${canEdit?`<button class="rm" data-edit="${i.id}">Edit</button>`:""}</td>
       </tr>`;
-    }).join("") : '<tr><td colspan="7" class="empty">No items. Add your first stock item.</td></tr>';
+    }).join("") : '<tr><td colspan="9" class="empty">No items. Add your first stock item.</td></tr>';
     $("#stockRows").querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>openItem(items.find(x=>x.id===b.dataset.edit))));
   }
 
@@ -213,12 +271,13 @@
     editingId=it?it.id:null; $("#im_title").textContent=it?"Edit item":"＋ Add item";
     $("#i_name").value=it?it.name||"":""; $("#i_cat").value=it?it.category||"":"";
     $("#i_qty").value=it?it.total_qty||0:0; $("#i_unit").value=it?it.unit||"":""; $("#i_notes").value=it?it.notes||"":"";
+    $("#i_pri").value=it?(it.priority||"C"):"C"; $("#i_cost").value=it?(it.unit_cost||0):0;
     $("#im_deact").hidden=!(it&&canEdit); $("#im_err").hidden=true; $("#itemModal").hidden=false; setTimeout(()=>$("#i_name").focus(),50);
   }
   function closeItem(){ $("#itemModal").hidden=true; editingId=null; }
   async function saveItem(){
     const name=$("#i_name").value.trim(); if(!name){ $("#im_err").textContent="Name is required."; $("#im_err").hidden=false; return; }
-    const rec={ name, category:$("#i_cat").value.trim()||null, total_qty:Number($("#i_qty").value||0), unit:$("#i_unit").value.trim()||null, notes:$("#i_notes").value.trim()||null };
+    const rec={ name, category:$("#i_cat").value.trim()||null, total_qty:Number($("#i_qty").value||0), unit:$("#i_unit").value.trim()||null, notes:$("#i_notes").value.trim()||null, priority:$("#i_pri").value||"C", unit_cost:Number($("#i_cost").value||0) };
     $("#im_save").disabled=true;
     try{ if(editingId) await BPStore.inventory.updateItem(editingId,rec); else await BPStore.inventory.addItem(rec); closeItem(); await load(); }
     catch(e){ $("#im_err").textContent="Couldn't save — "+((e&&e.message)||"error"); $("#im_err").hidden=false; }
@@ -241,6 +300,79 @@
   $("#itemModal").addEventListener("click",e=>{ if(e.target.id==="itemModal") closeItem(); });
   $("#search").addEventListener("input",e=>{ filter=e.target.value; renderStock(); });
   $("#catFilter").addEventListener("change",e=>{ catF=e.target.value; renderStock(); });
+  $("#priFilter").addEventListener("change",e=>{ priF=e.target.value; renderStock(); });
+
+  /* ---- sub-tab switching ---- */
+  document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===t));
+    $("#pane-stock").hidden=t.dataset.pane!=="stock";
+    $("#pane-loans").hidden=t.dataset.pane!=="loans";
+  }));
+
+  /* ---- check-out / check-in ---- */
+  function renderCheckouts(){
+    const byId=Object.fromEntries(items.map(i=>[i.id,i]));
+    $("#co_item").innerHTML=items.map(i=>`<option value="${i.id}">${esc(i.name)}${i.priority?` (${i.priority})`:""}</option>`).join("");
+    const open=checkouts.filter(c=>c.status==="out"||c.status==="partial");
+    const closed=checkouts.filter(c=>c.status==="returned"||c.status==="partial");
+    $("#loanCount").textContent = open.length? `${open.length} open` : "";
+    // open loans
+    $("#loanRows").innerHTML = open.length ? open.map(c=>{ const it=byId[c.item_id]||{name:"(item)"};
+      return `<tr>
+        <td><b>${esc(it.name)}</b>${c.note?`<div style="font-size:11px;color:var(--ink-3)">${esc(c.note)}</div>`:""}${c.status==="partial"?' <span class="miss">partial</span>':""}</td>
+        <td><span class="pri ${it.priority||'C'}">${it.priority||'C'}</span></td>
+        <td class="num">${num(c.qty_out)}${c.status==="partial"?` <span style="color:var(--ink-3)">(${num(c.qty_in)} back)</span>`:""}</td>
+        <td>${esc(c.issued_to||"")}</td>
+        <td style="font-size:12px;color:var(--ink-3)">${c.checked_out_at?new Date(c.checked_out_at).toLocaleDateString():""}</td>
+        <td>${canEdit?`<button class="btn sm" data-in="${c.id}">Check in</button>`:""}</td>
+      </tr>`; }).join("") : '<tr><td colspan="6" class="empty">Nothing out on loan.</td></tr>';
+    // loss report (returned/partial with missing>0)
+    let lostVal=0, lostUnits=0;
+    const lossRows = closed.map(c=>{ const it=byId[c.item_id]||{name:"(item)"}; const missing=Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0);
+      if(missing<=0) return ""; const val=missing*Number(it.unit_cost||0); lostVal+=val; lostUnits+=missing;
+      return `<tr>
+        <td><b>${esc(it.name)}</b> <span class="pri ${it.priority||'C'}">${it.priority||'C'}</span></td>
+        <td class="num">${num(c.qty_out)}</td>
+        <td class="num">${num(c.qty_in)}</td>
+        <td class="num"><span class="miss">${num(missing)}</span></td>
+        <td class="num">${val?("₹"+num(val)):"—"}</td>
+        <td>${esc(c.returned_by||"—")}</td>
+        <td style="font-size:12px;color:var(--ink-3)">${c.checked_in_at?new Date(c.checked_in_at).toLocaleDateString():""}</td>
+      </tr>`; }).join("");
+    $("#lossRows").innerHTML = lossRows || '<tr><td colspan="7" class="empty">No missing items — everything came back. 🎉</td></tr>';
+    $("#lossTotal").innerHTML = lostUnits? `<span class="miss">${num(lostUnits)} units missing · ₹${num(lostVal)} lost</span>` : '<span class="backok">All returned</span>';
+    $("#loanRows").querySelectorAll("[data-in]").forEach(b=>b.addEventListener("click",()=>checkInFlow(b.dataset.in)));
+  }
+
+  async function checkInFlow(id){
+    const c=checkouts.find(x=>x.id===id); if(!c) return;
+    const it=items.find(x=>x.id===c.item_id)||{};
+    const already=Number(c.qty_in||0);
+    const ans=prompt(`Checking in "${it.name||"item"}" — ${num(c.qty_out)} went out.\nHow many came back?`, String(c.qty_out));
+    if(ans===null) return; const qtyIn=Number(ans);
+    if(isNaN(qtyIn)||qtyIn<0){ alert("Enter a valid number."); return; }
+    const by=prompt("Who is confirming the return? (your name / sign-off)", "");
+    if(by===null) return;
+    const missing=Math.max(Number(c.qty_out||0)-qtyIn,0);
+    let writeoff=false;
+    if(missing>0) writeoff=confirm(`${missing} ${it.unit||"unit(s)"} missing (₹${num(missing*Number(it.unit_cost||0))}).\n\nOK = write it off (permanently reduce stock by ${missing}).\nCancel = just record the shortage (stock unchanged).`);
+    try{ await BPStore.inventory.checkouts.in(id, qtyIn, by.trim()||null, writeoff); await load();
+      // jump to loans pane so they see the result
+      document.querySelector('.tab[data-pane="loans"]').click(); }
+    catch(e){ alert("Couldn't check in — "+((e&&e.message)||"error")); }
+  }
+
+  $("#co_add").addEventListener("click",async()=>{
+    const itemId=$("#co_item").value, qty=Number($("#co_qty").value||0), to=$("#co_to").value.trim();
+    if(!itemId){ return; }
+    if(qty<=0){ alert("Qty out must be at least 1."); return; }
+    if(!to){ alert("Who is it issued to?"); $("#co_to").focus(); return; }
+    $("#co_add").disabled=true;
+    try{ await BPStore.inventory.checkouts.out(itemId, quoteId||null, qty, to, null, $("#co_note").value.trim()||null);
+      $("#co_qty").value=1; $("#co_to").value=""; $("#co_note").value=""; await load(); }
+    catch(e){ alert("Couldn't check out — "+((e&&e.message)||"error")); }
+    finally{ $("#co_add").disabled=false; }
+  });
   $("#rv_add").addEventListener("click",async()=>{
     const itemId=$("#rv_item").value, qty=Number($("#rv_qty").value||0);
     if(!itemId||qty<=0){ return; }
@@ -260,16 +392,19 @@
       items = await BPStore.inventory.items(false);
       avail = await BPStore.inventory.availability();
       if(quoteId) reservations = await BPStore.inventory.reservations(quoteId);
-    }catch(e){ $("#stockRows").innerHTML=`<tr><td colspan="7" class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase7-inventory.sql</b>.</td></tr>`; return; }
-    renderStock(); if(quoteId) renderEventPanel();
+    }catch(e){ $("#stockRows").innerHTML=`<tr><td colspan="9" class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase7-inventory.sql</b>.</td></tr>`; return; }
+    try{ checkouts = await BPStore.inventory.checkouts.list(quoteId||null); }
+    catch(e){ checkouts=[]; $("#loanRows").innerHTML=`<tr><td colspan="6" class="empty">Run <b>phase33-inventory-accountability.sql</b> to enable check-out/in. (${esc(e&&e.message||"")})</td></tr>`; }
+    renderStock(); renderCheckouts(); if(quoteId) renderEventPanel();
   }
 
   (async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
-    if(!(await BPStore.auth.requireView("ops"))) return;
-    canEdit=await BPStore.auth.can("edit"); canDelete=await BPStore.auth.can("delete");
+    if(!(await BPStore.auth.requireView("inventory"))) return;
+    canEdit=await BPStore.auth.canEditArea("inventory"); canDelete=await BPStore.auth.can("delete");
     $("#app").hidden=false; $("#newBtn").hidden=!canEdit;
+    if(!canEdit) $("#coCard").querySelectorAll("input,select,button").forEach(el=>el.disabled=true);
     if(quoteId){
       $("#eventPanel").hidden=false; $("#eventBar").hidden=false;
       try{ const ev=await BPStore.quotes.get(quoteId); $("#eventBar").innerHTML=`<a href="event.html?id=${encodeURIComponent(quoteId)}">← Back to workspace</a> · ${esc(ev.code||"")}${ev.title&&ev.title!==ev.code?(" · "+esc(ev.title)):""}`; }catch{}
