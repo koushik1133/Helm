@@ -91,6 +91,7 @@
       </div>
     </div>
 
+    <div id="conflictBanner"></div>
     <div class="grid" id="mods"></div>
   </div>
 </div>
@@ -106,8 +107,8 @@
   </form>
 </div>
 
-<script src="config.js?v=56"></script>
-<script src="store-api.js?v=56"></script>
+<script src="config.js?v=57"></script>
+<script src="store-api.js?v=57"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -130,7 +131,7 @@
   ];
   const stageIndex=(k)=>Math.max(0,STAGES.findIndex(s=>s.k===k));
 
-  let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, staffSummary=null, vendorSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, closureSummary=null, mediaSummary=null;
+  let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, staffSummary=null, vendorSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, closureSummary=null, mediaSummary=null, conflictSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
   const budgetRange=()=>{ const d=discSummary&&discSummary.disc; if(!d) return ""; const a=d.budget_min, b=d.budget_max;
     if(a!=null&&b!=null) return inr(a)+"–"+inr(b); if(a!=null) return "from "+inr(a); if(b!=null) return "up to "+inr(b); return ""; };
@@ -186,6 +187,7 @@
       S(async()=>{ const [pl,c]=await Promise.all([BPStore.closure.pl(id), BPStore.closure.get(id)]);
         closureSummary={ profit:pl.profit, pct:pl.marginPct, closed:!!(c&&c.closed_at) }; }),
       S(async()=>{ const md=await BPStore.media.list(id); mediaSummary={ photos:md.filter(m=>m.kind==='photo').length, videos:md.filter(m=>m.kind==='video').length, gallery:md.filter(m=>m.in_gallery).length, total:md.length }; }),
+      S(async()=>{ conflictSummary=await BPStore.calendar.conflictsForEvent(id); }),
     ]);
     render();   // re-paint with the loaded summaries
   }
@@ -216,6 +218,18 @@
     else adv.hidden=true;
 
     renderMods(STAGES[cur].mods);
+    renderConflicts();
+  }
+  function renderConflicts(){
+    const el=$("#conflictBanner"); if(!el) return;
+    const cs=conflictSummary||[];
+    if(!cs.length){ el.innerHTML=""; return; }
+    const ico={inventory:"📦",vendor:"🤝",staff:"👷"};
+    el.innerHTML=`<div class="card" style="border-color:#f5c6c6;background:#fdf2f2">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <b style="color:#b42318">⚠️ ${cs.length} scheduling conflict${cs.length===1?"":"s"} on this event's date</b>
+        <a class="btn" href="calendar.html" style="margin-left:auto;height:30px">Open calendar →</a></div>
+      ${cs.map(c=>`<div style="font-size:13px;color:var(--ink-2);padding:4px 0">${ico[c.type]||"⚠️"} <b>${esc(c.label||"")}</b> — ${esc(c.detail||"")}</div>`).join("")}</div>`;
   }
 
   function renderMods(recommended){

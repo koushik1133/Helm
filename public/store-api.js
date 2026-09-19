@@ -1150,6 +1150,31 @@
       });
       return { agenda, conflicts, counts: { events: events.length, dated: events.filter((e) => e.eventDate).length } };
     },
+    // Phase 49 — the conflicts that involve one specific event (for the workspace card)
+    async conflictsForEvent(quoteId) {
+      const { conflicts } = await this.load();
+      return conflicts.filter((c) => (c.events || []).some((e) => e && e.id === quoteId));
+    },
+    // Phase 49 — predictive pre-commit check: would assigning this crew / vendor on this
+    // event's date collide with another event on the same day? (light, targeted queries)
+    async wouldClash({ date, crewId, vendorId, excludeQuote } = {}) {
+      if (!date || mode !== "supabase" || !supa) return { clash: false };
+      const events = await quotes.list();
+      const sameDay = events.filter((e) => e.eventDate === date && e.id !== excludeQuote);
+      if (!sameDay.length) return { clash: false };
+      const ids = sameDay.map((e) => e.id); const byId = {}; sameDay.forEach((e) => (byId[e.id] = e));
+      if (crewId) {
+        const { data } = await supa.from("event_tasks").select("quote_id").eq("crew_id", crewId).in("quote_id", ids).limit(1);
+        if (data && data.length) { const e = byId[data[0].quote_id];
+          return { clash: true, type: "staff", detail: `already assigned on ${date} to ${e ? e.code : "another event"}` }; }
+      }
+      if (vendorId) {
+        const { data } = await supa.from("event_resources").select("quote_id,status").eq("vendor_id", vendorId).in("quote_id", ids).neq("status", "cancelled").limit(1);
+        if (data && data.length) { const e = byId[data[0].quote_id];
+          return { clash: true, type: "vendor", detail: `already booked on ${date} for ${e ? e.code : "another event"}` }; }
+      }
+      return { clash: false };
+    },
   };
 
   /* ---------------- run-sheet: timed event-day schedule (Phase 11) ---------------- */

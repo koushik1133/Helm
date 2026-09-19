@@ -147,8 +147,8 @@
   </form>
 </div>
 
-<script src="config.js?v=56"></script>
-<script src="store-api.js?v=56"></script>
+<script src="config.js?v=57"></script>
+<script src="store-api.js?v=57"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -226,12 +226,16 @@
         const vId=$("#assignVendor").value;
         if(!vId){ setMsg("err","Pick a vendor to outsource to."); return; }
         const v=vendors.find(x=>x.id===vId);
+        const clash=await BPStore.calendar.wouldClash({date:quote.eventDate, vendorId:vId, excludeQuote:quoteId}).catch(()=>({clash:false}));
+        if(clash.clash && !confirm("⚠️ "+((v&&v.name)||"This vendor")+" is "+clash.detail+".\nOutsource anyway?")){ return; }
         const r=await BPStore.ops.assignTasksVendor(quoteId, activeCat, titles, vId);
         setMsg("ok", `Outsourced ${r.tasks_created} ${activeCat} task(s) to ${r.vendor||(v&&v.name)}. Checklist sent — their link is below.`);
       } else {
         const crewId=$("#assignCrew").value;
         if(!crewId){ setMsg("err","Pick a crew member."); return; }
         const c=crew.find(x=>x.id===crewId);
+        const clash=await BPStore.calendar.wouldClash({date:quote.eventDate, crewId:c.id, excludeQuote:quoteId}).catch(()=>({clash:false}));
+        if(clash.clash && !confirm("⚠️ "+c.name+" is "+clash.detail+".\nAssign anyway?")){ return; }
         const r=await BPStore.ops.assignTasks(quoteId, activeCat, titles, c.id, c.name, c.phone);
         setMsg("ok", `Assigned ${r.tasks_created} ${activeCat} task(s) to ${c.name}. Worker link ready below.`);
       }
