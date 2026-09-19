@@ -112,7 +112,12 @@
       <div class="tasklist" id="taskList"></div>
       <div class="assignbar">
         <span class="muted"><b id="selCount">0</b> selected →</span>
+        <select id="assignKind" style="min-width:130px">
+          <option value="in_house">🏠 In-house crew</option>
+          <option value="outsourced">🤝 Outsource</option>
+        </select>
         <select id="assignCrew" style="min-width:180px"></select>
+        <select id="assignVendor" style="min-width:200px" hidden></select>
         <button class="btn primary" id="assignBtn">Assign selected →</button>
       </div>
     </div>
@@ -141,14 +146,14 @@
   </form>
 </div>
 
-<script src="config.js?v=51"></script>
-<script src="store-api.js?v=51"></script>
+<script src="config.js?v=52"></script>
+<script src="store-api.js?v=52"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   const quoteId=new URLSearchParams(location.search).get("quote");
   let CATS=["Stage setup","Carpets","Backdrops","Flower decoration","Mandapam","Lighting","Catering","Labour","Transport","AV & sound"];
-  let quote=null, crew=[], tasks=[], tokens=[], activeCat=CATS[0], canVerify=false, canEditOps=false, groupMode="section";
+  let quote=null, crew=[], vendors=[], tasks=[], tokens=[], activeCat=CATS[0], canVerify=false, canEditOps=false, groupMode="section";
 
   function setMsg(kind,t){ const m=$("#msg"); if(!t){m.innerHTML="";return;} m.innerHTML=`<div class="msg ${kind}">${esc(t)}</div>`; }
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
@@ -184,11 +189,19 @@
     renderTasks();
   }
   async function refresh(){
-    [crew,tasks,tokens]=await Promise.all([BPStore.ops.listCrew(), BPStore.ops.listTasks(quoteId), BPStore.ops.listTokens(quoteId)]);
+    [crew,tasks,tokens,vendors]=await Promise.all([BPStore.ops.listCrew(), BPStore.ops.listTasks(quoteId), BPStore.ops.listTokens(quoteId),
+      BPStore.vendors.listAll(false).catch(()=>[])]);
     renderCrew(); renderDashboard();
-    const opts=`<option value="">— pick crew —</option>`+crew.map(c=>`<option value="${c.id}">${esc(c.name)} · ${esc(c.phone)}</option>`).join("");
-    $("#assignCrew").innerHTML=opts;
+    $("#assignCrew").innerHTML=`<option value="">— pick crew —</option>`+crew.map(c=>`<option value="${c.id}">${esc(c.name)} · ${esc(c.phone)}</option>`).join("");
+    $("#assignVendor").innerHTML = vendors.length
+      ? `<option value="">— pick vendor —</option>`+vendors.map(v=>`<option value="${v.id}">${esc(v.name)}${v.category?" · "+esc(v.category):""}${v.phone?" · "+esc(v.phone):" · (no phone)"}</option>`).join("")
+      : `<option value="">No vendors — add them in Vendors</option>`;
   }
+  // in-house / outsource toggle: swap the assignee picker
+  $("#assignKind") && $("#assignKind").addEventListener("change",()=>{
+    const outsource = $("#assignKind").value==="outsourced";
+    $("#assignCrew").hidden = outsource; $("#assignVendor").hidden = !outsource;
+  });
   function renderCrew(){
     $("#crewChips").innerHTML = crew.length? crew.map(c=>`<span class="chip">${esc(c.name)} <span class="dep">${esc(c.department||"")}</span> · ${esc(c.phone)}</span>`).join("")
       : '<span class="muted">No crew yet — add people below.</span>';
@@ -204,13 +217,23 @@
   $("#assignBtn") && $("#assignBtn").addEventListener("click",async()=>{
     setMsg();
     const titles=[...$("#taskList").querySelectorAll(".tk:checked")].map(c=>c.value);
-    const crewId=$("#assignCrew").value;
     if(!titles.length){ setMsg("err","Select at least one task."); return; }
-    if(!crewId){ setMsg("err","Pick a crew member."); return; }
-    const c=crew.find(x=>x.id===crewId);
+    const outsource=$("#assignKind").value==="outsourced";
     const b=$("#assignBtn"); b.disabled=true; b.textContent="Assigning…";
-    try{ const r=await BPStore.ops.assignTasks(quoteId, activeCat, titles, c.id, c.name, c.phone);
-      setMsg("ok", `Assigned ${r.tasks_created} ${activeCat} task(s) to ${c.name}. Worker link ready below.`);
+    try{
+      if(outsource){
+        const vId=$("#assignVendor").value;
+        if(!vId){ setMsg("err","Pick a vendor to outsource to."); return; }
+        const v=vendors.find(x=>x.id===vId);
+        const r=await BPStore.ops.assignTasksVendor(quoteId, activeCat, titles, vId);
+        setMsg("ok", `Outsourced ${r.tasks_created} ${activeCat} task(s) to ${r.vendor||(v&&v.name)}. Checklist sent — their link is below.`);
+      } else {
+        const crewId=$("#assignCrew").value;
+        if(!crewId){ setMsg("err","Pick a crew member."); return; }
+        const c=crew.find(x=>x.id===crewId);
+        const r=await BPStore.ops.assignTasks(quoteId, activeCat, titles, c.id, c.name, c.phone);
+        setMsg("ok", `Assigned ${r.tasks_created} ${activeCat} task(s) to ${c.name}. Worker link ready below.`);
+      }
       $("#selAll").checked=false; await refresh(); await renderTasks();
     }catch(e){ setMsg("err",(e&&e.message)||"Assign failed"); }
     finally{ b.disabled=false; b.textContent="Assign selected →"; }
@@ -229,6 +252,7 @@
     return `<div class="trow" data-id="${t.id}">
       <span class="cat">${esc(label||"")}</span><span class="tt">${esc(t.title)}</span>
       <span class="st ${t.status}">${STATUS_LABEL[t.status]||t.status}</span>
+      ${t.assignee_kind==='outsourced'?`<span class="qc" style="background:#fff3e0;color:#b45309" title="Outsourced to ${esc(t.assignee_name||'vendor')}">🤝 vendor</span>`:''}
       ${t.is_special?'<span class="gate special" title="Special task — recurring reminder">🔔 special</span>':''}
       ${gateChip(t,byId)}
       ${verifyChip(t)}

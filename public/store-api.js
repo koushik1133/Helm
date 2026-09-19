@@ -503,6 +503,9 @@
       if (error) throw error; return data; },
     assignTasks: (quoteId, category, titles, crewId, name, phone) => rpc("assign_tasks",
       { p_quote_id: quoteId, p_category: category, p_titles: titles, p_crew_id: crewId || null, p_name: name, p_phone: phone }),
+    // Phase 40 — outsource a set of tasks to a vendor (sends them the checklist via the worker link)
+    assignTasksVendor: (quoteId, category, titles, vendorId) => rpc("assign_tasks_vendor",
+      { p_quote_id: quoteId, p_category: category, p_titles: titles, p_vendor_id: vendorId }),
     reassign: (taskId, crewId, name, phone) => rpc("reassign_task",
       { p_task_id: taskId, p_crew_id: crewId || null, p_name: name, p_phone: phone }),
     // ---- Phase 35: quality-engineer verification ----
