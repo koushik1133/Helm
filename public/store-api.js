@@ -956,6 +956,28 @@
     },
   };
 
+  /* ---------------- plate types (catering categories, Phase 39) ---------------- */
+  const plateTypes = {
+    async list(includeInactive) {
+      if (mode !== "supabase") return readLs("bp_plate_types");
+      let q = supa.from("plate_types").select("*").order("price");
+      if (!includeInactive) q = q.eq("active", true);
+      const { data, error } = await q; if (error) throw error; return data;
+    },
+    async add(name, price) {
+      if (mode !== "supabase") { const a = readLs("bp_plate_types"); const r = { id: uid(), name, price: Number(price || 0), active: true }; a.push(r); localStorage.setItem("bp_plate_types", JSON.stringify(a)); return r; }
+      const { data, error } = await supa.from("plate_types").insert({ name, price: Number(price || 0) }).select().single(); if (error) throw error; return data;
+    },
+    async update(id, patch) {
+      if (mode !== "supabase") { const a = readLs("bp_plate_types"); const r = a.find((x) => x.id === id); if (r) Object.assign(r, patch); localStorage.setItem("bp_plate_types", JSON.stringify(a)); return true; }
+      const { error } = await supa.from("plate_types").update(patch).eq("id", id); if (error) throw error; return true;
+    },
+    async remove(id) {
+      if (mode !== "supabase") { localStorage.setItem("bp_plate_types", JSON.stringify(readLs("bp_plate_types").filter((c) => c.id !== id))); return true; }
+      const { error } = await supa.from("plate_types").update({ active: false }).eq("id", id); if (error) throw error; return true;
+    },
+  };
+
   /* ---------------- resource needs + capability check (Phase 8) ---------------- */
   const NEED_LS = "bp_resource_needs";
   const resources = {
@@ -1658,7 +1680,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

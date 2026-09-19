@@ -42,11 +42,12 @@
   .btn{height:36px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
   .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)}
   /* module cards */
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px} @media(max-width:720px){.grid{grid-template-columns:1fr}}
-  .mod{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px;display:flex;flex-direction:column;gap:8px}
-  .mod .h{display:flex;align-items:center;gap:8px} .mod .h .ic{font-size:20px} .mod .h b{font-size:15px}
-  .mod .sum{color:var(--ink-2);font-size:13px;flex:1} .mod .sum .big{font-family:var(--mono);font-weight:700;color:var(--ink)}
-  .mod .act{display:flex;gap:8px;flex-wrap:wrap}
+  .grid{display:flex;flex-direction:column;gap:10px}
+  .mod{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .mod .h{display:flex;align-items:center;gap:10px;min-width:230px} .mod .h .ic{font-size:22px} .mod .h b{font-size:15px}
+  .mod .sum{color:var(--ink-2);font-size:13px;flex:1;min-width:200px} .mod .sum .big{font-family:var(--mono);font-weight:700;color:var(--ink)}
+  .mod .act{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+  @media(max-width:640px){.mod{align-items:flex-start;flex-direction:column;gap:8px} .mod .act{margin-left:0}}
   .mod.reco{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   .muted{color:var(--ink-3);font-size:12px}
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -104,8 +105,8 @@
   </form>
 </div>
 
-<script src="config.js?v=50"></script>
-<script src="store-api.js?v=50"></script>
+<script src="config.js?v=51"></script>
+<script src="store-api.js?v=51"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -226,6 +227,9 @@
     const cards=[
       { key:"discovery", ic:"🔎", title:"Discovery & requirements", sum:discSum,
         acts:[{t: canEdit?"Open discovery":"View discovery", href:"discovery.html?quote="+encodeURIComponent(id), primary:true}] },
+      { key:"plandetails", ic:"🏛", title:"Venue & menu",
+        sum: planSummary && (planSummary.venue_name||planSummary.package||planSummary.menu) ? `${planSummary.venue_name?esc(planSummary.venue_name):"Venue set"}${planSummary.package?` · ${esc(planSummary.package)}`:""} ${planSummary.menu_locked?'<span class="stat ok">Menu locked</span>':'<span class="stat q">Draft</span>'}` : "Set the venue, access and lock the menu/package — decided before pricing.",
+        acts:[{t: canEdit?"Open details":"View details", href:"plan.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"proposal", ic:"🎨", title:"Proposal & mood-board",
         sum: propSummary ? `${propSummary.published?'<span class="stat ok">Published</span>':'<span class="stat q">Draft</span>'} · ${(propSummary.scope&&propSummary.scope.length)||0} scope item${(propSummary.scope&&propSummary.scope.length)===1?"":"s"}${(propSummary.images&&propSummary.images.length)?` · ${propSummary.images.length} image${propSummary.images.length===1?"":"s"}`:""}` : "Compose a shareable concept &amp; mood-board.",
         acts:[{t: canEdit?"Open proposal":"View proposal", href:"proposal.html?quote="+encodeURIComponent(id), primary:true}] },
@@ -235,9 +239,6 @@
         acts:[{t:"Open this quote", href:"quotes.html?focus="+encodeURIComponent(ev.code||id), primary:true}] },
       { key:"approval", ic:"✅", title:"Client approval", sum: ev.approvalStatus==='none'?"Not sent yet — confirm the quote, then send the approval link.":`Status: <b>${esc(ev.approvalStatus)}</b>`,
         acts:[{t:"Manage in Quotes", href:"quotes.html?focus="+encodeURIComponent(ev.code||id)}] },
-      { key:"plandetails", ic:"🏛", title:"Venue & menu",
-        sum: planSummary && (planSummary.venue_name||planSummary.package||planSummary.menu) ? `${planSummary.venue_name?esc(planSummary.venue_name):"Venue set"}${planSummary.package?` · ${esc(planSummary.package)}`:""} ${planSummary.menu_locked?'<span class="stat ok">Menu locked</span>':'<span class="stat q">Draft</span>'}` : "Set the venue, access and lock the menu/package.",
-        acts:[{t: canEdit?"Open details":"View details", href:"plan.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"tasks", ic:"🛠️", title:"Tasks & crew", sum: tasksSummary?`${tasksSummary.done}/${tasksSummary.total} tasks done`:"Assign predefined tasks to your crew.",
         acts:[{t:"Open operations", href:"ops.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"staff", ic:"👷", title:"Staff on this event",

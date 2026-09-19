@@ -154,7 +154,7 @@
   <header>
     <div class="mark"></div>
     <div><h1>Blueprint Stage</h1><small>Event Layout Builder</small></div>
-    <span class="badge" id="badge"><i></i><span id="badgeLbl">…</span></span>
+    <span class="spacer" style="flex:1"></span>
     <button id="helpBtn" class="helpbtn" title="Take the guided tour">? Tour</button>
     <span id="account" class="account" hidden></span>
   </header>
@@ -248,17 +248,17 @@
 
 <!-- Team members + access control now live in the Control Center (control.html#users). -->
 
-<script src="config.js?v=50"></script>
-<script src="store-api.js?v=50"></script>
+<script src="config.js?v=51"></script>
+<script src="store-api.js?v=51"></script>
 <script>
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return "—"; } };
   const esc = (s) => (s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
   function setBadge(mode) {
-    const b = $("#badge"), map = { supabase: "Supabase", server: "Server", local: "This browser" };
-    b.className = "badge " + mode; $("#badgeLbl").textContent = map[mode] || mode;
-    $("#footMode").textContent = map[mode] || mode;
+    const map = { supabase: "Supabase", server: "Server", local: "This browser" };
+    const b = $("#badge"); if (b) { b.className = "badge " + mode; const l=$("#badgeLbl"); if(l) l.textContent = map[mode] || mode; }
+    const fm = $("#footMode"); if (fm) fm.textContent = map[mode] || mode;
   }
   function eg() { const d = new Date(); const mm = String(d.getMonth() + 1).padStart(2, "0"), dd = String(d.getDate()).padStart(2, "0");
     return mm + dd + d.getFullYear(); }
@@ -309,12 +309,8 @@
     await renderAccount();
     const mustLogin = BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user();
 
-    // Supabase enforces login and nobody's signed in → prompt sign-in, show gated state
-    if (mustLogin) {
-      $("#createBtn").hidden = true;
-      $("#elist").innerHTML = '<div class="empty">Please <b>sign in</b> to view your events.</div>';
-      openLogin(); return;
-    }
+    // Supabase enforces login and nobody's signed in → go to the full sign-in page
+    if (mustLogin) { location.replace("login.html"); return; }
     canCreate = await BPStore.auth.can("create");
     canDelete = await BPStore.auth.can("delete");
     $("#createBtn").hidden = !canCreate;                    // only create-capable roles can start new quotes
