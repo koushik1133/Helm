@@ -86,8 +86,8 @@ begin
   for rec in select value from jsonb_array_elements(seed) loop
     a := rec->>'area';
     foreach r in array allroles loop
-      v := (rec->'view')  ? r;
-      e := (rec->'edit')  ? r;
+      v := jsonb_exists(rec->'view', r);      -- function form of the ? operator (editor-safe)
+      e := jsonb_exists(rec->'edit', r);
       insert into public.role_access(role, area, can_view, can_edit)
         values (r, a, v, (e and v))          -- edit implies view
       on conflict (role, area) do nothing;    -- never clobber an admin's later change
