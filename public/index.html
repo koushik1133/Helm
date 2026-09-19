@@ -9,16 +9,17 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{
-    --bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
-    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
-    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --bg:#f6f4f1;--panel:#ffffff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#8b8698;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;
+    --gold:#f59e0b;--safe:#12a150;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(27,25,48,.05),0 14px 36px rgba(27,25,48,.11);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
   }
   *{box-sizing:border-box}
   [hidden]{display:none!important}   /* the hidden attr must beat any author display rule (.lmodal/.account) */
   body{margin:0;background:
-    radial-gradient(1200px 600px at 80% -10%, #e6ecff 0%, transparent 55%),
-    radial-gradient(900px 500px at 0% 0%, #efe9ff 0%, transparent 45%), var(--bg);
+    radial-gradient(1100px 560px at 84% -12%, #ece3ff 0%, transparent 56%),
+    radial-gradient(820px 480px at -6% -4%, #ffe9d6 0%, transparent 50%), var(--bg);
     color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
   a{color:inherit;text-decoration:none}
   .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
@@ -110,10 +111,32 @@
   .ecard:hover .del{opacity:1} .ecard .del:hover{color:#e5484d}
   .empty{grid-column:1/-1;text-align:center;color:var(--ink-3);padding:30px;border:1px dashed var(--line);border-radius:12px;font-size:13px}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
-  /* help / tour */
-  .helpbtn{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--accent);
-    font-weight:800;font-size:14px;cursor:pointer;flex:0 0 auto;display:grid;place-items:center}
+  /* responsive module nav */
+  .modnav{display:flex;flex-wrap:wrap;gap:8px;padding:2px 0 6px;margin:0 0 6px}
+  .modnav .pill{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 13px;border-radius:11px;
+    background:var(--panel);border:1px solid var(--line);color:var(--ink-2);font-size:13px;font-weight:600;
+    box-shadow:0 1px 2px rgba(27,25,48,.04);transition:transform .12s,border-color .12s,color .12s}
+  .modnav .pill:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-1px);box-shadow:var(--shadow)}
+  .modnav .pill .pi{font-size:15px;line-height:1}
+  @media(max-width:680px){ .modnav .pill{height:33px;padding:0 10px;font-size:12px} }
+  /* help / tour button */
+  .helpbtn{height:30px;padding:0 12px;border-radius:20px;border:1px solid var(--line);background:var(--panel);color:var(--accent);
+    font-weight:700;font-size:12px;cursor:pointer;flex:0 0 auto;display:inline-flex;align-items:center;gap:5px}
   .helpbtn:hover{border-color:var(--accent);background:var(--accent-soft)}
+  /* spotlight tour */
+  .spot{position:fixed;inset:0;z-index:120;pointer-events:none}
+  .spot .ring{position:absolute;border:3px solid var(--gold);border-radius:12px;box-shadow:0 0 0 9999px rgba(20,18,40,.58);transition:all .28s cubic-bezier(.4,0,.2,1)}
+  .spot .arrow{position:absolute;color:var(--gold);font-size:30px;line-height:1;pointer-events:none;filter:drop-shadow(0 2px 3px rgba(0,0,0,.25));animation:bob 1s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  .spot .tip{position:absolute;max-width:310px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px 18px;pointer-events:auto}
+  .spot .tip .tstep{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
+  .spot .tip h4{margin:4px 0 6px;font-size:16px}
+  .spot .tip p{margin:0 0 13px;font-size:13px;color:var(--ink-2);line-height:1.55}
+  .spot .tip .trow{display:flex;gap:8px;align-items:center}
+  .spot .tip .trow .sp{flex:1}
+  .spot .tip button{height:32px;padding:0 13px;border-radius:8px;border:1px solid var(--line);background:var(--panel);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)}
+  .spot .tip button.pri{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
+  .spot .tip button.skip{border:0;background:transparent;color:var(--ink-3)}
   .hsheet{width:min(680px,96vw);max-height:88vh;overflow:auto;text-align:left}
   .hsheet h3{font-size:19px;text-align:left;margin:0 0 4px}
   .hsheet .sub{color:var(--ink-3);font-size:13px;margin:0 0 16px}
@@ -132,9 +155,11 @@
     <div class="mark"></div>
     <div><h1>Blueprint Stage</h1><small>Event Layout Builder</small></div>
     <span class="badge" id="badge"><i></i><span id="badgeLbl">…</span></span>
-    <button id="helpBtn" class="helpbtn" title="How this works — take the tour">?</button>
+    <button id="helpBtn" class="helpbtn" title="Take the guided tour">? Tour</button>
     <span id="account" class="account" hidden></span>
   </header>
+
+  <nav id="modnav" class="modnav" hidden></nav>
 
   <section class="hero">
     <div>
@@ -256,20 +281,21 @@
       const V = {};
       await Promise.all(["leads","crm","nurture","staff","inventory","vendors","calendar","templates","quotes","controls"]
         .map(async (k) => { V[k] = await BPStore.auth.canView(k); }));
-      el.innerHTML = `<span class="role">${esc(BPStore.auth.admin.roleLabel(role)||"")}</span><span>${esc(user.email)}</span>`
-        + (V.leads ? `<a class="users" href="leads.html">🎯 Leads</a>` : "")
-        + (V.crm ? `<a class="users" href="crm.html">🗄 CRM</a>` : "")
-        + (V.nurture ? `<a class="users" href="nurture.html">🌱 Nurture</a>` : "")
-        + (V.staff ? `<a class="users" href="staff.html">👷 Staff</a>` : "")
-        + (V.inventory ? `<a class="users" href="inventory.html">📦 Inventory</a>` : "")
-        + (V.vendors ? `<a class="users" href="vendors.html">🤝 Vendors</a>` : "")
-        + (V.calendar ? `<a class="users" href="calendar.html">📅 Calendar</a>` : "")
-        + (V.templates ? `<a class="users" href="templates.html">🧩 Templates</a>` : "")
-        + (V.quotes ? `<a class="users" href="quotes.html">📋 Quotes</a>` : "")
-        + (V.controls ? `<a class="users" href="control.html">⚙ Control Center</a>` : "")
-        + (isAdmin ? `<a class="users" href="control.html#users">👥 Users</a>` : "")
+      // account chip: identity + logout only
+      el.innerHTML = `<span class="role">${esc(BPStore.auth.admin.roleLabel(role)||"")}</span><span class="who">${esc(user.email)}</span>`
         + `<button id="logoutBtn">Log out</button>`;
       $("#logoutBtn").addEventListener("click", async () => { await BPStore.auth.signOut(); location.reload(); });
+      // module nav: its own responsive bar (each pill carries data-nav for the tour)
+      const NAV=[
+        ["leads","leads.html","🎯","Leads",V.leads],["crm","crm.html","🗄","CRM",V.crm],
+        ["nurture","nurture.html","🌱","Nurture",V.nurture],["staff","staff.html","👷","Staff",V.staff],
+        ["inventory","inventory.html","📦","Inventory",V.inventory],["vendors","vendors.html","🤝","Vendors",V.vendors],
+        ["calendar","calendar.html","📅","Calendar",V.calendar],["templates","templates.html","🧩","Templates",V.templates],
+        ["quotes","quotes.html","📋","Quotes",V.quotes],["controls","control.html","⚙","Control Center",V.controls],
+        ["users","control.html#users","👥","Users",isAdmin],
+      ];
+      const nav=$("#modnav"); nav.hidden=false;
+      nav.innerHTML=NAV.filter(n=>n[4]).map(n=>`<a class="pill" data-nav="${n[0]}" href="${n[1]}"><span class="pi">${n[2]}</span>${esc(n[3])}</a>`).join("");
     } else {
       el.innerHTML = `<button id="loginBtn">Sign in</button>`;
       $("#loginBtn").addEventListener("click", openLogin);
@@ -345,15 +371,72 @@
   $("#loginModal").addEventListener("click", (e) => { if (e.target.id === "loginModal" && BPStore.auth.user()) closeLogin(); });
   $("#refresh").addEventListener("click", load);
 
-  /* ---- help / tour ---- */
-  function openHelp(){ $("#helpModal").hidden=false; }
-  function closeHelp(){ $("#helpModal").hidden=true; try{ localStorage.setItem("bp_seen_tour","1"); }catch{} }
-  $("#helpBtn").addEventListener("click", openHelp);
-  $("#helpClose").addEventListener("click", closeHelp);
-  $("#helpModal").addEventListener("click",(e)=>{ if(e.target.id==="helpModal") closeHelp(); });
-  document.addEventListener("keydown",(e)=>{ if(e.key==="Escape" && !$("#helpModal").hidden) closeHelp(); });
-  // first-time visitors get the tour automatically, once
-  try{ if(!localStorage.getItem("bp_seen_tour")) setTimeout(openHelp, 700); }catch{}
+  /* ---- interactive spotlight tour ---- */
+  const TOUR=[
+    {sel:"#createBtn", title:"Start an event", desc:"Click here to generate a new quote. Everything — the 2D/3D floor, pricing, staff, inventory, tasks — hangs off this one event."},
+    {sel:'[data-nav="leads"]', title:"Leads", desc:"Capture and qualify enquiries on a pipeline, then convert a lead into an event in one click."},
+    {sel:'[data-nav="crm"]', title:"CRM archive", desc:"Every past client and enquiry is kept here for reference and follow-up."},
+    {sel:'[data-nav="nurture"]', title:"Nurture", desc:"Auto-send birthday & anniversary greetings (with photos) to past clients to win repeat business."},
+    {sel:'[data-nav="quotes"]', title:"Quotes & confirmations", desc:"Price the event, confirm it, and take client approval by OTP / consent / payment link."},
+    {sel:'[data-nav="staff"]', title:"Staff", desc:"Your in-house team — assign them to event tasks, organised by section (stage, lighting…)."},
+    {sel:'[data-nav="inventory"]', title:"Inventory", desc:"Stock graded A/B/C by value. Check equipment out to a person and back in — anything missing is flagged with its rupee value."},
+    {sel:'[data-nav="vendors"]', title:"Vendors", desc:"Outside partners and rentals for the gaps your in-house team can't cover."},
+    {sel:'[data-nav="calendar"]', title:"Calendar", desc:"See every event and catch staff or stock clashes before they bite."},
+    {sel:'[data-nav="templates"]', title:"Templates", desc:"Reusable checklists you can apply to any event in one click."},
+    {sel:'[data-nav="controls"]', title:"Control Center", desc:"Set default pricing, chair types and coupons — and who can see or do what, per role."},
+    {sel:'[data-nav="users"]', title:"Users & access", desc:"Add teammates and tick exactly which areas each role can view or edit."},
+  ];
+  let tourSteps=[], tourI=0, tourEl=null;
+  function endTour(){ document.querySelectorAll(".spot").forEach(e=>e.remove()); tourEl=null; window.removeEventListener("resize",placeTour); try{ localStorage.setItem("bp_seen_tour","1"); }catch{} }
+  function startTour(){
+    endTour();   // never stack overlays
+    tourSteps=TOUR.filter(s=>{ const t=document.querySelector(s.sel); return t && t.offsetParent!==null; });
+    if(!tourSteps.length) return;
+    tourI=0;
+    tourEl=document.createElement("div"); tourEl.className="spot";
+    tourEl.innerHTML=`<div class="ring"></div><div class="arrow">▼</div>
+      <div class="tip"><div class="tstep"></div><h4></h4><p></p>
+        <div class="trow"><button class="skip">Skip tour</button><span class="sp"></span>
+        <button class="back">Back</button><button class="pri next">Next →</button></div></div>`;
+    document.body.appendChild(tourEl);
+    tourEl.querySelector(".skip").onclick=endTour;
+    tourEl.querySelector(".back").onclick=()=>{ if(tourI>0){ tourI--; placeTour(); } };
+    tourEl.querySelector(".next").onclick=()=>{ if(tourI<tourSteps.length-1){ tourI++; placeTour(); } else endTour(); };
+    window.addEventListener("resize",placeTour);
+    placeTour();
+  }
+  function placeTour(){
+    if(!tourEl) return;
+    const step=tourSteps[tourI], tgt=document.querySelector(step.sel);
+    if(!tgt){ endTour(); return; }
+    tgt.scrollIntoView({block:"center",behavior:"smooth"});
+    setTimeout(()=>{
+      if(!tourEl) return;
+      const r=tgt.getBoundingClientRect(), pad=6;
+      const ring=tourEl.querySelector(".ring");
+      ring.style.left=(r.left-pad)+"px"; ring.style.top=(r.top-pad)+"px";
+      ring.style.width=(r.width+pad*2)+"px"; ring.style.height=(r.height+pad*2)+"px";
+      const tip=tourEl.querySelector(".tip"), arrow=tourEl.querySelector(".arrow");
+      tourEl.querySelector(".tstep").textContent=`Step ${tourI+1} of ${tourSteps.length}`;
+      tourEl.querySelector("h4").textContent=step.title;
+      tourEl.querySelector("p").textContent=step.desc;
+      tourEl.querySelector(".back").style.visibility=tourI?"visible":"hidden";
+      tourEl.querySelector(".next").textContent=tourI<tourSteps.length-1?"Next →":"Done";
+      // place tip below the target if room, else above
+      const below=r.bottom+180 < window.innerHeight;
+      const tw=Math.min(310, window.innerWidth-24);
+      let tx=Math.min(Math.max(12, r.left), window.innerWidth-tw-12);
+      let ty=below ? r.bottom+18 : r.top-tip.offsetHeight-18;
+      tip.style.left=tx+"px"; tip.style.top=Math.max(12,ty)+"px";
+      arrow.style.left=(r.left+r.width/2-9)+"px";
+      arrow.textContent=below?"▲":"▼";
+      arrow.style.top=(below ? r.bottom+2 : r.top-30)+"px";
+    },260);
+  }
+  $("#helpBtn").addEventListener("click", startTour);
+  document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") endTour(); });
+  // first-time visitors get the tour automatically, once (after nav renders)
+  try{ if(!localStorage.getItem("bp_seen_tour")) setTimeout(()=>{ if(BPStore.auth.user()) startTour(); }, 1200); }catch{}
 
   load();
 </script>

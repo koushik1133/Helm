@@ -6,8 +6,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
-  :root{--bg:#eef1f6;--panel:#fff;--panel-2:#f6f8fc;--ink:#141b2e;--ink-2:#4a5673;--ink-3:#8a95ad;
-    --line:#d7deea;--line-2:#e6ebf3;--accent:#2f6fed;--accent-2:#7c5cff;--accent-soft:#dbe6ff;--safe:#18a558;--warn:#e8912d;
+  :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#8b8698;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#18a558;--warn:#e8912d;
     --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
   *{box-sizing:border-box} [hidden]{display:none!important}
@@ -150,55 +150,42 @@
     canFin  = await BPStore.auth.canView("finance");             // gates the Total + money cards
     canPipe = await BPStore.auth.canView("pipeline");            // gates the discovery/proposal cards
     try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
-    // task summary (operations) — optional
-    try{ const t=await BPStore.ops.listTasks(id); tasksSummary={total:t.length, done:t.filter(x=>x.status==='completed').length}; }catch{ tasksSummary=null; }
-    // staff assigned to THIS event (event-scoped) — optional
-    try{ const s=await BPStore.staff.forEvent(id); staffSummary={ people:s.length, tasks:s.reduce((a,x)=>a+(x.tasks||0),0) }; }catch{ staffSummary=null; }
-    // vendors booked for THIS event (event-scoped) — optional
-    try{ const b=await BPStore.bookings.list(id);
-      vendorSummary={ total:b.length, confirmed:b.filter(x=>x.status && x.status!=='enquiry' && x.status!=='cancelled').length }; }catch{ vendorSummary=null; }
-    // discovery summary (Phase 3) — optional
-    try{ const d=await BPStore.discovery.get(id); const rq=await BPStore.discovery.listReqs(id);
-      discSummary={ disc:d, total:rq.length, must:rq.filter(r=>r.priority==='mandatory').length }; }catch{ discSummary=null; }
-    // proposal summary (Phase 4) — optional
-    try{ const p=await BPStore.proposal.get(id); propSummary=p; }catch{ propSummary=null; }
-    // inventory summary (Phase 7) — optional
-    try{ const rs=await BPStore.inventory.reservations(id);
-      const active=rs.filter(r=>r.status==='reserved'||r.status==='allocated');
-      invSummary={ total:rs.length, active:active.length }; }catch{ invSummary=null; }
-    // resource plan summary (Phase 8) — optional
-    try{ const ck=await BPStore.resources.check(id);
-      resSummary={ total:ck.length, gaps:ck.filter(c=>!c.covered).length, outsourced:ck.filter(c=>c.outsourced).length }; }catch{ resSummary=null; }
-    // run-sheet summary (Phase 11) — optional
-    try{ const rs=await BPStore.runsheet.list(id); const wt=rs.filter(x=>x.start_time);
-      runSummary={ total:rs.length, first: wt.length?wt[0].start_time.slice(0,5):null }; }catch{ runSummary=null; }
-    // budget summary (Phase 12) — optional
-    try{ budgetSummary=await BPStore.budget.summary(id); }catch{ budgetSummary=null; }
-    // venue/menu plan summary (Phase 13) — optional
-    try{ planSummary=await BPStore.plan.get(id); }catch{ planSummary=null; }
-    // logistics + payments summary (Phase 14) — optional
-    try{ const g=await BPStore.checklist.list(id,"guests"); const ms=await BPStore.milestones.list(id);
-      const guests=g.reduce((a,x)=>a+Number(x.qty||0),0);
-      const outstanding=ms.filter(m=>m.status!=="paid"&&m.status!=="waived").reduce((a,m)=>a+Number(m.amount||0),0);
-      logiSummary={ guests, outstanding }; }catch{ logiSummary=null; }
-    // readiness summary (Phase 15) — optional
-    try{ readySummary=await BPStore.readiness.check(id); }catch{ readySummary=null; }
-    // event-day command summary (Phase 16) — optional
-    try{ const arr=await BPStore.dayops.list(id,"arrival"); const chk=await BPStore.dayops.list(id,"check");
-      daySummary={ here:arr.filter(a=>a.status==='arrived'||a.status==='left').length, arr:arr.length,
-        checksDone:chk.filter(c=>c.status==='done').length, checks:chk.length }; }catch{ daySummary=null; }
-    // issues summary (Phase 17) — optional
-    try{ const iss=await BPStore.issues.list(id); issuesSummary={ open:iss.filter(i=>i.status!=='resolved').length, total:iss.length }; }catch{ issuesSummary=null; }
-    // teardown summary (Phase 18) — optional
-    try{ const rs=await BPStore.inventory.reservations(id); const td=await BPStore.checklist.list(id,"teardown");
-      teardownSummary={ retDone:rs.filter(r=>r.status==='returned').length, retTotal:rs.length, tdDone:td.filter(t=>t.status==='done').length, tdTotal:td.length }; }catch{ teardownSummary=null; }
-    // settlement summary (Phase 19) — optional
-    try{ settleSummary=await BPStore.settlement.summary(id); }catch{ settleSummary=null; }
-    // closure / P&L summary (Phase 20) — optional
-    try{ const pl=await BPStore.closure.pl(id); const c=await BPStore.closure.get(id); closureSummary={ profit:pl.profit, pct:pl.marginPct, closed:!!(c&&c.closed_at) }; }catch{ closureSummary=null; }
-    try{ const md=await BPStore.media.list(id); mediaSummary={ photos:md.filter(m=>m.kind==='photo').length, videos:md.filter(m=>m.kind==='video').length, gallery:md.filter(m=>m.in_gallery).length, total:md.length }; }catch{ mediaSummary=null; }
-    $("#app").hidden=false;
-    render();
+    $("#app").hidden=false; render();   // paint the workspace shell instantly; summaries fill in below
+    // All module summaries fire CONCURRENTLY (one burst of requests instead of ~22 serial
+    // round-trips) so the workspace opens fast. Each guards itself and never blocks the others.
+    const S = (fn) => fn().catch(() => {});
+    await Promise.all([
+      S(async()=>{ const t=await BPStore.ops.listTasks(id); tasksSummary={total:t.length, done:t.filter(x=>x.status==='completed').length}; }),
+      S(async()=>{ const s=await BPStore.staff.forEvent(id); staffSummary={ people:s.length, tasks:s.reduce((a,x)=>a+(x.tasks||0),0) }; }),
+      S(async()=>{ const b=await BPStore.bookings.list(id); vendorSummary={ total:b.length, confirmed:b.filter(x=>x.status && x.status!=='enquiry' && x.status!=='cancelled').length }; }),
+      S(async()=>{ const [d,rq]=await Promise.all([BPStore.discovery.get(id), BPStore.discovery.listReqs(id)]);
+        discSummary={ disc:d, total:rq.length, must:rq.filter(r=>r.priority==='mandatory').length }; }),
+      S(async()=>{ propSummary=await BPStore.proposal.get(id); }),
+      S(async()=>{ const rs=await BPStore.inventory.reservations(id); const active=rs.filter(r=>r.status==='reserved'||r.status==='allocated');
+        invSummary={ total:rs.length, active:active.length }; }),
+      S(async()=>{ const ck=await BPStore.resources.check(id);
+        resSummary={ total:ck.length, gaps:ck.filter(c=>!c.covered).length, outsourced:ck.filter(c=>c.outsourced).length }; }),
+      S(async()=>{ const rs=await BPStore.runsheet.list(id); const wt=rs.filter(x=>x.start_time);
+        runSummary={ total:rs.length, first: wt.length?wt[0].start_time.slice(0,5):null }; }),
+      S(async()=>{ budgetSummary=await BPStore.budget.summary(id); }),
+      S(async()=>{ planSummary=await BPStore.plan.get(id); }),
+      S(async()=>{ const [g,ms]=await Promise.all([BPStore.checklist.list(id,"guests"), BPStore.milestones.list(id)]);
+        const guests=g.reduce((a,x)=>a+Number(x.qty||0),0);
+        const outstanding=ms.filter(m=>m.status!=="paid"&&m.status!=="waived").reduce((a,m)=>a+Number(m.amount||0),0);
+        logiSummary={ guests, outstanding }; }),
+      S(async()=>{ readySummary=await BPStore.readiness.check(id); }),
+      S(async()=>{ const [arr,chk]=await Promise.all([BPStore.dayops.list(id,"arrival"), BPStore.dayops.list(id,"check")]);
+        daySummary={ here:arr.filter(a=>a.status==='arrived'||a.status==='left').length, arr:arr.length,
+          checksDone:chk.filter(c=>c.status==='done').length, checks:chk.length }; }),
+      S(async()=>{ const iss=await BPStore.issues.list(id); issuesSummary={ open:iss.filter(i=>i.status!=='resolved').length, total:iss.length }; }),
+      S(async()=>{ const [rs,td]=await Promise.all([BPStore.inventory.reservations(id), BPStore.checklist.list(id,"teardown")]);
+        teardownSummary={ retDone:rs.filter(r=>r.status==='returned').length, retTotal:rs.length, tdDone:td.filter(t=>t.status==='done').length, tdTotal:td.length }; }),
+      S(async()=>{ settleSummary=await BPStore.settlement.summary(id); }),
+      S(async()=>{ const [pl,c]=await Promise.all([BPStore.closure.pl(id), BPStore.closure.get(id)]);
+        closureSummary={ profit:pl.profit, pct:pl.marginPct, closed:!!(c&&c.closed_at) }; }),
+      S(async()=>{ const md=await BPStore.media.list(id); mediaSummary={ photos:md.filter(m=>m.kind==='photo').length, videos:md.filter(m=>m.kind==='video').length, gallery:md.filter(m=>m.in_gallery).length, total:md.length }; }),
+    ]);
+    render();   // re-paint with the loaded summaries
   }
 
   const statBadge=(s)=> s==="confirmed"?'<span class="stat ok">Confirmed</span>':s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
