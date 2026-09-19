@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reports & exports — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#8b8698;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#12a150;--bad:#e5484d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:900px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
+  h2{font-size:20px;margin:0 0 2px} .sub{color:var(--ink-3);font-size:13px;margin:0 0 16px}
+  h3{font-size:13px;margin:0 0 12px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
+  .rows{display:grid;gap:10px}
+  .rrow{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:11px;background:var(--panel-2)}
+  .rrow .ic{font-size:20px} .rrow .t{flex:1} .rrow .t b{font-size:14px} .rrow .t .d{font-size:12px;color:var(--ink-3)}
+  .btn{height:34px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
+  .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.5}
+  .muted{color:var(--ink-3);font-size:12px}
+  .msg{border-radius:8px;padding:8px 11px;font-size:13px;margin-bottom:12px}
+  .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca} .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
+  /* print area — hidden on screen, the only thing shown when printing */
+  #printArea{display:none}
+  @media print{
+    body *{visibility:hidden}
+    #printArea, #printArea *{visibility:visible}
+    #printArea{display:block;position:absolute;left:0;top:0;width:100%;padding:24px}
+    @page{margin:16mm}
+  }
+  #printArea h1{font-size:22px;margin:0 0 2px} #printArea .meta{color:#555;font-size:12px;margin-bottom:16px}
+  #printArea table{width:100%;border-collapse:collapse;font-size:12px}
+  #printArea th{text-align:left;border-bottom:2px solid #222;padding:6px 8px;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  #printArea td{padding:6px 8px;border-bottom:1px solid #ddd}
+  #printArea td.n{text-align:right;font-variant-numeric:tabular-nums}
+  #printArea tfoot td{font-weight:700;border-top:2px solid #222}
+  /* login modal */
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,94vw);padding:26px;text-align:center}
+  .lsheet h3{font-size:18px;margin:8px 0 12px;color:var(--ink);text-transform:none;letter-spacing:0} .lsheet label{display:block;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+  .lsheet input{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;margin-bottom:12px;font-family:inherit}
+  .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Reports &amp; exports</h1><small>Blueprint Stage</small></div>
+    <nav class="nav"><a href="index.html">Home</a><a href="insights.html">Insights</a><a href="control.html">Control Center</a></nav>
+    <span class="spacer"></span>
+    <span id="bell"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card" hidden><p class="muted">Sign in to export reports.</p></div>
+  <div id="noaccess" class="card" hidden><p class="muted">Your role doesn't have access to reports.</p></div>
+
+  <div id="app" hidden>
+    <h2>Reports &amp; exports</h2>
+    <p class="sub">Download your data as CSV (opens in Excel/Sheets) or print a clean PDF.</p>
+    <div id="msg"></div>
+
+    <div class="card">
+      <h3>📄 CSV exports</h3>
+      <div class="rows">
+        <div class="rrow"><span class="ic">🎯</span><div class="t"><b>Leads</b><div class="d">Every lead — source, contact, type, budget, status.</div></div><button class="btn" data-csv="leads">Download CSV</button></div>
+        <div class="rrow"><span class="ic">📅</span><div class="t"><b>Events</b><div class="d">All events — code, title, type, date, stage, status, total.</div></div><button class="btn" data-csv="events">Download CSV</button></div>
+        <div class="rrow"><span class="ic">📦</span><div class="t"><b>Inventory</b><div class="d">Stock — item, category, priority, qty, unit cost.</div></div><button class="btn" data-csv="inventory">Download CSV</button></div>
+        <div class="rrow"><span class="ic">💰</span><div class="t"><b>P&amp;L (closed events)</b><div class="d">Revenue, profit and margin per closed event.</div></div><button class="btn" data-csv="pl">Download CSV</button></div>
+        <div class="rrow"><span class="ic">💳</span><div class="t"><b>Settlements</b><div class="d">Per event — revenue, received, balance, vendor outstanding.</div></div><button class="btn" data-csv="settlements">Download CSV</button></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🖨️ Printable PDF</h3>
+      <p class="muted" style="margin:-6px 0 12px">Opens your browser's print dialog — choose “Save as PDF”.</p>
+      <div class="rows">
+        <div class="rrow"><span class="ic">💰</span><div class="t"><b>P&amp;L report</b><div class="d">A clean profit &amp; loss summary across closed events.</div></div><button class="btn primary" id="printPL">Print / Save PDF</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="printArea"></div>
+
+<div class="lmodal" id="loginModal" hidden>
+  <form class="lsheet" id="loginForm">
+    <div class="mark" style="margin:0 auto 12px"></div>
+    <h3>Sign in</h3>
+    <label>Email</label><input type="email" id="li_email" required>
+    <label>Password</label><input type="password" id="li_pw" required>
+    <div class="lerr" id="li_err" hidden></div>
+    <button class="btn primary" type="submit" id="li_submit" style="width:100%;justify-content:center">Sign in</button>
+  </form>
+</div>
+
+<script src="config.js?v=59"></script>
+<script src="store-api.js?v=59"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const inr=(n)=>"₹"+Math.round(Number(n||0)).toLocaleString("en-IN");
+  const today=()=>new Date().toISOString().slice(0,10);
+  let canFin=false;
+  function setMsg(k,t){ const m=$("#msg"); if(!t){m.innerHTML="";return;} m.innerHTML=`<div class="msg ${k}">${esc(t)}</div>`; }
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  // ---- CSV helpers ----
+  function toCSV(rows){ if(!rows.length) return ""; const cols=Object.keys(rows[0]);
+    const cell=(v)=>{ v=(v==null?"":String(v)); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+    return cols.join(",")+"\n"+rows.map(r=>cols.map(c=>cell(r[c])).join(",")).join("\n"); }
+  function download(name, text){ const blob=new Blob([text],{type:"text/csv;charset=utf-8"}); const url=URL.createObjectURL(blob);
+    const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500); }
+
+  const builders={
+    async leads(){ const a=await BPStore.leads.list(); return a.map(l=>({ name:l.name, phone:l.phone, email:l.email, source:l.source,
+      event_type:l.event_type, event_date:l.event_date, budget:l.budget, guests:l.guest_count, status:l.status })); },
+    async events(){ const a=await BPStore.quotes.list(); return a.map(e=>({ code:e.code, title:e.title, type:e.eventType,
+      event_date:e.eventDate||"", event_time:e.eventTime||"", stage:e.lifecycleStage, status:e.status, approval:e.approvalStatus, total:e.total||0 })); },
+    async inventory(){ const a=await BPStore.inventory.items(true); return a.map(i=>({ name:i.name, category:i.category, priority:i.priority||"",
+      total_qty:i.total_qty, unit:i.unit||"", unit_cost:i.unit_cost||"", active:i.active!==false })); },
+    async pl(){ const d=await BPStore.insights.summary(); return d.margins.events.map(e=>({ code:e.code, event_date:e.date||"",
+      revenue:Math.round(e.revenue||0), profit:Math.round(e.profit||0), margin_pct:e.marginPct!=null?e.marginPct:"" })); },
+    async settlements(){ const evs=await BPStore.quotes.list();
+      const rows=await Promise.all(evs.map(async e=>{ try{ const s=await BPStore.settlement.summary(e.id);
+        return { code:e.code, event_date:e.eventDate||"", revenue:Math.round(s.revenue||0), received:Math.round(s.received||0),
+          balance:Math.round(s.balance||0), vendor_outstanding:Math.round(s.vendorOutstanding||0), expenses_paid:Math.round(s.expPaid||0) };
+      }catch{ return null; } })); return rows.filter(Boolean); },
+  };
+
+  async function doCSV(kind){ setMsg(); const btns=[...document.querySelectorAll("[data-csv]")]; btns.forEach(b=>b.disabled=true);
+    try{ const rows=await builders[kind](); if(!rows.length){ setMsg("err","Nothing to export for "+kind+"."); return; }
+      download("blueprint-"+kind+"-"+today()+".csv", toCSV(rows)); setMsg("ok", `Exported ${rows.length} ${kind} row(s).`);
+    }catch(e){ setMsg("err",(e&&e.message)||"Export failed"); } finally{ btns.forEach(b=>b.disabled=false); } }
+
+  async function printPL(){ setMsg();
+    try{ const d=await BPStore.insights.summary(); const evs=d.margins.events;
+      const tot=evs.reduce((a,e)=>({rev:a.rev+(e.revenue||0),pr:a.pr+(e.profit||0)}),{rev:0,pr:0});
+      $("#printArea").innerHTML=`<h1>Profit &amp; Loss — closed events</h1>
+        <div class="meta">Blueprint Stage · generated ${esc(today())} · ${evs.length} event(s)</div>
+        <table><thead><tr><th>Event</th><th>Date</th><th class="n">Revenue</th><th class="n">Profit</th><th class="n">Margin</th></tr></thead>
+        <tbody>${evs.map(e=>`<tr><td>${esc(e.code)}</td><td>${esc(e.date||"")}</td><td class="n">${inr(e.revenue)}</td><td class="n">${inr(e.profit)}</td><td class="n">${e.marginPct!=null?e.marginPct+"%":"—"}</td></tr>`).join("")||'<tr><td colspan="5">No closed events.</td></tr>'}</tbody>
+        <tfoot><tr><td colspan="2">Total</td><td class="n">${inr(tot.rev)}</td><td class="n">${inr(tot.pr)}</td><td class="n">${tot.rev?Math.round(tot.pr/tot.rev*100)+"%":"—"}</td></tr></tfoot></table>`;
+      window.print();
+    }catch(e){ setMsg("err",(e&&e.message)||"Couldn't build the report"); } }
+
+  async function load(){
+    await BPStore.init(); await renderAccount();
+    try{ await BPStore.bell.mount($("#bell")); }catch{}
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    const role=await BPStore.auth.role();
+    const ok=["admin","manager","planner"].includes(role) || await BPStore.auth.canView("controls");
+    if(!ok){ $("#noaccess").hidden=false; return; }
+    canFin=await BPStore.auth.canView("finance");
+    $("#app").hidden=false;
+    if(!canFin){ document.querySelectorAll('[data-csv="pl"],[data-csv="settlements"]').forEach(b=>b.closest(".rrow").style.display="none"); $("#printPL").closest(".card").style.display="none"; }
+    document.querySelectorAll("[data-csv]").forEach(b=>b.addEventListener("click",()=>doCSV(b.dataset.csv)));
+    $("#printPL").addEventListener("click",printPL);
+  }
+  $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
+    const btn=$("#li_submit"); btn.disabled=true; btn.textContent="Signing in…"; $("#li_err").hidden=true;
+    try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pw").value); closeLogin(); await load(); }
+    catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign-in failed"; $("#li_err").hidden=false; }
+    finally{ btn.disabled=false; btn.textContent="Sign in"; } });
+  load();
+</script>
+</body>
+</html>
