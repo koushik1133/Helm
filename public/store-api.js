@@ -524,6 +524,9 @@
     worker: {
       getTasks: (token) => rpc("worker_get_tasks", { p_token: token }),
       respond: (token, taskId, action) => rpc("worker_respond", { p_token: token, p_task_id: taskId, p_action: action }),
+      // Phase 52 — crew equipment (kit out to them for this event) + check-in
+      getEquipment: (token) => rpc("worker_get_equipment", { p_token: token }),
+      checkinEquipment: (token, id, qtyIn) => rpc("worker_checkin_equipment", { p_token: token, p_id: id, p_qty_in: qtyIn }),
     },
   };
 

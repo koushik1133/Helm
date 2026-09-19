@@ -35,6 +35,15 @@
   .muted{color:var(--ink-3);font-size:12px}
   .msg{border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:12px}
   .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
+  .prog{position:sticky;top:0;background:var(--bg);padding:8px 0 10px;z-index:5}
+  .prog .lbl{font-size:12px;color:var(--ink-2);margin-bottom:5px;display:flex;justify-content:space-between;font-weight:600}
+  .prog .bar{height:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .prog .fill{height:100%;background:linear-gradient(120deg,var(--accent),var(--accent-2));width:0%;transition:width .3s}
+  .offline{background:#fff7e6;color:#946200;border:1px solid #f0d9a8;border-radius:10px;padding:9px 12px;font-size:12px;margin-bottom:12px}
+  .refresh{width:100%;margin-bottom:12px}
+  .eq{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px}
+  .eq .en{flex:1;font-size:14px;font-weight:600} .eq .eq-q{font-family:var(--mono);font-size:12px;color:var(--ink-3);font-weight:400;margin-top:2px}
+  .eq .btn{flex:0 0 auto;min-width:0;width:auto;height:38px;padding:0 16px}
   footer{text-align:center;color:var(--ink-3);font-size:11px;margin-top:8px}
 </style>
 </head>
@@ -46,39 +55,72 @@
   <div id="content" hidden>
     <div class="card">
       <h1 id="title">Event</h1>
-      <p class="sub">Hi <b id="who"></b> — here are your tasks for <span class="code" id="code"></span>. Accept the ones you can do; the office is tracking progress live.</p>
+      <p class="sub" id="sub"></p>
     </div>
+    <div id="offline" class="offline" hidden>⚠️ Showing your last saved view — you look offline. It'll refresh when you're back online.</div>
+    <div class="prog" id="prog" hidden>
+      <div class="lbl"><span>Your progress</span><span id="progTxt">0 / 0</span></div>
+      <div class="bar"><span class="fill" id="progFill"></span></div>
+    </div>
+    <button class="btn refresh" id="refreshBtn">↻ Refresh</button>
     <div id="msg"></div>
     <div id="tasks"></div>
+    <div id="equipSec" hidden><div class="cat">📦 Equipment to return</div><div id="equip"></div></div>
   </div>
   <footer>Blueprint Stage · you only see tasks assigned to you.</footer>
 </div>
 
-<script src="config.js?v=59"></script>
-<script src="store-api.js?v=59"></script>
+<script src="config.js?v=60"></script>
+<script src="store-api.js?v=60"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   const token=new URLSearchParams(location.search).get("token");
   const LABEL={assigned:"Assigned",accepted:"Accepted",in_progress:"In progress",completed:"Completed",rejected:"Rejected"};
-  let data=null;
+  let data=null, equip=[];
+  const CK="bpwork:"+token;
   function setMsg(t){ const m=$("#msg"); m.innerHTML=t?`<div class="msg err">${esc(t)}</div>`:""; }
+  function readCache(){ try{ return JSON.parse(localStorage.getItem(CK)||"null"); }catch{ return null; } }
+  function writeCache(){ try{ localStorage.setItem(CK, JSON.stringify({data,equip})); }catch{} }
+  const fmtDate=(d,t)=>{ if(!d) return ""; try{ const dt=new Date(d+"T00:00:00"); let s=dt.toLocaleDateString([], {weekday:'short',day:'numeric',month:'short'}); return s+(t?(" · "+t):""); }catch{ return d+(t?" · "+t:""); } };
 
+  function paintHeader(){
+    $("#title").textContent=data.event.title||data.event.code;
+    const when=fmtDate(data.event.event_date, data.event.event_time);
+    $("#sub").innerHTML=`Hi <b>${esc(data.worker.name||"there")}</b> — your tasks for <span class="code">${esc(data.event.code)}</span>${when?` · <b>${esc(when)}</b>`:""}. The office tracks progress live.`;
+  }
   async function load(){
     if(!token){ $("#loading").hidden=true; $("#badlink").hidden=false; return; }
+    const cached=readCache();
+    if(cached && cached.data){ data=cached.data; equip=cached.equip||[]; $("#loading").hidden=true; $("#content").hidden=false; paintHeader(); render(); }
     await BPStore.init();
-    try{ data=await BPStore.ops.worker.getTasks(token); }
-    catch(e){ $("#loading").hidden=true; $("#badlink").hidden=false; return; }
-    $("#loading").hidden=true; $("#content").hidden=false;
-    $("#title").textContent=data.event.title||data.event.code;
-    $("#code").textContent=data.event.code; $("#who").textContent=data.worker.name||"there";
-    render();
+    await refresh(!cached);
+    window.addEventListener("online", ()=>refresh(false));
+  }
+  async function refresh(strict){
+    try{
+      const [d,eq]=await Promise.all([
+        BPStore.ops.worker.getTasks(token),
+        BPStore.ops.worker.getEquipment(token).catch(()=>({equipment:[]})),
+      ]);
+      data=d; equip=(eq&&eq.equipment)||[]; writeCache();
+      $("#offline").hidden=true; $("#loading").hidden=true; $("#badlink").hidden=true; $("#content").hidden=false;
+      paintHeader(); render();
+    }catch(e){
+      if(strict && !readCache()){ $("#loading").hidden=true; $("#badlink").hidden=false; }
+      else { $("#offline").hidden=false; }   // keep showing the cached view
+    }
   }
   function render(){
-    const byCat={}; (data.tasks||[]).forEach(t=>{ (byCat[t.category]=byCat[t.category]||[]).push(t); });
+    // progress
+    const all=data.tasks||[]; const done=all.filter(t=>t.status==='completed').length;
+    $("#prog").hidden = !all.length;
+    $("#progTxt").textContent=`${done} / ${all.length}`;
+    $("#progFill").style.width = all.length? Math.round(done/all.length*100)+"%" : "0%";
+    // tasks
+    const byCat={}; all.forEach(t=>{ (byCat[t.category]=byCat[t.category]||[]).push(t); });
     const host=$("#tasks");
-    if(!data.tasks.length){ host.innerHTML='<div class="card muted">No tasks assigned to you yet.</div>'; return; }
-    host.innerHTML=Object.entries(byCat).map(([cat,ts])=>`<div class="cat">${esc(cat)}</div>`+
+    host.innerHTML = all.length ? Object.entries(byCat).map(([cat,ts])=>`<div class="cat">${esc(cat)}</div>`+
       ts.map(t=>{
         let acts="";
         if(t.status==='assigned') acts=`<button class="btn ok" data-a="accept">✓ Accept</button><button class="btn no" data-a="reject">Reject</button>`;
@@ -88,16 +130,36 @@
         else if(t.status==='rejected') acts=`<span class="rej">Rejected</span>`;
         return `<div class="task" data-id="${t.id}"><span class="st ${t.status}">${LABEL[t.status]||t.status}</span>
           <div class="tt">${esc(t.title)}</div><div class="acts">${acts}</div></div>`;
-      }).join("")).join("");
+      }).join("")).join("") : '<div class="card muted">No tasks assigned to you yet.</div>';
     host.querySelectorAll(".task").forEach(card=>{
       card.querySelectorAll("[data-a]").forEach(b=>b.addEventListener("click",()=>respond(card.dataset.id,b.dataset.a,b)));
     });
+    renderEquip();
+  }
+  function renderEquip(){
+    const sec=$("#equipSec"), host=$("#equip");
+    if(!equip || !equip.length){ sec.hidden=true; return; }
+    sec.hidden=false;
+    host.innerHTML=equip.map(e=>`<div class="eq" data-id="${esc(e.id)}">
+      <span class="en">${esc(e.item)}<div class="eq-q">${e.qty_out} ${esc(e.unit||"")} out${e.status==='partial'?` · ${e.qty_in||0} returned`:""}</div></span>
+      <button class="btn ok ret">Return</button></div>`).join("");
+    host.querySelectorAll(".ret").forEach(b=>b.addEventListener("click",()=>returnEq(b.closest(".eq").dataset.id,b)));
+  }
+  async function returnEq(id,btn){
+    const e=equip.find(x=>x.id===id); if(!e) return;
+    const ans=prompt(`How many "${e.item}" are you returning? (${e.qty_out} went out)`, String(e.qty_out));
+    if(ans===null) return; const q=Number(ans);
+    if(isNaN(q)||q<0){ setMsg("Enter a valid number."); return; }
+    setMsg(""); btn.disabled=true; btn.textContent="…";
+    try{ await BPStore.ops.worker.checkinEquipment(token,id,q); await refresh(false); }
+    catch(err){ setMsg((err&&err.message)||"Couldn't record the return"); btn.disabled=false; btn.textContent="Return"; }
   }
   async function respond(id,action,btn){
     setMsg(); btn.disabled=true; const old=btn.textContent; btn.textContent="…";
-    try{ await BPStore.ops.worker.respond(token,id,action); data=await BPStore.ops.worker.getTasks(token); render(); }
+    try{ await BPStore.ops.worker.respond(token,id,action); await refresh(false); }
     catch(e){ setMsg((e&&e.message)||"Action failed"); btn.disabled=false; btn.textContent=old; }
   }
+  $("#refreshBtn").addEventListener("click",()=>{ setMsg(""); refresh(false); });
   load();
 </script>
 </body>
