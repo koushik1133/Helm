@@ -29,11 +29,17 @@ Everything requested, grouped into buildable clusters. Legend: ⬜ to build · �
   completing a task auto-queues it (pending); verify_task() pass→passed, reject→rejected + back to
   in_progress (returns to event manager); task_verify_summary() for gating. ops.html shows QC chips +
   Pass/Reject for quality/manager/planner/admin. Tested in-browser.
-- ⬜ **C2 Sectioned templates for ~500 tasks** (wedding): stage setup, carpets, backdrops, flower
-  decoration, mandapam, lighting, catering, labour, transport. Refine categorization.
+- ✅ **C2 Sectioned wedding templates** — phase36. ~80 seeded tasks across 10 sections (stage setup,
+  carpets, backdrops, flower decoration, mandapam, lighting, catering, labour, transport, AV & sound);
+  ops.html sections are now dynamic from the catalog. Extend toward the full ~500 anytime.
 - ✅ **C3 Task dependencies + time triggers** — phase37. planned_start + triggered_at; set_task_schedule(); run_task_triggers() notifies scheduled tasks whose time+prerequisite are met (live cron deferred). ops.html shows gate chips (⛔ blocked / ⏱ scheduled / ▶ ready), per-task ⏱ schedule editor, and a "Fire due tasks" button. Tested.
-- ⬜ **C4 Special-task recurring alarm.** Every 5 minutes remind until the task is marked complete.
-- ⬜ **USER TO RUN** `phase35-task-verification.sql` (after phase29+operations), then live test.
+- ✅ **C4 Special-task recurring alarm** — phase38. is_special + remind_every_min + last_reminded_at;
+  set_task_special() + run_task_reminders() (queues every N min until done; live cron deferred).
+  ops.html: 🔔 toggle per task, pulsing "🔔 special" chip, "🔔 Remind due" button.
+- ⬜ **USER TO RUN** (after phase29 + operations.sql): `phase35-task-verification.sql`,
+  `phase36-wedding-templates.sql`, `phase37-task-dependencies.sql`, `phase38-task-alarms.sql`.
+
+## Cluster C is complete (C1–C4). All meeting clusters A/B/C/D done. ✅
 
 ## Cluster D — Layout measurements + quote codes ✅ DONE (commits pending)
 - ✅ **D1 2D measurement "📏 Measure" (Work) toggle** in builder.html toolbar: overlays edge-to-edge

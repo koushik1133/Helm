@@ -512,6 +512,9 @@
     setSchedule: (taskId, start, end, dependsOn) => rpc("set_task_schedule",
       { p_id: taskId, p_start: start || null, p_end: end || null, p_depends: dependsOn || null }),
     runTriggers: (quoteId) => rpc("run_task_triggers", quoteId ? { p_quote: quoteId } : {}),
+    // ---- Phase 38: special-task recurring reminder ----
+    setSpecial: (taskId, on, everyMin) => rpc("set_task_special", { p_id: taskId, p_on: !!on, p_every_min: everyMin || 5 }),
+    runReminders: (quoteId) => rpc("run_task_reminders", quoteId ? { p_quote: quoteId } : {}),
     async setEventManager(quoteId, managerId) { const { error } = await supa.from("quotes").update({ manager_id: managerId }).eq("id", quoteId); if (error) throw error; return true; },
     // ---- worker (no login; token-scoped) ----
     worker: {

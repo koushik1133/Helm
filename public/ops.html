@@ -59,6 +59,8 @@
   .qc.pass{background:#e7f6ee;color:#0f7a43} .qc.pend{background:#eef2ff;color:#4457c8} .qc.rej{background:#fdecec;color:#b42318}
   .gate{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
   .gate.blocked{background:#fdecec;color:#b42318} .gate.scheduled{background:#fff7e6;color:#946200} .gate.ready{background:#e6f6f2;color:#0f766e}
+  .gate.special{background:#f3e8ff;color:#7c3aed;animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
   .muted{color:var(--ink-3);font-size:12px} .empty{text-align:center;color:var(--ink-3);padding:26px;font-size:13px}
   .linkline{display:flex;gap:8px;align-items:center;margin-top:6px}
   .linkline input{flex:1;font-family:var(--mono);font-size:11px;height:30px}
@@ -119,6 +121,7 @@
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <h3 style="margin:0">Live status</h3>
         <span class="spacer" style="flex:1"></span>
+        <button class="btn sm" id="remindDue" title="Send reminders for special tasks that aren't done yet">🔔 Remind due</button>
         <button class="btn sm" id="fireDue" title="Notify assignees of scheduled tasks whose time has come and whose prerequisite is done">▶ Fire due tasks</button>
       </div>
       <div id="dashboard"></div>
@@ -137,8 +140,8 @@
   </form>
 </div>
 
-<script src="config.js?v=48"></script>
-<script src="store-api.js?v=48"></script>
+<script src="config.js?v=49"></script>
+<script src="store-api.js?v=49"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -233,9 +236,11 @@
       const rows=ts.map(t=>`<div class="trow" data-id="${t.id}">
         <span class="cat">${esc(t.category)}</span><span class="tt">${esc(t.title)}</span>
         <span class="st ${t.status}">${STATUS_LABEL[t.status]||t.status}</span>
+        ${t.is_special?'<span class="gate special" title="Special task — recurring reminder">🔔 special</span>':''}
         ${gateChip(t,byId)}
         ${verifyChip(t)}
         ${canEditOps?`<button class="btn sm sched" title="Set start time & prerequisite">⏱</button>`:""}
+        ${canEditOps?`<button class="btn sm spc" title="Toggle recurring reminder">${t.is_special?'🔕':'🔔'}</button>`:""}
         ${['rejected','assigned'].includes(t.status)?`<button class="btn sm reassign">Reassign</button>`:""}
         ${canVerify && t.verify_status==='pending' ? `<button class="btn sm vpass">✓ Pass</button><button class="btn sm vrej">✗ Reject</button>`:""}</div>`).join("");
       return `<div class="grp"><div class="gh"><b>${esc(name)}</b><span class="ph">${esc(phone)}</span>
@@ -264,6 +269,12 @@
       catch(e){ setMsg("err",(e&&e.message)||"Couldn't verify"); }
     }));
     host.querySelectorAll(".sched").forEach(b=>b.addEventListener("click",()=>scheduleFlow(b.closest(".trow").dataset.id)));
+    host.querySelectorAll(".spc").forEach(b=>b.addEventListener("click",async()=>{
+      const id=b.closest(".trow").dataset.id, t=tasks.find(x=>x.id===id);
+      try{ await BPStore.ops.setSpecial(id, !(t&&t.is_special), 5); await refreshDashboard();
+        setMsg("ok", (t&&t.is_special)?"Reminder turned off.":"Marked special — will remind every 5 min until done."); }
+      catch(e){ setMsg("err",(e&&e.message)||"Couldn't update"); }
+    }));
   }
   function verifyChip(t){
     if(t.verify_status==='passed')   return '<span class="qc pass" title="Verified by quality">QC ✓</span>';
@@ -298,6 +309,12 @@
     catch(e){ setMsg('err',(e&&e.message)||'Couldn\'t schedule'); }
   }
 
+  $("#remindDue") && $("#remindDue").addEventListener("click",async()=>{
+    const b=$("#remindDue"); b.disabled=true;
+    try{ const n=await BPStore.ops.runReminders(quoteId); setMsg("ok", n?("Sent "+n+" reminder"+(n===1?"":"s")+"."):"No special tasks are due for a reminder."); await refreshDashboard(); }
+    catch(e){ setMsg("err",(e&&e.message)||"Couldn't send reminders"); }
+    finally{ b.disabled=false; }
+  });
   $("#fireDue") && $("#fireDue").addEventListener("click",async()=>{
     const b=$("#fireDue"); b.disabled=true;
     try{ const n=await BPStore.ops.runTriggers(quoteId); setMsg("ok", n?("Fired "+n+" due task"+(n===1?"":"s")+" — assignees notified."):"No tasks due right now."); await refreshDashboard(); }
