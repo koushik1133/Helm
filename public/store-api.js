@@ -1745,8 +1745,21 @@
     },
   };
 
+  /* ---------------- audit log (Phase 47) ---------------- */
+  const audit = {
+    async list(opts) { opts = opts || {}; if (!supa) throw new Error("Supabase not configured");
+      let q = supa.from("audit_log").select("*").order("at", { ascending: false }).limit(opts.limit || 150);
+      if (opts.entity) q = q.eq("entity", opts.entity);
+      if (opts.quoteId) q = q.eq("quote_id", opts.quoteId);
+      if (opts.actor) q = q.eq("actor", opts.actor);
+      const { data, error } = await q; if (error) throw error; return data; },
+    async entities() { if (!supa) throw new Error("Supabase not configured");
+      const { data, error } = await supa.from("audit_log").select("entity").order("entity"); if (error) throw error;
+      return [...new Set((data || []).map((x) => x.entity))]; },
+  };
+
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

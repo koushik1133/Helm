@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audit log — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#8b8698;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+  h2{font-size:20px;margin:0 0 4px} .sub{color:var(--ink-3);font-size:13px;margin:0 0 14px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  select,input{height:34px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
+  select:focus,input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .btn{height:34px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
+  .btn:hover{border-color:var(--accent)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--panel-2)}
+  tbody td{padding:10px 12px;border-bottom:1px solid var(--line-2);vertical-align:top}
+  tbody tr:hover{background:var(--panel-2)}
+  .when{white-space:nowrap;color:var(--ink-2)} .who{font-size:12px}
+  .act{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .act.insert{background:#e7f6ee;color:#0f7a43} .act.update{background:#eef2ff;color:#4457c8} .act.delete{background:#fdecec;color:#b42318}
+  .ent{font-family:var(--mono);font-size:12px;font-weight:600}
+  .chg{font-size:12px;color:var(--ink-2);max-width:420px}
+  .chg .k{font-weight:600;color:var(--ink)} .chg .o{color:#b42318;text-decoration:line-through;opacity:.75} .chg .n{color:#0f7a43}
+  .code{font-family:var(--mono);font-size:11px;color:var(--accent)}
+  .empty{text-align:center;color:var(--ink-3);padding:40px;font-size:14px}
+  .muted{color:var(--ink-3);font-size:12px}
+  /* login modal */
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,94vw);padding:26px;text-align:center}
+  .lsheet h3{font-size:18px;margin:8px 0 12px} .lsheet label{display:block;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+  .lsheet input{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;margin-bottom:12px;font-family:inherit}
+  .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Audit log</h1><small>Blueprint Stage</small></div>
+    <nav class="nav"><a href="index.html">Home</a><a href="control.html">Control Center</a></nav>
+    <span class="spacer"></span>
+    <span id="bell"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card" hidden><p class="muted">Sign in as an admin to view the audit log.</p></div>
+  <div id="noaccess" class="card" hidden><p class="muted">Your role doesn't have access to the audit log.</p></div>
+
+  <div id="app" hidden>
+    <div class="card">
+      <h2>Audit log</h2>
+      <p class="sub">Every change to access, pricing, money, resources and config — who did it, and when.</p>
+      <div class="toolbar">
+        <select id="fEntity"><option value="">All areas</option></select>
+        <input id="fSearch" placeholder="Search actor / field / value…" style="flex:1;min-width:180px">
+        <button class="btn" id="refresh">↻ Refresh</button>
+      </div>
+      <div style="overflow:auto">
+        <table>
+          <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Area</th><th>Change</th><th>Event</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div id="empty" class="empty" hidden>No audit entries yet.</div>
+    </div>
+  </div>
+</div>
+
+<div class="lmodal" id="loginModal" hidden>
+  <form class="lsheet" id="loginForm">
+    <div class="mark" style="margin:0 auto 12px"></div>
+    <h3>Sign in</h3>
+    <label>Email</label><input type="email" id="li_email" required>
+    <label>Password</label><input type="password" id="li_pw" required>
+    <div class="lerr" id="li_err" hidden></div>
+    <button class="btn" type="submit" id="li_submit" style="width:100%;justify-content:center">Sign in</button>
+  </form>
+</div>
+
+<script src="config.js?v=56"></script>
+<script src="store-api.js?v=56"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  let all=[];
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
+  function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  const fmt=(iso)=>{ try{ return new Date(iso).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }catch{ return iso; } };
+  const areaLabel=(e)=>({role_access:"Access matrix",app_config:"Pricing config",plate_types:"Plate types",chair_types:"Chair types",
+    quote_payments:"Payments",event_costs:"Budget/costs",inventory_items:"Inventory",inventory_checkouts:"Equipment check-in/out",
+    change_requests:"Change orders",expense_claims:"Expense claims",payment_milestones:"Payment milestones",
+    crew_members:"Crew",vendors:"Vendors",coupons:"Coupons",profiles:"Users/roles",quotes:"Event/quote"}[e]||e);
+
+  function renderChange(r){
+    const c=r.changed||{};
+    if(r.action==='update'){
+      const keys=Object.keys(c).slice(0,5);
+      const html=keys.map(k=>{ const pair=c[k]; const o=Array.isArray(pair)?pair[0]:null, n=Array.isArray(pair)?pair[1]:pair;
+        return `<div><span class="k">${esc(k)}</span>: <span class="o">${esc(short(o))}</span> → <span class="n">${esc(short(n))}</span></div>`; }).join("");
+      const more=Object.keys(c).length>5?`<div class="muted">+${Object.keys(c).length-5} more</div>`:"";
+      return html+more || '<span class="muted">—</span>';
+    }
+    // insert / delete → show a few identifying fields
+    const pick=["code","title","name","status","role","amount","price","qty","kind","key"].filter(k=>c[k]!=null).slice(0,4);
+    const label=pick.map(k=>`<span class="k">${esc(k)}</span> ${esc(short(c[k]))}`).join(" · ");
+    return (r.action==='insert'?'Created ':'Deleted ')+(label||("id "+esc(short(r.entity_id))));
+  }
+  function short(v){ if(v==null) return "∅"; if(typeof v==='object') { try{ return JSON.stringify(v).slice(0,40); }catch{ return "…"; } } const s=String(v); return s.length>40?s.slice(0,40)+"…":s; }
+
+  function draw(){
+    const term=$("#fSearch").value.trim().toLowerCase();
+    let list=all;
+    if(term) list=list.filter(r=>JSON.stringify(r).toLowerCase().includes(term));
+    $("#empty").hidden = list.length>0;
+    $("#rows").innerHTML=list.map(r=>`<tr>
+      <td class="when">${esc(fmt(r.at))}</td>
+      <td class="who">${esc(r.actor_email||"system")}</td>
+      <td><span class="act ${esc(r.action)}">${esc(r.action)}</span></td>
+      <td><span class="ent">${esc(areaLabel(r.entity))}</span></td>
+      <td class="chg">${renderChange(r)}</td>
+      <td>${r.quote_id?`<a class="code" href="event.html?id=${encodeURIComponent(r.quote_id)}">open</a>`:'<span class="muted">—</span>'}</td>
+    </tr>`).join("");
+  }
+
+  async function loadData(){
+    try{ all=await BPStore.audit.list({ entity: $("#fEntity").value||undefined, limit:200 }); }
+    catch(e){ all=[]; $("#empty").hidden=false; $("#empty").textContent="Run phase47-audit-log.sql to enable the audit log."; }
+    draw();
+  }
+  async function load(){
+    await BPStore.init(); await renderAccount();
+    try{ await BPStore.bell.mount($("#bell")); }catch{}
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    const ok = (await BPStore.auth.role())==='admin' || await BPStore.auth.canView("controls");
+    if(!ok){ $("#noaccess").hidden=false; return; }
+    $("#app").hidden=false;
+    // populate the area filter
+    try{ const ents=await BPStore.audit.entities();
+      $("#fEntity").innerHTML=`<option value="">All areas</option>`+ents.map(e=>`<option value="${esc(e)}">${esc(areaLabel(e))}</option>`).join(""); }catch{}
+    await loadData();
+  }
+  $("#refresh").addEventListener("click",loadData);
+  $("#fEntity").addEventListener("change",loadData);
+  $("#fSearch").addEventListener("input",draw);
+  $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
+    const btn=$("#li_submit"); btn.disabled=true; btn.textContent="Signing in…"; $("#li_err").hidden=true;
+    try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pw").value); closeLogin(); await load(); }
+    catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign-in failed"; $("#li_err").hidden=false; }
+    finally{ btn.disabled=false; btn.textContent="Sign in"; } });
+  load();
+</script>
+</body>
+</html>
