@@ -110,6 +110,20 @@
   .ecard:hover .del{opacity:1} .ecard .del:hover{color:#e5484d}
   .empty{grid-column:1/-1;text-align:center;color:var(--ink-3);padding:30px;border:1px dashed var(--line);border-radius:12px;font-size:13px}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
+  /* help / tour */
+  .helpbtn{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--accent);
+    font-weight:800;font-size:14px;cursor:pointer;flex:0 0 auto;display:grid;place-items:center}
+  .helpbtn:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .hsheet{width:min(680px,96vw);max-height:88vh;overflow:auto;text-align:left}
+  .hsheet h3{font-size:19px;text-align:left;margin:0 0 4px}
+  .hsheet .sub{color:var(--ink-3);font-size:13px;margin:0 0 16px}
+  .flow{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 18px}
+  .flow span{font-size:11px;font-weight:600;background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:4px 10px}
+  .flow span.arw{background:transparent;color:var(--ink-3);padding:4px 2px}
+  .hstep{display:flex;gap:12px;padding:11px 0;border-top:1px solid var(--line-2)}
+  .hstep .ic{font-size:20px;flex:0 0 26px;text-align:center}
+  .hstep .tx b{font-size:13px} .hstep .tx p{margin:2px 0 0;font-size:12px;color:var(--ink-2);line-height:1.5}
+  .hclose{margin-top:18px;display:flex;justify-content:flex-end}
 </style>
 </head>
 <body>
@@ -118,6 +132,7 @@
     <div class="mark"></div>
     <div><h1>Blueprint Stage</h1><small>Event Layout Builder</small></div>
     <span class="badge" id="badge"><i></i><span id="badgeLbl">…</span></span>
+    <button id="helpBtn" class="helpbtn" title="How this works — take the tour">?</button>
     <span id="account" class="account" hidden></span>
   </header>
 
@@ -188,10 +203,28 @@
   </form>
 </div>
 
+<div class="lmodal" id="helpModal" hidden>
+  <div class="lsheet hsheet">
+    <h3>👋 Welcome to Blueprint Stage</h3>
+    <p class="sub">Everything runs off one event, from first enquiry to final close. Here's the flow and what each area does.</p>
+    <div class="flow">
+      <span>Lead</span><span class="arw">→</span><span>Discovery</span><span class="arw">→</span><span>Proposal</span><span class="arw">→</span><span>Quote</span><span class="arw">→</span><span>Confirm</span><span class="arw">→</span><span>Plan</span><span class="arw">→</span><span>Resources</span><span class="arw">→</span><span>Ready</span><span class="arw">→</span><span>Event day</span><span class="arw">→</span><span>Settle</span><span class="arw">→</span><span>Close</span>
+    </div>
+    <div class="hstep"><div class="ic">🎯</div><div class="tx"><b>Leads &amp; CRM</b><p>Capture an enquiry, qualify it on the pipeline, then <b>Convert →</b> to create the event and open its Workspace. CRM keeps every past client; Nurture sends birthday/anniversary greetings.</p></div></div>
+    <div class="hstep"><div class="ic">📋</div><div class="tx"><b>Quote &amp; Workspace</b><p>Each event opens as one Workspace page. Build the floor in 2D/3D, price the Quote, and Confirm it (client approves by OTP/consent/payment). The quote code is based on the event date.</p></div></div>
+    <div class="hstep"><div class="ic">🧮</div><div class="tx"><b>Resources first</b><p>Map what the event needs → the app checks in-house Staff &amp; Inventory → flags the gaps → book Vendors/freelancers/rentals only for the gaps. The Calendar catches clashes.</p></div></div>
+    <div class="hstep"><div class="ic">📦</div><div class="tx"><b>Inventory &amp; accountability</b><p>Items are graded A/B/C by value. Check equipment OUT to a person and back IN with a count + sign-off — anything missing shows in the loss report (chairs, mics, walkie-talkies).</p></div></div>
+    <div class="hstep"><div class="ic">🗓</div><div class="tx"><b>Plan &amp; tasks</b><p>Run-sheet, venue &amp; menu, budget vs actuals. Tasks are organised by section (stage, carpets, lighting…); set start times &amp; dependencies (carpet waits for stage), and flag special tasks for reminders.</p></div></div>
+    <div class="hstep"><div class="ic">✅</div><div class="tx"><b>Readiness → Event day → Close</b><p>The Readiness gate goes green only when everything's set. On the day, the Command centre tracks arrivals &amp; checks and a Quality engineer passes/rejects each task. Then Settle payments and Close with the P&amp;L.</p></div></div>
+    <div class="hstep"><div class="ic">👥</div><div class="tx"><b>Who sees what</b><p>Admins set each role's access in <b>Control Center → User control</b> — green tick = allowed. So a salesperson sees only Leads &amp; CRM, crew only their own tasks, and so on.</p></div></div>
+    <div class="hclose"><button class="btn primary" id="helpClose">Got it — let's go</button></div>
+  </div>
+</div>
+
 <!-- Team members + access control now live in the Control Center (control.html#users). -->
 
-<script src="config.js?v=49"></script>
-<script src="store-api.js?v=49"></script>
+<script src="config.js?v=50"></script>
+<script src="store-api.js?v=50"></script>
 <script>
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return "—"; } };
@@ -311,6 +344,16 @@
   // when login is required, keep the modal up so there's no dead-end.
   $("#loginModal").addEventListener("click", (e) => { if (e.target.id === "loginModal" && BPStore.auth.user()) closeLogin(); });
   $("#refresh").addEventListener("click", load);
+
+  /* ---- help / tour ---- */
+  function openHelp(){ $("#helpModal").hidden=false; }
+  function closeHelp(){ $("#helpModal").hidden=true; try{ localStorage.setItem("bp_seen_tour","1"); }catch{} }
+  $("#helpBtn").addEventListener("click", openHelp);
+  $("#helpClose").addEventListener("click", closeHelp);
+  $("#helpModal").addEventListener("click",(e)=>{ if(e.target.id==="helpModal") closeHelp(); });
+  document.addEventListener("keydown",(e)=>{ if(e.key==="Escape" && !$("#helpModal").hidden) closeHelp(); });
+  // first-time visitors get the tour automatically, once
+  try{ if(!localStorage.getItem("bp_seen_tour")) setTimeout(openHelp, 700); }catch{}
 
   load();
 </script>

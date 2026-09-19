@@ -120,6 +120,7 @@
     <div class="card">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <h3 style="margin:0">Live status</h3>
+        <div class="tabs" id="groupToggle" style="margin:0"><button data-g="section" class="on">By section</button><button data-g="crew">By crew</button></div>
         <span class="spacer" style="flex:1"></span>
         <button class="btn sm" id="remindDue" title="Send reminders for special tasks that aren't done yet">🔔 Remind due</button>
         <button class="btn sm" id="fireDue" title="Notify assignees of scheduled tasks whose time has come and whose prerequisite is done">▶ Fire due tasks</button>
@@ -140,14 +141,14 @@
   </form>
 </div>
 
-<script src="config.js?v=49"></script>
-<script src="store-api.js?v=49"></script>
+<script src="config.js?v=50"></script>
+<script src="store-api.js?v=50"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   const quoteId=new URLSearchParams(location.search).get("quote");
   let CATS=["Stage setup","Carpets","Backdrops","Flower decoration","Mandapam","Lighting","Catering","Labour","Transport","AV & sound"];
-  let quote=null, crew=[], tasks=[], tokens=[], activeCat=CATS[0], canVerify=false, canEditOps=false;
+  let quote=null, crew=[], tasks=[], tokens=[], activeCat=CATS[0], canVerify=false, canEditOps=false, groupMode="section";
 
   function setMsg(kind,t){ const m=$("#msg"); if(!t){m.innerHTML="";return;} m.innerHTML=`<div class="msg ${kind}">${esc(t)}</div>`; }
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
@@ -162,7 +163,7 @@
     await BPStore.init(); await renderAccount();
     if(!quoteId){ $("#noquote").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
-    const canEdit=await BPStore.auth.can("edit");
+    const canEdit=await BPStore.auth.canEditArea("staff");
     canVerify=['admin','manager','planner','quality'].includes(await BPStore.auth.role());
     canEditOps=await BPStore.auth.canEditArea("staff");
     try{ quote=await BPStore.quotes.get(quoteId); }
@@ -223,31 +224,50 @@
   });
 
   const STATUS_LABEL={unassigned:"Unassigned",assigned:"Assigned",accepted:"Accepted",in_progress:"In progress",completed:"Completed",rejected:"Rejected",cancelled:"Cancelled"};
+  // one task row; `label` is the left chip (category in crew-mode, assignee in section-mode)
+  function taskRow(t, byId, label){
+    return `<div class="trow" data-id="${t.id}">
+      <span class="cat">${esc(label||"")}</span><span class="tt">${esc(t.title)}</span>
+      <span class="st ${t.status}">${STATUS_LABEL[t.status]||t.status}</span>
+      ${t.is_special?'<span class="gate special" title="Special task — recurring reminder">🔔 special</span>':''}
+      ${gateChip(t,byId)}
+      ${verifyChip(t)}
+      ${canEditOps?`<button class="btn sm sched" title="Set start time & prerequisite">⏱</button>`:""}
+      ${canEditOps?`<button class="btn sm spc" title="Toggle recurring reminder">${t.is_special?'🔕':'🔔'}</button>`:""}
+      ${['rejected','assigned'].includes(t.status)?`<button class="btn sm reassign">Reassign</button>`:""}
+      ${canVerify && t.verify_status==='pending' ? `<button class="btn sm vpass">✓ Pass</button><button class="btn sm vrej">✗ Reject</button>`:""}</div>`;
+  }
   function renderDashboard(){
     const host=$("#dashboard");
-    if(!tasks.length){ host.innerHTML='<div class="empty">No tasks assigned yet. Pick a category above, select tasks, choose a crew member, and Assign.</div>'; return; }
-    // group by assignee phone
+    if(!tasks.length){ host.innerHTML='<div class="empty">No tasks assigned yet. Pick a section above, select tasks, choose a crew member, and Assign.</div>'; return; }
     const byId=Object.fromEntries(tasks.map(t=>[t.id,t]));
-    const byPhone={}; tasks.forEach(t=>{ const k=t.assignee_phone||"—"; (byPhone[k]=byPhone[k]||[]).push(t); });
-    const tokenFor=(phone)=>{ const w=tokens.find(x=>x.phone===phone); return w? location.origin+"/work.html?token="+w.token : null; };
-    host.innerHTML=Object.entries(byPhone).map(([phone,ts])=>{
-      const name=ts[0].assignee_name||"Unassigned"; const link=tokenFor(phone);
-      const done=ts.filter(t=>t.status==='completed').length;
-      const rows=ts.map(t=>`<div class="trow" data-id="${t.id}">
-        <span class="cat">${esc(t.category)}</span><span class="tt">${esc(t.title)}</span>
-        <span class="st ${t.status}">${STATUS_LABEL[t.status]||t.status}</span>
-        ${t.is_special?'<span class="gate special" title="Special task — recurring reminder">🔔 special</span>':''}
-        ${gateChip(t,byId)}
-        ${verifyChip(t)}
-        ${canEditOps?`<button class="btn sm sched" title="Set start time & prerequisite">⏱</button>`:""}
-        ${canEditOps?`<button class="btn sm spc" title="Toggle recurring reminder">${t.is_special?'🔕':'🔔'}</button>`:""}
-        ${['rejected','assigned'].includes(t.status)?`<button class="btn sm reassign">Reassign</button>`:""}
-        ${canVerify && t.verify_status==='pending' ? `<button class="btn sm vpass">✓ Pass</button><button class="btn sm vrej">✗ Reject</button>`:""}</div>`).join("");
-      return `<div class="grp"><div class="gh"><b>${esc(name)}</b><span class="ph">${esc(phone)}</span>
-        <span class="muted">${done}/${ts.length} done</span></div>${rows}
-        ${link?`<div class="linkline"><input readonly value="${esc(link)}"><button class="btn sm copy" data-l="${esc(link)}">Copy link</button></div>
-          <div class="muted" style="margin-top:4px">In simulation the worker link is shown here; when SMS is live it's texted to ${esc(phone)}.</div>`:""}</div>`;
-    }).join("");
+    if(groupMode==="section"){
+      // group by section (category), in template order; tasks already arrive category+seq sorted
+      const cats=[...CATS]; tasks.forEach(t=>{ if(!cats.includes(t.category)) cats.push(t.category); });
+      host.innerHTML=cats.map(cat=>{
+        const ts=tasks.filter(t=>t.category===cat); if(!ts.length) return "";
+        const done=ts.filter(t=>t.status==='completed').length;
+        const blocked=ts.filter(t=>gateChip(t,byId).includes('blocked')).length;
+        const pend=ts.filter(t=>t.verify_status==='pending').length;
+        const spec=ts.filter(t=>t.is_special).length;
+        const badges=[blocked?`<span class="gate blocked">${blocked} blocked</span>`:"",pend?`<span class="qc pend">${pend} QC pending</span>`:"",spec?`<span class="gate special">${spec} 🔔</span>`:""].join(" ");
+        return `<div class="grp"><div class="gh"><b>📋 ${esc(cat)}</b><span class="muted">${done}/${ts.length} done</span> ${badges}</div>
+          ${ts.map(t=>taskRow(t,byId,t.assignee_name||"—")).join("")}</div>`;
+      }).join("") || '<div class="empty">No tasks yet.</div>';
+    } else {
+      // group by assignee phone
+      const byPhone={}; tasks.forEach(t=>{ const k=t.assignee_phone||"—"; (byPhone[k]=byPhone[k]||[]).push(t); });
+      const tokenFor=(phone)=>{ const w=tokens.find(x=>x.phone===phone); return w? location.origin+"/work.html?token="+w.token : null; };
+      host.innerHTML=Object.entries(byPhone).map(([phone,ts])=>{
+        const name=ts[0].assignee_name||"Unassigned"; const link=tokenFor(phone);
+        const done=ts.filter(t=>t.status==='completed').length;
+        const rows=ts.map(t=>taskRow(t,byId,t.category)).join("");
+        return `<div class="grp"><div class="gh"><b>${esc(name)}</b><span class="ph">${esc(phone)}</span>
+          <span class="muted">${done}/${ts.length} done</span></div>${rows}
+          ${link?`<div class="linkline"><input readonly value="${esc(link)}"><button class="btn sm copy" data-l="${esc(link)}">Copy link</button></div>
+            <div class="muted" style="margin-top:4px">In simulation the worker link is shown here; when SMS is live it's texted to ${esc(phone)}.</div>`:""}</div>`;
+      }).join("");
+    }
     host.querySelectorAll(".copy").forEach(b=>b.addEventListener("click",async()=>{ try{await navigator.clipboard.writeText(b.dataset.l); b.textContent="Copied ✓"; setTimeout(()=>b.textContent="Copy link",1400);}catch{} }));
     host.querySelectorAll(".reassign").forEach(b=>b.addEventListener("click",async()=>{
       const id=b.closest(".trow").dataset.id;
@@ -309,6 +329,9 @@
     catch(e){ setMsg('err',(e&&e.message)||'Couldn\'t schedule'); }
   }
 
+  $("#groupToggle") && $("#groupToggle").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+    groupMode=b.dataset.g; $("#groupToggle").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); renderDashboard();
+  }));
   $("#remindDue") && $("#remindDue").addEventListener("click",async()=>{
     const b=$("#remindDue"); b.disabled=true;
     try{ const n=await BPStore.ops.runReminders(quoteId); setMsg("ok", n?("Sent "+n+" reminder"+(n===1?"":"s")+"."):"No special tasks are due for a reminder."); await refreshDashboard(); }

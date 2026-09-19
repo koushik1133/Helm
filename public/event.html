@@ -104,8 +104,8 @@
   </form>
 </div>
 
-<script src="config.js?v=49"></script>
-<script src="store-api.js?v=49"></script>
+<script src="config.js?v=50"></script>
+<script src="store-api.js?v=50"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -128,7 +128,7 @@
   ];
   const stageIndex=(k)=>Math.max(0,STAGES.findIndex(s=>s.k===k));
 
-  let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, closureSummary=null, mediaSummary=null;
+  let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, staffSummary=null, vendorSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, closureSummary=null, mediaSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
   const budgetRange=()=>{ const d=discSummary&&discSummary.disc; if(!d) return ""; const a=d.budget_min, b=d.budget_max;
     if(a!=null&&b!=null) return inr(a)+"–"+inr(b); if(a!=null) return "from "+inr(a); if(b!=null) return "up to "+inr(b); return ""; };
@@ -152,6 +152,11 @@
     try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
     // task summary (operations) — optional
     try{ const t=await BPStore.ops.listTasks(id); tasksSummary={total:t.length, done:t.filter(x=>x.status==='completed').length}; }catch{ tasksSummary=null; }
+    // staff assigned to THIS event (event-scoped) — optional
+    try{ const s=await BPStore.staff.forEvent(id); staffSummary={ people:s.length, tasks:s.reduce((a,x)=>a+(x.tasks||0),0) }; }catch{ staffSummary=null; }
+    // vendors booked for THIS event (event-scoped) — optional
+    try{ const b=await BPStore.bookings.list(id);
+      vendorSummary={ total:b.length, confirmed:b.filter(x=>x.status && x.status!=='enquiry' && x.status!=='cancelled').length }; }catch{ vendorSummary=null; }
     // discovery summary (Phase 3) — optional
     try{ const d=await BPStore.discovery.get(id); const rq=await BPStore.discovery.listReqs(id);
       discSummary={ disc:d, total:rq.length, must:rq.filter(r=>r.priority==='mandatory').length }; }catch{ discSummary=null; }
@@ -240,14 +245,20 @@
       { key:"layout", ic:"📐", title:"Floor layout", sum:`Design the 2D/3D plan for this event.`,
         acts:[{t:"Open builder", href:"builder.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"quote", ic:"🧾", title:"Quote & pricing", sum:`Version v${ev.currentVersion} · ${canFin?(evTotal()?inr(evTotal()):"not priced yet"):"—"} · <span class="stat ${ev.status==='confirmed'?'ok':'q'}">${ev.status}</span>${fromDisc}`,
-        acts:[{t:"Open quotes", href:"quotes.html", primary:true}] },
+        acts:[{t:"Open this quote", href:"quotes.html?focus="+encodeURIComponent(ev.code||id), primary:true}] },
       { key:"approval", ic:"✅", title:"Client approval", sum: ev.approvalStatus==='none'?"Not sent yet — confirm the quote, then send the approval link.":`Status: <b>${esc(ev.approvalStatus)}</b>`,
-        acts:[{t:"Manage in Quotes", href:"quotes.html"}] },
+        acts:[{t:"Manage in Quotes", href:"quotes.html?focus="+encodeURIComponent(ev.code||id)}] },
       { key:"plandetails", ic:"🏛", title:"Venue & menu",
         sum: planSummary && (planSummary.venue_name||planSummary.package||planSummary.menu) ? `${planSummary.venue_name?esc(planSummary.venue_name):"Venue set"}${planSummary.package?` · ${esc(planSummary.package)}`:""} ${planSummary.menu_locked?'<span class="stat ok">Menu locked</span>':'<span class="stat q">Draft</span>'}` : "Set the venue, access and lock the menu/package.",
         acts:[{t: canEdit?"Open details":"View details", href:"plan.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"tasks", ic:"🛠️", title:"Tasks & crew", sum: tasksSummary?`${tasksSummary.done}/${tasksSummary.total} tasks done`:"Assign predefined tasks to your crew.",
         acts:[{t:"Open operations", href:"ops.html?quote="+encodeURIComponent(id), primary:true}] },
+      { key:"staff", ic:"👷", title:"Staff on this event",
+        sum: staffSummary && staffSummary.people ? `${staffSummary.people} crew assigned · ${staffSummary.tasks} task${staffSummary.tasks===1?"":"s"}` : "No crew assigned yet — assign staff in Operations.",
+        acts:[{t:"View event staff", href:"staff.html?quote="+encodeURIComponent(id), primary:true},{t:"Assign", href:"ops.html?quote="+encodeURIComponent(id)}] },
+      { key:"vendors", ic:"🤝", title:"Vendors & partners",
+        sum: vendorSummary && vendorSummary.total ? `${vendorSummary.total} booked · ${vendorSummary.confirmed} confirmed` : "No vendors booked — book partners for the gaps.",
+        acts:[{t:"View event vendors", href:"vendors.html?quote="+encodeURIComponent(id), primary:true},{t:"Book partners", href:"resources.html?quote="+encodeURIComponent(id)}] },
       { key:"runsheet", ic:"🗓️", title:"Run-sheet",
         sum: runSummary && runSummary.total ? `${runSummary.total} item${runSummary.total===1?"":"s"}${runSummary.first?` · starts ${runSummary.first}`:""}` : "Build the minute-by-minute event-day schedule.",
         acts:[{t: canEdit?"Open run-sheet":"View run-sheet", href:"runsheet.html?quote="+encodeURIComponent(id), primary:true}] },

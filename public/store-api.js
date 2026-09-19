@@ -824,6 +824,20 @@
       const a = readLs(STAFF_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(STAFF_LS, JSON.stringify(a)); } return true;
     },
     async setActive(id, active) { return this.update(id, { active: !!active }); },
+    // crew actually assigned to ONE event (derived from their tasks) — for event-scoped views
+    async forEvent(quoteId) {
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("event_tasks")
+          .select("crew_id,assignee_name,assignee_phone,status").eq("quote_id", quoteId).not("crew_id", "is", null);
+        if (error) throw error;
+        const by = {};
+        (data || []).forEach((t) => { const k = t.crew_id;
+          by[k] = by[k] || { crew_id: k, name: t.assignee_name, phone: t.assignee_phone, tasks: 0, done: 0 };
+          by[k].tasks++; if (t.status === "completed") by[k].done++; });
+        return Object.values(by);
+      }
+      return [];
+    },
     // distinct departments/skills across the team (for filters)
     async facets() {
       const list = await this.list(true);

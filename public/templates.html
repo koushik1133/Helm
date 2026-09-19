@@ -89,8 +89,8 @@
   </div>
 </div>
 
-<script src="config.js?v=49"></script>
-<script src="store-api.js?v=49"></script>
+<script src="config.js?v=50"></script>
+<script src="store-api.js?v=50"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -141,7 +141,7 @@
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
     if(!(await BPStore.auth.requireView("ops"))) return;
-    canEdit=await BPStore.auth.can("edit");
+    canEdit=await BPStore.auth.canEditArea("templates");
     $("#app").hidden=false; $("#editCard").hidden=!canEdit;
     await render();
   })();

@@ -124,13 +124,15 @@
   </div>
 </div>
 
-<script src="config.js?v=49"></script>
-<script src="store-api.js?v=49"></script>
+<script src="config.js?v=50"></script>
+<script src="store-api.js?v=50"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const KIND={vendor:"Vendor",freelancer:"Freelancer",rental:"Rental",supplier:"Supplier"};
   let list=[], canEdit=false, canDelete=false, editingId=null, filter="", kindF="", showInactive=false;
+  const quoteId=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
+  let eventVendors=new Set(), eventOnly=!!quoteId, eventCode="", eventBookings=0;
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
@@ -151,6 +153,7 @@
   function render(){
     const q=filter.trim().toLowerCase();
     const shown=list.filter(v=>{
+      if(quoteId && eventOnly && !eventVendors.has(v.id)) return false;
       if(kindF && (v.kind||'vendor')!==kindF) return false;
       if(q){ const hay=[v.name,v.category,(v.services||[]).join(" "),v.email,v.phone].join(" ").toLowerCase(); if(!hay.includes(q)) return false; }
       return true;
@@ -199,13 +202,31 @@
   async function load(){
     try{ list=await BPStore.vendors.listAll(showInactive); }
     catch(e){ $("#grid").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase9-vendors.sql</b>.</div>`; return; }
+    if(quoteId){
+      try{ const b=await BPStore.bookings.list(quoteId); eventBookings=b.length; eventVendors=new Set(b.map(x=>x.vendor_id).filter(Boolean)); }catch{}
+      try{ const q=await BPStore.quotes.get(quoteId); eventCode=q.code||""; }catch{}
+      renderEventBar();
+    }
     render();
+  }
+  function renderEventBar(){
+    let bar=$("#eventBar");
+    if(!bar){ bar=document.createElement("div"); bar.id="eventBar";
+      bar.style.cssText="margin:0 0 14px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel);display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px";
+      const grid=$("#grid"); grid.parentNode.insertBefore(bar, grid); }
+    bar.innerHTML=`<a href="event.html?id=${encodeURIComponent(quoteId)}" style="color:var(--accent);font-weight:600">← Back to workspace</a>
+      <span style="color:var(--ink-3)">Vendors on <b>${esc(eventCode||"this event")}</b> — ${eventBookings} booking${eventBookings===1?"":"s"}</span>
+      <span class="spacer" style="flex:1"></span>
+      <button class="btn sm ${eventOnly?"primary":""}" id="evOnlyBtn">This event only</button>
+      <button class="btn sm ${eventOnly?"":"primary"}" id="allBtn">Show all vendors</button>`;
+    $("#evOnlyBtn").onclick=()=>{ eventOnly=true; renderEventBar(); render(); };
+    $("#allBtn").onclick=()=>{ eventOnly=false; renderEventBar(); render(); };
   }
   (async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ openLogin(); return; }
     if(!(await BPStore.auth.requireView("ops"))) return;
-    canEdit=await BPStore.auth.can("edit"); canDelete=await BPStore.auth.can("delete");
+    canEdit=await BPStore.auth.canEditArea("vendors"); canDelete=await BPStore.auth.can("delete");
     $("#newBtn").hidden=!canEdit;
     await load();
   })();

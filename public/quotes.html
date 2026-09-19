@@ -207,8 +207,8 @@
   </form>
 </div>
 
-<script src="config.js?v=49"></script>
-<script src="store-api.js?v=49"></script>
+<script src="config.js?v=50"></script>
+<script src="store-api.js?v=50"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
   const esc = (s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -267,10 +267,13 @@
   async function load(){
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ openLogin(); $("#rows").innerHTML='<tr><td colspan="8" class="empty">Please sign in to view quotes.</td></tr>'; return; }
-    canEdit = await BPStore.auth.can("edit"); canDelete = await BPStore.auth.can("delete"); canCreate = await BPStore.auth.can("create");
+    canEdit = await BPStore.auth.canEditArea("quotes"); canDelete = await BPStore.auth.can("delete"); canCreate = await BPStore.auth.can("create");
     $("#newBtn").hidden = !canCreate;
     try { quotes = await BPStore.quotes.list(); }
     catch(e){ $("#rows").innerHTML=`<tr><td colspan="8" class="empty">Couldn't load — ${esc(e&&e.message||"error")}</td></tr>`; return; }
+    // opened from an event workspace? focus that quote by pre-filling the search
+    const focus=new URLSearchParams(location.search).get("focus");
+    if(focus){ $("#search").value=focus; }
     render();
   }
   function render(){

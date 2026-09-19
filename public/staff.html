@@ -125,14 +125,16 @@
   </div>
 </div>
 
-<script src="config.js?v=49"></script>
-<script src="store-api.js?v=49"></script>
+<script src="config.js?v=50"></script>
+<script src="store-api.js?v=50"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const EMP={full_time:"Full-time",part_time:"Part-time",on_call:"On-call"};
   const initials=(n)=>String(n||"?").trim().split(/\s+/).slice(0,2).map(w=>w[0]||"").join("").toUpperCase()||"?";
   let team=[], canEdit=false, canDelete=false, editingId=null, filter="", deptF="", skillF="", showInactive=false;
+  const quoteId=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
+  let eventCrew=new Set(), eventOnly=!!quoteId, eventCode="";
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
@@ -169,6 +171,7 @@
   function render(){
     const q=filter.trim().toLowerCase();
     const shown=team.filter(s=>{
+      if(quoteId && eventOnly && !eventCrew.has(s.id)) return false;
       if(deptF && s.department!==deptF) return false;
       if(skillF && !(Array.isArray(s.skills)&&s.skills.includes(skillF))) return false;
       if(q){ const hay=[s.name,s.role,s.department,(s.skills||[]).join(" "),s.email,s.phone].join(" ").toLowerCase(); if(!hay.includes(q)) return false; }
@@ -230,13 +233,32 @@
   async function load(){
     try{ team=await BPStore.staff.list(showInactive); }
     catch(e){ $("#grid").innerHTML=`<div class="empty">Couldn't load staff — ${esc(e&&e.message||"error")}. Run <b>phase6-staff.sql</b>.</div>`; return; }
+    if(quoteId){
+      try{ const fe=await BPStore.staff.forEvent(quoteId); eventCrew=new Set(fe.map(x=>x.crew_id)); }catch{}
+      try{ const q=await BPStore.quotes.get(quoteId); eventCode=q.code||""; }catch{}
+      renderEventBar();
+    }
     applyFacets(); render();
+  }
+  function renderEventBar(){
+    let bar=$("#eventBar");
+    if(!bar){ bar=document.createElement("div"); bar.id="eventBar";
+      bar.style.cssText="margin:0 0 14px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel);display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px";
+      const grid=$("#grid"); grid.parentNode.insertBefore(bar, grid.previousElementSibling||grid); }
+    bar.innerHTML=`<a href="event.html?id=${encodeURIComponent(quoteId)}" style="color:var(--accent);font-weight:600">← Back to workspace</a>
+      <span style="color:var(--ink-3)">Crew on <b>${esc(eventCode||"this event")}</b> — ${eventCrew.size} assigned</span>
+      <span class="spacer" style="flex:1"></span>
+      <button class="btn sm" id="evOnlyBtn">${eventOnly?"Showing this event":"This event only"}</button>
+      <button class="btn sm" id="allStaffBtn">${eventOnly?"Show all staff":"Showing all staff"}</button>`;
+    $("#evOnlyBtn").onclick=()=>{ eventOnly=true; renderEventBar(); render(); };
+    $("#allStaffBtn").onclick=()=>{ eventOnly=false; renderEventBar(); render(); };
+    $("#evOnlyBtn").classList.toggle("primary",eventOnly); $("#allStaffBtn").classList.toggle("primary",!eventOnly);
   }
   (async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ openLogin(); return; }
     if(!(await BPStore.auth.requireView("ops"))) return;
-    canEdit=await BPStore.auth.can("edit"); canDelete=await BPStore.auth.can("delete");
+    canEdit=await BPStore.auth.canEditArea("staff"); canDelete=await BPStore.auth.can("delete");
     $("#newBtn").hidden=!canEdit;
     await load();
   })();
