@@ -137,8 +137,8 @@
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   const quoteId=new URLSearchParams(location.search).get("quote");
-  const CATS=["Stage","Decoration","Lighting","Catering","Labor","Transportation"];
-  let quote=null, crew=[], tasks=[], tokens=[], activeCat="Stage", canVerify=false;
+  let CATS=["Stage setup","Carpets","Backdrops","Flower decoration","Mandapam","Lighting","Catering","Labour","Transport","AV & sound"];
+  let quote=null, crew=[], tasks=[], tokens=[], activeCat=CATS[0], canVerify=false;
 
   function setMsg(kind,t){ const m=$("#msg"); if(!t){m.innerHTML="";return;} m.innerHTML=`<div class="msg ${kind}">${esc(t)}</div>`; }
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
@@ -160,9 +160,12 @@
     $("#app").hidden=false;
     $("#evhead").innerHTML=`<span class="code">${esc(quote.code)}</span><span class="ttl">${esc(quote.title||"")}</span>
       <span class="muted">${esc(quote.eventType||"")} · ${esc(quote.status)}</span>`;
+    // sections come from the template catalog (falls back to defaults)
+    try{ const cats=await BPStore.ops.categories(); if(cats && cats.length) CATS=cats; }catch{}
+    if(!CATS.includes(activeCat)) activeCat=CATS[0];
     // dept + crew dropdowns
-    $("#cr_dept").innerHTML=CATS.map(c=>`<option>${c}</option>`).join("");
-    $("#catTabs").innerHTML=CATS.map(c=>`<button data-c="${c}" class="${c===activeCat?'on':''}">${c}</button>`).join("");
+    $("#cr_dept").innerHTML=CATS.map(c=>`<option>${esc(c)}</option>`).join("");
+    $("#catTabs").innerHTML=CATS.map(c=>`<button data-c="${esc(c)}" class="${c===activeCat?'on':''}">${esc(c)}</button>`).join("");
     $("#catTabs").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ activeCat=b.dataset.c;
       $("#catTabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); $("#selAll").checked=false; renderTasks(); }));
     if(!canEdit){ ["cr_add","assignBtn"].forEach(id=>{const e=$("#"+id); if(e)e.disabled=true;}); setMsg("err","Your role is view-only for operations."); }
