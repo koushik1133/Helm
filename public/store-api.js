@@ -20,24 +20,71 @@
   let ready = null;             // init() promise
   let currentUser = null;       // signed-in Supabase user (or null)
   let roleCache = null;         // this user's RBAC role
+  let accessCache = null;       // { role, map:{area:{view,edit}} | null } — the live access matrix for this user
   let authRequired = false;     // true when Supabase enforces login (RLS) and nobody is signed in
-  // capability matrix per role
+  // capability matrix per role (10 roles)
   const ROLE_CAPS = {
-    admin:      ["view", "create", "edit", "delete", "manage"],
-    planner:    ["view", "create", "edit", "delete"],
-    sales:      ["view", "create", "edit"],
-    operations: ["view", "edit"],
-    crew:       ["view"],
-    client:     ["view"],
+    admin:       ["view", "create", "edit", "delete", "manage"],
+    manager:     ["view", "create", "edit", "delete", "manage"],
+    planner:     ["view", "create", "edit", "delete"],
+    sales:       ["view", "create", "edit"],
+    coordinator: ["view", "create", "edit"],
+    supervisor:  ["view", "edit"],
+    operations:  ["view", "edit"],
+    crew:        ["view"],
+    worker:      ["view"],
+    client:      ["view"],
   };
-  const EDIT_ROLES = ["admin", "planner", "sales", "operations"];
-  // which roles may VIEW each area (mirrors phase21-hardening.sql RLS read policies)
+  const EDIT_ROLES = ["admin", "manager", "planner", "sales", "coordinator", "supervisor", "operations"];
+  const ALL_ROLES  = ["admin", "manager", "planner", "sales", "coordinator", "supervisor", "operations", "crew", "worker", "client"];
+
+  // Fine-grained AREAS the access matrix governs (key must match role_access.area
+  // and phase29-role-access.sql). label/icon/page power the Control Center editor
+  // and the dashboard nav. page=null → area is a workspace card, not its own nav link.
+  const AREAS = [
+    { key: "leads",      label: "Leads",             icon: "🎯", page: "leads.html",     group: "Pipeline" },
+    { key: "crm",        label: "CRM archive",       icon: "🗄", page: "crm.html",       group: "Pipeline" },
+    { key: "nurture",    label: "Nurture",           icon: "🌱", page: "nurture.html",   group: "Pipeline" },
+    { key: "discovery",  label: "Discovery",         icon: "🔎", page: null,             group: "Pipeline" },
+    { key: "proposal",   label: "Proposal",          icon: "🎨", page: null,             group: "Pipeline" },
+    { key: "quotes",     label: "Quotes & workspace",icon: "📋", page: "quotes.html",    group: "Workspace" },
+    { key: "staff",      label: "Staff",             icon: "👷", page: "staff.html",     group: "Resources" },
+    { key: "inventory",  label: "Inventory",         icon: "📦", page: "inventory.html", group: "Resources" },
+    { key: "vendors",    label: "Vendors",           icon: "🤝", page: "vendors.html",   group: "Resources" },
+    { key: "calendar",   label: "Calendar",          icon: "📅", page: "calendar.html",  group: "Resources" },
+    { key: "templates",  label: "Templates",         icon: "🧩", page: "templates.html", group: "Resources" },
+    { key: "resources",  label: "Resource plan",     icon: "🧮", page: null,             group: "Planning" },
+    { key: "runsheet",   label: "Run-sheet",         icon: "🗓", page: null,             group: "Planning" },
+    { key: "plan",       label: "Venue & menu",      icon: "📍", page: null,             group: "Planning" },
+    { key: "logistics",  label: "Logistics",         icon: "🚚", page: null,             group: "Planning" },
+    { key: "ready",      label: "Readiness",         icon: "✅", page: null,             group: "Planning" },
+    { key: "finance",    label: "Budget & finance",  icon: "💰", page: null,             group: "Finance" },
+    { key: "settlement", label: "Settlement",        icon: "🧾", page: null,             group: "Finance" },
+    { key: "closure",    label: "Closure & P&L",     icon: "🏁", page: null,             group: "Finance" },
+    { key: "command",    label: "Event-day command", icon: "🎛", page: null,             group: "Event day" },
+    { key: "issues",     label: "Issues & incidents",icon: "🚨", page: null,             group: "Event day" },
+    { key: "media",      label: "Media & gallery",   icon: "📸", page: null,             group: "Event day" },
+    { key: "controls",   label: "Control Center",    icon: "⚙", page: "control.html",   group: "Admin" },
+    { key: "codes",      label: "Coupons & codes",   icon: "🔑", page: null,             group: "Admin" },
+    { key: "users",      label: "Users & access",    icon: "👥", page: "control.html",   group: "Admin" },
+  ];
+  // coarse keys the older per-page gates pass → the fine areas they cover
+  const COARSE_TO_FINE = {
+    finance:   ["finance", "settlement", "closure"],
+    pipeline:  ["leads", "crm", "nurture", "discovery", "proposal"],
+    ops:       ["staff", "inventory", "vendors", "calendar", "templates", "resources", "runsheet", "plan", "logistics", "ready", "command", "issues", "media"],
+    workspace: ["quotes"],
+    manage:    ["controls", "users"],
+  };
+  // legacy fallback (used only if phase29 role_access isn't present yet)
   const VIEW_SCOPE = {
-    finance:   ["admin", "planner", "sales"],                 // budget, settlement, closure, payments, expenses
-    pipeline:  ["admin", "planner", "sales"],                 // leads, CRM, discovery, proposal
-    ops:       ["admin", "planner", "sales", "operations"],   // resources, inventory, staff, vendors, calendar, run-sheet, plan, logistics, ready, command, issues, teardown
-    workspace: ["admin", "planner", "sales", "operations"],   // the event hub (crew/client never see it)
+    finance:   ["admin", "manager", "planner", "sales"],
+    pipeline:  ["admin", "manager", "planner", "sales"],
+    ops:       ["admin", "manager", "planner", "sales", "coordinator", "supervisor", "operations"],
+    workspace: ["admin", "manager", "planner", "sales", "coordinator", "supervisor", "operations"],
+    manage:    ["admin", "manager"],
   };
+  const FINE_TO_COARSE = (() => { const m = {}; for (const c in COARSE_TO_FINE) COARSE_TO_FINE[c].forEach((f) => { m[f] = c; }); return m; })();
 
   const supaConfigured = () => !!(CFG.url && CFG.anonKey);
   const now = () => new Date().toISOString();
@@ -142,6 +189,23 @@
       return "client";                                    // transient failure → don't cache, retry next call
     }
   }
+  // Load this user's access matrix (rows for their role). RLS returns only their
+  // own role's rows. If the table is absent (phase29 not run) map stays null and
+  // callers fall back to the legacy VIEW_SCOPE. Cached until sign-in/out/role change.
+  async function loadAccess() {
+    if (accessCache) return accessCache;
+    const r = await getRole();
+    try {
+      const { data, error } = await supa.from("role_access").select("area,can_view,can_edit").eq("role", r);
+      if (error) throw error;
+      const map = {};
+      (data || []).forEach((row) => { map[row.area] = { view: !!row.can_view, edit: !!row.can_edit }; });
+      accessCache = { role: r, map };
+    } catch {
+      accessCache = { role: r, map: null };               // legacy fallback
+    }
+    return accessCache;
+  }
   const auth = {
     enabled: () => mode === "supabase",
     required: () => authRequired,
@@ -152,12 +216,39 @@
     canEdit: async () => { if (mode !== "supabase") return true; if (!currentUser) return false; const r = await getRole(); return EDIT_ROLES.includes(r); },
     // ---- role-based VIEW scope (must mirror the RLS read policies in phase21-hardening.sql) ----
     // finance = money pages/tables; pipeline = leads/CRM/discovery/proposal; ops = resources/planning/day-of; workspace = the event hub.
+    // Area may be a fine key (e.g. "leads") or a legacy coarse key ("finance",
+    // "pipeline", "ops", "workspace", "manage"). Driven by the live role_access
+    // matrix; falls back to VIEW_SCOPE only when the matrix isn't present.
     async canView(area) {
       if (mode !== "supabase") return true;          // single-user offline/server mode
       if (!currentUser) return false;
       const r = await getRole();
-      return (VIEW_SCOPE[area] || []).includes(r);
+      if (r === "admin") return true;                // admin: full floor
+      const acc = await loadAccess();
+      const fine = COARSE_TO_FINE[area];             // set only for coarse keys
+      if (acc.map) {
+        if (fine) return fine.some((k) => acc.map[k] && acc.map[k].view);   // coarse: any child visible
+        return !!(acc.map[area] && acc.map[area].view);                     // fine key
+      }
+      // legacy fallback (phase29 not yet applied)
+      const coarse = fine ? area : (FINE_TO_COARSE[area] || area);
+      return (VIEW_SCOPE[coarse] || []).includes(r);
     },
+    // Can this role EDIT a given area (fine or coarse key)?
+    async canEditArea(area) {
+      if (mode !== "supabase") return true;
+      if (!currentUser) return false;
+      const r = await getRole();
+      if (r === "admin") return true;
+      const acc = await loadAccess();
+      const fine = COARSE_TO_FINE[area];
+      if (acc.map) {
+        if (fine) return fine.some((k) => acc.map[k] && acc.map[k].edit);
+        return !!(acc.map[area] && acc.map[area].edit);
+      }
+      return EDIT_ROLES.includes(r);
+    },
+    areas: () => AREAS.slice(),
     // Whole-page guard: if the signed-in role can't view `area`, hide #app and show a
     // "no access" panel, returning false. Call it right after the login check on a page.
     async requireView(area) {
@@ -179,17 +270,31 @@
       if (!supa) throw new Error("Supabase not configured");
       const { data, error } = await supa.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      currentUser = data.user; roleCache = null; authRequired = false;
+      currentUser = data.user; roleCache = null; accessCache = null; authRequired = false;
       return currentUser;
     },
-    async signOut() { if (supa) await supa.auth.signOut(); currentUser = null; roleCache = null;
+    async signOut() { if (supa) await supa.auth.signOut(); currentUser = null; roleCache = null; accessCache = null;
       if (mode === "supabase") authRequired = true; },
     onChange(cb) { if (supa) supa.auth.onAuthStateChange((_e, session) => {
-      currentUser = session ? session.user : null; roleCache = null;
+      currentUser = session ? session.user : null; roleCache = null; accessCache = null;
       if (mode === "supabase") authRequired = !currentUser; if (cb) cb(currentUser); }); },
     // ---- admin user management (RPC guarded by is_admin() at the DB) ----
     admin: {
-      roles: () => ["admin", "planner", "sales", "operations", "crew", "client"],
+      roles: () => ALL_ROLES.slice(),
+      areas: () => AREAS.slice(),
+      // the whole access matrix (admin only) → [{role,area,can_view,can_edit}]
+      async getAccess() {
+        if (!supa) throw new Error("Supabase not configured");
+        const { data, error } = await supa.rpc("admin_get_role_access");
+        if (error) throw error; return data || [];
+      },
+      // set one cell; returns the saved row
+      async setAccess(role, area, canView, canEdit) {
+        if (!supa) throw new Error("Supabase not configured");
+        const { data, error } = await supa.rpc("admin_set_role_access",
+          { p_role: role, p_area: area, p_view: !!canView, p_edit: !!canEdit });
+        if (error) throw error; accessCache = null; return data;
+      },
       async listUsers() {
         if (!supa) throw new Error("Supabase not configured");
         const { data, error } = await supa.from("profiles")

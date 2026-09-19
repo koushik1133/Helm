@@ -188,27 +188,10 @@
   </form>
 </div>
 
-<div class="lmodal" id="usersModal" hidden>
-  <div class="lsheet usheet">
-    <h3>👥 Team members <button class="close" id="um_close" type="button" title="Close">✕</button></h3>
-    <p style="text-align:left;margin:2px 0 14px">Add teammates, change what each role can do, or remove access. Changes apply immediately.</p>
-    <div class="lerr" id="um_err" hidden></div>
-    <div class="lok"  id="um_ok"  hidden></div>
-    <table class="utable"><thead><tr><th>Email</th><th>Role</th><th></th></tr></thead>
-      <tbody id="um_rows"><tr><td colspan="3" style="color:var(--ink-3)">Loading…</td></tr></tbody>
-    </table>
-    <form class="addrow" id="um_add">
-      <label>Email<input type="email" id="um_email" placeholder="name@helm.com" autocomplete="off" required></label>
-      <label>Password<input type="text" id="um_pw" value="helm" required></label>
-      <label>Role<select id="um_role"></select></label>
-      <button class="btn primary" type="submit" id="um_submit">Add user</button>
-    </form>
-    <div class="hint" style="margin-top:10px">Roles: <b>admin</b> manage · <b>planner</b> full events · <b>sales</b> create/edit · <b>operations</b> edit only · <b>crew</b>/<b>client</b> view.</div>
-  </div>
-</div>
+<!-- Team members + access control now live in the Control Center (control.html#users). -->
 
-<script src="config.js?v=40"></script>
-<script src="store-api.js?v=40"></script>
+<script src="config.js?v=41"></script>
+<script src="store-api.js?v=41"></script>
 <script>
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return "—"; } };
@@ -234,25 +217,25 @@
     const user = BPStore.auth.user();
     if (user) {
       const role = await BPStore.auth.role();
-      const canManage = await BPStore.auth.can("manage");
-      // role-scoped nav (mirrors the per-page access gates)
-      const canPipe = await BPStore.auth.canView("pipeline");   // leads / CRM
-      const canOps  = await BPStore.auth.canView("ops");        // staff / inventory / vendors / calendar
-      const canWork = await BPStore.auth.canView("workspace");  // quotes / events
+      const isAdmin = role === "admin";
+      // Each nav link is gated by its own AREA in the live access matrix, so the
+      // Control Center's per-role toggles decide exactly what each person sees.
+      const V = {};
+      await Promise.all(["leads","crm","nurture","staff","inventory","vendors","calendar","templates","quotes","controls"]
+        .map(async (k) => { V[k] = await BPStore.auth.canView(k); }));
       el.innerHTML = `<span class="role">${esc(role||"")}</span><span>${esc(user.email)}</span>`
-        + (canPipe ? `<a class="users" href="leads.html">🎯 Leads</a>` : "")
-        + (canPipe ? `<a class="users" href="crm.html">🗄 CRM</a>` : "")
-        + (canPipe ? `<a class="users" href="nurture.html">🌱 Nurture</a>` : "")
-        + (canOps ? `<a class="users" href="staff.html">👷 Staff</a>` : "")
-        + (canOps ? `<a class="users" href="inventory.html">📦 Inventory</a>` : "")
-        + (canOps ? `<a class="users" href="vendors.html">🤝 Vendors</a>` : "")
-        + (canOps ? `<a class="users" href="calendar.html">📅 Calendar</a>` : "")
-        + (canOps ? `<a class="users" href="templates.html">🧩 Templates</a>` : "")
-        + (canWork ? `<a class="users" href="quotes.html">📋 Quotes</a>` : "")
-        + (canManage ? `<a class="users" href="control.html">⚙ Control Center</a>` : "")
-        + (canManage ? `<button class="users" id="usersBtn">👥 Users</button>` : "")
+        + (V.leads ? `<a class="users" href="leads.html">🎯 Leads</a>` : "")
+        + (V.crm ? `<a class="users" href="crm.html">🗄 CRM</a>` : "")
+        + (V.nurture ? `<a class="users" href="nurture.html">🌱 Nurture</a>` : "")
+        + (V.staff ? `<a class="users" href="staff.html">👷 Staff</a>` : "")
+        + (V.inventory ? `<a class="users" href="inventory.html">📦 Inventory</a>` : "")
+        + (V.vendors ? `<a class="users" href="vendors.html">🤝 Vendors</a>` : "")
+        + (V.calendar ? `<a class="users" href="calendar.html">📅 Calendar</a>` : "")
+        + (V.templates ? `<a class="users" href="templates.html">🧩 Templates</a>` : "")
+        + (V.quotes ? `<a class="users" href="quotes.html">📋 Quotes</a>` : "")
+        + (V.controls ? `<a class="users" href="control.html">⚙ Control Center</a>` : "")
+        + (isAdmin ? `<a class="users" href="control.html#users">👥 Users</a>` : "")
         + `<button id="logoutBtn">Log out</button>`;
-      if (canManage) $("#usersBtn").addEventListener("click", openUsers);
       $("#logoutBtn").addEventListener("click", async () => { await BPStore.auth.signOut(); location.reload(); });
     } else {
       el.innerHTML = `<button id="loginBtn">Sign in</button>`;
@@ -328,68 +311,6 @@
   // when login is required, keep the modal up so there's no dead-end.
   $("#loginModal").addEventListener("click", (e) => { if (e.target.id === "loginModal" && BPStore.auth.user()) closeLogin(); });
   $("#refresh").addEventListener("click", load);
-
-  /* ---- admin → users panel ---- */
-  const umErr = (m) => { const e=$("#um_err"); e.textContent=m; e.hidden=false; $("#um_ok").hidden=true; };
-  const umOk  = (m) => { const e=$("#um_ok");  e.textContent=m; e.hidden=false; $("#um_err").hidden=true; };
-  function umClear(){ $("#um_err").hidden=true; $("#um_ok").hidden=true; }
-  const ROLES = ["admin","planner","sales","operations","crew","client"];
-
-  async function openUsers(){
-    umClear();
-    // populate the add-user role picker once
-    const sel=$("#um_role");
-    if(!sel.options.length){ sel.innerHTML = ROLES.map(r=>`<option value="${r}"${r==="crew"?" selected":""}>${r}</option>`).join(""); }
-    $("#usersModal").hidden=false;
-    await renderUsers();
-  }
-  function closeUsers(){ const m=$("#usersModal"); if(m) m.hidden=true; }
-  window.closeUsers = closeUsers;   // reachable from the inline onclick fallback
-
-  async function renderUsers(){
-    const tb=$("#um_rows"), me=BPStore.auth.user();
-    tb.innerHTML = `<tr><td colspan="3" style="color:var(--ink-3)">Loading…</td></tr>`;
-    let users;
-    try { users = await BPStore.auth.admin.listUsers(); }
-    catch(e){ tb.innerHTML=""; umErr((e&&e.message)||"Couldn't load users"); return; }
-    users.sort((a,b)=>(a.email||"").localeCompare(b.email||""));
-    tb.innerHTML = users.map(u=>{
-      const self = me && u.id===me.id;
-      const opts = ROLES.map(r=>`<option value="${r}"${r===u.role?" selected":""}>${r}</option>`).join("");
-      return `<tr data-id="${esc(u.id)}">
-        <td class="em">${esc(u.email||"—")}${self?'<span class="me">you</span>':""}</td>
-        <td><select class="roleSel"${self?" disabled title=\"You can&#39;t change your own role\"":""}>${opts}</select></td>
-        <td style="text-align:right">${self?"":`<button class="rm" title="Remove user">🗑</button>`}</td>
-      </tr>`;
-    }).join("") || `<tr><td colspan="3" style="color:var(--ink-3)">No users.</td></tr>`;
-
-    tb.querySelectorAll(".roleSel").forEach(sel=>sel.addEventListener("change", async (e)=>{
-      const tr=e.target.closest("tr"), id=tr.dataset.id, role=e.target.value; umClear();
-      const prev=[...e.target.options].find(o=>o.defaultSelected);
-      try { await BPStore.auth.admin.setRole(id, role); umOk("Role updated."); e.target.querySelectorAll("option").forEach(o=>o.defaultSelected=o.value===role); }
-      catch(err){ umErr((err&&err.message)||"Update failed"); if(prev) e.target.value=prev.value; }
-    }));
-    tb.querySelectorAll(".rm").forEach(btn=>btn.addEventListener("click", async (e)=>{
-      const tr=e.target.closest("tr"), id=tr.dataset.id, email=tr.querySelector(".em").textContent; umClear();
-      if(!confirm(`Remove ${email}? This deletes their account.`)) return;
-      try { await BPStore.auth.admin.deleteUser(id); await renderUsers(); umOk("User removed."); }
-      catch(err){ umErr((err&&err.message)||"Delete failed"); }
-    }));
-  }
-
-  $("#um_add").addEventListener("submit", async (e)=>{
-    e.preventDefault(); umClear();
-    const email=$("#um_email").value.trim(), pw=$("#um_pw").value, role=$("#um_role").value;
-    const btn=$("#um_submit"); btn.disabled=true; btn.textContent="Adding…";
-    try { await BPStore.auth.admin.createUser(email, pw, role);
-          $("#um_email").value=""; $("#um_pw").value="helm";
-          await renderUsers(); umOk(`Added ${email} as ${role}.`); }
-    catch(err){ umErr((err&&err.message)||"Couldn't add user"); }
-    finally { btn.disabled=false; btn.textContent="Add user"; }
-  });
-  $("#um_close").addEventListener("click", closeUsers);
-  $("#usersModal").addEventListener("click", (e)=>{ if(e.target.id==="usersModal") closeUsers(); });
-  document.addEventListener("keydown", (e)=>{ if(e.key==="Escape" && !$("#usersModal").hidden) closeUsers(); });
 
   load();
 </script>

@@ -40,6 +40,36 @@
   .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca} .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
   .actions{display:flex;justify-content:flex-end;margin-top:14px}
   .rm{border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:13px;padding:4px 8px;border-radius:6px} .rm:hover{color:#e5484d;background:#fdecec}
+  /* tab bar */
+  .tabs{display:flex;gap:6px;margin:4px 0 18px;border-bottom:1px solid var(--line);padding-bottom:0}
+  .tab{appearance:none;border:0;background:transparent;font-family:inherit;font-size:14px;font-weight:600;color:var(--ink-3);
+    padding:10px 16px;border-bottom:2px solid transparent;cursor:pointer;margin-bottom:-1px}
+  .tab:hover{color:var(--ink-2)}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+  /* users table */
+  .utable{width:100%;border-collapse:collapse;font-size:13px}
+  .utable th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+  .utable td{padding:8px;border-bottom:1px solid var(--line-2)}
+  .utable td.em{font-weight:500} .utable .me{font-size:10px;color:var(--accent);background:var(--accent-soft);padding:2px 6px;border-radius:10px;margin-left:6px}
+  .utable select{height:32px}
+  /* access matrix */
+  .roletabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+  .rtab{appearance:none;border:1px solid var(--line);background:var(--panel-2);font-family:inherit;font-size:12px;font-weight:600;
+    color:var(--ink-2);padding:6px 12px;border-radius:20px;cursor:pointer;text-transform:capitalize}
+  .rtab:hover{border-color:var(--accent)} .rtab.active{background:var(--accent);border-color:transparent;color:#fff}
+  .mgroup{margin:14px 0 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
+  .chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+  .chip{position:relative;display:flex;align-items:center;gap:8px;padding:11px 12px;border:2px solid var(--line);
+    background:var(--panel-2);border-radius:12px;cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-2);transition:all .12s}
+  .chip .ic{font-size:16px} .chip .lb{flex:1}
+  .chip .tick{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:11px;color:transparent}
+  .chip.on{border-color:#2eb872;background:#eafaf1;color:var(--ink)}
+  .chip.on .tick{border-color:#2eb872;background:#2eb872;color:#fff}
+  .chip .pen{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;
+    font-size:12px;color:var(--ink-3);cursor:pointer}
+  .chip .pen.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+  .chip.locked{opacity:.6;cursor:not-allowed}
+  .mnote{font-size:12px;color:var(--ink-3);margin:0 0 6px}
   /* login modal */
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
@@ -63,8 +93,15 @@
   <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in as a manager to open the Control Center.</p></div>
 
   <div id="app" hidden>
+    <div class="tabs">
+      <button class="tab active" data-pane="pricing" id="tab-pricing">💲 Pricing</button>
+      <button class="tab" data-pane="users" id="tab-users" hidden>👥 User control</button>
+    </div>
+
     <div id="msg"></div>
 
+    <!-- ============ PRICING PANE ============ -->
+    <div id="pane-pricing">
     <div class="card">
       <h3>Default pricing (applies to every new quote)</h3>
       <div class="grid">
@@ -98,6 +135,34 @@
         <button class="btn" id="co_add">+ Add coupon</button>
       </div>
     </div>
+    </div><!-- /pane-pricing -->
+
+    <!-- ============ USER CONTROL PANE (admin only) ============ -->
+    <div id="pane-users" hidden>
+      <div id="umsg"></div>
+
+      <div class="card">
+        <h3>Team members</h3>
+        <p class="mnote">Add teammates, change each person's role, or remove access. Changes apply immediately.</p>
+        <table class="utable"><thead><tr><th>Email</th><th>Role</th><th></th></tr></thead>
+          <tbody id="um_rows"><tr><td colspan="3" style="color:var(--ink-3)">Loading…</td></tr></tbody>
+        </table>
+        <form id="um_add" class="addrow" style="grid-template-columns:1.6fr 1fr 1fr auto">
+          <input id="um_email" type="email" placeholder="name@studio.com" required autocomplete="off">
+          <input id="um_pw" type="text" value="helm" placeholder="Temp password" required>
+          <select id="um_role"></select>
+          <button class="btn primary" type="submit" id="um_submit">Add user</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Access control — who can see &amp; do what</h3>
+        <p class="mnote">Pick a role, then tap an area to toggle <b>view</b> (green tick = accessible).
+          Tap the ✎ to also allow <b>editing</b>. Admin always has full access.</p>
+        <div class="roletabs" id="roleTabs"></div>
+        <div id="matrix"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -112,8 +177,8 @@
   </form>
 </div>
 
-<script src="config.js?v=40"></script>
-<script src="store-api.js?v=40"></script>
+<script src="config.js?v=41"></script>
+<script src="store-api.js?v=41"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -126,10 +191,14 @@
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
 
+  let isAdmin=false;
   async function load(){
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
-    if(!(await BPStore.auth.can("edit"))){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:var(--ink-3)">Your role can\'t edit the Control Center.</p>'; return; }
+    const role = await BPStore.auth.role();
+    isAdmin = role==="admin";
+    const canControls = await BPStore.auth.canView("controls");
+    if(!canControls && !isAdmin){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:var(--ink-3)">Your role can\'t open the Control Center.</p>'; return; }
     $("#app").hidden=false;
     try{
       const p=await BPStore.config.getPricing();
@@ -137,7 +206,21 @@
       $("#p_cgst").value=p.cateringGstPct??18; $("#p_svc").value=p.serviceChargePct??0;
     }catch(e){ setMsg("err","Run control-center.sql to enable the Control Center. ("+((e&&e.message)||"")+")"); }
     await renderVendors(); await renderCoupons();
+    // Only admins get the User-control tab (add/remove users + access matrix).
+    if(isAdmin){
+      $("#tab-users").hidden=false;
+      await initUsers(); await initMatrix();
+      if(location.hash==="#users") switchTab("users");
+    }
   }
+
+  /* ---------------- tab switching ---------------- */
+  function switchTab(name){
+    document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active", t.dataset.pane===name));
+    $("#pane-pricing").hidden = name!=="pricing";
+    $("#pane-users").hidden   = name!=="users";
+  }
+  document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>switchTab(t.dataset.pane)));
   $("#savePricing").addEventListener("click",async()=>{
     const p={ chairPrice:+$("#p_chair").value||0, platePrice:+$("#p_plate").value||0, gstPct:+$("#p_gst").value||0,
       cateringGstPct:+$("#p_cgst").value||0, serviceChargePct:+$("#p_svc").value||0, currency:"INR" };
@@ -166,6 +249,119 @@
     try{ await BPStore.coupons.add(code,$("#co_kind").value,+$("#co_val").value||0,null); $("#co_code").value="";$("#co_val").value=""; renderCoupons(); setMsg("ok","Coupon added."); }
     catch(e){ setMsg("err",(e&&e.message)||"Couldn't add coupon"); }
   });
+
+  /* ---------------- USER CONTROL: team members ---------------- */
+  function setUMsg(k,t){ const m=$("#umsg"); m.innerHTML=t?`<div class="msg ${k}">${esc(t)}</div>`:""; if(t) setTimeout(()=>{ if(m.firstChild) m.innerHTML=""; },4000); }
+  const ROLES = BPStore.auth.admin.roles();
+
+  async function initUsers(){
+    const sel=$("#um_role");
+    if(!sel.options.length){ sel.innerHTML = ROLES.map(r=>`<option value="${r}"${r==="crew"?" selected":""}>${r}</option>`).join(""); }
+    await renderUsers();
+  }
+  async function renderUsers(){
+    const tb=$("#um_rows"), me=BPStore.auth.user();
+    tb.innerHTML=`<tr><td colspan="3" style="color:var(--ink-3)">Loading…</td></tr>`;
+    let users;
+    try{ users=await BPStore.auth.admin.listUsers(); }
+    catch(e){ tb.innerHTML=""; setUMsg("err",(e&&e.message)||"Couldn't load users"); return; }
+    users.sort((a,b)=>(a.email||"").localeCompare(b.email||""));
+    tb.innerHTML = users.map(u=>{
+      const self = me && u.id===me.id;
+      const opts = ROLES.map(r=>`<option value="${r}"${r===u.role?" selected":""}>${r}</option>`).join("");
+      return `<tr data-id="${esc(u.id)}">
+        <td class="em">${esc(u.email||"—")}${self?'<span class="me">you</span>':""}</td>
+        <td><select class="roleSel"${self?" disabled title=\"You can&#39;t change your own role\"":""}>${opts}</select></td>
+        <td style="text-align:right">${self?"":`<button class="rm" title="Remove user">🗑</button>`}</td>
+      </tr>`;
+    }).join("") || `<tr><td colspan="3" style="color:var(--ink-3)">No users.</td></tr>`;
+    tb.querySelectorAll(".roleSel").forEach(sel=>sel.addEventListener("change", async (e)=>{
+      const tr=e.target.closest("tr"), id=tr.dataset.id, role=e.target.value;
+      const prev=[...e.target.options].find(o=>o.defaultSelected);
+      try{ await BPStore.auth.admin.setRole(id, role); setUMsg("ok","Role updated."); e.target.querySelectorAll("option").forEach(o=>o.defaultSelected=o.value===role); }
+      catch(err){ setUMsg("err",(err&&err.message)||"Update failed"); if(prev) e.target.value=prev.value; }
+    }));
+    tb.querySelectorAll(".rm").forEach(btn=>btn.addEventListener("click", async (e)=>{
+      const tr=e.target.closest("tr"), id=tr.dataset.id, email=tr.querySelector(".em").textContent;
+      if(!confirm(`Remove ${email}? This deletes their account.`)) return;
+      try{ await BPStore.auth.admin.deleteUser(id); await renderUsers(); setUMsg("ok","User removed."); }
+      catch(err){ setUMsg("err",(err&&err.message)||"Delete failed"); }
+    }));
+  }
+  $("#um_add").addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    const email=$("#um_email").value.trim(), pw=$("#um_pw").value, role=$("#um_role").value;
+    const btn=$("#um_submit"); btn.disabled=true; btn.textContent="Adding…";
+    try{ await BPStore.auth.admin.createUser(email, pw, role);
+      $("#um_email").value=""; $("#um_pw").value="helm"; await renderUsers(); setUMsg("ok",`Added ${email} as ${role}.`); }
+    catch(err){ setUMsg("err",(err&&err.message)||"Couldn't add user"); }
+    finally{ btn.disabled=false; btn.textContent="Add user"; }
+  });
+
+  /* ---------------- USER CONTROL: access matrix ---------------- */
+  const AREAS = BPStore.auth.admin.areas();
+  let MTX = {};              // {role:{area:{view,edit}}}
+  let selRole = "manager";
+
+  async function initMatrix(){
+    // role tabs (admin first, shown as locked-full)
+    $("#roleTabs").innerHTML = ROLES.map(r=>`<button class="rtab${r===selRole?" active":""}" data-role="${r}">${esc(r)}</button>`).join("");
+    $("#roleTabs").querySelectorAll(".rtab").forEach(b=>b.addEventListener("click",()=>{
+      selRole=b.dataset.role;
+      $("#roleTabs").querySelectorAll(".rtab").forEach(x=>x.classList.toggle("active",x.dataset.role===selRole));
+      renderMatrix();
+    }));
+    await loadMatrix();
+    renderMatrix();
+  }
+  async function loadMatrix(){
+    MTX={};
+    try{
+      const rows=await BPStore.auth.admin.getAccess();
+      rows.forEach(x=>{ (MTX[x.role]=MTX[x.role]||{})[x.area]={view:!!x.can_view, edit:!!x.can_edit}; });
+    }catch(e){ setUMsg("err","Run phase29-role-access.sql to enable access control. ("+((e&&e.message)||"")+")"); }
+  }
+  function renderMatrix(){
+    const locked = selRole==="admin";
+    const byGroup={};
+    AREAS.forEach(a=>{ (byGroup[a.group]=byGroup[a.group]||[]).push(a); });
+    let html="";
+    Object.keys(byGroup).forEach(g=>{
+      html+=`<div class="mgroup">${esc(g)}</div><div class="chips">`;
+      byGroup[g].forEach(a=>{
+        const cell = locked ? {view:true,edit:true} : ((MTX[selRole]&&MTX[selRole][a.key])||{view:false,edit:false});
+        html+=`<div class="chip${cell.view?" on":""}${locked?" locked":""}" data-area="${a.key}">
+          <span class="ic">${a.icon}</span><span class="lb">${esc(a.label)}</span>
+          <span class="pen${cell.edit?" on":""}" data-pen="1" title="Allow editing">✎</span>
+          <span class="tick">✓</span></div>`;
+      });
+      html+=`</div>`;
+    });
+    $("#matrix").innerHTML = html + (locked?'<p class="mnote" style="margin-top:12px">Admin always has full access — nothing to change here.</p>':"");
+    if(locked) return;
+    $("#matrix").querySelectorAll(".chip").forEach(chip=>{
+      const area=chip.dataset.area;
+      chip.addEventListener("click", async (e)=>{
+        if(e.target.dataset.pen){                       // ✎ toggles edit (auto-enables view)
+          const cur=(MTX[selRole]&&MTX[selRole][area])||{view:false,edit:false};
+          const edit=!cur.edit, view=cur.view||edit;
+          await saveCell(area, view, edit);
+        } else {                                        // body toggles view (off view also clears edit)
+          const cur=(MTX[selRole]&&MTX[selRole][area])||{view:false,edit:false};
+          const view=!cur.view, edit=view?cur.edit:false;
+          await saveCell(area, view, edit);
+        }
+      });
+    });
+  }
+  async function saveCell(area, view, edit){
+    try{
+      await BPStore.auth.admin.setAccess(selRole, area, view, edit);
+      (MTX[selRole]=MTX[selRole]||{})[area]={view, edit};
+      renderMatrix();
+      setUMsg("ok",`${selRole} · ${area}: ${view?(edit?"view + edit":"view only"):"no access"}`);
+    }catch(e){ setUMsg("err",(e&&e.message)||"Couldn't save"); }
+  }
 
   $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
     const btn=$("#li_submit"); btn.disabled=true; btn.textContent="Signing in…"; $("#li_err").hidden=true;
