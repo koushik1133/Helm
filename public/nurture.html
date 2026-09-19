@@ -45,6 +45,25 @@
   .lmodal[hidden]{display:none!important}
   .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,96vw);padding:24px}
   .sheet h3{margin:0 0 12px}.foot{display:flex;gap:10px;justify-content:flex-end}.fld2{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}.fld2 label{font-size:11px;font-weight:600;color:var(--ink-2)}.fld2 input{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit}
+  /* automation toggle switch */
+  .switch{position:relative;display:inline-block;width:46px;height:26px;flex:0 0 auto}
+  .switch input{opacity:0;width:0;height:0}
+  .slider{position:absolute;inset:0;background:var(--line);border-radius:20px;transition:.2s;cursor:pointer}
+  .slider::before{content:"";position:absolute;height:20px;width:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .switch input:checked + .slider{background:var(--safe)}
+  .switch input:checked + .slider::before{transform:translateX(20px)}
+  .autobar{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .autobar .lab{font-size:14px;font-weight:600} .autobar .desc{font-size:12px;color:var(--ink-3)}
+  .occ{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;background:#eef2ff;color:#4457c8}
+  .occ.greeted{background:#e7f6ee;color:#0f7a43}
+  .pill-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .ptab{border:1px solid var(--line);background:var(--panel-2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--ink-2);cursor:pointer;text-transform:capitalize}
+  .ptab:hover{border-color:var(--accent)} .ptab.active{background:var(--accent);border-color:transparent;color:#fff}
+  .tpl-sub{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit;font-size:13px;margin-bottom:10px}
+  .tpl-body{width:100%;min-height:150px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:13px;color:var(--ink);resize:vertical;line-height:1.5}
+  .ph{font-family:var(--mono);font-size:11px;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:var(--ink-2);cursor:pointer}
+  .msg{border-radius:8px;padding:8px 11px;font-size:13px;margin:8px 0}
+  .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca} .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
 </style>
 </head>
 <body>
@@ -63,14 +82,37 @@
     <div class="card" id="addCard" hidden>
       <h2>Add to nurture list</h2>
       <p class="sub">Keep past & prospective clients warm — set the next follow-up date and the occasion.</p>
-      <div class="addgrid">
+      <div class="addgrid" style="grid-template-columns:1.1fr .9fr .8fr 1fr .9fr auto">
         <div class="fld"><label>Name</label><input id="n_name" placeholder="Client / company"></div>
-        <div class="fld"><label>Phone</label><input id="n_phone" placeholder="optional"></div>
-        <div class="fld"><label>Occasion</label><input id="n_occ" placeholder="e.g. Anniversary"></div>
+        <div class="fld"><label>Email</label><input id="n_email" placeholder="for greetings"></div>
+        <div class="fld"><label>Type</label><select id="n_type">
+          <option value="birthday">🎂 Birthday</option><option value="anniversary" selected>💐 Anniversary</option>
+          <option value="festival">✨ Festival</option><option value="custom">📌 Custom</option></select></div>
+        <div class="fld"><label>Occasion label</label><input id="n_occ" placeholder="e.g. Wedding anniversary"></div>
         <div class="fld"><label>Occasion date</label><input id="n_occd" type="date"></div>
-        <div class="fld"><label>Next follow-up</label><input id="n_next" type="date"></div>
         <div class="fld"><label>&nbsp;</label><button class="btn primary" id="n_add">＋ Add</button></div>
       </div>
+      <label style="display:inline-flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--ink-2);cursor:pointer">
+        <input type="checkbox" id="n_auto"> Auto-send a greeting each year on this occasion</label>
+    </div>
+
+    <!-- ===== Occasions & automation ===== -->
+    <div class="card" id="autoCard" hidden>
+      <h2>🎉 Occasions &amp; automation</h2>
+      <p class="sub">Birthdays, anniversaries and yearly occasions coming up. When automation is on, a warm greeting (with a few gallery photos) is queued automatically on the day.</p>
+      <div class="autobar">
+        <label class="switch"><input type="checkbox" id="autoToggle"><span class="slider"></span></label>
+        <div><div class="lab">Automatic greetings <span id="autoState" class="occ">off</span></div>
+          <div class="desc">Sends to everyone below whose auto-greet is on.</div></div>
+        <span class="spacer" style="margin-left:auto"></span>
+        <label class="desc">Days ahead <input id="autoDays" type="number" min="0" max="30" style="width:64px;height:34px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2);padding:0 8px;margin-left:6px"></label>
+        <button class="btn" id="runNow">▶ Run today's greetings</button>
+      </div>
+      <div id="autoMsg"></div>
+      <table style="margin-top:12px">
+        <thead><tr><th>Client</th><th>Occasion</th><th>Next date</th><th>Auto</th><th></th></tr></thead>
+        <tbody id="occBody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+      </table>
     </div>
 
     <div class="card">
@@ -79,6 +121,20 @@
         <thead><tr><th>Client</th><th>Occasion</th><th>Next follow-up</th><th>Status</th><th></th></tr></thead>
         <tbody id="nurBody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
       </table>
+    </div>
+
+    <!-- ===== Message templates ===== -->
+    <div class="card" id="tplCard" hidden>
+      <h2>✉️ Greeting templates</h2>
+      <p class="sub">A ready-made message per occasion — edit it to match your voice. Placeholders get filled in automatically:
+        <span class="ph">{{name}}</span> <span class="ph">{{occasion}}</span> <span class="ph">{{years}}</span> <span class="ph">{{last_event}}</span> <span class="ph">{{studio}}</span></p>
+      <div class="pill-tabs" id="tplTabs"></div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);margin-bottom:10px;cursor:pointer">
+        <input type="checkbox" id="tplEnabled"> Use this template for automatic greetings</label>
+      <input class="tpl-sub" id="tplSubject" placeholder="Subject line">
+      <textarea class="tpl-body" id="tplBody" placeholder="Message body"></textarea>
+      <div id="tplMsg"></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn primary" id="tplSave">Save template</button></div>
     </div>
   </div>
   <footer>Blueprint Stage — repeat business starts with a timely follow-up.</footer>
@@ -94,8 +150,8 @@
   </div>
 </div>
 
-<script src="config.js?v=41"></script>
-<script src="store-api.js?v=41"></script>
+<script src="config.js?v=42"></script>
+<script src="store-api.js?v=42"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -134,24 +190,91 @@
   }
 
   async function addOne(){ const name=$("#n_name").value.trim(); if(!name){ $("#n_name").focus(); return; }
-    try{ await BPStore.nurture.add({ name, phone:$("#n_phone").value.trim()||null, occasion:$("#n_occ").value.trim()||null,
-        occasion_date:$("#n_occd").value||null, next_followup:$("#n_next").value||null });
-      ["n_name","n_phone","n_occ","n_occd","n_next"].forEach(k=>$("#"+k).value=""); await render(); }
+    const type=$("#n_type").value;
+    try{ await BPStore.nurture.add({ name, email:$("#n_email").value.trim()||null, occasion:$("#n_occ").value.trim()||null,
+        occasion_type:type, occasion_date:$("#n_occd").value||null, auto_on:$("#n_auto").checked });
+      ["n_name","n_email","n_occ","n_occd"].forEach(k=>$("#"+k).value=""); $("#n_auto").checked=false;
+      await render(); await renderAuto(); }
     catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); }
   }
+
+  /* ---------------- occasions & automation ---------------- */
+  function autoMsg(k,t){ const m=$("#autoMsg"); m.innerHTML=t?`<div class="msg ${k}">${esc(t)}</div>`:""; if(t) setTimeout(()=>{ m.innerHTML=""; },4000); }
+  async function renderAuto(){
+    if(!canEdit) return;
+    // global switch
+    try{ const a=await BPStore.nurture.automation.get();
+      $("#autoToggle").checked=!!a.enabled; $("#autoDays").value=a.within_days??0;
+      $("#autoState").textContent=a.enabled?"on":"off"; $("#autoState").classList.toggle("greeted",!!a.enabled);
+    }catch(e){}
+    // upcoming occasions
+    let due=[];
+    try{ due=await BPStore.nurture.due(Math.max(30,+$("#autoDays").value||0)); }
+    catch(e){ $("#occBody").innerHTML=`<tr><td colspan="5" class="empty">Run <b>phase30-nurture-automation.sql</b> to enable automation. (${esc(e&&e.message||"")})</td></tr>`; return; }
+    $("#occBody").innerHTML = due.length ? due.map(d=>`<tr>
+      <td><b>${esc(d.name)}</b><div class="muted" style="font-size:11px">${esc(d.email||"no email")}</div></td>
+      <td><span class="occ">${esc(d.occasion_type)}</span> ${esc(d.occasion||"")}</td>
+      <td>${esc(d.next_date||"—")}${d.greeted_this_year?' <span class="occ greeted">greeted</span>':""}</td>
+      <td><label class="switch" style="width:40px;height:23px"><input type="checkbox" data-auto="${d.id}" ${d.auto_on?"checked":""}><span class="slider"></span></label></td>
+      <td><button class="lnk" data-greet="${d.id}" ${d.email?"":"disabled title='no email on file'"}>Send greeting</button></td>
+    </tr>`).join("") : '<tr><td colspan="5" class="empty">No occasions coming up. Add an occasion date above.</td></tr>';
+    $("#occBody").querySelectorAll("[data-auto]").forEach(c=>c.addEventListener("change",async()=>{
+      try{ await BPStore.nurture.update(c.dataset.auto,{auto_on:c.checked}); autoMsg("ok","Auto-greet "+(c.checked?"on":"off")+" for this contact."); }
+      catch(e){ autoMsg("err",(e&&e.message)||"Couldn't update"); c.checked=!c.checked; } }));
+    $("#occBody").querySelectorAll("[data-greet]").forEach(b=>b.addEventListener("click",async()=>{
+      b.disabled=true; b.textContent="Sending…";
+      try{ const msg=await BPStore.nurture.greet(b.dataset.greet);
+        autoMsg("ok",`Greeting queued: "${(msg&&msg.subject)||""}" ${msg&&msg.photos&&msg.photos.length?("· "+msg.photos.length+" photo(s) attached"):""}`);
+        await renderAuto(); }
+      catch(e){ autoMsg("err",(e&&e.message)||"Couldn't send"); b.disabled=false; b.textContent="Send greeting"; } }));
+  }
+  async function toggleAuto(){ try{ await BPStore.nurture.automation.set($("#autoToggle").checked,+$("#autoDays").value||0);
+      $("#autoState").textContent=$("#autoToggle").checked?"on":"off"; $("#autoState").classList.toggle("greeted",$("#autoToggle").checked);
+      autoMsg("ok","Automation "+($("#autoToggle").checked?"enabled":"disabled")+"."); }
+    catch(e){ autoMsg("err",(e&&e.message)||"Couldn't save"); } }
+
+  /* ---------------- templates ---------------- */
+  let TPLS=[], curType="birthday";
+  async function renderTemplates(){
+    if(!canEdit) return;
+    try{ TPLS=await BPStore.nurture.templates.list(); }
+    catch(e){ $("#tplTabs").innerHTML=`<span class="muted">Run phase30 to edit templates.</span>`; return; }
+    if(!TPLS.length){ $("#tplTabs").innerHTML='<span class="muted">No templates.</span>'; return; }
+    if(!TPLS.find(t=>t.occasion_type===curType)) curType=TPLS[0].occasion_type;
+    $("#tplTabs").innerHTML=TPLS.map(t=>`<button class="ptab${t.occasion_type===curType?" active":""}" data-t="${esc(t.occasion_type)}">${esc(t.occasion_type)}</button>`).join("");
+    $("#tplTabs").querySelectorAll(".ptab").forEach(b=>b.addEventListener("click",()=>{ curType=b.dataset.t; fillTemplate(); }));
+    fillTemplate();
+  }
+  function fillTemplate(){ const t=TPLS.find(x=>x.occasion_type===curType)||{};
+    $("#tplTabs").querySelectorAll(".ptab").forEach(b=>b.classList.toggle("active",b.dataset.t===curType));
+    $("#tplSubject").value=t.subject||""; $("#tplBody").value=t.body||""; $("#tplEnabled").checked=t.enabled!==false; }
+  async function saveTemplate(){ try{
+      await BPStore.nurture.templates.save(curType,{subject:$("#tplSubject").value,body:$("#tplBody").value,enabled:$("#tplEnabled").checked});
+      const t=TPLS.find(x=>x.occasion_type===curType); if(t){ t.subject=$("#tplSubject").value; t.body=$("#tplBody").value; t.enabled=$("#tplEnabled").checked; }
+      $("#tplMsg").innerHTML='<div class="msg ok">Template saved.</div>'; setTimeout(()=>{$("#tplMsg").innerHTML="";},3000); }
+    catch(e){ $("#tplMsg").innerHTML=`<div class="msg err">${esc((e&&e.message)||"Couldn't save")}</div>`; } }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
     catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
   $("#n_add").addEventListener("click",addOne);
+  $("#autoToggle").addEventListener("change",toggleAuto);
+  $("#autoDays").addEventListener("change",async()=>{ await toggleAuto(); await renderAuto(); });
+  $("#runNow").addEventListener("click",async()=>{ const b=$("#runNow"); b.disabled=true; b.textContent="Running…";
+    try{ const n=await BPStore.nurture.runAuto(+$("#autoDays").value||0);
+      autoMsg(n?"ok":"ok",n?`Queued ${n} greeting${n===1?"":"s"} ✓`:"Nothing due right now (or automation is off)."); await renderAuto(); }
+    catch(e){ autoMsg("err",(e&&e.message)||"Couldn't run"); }
+    finally{ b.disabled=false; b.textContent="▶ Run today's greetings"; } });
+  $("#tplSave").addEventListener("click",saveTemplate);
 
   (async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
-    if(!(await BPStore.auth.requireView("pipeline"))) return;
-    canEdit=await BPStore.auth.can("edit");
-    $("#app").hidden=false; $("#addCard").hidden=!canEdit;
+    if(!(await BPStore.auth.requireView("nurture"))) return;
+    canEdit=await BPStore.auth.canEditArea("nurture");
+    $("#app").hidden=false; $("#addCard").hidden=!canEdit; $("#autoCard").hidden=!canEdit; $("#tplCard").hidden=!canEdit;
     await render();
+    if(canEdit){ await renderAuto(); await renderTemplates(); }
   })();
 </script>
 </body>

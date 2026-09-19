@@ -626,6 +626,44 @@
       if (mode === "supabase") { const { error } = await supa.from("nurture").delete().eq("id", id); if (error) throw error; return true; }
       localStorage.setItem(NURTURE_LS, JSON.stringify(readLs(NURTURE_LS).filter((n) => n.id !== id))); return true;
     },
+    // ---- Phase 30: recurring-occasion automation ----
+    // Editable per-occasion templates (birthday / anniversary / festival / custom)
+    templates: {
+      async list() {
+        if (mode === "supabase") { const { data, error } = await supa.from("nurture_templates").select("*").order("occasion_type"); if (error) throw error; return data; }
+        return readLs("bp_nurture_templates");
+      },
+      async save(type, patch) {
+        if (mode === "supabase") { const { error } = await supa.from("nurture_templates").update({ ...patch, updated_at: now() }).eq("occasion_type", type); if (error) throw error; return true; }
+        const a = readLs("bp_nurture_templates"); const r = a.find((x) => x.occasion_type === type); if (r) Object.assign(r, patch); else a.push({ occasion_type: type, ...patch }); localStorage.setItem("bp_nurture_templates", JSON.stringify(a)); return true;
+      },
+    },
+    // Global automation switch (singleton)
+    automation: {
+      async get() {
+        if (mode === "supabase") { const { data, error } = await supa.from("nurture_automation").select("*").eq("id", 1).maybeSingle(); if (error) throw error; return data || { enabled: false, within_days: 0 }; }
+        return readLs("bp_nurture_auto")[0] || { enabled: false, within_days: 0 };
+      },
+      async set(enabled, withinDays) {
+        if (mode === "supabase") { const { error } = await supa.from("nurture_automation").update({ enabled: !!enabled, within_days: withinDays == null ? 0 : +withinDays, updated_at: now() }).eq("id", 1); if (error) throw error; return true; }
+        localStorage.setItem("bp_nurture_auto", JSON.stringify([{ enabled: !!enabled, within_days: +withinDays || 0 }])); return true;
+      },
+    },
+    // Everyone with an occasion in the next `withinDays` days
+    async due(withinDays) {
+      if (mode === "supabase") { const { data, error } = await supa.rpc("nurture_due", { p_within_days: withinDays == null ? 30 : +withinDays }); if (error) throw error; return data || []; }
+      return [];   // offline: not computed
+    },
+    // Render + queue one greeting (attaches gallery photos). Returns the message.
+    async greet(id) {
+      if (mode !== "supabase") throw new Error("Greetings need Supabase");
+      const { data, error } = await supa.rpc("queue_nurture_greeting", { p_id: id }); if (error) throw error; return data;
+    },
+    // Queue greetings for every due, auto-on contact (the daily job). Returns count.
+    async runAuto(withinDays) {
+      if (mode !== "supabase") throw new Error("Automation needs Supabase");
+      const { data, error } = await supa.rpc("run_nurture_auto", withinDays == null ? {} : { p_within_days: +withinDays }); if (error) throw error; return data || 0;
+    },
     // turn a nurture contact into a fresh pipeline lead (reuses the leads pipeline)
     async convertToLead(id) {
       const all = await this.list(); const n = (all || []).find((x) => x.id === id);

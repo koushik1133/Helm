@@ -31,13 +31,24 @@ Last year at this time you…”) with memories + a few gallery photos attached.
 **editable template** with a good default. (Real send stays deferred → queues to the
 notification outbox / simulated for now.)
 
-- [ ] 2a. SQL `phase30-nurture-automation.sql`: `nurture_occasions(contact,occasion_type,
-      occasion_date,recurrence,auto_on,...)`, `nurture_templates(occasion_type,subject,body,
-      editable)` seeded with defaults; `nurture_due(p_within_days)` RPC; `queue_nurture_greeting()`
-      RPC → notification outbox with rendered template + gallery image links. Idempotent.
-- [ ] 2b. `store-api.js`: `nurture.occasions`, `nurture.templates`, `nurture.due`, `nurture.send`.
-- [ ] 2c. `nurture.html`: Automation tab (toggle), due list, template editor.
-- [ ] 2d. Test + sync copies + push.
+- [x] 2a. SQL `phase30-nurture-automation.sql`: nurture gains occasion_type/recurrence/auto_on/
+      last_greeted; `nurture_templates` (birthday/anniversary/festival/custom, seeded, editable);
+      `nurture_automation` global switch; `nurture_due()`; `queue_nurture_greeting()` renders the
+      template + attaches ≤3 gallery photos → notification outbox (email, simulated);
+      `run_nurture_auto()` (the daily job). Idempotent. ✅
+- [x] 2b. `store-api.js`: `nurture.templates` (list/save), `nurture.automation` (get/set),
+      `nurture.due`, `nurture.greet`, `nurture.runAuto`; add() takes occasion_type/email/auto_on. ✅
+- [x] 2c. `nurture.html`: Occasions & automation card (global switch + days-ahead + run-now +
+      upcoming list w/ per-contact auto toggle + send-greeting); Greeting-templates editor
+      (per-occasion subject/body, enable toggle, placeholder help). ✅
+- [x] 2d. Cache bumped `?v=42` all pages. SQL synced to phase30.sql / full-schema/36 /
+      complete-setup.sql. UI tested in-browser (toggle, occasions list, send-greeting, templates). ✅
+- [ ] 2e. **USER TO RUN** `phase30-nurture-automation.sql` (after phase29), then live test. Pushed.
+
+## Go-live note (deferred)
+Greetings queue to the notification outbox with status='simulated'. To send for real +
+automatically each morning: wire a `send-email` Edge Function (Resend/SendGrid) and
+`select cron.schedule('nurture-daily','0 9 * * *', $$ select public.run_nurture_auto(); $$);`
 
 ## Design decisions (defaults; admin can change all in the matrix)
 - 10 roles. Defaults: admin=all; manager=all except managing users; planner=all ops+pipeline+finance;
