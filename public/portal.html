@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your event — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#8b8698;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#12a150;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(27,25,48,.05),0 14px 36px rgba(27,25,48,.11);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh;
+    background:radial-gradient(1000px 520px at 88% -14%,#ece3ff 0%,transparent 55%),
+      radial-gradient(760px 440px at -8% 0%,#ffe9d6 0%,transparent 52%),var(--bg)}
+  .wrap{max-width:760px;margin:0 auto;padding:0 20px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:22px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header b{font-size:15px} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:22px;margin-bottom:16px}
+  .hero .code{font-family:var(--mono);font-weight:700;color:var(--accent);font-size:14px}
+  .hero h1{font-size:26px;margin:6px 0 4px;letter-spacing:-.02em} .hero .when{color:var(--ink-2);font-size:14px}
+  .badges{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+  .stat{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:4px 11px;border-radius:20px}
+  .stat.q{background:#eef2ff;color:#4457c8} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.st{background:#fff7e6;color:#946200}
+  h3{font-size:12px;margin:0 0 14px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
+  .concept{font-size:15px;line-height:1.6;color:var(--ink-2)} .theme{font-weight:600;color:var(--ink);margin-bottom:8px}
+  .sw{display:inline-block;width:26px;height:26px;border-radius:7px;margin:0 6px 6px 0;border:1px solid var(--line);vertical-align:middle}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .chip{background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:6px 12px;font-size:13px;font-weight:500}
+  .imgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:10px}
+  .imgs img{width:100%;height:120px;object-fit:cover;border-radius:12px;border:1px solid var(--line);background:var(--panel-2)}
+  .prow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line-2);font-size:14px}
+  .prow:first-child{border-top:0} .prow .g{flex:1} .prow .amt{font-family:var(--mono);font-weight:600}
+  .prow .due{font-size:11px;color:var(--ink-3)}
+  .paybadge{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .paybadge.paid{background:#e7f6ee;color:#0f7a43} .paybadge.due{background:#fff7e6;color:#946200} .paybadge.invoiced{background:#eef2ff;color:#4457c8} .paybadge.waived{background:#eceff3;color:#6b7686}
+  .totbar{display:flex;justify-content:space-between;align-items:center;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+  .totbar .n{font-family:var(--mono);font-weight:700;font-size:18px}
+  .cta{display:block;text-align:center;background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;font-weight:700;
+    padding:14px;border-radius:12px;font-size:15px;margin-top:6px}
+  .muted{color:var(--ink-3);font-size:13px} .empty{color:var(--ink-3);font-size:13px;padding:8px 0}
+  footer{text-align:center;color:var(--ink-3);font-size:11px;margin-top:10px}
+  .loading,.bad{text-align:center;padding:60px 20px;color:var(--ink-3)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><div class="mark"></div><div><b>Blueprint Stage</b><small>Your event portal</small></div></header>
+
+  <div id="loading" class="card loading">Loading your event…</div>
+  <div id="bad" class="card bad" hidden><h1 style="color:var(--ink);font-size:20px">Link not found</h1><p>This portal link is invalid or expired. Please ask your event planner for a new one.</p></div>
+
+  <div id="app" hidden>
+    <div class="card hero">
+      <span class="code" id="code"></span>
+      <h1 id="title"></h1>
+      <div class="when" id="when"></div>
+      <div class="badges" id="badges"></div>
+      <a class="cta" id="approveCta" hidden href="#">Review &amp; approve your event →</a>
+    </div>
+
+    <div class="card" id="proposalCard" hidden>
+      <h3>🎨 Your proposal</h3>
+      <div class="theme" id="ptheme"></div>
+      <div class="concept" id="pconcept"></div>
+      <div id="ppalette" style="margin-top:12px"></div>
+      <div class="chips" id="pscope"></div>
+      <div class="imgs" id="pimages"></div>
+    </div>
+
+    <div class="card" id="payCard">
+      <h3>💳 Payments</h3>
+      <div class="totbar"><span>Event total</span><span class="n" id="total">—</span></div>
+      <div id="milestones"></div>
+      <div class="muted" id="outstanding" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card" id="galleryCard" hidden>
+      <h3>📸 Gallery</h3>
+      <div class="imgs" id="gallery"></div>
+    </div>
+  </div>
+
+  <footer>Blueprint Stage · this page shows only your event.</footer>
+</div>
+
+<script src="config.js?v=61"></script>
+<script src="store-api.js?v=61"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const inr=(n)=>"₹"+Math.round(Number(n||0)).toLocaleString("en-IN");
+  const token=new URLSearchParams(location.search).get("token");
+  const fmtWhen=(d,t)=>{ if(!d) return ""; try{ const dt=new Date(d+"T00:00:00"); return dt.toLocaleDateString([], {weekday:'long',day:'numeric',month:'long',year:'numeric'})+(t?(" · "+t):""); }catch{ return d+(t?" · "+t:""); } };
+  const isUrl=(u)=>/^https?:\/\//i.test(u||"");
+
+  async function load(){
+    if(!token){ $("#loading").hidden=true; $("#bad").hidden=false; return; }
+    await BPStore.init();
+    let d; try{ d=await BPStore.portal.get(token); }
+    catch(e){ $("#loading").hidden=true; $("#bad").hidden=false; return; }
+    $("#loading").hidden=true; $("#app").hidden=false; render(d);
+  }
+  function render(d){
+    const e=d.event||{};
+    $("#code").textContent=e.code||"";
+    $("#title").textContent=e.title||e.code||"Your event";
+    $("#when").textContent=[e.event_type, fmtWhen(e.event_date,e.event_time)].filter(Boolean).join(" · ")||"Date to be confirmed";
+    // badges
+    const ap=d.approval_status;
+    const apBadge = ap==="paid"?'<span class="stat ok">Paid</span>':ap==="approved"?'<span class="stat ok">Approved</span>':ap==="sent"?'<span class="stat st">Awaiting your approval</span>':"";
+    $("#badges").innerHTML=`<span class="stat ${e.status==='confirmed'?'ok':'q'}">${esc(e.status||"")}</span>${apBadge}`;
+    // approval CTA when pending
+    if(ap==="sent"||ap==="none"||!ap){ const c=$("#approveCta"); c.hidden=false; c.href="approve.html?token="+encodeURIComponent(token); }
+    // proposal
+    const p=d.proposal;
+    if(p){ $("#proposalCard").hidden=false;
+      $("#ptheme").textContent=p.theme?("Theme: "+p.theme):"";
+      $("#pconcept").textContent=p.concept||"";
+      $("#ppalette").innerHTML=(p.palette||[]).map(c=>`<span class="sw" style="background:${esc(c)}" title="${esc(c)}"></span>`).join("");
+      $("#pscope").innerHTML=(p.scope||[]).map(s=>`<span class="chip">${esc(s)}</span>`).join("");
+      $("#pimages").innerHTML=(p.images||[]).filter(isUrl).map(u=>`<img src="${esc(u)}" alt="reference" loading="lazy">`).join("");
+    }
+    // payments
+    $("#total").textContent=inr(d.total);
+    const ms=(d.payment&&d.payment.milestones)||[];
+    $("#milestones").innerHTML = ms.length ? ms.map(m=>`<div class="prow"><span class="g">${esc(m.label)}${m.due_date?`<div class="due">due ${esc(m.due_date)}</div>`:""}</span>
+      <span class="amt">${inr(m.amount)}</span><span class="paybadge ${esc(m.status)}">${esc(m.status)}</span></div>`).join("")
+      : '<div class="empty">No payment schedule yet — your planner will share one.</div>';
+    const out=(d.payment&&d.payment.outstanding)||0;
+    $("#outstanding").innerHTML = out>0 ? `Outstanding balance: <b style="color:var(--warn)">${inr(out)}</b>` : (ms.length?'<b style="color:var(--safe)">All payments settled ✓</b>':"");
+    // gallery
+    const g=(d.gallery||[]);
+    if(g.length){ $("#galleryCard").hidden=false;
+      $("#gallery").innerHTML=g.map(m=> m.kind==="video"
+        ? `<a href="${esc(m.url)}" target="_blank" rel="noopener" class="chip" style="height:120px;display:flex;align-items:center;justify-content:center">▶ ${esc(m.caption||"Video")}</a>`
+        : `<img src="${esc(m.url)}" alt="${esc(m.caption||"photo")}" loading="lazy">`).join(""); }
+  }
+  load();
+</script>
+</body>
+</html>
