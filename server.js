@@ -77,6 +77,33 @@ const MIME = {
   '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml',
   '.png': 'image/png', '.ico': 'image/x-icon', '.map': 'application/json',
 };
+// Defensive security headers applied to every served response.
+// CSP allows the app's real sources (inline scripts/styles are used across the
+// static pages, hence 'unsafe-inline' — a documented accepted risk until a
+// nonce refactor); everything else is locked to self + the known CDNs.
+const CSP = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "img-src 'self' data: https:",
+  "font-src 'self' https://fonts.gstatic.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net",
+  "upgrade-insecure-requests",
+].join('; ');
+const SECURITY_HEADERS = {
+  'Content-Security-Policy': CSP,
+  'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+  'Cross-Origin-Opener-Policy': 'same-origin',
+};
+
 function serveStatic(req, res) {
   let rel;
   try { rel = decodeURIComponent(req.url.split('?')[0]); }
@@ -92,13 +119,13 @@ function serveStatic(req, res) {
       if (!path.extname(filePath)) {
         return fs.readFile(path.join(PUBLIC_DIR, 'index.html'), (e2, idx) =>
           e2 ? sendJson(res, 404, { error: 'not found' })
-             : (res.writeHead(200, { 'Content-Type': MIME['.html'] }), res.end(idx)));
+             : (res.writeHead(200, { 'Content-Type': MIME['.html'], ...SECURITY_HEADERS }), res.end(idx)));
       }
       return sendJson(res, 404, { error: 'not found' });
     }
     const ext = path.extname(filePath);
     // Revalidate app files so updates always show; ETag lets the browser 304 unchanged files (fast, no staleness).
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
+    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-cache', ...SECURITY_HEADERS });
     res.end(buf);
   });
 }

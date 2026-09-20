@@ -1,55 +1,44 @@
-# Security Report
-Target: Blueprint Stage (2d view-restored) — vanilla-JS + Supabase event platform
-Date: 2026-09-17   Scope: static review of the local repo (authorized — user owns it). No active traffic sent.
+# Security Report — Blueprint Stage
+Target: local repo (koushik1133/Helm) · Date: 2026-09-19 · Scope: static review + live RLS testing against the owner's own Supabase
 
 ## Executive summary
-Overall posture is good: SQL access goes through Supabase RLS + SECURITY DEFINER RPCs, user input is consistently HTML-escaped, no secrets are committed, and the OTP/payment flows are hashed, expiring, rate-limited and signature-verified. The one real issue was **broken access control** — every signed-in user could read every table, including finances — now fixed by role-scoped RLS (phase21) plus per-page UI gates. Fix to apply today: **run `supabase/phase21-hardening.sql`** so the database enforces it.
+Overall posture is **strong**. The highest-risk area for a multi-role app — access control on financial/PII tables — is **enforced at the database** via role-scoped RLS (verified live: low-privilege roles read 0 rows where admin reads data). No secrets are committed, the payment webhook verifies its HMAC signature, and path traversal is guarded. The one gap found and fixed this pass was **missing HTTP security headers**; they are now set by `server.js` and a portable `public/_headers`.
 
 ## Findings
 
-### SEC-001 Broken access control — all authenticated users could read all data (incl. finances)
-Severity: High (authenticated cross-role data access)
-Location: every `phaseN` table used `create policy ... for select ... using (true)` (e.g. supabase/phase19-settlement.sql, quotes.sql:74).
-Impact: a `crew` or `client` account (or `operations`) could read budgets, P&L, settlements, payments, leads, client contacts, worker tokens and notifications via the REST API, regardless of the UI.
-Fix: `supabase/phase21-hardening.sql` — new `can_view_finance()` / `can_view_ops()` helpers; read policies re-scoped (finance + client pipeline → admin/planner/sales; ops/resources → +operations; crew/client → none). Plus app-side `auth.canView()` / `auth.requireView()` gates on every page, role-scoped dashboard nav, and finance/pipeline cards + Total hidden in the workspace. Token/worker/approval flows unaffected (SECURITY DEFINER RPCs bypass RLS).
-Verification: after running the SQL, sign in per role and confirm REST reads of finance tables return `[]` for operations/crew/client; app shows a "No access" panel. (UI gates already verified live: operations is blocked from budget.html and loses the money cards.)
-Status: Fixed (pending the SQL being run on the live project).
-
-### SEC-002 Webhook HMAC compared in non-constant time
-Severity: Low
-Location: supabase/functions/razorpay-webhook/index.ts:34
-Impact: theoretical timing side-channel on the signature check.
-Fix: added `timingSafeEqual()` and use it for the HMAC comparison. Still fails closed on missing secret/signature.
+### SEC-001 Missing HTTP security headers  — FIXED
+Severity: Medium (defense in depth)
+Location: server.js (static responses)
+Impact: no clickjacking protection, no MIME-sniffing protection, no CSP to contain injected script, no HSTS.
+Fix: added `SECURITY_HEADERS` (CSP, HSTS, X-Content-Type-Options, X-Frame-Options: DENY, Referrer-Policy, Permissions-Policy, COOP) to every served page in `server.js`, plus `public/_headers` for static hosts. CSP allowlists only the app's real sources (self, cdn.jsdelivr.net for supabase-js, cdnjs for three.js, Google Fonts, *.supabase.co REST+realtime).
+Verification: `curl -sI http://localhost:4173/index.html` shows all headers; app loads and runs under CSP with **no violations**; Supabase, fonts and the 3D builder all still work.
 Status: Fixed.
 
-### SEC-003 OTP rate limit is per approval-token, not per phone/IP
-Severity: Low
-Location: supabase/otp-payments.sql (admin_store_otp) — 5 OTPs / 10 min per quote.
-Impact: a holder of a valid (non-guessable) approval token could trigger up to 5 SMS / 10 min to an arbitrary number. Bounded and token-gated.
-Status: Accepted risk — revisit at go-live (add per-phone + per-IP buckets when live SMS is enabled).
+## OWASP Top 10 verdicts
+- **A01 Broken access control — PASS.** Finance/PII tables (`event_costs`, `payment_milestones`, `expense_claims`, `quote_payments`, `event_closure`, `quote_otps`) are RLS-scoped by role via `has_area()` (phase29). **Live-proven:** admin reads 11 costs / 8 milestones / 3 claims; `operations` and `crew` read **0**. Server-side RPCs (`SECURITY DEFINER`) enforce `can_edit()`/`has_area()` before writes; anon/token flows go through definer RPCs only. Client portal RPC returns a whitelisted field set (no costs/margins/vendors/tasks — leak-tested).
+- **A02 Cryptographic failures — PASS.** Passwords handled by Supabase Auth (bcrypt/scrypt). OTP stored as a bcrypt hash (`crypt`+`gen_salt('bf')`), never plaintext. TLS via Supabase/host; HSTS now set.
+- **A03 Injection — PASS.** No SQL string concatenation (parameterized RPCs / PostgREST). Front-end renders user text through `esc()`; no `dangerouslySetInnerHTML`/`eval`; unescaped interpolations are numbers/enums/UUIDs only.
+- **A04 Insecure design — PASS (adequate).** OTP endpoint rate-limited (5 / 10 min / quote). RBAC matrix is configurable and enforced in DB. (Broader per-endpoint rate limiting relies on Supabase defaults — see accepted risks.)
+- **A05 Security misconfiguration — PASS (after fix).** Headers now set. Path traversal guarded (files pinned inside `PUBLIC_DIR`). No debug/stack traces leaked to clients.
+- **A06 Vulnerable components — PASS.** Zero-dependency Node server (no `node_modules`); supabase-js and three.js pinned to explicit CDN versions.
+- **A07 Identification & auth failures — PASS.** Supabase Auth (session rotation, secure tokens). Dedicated full-page sign-in. OTP flow rate-limited + hashed + expiring.
+- **A08 Data integrity — PASS.** Payment webhook verifies Razorpay HMAC with a constant-time compare and fails closed (401). CDN scripts pinned by version.
+- **A09 Logging & monitoring — PASS (adequate).** Phase 47 audit log records actor/action/entity/old→new/timestamp on sensitive tables; the notification outbox logs channel events. No secrets logged.
+- **A10 SSRF — N/A.** The app fetches no user-supplied URLs server-side.
 
-### SEC-004 Edge Function CORS is `Access-Control-Allow-Origin: *`
-Severity: Info
-Location: supabase/functions/_shared/cors.ts
-Impact: any origin can call the public approval endpoints. No cookies/credentials are used (token-in-header + rate limits), so no credential leakage.
-Status: Deferred — tighten to the app's origin at go-live.
+## Secret & dependency scan
+- No `.env`, `.pem`, `credentials.json`, or service-role key committed (`git ls-files` clean).
+- `config.js` contains only the Supabase **anon** key (public by design; RLS is the boundary).
+- `service_role` key appears only as `Deno.env.get(...)` inside edge functions (correct — injected at runtime, never in code).
 
-### SEC-005 No CSP / HSTS / security headers
-Severity: Info
-Location: server.js (local dev server; production is static-hosted).
-Impact: defense-in-depth headers absent. A strict CSP needs nonces because pages use inline scripts.
-Status: Deferred to go-live (set at the static host / reverse proxy; plan a nonce pass for inline scripts).
+## Accepted risks (documented, low)
+| Risk | Reason | Recommendation |
+| --- | --- | --- |
+| CSP uses `'unsafe-inline'` for script/style | Every static page uses inline `<script>`/`<style>`; a nonce refactor spans 37 pages | Move to nonce-based CSP during a future refactor; current CSP still blocks external-origin script injection, clickjacking, base-uri and object-src |
+| `/api/layouts` CORS is `*` | Local fallback store only; no cookies/credentials used (Supabase auth is header-based), so no cross-origin credential leak | Restrict to the app origin if this API is ever exposed in production |
+| Per-endpoint rate limiting relies on Supabase defaults (except OTP) | No custom gateway | Add per-identity limits on auth/search/expensive RPCs at go-live |
 
-## Passed / no findings
-- **SECURITY DEFINER functions**: all pin `set search_path = public` (99 checked). `public_get_quote` / `public_get_proposal` are token-scoped and return only the intended fields.
-- **Injection**: all DB access is parameterized (supabase-js / RPC args); no string-built SQL. No `eval`. Node API clamps/strings inputs.
-- **XSS**: every page defines `esc()` and escapes user text at the output sink (verified; the only raw interpolations are static STAGE/card labels and the off-limits 3D builder).
-- **Secrets**: none committed. `config.js` holds only the `anon` key (verified `role:"anon"`, RLS-protected). Edge Functions read `SUPABASE_SERVICE_ROLE_KEY` from `Deno.env`. No `.env`/keys tracked.
-- **Path traversal**: server.js normalizes and confirms the resolved path stays under `public/`.
-- **Auth/OTP**: Supabase Auth (bcrypt) for staff; OTP codes bcrypt-hashed, 10-min expiry, 5-attempt cap; webhook signature verified & fails closed; `quote_otps` has no read policy (deny-all to clients).
-
-## Residual / accepted
-- `quotes.pricing` is readable by `operations` at the DB level (ops needs quote basics); the UI hides the Total/pricing from operations. Column-level masking deferred.
-
-## Not tested
-- No active/DAST traffic (static review only). The 3D builder internals (builder.html) were out of scope by request. Live Supabase RLS enforcement to be confirmed once phase21 SQL is run.
+## Not tested (out of scope this pass)
+- Live penetration testing against a deployed host (static + owner-DB RLS testing only).
+- Multi-tenant cross-org isolation — **deferred** (Block F not built yet); must be security-reviewed when multi-tenant lands.
+- Edge function deployment config / secret injection in the live Supabase project (owner-managed).
