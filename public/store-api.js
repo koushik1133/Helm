@@ -9,6 +9,27 @@
      summary = { id, name, createdAt, updatedAt, objectCount }
      layout  = { id, name, createdAt, updatedAt, data }   (data = { items:[...] , ... })
    ========================================================================= */
+/* Phase 54 — apply the saved light/dark theme synchronously (before the body
+   paints, so there is no flash), and mount a floating theme toggle on every page. */
+(function () {
+  try { var t = localStorage.getItem("bp_theme"); if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
+  function mountToggle() {
+    if (document.getElementById("bpThemeToggle") || !document.body) return;
+    var b = document.createElement("button");
+    b.id = "bpThemeToggle"; b.className = "bp-theme-toggle"; b.type = "button"; b.title = "Toggle light / dark";
+    var sync = function () { b.textContent = (document.documentElement.getAttribute("data-theme") === "dark") ? "☀" : "☾"; };
+    sync();
+    b.addEventListener("click", function () {
+      var d = (document.documentElement.getAttribute("data-theme") === "dark") ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", d);
+      try { localStorage.setItem("bp_theme", d); } catch (e) {}
+      sync();
+    });
+    document.body.appendChild(b);
+  }
+  if (document.readyState !== "loading") mountToggle(); else document.addEventListener("DOMContentLoaded", mountToggle);
+})();
+
 (function (global) {
   const CFG = global.SUPABASE_CONFIG || {};
   const TABLE = CFG.table || "layouts";

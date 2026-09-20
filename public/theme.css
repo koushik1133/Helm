@@ -1,0 +1,87 @@
+/* ============================================================================
+   Blueprint Stage — shared polish layer (Phase 54)
+   Loaded on every page AFTER each page's own inline <style>, so it layers
+   refinements + dark mode on top of the existing per-page tokens. Uses higher-
+   specificity selectors (html[...]) so dark tokens win over inline :root values.
+   ============================================================================ */
+
+/* ---- micro-interactions & focus (light + dark) ---- */
+.btn, button, .rtab, .tab, .chip, a.btn {
+  transition: transform .08s ease, box-shadow .16s ease, border-color .16s ease, background-color .16s ease, color .16s ease;
+}
+.btn:active, button:active:not(:disabled) { transform: translateY(1px); }
+input, select, textarea { transition: border-color .14s ease, box-shadow .14s ease, background-color .16s ease; }
+
+/* keyboard focus ring everywhere (accessibility) */
+a:focus-visible, button:focus-visible, .btn:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px;
+}
+
+/* module cards on the workspace lift slightly on hover */
+.mod { transition: box-shadow .2s ease, transform .2s ease, border-color .16s ease; }
+.mod:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(20,27,46,.12); }
+
+/* gentle fade-in for the main content area */
+@media (prefers-reduced-motion: no-preference) {
+  #app:not([hidden]), #content:not([hidden]) { animation: bpFade .25s ease both; }
+  @keyframes bpFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+}
+
+/* nicer, quieter scrollbars */
+* { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: var(--ink-3); background-clip: content-box; }
+
+/* ---- floating theme toggle (injected by store-api.js) ---- */
+.bp-theme-toggle {
+  position: fixed; right: 16px; bottom: 16px; z-index: 200;
+  width: 42px; height: 42px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+  font-size: 18px; line-height: 1; cursor: pointer;
+  box-shadow: 0 4px 14px rgba(20,27,46,.18); display: grid; place-items: center;
+  transition: transform .12s ease, box-shadow .16s ease, background-color .16s ease;
+}
+.bp-theme-toggle:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 8px 22px rgba(20,27,46,.24); }
+.bp-theme-toggle:active { transform: translateY(0) scale(.98); }
+@media print { .bp-theme-toggle { display: none !important; } }
+
+/* ============================================================================
+   DARK MODE — token overrides. html[data-theme="dark"] beats each page's inline
+   :root, so the primary surfaces (bg / panels / text / lines / accent) all flip.
+   ============================================================================ */
+html[data-theme="dark"] {
+  --bg: #131019; --panel: #1b1826; --panel-2: #221f30;
+  --ink: #f3f1fa; --ink-2: #c6c2d6; --ink-3: #928da6;
+  --line: #302c40; --line-2: #272334;
+  --accent: #a78bfa; --accent-2: #818cf8; --accent-soft: #2b2545;
+  --safe: #34d399; --warn: #fbbf24; --gold: #fbbf24; --bad: #f87171;
+  --shadow: 0 1px 2px rgba(0,0,0,.45), 0 14px 36px rgba(0,0,0,.55);
+  color-scheme: dark;
+}
+/* replace any light page background (incl. radial-gradient heroes) with a calm dark wash */
+html[data-theme="dark"] body {
+  background:
+    radial-gradient(1000px 520px at 88% -14%, #241b3a 0%, transparent 55%),
+    radial-gradient(760px 440px at -8% 0%, #2a1e2b 0%, transparent 52%),
+    var(--bg) !important;
+  color: var(--ink);
+}
+/* common hardcoded white surfaces → panel */
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .mod,
+html[data-theme="dark"] .lsheet,
+html[data-theme="dark"] .sheet,
+html[data-theme="dark"] .usheet,
+html[data-theme="dark"] .kpi { background: var(--panel); }
+/* muted table header / zebra surfaces that used panel-2 stay fine; force common ones */
+html[data-theme="dark"] thead th { background: var(--panel-2); }
+/* inputs on dark */
+html[data-theme="dark"] input,
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea { background: var(--panel-2); color: var(--ink); }
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder { color: var(--ink-3); }
+/* the login split panel keeps its gradient; just ensure the form side reads dark */
+html[data-theme="dark"] .formpane { background: var(--bg); }
