@@ -303,6 +303,14 @@
       currentUser = data.user; roleCache = null; accessCache = null; authRequired = false;
       return currentUser;
     },
+    // Phase 58 — self-serve sign-up (studio created via create_studio once a session exists)
+    async signUp(email, password) {
+      if (!supa) throw new Error("Supabase not configured");
+      const { data, error } = await supa.auth.signUp({ email, password });
+      if (error) throw error;
+      if (data.session) { currentUser = data.user; roleCache = null; accessCache = null; authRequired = false; }
+      return { user: data.user, session: data.session };   // session null when email confirmation is required
+    },
     async signOut() { if (supa) await supa.auth.signOut(); currentUser = null; roleCache = null; accessCache = null;
       if (mode === "supabase") authRequired = true; },
     onChange(cb) { if (supa) supa.auth.onAuthStateChange((_e, session) => {
@@ -1060,6 +1068,18 @@
     add: (quoteId, dishId) => rpc("add_event_dish", { p_quote: quoteId, p_dish: dishId }),
     remove: (id) => rpc("remove_event_dish", { p_id: id }),
     setQty: (id, qty) => rpc("set_event_dish_qty", { p_id: id, p_qty: (qty === "" || qty == null) ? null : Number(qty) }),
+  };
+
+  /* ---------------- organization / studio (Phase 58) ---------------- */
+  const org = {
+    async id() { if (!supa) return null; const { data } = await supa.rpc("current_org_id"); return data || null; },
+    async current() { if (!supa) return null;
+      const { data, error } = await supa.from("organizations").select("*").eq("id", (await this.id())).maybeSingle();
+      if (error) throw error; return data; },
+    async save(patch) { if (!supa) throw new Error("Supabase not configured");
+      const { error } = await supa.from("organizations").update(patch).eq("id", (await this.id())); if (error) throw error; return true; },
+    createStudio: (name, opts) => rpc("create_studio", { p_name: name, p_email: (opts && opts.email) || null,
+      p_currency: (opts && opts.currency) || "INR", p_timezone: (opts && opts.timezone) || "Asia/Kolkata" }),
   };
 
   /* ---------------- resource needs + capability check (Phase 8) ---------------- */
@@ -1912,7 +1932,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, org, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

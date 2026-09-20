@@ -79,7 +79,7 @@
   .lsheet input{width:100%;margin-bottom:12px}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
 </style>
-<link rel="stylesheet" href="theme.css?v=68">
+<link rel="stylesheet" href="theme.css?v=69">
 </head>
 <body>
 <div class="wrap">
@@ -103,6 +103,21 @@
 
     <!-- ============ PRICING PANE ============ -->
     <div id="pane-pricing">
+    <div class="card">
+      <h3>Organization / studio</h3>
+      <div id="orgMsg"></div>
+      <div class="grid">
+        <div class="fld"><label>Studio / business name</label><input id="o_name" placeholder="e.g. Aurora Events"></div>
+        <div class="fld"><label>Business email</label><input id="o_email" type="email" placeholder="hello@studio.com"></div>
+        <div class="fld"><label>Logo URL</label><input id="o_logo" placeholder="https://…/logo.png"></div>
+        <div class="fld"><label>Accent colour</label><input id="o_accent" placeholder="#6d28d9"></div>
+        <div class="fld"><label>Currency</label><input id="o_currency" placeholder="INR"></div>
+        <div class="fld"><label>Timezone</label><input id="o_tz" placeholder="Asia/Kolkata"></div>
+        <div class="fld"><label>GSTIN</label><input id="o_gst" placeholder="22AAAAA0000A1Z5"></div>
+      </div>
+      <div class="actions"><button class="btn primary" id="o_save">Save studio settings</button></div>
+    </div>
+
     <div class="card">
       <h3>Default pricing (applies to every new quote)</h3>
       <div class="grid">
@@ -211,8 +226,8 @@
   </form>
 </div>
 
-<script src="config.js?v=68"></script>
-<script src="store-api.js?v=68"></script>
+<script src="config.js?v=69"></script>
+<script src="store-api.js?v=69"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -239,7 +254,7 @@
       $("#p_chair").value=p.chairPrice??200; $("#p_plate").value=p.platePrice??500; $("#p_gst").value=p.gstPct??18;
       $("#p_cgst").value=p.cateringGstPct??18; $("#p_svc").value=p.serviceChargePct??0;
     }catch(e){ setMsg("err","Run control-center.sql to enable the Control Center. ("+((e&&e.message)||"")+")"); }
-    await renderVendors(); await renderCoupons(); await renderChairs(); await renderPlates(); await renderDishes();
+    await renderVendors(); await renderCoupons(); await renderChairs(); await renderPlates(); await renderDishes(); await renderOrg();
     // Only admins get the User-control tab (add/remove users + access matrix).
     if(isAdmin){
       $("#tab-users").hidden=false;
@@ -304,6 +319,22 @@
     const name=$("#pl_name").value.trim(); if(name.length<2){ setMsg("err","Enter a plate type name."); return; }
     try{ await BPStore.plateTypes.add(name,+$("#pl_price").value||0); $("#pl_name").value="";$("#pl_price").value=""; renderPlates(); setMsg("ok","Plate type added."); }
     catch(e){ setMsg("err",(e&&e.message)||"Couldn't add plate type"); }
+  });
+
+  async function renderOrg(){
+    let o=null; try{ o=await BPStore.org.current(); }catch{}
+    if(!o){ $("#orgMsg").innerHTML='<div class="msg" style="color:var(--ink-3)">Run the multi-tenant SQL (phase56) to enable studio settings.</div>'; return; }
+    const b=o.brand||{};
+    $("#o_name").value=o.name||""; $("#o_email").value=o.business_email||""; $("#o_logo").value=b.logo||"";
+    $("#o_accent").value=b.accent||""; $("#o_currency").value=o.currency||""; $("#o_tz").value=o.timezone||""; $("#o_gst").value=o.gst_number||"";
+  }
+  $("#o_save").addEventListener("click",async()=>{
+    const patch={ name:$("#o_name").value.trim()||null, business_email:$("#o_email").value.trim()||null,
+      currency:$("#o_currency").value.trim()||"INR", timezone:$("#o_tz").value.trim()||"Asia/Kolkata",
+      gst_number:$("#o_gst").value.trim()||null,
+      brand:{ logo:$("#o_logo").value.trim()||null, accent:$("#o_accent").value.trim()||null } };
+    try{ await BPStore.org.save(patch); $("#orgMsg").innerHTML='<div class="msg ok">Studio settings saved.</div>'; setTimeout(()=>$("#orgMsg").innerHTML="",2500); }
+    catch(e){ $("#orgMsg").innerHTML='<div class="msg err">'+esc((e&&e.message)||"Couldn't save")+'</div>'; }
   });
 
   let dishCache=[];

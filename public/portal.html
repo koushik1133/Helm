@@ -45,11 +45,11 @@
   footer{text-align:center;color:var(--ink-3);font-size:11px;margin-top:10px}
   .loading,.bad{text-align:center;padding:60px 20px;color:var(--ink-3)}
 </style>
-<link rel="stylesheet" href="theme.css?v=68">
+<link rel="stylesheet" href="theme.css?v=69">
 </head>
 <body>
 <div class="wrap">
-  <header><div class="mark"></div><div><b>Blueprint Stage</b><small>Your event portal</small></div></header>
+  <header><div class="mark" id="brandMark"></div><div><b id="brandName">Blueprint Stage</b><small>Your event portal</small></div></header>
 
   <div id="loading" class="card loading">Loading your event…</div>
   <div id="bad" class="card bad" hidden><h1 style="color:var(--ink);font-size:20px">Link not found</h1><p>This portal link is invalid or expired. Please ask your event planner for a new one.</p></div>
@@ -88,8 +88,8 @@
   <footer>Blueprint Stage · this page shows only your event.</footer>
 </div>
 
-<script src="config.js?v=68"></script>
-<script src="store-api.js?v=68"></script>
+<script src="config.js?v=69"></script>
+<script src="store-api.js?v=69"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -107,6 +107,9 @@
   }
   function render(d){
     const e=d.event||{};
+    // studio branding (multi-tenant): show the studio's name/accent to the client
+    if(d.studio){ if(d.studio.name) $("#brandName").textContent=d.studio.name;
+      const ac=d.studio.brand&&d.studio.brand.accent; if(ac){ try{ document.documentElement.style.setProperty("--accent",ac); }catch{} } }
     $("#code").textContent=e.code||"";
     $("#title").textContent=e.title||e.code||"Your event";
     $("#when").textContent=[e.event_type, fmtWhen(e.event_date,e.event_time)].filter(Boolean).join(" · ")||"Date to be confirmed";

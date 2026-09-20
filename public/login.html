@@ -45,8 +45,12 @@
   .btn:disabled{opacity:.6;cursor:default}
   .err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:16px}
   .foot{margin-top:18px;font-size:12px;color:var(--ink-3);text-align:center}
+  .modetabs{display:flex;gap:6px;margin-bottom:16px;background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:4px}
+  .mtab{flex:1;border:0;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink-3);padding:9px;border-radius:8px;cursor:pointer}
+  .mtab.on{background:var(--panel);color:var(--accent);box-shadow:var(--shadow)}
+  .okmsg{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca;border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:16px}
 </style>
-<link rel="stylesheet" href="theme.css?v=68">
+<link rel="stylesheet" href="theme.css?v=69">
 </head>
 <body>
   <section class="brandpane">
@@ -65,9 +69,18 @@
   <section class="formpane">
     <form class="card" id="loginForm">
       <div class="mmk"></div>
-      <h3>Welcome back</h3>
-      <p class="sub">Sign in with the account your studio admin created for you.</p>
+      <div class="modetabs">
+        <button type="button" class="mtab on" data-mode="signin">Sign in</button>
+        <button type="button" class="mtab" data-mode="signup">Create studio</button>
+      </div>
+      <h3 id="formTitle">Welcome back</h3>
+      <p class="sub" id="formSub">Sign in with the account your studio admin created for you.</p>
       <div class="err" id="err" hidden></div>
+      <div class="okmsg" id="okmsg" hidden></div>
+      <div id="studioField" hidden>
+        <label for="studio">Studio / business name</label>
+        <input id="studio" placeholder="e.g. Aurora Events">
+      </div>
       <label for="email">Email</label>
       <input id="email" type="email" autocomplete="username" placeholder="you@studio.com" required>
       <label for="pw">Password</label>
@@ -77,23 +90,61 @@
     </form>
   </section>
 
-<script src="config.js?v=68"></script>
-<script src="store-api.js?v=68"></script>
+<script src="config.js?v=69"></script>
+<script src="store-api.js?v=69"></script>
 <script>
   const $=(s)=>document.querySelector(s);
+  const PENDING="bp_pending_studio";
   const nextUrl=()=>{ const n=new URLSearchParams(location.search).get("next"); return (n && /^[a-zA-Z0-9_\-]+\.html/.test(n)) ? n : "index.html"; };
+  let mode="signin";
+  function setMode(m){ mode=m; $("#err").hidden=true; $("#okmsg").hidden=true;
+    document.querySelectorAll(".mtab").forEach(b=>b.classList.toggle("on",b.dataset.mode===m));
+    $("#studioField").hidden = m!=="signin" ? false : true;
+    $("#formTitle").textContent = m==="signup" ? "Create your studio" : "Welcome back";
+    $("#formSub").textContent = m==="signup" ? "Start a fresh workspace, pre-loaded with default templates and catalogs." : "Sign in with the account your studio admin created for you.";
+    $("#submit").textContent = m==="signup" ? "Create studio →" : "Sign in →";
+    $("#pw").setAttribute("autocomplete", m==="signup" ? "new-password" : "current-password");
+  }
+  document.querySelectorAll(".mtab").forEach(b=>b.addEventListener("click",()=>setMode(b.dataset.mode)));
+
+  // if signed in but no studio yet (just confirmed email), finish creating the pending studio
+  async function finishPendingStudio(){
+    try{ const oid=await BPStore.org.id(); if(oid) return;
+      const name=localStorage.getItem(PENDING); if(!name) return;
+      await BPStore.org.createStudio(name,{email:(BPStore.auth.user()||{}).email}); localStorage.removeItem(PENDING);
+    }catch(e){}
+  }
   (async ()=>{
     await BPStore.init();
-    // if the app isn't in Supabase mode, or already signed in, go straight in
-    if(!BPStore.auth.enabled() || BPStore.auth.user()){ location.replace(nextUrl()); return; }
+    if(!BPStore.auth.enabled()){ location.replace(nextUrl()); return; }
+    if(BPStore.auth.user()){ await finishPendingStudio(); location.replace(nextUrl()); return; }
     setTimeout(()=>$("#email").focus(),60);
   })();
+
   $("#loginForm").addEventListener("submit", async (e)=>{
     e.preventDefault();
-    const btn=$("#submit"); btn.disabled=true; btn.textContent="Signing in…"; $("#err").hidden=true;
-    try{ await BPStore.auth.signIn($("#email").value.trim(), $("#pw").value); location.replace(nextUrl()); }
-    catch(err){ $("#err").textContent=(err&&err.message)||"Sign-in failed. Check your email and password."; $("#err").hidden=false;
-      btn.disabled=false; btn.textContent="Sign in →"; }
+    const btn=$("#submit"); const email=$("#email").value.trim(), pw=$("#pw").value;
+    $("#err").hidden=true; $("#okmsg").hidden=true; btn.disabled=true;
+    try{
+      if(mode==="signup"){
+        const studio=$("#studio").value.trim();
+        if(studio.length<2){ throw new Error("Enter your studio / business name."); }
+        btn.textContent="Creating…";
+        const r=await BPStore.auth.signUp(email, pw);
+        if(r.session){ await BPStore.org.createStudio(studio,{email}); location.replace(nextUrl()); return; }
+        // email confirmation required → save the name, finish after they confirm + sign in
+        localStorage.setItem(PENDING, studio);
+        $("#okmsg").textContent="Studio saved. Check your email to confirm your address, then sign in here to finish setup.";
+        $("#okmsg").hidden=false; setMode("signin"); btn.disabled=false; return;
+      }
+      btn.textContent="Signing in…";
+      await BPStore.auth.signIn(email, pw);
+      await finishPendingStudio();
+      location.replace(nextUrl());
+    }catch(err){
+      $("#err").textContent=(err&&err.message)||(mode==="signup"?"Couldn't create the studio.":"Sign-in failed. Check your email and password.");
+      $("#err").hidden=false; btn.disabled=false; btn.textContent = mode==="signup" ? "Create studio →" : "Sign in →";
+    }
   });
 </script>
 </body>
