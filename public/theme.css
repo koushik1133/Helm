@@ -5,6 +5,22 @@
    specificity selectors (html[...]) so dark tokens win over inline :root values.
    ============================================================================ */
 
+/* ---- responsive safety net (Phase 54 QA) ----
+   Media never overflows its container, and wide data tables scroll inside their
+   card on narrow screens instead of stretching the whole page sideways. */
+img, svg, video, canvas { max-width: 100%; }
+@media (max-width: 720px) {
+  /* a wide data table scrolls sideways inside its card instead of stretching the
+     whole page; the card is a normal block box so this reliably contains it */
+  .card { overflow-x: auto; }
+  /* the page header (logo · nav · account chip) is a no-wrap flex row; on a phone
+     the account email + nav links push it past the viewport. Let it wrap. */
+  header { flex-wrap: wrap; row-gap: 8px; }
+  header .nav { flex-wrap: wrap; margin-left: 0; }
+  .account { flex-wrap: wrap; max-width: 100%; }
+  .account span { overflow: hidden; text-overflow: ellipsis; max-width: 60vw; }
+}
+
 /* ---- micro-interactions & focus (light + dark) ---- */
 .btn, button, .rtab, .tab, .chip, a.btn {
   transition: transform .08s ease, box-shadow .16s ease, border-color .16s ease, background-color .16s ease, color .16s ease;
