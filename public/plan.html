@@ -51,7 +51,7 @@
   .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,96vw);padding:24px}
   .sheet h3{margin:0 0 12px}.foot2{display:flex;gap:10px;justify-content:flex-end}
 </style>
-<link rel="stylesheet" href="theme.css?v=67">
+<link rel="stylesheet" href="theme.css?v=68">
 </head>
 <body>
 <div class="wrap">
@@ -85,7 +85,17 @@
       <h2>🍽 Menu &amp; package <span id="lockBadge" class="lockbadge off" hidden>Draft</span></h2>
       <p class="sub">Once agreed with the client, lock it — later changes should go through a change order.</p>
       <div class="fld"><label>Package</label><input id="p_pkg" placeholder="e.g. Gold package — 400 pax"></div>
-      <div class="fld"><label>Menu / service details</label><textarea id="p_menu" placeholder="Courses, dietary options, service style, timings…" style="min-height:110px"></textarea></div>
+      <div class="fld"><label>Menu / service details (notes)</label><textarea id="p_menu" placeholder="Courses, dietary options, service style, timings…" style="min-height:90px"></textarea></div>
+
+      <div id="dishBlock" style="margin-top:6px;border-top:1px solid var(--line);padding-top:14px">
+        <label style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)">Dishes — search &amp; add</label>
+        <div id="dishAdd" style="position:relative;margin:6px 0 4px">
+          <input id="dishSearch" placeholder="Search dishes — e.g. paneer, biryani, dosa, chicken…" autocomplete="off" style="width:100%">
+          <div id="dishResults" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:20;max-height:260px;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)"></div>
+        </div>
+        <div id="selDishes" style="margin-top:8px"></div>
+      </div>
+
       <div class="foot"><span id="p_msg"></span>
         <button class="btn" id="lockBtn" hidden>🔒 Lock menu</button>
         <button class="btn primary" id="p_save" hidden>Save menu</button>
@@ -121,13 +131,14 @@
   </div>
 </div>
 
-<script src="config.js?v=67"></script>
-<script src="store-api.js?v=67"></script>
+<script src="config.js?v=68"></script>
+<script src="store-api.js?v=68"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
-  let canEdit=false, locked=false, ev=null;
+  let canEdit=false, locked=false, ev=null, catalog=[], menuItems=[];
+  const KIND_BADGE={veg:'<span style="color:#0f7a43">● veg</span>',nonveg:'<span style="color:#b42318">● non-veg</span>',special:'<span style="color:#7c3aed">★ special</span>'};
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
@@ -139,6 +150,47 @@
     $("#p_pkg").disabled = locked || !canEdit; $("#p_menu").disabled = locked || !canEdit;
     $("#lockBadge").hidden=false; $("#lockBadge").className="lockbadge "+(locked?"on":"off"); $("#lockBadge").textContent=locked?"🔒 Locked":"Draft";
     if(canEdit){ $("#lockBtn").hidden=false; $("#lockBtn").textContent = locked?"🔓 Unlock":"🔒 Lock menu"; $("#p_save").hidden=locked; }
+    const editable = canEdit && !locked;
+    $("#dishAdd").style.display = editable ? "" : "none";
+    if(!editable) hideResults();
+    renderSelected();
+  }
+  const dishEditable=()=>canEdit && !locked;
+  function hideResults(){ const r=$("#dishResults"); r.style.display="none"; r.innerHTML=""; }
+  function renderResults(term){
+    const r=$("#dishResults"); term=(term||"").trim().toLowerCase();
+    if(!term){ hideResults(); return; }
+    const chosen=new Set(menuItems.map(m=>m.dish_id));
+    const hits=catalog.filter(d=>!chosen.has(d.id) && (d.name+" "+d.category).toLowerCase().includes(term)).slice(0,40);
+    if(!hits.length){ r.style.display="block"; r.innerHTML='<div style="padding:12px;color:var(--ink-3);font-size:13px">No dishes match — you can also type notes above.</div>'; return; }
+    r.style.display="block";
+    r.innerHTML=hits.map(d=>`<button type="button" class="dishopt" data-id="${esc(d.id)}" style="display:flex;width:100%;gap:8px;align-items:center;text-align:left;border:0;border-bottom:1px solid var(--line-2);background:transparent;padding:9px 12px;cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink)">
+      <span style="flex:1">${esc(d.name)} <span style="color:var(--ink-3);font-size:11px">· ${esc(d.category)}</span></span>
+      <span style="font-size:11px">${KIND_BADGE[d.kind]||""}</span><span style="color:var(--accent);font-weight:700">+ Add</span></button>`).join("");
+    r.querySelectorAll(".dishopt").forEach(b=>b.addEventListener("click",()=>addDish(b.dataset.id)));
+  }
+  async function addDish(dishId){
+    try{ await BPStore.eventMenu.add(id, dishId); menuItems=await BPStore.eventMenu.list(id);
+      $("#dishSearch").value=""; hideResults(); renderSelected(); $("#dishSearch").focus(); }
+    catch(e){ alert("Couldn't add dish — "+((e&&e.message)||"error")); }
+  }
+  function renderSelected(){
+    const host=$("#selDishes"); const editable=dishEditable();
+    if(!menuItems.length){ host.innerHTML='<div class="muted" style="font-size:12px">No dishes selected yet'+(editable?" — search above to add.":".")+'</div>'; return; }
+    // group by category
+    const byCat={}; menuItems.forEach(m=>{ (byCat[m.category||"Other"]=byCat[m.category||"Other"]||[]).push(m); });
+    host.innerHTML=Object.entries(byCat).map(([cat,items])=>`
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin:10px 0 4px">${esc(cat)}</div>
+      ${items.map(m=>`<div class="seldish" data-id="${esc(m.id)}" style="display:flex;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--line-2);font-size:13px">
+        <span style="flex:1">${esc(m.dish_name)} <span style="font-size:11px">${KIND_BADGE[m.kind]||""}</span></span>
+        <input class="qtyin" type="number" min="0" step="1" placeholder="qty" value="${m.qty!=null?esc(m.qty):""}" ${editable?"":"disabled"} style="width:74px;height:30px">
+        ${editable?`<button type="button" class="rmdish" title="Remove" style="border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:16px;padding:2px 6px">×</button>`:""}
+      </div>`).join("")}`).join("");
+    host.querySelectorAll(".seldish").forEach(row=>{
+      const mid=row.dataset.id;
+      const q=row.querySelector(".qtyin"); if(q) q.addEventListener("change",async()=>{ try{ await BPStore.eventMenu.setQty(mid, q.value); }catch(e){ alert("Couldn't save quantity — "+((e&&e.message)||"error")); } });
+      const rm=row.querySelector(".rmdish"); if(rm) rm.addEventListener("click",async()=>{ try{ await BPStore.eventMenu.remove(mid); menuItems=await BPStore.eventMenu.list(id); renderSelected(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } });
+    });
   }
 
   async function saveVenue(){
@@ -182,12 +234,17 @@
   $("#lock_cancel").addEventListener("click",()=>$("#lockModal").hidden=true);
   $("#lock_ok").addEventListener("click",()=>doLock(true));
   $("#lockModal").addEventListener("click",e=>{ if(e.target.id==="lockModal") $("#lockModal").hidden=true; });
+  $("#dishSearch").addEventListener("input",e=>renderResults(e.target.value));
+  $("#dishSearch").addEventListener("focus",e=>{ if(e.target.value.trim()) renderResults(e.target.value); });
+  document.addEventListener("click",e=>{ if(!e.target.closest("#dishAdd")) hideResults(); });
 
   async function load(){
     try{ const p=await BPStore.plan.get(id); if(p){
       $("#v_name").value=p.venue_name||""; $("#v_addr").value=p.venue_address||""; $("#v_contact").value=p.venue_contact||""; $("#v_access").value=p.access_notes||"";
       $("#p_pkg").value=p.package||""; $("#p_menu").value=p.menu||""; locked=!!p.menu_locked; } }
     catch(e){ if(String(e&&e.message).includes("event_plan")){ $("#v_msg").className="err"; $("#v_msg").textContent="Run phase13-plan.sql to enable saving."; } }
+    try{ catalog=await BPStore.dishCatalog.list(); }catch{ catalog=[]; }
+    try{ menuItems=await BPStore.eventMenu.list(id); }catch{ menuItems=[]; }
     applyLock();
   }
   (async ()=>{

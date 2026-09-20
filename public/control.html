@@ -79,7 +79,7 @@
   .lsheet input{width:100%;margin-bottom:12px}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
 </style>
-<link rel="stylesheet" href="theme.css?v=67">
+<link rel="stylesheet" href="theme.css?v=68">
 </head>
 <body>
 <div class="wrap">
@@ -156,6 +156,19 @@
         <button class="btn" id="pl_add">+ Add plate type</button>
       </div>
     </div>
+
+    <div class="card">
+      <h3>Dishes catalog (menu)</h3>
+      <p class="mnote" style="margin:-6px 0 10px">The dishes staff can search &amp; add to an event's menu. Add your studio's specialities here.</p>
+      <input id="dishFilter" placeholder="Filter dishes…" style="width:100%;margin-bottom:10px">
+      <div id="dishList" style="max-height:320px;overflow:auto"></div>
+      <div class="addrow" style="grid-template-columns:1.2fr 1.4fr .9fr auto">
+        <input id="dc_cat" placeholder="Category e.g. Starters (veg)">
+        <input id="dc_name" placeholder="Dish name">
+        <select id="dc_kind"><option value="veg">Veg</option><option value="nonveg">Non-veg</option><option value="special">Special</option></select>
+        <button class="btn" id="dc_add">+ Add dish</button>
+      </div>
+    </div>
     </div><!-- /pane-pricing -->
 
     <!-- ============ USER CONTROL PANE (admin only) ============ -->
@@ -198,8 +211,8 @@
   </form>
 </div>
 
-<script src="config.js?v=67"></script>
-<script src="store-api.js?v=67"></script>
+<script src="config.js?v=68"></script>
+<script src="store-api.js?v=68"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -226,7 +239,7 @@
       $("#p_chair").value=p.chairPrice??200; $("#p_plate").value=p.platePrice??500; $("#p_gst").value=p.gstPct??18;
       $("#p_cgst").value=p.cateringGstPct??18; $("#p_svc").value=p.serviceChargePct??0;
     }catch(e){ setMsg("err","Run control-center.sql to enable the Control Center. ("+((e&&e.message)||"")+")"); }
-    await renderVendors(); await renderCoupons(); await renderChairs(); await renderPlates();
+    await renderVendors(); await renderCoupons(); await renderChairs(); await renderPlates(); await renderDishes();
     // Only admins get the User-control tab (add/remove users + access matrix).
     if(isAdmin){
       $("#tab-users").hidden=false;
@@ -291,6 +304,27 @@
     const name=$("#pl_name").value.trim(); if(name.length<2){ setMsg("err","Enter a plate type name."); return; }
     try{ await BPStore.plateTypes.add(name,+$("#pl_price").value||0); $("#pl_name").value="";$("#pl_price").value=""; renderPlates(); setMsg("ok","Plate type added."); }
     catch(e){ setMsg("err",(e&&e.message)||"Couldn't add plate type"); }
+  });
+
+  let dishCache=[];
+  const KINDLBL={veg:'<span style="color:#0f7a43">veg</span>',nonveg:'<span style="color:#b42318">non-veg</span>',special:'<span style="color:#7c3aed">special</span>'};
+  async function renderDishes(){
+    try{ dishCache=await BPStore.dishCatalog.list(); }catch{ dishCache=[]; }
+    drawDishes();
+  }
+  function drawDishes(){
+    const term=($("#dishFilter").value||"").trim().toLowerCase();
+    const list=dishCache.filter(d=>!term || (d.name+" "+d.category).toLowerCase().includes(term));
+    $("#dishList").innerHTML = list.length ? list.map(x=>`<div class="row"><span class="g">${esc(x.name)} <span style="font-size:11px">· ${KINDLBL[x.kind]||""}</span></span><span class="mono" style="font-size:11px">${esc(x.category)}</span><button class="rm" data-id="${x.id}">Remove</button></div>`).join("")
+      : `<div class="row" style="color:var(--ink-3)">${dishCache.length?"No dishes match.":"No dishes yet — run phase55-dish-catalog.sql or add below."}</div>`;
+    $("#dishList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.dishCatalog.remove(b.dataset.id); renderDishes(); }));
+  }
+  $("#dishFilter").addEventListener("input",drawDishes);
+  $("#dc_add").addEventListener("click",async()=>{
+    const cat=$("#dc_cat").value.trim(), name=$("#dc_name").value.trim();
+    if(cat.length<2||name.length<2){ setMsg("err","Enter a category and dish name."); return; }
+    try{ await BPStore.dishCatalog.add(cat,name,$("#dc_kind").value); $("#dc_name").value=""; renderDishes(); setMsg("ok","Dish added."); }
+    catch(e){ setMsg("err",(e&&e.message)||"Couldn't add dish"); }
   });
 
   /* ---------------- USER CONTROL: team members ---------------- */

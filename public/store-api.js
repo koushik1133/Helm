@@ -1035,6 +1035,33 @@
     },
   };
 
+  /* ---------------- dish catalog + per-event menu (Phase 55) ---------------- */
+  const dishCatalog = {
+    async list(includeInactive) {
+      if (mode !== "supabase") return readLs("bp_dish_catalog");
+      let q = supa.from("dish_catalog").select("*").order("category").order("name");
+      if (!includeInactive) q = q.eq("active", true);
+      const { data, error } = await q; if (error) throw error; return data;
+    },
+    async add(category, name, kind) {
+      if (mode !== "supabase") { const a = readLs("bp_dish_catalog"); const r = { id: uid(), category, name, kind: kind || "veg", active: true }; a.push(r); localStorage.setItem("bp_dish_catalog", JSON.stringify(a)); return r; }
+      const { data, error } = await supa.from("dish_catalog").insert({ category, name, kind: kind || "veg" }).select().single(); if (error) throw error; return data;
+    },
+    async remove(id) {
+      if (mode !== "supabase") { localStorage.setItem("bp_dish_catalog", JSON.stringify(readLs("bp_dish_catalog").filter((c) => c.id !== id))); return true; }
+      const { error } = await supa.from("dish_catalog").update({ active: false }).eq("id", id); if (error) throw error; return true;
+    },
+  };
+  const eventMenu = {
+    async list(quoteId) {
+      if (mode !== "supabase") return readLs("bp_event_menu").filter((x) => x.quote_id === quoteId);
+      const { data, error } = await supa.from("event_menu_items").select("*").eq("quote_id", quoteId).order("seq"); if (error) throw error; return data;
+    },
+    add: (quoteId, dishId) => rpc("add_event_dish", { p_quote: quoteId, p_dish: dishId }),
+    remove: (id) => rpc("remove_event_dish", { p_id: id }),
+    setQty: (id, qty) => rpc("set_event_dish_qty", { p_id: id, p_qty: (qty === "" || qty == null) ? null : Number(qty) }),
+  };
+
   /* ---------------- resource needs + capability check (Phase 8) ---------------- */
   const NEED_LS = "bp_resource_needs";
   const resources = {
@@ -1885,7 +1912,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),
