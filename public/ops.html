@@ -75,7 +75,7 @@
   .lsheet input{width:100%;margin-bottom:12px}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
 </style>
-<link rel="stylesheet" href="theme.css?v=62">
+<link rel="stylesheet" href="theme.css?v=64">
 </head>
 <body>
 <div class="wrap">
@@ -149,8 +149,8 @@
   </form>
 </div>
 
-<script src="config.js?v=62"></script>
-<script src="store-api.js?v=62"></script>
+<script src="config.js?v=64"></script>
+<script src="store-api.js?v=64"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -272,7 +272,7 @@
     return `<div class="trow" data-id="${t.id}">
       <span class="cat">${esc(label||"")}</span><span class="tt">${esc(t.title)}</span>
       <span class="st ${t.status}">${STATUS_LABEL[t.status]||t.status}</span>
-      ${t.assignee_kind==='outsourced'?`<span class="qc" style="background:#fff3e0;color:#b45309" title="Outsourced to ${esc(t.assignee_name||'vendor')}">🤝 vendor</span>`:''}
+      ${t.assignee_kind==='outsourced'?`<span class="qc" style="background:var(--accent-soft);color:var(--accent)" title="Outsourced to ${esc(t.assignee_name||'vendor')}">🤝 vendor</span>`:''}
       ${t.is_special?'<span class="gate special" title="Special task — recurring reminder">🔔 special</span>':''}
       ${gateChip(t,byId)}
       ${verifyChip(t)}

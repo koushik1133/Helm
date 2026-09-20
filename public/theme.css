@@ -85,3 +85,29 @@ html[data-theme="dark"] input::placeholder,
 html[data-theme="dark"] textarea::placeholder { color: var(--ink-3); }
 /* the login split panel keeps its gradient; just ensure the form side reads dark */
 html[data-theme="dark"] .formpane { background: var(--bg); }
+
+/* ---- dark-tuned semantic chips / badges / messages ----
+   Light pills (green/blue/amber/red) would glare on a dark page; re-tint them to
+   deep translucent fills with bright text. html[data-theme] descendant selectors
+   out-specify each page's own .class rules, so no !important is needed here. */
+html[data-theme="dark"] .stat.q,
+html[data-theme="dark"] .st.assigned, html[data-theme="dark"] .qc.pend,
+html[data-theme="dark"] .paybadge.invoiced, html[data-theme="dark"] .act.update { background:#26304d; color:#aebcff; }
+html[data-theme="dark"] .stat.ok, html[data-theme="dark"] .st.completed, html[data-theme="dark"] .st.accepted,
+html[data-theme="dark"] .qc.pass, html[data-theme="dark"] .gate.ready,
+html[data-theme="dark"] .paybadge.paid, html[data-theme="dark"] .act.insert,
+html[data-theme="dark"] .msg.ok, html[data-theme="dark"] .lok,
+html[data-theme="dark"] .step.done { background:#12331f; color:#7fe3a8; border-color:#1f5334; }
+html[data-theme="dark"] .stat.no, html[data-theme="dark"] .st.rejected,
+html[data-theme="dark"] .qc.rej, html[data-theme="dark"] .gate.blocked,
+html[data-theme="dark"] .act.delete,
+html[data-theme="dark"] .msg.err, html[data-theme="dark"] .lerr { background:#3a1c1f; color:#ff9ea3; border-color:#5c2a2e; }
+html[data-theme="dark"] .stat.st, html[data-theme="dark"] .st.in_progress,
+html[data-theme="dark"] .gate.scheduled, html[data-theme="dark"] .paybadge.due,
+html[data-theme="dark"] .offline { background:#3a2f14; color:#ffd884; border-color:#5a4a1e; }
+html[data-theme="dark"] .st.unassigned, html[data-theme="dark"] .paybadge.waived { background:#2a2836; color:#b8b3c7; }
+html[data-theme="dark"] .gate.special { background:#2b2545; color:#c9bcff; }
+
+/* the workspace conflict banner is an inline-styled light-red card → force it dark */
+html[data-theme="dark"] #conflictBanner .card { background:#241417 !important; border-color:#5c2a2e !important; }
+
