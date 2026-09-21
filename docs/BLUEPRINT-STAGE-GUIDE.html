@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blueprint Stage — Complete Product Guide</title>
+<style>
+  :root{
+    --ink:#1b1930;--ink-2:#4b475f;--ink-3:#77738a;--line:#e6e2da;--line-2:#f1ede7;
+    --bg:#ffffff;--panel:#faf8f5;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;
+    --safe:#12a150;--warn:#e8912d;--danger:#c0392b;--info:#2563eb;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--ink);font-family:var(--font);line-height:1.62;font-size:15px;background:var(--bg)}
+  .page{max-width:900px;margin:0 auto;padding:44px 40px 80px}
+  h1,h2,h3,h4{line-height:1.2;letter-spacing:-.01em}
+  h1{font-size:34px;margin:0 0 6px}
+  h2{font-size:25px;margin:52px 0 12px;padding-top:14px;border-top:2px solid var(--line)}
+  h3{font-size:19px;margin:28px 0 8px;color:var(--ink)}
+  h4{font-size:15px;margin:18px 0 6px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
+  p{margin:8px 0}
+  a{color:var(--accent-2);text-decoration:none}
+  code{font-family:var(--mono);font-size:.86em;background:var(--accent-soft);color:#4a2ca0;padding:1px 6px;border-radius:5px}
+  pre{background:#1b1930;color:#e8e6f0;border-radius:12px;padding:16px 18px;overflow:auto;font-family:var(--mono);font-size:12.5px;line-height:1.55}
+  pre code{background:none;color:inherit;padding:0}
+  ul,ol{margin:8px 0 8px 4px;padding-left:22px}
+  li{margin:4px 0}
+  .lead{font-size:17px;color:var(--ink-2);margin:10px 0 6px}
+  .cover{padding:70px 0 34px;border-bottom:2px solid var(--line);margin-bottom:8px}
+  .brand{display:flex;align-items:center;gap:14px;margin-bottom:26px}
+  .mark{width:52px;height:52px;border-radius:13px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative}
+  .mark::after{content:"";position:absolute;inset:13px;border:2.5px solid rgba(255,255,255,.92);border-radius:5px}
+  .brand b{font-size:19px;display:block}.brand small{color:var(--ink-3);font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+  .meta{color:var(--ink-3);font-size:13px;margin-top:18px}
+  .pill{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 10px;border-radius:20px;background:var(--accent-soft);color:#4a2ca0;margin:0 4px 4px 0}
+  .toc{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 26px;margin:26px 0}
+  .toc h4{margin-top:0}
+  .toc ol{columns:2;column-gap:34px}
+  .toc a{color:var(--ink-2)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin:16px 0}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
+  .feat{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fff}
+  .feat b{display:block;margin-bottom:3px}
+  .feat .pg{font-family:var(--mono);font-size:11px;color:var(--accent-2)}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+  th{background:var(--panel);font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)}
+  .note{border-left:4px solid var(--info);background:#eff5ff;padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0}
+  .warnbox{border-left:4px solid var(--warn);background:#fff7ec;padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0}
+  .okbox{border-left:4px solid var(--safe);background:#eafaf1;padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0}
+  .step{display:flex;gap:14px;margin:12px 0;align-items:flex-start}
+  .step .n{flex:0 0 30px;height:30px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:14px}
+  .step .b{flex:1}
+  .step .b b{display:block}
+  .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0}
+  .flow .s{background:#fff;border:1.5px solid var(--accent);color:var(--accent);border-radius:10px;padding:7px 12px;font-size:12.5px;font-weight:600}
+  .flow .a{color:var(--ink-3);font-weight:700}
+  figure{margin:18px 0;text-align:center}
+  figcaption{font-size:12px;color:var(--ink-3);margin-top:8px}
+  svg{max-width:100%;height:auto}
+  .kbd{font-family:var(--mono);font-size:12px;background:#fff;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:1px 7px}
+  hr{border:0;border-top:1px solid var(--line);margin:26px 0}
+  @media print{
+    body{font-size:11.5pt}
+    .page{max-width:none;padding:0 8mm}
+    h2{page-break-before:auto;break-inside:avoid}
+    h1,h2,h3,h4{break-after:avoid}
+    .card,.feat,table,figure,pre,.note,.warnbox,.okbox,.step{break-inside:avoid}
+    .toc{break-after:page}
+    a{color:var(--ink)}
+  }
+  @media(max-width:620px){.grid,.toc ol{grid-template-columns:1fr;columns:1}.page{padding:26px 18px 60px}}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ===================== COVER ===================== -->
+<section class="cover">
+  <div class="brand">
+    <div class="mark"></div>
+    <div><b>Blueprint Stage</b><small>Event Operating System</small></div>
+  </div>
+  <h1>Complete Product Guide</h1>
+  <p class="lead">Everything the platform does, how the day-to-day workflow runs end to end, two worked examples, how the new multi-tenant (multi-studio) architecture works, the security posture, and what we could build next.</p>
+  <div style="margin-top:14px">
+    <span class="pill">Multi-tenant</span><span class="pill">RBAC · 11 roles</span><span class="pill">2D + 3D builder</span>
+    <span class="pill">Lead → P&amp;L lifecycle</span><span class="pill">Client portal</span><span class="pill">Audit log</span>
+    <span class="pill">Supabase + RLS</span>
+  </div>
+  <div class="meta">Generated 20 September 2026 · Blueprint Stage / “Helm” · Repository <code>koushik1133/Helm</code></div>
+</section>
+
+<!-- ===================== TOC ===================== -->
+<div class="toc">
+  <h4>Contents</h4>
+  <ol>
+    <li><a href="#overview">What Blueprint Stage is</a></li>
+    <li><a href="#roles">Roles &amp; access control</a></li>
+    <li><a href="#lifecycle">The event lifecycle</a></li>
+    <li><a href="#features">Full feature catalogue</a></li>
+    <li><a href="#walk">Step-by-step: lead → close</a></li>
+    <li><a href="#exampleA">Worked example A — a wedding</a></li>
+    <li><a href="#exampleB">Worked example B — corporate + outsourcing</a></li>
+    <li><a href="#multitenant">How multi-tenant works</a></li>
+    <li><a href="#security">Security posture</a></li>
+    <li><a href="#next">What we could build next</a></li>
+  </ol>
+</div>
+
+<!-- ===================== OVERVIEW ===================== -->
+<h2 id="overview">1 · What Blueprint Stage is</h2>
+<p>Blueprint Stage is an <b>end-to-end event operating system</b> for event studios and agencies. One platform carries an event from the first enquiry all the way to the final profit-and-loss statement — capturing the lead, designing the floor in 2D and 3D, quoting and confirming, planning the menu and tasks, assigning crew and resources, running the event day, and closing the books.</p>
+<p>It is built as a set of focused single-purpose pages backed by a shared data layer (<code>store-api.js</code>) talking to a Supabase (PostgreSQL) backend. Access is governed by row-level security so each role sees exactly what it should — and, as of Block F, each <b>studio</b> is fully isolated from every other studio on the same installation.</p>
+
+<div class="grid">
+  <div class="feat"><b>🎯 Sell</b>Capture leads, nurture them, build proposals, quote, and get client sign-off.</div>
+  <div class="feat"><b>📐 Design</b>Drag-and-drop 2D floor plans, walk them in 3D, 12 templates, auto-priced.</div>
+  <div class="feat"><b>🗂️ Plan</b>Menu &amp; dish catalog, task templates, checklists, milestones, readiness gates.</div>
+  <div class="feat"><b>📦 Operate</b>Crew, staff suggestions, inventory, vendors, logistics, live event-day view.</div>
+  <div class="feat"><b>💳 Settle</b>Budget vs actuals, invoices, settlement, closure with a clean P&amp;L.</div>
+  <div class="feat"><b>🛡️ Govern</b>Per-role access matrix, audit log, insights, reports, in-app notifications.</div>
+</div>
+
+<!-- ===================== ROLES ===================== -->
+<h2 id="roles">2 · Roles &amp; access control (RBAC)</h2>
+<p>Every user belongs to a studio and holds one <b>role</b>. A configurable <b>access matrix</b> (edited in Control Center) decides, for each role, what it can do in each functional <b>area</b> — <i>none</i>, <i>view</i>, or <i>edit</i>. The matrix has <b>11 roles × 26 areas = 286 rules</b>, and it is enforced in the database itself through the <code>has_area(area, need)</code> helper wired into every table's row-level-security policy. The UI simply reflects what the database will allow.</p>
+
+<table>
+  <tr><th>Role</th><th>Typical scope</th></tr>
+  <tr><td><b>Admin</b></td><td>Everything, including the access matrix, pricing config, org settings.</td></tr>
+  <tr><td><b>Planner</b></td><td>Leads → plan → operations; the core producer role.</td></tr>
+  <tr><td><b>Sales</b></td><td>Leads, CRM, proposals, quotes; limited operational view.</td></tr>
+  <tr><td><b>Operations</b></td><td>Resources, inventory, logistics, run-sheet; <b>no</b> finance.</td></tr>
+  <tr><td><b>Crew</b></td><td>Event-day tasks and equipment only (mobile view); no finance, no pricing.</td></tr>
+  <tr><td><b>Client</b></td><td>Their own event only, via the client portal (read-only).</td></tr>
+  <tr><td colspan="2" style="color:var(--ink-3)">…plus finance / vendor / QA-style roles, all matrix-configurable.</td></tr>
+</table>
+
+<div class="note"><b>Why this matters:</b> access is checked at the <i>data layer</i>, not just the screen. Even if someone hit the API directly, Operations and Crew read <b>zero</b> finance rows — verified live during the security pass.</div>
+
+<!-- ===================== LIFECYCLE ===================== -->
+<h2 id="lifecycle">3 · The event lifecycle</h2>
+<p>Every event moves through a fixed sequence of stages. Each stage unlocks the next module and each has an owner. The workspace shows a stepper so anyone can see, at a glance, where an event is.</p>
+
+<figure>
+<svg viewBox="0 0 860 240" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+  <defs>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#6d28d9"/></marker>
+  </defs>
+  <!-- row 1 -->
+  <g font-size="12.5" font-weight="600">
+    <rect x="10" y="20" width="120" height="46" rx="10" fill="#efe9ff" stroke="#6d28d9"/><text x="70" y="41" text-anchor="middle" fill="#4a2ca0">Lead</text><text x="70" y="57" text-anchor="middle" font-size="10" fill="#77738a">capture</text>
+    <line x1="132" y1="43" x2="168" y2="43" stroke="#6d28d9" stroke-width="2" marker-end="url(#ar)"/>
+    <rect x="170" y="20" width="120" height="46" rx="10" fill="#fff" stroke="#6d28d9"/><text x="230" y="41" text-anchor="middle" fill="#4a2ca0">Discovery</text><text x="230" y="57" text-anchor="middle" font-size="10" fill="#77738a">brief &amp; site</text>
+    <line x1="292" y1="43" x2="328" y2="43" stroke="#6d28d9" stroke-width="2" marker-end="url(#ar)"/>
+    <rect x="330" y="20" width="120" height="46" rx="10" fill="#fff" stroke="#6d28d9"/><text x="390" y="41" text-anchor="middle" fill="#4a2ca0">Proposal</text><text x="390" y="57" text-anchor="middle" font-size="10" fill="#77738a">concept</text>
+    <line x1="452" y1="43" x2="488" y2="43" stroke="#6d28d9" stroke-width="2" marker-end="url(#ar)"/>
+    <rect x="490" y="20" width="120" height="46" rx="10" fill="#fff" stroke="#6d28d9"/><text x="550" y="41" text-anchor="middle" fill="#4a2ca0">Quote</text><text x="550" y="57" text-anchor="middle" font-size="10" fill="#77738a">2D/3D + price</text>
+    <line x1="612" y1="43" x2="648" y2="43" stroke="#6d28d9" stroke-width="2" marker-end="url(#ar)"/>
+    <rect x="650" y="20" width="130" height="46" rx="10" fill="#eafaf1" stroke="#12a150"/><text x="715" y="41" text-anchor="middle" fill="#0f7a43">Confirmed</text><text x="715" y="57" text-anchor="middle" font-size="10" fill="#77738a">client approves</text>
+  </g>
+  <!-- down connector -->
+  <line x1="715" y1="66" x2="715" y2="92" stroke="#6d28d9" stroke-width="2"/><line x1="715" y1="92" x2="70" y2="92" stroke="#6d28d9" stroke-width="2"/><line x1="70" y1="92" x2="70" y2="112" stroke="#6d28d9" stroke-width="2" marker-end="url(#ar)"/>
+  <!-- row 2 -->
+  <g font-size="12.5" font-weight="600">
+    <rect x="10" y="116" width="120" height="46" rx="10" fill="#fff" stroke="#6d28d9"/><text x="70" y="137" text-anchor="middle" fill="#4a2ca0">Planning</text><text x="70" y="153" text-anchor="middle" font-size="10" fill="#77738a">menu·tasks</text>
+    <line x1="132" y1="139" x2="168" y2="139" stroke="#6d28d9" stroke-width="2" marker-end="url(#ar)"/>
+    <rect x="170" y="116" width="120" height="46" rx="10" fill="#fff" stroke="#6d28d9"/><text x="230" y="137" text-anchor="middle" fill="#4a2ca0">Resourcing</text><text x="230" y="153" text-anchor="middle" font-size="10" fill="#77738a">crew·kit</text>
+    <line x1="292" y1="139" x2="328" y2="139" stroke="#6d28d9" stroke-width="2" marker-end="url(#ar)"/>
+    <rect x="330" y="116" width="120" height="46" rx="10" fill="#fff7ec" stroke="#e8912d"/><text x="390" y="137" text-anchor="middle" fill="#946200">Ready</text><text x="390" y="153" text-anchor="middle" font-size="10" fill="#77738a">go/no-go</text>
+    <line x1="452" y1="139" x2="488" y2="139" stroke="#6d28d9" stroke-width="2" marker-end="url(#ar)"/>
+    <rect x="490" y="116" width="120" height="46" rx="10" fill="#efe9ff" stroke="#6d28d9"/><text x="550" y="137" text-anchor="middle" fill="#4a2ca0">Event day</text><text x="550" y="153" text-anchor="middle" font-size="10" fill="#77738a">run-sheet·live</text>
+    <line x1="612" y1="139" x2="648" y2="139" stroke="#6d28d9" stroke-width="2" marker-end="url(#ar)"/>
+    <rect x="650" y="116" width="130" height="46" rx="10" fill="#fff" stroke="#6d28d9"/><text x="715" y="137" text-anchor="middle" fill="#4a2ca0">Teardown</text><text x="715" y="153" text-anchor="middle" font-size="10" fill="#77738a">return kit</text>
+  </g>
+  <line x1="715" y1="162" x2="715" y2="186" stroke="#6d28d9" stroke-width="2"/><line x1="715" y1="186" x2="70" y2="186" stroke="#6d28d9" stroke-width="2"/><line x1="70" y1="186" x2="70" y2="200" stroke="#6d28d9" stroke-width="2" marker-end="url(#ar)"/>
+  <g font-size="12.5" font-weight="600">
+    <rect x="10" y="204" width="150" height="30" rx="10" fill="#fff" stroke="#6d28d9"/><text x="85" y="223" text-anchor="middle" fill="#4a2ca0">Settlement</text>
+    <line x1="162" y1="219" x2="198" y2="219" stroke="#6d28d9" stroke-width="2" marker-end="url(#ar)"/>
+    <rect x="200" y="204" width="180" height="30" rx="10" fill="#eafaf1" stroke="#12a150"/><text x="290" y="223" text-anchor="middle" fill="#0f7a43">Closure · final P&amp;L</text>
+  </g>
+</svg>
+<figcaption>The full lifecycle. The dashed handover after “Confirmed” is where sales work becomes production work.</figcaption>
+</figure>
+
+<p>Each stage maps to one or more pages (module hubs), all reachable from the <b>Event Workspace</b> (<code>event.html</code>):</p>
+<table>
+  <tr><th>Stage</th><th>Pages / modules</th><th>Owner</th></tr>
+  <tr><td>Lead</td><td><code>leads.html</code>, <code>crm.html</code>, <code>nurture.html</code></td><td>Sales</td></tr>
+  <tr><td>Discovery</td><td><code>discovery.html</code></td><td>Sales / Planner</td></tr>
+  <tr><td>Proposal</td><td><code>proposal.html</code> → client sees <code>proposal-view.html</code></td><td>Planner</td></tr>
+  <tr><td>Quote</td><td><code>builder.html</code> (2D/3D), <code>quotes.html</code></td><td>Planner</td></tr>
+  <tr><td>Confirmed</td><td><code>approve.html</code> / <code>portal.html</code> (client approval)</td><td>Client</td></tr>
+  <tr><td>Planning</td><td><code>plan.html</code> (menu + dishes), <code>templates.html</code></td><td>Planner</td></tr>
+  <tr><td>Resourcing</td><td><code>ops.html</code>, <code>staff.html</code>, <code>resources.html</code>, <code>inventory.html</code>, <code>vendors.html</code>, <code>logistics.html</code></td><td>Operations</td></tr>
+  <tr><td>Ready</td><td><code>ready.html</code> (readiness gate), <code>calendar.html</code></td><td>Planner</td></tr>
+  <tr><td>Event day</td><td><code>runsheet.html</code>, <code>command.html</code>, <code>work.html</code> (crew mobile), <code>issues.html</code>, <code>media.html</code></td><td>Crew / Ops</td></tr>
+  <tr><td>Teardown</td><td><code>teardown.html</code></td><td>Crew</td></tr>
+  <tr><td>Settle &amp; close</td><td><code>budget.html</code>, <code>settlement.html</code>, <code>closure.html</code></td><td>Finance / Admin</td></tr>
+</table>
+
+<!-- ===================== FEATURES ===================== -->
+<h2 id="features">4 · Full feature catalogue</h2>
+
+<h3>Sales &amp; CRM</h3>
+<div class="grid">
+  <div class="feat"><b>Leads <span class="pg">leads.html</span></b>Capture enquiries (name, contact, event type, date, budget), qualify, and convert to an event.</div>
+  <div class="feat"><b>CRM <span class="pg">crm.html</span></b>Contact history and relationship view across a client's events.</div>
+  <div class="feat"><b>Nurture <span class="pg">nurture.html</span></b>Occasion-based re-engagement (birthday, anniversary, festival) with per-studio templates + an automation switch.</div>
+  <div class="feat"><b>Proposal <span class="pg">proposal.html</span></b>Concept, theme, colour palette, scope chips and reference images; publishes a client-facing view.</div>
+</div>
+
+<h3>Design — the 2D / 3D builder</h3>
+<div class="grid">
+  <div class="feat"><b>2D floor builder <span class="pg">builder.html</span></b>Drag-and-drop stages, seating rows × columns, tables, and props to scale, with live previews.</div>
+  <div class="feat"><b>3D walk-through <span class="pg">builder.html</span></b>Orbit / rotate / scale the same layout in 3D.</div>
+  <div class="feat"><b>Templates <span class="pg">templates.html</span></b>12 starting layouts (weddings, conferences, festivals) plus a custom generator.</div>
+  <div class="feat"><b>Auto-naming &amp; versioning</b>Every save is a new dated version; each quote gets a code like <code>09202026-01</code>.</div>
+</div>
+
+<h3>Quoting &amp; confirmation</h3>
+<div class="grid">
+  <div class="feat"><b>Quotes <span class="pg">quotes.html</span></b>Priced line items from the layout + config; confirm to lock the quote and advance the event.</div>
+  <div class="feat"><b>Pricing config <span class="pg">control.html</span></b>Plate types, chair types and rate cards — now <b>per studio</b>.</div>
+  <div class="feat"><b>Client approval <span class="pg">approve.html</span></b>A secure token link lets the client review and approve without an account.</div>
+  <div class="feat"><b>Coupons</b>Discount codes, unique per studio.</div>
+</div>
+
+<h3>Planning</h3>
+<div class="grid">
+  <div class="feat"><b>Plan &amp; menu <span class="pg">plan.html</span></b>Package notes (free text) <b>plus</b> a searchable dish catalogue — search, add, set optional quantity, remove. Locks once the menu is confirmed.</div>
+  <div class="feat"><b>Dish catalogue <span class="pg">control.html</span></b>~134 seeded dishes across 14 categories (veg / non-veg / special); studios extend or deactivate their own.</div>
+  <div class="feat"><b>Checklists &amp; milestones</b>Reusable checklist templates and payment/planning milestones per event.</div>
+  <div class="feat"><b>Task templates <span class="pg">templates.html</span></b>~182 seeded default tasks by category, applied to new events.</div>
+</div>
+
+<h3>Operations &amp; resourcing</h3>
+<div class="grid">
+  <div class="feat"><b>Operations board <span class="pg">ops.html</span></b>Assign tasks in-house or <b>outsource</b> to a vendor; each task shows a 🤝 vendor badge.</div>
+  <div class="feat"><b>Staff suggestions <span class="pg">ops.html</span></b>Suggests crew by <b>skill match + availability</b>, warning if they clash with another event.</div>
+  <div class="feat"><b>Staff &amp; crew <span class="pg">staff.html</span></b>Roster, skills, and per-event assignment.</div>
+  <div class="feat"><b>Inventory <span class="pg">inventory.html</span></b>Every chair, mic and prop tracked; stock requests per event.</div>
+  <div class="feat"><b>Vendors <span class="pg">vendors.html</span></b>Outsourcing partners, unique per studio.</div>
+  <div class="feat"><b>Logistics <span class="pg">logistics.html</span></b>Transport / delivery planning.</div>
+  <div class="feat"><b>Calendar &amp; conflicts <span class="pg">calendar.html</span></b>All events on a calendar with overbooking / conflict warnings.</div>
+</div>
+
+<h3>Event day</h3>
+<div class="grid">
+  <div class="feat"><b>Readiness gate <span class="pg">ready.html</span></b>A go / no-go check before the event goes live.</div>
+  <div class="feat"><b>Run-sheet <span class="pg">runsheet.html</span></b>Minute-by-minute schedule for the day.</div>
+  <div class="feat"><b>Command centre <span class="pg">command.html</span></b>The live event-day control view.</div>
+  <div class="feat"><b>Crew mobile <span class="pg">work.html</span></b>A phone-friendly view: a crew member's tasks, a progress bar, event date/time, offline caching, and equipment check-in/return.</div>
+  <div class="feat"><b>Issues <span class="pg">issues.html</span></b>Log and resolve problems on the day.</div>
+  <div class="feat"><b>Media / gallery <span class="pg">media.html</span></b>Photos and videos, optionally surfaced to the client's portal.</div>
+</div>
+
+<h3>Money &amp; closure</h3>
+<div class="grid">
+  <div class="feat"><b>Budget <span class="pg">budget.html</span></b>Planned vs actual costs by category.</div>
+  <div class="feat"><b>Settlement <span class="pg">settlement.html</span></b>Reconcile payments and vendor bills.</div>
+  <div class="feat"><b>Closure <span class="pg">closure.html</span></b>Close the event with a clean profit-and-loss.</div>
+  <div class="feat"><b>Simulated payments <span class="pg">sim-pay.html</span></b>A stand-in for a real payment gateway during demos.</div>
+</div>
+
+<h3>Client-facing</h3>
+<div class="grid">
+  <div class="feat"><b>Client portal <span class="pg">portal.html</span></b>A single link shows the client only <b>their</b> event: proposal, payment schedule, gallery — now branded with the studio's name &amp; accent colour.</div>
+  <div class="feat"><b>Proposal view <span class="pg">proposal-view.html</span></b>The published concept the client reviews.</div>
+</div>
+
+<h3>Governance &amp; system</h3>
+<div class="grid">
+  <div class="feat"><b>Audit log <span class="pg">audit.html</span></b>A generic trigger records who changed what across 16 core tables (e.g. a plate-price change is captured).</div>
+  <div class="feat"><b>Insights <span class="pg">insights.html</span></b>Post-event analytics — vendor / task slippage, loss trends.</div>
+  <div class="feat"><b>Reports <span class="pg">reports.html</span></b>Exportable reports for admins.</div>
+  <div class="feat"><b>Notification centre 🔔</b>An in-app bell with a feed of what needs attention, with seen / mark-all.</div>
+  <div class="feat"><b>Control Center <span class="pg">control.html</span></b>The admin cockpit: access matrix, pricing, dish catalogue, and <b>Organization settings</b>.</div>
+  <div class="feat"><b>Dark mode &amp; polish</b>A shared theme layer with a floating light/dark toggle, focus rings, transitions and a responsive safety net.</div>
+</div>
+
+<!-- ===================== WALKTHROUGH ===================== -->
+<h2 id="walk">5 · Step-by-step: a lead all the way to close</h2>
+<p>This is the canonical path a producer follows. Every step names the page you go to and what happens next.</p>
+
+<div class="step"><div class="n">1</div><div class="b"><b>Capture the lead</b> — Home → <b>Leads</b> (<code>leads.html</code>). Add the enquiry: client name, contact, event type, tentative date, headcount, budget. It lands as a <i>Lead</i>.</div></div>
+<div class="step"><div class="n">2</div><div class="b"><b>Qualify &amp; discover</b> — open the lead → <b>Discovery</b> (<code>discovery.html</code>). Record the brief, venue, constraints. Not a fit? Mark it lost (Nurture can re-engage later).</div></div>
+<div class="step"><div class="n">3</div><div class="b"><b>Pitch the concept</b> — <b>Proposal</b> (<code>proposal.html</code>): theme, palette, scope, reference images. Publish it → the client can view it at <code>proposal-view.html</code>.</div></div>
+<div class="step"><div class="n">4</div><div class="b"><b>Design the floor</b> — <b>Builder</b> (<code>builder.html</code>): start from a template or blank, drag stages/seating/tables to scale, check it in 3D. Each save is versioned.</div></div>
+<div class="step"><div class="n">5</div><div class="b"><b>Quote &amp; send</b> — <b>Quotes</b> (<code>quotes.html</code>): the layout + pricing config produce line items and a total. Generate the client approval link.</div></div>
+<div class="step"><div class="n">6</div><div class="b"><b>Client confirms</b> — the client opens <b>Approve / Portal</b> (<code>approve.html</code> / <code>portal.html</code>) and approves. The event flips to <b>Confirmed</b> and the quote locks.</div></div>
+<div class="step"><div class="n">7</div><div class="b"><b>Plan the menu</b> — <b>Plan</b> (<code>plan.html</code>): write package notes and use the dish search to add dishes (with optional quantities). Confirm to lock the menu.</div></div>
+<div class="step"><div class="n">8</div><div class="b"><b>Break down the work</b> — task templates seed the task list; on <b>Operations</b> (<code>ops.html</code>) assign each task in-house or outsource to a vendor. Use <b>Suggested crew</b> to pick people by skill + availability.</div></div>
+<div class="step"><div class="n">9</div><div class="b"><b>Reserve resources</b> — <b>Inventory</b>/<b>Resources</b>: raise stock requests for chairs, mics, props; <b>Logistics</b> for transport.</div></div>
+<div class="step"><div class="n">10</div><div class="b"><b>Go / no-go</b> — <b>Ready</b> (<code>ready.html</code>): the readiness gate confirms everything is in place. Check the <b>Calendar</b> for clashes.</div></div>
+<div class="step"><div class="n">11</div><div class="b"><b>Run the day</b> — <b>Run-sheet</b> + <b>Command</b> drive the schedule; crew work from <b>work.html</b> on their phones, ticking tasks and checking kit in/out; log problems in <b>Issues</b>; upload photos to <b>Media</b>.</div></div>
+<div class="step"><div class="n">12</div><div class="b"><b>Tear down</b> — <b>Teardown</b> (<code>teardown.html</code>): return equipment; inventory reconciles.</div></div>
+<div class="step"><div class="n">13</div><div class="b"><b>Settle &amp; close</b> — <b>Budget</b> → <b>Settlement</b> → <b>Closure</b>: reconcile actual costs and payments, then close with a final P&amp;L. <b>Insights</b> rolls it into trend analytics.</div></div>
+
+<!-- ===================== EXAMPLE A ===================== -->
+<h2 id="exampleA">6 · Worked example A — “Sharma Wedding, 12 Dec”</h2>
+<div class="card">
+<p><b>Scenario:</b> A bride's family enquires about a 300-guest wedding on 12 December, budget ₹18 lakh.</p>
+<div class="flow">
+  <span class="s">Lead</span><span class="a">→</span><span class="s">Discovery</span><span class="a">→</span><span class="s">Proposal</span><span class="a">→</span><span class="s">2D/3D quote</span><span class="a">→</span><span class="s">Approved</span><span class="a">→</span><span class="s">Menu+crew</span><span class="a">→</span><span class="s">Event day</span><span class="a">→</span><span class="s">Closed P&amp;L</span>
+</div>
+<ol>
+  <li><b>Leads:</b> Priya (Sales) logs the enquiry → event code <code>12122026-01</code> is created.</li>
+  <li><b>Discovery:</b> site visit notes — banquet hall, 300 pax, mandap + stage + dining.</li>
+  <li><b>Proposal:</b> “Marigold &amp; Ivory” theme, palette, 6 reference images. Published; the family opens the proposal link and loves it.</li>
+  <li><b>Builder:</b> Priya starts from the <i>Wedding</i> template, lays a mandap, a stage, 30 round tables of 10, and a buffet line — then checks sightlines in 3D.</li>
+  <li><b>Quote:</b> the layout + plate/chair rates produce ₹17.4 L. She sends the approval link.</li>
+  <li><b>Confirmed:</b> the family approves in the portal → event locks, stage = <b>Confirmed</b>. A 🔔 notification tells the planner.</li>
+  <li><b>Plan / menu:</b> the planner searches the dish catalogue — “paneer”, “biryani”, “gulab” — adds ~24 dishes, sets quantities for live counters, and confirms (menu locks).</li>
+  <li><b>Operations:</b> 182 seeded tasks appear; catering is <b>outsourced</b> to “Annapurna Caterers” (🤝 badge), décor stays in-house. Suggested-crew proposes 3 available decorators; one already clashes on 12 Dec, so the tool warns and she picks another.</li>
+  <li><b>Resources:</b> 300 chairs + 30 tables + PA reserved; logistics books two tempos.</li>
+  <li><b>Ready:</b> readiness gate is green; calendar shows no clash.</li>
+  <li><b>Event day:</b> crew open <code>work.html</code>, tick setup tasks, check the PA in; one issue (a late florist) is logged and resolved; 40 photos uploaded — a few surface in the family's portal gallery.</li>
+  <li><b>Closure:</b> actuals ₹15.9 L vs ₹17.4 L billed → ~₹1.5 L margin; closed. Insights adds it to the season's win/loss trend.</li>
+</ol>
+</div>
+
+<!-- ===================== EXAMPLE B ===================== -->
+<h2 id="exampleB">7 · Worked example B — corporate conference + outsourcing a task</h2>
+<div class="card">
+<p><b>Scenario:</b> A tech firm books a 1-day, 150-seat conference. This example focuses on the <b>operations</b> mechanics — outsourcing and staff suggestions.</p>
+<ol>
+  <li><b>Fast-track sell:</b> the client already has a brief, so Sales goes Lead → Quote quickly using the <i>Conference</i> template (rows of theatre seating + a keynote stage).</li>
+  <li><b>Confirmed &amp; planned:</b> approved; light menu (working lunch + tea counters) added from the catalogue.</li>
+  <li><b>Outsource A/V:</b> on <b>Operations</b>, the “Stage &amp; A/V” task category is set to <b>Outsource</b> → vendor <i>“BrightLine AV”</i>. Every task in that category now carries the 🤝 badge, so on the day everyone knows it's a partner's responsibility.</li>
+  <li><b>Staff by skill + availability:</b> for “Registration desk”, the <b>Suggested crew</b> bar lists people whose skills match and who are free that date. One suggestion shows a clash warning (already on another event) — the tool won't silently double-book; the coordinator picks two free staff instead.</li>
+  <li><b>Pre-commit clash check:</b> when assigning, a “would clash” warning appears <i>before</i> the assignment is saved, not after.</li>
+  <li><b>Day + close:</b> crew run from mobile; BrightLine's outsourced tasks are tracked alongside in-house ones; settlement reconciles BrightLine's bill; closure produces the P&amp;L.</li>
+</ol>
+</div>
+
+<!-- ===================== MULTI-TENANT ===================== -->
+<h2 id="multitenant">8 · How multi-tenant works</h2>
+<p>Block F turned Blueprint Stage from a single-studio app (“Helm”) into a platform that can host <b>many isolated studios</b> on one database — each seeing only its own data, with its own branding, currency and timezone. All of Helm's existing data was preserved and re-homed under a default <b>Helm Studio</b> org; nothing was deleted.</p>
+
+<h3>The model: shared database, strict isolation</h3>
+<p>Every tenant table carries an <code>org_id</code>. Row-level security appends <code>and org_id = current_org_id()</code> to every read and write, where <code>current_org_id()</code> is a security-definer function that reads the signed-in user's org from their profile. The result: two studios can share one table and never see each other's rows.</p>
+
+<figure>
+<svg viewBox="0 0 820 300" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Roboto,sans-serif" font-size="12">
+  <!-- users -->
+  <rect x="20" y="30" width="150" height="40" rx="9" fill="#efe9ff" stroke="#6d28d9"/><text x="95" y="55" text-anchor="middle" fill="#4a2ca0" font-weight="600">Helm user</text>
+  <rect x="20" y="230" width="150" height="40" rx="9" fill="#eafaf1" stroke="#12a150"/><text x="95" y="255" text-anchor="middle" fill="#0f7a43" font-weight="600">Aurora Events user</text>
+  <!-- RLS gate -->
+  <rect x="300" y="120" width="200" height="60" rx="12" fill="#fff7ec" stroke="#e8912d"/><text x="400" y="145" text-anchor="middle" font-weight="700" fill="#946200">RLS gate</text><text x="400" y="164" text-anchor="middle" font-size="10.5" fill="#77738a">org_id = current_org_id()</text>
+  <!-- db -->
+  <rect x="620" y="70" width="180" height="160" rx="12" fill="#faf8f5" stroke="#e6e2da"/><text x="710" y="92" text-anchor="middle" font-weight="700">Shared tables</text>
+  <rect x="640" y="104" width="140" height="34" rx="7" fill="#efe9ff" stroke="#6d28d9"/><text x="710" y="125" text-anchor="middle" fill="#4a2ca0">Helm rows</text>
+  <rect x="640" y="150" width="140" height="34" rx="7" fill="#eafaf1" stroke="#12a150"/><text x="710" y="171" text-anchor="middle" fill="#0f7a43">Aurora rows</text>
+  <rect x="640" y="196" width="140" height="24" rx="7" fill="#fff" stroke="#e6e2da"/><text x="710" y="212" text-anchor="middle" font-size="10.5" fill="#77738a">…other studios</text>
+  <!-- arrows -->
+  <defs><marker id="ar2" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#6d28d9"/></marker></defs>
+  <line x1="170" y1="50" x2="298" y2="135" stroke="#6d28d9" stroke-width="2" marker-end="url(#ar2)"/>
+  <line x1="170" y1="250" x2="298" y2="165" stroke="#12a150" stroke-width="2" marker-end="url(#ar2)"/>
+  <line x1="500" y1="140" x2="636" y2="121" stroke="#6d28d9" stroke-width="2" marker-end="url(#ar2)"/>
+  <line x1="500" y1="160" x2="636" y2="167" stroke="#12a150" stroke-width="2" marker-end="url(#ar2)"/>
+  <text x="400" y="255" text-anchor="middle" font-size="11" fill="#77738a">Each request only ever returns the caller's own org rows.</text>
+</svg>
+<figcaption>One database, one set of tables — but every query is silently filtered to the caller's studio.</figcaption>
+</figure>
+
+<h3>Creating a new studio (self-serve onboarding)</h3>
+<div class="step"><div class="n">1</div><div class="b"><b>Sign up:</b> on the login page, the <b>“Create studio”</b> tab takes a studio name, email and password.</div></div>
+<div class="step"><div class="n">2</div><div class="b"><b>create_studio() runs:</b> it makes a new organization, sets the signer as its <b>admin</b>, and seeds <b>clean curated defaults</b> — the role matrix, task &amp; checklist templates, plate/chair/dish catalogues, nurture templates and default pricing — copied from Helm's library <i>minus</i> any test rows. <b>No</b> contacts, staff, vendors, inventory or events are copied.</div></div>
+<div class="step"><div class="n">3</div><div class="b"><b>Land in an empty workspace:</b> the new studio starts with a full catalogue to work from but zero operational data of its own.</div></div>
+<div class="step"><div class="n">4</div><div class="b"><b>Brand it:</b> in Control Center → <b>Organization settings</b>, set business name, email, logo, accent colour, currency, timezone and GSTIN. Client-facing pages (the portal) then show that studio's brand.</div></div>
+
+<div class="okbox"><b>Proven, not assumed.</b> A live isolation test created a fresh studio and confirmed it: got its own <code>org_id</code> (not Helm), was seeded with 134 dishes / plate &amp; chair types / 182 task templates / the full 286-row role matrix, had <b>zero</b> test rows leak in, and read <b>0</b> of Helm's quotes, leads, costs, inventory, tasks and crew.</div>
+
+<h3>What made isolation safe</h3>
+<ul>
+  <li><b>Auto-stamping:</b> <code>org_id</code> defaults to <code>current_org_id()</code>, so new rows are tagged automatically.</li>
+  <li><b>Anon flows:</b> the client portal and crew links are public (no session) — they resolve the org from the parent record via a trigger, never from the caller.</li>
+  <li><b>Per-studio uniqueness:</b> codes and names (quote codes, vendor names, dish names, the role matrix, pricing keys, task/nurture templates) are unique <i>within</i> a studio, so two studios can both have a “Wedding” template or a “Paneer Tikka” dish.</li>
+  <li><b>Nothing deleted:</b> Helm's data is intact under the Helm org; the free-text menu notes box was kept alongside the new dish catalogue.</li>
+</ul>
+
+<!-- ===================== SECURITY ===================== -->
+<h2 id="security">9 · Security posture</h2>
+<table>
+  <tr><th>Area</th><th>What's in place</th></tr>
+  <tr><td>Tenant isolation</td><td>Row-level security on every table, filtered by <code>org_id = current_org_id()</code>; verified with a live cross-studio test.</td></tr>
+  <tr><td>Authorization</td><td>Role × area access matrix enforced in the database, not just the UI; Operations/Crew read 0 finance rows (verified).</td></tr>
+  <tr><td>Server-side privilege</td><td>Sensitive actions run through <code>SECURITY DEFINER</code> RPCs that stamp <code>org_id</code> server-side; the anon (public) key is safe to ship, the service-role key stays only in edge functions.</td></tr>
+  <tr><td>HTTP headers</td><td>Content-Security-Policy, HSTS, X-Content-Type-Options, X-Frame-Options: DENY, Referrer-Policy, Permissions-Policy, COOP — set in <code>server.js</code> and <code>_headers</code>.</td></tr>
+  <tr><td>Audit trail</td><td>A generic trigger logs inserts/updates/deletes across 16 core tables with actor and timestamp.</td></tr>
+  <tr><td>Auth</td><td>Supabase Auth with email confirmation (turn it back <b>ON</b> after testing); passwords never handled in app code.</td></tr>
+</table>
+<div class="warnbox"><b>Accepted / deferred:</b> nonce-based CSP, per-endpoint rate limiting, and setting <code>org_id NOT NULL</code> on every core table are noted as future hardening. If Supabase Storage buckets are later used, namespace uploads under <code>org_id/…</code>.</div>
+
+<!-- ===================== NEXT ===================== -->
+<h2 id="next">10 · What we could build next</h2>
+
+<h3>Nearest on the roadmap</h3>
+<div class="grid">
+  <div class="feat"><b>Multi-currency + GST invoices</b>Currency is already per-studio (<code>organizations.currency</code>); render invoices in that currency with a proper GST template. <i>(Phase 45 — ready to start.)</i></div>
+  <div class="feat"><b>Time-aware calendar</b>Event start/end times with true overlap-based conflict detection (beyond same-day).</div>
+</div>
+
+<h3>Go-live &amp; scale</h3>
+<div class="grid">
+  <div class="feat"><b>Real channels</b>Wire actual email / SMS / WhatsApp for approvals, nurture and day-of alerts; a real payment gateway in place of <code>sim-pay</code>.</div>
+  <div class="feat"><b>Rate limiting</b>Per-identity, per-endpoint limits on auth, OTP, search and export.</div>
+  <div class="feat"><b>Storage per studio</b>Namespaced media buckets with storage RLS once uploads move off links.</div>
+  <div class="feat"><b>org_id NOT NULL</b>Final isolation hardening across core tables.</div>
+</div>
+
+<h3>Product depth</h3>
+<div class="grid">
+  <div class="feat"><b>Team seats per studio</b>More than one user per org, with invites (v1 is one studio per user).</div>
+  <div class="feat"><b>Billing &amp; plans</b>Subscription tiers per studio (the <code>plan</code> field already exists).</div>
+  <div class="feat"><b>Client self-service</b>Let clients pick menu options or pay milestones directly from the portal.</div>
+  <div class="feat"><b>Deeper insights</b>Forecasting, vendor scorecards, staff utilisation, seasonality.</div>
+  <div class="feat"><b>Mobile app</b>A native crew app wrapping <code>work.html</code> with push notifications.</div>
+  <div class="feat"><b>Templated onboarding</b>Industry starter packs (wedding studio vs corporate AV) beyond the single default seed.</div>
+</div>
+
+<hr>
+<p style="color:var(--ink-3);font-size:12.5px">Blueprint Stage — Complete Product Guide · To save as PDF: open this file in a browser and choose <span class="kbd">Print</span> → <b>Save as PDF</b> (A4, default margins). All diagrams are vector and print crisply.</p>
+
+</div>
+</body>
+</html>
