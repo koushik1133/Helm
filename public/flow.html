@@ -212,6 +212,28 @@
           <div style="display:flex;justify-content:flex-end;margin-top:6px"><button class="btn primary" id="q_save">Save quotation</button></div>
         </section>
 
+        <!-- 9 ADVANCE PAYMENT & BOOKING -->
+        <section class="card" id="sec-pay">
+          <h2><span class="step-n">9</span> Advance payment &amp; booking <span class="pill" id="bookingBadge" style="display:none">Confirmed</span></h2>
+          <p class="sub">Accepting the quote isn't a confirmed booking — recording the advance is. Send an online link or record cash. A receipt is issued and both sides are notified.</p>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr) auto;gap:8px;align-items:end;margin-bottom:10px">
+            <div class="fld" style="margin:0"><label>Advance %</label><input id="pay_pct" type="number" min="0" max="100" value="10"></div>
+            <div class="fld" style="margin:0"><label>Advance amount (₹)</label><input id="pay_amount" type="number" min="0"></div>
+            <div class="fld" style="margin:0"><label>Method</label><select id="pay_method"><option value="cash">Cash / offline</option><option value="online">Online link</option></select></div>
+            <button class="btn primary" id="pay_record">Record payment</button>
+          </div>
+          <div class="fld" id="pay_receiptWrap"><label>Receipt no. (offline — blank to auto‑generate)</label><input id="pay_receipt" placeholder="e.g. RCP‑001 / cash memo no."></div>
+          <div id="pay_online" style="display:none;font-size:12px;color:var(--ink-3);margin-top:6px"></div>
+          <div id="pay_receipts" style="margin-top:12px"></div>
+        </section>
+
+        <!-- ACTIVITY TRAIL -->
+        <section class="card" id="sec-activity">
+          <h2>Activity trail</h2>
+          <p class="sub">Every change kept on record — quote versions, discounts, advances, receipts, consents, messages.</p>
+          <div id="activityList" style="font-size:13px"></div>
+        </section>
+
       </div>
 
       <!-- RIGHT RAIL -->
@@ -247,7 +269,7 @@
 </div>
 
 <script src="config.js?v=73"></script>
-<script src="store-api.js?v=74"></script>
+<script src="store-api.js?v=75"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -364,6 +386,42 @@
     $("#progList").innerHTML=STEPS.map(([k,label])=>`<a href="#sec-${k==='reqs'?'reqs':k}" class="${done[k]?'done':''}"><span class="dot"></span>${label}</a>`).join("");
   }
 
+  /* ---------- advance payment + booking + activity ---------- */
+  function quoteTotal(){ return BPStore.pricing.quoteTotal(currentInputs()).total; }
+  function updateAdvance(){
+    const pct=+$("#pay_pct").value||0; const amt=Math.round(quoteTotal()*pct/100);
+    if(document.activeElement!==$("#pay_amount")) $("#pay_amount").value=amt;
+  }
+  async function recordPayment(){
+    const amount=+$("#pay_amount").value||0; const method=$("#pay_method").value;
+    if(amount<=0){ alert("Enter the advance amount."); return; }
+    if(!confirm(`Record ${inr(amount)} (${method==='cash'?'cash / offline':'online'}) as the advance? This confirms the booking.`)) return;
+    $("#pay_record").disabled=true;
+    try{
+      const r=await BPStore.milestones.record(id, amount, method, $("#pay_receipt").value.trim()||null);
+      $("#bookingBadge").style.display=""; $("#statusBadge").textContent="confirmed";
+      $("#pay_receipt").value="";
+      if(method==='online'){ const link=location.origin+"/sim-pay.html?ref="+encodeURIComponent(ev.code||"")+"&amount="+amount;
+        $("#pay_online").style.display=""; $("#pay_online").innerHTML=`Online link (simulated): <a href="${esc(link)}" target="_blank" style="color:var(--accent)">${esc(link)}</a> — real Razorpay link goes here in production.`; }
+      await renderReceipts(); await renderActivity();
+      alert("Payment recorded — receipt "+(r&&r.receipt_no||"")+". Booking confirmed.");
+    }catch(e){ alert("Couldn't record payment — "+((e&&e.message)||"error")); }
+    finally{ $("#pay_record").disabled=false; }
+  }
+  async function renderReceipts(){
+    let pays=[]; try{ pays=await BPStore.milestones.payments(id); }catch{}
+    const paid=pays.filter(p=>p.status==='paid');
+    $("#pay_receipts").innerHTML = paid.length ? '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:4px">Receipts</div>'+
+      paid.map(p=>`<div class="rowline"><span class="g">${esc(p.receipt_no||p.provider_ref||'')} · ${esc(p.method||p.provider)}</span><span>${inr(p.amount)}</span><span style="color:var(--ink-3);font-size:11px">${(p.paid_at||'').slice(0,10)}</span></div>`).join('')
+      : '<div style="font-size:12px;color:var(--ink-3)">No payments recorded yet.</div>';
+  }
+  async function renderActivity(){
+    let acts=[]; try{ acts=await BPStore.milestones.activity(id); }catch{}
+    if(!acts||!acts.length){ $("#activityList").innerHTML='<div style="color:var(--ink-3)">No activity yet.</div>'; return; }
+    const ic={version:'📐',payment:'💳',milestone:'✅',consent:'✍️',notify:'🔔'};
+    $("#activityList").innerHTML = acts.map(a=>`<div class="rowline"><span>${ic[a.kind]||'•'}</span><span class="g">${esc(a.text)}</span><span style="color:var(--ink-3);font-size:11px">${(a.at||'').slice(0,16).replace('T',' ')}</span></div>`).join('');
+  }
+
   /* ---------- approval ---------- */
   async function sendApproval(){
     if(!ev || !(ev.pricing&&ev.pricing.total)){ if(!confirm("No quotation total saved yet. Send anyway?")) return; }
@@ -429,6 +487,10 @@
     $("#q_discount").value=pr.discount||0;
     if(pr.chairPrice!=null) $("#q_chairPrice").value=pr.chairPrice;
     renderPrice(); updateProgress();
+    // advance payment + activity
+    updateAdvance();
+    if(ev.status==='confirmed' || (ev.approval_status==='paid')) $("#bookingBadge").style.display="";
+    await renderReceipts(); await renderActivity();
     // reminder banner
     try{ if(localStorage.getItem(REMIND_KEY)==="1"){ $("#reminder").hidden=false; localStorage.removeItem(REMIND_KEY); $("#sec-quote").scrollIntoView({behavior:"smooth"}); } }catch{}
     $("#remindAfter").checked = false;
@@ -450,6 +512,10 @@
     $("#rq_add").addEventListener("click",async()=>{ const t=$("#rq_title").value.trim(); if(!t) return;
       await BPStore.discovery.addReq(id,{ title:t, priority:$("#rq_pri").value }); $("#rq_title").value=""; renderReqs(); });
     $("#sendApproval").addEventListener("click",sendApproval);
+    $("#pay_pct").addEventListener("input",updateAdvance);
+    ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount"].forEach(f=>$("#"+f).addEventListener("input",updateAdvance));
+    $("#pay_method").addEventListener("change",()=>{ $("#pay_receiptWrap").style.display=$("#pay_method").value==='cash'?'':'none'; $("#pay_online").style.display='none'; });
+    $("#pay_record").addEventListener("click",recordPayment);
     $("#openBuilder").addEventListener("click",()=>{ try{ if($("#remindAfter").checked) localStorage.setItem(REMIND_KEY,"1"); }catch{} });
     $("#genLayout").addEventListener("click",()=>{
       try{ if($("#remindAfter").checked) localStorage.setItem(REMIND_KEY,"1"); }catch{}

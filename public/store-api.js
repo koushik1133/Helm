@@ -1657,6 +1657,19 @@
     sendReminder: (quoteId, to, detail) => (mode === "supabase"
       ? rpc("mgr_notify", { p_quote_id: quoteId, p_channel: "sms", p_to: to, p_kind: "payment_reminder", p_detail: detail || {} })
       : Promise.resolve({ sent: true, simulated: true })),
+    // record an advance/stage payment (online link or offline cash) → issues a
+    // receipt, marks the milestone paid, confirms the booking, notifies both sides
+    record: (quoteId, amount, method, receiptNo, milestoneId, note) =>
+      rpc("record_payment", { p_quote: quoteId, p_amount: Number(amount) || 0, p_method: method || "cash",
+        p_receipt_no: receiptNo || null, p_milestone: milestoneId || null, p_note: note || null }),
+    // list logged payments (receipts) for an event
+    async payments(quoteId) {
+      if (mode !== "supabase") return [];
+      const { data, error } = await supa.from("quote_payments").select("*").eq("quote_id", quoteId).order("created_at", { ascending: false });
+      if (error) throw error; return data;
+    },
+    // consolidated activity trail (versions, payments, receipts, consents, notifications)
+    activity: (quoteId) => (mode === "supabase" ? rpc("event_activity", { p_quote: quoteId }) : Promise.resolve([])),
   };
 
   /* ---------------- readiness gate: Event Ready checkpoint (Phase 15) ---------------- */
