@@ -171,7 +171,13 @@
         <!-- 6 FLOOR LAYOUT -->
         <section class="card" id="sec-layout">
           <h2><span class="step-n">6</span> Floor layout</h2>
-          <p class="sub">Design the 2D floor plan — chairs &amp; objects feed the price automatically.</p>
+          <p class="sub">Enter the hall size &amp; headcount and generate a default layout for this event type — then tweak it freely. Chairs &amp; objects feed the price automatically.</p>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr) auto;gap:8px;align-items:end;margin-bottom:12px">
+            <div class="fld" style="margin:0"><label>Guests</label><input id="g_guests" type="number" min="0"></div>
+            <div class="fld" style="margin:0"><label>Hall length (ft)</label><input id="g_len" type="number" min="20" placeholder="200"></div>
+            <div class="fld" style="margin:0"><label>Hall breadth (ft)</label><input id="g_wid" type="number" min="20" placeholder="140"></div>
+            <button class="btn primary" id="genLayout">✨ Generate default layout</button>
+          </div>
           <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
             <div style="font-size:13px;color:var(--ink-2)">Current layout: <b id="layoutSummary">no objects yet</b></div>
             <span class="spacer"></span>
@@ -394,6 +400,7 @@
     $("#c_phone").value=cl.phone||""; $("#c_type").value=ev.eventType||""; $("#c_date").value=cl.eventDate||ev.eventDate||"";
     $("#c_guests").value=cl.guests!=null?cl.guests:""; $("#c_budget").value=cl.budget!=null?cl.budget:"";
     $("#c_venue").value=cl.venue||""; $("#c_address").value=cl.address||"";
+    $("#g_guests").value=cl.guests!=null?cl.guests:"";
     // rates
     try{ const pc=await BPStore.config.getPricing(); if(pc) rates=Object.assign(rates,pc); }catch{}
     $("#q_chairPrice").value=rates.chairPrice;
@@ -444,6 +451,16 @@
       await BPStore.discovery.addReq(id,{ title:t, priority:$("#rq_pri").value }); $("#rq_title").value=""; renderReqs(); });
     $("#sendApproval").addEventListener("click",sendApproval);
     $("#openBuilder").addEventListener("click",()=>{ try{ if($("#remindAfter").checked) localStorage.setItem(REMIND_KEY,"1"); }catch{} });
+    $("#genLayout").addEventListener("click",()=>{
+      try{ if($("#remindAfter").checked) localStorage.setItem(REMIND_KEY,"1"); }catch{}
+      const type=$("#c_type").value.trim()||(ev&&ev.eventType)||"";
+      const guests=$("#g_guests").value||$("#c_guests").value||"";
+      const p=new URLSearchParams({ quote:id, gen:"1" });
+      if(type) p.set("type",type); if(guests) p.set("guests",guests);
+      if($("#g_len").value) p.set("len",$("#g_len").value);
+      if($("#g_wid").value) p.set("wid",$("#g_wid").value);
+      location.href="builder.html?"+p.toString();
+    });
     $("#dismissReminder").addEventListener("click",()=>$("#reminder").hidden=true);
     $("#workspaceLink").addEventListener("click",()=>{});
   }

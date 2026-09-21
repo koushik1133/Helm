@@ -3128,6 +3128,20 @@ async function init(){
         const pn=$('#projName'); if(pn) pn.value=full.name; toast('Opened “'+full.name+'”'); } }
     catch{ toast('Could not open that event'); }
   }
+  // Guided default-layout generation from the flow: ?gen=1&type=&guests=&len=&wid=
+  if(params.get('gen')==='1' && CAN_CREATE!==false){
+    const TMAP={ wedding:'wedding', reception:'wedding', engagement:'wedding', gala:'wedding', cocktail:'wedding',
+      concert:'concert', festival:'festival', political:'political', rally:'political',
+      conference:'conference', corporate:'conference', expo:'conference', product_launch:'conference', birthday:'wedding' };
+    const ct=TMAP[(params.get('type')||'').toLowerCase()]||'wedding';
+    const setV=(id,v)=>{ const el=$('#'+id); if(el&&v!=null&&v!=='') el.value=v; };
+    const sel=$('#c_type'); if(sel && [...sel.options].some(o=>o.value===ct)) sel.value=ct;
+    setV('c_guests', params.get('guests')); setV('c_len', params.get('len')); setV('c_wid', params.get('wid'));
+    if(params.get('guests')){ PRICING.guests=+params.get('guests'); const g=$('#bGuests'); if(g) g.value=params.get('guests'); }
+    openCustomModal();
+    try{ runCustomGenerate(); }catch(e){}
+    toast('Pick a generated layout to start — then tweak it freely');
+  }
 }
 init();
 </script>
