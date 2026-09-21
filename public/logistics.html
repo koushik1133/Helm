@@ -100,10 +100,17 @@
 </div>
 
 <script src="config.js?v=69"></script>
-<script src="store-api.js?v=69"></script>
+<script src="store-api.js?v=71"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  // shared staff+vendor people picker (populated once at init)
+  let PEOPLE_OPTS=[];
+  function peopleSelectHTML(elId, selected){
+    const grp=(label,kind)=>{ const arr=PEOPLE_OPTS.filter(p=>p.kind===kind); return arr.length?`<optgroup label="${label}">`+arr.map(p=>`<option value="${esc(p.name)}" ${p.name===selected?"selected":""}>${esc(p.name)}${p.role?" · "+esc(p.role):""}</option>`).join("")+`</optgroup>`:""; };
+    const custom=(selected&&!PEOPLE_OPTS.some(p=>p.name===selected))?`<option value="${esc(selected)}" selected>${esc(selected)}</option>`:"";
+    return `<select id="${elId}"><option value="">Select person…</option>${custom}${grp("Staff","staff")}${grp("Vendors","vendor")}</select>`;
+  }
   const inr=(n)=>"₹"+Number(n||0).toLocaleString("en-IN");
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const CHK_ST={open:"Open",done:"Done",na:"N/A"}, PAY_ST={due:"Due",invoiced:"Invoiced",paid:"Paid",waived:"Waived"};
@@ -128,7 +135,7 @@
     $("#pane").innerHTML = `<h2>${tab[0].toUpperCase()+tab.slice(1)}</h2><p class="sub">${CHK_HELP[tab]}</p>
       ${canEdit?`<div class="addrow chk">
         <div class="fld"><label>Item</label><input id="a_title" placeholder="what needs doing"></div>
-        <div class="fld"><label>Owner</label><input id="a_owner" placeholder="who"></div>
+        <div class="fld"><label>Owner</label>${peopleSelectHTML("a_owner","")}</div>
         <div class="fld"><label>Due</label><input id="a_due" type="date"></div>
         <div class="fld"><label>&nbsp;</label><button class="btn primary" id="a_add">＋ Add</button></div></div>`:""}
       ${canEdit?'<div id="tplBar" style="margin:6px 0 12px"></div>':""}
@@ -227,6 +234,7 @@
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
     if(!(await BPStore.auth.requireView("ops"))) return;
     canEdit=await BPStore.auth.canEditArea("logistics"); canDelete=await BPStore.auth.can("delete");
+    try{ PEOPLE_OPTS=await BPStore.people.options(); }catch{ PEOPLE_OPTS=[]; }
     // Payments are finance-only — hide that tab (and fall back off it) for roles without finance access
     if(!(await BPStore.auth.canView("finance"))){ const pb=document.querySelector('#tabs button[data-t="payments"]'); if(pb) pb.hidden=true; if(tab==="payments") tab="guests"; }
     try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }

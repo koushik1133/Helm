@@ -137,7 +137,7 @@
         <div class="reserve-row" style="grid-template-columns:1.6fr .7fr 1.2fr 1.2fr auto">
           <div class="fld"><label>Item</label><select id="co_item"></select></div>
           <div class="fld"><label>Qty out</label><input id="co_qty" type="number" min="1" value="1"></div>
-          <div class="fld"><label>Issued to</label><input id="co_to" placeholder="person's name"></div>
+          <div class="fld"><label>Issued to</label><select id="co_to"><option value="">Select person…</option></select></div>
           <div class="fld"><label>Note</label><input id="co_note" placeholder="optional"></div>
           <div class="fld"><label>&nbsp;</label><button class="btn primary" id="co_add">Check out</button></div>
         </div>
@@ -203,7 +203,7 @@
 </div>
 
 <script src="config.js?v=69"></script>
-<script src="store-api.js?v=69"></script>
+<script src="store-api.js?v=71"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -364,12 +364,14 @@
   }
 
   $("#co_add").addEventListener("click",async()=>{
-    const itemId=$("#co_item").value, qty=Number($("#co_qty").value||0), to=$("#co_to").value.trim();
+    const itemId=$("#co_item").value, qty=Number($("#co_qty").value||0);
+    const opt=$("#co_to").selectedOptions[0], to=($("#co_to").value||"").trim();
+    const crewId=(opt&&opt.dataset.kind==="staff")?opt.dataset.id:null;   // link to staff record when in-house
     if(!itemId){ return; }
     if(qty<=0){ alert("Qty out must be at least 1."); return; }
     if(!to){ alert("Who is it issued to?"); $("#co_to").focus(); return; }
     $("#co_add").disabled=true;
-    try{ await BPStore.inventory.checkouts.out(itemId, quoteId||null, qty, to, null, $("#co_note").value.trim()||null);
+    try{ await BPStore.inventory.checkouts.out(itemId, quoteId||null, qty, to, crewId, $("#co_note").value.trim()||null);
       $("#co_qty").value=1; $("#co_to").value=""; $("#co_note").value=""; await load(); }
     catch(e){ alert("Couldn't check out — "+((e&&e.message)||"error")); }
     finally{ $("#co_add").disabled=false; }
@@ -399,6 +401,15 @@
     renderStock(); renderCheckouts(); if(quoteId) renderEventPanel();
   }
 
+  // Populate the "Issued to" dropdown with staff + vendors (one shared source)
+  async function fillPeople(){
+    const sel=$("#co_to"); if(!sel) return;
+    let opts=[]; try{ opts=await BPStore.people.options(); }catch{ opts=[]; }
+    const staffOpts=opts.filter(p=>p.kind==="staff"), vendorOpts=opts.filter(p=>p.kind==="vendor");
+    const grp=(label,arr)=>arr.length?`<optgroup label="${label}">`+arr.map(p=>`<option value="${esc(p.name)}" data-id="${esc(p.id)}" data-kind="${p.kind}">${esc(p.name)}${p.role?" · "+esc(p.role):""}</option>`).join("")+`</optgroup>`:"";
+    sel.innerHTML='<option value="">Select person…</option>'+grp("Staff",staffOpts)+grp("Vendors",vendorOpts);
+  }
+
   (async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
@@ -411,6 +422,7 @@
       try{ const ev=await BPStore.quotes.get(quoteId); $("#eventBar").innerHTML=`<a href="event.html?id=${encodeURIComponent(quoteId)}">← Back to workspace</a> · ${esc(ev.code||"")}${ev.title&&ev.title!==ev.code?(" · "+esc(ev.title)):""}`; }catch{}
       if(!canEdit) $("#eventPanel").querySelectorAll("input,select,button").forEach(el=>el.disabled=true);
     }
+    await fillPeople();
     await load();
   })();
 </script>

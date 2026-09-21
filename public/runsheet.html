@@ -84,7 +84,7 @@
         <div class="fld"><label>Start time</label><input type="time" id="r_time"></div>
         <div class="fld"><label>Mins</label><input type="number" min="0" id="r_dur" placeholder="e.g. 30"></div>
         <div class="fld"><label>Activity *</label><input id="r_title" placeholder="e.g. Guests arrive / Cake cutting"></div>
-        <div class="fld"><label>Owner</label><input id="r_owner" placeholder="e.g. Front-of-house"></div>
+        <div class="fld"><label>Owner</label><select id="r_owner"><option value="">Select person…</option></select></div>
         <div class="fld"><label>Location</label><input id="r_loc" placeholder="e.g. Main hall"></div>
         <div class="fld"><label>&nbsp;</label><button class="btn primary" id="r_add">＋ Add</button></div>
       </div>
@@ -105,7 +105,7 @@
     <div class="fld" style="margin-bottom:8px"><label>Start time</label><input type="time" id="e_time"></div>
     <div class="fld" style="margin-bottom:8px"><label>Duration (mins)</label><input type="number" min="0" id="e_dur"></div>
     <div class="fld" style="margin-bottom:8px"><label>Activity</label><input id="e_title"></div>
-    <div class="fld" style="margin-bottom:8px"><label>Owner</label><input id="e_owner"></div>
+    <div class="fld" style="margin-bottom:8px"><label>Owner</label><select id="e_owner"><option value="">Select person…</option></select></div>
     <div class="fld" style="margin-bottom:8px"><label>Location</label><input id="e_loc"></div>
     <div class="fld" style="margin-bottom:8px"><label>Note</label><input id="e_note"></div>
     <div class="foot"><button class="btn" id="e_cancel">Cancel</button><button class="btn primary" id="e_save">Save</button></div>
@@ -123,10 +123,18 @@
 </div>
 
 <script src="config.js?v=69"></script>
-<script src="store-api.js?v=69"></script>
+<script src="store-api.js?v=71"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  // shared staff+vendor people picker for the Owner dropdowns
+  let PEOPLE_OPTS=[];
+  function fillOwner(sel, selected){
+    if(!sel) return; selected=selected||"";
+    const grp=(label,kind)=>{ const arr=PEOPLE_OPTS.filter(p=>p.kind===kind); return arr.length?`<optgroup label="${label}">`+arr.map(p=>`<option value="${esc(p.name)}" ${p.name===selected?"selected":""}>${esc(p.name)}${p.role?" · "+esc(p.role):""}</option>`).join("")+`</optgroup>`:""; };
+    const custom=(selected&&!PEOPLE_OPTS.some(p=>p.name===selected))?`<option value="${esc(selected)}" selected>${esc(selected)}</option>`:"";
+    sel.innerHTML=`<option value="">Select person…</option>${custom}${grp("Staff","staff")}${grp("Vendors","vendor")}`;
+  }
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const hhmm=(t)=> t? t.slice(0,5) : "";
   const addMin=(t,m)=>{ if(!t||m==null||m==="") return ""; const [h,mi]=t.slice(0,5).split(":").map(Number); const d=new Date(2000,0,1,h,mi+Number(m)); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); };
@@ -169,7 +177,7 @@
     finally{ $("#r_add").disabled=false; }
   }
   function openEdit(i){ editingId=i.id; $("#e_time").value=hhmm(i.start_time); $("#e_dur").value=i.duration_min!=null?i.duration_min:"";
-    $("#e_title").value=i.title||""; $("#e_owner").value=i.owner||""; $("#e_loc").value=i.location||""; $("#e_note").value=i.note||""; $("#editModal").hidden=false; }
+    $("#e_title").value=i.title||""; fillOwner($("#e_owner"), i.owner||""); $("#e_loc").value=i.location||""; $("#e_note").value=i.note||""; $("#editModal").hidden=false; }
   async function saveEdit(){ try{ await BPStore.runsheet.update(editingId,{ start_time:$("#e_time").value||null, duration_min:$("#e_dur").value?Number($("#e_dur").value):null,
       title:$("#e_title").value.trim()||"Untitled", owner:$("#e_owner").value.trim()||null, location:$("#e_loc").value.trim()||null, note:$("#e_note").value.trim()||null });
       $("#editModal").hidden=true; await load(); }catch(e){ alert("Couldn't save — "+((e&&e.message)||"error")); } }
@@ -199,6 +207,8 @@
     let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"")+(ev.eventDate?(" · "+ev.eventDate):"");
     $("#app").hidden=false; $("#addCard").hidden=!canEdit;
+    try{ PEOPLE_OPTS=await BPStore.people.options(); }catch{ PEOPLE_OPTS=[]; }
+    fillOwner($("#r_owner"),"");
     await load();
   })();
 </script>

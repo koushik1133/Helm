@@ -852,6 +852,22 @@
     },
   };
 
+  /* ---------------- combined people picker (staff + vendors) ---------------- */
+  // One source for every "who is responsible" dropdown across the app, so a
+  // person shows up the same way whether they're in-house Staff or a Vendor.
+  const people = {
+    async options() {
+      const [s, v] = await Promise.all([
+        staff.list(false).catch(() => []),
+        vendors.listAll(false).catch(() => []),
+      ]);
+      return [
+        ...s.map((p) => ({ id: p.id, name: p.name, kind: "staff", role: p.role || p.department || "" })),
+        ...v.map((p) => ({ id: p.id, name: p.name, kind: "vendor", role: p.category || "" })),
+      ].filter((p) => p.name);
+    },
+  };
+
   /* ---------------- in-house staff directory (Phase 6) ---------------- */
   const STAFF_LS = "bp_staff";
   const staff = {
@@ -1972,7 +1988,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, org, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, people, org, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),
