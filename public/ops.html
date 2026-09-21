@@ -95,13 +95,13 @@
     <div class="card evhead" id="evhead"></div>
 
     <div class="card">
-      <h3>Crew</h3>
+      <h3>Staff</h3>
       <div id="crewChips"></div>
       <div class="crewrow" style="margin-top:10px">
         <input id="cr_name" placeholder="Name (e.g. Karthik)">
         <input id="cr_phone" placeholder="Phone (+91…)">
         <select id="cr_dept"></select>
-        <button class="btn" id="cr_add">+ Add crew</button>
+        <button class="btn" id="cr_add">+ Add staff</button>
       </div>
     </div>
 
@@ -115,7 +115,7 @@
       <div class="assignbar">
         <span class="muted"><b id="selCount">0</b> selected →</span>
         <select id="assignKind" style="min-width:130px">
-          <option value="in_house">🏠 In-house crew</option>
+          <option value="in_house">🏠 In-house staff</option>
           <option value="outsourced">🤝 Outsource</option>
         </select>
         <select id="assignCrew" style="min-width:180px"></select>
@@ -128,7 +128,7 @@
     <div class="card">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <h3 style="margin:0">Live status</h3>
-        <div class="tabs" id="groupToggle" style="margin:0"><button data-g="section" class="on">By section</button><button data-g="crew">By crew</button></div>
+        <div class="tabs" id="groupToggle" style="margin:0"><button data-g="section" class="on">By section</button><button data-g="crew">By staff</button></div>
         <span class="spacer" style="flex:1"></span>
         <button class="btn sm" id="remindDue" title="Send reminders for special tasks that aren't done yet">🔔 Remind due</button>
         <button class="btn sm" id="fireDue" title="Notify assignees of scheduled tasks whose time has come and whose prerequisite is done">▶ Fire due tasks</button>
@@ -207,7 +207,7 @@
     [crew,tasks,tokens,vendors]=await Promise.all([BPStore.ops.listCrew(), BPStore.ops.listTasks(quoteId), BPStore.ops.listTokens(quoteId),
       BPStore.vendors.listAll(false).catch(()=>[])]);
     renderCrew(); renderDashboard();
-    $("#assignCrew").innerHTML=`<option value="">— pick crew —</option>`+crew.map(c=>`<option value="${c.id}">${esc(c.name)} · ${esc(c.phone)}</option>`).join("");
+    $("#assignCrew").innerHTML=`<option value="">— pick staff —</option>`+crew.map(c=>`<option value="${c.id}">${esc(c.name)} · ${esc(c.phone)}</option>`).join("");
     $("#assignVendor").innerHTML = vendors.length
       ? `<option value="">— pick vendor —</option>`+vendors.map(v=>`<option value="${v.id}">${esc(v.name)}${v.category?" · "+esc(v.category):""}${v.phone?" · "+esc(v.phone):" · (no phone)"}</option>`).join("")
       : `<option value="">No vendors — add them in Vendors</option>`;
@@ -220,7 +220,7 @@
   });
   function renderCrew(){
     $("#crewChips").innerHTML = crew.length? crew.map(c=>`<span class="chip">${esc(c.name)} <span class="dep">${esc(c.department||"")}</span> · ${esc(c.phone)}</span>`).join("")
-      : '<span class="muted">No crew yet — add people below.</span>';
+      : '<span class="muted">No staff yet — add people below.</span>';
   }
   async function renderTasks(){
     let tpl; try{ tpl=await BPStore.ops.templates(activeCat); }catch(e){ $("#taskList").innerHTML='<span class="muted">Run operations.sql to load task templates.</span>'; return; }
@@ -283,7 +283,7 @@
   }
   function renderDashboard(){
     const host=$("#dashboard");
-    if(!tasks.length){ host.innerHTML='<div class="empty">No tasks assigned yet. Pick a section above, select tasks, choose a crew member, and Assign.</div>'; return; }
+    if(!tasks.length){ host.innerHTML='<div class="empty">No tasks assigned yet. Pick a section above, select tasks, choose a staff member, and Assign.</div>'; return; }
     const byId=Object.fromEntries(tasks.map(t=>[t.id,t]));
     if(groupMode==="section"){
       // group by section (category), in template order; tasks already arrive category+seq sorted

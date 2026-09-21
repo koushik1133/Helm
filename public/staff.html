@@ -247,7 +247,7 @@
       bar.style.cssText="margin:0 0 14px;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel);display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px";
       const grid=$("#grid"); grid.parentNode.insertBefore(bar, grid.previousElementSibling||grid); }
     bar.innerHTML=`<a href="event.html?id=${encodeURIComponent(quoteId)}" style="color:var(--accent);font-weight:600">← Back to workspace</a>
-      <span style="color:var(--ink-3)">Crew on <b>${esc(eventCode||"this event")}</b> — ${eventCrew.size} assigned</span>
+      <span style="color:var(--ink-3)">Staff on <b>${esc(eventCode||"this event")}</b> — ${eventCrew.size} assigned</span>
       <span class="spacer" style="flex:1"></span>
       <button class="btn sm" id="evOnlyBtn">${eventOnly?"Showing this event":"This event only"}</button>
       <button class="btn sm" id="allStaffBtn">${eventOnly?"Show all staff":"Showing all staff"}</button>`;
