@@ -109,7 +109,7 @@
 </div>
 
 <script src="config.js?v=69"></script>
-<script src="store-api.js?v=72"></script>
+<script src="store-api.js?v=73"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -324,7 +324,9 @@
     const warn = missing ? `<span class="stat q" style="background:#fff7e6;color:#946200;margin-left:8px">⚠️ Set the event date &amp; time first</span>` : "";
     if(canEdit){ el.innerHTML=`📅 Event date: <input type="date" id="evDate" value="${esc(d)}" style="${inp}">
         <span style="margin-left:8px">🕒 Time:</span> <input type="time" id="evTime" value="${esc(tm)}" style="${inp}">${warn}`;
-      $("#evDate").addEventListener("change",async()=>{ try{ await BPStore.quotes.updateMeta(id,{eventDate:$("#evDate").value||null}); ev.eventDate=$("#evDate").value||null; renderDateRow(); }catch(e){ alert("Couldn't save date: "+((e&&e.message)||"error")); } });
+      $("#evDate").addEventListener("change",async()=>{ try{ const nd=$("#evDate").value||null;
+          const client=Object.assign({}, ev.client||{}, { eventDate: nd });   // keep client.eventDate in sync (invoice/meta read it)
+          await BPStore.quotes.updateMeta(id,{eventDate:nd, client}); ev.eventDate=nd; ev.client=client; renderDateRow(); }catch(e){ alert("Couldn't save date: "+((e&&e.message)||"error")); } });
       $("#evTime").addEventListener("change",async()=>{ try{ await BPStore.quotes.updateMeta(id,{eventTime:$("#evTime").value||null}); ev.eventTime=$("#evTime").value||null; renderDateRow(); }catch(e){ alert("Couldn't save time: "+((e&&e.message)||"error")); } });
     } else { el.innerHTML = (d||tm) ? ("📅 "+esc(d)+(tm?(" · 🕒 "+esc(tm)):"")) : ""; }
   }

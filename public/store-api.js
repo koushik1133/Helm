@@ -614,6 +614,34 @@
         return { type:t, qty:g.qty, unit, cost:g.qty*unit }; }).filter(l=>l.unit>0).sort((a,b)=>b.cost-a.cost);
       return { chairs, objectLines:lines, objectsCost:lines.reduce((s,l)=>s+l.cost,0) };
     },
+    // Full India-GST quote total (chairs + catering + other + service − discount
+    // + CGST/SGST/IGST). This is the ONE authoritative money calc — both the
+    // quote confirm modal and the builder's write-back use it, so the stored
+    // quote.pricing.total can never drift from what the builder shows.
+    quoteTotal(p){
+      const chairs=+p.chairs||0, chairPrice=+p.chairPrice||0, guests=+p.guests||0, platePrice=+p.platePrice||0;
+      const mode=(p.catering&&p.catering.mode)||"inhouse", clientCater=mode==="client";
+      const rental = chairs*chairPrice + (+p.other||0);
+      const plateSub = clientCater?0:guests*platePrice;
+      const cateringAmt = clientCater?0:(+((p.catering&&p.catering.amount))||0);
+      const cateringBucket = plateSub + cateringAmt;
+      const gstPct=+p.gstPct||0, cGstPct=clientCater?0:(+((p.catering&&p.catering.gstPct))||0);
+      const svcPct=+p.serviceChargePct||0;
+      const serviceCharge = (rental+cateringBucket)*svcPct/100;
+      const subtotal = rental + cateringBucket + serviceCharge;
+      let discount = (+p.discount||0) + subtotal*(+p.discountPct||0)/100;
+      if(p.coupon && p.coupon.value){ discount += p.coupon.kind==="percent" ? subtotal*(+p.coupon.value)/100 : (+p.coupon.value); }
+      discount = Math.min(discount, subtotal);
+      const gstRental = (rental+serviceCharge)*gstPct/100;
+      const gstCatering = cateringBucket*cGstPct/100;
+      const totalGst = gstRental + gstCatering;
+      const interstate = p.placeOfSupply==="inter";
+      const grand = Math.max(0, subtotal + totalGst - discount);
+      return { rental, plateSub, cateringAmt, cateringBucket, serviceCharge, subtotal,
+        gstRental, gstCatering, totalGst,
+        cgst: interstate?0:totalGst/2, sgst: interstate?0:totalGst/2, igst: interstate?totalGst:0,
+        discount, total: Math.round(grand) };
+    },
     // THE unified breakdown. rates = getPricing() result.
     breakdown(inp, rates){
       rates = rates||{};

@@ -210,7 +210,7 @@
 </div>
 
 <script src="config.js?v=72"></script>
-<script src="store-api.js?v=72"></script>
+<script src="store-api.js?v=73"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
   const esc = (s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -226,32 +226,8 @@
   function countSeats(items){ let seats=0; (items||[]).forEach(i=>{ const p=i.properties||{};
     if(p.rows&&p.cols) seats+=p.rows*p.cols; else if(p.seats) seats+=p.seats; }); return seats; }
 
-  /* ---------- pricing engine (India GST) ---------- */
-  function calcPricing(p){
-    const chairs=+p.chairs||0, chairPrice=+p.chairPrice||0, guests=+p.guests||0, platePrice=+p.platePrice||0;
-    const mode=(p.catering&&p.catering.mode)||"inhouse", clientCater=mode==="client";
-    const rental = chairs*chairPrice + (+p.other||0);
-    const plateSub = clientCater?0:guests*platePrice;
-    const cateringAmt = clientCater?0:(+((p.catering&&p.catering.amount))||0);
-    const cateringBucket = plateSub + cateringAmt;
-    const gstPct=+p.gstPct||0, cGstPct=clientCater?0:(+((p.catering&&p.catering.gstPct))||0);
-    const svcPct=+p.serviceChargePct||0;
-    const serviceCharge = (rental+cateringBucket)*svcPct/100;
-    const subtotal = rental + cateringBucket + serviceCharge;
-    // discount = flat ₹ + discount % of subtotal + coupon (% or ₹)
-    let discount = (+p.discount||0) + subtotal*(+p.discountPct||0)/100;
-    if(p.coupon && p.coupon.value){ discount += p.coupon.kind==="percent" ? subtotal*(+p.coupon.value)/100 : (+p.coupon.value); }
-    discount = Math.min(discount, subtotal);   // never below zero pre-tax
-    const gstRental = (rental+serviceCharge)*gstPct/100;
-    const gstCatering = cateringBucket*cGstPct/100;
-    const totalGst = gstRental + gstCatering;
-    const interstate = p.placeOfSupply==="inter";
-    const grand = Math.max(0, subtotal + totalGst - discount);
-    return { rental, plateSub, cateringAmt, cateringBucket, serviceCharge, subtotal,
-      gstRental, gstCatering, totalGst,
-      cgst: interstate?0:totalGst/2, sgst: interstate?0:totalGst/2, igst: interstate?totalGst:0,
-      discount, total: Math.round(grand) };
-  }
+  /* ---------- pricing engine (India GST) — one shared calc in BPStore.pricing ---------- */
+  const calcPricing = (p)=>BPStore.pricing.quoteTotal(p);
 
   /* ---------- auth chip ---------- */
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
@@ -419,7 +395,9 @@
     const p=gatherPricing(), t=calcPricing(p), client=gatherClient();
     const pricing = { ...p, computed:t, total:t.total, client };
     try{
-      if(confirmIt) await BPStore.quotes.confirm(cmId, client, pricing);
+      if(confirmIt){ await BPStore.quotes.confirm(cmId, client, pricing);
+        try{ await BPStore.quotes.setStage(cmId, "confirmed"); }catch(_){}   // advance the lifecycle so the workspace stepper isn't stuck on "quote"
+      }
       else await BPStore.quotes.updateMeta(cmId, { pricing, client });
       // keep the event_date column in sync, then re-brand the code to the event date (draft only)
       if(client.eventDate){
@@ -487,7 +465,9 @@
   }
   async function markPaid(id){
     if(!confirm("Mark this event's payment as received? (In production this is automatic via the Razorpay webhook.)")) return;
-    try{ await BPStore.approval.markPaid(id, "manual-dev"); await load(); }
+    try{ await BPStore.approval.markPaid(id, "manual-dev");
+      try{ await BPStore.quotes.setStage(id, "planning"); }catch(_){}   // paid → move the event into planning
+      await load(); }
     catch(e){ alert("Couldn't mark paid: "+((e&&e.message)||"error")); }
   }
 

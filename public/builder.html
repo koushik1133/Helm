@@ -650,7 +650,7 @@
 </main>
 
 <script src="config.js?v=72"></script>
-<script src="store-api.js?v=72"></script>
+<script src="store-api.js?v=73"></script>
 <script>
 /* =========================================================================
    BLUEPRINT STAGE — 2D Event Layout & Blueprint Builder
@@ -860,6 +860,39 @@ async function persistGuests(){
   try{ currentClient = Object.assign({}, currentClient, { guests: PRICING.guests });
     await BPStore.quotes.updateMeta(currentQuoteId, { client: currentClient }); }
   catch(e){ /* non-fatal */ }
+  syncQuotePricing();
+}
+
+// Recompute the quote's STORED total from the live layout + menu + guests using
+// the same money calc the confirm modal uses, and write it back — so the quotes
+// list, event workspace and invoice never show a stale price. Commercial terms
+// already set on the quote (discount, coupon, place-of-supply, rates) are kept.
+let _syncTimer=null;
+function syncQuotePricing(){
+  if(!currentQuoteId) return;
+  clearTimeout(_syncTimer);
+  _syncTimer=setTimeout(async ()=>{
+    try{
+      const oi = BPStore.pricing.fromItems(store.items, PRICING.assetPrices);
+      const chairs = oi.chairs;
+      const guests = PRICING.guests!=null ? PRICING.guests : chairs;
+      const platePrice = PRICING.menuPlatePrice!=null ? PRICING.menuPlatePrice
+                        : (currentPricing.platePrice!=null?currentPricing.platePrice:PRICING.platePrice);
+      const p = Object.assign({}, currentPricing, {
+        chairs, guests, platePrice,
+        chairPrice: currentPricing.chairPrice!=null?currentPricing.chairPrice:PRICING.chairPrice,
+        gstPct: currentPricing.gstPct!=null?currentPricing.gstPct:PRICING.gstPct,
+        serviceChargePct: currentPricing.serviceChargePct!=null?currentPricing.serviceChargePct:PRICING.serviceChargePct,
+        other: oi.objectsCost + (+PRICING.layoutBase||0),
+        catering: currentPricing.catering || { mode:'inhouse', amount:0, gstPct:PRICING.gstPct },
+      });
+      const t = BPStore.pricing.quoteTotal(p);
+      const pricing = Object.assign({}, p, { computed:t, total:t.total, client: currentClient });
+      await BPStore.quotes.updateMeta(currentQuoteId, { pricing });
+      currentPricing = pricing;
+      updateQuoteBadge && updateQuoteBadge();
+    }catch(e){ /* non-fatal */ }
+  }, 600);
 }
 async function onPickPackage(){
   const tid=$('#bPkg').value; PRICING.appliedPkgId=tid;
@@ -872,6 +905,7 @@ async function onPickPackage(){
     catch(e){ toast('Couldn\'t apply package'); }
   }
   renderAll();
+  syncQuotePricing();
 }
 
 // Render the live price breakdown panel (called on every renderAll).
@@ -2389,7 +2423,10 @@ function runCustomGenerate(){
   host.querySelectorAll('.ccard').forEach(card=>card.addEventListener('click',()=>{
     const v=variants[+card.dataset.idx];
     loadItems(v.items, 'Custom · '+v.name);
+    // one headcount: the "Expected guests" from the generator also becomes the plates/guests for pricing
+    if(o.guests!=null){ PRICING.guests=o.guests; const g=$('#bGuests'); if(g) g.value=o.guests; persistGuests(); }
     closeCustomModal();
+    renderPrice();
     toast(v.name+' · '+v.counts.chairs+' chairs, '+v.counts.objects+' objects');
   }));
 }
@@ -2781,6 +2818,7 @@ let currentQuoteId = null;        // id of the open QUOTE (primary flow) — sav
 let currentQuoteCode = null;      // the quote's MMDDYYYY-NN code (for the header readout)
 let currentVersionNo = null;      // which version is loaded (for the header readout)
 let currentClient = {};           // the open quote's client object (so we can persist guests without clobbering it)
+let currentPricing = {};          // the open quote's saved pricing inputs (discount/coupon/rates) — refreshed, not clobbered
 
 function serialize(){
   return { items: JSON.parse(JSON.stringify(store.items)),
@@ -2851,6 +2889,7 @@ async function saveLayout(silent){
       const v = await BPStore.quotes.addVersion(currentQuoteId, null, data, store.items.length);
       currentVersionNo = v.version_no || v.versionNo;
       updateQuoteBadge();
+      syncQuotePricing();                       // keep the stored quote total in step with the layout
       if(silent){ if(btn){ btn.textContent='✓ v'+currentVersionNo; clearTimeout(saveBtnT); saveBtnT=setTimeout(()=>{ btn.innerHTML='💾 Save'; },1500); } }
       else toast('Saved version '+currentVersionNo);
     } else {
@@ -3050,7 +3089,7 @@ async function init(){
   if(quoteId){
     try{
       const q=await BPStore.quotes.get(quoteId);
-      currentQuoteId=q.id; currentQuoteCode=q.code; currentClient=q.client||{};
+      currentQuoteId=q.id; currentQuoteCode=q.code; currentClient=q.client||{}; currentPricing=q.pricing||{};
       const pn=$('#projName'); if(pn) pn.value=q.title||q.code;
       const verNo = openVer ? parseInt(openVer,10) : q.currentVersion;
       const ver = await BPStore.quotes.getVersion(q.id, verNo);
