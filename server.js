@@ -108,7 +108,7 @@ function serveStatic(req, res) {
   let rel;
   try { rel = decodeURIComponent(req.url.split('?')[0]); }
   catch { return sendJson(res, 400, { error: 'bad request' }); }
-  if (rel === '/') rel = '/index.html';
+  if (rel === '/') rel = '/welcome.html';   // public intro/landing is the front door
   const filePath = path.normalize(path.join(PUBLIC_DIR, rel));
   // must stay inside PUBLIC_DIR (guard the separator boundary, not just the prefix)
   if (filePath !== PUBLIC_DIR && !filePath.startsWith(PUBLIC_DIR + path.sep))
