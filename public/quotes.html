@@ -209,8 +209,8 @@
   </form>
 </div>
 
-<script src="config.js?v=69"></script>
-<script src="store-api.js?v=69"></script>
+<script src="config.js?v=72"></script>
+<script src="store-api.js?v=72"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
   const esc = (s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -349,18 +349,26 @@
     try{ cmCoupons=await BPStore.coupons.list(); }catch{ cmCoupons=[]; }
     const cfg=cmConfig;
     $("#rateNote").textContent = `· ₹${cfg.chairPrice}/chair · ₹${cfg.platePrice}/plate · GST ${cfg.gstPct}%  (edit in Control Center)`;
-    // seat counts from current version
-    let seats=0; try{ const v=await BPStore.quotes.getVersion(id, full.currentVersion); seats=countSeats(v.data&&v.data.items); }catch{}
+    // seat counts + object cost from current version (same engine as the builder)
+    let seats=0, objectsCost=0; try{ const v=await BPStore.quotes.getVersion(id, full.currentVersion);
+      const items=v.data&&v.data.items; seats=countSeats(items);
+      const oi=BPStore.pricing.fromItems(items, cfg.assetPrices); objectsCost=oi.objectsCost;
+    }catch{}
+    // menu package (set on the plan by the builder / plan screen) → its per-plate price drives catering
+    let planRow=null; try{ planRow=await BPStore.plan.get(id); }catch{}
+    const menuPlate = planRow && planRow.menu_plate_price!=null ? +planRow.menu_plate_price : null;
     $("#p_chairs").value = pr.chairs!=null?pr.chairs:seats;
     // guests: last-priced value → layout seats → the count carried over from the lead
     $("#p_guests").value = pr.guests!=null?pr.guests:(pr.chairs!=null?pr.chairs:(seats||(cl.guests!=null?cl.guests:"")));
-    // rates always come from the Control Center config (fixed globally, hidden here)
+    // rates from the Control Center, but plate price follows the applied menu package when there is one
     $("#p_chairPrice").value = cfg.chairPrice;
-    $("#p_platePrice").value = cfg.platePrice;
+    $("#p_platePrice").value = menuPlate!=null ? menuPlate : cfg.platePrice;
     $("#p_gst").value = cfg.gstPct;
     $("#p_cgst").value = cfg.cateringGstPct;
     $("#p_svc").value = cfg.serviceChargePct||0;
-    $("#p_other").value = pr.other||0;
+    // fold the layout's décor/equipment + setup fee into "other" (first time only, so manual edits stick)
+    $("#p_other").value = (pr.other!=null && pr.other!=="") ? pr.other : (objectsCost + (+cfg.layoutBase||0));
+    if(menuPlate!=null && planRow.menu_template) $("#rateNote").textContent += ` · package: ${planRow.menu_template}`;
     // vendor dropdown (+ add new)
     $("#p_vendor").innerHTML = `<option value="">— none —</option>`+cmVendors.map(v=>`<option>${esc(v.name)}</option>`).join("")+`<option value="__new">＋ Add new vendor…</option>`;
     $("#p_vendor").value = (pr.catering&&pr.catering.vendor)||"";

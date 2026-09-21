@@ -124,6 +124,8 @@
   .prow.total .amt{color:var(--accent)}
   .pricebox .empty{font-size:12px;color:var(--ink-3);padding:6px 0}
   .pricebox .delta{font-size:11px;color:var(--ink-3);margin-top:6px}
+  .pfield{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:600;color:var(--ink-3);margin-bottom:8px}
+  .pfield select,.pfield input{height:32px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;padding:0 8px;font-family:inherit;font-size:13px;color:var(--ink);font-weight:400}
 
   /* ---------- Toolbox ---------- */
   .cat{padding:2px 12px 10px}
@@ -632,6 +634,8 @@
 
   <!-- RIGHT : inspector -->
   <aside class="right">
+    <div class="panel-head">Menu package &amp; guests</div>
+    <div id="pkgPanel" class="pricebox"></div>
     <div class="panel-head">Price breakdown</div>
     <div id="pricePanel" class="pricebox"></div>
     <div class="panel-head">Inspector</div>
@@ -645,8 +649,8 @@
   </aside>
 </main>
 
-<script src="config.js?v=69"></script>
-<script src="store-api.js?v=69"></script>
+<script src="config.js?v=72"></script>
+<script src="store-api.js?v=72"></script>
 <script>
 /* =========================================================================
    BLUEPRINT STAGE — 2D Event Layout & Blueprint Builder
@@ -807,7 +811,11 @@ function unitPrice(type){
   const a=ASSETS[type]; return (a && CAT_BASE_PRICE[a.category]) || 3000;
 }
 // runtime pricing config (loaded from Control Centre in init)
-const PRICING = { chairPrice:200, gstPct:18, layoutBase:0, assetPrices:null, eventType:null };
+// chairPrice/platePrice/gstPct/layoutBase/serviceChargePct/assetPrices = rates;
+// menuPlatePrice/menuPackageName/guests = the current event's menu + headcount.
+const PRICING = { chairPrice:200, platePrice:500, gstPct:18, layoutBase:0, serviceChargePct:0,
+  assetPrices:null, eventType:null, menuPlatePrice:null, menuPackageName:null, guests:null,
+  packages:[], appliedPkgId:"" };
 // map a quote's event type → a default preset layout key
 const EVENT_TYPE_PRESET = {
   wedding:'wedding_banquet', reception:'wedding_reception', engagement:'wedding_ceremony',
@@ -816,52 +824,68 @@ const EVENT_TYPE_PRESET = {
   political:'political_theatre', birthday:'birthday_party', gala:'gala_awards',
 };
 
-// Build the live price breakdown from the current items.
-function priceModel(){
-  const lines=[];                          // per-unit object lines
-  let chairs=0;
-  const groups={};                         // type → {qty}
-  store.items.forEach(it=>{
-    if(isSeating(it)){ chairs += seatCount(it); return; }
-    groups[it.type] = groups[it.type] || { qty:0 };
-    groups[it.type].qty++;
-  });
-  const chairsCost = chairs * (PRICING.chairPrice||0);
-  Object.keys(groups).forEach(type=>{
-    const qty=groups[type].qty, unit=unitPrice(type);
-    if(unit<=0) return;
-    lines.push({ label:(ASSETS[type]?ASSETS[type].label:type), qty, unit, cost:qty*unit });
-  });
-  lines.sort((a,b)=>b.cost-a.cost);
-  const layoutBase = +PRICING.layoutBase||0;
-  const objectsCost = lines.reduce((s,l)=>s+l.cost,0);
-  const subtotal = chairsCost + objectsCost + layoutBase;
-  const gst = Math.round(subtotal * (PRICING.gstPct||0)/100);
-  const total = subtotal + gst;
-  return { chairs, chairsCost, lines, layoutBase, subtotal, gst, total };
-}
 function inr(n){ return '₹'+Math.round(n||0).toLocaleString('en-IN'); }
 function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// The ONE breakdown — delegated to BPStore.pricing so the builder and the
+// quote always show the identical number. Chairs + objects come from the
+// layout; catering = guests × the applied menu package's per-plate price.
+function priceModel(){
+  return BPStore.pricing.breakdown(
+    { items: store.items, guests: PRICING.guests, menuPlatePrice: PRICING.menuPlatePrice,
+      serviceChargePct: PRICING.serviceChargePct },
+    PRICING);
+}
+
+// Build the menu-package + guests controls ONCE (rebuilding on every render
+// would steal focus from the guests field while typing).
+function buildMenuControls(){
+  const box=$('#pkgPanel'); if(!box) return;
+  const pkgs=PRICING.packages||[];
+  const opts=['<option value="">No package…</option>'].concat(
+    pkgs.map(p=>`<option value="${esc(p.id)}" ${p.id===PRICING.appliedPkgId?'selected':''}>${esc(p.name)} · ${inr(p.price_per_plate)}/plate</option>`)).join('');
+  box.innerHTML =
+    `<label class="pfield">Menu package<select id="bPkg" ${CAN_CREATE?'':'disabled'}>${opts}</select></label>`+
+    `<label class="pfield">Guests / plates <input id="bGuests" type="number" min="0" value="${PRICING.guests!=null?PRICING.guests:''}"></label>`+
+    `<div class="delta" id="pkgDelta"></div>`;
+  const sel=$('#bPkg'); if(sel) sel.addEventListener('change',onPickPackage);
+  const g=$('#bGuests'); if(g) g.addEventListener('input',()=>{ PRICING.guests = g.value===''?null:Math.max(0,parseInt(g.value,10)||0); renderPrice(); });
+}
+async function onPickPackage(){
+  const tid=$('#bPkg').value; PRICING.appliedPkgId=tid;
+  const pkg=(PRICING.packages||[]).find(p=>p.id===tid);
+  PRICING.menuPlatePrice = pkg ? pkg.price_per_plate : null;
+  PRICING.menuPackageName = pkg ? pkg.name : null;
+  // persist to the event's plan so the quote screen shows the same package + price
+  if(currentQuoteId && tid){
+    try{ await BPStore.menuTemplates.apply(currentQuoteId, tid); toast('Applied '+(pkg?pkg.name:'package')); }
+    catch(e){ toast('Couldn\'t apply package'); }
+  }
+  renderAll();
+}
 
 // Render the live price breakdown panel (called on every renderAll).
 function renderPrice(){
   const box=$('#pricePanel'); if(!box) return;
   const m=priceModel();
   let rows='';
-  if(m.chairs>0){
-    rows+=`<div class="prow"><span>Chairs <span class="q">${m.chairs} × ${inr(PRICING.chairPrice)}</span></span><span class="amt">${inr(m.chairsCost)}</span></div>`;
-  }
-  m.lines.forEach(l=>{
-    rows+=`<div class="prow"><span>${esc(l.label)} <span class="q">${l.qty>1?l.qty+' × '+inr(l.unit):inr(l.unit)}</span></span><span class="amt">${inr(l.cost)}</span></div>`;
+  if(m.chairs>0)
+    rows+=`<div class="prow"><span>Chairs <span class="q">${m.chairs} × ${inr(m.chairPrice)}</span></span><span class="amt">${inr(m.chairsCost)}</span></div>`;
+  if(m.cateringCost>0)
+    rows+=`<div class="prow"><span>Catering${PRICING.menuPackageName?' <span class="q">'+esc(PRICING.menuPackageName)+'</span>':''} <span class="q">${m.guests} × ${inr(m.platePrice)}</span></span><span class="amt">${inr(m.cateringCost)}</span></div>`;
+  (m.objectLines||[]).forEach(l=>{
+    const label=ASSETS[l.type]?ASSETS[l.type].label:l.type;
+    rows+=`<div class="prow"><span>${esc(label)} <span class="q">${l.qty>1?l.qty+' × '+inr(l.unit):inr(l.unit)}</span></span><span class="amt">${inr(l.cost)}</span></div>`;
   });
-  if(m.layoutBase>0){
-    rows+=`<div class="prow"><span>Layout &amp; setup</span><span class="amt">${inr(m.layoutBase)}</span></div>`;
-  }
-  if(!rows) rows='<div class="empty">Add items to the floor to see the price build up.</div>';
+  if(m.layoutBase>0) rows+=`<div class="prow"><span>Layout &amp; setup</span><span class="amt">${inr(m.layoutBase)}</span></div>`;
+  if(m.serviceCharge>0) rows+=`<div class="prow"><span>Service <span class="q">${m.svcPct}%</span></span><span class="amt">${inr(m.serviceCharge)}</span></div>`;
+  if(!rows) rows='<div class="empty">Add items and pick a menu package to see the price build up.</div>';
   const tax = m.subtotal>0 ? `<div class="prow sub"><span>Subtotal</span><span class="amt">${inr(m.subtotal)}</span></div>`
-    + `<div class="prow"><span>GST <span class="q">${PRICING.gstPct}%</span></span><span class="amt">${inr(m.gst)}</span></div>` : '';
+    + `<div class="prow"><span>GST <span class="q">${m.gstPct}%</span></span><span class="amt">${inr(m.gst)}</span></div>` : '';
   box.innerHTML = rows + tax +
     `<div class="prow total"><span>Total</span><span class="amt">${inr(m.total)}</span></div>`;
+  const gd=$('#bGuests'); if(gd && document.activeElement!==gd) gd.placeholder = m.chairs+' (= chairs)';
+  const d=$('#pkgDelta'); if(d) d.innerHTML=`Chairs from layout: <b>${m.chairs}</b> · plates billed: <b>${m.guests}</b>`;
 }
 
 
@@ -2991,11 +3015,15 @@ async function init(){
     const pc = await BPStore.config.getPricing();
     if(pc){
       if(pc.chairPrice!=null) PRICING.chairPrice=+pc.chairPrice;
+      if(pc.platePrice!=null) PRICING.platePrice=+pc.platePrice;
       if(pc.gstPct!=null)     PRICING.gstPct=+pc.gstPct;
       if(pc.layoutBase!=null) PRICING.layoutBase=+pc.layoutBase;
+      if(pc.serviceChargePct!=null) PRICING.serviceChargePct=+pc.serviceChargePct;
       if(pc.assetPrices)      PRICING.assetPrices=pc.assetPrices;
     }
   }catch{}
+  try{ PRICING.packages = await BPStore.menuTemplates.list(); }catch{ PRICING.packages=[]; }
+  buildMenuControls();
   renderPrice();
   // Auth gate: if Supabase enforces login and nobody's signed in → go to the sign-in page
   if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){
@@ -3017,6 +3045,18 @@ async function init(){
       const ver = await BPStore.quotes.getVersion(q.id, verNo);
       currentVersionNo = ver.versionNo;
       PRICING.eventType = q.eventType || null;
+      // pull the event's guest count + applied menu package so the price is synced
+      if(q.client && q.client.guests!=null) PRICING.guests = +q.client.guests;
+      try{
+        const plan = await BPStore.plan.get(q.id);
+        if(plan){
+          if(plan.menu_plate_price!=null) PRICING.menuPlatePrice = +plan.menu_plate_price;
+          if(plan.menu_template) PRICING.menuPackageName = plan.menu_template;
+          const match=(PRICING.packages||[]).find(p=>p.name===plan.menu_template);
+          if(match) PRICING.appliedPkgId = match.id;
+        }
+      }catch{}
+      buildMenuControls();
       if(ver.data && (ver.data.items||[]).length){ applyLayout(ver.data); }
       else {
         // Empty layout → drop in the default layout for this event type so the

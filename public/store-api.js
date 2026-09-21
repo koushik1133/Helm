@@ -580,6 +580,68 @@
     getPricing: () => rpc("get_pricing_config"),
     setPricing: (p) => rpc("set_pricing_config", { p }),
   };
+
+  /* ---------------- ONE shared pricing engine (Phase 66) ----------------
+     Both the 2D builder's live panel and the quote total run through this,
+     so the number is always the same everywhere. Inputs come from the layout
+     (chairs + objects), the guest count, and the applied menu package's
+     per-plate price. Object prices fall back to a category default, then to
+     Control-Centre overrides (rates.assetPrices).                         */
+  const OBJECT_CAT_PRICE = { structure:15000, seating:2500, av:9000, security:2000, logistics:4000, safety:1500, decor:12000 };
+  const OBJECT_PRICE = {
+    stage:45000, tent:35000, canopy:25000, mandap:75000, arch:9000, floralarch:15000,
+    dancefloor:20000, redcarpet:8000, viprisers:18000, truss:6000,
+    videowall:120000, ledscreen:60000, linearray:40000, subwoofer:12000, foh:20000,
+    piano:30000, press:15000, dj:10000, photobooth:12000,
+    bar:12000, buffet:9000, truck:25000, greenroom:8000, generator:15000, parking:10000,
+    chandelier:12000, fountain:20000, restroom:12000, coatcheck:5000, firstaid:4000,
+  };
+  const SEAT_TYPES = { chiavari:1, barstool:1 };   // chairs with no explicit seat count
+  const pricing = {
+    OBJECT_CAT_PRICE, OBJECT_PRICE, SEAT_TYPES,
+    isSeat(it){ const p=it.properties||{}; return !!((p.rows&&p.cols) || p.seats || (SEAT_TYPES[it.type]!=null)); },
+    seatCount(it){ const p=it.properties||{}; if(p.rows&&p.cols) return p.rows*p.cols; if(p.seats) return p.seats; return SEAT_TYPES[it.type]||0; },
+    unitPrice(it, assetPrices){ const t=it.type;
+      if(assetPrices && assetPrices[t]!=null) return +assetPrices[t];
+      if(OBJECT_PRICE[t]!=null) return OBJECT_PRICE[t];
+      return OBJECT_CAT_PRICE[it.category] || 3000; },
+    // chairs + itemised object lines from a layout items array
+    fromItems(items, assetPrices){
+      items = items||[]; let chairs=0; const groups={};
+      items.forEach(it=>{ if(this.isSeat(it)){ chairs+=this.seatCount(it); return; }
+        (groups[it.type]=groups[it.type]||{qty:0,cat:it.category}).qty++; });
+      const lines=Object.keys(groups).map(t=>{ const g=groups[t], unit=this.unitPrice({type:t,category:g.cat},assetPrices);
+        return { type:t, qty:g.qty, unit, cost:g.qty*unit }; }).filter(l=>l.unit>0).sort((a,b)=>b.cost-a.cost);
+      return { chairs, objectLines:lines, objectsCost:lines.reduce((s,l)=>s+l.cost,0) };
+    },
+    // THE unified breakdown. rates = getPricing() result.
+    breakdown(inp, rates){
+      rates = rates||{};
+      const items = inp.items||[];
+      const oi = (inp.chairs!=null && inp.objectsCost!=null)
+        ? { chairs:inp.chairs, objectLines:inp.objectLines||[], objectsCost:inp.objectsCost }
+        : this.fromItems(items, rates.assetPrices);
+      const chairs = inp.chairs!=null ? inp.chairs : oi.chairs;
+      const guests = inp.guests!=null && inp.guests!=="" ? Number(inp.guests) : chairs;   // plates = guests, default from chairs
+      const chairPrice = +rates.chairPrice||0;
+      const platePrice = inp.menuPlatePrice!=null && inp.menuPlatePrice!=="" ? Number(inp.menuPlatePrice) : (+rates.platePrice||0);
+      const chairsCost   = chairs*chairPrice;
+      const cateringCost = inp.clientCater ? 0 : guests*platePrice + (+inp.cateringExtra||0);
+      const objectsCost  = oi.objectsCost;
+      const layoutBase   = +rates.layoutBase||0;
+      const svcPct       = +(inp.serviceChargePct!=null?inp.serviceChargePct:rates.serviceChargePct)||0;
+      const preSvc       = chairsCost + objectsCost + cateringCost + layoutBase;
+      const serviceCharge= Math.round(preSvc*svcPct/100);
+      const subtotal     = preSvc + serviceCharge;
+      const discount     = Math.min(+inp.discount||0, subtotal);
+      const taxed        = subtotal - discount;
+      const gstPct       = +(rates.gstPct!=null?rates.gstPct:18);
+      const gst          = Math.round(taxed*gstPct/100);
+      return { chairs, guests, chairPrice, platePrice, chairsCost, cateringCost,
+        objectLines:oi.objectLines, objectsCost, layoutBase, serviceCharge, svcPct,
+        subtotal, discount, gstPct, gst, total: taxed + gst };
+    },
+  };
   const vendors = {
     async list() { if (!supa) throw new Error("Supabase not configured");
       const { data, error } = await supa.from("vendors").select("*").eq("active", true).order("name"); if (error) throw error; return data; },
@@ -1988,7 +2050,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, people, org, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, people, pricing, org, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),
