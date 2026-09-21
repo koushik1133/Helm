@@ -942,6 +942,17 @@
     },
   };
 
+  /* ---------------- quotation versions Q1/Q2/Q3 (Phase 77) ---------------- */
+  const quotationVersions = {
+    async list(quoteId) {
+      if (mode !== "supabase") return [];
+      const { data, error } = await supa.from("quotation_versions").select("*").eq("quote_id", quoteId).order("created_at", { ascending: false });
+      if (error) throw error; return data;
+    },
+    // snapshot as the next Q-number; also updates the quote's current pricing
+    save: (quoteId, pricing) => rpc("save_quotation_version", { p_quote: quoteId, p_pricing: pricing || {} }),
+  };
+
   /* ---------------- admin-configurable layout rules (Phase 75) ---------------- */
   const layoutRules = {
     async list() {
@@ -2109,7 +2120,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, layoutRules, people, pricing, org, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),
