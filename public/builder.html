@@ -849,7 +849,17 @@ function buildMenuControls(){
     `<label class="pfield">Guests / plates <input id="bGuests" type="number" min="0" value="${PRICING.guests!=null?PRICING.guests:''}"></label>`+
     `<div class="delta" id="pkgDelta"></div>`;
   const sel=$('#bPkg'); if(sel) sel.addEventListener('change',onPickPackage);
-  const g=$('#bGuests'); if(g) g.addEventListener('input',()=>{ PRICING.guests = g.value===''?null:Math.max(0,parseInt(g.value,10)||0); renderPrice(); });
+  const g=$('#bGuests'); if(g){
+    g.addEventListener('input',()=>{ PRICING.guests = g.value===''?null:Math.max(0,parseInt(g.value,10)||0); renderPrice(); });
+    // persist on blur so the guest count isn't lost (kept on the quote's client, where the quote screen reads it)
+    g.addEventListener('change', persistGuests);
+  }
+}
+async function persistGuests(){
+  if(!currentQuoteId || PRICING.guests==null) return;
+  try{ currentClient = Object.assign({}, currentClient, { guests: PRICING.guests });
+    await BPStore.quotes.updateMeta(currentQuoteId, { client: currentClient }); }
+  catch(e){ /* non-fatal */ }
 }
 async function onPickPackage(){
   const tid=$('#bPkg').value; PRICING.appliedPkgId=tid;
@@ -2770,6 +2780,7 @@ let currentLayoutId = null;       // id of the open layout (legacy layouts tier)
 let currentQuoteId = null;        // id of the open QUOTE (primary flow) — save appends a version
 let currentQuoteCode = null;      // the quote's MMDDYYYY-NN code (for the header readout)
 let currentVersionNo = null;      // which version is loaded (for the header readout)
+let currentClient = {};           // the open quote's client object (so we can persist guests without clobbering it)
 
 function serialize(){
   return { items: JSON.parse(JSON.stringify(store.items)),
@@ -3039,7 +3050,7 @@ async function init(){
   if(quoteId){
     try{
       const q=await BPStore.quotes.get(quoteId);
-      currentQuoteId=q.id; currentQuoteCode=q.code;
+      currentQuoteId=q.id; currentQuoteCode=q.code; currentClient=q.client||{};
       const pn=$('#projName'); if(pn) pn.value=q.title||q.code;
       const verNo = openVer ? parseInt(openVer,10) : q.currentVersion;
       const ver = await BPStore.quotes.getVersion(q.id, verNo);
