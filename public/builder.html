@@ -650,7 +650,7 @@
 </main>
 
 <script src="config.js?v=72"></script>
-<script src="store-api.js?v=73"></script>
+<script src="store-api.js?v=74"></script>
 <script>
 /* =========================================================================
    BLUEPRINT STAGE — 2D Event Layout & Blueprint Builder
@@ -3133,11 +3133,26 @@ async function init(){
     const TMAP={ wedding:'wedding', reception:'wedding', engagement:'wedding', gala:'wedding', cocktail:'wedding',
       concert:'concert', festival:'festival', political:'political', rally:'political',
       conference:'conference', corporate:'conference', expo:'conference', product_launch:'conference', birthday:'wedding' };
-    const ct=TMAP[(params.get('type')||'').toLowerCase()]||'wedding';
+    const rawType=(params.get('type')||'').toLowerCase();
+    const ct=TMAP[rawType]||'wedding';
     const setV=(id,v)=>{ const el=$('#'+id); if(el&&v!=null&&v!=='') el.value=v; };
+    const setChk=(id,v)=>{ const el=$('#'+id); if(el) el.checked=!!v; };
     const sel=$('#c_type'); if(sel && [...sel.options].some(o=>o.value===ct)) sel.value=ct;
+    const guests=+params.get('guests')||0;
     setV('c_guests', params.get('guests')); setV('c_len', params.get('len')); setV('c_wid', params.get('wid'));
-    if(params.get('guests')){ PRICING.guests=+params.get('guests'); const g=$('#bGuests'); if(g) g.value=params.get('guests'); }
+    if(guests){ PRICING.guests=guests; const g=$('#bGuests'); if(g) g.value=guests; }
+    // apply the admin-configured layout rule for this event type (seats/guest, buffet, bars, components)
+    try{
+      const rule = await BPStore.layoutRules.get(rawType) || await BPStore.layoutRules.get(ct);
+      if(rule){
+        if(rule.seatsPerGuest!=null && guests) setV('c_chairs', Math.round(guests*(+rule.seatsPerGuest)));
+        if(rule.bars!=null) setV('c_bars', rule.bars);
+        if(rule.buffetPer!=null && guests) setChk('c_buffet', guests>=(+rule.buffetPer));
+        if(rule.stage!=null) setChk('c_stage', rule.stage);
+        if(rule.dancefloor!=null) setChk('c_dance', rule.dancefloor);
+        toast('Applied "'+(rawType||ct)+'" default rules');
+      }
+    }catch(e){}
     openCustomModal();
     try{ runCustomGenerate(); }catch(e){}
     toast('Pick a generated layout to start — then tweak it freely');

@@ -942,6 +942,24 @@
     },
   };
 
+  /* ---------------- admin-configurable layout rules (Phase 75) ---------------- */
+  const layoutRules = {
+    async list() {
+      if (mode !== "supabase") return readLs("bp_layout_rules");
+      const { data, error } = await supa.from("layout_rules").select("*").eq("active", true).order("seq");
+      if (error) throw error; return data;
+    },
+    async get(eventType) {
+      const all = await this.list().catch(() => []);
+      const r = all.find((x) => (x.event_type || "").toLowerCase() === String(eventType || "").toLowerCase());
+      return r ? r.rules : null;
+    },
+    async update(id, patch) {
+      if (mode !== "supabase") { const a = readLs("bp_layout_rules"); const r = a.find((x) => x.id === id); if (r) Object.assign(r, patch); localStorage.setItem("bp_layout_rules", JSON.stringify(a)); return true; }
+      const { error } = await supa.from("layout_rules").update(patch).eq("id", id); if (error) throw error; return true;
+    },
+  };
+
   /* ---------------- combined people picker (staff + vendors) ---------------- */
   // One source for every "who is responsible" dropdown across the app, so a
   // person shows up the same way whether they're in-house Staff or a Vendor.
@@ -2078,7 +2096,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, people, pricing, org, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, layoutRules, people, pricing, org, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

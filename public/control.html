@@ -198,6 +198,12 @@
       <p class="mnote" style="margin:-6px 0 10px">The 6 fixed menu packages. Set each one's per-plate price and edit its dish list (one dish per line as <code>Category | Dish name | veg|nonveg|special</code>). Staff pick a package on the event's Menu screen to pre-fill the dishes in one click.</p>
       <div id="menuTplList">Run <code>phase62-menu-templates.sql</code> to enable menu packages.</div>
     </div>
+
+    <div class="card">
+      <h3>Default layout rules (per event type)</h3>
+      <p class="mnote" style="margin:-6px 0 10px">The defaults the layout generator uses for each event type — seats per guest, buffet tables per N guests, bars, and which components to include. Change these here (no developer needed) and every generated layout follows them.</p>
+      <div id="layoutRuleList">Run <code>phase75-layout-rules.sql</code> to enable layout rules.</div>
+    </div>
     </div><!-- /pane-pricing -->
 
     <!-- ============ USER CONTROL PANE (admin only) ============ -->
@@ -241,7 +247,7 @@
 </div>
 
 <script src="config.js?v=71"></script>
-<script src="store-api.js?v=73"></script>
+<script src="store-api.js?v=74"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -272,7 +278,7 @@
       $("#p_layout").value=p.layoutBase??0;
       renderItemPrices();
     }catch(e){ setMsg("err","Run control-center.sql to enable the Control Center. ("+((e&&e.message)||"")+")"); }
-    await renderVendors(); await renderCoupons(); await renderChairs(); await renderPlates(); await renderDishes(); await renderMenuTemplates(); await renderOrg();
+    await renderVendors(); await renderCoupons(); await renderChairs(); await renderPlates(); await renderDishes(); await renderMenuTemplates(); await renderLayoutRules(); await renderOrg();
     // Only admins get the User-control tab (add/remove users + access matrix).
     if(isAdmin){
       $("#tab-users").hidden=false;
@@ -324,6 +330,39 @@
     try{ await BPStore.config.setPricing(pricingCfg); setMsg("ok","Item prices saved — the builder breakdown uses these."); }
     catch(e){ setMsg("err",(e&&e.message)||"Save failed"); }
   });
+
+  async function renderLayoutRules(){
+    let rules=[];
+    try{ rules=await BPStore.layoutRules.list(); }catch(e){ return; }
+    if(!rules.length){ $("#layoutRuleList").innerHTML='<div class="row" style="color:var(--ink-3)">No layout rules yet — run phase75-layout-rules.sql.</div>'; return; }
+    const num=(r,k,d)=>{ const v=(r.rules||{})[k]; return v!=null?v:d; };
+    const on=(r,k)=>((r.rules||{})[k]===true);
+    $("#layoutRuleList").innerHTML = rules.map(r=>`
+      <div class="lr" data-id="${r.id}" style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px">
+        <strong style="text-transform:capitalize">${esc(r.event_type)}</strong>
+        <div class="grid" style="margin-top:8px">
+          <div class="fld"><label>Seats per guest</label><input class="lr_spg" type="number" min="0" step="0.1" value="${num(r,'seatsPerGuest',1)}"></div>
+          <div class="fld"><label>Buffet table per N guests</label><input class="lr_buf" type="number" min="1" step="1" value="${num(r,'buffetPer',100)}"></div>
+          <div class="fld"><label>Bars</label><input class="lr_bars" type="number" min="0" step="1" value="${num(r,'bars',0)}"></div>
+        </div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:13px;color:var(--ink-2)">
+          <label><input type="checkbox" class="lr_stage" ${on(r,'stage')?'checked':''}> Stage</label>
+          <label><input type="checkbox" class="lr_dance" ${on(r,'dancefloor')?'checked':''}> Dance floor</label>
+          <label><input type="checkbox" class="lr_walk" ${on(r,'walkway')?'checked':''}> Walkway</label>
+          <label><input type="checkbox" class="lr_dj" ${on(r,'dj')?'checked':''}> DJ</label>
+        </div>
+        <div class="actions" style="margin-top:8px"><button class="btn primary lr_save">Save</button></div>
+      </div>`).join("");
+    $("#layoutRuleList").querySelectorAll(".lr").forEach(box=>{
+      box.querySelector(".lr_save").addEventListener("click",async()=>{
+        const rules={ seatsPerGuest:+box.querySelector(".lr_spg").value||0, buffetPer:+box.querySelector(".lr_buf").value||100,
+          bars:+box.querySelector(".lr_bars").value||0, stage:box.querySelector(".lr_stage").checked,
+          dancefloor:box.querySelector(".lr_dance").checked, walkway:box.querySelector(".lr_walk").checked, dj:box.querySelector(".lr_dj").checked };
+        try{ await BPStore.layoutRules.update(box.dataset.id,{rules}); setMsg("ok","Layout rule saved."); }
+        catch(e){ setMsg("err",(e&&e.message)||"Save failed"); }
+      });
+    });
+  }
 
   async function renderMenuTemplates(){
     let tpls=[];
