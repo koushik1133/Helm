@@ -108,6 +108,7 @@
     <li><a href="#multitenant">How multi-tenant works</a></li>
     <li><a href="#security">Security posture</a></li>
     <li><a href="#next">What we could build next</a></li>
+    <li><a href="#transparency">Data protection &amp; transparency</a></li>
   </ol>
 </div>
 
@@ -395,7 +396,7 @@
   <tr><td>Audit trail</td><td>A generic trigger logs inserts/updates/deletes across 16 core tables with actor and timestamp.</td></tr>
   <tr><td>Auth</td><td>Supabase Auth with email confirmation (turn it back <b>ON</b> after testing); passwords never handled in app code.</td></tr>
 </table>
-<div class="warnbox"><b>Accepted / deferred:</b> nonce-based CSP, per-endpoint rate limiting, and setting <code>org_id NOT NULL</code> on every core table are noted as future hardening. If Supabase Storage buckets are later used, namespace uploads under <code>org_id/…</code>.</div>
+<div class="warnbox"><b>Recently closed:</b> per-IP rate limiting on the app API, Supabase auth rate limits, and <code>org_id NOT NULL</code> on core tables (Phase 60). <b>Still open:</b> nonce-based CSP, an independent penetration test, and DPDP privacy compliance — see “Data protection, privacy &amp; transparency” below. If Supabase Storage buckets are later used, namespace uploads under <code>org_id/…</code>.</div>
 
 <!-- ===================== NEXT ===================== -->
 <h2 id="next">10 · What we could build next</h2>
@@ -424,6 +425,39 @@
   <div class="feat"><b>Mobile app</b>A native crew app wrapping <code>work.html</code> with push notifications.</div>
   <div class="feat"><b>Templated onboarding</b>Industry starter packs (wedding studio vs corporate AV) beyond the single default seed.</div>
 </div>
+
+
+<!-- TRANSPARENCY -->
+<h2 id="transparency">11 · Data protection, privacy &amp; transparency</h2>
+<p>We want to be fully open about what is protected today, what is not done yet, and what depends on others. No system is ever “100% secure”, and anyone who says so is wrong — so here is the honest picture, kept up to date as gaps are closed.</p>
+
+<h3>What is protected today (proven)</h3>
+<ul>
+  <li><b>Studio isolation</b> — enforced by Postgres Row-Level Security in the database itself, not app code. Verified live: a brand-new studio read <b>0</b> of another studio's quotes, leads, costs, inventory, tasks and crew.</li>
+  <li><b>Role-based access</b> — the 286-rule matrix limits every role; Operations and Crew read <b>0</b> finance rows (verified).</li>
+  <li><b>Server-side authority</b> — sensitive writes run through <code>SECURITY DEFINER</code> functions that stamp the studio id themselves, so the client can't forge which studio it writes to.</li>
+  <li><b>Every row belongs to a studio</b> — <code>org_id</code> is now <b>NOT NULL</b> on the core tables (Phase 60).</li>
+  <li><b>Abuse protection</b> — per-IP rate limiting on the app's own API, plus Supabase's auth rate limits for sign-in / OTP / sign-up.</li>
+  <li><b>Hardening basics</b> — security headers (CSP, HSTS, anti-clickjacking and more), an audit log across 16 tables, and Supabase-managed password hashing (we never handle raw passwords).</li>
+</ul>
+
+<h3>What is NOT done yet — be transparent with customers</h3>
+<table>
+  <tr><th>Gap</th><th>What it means in plain words</th><th>Status</th></tr>
+  <tr><td>Independent penetration test</td><td>All testing so far is by the builder. A neutral third-party security audit hasn't happened.</td><td>Recommended before scale</td></tr>
+  <tr><td>Nonce-based CSP</td><td>The strictest form of script-injection protection. The current CSP is solid but still allows inline scripts.</td><td>Planned</td></tr>
+  <tr><td>DPDP (India) privacy compliance</td><td>Consent records, data retention/erasure, 72-hour breach notice, a grievance officer, and related duties.</td><td>Not built</td></tr>
+  <tr><td>Google sign-in</td><td>The button and flow are built; going live needs Google Cloud + Supabase provider configuration.</td><td>Pending config</td></tr>
+  <tr><td>audit_log studio stamping</td><td>Older audit rows predate multi-tenant, so that one log table keeps a nullable studio id for now (not a data leak).</td><td>Minor follow-up</td></tr>
+</table>
+
+<h3>What we depend on</h3>
+<p>Your data lives in <b>Supabase</b> (managed PostgreSQL). We rely on their infrastructure, backups and internal access controls — a reasonable, industry-standard dependency, but still a third party. A platform-level incident on their side would affect our data as it would any tenant on a managed service.</p>
+
+<h3>Isolation is not the same as privacy</h3>
+<p><b>Isolation</b> stops Studio A from ever seeing Studio B — that is done and proven. <b>Privacy law</b> is a separate, broader duty: telling people what you collect and why, keeping consent records, letting them see and delete their data, deleting it when it's no longer needed, and reporting breaches on time. For an India-facing business the relevant law is the <b>Digital Personal Data Protection (DPDP) Act, 2023</b>. That compliance layer is <b>not built yet</b> and should be in place before handling real customers' personal data at scale.</p>
+
+<div class="okbox"><b>Our commitment.</b> We won't claim a security guarantee we haven't tested, we label what's <i>proven</i> versus <i>pending</i> honestly, and we keep this section current as each gap is closed.</div>
 
 <hr>
 <p style="color:var(--ink-3);font-size:12.5px">Blueprint Stage — Complete Product Guide · To save as PDF: open this file in a browser and choose <span class="kbd">Print</span> → <b>Save as PDF</b> (A4, default margins). All diagrams are vector and print crisply.</p>
