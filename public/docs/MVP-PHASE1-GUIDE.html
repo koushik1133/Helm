@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blueprint Stage — Phase 1 / MVP plan</title>
+<style>
+  :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#8b8698;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;
+    --safe:#0f7a43;--safe-bg:#e7f6ee;--warn:#946200;--warn-bg:#fff7e6;--stop:#b42318;--stop-bg:#fdecec;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--mono:ui-monospace,Menlo,Consolas,monospace;}
+  :root[data-theme="dark"]{--bg:#0f1420;--panel:#151b2b;--panel-2:#1a2232;--ink:#eef1f8;--ink-2:#b8c0d4;--ink-3:#7a8296;--line:#26314a;--line-2:#1c2438;--accent-soft:#1d2b4d;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:900px;margin:0 auto;padding:40px 24px 90px}
+  h1{font-size:30px;margin:0 0 6px;letter-spacing:-.02em} h2{font-size:22px;margin:38px 0 10px;padding-top:14px;border-top:1px solid var(--line)}
+  h3{font-size:16px;margin:22px 0 6px} p{margin:8px 0}
+  .lead{color:var(--ink-2);font-size:16px}
+  code{font-family:var(--mono);font-size:.9em;background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px 20px;margin:14px 0}
+  .badge{display:inline-block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:2px 9px;border-radius:20px;vertical-align:middle}
+  .done{background:var(--safe-bg);color:var(--safe)} .part{background:var(--warn-bg);color:var(--warn)} .todo{background:var(--stop-bg);color:var(--stop)}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:12px 0}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);border-bottom:1px solid var(--line);padding:8px 10px}
+  td{padding:9px 10px;border-bottom:1px solid var(--line-2);vertical-align:top}
+  .req{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:26px 0 4px}
+  .req .n{width:26px;height:26px;border-radius:7px;background:var(--accent-soft);color:var(--accent);font-weight:800;display:inline-flex;align-items:center;justify-content:center;font-size:13px}
+  .req h3{margin:0}
+  .where{font-size:12.5px;color:var(--ink-3);font-family:var(--mono)}
+  ul{margin:8px 0 8px 2px;padding-left:20px} li{margin:4px 0}
+  .tag{font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:20px;padding:2px 9px;margin-right:5px}
+  .toc a{display:block;color:var(--ink-2);text-decoration:none;padding:3px 0;font-size:14px} .toc a:hover{color:var(--accent)}
+  .note{background:var(--panel-2);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;padding:10px 14px;margin:12px 0;font-size:14px}
+  @media print{.card{box-shadow:none} body{background:#fff}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Blueprint Stage — Phase 1 / MVP plan</h1>
+  <p class="lead">The customer-facing MVP: from event type &amp; guest count to a generated layout, transparent pricing, a versioned quotation, client approval and a confirmed booking on advance payment. This is the working companion to the full product guide — it tracks <b>what exists, what is partial, and what is still to build</b>, and how to work on each piece.</p>
+  <p class="where">Repo: koushik1133/Helm · working folder "2d view-restored" · updated after phase 69.</p>
+
+  <div class="card toc">
+    <b>Contents</b>
+    <a href="#status">0 · Status at a glance</a>
+    <a href="#flow">1 · The one customer flow</a>
+    <a href="#reqs">2 · The 13 requirements — status &amp; how to work on each</a>
+    <a href="#admin">3 · Admin-configurable (no-developer) defaults</a>
+    <a href="#data">4 · Domain data to collect (Karthik / Prasanna / Tarun)</a>
+    <a href="#roadmap">5 · Build order / roadmap</a>
+    <a href="#howto">6 · How to work on this repo</a>
+  </div>
+
+  <h2 id="status">0 · Status at a glance</h2>
+  <p>Legend: <span class="badge done">Done</span> shipped &amp; tested · <span class="badge part">Partial</span> exists but incomplete · <span class="badge todo">To build</span> not started.</p>
+  <table>
+    <tr><th>#</th><th>MVP requirement</th><th>Status</th></tr>
+    <tr><td>1</td><td>Default layout generation (type + guests + venue dims)</td><td><span class="badge done">Done</span></td></tr>
+    <tr><td>2</td><td>Event categories &amp; types hierarchy</td><td><span class="badge todo">To build</span></td></tr>
+    <tr><td>3</td><td>Layout editable after generation</td><td><span class="badge done">Done</span></td></tr>
+    <tr><td>4</td><td>Event-specific default rules (seating ratios, buffet per N…)</td><td><span class="badge todo">To build</span></td></tr>
+    <tr><td>5</td><td>Dynamic pricing / cost breakdown</td><td><span class="badge done">Done</span></td></tr>
+    <tr><td>6</td><td>Backdrop / decoration selection filtered by stage size</td><td><span class="badge todo">To build</span></td></tr>
+    <tr><td>7</td><td>3D visualisation (with backdrop)</td><td><span class="badge part">Partial</span></td></tr>
+    <tr><td>8</td><td>PDF / quotation generation</td><td><span class="badge part">Partial</span></td></tr>
+    <tr><td>9</td><td>Quotation versioning (Q1, Q2, Q3…)</td><td><span class="badge part">Partial</span></td></tr>
+    <tr><td>10</td><td>Advance payment → confirmed booking (online + offline + receipts)</td><td><span class="badge part">Partial</span></td></tr>
+    <tr><td>11</td><td>Complete communication / activity trail</td><td><span class="badge part">Partial</span></td></tr>
+    <tr><td>12</td><td>Customer + planner payment acknowledgement</td><td><span class="badge part">Partial</span></td></tr>
+    <tr><td>13</td><td>Admin-configurable default rules (no code change)</td><td><span class="badge part">Partial</span></td></tr>
+  </table>
+  <p class="note">Pricing config is already admin-editable (Control Center). What is <i>not</i> yet no-code: the event categories and the layout default rules — those are the next foundational build.</p>
+
+  <h2 id="flow">1 · The one customer flow</h2>
+  <p>Everything below happens on a single screen — <code>public/flow.html</code> — opened when you click <b>Generate a quote</b> (Home) or <b>Convert</b> (Leads). No more hopping between pages and back. The old per-page screens remain as the "Open → full workspace" view for operations, tasks and assignments after approval.</p>
+  <p><b>Client &amp; event → Discovery → Requirements → Venue → Menu package → Floor layout → Proposal → Quotation → Send for approval</b>, with a sticky <b>live price</b> rail and a step checklist. Data auto-fills from the lead and autosaves through the same APIs the individual pages use, so nothing is duplicated.</p>
+
+  <h2 id="reqs">2 · The 13 requirements — status &amp; how to work on each</h2>
+
+  <div class="req"><span class="n">1</span><h3>Default layout generation</h3><span class="badge done">Done</span></div>
+  <p>Enter event type + guests + hall length/breadth in the flow's <b>Floor layout</b> step → <b>Generate default layout</b> opens the 2D builder pre-filled and produces default variants (stage, seating, walkway, buffet, dance floor…) scaled to the headcount and hall size. The planner picks one and edits freely.</p>
+  <p class="where">flow.html #genLayout → builder.html?gen=1&amp;type=&amp;guests=&amp;len=&amp;wid= → runCustomGenerate() / generateVariants() · TEMPLATES presets · EVENT_TYPE_PRESET.</p>
+  <p><b>Next:</b> make the generation scale rules data-driven (see #4) instead of the current in-code generator maths.</p>
+
+  <div class="req"><span class="n">2</span><h3>Event categories &amp; types hierarchy</h3><span class="badge todo">To build</span></div>
+  <p>A structured tree: <i>Private / Corporate / Public / Sports…</i> → individual event types under each. Today "event type" is a free-text/preset string.</p>
+  <p><b>How to build:</b> new table <code>event_categories(id, org_id, category, type, seq, active)</code> (multi-tenant, cfg-style RLS like <code>dish_catalog</code>); seed a starter tree; Control Center CRUD; the flow's event-type field becomes a category→type dropdown. Mirror the phase62 pattern exactly.</p>
+
+  <div class="req"><span class="n">3</span><h3>Layout editable after generation</h3><span class="badge done">Done</span></div>
+  <p>The 2D builder is fully editable — drag/drop, add/remove, resize, rotate, multi-select. The generated layout is a starting point, not fixed.</p>
+  <p class="where">builder.html — SVG canvas, ASSETS catalogue (~70 items), undo/redo, 3D preview.</p>
+
+  <div class="req"><span class="n">4</span><h3>Event-specific default rules</h3><span class="badge todo">To build</span></div>
+  <p>Embed experienced planners' knowledge as <b>numbers</b>: seats per guest, buffet tables per N guests, stage size by headcount, walkway, DJ/lighting, etc. — different per event type, and <b>changeable by an admin, not a developer</b>.</p>
+  <p><b>How to build:</b> a <code>layout_rules</code> JSON per event type in <code>app_config</code> (admin-editable in Control Center), e.g. <code>{ chairsPerGuest:1, buffetPer:75, stage:true, danceFloor:true, walkway:true, aislePct:12 }</code>. The generator reads the rule for the chosen type + guest count instead of hardcoded maths. Requires the domain data in §4.</p>
+
+  <div class="req"><span class="n">5</span><h3>Dynamic pricing / cost breakdown</h3><span class="badge done">Done</span></div>
+  <p>One shared pricing engine drives the builder panel, the flow's live rail and the quote — always the same number. Chairs priced per seat, every object per unit, catering = guests × the menu package's plate price, + layout/setup + GST. Add/remove anything and the total moves live. Every rate is admin-editable in Control Center.</p>
+  <p class="where">store-api.js BPStore.pricing (breakdown / quoteTotal / fromItems) · builder renderPrice · quotes calcPricing (delegates) · Control Center "Object &amp; item prices" + "Menu packages".</p>
+
+  <div class="req"><span class="n">6</span><h3>Backdrop / decoration selection (by stage size)</h3><span class="badge todo">To build</span></div>
+  <p>After the layout, choose a stage backdrop from a library of past-event photos / AI designs — showing <b>only</b> designs that suit the stage dimensions (no small backdrop for an 80-ft stage).</p>
+  <p><b>How to build:</b> table <code>backdrops(id, org_id, name, image_url, min_w, max_w, tags)</code>; a flow step that reads the stage object's width from the layout and filters the library by <code>min_w ≤ stageW ≤ max_w</code>. Images stored in Supabase Storage / an assets bucket. AI generation is a later enhancement.</p>
+
+  <div class="req"><span class="n">7</span><h3>3D visualisation (with backdrop)</h3><span class="badge part">Partial</span></div>
+  <p>The builder already renders the same layout in 3D (Three.js). <b>Missing:</b> dropping the chosen backdrop image onto the stage in that 3D view so the client sees the real proposed scene.</p>
+  <p><b>How to build:</b> map the selected backdrop image as a texture on a plane behind/above the stage model in the existing 3D scene; start with sample designs for a few common stage sizes for the MVP.</p>
+
+  <div class="req"><span class="n">8</span><h3>PDF / quotation generation</h3><span class="badge part">Partial</span></div>
+  <p>The quote screen already produces a printable quote/invoice (<code>downloadQuote</code>), and the builder exports the layout as PNG. <b>Missing:</b> a one-click <b>combined PDF</b> (quotation + venue layout) surfaced inside the flow, plus share.</p>
+  <p><b>How to build:</b> add "Download quote PDF" and "Download layout PDF" buttons to the flow; use the browser's print-to-PDF of a print stylesheet (no new dependency) or a small client-side PDF lib served locally.</p>
+
+  <div class="req"><span class="n">9</span><h3>Quotation versioning (Q1, Q2, Q3…)</h3><span class="badge part">Partial</span></div>
+  <p>Layout revisions are already versioned (<code>quote_versions</code>). <b>Missing:</b> labelling the <i>pricing</i> revisions as Q1/Q2/Q3 and keeping each rather than overwriting <code>quote.pricing</code>.</p>
+  <p><b>How to build:</b> table <code>quotation_versions(id, org_id, quote_id, label 'Q1', pricing jsonb, created_at, created_by)</code>; snapshot on each "Save quotation"; show the history in the flow. Never overwrite — always append.</p>
+
+  <div class="req"><span class="n">10</span><h3>Advance payment → confirmed booking</h3><span class="badge part">Partial</span></div>
+  <p>Building blocks exist: the client approval flow (OTP + consent), <code>createPayment</code> (simulated link now; Razorpay Edge Function when keys are added), <code>mark_paid</code>, <code>payment_milestones</code>, and a simulated pay page. <b>Missing / to finish:</b> accepting a quote must <b>not</b> confirm the booking — an advance/token step must gate it; support both <b>online</b> (gateway on the tenant account) and <b>offline</b> (admin records cash + receipt no.); generate a receipt each time.</p>
+  <p><b>How to build:</b> after approval, show an advance-payment card (10% default, editable); online → payment link; offline → "Record cash / receipt no." form → <code>mark_paid</code> with a receipt row; only then set status = confirmed &amp; stage = planning (stage auto-advance is already wired). Real gateway needs the tenant's keys (owner action).</p>
+
+  <div class="req"><span class="n">11</span><h3>Complete communication / activity trail</h3><span class="badge part">Partial</span></div>
+  <p>Underlying records exist: <code>audit_log</code>, <code>quote_consents</code>, <code>quote_payments</code>, <code>notifications</code>. <b>Missing:</b> one consolidated, human-readable timeline per event — quote versions, discounts, advances, receipts, edits — to settle any dispute.</p>
+  <p><b>How to build:</b> an "Activity" panel on the flow / workspace that merges those sources ordered by time.</p>
+
+  <div class="req"><span class="n">12</span><h3>Customer + planner acknowledgement</h3><span class="badge part">Partial</span></div>
+  <p><code>notifications</code> exists. <b>Missing:</b> explicit both-sides messages — customer gets "payment received, booking processing"; planner gets "client accepted &amp; paid the advance".</p>
+  <p><b>How to build:</b> on <code>mark_paid</code>, insert a notification for the planner and surface a confirmation on the client portal; email/WhatsApp optional.</p>
+
+  <div class="req"><span class="n">13</span><h3>Admin-configurable defaults (no code change)</h3><span class="badge part">Partial</span></div>
+  <p>Pricing is already admin-editable. <b>To finish:</b> event categories (#2) and layout rules (#4) must be edited in Control Center too, so defaults change without a developer. All of it stays per-tenant via <code>org_id</code>.</p>
+
+  <h2 id="admin">3 · Admin-configurable (no-developer) defaults</h2>
+  <p>The principle for the MVP: <b>anything an experienced planner would tune, an admin edits in Control Center</b> — never in code. Already no-code: chair/plate rates, per-object prices, layout/setup fee, GST, menu packages &amp; their dish lists &amp; plate prices, coupons, vendors, the role/access matrix. To make no-code next: event categories/types, layout default rules, backdrop library, advance-payment %.</p>
+  <p>Storage pattern: per-tenant tables (with <code>org_id</code> + cfg-style RLS) for lists, and JSON blobs in <code>app_config</code> for rule sets. New studios inherit clean defaults automatically via <code>create_studio</code> (add each new library table to its copy list, as done for menu packages).</p>
+
+  <h2 id="data">4 · Domain data to collect (research task)</h2>
+  <p>The defaults must come from experienced planners (Karthik &amp; team), not guesses. Prasanna &amp; Tarun can document, then a domain expert validates. Collect, per event type:</p>
+  <table>
+    <tr><th>Field</th><th>Example</th></tr>
+    <tr><td>Category → type</td><td>Private → Wedding, Reception, Engagement; Corporate → Conference, Product launch</td></tr>
+    <tr><td>Seats per guest</td><td>1.0 (banquet), 0.6 (standing cocktail)</td></tr>
+    <tr><td>Seating style</td><td>Round tables of 8 / theatre rows / cluster</td></tr>
+    <tr><td>Buffet tables per N guests</td><td>1 per 75</td></tr>
+    <tr><td>Stage size by headcount</td><td>&lt;200 → 20×16 ft; 200–500 → 32×16; …</td></tr>
+    <tr><td>Walkway / red carpet</td><td>yes for weddings; width</td></tr>
+    <tr><td>Standard optional components</td><td>DJ, lighting, photo booth, dance floor</td></tr>
+    <tr><td>Backdrop dimensions &amp; suitable designs</td><td>image + min/max stage width</td></tr>
+  </table>
+  <p class="note">Give the researchers this exact table per event type; each row becomes a value in the <code>layout_rules</code> config or the <code>backdrops</code> library. No app knowledge needed to fill it.</p>
+
+  <h2 id="roadmap">5 · Build order / roadmap</h2>
+  <table>
+    <tr><th>Priority</th><th>Work</th><th>Covers</th></tr>
+    <tr><td><span class="tag">P1</span></td><td>Event categories + admin layout-rules config; make generation rule-driven</td><td>#2, #4, #13</td></tr>
+    <tr><td><span class="tag">P2</span></td><td>Advance payment (online + offline + receipts) gating confirmed booking; both-side acknowledgement; activity trail</td><td>#10, #11, #12</td></tr>
+    <tr><td><span class="tag">P3</span></td><td>Quotation versioning Q1..Qn + combined PDF in the flow</td><td>#8, #9</td></tr>
+    <tr><td><span class="tag">P4</span></td><td>Backdrop library filtered by stage size + backdrop in 3D</td><td>#6, #7</td></tr>
+    <tr><td><span class="tag">P5</span></td><td>Domain data collection (parallel, needs experts)</td><td>#4 inputs</td></tr>
+  </table>
+
+  <h2 id="howto">6 · How to work on this repo</h2>
+  <ul>
+    <li><b>Architecture:</b> 37 vanilla-JS single-file pages in <code>public/</code> + one shared data layer <code>public/store-api.js</code> (the <code>BPStore</code> facade) over Supabase (Postgres + RLS + SECURITY DEFINER RPCs). No build step, no framework.</li>
+    <li><b>Run locally:</b> <code>node server.js</code> → http://localhost:4173. Sign in with your studio admin.</li>
+    <li><b>Multi-tenant:</b> every row carries <code>org_id</code>; RLS filters by <code>current_org_id()</code>. New library tables must be added to <code>create_studio</code> so new studios inherit them.</li>
+    <li><b>Migrations:</b> each change is a numbered <code>supabase/phaseNN-*.sql</code>, idempotent, run in the Supabase SQL editor. Front-end has a graceful fallback until the SQL is run.</li>
+    <li><b>Cache busting:</b> when <code>store-api.js</code> changes, bump <code>?v=</code> on every page that loads it.</li>
+    <li><b>One flow, one price:</b> new pricing must go through <code>BPStore.pricing</code>; new pre-approval fields belong in <code>flow.html</code> and should autosave through existing <code>BPStore</code> calls.</li>
+    <li><b>Never remove features.</b> Everything is additive; the per-page screens stay as the post-approval workspace.</li>
+  </ul>
+  <p class="where">This document lives at docs/MVP-PHASE1-GUIDE.html and public/docs/ (viewable at /docs/MVP-PHASE1-GUIDE.html). Keep the status table updated as phases land.</p>
+</div>
+</body>
+</html>
