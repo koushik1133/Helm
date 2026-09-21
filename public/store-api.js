@@ -504,7 +504,19 @@
       body: JSON.stringify(body) });
     const j = await res.json().catch(() => ({})); if (!res.ok) throw new Error(j.error || ("HTTP " + res.status)); return j;
   }
-  const LIVE = CFG.liveChannels || {};   // { sms:true, pay:true } flips to Edge Functions
+  const LIVE = CFG.liveChannels || {};   // { sms:true, pay:true, whatsapp:true } flips to Edge Functions
+  // WhatsApp via a self-hosted Evolution API (server-side Edge Function holds the key).
+  // Live only when config.js liveChannels.whatsapp is true; otherwise returns a
+  // simulated result so the app keeps working without the channel configured.
+  const whatsapp = {
+    live: () => !!LIVE.whatsapp,
+    // connection health check (no message sent)
+    ping: () => LIVE.whatsapp ? callFn("send-whatsapp", { ping: true }) : Promise.resolve({ ok: false, simulated: true }),
+    // send(number, text) — number in international form (digits); e.g. "9198…"
+    send: (number, text, kind) => LIVE.whatsapp
+      ? callFn("send-whatsapp", { number, text, kind: kind || "message" })
+      : Promise.resolve({ sent: false, simulated: true }),
+  };
   const approval = {
     // ---- public (token-scoped; works for anon on the approval page) ----
     getByToken: (token) => rpc("public_get_quote", { p_token: token }),
@@ -1948,7 +1960,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, org, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, org, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, whatsapp,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),
