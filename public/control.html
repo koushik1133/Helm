@@ -192,6 +192,12 @@
         <button class="btn" id="dc_add">+ Add dish</button>
       </div>
     </div>
+
+    <div class="card">
+      <h3>Menu packages (Standard / Gold / Premium)</h3>
+      <p class="mnote" style="margin:-6px 0 10px">The 6 fixed menu packages. Set each one's per-plate price and edit its dish list (one dish per line as <code>Category | Dish name | veg|nonveg|special</code>). Staff pick a package on the event's Menu screen to pre-fill the dishes in one click.</p>
+      <div id="menuTplList">Run <code>phase62-menu-templates.sql</code> to enable menu packages.</div>
+    </div>
     </div><!-- /pane-pricing -->
 
     <!-- ============ USER CONTROL PANE (admin only) ============ -->
@@ -234,8 +240,8 @@
   </form>
 </div>
 
-<script src="config.js?v=69"></script>
-<script src="store-api.js?v=69"></script>
+<script src="config.js?v=71"></script>
+<script src="store-api.js?v=71"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -266,7 +272,7 @@
       $("#p_layout").value=p.layoutBase??0;
       renderItemPrices();
     }catch(e){ setMsg("err","Run control-center.sql to enable the Control Center. ("+((e&&e.message)||"")+")"); }
-    await renderVendors(); await renderCoupons(); await renderChairs(); await renderPlates(); await renderDishes(); await renderOrg();
+    await renderVendors(); await renderCoupons(); await renderChairs(); await renderPlates(); await renderDishes(); await renderMenuTemplates(); await renderOrg();
     // Only admins get the User-control tab (add/remove users + access matrix).
     if(isAdmin){
       $("#tab-users").hidden=false;
@@ -318,6 +324,36 @@
     try{ await BPStore.config.setPricing(pricingCfg); setMsg("ok","Item prices saved — the builder breakdown uses these."); }
     catch(e){ setMsg("err",(e&&e.message)||"Save failed"); }
   });
+
+  async function renderMenuTemplates(){
+    let tpls=[];
+    try{ tpls=await BPStore.menuTemplates.list(true); }catch(e){ return; /* leave the "run phase62" hint */ }
+    if(!tpls.length){ $("#menuTplList").innerHTML='<div class="row" style="color:var(--ink-3)">No packages yet — run phase62-menu-templates.sql.</div>'; return; }
+    const dishesToText=(arr)=>(arr||[]).map(d=>`${d.c} | ${d.n} | ${d.k||'veg'}`).join("\n");
+    $("#menuTplList").innerHTML = tpls.map(t=>`
+      <div class="tpl" data-id="${t.id}" style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <strong style="flex:1;min-width:160px">${esc(t.name)}</strong>
+          <label style="font-size:12px;color:var(--ink-3)">₹/plate</label>
+          <input class="tpl_price" type="number" min="0" step="1" value="${t.price_per_plate??0}" style="width:120px">
+          <label style="font-size:12px;color:var(--ink-3)"><input class="tpl_active" type="checkbox" ${t.active?"checked":""}> active</label>
+        </div>
+        <textarea class="tpl_dishes" style="width:100%;min-height:140px;margin-top:8px;font-family:ui-monospace,Menlo,monospace;font-size:12px">${esc(dishesToText(t.dishes))}</textarea>
+        <div class="actions" style="margin-top:6px"><button class="btn primary tpl_save">Save package</button></div>
+      </div>`).join("");
+    $("#menuTplList").querySelectorAll(".tpl").forEach(box=>{
+      box.querySelector(".tpl_save").addEventListener("click",async()=>{
+        const dishes=box.querySelector(".tpl_dishes").value.split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{
+          const [c,n,k]=l.split("|").map(s=>(s||"").trim());
+          return { c:c||"Other", n:n||c||"", k:(k||"veg").toLowerCase() };
+        }).filter(d=>d.n);
+        const patch={ price_per_plate:+box.querySelector(".tpl_price").value||0,
+          active:box.querySelector(".tpl_active").checked, dishes };
+        try{ await BPStore.menuTemplates.update(box.dataset.id, patch); setMsg("ok","Package saved."); }
+        catch(e){ setMsg("err",(e&&e.message)||"Save failed"); }
+      });
+    });
+  }
 
   async function renderVendors(){
     let v=[]; try{ v=await BPStore.vendors.list(); }catch{}

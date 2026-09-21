@@ -84,6 +84,12 @@
     <div class="card">
       <h2>🍽 Menu &amp; package <span id="lockBadge" class="lockbadge off" hidden>Draft</span></h2>
       <p class="sub">Once agreed with the client, lock it — later changes should go through a change order.</p>
+
+      <div id="pkgBlock" style="margin-bottom:12px">
+        <label style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)">Menu packages — pick one to pre-fill the dishes</label>
+        <div id="pkgCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:8px"></div>
+      </div>
+
       <div class="fld"><label>Package</label><input id="p_pkg" placeholder="e.g. Gold package — 400 pax"></div>
       <div class="fld"><label>Menu / service details (notes)</label><textarea id="p_menu" placeholder="Courses, dietary options, service style, timings…" style="min-height:90px"></textarea></div>
 
@@ -131,8 +137,8 @@
   </div>
 </div>
 
-<script src="config.js?v=69"></script>
-<script src="store-api.js?v=69"></script>
+<script src="config.js?v=71"></script>
+<script src="store-api.js?v=71"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -154,8 +160,42 @@
     $("#dishAdd").style.display = editable ? "" : "none";
     if(!editable) hideResults();
     renderSelected();
+    renderPackages();
   }
   const dishEditable=()=>canEdit && !locked;
+  let templates=[];
+  const DIET_LABEL={veg:"Veg",nonveg:"Non-veg"};
+  function inr(n){ return "₹"+Math.round(n||0).toLocaleString("en-IN"); }
+  function renderPackages(){
+    const host=$("#pkgCards"); if(!host) return;
+    if(!templates.length){ $("#pkgBlock").style.display="none"; return; }
+    $("#pkgBlock").style.display="";
+    const editable=dishEditable();
+    const guests=(ev&&(ev.guest_count||ev.guests))||null;
+    host.innerHTML=templates.map(t=>{
+      const est=guests?` · est ${inr((t.price_per_plate||0)*guests)} / ${guests} pax`:"";
+      const n=(t.dishes||[]).length;
+      return `<button type="button" class="pkgcard" data-id="${esc(t.id)}" ${editable?"":"disabled"}
+        style="text-align:left;border:1px solid var(--line);border-radius:10px;padding:10px 11px;background:var(--panel);cursor:${editable?"pointer":"default"};font-family:inherit;opacity:${editable?1:.6}">
+        <div style="font-weight:700;font-size:13px;color:var(--ink)">${esc(t.name)}</div>
+        <div style="font-size:11px;color:var(--ink-3);margin-top:2px">${DIET_LABEL[t.diet]||t.diet} · ${n} dishes</div>
+        <div style="font-size:12px;color:var(--accent);font-weight:700;margin-top:4px">${inr(t.price_per_plate)} / plate</div>
+        <div style="font-size:10px;color:var(--ink-3)">${esc(est)}</div>
+      </button>`;
+    }).join("");
+    host.querySelectorAll(".pkgcard").forEach(b=>b.addEventListener("click",()=>applyPackage(b.dataset.id)));
+  }
+  async function applyPackage(tid){
+    const t=templates.find(x=>x.id===tid); if(!t) return;
+    if(!confirm(`Apply “${t.name}”? This replaces the current dish selection with this package's ${(t.dishes||[]).length} dishes.`)) return;
+    try{
+      await BPStore.menuTemplates.apply(id, tid);
+      menuItems=await BPStore.eventMenu.list(id);
+      $("#p_pkg").value=t.name;
+      renderSelected();
+      $("#p_msg").className="ok"; $("#p_msg").textContent="Applied "+t.name+" ✓"; setTimeout(()=>$("#p_msg").textContent="",1800);
+    }catch(e){ alert("Couldn't apply package — "+((e&&e.message)||"error")); }
+  }
   function hideResults(){ const r=$("#dishResults"); r.style.display="none"; r.innerHTML=""; }
   function renderResults(term){
     const r=$("#dishResults"); term=(term||"").trim().toLowerCase();
@@ -245,6 +285,7 @@
     catch(e){ if(String(e&&e.message).includes("event_plan")){ $("#v_msg").className="err"; $("#v_msg").textContent="Run phase13-plan.sql to enable saving."; } }
     try{ catalog=await BPStore.dishCatalog.list(); }catch{ catalog=[]; }
     try{ menuItems=await BPStore.eventMenu.list(id); }catch{ menuItems=[]; }
+    try{ templates=await BPStore.menuTemplates.list(); }catch{ templates=[]; }
     applyLock();
   }
   (async ()=>{

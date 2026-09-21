@@ -504,19 +504,7 @@
       body: JSON.stringify(body) });
     const j = await res.json().catch(() => ({})); if (!res.ok) throw new Error(j.error || ("HTTP " + res.status)); return j;
   }
-  const LIVE = CFG.liveChannels || {};   // { sms:true, pay:true, whatsapp:true } flips to Edge Functions
-  // WhatsApp via a self-hosted Evolution API (server-side Edge Function holds the key).
-  // Live only when config.js liveChannels.whatsapp is true; otherwise returns a
-  // simulated result so the app keeps working without the channel configured.
-  const whatsapp = {
-    live: () => !!LIVE.whatsapp,
-    // connection health check (no message sent)
-    ping: () => LIVE.whatsapp ? callFn("send-whatsapp", { ping: true }) : Promise.resolve({ ok: false, simulated: true }),
-    // send(number, text) — number in international form (digits); e.g. "9198…"
-    send: (number, text, kind) => LIVE.whatsapp
-      ? callFn("send-whatsapp", { number, text, kind: kind || "message" })
-      : Promise.resolve({ sent: false, simulated: true }),
-  };
+  const LIVE = CFG.liveChannels || {};   // { sms:true, pay:true } flips to Edge Functions
   const approval = {
     // ---- public (token-scoped; works for anon on the approval page) ----
     getByToken: (token) => rpc("public_get_quote", { p_token: token }),
@@ -1096,6 +1084,30 @@
     add: (quoteId, dishId) => rpc("add_event_dish", { p_quote: quoteId, p_dish: dishId }),
     remove: (id) => rpc("remove_event_dish", { p_id: id }),
     setQty: (id, qty) => rpc("set_event_dish_qty", { p_id: id, p_qty: (qty === "" || qty == null) ? null : Number(qty) }),
+  };
+
+  /* ---------------- fixed menu packages / templates (Phase 62) ---------------- */
+  const menuTemplates = {
+    async list(includeInactive) {
+      if (mode !== "supabase") return readLs("bp_menu_templates");
+      let q = supa.from("menu_templates").select("*").order("seq");
+      if (!includeInactive) q = q.eq("active", true);
+      const { data, error } = await q; if (error) throw error; return data;
+    },
+    async update(id, patch) {
+      if (mode !== "supabase") { const a = readLs("bp_menu_templates"); const r = a.find((x) => x.id === id); if (r) Object.assign(r, patch); localStorage.setItem("bp_menu_templates", JSON.stringify(a)); return true; }
+      const { error } = await supa.from("menu_templates").update(patch).eq("id", id); if (error) throw error; return true;
+    },
+    // apply a package to an event's menu in one shot (replaces current dishes)
+    async apply(quoteId, templateId) {
+      if (mode !== "supabase") {
+        const t = readLs("bp_menu_templates").find((x) => x.id === templateId); if (!t) throw new Error("no such package");
+        const menu = readLs("bp_event_menu").filter((x) => x.quote_id !== quoteId);
+        (t.dishes || []).forEach((d, i) => menu.push({ id: uid(), quote_id: quoteId, dish_name: d.n, category: d.c, kind: d.k || "veg", seq: i + 1 }));
+        localStorage.setItem("bp_event_menu", JSON.stringify(menu)); return true;
+      }
+      return rpc("apply_menu_template", { p_quote: quoteId, p_template: templateId });
+    },
   };
 
   /* ---------------- organization / studio (Phase 58) ---------------- */
@@ -1960,7 +1972,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, org, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, whatsapp,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, org, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),
