@@ -130,6 +130,25 @@ function serveStatic(req, res) {
   });
 }
 
+/* ----------------------------------------------------- rate limiting */
+// In-memory per-IP fixed-window limiter for this server's mutating /api surface.
+// NOTE: auth/login traffic does NOT pass through here — the browser calls Supabase
+// directly, so brute-force protection on sign-in is configured in the Supabase
+// dashboard (Authentication → Rate Limits). This guards the layout API from bursts.
+const RL_WINDOW_MS = 60 * 1000;
+const RL_MAX = 120;                 // requests per IP per window for /api/*
+const rlHits = new Map();           // ip -> { count, resetAt }
+function rateLimited(req) {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+    || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  let e = rlHits.get(ip);
+  if (!e || now > e.resetAt) { e = { count: 0, resetAt: now + RL_WINDOW_MS }; rlHits.set(ip, e); }
+  e.count++;
+  if (rlHits.size > 5000) { for (const [k, v] of rlHits) { if (now > v.resetAt) rlHits.delete(k); } }
+  return e.count > RL_MAX ? Math.ceil((e.resetAt - now) / 1000) : 0;   // 0 = allowed, else Retry-After secs
+}
+
 /* ----------------------------------------------------------- api */
 async function handleApi(req, res, url) {
   const parts = url.split('/').filter(Boolean); // ['api','layouts',':id']
@@ -195,7 +214,19 @@ const server = http.createServer(async (req, res) => {
       return res.end();
     }
     const url = req.url.split('?')[0];
-    if (url.startsWith('/api/')) return await handleApi(req, res, url);
+    if (url.startsWith('/api/')) {
+      const retry = rateLimited(req);
+      if (retry) {
+        res.writeHead(429, {
+          'Content-Type': 'application/json',
+          'Retry-After': String(retry),
+          'Access-Control-Allow-Origin': '*',
+          'Cache-Control': 'no-store',
+        });
+        return res.end(JSON.stringify({ error: 'rate limited — slow down', retryAfter: retry }));
+      }
+      return await handleApi(req, res, url);
+    }
     return serveStatic(req, res);
   } catch (err) {
     sendJson(res, 500, { error: err.message || 'server error' });

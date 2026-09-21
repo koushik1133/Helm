@@ -49,8 +49,12 @@
   .mtab{flex:1;border:0;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink-3);padding:9px;border-radius:8px;cursor:pointer}
   .mtab.on{background:var(--panel);color:var(--accent);box-shadow:var(--shadow)}
   .okmsg{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca;border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:16px}
+  .or{display:flex;align-items:center;gap:12px;margin:16px 0;color:var(--ink-3);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+  .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+  .gbtn{width:100%;height:46px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--ink);font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px}
+  .gbtn:hover{background:var(--panel-2)} .gbtn svg{width:18px;height:18px}
 </style>
-<link rel="stylesheet" href="theme.css?v=69">
+<link rel="stylesheet" href="theme.css?v=70">
 </head>
 <body>
   <section class="brandpane">
@@ -86,12 +90,17 @@
       <label for="pw">Password</label>
       <input id="pw" type="password" autocomplete="current-password" placeholder="••••••••" required>
       <button class="btn" id="submit" type="submit">Sign in →</button>
+      <div class="or"><span>or</span></div>
+      <button type="button" class="gbtn" id="googleBtn">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Continue with Google
+      </button>
       <div class="foot">Blueprint Stage — event management, simplified.</div>
     </form>
   </section>
 
-<script src="config.js?v=69"></script>
-<script src="store-api.js?v=69"></script>
+<script src="config.js?v=70"></script>
+<script src="store-api.js?v=70"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const PENDING="bp_pending_studio";
@@ -120,6 +129,25 @@
     if(BPStore.auth.user()){ await finishPendingStudio(); location.replace(nextUrl()); return; }
     setTimeout(()=>$("#email").focus(),60);
   })();
+
+  // Google OAuth — in "Create studio" mode we stash the studio name first, then
+  // finishPendingStudio() (on return) creates it once the session exists.
+  $("#googleBtn").addEventListener("click", async ()=>{
+    $("#err").hidden=true; $("#okmsg").hidden=true;
+    try{
+      if(mode==="signup"){
+        const studio=$("#studio").value.trim();
+        if(studio.length<2){ $("#err").textContent="Enter your studio / business name first."; $("#err").hidden=false; return; }
+        localStorage.setItem(PENDING, studio);
+      }
+      $("#googleBtn").disabled=true;
+      await BPStore.auth.signInWithGoogle(location.origin+"/login.html?next="+encodeURIComponent(nextUrl()));
+    }catch(err){
+      $("#googleBtn").disabled=false;
+      $("#err").textContent=(err&&err.message)||"Google sign-in isn’t enabled yet.";
+      $("#err").hidden=false;
+    }
+  });
 
   $("#loginForm").addEventListener("submit", async (e)=>{
     e.preventDefault();

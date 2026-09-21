@@ -311,6 +311,22 @@
       if (data.session) { currentUser = data.user; roleCache = null; accessCache = null; authRequired = false; }
       return { user: data.user, session: data.session };   // session null when email confirmation is required
     },
+    // Google OAuth sign-in (requires the Google provider enabled in Supabase).
+    // Redirects the browser to Google; on return, login.html resumes (and, for a
+    // pending studio signup, calls create_studio). redirectTo must be an allowed
+    // Redirect URL in Supabase → Authentication → URL Configuration.
+    async signInWithGoogle(redirectTo) {
+      if (!supa) throw new Error("Supabase not configured");
+      const { data, error } = await supa.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: redirectTo || (location.origin + "/login.html"),
+          queryParams: { access_type: "offline", prompt: "select_account" },
+        },
+      });
+      if (error) throw error;
+      return data; // browser navigates away to Google
+    },
     async signOut() { if (supa) await supa.auth.signOut(); currentUser = null; roleCache = null; accessCache = null;
       if (mode === "supabase") authRequired = true; },
     onChange(cb) { if (supa) supa.auth.onAuthStateChange((_e, session) => {
