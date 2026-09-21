@@ -282,6 +282,8 @@
     try{ const p=await BPStore.plan.get(id); if(p){
       $("#v_name").value=p.venue_name||""; $("#v_addr").value=p.venue_address||""; $("#v_contact").value=p.venue_contact||""; $("#v_access").value=p.access_notes||"";
       $("#p_pkg").value=p.package||""; $("#p_menu").value=p.menu||""; locked=!!p.menu_locked; } }
+    // don't make staff retype the venue already entered on the quote — prefill from the quote's client when blank
+    try{ const cl=ev&&ev.client; if(cl){ if(!$("#v_name").value&&cl.venue) $("#v_name").value=cl.venue; if(!$("#v_addr").value&&cl.address) $("#v_addr").value=cl.address; } }catch{}
     catch(e){ if(String(e&&e.message).includes("event_plan")){ $("#v_msg").className="err"; $("#v_msg").textContent="Run phase13-plan.sql to enable saving."; } }
     try{ catalog=await BPStore.dishCatalog.list(); }catch{ catalog=[]; }
     try{ menuItems=await BPStore.eventMenu.list(id); }catch{ menuItems=[]; }

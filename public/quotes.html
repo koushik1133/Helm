@@ -352,7 +352,8 @@
     // seat counts from current version
     let seats=0; try{ const v=await BPStore.quotes.getVersion(id, full.currentVersion); seats=countSeats(v.data&&v.data.items); }catch{}
     $("#p_chairs").value = pr.chairs!=null?pr.chairs:seats;
-    $("#p_guests").value = pr.guests!=null?pr.guests:(pr.chairs!=null?pr.chairs:seats);   // plates auto = chairs
+    // guests: last-priced value → layout seats → the count carried over from the lead
+    $("#p_guests").value = pr.guests!=null?pr.guests:(pr.chairs!=null?pr.chairs:(seats||(cl.guests!=null?cl.guests:"")));
     // rates always come from the Control Center config (fixed globally, hidden here)
     $("#p_chairPrice").value = cfg.chairPrice;
     $("#p_platePrice").value = cfg.platePrice;

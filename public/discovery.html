@@ -186,6 +186,8 @@
       $("#d_date").value=d.meet_date||""; $("#d_mode").value=d.mode||""; $("#d_loc").value=d.location||"";
       $("#d_att").value=d.attendees||""; $("#d_notes").value=d.notes||"";
       $("#d_bmin").value=d.budget_min!=null?d.budget_min:""; $("#d_bmax").value=d.budget_max!=null?d.budget_max:""; } }catch{}
+    // if budget wasn't captured in discovery yet, seed the ceiling from the lead's budget (carried on the quote)
+    if(!$("#d_bmax").value){ const b=ev&&ev.client&&ev.client.budget; if(b!=null&&b!=="") $("#d_bmax").value=b; }
     try{ reqs=await BPStore.discovery.listReqs(id); }catch(e){ reqs=[]; }
     renderReqs();
     if(!canEdit){ document.querySelectorAll("#app input,#app select,#app textarea").forEach(el=>el.disabled=true); }
