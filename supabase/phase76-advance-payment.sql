@@ -12,6 +12,7 @@
 
 alter table public.quote_payments add column if not exists receipt_no text;
 alter table public.quote_payments add column if not exists method text;   -- 'online' | 'cash'
+alter table public.quote_payments add column if not exists note text;     -- cash memo / reference note
 
 create or replace function public.record_payment(
   p_quote uuid, p_amount numeric, p_method text default 'cash',
