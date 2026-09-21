@@ -126,8 +126,16 @@
         <div class="fld"><label>Chair/rental GST %</label><input id="p_gst" type="number" min="0" step="0.5"></div>
         <div class="fld"><label>Catering GST %</label><input id="p_cgst" type="number" min="0" step="0.5"></div>
         <div class="fld"><label>Service charge % (optional)</label><input id="p_svc" type="number" min="0" step="0.5"></div>
+        <div class="fld"><label>Layout &amp; setup fee (₹)</label><input id="p_layout" type="number" min="0" step="1" placeholder="0"></div>
       </div>
       <div class="actions"><button class="btn primary" id="savePricing">Save pricing</button></div>
+    </div>
+
+    <div class="card">
+      <h3>Object &amp; item prices (layout builder)</h3>
+      <p class="mnote" style="margin:-6px 0 10px">Per-unit price for each object placed on the floor plan. These drive the live price breakdown in the builder. Chairs are priced with the “Price / chair” rate above. Leave blank to use the built-in default.</p>
+      <div id="itemPriceList" class="grid"></div>
+      <div class="actions"><button class="btn primary" id="saveItemPrices">Save item prices</button></div>
     </div>
 
     <div class="card">
@@ -251,8 +259,12 @@
     $("#app").hidden=false;
     try{
       const p=await BPStore.config.getPricing();
+      pricingCfg = p || {};
+      if(!pricingCfg.assetPrices) pricingCfg.assetPrices={};
       $("#p_chair").value=p.chairPrice??200; $("#p_plate").value=p.platePrice??500; $("#p_gst").value=p.gstPct??18;
       $("#p_cgst").value=p.cateringGstPct??18; $("#p_svc").value=p.serviceChargePct??0;
+      $("#p_layout").value=p.layoutBase??0;
+      renderItemPrices();
     }catch(e){ setMsg("err","Run control-center.sql to enable the Control Center. ("+((e&&e.message)||"")+")"); }
     await renderVendors(); await renderCoupons(); await renderChairs(); await renderPlates(); await renderDishes(); await renderOrg();
     // Only admins get the User-control tab (add/remove users + access matrix).
@@ -270,10 +282,40 @@
     $("#pane-users").hidden   = name!=="users";
   }
   document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>switchTab(t.dataset.pane)));
+  // full pricing config blob (preserved across saves so builder item prices survive)
+  let pricingCfg = { assetPrices:{} };
+  // catalogue of priceable builder objects (label + built-in default ₹), mirrors builder.html
+  const ITEM_CATALOG = [
+    ['stage','Main Stage',45000],['mandap','Decor Mandap',75000],['tent','Tent',35000],['canopy','Canopy',25000],
+    ['dancefloor','Dance Floor',20000],['videowall','LED Video Wall',120000],['ledscreen','LED Screen',60000],
+    ['linearray','Line Array',40000],['foh','FOH Console',20000],['dj','DJ Booth',10000],['piano','Grand Piano',30000],
+    ['bar','Bar',12000],['buffet','Buffet Line',9000],['truck','Food Truck',25000],['greenroom','Green Room',8000],
+    ['generator','Generator',15000],['parking','Parking Zone',10000],['chandelier','Chandelier',12000],
+    ['fountain','Fountain',20000],['floralarch','Floral Arch',15000],['arch','Arch / Backdrop',9000],
+    ['redcarpet','Carpet / Aisle',8000],['viprisers','VIP Riser',18000],['photobooth','Photo Booth',12000],
+    ['restroom','Restrooms',12000],['coatcheck','Coat Check',5000],['firstaid','First Aid',4000],['press','Press Riser',15000],
+  ];
+  function renderItemPrices(){
+    const ap = pricingCfg.assetPrices || (pricingCfg.assetPrices={});
+    $("#itemPriceList").innerHTML = ITEM_CATALOG.map(([type,label,def])=>
+      `<div class="fld"><label>${esc(label)} <span style="color:var(--ink-3);font-weight:400">(default ₹${def.toLocaleString('en-IN')})</span></label>`+
+      `<input type="number" min="0" step="1" data-type="${type}" placeholder="${def}" value="${ap[type]!=null?ap[type]:''}"></div>`
+    ).join("");
+  }
   $("#savePricing").addEventListener("click",async()=>{
-    const p={ chairPrice:+$("#p_chair").value||0, platePrice:+$("#p_plate").value||0, gstPct:+$("#p_gst").value||0,
-      cateringGstPct:+$("#p_cgst").value||0, serviceChargePct:+$("#p_svc").value||0, currency:"INR" };
-    try{ await BPStore.config.setPricing(p); setMsg("ok","Pricing saved — new quotes use these rates."); }
+    Object.assign(pricingCfg,{ chairPrice:+$("#p_chair").value||0, platePrice:+$("#p_plate").value||0, gstPct:+$("#p_gst").value||0,
+      cateringGstPct:+$("#p_cgst").value||0, serviceChargePct:+$("#p_svc").value||0, layoutBase:+$("#p_layout").value||0, currency:"INR" });
+    try{ await BPStore.config.setPricing(pricingCfg); setMsg("ok","Pricing saved — new quotes use these rates."); }
+    catch(e){ setMsg("err",(e&&e.message)||"Save failed"); }
+  });
+  $("#saveItemPrices").addEventListener("click",async()=>{
+    const ap={};
+    $("#itemPriceList").querySelectorAll("input[data-type]").forEach(inp=>{
+      const v=inp.value.trim(); if(v!=="") ap[inp.dataset.type]=+v||0;
+    });
+    pricingCfg.assetPrices=ap;
+    if(pricingCfg.chairPrice==null) pricingCfg.chairPrice=+$("#p_chair").value||200;
+    try{ await BPStore.config.setPricing(pricingCfg); setMsg("ok","Item prices saved — the builder breakdown uses these."); }
     catch(e){ setMsg("err",(e&&e.message)||"Save failed"); }
   });
 

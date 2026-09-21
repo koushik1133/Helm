@@ -116,6 +116,14 @@
   .right{width:288px;border-left:1px solid var(--line)}
   .panel-head{padding:11px 14px 8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3)}
   .scroller{overflow:auto;flex:1 1 auto;min-height:0}
+  .pricebox{padding:0 14px 12px;flex:0 0 auto;border-bottom:1px solid var(--line);max-height:44%;overflow:auto}
+  .prow{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:3px 0;color:var(--ink-2)}
+  .prow .q{color:var(--ink-3);font-weight:400}
+  .prow.sub{border-top:1px solid var(--line-2);margin-top:5px;padding-top:6px}
+  .prow.total{border-top:2px solid var(--line);margin-top:6px;padding-top:7px;font-size:15px;font-weight:800;color:var(--ink)}
+  .prow.total .amt{color:var(--accent)}
+  .pricebox .empty{font-size:12px;color:var(--ink-3);padding:6px 0}
+  .pricebox .delta{font-size:11px;color:var(--ink-3);margin-top:6px}
 
   /* ---------- Toolbox ---------- */
   .cat{padding:2px 12px 10px}
@@ -624,6 +632,8 @@
 
   <!-- RIGHT : inspector -->
   <aside class="right">
+    <div class="panel-head">Price breakdown</div>
+    <div id="pricePanel" class="pricebox"></div>
     <div class="panel-head">Inspector</div>
     <div class="scroller">
       <div class="insp" id="inspector"></div>
@@ -759,6 +769,101 @@ const ASSETS = {
   viprisers:  { label:'VIP Riser',     category:'structure', w:16, h:10 },
   stagebarrier:{label:'Stage Barrier', category:'security',  w:30, h:1.5},
 };
+
+/* ---------------------------------------------------------------- pricing
+   Live price breakdown. Chairs/seats are priced per-seat from the Control
+   Centre chair rate; every other object is priced per-unit. Prices fall back
+   to a sensible in-code default and can be overridden from the Control Centre
+   pricing config (config.assetPrices / config.layoutBase).  All INR.        */
+const CAT_BASE_PRICE = {          // per-unit fallback by category (₹)
+  structure:15000, seating:2500, av:9000, security:2000,
+  logistics:4000, safety:1500, decor:12000,
+};
+const DEFAULT_PRICES = {          // per-unit overrides for big-ticket items (₹)
+  stage:45000, tent:35000, canopy:25000, mandap:75000, arch:9000, floralarch:15000,
+  dancefloor:20000, redcarpet:8000, viprisers:18000, truss:6000,
+  videowall:120000, ledscreen:60000, linearray:40000, subwoofer:12000, foh:20000,
+  piano:30000, press:15000, dj:10000, photobooth:12000,
+  bar:12000, buffet:9000, truck:25000, greenroom:8000, generator:15000, parking:10000,
+  chandelier:12000, fountain:20000, mandap_decor:0,
+  restroom:12000, coatcheck:5000, firstaid:4000,
+};
+// object types whose seats are billed via the chair rate (so we don't
+// double-charge them as furniture units in the breakdown)
+const SEAT_UNIT = { chiavari:1, barstool:1 };
+function isSeating(it){
+  const p = it.properties||{};
+  return (p.rows&&p.cols) || p.seats || (SEAT_UNIT[it.type]!=null);
+}
+function seatCount(it){
+  const p = it.properties||{};
+  if(p.rows&&p.cols) return p.rows*p.cols;
+  if(p.seats) return p.seats;
+  return SEAT_UNIT[it.type]||0;
+}
+function unitPrice(type){
+  if(PRICING.assetPrices && PRICING.assetPrices[type]!=null) return +PRICING.assetPrices[type];
+  if(DEFAULT_PRICES[type]!=null) return DEFAULT_PRICES[type];
+  const a=ASSETS[type]; return (a && CAT_BASE_PRICE[a.category]) || 3000;
+}
+// runtime pricing config (loaded from Control Centre in init)
+const PRICING = { chairPrice:200, gstPct:18, layoutBase:0, assetPrices:null, eventType:null };
+// map a quote's event type → a default preset layout key
+const EVENT_TYPE_PRESET = {
+  wedding:'wedding_banquet', reception:'wedding_reception', engagement:'wedding_ceremony',
+  concert:'concert_mainstage', festival:'festival_mainstage',
+  conference:'conference_keynote', corporate:'product_launch', product_launch:'product_launch',
+  political:'political_theatre', birthday:'birthday_party', gala:'gala_awards',
+};
+
+// Build the live price breakdown from the current items.
+function priceModel(){
+  const lines=[];                          // per-unit object lines
+  let chairs=0;
+  const groups={};                         // type → {qty}
+  store.items.forEach(it=>{
+    if(isSeating(it)){ chairs += seatCount(it); return; }
+    groups[it.type] = groups[it.type] || { qty:0 };
+    groups[it.type].qty++;
+  });
+  const chairsCost = chairs * (PRICING.chairPrice||0);
+  Object.keys(groups).forEach(type=>{
+    const qty=groups[type].qty, unit=unitPrice(type);
+    if(unit<=0) return;
+    lines.push({ label:(ASSETS[type]?ASSETS[type].label:type), qty, unit, cost:qty*unit });
+  });
+  lines.sort((a,b)=>b.cost-a.cost);
+  const layoutBase = +PRICING.layoutBase||0;
+  const objectsCost = lines.reduce((s,l)=>s+l.cost,0);
+  const subtotal = chairsCost + objectsCost + layoutBase;
+  const gst = Math.round(subtotal * (PRICING.gstPct||0)/100);
+  const total = subtotal + gst;
+  return { chairs, chairsCost, lines, layoutBase, subtotal, gst, total };
+}
+function inr(n){ return '₹'+Math.round(n||0).toLocaleString('en-IN'); }
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// Render the live price breakdown panel (called on every renderAll).
+function renderPrice(){
+  const box=$('#pricePanel'); if(!box) return;
+  const m=priceModel();
+  let rows='';
+  if(m.chairs>0){
+    rows+=`<div class="prow"><span>Chairs <span class="q">${m.chairs} × ${inr(PRICING.chairPrice)}</span></span><span class="amt">${inr(m.chairsCost)}</span></div>`;
+  }
+  m.lines.forEach(l=>{
+    rows+=`<div class="prow"><span>${esc(l.label)} <span class="q">${l.qty>1?l.qty+' × '+inr(l.unit):inr(l.unit)}</span></span><span class="amt">${inr(l.cost)}</span></div>`;
+  });
+  if(m.layoutBase>0){
+    rows+=`<div class="prow"><span>Layout &amp; setup</span><span class="amt">${inr(m.layoutBase)}</span></div>`;
+  }
+  if(!rows) rows='<div class="empty">Add items to the floor to see the price build up.</div>';
+  const tax = m.subtotal>0 ? `<div class="prow sub"><span>Subtotal</span><span class="amt">${inr(m.subtotal)}</span></div>`
+    + `<div class="prow"><span>GST <span class="q">${PRICING.gstPct}%</span></span><span class="amt">${inr(m.gst)}</span></div>` : '';
+  box.innerHTML = rows + tax +
+    `<div class="prow total"><span>Total</span><span class="amt">${inr(m.total)}</span></div>`;
+}
+
 
 /* ---------------------------------------------------------------- store */
 const store = {
@@ -978,6 +1083,7 @@ function renderAll(){
 
   renderRulers();
   renderInspector();
+  renderPrice();
   renderState();
   updateStatus();
   updateCapacityUI();
@@ -2880,6 +2986,17 @@ async function init(){
   fitView();
   window.addEventListener('resize',()=>{ renderRulers(); });
   await initStore();
+  // load pricing rates from the Control Centre (fallbacks stay if unavailable)
+  try{
+    const pc = await BPStore.config.getPricing();
+    if(pc){
+      if(pc.chairPrice!=null) PRICING.chairPrice=+pc.chairPrice;
+      if(pc.gstPct!=null)     PRICING.gstPct=+pc.gstPct;
+      if(pc.layoutBase!=null) PRICING.layoutBase=+pc.layoutBase;
+      if(pc.assetPrices)      PRICING.assetPrices=pc.assetPrices;
+    }
+  }catch{}
+  renderPrice();
   // Auth gate: if Supabase enforces login and nobody's signed in → go to the sign-in page
   if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){
     location.href='index.html'; return;
@@ -2899,7 +3016,18 @@ async function init(){
       const verNo = openVer ? parseInt(openVer,10) : q.currentVersion;
       const ver = await BPStore.quotes.getVersion(q.id, verNo);
       currentVersionNo = ver.versionNo;
-      if(ver.data && (ver.data.items||[]).length) applyLayout(ver.data); else { store.items=[]; resetHistory(); renderAll(); }
+      PRICING.eventType = q.eventType || null;
+      if(ver.data && (ver.data.items||[]).length){ applyLayout(ver.data); }
+      else {
+        // Empty layout → drop in the default layout for this event type so the
+        // client immediately sees the standard package (chairs, mandap, stage…).
+        const presetKey = EVENT_TYPE_PRESET[(q.eventType||'').toLowerCase()];
+        if(presetKey && TEMPLATES[presetKey]){
+          store.items = TEMPLATES[presetKey]();
+          toast('Loaded default '+(q.eventType||'')+' layout');
+        } else { store.items=[]; }
+        resetHistory(); renderAll();
+      }
       updateQuoteBadge();
       if(q.status==='confirmed'){ const b=$('#quoteBadge'); if(b) b.classList.add('confirmed'); }
       toast('Opened '+q.code+' · v'+currentVersionNo);
