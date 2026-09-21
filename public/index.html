@@ -355,7 +355,7 @@
     const btn = $("#createBtn"); btn.disabled = true;
     try {
       const q = await BPStore.quotes.create(code, code, null, { items: [] }, 0);
-      location.href = "builder.html?quote=" + encodeURIComponent(q.id);
+      location.href = "flow.html?quote=" + encodeURIComponent(q.id);
     } catch (err) { alert("Couldn't start a quote: " + ((err && err.message) || "error")); btn.disabled = false; }
   });
   $("#loginForm").addEventListener("submit", async (e) => {

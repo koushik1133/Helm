@@ -245,7 +245,7 @@
     if(act==="workspace"){ location.href="event.html?id="+encodeURIComponent(l.quote_id); return; }
     if(act==="convert"){
       btn.disabled=true; btn.textContent="Converting…";
-      try{ const q=await BPStore.leads.convert(id); location.href="event.html?id="+encodeURIComponent(q.id); }
+      try{ const q=await BPStore.leads.convert(id); location.href="flow.html?quote="+encodeURIComponent(q.id); }
       catch(err){ alert("Couldn't convert — "+(err&&err.message||"error")); btn.disabled=false; btn.textContent="Convert →"; }
     }
   });

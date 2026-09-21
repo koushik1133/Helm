@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quote flow — Blueprint Stage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#8b8698;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#18a558;--warn:#e8912d;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#0f1420;--panel:#151b2b;--panel-2:#1a2232;--ink:#eef1f8;--ink-2:#b8c0d4;--ink-3:#7a8296;--line:#26314a;--line-2:#1c2438;}}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px 80px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+
+  .layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
+  @media(max-width:900px){.layout{grid-template-columns:1fr}}
+  .col-main{display:flex;flex-direction:column;gap:16px;min-width:0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px;scroll-margin-top:16px}
+  .card h2{font-size:15px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
+  .card .step-n{width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
+  .card .sub{font-size:12px;color:var(--ink-3);margin:0 0 14px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px} @media(max-width:620px){.grid{grid-template-columns:1fr}}
+  .fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px} .fld.full{grid-column:1/-1}
+  .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld input,.fld select,.fld textarea{border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:13px;color:var(--ink)}
+  .fld input,.fld select{height:38px;padding:0 12px} .fld textarea{min-height:70px;resize:vertical}
+  .fld input:disabled,.fld textarea:disabled,.fld select:disabled{opacity:.7;cursor:not-allowed}
+  .btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.4;cursor:default}
+  .btn.sm{height:32px;padding:0 11px;font-size:12px}
+  .saved{font-size:11px;color:var(--safe);font-weight:600;opacity:0;transition:opacity .2s} .saved.on{opacity:1}
+  .rowline{display:flex;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--line-2);font-size:13px}
+  .rowline .g{flex:1}
+  .rm{border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:16px;padding:2px 6px} .rm:hover{color:#e5484d}
+  .pill{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .pkgcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+  .pkgcard{text-align:left;border:1px solid var(--line);border-radius:10px;padding:10px 11px;background:var(--panel);cursor:pointer;font-family:inherit}
+  .pkgcard.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+  .pkgcard b{font-size:13px} .pkgcard .m{font-size:11px;color:var(--ink-3);margin-top:2px} .pkgcard .p{font-size:12px;color:var(--accent);font-weight:700;margin-top:4px}
+
+  /* right rail */
+  .rail{position:sticky;top:16px;display:flex;flex-direction:column;gap:14px}
+  .price .prow{display:flex;justify-content:space-between;gap:8px;font-size:12px;padding:3px 0;color:var(--ink-2)}
+  .price .prow .q{color:var(--ink-3)}
+  .price .prow.sub{border-top:1px solid var(--line-2);margin-top:5px;padding-top:6px}
+  .price .prow.total{border-top:2px solid var(--line);margin-top:6px;padding-top:8px;font-size:16px;font-weight:800;color:var(--ink)}
+  .price .prow.total .amt{color:var(--accent)}
+  .prog{display:flex;flex-direction:column;gap:2px}
+  .prog a{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ink-2);padding:6px 8px;border-radius:8px}
+  .prog a:hover{background:var(--panel-2)}
+  .prog .dot{width:9px;height:9px;border-radius:50%;background:var(--line);flex:0 0 auto}
+  .prog a.done .dot{background:var(--safe)}
+  .statusbadge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 10px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  footer{padding:22px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(420px,94vw);padding:24px}
+  .lsheet h3{margin:0 0 12px} .lsheet label{display:block;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+  .lsheet input,.lsheet select{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;margin-bottom:12px;font-family:inherit;color:var(--ink)}
+  .banner{background:var(--accent-soft);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--ink);display:flex;gap:10px;align-items:center}
+</style>
+<link rel="stylesheet" href="theme.css?v=69">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Quote flow</h1><small>Blueprint Stage</small></div>
+    <nav class="nav"><a href="index.html">Home</a><a href="quotes.html">Quotes</a><a href="leads.html">Leads</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to open the quote flow.</p></div>
+
+  <div id="app" hidden>
+    <div id="reminder" class="banner" hidden style="margin-bottom:14px">
+      <span>👋 Welcome back — pick up where you left off. Finish the quotation &amp; send for approval below.</span>
+      <span class="spacer"></span><button class="btn sm" id="dismissReminder">Got it</button>
+    </div>
+
+    <div class="card" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div>
+        <div style="font-family:var(--mono);font-weight:700;font-size:20px;color:var(--accent)" id="code">—</div>
+        <div style="font-size:14px;font-weight:600" id="title"></div>
+      </div>
+      <span class="statusbadge" id="statusBadge">draft</span>
+      <span class="spacer"></span>
+      <a class="btn" id="workspaceLink" href="#">Open full workspace →</a>
+    </div>
+
+    <div class="layout" style="margin-top:16px">
+      <div class="col-main">
+
+        <!-- 1 CLIENT -->
+        <section class="card" id="sec-client">
+          <h2><span class="step-n">1</span> Client &amp; event <span class="saved" id="sv-client">Saved ✓</span></h2>
+          <p class="sub">Auto-filled from the lead. Everything below is one flow — no jumping between screens.</p>
+          <div class="grid">
+            <div class="fld"><label>Client name</label><input id="c_name"></div>
+            <div class="fld"><label>Company (optional)</label><input id="c_company"></div>
+            <div class="fld"><label>Email</label><input id="c_email" type="email"></div>
+            <div class="fld"><label>Phone</label><input id="c_phone"></div>
+            <div class="fld"><label>Event type</label><input id="c_type" placeholder="wedding, concert…"></div>
+            <div class="fld"><label>Event date</label><input id="c_date" type="date"></div>
+            <div class="fld"><label>Guests</label><input id="c_guests" type="number" min="0"></div>
+            <div class="fld"><label>Budget (₹)</label><input id="c_budget" type="number" min="0"></div>
+            <div class="fld full"><label>Venue name</label><input id="c_venue"></div>
+            <div class="fld full"><label>Venue address</label><input id="c_address"></div>
+          </div>
+        </section>
+
+        <!-- 2 DISCOVERY -->
+        <section class="card" id="sec-discovery">
+          <h2><span class="step-n">2</span> Discovery <span class="saved" id="sv-discovery">Saved ✓</span></h2>
+          <p class="sub">What you learned in the first conversation.</p>
+          <div class="grid">
+            <div class="fld"><label>Meeting date</label><input id="d_date" type="date"></div>
+            <div class="fld"><label>Mode</label><select id="d_mode"><option value="">—</option><option value="in_person">In person</option><option value="call">Phone call</option><option value="video">Video call</option></select></div>
+            <div class="fld"><label>Budget — min (₹)</label><input id="d_bmin" type="number" min="0"></div>
+            <div class="fld"><label>Budget — max (₹)</label><input id="d_bmax" type="number" min="0"></div>
+            <div class="fld full"><label>Who attended</label><input id="d_att" placeholder="e.g. Client + spouse, planner"></div>
+            <div class="fld full"><label>Notes</label><textarea id="d_notes" placeholder="Theme ideas, constraints, preferences…"></textarea></div>
+          </div>
+        </section>
+
+        <!-- 3 REQUIREMENTS -->
+        <section class="card" id="sec-reqs">
+          <h2><span class="step-n">3</span> Requirements</h2>
+          <p class="sub">The services the client wants.</p>
+          <div id="reqList"></div>
+          <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-top:10px">
+            <input id="rq_title" class="fld" style="height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px" placeholder="e.g. Stage &amp; lighting">
+            <select id="rq_pri" style="height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 8px"><option value="mandatory">Must-have</option><option value="optional">Optional</option><option value="nice">Nice-to-have</option></select>
+            <button class="btn" id="rq_add">＋ Add</button>
+          </div>
+        </section>
+
+        <!-- 4 VENUE -->
+        <section class="card" id="sec-venue">
+          <h2><span class="step-n">4</span> Venue &amp; access <span class="saved" id="sv-venue">Saved ✓</span></h2>
+          <div class="grid">
+            <div class="fld"><label>Venue name</label><input id="v_name"></div>
+            <div class="fld"><label>Venue contact</label><input id="v_contact" placeholder="name / phone"></div>
+            <div class="fld full"><label>Address</label><input id="v_addr"></div>
+            <div class="fld full"><label>Access / load-in notes</label><textarea id="v_access" placeholder="Gate, lift, load-in window, parking…"></textarea></div>
+          </div>
+        </section>
+
+        <!-- 5 MENU -->
+        <section class="card" id="sec-menu">
+          <h2><span class="step-n">5</span> Menu package <span class="saved" id="sv-menu">Saved ✓</span></h2>
+          <p class="sub">Pick a package — it pre-fills the dishes and drives the catering price.</p>
+          <div class="pkgcards" id="pkgCards"></div>
+          <div class="fld full" style="margin-top:12px"><label>Menu / service notes</label><textarea id="p_menu" placeholder="Courses, dietary options, service style, timings…"></textarea></div>
+        </section>
+
+        <!-- 6 FLOOR LAYOUT -->
+        <section class="card" id="sec-layout">
+          <h2><span class="step-n">6</span> Floor layout</h2>
+          <p class="sub">Design the 2D floor plan — chairs &amp; objects feed the price automatically.</p>
+          <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+            <div style="font-size:13px;color:var(--ink-2)">Current layout: <b id="layoutSummary">no objects yet</b></div>
+            <span class="spacer"></span>
+            <label style="font-size:12px;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="remindAfter"> Remind me to finish this after the layout</label>
+            <a class="btn primary" id="openBuilder" href="#">🎨 Open floor builder →</a>
+          </div>
+        </section>
+
+        <!-- 7 PROPOSAL -->
+        <section class="card" id="sec-proposal">
+          <h2><span class="step-n">7</span> Proposal <span class="saved" id="sv-proposal">Saved ✓</span></h2>
+          <p class="sub">The creative pitch shown to the client.</p>
+          <div class="grid">
+            <div class="fld"><label>Concept</label><input id="pr_concept" placeholder="e.g. Royal Mughal evening"></div>
+            <div class="fld"><label>Theme</label><input id="pr_theme" placeholder="e.g. Gold &amp; maroon, candlelight"></div>
+            <div class="fld full"><label>Scope highlights (one per line)</label><textarea id="pr_scope" placeholder="Stage &amp; mandap decor&#10;Full catering&#10;Lighting &amp; sound"></textarea></div>
+          </div>
+        </section>
+
+        <!-- 8 QUOTATION -->
+        <section class="card" id="sec-quote">
+          <h2><span class="step-n">8</span> Quotation <span class="saved" id="sv-quote">Saved ✓</span></h2>
+          <p class="sub">Live total from the layout, guests and package. Adjust and save.</p>
+          <div class="grid">
+            <div class="fld"><label>Chairs (from layout)</label><input id="q_chairs" type="number" min="0"></div>
+            <div class="fld"><label>Guests / plates</label><input id="q_guests" type="number" min="0"></div>
+            <div class="fld"><label>Chair rate (₹)</label><input id="q_chairPrice" type="number" min="0"></div>
+            <div class="fld"><label>Plate price (₹, from package)</label><input id="q_platePrice" type="number" min="0"></div>
+            <div class="fld"><label>Décor / equipment &amp; setup (₹)</label><input id="q_other" type="number" min="0"></div>
+            <div class="fld"><label>Discount (₹)</label><input id="q_discount" type="number" min="0"></div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:6px"><button class="btn primary" id="q_save">Save quotation</button></div>
+        </section>
+
+      </div>
+
+      <!-- RIGHT RAIL -->
+      <aside class="rail">
+        <div class="card price">
+          <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin:0 0 10px">Live price</h2>
+          <div id="priceRows"></div>
+        </div>
+        <div class="card">
+          <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin:0 0 8px">Steps</h2>
+          <div class="prog" id="progList"></div>
+        </div>
+        <div class="card">
+          <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin:0 0 10px">Client approval</h2>
+          <div id="apprState" style="font-size:13px;color:var(--ink-2);margin-bottom:10px">Not sent yet.</div>
+          <button class="btn primary" id="sendApproval" style="width:100%">Send for approval →</button>
+          <div id="apprLinks" style="margin-top:10px"></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <footer>Blueprint Stage — one flow from enquiry to client approval.</footer>
+</div>
+
+<div id="loginModal" class="lmodal" hidden>
+  <div class="lsheet">
+    <h3>Sign in</h3>
+    <label>Email</label><input id="li_email" type="email">
+    <label>Password</label><input id="li_pass" type="password">
+    <div id="li_err" style="color:#b42318;font-size:12px;margin-bottom:10px" hidden></div>
+    <button class="btn primary" id="li_go" style="width:100%">Sign in</button>
+  </div>
+</div>
+
+<script src="config.js?v=73"></script>
+<script src="store-api.js?v=73"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const inr=(n)=>"₹"+Math.round(n||0).toLocaleString("en-IN");
+  const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
+  let ev=null, rates={chairPrice:200,platePrice:500,gstPct:18,layoutBase:0,serviceChargePct:0,assetPrices:null};
+  let packages=[], plan=null, appliedPkg=null, layoutItems=[], canEdit=false;
+  const REMIND_KEY = "bp_flow_remind_"+id;
+
+  function saved(which){ const el=$("#sv-"+which); if(!el) return; el.classList.add("on"); setTimeout(()=>el.classList.remove("on"),1400); }
+  function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms||600); }; }
+
+  /* ---------- pricing (shared engine) ---------- */
+  function currentInputs(){
+    const oi = BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
+    const chairs = $("#q_chairs").value!==""?(+$("#q_chairs").value||0):oi.chairs;
+    const guests = $("#q_guests").value!==""?(+$("#q_guests").value||0):chairs;
+    const platePrice = $("#q_platePrice").value!==""?(+$("#q_platePrice").value||0):(appliedPkg?appliedPkg.price_per_plate:rates.platePrice);
+    const other = $("#q_other").value!==""?(+$("#q_other").value||0):(oi.objectsCost+(+rates.layoutBase||0));
+    return { chairs, guests, chairPrice:+$("#q_chairPrice").value||rates.chairPrice, platePrice,
+      other, gstPct:+rates.gstPct||18, serviceChargePct:+rates.serviceChargePct||0,
+      discount:+$("#q_discount").value||0, catering:{mode:"inhouse",gstPct:+rates.gstPct||18},
+      couponCode:"", placeOfSupply:"intra", currency:"INR",
+      _objectsCost:oi.objectsCost, _packageName:appliedPkg?appliedPkg.name:null };
+  }
+  function renderPrice(){
+    const p=currentInputs(), t=BPStore.pricing.quoteTotal(p);
+    let rows="";
+    if(p.chairs>0) rows+=`<div class="prow"><span>Chairs <span class="q">${p.chairs} × ${inr(p.chairPrice)}</span></span><span class="amt">${inr(p.chairs*p.chairPrice)}</span></div>`;
+    if(p.guests>0) rows+=`<div class="prow"><span>Catering${p._packageName?' <span class="q">'+esc(p._packageName)+'</span>':''} <span class="q">${p.guests} × ${inr(p.platePrice)}</span></span><span class="amt">${inr(p.guests*p.platePrice)}</span></div>`;
+    if(p.other>0) rows+=`<div class="prow"><span>Décor / setup</span><span class="amt">${inr(p.other)}</span></div>`;
+    rows+=`<div class="prow sub"><span>Subtotal</span><span class="amt">${inr(t.subtotal)}</span></div>`;
+    if(t.discount>0) rows+=`<div class="prow"><span>Discount</span><span class="amt">− ${inr(t.discount)}</span></div>`;
+    rows+=`<div class="prow"><span>GST</span><span class="amt">${inr(t.totalGst)}</span></div>`;
+    rows+=`<div class="prow total"><span>Total</span><span class="amt">${inr(t.total)}</span></div>`;
+    $("#priceRows").innerHTML=rows;
+    const oi=BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
+    $("#layoutSummary").textContent = oi.chairs+" chairs · "+(layoutItems.length)+" objects";
+    return t;
+  }
+
+  /* ---------- save helpers (reuse the same BPStore calls the pages use) ---------- */
+  async function saveClient(){
+    const client=Object.assign({}, ev.client||{}, {
+      name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:$("#c_email").value.trim(),
+      phone:$("#c_phone").value.trim(), venue:$("#c_venue").value.trim(), address:$("#c_address").value.trim(),
+      guests:$("#c_guests").value!==""?+$("#c_guests").value:null, budget:$("#c_budget").value!==""?+$("#c_budget").value:null,
+      eventDate:$("#c_date").value||null });
+    ev.client=client;
+    await BPStore.quotes.updateMeta(id,{ client, eventType:$("#c_type").value.trim()||null, eventDate:$("#c_date").value||null });
+    // mirror venue + guests into the fields that read them
+    if($("#v_name").value==="" && client.venue) $("#v_name").value=client.venue;
+    if($("#v_addr").value==="" && client.address) $("#v_addr").value=client.address;
+    if($("#q_guests").value==="" && client.guests!=null){ $("#q_guests").value=client.guests; }
+    saved("client"); renderPrice();
+  }
+  async function saveDiscovery(){
+    await BPStore.discovery.save(id, { meet_date:$("#d_date").value||null, mode:$("#d_mode").value||null,
+      attendees:$("#d_att").value.trim()||null, notes:$("#d_notes").value.trim()||null,
+      budget_min:$("#d_bmin").value!==""?+$("#d_bmin").value:null, budget_max:$("#d_bmax").value!==""?+$("#d_bmax").value:null });
+    saved("discovery");
+  }
+  async function saveVenue(){
+    await BPStore.plan.save(id, gatherPlan()); saved("venue");
+  }
+  async function saveMenuNotes(){ await BPStore.plan.save(id, gatherPlan()); saved("menu"); }
+  function gatherPlan(){ return { venue_name:$("#v_name").value.trim()||null, venue_address:$("#v_addr").value.trim()||null,
+    venue_contact:$("#v_contact").value.trim()||null, access_notes:$("#v_access").value.trim()||null,
+    package:appliedPkg?appliedPkg.name:( $("#p_menu").dataset.pkg||null), menu:$("#p_menu").value.trim()||null }; }
+  async function saveProposal(){
+    const scope=$("#pr_scope").value.split("\n").map(s=>s.trim()).filter(Boolean);
+    await BPStore.proposal.save(id,{ concept:$("#pr_concept").value.trim()||null, theme:$("#pr_theme").value.trim()||null, scope });
+    saved("proposal");
+  }
+  async function saveQuotation(){
+    const p=currentInputs(), t=BPStore.pricing.quoteTotal(p);
+    const pricing=Object.assign({}, ev.pricing||{}, p, { computed:t, total:t.total, client:ev.client||{} });
+    await BPStore.quotes.updateMeta(id,{ pricing }); ev.pricing=pricing;
+    saved("quote"); updateProgress();
+  }
+
+  /* ---------- requirements ---------- */
+  async function renderReqs(){
+    let reqs=[]; try{ reqs=await BPStore.discovery.listReqs(id); }catch{}
+    $("#reqList").innerHTML = reqs.length? reqs.map(r=>`<div class="rowline"><span class="g">${esc(r.title)}</span><span class="pill">${esc(r.priority||"")}</span><button class="rm" data-del="${r.id}">×</button></div>`).join("")
+      : '<div style="font-size:12px;color:var(--ink-3)">No requirements yet.</div>';
+    $("#reqList").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.discovery.removeReq(b.dataset.del); renderReqs(); }));
+  }
+
+  /* ---------- menu packages ---------- */
+  function renderPackages(){
+    $("#pkgCards").innerHTML = packages.map(p=>{
+      const on = appliedPkg && appliedPkg.id===p.id;
+      return `<button type="button" class="pkgcard ${on?'on':''}" data-id="${p.id}">
+        <b>${esc(p.name)}</b><div class="m">${esc(p.diet||'')} · ${(p.dishes||[]).length} dishes</div>
+        <div class="p">${inr(p.price_per_plate)} / plate</div></button>`;
+    }).join("") || '<div style="font-size:12px;color:var(--ink-3)">Run phase62 to enable menu packages.</div>';
+    $("#pkgCards").querySelectorAll(".pkgcard").forEach(b=>b.addEventListener("click",()=>applyPackage(b.dataset.id)));
+  }
+  async function applyPackage(tid){
+    const t=packages.find(x=>x.id===tid); if(!t) return;
+    try{ await BPStore.menuTemplates.apply(id, tid); appliedPkg=t;
+      $("#q_platePrice").value=t.price_per_plate; $("#p_menu").dataset.pkg=t.name;
+      renderPackages(); renderPrice(); saved("menu"); updateProgress();
+    }catch(e){ alert("Couldn't apply package — "+((e&&e.message)||"error")); }
+  }
+
+  /* ---------- progress ---------- */
+  const STEPS=[["client","1 · Client"],["discovery","2 · Discovery"],["reqs","3 · Requirements"],["venue","4 · Venue"],["menu","5 · Menu"],["layout","6 · Layout"],["proposal","7 · Proposal"],["quote","8 · Quotation"]];
+  function updateProgress(){
+    const done={ client:!!(ev&&ev.client&&ev.client.name), menu:!!appliedPkg, layout:layoutItems.length>0,
+      quote:!!(ev&&ev.pricing&&ev.pricing.total), venue:$("#v_name").value.trim()!=="",
+      discovery:$("#d_notes").value.trim()!==""||$("#d_date").value!=="", proposal:$("#pr_concept").value.trim()!=="", reqs:true };
+    $("#progList").innerHTML=STEPS.map(([k,label])=>`<a href="#sec-${k==='reqs'?'reqs':k}" class="${done[k]?'done':''}"><span class="dot"></span>${label}</a>`).join("");
+  }
+
+  /* ---------- approval ---------- */
+  async function sendApproval(){
+    if(!ev || !(ev.pricing&&ev.pricing.total)){ if(!confirm("No quotation total saved yet. Send anyway?")) return; }
+    $("#sendApproval").disabled=true;
+    try{
+      const r=await BPStore.approval.generateToken(id);
+      const token=(r&&(r.token||r.approval_token))||r;
+      const link=location.origin+"/portal.html?token="+encodeURIComponent(token);
+      const phone=(ev.client&&ev.client.phone||"").replace(/[^0-9]/g,"");
+      const waText=encodeURIComponent(`Hi ${ev.client&&ev.client.name||""}, here's your event proposal & quote: ${link}`);
+      $("#apprState").innerHTML='<b style="color:var(--safe)">Approval link ready.</b> Share it with the client:';
+      $("#apprLinks").innerHTML=
+        `<div class="fld"><input id="apprUrl" value="${esc(link)}" readonly style="font-size:12px"></div>`+
+        `<div style="display:flex;gap:8px;flex-wrap:wrap">`+
+        `<button class="btn sm" id="copyLink">Copy link</button>`+
+        (phone?`<a class="btn sm" target="_blank" href="https://wa.me/${phone}?text=${waText}">WhatsApp</a>`:``)+
+        `<a class="btn sm" target="_blank" href="mailto:${esc(ev.client&&ev.client.email||'')}?subject=Your event proposal&body=${waText}">Email</a>`+
+        `<a class="btn sm" target="_blank" href="${esc(link)}">Preview</a></div>`;
+      $("#copyLink").addEventListener("click",()=>{ navigator.clipboard.writeText(link); $("#copyLink").textContent="Copied ✓"; });
+      $("#statusBadge").textContent="sent for approval";
+    }catch(e){ alert("Couldn't create approval link — "+((e&&e.message)||"error")); }
+    finally{ $("#sendApproval").disabled=false; }
+  }
+
+  /* ---------- load ---------- */
+  async function loadAll(){
+    ev=await BPStore.quotes.get(id);
+    $("#code").textContent=ev.code||"—"; $("#title").textContent=ev.title||"";
+    $("#statusBadge").textContent=ev.status||ev.lifecycleStage||"draft";
+    $("#workspaceLink").href="event.html?id="+encodeURIComponent(id);
+    $("#openBuilder").href="builder.html?quote="+encodeURIComponent(id);
+    const cl=ev.client||{};
+    $("#c_name").value=cl.name||""; $("#c_company").value=cl.company||""; $("#c_email").value=cl.email||"";
+    $("#c_phone").value=cl.phone||""; $("#c_type").value=ev.eventType||""; $("#c_date").value=cl.eventDate||ev.eventDate||"";
+    $("#c_guests").value=cl.guests!=null?cl.guests:""; $("#c_budget").value=cl.budget!=null?cl.budget:"";
+    $("#c_venue").value=cl.venue||""; $("#c_address").value=cl.address||"";
+    // rates
+    try{ const pc=await BPStore.config.getPricing(); if(pc) rates=Object.assign(rates,pc); }catch{}
+    $("#q_chairPrice").value=rates.chairPrice;
+    // discovery
+    try{ const d=await BPStore.discovery.get(id); if(d){ $("#d_date").value=d.meet_date||""; $("#d_mode").value=d.mode||"";
+      $("#d_att").value=d.attendees||""; $("#d_notes").value=d.notes||""; $("#d_bmin").value=d.budget_min!=null?d.budget_min:""; $("#d_bmax").value=d.budget_max!=null?d.budget_max:""; }
+      else if(cl.budget!=null){ $("#d_bmax").value=cl.budget; } }catch{}
+    await renderReqs();
+    // plan (venue + menu)
+    try{ plan=await BPStore.plan.get(id); if(plan){ $("#v_name").value=plan.venue_name||cl.venue||""; $("#v_addr").value=plan.venue_address||cl.address||"";
+      $("#v_contact").value=plan.venue_contact||""; $("#v_access").value=plan.access_notes||""; $("#p_menu").value=plan.menu||""; if(plan.package) $("#p_menu").dataset.pkg=plan.package; } }catch{}
+    // packages
+    try{ packages=await BPStore.menuTemplates.list(); }catch{ packages=[]; }
+    if(plan&&plan.menu_template) appliedPkg=packages.find(p=>p.name===plan.menu_template)||null;
+    renderPackages();
+    // proposal
+    try{ const pr=await BPStore.proposal.get(id); if(pr){ $("#pr_concept").value=pr.concept||""; $("#pr_theme").value=pr.theme||""; $("#pr_scope").value=(pr.scope||[]).join("\n"); } }catch{}
+    // layout (current version items) + quotation seed
+    try{ const v=await BPStore.quotes.getVersion(id, ev.currentVersion); layoutItems=(v.data&&v.data.items)||[]; }catch{ layoutItems=[]; }
+    const oi=BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
+    const pr=ev.pricing||{};
+    $("#q_chairs").value=pr.chairs!=null?pr.chairs:oi.chairs;
+    $("#q_guests").value=pr.guests!=null?pr.guests:(cl.guests!=null?cl.guests:oi.chairs);
+    $("#q_platePrice").value=pr.platePrice!=null?pr.platePrice:(appliedPkg?appliedPkg.price_per_plate:rates.platePrice);
+    $("#q_other").value=pr.other!=null?pr.other:(oi.objectsCost+(+rates.layoutBase||0));
+    $("#q_discount").value=pr.discount||0;
+    if(pr.chairPrice!=null) $("#q_chairPrice").value=pr.chairPrice;
+    renderPrice(); updateProgress();
+    // reminder banner
+    try{ if(localStorage.getItem(REMIND_KEY)==="1"){ $("#reminder").hidden=false; localStorage.removeItem(REMIND_KEY); $("#sec-quote").scrollIntoView({behavior:"smooth"}); } }catch{}
+    $("#remindAfter").checked = false;
+  }
+
+  /* ---------- wire ---------- */
+  function wire(){
+    const cSave=debounce(saveClient,700);
+    ["c_name","c_company","c_email","c_phone","c_type","c_date","c_guests","c_budget","c_venue","c_address"].forEach(f=>$("#"+f).addEventListener("input",()=>{ if(f==="c_guests"||f==="c_type") renderPrice(); cSave(); }));
+    const dSave=debounce(saveDiscovery,700);
+    ["d_date","d_mode","d_att","d_notes","d_bmin","d_bmax"].forEach(f=>$("#"+f).addEventListener("input",dSave));
+    const vSave=debounce(saveVenue,700);
+    ["v_name","v_addr","v_contact","v_access"].forEach(f=>$("#"+f).addEventListener("input",vSave));
+    $("#p_menu").addEventListener("input",debounce(saveMenuNotes,700));
+    const prSave=debounce(saveProposal,700);
+    ["pr_concept","pr_theme","pr_scope"].forEach(f=>$("#"+f).addEventListener("input",prSave));
+    ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount"].forEach(f=>$("#"+f).addEventListener("input",renderPrice));
+    $("#q_save").addEventListener("click",saveQuotation);
+    $("#rq_add").addEventListener("click",async()=>{ const t=$("#rq_title").value.trim(); if(!t) return;
+      await BPStore.discovery.addReq(id,{ title:t, priority:$("#rq_pri").value }); $("#rq_title").value=""; renderReqs(); });
+    $("#sendApproval").addEventListener("click",sendApproval);
+    $("#openBuilder").addEventListener("click",()=>{ try{ if($("#remindAfter").checked) localStorage.setItem(REMIND_KEY,"1"); }catch{} });
+    $("#dismissReminder").addEventListener("click",()=>$("#reminder").hidden=true);
+    $("#workspaceLink").addEventListener("click",()=>{});
+  }
+
+  function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),40); }
+  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
+    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+
+  (async ()=>{
+    await BPStore.init();
+    if(BPStore.auth.enabled()){ const u=BPStore.auth.user();
+      const acc=$("#account"); acc.hidden=false;
+      if(u){ const role=await BPStore.auth.role(); acc.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+        $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";}); }
+      else { acc.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); }
+      if(BPStore.auth.required() && !u){ $("#gate").hidden=false; openLogin(); return; }
+    }
+    if(!id){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:var(--ink-3)">No quote selected. Start one from <a href="index.html" style="color:var(--accent)">Home</a> or <a href="leads.html" style="color:var(--accent)">Leads</a>.</p>'; return; }
+    try{ canEdit=await BPStore.auth.canEditArea("quotes"); }catch{ canEdit=true; }
+    try{ await loadAll(); }catch(e){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:#b42318">Couldn\'t open this quote — '+esc((e&&e.message)||"error")+'</p>'; return; }
+    $("#app").hidden=false;
+    wire();
+  })();
+</script>
+</body>
+</html>
