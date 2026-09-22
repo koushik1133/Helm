@@ -1262,6 +1262,9 @@
       p_currency: (opts && opts.currency) || "INR", p_timezone: (opts && opts.timezone) || "Asia/Kolkata" }),
     // GDPR / DPDP: admin downloads THIS org's data only (server re-scopes to current_org_id)
     exportData: () => rpc("export_org_data", {}),
+    // Full portability package (organizations/profiles/quotes/event_attendees/invitations),
+    // gated on has_area('users','view'); every table filtered by current_org_id server-side.
+    exportPackage: () => rpc("export_tenant_organization_package", {}),
   };
 
   /* ---------------- invitations: join an existing studio (Phase 83) ---------------- */
