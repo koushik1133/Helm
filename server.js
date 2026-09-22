@@ -104,29 +104,52 @@ const SECURITY_HEADERS = {
   'Cross-Origin-Opener-Policy': 'same-origin',
 };
 
+function sendFileRes(res, filePath, buf) {
+  const ext = path.extname(filePath);
+  // Revalidate app files so updates always show (fast, no staleness).
+  res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-cache', ...SECURITY_HEADERS });
+  res.end(buf);
+}
+
 function serveStatic(req, res) {
   let rel;
   try { rel = decodeURIComponent(req.url.split('?')[0]); }
   catch { return sendJson(res, 400, { error: 'bad request' }); }
-  if (rel === '/') rel = '/welcome.html';   // public intro/landing is the front door
-  const filePath = path.normalize(path.join(PUBLIC_DIR, rel));
+  const qIdx = req.url.indexOf('?');
+  const query = qIdx >= 0 ? req.url.slice(qIdx) : '';
+
+  // The public front door.
+  if (rel === '/') {
+    return fs.readFile(path.join(PUBLIC_DIR, 'welcome.html'), (e, buf) =>
+      e ? sendJson(res, 404, { error: 'not found' }) : sendFileRes(res, 'welcome.html', buf));
+  }
+
+  // Clean URLs: hide the .html extension. Any request for /foo.html is redirected
+  // to /foo (which is then served from foo.html below), so the address bar stays clean.
+  if (rel.toLowerCase().endsWith('.html')) {
+    const clean = rel.slice(0, -5) || '/';
+    res.writeHead(302, { Location: (clean === '/index' ? '/' : clean) + query, ...SECURITY_HEADERS });
+    return res.end();
+  }
+
+  const base = path.normalize(path.join(PUBLIC_DIR, rel));
   // must stay inside PUBLIC_DIR (guard the separator boundary, not just the prefix)
-  if (filePath !== PUBLIC_DIR && !filePath.startsWith(PUBLIC_DIR + path.sep))
+  if (base !== PUBLIC_DIR && !base.startsWith(PUBLIC_DIR + path.sep))
     return sendJson(res, 403, { error: 'forbidden' });
-  fs.readFile(filePath, (err, buf) => {
-    if (err) {
-      // SPA-ish fallback to index for unknown non-file routes
-      if (!path.extname(filePath)) {
-        return fs.readFile(path.join(PUBLIC_DIR, 'index.html'), (e2, idx) =>
-          e2 ? sendJson(res, 404, { error: 'not found' })
-             : (res.writeHead(200, { 'Content-Type': MIME['.html'], ...SECURITY_HEADERS }), res.end(idx)));
-      }
-      return sendJson(res, 404, { error: 'not found' });
-    }
-    const ext = path.extname(filePath);
-    // Revalidate app files so updates always show; ETag lets the browser 304 unchanged files (fast, no staleness).
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-cache', ...SECURITY_HEADERS });
-    res.end(buf);
+
+  const ext = path.extname(base);
+  if (ext) {
+    // A real asset (.js, .css, images, …) — serve it directly.
+    return fs.readFile(base, (err, buf) =>
+      err ? sendJson(res, 404, { error: 'not found' }) : sendFileRes(res, base, buf));
+  }
+
+  // No extension → a clean page URL. Serve <name>.html.
+  fs.readFile(base + '.html', (err, buf) => {
+    if (!err) return sendFileRes(res, base + '.html', buf);
+    // Unknown route → fall back to the app home (kept from prior behavior).
+    fs.readFile(path.join(PUBLIC_DIR, 'index.html'), (e2, idx) =>
+      e2 ? sendJson(res, 404, { error: 'not found' }) : sendFileRes(res, 'index.html', idx));
   });
 }
 
