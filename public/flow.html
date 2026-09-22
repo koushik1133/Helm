@@ -118,8 +118,6 @@
             <div class="fld"><label>Event date</label><input id="c_date" type="date"></div>
             <div class="fld"><label>Guests</label><input id="c_guests" type="number" min="0"></div>
             <div class="fld"><label>Budget (₹)</label><input id="c_budget" type="number" min="0"></div>
-            <div class="fld full"><label>Venue name</label><input id="c_venue"></div>
-            <div class="fld full"><label>Venue address</label><input id="c_address"></div>
           </div>
         </section>
 
@@ -319,14 +317,12 @@
   async function saveClient(){
     const client=Object.assign({}, ev.client||{}, {
       name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:$("#c_email").value.trim(),
-      phone:$("#c_phone").value.trim(), venue:$("#c_venue").value.trim(), address:$("#c_address").value.trim(),
+      phone:$("#c_phone").value.trim(),
       guests:$("#c_guests").value!==""?+$("#c_guests").value:null, budget:$("#c_budget").value!==""?+$("#c_budget").value:null,
       eventDate:$("#c_date").value||null });
     ev.client=client;
     await BPStore.quotes.updateMeta(id,{ client, eventType:$("#c_type").value.trim()||null, eventDate:$("#c_date").value||null });
-    // mirror venue + guests into the fields that read them
-    if($("#v_name").value==="" && client.venue) $("#v_name").value=client.venue;
-    if($("#v_addr").value==="" && client.address) $("#v_addr").value=client.address;
+    // guests is entered once here and mirrored into the fields that read it (quotation/pricing)
     if($("#q_guests").value==="" && client.guests!=null){ $("#q_guests").value=client.guests; }
     saved("client"); renderPrice();
   }
@@ -337,7 +333,17 @@
     saved("discovery");
   }
   async function saveVenue(){
-    await BPStore.plan.save(id, gatherPlan()); saved("venue");
+    await BPStore.plan.save(id, gatherPlan());
+    // Venue is entered ONCE here; mirror it back onto the client record so the
+    // quote header, lists and lead stay in sync (no separate re-entry elsewhere).
+    const vn=$("#v_name").value.trim(), va=$("#v_addr").value.trim();
+    const cur=ev&&ev.client||{};
+    if((cur.venue||"")!==vn || (cur.address||"")!==va){
+      const client=Object.assign({}, cur, { venue:vn||null, address:va||null });
+      ev.client=client;
+      try{ await BPStore.quotes.updateMeta(id,{ client }); }catch{}
+    }
+    saved("venue");
   }
   async function saveMenuNotes(){ await BPStore.plan.save(id, gatherPlan()); saved("menu"); }
   function gatherPlan(){ return { venue_name:$("#v_name").value.trim()||null, venue_address:$("#v_addr").value.trim()||null,
@@ -498,7 +504,6 @@
     $("#c_name").value=cl.name||""; $("#c_company").value=cl.company||""; $("#c_email").value=cl.email||"";
     $("#c_phone").value=cl.phone||""; $("#c_type").value=ev.eventType||""; $("#c_date").value=cl.eventDate||ev.eventDate||"";
     $("#c_guests").value=cl.guests!=null?cl.guests:""; $("#c_budget").value=cl.budget!=null?cl.budget:"";
-    $("#c_venue").value=cl.venue||""; $("#c_address").value=cl.address||"";
     $("#g_guests").value=cl.guests!=null?cl.guests:"";
     // rates
     try{ const pc=await BPStore.config.getPricing(); if(pc) rates=Object.assign(rates,pc); }catch{}
@@ -540,7 +545,7 @@
   /* ---------- wire ---------- */
   function wire(){
     const cSave=debounce(saveClient,700);
-    ["c_name","c_company","c_email","c_phone","c_type","c_date","c_guests","c_budget","c_venue","c_address"].forEach(f=>$("#"+f).addEventListener("input",()=>{ if(f==="c_guests"||f==="c_type") renderPrice(); cSave(); }));
+    ["c_name","c_company","c_email","c_phone","c_type","c_date","c_guests","c_budget"].forEach(f=>$("#"+f).addEventListener("input",()=>{ if(f==="c_guests"||f==="c_type") renderPrice(); cSave(); }));
     const dSave=debounce(saveDiscovery,700);
     ["d_date","d_mode","d_att","d_notes","d_bmin","d_bmax"].forEach(f=>$("#"+f).addEventListener("input",dSave));
     const vSave=debounce(saveVenue,700);
