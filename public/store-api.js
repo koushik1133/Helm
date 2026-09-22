@@ -154,7 +154,12 @@
       if (global.supabase && global.supabase.createClient) return resolve(true);
       const s = document.createElement("script");
       s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js";
-      s.onload = () => resolve(true); s.onerror = () => resolve(false);
+      // A stalled CDN request (e.g. blocked by a browser extension) may never fire
+      // load OR error — resolve after a timeout so init() can never hang the page.
+      let done = false;
+      const finish = (ok) => { if (done) return; done = true; clearTimeout(t); resolve(ok); };
+      const t = setTimeout(() => finish(!!(global.supabase && global.supabase.createClient)), 8000);
+      s.onload = () => finish(true); s.onerror = () => finish(false);
       document.head.appendChild(s);
     });
   }

@@ -127,8 +127,8 @@ function serveStatic(req, res) {
   // Clean URLs: hide the .html extension. Any request for /foo.html is redirected
   // to /foo (which is then served from foo.html below), so the address bar stays clean.
   if (rel.toLowerCase().endsWith('.html')) {
-    const clean = rel.slice(0, -5) || '/';
-    res.writeHead(302, { Location: (clean === '/index' ? '/' : clean) + query, ...SECURITY_HEADERS });
+    const clean = rel.slice(0, -5) || '/';   // /index.html → /index (the app home), NOT / (the public intro)
+    res.writeHead(302, { Location: clean + query, ...SECURITY_HEADERS });
     return res.end();
   }
 
