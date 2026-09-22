@@ -1260,6 +1260,43 @@
       const { error } = await supa.from("organizations").update(patch).eq("id", (await this.id())); if (error) throw error; return true; },
     createStudio: (name, opts) => rpc("create_studio", { p_name: name, p_email: (opts && opts.email) || null,
       p_currency: (opts && opts.currency) || "INR", p_timezone: (opts && opts.timezone) || "Asia/Kolkata" }),
+    // GDPR / DPDP: admin downloads THIS org's data only (server re-scopes to current_org_id)
+    exportData: () => rpc("export_org_data", {}),
+  };
+
+  /* ---------------- invitations: join an existing studio (Phase 83) ---------------- */
+  // Onboarding split: create a NEW company = org.createStudio; JOIN an existing
+  // one = accept an admin's invite token. Tenant is resolved server-side by RLS.
+  const invitations = {
+    create: (email, role) => rpc("create_invitation", { p_email: email, p_role: role }),   // admin only (server-checked)
+    async list() { if (!supa) return [];                                                     // RLS returns only this org's invites
+      const { data, error } = await supa.from("invitations").select("*").order("created_at", { ascending: false });
+      if (error) throw error; return data || []; },
+    accept:  (token) => rpc("accept_invitation", { p_token: token }),                        // signed-in invitee attaches to the org
+    byToken: (token) => rpc("invitation_by_token", { p_token: token }),                      // minimal, no-PII info for the accept screen
+    async revoke(id) { if (!supa) throw new Error("Supabase not configured");
+      const { error } = await supa.from("invitations").update({ status: "revoked" }).eq("id", id); // .eq() key enforced
+      if (error) throw error; return true; },
+  };
+
+  /* ---------------- per-person attendees / tickets (Phase 84) ---------------- */
+  // Individual named attendees with a ticket status. Complements (does not replace)
+  // event_guests group counts. Every write is org-forced by a DB trigger + RLS.
+  const attendees = {
+    async list(quoteId) { if (!supa) return [];
+      const { data, error } = await supa.from("event_attendees").select("*").eq("quote_id", quoteId).order("seq");
+      if (error) throw error; return data || []; },
+    async add(quoteId, a) { if (!supa) throw new Error("Supabase not configured");
+      const { data, error } = await supa.from("event_attendees")
+        .insert({ quote_id: quoteId, name: (a && a.name) || null, email: (a && a.email) || null,
+                  ticket_status: (a && a.ticket_status) || "invited", seq: (a && a.seq) || 0 })
+        .select().single(); if (error) throw error; return data; },
+    async update(id, patch) { if (!supa) throw new Error("Supabase not configured");
+      const { error } = await supa.from("event_attendees").update(patch).eq("id", id); // .eq() key enforced
+      if (error) throw error; return true; },
+    async remove(id) { if (!supa) throw new Error("Supabase not configured");
+      const { error } = await supa.from("event_attendees").delete().eq("id", id);       // .eq() key enforced
+      if (error) throw error; return true; },
   };
 
   /* ---------------- resource needs + capability check (Phase 8) ---------------- */
@@ -2125,7 +2162,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, invitations, attendees, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

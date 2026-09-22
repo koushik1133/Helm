@@ -102,18 +102,24 @@
   </section>
 
 <script src="config.js?v=70"></script>
-<script src="store-api.js?v=77"></script>
+<script src="store-api.js?v=78"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const PENDING="bp_pending_studio";
+  // ----- invitation: JOIN an existing studio (vs. Create a new one) -----
+  const INVITE_LS="bp_pending_invite";
+  const inviteTok=new URLSearchParams(location.search).get("invite");
+  if(inviteTok){ try{ localStorage.setItem(INVITE_LS, inviteTok); }catch(e){} }
+  const pendingInvite=()=>{ try{ return inviteTok||localStorage.getItem(INVITE_LS)||null; }catch(e){ return inviteTok||null; } };
+  const JOINING=!!pendingInvite();   // an invitee joins a studio; they never create one
   const nextUrl=()=>{ const n=new URLSearchParams(location.search).get("next"); return (n && /^[a-zA-Z0-9_\-]+\.html/.test(n)) ? n : "index.html"; };
   let mode="signin";
   function setMode(m){ mode=m; $("#err").hidden=true; $("#okmsg").hidden=true;
     document.querySelectorAll(".mtab").forEach(b=>b.classList.toggle("on",b.dataset.mode===m));
-    $("#studioField").hidden = m!=="signin" ? false : true;
-    $("#formTitle").textContent = m==="signup" ? "Create your studio" : "Welcome back";
-    $("#formSub").textContent = m==="signup" ? "Start a fresh workspace, pre-loaded with default templates and catalogs." : "Sign in with the account your studio admin created for you.";
-    $("#submit").textContent = m==="signup" ? "Create studio →" : "Sign in →";
+    $("#studioField").hidden = JOINING || m==="signin";   // an invitee never names a studio
+    $("#formTitle").textContent = m==="signup" ? (JOINING?"Create your account":"Create your studio") : "Welcome back";
+    $("#formSub").textContent = m==="signup" ? (JOINING?"Create your account to join the studio you were invited to.":"Start a fresh workspace, pre-loaded with default templates and catalogs.") : (JOINING?"Sign in to accept your invitation.":"Sign in with the account your studio admin created for you.");
+    $("#submit").textContent = m==="signup" ? (JOINING?"Create account & join →":"Create studio →") : (JOINING?"Sign in & join →":"Sign in →");
     $("#pw").setAttribute("autocomplete", m==="signup" ? "new-password" : "current-password");
   }
   document.querySelectorAll(".mtab").forEach(b=>b.addEventListener("click",()=>setMode(b.dataset.mode)));
@@ -125,13 +131,36 @@
       await BPStore.org.createStudio(name,{email:(BPStore.auth.user()||{}).email}); localStorage.removeItem(PENDING);
     }catch(e){}
   }
+  // accept a stashed invite once a session exists (parallels finishPendingStudio)
+  async function acceptPendingInvite(){
+    const tok=pendingInvite(); if(!tok) return;
+    try{ await BPStore.invitations.accept(tok); }
+    finally{ try{ localStorage.removeItem(INVITE_LS); }catch(e){} }
+  }
+  // show who/what the invitee is joining (no PII — org name + role only)
+  async function showInviteBanner(){
+    const tok=pendingInvite(); if(!tok) return;
+    try{ const info=await BPStore.invitations.byToken(tok);
+      if(info && info.valid){ $("#okmsg").textContent="You're joining "+(info.org_name||"a studio")+" as "+(info.role||"a teammate")+" — sign in or create your account to accept."; $("#okmsg").hidden=false; }
+      else if(info){ $("#err").textContent="This invitation is "+(info.expired?"expired":(info.status||"no longer valid"))+"."; $("#err").hidden=false; }
+    }catch(e){}
+  }
   // arriving from the intro page's "Sign up" button (login.html#signup) opens the create-studio tab
   if((location.hash||"").toLowerCase().replace("#","")==="signup"){ setMode("signup"); }
+  // an invite implies "join", so default to the create-account tab for a new invitee
+  if(JOINING){ setMode("signup"); }
   (async ()=>{
     await BPStore.init();
     if(!BPStore.auth.enabled()){ location.replace(nextUrl()); return; }
-    if(BPStore.auth.user()){ await finishPendingStudio(); location.replace(nextUrl()); return; }
+    if(BPStore.auth.user()){
+      if(pendingInvite()){
+        try{ await acceptPendingInvite(); }
+        catch(err){ $("#err").textContent=(err&&err.message)||"Couldn't accept the invitation."; $("#err").hidden=false; return; }
+      }
+      await finishPendingStudio(); location.replace(nextUrl()); return;
+    }
     setTimeout(()=>$(mode==="signup"?"#studio":"#email").focus(),60);
+    showInviteBanner();
   })();
 
   // Google OAuth — in "Create studio" mode we stash the studio name first, then
@@ -157,8 +186,17 @@
     e.preventDefault();
     const btn=$("#submit"); const email=$("#email").value.trim(), pw=$("#pw").value;
     $("#err").hidden=true; $("#okmsg").hidden=true; btn.disabled=true;
+    const joining=!!pendingInvite();
     try{
       if(mode==="signup"){
+        if(joining){
+          // invitee creating an account, then accepting the invite (no studio to create)
+          btn.textContent="Creating…";
+          const r=await BPStore.auth.signUp(email, pw);
+          if(r.session){ await acceptPendingInvite(); location.replace(nextUrl()); return; }
+          $("#okmsg").textContent="Account created. Confirm your email, then sign in here to join the studio.";
+          $("#okmsg").hidden=false; setMode("signin"); btn.disabled=false; return;
+        }
         const studio=$("#studio").value.trim();
         if(studio.length<2){ throw new Error("Enter your studio / business name."); }
         btn.textContent="Creating…";
@@ -171,7 +209,7 @@
       }
       btn.textContent="Signing in…";
       await BPStore.auth.signIn(email, pw);
-      await finishPendingStudio();
+      if(joining){ await acceptPendingInvite(); } else { await finishPendingStudio(); }
       location.replace(nextUrl());
     }catch(err){
       $("#err").textContent=(err&&err.message)||(mode==="signup"?"Couldn't create the studio.":"Sign-in failed. Check your email and password.");

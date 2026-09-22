@@ -225,6 +225,20 @@
       </div>
 
       <div class="card">
+        <h3>Invite by email link</h3>
+        <p class="mnote">Create a join link for a teammate. They sign up with it and are added to <b>your studio</b> with the role you pick. The link expires in 7 days; nothing is charged.</p>
+        <form id="inv_add" class="addrow" style="grid-template-columns:1.6fr 1fr auto">
+          <input id="inv_email" type="email" placeholder="name@studio.com" required autocomplete="off">
+          <select id="inv_role"></select>
+          <button class="btn primary" type="submit" id="inv_submit">Create invite link</button>
+        </form>
+        <div id="inv_out" hidden style="margin-top:10px;display:flex;gap:8px;align-items:center">
+          <input id="inv_link" readonly style="flex:1" onclick="this.select()" aria-label="Invitation link">
+          <button class="btn" type="button" id="inv_copy">Copy</button>
+        </div>
+      </div>
+
+      <div class="card">
         <h3>Access control — who can see &amp; do what</h3>
         <p class="mnote">Pick a role, then tap an area to toggle <b>view</b> (green tick = accessible).
           Tap the ✎ to also allow <b>editing</b>. Admin always has full access.</p>
@@ -247,7 +261,7 @@
 </div>
 
 <script src="config.js?v=71"></script>
-<script src="store-api.js?v=77"></script>
+<script src="store-api.js?v=78"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -482,6 +496,8 @@
   async function initUsers(){
     const sel=$("#um_role");
     if(!sel.options.length){ sel.innerHTML = ROLES.map(r=>`<option value="${r}"${r==="crew"?" selected":""}>${esc(BPStore.auth.admin.roleLabel(r))}</option>`).join(""); }
+    const isel=$("#inv_role");
+    if(isel && !isel.options.length){ isel.innerHTML = ROLES.map(r=>`<option value="${r}"${r==="coordinator"?" selected":""}>${esc(BPStore.auth.admin.roleLabel(r))}</option>`).join(""); }
     await renderUsers();
   }
   async function renderUsers(){
@@ -521,6 +537,26 @@
       $("#um_email").value=""; $("#um_pw").value="helm"; await renderUsers(); setUMsg("ok",`Added ${email} as ${role}.`); }
     catch(err){ setUMsg("err",(err&&err.message)||"Couldn't add user"); }
     finally{ btn.disabled=false; btn.textContent="Add user"; }
+  });
+
+  // ---- invite by email link (Phase 83) ----
+  $("#inv_add").addEventListener("submit", async (e)=>{
+    e.preventDefault();
+    const email=$("#inv_email").value.trim(), role=$("#inv_role").value;
+    const btn=$("#inv_submit"); btn.disabled=true; btn.textContent="Creating…";
+    try{
+      const r=await BPStore.invitations.create(email, role);
+      const link=location.origin+"/login?invite="+encodeURIComponent(r.token);
+      $("#inv_link").value=link; $("#inv_out").hidden=false;
+      setUMsg("ok",(r.reused?"Existing invite link ready for ":"Invite link created for ")+email+".");
+      $("#inv_email").value="";
+    }catch(err){ setUMsg("err",(err&&err.message)||"Couldn't create invite"); }
+    finally{ btn.disabled=false; btn.textContent="Create invite link"; }
+  });
+  $("#inv_copy").addEventListener("click", async ()=>{
+    const v=$("#inv_link").value;
+    try{ await navigator.clipboard.writeText(v); setUMsg("ok","Link copied."); }
+    catch(e){ $("#inv_link").select(); try{ document.execCommand("copy"); setUMsg("ok","Link copied."); }catch(_){} }
   });
 
   /* ---------------- USER CONTROL: access matrix ---------------- */
