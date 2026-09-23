@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>You're invited</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d28d9'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Poppins:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  :root{--ink:#221c2e;--soft:#6b6478;--line:#e9e3dc;--bg:#faf7f2;--card:#fff;--accent:#6d28d9;
+    --serif:"Cormorant Garamond",Georgia,serif;--display:"Fraunces",Georgia,serif;--sans:"Poppins",system-ui,sans-serif;}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:720px;margin:0 auto;padding:0 20px}
+  .state{min-height:70vh;display:grid;place-items:center;text-align:center;color:var(--soft);padding:40px 20px}
+  .state h1{font-family:var(--display);color:var(--ink);font-weight:600;margin:0 0 8px}
+  /* hero */
+  .hero{text-align:center;padding:72px 20px 40px}
+  .eyebrow{text-transform:uppercase;letter-spacing:.32em;font-size:12px;color:var(--accent);font-weight:600;margin:0 0 18px}
+  .names{font-family:var(--display);font-weight:600;line-height:1.05;letter-spacing:-.01em;margin:0;
+    font-size:clamp(38px,9vw,72px)}
+  .headline{font-family:var(--serif);font-size:clamp(20px,4.4vw,28px);color:var(--soft);margin:14px 0 0;font-style:italic}
+  .rule{width:60px;height:1px;background:var(--accent);opacity:.5;margin:28px auto}
+  .whenwhere{font-family:var(--serif);font-size:clamp(19px,4vw,24px);margin:6px 0}
+  .whenwhere b{font-weight:600}
+  /* sections */
+  section{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px;margin:16px 0;
+    box-shadow:0 1px 2px rgba(20,15,30,.03),0 20px 40px -30px rgba(20,15,30,.2)}
+  .sec-t{text-transform:uppercase;letter-spacing:.18em;font-size:12px;color:var(--accent);font-weight:600;margin:0 0 14px;text-align:center}
+  .msg{font-family:var(--serif);font-size:clamp(19px,4vw,23px);text-align:center;color:var(--ink);margin:0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:520px){.grid2{grid-template-columns:1fr}}
+  .fact{border:1px solid var(--line);border-radius:14px;padding:16px 18px;background:var(--bg)}
+  .fact .k{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--soft);margin:0 0 4px}
+  .fact .v{font-size:16px;font-weight:500;margin:0}
+  .fact a{color:var(--accent)}
+  .sched{list-style:none;margin:0;padding:0}
+  .sched li{display:flex;gap:16px;padding:12px 0;border-top:1px dashed var(--line)}
+  .sched li:first-child{border-top:0}
+  .sched .t{font-weight:600;color:var(--accent);min-width:92px;font-variant-numeric:tabular-nums}
+  .note{text-align:center;color:var(--soft);font-family:var(--serif);font-size:20px;padding:22px 0}
+  .foot{text-align:center;color:var(--soft);font-size:13px;padding:34px 0 60px}
+  .foot .mk{display:inline-flex;align-items:center;gap:7px;opacity:.7}
+  .foot .dot{width:16px;height:16px;border-radius:5px;background:var(--accent)}
+  /* ---------- template themes ---------- */
+  body.t-eternal{--accent:#9a7b4f;--bg:#f7f3ec;--ink:#33291d;--soft:#8a7c66;--line:#e8ddca;
+    --display:"Fraunces",serif;--serif:"Cormorant Garamond",serif}
+  body.t-promise{--accent:#c05b83;--bg:#fdf2f4;--ink:#3d2230;--soft:#a5788a;--line:#f3dbe1;
+    --display:"Playfair Display",serif;--serif:"Cormorant Garamond",serif}
+  body.t-confetti{--accent:#e0533b;--bg:#fff8ef;--ink:#2c2138;--soft:#7c7189;--line:#ffe3cf;
+    --display:"Fraunces",serif;--serif:"Poppins",sans-serif}
+  body.t-confetti .names{background:linear-gradient(100deg,#e0533b,#f2a03d,#6d28d9);-webkit-background-clip:text;background-clip:text;color:transparent}
+  body.t-confetti .headline{font-style:normal;font-weight:500}
+  body.t-summit{--accent:#4f46e5;--bg:#f6f7fb;--ink:#161b2e;--soft:#5b6178;--line:#e2e5ef;
+    --display:"Space Grotesk",sans-serif;--serif:"Space Grotesk",sans-serif;--sans:"Space Grotesk",system-ui,sans-serif}
+  body.t-summit .names{letter-spacing:-.02em}
+  body.t-summit .headline{font-style:normal;font-weight:400}
+  body.t-summit .whenwhere,body.t-summit .msg{font-family:var(--sans)}
+  body.t-soiree{--accent:#a78bfa;--bg:#141019;--ink:#f2ecff;--soft:#a99fc0;--line:#2a2338;--card:#1c1626;
+    --display:"Fraunces",serif;--serif:"Cormorant Garamond",serif}
+  body.t-soiree{background:radial-gradient(1200px 600px at 50% -10%,#241a35,#141019 60%)}
+</style>
+</head>
+<body>
+  <div id="loading" class="state"><div><h1>Loading your invitation…</h1></div></div>
+  <div id="missing" class="state" hidden><div>
+    <h1>Invitation not found</h1>
+    <p>This link may be incorrect, or the invitation hasn’t been published yet.</p>
+  </div></div>
+  <div id="page" class="wrap" hidden></div>
+
+<!-- Absolute paths: this page is also served at /i/<slug>, where relative URLs
+     would wrongly resolve to /i/config.js etc. -->
+<script src="/config.js?v=80"></script>
+<script src="/store-api.js?v=80"></script>
+<script>
+  const $=(s,r=document)=>r.querySelector(s);
+  const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  // slug from /i/<slug> (server serves this page for that path) or ?s=<slug>
+  function getSlug(){
+    const m=location.pathname.match(/^\/i\/([^\/?#]+)/);
+    if(m) return decodeURIComponent(m[1]);
+    return new URLSearchParams(location.search).get("s")||"";
+  }
+  const EYEBROW={wedding:"Together with their families",engagement:"Save the date",
+    birthday:"You're invited to celebrate",corporate:"You're invited",general:"You're invited"};
+
+  function fmtDate(d){ if(!d) return "";
+    // Parse a plain YYYY-MM-DD as a LOCAL date (avoid the UTC-midnight off-by-one).
+    const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d));
+    const dt=m?new Date(+m[1],+m[2]-1,+m[3]):new Date(d);
+    if(isNaN(dt)) return esc(d);
+    return dt.toLocaleDateString(undefined,{weekday:"long",year:"numeric",month:"long",day:"numeric"}); }
+
+  function factsHtml(d){
+    const items=[];
+    const when=[fmtDate(d.date), d.time?esc(d.time):""].filter(Boolean).join(" · ");
+    if(when) items.push(`<div class="fact"><p class="k">When</p><p class="v">${when}</p></div>`);
+    if(d.venue||d.address){
+      const map=d.mapUrl?` <a href="${esc(d.mapUrl)}" target="_blank" rel="noopener noreferrer">View map</a>`:"";
+      items.push(`<div class="fact"><p class="k">Where</p><p class="v">${esc(d.venue||"")}${d.venue&&d.address?"<br>":""}<span style="font-weight:400;color:var(--soft)">${esc(d.address||"")}</span>${map}</p></div>`);
+    }
+    if(d.dressCode) items.push(`<div class="fact"><p class="k">Dress code</p><p class="v">${esc(d.dressCode)}</p></div>`);
+    if(d.host) items.push(`<div class="fact"><p class="k">Hosted by</p><p class="v">${esc(d.host)}${d.hostPhone?`<br><span style="font-weight:400;color:var(--soft)">${esc(d.hostPhone)}</span>`:""}</p></div>`);
+    return items.length?`<section><p class="sec-t">Details</p><div class="grid2">${items.join("")}</div></section>`:"";
+  }
+  function scheduleHtml(list){
+    if(!Array.isArray(list)||!list.length) return "";
+    const rows=list.filter(x=>x&&(x.time||x.label))
+      .map(x=>`<li><span class="t">${esc(x.time||"")}</span><span>${esc(x.label||"")}</span></li>`).join("");
+    return rows?`<section><p class="sec-t">Schedule</p><ul class="sched">${rows}</ul></section>`:"";
+  }
+
+  function render(site){
+    const d=site.data||{};
+    document.body.className="t-"+(["eternal","promise","confetti","summit","soiree"].includes(site.template)?site.template:"soiree");
+    const type=site.event_type||"general";
+    const names=d.names||site.title||"You're invited";
+    const eyebrow=d.eyebrow||EYEBROW[type]||"You're invited";
+    document.title=(site.title||names)+" — Invitation";
+    const when=[fmtDate(d.date), d.time?esc(d.time):""].filter(Boolean).join(" · ");
+    const html=`
+      <div class="hero">
+        <p class="eyebrow">${esc(eyebrow)}</p>
+        <h1 class="names">${esc(names)}</h1>
+        ${d.headline?`<p class="headline">${esc(d.headline)}</p>`:""}
+        <div class="rule"></div>
+        ${when?`<p class="whenwhere"><b>${when}</b></p>`:""}
+        ${d.venue?`<p class="whenwhere">${esc(d.venue)}</p>`:""}
+      </div>
+      ${d.message?`<section><p class="sec-t">A note</p><p class="msg">${esc(d.message)}</p></section>`:""}
+      ${factsHtml(d)}
+      ${scheduleHtml(d.schedule)}
+      ${d.rsvpBy?`<p class="note">Kindly reply by ${fmtDate(d.rsvpBy)}</p>`:""}
+      <div class="foot"><span class="mk"><span class="dot"></span> Made with Helm Events</span></div>
+    `;
+    const p=$("#page"); p.innerHTML=html; p.hidden=false; $("#loading").hidden=true;
+  }
+
+  // Live preview: the builder (same origin) posts a draft site to render it
+  // without publishing. Same-origin guard — never renders cross-origin data.
+  window.addEventListener("message",(ev)=>{
+    if(ev.origin!==location.origin) return;
+    const m=ev.data;
+    if(m&&m.type==="helm-preview"&&m.site){ try{ render(m.site); }catch(e){} }
+  });
+
+  (async ()=>{
+    if(new URLSearchParams(location.search).get("preview")==="1"){
+      // Wait for the builder to post draft content; show a neutral placeholder.
+      $("#loading").querySelector("h1").textContent="Preview";
+      return;
+    }
+    const slug=getSlug();
+    try{
+      if(!slug) throw new Error("no slug");
+      await BPStore.init();
+      const site=await BPStore.sites.public(slug);
+      if(!site){ $("#loading").hidden=true; $("#missing").hidden=false; return; }
+      render(site);
+    }catch(e){
+      $("#loading").hidden=true; $("#missing").hidden=false;
+    }
+  })();
+</script>
+</body>
+</html>

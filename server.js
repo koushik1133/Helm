@@ -86,6 +86,7 @@ const CSP = [
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'none'",
+  "frame-src 'self'",              // the invitation studio previews /invite in a same-origin iframe
   "form-action 'self'",
   "img-src 'self' data: https:",
   "font-src 'self' https://fonts.gstatic.com",
@@ -104,10 +105,30 @@ const SECURITY_HEADERS = {
   'Cross-Origin-Opener-Policy': 'same-origin',
 };
 
-function sendFileRes(res, filePath, buf) {
+// Loopback host? On localhost we serve over http, so `upgrade-insecure-requests`
+// would rewrite same-origin subresources (e.g. the invitation preview iframe) to
+// https://localhost and break them. Prod is https, where UIR is kept.
+function isLocalHost(req) {
+  return /^(localhost|127\.0\.0\.1|\[::1\])(:|$)/i.test((req && req.headers && req.headers.host) || '');
+}
+// Per-request security headers. Two targeted, safe relaxations:
+//  • localhost → drop UIR (dev is http; see above).
+//  • invite.html → allow SAME-ORIGIN framing so the Invitation Studio can preview
+//    it in an iframe. Third-party framing stays blocked (clickjacking-safe).
+function securityHeadersFor(req, filePath) {
+  const h = { ...SECURITY_HEADERS };
+  if (isLocalHost(req)) h['Content-Security-Policy'] = h['Content-Security-Policy'].replace(/;\s*upgrade-insecure-requests/, '');
+  if (filePath && /(^|[\\/])invite\.html$/.test(filePath)) {
+    h['X-Frame-Options'] = 'SAMEORIGIN';
+    h['Content-Security-Policy'] = h['Content-Security-Policy'].replace("frame-ancestors 'none'", "frame-ancestors 'self'");
+  }
+  return h;
+}
+
+function sendFileRes(res, filePath, buf, req) {
   const ext = path.extname(filePath);
   // Revalidate app files so updates always show (fast, no staleness).
-  res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-cache', ...SECURITY_HEADERS });
+  res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-cache', ...securityHeadersFor(req, filePath) });
   res.end(buf);
 }
 
@@ -121,7 +142,16 @@ function serveStatic(req, res) {
   // The public front door.
   if (rel === '/') {
     return fs.readFile(path.join(PUBLIC_DIR, 'welcome.html'), (e, buf) =>
-      e ? sendJson(res, 404, { error: 'not found' }) : sendFileRes(res, 'welcome.html', buf));
+      e ? sendJson(res, 404, { error: 'not found' }) : sendFileRes(res, 'welcome.html', buf, req));
+  }
+
+  // Public digital-invitation sites: /i/<slug> is served by invite.html, which
+  // reads the slug from the path and fetches ONLY the published display fields.
+  // Guard: only treat it as a slug when there's no file extension, so asset
+  // requests (e.g. /i/foo.js) are never swallowed by this route.
+  if ((rel === '/i' || rel.startsWith('/i/')) && !path.extname(rel)) {
+    return fs.readFile(path.join(PUBLIC_DIR, 'invite.html'), (e, buf) =>
+      e ? sendJson(res, 404, { error: 'not found' }) : sendFileRes(res, 'invite.html', buf, req));
   }
 
   // Clean URLs: hide the .html extension. Any request for /foo.html is redirected
@@ -141,15 +171,15 @@ function serveStatic(req, res) {
   if (ext) {
     // A real asset (.js, .css, images, …) — serve it directly.
     return fs.readFile(base, (err, buf) =>
-      err ? sendJson(res, 404, { error: 'not found' }) : sendFileRes(res, base, buf));
+      err ? sendJson(res, 404, { error: 'not found' }) : sendFileRes(res, base, buf, req));
   }
 
   // No extension → a clean page URL. Serve <name>.html.
   fs.readFile(base + '.html', (err, buf) => {
-    if (!err) return sendFileRes(res, base + '.html', buf);
+    if (!err) return sendFileRes(res, base + '.html', buf, req);
     // Unknown route → fall back to the app home (kept from prior behavior).
     fs.readFile(path.join(PUBLIC_DIR, 'index.html'), (e2, idx) =>
-      e2 ? sendJson(res, 404, { error: 'not found' }) : sendFileRes(res, 'index.html', idx));
+      e2 ? sendJson(res, 404, { error: 'not found' }) : sendFileRes(res, "index.html", idx, req));
   });
 }
 

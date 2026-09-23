@@ -88,6 +88,7 @@
       <div class="nextbar">
         <div class="hint" id="nextHint"></div>
         <span class="spacer"></span>
+        <a class="btn" id="inviteBtn" hidden>✨ Invitation site</a>
         <button class="btn primary" id="advBtn" hidden>Advance to next stage →</button>
       </div>
     </div>
@@ -109,7 +110,7 @@
 </div>
 
 <script src="config.js?v=69"></script>
-<script src="store-api.js?v=79"></script>
+<script src="store-api.js?v=80"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -217,6 +218,10 @@
     const adv=$("#advBtn");
     if(canEdit && cur<STAGES.length-1){ adv.hidden=false; adv.textContent="Advance to "+STAGES[cur+1].label+" →"; adv.onclick=()=>setStage(STAGES[cur+1].k); }
     else adv.hidden=true;
+    // Digital invitation website — unlocks once the event is confirmed (or beyond).
+    const inv=$("#inviteBtn");
+    if(canEdit && cur>=stageIndex("confirmed")){ inv.hidden=false; inv.href="invite-studio.html?quote="+encodeURIComponent(id); }
+    else inv.hidden=true;
 
     renderMods(STAGES[cur].mods);
     renderConflicts();

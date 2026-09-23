@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invitation Studio — Helm Events</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d28d9'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+<style>
+  :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#8b8698;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
+  *{box-sizing:border-box}[hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)}.nav a:hover{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
+  h3{font-size:13px;margin:0 0 14px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
+  .muted{color:var(--ink-3)}
+  label{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin:0 0 4px}
+  input,select,textarea{width:100%;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:9px 10px;font-family:inherit;font-size:14px;color:var(--ink)}
+  textarea{min-height:80px;resize:vertical}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .fld{margin-bottom:12px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:520px){.two{grid-template-columns:1fr}}
+  .btn{height:38px;padding:0 16px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;justify-content:center}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
+  .btn:hover{border-color:var(--accent)}.btn[disabled]{opacity:.55;cursor:default}
+  .layout{display:grid;grid-template-columns:1fr 420px;gap:16px;align-items:start}@media(max-width:900px){.layout{grid-template-columns:1fr}}
+  /* template picker */
+  .tpls{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .tpl{border:2px solid var(--line);border-radius:12px;padding:0;cursor:pointer;overflow:hidden;background:var(--panel);text-align:left}
+  .tpl.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .tpl .sw{height:64px;display:grid;place-items:center;font-family:Georgia,serif;font-size:20px;font-weight:600}
+  .tpl .lb{padding:8px 10px;font-size:12px}.tpl .lb b{display:block;font-size:13px}.tpl .lb span{color:var(--ink-3);font-size:11px}
+  .sw.eternal{background:#f7f3ec;color:#9a7b4f}.sw.promise{background:#fdf2f4;color:#c05b83}
+  .sw.confetti{background:#fff8ef;color:#e0533b}.sw.summit{background:#f6f7fb;color:#4f46e5;font-family:system-ui}
+  .sw.soiree{background:radial-gradient(120px 60px at 50% 0,#241a35,#141019);color:#a78bfa}
+  /* preview */
+  .preview-wrap{position:sticky;top:16px}
+  .frame{width:100%;height:560px;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}
+  .frame iframe{width:100%;height:100%;border:0}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:999px}
+  .pill.draft{background:#f4f4f5;color:#71717a;border:1px solid #e4e4e7}
+  .pill.pub{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
+  .link{display:flex;gap:8px;margin-top:10px}.link input{font-size:12px}
+  .msg{border-radius:8px;padding:8px 11px;font-size:13px;margin:10px 0}
+  .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca}.msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
+  .srow{display:grid;grid-template-columns:120px 1fr auto;gap:8px;margin-bottom:8px}
+  .srow .btn{height:36px;padding:0 10px}
+  .gatebox{text-align:center;padding:40px}
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal[hidden]{display:none!important}
+  .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,94vw);padding:26px}
+  .lsheet h3{color:var(--ink);text-transform:none;letter-spacing:0;font-size:18px;margin:0 0 12px}
+  .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="index.html" class="mark" title="Home"></a>
+    <div><h1>Invitation Studio</h1><small>Helm Events</small></div>
+    <nav class="nav"><a href="index.html">Home</a><a href="quotes.html">Quotes</a><a id="evLink" href="#">Event</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card gatebox" hidden><p class="muted">Sign in to open the Invitation Studio.</p></div>
+  <div id="notfound" class="card gatebox" hidden><p class="muted">Event not found. Go to <a href="quotes.html" style="color:var(--accent)">Quotes</a>.</p></div>
+  <div id="notconfirmed" class="card gatebox" hidden>
+    <h3>Not ready yet</h3>
+    <p class="muted">You can build a digital invitation once this event is <b>confirmed</b>.<br>
+    Confirm the event first, then come back here.</p>
+    <p><a class="btn" id="backEv" href="#">← Back to the event</a></p>
+  </div>
+
+  <div id="app" hidden>
+    <div class="card" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:12px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em">Building an invitation for</div>
+        <div style="font-size:18px;font-weight:700" id="evTitle">—</div>
+      </div>
+      <span class="spacer"></span>
+      <span id="statePill" class="pill draft">Draft</span>
+    </div>
+
+    <div class="layout">
+      <div>
+        <div class="card">
+          <h3>1 · Choose a template</h3>
+          <div class="tpls" id="tpls"></div>
+        </div>
+
+        <div class="card">
+          <h3>2 · Event details</h3>
+          <div class="fld"><label>Event type</label>
+            <select id="f_type">
+              <option value="wedding">Wedding / Marriage</option>
+              <option value="engagement">Engagement / Anniversary</option>
+              <option value="birthday">Birthday</option>
+              <option value="corporate">Corporate / Conference</option>
+              <option value="general">General celebration</option>
+            </select>
+          </div>
+          <div class="fld"><label id="l_names">Name</label><input id="f_names" placeholder="e.g. Ayla &amp; Sam"></div>
+          <div class="fld"><label id="l_headline">Headline</label><input id="f_headline" placeholder="e.g. are getting married"></div>
+          <div class="two">
+            <div class="fld"><label>Date</label><input id="f_date" type="date"></div>
+            <div class="fld"><label>Time</label><input id="f_time" placeholder="e.g. 4:00 PM"></div>
+          </div>
+          <div class="fld"><label>Venue name</label><input id="f_venue" placeholder="e.g. The Grand Palm"></div>
+          <div class="fld"><label>Venue address</label><input id="f_address" placeholder="Street, city"></div>
+          <div class="fld"><label>Map link (optional)</label><input id="f_mapUrl" placeholder="https://maps.google.com/…"></div>
+          <div class="fld"><label id="l_message">Welcome message</label><textarea id="f_message" placeholder="A warm line or two for your guests…"></textarea></div>
+          <div class="two">
+            <div class="fld"><label>Hosted by (optional)</label><input id="f_host" placeholder="Name"></div>
+            <div class="fld"><label>Contact (optional)</label><input id="f_hostPhone" placeholder="Phone / email"></div>
+          </div>
+          <div class="two">
+            <div class="fld"><label>Dress code (optional)</label><input id="f_dressCode" placeholder="e.g. Formal"></div>
+            <div class="fld"><label>Reply by (optional)</label><input id="f_rsvpBy" type="date"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>3 · Schedule (optional)</h3>
+          <div id="sched"></div>
+          <button class="btn" id="addSched" type="button">+ Add schedule item</button>
+        </div>
+      </div>
+
+      <div class="preview-wrap">
+        <div class="card">
+          <h3>Live preview</h3>
+          <div class="frame"><iframe id="pv" src="invite.html?preview=1" title="Invitation preview"></iframe></div>
+          <div id="msg"></div>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+            <button class="btn" id="saveBtn" type="button">Save draft</button>
+            <button class="btn primary" id="pubBtn" type="button">Publish</button>
+            <button class="btn" id="unpubBtn" type="button" hidden>Unpublish</button>
+          </div>
+          <div id="linkWrap" hidden>
+            <label style="margin-top:14px">Public link (share with your client)</label>
+            <div class="link">
+              <input id="pubLink" readonly onclick="this.select()">
+              <button class="btn" id="copyBtn" type="button">Copy</button>
+              <a class="btn" id="openBtn" target="_blank" rel="noopener">Open</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="lmodal" id="loginModal" hidden>
+  <form class="lsheet" id="loginForm">
+    <h3>Sign in</h3>
+    <div class="fld"><label>Email</label><input type="email" id="li_email" required></div>
+    <div class="fld"><label>Password</label><input type="password" id="li_pw" required></div>
+    <div class="lerr" id="li_err" hidden></div>
+    <button class="btn primary" id="li_submit" type="submit" style="width:100%">Sign in</button>
+  </form>
+</div>
+
+<script src="config.js?v=80"></script>
+<script src="store-api.js?v=80"></script>
+<script>
+  const $=(s,r=document)=>r.querySelector(s);
+  const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const qid=new URLSearchParams(location.search).get("quote");
+  const CONFIRMED_ORDER=["confirmed","planning","resources","ready","event_day","settlement","closed"]; // confirmed or beyond
+  const TEMPLATES=[
+    {k:"eternal", n:"Eternal",  d:"Elegant · wedding"},
+    {k:"promise", n:"Promise",  d:"Romantic · engagement"},
+    {k:"confetti",n:"Confetti", d:"Festive · birthday"},
+    {k:"summit",  n:"Summit",   d:"Professional · corporate"},
+    {k:"soiree",  n:"Soirée",   d:"Modern · any event"},
+  ];
+  const TYPE_DEFAULTS={
+    wedding:{names:"Couple names",headline:"are getting married",tpl:"eternal",np:"e.g. Ayla & Sam"},
+    engagement:{names:"Couple names",headline:"are engaged",tpl:"promise",np:"e.g. Ayla & Sam"},
+    birthday:{names:"Celebrant name",headline:"is turning 30!",tpl:"confetti",np:"e.g. Maya"},
+    corporate:{names:"Event name",headline:"Annual conference",tpl:"summit",np:"e.g. Helm Summit 2026"},
+    general:{names:"Event name",headline:"",tpl:"soiree",np:"e.g. Our celebration"},
+  };
+
+  let ev=null, site=null, tpl="eternal", saving=false, dirtyLink=false;
+
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+
+  function openLogin(){ $("#loginModal").hidden=false; }
+  function closeLogin(){ $("#loginModal").hidden=true; }
+  $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault(); $("#li_err").hidden=true;
+    try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pw").value); closeLogin(); $("#gate").hidden=true; await load(); }
+    catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+
+  function setMsg(t,tone){ const m=$("#msg"); if(!t){m.innerHTML="";return;} m.innerHTML=`<div class="msg ${tone==='err'?'err':'ok'}">${esc(t)}</div>`; }
+
+  // ---- template cards ----
+  function paintTpls(){
+    $("#tpls").innerHTML=TEMPLATES.map(t=>`
+      <button class="tpl ${t.k===tpl?'on':''}" data-k="${t.k}" type="button">
+        <div class="sw ${t.k}">${esc(t.n.charAt(0))}</div>
+        <div class="lb"><b>${esc(t.n)}</b><span>${esc(t.d)}</span></div>
+      </button>`).join("");
+    $("#tpls").querySelectorAll(".tpl").forEach(b=>b.addEventListener("click",()=>{ tpl=b.dataset.k; paintTpls(); preview(); }));
+  }
+
+  // ---- schedule repeater ----
+  function addSchedRow(t="",l=""){
+    const row=document.createElement("div"); row.className="srow";
+    row.innerHTML=`<input placeholder="Time" value="${esc(t)}"><input placeholder="What happens" value="${esc(l)}"><button class="btn" type="button">✕</button>`;
+    const [ti,la,rm]=row.children;
+    [ti,la].forEach(i=>i.addEventListener("input",preview));
+    rm.addEventListener("click",()=>{ row.remove(); preview(); });
+    $("#sched").appendChild(row);
+  }
+  function gatherSchedule(){ return [...$("#sched").querySelectorAll(".srow")].map(r=>({time:r.children[0].value.trim(),label:r.children[1].value.trim()})).filter(x=>x.time||x.label); }
+
+  function gather(){
+    return {
+      title: $("#f_names").value.trim() || "Invitation",
+      template: tpl,
+      event_type: $("#f_type").value,
+      data: {
+        names:$("#f_names").value.trim(), headline:$("#f_headline").value.trim(),
+        date:$("#f_date").value, time:$("#f_time").value.trim(),
+        venue:$("#f_venue").value.trim(), address:$("#f_address").value.trim(), mapUrl:$("#f_mapUrl").value.trim(),
+        message:$("#f_message").value.trim(), host:$("#f_host").value.trim(), hostPhone:$("#f_hostPhone").value.trim(),
+        dressCode:$("#f_dressCode").value.trim(), rsvpBy:$("#f_rsvpBy").value,
+        schedule:gatherSchedule()
+      }
+    };
+  }
+  function preview(){
+    const g=gather();
+    const frame=$("#pv");
+    try{ frame.contentWindow.postMessage({type:"helm-preview",site:{template:g.template,event_type:g.event_type,title:g.title,data:g.data}},location.origin); }catch(e){}
+  }
+
+  function applyTypeLabels(){
+    const t=$("#f_type").value, d=TYPE_DEFAULTS[t]||TYPE_DEFAULTS.general;
+    $("#l_names").textContent=d.names; $("#f_names").placeholder=d.np;
+  }
+
+  // ---- load existing site into the form ----
+  function fill(s){
+    site=s; tpl=s.template||tpl; $("#f_type").value=s.event_type||"general"; applyTypeLabels();
+    const d=s.data||{};
+    $("#f_names").value=d.names||""; $("#f_headline").value=d.headline||"";
+    $("#f_date").value=d.date||""; $("#f_time").value=d.time||"";
+    $("#f_venue").value=d.venue||""; $("#f_address").value=d.address||""; $("#f_mapUrl").value=d.mapUrl||"";
+    $("#f_message").value=d.message||""; $("#f_host").value=d.host||""; $("#f_hostPhone").value=d.hostPhone||"";
+    $("#f_dressCode").value=d.dressCode||""; $("#f_rsvpBy").value=d.rsvpBy||"";
+    $("#sched").innerHTML=""; (Array.isArray(d.schedule)?d.schedule:[]).forEach(x=>addSchedRow(x.time,x.label));
+    paintTpls(); paintState();
+  }
+  function paintState(){
+    const pub = site && site.status==="published";
+    $("#statePill").className="pill "+(pub?"pub":"draft"); $("#statePill").textContent=pub?"Published":"Draft";
+    $("#pubBtn").hidden=pub; $("#unpubBtn").hidden=!pub;
+    if(site && site.slug){
+      const link=location.origin+"/i/"+site.slug;
+      $("#pubLink").value=link; $("#openBtn").href=link; $("#linkWrap").hidden=!pub;
+    }
+  }
+
+  // A dropped/interrupted fetch surfaces as a TypeError ("Load failed" in WebKit,
+  // "Failed to fetch" in Chromium). Those are transient — retry once before giving up.
+  const isNet=e=>e instanceof TypeError || /load failed|failed to fetch|networkerror/i.test((e&&e.message)||"");
+  async function netRetry(fn){
+    try{ return await fn(); }
+    catch(e){ if(!isNet(e)) throw e; await new Promise(r=>setTimeout(r,500)); return await fn(); }
+  }
+  async function ensureSite(){
+    if(site) return site;
+    const r=await netRetry(()=>BPStore.sites.create(qid, $("#f_type").value, tpl));
+    site=Array.isArray(r)?r[0]:r;                 // unwrap in case PostgREST returns a 1-row set
+    return site;
+  }
+  async function doSave(){
+    if(saving) return; saving=true; setMsg("");
+    try{ await ensureSite(); const g=gather(); await netRetry(()=>BPStore.sites.save(site.id,g));
+      site=Object.assign({},site,g); paintState(); setMsg("Saved.","ok");
+    }catch(e){ setMsg(msgOf(e),"err"); } finally{ saving=false; }
+  }
+  async function doPublish(publish){
+    if(saving) return; saving=true; setMsg("");
+    try{ await ensureSite(); await netRetry(()=>BPStore.sites.save(site.id,gather()));
+      const r=await netRetry(()=>publish?BPStore.sites.publish(site.id):BPStore.sites.unpublish(site.id));
+      site=Object.assign({},site,(Array.isArray(r)?r[0]:r)||{},{status:publish?"published":"unpublished"}); paintState();
+      setMsg(publish?"Published! Share the link below.":"Unpublished.","ok");
+    }catch(e){ setMsg(msgOf(e),"err"); } finally{ saving=false; }
+  }
+  function msgOf(e){ const m=(e&&e.message)||"";
+    if(isNet(e)) return "Network hiccup reaching the server — please check your connection and try again.";
+    return /permit|denied|policy|row-level/i.test(m)?"You don't have permission to do that.":("Something went wrong"+(m?": "+m:".")); }
+
+  async function load(){
+    await BPStore.init(); await renderAccount();
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    if(!qid){ $("#notfound").hidden=false; return; }
+    try{ ev=await BPStore.quotes.get(qid); }catch(e){ $("#notfound").hidden=false; return; }
+    if(!ev){ $("#notfound").hidden=false; return; }
+    $("#evLink").href="event.html?id="+encodeURIComponent(qid);
+    $("#backEv").href="event.html?id="+encodeURIComponent(qid);
+    // gate: confirmed or beyond
+    if(CONFIRMED_ORDER.indexOf(ev.status)<0){ $("#notconfirmed").hidden=false; return; }
+
+    $("#evTitle").textContent=(ev.code?ev.code+" · ":"")+(ev.title||ev.client&&ev.client.name||"Event");
+    $("#app").hidden=false;
+    // seed a sensible default type/template from the event, then load any saved site
+    let existing=null; try{ existing=await BPStore.sites.forQuote(qid); }catch(e){}
+    if(existing){ fill(existing); }
+    else { const d=TYPE_DEFAULTS.wedding; $("#f_type").value="wedding"; tpl=d.tpl; $("#f_headline").value=d.headline; applyTypeLabels(); paintTpls(); paintState(); }
+    preview();
+  }
+
+  // wire inputs
+  ["f_names","f_headline","f_date","f_time","f_venue","f_address","f_mapUrl","f_message","f_host","f_hostPhone","f_dressCode","f_rsvpBy"]
+    .forEach(id=>document.getElementById(id).addEventListener("input",preview));
+  $("#f_type").addEventListener("change",()=>{
+    const d=TYPE_DEFAULTS[$("#f_type").value]; if(d){ tpl=d.tpl; if(!$("#f_headline").value) $("#f_headline").value=d.headline; }
+    applyTypeLabels(); paintTpls(); preview();
+  });
+  $("#addSched").addEventListener("click",()=>{ addSchedRow(); });
+  $("#saveBtn").addEventListener("click",doSave);
+  $("#pubBtn").addEventListener("click",()=>doPublish(true));
+  $("#unpubBtn").addEventListener("click",()=>doPublish(false));
+  $("#copyBtn").addEventListener("click",async()=>{ const v=$("#pubLink").value;
+    try{ await navigator.clipboard.writeText(v); setMsg("Link copied.","ok"); }catch(e){ $("#pubLink").select(); try{document.execCommand("copy");setMsg("Link copied.","ok");}catch(_){}}});
+  // re-send preview once the iframe has loaded
+  $("#pv").addEventListener("load",()=>{ if($("#app").hidden===false) preview(); });
+
+  load();
+</script>
+</body>
+</html>

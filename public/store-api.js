@@ -1302,6 +1302,29 @@
       if (error) throw error; return true; },
   };
 
+  /* ---------------- digital invitation sites (Phase 87) ---------------- */
+  // A public "digital invitation" website for a CONFIRMED event. All manager-side
+  // reads/writes are org-scoped by RLS; the ONLY anon path is public(slug), which
+  // hits a SECURITY DEFINER read that returns display fields of a PUBLISHED site.
+  const sites = {
+    // manager side (authenticated, RLS-scoped) ----------------------------------
+    async forQuote(quoteId) { if (!supa) return null;
+      const { data, error } = await supa.from("event_sites").select("*").eq("quote_id", quoteId).maybeSingle();
+      if (error) throw error; return data || null; },
+    create: (quoteId, eventType, template) =>                                            // admin/edit only (server-checked); idempotent
+      rpc("create_event_site", { p_quote_id: quoteId, p_event_type: eventType || "general", p_template: template || "soiree" }),
+    async save(id, patch) { if (!supa) throw new Error("Supabase not configured");        // patch: {title, template, event_type, data}
+      const { error } = await supa.from("event_sites").update(patch).eq("id", id);        // .eq() key enforced; org forced by trigger+RLS
+      if (error) throw error; return true; },
+    publish:   (id) => rpc("publish_event_site", { p_id: id, p_publish: true }),          // stamps published_at server-side
+    unpublish: (id) => rpc("publish_event_site", { p_id: id, p_publish: false }),
+    // public side (anonymous guests) --------------------------------------------
+    async public(slug) {                                                                  // display fields of a PUBLISHED site only
+      if (!supa) { try { await BPStore.init(); } catch (e) {} }
+      const { data, error } = await supa.rpc("public_event_site", { p_slug: slug });
+      if (error) throw error; return (data && data[0]) || null; },
+  };
+
   /* ---------------- resource needs + capability check (Phase 8) ---------------- */
   const NEED_LS = "bp_resource_needs";
   const resources = {
@@ -2165,7 +2188,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, invitations, attendees, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),
