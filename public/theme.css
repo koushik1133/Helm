@@ -1,5 +1,5 @@
 /* ============================================================================
-   Blueprint Stage — shared polish layer (Phase 54)
+   Helm Events — shared polish layer (Phase 54)
    Loaded on every page AFTER each page's own inline <style>, so it layers
    refinements + dark mode on top of the existing per-page tokens. Uses higher-
    specificity selectors (html[...]) so dark tokens win over inline :root values.

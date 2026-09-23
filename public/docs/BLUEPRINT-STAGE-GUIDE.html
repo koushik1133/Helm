@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Blueprint Stage — Complete Product Guide</title>
+<title>Helm Events — Complete Product Guide</title>
 <style>
   :root{
     --ink:#1b1930;--ink-2:#4b475f;--ink-3:#77738a;--line:#e6e2da;--line-2:#f1ede7;
@@ -82,7 +82,7 @@
 <section class="cover">
   <div class="brand">
     <div class="mark"></div>
-    <div><b>Blueprint Stage</b><small>Event Operating System</small></div>
+    <div><b>Helm Events</b><small>Event Operating System</small></div>
   </div>
   <h1>Complete Product Guide</h1>
   <p class="lead">Everything the platform does, how the day-to-day workflow runs end to end, two worked examples, how the new multi-tenant (multi-studio) architecture works, the security posture, and what we could build next.</p>
@@ -91,14 +91,14 @@
     <span class="pill">Lead → P&amp;L lifecycle</span><span class="pill">Client portal</span><span class="pill">Audit log</span>
     <span class="pill">Supabase + RLS</span>
   </div>
-  <div class="meta">Generated 20 September 2026 · Blueprint Stage / “Helm” · Repository <code>koushik1133/Helm</code></div>
+  <div class="meta">Generated 20 September 2026 · Helm Events / “Helm” · Repository <code>koushik1133/Helm</code></div>
 </section>
 
 <!-- ===================== TOC ===================== -->
 <div class="toc">
   <h4>Contents</h4>
   <ol>
-    <li><a href="#overview">What Blueprint Stage is</a></li>
+    <li><a href="#overview">What Helm Events is</a></li>
     <li><a href="#roles">Roles &amp; access control</a></li>
     <li><a href="#lifecycle">The event lifecycle</a></li>
     <li><a href="#features">Full feature catalogue</a></li>
@@ -113,8 +113,8 @@
 </div>
 
 <!-- ===================== OVERVIEW ===================== -->
-<h2 id="overview">1 · What Blueprint Stage is</h2>
-<p>Blueprint Stage is an <b>end-to-end event operating system</b> for event studios and agencies. One platform carries an event from the first enquiry all the way to the final profit-and-loss statement — capturing the lead, designing the floor in 2D and 3D, quoting and confirming, planning the menu and tasks, assigning crew and resources, running the event day, and closing the books.</p>
+<h2 id="overview">1 · What Helm Events is</h2>
+<p>Helm Events is an <b>end-to-end event operating system</b> for event studios and agencies. One platform carries an event from the first enquiry all the way to the final profit-and-loss statement — capturing the lead, designing the floor in 2D and 3D, quoting and confirming, planning the menu and tasks, assigning crew and resources, running the event day, and closing the books.</p>
 <p>It is built as a set of focused single-purpose pages backed by a shared data layer (<code>store-api.js</code>) talking to a Supabase (PostgreSQL) backend. Access is governed by row-level security so each role sees exactly what it should — and, as of Block F, each <b>studio</b> is fully isolated from every other studio on the same installation.</p>
 
 <div class="grid">
@@ -341,7 +341,7 @@
 
 <!-- ===================== MULTI-TENANT ===================== -->
 <h2 id="multitenant">8 · How multi-tenant works</h2>
-<p>Block F turned Blueprint Stage from a single-studio app (“Helm”) into a platform that can host <b>many isolated studios</b> on one database — each seeing only its own data, with its own branding, currency and timezone. All of Helm's existing data was preserved and re-homed under a default <b>Helm Studio</b> org; nothing was deleted.</p>
+<p>Block F turned Helm Events from a single-studio app (“Helm”) into a platform that can host <b>many isolated studios</b> on one database — each seeing only its own data, with its own branding, currency and timezone. All of Helm's existing data was preserved and re-homed under a default <b>Helm Studio</b> org; nothing was deleted.</p>
 
 <h3>The model: shared database, strict isolation</h3>
 <p>Every tenant table carries an <code>org_id</code>. Row-level security appends <code>and org_id = current_org_id()</code> to every read and write, where <code>current_org_id()</code> is a security-definer function that reads the signed-in user's org from their profile. The result: two studios can share one table and never see each other's rows.</p>
@@ -460,7 +460,7 @@
 <div class="okbox"><b>Our commitment.</b> We won't claim a security guarantee we haven't tested, we label what's <i>proven</i> versus <i>pending</i> honestly, and we keep this section current as each gap is closed.</div>
 
 <hr>
-<p style="color:var(--ink-3);font-size:12.5px">Blueprint Stage — Complete Product Guide · To save as PDF: open this file in a browser and choose <span class="kbd">Print</span> → <b>Save as PDF</b> (A4, default margins). All diagrams are vector and print crisply.</p>
+<p style="color:var(--ink-3);font-size:12.5px">Helm Events — Complete Product Guide · To save as PDF: open this file in a browser and choose <span class="kbd">Print</span> → <b>Save as PDF</b> (A4, default margins). All diagrams are vector and print crisply.</p>
 
 </div>
 </body>

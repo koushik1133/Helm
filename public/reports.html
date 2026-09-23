@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Reports & exports — Blueprint Stage</title>
+<title>Reports & exports — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
@@ -63,7 +63,7 @@
 <div class="wrap">
   <header>
     <a href="index.html" class="mark" title="Home"></a>
-    <div><h1>Reports &amp; exports</h1><small>Blueprint Stage</small></div>
+    <div><h1>Reports &amp; exports</h1><small>Helm Events</small></div>
     <nav class="nav"><a href="index.html">Home</a><a href="insights.html">Insights</a><a href="control.html">Control Center</a></nav>
     <span class="spacer"></span>
     <span id="bell"></span>
@@ -161,7 +161,7 @@
     try{ const d=await BPStore.insights.summary(); const evs=d.margins.events;
       const tot=evs.reduce((a,e)=>({rev:a.rev+(e.revenue||0),pr:a.pr+(e.profit||0)}),{rev:0,pr:0});
       $("#printArea").innerHTML=`<h1>Profit &amp; Loss — closed events</h1>
-        <div class="meta">Blueprint Stage · generated ${esc(today())} · ${evs.length} event(s)</div>
+        <div class="meta">Helm Events · generated ${esc(today())} · ${evs.length} event(s)</div>
         <table><thead><tr><th>Event</th><th>Date</th><th class="n">Revenue</th><th class="n">Profit</th><th class="n">Margin</th></tr></thead>
         <tbody>${evs.map(e=>`<tr><td>${esc(e.code)}</td><td>${esc(e.date||"")}</td><td class="n">${inr(e.revenue)}</td><td class="n">${inr(e.profit)}</td><td class="n">${e.marginPct!=null?e.marginPct+"%":"—"}</td></tr>`).join("")||'<tr><td colspan="5">No closed events.</td></tr>'}</tbody>
         <tfoot><tr><td colspan="2">Total</td><td class="n">${inr(tot.rev)}</td><td class="n">${inr(tot.pr)}</td><td class="n">${tot.rev?Math.round(tot.pr/tot.rev*100)+"%":"—"}</td></tr></tfoot></table>`;

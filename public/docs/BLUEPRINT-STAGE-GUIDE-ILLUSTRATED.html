@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Blueprint Stage — Illustrated Product Guide</title>
+<title>Helm Events — Illustrated Product Guide</title>
 <style>
   :root{
     --ink:#1b1930;--ink-2:#4b475f;--ink-3:#77738a;--line:#e6e2da;--line-2:#f1ede7;
@@ -75,19 +75,19 @@
 <div class="page">
 
 <section class="cover">
-  <div class="brand"><div class="mark"></div><div><b>Blueprint Stage</b><small>Event Operating System</small></div></div>
+  <div class="brand"><div class="mark"></div><div><b>Helm Events</b><small>Event Operating System</small></div></div>
   <h1>Illustrated Product Guide</h1>
   <p class="lead">The complete platform, with real screenshots of every major screen: what it does, the end-to-end workflow from first enquiry to final P&amp;L, two worked examples, how multi-tenant (multi-studio) isolation works, the security posture, and what to build next.</p>
   <div style="margin-top:14px">
     <span class="pill">23 live screenshots</span><span class="pill">Multi-tenant</span><span class="pill">RBAC · 11 roles</span>
     <span class="pill">Lead → P&amp;L</span><span class="pill">Client portal</span><span class="pill">Supabase + RLS</span>
   </div>
-  <div class="meta">Generated 20 September 2026 · Blueprint Stage / “Helm” · Repository <code>koushik1133/Helm</code> · Screenshots captured live from the running app in light theme.</div>
+  <div class="meta">Generated 20 September 2026 · Helm Events / “Helm” · Repository <code>koushik1133/Helm</code> · Screenshots captured live from the running app in light theme.</div>
 </section>
 
 <div class="toc"><h4>Contents</h4>
   <ol>
-    <li><a href="#overview">What Blueprint Stage is</a></li>
+    <li><a href="#overview">What Helm Events is</a></li>
     <li><a href="#roles">Roles &amp; access control</a></li>
     <li><a href="#lifecycle">The event lifecycle</a></li>
     <li><a href="#features">Feature catalogue (illustrated)</a></li>
@@ -102,8 +102,8 @@
 </div>
 
 <!-- OVERVIEW -->
-<h2 id="overview">1 · What Blueprint Stage is</h2>
-<p>Blueprint Stage is an <b>end-to-end event operating system</b> for event studios and agencies. One platform carries an event from the first enquiry to the final profit-and-loss — capturing the lead, designing the floor in 2D and 3D, quoting and confirming, planning the menu and tasks, assigning crew and resources, running the event day, and closing the books. It is a set of focused pages over a shared data layer (<code>store-api.js</code>) talking to Supabase (PostgreSQL), with database-level row security so every role — and every studio — sees exactly what it should.</p>
+<h2 id="overview">1 · What Helm Events is</h2>
+<p>Helm Events is an <b>end-to-end event operating system</b> for event studios and agencies. One platform carries an event from the first enquiry to the final profit-and-loss — capturing the lead, designing the floor in 2D and 3D, quoting and confirming, planning the menu and tasks, assigning crew and resources, running the event day, and closing the books. It is a set of focused pages over a shared data layer (<code>store-api.js</code>) talking to Supabase (PostgreSQL), with database-level row security so every role — and every studio — sees exactly what it should.</p>
 <figure><img src="screenshots/index.png" alt="Home dashboard">
   <figcaption>The home dashboard — role-aware navigation, the notification bell, and your recent quotes. Everyone lands here after sign-in.</figcaption></figure>
 
@@ -293,7 +293,7 @@
 
 <!-- MULTI-TENANT -->
 <h2 id="multitenant">8 · How multi-tenant works</h2>
-<p>Block F turned Blueprint Stage from a single-studio app (“Helm”) into a platform hosting <b>many isolated studios</b> on one database — each seeing only its own data, with its own branding, currency and timezone. All existing data was preserved under a default <b>Helm Studio</b> org; nothing was deleted.</p>
+<p>Block F turned Helm Events from a single-studio app (“Helm”) into a platform hosting <b>many isolated studios</b> on one database — each seeing only its own data, with its own branding, currency and timezone. All existing data was preserved under a default <b>Helm Studio</b> org; nothing was deleted.</p>
 
 <h3>The model: shared database, strict isolation</h3>
 <p>Every tenant table carries an <code>org_id</code>. Row security appends <code>and org_id = current_org_id()</code> to every read and write, where <code>current_org_id()</code> reads the signed-in user's org from their profile. Two studios share one table and never see each other's rows.</p>
@@ -403,7 +403,7 @@
 <div class="okbox"><b>Our commitment.</b> We won't claim a security guarantee we haven't tested, we label what's <i>proven</i> versus <i>pending</i> honestly, and we keep this section current as each gap is closed.</div>
 
 <hr>
-<p style="color:var(--ink-3);font-size:12.5px">Blueprint Stage — Illustrated Product Guide · Screenshots are stored in <code>docs/screenshots/</code> next to this file. To export a PDF: open this file in a browser and choose <span class="kbd">Print</span> → <b>Save as PDF</b> (A4). Keep the <code>screenshots</code> folder alongside the HTML so images resolve.</p>
+<p style="color:var(--ink-3);font-size:12.5px">Helm Events — Illustrated Product Guide · Screenshots are stored in <code>docs/screenshots/</code> next to this file. To export a PDF: open this file in a browser and choose <span class="kbd">Print</span> → <b>Save as PDF</b> (A4). Keep the <code>screenshots</code> folder alongside the HTML so images resolve.</p>
 
 </div>
 </body>

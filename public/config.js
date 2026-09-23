@@ -1,5 +1,5 @@
 /* =========================================================================
-   Blueprint Stage — runtime configuration.
+   Helm Events — runtime configuration.
    With these Supabase credentials set, layouts are stored in Supabase.
    (The anon/public key is safe in client code — Row Level Security protects the data.)
    Leave url/anonKey blank to fall back to the Node backend, then localStorage.
