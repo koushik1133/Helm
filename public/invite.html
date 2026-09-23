@@ -6,60 +6,126 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d28d9'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Poppins:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600&family=Playfair+Display:wght@400;500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Poppins:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
   *{box-sizing:border-box}
   [hidden]{display:none!important}
-  :root{--ink:#221c2e;--soft:#6b6478;--line:#e9e3dc;--bg:#faf7f2;--card:#fff;--accent:#6d28d9;
+  :root{--ink:#2a2233;--soft:#6f6579;--line:#e9e0d5;--bg:#faf6f0;--card:#fff;--accent:#9a7b4f;--accent-2:#c8a26a;
     --serif:"Cormorant Garamond",Georgia,serif;--display:"Fraunces",Georgia,serif;--sans:"Poppins",system-ui,sans-serif;}
   html,body{margin:0}
-  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.6;-webkit-font-smoothing:antialiased}
-  .wrap{max-width:720px;margin:0 auto;padding:0 20px}
-  .state{min-height:70vh;display:grid;place-items:center;text-align:center;color:var(--soft);padding:40px 20px}
-  .state h1{font-family:var(--display);color:var(--ink);font-weight:600;margin:0 0 8px}
-  /* hero */
-  .hero{text-align:center;padding:72px 20px 40px}
-  .eyebrow{text-transform:uppercase;letter-spacing:.32em;font-size:12px;color:var(--accent);font-weight:600;margin:0 0 18px}
-  .names{font-family:var(--display);font-weight:600;line-height:1.05;letter-spacing:-.01em;margin:0;
-    font-size:clamp(38px,9vw,72px)}
-  .headline{font-family:var(--serif);font-size:clamp(20px,4.4vw,28px);color:var(--soft);margin:14px 0 0;font-style:italic}
-  .rule{width:60px;height:1px;background:var(--accent);opacity:.5;margin:28px auto}
-  .whenwhere{font-family:var(--serif);font-size:clamp(19px,4vw,24px);margin:6px 0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  img{max-width:100%;display:block}
+  .wrap{max-width:760px;margin:0 auto;padding:0 22px}
+  .state{min-height:82vh;display:grid;place-items:center;text-align:center;color:var(--soft);padding:40px 22px}
+  .state h1{font-family:var(--display);color:var(--ink);font-weight:500;margin:0 0 8px;font-size:30px}
+
+  /* ---------- cover gate ---------- */
+  #cover{position:fixed;inset:0;z-index:50;display:grid;place-items:center;text-align:center;padding:28px;
+    background:radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--accent) 14%, var(--bg)), var(--bg) 70%);
+    transition:opacity .9s ease, visibility .9s ease}
+  #cover.gone{opacity:0;visibility:hidden}
+  .cover-in{max-width:520px;animation:rise 1s cubic-bezier(.2,.7,.2,1) both}
+  .flourish{color:var(--accent);letter-spacing:.06em;font-size:22px;opacity:.85;margin-bottom:14px}
+  .cover-eyebrow{text-transform:uppercase;letter-spacing:.34em;font-size:11.5px;color:var(--accent);font-weight:600;margin:0 0 20px}
+  .seal{width:118px;height:118px;margin:6px auto 22px;border-radius:50%;display:grid;place-items:center;position:relative;
+    background:radial-gradient(circle at 35% 30%, var(--accent-2), var(--accent));color:#fff;
+    box-shadow:0 14px 34px -12px color-mix(in srgb,var(--accent) 70%, transparent), inset 0 2px 6px rgba(255,255,255,.35)}
+  .seal::after{content:"";position:absolute;inset:8px;border:1.5px solid rgba(255,255,255,.5);border-radius:50%}
+  .seal span{font-family:var(--display);font-size:34px;font-weight:600;line-height:1;z-index:1}
+  .cover-names{font-family:var(--display);font-weight:500;line-height:1.05;letter-spacing:-.01em;margin:0 0 6px;
+    font-size:clamp(34px,8vw,58px)}
+  .cover-sub{font-family:var(--serif);font-style:italic;font-size:clamp(17px,4vw,22px);color:var(--soft);margin:0 0 26px}
+  .open-btn{appearance:none;border:0;cursor:pointer;font-family:var(--sans);font-weight:600;font-size:13px;letter-spacing:.14em;
+    text-transform:uppercase;color:#fff;padding:15px 34px;border-radius:999px;
+    background:linear-gradient(120deg,var(--accent),var(--accent-2));
+    box-shadow:0 12px 30px -10px color-mix(in srgb,var(--accent) 70%, transparent);transition:transform .15s ease, box-shadow .15s ease}
+  .open-btn:hover{transform:translateY(-2px);box-shadow:0 18px 38px -12px color-mix(in srgb,var(--accent) 70%, transparent)}
+  .open-btn:active{transform:translateY(0)}
+  .cover-note{margin-top:16px;font-size:12px;color:var(--soft);opacity:.8}
+
+  /* ---------- reveal ---------- */
+  .rv{opacity:0;transform:translateY(22px);transition:opacity .9s ease, transform .9s cubic-bezier(.2,.7,.2,1)}
+  .rv.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}.cover-in{animation:none}}
+
+  /* ---------- hero ---------- */
+  .hero{position:relative;text-align:center;padding:88px 22px 40px}
+  .hero.haspic{padding:0;min-height:86vh;display:grid;place-items:center;color:#fff;overflow:hidden}
+  .hero .bgpic{position:absolute;inset:0;background-size:cover;background-position:center;transform:scale(1.04)}
+  .hero .veil{position:absolute;inset:0;background:linear-gradient(180deg,rgba(20,14,24,.35),rgba(20,14,24,.62))}
+  .hero .inner{position:relative;padding:22px}
+  .eyebrow{text-transform:uppercase;letter-spacing:.32em;font-size:11.5px;font-weight:600;margin:0 0 16px}
+  .hero:not(.haspic) .eyebrow{color:var(--accent)}
+  .names{font-family:var(--display);font-weight:500;line-height:1.04;letter-spacing:-.01em;margin:0;font-size:clamp(40px,9.5vw,78px)}
+  .headline{font-family:var(--serif);font-style:italic;font-size:clamp(20px,4.6vw,29px);margin:14px 0 0;opacity:.92}
+  .hero:not(.haspic) .headline{color:var(--soft)}
+  .divider{display:flex;align-items:center;justify-content:center;gap:12px;margin:26px auto 0;max-width:220px}
+  .divider .ln{height:1px;background:currentColor;opacity:.4;flex:1}
+  .divider .dot{color:var(--accent);font-size:14px;opacity:.9}
+  .hero.haspic .divider .dot{color:var(--accent-2)}
+  .whenwhere{font-family:var(--serif);font-size:clamp(19px,4vw,25px);margin:18px 0 0}
   .whenwhere b{font-weight:600}
-  /* sections */
-  section{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px;margin:16px 0;
-    box-shadow:0 1px 2px rgba(20,15,30,.03),0 20px 40px -30px rgba(20,15,30,.2)}
-  .sec-t{text-transform:uppercase;letter-spacing:.18em;font-size:12px;color:var(--accent);font-weight:600;margin:0 0 14px;text-align:center}
-  .msg{font-family:var(--serif);font-size:clamp(19px,4vw,23px);text-align:center;color:var(--ink);margin:0}
+
+  /* ---------- sections ---------- */
+  section.blk{max-width:760px;margin:0 auto;padding:26px 22px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:30px;
+    box-shadow:0 1px 2px rgba(20,15,30,.03),0 30px 60px -44px rgba(20,15,30,.35)}
+  .sec-t{text-transform:uppercase;letter-spacing:.2em;font-size:11.5px;color:var(--accent);font-weight:600;margin:0 0 16px;text-align:center}
+  .msg{font-family:var(--serif);font-size:clamp(20px,4.2vw,25px);text-align:center;color:var(--ink);margin:0;line-height:1.5}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  @media(max-width:520px){.grid2{grid-template-columns:1fr}}
-  .fact{border:1px solid var(--line);border-radius:14px;padding:16px 18px;background:var(--bg)}
-  .fact .k{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--soft);margin:0 0 4px}
+  @media(max-width:540px){.grid2{grid-template-columns:1fr}}
+  .fact{border:1px solid var(--line);border-radius:15px;padding:16px 18px;background:color-mix(in srgb,var(--accent) 5%, var(--card))}
+  .fact .k{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--soft);margin:0 0 5px}
   .fact .v{font-size:16px;font-weight:500;margin:0}
   .fact a{color:var(--accent)}
   .sched{list-style:none;margin:0;padding:0}
-  .sched li{display:flex;gap:16px;padding:12px 0;border-top:1px dashed var(--line)}
+  .sched li{display:flex;gap:16px;padding:14px 0;border-top:1px dashed var(--line)}
   .sched li:first-child{border-top:0}
-  .sched .t{font-weight:600;color:var(--accent);min-width:92px;font-variant-numeric:tabular-nums}
-  .note{text-align:center;color:var(--soft);font-family:var(--serif);font-size:20px;padding:22px 0}
-  .foot{text-align:center;color:var(--soft);font-size:13px;padding:34px 0 60px}
-  .foot .mk{display:inline-flex;align-items:center;gap:7px;opacity:.7}
-  .foot .dot{width:16px;height:16px;border-radius:5px;background:var(--accent)}
+  .sched .t{font-weight:600;color:var(--accent);min-width:96px;font-variant-numeric:tabular-nums}
+  .note{text-align:center;color:var(--soft);font-family:var(--serif);font-style:italic;font-size:21px;padding:14px 0}
+  /* gallery */
+  .gal{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  @media(max-width:540px){.gal{grid-template-columns:repeat(2,1fr)}}
+  .gal .ph{aspect-ratio:3/4;border-radius:14px;background-size:cover;background-position:center;border:1px solid var(--line);
+    box-shadow:0 20px 40px -30px rgba(20,15,30,.5)}
+  .gal .ph.wide{grid-column:span 2;aspect-ratio:3/2}
+  .foot{text-align:center;color:var(--soft);font-family:var(--serif);font-style:italic;font-size:18px;padding:30px 0 90px}
+
+  /* ---------- floating controls ---------- */
+  .fabs{position:fixed;z-index:40;right:16px;top:16px;display:flex;flex-direction:column;gap:10px}
+  .fab{width:46px;height:46px;border-radius:50%;border:1px solid var(--line);background:color-mix(in srgb,var(--card) 86%, transparent);
+    backdrop-filter:blur(8px);display:grid;place-items:center;cursor:pointer;color:var(--ink);
+    box-shadow:0 10px 26px -12px rgba(20,15,30,.4);transition:transform .14s ease}
+  .fab:hover{transform:translateY(-1px)}
+  .fab svg{width:20px;height:20px}
+  .share-btm{position:fixed;z-index:40;left:50%;bottom:20px;transform:translateX(-50%);
+    display:inline-flex;align-items:center;gap:9px;padding:12px 22px;border-radius:999px;border:0;cursor:pointer;
+    font-family:var(--sans);font-weight:600;font-size:13px;color:#fff;background:linear-gradient(120deg,var(--accent),var(--accent-2));
+    box-shadow:0 14px 32px -12px color-mix(in srgb,var(--accent) 70%, transparent)}
+  .share-btm svg{width:16px;height:16px}
+  .toast{position:fixed;z-index:60;left:50%;bottom:78px;transform:translateX(-50%);background:var(--ink);color:#fff;
+    font-size:13px;padding:9px 16px;border-radius:999px;opacity:0;transition:opacity .3s ease;pointer-events:none}
+  .toast.on{opacity:.96}
+  .eq{display:inline-flex;gap:2px;align-items:flex-end;height:16px}
+  .eq i{width:3px;background:currentColor;border-radius:2px;animation:eq 1s ease-in-out infinite}
+  .eq i:nth-child(1){animation-delay:-.2s}.eq i:nth-child(2){animation-delay:-.5s}.eq i:nth-child(3){animation-delay:-.1s}
+  .paused .eq i{animation-play-state:paused;height:5px!important}
+  @keyframes eq{0%,100%{height:5px}50%{height:15px}}
+  @keyframes rise{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+
   /* ---------- template themes ---------- */
-  body.t-eternal{--accent:#9a7b4f;--bg:#f7f3ec;--ink:#33291d;--soft:#8a7c66;--line:#e8ddca;
+  body.t-eternal{--accent:#9a7b4f;--accent-2:#c8a26a;--bg:#f7f3ec;--ink:#33291d;--soft:#8a7c66;--line:#e8ddca;
     --display:"Fraunces",serif;--serif:"Cormorant Garamond",serif}
-  body.t-promise{--accent:#c05b83;--bg:#fdf2f4;--ink:#3d2230;--soft:#a5788a;--line:#f3dbe1;
+  body.t-promise{--accent:#c05b83;--accent-2:#e59ab4;--bg:#fdf2f4;--ink:#3d2230;--soft:#a5788a;--line:#f3dbe1;
     --display:"Playfair Display",serif;--serif:"Cormorant Garamond",serif}
-  body.t-confetti{--accent:#e0533b;--bg:#fff8ef;--ink:#2c2138;--soft:#7c7189;--line:#ffe3cf;
+  body.t-confetti{--accent:#e0533b;--accent-2:#f2a03d;--bg:#fff8ef;--ink:#2c2138;--soft:#7c7189;--line:#ffe3cf;
     --display:"Fraunces",serif;--serif:"Poppins",sans-serif}
   body.t-confetti .names{background:linear-gradient(100deg,#e0533b,#f2a03d,#6d28d9);-webkit-background-clip:text;background-clip:text;color:transparent}
   body.t-confetti .headline{font-style:normal;font-weight:500}
-  body.t-summit{--accent:#4f46e5;--bg:#f6f7fb;--ink:#161b2e;--soft:#5b6178;--line:#e2e5ef;
+  body.t-summit{--accent:#4f46e5;--accent-2:#7c73f5;--bg:#f6f7fb;--ink:#161b2e;--soft:#5b6178;--line:#e2e5ef;
     --display:"Space Grotesk",sans-serif;--serif:"Space Grotesk",sans-serif;--sans:"Space Grotesk",system-ui,sans-serif}
-  body.t-summit .names{letter-spacing:-.02em}
-  body.t-summit .headline{font-style:normal;font-weight:400}
-  body.t-summit .whenwhere,body.t-summit .msg{font-family:var(--sans)}
-  body.t-soiree{--accent:#a78bfa;--bg:#141019;--ink:#f2ecff;--soft:#a99fc0;--line:#2a2338;--card:#1c1626;
+  body.t-summit .names{letter-spacing:-.02em}.body.t-summit .headline,body.t-summit .whenwhere,body.t-summit .msg{font-style:normal;font-family:var(--sans)}
+  body.t-soiree{--accent:#a78bfa;--accent-2:#c4b0ff;--bg:#141019;--ink:#f2ecff;--soft:#a99fc0;--line:#2a2338;--card:#1c1626;
     --display:"Fraunces",serif;--serif:"Cormorant Garamond",serif}
   body.t-soiree{background:radial-gradient(1200px 600px at 50% -10%,#241a35,#141019 60%)}
 </style>
@@ -70,30 +136,49 @@
     <h1>Invitation not found</h1>
     <p>This link may be incorrect, or the invitation hasn’t been published yet.</p>
   </div></div>
-  <div id="page" class="wrap" hidden></div>
 
-<!-- Absolute paths: this page is also served at /i/<slug>, where relative URLs
-     would wrongly resolve to /i/config.js etc. -->
-<script src="/config.js?v=80"></script>
-<script src="/store-api.js?v=80"></script>
+  <!-- cover gate -->
+  <div id="cover" hidden><div class="cover-in">
+    <div class="flourish">❧</div>
+    <p id="coverEyebrow" class="cover-eyebrow"></p>
+    <div class="seal"><span id="coverSeal">♥</span></div>
+    <h1 id="coverNames" class="cover-names"></h1>
+    <p id="coverSub" class="cover-sub"></p>
+    <button id="openBtn" class="open-btn" type="button">Open Invitation</button>
+    <p id="coverNote" class="cover-note" hidden>♪ Turn on your sound for the full experience</p>
+  </div></div>
+
+  <!-- floating controls -->
+  <div id="fabs" class="fabs" hidden>
+    <button id="musicFab" class="fab paused" type="button" title="Music" aria-label="Toggle music">
+      <span class="eq"><i style="height:5px"></i><i style="height:5px"></i><i style="height:5px"></i></span>
+    </button>
+  </div>
+  <button id="shareBtm" class="share-btm" type="button" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
+    Share
+  </button>
+  <div id="toast" class="toast"></div>
+
+  <div id="page" hidden></div>
+  <audio id="audio" loop preload="none"></audio>
+
+<script src="/config.js?v=81"></script>
+<script src="/store-api.js?v=81"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  // slug from /i/<slug> (server serves this page for that path) or ?s=<slug>
-  function getSlug(){
-    const m=location.pathname.match(/^\/i\/([^\/?#]+)/);
-    if(m) return decodeURIComponent(m[1]);
-    return new URLSearchParams(location.search).get("s")||"";
-  }
+  function getSlug(){ const m=location.pathname.match(/^\/i\/([^\/?#]+)/); if(m) return decodeURIComponent(m[1]);
+    return new URLSearchParams(location.search).get("s")||""; }
   const EYEBROW={wedding:"Together with their families",engagement:"Save the date",
     birthday:"You're invited to celebrate",corporate:"You're invited",general:"You're invited"};
 
   function fmtDate(d){ if(!d) return "";
-    // Parse a plain YYYY-MM-DD as a LOCAL date (avoid the UTC-midnight off-by-one).
     const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d));
     const dt=m?new Date(+m[1],+m[2]-1,+m[3]):new Date(d);
     if(isNaN(dt)) return esc(d);
     return dt.toLocaleDateString(undefined,{weekday:"long",year:"numeric",month:"long",day:"numeric"}); }
+  const initials=n=>{ const p=String(n||"").trim().split(/\s+|&/).filter(Boolean); return p.slice(0,2).map(x=>x[0]).join("").toUpperCase()||"♥"; };
 
   function factsHtml(d){
     const items=[];
@@ -105,55 +190,120 @@
     }
     if(d.dressCode) items.push(`<div class="fact"><p class="k">Dress code</p><p class="v">${esc(d.dressCode)}</p></div>`);
     if(d.host) items.push(`<div class="fact"><p class="k">Hosted by</p><p class="v">${esc(d.host)}${d.hostPhone?`<br><span style="font-weight:400;color:var(--soft)">${esc(d.hostPhone)}</span>`:""}</p></div>`);
-    return items.length?`<section><p class="sec-t">Details</p><div class="grid2">${items.join("")}</div></section>`:"";
+    return items.length?`<section class="blk rv"><div class="card"><p class="sec-t">Details</p><div class="grid2">${items.join("")}</div></div></section>`:"";
   }
   function scheduleHtml(list){
     if(!Array.isArray(list)||!list.length) return "";
-    const rows=list.filter(x=>x&&(x.time||x.label))
-      .map(x=>`<li><span class="t">${esc(x.time||"")}</span><span>${esc(x.label||"")}</span></li>`).join("");
-    return rows?`<section><p class="sec-t">Schedule</p><ul class="sched">${rows}</ul></section>`:"";
+    const rows=list.filter(x=>x&&(x.time||x.label)).map(x=>`<li><span class="t">${esc(x.time||"")}</span><span>${esc(x.label||"")}</span></li>`).join("");
+    return rows?`<section class="blk rv"><div class="card"><p class="sec-t">Schedule</p><ul class="sched">${rows}</ul></div></section>`:"";
+  }
+  function galleryHtml(photos){
+    if(!Array.isArray(photos)||photos.length<2) return "";   // hero already uses the first
+    const rest=photos.slice(1);
+    const cells=rest.map((u,i)=>`<div class="ph${(rest.length%2===1&&i===rest.length-1)?' wide':''}" style="background-image:url('${esc(u)}')"></div>`).join("");
+    return `<section class="blk rv"><p class="sec-t" style="color:var(--accent)">Moments</p><div class="gal">${cells}</div></section>`;
   }
 
+  let SITE=null;
   function render(site){
+    SITE=site;
     const d=site.data||{};
     document.body.className="t-"+(["eternal","promise","confetti","summit","soiree"].includes(site.template)?site.template:"soiree");
     const type=site.event_type||"general";
     const names=d.names||site.title||"You're invited";
     const eyebrow=d.eyebrow||EYEBROW[type]||"You're invited";
     document.title=(site.title||names)+" — Invitation";
+    const photos=Array.isArray(d.photos)?d.photos.filter(Boolean):[];
+    const hero0=photos[0];
     const when=[fmtDate(d.date), d.time?esc(d.time):""].filter(Boolean).join(" · ");
-    const html=`
-      <div class="hero">
-        <p class="eyebrow">${esc(eyebrow)}</p>
-        <h1 class="names">${esc(names)}</h1>
-        ${d.headline?`<p class="headline">${esc(d.headline)}</p>`:""}
-        <div class="rule"></div>
-        ${when?`<p class="whenwhere"><b>${when}</b></p>`:""}
-        ${d.venue?`<p class="whenwhere">${esc(d.venue)}</p>`:""}
-      </div>
-      ${d.message?`<section><p class="sec-t">A note</p><p class="msg">${esc(d.message)}</p></section>`:""}
+
+    // cover gate
+    $("#coverEyebrow").textContent=eyebrow;
+    $("#coverSeal").textContent=initials(names);
+    $("#coverNames").textContent=names;
+    $("#coverSub").textContent=[d.headline, when].filter(Boolean).join(" · ")||"You're invited";
+
+    const heroBlock = hero0
+      ? `<div class="hero haspic"><div class="bgpic" style="background-image:url('${esc(hero0)}')"></div><div class="veil"></div>
+           <div class="inner rv in">
+             <p class="eyebrow">${esc(eyebrow)}</p>
+             <h1 class="names">${esc(names)}</h1>
+             ${d.headline?`<p class="headline">${esc(d.headline)}</p>`:""}
+             <div class="divider"><span class="ln"></span><span class="dot">✦</span><span class="ln"></span></div>
+             ${when?`<p class="whenwhere"><b>${when}</b></p>`:""}
+             ${d.venue?`<p class="whenwhere">${esc(d.venue)}</p>`:""}
+           </div></div>`
+      : `<div class="hero"><div class="inner rv in">
+             <p class="eyebrow">${esc(eyebrow)}</p>
+             <h1 class="names">${esc(names)}</h1>
+             ${d.headline?`<p class="headline">${esc(d.headline)}</p>`:""}
+             <div class="divider"><span class="ln"></span><span class="dot">✦</span><span class="ln"></span></div>
+             ${when?`<p class="whenwhere"><b>${when}</b></p>`:""}
+             ${d.venue?`<p class="whenwhere">${esc(d.venue)}</p>`:""}
+           </div></div>`;
+
+    $("#page").innerHTML=`
+      ${heroBlock}
+      ${d.message?`<section class="blk rv"><div class="card"><p class="sec-t">A note</p><p class="msg">${esc(d.message)}</p></div></section>`:""}
+      ${galleryHtml(photos)}
       ${factsHtml(d)}
       ${scheduleHtml(d.schedule)}
-      ${d.rsvpBy?`<p class="note">Kindly reply by ${fmtDate(d.rsvpBy)}</p>`:""}
-      <div class="foot"><span class="mk"><span class="dot"></span> Made with Helm Events</span></div>
-    `;
-    const p=$("#page"); p.innerHTML=html; p.hidden=false; $("#loading").hidden=true;
+      ${d.rsvpBy?`<p class="note rv">Kindly reply by ${fmtDate(d.rsvpBy)}</p>`:""}
+      <div class="foot rv">With love &amp; joy</div>`;
+
+    // music
+    if(d.music){ $("#audio").src=d.music; }
+
+    // show gate
+    $("#loading").hidden=true; $("#cover").hidden=false;
+    if(d.music) $("#coverNote").hidden=false;
+    $("#page").hidden=false;                 // behind the cover; revealed on open
   }
 
-  // Live preview: the builder (same origin) posts a draft site to render it
-  // without publishing. Same-origin guard — never renders cross-origin data.
-  window.addEventListener("message",(ev)=>{
-    if(ev.origin!==location.origin) return;
-    const m=ev.data;
-    if(m&&m.type==="helm-preview"&&m.site){ try{ render(m.site); }catch(e){} }
-  });
+  // reveal on scroll
+  function armReveal(){
+    const els=[...document.querySelectorAll(".rv:not(.in)")];
+    if(!("IntersectionObserver" in window)){ els.forEach(e=>e.classList.add("in")); return; }
+    const io=new IntersectionObserver((ents)=>ents.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add("in"); io.unobserve(en.target); }}),{threshold:.12});
+    els.forEach(e=>io.observe(e));
+  }
+  function toast(t){ const el=$("#toast"); el.textContent=t; el.classList.add("on"); setTimeout(()=>el.classList.remove("on"),1800); }
+
+  // open the invitation (this user gesture unlocks audio autoplay)
+  function openInvite(){
+    $("#cover").classList.add("gone");
+    setTimeout(()=>{ $("#cover").hidden=true; }, 900);
+    $("#fabs").hidden=false; $("#shareBtm").hidden=false;
+    armReveal();
+    const a=$("#audio");
+    if(SITE&&SITE.data&&SITE.data.music){
+      a.volume=0.7;
+      a.play().then(()=>{ $("#musicFab").classList.remove("paused"); }).catch(()=>{ $("#musicFab").classList.add("paused"); });
+    }
+    window.scrollTo({top:0});
+  }
+  function toggleMusic(){
+    const a=$("#audio"); if(!a.src){ toast("No music on this invitation"); return; }
+    if(a.paused){ a.play().then(()=>$("#musicFab").classList.remove("paused")).catch(()=>toast("Tap again to play")); }
+    else { a.pause(); $("#musicFab").classList.add("paused"); }
+  }
+  async function share(){
+    const url=location.href;
+    const title=(SITE&&(SITE.title||(SITE.data&&SITE.data.names)))||"You're invited";
+    if(navigator.share){ try{ await navigator.share({title, text:title+" — you're invited!", url}); return; }catch(e){ if(e&&e.name==="AbortError") return; } }
+    try{ await navigator.clipboard.writeText(url); toast("Link copied"); }
+    catch(e){ toast(url); }
+  }
+
+  $("#openBtn").addEventListener("click", openInvite);
+  $("#musicFab").addEventListener("click", toggleMusic);
+  $("#shareBtm").addEventListener("click", share);
+  // Preview (studio) posts drafts; also lets the studio show without the gate.
+  window.addEventListener("message",(ev)=>{ if(ev.origin!==location.origin) return;
+    const m=ev.data; if(m&&m.type==="helm-preview"&&m.site){ try{ render(m.site); $("#cover").hidden=true; $("#fabs").hidden=false; armReveal(); }catch(e){} } });
 
   (async ()=>{
-    if(new URLSearchParams(location.search).get("preview")==="1"){
-      // Wait for the builder to post draft content; show a neutral placeholder.
-      $("#loading").querySelector("h1").textContent="Preview";
-      return;
-    }
+    if(new URLSearchParams(location.search).get("preview")==="1"){ $("#loading").querySelector("h1").textContent="Preview"; return; }
     const slug=getSlug();
     try{
       if(!slug) throw new Error("no slug");
@@ -161,9 +311,7 @@
       const site=await BPStore.sites.public(slug);
       if(!site){ $("#loading").hidden=true; $("#missing").hidden=false; return; }
       render(site);
-    }catch(e){
-      $("#loading").hidden=true; $("#missing").hidden=false;
-    }
+    }catch(e){ $("#loading").hidden=true; $("#missing").hidden=false; }
   })();
 </script>
 </body>

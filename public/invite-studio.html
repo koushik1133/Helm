@@ -57,6 +57,10 @@
   .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca}.msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
   .srow{display:grid;grid-template-columns:120px 1fr auto;gap:8px;margin-bottom:8px}
   .srow .btn{height:36px;padding:0 10px}
+  .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
+  .photos .th{position:relative;aspect-ratio:1;border-radius:10px;background-size:cover;background-position:center;border:1px solid var(--line)}
+  .photos .th .x{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;border:0;background:#e5484d;color:#fff;cursor:pointer;font-size:12px;line-height:1}
+  .photos .th.cover::after{content:"Cover";position:absolute;left:4px;bottom:4px;font-size:9px;font-weight:700;background:rgba(0,0,0,.6);color:#fff;padding:2px 6px;border-radius:6px}
   .gatebox{text-align:center;padding:40px}
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
@@ -133,7 +137,35 @@
         </div>
 
         <div class="card">
-          <h3>3 · Schedule (optional)</h3>
+          <h3>3 · Photos (optional)</h3>
+          <p class="mnote">The first photo becomes the invitation's cover; the rest appear in a gallery.</p>
+          <div id="photos" class="photos"></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
+            <label class="btn" style="cursor:pointer;margin:0">＋ Upload photos<input id="photoFile" type="file" accept="image/*" multiple hidden></label>
+            <button class="btn" id="photoUrlBtn" type="button">Add by URL</button>
+            <span id="photoMsg" class="mnote" style="margin:0"></span>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>4 · Music (optional)</h3>
+          <p class="mnote">Plays softly when a guest opens the invitation. Pick a track or paste a link to your own song (MP3).</p>
+          <div class="fld"><label>Song</label>
+            <select id="f_musicPick">
+              <option value="">No music</option>
+              <option value="soundhelix-1">Ambient — gentle</option>
+              <option value="soundhelix-8">Piano — warm</option>
+              <option value="soundhelix-3">Strings — cinematic</option>
+              <option value="__custom">Custom link…</option>
+            </select>
+          </div>
+          <div class="fld" id="musicCustomWrap" hidden><label>Song URL (MP3)</label><input id="f_musicUrl" placeholder="https://…/song.mp3"></div>
+          <audio id="musicTry" preload="none"></audio>
+          <button class="btn" id="musicTryBtn" type="button" hidden>▶ Preview song</button>
+        </div>
+
+        <div class="card">
+          <h3>5 · Schedule (optional)</h3>
           <div id="sched"></div>
           <button class="btn" id="addSched" type="button">+ Add schedule item</button>
         </div>
@@ -173,8 +205,8 @@
   </form>
 </div>
 
-<script src="config.js?v=80"></script>
-<script src="store-api.js?v=80"></script>
+<script src="config.js?v=81"></script>
+<script src="store-api.js?v=81"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -232,6 +264,26 @@
   }
   function gatherSchedule(){ return [...$("#sched").querySelectorAll(".srow")].map(r=>({time:r.children[0].value.trim(),label:r.children[1].value.trim()})).filter(x=>x.time||x.label); }
 
+  // ---- photos ----
+  let PHOTOS=[];
+  function paintPhotos(){
+    $("#photos").innerHTML=PHOTOS.map((u,i)=>`<div class="th${i===0?' cover':''}" style="background-image:url('${esc(u)}')"><button class="x" data-i="${i}" title="Remove">✕</button></div>`).join("");
+    $("#photos").querySelectorAll(".x").forEach(b=>b.addEventListener("click",()=>{ PHOTOS.splice(+b.dataset.i,1); paintPhotos(); preview(); }));
+  }
+  function setPhotoMsg(t){ $("#photoMsg").textContent=t||""; }
+
+  // ---- music ----
+  const SONGS={
+    "soundhelix-1":"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+    "soundhelix-8":"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
+    "soundhelix-3":"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"
+  };
+  function musicUrl(){
+    const pick=$("#f_musicPick").value;
+    if(pick==="__custom") return $("#f_musicUrl").value.trim();
+    return SONGS[pick]||"";
+  }
+
   function gather(){
     return {
       title: $("#f_names").value.trim() || "Invitation",
@@ -243,6 +295,7 @@
         venue:$("#f_venue").value.trim(), address:$("#f_address").value.trim(), mapUrl:$("#f_mapUrl").value.trim(),
         message:$("#f_message").value.trim(), host:$("#f_host").value.trim(), hostPhone:$("#f_hostPhone").value.trim(),
         dressCode:$("#f_dressCode").value.trim(), rsvpBy:$("#f_rsvpBy").value,
+        photos:PHOTOS.slice(), music:musicUrl(),
         schedule:gatherSchedule()
       }
     };
@@ -267,8 +320,18 @@
     $("#f_venue").value=d.venue||""; $("#f_address").value=d.address||""; $("#f_mapUrl").value=d.mapUrl||"";
     $("#f_message").value=d.message||""; $("#f_host").value=d.host||""; $("#f_hostPhone").value=d.hostPhone||"";
     $("#f_dressCode").value=d.dressCode||""; $("#f_rsvpBy").value=d.rsvpBy||"";
+    PHOTOS=Array.isArray(d.photos)?d.photos.filter(Boolean):[]; paintPhotos();
+    // music: match a predefined track, else custom
+    const mkey=Object.keys(SONGS).find(k=>SONGS[k]===d.music);
+    if(d.music){ $("#f_musicPick").value=mkey||"__custom"; if(!mkey){ $("#f_musicUrl").value=d.music; } } else { $("#f_musicPick").value=""; }
+    applyMusicUi();
     $("#sched").innerHTML=""; (Array.isArray(d.schedule)?d.schedule:[]).forEach(x=>addSchedRow(x.time,x.label));
     paintTpls(); paintState();
+  }
+  function applyMusicUi(){
+    const custom=$("#f_musicPick").value==="__custom";
+    $("#musicCustomWrap").hidden=!custom;
+    $("#musicTryBtn").hidden=!musicUrl();
   }
   function paintState(){
     const pub = site && site.status==="published";
@@ -339,6 +402,36 @@
     applyTypeLabels(); paintTpls(); preview();
   });
   $("#addSched").addEventListener("click",()=>{ addSchedRow(); });
+
+  // photos — upload to Supabase Storage
+  $("#photoFile").addEventListener("change", async (e)=>{
+    const files=[...(e.target.files||[])]; e.target.value="";
+    if(!files.length) return;
+    setPhotoMsg("Uploading…");
+    try{
+      for(const f of files){
+        if(f.size>8*1024*1024){ setPhotoMsg(f.name+" is over 8MB — skipped."); continue; }
+        const url=await BPStore.sites.uploadPhoto(qid, f);
+        PHOTOS.push(url); paintPhotos(); preview();
+      }
+      setPhotoMsg(PHOTOS.length+" photo"+(PHOTOS.length===1?"":"s")+" added.");
+    }catch(err){ const m=(err&&err.message)||"";
+      setPhotoMsg(/bucket|not found|exist/i.test(m)?"Run the storage setup SQL first (invite-media bucket).":("Upload failed"+(m?": "+m:"."))); }
+  });
+  $("#photoUrlBtn").addEventListener("click",()=>{
+    const u=prompt("Paste an image URL:"); if(u&&/^https?:\/\//i.test(u.trim())){ PHOTOS.push(u.trim()); paintPhotos(); preview(); }
+  });
+
+  // music
+  $("#f_musicPick").addEventListener("change",()=>{ applyMusicUi(); preview(); });
+  $("#f_musicUrl").addEventListener("input",()=>{ applyMusicUi(); preview(); });
+  $("#musicTryBtn").addEventListener("click",()=>{
+    const a=$("#musicTry"); const u=musicUrl(); if(!u) return;
+    if(a.src!==u){ a.src=u; }
+    if(a.paused){ a.play().then(()=>{$("#musicTryBtn").textContent="⏸ Stop";}).catch(()=>setMsg("Couldn't play that link.","err")); }
+    else { a.pause(); $("#musicTryBtn").textContent="▶ Preview song"; }
+  });
+
   $("#saveBtn").addEventListener("click",doSave);
   $("#pubBtn").addEventListener("click",()=>doPublish(true));
   $("#unpubBtn").addEventListener("click",()=>doPublish(false));

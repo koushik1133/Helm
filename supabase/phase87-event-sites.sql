@@ -149,12 +149,10 @@ begin
     p_template := 'soiree';
   end if;
 
-  -- Slug: short readable stem + random suffix so it can't be guessed/enumerated.
-  -- Suffix uses gen_random_uuid() (Postgres CORE — always available, no extension /
-  -- search_path dependency, unlike pgcrypto's gen_random_bytes).
-  v_base := nullif(regexp_replace(lower(coalesce((select code from public.quotes where id = p_quote_id), 'event')),
-                                  '[^a-z0-9]+', '-', 'g'), '');
-  v_slug := left(coalesce(v_base,'event'), 24) || '-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 12);
+  -- Placeholder slug only (never the quote code — that would leak an internal number
+  -- into the public URL). The friendly, NAME-based slug is generated at publish time
+  -- by publish_event_site(). Neutral + random so nothing internal is exposed.
+  v_slug := 'draft-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 16);
 
   insert into public.event_sites (quote_id, event_type, template, slug, created_by)
   values (p_quote_id, p_event_type, p_template, v_slug, auth.uid())
@@ -174,20 +172,51 @@ security definer
 set search_path = public
 as $$
 declare
-  v_org uuid := current_org_id();
-  v_row public.event_sites;
+  v_org  uuid := current_org_id();
+  v_row  public.event_sites;
+  v_base text;
+  v_slug text;
+  v_try  int := 0;
 begin
   if v_org is null then raise exception 'no organization in context'; end if;
   if not has_area('quotes','edit') then raise exception 'not permitted'; end if;
 
+  select * into v_row from public.event_sites where id = p_id and org_id = v_org;
+  if not found then raise exception 'invitation site not found'; end if;
+
+  if not p_publish then
+    update public.event_sites set status = 'unpublished', updated_at = now()
+     where id = p_id and org_id = v_org returning * into v_row;
+    return v_row;
+  end if;
+
+  -- Friendly, NAME-based public slug (e.g. "koushik-goud-shaganti-a1b2c3").
+  -- Built from the invitation name/title — NEVER the quote code. Stays stable
+  -- while the name is unchanged; regenerates if missing, name changed, or the old
+  -- slug was a placeholder/quote-code (so existing sites get cleaned up on re-publish).
+  v_base := lower(coalesce(nullif(trim(v_row.title), ''), v_row.data->>'names', 'invitation'));
+  v_base := trim(both '-' from regexp_replace(v_base, '[^a-z0-9]+', '-', 'g'));
+  v_base := left(v_base, 40);
+  if coalesce(v_base, '') = '' then v_base := 'invitation'; end if;
+
+  if v_row.slug is null or v_row.slug not like v_base || '-%' then
+    loop
+      v_slug := v_base || '-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 6);
+      exit when not exists (select 1 from public.event_sites where slug = v_slug and id <> p_id);
+      v_try := v_try + 1; exit when v_try > 6;
+    end loop;
+  else
+    v_slug := v_row.slug;   -- already name-based and current — keep the link stable
+  end if;
+
   update public.event_sites
-     set status       = case when p_publish then 'published' else 'unpublished' end,
-         published_at = case when p_publish then now() else published_at end,
+     set slug         = v_slug,
+         status       = 'published',
+         published_at = coalesce(published_at, now()),
          updated_at   = now()
    where id = p_id and org_id = v_org                 -- explicit key AND own org
   returning * into v_row;
 
-  if not found then raise exception 'invitation site not found'; end if;
   return v_row;
 end$$;
 

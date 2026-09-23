@@ -1316,8 +1316,21 @@
     async save(id, patch) { if (!supa) throw new Error("Supabase not configured");        // patch: {title, template, event_type, data}
       const { error } = await supa.from("event_sites").update(patch).eq("id", id);        // .eq() key enforced; org forced by trigger+RLS
       if (error) throw error; return true; },
-    publish:   (id) => rpc("publish_event_site", { p_id: id, p_publish: true }),          // stamps published_at server-side
+    publish:   (id) => rpc("publish_event_site", { p_id: id, p_publish: true }),          // stamps published_at + name-based slug server-side
     unpublish: (id) => rpc("publish_event_site", { p_id: id, p_publish: false }),
+    // Upload an invitation photo to Supabase Storage (public bucket 'invite-media').
+    // Path is prefixed with the org id so storage RLS keeps tenants isolated.
+    async uploadPhoto(quoteId, file) {
+      if (!supa) throw new Error("Supabase not configured");
+      const orgId = await org.id();
+      if (!orgId) throw new Error("no organization in context");
+      const ext = ((file && file.name || "").split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+      const path = orgId + "/" + quoteId + "/" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + "." + ext;
+      const { error } = await supa.storage.from("invite-media").upload(path, file, { upsert: false, contentType: (file && file.type) || undefined });
+      if (error) throw error;
+      const { data } = supa.storage.from("invite-media").getPublicUrl(path);
+      return data.publicUrl;
+    },
     // public side (anonymous guests) --------------------------------------------
     async public(slug) {                                                                  // display fields of a PUBLISHED site only
       if (!supa) { try { await BPStore.init(); } catch (e) {} }
