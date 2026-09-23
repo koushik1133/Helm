@@ -15,6 +15,9 @@
   try { var t = localStorage.getItem("bp_theme"); if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t); } catch (e) {}
   function mountToggle() {
     if (document.getElementById("bpThemeToggle") || !document.body) return;
+    // Pages can opt out of the floating light/dark toggle (e.g. the public
+    // invitation page, which has its own template themes) via a meta tag.
+    if (document.querySelector('meta[name="bp-theme-toggle"][content="off"]')) return;
     var b = document.createElement("button");
     b.id = "bpThemeToggle"; b.className = "bp-theme-toggle"; b.type = "button"; b.title = "Toggle light / dark";
     var sync = function () { b.textContent = (document.documentElement.getAttribute("data-theme") === "dark") ? "☀" : "☾"; };

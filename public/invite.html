@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="bp-theme-toggle" content="off">
 <title>You're invited</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d28d9'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -90,6 +91,8 @@
     box-shadow:0 20px 40px -30px rgba(20,15,30,.5)}
   .gal .ph.wide{grid-column:span 2;aspect-ratio:3/2}
   .foot{text-align:center;color:var(--soft);font-family:var(--serif);font-style:italic;font-size:18px;padding:30px 0 90px}
+  .foot .madeby{display:block;margin-top:16px;font-family:var(--sans);font-style:normal;font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.7}
+  .foot .madeby a{color:var(--accent);text-decoration:none;font-weight:600}
 
   /* ---------- floating controls ---------- */
   .fabs{position:fixed;z-index:40;right:16px;top:16px;display:flex;flex-direction:column;gap:10px}
@@ -164,7 +167,7 @@
   <audio id="audio" loop preload="none"></audio>
 
 <script src="/config.js?v=81"></script>
-<script src="/store-api.js?v=81"></script>
+<script src="/store-api.js?v=82"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -249,7 +252,9 @@
       ${factsHtml(d)}
       ${scheduleHtml(d.schedule)}
       ${d.rsvpBy?`<p class="note rv">Kindly reply by ${fmtDate(d.rsvpBy)}</p>`:""}
-      <div class="foot rv">With love &amp; joy</div>`;
+      <div class="foot rv">With love &amp; joy
+        <span class="madeby">Made with <a href="/" target="_blank" rel="noopener">Helm Events</a></span>
+      </div>`;
 
     // music
     if(d.music){ $("#audio").src=d.music; }
