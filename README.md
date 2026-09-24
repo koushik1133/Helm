@@ -1,4 +1,4 @@
-# Blueprint Stage — 2D Event Layout & Blueprint Builder
+# Blueprint Stage — 2D Event Layout & Blueprint Builder 
 
 An interactive, to-scale **2D drag-and-drop floor-plan builder** for events —
 political rallies, conferences & expos, weddings & galas, and outdoor festivals.
