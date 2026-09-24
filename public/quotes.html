@@ -39,6 +39,11 @@
   tbody tr.is-confirmed{background:#f0faf4}
   tbody tr.is-confirmed td:first-child{box-shadow:inset 3px 0 0 #12a150}
   tbody tr.is-confirmed:hover{background:#e7f6ee}
+  /* needs attention: the event date has passed but the event isn't wrapped up */
+  tbody tr.is-attention{background:#fdecec}
+  tbody tr.is-attention td:first-child{box-shadow:inset 3px 0 0 #e5484d}
+  tbody tr.is-attention:hover{background:#fbe0e0}
+  .typefilter{height:38px;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink);cursor:pointer}
   .search{flex:1;min-width:160px;height:38px;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:0 12px;font-family:inherit;font-size:13px;color:var(--ink)}
   .btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
   .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
@@ -55,6 +60,7 @@
   .stat.q{background:#eef2ff;color:#4457c8} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318}
   .stat.ap{background:#e7f6ee;color:#0f7a43} .stat.st{background:#fff7e6;color:#946200}
   .stat.done{background:#f1f3f7;color:#5b5670}
+  .stat.warn{background:#fdecec;color:#b42318}
   .vsel{height:30px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:var(--mono);font-size:12px;padding:0 6px;color:var(--ink)}
   .row-actions{display:flex;gap:6px;flex-wrap:wrap}
   .ic{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:30px;padding:0 10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)}
@@ -110,9 +116,11 @@
       <button data-f="all" class="on">Active</button>
       <button data-f="quote">Quotes</button>
       <button data-f="confirmed">Confirmed</button>
+      <button data-f="attention">⚠ Attention</button>
       <button data-f="archived">Archived</button>
     </div>
     <input id="search" class="search" placeholder="Search code, client, title…">
+    <select id="typeFilter" class="typefilter" title="Filter by event type"><option value="">All types</option></select>
     <button class="btn" id="refresh">↻ Refresh</button>
     <a class="btn primary" href="index.html" id="newBtn">✨ New quote</a>
   </div>
@@ -226,7 +234,7 @@
   const statBadge=(s)=> s==="confirmed"?'<span class="stat ok">Confirmed</span>':s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
   const apprBadge=(a)=> a==="paid"?'<span class="stat ok">Paid</span>':a==="approved"?'<span class="stat ap">Approved</span>':a==="sent"?'<span class="stat st">Sent</span>':"";
 
-  let quotes=[], filter="all", canEdit=false, canDelete=false, canCreate=false;
+  let quotes=[], filter="all", typeFilter="", canEdit=false, canDelete=false, canCreate=false;
   const detailCache={};   // id -> full quote (with versions)
 
   /* ---------- seat/chair counting from a version's layout ---------- */
@@ -259,6 +267,7 @@
     // opened from an event workspace? focus that quote by pre-filling the search
     const focus=new URLSearchParams(location.search).get("focus");
     if(focus){ $("#search").value=focus; }
+    fillTypeFilter();
     render();
   }
   function render(){
@@ -270,11 +279,22 @@
     // flow, so a stray quote+closed record stays in the active views (visible to
     // clean up) instead of silently sitting in the archive.
     const isArchived=x=> x.status==="cancelled" || (x.lifecycleStage==="closed" && x.status==="confirmed");
+    // Needs attention = the event date has passed but the event isn't wrapped up
+    // (not closed / cancelled) — e.g. it happened but equipment isn't returned or
+    // it was never settled & closed. Draft quotes with no date are never flagged.
+    const startOfToday=new Date(); startOfToday.setHours(0,0,0,0);
+    const needsAttention=x=>{
+      if(isArchived(x) || x.status==="cancelled" || !x.eventDate) return false;
+      const d=new Date(x.eventDate); if(isNaN(d)) return false;
+      return d < startOfToday;
+    };
     let list=quotes.filter(x=>
-      filter==="all"      ? !isArchived(x) :
-      filter==="archived" ?  isArchived(x) :
+      filter==="attention" ? needsAttention(x) :
+      filter==="all"       ? !isArchived(x) :
+      filter==="archived"  ?  isArchived(x) :
       (x.status===filter && !isArchived(x)));
-    if(q) list=list.filter(x=> (x.code||"").toLowerCase().includes(q) || (x.title||"").toLowerCase().includes(q));
+    if(typeFilter) list=list.filter(x=> (x.eventType||"").toLowerCase()===typeFilter.toLowerCase());
+    if(q) list=list.filter(x=> (x.code||"").toLowerCase().includes(q) || (x.title||"").toLowerCase().includes(q) || ((x.client&&x.client.name)||"").toLowerCase().includes(q));
     // confirmed rise to the top (so you don't have to scroll for them), then newest first
     const rank=x=> x.status==="confirmed"?0:1;
     list.sort((a,b)=> (rank(a)-rank(b)) || (b.updatedAt||"").localeCompare(a.updatedAt||""));
@@ -282,12 +302,12 @@
     if(!list.length){ tb.innerHTML='<tr><td colspan="8" class="empty">No quotes here yet.</td></tr>'; return; }
     tb.innerHTML=list.map(x=>{
       const pr=x.pricing||{}; const client=(x.client&&x.client.name)||(pr.client&&pr.client.name)||"";
-      return `<tr data-id="${esc(x.id)}" class="${x.status==='confirmed'?'is-confirmed':''}">
+      return `<tr data-id="${esc(x.id)}" class="${needsAttention(x)?'is-attention':(x.status==='confirmed'?'is-confirmed':'')}">
         <td class="code">${esc(x.code)}</td>
         <td>${esc(x.title||"—")}<div class="muted">${esc(x.eventType||"")}</div></td>
         <td>${esc(client)||'<span class="muted">—</span>'}</td>
         <td><select class="vsel" data-role="vsel"><option>v${x.currentVersion}</option></select></td>
-        <td>${isArchived(x)&&x.lifecycleStage==="closed"?'<span class="stat done">Closed · Archived</span>':statBadge(x.status)} ${apprBadge(x.approvalStatus)}</td>
+        <td>${needsAttention(x)?'<span class="stat warn" title="Event date has passed but this event isn\'t wrapped up — settle, return equipment and close it">⚠ Overdue</span> ':''}${isArchived(x)&&x.lifecycleStage==="closed"?'<span class="stat done">Closed · Archived</span>':statBadge(x.status)} ${apprBadge(x.approvalStatus)}</td>
         <td style="text-align:right" class="amt">${x.total?inr(x.total):'<span class="muted">—</span>'}</td>
         <td class="muted">${fmtDate(x.updatedAt)}</td>
         <td><div class="row-actions" style="justify-content:flex-end">
@@ -502,7 +522,19 @@
   $("#tabs").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return;
     $("#tabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); filter=b.dataset.f; render(); });
   $("#search").addEventListener("input",render);
+  $("#typeFilter").addEventListener("change",e=>{ typeFilter=e.target.value; render(); });
   $("#refresh").addEventListener("click",load);
+  function fillTypeFilter(){
+    // dedupe event types case-insensitively (so "wedding" and "Wedding" merge), keeping the nicest-cased label
+    const byLower={};
+    quotes.map(x=>x.eventType).filter(Boolean).forEach(t=>{
+      const k=t.toLowerCase();
+      if(!byLower[k] || (t[0]===t[0].toUpperCase() && byLower[k][0]!==byLower[k][0].toUpperCase())) byLower[k]=t;
+    });
+    const types=Object.values(byLower).sort((a,b)=>a.localeCompare(b));
+    const cur=typeFilter.toLowerCase();
+    $("#typeFilter").innerHTML='<option value="">All types</option>'+types.map(t=>`<option value="${esc(t)}"${t.toLowerCase()===cur?" selected":""}>${esc(t)}</option>`).join("");
+  }
   $("#lk_close").addEventListener("click",()=>{ $("#linkModal").hidden=true; });
   $("#linkModal").addEventListener("click",e=>{ if(e.target.id==="linkModal") $("#linkModal").hidden=true; });
   $("#lk_copy").addEventListener("click",async()=>{ const i=$("#lk_url"); i.select();
