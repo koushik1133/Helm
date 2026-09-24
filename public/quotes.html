@@ -35,6 +35,10 @@
   .tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px}
   .tabs button{border:0;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink-2);padding:7px 14px;border-radius:7px;cursor:pointer}
   .tabs button.on{background:var(--accent);color:#fff}
+  /* confirmed quotes stand out and sort to the top */
+  tbody tr.is-confirmed{background:#f0faf4}
+  tbody tr.is-confirmed td:first-child{box-shadow:inset 3px 0 0 #12a150}
+  tbody tr.is-confirmed:hover{background:#e7f6ee}
   .search{flex:1;min-width:160px;height:38px;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:0 12px;font-family:inherit;font-size:13px;color:var(--ink)}
   .btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
   .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
@@ -102,9 +106,10 @@
 
   <div class="toolbar">
     <div class="tabs" id="tabs">
-      <button data-f="all" class="on">All</button>
+      <button data-f="all" class="on">Active</button>
       <button data-f="quote">Quotes</button>
       <button data-f="confirmed">Confirmed</button>
+      <button data-f="archived">Archived</button>
     </div>
     <input id="search" class="search" placeholder="Search code, client, title…">
     <button class="btn" id="refresh">↻ Refresh</button>
@@ -256,14 +261,22 @@
   }
   function render(){
     const q=($("#search").value||"").toLowerCase().trim();
-    let list=quotes.filter(x=> filter==="all"?true : x.status===filter);
+    // Archived = closed or cancelled events — kept out of the day-to-day views,
+    // browsable in their own tab so the active list stays focused (and un-scrolly).
+    const isArchived=x=> x.lifecycleStage==="closed" || x.status==="cancelled";
+    let list=quotes.filter(x=>
+      filter==="all"      ? !isArchived(x) :
+      filter==="archived" ?  isArchived(x) :
+      (x.status===filter && !isArchived(x)));
     if(q) list=list.filter(x=> (x.code||"").toLowerCase().includes(q) || (x.title||"").toLowerCase().includes(q));
-    list.sort((a,b)=>(b.updatedAt||"").localeCompare(a.updatedAt||""));
+    // confirmed rise to the top (so you don't have to scroll for them), then newest first
+    const rank=x=> x.status==="confirmed"?0:1;
+    list.sort((a,b)=> (rank(a)-rank(b)) || (b.updatedAt||"").localeCompare(a.updatedAt||""));
     const tb=$("#rows");
     if(!list.length){ tb.innerHTML='<tr><td colspan="8" class="empty">No quotes here yet.</td></tr>'; return; }
     tb.innerHTML=list.map(x=>{
       const pr=x.pricing||{}; const client=(x.client&&x.client.name)||(pr.client&&pr.client.name)||"";
-      return `<tr data-id="${esc(x.id)}">
+      return `<tr data-id="${esc(x.id)}" class="${x.status==='confirmed'?'is-confirmed':''}">
         <td class="code">${esc(x.code)}</td>
         <td>${esc(x.title||"—")}<div class="muted">${esc(x.eventType||"")}</div></td>
         <td>${esc(client)||'<span class="muted">—</span>'}</td>
