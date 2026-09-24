@@ -54,6 +54,7 @@
   .stat{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:20px}
   .stat.q{background:#eef2ff;color:#4457c8} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318}
   .stat.ap{background:#e7f6ee;color:#0f7a43} .stat.st{background:#fff7e6;color:#946200}
+  .stat.done{background:#f1f3f7;color:#5b5670}
   .vsel{height:30px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:var(--mono);font-size:12px;padding:0 6px;color:var(--ink)}
   .row-actions{display:flex;gap:6px;flex-wrap:wrap}
   .ic{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:30px;padding:0 10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)}
@@ -264,7 +265,11 @@
     const q=($("#search").value||"").toLowerCase().trim();
     // Archived = closed or cancelled events — kept out of the day-to-day views,
     // browsable in their own tab so the active list stays focused (and un-scrolly).
-    const isArchived=x=> x.lifecycleStage==="closed" || x.status==="cancelled";
+    // Archived = a genuinely finished event: cancelled, or closed AFTER it was
+    // confirmed. A quote that was never confirmed can't be "closed" in the real
+    // flow, so a stray quote+closed record stays in the active views (visible to
+    // clean up) instead of silently sitting in the archive.
+    const isArchived=x=> x.status==="cancelled" || (x.lifecycleStage==="closed" && x.status==="confirmed");
     let list=quotes.filter(x=>
       filter==="all"      ? !isArchived(x) :
       filter==="archived" ?  isArchived(x) :
@@ -282,19 +287,25 @@
         <td>${esc(x.title||"—")}<div class="muted">${esc(x.eventType||"")}</div></td>
         <td>${esc(client)||'<span class="muted">—</span>'}</td>
         <td><select class="vsel" data-role="vsel"><option>v${x.currentVersion}</option></select></td>
-        <td>${statBadge(x.status)} ${apprBadge(x.approvalStatus)}</td>
+        <td>${isArchived(x)&&x.lifecycleStage==="closed"?'<span class="stat done">Closed · Archived</span>':statBadge(x.status)} ${apprBadge(x.approvalStatus)}</td>
         <td style="text-align:right" class="amt">${x.total?inr(x.total):'<span class="muted">—</span>'}</td>
         <td class="muted">${fmtDate(x.updatedAt)}</td>
         <td><div class="row-actions" style="justify-content:flex-end">
-          ${isArchived(x)?`<button class="ic go" data-act="details" title="View closure, P&amp;L and feedback for this completed event">📄 Details</button>`:""}
-          <button class="ic go" data-act="workspace" title="Open the event workspace">⧉ Open</button>
-          <button class="ic go" data-act="edit">Edit</button>
-          ${canEdit?`<button class="ic confirm" data-act="confirm">${x.status==="confirmed"?"Re-price":"Confirm"}</button>`:""}
-          ${canEdit&&x.status==="confirmed"?`<button class="ic" data-act="link" title="Get the client approval link">🔗 Approve link</button>`:""}
-          <button class="ic go" data-act="ops" title="Assign & track work">⚙ Ops</button>
-          ${canEdit&&x.approvalStatus==="approved"?`<button class="ic confirm" data-act="paid" title="Mark payment received (dev)">Mark paid</button>`:""}
-          <button class="ic" data-act="download">Download</button>
-          ${canDelete?`<button class="ic del" data-act="del">✕</button>`:""}
+          ${isArchived(x)
+            ? // finished event → read-only set: review its details, reopen the workspace, download
+              `<button class="ic go" data-act="details" title="View closure, P&amp;L and feedback for this completed event">📄 Details</button>
+               <button class="ic go" data-act="workspace" title="Open the event workspace">⧉ Open</button>
+               <button class="ic" data-act="download">Download</button>
+               ${canDelete?`<button class="ic del" data-act="del" title="Delete permanently">✕</button>`:""}`
+            : // active event → the full working set
+              `<button class="ic go" data-act="workspace" title="Open the event workspace">⧉ Open</button>
+               <button class="ic go" data-act="edit">Edit</button>
+               ${canEdit?`<button class="ic confirm" data-act="confirm">${x.status==="confirmed"?"Re-price":"Confirm"}</button>`:""}
+               ${canEdit&&x.status==="confirmed"?`<button class="ic" data-act="link" title="Get the client approval link">🔗 Approve link</button>`:""}
+               <button class="ic go" data-act="ops" title="Assign & track work">⚙ Ops</button>
+               ${canEdit&&x.approvalStatus==="approved"?`<button class="ic confirm" data-act="paid" title="Mark payment received (dev)">Mark paid</button>`:""}
+               <button class="ic" data-act="download">Download</button>
+               ${canDelete?`<button class="ic del" data-act="del">✕</button>`:""}`}
         </div></td></tr>`;
     }).join("");
     // lazy-load versions into each dropdown + wire actions
