@@ -313,6 +313,12 @@
 
     // Supabase enforces login and nobody's signed in → go to the full sign-in page
     if (mustLogin) { location.replace("login.html"); return; }
+    // Signed in but no studio yet (e.g. just signed up with Google) → finish onboarding.
+    // Only redirect on a CONFIRMED null (rpc succeeded) so a transient error can't loop.
+    if (BPStore.auth.enabled() && BPStore.auth.user()) {
+      let oid = null, ok = false; try { oid = await BPStore.org.id(); ok = true; } catch (e) {}
+      if (ok && !oid) { location.replace("login.html"); return; }
+    }
     try { await BPStore.bell.mount($("#bell")); } catch {}
     canCreate = await BPStore.auth.can("create");
     canDelete = await BPStore.auth.can("delete");

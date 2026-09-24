@@ -99,6 +99,40 @@
       </button>
       <div class="foot">By continuing you agree to our <a href="terms" style="color:var(--accent)">Terms</a> &amp; <a href="privacy" style="color:var(--accent)">Privacy Policy</a>. · <a href="/" style="color:var(--accent)">← Home</a></div>
     </form>
+
+    <!-- Onboarding: shown when a signed-in user (e.g. via Google) has no studio yet -->
+    <form class="card" id="onboardForm" hidden>
+      <div class="mmk"></div>
+      <h3>Set up your studio</h3>
+      <p class="sub" id="obSub">You're signed in — tell us about your business to create your workspace.</p>
+      <div class="err" id="obErr" hidden></div>
+      <label for="ob_name">Business / studio name</label>
+      <input id="ob_name" placeholder="e.g. Aurora Events" autocomplete="organization" required>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label for="ob_currency">Currency</label>
+          <select id="ob_currency">
+            <option value="INR">₹ INR</option><option value="USD">$ USD</option>
+            <option value="EUR">€ EUR</option><option value="GBP">£ GBP</option>
+            <option value="AED">د.إ AED</option><option value="SGD">S$ SGD</option>
+          </select>
+        </div>
+        <div>
+          <label for="ob_tz">Timezone</label>
+          <select id="ob_tz">
+            <option value="Asia/Kolkata">Asia/Kolkata</option>
+            <option value="Asia/Dubai">Asia/Dubai</option>
+            <option value="Asia/Singapore">Asia/Singapore</option>
+            <option value="Europe/London">Europe/London</option>
+            <option value="America/New_York">America/New_York</option>
+            <option value="America/Los_Angeles">America/Los_Angeles</option>
+            <option value="Australia/Sydney">Australia/Sydney</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn" id="ob_submit" type="submit">Create my studio →</button>
+      <div class="foot">Signed in as <b id="obEmail"></b> · <a id="ob_signout" style="cursor:pointer;color:var(--accent)">Not you? Sign out</a></div>
+    </form>
   </section>
 
 <script src="config.js?v=70"></script>
@@ -149,6 +183,34 @@
   if((location.hash||"").toLowerCase().replace("#","")==="signup"){ setMode("signup"); }
   // an invite implies "join", so default to the create-account tab for a new invitee
   if(JOINING){ setMode("signup"); }
+  // ----- Onboarding: a signed-in user with no studio (e.g. Google sign-in) -----
+  function showOnboarding(){
+    const u=BPStore.auth.user()||{};
+    $("#loginForm").hidden=true; $("#onboardForm").hidden=false;
+    $("#obEmail").textContent=u.email||"";
+    // prefill a friendly default name from the Google profile, if any
+    const meta=u.user_metadata||{};
+    const guess=meta.business_name || meta.full_name || meta.name || (u.email? u.email.split("@")[0] : "");
+    if(guess && !$("#ob_name").value) $("#ob_name").value=guess.charAt(0).toUpperCase()+guess.slice(1);
+    // default the timezone to the browser's, if it's one of our options
+    try{ const tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if(tz && [...$("#ob_tz").options].some(o=>o.value===tz)) $("#ob_tz").value=tz; }catch(e){}
+    setTimeout(()=>$("#ob_name").focus(),60);
+  }
+  $("#onboardForm").addEventListener("submit", async (e)=>{
+    e.preventDefault(); $("#obErr").hidden=true;
+    const name=$("#ob_name").value.trim();
+    if(!name){ $("#obErr").textContent="Please enter your business name."; $("#obErr").hidden=false; return; }
+    const btn=$("#ob_submit"); btn.disabled=true; btn.textContent="Creating…";
+    try{
+      await BPStore.org.createStudio(name,{ email:(BPStore.auth.user()||{}).email,
+        currency:$("#ob_currency").value, timezone:$("#ob_tz").value });
+      location.replace(nextUrl());
+    }catch(err){ $("#obErr").textContent=(err&&err.message)||"Couldn't create your studio."; $("#obErr").hidden=false;
+      btn.disabled=false; btn.textContent="Create my studio →"; }
+  });
+  $("#ob_signout").addEventListener("click", async ()=>{ try{ await BPStore.auth.signOut(); }catch(e){} location.reload(); });
+
   (async ()=>{
     await BPStore.init();
     if(!BPStore.auth.enabled()){ location.replace(nextUrl()); return; }
@@ -157,7 +219,11 @@
         try{ await acceptPendingInvite(); }
         catch(err){ $("#err").textContent=(err&&err.message)||"Couldn't accept the invitation."; $("#err").hidden=false; return; }
       }
-      await finishPendingStudio(); location.replace(nextUrl()); return;
+      await finishPendingStudio();
+      // Signed in but no studio (and not joining one via invite) → collect business info.
+      let oid=null; try{ oid=await BPStore.org.id(); }catch(e){}
+      if(!oid && !JOINING){ showOnboarding(); return; }
+      location.replace(nextUrl()); return;
     }
     setTimeout(()=>$(mode==="signup"?"#studio":"#email").focus(),60);
     showInviteBanner();
