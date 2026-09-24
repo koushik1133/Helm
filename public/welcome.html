@@ -235,7 +235,7 @@
         if (window.BPStore) {
           await BPStore.init();
           if (BPStore.auth && BPStore.auth.enabled() && BPStore.auth.user()) {
-            location.replace("index");
+            location.replace("index.html");
           }
         }
       } catch (e) { /* stay on the intro page */ }
