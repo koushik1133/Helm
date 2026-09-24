@@ -104,7 +104,8 @@
     <form class="card" id="onboardForm" hidden>
       <div class="mmk"></div>
       <h3>Set up your studio</h3>
-      <p class="sub" id="obSub">You're signed in — tell us about your business to create your workspace.</p>
+      <p class="sub" id="obSub">You're signed in — tell us about your business to create your <b>own new</b> workspace.</p>
+      <div class="okmsg" id="obHint" style="text-align:left">Were you invited by a colleague? Don't create a studio here — open the <b>invite link</b> they sent you instead, so you join <em>their</em> studio. <a id="ob_signout2" style="color:var(--accent);cursor:pointer">Sign out</a></div>
       <div class="err" id="obErr" hidden></div>
       <label for="ob_name">Business / studio name</label>
       <input id="ob_name" placeholder="e.g. Aurora Events" autocomplete="organization" required>
@@ -209,7 +210,9 @@
     }catch(err){ $("#obErr").textContent=(err&&err.message)||"Couldn't create your studio."; $("#obErr").hidden=false;
       btn.disabled=false; btn.textContent="Create my studio →"; }
   });
-  $("#ob_signout").addEventListener("click", async ()=>{ try{ await BPStore.auth.signOut(); }catch(e){} location.reload(); });
+  const doSignOut=async ()=>{ try{ await BPStore.auth.signOut(); }catch(e){} location.reload(); };
+  $("#ob_signout").addEventListener("click", doSignOut);
+  const ob2=$("#ob_signout2"); if(ob2) ob2.addEventListener("click", doSignOut);
 
   (async ()=>{
     await BPStore.init();

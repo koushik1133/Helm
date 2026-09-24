@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="bp-theme-toggle" content="off">
+<title>Helm Events — User Manual</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d28d9'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+<style>
+  :root{--bg:#f6f4f1;--panel:#fff;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;--line:#e8e3db;
+    --accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--code:#f4f1fb;
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);line-height:1.65;-webkit-font-smoothing:antialiased}
+  .layout{display:grid;grid-template-columns:250px 1fr;max-width:1160px;margin:0 auto;gap:0}
+  @media(max-width:820px){.layout{grid-template-columns:1fr}}
+  /* sidebar */
+  aside{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;border-right:1px solid var(--line);padding:26px 20px;background:var(--panel)}
+  @media(max-width:820px){aside{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:22px}
+  .brand .mk{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative}
+  .brand .mk::after{content:"";position:absolute;inset:7px;border:2px solid #fff;border-radius:3px}
+  .brand b{font-size:15px}.brand small{display:block;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+  nav a{display:block;font-size:13.5px;color:var(--ink-2);padding:6px 10px;border-radius:8px;text-decoration:none;margin-bottom:2px}
+  nav a:hover{background:var(--accent-soft);color:var(--accent)}
+  nav .grp{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);font-weight:700;margin:16px 0 6px;padding-left:10px}
+  /* content */
+  main{padding:40px 44px 100px;max-width:800px}
+  @media(max-width:820px){main{padding:28px 22px 80px}}
+  h1{font-size:34px;letter-spacing:-.02em;margin:0 0 6px}
+  .sub{color:var(--ink-3);font-size:15px;margin:0 0 8px}
+  .ver{display:inline-block;font-size:11px;font-weight:600;color:var(--accent);background:var(--accent-soft);border-radius:20px;padding:3px 11px;margin-bottom:26px}
+  h2{font-size:23px;letter-spacing:-.01em;margin:44px 0 12px;padding-top:14px;border-top:1px solid var(--line)}
+  h3{font-size:17px;margin:26px 0 8px}
+  p,li{font-size:15px;color:var(--ink-2)}
+  ol,ul{padding-left:22px}li{margin:5px 0}
+  b,strong{color:var(--ink)}
+  code{background:var(--code);color:var(--accent);border-radius:5px;padding:1px 6px;font-size:13px;font-family:ui-monospace,Menlo,monospace}
+  .note{background:var(--accent-soft);border:1px solid #e2d6ff;border-radius:12px;padding:14px 16px;margin:16px 0;font-size:14px}
+  .note b{color:var(--accent)}
+  .warn{background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px 16px;margin:16px 0;font-size:14px}
+  .kbd{display:inline-block;border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:1px 7px;font-size:12px;background:#fff;font-family:ui-monospace,monospace}
+  .pill{display:inline-block;font-size:12px;font-weight:600;background:#fff;border:1px solid var(--line);border-radius:20px;padding:3px 11px;margin:2px}
+  .steps{counter-reset:s;list-style:none;padding:0}
+  .steps>li{counter-increment:s;position:relative;padding:2px 0 2px 40px;margin:12px 0}
+  .steps>li::before{content:counter(s);position:absolute;left:0;top:0;width:26px;height:26px;border-radius:50%;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;font-size:13px;font-weight:700;display:grid;place-items:center}
+  .shot{border:1px solid var(--line);border-radius:12px;padding:10px 14px;background:#fff;color:var(--ink-3);font-size:13px;margin:14px 0;display:flex;gap:10px;align-items:center}
+  .shot .cam{font-size:18px}
+  footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-3)}
+  a.inl{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside>
+    <div class="brand"><span class="mk"></span><div><b>Helm Events</b><small>User Manual</small></div></div>
+    <nav>
+      <div class="grp">Start here</div>
+      <a href="#intro">What is Helm</a>
+      <a href="#signup">Sign up & your studio</a>
+      <a href="#roles">Team & roles</a>
+      <div class="grp">Run an event</div>
+      <a href="#leads">1 · Leads</a>
+      <a href="#quote">2 · Quote & pricing</a>
+      <a href="#builder">3 · Floor plan (builder)</a>
+      <a href="#confirm">4 · Confirm & payment</a>
+      <a href="#plan">5 · Plan & resources</a>
+      <a href="#eventday">6 · Event day</a>
+      <a href="#close">7 · Settle & close</a>
+      <div class="grp">Extras</div>
+      <a href="#crm">CRM & nurture</a>
+      <a href="#invite">Invitation websites</a>
+      <a href="#control">Control Center</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+  </aside>
+
+  <main>
+    <h1>Helm Events — User Manual</h1>
+    <p class="sub">Everything you need to run an event business, from first enquiry to final bill.</p>
+    <span class="ver">Updated 24 Sep 2026 · v1</span>
+
+    <div class="shot"><span class="cam">📸</span> Screenshots of each screen and button are being added section-by-section. Where you see this badge, a picture will follow.</div>
+
+    <h2 id="intro">What is Helm</h2>
+    <p>Helm is a private workspace for your event business. It replaces spreadsheets, chats and paperwork with one connected system that follows every event through its whole life:</p>
+    <p><span class="pill">Enquiry</span> → <span class="pill">Proposal</span> → <span class="pill">Quote</span> → <span class="pill">Confirm</span> → <span class="pill">Plan</span> → <span class="pill">Event day</span> → <span class="pill">Settle & close</span></p>
+    <p>Your data is private to your studio — other businesses using Helm can never see it.</p>
+
+    <h2 id="signup">Sign up & your studio</h2>
+    <p>The first person to join <b>creates the studio</b>. Everyone else is <b>invited</b> into it (see Team & roles).</p>
+    <ol class="steps">
+      <li>Open the app and click <b>Sign up</b> (or <b>Continue with Google</b>).</li>
+      <li>You'll be asked to <b>Set up your studio</b> — enter your <b>business name</b>, pick your <b>currency</b> and <b>timezone</b>.</li>
+      <li>That creates your private workspace, pre-loaded with default pricing, chair types and catalogs you can edit later.</li>
+    </ol>
+    <div class="note"><b>Were you invited by a colleague?</b> Don't create a new studio — open the <b>invite link</b> they sent you and sign in / create your account there. That adds you to <em>their</em> studio with the role they chose.</div>
+
+    <h2 id="roles">Team & roles</h2>
+    <p>Add teammates from <b>Control Center → User control</b>. Each person gets a <b>role</b>, and each role can be tuned to see or edit exactly the areas you allow (leads, quotes, inventory, finance, and so on).</p>
+    <ol class="steps">
+      <li>Go to <b>Control Center</b> (⚙ in the top nav) → <b>User control</b> tab.</li>
+      <li>Use <b>Invite by email link</b> — enter their email + role → copy the link → send it to them.</li>
+      <li>Use the <b>Access control matrix</b> to tick which areas each role can <b>view</b> and <b>edit</b>.</li>
+    </ol>
+
+    <h2 id="leads">1 · Leads</h2>
+    <p>Every enquiry starts as a <b>lead</b>. Capture it, qualify it on the pipeline, then convert the good ones into events.</p>
+    <ol class="steps">
+      <li>Open <b>Leads</b> from the home nav.</li>
+      <li>Click <b>+ New lead</b> and fill in the enquiry (name, phone, event type, date, budget).</li>
+      <li><b>Drag</b> the lead card across the pipeline columns (New → Qualified → …) as it progresses.</li>
+      <li>When it's ready, click <b>Convert →</b> to turn the lead into a quote/event and open its workspace.</li>
+    </ol>
+    <div class="note"><b>Auto-sync:</b> every lead is snapshotted to the <b>CRM archive</b> whenever you create, edit, convert or delete it — so nothing is ever lost, and past clients are always searchable.</div>
+
+    <h2 id="quote">2 · Quote & pricing</h2>
+    <p>Price the event and share it with the client.</p>
+    <ol class="steps">
+      <li>From the event, open <b>Quote</b>. Set guest count, chairs, catering (in-house or client), and any extras.</li>
+      <li>Helm shows a live <b>breakdown</b> — rental, catering, service charge, GST, discount and total.</li>
+      <li>Save a <b>version</b> each time you revise, so you always have a history.</li>
+    </ol>
+    <div class="warn">Default rates (chair price, plate price, GST %, service charge) come from <b>Control Center → Pricing</b>. Set these once and every new quote uses them.</div>
+
+    <h2 id="builder">3 · Floor plan (builder)</h2>
+    <p>Design the room in 2D/3D — drop chairs, round tables, stage, bars, and more onto a canvas sized to your hall.</p>
+    <ol class="steps">
+      <li>Enter the <b>hall length &amp; breadth</b> — the canvas scales to those real measurements with a ruler.</li>
+      <li>Set your <b>guest count</b>; Helm can auto-fill chairs and tables.</li>
+      <li>Drag objects from the toolbar onto the floor; move, rotate and duplicate them.</li>
+      <li>Switch to <b>3D</b> to preview, and <b>Save</b> the layout back to the event.</li>
+    </ol>
+    <div class="note"><b>Coming improvements:</b> smarter auto-arrangement that spaces tables/chairs to fit the exact hall size, and fully customisable object counts. (In progress.)</div>
+
+    <h2 id="confirm">4 · Confirm &amp; payment</h2>
+    <p>Lock the event and take the client's approval.</p>
+    <ol class="steps">
+      <li>From the event, choose <b>Advance to Confirmed</b>.</li>
+      <li>Send the client the <b>approval link</b>; they approve by OTP / consent / payment link.</li>
+      <li>Record the <b>advance payment</b>. (Live card/UPI via Razorpay is available once enabled.)</li>
+    </ol>
+
+    <h2 id="plan">5 · Plan &amp; resources</h2>
+    <p>Assign tasks, book staff and vendors, reserve inventory, and build the run-sheet.</p>
+    <ul>
+      <li><b>Staff</b> — assign your in-house team to tasks by section (stage, lighting…).</li>
+      <li><b>Inventory</b> — check equipment out to a person and back in; anything missing is flagged with its value.</li>
+      <li><b>Vendors</b> — book outside partners for gaps your team can't cover.</li>
+      <li><b>Run-sheet &amp; budget</b> — a timed schedule and a live cost vs. quote view.</li>
+    </ul>
+
+    <h2 id="eventday">6 · Event day</h2>
+    <p>Run the day from <b>Command</b>: check in guests and staff, tick the run-sheet, and log any issues live.</p>
+
+    <h2 id="close">7 · Settle &amp; close</h2>
+    <p>After the event: tear down and return inventory, invoice and collect the balance, settle vendors, then close with feedback and a clear P&amp;L.</p>
+
+    <h2 id="crm">CRM &amp; nurture</h2>
+    <p><b>CRM</b> keeps every past client and enquiry for reference and follow-up. <b>Nurture</b> can auto-send birthday/anniversary greetings to win repeat business.</p>
+
+    <h2 id="invite">Invitation websites</h2>
+    <p>Once an event is <b>confirmed</b>, you can build a public <b>digital invitation website</b> for the client to share with their guests.</p>
+    <ol class="steps">
+      <li>On the event, click <b>✨ Invitation site</b>.</li>
+      <li>Pick one of the <b>templates</b> (wedding, birthday, corporate, engagement, general).</li>
+      <li>Fill in the details, add <b>photos</b> and optional <b>background music</b>, preview live.</li>
+      <li>Click <b>Publish</b> — you get a clean shareable link like <code>helm.events/i/name-xxxx</code> and a <b>Share</b> button on the page.</li>
+    </ol>
+
+    <h2 id="control">Control Center</h2>
+    <p>The admin hub (⚙). Set default <b>pricing</b>, chair/plate types and coupons; manage <b>users &amp; roles</b>; and download a <b>GDPR data export</b> of your studio.</p>
+
+    <h2 id="faq">FAQ</h2>
+    <h3>A teammate can't see something</h3>
+    <p>Check <b>Control Center → Access control</b> — their role may not have <b>view</b>/<b>edit</b> on that area.</p>
+    <h3>The Google button says it isn't enabled</h3>
+    <p>An admin needs to finish the Google OAuth setup in the Supabase dashboard (one-time).</p>
+    <h3>I created a studio by mistake</h3>
+    <p>Ask an admin — teammates should join via an <b>invite link</b>, not by creating a new studio.</p>
+
+    <footer>
+      Helm Events · User Manual · this document is updated whenever features change.
+    </footer>
+  </main>
+</div>
+</body>
+</html>
