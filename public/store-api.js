@@ -33,6 +33,36 @@
   if (document.readyState !== "loading") mountToggle(); else document.addEventListener("DOMContentLoaded", mountToggle);
 })();
 
+/* ---- global "logo = home" wiring -------------------------------------
+   The Helm brand block (icon + wordmark) should take you back to your events
+   from every page. Historically only the small icon linked home, and only on
+   some pages. This makes the WHOLE brand a home link everywhere, in one place,
+   without editing each page's markup. */
+(function () {
+  function wireHome() {
+    try {
+      var page = (location.pathname.split("/").pop() || "index.html").toLowerCase().replace(/\.html$/, "") || "index";
+      if (page === "index" || page === "welcome" || page === "login") return;   // home / auth pages: no self-link
+      var mark = document.querySelector("header .mark") || document.querySelector(".mark");
+      if (!mark) return;
+      if (mark.tagName !== "A" && mark.closest("a[href]")) return;   // brand already WRAPPED in one home link (e.g. builder)
+      var goHome = function () { location.href = "index.html"; };
+      if (mark.tagName === "A") { if (!mark.getAttribute("href")) mark.setAttribute("href", "index.html"); }
+      else {
+        mark.style.cursor = "pointer"; mark.setAttribute("role", "link"); mark.setAttribute("title", "Home"); mark.setAttribute("tabindex", "0");
+        mark.addEventListener("click", goHome);
+        mark.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); goHome(); } });
+      }
+      var text = mark.nextElementSibling;   // the wordmark block (holds the <h1>)
+      if (text && text.querySelector && text.querySelector("h1")) {
+        text.style.cursor = "pointer"; text.setAttribute("title", "Home");
+        text.addEventListener("click", function (e) { if (e.target.closest("a,button,input,select,textarea,label")) return; goHome(); });
+      }
+    } catch (e) {}
+  }
+  if (document.readyState !== "loading") wireHome(); else document.addEventListener("DOMContentLoaded", wireHome);
+})();
+
 (function (global) {
   const CFG = global.SUPABASE_CONFIG || {};
   const TABLE = CFG.table || "layouts";
