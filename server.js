@@ -89,6 +89,7 @@ const CSP = [
   "frame-src 'self'",              // the invitation studio previews /invite in a same-origin iframe
   "form-action 'self'",
   "img-src 'self' data: https:",
+  "media-src 'self' https:",          // invitation background music (external MP3 links)
   "font-src 'self' https://fonts.gstatic.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
