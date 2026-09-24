@@ -6,7 +6,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "check:deploy": "node scripts/check-deploy-static.mjs",
+    "check:localapi": "node scripts/check-local-api.mjs",
+    "ci": "node scripts/ci-check.mjs && node scripts/check-deploy-static.mjs"
   },
   "engines": { "node": ">=18" },
   "license": "MIT"

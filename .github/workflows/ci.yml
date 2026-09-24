@@ -15,3 +15,13 @@ jobs:
           node-version: 20
       - name: Run zero-dependency checks
         run: node scripts/ci-check.mjs
+      - name: Deployment containment (static-only) assertions
+        run: node scripts/check-deploy-static.mjs
+      - name: Local dev preserved (server.js /api/health 200)
+        run: node scripts/check-local-api.mjs
+      # Optional: verify a live preview/prod URL blocks /api (set DEPLOY_CHECK_URL in repo/CI vars)
+      - name: Deployed /api containment (only if DEPLOY_CHECK_URL set)
+        if: env.DEPLOY_CHECK_URL != ''
+        run: node scripts/check-deploy-static.mjs
+        env:
+          DEPLOY_CHECK_URL: ${{ vars.DEPLOY_CHECK_URL }}
