@@ -1205,13 +1205,25 @@ function renderMeasurements(){
     if(best){ const x=(Math.max(a.l,best.l)+Math.min(a.r,best.r))/2; g.appendChild(dim(x,a.b,x,best.t,bg)); }
   });
 
-  if(store.selectedIds.length===1){   // selected object → 4 wall clearances
+  if(store.selectedIds.length===1){   // selected object → distance from EVERY side (X & Y)
     const a=boxes.find(bx=>bx.it.id===store.selectedId);
     if(a){
+      // 4 wall clearances (to the floor edges)
       if(a.l>EPS)         g.appendChild(dim(0,a.cy,a.l,a.cy,a.l,'wall'));
       if(WORLD.w-a.r>EPS) g.appendChild(dim(a.r,a.cy,WORLD.w,a.cy,WORLD.w-a.r,'wall'));
       if(a.t>EPS)         g.appendChild(dim(a.cx,0,a.cx,a.t,a.t,'wall'));
       if(WORLD.h-a.b>EPS) g.appendChild(dim(a.cx,a.b,a.cx,WORLD.h,WORLD.h-a.b,'wall'));
+      // nearest neighbour on each of the four sides (full left/right/up/down spacing)
+      const others=boxes.filter(b=>b!==a);
+      let L=null,lg=Infinity,R=null,rg=Infinity,U=null,ug=Infinity,D=null,dg=Infinity;
+      others.forEach(b=>{
+        if(yOv(a,b)){ const gl=a.l-b.r; if(gl>EPS&&gl<lg){lg=gl;L=b;} const gr=b.l-a.r; if(gr>EPS&&gr<rg){rg=gr;R=b;} }
+        if(xOv(a,b)){ const gu=a.t-b.b; if(gu>EPS&&gu<ug){ug=gu;U=b;} const gd=b.t-a.b; if(gd>EPS&&gd<dg){dg=gd;D=b;} }
+      });
+      if(L){ const y=(Math.max(a.t,L.t)+Math.min(a.b,L.b))/2; g.appendChild(dim(L.r,y,a.l,y,lg)); }
+      if(R){ const y=(Math.max(a.t,R.t)+Math.min(a.b,R.b))/2; g.appendChild(dim(a.r,y,R.l,y,rg)); }
+      if(U){ const x=(Math.max(a.l,U.l)+Math.min(a.r,U.r))/2; g.appendChild(dim(x,U.b,x,a.t,ug)); }
+      if(D){ const x=(Math.max(a.l,D.l)+Math.min(a.r,D.r))/2; g.appendChild(dim(x,a.b,x,D.t,dg)); }
     }
   }
   return g;
@@ -1391,11 +1403,19 @@ function renderSelection(it){
   const cx=(it.x+it.width/2)*PX_PER_FT, cy=(it.y+it.height/2)*PX_PER_FT;
   const g = el('g',{transform:`translate(${cx} ${cy}) rotate(${it.rotation})`, 'data-sel':'1'});
   g.appendChild(el('rect',{class:'sel-outline', x:-w/2-2,y:-h/2-2,width:w+4,height:h+4,rx:3}));
-  // corner resize handles
+  // corner resize handles (scale both dimensions)
   const corners=[[-1,-1],[1,-1],[1,1],[-1,1]];
   corners.forEach(([sx,sy])=>{
     g.appendChild(el('rect',{class:'handle','data-handle':'resize', x:sx*w/2-4, y:sy*h/2-4, width:8,height:8, rx:1.5}));
   });
+  // edge handles → grab a side and stretch ONE dimension (extend carpets, aisles, fences, trusses)
+  if(it.type!=='table' && it.type!=='cocktail'){       // round items stay circular, no edge stretch
+    const edges=[[0,-1,'y','ns-resize'],[1,0,'x','ew-resize'],[0,1,'y','ns-resize'],[-1,0,'x','ew-resize']];
+    edges.forEach(([sx,sy,axis,cur])=>{
+      g.appendChild(el('rect',{class:'handle edge','data-handle':'resize','data-axis':axis,
+        x:sx*w/2-4, y:sy*h/2-4, width:8,height:8, rx:1.5, style:'cursor:'+cur}));
+    });
+  }
   // rotate handle
   g.appendChild(el('line',{class:'rot-line', x1:0,y1:-h/2-2, x2:0, y2:-h/2-22}));
   g.appendChild(el('circle',{class:'rot-handle','data-handle':'rotate', cx:0, cy:-h/2-22, r:5}));
@@ -1771,7 +1791,7 @@ svg.addEventListener('pointerdown',e=>{
   if(handle){                                  // resize / rotate — single primary object only
     const it=selected(); if(!it) return;
     e.preventDefault();
-    drag={mode:handle.dataset.handle, id:it.id, start:svgPointFt(e), orig:clone(it), moved:false};
+    drag={mode:handle.dataset.handle, axis:handle.dataset.axis||null, id:it.id, start:svgPointFt(e), orig:clone(it), moved:false};
     svg.setPointerCapture(e.pointerId); return;
   }
   if(objEl){
@@ -1827,6 +1847,8 @@ svg.addEventListener('pointermove',e=>{
     const lx=dx*Math.cos(ang)-dy*Math.sin(ang), ly=dx*Math.sin(ang)+dy*Math.cos(ang);
     let nw=snapFt(Math.abs(lx)*2), nh=snapFt(Math.abs(ly)*2);
     nw=clamp(nw,0.5,WORLD.w); nh=clamp(nh,0.5,WORLD.h);
+    if(drag.axis==='x') nh=drag.orig.height;              // edge handle → lock the other dimension
+    else if(drag.axis==='y') nw=drag.orig.width;
     if(it.type==='table'||it.type==='cocktail'){ const d=Math.max(nw,nh); nw=nh=d; }
     it.width=nw; it.height=nh;
     it.x=clamp(cx-nw/2,0,WORLD.w-nw); it.y=clamp(cy-nh/2,0,WORLD.h-nh);
