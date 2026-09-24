@@ -166,9 +166,20 @@
           <div class="fld full" style="margin-top:12px"><label>Menu / service notes</label><textarea id="p_menu" placeholder="Courses, dietary options, service style, timings…"></textarea></div>
         </section>
 
-        <!-- 6 FLOOR LAYOUT -->
+        <!-- 6 PROPOSAL (moved above the floor layout so the concept is set before the room is laid out) -->
+        <section class="card" id="sec-proposal">
+          <h2><span class="step-n">6</span> Proposal <span class="saved" id="sv-proposal">Saved ✓</span></h2>
+          <p class="sub">The creative pitch shown to the client.</p>
+          <div class="grid">
+            <div class="fld"><label>Concept</label><input id="pr_concept" placeholder="e.g. Royal Mughal evening"></div>
+            <div class="fld"><label>Theme</label><input id="pr_theme" placeholder="e.g. Gold &amp; maroon, candlelight"></div>
+            <div class="fld full"><label>Scope highlights (one per line)</label><textarea id="pr_scope" placeholder="Stage &amp; mandap decor&#10;Full catering&#10;Lighting &amp; sound"></textarea></div>
+          </div>
+        </section>
+
+        <!-- 7 FLOOR LAYOUT -->
         <section class="card" id="sec-layout">
-          <h2><span class="step-n">6</span> Floor layout</h2>
+          <h2><span class="step-n">7</span> Floor layout</h2>
           <p class="sub">Enter the hall size &amp; headcount and generate a default layout for this event type — then tweak it freely. Chairs &amp; objects feed the price automatically.</p>
           <div style="display:grid;grid-template-columns:repeat(3,1fr) auto;gap:8px;align-items:end;margin-bottom:12px">
             <div class="fld" style="margin:0"><label>Guests</label><input id="g_guests" type="number" min="0"></div>
@@ -181,17 +192,6 @@
             <span class="spacer"></span>
             <label style="font-size:12px;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="remindAfter"> Remind me to finish this after the layout</label>
             <a class="btn primary" id="openBuilder" href="#">🎨 Open floor builder →</a>
-          </div>
-        </section>
-
-        <!-- 7 PROPOSAL -->
-        <section class="card" id="sec-proposal">
-          <h2><span class="step-n">7</span> Proposal <span class="saved" id="sv-proposal">Saved ✓</span></h2>
-          <p class="sub">The creative pitch shown to the client.</p>
-          <div class="grid">
-            <div class="fld"><label>Concept</label><input id="pr_concept" placeholder="e.g. Royal Mughal evening"></div>
-            <div class="fld"><label>Theme</label><input id="pr_theme" placeholder="e.g. Gold &amp; maroon, candlelight"></div>
-            <div class="fld full"><label>Scope highlights (one per line)</label><textarea id="pr_scope" placeholder="Stage &amp; mandap decor&#10;Full catering&#10;Lighting &amp; sound"></textarea></div>
           </div>
         </section>
 
@@ -563,7 +563,17 @@
     ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount"].forEach(f=>$("#"+f).addEventListener("input",updateAdvance));
     $("#pay_method").addEventListener("change",()=>{ $("#pay_receiptWrap").style.display=$("#pay_method").value==='cash'?'':'none'; $("#pay_online").style.display='none'; });
     $("#pay_record").addEventListener("click",recordPayment);
-    $("#openBuilder").addEventListener("click",()=>{ try{ if($("#remindAfter").checked) localStorage.setItem(REMIND_KEY,"1"); }catch{} });
+    $("#openBuilder").addEventListener("click", async (e)=>{
+      e.preventDefault();
+      try{ if($("#remindAfter").checked) localStorage.setItem(REMIND_KEY,"1"); }catch{}
+      // flush the current form so the builder opens with up-to-date guests/venue
+      // (the layout section's guests wins if the user just typed it there)
+      const gg=$("#g_guests").value; if(gg!=="" && $("#c_guests").value!==gg){ $("#c_guests").value=gg; }
+      const btn=$("#openBuilder"), t=btn.textContent; btn.textContent="Saving…";
+      try{ await saveClient(); }catch(_){}
+      try{ await saveVenue(); }catch(_){}
+      location.href="builder.html?quote="+encodeURIComponent(id);
+    });
     $("#genLayout").addEventListener("click",()=>{
       try{ if($("#remindAfter").checked) localStorage.setItem(REMIND_KEY,"1"); }catch{}
       const type=$("#c_type").value.trim()||(ev&&ev.eventType)||"";
