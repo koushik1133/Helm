@@ -6,7 +6,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
-  :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#8b8698;
+  :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
     --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#18a558;--warn:#e8912d;
     --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
@@ -282,9 +282,9 @@
     try{ const p=await BPStore.plan.get(id); if(p){
       $("#v_name").value=p.venue_name||""; $("#v_addr").value=p.venue_address||""; $("#v_contact").value=p.venue_contact||""; $("#v_access").value=p.access_notes||"";
       $("#p_pkg").value=p.package||""; $("#p_menu").value=p.menu||""; locked=!!p.menu_locked; } }
+    catch(e){ if(String(e&&e.message).includes("event_plan")){ $("#v_msg").className="err"; $("#v_msg").textContent="Run phase13-plan.sql to enable saving."; } }
     // don't make staff retype the venue already entered on the quote — prefill from the quote's client when blank
     try{ const cl=ev&&ev.client; if(cl){ if(!$("#v_name").value&&cl.venue) $("#v_name").value=cl.venue; if(!$("#v_addr").value&&cl.address) $("#v_addr").value=cl.address; } }catch{}
-    catch(e){ if(String(e&&e.message).includes("event_plan")){ $("#v_msg").className="err"; $("#v_msg").textContent="Run phase13-plan.sql to enable saving."; } }
     try{ catalog=await BPStore.dishCatalog.list(); }catch{ catalog=[]; }
     try{ menuItems=await BPStore.eventMenu.list(id); }catch{ menuItems=[]; }
     try{ templates=await BPStore.menuTemplates.list(); }catch{ templates=[]; }
