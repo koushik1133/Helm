@@ -216,7 +216,7 @@
 
 <script src="config.js?v=72"></script>
 <script src="store-api.js?v=83"></script>
-<script src="tour.js?v=1"></script>
+<script src="tour.js?v=2"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
   const esc = (s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -286,6 +286,7 @@
         <td style="text-align:right" class="amt">${x.total?inr(x.total):'<span class="muted">—</span>'}</td>
         <td class="muted">${fmtDate(x.updatedAt)}</td>
         <td><div class="row-actions" style="justify-content:flex-end">
+          ${isArchived(x)?`<button class="ic go" data-act="details" title="View closure, P&amp;L and feedback for this completed event">📄 Details</button>`:""}
           <button class="ic go" data-act="workspace" title="Open the event workspace">⧉ Open</button>
           <button class="ic go" data-act="edit">Edit</button>
           ${canEdit?`<button class="ic confirm" data-act="confirm">${x.status==="confirmed"?"Re-price":"Confirm"}</button>`:""}
@@ -303,7 +304,8 @@
       sel.addEventListener("focus",()=>fillVersions(id,sel),{once:true});
       tr.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>{
         const act=b.dataset.act, ver=selectedVersion(sel);
-        if(act==="workspace") location.href="event.html?id="+encodeURIComponent(id);
+        if(act==="details") location.href="closure.html?id="+encodeURIComponent(id);
+        else if(act==="workspace") location.href="event.html?id="+encodeURIComponent(id);
         else if(act==="edit") location.href="builder.html?quote="+encodeURIComponent(id)+(ver?"&v="+ver:"");
         else if(act==="confirm") openConfirm(id);
         else if(act==="download") downloadQuote(id, ver);

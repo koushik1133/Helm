@@ -49,6 +49,60 @@
       { sel: "#board", title: "The pipeline board", desc: "Leads sit in columns by stage — New, Qualified, Discovery, Quoted, Won, Lost. Drag a card between columns to move it along." },
       { sel: "#search", title: "Find anyone fast", desc: "Search by name, phone or event type across every column." },
     ],
+    "staff.html": [
+      { sel: "#newBtn", title: "Add your team", desc: "Add an in-house team member with their name, phone and department (stage, lighting, catering…)." },
+      { sel: "#grid", title: "Your people", desc: "Everyone on the team, by department. You assign them to event tasks from an event's Logistics page." },
+      { sel: "#search", title: "Find a person", desc: "Search by name or role to quickly pull someone up." },
+    ],
+    "inventory.html": [
+      { sel: "#newBtn", title: "Add stock", desc: "Add equipment to your inventory, graded A / B / C by value so losses are easy to price." },
+      { sel: "#eventPanel", title: "Reserve for an event", desc: "Book items to a specific event — this is what the close-out later checks is returned." },
+      { sel: "#pane-loans", title: "Check out & back in", desc: "Issue stock to a person and record how much comes back. Anything short is flagged with its rupee value." },
+    ],
+    "vendors.html": [
+      { sel: "#kindTabs", title: "Vendor categories", desc: "Outside partners grouped by what they provide — catering, sound, décor, transport and more." },
+      { sel: "#newBtn", title: "Add a vendor", desc: "Record a partner once (contact + rates) and reuse them across events." },
+      { sel: "#grid", title: "Your partner list", desc: "Everyone you work with. Book them for the gaps your in-house team can't cover." },
+    ],
+    "calendar.html": [
+      { sel: "#agenda", title: "Every event, dated", desc: "A running schedule of all your events so nothing collides." },
+      { sel: "#conflicts", title: "Clash detection", desc: "Helm flags staff or stock booked on two events at once — before it becomes a problem on the day." },
+    ],
+    "control.html": [
+      { sel: "#tab-pricing", title: "Default pricing", desc: "Set chair price, plate price, GST % and service charge once — every new quote uses these." },
+      { sel: "#tab-users", title: "Team & roles", desc: "Invite teammates by email link and tick exactly which areas each role can view or edit." },
+    ],
+    "crm.html": [
+      { sel: "#rows", title: "Client history", desc: "Every past client and enquiry, snapshotted automatically from Leads — nothing is ever lost." },
+      { sel: "#search", title: "Search the archive", desc: "Find any past client by name, phone or event type for follow-up or a repeat booking." },
+    ],
+    "nurture.html": [
+      { sel: "#addCard", title: "Add a relationship", desc: "Keep past clients warm — record birthdays and anniversaries to greet them automatically." },
+      { sel: "#tplTabs", title: "Message templates", desc: "Set the greeting messages Helm sends, so repeat business comes to you." },
+    ],
+    "plan.html": [
+      { sel: "#dishSearch", title: "Build the menu", desc: "Search the dish catalog and add items to this event's menu." },
+      { sel: "#lockBtn", title: "Lock the plan", desc: "Once the menu and details are final, lock the plan so numbers don't drift before the event." },
+    ],
+    "runsheet.html": [
+      { sel: "#r_add", title: "Add a run-sheet item", desc: "Build a timed schedule of the day — each moment, who owns it and when." },
+      { sel: "#printBtn", title: "Print / share", desc: "Print the run-sheet or share it so everyone runs to the same timeline." },
+    ],
+    "command.html": [
+      { sel: "#pullBtn", title: "Pull the roster", desc: "Load the assigned staff for the day so you can check them in as they arrive." },
+      { sel: "#chkAdd", title: "Day-of checklist", desc: "Tick tasks off live as the event runs." },
+      { sel: "#gst_add", title: "Guests & stock", desc: "Check in guests and track stock used through the day." },
+    ],
+    "closure.html": [
+      { sel: "#c_feedback", title: "Capture feedback", desc: "Record the client's feedback and a quotable testimonial for your marketing." },
+      { sel: "#rateAdd", title: "Rate vendors & staff", desc: "Score who worked well so you know who to rebook next time." },
+      { sel: "#closeBtn", title: "Close & archive", desc: "Once all equipment is returned, close the event. It moves to the Archived tab with a clean P&L." },
+    ],
+    "event.html": [
+      { sel: "#steps", title: "The event lifecycle", desc: "Every stage of this event, from proposal to settlement. Click a step to jump straight to it." },
+      { sel: "#inviteBtn", title: "Invitation website", desc: "Once confirmed, build a public invitation site for the client to share with guests." },
+      { sel: "#advBtn", title: "Advance the stage", desc: "Move the event forward — discovery → proposal → quote → confirmed → planning, and on." },
+    ],
   };
 
   /* ---- optional form coaching: runs once when a page's create-modal opens -- */
