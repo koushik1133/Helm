@@ -294,7 +294,6 @@
         ["inventory","inventory.html","📦","Inventory",V.inventory],["vendors","vendors.html","🤝","Vendors",V.vendors],
         ["calendar","calendar.html","📅","Calendar",V.calendar],["templates","templates.html","🧩","Templates",V.templates],
         ["quotes","quotes.html","📋","Quotes",V.quotes],["controls","control.html","⚙","Control Center",V.controls],
-        ["users","control.html#users","👥","Users",isAdmin],
       ];
       const nav=$("#modnav"); nav.hidden=false;
       nav.innerHTML=NAV.filter(n=>n[4]).map(n=>`<a class="pill" data-nav="${n[0]}" href="${n[1]}"><span class="pi">${n[2]}</span>${esc(n[3])}</a>`).join("");
@@ -388,8 +387,7 @@
     {sel:'[data-nav="vendors"]', title:"Vendors", desc:"Outside partners and rentals for the gaps your in-house team can't cover."},
     {sel:'[data-nav="calendar"]', title:"Calendar", desc:"See every event and catch staff or stock clashes before they bite."},
     {sel:'[data-nav="templates"]', title:"Templates", desc:"Reusable checklists you can apply to any event in one click."},
-    {sel:'[data-nav="controls"]', title:"Control Center", desc:"Set default pricing, chair types and coupons — and who can see or do what, per role."},
-    {sel:'[data-nav="users"]', title:"Users & access", desc:"Add teammates and tick exactly which areas each role can view or edit."},
+    {sel:'[data-nav="controls"]', title:"Control Center", desc:"Set default pricing, chair types and coupons, add teammates, and tick exactly who can view or edit each area."},
   ];
   let tourSteps=[], tourI=0, tourEl=null;
   function endTour(){ document.querySelectorAll(".spot").forEach(e=>e.remove()); tourEl=null; window.removeEventListener("resize",placeTour); try{ localStorage.setItem("bp_seen_tour","1"); }catch{} }
