@@ -376,24 +376,31 @@
   $("#refresh").addEventListener("click", load);
 
   /* ---- interactive spotlight tour ---- */
+  // Order matches the module nav bar left-to-right, so the spotlight walks the
+  // pills one by one in the order you actually see them.
   const TOUR=[
     {sel:"#createBtn", title:"Start an event", desc:"Click here to generate a new quote. Everything — the 2D/3D floor, pricing, staff, inventory, tasks — hangs off this one event."},
     {sel:'[data-nav="leads"]', title:"Leads", desc:"Capture and qualify enquiries on a pipeline, then convert a lead into an event in one click."},
     {sel:'[data-nav="crm"]', title:"CRM archive", desc:"Every past client and enquiry is kept here for reference and follow-up."},
     {sel:'[data-nav="nurture"]', title:"Nurture", desc:"Auto-send birthday & anniversary greetings (with photos) to past clients to win repeat business."},
-    {sel:'[data-nav="quotes"]', title:"Quotes & confirmations", desc:"Price the event, confirm it, and take client approval by OTP / consent / payment link."},
     {sel:'[data-nav="staff"]', title:"Staff", desc:"Your in-house team — assign them to event tasks, organised by section (stage, lighting…)."},
     {sel:'[data-nav="inventory"]', title:"Inventory", desc:"Stock graded A/B/C by value. Check equipment out to a person and back in — anything missing is flagged with its rupee value."},
     {sel:'[data-nav="vendors"]', title:"Vendors", desc:"Outside partners and rentals for the gaps your in-house team can't cover."},
     {sel:'[data-nav="calendar"]', title:"Calendar", desc:"See every event and catch staff or stock clashes before they bite."},
     {sel:'[data-nav="templates"]', title:"Templates", desc:"Reusable checklists you can apply to any event in one click."},
+    {sel:'[data-nav="quotes"]', title:"Quotes & confirmations", desc:"Price the event, confirm it, and take client approval by OTP / consent / payment link."},
     {sel:'[data-nav="controls"]', title:"Control Center", desc:"Set default pricing, chair types and coupons, add teammates, and tick exactly who can view or edit each area."},
+    {sel:'#bpThemeToggle', title:"Light / dark mode", desc:"Tap this any time to switch the whole app between light and dark. Your choice is remembered on this device."},
   ];
   let tourSteps=[], tourI=0, tourEl=null;
+  // visible = exists, not [hidden], has size (rect-based so position:fixed targets count too)
+  function tourVisible(sel){ const t=document.querySelector(sel); if(!t||t.hidden) return null;
+    const cs=getComputedStyle(t); if(cs.display==="none"||cs.visibility==="hidden") return null;
+    const r=t.getBoundingClientRect(); return (r.width>0&&r.height>0)?t:null; }
   function endTour(){ document.querySelectorAll(".spot").forEach(e=>e.remove()); tourEl=null; window.removeEventListener("resize",placeTour); try{ localStorage.setItem("bp_seen_tour","1"); }catch{} }
   function startTour(){
     endTour();   // never stack overlays
-    tourSteps=TOUR.filter(s=>{ const t=document.querySelector(s.sel); return t && t.offsetParent!==null; });
+    tourSteps=TOUR.filter(s=> tourVisible(s.sel));
     if(!tourSteps.length) return;
     tourI=0;
     tourEl=document.createElement("div"); tourEl.className="spot";
@@ -410,6 +417,9 @@
   }
   function placeTour(){
     if(!tourEl) return;
+    // skip forward over any step whose target vanished (never end the whole tour early)
+    while(tourI<tourSteps.length){ if(tourVisible(tourSteps[tourI].sel)) break; tourI++; }
+    if(tourI>=tourSteps.length){ endTour(); return; }
     const step=tourSteps[tourI], tgt=document.querySelector(step.sel);
     if(!tgt){ endTour(); return; }
     tgt.scrollIntoView({block:"center",behavior:"smooth"});

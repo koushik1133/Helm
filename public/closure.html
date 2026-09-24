@@ -168,8 +168,32 @@
   async function addRating(){ const name=$("#r_name").value.trim(); if(!name){ $("#r_name").focus(); return; }
     try{ await BPStore.closure.addRating(id,{ kind:$("#r_kind").value, name, stars:Number($("#r_stars").value) }); $("#r_name").value=""; renderRatings(); }
     catch(e){ alert("Couldn't rate — "+((e&&e.message)||"error")); } }
-  async function closeEvent(){ if(!confirm("Mark this event closed & archived?")) return;
-    try{ await BPStore.closure.setClosed(id,true); location.reload(); }catch(e){ alert("Couldn't close — "+((e&&e.message)||"error")); } }
+  async function closeEvent(){
+    // Gate 1 — every piece of equipment booked for this event must be back
+    // (nothing still 'reserved' or 'allocated'). Closing is how the archive is built,
+    // so we never archive an event that still has kit out in the field.
+    let outstanding=[];
+    try{
+      const [res, items] = await Promise.all([
+        BPStore.inventory.reservations(id).catch(()=>[]),
+        BPStore.inventory.items(false).catch(()=>[])
+      ]);
+      const nameOf={}; (items||[]).forEach(it=>{ nameOf[it.id]=it.name||it.label||"item"; });
+      outstanding = (res||[]).filter(r=> r.status==="reserved" || r.status==="allocated")
+        .map(r=> (nameOf[r.item_id]||"item")+(r.qty?(" ×"+r.qty):""));
+    }catch(e){ /* if inventory is unreadable, fall through to the manual confirmation */ }
+    if(outstanding.length){
+      alert("Can't close yet — "+outstanding.length+" equipment reservation"+(outstanding.length>1?"s are":" is")
+        +" still out and not marked returned:\n\n• "+outstanding.slice(0,8).join("\n• ")+(outstanding.length>8?"\n• …":"")
+        +"\n\nReturn them in Inventory first, then close the event.");
+      if(confirm("Open Inventory to return the equipment now?")) location.href="inventory.html?quote="+encodeURIComponent(id);
+      return;
+    }
+    // Gate 2 — explicit manager sign-off that the event is genuinely over
+    if(!confirm("Confirm the event has ENDED and ALL equipment has been returned.\n\nThis closes the event and moves it to the archive. Continue?")) return;
+    try{ await BPStore.closure.setClosed(id,true); location.reload(); }
+    catch(e){ alert("Couldn't close — "+((e&&e.message)||"error")); }
+  }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }

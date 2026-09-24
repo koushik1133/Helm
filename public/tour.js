@@ -44,6 +44,25 @@
       { sel: "#a_title", title: "Add a one-off task", desc: "Need something the template didn't cover? Add your own task right here." },
       { sel: "#pane", title: "Assign & track", desc: "Assign staff to each task and tick off progress as the event comes together." },
     ],
+    "leads.html": [
+      { sel: "#newBtn", title: "Capture a lead", desc: "Every enquiry starts here. Click + New lead to open the form and record who got in touch." },
+      { sel: "#board", title: "The pipeline board", desc: "Leads sit in columns by stage — New, Qualified, Discovery, Quoted, Won, Lost. Drag a card between columns to move it along." },
+      { sel: "#search", title: "Find anyone fast", desc: "Search by name, phone or event type across every column." },
+    ],
+  };
+
+  /* ---- optional form coaching: runs once when a page's create-modal opens -- */
+  const FORMS = {
+    "leads.html": {
+      trigger: "#newBtn", modal: "#leadModal", key: "helm_tour_form_leads",
+      steps: [
+        { sel: "#f_name", title: "Who's enquiring", desc: "The contact's name — the only required field. Everything else is optional and can be added later." },
+        { sel: "#f_type", title: "What & when", desc: "Event type and date. These help you prioritise and quote faster." },
+        { sel: "#f_budget", title: "Budget & guests", desc: "A rough budget and headcount — they pre-fill the quote and the floor layout when you convert this lead." },
+        { sel: "#f_source", title: "Where it came from", desc: "Website, referral, walk-in… useful later to see which channels bring the best events." },
+        { sel: "#lm_save", title: "Save the lead", desc: "Adds it to the New column and snapshots it to the CRM archive automatically." },
+      ],
+    },
   };
 
   // Normalise the page key so it matches with or without the ".html" suffix
@@ -82,20 +101,32 @@
   document.head.appendChild(style);
 
   /* ---- engine -------------------------------------------------------- */
-  let list = [], i = 0, root = null;
+  let list = [], i = 0, root = null, endKey = "helm_tour_seen_" + page;
   const seenKey = "helm_tour_seen_" + page;
 
-  function present(sel) { const t = document.querySelector(sel); return t && t.offsetParent !== null ? t : null; }
+  // A target counts as "present" when it exists, isn't [hidden], and actually
+  // occupies space. We use getBoundingClientRect (not offsetParent) because
+  // position:fixed elements — modals, the theme toggle, the tour button — always
+  // report a null offsetParent even when fully visible.
+  function present(sel) {
+    const t = document.querySelector(sel);
+    if (!t || t.hidden) return null;
+    const cs = getComputedStyle(t);
+    if (cs.display === "none" || cs.visibility === "hidden") return null;
+    const r = t.getBoundingClientRect();
+    return (r.width > 0 && r.height > 0) ? t : null;
+  }
 
   function end() {
     if (root) { root.remove(); root = null; }
     window.removeEventListener("resize", place);
-    try { localStorage.setItem(seenKey, "1"); } catch (_) {}
+    try { localStorage.setItem(endKey, "1"); } catch (_) {}
   }
 
-  function start() {
+  function start(customSteps, key) {
     end();
-    list = steps.filter(s => present(s.sel));   // only steps whose target is on-screen now
+    endKey = key || seenKey;
+    list = (customSteps || steps).filter(s => present(s.sel));   // only steps whose target is on-screen now
     if (!list.length) return;
     i = 0;
     root = document.createElement("div");
@@ -154,6 +185,18 @@
       document.body.appendChild(fab);
     }
     document.addEventListener("keydown", e => { if (e.key === "Escape") end(); });
+
+    // form coaching: when this page's create-modal opens, run the field tour once
+    const form = FORMS[page + ".html"] || FORMS[page];
+    if (form) {
+      const btn = document.querySelector(form.trigger);
+      if (btn) btn.addEventListener("click", () => {
+        try { if (localStorage.getItem(form.key)) return; } catch (_) {}
+        // wait for the modal to actually render, then coach the fields
+        setTimeout(() => { if (present(form.modal)) start(form.steps, form.key); }, 300);
+      });
+    }
+
     // first-time auto-start (signed-in users only), once per page
     try {
       if (!localStorage.getItem(seenKey)) {
