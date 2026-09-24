@@ -986,6 +986,7 @@ const round1 = v => Math.round(v*10)/10;
 
 /* ---- capacity & congestion model ---- */
 const COMFORT_PITCH=2.2, PACKED_PITCH=1.7;                 // ft between chairs: comfortable / packed
+const DESIGN_PITCH=2.4;                                     // pitch the auto-arranger designs to (always > COMFORT, so generated blocks are never flagged tight)
 const CONG_COLORS=['', '#e8912d', '#e5484d'];              // 0 ok · 1 tight(amber) · 2 packed(red)
 function seatPitchFt(it){ const c=Math.max(1,it.properties.cols||1), r=Math.max(1,it.properties.rows||1); return Math.min(it.width/c, it.height/r); }
 function congestionOf(it){ if(it.type!=='seatblock'&&it.type!=='chairrow') return 0; const p=seatPitchFt(it); return p<PACKED_PITCH?2:p<COMFORT_PITCH?1:0; }
@@ -2305,10 +2306,11 @@ function seatTheatre(items, o, topY){
   const bottomY=WORLD.h - (16 + ((o.bars||o.trucks||o.buffet)?8:0));
   const cx=WORLD.w/2, aisle=o.aisle||8, margin=8;
   const colW=(WORLD.w-2*margin-aisle)/2, regionH=Math.max(12, bottomY-topY);
-  const cols=Math.max(4, Math.floor(colW/2.0));
-  const guests=o.guests||Math.floor((colW*2/2.0)*(regionH/3.0));
-  let rows=Math.ceil(guests/(2*cols)); rows=clamp(rows,1,Math.floor(regionH/3.0));
-  const bH=Math.min(regionH, rows*3.2);
+  const cols=Math.max(4, Math.floor(colW/DESIGN_PITCH));    // walkable column pitch — never below comfort
+  const rowsCap=Math.max(1, Math.floor(regionH/DESIGN_PITCH));
+  const guests=o.guests||(2*cols*rowsCap);
+  let rows=clamp(Math.ceil(guests/(2*cols)),1,rowsCap);
+  const bH=Math.min(regionH, rows*DESIGN_PITCH);            // row pitch = DESIGN_PITCH, so blocks read "comfortable"
   items.push(makeItem('seatblock', margin, topY, {width:colW,height:bH,properties:{rows,cols},label:'Left Seating'}));
   items.push(makeItem('seatblock', cx+aisle/2, topY, {width:colW,height:bH,properties:{rows,cols},label:'Right Seating'}));
 }
@@ -2413,7 +2415,20 @@ function runCustomGenerate(){
   applyRoomFromForm(o);                                  // resize the floor to the hall before laying out
   const variants=generateVariants(o).map(v=>({...v, items:v.items.map(clampItem)}));
   const host=$('#c_results');
-  host.innerHTML = variants.map((v,idx)=>{
+  // Honest capacity check: if the hall physically can't seat the headcount at a walkable pitch, say so.
+  let fitNote='';
+  if(o.guests){
+    const bestCap=Math.max(0,...variants.map(v=>v.counts.chairs));
+    if(bestCap>0 && o.guests>bestCap){
+      const shortfall=o.guests-bestCap;
+      const extraFt2=Math.ceil(shortfall*DESIGN_PITCH*DESIGN_PITCH);            // ~ area one more seat needs
+      const extraLen=Math.ceil(extraFt2/Math.max(20,WORLD.h));                  // as added length on the current breadth
+      fitNote=`<div style="grid-column:1/-1;background:color-mix(in srgb,var(--c-logistics) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--c-logistics) 45%,var(--line));border-radius:9px;padding:10px 12px;font-size:12px;color:var(--ink);line-height:1.5">
+        ⚠ This ${WORLD.w}×${WORLD.h} ft hall comfortably seats about <b>${bestCap}</b> at a walkable ${DESIGN_PITCH} ft spacing — <b>${shortfall}</b> short of your ${o.guests} guests.
+        Add roughly <b>${extraLen} ft</b> of length (≈${extraFt2.toLocaleString()} ft²), reduce the headcount, or drop the aisle/facilities to gain room. The layouts below still place the maximum that fits.</div>`;
+    }
+  }
+  host.innerHTML = fitNote + variants.map((v,idx)=>{
     const c=v.counts;
     const rows=[['Chairs',c.chairs],['Round tables',c.tables_round],['Booths',c.booths],['Bars',c.bars],['Food/stalls',c.trucks],['Exits',c.exits],['Objects',c.objects]]
       .filter(r=>r[1]>0 || r[0]==='Chairs' || r[0]==='Objects')
