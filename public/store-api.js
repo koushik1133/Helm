@@ -652,10 +652,30 @@
         return { type:t, qty:g.qty, unit, cost:g.qty*unit }; }).filter(l=>l.unit>0).sort((a,b)=>b.cost-a.cost);
       return { chairs, objectLines:lines, objectsCost:lines.reduce((s,l)=>s+l.cost,0) };
     },
-    // Full India-GST quote total (chairs + catering + other + service − discount
-    // + CGST/SGST/IGST). This is the ONE authoritative money calc — both the
-    // quote confirm modal and the builder's write-back use it, so the stored
-    // quote.pricing.total can never drift from what the builder shows.
+    // ── CANONICAL money core (Wave 6 MONEY-01, locked decisions) ────────────
+    // ONE formula both quoteTotal() and breakdown() delegate to, so the stored
+    // quote.pricing.total can never depend on which entry point wrote it.
+    // Locked rules:
+    //   D2 object-based cost feeds preSvc   D4 stacking: preSvc → service charge →
+    //   fixed discount → percent discount → coupon → cap at subtotal
+    //   D1 GST is charged on the POST-discount (taxable) value
+    //   D5 a SINGLE GST rate (no separate catering rate)
+    //   D7 round the FINAL total only (integer rupees); components kept in full
+    //      precision here (callers may round for display).
+    _canon(a){
+      const preSvc = +a.preSvc||0, svcPct = +a.svcPct||0, gstPct = +a.gstPct||0;
+      const serviceCharge = preSvc * svcPct/100;
+      const subtotal = preSvc + serviceCharge;
+      let discount = (+a.discountFixed||0) + subtotal*(+a.discountPct||0)/100;
+      if(a.coupon && a.coupon.value){ discount += a.coupon.kind==="percent" ? subtotal*(+a.coupon.value)/100 : (+a.coupon.value); }
+      discount = Math.min(Math.max(0,discount), subtotal);          // D4 cap
+      const taxed = Math.max(0, subtotal - discount);               // D1 base = post-discount
+      const gst = taxed * gstPct/100;                               // D5 single rate
+      const total = Math.round(taxed + gst);                        // D7 round final only
+      return { serviceCharge, subtotal, discount, taxed, gst, total };
+    },
+    // Quote-total (confirm-modal / write-back input shape). Now routes through
+    // _canon so it agrees with breakdown() to the rupee for equivalent inputs.
     quoteTotal(p){
       const chairs=+p.chairs||0, chairPrice=+p.chairPrice||0, guests=+p.guests||0, platePrice=+p.platePrice||0;
       const mode=(p.catering&&p.catering.mode)||"inhouse", clientCater=mode==="client";
@@ -663,22 +683,16 @@
       const plateSub = clientCater?0:guests*platePrice;
       const cateringAmt = clientCater?0:(+((p.catering&&p.catering.amount))||0);
       const cateringBucket = plateSub + cateringAmt;
-      const gstPct=+p.gstPct||0, cGstPct=clientCater?0:(+((p.catering&&p.catering.gstPct))||0);
-      const svcPct=+p.serviceChargePct||0;
-      const serviceCharge = (rental+cateringBucket)*svcPct/100;
-      const subtotal = rental + cateringBucket + serviceCharge;
-      let discount = (+p.discount||0) + subtotal*(+p.discountPct||0)/100;
-      if(p.coupon && p.coupon.value){ discount += p.coupon.kind==="percent" ? subtotal*(+p.coupon.value)/100 : (+p.coupon.value); }
-      discount = Math.min(discount, subtotal);
-      const gstRental = (rental+serviceCharge)*gstPct/100;
-      const gstCatering = cateringBucket*cGstPct/100;
-      const totalGst = gstRental + gstCatering;
+      const c = this._canon({ preSvc: rental+cateringBucket, svcPct:+p.serviceChargePct||0,
+        discountFixed:+p.discount||0, discountPct:+p.discountPct||0, coupon:p.coupon, gstPct:+p.gstPct||0 });
+      // Single-rate GST; CGST/SGST split kept for invoice display (intra-state
+      // default; IGST only when place of supply is inter-state).
       const interstate = p.placeOfSupply==="inter";
-      const grand = Math.max(0, subtotal + totalGst - discount);
-      return { rental, plateSub, cateringAmt, cateringBucket, serviceCharge, subtotal,
-        gstRental, gstCatering, totalGst,
-        cgst: interstate?0:totalGst/2, sgst: interstate?0:totalGst/2, igst: interstate?totalGst:0,
-        discount, total: Math.round(grand) };
+      return { rental, plateSub, cateringAmt, cateringBucket,
+        serviceCharge:c.serviceCharge, subtotal:c.subtotal,
+        gstRental:c.gst, gstCatering:0, totalGst:c.gst,
+        cgst: interstate?0:c.gst/2, sgst: interstate?0:c.gst/2, igst: interstate?c.gst:0,
+        discount:c.discount, total:c.total };
     },
     // THE unified breakdown. rates = getPricing() result.
     breakdown(inp, rates){
@@ -697,15 +711,15 @@
       const layoutBase   = +rates.layoutBase||0;
       const svcPct       = +(inp.serviceChargePct!=null?inp.serviceChargePct:rates.serviceChargePct)||0;
       const preSvc       = chairsCost + objectsCost + cateringCost + layoutBase;
-      const serviceCharge= Math.round(preSvc*svcPct/100);
-      const subtotal     = preSvc + serviceCharge;
-      const discount     = Math.min(+inp.discount||0, subtotal);
-      const taxed        = subtotal - discount;
       const gstPct       = +(rates.gstPct!=null?rates.gstPct:18);
-      const gst          = Math.round(taxed*gstPct/100);
+      // D3: percent discount + coupon now honoured here too (were previously
+      // dropped by the builder path). D1/D5/D7 via the shared core.
+      const c = this._canon({ preSvc, svcPct, discountFixed:+inp.discount||0,
+        discountPct:+inp.discountPct||0, coupon:inp.coupon, gstPct });
       return { chairs, guests, chairPrice, platePrice, chairsCost, cateringCost,
-        objectLines:oi.objectLines, objectsCost, layoutBase, serviceCharge, svcPct,
-        subtotal, discount, gstPct, gst, total: taxed + gst };
+        objectLines:oi.objectLines, objectsCost, layoutBase,
+        serviceCharge:Math.round(c.serviceCharge), svcPct,
+        subtotal:c.subtotal, discount:c.discount, gstPct, gst:Math.round(c.gst), total:c.total };
     },
   };
   const vendors = {
