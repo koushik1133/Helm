@@ -27,18 +27,24 @@ else {
   /localhost/.test(cfg) && /127\./.test(cfg)
     ? ok('config.js inspects the hostname for localhost/loopback')
     : fail('config.js no longer checks for localhost/loopback — env separation guard missing');
-  /HELM_BLOCK_PROD_FROM_LOCALHOST/.test(cfg)
-    ? ok('config.js has the opt-in flag to hard-block Supabase on localhost')
-    : fail('config.js lost the HELM_BLOCK_PROD_FROM_LOCALHOST opt-in');
-  // must at least WARN when localhost is using production (no silent coupling)
-  /console\.warn\([^)]*PRODUCTION Supabase|console\.warn\([^)]*localhost[\s\S]{0,120}PRODUCTION/i.test(cfg) ||
-  /PRODUCTION Supabase project/.test(cfg)
-    ? ok('config.js warns when localhost targets production')
-    : fail('config.js does not warn about localhost→production coupling');
-  // and it must still be ABLE to blank creds when the block flag is set
+  // Fail-closed by default: production access from localhost must require an
+  // EXPLICIT opt-in flag; the default path blanks the credentials.
+  /HELM_ALLOW_PROD_FROM_LOCALHOST/.test(cfg)
+    ? ok('config.js requires an explicit opt-in (HELM_ALLOW_PROD_FROM_LOCALHOST) to use prod on localhost')
+    : fail('config.js lost the HELM_ALLOW_PROD_FROM_LOCALHOST explicit opt-in');
+  // Fail-closed message must be an ERROR (not just a warn) when localhost blocks prod.
+  /console\.error\([^)]*localhost|console\.error\([\s\S]{0,200}fail-closed/i.test(cfg) ||
+  /DISABLED on localhost/i.test(cfg)
+    ? ok('config.js errors (fail-closed) when localhost would target production')
+    : fail('config.js does not fail closed on localhost→production coupling');
+  // and the DEFAULT path must blank creds (not gated behind a block opt-in)
   /SUPABASE_CONFIG\.url\s*=\s*['"]{2}/.test(cfg) || /\.url\s*=\s*''/.test(cfg)
-    ? ok('config.js can hard-block Supabase on localhost when opted in')
-    : fail('config.js has no way to hard-block Supabase on localhost');
+    ? ok('config.js blanks Supabase credentials on localhost by default')
+    : fail('config.js has no way to blank Supabase on localhost');
+  // Optional staging hook should exist so local dev can target an isolated project.
+  /HELM_STAGING_SUPABASE/.test(cfg)
+    ? ok('config.js supports an isolated staging project hook (HELM_STAGING_SUPABASE)')
+    : fail('config.js lost the HELM_STAGING_SUPABASE staging hook');
   /service_role|SUPABASE_SERVICE_ROLE/.test(cfg)
     ? fail('config.js references a service_role secret — must never be in client code')
     : ok('config.js has no service_role secret');

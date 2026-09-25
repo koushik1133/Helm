@@ -46,24 +46,55 @@ window.SUPABASE_CONFIG = {
       /^172\.(1[6-9]|2\d|3[01])\./.test(h) ||               // 172.16.0.0/12
       h.indexOf('.') === -1;                                // bare hostname (no dot) → not a public FQDN
     if (!isLocal) return; // production / deployed public host: use committed config as-is
-    // WARN-BY-DEFAULT: local dev legitimately runs against this Supabase project
-    // (there is no separate staging yet), so we do NOT blank the credentials —
-    // that would break local sign-in. We loudly warn instead. To hard-disable
-    // Supabase on localhost (once a staging project exists), opt IN with:
-    //   window.HELM_BLOCK_PROD_FROM_LOCALHOST = true;  (before this file), or
-    //   localStorage.setItem('helm.blockProdFromLocalhost','1');
-    var block = (typeof window !== 'undefined' && window.HELM_BLOCK_PROD_FROM_LOCALHOST === true);
-    try { block = block || (localStorage.getItem('helm.blockProdFromLocalhost') === '1'); } catch (e) {}
-    if (block && window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url) {
-      window.SUPABASE_CONFIG.url = '';        // → store-api supaConfigured() = false
-      window.SUPABASE_CONFIG.anonKey = '';
-      window.SUPABASE_CONFIG.__localFallback = true;
-      console.warn('[Helm] Local Supabase access BLOCKED by opt-in — using local Node backend / localStorage. See docs/STAGING-SETUP.md.');
-    } else {
-      console.warn('[Helm] Local development is using the PRODUCTION Supabase project ' +
-        '(no staging configured). Changes here affect LIVE data — be careful. ' +
-        'See docs/STAGING-SETUP.md to wire an isolated staging project; set ' +
-        "window.HELM_BLOCK_PROD_FROM_LOCALHOST=true to hard-disable Supabase locally.");
+
+    // FAIL-CLOSED BY DEFAULT (Wave 6 ENV P1): local/LAN/.local/loopback must NOT
+    // silently connect to the PRODUCTION Supabase project. On localhost we blank
+    // the committed prod credentials so store-api falls back to the local Node
+    // backend / localStorage, and we print an actionable error. Two escape hatches:
+    //
+    //  1) Point local dev at a real STAGING project (preferred). Set BEFORE this
+    //     file loads:  window.HELM_STAGING_SUPABASE = { url:'…', anonKey:'…' };
+    //  2) Deliberately use PRODUCTION from localhost (read-only debugging / when no
+    //     staging exists yet). Opt IN explicitly:
+    //        window.HELM_ALLOW_PROD_FROM_LOCALHOST = true;   // before this file, OR
+    //        localStorage.setItem('helm.allowProdFromLocalhost','1');
+    //
+    // The legacy HELM_BLOCK_PROD_FROM_LOCALHOST flag is still honoured (it forces a
+    // block) but is now redundant: blocking is the default.
+    var allowProd = (typeof window !== 'undefined' && window.HELM_ALLOW_PROD_FROM_LOCALHOST === true);
+    try { allowProd = allowProd || (localStorage.getItem('helm.allowProdFromLocalhost') === '1'); } catch (e) {}
+    // Legacy explicit block flag can only *reinforce* fail-closed, never open prod.
+    var legacyBlock = (typeof window !== 'undefined' && window.HELM_BLOCK_PROD_FROM_LOCALHOST === true);
+    try { legacyBlock = legacyBlock || (localStorage.getItem('helm.blockProdFromLocalhost') === '1'); } catch (e) {}
+    if (legacyBlock) allowProd = false;
+
+    var staging = (typeof window !== 'undefined' && window.HELM_STAGING_SUPABASE) || null;
+
+    if (staging && staging.url && staging.anonKey) {
+      // Use the isolated staging project — never production — for local development.
+      window.SUPABASE_CONFIG.url = staging.url;
+      window.SUPABASE_CONFIG.anonKey = staging.anonKey;
+      window.SUPABASE_CONFIG.__staging = true;
+      console.info('[Helm] Local development using the STAGING Supabase project (isolated from production).');
+      return;
     }
+
+    if (allowProd && window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url) {
+      // Explicit, deliberate opt-in to hit PRODUCTION from localhost.
+      console.warn('[Helm] Local development is DELIBERATELY using the PRODUCTION Supabase ' +
+        'project (HELM_ALLOW_PROD_FROM_LOCALHOST opt-in). Changes here affect LIVE data — be careful.');
+      return;
+    }
+
+    // Default: fail closed. Blank the prod credentials so nothing on localhost can
+    // read/mutate production, and tell the developer exactly how to proceed.
+    window.SUPABASE_CONFIG.url = '';          // → store-api supaConfigured() = false
+    window.SUPABASE_CONFIG.anonKey = '';
+    window.SUPABASE_CONFIG.__localFallback = true;
+    console.error('[Helm] Supabase is DISABLED on localhost to protect PRODUCTION data ' +
+      '(env separation, fail-closed). No staging project is configured. To proceed, either:\n' +
+      '  • configure staging:  window.HELM_STAGING_SUPABASE = { url, anonKey }  (see docs/STAGING-SETUP.md), or\n' +
+      "  • deliberately use production (read-only debugging):  localStorage.setItem('helm.allowProdFromLocalhost','1'); then reload.\n" +
+      'Until then the app uses the local Node backend / localStorage only.');
   } catch (e) { /* never break config load */ }
 })();
