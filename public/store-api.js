@@ -367,6 +367,22 @@
     },
     async signOut() { if (supa) await supa.auth.signOut(); currentUser = null; roleCache = null; accessCache = null;
       if (mode === "supabase") authRequired = true; },
+    // Option A: does the signed-in user still hold a temp password they must replace?
+    async passwordChangeRequired() {
+      if (!supa) return false;
+      const { data, error } = await supa.rpc("password_change_required");
+      if (error) return false;   // fail open to not lock anyone out of the app
+      return data === true;
+    },
+    // Set the user's own new password, then clear the must-change flag.
+    async completePasswordChange(newPassword) {
+      if (!supa) throw new Error("Supabase not configured");
+      if (!newPassword || String(newPassword).length < 8) throw new Error("Password must be at least 8 characters.");
+      const { error } = await supa.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      await supa.rpc("clear_password_change_required");   // best-effort; ignore RPC error
+      return true;
+    },
     onChange(cb) { if (supa) supa.auth.onAuthStateChange((_e, session) => {
       currentUser = session ? session.user : null; roleCache = null; accessCache = null;
       if (mode === "supabase") authRequired = !currentUser; if (cb) cb(currentUser); }); },
@@ -399,6 +415,14 @@
         const { data, error } = await supa.rpc("admin_create_user",
           { p_email: email, p_password: password, p_role: role });
         if (error) throw error; return data;   // new user id
+      },
+      // Option A: server generates a one-time temp password + forces a change on
+      // first login. Returns { user_id, temp_password } — show temp_password ONCE.
+      async createUserTemp(email, role) {
+        if (!supa) throw new Error("Supabase not configured");
+        const { data, error } = await supa.rpc("admin_create_user_temp",
+          { p_email: email, p_role: role });
+        if (error) throw error; return data;   // { user_id, temp_password }
       },
       async setRole(id, role) {
         if (!supa) throw new Error("Supabase not configured");

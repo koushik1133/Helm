@@ -157,6 +157,38 @@
   // "flow.html?quote=…" or the clean-URL form "flow?quote=…"). Reject anything
   // with a slash or protocol to prevent open-redirects.
   const nextUrl=()=>{ const n=new URLSearchParams(location.search).get("next"); return (n && /^[a-zA-Z0-9_\-]+(\.html)?(\?|$)/.test(n) && !/[\/\\]|:/.test(n)) ? n : "dashboard.html"; };
+
+  // Option A — force a user who signed in with a temporary password to set their own.
+  // Blocks (returns a promise) until they successfully set a new password.
+  function forcePasswordChange(){
+    return new Promise((resolve)=>{
+      const ov=document.createElement("div");
+      ov.setAttribute("role","dialog"); ov.setAttribute("aria-modal","true"); ov.setAttribute("aria-label","Set a new password");
+      ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px";
+      ov.innerHTML=
+        '<div style="background:#fff;color:#111;max-width:380px;width:100%;border-radius:14px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35)">'+
+        '<h2 style="margin:0 0 6px;font-size:1.15rem">Set your password</h2>'+
+        '<p style="margin:0 0 14px;color:#555;font-size:.9rem">You signed in with a temporary password. Choose your own to continue.</p>'+
+        '<label for="fpc_pw" style="display:block;font-size:.85rem;margin-bottom:4px">New password (min 8)</label>'+
+        '<input id="fpc_pw" type="password" autocomplete="new-password" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px">'+
+        '<label for="fpc_pw2" style="display:block;font-size:.85rem;margin-bottom:4px">Confirm password</label>'+
+        '<input id="fpc_pw2" type="password" autocomplete="new-password" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:12px">'+
+        '<div id="fpc_err" style="color:#c0392b;font-size:.85rem;min-height:18px;margin-bottom:8px"></div>'+
+        '<button id="fpc_go" type="button" style="width:100%;padding:11px;border:0;border-radius:8px;background:#111;color:#fff;font-weight:600;cursor:pointer">Set password &amp; continue</button>'+
+        '</div>';
+      document.body.appendChild(ov);
+      const pw=ov.querySelector("#fpc_pw"), pw2=ov.querySelector("#fpc_pw2"), er=ov.querySelector("#fpc_err"), go=ov.querySelector("#fpc_go");
+      pw.focus();
+      go.addEventListener("click", async ()=>{
+        er.textContent="";
+        if((pw.value||"").length<8){ er.textContent="Password must be at least 8 characters."; return; }
+        if(pw.value!==pw2.value){ er.textContent="Passwords don't match."; return; }
+        go.disabled=true; go.textContent="Saving…";
+        try{ await BPStore.auth.completePasswordChange(pw.value); ov.remove(); resolve(true); }
+        catch(e){ er.textContent=(e&&e.message)||"Couldn't set password."; go.disabled=false; go.textContent="Set password & continue"; }
+      });
+    });
+  }
   let mode="signin";
   function setMode(m){ mode=m; $("#err").hidden=true; $("#okmsg").hidden=true;
     document.querySelectorAll(".mtab").forEach(b=>b.classList.toggle("on",b.dataset.mode===m));
@@ -289,6 +321,8 @@
       }
       btn.textContent="Signing in…";
       await BPStore.auth.signIn(email, pw);
+      // Option A: a user created with a one-time temp password MUST set their own now.
+      if(await BPStore.auth.passwordChangeRequired()){ await forcePasswordChange(); }
       if(joining){ await acceptPendingInvite(); } else { await finishPendingStudio(); }
       location.replace(nextUrl());
     }catch(err){

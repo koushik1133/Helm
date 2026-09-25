@@ -257,12 +257,12 @@
         <table class="utable"><thead><tr><th>Email</th><th>Role</th><th></th></tr></thead>
           <tbody id="um_rows"><tr><td colspan="3" style="color:var(--ink-3)">Loading…</td></tr></tbody>
         </table>
-        <form id="um_add" class="addrow" style="grid-template-columns:1.6fr 1fr 1fr auto">
+        <form id="um_add" class="addrow" style="grid-template-columns:1.6fr 1fr auto">
           <input id="um_email" type="email" placeholder="name@studio.com" required autocomplete="off">
-          <input id="um_pw" type="text" value="helm" placeholder="Temp password" required>
           <select id="um_role"></select>
           <button class="btn primary" type="submit" id="um_submit">Add user</button>
         </form>
+        <p class="mnote" style="margin-top:6px">No password needed — a one-time temporary password is generated and shown once. Share it with the person; they'll be asked to set their own on first sign-in.</p>
       </div>
 
       <div class="card">
@@ -587,10 +587,22 @@
   }
   $("#um_add").addEventListener("submit", async (e)=>{
     e.preventDefault();
-    const email=$("#um_email").value.trim(), pw=$("#um_pw").value, role=$("#um_role").value;
+    const email=$("#um_email").value.trim(), role=$("#um_role").value;
     const btn=$("#um_submit"); btn.disabled=true; btn.textContent="Adding…";
-    try{ await BPStore.auth.admin.createUser(email, pw, role);
-      $("#um_email").value=""; $("#um_pw").value="helm"; await renderUsers(); setUMsg("ok",`Added ${email} as ${role}.`); }
+    try{
+      const r = await BPStore.auth.admin.createUserTemp(email, role);   // { user_id, temp_password }
+      const tp = (r && r.temp_password) || "";
+      $("#um_email").value=""; await renderUsers();
+      // Show the one-time temp password prominently with a copy button.
+      const m=$("#umsg");
+      m.innerHTML = `<div class="msg ok" style="line-height:1.6">Added <b>${esc(email)}</b> as ${esc(role)}.<br>`+
+        `Temporary password (share once): <code id="um_tp" style="font-size:1.05em">${esc(tp)}</code> `+
+        `<button type="button" class="btn" id="um_tp_copy" style="padding:2px 8px">Copy</button><br>`+
+        `<span style="color:var(--ink-3)">They'll be asked to set their own password on first sign-in.</span></div>`;
+      const cp=$("#um_tp_copy"); if(cp) cp.addEventListener("click", async ()=>{
+        try{ await navigator.clipboard.writeText(tp); cp.textContent="Copied"; }catch(_){ }
+      });
+    }
     catch(err){ setUMsg("err",(err&&err.message)||"Couldn't add user"); }
     finally{ btn.disabled=false; btn.textContent="Add user"; }
   });
