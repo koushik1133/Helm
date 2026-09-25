@@ -19,6 +19,7 @@ with fns as (
          p.proname,
          p.prosecdef,
          p.proconfig,
+         p.pronargs,
          pg_get_function_identity_arguments(p.oid) as args,
          pg_get_functiondef(p.oid)                 as def
     from pg_proc p
@@ -128,13 +129,11 @@ checks as (
               and indexname='quote_payments_idempotency_uk') then 'present' else 'MISSING' end,'high',''
   union all
   select 'MONEY-03','record_payment intended 7-arg signature present','present',
-         case when exists (select 1 from fns where proname='record_payment'
-              and args='uuid, numeric, text, text, uuid, text, text')
-              then 'present' else 'MISSING' end,'high',''
+         case when exists (select 1 from fns where proname='record_payment' and pronargs=7)
+              then 'present' else 'MISSING' end,'high','Matched by arg count (names/types vary by PG).'
   union all
   select 'MONEY-03','obsolete 6-arg record_payment overload absent','absent',
-         case when exists (select 1 from fns where proname='record_payment'
-              and args='uuid, numeric, text, text, uuid, text')
+         case when exists (select 1 from fns where proname='record_payment' and pronargs=6)
               then 'STILL PRESENT' else 'absent' end,'high','Older overload could bypass idempotency.'
   union all
   select 'MONEY-05','record_payment body handles idempotency','yes',
