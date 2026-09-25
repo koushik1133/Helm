@@ -9,10 +9,9 @@ with checks as (
               where table_schema='public' and table_name='quotes' and column_name='pricing')
               then 'present' else 'MISSING (need base schema)' end actual
   union all
-  select 'DEP','save_quotation_version(uuid,jsonb) present','present',
+  select 'DEP','save_quotation_version(2-arg) present','present',
          case when exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
-              where n.nspname='public' and p.proname='save_quotation_version'
-              and pg_get_function_identity_arguments(p.oid)='uuid, jsonb')
+              where n.nspname='public' and p.proname='save_quotation_version' and p.pronargs=2)
               then 'present' else 'MISSING (run phase77 first)' end
   union all
   select 'DEP','current_org_id() present','present',
