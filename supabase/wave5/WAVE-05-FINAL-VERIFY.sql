@@ -38,7 +38,7 @@ with checks as (
          case when exists (
            select 1 from pg_constraint c
            where c.conrelid='public.app_config'::regclass and c.contype='p'
-             and (select array_agg(att.attname order by att.attnum)
+             and (select array_agg(att.attname::text order by att.attnum)
                     from unnest(c.conkey) k join pg_attribute att
                       on att.attrelid=c.conrelid and att.attnum=k) = array['org_id','key']
          ) then 'yes' else 'no' end,
@@ -49,7 +49,7 @@ with checks as (
          case when exists (
            select 1 from pg_constraint c
            where c.conrelid='public.app_config'::regclass and c.contype='u'
-             and (select array_agg(att.attname order by att.attnum)
+             and (select array_agg(att.attname::text order by att.attnum)
                     from unnest(c.conkey) k join pg_attribute att
                       on att.attrelid=c.conrelid and att.attnum=k) = array['key']
          ) then 'PRESENT (harmful)' else 'absent' end,
