@@ -31,8 +31,8 @@
   .stat{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 9px;border-radius:20px;vertical-align:middle}
   .stat.q{background:#eef2ff;color:#4457c8} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318} .stat.st{background:#fff7e6;color:#946200}
   /* lifecycle stepper */
-  .steps{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
-  .step{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink-3);cursor:pointer}
+  .steps{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;margin-top:6px;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+  .step{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:5px 10px;border-radius:20px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink-3);cursor:pointer;white-space:nowrap;flex:0 0 auto}
   .step .n{width:16px;height:16px;border-radius:50%;background:var(--line);color:#fff;font-size:9px;display:inline-flex;align-items:center;justify-content:center}
   .step.done{background:#e7f6ee;border-color:#b6e3ca;color:#0f7a43} .step.done .n{background:#18a558}
   .step.active{background:var(--accent);border-color:transparent;color:#fff} .step.active .n{background:rgba(255,255,255,.4)}
@@ -42,13 +42,17 @@
   .btn{height:36px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
   .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)}
   /* module cards */
-  .grid{display:flex;flex-direction:column;gap:10px}
-  .mod{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px 18px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-  .mod .h{display:flex;align-items:center;gap:10px;min-width:230px} .mod .h .ic{font-size:22px} .mod .h b{font-size:15px}
-  .mod .sum{color:var(--ink-2);font-size:13px;flex:1;min-width:200px} .mod .sum .big{font-family:var(--mono);font-weight:700;color:var(--ink)}
-  .mod .act{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
-  @media(max-width:640px){.mod{align-items:flex-start;flex-direction:column;gap:8px} .mod .act{margin-left:0}}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+  .mod{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px 20px;display:flex;flex-direction:column;align-items:stretch;gap:12px}
+  .mod .h{display:flex;align-items:center;gap:10px} .mod .h .ic{font-size:22px;flex:0 0 auto} .mod .h b{font-size:15px}
+  .mod .sum{color:var(--ink-2);font-size:13px;flex:1} .mod .sum .big{font-family:var(--mono);font-weight:700;color:var(--ink)}
+  .mod .act{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto}
   .mod.reco{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  /* more-tools toggle */
+  .moretog{display:flex;justify-content:center;margin:4px 0 16px}
+  .moretog button{height:34px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink-2);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
+  .moretog button:hover{border-color:var(--accent);color:var(--accent)}
+  .morehead{grid-column:1/-1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin:6px 0 -4px}
   .muted{color:var(--ink-3);font-size:12px}
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
@@ -57,7 +61,7 @@
   .lsheet input{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;margin-bottom:12px;font-family:inherit}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
 </style>
-<link rel="stylesheet" href="theme.css?v=71">
+<link rel="stylesheet" href="theme.css?v=72">
 </head>
 <body>
 <div class="wrap">
@@ -110,8 +114,8 @@
 </div>
 
 <script src="config.js?v=90"></script>
-<script src="store-api.js?v=83"></script>
-<script src="tour.js?v=2"></script>
+<script src="store-api.js?v=84"></script>
+<script src="tour.js?v=3"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -145,12 +149,12 @@
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
       el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
-    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
 
   async function load(){
     await BPStore.init(); await renderAccount(); try{await BPStore.bell.mount(document.querySelector("#bell"));}catch{}
     if(!id){ $("#notfound").hidden=false; return; }
-    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     if(!(await BPStore.auth.requireView("workspace"))) return;   // crew/client don't see the workspace
     canEdit = await BPStore.auth.can("edit");
     canFin  = await BPStore.auth.canView("finance");             // gates the Total + money cards
@@ -231,7 +235,7 @@
     const el=$("#conflictBanner"); if(!el) return;
     const cs=conflictSummary||[];
     if(!cs.length){ el.innerHTML=""; return; }
-    const ico={inventory:"📦",vendor:"🤝",staff:"👷"};
+    const ico={inventory:"📦",vendor:"🤝",staff:"👷",venue:"📍"};
     el.innerHTML=`<div class="card" style="border-color:#f5c6c6;background:#fdf2f2">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <b style="color:#b42318">⚠️ ${cs.length} scheduling conflict${cs.length===1?"":"s"} on this event's date</b>
@@ -313,12 +317,41 @@
         acts:[{t: canEdit?"Reserve stock":"View inventory", href:"inventory.html?quote="+encodeURIComponent(id), primary:true}] },
     ];
     const hide=new Set([...(canFin?[]:["budget","settle","closure"]), ...(canPipe?[]:["discovery","proposal"])]);
-    $("#mods").innerHTML=cards.filter(c=>!hide.has(c.key)).map(c=>{
+    const visible=cards.filter(c=>!hide.has(c.key));
+    const cardHtml=(c)=>{
       const reco=recommended.includes(c.key)?"reco":"";
       return `<div class="mod ${reco}"><div class="h"><span class="ic">${c.ic}</span><b>${c.title}</b>${reco?'<span class="stat q" style="margin-left:auto">Next</span>':""}</div>
         <div class="sum">${c.sum}</div>
         <div class="act">${c.acts.map(a=>`<a class="btn ${a.primary?'primary':''}" href="${a.href}">${a.t}</a>`).join("")}</div></div>`;
-    }).join("");
+    };
+    // Stage-focused view: show the modules recommended for the current stage first, and tuck the
+    // rest under a collapsible "More tools" section. Falls back to showing everything when the
+    // stage has no visible recommended module.
+    const focused=visible.filter(c=>recommended.includes(c.key));
+    const rest=visible.filter(c=>!recommended.includes(c.key));
+    let showAll=false; try{ showAll=localStorage.getItem("helm_ev_showall")==="1"; }catch{}
+    if(!focused.length){
+      // no specific recommendation for this stage — show all, no toggle
+      $("#mods").innerHTML=visible.map(cardHtml).join("");
+      setMoreToggle(null);
+      return;
+    }
+    let html=focused.map(cardHtml).join("");
+    if(showAll && rest.length) html+=`<div class="morehead">More tools</div>`+rest.map(cardHtml).join("");
+    $("#mods").innerHTML=html;
+    setMoreToggle(rest.length?{showAll, count:rest.length}:null);
+  }
+  // Manage the "Show all tools / Show less" toggle that sits just under the module grid.
+  function setMoreToggle(state){
+    const grid=$("#mods"); let bar=$("#moreToggle");
+    if(!state){ if(bar) bar.remove(); return; }
+    if(!bar){ bar=document.createElement("div"); bar.id="moreToggle"; bar.className="moretog";
+      grid.parentNode.insertBefore(bar, grid.nextSibling); }
+    bar.innerHTML=`<button type="button">${state.showAll?"Show less ▴":`Show all tools (${state.count} more) ▾`}</button>`;
+    bar.querySelector("button").onclick=()=>{
+      const next=!state.showAll; try{ localStorage.setItem("helm_ev_showall", next?"1":"0"); }catch{}
+      renderMods(STAGES[stageIndex(ev.lifecycleStage)].mods);
+    };
   }
 
   function renderDateRow(){

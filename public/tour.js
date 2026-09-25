@@ -251,16 +251,11 @@
       });
     }
 
-    // first-time auto-start (signed-in users only), once per page
-    try {
-      if (!localStorage.getItem(seenKey)) {
-        setTimeout(() => {
-          const signedIn = !(window.BPStore && BPStore.auth && BPStore.auth.enabled()) ||
-                           (window.BPStore && BPStore.auth.user());
-          if (signedIn) start();
-        }, 1400);
-      }
-    } catch (_) {}
+    // NOTE: inner feature pages no longer auto-start a tour. The guided tour
+    // auto-runs only on the dashboard (index.html) at first login/signup. Every
+    // page still exposes the manual "? Tour" button/FAB (see mount above), so
+    // users can launch the tour on demand whenever they need it. (seenKey kept
+    // for the form-coaching hints above, which remain click-triggered.)
   }
 
   window.HelmTour = { start, end };

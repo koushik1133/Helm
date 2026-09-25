@@ -1468,7 +1468,7 @@
   const calendar = {
     // Pull every commitment across all events and detect date clashes.
     async load() {
-      const [events, invRes, vendorBk, items, team, vends, tasks] = await Promise.all([
+      const [events, invRes, vendorBk, items, team, vends, tasks, plans] = await Promise.all([
         quotes.list(),
         inventory.reservations().catch(() => []),
         bookings.listAll().catch(() => []),
@@ -1480,12 +1480,27 @@
           const { data, error } = await supa.from("event_tasks").select("quote_id,crew_id,title").not("crew_id", "is", null);
           if (error) throw error; return data;
         })().catch(() => []),
+        (async () => {
+          // venue name/address per event (for the venue-double-booking check)
+          if (mode !== "supabase") return [];
+          const { data, error } = await supa.from("event_plan").select("quote_id,venue_name,venue_address");
+          if (error) throw error; return data;
+        })().catch(() => []),
       ]);
       const evById = {}; events.forEach((e) => { evById[e.id] = e; });
       const itemById = {}; items.forEach((i) => { itemById[i.id] = i; });
       const staffById = {}; team.forEach((p) => { staffById[p.id] = p; });
       const vendById = {}; vends.forEach((v) => { vendById[v.id] = v; });
+      const planByQuote = {}; (plans || []).forEach((p) => { planByQuote[p.quote_id] = p; });
       const dateOf = (qid) => { const e = evById[qid]; return e ? e.eventDate : null; };
+      // venue name/address for an event: canonical event_plan first, then the mirror on the quote's client
+      const venueOf = (e) => {
+        const pl = planByQuote[e.id] || {};
+        return {
+          name: pl.venue_name || (e.client && e.client.venue) || "",
+          address: pl.venue_address || (e.client && e.client.address) || "",
+        };
+      };
 
       // ---- conflict detection (only for events that have a date) ----
       const conflicts = [];
@@ -1525,6 +1540,25 @@
         const [sid, d] = k.split("|"); if (qset.size > 1) { const p = staffById[sid];
           conflicts.push({ type: "staff", date: d, label: p ? p.name : "Staff",
             detail: `assigned to ${qset.size} events on this date`, events: [...qset].map((q) => evById[q]) }); }
+      });
+      // 4) venue double-booking: two DIFFERENT events sharing the SAME date + time + venue name + venue address.
+      //    All four must be present and equal — a match on fewer fields is NOT a conflict.
+      const vnorm = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
+      const byVenueSlot = {};
+      events.forEach((e) => {
+        const d = e.eventDate, t = e.eventTime; const v = venueOf(e);
+        if (!d || !t || !vnorm(t) || !vnorm(v.name) || !vnorm(v.address)) return; // need date + time + venue name + address
+        const k = [d, vnorm(t), vnorm(v.name), vnorm(v.address)].join("||");
+        (byVenueSlot[k] = byVenueSlot[k] || []).push(e);
+      });
+      Object.values(byVenueSlot).forEach((list) => {
+        const ids = [...new Set(list.map((e) => e.id))];
+        if (ids.length > 1) {
+          const first = evById[ids[0]]; const v = venueOf(first);
+          conflicts.push({ type: "venue", date: first.eventDate, label: v.name || "Venue",
+            detail: `${ids.length} events booked at ${v.name} on ${first.eventDate} at ${first.eventTime} (same venue, address & time)`,
+            events: ids.map((q) => evById[q]) });
+        }
       });
 
       // ---- per-event commitment rollup (for the agenda) ----

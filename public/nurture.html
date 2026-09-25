@@ -65,7 +65,7 @@
   .msg{border-radius:8px;padding:8px 11px;font-size:13px;margin:8px 0}
   .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca} .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
 </style>
-<link rel="stylesheet" href="theme.css?v=71">
+<link rel="stylesheet" href="theme.css?v=72">
 </head>
 <body>
 <div class="wrap">
@@ -153,8 +153,8 @@
 </div>
 
 <script src="config.js?v=90"></script>
-<script src="store-api.js?v=83"></script>
-<script src="tour.js?v=2"></script>
+<script src="store-api.js?v=84"></script>
+<script src="tour.js?v=3"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -166,7 +166,7 @@
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
       el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
-    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
 
   async function render(){
     let list=[];
@@ -305,7 +305,7 @@
 
   (async ()=>{
     await BPStore.init(); await renderAccount();
-    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     if(!(await BPStore.auth.requireView("nurture"))) return;
     canEdit=await BPStore.auth.canEditArea("nurture");
     $("#app").hidden=false; $("#addCard").hidden=!canEdit; $("#autoCard").hidden=!canEdit; $("#tplCard").hidden=!canEdit;

@@ -57,7 +57,7 @@
   .lsheet input{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;margin-bottom:12px;font-family:inherit}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
 </style>
-<link rel="stylesheet" href="theme.css?v=71">
+<link rel="stylesheet" href="theme.css?v=72">
 </head>
 <body>
 <div class="wrap">
@@ -113,7 +113,7 @@
 </div>
 
 <script src="config.js?v=90"></script>
-<script src="store-api.js?v=83"></script>
+<script src="store-api.js?v=84"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -127,7 +127,7 @@
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
       el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
-    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
 
   // ---- CSV helpers ----
   function toCSV(rows){ if(!rows.length) return ""; const cols=Object.keys(rows[0]);
@@ -171,7 +171,7 @@
   async function load(){
     await BPStore.init(); await renderAccount();
     try{ await BPStore.bell.mount($("#bell")); }catch{}
-    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     const role=await BPStore.auth.role();
     const ok=["admin","manager","planner"].includes(role) || await BPStore.auth.canView("controls");
     if(!ok){ $("#noaccess").hidden=false; return; }

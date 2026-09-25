@@ -55,7 +55,7 @@
   .sheet h3{margin:0 0 12px}.foot{display:flex;gap:10px;justify-content:flex-end}
   @media print{ header .nav,.account,#addCard,.rowacts,#printBtn,.crumb,footer{display:none!important} .wrap{max-width:100%} body{background:#fff} .card{box-shadow:none;border:none;padding:0} }
 </style>
-<link rel="stylesheet" href="theme.css?v=71">
+<link rel="stylesheet" href="theme.css?v=72">
 </head>
 <body>
 <div class="wrap">
@@ -123,8 +123,8 @@
 </div>
 
 <script src="config.js?v=90"></script>
-<script src="store-api.js?v=83"></script>
-<script src="tour.js?v=2"></script>
+<script src="store-api.js?v=84"></script>
+<script src="tour.js?v=3"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -145,7 +145,7 @@
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
       el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
-    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
 
   function render(){
     if(!items.length){ $("#rows").innerHTML='<div class="empty">No run-sheet items yet. Add the first one above.</div>'; $("#win").hidden=true; return; }
@@ -202,7 +202,7 @@
     await BPStore.init(); await renderAccount();
     $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
     if(!id){ $("#notfound").hidden=false; return; }
-    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     if(!(await BPStore.auth.requireView("ops"))) return;
     canEdit=await BPStore.auth.canEditArea("runsheet"); canDelete=await BPStore.auth.can("delete");
     let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }

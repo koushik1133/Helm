@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<script>/* apply the saved theme before paint so login matches the rest of the app (dark-mode contrast) */try{document.documentElement.setAttribute('data-theme', localStorage.getItem('bps.theme')||'light');}catch(e){}</script>
+<script>/* Auth screens are ALWAYS light — the saved theme (bps.theme) is applied only after the user lands on an in-app page post-login. */try{document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>
 <title>Sign in — Helm Events</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d28d9'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -60,7 +60,7 @@
   .gbtn{width:100%;height:46px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--ink);font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px}
   .gbtn:hover{background:var(--panel-2)} .gbtn svg{width:18px;height:18px}
 </style>
-<link rel="stylesheet" href="theme.css?v=71">
+<link rel="stylesheet" href="theme.css?v=72">
 </head>
 <body>
   <section class="brandpane">
@@ -143,7 +143,7 @@
   </section>
 
 <script src="config.js?v=90"></script>
-<script src="store-api.js?v=83"></script>
+<script src="store-api.js?v=84"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const PENDING="bp_pending_studio";
@@ -153,7 +153,10 @@
   if(inviteTok){ try{ localStorage.setItem(INVITE_LS, inviteTok); }catch(e){} }
   const pendingInvite=()=>{ try{ return inviteTok||localStorage.getItem(INVITE_LS)||null; }catch(e){ return inviteTok||null; } };
   const JOINING=!!pendingInvite();   // an invitee joins a studio; they never create one
-  const nextUrl=()=>{ const n=new URLSearchParams(location.search).get("next"); return (n && /^[a-zA-Z0-9_\-]+\.html/.test(n)) ? n : "index.html"; };
+  // Accept a same-app page name with optional .html and optional query (e.g.
+  // "flow.html?quote=…" or the clean-URL form "flow?quote=…"). Reject anything
+  // with a slash or protocol to prevent open-redirects.
+  const nextUrl=()=>{ const n=new URLSearchParams(location.search).get("next"); return (n && /^[a-zA-Z0-9_\-]+(\.html)?(\?|$)/.test(n) && !/[\/\\]|:/.test(n)) ? n : "index.html"; };
   let mode="signin";
   function setMode(m){ mode=m; $("#err").hidden=true; $("#okmsg").hidden=true;
     document.querySelectorAll(".mtab").forEach(b=>b.classList.toggle("on",b.dataset.mode===m));

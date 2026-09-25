@@ -68,14 +68,24 @@ select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
    :root, so the primary surfaces (bg / panels / text / lines / accent) all flip.
    ============================================================================ */
 html[data-theme="dark"] {
-  --bg: #0a0a0c; --panel: #161619; --panel-2: #1f1f24;
+  /* Page background is CLEAR / PURE BLACK. Panels & sections sit just above it in
+     neutral (blue-free) charcoals; the accent is the dashboard violet everywhere,
+     so no page falls back to the old generic indigo-blue. */
+  --bg: #000000; --panel: #141418; --panel-2: #1c1c22;
   --ink: #f3f1fa; --ink-2: #c6c2d6; --ink-3: #928da6;
-  --line: #2a2a31; --line-2: #232329;
-  --accent: #a78bfa; --accent-2: #818cf8; --accent-soft: #221f33;
+  --line: #29292f; --line-2: #202026;
+  --accent: #a78bfa; --accent-2: #8b5cf6; --accent-soft: #1d1730;
   --safe: #34d399; --warn: #fbbf24; --gold: #fbbf24; --bad: #f87171;
-  --shadow: 0 1px 2px rgba(0,0,0,.45), 0 14px 36px rgba(0,0,0,.55);
+  --shadow: 0 1px 2px rgba(0,0,0,.55), 0 16px 40px rgba(0,0,0,.65);
   color-scheme: dark;
 }
+/* Belt-and-suspenders: force the true page background to pure black on every
+   dark page, even if a page paints html or a full-bleed wrapper directly. */
+html[data-theme="dark"],
+html[data-theme="dark"] .app,
+html[data-theme="dark"] .page,
+html[data-theme="dark"] .wrap,
+html[data-theme="dark"] main { background-color: #000000; }
 /* replace any light page background (incl. radial-gradient heroes) with a flat dark black */
 html[data-theme="dark"] body {
   background: var(--bg) !important;

@@ -127,7 +127,7 @@
     box-shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -16px rgba(0,0,0,.7);
   }
 </style>
-<link rel="stylesheet" href="theme.css?v=71">
+<link rel="stylesheet" href="theme.css?v=72">
 </head>
 <body>
 <div class="wrap">
@@ -279,6 +279,14 @@
         </div>
       </div>
 
+      <div class="card">
+        <h3>Access control — who can see &amp; do what</h3>
+        <p class="mnote">Pick a role, then tap an area to toggle <b>view</b> (green tick = accessible).
+          Tap the ✎ to also allow <b>editing</b>. Admin always has full access.</p>
+        <div class="roletabs" id="roleTabs"></div>
+        <div id="matrix"></div>
+      </div>
+
       <div class="card compliance">
         <div class="cx-head">
           <span class="cx-ic" aria-hidden="true">
@@ -299,14 +307,6 @@
           <span id="exp_status" class="cx-status" role="status" aria-live="polite"></span>
         </div>
       </div>
-
-      <div class="card">
-        <h3>Access control — who can see &amp; do what</h3>
-        <p class="mnote">Pick a role, then tap an area to toggle <b>view</b> (green tick = accessible).
-          Tap the ✎ to also allow <b>editing</b>. Admin always has full access.</p>
-        <div class="roletabs" id="roleTabs"></div>
-        <div id="matrix"></div>
-      </div>
     </div>
   </div>
 </div>
@@ -323,8 +323,8 @@
 </div>
 
 <script src="config.js?v=90"></script>
-<script src="store-api.js?v=83"></script>
-<script src="tour.js?v=2"></script>
+<script src="store-api.js?v=84"></script>
+<script src="tour.js?v=3"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -335,12 +335,12 @@
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
       el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
-    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
 
   let isAdmin=false;
   async function load(){
     await BPStore.init(); await renderAccount();
-    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     const role = await BPStore.auth.role();
     isAdmin = role==="admin";
     const canControls = await BPStore.auth.canView("controls");

@@ -663,8 +663,8 @@
 </main>
 
 <script src="config.js?v=90"></script>
-<script src="store-api.js?v=83"></script>
-<script src="tour.js?v=2"></script>
+<script src="store-api.js?v=84"></script>
+<script src="tour.js?v=3"></script>
 <script>
 /* =========================================================================
    BLUEPRINT STAGE — 2D Event Layout & Blueprint Builder
@@ -2394,6 +2394,55 @@ function boothGrid(items, o, topY){
   }
 }
 
+// perimeter seating — long tables arranged around an open centre.
+// hollow=false → U-shape (front edge left open toward the stage/screen);
+// hollow=true  → hollow square (closed ring). Seats counted via properties.seats.
+function seatPerimeter(items, o, topY, hollow){
+  const margin=16, bottomY=WORLD.h-16;
+  const a=ASSETS.longtable, tw=a.w, th=a.h, gap=4;
+  const left=margin, right=WORLD.w-margin, top=topY+4, bot=bottomY;
+  let n=0;
+  const addH=(y)=>{ for(let x=left; x+tw<=right-th; x+=tw+gap){
+    items.push(makeItem('longtable', x, y, {properties:{seats:12},label:'Table '+(++n)})); } };
+  const addV=()=>{ for(let y=top+th+gap; y+tw<=bot-th; y+=tw+gap){
+    items.push(makeItem('longtable', left, y, {rotation:90,properties:{seats:12},label:'Table '+(++n)}));
+    items.push(makeItem('longtable', right-th, y, {rotation:90,properties:{seats:12},label:'Table '+(++n)})); } };
+  if(hollow) addH(top);          // closed front edge for a hollow square
+  addV();                        // left + right runs (rotated)
+  addH(bot-th);                  // base of the U / bottom of the square
+}
+// cocktail / standing reception — mostly highboys with a few lounge clusters
+function seatCocktail(items, o, topY){
+  const bottomY=WORLD.h-16, margin=12, cell=10;
+  const cols=Math.max(1,Math.floor((WORLD.w-2*margin)/cell));
+  const rows=Math.max(1,Math.floor((bottomY-topY)/cell));
+  const capacity=Math.max(1,cols*rows);
+  const need = o.guests ? Math.min(capacity, Math.ceil(o.guests/3)) : Math.round(capacity*0.6);
+  let placed=0, hb=0;
+  for(let r=0;r<rows && placed<need;r++)for(let c=0;c<cols && placed<need;c++){
+    if((r*cols+c)%12===5) items.push(makeItem('lounge', margin+c*cell, topY+r*cell, {label:'Lounge'}));
+    else items.push(makeItem('cocktail', margin+c*cell+2, topY+r*cell+2, {label:'Highboy '+(++hb)}));
+    placed++;
+  }
+}
+// half-rounds theatre hybrid — front dinner rounds, rear theatre seat blocks
+function seatHalfRoundsTheatre(items, o, topY){
+  const bottomY=WORLD.h-16, mid=topY+(bottomY-topY)*0.5;
+  const spt=o.spt||8, margin=10, cell=9;
+  const cols=Math.max(1,Math.floor((WORLD.w-2*margin)/cell));
+  const rowsF=Math.max(1,Math.floor(Math.max(0,mid-topY)/cell));
+  let n=1;
+  for(let r=0;r<rowsF;r++)for(let c=0;c<cols;c++){
+    items.push(makeItem('table', margin+c*cell, topY+r*cell, {properties:{seats:spt},label:'T'+(n++)})); }
+  const aisle=o.aisle||8, m2=8;
+  const colW=(WORLD.w-2*m2-aisle)/2, regionH=Math.max(12, bottomY-mid);
+  const tcols=Math.max(4, Math.floor(colW/DESIGN_PITCH));
+  const rows=Math.max(1, Math.floor(regionH/DESIGN_PITCH));
+  const bH=Math.min(regionH, rows*DESIGN_PITCH);
+  items.push(makeItem('seatblock', m2, mid, {width:colW,height:bH,properties:{rows,cols:tcols},label:'Rear Left'}));
+  items.push(makeItem('seatblock', WORLD.w/2+aisle/2, mid, {width:colW,height:bH,properties:{rows,cols:tcols},label:'Rear Right'}));
+}
+
 function generateVariants(oIn){
   const o = {...oIn};
   if(o.chairs!=null) o.guests = o.chairs;   // an explicit chair count drives the seating target
@@ -2424,6 +2473,36 @@ function generateVariants(oIn){
     if(o.lounge) it.push(makeItem('lounge', 8, 8, {label:'Lounge'}));
     supportZone(it,o);
     finish(it,'Custom mix','Your exact selections — drop &amp; edit freely'); }
+
+  // ---- Additional layout rules (additive; reuse the strategies above) ----
+  const isConf = (o.type==='conference'||o.type==='corporate'||o.type==='product_launch');
+  // U-shape boardroom & Hollow square — perimeter tables around an open centre
+  if(isConf){
+    { const it=base(); const t=frontZone(it,{...o,stage:true}); seatPerimeter(it,o,t,false); supportZone(it,o);
+      finish(it,'U-shape boardroom','Tables around an open centre, open toward the screen'); }
+    { const it=base(); const t=frontZone(it,{...o,stage:true}); seatPerimeter(it,o,t,true); supportZone(it,o);
+      finish(it,'Hollow square','Closed ring of tables around an open centre'); }
+  }
+  // Banquet + stage + dance — weddings, galas, receptions
+  if(o.type==='wedding'||o.type==='gala'||o.type==='reception'){
+    const it=base(); const o5={...o,stage:true}; const t=frontZone(it,o5); const dcx=WORLD.w/2;
+    it.push(makeItem('dancefloor', dcx-12, t, {width:24,height:22,label:'Dance Floor'}));
+    it.push(makeItem('dj', dcx-4, Math.max(4,t-2), {label:'DJ'}));
+    seatBanquetLong(it,o,t+26); supportZone(it,o5);
+    finish(it,'Banquet + stage + dance','Long banquet tables with a stage & dance floor');
+  }
+  // Cabaret / crescent rounds — rounds set back from an open front facing the stage
+  if(!isConf){ const it=base(); const o6={...o, stage:o.stage!==false}; const t=frontZone(it,o6);
+    const bY=WORLD.h-16, openTop=t+Math.max(0,(bY-t))/3;
+    seatRounds(it,o6,openTop,false); supportZone(it,o6);
+    finish(it,'Cabaret / crescent rounds','Rounds set back from an open front facing the stage'); }
+  // Cocktail / standing reception — highboys + lounges, minimal fixed seating
+  { const it=base(); const t=frontZone(it,o); seatCocktail(it,o,t); supportZone(it,o);
+    finish(it,'Cocktail reception','Standing highboys & lounge clusters — mingling flow'); }
+  // Half-rounds theatre hybrid — front dinner rounds, rear theatre rows
+  if(!isConf){ const it=base(); const t=frontZone(it,o); seatHalfRoundsTheatre(it,o,t); supportZone(it,o);
+    finish(it,'Half-rounds + theatre','Front dinner rounds with rear theatre seating'); }
+
   return variants;
 }
 

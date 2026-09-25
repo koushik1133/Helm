@@ -37,8 +37,12 @@
 
   table{width:100%;border-collapse:collapse;font-size:13px}
   thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:10px 12px;border-bottom:1px solid var(--line)}
-  tbody td{padding:10px 12px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+  tbody td{padding:12px 12px;border-bottom:1px solid var(--line-2);vertical-align:middle}
   tbody tr:hover{background:var(--panel-2)}
+  tbody tr.catrow:hover{background:var(--panel-2)}
+  tr.catrow td{background:var(--panel-2);border-bottom:1px solid var(--line);border-top:1px solid var(--line);
+    font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-2);padding:9px 12px}
+  tr.catrow td .cnt{color:var(--ink-3);font-weight:600}
   .num{font-family:var(--mono);text-align:right}
   th.num{text-align:right}
   .cat{font-size:10px;font-weight:700;background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:2px 9px}
@@ -75,7 +79,7 @@
   .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px;margin-top:10px}
   .lsheet{width:min(400px,96vw)}
 </style>
-<link rel="stylesheet" href="theme.css?v=71">
+<link rel="stylesheet" href="theme.css?v=72">
 </head>
 <body>
 <div class="wrap">
@@ -119,6 +123,8 @@
       <select id="catFilter" class="sel"><option value="">All categories</option></select>
       <select id="priFilter" class="sel"><option value="">All priority</option><option value="A">A — high value</option><option value="B">B — mid</option><option value="C">C — low</option></select>
       <span class="spacer"></span>
+      <span id="seedStatus" style="font-size:12px;color:var(--ink-3)"></span>
+      <button id="seedBtn" class="btn" hidden>Load starter items</button>
       <button id="newBtn" class="btn primary" hidden>＋ Add item</button>
     </div>
     <div class="card" style="padding:0;overflow:auto">
@@ -192,6 +198,26 @@
   </div>
 </div>
 
+<!-- check-in -->
+<div id="ciModal" class="lmodal" hidden>
+  <div class="sheet">
+    <h3><span>🔑 Check in</span><button class="close" id="ci_close">×</button></h3>
+    <div class="fgrid">
+      <div class="fld"><label>Item</label><input id="ci_item" readonly></div>
+      <div class="fld"><label>Went out</label><input id="ci_out" readonly></div>
+      <div class="fld"><label>How many came back?</label><input id="ci_in" type="number" min="0" step="1"></div>
+      <div class="fld"><label>Confirmed by (your name)</label><input id="ci_by" placeholder="sign-off name"></div>
+    </div>
+    <div id="ci_warn" class="err" hidden style="background:#fff7e6;color:#946200"></div>
+    <div id="ci_err" class="err" hidden></div>
+    <div class="foot">
+      <span class="spacer"></span>
+      <button class="btn" id="ci_cancel">Cancel</button>
+      <button class="btn primary" id="ci_save">Confirm check-in</button>
+    </div>
+  </div>
+</div>
+
 <div id="loginModal" class="lmodal" hidden>
   <div class="sheet lsheet">
     <h3><span>Sign in</span><button class="close" id="li_close">×</button></h3>
@@ -203,8 +229,8 @@
 </div>
 
 <script src="config.js?v=90"></script>
-<script src="store-api.js?v=83"></script>
-<script src="tour.js?v=2"></script>
+<script src="store-api.js?v=84"></script>
+<script src="tour.js?v=3"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -213,22 +239,54 @@
   const ST={reserved:"Reserved",allocated:"Allocated",returned:"Returned",cancelled:"Cancelled"};
   let canEdit=false, canDelete=false, avail={}, items=[], reservations=[], checkouts=[], editingId=null, filter="", catF="", priF="";
   const PRI={A:"A",B:"B",C:"C"};
+  const INV_CATEGORIES=["Seating","Tables","Linens","Lighting","Sound & AV","Staging & Structures","Decor & Florals","Catering Equipment","Tableware","Power & Cabling","Tents & Canopies","Signage","Office & Misc"];
+  const STARTER_ITEMS=[
+    {name:"Chiavari chair",category:"Seating",total_qty:200,unit:"pcs"},
+    {name:"Folding chair",category:"Seating",total_qty:200,unit:"pcs"},
+    {name:"Round table 5ft",category:"Tables",total_qty:30,unit:"pcs"},
+    {name:"Rectangular table 6ft",category:"Tables",total_qty:30,unit:"pcs"},
+    {name:"White table linen",category:"Linens",total_qty:120,unit:"pcs"},
+    {name:"Uplight (LED)",category:"Lighting",total_qty:40,unit:"pcs"},
+    {name:"Par can",category:"Lighting",total_qty:24,unit:"pcs"},
+    {name:"Speaker (powered)",category:"Sound & AV",total_qty:8,unit:"pcs"},
+    {name:"Wireless mic",category:"Sound & AV",total_qty:12,unit:"pcs"},
+    {name:"Mixer 12-ch",category:"Sound & AV",total_qty:4,unit:"pcs"},
+    {name:"Stage deck 4x4",category:"Staging & Structures",total_qty:20,unit:"pcs"},
+    {name:"Truss section 10ft",category:"Staging & Structures",total_qty:16,unit:"pcs"},
+    {name:"Backdrop frame",category:"Decor & Florals",total_qty:6,unit:"pcs"},
+    {name:"Centerpiece vase",category:"Decor & Florals",total_qty:80,unit:"pcs"},
+    {name:"Chafing dish",category:"Catering Equipment",total_qty:30,unit:"pcs"},
+    {name:"Beverage dispenser",category:"Catering Equipment",total_qty:20,unit:"pcs"},
+    {name:"Dinner plate",category:"Tableware",total_qty:200,unit:"pcs"},
+    {name:"Water goblet",category:"Tableware",total_qty:200,unit:"pcs"},
+    {name:"Extension cord 25ft",category:"Power & Cabling",total_qty:40,unit:"pcs"},
+    {name:"Power distro box",category:"Power & Cabling",total_qty:6,unit:"pcs"},
+    {name:"10x10 canopy",category:"Tents & Canopies",total_qty:10,unit:"pcs"},
+    {name:"Directional sign",category:"Signage",total_qty:24,unit:"pcs"},
+    {name:"Walkie-talkie",category:"Office & Misc",total_qty:20,unit:"pcs"}
+  ];
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
       el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
-    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
 
   function availClass(a,total){ if(a<=0) return "low"; if(total && a<total*0.2) return "mid"; return "ok"; }
 
   function renderStock(){
-    const cats=[...new Set(items.map(i=>i.category).filter(Boolean))].sort();
-    $("#catFilter").innerHTML='<option value="">All categories</option>'+cats.map(c=>`<option ${c===catF?"selected":""}>${esc(c)}</option>`).join("");
-    $("#catList").innerHTML=cats.map(c=>`<option value="${esc(c)}">`).join("");
+    // present categories on items, deduped against the suggested taxonomy for the datalist
+    const presentCats=[...new Set(items.map(i=>i.category).filter(Boolean))].sort();
+    $("#catFilter").innerHTML='<option value="">All categories</option>'+presentCats.map(c=>`<option ${c===catF?"selected":""}>${esc(c)}</option>`).join("");
+    const datalistCats=[...new Set([...INV_CATEGORIES,...presentCats])];
+    $("#catList").innerHTML=datalistCats.map(c=>`<option value="${esc(c)}">`).join("");
+    // show/hide the starter-items button (idempotent, so always available when editable)
+    $("#seedBtn").hidden=!canEdit;
+
     const q=filter.trim().toLowerCase();
     const shown=items.filter(i=>(!catF||i.category===catF)&&(!priF||(i.priority||"C")===priF)&&(!q||[i.name,i.category].join(" ").toLowerCase().includes(q)));
-    $("#stockRows").innerHTML = shown.length ? shown.map(i=>{
+
+    const rowHtml=(i)=>{
       const a=avail[i.id]||{committed:0,available:Number(i.total_qty||0)};
       const p=i.priority||"C";
       return `<tr>
@@ -242,8 +300,46 @@
         <td>${esc(i.unit||"")}</td>
         <td>${canEdit?`<button class="rm" data-edit="${i.id}">Edit</button>`:""}</td>
       </tr>`;
-    }).join("") : '<tr><td colspan="9" class="empty">No items. Add your first stock item.</td></tr>';
+    };
+
+    if(!shown.length){
+      $("#stockRows").innerHTML='<tr><td colspan="9" class="empty">No items. Add your first stock item.</td></tr>';
+      return;
+    }
+    // group by category; "Uncategorized" bucket sorts last, others alphabetically; items by name within a group
+    const UNCAT="Uncategorized";
+    const groups={};
+    shown.forEach(i=>{ const key=(i.category&&String(i.category).trim())||UNCAT; (groups[key]=groups[key]||[]).push(i); });
+    const keys=Object.keys(groups).sort((x,y)=>{
+      if(x===UNCAT) return 1; if(y===UNCAT) return -1;
+      return x.toLowerCase().localeCompare(y.toLowerCase());
+    });
+    const html=keys.map(cat=>{
+      const list=groups[cat].slice().sort((x,y)=>String(x.name||"").toLowerCase().localeCompare(String(y.name||"").toLowerCase()));
+      const header=`<tr class="catrow"><td colspan="9">${esc(cat)} <span class="cnt">— ${list.length} item${list.length===1?"":"s"}</span></td></tr>`;
+      return header+list.map(rowHtml).join("");
+    }).join("");
+    $("#stockRows").innerHTML=html;
     $("#stockRows").querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>openItem(items.find(x=>x.id===b.dataset.edit))));
+  }
+
+  async function loadStarterItems(){
+    if(!canEdit) return;
+    const st=$("#seedStatus"); const btn=$("#seedBtn");
+    btn.disabled=true; st.textContent="Loading…";
+    try{
+      const existing=await BPStore.inventory.items(true);
+      const have=new Set(existing.map(i=>String(i.name||"").trim().toLowerCase()));
+      let added=0;
+      for(const s of STARTER_ITEMS){
+        if(have.has(s.name.trim().toLowerCase())) continue;
+        await BPStore.inventory.addItem({ name:s.name, category:s.category, total_qty:s.total_qty, unit:s.unit, priority:"C", unit_cost:0, notes:null });
+        have.add(s.name.trim().toLowerCase()); added++;
+      }
+      st.textContent=added?`Added ${added} item${added===1?"":"s"}`:"All starter items already present";
+      await load();
+    }catch(e){ st.textContent="Couldn't add — "+((e&&e.message)||"error"); }
+    finally{ btn.disabled=false; }
   }
 
   function renderEventPanel(){
@@ -315,8 +411,12 @@
   function renderCheckouts(){
     const byId=Object.fromEntries(items.map(i=>[i.id,i]));
     $("#co_item").innerHTML=items.map(i=>`<option value="${i.id}">${esc(i.name)}${i.priority?` (${i.priority})`:""}</option>`).join("");
-    const open=checkouts.filter(c=>c.status==="out"||c.status==="partial");
-    const closed=checkouts.filter(c=>c.status==="returned"||c.status==="partial");
+    // open vs closed decided by REMAINING qty, not status alone:
+    //   open = still out ('out', or 'partial' with units outstanding); loss = missing>0 and not open
+    const remainingOut=(c)=>Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0);
+    const isOpen=(c)=>c.status==="out"||(c.status==="partial"&&remainingOut(c)>0);
+    const open=checkouts.filter(isOpen);
+    const closed=checkouts.filter(c=>!isOpen(c));
     $("#loanCount").textContent = open.length? `${open.length} open` : "";
     // open loans
     $("#loanRows").innerHTML = open.length ? open.map(c=>{ const it=byId[c.item_id]||{name:"(item)"};
@@ -330,7 +430,7 @@
         <td style="font-size:12px;color:var(--ink-3)">${c.checked_out_at?new Date(c.checked_out_at).toLocaleDateString():""}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">${goEvent}${canEdit?`<button class="btn sm" data-in="${c.id}">Check in</button>`:""}</td>
       </tr>`; }).join("") : '<tr><td colspan="6" class="empty">Nothing out on loan.</td></tr>';
-    // loss report (returned/partial with missing>0)
+    // loss report (fully-closed loans with missing>0)
     let lostVal=0, lostUnits=0;
     const lossRows = closed.map(c=>{ const it=byId[c.item_id]||{name:"(item)"}; const missing=Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0);
       if(missing<=0) return ""; const val=missing*Number(it.unit_cost||0); lostVal+=val; lostUnits+=missing;
@@ -340,7 +440,7 @@
         <td class="num">${num(c.qty_in)}</td>
         <td class="num"><span class="miss">${num(missing)}</span></td>
         <td class="num">${val?("₹"+num(val)):"—"}</td>
-        <td>${esc(c.returned_by||"—")}</td>
+        <td>${esc(c.confirmed_by||c.returned_by||"—")}</td>
         <td style="font-size:12px;color:var(--ink-3)">${c.checked_in_at?new Date(c.checked_in_at).toLocaleDateString():""}</td>
       </tr>`; }).join("");
     $("#lossRows").innerHTML = lossRows || '<tr><td colspan="7" class="empty">No missing items — everything came back. 🎉</td></tr>';
@@ -348,23 +448,54 @@
     $("#loanRows").querySelectorAll("[data-in]").forEach(b=>b.addEventListener("click",()=>checkInFlow(b.dataset.in)));
   }
 
-  async function checkInFlow(id){
+  let checkInId=null;
+  function ciOut(){ const c=checkouts.find(x=>x.id===checkInId)||{}; return Number(c.qty_out||0); }
+  function ciItem(){ const c=checkouts.find(x=>x.id===checkInId)||{}; return items.find(x=>x.id===c.item_id)||{}; }
+  function refreshCiWarn(){
+    const out=ciOut(); const it=ciItem();
+    let qtyIn=Number($("#ci_in").value); if(isNaN(qtyIn)) qtyIn=0;
+    const missing=Math.max(out-qtyIn,0);
+    if(missing>0){
+      $("#ci_warn").innerHTML=`<b>${num(missing)}</b> ${esc(it.unit||"unit(s)")} short of ${num(out)} — the missing ${num(missing)} will be written off as loss (stock reduced by ${num(missing)}, ₹${num(missing*Number(it.unit_cost||0))}).`;
+      $("#ci_warn").hidden=false;
+    } else { $("#ci_warn").hidden=true; }
+  }
+  function checkInFlow(id){
     const c=checkouts.find(x=>x.id===id); if(!c) return;
     const it=items.find(x=>x.id===c.item_id)||{};
-    const already=Number(c.qty_in||0);
-    const ans=prompt(`Checking in "${it.name||"item"}" — ${num(c.qty_out)} went out.\nHow many came back?`, String(c.qty_out));
-    if(ans===null) return; const qtyIn=Number(ans);
-    if(isNaN(qtyIn)||qtyIn<0){ alert("Enter a valid number."); return; }
-    const by=prompt("Who is confirming the return? (your name / sign-off)", "");
-    if(by===null) return;
-    const missing=Math.max(Number(c.qty_out||0)-qtyIn,0);
-    let writeoff=false;
-    if(missing>0) writeoff=confirm(`${missing} ${it.unit||"unit(s)"} missing (₹${num(missing*Number(it.unit_cost||0))}).\n\nOK = write it off (permanently reduce stock by ${missing}).\nCancel = just record the shortage (stock unchanged).`);
-    try{ await BPStore.inventory.checkouts.in(id, qtyIn, by.trim()||null, writeoff); await load();
-      // jump to loans pane so they see the result
-      document.querySelector('.tab[data-pane="loans"]').click(); }
-    catch(e){ alert("Couldn't check in — "+((e&&e.message)||"error")); }
+    checkInId=id;
+    $("#ci_item").value=it.name||"(item)";
+    $("#ci_out").value=`${num(c.qty_out)} ${it.unit||""}`.trim();
+    $("#ci_in").max=Number(c.qty_out||0); $("#ci_in").min=0; $("#ci_in").value=Number(c.qty_out||0);
+    $("#ci_by").value="";
+    $("#ci_err").hidden=true; refreshCiWarn();
+    $("#ciModal").hidden=false; setTimeout(()=>$("#ci_by").focus(),50);
   }
+  function closeCheckIn(){ $("#ciModal").hidden=true; checkInId=null; }
+  async function confirmCheckIn(){
+    if(!checkInId) return;
+    const c=checkouts.find(x=>x.id===checkInId); if(!c){ closeCheckIn(); return; }
+    const out=Number(c.qty_out||0);
+    let qtyIn=Number($("#ci_in").value);
+    if(isNaN(qtyIn)||qtyIn<0){ $("#ci_err").textContent="Enter a valid number of units."; $("#ci_err").hidden=false; return; }
+    if(qtyIn>out) qtyIn=out;
+    const by=($("#ci_by").value||"").trim();
+    // any shortfall is written off as loss
+    const writeoff=(out-qtyIn)>0;
+    $("#ci_save").disabled=true; $("#ci_err").hidden=true;
+    try{
+      await BPStore.inventory.checkouts.in(checkInId, qtyIn, by||null, writeoff);
+      closeCheckIn(); await load();
+      document.querySelector('.tab[data-pane="loans"]').click();
+    }catch(e){ $("#ci_err").textContent="Couldn't check in — "+((e&&e.message)||"error"); $("#ci_err").hidden=false; }
+    finally{ $("#ci_save").disabled=false; }
+  }
+  $("#ci_in").addEventListener("input",refreshCiWarn);
+  $("#ci_close").addEventListener("click",closeCheckIn);
+  $("#ci_cancel").addEventListener("click",closeCheckIn);
+  $("#ci_save").addEventListener("click",confirmCheckIn);
+  $("#ciModal").addEventListener("click",e=>{ if(e.target.id==="ciModal") closeCheckIn(); });
+  $("#seedBtn").addEventListener("click",loadStarterItems);
 
   $("#co_add").addEventListener("click",async()=>{
     const itemId=$("#co_item").value, qty=Number($("#co_qty").value||0);
@@ -391,7 +522,7 @@
     catch(e){ alert("Couldn't reserve — "+((e&&e.message)||"error")); }
     finally{ $("#rv_add").disabled=false; }
   });
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeItem(); closeLogin(); } });
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeItem(); closeLogin(); closeCheckIn(); } });
 
   async function load(){
     try{
@@ -415,7 +546,7 @@
 
   (async ()=>{
     await BPStore.init(); await renderAccount();
-    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ $("#gate").hidden=false; openLogin(); return; }
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     if(!(await BPStore.auth.requireView("inventory"))) return;
     canEdit=await BPStore.auth.canEditArea("inventory"); canDelete=await BPStore.auth.can("delete");
     $("#app").hidden=false; $("#newBtn").hidden=!canEdit;

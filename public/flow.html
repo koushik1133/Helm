@@ -72,7 +72,7 @@
   .lsheet input,.lsheet select{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;margin-bottom:12px;font-family:inherit;color:var(--ink)}
   .banner{background:var(--accent-soft);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--ink);display:flex;gap:10px;align-items:center}
 </style>
-<link rel="stylesheet" href="theme.css?v=71">
+<link rel="stylesheet" href="theme.css?v=72">
 </head>
 <body>
 <div class="wrap">
@@ -273,8 +273,8 @@
 </div>
 
 <script src="config.js?v=90"></script>
-<script src="store-api.js?v=83"></script>
-<script src="tour.js?v=2"></script>
+<script src="store-api.js?v=84"></script>
+<script src="tour.js?v=3"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -664,8 +664,8 @@
       const acc=$("#account"); acc.hidden=false;
       if(u){ const role=await BPStore.auth.role(); acc.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
         $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";}); }
-      else { acc.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); }
-      if(BPStore.auth.required() && !u){ $("#gate").hidden=false; openLogin(); return; }
+      else { acc.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); }
+      if(BPStore.auth.required() && !u){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     }
     if(!id){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:var(--ink-3)">No quote selected. Start one from <a href="index.html" style="color:var(--accent)">Home</a> or <a href="leads.html" style="color:var(--accent)">Leads</a>.</p>'; return; }
     try{ canEdit=await BPStore.auth.canEditArea("quotes"); }catch{ canEdit=true; }
