@@ -142,8 +142,8 @@ function serveStatic(req, res) {
 
   // The public front door.
   if (rel === '/') {
-    return fs.readFile(path.join(PUBLIC_DIR, 'welcome.html'), (e, buf) =>
-      e ? sendJson(res, 404, { error: 'not found' }) : sendFileRes(res, 'welcome.html', buf, req));
+    return fs.readFile(path.join(PUBLIC_DIR, 'index.html'), (e, buf) =>
+      e ? sendJson(res, 404, { error: 'not found' }) : sendFileRes(res, 'index.html', buf, req));
   }
 
   // Public digital-invitation sites: /i/<slug> is served by invite.html, which

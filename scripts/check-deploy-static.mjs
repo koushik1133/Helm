@@ -15,7 +15,7 @@
    asserts GET /api/health -> 200, stops it).
    Exit non-zero on any failure so CI can gate on it.
    ============================================================================= */
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -36,10 +36,12 @@ cfg.framework === null ? ok("framework = null (no framework build)") : bad(`fram
 // routing the static app must keep working without server.js
 const cleanUrls = cfg.cleanUrls === true;
 const sources = new Set((cfg.rewrites || []).map((r) => r.source));
-// Non-1:1 routes must be explicit rewrites (no matching <name>.html file).
-for (const s of ["/", "/i/:slug*"]) {
-  sources.has(s) ? ok(`rewrite present: ${s}`) : bad(`missing required rewrite: ${s}`);
-}
+// The invite short-link needs an explicit rewrite (no matching file).
+sources.has("/i/:slug*") ? ok("rewrite present: /i/:slug*") : bad("missing required rewrite: /i/:slug*");
+// Root: index.html is the landing (directory index) → "/" serves it natively.
+existsSync(join(ROOT, "public", "index.html")) || sources.has("/")
+  ? ok("root served (public/index.html present or / rewrite)")
+  : bad("no root: add public/index.html or a / rewrite");
 // Page routes: served extensionlessly by cleanUrls (from <name>.html), or an
 // explicit per-page rewrite. Either satisfies clean, server-less routing.
 cleanUrls ? ok("cleanUrls enabled (extensionless page routes)")
