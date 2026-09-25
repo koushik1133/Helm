@@ -117,9 +117,14 @@ with checks as (
   select 'OTP-01','otp_dev_echo currently','false (prod-safe)',
          coalesce((select (value->>'otp_dev_echo') from public.app_config where key='channels' limit 1),'(no row)')
   union all
-  select 'DATA','app_config duplicate keys (should be 0)','0',
+  -- app_config is MULTI-TENANT: PK is (org_id, key). One row PER (org_id,key) is
+  -- CORRECT and expected — the same key (e.g. 'pricing','channels') legitimately
+  -- appears once per org. A true duplicate is two rows with the SAME (org_id,key),
+  -- which the composite PK already prevents. So this must group by (org_id,key),
+  -- NOT by key alone. (Grouping by key alone falsely flags normal per-org rows.)
+  select 'DATA','app_config true duplicates per (org_id,key) (should be 0)','0',
          (select coalesce(count(*),0)::text from
-            (select key from public.app_config group by key having count(*) > 1) d)
+            (select org_id, key from public.app_config group by org_id, key having count(*) > 1) d)
   union all
   select 'OTP-01','request_otp gates echo on otp_dev_echo + fail-closed','yes',
          case when exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
@@ -194,16 +199,25 @@ order by area, item;
 -- select public.layouts_quarantined_count() as layouts_without_org;
 
 -- ---------------------------------------------------------------------------
--- OPTIONAL app_config dedup (run ONLY if the DATA row above reports > 0).
--- app_config should have one row per key; duplicates make get_pricing_config /
--- _flag unreliable. This keeps the NEWEST row per key and deletes the older
--- duplicates (config-only rows; not business data), then adds a unique key so it
--- can't recur. Review before running — it deletes redundant rows. NOT run by the
--- read-only preflight; paste it separately after reviewing the count.
+-- app_config dedup — DO NOT dedup by key alone.
+--
+-- WARNING (learned the hard way): app_config is MULTI-TENANT with a COMPOSITE
+-- primary key (org_id, key) — see phase57-multitenant-rls.sql. get_pricing_config()
+-- and set_pricing_config() are ORG-SCOPED and rely on `on conflict (org_id, key)`.
+--
+--   * The same key ('pricing','channels',...) appearing once per org is NORMAL,
+--     not a duplicate. Do NOT delete "duplicate keys".
+--   * NEVER add `unique (key)` — it breaks per-org config inserts and the
+--     set_pricing_config upsert. The composite PK already guarantees uniqueness
+--     of (org_id, key), so no extra constraint is needed.
+--
+-- A genuine duplicate (same org_id AND same key twice) is impossible while the
+-- composite PK exists; the DATA check above correctly groups by (org_id, key).
+-- If — and only if — that check ever reports > 0 (i.e. the PK is somehow missing),
+-- dedup PER (org_id, key), then restore the composite PK. Review before running:
 --
 -- delete from public.app_config a
---  using (select key, max(updated_at) mx from public.app_config group by key) k
---  where a.key = k.key and a.updated_at < k.mx;
--- delete from public.app_config a using public.app_config b
---  where a.key = b.key and a.updated_at = b.updated_at and a.ctid < b.ctid;
--- alter table public.app_config add constraint app_config_key_uk unique (key);
+--  using (select org_id, key, max(updated_at) mx from public.app_config group by org_id, key) k
+--  where a.org_id = k.org_id and a.key = k.key and a.updated_at < k.mx;
+-- alter table public.app_config
+--   add constraint app_config_pkey primary key (org_id, key);  -- only if missing
