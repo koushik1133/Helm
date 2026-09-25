@@ -21,6 +21,20 @@ window.SUPABASE_CONFIG = {
 };
 
 // ---------------------------------------------------------------------------
+// STAGING project (PUBLIC values only — same posture as the prod anon key above,
+// which is public-by-design and RLS-protected). The staging anon/publishable key
+// and URL are safe to commit. NEVER put the elevated service-role key, DB password, OAuth
+// client secret, or any provider secret here — those live only in Supabase/Vercel
+// dashboards. Leave BLANK until the staging project is created; blank = "no
+// staging configured", which makes staging hosts and localhost fail closed rather
+// than ever touching production.
+// ---------------------------------------------------------------------------
+window.SUPABASE_STAGING = {
+  url: "",       // e.g. https://<staging-ref>.supabase.co   (fill in)
+  anonKey: ""    // staging anon/publishable key             (fill in)
+};
+
+// ---------------------------------------------------------------------------
 // ENV SEPARATION (Wave 4 / finding ENV / DEPLOY-02): local development must NOT
 // silently use the PRODUCTION Supabase project. Wave 3 found that pages served
 // from localhost connected straight to prod. If this page is on localhost and
@@ -35,6 +49,41 @@ window.SUPABASE_CONFIG = {
 (function () {
   try {
     var h = ((location && location.hostname) || '').toLowerCase();
+
+    // Resolve staging creds from (in priority): committed SUPABASE_STAGING block →
+    // window.HELM_STAGING_SUPABASE override → localStorage 'helm.staging'. Returns
+    // null when none is configured. (All PUBLIC values — never secrets.)
+    function resolveStaging() {
+      var s = (window.SUPABASE_STAGING && window.SUPABASE_STAGING.url) ? window.SUPABASE_STAGING : null;
+      if (!s && window.HELM_STAGING_SUPABASE && window.HELM_STAGING_SUPABASE.url) s = window.HELM_STAGING_SUPABASE;
+      if (!s) { try { var j = localStorage.getItem('helm.staging'); if (j) { var p = JSON.parse(j); if (p && p.url) s = p; } } catch (e) {} }
+      return (s && s.url && s.anonKey) ? s : null;
+    }
+    function useStaging(s) {
+      window.SUPABASE_CONFIG.url = s.url;
+      window.SUPABASE_CONFIG.anonKey = s.anonKey;
+      window.SUPABASE_CONFIG.__staging = true;
+      console.info('[Helm] Using the STAGING Supabase project (isolated from production).');
+    }
+    function failClosed(where) {
+      window.SUPABASE_CONFIG.url = '';
+      window.SUPABASE_CONFIG.anonKey = '';
+      window.SUPABASE_CONFIG.__localFallback = true;
+      console.error('[Helm] Supabase DISABLED on ' + where + ' — no STAGING project configured, and ' +
+        'connecting to PRODUCTION here is not allowed (env separation, fail-closed). ' +
+        'Fill window.SUPABASE_STAGING in config.js (public url+anonKey) — see docs/STAGING-SETUP.md.');
+    }
+
+    // 1) STAGING HOST: any host containing "staging" (e.g. helm-staging.vercel.app)
+    //    MUST use the staging project — and never production. If staging creds are
+    //    missing, fail closed rather than fall back to prod.
+    var isStagingHost = /staging/.test(h);
+    if (isStagingHost) {
+      var stg = resolveStaging();
+      if (stg) { useStaging(stg); } else { failClosed('the staging host'); }
+      return;
+    }
+
     // Treat all loopback, LAN/RFC1918 and bare/.local hostnames as NON-production.
     var isLocal =
       h === 'localhost' || h === '' || h === '0.0.0.0' ||
@@ -61,6 +110,8 @@ window.SUPABASE_CONFIG = {
     //
     // The legacy HELM_BLOCK_PROD_FROM_LOCALHOST flag is still honoured (it forces a
     // block) but is now redundant: blocking is the default.
+    // 2) LOCALHOST / LAN: prefer STAGING; never silently use production. An explicit
+    //    opt-in still allows read-only prod debugging; otherwise fail closed.
     var allowProd = (typeof window !== 'undefined' && window.HELM_ALLOW_PROD_FROM_LOCALHOST === true);
     try { allowProd = allowProd || (localStorage.getItem('helm.allowProdFromLocalhost') === '1'); } catch (e) {}
     // Legacy explicit block flag can only *reinforce* fail-closed, never open prod.
@@ -68,16 +119,8 @@ window.SUPABASE_CONFIG = {
     try { legacyBlock = legacyBlock || (localStorage.getItem('helm.blockProdFromLocalhost') === '1'); } catch (e) {}
     if (legacyBlock) allowProd = false;
 
-    var staging = (typeof window !== 'undefined' && window.HELM_STAGING_SUPABASE) || null;
-
-    if (staging && staging.url && staging.anonKey) {
-      // Use the isolated staging project — never production — for local development.
-      window.SUPABASE_CONFIG.url = staging.url;
-      window.SUPABASE_CONFIG.anonKey = staging.anonKey;
-      window.SUPABASE_CONFIG.__staging = true;
-      console.info('[Helm] Local development using the STAGING Supabase project (isolated from production).');
-      return;
-    }
+    var stgLocal = resolveStaging();
+    if (stgLocal) { useStaging(stgLocal); return; }   // localhost → staging (never prod)
 
     if (allowProd && window.SUPABASE_CONFIG && window.SUPABASE_CONFIG.url) {
       // Explicit, deliberate opt-in to hit PRODUCTION from localhost.
@@ -86,15 +129,6 @@ window.SUPABASE_CONFIG = {
       return;
     }
 
-    // Default: fail closed. Blank the prod credentials so nothing on localhost can
-    // read/mutate production, and tell the developer exactly how to proceed.
-    window.SUPABASE_CONFIG.url = '';          // → store-api supaConfigured() = false
-    window.SUPABASE_CONFIG.anonKey = '';
-    window.SUPABASE_CONFIG.__localFallback = true;
-    console.error('[Helm] Supabase is DISABLED on localhost to protect PRODUCTION data ' +
-      '(env separation, fail-closed). No staging project is configured. To proceed, either:\n' +
-      '  • configure staging:  window.HELM_STAGING_SUPABASE = { url, anonKey }  (see docs/STAGING-SETUP.md), or\n' +
-      "  • deliberately use production (read-only debugging):  localStorage.setItem('helm.allowProdFromLocalhost','1'); then reload.\n" +
-      'Until then the app uses the local Node backend / localStorage only.');
+    failClosed('localhost');   // no staging + no opt-in → disabled (never prod)
   } catch (e) { /* never break config load */ }
 })();
