@@ -38,9 +38,7 @@ with checks as (
          case when exists (
            select 1 from pg_constraint c
            where c.conrelid='public.app_config'::regclass and c.contype='p'
-             and (select array_agg(att.attname::text order by att.attnum)
-                    from unnest(c.conkey) k join pg_attribute att
-                      on att.attrelid=c.conrelid and att.attnum=k) = array['org_id','key']
+             and pg_get_constraintdef(c.oid) ilike '%primary key (org_id, key)%'
          ) then 'yes' else 'no' end,
          'high',
          'This is the correct uniqueness for multi-tenant app_config.'
@@ -49,9 +47,7 @@ with checks as (
          case when exists (
            select 1 from pg_constraint c
            where c.conrelid='public.app_config'::regclass and c.contype='u'
-             and (select array_agg(att.attname::text order by att.attnum)
-                    from unnest(c.conkey) k join pg_attribute att
-                      on att.attrelid=c.conrelid and att.attnum=k) = array['key']
+             and pg_get_constraintdef(c.oid) ilike '%unique (key)%'
          ) then 'PRESENT (harmful)' else 'absent' end,
          'high',
          'A unique(key) here breaks per-org config inserts / set_pricing_config on conflict (org_id,key). phase97 drops it.'
