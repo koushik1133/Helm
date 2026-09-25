@@ -196,8 +196,18 @@
     if(code.length!==6){ setMsg("err","Enter the 6-digit OTP."); return; }
     if(!agreed){ setMsg("err","Please tick the box to accept the terms."); return; }
     b.disabled=true; b.textContent="Verifying…";
-    try{ await BPStore.approval.verifyConsent(token, phone, code, true, TERMS_VERSION, CONSENT_TEXT, $("#c_name").value.trim(), navigator.userAgent);
-      showStep('step3'); $("#approvedNote").textContent="Recorded on "+new Date().toLocaleString(); setMsg();
+    try{ const r=await BPStore.approval.verifyConsent(token, phone, code, true, TERMS_VERSION, CONSENT_TEXT, $("#c_name").value.trim(), navigator.userAgent);
+      // W10-D1: verify_and_consent now soft-returns {approved:false,message} on OTP
+      // failure (so the attempts counter can persist and lockout works). Older DB
+      // versions raise on failure instead — the catch below still handles those.
+      // FAIL-CLOSED: the approved step shows ONLY on an explicit approved===true.
+      // null/undefined/malformed result, approved:false, locked, no_active_code,
+      // disagreement, or an RPC throw (caught below) must never reach step3.
+      if(r && r.approved === true){
+        showStep('step3'); $("#approvedNote").textContent="Recorded on "+new Date().toLocaleString(); setMsg();
+      } else {
+        setMsg("err",(r&&r.message)||"Verification failed.");
+      }
     }catch(e){ setMsg("err",(e&&e.message)||"Verification failed."); }
     finally{ b.disabled=false; b.textContent="✓ Confirm & approve"; }
   });
