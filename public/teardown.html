@@ -78,6 +78,14 @@
     </div>
 
     <div class="card">
+      <h2>🔑 Equipment check-out / check-in <span class="prog" id="loanProg"></span></h2>
+      <p class="sub">Gear physically issued for this event. Check items back in as they return — anything short lands in the loss report.</p>
+      <table><thead><tr><th>Item</th><th class="num">Out</th><th>Issued to</th><th></th></tr></thead>
+        <tbody id="loanRows"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody></table>
+      <div style="margin-top:12px"><a class="btn go" id="ciLink" href="#">🔑 Open Check-out / Check-in →</a></div>
+    </div>
+
+    <div class="card">
       <h2>🤝 Vendor &amp; rental exit</h2>
       <p class="sub">Mark each partner off-site / rentals returned.</p>
       <div id="bkRows"></div>
@@ -140,6 +148,20 @@
       catch(e){ alert("Couldn't return — "+((e&&e.message)||"error")); } }));
   }
 
+  async function renderLoans(){
+    const cos=await BPStore.inventory.checkouts.list(id);
+    if(!Object.keys(itemsById).length){ try{ const its=await BPStore.inventory.items(true); its.forEach(i=>itemsById[i.id]=i); }catch(_){} }
+    const remaining=(c)=>Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0);
+    const open=cos.filter(c=>c.status==="out"||(c.status==="partial"&&remaining(c)>0));
+    $("#loanProg").textContent = cos.length?`${open.length} open`:"";
+    $("#loanRows").innerHTML = open.length ? open.map(c=>{ const it=itemsById[c.item_id]||{name:"(item)"};
+      return `<tr><td><b>${esc(it.name)}</b></td>
+        <td class="num">${esc(remaining(c))} ${esc(it.unit||"")}</td>
+        <td>${esc(c.issued_to||"—")}</td>
+        <td><a class="btn go" href="inventory.html?quote=${encodeURIComponent(id)}&tab=loans">Check in →</a></td></tr>`;
+    }).join("") : '<tr><td colspan="4" class="empty">Nothing on loan for this event. 🎉</td></tr>';
+  }
+
   async function renderBookings(){
     const bk=await BPStore.bookings.list(id);
     $("#bkRows").innerHTML = bk.length ? bk.map(b=>`<div class="rowline">
@@ -178,7 +200,9 @@
     try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
     $("#app").hidden=false; $("#tdAdd").hidden=!canEdit;
+    $("#ciLink").href="inventory.html?quote="+encodeURIComponent(id)+"&tab=loans";
     try{ await renderInventory(); }catch(e){ $("#invRows").innerHTML=`<tr><td colspan="5" class="empty">Couldn't load — ${esc(e&&e.message||"error")}</td></tr>`; }
+    try{ await renderLoans(); }catch(e){ $("#loanRows").innerHTML=`<tr><td colspan="4" class="empty">Couldn't load — run <b>phase33-inventory-accountability.sql</b>.</td></tr>`; }
     try{ await renderBookings(); }catch(e){ $("#bkRows").innerHTML=`<div class="empty">Couldn't load bookings.</div>`; }
     try{ await renderTeardown(); }catch(e){ $("#tdRows").innerHTML=`<div class="empty">Couldn't load — run <b>phase18-teardown.sql</b>.</div>`; }
   })();

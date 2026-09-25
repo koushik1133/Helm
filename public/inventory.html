@@ -402,11 +402,16 @@
   $("#priFilter").addEventListener("change",e=>{ priF=e.target.value; renderStock(); });
 
   /* ---- sub-tab switching ---- */
-  document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
-    document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===t));
-    $("#pane-stock").hidden=t.dataset.pane!=="stock";
-    $("#pane-loans").hidden=t.dataset.pane!=="loans";
-  }));
+  function activatePane(pane){
+    document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x.dataset.pane===pane));
+    $("#pane-stock").hidden=pane!=="stock";
+    $("#pane-loans").hidden=pane!=="loans";
+  }
+  document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>activatePane(t.dataset.pane)));
+  // Deep-link: inventory.html?tab=loans (or ?tab=checkouts) opens the Check-out / Check-in tab
+  // — used by the teardown workflow so check-in/out is reachable from the event flow.
+  (function(){ const tp=(new URLSearchParams(location.search).get("tab")||"").toLowerCase();
+    if(tp==="loans"||tp==="checkouts"||tp==="checkin"||tp==="checkout") activatePane("loans"); })();
 
   /* ---- check-out / check-in ---- */
   function renderCheckouts(){
