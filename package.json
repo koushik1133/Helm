@@ -13,9 +13,11 @@
     "check:otp": "node scripts/check-otp-safety.mjs",
     "check:deferred": "node scripts/check-deferred-integrations.mjs",
     "check:env": "node scripts/check-env-safety.mjs",
-    "test": "node test/otp-safety.test.mjs && node test/money-trust-boundary.test.mjs && node test/otp-dev-echo.test.mjs && node test/numbering-integrity.test.mjs && node test/rel-save-failure.test.mjs && node test/env-safety.test.mjs && node test/deferred-integrations.test.mjs && node test/migration-canon-negative.test.mjs && node test/token-lifecycle.test.mjs",
+    "test": "node test/otp-safety.test.mjs && node test/money-trust-boundary.test.mjs && node test/otp-dev-echo.test.mjs && node test/numbering-integrity.test.mjs && node test/rel-save-failure.test.mjs && node test/env-safety.test.mjs && node test/deferred-integrations.test.mjs && node test/migration-canon-negative.test.mjs && node test/token-lifecycle.test.mjs && node test/config-router.test.mjs",
     "ci": "node scripts/ci-check.mjs && node scripts/check-deploy-static.mjs && node scripts/check-migration-canon.mjs && node scripts/check-otp-safety.mjs && node scripts/check-deferred-integrations.mjs && node scripts/check-env-safety.mjs && npm test"
   },
-  "engines": { "node": ">=18" },
+  "engines": {
+    "node": ">=18"
+  },
   "license": "MIT"
 }

@@ -30,8 +30,9 @@ window.SUPABASE_CONFIG = {
 // than ever touching production.
 // ---------------------------------------------------------------------------
 window.SUPABASE_STAGING = {
-  url: "",       // e.g. https://<staging-ref>.supabase.co   (fill in)
-  anonKey: ""    // staging anon/publishable key             (fill in)
+  url: "",        // e.g. https://<staging-ref>.supabase.co   (fill in)
+  anonKey: "",    // staging anon/publishable key             (fill in)
+  hosts: []       // EXACT staging frontend hostname(s), e.g. ["helm-staging.vercel.app"]
 };
 
 // ---------------------------------------------------------------------------
@@ -74,27 +75,45 @@ window.SUPABASE_STAGING = {
         'Fill window.SUPABASE_STAGING in config.js (public url+anonKey) — see docs/STAGING-SETUP.md.');
     }
 
-    // 1) STAGING HOST: any host containing "staging" (e.g. helm-staging.vercel.app)
-    //    MUST use the staging project — and never production. If staging creds are
-    //    missing, fail closed rather than fall back to prod.
-    var isStagingHost = /staging/.test(h);
-    if (isStagingHost) {
+    // EXPLICIT ALLOWLISTS (no broad substring matching). Unknown hosts fail closed.
+    var PROD_HOSTS = {
+      'www.helm.events': 1, 'helm.events': 1,
+      'helm-v01.vercel.app': 1, 'helm-alpha-nine.vercel.app': 1
+    };
+    var STAGING_HOSTS = {};
+    try {
+      ((window.SUPABASE_STAGING && window.SUPABASE_STAGING.hosts) || []).forEach(function (x) {
+        if (x) STAGING_HOSTS[String(x).toLowerCase()] = 1;
+      });
+    } catch (e) {}
+
+    function isLocalLAN(host) {
+      return host === 'localhost' || host === '' || host === '0.0.0.0' ||
+        host === '::1' || host === '[::1]' ||
+        /\.local$/.test(host) || /\.localhost$/.test(host) ||
+        /^127\./.test(host) ||                              // 127.0.0.0/8 loopback
+        /^10\./.test(host) ||                               // 10.0.0.0/8
+        /^192\.168\./.test(host) ||                         // 192.168.0.0/16
+        /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||          // 172.16.0.0/12
+        host.indexOf('.') === -1;                           // bare hostname (no dot)
+    }
+
+    // 1) EXPLICIT PRODUCTION host → production Supabase (committed config as-is).
+    if (PROD_HOSTS[h]) return;
+
+    // 2) EXPLICIT STAGING host (allow-listed) → staging Supabase, or fail closed.
+    //    Never falls back to production, and ignores the localhost prod opt-in.
+    if (STAGING_HOSTS[h]) {
       var stg = resolveStaging();
       if (stg) { useStaging(stg); } else { failClosed('the staging host'); }
       return;
     }
 
-    // Treat all loopback, LAN/RFC1918 and bare/.local hostnames as NON-production.
-    var isLocal =
-      h === 'localhost' || h === '' || h === '0.0.0.0' ||
-      h === '::1' || h === '[::1]' ||
-      /\.local$/.test(h) || /\.localhost$/.test(h) ||
-      /^127\./.test(h) ||                                   // 127.0.0.0/8 loopback
-      /^10\./.test(h) ||                                    // 10.0.0.0/8
-      /^192\.168\./.test(h) ||                              // 192.168.0.0/16
-      /^172\.(1[6-9]|2\d|3[01])\./.test(h) ||               // 172.16.0.0/12
-      h.indexOf('.') === -1;                                // bare hostname (no dot) → not a public FQDN
-    if (!isLocal) return; // production / deployed public host: use committed config as-is
+    // 3) LOCALHOST / LAN handled below.
+    var isLocal = isLocalLAN(h);
+
+    // 4) UNKNOWN host (not prod, not staging, not local) → FAIL CLOSED (never prod).
+    if (!isLocal) { failClosed('an unrecognised host (' + h + ')'); return; }
 
     // FAIL-CLOSED BY DEFAULT (Wave 6 ENV P1): local/LAN/.local/loopback must NOT
     // silently connect to the PRODUCTION Supabase project. On localhost we blank
