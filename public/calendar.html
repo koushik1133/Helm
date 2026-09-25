@@ -105,8 +105,11 @@
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const fmtDate=(d)=>{ if(!d) return ""; const dt=new Date(d+"T00:00:00"); return dt.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}); };
-  const weekday=(d)=>{ if(!d) return ""; return new Date(d+"T00:00:00").toLocaleDateString("en-IN",{weekday:"long"}); };
+  // A usable calendar date is ISO YYYY-MM-DD and actually parses. Anything else
+  // (blank, malformed, junk) is treated as "no date" rather than "Invalid Date".
+  const validDate=(d)=>!!d && /^\d{4}-\d{2}-\d{2}$/.test(d) && !isNaN(new Date(d+"T00:00:00").getTime());
+  const fmtDate=(d)=>{ if(!validDate(d)) return "—"; const dt=new Date(d+"T00:00:00"); return dt.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}); };
+  const weekday=(d)=>{ if(!validDate(d)) return ""; return new Date(d+"T00:00:00").toLocaleDateString("en-IN",{weekday:"long"}); };
   let canEdit=false, data=null;
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
@@ -141,7 +144,7 @@
   function render(){
     const clashDates=new Set(data.conflicts.map(c=>c.date));
     renderConflicts();
-    const dated=data.agenda.filter(a=>a.event.eventDate);
+    const dated=data.agenda.filter(a=>validDate(a.event.eventDate));
     const byDate={}; dated.forEach(a=>{ (byDate[a.event.eventDate]=byDate[a.event.eventDate]||[]).push(a); });
     // Nearest upcoming event first: upcoming days (today onward) ascending, then
     // past days most-recent-first below a divider.
@@ -158,7 +161,7 @@
     if(past.length) html+=`<div class="hd" style="margin:18px 0 8px;color:var(--ink-3);font-weight:600;border-top:1px solid var(--line);padding-top:14px">Past events</div>`+past.map(dayBlock).join("");
     $("#agenda").innerHTML = (upcoming.length||past.length) ? html : '<div class="empty">No dated events yet.</div>';
 
-    const nodate=data.agenda.filter(a=>!a.event.eventDate);
+    const nodate=data.agenda.filter(a=>!validDate(a.event.eventDate));
     $("#nodateWrap").hidden = !nodate.length;
     if(nodate.length){ $("#nodate").innerHTML=nodate.map(a=>`<div class="ev">
       <div><span class="code">${esc(a.event.code)}</span> <span class="ttl">${esc(a.event.title||"")}</span></div>
