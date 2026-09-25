@@ -15,8 +15,8 @@ window.SUPABASE_CONFIG = {
   // (no external calls), so everything keeps working without it configured.
   liveChannels: {
     sms: false,       // send-otp        → MSG91
-    pay: false,       // create-payment-link → Razorpay (DEFERRED — do not enable)
-    whatsapp: false   // send-whatsapp   → Evolution API (DEFERRED — do not enable)
+    pay: false,       // create-payment-link → Razorpay Payment Links (enable only after deploy+secrets — see docs/INTEGRATIONS-WHATSAPP-RAZORPAY.md)
+    whatsapp: false   // send-whatsapp   → Meta WhatsApp Cloud API   (enable only after deploy+secrets — see docs/INTEGRATIONS-WHATSAPP-RAZORPAY.md)
   }
 };
 

@@ -57,6 +57,13 @@ Deno.serve(async (req) => {
     }
     if (!quoteId) return new Response("no quote", { status: 200 });
 
+    // IDEMPOTENCY: Razorpay delivers webhooks at-least-once (retries on non-2xx or
+    // timeout). Only the FIRST delivery may transition created→paid and send the
+    // confirmation emails. A replay finds the quote already paid and returns 200
+    // WITHOUT re-notifying, so the client/manager never get duplicate receipts.
+    const { data: already } = await admin.from("quotes").select("approval_status").eq("id", quoteId).single();
+    if (already?.approval_status === "paid") return new Response("already paid (idempotent)", { status: 200 });
+
     await admin.from("quote_payments").update({ status: "paid", paid_at: new Date().toISOString() })
       .eq("quote_id", quoteId).eq("status", "created");
     const { data: q } = await admin.from("quotes").update({ approval_status: "paid" }).eq("id", quoteId).select("*").single();
