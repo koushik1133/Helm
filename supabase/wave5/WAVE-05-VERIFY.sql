@@ -50,7 +50,7 @@ with v as (
 
   -- OTP-01 --------------------------------------------------------------------
   union all select 'OTP-01','otp_dev_echo flag present & false','yes',
-    case when coalesce((select (value->>'otp_dev_echo') from public.app_config where key='channels'),'true')='false' then 'yes' else 'no' end
+    case when coalesce((select (value->>'otp_dev_echo') from public.app_config where key='channels' limit 1),'true')='false' then 'yes' else 'no' end
   union all select 'OTP-01','request_otp fail-closed + dev-echo gated','yes',
     case when exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='request_otp' and pg_get_functiondef(p.oid) ilike '%otp_dev_echo%' and pg_get_functiondef(p.oid) ilike '%unavailable%') then 'yes' else 'no' end
 

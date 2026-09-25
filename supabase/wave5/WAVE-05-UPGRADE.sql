@@ -38,15 +38,26 @@ begin;
 create table if not exists public.app_config (
   key text primary key, value jsonb not null default '{}'::jsonb, updated_at timestamptz not null default now()
 );
-insert into public.app_config(key,value) values
-  ('channels', '{"sms_live":false,"email_live":false,"pay_live":false,"otp_dev_echo":false}'::jsonb)
-  on conflict (key) do nothing;
+-- No ON CONFLICT: some existing databases have app_config without a unique
+-- constraint on key (and may even hold duplicate rows). Guard the insert.
+do $$ begin
+  if not exists (select 1 from public.app_config where key='channels') then
+    insert into public.app_config(key,value)
+      values ('channels', '{"sms_live":false,"email_live":false,"pay_live":false,"otp_dev_echo":false}'::jsonb);
+  end if;
+end $$;
 update public.app_config set value = value || '{"otp_dev_echo":false}'::jsonb
   where key='channels' and not (value ? 'otp_dev_echo');
 
+-- NOTE: `order by updated_at desc limit 1` makes _flag robust even if the existing
+-- app_config table holds duplicate 'channels' rows (some installs lack the unique
+-- key). Without it a duplicate row would make this scalar subquery raise 21000 at
+-- runtime whenever OTP/payment flows read a flag. See the app_config dedup note in
+-- WAVE-05-PREFLIGHT.sql for optionally collapsing the duplicates.
 create or replace function public._flag(p text) returns boolean
   language sql stable security definer set search_path = public as $$
-  select coalesce((select (value->>p)::boolean from public.app_config where key='channels'), false); $$;
+  select coalesce((select (value->>p)::boolean from public.app_config
+                   where key='channels' order by updated_at desc limit 1), false); $$;
 
 -- ============================================================================
 -- B) TOKEN-01 — approval-token expiry + revocation columns on quotes

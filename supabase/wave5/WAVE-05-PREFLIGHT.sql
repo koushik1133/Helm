@@ -115,7 +115,11 @@ with checks as (
               then 'present' else 'MISSING' end
   union all
   select 'OTP-01','otp_dev_echo currently','false (prod-safe)',
-         coalesce((select (value->>'otp_dev_echo') from public.app_config where key='channels'),'(no row)')
+         coalesce((select (value->>'otp_dev_echo') from public.app_config where key='channels' limit 1),'(no row)')
+  union all
+  select 'DATA','app_config duplicate keys (should be 0)','0',
+         (select coalesce(count(*),0)::text from
+            (select key from public.app_config group by key having count(*) > 1) d)
   union all
   select 'OTP-01','request_otp gates echo on otp_dev_echo + fail-closed','yes',
          case when exists (select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
@@ -188,3 +192,18 @@ order by area, item;
 -- Legacy ownerless layouts (SEC-01 quarantine): how many need operator ownership?
 -- (SELECT only. Function exists only after phase89/upgrade is applied.)
 -- select public.layouts_quarantined_count() as layouts_without_org;
+
+-- ---------------------------------------------------------------------------
+-- OPTIONAL app_config dedup (run ONLY if the DATA row above reports > 0).
+-- app_config should have one row per key; duplicates make get_pricing_config /
+-- _flag unreliable. This keeps the NEWEST row per key and deletes the older
+-- duplicates (config-only rows; not business data), then adds a unique key so it
+-- can't recur. Review before running — it deletes redundant rows. NOT run by the
+-- read-only preflight; paste it separately after reviewing the count.
+--
+-- delete from public.app_config a
+--  using (select key, max(updated_at) mx from public.app_config group by key) k
+--  where a.key = k.key and a.updated_at < k.mx;
+-- delete from public.app_config a using public.app_config b
+--  where a.key = b.key and a.updated_at = b.updated_at and a.ctid < b.ctid;
+-- alter table public.app_config add constraint app_config_key_uk unique (key);
