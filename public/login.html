@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<script>/* apply the saved theme before paint so login matches the rest of the app (dark-mode contrast) */try{document.documentElement.setAttribute('data-theme', localStorage.getItem('bps.theme')||'light');}catch(e){}</script>
 <title>Sign in — Helm Events</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d28d9'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -41,14 +42,17 @@
   .mmk::after{content:"";position:absolute;inset:9px;border:2px solid rgba(255,255,255,.92);border-radius:4px}
   .card h3{margin:0 0 4px;font-size:23px;letter-spacing:-.01em} .card .sub{margin:0 0 22px;font-size:13px;color:var(--ink-3)}
   label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin:0 0 6px}
-  input{width:100%;height:44px;border:1px solid var(--line);background:var(--panel-2);border-radius:11px;padding:0 14px;font-family:inherit;font-size:15px;color:var(--ink);margin-bottom:16px}
-  input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  input,select{width:100%;height:44px;border:1px solid var(--line);background:var(--panel-2);border-radius:11px;padding:0 14px;font-family:inherit;font-size:15px;color:var(--ink);margin-bottom:16px}
+  /* selects match inputs: same rounded box + a custom chevron (no native square look) */
+  select{-webkit-appearance:none;-moz-appearance:none;appearance:none;cursor:pointer;padding-right:38px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%238b8698' stroke-width='1.8' d='M1 1.5l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+  input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   .btn{width:100%;height:46px;border:0;border-radius:11px;background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer}
   .btn:disabled{opacity:.6;cursor:default}
   .err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:16px}
   .foot{margin-top:18px;font-size:12px;color:var(--ink-3);text-align:center}
   .modetabs{display:flex;gap:6px;margin-bottom:16px;background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:4px}
-  .mtab{flex:1;border:0;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink-3);padding:9px;border-radius:8px;cursor:pointer}
+  .mtab{flex:1;border:0;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink-2);padding:9px;border-radius:8px;cursor:pointer}
   .mtab.on{background:var(--panel);color:var(--accent);box-shadow:var(--shadow)}
   .okmsg{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca;border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:16px}
   .or{display:flex;align-items:center;gap:12px;margin:16px 0;color:var(--ink-3);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
@@ -56,7 +60,7 @@
   .gbtn{width:100%;height:46px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--ink);font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px}
   .gbtn:hover{background:var(--panel-2)} .gbtn svg{width:18px;height:18px}
 </style>
-<link rel="stylesheet" href="theme.css?v=70">
+<link rel="stylesheet" href="theme.css?v=71">
 </head>
 <body>
   <section class="brandpane">
@@ -109,6 +113,8 @@
       <div class="err" id="obErr" hidden></div>
       <label for="ob_name">Business / studio name</label>
       <input id="ob_name" placeholder="e.g. Aurora Events" autocomplete="organization" required>
+      <label for="ob_location">Location (city, country)</label>
+      <input id="ob_location" placeholder="e.g. Hyderabad, India" autocomplete="address-level2">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div>
           <label for="ob_currency">Currency</label>
@@ -136,7 +142,7 @@
     </form>
   </section>
 
-<script src="config.js?v=70"></script>
+<script src="config.js?v=90"></script>
 <script src="store-api.js?v=83"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -164,6 +170,7 @@
     try{ const oid=await BPStore.org.id(); if(oid) return;
       const name=localStorage.getItem(PENDING); if(!name) return;
       await BPStore.org.createStudio(name,{email:(BPStore.auth.user()||{}).email}); localStorage.removeItem(PENDING);
+      try{ localStorage.setItem("bp_force_tour","1"); }catch(e){}   // brand-new studio → show the tour
     }catch(e){}
   }
   // accept a stashed invite once a session exists (parallels finishPendingStudio)
@@ -206,6 +213,9 @@
     try{
       await BPStore.org.createStudio(name,{ email:(BPStore.auth.user()||{}).email,
         currency:$("#ob_currency").value, timezone:$("#ob_tz").value });
+      const loc=$("#ob_location").value.trim();
+      if(loc){ try{ await BPStore.org.save({ location: loc }); }catch(e){} }
+      try{ localStorage.setItem("bp_force_tour","1"); }catch(e){}   // brand-new studio → show the tour
       location.replace(nextUrl());
     }catch(err){ $("#obErr").textContent=(err&&err.message)||"Couldn't create your studio."; $("#obErr").hidden=false;
       btn.disabled=false; btn.textContent="Create my studio →"; }
@@ -237,11 +247,9 @@
   $("#googleBtn").addEventListener("click", async ()=>{
     $("#err").hidden=true; $("#okmsg").hidden=true;
     try{
-      if(mode==="signup"){
-        const studio=$("#studio").value.trim();
-        if(studio.length<2){ $("#err").textContent="Enter your studio / business name first."; $("#err").hidden=false; return; }
-        localStorage.setItem(PENDING, studio);
-      }
+      // Google users sign in FIRST — no business name is required up front. On
+      // return, showOnboarding() collects the studio name / location / currency /
+      // timezone for brand-new users (invitees skip straight to accepting).
       $("#googleBtn").disabled=true;
       await BPStore.auth.signInWithGoogle(location.origin+"/login.html?next="+encodeURIComponent(nextUrl()));
     }catch(err){
@@ -270,7 +278,7 @@
         if(studio.length<2){ throw new Error("Enter your studio / business name."); }
         btn.textContent="Creating…";
         const r=await BPStore.auth.signUp(email, pw);
-        if(r.session){ await BPStore.org.createStudio(studio,{email}); location.replace(nextUrl()); return; }
+        if(r.session){ await BPStore.org.createStudio(studio,{email}); try{ localStorage.setItem("bp_force_tour","1"); }catch(e){} location.replace(nextUrl()); return; }
         // email confirmation required → save the name, finish after they confirm + sign in
         localStorage.setItem(PENDING, studio);
         $("#okmsg").textContent="Studio saved. Check your email to confirm your address, then sign in here to finish setup.";

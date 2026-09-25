@@ -1,5 +1,11 @@
 -- =========================================================================
--- Blueprint Stage — COMPLETE database setup (run this ONE file).
+-- DEPRECATED — DO NOT RUN (PR-DEPLOY-01). This aggregate defines PRE-HARDENING,
+-- NON-org-scoped admin_*/confirm_quote/create_quote bodies. Running it after the
+-- numbered phase migrations would REVERT tenant isolation (phase73). The
+-- canonical deploy path is the numbered supabase/phaseNN-name.sql files applied
+-- in order. Kept for history only. See supabase/full-schema/README.md.
+-- =========================================================================
+-- Blueprint Stage — COMPLETE database setup (historical aggregate; do not run).
 -- Idempotent & safe to re-run. Brings a DB that already has `layouts` + `profiles`
 -- fully up to date:
 --   • role helpers + RBAC             (admin/planner/sales/operations/crew/client)

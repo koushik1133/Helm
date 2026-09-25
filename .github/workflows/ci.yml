@@ -17,6 +17,16 @@ jobs:
         run: node scripts/ci-check.mjs
       - name: Deployment containment (static-only) assertions
         run: node scripts/check-deploy-static.mjs
+      - name: Migration-canon consistency guard (repo-only, no DB)
+        run: node scripts/check-migration-canon.mjs
+      - name: OTP-safety guard (no hardcoded PIN, repo-only)
+        run: node scripts/check-otp-safety.mjs
+      - name: Deferred integrations stay disabled (Razorpay/WhatsApp)
+        run: node scripts/check-deferred-integrations.mjs
+      - name: Environment-separation guard (no silent prod from localhost)
+        run: node scripts/check-env-safety.mjs
+      - name: Regression tests (source characterization, no DB)
+        run: npm test
       - name: Local dev preserved (server.js /api/health 200)
         run: node scripts/check-local-api.mjs
       # Optional: verify a live preview/prod URL blocks /api (set DEPLOY_CHECK_URL in repo/CI vars)

@@ -65,7 +65,7 @@
   .msg{border-radius:8px;padding:8px 11px;font-size:13px;margin:8px 0}
   .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca} .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
 </style>
-<link rel="stylesheet" href="theme.css?v=69">
+<link rel="stylesheet" href="theme.css?v=71">
 </head>
 <body>
 <div class="wrap">
@@ -84,7 +84,8 @@
       <h2>Add to nurture list</h2>
       <p class="sub">Keep past & prospective clients warm — set the next follow-up date and the occasion.</p>
       <div class="addgrid" style="grid-template-columns:1.1fr .9fr .8fr 1fr .9fr auto">
-        <div class="fld"><label>Name</label><input id="n_name" placeholder="Client / company"></div>
+        <div class="fld"><label>Name</label><input id="n_name" list="clientList" placeholder="Pick a client or type a new one" autocomplete="off">
+          <datalist id="clientList"></datalist></div>
         <div class="fld"><label>Email</label><input id="n_email" placeholder="for greetings"></div>
         <div class="fld"><label>Type</label><select id="n_type">
           <option value="birthday">🎂 Birthday</option><option value="anniversary" selected>💐 Anniversary</option>
@@ -151,7 +152,7 @@
   </div>
 </div>
 
-<script src="config.js?v=69"></script>
+<script src="config.js?v=90"></script>
 <script src="store-api.js?v=83"></script>
 <script src="tour.js?v=2"></script>
 <script>
@@ -259,6 +260,39 @@
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
     catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  // ---- Client dropdown + autofill (Cluster B): populate from existing leads/CRM.
+  // Selecting a known client fills email / occasion / occasion-date automatically;
+  // typing a brand-new name still works (free entry).
+  let CLIENTS = {};
+  async function loadClientOptions(){
+    try{
+      const leads = await BPStore.leads.list();
+      const seen = new Set(); const opts = [];
+      (leads||[]).forEach(l=>{
+        const name = (l.name||"").trim(); if(!name) return;
+        const key = name.toLowerCase();
+        if(!CLIENTS[key]) CLIENTS[key] = {
+          name,
+          email: l.email || "",
+          occasion: l.event_type || l.occasion || "",
+          date: l.event_date || l.occasion_date || ""
+        };
+        if(!seen.has(key)){ seen.add(key); opts.push(name); }
+      });
+      const dl = $("#clientList");
+      if(dl) dl.innerHTML = opts.sort((a,b)=>a.localeCompare(b)).map(n=>`<option value="${esc(n)}"></option>`).join("");
+    }catch(e){ /* leave the field as a plain free-text input on any error */ }
+  }
+  function autofillFromClient(){
+    const c = CLIENTS[($("#n_name").value||"").trim().toLowerCase()];
+    if(!c) return;                 // a new/unknown name → leave fields for manual entry
+    if(c.email && !$("#n_email").value) $("#n_email").value = c.email;
+    if(c.occasion && !$("#n_occ").value) $("#n_occ").value = c.occasion;
+    if(c.date && !$("#n_occd").value) $("#n_occd").value = String(c.date).slice(0,10);
+  }
+  $("#n_name").addEventListener("change", autofillFromClient);
+  $("#n_name").addEventListener("input", autofillFromClient);
+
   $("#n_add").addEventListener("click",addOne);
   $("#autoToggle").addEventListener("change",toggleAuto);
   $("#autoDays").addEventListener("change",async()=>{ await toggleAuto(); await renderAuto(); });
@@ -276,7 +310,7 @@
     canEdit=await BPStore.auth.canEditArea("nurture");
     $("#app").hidden=false; $("#addCard").hidden=!canEdit; $("#autoCard").hidden=!canEdit; $("#tplCard").hidden=!canEdit;
     await render();
-    if(canEdit){ await renderAuto(); await renderTemplates(); }
+    if(canEdit){ await loadClientOptions(); await renderAuto(); await renderTemplates(); }
   })();
 </script>
 </body>

@@ -1,4 +1,11 @@
 -- =========================================================================
+-- DEPRECATED — DO NOT RUN / DO NOT DEPLOY (PR-DEPLOY-01 / DEPLOY-01).
+-- HISTORICAL snapshot. Defines PRE-HARDENING, NON-org-scoped admin_set_role /
+-- admin_create_user / admin_delete_user / create_quote / confirm_quote. Running
+-- it after the numbered phase files would REVERT tenant isolation. Canonical
+-- install = the ordered supabase/phaseNN-name.sql files. See ../README.md.
+-- =========================================================================
+-- =========================================================================
 -- Blueprint Stage — COMPLETE database setup (run this ONE file).
 -- Idempotent & safe to re-run. Brings a DB that already has `layouts` + `profiles`
 -- fully up to date:

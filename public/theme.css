@@ -93,7 +93,9 @@ html[data-theme="dark"] thead th { background: var(--panel-2); }
 /* inputs on dark */
 html[data-theme="dark"] input,
 html[data-theme="dark"] select,
-html[data-theme="dark"] textarea { background: var(--panel-2); color: var(--ink); }
+html[data-theme="dark"] textarea { background-color: var(--panel-2); color: var(--ink); }
+/* keep it: use background-COLOR (not the shorthand) so a select's custom chevron
+   (a background-image) is preserved in dark mode. */
 html[data-theme="dark"] input::placeholder,
 html[data-theme="dark"] textarea::placeholder { color: var(--ink-3); }
 /* the login split panel keeps its gradient; just ensure the form side reads dark */

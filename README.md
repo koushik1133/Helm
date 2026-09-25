@@ -202,9 +202,15 @@ After building all 20 phases, the whole app was tested end-to-end with two full
 ### Where the data lives
 
 All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per
-phase (`phase1-workspace.sql`, `phase2-leads.sql`, …) — and everything together
-in **`supabase/full-schema/complete-setup.sql`** (run once on a fresh database).
-See `supabase/full-schema/README.md` for the exact run order.
+phase (`phase1-workspace.sql`, `phase2-leads.sql`, …). The **canonical deploy
+path is those numbered `phaseNN-name.sql` files, applied in order** (phase73/76/
+77/85 are mandatory for tenant isolation and money/data integrity).
+
+> ⚠️ Do **not** deploy from `supabase/full-schema/complete-setup.sql`. It is a
+> historical snapshot frozen at ~phase 55–58 and is **incomplete**; re-running it
+> would revert security-critical hardening (e.g. phase73 org-isolation). A
+> verified single-file install does not exist. See
+> `supabase/full-schema/README.md` and `docs/OPERATOR-VERIFY-DEFINER-FUNCTIONS.md`.
 
 ---
 

@@ -127,7 +127,7 @@
     box-shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -16px rgba(0,0,0,.7);
   }
 </style>
-<link rel="stylesheet" href="theme.css?v=69">
+<link rel="stylesheet" href="theme.css?v=71">
 </head>
 <body>
 <div class="wrap">
@@ -157,6 +157,7 @@
       <div class="grid">
         <div class="fld"><label>Studio / business name</label><input id="o_name" placeholder="e.g. Aurora Events"></div>
         <div class="fld"><label>Business email</label><input id="o_email" type="email" placeholder="hello@studio.com"></div>
+        <div class="fld"><label>Location (city, country)</label><input id="o_location" placeholder="e.g. Hyderabad, India"></div>
         <div class="fld"><label>Logo URL</label><input id="o_logo" placeholder="https://…/logo.png"></div>
         <div class="fld"><label>Accent colour</label><input id="o_accent" placeholder="#6d28d9"></div>
         <div class="fld"><label>Currency</label><input id="o_currency" placeholder="INR"></div>
@@ -186,16 +187,8 @@
       <div class="actions"><button class="btn primary" id="saveItemPrices">Save item prices</button></div>
     </div>
 
-    <div class="card">
-      <h3>Vendors</h3>
-      <div id="vendorList"></div>
-      <div class="addrow">
-        <input id="v_name" placeholder="Vendor name">
-        <select id="v_cat"><option value="catering">Catering</option><option value="decor">Decor</option><option value="lighting">Lighting</option><option value="transport">Transport</option><option value="general">General</option></select>
-        <input id="v_phone" placeholder="Phone (optional)">
-        <button class="btn" id="v_add">+ Add vendor</button>
-      </div>
-    </div>
+    <!-- Vendors are managed on the dedicated Vendors & Partners page (removed the
+         duplicate here to avoid two places editing the same data). -->
 
     <div class="card">
       <h3>Coupons</h3>
@@ -329,7 +322,7 @@
   </form>
 </div>
 
-<script src="config.js?v=71"></script>
+<script src="config.js?v=90"></script>
 <script src="store-api.js?v=83"></script>
 <script src="tour.js?v=2"></script>
 <script>
@@ -362,7 +355,7 @@
       $("#p_layout").value=p.layoutBase??0;
       renderItemPrices();
     }catch(e){ setMsg("err","Run control-center.sql to enable the Control Center. ("+((e&&e.message)||"")+")"); }
-    await renderVendors(); await renderCoupons(); await renderChairs(); await renderPlates(); await renderDishes(); await renderMenuTemplates(); await renderLayoutRules(); await renderOrg();
+    await renderCoupons(); await renderChairs(); await renderPlates(); await renderDishes(); await renderMenuTemplates(); await renderLayoutRules(); await renderOrg();
     // Only admins get the User-control tab (add/remove users + access matrix).
     if(isAdmin){
       $("#tab-users").hidden=false;
@@ -478,16 +471,7 @@
     });
   }
 
-  async function renderVendors(){
-    let v=[]; try{ v=await BPStore.vendors.list(); }catch{}
-    $("#vendorList").innerHTML = v.length? v.map(x=>`<div class="row"><span class="g">${esc(x.name)} <span class="mono">${esc(x.category||"")}${x.phone?" · "+esc(x.phone):""}</span></span><button class="rm" data-id="${x.id}">Remove</button></div>`).join("") : '<div class="row" style="color:var(--ink-3)">No vendors yet.</div>';
-    $("#vendorList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.vendors.remove(b.dataset.id); renderVendors(); }));
-  }
-  $("#v_add").addEventListener("click",async()=>{
-    const name=$("#v_name").value.trim(); if(name.length<2){ setMsg("err","Enter a vendor name."); return; }
-    try{ await BPStore.vendors.add(name,$("#v_cat").value,$("#v_phone").value.trim()); $("#v_name").value="";$("#v_phone").value=""; renderVendors(); setMsg("ok","Vendor added."); }
-    catch(e){ setMsg("err",(e&&e.message)||"Couldn't add vendor"); }
-  });
+  // Vendors moved to the dedicated Vendors & Partners page (duplicate removed).
 
   async function renderCoupons(){
     let c=[]; try{ c=await BPStore.coupons.list(); }catch{}
@@ -528,10 +512,12 @@
     const b=o.brand||{};
     $("#o_name").value=o.name||""; $("#o_email").value=o.business_email||""; $("#o_logo").value=b.logo||"";
     $("#o_accent").value=b.accent||""; $("#o_currency").value=o.currency||""; $("#o_tz").value=o.timezone||""; $("#o_gst").value=o.gst_number||"";
+    if($("#o_location")) $("#o_location").value=o.location||"";
   }
   $("#o_save").addEventListener("click",async()=>{
     const patch={ name:$("#o_name").value.trim()||null, business_email:$("#o_email").value.trim()||null,
       currency:$("#o_currency").value.trim()||"INR", timezone:$("#o_tz").value.trim()||"Asia/Kolkata",
+      location:($("#o_location")?$("#o_location").value.trim():"")||null,
       gst_number:$("#o_gst").value.trim()||null,
       brand:{ logo:$("#o_logo").value.trim()||null, accent:$("#o_accent").value.trim()||null } };
     try{ await BPStore.org.save(patch); $("#orgMsg").innerHTML='<div class="msg ok">Studio settings saved.</div>'; setTimeout(()=>$("#orgMsg").innerHTML="",2500); }

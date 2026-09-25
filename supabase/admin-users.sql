@@ -1,5 +1,11 @@
 -- =========================================================================
--- Admin user management via RPC — run ONCE in the Supabase SQL editor.
+-- DEPRECATED — DO NOT RUN (PR-DEPLOY-01). This file defines PRE-HARDENING,
+-- NON-org-scoped admin_set_role / admin_delete_user bodies. Re-running it after
+-- phase73 would REVERT tenant isolation (cross-org role change / user deletion).
+-- The canonical, org-scoped versions live in
+-- supabase/phase73-definer-org-isolation-final.sql. Kept for history only.
+-- =========================================================================
+-- Admin user management via RPC — (historical) run ONCE in the Supabase SQL editor.
 -- After this, the in-app "Users" panel (admin only) can add users, change
 -- roles, and remove users with NO further SQL. Every function is guarded by
 -- is_admin(), so only a signed-in admin can call them — a non-admin (or anon)

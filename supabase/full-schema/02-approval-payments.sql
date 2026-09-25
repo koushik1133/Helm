@@ -1,4 +1,10 @@
 -- =========================================================================
+-- DEPRECATED — DO NOT RUN / DO NOT DEPLOY (PR-DEPLOY-01 / DEPLOY-01).
+-- HISTORICAL full-schema mirror. Defines NON-org-scoped generate_approval_token
+-- / mark_paid, superseded by the ordered supabase/phaseNN-name.sql files
+-- (phase73). Do not re-run standalone. See ../README.md.
+-- =========================================================================
+-- =========================================================================
 -- Client approval: OTP + consent + payment link + notifications.
 -- Run ONCE in the Supabase SQL editor (after setup-complete.sql). Idempotent.
 --
@@ -172,7 +178,15 @@ begin
   perform public._notify(q.id,'sms',p_phone,'otp', jsonb_build_object('purpose','approval'));
   live := public._flag('sms_live');
   -- SIMULATION: return the code so it can be read to the client. LIVE: never return it (SMS carries it).
-  return jsonb_build_object('sent', true, 'live', live, 'dev_code', case when live then null else code end);
+  -- OTP-01: echo the code ONLY behind the explicit otp_dev_echo flag (default false).
+  if live then
+    return jsonb_build_object('sent', true, 'live', true, 'delivery', 'sms', 'dev_code', null);
+  elsif public._flag('otp_dev_echo') then
+    return jsonb_build_object('sent', true, 'live', false, 'delivery', 'dev_echo', 'dev_code', code);
+  else
+    return jsonb_build_object('sent', false, 'live', false, 'delivery', 'unavailable', 'dev_code', null,
+      'message', 'OTP delivery not configured (set sms_live=true, or otp_dev_echo=true for local dev only).');
+  end if;
 end; $$;
 
 -- 7b) service-role: store an externally-generated OTP hash (used by the live

@@ -1,4 +1,10 @@
 -- =========================================================================
+-- DEPRECATED — DO NOT RUN / DO NOT DEPLOY (PR-DEPLOY-01 / DEPLOY-01).
+-- HISTORICAL full-schema mirror. Defines a NON-org-scoped create_quote that is
+-- superseded by the ordered supabase/phaseNN-name.sql files (phase73). Do not
+-- re-run standalone. See ../README.md.
+-- =========================================================================
+-- =========================================================================
 -- Phase 28 — Fix "duplicate key value violates unique constraint quotes_code_key"
 --
 -- Cause: create_quote inserted the CLIENT-supplied code (p_code). If that number

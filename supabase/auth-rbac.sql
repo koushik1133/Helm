@@ -57,10 +57,27 @@ drop policy if exists "authed read layouts"   on public.layouts;
 drop policy if exists "editors insert layouts" on public.layouts;
 drop policy if exists "editors update layouts" on public.layouts;
 drop policy if exists "editors delete layouts" on public.layouts;
-create policy "authed read layouts"   on public.layouts for select to authenticated using ( true );
-create policy "editors insert layouts" on public.layouts for insert to authenticated with check ( public.can_edit() );
-create policy "editors update layouts" on public.layouts for update to authenticated using ( public.can_edit() ) with check ( public.can_edit() );
-create policy "editors delete layouts" on public.layouts for delete to authenticated using ( public.can_edit() );
+-- SEC-01 (Wave 4): once phase89 adds layouts.org_id, these policies must be
+-- ORG-SCOPED so re-running this legacy file can never restore cross-tenant
+-- access. On a pre-phase89 DB (no org_id column yet) we keep the historical
+-- behavior. phase89 remains the canonical authority for layouts RLS.
+do $$
+declare has_org boolean;
+begin
+  select exists(select 1 from information_schema.columns
+    where table_schema='public' and table_name='layouts' and column_name='org_id') into has_org;
+  if has_org then
+    execute $p$ create policy "authed read layouts"   on public.layouts for select to authenticated using ( org_id is not null and org_id = (select public.current_org_id()) ) $p$;
+    execute $p$ create policy "editors insert layouts" on public.layouts for insert to authenticated with check ( public.can_edit() and org_id = (select public.current_org_id()) ) $p$;
+    execute $p$ create policy "editors update layouts" on public.layouts for update to authenticated using ( org_id is not null and org_id = (select public.current_org_id()) ) with check ( public.can_edit() and org_id = (select public.current_org_id()) ) $p$;
+    execute $p$ create policy "editors delete layouts" on public.layouts for delete to authenticated using ( public.can_edit() and org_id is not null and org_id = (select public.current_org_id()) ) $p$;
+  else
+    execute $p$ create policy "authed read layouts"   on public.layouts for select to authenticated using ( true ) $p$;
+    execute $p$ create policy "editors insert layouts" on public.layouts for insert to authenticated with check ( public.can_edit() ) $p$;
+    execute $p$ create policy "editors update layouts" on public.layouts for update to authenticated using ( public.can_edit() ) with check ( public.can_edit() ) $p$;
+    execute $p$ create policy "editors delete layouts" on public.layouts for delete to authenticated using ( public.can_edit() ) $p$;
+  end if;
+end $$;
 
 -- =========================================================================
 -- SETUP (do these in the Supabase dashboard):

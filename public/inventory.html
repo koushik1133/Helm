@@ -75,7 +75,7 @@
   .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px;margin-top:10px}
   .lsheet{width:min(400px,96vw)}
 </style>
-<link rel="stylesheet" href="theme.css?v=69">
+<link rel="stylesheet" href="theme.css?v=71">
 </head>
 <body>
 <div class="wrap">
@@ -202,7 +202,7 @@
   </div>
 </div>
 
-<script src="config.js?v=69"></script>
+<script src="config.js?v=90"></script>
 <script src="store-api.js?v=83"></script>
 <script src="tour.js?v=2"></script>
 <script>
@@ -320,13 +320,15 @@
     $("#loanCount").textContent = open.length? `${open.length} open` : "";
     // open loans
     $("#loanRows").innerHTML = open.length ? open.map(c=>{ const it=byId[c.item_id]||{name:"(item)"};
+      // still out = "left over" → show the outstanding qty in RED so it's obvious
+      const goEvent = c.quote_id ? `<a class="btn sm" href="event.html?id=${esc(c.quote_id)}" title="Open the event to check this back in">Go to event →</a>` : "";
       return `<tr>
         <td><b>${esc(it.name)}</b>${c.note?`<div style="font-size:11px;color:var(--ink-3)">${esc(c.note)}</div>`:""}${c.status==="partial"?' <span class="miss">partial</span>':""}</td>
         <td><span class="pri ${it.priority||'C'}">${it.priority||'C'}</span></td>
-        <td class="num">${num(c.qty_out)}${c.status==="partial"?` <span style="color:var(--ink-3)">(${num(c.qty_in)} back)</span>`:""}</td>
+        <td class="num" style="color:#b42318;font-weight:700">${num(c.qty_out)}${c.status==="partial"?` <span style="color:var(--ink-3)">(${num(c.qty_in)} back)</span>`:""}</td>
         <td>${esc(c.issued_to||"")}</td>
         <td style="font-size:12px;color:var(--ink-3)">${c.checked_out_at?new Date(c.checked_out_at).toLocaleDateString():""}</td>
-        <td>${canEdit?`<button class="btn sm" data-in="${c.id}">Check in</button>`:""}</td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap">${goEvent}${canEdit?`<button class="btn sm" data-in="${c.id}">Check in</button>`:""}</td>
       </tr>`; }).join("") : '<tr><td colspan="6" class="empty">Nothing out on loan.</td></tr>';
     // loss report (returned/partial with missing>0)
     let lostVal=0, lostUnits=0;

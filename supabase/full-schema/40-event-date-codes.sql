@@ -1,4 +1,10 @@
 -- =========================================================================
+-- DEPRECATED — DO NOT RUN / DO NOT DEPLOY (PR-DEPLOY-01 / DEPLOY-01).
+-- HISTORICAL full-schema mirror. Defines a NON-org-scoped create_quote that is
+-- superseded by the ordered supabase/phaseNN-name.sql files (phase73). Do not
+-- re-run standalone. See ../README.md.
+-- =========================================================================
+-- =========================================================================
 -- Phase 34 — Cluster D2: quote codes based on the EVENT date, not creation date
 --
 -- Meeting: "quotation numbers should incorporate the event date (e.g. the wedding

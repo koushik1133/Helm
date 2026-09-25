@@ -1,5 +1,11 @@
 -- =========================================================================
--- Quotes & versions — run ONCE in the Supabase SQL editor. Safe & idempotent.
+-- DEPRECATED — DO NOT RUN (PR-DEPLOY-01). This file defines a PRE-HARDENING,
+-- NON-org-scoped confirm_quote / create_quote. Re-running it after phase73 would
+-- REVERT tenant isolation (cross-org quote confirmation). The canonical,
+-- org-scoped versions live in supabase/phase73-definer-org-isolation-final.sql.
+-- Kept for history only.
+-- =========================================================================
+-- Quotes & versions — (historical) run ONCE in the Supabase SQL editor. Safe & idempotent.
 -- A QUOTE is one event code (MMDDYYYY-NN). It carries client info + pricing and
 -- a status (quote → confirmed). Every save from the builder is a new VERSION;
 -- all versions are kept. Confirming a quote freezes a priced snapshot.

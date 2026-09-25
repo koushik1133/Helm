@@ -61,7 +61,7 @@
   .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px;margin-top:10px}
   .lsheet{width:min(400px,96vw)}
 </style>
-<link rel="stylesheet" href="theme.css?v=69">
+<link rel="stylesheet" href="theme.css?v=71">
 </head>
 <body>
 <div class="wrap">
@@ -125,7 +125,7 @@
   </div>
 </div>
 
-<script src="config.js?v=69"></script>
+<script src="config.js?v=90"></script>
 <script src="store-api.js?v=83"></script>
 <script src="tour.js?v=2"></script>
 <script>
@@ -142,13 +142,37 @@
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",openLogin); } }
 
+  // Vendor → event history (which events/dates/clients this partner served).
+  let ALLBOOK=[], QMAP={};
+  function vendorHistory(vid){
+    const seen=new Set(), out=[];
+    (ALLBOOK||[]).forEach(b=>{
+      if(b.vendor_id!==vid || b.status==="cancelled") return;
+      if(seen.has(b.quote_id)) return; seen.add(b.quote_id);
+      const q=QMAP[b.quote_id]; if(!q) return;
+      out.push({ code:q.code||"", client:(q.client&&q.client.name)||"", date:q.event_date||"", status:b.status||"" });
+    });
+    out.sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
+    return out;
+  }
   function card(v){
     const services=Array.isArray(v.services)?v.services:[];
+    const hist=vendorHistory(v.id);
+    const histHtml = hist.length
+      ? `<div style="margin-top:8px;border-top:1px solid var(--line);padding-top:8px">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin-bottom:4px">History · ${hist.length} event${hist.length===1?"":"s"}</div>
+          ${hist.slice(0,5).map(h=>`<div style="font-size:12px;color:var(--ink-2);display:flex;gap:8px;justify-content:space-between">
+             <span>${esc(h.code)}${h.client?" · "+esc(h.client):""}</span>
+             <span style="color:var(--ink-3);white-space:nowrap">${esc(String(h.date||"").slice(0,10))}</span></div>`).join("")}
+          ${hist.length>5?`<div style="font-size:11px;color:var(--ink-3);margin-top:3px">+${hist.length-5} more</div>`:""}
+        </div>`
+      : `<div class="meta" style="margin-top:8px;color:var(--ink-3);font-size:11px">No event history yet.</div>`;
     return `<div class="v ${v.active===false?'off':''}" data-id="${v.id}">
       <div style="display:flex;align-items:center;gap:8px"><span class="nm">${esc(v.name)}</span><span class="kind ${esc(v.kind||'vendor')}" style="margin-left:auto">${esc(KIND[v.kind]||v.kind||'Vendor')}</span></div>
       ${v.category?`<div class="meta">${esc(v.category)}</div>`:""}
       ${services.length?`<div class="tags">${services.map(s=>`<span class="tag">${esc(s)}</span>`).join("")}</div>`:""}
       <div class="meta">${[v.phone,v.email].filter(Boolean).map(esc).join(" · ")}</div>
+      ${histHtml}
       ${canEdit?`<div class="acts"><button class="ic" data-edit="${v.id}">Edit</button></div>`:""}
     </div>`;
   }
@@ -204,6 +228,9 @@
   async function load(){
     try{ list=await BPStore.vendors.listAll(showInactive); }
     catch(e){ $("#grid").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase9-vendors.sql</b>.</div>`; return; }
+    // vendor→event history (all bookings + a quote lookup, fetched once)
+    try{ ALLBOOK=await BPStore.bookings.listAll(); }catch{ ALLBOOK=[]; }
+    try{ const qs=await BPStore.quotes.list(); QMAP=Object.fromEntries((qs||[]).map(q=>[q.id,q])); }catch{ QMAP={}; }
     if(quoteId){
       try{ const b=await BPStore.bookings.list(quoteId); eventBookings=b.length; eventVendors=new Set(b.map(x=>x.vendor_id).filter(Boolean)); }catch{}
       try{ const q=await BPStore.quotes.get(quoteId); eventCode=q.code||""; }catch{}

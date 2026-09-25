@@ -1,23 +1,46 @@
-# Blueprint Stage — Full Database Schema
+# Blueprint Stage — Database Schema (historical snapshot folder)
 
-This folder is the **single source of truth** for the entire database. Use it when
-moving to a new Supabase/Postgres project or rebuilding from scratch.
+> ⚠️ **Canonical source of truth = the numbered `phaseNN-name.sql` files in the
+> parent `supabase/` folder**, applied in order (see `docs/TECHNICAL-HANDOFF.md`).
+> The files in **this** `full-schema/` folder — including `complete-setup.sql` —
+> are **historical bootstrap snapshots** that were frozen at ~phase 55–58 and were
+> **not** kept up to date. Treat them as reference/mirror artifacts, **not** as a
+> complete production schema.
 
-## Fastest path (fresh database)
+## Do NOT deploy production from `complete-setup.sql`
 
-Run **one** file, top to bottom, in the Supabase SQL editor:
+`complete-setup.sql` is **incomplete**. It is missing every phase from ~59 onward,
+which includes **security-critical** and data-integrity changes, for example:
 
-```
-complete-setup.sql
-```
+- **phase73** — org-isolation of the `SECURITY DEFINER` functions
+  (`admin_set_role`, `admin_create_user`, `admin_delete_user`, `confirm_quote`).
+  Without phase73 those functions are **not org-scoped** and permit cross-tenant
+  role changes / user deletion / quote confirmation.
+- **phase76** (`record_payment`), **phase77** (`save_quotation_version` /
+  quotation versioning), **phase85** (`export_org_data` /
+  `export_tenant_organization_package`), phase87/88 (event sites, invite media).
 
-It contains everything below, in dependency order, plus a user seed (6 team
-logins, password `helm`). It is idempotent — safe to re-run.
+Deploying (or idempotently **re-running**) `complete-setup.sql` on top of a
+hardened database would **revert** the phase73 org-scoping to the pre-hardening
+bodies. Do not use it as the deploy path.
 
-## Or run the ordered pieces
+## Canonical deployment path (fresh database)
 
-If you prefer to run them one at a time (same result as `complete-setup.sql`
-minus the user seed), run in this exact order:
+Run the numbered `phaseNN-name.sql` files from the parent `supabase/` folder **in
+order, through the latest phase present**, ending with the org-isolation and
+later phases. Applying **phase73** (and 76/77/85+) is **mandatory** for tenant
+isolation and money/data integrity.
+
+> **A verified single-file "run one file and you're done" install does NOT exist
+> in this repository.** Before any production deploy, verify on an **approved
+> staging database** that the deployed function bodies are the org-scoped
+> (phase73) ones and that grants/`search_path`/RLS match expectations — see
+> `docs/OPERATOR-VERIFY-DEFINER-FUNCTIONS.md`.
+
+## Historical ordered pieces (reference only — snapshot, not current)
+
+The table below reflects the frozen snapshot and is kept for reference. It is
+**not** the full schema and must not be treated as the deploy path:
 
 | # | File | What it adds |
 |---|------|--------------|
@@ -27,7 +50,7 @@ minus the user seed), run in this exact order:
 | 04 | `04-control-center.sql`    | Pricing config, vendors, coupons, manager notify |
 | 05 | `05-workspace.sql`         | `quotes.lifecycle_stage` + `set_lifecycle_stage` (Phase 1) |
 | 06 | `06-leads.sql`             | `leads` table + `convert_lead_to_quote` (Phase 2) |
-| 07 | `07-otp-dev-pin.sql`       | Temporary OTP pin = 123456 in simulation |
+| 07 | `07-otp-dev-pin.sql`       | DEPRECATED (PR-AUTH-01): now installs the random-code request_otp (no fixed PIN) |
 | 08 | `08-crm-realtime.sql`     | `lead_archive` (immutable CRM) + triggers + leads realtime (Phase 2b) |
 | 09 | `09-discovery.sql`        | `event_discovery` + `event_requirements` + `set_discovery` (Phase 3) |
 | 10 | `10-proposal.sql`        | `event_proposal` + `proposal_risks` + share token RPCs (Phase 4) |
@@ -56,13 +79,13 @@ Then, on a brand-new DB only, seed the team logins:
 
 ## Going forward (per-phase files)
 
-Each new phase ships its own idempotent file in the **parent** `supabase/`
-folder (e.g. `phase2-leads.sql`). After you run a phase file on your live DB:
-
-1. Copy it into this folder as the next number (e.g. `06-leads.sql`).
-2. Append its body to `complete-setup.sql` (before the user-seed section).
-
-That keeps this folder a complete, replayable snapshot of the whole schema.
+Each new phase ships its own idempotent `phaseNN-name.sql` file in the **parent**
+`supabase/` folder (e.g. `phase73-definer-org-isolation-final.sql`) — that is the
+authoritative artifact. Do **not** rely on hand-appending bodies into
+`complete-setup.sql`; that practice stopped at ~phase 58 and is what left this
+snapshot stale and unsafe. If a consolidated installer is ever needed, it must be
+**regenerated** from the numbered phase files (idempotently, in order) and then
+**verified on staging** before use — never edited by hand as the source of truth.
 
 ## The 6 seeded users (password `helm`)
 

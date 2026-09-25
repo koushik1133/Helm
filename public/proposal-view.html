@@ -37,7 +37,7 @@
   .state{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:40px;text-align:center;color:var(--ink-3)}
   .spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp 1s linear infinite;margin:0 auto 12px} @keyframes sp{to{transform:rotate(360deg)}}
 </style>
-<link rel="stylesheet" href="theme.css?v=69">
+<link rel="stylesheet" href="theme.css?v=71">
 </head>
 <body>
 <div class="wrap">
@@ -59,11 +59,13 @@
     <div class="sec" id="paletteSec" hidden><h2>Colour palette</h2><div class="palette" id="palette" style="margin-bottom:14px"></div></div>
     <div class="sec" id="gallerySec" hidden><h2>Mood &amp; inspiration</h2><div class="gallery" id="gallery"></div></div>
     <div class="sec" id="scopeSec" hidden><h2>What's included</h2><ul class="scope" id="scope"></ul></div>
+    <div class="sec" id="priceSec" hidden><h2>Investment</h2>
+      <table style="width:100%;border-collapse:collapse;font-size:14px" id="priceRows"></table></div>
     <div class="foot">This is a proposal for discussion — details may evolve. Prepared by your Helm Events planner.</div>
   </div>
 </div>
 
-<script src="config.js?v=69"></script>
+<script src="config.js?v=90"></script>
 <script src="store-api.js?v=83"></script>
 <script>
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -86,6 +88,31 @@
       $("#gallery").innerHTML=imgs.map(u=>`<img src="${esc(u)}" alt="inspiration" onerror="this.style.opacity=.25">`).join(""); }
     const sc=Array.isArray(p.scope)?p.scope:[]; if(sc.length){ $("#scopeSec").hidden=false;
       $("#scope").innerHTML=sc.map(s=>`<li>${esc(s)}</li>`).join(""); }
+
+    // ---- Investment (price total + breakdown) — Cluster C ----
+    const pr=p.pricing||{}, c=pr.computed||{};
+    const inr=(n)=> (n==null||n===""||isNaN(+n))?"":"₹"+Number(n).toLocaleString("en-IN");
+    const num=(v)=>+v||0;
+    const chairs=num(pr.chairs), chairPrice=num(pr.chairPrice), guests=num(pr.guests), platePrice=num(pr.platePrice), other=num(pr.other);
+    const rows=[];
+    if(chairs>0&&chairPrice>0) rows.push(["Seating — "+chairs+" × "+inr(chairPrice), inr(chairs*chairPrice)]);
+    if(guests>0&&platePrice>0) rows.push(["Catering — "+guests+" × "+inr(platePrice), inr(guests*platePrice)]);
+    if(other>0)               rows.push(["Décor / equipment & setup", inr(other)]);
+    if(num(c.serviceCharge)>0) rows.push(["Service charge", inr(c.serviceCharge)]);
+    if(c.subtotal!=null)       rows.push(["Subtotal", inr(c.subtotal), "sub"]);
+    if(num(c.discount)>0)      rows.push(["Discount", "− "+inr(c.discount), "sub"]);
+    if(num(c.igst)>0)          rows.push(["IGST", inr(c.igst), "sub"]);
+    if(num(c.cgst)>0)          rows.push(["CGST", inr(c.cgst), "sub"]);
+    if(num(c.sgst)>0)          rows.push(["SGST", inr(c.sgst), "sub"]);
+    if(!num(c.igst)&&!num(c.cgst)&&num(c.totalGst)>0) rows.push(["GST", inr(c.totalGst), "sub"]);
+    const total = p.total || c.total || pr.total;
+    if(total)                  rows.push(["Total", inr(total), "total"]);
+    if(rows.length){ $("#priceSec").hidden=false;
+      $("#priceRows").innerHTML = rows.map(r=>{
+        const t=r[2]==="total", s=r[2]==="sub";
+        const cell="padding:9px 2px;border-bottom:1px solid var(--line);"+(t?"font-weight:700;font-size:16px;padding-top:14px;border-bottom:none;":"")+(s?"color:var(--ink-3);":"");
+        return `<tr><td style="${cell}">${esc(r[0])}</td><td style="${cell}text-align:right;font-variant-numeric:tabular-nums">${esc(r[1])}</td></tr>`;
+      }).join(""); }
   })();
 </script>
 </body>

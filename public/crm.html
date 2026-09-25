@@ -47,7 +47,7 @@
   .empty{text-align:center;color:var(--ink-3);padding:48px;font-size:14px}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
 </style>
-<link rel="stylesheet" href="theme.css?v=69">
+<link rel="stylesheet" href="theme.css?v=71">
 </head>
 <body>
 <div class="wrap">
@@ -65,25 +65,29 @@
   </header>
 
   <div class="toolbar">
-    <h2>CRM archive</h2>
-    <span class="sub">Every lead snapshot — kept permanently, even after a lead is deleted.</span>
+    <h2>CRM</h2>
+    <span class="sub">Your clients &amp; leads — latest status. Click a row to open its workspace (2D/3D).</span>
     <span class="spacer"></span>
+    <select id="fSource" class="search" style="min-width:150px"><option value="">All sources</option></select>
+    <select id="fStage" class="search" style="min-width:150px"><option value="">All stages</option></select>
     <input id="search" class="search" placeholder="Search name, phone, type…">
+    <label class="sub" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+      <input type="checkbox" id="fAll"> Full history</label>
   </div>
 
   <div class="card">
     <table>
       <thead><tr>
         <th>When</th><th>Action</th><th>Name</th><th>Phone</th><th>Source</th>
-        <th>Event</th><th>Date</th><th>Budget</th><th>Guests</th><th>Stage</th>
+        <th>Event</th><th>Date</th><th>Budget</th><th>Guests</th><th>Stage</th><th></th>
       </tr></thead>
-      <tbody id="rows"><tr><td colspan="10" class="empty">Loading…</td></tr></tbody>
+      <tbody id="rows"><tr><td colspan="11" class="empty">Loading…</td></tr></tbody>
     </table>
   </div>
   <footer>Helm Events — the CRM archive is append-only and read-only. Records are written automatically.</footer>
 </div>
 
-<script src="config.js?v=69"></script>
+<script src="config.js?v=90"></script>
 <script src="store-api.js?v=83"></script>
 <script src="tour.js?v=2"></script>
 <script>
@@ -91,7 +95,16 @@
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const fmt=(n)=> n==null||n===""?"":"₹"+Number(n).toLocaleString("en-IN");
   const when=(t)=>{ if(!t) return ""; const d=new Date(t); return d.toLocaleString("en-IN",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}); };
-  let recs=[], filter="";
+  let recs=[], filter="", fSource="", fStage="", fAll=false;
+  // keep only the newest snapshot per lead (recs arrive newest-first) unless "Full history"
+  function latestPerLead(rows){ const seen=new Set(); const out=[];
+    for(const r of rows){ if(r.lead_id && seen.has(r.lead_id)) continue; if(r.lead_id) seen.add(r.lead_id); out.push(r); } return out; }
+  function fillFilters(){
+    const srcs=[...new Set(recs.map(r=>r.source).filter(Boolean))].sort();
+    const stages=[...new Set(recs.map(r=>r.status).filter(Boolean))].sort();
+    $("#fSource").innerHTML='<option value="">All sources</option>'+srcs.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
+    $("#fStage").innerHTML='<option value="">All stages</option>'+stages.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
+  }
 
   async function renderAccount(){
     const el=$("#account"); if(!BPStore.auth.enabled()){ el.hidden=true; return; } el.hidden=false;
@@ -104,9 +117,16 @@
 
   function render(){
     const q=filter.trim().toLowerCase();
-    const shown = q ? recs.filter(r=>[r.name,r.phone,r.event_type,r.source,r.action].some(v=>String(v||"").toLowerCase().includes(q))) : recs;
-    if(!shown.length){ $("#rows").innerHTML='<tr><td colspan="10" class="empty">No archive records yet.</td></tr>'; return; }
-    $("#rows").innerHTML = shown.map(r=>`<tr>
+    let base = fAll ? recs : latestPerLead(recs);
+    let shown = base.filter(r=>
+      (!fSource || r.source===fSource) &&
+      (!fStage  || r.status===fStage) &&
+      (!q || [r.name,r.phone,r.event_type,r.source,r.action].some(v=>String(v||"").toLowerCase().includes(q))));
+    if(!shown.length){ $("#rows").innerHTML='<tr><td colspan="11" class="empty">No matching records.</td></tr>'; return; }
+    $("#rows").innerHTML = shown.map(r=>{
+      const qid = r.quote_id ? esc(r.quote_id) : "";
+      const openable = !!qid;
+      return `<tr${openable?` class="openable" data-qid="${qid}" style="cursor:pointer"`:""}>
       <td class="when">${esc(when(r.archived_at))}</td>
       <td><span class="act ${esc(r.action)}">${esc(r.action)}</span></td>
       <td>${esc(r.name||"—")}</td>
@@ -117,17 +137,26 @@
       <td class="amt">${r.budget?fmt(r.budget):""}</td>
       <td class="muted">${r.guest_count!=null?esc(r.guest_count):""}</td>
       <td class="muted">${esc(r.status||"")}</td>
-    </tr>`).join("");
+      <td>${openable?`<a class="open" data-qid="${qid}" style="color:var(--accent);font-weight:600">Open&nbsp;→</a>`:""}</td>
+    </tr>`;}).join("");
+    // click a row (or the Open link) → the event workspace hub (details + 2D/3D)
+    $("#rows").querySelectorAll("[data-qid]").forEach(el=>el.addEventListener("click",(e)=>{
+      e.preventDefault(); const qid=el.getAttribute("data-qid"); if(qid) location.href="event.html?id="+encodeURIComponent(qid);
+    }));
   }
 
   $("#search").addEventListener("input",(e)=>{ filter=e.target.value; render(); });
+  $("#fSource").addEventListener("change",(e)=>{ fSource=e.target.value; render(); });
+  $("#fStage").addEventListener("change",(e)=>{ fStage=e.target.value; render(); });
+  $("#fAll").addEventListener("change",(e)=>{ fAll=e.target.checked; render(); });
 
   (async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.href="index.html"; return; }
     if(!(await BPStore.auth.requireView("pipeline"))) return;
     try{ recs = await BPStore.leads.archive(); }
-    catch(err){ $("#rows").innerHTML=`<tr><td colspan="10" class="empty">Couldn't load archive — ${esc(err&&err.message||"error")}. Run <b>phase2b-crm.sql</b>.</td></tr>`; return; }
+    catch(err){ $("#rows").innerHTML=`<tr><td colspan="11" class="empty">Couldn't load — ${esc(err&&err.message||"error")}. Run <b>phase2b-crm.sql</b>.</td></tr>`; return; }
+    fillFilters();
     render();
   })();
 </script>

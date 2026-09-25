@@ -72,7 +72,7 @@
   .lsheet input,.lsheet select{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;margin-bottom:12px;font-family:inherit;color:var(--ink)}
   .banner{background:var(--accent-soft);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--ink);display:flex;gap:10px;align-items:center}
 </style>
-<link rel="stylesheet" href="theme.css?v=69">
+<link rel="stylesheet" href="theme.css?v=71">
 </head>
 <body>
 <div class="wrap">
@@ -114,7 +114,7 @@
             <div class="fld"><label>Company (optional)</label><input id="c_company"></div>
             <div class="fld"><label>Email</label><input id="c_email" type="email"></div>
             <div class="fld"><label>Phone</label><input id="c_phone"></div>
-            <div class="fld"><label>Event type</label><input id="c_type" placeholder="wedding, concert…"></div>
+            <div class="fld"><label>Event type</label><input id="c_type" list="eventTypeList" placeholder="Pick or type a new one…"><datalist id="eventTypeList"></datalist></div>
             <div class="fld"><label>Event date</label><input id="c_date" type="date"></div>
             <div class="fld"><label>Guests</label><input id="c_guests" type="number" min="0"></div>
             <div class="fld"><label>Budget (₹)</label><input id="c_budget" type="number" min="0"></div>
@@ -141,7 +141,7 @@
           <p class="sub">The services the client wants.</p>
           <div id="reqList"></div>
           <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-top:10px">
-            <input id="rq_title" class="fld" style="height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px" placeholder="e.g. Stage &amp; lighting">
+            <input id="rq_title" list="reqTypeList" class="fld" style="height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px" placeholder="Pick or type a new one…"><datalist id="reqTypeList"></datalist>
             <select id="rq_pri" style="height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 8px"><option value="mandatory">Must-have</option><option value="optional">Optional</option><option value="nice">Nice-to-have</option></select>
             <button class="btn" id="rq_add">＋ Add</button>
           </div>
@@ -171,8 +171,8 @@
           <h2><span class="step-n">6</span> Proposal <span class="saved" id="sv-proposal">Saved ✓</span></h2>
           <p class="sub">The creative pitch shown to the client.</p>
           <div class="grid">
-            <div class="fld"><label>Concept</label><input id="pr_concept" placeholder="e.g. Royal Mughal evening"></div>
-            <div class="fld"><label>Theme</label><input id="pr_theme" placeholder="e.g. Gold &amp; maroon, candlelight"></div>
+            <div class="fld"><label>Concept</label><input id="pr_concept" list="conceptList" placeholder="Pick or type a new one…"><datalist id="conceptList"></datalist></div>
+            <div class="fld"><label>Theme</label><input id="pr_theme" list="themeList" placeholder="Pick or type a new one…"><datalist id="themeList"></datalist></div>
             <div class="fld full"><label>Scope highlights (one per line)</label><textarea id="pr_scope" placeholder="Stage &amp; mandap decor&#10;Full catering&#10;Lighting &amp; sound"></textarea></div>
           </div>
         </section>
@@ -202,10 +202,12 @@
           <div class="grid">
             <div class="fld"><label>Chairs (from layout)</label><input id="q_chairs" type="number" min="0"></div>
             <div class="fld"><label>Guests / plates</label><input id="q_guests" type="number" min="0"></div>
-            <div class="fld"><label>Chair rate (₹)</label><input id="q_chairPrice" type="number" min="0"></div>
-            <div class="fld"><label>Plate price (₹, from package)</label><input id="q_platePrice" type="number" min="0"></div>
+            <div class="fld"><label>Chair rate (₹) <span style="color:var(--ink-3);font-weight:400;text-transform:none">· set in Control Center</span></label><input id="q_chairPrice" type="number" min="0" readonly title="Fixed — change it in Control Center → Pricing" style="background:var(--bg);color:var(--ink-2);cursor:not-allowed"></div>
+            <div class="fld"><label>Plate price (₹) <span style="color:var(--ink-3);font-weight:400;text-transform:none">· from package / Control Center</span></label><input id="q_platePrice" type="number" min="0" readonly title="Fixed — set by the menu package or Control Center → Pricing" style="background:var(--bg);color:var(--ink-2);cursor:not-allowed"></div>
             <div class="fld"><label>Décor / equipment &amp; setup (₹)</label><input id="q_other" type="number" min="0"></div>
             <div class="fld"><label>Discount (₹)</label><input id="q_discount" type="number" min="0"></div>
+            <div class="fld"><label>Coupon code</label><input id="q_coupon" list="couponList" placeholder="optional"><datalist id="couponList"></datalist>
+              <div id="q_couponMsg" style="font-size:11px;margin-top:3px;color:var(--ink-3)"></div></div>
           </div>
           <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
             <button class="btn" id="q_pdf">⬇ Download quote PDF</button>
@@ -270,12 +272,32 @@
   </div>
 </div>
 
-<script src="config.js?v=73"></script>
+<script src="config.js?v=90"></script>
 <script src="store-api.js?v=83"></script>
 <script src="tour.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  // ---- Cluster C: "pick or add custom" vocab for the event-type & requirement
+  // dropdowns. Defaults + any custom entries the user adds (persisted, so they
+  // show in the dropdown next time). ----
+  const EVENT_TYPE_DEFAULTS=["Wedding","Reception","Engagement","Sangeet","Birthday","Anniversary","Corporate","Conference","Concert","Festival","Exhibition","Product launch","Gala dinner","Seminar","Workshop","Religious / Puja","House warming","Baby shower","Get-together"];
+  const REQ_DEFAULTS=["Stage & lighting","Sound / PA","Catering","Décor & flowers","Photography","Videography","Seating & tables","Power / generator","Security","Valet parking","Entertainment / DJ","Transport","Accommodation","LED wall / screens","Invitations","Makeup & styling","Fireworks"];
+  const CONCEPT_DEFAULTS=["Royal Mughal","Beach / Destination","Garden / Outdoor","Minimalist Modern","Traditional South Indian","Bollywood Glam","Vintage / Rustic","Fairytale / Floral","Corporate Elegant","Boho Chic"];
+  const THEME_DEFAULTS=["Gold & maroon","Pastel florals","Royal blue & silver","Rustic greenery","Black & gold","Blush & rose gold","Tropical","Candlelight & drapes","Monochrome white"];
+  const vocabDefaults=(k)=> k==="event_types"?EVENT_TYPE_DEFAULTS : k==="reqs"?REQ_DEFAULTS : k==="concepts"?CONCEPT_DEFAULTS : k==="themes"?THEME_DEFAULTS : [];
+  function vocabExtra(k){ try{ return JSON.parse(localStorage.getItem("helm_vocab_"+k)||"[]"); }catch(e){ return []; } }
+  function vocabAll(k){ return [...new Set([...vocabDefaults(k), ...vocabExtra(k)])]; }
+  function vocabAdd(k,val){ val=(val||"").trim(); if(!val) return;
+    if(vocabAll(k).map(x=>x.toLowerCase()).includes(val.toLowerCase())) return;
+    const e=vocabExtra(k); e.push(val); try{ localStorage.setItem("helm_vocab_"+k,JSON.stringify(e)); }catch(_){}}
+  function fillVocab(){
+    const et=document.getElementById("eventTypeList"); if(et) et.innerHTML=vocabAll("event_types").map(v=>`<option value="${esc(v)}"></option>`).join("");
+    const rq=document.getElementById("reqTypeList");    if(rq) rq.innerHTML=vocabAll("reqs").map(v=>`<option value="${esc(v)}"></option>`).join("");
+    const cn=document.getElementById("conceptList");    if(cn) cn.innerHTML=vocabAll("concepts").map(v=>`<option value="${esc(v)}"></option>`).join("");
+    const th=document.getElementById("themeList");      if(th) th.innerHTML=vocabAll("themes").map(v=>`<option value="${esc(v)}"></option>`).join("");
+  }
+  fillVocab();
   const inr=(n)=>"₹"+Math.round(n||0).toLocaleString("en-IN");
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   let ev=null, rates={chairPrice:200,platePrice:500,gstPct:18,layoutBase:0,serviceChargePct:0,assetPrices:null};
@@ -286,16 +308,36 @@
   function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms||600); }; }
 
   /* ---------- pricing (shared engine) ---------- */
+  // EDGE-03: clamp any pricing quantity/amount to a finite, non-negative number
+  // so negative / NaN / Infinity inputs can never reach the persisted total.
+  function nn(v){ v=+v; return (isFinite(v) && v>0) ? v : 0; }
+  let COUPONS=[], appliedCoupon=null;
+  async function loadCoupons(){
+    try{ COUPONS=await BPStore.coupons.list(); }catch(e){ COUPONS=[]; }
+    const dl=document.getElementById("couponList");
+    if(dl) dl.innerHTML=(COUPONS||[]).map(c=>`<option value="${esc(c.code)}"></option>`).join("");
+  }
+  function applyCoupon(){
+    const code=($("#q_coupon")?$("#q_coupon").value.trim():"");
+    const msg=$("#q_couponMsg");
+    if(!code){ appliedCoupon=null; if(msg){msg.textContent="";} renderPrice(); return; }
+    const c=(COUPONS||[]).find(x=>String(x.code||"").toLowerCase()===code.toLowerCase());
+    if(c){ appliedCoupon={kind:c.kind,value:c.value};
+      if(msg){ msg.style.color="var(--safe,#18a558)"; msg.textContent="Applied: "+(c.kind==="percent"?(c.value+"% off"):("₹"+c.value+" off"))+(c.note?(" · "+c.note):""); } }
+    else { appliedCoupon=null; if(msg){ msg.style.color="var(--warn,#e8912d)"; msg.textContent="No such coupon code."; } }
+    renderPrice();
+  }
   function currentInputs(){
     const oi = BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
-    const chairs = $("#q_chairs").value!==""?(+$("#q_chairs").value||0):oi.chairs;
-    const guests = $("#q_guests").value!==""?(+$("#q_guests").value||0):chairs;
-    const platePrice = $("#q_platePrice").value!==""?(+$("#q_platePrice").value||0):(appliedPkg?appliedPkg.price_per_plate:rates.platePrice);
-    const other = $("#q_other").value!==""?(+$("#q_other").value||0):(oi.objectsCost+(+rates.layoutBase||0));
-    return { chairs, guests, chairPrice:+$("#q_chairPrice").value||rates.chairPrice, platePrice,
+    const chairs = nn($("#q_chairs").value!==""?(+$("#q_chairs").value||0):oi.chairs);
+    const guests = nn($("#q_guests").value!==""?(+$("#q_guests").value||0):chairs);
+    const platePrice = nn($("#q_platePrice").value!==""?(+$("#q_platePrice").value||0):(appliedPkg?appliedPkg.price_per_plate:rates.platePrice));
+    const other = nn($("#q_other").value!==""?(+$("#q_other").value||0):(oi.objectsCost+(+rates.layoutBase||0)));
+    return { chairs, guests, chairPrice:nn(+$("#q_chairPrice").value||rates.chairPrice), platePrice,
       other, gstPct:+rates.gstPct||18, serviceChargePct:+rates.serviceChargePct||0,
-      discount:+$("#q_discount").value||0, catering:{mode:"inhouse",gstPct:+rates.gstPct||18},
-      couponCode:"", placeOfSupply:"intra", currency:"INR",
+      discount:nn($("#q_discount").value||0), catering:{mode:"inhouse",gstPct:+rates.gstPct||18},
+      couponCode:($("#q_coupon")?$("#q_coupon").value.trim():""), coupon:appliedCoupon,
+      placeOfSupply:"intra", currency:"INR",
       _objectsCost:oi.objectsCost, _packageName:appliedPkg?appliedPkg.name:null };
   }
   function renderPrice(){
@@ -323,6 +365,7 @@
       eventDate:$("#c_date").value||null });
     ev.client=client;
     await BPStore.quotes.updateMeta(id,{ client, eventType:$("#c_type").value.trim()||null, eventDate:$("#c_date").value||null });
+    vocabAdd("event_types",$("#c_type").value); fillVocab();   // remember a custom event type
     // guests is entered once here and mirrored into the fields that read it (quotation/pricing)
     if($("#q_guests").value==="" && client.guests!=null){ $("#q_guests").value=client.guests; }
     saved("client"); renderPrice();
@@ -353,6 +396,7 @@
   async function saveProposal(){
     const scope=$("#pr_scope").value.split("\n").map(s=>s.trim()).filter(Boolean);
     await BPStore.proposal.save(id,{ concept:$("#pr_concept").value.trim()||null, theme:$("#pr_theme").value.trim()||null, scope });
+    vocabAdd("concepts",$("#pr_concept").value); vocabAdd("themes",$("#pr_theme").value); fillVocab();  // remember custom concept/theme
     saved("proposal");
   }
   async function saveQuotation(){
@@ -362,8 +406,26 @@
       const r=await BPStore.quotationVersions.save(id, pricing);   // keeps every Q-version; also updates current pricing
       ev.pricing=pricing; saved("quote"); updateProgress(); await renderQuoteVersions();
       $("#q_msg") && ($("#q_msg").textContent="Saved "+(r&&r.label||""));
-    }catch(e){ // graceful fallback before phase77 is run
+    }catch(e){
+      // REL-01: ONLY fall back when the versioning RPC is genuinely ABSENT
+      // (a DB that has not run phase77 yet). Every other failure — permission /
+      // RLS, network, invalid input — must SURFACE. Never show a false "Saved".
+      const code=(e&&(e.code||e.status))||'';
+      const msg=String((e&&e.message)||e||'');
+      // PostgREST returns PGRST202 (and Postgres 42883) for a missing function.
+      // Bare 404 is intentionally NOT treated as "missing RPC" to avoid masking a
+      // real failure as a false "Saved".
+      const rpcMissing = code==='PGRST202' || code==='42883'
+        || /could not find the function|function[^]*does not exist|schema cache/i.test(msg);
+      if(!rpcMissing){
+        updateProgress();
+        if($("#q_msg")) $("#q_msg").textContent="Couldn't save — not saved: "+msg;
+        if(typeof toast!=='undefined'){ try{ toast("Save failed — nothing was saved."); }catch(_){ } }
+        throw e;   // do NOT swallow; do NOT claim success
+      }
+      // legacy / pre-phase77 environment: persist current pricing only.
       await BPStore.quotes.updateMeta(id,{ pricing }); ev.pricing=pricing; saved("quote"); updateProgress();
+      if($("#q_msg")) $("#q_msg").textContent="Saved (legacy mode — versioning not enabled)";
     }
   }
   async function renderQuoteVersions(){
@@ -532,6 +594,7 @@
     $("#q_platePrice").value=pr.platePrice!=null?pr.platePrice:(appliedPkg?appliedPkg.price_per_plate:rates.platePrice);
     $("#q_other").value=pr.other!=null?pr.other:(oi.objectsCost+(+rates.layoutBase||0));
     $("#q_discount").value=pr.discount||0;
+    if($("#q_coupon") && pr.couponCode){ $("#q_coupon").value=pr.couponCode; applyCoupon(); }
     if(pr.chairPrice!=null) $("#q_chairPrice").value=pr.chairPrice;
     renderPrice(); updateProgress();
     // advance payment + activity
@@ -555,10 +618,12 @@
     const prSave=debounce(saveProposal,700);
     ["pr_concept","pr_theme","pr_scope"].forEach(f=>$("#"+f).addEventListener("input",prSave));
     ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount"].forEach(f=>$("#"+f).addEventListener("input",renderPrice));
+    $("#q_coupon").addEventListener("input",applyCoupon);   // coupon code → discount
+    loadCoupons();                                           // populate coupon suggestions
     $("#q_save").addEventListener("click",saveQuotation);
     $("#q_pdf").addEventListener("click",downloadQuotePDF);
     $("#rq_add").addEventListener("click",async()=>{ const t=$("#rq_title").value.trim(); if(!t) return;
-      await BPStore.discovery.addReq(id,{ title:t, priority:$("#rq_pri").value }); $("#rq_title").value=""; renderReqs(); });
+      await BPStore.discovery.addReq(id,{ title:t, priority:$("#rq_pri").value }); vocabAdd("reqs",t); fillVocab(); $("#rq_title").value=""; renderReqs(); });
     $("#sendApproval").addEventListener("click",sendApproval);
     $("#pay_pct").addEventListener("input",updateAdvance);
     ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount"].forEach(f=>$("#"+f).addEventListener("input",updateAdvance));

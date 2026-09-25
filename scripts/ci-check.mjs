@@ -65,15 +65,20 @@ for (const f of htmls) {
 }
 ok(`${htmlOk}/${htmls.length} pages' inline scripts parse`);
 
-// 4) store-api.js version consistency
+// 4) cache-bust version consistency for the shared assets (store-api.js AND
+//    config.js — PERF-05: config.js had drifted across 6 versions, so stale
+//    config could be served to some pages).
 console.log('Cache-bust consistency:');
-const versions = new Set();
-for (const f of htmls) {
-  const m = readFileSync(f, 'utf8').match(/store-api\.js\?v=(\d+)/);
-  if (m) versions.add(m[1]);
+for (const asset of ['store-api', 'config']) {
+  const versions = new Set();
+  const re = new RegExp(asset.replace('.', '\\.') + '\\.js\\?v=(\\d+)');
+  for (const f of htmls) {
+    const m = readFileSync(f, 'utf8').match(re);
+    if (m) versions.add(m[1]);
+  }
+  if (versions.size <= 1) ok(`${asset}.js uniform at v=${[...versions][0] || '(none)'}`);
+  else fail(`${asset}.js version drift across pages: ${[...versions].sort().join(', ')}`);
 }
-if (versions.size <= 1) ok(`store-api.js uniform at v=${[...versions][0] || '(none)'}`);
-else fail(`store-api.js version drift across pages: ${[...versions].sort().join(', ')}`);
 
 // 5) no service_role key in client code
 console.log('Secret safety:');

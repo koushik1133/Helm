@@ -1,4 +1,11 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Helm Events</title>
+</head>
+<body>
 <script>
   /* Pin the builder to a light background by default (user preference persisted). */
   (function(){
@@ -417,6 +424,12 @@
         </optgroup>
       </select>
     </div>
+    <div class="field">
+      <label>Past events</label>
+      <select id="refEvents" title="Load a past event's layout for reference / reuse">
+        <option value="">Reference a past layout…</option>
+      </select>
+    </div>
     <button class="tbtn primary" id="customBtn" title="Build a layout from your numbers">✨ Custom Event</button>
   </div>
 
@@ -649,7 +662,7 @@
   </aside>
 </main>
 
-<script src="config.js?v=72"></script>
+<script src="config.js?v=90"></script>
 <script src="store-api.js?v=83"></script>
 <script src="tour.js?v=2"></script>
 <script>
@@ -2719,6 +2732,36 @@ $('#preset').addEventListener('change',e=>{
   loadTemplate(v);
   e.target.value='';
 });
+/* ---- Past-events reference browser: load a previous event's saved layout ---- */
+async function populateRefEvents(){
+  const sel=$('#refEvents'); if(!sel) return;
+  let qs=[]; try{ qs=await BPStore.quotes.list(); }catch{ return; }
+  const others=(qs||[]).filter(q=>q.id!==currentQuoteId);
+  others.sort((a,b)=>String(b.event_date||b.updated_at||'').localeCompare(String(a.event_date||a.updated_at||'')));
+  const isClosed=(q)=> q.lifecycle_stage==='closed' || q.status==='cancelled';
+  const closed=others.filter(isClosed), active=others.filter(q=>!isClosed(q));
+  const opt=(q)=>{ const cl=(q.client&&q.client.name)||''; const d=(q.event_date||'').slice(0,10);
+    return `<option value="${esc(q.id)}">${esc(q.code||'event')}${cl?' · '+esc(cl):''}${d?' · '+d:''}</option>`; };
+  let html='<option value="">Reference a past layout…</option>';
+  if(closed.length) html+='<optgroup label="Completed / closed">'+closed.map(opt).join('')+'</optgroup>';
+  if(active.length) html+='<optgroup label="Other events">'+active.map(opt).join('')+'</optgroup>';
+  sel.innerHTML=html;
+}
+$('#refEvents').addEventListener('change', async (e)=>{
+  const qid=e.target.value; if(!qid) return;
+  if(RO){ e.target.value=''; toast('Read-only — cannot load a layout here'); return; }
+  const label=e.target.options[e.target.selectedIndex].textContent;
+  if(store.items.length && !confirm('Load the layout from "'+label+'" onto the canvas?\nThis replaces the current objects (you can Undo).')){ e.target.value=''; return; }
+  try{
+    const q=await BPStore.quotes.get(qid);
+    const ver=await BPStore.quotes.getVersion(qid, q.currentVersion);
+    const items=(ver && ver.data && ver.data.items)||[];
+    if(!items.length){ toast('That event has no saved layout.'); e.target.value=''; return; }
+    loadItems(items, 'Ref: '+(q.code||'past event'));
+    toast('Loaded layout from '+(q.code||'past event'));
+  }catch(err){ toast('Could not load that layout'); }
+  e.target.value='';
+});
 $('#unitSeg').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
   $('#unitSeg').querySelectorAll('button').forEach(x=>x.classList.remove('on'));
   b.classList.add('on');
@@ -3166,6 +3209,7 @@ async function init(){
         const pn=$('#projName'); if(pn) pn.value=full.name; toast('Opened “'+full.name+'”'); } }
     catch{ toast('Could not open that event'); }
   }
+  populateRefEvents();   // fill the "Past events" reference picker
   // Guided default-layout generation from the flow: ?gen=1&type=&guests=&len=&wid=
   if(params.get('gen')==='1' && CAN_CREATE!==false){
     const TMAP={ wedding:'wedding', reception:'wedding', engagement:'wedding', gala:'wedding', cocktail:'wedding',
@@ -3885,3 +3929,5 @@ init();
   window.addEventListener('resize',()=>{ if(active) resize(); });
 })();
 </script>
+</body>
+</html>
