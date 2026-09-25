@@ -1,0 +1,58 @@
+-- ============================================================================
+-- WAVE-05-ROLLBACK.sql   —  READ THIS BEFORE RUNNING ANYTHING.
+-- ----------------------------------------------------------------------------
+-- Most of Wave 5 is SECURITY / DATA-INTEGRITY HARDENING and is INTENTIONALLY
+-- NOT REVERSIBLE. Restoring the previous state would re-introduce known
+-- vulnerabilities or re-open data-corruption races. This file therefore
+-- provides ONLY the one genuinely-safe compensating action, and documents why
+-- everything else must not be rolled back.
+--
+-- NON-REVERSIBLE (do NOT attempt to restore the prior behavior):
+--   • SEC-01 layouts isolation — the prior state was `anon ... using(true)`
+--     (any public-key holder could read/overwrite/DELETE every tenant's
+--     layouts). Restoring it is the CRITICAL vulnerability. Keep it.
+--   • OTP-01 request_otp — prior behavior could echo the OTP to the anon caller
+--     whenever SMS was not live. Restoring it leaks approval OTPs. Keep it.
+--   • SEC-03 generate_approval_token / mark_paid — prior versions were not
+--     org-scoped (cross-tenant write). Restoring them breaks tenant isolation.
+--   • MONEY-03/04/05 unique indexes + retry loops — dropping them re-opens
+--     duplicate receipt numbers / version labels / double-charge under
+--     concurrency. Keep them.
+--
+-- ADDITIVE COLUMNS ARE KEPT (dropping them would DESTROY data):
+--   • quote_payments.idempotency_key
+--   • quotes.approval_token_expires_at / approval_token_revoked_at
+--   • organizations.location
+--   These are nullable and harmless; leave them in place. Dropping a column
+--   deletes its values — that violates the zero-data-loss guardrail.
+--
+-- ----------------------------------------------------------------------------
+-- SAFE COMPENSATING ACTION (optional) — disable the quote→CRM auto-sync.
+-- ----------------------------------------------------------------------------
+-- This is the only Wave 5 change that is a *feature*, not a security fix, and
+-- can be turned off without restoring any vulnerability. It removes the triggers
+-- and the function so quotes stop auto-creating/refreshing leads. It DELIBERATELY
+-- does NOT delete the leads already created by the backfill/trigger (that is new
+-- data; deleting it is not a safe rollback). Uncomment to apply.
+--
+-- begin;
+--   drop trigger if exists quotes_sync_lead_ins on public.quotes;
+--   drop trigger if exists quotes_sync_lead_upd on public.quotes;
+--   drop function if exists public.sync_quote_to_lead();
+-- commit;
+-- notify pgrst, 'reload schema';
+--
+-- ----------------------------------------------------------------------------
+-- OPTIONAL, NON-SECURITY: revert the proposal page to hide pricing (phase93).
+-- Only do this if the business wants the shared proposal to NOT show price.
+-- This is a feature revert, not a security rollback, and needs the pre-phase93
+-- body of public_get_proposal (without the 'pricing'/'total' keys). If you want
+-- this, ask for the exact prior definition — it is intentionally NOT inlined
+-- here to avoid shipping a stale function body by accident.
+--
+-- ----------------------------------------------------------------------------
+-- There is no safe rollback for the token-expiry/revocation columns or the
+-- numbering integrity. If you must fully revert for an emergency, restore from
+-- the pre-upgrade database SNAPSHOT/backup you took in the apply order — do not
+-- hand-revert individual security objects.
+-- ============================================================================
