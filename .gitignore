@@ -4,3 +4,10 @@ data/
 
 # staging Supabase config (never commit keys)
 public/config.staging.js
+
+# Playwright
+test-results/
+playwright-report/
+tests/e2e/.auth/
+blob-report/
+.playwright/
