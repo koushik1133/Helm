@@ -34,9 +34,18 @@ cfg.framework === null ? ok("framework = null (no framework build)") : bad(`fram
 !("functions" in cfg) ? ok("no 'functions' key") : bad("'functions' present — declares a serverless function");
 
 // routing the static app must keep working without server.js
+const cleanUrls = cfg.cleanUrls === true;
 const sources = new Set((cfg.rewrites || []).map((r) => r.source));
-for (const s of ["/", "/login", "/index", "/privacy", "/terms", "/i/:slug*"]) {
+// Non-1:1 routes must be explicit rewrites (no matching <name>.html file).
+for (const s of ["/", "/i/:slug*"]) {
   sources.has(s) ? ok(`rewrite present: ${s}`) : bad(`missing required rewrite: ${s}`);
+}
+// Page routes: served extensionlessly by cleanUrls (from <name>.html), or an
+// explicit per-page rewrite. Either satisfies clean, server-less routing.
+cleanUrls ? ok("cleanUrls enabled (extensionless page routes)")
+          : ok("cleanUrls off (page routes via explicit rewrites)");
+for (const s of ["/login", "/index", "/privacy", "/terms", "/about", "/services"]) {
+  (cleanUrls || sources.has(s)) ? ok(`route ok: ${s}`) : bad(`missing route: ${s} (add a rewrite or enable cleanUrls)`);
 }
 
 /* ---- 2. optional HTTP assertions against a deployed/preview URL ---------- */

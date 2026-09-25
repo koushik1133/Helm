@@ -8,15 +8,11 @@
   "trailingSlash": false,
   "rewrites": [
     { "source": "/", "destination": "/welcome.html" },
-    { "source": "/login", "destination": "/login.html" },
-    { "source": "/signup", "destination": "/login.html" },
-    { "source": "/index", "destination": "/index.html" },
-    { "source": "/dashboard", "destination": "/index.html" },
-    { "source": "/about", "destination": "/about.html" },
-    { "source": "/services", "destination": "/services.html" },
-    { "source": "/privacy", "destination": "/privacy.html" },
-    { "source": "/terms", "destination": "/terms.html" },
     { "source": "/i/:slug*", "destination": "/invite.html" }
+  ],
+  "redirects": [
+    { "source": "/signup", "destination": "/login#signup", "permanent": false },
+    { "source": "/dashboard", "destination": "/index", "permanent": false }
   ],
   "headers": [
     {
