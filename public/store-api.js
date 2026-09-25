@@ -41,13 +41,13 @@
 (function () {
   function wireHome() {
     try {
-      var page = (location.pathname.split("/").pop() || "index.html").toLowerCase().replace(/\.html$/, "") || "index";
+      var page = (location.pathname.split("/").pop() || "dashboard.html").toLowerCase().replace(/\.html$/, "") || "index";
       if (page === "index" || page === "welcome" || page === "login") return;   // home / auth pages: no self-link
       var mark = document.querySelector("header .mark") || document.querySelector(".mark");
       if (!mark) return;
       if (mark.tagName !== "A" && mark.closest("a[href]")) return;   // brand already WRAPPED in one home link (e.g. builder)
-      var goHome = function () { location.href = "index.html"; };
-      if (mark.tagName === "A") { if (!mark.getAttribute("href")) mark.setAttribute("href", "index.html"); }
+      var goHome = function () { location.href = "dashboard.html"; };
+      if (mark.tagName === "A") { if (!mark.getAttribute("href")) mark.setAttribute("href", "dashboard.html"); }
       else {
         mark.style.cursor = "pointer"; mark.setAttribute("role", "link"); mark.setAttribute("title", "Home"); mark.setAttribute("tabindex", "0");
         mark.addEventListener("click", goHome);
@@ -328,7 +328,7 @@
           const box = document.createElement("div");
           box.id = "__noaccess";
           box.style.cssText = "max-width:520px;margin:64px auto;padding:28px;border-radius:14px;background:#fff;border:1px solid #d7deea;box-shadow:0 10px 30px rgba(20,27,46,.1);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;text-align:center;color:#4a5673";
-          box.innerHTML = '<div style="font-size:34px">🔒</div><h2 style="color:#141b2e;margin:10px 0 6px">No access</h2><p style="margin:0 0 14px">Your role doesn’t have access to this page. Ask an admin if you need it.</p><a href="index.html" style="color:#2f6fed;font-weight:600">← Back to dashboard</a>';
+          box.innerHTML = '<div style="font-size:34px">🔒</div><h2 style="color:#141b2e;margin:10px 0 6px">No access</h2><p style="margin:0 0 14px">Your role doesn’t have access to this page. Ask an admin if you need it.</p><a href="dashboard.html" style="color:#2f6fed;font-weight:600">← Back to dashboard</a>';
           document.body.appendChild(box);
         }
       } catch (e) { /* non-browser context */ }

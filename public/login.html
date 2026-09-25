@@ -143,7 +143,7 @@
   </section>
 
 <script src="config.js?v=90"></script>
-<script src="store-api.js?v=85"></script>
+<script src="store-api.js?v=86"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const PENDING="bp_pending_studio";
@@ -156,7 +156,7 @@
   // Accept a same-app page name with optional .html and optional query (e.g.
   // "flow.html?quote=…" or the clean-URL form "flow?quote=…"). Reject anything
   // with a slash or protocol to prevent open-redirects.
-  const nextUrl=()=>{ const n=new URLSearchParams(location.search).get("next"); return (n && /^[a-zA-Z0-9_\-]+(\.html)?(\?|$)/.test(n) && !/[\/\\]|:/.test(n)) ? n : "index.html"; };
+  const nextUrl=()=>{ const n=new URLSearchParams(location.search).get("next"); return (n && /^[a-zA-Z0-9_\-]+(\.html)?(\?|$)/.test(n) && !/[\/\\]|:/.test(n)) ? n : "dashboard.html"; };
   let mode="signin";
   function setMode(m){ mode=m; $("#err").hidden=true; $("#okmsg").hidden=true;
     document.querySelectorAll(".mtab").forEach(b=>b.classList.toggle("on",b.dataset.mode===m));

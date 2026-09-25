@@ -380,7 +380,7 @@
 </style>
 
 <header>
-  <a class="brand" href="index.html" title="Back to your events" style="text-decoration:none;color:inherit">
+  <a class="brand" href="dashboard.html" title="Back to your events" style="text-decoration:none;color:inherit">
     <div class="mark"></div>
     <div><h1>Helm Events</h1><small>← All events</small></div>
   </a>
@@ -663,8 +663,8 @@
 </main>
 
 <script src="config.js?v=90"></script>
-<script src="store-api.js?v=85"></script>
-<script src="tour.js?v=3"></script>
+<script src="store-api.js?v=86"></script>
+<script src="tour.js?v=4"></script>
 <script>
 /* =========================================================================
    BLUEPRINT STAGE — 2D Event Layout & Blueprint Builder
@@ -3030,7 +3030,7 @@ async function renderAccountChip(){
   el.hidden=false;
   const role=await BPStore.auth.role(), email=BPStore.auth.user().email;
   el.innerHTML=`<span class="role">${(role||'').replace(/[<>&]/g,'')}</span><span>${(email||'').replace(/[<>&]/g,'')}</span><button id="signOutBtn">Sign out</button>`;
-  $('#signOutBtn').addEventListener('click', async ()=>{ await BPStore.auth.signOut(); location.href='index.html'; });
+  $('#signOutBtn').addEventListener('click', async ()=>{ await BPStore.auth.signOut(); location.href='dashboard.html'; });
 }
 
 let saving=false;
@@ -3237,7 +3237,7 @@ async function init(){
   renderPrice();
   // Auth gate: if Supabase enforces login and nobody's signed in → go to the sign-in page
   if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){
-    location.href='index.html'; return;
+    location.href='dashboard.html'; return;
   }
   // Role gate: view-only roles (crew/client) get a read-only builder; capture create capability
   if(BPStore.auth.enabled() && BPStore.auth.user()){

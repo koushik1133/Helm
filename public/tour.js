@@ -252,7 +252,7 @@
     }
 
     // NOTE: inner feature pages no longer auto-start a tour. The guided tour
-    // auto-runs only on the dashboard (index.html) at first login/signup. Every
+    // auto-runs only on the dashboard (dashboard.html) at first login/signup. Every
     // page still exposes the manual "? Tour" button/FAB (see mount above), so
     // users can launch the tour on demand whenever they need it. (seenKey kept
     // for the form-coaching hints above, which remain click-triggered.)

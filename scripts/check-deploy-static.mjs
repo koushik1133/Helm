@@ -44,7 +44,7 @@ for (const s of ["/", "/i/:slug*"]) {
 // explicit per-page rewrite. Either satisfies clean, server-less routing.
 cleanUrls ? ok("cleanUrls enabled (extensionless page routes)")
           : ok("cleanUrls off (page routes via explicit rewrites)");
-for (const s of ["/login", "/index", "/privacy", "/terms", "/about", "/services"]) {
+for (const s of ["/login", "/dashboard", "/privacy", "/terms", "/about", "/services"]) {
   (cleanUrls || sources.has(s)) ? ok(`route ok: ${s}`) : bad(`missing route: ${s} (add a rewrite or enable cleanUrls)`);
 }
 
@@ -69,7 +69,7 @@ if (!base) {
       r.status === 404 ? ok(`${p} -> 404 (server.js not executing)`) : bad(`${p} -> ${r.status} (expected 404; server.js may still run)`);
       leak(r.body) ? bad(`${p} response leaks a path/stack/internal error`) : ok(`${p} response has no path/stack leak`);
     }
-    for (const p of ["/", "/login", "/index"]) {
+    for (const p of ["/", "/login", "/dashboard"]) {
       const r = await get(p);
       (r.status === 200 || (r.status >= 300 && r.status < 400)) ? ok(`${p} -> ${r.status} (app entry loads)`) : bad(`${p} -> ${r.status} (expected 200/redirect)`);
     }

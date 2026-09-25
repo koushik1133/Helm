@@ -98,7 +98,7 @@
     <div class="mark"></div>
     <div><h1>Helm Events</h1><small>Leads &amp; Pipeline</small></div>
     <nav class="nav">
-      <a href="index.html">Dashboard</a>
+      <a href="dashboard.html">Dashboard</a>
       <a href="quotes.html">Quotes</a>
       <a href="leads.html" class="on">Leads</a>
       <a href="crm.html">CRM archive</a>
@@ -180,8 +180,8 @@
 </div>
 
 <script src="config.js?v=90"></script>
-<script src="store-api.js?v=85"></script>
-<script src="tour.js?v=3"></script>
+<script src="store-api.js?v=86"></script>
+<script src="tour.js?v=4"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -202,7 +202,7 @@
     const u=BPStore.auth.user();
     if(u){ const role=await BPStore.auth.role();
       el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
-      $("#logoutBtn").addEventListener("click",async()=>{ await BPStore.auth.signOut(); location.href="index.html"; });
+      $("#logoutBtn").addEventListener("click",async()=>{ await BPStore.auth.signOut(); location.href="dashboard.html"; });
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); }
   }
 

@@ -226,7 +226,7 @@
   </footer>
 
   <script src="config.js?v=90"></script>
-  <script src="store-api.js?v=85"></script>
+  <script src="store-api.js?v=86"></script>
   <script>
     document.getElementById("yr").textContent = new Date().getFullYear();
     // If a signed-in user lands here, take them straight into their workspace.
@@ -237,7 +237,7 @@
         if (window.BPStore) {
           await BPStore.init();
           if (BPStore.auth && BPStore.auth.enabled() && BPStore.auth.user()) {
-            location.replace("index.html");
+            location.replace("dashboard.html");
           }
         }
       } catch (e) { /* stay on the intro page */ }

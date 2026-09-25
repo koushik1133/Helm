@@ -66,9 +66,9 @@
 <body>
 <div class="wrap">
   <header>
-    <a href="index.html" class="mark" title="Home"></a>
+    <a href="dashboard.html" class="mark" title="Home"></a>
     <div><h1>Event Workspace</h1><small>Helm Events</small></div>
-    <nav class="nav"><a href="index.html">Home</a><a href="leads.html">Leads</a><a href="calendar.html">Calendar</a><a href="quotes.html">Quotes</a><a href="control.html">Control Center</a></nav>
+    <nav class="nav"><a href="dashboard.html">Home</a><a href="leads.html">Leads</a><a href="calendar.html">Calendar</a><a href="quotes.html">Quotes</a><a href="control.html">Control Center</a></nav>
     <span class="spacer"></span>
     <span id="bell"></span>
     <span id="account" class="account" hidden></span>
@@ -114,8 +114,8 @@
 </div>
 
 <script src="config.js?v=90"></script>
-<script src="store-api.js?v=85"></script>
-<script src="tour.js?v=3"></script>
+<script src="store-api.js?v=86"></script>
+<script src="tour.js?v=4"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -148,7 +148,7 @@
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
       el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
-      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";});
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";});
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
 
   async function load(){

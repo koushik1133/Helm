@@ -11,8 +11,7 @@
     { "source": "/i/:slug*", "destination": "/invite.html" }
   ],
   "redirects": [
-    { "source": "/signup", "destination": "/login#signup", "permanent": false },
-    { "source": "/dashboard", "destination": "/index", "permanent": false }
+    { "source": "/signup", "destination": "/login#signup", "permanent": false }
   ],
   "headers": [
     {

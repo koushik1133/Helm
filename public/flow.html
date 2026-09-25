@@ -77,9 +77,9 @@
 <body>
 <div class="wrap">
   <header>
-    <a href="index.html" class="mark" title="Home"></a>
+    <a href="dashboard.html" class="mark" title="Home"></a>
     <div><h1>Quote flow</h1><small>Helm Events</small></div>
-    <nav class="nav"><a href="index.html">Home</a><a href="quotes.html">Quotes</a><a href="leads.html">Leads</a></nav>
+    <nav class="nav"><a href="dashboard.html">Home</a><a href="quotes.html">Quotes</a><a href="leads.html">Leads</a></nav>
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
@@ -284,8 +284,8 @@
 </div>
 
 <script src="config.js?v=90"></script>
-<script src="store-api.js?v=85"></script>
-<script src="tour.js?v=3"></script>
+<script src="store-api.js?v=86"></script>
+<script src="tour.js?v=4"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -745,11 +745,11 @@
     if(BPStore.auth.enabled()){ const u=BPStore.auth.user();
       const acc=$("#account"); acc.hidden=false;
       if(u){ const role=await BPStore.auth.role(); acc.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
-        $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="index.html";}); }
+        $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";}); }
       else { acc.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); }
       if(BPStore.auth.required() && !u){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     }
-    if(!id){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:var(--ink-3)">No quote selected. Start one from <a href="index.html" style="color:var(--accent)">Home</a> or <a href="leads.html" style="color:var(--accent)">Leads</a>.</p>'; return; }
+    if(!id){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:var(--ink-3)">No quote selected. Start one from <a href="dashboard.html" style="color:var(--accent)">Home</a> or <a href="leads.html" style="color:var(--accent)">Leads</a>.</p>'; return; }
     try{ canEdit=await BPStore.auth.canEditArea("quotes"); }catch{ canEdit=true; }
     try{ await loadAll(); }catch(e){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:#b42318">Couldn\'t open this quote — '+esc((e&&e.message)||"error")+'</p>'; return; }
     $("#app").hidden=false;
