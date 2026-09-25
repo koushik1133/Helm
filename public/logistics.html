@@ -77,11 +77,11 @@
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
 
     <div class="tabs" id="tabs">
-      <button data-t="guests" class="on">👥 Guests</button>
-      <button data-t="logistics">🚚 Logistics</button>
-      <button data-t="compliance">📋 Permits</button>
+      <button data-t="compliance" class="on">📋 Permits</button>
       <button data-t="comms">📣 Comms</button>
+      <button data-t="logistics">🚚 Logistics</button>
       <button data-t="payments">💳 Payments</button>
+      <button data-t="guests">👥 Guests</button>
     </div>
 
     <div id="pane" class="card"></div>
@@ -100,7 +100,7 @@
 </div>
 
 <script src="config.js?v=90"></script>
-<script src="store-api.js?v=84"></script>
+<script src="store-api.js?v=85"></script>
 <script src="tour.js?v=3"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -115,7 +115,7 @@
   const inr=(n)=>"₹"+Number(n||0).toLocaleString("en-IN");
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const CHK_ST={open:"Open",done:"Done",na:"N/A"}, PAY_ST={due:"Due",invoiced:"Invoiced",paid:"Paid",waived:"Waived"};
-  let canEdit=false, canDelete=false, tab="guests", ev=null;
+  let canEdit=false, canDelete=false, tab="compliance", ev=null;
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();

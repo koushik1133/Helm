@@ -1149,13 +1149,31 @@
       const items = await this.items(true); const it = items.find((i) => i.id === itemId); if (!it) return false;
       return this.updateItem(itemId, { total_qty: Math.max(0, Number(it.total_qty || 0) + Number(delta || 0)) });
     },
-    // committed & available per item id, from all active reservations
+    // committed & available per item id — DATE-AWARE.
+    // An item used on two different dates isn't gone twice: it comes back between
+    // events. So "committed" is the PEAK concurrent demand on any single event
+    // date (the busiest day), plus any reservations on events that have no date
+    // yet (those could land on any day, so we count them on top, conservatively).
+    // "available" = what you own minus that peak, i.e. how many are safe to commit.
     async availability() {
-      const [items, res] = await Promise.all([this.items(false), this.reservations()]);
-      const committed = {};
-      (res || []).forEach((r) => { if (ACTIVE_RES.includes(r.status)) committed[r.item_id] = (committed[r.item_id] || 0) + Number(r.qty || 0); });
+      const [items, res, quotesList] = await Promise.all([
+        this.items(false), this.reservations(), quotes.list().catch(() => []),
+      ]);
+      const dateByQuote = {}; (quotesList || []).forEach((q) => { dateByQuote[q.id] = q.eventDate || null; });
+      const dayTotals = {};  // item_id -> { date -> qty on that date }
+      const undated = {};    // item_id -> qty on dateless events
+      (res || []).forEach((r) => {
+        if (!ACTIVE_RES.includes(r.status)) return;
+        const q = Number(r.qty || 0); const d = dateByQuote[r.quote_id];
+        if (d) { (dayTotals[r.item_id] = dayTotals[r.item_id] || {}); dayTotals[r.item_id][d] = (dayTotals[r.item_id][d] || 0) + q; }
+        else { undated[r.item_id] = (undated[r.item_id] || 0) + q; }
+      });
+      const peakOf = (m) => { let mx = 0; for (const k in m) if (m[k] > mx) mx = m[k]; return mx; };
       const map = {};
-      items.forEach((i) => { const c = committed[i.id] || 0; map[i.id] = { ...i, committed: c, available: Number(i.total_qty || 0) - c }; });
+      items.forEach((i) => {
+        const c = peakOf(dayTotals[i.id] || {}) + (undated[i.id] || 0);
+        map[i.id] = { ...i, committed: c, available: Number(i.total_qty || 0) - c };
+      });
       return map;
     },
     // ---- Phase 33: check-out / check-in accountability ----

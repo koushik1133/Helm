@@ -262,6 +262,17 @@
   <footer>Helm Events — one flow from enquiry to client approval.</footer>
 </div>
 
+<div id="leaveModal" class="lmodal" hidden>
+  <div class="lsheet">
+    <h3>Save this quote?</h3>
+    <p style="font-size:13px;color:var(--ink-2);margin:0 0 18px">You have unsaved changes to this quote.</p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+      <button class="btn" id="lv_discard">Leave without saving</button>
+      <button class="btn primary" id="lv_save">Save</button>
+    </div>
+  </div>
+</div>
+
 <div id="loginModal" class="lmodal" hidden>
   <div class="lsheet">
     <h3>Sign in</h3>
@@ -273,7 +284,7 @@
 </div>
 
 <script src="config.js?v=90"></script>
-<script src="store-api.js?v=84"></script>
+<script src="store-api.js?v=85"></script>
 <script src="tour.js?v=3"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -303,6 +314,13 @@
   let ev=null, rates={chairPrice:200,platePrice:500,gstPct:18,layoutBase:0,serviceChargePct:0,assetPrices:null};
   let packages=[], plan=null, appliedPkg=null, layoutItems=[], canEdit=false;
   const REMIND_KEY = "bp_flow_remind_"+id;
+  // ---- unsaved-changes tracking ----
+  // `loading` is true while loadAll() prefills the form so programmatic fills
+  // never mark the quote dirty. `dirty` flips to true only on genuine user
+  // edits (see the delegated input/change listener in wire()). `leaving` is set
+  // right before an intentional navigation so beforeunload doesn't double-prompt.
+  let dirty=false, loading=true, leaving=false, pendingLeave=null;
+  function markDirty(){ if(!loading) dirty=true; }
 
   function saved(which){ const el=$("#sv-"+which); if(!el) return; el.classList.add("on"); setTimeout(()=>el.classList.remove("on"),1400); }
   function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms||600); }; }
@@ -398,6 +416,35 @@
     await BPStore.proposal.save(id,{ concept:$("#pr_concept").value.trim()||null, theme:$("#pr_theme").value.trim()||null, scope });
     vocabAdd("concepts",$("#pr_concept").value); vocabAdd("themes",$("#pr_theme").value); fillVocab();  // remember custom concept/theme
     saved("proposal");
+  }
+  // Keep ev.client fresh in memory as the user types WITHOUT persisting, so an
+  // explicit "Save quotation" snapshots the current client/venue. Real writes
+  // only happen via saveAll() (save-on-leave) or the explicit Save buttons.
+  function syncClientMem(){
+    ev.client=Object.assign({}, ev.client||{}, {
+      name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:$("#c_email").value.trim(),
+      phone:$("#c_phone").value.trim(),
+      guests:$("#c_guests").value!==""?+$("#c_guests").value:null, budget:$("#c_budget").value!==""?+$("#c_budget").value:null,
+      eventDate:$("#c_date").value||null });
+    if($("#q_guests").value==="" && ev.client.guests!=null){ $("#q_guests").value=ev.client.guests; }
+  }
+  function syncVenueMem(){ ev.client=Object.assign({}, ev.client||{}, { venue:$("#v_name").value.trim()||null, address:$("#v_addr").value.trim()||null }); }
+  // Persist every section that used to auto-save. saveVenue() also writes the
+  // plan (venue + menu notes), so saveMenuNotes() is covered. Quotation versions
+  // are intentionally NOT auto-created here — that stays on the explicit button.
+  async function saveAll(){
+    try{ await saveClient(); }catch(_){}
+    try{ await saveDiscovery(); }catch(_){}
+    try{ await saveVenue(); }catch(_){}
+    try{ await saveProposal(); }catch(_){}
+    dirty=false;
+  }
+  // Route an intentional leave through the save prompt when there are unsaved
+  // changes; otherwise just go. `go` performs the actual navigation.
+  function requestLeave(go){
+    if(!dirty){ leaving=true; go(); return; }
+    pendingLeave=go;
+    $("#leaveModal").hidden=false;
   }
   async function saveQuotation(){
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p);
@@ -604,21 +651,24 @@
     // reminder banner
     try{ if(localStorage.getItem(REMIND_KEY)==="1"){ $("#reminder").hidden=false; localStorage.removeItem(REMIND_KEY); $("#sec-quote").scrollIntoView({behavior:"smooth"}); } }catch{}
     $("#remindAfter").checked = false;
+    // prefill complete — genuine user edits from here on may mark the quote dirty
+    loading=false; dirty=false;
   }
 
   /* ---------- wire ---------- */
   function wire(){
-    const cSave=debounce(saveClient,700);
-    ["c_name","c_company","c_email","c_phone","c_type","c_date","c_guests","c_budget"].forEach(f=>$("#"+f).addEventListener("input",()=>{ if(f==="c_guests"||f==="c_type") renderPrice(); cSave(); }));
-    const dSave=debounce(saveDiscovery,700);
-    ["d_date","d_mode","d_att","d_notes","d_bmin","d_bmax"].forEach(f=>$("#"+f).addEventListener("input",dSave));
-    const vSave=debounce(saveVenue,700);
-    ["v_name","v_addr","v_contact","v_access"].forEach(f=>$("#"+f).addEventListener("input",vSave));
-    $("#p_menu").addEventListener("input",debounce(saveMenuNotes,700));
-    const prSave=debounce(saveProposal,700);
-    ["pr_concept","pr_theme","pr_scope"].forEach(f=>$("#"+f).addEventListener("input",prSave));
+    // NOTE: fields no longer auto-persist on every keystroke. Typing only updates
+    // the live UI and marks the quote dirty (delegated listener below); the actual
+    // writes happen on the explicit Save buttons or via the save-on-leave prompt.
+    // This stops empty / barely-touched quotes from being silently saved.
+    ["c_name","c_company","c_email","c_phone","c_type","c_date","c_guests","c_budget"].forEach(f=>$("#"+f).addEventListener("input",()=>{ syncClientMem(); if(f==="c_guests"||f==="c_type") renderPrice(); }));
+    ["v_name","v_addr"].forEach(f=>$("#"+f).addEventListener("input",syncVenueMem));
     ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount"].forEach(f=>$("#"+f).addEventListener("input",renderPrice));
     $("#q_coupon").addEventListener("input",applyCoupon);   // coupon code → discount
+    // dirty tracking: any genuine user input/change anywhere in the quote form
+    // flips `dirty` (guarded by `loading` so prefills don't count).
+    $("#app").addEventListener("input",markDirty);
+    $("#app").addEventListener("change",markDirty);
     loadCoupons();                                           // populate coupon suggestions
     $("#q_save").addEventListener("click",saveQuotation);
     $("#q_pdf").addEventListener("click",downloadQuotePDF);
@@ -634,14 +684,18 @@
       try{ if($("#remindAfter").checked) localStorage.setItem(REMIND_KEY,"1"); }catch{}
       // flush the current form so the builder opens with up-to-date guests/venue
       // (the layout section's guests wins if the user just typed it there)
-      const gg=$("#g_guests").value; if(gg!=="" && $("#c_guests").value!==gg){ $("#c_guests").value=gg; }
+      const gg=$("#g_guests").value; if(gg!=="" && $("#c_guests").value!==gg){ $("#c_guests").value=gg; syncClientMem(); markDirty(); }
       const btn=$("#openBuilder"), t=btn.textContent; btn.textContent="Saving…";
-      try{ await saveClient(); }catch(_){}
-      try{ await saveVenue(); }catch(_){}
+      // Only persist if the user actually changed something — no phantom save when
+      // the builder is opened on an untouched quote.
+      if(dirty){ try{ await saveAll(); }catch(_){} }
+      leaving=true;   // intentional navigation — don't trip beforeunload
       location.href="builder.html?quote="+encodeURIComponent(id);
     });
-    $("#genLayout").addEventListener("click",()=>{
+    $("#genLayout").addEventListener("click",async()=>{
       try{ if($("#remindAfter").checked) localStorage.setItem(REMIND_KEY,"1"); }catch{}
+      if(dirty){ try{ await saveAll(); }catch(_){} }   // carry unsaved edits into the builder
+      leaving=true;
       const type=$("#c_type").value.trim()||(ev&&ev.eventType)||"";
       const guests=$("#g_guests").value||$("#c_guests").value||"";
       const p=new URLSearchParams({ quote:id, gen:"1" });
@@ -651,7 +705,35 @@
       location.href="builder.html?"+p.toString();
     });
     $("#dismissReminder").addEventListener("click",()=>$("#reminder").hidden=true);
-    $("#workspaceLink").addEventListener("click",()=>{});
+
+    // ---- save-on-leave: intercept the in-page leave paths (header logo + nav
+    // links Home/Quotes/Leads, and the "Open full workspace" link) so that if
+    // there are unsaved changes we prompt first. Untouched quotes leave freely. ----
+    document.querySelectorAll('header a[href], #workspaceLink').forEach(a=>{
+      a.addEventListener("click",(e)=>{
+        const href=a.getAttribute("href")||"";
+        if(!href || href==="#" || href.charAt(0)==="#") return;   // in-page anchors: ignore
+        if(!dirty) return;                                        // nothing typed → leave freely
+        e.preventDefault();
+        requestLeave(()=>{ location.href=a.href; });
+      });
+    });
+
+    // leave-prompt modal buttons
+    $("#lv_save").addEventListener("click",async()=>{
+      $("#lv_save").disabled=true;
+      try{ await saveAll(); }catch(_){}
+      $("#lv_save").disabled=false;
+      $("#leaveModal").hidden=true;
+      leaving=true; const go=pendingLeave; pendingLeave=null; if(go) go();
+    });
+    $("#lv_discard").addEventListener("click",()=>{
+      dirty=false; $("#leaveModal").hidden=true;
+      leaving=true; const go=pendingLeave; pendingLeave=null; if(go) go();
+    });
+
+    // hard browser close / refresh / back: native "unsaved changes" prompt, only when dirty
+    window.addEventListener("beforeunload",(e)=>{ if(dirty && !leaving){ e.preventDefault(); e.returnValue=""; } });
   }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),40); }

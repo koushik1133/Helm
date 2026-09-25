@@ -129,7 +129,7 @@
     </div>
     <div class="card" style="padding:0;overflow:auto">
       <table>
-        <thead><tr><th>Item</th><th>Pri</th><th>Category</th><th class="num">Total</th><th class="num">Committed</th><th class="num">Available</th><th class="num">Unit cost</th><th>Unit</th><th></th></tr></thead>
+        <thead><tr><th>Item</th><th>Pri</th><th>Category</th><th class="num">Total</th><th class="num">Committed</th><th class="num">Available</th><th>Unit</th><th class="num">Unit cost</th><th></th></tr></thead>
         <tbody id="stockRows"><tr><td colspan="9" class="empty">Loading…</td></tr></tbody>
       </table>
     </div>
@@ -152,16 +152,16 @@
       <div class="card" style="padding:0;overflow:auto">
         <div style="padding:14px 16px 0"><h2 style="margin:0;font-size:15px">Out on loan <span id="loanCount" class="onloan"></span></h2></div>
         <table>
-          <thead><tr><th>Item</th><th>Pri</th><th class="num">Out</th><th>Issued to</th><th>When</th><th></th></tr></thead>
-          <tbody id="loanRows"><tr><td colspan="6" class="empty">Nothing out on loan.</td></tr></tbody>
+          <thead><tr><th>Item</th><th>Event</th><th>Pri</th><th class="num">Out</th><th>Issued to</th><th>When</th><th></th></tr></thead>
+          <tbody id="loanRows"><tr><td colspan="7" class="empty">Nothing out on loan.</td></tr></tbody>
         </table>
       </div>
 
       <div class="card" style="padding:0;overflow:auto">
         <div style="padding:14px 16px 4px;display:flex;align-items:center;gap:10px"><h2 style="margin:0;font-size:15px">Loss report</h2><span id="lossTotal"></span></div>
         <table>
-          <thead><tr><th>Item</th><th class="num">Out</th><th class="num">Back</th><th class="num">Missing</th><th class="num">Value lost</th><th>Signed off</th><th>When</th></tr></thead>
-          <tbody id="lossRows"><tr><td colspan="7" class="empty">No returns recorded yet.</td></tr></tbody>
+          <thead><tr><th>Item</th><th>Event</th><th class="num">Out</th><th class="num">Back</th><th class="num">Missing</th><th class="num">Value lost</th><th>Signed off</th><th>When</th></tr></thead>
+          <tbody id="lossRows"><tr><td colspan="8" class="empty">No returns recorded yet.</td></tr></tbody>
         </table>
       </div>
     </div><!-- /pane-loans -->
@@ -229,15 +229,16 @@
 </div>
 
 <script src="config.js?v=90"></script>
-<script src="store-api.js?v=84"></script>
+<script src="store-api.js?v=85"></script>
 <script src="tour.js?v=3"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const num=(n)=>Number(n||0).toLocaleString("en-IN");
+  const fmtDate=(d)=>{ if(!d) return ""; const s=String(d); const dt=new Date(s.length===10?s+"T00:00:00":s); if(isNaN(dt)) return esc(s); return dt.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}); };
   const quoteId=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const ST={reserved:"Reserved",allocated:"Allocated",returned:"Returned",cancelled:"Cancelled"};
-  let canEdit=false, canDelete=false, avail={}, items=[], reservations=[], checkouts=[], editingId=null, filter="", catF="", priF="";
+  let canEdit=false, canDelete=false, avail={}, items=[], reservations=[], checkouts=[], quotesById={}, editingId=null, filter="", catF="", priF="";
   const PRI={A:"A",B:"B",C:"C"};
   const INV_CATEGORIES=["Seating","Tables","Linens","Lighting","Sound & AV","Staging & Structures","Decor & Florals","Catering Equipment","Tableware","Power & Cabling","Tents & Canopies","Signage","Office & Misc"];
   const STARTER_ITEMS=[
@@ -296,8 +297,8 @@
         <td class="num">${num(i.total_qty)}</td>
         <td class="num">${num(a.committed)}</td>
         <td class="num avail ${availClass(a.available,Number(i.total_qty))}">${num(a.available)}</td>
-        <td class="num">${Number(i.unit_cost||0)?("₹"+num(i.unit_cost)):'<span style="color:var(--ink-3)">—</span>'}</td>
         <td>${esc(i.unit||"")}</td>
+        <td class="num">${Number(i.unit_cost||0)?("₹"+num(i.unit_cost)):'<span style="color:var(--ink-3)">—</span>'}</td>
         <td>${canEdit?`<button class="rm" data-edit="${i.id}">Edit</button>`:""}</td>
       </tr>`;
     };
@@ -410,6 +411,10 @@
   /* ---- check-out / check-in ---- */
   function renderCheckouts(){
     const byId=Object.fromEntries(items.map(i=>[i.id,i]));
+    const eventCell=(c)=>{ const ev=c.quote_id?quotesById[c.quote_id]:null;
+      if(!ev) return '<span style="color:var(--ink-3)">—</span>';
+      const name=ev.title||ev.code||"(event)"; const d=fmtDate(ev.eventDate);
+      return `<div style="font-weight:600">${esc(name)}</div>${d?`<div style="font-size:11px;color:var(--ink-3)">${esc(d)}</div>`:""}`; };
     $("#co_item").innerHTML=items.map(i=>`<option value="${i.id}">${esc(i.name)}${i.priority?` (${i.priority})`:""}</option>`).join("");
     // open vs closed decided by REMAINING qty, not status alone:
     //   open = still out ('out', or 'partial' with units outstanding); loss = missing>0 and not open
@@ -424,18 +429,20 @@
       const goEvent = c.quote_id ? `<a class="btn sm" href="event.html?id=${esc(c.quote_id)}" title="Open the event to check this back in">Go to event →</a>` : "";
       return `<tr>
         <td><b>${esc(it.name)}</b>${c.note?`<div style="font-size:11px;color:var(--ink-3)">${esc(c.note)}</div>`:""}${c.status==="partial"?' <span class="miss">partial</span>':""}</td>
+        <td>${eventCell(c)}</td>
         <td><span class="pri ${it.priority||'C'}">${it.priority||'C'}</span></td>
         <td class="num" style="color:#b42318;font-weight:700">${num(c.qty_out)}${c.status==="partial"?` <span style="color:var(--ink-3)">(${num(c.qty_in)} back)</span>`:""}</td>
         <td>${esc(c.issued_to||"")}</td>
         <td style="font-size:12px;color:var(--ink-3)">${c.checked_out_at?new Date(c.checked_out_at).toLocaleDateString():""}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">${goEvent}${canEdit?`<button class="btn sm" data-in="${c.id}">Check in</button>`:""}</td>
-      </tr>`; }).join("") : '<tr><td colspan="6" class="empty">Nothing out on loan.</td></tr>';
+      </tr>`; }).join("") : '<tr><td colspan="7" class="empty">Nothing out on loan.</td></tr>';
     // loss report (fully-closed loans with missing>0)
     let lostVal=0, lostUnits=0;
     const lossRows = closed.map(c=>{ const it=byId[c.item_id]||{name:"(item)"}; const missing=Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0);
       if(missing<=0) return ""; const val=missing*Number(it.unit_cost||0); lostVal+=val; lostUnits+=missing;
       return `<tr>
         <td><b>${esc(it.name)}</b> <span class="pri ${it.priority||'C'}">${it.priority||'C'}</span></td>
+        <td>${eventCell(c)}</td>
         <td class="num">${num(c.qty_out)}</td>
         <td class="num">${num(c.qty_in)}</td>
         <td class="num"><span class="miss">${num(missing)}</span></td>
@@ -443,7 +450,7 @@
         <td>${esc(c.confirmed_by||c.returned_by||"—")}</td>
         <td style="font-size:12px;color:var(--ink-3)">${c.checked_in_at?new Date(c.checked_in_at).toLocaleDateString():""}</td>
       </tr>`; }).join("");
-    $("#lossRows").innerHTML = lossRows || '<tr><td colspan="7" class="empty">No missing items — everything came back. 🎉</td></tr>';
+    $("#lossRows").innerHTML = lossRows || '<tr><td colspan="8" class="empty">No missing items — everything came back. 🎉</td></tr>';
     $("#lossTotal").innerHTML = lostUnits? `<span class="miss">${num(lostUnits)} units missing · ₹${num(lostVal)} lost</span>` : '<span class="backok">All returned</span>';
     $("#loanRows").querySelectorAll("[data-in]").forEach(b=>b.addEventListener("click",()=>checkInFlow(b.dataset.in)));
   }
@@ -531,7 +538,9 @@
       if(quoteId) reservations = await BPStore.inventory.reservations(quoteId);
     }catch(e){ $("#stockRows").innerHTML=`<tr><td colspan="9" class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase7-inventory.sql</b>.</td></tr>`; return; }
     try{ checkouts = await BPStore.inventory.checkouts.list(quoteId||null); }
-    catch(e){ checkouts=[]; $("#loanRows").innerHTML=`<tr><td colspan="6" class="empty">Run <b>phase33-inventory-accountability.sql</b> to enable check-out/in. (${esc(e&&e.message||"")})</td></tr>`; }
+    catch(e){ checkouts=[]; $("#loanRows").innerHTML=`<tr><td colspan="7" class="empty">Run <b>phase33-inventory-accountability.sql</b> to enable check-out/in. (${esc(e&&e.message||"")})</td></tr>`; }
+    try{ const ql=await BPStore.quotes.list(); quotesById=Object.fromEntries((ql||[]).map(q=>[q.id,q])); }
+    catch(e){ quotesById={}; }
     renderStock(); renderCheckouts(); if(quoteId) renderEventPanel();
   }
 
