@@ -19,6 +19,11 @@
     "test:e2e:smoke": "playwright test --grep @smoke",
     "test:e2e:security": "playwright test --grep @security",
     "test:e2e:roles": "playwright test --grep @roles",
+    "test:e2e:approval": "playwright test --grep @approval",
+    "test:e2e:a11y": "playwright test --grep @a11y",
+    "test:e2e:responsive": "playwright test --grep @responsive",
+    "test:e2e:reliability": "playwright test --grep @reliability",
+    "test:e2e:privacy": "playwright test --grep @privacy",
     "test:e2e:chromium": "playwright test --project=chromium",
     "test:e2e:firefox": "playwright test --project=firefox",
     "test:e2e:webkit": "playwright test --project=webkit"
@@ -28,6 +33,7 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.63.0"
   }
 }

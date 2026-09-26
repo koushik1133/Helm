@@ -7,13 +7,14 @@ const baseURL = process.env.HELM_E2E_BASE_URL || `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({
   testDir: './tests/e2e',
+  globalSetup: './tests/e2e/global-setup.mjs',   // generate per-role storageState (reliable, no UI-login cascade)
   fullyParallel: false,            // shared local server + shared staging DB; keep ordering predictable
   workers: 1,
   forbidOnly: !!process.env.CI,
   retries: 0,                      // no retries: a flaky pass must not hide a real failure (Wave 13 rule)
   reporter: [['list'], ['html', { open: 'never' }]],
-  timeout: 30_000,
-  expect: { timeout: 8_000 },
+  timeout: 60_000,                 // realistic budget: a real UI login on free-tier staging + test actions
+  expect: { timeout: 10_000 },
   use: {
     baseURL,
     trace: 'retain-on-failure',
