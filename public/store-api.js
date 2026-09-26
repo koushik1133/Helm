@@ -1874,9 +1874,13 @@
       : Promise.resolve({ sent: true, simulated: true })),
     // record an advance/stage payment (online link or offline cash) → issues a
     // receipt, marks the milestone paid, confirms the booking, notifies both sides
-    record: (quoteId, amount, method, receiptNo, milestoneId, note) =>
+    // W15B/CF (record_payment idempotency): callers pass a STABLE per-submission
+    // idempotencyKey so a retry/replay of the same submission dedups server-side
+    // (phase90 record_payment reuses the existing receipt for a repeated key).
+    record: (quoteId, amount, method, receiptNo, milestoneId, note, idempotencyKey) =>
       rpc("record_payment", { p_quote: quoteId, p_amount: Number(amount) || 0, p_method: method || "cash",
-        p_receipt_no: receiptNo || null, p_milestone: milestoneId || null, p_note: note || null }),
+        p_receipt_no: receiptNo || null, p_milestone: milestoneId || null, p_note: note || null,
+        p_idempotency_key: idempotencyKey || null }),
     // list logged payments (receipts) for an event
     async payments(quoteId) {
       if (mode !== "supabase") return [];

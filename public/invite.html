@@ -188,7 +188,7 @@
     const when=[fmtDate(d.date), d.time?esc(d.time):""].filter(Boolean).join(" · ");
     if(when) items.push(`<div class="fact"><p class="k">When</p><p class="v">${when}</p></div>`);
     if(d.venue||d.address){
-      const map=d.mapUrl?` <a href="${esc(d.mapUrl)}" target="_blank" rel="noopener noreferrer">View map</a>`:"";
+      const map=(d.mapUrl&&/^https?:\/\//i.test(d.mapUrl))?` <a href="${esc(d.mapUrl)}" target="_blank" rel="noopener noreferrer">View map</a>`:"";
       items.push(`<div class="fact"><p class="k">Where</p><p class="v">${esc(d.venue||"")}${d.venue&&d.address?"<br>":""}<span style="font-weight:400;color:var(--soft)">${esc(d.address||"")}</span>${map}</p></div>`);
     }
     if(d.dressCode) items.push(`<div class="fact"><p class="k">Dress code</p><p class="v">${esc(d.dressCode)}</p></div>`);

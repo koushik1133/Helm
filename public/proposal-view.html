@@ -84,7 +84,7 @@
     if(p.concept){ $("#conceptSec").hidden=false; $("#concept").textContent=p.concept; }
     const pal=Array.isArray(p.palette)?p.palette:[]; if(pal.length){ $("#paletteSec").hidden=false;
       $("#palette").innerHTML=pal.map(c=>`<div class="sw" style="background:${esc(c)}"><small>${esc(c)}</small></div>`).join(""); }
-    const imgs=Array.isArray(p.images)?p.images:[]; if(imgs.length){ $("#gallerySec").hidden=false;
+    const imgs=(Array.isArray(p.images)?p.images:[]).filter(u=>/^https?:\/\//i.test(u||"")); if(imgs.length){ $("#gallerySec").hidden=false;
       $("#gallery").innerHTML=imgs.map(u=>`<img src="${esc(u)}" alt="inspiration" onerror="this.style.opacity=.25">`).join(""); }
     const sc=Array.isArray(p.scope)?p.scope:[]; if(sc.length){ $("#scopeSec").hidden=false;
       $("#scope").innerHTML=sc.map(s=>`<li>${esc(s)}</li>`).join(""); }

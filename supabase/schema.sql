@@ -1,6 +1,13 @@
 -- Blueprint Stage — Supabase schema
 -- Run this in your Supabase project's SQL editor, then paste your Project URL
 -- and anon key into public/config.js.
+--
+-- ⚠ PARTIALLY SUPERSEDED (PR-DEPLOY-01 / audit CF deploy-hygiene): the legacy
+-- "anon full access to layouts" RLS policy defined below is REPLACED by
+-- supabase/phase89-layouts-org-isolation.sql (drops it, adds org-scoped
+-- authenticated-only policies, revokes anon). If you re-run this base schema
+-- after the numbered phases you MUST re-apply phase89 afterward, or the layouts
+-- table will again be readable/writable by anon.
 
 create table if not exists public.layouts (
   id          uuid primary key default gen_random_uuid(),

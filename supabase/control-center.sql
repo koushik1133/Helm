@@ -1,5 +1,10 @@
 -- =========================================================================
 -- Control Center: global pricing config, vendors, coupons. Run ONCE (idempotent).
+-- ⚠ PARTIALLY SUPERSEDED (PR-DEPLOY-01 / audit CF deploy-hygiene): get_pricing_config
+-- and set_pricing_config here are PRE-org-scope and are REPLACED by phase97 (org-scoped
+-- app_config) + phase98 (revoke anon on set_pricing_config). If you re-run this file
+-- after the numbered phases you MUST re-apply phase97/phase98 afterward, or pricing
+-- config isolation/anon-revocation will regress.
 -- Central rates (chair/plate/GST) live here so the confirm modal doesn't re-enter
 -- them each time; discounts/coupons are per-event. All synced via Supabase.
 -- =========================================================================

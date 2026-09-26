@@ -11,3 +11,9 @@ playwright-report/
 tests/e2e/.auth/
 blob-report/
 .playwright/
+
+# secrets — never commit (Wave 15B safety)
+.env
+.env.*
+*.env
+helm-e2e.env

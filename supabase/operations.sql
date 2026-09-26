@@ -2,6 +2,13 @@
 -- Event operations: crew, predefined task templates, event tasks, worker links.
 -- Run ONCE (after setup-complete.sql + otp-payments.sql). Idempotent.
 --
+-- ⚠ PARTIALLY SUPERSEDED (PR-DEPLOY-01 / audit CF deploy-hygiene): assign_tasks
+-- and reassign_task defined here are PRE-HARDENING (no org scope) and are
+-- REPLACED by supabase/phase72-definer-write-isolation.sql. This file's table
+-- and worker RPC definitions are still canonical, but if you re-run it after the
+-- numbered phases you MUST re-apply phase72 (and phase73) afterward, or
+-- cross-tenant write protection on those two functions will regress.
+--
 -- Flow: a confirmed event (quote) → manager assigns predefined tasks by category
 -- to crew (all-to-one or split) → each crew member gets a no-login link
 -- (work.html?token=) to Accept/Reject/Start/Complete → the manager dashboard

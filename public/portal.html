@@ -140,8 +140,8 @@
     const g=(d.gallery||[]);
     if(g.length){ $("#galleryCard").hidden=false;
       $("#gallery").innerHTML=g.map(m=> m.kind==="video"
-        ? `<a href="${esc(m.url)}" target="_blank" rel="noopener" class="chip" style="height:120px;display:flex;align-items:center;justify-content:center">▶ ${esc(m.caption||"Video")}</a>`
-        : `<img src="${esc(m.url)}" alt="${esc(m.caption||"photo")}" loading="lazy">`).join(""); }
+        ? `<a href="${isUrl(m.url)?esc(m.url):"#"}" target="_blank" rel="noopener" class="chip" style="height:120px;display:flex;align-items:center;justify-content:center">▶ ${esc(m.caption||"Video")}</a>`
+        : `<img src="${isUrl(m.url)?esc(m.url):""}" alt="${esc(m.caption||"photo")}" loading="lazy">`).join(""); }
   }
   load();
 </script>

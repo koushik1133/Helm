@@ -554,16 +554,20 @@
     if(amount<=0){ alert("Enter the advance amount."); return; }
     if(!confirm(`Record ${inr(amount)} (${method==='cash'?'cash / offline':'online'}) as the advance? This confirms the booking.`)) return;
     $("#pay_record").disabled=true;
+    // W15B/CF (record_payment idempotency): one STABLE key per submission so a
+    // retry/replay of THIS payment dedups server-side (phase90 returns the same receipt).
+    const idem=(typeof crypto!=="undefined"&&crypto.randomUUID)?crypto.randomUUID():("k"+Date.now()+Math.random().toString(36).slice(2));
     try{
-      const r=await BPStore.milestones.record(id, amount, method, $("#pay_receipt").value.trim()||null);
+      const r=await BPStore.milestones.record(id, amount, method, $("#pay_receipt").value.trim()||null, null, null, idem);
       $("#bookingBadge").style.display=""; $("#statusBadge").textContent="confirmed";
-      $("#pay_receipt").value="";
+      $("#pay_receipt").value=""; $("#pay_amount").value="";
       if(method==='online'){ const link=location.origin+"/sim-pay.html?ref="+encodeURIComponent(ev.code||"")+"&amount="+amount;
         $("#pay_online").style.display=""; $("#pay_online").innerHTML=`Online link (simulated): <a href="${esc(link)}" target="_blank" style="color:var(--accent)">${esc(link)}</a> — real Razorpay link goes here in production.`; }
       await renderReceipts(); await renderActivity();
       alert("Payment recorded — receipt "+(r&&r.receipt_no||"")+". Booking confirmed.");
-    }catch(e){ alert("Couldn't record payment — "+((e&&e.message)||"error")); }
-    finally{ $("#pay_record").disabled=false; }
+      // Leave the button disabled after a successful record so the same advance
+      // cannot be submitted twice; re-enable only on failure below.
+    }catch(e){ $("#pay_record").disabled=false; alert("Couldn't record payment — "+((e&&e.message)||"error")); }
   }
   async function renderReceipts(){
     let pays=[]; try{ pays=await BPStore.milestones.payments(id); }catch{}
