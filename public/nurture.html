@@ -231,7 +231,7 @@
         await renderAuto(); }
       catch(e){ autoMsg("err",(e&&e.message)||"Couldn't send"); b.disabled=false; b.textContent="Send greeting"; } }));
   }
-  async function toggleAuto(){ try{ await BPStore.nurture.automation.set($("#autoToggle").checked,+$("#autoDays").value||0);
+  async function toggleAuto(){ const V=BPStore.validate; const dr=V.num($("#autoDays").value,{min:0,max:30,integer:true}); if(!dr.ok){ autoMsg("err","Days ahead "+dr.error); return; } try{ await BPStore.nurture.automation.set($("#autoToggle").checked,dr.value);
       $("#autoState").textContent=$("#autoToggle").checked?"on":"off"; $("#autoState").classList.toggle("greeted",$("#autoToggle").checked);
       autoMsg("ok","Automation "+($("#autoToggle").checked?"enabled":"disabled")+"."); }
     catch(e){ autoMsg("err",(e&&e.message)||"Couldn't save"); } }

@@ -190,7 +190,9 @@
       <td>${canEdit?`<select class="ssel" data-st="${g.id}">${opts}</select>`:esc(g.status)}</td>
       <td>${canDelete?`<button class="rm" data-del="${g.id}">✕</button>`:""}</td></tr>`; }
   async function addGuest(){ const t=$("#g_name").value.trim(); if(!t){ $("#g_name").focus(); return; }
-    try{ await BPStore.checklist.add(id,{ section:"guests", title:t, qty:Number($("#g_qty").value||0) }); await renderPane(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } }
+    const V=BPStore.validate;
+    const gr=V.count($("#g_qty").value,{field:"Headcount"}); if(!gr.ok){ alert(gr.error); return; }
+    try{ await BPStore.checklist.add(id,{ section:"guests", title:t, qty:gr.value }); await renderPane(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } }
 
   async function renderPayments(){
     const ms = await BPStore.milestones.list(id);
@@ -220,7 +222,10 @@
       <td>${canEdit?`<select class="ssel" data-mst="${m.id}">${opts}</select>`:`<span class="st ${m.status}">${PAY_ST[m.status]}</span>`}</td>
       <td>${canEdit&&m.status!=="paid"?`<button class="rm" data-remind="${m.id}">Remind</button> `:""}${canDelete?`<button class="rm" data-mdel="${m.id}">✕</button>`:""}</td></tr>`; }
   async function addMile(){ const l=$("#m_label").value.trim(); if(!l){ $("#m_label").focus(); return; }
-    try{ await BPStore.milestones.add(id,{ label:l, due_date:$("#m_due").value||null, amount:Number($("#m_amt").value||0) }); await renderPane(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } }
+    const V=BPStore.validate;
+    const ar=V.money($("#m_amt").value,{field:"Amount"}); if(!ar.ok){ alert(ar.error); return; }
+    if(!(ar.value>0)){ alert("Amount must be greater than 0 to add a milestone."); return; }
+    try{ await BPStore.milestones.add(id,{ label:l, due_date:$("#m_due").value||null, amount:ar.value }); await renderPane(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }

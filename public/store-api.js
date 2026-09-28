@@ -77,6 +77,15 @@
   let accessCache = null;       // { role, map:{area:{view,edit}} | null } — the live access matrix for this user
   let rolePromise = null;       // in-flight getRole() (dedupes the parallel canView fan-out)
   let accessPromise = null;     // in-flight loadAccess()
+  // Per-tab session cache (Wave 16 perf): a static multipage app re-fetches
+  // profiles + role_access on EVERY page navigation, which makes tabs feel slow.
+  // Cache them in sessionStorage for a short TTL, keyed to the user id, so
+  // navigations within a tab reuse them. RLS on the server is the real gate, so a
+  // briefly-stale UI role/matrix cannot grant access — it only saves round-trips.
+  const SESS_TTL = 60000;
+  function sessGet(key, uid) { try { const raw = sessionStorage.getItem(key); if (!raw) return null; const o = JSON.parse(raw); if (o.uid !== uid || (Date.now() - o.ts) > SESS_TTL) return null; return o.val; } catch (e) { return null; } }
+  function sessSet(key, uid, val) { try { sessionStorage.setItem(key, JSON.stringify({ uid: uid, ts: Date.now(), val: val })); } catch (e) {} }
+  function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); } catch (e) {} }
   let authRequired = false;     // true when Supabase enforces login (RLS) and nobody is signed in
   // capability matrix per role (10 roles)
   // capability matrix per role. IMPORTANT: `create` and `delete` here gate
@@ -266,6 +275,8 @@
   async function getRole() {
     if (!supa || !currentUser) return null;
     if (roleCache) return roleCache;
+    const cached = sessGet("bp_sess_role", currentUser.id);
+    if (cached) { roleCache = cached; return roleCache; }
     if (rolePromise) return rolePromise;
     rolePromise = (async () => {
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -273,6 +284,7 @@
           const { data, error } = await supa.from("profiles").select("role").eq("id", currentUser.id).single();
           if (error) throw error;
           roleCache = (data && data.role) || "client";
+          sessSet("bp_sess_role", currentUser.id, roleCache);
           return roleCache;
         } catch (e) {
           if (attempt < 2) { await new Promise((r) => setTimeout(r, 150 * (attempt + 1))); continue; }
@@ -287,6 +299,8 @@
   // callers fall back to the legacy VIEW_SCOPE. Cached until sign-in/out/role change.
   async function loadAccess() {
     if (accessCache) return accessCache;
+    const csnap = currentUser && sessGet("bp_sess_access", currentUser.id);
+    if (csnap) { accessCache = csnap; return accessCache; }
     if (accessPromise) return accessPromise;              // dedupe the parallel canView fan-out
     accessPromise = (async () => {
       const r = await getRole();
@@ -297,6 +311,7 @@
         const map = {};
         (data || []).forEach((row) => { map[row.area] = { view: !!row.can_view, edit: !!row.can_edit }; });
         accessCache = { role: r, map };
+        if (currentUser) sessSet("bp_sess_access", currentUser.id, accessCache);
       } catch {
         accessCache = { role: r, map: null };             // legacy fallback (phase29 role_access absent)
       }
@@ -368,7 +383,7 @@
       if (!supa) throw new Error("Supabase not configured");
       const { data, error } = await supa.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      currentUser = data.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; authRequired = false;
+      currentUser = data.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = false;
       return currentUser;
     },
     // Phase 58 — self-serve sign-up (studio created via create_studio once a session exists)
@@ -376,7 +391,7 @@
       if (!supa) throw new Error("Supabase not configured");
       const { data, error } = await supa.auth.signUp({ email, password });
       if (error) throw error;
-      if (data.session) { currentUser = data.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; authRequired = false; }
+      if (data.session) { currentUser = data.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = false; }
       return { user: data.user, session: data.session };   // session null when email confirmation is required
     },
     // Google OAuth sign-in (requires the Google provider enabled in Supabase).
@@ -395,7 +410,7 @@
       if (error) throw error;
       return data; // browser navigates away to Google
     },
-    async signOut() { if (supa) await supa.auth.signOut(); currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null;
+    async signOut() { if (supa) await supa.auth.signOut(); currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear();
       if (mode === "supabase") authRequired = true; },
     // Option A: does the signed-in user still hold a temp password they must replace?
     async passwordChangeRequired() {
@@ -414,7 +429,7 @@
       return true;
     },
     onChange(cb) { if (supa) supa.auth.onAuthStateChange((_e, session) => {
-      currentUser = session ? session.user : null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null;
+      currentUser = session ? session.user : null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear();
       if (mode === "supabase") authRequired = !currentUser; if (cb) cb(currentUser); }); },
     // ---- admin user management (RPC guarded by is_admin() at the DB) ----
     admin: {

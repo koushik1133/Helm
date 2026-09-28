@@ -186,9 +186,12 @@
 
   async function addCost(){
     const desc=$("#c_desc").value.trim(); if(!desc){ $("#c_desc").focus(); return; }
+    const V=BPStore.validate; const fail=(m)=>{ alert(m); };
+    let estimated=0; if($("#c_est").value!==""){ const r=V.money($("#c_est").value,{field:"Estimated cost"}); if(!r.ok){ fail(r.error); return; } estimated=r.value; }
+    let actual=null; if($("#c_act").value!==""){ const r=V.money($("#c_act").value,{field:"Actual cost"}); if(!r.ok){ fail(r.error); return; } actual=r.value; }
     $("#c_add").disabled=true;
-    try{ await BPStore.budget.addCost(id,{ description:desc, kind:$("#c_kind").value, estimated:Number($("#c_est").value||0),
-      actual:$("#c_act").value?Number($("#c_act").value):null }); $("#c_desc").value=""; $("#c_est").value=0; $("#c_act").value=""; await load(); $("#c_desc").focus(); }
+    try{ await BPStore.budget.addCost(id,{ description:desc, kind:$("#c_kind").value, estimated,
+      actual }); $("#c_desc").value=""; $("#c_est").value=0; $("#c_act").value=""; await load(); $("#c_desc").focus(); }
     catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } finally{ $("#c_add").disabled=false; }
   }
   async function importVendors(){ $("#importBtn").disabled=true;
@@ -197,7 +200,10 @@
   }
   function openChg(){ $("#ch_title").value=""; $("#ch_detail").value=""; $("#ch_price").value=0; $("#ch_cost").value=0; $("#ch_err").hidden=true; $("#chgModal").hidden=false; setTimeout(()=>$("#ch_title").focus(),50); }
   async function saveChg(){ const t=$("#ch_title").value.trim(); if(!t){ $("#ch_err").textContent="Title is required."; $("#ch_err").hidden=false; return; }
-    try{ await BPStore.budget.addChange(id,{ title:t, detail:$("#ch_detail").value.trim()||null, price_delta:Number($("#ch_price").value||0), cost_delta:Number($("#ch_cost").value||0) });
+    const V=BPStore.validate; const fail=(m)=>{ $("#ch_err").textContent=m; $("#ch_err").hidden=false; };
+    let priceDelta=0; if($("#ch_price").value!==""){ const r=V.money($("#ch_price").value,{field:"Charge to client"}); if(!r.ok){ fail(r.error); return; } priceDelta=r.value; }
+    let costDelta=0; if($("#ch_cost").value!==""){ const r=V.money($("#ch_cost").value,{field:"Extra cost"}); if(!r.ok){ fail(r.error); return; } costDelta=r.value; }
+    try{ await BPStore.budget.addChange(id,{ title:t, detail:$("#ch_detail").value.trim()||null, price_delta:priceDelta, cost_delta:costDelta });
       $("#chgModal").hidden=true; await load(); }catch(e){ $("#ch_err").textContent="Couldn't save — "+((e&&e.message)||"error"); $("#ch_err").hidden=false; } }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }

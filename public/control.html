@@ -392,8 +392,14 @@
     ).join("");
   }
   $("#savePricing").addEventListener("click",async()=>{
-    Object.assign(pricingCfg,{ chairPrice:+$("#p_chair").value||0, platePrice:+$("#p_plate").value||0, gstPct:+$("#p_gst").value||0,
-      cateringGstPct:+$("#p_cgst").value||0, serviceChargePct:+$("#p_svc").value||0, layoutBase:+$("#p_layout").value||0, currency:"INR" });
+    const V=BPStore.validate; const fail=(m)=>{ setMsg("err",m); };
+    let chairPrice=0; if($("#p_chair").value!==""){ const r=V.money($("#p_chair").value,{field:"Price / chair"}); if(!r.ok){ fail(r.error); return; } chairPrice=r.value; }
+    let platePrice=0; if($("#p_plate").value!==""){ const r=V.money($("#p_plate").value,{field:"Price / plate"}); if(!r.ok){ fail(r.error); return; } platePrice=r.value; }
+    let gstPct=0; if($("#p_gst").value!==""){ const r=V.pct($("#p_gst").value,{field:"Chair/rental GST %"}); if(!r.ok){ fail(r.error); return; } gstPct=r.value; }
+    let cateringGstPct=0; if($("#p_cgst").value!==""){ const r=V.pct($("#p_cgst").value,{field:"Catering GST %"}); if(!r.ok){ fail(r.error); return; } cateringGstPct=r.value; }
+    let serviceChargePct=0; if($("#p_svc").value!==""){ const r=V.pct($("#p_svc").value,{field:"Service charge %"}); if(!r.ok){ fail(r.error); return; } serviceChargePct=r.value; }
+    let layoutBase=0; if($("#p_layout").value!==""){ const r=V.money($("#p_layout").value,{field:"Layout & setup fee"}); if(!r.ok){ fail(r.error); return; } layoutBase=r.value; }
+    Object.assign(pricingCfg,{ chairPrice, platePrice, gstPct, cateringGstPct, serviceChargePct, layoutBase, currency:"INR" });
     try{ await BPStore.config.setPricing(pricingCfg); setMsg("ok","Pricing saved — new quotes use these rates."); }
     catch(e){ setMsg("err",(e&&e.message)||"Save failed"); }
   });
@@ -432,8 +438,11 @@
       </div>`).join("");
     $("#layoutRuleList").querySelectorAll(".lr").forEach(box=>{
       box.querySelector(".lr_save").addEventListener("click",async()=>{
-        const rules={ seatsPerGuest:+box.querySelector(".lr_spg").value||0, buffetPer:+box.querySelector(".lr_buf").value||100,
-          bars:+box.querySelector(".lr_bars").value||0, stage:box.querySelector(".lr_stage").checked,
+        const V=BPStore.validate; const fail=(m)=>{ setMsg("err",m); };
+        let seatsPerGuest=1; { const raw=box.querySelector(".lr_spg").value; if(raw!==""){ const r=V.num(raw,{min:0.0001,field:"Seats per guest"}); if(!r.ok){ fail(r.error); return; } seatsPerGuest=r.value; } }
+        let buffetPer=100; { const raw=box.querySelector(".lr_buf").value; if(raw!==""){ const r=V.money(raw,{field:"Buffet table per N guests"}); if(!r.ok){ fail(r.error); return; } buffetPer=r.value; } }
+        let bars=0; { const raw=box.querySelector(".lr_bars").value; if(raw!==""){ const r=V.count(raw,{field:"Bars"}); if(!r.ok){ fail(r.error); return; } bars=r.value; } }
+        const rules={ seatsPerGuest, buffetPer, bars, stage:box.querySelector(".lr_stage").checked,
           dancefloor:box.querySelector(".lr_dance").checked, walkway:box.querySelector(".lr_walk").checked, dj:box.querySelector(".lr_dj").checked };
         try{ await BPStore.layoutRules.update(box.dataset.id,{rules}); setMsg("ok","Layout rule saved."); }
         catch(e){ setMsg("err",(e&&e.message)||"Save failed"); }
@@ -463,7 +472,9 @@
           const [c,n,k]=l.split("|").map(s=>(s||"").trim());
           return { c:c||"Other", n:n||c||"", k:(k||"veg").toLowerCase() };
         }).filter(d=>d.n);
-        const patch={ price_per_plate:+box.querySelector(".tpl_price").value||0,
+        const V=BPStore.validate; const fail=(m)=>{ setMsg("err",m); };
+        let pricePerPlate=0; { const raw=box.querySelector(".tpl_price").value; if(raw!==""){ const r=V.money(raw,{field:"Price / plate"}); if(!r.ok){ fail(r.error); return; } pricePerPlate=r.value; } }
+        const patch={ price_per_plate:pricePerPlate,
           active:box.querySelector(".tpl_active").checked, dishes };
         try{ await BPStore.menuTemplates.update(box.dataset.id, patch); setMsg("ok","Package saved."); }
         catch(e){ setMsg("err",(e&&e.message)||"Save failed"); }
@@ -480,7 +491,9 @@
   }
   $("#co_add").addEventListener("click",async()=>{
     const code=$("#co_code").value.trim().toUpperCase(); if(code.length<2){ setMsg("err","Enter a coupon code."); return; }
-    try{ await BPStore.coupons.add(code,$("#co_kind").value,+$("#co_val").value||0,null); $("#co_code").value="";$("#co_val").value=""; renderCoupons(); setMsg("ok","Coupon added."); }
+    const V=BPStore.validate;
+    let coVal=0; if($("#co_val").value!==""){ const r=V.money($("#co_val").value,{field:"Coupon value"}); if(!r.ok){ setMsg("err",r.error); return; } coVal=r.value; }
+    try{ await BPStore.coupons.add(code,$("#co_kind").value,coVal,null); $("#co_code").value="";$("#co_val").value=""; renderCoupons(); setMsg("ok","Coupon added."); }
     catch(e){ setMsg("err",(e&&e.message)||"Couldn't add coupon"); }
   });
 
@@ -491,7 +504,9 @@
   }
   $("#ch_add").addEventListener("click",async()=>{
     const name=$("#ch_name").value.trim(); if(name.length<2){ setMsg("err","Enter a chair type name."); return; }
-    try{ await BPStore.chairTypes.add(name,+$("#ch_price").value||0); $("#ch_name").value="";$("#ch_price").value=""; renderChairs(); setMsg("ok","Chair type added."); }
+    const V=BPStore.validate;
+    let chPrice=0; if($("#ch_price").value!==""){ const r=V.money($("#ch_price").value,{field:"Price / chair"}); if(!r.ok){ setMsg("err",r.error); return; } chPrice=r.value; }
+    try{ await BPStore.chairTypes.add(name,chPrice); $("#ch_name").value="";$("#ch_price").value=""; renderChairs(); setMsg("ok","Chair type added."); }
     catch(e){ setMsg("err",(e&&e.message)||"Couldn't add chair type"); }
   });
 
@@ -502,7 +517,9 @@
   }
   $("#pl_add").addEventListener("click",async()=>{
     const name=$("#pl_name").value.trim(); if(name.length<2){ setMsg("err","Enter a plate type name."); return; }
-    try{ await BPStore.plateTypes.add(name,+$("#pl_price").value||0); $("#pl_name").value="";$("#pl_price").value=""; renderPlates(); setMsg("ok","Plate type added."); }
+    const V=BPStore.validate;
+    let plPrice=0; if($("#pl_price").value!==""){ const r=V.money($("#pl_price").value,{field:"Price / plate"}); if(!r.ok){ setMsg("err",r.error); return; } plPrice=r.value; }
+    try{ await BPStore.plateTypes.add(name,plPrice); $("#pl_name").value="";$("#pl_price").value=""; renderPlates(); setMsg("ok","Plate type added."); }
     catch(e){ setMsg("err",(e&&e.message)||"Couldn't add plate type"); }
   });
 

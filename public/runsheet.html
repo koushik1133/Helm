@@ -170,8 +170,10 @@
 
   async function add(){
     const title=$("#r_title").value.trim(); if(!title){ $("#addErr").textContent="Activity is required."; $("#addErr").hidden=false; return; }
+    const V=BPStore.validate;
+    const dr=V.count($("#r_dur").value,{field:"Duration (min)"}); if(!dr.ok){ $("#addErr").textContent=dr.error; $("#addErr").hidden=false; return; }
     $("#addErr").hidden=true; $("#r_add").disabled=true;
-    try{ await BPStore.runsheet.add(id,{ start_time:$("#r_time").value||null, duration_min:$("#r_dur").value?Number($("#r_dur").value):null,
+    try{ await BPStore.runsheet.add(id,{ start_time:$("#r_time").value||null, duration_min:dr.value,
       title, owner:$("#r_owner").value.trim()||null, location:$("#r_loc").value.trim()||null });
       $("#r_title").value=""; $("#r_owner").value=""; $("#r_loc").value=""; $("#r_dur").value=""; await load(); $("#r_time").focus(); }
     catch(e){ $("#addErr").textContent="Couldn't add — "+((e&&e.message)||"error"); $("#addErr").hidden=false; }
@@ -179,7 +181,9 @@
   }
   function openEdit(i){ editingId=i.id; $("#e_time").value=hhmm(i.start_time); $("#e_dur").value=i.duration_min!=null?i.duration_min:"";
     $("#e_title").value=i.title||""; fillOwner($("#e_owner"), i.owner||""); $("#e_loc").value=i.location||""; $("#e_note").value=i.note||""; $("#editModal").hidden=false; }
-  async function saveEdit(){ try{ await BPStore.runsheet.update(editingId,{ start_time:$("#e_time").value||null, duration_min:$("#e_dur").value?Number($("#e_dur").value):null,
+  async function saveEdit(){ const V=BPStore.validate;
+    const dr=V.count($("#e_dur").value,{field:"Duration (min)"}); if(!dr.ok){ alert(dr.error); return; }
+    try{ await BPStore.runsheet.update(editingId,{ start_time:$("#e_time").value||null, duration_min:dr.value,
       title:$("#e_title").value.trim()||"Untitled", owner:$("#e_owner").value.trim()||null, location:$("#e_loc").value.trim()||null, note:$("#e_note").value.trim()||null });
       $("#editModal").hidden=true; await load(); }catch(e){ alert("Couldn't save — "+((e&&e.message)||"error")); } }
 

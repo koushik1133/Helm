@@ -230,9 +230,14 @@
     const vendor_id=$("#bk_vendor").value||null;
     const label=$("#bk_label").value.trim() || (vendor_id&&vendors.find(v=>v.id===vendor_id)?vendors.find(v=>v.id===vendor_id).name:"Booking");
     const v=vendors.find(x=>x.id===vendor_id);
+    const V=BPStore.validate;
+    let cost=null, advance=null;
+    if(($("#bk_cost").value||"").trim()!==""){ const cr=V.money($("#bk_cost").value,{field:"Cost"}); if(!cr.ok){ $("#bm_err").textContent=cr.error; $("#bm_err").hidden=false; return; } cost=cr.value; }
+    if(($("#bk_adv").value||"").trim()!==""){ const ar=V.money($("#bk_adv").value,{field:"Advance"}); if(!ar.ok){ $("#bm_err").textContent=ar.error; $("#bm_err").hidden=false; return; } advance=ar.value; }
+    if(advance!=null && cost!=null && advance>cost){ $("#bm_err").textContent="Advance can't exceed the cost"; $("#bm_err").hidden=false; return; }
     const rec={ vendor_id, need_id: bookNeed?bookNeed.id:null, kind: v?v.kind:null, label,
       qty: bookNeed?bookNeed.qty:null,
-      cost:$("#bk_cost").value?Number($("#bk_cost").value):null, advance:$("#bk_adv").value?Number($("#bk_adv").value):null,
+      cost, advance,
       contract:$("#bk_contract").checked, status:$("#bk_status").value, note:$("#bk_note").value.trim()||null };
     $("#bm_save").disabled=true;
     try{ await BPStore.bookings.add(id, rec); closeBooking(); await load(); }
@@ -246,7 +251,7 @@
   $("#bookModal").addEventListener("click",e=>{ if(e.target.id==="bookModal") closeBooking(); });
 
   async function addNeed(){
-    const kind=$("#n_kind").value, qty=Number($("#n_qty").value||0); if(qty<=0) return;
+    const kind=$("#n_kind").value; const V=BPStore.validate; const qr=V.count($("#n_qty").value,{allowZero:false,field:"Quantity"}); if(!qr.ok){ alert(qr.error); $("#n_qty").focus(); return; } const qty=qr.value;
     let need={ kind, qty };
     if(kind==="staff"){ need.skill=$("#n_skill").value.trim()||null; need.label=$("#n_label").value.trim()||need.skill||"Staff"; }
     else if(kind==="inventory"){ const it=items.find(x=>x.id===$("#n_item").value); if(!it){ alert("Add inventory items first."); return; } need.item_id=it.id; need.label=it.name; }

@@ -234,13 +234,14 @@
     catch(e){ alert("Couldn't pull — "+((e&&e.message)||"error")); } finally{ $("#pullBtn").disabled=false; } });
   $("#arr_add").addEventListener("click",async()=>{ const n=$("#arr_name").value.trim(); if(!n) return; await BPStore.dayops.add(id,{kind:"arrival",who:n,status:"expected"}); $("#arr_name").value=""; renderArrivals(); });
   $("#chk_addb").addEventListener("click",async()=>{ const t=$("#chk_title").value.trim(); if(!t) return; await BPStore.dayops.add(id,{kind:"check",who:t,status:"pending"}); $("#chk_title").value=""; renderChecks(); });
-  $("#gst_add").addEventListener("click",async()=>{ const l=$("#gst_label").value.trim(); if(!l) return; try{ await BPStore.guests.add(id,{label:l, expected:Number($("#gst_exp").value||0)}); $("#gst_label").value=""; $("#gst_exp").value=""; renderGuests(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } });
+  $("#gst_add").addEventListener("click",async()=>{ const l=$("#gst_label").value.trim(); if(!l) return; const V=BPStore.validate; const er=V.count($("#gst_exp").value,{field:"Expected"}); if(!er.ok){ alert(er.error); return; } try{ await BPStore.guests.add(id,{label:l, expected:er.value}); $("#gst_label").value=""; $("#gst_exp").value=""; renderGuests(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } });
   $("#gstPull").addEventListener("click",async()=>{ $("#gstPull").disabled=true; try{ const n=await BPStore.guests.pullFromLogistics(id); await renderGuests(); if(!n) alert("Nothing to pull — add guest groups in Logistics → Guests first."); }catch(e){ alert("Couldn't pull — "+((e&&e.message)||"error")); } finally{ $("#gstPull").disabled=false; } });
   $("#stk_add").addEventListener("click",async()=>{ const sel=$("#stk_item"); const free=$("#stk_label").value.trim();
     let item_id=null,label=free;
     if(!free && sel.value){ item_id=sel.value; label=sel.options[sel.selectedIndex].dataset.name||sel.options[sel.selectedIndex].textContent; }
     if(!label){ alert("Pick or type an item."); return; }
-    try{ await BPStore.stockreq.add(id,{item_id,label,qty:Number($("#stk_qty").value||1)}); $("#stk_label").value=""; $("#stk_qty").value=1; sel.value=""; renderStock(); }
+    const V=BPStore.validate; const qr=V.count($("#stk_qty").value,{allowZero:false,field:"Quantity"}); if(!qr.ok){ alert(qr.error); return; }
+    try{ await BPStore.stockreq.add(id,{item_id,label,qty:qr.value}); $("#stk_label").value=""; $("#stk_qty").value=1; sel.value=""; renderStock(); }
     catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } });
 
   (async ()=>{

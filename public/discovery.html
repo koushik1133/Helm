@@ -150,11 +150,15 @@
   }
 
   async function saveDiscovery(){
+    const V=BPStore.validate;
+    let bmin=null; if($("#d_bmin").value!==""){ const r=V.money($("#d_bmin").value,{field:"Minimum budget"}); if(!r.ok){ $("#d_msg").className="err"; $("#d_msg").textContent=r.error; return; } bmin=r.value; }
+    let bmax=null; if($("#d_bmax").value!==""){ const r=V.money($("#d_bmax").value,{field:"Maximum budget"}); if(!r.ok){ $("#d_msg").className="err"; $("#d_msg").textContent=r.error; return; } bmax=r.value; }
+    if(bmin!=null && bmax!=null && bmin>bmax){ $("#d_msg").className="err"; $("#d_msg").textContent="Minimum budget can't exceed maximum"; return; }
     const d={ meet_date:$("#d_date").value||null, mode:$("#d_mode").value||null,
       location:$("#d_loc").value.trim()||null, attendees:$("#d_att").value.trim()||null,
       notes:$("#d_notes").value.trim()||null,
-      budget_min:$("#d_bmin").value?Number($("#d_bmin").value):null,
-      budget_max:$("#d_bmax").value?Number($("#d_bmax").value):null };
+      budget_min:bmin,
+      budget_max:bmax };
     $("#d_save").disabled=true; $("#d_msg").textContent="";
     try{ await BPStore.discovery.save(id,d); $("#d_msg").className="ok"; $("#d_msg").textContent="Saved ✓"; setTimeout(()=>$("#d_msg").textContent="",2000); }
     catch(e){ $("#d_msg").className="err"; $("#d_msg").textContent="Couldn't save — "+((e&&e.message)||"error"); }
@@ -162,7 +166,9 @@
   }
   async function addReq(){
     const service=$("#r_service").value.trim(); if(!service){ $("#r_service").focus(); return; }
-    const req={ service, priority:$("#r_priority").value, qty:$("#r_qty").value?Number($("#r_qty").value):null, note:$("#r_note").value.trim()||null };
+    const V=BPStore.validate;
+    let qty=null; if($("#r_qty").value!==""){ const r=V.count($("#r_qty").value,{field:"Quantity"}); if(!r.ok){ alert(r.error); return; } qty=r.value; }
+    const req={ service, priority:$("#r_priority").value, qty, note:$("#r_note").value.trim()||null };
     $("#r_add").disabled=true;
     try{ const row=await BPStore.discovery.addReq(id,req); reqs.push(row); renderReqs();
       $("#r_service").value=""; $("#r_qty").value=""; $("#r_note").value=""; $("#r_service").focus(); }

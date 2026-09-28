@@ -2517,8 +2517,10 @@ function readCustomForm(){
 }
 // size the floor to the entered hall + record the venue setting (indoor/outdoor)
 function applyRoomFromForm(o){
-  if(o.len) WORLD.w = clamp(o.len, 20, 1000);
-  if(o.wid) WORLD.h = clamp(o.wid, 20, 1000);
+  // hall length & breadth are physical dimensions — must be > 0 when supplied (blank = keep current)
+  const lenRaw=$('#c_len').value.trim(), widRaw=$('#c_wid').value.trim();
+  if(lenRaw!==''){ const r=BPStore.validate.dimension(lenRaw,{field:'Hall length'}); if(!r.ok){ alert('Hall length must be greater than 0'); return false; } WORLD.w = clamp(r.value, 20, 1000); }
+  if(widRaw!==''){ const r=BPStore.validate.dimension(widRaw,{field:'Hall breadth'}); if(!r.ok){ alert('Hall breadth must be greater than 0'); return false; } WORLD.h = clamp(r.value, 20, 1000); }
   store.venue = store.venue || {};
   store.venue.room = { w:WORLD.w, h:WORLD.h };
   store.venue.setting = o.setting || store.venue.setting || 'indoor';
@@ -2527,7 +2529,7 @@ function applyRoomFromForm(o){
 function updateDimsLabel(){ const el=$('#dimsLabel'); if(el) el.textContent = `${WORLD.w} × ${WORLD.h} ft · ${PX_PER_FT} px/ft${store.venue&&store.venue.setting==='outdoor'?' · outdoor':''}`; }
 function runCustomGenerate(){
   const o=readCustomForm();
-  applyRoomFromForm(o);                                  // resize the floor to the hall before laying out
+  if(applyRoomFromForm(o)===false) return;               // invalid hall dimension → abort (message already shown)
   const variants=generateVariants(o).map(v=>({...v, items:v.items.map(clampItem)}));
   const host=$('#c_results');
   // Honest capacity check: if the hall physically can't seat the headcount at a walkable pitch, say so.
@@ -2603,8 +2605,11 @@ function tablePreview(rows,cols,shape){
   return `<svg viewBox="0 0 ${W} ${H}"><rect class="plate" x="1" y="1" width="${W-2}" height="${H-2}" rx="4"/>${g}</svg>`;
 }
 function renderArrOptions(){
-  const n=parseInt($('#arrCount').value,10)||1;
-  const host=$('#arrOptions'); const opts=layoutOptions(n);
+  const host=$('#arrOptions');
+  const cntChk=BPStore.validate.count($('#arrCount').value,{allowZero:false,max:4000,field:arrMode==='tables'?'Tables':'Chairs'});
+  if(!cntChk.ok){ host.innerHTML=''; alert(cntChk.error); return; }
+  const n=cntChk.value;
+  const opts=layoutOptions(n);
   const shape=arrMode==='tables' ? ($('#arrShape').querySelector('.on').dataset.s) : null;
   host.innerHTML = opts.map((o,idx)=>{
     const pv = arrMode==='tables' ? tablePreview(o.rows,o.cols,shape) : arrPreview(o.rows,o.cols);
@@ -2638,7 +2643,9 @@ function applyArrangement(o){
     toast(`Added ${o.rows}×${o.cols} = ${o.total} chairs`);
   } else {
     const shape=$('#arrShape').querySelector('.on').dataset.s;
-    const seats=clamp(parseInt($('#arrSeats').value,10)||8,2,16);
+    const seatsChk=BPStore.validate.num($('#arrSeats').value,{min:2,max:16,integer:true});
+    if(!seatsChk.ok){ alert('Seats per table '+seatsChk.error); return; }
+    const seats=seatsChk.value;
     const cellW=(WORLD.w-16)/o.cols, cellH=(WORLD.h-16)/o.rows;
     const dia=clamp(Math.min(cellW,cellH)-4, 3, 12);            // table size to fit the grid
     let n=1;

@@ -229,7 +229,7 @@
       </div>`).join("")}`).join("");
     host.querySelectorAll(".seldish").forEach(row=>{
       const mid=row.dataset.id;
-      const q=row.querySelector(".qtyin"); if(q) q.addEventListener("change",async()=>{ try{ await BPStore.eventMenu.setQty(mid, q.value); }catch(e){ alert("Couldn't save quantity — "+((e&&e.message)||"error")); } });
+      const q=row.querySelector(".qtyin"); if(q) q.addEventListener("change",async()=>{ const V=BPStore.validate; const raw=(q.value||"").trim(); let qty=null; if(raw!==""){ const r=V.count(raw,{allowZero:true,field:"Quantity"}); if(!r.ok){ alert(r.error); return; } qty=r.value; } try{ await BPStore.eventMenu.setQty(mid, qty); }catch(e){ alert("Couldn't save quantity — "+((e&&e.message)||"error")); } });
       const rm=row.querySelector(".rmdish"); if(rm) rm.addEventListener("click",async()=>{ try{ await BPStore.eventMenu.remove(mid); menuItems=await BPStore.eventMenu.list(id); renderSelected(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } });
     });
   }

@@ -376,7 +376,10 @@
   function closeItem(){ $("#itemModal").hidden=true; editingId=null; }
   async function saveItem(){
     const name=$("#i_name").value.trim(); if(!name){ $("#im_err").textContent="Name is required."; $("#im_err").hidden=false; return; }
-    const rec={ name, category:$("#i_cat").value.trim()||null, total_qty:Number($("#i_qty").value||0), unit:$("#i_unit").value.trim()||null, notes:$("#i_notes").value.trim()||null, priority:$("#i_pri").value||"C", unit_cost:Number($("#i_cost").value||0) };
+    const V=BPStore.validate;
+    const qr=V.count($("#i_qty").value,{allowZero:true,field:"Total quantity"}); if(!qr.ok){ $("#im_err").textContent=qr.error; $("#im_err").hidden=false; return; }
+    const cr=V.money($("#i_cost").value,{field:"Unit cost"}); if(!cr.ok){ $("#im_err").textContent=cr.error; $("#im_err").hidden=false; return; }
+    const rec={ name, category:$("#i_cat").value.trim()||null, total_qty:qr.value, unit:$("#i_unit").value.trim()||null, notes:$("#i_notes").value.trim()||null, priority:$("#i_pri").value||"C", unit_cost:cr.value };
     $("#im_save").disabled=true;
     try{ if(editingId) await BPStore.inventory.updateItem(editingId,rec); else await BPStore.inventory.addItem(rec); closeItem(); await load(); }
     catch(e){ $("#im_err").textContent="Couldn't save — "+((e&&e.message)||"error"); $("#im_err").hidden=false; }
@@ -488,8 +491,8 @@
     if(!checkInId) return;
     const c=checkouts.find(x=>x.id===checkInId); if(!c){ closeCheckIn(); return; }
     const out=Number(c.qty_out||0);
-    let qtyIn=Number($("#ci_in").value);
-    if(isNaN(qtyIn)||qtyIn<0){ $("#ci_err").textContent="Enter a valid number of units."; $("#ci_err").hidden=false; return; }
+    const ciV=BPStore.validate.count($("#ci_in").value,{allowZero:true,field:"Units returned"}); if(!ciV.ok){ $("#ci_err").textContent=ciV.error; $("#ci_err").hidden=false; return; }
+    let qtyIn=ciV.value;
     if(qtyIn>out) qtyIn=out;
     const by=($("#ci_by").value||"").trim();
     // any shortfall is written off as loss
@@ -510,11 +513,11 @@
   $("#seedBtn").addEventListener("click",loadStarterItems);
 
   $("#co_add").addEventListener("click",async()=>{
-    const itemId=$("#co_item").value, qty=Number($("#co_qty").value||0);
+    const itemId=$("#co_item").value;
     const opt=$("#co_to").selectedOptions[0], to=($("#co_to").value||"").trim();
     const crewId=(opt&&opt.dataset.kind==="staff")?opt.dataset.id:null;   // link to staff record when in-house
     if(!itemId){ return; }
-    if(qty<=0){ alert("Qty out must be at least 1."); return; }
+    const coV=BPStore.validate.count($("#co_qty").value,{allowZero:false,field:"Qty out"}); if(!coV.ok){ alert(coV.error); return; } const qty=coV.value;
     if(!to){ alert("Who is it issued to?"); $("#co_to").focus(); return; }
     $("#co_add").disabled=true;
     try{ await BPStore.inventory.checkouts.out(itemId, quoteId||null, qty, to, crewId, $("#co_note").value.trim()||null);
@@ -523,8 +526,9 @@
     finally{ $("#co_add").disabled=false; }
   });
   $("#rv_add").addEventListener("click",async()=>{
-    const itemId=$("#rv_item").value, qty=Number($("#rv_qty").value||0);
-    if(!itemId||qty<=0){ return; }
+    const itemId=$("#rv_item").value;
+    if(!itemId){ return; }
+    const rvV=BPStore.validate.count($("#rv_qty").value,{allowZero:false,field:"Quantity"}); if(!rvV.ok){ alert(rvV.error); return; } const qty=rvV.value;
     // over-commit guard: warn if this reservation exceeds what's free
     const a=avail[itemId]||{}; const free=Number(a.available!=null?a.available:(a.total_qty||0));
     if(qty>free){ const it=items.find(x=>x.id===itemId)||{};
