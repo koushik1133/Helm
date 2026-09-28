@@ -3,6 +3,7 @@
 // Run: npx playwright test --project=chromium --grep @guide --trace off
 import { test } from '@playwright/test';
 import { authedPage } from '../helpers/session.mjs';
+import { rpcAs } from '../helpers/lifecycle.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -45,6 +46,10 @@ test('@guide authenticated screens (admin walkthrough)', async ({ browser }) => 
       ['inventory.html', '15-inventory'],
       ['vendors.html', '16-vendors'],
       ['control.html', '17-control-center'],
+      [`builder.html?quote=${QUOTE}`, '19-builder-layout'],
+      [`command.html?quote=${QUOTE}`, '20-event-day-command'],
+      [`runsheet.html?quote=${QUOTE}`, '21-runsheet'],
+      [`budget.html?quote=${QUOTE}`, '22-budget'],
     ];
     for (const [p, name] of screens) {
       await page.goto('/' + p);
@@ -52,4 +57,16 @@ test('@guide authenticated screens (admin walkthrough)', async ({ browser }) => 
       await shoot(page, name);
     }
   } finally { await context.close(); }
+});
+
+test('@guide client approval page (public, token-based)', async ({ browser }) => {
+  // mint a real approval token for the canonical quote so the page renders its flow
+  let tok = '';
+  try { tok = String(await rpcAs('planner', 'generate_approval_token', { p_quote_id: QUOTE })).replace(/"/g, ''); } catch {}
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  try {
+    await page.goto(tok ? `/approve.html?token=${tok}` : '/approve.html');
+    await shoot(page, '18-client-approval');
+  } finally { await ctx.close(); }
 });

@@ -243,7 +243,7 @@
   }
 
   $("#p_addColor").addEventListener("click",()=>{ const c=$("#p_color").value; if(!palette.includes(c)) palette.push(c); renderPalette(); });
-  $("#p_addImg").addEventListener("click",()=>{ const u=$("#p_img").value.trim(); if(u){ images.push(u); $("#p_img").value=""; renderGallery(); } });
+  $("#p_addImg").addEventListener("click",()=>{ const raw=$("#p_img").value.trim(); if(!raw) return; const r=BPStore.validate.url(raw); if(!r.ok){ alert(r.error); $("#p_img").focus(); return; } images.push(r.value); $("#p_img").value=""; renderGallery(); });
   $("#p_addScope").addEventListener("click",()=>{ const s=$("#p_scope").value.trim(); if(s){ scope.push(s); $("#p_scope").value=""; renderScope(); } });
   $("#p_img").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#p_addImg").click(); } });
   $("#p_scope").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#p_addScope").click(); } });

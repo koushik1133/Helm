@@ -61,11 +61,14 @@
     <li><a href="#s04">Leads (pipeline)</a></li>
     <li><a href="#s05">CRM archive</a></li>
     <li><a href="#s06">Event flow (the quote)</a></li>
+    <li><a href="#s06b">Layout builder (2D/3D)</a></li>
+    <li><a href="#s06c">Client approval page</a></li>
     <li><a href="#s07">Discovery</a></li>
     <li><a href="#s08">Quotes list</a></li>
     <li><a href="#s09">Proposal</a></li>
     <li><a href="#s10">Planning</a></li>
     <li><a href="#s11">Logistics &amp; payments</a></li>
+    <li><a href="#s11b">Event day (command/run-sheet)</a></li>
     <li><a href="#s12">Settlement</a></li>
     <li><a href="#s13">Closure &amp; P&amp;L</a></li>
     <li><a href="#s14">Staff</a></li>
@@ -153,6 +156,34 @@
   <ul><li>Saving with nothing filled is refused (no ₹0 quote).</li><li>Advance % rejects negatives and values over 100.</li><li>The PDF opens with the right client, lines and total.</li></ul>
 </section>
 
+<section id="s06b">
+  <h2><span class="step">STEP 6a</span> · Layout builder (2D/3D floor plan)</h2>
+  <img src="screens/19-builder-layout.png" alt="Layout builder">
+  <p><b>Purpose:</b> the drag-and-drop floor-plan designer opened from the flow's <b>Layout</b> step. Place stage, seating, tables, décor to scale; switch between 2D plan and 3D view; live seat count and price feed back to the quote.</p>
+  <h3>Key controls</h3>
+  <ul>
+    <li><b>Asset toolbox</b> (left) — drag chairs/tables/stage/objects onto the floor.</li>
+    <li><b>Hall dimensions</b> — length/breadth/height must be <b>&gt; 0</b> (no negatives/zero).</li>
+    <li><b>Add seating "How many chairs?"</b> — a whole number 1–4000 (a negative/huge value is refused).</li>
+    <li><b>Move / Rotate / Scale</b>, <b>Undo/Redo</b>, <b>Save</b>, <b>2D/3D</b> toggle, zoom.</li>
+  </ul>
+  <h3>What to check</h3><ul><li>Dimensions and chair counts reject invalid values.</li><li>Save persists the layout and the seat count flows into the quote total.</li></ul>
+</section>
+
+<section id="s06c">
+  <h2><span class="step">STEP 6b</span> · Client approval page (what the client sees)</h2>
+  <img src="screens/18-client-approval.png" alt="Client approval page">
+  <p><b>Purpose:</b> the public, token-linked page a <b>client</b> opens (from the "Send for approval" link). It shows the quotation breakdown and terms, verifies the client by <b>one-time password (OTP)</b>, records consent with a timestamped audit trail, and confirms the booking on payment. This is the only screen a client role ever sees.</p>
+  <h3>Key controls</h3>
+  <ul>
+    <li><b>Send OTP to my phone</b> — sends a 6-digit code (single-use, fail-closed).</li>
+    <li><b>Enter OTP</b> + <b>I agree</b> + <b>Confirm</b> — verifies and records approval. A wrong code, no code, or unchecked agreement never approves; repeated wrong codes lock out.</li>
+    <li><b>Pay</b> link (after approval) — records the advance and confirms the booking.</li>
+  </ul>
+  <h3>What to check</h3>
+  <ul><li>A wrong OTP does not approve; an expired/revoked link is refused.</li><li>After approval the page shows the confirmed/"Payment received" state and a consent row is recorded.</li></ul>
+</section>
+
 <section id="s07">
   <h2><span class="step">STEP 7</span> · Discovery</h2>
   <img src="screens/07-discovery.png" alt="Discovery">
@@ -189,6 +220,20 @@
   <h3>What to check</h3><ul><li>Headcount is a whole number ≥ 0; milestone amounts are money &gt; 0.</li><li>Adding a milestone with a blank/zero amount is refused with a message.</li></ul>
 </section>
 
+<section id="s11b">
+  <h2><span class="step">STEP 11a</span> · Event day (command &amp; run-sheet)</h2>
+  <img src="screens/20-event-day-command.png" alt="Event-day command">
+  <p><b>Purpose:</b> the on-the-day control area — the run-sheet (timed schedule), guest check-in counts, live issues/incidents, readiness and teardown. Used by coordinator/operations/supervisor roles during the event.</p>
+  <h3>Key controls</h3>
+  <ul>
+    <li><b>Run-sheet</b> — add timed items; durations are whole minutes ≥ 0.</li>
+    <li><b>Guest/stock counts</b> — whole numbers in valid ranges.</li>
+    <li><b>Issues</b> — log and resolve incidents; <b>Readiness</b> checklist; <b>Teardown</b> returns.</li>
+  </ul>
+  <h3>What to check</h3><ul><li>Counts/durations reject invalid values.</li><li>Items persist and update live.</li></ul>
+  <div class="tip">This area group also includes <b>Ready</b>, <b>Issues</b>, <b>Teardown</b>, <b>Media/gallery</b> and <b>Budget</b> screens — same patterns (validated numeric fields, clear save/error feedback). Test them the same way.</div>
+</section>
+
 <section id="s12">
   <h2><span class="step">STEP 12</span> · Settlement</h2>
   <img src="screens/12-settlement.png" alt="Settlement">
@@ -206,7 +251,7 @@
   <img src="screens/13-closure-pl.png" alt="Closure and P&L">
   <p><b>Purpose:</b> the final step — capture feedback/rating, lessons and media consent, review profit &amp; loss, and mark the event <b>closed</b>. This is "lead closing".</p>
   <h3>Key controls</h3>
-  <ul><li><b>Rating / feedback / lessons</b> — recorded for the post-event review.</li><li><b>Close event</b> — moves the event to the terminal <b>closed</b> state. Allowed for Admin, Planner, Operations and <b>Manager</b>.</li></ul>
+  <ul><li><b>Rating / feedback / lessons</b> — recorded for the post-event review.</li><li><b>Close event</b> — moves the event to the terminal <b>closed</b> state. Allowed for Admin, Planner, Sales, Operations and <b>Manager</b> (everyone with edit authority).</li></ul>
   <h3>What to check</h3><ul><li>After closing, the event shows as closed and the P&amp;L figures are consistent with payments/expenses.</li></ul>
 </section>
 

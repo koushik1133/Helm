@@ -2466,6 +2466,7 @@
     phone: function (raw) { var s = String(raw == null ? "" : raw).trim(); if (!s) return { ok: false, error: "Phone number is required" }; var c = s.replace(/[\s\-().]/g, ""); if (!/^\+?\d{7,15}$/.test(c)) return { ok: false, error: "Enter a valid phone number (7–15 digits, optional leading +)" }; return { ok: true, value: c }; },
     email: function (raw) { var s = String(raw == null ? "" : raw).trim(); if (!s) return { ok: false, error: "Email is required" }; if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return { ok: false, error: "Enter a valid email address" }; return { ok: true, value: s.toLowerCase() }; },
     required: function (raw, label) { var s = String(raw == null ? "" : raw).trim(); return s ? { ok: true, value: s } : { ok: false, error: (label || "This field") + " is required" }; },
+    url: function (raw) { var s = String(raw == null ? "" : raw).trim(); if (!s) return { ok: false, error: "URL is required" }; if (!/^https?:\/\/[^\s]+$/i.test(s)) return { ok: false, error: "Enter a valid http(s) URL" }; return { ok: true, value: s }; },
     // validate a list; returns {ok, errors:[...], value:{}}. spec = [[getter,'kind',opts]]
     all: function (checks) { var out = { ok: true, errors: [] }; checks.forEach(function (c) { var r = c; if (!r.ok) { out.ok = false; out.errors.push(r.error); } }); return out; }
   };
