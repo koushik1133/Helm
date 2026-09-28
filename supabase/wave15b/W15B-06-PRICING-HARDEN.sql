@@ -1,6 +1,10 @@
 -- ============================================================================
 -- W15B-06-PRICING-HARDEN.sql — close the residual W15-001 bypass.
--- STATUS: SOURCE PREPARED. STAGING ONLY. NOT FOR PRODUCTION (until reviewed).
+-- STATUS: APPLIED + RUNTIME-VERIFIED ON STAGING (xizehqgeyjcfpzrdymly) 2026-09-28.
+--   Verified: unshaped {total:999999} rejected (errcode 22023) at RPC, PostgREST (HTTP 400),
+--   and table trigger (rejects even owner UPDATE); RLS denies planner direct PATCH (0 rows);
+--   legit raw payload still computes 236000, legacy subtotal still 118000. Stored total held at 59000.
+-- STAGING ONLY. NOT FOR PRODUCTION (until reviewed).
 -- ----------------------------------------------------------------------------
 -- Gap (runtime-confirmed): a pricing jsonb carrying a top-level `total` but NO
 -- derivable shape (no gstPct+item/catering key, no top-level `subtotal`) fell

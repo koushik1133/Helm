@@ -68,3 +68,39 @@ Still open: apply W15B-05; product decisions (overpayment, lost-update, manager 
 - Worker tokens: `worker_get_tasks` returns 401/42501 after `revoke_work_token` and when `expires_at` is past.
 - Cascade-delete: `delete_quote` w/ paid row → 409; service_role direct DELETE of a quote with a payment → 409/23503 (FK RESTRICT). Ledger + consent protected.
 - Portal/proposal expiry + OTP CSPRNG functions re-created cleanly.
+
+## W15B-06 applied + verified on STAGING (2026-09-28) — residual pricing bypass CLOSED
+Applied via psql (session pooler, ap-south-1). The residual W15-001 bypass (a client `total` with no
+computable shape, previously stored verbatim) is now rejected at **every** layer:
+- SQL: `helm_quote_total('{"total":999999}')` → **ERROR 22023** ("total without a computable shape").
+- PostgREST RPC surface: same payload → **HTTP 400 / 22023**.
+- Real save path: `save_quotation_version(quote, {total:999999})` as planner → **400/22023**; stored total held at 59000.
+- Table trigger (defense-in-depth): owner-level `UPDATE quotes SET pricing='{"total":999999}'` → **22023**, rolled back.
+- No regression: raw payload `{gstPct,guests,platePrice}` still computes 236000; legacy `{subtotal,gstPct}` still 118000.
+
+## Adversarial security RE-TEST on STAGING (2026-09-28, post-W15B-06) — all PASS
+- Tenant isolation: org-B `admin.b` sees **0** rows of an org-A quote; cross-tenant `save_quotation_version` → **403**.
+- IDOR: `client.a` enumerates **0** quotes. anon reads **0** rows on quotes/profiles/quote_payments/leads/event_closure/work_tokens (RLS deny).
+- Injection: `create_quote` with SQL payload stored as harmless literal; `quotes` table intact.
+- Worker RPCs enforce `revoked_at`+`expires_at`; `delete_quote` has paid-row guard; FK `quote_payments`/`quote_consents` → quotes = **RESTRICT (r)**; `request_otp` uses `gen_random_bytes` (CSPRNG).
+
+## RBAC evidence — leads INSERT (finding resolved as CONFIG, not a code defect)
+- `leads` RLS: INSERT `with check (has_area('leads','edit') and org_id=current_org_id())` — correct deny-by-default + org scope.
+- Root cause of "only admin can create leads": `role_access` in staging is seeded for area **`quotes` only** — there are
+  **no `leads` rows**, so `has_area('leads',*)` is false for every non-admin (admin hardcoded true). The RLS is correct;
+  the matrix is simply unseeded. Resolution = populate the matrix via Control Center (`admin_set_role_access`) — configuration.
+- App defines 26 canonical areas (store-api.js AREAS); a client-side `VIEW_SCOPE` fallback governs sidebar visibility only
+  (a cosmetic UI/DB divergence at most — the DB still denies). **Seeding the run-org matrix is pending user approval**
+  (auto-mode classifier blocked the bulk config write).
+
+## Product decisions — authoritative evidence (unchanged; decisions still required)
+- **Overpayment**: `record_payment` checks only `amount>0`; no cap vs outstanding/total, no overpayment/credit guard anywhere → overpayment silently accepted, milestone marked paid.
+- **W15-002 manager authority**: settlement/closure RPCs gate on `can_edit()` = admin/planner/sales/operations (hardcoded); the matrix `has_area` would grant manager — divergence is fail-closed. Matrix seed deliberately leaves manager **view-only** on settlement/closure to avoid contradicting the RPC.
+- **Lost-update**: quote-metadata edits are last-write-wins (no optimistic-concurrency/version check).
+
+## 3-browser regression on STAGING (2026-09-28)
+- **chromium: 32 passed, 1 failed, 11 did-not-run.** The single failure is lifecycle **stage 01 (sales creates lead)** — the
+  `leads:edit` matrix gap above; stages 02–12 are serial-dependent on it, so they did not run. All non-lifecycle specs
+  (auth/smoke, roles, isolation/privacy, a11y, responsive @8 widths, reliability REL-01/04/10, approval) pass.
+- firefox/webkit: (see run) — same single lifecycle-01 dependency expected.
+- Once the matrix is seeded, the full continuous lifecycle (Lead→Closure) is expected green.
