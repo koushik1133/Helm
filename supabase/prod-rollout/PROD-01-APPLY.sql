@@ -551,15 +551,30 @@ create trigger trg_no_overpayment before insert on public.quote_payments
 -- NOT FOR PRODUCTION until reviewed. Pair with the client hardener in
 -- public/store-api.js (BPStore.validate + the global input[type=number] guard).
 -- ============================================================================
-do $$ begin
+-- PRODUCTION PRE-CLEAN: production held invalid rows (negative stock/cost — corrupt
+-- data). Clamp them to 0 so the CHECK constraints validate. Safe + idempotent.
+update public.inventory_items set total_qty = 0 where total_qty < 0;
+update public.inventory_items set unit_cost = 0 where unit_cost is not null and unit_cost < 0;
+
+do $$
+declare bad_pay int;
+begin
+  -- inventory constraints (data is clamped above → these validate cleanly)
   if not exists (select 1 from pg_constraint where conname = 'inventory_items_total_qty_nonneg') then
     alter table public.inventory_items add constraint inventory_items_total_qty_nonneg check (total_qty >= 0);
   end if;
   if not exists (select 1 from pg_constraint where conname = 'inventory_items_unit_cost_nonneg') then
     alter table public.inventory_items add constraint inventory_items_unit_cost_nonneg check (unit_cost is null or unit_cost >= 0);
   end if;
+  -- quote_payments: do NOT auto-delete payment rows. Add the constraint only if the
+  -- data is clean; otherwise skip with a NOTICE so the whole apply doesn't abort.
+  select count(*) into bad_pay from public.quote_payments where amount <= 0;
   if not exists (select 1 from pg_constraint where conname = 'quote_payments_amount_pos') then
-    alter table public.quote_payments add constraint quote_payments_amount_pos check (amount > 0);
+    if bad_pay = 0 then
+      alter table public.quote_payments add constraint quote_payments_amount_pos check (amount > 0);
+    else
+      raise notice 'SKIPPED quote_payments_amount_pos: % row(s) have amount <= 0. Review those payment rows, then add the constraint manually.', bad_pay;
+    end if;
   end if;
 end $$;
 
