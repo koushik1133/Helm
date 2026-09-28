@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Helm Events — Tester Guide</title>
+<style>
+  :root{ --bg:#f7f7fb; --panel:#fff; --ink:#1b1930; --ink2:#5b5670; --muted:#8b8698; --accent:#6d4bff; --line:#e7e5f0; --ok:#18a558; --warn:#e8912d; }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#0e0e12; --panel:#16161c; --ink:#f3f1fa; --ink2:#c6c2d6; --muted:#928da6; --line:#26262e; } }
+  *{box-sizing:border-box} html{scroll-behavior:smooth}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55}
+  header{position:sticky;top:0;background:var(--panel);border-bottom:1px solid var(--line);padding:14px 20px;z-index:10;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  header .logo{width:28px;height:28px;border-radius:7px;background:var(--accent)}
+  header h1{font-size:17px;margin:0}
+  .wrap{max-width:960px;margin:0 auto;padding:24px 16px 80px}
+  nav.toc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:20px 0}
+  nav.toc h2{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  nav.toc ol{margin:0;padding-left:20px;columns:2;column-gap:28px}
+  nav.toc a{color:var(--accent);text-decoration:none}
+  section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin:18px 0}
+  section h2{margin:0 0 4px;font-size:20px}
+  .step{color:var(--accent);font-weight:700;font-size:13px;letter-spacing:.03em}
+  img{width:100%;height:auto;border:1px solid var(--line);border-radius:10px;margin:14px 0;display:block}
+  h3{font-size:14px;margin:18px 0 6px;color:var(--ink2)}
+  ul{margin:6px 0 6px 0;padding-left:20px} li{margin:3px 0}
+  code{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:.9em}
+  .tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(109,75,255,.12);color:var(--accent);margin-left:6px}
+  .tip{border-left:3px solid var(--accent);background:rgba(109,75,255,.06);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0;font-size:.95em}
+  .warn{border-left-color:var(--warn);background:rgba(232,145,45,.08)}
+  .lead{font-size:1.05em;color:var(--ink2)}
+  table{width:100%;border-collapse:collapse;margin:10px 0;font-size:.93em}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+</style>
+</head>
+<body>
+<header><div class="logo"></div><h1>Helm Events — Tester Guide</h1><span class="tag">STAGING</span></header>
+<div class="wrap">
+
+<p class="lead">This guide walks a tester through the whole Helm Events app, screen by screen, from the public landing page all the way to closing an event. Each section explains what the screen is for, every important button/field, and what to check. Screens shown are the <b>staging</b> environment (safe synthetic data).</p>
+
+<section id="start">
+  <h2>Before you begin</h2>
+  <h3>What Helm is</h3>
+  <p>Helm is an event-management app for an events studio. The core object is a <b>quote</b> — a single quote row <i>is</i> the event: everything (discovery notes, pricing versions, the floor plan, payments, tasks, closure) attaches to it. Work flows left-to-right through a lifecycle: <b>Lead → Discovery → Pricing/Quote → Proposal → Client approval → Payment → Planning → Event day → Settlement → Closure.</b></p>
+  <h3>Signing in (staging test accounts)</h3>
+  <ul>
+    <li>Open the app, click <b>Sign in</b>, and use a role account. All staging users share the password <code>helm0909</code>.</li>
+    <li>Emails follow <code>&lt;role&gt;.a@synthetic.helm</code> — e.g. <code>admin.a@synthetic.helm</code>, <code>sales.a@synthetic.helm</code>, <code>planner.a@synthetic.helm</code>, <code>manager.a@synthetic.helm</code>, <code>coordinator.a@synthetic.helm</code>, <code>operations.a@synthetic.helm</code>, <code>client.a@synthetic.helm</code>.</li>
+  </ul>
+  <div class="tip"><b>Roles matter.</b> What you can see and do changes by role. Admin sees everything. Sales owns the pipeline (leads). Planner/Operations/Manager run pricing, planning, settlement and closure. A client only ever sees their own approval page.</div>
+  <div class="tip warn"><b>Every number field is validated.</b> Try to break them: negatives, letters, symbols, huge values, decimals where only whole numbers make sense. The app should reject with a clear message — that's expected behaviour, not a bug.</div>
+</section>
+
+<nav class="toc">
+  <h2>The complete flow</h2>
+  <ol>
+    <li><a href="#s01">Landing page</a></li>
+    <li><a href="#s02">Sign in / Sign up</a></li>
+    <li><a href="#s03">Dashboard</a></li>
+    <li><a href="#s04">Leads (pipeline)</a></li>
+    <li><a href="#s05">CRM archive</a></li>
+    <li><a href="#s06">Event flow (the quote)</a></li>
+    <li><a href="#s07">Discovery</a></li>
+    <li><a href="#s08">Quotes list</a></li>
+    <li><a href="#s09">Proposal</a></li>
+    <li><a href="#s10">Planning</a></li>
+    <li><a href="#s11">Logistics &amp; payments</a></li>
+    <li><a href="#s12">Settlement</a></li>
+    <li><a href="#s13">Closure &amp; P&amp;L</a></li>
+    <li><a href="#s14">Staff</a></li>
+    <li><a href="#s15">Inventory</a></li>
+    <li><a href="#s16">Vendors</a></li>
+    <li><a href="#s17">Control Center</a></li>
+  </ol>
+</nav>
+
+<section id="s01">
+  <h2><span class="step">STEP 1</span> · Landing page</h2>
+  <img src="screens/01-landing.png" alt="Landing page">
+  <p><b>Purpose:</b> the public marketing page. This is what a visitor sees before signing in.</p>
+  <h3>What to check</h3>
+  <ul><li>Page loads with no broken images or console errors.</li><li>The primary call-to-action / sign-in link works and takes you to the sign-in page.</li><li>Layout looks correct on desktop and on a phone-width window.</li></ul>
+</section>
+
+<section id="s02">
+  <h2><span class="step">STEP 2</span> · Sign in / Sign up &amp; onboarding</h2>
+  <img src="screens/02-signin-signup.png" alt="Sign in / Sign up">
+  <p><b>Purpose:</b> authenticate an existing user or create a new studio account. New sign-ups are taken through onboarding (create the studio, land on the dashboard).</p>
+  <h3>Key controls</h3>
+  <ul>
+    <li><b>Email / Password</b> — sign in with a test account above.</li>
+    <li><b>Sign up</b> — creates a new account; a brand-new account with no studio is routed to finish onboarding.</li>
+    <li><b>Google sign-in</b> (if shown) — is built but may be disabled on staging.</li>
+  </ul>
+  <h3>What to check</h3>
+  <ul><li>Wrong password shows a clear error and does <b>not</b> sign you in.</li><li>A malformed email is rejected.</li><li>After a correct sign-in you land on the Dashboard; after sign-out the session is cleared (you can't reach protected pages by pasting the URL).</li></ul>
+</section>
+
+<section id="s03">
+  <h2><span class="step">STEP 3</span> · Dashboard</h2>
+  <img src="screens/03-dashboard.png" alt="Dashboard">
+  <p><b>Purpose:</b> home base after sign-in. Shows your events/quotes and the modules you have access to. The tiles/nav visible here depend on your role.</p>
+  <h3>Key controls</h3>
+  <ul>
+    <li><b>Generate a quote / + New</b> — starts a brand-new quote (event). Only roles allowed to create (Admin, Planner, Sales, Manager) see this; other roles won't see a button that would error.</li>
+    <li><b>Module navigation</b> (Leads, Quotes, Staff, Inventory, Vendors, Control Center, …) — jumps to each area. What appears is driven by your role's access matrix.</li>
+    <li><b>Your quotes list</b> — click a quote to open its event flow.</li>
+  </ul>
+  <h3>What to check</h3>
+  <ul><li>The correct modules show for the role (e.g. an Event Manager should see Leads immediately — not only after clicking another tab).</li><li>"Generate a quote" creates a new quote and opens it.</li><li>Tabs load promptly without a long blank flash.</li></ul>
+</section>
+
+<section id="s04">
+  <h2><span class="step">STEP 4</span> · Leads (pipeline)</h2>
+  <img src="screens/04-leads-pipeline.png" alt="Leads pipeline">
+  <p><b>Purpose:</b> the sales pipeline. Leads move across stages (New → Qualified → Discovery → Quoted → Won / Lost) by drag-and-drop. This is where an event begins.</p>
+  <h3>Key controls</h3>
+  <ul>
+    <li><b>+ New lead</b> — opens the lead form (contact name required; phone/email validated; guest count &amp; budget must be valid numbers).</li>
+    <li><b>Search box</b> — filters the board by name/phone/type. (It should <b>not</b> auto-fill your email.)</li>
+    <li><b>Drag a card</b> between columns — changes the lead's stage.</li>
+    <li><b>Convert →</b> on a card — turns the lead into a quote/event and moves you into the flow.</li>
+    <li><b>Undo / Redo</b> — reverses the last board change.</li>
+  </ul>
+  <h3>What to check</h3>
+  <ul><li>Creating a lead with an empty name is rejected; a bad phone/email is rejected with a clear message.</li><li>Scrolling the board does <b>not</b> make cards disappear.</li><li>Convert produces a new quote you can open.</li></ul>
+</section>
+
+<section id="s05">
+  <h2><span class="step">STEP 5</span> · CRM archive</h2>
+  <img src="screens/05-crm-archive.png" alt="CRM archive">
+  <p><b>Purpose:</b> the history of every lead (including converted/lost), for reference and follow-up.</p>
+  <h3>Key controls</h3>
+  <ul><li><b>Search</b> and <b>filters</b> (source, stage) narrow the list.</li><li><b>Full history</b> toggle — show every record vs the latest per lead.</li></ul>
+  <h3>What to check</h3><ul><li>Filters and the toggle actually change what's listed.</li></ul>
+</section>
+
+<section id="s06">
+  <h2><span class="step">STEP 6</span> · Event flow (the quote)</h2>
+  <img src="screens/06-event-flow.png" alt="Event flow">
+  <p><b>Purpose:</b> the heart of the app — one screen with the full lifecycle for a single event as numbered steps (1 Client, 2 Discovery, 3 Requirements, 4 Venue, 5 Menu, 6 Layout, 7 Proposal, 8 Quotation) plus Advance payment and Client approval on the right.</p>
+  <h3>Key controls</h3>
+  <ul>
+    <li><b>Client details</b> — name, company, email, phone, guests, budget, event date. Email/phone are validated; if two people edit the same event, a stale save is blocked with a "changed by someone else — reload" message.</li>
+    <li><b>Quotation</b> — chairs, guests, rates, décor, discount, coupon → a live total. The server recomputes the total; a tampered client total is ignored.</li>
+    <li><b>Save quotation (new version)</b> — saves a Q-version. An empty (₹0) quote is refused with a message.</li>
+    <li><b>Download quote PDF</b> — produces the quotation PDF (blocked if the quote is empty).</li>
+    <li><b>Advance %</b> / <b>Advance amount</b> — 0–100% / money ≥ 0; used to record the booking advance.</li>
+    <li><b>Send for approval</b> — mints a scoped client-approval link.</li>
+  </ul>
+  <h3>What to check</h3>
+  <ul><li>Saving with nothing filled is refused (no ₹0 quote).</li><li>Advance % rejects negatives and values over 100.</li><li>The PDF opens with the right client, lines and total.</li></ul>
+</section>
+
+<section id="s07">
+  <h2><span class="step">STEP 7</span> · Discovery</h2>
+  <img src="screens/07-discovery.png" alt="Discovery">
+  <p><b>Purpose:</b> capture the discovery meeting — date, mode, attendees, budget range, notes.</p>
+  <h3>What to check</h3><ul><li>Budget min/max accept only valid money; min can't exceed max.</li><li>Notes save and persist on reload.</li></ul>
+</section>
+
+<section id="s08">
+  <h2><span class="step">STEP 8</span> · Quotes list</h2>
+  <img src="screens/08-quotes-list.png" alt="Quotes list">
+  <p><b>Purpose:</b> every quote/event with its code, client, status and total. The working list for the studio.</p>
+  <h3>Key controls</h3><ul><li><b>Search / type filter</b> — narrows the list.</li><li>Click a row / <b>Open</b> — opens that event's flow.</li></ul>
+  <h3>What to check</h3><ul><li>Totals match what the flow shows.</li><li>A client role sees none of these (only their own approval page).</li></ul>
+</section>
+
+<section id="s09">
+  <h2><span class="step">STEP 9</span> · Proposal</h2>
+  <img src="screens/09-proposal.png" alt="Proposal">
+  <p><b>Purpose:</b> build the client-facing proposal — concept, theme, palette, images, scope, risks — then publish a shareable link.</p>
+  <h3>What to check</h3><ul><li>Image/link fields only accept valid <code>http(s)</code> URLs.</li><li>Publish produces a link; the share link field is read-only/copyable.</li></ul>
+</section>
+
+<section id="s10">
+  <h2><span class="step">STEP 10</span> · Planning</h2>
+  <img src="screens/10-planning.png" alt="Planning">
+  <p><b>Purpose:</b> lock the venue and event plan, menu quantities and sign-offs. Handled by planner/operations/coordinator roles.</p>
+  <h3>What to check</h3><ul><li>Menu quantities accept only whole numbers ≥ 0.</li><li>Venue/plan saves persist and show on the event.</li></ul>
+</section>
+
+<section id="s11">
+  <h2><span class="step">STEP 11</span> · Logistics &amp; payments</h2>
+  <img src="screens/11-logistics-payments.png" alt="Logistics and payments">
+  <p><b>Purpose:</b> headcounts, checklists and payment milestones for the event.</p>
+  <h3>What to check</h3><ul><li>Headcount is a whole number ≥ 0; milestone amounts are money &gt; 0.</li><li>Adding a milestone with a blank/zero amount is refused with a message.</li></ul>
+</section>
+
+<section id="s12">
+  <h2><span class="step">STEP 12</span> · Settlement</h2>
+  <img src="screens/12-settlement.png" alt="Settlement">
+  <p><b>Purpose:</b> record payments received, expenses and refunds, and track the outstanding balance.</p>
+  <h3>Key controls</h3>
+  <ul>
+    <li><b>Record payment</b> — amount must be &gt; ₹0. <b>Overpayment is blocked</b>: you cannot record more than the outstanding balance.</li>
+    <li><b>Add expense / Add refund</b> — payee/amount validated; blank/zero is refused with a message (no silent no-op).</li>
+  </ul>
+  <h3>What to check</h3><ul><li>Try to pay more than the total → it's rejected.</li><li>Every button gives feedback (saving → saved / clear error).</li></ul>
+</section>
+
+<section id="s13">
+  <h2><span class="step">STEP 13</span> · Closure &amp; P&amp;L (closing the event)</h2>
+  <img src="screens/13-closure-pl.png" alt="Closure and P&L">
+  <p><b>Purpose:</b> the final step — capture feedback/rating, lessons and media consent, review profit &amp; loss, and mark the event <b>closed</b>. This is "lead closing".</p>
+  <h3>Key controls</h3>
+  <ul><li><b>Rating / feedback / lessons</b> — recorded for the post-event review.</li><li><b>Close event</b> — moves the event to the terminal <b>closed</b> state. Allowed for Admin, Planner, Operations and <b>Manager</b>.</li></ul>
+  <h3>What to check</h3><ul><li>After closing, the event shows as closed and the P&amp;L figures are consistent with payments/expenses.</li></ul>
+</section>
+
+<section id="s14">
+  <h2><span class="step">STEP 14</span> · Staff</h2>
+  <img src="screens/14-staff.png" alt="Staff directory">
+  <p><b>Purpose:</b> the in-house team directory (this staging copy is empty — your data appears here).</p>
+  <h3>Key controls</h3>
+  <ul><li><b>+ Add staff</b> — name required; <b>phone is validated</b> (digits, optional leading +, no letters/symbols); email validated; day-rate is money ≥ 0.</li><li><b>Show inactive</b> — reveals deactivated members; <b>Deactivate/Reactivate</b> on each card.</li><li><b>Search / department / skill filters</b>.</li></ul>
+  <h3>What to check</h3><ul><li>A junk phone (letters/symbols) is refused with a clear message.</li><li>"Show inactive" reveals members you've deactivated (deactivate one first to see the effect).</li></ul>
+</section>
+
+<section id="s15">
+  <h2><span class="step">STEP 15</span> · Inventory</h2>
+  <img src="screens/15-inventory.png" alt="Inventory">
+  <p><b>Purpose:</b> owned stock (chairs, décor, etc.) with quantities, cost, reservations and check-out/in.</p>
+  <h3>Key controls</h3>
+  <ul><li><b>+ Add item</b> — quantity is a whole number ≥ 0; unit cost is money ≥ 0 (<b>negatives are refused</b> at the field, on save, and in the database).</li><li><b>Reserve / Check-out / Check-in</b> — quantities validated.</li></ul>
+  <h3>What to check</h3><ul><li>A negative quantity cannot be entered or saved.</li><li>Reserve/checkout quantities must be ≥ 1.</li></ul>
+</section>
+
+<section id="s16">
+  <h2><span class="step">STEP 16</span> · Vendors</h2>
+  <img src="screens/16-vendors.png" alt="Vendors">
+  <p><b>Purpose:</b> external vendors/freelancers/rentals/suppliers, with contact details and history.</p>
+  <h3>Key controls</h3><ul><li><b>+ Add partner</b> — name required; phone/email validated.</li><li><b>Show inactive</b> toggle; <b>Deactivate/Reactivate</b>; category filters.</li></ul>
+  <h3>What to check</h3><ul><li>Phone/email validation as with staff.</li><li>Filters and "Show inactive" change the list.</li></ul>
+</section>
+
+<section id="s17">
+  <h2><span class="step">STEP 17</span> · Control Center (admin)</h2>
+  <img src="screens/17-control-center.png" alt="Control Center">
+  <p><b>Purpose:</b> studio settings — pricing defaults (chair/plate rates, GST %, service %), coupons, chair/plate types, package templates, users, and the <b>role access matrix</b> (who can view/edit each area).</p>
+  <h3>Key controls</h3>
+  <ul><li><b>Pricing</b> — rates are money ≥ 0; GST/service are percentages 0–100.</li><li><b>Coupons / chair &amp; plate types / templates</b> — values validated.</li><li><b>Users</b> — create users, set roles (admin only).</li><li><b>Access matrix</b> — toggle View/Edit per role per area.</li></ul>
+  <h3>What to check</h3><ul><li>Percentages over 100 or negative prices are refused.</li><li>Changing a role's access changes what that role sees after they reload.</li></ul>
+</section>
+
+<section>
+  <h2>Reporting a bug</h2>
+  <p>For each issue note: the <b>screen</b>, the <b>role</b> you were signed in as, the <b>exact steps</b>, what you <b>expected</b>, what <b>happened</b>, and a screenshot. Include anything in the browser console (right-click → Inspect → Console) if you can.</p>
+  <div class="tip">Remember: rejected invalid input (negatives, bad phone/email, empty required fields, overpayment) is <b>correct</b> behaviour. A bug is a button that does nothing, data that disappears, a crash, or wrong numbers.</div>
+</section>
+
+</div>
+</body>
+</html>
