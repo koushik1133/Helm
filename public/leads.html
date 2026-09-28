@@ -421,6 +421,9 @@
     );
   }
 
+  // tear down the realtime channel when the page goes away, so we don't leak the subscription
+  window.addEventListener('pagehide', ()=>{ try{ rtChannel && rtChannel.unsubscribe && rtChannel.unsubscribe(); }catch(e){} });
+
   /* ---------- load ---------- */
   async function load(){
     try{ leads = await BPStore.leads.list(); }
@@ -431,7 +434,8 @@
     await BPStore.init(); await renderAccount(); try{await BPStore.bell.mount(document.querySelector("#bell"));}catch{}
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     if(!(await BPStore.auth.requireView("pipeline"))) return;
-    canEdit=await BPStore.auth.canEditArea("leads"); canCreate=await BPStore.auth.can("create"); canDelete=await BPStore.auth.can("delete");
+    // independent capability reads — fetch in parallel, then render() (which reads these) runs after
+    [canEdit, canCreate, canDelete] = await Promise.all([BPStore.auth.canEditArea("leads"), BPStore.auth.can("create"), BPStore.auth.can("delete")]);
     $("#newBtn").hidden=!canCreate;
     if(canEdit) $("#ccLink").hidden=false;
     await load();

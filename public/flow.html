@@ -376,13 +376,22 @@
 
   /* ---------- save helpers (reuse the same BPStore calls the pages use) ---------- */
   async function saveClient(){
+    const V=BPStore.validate;
+    const emailRaw=$("#c_email").value.trim(), phoneRaw=$("#c_phone").value.trim();
+    if(emailRaw){ const r=V.email(emailRaw); if(!r.ok){ alert(r.error); $("#c_email").focus(); return; } }
+    if(phoneRaw){ const r=V.phone(phoneRaw); if(!r.ok){ alert(r.error); $("#c_phone").focus(); return; } }
     const client=Object.assign({}, ev.client||{}, {
-      name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:$("#c_email").value.trim(),
-      phone:$("#c_phone").value.trim(),
+      name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:emailRaw,
+      phone:phoneRaw,
       guests:$("#c_guests").value!==""?+$("#c_guests").value:null, budget:$("#c_budget").value!==""?+$("#c_budget").value:null,
       eventDate:$("#c_date").value||null });
-    ev.client=client;
-    await BPStore.quotes.updateMeta(id,{ client, eventType:$("#c_type").value.trim()||null, eventDate:$("#c_date").value||null });
+    try{
+      const row=await BPStore.quotes.updateMeta(id,{ client, eventType:$("#c_type").value.trim()||null, eventDate:$("#c_date").value||null }, ev.updatedAt);
+      ev.client=client; if(row&&row.updated_at) ev.updatedAt=row.updated_at;   // refresh optimistic-lock base
+    }catch(e){
+      if(e&&e.code==="CONFLICT"){ alert(e.message); location.reload(); return; }
+      throw e;
+    }
     vocabAdd("event_types",$("#c_type").value); fillVocab();   // remember a custom event type
     // guests is entered once here and mirrored into the fields that read it (quotation/pricing)
     if($("#q_guests").value==="" && client.guests!=null){ $("#q_guests").value=client.guests; }

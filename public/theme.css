@@ -28,10 +28,13 @@ img, svg, video, canvas { max-width: 100%; }
 .btn:active, button:active:not(:disabled) { transform: translateY(1px); }
 input, select, textarea { transition: border-color .14s ease, box-shadow .14s ease, background-color .16s ease; }
 
-/* keyboard focus ring everywhere (accessibility) */
+/* keyboard focus ring everywhere (accessibility, WCAG 2.4.7)
+   Uses !important so a page's own `outline:none` can never suppress the keyboard
+   focus ring; :focus-visible keeps mouse focus clean. */
 a:focus-visible, button:focus-visible, .btn:focus-visible, input:focus-visible,
-select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
-  outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px;
+select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--accent) !important; outline-offset: 2px !important; border-radius: 6px;
 }
 
 /* module cards on the workspace lift slightly on hover */
@@ -135,4 +138,16 @@ html[data-theme="dark"] .gate.special { background:#2b2545; color:#c9bcff; }
 
 /* the workspace conflict banner is an inline-styled light-red card → force it dark */
 html[data-theme="dark"] #conflictBanner .card { background:#241417 !important; border-color:#5c2a2e !important; }
+
+/* ---- reduced motion (accessibility) ----
+   Honour the OS "reduce motion" setting: collapse animations, transitions and
+   smooth scrolling everywhere so vestibular-sensitive users aren't affected. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 

@@ -69,14 +69,17 @@ test.describe('@lifecycle continuous single-event journey', () => {
       // (UI pricing path — exercised via the quotes pricing modal in a full run.)
     } finally { await context.close(); }
     // Server-authority probe on the SAME quote: attempt to persist a tampered total.
-    // W15-001: shipping payload nests subtotal under `computed`, so the server does
-    // NOT recompute and the tampered total is stored verbatim. This assertion PINS
-    // the current (defective) behavior so the run documents it rather than hiding it.
-    const tampered = { chairs: 100, gstPct: 18, discount: 0, computed: { subtotal: 200000, total: 236000 }, total: 1 };
+    // W15-001/W15B-06 FIXED: the server recomputes from the RAW inputs and ignores
+    // the client-supplied `total` and the fake `computed` block. This asserts the
+    // tamper is neutralised (stored total = canonical recompute, never the tampered 1).
+    const tampered = { chairs: 100, chairPrice: 200, guests: 100, platePrice: 2000, gstPct: 18, discount: 0,
+                       computed: { subtotal: 200000, total: 236000 }, total: 1 };
+    const canonical = Number(await rpcAs('planner', 'helm_quote_total', { p: tampered }));
     await rpcAs('planner', 'save_quotation_version', { p_quote: RUN.quoteId, p_pricing: tampered });
     const vers = await svcGet(`quotation_versions?quote_id=eq.${RUN.quoteId}&select=total&order=created_at.desc&limit=1`);
-    // Documented gap: server stored the client total (1), not a recomputed 236000.
-    expect(Number(vers[0]?.total)).toBe(1); // <-- when W15-001 is fixed, this becomes 236000
+    expect(canonical).toBeGreaterThan(1);                       // server computes a real total from raw inputs
+    expect(Number(vers[0]?.total)).toBe(canonical);            // stored = server-recomputed, NOT the tampered client total
+    expect(Number(vers[0]?.total)).not.toBe(1);               // tamper neutralised
   });
 
   test('04 Builder/Layout — planner saves a layout version on the SAME quote', async ({ browser }) => {
@@ -112,7 +115,8 @@ test.describe('@lifecycle continuous single-event journey', () => {
       await page.locator('#c_phone').fill(RUN.phone);
       await page.locator('#c_name').fill(`${RUN.id} Client`);
       await page.locator('#sendOtp').click();
-      await reStoreOtp(tok, RUN.phone, code);       // overwrite the UI-sent random code with the known one
+      await expect(page.locator('#c_otp')).toBeVisible();   // wait for the UI send+store to finish (step2 shown)
+      await reStoreOtp(tok, RUN.phone, code);       // NOW overwrite the UI-sent random code with the known one
       await page.locator('#c_otp').fill(code);
       await page.locator('#c_agree').check();
       await page.locator('#confirmBtn').click();
@@ -138,8 +142,12 @@ test.describe('@lifecycle continuous single-event journey', () => {
     expect(pays.length, 'idempotent advance → exactly one paid row').toBe(1);
   });
 
-  test('08 Planning — coordinator sets the venue/plan on the SAME quote', async ({ browser }) => {
-    const { context, page } = await authedPage(browser, 'coordinator');
+  // Planning is driven by an ops role. set_event_plan gates on can_edit() (admin/
+  // planner/sales/operations/manager); coordinator is intentionally NOT a can_edit
+  // role (a known can_edit/has_area divergence, like W15-002 — a product decision,
+  // not changed here), so the role-correct planner for this RPC is operations.
+  test('08 Planning — operations sets the venue/plan on the SAME quote', async ({ browser }) => {
+    const { context, page } = await authedPage(browser, 'operations');
     try {
       await page.goto(`/plan.html?quote=${RUN.quoteId}`);
       await page.locator('#v_name').fill(`${RUN.id} Venue`);
@@ -154,16 +162,13 @@ test.describe('@lifecycle continuous single-event journey', () => {
     expect(tok, 'work token minted for the canonical event').toBeTruthy();
   });
 
-  test('10 Settlement/Closure — planner closes the SAME event (manager is blocked, W15-002)', async () => {
-    // W15-002: close_event/set_closure gate on can_edit() which EXCLUDES manager.
-    // Prove the correct role (planner) closes, and that manager is denied.
-    const denied = await rpcAs('manager', 'close_event', { p_quote_id: RUN.quoteId, p_closed: true })
-      .then(() => false).catch(() => true);
-    expect(denied || true, 'manager close attempt recorded (expected 42501 by can_edit)').toBeTruthy();
-    await rpcAs('planner', 'set_closure', {
+  test('10 Settlement/Closure — manager (W16-02) settles and closes the SAME event', async () => {
+    // W16-02 (product decision): manager now has can_edit authority, so manager may
+    // settle and close. Prove it end-to-end as manager (any denial throws → fail).
+    await rpcAs('manager', 'set_closure', {
       p_quote_id: RUN.quoteId, p_rating: 5, p_feedback: RUN.id, p_testimonial: '', p_media_consent: false, p_lessons: '',
-    }).catch(() => {});
-    await rpcAs('planner', 'close_event', { p_quote_id: RUN.quoteId, p_closed: true });
+    });
+    await rpcAs('manager', 'close_event', { p_quote_id: RUN.quoteId, p_closed: true });
     const [q] = await svcGet(`quotes?id=eq.${RUN.quoteId}&select=lifecycle_stage`);
     expect(q.lifecycle_stage, 'canonical event reached terminal closed state').toBe('closed');
   });
@@ -188,8 +193,8 @@ test.describe('@lifecycle continuous single-event journey', () => {
 async function signInWorkerFlow(RUN) {
   // assign a task (operations = can_edit) then read the minted token from work_tokens.
   await rpcAs('operations', 'assign_tasks', {
-    quote_id: RUN.quoteId, category: 'setup', titles: ['Stage setup'], crew_id: null,
-    name: 'E2E Crew', phone: RUN.phone,
+    p_quote_id: RUN.quoteId, p_category: 'setup', p_titles: ['Stage setup'], p_crew_id: null,
+    p_name: 'E2E Crew', p_phone: RUN.phone,
   }).catch(() => {});
   const [wt] = await svcGet(`work_tokens?quote_id=eq.${RUN.quoteId}&select=token&limit=1`);
   return wt?.token || null;

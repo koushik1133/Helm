@@ -319,16 +319,26 @@
       let oid = null, ok = false; try { oid = await BPStore.org.id(); ok = true; } catch (e) {}
       if (ok && !oid) { location.replace("login.html"); return; }
     }
-    try { await BPStore.bell.mount($("#bell")); } catch {}
-    canCreate = await BPStore.auth.can("create");
-    canDelete = await BPStore.auth.can("delete");
+    // These four are independent of one another — fire them together and keep each
+    // one's original error handling (bell was best-effort, quotes shows retry UI).
+    const [, createRes, deleteRes, listRes] = await Promise.allSettled([
+      BPStore.bell.mount($("#bell")),                       // was try/catch {} → swallow
+      BPStore.auth.can("create"),
+      BPStore.auth.can("delete"),
+      BPStore.quotes.list()
+    ]);
+    if (createRes.status === "rejected") throw createRes.reason;  // preserve original propagation
+    if (deleteRes.status === "rejected") throw deleteRes.reason;
+    canCreate = createRes.value;
+    canDelete = deleteRes.value;
     $("#createBtn").hidden = !canCreate;                    // only create-capable roles can start new quotes
-    try { summaries = await BPStore.quotes.list(); }
-    catch (err) {
+    if (listRes.status === "rejected") {
+      const err = listRes.reason;
       $("#elist").innerHTML = '<div class="empty">Couldn\'t load your quotes — ' + esc((err && err.message) || "please try again") + '. <b id="retry" style="cursor:pointer;color:var(--accent)">Retry</b></div>';
       const r = $("#retry"); if (r) r.addEventListener("click", load);
       return;
     }
+    summaries = listRes.value;
     $("#nextName").textContent = BPStore.quotes.nextCode(summaries);
     renderList();
   }

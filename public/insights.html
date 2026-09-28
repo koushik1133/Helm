@@ -136,9 +136,12 @@
     const role=await BPStore.auth.role();
     const ok = ["admin","manager","planner"].includes(role) || await BPStore.auth.canView("controls");
     if(!ok){ $("#noaccess").hidden=false; return; }
-    canFin = await BPStore.auth.canView("finance");
     $("#app").hidden=false;
-    let d; try{ d=await BPStore.insights.summary(); }catch(e){ d=null; }
+    // finance flag and the summary are independent — fetch together, keeping summary's null-on-error handling
+    const [finRes, dRes] = await Promise.allSettled([BPStore.auth.canView("finance"), BPStore.insights.summary()]);
+    if(finRes.status==="rejected") throw finRes.reason;   // preserve original propagation
+    canFin = finRes.value;
+    const d = dRes.status==="fulfilled" ? dRes.value : null;
     if(!d){ $("#kpis").innerHTML='<div class="muted">Couldn\'t load insights.</div>'; return; }
     render(d);
   }

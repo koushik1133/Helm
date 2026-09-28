@@ -5,12 +5,18 @@ import { STAGING_URL, STAGING_ANON, SERVICE_ROLE, PASSWORD, emailFor } from './e
 const H = (key) => ({ apikey: key, Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' });
 const jj = async (r) => { const t = await r.text(); try { return JSON.parse(t); } catch { return t; } };
 
+// Cache the access token per role for the test run. A serial lifecycle re-signs-in
+// dozens of times otherwise, which rate-limits /auth/v1/token and returns empty
+// tokens (intermittent "lead bootstrap failed"). Tokens are valid ~1h ≫ a run.
+const _tokCache = new Map();
 export async function signIn(role) {
+  if (_tokCache.has(role)) return _tokCache.get(role);
   const r = await fetch(STAGING_URL + '/auth/v1/token?grant_type=password', {
     method: 'POST', headers: { apikey: STAGING_ANON, 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: emailFor(role), password: PASSWORD }),
   });
   const j = await r.json();
+  if (j.access_token) _tokCache.set(role, j.access_token);   // cache only a successful token
   return j.access_token;
 }
 

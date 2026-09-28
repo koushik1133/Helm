@@ -100,7 +100,7 @@
   // DECISION (would require adding manager to can_create/can_delete server-side).
   const ROLE_CAPS = {
     admin:       ["view", "create", "edit", "delete", "manage"],
-    manager:     ["view", "edit", "manage"],
+    manager:     ["view", "create", "edit", "manage"],
     planner:     ["view", "create", "edit", "delete"],
     sales:       ["view", "create", "edit"],
     coordinator: ["view", "edit"],
@@ -538,12 +538,25 @@
         { p_quote_id: quoteId, p_client: client, p_pricing: pricing });
       if (error) throw error; return Array.isArray(q) ? q[0] : q;
     },
-    async updateMeta(quoteId, patch) {
+    // Wave 16 lost-update guard: when the caller passes expectedUpdatedAt (the
+    // updated_at it last read), the update is conditioned on the row NOT having
+    // changed since. quotes_set_updated bumps updated_at on every write, so a
+    // concurrent edit makes the predicate miss → 0 rows → we raise a CONFLICT the
+    // UI surfaces ("changed by someone else — reload"). Omit the arg for the old
+    // last-write-wins behaviour (backward compatible).
+    async updateMeta(quoteId, patch, expectedUpdatedAt) {
       const upd = {}; if (patch.title != null) upd.title = patch.title; if (patch.eventType != null) upd.event_type = patch.eventType;
       if (patch.client) upd.client = patch.client; if (patch.pricing) upd.pricing = patch.pricing; if (patch.status) upd.status = patch.status;
       if (patch.eventDate !== undefined) upd.event_date = patch.eventDate || null;
       if (patch.eventTime !== undefined) upd.event_time = patch.eventTime || null;
-      const { data, error } = await supa.from("quotes").update(upd).eq("id", quoteId).select().single(); if (error) throw error; return data;
+      let q = supa.from("quotes").update(upd).eq("id", quoteId);
+      if (expectedUpdatedAt) q = q.eq("updated_at", expectedUpdatedAt);
+      const { data, error } = await q.select();
+      if (error) throw error;
+      if (expectedUpdatedAt && (!data || data.length === 0)) {
+        const e = new Error("This event was changed by someone else since you opened it. Reload to get the latest, then reapply your change."); e.code = "CONFLICT"; throw e;
+      }
+      return Array.isArray(data) ? data[0] : data;
     },
     async remove(quoteId) { const { error } = await supa.from("quotes").delete().eq("id", quoteId); if (error) throw error; return true; },
   };
