@@ -1,6 +1,8 @@
 -- ============================================================================
 -- W15B-01-PRICING-UPGRADE.sql  — W15-001 server pricing authority (CANONICAL).
--- STATUS: SOURCE PREPARED. STAGING ONLY. NOT APPLIED. NOT FOR PRODUCTION.
+-- STATUS: APPLIED TO STAGING + VERIFIED ON STAGING (2026-09-28). NOT FOR PRODUCTION.
+-- Runtime proof: as planner, a real-UI payload with tampered total=1 now recomputes
+-- to 236000 (was 1 pre-fix); money-attack regression passed; W15B-02 VERIFY passed.
 -- ----------------------------------------------------------------------------
 -- WHY: phase99 helm_quote_total() only recomputes when the pricing jsonb has a
 -- TOP-LEVEL `subtotal`. The shipping UI payload (quotes.html gatherPricing /

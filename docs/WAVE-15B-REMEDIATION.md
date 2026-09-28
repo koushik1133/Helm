@@ -51,3 +51,15 @@ psql "$STAGING_DB_URL" -f supabase/wave15b/W15B-02-VERIFY.sql
 # then the full lifecycle + regression:
 npm test && npm run test:e2e:lifecycle && npm run test:e2e
 ```
+
+## Runtime verification on STAGING (2026-09-28)
+Credentials restored; synthetic users reset to a valid password. Live results:
+- **W15-001 — FIXED + VERIFIED.** Applied W15B-01 in the Supabase SQL editor; W15B-02 VERIFY passed. Re-ran the A/B as `planner`: real-UI tampered `total=1` now recomputes to **₹236,000** (was ₹1). Money-attack regression: tamper total→11800, discount cap→0, coupon 100%→0, negative discount/GST **rejected(400)**.
+- **W15-002 — RUNTIME-CONFIRMED.** `manager` DENIED(42501) on `close_event`/`mark_paid`; `planner`/`sales` ALLOWED(200). Over-restriction (fail-closed) → product decision on intended manager authority.
+- **Tenant isolation — VERIFIED.** Org-B `admin.b`: 0 rows reading an Org-A quote; 403/42501 on `save_quotation_version`+`mark_paid`.
+- **OTP/approval — VERIFIED.** wrong→approved:false; correct→approved:true; replay→approved:false (single-use); 1 consent row; 5-wrong→`error:locked`.
+- **Payment idempotency — VERIFIED.** same key→1 receipt; negatives rejected.
+- **IDOR** 0 rows; **SQL injection** in `create_quote` stored as harmless literal (parameterized).
+- **W15B-04 applied** (revoke_work_token/delete_quote live). **W15B-05-FOLLOWUP.sql** prepared (worker-RPC expiry/revoke enforcement, portal/proposal expiry, OTP CSPRNG, FK RESTRICT for quote_payments/quote_consents) — apply in the SQL editor, then re-test worker-token revocation.
+
+Still open: apply W15B-05; product decisions (overpayment, lost-update, manager authority); full 3-browser regression; Strix grey-box. Production untouched throughout.

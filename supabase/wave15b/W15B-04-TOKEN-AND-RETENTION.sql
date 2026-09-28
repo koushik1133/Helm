@@ -1,6 +1,9 @@
 -- ============================================================================
--- W15B-02-TOKEN-AND-RETENTION.sql — Cloudflare-audit CONFIRMED findings.
--- STATUS: SOURCE PREPARED. STAGING ONLY. NOT APPLIED. NOT FOR PRODUCTION.
+-- W15B-04-TOKEN-AND-RETENTION.sql — Cloudflare-audit CONFIRMED findings.
+-- STATUS: APPLIED TO STAGING (2026-09-28). NOT FOR PRODUCTION.
+-- Adds work_tokens.expires_at/revoked_at + revoke_work_token + guarded delete_quote
+-- (both confirmed present on staging). Enforcement of the columns inside the four
+-- worker_* RPCs is completed by W15B-05-FOLLOWUP.sql.
 -- Additive & idempotent, forward-only. Apply on staging then re-run the audit
 -- (run-2) + E2E. Money/security-critical — review before applying.
 -- ============================================================================
