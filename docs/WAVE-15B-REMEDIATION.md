@@ -63,3 +63,8 @@ Credentials restored; synthetic users reset to a valid password. Live results:
 - **W15B-04 applied** (revoke_work_token/delete_quote live). **W15B-05-FOLLOWUP.sql** prepared (worker-RPC expiry/revoke enforcement, portal/proposal expiry, OTP CSPRNG, FK RESTRICT for quote_payments/quote_consents) — apply in the SQL editor, then re-test worker-token revocation.
 
 Still open: apply W15B-05; product decisions (overpayment, lost-update, manager authority); full 3-browser regression; Strix grey-box. Production untouched throughout.
+
+## W15B-05 applied + verified on STAGING (2026-09-28)
+- Worker tokens: `worker_get_tasks` returns 401/42501 after `revoke_work_token` and when `expires_at` is past.
+- Cascade-delete: `delete_quote` w/ paid row → 409; service_role direct DELETE of a quote with a payment → 409/23503 (FK RESTRICT). Ledger + consent protected.
+- Portal/proposal expiry + OTP CSPRNG functions re-created cleanly.

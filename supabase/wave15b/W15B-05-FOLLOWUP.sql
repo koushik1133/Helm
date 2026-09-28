@@ -1,6 +1,9 @@
 -- ============================================================================
 -- W15B-05-FOLLOWUP.sql — closes the remaining audit items after W15B-01/04.
--- STATUS: SOURCE PREPARED. STAGING ONLY. NOT FOR PRODUCTION.
+-- STATUS: APPLIED TO STAGING + VERIFIED ON STAGING (2026-09-28). NOT FOR PRODUCTION.
+-- Runtime proof: worker_get_tasks -> 401/42501 after revoke_work_token and when
+-- expires_at is past; service_role DELETE of a quote with a payment -> 409/23503
+-- (FK RESTRICT); OTP/portal/proposal functions re-created cleanly.
 -- Faithful CREATE OR REPLACE of the CURRENT deployed bodies (operations.sql +
 -- phase52 + phase53 + phase93 + otp-payments.sql) with the minimal guard added,
 -- so no later enhancement is reverted. Additive & idempotent. Requires W15B-04
