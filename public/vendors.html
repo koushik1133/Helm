@@ -92,17 +92,17 @@
   <footer>Helm Events — your outside partners, ready to fill the gaps your in-house team can't.</footer>
 </div>
 
-<div id="vModal" class="lmodal" hidden>
+<div id="vModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="vm_title">
   <div class="sheet">
-    <h3><span id="vm_title">＋ Add partner</span><button class="close" id="vm_close">×</button></h3>
+    <h3><span id="vm_title">＋ Add partner</span><button class="close" id="vm_close" aria-label="Close">×</button></h3>
     <div class="fgrid">
-      <div class="fld"><label>Name *</label><input id="v_name" placeholder="e.g. Spotlight AV Rentals"></div>
-      <div class="fld"><label>Type</label><select id="v_kind"><option value="vendor">Vendor</option><option value="freelancer">Freelancer</option><option value="rental">Rental</option><option value="supplier">Supplier</option></select></div>
-      <div class="fld"><label>Category</label><input id="v_cat" placeholder="e.g. Lighting, Catering"></div>
-      <div class="fld"><label>Phone</label><input id="v_phone" type="tel" inputmode="tel" autocomplete="off" maxlength="16" placeholder="+91…"></div>
-      <div class="fld"><label>Email</label><input id="v_email" type="email" autocomplete="off" placeholder="name@email.com"></div>
-      <div class="fld"><label>Services (comma separated)</label><input id="v_services" placeholder="e.g. LED walls, trussing"></div>
-      <div class="fld full"><label>Notes</label><input id="v_notes" placeholder="optional"></div>
+      <div class="fld"><label for="v_name">Name *</label><input id="v_name" placeholder="e.g. Spotlight AV Rentals"></div>
+      <div class="fld"><label for="v_kind">Type</label><select id="v_kind"><option value="vendor">Vendor</option><option value="freelancer">Freelancer</option><option value="rental">Rental</option><option value="supplier">Supplier</option></select></div>
+      <div class="fld"><label for="v_cat">Category</label><input id="v_cat" placeholder="e.g. Lighting, Catering"></div>
+      <div class="fld"><label for="v_phone">Phone</label><input id="v_phone" type="tel" inputmode="tel" autocomplete="off" maxlength="16" placeholder="+91…"></div>
+      <div class="fld"><label for="v_email">Email</label><input id="v_email" type="email" autocomplete="off" placeholder="name@email.com"></div>
+      <div class="fld"><label for="v_services">Services (comma separated)</label><input id="v_services" placeholder="e.g. LED walls, trussing"></div>
+      <div class="fld full"><label for="v_notes">Notes</label><input id="v_notes" placeholder="optional"></div>
     </div>
     <div id="vm_err" class="err" role="alert" aria-live="assertive" hidden></div>
     <div class="foot">
@@ -115,12 +115,12 @@
   </div>
 </div>
 
-<div id="loginModal" class="lmodal" hidden>
+<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
   <div class="sheet lsheet">
-    <h3>Sign in</h3>
-    <div class="fld" style="margin-bottom:10px"><label>Email</label><input id="li_email" type="email"></div>
-    <div class="fld" style="margin-bottom:10px"><label>Password</label><input id="li_pass" type="password"></div>
-    <div id="li_err" class="err" hidden></div>
+    <h3 id="loginModalTitle">Sign in</h3>
+    <div class="fld" style="margin-bottom:10px"><label for="li_email">Email</label><input id="li_email" type="email"></div>
+    <div class="fld" style="margin-bottom:10px"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" role="alert" aria-live="assertive" hidden></div>
     <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>

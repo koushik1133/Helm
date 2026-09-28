@@ -88,9 +88,9 @@
 
     <div class="card" id="addCard" hidden>
       <div class="add">
-        <div class="fld"><label id="titleLbl">Issue</label><input id="i_title" placeholder="what's happening"></div>
-        <div class="fld"><label>Severity</label><select id="i_sev"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
-        <div class="fld"><label>Owner</label><input id="i_owner" placeholder="who's on it"></div>
+        <div class="fld"><label id="titleLbl" for="i_title">Issue</label><input id="i_title" placeholder="what's happening"></div>
+        <div class="fld"><label for="i_sev">Severity</label><select id="i_sev"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
+        <div class="fld"><label for="i_owner">Owner</label><input id="i_owner" placeholder="who's on it"></div>
         <div class="fld"><label>&nbsp;</label><button class="btn primary" id="i_add">＋ Log</button></div>
       </div>
     </div>
@@ -100,12 +100,12 @@
   <footer>Helm Events — log it, own it, resolve it — with a clear record afterwards.</footer>
 </div>
 
-<div id="loginModal" class="lmodal" hidden>
+<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="sheet">
-    <h3>Sign in</h3>
-    <div class="fld" style="margin-bottom:10px"><label>Email</label><input id="li_email" type="email"></div>
-    <div class="fld" style="margin-bottom:10px"><label>Password</label><input id="li_pass" type="password"></div>
-    <div id="li_err" class="err" hidden></div>
+    <h3 id="loginTitle">Sign in</h3>
+    <div class="fld" style="margin-bottom:10px"><label for="li_email">Email</label><input id="li_email" type="email"></div>
+    <div class="fld" style="margin-bottom:10px"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>
@@ -141,7 +141,7 @@
       ${canEdit?`<div class="acts">
         ${i.status==="open"?`<button class="mini" data-st="${i.id}" data-s="in_progress">Start</button>`:""}
         ${i.status!=="resolved"?`<button class="mini go" data-st="${i.id}" data-s="resolved">Resolve</button>`:`<button class="mini" data-st="${i.id}" data-s="open">Reopen</button>`}
-        ${canDelete?`<button class="mini del" data-del="${i.id}">✕</button>`:""}
+        ${canDelete?`<button class="mini del" data-del="${i.id}" aria-label="Delete">✕</button>`:""}
       </div>`:""}
     </div>`).join("") : `<div class="empty">No ${tab==="incident"?"incidents":"issues"} logged. ${tab==="incident"?"Good — keep it that way.":""}</div>`;
     $("#list").querySelectorAll("[data-st]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.issues.setStatus(b.dataset.st,b.dataset.s); render(); }));

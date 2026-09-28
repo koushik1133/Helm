@@ -87,7 +87,7 @@
       <table><tbody id="invBody"></tbody></table>
       <div class="payline" id="payLine" hidden>
         <span style="font-size:13px;color:var(--ink-2)">Record a payment received:</span>
-        <input id="pay_amt" type="number" min="0" placeholder="amount">
+        <input id="pay_amt" type="number" min="0" placeholder="amount" aria-label="Payment amount received">
         <button class="btn primary" id="pay_btn">Record payment</button>
         <span id="pay_msg" role="status" aria-live="polite" style="font-size:12px;color:var(--safe);font-weight:600"></span>
       </div>
@@ -107,9 +107,9 @@
       <table><thead><tr><th>Who</th><th>For</th><th class="num">Amount</th><th>Status</th><th></th></tr></thead>
         <tbody id="expBody"><tr><td colspan="5" class="empty">No claims.</td></tr></tbody></table>
       <div class="addgrid" id="expAdd" hidden>
-        <div class="fld"><label>Who</label><input id="e_who" placeholder="name"></div>
-        <div class="fld"><label>For</label><input id="e_desc" placeholder="e.g. Fuel, materials"></div>
-        <div class="fld"><label>Amount ₹</label><input id="e_amt" type="number" min="0" value="0"></div>
+        <div class="fld"><label for="e_who">Who</label><input id="e_who" placeholder="name"></div>
+        <div class="fld"><label for="e_desc">For</label><input id="e_desc" placeholder="e.g. Fuel, materials"></div>
+        <div class="fld"><label for="e_amt">Amount ₹</label><input id="e_amt" type="number" min="0" value="0"></div>
         <div class="fld"><label>&nbsp;</label><button class="btn primary" id="e_add">＋ Add</button></div>
       </div>
       <div class="totbar"><span>Claims total: <b id="e_tot">₹0</b></span><span>Paid: <b id="e_paid">₹0</b></span></div>
@@ -121,9 +121,9 @@
       <table><thead><tr><th>Type</th><th>Reason</th><th class="num">Amount</th><th>Status</th><th></th></tr></thead>
         <tbody id="refBody"><tr><td colspan="5" class="empty">None.</td></tr></tbody></table>
       <div class="addgrid" id="refAdd" hidden>
-        <div class="fld"><label>Type</label><select id="r_kind"><option value="refund">Refund to client</option><option value="recovery">Recover from client</option><option value="deduction">Deduction from deposit</option></select></div>
-        <div class="fld"><label>Reason</label><input id="r_reason" placeholder="e.g. Damaged linens"></div>
-        <div class="fld"><label>Amount ₹</label><input id="r_amt" type="number" min="0" value="0"></div>
+        <div class="fld"><label for="r_kind">Type</label><select id="r_kind"><option value="refund">Refund to client</option><option value="recovery">Recover from client</option><option value="deduction">Deduction from deposit</option></select></div>
+        <div class="fld"><label for="r_reason">Reason</label><input id="r_reason" placeholder="e.g. Damaged linens"></div>
+        <div class="fld"><label for="r_amt">Amount ₹</label><input id="r_amt" type="number" min="0" value="0"></div>
         <div class="fld"><label>&nbsp;</label><button class="btn primary" id="r_add">＋ Add</button></div>
       </div>
       <div class="totbar"><span>Refunds due: <b id="r_ref">₹0</b></span><span>To recover: <b id="r_rec">₹0</b></span></div>
@@ -132,12 +132,12 @@
   <footer>Helm Events — settle the client, the vendors and the staff.</footer>
 </div>
 
-<div id="loginModal" class="lmodal" hidden>
+<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="sheet">
-    <h3>Sign in</h3>
-    <div class="fld2"><label>Email</label><input id="li_email" type="email"></div>
-    <div class="fld2"><label>Password</label><input id="li_pass" type="password"></div>
-    <div id="li_err" class="err" hidden></div>
+    <h3 id="loginTitle">Sign in</h3>
+    <div class="fld2"><label for="li_email">Email</label><input id="li_email" type="email"></div>
+    <div class="fld2"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>
@@ -181,7 +181,7 @@
     $("#expBody").innerHTML = s.expenses.length ? s.expenses.map(e=>`<tr>
       <td><b>${esc(e.who)}</b></td><td class="muted">${esc(e.description||"")}</td><td class="num">${inr(e.amount)}</td>
       <td><span class="st ${e.status}">${EXP[e.status]||e.status}</span></td>
-      <td>${canEdit?`${e.status==='pending'?`<button class="rm" data-est="${e.id}" data-s="approved">Approve</button> `:""}${e.status!=='paid'?`<button class="rm" data-est="${e.id}" data-s="paid">Mark paid</button> `:""}${canDelete?`<button class="rm" data-edel="${e.id}">✕</button>`:""}`:""}</td>
+      <td>${canEdit?`${e.status==='pending'?`<button class="rm" data-est="${e.id}" data-s="approved">Approve</button> `:""}${e.status!=='paid'?`<button class="rm" data-est="${e.id}" data-s="paid">Mark paid</button> `:""}${canDelete?`<button class="rm" data-edel="${e.id}" aria-label="Remove claim">✕</button>`:""}`:""}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="empty">No claims.</td></tr>';
     $("#e_tot").textContent=inr(s.expTotal); $("#e_paid").textContent=inr(s.expPaid);
     $("#expBody").querySelectorAll("[data-est]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.expenses.setStatus(b.dataset.est,b.dataset.s); await load(); }));
@@ -211,7 +211,7 @@
     $("#refBody").innerHTML = list.length ? list.map(r=>`<tr>
       <td><b>${RKIND[r.kind]||r.kind}</b></td><td class="muted">${esc(r.reason||"")}</td><td class="num">${inr(r.amount)}</td>
       <td><span class="st ${refCls(r.status)}">${REF[r.status]||r.status}</span></td>
-      <td>${canEdit?`${r.status==='pending'?`<button class="rm" data-rst="${r.id}" data-s="approved">Approve</button> `:""}${(r.status!=='processed'&&r.status!=='rejected')?`<button class="rm" data-rst="${r.id}" data-s="processed">Mark done</button> `:""}${canDelete?`<button class="rm" data-rdel="${r.id}">✕</button>`:""}`:""}</td>
+      <td>${canEdit?`${r.status==='pending'?`<button class="rm" data-rst="${r.id}" data-s="approved">Approve</button> `:""}${(r.status!=='processed'&&r.status!=='rejected')?`<button class="rm" data-rst="${r.id}" data-s="processed">Mark done</button> `:""}${canDelete?`<button class="rm" data-rdel="${r.id}" aria-label="Remove refund">✕</button>`:""}`:""}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="empty">None.</td></tr>';
     const active=list.filter(r=>r.status!=='rejected');
     $("#r_ref").textContent=inr(active.filter(r=>r.kind==='refund').reduce((a,r)=>a+Number(r.amount||0),0));

@@ -147,22 +147,22 @@
       <button class="tab" data-pane="users" id="tab-users" hidden>👥 User control</button>
     </div>
 
-    <div id="msg"></div>
+    <div id="msg" role="status" aria-live="polite"></div>
 
     <!-- ============ PRICING PANE ============ -->
     <div id="pane-pricing">
     <div class="card">
       <h3>Organization / studio</h3>
-      <div id="orgMsg"></div>
+      <div id="orgMsg" role="status" aria-live="polite"></div>
       <div class="grid">
-        <div class="fld"><label>Studio / business name</label><input id="o_name" placeholder="e.g. Aurora Events"></div>
-        <div class="fld"><label>Business email</label><input id="o_email" type="email" placeholder="hello@studio.com"></div>
-        <div class="fld"><label>Location (city, country)</label><input id="o_location" placeholder="e.g. Hyderabad, India"></div>
-        <div class="fld"><label>Logo URL</label><input id="o_logo" placeholder="https://…/logo.png"></div>
-        <div class="fld"><label>Accent colour</label><input id="o_accent" placeholder="#6d28d9"></div>
-        <div class="fld"><label>Currency</label><input id="o_currency" placeholder="INR"></div>
-        <div class="fld"><label>Timezone</label><input id="o_tz" placeholder="Asia/Kolkata"></div>
-        <div class="fld"><label>GSTIN</label><input id="o_gst" placeholder="22AAAAA0000A1Z5"></div>
+        <div class="fld"><label for="o_name">Studio / business name</label><input id="o_name" placeholder="e.g. Aurora Events"></div>
+        <div class="fld"><label for="o_email">Business email</label><input id="o_email" type="email" placeholder="hello@studio.com"></div>
+        <div class="fld"><label for="o_location">Location (city, country)</label><input id="o_location" placeholder="e.g. Hyderabad, India"></div>
+        <div class="fld"><label for="o_logo">Logo URL</label><input id="o_logo" placeholder="https://…/logo.png"></div>
+        <div class="fld"><label for="o_accent">Accent colour</label><input id="o_accent" placeholder="#6d28d9"></div>
+        <div class="fld"><label for="o_currency">Currency</label><input id="o_currency" placeholder="INR"></div>
+        <div class="fld"><label for="o_tz">Timezone</label><input id="o_tz" placeholder="Asia/Kolkata"></div>
+        <div class="fld"><label for="o_gst">GSTIN</label><input id="o_gst" placeholder="22AAAAA0000A1Z5"></div>
       </div>
       <div class="actions"><button class="btn primary" id="o_save">Save studio settings</button></div>
     </div>
@@ -170,12 +170,12 @@
     <div class="card">
       <h3>Default pricing (applies to every new quote)</h3>
       <div class="grid">
-        <div class="fld"><label>Price / chair (₹)</label><input id="p_chair" type="number" min="0" step="1"></div>
-        <div class="fld"><label>Price / plate (₹)</label><input id="p_plate" type="number" min="0" step="1"></div>
-        <div class="fld"><label>Chair/rental GST %</label><input id="p_gst" type="number" min="0" step="0.5"></div>
-        <div class="fld"><label>Catering GST %</label><input id="p_cgst" type="number" min="0" step="0.5"></div>
-        <div class="fld"><label>Service charge % (optional)</label><input id="p_svc" type="number" min="0" step="0.5"></div>
-        <div class="fld"><label>Layout &amp; setup fee (₹)</label><input id="p_layout" type="number" min="0" step="1" placeholder="0"></div>
+        <div class="fld"><label for="p_chair">Price / chair (₹)</label><input id="p_chair" type="number" min="0" step="1"></div>
+        <div class="fld"><label for="p_plate">Price / plate (₹)</label><input id="p_plate" type="number" min="0" step="1"></div>
+        <div class="fld"><label for="p_gst">Chair/rental GST %</label><input id="p_gst" type="number" min="0" step="0.5"></div>
+        <div class="fld"><label for="p_cgst">Catering GST %</label><input id="p_cgst" type="number" min="0" step="0.5"></div>
+        <div class="fld"><label for="p_svc">Service charge % (optional)</label><input id="p_svc" type="number" min="0" step="0.5"></div>
+        <div class="fld"><label for="p_layout">Layout &amp; setup fee (₹)</label><input id="p_layout" type="number" min="0" step="1" placeholder="0"></div>
       </div>
       <div class="actions"><button class="btn primary" id="savePricing">Save pricing</button></div>
     </div>
@@ -194,9 +194,9 @@
       <h3>Coupons</h3>
       <div id="couponList"></div>
       <div class="addrow">
-        <input id="co_code" placeholder="Code e.g. DIWALI10">
-        <select id="co_kind"><option value="percent">% off</option><option value="flat">₹ off</option></select>
-        <input id="co_val" type="number" min="0" step="1" placeholder="Value">
+        <input id="co_code" placeholder="Code e.g. DIWALI10" aria-label="Coupon code">
+        <select id="co_kind" aria-label="Coupon type"><option value="percent">% off</option><option value="flat">₹ off</option></select>
+        <input id="co_val" type="number" min="0" step="1" placeholder="Value" aria-label="Coupon value">
         <button class="btn" id="co_add">+ Add coupon</button>
       </div>
     </div>
@@ -205,8 +205,8 @@
       <h3>Chair types &amp; prices</h3>
       <div id="chairList"></div>
       <div class="addrow" style="grid-template-columns:1.6fr 1fr auto">
-        <input id="ch_name" placeholder="Chair type e.g. Chiavari">
-        <input id="ch_price" type="number" min="0" step="1" placeholder="Price / chair (₹)">
+        <input id="ch_name" placeholder="Chair type e.g. Chiavari" aria-label="Chair type name">
+        <input id="ch_price" type="number" min="0" step="1" placeholder="Price / chair (₹)" aria-label="Price per chair">
         <button class="btn" id="ch_add">+ Add chair type</button>
       </div>
     </div>
@@ -215,8 +215,8 @@
       <h3>Plate types &amp; prices (catering)</h3>
       <div id="plateList"></div>
       <div class="addrow" style="grid-template-columns:1.6fr 1fr auto">
-        <input id="pl_name" placeholder="Plate type e.g. Veg / Non-veg / Special">
-        <input id="pl_price" type="number" min="0" step="1" placeholder="Price / plate (₹)">
+        <input id="pl_name" placeholder="Plate type e.g. Veg / Non-veg / Special" aria-label="Plate type name">
+        <input id="pl_price" type="number" min="0" step="1" placeholder="Price / plate (₹)" aria-label="Price per plate">
         <button class="btn" id="pl_add">+ Add plate type</button>
       </div>
     </div>
@@ -224,12 +224,12 @@
     <div class="card">
       <h3>Dishes catalog (menu)</h3>
       <p class="mnote" style="margin:-6px 0 10px">The dishes staff can search &amp; add to an event's menu. Add your studio's specialities here.</p>
-      <input id="dishFilter" placeholder="Filter dishes…" style="width:100%;margin-bottom:10px">
+      <input id="dishFilter" placeholder="Filter dishes…" style="width:100%;margin-bottom:10px" aria-label="Filter dishes">
       <div id="dishList" style="max-height:320px;overflow:auto"></div>
       <div class="addrow" style="grid-template-columns:1.2fr 1.4fr .9fr auto">
-        <input id="dc_cat" placeholder="Category e.g. Starters (veg)">
-        <input id="dc_name" placeholder="Dish name">
-        <select id="dc_kind"><option value="veg">Veg</option><option value="nonveg">Non-veg</option><option value="special">Special</option></select>
+        <input id="dc_cat" placeholder="Category e.g. Starters (veg)" aria-label="Dish category">
+        <input id="dc_name" placeholder="Dish name" aria-label="Dish name">
+        <select id="dc_kind" aria-label="Dish type"><option value="veg">Veg</option><option value="nonveg">Non-veg</option><option value="special">Special</option></select>
         <button class="btn" id="dc_add">+ Add dish</button>
       </div>
     </div>
@@ -249,7 +249,7 @@
 
     <!-- ============ USER CONTROL PANE (admin only) ============ -->
     <div id="pane-users" hidden>
-      <div id="umsg"></div>
+      <div id="umsg" role="status" aria-live="polite"></div>
 
       <div class="card">
         <h3>Team members</h3>
@@ -258,8 +258,8 @@
           <tbody id="um_rows"><tr><td colspan="3" style="color:var(--ink-3)">Loading…</td></tr></tbody>
         </table>
         <form id="um_add" class="addrow" style="grid-template-columns:1.6fr 1fr auto">
-          <input id="um_email" type="email" placeholder="name@studio.com" required autocomplete="off">
-          <select id="um_role"></select>
+          <input id="um_email" type="email" placeholder="name@studio.com" required autocomplete="off" aria-label="New user email">
+          <select id="um_role" aria-label="New user role"></select>
           <button class="btn primary" type="submit" id="um_submit">Add user</button>
         </form>
         <p class="mnote" style="margin-top:6px">No password needed — a one-time temporary password is generated and shown once. Share it with the person; they'll be asked to set their own on first sign-in.</p>
@@ -269,8 +269,8 @@
         <h3>Invite by email link</h3>
         <p class="mnote">Create a join link for a teammate. They sign up with it and are added to <b>your studio</b> with the role you pick. The link expires in 7 days; nothing is charged.</p>
         <form id="inv_add" class="addrow" style="grid-template-columns:1.6fr 1fr auto">
-          <input id="inv_email" type="email" placeholder="name@studio.com" required autocomplete="off">
-          <select id="inv_role"></select>
+          <input id="inv_email" type="email" placeholder="name@studio.com" required autocomplete="off" aria-label="Invite email">
+          <select id="inv_role" aria-label="Invite role"></select>
           <button class="btn primary" type="submit" id="inv_submit">Create invite link</button>
         </form>
         <div id="inv_out" hidden style="margin-top:10px;display:flex;gap:8px;align-items:center">
@@ -311,13 +311,13 @@
   </div>
 </div>
 
-<div class="lmodal" id="loginModal" hidden>
+<div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <form class="lsheet" id="loginForm">
-    <div class="mark" style="margin:0 auto 10px"></div>
-    <h3>Sign in</h3>
-    <label>Email</label><input type="email" id="li_email" required>
-    <label>Password</label><input type="password" id="li_pw" required>
-    <div class="lerr" id="li_err" hidden></div>
+    <div class="mark" style="margin:0 auto 10px" aria-hidden="true"></div>
+    <h3 id="loginTitle">Sign in</h3>
+    <label for="li_email">Email</label><input type="email" id="li_email" required>
+    <label for="li_pw">Password</label><input type="password" id="li_pw" required>
+    <div class="lerr" id="li_err" hidden role="alert" aria-live="assertive"></div>
     <button class="btn primary" id="li_submit" type="submit" style="width:100%">Sign in</button>
   </form>
 </div>

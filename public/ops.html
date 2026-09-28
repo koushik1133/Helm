@@ -98,28 +98,28 @@
       <h3>Staff</h3>
       <div id="crewChips"></div>
       <div class="crewrow" style="margin-top:10px">
-        <input id="cr_name" placeholder="Name (e.g. Karthik)">
-        <input id="cr_phone" placeholder="Phone (+91…)">
-        <select id="cr_dept"></select>
+        <input id="cr_name" placeholder="Name (e.g. Karthik)" aria-label="Staff name">
+        <input id="cr_phone" placeholder="Phone (+91…)" aria-label="Staff phone">
+        <select id="cr_dept" aria-label="Department"></select>
         <button class="btn" id="cr_add">+ Add staff</button>
       </div>
     </div>
 
     <div class="card">
       <h3>Assign work</h3>
-      <div id="msg"></div>
+      <div id="msg" role="status" aria-live="polite"></div>
       <div class="tabs" id="catTabs"></div>
       <label style="font-size:12px;color:var(--ink-2);display:flex;gap:8px;align-items:center;margin-bottom:8px">
         <input type="checkbox" id="selAll" style="width:18px;height:18px;accent-color:var(--accent)"> Select all in this category</label>
       <div class="tasklist" id="taskList"></div>
       <div class="assignbar">
         <span class="muted"><b id="selCount">0</b> selected →</span>
-        <select id="assignKind" style="min-width:130px">
+        <select id="assignKind" style="min-width:130px" aria-label="Assignment type">
           <option value="in_house">🏠 In-house staff</option>
           <option value="outsourced">🤝 Outsource</option>
         </select>
-        <select id="assignCrew" style="min-width:180px"></select>
-        <select id="assignVendor" style="min-width:200px" hidden></select>
+        <select id="assignCrew" style="min-width:180px" aria-label="Assign to staff"></select>
+        <select id="assignVendor" style="min-width:200px" hidden aria-label="Assign to vendor"></select>
         <button class="btn primary" id="assignBtn">Assign selected →</button>
       </div>
       <div id="suggestBar" style="margin-top:10px"></div>
@@ -138,13 +138,13 @@
   </div>
 </div>
 
-<div class="lmodal" id="loginModal" hidden>
+<div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <form class="lsheet" id="loginForm">
-    <div class="mark" style="margin:0 auto 12px"></div>
-    <h3>Sign in</h3>
-    <label>Email</label><input type="email" id="li_email" required>
-    <label>Password</label><input type="password" id="li_pw" required>
-    <div class="lerr" id="li_err" hidden></div>
+    <div class="mark" style="margin:0 auto 12px" aria-hidden="true"></div>
+    <h3 id="loginTitle">Sign in</h3>
+    <label for="li_email">Email</label><input type="email" id="li_email" required>
+    <label for="li_pw">Password</label><input type="password" id="li_pw" required>
+    <div class="lerr" id="li_err" hidden role="alert" aria-live="assertive"></div>
     <button class="btn primary" id="li_submit" type="submit" style="width:100%;justify-content:center">Sign in</button>
   </form>
 </div>

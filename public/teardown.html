@@ -95,18 +95,18 @@
       <h2>✅ Teardown &amp; venue handover <span class="prog" id="tdProg"></span></h2>
       <p class="sub">Dismantle, clear, hand the venue back and verify.</p>
       <div id="tdRows"></div>
-      <div class="addline" id="tdAdd" hidden><input id="td_title" placeholder="e.g. Venue walkthrough with manager"><button class="btn primary" id="td_addb">＋ Add</button></div>
+      <div class="addline" id="tdAdd" hidden><input id="td_title" placeholder="e.g. Venue walkthrough with manager" aria-label="Teardown item"><button class="btn primary" id="td_addb">＋ Add</button></div>
     </div>
   </div>
   <footer>Helm Events — close the event cleanly: stock back, partners gone, venue handed over.</footer>
 </div>
 
-<div id="loginModal" class="lmodal" hidden>
+<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="sheet">
-    <h3>Sign in</h3>
-    <div class="fld"><label>Email</label><input id="li_email" type="email"></div>
-    <div class="fld"><label>Password</label><input id="li_pass" type="password"></div>
-    <div id="li_err" class="err" hidden></div>
+    <h3 id="loginTitle">Sign in</h3>
+    <div class="fld"><label for="li_email">Email</label><input id="li_email" type="email"></div>
+    <div class="fld"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>
@@ -179,7 +179,7 @@
     $("#tdRows").innerHTML = items.length ? items.map(c=>`<div class="rowline">
       <div><div class="nm">${esc(c.title)}</div></div>
       ${canEdit?`<select class="ssel" data-td="${c.id}">${["open","done","na"].map(s=>`<option value="${s}" ${s===c.status?"selected":""}>${CHK[s]}</option>`).join("")}</select>`:`<span class="st ${c.status}">${CHK[c.status]}</span>`}
-      ${canDelete?`<button class="rm" data-tddel="${c.id}">✕</button>`:""}
+      ${canDelete?`<button class="rm" data-tddel="${c.id}" aria-label="Remove teardown item">✕</button>`:""}
     </div>`).join("") : '<div class="empty">No teardown items yet.</div>';
     $("#tdRows").querySelectorAll("[data-td]").forEach(s=>s.addEventListener("change",async()=>{ await BPStore.checklist.update(s.dataset.td,{status:s.value}); renderTeardown(); }));
     $("#tdRows").querySelectorAll("[data-tddel]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.checklist.remove(b.dataset.tddel); renderTeardown(); }));

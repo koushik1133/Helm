@@ -79,8 +79,8 @@
   <div class="toolbar">
     <h2>In-house team</h2>
     <input id="search" class="search" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search name, role, skill…">
-    <select id="deptFilter" class="sel"><option value="">All departments</option></select>
-    <select id="skillFilter" class="sel"><option value="">All skills</option></select>
+    <select id="deptFilter" class="sel" aria-label="Filter by department"><option value="">All departments</option></select>
+    <select id="skillFilter" class="sel" aria-label="Filter by skill"><option value="">All skills</option></select>
     <label class="chkbox"><input type="checkbox" id="showInactive"> Show inactive</label>
     <span class="count" id="count"></span>
     <span class="spacer"></span>
@@ -92,20 +92,20 @@
 </div>
 
 <!-- add / edit staff -->
-<div id="staffModal" class="lmodal" hidden>
+<div id="staffModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="sm_title">
   <div class="sheet">
-    <h3><span id="sm_title">＋ Add staff</span><button class="close" id="sm_close">×</button></h3>
+    <h3><span id="sm_title">＋ Add staff</span><button class="close" id="sm_close" aria-label="Close">×</button></h3>
     <p class="sub">Someone on your in-house team. Skills help you match people to event needs.</p>
     <div class="fgrid">
-      <div class="fld"><label>Name *</label><input id="s_name" placeholder="e.g. Ravi Kumar"></div>
-      <div class="fld"><label>Role / title</label><input id="s_role" placeholder="e.g. Lead planner, AV technician"></div>
-      <div class="fld"><label>Department</label><input id="s_dept" placeholder="e.g. Production, Catering" list="deptList"></div>
-      <div class="fld"><label>Employment</label><select id="s_emp"><option value="">—</option><option value="full_time">Full-time</option><option value="part_time">Part-time</option><option value="on_call">On-call</option></select></div>
-      <div class="fld"><label>Phone *</label><input id="s_phone" type="tel" inputmode="tel" autocomplete="off" maxlength="16" placeholder="+91…"></div>
-      <div class="fld"><label>Email</label><input id="s_email" type="email" autocomplete="off" placeholder="name@email.com"></div>
-      <div class="fld"><label>Day rate (₹)</label><input id="s_rate" type="number" min="0" placeholder="optional"></div>
-      <div class="fld"><label>Skills (comma separated)</label><input id="s_skills" placeholder="e.g. lighting, sound, forklift"></div>
-      <div class="fld full"><label>Notes</label><input id="s_notes" placeholder="optional"></div>
+      <div class="fld"><label for="s_name">Name *</label><input id="s_name" placeholder="e.g. Ravi Kumar"></div>
+      <div class="fld"><label for="s_role">Role / title</label><input id="s_role" placeholder="e.g. Lead planner, AV technician"></div>
+      <div class="fld"><label for="s_dept">Department</label><input id="s_dept" placeholder="e.g. Production, Catering" list="deptList"></div>
+      <div class="fld"><label for="s_emp">Employment</label><select id="s_emp"><option value="">—</option><option value="full_time">Full-time</option><option value="part_time">Part-time</option><option value="on_call">On-call</option></select></div>
+      <div class="fld"><label for="s_phone">Phone *</label><input id="s_phone" type="tel" inputmode="tel" autocomplete="off" maxlength="16" placeholder="+91…"></div>
+      <div class="fld"><label for="s_email">Email</label><input id="s_email" type="email" autocomplete="off" placeholder="name@email.com"></div>
+      <div class="fld"><label for="s_rate">Day rate (₹)</label><input id="s_rate" type="number" min="0" placeholder="optional"></div>
+      <div class="fld"><label for="s_skills">Skills (comma separated)</label><input id="s_skills" placeholder="e.g. lighting, sound, forklift"></div>
+      <div class="fld full"><label for="s_notes">Notes</label><input id="s_notes" placeholder="optional"></div>
     </div>
     <datalist id="deptList"></datalist>
     <div id="sm_err" class="err" role="alert" aria-live="assertive" hidden></div>
@@ -116,12 +116,12 @@
   </div>
 </div>
 
-<div id="loginModal" class="lmodal" hidden>
+<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
   <div class="sheet lsheet">
-    <h3><span>Sign in</span><button class="close" id="li_close">×</button></h3>
-    <div class="fld" style="margin-bottom:10px"><label style="text-align:left">Email</label><input id="li_email" type="email"></div>
-    <div class="fld" style="margin-bottom:10px"><label style="text-align:left">Password</label><input id="li_pass" type="password"></div>
-    <div id="li_err" class="err" hidden></div>
+    <h3><span id="loginModalTitle">Sign in</span><button class="close" id="li_close" aria-label="Close">×</button></h3>
+    <div class="fld" style="margin-bottom:10px"><label for="li_email" style="text-align:left">Email</label><input id="li_email" type="email"></div>
+    <div class="fld" style="margin-bottom:10px"><label for="li_pass" style="text-align:left">Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" role="alert" aria-live="assertive" hidden></div>
     <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>

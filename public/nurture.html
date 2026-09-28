@@ -84,14 +84,14 @@
       <h2>Add to nurture list</h2>
       <p class="sub">Keep past & prospective clients warm — set the next follow-up date and the occasion.</p>
       <div class="addgrid" style="grid-template-columns:1.1fr .9fr .8fr 1fr .9fr auto">
-        <div class="fld"><label>Name</label><input id="n_name" list="clientList" placeholder="Pick a client or type a new one" autocomplete="off">
+        <div class="fld"><label for="n_name">Name</label><input id="n_name" list="clientList" placeholder="Pick a client or type a new one" autocomplete="off">
           <datalist id="clientList"></datalist></div>
-        <div class="fld"><label>Email</label><input id="n_email" placeholder="for greetings"></div>
-        <div class="fld"><label>Type</label><select id="n_type">
+        <div class="fld"><label for="n_email">Email</label><input id="n_email" placeholder="for greetings"></div>
+        <div class="fld"><label for="n_type">Type</label><select id="n_type">
           <option value="birthday">🎂 Birthday</option><option value="anniversary" selected>💐 Anniversary</option>
           <option value="festival">✨ Festival</option><option value="custom">📌 Custom</option></select></div>
-        <div class="fld"><label>Occasion label</label><input id="n_occ" placeholder="e.g. Wedding anniversary"></div>
-        <div class="fld"><label>Occasion date</label><input id="n_occd" type="date"></div>
+        <div class="fld"><label for="n_occ">Occasion label</label><input id="n_occ" placeholder="e.g. Wedding anniversary"></div>
+        <div class="fld"><label for="n_occd">Occasion date</label><input id="n_occd" type="date"></div>
         <div class="fld"><label>&nbsp;</label><button class="btn primary" id="n_add">＋ Add</button></div>
       </div>
       <label style="display:inline-flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--ink-2);cursor:pointer">
@@ -110,7 +110,7 @@
         <label class="desc">Days ahead <input id="autoDays" type="number" min="0" max="30" style="width:64px;height:34px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2);padding:0 8px;margin-left:6px"></label>
         <button class="btn" id="runNow">▶ Run today's greetings</button>
       </div>
-      <div id="autoMsg"></div>
+      <div id="autoMsg" role="status" aria-live="polite"></div>
       <table style="margin-top:12px">
         <thead><tr><th>Client</th><th>Occasion</th><th>Next date</th><th>Auto</th><th></th></tr></thead>
         <tbody id="occBody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
@@ -133,21 +133,21 @@
       <div class="pill-tabs" id="tplTabs"></div>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);margin-bottom:10px;cursor:pointer">
         <input type="checkbox" id="tplEnabled"> Use this template for automatic greetings</label>
-      <input class="tpl-sub" id="tplSubject" placeholder="Subject line">
-      <textarea class="tpl-body" id="tplBody" placeholder="Message body"></textarea>
-      <div id="tplMsg"></div>
+      <input class="tpl-sub" id="tplSubject" placeholder="Subject line" aria-label="Template subject line">
+      <textarea class="tpl-body" id="tplBody" placeholder="Message body" aria-label="Template message body"></textarea>
+      <div id="tplMsg" role="status" aria-live="polite"></div>
       <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn primary" id="tplSave">Save template</button></div>
     </div>
   </div>
   <footer>Helm Events — repeat business starts with a timely follow-up.</footer>
 </div>
 
-<div id="loginModal" class="lmodal" hidden>
+<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
   <div class="sheet">
-    <h3>Sign in</h3>
-    <div class="fld2"><label>Email</label><input id="li_email" type="email"></div>
-    <div class="fld2"><label>Password</label><input id="li_pass" type="password"></div>
-    <div id="li_err" class="err" hidden></div>
+    <h3 id="loginModalTitle">Sign in</h3>
+    <div class="fld2"><label for="li_email">Email</label><input id="li_email" type="email"></div>
+    <div class="fld2"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" role="alert" aria-live="assertive" hidden></div>
     <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>

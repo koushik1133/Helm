@@ -73,12 +73,12 @@
       <h2>🏛 Venue &amp; access</h2>
       <p class="sub">Where the event happens, and how the staff gets in. <a id="floorLink" href="#" style="color:var(--accent)">Open floor layout →</a></p>
       <div class="grid">
-        <div class="fld"><label>Venue name</label><input id="v_name" placeholder="e.g. Grand Ballroom, Taj"></div>
-        <div class="fld"><label>Venue contact</label><input id="v_contact" placeholder="name / phone"></div>
-        <div class="fld full"><label>Address</label><input id="v_addr" placeholder="Full address"></div>
-        <div class="fld full"><label>Access / load-in notes</label><textarea id="v_access" placeholder="Gate, lift, load-in window, parking, restrictions…"></textarea></div>
+        <div class="fld"><label for="v_name">Venue name</label><input id="v_name" placeholder="e.g. Grand Ballroom, Taj"></div>
+        <div class="fld"><label for="v_contact">Venue contact</label><input id="v_contact" placeholder="name / phone"></div>
+        <div class="fld full"><label for="v_addr">Address</label><input id="v_addr" placeholder="Full address"></div>
+        <div class="fld full"><label for="v_access">Access / load-in notes</label><textarea id="v_access" placeholder="Gate, lift, load-in window, parking, restrictions…"></textarea></div>
       </div>
-      <div class="foot"><span id="v_msg"></span><button class="btn primary" id="v_save" hidden>Save venue</button></div>
+      <div class="foot"><span id="v_msg" role="status" aria-live="polite"></span><button class="btn primary" id="v_save" hidden>Save venue</button></div>
     </div>
 
     <div class="card">
@@ -90,11 +90,11 @@
         <div id="pkgCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:8px"></div>
       </div>
 
-      <div class="fld"><label>Package</label><input id="p_pkg" placeholder="e.g. Gold package — 400 pax"></div>
-      <div class="fld"><label>Menu / service details (notes)</label><textarea id="p_menu" placeholder="Courses, dietary options, service style, timings…" style="min-height:90px"></textarea></div>
+      <div class="fld"><label for="p_pkg">Package</label><input id="p_pkg" placeholder="e.g. Gold package — 400 pax"></div>
+      <div class="fld"><label for="p_menu">Menu / service details (notes)</label><textarea id="p_menu" placeholder="Courses, dietary options, service style, timings…" style="min-height:90px"></textarea></div>
 
       <div id="dishBlock" style="margin-top:6px;border-top:1px solid var(--line);padding-top:14px">
-        <label style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)">Dishes — search &amp; add</label>
+        <label for="dishSearch" style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)">Dishes — search &amp; add</label>
         <div id="dishAdd" style="position:relative;margin:6px 0 4px">
           <input id="dishSearch" placeholder="Search dishes — e.g. paneer, biryani, dosa, chicken…" autocomplete="off" style="width:100%">
           <div id="dishResults" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:20;max-height:260px;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)"></div>
@@ -102,7 +102,7 @@
         <div id="selDishes" style="margin-top:8px"></div>
       </div>
 
-      <div class="foot"><span id="p_msg"></span>
+      <div class="foot"><span id="p_msg" role="status" aria-live="polite"></span>
         <button class="btn" id="lockBtn" hidden>🔒 Lock menu</button>
         <button class="btn primary" id="p_save" hidden>Save menu</button>
       </div>
@@ -119,7 +119,7 @@
   <footer>Helm Events — venue, menu and approvals for the event, in one place.</footer>
 </div>
 
-<div id="lockModal" class="lmodal" hidden>
+<div id="lockModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="lockTitle">
   <div class="sheet">
     <h3 id="lockTitle">Lock the menu &amp; package?</h3>
     <p class="muted" id="lockMsg">Once locked, the fields become read-only. You can unlock later, but the intent is that changes go through a change order.</p>
@@ -127,12 +127,12 @@
   </div>
 </div>
 
-<div id="loginModal" class="lmodal" hidden>
+<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="sheet">
-    <h3>Sign in</h3>
-    <div class="fld"><label>Email</label><input id="li_email" type="email"></div>
-    <div class="fld"><label>Password</label><input id="li_pass" type="password"></div>
-    <div id="li_err" class="err" hidden></div>
+    <h3 id="loginTitle">Sign in</h3>
+    <div class="fld"><label for="li_email">Email</label><input id="li_email" type="email"></div>
+    <div class="fld"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot2"><button class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>

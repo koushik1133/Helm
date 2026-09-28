@@ -68,8 +68,8 @@
     <h2>CRM</h2>
     <span class="sub">Your clients &amp; leads — latest status. Click a row to open its workspace (2D/3D).</span>
     <span class="spacer"></span>
-    <select id="fSource" class="search" style="min-width:150px"><option value="">All sources</option></select>
-    <select id="fStage" class="search" style="min-width:150px"><option value="">All stages</option></select>
+    <select id="fSource" class="search" style="min-width:150px" aria-label="Filter by source"><option value="">All sources</option></select>
+    <select id="fStage" class="search" style="min-width:150px" aria-label="Filter by stage"><option value="">All stages</option></select>
     <input id="search" class="search" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search name, phone, type…">
     <label class="sub" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
       <input type="checkbox" id="fAll"> Full history</label>
@@ -145,7 +145,7 @@
     }));
   }
 
-  $("#search").addEventListener("input",(e)=>{ filter=e.target.value; render(); });
+  let _searchT; $("#search").addEventListener("input",(e)=>{ filter=e.target.value; clearTimeout(_searchT); _searchT=setTimeout(render,150); });  // debounce: don't rebuild the list on every keystroke
   $("#fSource").addEventListener("change",(e)=>{ fSource=e.target.value; render(); });
   $("#fStage").addEventListener("change",(e)=>{ fStage=e.target.value; render(); });
   $("#fAll").addEventListener("change",(e)=>{ fAll=e.target.checked; render(); });

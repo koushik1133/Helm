@@ -92,25 +92,25 @@
     <div class="card">
       <h2>Concept &amp; design direction</h2>
       <p class="sub">A short, client-facing story for this event. This is what they'll see on the shared page.</p>
-      <div class="fld"><label>Concept / summary</label><textarea id="p_concept" placeholder="The big idea, mood and experience…"></textarea></div>
-      <div class="fld"><label>Theme</label><input id="p_theme" placeholder="e.g. Pastel garden romance"></div>
+      <div class="fld"><label for="p_concept">Concept / summary</label><textarea id="p_concept" placeholder="The big idea, mood and experience…"></textarea></div>
+      <div class="fld"><label for="p_theme">Theme</label><input id="p_theme" placeholder="e.g. Pastel garden romance"></div>
 
-      <div class="fld"><label>Colour palette</label>
+      <div class="fld"><label for="p_color">Colour palette</label>
         <div class="row"><input type="color" id="p_color" value="#7c5cff" style="width:48px;height:38px;padding:2px"><button class="btn sm" id="p_addColor">＋ Add colour</button></div>
         <div class="swatches" id="swatches"></div>
       </div>
 
-      <div class="fld"><label>Reference images (paste image URLs)</label>
+      <div class="fld"><label for="p_img">Reference images (paste image URLs)</label>
         <div class="row"><input id="p_img" placeholder="https://…/inspiration.jpg" style="flex:1;min-width:200px"><button class="btn sm" id="p_addImg">＋ Add image</button></div>
         <div class="gallery" id="gallery"></div>
       </div>
 
-      <div class="fld"><label>Scope — what's included</label>
+      <div class="fld"><label for="p_scope">Scope — what's included</label>
         <div class="row"><input id="p_scope" placeholder="e.g. Stage & backdrop décor" style="flex:1;min-width:200px"><button class="btn sm" id="p_addScope">＋ Add item</button></div>
         <div id="scopeList" style="margin-top:8px"></div>
       </div>
 
-      <div class="foot"><span id="p_msg"></span><button class="btn primary" id="p_save" hidden>Save proposal</button></div>
+      <div class="foot"><span id="p_msg" role="status" aria-live="polite"></span><button class="btn primary" id="p_save" hidden>Save proposal</button></div>
     </div>
 
     <div class="card">
@@ -118,7 +118,7 @@
       <p class="sub">Publish to create a private link the client can open — no login needed. Unpublish to take it offline.</p>
       <div class="pub">
         <span class="badge draft" id="pubBadge">Draft</span>
-        <input class="link" id="shareLink" readonly placeholder="Publish to generate a link">
+        <input class="link" id="shareLink" readonly placeholder="Publish to generate a link" aria-label="Client share link">
         <button class="btn sm" id="copyLink" hidden>Copy</button>
         <a class="btn sm" id="openView" target="_blank" hidden>Open client view ↗</a>
         <span class="spacer"></span>
@@ -131,9 +131,9 @@
       <h2>Feasibility &amp; risk checklist</h2>
       <p class="sub">Internal only — never shown to the client. Track what could go wrong and how you'll handle it.</p>
       <div id="addRisk" class="reqrow" hidden>
-        <div class="fld" style="margin:0"><label>Risk</label><input id="rk_title" placeholder="e.g. Outdoor venue — rain"></div>
-        <div class="fld" style="margin:0"><label>Severity</label><select id="rk_sev"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
-        <div class="fld" style="margin:0"><label>Mitigation</label><input id="rk_mit" placeholder="e.g. Tent on standby"></div>
+        <div class="fld" style="margin:0"><label for="rk_title">Risk</label><input id="rk_title" placeholder="e.g. Outdoor venue — rain"></div>
+        <div class="fld" style="margin:0"><label for="rk_sev">Severity</label><select id="rk_sev"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
+        <div class="fld" style="margin:0"><label for="rk_mit">Mitigation</label><input id="rk_mit" placeholder="e.g. Tent on standby"></div>
         <div class="fld" style="margin:0"><label>&nbsp;</label><button class="btn primary sm" id="rk_add">＋ Add</button></div>
       </div>
       <table>
@@ -144,12 +144,12 @@
   </div>
 </div>
 
-<div class="lmodal" id="loginModal" hidden>
+<div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
   <form class="lsheet" id="loginForm">
-    <div class="mark" style="margin:0 auto 10px"></div><h3>Sign in</h3>
-    <label>Email</label><input type="email" id="li_email" required>
-    <label>Password</label><input type="password" id="li_pw" required>
-    <div class="lerr" id="li_err" hidden></div>
+    <div class="mark" style="margin:0 auto 10px" aria-hidden="true"></div><h3 id="loginModalTitle">Sign in</h3>
+    <label for="li_email">Email</label><input type="email" id="li_email" required>
+    <label for="li_pw">Password</label><input type="password" id="li_pw" required>
+    <div class="lerr" id="li_err" role="alert" aria-live="assertive" hidden></div>
     <button class="btn primary" id="li_submit" type="submit" style="width:100%;justify-content:center">Sign in</button>
   </form>
 </div>

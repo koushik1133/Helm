@@ -92,10 +92,10 @@
         <tbody id="costRows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
       </table>
       <div class="addgrid" id="addCost" hidden>
-        <div class="fld"><label>Description</label><input id="c_desc" placeholder="e.g. Décor materials"></div>
-        <div class="fld"><label>Type</label><select id="c_kind"><option value="internal">Internal</option><option value="vendor">Vendor</option><option value="other">Other</option></select></div>
-        <div class="fld"><label>Estimated ₹</label><input id="c_est" type="number" min="0" value="0"></div>
-        <div class="fld"><label>Actual ₹</label><input id="c_act" type="number" min="0" placeholder="—"></div>
+        <div class="fld"><label for="c_desc">Description</label><input id="c_desc" placeholder="e.g. Décor materials"></div>
+        <div class="fld"><label for="c_kind">Type</label><select id="c_kind"><option value="internal">Internal</option><option value="vendor">Vendor</option><option value="other">Other</option></select></div>
+        <div class="fld"><label for="c_est">Estimated ₹</label><input id="c_est" type="number" min="0" value="0"></div>
+        <div class="fld"><label for="c_act">Actual ₹</label><input id="c_act" type="number" min="0" placeholder="—"></div>
         <div class="fld"><label>&nbsp;</label><button class="btn primary" id="c_add">＋ Add</button></div>
       </div>
     </div>
@@ -112,26 +112,26 @@
   <footer>Helm Events — know your margin before, during and after the event.</footer>
 </div>
 
-<div id="chgModal" class="lmodal" hidden>
+<div id="chgModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="chgTitle">
   <div class="sheet">
-    <h3>New change request</h3>
-    <div class="fld" style="margin-bottom:8px"><label>Title</label><input id="ch_title" placeholder="e.g. Add photo booth"></div>
-    <div class="fld" style="margin-bottom:8px"><label>Detail</label><input id="ch_detail" placeholder="optional"></div>
+    <h3 id="chgTitle">New change request</h3>
+    <div class="fld" style="margin-bottom:8px"><label for="ch_title">Title</label><input id="ch_title" placeholder="e.g. Add photo booth"></div>
+    <div class="fld" style="margin-bottom:8px"><label for="ch_detail">Detail</label><input id="ch_detail" placeholder="optional"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="fld"><label>Charge client ₹</label><input id="ch_price" type="number" value="0"></div>
-      <div class="fld"><label>Extra cost ₹</label><input id="ch_cost" type="number" value="0"></div>
+      <div class="fld"><label for="ch_price">Charge client ₹</label><input id="ch_price" type="number" value="0"></div>
+      <div class="fld"><label for="ch_cost">Extra cost ₹</label><input id="ch_cost" type="number" value="0"></div>
     </div>
-    <div id="ch_err" class="err" hidden style="margin-top:8px"></div>
+    <div id="ch_err" class="err" hidden style="margin-top:8px" role="alert" aria-live="assertive"></div>
     <div class="foot"><button class="btn" id="ch_cancel">Cancel</button><button class="btn primary" id="ch_save">Add</button></div>
   </div>
 </div>
 
-<div id="loginModal" class="lmodal" hidden>
+<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="sheet" style="width:min(380px,96vw)">
-    <h3>Sign in</h3>
-    <div class="fld" style="margin-bottom:10px"><label>Email</label><input id="li_email" type="email"></div>
-    <div class="fld" style="margin-bottom:10px"><label>Password</label><input id="li_pass" type="password"></div>
-    <div id="li_err" class="err" hidden></div>
+    <h3 id="loginTitle">Sign in</h3>
+    <div class="fld" style="margin-bottom:10px"><label for="li_email">Email</label><input id="li_email" type="email"></div>
+    <div class="fld" style="margin-bottom:10px"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>
@@ -166,7 +166,7 @@
       <td><span class="kind ${esc(c.kind)}">${esc(KIND[c.kind]||c.kind)}</span></td>
       <td class="num">${inr(c.estimated)}</td>
       <td class="num">${canEdit?`<input class="cin" type="number" min="0" value="${c.actual!=null?c.actual:""}" placeholder="—" data-act="${c.id}">`:(c.actual!=null?inr(c.actual):"—")}</td>
-      <td>${canDelete?`<button class="rm" data-del="${c.id}">✕</button>`:""}</td>
+      <td>${canDelete?`<button class="rm" data-del="${c.id}" aria-label="Remove cost line">✕</button>`:""}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="empty">No cost lines yet.</td></tr>';
     $("#costRows").querySelectorAll("[data-act]").forEach(inp=>inp.addEventListener("change",async()=>{
       await BPStore.budget.updateCost(inp.dataset.act,{actual: inp.value===""?null:Number(inp.value)}); await load(); }));
@@ -177,7 +177,7 @@
       <td class="num">${inr(c.price_delta)}</td>
       <td class="num">${inr(c.cost_delta)}</td>
       <td><span class="st ${esc(c.status)}">${esc(ST[c.status]||c.status)}</span></td>
-      <td>${canEdit && c.status==="requested"?`<button class="rm go" data-appr="${c.id}">Approve</button> <button class="rm no" data-rej="${c.id}">Reject</button>`:(canDelete?`<button class="rm" data-chdel="${c.id}">✕</button>`:"")}</td>
+      <td>${canEdit && c.status==="requested"?`<button class="rm go" data-appr="${c.id}">Approve</button> <button class="rm no" data-rej="${c.id}">Reject</button>`:(canDelete?`<button class="rm" data-chdel="${c.id}" aria-label="Remove change request">✕</button>`:"")}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="empty">No change requests.</td></tr>';
     $("#chgRows").querySelectorAll("[data-appr]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.budget.setChangeStatus(b.dataset.appr,"approved"); await load(); }));
     $("#chgRows").querySelectorAll("[data-rej]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.budget.setChangeStatus(b.dataset.rej,"rejected"); await load(); }));

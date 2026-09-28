@@ -457,8 +457,8 @@
   <div class="hsep"></div>
 
   <div class="hgroup">
-    <button class="tbtn icon" id="undoBtn" title="Undo (⌘Z)" disabled>↶</button>
-    <button class="tbtn icon" id="redoBtn" title="Redo (⌘⇧Z)" disabled>↷</button>
+    <button class="tbtn icon" id="undoBtn" title="Undo (⌘Z)" aria-label="Undo" disabled>↶</button>
+    <button class="tbtn icon" id="redoBtn" title="Redo (⌘⇧Z)" aria-label="Redo" disabled>↷</button>
     <button class="tbtn danger" id="clearBtn" title="Remove every object">Clear</button>
   </div>
 
@@ -491,7 +491,7 @@
   <div class="hgroup" style="gap:8px">
     <span class="conn" id="conn" title="Backend connection"><i class="dotc"></i><span id="connLbl">…</span></span>
     <span id="acct" class="acct" hidden></span>
-    <button class="tbtn icon" id="themeBtn" title="Toggle light / dark">◑</button>
+    <button class="tbtn icon" id="themeBtn" title="Toggle light / dark" aria-label="Toggle light or dark theme">◑</button>
     <span class="kbd" id="dimsLabel">200 × 140 ft · 12 px/ft</span>
   </div>
 </header>
@@ -502,7 +502,7 @@
   <div class="sheet">
     <div class="sheet-head">
       <b>Saved layouts</b>
-      <button class="tbtn icon" id="loadClose" title="Close">✕</button>
+      <button class="tbtn icon" id="loadClose" title="Close" aria-label="Close">✕</button>
     </div>
     <div class="sheet-body" id="loadList"><div class="empty" style="padding:26px">Loading…</div></div>
   </div>
@@ -511,16 +511,16 @@
 <!-- CUSTOM EVENT builder -->
 <div class="modal" id="tplModal" hidden>
   <div class="sheet" style="width:min(560px,94vw)">
-    <div class="sheet-head"><b>Choose a template</b><button class="tbtn icon" id="tplClose" title="Close">✕</button></div>
+    <div class="sheet-head"><b>Choose a template</b><button class="tbtn icon" id="tplClose" title="Close" aria-label="Close">✕</button></div>
     <div class="sheet-body" id="tplBody" style="padding:14px"></div>
   </div>
 </div>
 
-<div class="modal" id="customModal" hidden>
+<div class="modal" id="customModal" hidden role="dialog" aria-modal="true" aria-labelledby="customTitle">
   <div class="sheet" style="width:min(720px,95vw)">
     <div class="sheet-head">
-      <b>✨ Custom event builder</b>
-      <button class="tbtn icon" id="customClose" title="Close">✕</button>
+      <b id="customTitle">✨ Custom event builder</b>
+      <button class="tbtn icon" id="customClose" title="Close" aria-label="Close">✕</button>
     </div>
     <div class="sheet-body">
       <p class="cnote">Start with the hall itself, then your counts — everything is optional. We size the floor to your hall and generate tailored layouts you can drop straight on, keeping all your counts.</p>
@@ -575,11 +575,11 @@
 </div>
 
 <!-- ARRANGEMENT picker (chairs / tables → rows × cols with previews) -->
-<div class="modal" id="arrangeModal" hidden>
+<div class="modal" id="arrangeModal" hidden role="dialog" aria-modal="true" aria-labelledby="arrTitle">
   <div class="sheet" style="width:min(680px,95vw)">
     <div class="sheet-head">
       <b id="arrTitle">Add seating</b>
-      <button class="tbtn icon" id="arrClose" title="Close">✕</button>
+      <button class="tbtn icon" id="arrClose" title="Close" aria-label="Close">✕</button>
     </div>
     <div class="sheet-body">
       <div class="arrtop">
@@ -637,10 +637,10 @@
     </div>
     <div class="statusbar" id="status">—</div>
     <div class="zoombar">
-      <button id="zoomOut" title="Zoom out">−</button>
+      <button id="zoomOut" title="Zoom out" aria-label="Zoom out">−</button>
       <span class="z" id="zoomLbl">100%</span>
-      <button id="zoomIn" title="Zoom in">+</button>
-      <button id="zoomFit" title="Fit floor to view" style="font-size:11px;width:auto;padding:0 8px;font-family:var(--mono)">FIT</button>
+      <button id="zoomIn" title="Zoom in" aria-label="Zoom in">+</button>
+      <button id="zoomFit" title="Fit floor to view" aria-label="Fit floor to view" style="font-size:11px;width:auto;padding:0 8px;font-family:var(--mono)">FIT</button>
     </div>
     <div class="toast" id="toast"></div>
   </section>
@@ -1526,9 +1526,9 @@ function renderMultiInspector(box){
     <div class="isec">
       <label style="display:block;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:600;margin-bottom:6px">Align &amp; distribute</label>
       <div class="aligngrid">
-        <button data-a="left" title="Align left">⇤</button><button data-a="hcenter" title="Center horizontally">⇔</button><button data-a="right" title="Align right">⇥</button>
-        <button data-a="top" title="Align top">⤒</button><button data-a="vcenter" title="Center vertically">⇕</button><button data-a="bottom" title="Align bottom">⤓</button>
-        <button data-a="hdist" title="Distribute across">⋯</button><button data-a="vdist" title="Distribute down">⋮</button>
+        <button data-a="left" title="Align left" aria-label="Align left">⇤</button><button data-a="hcenter" title="Center horizontally" aria-label="Center horizontally">⇔</button><button data-a="right" title="Align right" aria-label="Align right">⇥</button>
+        <button data-a="top" title="Align top" aria-label="Align top">⤒</button><button data-a="vcenter" title="Center vertically" aria-label="Center vertically">⇕</button><button data-a="bottom" title="Align bottom" aria-label="Align bottom">⤓</button>
+        <button data-a="hdist" title="Distribute across" aria-label="Distribute across">⋯</button><button data-a="vdist" title="Distribute down" aria-label="Distribute down">⋮</button>
       </div>
     </div>
     <div class="ibtns">
@@ -1624,7 +1624,7 @@ function renderInspector(){
         <label>3D model (.glb / .gltf URL)</label>
         <div class="modelin">
           <input type="text" id="f_model" placeholder="paste a GLB from Sloyd / Meshy / Tripo…" value="${escapeHtml(it.properties&&it.properties.model?it.properties.model:'')}">
-          <button id="b_model_clear" title="Remove custom model">✕</button>
+          <button id="b_model_clear" title="Remove custom model" aria-label="Remove custom model">✕</button>
         </div>
         <small>Renders in 3D View. Any glTF/GLB works — export from Sloyd, Meshy, Tripo3D, or a HF space.</small>
       </div>
@@ -1696,7 +1696,7 @@ function wireInspector(it){
   num('f_h', n=> { it.height=clamp(fromU(n),0.5,WORLD.h); it.y=clamp(it.y,0,WORLD.h-it.height); });
 
   const rot=$('#f_rot');
-  rot.addEventListener('input',e=>{ it.rotation=+e.target.value; $('#rotVal').textContent=it.rotation+'°'; renderSceneOnly(); });
+  rot.addEventListener('input',e=>{ const rv=+e.target.value; if(!isFinite(rv))return; it.rotation=rv; $('#rotVal').textContent=it.rotation+'°'; renderSceneOnly(); });
   rot.addEventListener('change',()=>{ commit(); renderAll(); });
 
   // Seat-grid fields validate and apply on blur/Enter (never destructively resize mid-typing,

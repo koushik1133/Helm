@@ -81,14 +81,14 @@
 
     <div class="card" id="addCard" hidden>
       <div class="addrow">
-        <div class="fld"><label>Start time</label><input type="time" id="r_time"></div>
-        <div class="fld"><label>Mins</label><input type="number" min="0" id="r_dur" placeholder="e.g. 30"></div>
-        <div class="fld"><label>Activity *</label><input id="r_title" placeholder="e.g. Guests arrive / Cake cutting"></div>
-        <div class="fld"><label>Owner</label><select id="r_owner"><option value="">Select person…</option></select></div>
-        <div class="fld"><label>Location</label><input id="r_loc" placeholder="e.g. Main hall"></div>
+        <div class="fld"><label for="r_time">Start time</label><input type="time" id="r_time"></div>
+        <div class="fld"><label for="r_dur">Mins</label><input type="number" min="0" id="r_dur" placeholder="e.g. 30"></div>
+        <div class="fld"><label for="r_title">Activity *</label><input id="r_title" placeholder="e.g. Guests arrive / Cake cutting"></div>
+        <div class="fld"><label for="r_owner">Owner</label><select id="r_owner"><option value="">Select person…</option></select></div>
+        <div class="fld"><label for="r_loc">Location</label><input id="r_loc" placeholder="e.g. Main hall"></div>
         <div class="fld"><label>&nbsp;</label><button class="btn primary" id="r_add">＋ Add</button></div>
       </div>
-      <div id="addErr" class="err" hidden style="margin-top:8px"></div>
+      <div id="addErr" class="err" hidden style="margin-top:8px" role="alert" aria-live="assertive"></div>
     </div>
 
     <div class="card rs">
@@ -99,25 +99,25 @@
 </div>
 
 <!-- edit modal -->
-<div id="editModal" class="lmodal" hidden>
+<div id="editModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="editTitle">
   <div class="sheet">
-    <h3>Edit item</h3>
-    <div class="fld" style="margin-bottom:8px"><label>Start time</label><input type="time" id="e_time"></div>
-    <div class="fld" style="margin-bottom:8px"><label>Duration (mins)</label><input type="number" min="0" id="e_dur"></div>
-    <div class="fld" style="margin-bottom:8px"><label>Activity</label><input id="e_title"></div>
-    <div class="fld" style="margin-bottom:8px"><label>Owner</label><select id="e_owner"><option value="">Select person…</option></select></div>
-    <div class="fld" style="margin-bottom:8px"><label>Location</label><input id="e_loc"></div>
-    <div class="fld" style="margin-bottom:8px"><label>Note</label><input id="e_note"></div>
+    <h3 id="editTitle">Edit item</h3>
+    <div class="fld" style="margin-bottom:8px"><label for="e_time">Start time</label><input type="time" id="e_time"></div>
+    <div class="fld" style="margin-bottom:8px"><label for="e_dur">Duration (mins)</label><input type="number" min="0" id="e_dur"></div>
+    <div class="fld" style="margin-bottom:8px"><label for="e_title">Activity</label><input id="e_title"></div>
+    <div class="fld" style="margin-bottom:8px"><label for="e_owner">Owner</label><select id="e_owner"><option value="">Select person…</option></select></div>
+    <div class="fld" style="margin-bottom:8px"><label for="e_loc">Location</label><input id="e_loc"></div>
+    <div class="fld" style="margin-bottom:8px"><label for="e_note">Note</label><input id="e_note"></div>
     <div class="foot"><button class="btn" id="e_cancel">Cancel</button><button class="btn primary" id="e_save">Save</button></div>
   </div>
 </div>
 
-<div id="loginModal" class="lmodal" hidden>
+<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="sheet">
-    <h3>Sign in</h3>
-    <div class="fld" style="margin-bottom:10px"><label>Email</label><input id="li_email" type="email"></div>
-    <div class="fld" style="margin-bottom:10px"><label>Password</label><input id="li_pass" type="password"></div>
-    <div id="li_err" class="err" hidden></div>
+    <h3 id="loginTitle">Sign in</h3>
+    <div class="fld" style="margin-bottom:10px"><label for="li_email">Email</label><input id="li_email" type="email"></div>
+    <div class="fld" style="margin-bottom:10px"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>
@@ -161,7 +161,7 @@
         <div class="time">${esc(start)}${end?`<span class="dur">to ${esc(end)}${i.duration_min?` · ${esc(i.duration_min)} min`:""}</span>`:(i.duration_min?`<span class="dur">${esc(i.duration_min)} min</span>`:"")}</div>
         <div class="what"><b>${esc(i.title)}</b>
           <div class="sub">${i.owner?`<span class="tag">👤 ${esc(i.owner)}</span>`:""}${i.location?`<span class="tag">📍 ${esc(i.location)}</span>`:""}${i.note?esc(i.note):""}</div></div>
-        <div class="rowacts">${canEdit?`<button class="ic" data-edit="${i.id}">Edit</button>`:""}${canDelete?`<button class="ic del" data-del="${i.id}">✕</button>`:""}</div>
+        <div class="rowacts">${canEdit?`<button class="ic" data-edit="${i.id}">Edit</button>`:""}${canDelete?`<button class="ic del" data-del="${i.id}" aria-label="Remove item">✕</button>`:""}</div>
       </div>`;
     }).join("");
     $("#rows").querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>openEdit(items.find(x=>x.id===b.dataset.edit))));

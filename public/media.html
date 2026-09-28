@@ -74,9 +74,9 @@
       <h2>Add media</h2>
       <p class="sub">Paste a link to a photo or video (Drive, Dropbox, YouTube…). Tick "in gallery" to include it in the client's set.</p>
       <div class="addgrid">
-        <div class="fld"><label>Type</label><select id="m_kind"><option value="photo">Photo</option><option value="video">Video</option></select></div>
-        <div class="fld"><label>Link (URL)</label><input id="m_url" placeholder="https://…"></div>
-        <div class="fld"><label>Caption</label><input id="m_cap" placeholder="optional"></div>
+        <div class="fld"><label for="m_kind">Type</label><select id="m_kind"><option value="photo">Photo</option><option value="video">Video</option></select></div>
+        <div class="fld"><label for="m_url">Link (URL)</label><input id="m_url" placeholder="https://…"></div>
+        <div class="fld"><label for="m_cap">Caption</label><input id="m_cap" placeholder="optional"></div>
         <div class="fld"><label>&nbsp;</label><button class="btn primary" id="m_add">＋ Add</button></div>
       </div>
     </div>
@@ -92,12 +92,12 @@
   <footer>Helm Events — collect the photos & videos and choose the client's gallery.</footer>
 </div>
 
-<div id="loginModal" class="lmodal" hidden>
+<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="sheet">
-    <h3>Sign in</h3>
-    <div class="fld2"><label>Email</label><input id="li_email" type="email"></div>
-    <div class="fld2"><label>Password</label><input id="li_pass" type="password"></div>
-    <div id="li_err" class="err" hidden></div>
+    <h3 id="loginTitle">Sign in</h3>
+    <div class="fld2"><label for="li_email">Email</label><input id="li_email" type="email"></div>
+    <div class="fld2"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>
@@ -124,13 +124,13 @@
     const ph=list.filter(m=>m.kind==="photo").length, vd=list.filter(m=>m.kind==="video").length, gal=list.filter(m=>m.in_gallery).length;
     $("#mCount").textContent = `${ph} photo${ph===1?"":"s"} · ${vd} video${vd===1?"":"s"} · ${gal} in gallery`;
     $("#mediaGrid").innerHTML = shown.length ? shown.map(m=>`<div class="m">
-      <a class="thumb" href="${esc(m.url)}" target="_blank" rel="noopener">${m.kind==="photo"?`<img src="${esc(m.url)}" loading="lazy" alt="">`:`<span class="vid">▶</span>`}</a>
+      <a class="thumb" href="${esc(m.url)}" target="_blank" rel="noopener">${m.kind==="photo"?`<img src="${esc(m.url)}" loading="lazy" alt="">`:`<span class="vid" aria-hidden="true">▶</span>`}</a>
       <div class="body">
         <div class="cap">${esc(m.caption||"(no caption)")}</div>
         <div class="row">${m.in_gallery?'<span class="badge">Gallery</span>':'<span style="color:var(--ink-3)">Not in gallery</span>'}
           ${(canEdit&&!galleryOnly)?`<span class="spacer"></span>
             <label class="toggle"><input type="checkbox" data-gal="${m.id}" ${m.in_gallery?"checked":""}> gallery</label>
-            <button class="rm" data-del="${m.id}">✕</button>`:""}</div>
+            <button class="rm" data-del="${m.id}" aria-label="Remove media">✕</button>`:""}</div>
       </div>
     </div>`).join("") : `<div class="empty">${galleryOnly?"Nothing flagged for the client gallery yet.":"No media yet. Paste a photo or video link above."}</div>`;
     $("#mediaGrid").querySelectorAll("[data-gal]").forEach(c=>c.addEventListener("change",async()=>{ try{ await BPStore.media.update(c.dataset.gal,{in_gallery:c.checked}); await render(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));

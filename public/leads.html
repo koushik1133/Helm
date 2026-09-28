@@ -125,9 +125,9 @@
 </div>
 
 <!-- detail view -->
-<div id="detailModal" class="lmodal" hidden>
+<div id="detailModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="dt_name">
   <div class="sheet" style="width:min(520px,96vw)">
-    <h3><span id="dt_name">Lead</span><button class="close" id="dt_close">×</button></h3>
+    <h3><span id="dt_name">Lead</span><button class="close" id="dt_close" aria-label="Close">×</button></h3>
     <p class="sub" id="dt_sub"></p>
     <dl class="dl" id="dt_body"></dl>
     <div class="foot">
@@ -139,24 +139,24 @@
 </div>
 
 <!-- new / edit lead modal -->
-<div id="leadModal" class="lmodal" hidden>
+<div id="leadModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="lm_title">
   <div class="sheet">
-    <h3><span id="lm_title">＋ New lead</span><button class="close" id="lm_close">×</button></h3>
+    <h3><span id="lm_title">＋ New lead</span><button class="close" id="lm_close" aria-label="Close">×</button></h3>
     <p class="sub">Capture the enquiry. You can convert it to a quote once it's qualified.</p>
     <div class="grid">
-      <div class="fld"><label>Contact name *</label><input id="f_name" placeholder="e.g. Priya Sharma"></div>
-      <div class="fld"><label>Phone</label><input id="f_phone" type="tel" inputmode="tel" autocomplete="off" maxlength="16" placeholder="+91…"></div>
-      <div class="fld"><label>Email</label><input id="f_email" type="email" autocomplete="off" placeholder="name@email.com"></div>
-      <div class="fld"><label>Source</label>
+      <div class="fld"><label for="f_name">Contact name *</label><input id="f_name" placeholder="e.g. Priya Sharma"></div>
+      <div class="fld"><label for="f_phone">Phone</label><input id="f_phone" type="tel" inputmode="tel" autocomplete="off" maxlength="16" placeholder="+91…"></div>
+      <div class="fld"><label for="f_email">Email</label><input id="f_email" type="email" autocomplete="off" placeholder="name@email.com"></div>
+      <div class="fld"><label for="f_source">Source</label>
         <select id="f_source">
           <option value="">—</option><option>referral</option><option>website</option>
           <option>walk-in</option><option>social</option><option>ad</option><option>other</option>
         </select></div>
-      <div class="fld"><label>Event type</label><input id="f_type" placeholder="e.g. Wedding, Corporate"></div>
-      <div class="fld"><label>Event date</label><input id="f_date" type="date"></div>
-      <div class="fld"><label>Budget (₹)</label><input id="f_budget" type="number" min="0" placeholder="e.g. 500000"></div>
-      <div class="fld"><label>Guest count</label><input id="f_guests" type="number" min="0" placeholder="e.g. 300"></div>
-      <div class="fld full"><label>Notes</label><textarea id="f_notes" placeholder="Anything the planner should know…"></textarea></div>
+      <div class="fld"><label for="f_type">Event type</label><input id="f_type" placeholder="e.g. Wedding, Corporate"></div>
+      <div class="fld"><label for="f_date">Event date</label><input id="f_date" type="date"></div>
+      <div class="fld"><label for="f_budget">Budget (₹)</label><input id="f_budget" type="number" min="0" placeholder="e.g. 500000"></div>
+      <div class="fld"><label for="f_guests">Guest count</label><input id="f_guests" type="number" min="0" placeholder="e.g. 300"></div>
+      <div class="fld full"><label for="f_notes">Notes</label><textarea id="f_notes" placeholder="Anything the planner should know…"></textarea></div>
     </div>
     <div id="lm_err" class="err" role="alert" aria-live="assertive" hidden></div>
     <div class="foot">
@@ -167,14 +167,14 @@
 </div>
 
 <!-- login modal -->
-<div id="loginModal" class="lmodal" hidden>
+<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
   <div class="sheet" style="width:min(400px,96vw)">
-    <h3><span>Sign in</span><button class="close" id="li_close">×</button></h3>
+    <h3><span id="loginModalTitle">Sign in</span><button class="close" id="li_close" aria-label="Close">×</button></h3>
     <div class="grid" style="grid-template-columns:1fr">
-      <div class="fld"><label>Email</label><input id="li_email" type="email"></div>
-      <div class="fld"><label>Password</label><input id="li_pass" type="password"></div>
+      <div class="fld"><label for="li_email">Email</label><input id="li_email" type="email"></div>
+      <div class="fld"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
     </div>
-    <div id="li_err" class="err" hidden></div>
+    <div id="li_err" class="err" role="alert" aria-live="assertive" hidden></div>
     <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>
@@ -400,7 +400,7 @@
     catch(err){ $("#li_err").textContent=err&&err.message||"Sign in failed"; $("#li_err").hidden=false; }
   });
 
-  $("#search").addEventListener("input",(e)=>{ filter=e.target.value; render(); });
+  let _searchT; $("#search").addEventListener("input",(e)=>{ filter=e.target.value; clearTimeout(_searchT); _searchT=setTimeout(render,150); });  // debounce: don't rebuild the board on every keystroke
   document.addEventListener("keydown",(e)=>{
     if(e.key==="Escape"){ closeForm(); closeLogin(); closeDetail(); return; }
     const mod=e.metaKey||e.ctrlKey; if(!mod) return;

@@ -85,15 +85,15 @@
       <h2>Add a resource need</h2>
       <p class="sub">List what the event needs. We auto-check your in-house staff &amp; stock and flag the gaps.</p>
       <div class="addrow">
-        <div class="fld"><label>Type</label>
+        <div class="fld"><label for="n_kind">Type</label>
           <select id="n_kind"><option value="staff">Staff / skill</option><option value="inventory">Inventory item</option><option value="other">Other</option></select></div>
-        <div class="fld" id="wrap_label"><label>What's needed</label><input id="n_label" placeholder="e.g. Sound engineers"></div>
-        <div class="fld" id="wrap_skill" hidden><label>Skill / role</label><input id="n_skill" placeholder="e.g. sound"></div>
-        <div class="fld" id="wrap_item" hidden><label>Item</label><select id="n_item"></select></div>
-        <div class="fld"><label>Qty</label><input id="n_qty" type="number" min="1" value="1"></div>
+        <div class="fld" id="wrap_label"><label for="n_label">What's needed</label><input id="n_label" placeholder="e.g. Sound engineers"></div>
+        <div class="fld" id="wrap_skill" hidden><label for="n_skill">Skill / role</label><input id="n_skill" placeholder="e.g. sound"></div>
+        <div class="fld" id="wrap_item" hidden><label for="n_item">Item</label><select id="n_item"></select></div>
+        <div class="fld"><label for="n_qty">Qty</label><input id="n_qty" type="number" min="1" value="1"></div>
         <div class="fld"><label>&nbsp;</label><button class="btn primary" id="n_add">＋ Add</button></div>
       </div>
-      <div style="margin-top:10px"><button class="btn sm" id="pullBtn">↧ Pull from discovery requirements</button> <span class="muted" id="pullMsg"></span></div>
+      <div style="margin-top:10px"><button class="btn sm" id="pullBtn">↧ Pull from discovery requirements</button> <span class="muted" id="pullMsg" role="status" aria-live="polite"></span></div>
     </div>
 
     <div class="card" style="padding:0;overflow:auto">
@@ -118,31 +118,31 @@
   </div>
 </div>
 
-<div id="bookModal" class="lmodal" hidden>
+<div id="bookModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="bm_title">
   <div class="sheet">
-    <h3><span id="bm_title">Book a partner</span><button class="close" id="bm_close" style="margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:30px;height:30px;font-size:15px;cursor:pointer;color:var(--ink-3)">×</button></h3>
-    <div class="fld"><label>Covers need</label><input id="bk_label" placeholder="what this covers"></div>
-    <div class="fld" style="margin-top:10px"><label>Partner</label><select id="bk_vendor"></select></div>
+    <h3><span id="bm_title">Book a partner</span><button class="close" id="bm_close" aria-label="Close" style="margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:30px;height:30px;font-size:15px;cursor:pointer;color:var(--ink-3)">×</button></h3>
+    <div class="fld"><label for="bk_label">Covers need</label><input id="bk_label" placeholder="what this covers"></div>
+    <div class="fld" style="margin-top:10px"><label for="bk_vendor">Partner</label><select id="bk_vendor"></select></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
-      <div class="fld"><label>Cost (₹)</label><input id="bk_cost" type="number" min="0" placeholder="optional"></div>
-      <div class="fld"><label>Advance (₹)</label><input id="bk_adv" type="number" min="0" placeholder="optional"></div>
+      <div class="fld"><label for="bk_cost">Cost (₹)</label><input id="bk_cost" type="number" min="0" placeholder="optional"></div>
+      <div class="fld"><label for="bk_adv">Advance (₹)</label><input id="bk_adv" type="number" min="0" placeholder="optional"></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
-      <div class="fld"><label>Status</label><select id="bk_status"><option value="enquiry">Enquiry</option><option value="booked" selected>Booked</option><option value="confirmed">Confirmed</option><option value="delivered">Delivered</option></select></div>
+      <div class="fld"><label for="bk_status">Status</label><select id="bk_status"><option value="enquiry">Enquiry</option><option value="booked" selected>Booked</option><option value="confirmed">Confirmed</option><option value="delivered">Delivered</option></select></div>
       <div class="fld"><label style="display:flex;align-items:center;gap:6px;height:38px;margin-top:18px"><input type="checkbox" id="bk_contract" style="width:auto;height:auto"> Contract signed</label></div>
     </div>
-    <div class="fld" style="margin-top:6px"><label>Note</label><input id="bk_note" placeholder="optional"></div>
-    <div id="bm_err" class="err" hidden></div>
+    <div class="fld" style="margin-top:6px"><label for="bk_note">Note</label><input id="bk_note" placeholder="optional"></div>
+    <div id="bm_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot"><button class="btn" id="bm_cancel">Cancel</button><button class="btn primary" id="bm_save">Save booking</button></div>
   </div>
 </div>
 
-<div id="loginModal" class="lmodal" hidden>
+<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="sheet">
-    <h3>Sign in</h3>
-    <div class="fld"><label>Email</label><input id="li_email" type="email"></div>
-    <div class="fld"><label>Password</label><input id="li_pass" type="password"></div>
-    <div id="li_err" class="err" hidden></div>
+    <h3 id="loginTitle">Sign in</h3>
+    <div class="fld"><label for="li_email">Email</label><input id="li_email" type="email"></div>
+    <div class="fld"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>

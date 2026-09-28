@@ -219,21 +219,21 @@
   <footer>Helm Events · runs locally · storage: <span id="footMode">detecting…</span></footer>
 </div>
 
-<div class="lmodal" id="loginModal" hidden>
+<div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
   <form class="lsheet" id="loginForm">
-    <div class="mark" style="margin:0 auto 14px"></div>
-    <h3>Sign in</h3>
+    <div class="mark" style="margin:0 auto 14px" aria-hidden="true"></div>
+    <h3 id="loginModalTitle">Sign in</h3>
     <p>Use the account your studio admin created for you.</p>
     <label>Email<input type="email" id="li_email" autocomplete="username" required></label>
     <label>Password<input type="password" id="li_pw" autocomplete="current-password" required></label>
-    <div class="lerr" id="li_err" hidden></div>
+    <div class="lerr" id="li_err" role="alert" aria-live="assertive" hidden></div>
     <button class="btn primary" id="li_submit" type="submit" style="width:100%;justify-content:center">Sign in</button>
   </form>
 </div>
 
-<div class="lmodal" id="helpModal" hidden>
+<div class="lmodal" id="helpModal" hidden role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
   <div class="lsheet hsheet">
-    <h3>👋 Welcome to Helm Events</h3>
+    <h3 id="helpModalTitle">👋 Welcome to Helm Events</h3>
     <p class="sub">Everything runs off one event, from first enquiry to final close. Here's the flow and what each area does.</p>
     <div class="flow">
       <span>Lead</span><span class="arw">→</span><span>Discovery</span><span class="arw">→</span><span>Proposal</span><span class="arw">→</span><span>Quote</span><span class="arw">→</span><span>Confirm</span><span class="arw">→</span><span>Plan</span><span class="arw">→</span><span>Resources</span><span class="arw">→</span><span>Ready</span><span class="arw">→</span><span>Event day</span><span class="arw">→</span><span>Settle</span><span class="arw">→</span><span>Close</span>

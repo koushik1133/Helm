@@ -78,11 +78,11 @@
     <div class="card">
       <h2>⭐ Client feedback &amp; testimonial</h2>
       <div class="fld"><label>Client rating</label><div class="stars" id="stars"></div></div>
-      <div class="fld"><label>Feedback</label><textarea id="c_feedback" placeholder="What did the client say?"></textarea></div>
-      <div class="fld"><label>Testimonial (quotable)</label><textarea id="c_testi" placeholder="A line you can use in marketing…"></textarea></div>
+      <div class="fld"><label for="c_feedback">Feedback</label><textarea id="c_feedback" placeholder="What did the client say?"></textarea></div>
+      <div class="fld"><label for="c_testi">Testimonial (quotable)</label><textarea id="c_testi" placeholder="A line you can use in marketing…"></textarea></div>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:12px"><input type="checkbox" id="c_consent"> Client consents to using photos / testimonial in marketing</label>
-      <div class="fld"><label>Lessons learned (internal)</label><textarea id="c_lessons" placeholder="What to do differently next time…"></textarea></div>
-      <div class="foot"><span id="c_msg"></span><button class="btn primary" id="c_save" hidden>Save</button></div>
+      <div class="fld"><label for="c_lessons">Lessons learned (internal)</label><textarea id="c_lessons" placeholder="What to do differently next time…"></textarea></div>
+      <div class="foot"><span id="c_msg" role="status" aria-live="polite"></span><button class="btn primary" id="c_save" hidden>Save</button></div>
     </div>
 
     <div class="card">
@@ -90,9 +90,9 @@
       <p class="sub">A quick score to remember who to rebook.</p>
       <div id="ratings"></div>
       <div class="addr" id="rateAdd" hidden>
-        <div class="fld" style="margin:0"><label>Type</label><select id="r_kind"><option value="vendor">Vendor</option><option value="staff">Staff</option></select></div>
-        <div class="fld" style="margin:0"><label>Name</label><input id="r_name" list="rnames" placeholder="who"></div>
-        <div class="fld" style="margin:0"><label>Stars</label><select id="r_stars"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div>
+        <div class="fld" style="margin:0"><label for="r_kind">Type</label><select id="r_kind"><option value="vendor">Vendor</option><option value="staff">Staff</option></select></div>
+        <div class="fld" style="margin:0"><label for="r_name">Name</label><input id="r_name" list="rnames" placeholder="who"></div>
+        <div class="fld" style="margin:0"><label for="r_stars">Stars</label><select id="r_stars"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div>
         <div class="fld" style="margin:0"><label>&nbsp;</label><button class="btn primary" id="r_add">＋ Rate</button></div>
       </div>
       <datalist id="rnames"></datalist>
@@ -110,12 +110,12 @@
   <footer>Helm Events — the event, finished, measured and remembered.</footer>
 </div>
 
-<div id="loginModal" class="lmodal" hidden>
+<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="sheet">
-    <h3>Sign in</h3>
-    <div class="fld"><label>Email</label><input id="li_email" type="email"></div>
-    <div class="fld"><label>Password</label><input id="li_pass" type="password"></div>
-    <div id="li_err" class="err" hidden></div>
+    <h3 id="loginTitle">Sign in</h3>
+    <div class="fld"><label for="li_email">Email</label><input id="li_email" type="email"></div>
+    <div class="fld"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>
@@ -153,7 +153,7 @@
     $("#ratings").innerHTML = items.length ? items.map(r=>`<div class="rrow">
       <div><div class="nm">${esc(r.name)} <span class="kd">${esc(r.kind)}</span></div></div>
       <span class="rstars">${"★".repeat(r.stars)}${"☆".repeat(5-r.stars)}</span>
-      ${canDelete?`<div class="acts"><button class="rm" data-rdel="${r.id}">✕</button></div>`:""}
+      ${canDelete?`<div class="acts"><button class="rm" data-rdel="${r.id}" aria-label="Remove rating">✕</button></div>`:""}
     </div>`).join("") : '<div class="empty">No ratings yet.</div>';
     $("#ratings").querySelectorAll("[data-rdel]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.closure.removeRating(b.dataset.rdel); renderRatings(); }));
   }

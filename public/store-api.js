@@ -2331,8 +2331,10 @@
     async summary() {
       const empty = { vendors: [], taskSlips: [], losses: { total: 0, byItem: [], byMonth: [] }, margins: { events: [], totalProfit: 0, avgMargin: null } };
       if (mode !== "supabase" || !supa) return empty;
-      const events = await quotes.list();
-      const [tR, cR, iR] = await Promise.all([
+      // Wave 16 perf: fetch the event list alongside the three aggregates instead
+      // of awaiting it first (it isn't an input to them) — removes one serial round-trip.
+      const [events, tR, cR, iR] = await Promise.all([
+        quotes.list(),
         supa.from("event_tasks").select("category,status,verify_status,assignee_kind,assignee_name,quote_id"),
         supa.from("inventory_checkouts").select("item_id,qty_out,qty_in,checked_in_at"),
         supa.from("inventory_items").select("id,name,unit"),

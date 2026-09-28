@@ -75,27 +75,27 @@
       <h2>Discovery meeting</h2>
       <p class="sub">Capture what you learned before quoting. Saved to this event.</p>
       <div class="grid">
-        <div class="fld"><label>Meeting date</label><input type="date" id="d_date"></div>
-        <div class="fld"><label>Mode</label>
+        <div class="fld"><label for="d_date">Meeting date</label><input type="date" id="d_date"></div>
+        <div class="fld"><label for="d_mode">Mode</label>
           <select id="d_mode"><option value="">—</option><option value="in_person">In person</option><option value="call">Phone call</option><option value="video">Video call</option></select></div>
-        <div class="fld full"><label>Location / meeting link</label><input id="d_loc" placeholder="Venue address or video link"></div>
-        <div class="fld full"><label>Who attended</label><input id="d_att" placeholder="e.g. Client + spouse, planner"></div>
-        <div class="fld"><label>Budget — min (₹)</label><input type="number" min="0" id="d_bmin" placeholder="e.g. 400000"></div>
-        <div class="fld"><label>Budget — max (₹)</label><input type="number" min="0" id="d_bmax" placeholder="e.g. 600000"></div>
-        <div class="fld full"><label>Notes</label><textarea id="d_notes" placeholder="Theme ideas, constraints, preferences, must-avoids…"></textarea></div>
+        <div class="fld full"><label for="d_loc">Location / meeting link</label><input id="d_loc" placeholder="Venue address or video link"></div>
+        <div class="fld full"><label for="d_att">Who attended</label><input id="d_att" placeholder="e.g. Client + spouse, planner"></div>
+        <div class="fld"><label for="d_bmin">Budget — min (₹)</label><input type="number" min="0" id="d_bmin" placeholder="e.g. 400000"></div>
+        <div class="fld"><label for="d_bmax">Budget — max (₹)</label><input type="number" min="0" id="d_bmax" placeholder="e.g. 600000"></div>
+        <div class="fld full"><label for="d_notes">Notes</label><textarea id="d_notes" placeholder="Theme ideas, constraints, preferences, must-avoids…"></textarea></div>
       </div>
-      <div class="foot"><span id="d_msg"></span><button class="btn primary" id="d_save" hidden>Save discovery</button></div>
+      <div class="foot"><span id="d_msg" role="status" aria-live="polite"></span><button class="btn primary" id="d_save" hidden>Save discovery</button></div>
     </div>
 
     <div class="card">
       <h2>Requirements</h2>
       <p class="sub">The services the client wants. Tag each as must-have, optional or nice-to-have — these guide the quote.</p>
       <div id="addReq" class="reqrow" hidden>
-        <div class="fld"><label>Service</label><input id="r_service" placeholder="e.g. Catering (veg), Stage décor"></div>
-        <div class="fld"><label>Priority</label>
+        <div class="fld"><label for="r_service">Service</label><input id="r_service" placeholder="e.g. Catering (veg), Stage décor"></div>
+        <div class="fld"><label for="r_priority">Priority</label>
           <select id="r_priority"><option value="mandatory">Must-have</option><option value="optional">Optional</option><option value="nice">Nice-to-have</option></select></div>
-        <div class="fld"><label>Qty</label><input type="number" min="0" id="r_qty" placeholder="#"></div>
-        <div class="fld"><label>Note</label><input id="r_note" placeholder="detail (optional)"></div>
+        <div class="fld"><label for="r_qty">Qty</label><input type="number" min="0" id="r_qty" placeholder="#"></div>
+        <div class="fld"><label for="r_note">Note</label><input id="r_note" placeholder="detail (optional)"></div>
         <div class="fld"><label>&nbsp;</label><button class="btn primary" id="r_add">＋ Add</button></div>
       </div>
       <table>
@@ -106,12 +106,12 @@
   </div>
 </div>
 
-<div class="lmodal" id="loginModal" hidden>
+<div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
   <form class="lsheet" id="loginForm">
-    <div class="mark" style="margin:0 auto 10px"></div><h3>Sign in</h3>
-    <label>Email</label><input type="email" id="li_email" required>
-    <label>Password</label><input type="password" id="li_pw" required>
-    <div class="lerr" id="li_err" hidden></div>
+    <div class="mark" style="margin:0 auto 10px" aria-hidden="true"></div><h3 id="loginModalTitle">Sign in</h3>
+    <label for="li_email">Email</label><input type="email" id="li_email" required>
+    <label for="li_pw">Password</label><input type="password" id="li_pw" required>
+    <div class="lerr" id="li_err" role="alert" aria-live="assertive" hidden></div>
     <button class="btn primary" id="li_submit" type="submit" style="width:100%;justify-content:center">Sign in</button>
   </form>
 </div>

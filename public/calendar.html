@@ -89,12 +89,12 @@
   <footer>Helm Events — one calendar for staff, stock &amp; partners, with double-booking alerts.</footer>
 </div>
 
-<div id="loginModal" class="lmodal" hidden>
+<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
   <div class="sheet">
-    <h3>Sign in</h3>
-    <div class="fld"><label>Email</label><input id="li_email" type="email"></div>
-    <div class="fld"><label>Password</label><input id="li_pass" type="password"></div>
-    <div id="li_err" class="err" hidden></div>
+    <h3 id="loginModalTitle">Sign in</h3>
+    <div class="fld"><label for="li_email">Email</label><input id="li_email" type="email"></div>
+    <div class="fld"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" role="alert" aria-live="assertive" hidden></div>
     <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>

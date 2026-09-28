@@ -93,7 +93,7 @@
         <div id="arrRows"></div>
         <div style="margin-top:10px" id="arrTools" hidden>
           <button class="btn" id="pullBtn">↧ Pull team &amp; vendors</button>
-          <div class="addline"><input id="arr_name" placeholder="Add a name…"><button class="btn primary" id="arr_add">＋</button></div>
+          <div class="addline"><input id="arr_name" placeholder="Add a name…" aria-label="Name to add"><button class="btn primary" id="arr_add" aria-label="Add name">＋</button></div>
         </div>
       </div>
 
@@ -101,7 +101,7 @@
         <h2>🔧 Setup &amp; technical checks <span class="prog" id="chkProg"></span></h2>
         <p class="sub">Go-live checks — stage, sound, lighting, safety…</p>
         <div id="chkRows"></div>
-        <div class="addline" id="chkAdd" hidden><input id="chk_title" placeholder="e.g. Sound check done"><button class="btn primary" id="chk_addb">＋</button></div>
+        <div class="addline" id="chkAdd" hidden><input id="chk_title" placeholder="e.g. Sound check done" aria-label="Check description"><button class="btn primary" id="chk_addb" aria-label="Add check">＋</button></div>
       </div>
 
       <div class="card">
@@ -110,7 +110,7 @@
         <div id="gstRows"></div>
         <div style="margin-top:10px" id="gstTools" hidden>
           <button class="btn" id="gstPull">↧ Pull from guest list</button>
-          <div class="addline"><input id="gst_label" placeholder="Group name…"><input id="gst_exp" type="number" min="0" placeholder="Exp." style="max-width:80px"><button class="btn primary" id="gst_add">＋</button></div>
+          <div class="addline"><input id="gst_label" placeholder="Group name…" aria-label="Guest group name"><input id="gst_exp" type="number" min="0" placeholder="Exp." style="max-width:80px" aria-label="Expected headcount"><button class="btn primary" id="gst_add" aria-label="Add guest group">＋</button></div>
         </div>
       </div>
 
@@ -119,8 +119,8 @@
         <p class="sub">Raise, issue or replace stock during the event.</p>
         <div id="stkRows"></div>
         <div style="margin-top:10px" id="stkTools" hidden>
-          <div class="addline"><select id="stk_item" style="flex:1;height:34px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)"></select></div>
-          <div class="addline"><input id="stk_label" placeholder="or type an item…"><input id="stk_qty" type="number" min="1" value="1" style="max-width:70px"><button class="btn primary" id="stk_add">＋</button></div>
+          <div class="addline"><select id="stk_item" aria-label="Stock item" style="flex:1;height:34px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)"></select></div>
+          <div class="addline"><input id="stk_label" placeholder="or type an item…" aria-label="Item name"><input id="stk_qty" type="number" min="1" value="1" style="max-width:70px" aria-label="Quantity"><button class="btn primary" id="stk_add" aria-label="Add stock request">＋</button></div>
         </div>
       </div>
     </div>
@@ -128,12 +128,12 @@
   <footer>Helm Events — run the day: who's here, what's checked, what's next.</footer>
 </div>
 
-<div id="loginModal" class="lmodal" hidden>
+<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="sheet">
-    <h3>Sign in</h3>
-    <div class="fld"><label>Email</label><input id="li_email" type="email"></div>
-    <div class="fld"><label>Password</label><input id="li_pass" type="password"></div>
-    <div id="li_err" class="err" hidden></div>
+    <h3 id="loginTitle">Sign in</h3>
+    <div class="fld"><label for="li_email">Email</label><input id="li_email" type="email"></div>
+    <div class="fld"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>
@@ -166,7 +166,7 @@
         <button class="mini go" data-arr="${a.id}" data-s="arrived">Arrived</button>
         <button class="mini" data-arr="${a.id}" data-s="left">Left</button>
         <button class="mini no" data-arr="${a.id}" data-s="no_show">No-show</button>
-        <button class="mini del" data-del="${a.id}">✕</button></div>`:""}
+        <button class="mini del" data-del="${a.id}" aria-label="Remove">✕</button></div>`:""}
     </div>`).join("") : '<div class="empty">No one added yet. Pull the team &amp; vendors below.</div>';
     $("#arrRows").querySelectorAll("[data-arr]").forEach(b=>b.addEventListener("click",async()=>{
       await BPStore.dayops.setStatus(b.dataset.arr, b.dataset.s); renderArrivals(); }));
@@ -182,7 +182,7 @@
       ${canEdit?`<div class="acts">
         <button class="mini go" data-chk="${c.id}" data-s="done">Done</button>
         <button class="mini no" data-chk="${c.id}" data-s="issue">Issue</button>
-        <button class="mini del" data-cdel="${c.id}">✕</button></div>`:""}
+        <button class="mini del" data-cdel="${c.id}" aria-label="Remove">✕</button></div>`:""}
     </div>`).join("") : '<div class="empty">No checks yet. Add your go-live checks.</div>';
     $("#chkRows").querySelectorAll("[data-chk]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.dayops.setStatus(b.dataset.chk, b.dataset.s); renderChecks(); }));
     $("#chkRows").querySelectorAll("[data-cdel]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.dayops.remove(b.dataset.cdel); renderChecks(); }));
@@ -195,9 +195,9 @@
     $("#gstRows").innerHTML = items.length ? items.map(g=>`<div class="row">
       <div><div class="nm">${esc(g.label)}</div><div class="rl">${Number(g.arrived||0)} of ${Number(g.expected||0)} arrived</div></div>
       ${canEdit?`<div class="acts">
-        <button class="mini" data-gin="${g.id}" data-d="-1">–</button>
+        <button class="mini" data-gin="${g.id}" data-d="-1" aria-label="Check out one guest">–</button>
         <button class="mini go" data-gin="${g.id}" data-d="1">＋ In</button>
-        <button class="mini del" data-gdel="${g.id}">✕</button></div>`:`<span class="pill arrived">${Number(g.arrived||0)}/${Number(g.expected||0)}</span>`}
+        <button class="mini del" data-gdel="${g.id}" aria-label="Remove group">✕</button></div>`:`<span class="pill arrived">${Number(g.arrived||0)}/${Number(g.expected||0)}</span>`}
     </div>`).join("") : '<div class="empty">No guest groups yet. Pull from the guest list or add one.</div>';
     $("#gstRows").querySelectorAll("[data-gin]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.guests.checkIn(b.dataset.gin, Number(b.dataset.d)); await renderGuests(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
     $("#gstRows").querySelectorAll("[data-gdel]").forEach(b=>b.addEventListener("click",async()=>{ if(!confirm("Remove this group?"))return; try{ await BPStore.guests.remove(b.dataset.gdel); renderGuests(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
@@ -215,7 +215,7 @@
       ${canEdit?`<div class="acts">
         <button class="mini go" data-stk="${r.id}" data-s="issued">Issued</button>
         <button class="mini" data-stk="${r.id}" data-s="replaced">Replaced</button>
-        <button class="mini del" data-sdel="${r.id}">✕</button></div>`:""}
+        <button class="mini del" data-sdel="${r.id}" aria-label="Remove request">✕</button></div>`:""}
     </div>`).join("") : '<div class="empty">No stock requests. Raise one if something is needed on site.</div>';
     $("#stkRows").querySelectorAll("[data-stk]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.stockreq.setStatus(b.dataset.stk,b.dataset.s); await renderStock(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
     $("#stkRows").querySelectorAll("[data-sdel]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.stockreq.remove(b.dataset.sdel); renderStock(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));

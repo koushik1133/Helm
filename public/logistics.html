@@ -89,12 +89,12 @@
   <footer>Helm Events — the moving parts and the money, event by event.</footer>
 </div>
 
-<div id="loginModal" class="lmodal" hidden>
+<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="sheet">
-    <h3>Sign in</h3>
-    <div class="fld" style="margin-bottom:10px"><label>Email</label><input id="li_email" type="email"></div>
-    <div class="fld" style="margin-bottom:10px"><label>Password</label><input id="li_pass" type="password"></div>
-    <div id="li_err" class="err" hidden></div>
+    <h3 id="loginTitle">Sign in</h3>
+    <div class="fld" style="margin-bottom:10px"><label for="li_email">Email</label><input id="li_email" type="email"></div>
+    <div class="fld" style="margin-bottom:10px"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>
@@ -135,9 +135,9 @@
     const done = items.filter(i=>i.status==="done").length;
     $("#pane").innerHTML = `<h2>${tab[0].toUpperCase()+tab.slice(1)}</h2><p class="sub">${CHK_HELP[tab]}</p>
       ${canEdit?`<div class="addrow chk">
-        <div class="fld"><label>Item</label><input id="a_title" placeholder="what needs doing"></div>
-        <div class="fld"><label>Owner</label>${peopleSelectHTML("a_owner","")}</div>
-        <div class="fld"><label>Due</label><input id="a_due" type="date"></div>
+        <div class="fld"><label for="a_title">Item</label><input id="a_title" placeholder="what needs doing"></div>
+        <div class="fld"><label for="a_owner">Owner</label>${peopleSelectHTML("a_owner","")}</div>
+        <div class="fld"><label for="a_due">Due</label><input id="a_due" type="date"></div>
         <div class="fld"><label>&nbsp;</label><button class="btn primary" id="a_add">＋ Add</button></div></div>`:""}
       ${canEdit?'<div id="tplBar" style="margin:6px 0 12px"></div>':""}
       <table><thead><tr><th>Item</th><th>Owner</th><th>Due</th><th>Status</th><th></th></tr></thead>
@@ -162,7 +162,7 @@
     return `<tr><td><b>${esc(i.title)}</b>${i.detail?`<div style="font-size:11px;color:var(--ink-3)">${esc(i.detail)}</div>`:""}</td>
       <td class="muted">${esc(i.owner||"")}</td><td class="muted">${esc(i.due_date||"")}</td>
       <td>${canEdit?`<select class="ssel" data-st="${i.id}">${opts}</select>`:`<span class="st ${i.status}">${CHK_ST[i.status]}</span>`}</td>
-      <td>${canDelete?`<button class="rm" data-del="${i.id}">✕</button>`:""}</td></tr>`; }
+      <td>${canDelete?`<button class="rm" data-del="${i.id}" aria-label="Remove item">✕</button>`:""}</td></tr>`; }
   function wireChk(){
     document.querySelectorAll("[data-st]").forEach(s=>s.addEventListener("change",async()=>{ try{ await BPStore.checklist.update(s.dataset.st,{status:s.value}); await renderPane(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
     document.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.checklist.remove(b.dataset.del); await renderPane(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
@@ -175,8 +175,8 @@
     const total = items.reduce((a,g)=>a+Number(g.qty||0),0);
     $("#pane").innerHTML = `<h2>Guests</h2><p class="sub">Track expected headcount by group (family, company, VIPs…). Totals help you match seating.</p>
       ${canEdit?`<div class="addrow guest">
-        <div class="fld"><label>Group</label><input id="g_name" placeholder="e.g. Bride's family"></div>
-        <div class="fld"><label>Headcount</label><input id="g_qty" type="number" min="0" value="0"></div>
+        <div class="fld"><label for="g_name">Group</label><input id="g_name" placeholder="e.g. Bride's family"></div>
+        <div class="fld"><label for="g_qty">Headcount</label><input id="g_qty" type="number" min="0" value="0"></div>
         <div class="fld"><label>&nbsp;</label><button class="btn primary" id="g_add">＋ Add</button></div></div>`:""}
       <table><thead><tr><th>Group</th><th class="num">Headcount</th><th>Status</th><th></th></tr></thead>
         <tbody>${items.length?items.map(rowGuest).join(""):'<tr><td colspan="4" class="empty">No guest groups yet.</td></tr>'}</tbody></table>
@@ -188,7 +188,7 @@
   function rowGuest(g){ const opts=["open","done","na"].map(s=>`<option value="${s}" ${s===g.status?"selected":""}>${({open:"Pending",done:"Confirmed",na:"Declined"})[s]}</option>`).join("");
     return `<tr><td><b>${esc(g.title)}</b></td><td class="num">${esc(g.qty!=null?g.qty:0)}</td>
       <td>${canEdit?`<select class="ssel" data-st="${g.id}">${opts}</select>`:esc(g.status)}</td>
-      <td>${canDelete?`<button class="rm" data-del="${g.id}">✕</button>`:""}</td></tr>`; }
+      <td>${canDelete?`<button class="rm" data-del="${g.id}" aria-label="Remove group">✕</button>`:""}</td></tr>`; }
   async function addGuest(){ const t=$("#g_name").value.trim(); if(!t){ $("#g_name").focus(); return; }
     const V=BPStore.validate;
     const gr=V.count($("#g_qty").value,{field:"Headcount"}); if(!gr.ok){ alert(gr.error); return; }
@@ -202,9 +202,9 @@
     const phone=(ev.client&&(ev.client.phone))||"";
     $("#pane").innerHTML = `<h2>Payment schedule</h2><p class="sub">Milestones the client pays across the event. Reminders go through the notification outbox.</p>
       ${canEdit?`<div class="addrow pay">
-        <div class="fld"><label>Milestone</label><input id="m_label" placeholder="e.g. 50% advance"></div>
-        <div class="fld"><label>Due date</label><input id="m_due" type="date"></div>
-        <div class="fld"><label>Amount ₹</label><input id="m_amt" type="number" min="0" value="0"></div>
+        <div class="fld"><label for="m_label">Milestone</label><input id="m_label" placeholder="e.g. 50% advance"></div>
+        <div class="fld"><label for="m_due">Due date</label><input id="m_due" type="date"></div>
+        <div class="fld"><label for="m_amt">Amount ₹</label><input id="m_amt" type="number" min="0" value="0"></div>
         <div class="fld"><label>&nbsp;</label><button class="btn primary" id="m_add">＋ Add</button></div></div>`:""}
       <table><thead><tr><th>Milestone</th><th>Due</th><th class="num">Amount</th><th>Status</th><th></th></tr></thead>
         <tbody>${ms.length?ms.map(rowPay).join(""):'<tr><td colspan="5" class="empty">No milestones yet.</td></tr>'}</tbody></table>
@@ -220,7 +220,7 @@
   function rowPay(m){ const opts=["due","invoiced","paid","waived"].map(s=>`<option value="${s}" ${s===m.status?"selected":""}>${PAY_ST[s]}</option>`).join("");
     return `<tr><td><b>${esc(m.label)}</b></td><td class="muted">${esc(m.due_date||"")}</td><td class="num">${inr(m.amount)}</td>
       <td>${canEdit?`<select class="ssel" data-mst="${m.id}">${opts}</select>`:`<span class="st ${m.status}">${PAY_ST[m.status]}</span>`}</td>
-      <td>${canEdit&&m.status!=="paid"?`<button class="rm" data-remind="${m.id}">Remind</button> `:""}${canDelete?`<button class="rm" data-mdel="${m.id}">✕</button>`:""}</td></tr>`; }
+      <td>${canEdit&&m.status!=="paid"?`<button class="rm" data-remind="${m.id}">Remind</button> `:""}${canDelete?`<button class="rm" data-mdel="${m.id}" aria-label="Remove milestone">✕</button>`:""}</td></tr>`; }
   async function addMile(){ const l=$("#m_label").value.trim(); if(!l){ $("#m_label").focus(); return; }
     const V=BPStore.validate;
     const ar=V.money($("#m_amt").value,{field:"Amount"}); if(!ar.ok){ alert(ar.error); return; }

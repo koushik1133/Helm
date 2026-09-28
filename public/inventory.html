@@ -99,9 +99,9 @@
       <h2>Reserve for this event</h2>
       <p class="sub">Hold in-house stock for the event. Reserve now → allocate when it goes out → return when it comes back.</p>
       <div class="reserve-row">
-        <div class="fld"><label>Item</label><select id="rv_item"></select></div>
-        <div class="fld"><label>Quantity</label><input id="rv_qty" type="number" min="1" value="1"></div>
-        <div class="fld"><label>Note</label><input id="rv_note" placeholder="optional"></div>
+        <div class="fld"><label for="rv_item">Item</label><select id="rv_item"></select></div>
+        <div class="fld"><label for="rv_qty">Quantity</label><input id="rv_qty" type="number" min="1" value="1"></div>
+        <div class="fld"><label for="rv_note">Note</label><input id="rv_note" placeholder="optional"></div>
         <div class="fld"><label>&nbsp;</label><button class="btn primary" id="rv_add">Reserve</button></div>
       </div>
       <table style="margin-top:14px">
@@ -119,9 +119,9 @@
     <div id="pane-stock">
     <div class="toolbar">
       <h2 id="stockTitle">Stock items</h2>
-      <input id="search" class="search" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search item…">
-      <select id="catFilter" class="sel"><option value="">All categories</option></select>
-      <select id="priFilter" class="sel"><option value="">All priority</option><option value="A">A — high value</option><option value="B">B — mid</option><option value="C">C — low</option></select>
+      <input id="search" class="search" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search item…" aria-label="Search stock items">
+      <select id="catFilter" class="sel" aria-label="Filter by category"><option value="">All categories</option></select>
+      <select id="priFilter" class="sel" aria-label="Filter by priority"><option value="">All priority</option><option value="A">A — high value</option><option value="B">B — mid</option><option value="C">C — low</option></select>
       <span class="spacer"></span>
       <span id="seedStatus" style="font-size:12px;color:var(--ink-3)"></span>
       <button id="seedBtn" class="btn" hidden>Load starter items</button>
@@ -141,10 +141,10 @@
         <h2>Check out equipment</h2>
         <p class="sub">Issue stock to a staff member or coordinator. When it comes back, record how many returned — anything short is flagged in the loss report below. <span id="coEvent" class="onloan" hidden></span></p>
         <div class="reserve-row" style="grid-template-columns:1.6fr .7fr 1.2fr 1.2fr auto">
-          <div class="fld"><label>Item</label><select id="co_item"></select></div>
-          <div class="fld"><label>Qty out</label><input id="co_qty" type="number" min="1" value="1"></div>
-          <div class="fld"><label>Issued to</label><select id="co_to"><option value="">Select person…</option></select></div>
-          <div class="fld"><label>Note</label><input id="co_note" placeholder="optional"></div>
+          <div class="fld"><label for="co_item">Item</label><select id="co_item"></select></div>
+          <div class="fld"><label for="co_qty">Qty out</label><input id="co_qty" type="number" min="1" value="1"></div>
+          <div class="fld"><label for="co_to">Issued to</label><select id="co_to"><option value="">Select person…</option></select></div>
+          <div class="fld"><label for="co_note">Note</label><input id="co_note" placeholder="optional"></div>
           <div class="fld"><label>&nbsp;</label><button class="btn primary" id="co_add">Check out</button></div>
         </div>
       </div>
@@ -172,23 +172,23 @@
 </div>
 
 <!-- add / edit item -->
-<div id="itemModal" class="lmodal" hidden>
+<div id="itemModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="im_title">
   <div class="sheet">
-    <h3><span id="im_title">＋ Add item</span><button class="close" id="im_close">×</button></h3>
+    <h3><span id="im_title">＋ Add item</span><button class="close" id="im_close" aria-label="Close">×</button></h3>
     <div class="fgrid">
-      <div class="fld"><label>Name *</label><input id="i_name" placeholder="e.g. Gold chiavari chair"></div>
-      <div class="fld"><label>Category</label><input id="i_cat" placeholder="e.g. Seating" list="catList"></div>
-      <div class="fld"><label>Total quantity</label><input id="i_qty" type="number" min="0" value="0"></div>
-      <div class="fld"><label>Unit</label><input id="i_unit" placeholder="pcs, sets, m…"></div>
-      <div class="fld"><label>Priority class</label><select id="i_pri">
+      <div class="fld"><label for="i_name">Name *</label><input id="i_name" placeholder="e.g. Gold chiavari chair"></div>
+      <div class="fld"><label for="i_cat">Category</label><input id="i_cat" placeholder="e.g. Seating" list="catList"></div>
+      <div class="fld"><label for="i_qty">Total quantity</label><input id="i_qty" type="number" min="0" value="0"></div>
+      <div class="fld"><label for="i_unit">Unit</label><input id="i_unit" placeholder="pcs, sets, m…"></div>
+      <div class="fld"><label for="i_pri">Priority class</label><select id="i_pri">
         <option value="A">A — high value / critical (e.g. walkie-talkies)</option>
         <option value="B">B — mid value</option>
         <option value="C" selected>C — low value (e.g. plastic chairs)</option></select></div>
-      <div class="fld"><label>Unit cost (₹)</label><input id="i_cost" type="number" min="0" step="1" value="0"></div>
-      <div class="fld" style="grid-column:1/-1"><label>Notes</label><input id="i_notes" placeholder="optional"></div>
+      <div class="fld"><label for="i_cost">Unit cost (₹)</label><input id="i_cost" type="number" min="0" step="1" value="0"></div>
+      <div class="fld" style="grid-column:1/-1"><label for="i_notes">Notes</label><input id="i_notes" placeholder="optional"></div>
     </div>
     <datalist id="catList"></datalist>
-    <div id="im_err" class="err" hidden></div>
+    <div id="im_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot">
       <button class="btn" id="im_deact" hidden>Deactivate</button>
       <span class="spacer"></span>
@@ -199,17 +199,17 @@
 </div>
 
 <!-- check-in -->
-<div id="ciModal" class="lmodal" hidden>
+<div id="ciModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="ci_title">
   <div class="sheet">
-    <h3><span>🔑 Check in</span><button class="close" id="ci_close">×</button></h3>
+    <h3><span id="ci_title">🔑 Check in</span><button class="close" id="ci_close" aria-label="Close">×</button></h3>
     <div class="fgrid">
-      <div class="fld"><label>Item</label><input id="ci_item" readonly></div>
-      <div class="fld"><label>Went out</label><input id="ci_out" readonly></div>
-      <div class="fld"><label>How many came back?</label><input id="ci_in" type="number" min="0" step="1"></div>
-      <div class="fld"><label>Confirmed by (your name)</label><input id="ci_by" placeholder="sign-off name"></div>
+      <div class="fld"><label for="ci_item">Item</label><input id="ci_item" readonly></div>
+      <div class="fld"><label for="ci_out">Went out</label><input id="ci_out" readonly></div>
+      <div class="fld"><label for="ci_in">How many came back?</label><input id="ci_in" type="number" min="0" step="1"></div>
+      <div class="fld"><label for="ci_by">Confirmed by (your name)</label><input id="ci_by" placeholder="sign-off name"></div>
     </div>
-    <div id="ci_warn" class="err" hidden style="background:#fff7e6;color:#946200"></div>
-    <div id="ci_err" class="err" hidden></div>
+    <div id="ci_warn" class="err" hidden style="background:#fff7e6;color:#946200" role="status" aria-live="polite"></div>
+    <div id="ci_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot">
       <span class="spacer"></span>
       <button class="btn" id="ci_cancel">Cancel</button>
@@ -218,12 +218,12 @@
   </div>
 </div>
 
-<div id="loginModal" class="lmodal" hidden>
+<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="sheet lsheet">
-    <h3><span>Sign in</span><button class="close" id="li_close">×</button></h3>
-    <div class="fld" style="margin-bottom:10px"><label>Email</label><input id="li_email" type="email"></div>
-    <div class="fld" style="margin-bottom:10px"><label>Password</label><input id="li_pass" type="password"></div>
-    <div id="li_err" class="err" hidden></div>
+    <h3><span id="loginTitle">Sign in</span><button class="close" id="li_close" aria-label="Close">×</button></h3>
+    <div class="fld" style="margin-bottom:10px"><label for="li_email">Email</label><input id="li_email" type="email"></div>
+    <div class="fld" style="margin-bottom:10px"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+    <div id="li_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>
@@ -400,7 +400,7 @@
   $("#im_deact").addEventListener("click",async()=>{ if(!editingId) return; if(!confirm("Deactivate this item?")) return;
     try{ await BPStore.inventory.updateItem(editingId,{active:false}); closeItem(); await load(); }catch(e){ alert("Couldn't deactivate — "+((e&&e.message)||"error")); } });
   $("#itemModal").addEventListener("click",e=>{ if(e.target.id==="itemModal") closeItem(); });
-  $("#search").addEventListener("input",e=>{ filter=e.target.value; renderStock(); });
+  let _searchT; $("#search").addEventListener("input",e=>{ filter=e.target.value; clearTimeout(_searchT); _searchT=setTimeout(renderStock,150); });  // debounce: don't rebuild the table on every keystroke
   $("#catFilter").addEventListener("change",e=>{ catF=e.target.value; renderStock(); });
   $("#priFilter").addEventListener("change",e=>{ priF=e.target.value; renderStock(); });
 
@@ -541,15 +541,24 @@
   document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeItem(); closeLogin(); closeCheckIn(); } });
 
   async function load(){
-    try{
-      items = await BPStore.inventory.items(false);
-      avail = await BPStore.inventory.availability();
-      if(quoteId) reservations = await BPStore.inventory.reservations(quoteId);
-    }catch(e){ $("#stockRows").innerHTML=`<tr><td colspan="9" class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase7-inventory.sql</b>.</td></tr>`; return; }
-    try{ checkouts = await BPStore.inventory.checkouts.list(quoteId||null); }
-    catch(e){ checkouts=[]; $("#loanRows").innerHTML=`<tr><td colspan="7" class="empty">Run <b>phase33-inventory-accountability.sql</b> to enable check-out/in. (${esc(e&&e.message||"")})</td></tr>`; }
-    try{ const ql=await BPStore.quotes.list(); quotesById=Object.fromEntries((ql||[]).map(q=>[q.id,q])); }
-    catch(e){ quotesById={}; }
+    // Wave 16 perf: these five fetches are independent — run them in parallel
+    // (was a 5-deep sequential waterfall) while preserving each group's error UI.
+    const [itemsR, availR, resR, coR, qlR] = await Promise.allSettled([
+      BPStore.inventory.items(false),
+      BPStore.inventory.availability(),
+      quoteId ? BPStore.inventory.reservations(quoteId) : Promise.resolve(null),
+      BPStore.inventory.checkouts.list(quoteId||null),
+      BPStore.quotes.list(),
+    ]);
+    if(itemsR.status!=="fulfilled" || availR.status!=="fulfilled"){
+      const e=(itemsR.reason||availR.reason);
+      $("#stockRows").innerHTML=`<tr><td colspan="9" class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase7-inventory.sql</b>.</td></tr>`; return;
+    }
+    items=itemsR.value; avail=availR.value;
+    if(quoteId && resR.status==="fulfilled") reservations=resR.value;
+    if(coR.status==="fulfilled"){ checkouts=coR.value; }
+    else { checkouts=[]; $("#loanRows").innerHTML=`<tr><td colspan="7" class="empty">Run <b>phase33-inventory-accountability.sql</b> to enable check-out/in. (${esc(coR.reason&&coR.reason.message||"")})</td></tr>`; }
+    quotesById = qlR.status==="fulfilled" ? Object.fromEntries((qlR.value||[]).map(q=>[q.id,q])) : {};
     renderStock(); renderCheckouts(); if(quoteId) renderEventPanel();
   }
 

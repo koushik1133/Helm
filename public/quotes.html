@@ -120,7 +120,7 @@
       <button data-f="archived">Archived</button>
     </div>
     <input id="search" class="search" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search code, client, title…">
-    <select id="typeFilter" class="typefilter" title="Filter by event type"><option value="">All types</option></select>
+    <select id="typeFilter" class="typefilter" title="Filter by event type" aria-label="Filter by event type"><option value="">All types</option></select>
     <button class="btn" id="refresh">↻ Refresh</button>
     <a class="btn primary" href="dashboard.html" id="newBtn">✨ New quote</a>
   </div>
@@ -139,45 +139,45 @@
 </div>
 
 <!-- Confirm / pricing modal -->
-<div class="lmodal" id="confirmModal" hidden>
+<div class="lmodal" id="confirmModal" hidden role="dialog" aria-modal="true" aria-label="Confirm quote pricing">
   <div class="sheet">
-    <h3 id="cm_title">Confirm quote <button class="close" id="cm_close" type="button">✕</button></h3>
+    <h3 id="cm_title">Confirm quote <button class="close" id="cm_close" type="button" aria-label="Close">✕</button></h3>
     <p class="sub" id="cm_sub">Collect client details and price the event. Confirming locks a priced snapshot.</p>
 
     <div class="seclabel">Client &amp; event</div>
     <div class="grid">
-      <div class="fld"><label>Client name</label><input id="c_name" placeholder="Full name"></div>
-      <div class="fld"><label>Company / host</label><input id="c_company" placeholder="Optional"></div>
-      <div class="fld"><label>Email</label><input id="c_email" type="email" placeholder="name@email.com"></div>
-      <div class="fld"><label>Phone</label><input id="c_phone" placeholder="+91…"></div>
-      <div class="fld"><label>Event date</label><input id="c_date" type="date"></div>
-      <div class="fld"><label>Venue</label><input id="c_venue" placeholder="Venue name"></div>
-      <div class="fld" style="grid-column:1/-1"><label>Venue address</label><input id="c_address" placeholder="Address"></div>
-      <div class="fld" style="grid-column:1/-1"><label>Notes</label><textarea id="c_notes" placeholder="Anything to remember…"></textarea></div>
+      <div class="fld"><label for="c_name">Client name</label><input id="c_name" placeholder="Full name"></div>
+      <div class="fld"><label for="c_company">Company / host</label><input id="c_company" placeholder="Optional"></div>
+      <div class="fld"><label for="c_email">Email</label><input id="c_email" type="email" placeholder="name@email.com"></div>
+      <div class="fld"><label for="c_phone">Phone</label><input id="c_phone" placeholder="+91…"></div>
+      <div class="fld"><label for="c_date">Event date</label><input id="c_date" type="date"></div>
+      <div class="fld"><label for="c_venue">Venue</label><input id="c_venue" placeholder="Venue name"></div>
+      <div class="fld" style="grid-column:1/-1"><label for="c_address">Venue address</label><input id="c_address" placeholder="Address"></div>
+      <div class="fld" style="grid-column:1/-1"><label for="c_notes">Notes</label><textarea id="c_notes" placeholder="Anything to remember…"></textarea></div>
     </div>
 
     <div class="seclabel">Pricing (₹ INR) <span class="muted" id="rateNote" style="text-transform:none;letter-spacing:0"></span></div>
     <div class="grid three">
-      <div class="fld"><label>Chairs (count)</label><input id="p_chairs" type="number" min="0" step="1"></div>
-      <div class="fld"><label>Guests / plates</label><input id="p_guests" type="number" min="0" step="1"></div>
-      <div class="fld"><label>Place of supply</label>
+      <div class="fld"><label for="p_chairs">Chairs (count)</label><input id="p_chairs" type="number" min="0" step="1"></div>
+      <div class="fld"><label for="p_guests">Guests / plates</label><input id="p_guests" type="number" min="0" step="1"></div>
+      <div class="fld"><label for="p_pos">Place of supply</label>
         <select id="p_pos"><option value="intra">Intra-state (CGST + SGST)</option><option value="inter">Inter-state (IGST)</option></select></div>
     </div>
     <div class="grid three" style="margin-top:10px">
-      <div class="fld"><label>Catering source</label>
+      <div class="fld"><label for="p_cmode">Catering source</label>
         <select id="p_cmode">
           <option value="inhouse">In-house catering</option>
           <option value="vendor">Outsourced — vendor</option>
           <option value="client">Client-provided (no plate charge)</option>
         </select>
       </div>
-      <div class="fld"><label>Vendor</label><select id="p_vendor"></select></div>
-      <div class="fld"><label>Catering charge ₹ (extra)</label><input id="p_camount" type="number" min="0" step="1" value="0" title="Any vendor bill on top of per-plate"></div>
+      <div class="fld"><label for="p_vendor">Vendor</label><select id="p_vendor"></select></div>
+      <div class="fld"><label for="p_camount">Catering charge ₹ (extra)</label><input id="p_camount" type="number" min="0" step="1" value="0" title="Any vendor bill on top of per-plate"></div>
     </div>
     <div class="grid three" style="margin-top:10px">
-      <div class="fld"><label>Coupon</label><select id="p_coupon"><option value="">— none —</option></select></div>
-      <div class="fld"><label>Discount ₹</label><input id="p_discount" type="number" min="0" step="1" value="0"></div>
-      <div class="fld"><label>Discount %</label><input id="p_discountPct" type="number" min="0" max="100" step="0.5" value="0"></div>
+      <div class="fld"><label for="p_coupon">Coupon</label><select id="p_coupon"><option value="">— none —</option></select></div>
+      <div class="fld"><label for="p_discount">Discount ₹</label><input id="p_discount" type="number" min="0" step="1" value="0"></div>
+      <div class="fld"><label for="p_discountPct">Discount %</label><input id="p_discountPct" type="number" min="0" max="100" step="0.5" value="0"></div>
     </div>
     <!-- rates come from the Control Center; kept as hidden inputs so the calculator stays unchanged -->
     <input type="hidden" id="p_chairPrice"><input type="hidden" id="p_platePrice"><input type="hidden" id="p_gst">
@@ -185,7 +185,7 @@
     <div class="taxnote">Rates (₹/chair, ₹/plate, GST) are set once in the <a href="control.html" style="color:var(--accent)">Control Center</a>. Enter a coupon or discount here. Only GST applies as a tax in India; confirm with a CA.</div>
 
     <div class="totals" id="totals"></div>
-    <div class="lerr" id="cm_err" hidden></div>
+    <div class="lerr" id="cm_err" role="alert" aria-live="assertive" hidden></div>
 
     <div class="modbtns">
       <button class="btn" id="cm_savePricing" type="button">Save pricing (keep as quote)</button>
@@ -195,12 +195,12 @@
 </div>
 
 <!-- Approval link modal -->
-<div class="lmodal" id="linkModal" hidden>
+<div class="lmodal" id="linkModal" hidden role="dialog" aria-modal="true" aria-label="Client approval link">
   <div class="sheet" style="width:min(560px,94vw)">
-    <h3>🔗 Client approval link <button class="close" id="lk_close" type="button">✕</button></h3>
+    <h3>🔗 Client approval link <button class="close" id="lk_close" type="button" aria-label="Close">✕</button></h3>
     <p class="sub">Share this link with the client. They review the terms, verify an OTP on their phone, consent, and pay. You'll see the status update here.</p>
-    <div class="fld"><label>Approval link</label><input id="lk_url" readonly></div>
-    <div id="lk_msg"></div>
+    <div class="fld"><label for="lk_url">Approval link</label><input id="lk_url" readonly></div>
+    <div id="lk_msg" role="status" aria-live="polite"></div>
     <div class="modbtns">
       <button class="btn" id="lk_copy" type="button">Copy link</button>
       <button class="btn" id="lk_sms" type="button">📱 Send as text message</button>
@@ -211,14 +211,14 @@
 </div>
 
 <!-- Login modal (reused) -->
-<div class="lmodal" id="loginModal" hidden>
+<div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
   <form class="sheet" id="loginForm" style="width:min(380px,94vw);text-align:center">
-    <div class="mark" style="margin:0 auto 14px"></div>
-    <h3 style="justify-content:center">Sign in</h3>
+    <div class="mark" style="margin:0 auto 14px" aria-hidden="true"></div>
+    <h3 id="loginModalTitle" style="justify-content:center">Sign in</h3>
     <p class="sub">Use the account your studio admin created for you.</p>
-    <div class="fld" style="text-align:left;margin-bottom:12px"><label>Email</label><input type="email" id="li_email" required></div>
-    <div class="fld" style="text-align:left;margin-bottom:12px"><label>Password</label><input type="password" id="li_pw" required></div>
-    <div class="lerr" id="li_err" hidden></div>
+    <div class="fld" style="text-align:left;margin-bottom:12px"><label for="li_email">Email</label><input type="email" id="li_email" required></div>
+    <div class="fld" style="text-align:left;margin-bottom:12px"><label for="li_pw">Password</label><input type="password" id="li_pw" required></div>
+    <div class="lerr" id="li_err" role="alert" aria-live="assertive" hidden></div>
     <button class="btn primary" id="li_submit" type="submit" style="width:100%;justify-content:center;margin-top:6px">Sign in</button>
   </form>
 </div>
