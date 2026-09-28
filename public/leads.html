@@ -111,7 +111,7 @@
 
   <div class="toolbar">
     <h2>Pipeline</h2>
-    <input id="search" class="search" placeholder="Search name, phone, type…">
+    <input id="search" class="search" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search name, phone, type…">
     <span class="live" id="live"><i></i><span id="liveTxt">offline</span></span>
     <span class="spacer"></span>
     <button id="undoBtn" class="btn icon" title="Undo (⌘/Ctrl+Z)" disabled>↶ Undo</button>
@@ -145,8 +145,8 @@
     <p class="sub">Capture the enquiry. You can convert it to a quote once it's qualified.</p>
     <div class="grid">
       <div class="fld"><label>Contact name *</label><input id="f_name" placeholder="e.g. Priya Sharma"></div>
-      <div class="fld"><label>Phone</label><input id="f_phone" placeholder="+91…"></div>
-      <div class="fld"><label>Email</label><input id="f_email" placeholder="name@email.com"></div>
+      <div class="fld"><label>Phone</label><input id="f_phone" type="tel" inputmode="tel" autocomplete="off" maxlength="16" placeholder="+91…"></div>
+      <div class="fld"><label>Email</label><input id="f_email" type="email" autocomplete="off" placeholder="name@email.com"></div>
       <div class="fld"><label>Source</label>
         <select id="f_source">
           <option value="">—</option><option>referral</option><option>website</option>
@@ -359,13 +359,22 @@
   }
   function closeForm(){ $("#leadModal").hidden=true; editingId=null; }
   async function saveLead(){
+    const fail=(m)=>{ $("#lm_err").textContent=m; $("#lm_err").hidden=false; };
+    const V=BPStore.validate;
     const name=$("#f_name").value.trim();
-    if(!name){ $("#lm_err").textContent="Contact name is required."; $("#lm_err").hidden=false; return; }
-    const patch={ name, phone:$("#f_phone").value.trim()||null, email:$("#f_email").value.trim()||null,
+    if(!name){ fail("Contact name is required."); return; }
+    let phone=null;
+    if($("#f_phone").value.trim()){ const pv=V.phone($("#f_phone").value); if(!pv.ok){ fail(pv.error); return; } phone=pv.value; }
+    let email=null;
+    if($("#f_email").value.trim()){ const ev=V.email($("#f_email").value); if(!ev.ok){ fail(ev.error); return; } email=ev.value; }
+    let budget=null;
+    if($("#f_budget").value!==""){ const bv=V.money($("#f_budget").value,{field:"Budget"}); if(!bv.ok){ fail(bv.error); return; } budget=bv.value; }
+    let guest_count=null;
+    if($("#f_guests").value!==""){ const gv=V.count($("#f_guests").value,{field:"Guest count"}); if(!gv.ok){ fail(gv.error); return; } guest_count=gv.value; }
+    const patch={ name, phone, email,
       source:$("#f_source").value||null, event_type:$("#f_type").value.trim()||null,
       event_date:$("#f_date").value||null,
-      budget:$("#f_budget").value?Number($("#f_budget").value):null,
-      guest_count:$("#f_guests").value?Number($("#f_guests").value):null,
+      budget, guest_count,
       notes:$("#f_notes").value.trim()||null };
     $("#lm_save").disabled=true; lastLocalWrite=Date.now();
     try{

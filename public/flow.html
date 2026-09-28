@@ -446,8 +446,22 @@
     pendingLeave=go;
     $("#leaveModal").hidden=false;
   }
+  // A quotation must have at least one priced line — seating (chairs), catering
+  // (guests), or décor/other — so an accidental all-empty submit can't persist a
+  // ₹0 "quote" (Wave 16 data-integrity fix). Returns "" when OK, else a message.
+  function quoteEmptyReason(p,t){
+    const hasLine = (p.chairs>0) || (p.guests>0) || (p.other>0);
+    if(!hasLine || !(t.total>0)) return "Nothing to quote yet — add seating (chairs), catering (guests), or décor/other so the quotation has a value.";
+    return "";
+  }
   async function saveQuotation(){
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p);
+    const reason=quoteEmptyReason(p,t);
+    if(reason){
+      if($("#q_msg")){ $("#q_msg").style.color="var(--warn,#e8912d)"; $("#q_msg").textContent=reason; }
+      if(typeof toast!=='undefined'){ try{ toast("Add at least one priced line before saving."); }catch(_){ } }
+      return;
+    }
     const pricing=Object.assign({}, ev.pricing||{}, p, { computed:t, total:t.total, client:ev.client||{} });
     try{
       const r=await BPStore.quotationVersions.save(id, pricing);   // keeps every Q-version; also updates current pricing
@@ -483,6 +497,8 @@
   }
   function downloadQuotePDF(){
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p), cl=ev.client||{};
+    const reason=quoteEmptyReason(p,t);
+    if(reason){ alert("This quote is empty (₹0). Add seating, catering, or décor before downloading a PDF."); return; }
     const line=(l,a)=>`<tr><td>${l}</td><td style="text-align:right">${inr(a)}</td></tr>`;
     const rows=[];
     if(p.chairs>0) rows.push(line(`Seating — ${p.chairs} chairs × ${inr(p.chairPrice)}`, p.chairs*p.chairPrice));

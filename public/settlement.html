@@ -188,12 +188,16 @@
     $("#expBody").querySelectorAll("[data-edel]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.expenses.remove(b.dataset.edel); await load(); }));
   }
 
-  async function recordPayment(){ const amt=Number($("#pay_amt").value||0); if(amt<=0) return; $("#pay_btn").disabled=true;
+  async function recordPayment(){ const av=BPStore.validate.money($("#pay_amt").value,{field:"Payment amount"});
+    if(!av.ok || av.value<=0){ $("#pay_msg").style.color="var(--warn,#e8912d)"; $("#pay_msg").textContent=av.ok?"Enter an amount greater than ₹0.":av.error; $("#pay_amt").focus(); return; }
+    const amt=av.value; $("#pay_btn").disabled=true;
     try{ await BPStore.milestones.add(id,{ label:"Payment received", amount:amt, status:"paid" }); $("#pay_amt").value=""; $("#pay_msg").textContent="Recorded ✓"; setTimeout(()=>$("#pay_msg").textContent="",1500); await load(); }
     catch(e){ alert("Couldn't record — "+((e&&e.message)||"error")); } finally{ $("#pay_btn").disabled=false; }
   }
-  async function addExpense(){ const who=$("#e_who").value.trim(); if(!who){ $("#e_who").focus(); return; }
-    try{ await BPStore.expenses.add(id,{ who, description:$("#e_desc").value.trim()||null, amount:Number($("#e_amt").value||0) }); $("#e_who").value=""; $("#e_desc").value=""; $("#e_amt").value=0; await load(); }
+  async function addExpense(){ const who=$("#e_who").value.trim(); if(!who){ alert("Enter who the expense is paid to."); $("#e_who").focus(); return; }
+    const av=BPStore.validate.money($("#e_amt").value,{field:"Expense amount"});
+    if(!av.ok || av.value<=0){ alert(av.ok?"Expense amount must be greater than ₹0.":av.error); $("#e_amt").focus(); return; }
+    try{ await BPStore.expenses.add(id,{ who, description:$("#e_desc").value.trim()||null, amount:av.value }); $("#e_who").value=""; $("#e_desc").value=""; $("#e_amt").value=0; await load(); }
     catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); }
   }
 
@@ -215,7 +219,9 @@
     $("#refBody").querySelectorAll("[data-rst]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.refunds.setStatus(b.dataset.rst,b.dataset.s); await renderRefunds(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
     $("#refBody").querySelectorAll("[data-rdel]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.refunds.remove(b.dataset.rdel); renderRefunds(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
   }
-  async function addRefund(){ const amt=Number($("#r_amt").value||0); if(amt<=0){ $("#r_amt").focus(); return; }
+  async function addRefund(){ const av=BPStore.validate.money($("#r_amt").value,{field:"Refund amount"});
+    if(!av.ok || av.value<=0){ alert(av.ok?"Refund amount must be greater than ₹0.":av.error); $("#r_amt").focus(); return; }
+    const amt=av.value;
     try{ await BPStore.refunds.add(id,{ kind:$("#r_kind").value, reason:$("#r_reason").value.trim()||null, amount:amt }); $("#r_reason").value=""; $("#r_amt").value=0; await renderRefunds(); }
     catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); }
   }

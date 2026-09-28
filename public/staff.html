@@ -78,7 +78,7 @@
 
   <div class="toolbar">
     <h2>In-house team</h2>
-    <input id="search" class="search" placeholder="Search name, role, skill…">
+    <input id="search" class="search" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search name, role, skill…">
     <select id="deptFilter" class="sel"><option value="">All departments</option></select>
     <select id="skillFilter" class="sel"><option value="">All skills</option></select>
     <label class="chkbox"><input type="checkbox" id="showInactive"> Show inactive</label>
@@ -101,8 +101,8 @@
       <div class="fld"><label>Role / title</label><input id="s_role" placeholder="e.g. Lead planner, AV technician"></div>
       <div class="fld"><label>Department</label><input id="s_dept" placeholder="e.g. Production, Catering" list="deptList"></div>
       <div class="fld"><label>Employment</label><select id="s_emp"><option value="">—</option><option value="full_time">Full-time</option><option value="part_time">Part-time</option><option value="on_call">On-call</option></select></div>
-      <div class="fld"><label>Phone *</label><input id="s_phone" placeholder="+91…"></div>
-      <div class="fld"><label>Email</label><input id="s_email" placeholder="name@email.com"></div>
+      <div class="fld"><label>Phone *</label><input id="s_phone" type="tel" inputmode="tel" autocomplete="off" maxlength="16" placeholder="+91…"></div>
+      <div class="fld"><label>Email</label><input id="s_email" type="email" autocomplete="off" placeholder="name@email.com"></div>
       <div class="fld"><label>Day rate (₹)</label><input id="s_rate" type="number" min="0" placeholder="optional"></div>
       <div class="fld"><label>Skills (comma separated)</label><input id="s_skills" placeholder="e.g. lighting, sound, forklift"></div>
       <div class="fld full"><label>Notes</label><input id="s_notes" placeholder="optional"></div>
@@ -197,13 +197,20 @@
   }
   function closeForm(){ $("#staffModal").hidden=true; editingId=null; }
   async function saveStaff(){
-    const name=$("#s_name").value.trim(), phone=$("#s_phone").value.trim();
-    if(!name){ $("#sm_err").textContent="Name is required."; $("#sm_err").hidden=false; return; }
-    if(!phone){ $("#sm_err").textContent="Phone is required."; $("#sm_err").hidden=false; return; }
+    const fail=(m)=>{ $("#sm_err").textContent=m; $("#sm_err").hidden=false; };
+    const V=BPStore.validate;
+    const name=$("#s_name").value.trim();
+    if(!name){ fail("Name is required."); return; }
+    const phoneV=V.phone($("#s_phone").value);
+    if(!phoneV.ok){ fail(phoneV.error); return; }
+    let email=null;
+    if($("#s_email").value.trim()){ const ev=V.email($("#s_email").value); if(!ev.ok){ fail(ev.error); return; } email=ev.value; }
+    let day_rate=null;
+    if($("#s_rate").value!==""){ const rv=V.money($("#s_rate").value,{field:"Day rate"}); if(!rv.ok){ fail(rv.error); return; } day_rate=rv.value; }
     const skills=$("#s_skills").value.split(",").map(x=>x.trim()).filter(Boolean);
-    const rec={ name, phone, role:$("#s_role").value.trim()||null, department:$("#s_dept").value.trim()||null,
-      emp_type:$("#s_emp").value||null, email:$("#s_email").value.trim()||null,
-      day_rate:$("#s_rate").value?Number($("#s_rate").value):null, skills, notes:$("#s_notes").value.trim()||null };
+    const rec={ name, phone:phoneV.value, role:$("#s_role").value.trim()||null, department:$("#s_dept").value.trim()||null,
+      emp_type:$("#s_emp").value||null, email,
+      day_rate, skills, notes:$("#s_notes").value.trim()||null };
     $("#sm_save").disabled=true;
     try{ if(editingId) await BPStore.staff.update(editingId,rec); else await BPStore.staff.add(rec); closeForm(); await load(); }
     catch(e){ $("#sm_err").textContent="Couldn't save — "+((e&&e.message)||"error"); $("#sm_err").hidden=false; }

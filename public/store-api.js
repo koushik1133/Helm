@@ -75,14 +75,26 @@
   let currentUser = null;       // signed-in Supabase user (or null)
   let roleCache = null;         // this user's RBAC role
   let accessCache = null;       // { role, map:{area:{view,edit}} | null } — the live access matrix for this user
+  let rolePromise = null;       // in-flight getRole() (dedupes the parallel canView fan-out)
+  let accessPromise = null;     // in-flight loadAccess()
   let authRequired = false;     // true when Supabase enforces login (RLS) and nobody is signed in
   // capability matrix per role (10 roles)
+  // capability matrix per role. IMPORTANT: `create` and `delete` here gate
+  // buttons (dashboard/quotes/leads/builder create, delete controls) that map to
+  // the server functions can_create() = {admin,planner,sales} and can_delete() =
+  // {admin,planner}. They are kept IN SYNC with those SQL functions so no button
+  // is shown that the server will reject with "not authorized" (Wave 16 fix —
+  // manager/coordinator previously saw a create button that always errored).
+  // `edit` is NOT used for edit buttons — pages gate editing via canEditArea()
+  // (the has_area matrix) — so it stays broad here for any legacy checks.
+  // Whether a manager SHOULD be able to create/delete quotes is a PRODUCT
+  // DECISION (would require adding manager to can_create/can_delete server-side).
   const ROLE_CAPS = {
     admin:       ["view", "create", "edit", "delete", "manage"],
-    manager:     ["view", "create", "edit", "delete", "manage"],
+    manager:     ["view", "edit", "manage"],
     planner:     ["view", "create", "edit", "delete"],
     sales:       ["view", "create", "edit"],
-    coordinator: ["view", "create", "edit"],
+    coordinator: ["view", "edit"],
     supervisor:  ["view", "edit"],
     quality:     ["view", "edit"],
     operations:  ["view", "edit"],
@@ -245,34 +257,52 @@
   }
 
   /* ---------------- auth / RBAC ---------------- */
+  // Resolve this user's role. A transient profiles-fetch failure must NEVER
+  // downgrade to a low-privilege role (that used to get cached by loadAccess and
+  // stick for the whole page — the "Leads tab appears only after clicking another
+  // tab" bug). Instead: retry a few times, dedupe concurrent callers with one
+  // in-flight promise, cache ONLY a successful lookup, and return null (unknown)
+  // if it genuinely can't resolve so callers deny-this-render without caching.
   async function getRole() {
     if (!supa || !currentUser) return null;
     if (roleCache) return roleCache;
-    try {
-      const { data, error } = await supa.from("profiles").select("role").eq("id", currentUser.id).single();
-      if (error) throw error;
-      roleCache = (data && data.role) || "client";       // cache only a successful lookup
-      return roleCache;
-    } catch {
-      return "client";                                    // transient failure → don't cache, retry next call
-    }
+    if (rolePromise) return rolePromise;
+    rolePromise = (async () => {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const { data, error } = await supa.from("profiles").select("role").eq("id", currentUser.id).single();
+          if (error) throw error;
+          roleCache = (data && data.role) || "client";
+          return roleCache;
+        } catch (e) {
+          if (attempt < 2) { await new Promise((r) => setTimeout(r, 150 * (attempt + 1))); continue; }
+          return null;   // unknown after retries — do NOT guess a role
+        }
+      }
+    })();
+    try { return await rolePromise; } finally { rolePromise = null; }
   }
   // Load this user's access matrix (rows for their role). RLS returns only their
   // own role's rows. If the table is absent (phase29 not run) map stays null and
   // callers fall back to the legacy VIEW_SCOPE. Cached until sign-in/out/role change.
   async function loadAccess() {
     if (accessCache) return accessCache;
-    const r = await getRole();
-    try {
-      const { data, error } = await supa.from("role_access").select("area,can_view,can_edit").eq("role", r);
-      if (error) throw error;
-      const map = {};
-      (data || []).forEach((row) => { map[row.area] = { view: !!row.can_view, edit: !!row.can_edit }; });
-      accessCache = { role: r, map };
-    } catch {
-      accessCache = { role: r, map: null };               // legacy fallback
-    }
-    return accessCache;
+    if (accessPromise) return accessPromise;              // dedupe the parallel canView fan-out
+    accessPromise = (async () => {
+      const r = await getRole();
+      if (!r) return { role: null, map: null };           // role unknown → transient, do NOT cache; next call retries
+      try {
+        const { data, error } = await supa.from("role_access").select("area,can_view,can_edit").eq("role", r);
+        if (error) throw error;
+        const map = {};
+        (data || []).forEach((row) => { map[row.area] = { view: !!row.can_view, edit: !!row.can_edit }; });
+        accessCache = { role: r, map };
+      } catch {
+        accessCache = { role: r, map: null };             // legacy fallback (phase29 role_access absent)
+      }
+      return accessCache;
+    })();
+    try { return await accessPromise; } finally { accessPromise = null; }
   }
   const auth = {
     enabled: () => mode === "supabase",
@@ -338,7 +368,7 @@
       if (!supa) throw new Error("Supabase not configured");
       const { data, error } = await supa.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      currentUser = data.user; roleCache = null; accessCache = null; authRequired = false;
+      currentUser = data.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; authRequired = false;
       return currentUser;
     },
     // Phase 58 — self-serve sign-up (studio created via create_studio once a session exists)
@@ -346,7 +376,7 @@
       if (!supa) throw new Error("Supabase not configured");
       const { data, error } = await supa.auth.signUp({ email, password });
       if (error) throw error;
-      if (data.session) { currentUser = data.user; roleCache = null; accessCache = null; authRequired = false; }
+      if (data.session) { currentUser = data.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; authRequired = false; }
       return { user: data.user, session: data.session };   // session null when email confirmation is required
     },
     // Google OAuth sign-in (requires the Google provider enabled in Supabase).
@@ -365,7 +395,7 @@
       if (error) throw error;
       return data; // browser navigates away to Google
     },
-    async signOut() { if (supa) await supa.auth.signOut(); currentUser = null; roleCache = null; accessCache = null;
+    async signOut() { if (supa) await supa.auth.signOut(); currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null;
       if (mode === "supabase") authRequired = true; },
     // Option A: does the signed-in user still hold a temp password they must replace?
     async passwordChangeRequired() {
@@ -384,7 +414,7 @@
       return true;
     },
     onChange(cb) { if (supa) supa.auth.onAuthStateChange((_e, session) => {
-      currentUser = session ? session.user : null; roleCache = null; accessCache = null;
+      currentUser = session ? session.user : null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null;
       if (mode === "supabase") authRequired = !currentUser; if (cb) cb(currentUser); }); },
     // ---- admin user management (RPC guarded by is_admin() at the DB) ----
     admin: {
@@ -1151,11 +1181,23 @@
       }
       const a = readLs(INV_LS); return includeInactive ? a : a.filter((i) => i.active !== false);
     },
+    // clamp inventory numerics at the data layer: quantities and costs can never
+    // be negative regardless of what the UI sends (Wave 16 defense-in-depth;
+    // backs the global input hardener and the DB CHECK constraints).
+    _sanitize(o) {
+      const s = { ...o };
+      if ("total_qty" in s) s.total_qty = Math.max(0, Math.trunc(Number(s.total_qty) || 0));
+      if ("unit_cost" in s) s.unit_cost = Math.max(0, Number(s.unit_cost) || 0);
+      if ("reorder_at" in s && s.reorder_at != null) s.reorder_at = Math.max(0, Math.trunc(Number(s.reorder_at) || 0));
+      return s;
+    },
     async addItem(it) {
+      it = this._sanitize(it);
       if (mode === "supabase") { const { data, error } = await supa.from("inventory_items").insert(it).select().single(); if (error) throw error; return data; }
       const a = readLs(INV_LS); const row = { id: uid(), active: true, total_qty: 0, ...it, created_at: now() }; a.push(row); localStorage.setItem(INV_LS, JSON.stringify(a)); return row;
     },
     async updateItem(id, patch) {
+      patch = this._sanitize(patch);
       if (mode === "supabase") { const { error } = await supa.from("inventory_items").update(patch).eq("id", id); if (error) throw error; return true; }
       const a = readLs(INV_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(INV_LS, JSON.stringify(a)); } return true;
     },
@@ -2347,4 +2389,100 @@
     },
   };
   global.BPStore = BPStore;
+})(window);
+
+/* =========================================================================
+   Wave 16 — shared input validation + global numeric-input hardening.
+   Root-cause fix: every page already loads store-api.js, so a single global
+   guard here hardens EVERY input[type=number] across all 45 pages at once,
+   and BPStore.validate.* gives composable, business-semantic submit checks.
+   Design rules:
+     - HTML min= does NOT block typed/pasted values; JS must enforce it.
+     - Negatives are denied by DEFAULT. A field that legitimately allows a
+       negative opts in with the attribute data-allow-negative (e.g. builder
+       coordinates, financial credit/debit). Business rule per field, not global.
+     - Reject NaN / Infinity / scientific notation / letters / stray symbols.
+   ========================================================================= */
+(function (global) {
+  var BPStore = global.BPStore; if (!BPStore) return;
+
+  // ---- composable value validators. each returns {ok, value?, error?} ----
+  function core(raw, opt) {
+    opt = opt || {};
+    if (raw == null) return { ok: false, error: "is required" };
+    var s = String(raw).trim();
+    if (s === "") return { ok: false, error: "is required" };
+    var re = opt.integer ? /^[+-]?\d+$/ : /^[+-]?\d+(\.\d+)?$/;   // no e-notation, no letters
+    if (!re.test(s)) return { ok: false, error: opt.integer ? "must be a whole number" : "must be a number" };
+    var n = Number(s);
+    if (!isFinite(n)) return { ok: false, error: "must be a finite number" };
+    if (!opt.allowNeg && n < 0) return { ok: false, error: "cannot be negative" };
+    if (opt.min != null && n < opt.min) return { ok: false, error: "must be at least " + opt.min };
+    if (opt.max != null && n > opt.max) return { ok: false, error: "must be at most " + opt.max };
+    if (opt.gtZero && n <= 0) return { ok: false, error: "must be greater than 0" };
+    return { ok: true, value: n };
+  }
+  var V = {
+    // integer count >= 0 (guests, chairs, seats, stock qty). allowZero default true.
+    count: function (raw, o) { o = o || {}; var r = core(raw, { integer: true, min: o.allowZero === false ? 1 : 0, max: o.max }); return r.ok ? r : { ok: false, error: (o.field || "Value") + " " + r.error }; },
+    // money >= 0, 2-dp (price, amount, cost, rate, decor).
+    money: function (raw, o) { o = o || {}; var r = core(raw, { min: 0, max: o.max }); if (!r.ok) return { ok: false, error: (o.field || "Amount") + " " + r.error }; return { ok: true, value: Math.round(r.value * 100) / 100 }; },
+    // percentage 0..100.
+    pct: function (raw, o) { o = o || {}; var r = core(raw, { min: 0, max: 100 }); return r.ok ? r : { ok: false, error: (o.field || "Percentage") + " must be between 0 and 100" }; },
+    // physical dimension > 0 (hall/stage/table length/breadth/height).
+    dimension: function (raw, o) { o = o || {}; var r = core(raw, { gtZero: true }); return r.ok ? r : { ok: false, error: (o.field || "Dimension") + " " + r.error }; },
+    // generic number with explicit opts (allowNeg, min, max, integer).
+    num: core,
+    phone: function (raw) { var s = String(raw == null ? "" : raw).trim(); if (!s) return { ok: false, error: "Phone number is required" }; var c = s.replace(/[\s\-().]/g, ""); if (!/^\+?\d{7,15}$/.test(c)) return { ok: false, error: "Enter a valid phone number (7–15 digits, optional leading +)" }; return { ok: true, value: c }; },
+    email: function (raw) { var s = String(raw == null ? "" : raw).trim(); if (!s) return { ok: false, error: "Email is required" }; if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) return { ok: false, error: "Enter a valid email address" }; return { ok: true, value: s.toLowerCase() }; },
+    required: function (raw, label) { var s = String(raw == null ? "" : raw).trim(); return s ? { ok: true, value: s } : { ok: false, error: (label || "This field") + " is required" }; },
+    // validate a list; returns {ok, errors:[...], value:{}}. spec = [[getter,'kind',opts]]
+    all: function (checks) { var out = { ok: true, errors: [] }; checks.forEach(function (c) { var r = c; if (!r.ok) { out.ok = false; out.errors.push(r.error); } }); return out; }
+  };
+  BPStore.validate = V;
+
+  // ---- global input[type=number] hardener -------------------------------
+  if (typeof document === "undefined") return;
+  function harden(el) {
+    if (el.getAttribute("data-hardened") === "1") return;
+    el.setAttribute("data-hardened", "1");
+    var allowNeg = el.hasAttribute("data-allow-negative");
+    var stepAttr = el.getAttribute("step");
+    var integer = el.hasAttribute("data-integer") || stepAttr === "1";
+    if (!el.getAttribute("inputmode")) el.setAttribute("inputmode", integer ? "numeric" : "decimal");
+    if (!allowNeg && el.getAttribute("min") == null) el.setAttribute("min", "0");
+    el.addEventListener("keydown", function (e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === "e" || e.key === "E" || e.key === "+") { e.preventDefault(); return; }
+      if (e.key === "-" && !allowNeg) { e.preventDefault(); return; }
+      if (e.key === "." && integer) { e.preventDefault(); return; }
+    });
+    var fix = function () {
+      var v = String(el.value).trim();
+      if (v === "") return;
+      var n = Number(v);
+      if (!isFinite(n)) { el.value = ""; el.dispatchEvent(new Event("change", { bubbles: true })); return; }
+      if (!allowNeg && n < 0) n = 0;
+      var mn = el.getAttribute("min"), mx = el.getAttribute("max");
+      if (mn !== null && mn !== "" && n < Number(mn)) n = Number(mn);
+      if (mx !== null && mx !== "" && n > Number(mx)) n = Number(mx);
+      if (integer) n = Math.trunc(n);
+      var s = String(n);
+      if (s !== el.value) { el.value = s; el.dispatchEvent(new Event("change", { bubbles: true })); }
+    };
+    el.addEventListener("blur", fix);
+  }
+  function scan(root) {
+    try { (root || document).querySelectorAll('input[type="number"]:not([data-hardened])').forEach(harden); } catch (e) {}
+  }
+  function boot() {
+    scan(document);
+    try {
+      var mo = new MutationObserver(function (muts) {
+        muts.forEach(function (m) { Array.prototype.forEach.call(m.addedNodes || [], function (nd) { if (nd.nodeType === 1) { if (nd.matches && nd.matches('input[type="number"]')) harden(nd); scan(nd); } }); });
+      });
+      mo.observe(document.documentElement, { childList: true, subtree: true });
+    } catch (e) {}
+  }
+  if (document.readyState !== "loading") boot(); else document.addEventListener("DOMContentLoaded", boot);
 })(window);

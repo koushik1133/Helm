@@ -82,7 +82,7 @@
       <button data-k="rental">Rentals</button>
       <button data-k="supplier">Suppliers</button>
     </div>
-    <input id="search" class="search" placeholder="Search name, service…">
+    <input id="search" class="search" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search name, service…">
     <span class="spacer"></span>
     <label style="font-size:12px;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="showInactive"> Show inactive</label>
     <button id="newBtn" class="btn primary" hidden>＋ Add partner</button>
@@ -99,8 +99,8 @@
       <div class="fld"><label>Name *</label><input id="v_name" placeholder="e.g. Spotlight AV Rentals"></div>
       <div class="fld"><label>Type</label><select id="v_kind"><option value="vendor">Vendor</option><option value="freelancer">Freelancer</option><option value="rental">Rental</option><option value="supplier">Supplier</option></select></div>
       <div class="fld"><label>Category</label><input id="v_cat" placeholder="e.g. Lighting, Catering"></div>
-      <div class="fld"><label>Phone</label><input id="v_phone" placeholder="+91…"></div>
-      <div class="fld"><label>Email</label><input id="v_email" placeholder="name@email.com"></div>
+      <div class="fld"><label>Phone</label><input id="v_phone" type="tel" inputmode="tel" autocomplete="off" maxlength="16" placeholder="+91…"></div>
+      <div class="fld"><label>Email</label><input id="v_email" type="email" autocomplete="off" placeholder="name@email.com"></div>
       <div class="fld"><label>Services (comma separated)</label><input id="v_services" placeholder="e.g. LED walls, trussing"></div>
       <div class="fld full"><label>Notes</label><input id="v_notes" placeholder="optional"></div>
     </div>
@@ -197,10 +197,16 @@
   }
   function closeForm(){ $("#vModal").hidden=true; editingId=null; }
   async function save(){
-    const name=$("#v_name").value.trim(); if(!name){ $("#vm_err").textContent="Name is required."; $("#vm_err").hidden=false; return; }
+    const fail=(m)=>{ $("#vm_err").textContent=m; $("#vm_err").hidden=false; };
+    const V=BPStore.validate;
+    const name=$("#v_name").value.trim(); if(!name){ fail("Name is required."); return; }
+    let phone=null;
+    if($("#v_phone").value.trim()){ const pv=V.phone($("#v_phone").value); if(!pv.ok){ fail(pv.error); return; } phone=pv.value; }
+    let email=null;
+    if($("#v_email").value.trim()){ const ev=V.email($("#v_email").value); if(!ev.ok){ fail(ev.error); return; } email=ev.value; }
     const services=$("#v_services").value.split(",").map(x=>x.trim()).filter(Boolean);
-    const rec={ name, kind:$("#v_kind").value, category:$("#v_cat").value.trim()||null, phone:$("#v_phone").value.trim()||null,
-      email:$("#v_email").value.trim()||null, services, notes:$("#v_notes").value.trim()||null };
+    const rec={ name, kind:$("#v_kind").value, category:$("#v_cat").value.trim()||null, phone,
+      email, services, notes:$("#v_notes").value.trim()||null };
     $("#vm_save").disabled=true;
     try{ if(editingId) await BPStore.vendors.update(editingId,rec); else await BPStore.vendors.addFull(rec); closeForm(); await load(); }
     catch(e){ $("#vm_err").textContent="Couldn't save — "+((e&&e.message)||"error"); $("#vm_err").hidden=false; }
