@@ -30,10 +30,20 @@ const HOSTS = ['helm-staging.vercel.app'];
 function run({ host, withStaging, allow }) {
   let src = SRC;
   if (withStaging) {
+    // Simulate the committed staging block being filled + a host allow-listed.
+    // (The block may already be filled in the committed file; these replaces are
+    // idempotent — they normalise it to the test's known STG/HOSTS values.)
     src = src
       .replace('hosts: []', 'hosts: ' + JSON.stringify(HOSTS))
-      .replace('url: "",        //', 'url: "' + STG.url + '",//')
-      .replace('anonKey: "",    //', 'anonKey: "' + STG.anonKey + '",//');
+      .replace(/(window\.SUPABASE_STAGING\s*=\s*\{[\s\S]*?url:\s*")[^"]*(")/, '$1' + STG.url + '$2')
+      .replace(/(window\.SUPABASE_STAGING\s*=\s*\{[\s\S]*?anonKey:\s*")[^"]*(")/, '$1' + STG.anonKey + '$2');
+  } else {
+    // Simulate NO staging configured, regardless of whether the committed block
+    // currently holds real staging values — blank the staging url+anonKey so we
+    // genuinely exercise the fail-closed default path.
+    src = src
+      .replace(/(window\.SUPABASE_STAGING\s*=\s*\{[\s\S]*?url:\s*")[^"]*(")/, '$1$2')
+      .replace(/(window\.SUPABASE_STAGING\s*=\s*\{[\s\S]*?anonKey:\s*")[^"]*(")/, '$1$2');
   }
   const store = {}; if (allow) store['helm.allowProdFromLocalhost'] = '1';
   const window = {};

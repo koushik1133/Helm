@@ -31,10 +31,13 @@ export async function svcGet(path) {
 export async function bootstrapCanonicalLead(runId) {
   const tok = await signIn('sales');
   const phone = '5' + Math.floor(1000000000 + Math.random() * 8999999999);
+  // leads RLS requires org_id = current_org_id() (and owner); fetch the caller's profile.
+  const prof = (await jj(await fetch(STAGING_URL + '/rest/v1/profiles?select=id,org_id', { headers: anonH(tok) })))[0];
   const lead = (await jj(await fetch(STAGING_URL + '/rest/v1/leads', {
     method: 'POST', headers: { ...anonH(tok), Prefer: 'return=representation' },
-    body: JSON.stringify({ name: runId + ' Client', phone, source: 'e2e', event_type: 'wedding', status: 'new' }),
+    body: JSON.stringify({ name: runId + ' Client', phone, source: 'e2e', event_type: 'wedding', status: 'new', org_id: prof?.org_id, owner: prof?.id }),
   })))[0];
+  if (!lead || !lead.id) throw new Error('lead bootstrap failed: ' + JSON.stringify(lead));
   const conv = await rpcAs('sales', 'convert_lead_to_quote', { p_lead_id: lead.id });
   // convert_lead_to_quote returns the new quote id (uuid) or a row; normalize.
   const quoteId = typeof conv === 'string' ? conv : (conv && (conv.id || conv.quote_id || conv[0]?.id));

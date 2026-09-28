@@ -30,9 +30,9 @@ window.SUPABASE_CONFIG = {
 // than ever touching production.
 // ---------------------------------------------------------------------------
 window.SUPABASE_STAGING = {
-  url: "",        // e.g. https://<staging-ref>.supabase.co   (fill in)
-  anonKey: "",    // staging anon/publishable key             (fill in)
-  hosts: []       // EXACT staging frontend hostname(s), e.g. ["helm-staging.vercel.app"]
+  url: "https://xizehqgeyjcfpzrdymly.supabase.co",   // Helm-staging project (isolated from prod)
+  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpemVocWdleWpjZnB6cmR5bWx5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxOTAyNTMsImV4cCI6MjEwNTc2NjI1M30.KvL6N-N7iIY7GzsxglWJRmP3JVZuXrHDeqQX1GWaZFo",  // staging ANON/publishable key (public-by-design, RLS-protected — never the elevated key)
+  hosts: []       // EXACT staging frontend hostname(s) — add the Vercel staging host at deploy time, e.g. ["helm-staging.vercel.app"]
 };
 
 // ---------------------------------------------------------------------------
