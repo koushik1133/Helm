@@ -53,9 +53,45 @@
     } catch (e) { /* telemetry must never break the app */ }
   }
 
+  // When a DSN is configured but no reporter SDK is present yet, lazy-load the Sentry
+  // browser SDK and init it (redaction-aware via beforeSend). Completely NO-OP when no
+  // DSN is set. Requires the CSP to allow browser.sentry-cdn.com + *.ingest.sentry.io
+  // (already added in vercel.json). To enable in production: set window.HELM_TELEMETRY
+  // = { dsn, env, release } in config.js — nothing else.
+  function loadSentry() {
+    if (!ENABLED || (typeof window === 'undefined') || window.Sentry || CFG.loadSentry === false) return;
+    try {
+      var sc = document.createElement('script');
+      sc.src = 'https://browser.sentry-cdn.com/8.35.0/bundle.min.js';
+      sc.crossOrigin = 'anonymous';
+      sc.onload = function () {
+        try {
+          if (window.Sentry && window.Sentry.init) {
+            window.Sentry.init({
+              dsn: CFG.dsn,
+              environment: CFG.env || 'production',
+              release: CFG.release || undefined,
+              tracesSampleRate: CFG.tracesSampleRate || 0,
+              beforeSend: function (ev) {
+                try {
+                  if (ev.message) ev.message = redact(ev.message);
+                  if (ev.request && ev.request.url) ev.request.url = redact(ev.request.url);
+                  if (ev.exception && ev.exception.values) ev.exception.values.forEach(function (v) { if (v && v.value) v.value = redact(v.value); });
+                } catch (e) {}
+                return ev;
+              }
+            });
+          }
+        } catch (e) {}
+      };
+      document.head.appendChild(sc);
+    } catch (e) { /* never break the app */ }
+  }
+
   if (typeof window !== 'undefined') {
     window.addEventListener('error', function (e) { report('error', e && (e.error || { message: e.message })); });
     window.addEventListener('unhandledrejection', function (e) { report('unhandledrejection', e && e.reason); });
     window.HelmTelemetry = { report: report, redact: redact, enabled: ENABLED };
+    loadSentry();
   }
 })();
