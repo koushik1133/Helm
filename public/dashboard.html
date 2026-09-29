@@ -106,6 +106,16 @@
   .tgrp{margin:6px 0;font-size:13px}.tgrp>b,.tgrp>summary{display:block;margin-bottom:4px;color:var(--muted)}
   .trow{padding:2px 0;font-size:13px}.trow.done{color:var(--muted);opacity:.75}
   .unread{margin-left:6px}
+  /* Build 2 — role-specific workspace board */
+  .rboard{margin:16px 0 4px}
+  .rbhead{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+  .rbhead h3{font-size:16px;margin:0} .rbhead small{color:var(--ink-3);font-size:12px}
+  .rcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  .rcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow);display:block}
+  .rcard .n{font-size:26px;font-weight:700;font-family:var(--mono);line-height:1}
+  .rcard .l{font-size:12px;color:var(--ink-3);margin-top:4px}
+  .rcard.link{cursor:pointer;transition:.12s} .rcard.link:hover{border-color:var(--accent);transform:translateY(-2px)}
+  .rcard.alert .n{color:#b42318} .rcard.good .n{color:#0f7a43} .rcard.warn .n{color:#9a6700}
   /* Build 3 — My tasks buckets */
   #mytasks{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
   @media (max-width:840px){#mytasks{grid-template-columns:1fr}}
@@ -182,6 +192,11 @@
   </header>
 
   <nav id="modnav" class="modnav" hidden></nav>
+
+  <section id="roleboard" class="rboard" hidden aria-label="Your workspace">
+    <div class="rbhead"><h3 id="rbTitle">Your workspace</h3><small id="rbSub"></small></div>
+    <div id="rbcards" class="rcards"></div>
+  </section>
 
   <section class="hero">
     <div>
@@ -371,6 +386,7 @@
     summaries = listRes.value;
     $("#nextName").textContent = BPStore.quotes.nextCode(summaries);
     renderList();
+    renderRoleBoard();                                     // Build 2 — role-specific workspace board (best-effort)
     renderPending();                                        // Phase 3 — personal feed (best-effort)
     renderMyTasks();                                        // Build 3 — bucketed personal tasks (best-effort)
   }
@@ -428,6 +444,72 @@
         (openT.length ? `<div class="tgrp"><b>Open (${openT.length})</b>${openT.map((t)=>`<div class="trow">• ${esc(t.title||"")} <span class="stat q">${esc(t.status||"")}</span> ${esc(t.assignee_name||"")}</div>`).join("")}</div>` : "")
       + (doneT.length ? `<details class="tgrp"><summary>Done (${doneT.length})</summary>${doneT.map((t)=>`<div class="trow done">✓ ${esc(t.title||"")}</div>`).join("")}</details>` : "");
     }));
+  }
+  // Build 2 — role-specific workspace board. Six bespoke layouts (Sales / Event manager /
+  // Coordinator / Designer / Crew / Client) driven by one config map, computed from data the
+  // page already has (quotes) plus best-effort my_pending / my_tasks / design_queue. Never blocks.
+  function card(n, label, cls, href){
+    const c = `<div class="rcard ${cls||""} ${href?"link":""}" ${href?`data-href="${esc(href)}"`:""}><div class="n">${esc(n)}</div><div class="l">${esc(label)}</div></div>`;
+    return c;
+  }
+  async function renderRoleBoard(){
+    const sec = $("#roleboard"), host = $("#rbcards"); if (!sec || !host) return;
+    let role = null; try { role = await BPStore.auth.role(); } catch(e){}
+    if (!role) { sec.hidden = true; return; }
+    // quote status rollup from summaries the page already loaded
+    const st = { quote:0, confirmed:0, cancelled:0 };
+    (summaries||[]).forEach(s => { const k = (s.status||"quote"); if (st[k]!=null) st[k]++; else st.quote++; });
+    // best-effort async signals
+    let pend = { upcoming: [], unread: 0 }, tasks = { counts:{} }, dq = [];
+    try { pend = await BPStore.pending(); } catch(e){}
+    try { tasks = await BPStore.myTasks(); } catch(e){}
+    if (["admin","manager","planner","designer","coordinator"].includes(role)) { try { dq = await BPStore.design.queue(); } catch(e){} }
+    const tc = tasks.counts || {}, up = (pend.upcoming||[]).length;
+    const dqAt = (s) => (dq||[]).filter(x => x.state===s).length;
+    const CFG = {
+      admin:       { sub:"Everything across the org", cards:[
+        card(up,"Upcoming events","", ), card(st.quote,"Open quotes","link","quotes.html"),
+        card(st.confirmed,"Confirmed","good"), card(tc.overdue||0,"Tasks overdue",(tc.overdue?"alert":"")) ] },
+      manager:     { sub:"Events, approvals & delivery", cards:[
+        card(up,"Upcoming events",""), card(st.quote,"Awaiting confirmation","warn"),
+        card(st.confirmed,"Confirmed","good"), card((dq||[]).filter(x=>x.state==='client_review').length,"Designs at client review","link","design.html") ] },
+      planner:     { sub:"Pipeline to delivery", cards:[
+        card(st.quote,"Open quotes","link","quotes.html"), card(st.confirmed,"Confirmed","good"),
+        card(up,"Upcoming events",""), card(tc.overdue||0,"Tasks overdue",(tc.overdue?"alert":"")) ] },
+      sales:       { sub:"Your pipeline", cards:[
+        card(st.quote,"Open quotes","link","quotes.html"), card(st.confirmed,"Won / confirmed","good"),
+        card((summaries||[]).length,"Total quotes",""), card("→","New lead","link","leads.html") ] },
+      coordinator: { sub:"Today's delivery", cards:[
+        card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue?"alert":"")),
+        card(tc.blocked||0,"Blocked",(tc.blocked?"warn":"")), card(up,"Upcoming events","") ] },
+      supervisor:  { sub:"Today's delivery", cards:[
+        card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue?"alert":"")),
+        card(tc.blocked||0,"Blocked",(tc.blocked?"warn":"")), card(up,"Upcoming events","") ] },
+      operations:  { sub:"Resources & delivery", cards:[
+        card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue?"alert":"")),
+        card(up,"Upcoming events",""), card("→","Inventory","link","inventory.html") ] },
+      quality:     { sub:"Verification queue", cards:[
+        card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue?"alert":"")),
+        card(up,"Upcoming events",""), card(tc.completed||0,"Completed","good") ] },
+      designer:    { sub:"Design studio", cards:[
+        card((dq||[]).length,"Active designs","link","design.html"), card(dqAt('client_review'),"At client review","warn"),
+        card(dqAt('locked'),"Locked","good"), card(dqAt('draft_2d')+dqAt('revise'),"On your board","") ] },
+      crew:        { sub:"Your tasks", cards:[
+        card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue?"alert":"")),
+        card(tc.blocked||0,"Blocked",(tc.blocked?"warn":"")), card(tc.completed||0,"Done","good") ] },
+      worker:      { sub:"Your tasks", cards:[
+        card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue?"alert":"")),
+        card(tc.completed||0,"Done","good") ] },
+      client:      { sub:"Your events", cards:[
+        card((summaries||[]).length,"Your events",""), card(st.confirmed,"Confirmed","good"),
+        card(up,"Coming up","") ] },
+    };
+    const conf = CFG[role]; if (!conf || !conf.cards.length) { sec.hidden = true; return; }
+    $("#rbTitle").textContent = "Welcome — " + (BPStore.auth.admin.roleLabel(role) || role);
+    $("#rbSub").textContent = conf.sub || "";
+    host.innerHTML = conf.cards.join("");
+    host.querySelectorAll(".rcard.link").forEach(c => c.addEventListener("click", () => { const h=c.dataset.href; if (h) location.href = h; }));
+    sec.hidden = false;
   }
   // Build 3 — "My tasks": personal bucketed task list (my_tasks). Best-effort; never blocks the page.
   async function renderMyTasks() {
