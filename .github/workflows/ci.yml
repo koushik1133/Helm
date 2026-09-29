@@ -10,9 +10,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0            # full history so the secret scan can inspect all commits
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Secret scan (gitleaks) — fail on any committed credential
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Dependency audit (high/critical)
+        run: npm audit --audit-level=high
       - name: Run zero-dependency checks
         run: node scripts/ci-check.mjs
       - name: Deployment containment (static-only) assertions

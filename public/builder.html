@@ -3343,20 +3343,23 @@ init();
   const W = WORLD.w, H = WORLD.h;                    // feet
   // Three.js loads lazily on first 3D/Render use → the 2D builder stays fast to load
   let libsReady = false, libsPromise = null;
-  const loadScript = (src)=> new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=()=>rej(new Error('load '+src)); document.head.appendChild(s); });
+  const loadScript = (src,integrity)=> new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; if(integrity){ s.integrity=integrity; s.crossOrigin='anonymous'; } s.onload=res; s.onerror=()=>rej(new Error('load '+src)); document.head.appendChild(s); });
   function ensure3DLibs(){
     if(libsReady || typeof THREE!=='undefined'){ libsReady=true; return Promise.resolve(true); }
     // memoise: concurrent activations (e.g. 3D then Render before scripts finish) share ONE load, never double-inject
     if(libsPromise) return libsPromise;
     libsPromise = (async()=>{
       try{
-        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');
+        // SRI-pinned (sha384) — CDN scripts are integrity-checked; a tampered/altered
+        // file is rejected by the browser. Versions are pinned (r128 / 0.128.0).
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
+          'sha384-CI3ELBVUz9XQO+97x6nwMDPosPR5XvsxW2ua7N1Xeygeh1IxtgqtCkGfQY9WWdHu');
         await Promise.all([
-          'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js',
-          'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js',
-          'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js',
-          'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js',
-        ].map(loadScript));
+          ['https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js',      'sha384-wagZhIFgY4hD+7awjQjR4e2E294y6J2HSnd8eTNc15ZubTeQeVRZwhQJ+W6hnBsf'],
+          ['https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js',   'sha384-B6xO4Jgg0u+mU5RCidCjX9gGXVfcKQqaO289hQ0Vx+dM15uhh+Bt81X49IGCFU1s'],
+          ['https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js',    'sha384-uODMim89BXiZh5nBix93duPujeInVvBbLHhqzNTebL4d10Kwpv21B1jYO9M3uOji'],
+          ['https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js',           'sha384-fljlqkjWlmSFjkESkQvm77heIZpoWmXEOzlCA7kOpGUH+95Zk0yGfQieWM2q136E'],
+        ].map(([u,i])=>loadScript(u,i)));
         libsReady=true; return true;
       }catch(e){ console.warn('[3D] library load failed', e && e.message); libsPromise=null; return false; }  // allow a retry after failure
     })();

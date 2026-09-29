@@ -1,0 +1,20 @@
+# Gitleaks config for Helm.
+# Extends the default ruleset (secret detection) and allowlists ONLY the
+# Supabase anon/publishable keys committed in public/config.js — these are
+# public-by-design, RLS-protected, and are NOT secrets. The elevated
+# service_role key is never committed (enforced by scripts/check-env-safety.mjs,
+# which is also a CI gate), and .env* / tests/e2e/.auth are gitignored.
+title = "Helm gitleaks"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Supabase anon/publishable keys in config.js are public-by-design (RLS-protected)."
+paths = [
+  '''public/config\.js''',
+]
+# Belt-and-suspenders: also allow anon-role JWTs specifically (payload contains "role":"anon").
+regexes = [
+  '''eyJ[A-Za-z0-9_-]+\.eyJ[^"']*(?:cm9sZSI6ImFub24|role.{0,6}anon)[^"']*\.[A-Za-z0-9_-]+''',
+]
