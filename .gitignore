@@ -20,3 +20,7 @@ helm-e2e.env
 
 # Supabase CLI local cache (throwaway)
 supabase/.temp/
+
+# E2E staging creds (never commit)
+.env.e2e
+.env*.local
