@@ -1,0 +1,31 @@
+name: CodeQL
+# Static analysis for the JavaScript/TypeScript sources. Runs on pushes and
+# PRs to main plus a weekly scheduled scan so newly-published queries still catch
+# older code. Uses GitHub's default query suite (init + analyze).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '27 4 * * 1'   # Mondays 04:27 UTC — weekly baseline scan
+permissions:
+  contents: read
+  security-events: write   # required to upload results to the Security tab
+jobs:
+  analyze:
+    name: Analyze (javascript-typescript)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:javascript-typescript'

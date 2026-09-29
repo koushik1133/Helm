@@ -1,0 +1,72 @@
+name: E2E (Playwright, staging — gated)
+# Playwright E2E tests that talk to the STAGING deployment.
+#
+# These tests are GATED on repository secrets being present. For external
+# contributors and forked PRs (where secrets are never exposed) the job detects
+# the missing secrets and exits cleanly WITHOUT failing — E2E is opt-in, never a
+# barrier to a normal contribution.
+#
+# OWNER ACTION — to actually run these tests, add the following secrets under
+#   GitHub repo → Settings → Secrets and variables → Actions → New repository secret:
+#     HELM_E2E_STAGING_URL     staging Supabase URL / app base URL
+#     HELM_E2E_STAGING_ANON    staging anon key
+#     HELM_E2E_EMAIL           a seeded staging test-user email
+#     HELM_E2E_PASSWORD        that user's password
+#   (These must point ONLY at the staging project — never production.)
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gate:
+    # Publishes whether the required secrets exist. Secrets cannot be referenced
+    # in job-level `if:`, so we surface presence as an output here.
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - id: check
+        run: |
+          if [ -n "${{ secrets.HELM_E2E_STAGING_URL }}" ] \
+             && [ -n "${{ secrets.HELM_E2E_STAGING_ANON }}" ] \
+             && [ -n "${{ secrets.HELM_E2E_EMAIL }}" ] \
+             && [ -n "${{ secrets.HELM_E2E_PASSWORD }}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "E2E secrets present — tests will run."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "E2E secrets absent — skipping E2E (this is expected for forks/external PRs)."
+          fi
+
+  e2e:
+    needs: gate
+    if: needs.gate.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dev dependencies (Playwright test runner)
+        run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+      - name: Run Playwright E2E (staging, trace off)
+        run: npx playwright test --trace off
+        env:
+          CI: 'true'
+          HELM_E2E_STAGING_URL: ${{ secrets.HELM_E2E_STAGING_URL }}
+          HELM_E2E_STAGING_ANON: ${{ secrets.HELM_E2E_STAGING_ANON }}
+          HELM_E2E_EMAIL: ${{ secrets.HELM_E2E_EMAIL }}
+          HELM_E2E_PASSWORD: ${{ secrets.HELM_E2E_PASSWORD }}
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
