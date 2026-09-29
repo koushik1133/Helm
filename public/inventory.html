@@ -230,7 +230,7 @@
 
 <script src="telemetry.js?v=1"></script>
 <script src="config.js?v=90"></script>
-<script src="store-api.js?v=86"></script>
+<script src="store-api.js?v=88"></script>
 <script src="tour.js?v=4"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -332,13 +332,11 @@
     try{
       const existing=await BPStore.inventory.items(true);
       const have=new Set(existing.map(i=>String(i.name||"").trim().toLowerCase()));
-      let added=0;
-      for(const s of STARTER_ITEMS){
-        if(have.has(s.name.trim().toLowerCase())) continue;
-        await BPStore.inventory.addItem({ name:s.name, category:s.category, total_qty:s.total_qty, unit:s.unit, priority:"C", unit_cost:0, notes:null });
-        have.add(s.name.trim().toLowerCase()); added++;
-      }
-      st.textContent=added?`Added ${added} item${added===1?"":"s"}`:"All starter items already present";
+      const toAdd=STARTER_ITEMS
+        .filter(s=>!have.has(s.name.trim().toLowerCase()))
+        .map(s=>({ name:s.name, category:s.category, total_qty:s.total_qty, unit:s.unit, priority:"C", unit_cost:0, notes:null }));
+      if(toAdd.length){ await BPStore.inventory.addItems(toAdd); }   // single bulk insert (fast)
+      st.textContent=toAdd.length?`Added ${toAdd.length} item${toAdd.length===1?"":"s"}`:"All starter items already present";
       await load();
     }catch(e){ st.textContent="Couldn't add — "+((e&&e.message)||"error"); }
     finally{ btn.disabled=false; }

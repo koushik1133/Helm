@@ -1226,6 +1226,14 @@
       if (mode === "supabase") { const { data, error } = await supa.from("inventory_items").insert(it).select().single(); if (error) throw error; return data; }
       const a = readLs(INV_LS); const row = { id: uid(), active: true, total_qty: 0, ...it, created_at: now() }; a.push(row); localStorage.setItem(INV_LS, JSON.stringify(a)); return row;
     },
+    // Bulk insert (one round-trip) — used by "Load starter items" so seeding ~20 rows
+    // is instant instead of 20 sequential requests. Returns the inserted rows.
+    async addItems(list) {
+      const rows = (list || []).map((it) => this._sanitize(it));
+      if (!rows.length) return [];
+      if (mode === "supabase") { const { data, error } = await supa.from("inventory_items").insert(rows).select(); if (error) throw error; return data; }
+      const a = readLs(INV_LS); const made = rows.map((it) => ({ id: uid(), active: true, total_qty: 0, ...it, created_at: now() })); a.push(...made); localStorage.setItem(INV_LS, JSON.stringify(a)); return made;
+    },
     async updateItem(id, patch) {
       patch = this._sanitize(patch);
       if (mode === "supabase") { const { error } = await supa.from("inventory_items").update(patch).eq("id", id); if (error) throw error; return true; }
