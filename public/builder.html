@@ -470,6 +470,7 @@
       <input id="projName" class="nameinput" type="text" value="Untitled event" title="Event / quote name" maxlength="120">
     </div>
     <span id="quoteBadge" class="qbadge" hidden title="Quote code · current version"></span>
+    <a id="designChip" class="qbadge" hidden title="Design stage — open the Design Studio" style="text-decoration:none;cursor:pointer"></a>
     <button class="tbtn primary" id="saveBtn" title="Save a new version (⌘S)">💾 Save</button>
     <button class="tbtn" id="loadBtn" title="Open a saved layout">📂 Open</button>
     <button class="tbtn" id="exportBtn" title="Download as PNG image">⤓ PNG</button>
@@ -3078,6 +3079,19 @@ function updateQuoteBadge(){
   const el=$('#quoteBadge'); if(!el) return;
   if(currentQuoteId && currentQuoteCode){ el.hidden=false; el.textContent=currentQuoteCode+' · v'+(currentVersionNo||1); }
   else el.hidden=true;
+  updateDesignChip();
+}
+// Build 1 — show the current design stage (if any) with a link to the Design Studio. Best-effort.
+async function updateDesignChip(){
+  const chip=$('#designChip'); if(!chip) return;
+  if(!currentQuoteId || !(BPStore.design && BPStore.auth && BPStore.auth.enabled && BPStore.auth.enabled())){ chip.hidden=true; return; }
+  try{
+    const rec=await BPStore.design.get(currentQuoteId);
+    if(!rec || rec.state===null){ chip.hidden=true; return; }
+    chip.hidden=false;
+    chip.textContent='🎨 '+(BPStore.design.LABEL[rec.state]||rec.state);
+    chip.href='design.html?quote='+encodeURIComponent(currentQuoteId);
+  }catch(e){ chip.hidden=true; }
 }
 /* debounced autosave — only once a layout already has an id (after first manual save/open) */
 let autosaveT=null, saveBtnT=null;

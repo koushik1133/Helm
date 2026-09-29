@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design Studio — Helm Events</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#18a558;--warn:#e8912d;--danger:#b42318;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#15131c;--panel:#1e1b28;--panel-2:#242030;--ink:#f3f1f7;--ink-2:#c8c3d4;--ink-3:#9a94a8;--line:#332e40;--line-2:#2a2635;--accent-soft:#2c2440;}}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)} .nav a.on{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  h2{font-size:15px;margin:18px 0 12px}
+  .btn{height:36px;padding:0 15px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.4;cursor:default}
+  .btn.warn{border-color:var(--warn);color:var(--warn)} .btn.warn:hover{background:#fff7ec}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px;margin-bottom:12px}
+  .qrow{display:flex;align-items:center;gap:12px;cursor:pointer;padding:10px 4px;border-top:1px solid var(--line)}
+  .qrow:first-child{border-top:0} .qrow:hover{background:var(--panel-2)}
+  .qrow b{font-family:var(--mono);font-size:13px} .qrow small{color:var(--ink-3);font-size:12px}
+  .pill{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 9px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .pill.done{background:#e7f6ee;color:var(--safe)} .pill.rev{background:#fdf6e3;color:#9a6700}
+  /* state rail */
+  .rail{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+  .step{font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;background:var(--line-2);color:var(--ink-3);border:1px solid var(--line)}
+  .step.on{background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;border-color:transparent}
+  .step.past{background:#e7f6ee;color:var(--safe);border-color:#cdeadd}
+  .muted{color:var(--ink-3);font-size:13px}
+  .note{width:100%;min-height:56px;border:1px solid var(--line);border-radius:9px;padding:9px;font-family:inherit;font-size:13px;background:var(--panel);color:var(--ink);margin:8px 0}
+  .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .empty{padding:22px;text-align:center;color:var(--ink-3);font-size:13px}
+  .err{color:var(--danger);font-size:13px;margin:8px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="dashboard.html" class="mark" title="Home"></a>
+    <div><h1>Helm Events</h1><small>Design Studio</small></div>
+    <nav class="nav"><a href="dashboard.html">Dashboard</a><a href="quotes.html">Quotes</a><a href="builder.html">Builder</a><a href="design.html" class="on">Design</a></nav>
+    <span class="spacer"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+
+  <div id="gate" class="card" hidden><div class="empty">You don't have access to the Design Studio. Ask an admin to grant the <b>Design</b> area for your role in Control Center.</div></div>
+
+  <section id="single" hidden>
+    <h2 id="singleTitle">Event design</h2>
+    <div class="card" id="singleCard"><div class="empty">Loading…</div></div>
+    <a class="btn" href="design.html">← Back to the design queue</a>
+  </section>
+
+  <section id="queueWrap" hidden>
+    <h2>Design queue</h2>
+    <div class="card"><div id="queue"><div class="empty">Loading…</div></div></div>
+  </section>
+</div>
+
+<script src="telemetry.js?v=1"></script>
+<script src="config.js?v=90"></script>
+<script src="store-api.js?v=87"></script>
+<script>
+  const $=(s)=>document.querySelector(s);
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const D=BPStore.design;
+  const RAIL=D.STATES;                       // linear happy-path order for the rail
+  const quoteId=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
+  let canEdit=false;
+
+  async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
+    const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";});
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
+
+  function railHtml(state){
+    if(state==="revise"){ // loop-back: show it as an amber marker before draft
+      return `<div class="rail"><span class="step on">Needs revision</span></div>`;
+    }
+    const idx=RAIL.indexOf(state);
+    return `<div class="rail">`+RAIL.map((s,i)=>{
+      const cls=i<idx?"past":(i===idx?"on":"");
+      return `<span class="step ${cls}">${esc(D.LABEL[s]||s)}</span>`;
+    }).join("")+`</div>`;
+  }
+
+  function advanceControls(rec){
+    if(!canEdit) return `<div class="muted">View only — you can't change design stages.</div>`;
+    const next=D.NEXT[rec.state]||[];
+    if(!next.length) return `<div class="pill done">Design locked — no further changes.</div>`;
+    const noteId="note_"+esc(rec.quote_id);
+    return `<textarea class="note" id="${noteId}" placeholder="Optional note for this transition (e.g. what changed)"></textarea>
+      <div class="acts">`+next.map(t=>{
+        const warn=(t==="revise")?" warn":( ["approved_2d","approved_3d","locked"].includes(t)?" primary":"");
+        return `<button class="btn${warn}" data-adv="${esc(t)}" data-q="${esc(rec.quote_id)}" data-upd="${esc(rec.updated_at||"")}" data-note="${noteId}">${esc(D.LABEL[t]||t)}</button>`;
+      }).join("")+`</div><div class="err" id="err_${esc(rec.quote_id)}" hidden></div>`;
+  }
+
+  function wireAdvance(host){
+    host.querySelectorAll("[data-adv]").forEach(b=>b.addEventListener("click",async()=>{
+      const to=b.dataset.adv, q=b.dataset.q, upd=b.dataset.upd||null;
+      const note=(document.getElementById(b.dataset.note)||{}).value||null;
+      const errEl=document.getElementById("err_"+q); if(errEl){errEl.hidden=true;}
+      host.querySelectorAll("[data-adv]").forEach(x=>x.disabled=true);
+      try{ await D.advance(q,to,note,upd); if(quoteId){ await loadSingle(); } else { await loadQueue(); } }
+      catch(e){ if(errEl){ errEl.textContent=(e&&e.message)||"Couldn't advance — reload and retry."; errEl.hidden=false; } host.querySelectorAll("[data-adv]").forEach(x=>x.disabled=false); }
+    }));
+  }
+
+  async function loadSingle(){
+    $("#single").hidden=false; $("#queueWrap").hidden=true;
+    const host=$("#singleCard"); let rec;
+    try{ rec=await D.get(quoteId); }catch(e){ host.innerHTML=`<div class="err">Couldn't load: ${esc((e&&e.message)||"error")}</div>`; return; }
+    if(!rec || rec.state===null){
+      $("#singleTitle").textContent="Event design";
+      host.innerHTML=`<div class="muted">No design record yet for this event.</div>`+
+        (canEdit?`<div class="acts"><button class="btn primary" id="startDesign">Start 2D design</button></div><div class="err" id="err_${esc(quoteId)}" hidden></div>`:"");
+      const sd=$("#startDesign"); if(sd) sd.addEventListener("click",async()=>{ sd.disabled=true;
+        try{ await D.advance(quoteId,"internal_review",null,null); await loadSingle(); }
+        catch(e){ // first advance seeds draft_2d then moves; if map rejects, seed only
+          try{ await D.get(quoteId); await loadSingle(); }catch(_){}
+          const er=$("#err_"+quoteId); if(er){er.textContent=(e&&e.message)||"error";er.hidden=false;} sd.disabled=false; } });
+      return;
+    }
+    $("#singleTitle").innerHTML=`Design — <span style="font-family:var(--mono)">${esc(rec.event_code||rec.quote_id)}</span>`;
+    host.innerHTML=`<div style="display:flex;align-items:center;gap:10px">
+        <span class="pill ${rec.state==='locked'?'done':(rec.state==='revise'?'rev':'')}">${esc(D.LABEL[rec.state]||rec.state)}</span>
+        <small class="muted">revision ${esc(rec.revision||1)}</small></div>
+      ${railHtml(rec.state)}
+      ${rec.note?`<div class="muted">Last note: ${esc(rec.note)}</div>`:""}
+      ${advanceControls(rec)}`;
+    wireAdvance(host);
+  }
+
+  async function loadQueue(){
+    $("#queueWrap").hidden=false; $("#single").hidden=true;
+    const host=$("#queue"); let items;
+    try{ items=await D.queue(); }catch(e){ host.innerHTML=`<div class="err">Couldn't load queue: ${esc((e&&e.message)||"error")}</div>`; return; }
+    if(!items || !items.length){ host.innerHTML=`<div class="empty">No active designs. Open an event from <a href="quotes.html" style="color:var(--accent)">Quotes</a> to start one.</div>`; return; }
+    host.innerHTML=items.map(it=>{
+      const st=it.state, pill=st==='locked'?'done':(st==='revise'?'rev':'');
+      return `<div class="qrow" data-q="${esc(it.quote_id)}">
+        <b>${esc(it.event_code||it.quote_id)}</b>
+        <small>${esc(it.event_title||"")}</small>
+        <span class="spacer" style="margin-left:auto"></span>
+        <span class="pill ${pill}">${esc(D.LABEL[st]||st)}</span>
+        <small class="muted">rev ${esc(it.revision||1)}</small></div>`;
+    }).join("");
+    host.querySelectorAll(".qrow").forEach(r=>r.addEventListener("click",()=>{ location.href="design.html?quote="+encodeURIComponent(r.dataset.q); }));
+  }
+
+  (async function init(){
+    await renderAccount();
+    if(!BPStore.auth.enabled()){ $("#gate").hidden=false; return; }   // needs a signed-in Supabase session
+    if(!BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent("design.html"+location.search)); return; }
+    // Edit capability is derived from role for the UI; the server (design_advance)
+    // is the real gate — it re-checks has_area('design','edit') on every call.
+    let role=null; try{ role=await BPStore.auth.role(); }catch(_){}
+    canEdit=["admin","manager","planner","designer"].includes(role);
+    try{
+      if(quoteId){ await loadSingle(); } else { await loadQueue(); }
+    }catch(e){ $("#gate").hidden=false; }
+  })();
+</script>
+</body>
+</html>

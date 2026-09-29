@@ -107,17 +107,18 @@
     supervisor:  ["view", "edit"],
     quality:     ["view", "edit"],
     operations:  ["view", "edit"],
+    designer:    ["view", "create", "edit"],
     crew:        ["view"],
     worker:      ["view"],
     client:      ["view"],
   };
-  const EDIT_ROLES = ["admin", "manager", "planner", "sales", "coordinator", "supervisor", "quality", "operations"];
-  const ALL_ROLES  = ["admin", "manager", "planner", "sales", "coordinator", "supervisor", "quality", "operations", "crew", "worker", "client"];
+  const EDIT_ROLES = ["admin", "manager", "planner", "sales", "coordinator", "supervisor", "quality", "operations", "designer"];
+  const ALL_ROLES  = ["admin", "manager", "planner", "sales", "coordinator", "supervisor", "quality", "operations", "designer", "crew", "worker", "client"];
   // friendly labels for the UI (keys stay stable in the DB)
   const ROLE_LABELS = {
     admin: "Admin", manager: "Event manager", planner: "Planner", sales: "Sales",
     coordinator: "Event coordinator", supervisor: "Supervisor", quality: "Quality engineer",
-    operations: "Operations", crew: "Crew", worker: "Worker", client: "Client",
+    operations: "Operations", designer: "Designer", crew: "Crew", worker: "Worker", client: "Client",
   };
   const roleLabel = (r) => ROLE_LABELS[r] || r;
 
@@ -132,6 +133,7 @@
     { key: "proposal",   label: "Proposal",          icon: "🎨", page: null,             group: "Pipeline" },
     { key: "quotes",     label: "Quotes & workspace",icon: "📋", page: "quotes.html",    group: "Workspace" },
     { key: "layouts",    label: "Floor layouts",     icon: "📐", page: null,             group: "Workspace" },
+    { key: "design",     label: "Design studio",     icon: "🎨", page: "design.html",    group: "Workspace" },
     { key: "staff",      label: "Staff",             icon: "👷", page: "staff.html",     group: "Resources" },
     { key: "inventory",  label: "Inventory",         icon: "📦", page: "inventory.html", group: "Resources" },
     { key: "vendors",    label: "Vendors",           icon: "🤝", page: "vendors.html",   group: "Resources" },
@@ -157,7 +159,7 @@
     finance:   ["finance", "settlement", "closure"],
     pipeline:  ["leads", "crm", "nurture", "discovery", "proposal"],
     ops:       ["staff", "inventory", "vendors", "calendar", "templates", "resources", "runsheet", "plan", "logistics", "ready", "command", "issues", "media"],
-    workspace: ["quotes", "layouts"],
+    workspace: ["quotes", "layouts", "design"],
     manage:    ["controls", "users"],
   };
   // legacy fallback (used only if phase29 role_access isn't present yet)
@@ -2407,6 +2409,22 @@
     // Build 3 — personal task list bucketed TODAY/OVERDUE/BLOCKED/UPCOMING/COMPLETED.
     // Inherently personal + org-scoped server-side (my_tasks is SECURITY DEFINER, crew_id = caller).
     myTasks: () => (supa ? rpc("my_tasks") : Promise.resolve({ today: [], overdue: [], blocked: [], upcoming: [], completed: [], counts: {} })),
+    // Build 1 — Designer 2D->3D design-approval state machine.
+    design: {
+      STATES: ["draft_2d","internal_review","approved_2d","build_3d","client_review","approved_3d","locked"],
+      NEXT: {   // allowed transitions surfaced as buttons (matches design_advance server map)
+        draft_2d: ["internal_review"], internal_review: ["approved_2d","revise"],
+        revise: ["draft_2d"], approved_2d: ["build_3d"], build_3d: ["client_review"],
+        client_review: ["approved_3d","revise"], approved_3d: ["locked","client_review"], locked: [],
+      },
+      LABEL: { draft_2d:"2D draft", internal_review:"Internal review", approved_2d:"2D approved",
+        build_3d:"Building 3D", client_review:"Client review", approved_3d:"3D approved",
+        locked:"Locked", revise:"Needs revision" },
+      get: (quoteId) => (supa ? rpc("design_get", { p_quote_id: quoteId }) : Promise.resolve({ quote_id: quoteId, state: null })),
+      queue: () => (supa ? rpc("design_queue") : Promise.resolve([])),
+      advance: (quoteId, toState, note, expectedUpdatedAt) => rpc("design_advance",
+        { p_quote_id: quoteId, p_to_state: toState, p_note: note || null, p_expected_updated_at: expectedUpdatedAt || null }),
+    },
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),
