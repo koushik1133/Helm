@@ -1499,6 +1499,63 @@
       if (error) throw error; return (data && data[0]) || null; },
   };
 
+  /* ---------------- Build 4: event files (private bucket 'event-docs') ---------------- */
+  // Files are the classic tenant-isolation hole, so: PRIVATE bucket, org-prefixed path
+  // (<org>/<quote>/<uuid>.<ext>), magic-byte sniff (never trust the name/type), size cap,
+  // mime allowlist, and signed URLs for download. Storage RLS + list_event_files enforce
+  // isolation server-side; this is defence-in-depth on the client.
+  const FILE_MAX = 10 * 1024 * 1024;                       // 10 MB
+  const FILE_SNIFF = [                                     // [mime, ext, magic-byte matcher]
+    ["application/pdf", "pdf", (b) => b[0]===0x25 && b[1]===0x50 && b[2]===0x44 && b[3]===0x46],       // %PDF
+    ["image/png",  "png",  (b) => b[0]===0x89 && b[1]===0x50 && b[2]===0x4E && b[3]===0x47],           // \x89PNG
+    ["image/jpeg", "jpg",  (b) => b[0]===0xFF && b[1]===0xD8 && b[2]===0xFF],                          // JPEG SOI
+    ["image/webp", "webp", (b) => b[0]===0x52 && b[1]===0x49 && b[2]===0x46 && b[3]===0x46 && b[8]===0x57 && b[9]===0x45 && b[10]===0x42 && b[11]===0x50], // RIFF....WEBP
+  ];
+  async function sniffFile(file) {
+    const buf = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+    for (const [mime, ext, ok] of FILE_SNIFF) { if (ok(buf)) return { mime, ext }; }
+    return null;
+  }
+  const files = {
+    ALLOWED_LABEL: "PDF, PNG, JPG or WEBP, up to 10 MB",
+    list: (quoteId) => (supa ? rpc("list_event_files", { p_quote_id: quoteId }) : Promise.resolve([])),
+    // Validate by MAGIC BYTES, discard the client filename, store as a uuid, record metadata.
+    async upload(quoteId, file) {
+      if (!supa) throw new Error("Supabase not configured");
+      if (!file) throw new Error("no file");
+      if (file.size > FILE_MAX) throw new Error("File too large (max 10 MB).");
+      const sniff = await sniffFile(file);
+      if (!sniff) throw new Error("Unsupported file type — allowed: " + this.ALLOWED_LABEL + ".");
+      const orgId = await org.id();
+      if (!orgId) throw new Error("no organization in context");
+      const uuid = (crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2, 10));
+      const path = orgId + "/" + quoteId + "/" + uuid + "." + sniff.ext;   // client name discarded
+      const { error: upErr } = await supa.storage.from("event-docs").upload(path, file, {
+        upsert: false, contentType: sniff.mime, cacheControl: "3600" });
+      if (upErr) throw upErr;
+      // record metadata (RLS re-checks org + has_area). Keep the original name for display only.
+      const { data: uid } = await supa.auth.getUser().then((r) => ({ data: r && r.data && r.data.user && r.data.user.id })).catch(() => ({ data: null }));
+      const { data: row, error: metaErr } = await supa.from("event_files").insert({
+        quote_id: quoteId, storage_path: path, filename: (file.name || uuid).slice(0, 200),
+        mime: sniff.mime, size_bytes: file.size, uploaded_by: uid || null }).select().single();
+      if (metaErr) { try { await supa.storage.from("event-docs").remove([path]); } catch (e) {} throw metaErr; }
+      return row;
+    },
+    // Short-lived signed URL for a private object (never a public URL).
+    async signedUrl(storagePath, seconds) {
+      if (!supa) throw new Error("Supabase not configured");
+      const { data, error } = await supa.storage.from("event-docs").createSignedUrl(storagePath, seconds || 120);
+      if (error) throw error; return data && data.signedUrl;
+    },
+    async remove(fileId, storagePath) {
+      if (!supa) throw new Error("Supabase not configured");
+      const { error } = await supa.from("event_files").delete().eq("id", fileId);
+      if (error) throw error;
+      try { await supa.storage.from("event-docs").remove([storagePath]); } catch (e) { /* metadata gone is the source of truth */ }
+      return true;
+    },
+  };
+
   /* ---------------- resource needs + capability check (Phase 8) ---------------- */
   const NEED_LS = "bp_resource_needs";
   const resources = {
@@ -2402,7 +2459,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files,
     // Phase 3 — personal dashboard feed: upcoming events + per-event task rollup + unread count.
     // Org- and area-scoped server-side (my_pending is SECURITY DEFINER gated on has_area('quotes','view')).
     pending: () => (supa ? rpc("my_pending") : Promise.resolve({ upcoming: [], unread: 0 })),

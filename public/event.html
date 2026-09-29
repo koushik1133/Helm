@@ -41,6 +41,7 @@
   .nextbar .hint{font-size:13px;color:var(--ink-2)} .nextbar .hint b{color:var(--ink)}
   .btn{height:36px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
   .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)}
+  .btn.sm{height:30px;padding:0 11px;font-size:12px} .btn:disabled{opacity:.5;cursor:default}
   /* module cards */
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
   .mod{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px 20px;display:flex;flex-direction:column;align-items:stretch;gap:12px}
@@ -99,6 +100,19 @@
 
     <div id="conflictBanner"></div>
     <div class="grid" id="mods"></div>
+
+    <section id="filesPanel" class="card" hidden style="margin-top:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <h3 style="margin:0;font-size:15px">📎 Attachments</h3>
+        <span class="muted" id="filesHint" style="font-size:12px"></span>
+        <span style="flex:1"></span>
+        <label id="fileUploadLabel" class="btn sm" hidden style="cursor:pointer">＋ Add file
+          <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,.webp" hidden>
+        </label>
+      </div>
+      <div id="filesErr" class="muted" role="alert" aria-live="polite" hidden style="color:#b42318;font-size:13px;margin-bottom:6px"></div>
+      <div id="filesList"><div class="muted" style="font-size:13px">Loading…</div></div>
+    </section>
   </div>
 </div>
 
@@ -231,7 +245,47 @@
 
     renderMods(STAGES[cur].mods);
     renderConflicts();
+    renderFiles();
   }
+  // Build 4 — Attachments: private per-event documents. Best-effort; never blocks the page.
+  const fmtBytes=(n)=>{ n=Number(n||0); return n<1024?n+" B":n<1048576?(n/1024).toFixed(0)+" KB":(n/1048576).toFixed(1)+" MB"; };
+  async function renderFiles(){
+    const sec=$("#filesPanel"), list=$("#filesList"); if(!sec||!list) return;
+    if(!BPStore.auth.enabled()||!BPStore.auth.user()){ sec.hidden=true; return; }
+    $("#filesHint").textContent=BPStore.files.ALLOWED_LABEL;
+    const up=$("#fileUploadLabel"); if(up) up.hidden=!canEdit;
+    let items=[];
+    try{ items=await BPStore.files.list(id); }catch(e){ sec.hidden=true; return; }
+    sec.hidden=false;
+    if(!items.length){ list.innerHTML='<div class="muted" style="font-size:13px">No files yet.'+(canEdit?' Use “Add file” to attach a PDF or image.':'')+'</div>'; }
+    else{
+      list.innerHTML=items.map(f=>`<div class="frow" data-id="${esc(f.id)}" data-path="${esc(f.storage_path)}" style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line)">
+        <span>${f.mime==='application/pdf'?'📄':'🖼'}</span>
+        <b style="font-size:13px;font-weight:600">${esc(f.filename)}</b>
+        <span class="muted" style="font-size:12px">${esc(fmtBytes(f.size_bytes))}</span>
+        <span style="flex:1"></span>
+        <button class="btn sm" data-act="dl">Download</button>
+        ${canEdit?'<button class="btn sm" data-act="rm" title="Remove" style="color:#b42318">✕</button>':''}
+      </div>`).join("");
+      list.querySelectorAll(".frow").forEach(r=>{
+        const dl=r.querySelector('[data-act="dl"]'), rm=r.querySelector('[data-act="rm"]');
+        if(dl) dl.addEventListener("click",async()=>{ dl.disabled=true;
+          try{ const u=await BPStore.files.signedUrl(r.dataset.path,120); if(u) window.open(u,"_blank","noopener"); }
+          catch(e){ showFilesErr((e&&e.message)||"Couldn't get a download link."); } finally{ dl.disabled=false; } });
+        if(rm) rm.addEventListener("click",async()=>{ if(!confirm("Remove this file?")) return; rm.disabled=true;
+          try{ await BPStore.files.remove(r.dataset.id, r.dataset.path); renderFiles(); }
+          catch(e){ showFilesErr((e&&e.message)||"Couldn't remove."); rm.disabled=false; } });
+      });
+    }
+  }
+  function showFilesErr(m){ const e=$("#filesErr"); if(e){ e.textContent=m; e.hidden=false; setTimeout(()=>{e.hidden=true;},5000); } }
+  { const fi=$("#fileInput"); if(fi) fi.addEventListener("change",async()=>{
+      const f=fi.files&&fi.files[0]; if(!f) return; const lbl=$("#fileUploadLabel"); if(lbl) lbl.style.pointerEvents="none";
+      $("#filesErr").hidden=true;
+      try{ await BPStore.files.upload(id,f); renderFiles(); }
+      catch(e){ showFilesErr((e&&e.message)||"Upload failed."); }
+      finally{ fi.value=""; if(lbl) lbl.style.pointerEvents=""; }
+    }); }
   function renderConflicts(){
     const el=$("#conflictBanner"); if(!el) return;
     const cs=conflictSummary||[];
