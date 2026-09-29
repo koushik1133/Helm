@@ -2404,6 +2404,9 @@
     // Phase 3 — personal dashboard feed: upcoming events + per-event task rollup + unread count.
     // Org- and area-scoped server-side (my_pending is SECURITY DEFINER gated on has_area('quotes','view')).
     pending: () => (supa ? rpc("my_pending") : Promise.resolve({ upcoming: [], unread: 0 })),
+    // Build 3 — personal task list bucketed TODAY/OVERDUE/BLOCKED/UPCOMING/COMPLETED.
+    // Inherently personal + org-scoped server-side (my_tasks is SECURITY DEFINER, crew_id = caller).
+    myTasks: () => (supa ? rpc("my_tasks") : Promise.resolve({ today: [], overdue: [], blocked: [], upcoming: [], completed: [], counts: {} })),
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

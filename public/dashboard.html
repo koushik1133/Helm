@@ -106,6 +106,19 @@
   .tgrp{margin:6px 0;font-size:13px}.tgrp>b,.tgrp>summary{display:block;margin-bottom:4px;color:var(--muted)}
   .trow{padding:2px 0;font-size:13px}.trow.done{color:var(--muted);opacity:.75}
   .unread{margin-left:6px}
+  /* Build 3 — My tasks buckets */
+  #mytasks{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  @media (max-width:840px){#mytasks{grid-template-columns:1fr}}
+  .mtbucket{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .mtbucket>h4{margin:0 0 8px;font-size:13px;display:flex;align-items:center;gap:6px}
+  .mtbucket .cnt{font-size:9px;font-weight:700;padding:1px 6px;border-radius:20px;background:#eef2ff;color:#4457c8}
+  .mtbucket.overdue h4{color:#b42318} .mtbucket.overdue .cnt{background:#fdecec;color:#b42318}
+  .mtbucket.blocked h4{color:#9a6700} .mtbucket.blocked .cnt{background:#fdf6e3;color:#9a6700}
+  .mtbucket.completed h4{color:#0f7a43} .mtbucket.completed .cnt{background:#e7f6ee;color:#0f7a43}
+  .mtrow{padding:4px 0;font-size:13px;border-top:1px solid var(--line)}
+  .mtrow:first-of-type{border-top:0}
+  .mtrow .ev{color:var(--muted);font-size:11px}
+  .mtbucket.completed .mtrow{opacity:.7}
   @media (max-width:840px){.elist{grid-template-columns:1fr}}
   .ecard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;transition:.12s;cursor:pointer;position:relative}
   .ecard:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow)}
@@ -220,6 +233,11 @@
   <section class="events" id="myworkSection" hidden aria-label="Upcoming events and my tasks">
     <div class="head"><h3>Upcoming &amp; my tasks <span id="unreadBadge" class="stat q" hidden></span></h3><span><a id="refreshPending" style="cursor:pointer">Refresh</a></span></div>
     <div id="mywork"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section class="events" id="mytasksSection" hidden aria-label="My tasks">
+    <div class="head"><h3>My tasks <span id="mtTotal" class="stat q" hidden></span></h3><span><a id="refreshMyTasks" style="cursor:pointer">Refresh</a></span></div>
+    <div id="mytasks"><div class="empty">Loading…</div></div>
   </section>
 
   <section class="events">
@@ -354,6 +372,7 @@
     $("#nextName").textContent = BPStore.quotes.nextCode(summaries);
     renderList();
     renderPending();                                        // Phase 3 — personal feed (best-effort)
+    renderMyTasks();                                        // Build 3 — bucketed personal tasks (best-effort)
   }
   const inr = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
   const statBadge = (s) => s === "confirmed" ? '<span class="stat ok">Confirmed</span>'
@@ -410,6 +429,27 @@
       + (doneT.length ? `<details class="tgrp"><summary>Done (${doneT.length})</summary>${doneT.map((t)=>`<div class="trow done">✓ ${esc(t.title||"")}</div>`).join("")}</details>` : "");
     }));
   }
+  // Build 3 — "My tasks": personal bucketed task list (my_tasks). Best-effort; never blocks the page.
+  async function renderMyTasks() {
+    const sec = $("#mytasksSection"), host = $("#mytasks"); if (!sec || !host) return;
+    let r; try { r = await BPStore.myTasks(); } catch (e) { sec.hidden = true; return; }
+    const c = (r && r.counts) || {};
+    const total = (c.today||0)+(c.overdue||0)+(c.blocked||0)+(c.upcoming||0);
+    if (total === 0 && (c.completed||0) === 0) { sec.hidden = true; return; }   // no crew link / no tasks
+    sec.hidden = false;
+    const tt = $("#mtTotal"); if (tt) { if (total > 0) { tt.textContent = total + " open"; tt.hidden = false; } else tt.hidden = true; }
+    const row = (t) => `<div class="mtrow">• ${esc(t.title||"Task")} ${t.status?`<span class="stat q">${esc(t.status)}</span>`:""}<div class="ev">${esc(t.event_code||"")}${t.event_title?" · "+esc(t.event_title):""}${t.planned_end?" · due "+fmtDate(t.planned_end):""}</div></div>`;
+    const bucket = (key, label, cls) => {
+      const items = (r && r[key]) || []; const n = (c[key]||0);
+      return `<div class="mtbucket ${cls}"><h4>${label} <span class="cnt">${n}</span></h4>${
+        items.length ? items.map(row).join("") : '<div class="mtrow" style="color:var(--muted)">Nothing here.</div>'}</div>`;
+    };
+    host.innerHTML =
+        bucket("today","Today","today")
+      + bucket("overdue","Overdue","overdue")
+      + bucket("blocked","Blocked","blocked")
+      + bucket("completed","Completed","completed");
+  }
   $("#createBtn").addEventListener("click", async () => {
     const code = BPStore.quotes.nextCode(summaries);
     const btn = $("#createBtn"); btn.disabled = true;
@@ -430,6 +470,7 @@
   $("#loginModal").addEventListener("click", (e) => { if (e.target.id === "loginModal" && BPStore.auth.user()) closeLogin(); });
   $("#refresh").addEventListener("click", load);
   { const rp = $("#refreshPending"); if (rp) rp.addEventListener("click", renderPending); }
+  { const rt = $("#refreshMyTasks"); if (rt) rt.addEventListener("click", renderMyTasks); }
 
   /* ---- interactive spotlight tour ---- */
   // Order matches the module nav bar left-to-right, so the spotlight walks the
