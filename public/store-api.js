@@ -2401,6 +2401,9 @@
 
   const BPStore = {
     init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal,
+    // Phase 3 — personal dashboard feed: upcoming events + per-event task rollup + unread count.
+    // Org- and area-scoped server-side (my_pending is SECURITY DEFINER gated on has_area('quotes','view')).
+    pending: () => (supa ? rpc("my_pending") : Promise.resolve({ upcoming: [], unread: 0 })),
     list: () => withFallback((t) => t.list(), (l) => l.list()),
     get: (id) => withFallback((t) => t.get(id), (l) => l.get(id)),
     create: (name, data) => withFallback((t) => t.create(name, data), (l) => l.create(name, data)),

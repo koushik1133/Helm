@@ -100,6 +100,12 @@
   .events h3{font-size:15px;margin:0}
   .events .head a{font-size:12px;color:var(--accent);font-weight:600;cursor:pointer}
   .elist{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  #mywork{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  @media (max-width:840px){#mywork{grid-template-columns:1fr}}
+  .ptasks{margin-top:8px;border-top:1px solid var(--line);padding-top:8px}
+  .tgrp{margin:6px 0;font-size:13px}.tgrp>b,.tgrp>summary{display:block;margin-bottom:4px;color:var(--muted)}
+  .trow{padding:2px 0;font-size:13px}.trow.done{color:var(--muted);opacity:.75}
+  .unread{margin-left:6px}
   @media (max-width:840px){.elist{grid-template-columns:1fr}}
   .ecard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;transition:.12s;cursor:pointer;position:relative}
   .ecard:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow)}
@@ -209,6 +215,11 @@
     <div class="feat"><div class="ic">🧊</div><h4>2D & 3D</h4><p>Edit the plan, then orbit a rendered 3D view with move/rotate/scale.</p></div>
     <div class="feat"><div class="ic">🎪</div><h4>12 templates</h4><p>Rallies, conferences, weddings, festivals — plus a custom generator.</p></div>
     <div class="feat"><div class="ic">💾</div><h4>Saved &amp; named</h4><p>Every event is stored and dated. Reopen, rename, export any time.</p></div>
+  </section>
+
+  <section class="events" id="myworkSection" hidden aria-label="Upcoming events and my tasks">
+    <div class="head"><h3>Upcoming &amp; my tasks <span id="unreadBadge" class="stat q" hidden></span></h3><span><a id="refreshPending" style="cursor:pointer">Refresh</a></span></div>
+    <div id="mywork"><div class="empty">Loading…</div></div>
   </section>
 
   <section class="events">
@@ -342,6 +353,7 @@
     summaries = listRes.value;
     $("#nextName").textContent = BPStore.quotes.nextCode(summaries);
     renderList();
+    renderPending();                                        // Phase 3 — personal feed (best-effort)
   }
   const inr = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
   const statBadge = (s) => s === "confirmed" ? '<span class="stat ok">Confirmed</span>'
@@ -367,6 +379,37 @@
       $("#nextName").textContent = BPStore.quotes.nextCode(summaries);
     }));
   }
+  // Phase 3 — "Upcoming & my tasks": server-scoped feed (my_pending). Best-effort; never blocks the page.
+  async function renderPending() {
+    const sec = $("#myworkSection"), host = $("#mywork"); if (!sec || !host) return;
+    let res; try { res = await BPStore.pending(); } catch (e) { sec.hidden = true; return; }
+    const up = (res && res.upcoming) || [], unread = (res && res.unread) || 0, ub = $("#unreadBadge");
+    if (ub) { if (unread > 0) { ub.textContent = unread + " unread"; ub.hidden = false; } else ub.hidden = true; }
+    if (!up.length) { sec.hidden = true; return; }          // role without quotes access / nothing active
+    sec.hidden = false;
+    host.innerHTML = up.map((e) => {
+      const date = e.event_date ? fmtDate(e.event_date) : "no date";
+      const open = Number(e.open_tasks || 0), done = Number(e.done_tasks || 0);
+      const badge = open > 0 ? `<span class="stat q">${open} open</span>` : (done > 0 ? `<span class="stat ok">all done</span>` : "");
+      return `<div class="ecard pcard" data-id="${esc(e.id)}" style="cursor:pointer">
+        <b>${esc(e.code || e.title || "Event")}</b> ${badge}
+        <a class="open" href="event.html?id=${encodeURIComponent(e.id)}" style="float:right;font-size:12px;color:var(--accent)">Open →</a>
+        <small>${esc(e.title || e.event_type || "")} · ${esc(date)} · ${esc(e.lifecycle_stage || "")}</small>
+        <div class="ptasks" hidden></div></div>`;
+    }).join("");
+    host.querySelectorAll(".pcard").forEach((c) => c.addEventListener("click", async (ev) => {
+      if (ev.target.classList.contains("open")) return;     // let the Open → link navigate
+      const box = c.querySelector(".ptasks"); if (!box) return;
+      if (!box.hidden) { box.hidden = true; return; }        // toggle closed
+      box.hidden = false; box.innerHTML = '<small>Loading tasks…</small>';
+      let tasks = []; try { tasks = await BPStore.ops.listTasks(c.dataset.id); } catch (err) { box.innerHTML = '<small>Couldn\'t load tasks.</small>'; return; }
+      if (!tasks.length) { box.innerHTML = '<small>No tasks for this event yet.</small>'; return; }
+      const openT = tasks.filter((t) => !t.completed_at), doneT = tasks.filter((t) => t.completed_at);
+      box.innerHTML =
+        (openT.length ? `<div class="tgrp"><b>Open (${openT.length})</b>${openT.map((t)=>`<div class="trow">• ${esc(t.title||"")} <span class="stat q">${esc(t.status||"")}</span> ${esc(t.assignee_name||"")}</div>`).join("")}</div>` : "")
+      + (doneT.length ? `<details class="tgrp"><summary>Done (${doneT.length})</summary>${doneT.map((t)=>`<div class="trow done">✓ ${esc(t.title||"")}</div>`).join("")}</details>` : "");
+    }));
+  }
   $("#createBtn").addEventListener("click", async () => {
     const code = BPStore.quotes.nextCode(summaries);
     const btn = $("#createBtn"); btn.disabled = true;
@@ -386,6 +429,7 @@
   // when login is required, keep the modal up so there's no dead-end.
   $("#loginModal").addEventListener("click", (e) => { if (e.target.id === "loginModal" && BPStore.auth.user()) closeLogin(); });
   $("#refresh").addEventListener("click", load);
+  { const rp = $("#refreshPending"); if (rp) rp.addEventListener("click", renderPending); }
 
   /* ---- interactive spotlight tour ---- */
   // Order matches the module nav bar left-to-right, so the spotlight walks the
