@@ -17,3 +17,6 @@ blob-report/
 .env.*
 *.env
 helm-e2e.env
+
+# Supabase CLI local cache (throwaway)
+supabase/.temp/
