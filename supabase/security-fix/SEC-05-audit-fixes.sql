@@ -800,14 +800,20 @@ create policy "invite_media_org_read" on storage.objects
 -- (public URLs of a PUBLIC bucket are served without consulting RLS, so guests
 --  on invite.html keep seeing the photos.)
 
-do $$ begin
-  if exists (select 1 from information_schema.columns
-              where table_schema='storage' and table_name='buckets' and column_name='allowed_mime_types') then
-    update storage.buckets
-       set allowed_mime_types = array['image/jpeg','image/png','image/webp','image/gif',
-                                      'image/avif','image/heic','image/heif'],
-           file_size_limit    = 10485760   -- 10 MB (the UI already skips files over 8 MB)
-     where id = 'invite-media';
+-- Bucket limits. The SUPPORTED way is the Storage API / dashboard (it validates
+-- the values): Dashboard → Storage → invite-media → Edit bucket → keep "Public"
+-- ON (invite.html shows photos to guests via public URLs), "Restrict file types"
+-- = image/jpeg, image/png, image/webp, image/gif, image/avif, image/heic,
+-- image/heif, "Max file size" = 10 MB. Equivalent (service-role key, server side):
+--   supabase.storage.updateBucket('invite-media', { public: true,
+--     allowedMimeTypes: [...the 7 types above...], fileSizeLimit: '10MB' })
+-- The block below only reports; it changes nothing.
+do $$ declare b record; begin
+  select id, public, allowed_mime_types, file_size_limit into b from storage.buckets where id = 'invite-media';
+  if not found then
+    raise notice 'F6: bucket invite-media does NOT exist in this project — create it in the dashboard (public, limits above).';
+  elsif b.allowed_mime_types is null or 'image/svg+xml' = any(b.allowed_mime_types) or 'text/html' = any(b.allowed_mime_types) then
+    raise notice 'F6: invite-media has no safe MIME allow-list (current: %) — set it in the dashboard (see above).', b.allowed_mime_types;
   end if;
 end $$;
 
@@ -877,12 +883,16 @@ select 'F6 invite-media: no public SELECT policy',
                                 and policyname='invite_media_org_read')
             then 'PASS' else 'FAIL' end
 union all
-select 'F6 invite-media: MIME allow-list without svg/html',
-       case when (select allowed_mime_types is not null
+select 'F6 invite-media: public, image-only MIME allow-list, size limit',
+       case when not exists (select 1 from storage.buckets where id='invite-media')
+              then 'FAIL: bucket missing — create in dashboard'
+            when (select public and allowed_mime_types is not null and file_size_limit is not null
                      and not ('image/svg+xml' = any(allowed_mime_types))
                      and not ('text/html' = any(allowed_mime_types))
+                     and allowed_mime_types <@ array['image/jpeg','image/png','image/webp','image/gif','image/avif','image/heic','image/heif']
                     from storage.buckets where id='invite-media')
-            then 'PASS' else 'FAIL' end
+              then 'PASS'
+            else 'FAIL: set limits in dashboard (see F6)' end
 union all
 select 'F7 invitation writes admin-only',
        case when (select bool_and(coalesce(qual,'')||coalesce(with_check,'') like '%is_admin%')
@@ -934,9 +944,9 @@ select 'F12 event_tasks QC guard trigger',
 --     grant execute on function public._flag(text) to authenticated;
 --     grant execute on function public._flag(text,uuid) to authenticated;
 -- F5: grant execute on function public.<name>(<args>) to public;   -- per function, only if needed
--- F6: drop policy if exists "invite_media_org_read" on storage.objects;
+-- F6: drop policy if exists "invite_media_org_read" on storage.objects;  (bucket limits: undo in the dashboard)
 --     create policy "invite_media_public_read" on storage.objects for select using ( bucket_id = 'invite-media' );
---     update storage.buckets set allowed_mime_types = null, file_size_limit = null where id = 'invite-media';
+--     bucket limits: clear them in Dashboard → Storage → invite-media → Edit bucket.
 -- F7: recreate "inv ins/upd/del" with public.has_area('users','edit') in place of
 --     public.is_admin() (original text: supabase/phase83-invitations.sql).
 -- F8: drop policy if exists "org self write" on public.organizations;
