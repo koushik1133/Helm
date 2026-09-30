@@ -11,7 +11,7 @@
   :root{
     --bg:#f6f4f1;--panel:#ffffff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
     --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;
-    --gold:#f59e0b;--safe:#12a150;--warn:#e8912d;
+    --gold:#f59e0b;--safe:#12a150;--warn:#e8912d;--muted:var(--ink-3);
     --shadow:0 1px 2px rgba(27,25,48,.05),0 14px 36px rgba(27,25,48,.11);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
   }
@@ -28,13 +28,13 @@
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
   header h1{font-size:17px;margin:0;font-weight:700;letter-spacing:-.01em}
-  header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
-  .badge{margin-left:auto;display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:600;color:var(--ink-2);
+  header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .badge{margin-left:auto;display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--ink-2);
     background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:6px 12px;box-shadow:var(--shadow)}
   .badge i{width:8px;height:8px;border-radius:50%;background:var(--ink-3)}
   .badge.supabase i{background:var(--safe)} .badge.server i{background:var(--accent)} .badge.local i{background:var(--warn)}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .account button:hover{border-color:var(--accent)}
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -42,7 +42,7 @@
   .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,94vw);padding:26px;display:flex;flex-direction:column}
   .lsheet h3{margin:0 0 4px;font-size:18px;text-align:center}
   .lsheet p{margin:0 0 18px;font-size:12px;color:var(--ink-3);text-align:center}
-  .lsheet label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+  .lsheet label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
   .lsheet input{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-size:14px;font-family:var(--font);color:var(--ink)}
   .lsheet input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
@@ -54,16 +54,16 @@
   .usheet .close{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:30px;height:30px;font-size:15px;cursor:pointer;color:var(--ink-2)}
   .usheet .close:hover{border-color:var(--accent)}
   .utable{width:100%;border-collapse:collapse;margin:6px 0 4px;font-size:13px}
-  .utable th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:6px 8px;border-bottom:1px solid var(--line)}
+  .utable th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:6px 8px;border-bottom:1px solid var(--line)}
   .utable td{padding:7px 8px;border-bottom:1px solid var(--line-2);vertical-align:middle}
   .utable td.em{font-family:var(--mono);font-size:12px}
   .utable select{height:30px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:12px;padding:0 6px;color:var(--ink)}
   .utable .rm{border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:14px;padding:4px 8px;border-radius:6px}
   .utable .rm:hover{color:#e5484d;background:#fdecec}
-  .utable .me{font-size:9px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:10px;padding:2px 6px;margin-left:6px;vertical-align:middle}
+  .utable .me{font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:10px;padding:2px 6px;margin-left:6px;vertical-align:middle}
   .addrow{display:grid;grid-template-columns:1.4fr .8fr 1fr auto;gap:8px;align-items:end;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
   @media (max-width:560px){.addrow{grid-template-columns:1fr 1fr}}
-  .addrow label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);display:flex;flex-direction:column;gap:4px}
+  .addrow label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);display:flex;flex-direction:column;gap:4px}
   .addrow input,.addrow select{height:34px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 9px;font-family:inherit;font-size:13px;color:var(--ink)}
   .addrow input:focus,.addrow select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   .addrow .btn{height:34px;font-size:13px;padding:0 16px}
@@ -81,7 +81,7 @@
     font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:9px;transition:.14s;box-shadow:var(--shadow)}
   .btn:hover{transform:translateY(-2px)}
   .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
-  .btn .kbd{font-family:var(--mono);font-size:11px;opacity:.7}
+  .btn .kbd{font-family:var(--mono);font-size:12px;opacity:.7}
   .hint{margin-top:14px;font-size:12px;color:var(--ink-3)}
   .hint b{color:var(--ink-2);font-family:var(--mono)}
 
@@ -93,12 +93,14 @@
   .feat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
   .feat .ic{font-size:18px}
   .feat h4{margin:8px 0 4px;font-size:13px}
-  .feat p{margin:0;font-size:11.5px;color:var(--ink-3);line-height:1.45}
+  .feat p{margin:0;font-size:12px;color:var(--ink-3);line-height:1.45}
 
   .events{padding:6px 0 60px}
   .events .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
   .events h3{font-size:15px;margin:0}
-  .events .head a{font-size:12px;color:var(--accent);font-weight:600;cursor:pointer}
+  .events .head a,.linkbtn{font-size:12px;color:var(--accent);font-weight:600;cursor:pointer}
+  .linkbtn{border:0;background:none;font-family:inherit;padding:4px 2px;min-height:32px}
+  .linkbtn:hover{text-decoration:underline}
   .elist{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   #mywork{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
   @media (max-width:840px){#mywork{grid-template-columns:1fr}}
@@ -111,33 +113,37 @@
   .rbhead{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
   .rbhead h3{font-size:16px;margin:0} .rbhead small{color:var(--ink-3);font-size:12px}
   .rcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
-  .rcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow);display:block}
+  .rcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow);display:block;color:inherit;text-decoration:none}
   .rcard .n{font-size:26px;font-weight:700;font-family:var(--mono);line-height:1}
   .rcard .l{font-size:12px;color:var(--ink-3);margin-top:4px}
-  .rcard.link{cursor:pointer;transition:.12s} .rcard.link:hover{border-color:var(--accent);transform:translateY(-2px)}
+  .rcard.link{cursor:pointer;transition:.12s} .rcard.link:hover,.rcard.link:focus-visible{border-color:var(--accent);transform:translateY(-2px)}
   .rcard.alert .n{color:#b42318} .rcard.good .n{color:#0f7a43} .rcard.warn .n{color:#9a6700}
   /* Build 3 — My tasks buckets */
   #mytasks{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
   @media (max-width:840px){#mytasks{grid-template-columns:1fr}}
   .mtbucket{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
   .mtbucket>h4{margin:0 0 8px;font-size:13px;display:flex;align-items:center;gap:6px}
-  .mtbucket .cnt{font-size:9px;font-weight:700;padding:1px 6px;border-radius:20px;background:#eef2ff;color:#4457c8}
+  .mtbucket .cnt{font-size:12px;font-weight:700;padding:1px 6px;border-radius:20px;background:#eef2ff;color:#4457c8}
   .mtbucket.overdue h4{color:#b42318} .mtbucket.overdue .cnt{background:#fdecec;color:#b42318}
   .mtbucket.blocked h4{color:#9a6700} .mtbucket.blocked .cnt{background:#fdf6e3;color:#9a6700}
   .mtbucket.completed h4{color:#0f7a43} .mtbucket.completed .cnt{background:#e7f6ee;color:#0f7a43}
   .mtrow{padding:4px 0;font-size:13px;border-top:1px solid var(--line)}
   .mtrow:first-of-type{border-top:0}
-  .mtrow .ev{color:var(--muted);font-size:11px}
+  .mtrow .ev{color:var(--muted);font-size:12px}
   .mtbucket.completed .mtrow{opacity:.7}
   @media (max-width:840px){.elist{grid-template-columns:1fr}}
   .ecard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;transition:.12s;cursor:pointer;position:relative}
   .ecard:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow)}
   .ecard b{display:block;font-size:14px;font-family:var(--mono);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .ecard small{font-size:11px;color:var(--ink-3)}
-  .stat{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:20px;vertical-align:middle}
+  .ecard small{font-size:12px;color:var(--ink-3)}
+  .ecard .elink{color:inherit;text-decoration:none;display:block}
+  .ecard .elink:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+  .ptoggle{border:1px solid var(--line);background:var(--panel);color:var(--ink-2);border-radius:8px;height:32px;padding:0 10px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;margin-top:8px}
+  .stat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:20px;vertical-align:middle}
   .stat.q{background:#eef2ff;color:#4457c8} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318}
-  .ecard .del{position:absolute;top:10px;right:10px;border:0;background:transparent;color:var(--ink-3);font-size:13px;cursor:pointer;opacity:0;transition:.12s}
-  .ecard:hover .del{opacity:1} .ecard .del:hover{color:#e5484d}
+  .ecard .del{position:absolute;top:6px;right:6px;border:0;background:transparent;color:var(--ink-3);font-size:13px;cursor:pointer;opacity:0;transition:.12s;min-width:32px;min-height:32px;border-radius:6px}
+  .ecard:hover .del,.ecard:focus-within .del,.ecard .del:focus-visible{opacity:1}
+  @media (hover:none){.ecard .del{opacity:1}} .ecard .del:hover{color:#e5484d}
   .empty{grid-column:1/-1;text-align:center;color:var(--ink-3);padding:30px;border:1px dashed var(--line);border-radius:12px;font-size:13px}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
   /* responsive module nav */
@@ -158,7 +164,7 @@
   .spot .arrow{position:absolute;color:var(--gold);font-size:30px;line-height:1;pointer-events:none;filter:drop-shadow(0 2px 3px rgba(0,0,0,.25));animation:bob 1s ease-in-out infinite}
   @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
   .spot .tip{position:absolute;max-width:310px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px 18px;pointer-events:auto}
-  .spot .tip .tstep{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
+  .spot .tip .tstep{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
   .spot .tip h4{margin:4px 0 6px;font-size:16px}
   .spot .tip p{margin:0 0 13px;font-size:13px;color:var(--ink-2);line-height:1.55}
   .spot .tip .trow{display:flex;gap:8px;align-items:center}
@@ -170,28 +176,37 @@
   .hsheet h3{font-size:19px;text-align:left;margin:0 0 4px}
   .hsheet .sub{color:var(--ink-3);font-size:13px;margin:0 0 16px}
   .flow{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 18px}
-  .flow span{font-size:11px;font-weight:600;background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:4px 10px}
+  .flow span{font-size:12px;font-weight:600;background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:4px 10px}
   .flow span.arw{background:transparent;color:var(--ink-3);padding:4px 2px}
   .hstep{display:flex;gap:12px;padding:11px 0;border-top:1px solid var(--line-2)}
   .hstep .ic{font-size:20px;flex:0 0 26px;text-align:center}
   .hstep .tx b{font-size:13px} .hstep .tx p{margin:2px 0 0;font-size:12px;color:var(--ink-2);line-height:1.5}
   .hclose{margin-top:18px;display:flex;justify-content:flex-end}
+  @media (max-width:480px){header{flex-wrap:wrap}.hero h2{font-size:34px}}
+  @media (prefers-reduced-motion: reduce){
+    .spot .arrow{animation:none}.spot .ring{transition:none}
+    .btn,.ecard,.rcard.link,.modnav .pill{transition:none}
+    .btn:hover,.ecard:hover,.rcard.link:hover,.rcard.link:focus-visible,.modnav .pill:hover{transform:none}
+  }
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
-    <div class="mark"></div>
+    <a href="dashboard.html" class="mark" aria-label="Helm Events home"></a>
     <div><h1>Helm Events</h1><small>Event Layout Builder</small></div>
     <span class="spacer" style="flex:1"></span>
     <a href="docs/USER-MANUAL.html" target="_blank" rel="noopener" class="helpbtn" title="Open the user manual" style="text-decoration:none">📖 Manual</a>
-    <button id="helpBtn" class="helpbtn" title="Take the guided tour">? Tour</button>
+    <button type="button" id="helpBtn" class="helpbtn" title="Take the guided tour" aria-label="Take the guided tour">? Tour</button>
     <span id="bell"></span>
     <span id="account" class="account" hidden></span>
   </header>
 
-  <nav id="modnav" class="modnav" hidden></nav>
+  <nav id="modnav" class="modnav" hidden aria-label="Modules"></nav>
+
+  <main id="main">
 
   <section id="roleboard" class="rboard" hidden aria-label="Your workspace">
     <div class="rbhead"><h3 id="rbTitle">Your workspace</h3><small id="rbSub"></small></div>
@@ -203,7 +218,7 @@
       <h2>Design your event floor in <span class="g">2D & 3D</span>.</h2>
       <p>Drag-and-drop stages, seating, tables and more onto a to-scale blueprint — then walk it in 3D. Every layout is saved and named for you.</p>
       <div class="cta">
-        <button class="btn primary" id="createBtn">✨ Generate a quote <span class="kbd" id="nextName">…</span></button>
+        <button type="button" class="btn primary" id="createBtn">✨ Generate a quote <span class="kbd" id="nextName">…</span></button>
         <a class="btn" href="quotes.html">Quotes &amp; confirmations →</a>
       </div>
       <div class="hint">Each quote gets a code <b id="nameEg">MMDDYYYY-01</b> automatically. Every save is a new version; confirm a quote to price &amp; lock it.</div>
@@ -246,19 +261,20 @@
   </section>
 
   <section class="events" id="myworkSection" hidden aria-label="Upcoming events and my tasks">
-    <div class="head"><h3>Upcoming &amp; my tasks <span id="unreadBadge" class="stat q" hidden></span></h3><span><a id="refreshPending" style="cursor:pointer">Refresh</a></span></div>
+    <div class="head"><h3>Upcoming &amp; my tasks <span id="unreadBadge" class="stat q" hidden></span></h3><span><button type="button" class="linkbtn" id="refreshPending">Refresh</button></span></div>
     <div id="mywork"><div class="empty">Loading…</div></div>
   </section>
 
   <section class="events" id="mytasksSection" hidden aria-label="My tasks">
-    <div class="head"><h3>My tasks <span id="mtTotal" class="stat q" hidden></span></h3><span><a id="refreshMyTasks" style="cursor:pointer">Refresh</a></span></div>
+    <div class="head"><h3>My tasks <span id="mtTotal" class="stat q" hidden></span></h3><span><button type="button" class="linkbtn" id="refreshMyTasks">Refresh</button></span></div>
     <div id="mytasks"><div class="empty">Loading…</div></div>
   </section>
 
   <section class="events">
-    <div class="head"><h3>Your quotes</h3><span><a href="quotes.html" style="margin-right:14px">Manage all →</a><a id="refresh">Refresh</a></span></div>
+    <div class="head"><h3>Your quotes</h3><span><a href="quotes.html" style="margin-right:14px">Manage all →</a><button type="button" class="linkbtn" id="refresh">Refresh</button></span></div>
     <div class="elist" id="elist"><div class="empty">Loading…</div></div>
   </section>
+  </main>
 
   <footer>Helm Events · runs locally · storage: <span id="footMode">detecting…</span></footer>
 </div>
@@ -289,19 +305,19 @@
     <div class="hstep"><div class="ic">🗓</div><div class="tx"><b>Plan &amp; tasks</b><p>Run-sheet, venue &amp; menu, budget vs actuals. Tasks are organised by section (stage, carpets, lighting…); set start times &amp; dependencies (carpet waits for stage), and flag special tasks for reminders.</p></div></div>
     <div class="hstep"><div class="ic">✅</div><div class="tx"><b>Readiness → Event day → Close</b><p>The Readiness gate goes green only when everything's set. On the day, the Command centre tracks arrivals &amp; checks and a Quality engineer passes/rejects each task. Then Settle payments and Close with the P&amp;L.</p></div></div>
     <div class="hstep"><div class="ic">👥</div><div class="tx"><b>Who sees what</b><p>Admins set each role's access in <b>Control Center → User control</b> — green tick = allowed. So a salesperson sees only Leads &amp; CRM, crew only their own tasks, and so on.</p></div></div>
-    <div class="hclose"><button class="btn primary" id="helpClose">Got it — let's go</button></div>
+    <div class="hclose"><button type="button" class="btn primary" id="helpClose" data-close>Got it — let's go</button></div>
   </div>
 </div>
 
 <!-- Team members + access control now live in the Control Center (control.html#users). -->
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
 <script>
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return "—"; } };
-  const esc = (s) => (s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
   function setBadge(mode) {
     const map = { supabase: "Supabase", server: "Server", local: "This browser" };
@@ -331,7 +347,7 @@
         .map(async (k) => { V[k] = await BPStore.auth.canView(k); }));
       // account chip: identity + logout only
       el.innerHTML = `<span class="role">${esc(BPStore.auth.admin.roleLabel(role)||"")}</span><span class="who">${esc(user.email)}</span>`
-        + `<button id="logoutBtn">Log out</button>`;
+        + `<button type="button" id="logoutBtn">Log out</button>`;
       $("#logoutBtn").addEventListener("click", async () => { await BPStore.auth.signOut(); location.reload(); });
       // module nav: its own responsive bar (each pill carries data-nav for the tour)
       const NAV=[
@@ -342,9 +358,9 @@
         ["quotes","quotes.html","📋","Quotes",V.quotes],["controls","control.html","⚙","Control Center",V.controls],
       ];
       const nav=$("#modnav"); nav.hidden=false;
-      nav.innerHTML=NAV.filter(n=>n[4]).map(n=>`<a class="pill" data-nav="${n[0]}" href="${n[1]}"><span class="pi">${n[2]}</span>${esc(n[3])}</a>`).join("");
+      nav.innerHTML=NAV.filter(n=>n[4]).map(n=>`<a class="pill" data-nav="${n[0]}" href="${n[1]}"><span class="pi" aria-hidden="true">${n[2]}</span>${esc(n[3])}</a>`).join("");
     } else {
-      el.innerHTML = `<button id="loginBtn">Sign in</button>`;
+      el.innerHTML = `<button type="button" id="loginBtn">Sign in</button>`;
       $("#loginBtn").addEventListener("click", openLogin);
     }
   }
@@ -379,8 +395,8 @@
     $("#createBtn").hidden = !canCreate;                    // only create-capable roles can start new quotes
     if (listRes.status === "rejected") {
       const err = listRes.reason;
-      $("#elist").innerHTML = '<div class="empty">Couldn\'t load your quotes — ' + esc((err && err.message) || "please try again") + '. <b id="retry" style="cursor:pointer;color:var(--accent)">Retry</b></div>';
-      const r = $("#retry"); if (r) r.addEventListener("click", load);
+      const box = BPUI.loadError($("#elist"), err, load, { what: "your quotes" });
+      if (box) box.style.gridColumn = "1/-1";
       return;
     }
     summaries = listRes.value;
@@ -397,21 +413,25 @@
     const host = $("#elist");
     if (!summaries.length) { host.innerHTML = '<div class="empty">No quotes yet' + (canCreate ? ' — hit <b>Generate a quote</b> to create your first.' : '.') + '</div>'; return; }
     const sorted = [...summaries].sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+    // Each card's code is a real link (keyboard + screen readers); the rest of the
+    // card is a mouse convenience that follows the same link.
     host.innerHTML = sorted.map((s) =>
-      `<div class="ecard" data-id="${esc(s.id)}">${canDelete ? `<button class="del" data-id="${esc(s.id)}" title="Delete">✕</button>` : ""}
-        <b>${esc(s.code)}</b> ${statBadge(s.status)}
-        <small>${esc(s.title || "")} · v${s.currentVersion}${s.total ? " · " + inr(s.total) : ""} · ${fmtDate(s.updatedAt)}</small></div>`).join("");
+      `<div class="ecard" data-id="${esc(s.id)}">${canDelete ? `<button type="button" class="del" data-id="${esc(s.id)}" title="Delete" aria-label="Delete quote ${esc(s.code)}">✕</button>` : ""}
+        <a class="elink" href="event.html?id=${encodeURIComponent(s.id)}"><b>${esc(s.code)}</b></a> ${statBadge(s.status)}
+        <small>${esc(s.title || "")} · v${esc(s.currentVersion)}${s.total ? " · " + inr(s.total) : ""} · ${esc(fmtDate(s.updatedAt))}</small></div>`).join("");
     host.querySelectorAll(".ecard").forEach((c) => c.addEventListener("click", (e) => {
-      if (e.target.classList.contains("del")) return;
+      if (e.target.closest(".del, a")) return;
       location.href = "event.html?id=" + encodeURIComponent(c.dataset.id);   // open the Event Workspace hub
     }));
     host.querySelectorAll(".del").forEach((b) => b.addEventListener("click", async (e) => {
       e.stopPropagation();
-      if (!confirm("Delete this quote and all its versions?")) return;
-      try { await BPStore.quotes.remove(b.dataset.id); }
-      catch (err) { alert("Couldn't delete: " + ((err && err.message) || "not permitted")); return; }
-      summaries = summaries.filter((s) => s.id !== b.dataset.id); renderList();
+      const q = summaries.find((s) => String(s.id) === b.dataset.id);
+      if (!(await BPUI.confirm(`Delete quote ${(q && q.code) || ""} and all its versions? This can't be undone.`, { title: "Delete quote?", danger: true }))) return;
+      try { await BPUI.guard(b, () => BPStore.quotes.remove(b.dataset.id)); }
+      catch (err) { BPUI.toast(BPUI.friendlyError(err, { action: "delete the quote" }), { type: "err" }); return; }
+      summaries = summaries.filter((s) => String(s.id) !== b.dataset.id); renderList();
       $("#nextName").textContent = BPStore.quotes.nextCode(summaries);
+      BPUI.toast("Quote deleted.", { type: "ok" });
     }));
   }
   // E6 — memoize the per-load feeds so roleboard + pending + mytasks share ONE call each
@@ -421,10 +441,20 @@
   const getPending = () => (_feed.pending || (_feed.pending = BPStore.pending()));
   const getMyTasks = () => (_feed.tasks   || (_feed.tasks   = BPStore.myTasks()));
   const getQueue   = () => (_feed.queue   || (_feed.queue   = BPStore.design.queue()));
+  // A feed this role simply can't use (no access / not installed) is "not available",
+  // not a load failure. Anything else (network, server) is a real error to surface.
+  const softFail = (e) => BPUI.isPermissionError(e) || BPUI.isMissingFunction(e) || BPUI.isMissingTable(e) || BPUI.isAuthError(e);
   // Phase 3 — "Upcoming & my tasks": server-scoped feed (my_pending). Best-effort; never blocks the page.
   async function renderPending() {
     const sec = $("#myworkSection"), host = $("#mywork"); if (!sec || !host) return;
-    let res; try { res = await getPending(); } catch (e) { sec.hidden = true; return; }
+    let res; try { res = await getPending(); }
+    catch (e) {
+      if (softFail(e)) { sec.hidden = true; return; }
+      sec.hidden = false;
+      BPUI.loadError(host, e, () => { clearFeed(); return renderPending(); }, { what: "upcoming events" });
+      const card = host.firstElementChild; if (card) card.style.gridColumn = "1/-1";
+      return;
+    }
     const up = (res && res.upcoming) || [], unread = (res && res.unread) || 0, ub = $("#unreadBadge");
     if (ub) { if (unread > 0) { ub.textContent = unread + " unread"; ub.hidden = false; } else ub.hidden = true; }
     if (!up.length) { sec.hidden = true; return; }          // role without quotes access / nothing active
@@ -435,16 +465,19 @@
       const badge = open > 0 ? `<span class="stat q">${open} open</span>` : (done > 0 ? `<span class="stat ok">all done</span>` : "");
       return `<div class="ecard pcard" data-id="${esc(e.id)}" style="cursor:pointer">
         <b>${esc(e.code || e.title || "Event")}</b> ${badge}
-        <a class="open" href="event.html?id=${encodeURIComponent(e.id)}" style="float:right;font-size:12px;color:var(--accent)">Open →</a>
+        <a class="open" href="event.html?id=${encodeURIComponent(e.id)}" style="float:right;font-size:12px;color:var(--accent)" aria-label="Open ${esc(e.code || e.title || "event")}">Open →</a>
         <small>${esc(e.title || e.event_type || "")} · ${esc(date)} · ${esc(e.lifecycle_stage || "")}</small>
-        <div class="ptasks" hidden></div></div>`;
+        <button type="button" class="ptoggle" aria-expanded="false" aria-controls="pt-${esc(e.id)}">Show tasks</button>
+        <div class="ptasks" id="pt-${esc(e.id)}" hidden></div></div>`;
     }).join("");
     host.querySelectorAll(".pcard").forEach((c) => c.addEventListener("click", async (ev) => {
-      if (ev.target.classList.contains("open")) return;     // let the Open → link navigate
-      const box = c.querySelector(".ptasks"); if (!box) return;
-      if (!box.hidden) { box.hidden = true; return; }        // toggle closed
-      box.hidden = false; box.innerHTML = '<small>Loading tasks…</small>';
-      let tasks = []; try { tasks = await BPStore.ops.listTasks(c.dataset.id); } catch (err) { box.innerHTML = '<small>Couldn\'t load tasks.</small>'; return; }
+      if (ev.target.closest("a")) return;                   // let the Open → link navigate
+      if (ev.target.closest(".ptasks")) return;              // clicks inside the task list don't toggle it
+      const box = c.querySelector(".ptasks"), tg = c.querySelector(".ptoggle"); if (!box) return;
+      if (!box.hidden) { box.hidden = true; if (tg) { tg.setAttribute("aria-expanded", "false"); tg.textContent = "Show tasks"; } return; }   // toggle closed
+      box.hidden = false; if (tg) { tg.setAttribute("aria-expanded", "true"); tg.textContent = "Hide tasks"; }
+      box.innerHTML = '<small role="status">Loading tasks…</small>';
+      let tasks = []; try { tasks = await BPStore.ops.listTasks(c.dataset.id); } catch (err) { box.innerHTML = '<small role="alert">Couldn\'t load tasks — ' + esc(BPUI.friendlyError(err)) + '</small>'; return; }
       if (!tasks.length) { box.innerHTML = '<small>No tasks for this event yet.</small>'; return; }
       const openT = tasks.filter((t) => !t.completed_at), doneT = tasks.filter((t) => t.completed_at);
       box.innerHTML =
@@ -456,8 +489,9 @@
   // Coordinator / Designer / Crew / Client) driven by one config map, computed from data the
   // page already has (quotes) plus best-effort my_pending / my_tasks / design_queue. Never blocks.
   function card(n, label, cls, href){
-    const c = `<div class="rcard ${cls||""} ${href?"link":""}" ${href?`data-href="${esc(href)}"`:""}><div class="n">${esc(String(n))}</div><div class="l">${esc(label)}</div></div>`;
-    return c;
+    const inner = `<div class="n">${esc(String(n))}</div><div class="l">${esc(label)}</div>`;
+    return href ? `<a class="rcard ${cls||""} link" href="${esc(href)}">${inner}</a>`
+                : `<div class="rcard ${cls||""}">${inner}</div>`;
   }
   async function renderRoleBoard(){
     const sec = $("#roleboard"), host = $("#rbcards"); if (!sec || !host) return;
@@ -467,46 +501,57 @@
     const st = { quote:0, confirmed:0, cancelled:0 };
     (summaries||[]).forEach(s => { const k = (s.status||"quote"); if (st[k]!=null) st[k]++; else st.quote++; });
     // best-effort async signals
-    let pend = { upcoming: [], unread: 0 }, tasks = { counts:{} }, dq = [];
-    try { pend = await getPending(); } catch(e){}
-    try { tasks = await getMyTasks(); } catch(e){}
+    // A failed feed must never read as "0": real failures show a load error with
+    // Retry; a feed this role can't use shows "—".
+    let pend = { upcoming: [], unread: 0 }, tasks = { counts:{} }, dq = [], hardErr = null;
+    let pendOk = true, tasksOk = true, dqOk = true;
+    try { pend = (await getPending()) || pend; } catch(e){ pendOk = false; if (!softFail(e)) hardErr = hardErr || e; }
+    try { tasks = (await getMyTasks()) || tasks; } catch(e){ tasksOk = false; if (!softFail(e)) hardErr = hardErr || e; }
     // only manager + designer boards actually use the design queue — don't fetch it otherwise
-    if (["manager","designer"].includes(role)) { try { dq = await getQueue(); } catch(e){} }
-    const tc = tasks.counts || {}, up = (pend.upcoming||[]).length;
-    const dqAt = (s) => (dq||[]).filter(x => x.state===s).length;
+    if (["manager","designer"].includes(role)) { try { dq = (await getQueue()) || []; } catch(e){ dqOk = false; if (!softFail(e)) hardErr = hardErr || e; } }
+    if (hardErr) {
+      $("#rbTitle").textContent = "Your workspace"; $("#rbSub").textContent = "";
+      BPUI.loadError(host, hardErr, () => { clearFeed(); return renderRoleBoard(); }, { what: "your workspace" });
+      const lc = host.firstElementChild; if (lc) lc.style.gridColumn = "1/-1";
+      sec.hidden = false; return;
+    }
+    const tc0 = tasks.counts || {};
+    const tc = tasksOk ? tc0 : { today:"—", overdue:"—", blocked:"—", completed:"—" };
+    const up = pendOk ? (pend.upcoming||[]).length : "—";
+    const dqAt = (...states) => dqOk ? (dq||[]).filter(x => states.includes(x.state)).length : "—";
     const CFG = {
       admin:       { sub:"Everything across the org", cards:[
         card(up,"Upcoming events","", ), card(st.quote,"Open quotes","link","quotes.html"),
-        card(st.confirmed,"Confirmed","good"), card(tc.overdue||0,"Tasks overdue",(tc.overdue?"alert":"")) ] },
+        card(st.confirmed,"Confirmed","good"), card(tc.overdue||0,"Tasks overdue",(tc.overdue>0?"alert":"")) ] },
       manager:     { sub:"Events, approvals & delivery", cards:[
         card(up,"Upcoming events",""), card(st.quote,"Awaiting confirmation","warn"),
-        card(st.confirmed,"Confirmed","good"), card((dq||[]).filter(x=>x.state==='client_review').length,"Designs at client review","link","design.html") ] },
+        card(st.confirmed,"Confirmed","good"), card(dqAt('client_review'),"Designs at client review","link","design.html") ] },
       planner:     { sub:"Pipeline to delivery", cards:[
         card(st.quote,"Open quotes","link","quotes.html"), card(st.confirmed,"Confirmed","good"),
-        card(up,"Upcoming events",""), card(tc.overdue||0,"Tasks overdue",(tc.overdue?"alert":"")) ] },
+        card(up,"Upcoming events",""), card(tc.overdue||0,"Tasks overdue",(tc.overdue>0?"alert":"")) ] },
       sales:       { sub:"Your pipeline", cards:[
         card(st.quote,"Open quotes","link","quotes.html"), card(st.confirmed,"Won / confirmed","good"),
         card((summaries||[]).length,"Total quotes",""), card("→","New lead","link","leads.html") ] },
       coordinator: { sub:"Today's delivery", cards:[
-        card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue?"alert":"")),
-        card(tc.blocked||0,"Blocked",(tc.blocked?"warn":"")), card(up,"Upcoming events","") ] },
+        card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue>0?"alert":"")),
+        card(tc.blocked||0,"Blocked",(tc.blocked>0?"warn":"")), card(up,"Upcoming events","") ] },
       supervisor:  { sub:"Today's delivery", cards:[
-        card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue?"alert":"")),
-        card(tc.blocked||0,"Blocked",(tc.blocked?"warn":"")), card(up,"Upcoming events","") ] },
+        card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue>0?"alert":"")),
+        card(tc.blocked||0,"Blocked",(tc.blocked>0?"warn":"")), card(up,"Upcoming events","") ] },
       operations:  { sub:"Resources & delivery", cards:[
-        card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue?"alert":"")),
+        card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue>0?"alert":"")),
         card(up,"Upcoming events",""), card("→","Inventory","link","inventory.html") ] },
       quality:     { sub:"Verification queue", cards:[
-        card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue?"alert":"")),
+        card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue>0?"alert":"")),
         card(up,"Upcoming events",""), card(tc.completed||0,"Completed","good") ] },
       designer:    { sub:"Design studio", cards:[
-        card((dq||[]).length,"Active designs","link","design.html"), card(dqAt('client_review'),"At client review","warn"),
-        card(dqAt('locked'),"Locked","good"), card(dqAt('draft_2d')+dqAt('revise'),"On your board","") ] },
+        card(dqOk ? (dq||[]).length : "—","Active designs","link","design.html"), card(dqAt('client_review'),"At client review","warn"),
+        card(dqAt('locked'),"Locked","good"), card(dqAt('draft_2d','revise'),"On your board","") ] },
       crew:        { sub:"Your tasks", cards:[
-        card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue?"alert":"")),
-        card(tc.blocked||0,"Blocked",(tc.blocked?"warn":"")), card(tc.completed||0,"Done","good") ] },
+        card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue>0?"alert":"")),
+        card(tc.blocked||0,"Blocked",(tc.blocked>0?"warn":"")), card(tc.completed||0,"Done","good") ] },
       worker:      { sub:"Your tasks", cards:[
-        card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue?"alert":"")),
+        card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue>0?"alert":"")),
         card(tc.completed||0,"Done","good") ] },
       client:      { sub:"Your events", cards:[
         card((summaries||[]).length,"Your events",""), card(st.confirmed,"Confirmed","good"),
@@ -516,13 +561,19 @@
     $("#rbTitle").textContent = "Welcome — " + (BPStore.auth.admin.roleLabel(role) || role);
     $("#rbSub").textContent = conf.sub || "";
     host.innerHTML = conf.cards.join("");
-    host.querySelectorAll(".rcard.link").forEach(c => c.addEventListener("click", () => { const h=c.dataset.href; if (h) location.href = h; }));
     sec.hidden = false;
   }
   // Build 3 — "My tasks": personal bucketed task list (my_tasks). Best-effort; never blocks the page.
   async function renderMyTasks() {
     const sec = $("#mytasksSection"), host = $("#mytasks"); if (!sec || !host) return;
-    let r; try { r = await getMyTasks(); } catch (e) { sec.hidden = true; return; }
+    let r; try { r = await getMyTasks(); }
+    catch (e) {
+      if (softFail(e)) { sec.hidden = true; return; }
+      sec.hidden = false;
+      BPUI.loadError(host, e, () => { clearFeed(); return renderMyTasks(); }, { what: "your tasks" });
+      const lc = host.firstElementChild; if (lc) lc.style.gridColumn = "1/-1";
+      return;
+    }
     const c = (r && r.counts) || {};
     const total = (c.today||0)+(c.overdue||0)+(c.blocked||0)+(c.upcoming||0);
     if (total === 0 && (c.completed||0) === 0) { sec.hidden = true; return; }   // no crew link / no tasks
@@ -541,26 +592,32 @@
       + bucket("completed","Completed","completed");
   }
   $("#createBtn").addEventListener("click", async () => {
-    const code = BPStore.quotes.nextCode(summaries);
-    const btn = $("#createBtn"); btn.disabled = true;
+    const btn = $("#createBtn");
     try {
-      const q = await BPStore.quotes.create(code, code, null, { items: [] }, 0);
-      location.href = "flow.html?quote=" + encodeURIComponent(q.id);
-    } catch (err) { alert("Couldn't start a quote: " + ((err && err.message) || "error")); btn.disabled = false; }
+      await BPUI.guard(btn, async () => {
+        const code = BPStore.quotes.nextCode(summaries);
+        const q = await BPStore.quotes.create(code, code, null, { items: [] }, 0);
+        location.href = "flow.html?quote=" + encodeURIComponent(q.id);
+      });
+    } catch (err) { BPUI.toast(BPUI.friendlyError(err, { action: "start a quote" }), { type: "err" }); }
   });
-  $("#loginForm").addEventListener("submit", async (e) => {
+  $("#loginForm").addEventListener("submit", (e) => {
     e.preventDefault();
-    const btn = $("#li_submit"); btn.disabled = true; btn.textContent = "Signing in…"; $("#li_err").hidden = true;
-    try { await BPStore.auth.signIn($("#li_email").value.trim(), $("#li_pw").value); closeLogin(); await load(); }
-    catch (err) { $("#li_err").textContent = (err && err.message) || "Sign-in failed"; $("#li_err").hidden = false; }
-    finally { btn.disabled = false; btn.textContent = "Sign in"; }
+    const em = $("#li_email").value.trim(), pw = $("#li_pw").value, er = $("#li_err");
+    if (!em || !pw) { er.textContent = "Enter your email and password."; er.hidden = false; (em ? $("#li_pw") : $("#li_email")).focus(); return; }
+    er.hidden = true;
+    BPUI.guard($("#li_submit"), async () => {
+      try { await BPStore.auth.signIn(em, pw); closeLogin(); await load(); }
+      catch (err) { er.textContent = (err && err.message) || "Sign-in failed"; er.hidden = false; }
+    }, { busyLabel: "Signing in…" }).catch(() => {});
   });
   // only allow dismissing by backdrop if the user is already signed in (manual reopen);
   // when login is required, keep the modal up so there's no dead-end.
   $("#loginModal").addEventListener("click", (e) => { if (e.target.id === "loginModal" && BPStore.auth.user()) closeLogin(); });
-  $("#refresh").addEventListener("click", load);
-  { const rp = $("#refreshPending"); if (rp) rp.addEventListener("click", () => { clearFeed(); renderPending(); renderRoleBoard(); }); }
-  { const rt = $("#refreshMyTasks"); if (rt) rt.addEventListener("click", () => { clearFeed(); renderMyTasks(); renderRoleBoard(); }); }
+  $("#refresh").addEventListener("click", (e) => { clearFeed(); BPUI.guard(e.currentTarget, load).catch((err) => BPUI.toast(BPUI.friendlyError(err, { action: "refresh" }), { type: "err" })); });
+  { const rp = $("#refreshPending"); if (rp) rp.addEventListener("click", () => { clearFeed(); BPUI.guard(rp, () => Promise.all([renderPending(), renderRoleBoard()])).catch(() => {}); }); }
+  { const rt = $("#refreshMyTasks"); if (rt) rt.addEventListener("click", () => { clearFeed(); BPUI.guard(rt, () => Promise.all([renderMyTasks(), renderRoleBoard()])).catch(() => {}); }); }
+  $("#helpClose").addEventListener("click", () => { $("#helpModal").hidden = true; });
 
   /* ---- interactive spotlight tour ---- */
   // Order matches the module nav bar left-to-right, so the spotlight walks the
@@ -591,14 +648,14 @@
     if(!tourSteps.length) return;
     tourI=0;
     tourEl=document.createElement("div"); tourEl.className="spot";
-    tourEl.innerHTML=`<div class="ring"></div><div class="arrow">▼</div>
+    tourEl.innerHTML=`<div class="ring" aria-hidden="true"></div><div class="arrow" aria-hidden="true">▼</div>
       <div class="tip"><div class="tstep"></div><h4></h4><p></p>
-        <div class="trow"><button class="skip">Skip tour</button><span class="sp"></span>
-        <button class="back">Back</button><button class="pri next">Next →</button></div></div>`;
+        <div class="trow"><button type="button" class="skip">Skip tour</button><span class="sp"></span>
+        <button type="button" class="back">Back</button><button type="button" class="pri next">Next →</button></div></div>`;
     document.body.appendChild(tourEl);
-    tourEl.querySelector(".skip").onclick=endTour;
-    tourEl.querySelector(".back").onclick=()=>{ if(tourI>0){ tourI--; placeTour(); } };
-    tourEl.querySelector(".next").onclick=()=>{ if(tourI<tourSteps.length-1){ tourI++; placeTour(); } else endTour(); };
+    tourEl.querySelector(".skip").addEventListener("click",endTour);
+    tourEl.querySelector(".back").addEventListener("click",()=>{ if(tourI>0){ tourI--; placeTour(); } });
+    tourEl.querySelector(".next").addEventListener("click",()=>{ if(tourI<tourSteps.length-1){ tourI++; placeTour(); } else endTour(); });
     window.addEventListener("resize",placeTour);
     placeTour();
   }
@@ -609,7 +666,7 @@
     if(tourI>=tourSteps.length){ endTour(); return; }
     const step=tourSteps[tourI], tgt=document.querySelector(step.sel);
     if(!tgt){ endTour(); return; }
-    tgt.scrollIntoView({block:"center",behavior:"smooth"});
+    tgt.scrollIntoView({block:"center",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
     setTimeout(()=>{
       if(!tourEl) return;
       const r=tgt.getBoundingClientRect(), pad=6;
@@ -650,7 +707,7 @@
     }
   }catch{}
 
-  load();
+  BPUI.boot(load);
 </script>
 </body>
 </html>

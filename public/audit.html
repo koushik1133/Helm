@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Audit log — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
@@ -17,11 +18,11 @@
   header{display:flex;align-items:center;gap:11px;padding:18px 0}
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
-  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
   .spacer{margin-left:auto}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
   h2{font-size:20px;margin:0 0 4px} .sub{color:var(--ink-3);font-size:13px;margin:0 0 14px}
@@ -31,32 +32,33 @@
   .btn{height:34px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
   .btn:hover{border-color:var(--accent)}
   table{width:100%;border-collapse:collapse;font-size:13px}
-  thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--panel-2)}
+  thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--panel-2)}
   tbody td{padding:10px 12px;border-bottom:1px solid var(--line-2);vertical-align:top}
   tbody tr:hover{background:var(--panel-2)}
   .when{white-space:nowrap;color:var(--ink-2)} .who{font-size:12px}
-  .act{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .act{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
   .act.insert{background:#e7f6ee;color:#0f7a43} .act.update{background:#eef2ff;color:#4457c8} .act.delete{background:#fdecec;color:#b42318}
   .ent{font-family:var(--mono);font-size:12px;font-weight:600}
   .chg{font-size:12px;color:var(--ink-2);max-width:420px}
   .chg .k{font-weight:600;color:var(--ink)} .chg .o{color:#b42318;text-decoration:line-through;opacity:.75} .chg .n{color:#0f7a43}
-  .code{font-family:var(--mono);font-size:11px;color:var(--accent)}
+  .code{font-family:var(--mono);font-size:12px;color:var(--accent)}
   .empty{text-align:center;color:var(--ink-3);padding:40px;font-size:14px}
   .muted{color:var(--ink-3);font-size:12px}
   /* login modal */
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
   .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,94vw);padding:26px;text-align:center}
-  .lsheet h3{font-size:18px;margin:8px 0 12px} .lsheet label{display:block;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+  .lsheet h3{font-size:18px;margin:8px 0 12px} .lsheet label{display:block;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
   .lsheet input{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;margin-bottom:12px;font-family:inherit}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
-    <a href="dashboard.html" class="mark" title="Home"></a>
+    <a href="dashboard.html" class="mark" title="Home" aria-label="Home"></a>
     <div><h1>Audit log</h1><small>Helm Events</small></div>
     <nav class="nav"><a href="dashboard.html">Home</a><a href="control.html">Control Center</a></nav>
     <span class="spacer"></span>
@@ -64,43 +66,46 @@
     <span id="account" class="account" hidden></span>
   </header>
 
+  <main id="main">
   <div id="gate" class="card" hidden><p class="muted">Sign in as an admin to view the audit log.</p></div>
   <div id="noaccess" class="card" hidden><p class="muted">Your role doesn't have access to the audit log.</p></div>
 
+  <div id="boot" aria-busy="true"></div>
   <div id="app" hidden>
     <div class="card">
       <h2>Audit log</h2>
       <p class="sub">Every change to access, pricing, money, resources and config — who did it, and when.</p>
       <div class="toolbar">
-        <select id="fEntity"><option value="">All areas</option></select>
-        <input id="fSearch" placeholder="Search actor / field / value…" style="flex:1;min-width:180px">
+        <select id="fEntity" aria-label="Filter by area"><option value="">All areas</option></select>
+        <input id="fSearch" type="search" aria-label="Search audit log" placeholder="Search actor / field / value…" style="flex:1;min-width:180px">
         <button class="btn" id="refresh">↻ Refresh</button>
       </div>
-      <div style="overflow:auto">
+      <div class="table-scroll" style="overflow:auto">
         <table>
-          <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Area</th><th>Change</th><th>Event</th></tr></thead>
+          <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">Action</th><th scope="col">Area</th><th scope="col">Change</th><th scope="col">Event</th></tr></thead>
           <tbody id="rows"></tbody>
         </table>
       </div>
       <div id="empty" class="empty" hidden>No audit entries yet.</div>
     </div>
   </div>
+  </main>
 </div>
 
-<div class="lmodal" id="loginModal" hidden>
+<div class="lmodal" id="loginModal" role="dialog" aria-modal="true" aria-labelledby="li_title" data-dismissible="false" hidden>
   <form class="lsheet" id="loginForm">
     <div class="mark" style="margin:0 auto 12px"></div>
-    <h3>Sign in</h3>
-    <label>Email</label><input type="email" id="li_email" required>
-    <label>Password</label><input type="password" id="li_pw" required>
-    <div class="lerr" id="li_err" hidden></div>
+    <h3 id="li_title">Sign in</h3>
+    <label for="li_email">Email</label><input type="email" id="li_email" autocomplete="email" required>
+    <label for="li_pw">Password</label><input type="password" id="li_pw" autocomplete="current-password" required>
+    <div class="lerr" id="li_err" role="alert" hidden></div>
     <button class="btn" type="submit" id="li_submit" style="width:100%;justify-content:center">Sign in</button>
   </form>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -151,8 +156,9 @@
   }
 
   async function loadData(){
+    $("#empty").hidden=true;
     try{ all=await BPStore.audit.list({ entity: $("#fEntity").value||undefined, limit:200 }); }
-    catch(e){ all=[]; $("#empty").hidden=false; $("#empty").textContent="Run phase47-audit-log.sql to enable the audit log."; }
+    catch(e){ all=[]; BPUI.loadError($("#rows"), e, loadData, {what:"the audit log"}); return; }
     draw();
   }
   async function load(){
@@ -167,15 +173,18 @@
       $("#fEntity").innerHTML=`<option value="">All areas</option>`+ents.map(e=>`<option value="${esc(e)}">${esc(areaLabel(e))}</option>`).join(""); }catch{}
     await loadData();
   }
-  $("#refresh").addEventListener("click",loadData);
+  $("#refresh").addEventListener("click",e=>BPUI.guard(e.currentTarget,loadData));
   $("#fEntity").addEventListener("change",loadData);
   $("#fSearch").addEventListener("input",draw);
   $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
-    const btn=$("#li_submit"); btn.disabled=true; btn.textContent="Signing in…"; $("#li_err").hidden=true;
-    try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pw").value); closeLogin(); await load(); }
+    const btn=$("#li_submit"); if(btn.disabled) return;
+    const em=$("#li_email").value.trim(), pw=$("#li_pw").value;
+    if(!em||!pw){ $("#li_err").textContent="Enter your email and password."; $("#li_err").hidden=false; (em?$("#li_pw"):$("#li_email")).focus(); return; }
+    btn.disabled=true; btn.textContent="Signing in…"; $("#li_err").hidden=true;
+    try{ await BPStore.auth.signIn(em,pw); closeLogin(); await load(); }
     catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign-in failed"; $("#li_err").hidden=false; }
     finally{ btn.disabled=false; btn.textContent="Sign in"; } });
-  load();
+  BPUI.boot(load);
 </script>
 </body>
 </html>

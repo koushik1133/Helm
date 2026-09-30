@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Event Ready — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
@@ -17,11 +18,11 @@
   header{display:flex;align-items:center;gap:11px;padding:18px 0}
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
-  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
   .spacer{margin-left:auto}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .crumb{font-size:12px;color:var(--ink-3);margin:2px 0 14px} .crumb a{color:var(--accent)}
 
@@ -34,28 +35,32 @@
   .hero h2{margin:0;font-size:20px} .hero p{margin:3px 0 0;font-size:13px;color:var(--ink-2)}
   .hero .btn{margin-left:auto}
   .btn{height:40px;padding:0 18px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
-  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn.go{background:#18a558;border-color:transparent;color:#fff} .btn:hover{filter:brightness(1.03)} .btn:disabled{opacity:.45;cursor:default}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn.go{background:#0f7a43;border-color:transparent;color:#fff} .btn:hover{filter:brightness(1.03)} .btn:disabled{opacity:.45;cursor:default}
 
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px 18px;margin-bottom:16px}
   .chk{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line-2)} .chk:last-child{border-bottom:0}
   .ic{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex:0 0 auto}
   .ic.ok{background:#e7f6ee;color:#0f7a43} .ic.no{background:#fdecec;color:#b42318} .ic.warn{background:#fff7e6;color:#946200}
   .chk .l{font-weight:600;font-size:14px} .chk .d{font-size:12px;color:var(--ink-3)}
-  .chk .opt{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-left:6px}
+  .chk .opt{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-left:6px}
   .chk .act{margin-left:auto}
   .link{color:var(--accent);font-size:12px;font-weight:600;cursor:pointer}
+  .chk{flex-wrap:wrap}
+  @media(max-width:480px){.wrap{padding:0 16px 48px} header{flex-wrap:wrap} .nav{margin-left:0;flex-wrap:wrap} .hero .btn{margin-left:0}}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
   .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px}
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
   .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,96vw);padding:24px}
   .sheet h3{margin:0 0 12px}.foot{display:flex;gap:10px;justify-content:flex-end}
-  .fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px} .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px} .fld label{font-size:12px;font-weight:600;color:var(--ink-2)}
   .fld input{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit}
+  .crumb a,.sub a,a#floorLink{text-decoration:underline}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
     <a href="dashboard.html" class="mark" title="Home"></a>
@@ -64,20 +69,23 @@
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
+  <main id="main">
+  <div id="boot" aria-busy="true"></div>
 
   <div id="gate" class="card" hidden><p style="color:var(--ink-3);padding:12px">Sign in to view readiness.</p></div>
-  <div id="notfound" class="card" hidden><p style="color:var(--ink-3);padding:12px">Event not found. Go to <a href="quotes.html" style="color:var(--accent)">Quotes</a>.</p></div>
+  <div id="notfound" class="card" hidden><p style="color:var(--ink-3);padding:12px">Event not found. Go to <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a>.</p></div>
 
   <div id="app" hidden>
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
     <div id="hero" class="hero notready">
-      <div class="ring" id="ring">–</div>
+      <div class="ring" id="ring" aria-hidden="true">–</div>
       <div><h2 id="heroTitle">Checking readiness…</h2><p id="heroSub"></p></div>
-      <button class="btn go" id="markBtn" hidden>Mark Event Ready →</button>
+      <button type="button" class="btn go" id="markBtn" hidden>Mark Event Ready →</button>
     </div>
-    <div class="card" id="checks"></div>
+    <div class="card" id="checks"><div class="chk"><div class="d">Loading…</div></div></div>
     <p style="font-size:12px;color:var(--ink-3)">Share the plan with the staff: <a class="link" id="rsLink" href="#">open the run-sheet →</a> (use its Print button).</p>
   </div>
+  </main>
   <footer>Helm Events — one gate that proves the whole event is ready.</footer>
 </div>
 
@@ -91,9 +99,9 @@
   </div>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -126,34 +134,42 @@
       const cls = c.ok?"ok":(c.critical?"no":"warn"); const icon=c.ok?"✓":(c.critical?"✕":"!");
       const href = linkFor(c.key);
       let act="";
-      if(c.signoff && canEdit){ act = `<button class="btn" style="height:32px;padding:0 12px;font-size:12px" data-sign="${c.signoff}" data-done="${c.ok?1:0}">${c.ok?"Undo":"Mark done"}</button>`; }
-      else if(href && !c.ok){ act = `<a class="link" href="${href}">Fix →</a>`; }
-      return `<div class="chk"><div class="ic ${cls}">${icon}</div>
+      if(c.signoff && canEdit){ act = `<button type="button" class="btn" style="height:32px;padding:0 12px;font-size:12px" data-sign="${esc(c.signoff)}" data-done="${c.ok?1:0}" aria-label="${c.ok?"Undo":"Mark done"}: ${esc(c.label)}">${c.ok?"Undo":"Mark done"}</button>`; }
+      else if(href && !c.ok){ act = `<a class="link" href="${esc(href)}" aria-label="Fix ${esc(c.label)}">Fix →</a>`; }
+      return `<div class="chk"><div class="ic ${cls}" aria-hidden="true">${icon}</div><span class="sr-only">${c.ok?"Passed":(c.critical?"Not done":"Warning")}:</span>
         <div><div class="l">${esc(c.label)}${c.critical?"":'<span class="opt">optional</span>'}</div><div class="d">${esc(c.detail)}</div></div>
         <div class="act">${act}</div></div>`;
     }).join("");
-    $("#checks").querySelectorAll("[data-sign]").forEach(b=>b.addEventListener("click",async()=>{
+    $("#checks").querySelectorAll("[data-sign]").forEach(b=>b.addEventListener("click",()=>BPUI.guard(b,async()=>{
       try{ await BPStore.readiness.setSignoff(id, b.dataset.sign, b.dataset.done!=="1"); await load(); }
-      catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"update the sign-off"}),{type:"err"}); } })));
   }
 
   async function markReady(){
-    $("#markBtn").disabled=true;
-    try{ await BPStore.readiness.markReady(id); ev.lifecycleStage="ready"; render(); }
-    catch(e){ $("#markBtn").disabled=false; alert("Couldn't mark ready — "+((e&&e.message)||"error")); }
+    if(!(await BPUI.confirm("Mark this event ready? It moves the event to the Ready stage for the team.",{title:"Mark event ready?",okLabel:"Mark ready"}))) return;
+    await BPUI.guard($("#markBtn"),async()=>{
+      try{ await BPStore.readiness.markReady(id); ev.lifecycleStage="ready"; BPUI.toast("Event marked ready.",{type:"ok"}); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"mark the event ready"}),{type:"err"}); }
+    });
+    render();
   }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
-  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
-    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  $("#li_go").addEventListener("click",()=>{
+    const em=$("#li_email").value.trim(), pw=$("#li_pass").value;
+    if(!em||!pw){ $("#li_err").textContent="Enter your email and password."; $("#li_err").hidden=false; return; }
+    $("#li_err").hidden=true;
+    BPUI.guard($("#li_go"),async()=>{ try{ await BPStore.auth.signIn(em,pw); location.reload(); }
+      catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } },{busyLabel:"Signing in…"});
+  });
   $("#markBtn").addEventListener("click",markReady);
 
   async function load(){
     try{ r=await BPStore.readiness.check(id); }
-    catch(e){ $("#checks").innerHTML=`<div class="chk"><div class="ic no">✕</div><div><div class="l">Couldn't load</div><div class="d">${esc(e&&e.message||"error")} — run phase15-readiness.sql</div></div></div>`; return; }
+    catch(e){ BPUI.loadError($("#checks"),e,load,{what:"readiness checks"}); $("#heroTitle").textContent="Readiness unknown"; $("#heroSub").textContent=""; $("#ring").textContent="?"; $("#markBtn").hidden=true; return; }
     render();
   }
-  (async ()=>{
+  BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
     $("#rsLink").href = id?("runsheet.html?quote="+encodeURIComponent(id)):"#";
@@ -161,11 +177,12 @@
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     if(!(await BPStore.auth.requireView("ops"))) return;
     canEdit=await BPStore.auth.canEditArea("ready");
-    try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
+    try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
+    if(!ev){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
     $("#app").hidden=false;
     await load();
-  })();
+  });
 </script>
 </body>
 </html>

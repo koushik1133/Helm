@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Proposal — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
@@ -17,17 +18,17 @@
   header{display:flex;align-items:center;gap:11px;padding:18px 0}
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
-  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
   .spacer{margin-left:auto}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .crumb{font-size:12px;color:var(--ink-3);margin:2px 0 14px} .crumb a{color:var(--accent)}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
   .card h2{font-size:15px;margin:0 0 4px} .card .sub{font-size:12px;color:var(--ink-3);margin:0 0 16px}
   .fld{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
-  .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld label{font-size:12px;font-weight:600;color:var(--ink-2)}
   .fld input,.fld select,.fld textarea{border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:13px;color:var(--ink)}
   .fld input{height:38px;padding:0 12px} .fld textarea{min-height:80px;resize:vertical}
   .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -35,45 +36,54 @@
   .btn.sm{height:32px;padding:0 11px;font-size:12px}
   .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.4;cursor:default}
   .foot{display:flex;gap:10px;justify-content:flex-end;margin-top:8px;align-items:center}
-  .ok{color:var(--safe);font-size:12px;font-weight:600} .err{color:#b42318;font-size:12px;font-weight:600}
+  .ok{color:var(--safe-text,#0f7a43);font-size:12px;font-weight:600} .err{color:#b42318;font-size:12px;font-weight:600}
   .muted{color:var(--ink-3);font-size:12px}
   /* palette */
   .swatches{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
-  .sw{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);position:relative;cursor:pointer}
-  .sw span{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--panel);border:1px solid var(--line);font-size:11px;line-height:16px;text-align:center;color:var(--ink-3)}
-  .sw:hover span{color:#e5484d;border-color:#f5c6c6}
+  .sw{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);position:relative;background:var(--panel-2)}
+  .sw.bad{background:repeating-linear-gradient(45deg,var(--panel-2),var(--panel-2) 6px,var(--line) 6px,var(--line) 12px)}
+  .xbtn{position:absolute;top:-8px;right:-8px;width:22px;height:22px;border-radius:50%;background:var(--panel);border:1px solid var(--line);font-size:13px;line-height:1;padding:0;text-align:center;color:var(--ink-3);cursor:pointer;font-family:inherit}
+  .xbtn::after{content:"";position:absolute;inset:-5px}
+  .xbtn:hover,.xbtn:focus-visible{color:#e5484d;border-color:#f5c6c6}
   /* images */
   .gallery{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
   .thumb{width:120px;height:84px;border-radius:10px;border:1px solid var(--line);object-fit:cover;background:var(--panel-2)}
-  .thumbwrap{position:relative} .thumbwrap .x{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--panel);border:1px solid var(--line);cursor:pointer;font-size:12px;line-height:18px;text-align:center;color:var(--ink-3)} .thumbwrap .x:hover{color:#e5484d;border-color:#f5c6c6}
+  .thumbwrap{position:relative}
   /* scope */
   .chip{display:inline-flex;align-items:center;gap:6px;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:5px 11px;font-size:13px;margin:0 6px 6px 0}
-  .chip button{border:0;background:none;cursor:pointer;color:var(--ink-3);font-size:13px} .chip button:hover{color:#e5484d}
+  .chip button{border:0;background:none;cursor:pointer;color:var(--ink-3);font-size:14px;min-width:24px;min-height:24px;position:relative} .chip button::after{content:"";position:absolute;inset:-4px} .chip button:hover{color:#e5484d}
   /* publish */
   .pub{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .link{flex:1;min-width:200px;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:var(--mono);font-size:12px;color:var(--ink-2)}
-  .badge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 10px;border-radius:20px}
+  .badge{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 10px;border-radius:20px}
   .badge.draft{background:#fff7e6;color:#946200} .badge.live{background:#e7f6ee;color:#0f7a43}
   /* risks */
   table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
-  thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:9px 10px;border-bottom:1px solid var(--line)}
+  thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:9px 10px;border-bottom:1px solid var(--line)}
   tbody td{padding:9px 10px;border-bottom:1px solid var(--line-2);vertical-align:top}
-  .sev{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .sev{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
   .sev.low{background:#eef2ff;color:#4457c8} .sev.medium{background:#fff7e6;color:#946200} .sev.high{background:#fdecec;color:#b42318}
-  .ssel{height:28px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:11px;padding:0 6px;color:var(--ink)}
-  .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:28px;padding:0 9px;font-size:11px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#e5484d;border-color:#f5c6c6}
+  .ssel{min-height:32px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:12px;padding:0 6px;color:var(--ink)}
+  .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;min-height:32px;min-width:32px;padding:0 9px;font-size:12px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#e5484d;border-color:#f5c6c6}
   .reqrow{display:grid;grid-template-columns:1.6fr .8fr 1.6fr auto;gap:8px;align-items:end;margin-bottom:6px} @media(max-width:620px){.reqrow{grid-template-columns:1fr 1fr}}
   .empty{color:var(--ink-3);font-size:12px;padding:10px 0}
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
   .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,94vw);padding:26px;text-align:center}
-  .lsheet h3{font-size:18px;margin:8px 0 12px} .lsheet label{display:block;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+  .lsheet h3{font-size:18px;margin:8px 0 12px} .lsheet label{display:block;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
   .lsheet input{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;margin-bottom:12px;font-family:inherit}
+  .lsheet{position:relative}
+  .lsheet .lclose{position:absolute;top:10px;right:10px;width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;cursor:pointer;color:var(--ink-2);font-size:15px}
+  .loadbanner{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fdecec;color:#b42318;border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:16px}
+  @media(max-width:480px){.wrap{padding:0 16px 48px} header{flex-wrap:wrap} .nav{margin-left:0;flex-wrap:wrap} .reqrow{grid-template-columns:1fr} .link{min-width:0;width:100%}}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
+  th{position:relative} .table-scroll{position:relative}
+  .crumb a,.sub a,a#floorLink{text-decoration:underline}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
     <a href="dashboard.html" class="mark" title="Home"></a>
@@ -82,12 +92,15 @@
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
+  <main id="main">
+  <div id="boot" aria-busy="true"></div>
 
   <div id="gate" class="card" hidden><p class="muted">Sign in to open the proposal.</p></div>
-  <div id="notfound" class="card" hidden><p class="muted">Event not found. Go to <a href="quotes.html" style="color:var(--accent)">Quotes</a>.</p></div>
+  <div id="notfound" class="card" hidden><p class="muted">Event not found. Go to <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a>.</p></div>
 
   <div id="app" hidden>
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
+    <div id="propErr" class="loadbanner" role="alert" hidden><span id="propErrMsg"></span><button type="button" class="btn sm" id="propRetry">Retry</button></div>
 
     <div class="card">
       <h2>Concept &amp; design direction</h2>
@@ -96,21 +109,21 @@
       <div class="fld"><label for="p_theme">Theme</label><input id="p_theme" placeholder="e.g. Pastel garden romance"></div>
 
       <div class="fld"><label for="p_color">Colour palette</label>
-        <div class="row"><input type="color" id="p_color" value="#7c5cff" style="width:48px;height:38px;padding:2px"><button class="btn sm" id="p_addColor">＋ Add colour</button></div>
+        <div class="row"><input type="color" id="p_color" value="#7c5cff" style="width:48px;height:38px;padding:2px"><button type="button" class="btn sm" id="p_addColor">＋ Add colour</button></div>
         <div class="swatches" id="swatches"></div>
       </div>
 
       <div class="fld"><label for="p_img">Reference images (paste image URLs)</label>
-        <div class="row"><input id="p_img" placeholder="https://…/inspiration.jpg" style="flex:1;min-width:200px"><button class="btn sm" id="p_addImg">＋ Add image</button></div>
+        <div class="row"><input id="p_img" placeholder="https://…/inspiration.jpg" style="flex:1;min-width:200px"><button type="button" class="btn sm" id="p_addImg">＋ Add image</button></div>
         <div class="gallery" id="gallery"></div>
       </div>
 
       <div class="fld"><label for="p_scope">Scope — what's included</label>
-        <div class="row"><input id="p_scope" placeholder="e.g. Stage & backdrop décor" style="flex:1;min-width:200px"><button class="btn sm" id="p_addScope">＋ Add item</button></div>
+        <div class="row"><input id="p_scope" placeholder="e.g. Stage & backdrop décor" style="flex:1;min-width:200px"><button type="button" class="btn sm" id="p_addScope">＋ Add item</button></div>
         <div id="scopeList" style="margin-top:8px"></div>
       </div>
 
-      <div class="foot"><span id="p_msg" role="status" aria-live="polite"></span><button class="btn primary" id="p_save" hidden>Save proposal</button></div>
+      <div class="foot"><span id="p_msg" role="status" aria-live="polite"></span><button type="button" class="btn primary" id="p_save" hidden>Save proposal</button></div>
     </div>
 
     <div class="card">
@@ -119,11 +132,11 @@
       <div class="pub">
         <span class="badge draft" id="pubBadge">Draft</span>
         <input class="link" id="shareLink" readonly placeholder="Publish to generate a link" aria-label="Client share link">
-        <button class="btn sm" id="copyLink" hidden>Copy</button>
-        <a class="btn sm" id="openView" target="_blank" hidden>Open client view ↗</a>
+        <button type="button" class="btn sm" id="copyLink" hidden>Copy</button>
+        <a class="btn sm" id="openView" target="_blank" rel="noopener" hidden>Open client view ↗</a>
         <span class="spacer"></span>
-        <button class="btn primary" id="pubBtn" hidden>Publish</button>
-        <button class="btn" id="unpubBtn" hidden>Unpublish</button>
+        <button type="button" class="btn primary" id="pubBtn" hidden>Publish</button>
+        <button type="button" class="btn" id="unpubBtn" hidden>Unpublish</button>
       </div>
     </div>
 
@@ -134,18 +147,20 @@
         <div class="fld" style="margin:0"><label for="rk_title">Risk</label><input id="rk_title" placeholder="e.g. Outdoor venue — rain"></div>
         <div class="fld" style="margin:0"><label for="rk_sev">Severity</label><select id="rk_sev"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
         <div class="fld" style="margin:0"><label for="rk_mit">Mitigation</label><input id="rk_mit" placeholder="e.g. Tent on standby"></div>
-        <div class="fld" style="margin:0"><label>&nbsp;</label><button class="btn primary sm" id="rk_add">＋ Add</button></div>
+        <div class="fld" style="margin:0"><span aria-hidden="true" style="font-size:12px">&nbsp;</span><button type="button" class="btn primary sm" id="rk_add">＋ Add</button></div>
       </div>
-      <table>
-        <thead><tr><th>Risk</th><th>Severity</th><th>Mitigation</th><th>Status</th><th></th></tr></thead>
+      <div class="table-scroll"><table>
+        <thead><tr><th scope="col">Risk</th><th scope="col">Severity</th><th scope="col">Mitigation</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody id="riskRows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
-      </table>
+      </table></div>
     </div>
   </div>
+  </main>
 </div>
 
 <div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
-  <form class="lsheet" id="loginForm">
+  <form class="lsheet" id="loginForm" novalidate>
+    <button type="button" class="lclose" id="li_close" aria-label="Close" data-close>×</button>
     <div class="mark" style="margin:0 auto 10px" aria-hidden="true"></div><h3 id="loginModalTitle">Sign in</h3>
     <label for="li_email">Email</label><input type="email" id="li_email" required>
     <label for="li_pw">Password</label><input type="password" id="li_pw" required>
@@ -154,15 +169,21 @@
   </form>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const SEV={low:"Low",medium:"Medium",high:"High"};
   let canEdit=false, canDelete=false, palette=[], images=[], scope=[], risks=[], token=null, published=false;
+  // proposalFailed: the saved proposal couldn't be loaded — fields are blank and published is UNKNOWN,
+  // so Save / Publish / Unpublish stay blocked until a retry succeeds (never overwrite unseen data).
+  let proposalFailed=false;
+  const dirty=BPUI.trackDirty();
+  const HEX=/^#[0-9a-f]{3,8}$/i;   // same allow-list as portal / proposal-view
+  function act(btn,fn,action){ return BPUI.guard(btn,async()=>{ try{ await fn(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action}),{type:"err"}); } }); }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
@@ -172,55 +193,85 @@
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";});
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
 
-  function renderPalette(){ $("#swatches").innerHTML=palette.map((c,i)=>`<div class="sw" style="background:${esc(c)}" title="${esc(c)}" data-i="${i}"><span>×</span></div>`).join("")||'<span class="muted">No colours yet.</span>';
-    if(canEdit) $("#swatches").querySelectorAll(".sw span").forEach(x=>x.addEventListener("click",e=>{e.stopPropagation();palette.splice(+x.parentElement.dataset.i,1);renderPalette();})); }
-  function renderGallery(){ $("#gallery").innerHTML=images.map((u,i)=>`<div class="thumbwrap"><img class="thumb" src="${esc(u)}" alt="ref" onerror="this.style.opacity=.3"><div class="x" data-i="${i}">×</div></div>`).join("")||'<span class="muted">No images yet.</span>';
-    if(canEdit) $("#gallery").querySelectorAll(".x").forEach(x=>x.addEventListener("click",()=>{images.splice(+x.dataset.i,1);renderGallery();})); }
-  function renderScope(){ $("#scopeList").innerHTML=scope.map((s,i)=>`<span class="chip">${esc(s)}${canEdit?`<button data-i="${i}">×</button>`:""}</span>`).join("")||'<span class="muted">No scope items yet.</span>';
-    if(canEdit) $("#scopeList").querySelectorAll(".chip button").forEach(b=>b.addEventListener("click",()=>{scope.splice(+b.dataset.i,1);renderScope();})); }
+  const editable=()=>canEdit && !proposalFailed;
+  function renderPalette(){ $("#swatches").innerHTML=palette.map((c,i)=>{ const ok=HEX.test(String(c||"")); const lbl=ok?String(c):"invalid colour";
+      return `<div class="sw${ok?"":" bad"}" role="img" aria-label="Colour ${esc(lbl)}" title="${esc(lbl)}" ${ok?`style="background:${c}"`:""}>${editable()?`<button type="button" class="xbtn" data-i="${i}" aria-label="Remove colour ${esc(lbl)}">×</button>`:""}</div>`; }).join("")||'<span class="muted">No colours yet.</span>';
+    if(editable()) $("#swatches").querySelectorAll(".xbtn").forEach(x=>x.addEventListener("click",e=>{e.stopPropagation();palette.splice(+x.dataset.i,1);dirty.mark();renderPalette();})); }
+  function renderGallery(){ $("#gallery").innerHTML=images.map((u,i)=>`<div class="thumbwrap"><img class="thumb" src="${esc(u)}" alt="Inspiration image ${i+1}" loading="lazy" decoding="async">${editable()?`<button type="button" class="xbtn" data-i="${i}" aria-label="Remove inspiration image ${i+1}">×</button>`:""}</div>`).join("")||'<span class="muted">No images yet.</span>';
+    $("#gallery").querySelectorAll("img.thumb").forEach(img=>img.addEventListener("error",()=>{ img.style.opacity=".3"; },{once:true}));
+    if(editable()) $("#gallery").querySelectorAll(".xbtn").forEach(x=>x.addEventListener("click",()=>{images.splice(+x.dataset.i,1);dirty.mark();renderGallery();})); }
+  function renderScope(){ $("#scopeList").innerHTML=scope.map((s,i)=>`<span class="chip">${esc(s)}${editable()?`<button type="button" data-i="${i}" aria-label="Remove scope item ${esc(s)}">×</button>`:""}</span>`).join("")||'<span class="muted">No scope items yet.</span>';
+    if(editable()) $("#scopeList").querySelectorAll(".chip button").forEach(b=>b.addEventListener("click",()=>{scope.splice(+b.dataset.i,1);dirty.mark();renderScope();})); }
 
   function renderPublish(){
     const link = token ? (location.origin+"/proposal-view.html?token="+token) : "";
     $("#pubBadge").className="badge "+(published?"live":"draft"); $("#pubBadge").textContent=published?"Published":"Draft";
     $("#shareLink").value=link;
     $("#copyLink").hidden=!link; $("#openView").hidden=!(link&&published); if(link) $("#openView").href=link;
-    $("#pubBtn").hidden=!canEdit||published; $("#unpubBtn").hidden=!canEdit||!published;
+    $("#pubBtn").hidden=!canEdit||published||proposalFailed; $("#unpubBtn").hidden=!canEdit||!published||proposalFailed;
+    if(proposalFailed){ $("#pubBadge").className="badge draft"; $("#pubBadge").textContent="Unknown"; }
   }
 
   function renderRisks(){
+    if(risksFailed){ BPUI.loadError($("#riskRows"),risksFailed,loadRisks,{what:"risks"}); return; }
     if(!risks.length){ $("#riskRows").innerHTML='<tr><td colspan="5" class="empty">No risks logged yet.</td></tr>'; return; }
     const opts=(cur)=>["open","mitigated","accepted"].map(s=>`<option value="${s}" ${s===cur?"selected":""}>${s[0].toUpperCase()+s.slice(1)}</option>`).join("");
     $("#riskRows").innerHTML=risks.map(r=>`<tr>
       <td><b>${esc(r.title)}</b></td>
       <td><span class="sev ${esc(r.severity)}">${esc(SEV[r.severity]||r.severity)}</span></td>
       <td class="muted">${esc(r.mitigation||"")}</td>
-      <td>${canEdit?`<select class="ssel" data-id="${r.id}">${opts(r.status)}</select>`:esc(r.status)}</td>
-      <td>${canDelete?`<button class="rm" data-id="${r.id}">Remove</button>`:""}</td>
+      <td>${canEdit?`<select class="ssel" data-id="${esc(r.id)}" aria-label="Status for ${esc(r.title)}">${opts(r.status)}</select>`:esc(r.status)}</td>
+      <td>${canDelete?`<button type="button" class="rm" data-id="${esc(r.id)}" data-name="${esc(r.title)}" aria-label="Remove risk ${esc(r.title)}">Remove</button>`:""}</td>
     </tr>`).join("");
-    if(canEdit) $("#riskRows").querySelectorAll("select.ssel").forEach(s=>s.addEventListener("change",async()=>{
-      try{ await BPStore.proposal.setRiskStatus(s.dataset.id, s.value); const r=risks.find(x=>x.id===s.dataset.id); if(r) r.status=s.value; }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
+    if(canEdit) $("#riskRows").querySelectorAll("select.ssel").forEach(s=>s.addEventListener("change",()=>{
+      const r=risks.find(x=>x.id===s.dataset.id); const prev=r?r.status:null;
+      BPUI.guard(s,async()=>{ try{ await BPStore.proposal.setRiskStatus(s.dataset.id, s.value); if(r) r.status=s.value; }
+        catch(e){ if(prev) s.value=prev; BPUI.toast(BPUI.friendlyError(e,{action:"update the risk"}),{type:"err"}); } }); }));
     if(canDelete) $("#riskRows").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{
-      try{ await BPStore.proposal.removeRisk(b.dataset.id); risks=risks.filter(x=>x.id!==b.dataset.id); renderRisks(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
+      if(!(await BPUI.confirm(`Remove the risk “${b.dataset.name||""}”?`,{title:"Remove risk?",danger:true}))) return;
+      await act(b,async()=>{ await BPStore.proposal.removeRisk(b.dataset.id); risks=risks.filter(x=>x.id!==b.dataset.id); renderRisks(); },"remove the risk"); }));
   }
+  let risksFailed=null;
+  async function loadRisks(){ try{ risks=await BPStore.proposal.listRisks(id); risksFailed=null; }catch(e){ risks=[]; risksFailed=e||new Error("load failed"); } renderRisks(); }
 
-  async function saveProposal(){
-    $("#p_save").disabled=true; $("#p_msg").textContent="";
-    try{ await BPStore.proposal.save(id,{ concept:$("#p_concept").value.trim()||null, theme:$("#p_theme").value.trim()||null, palette, images, scope });
-      $("#p_msg").className="ok"; $("#p_msg").textContent="Saved ✓"; setTimeout(()=>$("#p_msg").textContent="",2000); }
-    catch(e){ $("#p_msg").className="err"; $("#p_msg").textContent="Couldn't save — "+((e&&e.message)||"error"); }
-    finally{ $("#p_save").disabled=false; }
+  function blocked(){
+    if(!proposalFailed) return false;
+    BPUI.toast("The saved proposal couldn't be loaded, so saving and publishing are paused to avoid overwriting it. Retry loading first.",{type:"err"});
+    return true;
   }
-  async function setPublished(v){
-    try{ const t=await BPStore.proposal.publish(id,v); if(t) token=t; published=v; renderPublish(); }
-    catch(e){ alert("Couldn't "+(v?"publish":"unpublish")+" — "+((e&&e.message)||"error")); }
+  function saveProposal(){
+    if(blocked()) return;
+    return BPUI.guard($("#p_save"),async()=>{
+      $("#p_msg").textContent="";
+      try{ await BPStore.proposal.save(id,{ concept:$("#p_concept").value.trim()||null, theme:$("#p_theme").value.trim()||null, palette, images, scope });
+        dirty.clean(); $("#p_msg").className="ok"; $("#p_msg").textContent="Saved ✓"; setTimeout(()=>$("#p_msg").textContent="",2000); }
+      catch(e){ $("#p_msg").className="err"; $("#p_msg").textContent=BPUI.friendlyError(e,{action:"save the proposal"}); }
+    },{busyLabel:"Saving…"});
   }
-  async function addRisk(){
+  async function setPublished(v,btn){
+    if(blocked()) return;
+    if(!v && !(await BPUI.confirm("Unpublish the proposal? The client's link will stop working until you publish again.",{title:"Unpublish proposal?",okLabel:"Unpublish",danger:true}))) return;
+    await act(btn,async()=>{ const t=await BPStore.proposal.publish(id,v); if(t) token=t; published=v; renderPublish(); BPUI.toast(v?"Published — share the link with your client.":"Unpublished.",{type:"ok"}); },v?"publish":"unpublish");
+  }
+  function addRisk(){
     const title=$("#rk_title").value.trim(); if(!title){ $("#rk_title").focus(); return; }
-    $("#rk_add").disabled=true;
-    try{ const row=await BPStore.proposal.addRisk(id,{ title, severity:$("#rk_sev").value, mitigation:$("#rk_mit").value.trim()||null });
-      risks.push(row); renderRisks(); $("#rk_title").value=""; $("#rk_mit").value=""; $("#rk_title").focus(); }
-    catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); }
-    finally{ $("#rk_add").disabled=false; }
+    return act($("#rk_add"),async()=>{ const row=await BPStore.proposal.addRisk(id,{ title, severity:$("#rk_sev").value, mitigation:$("#rk_mit").value.trim()||null });
+      risks.push(row); renderRisks(); $("#rk_title").value=""; $("#rk_mit").value=""; $("#rk_title").focus(); },"add the risk");
+  }
+  async function loadProposal(){
+    try{ const p=await BPStore.proposal.get(id);
+      proposalFailed=false; $("#propErr").hidden=true;
+      if(p){
+      $("#p_concept").value=p.concept||""; $("#p_theme").value=p.theme||"";
+      palette=Array.isArray(p.palette)?p.palette:[]; images=Array.isArray(p.images)?p.images:[]; scope=Array.isArray(p.scope)?p.scope:[]; token=p.share_token||null; published=!!p.published; }
+      dirty.clean(); }
+    catch(e){ proposalFailed=true;
+      $("#propErrMsg").textContent="Couldn't load the saved proposal — "+BPUI.friendlyError(e)+" Saving and publishing are paused so nothing gets overwritten.";
+      $("#propErr").hidden=false; }
+    const lock=proposalFailed||!canEdit;
+    ["#p_concept","#p_theme","#p_color","#p_img","#p_scope","#p_addColor","#p_addImg","#p_addScope"].forEach(s=>{ $(s).disabled=lock; });
+    $("#p_save").disabled=proposalFailed;
+    renderPalette(); renderGallery(); renderScope(); renderPublish();
   }
 
   async function load(){
@@ -230,35 +281,40 @@
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     if(!(await BPStore.auth.requireView("pipeline"))) return;
     canEdit=await BPStore.auth.canEditArea("proposal"); canDelete=await BPStore.auth.can("delete");
-    let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
+    let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
+    if(!ev){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
     $("#app").hidden=false;
     $("#p_save").hidden=!canEdit; $("#addRisk").hidden=!canEdit;
-    try{ const p=await BPStore.proposal.get(id); if(p){
-      $("#p_concept").value=p.concept||""; $("#p_theme").value=p.theme||"";
-      palette=p.palette||[]; images=p.images||[]; scope=p.scope||[]; token=p.share_token||null; published=!!p.published; } }catch{}
-    renderPalette(); renderGallery(); renderScope(); renderPublish();
-    try{ risks=await BPStore.proposal.listRisks(id); }catch{ risks=[]; }
-    renderRisks();
+    await loadProposal();
+    await loadRisks();
     if(!canEdit){ document.querySelectorAll("#app input,#app select,#app textarea").forEach(el=>el.disabled=true); }
   }
 
-  $("#p_addColor").addEventListener("click",()=>{ const c=$("#p_color").value; if(!palette.includes(c)) palette.push(c); renderPalette(); });
-  $("#p_addImg").addEventListener("click",()=>{ const raw=$("#p_img").value.trim(); if(!raw) return; const r=BPStore.validate.url(raw); if(!r.ok){ alert(r.error); $("#p_img").focus(); return; } images.push(r.value); $("#p_img").value=""; renderGallery(); });
-  $("#p_addScope").addEventListener("click",()=>{ const s=$("#p_scope").value.trim(); if(s){ scope.push(s); $("#p_scope").value=""; renderScope(); } });
+  $("#p_addColor").addEventListener("click",()=>{ if(!editable()) return; const c=String($("#p_color").value||"").toLowerCase(); if(!HEX.test(c)){ BPUI.toast("Pick a valid colour.",{type:"err"}); return; } if(!palette.includes(c)){ palette.push(c); dirty.mark(); } renderPalette(); });
+  $("#p_addImg").addEventListener("click",()=>{ if(!editable()) return; const raw=$("#p_img").value.trim(); if(!raw) return; const r=BPStore.validate.url(raw); if(!r.ok){ BPUI.toast(r.error,{type:"err"}); $("#p_img").focus(); return; } images.push(r.value); dirty.mark(); $("#p_img").value=""; renderGallery(); });
+  $("#p_addScope").addEventListener("click",()=>{ if(!editable()) return; const s=$("#p_scope").value.trim(); if(s){ scope.push(s); dirty.mark(); $("#p_scope").value=""; renderScope(); } });
+  ["#p_concept","#p_theme"].forEach(x=>$(x).addEventListener("input",()=>dirty.mark()));
+  $("#propRetry").addEventListener("click",()=>BPUI.guard($("#propRetry"),loadProposal));
   $("#p_img").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#p_addImg").click(); } });
   $("#p_scope").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#p_addScope").click(); } });
   $("#p_save").addEventListener("click",saveProposal);
-  $("#pubBtn").addEventListener("click",()=>setPublished(true));
-  $("#unpubBtn").addEventListener("click",()=>setPublished(false));
-  $("#copyLink").addEventListener("click",()=>{ navigator.clipboard&&navigator.clipboard.writeText($("#shareLink").value); $("#copyLink").textContent="Copied ✓"; setTimeout(()=>$("#copyLink").textContent="Copy",1500); });
+  $("#pubBtn").addEventListener("click",()=>setPublished(true,$("#pubBtn")));
+  $("#unpubBtn").addEventListener("click",()=>setPublished(false,$("#unpubBtn")));
+  $("#copyLink").addEventListener("click",async()=>{ const v=$("#shareLink").value; if(!v) return;
+    try{ if(!(navigator.clipboard&&navigator.clipboard.writeText)) throw new Error("no clipboard"); await navigator.clipboard.writeText(v); $("#copyLink").textContent="Copied ✓"; setTimeout(()=>$("#copyLink").textContent="Copy",1500); }
+    catch(_){ $("#shareLink").select(); BPUI.toast("Couldn't copy automatically — the link is selected, press Ctrl/Cmd+C.",{type:"info"}); } });
   $("#rk_add").addEventListener("click",addRisk);
-  $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
-    const btn=$("#li_submit"); btn.disabled=true; btn.textContent="Signing in…"; $("#li_err").hidden=true;
-    try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pw").value); closeLogin(); $("#gate").hidden=true; await load(); }
-    catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign-in failed"; $("#li_err").hidden=false; }
-    finally{ btn.disabled=false; btn.textContent="Sign in"; } });
-  load();
+  $("#li_close").addEventListener("click",closeLogin);
+  $("#loginForm").addEventListener("submit",e=>{ e.preventDefault();
+    const em=$("#li_email").value.trim(), pw=$("#li_pw").value;
+    if(!em||!pw){ $("#li_err").textContent="Enter your email and password."; $("#li_err").hidden=false; return; }
+    $("#li_err").hidden=true;
+    BPUI.guard($("#li_submit"),async()=>{
+      try{ await BPStore.auth.signIn(em,pw); closeLogin(); $("#gate").hidden=true; await BPUI.boot(load); }
+      catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign-in failed"; $("#li_err").hidden=false; }
+    },{busyLabel:"Signing in…"}); });
+  BPUI.boot(load);
 </script>
 </body>
 </html>

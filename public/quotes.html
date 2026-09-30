@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quotes &amp; Confirmations — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{
@@ -22,19 +23,19 @@
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
   header h1{font-size:16px;margin:0;font-weight:700}
-  header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)}
   .nav a:hover{color:var(--accent)}
   .spacer{margin-left:auto}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .account button:hover{border-color:var(--accent)}
 
   .toolbar{display:flex;align-items:center;gap:10px;margin:8px 0 14px;flex-wrap:wrap}
-  .tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px}
+  .tabs{display:flex;flex-wrap:wrap;max-width:100%;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:4px}
   .tabs button{border:0;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink-2);padding:7px 14px;border-radius:7px;cursor:pointer}
-  .tabs button.on{background:var(--accent);color:#fff}
+  .tabs button.on{background:var(--accent);color:#fff} html[data-theme="dark"] .tabs button.on{background:#7c3aed}
   /* confirmed quotes stand out and sort to the top */
   tbody tr.is-confirmed{background:#f0faf4}
   tbody tr.is-confirmed td:first-child{box-shadow:inset 3px 0 0 #12a150}
@@ -51,23 +52,23 @@
 
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
   table{width:100%;border-collapse:collapse;font-size:13px}
-  thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:12px 14px;border-bottom:1px solid var(--line);background:var(--panel-2)}
+  thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:12px 14px;border-bottom:1px solid var(--line);background:var(--panel-2)}
   tbody td{padding:12px 14px;border-bottom:1px solid var(--line-2);vertical-align:middle}
   tbody tr:hover{background:var(--panel-2)}
   .code{font-family:var(--mono);font-weight:600}
-  .muted{color:var(--ink-3);font-size:11px}
-  .stat{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:20px}
+  .muted{color:var(--ink-3);font-size:12px}
+  .stat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:20px}
   .stat.q{background:#eef2ff;color:#4457c8} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318}
   .stat.ap{background:#e7f6ee;color:#0f7a43} .stat.st{background:#fff7e6;color:#946200}
   .stat.done{background:#f1f3f7;color:#5b5670}
   .stat.warn{background:#fdecec;color:#b42318}
-  .vsel{height:30px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:var(--mono);font-size:12px;padding:0 6px;color:var(--ink)}
+  .vsel{height:32px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:var(--mono);font-size:12px;padding:0 6px;color:var(--ink)}
   .row-actions{display:flex;gap:6px;flex-wrap:wrap}
-  .ic{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:30px;padding:0 10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)}
+  .ic{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:32px;min-width:32px;padding:0 10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)}
   .ic:hover{border-color:var(--accent);color:var(--accent)}
   .ic.go{color:var(--accent);border-color:var(--accent-soft)}
   .ic.confirm{color:#0f7a43;border-color:#b6e3ca}
-  .ic.del:hover{color:#e5484d;border-color:#f5c6c6}
+  .ic.del:hover{color:#b42318;border-color:#f5c6c6}
   .empty{text-align:center;color:var(--ink-3);padding:48px;font-size:14px}
   .amt{font-family:var(--mono);font-weight:600;white-space:nowrap}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
@@ -77,14 +78,14 @@
   .lmodal[hidden]{display:none!important}
   .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(760px,96vw);max-height:90vh;overflow:auto;padding:24px}
   .sheet h3{margin:0 0 2px;font-size:18px;display:flex;align-items:center;gap:8px}
-  .sheet .close{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:30px;height:30px;font-size:15px;cursor:pointer;color:var(--ink-2)}
+  .sheet .close{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:32px;height:32px;font-size:15px;cursor:pointer;color:var(--ink-2)}
   .sheet p.sub{margin:0 0 16px;font-size:12px;color:var(--ink-3)}
-  .seclabel{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:700;margin:16px 0 8px}
+  .seclabel{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:700;margin:16px 0 8px}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .grid.three{grid-template-columns:1fr 1fr 1fr}
   @media (max-width:620px){.grid,.grid.three{grid-template-columns:1fr}}
   .fld{display:flex;flex-direction:column;gap:4px}
-  .fld label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)}
+  .fld label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)}
   .fld input,.fld select,.fld textarea{height:36px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
   .fld textarea{height:auto;padding:8px 10px;resize:vertical;min-height:52px}
   .fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
@@ -94,16 +95,17 @@
   .totals .r .amt{color:var(--ink)}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin:12px 0 0}
   .modbtns{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
-  .taxnote{font-size:11px;color:var(--ink-3);margin-top:6px;line-height:1.5}
+  .taxnote{font-size:12px;color:var(--ink-3);margin-top:6px;line-height:1.5}
   .msg{border-radius:8px;padding:8px 11px;font-size:13px}
   .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca} .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
-    <a href="dashboard.html" class="mark" title="Home"></a>
+    <a href="dashboard.html" class="mark" title="Home" aria-label="Home"></a>
     <div><h1>Quotes &amp; Confirmations</h1><small>Helm Events</small></div>
     <nav class="nav"><a href="dashboard.html">Home</a><a href="builder.html">Builder</a><a href="control.html">Control Center</a></nav>
     <span class="spacer"></span>
@@ -111,37 +113,39 @@
     <span id="account" class="account" hidden></span>
   </header>
 
+  <main id="main">
   <div class="toolbar">
-    <div class="tabs" id="tabs">
-      <button data-f="all" class="on">Active</button>
-      <button data-f="quote">Quotes</button>
-      <button data-f="confirmed">Confirmed</button>
-      <button data-f="attention">⚠ Attention</button>
-      <button data-f="archived">Archived</button>
+    <div class="tabs" id="tabs" role="group" aria-label="Show quotes">
+      <button type="button" data-f="all" class="on" aria-pressed="true">Active</button>
+      <button type="button" data-f="quote" aria-pressed="false">Quotes</button>
+      <button type="button" data-f="confirmed" aria-pressed="false">Confirmed</button>
+      <button type="button" data-f="attention" aria-pressed="false">⚠ Attention</button>
+      <button type="button" data-f="archived" aria-pressed="false">Archived</button>
     </div>
-    <input id="search" class="search" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search code, client, title…">
+    <input id="search" class="search" type="search" aria-label="Search quotes" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search code, client, title…">
     <select id="typeFilter" class="typefilter" title="Filter by event type" aria-label="Filter by event type"><option value="">All types</option></select>
-    <button class="btn" id="refresh">↻ Refresh</button>
+    <button type="button" class="btn" id="refresh">↻ Refresh</button>
     <a class="btn primary" href="dashboard.html" id="newBtn">✨ New quote</a>
   </div>
 
-  <div class="card">
+  <div class="card table-scroll">
     <table>
       <thead><tr>
-        <th>Code</th><th>Event</th><th>Client</th><th>Version</th><th>Status</th>
-        <th style="text-align:right">Total</th><th>Updated</th><th style="text-align:right">Actions</th>
+        <th scope="col">Code</th><th scope="col">Event</th><th scope="col">Client</th><th scope="col">Version</th><th scope="col">Status</th>
+        <th scope="col" style="text-align:right">Total</th><th scope="col">Updated</th><th scope="col" style="text-align:right">Actions</th>
       </tr></thead>
       <tbody id="rows"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
     </table>
   </div>
+  </main>
 
   <footer>Every save is a version · confirm to price &amp; lock · GST per India (SAC 998596, 18%)</footer>
 </div>
 
 <!-- Confirm / pricing modal -->
-<div class="lmodal" id="confirmModal" hidden role="dialog" aria-modal="true" aria-label="Confirm quote pricing">
+<div class="lmodal" id="confirmModal" hidden role="dialog" aria-modal="true" aria-labelledby="cm_titleText">
   <div class="sheet">
-    <h3 id="cm_title">Confirm quote <button class="close" id="cm_close" type="button" aria-label="Close">✕</button></h3>
+    <h3 id="cm_title"><span id="cm_titleText">Confirm quote</span> <button class="close" id="cm_close" type="button" aria-label="Close" data-close>✕</button></h3>
     <p class="sub" id="cm_sub">Collect client details and price the event. Confirming locks a priced snapshot.</p>
 
     <div class="seclabel">Client &amp; event</div>
@@ -195,9 +199,9 @@
 </div>
 
 <!-- Approval link modal -->
-<div class="lmodal" id="linkModal" hidden role="dialog" aria-modal="true" aria-label="Client approval link">
+<div class="lmodal" id="linkModal" hidden role="dialog" aria-modal="true" aria-labelledby="lk_title">
   <div class="sheet" style="width:min(560px,94vw)">
-    <h3>🔗 Client approval link <button class="close" id="lk_close" type="button" aria-label="Close">✕</button></h3>
+    <h3><span id="lk_title">🔗 Client approval link</span> <button class="close" id="lk_close" type="button" aria-label="Close" data-close>✕</button></h3>
     <p class="sub">Share this link with the client. They review the terms, verify an OTP on their phone, consent, and pay. You'll see the status update here.</p>
     <div class="fld"><label for="lk_url">Approval link</label><input id="lk_url" readonly></div>
     <div id="lk_msg" role="status" aria-live="polite"></div>
@@ -211,25 +215,25 @@
 </div>
 
 <!-- Login modal (reused) -->
-<div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
+<div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle" data-dismissible="false">
   <form class="sheet" id="loginForm" style="width:min(380px,94vw);text-align:center">
     <div class="mark" style="margin:0 auto 14px" aria-hidden="true"></div>
     <h3 id="loginModalTitle" style="justify-content:center">Sign in</h3>
     <p class="sub">Use the account your studio admin created for you.</p>
-    <div class="fld" style="text-align:left;margin-bottom:12px"><label for="li_email">Email</label><input type="email" id="li_email" required></div>
-    <div class="fld" style="text-align:left;margin-bottom:12px"><label for="li_pw">Password</label><input type="password" id="li_pw" required></div>
+    <div class="fld" style="text-align:left;margin-bottom:12px"><label for="li_email">Email</label><input type="email" id="li_email" autocomplete="email" required></div>
+    <div class="fld" style="text-align:left;margin-bottom:12px"><label for="li_pw">Password</label><input type="password" id="li_pw" autocomplete="current-password" required></div>
     <div class="lerr" id="li_err" role="alert" aria-live="assertive" hidden></div>
     <button class="btn primary" id="li_submit" type="submit" style="width:100%;justify-content:center;margin-top:6px">Sign in</button>
   </form>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
-<script src="tour.js?v=4"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
+<script src="tour.js?v=5"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
-  const esc = (s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const esc = (s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const inr = (n)=>"₹"+Number(n||0).toLocaleString("en-IN");
   const fmtDate=(iso)=>{try{return new Date(iso).toLocaleDateString();}catch{return "—";}};
   const statBadge=(s)=> s==="confirmed"?'<span class="stat ok">Confirmed</span>':s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
@@ -266,7 +270,7 @@
     canMarkPaid = canEdit && (!BPStore.auth.enabled() || ["admin","manager"].includes(await BPStore.auth.role()));
     $("#newBtn").hidden = !canCreate;
     try { quotes = await BPStore.quotes.list(); }
-    catch(e){ $("#rows").innerHTML=`<tr><td colspan="8" class="empty">Couldn't load — ${esc(e&&e.message||"error")}</td></tr>`; return; }
+    catch(e){ BPUI.loadError($("#rows"), e, load, {what:"quotes"}); return; }
     // opened from an event workspace? focus that quote by pre-filling the search
     const focus=new URLSearchParams(location.search).get("focus");
     if(focus){ $("#search").value=focus; }
@@ -302,33 +306,38 @@
     const rank=x=> x.status==="confirmed"?0:1;
     list.sort((a,b)=> (rank(a)-rank(b)) || (b.updatedAt||"").localeCompare(a.updatedAt||""));
     const tb=$("#rows");
-    if(!list.length){ tb.innerHTML='<tr><td colspan="8" class="empty">No quotes here yet.</td></tr>'; return; }
+    if(!list.length){
+      // first run (no quotes at all) vs. nothing in this tab / filter
+      tb.innerHTML = !quotes.length
+        ? `<tr><td colspan="8" class="empty"><b>No quotes yet.</b><br>${canCreate?'Design a layout and save it to create your first quote.<div style="margin-top:12px"><a class="btn primary" href="dashboard.html">✨ Create your first quote</a></div>':"Quotes will appear here once they're created."}</td></tr>`
+        : `<tr><td colspan="8" class="empty">${(q||typeFilter)?"No quotes match this search or filter.":"No quotes in this view."}</td></tr>`;
+      return; }
     tb.innerHTML=list.map(x=>{
       const pr=x.pricing||{}; const client=(x.client&&x.client.name)||(pr.client&&pr.client.name)||"";
       return `<tr data-id="${esc(x.id)}" class="${needsAttention(x)?'is-attention':(x.status==='confirmed'?'is-confirmed':'')}">
         <td class="code">${esc(x.code)}</td>
         <td>${esc(x.title||"—")}<div class="muted">${esc(x.eventType||"")}</div></td>
         <td>${esc(client)||'<span class="muted">—</span>'}</td>
-        <td><select class="vsel" data-role="vsel"><option>v${x.currentVersion}</option></select></td>
+        <td><select class="vsel" data-role="vsel" aria-label="Version of ${esc(x.code)}"><option>v${esc(x.currentVersion)}</option></select></td>
         <td>${needsAttention(x)?'<span class="stat warn" title="Event date has passed but this event isn\'t wrapped up — settle, return equipment and close it">⚠ Overdue</span> ':''}${isArchived(x)&&x.lifecycleStage==="closed"?'<span class="stat done">Closed · Archived</span>':statBadge(x.status)} ${apprBadge(x.approvalStatus)}</td>
         <td style="text-align:right" class="amt">${x.total?inr(x.total):'<span class="muted">—</span>'}</td>
         <td class="muted">${fmtDate(x.updatedAt)}</td>
         <td><div class="row-actions" style="justify-content:flex-end">
           ${isArchived(x)
             ? // finished event → read-only set: review its details, reopen the workspace, download
-              `<button class="ic go" data-act="details" title="View closure, P&amp;L and feedback for this completed event">📄 Details</button>
-               <button class="ic go" data-act="workspace" title="Open the event workspace">⧉ Open</button>
-               <button class="ic" data-act="download">Download</button>
-               ${canDelete?`<button class="ic del" data-act="del" title="Delete permanently">✕</button>`:""}`
+              `<button type="button" class="ic go" data-act="details" title="View closure, P&amp;L and feedback for this completed event" aria-label="Details for ${esc(x.code)}">📄 Details</button>
+               <button type="button" class="ic go" data-act="workspace" title="Open the event workspace" aria-label="Open workspace for ${esc(x.code)}">⧉ Open</button>
+               <button type="button" class="ic" data-act="download" aria-label="Download ${esc(x.code)}">Download</button>
+               ${canDelete?`<button type="button" class="ic del" data-act="del" title="Delete permanently" aria-label="Delete ${esc(x.code)}">✕</button>`:""}`
             : // active event → the full working set
-              `<button class="ic go" data-act="workspace" title="Open the event workspace">⧉ Open</button>
-               <button class="ic go" data-act="edit">Edit</button>
-               ${canEdit?`<button class="ic confirm" data-act="confirm">${x.status==="confirmed"?"Re-price":"Confirm"}</button>`:""}
-               ${canEdit&&x.status==="confirmed"?`<button class="ic" data-act="link" title="Get the client approval link">🔗 Approve link</button>`:""}
-               <button class="ic go" data-act="ops" title="Assign & track work">⚙ Ops</button>
-               ${canMarkPaid&&x.approvalStatus==="approved"?`<button class="ic confirm" data-act="paid" title="Mark payment received (dev)">Mark paid</button>`:""}
-               <button class="ic" data-act="download">Download</button>
-               ${canDelete?`<button class="ic del" data-act="del">✕</button>`:""}`}
+              `<button type="button" class="ic go" data-act="workspace" title="Open the event workspace" aria-label="Open workspace for ${esc(x.code)}">⧉ Open</button>
+               <button type="button" class="ic go" data-act="edit" aria-label="Edit ${esc(x.code)}">Edit</button>
+               ${canEdit?`<button type="button" class="ic confirm" data-act="confirm" aria-label="${x.status==="confirmed"?"Re-price":"Confirm"} ${esc(x.code)}">${x.status==="confirmed"?"Re-price":"Confirm"}</button>`:""}
+               ${canEdit&&x.status==="confirmed"?`<button type="button" class="ic" data-act="link" title="Get the client approval link" aria-label="Approval link for ${esc(x.code)}">🔗 Approve link</button>`:""}
+               <button type="button" class="ic go" data-act="ops" title="Assign & track work" aria-label="Operations for ${esc(x.code)}">⚙ Ops</button>
+               ${canMarkPaid&&x.approvalStatus==="approved"?`<button type="button" class="ic confirm" data-act="paid" title="Mark payment received (dev)" aria-label="Mark ${esc(x.code)} paid">Mark paid</button>`:""}
+               <button type="button" class="ic" data-act="download" aria-label="Download ${esc(x.code)}">Download</button>
+               ${canDelete?`<button type="button" class="ic del" data-act="del" title="Delete permanently" aria-label="Delete ${esc(x.code)}">✕</button>`:""}`}
         </div></td></tr>`;
     }).join("");
     // lazy-load versions into each dropdown + wire actions
@@ -341,12 +350,12 @@
         if(act==="details") location.href="closure.html?id="+encodeURIComponent(id);
         else if(act==="workspace") location.href="event.html?id="+encodeURIComponent(id);
         else if(act==="edit") location.href="builder.html?quote="+encodeURIComponent(id)+(ver?"&v="+ver:"");
-        else if(act==="confirm") openConfirm(id);
-        else if(act==="download") downloadQuote(id, ver);
+        else if(act==="confirm") BPUI.guard(b,()=>openConfirm(id));
+        else if(act==="download") BPUI.guard(b,()=>downloadQuote(id, ver));
         else if(act==="ops") location.href="ops.html?quote="+encodeURIComponent(id);
-        else if(act==="link") sendApprovalLink(id);
-        else if(act==="paid") markPaid(id);
-        else if(act==="del") delQuote(id);
+        else if(act==="link") BPUI.guard(b,()=>sendApprovalLink(id));
+        else if(act==="paid") markPaid(id, b);
+        else if(act==="del") delQuote(id, b);
       }));
     });
   }
@@ -360,11 +369,13 @@
   /* ---------- confirm / pricing modal ---------- */
   let cmId=null, cmConfig=null, cmVendors=[], cmCoupons=[], platesEdited=false;
   async function openConfirm(id){
-    cmId=id; $("#cm_err").hidden=true;
-    let full; try{ full=detailCache[id]||(detailCache[id]=await BPStore.quotes.get(id)); }catch(e){ alert("Couldn't open: "+(e&&e.message)); return; }
+    $("#cm_err").hidden=true;
+    let full; try{ full=detailCache[id]||(detailCache[id]=await BPStore.quotes.get(id)); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"open this quote"}),{type:"err"}); return; }
+    if(!full){ BPUI.toast("This quote no longer exists.",{type:"err"}); return; }
+    cmId=id;
     // prefill from stored pricing/client, and counts from the current version
     const pr=full.pricing||{}, cl=full.client||{};
-    $("#cm_title").firstChild.textContent = (full.status==="confirmed"?"Re-price ":"Confirm ")+full.code+" ";
+    $("#cm_titleText").textContent = (full.status==="confirmed"?"Re-price ":"Confirm ")+full.code;
     $("#c_name").value=cl.name||""; $("#c_company").value=cl.company||""; $("#c_email").value=cl.email||"";
     $("#c_phone").value=cl.phone||""; $("#c_date").value=cl.eventDate||""; $("#c_venue").value=cl.venue||"";
     $("#c_address").value=cl.address||""; $("#c_notes").value=cl.notes||"";
@@ -399,7 +410,7 @@
     $("#p_vendor").innerHTML = `<option value="">— none —</option>`+cmVendors.map(v=>`<option>${esc(v.name)}</option>`).join("")+`<option value="__new">＋ Add new vendor…</option>`;
     $("#p_vendor").value = (pr.catering&&pr.catering.vendor)||"";
     // coupon dropdown
-    $("#p_coupon").innerHTML = `<option value="">— none —</option>`+cmCoupons.map(c=>`<option value="${esc(c.code)}">${esc(c.code)} (${c.kind==='percent'?c.value+'%':'₹'+c.value})</option>`).join("");
+    $("#p_coupon").innerHTML = `<option value="">— none —</option>`+cmCoupons.map(c=>`<option value="${esc(c.code)}">${esc(c.code)} (${c.kind==='percent'?(Number(c.value)||0)+'%':inr(Number(c.value)||0)})</option>`).join("");
     $("#p_coupon").value = pr.couponCode||"";
     $("#p_cmode").value = (pr.catering&&pr.catering.mode)||"inhouse";
     $("#p_camount").value = (pr.catering&&pr.catering.amount)||0;
@@ -407,9 +418,12 @@
     $("#p_pos").value = pr.placeOfSupply||"intra";
     platesEdited = pr.guests!=null && pr.chairs!=null && pr.guests!==pr.chairs;
     recalc();
+    cmDirty.clean();
     $("#confirmModal").hidden=false;
   }
-  function closeConfirm(){ $("#confirmModal").hidden=true; }
+  const cmDirty=BPUI.trackDirty($("#confirmModal"));
+  function closeConfirm(){ $("#confirmModal").hidden=true; cmDirty.clean(); }
+  async function requestCloseConfirm(){ if($("#confirmModal").hidden) return; if(!(await BPUI.confirmDiscard(cmDirty))) return; closeConfirm(); }
   function gatherPricing(){
     const couponCode=$("#p_coupon").value; const cp=cmCoupons.find(c=>c.code===couponCode)||null;
     const vsel=$("#p_vendor").value;
@@ -441,8 +455,21 @@
       `<div class="r grand"><span>Grand total</span><span class="amt">${inr(t.total)}</span></div>`;
   }
   async function savePricing(confirmIt){
-    const btn = confirmIt?$("#cm_confirm"):$("#cm_savePricing"); btn.disabled=true;
-    const other = confirmIt?$("#cm_savePricing"):$("#cm_confirm"); other.disabled=true;   // one save at a time (no concurrent confirm + save)
+    const btn = confirmIt?$("#cm_confirm"):$("#cm_savePricing");
+    const other = confirmIt?$("#cm_savePricing"):$("#cm_confirm");
+    if(btn.disabled || other.disabled) return;   // a save is already in flight
+    // validate the raw inputs (no negative money, fractional counts, bad %, bad email) before saving
+    const V=BPStore.validate, errEl=$("#cm_err");
+    const checks=[["#p_chairs",v=>V.count(v,{field:"Chairs"})],["#p_guests",v=>V.count(v,{field:"Guests / plates"})],
+      ["#p_camount",v=>V.money(v,{field:"Catering charge"})],["#p_discount",v=>V.money(v,{field:"Discount"})],["#p_discountPct",v=>V.pct(v,{field:"Discount %"})]];
+    for(const [sel,fn] of checks){ const raw=$(sel).value; if(raw==="") continue; const r=fn(raw); if(!r.ok){ errEl.textContent=r.error; errEl.hidden=false; $(sel).focus(); return; } }
+    if($("#c_email").value.trim()){ const r=V.email($("#c_email").value); if(!r.ok){ errEl.textContent=r.error; errEl.hidden=false; $("#c_email").focus(); return; } }
+    errEl.hidden=true;
+    if(confirmIt){ const tt=calcPricing(gatherPricing()); const code=(detailCache[cmId]&&detailCache[cmId].code)||"this quote";
+      if(!(await BPUI.confirm(`Confirm ${code} at ${inr(tt.total)}? This locks a priced snapshot for the client.`,{title:"Confirm & lock quote?",okLabel:"Confirm & lock"}))) return; }
+    if(btn.disabled || other.disabled) return;
+    btn.disabled=true; other.disabled=true;   // one save at a time (no concurrent confirm + save)
+    btn.setAttribute("aria-busy","true");
     const p=gatherPricing(), t=calcPricing(p), client=gatherClient();
     const pricing = { ...p, computed:t, total:t.total, client };
     // B6 — optimistic lock: the updated_at captured when this modal loaded. If another
@@ -460,25 +487,26 @@
              if(!confirmIt) await BPStore.quotes.rebrandCode(cmId); }catch(_){}
       }
       delete detailCache[cmId];
-      closeConfirm(); await load();
+      closeConfirm(); BPUI.toast(confirmIt?"Quote confirmed and locked.":"Pricing saved.",{type:"ok"}); await load();
     }catch(e){ const el=$("#cm_err");
       el.textContent = (e&&e.code==="CONFLICT")
         ? "This quote was changed in another tab or by another user since you opened it. Reload to see the latest, then re-apply your changes."
-        : ((e&&e.message)||"Save failed");
+        : BPUI.friendlyError(e,{action:confirmIt?"confirm the quote":"save the pricing"});
       el.hidden=false; }
-    finally{ btn.disabled=false; other.disabled=false; }
+    finally{ btn.disabled=false; other.disabled=false; btn.removeAttribute("aria-busy"); }
   }
 
   /* ---------- download (printable quote/invoice) ---------- */
   async function downloadQuote(id, ver){
-    let full; try{ full=detailCache[id]||(detailCache[id]=await BPStore.quotes.get(id)); }catch(e){ alert("Couldn't load"); return; }
+    let full; try{ full=detailCache[id]||(detailCache[id]=await BPStore.quotes.get(id)); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"load the quote"}),{type:"err"}); return; }
+    if(!full){ BPUI.toast("This quote no longer exists.",{type:"err"}); return; }
     const p=full.pricing||{}, t=p.computed||calcPricing(p), cl=(p.client)||full.client||{};
     const isInv=full.status==="confirmed"; const pos=p.placeOfSupply;
     const line=(l,a)=>`<tr><td>${l}</td><td style="text-align:right">${inr(a)}</td></tr>`;
     const tax = pos==="inter" ? line("IGST", t.igst||0) : line("CGST", t.cgst||0)+line("SGST", t.sgst||0);
     const html=`<!doctype html><meta charset=utf8><title>${isInv?"Invoice":"Quotation"} ${esc(full.code)}</title>
     <style>body{font-family:system-ui,sans-serif;max-width:720px;margin:32px auto;color:#141b2e;padding:0 20px}
-    h1{font-size:20px;margin:0} .muted{color:#8a95ad;font-size:12px} table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
+    h1{font-size:20px;margin:0} .muted{color:#5b6475;font-size:12px} table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
     td,th{padding:8px;border-bottom:1px solid #e6ebf3;text-align:left} .tot td{border:0} .grand td{font-weight:700;font-size:16px;border-top:2px solid #141b2e}
     .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #141b2e;padding-bottom:14px}
     .badge{background:#eef2ff;color:#4457c8;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}</style>
@@ -500,16 +528,19 @@
       ${tax}
       ${t.discount?`<tr class=tot><td>Discount</td><td style="text-align:right">− ${inr(t.discount)}</td></tr>`:""}
       <tr class=grand><td>Grand total</td><td style="text-align:right">${inr(t.total||0)}</td></tr></table>
-    <p class=muted>Taxes per Indian GST (event management SAC 998596). ${p.catering&&p.catering.vendor?"Caterer: "+esc(p.catering.vendor)+". ":""}This is a computer-generated document.</p>
-    <script>window.onload=()=>window.print()<\/script>`;
-    const w=window.open("","_blank"); if(w){ w.document.write(html); w.document.close(); }
-    else alert("Popup blocked — allow popups to download/print.");
+    <p class=muted>Taxes per Indian GST (event management SAC 998596). ${p.catering&&p.catering.vendor?"Caterer: "+esc(p.catering.vendor)+". ":""}This is a computer-generated document.</p>`;
+    // No inline <script> in the popup (it inherits this page's CSP) — print from the opener instead.
+    const w=window.open("","_blank"); if(w){ w.document.write(html); w.document.close(); setTimeout(()=>{ try{ w.focus(); w.print(); }catch(_){} },250); }
+    else BPUI.toast("Popup blocked — allow popups to download/print.",{type:"err"});
   }
 
-  async function delQuote(id){
-    if(!confirm("Delete this quote and all its versions?")) return;
-    try{ await BPStore.quotes.remove(id); quotes=quotes.filter(x=>x.id!==id); delete detailCache[id]; render(); }
-    catch(e){ alert("Couldn't delete: "+((e&&e.message)||"not permitted")); }
+  async function delQuote(id, btn){
+    const q=quotes.find(x=>x.id===id);
+    if(!(await BPUI.confirm(`Delete ${q&&q.code?q.code:"this quote"} and all its versions? This can't be undone.`,{title:"Delete quote?",danger:true}))) return;
+    await BPUI.guard(btn,async()=>{
+      try{ await BPStore.quotes.remove(id); quotes=quotes.filter(x=>x.id!==id); delete detailCache[id]; render(); BPUI.toast("Quote deleted.",{type:"ok"}); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"delete the quote"}),{type:"err"}); }
+    });
   }
   // generate/return the per-quote client approval link (OTP + consent + payment)
   let lkQuoteId=null, lkPhone="";
@@ -520,26 +551,29 @@
       try{ const q=(quotes.find(x=>x.id===id)); lkPhone=(q&&q.client&&q.client.phone)|| (q&&q.pricing&&q.pricing.client&&q.pricing.client.phone) ||""; }catch{ lkPhone=""; }
       $("#lk_url").value=url; $("#lk_open").href=url; $("#linkModal").hidden=false;
       await load();   // reflect approval_status=sent
-    }catch(e){ alert("Couldn't create link: "+((e&&e.message)||"error")); }
+    }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"create the approval link"}),{type:"err"}); }
   }
   let markingPaid=false;   // one in-flight request only (a double click would fire twice)
-  async function markPaid(id){
+  async function markPaid(id, btn){
     if(markingPaid) return;
-    if(!confirm("Mark this event's payment as received? (In production this is automatic via the Razorpay webhook.)")) return;
+    if(!(await BPUI.confirm("Mark this event's payment as received? (In production this is automatic via the Razorpay webhook.)",{title:"Mark payment received?",okLabel:"Mark paid"}))) return;
+    if(markingPaid) return;
     markingPaid=true;
-    try{ await BPStore.approval.markPaid(id, "manual-dev");
-      try{ await BPStore.quotes.setStage(id, "planning"); }catch(_){}   // paid → move the event into planning
-      await load(); }
-    catch(e){ alert("Couldn't mark paid: "+((e&&e.message)||"error")); }
+    try{ await BPUI.guard(btn||null, async()=>{
+      try{ await BPStore.approval.markPaid(id, "manual-dev");
+        try{ await BPStore.quotes.setStage(id, "planning"); }catch(_){}   // paid → move the event into planning
+        BPUI.toast("Payment marked as received.",{type:"ok"});
+        await load(); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"mark the payment received"}),{type:"err"}); } }); }
     finally{ markingPaid=false; }
   }
 
   /* ---------- wire up ---------- */
   $("#tabs").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return;
-    $("#tabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); filter=b.dataset.f; render(); });
+    $("#tabs").querySelectorAll("button").forEach(x=>{ x.classList.toggle("on",x===b); x.setAttribute("aria-pressed",String(x===b)); }); filter=b.dataset.f; render(); });
   $("#search").addEventListener("input",render);
   $("#typeFilter").addEventListener("change",e=>{ typeFilter=e.target.value; render(); });
-  $("#refresh").addEventListener("click",load);
+  $("#refresh").addEventListener("click",()=>BPUI.guard($("#refresh"),load));
   function fillTypeFilter(){
     // dedupe event types case-insensitively (so "wedding" and "Wedding" merge), keeping the nicest-cased label
     const byLower={};
@@ -554,20 +588,20 @@
   $("#lk_close").addEventListener("click",()=>{ $("#linkModal").hidden=true; });
   $("#linkModal").addEventListener("click",e=>{ if(e.target.id==="linkModal") $("#linkModal").hidden=true; });
   $("#lk_copy").addEventListener("click",async()=>{ const i=$("#lk_url"); i.select();
-    try{ await navigator.clipboard.writeText(i.value); $("#lk_copy").textContent="Copied ✓"; setTimeout(()=>$("#lk_copy").textContent="Copy link",1500); }
-    catch{ document.execCommand("copy"); } });
+    try{ await navigator.clipboard.writeText(i.value); $("#lk_copy").textContent="Copied ✓"; BPUI.toast("Approval link copied.",{type:"ok",timeout:2000}); setTimeout(()=>$("#lk_copy").textContent="Copy link",1500); }
+    catch{ try{ document.execCommand("copy"); BPUI.toast("Approval link copied.",{type:"ok",timeout:2000}); }catch{ BPUI.toast("Couldn't copy — select the link and copy it manually.",{type:"err"}); } } });
   $("#lk_sms").addEventListener("click",async()=>{
     const m=$("#lk_msg");
     if(!lkPhone){ m.innerHTML='<div class="msg err" style="margin:0 0 10px">No client phone on this quote — add one via Confirm first.</div>'; return; }
-    const b=$("#lk_sms"); b.disabled=true; b.textContent="Sending…";
-    try{ const r=await BPStore.approval.sendLinkSms(lkQuoteId, lkPhone, $("#lk_url").value);
-      m.innerHTML=`<div class="msg ok" style="margin:0 0 10px">${r&&r.logged?`Queued to ${esc(lkPhone)} — in simulation it's logged; live it texts via MSG91.`:"Sent."}</div>`;
-    }catch(e){ m.innerHTML=`<div class="msg err" style="margin:0 0 10px">${esc((e&&e.message)||"Couldn't send")}</div>`; }
-    finally{ b.disabled=false; b.textContent="📱 Send as text message"; }
+    await BPUI.guard($("#lk_sms"),async()=>{
+      try{ const r=await BPStore.approval.sendLinkSms(lkQuoteId, lkPhone, $("#lk_url").value);
+        m.innerHTML=`<div class="msg ok" style="margin:0 0 10px">${r&&r.logged?`Queued to ${esc(lkPhone)} — in simulation it's logged; live it texts via MSG91.`:"Sent."}</div>`;
+      }catch(e){ m.innerHTML=`<div class="msg err" role="alert" style="margin:0 0 10px">${esc(BPUI.friendlyError(e,{action:"send the text message"}))}</div>`; }
+    },{busyLabel:"Sending…"});
   });
-  $("#cm_close").addEventListener("click",closeConfirm);
-  $("#confirmModal").addEventListener("click",e=>{ if(e.target.id==="confirmModal") closeConfirm(); });
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ if(!$("#confirmModal").hidden) closeConfirm(); } });
+  // Escape → BPUI clicks [data-close] (the × below), so every close path runs the unsaved-changes check
+  $("#cm_close").addEventListener("click",requestCloseConfirm);
+  $("#confirmModal").addEventListener("click",e=>{ if(e.target.id==="confirmModal") requestCloseConfirm(); });
   $("#confirmModal").addEventListener("input",e=>{ if(e.target.closest(".grid,.totals")||/^p_/.test(e.target.id)) recalc(); });
   // plates auto-follow chairs until the user edits plates
   $("#p_guests").addEventListener("input",()=>{ platesEdited=true; });
@@ -575,21 +609,29 @@
   // vendor dropdown: "add new" → create + sync to DB
   $("#p_vendor").addEventListener("change",async e=>{
     if(e.target.value!=="__new") return;
-    const name=prompt("New vendor name:"); if(!name){ e.target.value=""; return; }
-    try{ await BPStore.vendors.add(name.trim(),"catering",null); cmVendors=await BPStore.vendors.list();
-      e.target.innerHTML=`<option value="">— none —</option>`+cmVendors.map(v=>`<option>${esc(v.name)}</option>`).join("")+`<option value="__new">＋ Add new vendor…</option>`;
-      e.target.value=name.trim();
-    }catch(err){ alert("Couldn't add vendor: "+((err&&err.message)||"error")); e.target.value=""; }
+    const sel=e.target;
+    const name=await BPUI.prompt("New vendor name:",{title:"Add a catering vendor",label:"Vendor name",required:true,maxLength:120,okLabel:"Add vendor"});
+    if(name===null || !name.trim()){ sel.value=""; recalc(); return; }   // Cancel aborts
+    await BPUI.guard(sel,async()=>{
+      try{ await BPStore.vendors.add(name.trim(),"catering",null); cmVendors=await BPStore.vendors.list();
+        sel.innerHTML=`<option value="">— none —</option>`+cmVendors.map(v=>`<option>${esc(v.name)}</option>`).join("")+`<option value="__new">＋ Add new vendor…</option>`;
+        sel.value=name.trim(); BPUI.toast("Vendor added.",{type:"ok"});
+      }catch(err){ BPUI.toast(BPUI.friendlyError(err,{action:"add the vendor"}),{type:"err"}); sel.value=""; }
+    });
+    recalc();
   });
   $("#cm_savePricing").addEventListener("click",()=>savePricing(false));
   $("#cm_confirm").addEventListener("click",()=>savePricing(true));
   $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
-    const btn=$("#li_submit"); btn.disabled=true; btn.textContent="Signing in…"; $("#li_err").hidden=true;
-    try{ await BPStore.auth.signIn($("#li_email").value.trim(), $("#li_pw").value); closeLogin(); await load(); }
+    const btn=$("#li_submit"); if(btn.disabled) return;
+    const em=$("#li_email").value.trim(), pw=$("#li_pw").value;
+    if(!em||!pw){ $("#li_err").textContent="Enter your email and password."; $("#li_err").hidden=false; (em?$("#li_pw"):$("#li_email")).focus(); return; }
+    btn.disabled=true; btn.textContent="Signing in…"; $("#li_err").hidden=true;
+    try{ await BPStore.auth.signIn(em, pw); closeLogin(); await load(); }
     catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign-in failed"; $("#li_err").hidden=false; }
     finally{ btn.disabled=false; btn.textContent="Sign in"; } });
   $("#loginModal").addEventListener("click",e=>{ if(e.target.id==="loginModal"&&BPStore.auth.user()) closeLogin(); });
-  load();
+  BPUI.boot(load);
 </script>
 </body>
 </html>

@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Inventory — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
@@ -11,19 +12,20 @@
     --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
   *{box-sizing:border-box} [hidden]{display:none!important}
+  .table-scroll{position:relative} /* keeps sr-only header text inside the scroller */
   body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
   a{color:inherit;text-decoration:none}
   .wrap{max-width:1180px;margin:0 auto;padding:0 24px 60px}
   header{display:flex;align-items:center;gap:11px;padding:18px 0}
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
-  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)} .nav a.on{color:var(--accent)}
   .spacer{margin-left:auto}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
-  .crumb{font-size:12px;color:var(--ink-3);margin:2px 0 14px} .crumb a{color:var(--accent)}
+  .crumb{font-size:12px;color:var(--ink-3);margin:2px 0 14px} .crumb a{color:var(--accent);text-decoration:underline}
 
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
   .card h2{font-size:15px;margin:0 0 4px} .card .sub{font-size:12px;color:var(--ink-3);margin:0 0 14px}
@@ -36,7 +38,7 @@
   .btn.sm{height:32px;padding:0 11px;font-size:12px}
 
   table{width:100%;border-collapse:collapse;font-size:13px}
-  thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:10px 12px;border-bottom:1px solid var(--line)}
+  thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:10px 12px;border-bottom:1px solid var(--line)}
   tbody td{padding:12px 12px;border-bottom:1px solid var(--line-2);vertical-align:middle}
   tbody tr:hover{background:var(--panel-2)}
   tbody tr.catrow:hover{background:var(--panel-2)}
@@ -45,52 +47,57 @@
   tr.catrow td .cnt{color:var(--ink-3);font-weight:600}
   .num{font-family:var(--mono);text-align:right}
   th.num{text-align:right}
-  .cat{font-size:10px;font-weight:700;background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:2px 9px}
+  .cat{font-size:12px;font-weight:700;background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:2px 9px}
   .avail{font-family:var(--mono);font-weight:700}
   .avail.low{color:#b42318} .avail.mid{color:#946200} .avail.ok{color:#0f7a43}
-  .stat{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .stat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
   .stat.reserved{background:#fff7e6;color:#946200} .stat.allocated{background:#eef2ff;color:#4457c8}
   .stat.returned{background:#e7f6ee;color:#0f7a43} .stat.cancelled{background:#fdecec;color:#b42318}
-  .ssel{height:28px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:11px;padding:0 6px;color:var(--ink)}
-  .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:28px;padding:0 9px;font-size:11px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#e5484d;border-color:#f5c6c6}
-  .reserve-row{display:grid;grid-template-columns:2fr .8fr 1.4fr auto;gap:8px;align-items:end} @media(max-width:620px){.reserve-row{grid-template-columns:1fr 1fr}}
-  .fld{display:flex;flex-direction:column;gap:4px} .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .ssel{height:32px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:12px;padding:0 6px;color:var(--ink)}
+  .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:32px;padding:0 10px;font-size:12px;cursor:pointer;color:var(--ink-2)} .rm:hover{color:#b42318;border-color:#f5c6c6}
+  .reserve-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,.8fr) minmax(0,1.4fr) auto;gap:8px;align-items:end} .reserve-row.co-row{grid-template-columns:minmax(0,1.6fr) minmax(0,.7fr) minmax(0,1.2fr) minmax(0,1.2fr) auto} @media(max-width:620px){.reserve-row,.reserve-row.co-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+  .fld{min-width:0} .fld input,.fld select{min-width:0;max-width:100%}
+  .fld{display:flex;flex-direction:column;gap:4px} .fld label{font-size:12px;font-weight:600;color:var(--ink-2)}
   .fld input,.fld select{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
   .empty{text-align:center;color:var(--ink-3);padding:26px;font-size:13px}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
   /* priority badges */
-  .pri{font-size:10px;font-weight:800;width:22px;height:22px;display:inline-grid;place-items:center;border-radius:6px}
+  .pri{font-size:12px;font-weight:800;width:22px;height:22px;display:inline-grid;place-items:center;border-radius:6px}
   .pri.A{background:#fdecec;color:#b42318} .pri.B{background:#fff7e6;color:#946200} .pri.C{background:#eef2ff;color:#4457c8}
   /* sub-tabs */
   .tabs{display:flex;gap:6px;margin:6px 0 16px;border-bottom:1px solid var(--line)}
   .tab{appearance:none;border:0;background:transparent;font-family:inherit;font-size:14px;font-weight:600;color:var(--ink-3);padding:10px 16px;border-bottom:2px solid transparent;cursor:pointer;margin-bottom:-1px}
   .tab:hover{color:var(--ink-2)} .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
-  .miss{background:#fdecec;color:#b42318;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px}
-  .backok{background:#e7f6ee;color:#0f7a43;font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px}
-  .onloan{background:#fff7e6;color:#946200;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .miss{background:#fdecec;color:#b42318;font-size:12px;font-weight:700;padding:2px 9px;border-radius:20px}
+  .backok{background:#e7f6ee;color:#0f7a43;font-size:12px;font-weight:700;padding:2px 9px;border-radius:20px}
+  .onloan{background:#fff7e6;color:#946200;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
 
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
   .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(520px,96vw);padding:24px}
   .sheet h3{margin:0 0 12px;font-size:18px;display:flex;align-items:center;gap:8px}
-  .sheet .close{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:30px;height:30px;font-size:15px;cursor:pointer;color:var(--ink-2)}
+  .sheet .close{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:32px;height:32px;font-size:15px;cursor:pointer;color:var(--ink-2)}
   .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px} @media(max-width:480px){.fgrid{grid-template-columns:1fr}}
   .foot{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;align-items:center}
   .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px;margin-top:10px}
   .lsheet{width:min(400px,96vw)}
+  .sub2{font-size:12px;color:var(--ink-3)}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
-    <a href="dashboard.html" class="mark" title="Home"></a>
+    <a href="dashboard.html" class="mark" title="Home" aria-label="Home"></a>
     <div><h1>Helm Events</h1><small>Inventory</small></div>
     <nav class="nav"><a href="dashboard.html">Dashboard</a><a href="staff.html">Staff</a><a href="quotes.html">Quotes</a><a href="inventory.html" class="on">Inventory</a></nav>
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
 
+  <main id="main">
+  <div id="boot" aria-busy="true"></div>
   <div id="app" hidden>
     <div id="eventBar" class="crumb" hidden></div>
 
@@ -102,17 +109,17 @@
         <div class="fld"><label for="rv_item">Item</label><select id="rv_item"></select></div>
         <div class="fld"><label for="rv_qty">Quantity</label><input id="rv_qty" type="number" min="1" value="1"></div>
         <div class="fld"><label for="rv_note">Note</label><input id="rv_note" placeholder="optional"></div>
-        <div class="fld"><label>&nbsp;</label><button class="btn primary" id="rv_add">Reserve</button></div>
+        <div class="fld"><span aria-hidden="true" style="font-size:12px">&nbsp;</span><button type="button" class="btn primary" id="rv_add">Reserve</button></div>
       </div>
-      <table style="margin-top:14px">
-        <thead><tr><th>Item</th><th class="num">Qty</th><th>Status</th><th></th></tr></thead>
-        <tbody id="resRows"><tr><td colspan="4" class="empty">No reservations yet.</td></tr></tbody>
-      </table>
+      <div class="table-scroll"><table style="margin-top:14px">
+        <thead><tr><th scope="col">Item</th><th scope="col" class="num">Qty</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody id="resRows"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody>
+      </table></div>
     </div>
 
-    <div class="tabs">
-      <button class="tab active" data-pane="stock">📦 Stock items</button>
-      <button class="tab" data-pane="loans">🔑 Check-out / Check-in</button>
+    <div class="tabs" role="group" aria-label="Inventory views">
+      <button type="button" class="tab active" data-pane="stock" aria-pressed="true" aria-controls="pane-stock">📦 Stock items</button>
+      <button type="button" class="tab" data-pane="loans" aria-pressed="false" aria-controls="pane-loans">🔑 Check-out / Check-in</button>
     </div>
 
     <!-- ===== STOCK PANE ===== -->
@@ -123,13 +130,13 @@
       <select id="catFilter" class="sel" aria-label="Filter by category"><option value="">All categories</option></select>
       <select id="priFilter" class="sel" aria-label="Filter by priority"><option value="">All priority</option><option value="A">A — high value</option><option value="B">B — mid</option><option value="C">C — low</option></select>
       <span class="spacer"></span>
-      <span id="seedStatus" style="font-size:12px;color:var(--ink-3)"></span>
-      <button id="seedBtn" class="btn" hidden>Load starter items</button>
-      <button id="newBtn" class="btn primary" hidden>＋ Add item</button>
+      <span id="seedStatus" style="font-size:12px;color:var(--ink-3)" role="status"></span>
+      <button type="button" id="seedBtn" class="btn" hidden>Load starter items</button>
+      <button type="button" id="newBtn" class="btn primary" hidden>＋ Add item</button>
     </div>
-    <div class="card" style="padding:0;overflow:auto">
+    <div class="card table-scroll" style="padding:0;overflow:auto">
       <table>
-        <thead><tr><th>Item</th><th>Pri</th><th>Category</th><th class="num">Total</th><th class="num">Committed</th><th class="num">Available</th><th>Unit</th><th class="num">Unit cost</th><th></th></tr></thead>
+        <thead><tr><th scope="col">Item</th><th scope="col">Pri</th><th scope="col">Category</th><th scope="col" class="num">Total</th><th scope="col" class="num">Committed</th><th scope="col" class="num">Available</th><th scope="col">Unit</th><th scope="col" class="num">Unit cost</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody id="stockRows"><tr><td colspan="9" class="empty">Loading…</td></tr></tbody>
       </table>
     </div>
@@ -140,41 +147,42 @@
       <div class="card" id="coCard">
         <h2>Check out equipment</h2>
         <p class="sub">Issue stock to a staff member or coordinator. When it comes back, record how many returned — anything short is flagged in the loss report below. <span id="coEvent" class="onloan" hidden></span></p>
-        <div class="reserve-row" style="grid-template-columns:1.6fr .7fr 1.2fr 1.2fr auto">
+        <div class="reserve-row co-row">
           <div class="fld"><label for="co_item">Item</label><select id="co_item"></select></div>
           <div class="fld"><label for="co_qty">Qty out</label><input id="co_qty" type="number" min="1" value="1"></div>
           <div class="fld"><label for="co_to">Issued to</label><select id="co_to"><option value="">Select person…</option></select></div>
           <div class="fld"><label for="co_note">Note</label><input id="co_note" placeholder="optional"></div>
-          <div class="fld"><label>&nbsp;</label><button class="btn primary" id="co_add">Check out</button></div>
+          <div class="fld"><span aria-hidden="true" style="font-size:12px">&nbsp;</span><button type="button" class="btn primary" id="co_add">Check out</button></div>
         </div>
       </div>
 
-      <div class="card" style="padding:0;overflow:auto">
+      <div class="card table-scroll" style="padding:0;overflow:auto">
         <div style="padding:14px 16px 0"><h2 style="margin:0;font-size:15px">Out on loan <span id="loanCount" class="onloan"></span></h2></div>
         <table>
-          <thead><tr><th>Item</th><th>Event</th><th>Pri</th><th class="num">Out</th><th>Issued to</th><th>When</th><th></th></tr></thead>
-          <tbody id="loanRows"><tr><td colspan="7" class="empty">Nothing out on loan.</td></tr></tbody>
+          <thead><tr><th scope="col">Item</th><th scope="col">Event</th><th scope="col">Pri</th><th scope="col" class="num">Out</th><th scope="col">Issued to</th><th scope="col">When</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody id="loanRows"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
         </table>
       </div>
 
-      <div class="card" style="padding:0;overflow:auto">
+      <div class="card table-scroll" style="padding:0;overflow:auto">
         <div style="padding:14px 16px 4px;display:flex;align-items:center;gap:10px"><h2 style="margin:0;font-size:15px">Loss report</h2><span id="lossTotal"></span></div>
         <table>
-          <thead><tr><th>Item</th><th>Event</th><th class="num">Out</th><th class="num">Back</th><th class="num">Missing</th><th class="num">Value lost</th><th>Signed off</th><th>When</th></tr></thead>
-          <tbody id="lossRows"><tr><td colspan="8" class="empty">No returns recorded yet.</td></tr></tbody>
+          <thead><tr><th scope="col">Item</th><th scope="col">Event</th><th scope="col" class="num">Out</th><th scope="col" class="num">Back</th><th scope="col" class="num">Missing</th><th scope="col" class="num">Value lost</th><th scope="col">Signed off</th><th scope="col">When</th></tr></thead>
+          <tbody id="lossRows"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
         </table>
       </div>
     </div><!-- /pane-loans -->
   </div>
 
   <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to manage inventory.</p></div>
+  </main>
   <footer>Helm Events — know what you own, and what's committed to each event.</footer>
 </div>
 
 <!-- add / edit item -->
 <div id="itemModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="im_title">
   <div class="sheet">
-    <h3><span id="im_title">＋ Add item</span><button class="close" id="im_close" aria-label="Close">×</button></h3>
+    <h3><span id="im_title">＋ Add item</span><button type="button" class="close" id="im_close" aria-label="Close" data-close>×</button></h3>
     <div class="fgrid">
       <div class="fld"><label for="i_name">Name *</label><input id="i_name" placeholder="e.g. Gold chiavari chair"></div>
       <div class="fld"><label for="i_cat">Category</label><input id="i_cat" placeholder="e.g. Seating" list="catList"></div>
@@ -190,10 +198,10 @@
     <datalist id="catList"></datalist>
     <div id="im_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot">
-      <button class="btn" id="im_deact" hidden>Deactivate</button>
+      <button type="button" class="btn" id="im_deact" hidden>Deactivate</button>
       <span class="spacer"></span>
-      <button class="btn" id="im_cancel">Cancel</button>
-      <button class="btn primary" id="im_save">Save</button>
+      <button type="button" class="btn" id="im_cancel">Cancel</button>
+      <button type="button" class="btn primary" id="im_save">Save</button>
     </div>
   </div>
 </div>
@@ -201,7 +209,7 @@
 <!-- check-in -->
 <div id="ciModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="ci_title">
   <div class="sheet">
-    <h3><span id="ci_title">🔑 Check in</span><button class="close" id="ci_close" aria-label="Close">×</button></h3>
+    <h3><span id="ci_title">🔑 Check in</span><button type="button" class="close" id="ci_close" aria-label="Close" data-close>×</button></h3>
     <div class="fgrid">
       <div class="fld"><label for="ci_item">Item</label><input id="ci_item" readonly></div>
       <div class="fld"><label for="ci_out">Went out</label><input id="ci_out" readonly></div>
@@ -212,26 +220,26 @@
     <div id="ci_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot">
       <span class="spacer"></span>
-      <button class="btn" id="ci_cancel">Cancel</button>
-      <button class="btn primary" id="ci_save">Confirm check-in</button>
+      <button type="button" class="btn" id="ci_cancel">Cancel</button>
+      <button type="button" class="btn primary" id="ci_save">Confirm check-in</button>
     </div>
   </div>
 </div>
 
 <div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="sheet lsheet">
-    <h3><span id="loginTitle">Sign in</span><button class="close" id="li_close" aria-label="Close">×</button></h3>
-    <div class="fld" style="margin-bottom:10px"><label for="li_email">Email</label><input id="li_email" type="email"></div>
-    <div class="fld" style="margin-bottom:10px"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+    <h3><span id="loginTitle">Sign in</span><button type="button" class="close" id="li_close" aria-label="Close" data-close>×</button></h3>
+    <div class="fld" style="margin-bottom:10px"><label for="li_email">Email</label><input id="li_email" type="email" autocomplete="email"></div>
+    <div class="fld" style="margin-bottom:10px"><label for="li_pass">Password</label><input id="li_pass" type="password" autocomplete="current-password"></div>
     <div id="li_err" class="err" hidden role="alert" aria-live="assertive"></div>
-    <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
+    <div class="foot"><button type="button" class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
-<script src="tour.js?v=4"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
+<script src="tour.js?v=5"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -300,12 +308,18 @@
         <td class="num avail ${availClass(a.available,Number(i.total_qty))}">${num(a.available)}</td>
         <td>${esc(i.unit||"")}</td>
         <td class="num">${Number(i.unit_cost||0)?("₹"+num(i.unit_cost)):'<span style="color:var(--ink-3)">—</span>'}</td>
-        <td>${canEdit?`<button class="rm" data-edit="${i.id}">Edit</button>`:""}</td>
+        <td>${canEdit?`<button type="button" class="rm" data-edit="${esc(i.id)}" aria-label="Edit ${esc(i.name)}">Edit</button>`:""}</td>
       </tr>`;
     };
 
     if(!shown.length){
-      $("#stockRows").innerHTML='<tr><td colspan="9" class="empty">No items. Add your first stock item.</td></tr>';
+      // first run (nothing in stock at all) vs. "nothing matches these filters"
+      if(!items.length){
+        $("#stockRows").innerHTML=`<tr><td colspan="9" class="empty"><b>No stock items yet.</b><br>${canEdit?'Add your first item, or load a starter set to get going.<div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" class="btn primary" id="firstAdd">＋ Add your first item</button><button type="button" class="btn" id="firstSeed">Load starter items</button></div>':"Nothing has been added to inventory yet."}</td></tr>`;
+        const fa=$("#firstAdd"), fs=$("#firstSeed");
+        if(fa) fa.addEventListener("click",()=>openItem(null));
+        if(fs) fs.addEventListener("click",()=>loadStarterItems(fs));
+      } else $("#stockRows").innerHTML='<tr><td colspan="9" class="empty">No items match these filters.</td></tr>';
       return;
     }
     // group by category; "Uncategorized" bucket sorts last, others alphabetically; items by name within a group
@@ -325,10 +339,11 @@
     $("#stockRows").querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>openItem(items.find(x=>x.id===b.dataset.edit))));
   }
 
-  async function loadStarterItems(){
+  async function loadStarterItems(srcBtn){
     if(!canEdit) return;
-    const st=$("#seedStatus"); const btn=$("#seedBtn");
-    btn.disabled=true; st.textContent="Loading…";
+    const st=$("#seedStatus"); const btn=(srcBtn&&srcBtn.nodeType===1)?srcBtn:$("#seedBtn");
+    return BPUI.guard(btn,async()=>{
+    st.textContent="Loading…";
     try{
       const existing=await BPStore.inventory.items(true);
       const have=new Set(existing.map(i=>String(i.name||"").trim().toLowerCase()));
@@ -338,31 +353,43 @@
       if(toAdd.length){ await BPStore.inventory.addItems(toAdd); }   // single bulk insert (fast)
       st.textContent=toAdd.length?`Added ${toAdd.length} item${toAdd.length===1?"":"s"}`:"All starter items already present";
       await load();
-    }catch(e){ st.textContent="Couldn't add — "+((e&&e.message)||"error"); }
-    finally{ btn.disabled=false; }
+    }catch(e){ st.textContent=""; BPUI.toast(BPUI.friendlyError(e,{action:"add the starter items"}),{type:"err"}); }
+    });
   }
 
   function renderEventPanel(){
     if(!quoteId) return;
     // item dropdown with available qty
     $("#rv_item").innerHTML=items.map(i=>{ const a=avail[i.id]||{available:i.total_qty};
-      return `<option value="${i.id}">${esc(i.name)} — ${num(a.available)} ${esc(i.unit||"")} free</option>`; }).join("");
+      return `<option value="${esc(i.id)}">${esc(i.name)} — ${num(a.available)} ${esc(i.unit||"")} free</option>`; }).join("");
     const rows=reservations;
     const byId=Object.fromEntries(items.map(i=>[i.id,i]));
     $("#resRows").innerHTML = rows.length ? rows.map(r=>{
       const it=byId[r.item_id]||{name:"(item)"};
       const opts=["reserved","allocated","returned","cancelled"].map(s=>`<option value="${s}" ${s===r.status?"selected":""}>${ST[s]}</option>`).join("");
       return `<tr>
-        <td><b>${esc(it.name)}</b>${r.note?`<div style="font-size:11px;color:var(--ink-3)">${esc(r.note)}</div>`:""}</td>
+        <td><b>${esc(it.name)}</b>${r.note?`<div class="sub2">${esc(r.note)}</div>`:""}</td>
         <td class="num">${num(r.qty)} ${esc(it.unit||"")}</td>
-        <td>${canEdit?`<select class="ssel" data-res="${r.id}">${opts}</select>`:`<span class="stat ${r.status}">${ST[r.status]}</span>`}</td>
-        <td>${canDelete?`<button class="rm" data-del="${r.id}">Remove</button>`:""}</td>
+        <td>${canEdit?`<select class="ssel" data-res="${esc(r.id)}" data-prev="${esc(r.status)}" aria-label="Reservation status for ${esc(it.name)}">${opts}</select>`:`<span class="stat ${esc(r.status)}">${ST[r.status]||esc(r.status)}</span>`}</td>
+        <td>${canDelete?`<button type="button" class="rm" data-del="${esc(r.id)}" data-name="${esc(it.name)}" aria-label="Remove reservation for ${esc(it.name)}">Remove</button>`:""}</td>
       </tr>`;
     }).join("") : '<tr><td colspan="4" class="empty">No reservations yet.</td></tr>';
-    $("#resRows").querySelectorAll("select[data-res]").forEach(s=>s.addEventListener("change",async()=>{
-      try{ await BPStore.inventory.setResStatus(s.dataset.res, s.value); await load(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); }}));
+    // status change: guarded (select locked while saving) and reverted to the previous value if the save fails
+    $("#resRows").querySelectorAll("select[data-res]").forEach(s=>s.addEventListener("change",()=>{
+      const prev=s.dataset.prev, next=s.value; if(next===prev) return;
+      BPUI.guard(s,async()=>{
+        try{ await BPStore.inventory.setResStatus(s.dataset.res, next); s.dataset.prev=next; BPUI.toast("Reservation marked "+(ST[next]||next).toLowerCase()+".",{type:"ok"}); }
+        catch(e){ s.value=prev; BPUI.toast(BPUI.friendlyError(e,{action:"update the reservation"}),{type:"err"}); return; }
+        await load();
+      });
+    }));
     $("#resRows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
-      try{ await BPStore.inventory.removeRes(b.dataset.del); await load(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); }}));
+      if(!(await BPUI.confirm(`Remove the reservation for ${b.dataset.name||"this item"}? The stock goes back to available.`,{title:"Remove reservation?",okLabel:"Remove",danger:true}))) return;
+      await BPUI.guard(b,async()=>{
+        try{ await BPStore.inventory.removeRes(b.dataset.del); BPUI.toast("Reservation removed.",{type:"ok"}); await load(); }
+        catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"remove the reservation"}),{type:"err"}); }
+      });
+    }));
   }
 
   function openItem(it){
@@ -370,42 +397,54 @@
     $("#i_name").value=it?it.name||"":""; $("#i_cat").value=it?it.category||"":"";
     $("#i_qty").value=it?it.total_qty||0:0; $("#i_unit").value=it?it.unit||"":""; $("#i_notes").value=it?it.notes||"":"";
     $("#i_pri").value=it?(it.priority||"C"):"C"; $("#i_cost").value=it?(it.unit_cost||0):0;
-    $("#im_deact").hidden=!(it&&canEdit); $("#im_err").hidden=true; $("#itemModal").hidden=false; setTimeout(()=>$("#i_name").focus(),50);
+    $("#im_deact").hidden=!(it&&canEdit); $("#im_err").hidden=true; itemDirty.clean(); $("#itemModal").hidden=false; setTimeout(()=>$("#i_name").focus(),50);
   }
-  function closeItem(){ $("#itemModal").hidden=true; editingId=null; }
+  const itemDirty=BPUI.trackDirty($("#itemModal"));
+  function closeItem(){ $("#itemModal").hidden=true; editingId=null; itemDirty.clean(); }
+  async function requestCloseItem(){ if($("#itemModal").hidden) return; if(!(await BPUI.confirmDiscard(itemDirty))) return; closeItem(); }
   async function saveItem(){
     const name=$("#i_name").value.trim(); if(!name){ $("#im_err").textContent="Name is required."; $("#im_err").hidden=false; return; }
     const V=BPStore.validate;
     const qr=V.count($("#i_qty").value,{allowZero:true,field:"Total quantity"}); if(!qr.ok){ $("#im_err").textContent=qr.error; $("#im_err").hidden=false; return; }
     const cr=V.money($("#i_cost").value,{field:"Unit cost"}); if(!cr.ok){ $("#im_err").textContent=cr.error; $("#im_err").hidden=false; return; }
     const rec={ name, category:$("#i_cat").value.trim()||null, total_qty:qr.value, unit:$("#i_unit").value.trim()||null, notes:$("#i_notes").value.trim()||null, priority:$("#i_pri").value||"C", unit_cost:cr.value };
-    $("#im_save").disabled=true;
-    try{ if(editingId) await BPStore.inventory.updateItem(editingId,rec); else await BPStore.inventory.addItem(rec); closeItem(); await load(); }
-    catch(e){ $("#im_err").textContent="Couldn't save — "+((e&&e.message)||"error"); $("#im_err").hidden=false; }
-    finally{ $("#im_save").disabled=false; }
+    $("#im_err").hidden=true;
+    try{ if(editingId) await BPStore.inventory.updateItem(editingId,rec); else await BPStore.inventory.addItem(rec); }
+    catch(e){ $("#im_err").textContent=BPUI.friendlyError(e,{action:"save the item"}); $("#im_err").hidden=false; return; }
+    const wasEdit=!!editingId; closeItem(); BPUI.toast(wasEdit?"Item saved.":"Item added.",{type:"ok"}); await load();
   }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
   $("#li_close").addEventListener("click",closeLogin);
   $("#loginModal").addEventListener("click",e=>{ if(e.target.id==="loginModal") closeLogin(); });
-  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
-    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  async function doLogin(){ const btn=$("#li_go"); if(btn.disabled) return;
+    const em=$("#li_email").value.trim(), pw=$("#li_pass").value;
+    if(!em||!pw){ $("#li_err").textContent="Enter your email and password."; $("#li_err").hidden=false; (em?$("#li_pass"):$("#li_email")).focus(); return; }
+    $("#li_err").hidden=true;
+    await BPUI.guard(btn,async()=>{ try{ await BPStore.auth.signIn(em,pw); location.reload(); }
+      catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } },{busyLabel:"Signing in…"}); }
+  $("#li_go").addEventListener("click",doLogin);
+  ["#li_email","#li_pass"].forEach(s=>$(s).addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); doLogin(); } }));
 
   $("#newBtn").addEventListener("click",()=>openItem(null));
-  $("#im_close").addEventListener("click",closeItem);
-  $("#im_cancel").addEventListener("click",closeItem);
-  $("#im_save").addEventListener("click",saveItem);
-  $("#im_deact").addEventListener("click",async()=>{ if(!editingId) return; if(!confirm("Deactivate this item?")) return;
-    try{ await BPStore.inventory.updateItem(editingId,{active:false}); closeItem(); await load(); }catch(e){ alert("Couldn't deactivate — "+((e&&e.message)||"error")); } });
-  $("#itemModal").addEventListener("click",e=>{ if(e.target.id==="itemModal") closeItem(); });
+  $("#im_close").addEventListener("click",requestCloseItem);
+  $("#im_cancel").addEventListener("click",requestCloseItem);
+  $("#im_save").addEventListener("click",()=>BPUI.guard($("#im_save"),saveItem,{busyLabel:"Saving…"}));
+  $("#im_deact").addEventListener("click",async()=>{ const id=editingId; if(!id) return;
+    const it=items.find(x=>x.id===id)||{};
+    if(!(await BPUI.confirm(`Deactivate ${it.name||"this item"}? It will no longer appear in stock or be available to reserve.`,{title:"Deactivate item?",okLabel:"Deactivate",danger:true}))) return;
+    await BPUI.guard($("#im_deact"),async()=>{
+      try{ await BPStore.inventory.updateItem(id,{active:false}); closeItem(); BPUI.toast("Item deactivated.",{type:"ok"}); await load(); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"deactivate the item"}),{type:"err"}); } }); });
+  $("#itemModal").addEventListener("click",e=>{ if(e.target.id==="itemModal") requestCloseItem(); });
   let _searchT; $("#search").addEventListener("input",e=>{ filter=e.target.value; clearTimeout(_searchT); _searchT=setTimeout(renderStock,150); });  // debounce: don't rebuild the table on every keystroke
   $("#catFilter").addEventListener("change",e=>{ catF=e.target.value; renderStock(); });
   $("#priFilter").addEventListener("change",e=>{ priF=e.target.value; renderStock(); });
 
   /* ---- sub-tab switching ---- */
   function activatePane(pane){
-    document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x.dataset.pane===pane));
+    document.querySelectorAll(".tab").forEach(x=>{ x.classList.toggle("active",x.dataset.pane===pane); x.setAttribute("aria-pressed",String(x.dataset.pane===pane)); });
     $("#pane-stock").hidden=pane!=="stock";
     $("#pane-loans").hidden=pane!=="loans";
   }
@@ -421,8 +460,8 @@
     const eventCell=(c)=>{ const ev=c.quote_id?quotesById[c.quote_id]:null;
       if(!ev) return '<span style="color:var(--ink-3)">—</span>';
       const name=ev.title||ev.code||"(event)"; const d=fmtDate(ev.eventDate);
-      return `<div style="font-weight:600">${esc(name)}</div>${d?`<div style="font-size:11px;color:var(--ink-3)">${esc(d)}</div>`:""}`; };
-    $("#co_item").innerHTML=items.map(i=>`<option value="${i.id}">${esc(i.name)}${i.priority?` (${i.priority})`:""}</option>`).join("");
+      return `<div style="font-weight:600">${esc(name)}</div>${d?`<div class="sub2">${esc(d)}</div>`:""}`; };
+    $("#co_item").innerHTML=items.map(i=>`<option value="${esc(i.id)}">${esc(i.name)}${i.priority?` (${i.priority})`:""}</option>`).join("");
     // open vs closed decided by REMAINING qty, not status alone:
     //   open = still out ('out', or 'partial' with units outstanding); loss = missing>0 and not open
     const remainingOut=(c)=>Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0);
@@ -435,13 +474,13 @@
       // still out = "left over" → show the outstanding qty in RED so it's obvious
       const goEvent = c.quote_id ? `<a class="btn sm" href="event.html?id=${esc(c.quote_id)}" title="Open the event to check this back in">Go to event →</a>` : "";
       return `<tr>
-        <td><b>${esc(it.name)}</b>${c.note?`<div style="font-size:11px;color:var(--ink-3)">${esc(c.note)}</div>`:""}${c.status==="partial"?' <span class="miss">partial</span>':""}</td>
+        <td><b>${esc(it.name)}</b>${c.note?`<div class="sub2">${esc(c.note)}</div>`:""}${c.status==="partial"?' <span class="miss">partial</span>':""}</td>
         <td>${eventCell(c)}</td>
         <td><span class="pri ${it.priority||'C'}">${it.priority||'C'}</span></td>
         <td class="num" style="color:#b42318;font-weight:700">${num(c.qty_out)}${c.status==="partial"?` <span style="color:var(--ink-3)">(${num(c.qty_in)} back)</span>`:""}</td>
         <td>${esc(c.issued_to||"")}</td>
         <td style="font-size:12px;color:var(--ink-3)">${c.checked_out_at?new Date(c.checked_out_at).toLocaleDateString():""}</td>
-        <td style="display:flex;gap:6px;flex-wrap:wrap">${goEvent}${canEdit?`<button class="btn sm" data-in="${c.id}">Check in</button>`:""}</td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap">${goEvent}${canEdit?`<button type="button" class="btn sm" data-in="${esc(c.id)}" aria-label="Check in ${esc(it.name)}">Check in</button>`:""}</td>
       </tr>`; }).join("") : '<tr><td colspan="7" class="empty">Nothing out on loan.</td></tr>';
     // loss report (fully-closed loans with missing>0)
     let lostVal=0, lostUnits=0;
@@ -482,10 +521,12 @@
     $("#ci_out").value=`${num(c.qty_out)} ${it.unit||""}`.trim();
     $("#ci_in").max=Number(c.qty_out||0); $("#ci_in").min=0; $("#ci_in").value=Number(c.qty_out||0);
     $("#ci_by").value="";
-    $("#ci_err").hidden=true; refreshCiWarn();
+    $("#ci_err").hidden=true; refreshCiWarn(); ciDirty.clean();
     $("#ciModal").hidden=false; setTimeout(()=>$("#ci_by").focus(),50);
   }
-  function closeCheckIn(){ $("#ciModal").hidden=true; checkInId=null; }
+  const ciDirty=BPUI.trackDirty($("#ciModal"));
+  function closeCheckIn(){ $("#ciModal").hidden=true; checkInId=null; ciDirty.clean(); }
+  async function requestCloseCheckIn(){ if($("#ciModal").hidden) return; if(!(await BPUI.confirmDiscard(ciDirty))) return; closeCheckIn(); }
   async function confirmCheckIn(){
     if(!checkInId) return;
     const c=checkouts.find(x=>x.id===checkInId); if(!c){ closeCheckIn(); return; }
@@ -496,48 +537,50 @@
     const by=($("#ci_by").value||"").trim();
     // any shortfall is written off as loss
     const writeoff=(out-qtyIn)>0;
-    $("#ci_save").disabled=true; $("#ci_err").hidden=true;
+    if(writeoff){ const it=ciItem();
+      if(!(await BPUI.confirm(`${num(out-qtyIn)} ${it.unit||"unit(s)"} of ${it.name||"this item"} will be written off as lost and removed from stock. Continue?`,{title:"Write off missing stock?",okLabel:"Write off",danger:true}))) return; }
+    $("#ci_err").hidden=true;
     try{
       await BPStore.inventory.checkouts.in(checkInId, qtyIn, by||null, writeoff);
-      closeCheckIn(); await load();
-      document.querySelector('.tab[data-pane="loans"]').click();
-    }catch(e){ $("#ci_err").textContent="Couldn't check in — "+((e&&e.message)||"error"); $("#ci_err").hidden=false; }
-    finally{ $("#ci_save").disabled=false; }
+    }catch(e){ $("#ci_err").textContent=BPUI.friendlyError(e,{action:"check in"}); $("#ci_err").hidden=false; return; }
+    closeCheckIn(); BPUI.toast("Checked in.",{type:"ok"}); await load();
+    activatePane("loans");
   }
   $("#ci_in").addEventListener("input",refreshCiWarn);
-  $("#ci_close").addEventListener("click",closeCheckIn);
-  $("#ci_cancel").addEventListener("click",closeCheckIn);
-  $("#ci_save").addEventListener("click",confirmCheckIn);
-  $("#ciModal").addEventListener("click",e=>{ if(e.target.id==="ciModal") closeCheckIn(); });
-  $("#seedBtn").addEventListener("click",loadStarterItems);
+  $("#ci_close").addEventListener("click",requestCloseCheckIn);
+  $("#ci_cancel").addEventListener("click",requestCloseCheckIn);
+  $("#ci_save").addEventListener("click",()=>BPUI.guard($("#ci_save"),confirmCheckIn,{busyLabel:"Saving…"}));
+  $("#ciModal").addEventListener("click",e=>{ if(e.target.id==="ciModal") requestCloseCheckIn(); });
+  $("#seedBtn").addEventListener("click",()=>loadStarterItems($("#seedBtn")));
 
   $("#co_add").addEventListener("click",async()=>{
     const itemId=$("#co_item").value;
     const opt=$("#co_to").selectedOptions[0], to=($("#co_to").value||"").trim();
     const crewId=(opt&&opt.dataset.kind==="staff")?opt.dataset.id:null;   // link to staff record when in-house
-    if(!itemId){ return; }
-    const coV=BPStore.validate.count($("#co_qty").value,{allowZero:false,field:"Qty out"}); if(!coV.ok){ alert(coV.error); return; } const qty=coV.value;
-    if(!to){ alert("Who is it issued to?"); $("#co_to").focus(); return; }
-    $("#co_add").disabled=true;
-    try{ await BPStore.inventory.checkouts.out(itemId, quoteId||null, qty, to, crewId, $("#co_note").value.trim()||null);
-      $("#co_qty").value=1; $("#co_to").value=""; $("#co_note").value=""; await load(); }
-    catch(e){ alert("Couldn't check out — "+((e&&e.message)||"error")); }
-    finally{ $("#co_add").disabled=false; }
+    if(!itemId){ BPUI.toast("Add a stock item first.",{type:"info"}); return; }
+    const coV=BPStore.validate.count($("#co_qty").value,{allowZero:false,field:"Qty out"}); if(!coV.ok){ BPUI.toast(coV.error,{type:"err"}); $("#co_qty").focus(); return; } const qty=coV.value;
+    if(!to){ BPUI.toast("Who is it issued to?",{type:"err"}); $("#co_to").focus(); return; }
+    await BPUI.guard($("#co_add"),async()=>{
+      try{ await BPStore.inventory.checkouts.out(itemId, quoteId||null, qty, to, crewId, $("#co_note").value.trim()||null);
+        $("#co_qty").value=1; $("#co_to").value=""; $("#co_note").value=""; BPUI.toast("Checked out to "+to+".",{type:"ok"}); await load(); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"check out"}),{type:"err"}); }
+    });
   });
   $("#rv_add").addEventListener("click",async()=>{
+    if($("#rv_add").disabled) return;
     const itemId=$("#rv_item").value;
-    if(!itemId){ return; }
-    const rvV=BPStore.validate.count($("#rv_qty").value,{allowZero:false,field:"Quantity"}); if(!rvV.ok){ alert(rvV.error); return; } const qty=rvV.value;
+    if(!itemId){ BPUI.toast("Add a stock item first.",{type:"info"}); return; }
+    const rvV=BPStore.validate.count($("#rv_qty").value,{allowZero:false,field:"Quantity"}); if(!rvV.ok){ BPUI.toast(rvV.error,{type:"err"}); $("#rv_qty").focus(); return; } const qty=rvV.value;
     // over-commit guard: warn if this reservation exceeds what's free
     const a=avail[itemId]||{}; const free=Number(a.available!=null?a.available:(a.total_qty||0));
     if(qty>free){ const it=items.find(x=>x.id===itemId)||{};
-      if(!confirm(`Only ${free} ${it.unit||""} of ${it.name||"this item"} free — reserving ${qty} will over-commit by ${qty-free}. It'll show as a calendar conflict. Reserve anyway?`)) return; }
-    $("#rv_add").disabled=true;
-    try{ await BPStore.inventory.reserve(itemId, quoteId, qty, $("#rv_note").value.trim()||null); $("#rv_qty").value=1; $("#rv_note").value=""; await load(); }
-    catch(e){ alert("Couldn't reserve — "+((e&&e.message)||"error")); }
-    finally{ $("#rv_add").disabled=false; }
+      if(!(await BPUI.confirm(`Only ${free} ${it.unit||""} of ${it.name||"this item"} free — reserving ${qty} will over-commit by ${qty-free}. It'll show as a calendar conflict. Reserve anyway?`,{title:"Over-commit stock?",okLabel:"Reserve anyway",danger:true}))) return; }
+    await BPUI.guard($("#rv_add"),async()=>{
+      try{ await BPStore.inventory.reserve(itemId, quoteId, qty, $("#rv_note").value.trim()||null); $("#rv_qty").value=1; $("#rv_note").value=""; BPUI.toast("Reserved.",{type:"ok"}); await load(); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"reserve the item"}),{type:"err"}); }
+    });
   });
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeItem(); closeLogin(); closeCheckIn(); } });
+  // Escape is handled by BPUI (clicks the open modal's [data-close] → the dirty-checked close).
 
   async function load(){
     // Wave 16 perf: these five fetches are independent — run them in parallel
@@ -551,14 +594,22 @@
     ]);
     if(itemsR.status!=="fulfilled" || availR.status!=="fulfilled"){
       const e=(itemsR.reason||availR.reason);
-      $("#stockRows").innerHTML=`<tr><td colspan="9" class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase7-inventory.sql</b>.</td></tr>`; return;
+      BPUI.loadError($("#stockRows"), e, load, {what:"inventory"});
+      $("#loanRows").innerHTML='<tr><td colspan="7" class="empty">—</td></tr>'; $("#lossRows").innerHTML='<tr><td colspan="8" class="empty">—</td></tr>';
+      if(quoteId) $("#resRows").innerHTML='<tr><td colspan="4" class="empty">—</td></tr>';
+      // stock-affecting actions stay locked until inventory loads (no reserving / checking out against unknown stock)
+      ["#rv_add","#co_add"].forEach(s=>{ $(s).disabled=true; });
+      return;
     }
+    if(canEdit) ["#rv_add","#co_add"].forEach(s=>{ $(s).disabled=false; });
     items=itemsR.value; avail=availR.value;
-    if(quoteId && resR.status==="fulfilled") reservations=resR.value;
-    if(coR.status==="fulfilled"){ checkouts=coR.value; }
-    else { checkouts=[]; $("#loanRows").innerHTML=`<tr><td colspan="7" class="empty">Run <b>phase33-inventory-accountability.sql</b> to enable check-out/in. (${esc(coR.reason&&coR.reason.message||"")})</td></tr>`; }
-    quotesById = qlR.status==="fulfilled" ? Object.fromEntries((qlR.value||[]).map(q=>[q.id,q])) : {};
-    renderStock(); renderCheckouts(); if(quoteId) renderEventPanel();
+    renderStock();
+    if(coR.status==="fulfilled"){ checkouts=coR.value; quotesById = qlR.status==="fulfilled" ? Object.fromEntries((qlR.value||[]).map(q=>[q.id,q])) : {}; renderCheckouts(); }
+    else { checkouts=[]; renderCheckouts(); BPUI.loadError($("#loanRows"), coR.reason, load, {what:"check-outs"}); $("#lossRows").innerHTML='<tr><td colspan="8" class="empty">—</td></tr>'; $("#lossTotal").innerHTML=""; $("#co_add").disabled=true; }
+    if(quoteId){
+      if(resR.status==="fulfilled"){ reservations=resR.value; renderEventPanel(); }
+      else { renderEventPanel(); BPUI.loadError($("#resRows"), resR.reason, load, {what:"this event's reservations"}); }
+    }
   }
 
   // Populate the "Issued to" dropdown with staff + vendors (one shared source)
@@ -570,7 +621,7 @@
     sel.innerHTML='<option value="">Select person…</option>'+grp("Staff",staffOpts)+grp("Vendors",vendorOpts);
   }
 
-  (async ()=>{
+  BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     if(!(await BPStore.auth.requireView("inventory"))) return;
@@ -584,7 +635,7 @@
     }
     await fillPeople();
     await load();
-  })();
+  });
 </script>
 </body>
 </html>

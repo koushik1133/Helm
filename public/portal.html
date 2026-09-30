@@ -2,8 +2,11 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Your event — Helm Events</title>
+<title>Your event · Helm</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
@@ -18,14 +21,14 @@
   header{display:flex;align-items:center;gap:11px;padding:22px 0}
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
-  header b{font-size:15px} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  header b{font-size:15px} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:22px;margin-bottom:16px}
   .hero .code{font-family:var(--mono);font-weight:700;color:var(--accent);font-size:14px}
   .hero h1{font-size:26px;margin:6px 0 4px;letter-spacing:-.02em} .hero .when{color:var(--ink-2);font-size:14px}
   .badges{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
-  .stat{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:4px 11px;border-radius:20px}
+  .stat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:4px 11px;border-radius:20px}
   .stat.q{background:#eef2ff;color:#4457c8} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.st{background:#fff7e6;color:#946200}
-  h3{font-size:12px;margin:0 0 14px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
+  .card > h2{font-size:12px;margin:0 0 14px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
   .concept{font-size:15px;line-height:1.6;color:var(--ink-2)} .theme{font-weight:600;color:var(--ink);margin-bottom:8px}
   .sw{display:inline-block;width:26px;height:26px;border-radius:7px;margin:0 6px 6px 0;border:1px solid var(--line);vertical-align:middle}
   .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
@@ -34,24 +37,26 @@
   .imgs img{width:100%;height:120px;object-fit:cover;border-radius:12px;border:1px solid var(--line);background:var(--panel-2)}
   .prow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line-2);font-size:14px}
   .prow:first-child{border-top:0} .prow .g{flex:1} .prow .amt{font-family:var(--mono);font-weight:600}
-  .prow .due{font-size:11px;color:var(--ink-3)}
-  .paybadge{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .prow .due{font-size:12px;color:var(--ink-3)}
+  .paybadge{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
   .paybadge.paid{background:#e7f6ee;color:#0f7a43} .paybadge.due{background:#fff7e6;color:#946200} .paybadge.invoiced{background:#eef2ff;color:#4457c8} .paybadge.waived{background:#eceff3;color:#6b7686}
   .totbar{display:flex;justify-content:space-between;align-items:center;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px}
   .totbar .n{font-family:var(--mono);font-weight:700;font-size:18px}
   .cta{display:block;text-align:center;background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;font-weight:700;
     padding:14px;border-radius:12px;font-size:15px;margin-top:6px}
   .muted{color:var(--ink-3);font-size:13px} .empty{color:var(--ink-3);font-size:13px;padding:8px 0}
-  footer{text-align:center;color:var(--ink-3);font-size:11px;margin-top:10px}
+  footer{text-align:center;color:var(--ink-3);font-size:12px;margin-top:10px}
   .loading,.bad{text-align:center;padding:60px 20px;color:var(--ink-3)}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header><div class="mark" id="brandMark"></div><div><b id="brandName">Helm Events</b><small>Your event portal</small></div></header>
 
-  <div id="loading" class="card loading">Loading your event…</div>
+  <main id="main">
+  <div id="loading" class="card loading" role="status">Loading your event…</div>
   <div id="bad" class="card bad" hidden><h1 style="color:var(--ink);font-size:20px">Link not found</h1><p>This portal link is invalid or expired. Please ask your event planner for a new one.</p></div>
 
   <div id="app" hidden>
@@ -64,7 +69,7 @@
     </div>
 
     <div class="card" id="proposalCard" hidden>
-      <h3>🎨 Your proposal</h3>
+      <h2><span aria-hidden="true">🎨</span> Your proposal</h2>
       <div class="theme" id="ptheme"></div>
       <div class="concept" id="pconcept"></div>
       <div id="ppalette" style="margin-top:12px"></div>
@@ -73,24 +78,26 @@
     </div>
 
     <div class="card" id="payCard">
-      <h3>💳 Payments</h3>
+      <h2><span aria-hidden="true">💳</span> Payments</h2>
       <div class="totbar"><span>Event total</span><span class="n" id="total">—</span></div>
       <div id="milestones"></div>
       <div class="muted" id="outstanding" style="margin-top:10px"></div>
     </div>
 
     <div class="card" id="galleryCard" hidden>
-      <h3>📸 Gallery</h3>
+      <h2><span aria-hidden="true">📸</span> Gallery</h2>
       <div class="imgs" id="gallery"></div>
     </div>
   </div>
+  <div id="loadErr" hidden></div>
+  </main>
 
   <footer>Helm Events · this page shows only your event.</footer>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -99,18 +106,24 @@
   const fmtWhen=(d,t)=>{ if(!d) return ""; try{ const dt=new Date(d+"T00:00:00"); return dt.toLocaleDateString([], {weekday:'long',day:'numeric',month:'long',year:'numeric'})+(t?(" · "+t):""); }catch{ return d+(t?" · "+t:""); } };
   const isUrl=(u)=>/^https?:\/\//i.test(u||"");
 
+  const isBadLink=(e)=>BPUI.isNotFound(e) || /invalid link|expired/i.test((e&&e.message)||"") || (e&&e.code)==="22P02";
   async function load(){
     if(!token){ $("#loading").hidden=true; $("#bad").hidden=false; return; }
     await BPStore.init();
+    $("#loadErr").hidden=true;
     let d; try{ d=await BPStore.portal.get(token); }
-    catch(e){ $("#loading").hidden=true; $("#bad").hidden=false; return; }
-    $("#loading").hidden=true; $("#app").hidden=false; render(d);
+    catch(e){ $("#loading").hidden=true;
+      if(isBadLink(e)){ $("#bad").hidden=false; return; }
+      $("#loadErr").hidden=false; BPUI.loadError($("#loadErr"), e, load, {what:"your event"}); return; }
+    $("#loading").hidden=true;
+    if(!d){ $("#bad").hidden=false; return; }
+    $("#app").hidden=false; render(d);
   }
   function render(d){
     const e=d.event||{};
     // studio branding (multi-tenant): show the studio's name/accent to the client
     if(d.studio){ if(d.studio.name) $("#brandName").textContent=d.studio.name;
-      const ac=d.studio.brand&&d.studio.brand.accent; if(ac){ try{ document.documentElement.style.setProperty("--accent",ac); }catch{} } }
+      const ac=d.studio.brand&&d.studio.brand.accent; if(typeof ac==="string" && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(ac.trim())){ try{ document.documentElement.style.setProperty("--accent",ac.trim()); }catch{} } }
     $("#code").textContent=e.code||"";
     $("#title").textContent=e.title||e.code||"Your event";
     $("#when").textContent=[e.event_type, fmtWhen(e.event_date,e.event_time)].filter(Boolean).join(" · ")||"Date to be confirmed";
@@ -127,7 +140,7 @@
       $("#pconcept").textContent=p.concept||"";
       $("#ppalette").innerHTML=(p.palette||[]).map(c=>`<span class="sw" style="background:${/^#[0-9a-f]{3,8}$/i.test(c)?c:"transparent"}" title="${esc(c)}"></span>`).join("");
       $("#pscope").innerHTML=(p.scope||[]).map(s=>`<span class="chip">${esc(s)}</span>`).join("");
-      $("#pimages").innerHTML=(p.images||[]).filter(isUrl).map(u=>`<img src="${esc(u)}" alt="reference" loading="lazy">`).join("");
+      $("#pimages").innerHTML=(p.images||[]).filter(isUrl).map((u,i)=>`<img src="${esc(u)}" alt="Inspiration image ${i+1}" loading="lazy" decoding="async">`).join("");
     }
     // payments
     $("#total").textContent=inr(d.total);
@@ -136,15 +149,16 @@
       <span class="amt">${inr(m.amount)}</span><span class="paybadge ${esc(m.status)}">${esc(m.status)}</span></div>`).join("")
       : '<div class="empty">No payment schedule yet — your planner will share one.</div>';
     const out=(d.payment&&d.payment.outstanding)||0;
-    $("#outstanding").innerHTML = out>0 ? `Outstanding balance: <b style="color:var(--warn)">${inr(out)}</b>` : (ms.length?'<b style="color:var(--safe)">All payments settled ✓</b>':"");
+    $("#outstanding").innerHTML = out>0 ? `Outstanding balance: <b style="color:var(--warn-text,#8f5f00)">${inr(out)}</b>` : (ms.length?'<b style="color:var(--safe-text,#0f7a43)">All payments settled ✓</b>':"");
     // gallery
     const g=(d.gallery||[]);
     if(g.length){ $("#galleryCard").hidden=false;
-      $("#gallery").innerHTML=g.map(m=> m.kind==="video"
-        ? `<a href="${isUrl(m.url)?esc(m.url):"#"}" target="_blank" rel="noopener" class="chip" style="height:120px;display:flex;align-items:center;justify-content:center">▶ ${esc(m.caption||"Video")}</a>`
-        : `<img src="${isUrl(m.url)?esc(m.url):""}" alt="${esc(m.caption||"photo")}" loading="lazy">`).join(""); }
+      let n=0;
+      $("#gallery").innerHTML=g.filter(m=>isUrl(m.url)).map(m=> m.kind==="video"
+        ? `<a href="${isUrl(m.url)?esc(m.url):"#"}" target="_blank" rel="noopener noreferrer" class="chip" style="height:120px;display:flex;align-items:center;justify-content:center"><span aria-hidden="true">▶</span>&nbsp;${esc(m.caption||"Video")}</a>`
+        : `<img src="${isUrl(m.url)?esc(m.url):""}" alt="${esc(m.caption||("Event photo "+(++n)))}" loading="lazy" decoding="async">`).join(""); }
   }
-  load();
+  BPUI.boot(load);
 </script>
 </body>
 </html>

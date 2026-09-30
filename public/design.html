@@ -2,15 +2,17 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Design Studio — Helm Events</title>
+<title>Design Studio · Helm</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
-    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#18a558;--warn:#e8912d;--danger:#b42318;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#18a558;--warn:#e8912d;--danger:#b42318;--warn-text:#8f5f00;--safe-text:#0f7a43;
     --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
-  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#15131c;--panel:#1e1b28;--panel-2:#242030;--ink:#f3f1f7;--ink-2:#c8c3d4;--ink-3:#9a94a8;--line:#332e40;--line-2:#2a2635;--accent-soft:#2c2440;}}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#15131c;--panel:#1e1b28;--panel-2:#242030;--ink:#f3f1f7;--ink-2:#c8c3d4;--ink-3:#9a94a8;--line:#332e40;--line-2:#2a2635;--accent-soft:#2c2440;--warn-text:#f5b454;--safe-text:#5fd49a;}}
   *{box-sizing:border-box} [hidden]{display:none!important}
   body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
   a{color:inherit;text-decoration:none}
@@ -18,27 +20,29 @@
   header{display:flex;align-items:center;gap:11px;padding:18px 0}
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
-  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
-  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)} .nav a.on{color:var(--accent)}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)} .nav a.on{color:var(--accent)} html[data-theme="dark"] .nav a.on{color:#c4b5fd}
   .spacer{margin-left:auto}
+  @media(max-width:640px){header{flex-wrap:wrap}.nav{margin-left:0;order:3;width:100%}}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
   h2{font-size:15px;margin:18px 0 12px}
   .btn{height:36px;padding:0 15px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
   .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.4;cursor:default}
-  .btn.warn{border-color:var(--warn);color:var(--warn)} .btn.warn:hover{background:#fff7ec}
+  .btn.warn{border-color:var(--warn);color:var(--warn-text)} .btn.warn:hover{background:#fff7ec}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px;margin-bottom:12px}
-  .qrow{display:flex;align-items:center;gap:12px;cursor:pointer;padding:10px 4px;border-top:1px solid var(--line)}
+  .qrow{display:flex;align-items:center;gap:12px;cursor:pointer;padding:10px 4px;border-top:1px solid var(--line);flex-wrap:wrap}
+  .qrow:focus-visible,.btn:focus-visible,.note:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .qrow:first-child{border-top:0} .qrow:hover{background:var(--panel-2)}
   .qrow b{font-family:var(--mono);font-size:13px} .qrow small{color:var(--ink-3);font-size:12px}
-  .pill{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 9px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
-  .pill.done{background:#e7f6ee;color:var(--safe)} .pill.rev{background:#fdf6e3;color:#9a6700}
+  .pill{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 9px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .pill.done{background:#e7f6ee;color:#0f7a43} .pill.rev{background:#fdf6e3;color:#9a6700}
   /* state rail */
   .rail{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
-  .step{font-size:11px;font-weight:600;padding:5px 10px;border-radius:20px;background:var(--line-2);color:var(--ink-3);border:1px solid var(--line)}
-  .step.on{background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;border-color:transparent}
-  .step.past{background:#e7f6ee;color:var(--safe);border-color:#cdeadd}
+  .step{font-size:12px;font-weight:600;padding:5px 10px;border-radius:20px;background:var(--line-2);color:var(--ink-3);border:1px solid var(--line)}
+  .step.on{background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;border-color:transparent} html[data-theme="dark"] .step.on{background:linear-gradient(120deg,#7c3aed,#6d28d9)}
+  .step.past{background:#e7f6ee;color:#0f7a43;border-color:#cdeadd}
   .muted{color:var(--ink-3);font-size:13px}
   .note{width:100%;min-height:56px;border:1px solid var(--line);border-radius:9px;padding:9px;font-family:inherit;font-size:13px;background:var(--panel);color:var(--ink);margin:8px 0}
   .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
@@ -47,15 +51,18 @@
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
-    <a href="dashboard.html" class="mark" title="Home"></a>
+    <a href="dashboard.html" class="mark" title="Home" aria-label="Home"></a>
     <div><h1>Helm Events</h1><small>Design Studio</small></div>
-    <nav class="nav"><a href="dashboard.html">Dashboard</a><a href="quotes.html">Quotes</a><a href="builder.html">Builder</a><a href="design.html" class="on">Design</a></nav>
+    <nav class="nav" aria-label="Main"><a href="dashboard.html">Dashboard</a><a href="quotes.html">Quotes</a><a href="builder.html">Builder</a><a href="design.html" class="on" aria-current="page">Design</a></nav>
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
 
+  <main id="main">
+  <div id="boot" aria-busy="true"></div>
   <div id="gate" class="card" hidden><div class="empty">You don't have access to the Design Studio. Ask an admin to grant the <b>Design</b> area for your role in Control Center.</div></div>
 
   <section id="single" hidden>
@@ -68,11 +75,12 @@
     <h2>Design queue</h2>
     <div class="card"><div id="queue"><div class="empty">Loading…</div></div></div>
   </section>
+  </main>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -83,9 +91,9 @@
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
-      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn" type="button">Log out</button>`;
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";});
-    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
+    } else { el.innerHTML=`<button id="loginBtn" type="button">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
 
   function railHtml(state,revision){
     // 'revise' is a loop-back (server map: revise -> draft_2d). Keep the full linear
@@ -107,21 +115,28 @@
     const next=D.NEXT[rec.state]||[];
     if(!next.length) return `<div class="pill done">Design locked — no further changes.</div>`;
     const noteId="note_"+esc(rec.quote_id);
-    return `<textarea class="note" id="${noteId}" placeholder="Optional note for this transition (e.g. what changed)"></textarea>
+    return `<textarea class="note" id="${noteId}" aria-label="Note for this design transition (optional)" placeholder="Optional note for this transition (e.g. what changed)"></textarea>
       <div class="acts">`+next.map(t=>{
         const warn=(t==="revise")?" warn":( ["approved_2d","approved_3d","locked"].includes(t)?" primary":"");
-        return `<button class="btn${warn}" data-adv="${esc(t)}" data-q="${esc(rec.quote_id)}" data-upd="${esc(rec.updated_at||"")}" data-note="${noteId}">${esc(D.LABEL[t]||t)}</button>`;
-      }).join("")+`</div><div class="err" id="err_${esc(rec.quote_id)}" hidden></div>`;
+        return `<button type="button" class="btn${warn}" data-adv="${esc(t)}" data-q="${esc(rec.quote_id)}" data-upd="${esc(rec.updated_at||"")}" data-note="${noteId}">${esc(D.LABEL[t]||t)}</button>`;
+      }).join("")+`</div><div class="err" id="err_${esc(rec.quote_id)}" role="alert" hidden></div>`;
   }
 
   function wireAdvance(host){
     host.querySelectorAll("[data-adv]").forEach(b=>b.addEventListener("click",async()=>{
+      if(b.disabled) return;
       const to=b.dataset.adv, q=b.dataset.q, upd=b.dataset.upd||null;
       const note=(document.getElementById(b.dataset.note)||{}).value||null;
       const errEl=document.getElementById("err_"+q); if(errEl){errEl.hidden=true;}
-      host.querySelectorAll("[data-adv]").forEach(x=>x.disabled=true);
-      try{ await D.advance(q,to,note,upd); if(quoteId){ await loadSingle(); } else { await loadQueue(); } }
-      catch(e){ if(errEl){ errEl.textContent=(e&&e.message)||"Couldn't advance — reload and retry."; errEl.hidden=false; } host.querySelectorAll("[data-adv]").forEach(x=>x.disabled=false); }
+      // locking is final (no further changes) — confirm first
+      if(to==="locked" && !(await BPUI.confirm("Locking the design is final — no further design changes can be made.",{title:"Lock this design?",okLabel:"Lock design"}))) return;
+      const others=[...host.querySelectorAll("[data-adv]")].filter(x=>x!==b && !x.disabled);
+      others.forEach(x=>x.disabled=true);
+      try{
+        await BPUI.guard(b, async()=>{ await D.advance(q,to,note,upd); });
+        BPUI.toast("Design moved to “"+(D.LABEL[to]||to)+"”.",{type:"ok"});
+        if(quoteId){ await loadSingle(); } else { await loadQueue(); }
+      }catch(e){ if(errEl){ errEl.textContent=BPUI.friendlyError(e,{action:"advance the design"}); errEl.hidden=false; } others.forEach(x=>x.disabled=false); }
     }));
   }
 
@@ -148,16 +163,16 @@
     const host=$("#singleCard"); let rec;
     try{ rec=await D.get(quoteId); }
     catch(e){ if(backendMissing(e)){ showGate("The Design Studio isn't set up on this environment yet (design tables/functions not deployed)."); return; }
-      host.innerHTML=`<div class="err">Couldn't load: ${esc((e&&e.message)||"error")}</div>`; return; }
+      BPUI.loadError(host, e, loadSingle, {what:"the design"}); return; }
     if(!rec || rec.state===null){
       $("#singleTitle").textContent="Event design";
       host.innerHTML=`<div class="muted">No design record yet for this event.</div>`+
-        (canEdit?`<div class="acts"><button class="btn primary" id="startDesign">Start 2D design</button></div><div class="err" id="err_${esc(quoteId)}" hidden></div>`:"");
-      const sd=$("#startDesign"); if(sd) sd.addEventListener("click",async()=>{ sd.disabled=true;
+        (canEdit?`<div class="acts"><button type="button" class="btn primary" id="startDesign">Start 2D design</button></div><div class="err" id="err_${esc(quoteId)}" role="alert" hidden></div>`:"");
+      const sd=$("#startDesign"); if(sd) sd.addEventListener("click",()=>BPUI.guard(sd, async()=>{
         try{ await D.advance(quoteId,"internal_review",null,null); await loadSingle(); }
         catch(e){ // first advance seeds draft_2d then moves; if map rejects, seed only
           try{ await D.get(quoteId); await loadSingle(); }catch(_){}
-          const er=$("#err_"+quoteId); if(er){er.textContent=(e&&e.message)||"error";er.hidden=false;} sd.disabled=false; } });
+          const er=document.getElementById("err_"+quoteId); if(er){er.textContent=BPUI.friendlyError(e,{action:"start the design"});er.hidden=false;} } }));
       return;
     }
     $("#singleTitle").innerHTML=`Design — <span style="font-family:var(--mono)">${esc(rec.event_code||rec.quote_id)}</span>`;
@@ -175,21 +190,20 @@
     const host=$("#queue"); let items;
     try{ items=await D.queue(); }
     catch(e){ if(backendMissing(e)){ showGate("The Design Studio isn't set up on this environment yet (design tables/functions not deployed)."); return; }
-      host.innerHTML=`<div class="err">Couldn't load queue: ${esc((e&&e.message)||"error")}</div>`; return; }
-    if(!items || !items.length){ host.innerHTML=`<div class="empty">No active designs. Open an event from <a href="quotes.html" style="color:var(--accent)">Quotes</a> to start one.</div>`; return; }
+      BPUI.loadError(host, e, loadQueue, {what:"the design queue"}); return; }
+    if(!items || !items.length){ host.innerHTML=`<div class="empty">No active designs. Open an event from <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a> to start one.</div>`; return; }
     host.innerHTML=items.map(it=>{
       const st=it.state, pill=st==='locked'?'done':(st==='revise'?'rev':'');
-      return `<div class="qrow" data-q="${esc(it.quote_id)}">
+      return `<a class="qrow" href="design.html?quote=${encodeURIComponent(it.quote_id)}">
         <b>${esc(it.event_code||it.quote_id)}</b>
         <small>${esc(it.event_title||"")}</small>
         <span class="spacer" style="margin-left:auto"></span>
         <span class="pill ${pill}">${esc(D.LABEL[st]||st)}</span>
-        <small class="muted">rev ${esc(it.revision||1)}</small></div>`;
+        <small class="muted">rev ${esc(it.revision||1)}</small></a>`;
     }).join("");
-    host.querySelectorAll(".qrow").forEach(r=>r.addEventListener("click",()=>{ location.href="design.html?quote="+encodeURIComponent(r.dataset.q); }));
   }
 
-  (async function init(){
+  BPUI.boot(async function init(){
     await renderAccount();
     if(!BPStore.auth.enabled()){ $("#gate").hidden=false; return; }   // needs a signed-in Supabase session
     if(!BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent("design.html"+location.search)); return; }
@@ -200,7 +214,7 @@
     try{
       if(quoteId){ await loadSingle(); } else { await loadQueue(); }
     }catch(e){ $("#gate").hidden=false; }
-  })();
+  });
 </script>
 </body>
 </html>

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CRM Archive — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{
@@ -22,12 +23,13 @@
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
   header h1{font-size:16px;margin:0;font-weight:700}
-  header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
-  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)}
+  header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;flex-wrap:wrap;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)}
   .nav a:hover{color:var(--accent)} .nav a.on{color:var(--accent)}
   .spacer{margin-left:auto}
+  @media(max-width:560px){header{flex-wrap:wrap}.nav{margin-left:0}.search{min-width:0;width:100%}}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
 
   .toolbar{display:flex;align-items:center;gap:10px;margin:8px 0 14px;flex-wrap:wrap}
@@ -36,61 +38,67 @@
   .search{height:38px;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:0 12px;font-family:inherit;font-size:13px;color:var(--ink);min-width:200px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:auto}
   table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap}
-  thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:11px 13px;border-bottom:1px solid var(--line);background:var(--panel-2);position:sticky;top:0}
+  thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:11px 13px;border-bottom:1px solid var(--line);background:var(--panel-2);position:sticky;top:0}
   tbody td{padding:10px 13px;border-bottom:1px solid var(--line-2);vertical-align:middle}
   tbody tr:hover{background:var(--panel-2)}
-  .when{font-family:var(--mono);font-size:11px;color:var(--ink-2)}
-  .act{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .when{font-family:var(--mono);font-size:12px;color:var(--ink-2)}
+  .act{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
   .act.created{background:#eef2ff;color:#4457c8}.act.updated{background:#fff7e6;color:#946200}
   .act.converted{background:#e7f6ee;color:#0f7a43}.act.deleted{background:#fdecec;color:#b42318}
   .muted{color:var(--ink-3)} .amt{font-family:var(--mono)}
+  a.open{color:var(--accent);font-weight:600}
   .empty{text-align:center;color:var(--ink-3);padding:48px;font-size:14px}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
-    <div class="mark"></div>
+    <a href="dashboard.html" class="mark" aria-label="Home"></a>
     <div><h1>Helm Events</h1><small>CRM Archive</small></div>
     <nav class="nav">
       <a href="dashboard.html">Dashboard</a>
       <a href="quotes.html">Quotes</a>
       <a href="leads.html">Leads</a>
-      <a href="crm.html" class="on">CRM archive</a>
+      <a href="crm.html" class="on" aria-current="page">CRM archive</a>
     </nav>
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
 
+  <main id="main">
   <div class="toolbar">
     <h2>CRM</h2>
     <span class="sub">Your clients &amp; leads — latest status. Click a row to open its workspace (2D/3D).</span>
     <span class="spacer"></span>
     <select id="fSource" class="search" style="min-width:150px" aria-label="Filter by source"><option value="">All sources</option></select>
     <select id="fStage" class="search" style="min-width:150px" aria-label="Filter by stage"><option value="">All stages</option></select>
-    <input id="search" class="search" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search name, phone, type…">
+    <input id="search" class="search" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search name, phone, type…" aria-label="Search CRM records">
     <label class="sub" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
       <input type="checkbox" id="fAll"> Full history</label>
   </div>
 
   <div class="card">
+    <div class="table-scroll">
     <table>
       <thead><tr>
-        <th>When</th><th>Action</th><th>Name</th><th>Phone</th><th>Source</th>
-        <th>Event</th><th>Date</th><th>Budget</th><th>Guests</th><th>Stage</th><th></th>
+        <th scope="col">When</th><th scope="col">Action</th><th scope="col">Name</th><th scope="col">Phone</th><th scope="col">Source</th>
+        <th scope="col">Event</th><th scope="col">Date</th><th scope="col">Budget</th><th scope="col">Guests</th><th scope="col">Stage</th><th scope="col"><span class="sr-only">Open</span></th>
       </tr></thead>
       <tbody id="rows"><tr><td colspan="11" class="empty">Loading…</td></tr></tbody>
     </table>
+    </div>
   </div>
+  </main>
   <footer>Helm Events — the CRM archive is append-only and read-only. Records are written automatically.</footer>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
-<script src="tour.js?v=4"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
+<script src="tour.js?v=5"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -111,9 +119,9 @@
     const el=$("#account"); if(!BPStore.auth.enabled()){ el.hidden=true; return; } el.hidden=false;
     const u=BPStore.auth.user();
     if(u){ const role=await BPStore.auth.role();
-      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button type="button" id="logoutBtn">Log out</button>`;
       $("#logoutBtn").addEventListener("click",async()=>{ await BPStore.auth.signOut(); location.href="dashboard.html"; });
-    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); }
+    } else { el.innerHTML=`<button type="button" id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); }
   }
 
   function render(){
@@ -123,11 +131,14 @@
       (!fSource || r.source===fSource) &&
       (!fStage  || r.status===fStage) &&
       (!q || [r.name,r.phone,r.event_type,r.source,r.action].some(v=>String(v||"").toLowerCase().includes(q))));
-    if(!shown.length){ $("#rows").innerHTML='<tr><td colspan="11" class="empty">No matching records.</td></tr>'; return; }
+    if(!shown.length){ $("#rows").innerHTML = recs.length
+      ? '<tr><td colspan="11" class="empty">No records match these filters.</td></tr>'
+      : '<tr><td colspan="11" class="empty">No CRM records yet. They appear here automatically as you <a class="open" href="leads.html">add and work leads</a>.</td></tr>'; return; }
     $("#rows").innerHTML = shown.map(r=>{
       const qid = r.quote_id ? esc(r.quote_id) : "";
       const openable = !!qid;
-      return `<tr${openable?` class="openable" data-qid="${qid}" style="cursor:pointer"`:""}>
+      const href = openable ? "event.html?id="+encodeURIComponent(r.quote_id) : "";
+      return `<tr${openable?` class="openable" data-href="${esc(href)}" style="cursor:pointer"`:""}>
       <td class="when">${esc(when(r.archived_at))}</td>
       <td><span class="act ${esc(r.action)}">${esc(r.action)}</span></td>
       <td>${esc(r.name||"—")}</td>
@@ -138,11 +149,13 @@
       <td class="amt">${r.budget?fmt(r.budget):""}</td>
       <td class="muted">${r.guest_count!=null?esc(r.guest_count):""}</td>
       <td class="muted">${esc(r.status||"")}</td>
-      <td>${openable?`<a class="open" data-qid="${qid}" style="color:var(--accent);font-weight:600">Open&nbsp;→</a>`:""}</td>
+      <td>${openable?`<a class="open" href="${esc(href)}" aria-label="Open ${esc(r.name||"record")} workspace">Open&nbsp;→</a>`:""}</td>
     </tr>`;}).join("");
     // click a row (or the Open link) → the event workspace hub (details + 2D/3D)
-    $("#rows").querySelectorAll("[data-qid]").forEach(el=>el.addEventListener("click",(e)=>{
-      e.preventDefault(); const qid=el.getAttribute("data-qid"); if(qid) location.href="event.html?id="+encodeURIComponent(qid);
+    // (the Open link is the keyboard/AT path; the whole row is a mouse convenience)
+    $("#rows").querySelectorAll("tr[data-href]").forEach(el=>el.addEventListener("click",(e)=>{
+      if(e.target.closest("a")) return;
+      location.href=el.getAttribute("data-href");
     }));
   }
 
@@ -151,15 +164,18 @@
   $("#fStage").addEventListener("change",(e)=>{ fStage=e.target.value; render(); });
   $("#fAll").addEventListener("change",(e)=>{ fAll=e.target.checked; render(); });
 
-  (async ()=>{
+  async function loadRecs(){
+    try{ recs = (await BPStore.leads.archive()) || []; }
+    catch(err){ BPUI.loadError($("#rows"), err, loadRecs, {what:"the CRM archive"}); return; }
+    fillFilters();
+    render();
+  }
+  BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     if(!(await BPStore.auth.requireView("pipeline"))) return;
-    try{ recs = await BPStore.leads.archive(); }
-    catch(err){ $("#rows").innerHTML=`<tr><td colspan="11" class="empty">Couldn't load — ${esc(err&&err.message||"error")}. Run <b>phase2b-crm.sql</b>.</td></tr>`; return; }
-    fillFilters();
-    render();
-  })();
+    await loadRecs();
+  });
 </script>
 </body>
 </html>
