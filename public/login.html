@@ -218,7 +218,7 @@
   // show who/what the invitee is joining (no PII — org name + role only)
   async function showInviteBanner(){
     const tok=pendingInvite(); if(!tok) return;
-    try{ const info=await BPStore.invitations.byToken(tok);
+    try{ const info=await BPStore.invitations.preview(tok);
       if(info && info.valid){ $("#okmsg").textContent="You're joining "+(info.org_name||"a studio")+" as "+(info.role||"a teammate")+" — sign in or create your account to accept."; $("#okmsg").hidden=false; }
       else if(info){ $("#err").textContent="This invitation is "+(info.expired?"expired":(info.status||"no longer valid"))+"."; $("#err").hidden=false; }
     }catch(e){}

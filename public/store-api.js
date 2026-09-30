@@ -621,6 +621,10 @@
     if (!supa) throw new Error("Supabase not configured");
     const { data, error } = await supa.rpc(fn, args); if (error) throw error; return data;
   };
+  // true only when the RPC itself is not deployed yet (PostgREST PGRST202 / Postgres 42883),
+  // so callers can fall back to an older path; every other error must still surface.
+  const rpcMissing = (e) => { const c = (e && e.code) || ""; const m = String((e && e.message) || "");
+    return c === "PGRST202" || c === "42883" || /could not find the function|function[^]*does not exist/i.test(m); };
   // Edge Function caller — used only when live channels are enabled in config.js
   const fnUrl = (name) => (CFG.url ? CFG.url.replace(/\/$/, "") + "/functions/v1/" + name : null);
   async function callFn(name, body) {
@@ -1267,6 +1271,18 @@
       if (mode === "supabase") { const { error } = await supa.from("inventory_reservations").delete().eq("id", id); if (error) throw error; return true; }
       localStorage.setItem(RES_LS, JSON.stringify(readLs(RES_LS).filter((r) => r.id !== id))); return true;
     },
+    // teardown "Return": mark returned + write off damaged stock in ONE transaction
+    // (SEC-06 return_reservation). Falls back to the old two-call path until it's deployed.
+    async returnReservation(resId, itemId, damaged) {
+      const dmg = Number(damaged || 0);
+      if (mode === "supabase") {
+        try { return await rpc("return_reservation", { p_reservation_id: resId, p_damaged: dmg }); }
+        catch (e) { if (!rpcMissing(e)) throw e; }
+      }
+      await this.setResStatus(resId, "returned");
+      if (dmg > 0) await this.adjustTotal(itemId, -dmg);
+      return true;
+    },
     // permanently change what you own (e.g. reduce by damaged/lost at teardown)
     async adjustTotal(itemId, delta) {
       // atomic in Supabase (avoids a lost update when two teardown returns run at once)
@@ -1453,6 +1469,9 @@
       if (error) throw error; return data || []; },
     accept:  (token) => rpc("accept_invitation", { p_token: token }),                        // signed-in invitee attaches to the org
     byToken: (token) => rpc("invitation_by_token", { p_token: token }),                      // minimal, no-PII info for the accept screen
+    async preview(token) {                                                                   // anon-safe banner info (SEC-06); falls back until deployed
+      try { return await rpc("invitation_preview", { p_token: token }); }
+      catch (e) { if (rpcMissing(e)) return rpc("invitation_by_token", { p_token: token }); throw e; } },
     async revoke(id) { if (!supa) throw new Error("Supabase not configured");
       const { error } = await supa.from("invitations").update({ status: "revoked" }).eq("id", id); // .eq() key enforced
       if (error) throw error; return true; },

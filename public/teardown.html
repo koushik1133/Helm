@@ -138,15 +138,15 @@
       const active = r.status==="reserved"||r.status==="allocated";
       return `<tr><td><b>${esc(it.name)}</b></td><td class="num">${esc(r.qty)} ${esc(it.unit||"")}</td>
         <td><span class="st ${esc(r.status)}">${esc(RES[r.status]||r.status)}</span></td>
-        <td class="num">${canEdit&&active?`<input class="dmg" type="number" min="0" value="0" data-dmg="${r.id}">`:"—"}</td>
-        <td>${canEdit&&active?`<button class="btn go" data-ret="${r.id}" data-item="${r.item_id}">Return</button>`:""}</td></tr>`;
+        <td class="num">${canEdit&&active?`<input class="dmg" type="number" min="0" max="${esc(r.qty)}" value="0" data-dmg="${r.id}">`:"—"}</td>
+        <td>${canEdit&&active?`<button class="btn go" data-ret="${r.id}" data-item="${r.item_id}" data-qty="${esc(r.qty)}">Return</button>`:""}</td></tr>`;
     }).join("") : '<tr><td colspan="5" class="empty">No inventory was reserved for this event.</td></tr>';
     $("#invRows").querySelectorAll("[data-ret]").forEach(b=>b.addEventListener("click",async()=>{
       if(b.disabled) return;
       const dmg=Number(($("#invRows").querySelector(`[data-dmg="${b.dataset.ret}"]`)||{}).value||0);
+      if(!(dmg>=0&&dmg<=Number(b.dataset.qty))){ alert("Damaged must be between 0 and "+b.dataset.qty+"."); return; }
       b.disabled=true;
-      try{ await BPStore.inventory.setResStatus(b.dataset.ret,"returned");
-        if(dmg>0) await BPStore.inventory.adjustTotal(b.dataset.item,-dmg);
+      try{ await BPStore.inventory.returnReservation(b.dataset.ret,b.dataset.item,dmg);
         await renderInventory(); }
       catch(e){ b.disabled=false; alert("Couldn't return — "+((e&&e.message)||"error")); } }));
   }
