@@ -43,6 +43,8 @@
     try {
       var page = (location.pathname.split("/").pop() || "dashboard.html").toLowerCase().replace(/\.html$/, "") || "index";
       if (page === "index" || page === "welcome" || page === "login") return;   // home / auth pages: no self-link
+      // client-facing token pages: clients have no dashboard to go "home" to
+      if (/^(approve|portal|proposal-view|invite|work|sim-pay)$/.test(page) || location.pathname.indexOf("/i/") === 0) return;
       var mark = document.querySelector("header .mark") || document.querySelector(".mark");
       if (!mark) return;
       if (mark.tagName !== "A" && mark.closest("a[href]")) return;   // brand already WRAPPED in one home link (e.g. builder)
@@ -64,6 +66,8 @@
 })();
 
 (function (global) {
+  // this script's own URL (captured synchronously at load) — used to resolve vendor/ files
+  const SELF_SRC = (typeof document !== "undefined" && document.currentScript && document.currentScript.src) || "";
   const CFG = global.SUPABASE_CONFIG || {};
   const TABLE = CFG.table || "layouts";
   const LS_KEY = "bps.layouts";
@@ -87,6 +91,85 @@
   function sessSet(key, uid, val) { try { sessionStorage.setItem(key, JSON.stringify({ uid: uid, ts: Date.now(), val: val })); } catch (e) {} }
   function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); } catch (e) {} }
   let authRequired = false;     // true when Supabase enforces login (RLS) and nobody is signed in
+
+  /* ---- session-expiry handling ------------------------------------------
+     When a signed-in session dies underneath a page (refresh token revoked or
+     expired, signed out in another tab, JWT rejected by PostgREST) we send the
+     user to  login.html?next=<page+query>&expired=1  instead of leaving them on
+     a page whose every request now fails. login.html shows "Your session
+     expired" when expired=1.
+     Only pages that GATE on auth (called auth.required() or auth.requireView())
+     redirect, and never the public token pages below. */
+  const PUBLIC_PAGES = { approve: 1, portal: 1, "proposal-view": 1, invite: 1, work: 1, "sim-pay": 1,
+    index: 1, login: 1, about: 1, services: 1, privacy: 1, terms: 1 };
+  let authGateUsed = false;     // page called auth.required()/requireView()
+  let hadSession = false;       // a user was signed in at some point on this page
+  let explicitSignOut = false;  // the user clicked "sign out" (not an expiry)
+  let sessionExpired = false;   // redirect already triggered (run once)
+  let authFailPromise = null;   // in-flight verification of a suspected auth failure
+  function pageKey() {
+    try { return (location.pathname.split("/").pop() || "index").toLowerCase().replace(/\.html$/, "") || "index"; }
+    catch (e) { return "index"; }
+  }
+  function shouldRedirectOnExpiry() {
+    return mode === "supabase" && authGateUsed && hadSession && !explicitSignOut && !PUBLIC_PAGES[pageKey()];
+  }
+  function looksLikeAuthError(e) {
+    if (global.BPUI && global.BPUI.isAuthError) return global.BPUI.isAuthError(e);
+    const c = (e && e.code) || ""; const m = String((e && e.message) || "");
+    return c === "PGRST301" || c === "PGRST303" || (e && e.status === 401) || /jwt expired|invalid jwt/i.test(m);
+  }
+  function expireSession() {
+    if (sessionExpired || !shouldRedirectOnExpiry()) return false;
+    sessionExpired = true;
+    currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = true;
+    let page = "dashboard.html";
+    try { page = (location.pathname.split("/").pop() || "dashboard.html") + location.search; } catch (e) {}
+    const url = "login.html?next=" + encodeURIComponent(page) + "&expired=1";
+    const UI = global.BPUI;
+    // Don't yank the page away from unsaved work: tell the user and let them choose.
+    if (UI && UI.hasUnsavedChanges && UI.hasUnsavedChanges()) {
+      UI.toast("Your session expired — sign in again. Copy any unsaved changes first.",
+        { type: "err", timeout: 0, action: { label: "Sign in", onClick: () => { UI.allowUnload(); location.href = url; } } });
+      return true;
+    }
+    try { location.replace(url); } catch (e) {}
+    return true;
+  }
+  // A request failed in a way that looks like a dead session. Confirm by trying a
+  // token refresh (it may just have been a stale JWT); redirect only if that fails
+  // and we are online. Deduped: many parallel failures → one check, one redirect.
+  function onAuthFailure() {
+    if (sessionExpired || !supa || !shouldRedirectOnExpiry()) return Promise.resolve(false);
+    if (authFailPromise) return authFailPromise;
+    authFailPromise = (async () => {
+      try {
+        const { data, error } = await supa.auth.refreshSession();
+        if (!error && data && data.session) { currentUser = data.session.user; return false; }
+        if (typeof navigator !== "undefined" && navigator.onLine === false) return false;
+        if (error && global.BPUI && global.BPUI.isNetworkError(error)) return false;
+      } catch (e) {
+        if (global.BPUI && global.BPUI.isNetworkError(e)) return false;
+      }
+      return expireSession();
+    })();
+    authFailPromise.then(() => { authFailPromise = null; }, () => { authFailPromise = null; });
+    return authFailPromise;
+  }
+  // fetch used by the Supabase client: a 401 from PostgREST while signed in means
+  // the JWT was rejected — run the session-expiry check (the response is returned
+  // to the caller untouched either way).
+  function authAwareFetch(input, init) {
+    return global.fetch(input, init).then((res) => {
+      try {
+        if (res.status === 401 && currentUser) {
+          const u = typeof input === "string" ? input : (input && input.url) || "";
+          if (/\/rest\/v1\//.test(u)) onAuthFailure();
+        }
+      } catch (e) {}
+      return res;
+    });
+  }
   // capability matrix per role (10 roles)
   // capability matrix per role. IMPORTANT: `create` and `delete` here gate
   // buttons (dashboard/quotes/leads/builder create, delete controls) that map to
@@ -205,11 +288,26 @@
   };
 
   /* ---------------- Supabase tier ---------------- */
+  // Pinned supabase-js build — update together with public/vendor/README.md.
+  const SUPABASE_JS = {
+    version: "2.117.2",
+    file: "vendor/supabase-js-2.117.2.min.js",
+    integrity: "sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok",
+  };
+  function vendorUrl(rel) {
+    try { if (SELF_SRC) return new URL(rel, SELF_SRC).href; } catch (e) {}
+    return rel;
+  }
   function loadSupabaseLib() {
     return new Promise((resolve) => {
       if (global.supabase && global.supabase.createClient) return resolve(true);
       const s = document.createElement("script");
-      s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js";
+      // Self-hosted, version-pinned copy (see public/vendor/README.md). Resolved
+      // relative to THIS script so it works from any page path. SRI pins the exact
+      // bytes; a mismatch fires onerror → the normal server/local fallback.
+      s.src = vendorUrl(SUPABASE_JS.file);
+      s.integrity = SUPABASE_JS.integrity;
+      s.crossOrigin = "anonymous";
       // A stalled CDN request (e.g. blocked by a browser extension) may never fire
       // load OR error — resolve after a timeout so init() can never hang the page.
       let done = false;
@@ -238,9 +336,21 @@
         try { const ok = await loadSupabaseLib();
           if (ok && global.supabase && global.supabase.createClient) {
             supa = global.supabase.createClient(CFG.url, CFG.anonKey,
-              { auth: { persistSession: true, autoRefreshToken: true } });
+              { auth: { persistSession: true, autoRefreshToken: true }, global: { fetch: authAwareFetch } });
             const { data: { session } } = await supa.auth.getSession();
             currentUser = session ? session.user : null;
+            if (currentUser) hadSession = true;
+            // Session-expiry watcher: a SIGNED_OUT we did not ask for (refresh token
+            // failed / revoked / signed out in another tab) → back to login.
+            try {
+              supa.auth.onAuthStateChange((event, sess) => {
+                if (sess && sess.user) { hadSession = true; if (!explicitSignOut) currentUser = sess.user; }
+                if ((event === "SIGNED_OUT" && !explicitSignOut) || (event === "TOKEN_REFRESHED" && !sess)) {
+                  // defer: supabase-js holds its auth lock inside this callback
+                  setTimeout(expireSession, 0);
+                }
+              });
+            } catch (e) { /* older client — best effort */ }
             // Supabase is configured ⇒ the app uses accounts; no session ⇒ must sign in.
             authRequired = !currentUser;
             mode = "supabase"; return mode;
@@ -314,20 +424,53 @@
         (data || []).forEach((row) => { map[row.area] = { view: !!row.can_view, edit: !!row.can_edit }; });
         accessCache = { role: r, map };
         if (currentUser) sessSet("bp_sess_access", currentUser.id, accessCache);
-      } catch {
+      } catch (e) {
+        // A network/auth failure is NOT "phase29 absent": don't cache a legacy
+        // fallback for the session — report unknown (fail closed) and retry next call.
+        const UI = global.BPUI;
+        if (UI && (UI.isNetworkError(e) || UI.isAuthError(e))) return { role: r, map: null, unknown: true };
         accessCache = { role: r, map: null };             // legacy fallback (phase29 role_access absent)
       }
       return accessCache;
     })();
     try { return await accessPromise; } finally { accessPromise = null; }
   }
+  // Full-page panel shown by requireView: "denied" (role lacks access) or
+  // "offline" (role/access couldn't be loaded — network), themed via page tokens.
+  function gatePanel(kind) {
+    try {
+      document.querySelectorAll("#app").forEach((e) => { e.hidden = true; });
+      ["gate", "notfound", "boot"].forEach((idv) => { const g = document.getElementById(idv); if (g) g.hidden = true; });
+      ["__noaccess", "__noreach"].forEach((idv) => { const g = document.getElementById(idv); if (g) g.remove(); });
+      const box = document.createElement("div");
+      box.id = kind === "offline" ? "__noreach" : "__noaccess";
+      box.setAttribute("role", kind === "offline" ? "alert" : "status");
+      box.style.cssText = "max-width:520px;margin:64px auto;padding:28px;border-radius:14px;background:var(--panel,#fff);border:1px solid var(--line,#d7deea);box-shadow:0 10px 30px rgba(20,27,46,.1);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;text-align:center;color:var(--ink-2,#4a5673)";
+      if (kind === "offline") {
+        box.innerHTML = '<div style="font-size:34px" aria-hidden="true">📡</div><h2 style="color:var(--ink,#141b2e);margin:10px 0 6px">Couldn’t reach the server</h2>' +
+          '<p style="margin:0 0 16px">We couldn’t load your access for this page. Check your connection and try again.</p>' +
+          '<button type="button" class="btn primary" data-retry style="min-height:40px;padding:0 18px;border-radius:10px;font:inherit;font-weight:600;cursor:pointer">Retry</button>' +
+          '<p style="margin:14px 0 0"><a href="dashboard.html" style="color:var(--accent,#6d28d9);font-weight:600">← Back to dashboard</a></p>';
+        box.querySelector("[data-retry]").addEventListener("click", () => location.reload());
+      } else {
+        box.innerHTML = '<div style="font-size:34px" aria-hidden="true">🔒</div><h2 style="color:var(--ink,#141b2e);margin:10px 0 6px">No access</h2><p style="margin:0 0 14px">Your role doesn’t have access to this page. Ask an admin if you need it.</p><a href="dashboard.html" style="color:var(--accent,#6d28d9);font-weight:600">← Back to dashboard</a>';
+      }
+      (document.querySelector("main") && !document.querySelector("main").closest("#app") ? document.querySelector("main") : document.body).appendChild(box);
+    } catch (e) { /* non-browser context */ }
+  }
   const auth = {
     enabled: () => mode === "supabase",
-    required: () => authRequired,
+    // Calling required() marks this page as auth-gated (session expiry → login redirect).
+    required: () => { authGateUsed = true; return authRequired; },
     user: () => currentUser,
     role: getRole,
+    // Synchronous, cache-only role (null if not loaded yet / unknown). Never fetches.
+    cachedRole: () => roleCache || (currentUser ? sessGet("bp_sess_role", currentUser.id) : null),
+    // Route an error through the session-expiry check. Resolves true if a redirect started.
+    handleAuthError: (e) => (looksLikeAuthError(e) ? onAuthFailure() : Promise.resolve(false)),
     // In non-Supabase (server/local) mode there is no auth ⇒ single-user, full access.
-    async can(cap) { if (mode !== "supabase") return true; if (!currentUser) return false; const r = await getRole(); return (ROLE_CAPS[r] || ["view"]).includes(cap); },
+    // Unknown role (profiles unreachable) fails CLOSED for every capability.
+    async can(cap) { if (mode !== "supabase") return true; if (!currentUser) return false; const r = await getRole(); if (!r) return false; return (ROLE_CAPS[r] || ["view"]).includes(cap); },
     canEdit: async () => { if (mode !== "supabase") return true; if (!currentUser) return false; const r = await getRole(); return EDIT_ROLES.includes(r); },
     // ---- role-based VIEW scope (must mirror the RLS read policies in phase21-hardening.sql) ----
     // finance = money pages/tables; pipeline = leads/CRM/discovery/proposal; ops = resources/planning/day-of; workspace = the event hub.
@@ -340,6 +483,7 @@
       const r = await getRole();
       if (r === "admin") return true;                // admin: full floor
       const acc = await loadAccess();
+      if (acc.unknown) return false;                 // matrix unreachable → fail closed (not cached)
       const fine = COARSE_TO_FINE[area];             // set only for coarse keys
       if (acc.map) {
         if (fine) return fine.some((k) => acc.map[k] && acc.map[k].view);   // coarse: any child visible
@@ -356,6 +500,7 @@
       const r = await getRole();
       if (r === "admin") return true;
       const acc = await loadAccess();
+      if (acc.unknown) return false;
       const fine = COARSE_TO_FINE[area];
       if (acc.map) {
         if (fine) return fine.some((k) => acc.map[k] && acc.map[k].edit);
@@ -366,19 +511,18 @@
     areas: () => AREAS.slice(),
     // Whole-page guard: if the signed-in role can't view `area`, hide #app and show a
     // "no access" panel, returning false. Call it right after the login check on a page.
+    // If the role/access matrix could not be LOADED (network), it shows a "Couldn't
+    // reach the server — Retry" panel instead of the lock panel (still returns false).
     async requireView(area) {
+      authGateUsed = true;
+      if (mode === "supabase" && currentUser) {
+        const r = await getRole();
+        let unknown = !r;
+        if (r && r !== "admin") { const acc = await loadAccess(); unknown = !!acc.unknown; }
+        if (unknown) { gatePanel("offline"); return false; }
+      }
       if (await this.canView(area)) return true;
-      try {
-        document.querySelectorAll("#app").forEach((e) => { e.hidden = true; });
-        ["gate", "notfound"].forEach((idv) => { const g = document.getElementById(idv); if (g) g.hidden = true; });
-        if (!document.getElementById("__noaccess")) {
-          const box = document.createElement("div");
-          box.id = "__noaccess";
-          box.style.cssText = "max-width:520px;margin:64px auto;padding:28px;border-radius:14px;background:#fff;border:1px solid #d7deea;box-shadow:0 10px 30px rgba(20,27,46,.1);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;text-align:center;color:#4a5673";
-          box.innerHTML = '<div style="font-size:34px">🔒</div><h2 style="color:#141b2e;margin:10px 0 6px">No access</h2><p style="margin:0 0 14px">Your role doesn’t have access to this page. Ask an admin if you need it.</p><a href="dashboard.html" style="color:#2f6fed;font-weight:600">← Back to dashboard</a>';
-          document.body.appendChild(box);
-        }
-      } catch (e) { /* non-browser context */ }
+      gatePanel("denied");
       return false;
     },
     async signIn(email, password) {
@@ -386,6 +530,7 @@
       const { data, error } = await supa.auth.signInWithPassword({ email, password });
       if (error) throw error;
       currentUser = data.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = false;
+      hadSession = true; explicitSignOut = false; sessionExpired = false;
       return currentUser;
     },
     // Phase 58 — self-serve sign-up (studio created via create_studio once a session exists)
@@ -412,7 +557,7 @@
       if (error) throw error;
       return data; // browser navigates away to Google
     },
-    async signOut() { if (supa) await supa.auth.signOut(); currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear();
+    async signOut() { explicitSignOut = true; if (supa) await supa.auth.signOut(); currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear();
       if (mode === "supabase") authRequired = true; },
     // Option A: does the signed-in user still hold a temp password they must replace?
     async passwordChangeRequired() {
@@ -619,7 +764,9 @@
   /* ---------------- client approval: OTP + consent + payment ---------------- */
   const rpc = async (fn, args) => {
     if (!supa) throw new Error("Supabase not configured");
-    const { data, error } = await supa.rpc(fn, args); if (error) throw error; return data;
+    const { data, error } = await supa.rpc(fn, args);
+    if (error) { if (looksLikeAuthError(error)) onAuthFailure(); throw error; }
+    return data;
   };
   // true only when the RPC itself is not deployed yet (PostgREST PGRST202 / Postgres 42883),
   // so callers can fall back to an older path; every other error must still surface.
@@ -2542,6 +2689,733 @@
     },
   };
   global.BPStore = BPStore;
+})(window);
+
+/* =========================================================================
+   BPUI — shared, dependency-free UI primitives for every page.
+   Every app page already loads store-api.js, so these live here. Components
+   inject their own CSS on first use (9 pages don't load theme.css), follow
+   html[data-theme="dark"], and honour prefers-reduced-motion.
+
+     BPUI.toast(msg, {type:'ok'|'err'|'info', timeout, action:{label,onClick}})
+     BPUI.alert(msg, {title, okLabel})                         → Promise<void>
+     BPUI.confirm(msg, {title, okLabel, cancelLabel, danger})  → Promise<boolean>
+     BPUI.prompt(msg, {title, label, value, required, multiline, type,
+                       placeholder, okLabel, cancelLabel, validate}) → Promise<string|null>
+     BPUI.guard(el, asyncFn, {busyLabel})   double-submit guard
+     BPUI.isNotFound / isMissingTable / isMissingFunction / isAuthError /
+       isNetworkError / isPermissionError(err)
+     BPUI.friendlyError(err, {action, setupHint})  → user-facing string
+     BPUI.loadError(container, err, retryFn, {what}) inline "Couldn't load — Retry"
+     BPUI.boot(asyncFn)                     page bootstrap w/ skeleton + error card
+     BPUI.trackDirty(rootEl?) → {mark, clean, isDirty, dispose}
+     BPUI.confirmDiscard(isDirtyFnOrTracker) → Promise<boolean>
+   Plus automatic enhancement of existing page modals (.lmodal, .modal,
+   [role="dialog"], [data-modal]): focus trap, inert background, Escape →
+   [data-close], focus restore. And a global offline/online banner.
+   ========================================================================= */
+(function (global) {
+  if (typeof document === "undefined" || global.BPUI) return;
+  var doc = document;
+  var seq = 0;
+
+  /* ------------------------------------------------------------------ CSS */
+  var CSS = [
+    ":root{--bpui-bg:#fff;--bpui-ink:#141b2e;--bpui-ink-2:#4a5673;--bpui-line:#86808f;--bpui-soft:#f4f2fb;",
+    "--bpui-accent:#6d28d9;--bpui-on-accent:#fff;--bpui-danger:#b91c1c;--bpui-on-danger:#fff;",
+    "--bpui-scrim:rgba(20,27,46,.5);--bpui-veil:rgba(246,244,241,.72);--bpui-shadow:0 24px 60px rgba(20,27,46,.3);",
+    "--bpui-toast-bg:#1f1b2e;--bpui-toast-ink:#fff;--bpui-toast-act:#d8ccff;--bpui-ok:#34d399;--bpui-err:#f87171;--bpui-info:#a78bfa;",
+    "--bpui-warn-bg:#fff4d6;--bpui-warn-ink:#5c3d00;--bpui-warn-line:#e8c26a}",
+    "html[data-theme=dark]{--bpui-bg:#1c1c22;--bpui-ink:#f3f1fa;--bpui-ink-2:#c6c2d6;--bpui-line:#75707f;--bpui-soft:#26222f;",
+    "--bpui-accent:#7c3aed;--bpui-on-accent:#fff;--bpui-danger:#b91c1c;--bpui-on-danger:#fff;",
+    "--bpui-scrim:rgba(0,0,0,.66);--bpui-veil:rgba(0,0,0,.6);--bpui-shadow:0 24px 60px rgba(0,0,0,.7);",
+    "--bpui-toast-bg:#2a2635;--bpui-toast-ink:#f3f1fa;--bpui-warn-bg:#3a2f14;--bpui-warn-ink:#ffd884;--bpui-warn-line:#5a4a1e}",
+    /* utilities usable on pages without theme.css (zero specificity → pages override) */
+    ":where(.sr-only){position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;border:0!important}",
+    ":where(.skip-link){position:absolute;left:8px;top:-60px;z-index:10000;padding:10px 16px;border-radius:8px;background:var(--bpui-accent);color:var(--bpui-on-accent);font-weight:600;text-decoration:none}",
+    ":where(.skip-link:focus){top:8px}",
+    /* shared bits */
+    ".bpui-overlay,.bpui-boot-overlay{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;font-family:inherit}",
+    ".bpui-overlay{background:var(--bpui-scrim)}",
+    ".bpui-dialog,.bpui-card{background:var(--bpui-bg);color:var(--bpui-ink);border:1px solid var(--bpui-line);border-radius:14px;box-shadow:var(--bpui-shadow);",
+    "width:min(460px,100%);max-height:calc(100vh - 32px);overflow:auto;padding:22px 22px 18px;box-sizing:border-box;font:15px/1.5 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-align:left}",
+    ".bpui-dialog h2,.bpui-card h2{margin:0 0 8px;font-size:18px;line-height:1.3;color:var(--bpui-ink)}",
+    ".bpui-dialog p,.bpui-card p{margin:0 0 14px;color:var(--bpui-ink-2);white-space:pre-wrap;overflow-wrap:anywhere}",
+    ".bpui-dialog label{display:block;font-weight:600;font-size:14px;text-transform:none;letter-spacing:normal;margin:4px 0 6px;color:var(--bpui-ink)}",
+    ".bpui-dialog input,.bpui-dialog textarea{width:100%;box-sizing:border-box;min-height:40px;padding:8px 10px;border:1px solid var(--bpui-line);border-radius:8px;",
+    "background:var(--bpui-bg);color:var(--bpui-ink);font:inherit}",
+    ".bpui-dialog textarea{min-height:96px;resize:vertical}",
+    ".bpui-dialog [aria-invalid=true]{border-color:var(--bpui-danger);box-shadow:0 0 0 1px var(--bpui-danger)}",
+    ".bpui-dialog .bpui-field-err{color:var(--bpui-danger);font-size:13px;font-weight:600;margin:6px 0 0}",
+    "html[data-theme=dark] .bpui-dialog .bpui-field-err{color:#ff9ea3}",
+    ".bpui-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:18px}",
+    ".bpui-btn{min-height:40px;min-width:44px;padding:0 16px;border-radius:10px;border:1px solid var(--bpui-line);background:var(--bpui-bg);color:var(--bpui-ink);",
+    "font:inherit;font-weight:600;cursor:pointer}",
+    ".bpui-btn:hover{background:var(--bpui-soft)}",
+    ".bpui-btn.bpui-primary{background:var(--bpui-accent);border-color:var(--bpui-accent);color:var(--bpui-on-accent)}",
+    ".bpui-btn.bpui-primary:hover{filter:brightness(1.08)}",
+    ".bpui-btn.bpui-danger{background:var(--bpui-danger);border-color:var(--bpui-danger);color:var(--bpui-on-danger)}",
+    ".bpui-btn:focus-visible,.bpui-toast button:focus-visible,.bpui-dialog :focus-visible{outline:2px solid var(--bpui-accent);outline-offset:2px}",
+    ".bpui-btn[disabled]{opacity:.6;cursor:not-allowed}",
+    "@media (pointer:coarse){.bpui-btn,.bpui-toast button{min-height:44px}}",
+    /* toasts */
+    ".bpui-toasts{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:2147483600;display:flex;flex-direction:column;gap:8px;",
+    "width:min(520px,calc(100vw - 32px));pointer-events:none}",
+    ".bpui-lane{display:flex;flex-direction:column;gap:8px}",
+    ".bpui-toast{pointer-events:auto;display:flex;align-items:center;gap:10px;padding:10px 10px 10px 14px;border-radius:10px;background:var(--bpui-toast-bg);",
+    "color:var(--bpui-toast-ink);border-left:4px solid var(--bpui-info);box-shadow:0 10px 30px rgba(0,0,0,.3);font:14px/1.4 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}",
+    ".bpui-toast.bpui-ok{border-left-color:var(--bpui-ok)}.bpui-toast.bpui-err{border-left-color:var(--bpui-err)}",
+    ".bpui-toast-msg{flex:1;min-width:0;overflow-wrap:anywhere}",
+    ".bpui-toast button{background:transparent;border:0;color:var(--bpui-toast-act);font:inherit;font-weight:700;cursor:pointer;min-height:32px;min-width:32px;padding:0 8px;border-radius:6px}",
+    ".bpui-toast button:hover{background:rgba(255,255,255,.1)}",
+    ".bpui-toast .bpui-x{color:var(--bpui-toast-ink);opacity:.85;font-size:18px;line-height:1}",
+    /* offline banner */
+    ".bpui-offline{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:2147483500;max-width:calc(100vw - 32px);padding:8px 14px;border-radius:999px;",
+    "background:var(--bpui-warn-bg);color:var(--bpui-warn-ink);border:1px solid var(--bpui-warn-line);font:600 13px/1.4 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.15);text-align:center}",
+    ".bpui-offline[hidden]{display:none}",
+    /* boot skeleton / spinner / error */
+    ".bpui-boot-overlay{background:var(--bpui-veil);flex-direction:column;gap:12px;color:var(--bpui-ink)}",
+    ".bpui-spin{width:36px;height:36px;border-radius:50%;border:3px solid var(--bpui-line);border-top-color:var(--bpui-accent);box-sizing:border-box}",
+    ":where(#boot){display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:40vh;padding:24px;color:var(--bpui-ink-2)}",
+    ":where(#boot[hidden]){display:none}",
+    ":where(#boot:empty)::before{content:'';width:36px;height:36px;border-radius:50%;border:3px solid var(--bpui-line);border-top-color:var(--bpui-accent);box-sizing:border-box}",
+    ".bpui-boot-overlay .bpui-card,#boot .bpui-card{text-align:center}",
+    ".bpui-loaderr{border:1px solid var(--bpui-line);border-radius:12px;padding:16px;margin:8px 0;background:var(--bpui-bg);color:var(--bpui-ink);text-align:center;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}",
+    ".bpui-loaderr strong{display:block;margin-bottom:4px;color:var(--bpui-ink)}",
+    ".bpui-loaderr p{margin:0 0 10px;color:var(--bpui-ink-2)}",
+    "[aria-busy=true].bpui-busy{cursor:progress}",
+    "@media (prefers-reduced-motion:no-preference){",
+    ".bpui-overlay{animation:bpuiFade .14s ease-out}.bpui-dialog{animation:bpuiPop .16s ease-out}",
+    ".bpui-toast{animation:bpuiUp .18s ease-out}.bpui-spin,:where(#boot:empty)::before{animation:bpuiSpin .8s linear infinite}",
+    ".bpui-boot-overlay{animation:bpuiFade .2s ease-out}}",
+    "@keyframes bpuiFade{from{opacity:0}to{opacity:1}}",
+    "@keyframes bpuiPop{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}",
+    "@keyframes bpuiUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}",
+    "@keyframes bpuiSpin{to{transform:rotate(360deg)}}",
+    "@media print{.bpui-toasts,.bpui-offline,.bpui-boot-overlay{display:none!important}}",
+  ].join("\n");
+  function injectCSS() {
+    if (doc.getElementById("bpui-style")) return;
+    var s = doc.createElement("style");
+    s.id = "bpui-style"; s.textContent = CSS;
+    (doc.head || doc.documentElement).appendChild(s);
+  }
+
+  /* -------------------------------------------------------------- helpers */
+  function h(tag, attrs, text) {
+    var e = doc.createElement(tag);
+    if (attrs) for (var k in attrs) if (attrs[k] != null && attrs[k] !== false) e.setAttribute(k, attrs[k] === true ? "" : attrs[k]);
+    if (text != null) e.textContent = String(text);
+    return e;
+  }
+  function whenBody(fn) {
+    if (doc.body) return fn();
+    doc.addEventListener("DOMContentLoaded", fn, { once: true });
+  }
+  function reduceMotion() {
+    try { return global.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; }
+  }
+  function report(kind, err) {
+    try { if (global.HelmTelemetry && global.HelmTelemetry.report) global.HelmTelemetry.report(kind, err); } catch (e) {}
+  }
+
+  /* ------------------------------------------------------- error classes */
+  function errCode(e) { return e && typeof e === "object" ? String(e.code || "") : ""; }
+  function errMsg(e) {
+    if (e == null) return "";
+    if (typeof e === "string") return e;
+    return String(e.message || e.error_description || e.msg || e.error || e.details || "");
+  }
+  function errStatus(e) {
+    if (!e || typeof e !== "object") return 0;
+    var s = +(e.status || e.statusCode || 0);
+    if (!s) { var m = /^HTTP (\d{3})\b/.exec(errMsg(e)); if (m) s = +m[1]; }
+    return s;
+  }
+  // isNotFound(err)            → PGRST116 ("0 rows" from .single()), HTTP 404
+  // isNotFound(null, result)   → true when there was no error but the result is null/undefined
+  function isNotFound(e, result) {
+    if (e == null) return arguments.length > 1 && result == null;
+    if (isMissingTable(e) || isMissingFunction(e)) return false;
+    var c = errCode(e), m = errMsg(e);
+    return c === "PGRST116" || errStatus(e) === 404 || /\b0 rows\b|no rows|not found/i.test(m);
+  }
+  function isMissingTable(e) {
+    var c = errCode(e), m = errMsg(e);
+    return c === "42P01" || c === "PGRST205" ||
+      /relation ["'][^"']*["'] does not exist|relation \S+ does not exist|could not find the table/i.test(m);
+  }
+  function isMissingFunction(e) {
+    var c = errCode(e), m = errMsg(e);
+    return c === "PGRST202" || c === "42883" || /could not find the function|function \S+ does not exist/i.test(m);
+  }
+  function isAuthError(e) {
+    if (!e) return false;
+    var c = errCode(e), m = errMsg(e), n = (e && e.name) || "";
+    if (c === "PGRST301" || c === "PGRST302" || c === "PGRST303" || c === "session_expired" ||
+        c === "refresh_token_not_found" || c === "refresh_token_already_used" || c === "bad_jwt" || c === "session_not_found") return true;
+    if (n === "AuthSessionMissingError" || n === "AuthInvalidJwtError") return true;
+    if (/jwt expired|invalid jwt|jwt malformed|jwserror|invalid (refresh )?token|refresh token not found|auth session missing|session (has )?expired|session not found/i.test(m)) return true;
+    // A bare 401 is an auth failure — but not a failed LOGIN (that's "invalid credentials").
+    return errStatus(e) === 401 && !/invalid login|credentials/i.test(m);
+  }
+  function isNetworkError(e) {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return true;
+    if (!e) return false;
+    var m = errMsg(e), n = (e && e.name) || "";
+    if (n === "AuthRetryableFetchError" || n === "NetworkError") return true;
+    if (/failed to fetch|networkerror|network request failed|load failed|network error|fetch failed|err_internet_disconnected|err_network/i.test(m)) return true;
+    return (n === "TypeError" || e instanceof TypeError) && /fetch|network/i.test(m);
+  }
+  function isPermissionError(e) {
+    var c = errCode(e), m = errMsg(e);
+    return c === "42501" || errStatus(e) === 403 || /permission denied|not authori[sz]ed|row-level security|insufficient privilege/i.test(m);
+  }
+  function isAdmin() {
+    try { return !!(global.BPStore && global.BPStore.auth.cachedRole && global.BPStore.auth.cachedRole() === "admin"); } catch (e) { return false; }
+  }
+  var TECHNICAL = /TypeError|ReferenceError|SyntaxError|RangeError|\bundefined\b|\bnull\b|NaN|JSON|Unexpected token|Cannot read|is not a function|is not defined|\bat \S+ \(|violates|constraint|column|relation|syntax error|PGRST|SQLSTATE|stack/i;
+  function clip(s, n) { s = String(s).replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+  function endDot(s) { return /[.!?…]$/.test(s) ? s : s + "."; }
+
+  // friendlyError(err, {action:'save the lead', setupHint:'phase29-role-access.sql'}) → string.
+  // Never asks END USERS to run SQL; the setup hint is shown only to admins, as an admin notice.
+  function friendlyError(e, o) {
+    o = o || {};
+    var action = o.action ? String(o.action) : "";
+    var pre = action ? "Couldn’t " + action + ". " : "";
+    if (isAuthError(e)) return "Your session expired — sign in again.";
+    if (typeof navigator !== "undefined" && navigator.onLine === false) return "You’re offline — reconnect and try again.";
+    if (isNetworkError(e)) return pre + "Couldn’t reach the server — check your connection and try again.";
+    if (isPermissionError(e)) return "You don’t have permission to " + (action || "do that") + ".";
+    if (isMissingTable(e) || isMissingFunction(e)) {
+      if (isAdmin()) return "Admin notice: this feature’s database setup hasn’t been applied yet" +
+        (o.setupHint ? " (" + o.setupHint + ")" : "") + ". Apply the pending Supabase migration, then reload.";
+      return pre + "This feature isn’t available yet — please contact your administrator.";
+    }
+    if (isNotFound(e)) return pre + "It may have been deleted, or you may no longer have access.";
+    var c = errCode(e), st = errStatus(e), m = errMsg(e);
+    if (c === "23505") return pre + "That already exists — use a different value.";
+    if (c === "23503") return pre + "It’s linked to other records, so it can’t be changed or removed.";
+    if (c === "23502") return pre + "A required field is missing.";
+    if (c === "23514" || c === "22P02" || c === "22003" || c === "22007" || c === "22008") return pre + "Some values are invalid — check them and try again.";
+    if (c === "40001" || c === "40P01" || st === 409) return pre + "Someone else changed this at the same time — reload and try again.";
+    if (c === "57014" || st === 504 || st === 408) return pre + "The server took too long — try again.";
+    if (st === 429) return pre + "Too many requests — wait a moment and try again.";
+    if (st >= 500) return pre + "The server had a problem — try again in a moment.";
+    // Server-raised business errors (P0001 / plain Error thrown by BPStore) are written for users.
+    if (m && (c === "P0001" || !c) && !TECHNICAL.test(m) && !/^HTTP \d{3}/.test(m)) return pre + endDot(clip(m, 240));
+    return pre + "Something went wrong — please try again.";
+  }
+
+  /* ------------------------------------------------------------- toasts */
+  var toastRoot = null, lanes = {};
+  function ensureToasts() {
+    injectCSS();
+    if (toastRoot && toastRoot.isConnected) return true;
+    if (!doc.body) return false;
+    toastRoot = h("div", { class: "bpui-toasts", "data-bpui-keep": "" });
+    lanes.polite = h("div", { class: "bpui-lane", role: "status", "aria-live": "polite" });
+    lanes.assertive = h("div", { class: "bpui-lane", role: "alert", "aria-live": "assertive" });
+    toastRoot.appendChild(lanes.assertive); toastRoot.appendChild(lanes.polite);
+    doc.body.appendChild(toastRoot);
+    return true;
+  }
+  // toast(msg, {type:'ok'|'err'|'info', timeout:ms (0 = sticky), action:{label,onClick}})
+  // → { close() }. Same message+type already showing → its timer restarts (no stacking).
+  function toast(msg, o) {
+    o = o || {};
+    var type = o.type === "ok" || o.type === "err" ? o.type : "info";
+    var timeout = o.timeout != null ? +o.timeout : (type === "err" ? 8000 : 4000);
+    var handle = { close: function () {} };
+    var run = function () {
+      var fresh = !(toastRoot && toastRoot.isConnected);
+      if (!ensureToasts()) return;
+      var lane = type === "err" ? lanes.assertive : lanes.polite;
+      var text = String(msg == null ? "" : msg);
+      var existing = null;
+      Array.prototype.forEach.call(lane.children, function (t) { if (t.__bpuiKey === type + "|" + text) existing = t; });
+      if (existing) { existing.__bpuiArm(); handle.close = existing.__bpuiClose; return; }
+      var t = h("div", { class: "bpui-toast bpui-" + type });
+      t.__bpuiKey = type + "|" + text;
+      var body = h("span", { class: "bpui-toast-msg" });
+      t.appendChild(body);
+      var timer = null, closed = false;
+      function close() {
+        if (closed) return; closed = true; clearTimeout(timer);
+        if (t.parentNode) t.parentNode.removeChild(t);
+      }
+      function arm() { clearTimeout(timer); if (timeout > 0) timer = setTimeout(close, timeout); }
+      t.__bpuiClose = close; t.__bpuiArm = arm;
+      if (o.action && o.action.label) {
+        var a = h("button", { type: "button" }, o.action.label);
+        a.addEventListener("click", function () { try { o.action.onClick && o.action.onClick(); } finally { if (o.action.keepOpen !== true) close(); } });
+        t.appendChild(a);
+      }
+      var x = h("button", { type: "button", class: "bpui-x", "aria-label": "Dismiss notification" }, "×");
+      x.addEventListener("click", close);
+      t.appendChild(x);
+      // pause while hovered / focused so it can be read and acted on
+      t.addEventListener("mouseenter", function () { clearTimeout(timer); });
+      t.addEventListener("mouseleave", arm);
+      t.addEventListener("focusin", function () { clearTimeout(timer); });
+      t.addEventListener("focusout", arm);
+      lane.appendChild(t);
+      while (lane.children.length > 3) lane.removeChild(lane.firstChild);
+      // Set the text AFTER insertion (and after a tick when the live region is
+      // brand new) so screen readers reliably announce it.
+      var setText = function () { body.textContent = text; };
+      if (fresh) setTimeout(setText, 60); else setText();
+      arm();
+      handle.close = close;
+    };
+    whenBody(run);
+    return handle;
+  }
+
+  /* -------------------------------------------------- modal stack manager */
+  var MODAL_SEL = '.lmodal, .modal, [role="dialog"], [data-modal]';
+  var FOCUSABLE = 'a[href], area[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), ' +
+    'textarea:not([disabled]), iframe, audio[controls], video[controls], summary, [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
+  var FIELDS = 'input:not([disabled]):not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"]), select:not([disabled]), textarea:not([disabled])';
+  var stack = [];            // [{el, trigger, inerted:[], lifted:[], onEscape, own}]
+  var lastOutside = null;    // last focused element outside any open modal
+
+  function visibleEl(e) {
+    if (!e || !e.isConnected || e.hidden) return false;
+    if (!e.getClientRects().length) return false;
+    var cs = global.getComputedStyle(e);
+    return cs.visibility !== "hidden";
+  }
+  function isShown(e) {
+    if (!visibleEl(e)) return false;
+    var cs = global.getComputedStyle(e);
+    return !(cs.opacity === "0" && cs.pointerEvents === "none");
+  }
+  function focusables(root) {
+    return Array.prototype.filter.call(root.querySelectorAll(FOCUSABLE), function (n) {
+      return visibleEl(n) && !n.closest("[inert]") && n.tabIndex >= 0;
+    });
+  }
+  function entryOf(el) { for (var i = 0; i < stack.length; i++) if (stack[i].el === el) return stack[i]; return null; }
+  function topEntry() {
+    while (stack.length && !stack[stack.length - 1].el.isConnected) deactivate(stack[stack.length - 1].el, true);
+    return stack[stack.length - 1] || null;
+  }
+  function focusFirst(el) {
+    if (el.contains(doc.activeElement) && doc.activeElement !== el) return;   // page already placed focus
+    var t = el.querySelector("[autofocus]");
+    if (!t || !visibleEl(t)) t = Array.prototype.filter.call(el.querySelectorAll(FIELDS), visibleEl)[0];
+    if (!t) t = focusables(el)[0];
+    if (!t) { if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", "-1"); t = el; }
+    try { t.focus(); } catch (e) {}
+  }
+  function activate(el, opts) {
+    if (entryOf(el)) return entryOf(el);
+    opts = opts || {};
+    var ae = doc.activeElement;
+    var trigger = (ae && ae !== doc.body && !el.contains(ae)) ? ae : lastOutside;
+    var entry = { el: el, trigger: trigger, inerted: [], lifted: [], onEscape: opts.onEscape || null, own: !!opts.own };
+    // If this modal (or an ancestor) was made inert by a modal below it, lift that.
+    stack.forEach(function (other) {
+      other.inerted = other.inerted.filter(function (n) {
+        if (n === el || n.contains(el)) { n.removeAttribute("inert"); entry.lifted.push({ owner: other, node: n }); return false; }
+        return true;
+      });
+    });
+    // inert every sibling along the ancestor chain up to <body>
+    var node = el;
+    while (node && node.parentElement && node !== doc.body && node !== doc.documentElement) {
+      var parent = node.parentElement;
+      Array.prototype.forEach.call(parent.children, function (sib) {
+        if (sib === node || sib.hasAttribute("inert") || sib.hasAttribute("data-bpui-keep")) return;
+        if (/^(SCRIPT|STYLE|LINK|TEMPLATE|META|NOSCRIPT|TITLE)$/.test(sib.tagName)) return;
+        sib.setAttribute("inert", ""); entry.inerted.push(sib);
+      });
+      node = parent;
+    }
+    stack.push(entry);
+    return entry;
+  }
+  function deactivate(el, skipFocus) {
+    var entry = entryOf(el); if (!entry) return;
+    stack.splice(stack.indexOf(entry), 1);
+    entry.inerted.forEach(function (n) { n.removeAttribute("inert"); });
+    entry.lifted.forEach(function (l) {
+      if (stack.indexOf(l.owner) >= 0 && l.node.isConnected && !l.node.hasAttribute("inert")) { l.node.setAttribute("inert", ""); l.owner.inerted.push(l.node); }
+    });
+    if (skipFocus) return;
+    var ae = doc.activeElement;
+    var focusLost = !ae || ae === doc.body || el.contains(ae) || !visibleEl(ae);
+    var t = entry.trigger;
+    if (focusLost && t && t.isConnected && visibleEl(t) && !t.closest("[inert]")) { try { t.focus(); } catch (e) {} }
+  }
+
+  function onKeydown(e) {
+    if (!stack.length) return;
+    var top = topEntry(); if (!top) return;
+    if (e.key === "Escape" || e.key === "Esc") {
+      if (top.el.getAttribute("data-dismissible") === "false") { if (top.own) { e.preventDefault(); e.stopPropagation(); } return; }
+      if (top.onEscape) { e.preventDefault(); e.stopPropagation(); top.onEscape(); return; }
+      var c = top.el.querySelector("[data-close]");
+      if (c && !c.disabled) { e.preventDefault(); e.stopPropagation(); c.click(); }
+      return;
+    }
+    if (e.key !== "Tab") return;
+    var f = focusables(top.el);
+    if (!f.length) { e.preventDefault(); try { top.el.focus(); } catch (x) {} return; }
+    var first = f[0], last = f[f.length - 1], a = doc.activeElement;
+    if (e.shiftKey) { if (a === first || !top.el.contains(a) || a === top.el) { e.preventDefault(); last.focus(); } }
+    else if (a === last || !top.el.contains(a)) { e.preventDefault(); first.focus(); }
+  }
+  function onFocusin(e) {
+    var t = e.target;
+    var top = stack.length ? topEntry() : null;
+    if (!top) { if (t && t !== doc.body) lastOutside = t; return; }
+    if (top.el.contains(t) || (t.closest && t.closest("[data-bpui-keep]"))) return;
+    var f = focusables(top.el); (f[0] || top.el).focus();   // focus escaped the modal → pull it back
+  }
+
+  // ---- automatic enhancement of the pages' own modals ----
+  function isCandidate(n) {
+    return n.nodeType === 1 && n.matches && n.matches(MODAL_SEL) && !n.closest("[data-bpui]") &&
+      n.getAttribute("aria-modal") !== "false" && !n.hasAttribute("data-bpui-skip") &&
+      !(n.parentElement && n.parentElement.closest(MODAL_SEL));   // outermost modal element only
+  }
+  function sync(n) {
+    var on = isShown(n), entry = entryOf(n);
+    if (on && !entry) {
+      activate(n);
+      // let the page finish populating the modal before choosing what to focus
+      setTimeout(function () { if (entryOf(n) && isShown(n)) focusFirst(n); }, 0);
+    } else if (!on && entry) {
+      deactivate(n);
+    }
+  }
+  function onMutations(muts) {
+    var cands = [], hides = [], shows = [];
+    muts.forEach(function (m) {
+      if (m.type === "attributes") { if (isCandidate(m.target)) cands.push(m.target); return; }
+      Array.prototype.forEach.call(m.addedNodes, function (n) {
+        if (n.nodeType !== 1) return;
+        if (isCandidate(n)) cands.push(n);
+        if (n.querySelectorAll) Array.prototype.forEach.call(n.querySelectorAll(MODAL_SEL), function (x) { if (isCandidate(x)) cands.push(x); });
+      });
+    });
+    stack.slice().forEach(function (en) { if (!en.own && !en.el.isConnected) deactivate(en.el); });
+    // process hides before shows so "close A, open B" in one tick hands focus over cleanly
+    cands.forEach(function (n, i) { if (cands.indexOf(n) !== i) return; (isShown(n) ? shows : hides).push(n); });
+    hides.forEach(sync); shows.forEach(sync);
+  }
+  function startModalObserver() {
+    Array.prototype.forEach.call(doc.querySelectorAll(MODAL_SEL), function (n) { if (isCandidate(n) && isShown(n)) sync(n); });
+    try {
+      new MutationObserver(onMutations).observe(doc.documentElement, {
+        subtree: true, childList: true, attributes: true, attributeFilter: ["hidden", "class", "style", "open"],
+      });
+    } catch (e) {}
+  }
+
+  /* ----------------------------------------------- alert / confirm / prompt */
+  function dialog(kind, msg, o) {
+    o = o || {};
+    injectCSS();
+    return new Promise(function (resolve) {
+      whenBody(function () {
+        var id = "bpui-d" + (++seq);
+        var cancelValue = kind === "confirm" ? false : kind === "prompt" ? null : undefined;
+        var title = o.title || (kind === "alert" ? "Notice" : kind === "confirm" ? "Please confirm" : "");
+        var ov = h("div", { class: "bpui-overlay", "data-bpui": "dialog", "data-bpui-keep": "" });
+        var form = h("form", { class: "bpui-dialog", role: "dialog", "aria-modal": "true", "aria-labelledby": id + "-t", novalidate: "" });
+        var text = msg == null ? "" : String(msg);
+        var label = kind === "prompt" ? String(o.label || text || "Value") : "";
+        // prompt without a title: the message is the heading (and the field's label)
+        var heading = title || (kind === "prompt" ? (text || label) : "");
+        form.appendChild(h("h2", { id: id + "-t" }, heading));
+        if (text && text !== heading) {
+          form.appendChild(h("p", { id: id + "-m" }, text));
+          form.setAttribute("aria-describedby", id + "-m");
+        }
+        var input = null, errEl = null;
+        if (kind === "prompt") {
+          form.appendChild(h("label", { for: id + "-i", class: label === heading || label === text ? "sr-only" : null }, label));
+          input = o.multiline ? h("textarea", { id: id + "-i", rows: "4" }) : h("input", { id: id + "-i", type: o.type || "text", autocomplete: "off" });
+          if (o.placeholder) input.setAttribute("placeholder", o.placeholder);
+          if (o.required) input.setAttribute("aria-required", "true");
+          if (o.maxLength) input.setAttribute("maxlength", o.maxLength);
+          input.value = o.value == null ? "" : String(o.value);
+          errEl = h("p", { id: id + "-e", class: "bpui-field-err", hidden: true });
+          form.appendChild(input); form.appendChild(errEl);
+        }
+        var actions = h("div", { class: "bpui-actions" });
+        var cancelBtn = null;
+        if (kind !== "alert") {
+          cancelBtn = h("button", { type: "button", class: "bpui-btn", "data-close": "" }, o.cancelLabel || "Cancel");
+          actions.appendChild(cancelBtn);
+        }
+        var okBtn = h("button", { type: "submit", class: "bpui-btn " + (o.danger ? "bpui-danger" : "bpui-primary") },
+          o.okLabel || (kind === "alert" ? "OK" : kind === "confirm" ? (o.danger ? "Delete" : "OK") : "OK"));
+        actions.appendChild(okBtn);
+        form.appendChild(actions);
+        ov.appendChild(form);
+
+        var done = false;
+        function close(val) {
+          if (done) return; done = true;
+          deactivate(ov);
+          if (ov.parentNode) ov.parentNode.removeChild(ov);
+          resolve(val);
+        }
+        function fail(message) {
+          errEl.textContent = message; errEl.hidden = false;
+          input.setAttribute("aria-invalid", "true"); input.setAttribute("aria-describedby", id + "-e");
+          input.focus();
+        }
+        form.addEventListener("submit", function (e) {
+          e.preventDefault();
+          if (kind !== "prompt") return close(kind === "confirm" ? true : undefined);
+          var v = input.value;
+          if (o.required && !String(v).trim()) return fail(o.requiredMessage || "This field is required.");
+          if (input.type === "email" && v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) return fail("Enter a valid email address.");
+          if (typeof o.validate === "function") { var bad = o.validate(v); if (bad) return fail(String(bad)); }
+          close(v);
+        });
+        if (input) {
+          input.addEventListener("input", function () { if (!errEl.hidden) { errEl.hidden = true; input.removeAttribute("aria-invalid"); } });
+          if (o.multiline) input.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); form.requestSubmit ? form.requestSubmit() : okBtn.click(); }
+          });
+        }
+        if (cancelBtn) cancelBtn.addEventListener("click", function () { close(cancelValue); });
+        // scrim click cancels alert/confirm (never prompt — don't lose typed input)
+        ov.addEventListener("mousedown", function (e) { if (e.target === ov && kind !== "prompt") close(cancelValue); });
+
+        doc.body.appendChild(ov);
+        activate(ov, { own: true, onEscape: function () { close(cancelValue); } });
+        if (input) { input.focus(); try { input.select(); } catch (e) {} }
+        else if (o.danger && cancelBtn) cancelBtn.focus();   // destructive: default to the safe choice
+        else okBtn.focus();
+      });
+    });
+  }
+  function alertDlg(msg, o) { return dialog("alert", msg, o); }
+  function confirmDlg(msg, o) { return dialog("confirm", msg, o); }
+  function promptDlg(msg, o) { return dialog("prompt", msg, o); }
+
+  /* --------------------------------------------------------------- guard */
+  var busy = typeof WeakSet === "function" ? new WeakSet() : null;
+  function guardTargets(el) {
+    if (el && el.tagName === "FORM") {
+      var list = Array.prototype.slice.call(el.querySelectorAll('button[type="submit"], button:not([type]), input[type="submit"]'));
+      Array.prototype.forEach.call(doc.querySelectorAll('[form="' + (el.id || "\u0000") + '"]'), function (b) { if (list.indexOf(b) < 0) list.push(b); });
+      return list;
+    }
+    return el ? [el] : [];
+  }
+  // guard(el, asyncFn, {busyLabel}) — prevents double submits.
+  // If el is disabled/aria-disabled or already busy → resolves undefined WITHOUT calling fn.
+  // Otherwise sets disabled + aria-busy, awaits fn(), re-enables in finally.
+  // Resolves with fn's result; rejects with fn's error (rethrown).
+  function guard(el, fn, o) {
+    o = o || {};
+    if (typeof el === "string") el = doc.querySelector(el);
+    if (el && (el.disabled || el.getAttribute("aria-disabled") === "true" || el.getAttribute("aria-busy") === "true" || (busy && busy.has(el)))) return Promise.resolve(undefined);
+    var targets = guardTargets(el).filter(function (t) { return !t.disabled; });
+    var label = null;
+    if (el) { if (busy) busy.add(el); el.setAttribute("aria-busy", "true"); el.classList.add("bpui-busy"); }
+    targets.forEach(function (t) { t.disabled = true; });
+    if (o.busyLabel && el && el.tagName === "BUTTON") { label = el.textContent; el.textContent = o.busyLabel; }
+    var restore = function () {
+      if (el) { if (busy) busy.delete(el); el.removeAttribute("aria-busy"); el.classList.remove("bpui-busy"); if (label != null) el.textContent = label; }
+      targets.forEach(function (t) { t.disabled = false; });
+    };
+    var p;
+    try { p = Promise.resolve(fn()); } catch (e) { p = Promise.reject(e); }
+    return p.then(function (v) { restore(); return v; }, function (e) { restore(); throw e; });
+  }
+
+  /* ----------------------------------------------------------- loadError */
+  // loadError(container, err, retryFn, {what:'leads'}) — renders an inline
+  // "Couldn't load leads — <reason> [Retry]" card into container (replacing its
+  // content). A <tbody>/<table> container gets a full-width row. Retry calls
+  // retryFn (guarded); if that rejects, the card re-renders with the new error.
+  function loadError(container, err, retryFn, o) {
+    o = o || {};
+    injectCSS();
+    if (typeof container === "string") container = doc.querySelector(container);
+    if (!container) return null;
+    var what = o.what || "this section";
+    var card = h("div", { class: "bpui-loaderr", role: "alert" });
+    card.appendChild(h("strong", null, "Couldn’t load " + what));
+    card.appendChild(h("p", null, friendlyError(err)));
+    if (typeof retryFn === "function") {
+      var btn = h("button", { type: "button", class: "bpui-btn bpui-primary" }, "Retry");
+      btn.addEventListener("click", function () {
+        guard(btn, function () { return retryFn(); }).catch(function (e2) { loadError(container, e2, retryFn, o); });
+      });
+      card.appendChild(btn);
+    }
+    var node = card;
+    var tag = container.tagName;
+    if (tag === "TBODY" || tag === "TABLE" || tag === "THEAD" || tag === "TFOOT") {
+      var table = tag === "TABLE" ? container : container.closest("table");
+      var cols = 1;
+      try { var r = table && (table.tHead && table.tHead.rows[0] || table.rows[0]); if (r) { cols = 0; Array.prototype.forEach.call(r.cells, function (c) { cols += c.colSpan || 1; }); } } catch (e) {}
+      var tr = h("tr"), td = h("td", { colspan: String(Math.max(cols, 1)) });
+      td.appendChild(card); tr.appendChild(td); node = tr;
+    }
+    while (container.firstChild) container.removeChild(container.firstChild);
+    container.appendChild(node);
+    return card;
+  }
+
+  /* ---------------------------------------------------------------- boot */
+  // boot(asyncFn, {delay}) — runs the page bootstrap. Shows #boot (if present)
+  // or, after `delay` ms (default 150), a spinner overlay. On resolve: hides it,
+  // resolves with fn's result. On reject: shows "Something went wrong loading
+  // this page" + friendlyError + Reload, reports to telemetry, resolves undefined
+  // (never rejects, so no second global error toast).
+  function boot(fn, o) {
+    o = o || {};
+    injectCSS();
+    var bootEl = doc.getElementById("boot"), overlay = null, timer = null, finished = false;
+    if (bootEl) { bootEl.hidden = false; bootEl.setAttribute("aria-busy", "true"); }
+    else timer = setTimeout(function () {
+      whenBody(function () {
+        if (finished) return;
+        overlay = h("div", { class: "bpui-boot-overlay", "data-bpui-keep": "", role: "status", "aria-live": "polite" });
+        overlay.appendChild(h("div", { class: "bpui-spin", "aria-hidden": "true" }));
+        overlay.appendChild(h("span", { class: "sr-only" }, "Loading…"));
+        doc.body.appendChild(overlay);
+      });
+    }, o.delay == null ? 150 : o.delay);
+    function clear() {
+      finished = true; clearTimeout(timer);
+      if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (bootEl) { bootEl.hidden = true; bootEl.removeAttribute("aria-busy"); }
+    }
+    var p;
+    try { p = Promise.resolve(fn()); } catch (e) { p = Promise.reject(e); }
+    return p.then(function (v) { clear(); return v; }, function (err) {
+      clear();
+      try { console.error("[BPUI.boot] page failed to load:", err); } catch (e) {}
+      report("boot", err);
+      try { if (isAuthError(err) && global.BPStore) global.BPStore.auth.handleAuthError(err); } catch (e) {}
+      whenBody(function () { showBootError(err, bootEl); });
+      return undefined;
+    });
+  }
+  function showBootError(err, bootEl) {
+    var card = h("div", { class: "bpui-card", role: "alert" });
+    var hd = h("h2", { tabindex: "-1" }, "Something went wrong loading this page");
+    card.appendChild(hd);
+    card.appendChild(h("p", null, friendlyError(err)));
+    var row = h("div", { class: "bpui-actions" });
+    row.style.justifyContent = "center";
+    var reload = h("button", { type: "button", class: "bpui-btn bpui-primary" }, "Reload");
+    reload.addEventListener("click", function () { location.reload(); });
+    var page = "";
+    try { page = (location.pathname.split("/").pop() || "").replace(/\.html$/, ""); } catch (e) {}
+    if (page !== "dashboard") { var back = h("a", { href: "dashboard.html", class: "bpui-btn" }, "Dashboard"); back.style.cssText = "display:inline-flex;align-items:center;text-decoration:none"; row.appendChild(back); }
+    row.appendChild(reload);
+    card.appendChild(row);
+    if (bootEl) {
+      while (bootEl.firstChild) bootEl.removeChild(bootEl.firstChild);
+      bootEl.appendChild(card); bootEl.hidden = false;
+    } else {
+      var wrap = h("div", { class: "bpui-boot-overlay", "data-bpui-keep": "" });
+      var dismiss = h("button", { type: "button", class: "bpui-btn" }, "Dismiss");
+      dismiss.addEventListener("click", function () { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); });
+      row.insertBefore(dismiss, row.firstChild);
+      wrap.appendChild(card); doc.body.appendChild(wrap);
+    }
+    try { hd.focus(); } catch (e) {}
+  }
+
+  /* ---------------------------------------------------- unsaved changes */
+  var trackers = [], unloadBypass = false, unloadHooked = false;
+  function anyDirty() { for (var i = 0; i < trackers.length; i++) if (trackers[i].isDirty()) return true; return false; }
+  function hookUnload() {
+    if (unloadHooked) return; unloadHooked = true;
+    global.addEventListener("beforeunload", function (e) {
+      if (unloadBypass || !anyDirty()) return;
+      e.preventDefault(); e.returnValue = ""; return "";
+    });
+  }
+  // trackDirty(rootEl?) → {mark, clean, isDirty, dispose}. With rootEl, any
+  // input/change event inside it marks dirty automatically. One shared
+  // beforeunload warning is active while ANY tracker is dirty.
+  function trackDirty(root) {
+    var dirty = false;
+    var t = {
+      mark: function () { dirty = true; },
+      clean: function () { dirty = false; },
+      isDirty: function () { return dirty; },
+      dispose: function () {
+        dirty = false; var i = trackers.indexOf(t); if (i >= 0) trackers.splice(i, 1);
+        if (root) { root.removeEventListener("input", t.mark); root.removeEventListener("change", t.mark); }
+      },
+    };
+    if (typeof root === "string") root = doc.querySelector(root);
+    if (root) { root.addEventListener("input", t.mark); root.addEventListener("change", t.mark); }
+    trackers.push(t); hookUnload();
+    return t;
+  }
+  // confirmDiscard(isDirtyFn | tracker, {title,message}) → Promise<boolean>
+  // true = safe to close (not dirty, or the user chose Discard).
+  function confirmDiscard(src, o) {
+    o = o || {};
+    var dirty = false;
+    try { dirty = typeof src === "function" ? !!src() : !!(src && src.isDirty && src.isDirty()); } catch (e) {}
+    if (!dirty) return Promise.resolve(true);
+    return confirmDlg(o.message || "You have unsaved changes. If you close now, they’ll be lost.",
+      { title: o.title || "Discard changes?", okLabel: "Discard", cancelLabel: "Keep editing", danger: true });
+  }
+
+  /* ------------------------------------------------------ offline banner */
+  var offlineEl = null, offlineInstalled = false;
+  function installOffline() {
+    if (offlineInstalled) return; offlineInstalled = true;
+    whenBody(function () {
+      injectCSS();
+      offlineEl = h("div", { class: "bpui-offline", role: "status", "aria-live": "polite", "data-bpui-keep": "", hidden: true });
+      doc.body.appendChild(offlineEl);
+      var set = function (on) {
+        offlineEl.textContent = on ? "" : "You’re offline — changes won’t be saved until your connection returns.";
+        offlineEl.hidden = on;
+      };
+      if (navigator.onLine === false) set(false);
+      global.addEventListener("offline", function () { set(false); });
+      global.addEventListener("online", function () { set(true); toast("Back online.", { type: "ok", timeout: 3000 }); });
+    });
+  }
+
+  /* --------------------------------------------------------------- wire */
+  global.addEventListener("keydown", onKeydown, true);
+  doc.addEventListener("focusin", onFocusin, true);
+  function start() { injectCSS(); startModalObserver(); installOffline(); }
+  if (doc.readyState !== "loading") start(); else doc.addEventListener("DOMContentLoaded", start, { once: true });
+
+  global.BPUI = {
+    version: 1,
+    toast: toast,
+    alert: alertDlg, confirm: confirmDlg, prompt: promptDlg,
+    guard: guard,
+    isNotFound: isNotFound, isMissingTable: isMissingTable, isMissingFunction: isMissingFunction,
+    isAuthError: isAuthError, isNetworkError: isNetworkError, isPermissionError: isPermissionError,
+    friendlyError: friendlyError,
+    loadError: loadError,
+    boot: boot,
+    trackDirty: trackDirty, confirmDiscard: confirmDiscard,
+    hasUnsavedChanges: anyDirty,
+    allowUnload: function () { unloadBypass = true; },
+    // manual hooks for modals the observer can't see (rare): open → trap, close → restore
+    modal: {
+      open: function (el) { var en = activate(el); setTimeout(function () { focusFirst(el); }, 0); return en; },
+      close: function (el) { deactivate(el); },
+    },
+    installOfflineBanner: installOffline,
+  };
 })(window);
 
 /* =========================================================================

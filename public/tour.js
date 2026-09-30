@@ -203,7 +203,7 @@
     while (i < list.length && !present(list[i].sel)) i++;
     if (i >= list.length) { end(); return; }
     const step = list[i], tgt = present(step.sel);
-    tgt.scrollIntoView({ block: "center", behavior: "smooth" });
+    tgt.scrollIntoView({ block: "center", behavior: (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) ? "auto" : "smooth" });
     setTimeout(() => {
       if (!root) return;
       const r = tgt.getBoundingClientRect(), pad = 6;

@@ -44,7 +44,9 @@ window.SUPABASE_STAGING = {
 // of reading/mutating production data. Production hostnames are unaffected.
 // Deliberate localhost→prod (read-only debugging) requires an explicit opt-in:
 //   window.HELM_ALLOW_PROD_FROM_LOCALHOST = true;   // set before this file, OR
-//   localStorage.setItem('helm.allowProdFromLocalhost','1');
+//   localStorage.setItem('helm.allowProdFromLocalhost', String(Date.now()));
+// The localStorage opt-in is a TIMESTAMP and expires after 8 hours (the legacy
+// sticky value '1' is treated as expired).
 // See docs/STAGING-SETUP.md for wiring a real isolated staging project.
 // ---------------------------------------------------------------------------
 (function () {
@@ -54,10 +56,23 @@ window.SUPABASE_STAGING = {
     // Resolve staging creds from (in priority): committed SUPABASE_STAGING block →
     // window.HELM_STAGING_SUPABASE override → localStorage 'helm.staging'. Returns
     // null when none is configured. (All PUBLIC values — never secrets.)
+    // The localStorage override is only honoured for a genuine Supabase project
+    // URL (https://<20-char ref>.supabase.co) so a stray/injected value can't
+    // point the app at an arbitrary backend.
+    var SUPABASE_PROJECT_URL = /^https:\/\/[a-z0-9]{20}\.supabase\.co$/;
     function resolveStaging() {
       var s = (window.SUPABASE_STAGING && window.SUPABASE_STAGING.url) ? window.SUPABASE_STAGING : null;
       if (!s && window.HELM_STAGING_SUPABASE && window.HELM_STAGING_SUPABASE.url) s = window.HELM_STAGING_SUPABASE;
-      if (!s) { try { var j = localStorage.getItem('helm.staging'); if (j) { var p = JSON.parse(j); if (p && p.url) s = p; } } catch (e) {} }
+      if (!s) {
+        try {
+          var j = localStorage.getItem('helm.staging');
+          if (j) {
+            var p = JSON.parse(j);
+            if (p && typeof p.url === 'string' && SUPABASE_PROJECT_URL.test(p.url) && typeof p.anonKey === 'string') s = p;
+            else if (p) console.warn('[Helm] Ignoring localStorage helm.staging — url must match https://<project-ref>.supabase.co');
+          }
+        } catch (e) {}
+      }
       return (s && s.url && s.anonKey) ? s : null;
     }
     function useStaging(s) {
@@ -125,14 +140,30 @@ window.SUPABASE_STAGING = {
     //  2) Deliberately use PRODUCTION from localhost (read-only debugging / when no
     //     staging exists yet). Opt IN explicitly:
     //        window.HELM_ALLOW_PROD_FROM_LOCALHOST = true;   // before this file, OR
-    //        localStorage.setItem('helm.allowProdFromLocalhost','1');
+    //        localStorage.setItem('helm.allowProdFromLocalhost', String(Date.now()));  // valid 8h
     //
     // The legacy HELM_BLOCK_PROD_FROM_LOCALHOST flag is still honoured (it forces a
     // block) but is now redundant: blocking is the default.
     // 2) LOCALHOST / LAN: prefer STAGING; never silently use production. An explicit
     //    opt-in still allows read-only prod debugging; otherwise fail closed.
     var allowProd = (typeof window !== 'undefined' && window.HELM_ALLOW_PROD_FROM_LOCALHOST === true);
-    try { allowProd = allowProd || (localStorage.getItem('helm.allowProdFromLocalhost') === '1'); } catch (e) {}
+    // localStorage opt-in = the ms timestamp when it was set; valid for 8 hours so
+    // it can't silently stay on for weeks. Legacy '1' (or anything stale/invalid)
+    // is treated as expired and removed.
+    try {
+      var PROD_OPT_IN_TTL = 8 * 60 * 60 * 1000;
+      var optIn = localStorage.getItem('helm.allowProdFromLocalhost');
+      if (optIn != null) {
+        var ts = Number(optIn), age = Date.now() - ts;
+        if (isFinite(ts) && ts > 1e12 && age >= 0 && age < PROD_OPT_IN_TTL) {
+          allowProd = true;
+        } else {
+          try { localStorage.removeItem('helm.allowProdFromLocalhost'); } catch (e2) {}
+          console.info('[Helm] The localhost→production opt-in has expired (it lasts 8 hours). To re-enable: ' +
+            "localStorage.setItem('helm.allowProdFromLocalhost', String(Date.now()))");
+        }
+      }
+    } catch (e) {}
     // Legacy explicit block flag can only *reinforce* fail-closed, never open prod.
     var legacyBlock = (typeof window !== 'undefined' && window.HELM_BLOCK_PROD_FROM_LOCALHOST === true);
     try { legacyBlock = legacyBlock || (localStorage.getItem('helm.blockProdFromLocalhost') === '1'); } catch (e) {}
