@@ -131,10 +131,25 @@ select pr.quote_id, pr.org_id as proposal_org, q.org_id as quote_org, pr.publish
 from public.event_proposal pr join public.quotes q on q.id = pr.quote_id
 where pr.org_id is distinct from q.org_id;
 
+-- P0: prerequisites. Every row must read true, otherwise apply the named file first.
+select 'quotes.approval_token_expires_at (wave10)' as needs, exists (select 1 from information_schema.columns where table_schema='public' and table_name='quotes' and column_name='approval_token_expires_at') as present
+union all select 'event_proposal.share_token_expires_at (prod-rollout/PROD-01-APPLY.sql)', exists (select 1 from information_schema.columns where table_schema='public' and table_name='event_proposal' and column_name='share_token_expires_at')
+union all select 'design_stages (completion/PROD-BUNDLE-net-new-builds.sql)', to_regclass('public.design_stages') is not null
+union all select 'helm_quote_total(jsonb) (wave15b)', to_regprocedure('public.helm_quote_total(jsonb)') is not null;
+-- P0b: F10 requires matrix edit rights. Studios listed here have NO role_access
+-- rows, so their non-admin staff are already read-only in the app and stay so
+-- via RPC too. Expect 0 rows; for any listed, re-seed its access matrix in the
+-- Control Center (Users & access) before applying.
+select o.id, o.name from public.organizations o
+ where not exists (select 1 from public.role_access ra where ra.org_id = o.id);
+
 -- P4: F3. design_stages rows whose org differs from their quote's org (expect 0).
-select d.quote_id, d.org_id as design_org, q.org_id as quote_org
-from public.design_stages d join public.quotes q on q.id = d.quote_id
-where d.org_id is distinct from q.org_id;
+-- (skipped automatically when design_stages does not exist yet — see P0)
+do $$ declare n bigint; begin
+  if to_regclass('public.design_stages') is null then raise notice 'P4 skipped: design_stages missing'; return; end if;
+  execute 'select count(*) from public.design_stages d join public.quotes q on q.id = d.quote_id where d.org_id is distinct from q.org_id' into n;
+  raise notice 'P4 design_stages cross-org rows: %', n;
+end $$;
 
 -- P5: F4/F5. Who can execute what today.
 select p.proname, pg_catalog.pg_get_function_identity_arguments(p.oid) as args,
@@ -164,6 +179,29 @@ select tablename, policyname, cmd, roles, qual, with_check from pg_policies
 -- ---- APPLY (idempotent) ----
 -- =====================================================================
 begin;
+
+-- PREREQUISITES — abort (nothing changed) if the database is missing an earlier
+-- migration these function bodies depend on. The production snapshot in
+-- HELM-STAGING-SCHEMA.sql is from 2026-09-25; the items below arrived later.
+do $$
+declare missing text[] := '{}';
+begin
+  if not exists (select 1 from information_schema.columns where table_schema='public' and table_name='quotes' and column_name='approval_token_expires_at')
+    then missing := array_append(missing, 'quotes.approval_token_expires_at (wave10 / W15B-04)'::text); end if;
+  if not exists (select 1 from information_schema.columns where table_schema='public' and table_name='event_proposal' and column_name='share_token_expires_at')
+    then missing := array_append(missing, 'event_proposal.share_token_expires_at (prod-rollout/PROD-01-APPLY.sql or wave15b/W15B-05)'::text); end if;
+  if not exists (select 1 from information_schema.columns where table_schema='public' and table_name='design_stages' and column_name='revision')
+    then missing := array_append(missing, 'design_stages (completion/PROD-BUNDLE-net-new-builds.sql)'::text); end if;
+  if not exists (select 1 from information_schema.columns where table_schema='public' and table_name='event_tasks' and column_name='verify_status')
+    then missing := array_append(missing, 'event_tasks.verify_status (phase35)'::text); end if;
+  if to_regprocedure('public.helm_quote_total(jsonb)') is null then missing := array_append(missing, 'helm_quote_total(jsonb) (wave15b)'::text); end if;
+  if to_regprocedure('public.assert_quote_org(uuid)') is null then missing := array_append(missing, 'assert_quote_org(uuid) (phase73)'::text); end if;
+  if to_regprocedure('public.has_area(text,text)') is null then missing := array_append(missing, 'has_area(text,text) (phase57)'::text); end if;
+  if to_regprocedure('extensions.gen_random_bytes(integer)') is null then missing := array_append(missing, 'extensions.gen_random_bytes (pgcrypto)'::text); end if;
+  if array_length(missing,1) > 0 then
+    raise exception 'SEC-05 not applied — apply these first: %', array_to_string(missing, '; ');
+  end if;
+end $$;
 
 -- ---------------------------------------------------------------------
 -- F1  org-scoped channel flags (re-applies phase74, fixes WAVE-05 regression)
@@ -645,7 +683,12 @@ begin
   if not public.can_edit() then raise exception 'not authorized' using errcode='42501'; end if;
   if not (coalesce(public.user_role(),'') in ('admin','manager')) then raise exception 'not authorized' using errcode='42501'; end if;   -- SEC-05 F11
   perform public.assert_quote_org(p_quote_id);
+  -- one payment settles the quote: mark only the NEWEST open row paid and cancel
+  -- the other open rows (marking every open link "paid" over-recorded receipts)
   update public.quote_payments set status='paid', paid_at=now(), provider_ref=coalesce(p_provider_ref,provider_ref)
+    where id = (select id from public.quote_payments where quote_id=p_quote_id and status='created'
+                order by created_at desc limit 1);
+  update public.quote_payments set status='cancelled'
     where quote_id=p_quote_id and status='created';
   update public.quotes set approval_status='paid', updated_at=now()
     where id=p_quote_id and org_id = public.current_org_id() returning * into q;

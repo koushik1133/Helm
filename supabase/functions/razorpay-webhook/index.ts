@@ -96,8 +96,21 @@ Deno.serve(async (req) => {
     if (upErr) throw upErr;
     if (!q) return new Response("already paid or unknown quote (idempotent)", { status: 200 });
 
-    await admin.from("quote_payments").update({ status: "paid", paid_at: new Date().toISOString() })
-      .eq("quote_id", quoteId).eq("status", "created");
+    // mark the link that was actually paid; cancel the quote's other open links
+    // (marking every open row "paid" over-recorded the payment)
+    const paidAt = new Date().toISOString();
+    let marked = false;
+    if (linkId) {
+      const { data: hit } = await admin.from("quote_payments").update({ status: "paid", paid_at: paidAt })
+        .eq("quote_id", quoteId).eq("provider_ref", linkId).eq("status", "created").select("id");
+      marked = !!(hit && hit.length);
+    }
+    if (!marked) {
+      const { data: newest } = await admin.from("quote_payments").select("id").eq("quote_id", quoteId)
+        .eq("status", "created").order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (newest) await admin.from("quote_payments").update({ status: "paid", paid_at: paidAt }).eq("id", newest.id);
+    }
+    await admin.from("quote_payments").update({ status: "cancelled" }).eq("quote_id", quoteId).eq("status", "created");
 
     // confirmations
     // title/code are staff-entered — escape before putting them in HTML email
