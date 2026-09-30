@@ -20,13 +20,34 @@ supabase functions deploy razorpay-webhook
 ## 3. Set the secrets
 ```bash
 supabase secrets set \
-  MSG91_AUTHKEY=xxxx MSG91_SENDER=HELMEV MSG91_OTP_TEMPLATE_ID=xxxx \
-  RAZORPAY_KEY_ID=rzp_live_xxx RAZORPAY_KEY_SECRET=xxx RAZORPAY_WEBHOOK_SECRET=xxx \
-  RESEND_API_KEY=re_xxx RESEND_FROM="Blueprint Stage <events@yourdomain.com>" \
-  MANAGER_EMAIL=you@yourdomain.com MANAGER_PHONE=+91xxxxxxxxxx \
-  APP_URL=https://your-app-domain
+  MSG91_AUTHKEY="<MSG91_AUTHKEY>" MSG91_SENDER=HELMEV MSG91_OTP_TEMPLATE_ID="<MSG91_TEMPLATE_ID>" \
+  RAZORPAY_KEY_ID="<RAZORPAY_KEY_ID>" RAZORPAY_KEY_SECRET="<RAZORPAY_KEY_SECRET>" \
+  RAZORPAY_WEBHOOK_SECRET="<RAZORPAY_WEBHOOK_SECRET>" \
+  RESEND_API_KEY="<RESEND_API_KEY>" RESEND_FROM="Helm <events@helm.events>" \
+  MANAGER_EMAIL="<MANAGER_EMAIL>" MANAGER_PHONE="<MANAGER_PHONE_E164>" \
+  APP_URL=https://www.helm.events
 ```
 (`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are injected automatically.)
+
+### Allowed browser origins (CORS)
+`send-otp`, `create-payment-link` and `send-whatsapp` are called from the browser, so
+they answer CORS — but only for Helm's own front-ends (see `_shared/cors.ts`):
+
+| Origin | Why |
+|---|---|
+| `https://helm.events`, `https://www.helm.events` | production |
+| `https://helm-v01.vercel.app`, `https://helm-alpha-nine.vercel.app` | Vercel project hosts |
+| `https://helm-v01-<hash>-vk-hub.vercel.app` | Vercel preview deployments (regex) |
+
+Any other origin gets **no** `Access-Control-Allow-Origin` header (the browser blocks
+the response); every response carries `Vary: Origin`.
+
+- `ALLOWED_ORIGINS="https://a.example,https://b.example"` replaces the exact-origin list
+  (the preview regex still applies).
+- `ALLOW_LOCALHOST=1` additionally allows `http(s)://localhost|127.0.0.1:<port>` — for
+  a dev/staging project only, never production.
+
+`razorpay-webhook` is called server-to-server by Razorpay and sends no CORS headers.
 
 ## 4. Point Razorpay at the webhook
 In the Razorpay dashboard → Webhooks, add:

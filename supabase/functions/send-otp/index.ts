@@ -6,10 +6,11 @@
 //   MSG91_AUTHKEY          — your MSG91 auth key
 //   MSG91_SENDER           — 6-char DLT sender id (e.g. "HELMEV")
 //   MSG91_OTP_TEMPLATE_ID  — DLT-approved template id containing ##OTP##
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { cors, json, serverError } from "../_shared/cors.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.116.0";
+import { responders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
+  const { cors, json, serverError } = responders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
     const { token, phone } = await req.json();

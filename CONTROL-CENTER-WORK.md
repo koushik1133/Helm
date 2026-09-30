@@ -41,7 +41,7 @@ notification outbox / simulated for now.)
 - [x] 2c. `nurture.html`: Occasions & automation card (global switch + days-ahead + run-now +
       upcoming list w/ per-contact auto toggle + send-greeting); Greeting-templates editor
       (per-occasion subject/body, enable toggle, placeholder help). ✅
-- [x] 2d. Cache bumped `?v=42` all pages. SQL synced to phase30.sql / full-schema/36 /
+- [x] 2d. Cache bumped `?v=42` all pages. SQL synced to phase30-nurture-automation.sql / full-schema/36 /
       complete-setup.sql. UI tested in-browser (toggle, occasions list, send-greeting, templates). ✅
 - [ ] 2e. **USER TO RUN** `phase30-nurture-automation.sql` (after phase29), then live test. Pushed.
 

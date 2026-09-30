@@ -1,8 +1,9 @@
-name: Lighthouse CI (non-blocking)
+name: Lighthouse CI
 # Runs Lighthouse against the local static front-end (node server.js on :4173)
-# for index/login/dashboard. Uses npx @lhci/cli so NO dependency is committed.
-# The whole job is non-blocking (continue-on-error) — perf budgets inform, they
-# never fail a build or block a merge.
+# for / (landing), /login and /builder. Uses npx @lhci/cli so NO dependency is
+# committed. BLOCKING: the key budgets in lighthouserc.json (performance,
+# accessibility, FCP, LCP, TBT, CLS) are "error" assertions, set ~15% below the
+# scores measured on 2026-09-30. best-practices / SEO / TTI stay advisory (warn).
 on:
   push:
     branches: [main]
@@ -14,14 +15,12 @@ permissions:
 jobs:
   lighthouse:
     runs-on: ubuntu-latest
-    continue-on-error: true    # advisory only — never blocks
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - name: Run Lighthouse CI (starts server.js, budgets from lighthouserc.json)
-        continue-on-error: true
         run: npx --yes @lhci/cli@0.14.x autorun --config=./lighthouserc.json
         env:
           PORT: '4173'

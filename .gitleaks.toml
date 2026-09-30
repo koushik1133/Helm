@@ -1,20 +1,25 @@
 # Gitleaks config for Helm.
-# Extends the default ruleset (secret detection) and allowlists ONLY the
-# Supabase anon/publishable keys committed in public/config.js — these are
-# public-by-design, RLS-protected, and are NOT secrets. The elevated
-# service_role key is never committed (enforced by scripts/check-env-safety.mjs,
-# which is also a CI gate), and .env* / tests/e2e/.auth are gitignored.
+# Extends the default ruleset and allowlists ONLY the exact Supabase anon keys
+# that are committed on purpose (public/config.js: production + staging). They are
+# public-by-design, RLS-protected JWTs with role=anon — NOT secrets.
+#
+# There is deliberately NO path allowlist: any other credential added to
+# public/config.js (or anywhere) is still reported. If a key is rotated, add the
+# new anon JWT here as another exact literal (verify role=anon first with
+# `node scripts/check-jwt-roles.mjs`, which also fails CI on any non-anon /
+# service_role JWT in a tracked file). The full git history was scanned when this
+# list was written (2026-09): these two are the only JWTs ever committed.
 title = "Helm gitleaks"
 
 [extend]
 useDefault = true
 
 [allowlist]
-description = "Supabase anon/publishable keys in config.js are public-by-design (RLS-protected)."
-paths = [
-  '''public/config\.js''',
-]
-# Belt-and-suspenders: also allow anon-role JWTs specifically (payload contains "role":"anon").
+description = "Exact committed Supabase anon keys (public-by-design, RLS-protected)."
+regexTarget = "secret"
 regexes = [
-  '''eyJ[A-Za-z0-9_-]+\.eyJ[^"']*(?:cm9sZSI6ImFub24|role.{0,6}anon)[^"']*\.[A-Za-z0-9_-]+''',
+  # nqltzgiwznphugcfhmbm (role=anon)
+  '''^eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xbHR6Z2l3em5waHVnY2ZobWJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzOTg5NDYsImV4cCI6MjEwNDk3NDk0Nn0\.UWainTYBaCr8dNaugqWkCuLVh2H0TkiG6ZIFH6ZPKIQ$''',
+  # xizehqgeyjcfpzrdymly (role=anon)
+  '''^eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpemVocWdleWpjZnB6cmR5bWx5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxOTAyNTMsImV4cCI6MjEwNTc2NjI1M30\.KvL6N\-N7iIY7GzsxglWJRmP3JVZuXrHDeqQX1GWaZFo$''',
 ]

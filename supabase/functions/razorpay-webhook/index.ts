@@ -9,7 +9,7 @@
 //   RESEND_API_KEY, RESEND_FROM          (e.g. "Blueprint Stage <events@yourdomain.com>")
 //   MANAGER_EMAIL, MANAGER_PHONE         (where the studio copy goes)
 //   MSG91_AUTHKEY, MSG91_SENDER, MSG91_SMS_TEMPLATE_ID  (optional SMS receipt)
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.116.0";
 import { escHtml } from "../_shared/cors.ts";
 
 const enc = new TextEncoder();

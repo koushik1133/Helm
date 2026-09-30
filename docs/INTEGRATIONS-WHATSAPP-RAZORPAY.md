@@ -143,3 +143,14 @@ ready.
   `pricing.total` server-side (tighten further with the MONEY-02 server-authority work
   in `docs/PRICING-DECISIONS-WAVE6.md`).
 - **Fail-closed** — a function with missing secrets returns an error and sends nothing.
+- **CORS is an allowlist, not `*`** — the browser-called functions (`send-otp`,
+  `create-payment-link`, `send-whatsapp`) echo `Access-Control-Allow-Origin` only for
+  `https://helm.events`, `https://www.helm.events`, `https://helm-v01.vercel.app`,
+  `https://helm-alpha-nine.vercel.app` and this project's Vercel preview URLs
+  (`https://helm-v01-<hash>-vk-hub.vercel.app`), and always send `Vary: Origin`.
+  Any other origin gets no CORS header, so the browser blocks the response.
+  Override the list with `supabase secrets set ALLOWED_ORIGINS="https://a,https://b"`
+  (comma-separated; replaces the defaults, the preview pattern is kept). Localhost is
+  allowed only with `ALLOW_LOCALHOST=1` (never set this on production).
+  `razorpay-webhook` is server-to-server and sends no CORS headers.
+  See `supabase/functions/_shared/cors.ts`.

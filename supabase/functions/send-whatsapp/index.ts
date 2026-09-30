@@ -23,8 +23,8 @@
 //
 // NOTE: Meta only allows free-form text within 24h of the customer's last inbound
 // message. To start a conversation you MUST use an approved template.
-import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { cors, json, serverError } from "../_shared/cors.ts";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.116.0";
+import { responders } from "../_shared/cors.ts";
 
 const TOKEN = Deno.env.get("WHATSAPP_TOKEN") || "";
 const PHONE_ID = Deno.env.get("WHATSAPP_PHONE_ID") || "";
@@ -49,6 +49,7 @@ function authHeaders() {
 }
 
 Deno.serve(async (req) => {
+  const { cors, json, serverError } = responders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
     if (!TOKEN || !PHONE_ID) {
