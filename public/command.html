@@ -162,7 +162,7 @@
     $("#arrProg").textContent = items.length?`${here}/${items.length} here`:"";
     $("#arrRows").innerHTML = items.length ? items.map(a=>`<div class="row">
       <div><div class="nm">${esc(a.who)}</div><div class="rl">${esc(a.role||"")}</div></div>
-      <span class="pill ${a.status}">${ARR[a.status]||a.status}</span>
+      <span class="pill ${esc(a.status)}">${esc(ARR[a.status]||a.status)}</span>
       ${canEdit?`<div class="acts">
         <button class="mini go" data-arr="${a.id}" data-s="arrived">Arrived</button>
         <button class="mini" data-arr="${a.id}" data-s="left">Left</button>
@@ -179,7 +179,7 @@
     $("#chkProg").textContent = items.length?`${done}/${items.length} done`:"";
     $("#chkRows").innerHTML = items.length ? items.map(c=>`<div class="row">
       <div><div class="nm">${esc(c.who)}</div></div>
-      <span class="pill ${c.status}">${CHK[c.status]||c.status}</span>
+      <span class="pill ${esc(c.status)}">${esc(CHK[c.status]||c.status)}</span>
       ${canEdit?`<div class="acts">
         <button class="mini go" data-chk="${c.id}" data-s="done">Done</button>
         <button class="mini no" data-chk="${c.id}" data-s="issue">Issue</button>
@@ -212,7 +212,7 @@
     $("#stkProg").textContent = items.length? `${open} open` : "";
     $("#stkRows").innerHTML = items.length ? items.map(r=>`<div class="row">
       <div><div class="nm">${esc(r.label)} <span class="rl">×${Number(r.qty||1)}</span></div>${r.note?`<div class="rl">${esc(r.note)}</div>`:""}</div>
-      <span class="pill ${stkPill[r.status]||"pending"}">${STK[r.status]||r.status}</span>
+      <span class="pill ${stkPill[r.status]||"pending"}">${esc(STK[r.status]||r.status)}</span>
       ${canEdit?`<div class="acts">
         <button class="mini go" data-stk="${r.id}" data-s="issued">Issued</button>
         <button class="mini" data-stk="${r.id}" data-s="replaced">Replaced</button>
@@ -233,17 +233,18 @@
   $("#pullBtn").addEventListener("click",async()=>{ $("#pullBtn").disabled=true;
     try{ const n=await BPStore.dayops.pullRoster(id); await renderArrivals(); if(!n) alert("Everyone's already listed (assign crew in Operations and book vendors first)."); }
     catch(e){ alert("Couldn't pull — "+((e&&e.message)||"error")); } finally{ $("#pullBtn").disabled=false; } });
-  $("#arr_add").addEventListener("click",async()=>{ const n=$("#arr_name").value.trim(); if(!n) return; await BPStore.dayops.add(id,{kind:"arrival",who:n,status:"expected"}); $("#arr_name").value=""; renderArrivals(); });
-  $("#chk_addb").addEventListener("click",async()=>{ const t=$("#chk_title").value.trim(); if(!t) return; await BPStore.dayops.add(id,{kind:"check",who:t,status:"pending"}); $("#chk_title").value=""; renderChecks(); });
-  $("#gst_add").addEventListener("click",async()=>{ const l=$("#gst_label").value.trim(); if(!l) return; const V=BPStore.validate; const er=V.count($("#gst_exp").value,{field:"Expected"}); if(!er.ok){ alert(er.error); return; } try{ await BPStore.guests.add(id,{label:l, expected:er.value}); $("#gst_label").value=""; $("#gst_exp").value=""; renderGuests(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } });
+  $("#arr_add").addEventListener("click",async()=>{ const n=$("#arr_name").value.trim(); if(!n) return; $("#arr_add").disabled=true; try{ await BPStore.dayops.add(id,{kind:"arrival",who:n,status:"expected"}); $("#arr_name").value=""; renderArrivals(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } finally{ $("#arr_add").disabled=false; } });
+  $("#chk_addb").addEventListener("click",async()=>{ const t=$("#chk_title").value.trim(); if(!t) return; $("#chk_addb").disabled=true; try{ await BPStore.dayops.add(id,{kind:"check",who:t,status:"pending"}); $("#chk_title").value=""; renderChecks(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } finally{ $("#chk_addb").disabled=false; } });
+  $("#gst_add").addEventListener("click",async()=>{ const l=$("#gst_label").value.trim(); if(!l) return; const V=BPStore.validate; const er=V.count($("#gst_exp").value,{field:"Expected"}); if(!er.ok){ alert(er.error); return; } $("#gst_add").disabled=true; try{ await BPStore.guests.add(id,{label:l, expected:er.value}); $("#gst_label").value=""; $("#gst_exp").value=""; renderGuests(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } finally{ $("#gst_add").disabled=false; } });
   $("#gstPull").addEventListener("click",async()=>{ $("#gstPull").disabled=true; try{ const n=await BPStore.guests.pullFromLogistics(id); await renderGuests(); if(!n) alert("Nothing to pull — add guest groups in Logistics → Guests first."); }catch(e){ alert("Couldn't pull — "+((e&&e.message)||"error")); } finally{ $("#gstPull").disabled=false; } });
   $("#stk_add").addEventListener("click",async()=>{ const sel=$("#stk_item"); const free=$("#stk_label").value.trim();
     let item_id=null,label=free;
     if(!free && sel.value){ item_id=sel.value; label=sel.options[sel.selectedIndex].dataset.name||sel.options[sel.selectedIndex].textContent; }
     if(!label){ alert("Pick or type an item."); return; }
     const V=BPStore.validate; const qr=V.count($("#stk_qty").value,{allowZero:false,field:"Quantity"}); if(!qr.ok){ alert(qr.error); return; }
+    $("#stk_add").disabled=true;
     try{ await BPStore.stockreq.add(id,{item_id,label,qty:qr.value}); $("#stk_label").value=""; $("#stk_qty").value=1; sel.value=""; renderStock(); }
-    catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } });
+    catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } finally{ $("#stk_add").disabled=false; } });
 
   (async ()=>{
     await BPStore.init(); await renderAccount();

@@ -182,7 +182,7 @@
       const label = c.kind==="inventory" ? esc(c.detail) : esc(c.label);
       return `<tr>
         <td><b>${label}</b>${c.kind==="staff"&&c.skill?`<div class="muted">skill: ${esc(c.skill)}</div>`:""}${c.note?`<div class="muted">${esc(c.note)}</div>`:""}</td>
-        <td><span class="kind ${c.kind}">${KIND[c.kind]||c.kind}</span></td>
+        <td><span class="kind ${esc(c.kind)}">${esc(KIND[c.kind]||c.kind)}</span></td>
         <td class="num">${num(c.qty)}</td>
         <td class="num">${c.kind==="other"?"—":num(c.have)}</td>
         <td>${cov}${canEdit&&!c.covered?` <button class="rm" data-book="${c.id}" style="border-color:var(--accent-soft);color:var(--accent)">Book partner</button> <button class="rm" data-out="${c.id}" title="Mark this as handled by a vendor/freelancer">Mark outsourced</button>`:""}${canEdit&&c.outsourced?` <button class="rm" data-reopen="${c.id}">Reopen</button>`:""}</td>
@@ -191,9 +191,9 @@
     }).join("");
     $("#gapHint").hidden = !gaps.length;
     if(gaps.length) $("#gapHint").textContent = `${gaps.length} gap${gaps.length===1?"":"s"} to cover with vendors, freelancers or rentals (Phase 9).`;
-    $("#rows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.resources.removeNeed(b.dataset.del); await load(); }));
-    $("#rows").querySelectorAll("[data-out]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.resources.updateNeed(b.dataset.out,{status:"outsourced"}); await load(); }));
-    $("#rows").querySelectorAll("[data-reopen]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.resources.updateNeed(b.dataset.reopen,{status:"open"}); await load(); }));
+    $("#rows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.resources.removeNeed(b.dataset.del); await load(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
+    $("#rows").querySelectorAll("[data-out]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.resources.updateNeed(b.dataset.out,{status:"outsourced"}); await load(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
+    $("#rows").querySelectorAll("[data-reopen]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.resources.updateNeed(b.dataset.reopen,{status:"open"}); await load(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
     $("#rows").querySelectorAll("[data-book]").forEach(b=>b.addEventListener("click",()=>openBooking(checked.find(c=>c.id===b.dataset.book))));
   }
 
@@ -214,8 +214,8 @@
         <td>${canDelete?`<button class="rm" data-bkdel="${b.id}">Remove</button>`:""}</td>
       </tr>`;
     }).join("");
-    $("#bookRows").querySelectorAll("select[data-bkstatus]").forEach(s=>s.addEventListener("change",async()=>{ await BPStore.bookings.update(s.dataset.bkstatus,{status:s.value}); await load(); }));
-    $("#bookRows").querySelectorAll("[data-bkdel]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.bookings.remove(b.dataset.bkdel); await load(); }));
+    $("#bookRows").querySelectorAll("select[data-bkstatus]").forEach(s=>s.addEventListener("change",async()=>{ try{ await BPStore.bookings.update(s.dataset.bkstatus,{status:s.value}); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } await load(); }));
+    $("#bookRows").querySelectorAll("[data-bkdel]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.bookings.remove(b.dataset.bkdel); await load(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
   }
 
   function openBooking(need){

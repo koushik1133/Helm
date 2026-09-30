@@ -322,7 +322,7 @@
         acts:[{t: canEdit?"Open proposal":"View proposal", href:"proposal.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"layout", ic:"📐", title:"Floor layout", sum:`Design the 2D/3D plan for this event.`,
         acts:[{t:"Open builder", href:"builder.html?quote="+encodeURIComponent(id), primary:true}] },
-      { key:"quote", ic:"🧾", title:"Quote & pricing", sum:`${menuGate}Version v${ev.currentVersion} · ${canFin?(evTotal()?inr(evTotal()):"not priced yet"):"—"} · <span class="stat ${ev.status==='confirmed'?'ok':'q'}">${ev.status}</span>${fromDisc}`,
+      { key:"quote", ic:"🧾", title:"Quote & pricing", sum:`${menuGate}Version v${ev.currentVersion} · ${canFin?(evTotal()?inr(evTotal()):"not priced yet"):"—"} · <span class="stat ${ev.status==='confirmed'?'ok':'q'}">${esc(ev.status)}</span>${fromDisc}`,
         acts:[{t:"Open this quote", href:"quotes.html?focus="+encodeURIComponent(ev.code||id), primary:true}] },
       { key:"approval", ic:"✅", title:"Client approval", sum: ev.approvalStatus==='none'?"Not sent yet — confirm the quote, then send the approval link.":`Status: <b>${esc(ev.approvalStatus)}</b>`,
         acts:[{t:"Manage in Quotes", href:"quotes.html?focus="+encodeURIComponent(ev.code||id)}] },

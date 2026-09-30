@@ -172,6 +172,8 @@
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  // CSS url('…') context: percent-encode quotes/parens/backslash/whitespace so a stored URL can't break out of url().
+  const cssUrl=u=>esc(String(u==null?"":u).replace(/['"()\\\s]/g,c=>"%"+c.charCodeAt(0).toString(16).padStart(2,"0")));
   function getSlug(){ const m=location.pathname.match(/^\/i\/([^\/?#]+)/); if(m) return decodeURIComponent(m[1]);
     return new URLSearchParams(location.search).get("s")||""; }
   const EYEBROW={wedding:"Together with their families",engagement:"Save the date",
@@ -204,7 +206,7 @@
   function galleryHtml(photos){
     if(!Array.isArray(photos)||photos.length<2) return "";   // hero already uses the first
     const rest=photos.slice(1);
-    const cells=rest.map((u,i)=>`<div class="ph${(rest.length%2===1&&i===rest.length-1)?' wide':''}" style="background-image:url('${esc(u)}')"></div>`).join("");
+    const cells=rest.map((u,i)=>`<div class="ph${(rest.length%2===1&&i===rest.length-1)?' wide':''}" style="background-image:url('${cssUrl(u)}')"></div>`).join("");
     return `<section class="blk rv"><p class="sec-t" style="color:var(--accent)">Moments</p><div class="gal">${cells}</div></section>`;
   }
 
@@ -228,7 +230,7 @@
     $("#coverSub").textContent=[d.headline, when].filter(Boolean).join(" · ")||"You're invited";
 
     const heroBlock = hero0
-      ? `<div class="hero haspic"><div class="bgpic" style="background-image:url('${esc(hero0)}')"></div><div class="veil"></div>
+      ? `<div class="hero haspic"><div class="bgpic" style="background-image:url('${cssUrl(hero0)}')"></div><div class="veil"></div>
            <div class="inner rv in">
              <p class="eyebrow">${esc(eyebrow)}</p>
              <h1 class="names">${esc(names)}</h1>

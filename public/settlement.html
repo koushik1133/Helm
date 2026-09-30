@@ -177,16 +177,16 @@
         <td>${canEdit?`<button class="btn ${b.settled?'':'go'}" data-settle="${b.id}" data-v="${b.settled?0:1}">${b.settled?'Unsettle':'Settle'}</button>`:""}</td></tr>`;
     }).join("") : '<tr><td colspan="6" class="empty">No vendor bookings.</td></tr>';
     $("#v_out").textContent=inr(s.vendorOutstanding);
-    $("#vendBody").querySelectorAll("[data-settle]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.bookings.setSettled(b.dataset.settle, b.dataset.v==="1"); await load(); }));
+    $("#vendBody").querySelectorAll("[data-settle]").forEach(b=>b.addEventListener("click",async()=>{ b.disabled=true; try{ await BPStore.bookings.setSettled(b.dataset.settle, b.dataset.v==="1"); await load(); }catch(e){ b.disabled=false; alert("Couldn't update — "+((e&&e.message)||"error")); } }));
 
     $("#expBody").innerHTML = s.expenses.length ? s.expenses.map(e=>`<tr>
       <td><b>${esc(e.who)}</b></td><td class="muted">${esc(e.description||"")}</td><td class="num">${inr(e.amount)}</td>
-      <td><span class="st ${e.status}">${EXP[e.status]||e.status}</span></td>
+      <td><span class="st ${esc(e.status)}">${esc(EXP[e.status]||e.status)}</span></td>
       <td>${canEdit?`${e.status==='pending'?`<button class="rm" data-est="${e.id}" data-s="approved">Approve</button> `:""}${e.status!=='paid'?`<button class="rm" data-est="${e.id}" data-s="paid">Mark paid</button> `:""}${canDelete?`<button class="rm" data-edel="${e.id}" aria-label="Remove claim">✕</button>`:""}`:""}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="empty">No claims.</td></tr>';
     $("#e_tot").textContent=inr(s.expTotal); $("#e_paid").textContent=inr(s.expPaid);
-    $("#expBody").querySelectorAll("[data-est]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.expenses.setStatus(b.dataset.est,b.dataset.s); await load(); }));
-    $("#expBody").querySelectorAll("[data-edel]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.expenses.remove(b.dataset.edel); await load(); }));
+    $("#expBody").querySelectorAll("[data-est]").forEach(b=>b.addEventListener("click",async()=>{ b.disabled=true; try{ await BPStore.expenses.setStatus(b.dataset.est,b.dataset.s); await load(); }catch(e){ b.disabled=false; alert("Couldn't update — "+((e&&e.message)||"error")); } }));
+    $("#expBody").querySelectorAll("[data-edel]").forEach(b=>b.addEventListener("click",async()=>{ b.disabled=true; try{ await BPStore.expenses.remove(b.dataset.edel); await load(); }catch(e){ b.disabled=false; alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
   }
 
   async function recordPayment(){ const av=BPStore.validate.money($("#pay_amt").value,{field:"Payment amount"});
@@ -198,14 +198,15 @@
     const idemKey=(self.crypto&&crypto.randomUUID)?crypto.randomUUID():(String(Date.now())+"-"+Math.random().toString(16).slice(2));
     $("#pay_btn").disabled=true; $("#pay_msg").style.color="var(--safe)"; $("#pay_msg").textContent="Recording…";
     try{ await BPStore.milestones.recordSettlement(id, amt, "cash", null, null, "Settlement payment", idemKey);
-      $("#pay_amt").value=""; $("#pay_msg").style.color="var(--safe)"; $("#pay_msg").textContent="Recorded ✓"; setTimeout(()=>$("#pay_msg").textContent="",1500); await load(); }
+      $("#pay_amt").value=""; $("#pay_msg").style.color="var(--safe)"; $("#pay_msg").textContent="Recorded ✓"; setTimeout(()=>$("#pay_msg").textContent="",1500); await load(); $("#pay_btn").disabled=false; }
     catch(e){ $("#pay_btn").disabled=false; $("#pay_msg").style.color="var(--warn,#e8912d)"; $("#pay_msg").textContent="Couldn't record — "+((e&&e.message)||"error"); }
   }
   async function addExpense(){ const who=$("#e_who").value.trim(); if(!who){ alert("Enter who the expense is paid to."); $("#e_who").focus(); return; }
     const av=BPStore.validate.money($("#e_amt").value,{field:"Expense amount"});
     if(!av.ok || av.value<=0){ alert(av.ok?"Expense amount must be greater than ₹0.":av.error); $("#e_amt").focus(); return; }
+    if($("#e_add").disabled) return; $("#e_add").disabled=true;
     try{ await BPStore.expenses.add(id,{ who, description:$("#e_desc").value.trim()||null, amount:av.value }); $("#e_who").value=""; $("#e_desc").value=""; $("#e_amt").value=0; await load(); }
-    catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); }
+    catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } finally{ $("#e_add").disabled=false; }
   }
 
   const REF={pending:"Pending",approved:"Approved",processed:"Processed",rejected:"Rejected"};
@@ -216,8 +217,8 @@
     try{ list=await BPStore.refunds.list(id); }
     catch(e){ $("#refBody").innerHTML=`<tr><td colspan="5" class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase24-refunds.sql</b>.</td></tr>`; return; }
     $("#refBody").innerHTML = list.length ? list.map(r=>`<tr>
-      <td><b>${RKIND[r.kind]||r.kind}</b></td><td class="muted">${esc(r.reason||"")}</td><td class="num">${inr(r.amount)}</td>
-      <td><span class="st ${refCls(r.status)}">${REF[r.status]||r.status}</span></td>
+      <td><b>${esc(RKIND[r.kind]||r.kind)}</b></td><td class="muted">${esc(r.reason||"")}</td><td class="num">${inr(r.amount)}</td>
+      <td><span class="st ${refCls(r.status)}">${esc(REF[r.status]||r.status)}</span></td>
       <td>${canEdit?`${r.status==='pending'?`<button class="rm" data-rst="${r.id}" data-s="approved">Approve</button> `:""}${(r.status!=='processed'&&r.status!=='rejected')?`<button class="rm" data-rst="${r.id}" data-s="processed">Mark done</button> `:""}${canDelete?`<button class="rm" data-rdel="${r.id}" aria-label="Remove refund">✕</button>`:""}`:""}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="empty">None.</td></tr>';
     const active=list.filter(r=>r.status!=='rejected');
@@ -229,8 +230,9 @@
   async function addRefund(){ const av=BPStore.validate.money($("#r_amt").value,{field:"Refund amount"});
     if(!av.ok || av.value<=0){ alert(av.ok?"Refund amount must be greater than ₹0.":av.error); $("#r_amt").focus(); return; }
     const amt=av.value;
+    if($("#r_add").disabled) return; $("#r_add").disabled=true;
     try{ await BPStore.refunds.add(id,{ kind:$("#r_kind").value, reason:$("#r_reason").value.trim()||null, amount:amt }); $("#r_reason").value=""; $("#r_amt").value=0; await renderRefunds(); }
-    catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); }
+    catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } finally{ $("#r_add").disabled=false; }
   }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }

@@ -125,7 +125,7 @@
     if(p){ $("#proposalCard").hidden=false;
       $("#ptheme").textContent=p.theme?("Theme: "+p.theme):"";
       $("#pconcept").textContent=p.concept||"";
-      $("#ppalette").innerHTML=(p.palette||[]).map(c=>`<span class="sw" style="background:${esc(c)}" title="${esc(c)}"></span>`).join("");
+      $("#ppalette").innerHTML=(p.palette||[]).map(c=>`<span class="sw" style="background:${/^#[0-9a-f]{3,8}$/i.test(c)?c:"transparent"}" title="${esc(c)}"></span>`).join("");
       $("#pscope").innerHTML=(p.scope||[]).map(s=>`<span class="chip">${esc(s)}</span>`).join("");
       $("#pimages").innerHTML=(p.images||[]).filter(isUrl).map(u=>`<img src="${esc(u)}" alt="reference" loading="lazy">`).join("");
     }

@@ -570,6 +570,7 @@
     async list() { return this.read().map((q) => ({ id: q.id, code: q.code, title: q.title, eventType: q.eventType, status: q.status,
       lifecycleStage: q.lifecycleStage || "quote",
       currentVersion: q.currentVersion, client: q.client || {}, pricing: q.pricing || {}, total: (q.pricing && q.pricing.total) || 0,
+      eventDate: q.eventDate || null, eventTime: q.eventTime || null,
       updatedAt: q.updatedAt, createdAt: q.createdAt, confirmedAt: q.confirmedAt })); },
     async get(id) { const q = this.read().find((x) => x.id === id); if (!q) throw new Error("not found");
       return { ...q, lifecycleStage: q.lifecycleStage || "quote", versions: (q.versions || []).map((v) => ({ id: v.id, versionNo: v.versionNo, label: v.label, objectCount: v.objectCount, createdAt: v.createdAt })).sort((a, b) => b.versionNo - a.versionNo) }; },
@@ -589,6 +590,8 @@
     async updateMeta(id, patch) { const a = this.read(); const q = a.find((x) => x.id === id);
       if (patch.title != null) q.title = patch.title; if (patch.eventType != null) q.eventType = patch.eventType;
       if (patch.client) q.client = patch.client; if (patch.pricing) q.pricing = patch.pricing; if (patch.status) q.status = patch.status;
+      if (patch.eventDate !== undefined) q.eventDate = patch.eventDate || null;
+      if (patch.eventTime !== undefined) q.eventTime = patch.eventTime || null;
       q.updatedAt = now(); this.write(a); return q; },
     async remove(id) { this.write(this.read().filter((x) => x.id !== id)); return true; },
   };
@@ -621,8 +624,12 @@
   // Edge Function caller — used only when live channels are enabled in config.js
   const fnUrl = (name) => (CFG.url ? CFG.url.replace(/\/$/, "") + "/functions/v1/" + name : null);
   async function callFn(name, body) {
+    // signed-in staff send their own access token (send-whatsapp requires it);
+    // the public approval page has no session and falls back to the anon key
+    let bearer = CFG.anonKey;
+    try { const { data: { session } } = await supa.auth.getSession(); if (session && session.access_token) bearer = session.access_token; } catch (e) {}
     const res = await fetch(fnUrl(name), { method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + CFG.anonKey, "apikey": CFG.anonKey },
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + bearer, "apikey": CFG.anonKey },
       body: JSON.stringify(body) });
     const j = await res.json().catch(() => ({})); if (!res.ok) throw new Error(j.error || ("HTTP " + res.status)); return j;
   }
@@ -1503,6 +1510,7 @@
     // public side (anonymous guests) --------------------------------------------
     async public(slug) {                                                                  // display fields of a PUBLISHED site only
       if (!supa) { try { await BPStore.init(); } catch (e) {} }
+      if (!supa) throw new Error("Supabase not configured");
       const { data, error } = await supa.rpc("public_event_site", { p_slug: slug });
       if (error) throw error; return (data && data[0]) || null; },
   };
@@ -2386,7 +2394,7 @@
       const btn = el.querySelector("#bpBellBtn"), dot = el.querySelector("#bpBellDot"),
             panel = el.querySelector("#bpBellPanel"), list = el.querySelector("#bpBellList");
       const rel = (iso) => { const s = (Date.now() - new Date(iso).getTime()) / 1000; if (s < 60) return "just now"; if (s < 3600) return Math.floor(s / 60) + "m ago"; if (s < 86400) return Math.floor(s / 3600) + "h ago"; return Math.floor(s / 86400) + "d ago"; };
-      const esc = (t) => (t || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+      const esc = (t) => String(t == null ? "" : t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
       const renderList = (items) => {
         if (!items || !items.length) { list.innerHTML = `<div style="padding:22px;text-align:center;color:#8b8698;font-size:13px">Nothing yet.</div>`; return; }
         list.innerHTML = items.map((n) => { const L = this.label(n); const href = n.quote_id ? ("event.html?id=" + encodeURIComponent(n.quote_id)) : null;

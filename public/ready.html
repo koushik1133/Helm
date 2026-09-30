@@ -138,8 +138,9 @@
   }
 
   async function markReady(){
+    $("#markBtn").disabled=true;
     try{ await BPStore.readiness.markReady(id); ev.lifecycleStage="ready"; render(); }
-    catch(e){ alert("Couldn't mark ready — "+((e&&e.message)||"error")); }
+    catch(e){ $("#markBtn").disabled=false; alert("Couldn't mark ready — "+((e&&e.message)||"error")); }
   }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }

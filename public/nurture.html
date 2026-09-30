@@ -181,7 +181,7 @@
         <td><b>${esc(n.name)}</b><div class="muted" style="font-size:11px">${[n.phone,n.email].filter(Boolean).map(esc).join(" · ")}</div></td>
         <td>${esc(n.occasion||"")}${n.occasion_date?`<div class="muted" style="font-size:11px">${esc(n.occasion_date)}</div>`:""}</td>
         <td>${n.next_followup?esc(n.next_followup):'<span class="muted">—</span>'} ${isDue?'<span class="due">Due</span>':""}</td>
-        <td><span class="st ${n.status}">${NST[n.status]||n.status}</span></td>
+        <td><span class="st ${esc(n.status)}">${NST[n.status]||esc(n.status)}</span></td>
         <td>${canEdit?`<button class="lnk" data-done="${n.id}">Followed up</button> <button class="lnk" data-conv="${n.id}">→ Lead</button> <button class="rm" data-del="${n.id}">✕</button>`:""}</td>
       </tr>`; }).join("") : '<tr><td colspan="5" class="empty">No one on the nurture list yet.</td></tr>';
     $("#nurBody").querySelectorAll("[data-done]").forEach(b=>b.addEventListener("click",async()=>{
@@ -195,11 +195,13 @@
 
   async function addOne(){ const name=$("#n_name").value.trim(); if(!name){ $("#n_name").focus(); return; }
     const type=$("#n_type").value;
+    const btn=$("#n_add"); if(btn.disabled) return; btn.disabled=true;   // no duplicate rows on double-click
     try{ await BPStore.nurture.add({ name, email:$("#n_email").value.trim()||null, occasion:$("#n_occ").value.trim()||null,
         occasion_type:type, occasion_date:$("#n_occd").value||null, auto_on:$("#n_auto").checked });
       ["n_name","n_email","n_occ","n_occd"].forEach(k=>$("#"+k).value=""); $("#n_auto").checked=false;
       await render(); await renderAuto(); }
     catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); }
+    finally{ btn.disabled=false; }
   }
 
   /* ---------------- occasions & automation ---------------- */

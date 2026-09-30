@@ -211,6 +211,8 @@
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  // CSS url('…') context: percent-encode quotes/parens/backslash/whitespace so a stored URL can't break out of url().
+  const cssUrl=u=>esc(String(u==null?"":u).replace(/['"()\\\s]/g,c=>"%"+c.charCodeAt(0).toString(16).padStart(2,"0")));
   const qid=new URLSearchParams(location.search).get("quote");
   const CONFIRMED_ORDER=["confirmed","planning","resources","ready","event_day","settlement","closed"]; // confirmed or beyond
   const TEMPLATES=[
@@ -268,7 +270,7 @@
   // ---- photos ----
   let PHOTOS=[];
   function paintPhotos(){
-    $("#photos").innerHTML=PHOTOS.map((u,i)=>`<div class="th${i===0?' cover':''}" style="background-image:url('${esc(u)}')"><button class="x" data-i="${i}" title="Remove">✕</button></div>`).join("");
+    $("#photos").innerHTML=PHOTOS.map((u,i)=>`<div class="th${i===0?' cover':''}" style="background-image:url('${cssUrl(u)}')"><button class="x" data-i="${i}" title="Remove">✕</button></div>`).join("");
     $("#photos").querySelectorAll(".x").forEach(b=>b.addEventListener("click",()=>{ PHOTOS.splice(+b.dataset.i,1); paintPhotos(); preview(); }));
   }
   function setPhotoMsg(t){ $("#photoMsg").textContent=t||""; }

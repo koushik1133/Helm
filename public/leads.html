@@ -308,9 +308,9 @@
   }
   function updateUndoUI(){ $("#undoBtn").disabled=!undoStack.length; $("#redoBtn").disabled=!redoStack.length; }
   async function undo(){ const m=undoStack.pop(); if(!m) return; redoStack.push(m); updateUndoUI();
-    const l=leadById(m.id); if(l){ l.status=m.from; render(); lastLocalWrite=Date.now(); try{ await BPStore.leads.setStatus(m.id,m.from); }catch{} } }
+    const l=leadById(m.id); if(l){ l.status=m.from; render(); lastLocalWrite=Date.now(); try{ await BPStore.leads.setStatus(m.id,m.from); }catch(err){ l.status=m.to; render(); alert("Couldn't save undo — "+(err&&err.message||"error")); } } }
   async function redo(){ const m=redoStack.pop(); if(!m) return; undoStack.push(m); updateUndoUI();
-    const l=leadById(m.id); if(l){ l.status=m.to; render(); lastLocalWrite=Date.now(); try{ await BPStore.leads.setStatus(m.id,m.to); }catch{} } }
+    const l=leadById(m.id); if(l){ l.status=m.to; render(); lastLocalWrite=Date.now(); try{ await BPStore.leads.setStatus(m.id,m.to); }catch(err){ l.status=m.from; render(); alert("Couldn't save redo — "+(err&&err.message||"error")); } } }
   $("#undoBtn").addEventListener("click",undo);
   $("#redoBtn").addEventListener("click",redo);
 

@@ -141,7 +141,7 @@
 
   function renderPricing(p){
     const c=(p&&p.computed)||{}; const rows=[];
-    const add=(l,a)=>rows.push(`<div class="r"><span>${l}</span><span class="amt">${inr(a)}</span></div>`);
+    const add=(l,a)=>rows.push(`<div class="r"><span>${esc(l)}</span><span class="amt">${inr(a)}</span></div>`);
     if(p){
       add(`Chairs (${p.chairs||0} × ${inr(p.chairPrice||0)})`, (p.chairs||0)*(p.chairPrice||0));
       if(p.other) add("Other charges", p.other);

@@ -84,7 +84,7 @@
     if(p.theme && p.event_title && p.theme!==p.event_title){ $("#themeChip").hidden=false; $("#themeChip").textContent=p.event_title; }
     if(p.concept){ $("#conceptSec").hidden=false; $("#concept").textContent=p.concept; }
     const pal=Array.isArray(p.palette)?p.palette:[]; if(pal.length){ $("#paletteSec").hidden=false;
-      $("#palette").innerHTML=pal.map(c=>`<div class="sw" style="background:${esc(c)}"><small>${esc(c)}</small></div>`).join(""); }
+      $("#palette").innerHTML=pal.map(c=>`<div class="sw" style="background:${/^#[0-9a-f]{3,8}$/i.test(c)?c:"transparent"}"><small>${esc(c)}</small></div>`).join(""); }
     const imgs=(Array.isArray(p.images)?p.images:[]).filter(u=>/^https?:\/\//i.test(u||"")); if(imgs.length){ $("#gallerySec").hidden=false;
       $("#gallery").innerHTML=imgs.map(u=>`<img src="${esc(u)}" alt="inspiration" onerror="this.style.opacity=.25">`).join(""); }
     const sc=Array.isArray(p.scope)?p.scope:[]; if(sc.length){ $("#scopeSec").hidden=false;

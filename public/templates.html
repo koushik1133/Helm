@@ -110,7 +110,7 @@
     try{ list=await BPStore.templates.list(); }
     catch(e){ $("#tplList").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase26-templates.sql</b>.</div>`; return; }
     $("#tplList").innerHTML = list.length ? list.map(t=>{ const items=Array.isArray(t.items)?t.items:[];
-      return `<div class="tpl"><div class="h"><b>${esc(t.name)}</b> <span class="badge">${SEC[t.section]||t.section}</span> <span style="color:var(--ink-3);font-size:12px">${items.length} item${items.length===1?"":"s"}</span>
+      return `<div class="tpl"><div class="h"><b>${esc(t.name)}</b> <span class="badge">${SEC[t.section]||esc(t.section)}</span> <span style="color:var(--ink-3);font-size:12px">${items.length} item${items.length===1?"":"s"}</span>
         ${canEdit?`<span class="spacer"></span><button class="lnk" data-edit="${t.id}">Edit</button><button class="rm" data-del="${t.id}">✕</button>`:""}</div>
         ${items.length?`<ul>${items.slice(0,6).map(i=>`<li>${esc(typeof i==="string"?i:(i&&i.title)||"")}</li>`).join("")}${items.length>6?`<li>…and ${items.length-6} more</li>`:""}</ul>`:""}</div>`;
     }).join("") : '<div class="empty">No templates yet. Create one above.</div>';

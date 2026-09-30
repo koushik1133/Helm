@@ -138,18 +138,18 @@
       <div class="sev ${esc(i.severity)}"></div>
       <div style="flex:1"><div class="t">${esc(i.title)}<span class="tag ${esc(i.severity)}">${esc(SEV[i.severity]||i.severity)}</span></div>
         ${i.detail?`<div class="d">${esc(i.detail)}</div>`:""}
-        <div class="meta">${esc(when(i.created_at))}${i.owner?` · 👤 ${esc(i.owner)}`:""} · <span class="st ${i.status}">${esc(ST[i.status]||i.status)}</span>${i.resolved_at?` · resolved ${esc(when(i.resolved_at))}`:""}</div></div>
+        <div class="meta">${esc(when(i.created_at))}${i.owner?` · 👤 ${esc(i.owner)}`:""} · <span class="st ${esc(i.status)}">${esc(ST[i.status]||i.status)}</span>${i.resolved_at?` · resolved ${esc(when(i.resolved_at))}`:""}</div></div>
       ${canEdit?`<div class="acts">
         ${i.status==="open"?`<button class="mini" data-st="${i.id}" data-s="in_progress">Start</button>`:""}
         ${i.status!=="resolved"?`<button class="mini go" data-st="${i.id}" data-s="resolved">Resolve</button>`:`<button class="mini" data-st="${i.id}" data-s="open">Reopen</button>`}
         ${canDelete?`<button class="mini del" data-del="${i.id}" aria-label="Delete">✕</button>`:""}
       </div>`:""}
     </div>`).join("") : `<div class="empty">No ${tab==="incident"?"incidents":"issues"} logged. ${tab==="incident"?"Good — keep it that way.":""}</div>`;
-    $("#list").querySelectorAll("[data-st]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.issues.setStatus(b.dataset.st,b.dataset.s); render(); }));
-    $("#list").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.issues.remove(b.dataset.del); render(); }));
+    $("#list").querySelectorAll("[data-st]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.issues.setStatus(b.dataset.st,b.dataset.s); render(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
+    $("#list").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.issues.remove(b.dataset.del); render(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
   }
   async function add(){ const t=$("#i_title").value.trim(); if(!t){ $("#i_title").focus(); return; }
-    $("#i_add").disabled=true;
+    if($("#i_add").disabled) return; $("#i_add").disabled=true;
     try{ await BPStore.issues.add(id,{ kind:tab, title:t, severity:$("#i_sev").value, owner:$("#i_owner").value.trim()||null });
       $("#i_title").value=""; $("#i_owner").value=""; await render(); $("#i_title").focus(); }
     catch(e){ alert("Couldn't log — "+((e&&e.message)||"error")); } finally{ $("#i_add").disabled=false; }

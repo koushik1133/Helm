@@ -125,13 +125,13 @@
     const ph=list.filter(m=>m.kind==="photo").length, vd=list.filter(m=>m.kind==="video").length, gal=list.filter(m=>m.in_gallery).length;
     $("#mCount").textContent = `${ph} photo${ph===1?"":"s"} · ${vd} video${vd===1?"":"s"} · ${gal} in gallery`;
     $("#mediaGrid").innerHTML = shown.length ? shown.map(m=>`<div class="m">
-      <a class="thumb" href="${esc(m.url)}" target="_blank" rel="noopener">${m.kind==="photo"?`<img src="${esc(m.url)}" loading="lazy" alt="">`:`<span class="vid" aria-hidden="true">▶</span>`}</a>
+      <a class="thumb" href="${/^https?:\/\//i.test(m.url||"")?esc(m.url):"#"}" target="_blank" rel="noopener">${m.kind==="photo"?`<img src="${/^https?:\/\//i.test(m.url||"")?esc(m.url):""}" loading="lazy" alt="">`:`<span class="vid" aria-hidden="true">▶</span>`}</a>
       <div class="body">
         <div class="cap">${esc(m.caption||"(no caption)")}</div>
         <div class="row">${m.in_gallery?'<span class="badge">Gallery</span>':'<span style="color:var(--ink-3)">Not in gallery</span>'}
           ${(canEdit&&!galleryOnly)?`<span class="spacer"></span>
-            <label class="toggle"><input type="checkbox" data-gal="${m.id}" ${m.in_gallery?"checked":""}> gallery</label>
-            <button class="rm" data-del="${m.id}" aria-label="Remove media">✕</button>`:""}</div>
+            <label class="toggle"><input type="checkbox" data-gal="${esc(m.id)}" ${m.in_gallery?"checked":""}> gallery</label>
+            <button class="rm" data-del="${esc(m.id)}" aria-label="Remove media">✕</button>`:""}</div>
       </div>
     </div>`).join("") : `<div class="empty">${galleryOnly?"Nothing flagged for the client gallery yet.":"No media yet. Paste a photo or video link above."}</div>`;
     $("#mediaGrid").querySelectorAll("[data-gal]").forEach(c=>c.addEventListener("change",async()=>{ try{ await BPStore.media.update(c.dataset.gal,{in_gallery:c.checked}); await render(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));

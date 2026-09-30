@@ -130,7 +130,7 @@
         else if(t.status==='in_progress') acts=`<button class="btn primary" data-a="complete">Mark done</button>`;
         else if(t.status==='completed') acts=`<span class="done">✅ Completed — thank you</span>`;
         else if(t.status==='rejected') acts=`<span class="rej">Rejected</span>`;
-        return `<div class="task" data-id="${t.id}"><span class="st ${t.status}">${LABEL[t.status]||t.status}</span>
+        return `<div class="task" data-id="${t.id}"><span class="st ${esc(t.status)}">${LABEL[t.status]||esc(t.status)}</span>
           <div class="tt">${esc(t.title)}</div><div class="acts">${acts}</div></div>`;
       }).join("")).join("") : '<div class="card muted">No tasks assigned to you yet.</div>';
     host.querySelectorAll(".task").forEach(card=>{

@@ -8,6 +8,10 @@
 //   WHATSAPP_PHONE_ID         — the WhatsApp Business phone number ID (numeric)
 //   WHATSAPP_API_VERSION      — optional, defaults to "v21.0"
 //
+// Auth: the caller must be a SIGNED-IN staff user (Authorization: Bearer <user
+// access token>). The public anon key alone is rejected — otherwise anyone could
+// use the business WhatsApp account as an open relay.
+//
 // Requests:
 //   { "ping": true }
 //        → GET the phone number (credential/connection check, no send)
@@ -19,13 +23,26 @@
 //
 // NOTE: Meta only allows free-form text within 24h of the customer's last inbound
 // message. To start a conversation you MUST use an approved template.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { cors, json } from "../_shared/cors.ts";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { cors, json, serverError } from "../_shared/cors.ts";
 
 const TOKEN = Deno.env.get("WHATSAPP_TOKEN") || "";
 const PHONE_ID = Deno.env.get("WHATSAPP_PHONE_ID") || "";
 const VER = Deno.env.get("WHATSAPP_API_VERSION") || "v21.0";
 const GRAPH = "https://graph.facebook.com";
+
+// Roles allowed to send business WhatsApp messages (clients / crew are not).
+const STAFF_ROLES = ["admin", "manager", "planner", "sales", "operations", "coordinator"];
+
+// Returns the staff user's id, or null when the caller is anonymous / not staff.
+async function staffUserId(req: Request, admin: SupabaseClient) {
+  const jwt = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!jwt) return null;
+  const { data: { user } } = await admin.auth.getUser(jwt);   // anon key → no user
+  if (!user) return null;
+  const { data: prof } = await admin.from("profiles").select("role").eq("id", user.id).maybeSingle();
+  return prof && STAFF_ROLES.includes(prof.role) ? user.id : null;
+}
 
 function authHeaders() {
   return { "Authorization": "Bearer " + TOKEN, "Content-Type": "application/json" };
@@ -37,6 +54,9 @@ Deno.serve(async (req) => {
     if (!TOKEN || !PHONE_ID) {
       return json({ error: "WhatsApp Cloud API not configured (set WHATSAPP_TOKEN / WHATSAPP_PHONE_ID)" }, 500);
     }
+    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    if (!(await staffUserId(req, admin))) return json({ error: "sign in as a staff user" }, 401);
+
     const body = await req.json().catch(() => ({}));
 
     // ---- credential / connection check (no message sent) ----
@@ -45,7 +65,7 @@ Deno.serve(async (req) => {
         headers: authHeaders(),
       });
       const t = await r.text();
-      if (!r.ok) return json({ error: "meta error: " + t.slice(0, 300) }, 502);
+      if (!r.ok) { console.error("meta error", r.status, t.slice(0, 500)); return json({ error: "whatsapp connection check failed" }, 502); }
       let state = t; try { state = JSON.parse(t); } catch (_) { /* keep raw */ }
       return json({ ok: true, state });
     }
@@ -82,11 +102,10 @@ Deno.serve(async (req) => {
       body: JSON.stringify(payload),
     });
     const out = await r.text();
-    if (!r.ok) return json({ error: "whatsapp send failed: " + out.slice(0, 300) }, 502);
+    if (!r.ok) { console.error("whatsapp send failed", r.status, out.slice(0, 500)); return json({ error: "whatsapp send failed" }, 502); }
 
     // best-effort log to the notifications outbox (non-fatal)
     try {
-      const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
       await admin.from("notifications").insert({
         quote_id: body.quote_id || null, channel: "whatsapp", recipient: number,
         kind: body.kind || (body.template ? "template" : "message"), status: "sent",
@@ -96,6 +115,6 @@ Deno.serve(async (req) => {
     let data = out; try { data = JSON.parse(out); } catch (_) { /* keep raw */ }
     return json({ sent: true, data });
   } catch (e) {
-    return json({ error: (e as Error).message || "error" }, 500);
+    return serverError(e);
   }
 });

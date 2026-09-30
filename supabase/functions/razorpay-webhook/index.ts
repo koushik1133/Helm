@@ -10,6 +10,7 @@
 //   MANAGER_EMAIL, MANAGER_PHONE         (where the studio copy goes)
 //   MSG91_AUTHKEY, MSG91_SENDER, MSG91_SMS_TEMPLATE_ID  (optional SMS receipt)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { escHtml } from "../_shared/cors.ts";
 
 const enc = new TextEncoder();
 async function hmacHex(secret: string, body: string) {
@@ -25,12 +26,21 @@ function timingSafeEqual(a: string, b: string) {
   return diff === 0;
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
-  const key = Deno.env.get("RESEND_API_KEY"); if (!key || !to) return;
-  await fetch("https://api.resend.com/emails", {
-    method: "POST", headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: Deno.env.get("RESEND_FROM") || "onboarding@resend.dev", to, subject, html }),
-  });
+// returns the notifications.status to record: sent | failed | simulated (no provider)
+async function sendEmail(to: string, subject: string, html: string): Promise<string> {
+  const key = Deno.env.get("RESEND_API_KEY"); if (!key) return "simulated";
+  if (!to) return "failed";
+  try {
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST", headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: Deno.env.get("RESEND_FROM") || "onboarding@resend.dev", to, subject, html }),
+    });
+    if (!r.ok) console.error("resend error", r.status, (await r.text()).slice(0, 300));
+    return r.ok ? "sent" : "failed";
+  } catch (e) {
+    console.error("resend error", e);
+    return "failed";
+  }
 }
 
 Deno.serve(async (req) => {
@@ -52,33 +62,57 @@ Deno.serve(async (req) => {
     // find the quote (by provider_ref or the notes.quote_id)
     let quoteId = noteQuote;
     if (!quoteId && linkId) {
-      const { data } = await admin.from("quote_payments").select("quote_id").eq("provider_ref", linkId).single();
+      const { data } = await admin.from("quote_payments").select("quote_id").eq("provider_ref", linkId).maybeSingle();
       quoteId = data?.quote_id;
     }
-    if (!quoteId) return new Response("no quote", { status: 200 });
+    // a malformed id would make the UPDATE throw → 500 → endless Razorpay retries
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!quoteId || !UUID_RE.test(String(quoteId))) return new Response("no quote", { status: 200 });
+
+    // Only settle the quote when what was actually paid covers its current total
+    // (the quote may have been re-priced after the link was issued).
+    const paidPaise = Number(evt.payload?.payment_link?.entity?.amount_paid ?? evt.payload?.payment?.entity?.amount ?? NaN);
+    const { data: cur } = await admin.from("quotes").select("pricing").eq("id", quoteId).maybeSingle();
+    if (!cur) return new Response("no quote", { status: 200 });
+    const expectedPaise = Math.round(Number(cur.pricing?.total || 0) * 100);
+    if (!Number.isFinite(paidPaise) || paidPaise < expectedPaise) {
+      console.error("payment amount does not cover quote total", { quoteId, paidPaise, expectedPaise });
+      // still record that this specific link was paid, for the manager to reconcile
+      if (linkId) {
+        await admin.from("quote_payments").update({ status: "paid", paid_at: new Date().toISOString() })
+          .eq("provider_ref", linkId).eq("status", "created");
+      }
+      return new Response("amount mismatch — not marked paid", { status: 200 });
+    }
 
     // IDEMPOTENCY: Razorpay delivers webhooks at-least-once (retries on non-2xx or
     // timeout). Only the FIRST delivery may transition created→paid and send the
     // confirmation emails. A replay finds the quote already paid and returns 200
     // WITHOUT re-notifying, so the client/manager never get duplicate receipts.
-    const { data: already } = await admin.from("quotes").select("approval_status").eq("id", quoteId).single();
-    if (already?.approval_status === "paid") return new Response("already paid (idempotent)", { status: 200 });
+    // The transition is a single conditional UPDATE, so two concurrent deliveries
+    // can't both "win" (a separate read-then-write check would race).
+    const { data: q, error: upErr } = await admin.from("quotes").update({ approval_status: "paid" })
+      .eq("id", quoteId).neq("approval_status", "paid").select("*").maybeSingle();
+    if (upErr) throw upErr;
+    if (!q) return new Response("already paid or unknown quote (idempotent)", { status: 200 });
 
     await admin.from("quote_payments").update({ status: "paid", paid_at: new Date().toISOString() })
       .eq("quote_id", quoteId).eq("status", "created");
-    const { data: q } = await admin.from("quotes").update({ approval_status: "paid" }).eq("id", quoteId).select("*").single();
 
     // confirmations
-    const total = "₹" + Number(q?.pricing?.total || 0).toLocaleString("en-IN");
-    const html = `<h2>Payment received — ${q?.code}</h2><p>Your event <b>${q?.title || q?.code}</b> is confirmed.</p><p>Amount: <b>${total}</b></p><p>Thank you — Blueprint Stage.</p>`;
-    await sendEmail(q?.client?.email, `Payment received — ${q?.code}`, html);
-    await sendEmail(Deno.env.get("MANAGER_EMAIL") || "", `Event confirmed (paid) — ${q?.code}`, html);
+    // title/code are staff-entered — escape before putting them in HTML email
+    const total = "₹" + Number(q.pricing?.total || 0).toLocaleString("en-IN");
+    const html = `<h2>Payment received — ${escHtml(q.code)}</h2><p>Your event <b>${escHtml(q.title || q.code)}</b> is confirmed.</p><p>Amount: <b>${total}</b></p><p>Thank you — Blueprint Stage.</p>`;
+    const subjCode = String(q.code ?? "").replace(/[\r\n]/g, " ");
+    const clientStatus = await sendEmail(q.client?.email, `Payment received — ${subjCode}`, html);
+    const managerStatus = await sendEmail(Deno.env.get("MANAGER_EMAIL") || "", `Event confirmed (paid) — ${subjCode}`, html);
     await admin.from("notifications").insert([
-      { quote_id: quoteId, channel: "email", recipient: q?.client?.email, kind: "payment_receipt", status: "sent" },
-      { quote_id: quoteId, channel: "email", recipient: Deno.env.get("MANAGER_EMAIL"), kind: "payment_receipt", status: "sent" },
+      { quote_id: quoteId, channel: "email", recipient: q.client?.email, kind: "payment_receipt", status: clientStatus },
+      { quote_id: quoteId, channel: "email", recipient: Deno.env.get("MANAGER_EMAIL"), kind: "payment_receipt", status: managerStatus },
     ]);
     return new Response("ok", { status: 200 });
   } catch (e) {
-    return new Response((e as Error).message || "error", { status: 500 });
+    console.error(e);
+    return new Response("error", { status: 500 });
   }
 });

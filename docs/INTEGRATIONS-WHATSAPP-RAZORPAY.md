@@ -47,16 +47,20 @@ supabase functions deploy send-whatsapp
 ```
 
 ### A4. Test (no app change needed)
+The function only accepts a **signed-in staff user's access token** (roles admin,
+manager, planner, sales, operations, coordinator). The anon key alone is rejected
+with 401 — otherwise anyone could send messages from your WhatsApp number. Copy an
+access token from a signed-in browser session (`supabase.auth.getSession()`).
 ```bash
 # credential check (no message sent):
 curl -s -X POST "https://nqltzgiwznphugcfhmbm.supabase.co/functions/v1/send-whatsapp" \
-  -H "Authorization: Bearer <SUPABASE_ANON_KEY>" -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <STAFF_USER_ACCESS_TOKEN>" -H "apikey: <SUPABASE_ANON_KEY>" -H "Content-Type: application/json" \
   -d '{"ping":true}'
 # → { ok:true, state:{ verified_name, display_phone_number, quality_rating } }
 
 # send a template to your own number (digits, country code, no +):
 curl -s -X POST "https://nqltzgiwznphugcfhmbm.supabase.co/functions/v1/send-whatsapp" \
-  -H "Authorization: Bearer <SUPABASE_ANON_KEY>" -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <STAFF_USER_ACCESS_TOKEN>" -H "apikey: <SUPABASE_ANON_KEY>" -H "Content-Type: application/json" \
   -d '{"number":"9198XXXXXXXX","template":"event_update","lang":"en_US","params":["your event is confirmed"]}'
 ```
 Request shapes the function accepts: `{ping:true}`, `{number,text}` (session window

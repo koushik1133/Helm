@@ -488,7 +488,7 @@
   async function renderCoupons(){
     let c=[]; try{ c=await BPStore.coupons.list(); }catch{}
     $("#couponList").innerHTML = c.length? c.map(x=>`<div class="row"><span class="g mono">${esc(x.code)}</span><span>${x.kind==='percent'?x.value+'% off':'₹'+x.value+' off'}</span><button class="rm" data-id="${x.id}">Remove</button></div>`).join("") : '<div class="row" style="color:var(--ink-3)">No coupons yet.</div>';
-    $("#couponList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.coupons.remove(b.dataset.id); renderCoupons(); }));
+    $("#couponList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.coupons.remove(b.dataset.id); renderCoupons(); }catch(e){ setMsg("err",(e&&e.message)||"Couldn't remove coupon"); } }));
   }
   $("#co_add").addEventListener("click",async()=>{
     const code=$("#co_code").value.trim().toUpperCase(); if(code.length<2){ setMsg("err","Enter a coupon code."); return; }
@@ -501,7 +501,7 @@
   async function renderChairs(){
     let c=[]; try{ c=await BPStore.chairTypes.list(); }catch{}
     $("#chairList").innerHTML = c.length? c.map(x=>`<div class="row"><span class="g">${esc(x.name)}</span><span class="mono">₹${Number(x.price||0).toLocaleString("en-IN")}/chair</span><button class="rm" data-id="${x.id}">Remove</button></div>`).join("") : '<div class="row" style="color:var(--ink-3)">No chair types yet — add plastic, cushioned, Chiavari…</div>';
-    $("#chairList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.chairTypes.remove(b.dataset.id); renderChairs(); }));
+    $("#chairList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.chairTypes.remove(b.dataset.id); renderChairs(); }catch(e){ setMsg("err",(e&&e.message)||"Couldn't remove chair type"); } }));
   }
   $("#ch_add").addEventListener("click",async()=>{
     const name=$("#ch_name").value.trim(); if(name.length<2){ setMsg("err","Enter a chair type name."); return; }
@@ -514,7 +514,7 @@
   async function renderPlates(){
     let c=[]; try{ c=await BPStore.plateTypes.list(); }catch{}
     $("#plateList").innerHTML = c.length? c.map(x=>`<div class="row"><span class="g">${esc(x.name)}</span><span class="mono">₹${Number(x.price||0).toLocaleString("en-IN")}/plate</span><button class="rm" data-id="${x.id}">Remove</button></div>`).join("") : '<div class="row" style="color:var(--ink-3)">No plate types yet — add Veg, Non-veg, Special…</div>';
-    $("#plateList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.plateTypes.remove(b.dataset.id); renderPlates(); }));
+    $("#plateList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.plateTypes.remove(b.dataset.id); renderPlates(); }catch(e){ setMsg("err",(e&&e.message)||"Couldn't remove plate type"); } }));
   }
   $("#pl_add").addEventListener("click",async()=>{
     const name=$("#pl_name").value.trim(); if(name.length<2){ setMsg("err","Enter a plate type name."); return; }
@@ -553,7 +553,7 @@
     const list=dishCache.filter(d=>!term || (d.name+" "+d.category).toLowerCase().includes(term));
     $("#dishList").innerHTML = list.length ? list.map(x=>`<div class="row"><span class="g">${esc(x.name)} <span style="font-size:11px">· ${KINDLBL[x.kind]||""}</span></span><span class="mono" style="font-size:11px">${esc(x.category)}</span><button class="rm" data-id="${x.id}">Remove</button></div>`).join("")
       : `<div class="row" style="color:var(--ink-3)">${dishCache.length?"No dishes match.":"No dishes yet — run phase55-dish-catalog.sql or add below."}</div>`;
-    $("#dishList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.dishCatalog.remove(b.dataset.id); renderDishes(); }));
+    $("#dishList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.dishCatalog.remove(b.dataset.id); renderDishes(); }catch(e){ setMsg("err",(e&&e.message)||"Couldn't remove dish"); } }));
   }
   $("#dishFilter").addEventListener("input",drawDishes);
   $("#dc_add").addEventListener("click",async()=>{

@@ -989,7 +989,7 @@ function applyReadonly(role){
   const tb=$('#toolbox'); if(tb){ tb.style.pointerEvents='none'; tb.style.opacity='.45'; }
   document.querySelector('.viewport').classList.add('ro');
   const bar=document.createElement('div'); bar.className='robanner';
-  bar.innerHTML='👁 View only — signed in as <b>'+(role||'viewer')+'</b>. You can view, open, and export events, but not edit them.';
+  bar.innerHTML='👁 View only — signed in as <b>'+esc(role||'viewer')+'</b>. You can view, open, and export events, but not edit them.';
   document.querySelector('header').insertAdjacentElement('afterend', bar);
 }
 
@@ -1578,7 +1578,7 @@ function renderInspector(){
     return;
   }
   const u=uLabel();
-  const catBadge=`<span class="itag" style="background:${it.color}">${CATS[it.category].name}</span>`;
+  const catBadge=`<span class="itag" style="background:${esc(it.color)}">${CATS[it.category].name}</span>`;
   const typeSpec = renderTypeSpecific(it);
 
   box.innerHTML = `
@@ -1615,11 +1615,11 @@ function renderInspector(){
         </div>
       </div>
       <div class="colorbtns">
-        <button id="b_color_all" title="Apply this colour to every ${it.type} on the floor">Apply to all like this</button>
+        <button id="b_color_all" title="Apply this colour to every ${esc(it.type)} on the floor">Apply to all like this</button>
         <button id="b_color_reset" title="Reset to the category colour">Reset</button>
       </div>
       <div class="coordbox">
-        <span>id</span> ${it.id}<br>
+        <span>id</span> ${esc(it.id)}<br>
         <span>area</span> ${Math.round(it.width*it.height)} ft² &nbsp; · &nbsp; <span>footprint</span> ${fmtU(it.width)}×${fmtU(it.height)} ${u}
       </div>
       <div class="modelrow">
@@ -1755,7 +1755,7 @@ function wireInspector(it){
   $('#b_dup').addEventListener('click',()=>{
     const c=JSON.parse(JSON.stringify(it));
     c.id=nid(); c.x=clamp(it.x+2,0,WORLD.w-it.width); c.y=clamp(it.y+2,0,WORLD.h-it.height);
-    store.items.push(c); store.selectedId=c.id; commit(); renderAll(); toast('Duplicated');
+    store.items.push(c); setSelection([c.id]); commit(); renderAll(); toast('Duplicated');
   });
   $('#b_front').addEventListener('click',()=>{
     store.items=store.items.filter(x=>x.id!==it.id); store.items.push(it); commit(); renderAll();
@@ -1778,10 +1778,10 @@ function wireInspector(it){
   }
 }
 function renderItemInPlace(it){ // cheap label refresh without full rebuild
-  const g=svg.querySelector(`.obj[data-id="${it.id}"] text.lbl`);
+  const g=svg.querySelector(`.obj[data-id="${CSS.escape(String(it.id))}"] text.lbl`);
   if(g) g.textContent=it.label;
 }
-function escapeHtml(s){ return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 /* ===================================================================
    POINTER INTERACTION — drag / resize / rotate / select
@@ -1932,7 +1932,7 @@ function updateStatus(p){
   let s = `<b>${store.items.length}</b> objects · <b>${chairs}</b> seats`;
   if(tables) s += ` · <b>${tables}</b> tables`;
   if(store.selectedIds.length>1) s += ` · <b>${store.selectedIds.length}</b> selected`;
-  else if(it) s += ` · sel <b>${it.label}</b> @ ${fmtU(it.x)},${fmtU(it.y)} ${uLabel()} · ${Math.round(it.rotation)}°`;
+  else if(it) s += ` · sel <b>${esc(it.label)}</b> @ ${fmtU(it.x)},${fmtU(it.y)} ${uLabel()} · ${Math.round(it.rotation)}°`;
   if(p) s += ` &nbsp; ⌖ ${round1(toU(p.x))}, ${round1(toU(p.y))}`;
   $('#status').innerHTML=s;
 }
@@ -2273,8 +2273,22 @@ function clampItem(it){
   it.rotation = num(it.rotation,0);
   return it;
 }
+// coerce untrusted (imported / stored) item fields: numeric seat props (a string `seats` would be
+// string-concatenated into seat counts rendered via innerHTML), string type/label/id/color, and no
+// Object.prototype keys (e.g. "__proto__") used as a type/category lookup key.
+function sanitizeItem(it){
+  if(!it.properties || typeof it.properties!=='object') it.properties={};
+  ['rows','cols','seats','pitch'].forEach(k=>{ if(it.properties[k]!=null){ const v=+it.properties[k]; it.properties[k]=isFinite(v)?clamp(v,0,1000):0; } });
+  if(it.properties.model!=null && typeof it.properties.model!=='string') delete it.properties.model;
+  if(typeof it.type!=='string' || it.type in Object.prototype) it.type='unknown';
+  if(!it.category || !Object.prototype.hasOwnProperty.call(CATS, it.category)) it.category='structure';
+  if(typeof it.label!=='string') it.label = it.label==null ? '' : String(it.label);
+  if(typeof it.color!=='string') it.color = catColor(it.category);
+  it.id = it.id ? String(it.id) : nid();
+  return it;
+}
 function loadItems(items, name){
-  store.items = items.map(clampItem);
+  store.items = items.filter(it=>it && typeof it==='object').map(it=>clampItem(sanitizeItem(it)));
   setSelection([]); currentLayoutId=null;
   // only auto-name a still-unnamed project; keep a generated date-name or a user's own name
   if(name){ const pn=$('#projName'); if(pn && (!pn.value.trim() || pn.value.trim()==='Untitled layout')) pn.value=name; }
@@ -2829,7 +2843,7 @@ async function populateRefEvents(){
   const isClosed=(q)=> q.lifecycle_stage==='closed' || q.status==='cancelled';
   const closed=others.filter(isClosed), active=others.filter(q=>!isClosed(q));
   const opt=(q)=>{ const cl=(q.client&&q.client.name)||''; const d=(q.event_date||'').slice(0,10);
-    return `<option value="${esc(q.id)}">${esc(q.code||'event')}${cl?' · '+esc(cl):''}${d?' · '+d:''}</option>`; };
+    return `<option value="${esc(q.id)}">${esc(q.code||'event')}${cl?' · '+esc(cl):''}${d?' · '+esc(d):''}</option>`; };
   let html='<option value="">Reference a past layout…</option>';
   if(closed.length) html+='<optgroup label="Completed / closed">'+closed.map(opt).join('')+'</optgroup>';
   if(active.length) html+='<optgroup label="Other events">'+active.map(opt).join('')+'</optgroup>';
@@ -2999,15 +3013,13 @@ function applyLayout(data){
   if(!data || !Array.isArray(data.items)) return;
   // restore the saved hall size FIRST so items clamp to the right room
   const rf = (data.scale && data.scale.worldFt) || (data.venue && data.venue.room);
-  if(rf && rf.w && rf.h){ WORLD.w = clamp(Math.round(rf.w),20,1000); WORLD.h = clamp(Math.round(rf.h),20,1000); }
-  store.items = JSON.parse(JSON.stringify(data.items));
+  if(rf && rf.w && rf.h && isFinite(rf.w) && isFinite(rf.h)){ WORLD.w = clamp(Math.round(rf.w),20,1000); WORLD.h = clamp(Math.round(rf.h),20,1000); }
+  store.items = JSON.parse(JSON.stringify(data.items)).filter(it=>it && typeof it==='object');
   // normalise externally-authored / legacy JSON so a missing field can't crash the render
   store.items.forEach(it=>{
-    if(!it.properties || typeof it.properties!=='object') it.properties={};
-    if(!it.category || !CATS[it.category]) it.category='structure';
+    sanitizeItem(it);                    // properties / category / type / label / id
     // keep a saved custom colour; otherwise (or if it's not a valid hex) derive from the category
-    if(!it.colorCustom || !HEXRE.test((it.color||'').trim())) it.color = catColor(it.category);
-    if(!it.id) it.id = nid();
+    if(!it.colorCustom || !HEXRE.test(it.color.trim())) it.color = catColor(it.category);
     clampItem(it);                       // coerce geometry so a malformed/legacy item can't render NaN
   });
   if(data.grid){ store.grid = { ...store.grid, ...data.grid }; syncGridUI(); }
@@ -3113,9 +3125,9 @@ async function openLoadModal(){
   if(!list.length){ host.innerHTML='<div class="empty" style="padding:30px"><p>No saved layouts yet.<br>Build a floor and hit <b>Save</b>.</p></div>'; return; }
   list.sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
   host.innerHTML = list.map(l=>`
-    <div class="lrow" data-id="${l.id}">
+    <div class="lrow" data-id="${esc(l.id)}">
       <div class="li"><b>${escapeHtml(l.name)}</b>
-        <small>${l.objectCount} objects · ${l.updatedAt?new Date(l.updatedAt).toLocaleString():'—'}</small></div>
+        <small>${esc(l.objectCount)} objects · ${l.updatedAt?new Date(l.updatedAt).toLocaleString():'—'}</small></div>
       <div class="la">
         <button data-act="open">Open</button>
         <button class="del" data-act="del">Delete</button>
@@ -3168,14 +3180,15 @@ function exportPNG(){
   clone.setAttribute('width',W*S); clone.setAttribute('height',H*S);
   clone.insertBefore(el('rect',{x:0,y:0,width:W,height:H,
     fill:(getComputedStyle(document.body).getPropertyValue('--canvas').trim()||'#fff')}), clone.firstChild);
-  const svgStr=new XMLSerializer().serializeToString(clone);
+  // strip XML-illegal control chars (e.g. from an imported label) — they make the SVG image fail to decode
+  const svgStr=new XMLSerializer().serializeToString(clone).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
   const img=new Image();
   img.onload=()=>{
     const cv=document.createElement('canvas'); cv.width=W*S; cv.height=H*S;
     const ctx=cv.getContext('2d');
     ctx.fillStyle=(getComputedStyle(document.body).getPropertyValue('--canvas').trim()||'#fff');
     ctx.fillRect(0,0,cv.width,cv.height); ctx.drawImage(img,0,0,W*S,H*S);
-    cv.toBlob(b=>{ const name=($('#projName').value||'layout').trim().replace(/[^\w.-]+/g,'_');
+    cv.toBlob(b=>{ if(!b){ toast('PNG export failed'); return; } const name=($('#projName').value||'layout').trim().replace(/[^\w.-]+/g,'_');
       download(name+'.png', b); toast('PNG downloaded'); });
     setSelection(wasSel); renderAll();
   };
@@ -3185,7 +3198,9 @@ function exportPNG(){
 function importJSON(file){
   const fr=new FileReader();
   fr.onload=()=>{ try{ const d=JSON.parse(fr.result);
-    applyLayout(d.items?d:(d.data||d)); currentLayoutId=null;
+    const src=d&&typeof d==='object'?(d.items?d:(d.data||d)):null;
+    if(!src || !Array.isArray(src.items)){ toast('Invalid JSON file'); return; }
+    applyLayout(src); currentLayoutId=null;
     $('#projName').value=(file.name||'Imported').replace(/\.json$/i,''); toast('Imported'); }
     catch{ toast('Invalid JSON file'); } };
   fr.readAsText(file);
@@ -3801,7 +3816,7 @@ init();
     const ctx=cvs.getContext('2d'); ctx.scale(s,s);
     ctx.fillStyle='rgba(20,27,46,.82)'; roundRect(ctx,0,14,256,36,8); ctx.fill();
     ctx.font='600 22px "IBM Plex Sans",sans-serif'; ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(text.slice(0,22),128,33);
+    ctx.fillText(String(text==null?'':text).slice(0,22),128,33);
     const tex=new THREE.CanvasTexture(cvs); tex.anisotropy=4;
     const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));
     spr.scale.set(10,2.5,1); labelCache[text]=spr; return spr.clone();
@@ -3830,7 +3845,7 @@ init();
     grid=new THREE.GridHelper(Math.max(WORLD.w,WORLD.h)+40, Math.max(WORLD.w,WORLD.h)+40, col(themeVar('--grid-strong','#9fb4d8')), col(themeVar('--grid','#c3d1ea')));
     grid.material.opacity=0.5; grid.material.transparent=true; scene.add(grid);
     // floor border
-    const edge=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(W,0.1,H)),
+    const edge=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(WORLD.w,0.1,WORLD.h)),
       new THREE.LineBasicMaterial({color:col(themeVar('--grid-strong','#9fb4d8'))})); edge.position.y=0.05; scene.add(edge);
 
     root=new THREE.Group(); scene.add(root);
@@ -3873,14 +3888,14 @@ init();
   function onGizmoChange(){
     const it=curItem(); if(!it || !gizmoBase) return;
     if(tmode==='translate'){
-      const cxft=gizmo.position.x+W/2, cyft=gizmo.position.z+H/2;
-      it.x=clamp(cxft-it.width/2,0,W-it.width); it.y=clamp(cyft-it.height/2,0,H-it.height);
+      const cxft=gizmo.position.x+WORLD.w/2, cyft=gizmo.position.z+WORLD.h/2;   // live WORLD (W/H are the boot-time size)
+      it.x=clamp(cxft-it.width/2,0,WORLD.w-it.width); it.y=clamp(cyft-it.height/2,0,WORLD.h-it.height);
     } else if(tmode==='rotate'){
       let deg=-gizmo.rotation.y*180/Math.PI; it.rotation=((Math.round(deg)%360)+360)%360;
     } else if(tmode==='scale'){
-      const nw=clamp(gizmoBase.width*gizmo.scale.x,0.5,W), nh=clamp(gizmoBase.height*gizmo.scale.z,0.5,H);
+      const nw=clamp(gizmoBase.width*gizmo.scale.x,0.5,WORLD.w), nh=clamp(gizmoBase.height*gizmo.scale.z,0.5,WORLD.h);
       it.width=nw; it.height=nh; if(it.type==='table'||it.type==='cocktail'){ const d=Math.max(nw,nh); it.width=it.height=d; }
-      it.x=clamp(gizmoBase.cx-it.width/2,0,W-it.width); it.y=clamp(gizmoBase.cy-it.height/2,0,H-it.height);
+      it.x=clamp(gizmoBase.cx-it.width/2,0,WORLD.w-it.width); it.y=clamp(gizmoBase.cy-it.height/2,0,WORLD.h-it.height);
     }
     requestBuild(); if(typeof syncInspectorLive==='function') syncInspectorLive(it);
   }

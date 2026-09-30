@@ -328,7 +328,7 @@
       location.replace(nextUrl());
     }catch(err){
       $("#err").textContent=(err&&err.message)||(mode==="signup"?"Couldn't create the studio.":"Sign-in failed. Check your email and password.");
-      $("#err").hidden=false; btn.disabled=false; btn.textContent = mode==="signup" ? "Create studio →" : "Sign in →";
+      $("#err").hidden=false; btn.disabled=false; btn.textContent = mode==="signup" ? (JOINING?"Create account & join →":"Create studio →") : (JOINING?"Sign in & join →":"Sign in →");
     }
   });
 </script>

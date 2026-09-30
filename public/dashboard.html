@@ -456,7 +456,7 @@
   // Coordinator / Designer / Crew / Client) driven by one config map, computed from data the
   // page already has (quotes) plus best-effort my_pending / my_tasks / design_queue. Never blocks.
   function card(n, label, cls, href){
-    const c = `<div class="rcard ${cls||""} ${href?"link":""}" ${href?`data-href="${esc(href)}"`:""}><div class="n">${esc(n)}</div><div class="l">${esc(label)}</div></div>`;
+    const c = `<div class="rcard ${cls||""} ${href?"link":""}" ${href?`data-href="${esc(href)}"`:""}><div class="n">${esc(String(n))}</div><div class="l">${esc(label)}</div></div>`;
     return c;
   }
   async function renderRoleBoard(){

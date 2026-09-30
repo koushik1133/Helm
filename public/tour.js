@@ -230,15 +230,15 @@
   /* ---- mount: reuse #helpBtn if present, else a floating button ------- */
   function mount() {
     const existing = document.getElementById("helpBtn");
-    if (existing) { existing.addEventListener("click", start); }
+    if (existing) { existing.addEventListener("click", () => start()); }
     else {
       const fab = document.createElement("button");
       fab.className = "htour-fab"; fab.type = "button";
       fab.textContent = "? Tour"; fab.title = "Take a guided tour of this page";
-      fab.addEventListener("click", start);
+      fab.addEventListener("click", () => start());
       document.body.appendChild(fab);
     }
-    document.addEventListener("keydown", e => { if (e.key === "Escape") end(); });
+    document.addEventListener("keydown", e => { if (e.key === "Escape" && root) end(); });
 
     // form coaching: when this page's create-modal opens, run the field tour once
     const form = FORMS[page + ".html"] || FORMS[page];

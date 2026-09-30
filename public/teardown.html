@@ -137,16 +137,18 @@
     $("#invRows").innerHTML = res.length ? res.map(r=>{ const it=itemsById[r.item_id]||{name:"(item)"};
       const active = r.status==="reserved"||r.status==="allocated";
       return `<tr><td><b>${esc(it.name)}</b></td><td class="num">${esc(r.qty)} ${esc(it.unit||"")}</td>
-        <td><span class="st ${r.status}">${esc(RES[r.status]||r.status)}</span></td>
+        <td><span class="st ${esc(r.status)}">${esc(RES[r.status]||r.status)}</span></td>
         <td class="num">${canEdit&&active?`<input class="dmg" type="number" min="0" value="0" data-dmg="${r.id}">`:"—"}</td>
         <td>${canEdit&&active?`<button class="btn go" data-ret="${r.id}" data-item="${r.item_id}">Return</button>`:""}</td></tr>`;
     }).join("") : '<tr><td colspan="5" class="empty">No inventory was reserved for this event.</td></tr>';
     $("#invRows").querySelectorAll("[data-ret]").forEach(b=>b.addEventListener("click",async()=>{
+      if(b.disabled) return;
       const dmg=Number(($("#invRows").querySelector(`[data-dmg="${b.dataset.ret}"]`)||{}).value||0);
+      b.disabled=true;
       try{ await BPStore.inventory.setResStatus(b.dataset.ret,"returned");
         if(dmg>0) await BPStore.inventory.adjustTotal(b.dataset.item,-dmg);
         await renderInventory(); }
-      catch(e){ alert("Couldn't return — "+((e&&e.message)||"error")); } }));
+      catch(e){ b.disabled=false; alert("Couldn't return — "+((e&&e.message)||"error")); } }));
   }
 
   async function renderLoans(){
@@ -167,10 +169,10 @@
     const bk=await BPStore.bookings.list(id);
     $("#bkRows").innerHTML = bk.length ? bk.map(b=>`<div class="rowline">
       <div><div class="nm">${esc(b.label||"Partner")}</div></div>
-      <span class="st ${b.status}">${esc(BK[b.status]||b.status)}</span>
+      <span class="st ${esc(b.status)}">${esc(BK[b.status]||b.status)}</span>
       ${canEdit&&b.status!=="delivered"&&b.status!=="cancelled"?`<div class="acts"><button class="btn go" data-exit="${b.id}">Mark returned/exited</button></div>`:""}
     </div>`).join("") : '<div class="empty">No vendors or rentals booked.</div>';
-    $("#bkRows").querySelectorAll("[data-exit]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.bookings.update(b.dataset.exit,{status:"delivered"}); renderBookings(); }));
+    $("#bkRows").querySelectorAll("[data-exit]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.bookings.update(b.dataset.exit,{status:"delivered"}); renderBookings(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
   }
 
   async function renderTeardown(){
@@ -179,17 +181,17 @@
     $("#tdProg").textContent = items.length?`${done}/${items.length} done`:"";
     $("#tdRows").innerHTML = items.length ? items.map(c=>`<div class="rowline">
       <div><div class="nm">${esc(c.title)}</div></div>
-      ${canEdit?`<select class="ssel" data-td="${c.id}">${["open","done","na"].map(s=>`<option value="${s}" ${s===c.status?"selected":""}>${CHK[s]}</option>`).join("")}</select>`:`<span class="st ${c.status}">${CHK[c.status]}</span>`}
+      ${canEdit?`<select class="ssel" data-td="${c.id}">${["open","done","na"].map(s=>`<option value="${s}" ${s===c.status?"selected":""}>${CHK[s]}</option>`).join("")}</select>`:`<span class="st ${esc(c.status)}">${esc(CHK[c.status]||c.status)}</span>`}
       ${canDelete?`<button class="rm" data-tddel="${c.id}" aria-label="Remove teardown item">✕</button>`:""}
     </div>`).join("") : '<div class="empty">No teardown items yet.</div>';
-    $("#tdRows").querySelectorAll("[data-td]").forEach(s=>s.addEventListener("change",async()=>{ await BPStore.checklist.update(s.dataset.td,{status:s.value}); renderTeardown(); }));
-    $("#tdRows").querySelectorAll("[data-tddel]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.checklist.remove(b.dataset.tddel); renderTeardown(); }));
+    $("#tdRows").querySelectorAll("[data-td]").forEach(s=>s.addEventListener("change",async()=>{ try{ await BPStore.checklist.update(s.dataset.td,{status:s.value}); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } renderTeardown(); }));
+    $("#tdRows").querySelectorAll("[data-tddel]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.checklist.remove(b.dataset.tddel); renderTeardown(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
   }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
     catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
-  $("#td_addb").addEventListener("click",async()=>{ const t=$("#td_title").value.trim(); if(!t) return; await BPStore.checklist.add(id,{section:"teardown",title:t}); $("#td_title").value=""; renderTeardown(); });
+  $("#td_addb").addEventListener("click",async()=>{ const t=$("#td_title").value.trim(); if(!t) return; $("#td_addb").disabled=true; try{ await BPStore.checklist.add(id,{section:"teardown",title:t}); $("#td_title").value=""; renderTeardown(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } finally{ $("#td_addb").disabled=false; } });
 
   (async ()=>{
     await BPStore.init(); await renderAccount();

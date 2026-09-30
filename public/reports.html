@@ -132,7 +132,7 @@
 
   // ---- CSV helpers ----
   function toCSV(rows){ if(!rows.length) return ""; const cols=Object.keys(rows[0]);
-    const cell=(v)=>{ v=(v==null?"":String(v)); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+    const cell=(v)=>{ const isStr=typeof v==="string"; v=(v==null?"":String(v)); if(isStr&&/^[=+\-@\t\r]/.test(v)) v="'"+v; return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
     return cols.join(",")+"\n"+rows.map(r=>cols.map(c=>cell(r[c])).join(",")).join("\n"); }
   function download(name, text){ const blob=new Blob([text],{type:"text/csv;charset=utf-8"}); const url=URL.createObjectURL(blob);
     const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500); }

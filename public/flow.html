@@ -352,9 +352,11 @@
     const guests = nn($("#q_guests").value!==""?(+$("#q_guests").value||0):chairs);
     const platePrice = nn($("#q_platePrice").value!==""?(+$("#q_platePrice").value||0):(appliedPkg?appliedPkg.price_per_plate:rates.platePrice));
     const other = nn($("#q_other").value!==""?(+$("#q_other").value||0):(oi.objectsCost+(+rates.layoutBase||0)));
+    // a configured 0% GST must stay 0 (same as quotes.html / builder breakdown); default 18 only when unset/invalid
+    const gstPct = (rates.gstPct==null||rates.gstPct===""||!isFinite(+rates.gstPct)) ? 18 : +rates.gstPct;
     return { chairs, guests, chairPrice:nn(+$("#q_chairPrice").value||rates.chairPrice), platePrice,
-      other, gstPct:+rates.gstPct||18, serviceChargePct:+rates.serviceChargePct||0,
-      discount:nn($("#q_discount").value||0), catering:{mode:"inhouse",gstPct:+rates.gstPct||18},
+      other, gstPct, serviceChargePct:+rates.serviceChargePct||0,
+      discount:nn($("#q_discount").value||0), catering:{mode:"inhouse",gstPct},
       couponCode:($("#q_coupon")?$("#q_coupon").value.trim():""), coupon:appliedCoupon,
       placeOfSupply:"intra", currency:"INR",
       _objectsCost:oi.objectsCost, _packageName:appliedPkg?appliedPkg.name:null };
@@ -379,8 +381,8 @@
   async function saveClient(){
     const V=BPStore.validate;
     const emailRaw=$("#c_email").value.trim(), phoneRaw=$("#c_phone").value.trim();
-    if(emailRaw){ const r=V.email(emailRaw); if(!r.ok){ alert(r.error); $("#c_email").focus(); return; } }
-    if(phoneRaw){ const r=V.phone(phoneRaw); if(!r.ok){ alert(r.error); $("#c_phone").focus(); return; } }
+    if(emailRaw){ const r=V.email(emailRaw); if(!r.ok){ alert(r.error); $("#c_email").focus(); return false; } }
+    if(phoneRaw){ const r=V.phone(phoneRaw); if(!r.ok){ alert(r.error); $("#c_phone").focus(); return false; } }
     const client=Object.assign({}, ev.client||{}, {
       name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:emailRaw,
       phone:phoneRaw,
@@ -442,13 +444,18 @@
   // Persist every section that used to auto-save. saveVenue() also writes the
   // plan (venue + menu notes), so saveMenuNotes() is covered. Quotation versions
   // are intentionally NOT auto-created here — that stays on the explicit button.
+  // Returns true only if every section saved; on any failure `dirty` stays set so
+  // the unsaved edits are not silently dropped on navigation.
   async function saveAll(){
-    try{ await saveClient(); }catch(_){}
-    try{ await saveDiscovery(); }catch(_){}
-    try{ await saveVenue(); }catch(_){}
-    try{ await saveProposal(); }catch(_){}
-    dirty=false;
+    let ok=true;
+    try{ if(await saveClient()===false) ok=false; }catch(_){ ok=false; }
+    try{ await saveDiscovery(); }catch(_){ ok=false; }
+    try{ await saveVenue(); }catch(_){ ok=false; }
+    try{ await saveProposal(); }catch(_){ ok=false; }
+    if(ok) dirty=false;
+    return ok;
   }
+  const SAVE_FAIL_MSG="Some changes couldn't be saved. Leave anyway and lose them?";
   // Route an intentional leave through the save prompt when there are unsaved
   // changes; otherwise just go. `go` performs the actual navigation.
   function requestLeave(go){
@@ -539,7 +546,7 @@
     let reqs=[]; try{ reqs=await BPStore.discovery.listReqs(id); }catch{}
     $("#reqList").innerHTML = reqs.length? reqs.map(r=>`<div class="rowline"><span class="g">${esc(r.title)}</span><span class="pill">${esc(r.priority||"")}</span><button class="rm" data-del="${r.id}">×</button></div>`).join("")
       : '<div style="font-size:12px;color:var(--ink-3)">No requirements yet.</div>';
-    $("#reqList").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.discovery.removeReq(b.dataset.del); renderReqs(); }));
+    $("#reqList").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.discovery.removeReq(b.dataset.del); renderReqs(); }catch(e){ alert("Couldn't remove requirement — "+((e&&e.message)||"error")); } }));
   }
 
   /* ---------- menu packages ---------- */
@@ -703,7 +710,10 @@
     $("#q_save").addEventListener("click",saveQuotation);
     $("#q_pdf").addEventListener("click",downloadQuotePDF);
     $("#rq_add").addEventListener("click",async()=>{ const t=$("#rq_title").value.trim(); if(!t) return;
-      await BPStore.discovery.addReq(id,{ title:t, priority:$("#rq_pri").value }); vocabAdd("reqs",t); fillVocab(); $("#rq_title").value=""; renderReqs(); });
+      const b=$("#rq_add"); if(b.disabled) return; b.disabled=true;
+      try{ await BPStore.discovery.addReq(id,{ title:t, priority:$("#rq_pri").value }); vocabAdd("reqs",t); fillVocab(); $("#rq_title").value=""; renderReqs(); }
+      catch(e){ alert("Couldn't add requirement — "+((e&&e.message)||"error")); }
+      finally{ b.disabled=false; } });
     $("#sendApproval").addEventListener("click",sendApproval);
     $("#pay_pct").addEventListener("input",updateAdvance);
     ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount"].forEach(f=>$("#"+f).addEventListener("input",updateAdvance));
@@ -718,13 +728,15 @@
       const btn=$("#openBuilder"), t=btn.textContent; btn.textContent="Saving…";
       // Only persist if the user actually changed something — no phantom save when
       // the builder is opened on an untouched quote.
-      if(dirty){ try{ await saveAll(); }catch(_){} }
+      if(dirty){ let ok=false; try{ ok=await saveAll(); }catch(_){}
+        if(!ok && !confirm(SAVE_FAIL_MSG)){ btn.textContent=t; return; } }
       leaving=true;   // intentional navigation — don't trip beforeunload
       location.href="builder.html?quote="+encodeURIComponent(id);
     });
     $("#genLayout").addEventListener("click",async()=>{
       try{ if($("#remindAfter").checked) localStorage.setItem(REMIND_KEY,"1"); }catch{}
-      if(dirty){ try{ await saveAll(); }catch(_){} }   // carry unsaved edits into the builder
+      if(dirty){ let ok=false; try{ ok=await saveAll(); }catch(_){}   // carry unsaved edits into the builder
+        if(!ok && !confirm(SAVE_FAIL_MSG)) return; }
       leaving=true;
       const type=$("#c_type").value.trim()||(ev&&ev.eventType)||"";
       const guests=$("#g_guests").value||$("#c_guests").value||"";
@@ -752,8 +764,9 @@
     // leave-prompt modal buttons
     $("#lv_save").addEventListener("click",async()=>{
       $("#lv_save").disabled=true;
-      try{ await saveAll(); }catch(_){}
+      let ok=false; try{ ok=await saveAll(); }catch(_){}
       $("#lv_save").disabled=false;
+      if(!ok){ alert("Some changes couldn't be saved — fix them and try again, or choose “Leave without saving”."); return; }
       $("#leaveModal").hidden=true;
       leaving=true; const go=pendingLeave; pendingLeave=null; if(go) go();
     });

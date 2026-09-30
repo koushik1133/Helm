@@ -34,7 +34,11 @@ function readDb() {
 }
 function writeDb(list) {
   ensureDb();
-  fs.writeFileSync(DB_FILE, JSON.stringify(list, null, 2));
+  // write-then-rename so a crash mid-write can't leave truncated JSON (which
+  // readDb would treat as [] and the next save would persist, wiping layouts)
+  const tmp = DB_FILE + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(list, null, 2));
+  fs.renameSync(tmp, DB_FILE);
 }
 const uid = () => 'lay_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
@@ -158,7 +162,9 @@ function serveStatic(req, res) {
   // Clean URLs: hide the .html extension. Any request for /foo.html is redirected
   // to /foo (which is then served from foo.html below), so the address bar stays clean.
   if (rel.toLowerCase().endsWith('.html')) {
-    const clean = rel.slice(0, -5) || '/';   // /dashboard.html → /index (the app home), NOT / (the public intro)
+    // Collapse leading slashes/backslashes: "//evil.com.html" or "/\evil.com.html"
+    // would otherwise become a protocol-relative Location → open redirect.
+    const clean = '/' + rel.slice(0, -5).replace(/^[\/\\]+/, '');   // /dashboard.html → /index (the app home), NOT / (the public intro)
     res.writeHead(302, { Location: clean + query, ...SECURITY_HEADERS });
     return res.end();
   }
@@ -192,8 +198,11 @@ function serveStatic(req, res) {
 const RL_WINDOW_MS = 60 * 1000;
 const RL_MAX = 120;                 // requests per IP per window for /api/*
 const rlHits = new Map();           // ip -> { count, resetAt }
+// X-Forwarded-For is client-controlled; only honour it behind a trusted proxy
+// (TRUST_PROXY=1), otherwise a caller could rotate it to bypass the limit.
+const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 function rateLimited(req) {
-  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+  const ip = (TRUST_PROXY && (req.headers['x-forwarded-for'] || '').split(',')[0].trim())
     || req.socket.remoteAddress || 'unknown';
   const now = Date.now();
   let e = rlHits.get(ip);
@@ -283,7 +292,9 @@ const server = http.createServer(async (req, res) => {
     }
     return serveStatic(req, res);
   } catch (err) {
-    sendJson(res, 500, { error: err.message || 'server error' });
+    console.error('[server] unhandled error:', err);
+    if (res.headersSent) return res.end();
+    sendJson(res, 500, { error: 'server error' });
   }
 });
 

@@ -272,7 +272,7 @@
   function taskRow(t, byId, label){
     return `<div class="trow" data-id="${t.id}">
       <span class="cat">${esc(label||"")}</span><span class="tt">${esc(t.title)}</span>
-      <span class="st ${t.status}">${STATUS_LABEL[t.status]||t.status}</span>
+      <span class="st ${esc(t.status)}">${STATUS_LABEL[t.status]||esc(t.status)}</span>
       ${t.assignee_kind==='outsourced'?`<span class="qc" style="background:var(--accent-soft);color:var(--accent)" title="Outsourced to ${esc(t.assignee_name||'vendor')}">🤝 vendor</span>`:''}
       ${t.is_special?'<span class="gate special" title="Special task — recurring reminder">🔔 special</span>':''}
       ${gateChip(t,byId)}

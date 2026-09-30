@@ -170,8 +170,9 @@
       <td>${canDelete?`<button class="rm" data-del="${c.id}" aria-label="Remove cost line">✕</button>`:""}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="empty">No cost lines yet.</td></tr>';
     $("#costRows").querySelectorAll("[data-act]").forEach(inp=>inp.addEventListener("change",async()=>{
-      await BPStore.budget.updateCost(inp.dataset.act,{actual: inp.value===""?null:Number(inp.value)}); await load(); }));
-    $("#costRows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.budget.removeCost(b.dataset.del); await load(); }));
+      let actual=null; if(inp.value!==""){ const r=BPStore.validate.money(inp.value,{field:"Actual cost"}); if(!r.ok){ alert(r.error); await load(); return; } actual=r.value; }
+      try{ await BPStore.budget.updateCost(inp.dataset.act,{actual}); }catch(e){ alert("Couldn't save — "+((e&&e.message)||"error")); } await load(); }));
+    $("#costRows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ b.disabled=true; try{ await BPStore.budget.removeCost(b.dataset.del); await load(); }catch(e){ b.disabled=false; alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
 
     $("#chgRows").innerHTML = sum.changes.length ? sum.changes.map(c=>`<tr>
       <td><b>${esc(c.title)}</b>${c.detail?`<div style="font-size:11px;color:var(--ink-3)">${esc(c.detail)}</div>`:""}</td>
@@ -180,9 +181,9 @@
       <td><span class="st ${esc(c.status)}">${esc(ST[c.status]||c.status)}</span></td>
       <td>${canEdit && c.status==="requested"?`<button class="rm go" data-appr="${c.id}">Approve</button> <button class="rm no" data-rej="${c.id}">Reject</button>`:(canDelete?`<button class="rm" data-chdel="${c.id}" aria-label="Remove change request">✕</button>`:"")}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="empty">No change requests.</td></tr>';
-    $("#chgRows").querySelectorAll("[data-appr]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.budget.setChangeStatus(b.dataset.appr,"approved"); await load(); }));
-    $("#chgRows").querySelectorAll("[data-rej]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.budget.setChangeStatus(b.dataset.rej,"rejected"); await load(); }));
-    $("#chgRows").querySelectorAll("[data-chdel]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.budget.removeChange(b.dataset.chdel); await load(); }));
+    $("#chgRows").querySelectorAll("[data-appr]").forEach(b=>b.addEventListener("click",async()=>{ b.disabled=true; try{ await BPStore.budget.setChangeStatus(b.dataset.appr,"approved"); await load(); }catch(e){ b.disabled=false; alert("Couldn't update — "+((e&&e.message)||"error")); } }));
+    $("#chgRows").querySelectorAll("[data-rej]").forEach(b=>b.addEventListener("click",async()=>{ b.disabled=true; try{ await BPStore.budget.setChangeStatus(b.dataset.rej,"rejected"); await load(); }catch(e){ b.disabled=false; alert("Couldn't update — "+((e&&e.message)||"error")); } }));
+    $("#chgRows").querySelectorAll("[data-chdel]").forEach(b=>b.addEventListener("click",async()=>{ b.disabled=true; try{ await BPStore.budget.removeChange(b.dataset.chdel); await load(); }catch(e){ b.disabled=false; alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
   }
 
   async function addCost(){
@@ -204,8 +205,9 @@
     const V=BPStore.validate; const fail=(m)=>{ $("#ch_err").textContent=m; $("#ch_err").hidden=false; };
     let priceDelta=0; if($("#ch_price").value!==""){ const r=V.money($("#ch_price").value,{field:"Charge to client"}); if(!r.ok){ fail(r.error); return; } priceDelta=r.value; }
     let costDelta=0; if($("#ch_cost").value!==""){ const r=V.money($("#ch_cost").value,{field:"Extra cost"}); if(!r.ok){ fail(r.error); return; } costDelta=r.value; }
+    if($("#ch_save").disabled) return; $("#ch_save").disabled=true;
     try{ await BPStore.budget.addChange(id,{ title:t, detail:$("#ch_detail").value.trim()||null, price_delta:priceDelta, cost_delta:costDelta });
-      $("#chgModal").hidden=true; await load(); }catch(e){ $("#ch_err").textContent="Couldn't save — "+((e&&e.message)||"error"); $("#ch_err").hidden=false; } }
+      $("#chgModal").hidden=true; await load(); }catch(e){ $("#ch_err").textContent="Couldn't save — "+((e&&e.message)||"error"); $("#ch_err").hidden=false; } finally{ $("#ch_save").disabled=false; } }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }

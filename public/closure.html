@@ -156,7 +156,7 @@
       <span class="rstars">${"★".repeat(r.stars)}${"☆".repeat(5-r.stars)}</span>
       ${canDelete?`<div class="acts"><button class="rm" data-rdel="${r.id}" aria-label="Remove rating">✕</button></div>`:""}
     </div>`).join("") : '<div class="empty">No ratings yet.</div>';
-    $("#ratings").querySelectorAll("[data-rdel]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.closure.removeRating(b.dataset.rdel); renderRatings(); }));
+    $("#ratings").querySelectorAll("[data-rdel]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.closure.removeRating(b.dataset.rdel); renderRatings(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
   }
 
   async function save(){
@@ -168,8 +168,9 @@
     finally{ $("#c_save").disabled=false; }
   }
   async function addRating(){ const name=$("#r_name").value.trim(); if(!name){ $("#r_name").focus(); return; }
+    if($("#r_add").disabled) return; $("#r_add").disabled=true;
     try{ await BPStore.closure.addRating(id,{ kind:$("#r_kind").value, name, stars:Number($("#r_stars").value) }); $("#r_name").value=""; renderRatings(); }
-    catch(e){ alert("Couldn't rate — "+((e&&e.message)||"error")); } }
+    catch(e){ alert("Couldn't rate — "+((e&&e.message)||"error")); } finally{ $("#r_add").disabled=false; } }
   async function closeEvent(){
     // Gate 1 — every piece of equipment booked for this event must be back
     // (nothing still 'reserved' or 'allocated'). Closing is how the archive is built,

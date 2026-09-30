@@ -368,7 +368,7 @@
     $("#c_address").value=cl.address||""; $("#c_notes").value=cl.notes||"";
     // central rates + vendors + coupons from the Control Center
     cmConfig={chairPrice:200,platePrice:500,gstPct:18,cateringGstPct:18,serviceChargePct:0};
-    try{ cmConfig=await BPStore.config.getPricing(); }catch{}
+    try{ cmConfig=(await BPStore.config.getPricing())||cmConfig; }catch{}
     try{ cmVendors=await BPStore.vendors.list(); }catch{ cmVendors=[]; }
     try{ cmCoupons=await BPStore.coupons.list(); }catch{ cmCoupons=[]; }
     const cfg=cmConfig;
@@ -440,6 +440,7 @@
   }
   async function savePricing(confirmIt){
     const btn = confirmIt?$("#cm_confirm"):$("#cm_savePricing"); btn.disabled=true;
+    const other = confirmIt?$("#cm_savePricing"):$("#cm_confirm"); other.disabled=true;   // one save at a time (no concurrent confirm + save)
     const p=gatherPricing(), t=calcPricing(p), client=gatherClient();
     const pricing = { ...p, computed:t, total:t.total, client };
     // B6 — optimistic lock: the updated_at captured when this modal loaded. If another
@@ -463,7 +464,7 @@
         ? "This quote was changed in another tab or by another user since you opened it. Reload to see the latest, then re-apply your changes."
         : ((e&&e.message)||"Save failed");
       el.hidden=false; }
-    finally{ btn.disabled=false; }
+    finally{ btn.disabled=false; other.disabled=false; }
   }
 
   /* ---------- download (printable quote/invoice) ---------- */
@@ -473,7 +474,7 @@
     const isInv=full.status==="confirmed"; const pos=p.placeOfSupply;
     const line=(l,a)=>`<tr><td>${l}</td><td style="text-align:right">${inr(a)}</td></tr>`;
     const tax = pos==="inter" ? line("IGST", t.igst||0) : line("CGST", t.cgst||0)+line("SGST", t.sgst||0);
-    const html=`<!doctype html><meta charset=utf8><title>${isInv?"Invoice":"Quotation"} ${full.code}</title>
+    const html=`<!doctype html><meta charset=utf8><title>${isInv?"Invoice":"Quotation"} ${esc(full.code)}</title>
     <style>body{font-family:system-ui,sans-serif;max-width:720px;margin:32px auto;color:#141b2e;padding:0 20px}
     h1{font-size:20px;margin:0} .muted{color:#8a95ad;font-size:12px} table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
     td,th{padding:8px;border-bottom:1px solid #e6ebf3;text-align:left} .tot td{border:0} .grand td{font-weight:700;font-size:16px;border-top:2px solid #141b2e}
@@ -512,7 +513,7 @@
   let lkQuoteId=null, lkPhone="";
   async function sendApprovalLink(id){
     try{ const tok=await BPStore.approval.generateToken(id);
-      const url=location.origin+"/approve.html?token="+tok;
+      const url=location.origin+"/approve.html?token="+encodeURIComponent(tok);
       lkQuoteId=id; $("#lk_msg").innerHTML="";
       try{ const q=(quotes.find(x=>x.id===id)); lkPhone=(q&&q.client&&q.client.phone)|| (q&&q.pricing&&q.pricing.client&&q.pricing.client.phone) ||""; }catch{ lkPhone=""; }
       $("#lk_url").value=url; $("#lk_open").href=url; $("#linkModal").hidden=false;
