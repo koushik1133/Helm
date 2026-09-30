@@ -28,6 +28,14 @@ After you apply SEC-01/02/03 on staging, tell Claude — it will re-probe as `an
 
 **Tested before release:** all of SEC-05/06/07 were applied twice (idempotent) to a Postgres 16 copy of the 09-25 production schema snapshot + every later prod bundle (PROD-01, wave10, completion, prod-fix, SEC-01..04); every VERIFY row read PASS and behaviour tests passed (two studios, admin/planner/operations roles, anon token flows). On the bare 09-25 snapshot SEC-05 refuses with a clear "apply these first" message and changes nothing.
 
+## Staging status (`xizehqgeyjcfpzrdymly`) — production not applied
+| Item | Staging | Evidence |
+|---|---|---|
+| SEC-05 | applied; VERIFY PASS except **F6 MIME/size = FAIL** (dashboard fix pending) | user's staging VERIFY output |
+| SEC-06 | **PASS (2026-09-30)** | catalog VERIFY PASS; `staging-tests/sec06-sql-editor`: 8/8 behaviour rows PASS (damaged > qty rejected, valid return, stock 10→7, repeat rejected, cross-studio "reservation not found"); concurrent returns: TAB 2 `22023 reservation is already returned`, stock 7→5 (one deduction); invitation_preview 6/6 PASS, no private fields; cleanup 0 rows |
+| SEC-07 | v1 applied; **v2 pending** — run `staging-tests/sec07-sql-editor` 0 → 1 → 2 | local v1→v2 upgrade: 8/8 VERIFY PASS, re-apply idempotent, 33/33 behaviour tests PASS |
+| B2 payment concurrency | PARTIAL / OPEN | — |
+
 **F6 bucket limits:** set them in Dashboard → Storage → invite-media → Edit bucket (or `storage.updateBucket`), keep it PUBLIC; SEC-05 only reports. **Payment concurrency (B2): PARTIAL / OPEN** — SEC-05/07 fix specific writers (mark_paid, webhook) but do not prove every money-writer shares one serialization boundary; not claimed fixed.
 
 PRANEETH REPO — UNTOUCHED / WWW.HELM.EVENTS — UNTOUCHED / PRODUCTION DATABASE — UNTOUCHED (you run the SQL; Claude runs nothing against prod).
