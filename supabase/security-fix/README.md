@@ -33,8 +33,10 @@ After you apply SEC-01/02/03 on staging, tell Claude — it will re-probe as `an
 |---|---|---|
 | SEC-05 | applied; VERIFY PASS except **F6 MIME/size = FAIL** (dashboard fix pending) | user's staging VERIFY output |
 | SEC-06 | **PASS (2026-09-30)** | catalog VERIFY PASS; `staging-tests/sec06-sql-editor`: 8/8 behaviour rows PASS (damaged > qty rejected, valid return, stock 10→7, repeat rejected, cross-studio "reservation not found"); concurrent returns: TAB 2 `22023 reservation is already returned`, stock 7→5 (one deduction); invitation_preview 6/6 PASS, no private fields; cleanup 0 rows |
-| SEC-07 | v1 applied; **v2 pending** — run `staging-tests/sec07-sql-editor` 0 → 1 → 2 | local v1→v2 upgrade: 8/8 VERIFY PASS, re-apply idempotent, 33/33 behaviour tests PASS |
+| SEC-07 | **v2 applied (2026-09-30); VERIFY 8/8 PASS** (G4 40/40 guarded, 0 missing/unexpected; G5 PUBLIC/anon cannot, authenticated can). Precheck: 276 approval links (0 without expiry, 3 already expired), 9 worker links (0 without expiry), 0 cross-studio rows, owner postgres only, read committed. Behaviour: **pending** — run `staging-tests/sec07-behaviour` 0 → 1 → 2A+2B → 3 → 4 | local: 14/14 behaviour rows PASS, concurrent 4th OTP refused after waiting for tab 1, cleanup 0 |
 | B2 payment concurrency | PARTIAL / OPEN | — |
+
+Note (staging precheck row 12): role `supabase_admin` has a per-schema default ACL in `public` that grants anon EXECUTE. It owns no public functions today (owners: postgres only), so VERIFY G5 is correct; a function `supabase_admin` ever creates in `public` would still be anon-executable. The SQL editor runs as `postgres` and cannot change `supabase_admin` defaults.
 
 **F6 bucket limits:** set them in Dashboard → Storage → invite-media → Edit bucket (or `storage.updateBucket`), keep it PUBLIC; SEC-05 only reports. **Payment concurrency (B2): PARTIAL / OPEN** — SEC-05/07 fix specific writers (mark_paid, webhook) but do not prove every money-writer shares one serialization boundary; not claimed fixed.
 
