@@ -2018,6 +2018,13 @@
       rpc("record_payment", { p_quote: quoteId, p_amount: Number(amount) || 0, p_method: method || "cash",
         p_receipt_no: receiptNo || null, p_milestone: milestoneId || null, p_note: note || null,
         p_idempotency_key: idempotencyKey || null }),
+    // B5 — settlement (post-event balance): same idempotency + server receipt + overpayment
+    // cap as record_payment, but WITHOUT the booking-confirm status flip or "booking confirmed"
+    // notifications (settlement isn't a booking event). Server: record_settlement_payment.
+    recordSettlement: (quoteId, amount, method, receiptNo, milestoneId, note, idempotencyKey) =>
+      rpc("record_settlement_payment", { p_quote: quoteId, p_amount: Number(amount) || 0, p_method: method || "cash",
+        p_receipt_no: receiptNo || null, p_milestone: milestoneId || null, p_note: note || null,
+        p_idempotency_key: idempotencyKey || null }),
     // list logged payments (receipts) for an event
     async payments(quoteId) {
       if (mode !== "supabase") return [];

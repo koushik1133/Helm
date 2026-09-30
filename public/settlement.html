@@ -191,9 +191,15 @@
 
   async function recordPayment(){ const av=BPStore.validate.money($("#pay_amt").value,{field:"Payment amount"});
     if(!av.ok || av.value<=0){ $("#pay_msg").style.color="var(--warn,#e8912d)"; $("#pay_msg").textContent=av.ok?"Enter an amount greater than ₹0.":av.error; $("#pay_amt").focus(); return; }
-    const amt=av.value; $("#pay_btn").disabled=true;
-    try{ await BPStore.milestones.add(id,{ label:"Payment received", amount:amt, status:"paid" }); $("#pay_amt").value=""; $("#pay_msg").textContent="Recorded ✓"; setTimeout(()=>$("#pay_msg").textContent="",1500); await load(); }
-    catch(e){ alert("Couldn't record — "+((e&&e.message)||"error")); } finally{ $("#pay_btn").disabled=false; }
+    const amt=av.value;
+    // B5 — stable per-submission idempotency key (never regenerated on retry) so a
+    // double-click/replay dedups server-side; settlement recorder adds server receipt +
+    // overpayment cap without re-confirming the booking or notifying.
+    const idemKey=(self.crypto&&crypto.randomUUID)?crypto.randomUUID():(String(Date.now())+"-"+Math.random().toString(16).slice(2));
+    $("#pay_btn").disabled=true; $("#pay_msg").style.color="var(--safe)"; $("#pay_msg").textContent="Recording…";
+    try{ await BPStore.milestones.recordSettlement(id, amt, "cash", null, null, "Settlement payment", idemKey);
+      $("#pay_amt").value=""; $("#pay_msg").style.color="var(--safe)"; $("#pay_msg").textContent="Recorded ✓"; setTimeout(()=>$("#pay_msg").textContent="",1500); await load(); }
+    catch(e){ $("#pay_btn").disabled=false; $("#pay_msg").style.color="var(--warn,#e8912d)"; $("#pay_msg").textContent="Couldn't record — "+((e&&e.message)||"error"); }
   }
   async function addExpense(){ const who=$("#e_who").value.trim(); if(!who){ alert("Enter who the expense is paid to."); $("#e_who").focus(); return; }
     const av=BPStore.validate.money($("#e_amt").value,{field:"Expense amount"});
