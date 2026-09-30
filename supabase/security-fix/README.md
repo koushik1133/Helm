@@ -28,12 +28,14 @@ After you apply SEC-01/02/03 on staging, tell Claude — it will re-probe as `an
 
 **Tested before release:** all of SEC-05/06/07 were applied twice (idempotent) to a Postgres 16 copy of the 09-25 production schema snapshot + every later prod bundle (PROD-01, wave10, completion, prod-fix, SEC-01..04); every VERIFY row read PASS and behaviour tests passed (two studios, admin/planner/operations roles, anon token flows). On the bare 09-25 snapshot SEC-05 refuses with a clear "apply these first" message and changes nothing.
 
+**Production precheck (read-only, one file):** `PRODUCTION-PRECHECK-SEC-05-06-07.sql` — reports per fix APPLIED / NOT APPLIED / PARTIAL, prerequisites, data impact (links that would expire at apply, cross-studio rows, per-studio channel changes) and md5 fingerprints of every function SEC-05/06/07 read or replace. Tested locally on four states (09-25 snapshot, snapshot+bundles, +SEC-05/06, +SEC-07).
+
 ## Staging status (`xizehqgeyjcfpzrdymly`) — production not applied
 | Item | Staging | Evidence |
 |---|---|---|
 | SEC-05 | applied; VERIFY PASS except **F6 MIME/size = FAIL** (dashboard fix pending) | user's staging VERIFY output |
 | SEC-06 | **PASS (2026-09-30)** | catalog VERIFY PASS; `staging-tests/sec06-sql-editor`: 8/8 behaviour rows PASS (damaged > qty rejected, valid return, stock 10→7, repeat rejected, cross-studio "reservation not found"); concurrent returns: TAB 2 `22023 reservation is already returned`, stock 7→5 (one deduction); invitation_preview 6/6 PASS, no private fields; cleanup 0 rows; **correction:** that cleanup checked only studio-scoped tables and left ~9 `audit_log` rows (no studio id) naming `ee5ec06e…` test ids — the SEC-07 master file removes them and reports the count |
-| SEC-07 | **v2 applied (2026-09-30); VERIFY 8/8 PASS** (G4 40/40 guarded; G5 PUBLIC/anon cannot, authenticated can). Behaviour: **pending** — run ONE file `staging-tests/SEC-07-v2-STAGING-MASTER-TEST.sql` (+ its CONCURRENCY TAB 1/TAB 2 sections) | local: 36/36 PASS in editor mode (x2) and statement mode; concurrency PASS (TAB 2 waited 16–18 s, refused, 3 codes); negative control without locks → FAIL; production-like DB (no SEC-07) → aborts, nothing written; real-row fingerprint unchanged; 0 leftovers |
+| SEC-07 | **v2 applied; master test PASS on staging (2026-09-30):** STRUCTURAL PASS, BEHAVIOR 36/36, CLEANUP PASS, leftover 0, real rows unchanged, SEC-06 residue (9 audit rows) removed. **Concurrency (TAB 1/TAB 2) evidence not yet received.** | user's staging result table; local: same file 36/36 + concurrency PASS |
 | B2 payment concurrency | PARTIAL / OPEN | — |
 
 Note (staging precheck row 12): role `supabase_admin` has a per-schema default ACL in `public` that grants anon EXECUTE. It owns no public functions today (owners: postgres only), so VERIFY G5 is correct; a function `supabase_admin` ever creates in `public` would still be anon-executable. The SQL editor runs as `postgres` and cannot change `supabase_admin` defaults.
