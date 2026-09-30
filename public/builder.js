@@ -171,7 +171,7 @@ const EVENT_TYPE_PRESET = {
 };
 
 function inr(n){ return '₹'+Math.round(n||0).toLocaleString('en-IN'); }
-function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 // The ONE breakdown — delegated to BPStore.pricing so the builder and the
 // quote always show the identical number. Chairs + objects come from the
@@ -928,7 +928,7 @@ function renderInspector(){
     return;
   }
   const u=uLabel();
-  const catBadge=`<span class="itag" style="--tag:${toHexColor(it.color)}">${CATS[it.category].name}</span>`;
+  const catBadge=`<span class="itag" style="--tag:${esc(toHexColor(it.color))}">${CATS[it.category].name}</span>`;
   const typeSpec = renderTypeSpecific(it);
 
   box.innerHTML = `
@@ -957,9 +957,9 @@ function renderInspector(){
       <div class="swatches" id="swatches" role="group" aria-labelledby="catLbl">
         ${SWATCH_CATS.map(k=>`<button type="button" class="sw ${it.category===k?'on':''}" data-cat="${k}" style="background:${esc(catColor(k))}" title="${CATS[k].name}" aria-label="Category: ${CATS[k].name}" aria-pressed="${it.category===k}"></button>`).join('')}
       </div>
-      <div class="seclabel">Colour <span class="cn" id="colorName">${toHexColor(it.color).toUpperCase()}</span></div>
+      <div class="seclabel">Colour <span class="cn" id="colorName">${esc(toHexColor(it.color).toUpperCase())}</span></div>
       <div class="colorrow">
-        <input type="color" id="f_color" value="${toHexColor(it.color)}" title="Pick any colour" aria-label="Custom colour">
+        <input type="color" id="f_color" value="${esc(toHexColor(it.color))}" title="Pick any colour" aria-label="Custom colour">
         <div class="palette" id="palette" role="group" aria-label="Colour palette">
           ${COLORWAYS.map(c=>`<button type="button" class="pc ${toHexColor(it.color)===c?'on':''}" data-c="${c}" style="background:${c}" title="${c}" aria-label="Colour ${c}" aria-pressed="${toHexColor(it.color)===c}"></button>`).join('')}
         </div>
@@ -996,9 +996,9 @@ function renderTypeSpecific(it){
     const seats=(it.properties.rows||1)*(it.properties.cols||1);
     const pitch=it.properties.pitch||round1(Math.min(it.width/Math.max(1,it.properties.cols||1), it.height/Math.max(1,it.properties.rows||1)));
     return `<div class="irow" style="margin-top:11px">
-      <div class="ifield"><label for="f_rows">Rows</label><input type="number" id="f_rows" min="1" max="80" value="${it.properties.rows||1}"></div>
-      <div class="ifield"><label for="f_cols">Cols / row</label><input type="number" id="f_cols" min="1" max="120" value="${it.properties.cols||1}"></div>
-      <div class="ifield"><label for="f_seatcount">Seats</label><input type="text" id="f_seatcount" value="${seats}" disabled style="opacity:.7"></div>
+      <div class="ifield"><label for="f_rows">Rows</label><input type="number" id="f_rows" min="1" max="80" value="${Number(it.properties.rows)||1}"></div>
+      <div class="ifield"><label for="f_cols">Cols / row</label><input type="number" id="f_cols" min="1" max="120" value="${Number(it.properties.cols)||1}"></div>
+      <div class="ifield"><label for="f_seatcount">Seats</label><input type="text" id="f_seatcount" value="${Number(seats)||0}" disabled style="opacity:.7"></div>
     </div>
     <div class="fwarn" id="f_seatwarn" role="alert" hidden></div>
     <div class="irow" style="margin-top:9px">
@@ -1008,7 +1008,7 @@ function renderTypeSpecific(it){
   }
   if(it.type==='table'){
     return `<div class="irow" style="margin-top:11px">
-      <div class="ifield"><label for="f_seats">Seats around</label><input type="number" id="f_seats" min="0" max="24" value="${it.properties.seats||0}"></div>
+      <div class="ifield"><label for="f_seats">Seats around</label><input type="number" id="f_seats" min="0" max="24" value="${Number(it.properties.seats)||0}"></div>
       <div class="ifield"><label for="f_dia">Diameter</label><div class="unit" data-u="${uLabel()}"><input type="number" id="f_dia" step="0.5" min="1" value="${fmtU(it.width)}"></div></div>
     </div>`;
   }
@@ -1131,7 +1131,7 @@ function renderItemInPlace(it){ // cheap label refresh without full rebuild
   const g=svg.querySelector(`.obj[data-id="${CSS.escape(String(it.id))}"] text.lbl`);
   if(g) g.textContent=it.label;
 }
-function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function escapeHtml(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 /* ===================================================================
    POINTER INTERACTION — drag / resize / rotate / select
@@ -2376,7 +2376,7 @@ function openTemplatePicker(){
   let html='';
   preset.querySelectorAll('optgroup').forEach(g=>{
     html+=`<div class="tpl-group">${g.label}</div><div class="tpl-grid">`;
-    g.querySelectorAll('option').forEach(o=>{ if(o.value) html+=`<button type="button" class="tpl-card" data-k="${o.value}">${o.textContent}</button>`; });
+    g.querySelectorAll('option').forEach(o=>{ if(o.value) html+=`<button type="button" class="tpl-card" data-k="${escapeHtml(o.value)}">${escapeHtml(o.textContent)}</button>`; });
     html+='</div>';
   });
   body.innerHTML=html;

@@ -138,7 +138,7 @@
       const qid = r.quote_id ? esc(r.quote_id) : "";
       const openable = !!qid;
       const href = openable ? "event.html?id="+encodeURIComponent(r.quote_id) : "";
-      return `<tr${openable?` class="openable" data-href="${esc(href)}" style="cursor:pointer"`:""}>
+      return `<tr${openable?` class="openable" data-qid="${esc(r.quote_id)}" style="cursor:pointer"`:""}>
       <td class="when">${esc(when(r.archived_at))}</td>
       <td><span class="act ${esc(r.action)}">${esc(r.action)}</span></td>
       <td>${esc(r.name||"—")}</td>
@@ -153,9 +153,9 @@
     </tr>`;}).join("");
     // click a row (or the Open link) → the event workspace hub (details + 2D/3D)
     // (the Open link is the keyboard/AT path; the whole row is a mouse convenience)
-    $("#rows").querySelectorAll("tr[data-href]").forEach(el=>el.addEventListener("click",(e)=>{
+    $("#rows").querySelectorAll("tr[data-qid]").forEach(el=>el.addEventListener("click",(e)=>{
       if(e.target.closest("a")) return;
-      location.href=el.getAttribute("data-href");
+      location.href="event.html?id="+encodeURIComponent(el.dataset.qid);
     }));
   }
 

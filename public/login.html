@@ -191,7 +191,16 @@
   // Accept a same-app page name with optional .html and optional query (e.g.
   // "flow.html?quote=…" or the clean-URL form "flow?quote=…"). Reject anything
   // with a slash or protocol to prevent open-redirects.
-  const nextUrl=()=>{ const n=new URLSearchParams(location.search).get("next"); return (n && /^[a-zA-Z0-9_\-]+(\.html)?(\?|$)/.test(n) && !/[\/\\]|:/.test(n)) ? n : "dashboard.html"; };
+  // ?next= may only name one of the app's own pages; the page string comes from
+  // this fixed list (never from the URL) and only its query string is carried over.
+  const NEXT_PAGES=["audit","budget","builder","calendar","closure","command","control","crm","dashboard","design","discovery","event","flow","insights","inventory","invite-studio","issues","leads","logistics","media","nurture","ops","plan","proposal","quotes","ready","reports","resources","runsheet","settlement","staff","teardown","templates","vendors"];
+  const nextUrl=()=>{
+    const m=/^([a-z0-9-]+)(?:\.html)?(?:\?([^#]*))?$/i.exec(new URLSearchParams(location.search).get("next")||"");
+    const page=m && NEXT_PAGES.find(p=>p===m[1].toLowerCase());
+    if(!page) return "dashboard.html";
+    const qs=new URLSearchParams(m[2]||"").toString();
+    return page+".html"+(qs?"?"+qs:"");
+  };
   const EXPIRED=new URLSearchParams(location.search).get("expired")==="1";
   const showErr=(el,text)=>{ el.textContent=text; el.hidden=false; };
 

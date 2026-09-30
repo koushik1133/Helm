@@ -47,7 +47,7 @@ const storeApi = read('public/store-api.js');
 const canonBody = extractFn(storeApi, '_canon(a)');
 const quoteTotalBody = extractFn(storeApi, 'quoteTotal(p)');
 const ui = {};
-ui._canon = new Function('a', 'return (' + '(a)=>' + canonBody.replace(/^\{/, '{') + ')(a)');
+ui._canon = new Function('a', 'return (' + '(a)=>' + canonBody + ')(a)');
 ui.quoteTotal = new Function('p', `const self=this; return ((p)=>{const this_=self;` +
   quoteTotalBody
     .replace(/^\{/, '')

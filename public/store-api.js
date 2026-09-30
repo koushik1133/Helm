@@ -87,8 +87,9 @@
   // navigations within a tab reuse them. RLS on the server is the real gate, so a
   // briefly-stale UI role/matrix cannot grant access — it only saves round-trips.
   const SESS_TTL = 60000;
-  function sessGet(key, uid) { try { const raw = sessionStorage.getItem(key); if (!raw) return null; const o = JSON.parse(raw); if (o.uid !== uid || (Date.now() - o.ts) > SESS_TTL) return null; return o.val; } catch (e) { return null; } }
-  function sessSet(key, uid, val) { try { sessionStorage.setItem(key, JSON.stringify({ uid: uid, ts: Date.now(), val: val })); } catch (e) {} }
+  function sessGet(key, uid) { try { const raw = sessionStorage.getItem(key); if (!raw) return null; const o = JSON.parse(raw); if ((Date.now() - o.ts) > SESS_TTL) return null; return o.val; } catch (e) { return null; } }
+  // no user id is stored: sessClear() runs on every sign-in / sign-out / auth change
+  function sessSet(key, uid, val) { try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), val: val })); } catch (e) {} }
   function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); } catch (e) {} }
   let authRequired = false;     // true when Supabase enforces login (RLS) and nobody is signed in
 
@@ -1710,7 +1711,7 @@
       if (!sniff) throw new Error("Unsupported file type — allowed: " + this.ALLOWED_LABEL + ".");
       const orgId = await org.id();
       if (!orgId) throw new Error("no organization in context");
-      const uuid = (crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2, 10));
+      const uuid = (crypto && crypto.randomUUID) ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
       const path = orgId + "/" + quoteId + "/" + uuid + "." + sniff.ext;   // client name discarded
       const { error: upErr } = await supa.storage.from("event-docs").upload(path, file, {
         upsert: false, contentType: sniff.mime, cacheControl: "3600" });

@@ -496,8 +496,10 @@
   $("#f_musicPick").addEventListener("change",()=>{ applyMusicUi(); preview(); });
   $("#f_musicUrl").addEventListener("input",()=>{ applyMusicUi(); preview(); });
   $("#musicTryBtn").addEventListener("click",()=>{
-    const a=$("#musicTry"); const u=musicUrl(); if(!u) return;
-    if(a.src!==u){ a.src=u; }
+    const a=$("#musicTry"); const raw=musicUrl(); if(!raw) return;
+    let u; try{ u=new URL(raw, location.href); }catch(_){ u=null; }
+    if(!u || u.protocol!=="https:"){ setMsg("Use an https:// link for the song.","err"); return; }
+    if(a.src!==u.href){ a.src=u.href; }
     if(a.paused){ a.play().then(()=>{$("#musicTryBtn").textContent="⏸ Stop"; $("#musicTryBtn").setAttribute("aria-pressed","true");}).catch(()=>setMsg("Couldn't play that link.","err")); }
     else { a.pause(); $("#musicTryBtn").textContent="▶ Preview song"; $("#musicTryBtn").setAttribute("aria-pressed","false"); }
   });

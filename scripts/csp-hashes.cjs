@@ -31,7 +31,8 @@ function htmlFiles(dir) {
 // Inline scripts of one HTML document: [{ hash, line }]
 function inlineScripts(html) {
   const res = [];
-  const re = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;
+  // the element ends at "</script" + whitespace, "/" or ">" (HTML tokenizer rule)
+  const re = /<script\b([^>]*)>([\s\S]*?)<\/script(?=[\s/>])[^>]*>/gi;
   let m;
   while ((m = re.exec(html)) !== null) {
     const attrs = m[1] || '';

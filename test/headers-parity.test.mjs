@@ -87,7 +87,7 @@ for (const p of PAGES) paths.push('/' + p, '/' + p + '.html');
 
 for (const p of paths) {
   const v = vercelHeaders(p), nf = netlifyHeaders(p);
-  const s = serverHeaders(p.replace(/\.html$/, '').replace(/^\/index$/, '/index'));
+  const s = serverHeaders(p.replace(/\.html$/, ''));
   t(`${p}: security headers match`, () => {
     for (const k of SECURITY_KEYS) {
       assert.ok(v[k], `vercel.json missing ${k} for ${p}`);

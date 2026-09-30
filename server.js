@@ -223,6 +223,37 @@ function sendNotFound(res, req) {
     e ? sendJson(res, 404, { error: 'not found' }) : sendFileRes(res, file, buf, req, 404));
 }
 
+// Index of every servable file under public/, keyed by its URL path
+// ("/vendor/x.js" → absolute path). Requests are looked up here, so a request
+// path is never joined onto the filesystem (no traversal is even expressible).
+// Rebuilt at most once a second on a miss, so files added in dev show up.
+let fileIndex = new Map(), fileIndexAt = 0;
+function buildFileIndex() {
+  const idx = new Map();
+  const walk = (dir, urlDir) => {
+    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (ent.name.startsWith('.') && ent.name !== '.well-known') continue;
+      const abs = path.join(dir, ent.name), url = urlDir + '/' + ent.name;
+      if (ent.isDirectory()) walk(abs, url);
+      else if (ent.isFile()) idx.set(url, abs);
+    }
+  };
+  try { walk(PUBLIC_DIR, ''); } catch (e) { console.error('[server] cannot index public/:', e.message); }
+  fileIndex = idx; fileIndexAt = Date.now();
+}
+function lookupFile(urlPath) {
+  if (!fileIndex.has(urlPath) && Date.now() - fileIndexAt > 1000) buildFileIndex();
+  return fileIndex.get(urlPath) || null;
+}
+// the index's own copy of the key (never the request's string)
+function indexedUrl(urlPath) {
+  for (const k of fileIndex.keys()) if (k === urlPath) return k;
+  return null;
+}
+function serveFile(res, req, file) {
+  fs.readFile(file, (e, buf) => (e ? sendNotFound(res, req) : sendFileRes(res, file, buf, req)));
+}
+
 function serveStatic(req, res) {
   let rel;
   try { rel = decodeURIComponent(req.url.split('?')[0]); }
@@ -231,49 +262,31 @@ function serveStatic(req, res) {
   const query = qIdx >= 0 ? req.url.slice(qIdx) : '';
 
   // The public front door.
-  if (rel === '/') {
-    const file = path.join(PUBLIC_DIR, 'index.html');
-    return fs.readFile(file, (e, buf) =>
-      e ? sendNotFound(res, req) : sendFileRes(res, file, buf, req));
-  }
+  if (rel === '/') return serveFile(res, req, path.join(PUBLIC_DIR, 'index.html'));
 
   // Public digital-invitation sites: /i/<slug> is served by invite.html, which
   // reads the slug from the path and fetches ONLY the published display fields.
   // Guard: only treat it as a slug when there's no file extension, so asset
   // requests (e.g. /i/foo.js) are never swallowed by this route.
   if ((rel === '/i' || rel.startsWith('/i/')) && !path.extname(rel)) {
-    const file = path.join(PUBLIC_DIR, 'invite.html');
-    return fs.readFile(file, (e, buf) =>
-      e ? sendNotFound(res, req) : sendFileRes(res, file, buf, req));
+    return serveFile(res, req, path.join(PUBLIC_DIR, 'invite.html'));
   }
 
-  // Clean URLs: hide the .html extension. Any request for /foo.html is redirected
-  // to /foo (which is then served from foo.html below), so the address bar stays clean.
+  // Clean URLs: hide the .html extension. /foo.html → 302 /foo (served from
+  // foo.html below). Only real pages redirect, to the index's own path — so
+  // "//evil.com.html" style requests can't produce an off-site Location.
   if (rel.toLowerCase().endsWith('.html')) {
-    // Collapse leading slashes/backslashes: "//evil.com.html" or "/\evil.com.html"
-    // would otherwise become a protocol-relative Location → open redirect.
-    const clean = '/' + rel.slice(0, -5).replace(/^[\/\\]+/, '');   // /dashboard.html → /dashboard
-    res.writeHead(302, { Location: clean + query, ...securityHeadersFor(req, path.join(PUBLIC_DIR, clean.slice(1) + '.html')) });
+    const page = rel.startsWith('/') && lookupFile(rel) ? indexedUrl(rel) : null;
+    if (!page) return sendNotFound(res, req);
+    const clean = page.slice(0, -5);                         // /dashboard.html → /dashboard
+    res.writeHead(302, { Location: clean + query, ...securityHeadersFor(req, lookupFile(page)) });
     return res.end();
   }
 
-  const base = path.normalize(path.join(PUBLIC_DIR, rel));
-  // must stay inside PUBLIC_DIR (guard the separator boundary, not just the prefix)
-  if (base !== PUBLIC_DIR && !base.startsWith(PUBLIC_DIR + path.sep))
-    return sendJson(res, 403, { error: 'forbidden' });
-
-  const ext = path.extname(base);
-  if (ext) {
-    // A real asset (.js, .css, images, …) — serve it directly.
-    return fs.readFile(base, (err, buf) =>
-      err ? sendNotFound(res, req) : sendFileRes(res, base, buf, req));
-  }
-
-  // No extension → a clean page URL. Serve <name>.html, else the 404 page.
-  fs.readFile(base + '.html', (err, buf) => {
-    if (!err) return sendFileRes(res, base + '.html', buf, req);
-    sendNotFound(res, req);
-  });
+  // A real asset (.js, .css, images, …), or a clean page URL → <name>.html.
+  const file = path.extname(rel) ? lookupFile(rel) : lookupFile(rel + '.html');
+  if (!file) return sendNotFound(res, req);
+  serveFile(res, req, file);
 }
 
 /* ----------------------------------------------------- rate limiting */
