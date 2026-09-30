@@ -414,10 +414,17 @@
       $("#nextName").textContent = BPStore.quotes.nextCode(summaries);
     }));
   }
+  // E6 — memoize the per-load feeds so roleboard + pending + mytasks share ONE call each
+  // (previously my_pending and my_tasks were each fetched twice per dashboard load).
+  let _feed = {};
+  function clearFeed(){ _feed = {}; }
+  const getPending = () => (_feed.pending || (_feed.pending = BPStore.pending()));
+  const getMyTasks = () => (_feed.tasks   || (_feed.tasks   = BPStore.myTasks()));
+  const getQueue   = () => (_feed.queue   || (_feed.queue   = BPStore.design.queue()));
   // Phase 3 — "Upcoming & my tasks": server-scoped feed (my_pending). Best-effort; never blocks the page.
   async function renderPending() {
     const sec = $("#myworkSection"), host = $("#mywork"); if (!sec || !host) return;
-    let res; try { res = await BPStore.pending(); } catch (e) { sec.hidden = true; return; }
+    let res; try { res = await getPending(); } catch (e) { sec.hidden = true; return; }
     const up = (res && res.upcoming) || [], unread = (res && res.unread) || 0, ub = $("#unreadBadge");
     if (ub) { if (unread > 0) { ub.textContent = unread + " unread"; ub.hidden = false; } else ub.hidden = true; }
     if (!up.length) { sec.hidden = true; return; }          // role without quotes access / nothing active
@@ -461,9 +468,10 @@
     (summaries||[]).forEach(s => { const k = (s.status||"quote"); if (st[k]!=null) st[k]++; else st.quote++; });
     // best-effort async signals
     let pend = { upcoming: [], unread: 0 }, tasks = { counts:{} }, dq = [];
-    try { pend = await BPStore.pending(); } catch(e){}
-    try { tasks = await BPStore.myTasks(); } catch(e){}
-    if (["admin","manager","planner","designer","coordinator"].includes(role)) { try { dq = await BPStore.design.queue(); } catch(e){} }
+    try { pend = await getPending(); } catch(e){}
+    try { tasks = await getMyTasks(); } catch(e){}
+    // only manager + designer boards actually use the design queue — don't fetch it otherwise
+    if (["manager","designer"].includes(role)) { try { dq = await getQueue(); } catch(e){} }
     const tc = tasks.counts || {}, up = (pend.upcoming||[]).length;
     const dqAt = (s) => (dq||[]).filter(x => x.state===s).length;
     const CFG = {
@@ -514,7 +522,7 @@
   // Build 3 — "My tasks": personal bucketed task list (my_tasks). Best-effort; never blocks the page.
   async function renderMyTasks() {
     const sec = $("#mytasksSection"), host = $("#mytasks"); if (!sec || !host) return;
-    let r; try { r = await BPStore.myTasks(); } catch (e) { sec.hidden = true; return; }
+    let r; try { r = await getMyTasks(); } catch (e) { sec.hidden = true; return; }
     const c = (r && r.counts) || {};
     const total = (c.today||0)+(c.overdue||0)+(c.blocked||0)+(c.upcoming||0);
     if (total === 0 && (c.completed||0) === 0) { sec.hidden = true; return; }   // no crew link / no tasks
@@ -551,8 +559,8 @@
   // when login is required, keep the modal up so there's no dead-end.
   $("#loginModal").addEventListener("click", (e) => { if (e.target.id === "loginModal" && BPStore.auth.user()) closeLogin(); });
   $("#refresh").addEventListener("click", load);
-  { const rp = $("#refreshPending"); if (rp) rp.addEventListener("click", renderPending); }
-  { const rt = $("#refreshMyTasks"); if (rt) rt.addEventListener("click", renderMyTasks); }
+  { const rp = $("#refreshPending"); if (rp) rp.addEventListener("click", () => { clearFeed(); renderPending(); renderRoleBoard(); }); }
+  { const rt = $("#refreshMyTasks"); if (rt) rt.addEventListener("click", () => { clearFeed(); renderMyTasks(); renderRoleBoard(); }); }
 
   /* ---- interactive spotlight tour ---- */
   // Order matches the module nav bar left-to-right, so the spotlight walks the

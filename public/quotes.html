@@ -442,11 +442,15 @@
     const btn = confirmIt?$("#cm_confirm"):$("#cm_savePricing"); btn.disabled=true;
     const p=gatherPricing(), t=calcPricing(p), client=gatherClient();
     const pricing = { ...p, computed:t, total:t.total, client };
+    // B6 — optimistic lock: the updated_at captured when this modal loaded. If another
+    // user/tab changed the quote since, updateMeta throws {code:"CONFLICT"} instead of
+    // silently overwriting their edit.
+    const expUpd = (detailCache[cmId] && detailCache[cmId].updatedAt) || null;
     try{
       if(confirmIt){ await BPStore.quotes.confirm(cmId, client, pricing);
         try{ await BPStore.quotes.setStage(cmId, "confirmed"); }catch(_){}   // advance the lifecycle so the workspace stepper isn't stuck on "quote"
       }
-      else await BPStore.quotes.updateMeta(cmId, { pricing, client });
+      else await BPStore.quotes.updateMeta(cmId, { pricing, client }, expUpd);
       // keep the event_date column in sync, then re-brand the code to the event date (draft only)
       if(client.eventDate){
         try{ await BPStore.quotes.updateMeta(cmId, { eventDate: client.eventDate });
@@ -454,7 +458,11 @@
       }
       delete detailCache[cmId];
       closeConfirm(); await load();
-    }catch(e){ const el=$("#cm_err"); el.textContent=(e&&e.message)||"Save failed"; el.hidden=false; }
+    }catch(e){ const el=$("#cm_err");
+      el.textContent = (e&&e.code==="CONFLICT")
+        ? "This quote was changed in another tab or by another user since you opened it. Reload to see the latest, then re-apply your changes."
+        : ((e&&e.message)||"Save failed");
+      el.hidden=false; }
     finally{ btn.disabled=false; }
   }
 

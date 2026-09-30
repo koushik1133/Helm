@@ -601,7 +601,7 @@
     addVersion: (id, label, data, objectCount) => qt().addVersion(id, label, data, objectCount),
     confirm: (id, client, pricing) => qt().confirm(id, client, pricing),
     setStage: (id, stage) => qt().setStage(id, stage),
-    updateMeta: (id, patch) => qt().updateMeta(id, patch),
+    updateMeta: (id, patch, expectedUpdatedAt) => qt().updateMeta(id, patch, expectedUpdatedAt),
     remove: (id) => qt().remove(id),
     // next MMDDYYYY-NN given a list of quote summaries (uses .code)
     nextCode(list, date) {
