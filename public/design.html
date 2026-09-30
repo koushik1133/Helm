@@ -87,13 +87,17 @@
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";});
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
 
-  function railHtml(state){
-    if(state==="revise"){ // loop-back: show it as an amber marker before draft
-      return `<div class="rail"><span class="step on">Needs revision</span></div>`;
-    }
-    const idx=RAIL.indexOf(state);
-    return `<div class="rail">`+RAIL.map((s,i)=>{
-      const cls=i<idx?"past":(i===idx?"on":"");
+  function railHtml(state,revision){
+    // 'revise' is a loop-back (server map: revise -> draft_2d). Keep the full linear
+    // rail visible so progress context isn't lost, highlight the step the design
+    // returns to, and prepend a "Needs revision" amber badge.
+    const revising=(state==="revise");
+    const activeIdx=revising?RAIL.indexOf("draft_2d"):RAIL.indexOf(state);
+    const badge=revising
+      ? `<span class="pill rev">Needs revision (rev ${esc(revision||1)})</span>`
+      : "";
+    return `<div class="rail">`+badge+RAIL.map((s,i)=>{
+      const cls=i<activeIdx?"past":(i===activeIdx?"on":"");
       return `<span class="step ${cls}">${esc(D.LABEL[s]||s)}</span>`;
     }).join("")+`</div>`;
   }
@@ -160,7 +164,7 @@
     host.innerHTML=`<div style="display:flex;align-items:center;gap:10px">
         <span class="pill ${rec.state==='locked'?'done':(rec.state==='revise'?'rev':'')}">${esc(D.LABEL[rec.state]||rec.state)}</span>
         <small class="muted">revision ${esc(rec.revision||1)}</small></div>
-      ${railHtml(rec.state)}
+      ${railHtml(rec.state,rec.revision)}
       ${rec.note?`<div class="muted">Last note: ${esc(rec.note)}</div>`:""}
       ${advanceControls(rec)}`;
     wireAdvance(host);
