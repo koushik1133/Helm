@@ -235,7 +235,7 @@
   const statBadge=(s)=> s==="confirmed"?'<span class="stat ok">Confirmed</span>':s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
   const apprBadge=(a)=> a==="paid"?'<span class="stat ok">Paid</span>':a==="approved"?'<span class="stat ap">Approved</span>':a==="sent"?'<span class="stat st">Sent</span>':"";
 
-  let quotes=[], filter="all", typeFilter="", canEdit=false, canDelete=false, canCreate=false;
+  let quotes=[], filter="all", typeFilter="", canEdit=false, canDelete=false, canCreate=false, canMarkPaid=false;
   const detailCache={};   // id -> full quote (with versions)
 
   /* ---------- seat/chair counting from a version's layout ---------- */
@@ -262,6 +262,8 @@
     await BPStore.init(); await renderAccount(); try{await BPStore.bell.mount(document.querySelector("#bell"));}catch{}
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     canEdit = await BPStore.auth.canEditArea("quotes"); canDelete = await BPStore.auth.can("delete"); canCreate = await BPStore.auth.can("create");
+    // mark_paid is admin/manager only server-side (SEC-05 F11); offline mode has no roles
+    canMarkPaid = canEdit && (!BPStore.auth.enabled() || ["admin","manager"].includes(await BPStore.auth.role()));
     $("#newBtn").hidden = !canCreate;
     try { quotes = await BPStore.quotes.list(); }
     catch(e){ $("#rows").innerHTML=`<tr><td colspan="8" class="empty">Couldn't load — ${esc(e&&e.message||"error")}</td></tr>`; return; }
@@ -324,7 +326,7 @@
                ${canEdit?`<button class="ic confirm" data-act="confirm">${x.status==="confirmed"?"Re-price":"Confirm"}</button>`:""}
                ${canEdit&&x.status==="confirmed"?`<button class="ic" data-act="link" title="Get the client approval link">🔗 Approve link</button>`:""}
                <button class="ic go" data-act="ops" title="Assign & track work">⚙ Ops</button>
-               ${canEdit&&x.approvalStatus==="approved"?`<button class="ic confirm" data-act="paid" title="Mark payment received (dev)">Mark paid</button>`:""}
+               ${canMarkPaid&&x.approvalStatus==="approved"?`<button class="ic confirm" data-act="paid" title="Mark payment received (dev)">Mark paid</button>`:""}
                <button class="ic" data-act="download">Download</button>
                ${canDelete?`<button class="ic del" data-act="del">✕</button>`:""}`}
         </div></td></tr>`;
@@ -520,12 +522,16 @@
       await load();   // reflect approval_status=sent
     }catch(e){ alert("Couldn't create link: "+((e&&e.message)||"error")); }
   }
+  let markingPaid=false;   // one in-flight request only (a double click would fire twice)
   async function markPaid(id){
+    if(markingPaid) return;
     if(!confirm("Mark this event's payment as received? (In production this is automatic via the Razorpay webhook.)")) return;
+    markingPaid=true;
     try{ await BPStore.approval.markPaid(id, "manual-dev");
       try{ await BPStore.quotes.setStage(id, "planning"); }catch(_){}   // paid → move the event into planning
       await load(); }
     catch(e){ alert("Couldn't mark paid: "+((e&&e.message)||"error")); }
+    finally{ markingPaid=false; }
   }
 
   /* ---------- wire up ---------- */

@@ -329,7 +329,8 @@
     }));
     host.querySelectorAll(".vrej").forEach(b=>b.addEventListener("click",async()=>{
       const id=b.closest(".trow").dataset.id;
-      const note=prompt("Reason for rejection (sent back to the event manager):")||"";
+      const note=prompt("Reason for rejection (sent back to the event manager):");
+      if(note===null) return;   // Cancel must not reject the task
       try{ await BPStore.ops.verify(id,false,note); await refreshDashboard(); setMsg("ok","Rejected — sent back for rework."); }
       catch(e){ setMsg("err",(e&&e.message)||"Couldn't verify"); }
     }));
