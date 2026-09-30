@@ -121,10 +121,30 @@
     }));
   }
 
+  // True when the error means the design backend isn't deployed here (missing RPC/table),
+  // e.g. running against a DB where the design_* migration hasn't been applied yet.
+  // PostgREST: PGRST202 (no function) / PGRST205 (no table); Postgres: 42883 / 42P01.
+  function backendMissing(e){
+    const m=((e&&(e.message||e.hint||e.details))||"").toLowerCase();
+    const c=(e&&e.code)||"";
+    return c==="PGRST202"||c==="PGRST205"||c==="42883"||c==="42P01"
+      || m.includes("could not find the function")
+      || m.includes("schema cache")
+      || (m.includes("function")&&m.includes("does not exist"))
+      || (m.includes("relation")&&m.includes("does not exist"));
+  }
+  function showGate(msg){
+    const g=$("#gate"); if(!g) return;
+    $("#single").hidden=true; $("#queueWrap").hidden=true;
+    g.innerHTML=`<div class="empty">${esc(msg||"The Design Studio isn't available on this environment yet.")}</div>`;
+    g.hidden=false;
+  }
   async function loadSingle(){
     $("#single").hidden=false; $("#queueWrap").hidden=true;
     const host=$("#singleCard"); let rec;
-    try{ rec=await D.get(quoteId); }catch(e){ host.innerHTML=`<div class="err">Couldn't load: ${esc((e&&e.message)||"error")}</div>`; return; }
+    try{ rec=await D.get(quoteId); }
+    catch(e){ if(backendMissing(e)){ showGate("The Design Studio isn't set up on this environment yet (design tables/functions not deployed)."); return; }
+      host.innerHTML=`<div class="err">Couldn't load: ${esc((e&&e.message)||"error")}</div>`; return; }
     if(!rec || rec.state===null){
       $("#singleTitle").textContent="Event design";
       host.innerHTML=`<div class="muted">No design record yet for this event.</div>`+
@@ -149,7 +169,9 @@
   async function loadQueue(){
     $("#queueWrap").hidden=false; $("#single").hidden=true;
     const host=$("#queue"); let items;
-    try{ items=await D.queue(); }catch(e){ host.innerHTML=`<div class="err">Couldn't load queue: ${esc((e&&e.message)||"error")}</div>`; return; }
+    try{ items=await D.queue(); }
+    catch(e){ if(backendMissing(e)){ showGate("The Design Studio isn't set up on this environment yet (design tables/functions not deployed)."); return; }
+      host.innerHTML=`<div class="err">Couldn't load queue: ${esc((e&&e.message)||"error")}</div>`; return; }
     if(!items || !items.length){ host.innerHTML=`<div class="empty">No active designs. Open an event from <a href="quotes.html" style="color:var(--accent)">Quotes</a> to start one.</div>`; return; }
     host.innerHTML=items.map(it=>{
       const st=it.state, pill=st==='locked'?'done':(st==='revise'?'rev':'');
