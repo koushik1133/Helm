@@ -62,6 +62,9 @@
     if (!ENABLED || (typeof window === 'undefined') || window.Sentry || CFG.loadSentry === false) return;
     try {
       var sc = document.createElement('script');
+      // Pinned CDN bundle. NOT self-hosted / no SRI yet: @sentry/browser@8.35.0 on npm
+      // does not ship build/bundles/, so no byte-identical file could be verified.
+      // See public/vendor/README.md for how to vendor it with an integrity hash.
       sc.src = 'https://browser.sentry-cdn.com/8.35.0/bundle.min.js';
       sc.crossOrigin = 'anonymous';
       sc.onload = function () {
@@ -88,9 +91,45 @@
     } catch (e) { /* never break the app */ }
   }
 
+  // ---- user-facing error toast (via BPUI from store-api.js, when loaded) ----
+  // Non-spammy: at most one "Something went wrong — Reload" toast per 10s, and
+  // never for known noise (ResizeObserver loop warnings, browser-extension
+  // errors, opaque cross-origin "Script error.", aborted requests).
+  var lastToastAt = 0;
+  var EXT_RE = /(chrome|moz|safari|safari-web|ms-browser)-extension:\/\/|webkit-masked-url:|extension:\/\//i;
+  function isNoise(msg, file, stack, err) {
+    var m = String(msg || '');
+    if (/ResizeObserver loop/i.test(m)) return true;
+    if (/^Script error\.?$/i.test(m.trim()) || (!m && !stack && !file)) return true;   // cross-origin, no detail
+    if (EXT_RE.test(String(file || '')) || EXT_RE.test(String(stack || ''))) return true;
+    if (err && (err.name === 'AbortError' || /aborted|The user aborted/i.test(m))) return true;
+    return false;
+  }
+  function showErrorToast() {
+    try {
+      var UI = window.BPUI;
+      if (!UI || typeof UI.toast !== 'function') return;
+      var t = Date.now();
+      if (t - lastToastAt < 10000) return;   // de-dupe within 10s
+      lastToastAt = t;
+      UI.toast('Something went wrong.', { type: 'err', timeout: 10000,
+        action: { label: 'Reload', onClick: function () { location.reload(); } } });
+    } catch (e) { /* never break the app */ }
+  }
+
   if (typeof window !== 'undefined') {
-    window.addEventListener('error', function (e) { report('error', e && (e.error || { message: e.message })); });
-    window.addEventListener('unhandledrejection', function (e) { report('unhandledrejection', e && e.reason); });
+    window.addEventListener('error', function (e) {
+      var err = e && e.error, msg = (e && e.message) || (err && err.message) || '';
+      if (isNoise(msg, e && e.filename, err && err.stack, err)) return;
+      report('error', err || { message: msg });
+      showErrorToast();
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+      var r = e && e.reason, msg = r && (r.message || (typeof r === 'string' ? r : '')) || '';
+      if (isNoise(msg || 'rejection', null, r && r.stack, r)) return;
+      report('unhandledrejection', r);
+      showErrorToast();
+    });
     window.HelmTelemetry = { report: report, redact: redact, enabled: ENABLED };
     loadSentry();
   }

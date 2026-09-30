@@ -1,5 +1,12 @@
 # WEBSITE TECHNICAL HANDOFF — Helm (brand "Helm Events")
 
+> **UPDATE 2026-09-30 (deploy hardening):** HSTS/COOP/CORP + tightened CSP (no jsdelivr outside
+> `/builder`; `https:` images only on user-content pages) in `vercel.json` ≡ `server.js` ≡ `_headers`
+> (parity test); noindex on all non-marketing pages; `robots.txt`, `sitemap.xml`, `llms.txt`,
+> `404.html`, `og.png`, `.well-known/security.txt`; Edge Function CORS is an origin allowlist
+> (`_shared/cors.ts`); internal HTML guides moved from `public/docs/` to `docs/`; the 47 byte-identical
+> bare `supabase/phaseNN.sql` duplicates were deleted (canonical `phaseNN-name.sql` kept).
+
 > **UPDATE 2026-09-24 (post-audit changes):**
 > - **Rebrand**: wordmark is now "Helm Events" across all pages (phase86). Old codename "Blueprint Stage" retired from UI.
 > - **GDPR export card** added to Control Center (phase86); AA-contrast + XSS-safe hardening applied.
@@ -113,10 +120,10 @@ Primary path is **Browser → Supabase (RLS)**. The Node server mainly serves st
 │   ├── phase70-77                Definer org-isolation sweep + advance payment + quotation versions.
 │   ├── phase83/84/85             Invitations, event_attendees, GDPR export (NEW).
 │   └── functions/                Edge Functions (Deno): send-otp, send-whatsapp, create-payment-link, razorpay-webhook.
-└── docs/                         MVP-PHASE1-GUIDE.html, this handoff.
+└── docs/                         Internal guides (BLUEPRINT-STAGE-GUIDE*.html, MVP-PHASE1-GUIDE.html), this handoff. Not deployed.
 ```
 
-**Redundancy:** `supabase/` has heavy duplication (`full-schema/*`, `complete-setup.sql`, `setup-all.sql`, `phaseN.sql` vs `phaseN-name.sql`). The **numbered `phaseNN-name.sql` files are authoritative**. Not verified which single file a fresh deploy should run end-to-end.
+**Redundancy:** `supabase/` has heavy duplication (`full-schema/*`, `complete-setup.sql`, `setup-all.sql`; the bare `phaseN.sql` copies were removed 2026-09-30 except phase2/phase29, which differ). The **numbered `phaseNN-name.sql` files are authoritative**. Not verified which single file a fresh deploy should run end-to-end.
 
 ---
 

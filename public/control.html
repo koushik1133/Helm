@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Control Center — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
@@ -17,21 +18,22 @@
   header{display:flex;align-items:center;gap:11px;padding:18px 0}
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
-  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
-  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;flex-wrap:wrap;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
   .spacer{margin-left:auto}
+  @media(max-width:560px){header{flex-wrap:wrap}.nav{margin-left:0}.grid{grid-template-columns:1fr}.addrow{grid-template-columns:1fr!important}}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
   h3{font-size:13px;margin:0 0 14px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
   .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px} @media(max-width:640px){.grid{grid-template-columns:1fr 1fr}}
-  .fld{display:flex;flex-direction:column;gap:5px} .fld label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)}
+  .fld{display:flex;flex-direction:column;gap:5px} .fld label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)}
   input,select{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 10px;font-family:inherit;font-size:14px;color:var(--ink)}
   input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   .btn{height:38px;padding:0 16px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}
   .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
-  .btn:hover{border-color:var(--accent)} .btn.sm{height:30px;font-size:12px;padding:0 10px}
+  .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.55;cursor:not-allowed} .btn.sm{height:32px;font-size:12px;padding:0 10px}
   .row{display:flex;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line-2);font-size:13px}
   .row .g{flex:1} .row .mono{font-family:var(--mono);font-size:12px;color:var(--ink-3)}
   .addrow{display:grid;grid-template-columns:1.4fr 1fr 1fr auto;gap:8px;align-items:end;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
@@ -39,7 +41,7 @@
   .msg{border-radius:8px;padding:8px 11px;font-size:13px;margin-bottom:10px}
   .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca} .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
   .actions{display:flex;justify-content:flex-end;margin-top:14px}
-  .rm{border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:13px;padding:4px 8px;border-radius:6px} .rm:hover{color:#e5484d;background:#fdecec}
+  .rm{border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:13px;padding:4px 8px;border-radius:6px;min-height:32px;min-width:32px} .rm:hover{color:#e5484d;background:#fdecec}
   /* tab bar */
   .tabs{display:flex;gap:6px;margin:4px 0 18px;border-bottom:1px solid var(--line);padding-bottom:0}
   .tab{appearance:none;border:0;background:transparent;font-family:inherit;font-size:14px;font-weight:600;color:var(--ink-3);
@@ -48,34 +50,39 @@
   .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
   /* users table */
   .utable{width:100%;border-collapse:collapse;font-size:13px}
-  .utable th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+  .utable th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
   .utable td{padding:8px;border-bottom:1px solid var(--line-2)}
-  .utable td.em{font-weight:500} .utable .me{font-size:10px;color:var(--accent);background:var(--accent-soft);padding:2px 6px;border-radius:10px;margin-left:6px}
+  .utable td.em{font-weight:500} .utable .me{font-size:12px;color:var(--accent);background:var(--accent-soft);padding:2px 6px;border-radius:10px;margin-left:6px}
   .utable select{height:32px}
   /* access matrix */
   .roletabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
   .rtab{appearance:none;border:1px solid var(--line);background:var(--panel-2);font-family:inherit;font-size:12px;font-weight:600;
     color:var(--ink-2);padding:6px 12px;border-radius:20px;cursor:pointer;text-transform:capitalize}
   .rtab:hover{border-color:var(--accent)} .rtab.active{background:var(--accent);border-color:transparent;color:#fff}
-  .mgroup{margin:14px 0 6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
+  .mgroup{margin:14px 0 6px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
   .chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
   .chip{position:relative;display:flex;align-items:center;gap:8px;padding:11px 12px;border:2px solid var(--line);
     background:var(--panel-2);border-radius:12px;cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-2);transition:all .12s}
   .chip .ic{font-size:16px} .chip .lb{flex:1}
+  .chip .cview{appearance:none;border:0;background:transparent;padding:0;margin:0;font:inherit;color:inherit;display:flex;align-items:center;gap:8px;flex:1;min-width:0;cursor:pointer;text-align:left;min-height:26px}
+  .chip .cview:focus-visible,.chip .pen:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+  .chip button:disabled{cursor:not-allowed}
+  #matrix[aria-busy="true"] .chip{cursor:progress}
   .chip .tick{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:11px;color:transparent}
   .chip.on{border-color:#2eb872;background:#eafaf1;color:var(--ink)}
   .chip.on .tick{border-color:#2eb872;background:#2eb872;color:#fff}
-  .chip .pen{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;
-    font-size:12px;color:var(--ink-3);cursor:pointer}
+  .chip .pen{appearance:none;width:32px;height:32px;padding:0;border-radius:8px;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;
+    font-family:inherit;font-size:12px;color:var(--ink-3);cursor:pointer}
   .chip .pen.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
   .chip.locked{opacity:.6;cursor:not-allowed}
   .mnote{font-size:12px;color:var(--ink-3);margin:0 0 6px}
+  @media (prefers-reduced-motion:reduce){.chip{transition:none}}
   /* login modal */
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
   .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,94vw);padding:26px;text-align:center}
   .lsheet h3{color:var(--ink);text-transform:none;letter-spacing:0;font-size:18px;margin:8px 0 12px}
-  .lsheet label{display:block;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+  .lsheet label{display:block;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
   .lsheet input{width:100%;margin-bottom:12px}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
 
@@ -127,24 +134,27 @@
     box-shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -16px rgba(0,0,0,.7);
   }
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
-    <a href="dashboard.html" class="mark" title="Home"></a>
+    <a href="dashboard.html" class="mark" title="Home" aria-label="Home"></a>
     <div><h1>Control Center</h1><small>Helm Events</small></div>
     <nav class="nav"><a href="dashboard.html">Home</a><a href="quotes.html">Quotes</a><a href="insights.html">Insights</a><a href="reports.html">Reports</a><a href="audit.html">Audit log</a></nav>
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
 
+  <main id="main">
   <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in as a manager to open the Control Center.</p></div>
 
+  <div id="boot" aria-busy="true"></div>
   <div id="app" hidden>
     <div class="tabs">
-      <button class="tab active" data-pane="pricing" id="tab-pricing">💲 Pricing</button>
-      <button class="tab" data-pane="users" id="tab-users" hidden>👥 User control</button>
+      <button type="button" class="tab active" data-pane="pricing" id="tab-pricing" aria-pressed="true">💲 Pricing</button>
+      <button type="button" class="tab" data-pane="users" id="tab-users" aria-pressed="false" hidden>👥 User control</button>
     </div>
 
     <div id="msg" role="status" aria-live="polite"></div>
@@ -154,21 +164,23 @@
     <div class="card">
       <h3>Organization / studio</h3>
       <div id="orgMsg" role="status" aria-live="polite"></div>
+      <div id="orgErr"></div>
       <div class="grid">
         <div class="fld"><label for="o_name">Studio / business name</label><input id="o_name" placeholder="e.g. Aurora Events"></div>
         <div class="fld"><label for="o_email">Business email</label><input id="o_email" type="email" placeholder="hello@studio.com"></div>
         <div class="fld"><label for="o_location">Location (city, country)</label><input id="o_location" placeholder="e.g. Hyderabad, India"></div>
-        <div class="fld"><label for="o_logo">Logo URL</label><input id="o_logo" placeholder="https://…/logo.png"></div>
+        <div class="fld"><label for="o_logo">Logo URL</label><input id="o_logo" type="url" placeholder="https://…/logo.png"></div>
         <div class="fld"><label for="o_accent">Accent colour</label><input id="o_accent" placeholder="#6d28d9"></div>
         <div class="fld"><label for="o_currency">Currency</label><input id="o_currency" placeholder="INR"></div>
         <div class="fld"><label for="o_tz">Timezone</label><input id="o_tz" placeholder="Asia/Kolkata"></div>
         <div class="fld"><label for="o_gst">GSTIN</label><input id="o_gst" placeholder="22AAAAA0000A1Z5"></div>
       </div>
-      <div class="actions"><button class="btn primary" id="o_save">Save studio settings</button></div>
+      <div class="actions"><button type="button" class="btn primary" id="o_save">Save studio settings</button></div>
     </div>
 
     <div class="card">
       <h3>Default pricing (applies to every new quote)</h3>
+      <div id="pricingErr"></div>
       <div class="grid">
         <div class="fld"><label for="p_chair">Price / chair (₹)</label><input id="p_chair" type="number" min="0" step="1"></div>
         <div class="fld"><label for="p_plate">Price / plate (₹)</label><input id="p_plate" type="number" min="0" step="1"></div>
@@ -177,14 +189,14 @@
         <div class="fld"><label for="p_svc">Service charge % (optional)</label><input id="p_svc" type="number" min="0" step="0.5"></div>
         <div class="fld"><label for="p_layout">Layout &amp; setup fee (₹)</label><input id="p_layout" type="number" min="0" step="1" placeholder="0"></div>
       </div>
-      <div class="actions"><button class="btn primary" id="savePricing">Save pricing</button></div>
+      <div class="actions"><button type="button" class="btn primary" id="savePricing">Save pricing</button></div>
     </div>
 
     <div class="card">
       <h3>Object &amp; item prices (layout builder)</h3>
       <p class="mnote" style="margin:-6px 0 10px">Per-unit price for each object placed on the floor plan. These drive the live price breakdown in the builder. Chairs are priced with the “Price / chair” rate above. Leave blank to use the built-in default.</p>
       <div id="itemPriceList" class="grid"></div>
-      <div class="actions"><button class="btn primary" id="saveItemPrices">Save item prices</button></div>
+      <div class="actions"><button type="button" class="btn primary" id="saveItemPrices">Save item prices</button></div>
     </div>
 
     <!-- Vendors are managed on the dedicated Vendors & Partners page (removed the
@@ -192,32 +204,32 @@
 
     <div class="card">
       <h3>Coupons</h3>
-      <div id="couponList"></div>
+      <div id="couponList"><div class="row" style="color:var(--ink-3)">Loading…</div></div>
       <div class="addrow">
         <input id="co_code" placeholder="Code e.g. DIWALI10" aria-label="Coupon code">
         <select id="co_kind" aria-label="Coupon type"><option value="percent">% off</option><option value="flat">₹ off</option></select>
         <input id="co_val" type="number" min="0" step="1" placeholder="Value" aria-label="Coupon value">
-        <button class="btn" id="co_add">+ Add coupon</button>
+        <button type="button" class="btn" id="co_add">+ Add coupon</button>
       </div>
     </div>
 
     <div class="card">
       <h3>Chair types &amp; prices</h3>
-      <div id="chairList"></div>
+      <div id="chairList"><div class="row" style="color:var(--ink-3)">Loading…</div></div>
       <div class="addrow" style="grid-template-columns:1.6fr 1fr auto">
         <input id="ch_name" placeholder="Chair type e.g. Chiavari" aria-label="Chair type name">
         <input id="ch_price" type="number" min="0" step="1" placeholder="Price / chair (₹)" aria-label="Price per chair">
-        <button class="btn" id="ch_add">+ Add chair type</button>
+        <button type="button" class="btn" id="ch_add">+ Add chair type</button>
       </div>
     </div>
 
     <div class="card">
       <h3>Plate types &amp; prices (catering)</h3>
-      <div id="plateList"></div>
+      <div id="plateList"><div class="row" style="color:var(--ink-3)">Loading…</div></div>
       <div class="addrow" style="grid-template-columns:1.6fr 1fr auto">
         <input id="pl_name" placeholder="Plate type e.g. Veg / Non-veg / Special" aria-label="Plate type name">
         <input id="pl_price" type="number" min="0" step="1" placeholder="Price / plate (₹)" aria-label="Price per plate">
-        <button class="btn" id="pl_add">+ Add plate type</button>
+        <button type="button" class="btn" id="pl_add">+ Add plate type</button>
       </div>
     </div>
 
@@ -225,25 +237,25 @@
       <h3>Dishes catalog (menu)</h3>
       <p class="mnote" style="margin:-6px 0 10px">The dishes staff can search &amp; add to an event's menu. Add your studio's specialities here.</p>
       <input id="dishFilter" placeholder="Filter dishes…" style="width:100%;margin-bottom:10px" aria-label="Filter dishes">
-      <div id="dishList" style="max-height:320px;overflow:auto"></div>
+      <div id="dishList" style="max-height:320px;overflow:auto"><div class="row" style="color:var(--ink-3)">Loading…</div></div>
       <div class="addrow" style="grid-template-columns:1.2fr 1.4fr .9fr auto">
         <input id="dc_cat" placeholder="Category e.g. Starters (veg)" aria-label="Dish category">
         <input id="dc_name" placeholder="Dish name" aria-label="Dish name">
         <select id="dc_kind" aria-label="Dish type"><option value="veg">Veg</option><option value="nonveg">Non-veg</option><option value="special">Special</option></select>
-        <button class="btn" id="dc_add">+ Add dish</button>
+        <button type="button" class="btn" id="dc_add">+ Add dish</button>
       </div>
     </div>
 
     <div class="card">
       <h3>Menu packages (Standard / Gold / Premium)</h3>
       <p class="mnote" style="margin:-6px 0 10px">The 6 fixed menu packages. Set each one's per-plate price and edit its dish list (one dish per line as <code>Category | Dish name | veg|nonveg|special</code>). Staff pick a package on the event's Menu screen to pre-fill the dishes in one click.</p>
-      <div id="menuTplList">Run <code>phase62-menu-templates.sql</code> to enable menu packages.</div>
+      <div id="menuTplList"><div class="row" style="color:var(--ink-3)">Loading…</div></div>
     </div>
 
     <div class="card">
       <h3>Default layout rules (per event type)</h3>
       <p class="mnote" style="margin:-6px 0 10px">The defaults the layout generator uses for each event type — seats per guest, buffet tables per N guests, bars, and which components to include. Change these here (no developer needed) and every generated layout follows them.</p>
-      <div id="layoutRuleList">Run <code>phase75-layout-rules.sql</code> to enable layout rules.</div>
+      <div id="layoutRuleList"><div class="row" style="color:var(--ink-3)">Loading…</div></div>
     </div>
     </div><!-- /pane-pricing -->
 
@@ -254,9 +266,9 @@
       <div class="card">
         <h3>Team members</h3>
         <p class="mnote">Add teammates, change each person's role, or remove access. Changes apply immediately.</p>
-        <table class="utable"><thead><tr><th>Email</th><th>Role</th><th></th></tr></thead>
+        <div class="table-scroll"><table class="utable"><thead><tr><th scope="col">Email</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
           <tbody id="um_rows"><tr><td colspan="3" style="color:var(--ink-3)">Loading…</td></tr></tbody>
-        </table>
+        </table></div>
         <form id="um_add" class="addrow" style="grid-template-columns:1.6fr 1fr auto">
           <input id="um_email" type="email" placeholder="name@studio.com" required autocomplete="off" aria-label="New user email">
           <select id="um_role" aria-label="New user role"></select>
@@ -274,7 +286,7 @@
           <button class="btn primary" type="submit" id="inv_submit">Create invite link</button>
         </form>
         <div id="inv_out" hidden style="margin-top:10px;display:flex;gap:8px;align-items:center">
-          <input id="inv_link" readonly style="flex:1" onclick="this.select()" aria-label="Invitation link">
+          <input id="inv_link" readonly style="flex:1;min-width:0" aria-label="Invitation link">
           <button class="btn" type="button" id="inv_copy">Copy</button>
         </div>
       </div>
@@ -309,34 +321,37 @@
       </div>
     </div>
   </div>
+  </main>
 </div>
 
 <div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <form class="lsheet" id="loginForm">
     <div class="mark" style="margin:0 auto 10px" aria-hidden="true"></div>
     <h3 id="loginTitle">Sign in</h3>
-    <label for="li_email">Email</label><input type="email" id="li_email" required>
-    <label for="li_pw">Password</label><input type="password" id="li_pw" required>
+    <label for="li_email">Email</label><input type="email" id="li_email" autocomplete="username" required>
+    <label for="li_pw">Password</label><input type="password" id="li_pw" autocomplete="current-password" required>
     <div class="lerr" id="li_err" hidden role="alert" aria-live="assertive"></div>
     <button class="btn primary" id="li_submit" type="submit" style="width:100%">Sign in</button>
   </form>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
-<script src="tour.js?v=4"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
+<script src="tour.js?v=5"></script>
 <script>
   const $=(s)=>document.querySelector(s);
-  const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-  function setMsg(k,t){ const m=$("#msg"); m.innerHTML=t?`<div class="msg ${k}">${esc(t)}</div>`:""; }
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const numAttr=(v,d)=>{ const n=Number(v); return Number.isFinite(n)?n:d; };   // safe number for value="…"
+  const errMsg=(e,action)=>BPUI.friendlyError(e,{action});
+  function setMsg(k,t){ const m=$("#msg"); m.innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; }
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
-      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button type="button" id="logoutBtn">Log out</button>`;
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";});
-    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
+    } else { el.innerHTML=`<button type="button" id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
 
   let isAdmin=false;
   async function load(){
@@ -347,15 +362,7 @@
     const canControls = await BPStore.auth.canView("controls");
     if(!canControls && !isAdmin){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:var(--ink-3)">Your role can\'t open the Control Center.</p>'; return; }
     $("#app").hidden=false;
-    try{
-      const p=await BPStore.config.getPricing();
-      pricingCfg = p || {};
-      if(!pricingCfg.assetPrices) pricingCfg.assetPrices={};
-      $("#p_chair").value=p.chairPrice??200; $("#p_plate").value=p.platePrice??500; $("#p_gst").value=p.gstPct??18;
-      $("#p_cgst").value=p.cateringGstPct??18; $("#p_svc").value=p.serviceChargePct??0;
-      $("#p_layout").value=p.layoutBase??0;
-      renderItemPrices();
-    }catch(e){ setMsg("err","Run control-center.sql to enable the Control Center. ("+((e&&e.message)||"")+")"); }
+    await loadPricing();
     await renderCoupons(); await renderChairs(); await renderPlates(); await renderDishes(); await renderMenuTemplates(); await renderLayoutRules(); await renderOrg();
     // Only admins get the User-control tab (add/remove users + access matrix).
     if(isAdmin){
@@ -367,13 +374,34 @@
 
   /* ---------------- tab switching ---------------- */
   function switchTab(name){
-    document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active", t.dataset.pane===name));
+    document.querySelectorAll(".tab").forEach(t=>{ t.classList.toggle("active", t.dataset.pane===name); t.setAttribute("aria-pressed", String(t.dataset.pane===name)); });
     $("#pane-pricing").hidden = name!=="pricing";
     $("#pane-users").hidden   = name!=="users";
   }
   document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>switchTab(t.dataset.pane)));
   // full pricing config blob (preserved across saves so builder item prices survive)
   let pricingCfg = { assetPrices:{} };
+  // If the pricing config didn't load, the form holds placeholders — saving it would
+  // overwrite the studio's real rates. Block both pricing saves until a retry succeeds.
+  let pricingLoaded = false;
+  function setPricingEnabled(on){ ["#savePricing","#saveItemPrices"].forEach(s=>{ const b=$(s); b.disabled=!on; b.title=on?"":"Pricing didn't load — retry above before saving."; }); }
+  async function loadPricing(){
+    pricingLoaded=false; setPricingEnabled(false);
+    try{
+      const p=(await BPStore.config.getPricing()) || {};
+      pricingCfg = p;
+      if(!pricingCfg.assetPrices) pricingCfg.assetPrices={};
+      $("#p_chair").value=p.chairPrice??200; $("#p_plate").value=p.platePrice??500; $("#p_gst").value=p.gstPct??18;
+      $("#p_cgst").value=p.cateringGstPct??18; $("#p_svc").value=p.serviceChargePct??0;
+      $("#p_layout").value=p.layoutBase??0;
+      renderItemPrices();
+      $("#pricingErr").innerHTML="";
+      pricingLoaded=true; setPricingEnabled(true);
+    }catch(e){
+      BPUI.loadError($("#pricingErr"), e, loadPricing, {what:"pricing"});
+      $("#itemPriceList").innerHTML='<p class="mnote">Item prices will appear once pricing loads.</p>';
+    }
+  }
   // catalogue of priceable builder objects (label + built-in default ₹), mirrors builder.html
   const ITEM_CATALOG = [
     ['stage','Main Stage',45000],['mandap','Decor Mandap',75000],['tent','Tent',35000],['canopy','Canopy',25000],
@@ -388,11 +416,12 @@
   function renderItemPrices(){
     const ap = pricingCfg.assetPrices || (pricingCfg.assetPrices={});
     $("#itemPriceList").innerHTML = ITEM_CATALOG.map(([type,label,def])=>
-      `<div class="fld"><label>${esc(label)} <span style="color:var(--ink-3);font-weight:400">(default ₹${def.toLocaleString('en-IN')})</span></label>`+
-      `<input type="number" min="0" step="1" data-type="${type}" placeholder="${def}" value="${ap[type]!=null?ap[type]:''}"></div>`
+      `<div class="fld"><label for="ip_${esc(type)}">${esc(label)} <span style="color:var(--ink-3);font-weight:400">(default ₹${def.toLocaleString('en-IN')})</span></label>`+
+      `<input id="ip_${esc(type)}" type="number" min="0" step="1" data-type="${esc(type)}" placeholder="${def}" value="${ap[type]!=null&&Number.isFinite(Number(ap[type]))?Number(ap[type]):''}"></div>`
     ).join("");
   }
-  $("#savePricing").addEventListener("click",async()=>{
+  $("#savePricing").addEventListener("click",()=>BPUI.guard($("#savePricing"),async()=>{
+    if(!pricingLoaded){ setMsg("err","Pricing didn't load, so it can't be saved yet — use Retry first."); return; }
     const V=BPStore.validate; const fail=(m)=>{ setMsg("err",m); };
     let chairPrice=0; if($("#p_chair").value!==""){ const r=V.money($("#p_chair").value,{field:"Price / chair"}); if(!r.ok){ fail(r.error); return; } chairPrice=r.value; }
     let platePrice=0; if($("#p_plate").value!==""){ const r=V.money($("#p_plate").value,{field:"Price / plate"}); if(!r.ok){ fail(r.error); return; } platePrice=r.value; }
@@ -402,32 +431,37 @@
     let layoutBase=0; if($("#p_layout").value!==""){ const r=V.money($("#p_layout").value,{field:"Layout & setup fee"}); if(!r.ok){ fail(r.error); return; } layoutBase=r.value; }
     Object.assign(pricingCfg,{ chairPrice, platePrice, gstPct, cateringGstPct, serviceChargePct, layoutBase, currency:"INR" });
     try{ await BPStore.config.setPricing(pricingCfg); setMsg("ok","Pricing saved — new quotes use these rates."); }
-    catch(e){ setMsg("err",(e&&e.message)||"Save failed"); }
-  });
-  $("#saveItemPrices").addEventListener("click",async()=>{
-    const ap={};
-    $("#itemPriceList").querySelectorAll("input[data-type]").forEach(inp=>{
-      const v=inp.value.trim(); if(v!=="") ap[inp.dataset.type]=+v||0;
-    });
+    catch(e){ setMsg("err",errMsg(e,"save pricing")); }
+  }));
+  $("#saveItemPrices").addEventListener("click",()=>BPUI.guard($("#saveItemPrices"),async()=>{
+    if(!pricingLoaded){ setMsg("err","Pricing didn't load, so item prices can't be saved yet — use Retry first."); return; }
+    const ap={}; const V=BPStore.validate;
+    for(const inp of $("#itemPriceList").querySelectorAll("input[data-type]")){
+      const v=inp.value.trim(); if(v==="") continue;
+      const lbl=(ITEM_CATALOG.find(c=>c[0]===inp.dataset.type)||[])[1]||inp.dataset.type;
+      const r=V.money(v,{field:lbl+" price"});
+      if(!r.ok){ setMsg("err",r.error); inp.focus(); return; }
+      ap[inp.dataset.type]=r.value;
+    }
     pricingCfg.assetPrices=ap;
     if(pricingCfg.chairPrice==null) pricingCfg.chairPrice=+$("#p_chair").value||200;
     try{ await BPStore.config.setPricing(pricingCfg); setMsg("ok","Item prices saved — the builder breakdown uses these."); }
-    catch(e){ setMsg("err",(e&&e.message)||"Save failed"); }
-  });
+    catch(e){ setMsg("err",errMsg(e,"save item prices")); }
+  }));
 
   async function renderLayoutRules(){
     let rules=[];
-    try{ rules=await BPStore.layoutRules.list(); }catch(e){ return; }
-    if(!rules.length){ $("#layoutRuleList").innerHTML='<div class="row" style="color:var(--ink-3)">No layout rules yet — run phase75-layout-rules.sql.</div>'; return; }
-    const num=(r,k,d)=>{ const v=(r.rules||{})[k]; return v!=null?v:d; };
+    try{ rules=(await BPStore.layoutRules.list())||[]; }catch(e){ BPUI.loadError($("#layoutRuleList"), e, renderLayoutRules, {what:"layout rules"}); return; }
+    if(!rules.length){ $("#layoutRuleList").innerHTML='<div class="row" style="color:var(--ink-3)">No layout rules yet.</div>'; return; }
+    const num=(r,k,d)=>numAttr((r.rules||{})[k], d);
     const on=(r,k)=>((r.rules||{})[k]===true);
-    $("#layoutRuleList").innerHTML = rules.map(r=>`
-      <div class="lr" data-id="${r.id}" style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px">
-        <strong style="text-transform:capitalize">${esc(r.event_type)}</strong>
+    $("#layoutRuleList").innerHTML = rules.map(r=>{ const et=esc(r.event_type); const k="lr_"+esc(r.id); return `
+      <div class="lr" data-id="${esc(r.id)}" style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px">
+        <strong style="text-transform:capitalize">${et}</strong>
         <div class="grid" style="margin-top:8px">
-          <div class="fld"><label>Seats per guest</label><input class="lr_spg" type="number" min="0" step="0.1" value="${num(r,'seatsPerGuest',1)}"></div>
-          <div class="fld"><label>Buffet table per N guests</label><input class="lr_buf" type="number" min="1" step="1" value="${num(r,'buffetPer',100)}"></div>
-          <div class="fld"><label>Bars</label><input class="lr_bars" type="number" min="0" step="1" value="${num(r,'bars',0)}"></div>
+          <div class="fld"><label for="${k}_spg">Seats per guest</label><input id="${k}_spg" class="lr_spg" type="number" min="0" step="0.1" value="${num(r,'seatsPerGuest',1)}" aria-label="Seats per guest for ${et}"></div>
+          <div class="fld"><label for="${k}_buf">Buffet table per N guests</label><input id="${k}_buf" class="lr_buf" type="number" min="1" step="1" value="${num(r,'buffetPer',100)}" aria-label="Buffet table per N guests for ${et}"></div>
+          <div class="fld"><label for="${k}_bars">Bars</label><input id="${k}_bars" class="lr_bars" type="number" min="0" step="1" value="${num(r,'bars',0)}" aria-label="Bars for ${et}"></div>
         </div>
         <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:8px;font-size:13px;color:var(--ink-2)">
           <label><input type="checkbox" class="lr_stage" ${on(r,'stage')?'checked':''}> Stage</label>
@@ -435,10 +469,11 @@
           <label><input type="checkbox" class="lr_walk" ${on(r,'walkway')?'checked':''}> Walkway</label>
           <label><input type="checkbox" class="lr_dj" ${on(r,'dj')?'checked':''}> DJ</label>
         </div>
-        <div class="actions" style="margin-top:8px"><button class="btn primary lr_save">Save</button></div>
-      </div>`).join("");
+        <div class="actions" style="margin-top:8px"><button type="button" class="btn primary lr_save" aria-label="Save ${et} layout rule">Save</button></div>
+      </div>`; }).join("");
     $("#layoutRuleList").querySelectorAll(".lr").forEach(box=>{
-      box.querySelector(".lr_save").addEventListener("click",async()=>{
+      const sv=box.querySelector(".lr_save");
+      sv.addEventListener("click",()=>BPUI.guard(sv,async()=>{
         const V=BPStore.validate; const fail=(m)=>{ setMsg("err",m); };
         let seatsPerGuest=1; { const raw=box.querySelector(".lr_spg").value; if(raw!==""){ const r=V.num(raw,{min:0.0001,field:"Seats per guest"}); if(!r.ok){ fail(r.error); return; } seatsPerGuest=r.value; } }
         let buffetPer=100; { const raw=box.querySelector(".lr_buf").value; if(raw!==""){ const r=V.money(raw,{field:"Buffet table per N guests"}); if(!r.ok){ fail(r.error); return; } buffetPer=r.value; } }
@@ -446,29 +481,30 @@
         const rules={ seatsPerGuest, buffetPer, bars, stage:box.querySelector(".lr_stage").checked,
           dancefloor:box.querySelector(".lr_dance").checked, walkway:box.querySelector(".lr_walk").checked, dj:box.querySelector(".lr_dj").checked };
         try{ await BPStore.layoutRules.update(box.dataset.id,{rules}); setMsg("ok","Layout rule saved."); }
-        catch(e){ setMsg("err",(e&&e.message)||"Save failed"); }
-      });
+        catch(e){ setMsg("err",errMsg(e,"save the layout rule")); }
+      }));
     });
   }
 
   async function renderMenuTemplates(){
     let tpls=[];
-    try{ tpls=await BPStore.menuTemplates.list(true); }catch(e){ return; /* leave the "run phase62" hint */ }
-    if(!tpls.length){ $("#menuTplList").innerHTML='<div class="row" style="color:var(--ink-3)">No packages yet — run phase62-menu-templates.sql.</div>'; return; }
+    try{ tpls=(await BPStore.menuTemplates.list(true))||[]; }catch(e){ BPUI.loadError($("#menuTplList"), e, renderMenuTemplates, {what:"menu packages"}); return; }
+    if(!tpls.length){ $("#menuTplList").innerHTML='<div class="row" style="color:var(--ink-3)">No menu packages yet.</div>'; return; }
     const dishesToText=(arr)=>(arr||[]).map(d=>`${d.c} | ${d.n} | ${d.k||'veg'}`).join("\n");
-    $("#menuTplList").innerHTML = tpls.map(t=>`
-      <div class="tpl" data-id="${t.id}" style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px">
+    $("#menuTplList").innerHTML = tpls.map(t=>{ const nm=esc(t.name); const k="mt_"+esc(t.id); return `
+      <div class="tpl" data-id="${esc(t.id)}" style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px">
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <strong style="flex:1;min-width:160px">${esc(t.name)}</strong>
-          <label style="font-size:12px;color:var(--ink-3)">₹/plate</label>
-          <input class="tpl_price" type="number" min="0" step="1" value="${t.price_per_plate??0}" style="width:120px">
+          <strong style="flex:1;min-width:160px">${nm}</strong>
+          <label for="${k}_price" style="font-size:12px;color:var(--ink-3)">₹/plate</label>
+          <input id="${k}_price" class="tpl_price" type="number" min="0" step="1" value="${numAttr(t.price_per_plate,0)}" style="width:120px" aria-label="Price per plate for ${nm}">
           <label style="font-size:12px;color:var(--ink-3)"><input class="tpl_active" type="checkbox" ${t.active?"checked":""}> active</label>
         </div>
-        <textarea class="tpl_dishes" style="width:100%;min-height:140px;margin-top:8px;font-family:ui-monospace,Menlo,monospace;font-size:12px">${esc(dishesToText(t.dishes))}</textarea>
-        <div class="actions" style="margin-top:6px"><button class="btn primary tpl_save">Save package</button></div>
-      </div>`).join("");
+        <textarea class="tpl_dishes" aria-label="Dishes in ${nm}, one per line" style="width:100%;min-height:140px;margin-top:8px;font-family:ui-monospace,Menlo,monospace;font-size:12px">${esc(dishesToText(t.dishes))}</textarea>
+        <div class="actions" style="margin-top:6px"><button type="button" class="btn primary tpl_save">Save package</button></div>
+      </div>`; }).join("");
     $("#menuTplList").querySelectorAll(".tpl").forEach(box=>{
-      box.querySelector(".tpl_save").addEventListener("click",async()=>{
+      const sv=box.querySelector(".tpl_save");
+      sv.addEventListener("click",()=>BPUI.guard(sv,async()=>{
         const dishes=box.querySelector(".tpl_dishes").value.split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{
           const [c,n,k]=l.split("|").map(s=>(s||"").trim());
           return { c:c||"Other", n:n||c||"", k:(k||"veg").toLowerCase() };
@@ -478,100 +514,121 @@
         const patch={ price_per_plate:pricePerPlate,
           active:box.querySelector(".tpl_active").checked, dishes };
         try{ await BPStore.menuTemplates.update(box.dataset.id, patch); setMsg("ok","Package saved."); }
-        catch(e){ setMsg("err",(e&&e.message)||"Save failed"); }
-      });
+        catch(e){ setMsg("err",errMsg(e,"save the package")); }
+      }));
     });
   }
 
   // Vendors moved to the dedicated Vendors & Partners page (duplicate removed).
 
-  async function renderCoupons(){
-    let c=[]; try{ c=await BPStore.coupons.list(); }catch{}
-    $("#couponList").innerHTML = c.length? c.map(x=>`<div class="row"><span class="g mono">${esc(x.code)}</span><span>${x.kind==='percent'?x.value+'% off':'₹'+x.value+' off'}</span><button class="rm" data-id="${x.id}">Remove</button></div>`).join("") : '<div class="row" style="color:var(--ink-3)">No coupons yet.</div>';
-    $("#couponList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.coupons.remove(b.dataset.id); renderCoupons(); }));
+  // Shared remove flow: danger confirm → guarded delete → re-render.
+  async function removeRow(btn, what, fn, rerender){
+    if(!(await BPUI.confirm(`Remove ${what}? This can't be undone.`,{title:"Remove?",okLabel:"Remove",danger:true}))) return;
+    try{ await BPUI.guard(btn, fn); setMsg("ok",`Removed ${what}.`); await rerender(); }
+    catch(e){ setMsg("err",errMsg(e,"remove "+what)); }
   }
-  $("#co_add").addEventListener("click",async()=>{
+
+  async function renderCoupons(){
+    let c=[]; try{ c=(await BPStore.coupons.list())||[]; }catch(e){ BPUI.loadError($("#couponList"), e, renderCoupons, {what:"coupons"}); return; }
+    $("#couponList").innerHTML = c.length? c.map(x=>{ const v=numAttr(x.value,0); return `<div class="row"><span class="g mono">${esc(x.code)}</span><span>${x.kind==='percent'?esc(v)+'% off':'₹'+esc(v.toLocaleString("en-IN"))+' off'}</span><button type="button" class="rm" data-id="${esc(x.id)}" data-name="${esc(x.code)}" aria-label="Remove coupon ${esc(x.code)}">Remove</button></div>`; }).join("") : '<div class="row" style="color:var(--ink-3)">No coupons yet.</div>';
+    $("#couponList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",()=>removeRow(b,`coupon ${b.dataset.name}`,()=>BPStore.coupons.remove(b.dataset.id),renderCoupons)));
+  }
+  $("#co_add").addEventListener("click",()=>BPUI.guard($("#co_add"),async()=>{
     const code=$("#co_code").value.trim().toUpperCase(); if(code.length<2){ setMsg("err","Enter a coupon code."); return; }
-    const V=BPStore.validate;
-    let coVal=0; if($("#co_val").value!==""){ const r=V.money($("#co_val").value,{field:"Coupon value"}); if(!r.ok){ setMsg("err",r.error); return; } coVal=r.value; }
-    try{ await BPStore.coupons.add(code,$("#co_kind").value,coVal,null); $("#co_code").value="";$("#co_val").value=""; renderCoupons(); setMsg("ok","Coupon added."); }
-    catch(e){ setMsg("err",(e&&e.message)||"Couldn't add coupon"); }
-  });
+    const V=BPStore.validate, kind=$("#co_kind").value;
+    let coVal=0; if($("#co_val").value!==""){ const r=kind==="percent"?V.pct($("#co_val").value,{field:"Coupon value"}):V.money($("#co_val").value,{field:"Coupon value"}); if(!r.ok){ setMsg("err",r.error); return; } coVal=r.value; }
+    try{ await BPStore.coupons.add(code,kind,coVal,null); $("#co_code").value="";$("#co_val").value=""; await renderCoupons(); setMsg("ok","Coupon added."); }
+    catch(e){ setMsg("err",errMsg(e,"add the coupon")); }
+  }));
 
   async function renderChairs(){
-    let c=[]; try{ c=await BPStore.chairTypes.list(); }catch{}
-    $("#chairList").innerHTML = c.length? c.map(x=>`<div class="row"><span class="g">${esc(x.name)}</span><span class="mono">₹${Number(x.price||0).toLocaleString("en-IN")}/chair</span><button class="rm" data-id="${x.id}">Remove</button></div>`).join("") : '<div class="row" style="color:var(--ink-3)">No chair types yet — add plastic, cushioned, Chiavari…</div>';
-    $("#chairList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.chairTypes.remove(b.dataset.id); renderChairs(); }));
+    let c=[]; try{ c=(await BPStore.chairTypes.list())||[]; }catch(e){ BPUI.loadError($("#chairList"), e, renderChairs, {what:"chair types"}); return; }
+    $("#chairList").innerHTML = c.length? c.map(x=>`<div class="row"><span class="g">${esc(x.name)}</span><span class="mono">₹${Number(x.price||0).toLocaleString("en-IN")}/chair</span><button type="button" class="rm" data-id="${esc(x.id)}" data-name="${esc(x.name)}" aria-label="Remove chair type ${esc(x.name)}">Remove</button></div>`).join("") : '<div class="row" style="color:var(--ink-3)">No chair types yet — add plastic, cushioned, Chiavari…</div>';
+    $("#chairList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",()=>removeRow(b,`chair type ${b.dataset.name}`,()=>BPStore.chairTypes.remove(b.dataset.id),renderChairs)));
   }
-  $("#ch_add").addEventListener("click",async()=>{
+  $("#ch_add").addEventListener("click",()=>BPUI.guard($("#ch_add"),async()=>{
     const name=$("#ch_name").value.trim(); if(name.length<2){ setMsg("err","Enter a chair type name."); return; }
     const V=BPStore.validate;
     let chPrice=0; if($("#ch_price").value!==""){ const r=V.money($("#ch_price").value,{field:"Price / chair"}); if(!r.ok){ setMsg("err",r.error); return; } chPrice=r.value; }
-    try{ await BPStore.chairTypes.add(name,chPrice); $("#ch_name").value="";$("#ch_price").value=""; renderChairs(); setMsg("ok","Chair type added."); }
-    catch(e){ setMsg("err",(e&&e.message)||"Couldn't add chair type"); }
-  });
+    try{ await BPStore.chairTypes.add(name,chPrice); $("#ch_name").value="";$("#ch_price").value=""; await renderChairs(); setMsg("ok","Chair type added."); }
+    catch(e){ setMsg("err",errMsg(e,"add the chair type")); }
+  }));
 
   async function renderPlates(){
-    let c=[]; try{ c=await BPStore.plateTypes.list(); }catch{}
-    $("#plateList").innerHTML = c.length? c.map(x=>`<div class="row"><span class="g">${esc(x.name)}</span><span class="mono">₹${Number(x.price||0).toLocaleString("en-IN")}/plate</span><button class="rm" data-id="${x.id}">Remove</button></div>`).join("") : '<div class="row" style="color:var(--ink-3)">No plate types yet — add Veg, Non-veg, Special…</div>';
-    $("#plateList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.plateTypes.remove(b.dataset.id); renderPlates(); }));
+    let c=[]; try{ c=(await BPStore.plateTypes.list())||[]; }catch(e){ BPUI.loadError($("#plateList"), e, renderPlates, {what:"plate types"}); return; }
+    $("#plateList").innerHTML = c.length? c.map(x=>`<div class="row"><span class="g">${esc(x.name)}</span><span class="mono">₹${Number(x.price||0).toLocaleString("en-IN")}/plate</span><button type="button" class="rm" data-id="${esc(x.id)}" data-name="${esc(x.name)}" aria-label="Remove plate type ${esc(x.name)}">Remove</button></div>`).join("") : '<div class="row" style="color:var(--ink-3)">No plate types yet — add Veg, Non-veg, Special…</div>';
+    $("#plateList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",()=>removeRow(b,`plate type ${b.dataset.name}`,()=>BPStore.plateTypes.remove(b.dataset.id),renderPlates)));
   }
-  $("#pl_add").addEventListener("click",async()=>{
+  $("#pl_add").addEventListener("click",()=>BPUI.guard($("#pl_add"),async()=>{
     const name=$("#pl_name").value.trim(); if(name.length<2){ setMsg("err","Enter a plate type name."); return; }
     const V=BPStore.validate;
     let plPrice=0; if($("#pl_price").value!==""){ const r=V.money($("#pl_price").value,{field:"Price / plate"}); if(!r.ok){ setMsg("err",r.error); return; } plPrice=r.value; }
-    try{ await BPStore.plateTypes.add(name,plPrice); $("#pl_name").value="";$("#pl_price").value=""; renderPlates(); setMsg("ok","Plate type added."); }
-    catch(e){ setMsg("err",(e&&e.message)||"Couldn't add plate type"); }
-  });
+    try{ await BPStore.plateTypes.add(name,plPrice); $("#pl_name").value="";$("#pl_price").value=""; await renderPlates(); setMsg("ok","Plate type added."); }
+    catch(e){ setMsg("err",errMsg(e,"add the plate type")); }
+  }));
 
+  // Studio settings: if the org didn't load, the form is blank — saving would wipe
+  // the studio's name/brand. Block the save until a successful (re)load.
+  let orgLoaded=false;
+  function orgMsg(k,t){ $("#orgMsg").innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; }
   async function renderOrg(){
-    let o=null; try{ o=await BPStore.org.current(); }catch{}
-    if(!o){ $("#orgMsg").innerHTML='<div class="msg" style="color:var(--ink-3)">Run the multi-tenant SQL (phase56) to enable studio settings.</div>'; return; }
+    orgLoaded=false; $("#o_save").disabled=true; $("#orgErr").innerHTML="";
+    let o=null;
+    try{ o=await BPStore.org.current(); }
+    catch(e){ BPUI.loadError($("#orgErr"), e, renderOrg, {what:"studio settings"}); return; }
+    if(!o){ $("#orgMsg").innerHTML='<div class="msg" style="color:var(--ink-3)">Studio settings aren\'t available for this workspace yet.</div>'; return; }
     const b=o.brand||{};
     $("#o_name").value=o.name||""; $("#o_email").value=o.business_email||""; $("#o_logo").value=b.logo||"";
     $("#o_accent").value=b.accent||""; $("#o_currency").value=o.currency||""; $("#o_tz").value=o.timezone||""; $("#o_gst").value=o.gst_number||"";
     if($("#o_location")) $("#o_location").value=o.location||"";
+    orgMsg("",""); orgLoaded=true; $("#o_save").disabled=false;
   }
-  $("#o_save").addEventListener("click",async()=>{
-    const patch={ name:$("#o_name").value.trim()||null, business_email:$("#o_email").value.trim()||null,
+  $("#o_save").addEventListener("click",()=>BPUI.guard($("#o_save"),async()=>{
+    if(!orgLoaded){ orgMsg("err","Studio settings didn't load, so they can't be saved yet."); return; }
+    const V=BPStore.validate;
+    const email=$("#o_email").value.trim(), logo=$("#o_logo").value.trim(), accent=$("#o_accent").value.trim();
+    if(email){ const r=V.email(email); if(!r.ok){ orgMsg("err",r.error); $("#o_email").focus(); return; } }
+    if(logo){ const r=V.url(logo); if(!r.ok){ orgMsg("err","Logo URL: "+r.error); $("#o_logo").focus(); return; } }
+    if(accent && !/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(accent)){ orgMsg("err","Accent colour must be a hex colour like #6d28d9."); $("#o_accent").focus(); return; }
+    const patch={ name:$("#o_name").value.trim()||null, business_email:email?email.toLowerCase():null,
       currency:$("#o_currency").value.trim()||"INR", timezone:$("#o_tz").value.trim()||"Asia/Kolkata",
       location:($("#o_location")?$("#o_location").value.trim():"")||null,
       gst_number:$("#o_gst").value.trim()||null,
-      brand:{ logo:$("#o_logo").value.trim()||null, accent:$("#o_accent").value.trim()||null } };
-    try{ await BPStore.org.save(patch); $("#orgMsg").innerHTML='<div class="msg ok">Studio settings saved.</div>'; setTimeout(()=>$("#orgMsg").innerHTML="",2500); }
-    catch(e){ $("#orgMsg").innerHTML='<div class="msg err">'+esc((e&&e.message)||"Couldn't save")+'</div>'; }
-  });
+      brand:{ logo:logo||null, accent:accent||null } };
+    try{ await BPStore.org.save(patch); orgMsg("ok","Studio settings saved."); setTimeout(()=>orgMsg("",""),2500); }
+    catch(e){ orgMsg("err",errMsg(e,"save studio settings")); }
+  }));
 
   let dishCache=[];
   const KINDLBL={veg:'<span style="color:#0f7a43">veg</span>',nonveg:'<span style="color:#b42318">non-veg</span>',special:'<span style="color:#7c3aed">special</span>'};
   async function renderDishes(){
-    try{ dishCache=await BPStore.dishCatalog.list(); }catch{ dishCache=[]; }
+    try{ dishCache=(await BPStore.dishCatalog.list())||[]; }catch(e){ dishCache=[]; BPUI.loadError($("#dishList"), e, renderDishes, {what:"dishes"}); return; }
     drawDishes();
   }
   function drawDishes(){
     const term=($("#dishFilter").value||"").trim().toLowerCase();
     const list=dishCache.filter(d=>!term || (d.name+" "+d.category).toLowerCase().includes(term));
-    $("#dishList").innerHTML = list.length ? list.map(x=>`<div class="row"><span class="g">${esc(x.name)} <span style="font-size:11px">· ${KINDLBL[x.kind]||""}</span></span><span class="mono" style="font-size:11px">${esc(x.category)}</span><button class="rm" data-id="${x.id}">Remove</button></div>`).join("")
-      : `<div class="row" style="color:var(--ink-3)">${dishCache.length?"No dishes match.":"No dishes yet — run phase55-dish-catalog.sql or add below."}</div>`;
-    $("#dishList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.dishCatalog.remove(b.dataset.id); renderDishes(); }));
+    $("#dishList").innerHTML = list.length ? list.map(x=>`<div class="row"><span class="g">${esc(x.name)} <span style="font-size:12px">· ${KINDLBL[x.kind]||""}</span></span><span class="mono" style="font-size:12px">${esc(x.category)}</span><button type="button" class="rm" data-id="${esc(x.id)}" data-name="${esc(x.name)}" aria-label="Remove dish ${esc(x.name)}">Remove</button></div>`).join("")
+      : `<div class="row" style="color:var(--ink-3)">${dishCache.length?"No dishes match this filter.":"No dishes yet — add your first below."}</div>`;
+    $("#dishList").querySelectorAll(".rm").forEach(b=>b.addEventListener("click",()=>removeRow(b,`dish ${b.dataset.name}`,()=>BPStore.dishCatalog.remove(b.dataset.id),renderDishes)));
   }
   $("#dishFilter").addEventListener("input",drawDishes);
-  $("#dc_add").addEventListener("click",async()=>{
+  $("#dc_add").addEventListener("click",()=>BPUI.guard($("#dc_add"),async()=>{
     const cat=$("#dc_cat").value.trim(), name=$("#dc_name").value.trim();
     if(cat.length<2||name.length<2){ setMsg("err","Enter a category and dish name."); return; }
-    try{ await BPStore.dishCatalog.add(cat,name,$("#dc_kind").value); $("#dc_name").value=""; renderDishes(); setMsg("ok","Dish added."); }
-    catch(e){ setMsg("err",(e&&e.message)||"Couldn't add dish"); }
-  });
+    try{ await BPStore.dishCatalog.add(cat,name,$("#dc_kind").value); $("#dc_name").value=""; await renderDishes(); setMsg("ok","Dish added."); }
+    catch(e){ setMsg("err",errMsg(e,"add the dish")); }
+  }));
 
   /* ---------------- USER CONTROL: team members ---------------- */
-  function setUMsg(k,t){ const m=$("#umsg"); m.innerHTML=t?`<div class="msg ${k}">${esc(t)}</div>`:""; if(t) setTimeout(()=>{ if(m.firstChild) m.innerHTML=""; },4000); }
+  function setUMsg(k,t){ const m=$("#umsg"); m.innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; if(t) setTimeout(()=>{ if(m.firstChild) m.innerHTML=""; },4000); }
   const ROLES = BPStore.auth.admin.roles();
 
   async function initUsers(){
     const sel=$("#um_role");
-    if(!sel.options.length){ sel.innerHTML = ROLES.map(r=>`<option value="${r}"${r==="crew"?" selected":""}>${esc(BPStore.auth.admin.roleLabel(r))}</option>`).join(""); }
+    if(!sel.options.length){ sel.innerHTML = ROLES.map(r=>`<option value="${esc(r)}"${r==="crew"?" selected":""}>${esc(BPStore.auth.admin.roleLabel(r))}</option>`).join(""); }
     const isel=$("#inv_role");
-    if(isel && !isel.options.length){ isel.innerHTML = ROLES.map(r=>`<option value="${r}"${r==="coordinator"?" selected":""}>${esc(BPStore.auth.admin.roleLabel(r))}</option>`).join(""); }
+    if(isel && !isel.options.length){ isel.innerHTML = ROLES.map(r=>`<option value="${esc(r)}"${r==="coordinator"?" selected":""}>${esc(BPStore.auth.admin.roleLabel(r))}</option>`).join(""); }
     await renderUsers();
   }
   async function renderUsers(){
@@ -579,34 +636,36 @@
     tb.innerHTML=`<tr><td colspan="3" style="color:var(--ink-3)">Loading…</td></tr>`;
     let users;
     try{ users=await BPStore.auth.admin.listUsers(); }
-    catch(e){ tb.innerHTML=""; setUMsg("err",(e&&e.message)||"Couldn't load users"); return; }
+    catch(e){ BPUI.loadError(tb, e, renderUsers, {what:"team members"}); return; }
+    users=users||[];
     users.sort((a,b)=>(a.email||"").localeCompare(b.email||""));
     tb.innerHTML = users.map(u=>{
       const self = me && u.id===me.id;
-      const opts = ROLES.map(r=>`<option value="${r}"${r===u.role?" selected":""}>${esc(BPStore.auth.admin.roleLabel(r))}</option>`).join("");
+      const opts = ROLES.map(r=>`<option value="${esc(r)}"${r===u.role?" selected":""}>${esc(BPStore.auth.admin.roleLabel(r))}</option>`).join("");
       return `<tr data-id="${esc(u.id)}">
         <td class="em">${esc(u.email||"—")}${self?'<span class="me">you</span>':""}</td>
-        <td><select class="roleSel"${self?" disabled title=\"You can&#39;t change your own role\"":""}>${opts}</select></td>
-        <td style="text-align:right">${self?"":`<button class="rm" title="Remove user">🗑</button>`}</td>
+        <td><select class="roleSel" aria-label="Role for ${esc(u.email||"user")}"${self?" disabled title=\"You can&#39;t change your own role\"":""}>${opts}</select></td>
+        <td style="text-align:right">${self?"":`<button type="button" class="rm" title="Remove user" aria-label="Remove user ${esc(u.email||"")}">🗑</button>`}</td>
       </tr>`;
     }).join("") || `<tr><td colspan="3" style="color:var(--ink-3)">No users.</td></tr>`;
     tb.querySelectorAll(".roleSel").forEach(sel=>sel.addEventListener("change", async (e)=>{
       const tr=e.target.closest("tr"), id=tr.dataset.id, role=e.target.value;
       const prev=[...e.target.options].find(o=>o.defaultSelected);
-      try{ await BPStore.auth.admin.setRole(id, role); setUMsg("ok","Role updated."); e.target.querySelectorAll("option").forEach(o=>o.defaultSelected=o.value===role); }
-      catch(err){ setUMsg("err",(err&&err.message)||"Update failed"); if(prev) e.target.value=prev.value; }
+      try{ await BPUI.guard(e.target, ()=>BPStore.auth.admin.setRole(id, role)); setUMsg("ok","Role updated."); e.target.querySelectorAll("option").forEach(o=>o.defaultSelected=o.value===role); }
+      catch(err){ setUMsg("err",errMsg(err,"change the role")); if(prev) e.target.value=prev.value; }
     }));
-    tb.querySelectorAll(".rm").forEach(btn=>btn.addEventListener("click", async (e)=>{
-      const tr=e.target.closest("tr"), id=tr.dataset.id, email=tr.querySelector(".em").textContent;
-      if(!confirm(`Remove ${email}? This deletes their account.`)) return;
-      try{ await BPStore.auth.admin.deleteUser(id); await renderUsers(); setUMsg("ok","User removed."); }
-      catch(err){ setUMsg("err",(err&&err.message)||"Delete failed"); }
+    tb.querySelectorAll(".rm").forEach(btn=>btn.addEventListener("click", async ()=>{
+      const tr=btn.closest("tr"), id=tr.dataset.id, email=tr.querySelector(".em").textContent;
+      if(!(await BPUI.confirm(`Remove ${email}? This permanently deletes their account and they lose access immediately.`,{title:"Delete user account?",okLabel:"Delete account",danger:true}))) return;
+      try{ await BPUI.guard(btn, ()=>BPStore.auth.admin.deleteUser(id)); await renderUsers(); setUMsg("ok","User removed."); }
+      catch(err){ setUMsg("err",errMsg(err,"remove the user")); }
     }));
   }
   $("#um_add").addEventListener("submit", async (e)=>{
     e.preventDefault();
     const email=$("#um_email").value.trim(), role=$("#um_role").value;
-    const btn=$("#um_submit"); btn.disabled=true; btn.textContent="Adding…";
+    { const r=BPStore.validate.email(email); if(!r.ok){ setUMsg("err",r.error); $("#um_email").focus(); return; } }
+    await BPUI.guard($("#um_submit"), async()=>{
     try{
       const r = await BPStore.auth.admin.createUserTemp(email, role);   // { user_id, temp_password }
       const tp = (r && r.temp_password) || "";
@@ -621,24 +680,26 @@
         try{ await navigator.clipboard.writeText(tp); cp.textContent="Copied"; }catch(_){ }
       });
     }
-    catch(err){ setUMsg("err",(err&&err.message)||"Couldn't add user"); }
-    finally{ btn.disabled=false; btn.textContent="Add user"; }
+    catch(err){ setUMsg("err",errMsg(err,"add the user")); }
+    }, {busyLabel:"Adding…"});
   });
 
   // ---- invite by email link (Phase 83) ----
   $("#inv_add").addEventListener("submit", async (e)=>{
     e.preventDefault();
     const email=$("#inv_email").value.trim(), role=$("#inv_role").value;
-    const btn=$("#inv_submit"); btn.disabled=true; btn.textContent="Creating…";
+    { const r=BPStore.validate.email(email); if(!r.ok){ setUMsg("err",r.error); $("#inv_email").focus(); return; } }
+    await BPUI.guard($("#inv_submit"), async()=>{
     try{
       const r=await BPStore.invitations.create(email, role);
       const link=location.origin+"/login?invite="+encodeURIComponent(r.token);
       $("#inv_link").value=link; $("#inv_out").hidden=false;
       setUMsg("ok",(r.reused?"Existing invite link ready for ":"Invite link created for ")+email+".");
       $("#inv_email").value="";
-    }catch(err){ setUMsg("err",(err&&err.message)||"Couldn't create invite"); }
-    finally{ btn.disabled=false; btn.textContent="Create invite link"; }
+    }catch(err){ setUMsg("err",errMsg(err,"create the invite")); }
+    }, {busyLabel:"Creating…"});
   });
+  $("#inv_link").addEventListener("click",(e)=>e.target.select());
   // ---- GDPR / data portability export (Phase 85) ----
   $("#btn-export-gdpr").addEventListener("click", async ()=>{
     const btn=$("#btn-export-gdpr"), st=$("#exp_status");
@@ -685,23 +746,31 @@
 
   async function initMatrix(){
     // role tabs (admin first, shown as locked-full)
-    $("#roleTabs").innerHTML = ROLES.map(r=>`<button class="rtab${r===selRole?" active":""}" data-role="${r}">${esc(BPStore.auth.admin.roleLabel(r))}</button>`).join("");
+    $("#roleTabs").innerHTML = ROLES.map(r=>`<button type="button" class="rtab${r===selRole?" active":""}" data-role="${esc(r)}" aria-pressed="${r===selRole}">${esc(BPStore.auth.admin.roleLabel(r))}</button>`).join("");
     $("#roleTabs").querySelectorAll(".rtab").forEach(b=>b.addEventListener("click",()=>{
       selRole=b.dataset.role;
-      $("#roleTabs").querySelectorAll(".rtab").forEach(x=>x.classList.toggle("active",x.dataset.role===selRole));
+      $("#roleTabs").querySelectorAll(".rtab").forEach(x=>{ x.classList.toggle("active",x.dataset.role===selRole); x.setAttribute("aria-pressed",String(x.dataset.role===selRole)); });
       renderMatrix();
     }));
-    await loadMatrix();
-    renderMatrix();
+    await loadMatrix(); renderMatrix();
   }
+  // Reads the live matrix. On failure MTX is left untouched and mtxErr is set, so the
+  // grid never shows (or saves from) a made-up "everything off" state.
+  let mtxErr=null;
   async function loadMatrix(){
-    MTX={};
     try{
-      const rows=await BPStore.auth.admin.getAccess();
-      rows.forEach(x=>{ (MTX[x.role]=MTX[x.role]||{})[x.area]={view:!!x.can_view, edit:!!x.can_edit}; });
-    }catch(e){ setUMsg("err","Run phase29-role-access.sql to enable access control. ("+((e&&e.message)||"")+")"); }
+      const rows=(await BPStore.auth.admin.getAccess())||[];
+      const m={};
+      rows.forEach(x=>{ (m[x.role]=m[x.role]||{})[x.area]={view:!!x.can_view, edit:!!x.can_edit}; });
+      MTX=m; mtxErr=null; return true;
+    }catch(e){ mtxErr=e; return false; }
   }
+  async function reloadMatrix(){ await loadMatrix(); renderMatrix(); if(mtxErr) throw mtxErr; }
   function renderMatrix(){
+    if(mtxErr){
+      BPUI.loadError($("#matrix"), mtxErr, reloadMatrix, {what:"access control"});
+      return;
+    }
     const locked = selRole==="admin";
     const byGroup={};
     AREAS.forEach(a=>{ (byGroup[a.group]=byGroup[a.group]||[]).push(a); });
@@ -710,10 +779,11 @@
       html+=`<div class="mgroup">${esc(g)}</div><div class="chips">`;
       byGroup[g].forEach(a=>{
         const cell = locked ? {view:true,edit:true} : ((MTX[selRole]&&MTX[selRole][a.key])||{view:false,edit:false});
-        html+=`<div class="chip${cell.view?" on":""}${locked?" locked":""}" data-area="${a.key}">
-          <span class="ic">${a.icon}</span><span class="lb">${esc(a.label)}</span>
-          <span class="pen${cell.edit?" on":""}" data-pen="1" title="Allow editing">✎</span>
-          <span class="tick">✓</span></div>`;
+        const lb=esc(a.label);
+        html+=`<div class="chip${cell.view?" on":""}${locked?" locked":""}" data-area="${esc(a.key)}">
+          <button type="button" class="cview" aria-pressed="${!!cell.view}" aria-label="${lb}: can view"${locked?" disabled":""}><span class="ic" aria-hidden="true">${a.icon}</span><span class="lb">${lb}</span></button>
+          <button type="button" class="pen${cell.edit?" on":""}" data-pen="1" title="Allow editing" aria-pressed="${!!cell.edit}" aria-label="${lb}: can edit"${locked?" disabled":""}>✎</button>
+          <span class="tick" aria-hidden="true">✓</span></div>`;
       });
       html+=`</div>`;
     });
@@ -721,34 +791,45 @@
     if(locked) return;
     $("#matrix").querySelectorAll(".chip").forEach(chip=>{
       const area=chip.dataset.area;
-      chip.addEventListener("click", async (e)=>{
-        if(e.target.dataset.pen){                       // ✎ toggles edit (auto-enables view)
-          const cur=(MTX[selRole]&&MTX[selRole][area])||{view:false,edit:false};
-          const edit=!cur.edit, view=cur.view||edit;
-          await saveCell(area, view, edit);
-        } else {                                        // body toggles view (off view also clears edit)
-          const cur=(MTX[selRole]&&MTX[selRole][area])||{view:false,edit:false};
-          const view=!cur.view, edit=view?cur.edit:false;
-          await saveCell(area, view, edit);
-        }
-      });
+      // ✎ toggles edit (auto-enables view); the rest of the chip toggles view (off view also clears edit)
+      chip.addEventListener("click", (e)=>{ saveCell(selRole, area, e.target.closest("[data-pen]") ? "edit" : "view"); });
     });
   }
-  async function saveCell(area, view, edit){
-    try{
-      await BPStore.auth.admin.setAccess(selRole, area, view, edit);
-      (MTX[selRole]=MTX[selRole]||{})[area]={view, edit};
+  // saveCell is SERIALIZED: quick clicks queue up and each one computes its toggle
+  // from the matrix as re-read from the server after the previous save, so two fast
+  // clicks never send conflicting updates built from the same stale state.
+  let cellQueue=Promise.resolve(), cellPending=0;
+  function saveCell(role, area, kind){
+    cellPending++; $("#matrix").setAttribute("aria-busy","true");
+    cellQueue = cellQueue.then(async()=>{
+      const cur=(MTX[role]&&MTX[role][area])||{view:false,edit:false};
+      let view, edit;
+      if(kind==="edit"){ edit=!cur.edit; view=cur.view||edit; }
+      else { view=!cur.view; edit=view?cur.edit:false; }
+      let saved=false;
+      try{ await BPStore.auth.admin.setAccess(role, area, view, edit); saved=true; }
+      catch(e){ setUMsg("err",errMsg(e,"change access")); }
+      // always re-read the live matrix so the grid shows what the server really has
+      const ok=await loadMatrix();
+      if(!ok && saved){ mtxErr=null; (MTX[role]=MTX[role]||{})[area]={view, edit}; BPUI.toast("Saved, but couldn't refresh access — reload to double-check.",{type:"info"}); }
+      if(saved) setUMsg("ok",`${role} · ${area}: ${view?(edit?"view + edit":"view only"):"no access"}`);
+    }).catch(()=>{}).finally(()=>{
+      cellPending--;
+      if(!cellPending){ $("#matrix").removeAttribute("aria-busy"); }
       renderMatrix();
-      setUMsg("ok",`${selRole} · ${area}: ${view?(edit?"view + edit":"view only"):"no access"}`);
-    }catch(e){ setUMsg("err",(e&&e.message)||"Couldn't save"); }
+    });
+    return cellQueue;
   }
 
-  $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
-    const btn=$("#li_submit"); btn.disabled=true; btn.textContent="Signing in…"; $("#li_err").hidden=true;
-    try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pw").value); closeLogin(); $("#gate").hidden=true; await load(); }
-    catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign-in failed"; $("#li_err").hidden=false; }
-    finally{ btn.disabled=false; btn.textContent="Sign in"; } });
-  load();
+  $("#loginForm").addEventListener("submit",e=>{ e.preventDefault();
+    const em=$("#li_email").value.trim(), pw=$("#li_pw").value, er=$("#li_err");
+    if(!em||!pw){ er.textContent="Enter your email and password."; er.hidden=false; (em?$("#li_pw"):$("#li_email")).focus(); return; }
+    er.hidden=true;
+    BPUI.guard($("#li_submit"), async()=>{
+      try{ await BPStore.auth.signIn(em,pw); closeLogin(); $("#gate").hidden=true; await load(); }
+      catch(err){ er.textContent=(err&&err.message)||"Sign-in failed"; er.hidden=false; }
+    }, {busyLabel:"Signing in…"}).catch(()=>{}); });
+  BPUI.boot(load);
 </script>
 </body>
 </html>

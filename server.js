@@ -34,7 +34,11 @@ function readDb() {
 }
 function writeDb(list) {
   ensureDb();
-  fs.writeFileSync(DB_FILE, JSON.stringify(list, null, 2));
+  // write-then-rename so a crash mid-write can't leave truncated JSON (which
+  // readDb would treat as [] and the next save would persist, wiping layouts)
+  const tmp = DB_FILE + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(list, null, 2));
+  fs.renameSync(tmp, DB_FILE);
 }
 const uid = () => 'lay_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
@@ -74,37 +78,84 @@ const summary = (l) => ({
 /* ----------------------------------------------------------- static */
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml',
-  '.png': 'image/png', '.ico': 'image/x-icon', '.map': 'application/json',
+  '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json', '.map': 'application/json', '.svg': 'image/svg+xml',
+  '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+  '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8',
 };
-// Defensive security headers applied to every served response.
-// CSP allows the app's real sources (inline scripts/styles are used across the
-// static pages, hence 'unsafe-inline' — a documented accepted risk until a
-// nonce refactor); everything else is locked to self + the known CDNs.
-const CSP = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  "object-src 'none'",
-  "frame-ancestors 'none'",
-  "frame-src 'self'",              // the invitation studio previews /invite in a same-origin iframe
-  "form-action 'self'",
-  "img-src 'self' data: https:",
-  "media-src 'self' https:",          // invitation background music (external MP3 links)
-  "font-src 'self' https://fonts.gstatic.com",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net",
-  "upgrade-insecure-requests",
-].join('; ');
+
+/* Security headers — MIRRORS vercel.json (production source of truth) and
+   public/_headers. test/headers-parity.test.mjs fails CI if they drift.
+   Documented per-host difference: on localhost (plain http) we drop
+   `upgrade-insecure-requests` (see isLocalHost).
+   script-src has NO 'unsafe-inline': every inline <script> is allowed by its
+   sha256 hash (scripts/csp-hashes.cjs). Here the hashes are computed from the
+   files on disk, so local dev never drifts; vercel.json / _headers carry the
+   same list via `node scripts/gen-csp.mjs` (CI --check). Do not add CDN hosts back
+   (supabase-js is self-hosted under /vendor/; jsdelivr is builder-only). */
+// Inline-script hashes, recomputed only when a page under public/ changes.
+const { computeHashes, htmlFiles, withHashes } = require('./scripts/csp-hashes.cjs');
+let hashCache = { sig: null, hashes: [] };
+function inlineScriptHashes() {
+  let sig = '';
+  try { for (const f of htmlFiles(PUBLIC_DIR)) sig += f + ':' + fs.statSync(f).mtimeMs + ';'; } catch { return hashCache.hashes; }
+  if (sig !== hashCache.sig) hashCache = { sig, hashes: computeHashes(PUBLIC_DIR) };
+  return hashCache.hashes;
+}
+const CSP_BASE = [
+  ['default-src', "'self'"],
+  ['base-uri', "'self'"],
+  ['object-src', "'none'"],
+  ['frame-ancestors', "'none'"],
+  ['frame-src', "'self'"],                  // the invitation studio previews /invite in a same-origin iframe
+  ['form-action', "'self'"],
+  ['img-src', "'self' data: blob: https://*.supabase.co"],
+  ['media-src', "'self' blob: https://*.supabase.co"],
+  ['font-src', "'self' https://fonts.gstatic.com"],
+  ['style-src', "'self' 'unsafe-inline' https://fonts.googleapis.com"],
+  // cdnjs = builder's three.js; browser.sentry-cdn.com = Sentry browser bundle (npm ships no bundle)
+  ['script-src', "'self' https://cdnjs.cloudflare.com https://browser.sentry-cdn.com"],
+  ['connect-src', "'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io https://*.ingest.us.sentry.io"],
+  ['upgrade-insecure-requests', ''],
+];
+const buildCsp = (over = {}) => CSP_BASE
+  .map(([k, v]) => [k, Object.prototype.hasOwnProperty.call(over, k) ? over[k] : v])
+  .map(([k, v]) => (v ? k + ' ' + v : k)).join('; ');
+// Per-page relaxations (same pages as vercel.json):
+//  • portal / proposal-view / proposal / media render user-pasted image URLs → img-src https:
+//  • invite-studio also plays external music URLs → + media-src https:
+//  • invite (/invite, /i/<slug>) = studio policy + same-origin framing for the studio preview
+//  • builder lazy-loads three.js example modules (SRI-pinned) from cdn.jsdelivr.net
+const USER_IMG = "'self' data: blob: https:";
+const USER_MEDIA = "'self' blob: https:";
+const CSP = {
+  base: buildCsp(),
+  userImg: buildCsp({ 'img-src': USER_IMG }),
+  studio: buildCsp({ 'img-src': USER_IMG, 'media-src': USER_MEDIA }),
+  invite: buildCsp({ 'img-src': USER_IMG, 'media-src': USER_MEDIA, 'frame-ancestors': "'self'" }),
+  builder: buildCsp({ 'script-src': "'self' https://cdnjs.cloudflare.com https://browser.sentry-cdn.com https://cdn.jsdelivr.net" }),
+};
+const CSP_BY_PAGE = {
+  portal: 'userImg', 'proposal-view': 'userImg', proposal: 'userImg', media: 'userImg',
+  'invite-studio': 'studio', invite: 'invite', builder: 'builder',
+};
 const SECURITY_HEADERS = {
-  'Content-Security-Policy': CSP,
   'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
   'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'X-Frame-Options': 'DENY',
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
   'Cross-Origin-Opener-Policy': 'same-origin',
+  'Cross-Origin-Resource-Policy': 'same-origin',
+  'Content-Security-Policy': CSP.base,
 };
+
+// Search-engine policy: only the marketing pages are indexable. Every other
+// page (app, token pages, login, sim-pay, 404), /docs/* and /.well-known/* get
+// X-Robots-Tag. Same list as vercel.json (derived from public/*.html).
+const INDEXABLE_PAGES = new Set(['index', 'about', 'services', 'privacy', 'terms']);
+const NOINDEX = 'noindex, nofollow, noarchive';
 
 // Loopback host? On localhost we serve over http, so `upgrade-insecure-requests`
 // would rewrite same-origin subresources (e.g. the invitation preview iframe) to
@@ -112,25 +163,95 @@ const SECURITY_HEADERS = {
 function isLocalHost(req) {
   return /^(localhost|127\.0\.0\.1|\[::1\])(:|$)/i.test((req && req.headers && req.headers.host) || '');
 }
-// Per-request security headers. Two targeted, safe relaxations:
-//  • localhost → drop UIR (dev is http; see above).
-//  • invite.html → allow SAME-ORIGIN framing so the Invitation Studio can preview
-//    it in an iframe. Third-party framing stays blocked (clickjacking-safe).
+// "dashboard" for public/dashboard.html; null for non-page files.
+function pageName(filePath) {
+  const m = filePath && /(?:^|[\\/])([^\\/]+)\.html$/.exec(filePath);
+  return m ? m[1] : null;
+}
+function relFromPublic(filePath) {
+  const abs = path.isAbsolute(filePath) ? filePath : path.join(PUBLIC_DIR, filePath);
+  return path.relative(PUBLIC_DIR, abs).split(path.sep).join('/');
+}
+// Per-request security headers (+ X-Robots-Tag) for the file being served.
 function securityHeadersFor(req, filePath) {
   const h = { ...SECURITY_HEADERS };
-  if (isLocalHost(req)) h['Content-Security-Policy'] = h['Content-Security-Policy'].replace(/;\s*upgrade-insecure-requests/, '');
-  if (filePath && /(^|[\\/])invite\.html$/.test(filePath)) {
-    h['X-Frame-Options'] = 'SAMEORIGIN';
-    h['Content-Security-Policy'] = h['Content-Security-Policy'].replace("frame-ancestors 'none'", "frame-ancestors 'self'");
+  const rel = filePath ? relFromPublic(filePath) : '';
+  const page = rel.includes('/') ? null : pageName(rel);
+  const variant = page && CSP_BY_PAGE[page];
+  if (variant) h['Content-Security-Policy'] = CSP[variant];
+  if (page === 'invite') h['X-Frame-Options'] = 'SAMEORIGIN';   // Invitation Studio preview (same-origin only)
+  if ((page && !INDEXABLE_PAGES.has(page)) || rel.startsWith('docs/') || rel.startsWith('.well-known/')) {
+    h['X-Robots-Tag'] = NOINDEX;
   }
+  h['Content-Security-Policy'] = withHashes(h['Content-Security-Policy'], inlineScriptHashes());
+  if (isLocalHost(req)) h['Content-Security-Policy'] = h['Content-Security-Policy'].replace(/;\s*upgrade-insecure-requests/, '');
   return h;
 }
 
-function sendFileRes(res, filePath, buf, req) {
+// Cache policy (mirrors vercel.json): HTML revalidates every time; /vendor/ and
+// ?v=-versioned assets are immutable; config.js is short-lived; unversioned
+// images / crawler files get an hour.
+const IMMUTABLE = 'public, max-age=31536000, immutable';
+const SHORT = 'public, max-age=3600, must-revalidate';
+function cacheControlFor(filePath, query) {
+  const rel = relFromPublic(filePath);
+  const ext = path.extname(rel).toLowerCase();
+  if (ext === '.html') return 'no-cache';
+  if (rel === 'config.js') return 'public, max-age=300';
+  if (rel.startsWith('vendor/')) return IMMUTABLE;
+  if (/[?&]v=/.test(query || '') && ['.js', '.css', '.png', '.webp', '.svg', '.woff2'].includes(ext)) return IMMUTABLE;
+  if (['.js', '.css'].includes(ext)) return 'no-cache';   // unversioned script/style: always revalidate locally
+  if (['.png', '.webp', '.svg', '.woff2', '.ico', '.txt', '.xml'].includes(ext)) return SHORT;
+  return 'no-cache';
+}
+
+function sendFileRes(res, filePath, buf, req, status = 200) {
   const ext = path.extname(filePath);
-  // Revalidate app files so updates always show (fast, no staleness).
-  res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': 'no-cache', ...securityHeadersFor(req, filePath) });
+  const query = (req && req.url && req.url.includes('?')) ? req.url.slice(req.url.indexOf('?')) : '';
+  res.writeHead(status, {
+    'Content-Type': MIME[ext] || 'application/octet-stream',
+    'Cache-Control': status === 200 ? cacheControlFor(filePath, query) : 'no-cache',
+    ...securityHeadersFor(req, filePath),
+  });
   res.end(buf);
+}
+
+// Unknown URL → the branded 404 page with a real 404 status (was: dashboard.html, 200).
+function sendNotFound(res, req) {
+  const file = path.join(PUBLIC_DIR, '404.html');
+  fs.readFile(file, (e, buf) =>
+    e ? sendJson(res, 404, { error: 'not found' }) : sendFileRes(res, file, buf, req, 404));
+}
+
+// Index of every servable file under public/, keyed by its URL path
+// ("/vendor/x.js" → absolute path). Requests are looked up here, so a request
+// path is never joined onto the filesystem (no traversal is even expressible).
+// Rebuilt at most once a second on a miss, so files added in dev show up.
+let fileIndex = new Map(), fileIndexAt = 0;
+function buildFileIndex() {
+  const idx = new Map();
+  const walk = (dir, urlDir) => {
+    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (ent.name.startsWith('.') && ent.name !== '.well-known') continue;
+      const abs = path.join(dir, ent.name), url = urlDir + '/' + ent.name;
+      if (ent.isDirectory()) walk(abs, url);
+      else if (ent.isFile()) idx.set(url, abs);
+    }
+  };
+  try { walk(PUBLIC_DIR, ''); } catch (e) { console.error('[server] cannot index public/:', e.message); }
+  fileIndex = idx; fileIndexAt = Date.now();
+}
+function lookupFile(urlPath) {
+  if (!fileIndex.has(urlPath) && Date.now() - fileIndexAt > 1000) buildFileIndex();
+  return fileIndex.get(urlPath) || null;
+}
+// the index's own copy of the key (never the request's string)
+function indexedUrl(urlPath) {
+  for (const k of fileIndex.keys()) if (k === urlPath) return k;
+  return null;
+}
+function serveFile(res, req, file) {
+  fs.readFile(file, (e, buf) => (e ? sendNotFound(res, req) : sendFileRes(res, file, buf, req)));
 }
 
 function serveStatic(req, res) {
@@ -141,47 +262,31 @@ function serveStatic(req, res) {
   const query = qIdx >= 0 ? req.url.slice(qIdx) : '';
 
   // The public front door.
-  if (rel === '/') {
-    return fs.readFile(path.join(PUBLIC_DIR, 'index.html'), (e, buf) =>
-      e ? sendJson(res, 404, { error: 'not found' }) : sendFileRes(res, 'index.html', buf, req));
-  }
+  if (rel === '/') return serveFile(res, req, path.join(PUBLIC_DIR, 'index.html'));
 
   // Public digital-invitation sites: /i/<slug> is served by invite.html, which
   // reads the slug from the path and fetches ONLY the published display fields.
   // Guard: only treat it as a slug when there's no file extension, so asset
   // requests (e.g. /i/foo.js) are never swallowed by this route.
   if ((rel === '/i' || rel.startsWith('/i/')) && !path.extname(rel)) {
-    return fs.readFile(path.join(PUBLIC_DIR, 'invite.html'), (e, buf) =>
-      e ? sendJson(res, 404, { error: 'not found' }) : sendFileRes(res, 'invite.html', buf, req));
+    return serveFile(res, req, path.join(PUBLIC_DIR, 'invite.html'));
   }
 
-  // Clean URLs: hide the .html extension. Any request for /foo.html is redirected
-  // to /foo (which is then served from foo.html below), so the address bar stays clean.
+  // Clean URLs: hide the .html extension. /foo.html → 302 /foo (served from
+  // foo.html below). Only real pages redirect, to the index's own path — so
+  // "//evil.com.html" style requests can't produce an off-site Location.
   if (rel.toLowerCase().endsWith('.html')) {
-    const clean = rel.slice(0, -5) || '/';   // /dashboard.html → /index (the app home), NOT / (the public intro)
-    res.writeHead(302, { Location: clean + query, ...SECURITY_HEADERS });
+    const page = rel.startsWith('/') && lookupFile(rel) ? indexedUrl(rel) : null;
+    if (!page) return sendNotFound(res, req);
+    const clean = page.slice(0, -5);                         // /dashboard.html → /dashboard
+    res.writeHead(302, { Location: clean + query, ...securityHeadersFor(req, lookupFile(page)) });
     return res.end();
   }
 
-  const base = path.normalize(path.join(PUBLIC_DIR, rel));
-  // must stay inside PUBLIC_DIR (guard the separator boundary, not just the prefix)
-  if (base !== PUBLIC_DIR && !base.startsWith(PUBLIC_DIR + path.sep))
-    return sendJson(res, 403, { error: 'forbidden' });
-
-  const ext = path.extname(base);
-  if (ext) {
-    // A real asset (.js, .css, images, …) — serve it directly.
-    return fs.readFile(base, (err, buf) =>
-      err ? sendJson(res, 404, { error: 'not found' }) : sendFileRes(res, base, buf, req));
-  }
-
-  // No extension → a clean page URL. Serve <name>.html.
-  fs.readFile(base + '.html', (err, buf) => {
-    if (!err) return sendFileRes(res, base + '.html', buf, req);
-    // Unknown route → fall back to the app home (kept from prior behavior).
-    fs.readFile(path.join(PUBLIC_DIR, 'dashboard.html'), (e2, idx) =>
-      e2 ? sendJson(res, 404, { error: 'not found' }) : sendFileRes(res, "dashboard.html", idx, req));
-  });
+  // A real asset (.js, .css, images, …), or a clean page URL → <name>.html.
+  const file = path.extname(rel) ? lookupFile(rel) : lookupFile(rel + '.html');
+  if (!file) return sendNotFound(res, req);
+  serveFile(res, req, file);
 }
 
 /* ----------------------------------------------------- rate limiting */
@@ -192,8 +297,11 @@ function serveStatic(req, res) {
 const RL_WINDOW_MS = 60 * 1000;
 const RL_MAX = 120;                 // requests per IP per window for /api/*
 const rlHits = new Map();           // ip -> { count, resetAt }
+// X-Forwarded-For is client-controlled; only honour it behind a trusted proxy
+// (TRUST_PROXY=1), otherwise a caller could rotate it to bypass the limit.
+const TRUST_PROXY = process.env.TRUST_PROXY === '1';
 function rateLimited(req) {
-  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+  const ip = (TRUST_PROXY && (req.headers['x-forwarded-for'] || '').split(',')[0].trim())
     || req.socket.remoteAddress || 'unknown';
   const now = Date.now();
   let e = rlHits.get(ip);
@@ -283,11 +391,18 @@ const server = http.createServer(async (req, res) => {
     }
     return serveStatic(req, res);
   } catch (err) {
-    sendJson(res, 500, { error: err.message || 'server error' });
+    console.error('[server] unhandled error:', err);
+    if (res.headersSent) return res.end();
+    sendJson(res, 500, { error: 'server error' });
   }
 });
 
-server.listen(PORT, () => {
-  ensureDb();
-  console.log(`Blueprint Stage running →  http://localhost:${PORT}`);
-});
+// Exported for test/headers-parity.test.mjs (requiring this file does not listen).
+module.exports = { CSP, CSP_BY_PAGE, SECURITY_HEADERS, INDEXABLE_PAGES, NOINDEX, securityHeadersFor, cacheControlFor };
+
+if (require.main === module) {
+  server.listen(PORT, () => {
+    ensureDb();
+    console.log(`Blueprint Stage running →  http://localhost:${PORT}`);
+  });
+}

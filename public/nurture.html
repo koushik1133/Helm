@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CRM nurture — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
@@ -11,40 +12,41 @@
     --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
   *{box-sizing:border-box} [hidden]{display:none!important}
+  .table-scroll{position:relative} /* keeps sr-only header text inside the scroller */
   body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
   a{color:inherit;text-decoration:none}
   .wrap{max-width:1040px;margin:0 auto;padding:0 24px 60px}
   header{display:flex;align-items:center;gap:11px;padding:18px 0}
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
-  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
   .spacer{margin-left:auto}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
   .card h2{font-size:15px;margin:0 0 4px} .card .sub{font-size:12px;color:var(--ink-3);margin:0 0 12px}
   .addgrid{display:grid;grid-template-columns:1.2fr .9fr 1fr .9fr .9fr auto;gap:8px;align-items:end} @media(max-width:820px){.addgrid{grid-template-columns:1fr 1fr}}
-  .fld{display:flex;flex-direction:column;gap:4px} .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld{display:flex;flex-direction:column;gap:4px} .fld label{font-size:12px;font-weight:600;color:var(--ink-2)}
   .fld input,.fld select{height:36px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
   .btn{height:36px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer} .btn:hover{border-color:var(--accent)}
   .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
   table{width:100%;border-collapse:collapse;font-size:13px}
-  thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:9px 10px;border-bottom:1px solid var(--line)}
+  thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:9px 10px;border-bottom:1px solid var(--line)}
   tbody td{padding:9px 10px;border-bottom:1px solid var(--line-2);vertical-align:middle} .muted{color:var(--ink-3)}
-  .st{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .st{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
   .st.active{background:#eef2ff;color:#4457c8} .st.won{background:#e7f6ee;color:#0f7a43} .st.dormant{background:#f1f3f7;color:var(--ink-3)}
-  .due{background:#fdecec;color:#b42318;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
-  .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:28px;padding:0 9px;font-size:11px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#e5484d;border-color:#f5c6c6}
-  .lnk{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:28px;padding:0 9px;font-size:11px;cursor:pointer;color:var(--ink-2)} .lnk:hover{border-color:var(--accent);color:var(--accent)}
+  .due{background:#fdecec;color:#b42318;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:32px;min-width:32px;padding:0 9px;font-size:12px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#b42318;border-color:#f5c6c6}
+  .lnk{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:32px;padding:0 9px;font-size:12px;cursor:pointer;color:var(--ink-2)} .lnk:hover{border-color:var(--accent);color:var(--accent)}
   .empty{text-align:center;color:var(--ink-3);padding:22px;font-size:13px}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
   .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px}
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
   .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,96vw);padding:24px}
-  .sheet h3{margin:0 0 12px}.foot{display:flex;gap:10px;justify-content:flex-end}.fld2{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}.fld2 label{font-size:11px;font-weight:600;color:var(--ink-2)}.fld2 input{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit}
+  .sheet h3{margin:0 0 12px}.foot{display:flex;gap:10px;justify-content:flex-end}.fld2{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}.fld2 label{font-size:12px;font-weight:600;color:var(--ink-2)}.fld2 input{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit}
   /* automation toggle switch */
   .switch{position:relative;display:inline-block;width:46px;height:26px;flex:0 0 auto}
   .switch input{opacity:0;width:0;height:0}
@@ -54,31 +56,34 @@
   .switch input:checked + .slider::before{transform:translateX(20px)}
   .autobar{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
   .autobar .lab{font-size:14px;font-weight:600} .autobar .desc{font-size:12px;color:var(--ink-3)}
-  .occ{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;background:#eef2ff;color:#4457c8}
+  .occ{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;background:#eef2ff;color:#4457c8}
   .occ.greeted{background:#e7f6ee;color:#0f7a43}
   .pill-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
   .ptab{border:1px solid var(--line);background:var(--panel-2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--ink-2);cursor:pointer;text-transform:capitalize}
   .ptab:hover{border-color:var(--accent)} .ptab.active{background:var(--accent);border-color:transparent;color:#fff}
   .tpl-sub{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit;font-size:13px;margin-bottom:10px}
   .tpl-body{width:100%;min-height:150px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:13px;color:var(--ink);resize:vertical;line-height:1.5}
-  .ph{font-family:var(--mono);font-size:11px;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:var(--ink-2);cursor:pointer}
+  .ph{font-family:var(--mono);font-size:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:var(--ink-2);cursor:pointer}
   .msg{border-radius:8px;padding:8px 11px;font-size:13px;margin:8px 0}
   .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca} .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
-    <a href="dashboard.html" class="mark" title="Home"></a>
+    <a href="dashboard.html" class="mark" title="Home" aria-label="Home"></a>
     <div><h1>CRM nurture</h1><small>Helm Events</small></div>
     <nav class="nav"><a href="dashboard.html">Home</a><a href="leads.html">Leads</a><a href="crm.html">CRM archive</a></nav>
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
 
+  <main id="main">
   <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to open the nurture list.</p></div>
 
+  <div id="boot" aria-busy="true"></div>
   <div id="app" hidden>
     <div class="card" id="addCard" hidden>
       <h2>Add to nurture list</h2>
@@ -86,13 +91,13 @@
       <div class="addgrid" style="grid-template-columns:1.1fr .9fr .8fr 1fr .9fr auto">
         <div class="fld"><label for="n_name">Name</label><input id="n_name" list="clientList" placeholder="Pick a client or type a new one" autocomplete="off">
           <datalist id="clientList"></datalist></div>
-        <div class="fld"><label for="n_email">Email</label><input id="n_email" placeholder="for greetings"></div>
+        <div class="fld"><label for="n_email">Email</label><input id="n_email" type="email" placeholder="for greetings"></div>
         <div class="fld"><label for="n_type">Type</label><select id="n_type">
           <option value="birthday">🎂 Birthday</option><option value="anniversary" selected>💐 Anniversary</option>
           <option value="festival">✨ Festival</option><option value="custom">📌 Custom</option></select></div>
         <div class="fld"><label for="n_occ">Occasion label</label><input id="n_occ" placeholder="e.g. Wedding anniversary"></div>
         <div class="fld"><label for="n_occd">Occasion date</label><input id="n_occd" type="date"></div>
-        <div class="fld"><label>&nbsp;</label><button class="btn primary" id="n_add">＋ Add</button></div>
+        <div class="fld"><span aria-hidden="true" style="font-size:12px">&nbsp;</span><button class="btn primary" id="n_add" type="button">＋ Add</button></div>
       </div>
       <label style="display:inline-flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--ink-2);cursor:pointer">
         <input type="checkbox" id="n_auto"> Auto-send a greeting each year on this occasion</label>
@@ -103,26 +108,26 @@
       <h2>🎉 Occasions &amp; automation</h2>
       <p class="sub">Birthdays, anniversaries and yearly occasions coming up. When automation is on, a warm greeting (with a few gallery photos) is queued automatically on the day.</p>
       <div class="autobar">
-        <label class="switch"><input type="checkbox" id="autoToggle"><span class="slider"></span></label>
+        <label class="switch"><input type="checkbox" id="autoToggle" aria-label="Automatic greetings"><span class="slider"></span></label>
         <div><div class="lab">Automatic greetings <span id="autoState" class="occ">off</span></div>
           <div class="desc">Sends to everyone below whose auto-greet is on.</div></div>
         <span class="spacer" style="margin-left:auto"></span>
         <label class="desc">Days ahead <input id="autoDays" type="number" min="0" max="30" style="width:64px;height:34px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2);padding:0 8px;margin-left:6px"></label>
-        <button class="btn" id="runNow">▶ Run today's greetings</button>
+        <button class="btn" id="runNow" type="button">▶ Run today's greetings</button>
       </div>
       <div id="autoMsg" role="status" aria-live="polite"></div>
-      <table style="margin-top:12px">
-        <thead><tr><th>Client</th><th>Occasion</th><th>Next date</th><th>Auto</th><th></th></tr></thead>
+      <div class="table-scroll"><table style="margin-top:12px">
+        <thead><tr><th scope="col">Client</th><th scope="col">Occasion</th><th scope="col">Next date</th><th scope="col">Auto</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody id="occBody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
-      </table>
+      </table></div>
     </div>
 
     <div class="card">
       <h2>Nurture list <span id="dueCount" style="font-size:12px;color:#b42318;font-weight:600;margin-left:6px"></span></h2>
-      <table>
-        <thead><tr><th>Client</th><th>Occasion</th><th>Next follow-up</th><th>Status</th><th></th></tr></thead>
+      <div class="table-scroll"><table>
+        <thead><tr><th scope="col">Client</th><th scope="col">Occasion</th><th scope="col">Next follow-up</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody id="nurBody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
-      </table>
+      </table></div>
     </div>
 
     <!-- ===== Message templates ===== -->
@@ -136,26 +141,27 @@
       <input class="tpl-sub" id="tplSubject" placeholder="Subject line" aria-label="Template subject line">
       <textarea class="tpl-body" id="tplBody" placeholder="Message body" aria-label="Template message body"></textarea>
       <div id="tplMsg" role="status" aria-live="polite"></div>
-      <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn primary" id="tplSave">Save template</button></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn primary" id="tplSave" type="button">Save template</button></div>
     </div>
   </div>
+  </main>
   <footer>Helm Events — repeat business starts with a timely follow-up.</footer>
 </div>
 
-<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
+<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle" data-dismissible="false">
   <div class="sheet">
     <h3 id="loginModalTitle">Sign in</h3>
-    <div class="fld2"><label for="li_email">Email</label><input id="li_email" type="email"></div>
-    <div class="fld2"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+    <div class="fld2"><label for="li_email">Email</label><input id="li_email" type="email" autocomplete="email"></div>
+    <div class="fld2"><label for="li_pass">Password</label><input id="li_pass" type="password" autocomplete="current-password"></div>
     <div id="li_err" class="err" role="alert" aria-live="assertive" hidden></div>
-    <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
+    <div class="foot"><button class="btn primary" id="li_go" type="button">Sign in</button></div>
   </div>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
-<script src="tour.js?v=4"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
+<script src="tour.js?v=5"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -172,34 +178,53 @@
   async function render(){
     let list=[];
     try{ list=await BPStore.nurture.list(); }
-    catch(e){ $("#nurBody").innerHTML=`<tr><td colspan="5" class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase27-nurture.sql</b>.</td></tr>`; return; }
+    catch(e){ $("#dueCount").textContent=""; BPUI.loadError($("#nurBody"), e, render, {what:"the nurture list"}); return; }
     const td=today();
     const due=list.filter(n=>n.status==="active" && n.next_followup && n.next_followup<=td).length;
     $("#dueCount").textContent = due? `${due} follow-up${due===1?"":"s"} due` : "";
     $("#nurBody").innerHTML = list.length ? list.map(n=>{ const isDue=n.status==="active"&&n.next_followup&&n.next_followup<=td;
       return `<tr>
-        <td><b>${esc(n.name)}</b><div class="muted" style="font-size:11px">${[n.phone,n.email].filter(Boolean).map(esc).join(" · ")}</div></td>
-        <td>${esc(n.occasion||"")}${n.occasion_date?`<div class="muted" style="font-size:11px">${esc(n.occasion_date)}</div>`:""}</td>
+        <td><b>${esc(n.name)}</b><div class="muted" style="font-size:12px">${[n.phone,n.email].filter(Boolean).map(esc).join(" · ")}</div></td>
+        <td>${esc(n.occasion||"")}${n.occasion_date?`<div class="muted" style="font-size:12px">${esc(n.occasion_date)}</div>`:""}</td>
         <td>${n.next_followup?esc(n.next_followup):'<span class="muted">—</span>'} ${isDue?'<span class="due">Due</span>':""}</td>
-        <td><span class="st ${n.status}">${NST[n.status]||n.status}</span></td>
-        <td>${canEdit?`<button class="lnk" data-done="${n.id}">Followed up</button> <button class="lnk" data-conv="${n.id}">→ Lead</button> <button class="rm" data-del="${n.id}">✕</button>`:""}</td>
-      </tr>`; }).join("") : '<tr><td colspan="5" class="empty">No one on the nurture list yet.</td></tr>';
-    $("#nurBody").querySelectorAll("[data-done]").forEach(b=>b.addEventListener("click",async()=>{
+        <td><span class="st ${esc(n.status)}">${NST[n.status]||esc(n.status)}</span></td>
+        <td>${canEdit?`<button type="button" class="lnk" data-done="${esc(n.id)}" aria-label="Mark ${esc(n.name)} as followed up">Followed up</button> <button type="button" class="lnk" data-conv="${esc(n.id)}" data-status="${esc(n.status)}" data-name="${esc(n.name)}" aria-label="Convert ${esc(n.name)} to a lead">→ Lead</button> <button type="button" class="rm" data-del="${esc(n.id)}" data-name="${esc(n.name)}" aria-label="Remove ${esc(n.name)} from nurture">✕</button>`:""}</td>
+      </tr>`; }).join("") : (canEdit?'<tr><td colspan="5" class="empty">No one on the nurture list yet — add your first client above.</td></tr>':'<tr><td colspan="5" class="empty">No one on the nurture list yet.</td></tr>');
+    $("#nurBody").querySelectorAll("[data-done]").forEach(b=>b.addEventListener("click",()=>BPUI.guard(b,async()=>{
       // followed up → push next follow-up a year out
       const d=new Date(); d.setFullYear(d.getFullYear()+1); const next=d.toISOString().slice(0,10);
-      try{ await BPStore.nurture.update(b.dataset.done,{next_followup:next}); await render(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
+      try{ await BPStore.nurture.update(b.dataset.done,{next_followup:next}); BPUI.toast("Next follow-up set for "+next+".",{type:"ok"}); await render(); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"update the follow-up"}),{type:"err"}); } })));
     $("#nurBody").querySelectorAll("[data-conv]").forEach(b=>b.addEventListener("click",async()=>{
-      try{ await BPStore.nurture.convertToLead(b.dataset.conv); alert("Added to the leads pipeline ✓"); await render(); }catch(e){ alert("Couldn't convert — "+((e&&e.message)||"error")); } }));
-    $("#nurBody").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ if(!confirm("Remove from nurture?"))return; try{ await BPStore.nurture.remove(b.dataset.del); render(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
+      // guard: a double-click (or a click while the first convert is in flight) must not create duplicate leads
+      if(converting.has(b.dataset.conv)) return;
+      if(b.dataset.status==="won" && !(await BPUI.confirm(`${b.dataset.name||"This contact"} was already converted to a lead. Create another lead anyway?`,{title:"Create another lead?",okLabel:"Create lead"}))) return;
+      if(converting.has(b.dataset.conv)) return;
+      converting.add(b.dataset.conv);
+      BPUI.guard(b,async()=>{
+        try{ await BPStore.nurture.convertToLead(b.dataset.conv); BPUI.toast("Added to the leads pipeline ✓",{type:"ok"}); await render(); }
+        catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"convert to a lead"}),{type:"err"}); }
+        finally{ converting.delete(b.dataset.conv); }
+      }); }));
+    $("#nurBody").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
+      if(!(await BPUI.confirm(`Remove ${b.dataset.name||"this client"} from the nurture list?`,{title:"Remove from nurture?",okLabel:"Remove",danger:true})))return;
+      await BPUI.guard(b,async()=>{ try{ await BPStore.nurture.remove(b.dataset.del); BPUI.toast("Removed from nurture.",{type:"ok"}); await render(); }
+        catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"remove this client"}),{type:"err"}); } }); }));
   }
 
-  async function addOne(){ const name=$("#n_name").value.trim(); if(!name){ $("#n_name").focus(); return; }
+  const converting=new Set();
+  async function addOne(){ const name=$("#n_name").value.trim(); if(!name){ $("#n_name").focus(); BPUI.toast("Enter a name first.",{type:"info"}); return; }
     const type=$("#n_type").value;
+    const em=$("#n_email").value.trim();
+    if(em){ const r=BPStore.validate.email(em); if(!r.ok){ BPUI.toast("Enter a valid email address.",{type:"err"}); $("#n_email").focus(); return; } }
+    const btn=$("#n_add");
+    return BPUI.guard(btn,async()=>{   // no duplicate rows on double-click
     try{ await BPStore.nurture.add({ name, email:$("#n_email").value.trim()||null, occasion:$("#n_occ").value.trim()||null,
         occasion_type:type, occasion_date:$("#n_occd").value||null, auto_on:$("#n_auto").checked });
       ["n_name","n_email","n_occ","n_occd"].forEach(k=>$("#"+k).value=""); $("#n_auto").checked=false;
       await render(); await renderAuto(); }
-    catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); }
+    catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"add to the nurture list"}),{type:"err"}); }
+    });
   }
 
   /* ---------------- occasions & automation ---------------- */
@@ -214,53 +239,63 @@
     // upcoming occasions
     let due=[];
     try{ due=await BPStore.nurture.due(Math.max(30,+$("#autoDays").value||0)); }
-    catch(e){ $("#occBody").innerHTML=`<tr><td colspan="5" class="empty">Run <b>phase30-nurture-automation.sql</b> to enable automation. (${esc(e&&e.message||"")})</td></tr>`; return; }
+    catch(e){ BPUI.loadError($("#occBody"), e, renderAuto, {what:"upcoming occasions"}); return; }
     $("#occBody").innerHTML = due.length ? due.map(d=>`<tr>
-      <td><b>${esc(d.name)}</b><div class="muted" style="font-size:11px">${esc(d.email||"no email")}</div></td>
+      <td><b>${esc(d.name)}</b><div class="muted" style="font-size:12px">${esc(d.email||"no email")}</div></td>
       <td><span class="occ">${esc(d.occasion_type)}</span> ${esc(d.occasion||"")}</td>
       <td>${esc(d.next_date||"—")}${d.greeted_this_year?' <span class="occ greeted">greeted</span>':""}</td>
-      <td><label class="switch" style="width:40px;height:23px"><input type="checkbox" data-auto="${d.id}" ${d.auto_on?"checked":""}><span class="slider"></span></label></td>
-      <td><button class="lnk" data-greet="${d.id}" ${d.email?"":"disabled title='no email on file'"}>Send greeting</button></td>
+      <td><label class="switch" style="width:40px;height:23px"><input type="checkbox" data-auto="${esc(d.id)}" aria-label="Auto-greet ${esc(d.name)}" ${d.auto_on?"checked":""}><span class="slider"></span></label></td>
+      <td><button type="button" class="lnk" data-greet="${esc(d.id)}" aria-label="Send greeting to ${esc(d.name)}" ${d.email?"":"disabled title='no email on file'"}>Send greeting</button></td>
     </tr>`).join("") : '<tr><td colspan="5" class="empty">No occasions coming up. Add an occasion date above.</td></tr>';
     $("#occBody").querySelectorAll("[data-auto]").forEach(c=>c.addEventListener("change",async()=>{
       try{ await BPStore.nurture.update(c.dataset.auto,{auto_on:c.checked}); autoMsg("ok","Auto-greet "+(c.checked?"on":"off")+" for this contact."); }
-      catch(e){ autoMsg("err",(e&&e.message)||"Couldn't update"); c.checked=!c.checked; } }));
-    $("#occBody").querySelectorAll("[data-greet]").forEach(b=>b.addEventListener("click",async()=>{
-      b.disabled=true; b.textContent="Sending…";
+      catch(e){ autoMsg("err",BPUI.friendlyError(e,{action:"update auto-greet"})); c.checked=!c.checked; } }));
+    $("#occBody").querySelectorAll("[data-greet]").forEach(b=>b.addEventListener("click",()=>BPUI.guard(b,async()=>{
       try{ const msg=await BPStore.nurture.greet(b.dataset.greet);
         autoMsg("ok",`Greeting queued: "${(msg&&msg.subject)||""}" ${msg&&msg.photos&&msg.photos.length?("· "+msg.photos.length+" photo(s) attached"):""}`);
         await renderAuto(); }
-      catch(e){ autoMsg("err",(e&&e.message)||"Couldn't send"); b.disabled=false; b.textContent="Send greeting"; } }));
+      catch(e){ autoMsg("err",BPUI.friendlyError(e,{action:"send the greeting"})); } },{busyLabel:"Sending…"})));
   }
   async function toggleAuto(){ const V=BPStore.validate; const dr=V.num($("#autoDays").value,{min:0,max:30,integer:true}); if(!dr.ok){ autoMsg("err","Days ahead "+dr.error); return; } try{ await BPStore.nurture.automation.set($("#autoToggle").checked,dr.value);
       $("#autoState").textContent=$("#autoToggle").checked?"on":"off"; $("#autoState").classList.toggle("greeted",$("#autoToggle").checked);
       autoMsg("ok","Automation "+($("#autoToggle").checked?"enabled":"disabled")+"."); }
-    catch(e){ autoMsg("err",(e&&e.message)||"Couldn't save"); } }
+    catch(e){ autoMsg("err",BPUI.friendlyError(e,{action:"save automation settings"})); } }
 
   /* ---------------- templates ---------------- */
   let TPLS=[], curType="birthday";
+  const tplDirty=BPUI.trackDirty($("#tplCard"));
   async function renderTemplates(){
     if(!canEdit) return;
     try{ TPLS=await BPStore.nurture.templates.list(); }
-    catch(e){ $("#tplTabs").innerHTML=`<span class="muted">Run phase30 to edit templates.</span>`; return; }
+    catch(e){ BPUI.loadError($("#tplTabs"), e, renderTemplates, {what:"greeting templates"}); $("#tplSave").disabled=true; return; }
+    $("#tplSave").disabled=false;
     if(!TPLS.length){ $("#tplTabs").innerHTML='<span class="muted">No templates.</span>'; return; }
     if(!TPLS.find(t=>t.occasion_type===curType)) curType=TPLS[0].occasion_type;
-    $("#tplTabs").innerHTML=TPLS.map(t=>`<button class="ptab${t.occasion_type===curType?" active":""}" data-t="${esc(t.occasion_type)}">${esc(t.occasion_type)}</button>`).join("");
-    $("#tplTabs").querySelectorAll(".ptab").forEach(b=>b.addEventListener("click",()=>{ curType=b.dataset.t; fillTemplate(); }));
+    $("#tplTabs").innerHTML=TPLS.map(t=>`<button type="button" class="ptab${t.occasion_type===curType?" active":""}" aria-pressed="${t.occasion_type===curType}" data-t="${esc(t.occasion_type)}">${esc(t.occasion_type)}</button>`).join("");
+    $("#tplTabs").querySelectorAll(".ptab").forEach(b=>b.addEventListener("click",async()=>{ if(b.dataset.t===curType) return;
+      if(!(await BPUI.confirmDiscard(tplDirty,{message:"You have unsaved changes to this template. Switch anyway?"}))) return;
+      curType=b.dataset.t; fillTemplate(); }));
     fillTemplate();
   }
   function fillTemplate(){ const t=TPLS.find(x=>x.occasion_type===curType)||{};
-    $("#tplTabs").querySelectorAll(".ptab").forEach(b=>b.classList.toggle("active",b.dataset.t===curType));
-    $("#tplSubject").value=t.subject||""; $("#tplBody").value=t.body||""; $("#tplEnabled").checked=t.enabled!==false; }
-  async function saveTemplate(){ try{
+    $("#tplTabs").querySelectorAll(".ptab").forEach(b=>{ b.classList.toggle("active",b.dataset.t===curType); b.setAttribute("aria-pressed",String(b.dataset.t===curType)); });
+    $("#tplSubject").value=t.subject||""; $("#tplBody").value=t.body||""; $("#tplEnabled").checked=t.enabled!==false; tplDirty.clean(); }
+  async function saveTemplate(){ return BPUI.guard($("#tplSave"),async()=>{ try{
       await BPStore.nurture.templates.save(curType,{subject:$("#tplSubject").value,body:$("#tplBody").value,enabled:$("#tplEnabled").checked});
       const t=TPLS.find(x=>x.occasion_type===curType); if(t){ t.subject=$("#tplSubject").value; t.body=$("#tplBody").value; t.enabled=$("#tplEnabled").checked; }
+      tplDirty.clean();
       $("#tplMsg").innerHTML='<div class="msg ok">Template saved.</div>'; setTimeout(()=>{$("#tplMsg").innerHTML="";},3000); }
-    catch(e){ $("#tplMsg").innerHTML=`<div class="msg err">${esc((e&&e.message)||"Couldn't save")}</div>`; } }
+    catch(e){ $("#tplMsg").innerHTML=`<div class="msg err" role="alert">${esc(BPUI.friendlyError(e,{action:"save the template"}))}</div>`; } }); }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
-  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
-    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  async function doLogin(){ const btn=$("#li_go"); if(btn.disabled) return;
+    const em=$("#li_email").value.trim(), pw=$("#li_pass").value;
+    if(!em||!pw){ $("#li_err").textContent="Enter your email and password."; $("#li_err").hidden=false; (em?$("#li_pass"):$("#li_email")).focus(); return; }
+    $("#li_err").hidden=true;
+    await BPUI.guard(btn,async()=>{ try{ await BPStore.auth.signIn(em,pw); location.reload(); }
+      catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } },{busyLabel:"Signing in…"}); }
+  $("#li_go").addEventListener("click",doLogin);
+  ["#li_email","#li_pass"].forEach(s=>$(s).addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); doLogin(); } }));
   // ---- Client dropdown + autofill (Cluster B): populate from existing leads/CRM.
   // Selecting a known client fills email / occasion / occasion-date automatically;
   // typing a brand-new name still works (free entry).
@@ -297,14 +332,13 @@
   $("#n_add").addEventListener("click",addOne);
   $("#autoToggle").addEventListener("change",toggleAuto);
   $("#autoDays").addEventListener("change",async()=>{ await toggleAuto(); await renderAuto(); });
-  $("#runNow").addEventListener("click",async()=>{ const b=$("#runNow"); b.disabled=true; b.textContent="Running…";
+  $("#runNow").addEventListener("click",()=>BPUI.guard($("#runNow"),async()=>{
     try{ const n=await BPStore.nurture.runAuto(+$("#autoDays").value||0);
-      autoMsg(n?"ok":"ok",n?`Queued ${n} greeting${n===1?"":"s"} ✓`:"Nothing due right now (or automation is off)."); await renderAuto(); }
-    catch(e){ autoMsg("err",(e&&e.message)||"Couldn't run"); }
-    finally{ b.disabled=false; b.textContent="▶ Run today's greetings"; } });
+      autoMsg("ok",n?`Queued ${n} greeting${n===1?"":"s"} ✓`:"Nothing due right now (or automation is off)."); await renderAuto(); }
+    catch(e){ autoMsg("err",BPUI.friendlyError(e,{action:"run today's greetings"})); } },{busyLabel:"Running…"}));
   $("#tplSave").addEventListener("click",saveTemplate);
 
-  (async ()=>{
+  BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     if(!(await BPStore.auth.requireView("nurture"))) return;
@@ -312,7 +346,7 @@
     $("#app").hidden=false; $("#addCard").hidden=!canEdit; $("#autoCard").hidden=!canEdit; $("#tplCard").hidden=!canEdit;
     await render();
     if(canEdit){ await loadClientOptions(); await renderAuto(); await renderTemplates(); }
-  })();
+  });
 </script>
 </body>
 </html>

@@ -1,0 +1,6 @@
+# Helm security contact (RFC 9116).
+# PLACEHOLDER: security@helm.events must be confirmed by the owner (mailbox must exist).
+Contact: mailto:security@helm.events
+Expires: 2027-09-30T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://www.helm.events/.well-known/security.txt

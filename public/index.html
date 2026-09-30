@@ -3,14 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Helm — One platform to run every event, end to end</title>
+<title>One platform to run every event, end to end · Helm</title>
 <meta name="description" content="Helm is the all-in-one platform for event teams — capture enquiries, design the floor, price and confirm bookings, manage staff, inventory and vendors, run the event day, and close the books. Your workspace, fully private to your business.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d28d9'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
+<link rel="canonical" href="https://www.helm.events/">
+<link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Helm">
+<meta property="og:title" content="One platform to run every event, end to end · Helm">
+<meta property="og:description" content="Helm is the all-in-one platform for event teams — capture enquiries, design the floor, price and confirm bookings, manage staff, inventory and vendors, run the event day, and close the books. Your workspace, fully private to your business.">
+<meta property="og:url" content="https://www.helm.events/">
+<meta property="og:image" content="https://www.helm.events/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="One platform to run every event, end to end · Helm">
+<meta name="twitter:description" content="Helm is the all-in-one platform for event teams — capture enquiries, design the floor, price and confirm bookings, manage staff, inventory and vendors, run the event day, and close the books. Your workspace, fully private to your business.">
+<meta name="twitter:image" content="https://www.helm.events/og.png">
+<script type="application/ld+json">[{"@context": "https://schema.org", "@type": "Organization", "name": "Helm", "url": "https://www.helm.events/", "logo": "https://www.helm.events/apple-touch-icon.png"}, {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Helm", "applicationCategory": "BusinessApplication", "operatingSystem": "Web", "url": "https://www.helm.events/", "description": "Helm is the platform where event teams manage their whole business — capture leads, design the layout, price and confirm bookings, organise staff and suppliers, run the big day, and close the books."}]</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<!-- Non-blocking: if the font CDN is slow or blocked, the page still renders instantly with system fonts. -->
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" media="print" onload="this.media='all'">
-<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"></noscript>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{
     --bg:#f6f4f1;--panel:#ffffff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
@@ -21,6 +33,7 @@
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
   body{margin:0;background:
     radial-gradient(1100px 560px at 84% -12%, #ece3ff 0%, transparent 56%),
     radial-gradient(820px 480px at -6% -4%, #ffe9d6 0%, transparent 50%), var(--bg);
@@ -35,7 +48,7 @@
   .logo{display:flex;align-items:center;gap:11px}
   .mark{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:8px;border:2px solid rgba(255,255,255,.92);border-radius:3px}
-  .logo h1{font-size:18px;margin:0;font-weight:700;letter-spacing:-.01em}
+  .logo .logo-name{display:block;font-size:18px;margin:0;font-weight:700;letter-spacing:-.01em}
   .logo small{display:block;font-size:9.5px;color:var(--ink-3);font-weight:600;letter-spacing:.09em;text-transform:uppercase}
   .navlinks{margin-left:auto;display:flex;align-items:center;gap:26px}
   .navlinks a.nl{font-size:14px;font-weight:500;color:var(--ink-2)}
@@ -52,8 +65,8 @@
   .hero{padding:74px 0 56px;text-align:center}
   .pill{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--accent);
     background:var(--accent-soft);border-radius:20px;padding:7px 15px;margin-bottom:24px}
-  .hero h2{font-size:clamp(34px,5.4vw,56px);line-height:1.05;letter-spacing:-.025em;margin:0 auto 20px;max-width:16ch;font-weight:700}
-  .hero h2 .g{background:linear-gradient(120deg,var(--accent),var(--accent-2) 60%,#9333ea);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .hero h1{font-size:clamp(34px,5.4vw,56px);line-height:1.05;letter-spacing:-.025em;margin:0 auto 20px;max-width:16ch;font-weight:700}
+  .hero h1 .g{background:linear-gradient(120deg,var(--accent),var(--accent-2) 60%,#9333ea);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
   .hero p.lead{font-size:clamp(16px,2.2vw,20px);color:var(--ink-2);max-width:56ch;margin:0 auto 34px}
   .cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
   .hero .fine{margin-top:16px;font-size:12.5px;color:var(--ink-3)}
@@ -66,7 +79,7 @@
   /* ---- section shell ---- */
   section.blk{padding:56px 0}
   .kicker{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);text-align:center;margin-bottom:10px}
-  .blk h3.t{font-size:clamp(26px,3.6vw,36px);line-height:1.12;letter-spacing:-.02em;text-align:center;margin:0 auto 12px;max-width:20ch;font-weight:700}
+  .blk h2.t{font-size:clamp(26px,3.6vw,36px);line-height:1.12;letter-spacing:-.02em;text-align:center;margin:0 auto 12px;max-width:20ch;font-weight:700}
   .blk p.st{font-size:16px;color:var(--ink-2);text-align:center;max-width:58ch;margin:0 auto 40px}
 
   /* ---- feature grid ---- */
@@ -74,7 +87,7 @@
   @media(max-width:820px){.grid{grid-template-columns:1fr}}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px 24px;box-shadow:var(--shadow)}
   .card .ic{width:46px;height:46px;border-radius:12px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:23px;margin-bottom:16px}
-  .card h4{margin:0 0 8px;font-size:18px;font-weight:700;letter-spacing:-.01em}
+  .card h3{margin:0 0 8px;font-size:18px;font-weight:700;letter-spacing:-.01em}
   .card p{margin:0;font-size:14.5px;color:var(--ink-2)}
 
   /* ---- steps ---- */
@@ -84,7 +97,7 @@
   .step{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px 22px;position:relative}
   .step .n{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;
     display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;margin-bottom:14px}
-  .step h4{margin:0 0 7px;font-size:16.5px;font-weight:700}
+  .step h3{margin:0 0 7px;font-size:16.5px;font-weight:700}
   .step p{margin:0;font-size:14px;color:var(--ink-2)}
 
   /* ---- privacy band ---- */
@@ -93,7 +106,7 @@
   .band .glow{position:absolute;border-radius:50%;filter:blur(60px);opacity:.45}
   .band .g1{width:300px;height:300px;background:#f59e0b;right:-80px;top:-70px}
   .band .g2{width:260px;height:260px;background:#ec4899;left:-80px;bottom:-90px}
-  .band h3{font-size:clamp(24px,3.4vw,32px);letter-spacing:-.02em;margin:0 0 12px;max-width:22ch;position:relative}
+  .band h2{font-size:clamp(24px,3.4vw,32px);letter-spacing:-.02em;margin:0 0 12px;max-width:22ch;position:relative}
   .band p{font-size:16px;opacity:.94;max-width:60ch;margin:0 0 22px;position:relative}
   .bandgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;position:relative}
   @media(max-width:720px){.bandgrid{grid-template-columns:1fr}}
@@ -103,7 +116,7 @@
 
   /* ---- final cta ---- */
   .finalcta{text-align:center;padding:64px 0 20px}
-  .finalcta h3{font-size:clamp(26px,3.8vw,38px);letter-spacing:-.02em;margin:0 auto 14px;max-width:18ch;font-weight:700}
+  .finalcta h2{font-size:clamp(26px,3.8vw,38px);letter-spacing:-.02em;margin:0 auto 14px;max-width:18ch;font-weight:700}
   .finalcta p{font-size:16px;color:var(--ink-2);max-width:48ch;margin:0 auto 30px}
 
   /* ---- footer ---- */
@@ -114,12 +127,20 @@
   .frow .flinks a{font-size:13.5px;color:var(--ink-2)}
   .frow .flinks a:hover{color:var(--accent)}
   .copy{margin-top:16px;font-size:12.5px;color:var(--ink-3)}
+
+  /* ---- accessibility ---- */
+  .skip-link{position:absolute;left:8px;top:-60px;z-index:1000;padding:10px 16px;border-radius:8px;background:var(--accent);color:#fff;font-weight:600;text-decoration:none}
+  .skip-link:focus,.skip-link:focus-visible{top:8px}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+  .band :focus-visible{outline-color:#fff}
+  main:focus{outline:none}
 </style>
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to content</a>
   <header>
     <div class="wrap bar">
-      <div class="logo"><div class="mark"></div><div><h1>Helm</h1><small>Event Management Platform</small></div></div>
+      <div class="logo"><div class="mark"></div><div><span class="logo-name">Helm</span><small>Event Management Platform</small></div></div>
       <nav class="navlinks">
         <a class="nl" href="#what">What you get</a>
         <a class="nl" href="services">Services</a>
@@ -131,11 +152,11 @@
     </div>
   </header>
 
-  <main class="wrap">
+  <main class="wrap" id="main" tabindex="-1">
     <!-- HERO -->
     <section class="hero">
       <span class="pill">✦ Everything your event business runs on, in one place</span>
-      <h2>Run every event, <span class="g">from first enquiry to final bill.</span></h2>
+      <h1>Run every event, <span class="g">from first enquiry to final bill.</span></h1>
       <p class="lead">Helm is the platform where event teams manage their whole business — capture leads, design the layout, price and confirm bookings, organise staff and suppliers, run the big day, and close the books. Simple enough for the front desk, powerful enough for the whole operation.</p>
       <div class="cta">
         <a class="btn primary lg" href="login#signup">Sign up — start free</a>
@@ -158,28 +179,28 @@
     <!-- WHAT YOU GET -->
     <section class="blk" id="what">
       <div class="kicker">What you get</div>
-      <h3 class="t">One workspace for the whole event journey</h3>
+      <h2 class="t">One workspace for the whole event journey</h2>
       <p class="st">No more juggling spreadsheets, chat threads and paperwork. Every part of an event lives together, so nothing slips through the cracks.</p>
       <div class="grid">
-        <div class="card"><div class="ic">🎯</div><h4>Leads &amp; clients</h4><p>Capture every enquiry, follow up at the right time, and keep a full history of every client — so no opportunity is forgotten and past customers come back.</p></div>
-        <div class="card"><div class="ic">📐</div><h4>Floor &amp; layout design</h4><p>Lay out the venue visually — seating, stage, catering, dance floor and more — with ready-made templates for weddings, conferences, parties and rallies.</p></div>
-        <div class="card"><div class="ic">🧮</div><h4>Instant pricing &amp; quotes</h4><p>Prices update live as you add or remove items. Send a clean quotation, keep every revised version on record, and share a professional PDF.</p></div>
-        <div class="card"><div class="ic">💳</div><h4>Bookings &amp; payments</h4><p>Turn an approved quote into a confirmed booking with an advance payment. Receipts are issued automatically and both sides are kept in the loop.</p></div>
-        <div class="card"><div class="ic">📦</div><h4>Staff, stock &amp; suppliers</h4><p>See what each event needs, check what you already have, and fill only the gaps with vendors. Track every chair and mic so nothing goes missing.</p></div>
-        <div class="card"><div class="ic">✅</div><h4>Event day &amp; closing</h4><p>Run the day with a clear checklist, mark tasks done and quality-checked, settle final payments, and close with a simple profit &amp; loss summary.</p></div>
+        <div class="card"><div class="ic">🎯</div><h3>Leads &amp; clients</h3><p>Capture every enquiry, follow up at the right time, and keep a full history of every client — so no opportunity is forgotten and past customers come back.</p></div>
+        <div class="card"><div class="ic">📐</div><h3>Floor &amp; layout design</h3><p>Lay out the venue visually — seating, stage, catering, dance floor and more — with ready-made templates for weddings, conferences, parties and rallies.</p></div>
+        <div class="card"><div class="ic">🧮</div><h3>Instant pricing &amp; quotes</h3><p>Prices update live as you add or remove items. Send a clean quotation, keep every revised version on record, and share a professional PDF.</p></div>
+        <div class="card"><div class="ic">💳</div><h3>Bookings &amp; payments</h3><p>Turn an approved quote into a confirmed booking with an advance payment. Receipts are issued automatically and both sides are kept in the loop.</p></div>
+        <div class="card"><div class="ic">📦</div><h3>Staff, stock &amp; suppliers</h3><p>See what each event needs, check what you already have, and fill only the gaps with vendors. Track every chair and mic so nothing goes missing.</p></div>
+        <div class="card"><div class="ic">✅</div><h3>Event day &amp; closing</h3><p>Run the day with a clear checklist, mark tasks done and quality-checked, settle final payments, and close with a simple profit &amp; loss summary.</p></div>
       </div>
     </section>
 
     <!-- HOW IT WORKS -->
     <section class="blk" id="how">
       <div class="kicker">How it works</div>
-      <h3 class="t">Set up in minutes, run events for years</h3>
+      <h2 class="t">Set up in minutes, run events for years</h2>
       <p class="st">Create your business workspace and invite your team. Helm gives everyone the right view for their role.</p>
       <div class="steps">
-        <div class="step"><div class="n">1</div><h4>Create your workspace</h4><p>Sign up with your business name. Your space comes pre-loaded with sensible defaults so you can start straight away.</p></div>
-        <div class="step"><div class="n">2</div><h4>Invite your team</h4><p>Add your people and decide who sees what — sales, planners, crew and managers each get exactly the access they need.</p></div>
-        <div class="step"><div class="n">3</div><h4>Run your events</h4><p>Take enquiries through to confirmed bookings, plan every detail, and coordinate staff and suppliers in one shared place.</p></div>
-        <div class="step"><div class="n">4</div><h4>Deliver &amp; grow</h4><p>Run the day smoothly, close with clear numbers, and keep clients coming back with timely follow-ups.</p></div>
+        <div class="step"><div class="n">1</div><h3>Create your workspace</h3><p>Sign up with your business name. Your space comes pre-loaded with sensible defaults so you can start straight away.</p></div>
+        <div class="step"><div class="n">2</div><h3>Invite your team</h3><p>Add your people and decide who sees what — sales, planners, crew and managers each get exactly the access they need.</p></div>
+        <div class="step"><div class="n">3</div><h3>Run your events</h3><p>Take enquiries through to confirmed bookings, plan every detail, and coordinate staff and suppliers in one shared place.</p></div>
+        <div class="step"><div class="n">4</div><h3>Deliver &amp; grow</h3><p>Run the day smoothly, close with clear numbers, and keep clients coming back with timely follow-ups.</p></div>
       </div>
     </section>
 
@@ -187,7 +208,7 @@
     <section class="blk" id="privacy">
       <div class="band">
         <span class="glow g1"></span><span class="glow g2"></span>
-        <h3>Your business data stays yours — and stays private.</h3>
+        <h2>Your business data stays yours — and stays private.</h2>
         <p>Every organisation on Helm gets its own private workspace. Your events, clients, pricing and team are completely separated from every other business on the platform. No one else can see your information, and you're always in control of it.</p>
         <div class="bandgrid">
           <div class="bi"><b>Separate &amp; private</b><span>Each business is fully walled off from every other. Your data never mixes with anyone else's.</span></div>
@@ -199,7 +220,7 @@
 
     <!-- FINAL CTA -->
     <section class="finalcta">
-      <h3>Ready to run your events the easy way?</h3>
+      <h2>Ready to run your events the easy way?</h2>
       <p>Create your free workspace today and see how much simpler event management can be.</p>
       <div class="cta">
         <a class="btn primary lg" href="login#signup">Sign up now</a>
@@ -225,21 +246,24 @@
     </div>
   </footer>
 
-  <script src="telemetry.js?v=1"></script>
-  <script src="config.js?v=90"></script>
-  <script src="store-api.js?v=88"></script>
+  <script src="telemetry.js?v=2" defer></script>
   <script>
     document.getElementById("yr").textContent = new Date().getFullYear();
     // If a signed-in user lands here, take them straight into their workspace.
     // (?preview=1 lets an admin view this intro page without being redirected.)
-    (async () => {
+    // Cheap check without loading the app bundle: supabase-js keeps the session in
+    // localStorage under "sb-<project-ref>-auth-token" with expires_at in seconds.
+    (function () {
       try {
         if (new URLSearchParams(location.search).get("preview") === "1") return;
-        if (window.BPStore) {
-          await BPStore.init();
-          if (BPStore.auth && BPStore.auth.enabled() && BPStore.auth.user()) {
-            location.replace("dashboard.html");
-          }
+        var now = Date.now() / 1000;
+        for (var i = 0; i < localStorage.length; i++) {
+          var k = localStorage.key(i);
+          if (!/^sb-[a-z0-9]+-auth-token$/.test(k || "")) continue;
+          var v = JSON.parse(localStorage.getItem(k) || "null");
+          var sess = v && (v.currentSession || v);
+          var exp = sess && Number(sess.expires_at);
+          if (exp && exp > now && sess.access_token) { location.replace("dashboard.html"); return; }
         }
       } catch (e) { /* stay on the intro page */ }
     })();

@@ -46,7 +46,7 @@ const canonBody = extractFn(storeApi, '_canon(a)');
 const quoteTotalBody = extractFn(storeApi, 'quoteTotal(p)');
 // Build a live object mirroring the shipping `pricing` object's two methods.
 const ui = {};
-ui._canon = new Function('a', 'return (' + '(a)=>' + canonBody.replace(/^\{/, '{') + ')(a)');
+ui._canon = new Function('a', 'return (' + '(a)=>' + canonBody + ')(a)');
 ui.quoteTotal = new Function('p', `const self=this; return ((p)=>{const this_=self;` +
   quoteTotalBody
     .replace(/^\{/, '')

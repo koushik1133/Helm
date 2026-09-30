@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reports & exports — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
@@ -17,11 +18,11 @@
   header{display:flex;align-items:center;gap:11px;padding:18px 0}
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
-  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
   .spacer{margin-left:auto}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
   h2{font-size:20px;margin:0 0 2px} .sub{color:var(--ink-3);font-size:13px;margin:0 0 16px}
@@ -53,13 +54,18 @@
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
   .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,94vw);padding:26px;text-align:center}
-  .lsheet h3{font-size:18px;margin:8px 0 12px;color:var(--ink);text-transform:none;letter-spacing:0} .lsheet label{display:block;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+  .lsheet h3{font-size:18px;margin:8px 0 12px;color:var(--ink);text-transform:none;letter-spacing:0} .lsheet label{display:block;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
   .lsheet input{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;margin-bottom:12px;font-family:inherit}
+  .lsheet .lclose{position:absolute;top:10px;right:10px;width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;cursor:pointer;color:var(--ink-2);font-size:15px}
+  .lsheet{position:relative}
+  .rrow{flex-wrap:wrap}
+  @media(max-width:480px){.wrap{padding:0 16px 48px} header{flex-wrap:wrap} .nav{margin-left:0;flex-wrap:wrap}}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
     <a href="dashboard.html" class="mark" title="Home"></a>
@@ -69,6 +75,8 @@
     <span id="bell"></span>
     <span id="account" class="account" hidden></span>
   </header>
+  <main id="main">
+  <div id="boot" aria-busy="true"></div>
 
   <div id="gate" class="card" hidden><p class="muted">Sign in to export reports.</p></div>
   <div id="noaccess" class="card" hidden><p class="muted">Your role doesn't have access to reports.</p></div>
@@ -81,11 +89,11 @@
     <div class="card">
       <h3>📄 CSV exports</h3>
       <div class="rows">
-        <div class="rrow"><span class="ic">🎯</span><div class="t"><b>Leads</b><div class="d">Every lead — source, contact, type, budget, status.</div></div><button class="btn" data-csv="leads">Download CSV</button></div>
-        <div class="rrow"><span class="ic">📅</span><div class="t"><b>Events</b><div class="d">All events — code, title, type, date, stage, status, total.</div></div><button class="btn" data-csv="events">Download CSV</button></div>
-        <div class="rrow"><span class="ic">📦</span><div class="t"><b>Inventory</b><div class="d">Stock — item, category, priority, qty, unit cost.</div></div><button class="btn" data-csv="inventory">Download CSV</button></div>
-        <div class="rrow"><span class="ic">💰</span><div class="t"><b>P&amp;L (closed events)</b><div class="d">Revenue, profit and margin per closed event.</div></div><button class="btn" data-csv="pl">Download CSV</button></div>
-        <div class="rrow"><span class="ic">💳</span><div class="t"><b>Settlements</b><div class="d">Per event — revenue, received, balance, vendor outstanding.</div></div><button class="btn" data-csv="settlements">Download CSV</button></div>
+        <div class="rrow"><span class="ic">🎯</span><div class="t"><b>Leads</b><div class="d">Every lead — source, contact, type, budget, status.</div></div><button type="button" class="btn" data-csv="leads">Download CSV</button></div>
+        <div class="rrow"><span class="ic">📅</span><div class="t"><b>Events</b><div class="d">All events — code, title, type, date, stage, status, total.</div></div><button type="button" class="btn" data-csv="events">Download CSV</button></div>
+        <div class="rrow"><span class="ic">📦</span><div class="t"><b>Inventory</b><div class="d">Stock — item, category, priority, qty, unit cost.</div></div><button type="button" class="btn" data-csv="inventory">Download CSV</button></div>
+        <div class="rrow"><span class="ic">💰</span><div class="t"><b>P&amp;L (closed events)</b><div class="d">Revenue, profit and margin per closed event.</div></div><button type="button" class="btn" data-csv="pl">Download CSV</button></div>
+        <div class="rrow"><span class="ic">💳</span><div class="t"><b>Settlements</b><div class="d">Per event — revenue, received, balance, vendor outstanding.</div></div><button type="button" class="btn" data-csv="settlements">Download CSV</button></div>
       </div>
     </div>
 
@@ -93,35 +101,37 @@
       <h3>🖨️ Printable PDF</h3>
       <p class="muted" style="margin:-6px 0 12px">Opens your browser's print dialog — choose “Save as PDF”.</p>
       <div class="rows">
-        <div class="rrow"><span class="ic">💰</span><div class="t"><b>P&amp;L report</b><div class="d">A clean profit &amp; loss summary across closed events.</div></div><button class="btn primary" id="printPL">Print / Save PDF</button></div>
+        <div class="rrow"><span class="ic">💰</span><div class="t"><b>P&amp;L report</b><div class="d">A clean profit &amp; loss summary across closed events.</div></div><button type="button" class="btn primary" id="printPL">Print / Save PDF</button></div>
       </div>
     </div>
   </div>
+  </main>
 </div>
 
 <div id="printArea"></div>
 
-<div class="lmodal" id="loginModal" hidden>
-  <form class="lsheet" id="loginForm">
+<div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+  <form class="lsheet" id="loginForm" novalidate>
+    <button type="button" class="lclose" id="li_close" aria-label="Close" data-close>×</button>
     <div class="mark" style="margin:0 auto 12px"></div>
-    <h3>Sign in</h3>
-    <label>Email</label><input type="email" id="li_email" required>
-    <label>Password</label><input type="password" id="li_pw" required>
-    <div class="lerr" id="li_err" hidden></div>
+    <h3 id="loginTitle">Sign in</h3>
+    <label for="li_email">Email</label><input type="email" id="li_email" required autocomplete="email">
+    <label for="li_pw">Password</label><input type="password" id="li_pw" required autocomplete="current-password">
+    <div class="lerr" id="li_err" role="alert" hidden></div>
     <button class="btn primary" type="submit" id="li_submit" style="width:100%;justify-content:center">Sign in</button>
   </form>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
 <script>
   const $=(s)=>document.querySelector(s);
-  const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const inr=(n)=>"₹"+Math.round(Number(n||0)).toLocaleString("en-IN");
   const today=()=>new Date().toISOString().slice(0,10);
   let canFin=false;
-  function setMsg(k,t){ const m=$("#msg"); if(!t){m.innerHTML="";return;} m.innerHTML=`<div class="msg ${k}">${esc(t)}</div>`; }
+  function setMsg(k,t){ const m=$("#msg"); if(!t){m.innerHTML="";return;} m.innerHTML=`<div class="msg ${k}" role="${k==="err"?"alert":"status"}">${esc(t)}</div>`; }
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
@@ -132,7 +142,7 @@
 
   // ---- CSV helpers ----
   function toCSV(rows){ if(!rows.length) return ""; const cols=Object.keys(rows[0]);
-    const cell=(v)=>{ v=(v==null?"":String(v)); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+    const cell=(v)=>{ const isStr=typeof v==="string"; v=(v==null?"":String(v)); if(isStr&&/^[=+\-@\t\r]/.test(v)) v="'"+v; return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
     return cols.join(",")+"\n"+rows.map(r=>cols.map(c=>cell(r[c])).join(",")).join("\n"); }
   function download(name, text){ const blob=new Blob([text],{type:"text/csv;charset=utf-8"}); const url=URL.createObjectURL(blob);
     const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500); }
@@ -146,17 +156,18 @@
       total_qty:i.total_qty, unit:i.unit||"", unit_cost:i.unit_cost||"", active:i.active!==false })); },
     async pl(){ const d=await BPStore.insights.summary(); return d.margins.events.map(e=>({ code:e.code, event_date:e.date||"",
       revenue:Math.round(e.revenue||0), profit:Math.round(e.profit||0), margin_pct:e.marginPct!=null?e.marginPct:"" })); },
-    async settlements(){ const evs=await BPStore.quotes.list();
+    async settlements(){ const evs=await BPStore.quotes.list(); builders.skipped=0;
       const rows=await Promise.all(evs.map(async e=>{ try{ const s=await BPStore.settlement.summary(e.id);
         return { code:e.code, event_date:e.eventDate||"", revenue:Math.round(s.revenue||0), received:Math.round(s.received||0),
           balance:Math.round(s.balance||0), vendor_outstanding:Math.round(s.vendorOutstanding||0), expenses_paid:Math.round(s.expPaid||0) };
-      }catch{ return null; } })); return rows.filter(Boolean); },
+      }catch{ builders.skipped++; return null; } })); return rows.filter(Boolean); },
   };
 
   async function doCSV(kind){ setMsg(); const btns=[...document.querySelectorAll("[data-csv]")]; btns.forEach(b=>b.disabled=true);
-    try{ const rows=await builders[kind](); if(!rows.length){ setMsg("err","Nothing to export for "+kind+"."); return; }
-      download("blueprint-"+kind+"-"+today()+".csv", toCSV(rows)); setMsg("ok", `Exported ${rows.length} ${kind} row(s).`);
-    }catch(e){ setMsg("err",(e&&e.message)||"Export failed"); } finally{ btns.forEach(b=>b.disabled=false); } }
+    try{ builders.skipped=0; const rows=await builders[kind](); const sk=builders.skipped||0;
+      if(!rows.length){ setMsg("err",sk?`Couldn't load any ${kind} to export — try again.`:"Nothing to export for "+kind+"."); return; }
+      download("blueprint-"+kind+"-"+today()+".csv", toCSV(rows)); setMsg("ok", `Exported ${rows.length} ${kind} row(s).`+(sk?` ${sk} event(s) couldn't be loaded and were left out — try again to include them.`:""));
+    }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"export "+kind})); } finally{ btns.forEach(b=>b.disabled=false); } }
 
   async function printPL(){ setMsg();
     try{ const d=await BPStore.insights.summary(); const evs=d.margins.events;
@@ -167,7 +178,7 @@
         <tbody>${evs.map(e=>`<tr><td>${esc(e.code)}</td><td>${esc(e.date||"")}</td><td class="n">${inr(e.revenue)}</td><td class="n">${inr(e.profit)}</td><td class="n">${e.marginPct!=null?e.marginPct+"%":"—"}</td></tr>`).join("")||'<tr><td colspan="5">No closed events.</td></tr>'}</tbody>
         <tfoot><tr><td colspan="2">Total</td><td class="n">${inr(tot.rev)}</td><td class="n">${inr(tot.pr)}</td><td class="n">${tot.rev?Math.round(tot.pr/tot.rev*100)+"%":"—"}</td></tr></tfoot></table>`;
       window.print();
-    }catch(e){ setMsg("err",(e&&e.message)||"Couldn't build the report"); } }
+    }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"build the report"})); } }
 
   async function load(){
     await BPStore.init(); await renderAccount();
@@ -179,15 +190,21 @@
     canFin=await BPStore.auth.canView("finance");
     $("#app").hidden=false;
     if(!canFin){ document.querySelectorAll('[data-csv="pl"],[data-csv="settlements"]').forEach(b=>b.closest(".rrow").style.display="none"); $("#printPL").closest(".card").style.display="none"; }
-    document.querySelectorAll("[data-csv]").forEach(b=>b.addEventListener("click",()=>doCSV(b.dataset.csv)));
-    $("#printPL").addEventListener("click",printPL);
+    if(!wired){ wired=true;
+      document.querySelectorAll("[data-csv]").forEach(b=>b.addEventListener("click",()=>doCSV(b.dataset.csv)));
+      $("#printPL").addEventListener("click",()=>BPUI.guard($("#printPL"),printPL)); }
   }
-  $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
-    const btn=$("#li_submit"); btn.disabled=true; btn.textContent="Signing in…"; $("#li_err").hidden=true;
-    try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pw").value); closeLogin(); await load(); }
-    catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign-in failed"; $("#li_err").hidden=false; }
-    finally{ btn.disabled=false; btn.textContent="Sign in"; } });
-  load();
+  let wired=false;
+  $("#li_close").addEventListener("click",closeLogin);
+  $("#loginForm").addEventListener("submit",e=>{ e.preventDefault();
+    const em=$("#li_email").value.trim(), pw=$("#li_pw").value;
+    if(!em||!pw){ $("#li_err").textContent="Enter your email and password."; $("#li_err").hidden=false; return; }
+    $("#li_err").hidden=true;
+    BPUI.guard($("#li_submit"),async()=>{
+      try{ await BPStore.auth.signIn(em,pw); closeLogin(); await BPUI.boot(load); }
+      catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign-in failed"; $("#li_err").hidden=false; }
+    },{busyLabel:"Signing in…"}); });
+  BPUI.boot(load);
 </script>
 </body>
 </html>

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Leads &amp; Pipeline — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{
@@ -22,12 +23,12 @@
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
   header h1{font-size:16px;margin:0;font-weight:700}
-  header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)}
   .nav a:hover{color:var(--accent)} .nav a.on{color:var(--accent)}
   .spacer{margin-left:auto}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .account button:hover{border-color:var(--accent)}
 
@@ -38,7 +39,7 @@
   .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.4;cursor:default}
   .btn.icon{padding:0 11px}
   .search{flex:1;min-width:150px;max-width:260px;height:38px;border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:0 12px;font-family:inherit;font-size:13px;color:var(--ink)}
-  .live{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--ink-3)}
+  .live{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--ink-3)}
   .live i{width:8px;height:8px;border-radius:50%;background:var(--ink-3)}
   .live.on i{background:var(--safe);box-shadow:0 0 0 3px rgba(24,165,88,.18)}
 
@@ -47,22 +48,26 @@
   .col{flex:0 0 264px;background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:10px;min-height:120px;transition:background .12s,outline-color .12s;outline:2px dashed transparent;outline-offset:-2px}
   .col.over{background:var(--accent-soft);outline-color:var(--accent)}
   .col h3{margin:0 0 10px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:700;display:flex;align-items:center;gap:7px}
-  .col h3 .n{margin-left:auto;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:1px 8px;font-size:11px;color:var(--ink-2)}
+  .col h3 .n{margin-left:auto;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:1px 8px;font-size:12px;color:var(--ink-2)}
   .dot{width:8px;height:8px;border-radius:50%}
-  .lead{background:var(--panel);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);padding:12px;margin-bottom:10px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+  .lead{background:var(--panel);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);padding:12px;margin-bottom:10px;cursor:grab;touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+  /* the card body is a real button (keyboard: Tab + Enter opens the detail) */
+  .lead-open{display:block;width:100%;text-align:left;background:none;border:0;padding:0;margin:0;font:inherit;color:inherit;cursor:inherit;border-radius:6px}
+  .lead-open:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
   .lead:hover{border-color:var(--accent-soft)}
   .lead.dragging{opacity:.35}
   .lead.ghost{position:fixed;left:0;top:0;z-index:200;margin:0;pointer-events:none;box-shadow:0 12px 34px rgba(20,27,46,.28);transform:rotate(2.5deg);cursor:grabbing;opacity:.97}
+  .lead .nm,.lead .meta,.lead .amt{display:block}
   .lead .nm{font-weight:700;font-size:14px}
-  .lead .meta{font-size:11px;color:var(--ink-3);margin-top:3px;line-height:1.5}
+  .lead .meta{font-size:12px;color:var(--ink-3);margin-top:3px;line-height:1.5}
   .lead .amt{font-family:var(--mono);font-weight:600;font-size:12px;color:var(--ink-2);margin-top:2px}
-  .lead .src{display:inline-block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:2px 8px;margin-top:6px}
+  .lead .src{display:inline-block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:2px 8px;margin-top:6px}
   .lead .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
-  .ic{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:30px;padding:0 10px;font-size:11px;font-weight:600;cursor:pointer;color:var(--ink-2)}
+  .ic{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:32px;padding:0 10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)}
   .ic:hover{border-color:var(--accent);color:var(--accent)}
   .ic.go{color:var(--accent);border-color:var(--accent-soft)}
-  .colempty{color:var(--ink-3);font-size:11px;text-align:center;padding:14px 6px;border:1px dashed var(--line);border-radius:9px}
-  .hintbar{font-size:11px;color:var(--ink-3);margin:-6px 0 12px}
+  .colempty{color:var(--ink-3);font-size:12px;text-align:center;padding:14px 6px;border:1px dashed var(--line);border-radius:9px}
+  .hintbar{font-size:12px;color:var(--ink-3);margin:-6px 0 12px}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
 
   /* modal */
@@ -70,13 +75,13 @@
   .lmodal[hidden]{display:none!important}
   .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(640px,96vw);max-height:90vh;overflow:auto;padding:24px}
   .sheet h3{margin:0 0 2px;font-size:18px;display:flex;align-items:center;gap:8px}
-  .sheet .close{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:30px;height:30px;font-size:15px;cursor:pointer;color:var(--ink-2)}
+  .sheet .close{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:32px;height:32px;font-size:15px;cursor:pointer;color:var(--ink-2)}
   .sheet p.sub{margin:0 0 16px;font-size:12px;color:var(--ink-3)}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   @media (max-width:560px){.grid{grid-template-columns:1fr}}
   .fld{display:flex;flex-direction:column;gap:4px}
   .fld.full{grid-column:1/-1}
-  .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld label{font-size:12px;font-weight:600;color:var(--ink-2)}
   .fld input,.fld select,.fld textarea{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit;font-size:13px;color:var(--ink)}
   .fld textarea{height:auto;padding:10px 12px;min-height:64px;resize:vertical}
   .sheet .foot{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
@@ -88,11 +93,16 @@
   .dl{display:grid;grid-template-columns:120px 1fr;gap:8px 14px;margin-top:6px;font-size:13px}
   .dl dt{color:var(--ink-3);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding-top:2px}
   .dl dd{margin:0;color:var(--ink)}
-  .pill{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-radius:20px;padding:2px 9px;background:var(--accent-soft);color:var(--accent)}
+  @media (max-width:480px){.dl{grid-template-columns:1fr;gap:2px 0}.dl dd{margin-bottom:8px}}
+  .firstrun{background:var(--panel);border:1px dashed var(--line);border-radius:14px;padding:28px 20px;text-align:center;margin:0 0 16px}
+  .firstrun h3{margin:0 0 6px;font-size:16px} .firstrun p{margin:0 0 14px;color:var(--ink-3);font-size:13px}
+  .firstrun .btn{margin:0 auto}
+  .pill{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-radius:20px;padding:2px 9px;background:var(--accent-soft);color:var(--accent)}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
     <div class="mark"></div>
@@ -109,31 +119,44 @@
     <span id="account" class="account" hidden></span>
   </header>
 
+  <main id="main">
   <div class="toolbar">
     <h2>Pipeline</h2>
-    <input id="search" class="search" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search name, phone, type…">
+    <input id="search" class="search" type="search" aria-label="Search leads" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search name, phone, type…">
     <span class="live" id="live"><i></i><span id="liveTxt">offline</span></span>
     <span class="spacer"></span>
-    <button id="undoBtn" class="btn icon" title="Undo (⌘/Ctrl+Z)" disabled>↶ Undo</button>
-    <button id="redoBtn" class="btn icon" title="Redo (⌘/Ctrl+Shift+Z)" disabled>Redo ↷</button>
-    <button id="newBtn" class="btn primary" hidden>＋ New lead</button>
+    <button id="undoBtn" type="button" class="btn icon" title="Undo (⌘/Ctrl+Z)" aria-label="Undo last stage move" disabled>↶ Undo</button>
+    <button id="redoBtn" type="button" class="btn icon" title="Redo (⌘/Ctrl+Shift+Z)" aria-label="Redo stage move" disabled>Redo ↷</button>
+    <button id="newBtn" type="button" class="btn primary" hidden>＋ New lead</button>
   </div>
-  <div class="hintbar">Drag a card between columns to change its stage · click a card to view, edit or delete.</div>
+  <div class="hintbar">Drag a card between columns to change its stage (on touch, press and hold a card first) · open a card to view, edit, change its stage or delete.</div>
 
-  <div id="board" class="board"></div>
+  <div id="firstRun" class="firstrun" hidden>
+    <h3>No leads yet</h3>
+    <p>Every enquiry you capture shows up here as a card you can move through the pipeline.</p>
+    <button type="button" class="btn primary" id="firstRunBtn" hidden>＋ Add your first lead</button>
+  </div>
+  <div id="noMatch" class="colempty" style="margin:0 0 14px" role="status" hidden></div>
+  <div id="boot" aria-busy="true"></div>
+  <div id="board" class="board" role="region" aria-label="Lead pipeline" tabindex="0"></div>
+  </main>
   <footer>Helm Events — every lead is snapshotted to the CRM archive on create, edit, convert &amp; delete.</footer>
 </div>
 
 <!-- detail view -->
 <div id="detailModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="dt_name">
   <div class="sheet" style="width:min(520px,96vw)">
-    <h3><span id="dt_name">Lead</span><button class="close" id="dt_close" aria-label="Close">×</button></h3>
+    <h3><span id="dt_name">Lead</span><button type="button" class="close" id="dt_close" aria-label="Close" data-close>×</button></h3>
     <p class="sub" id="dt_sub"></p>
+    <div class="fld" id="dt_stageWrap" style="margin:0 0 12px;max-width:260px" hidden>
+      <label for="dt_stage">Stage</label>
+      <select id="dt_stage"></select>
+    </div>
     <dl class="dl" id="dt_body"></dl>
     <div class="foot">
-      <button class="btn danger left" id="dt_del">Delete</button>
-      <button class="btn" id="dt_close2">Close</button>
-      <button class="btn primary" id="dt_edit">Edit</button>
+      <button type="button" class="btn danger left" id="dt_del">Delete</button>
+      <button type="button" class="btn" id="dt_close2">Close</button>
+      <button type="button" class="btn primary" id="dt_edit">Edit</button>
     </div>
   </div>
 </div>
@@ -141,12 +164,13 @@
 <!-- new / edit lead modal -->
 <div id="leadModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="lm_title">
   <div class="sheet">
-    <h3><span id="lm_title">＋ New lead</span><button class="close" id="lm_close" aria-label="Close">×</button></h3>
+    <h3><span id="lm_title">＋ New lead</span><button type="button" class="close" id="lm_close" aria-label="Close" data-close>×</button></h3>
     <p class="sub">Capture the enquiry. You can convert it to a quote once it's qualified.</p>
     <div class="grid">
       <div class="fld"><label for="f_name">Contact name *</label><input id="f_name" placeholder="e.g. Priya Sharma"></div>
       <div class="fld"><label for="f_phone">Phone</label><input id="f_phone" type="tel" inputmode="tel" autocomplete="off" maxlength="16" placeholder="+91…"></div>
       <div class="fld"><label for="f_email">Email</label><input id="f_email" type="email" autocomplete="off" placeholder="name@email.com"></div>
+      <div class="fld" id="f_stageWrap" hidden><label for="f_stage">Stage</label><select id="f_stage"></select></div>
       <div class="fld"><label for="f_source">Source</label>
         <select id="f_source">
           <option value="">—</option><option>referral</option><option>website</option>
@@ -160,8 +184,8 @@
     </div>
     <div id="lm_err" class="err" role="alert" aria-live="assertive" hidden></div>
     <div class="foot">
-      <button class="btn" id="lm_cancel">Cancel</button>
-      <button class="btn primary" id="lm_save">Save lead</button>
+      <button type="button" class="btn" id="lm_cancel">Cancel</button>
+      <button type="button" class="btn primary" id="lm_save">Save lead</button>
     </div>
   </div>
 </div>
@@ -169,20 +193,20 @@
 <!-- login modal -->
 <div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
   <div class="sheet" style="width:min(400px,96vw)">
-    <h3><span id="loginModalTitle">Sign in</span><button class="close" id="li_close" aria-label="Close">×</button></h3>
+    <h3><span id="loginModalTitle">Sign in</span><button type="button" class="close" id="li_close" aria-label="Close" data-close>×</button></h3>
     <div class="grid" style="grid-template-columns:1fr">
-      <div class="fld"><label for="li_email">Email</label><input id="li_email" type="email"></div>
-      <div class="fld"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+      <div class="fld"><label for="li_email">Email</label><input id="li_email" type="email" autocomplete="email"></div>
+      <div class="fld"><label for="li_pass">Password</label><input id="li_pass" type="password" autocomplete="current-password"></div>
     </div>
     <div id="li_err" class="err" role="alert" aria-live="assertive" hidden></div>
-    <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
+    <div class="foot"><button type="button" class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
-<script src="tour.js?v=4"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
+<script src="tour.js?v=5"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -213,14 +237,16 @@
     if(l.event_type) bits.push(esc(l.event_type));
     if(l.event_date) bits.push(esc(l.event_date));
     if(l.guest_count) bits.push(esc(l.guest_count)+" guests");
-    return `<div class="lead" data-id="${l.id}">
-      <div class="nm">${esc(l.name||"—")}</div>
-      <div class="meta">${bits.join(" · ")||"&nbsp;"}${l.phone?"<br>"+esc(l.phone):""}</div>
-      ${l.budget?`<div class="amt">${fmt(l.budget)}</div>`:""}
-      ${l.source?`<span class="src">${esc(l.source)}</span>`:""}
+    return `<div class="lead" data-id="${esc(l.id)}">
+      <button type="button" class="lead-open" data-open aria-haspopup="dialog">
+        <span class="nm">${esc(l.name||"—")}</span>
+        <span class="meta">${bits.join(" · ")||"&nbsp;"}${l.phone?"<br>"+esc(l.phone):""}</span>
+        ${l.budget?`<span class="amt">${fmt(l.budget)}</span>`:""}
+        ${l.source?`<span class="src">${esc(l.source)}</span>`:""}
+      </button>
       ${(l.quote_id||canConvert)?`<div class="acts">
-        ${l.quote_id?`<button class="ic go" data-act="workspace">Workspace →</button>`:""}
-        ${canConvert?`<button class="ic go" data-act="convert">Convert →</button>`:""}
+        ${l.quote_id?`<button type="button" class="ic go" data-act="workspace" aria-label="Open workspace for ${esc(l.name||"lead")}">Workspace →</button>`:""}
+        ${canConvert?`<button type="button" class="ic go" data-act="convert" aria-label="Convert ${esc(l.name||"lead")} to a quote">Convert →</button>`:""}
       </div>`:""}
     </div>`;
   }
@@ -228,9 +254,14 @@
   function render(){
     const q=filter.trim().toLowerCase();
     const shown = q ? leads.filter(l=>[l.name,l.phone,l.email,l.event_type,l.source].some(v=>String(v||"").toLowerCase().includes(q))) : leads;
+    // first-run (no leads at all) vs. "no matches for this search"
+    $("#firstRun").hidden = leads.length>0;
+    $("#firstRunBtn").hidden = !canCreate;
+    const nm=$("#noMatch"); nm.hidden = !(leads.length>0 && q && !shown.length);
+    nm.textContent = nm.hidden ? "" : `No leads match “${filter.trim()}”.`;
     $("#board").innerHTML = STAGES.map(s=>{
       const items=shown.filter(l=>l.status===s.k);
-      return `<div class="col" data-stage="${s.k}">
+      return `<div class="col" data-stage="${s.k}" role="group" aria-label="${esc(s.label)} — ${items.length} lead${items.length===1?"":"s"}">
         <h3><span class="dot" style="background:${s.c}"></span>${s.label}<span class="n">${items.length}</span></h3>
         ${items.map(card).join("")||'<div class="colempty">Drop here</div>'}
       </div>`;
@@ -239,41 +270,69 @@
 
   const leadById=(id)=>leads.find(l=>l.id===id);
 
-  /* ---------- action buttons on a card (convert / workspace) ---------- */
+  /* ---------- clicks on the board: open a card, or its action buttons (convert / workspace) ---------- */
+  let justDragged=false;
   $("#board").addEventListener("click", async (e)=>{
-    const btn=e.target.closest("[data-act]"); if(!btn) return;
+    const cardEl=e.target.closest(".lead"); if(!cardEl) return;
+    const btn=e.target.closest("[data-act]");
+    if(!btn){
+      if(justDragged){ justDragged=false; return; }     // the click that ends a drag is not an "open"
+      openDetail(cardEl.dataset.id); return;
+    }
     e.stopPropagation();
-    const id=e.target.closest(".lead").dataset.id, act=btn.dataset.act, l=leadById(id);
+    const id=cardEl.dataset.id, act=btn.dataset.act, l=leadById(id);
+    if(!l) return;
     if(act==="workspace"){ location.href="event.html?id="+encodeURIComponent(l.quote_id); return; }
     if(act==="convert"){
-      btn.disabled=true; btn.textContent="Converting…";
-      try{ const q=await BPStore.leads.convert(id); location.href="flow.html?quote="+encodeURIComponent(q.id); }
-      catch(err){ alert("Couldn't convert — "+(err&&err.message||"error")); btn.disabled=false; btn.textContent="Convert →"; }
+      await BPUI.guard(btn, async()=>{
+        try{ const q=await BPStore.leads.convert(id); location.href="flow.html?quote="+encodeURIComponent(q.id); }
+        catch(err){ BPUI.toast(BPUI.friendlyError(err,{action:"convert the lead"}),{type:"err"}); }
+      },{busyLabel:"Converting…"});
     }
   });
 
-  /* ---------- drag & drop (pointer events: mouse + touch) ---------- */
-  let drag=null;
+  /* ---------- drag & drop (pointer events: mouse + touch) ----------
+     Mouse/pen: drag starts after a 6px move. Touch: the card scrolls the board
+     like normal (touch-action:manipulation); a drag starts only after a
+     press-and-hold, so horizontal swipes keep scrolling the pipeline. */
+  let drag=null, lpTimer=null;
+  const LONG_PRESS=380;
+  function clearLp(){ if(lpTimer){ clearTimeout(lpTimer); lpTimer=null; } }
+  function startDrag(){
+    drag.moved=true; dragging=true;
+    const r=drag.el.getBoundingClientRect();
+    drag.offX=drag.x0-r.left; drag.offY=drag.y0-r.top;
+    const g=drag.el.cloneNode(true); g.classList.add("ghost"); g.style.width=r.width+"px"; g.setAttribute("aria-hidden","true");
+    g.querySelectorAll("button").forEach(b=>b.setAttribute("tabindex","-1"));
+    g.style.left=(drag.x0-drag.offX)+"px"; g.style.top=(drag.y0-drag.offY)+"px";
+    document.body.appendChild(g); drag.ghost=g;
+    drag.el.classList.add("dragging");
+    try{ drag.el.setPointerCapture(drag.pid); }catch{}
+  }
   $("#board").addEventListener("pointerdown",(e)=>{
     if(e.button===1||e.button===2) return;
     const cardEl=e.target.closest(".lead"); if(!cardEl) return;
     if(e.target.closest(".acts")) return;            // let action buttons work
-    if(!canEdit){ /* still allow click-to-view */ }
-    drag={ id:cardEl.dataset.id, el:cardEl, x0:e.clientX, y0:e.clientY, ghost:null, moved:false, pid:e.pointerId };
+    clearLp();
+    const touch=e.pointerType==="touch";
+    drag={ id:cardEl.dataset.id, el:cardEl, x0:e.clientX, y0:e.clientY, ghost:null, moved:false, pid:e.pointerId, touch, armed:!touch };
+    if(touch && canEdit){
+      lpTimer=setTimeout(()=>{ lpTimer=null;
+        if(drag && !drag.moved){ drag.armed=true; startDrag(); try{ navigator.vibrate&&navigator.vibrate(10); }catch{} }
+      },LONG_PRESS);
+    }
   });
+  // once a touch drag has started, stop the browser from scrolling under it
+  document.addEventListener("touchmove",(e)=>{ if(drag&&drag.moved&&drag.touch) e.preventDefault(); },{passive:false});
+  $("#board").addEventListener("contextmenu",(e)=>{ if(drag&&drag.touch&&e.target.closest(".lead")) e.preventDefault(); });
   window.addEventListener("pointermove",(e)=>{
-    if(!drag) return;
+    if(!drag || e.pointerId!==drag.pid) return;
     const dx=e.clientX-drag.x0, dy=e.clientY-drag.y0;
     if(!drag.moved){
       if(Math.hypot(dx,dy)<6) return;
-      if(!canEdit){ drag=null; return; }             // no drag permission → treat as click only
-      drag.moved=true; dragging=true;
-      const r=drag.el.getBoundingClientRect();
-      drag.offX=drag.x0-r.left; drag.offY=drag.y0-r.top;
-      const g=drag.el.cloneNode(true); g.classList.add("ghost"); g.style.width=r.width+"px";
-      document.body.appendChild(g); drag.ghost=g;
-      drag.el.classList.add("dragging");
-      try{ drag.el.setPointerCapture(drag.pid); }catch{}
+      clearLp();
+      if(!canEdit || !drag.armed){ drag=null; return; }   // no permission, or a touch swipe → it's a scroll/click, not a drag
+      startDrag();
     }
     drag.ghost.style.left=(e.clientX-drag.offX)+"px";
     drag.ghost.style.top =(e.clientY-drag.offY)+"px";
@@ -285,9 +344,10 @@
     if(col) col.classList.add("over");
   });
   window.addEventListener("pointerup",(e)=>{
+    clearLp();
     if(!drag) return; const st=drag; drag=null;
-    if(!st.moved){ openDetail(st.id); return; }       // it was a tap, not a drag
-    dragging=false;
+    if(!st.moved) return;                              // a tap/click — the click handler opens the detail
+    dragging=false; justDragged=true; setTimeout(()=>{ justDragged=false; },0);
     st.ghost.style.display="none";
     const under=document.elementFromPoint(e.clientX,e.clientY);
     const col=under&&under.closest(".col");
@@ -296,28 +356,38 @@
     const l=leadById(st.id);
     if(col && l){ const to=col.dataset.stage; if(to && to!==l.status) moveLead(st.id, l.status, to, true); }
   });
-  window.addEventListener("pointercancel",()=>{ if(drag&&drag.ghost){ drag.ghost.remove(); drag.el.classList.remove("dragging"); } drag=null; dragging=false; document.querySelectorAll(".col.over").forEach(c=>c.classList.remove("over")); });
+  window.addEventListener("pointercancel",()=>{ clearLp(); if(drag&&drag.ghost){ drag.ghost.remove(); drag.el.classList.remove("dragging"); } drag=null; dragging=false; document.querySelectorAll(".col.over").forEach(c=>c.classList.remove("over")); });
 
+  // The ONE code path for changing a lead's stage — used by drag & drop, the
+  // detail view's Stage select and the edit form. Optimistic, undoable, and
+  // reverted (with an error toast) if the save fails. Resolves true on success.
   async function moveLead(id, from, to, record){
-    const l=leadById(id); if(!l) return;
+    const l=leadById(id); if(!l) return false;
     l.status=to; render();                              // optimistic
     if(record){ undoStack.push({id,from,to}); redoStack=[]; updateUndoUI(); }
     lastLocalWrite=Date.now();
-    try{ await BPStore.leads.setStatus(id,to); }
-    catch(err){ l.status=from; render(); alert("Couldn't save move — "+(err&&err.message||"error")); }
+    try{ await BPStore.leads.setStatus(id,to); return true; }
+    catch(err){
+      l.status=from; render();
+      if(record){ const i=undoStack.findIndex(m=>m.id===id&&m.from===from&&m.to===to); if(i>=0) undoStack.splice(i,1); updateUndoUI(); }
+      BPUI.toast(BPUI.friendlyError(err,{action:"move the lead"}),{type:"err"}); return false;
+    }
   }
   function updateUndoUI(){ $("#undoBtn").disabled=!undoStack.length; $("#redoBtn").disabled=!redoStack.length; }
   async function undo(){ const m=undoStack.pop(); if(!m) return; redoStack.push(m); updateUndoUI();
-    const l=leadById(m.id); if(l){ l.status=m.from; render(); lastLocalWrite=Date.now(); try{ await BPStore.leads.setStatus(m.id,m.from); }catch{} } }
+    const l=leadById(m.id); if(l){ l.status=m.from; render(); syncDetail(); lastLocalWrite=Date.now(); try{ await BPStore.leads.setStatus(m.id,m.from); }catch(err){ l.status=m.to; render(); syncDetail(); BPUI.toast(BPUI.friendlyError(err,{action:"undo the move"}),{type:"err"}); } } }
   async function redo(){ const m=redoStack.pop(); if(!m) return; undoStack.push(m); updateUndoUI();
-    const l=leadById(m.id); if(l){ l.status=m.to; render(); lastLocalWrite=Date.now(); try{ await BPStore.leads.setStatus(m.id,m.to); }catch{} } }
+    const l=leadById(m.id); if(l){ l.status=m.to; render(); syncDetail(); lastLocalWrite=Date.now(); try{ await BPStore.leads.setStatus(m.id,m.to); }catch(err){ l.status=m.from; render(); syncDetail(); BPUI.toast(BPUI.friendlyError(err,{action:"redo the move"}),{type:"err"}); } } }
   $("#undoBtn").addEventListener("click",undo);
   $("#redoBtn").addEventListener("click",redo);
 
   /* ---------- detail view ---------- */
   function stageLabel(k){ const s=STAGES.find(x=>x.k===k); return s?s.label:k; }
-  function openDetail(id){
-    const l=leadById(id); if(!l) return; editingId=id;
+  const stageOptions=()=>STAGES.map(s=>`<option value="${s.k}">${esc(s.label)}</option>`).join("");
+  $("#dt_stage").innerHTML=stageOptions();
+  $("#f_stage").innerHTML=stageOptions();
+  let detailId=null;
+  function fillDetail(l){
     $("#dt_name").textContent=l.name||"Lead";
     $("#dt_sub").textContent = "Stage: "+stageLabel(l.status)+(l.quote_id?" · linked to a quote":"");
     const rows=[
@@ -326,28 +396,49 @@
       ["Budget", l.budget?fmt(l.budget):""], ["Guests", l.guest_count],
       ["Notes", l.notes],
     ].filter(r=>r[1]!=null && r[1]!=="");
-    $("#dt_body").innerHTML = `<dt>Stage</dt><dd><span class="pill">${esc(stageLabel(l.status))}</span></dd>`
+    $("#dt_stageWrap").hidden=!canEdit;
+    if(canEdit) $("#dt_stage").value=l.status;
+    $("#dt_body").innerHTML = (canEdit?"":`<dt>Stage</dt><dd><span class="pill">${esc(stageLabel(l.status))}</span></dd>`)
       + rows.map(r=>`<dt>${esc(r[0])}</dt><dd>${esc(r[1])}</dd>`).join("");
+  }
+  function syncDetail(){ if($("#detailModal").hidden||!detailId) return; const l=leadById(detailId); if(l) fillDetail(l); }
+  function openDetail(id){
+    const l=leadById(id); if(!l) return; editingId=id; detailId=id;
+    fillDetail(l);
     $("#dt_del").hidden=!canDelete;
     $("#dt_edit").hidden=!canEdit;
     $("#dt_edit").textContent = l.quote_id ? "Open workspace →" : "Edit";
     $("#detailModal").hidden=false;
   }
-  function closeDetail(){ $("#detailModal").hidden=true; }
+  function closeDetail(){ $("#detailModal").hidden=true; detailId=null; }
   $("#dt_close").addEventListener("click",closeDetail);
   $("#dt_close2").addEventListener("click",closeDetail);
   $("#detailModal").addEventListener("click",(e)=>{ if(e.target.id==="detailModal") closeDetail(); });
+  // keyboard/mouse alternative to drag & drop — same moveLead path (undo + revert-on-failure)
+  $("#dt_stage").addEventListener("change",()=>{
+    const sel=$("#dt_stage"), l=leadById(detailId); if(!l) return;
+    const from=l.status, to=sel.value; if(to===from) return;
+    BPUI.guard(sel, async()=>{
+      const ok=await moveLead(l.id, from, to, true);
+      syncDetail();
+      if(ok) BPUI.toast(`Moved to ${stageLabel(to)}.`,{type:"ok",action:{label:"Undo",onClick:()=>undo()}});
+    });
+  });
   $("#dt_edit").addEventListener("click",()=>{ const l=leadById(editingId);
     if(l&&l.quote_id){ location.href="event.html?id="+encodeURIComponent(l.quote_id); return; }
     closeDetail(); openForm(l); });
   $("#dt_del").addEventListener("click",async()=>{
-    if(!confirm("Delete this lead? It stays in the CRM archive.")) return;
-    lastLocalWrite=Date.now();
-    try{ await BPStore.leads.remove(editingId); closeDetail(); await load(); }
-    catch(err){ alert("Couldn't delete — "+(err&&err.message||"error")); }
+    const id=editingId, l=leadById(id);
+    if(!(await BPUI.confirm(`Delete ${l&&l.name?"“"+l.name+"”":"this lead"}? It stays in the CRM archive.`,{title:"Delete lead?",danger:true}))) return;
+    await BPUI.guard($("#dt_del"), async()=>{
+      lastLocalWrite=Date.now();
+      try{ await BPStore.leads.remove(id); closeDetail(); BPUI.toast("Lead deleted.",{type:"ok"}); await load(); }
+      catch(err){ BPUI.toast(BPUI.friendlyError(err,{action:"delete the lead"}),{type:"err"}); }
+    });
   });
 
   /* ---------- new / edit form ---------- */
+  const formDirty=BPUI.trackDirty($("#leadModal"));
   function openForm(lead){
     editingId = lead ? lead.id : null;
     $("#lm_title").textContent = lead ? "Edit lead" : "＋ New lead";
@@ -356,9 +447,13 @@
     $("#f_type").value=lead?lead.event_type||"":""; $("#f_date").value=lead?lead.event_date||"":"";
     $("#f_budget").value=lead&&lead.budget!=null?lead.budget:""; $("#f_guests").value=lead&&lead.guest_count!=null?lead.guest_count:"";
     $("#f_notes").value=lead?lead.notes||"":"";
+    $("#f_stageWrap").hidden=!lead;                       // new leads always start in "New"
+    if(lead) $("#f_stage").value=lead.status||"new";
+    formDirty.clean();
     $("#lm_err").hidden=true; $("#leadModal").hidden=false; setTimeout(()=>$("#f_name").focus(),50);
   }
-  function closeForm(){ $("#leadModal").hidden=true; editingId=null; }
+  function closeForm(){ $("#leadModal").hidden=true; editingId=null; formDirty.clean(); }
+  async function requestCloseForm(){ if(!(await BPUI.confirmDiscard(formDirty))) return; closeForm(); }
   async function saveLead(){
     const fail=(m)=>{ $("#lm_err").textContent=m; $("#lm_err").hidden=false; };
     const V=BPStore.validate;
@@ -377,34 +472,50 @@
       event_date:$("#f_date").value||null,
       budget, guest_count,
       notes:$("#f_notes").value.trim()||null };
-    $("#lm_save").disabled=true; lastLocalWrite=Date.now();
+    const id=editingId, cur=id?leadById(id):null;
+    const toStage = id && !$("#f_stageWrap").hidden ? $("#f_stage").value : null;
+    lastLocalWrite=Date.now(); $("#lm_err").hidden=true;
     try{
-      if(editingId) await BPStore.leads.update(editingId, patch);
+      if(id) await BPStore.leads.update(id, patch);
       else await BPStore.leads.add(patch);
-      closeForm(); await load();
-    }catch(err){ $("#lm_err").textContent="Couldn't save — "+(err&&err.message||"error"); $("#lm_err").hidden=false; }
-    finally{ $("#lm_save").disabled=false; }
+    }catch(err){ fail(BPUI.friendlyError(err,{action:"save the lead"})); return; }
+    closeForm();
+    // a stage change goes through the same path as drag & drop (undoable, reverts on failure)
+    if(cur && toStage && toStage!==cur.status){ Object.assign(cur, patch); await moveLead(id, cur.status, toStage, true); }
+    BPUI.toast(id?"Lead saved.":"Lead added.",{type:"ok"});
+    await load();
   }
   $("#newBtn").addEventListener("click",()=>openForm(null));
-  $("#lm_close").addEventListener("click",closeForm);
-  $("#lm_cancel").addEventListener("click",closeForm);
-  $("#lm_save").addEventListener("click",saveLead);
-  $("#leadModal").addEventListener("click",(e)=>{ if(e.target.id==="leadModal") closeForm(); });
+  $("#firstRunBtn").addEventListener("click",()=>openForm(null));
+  $("#lm_close").addEventListener("click",requestCloseForm);
+  $("#lm_cancel").addEventListener("click",requestCloseForm);
+  $("#lm_save").addEventListener("click",()=>BPUI.guard($("#lm_save"),saveLead,{busyLabel:"Saving…"}));
+  $("#leadModal").addEventListener("click",(e)=>{ if(e.target.id==="leadModal") requestCloseForm(); });
 
   /* ---------- login ---------- */
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
   $("#li_close").addEventListener("click",closeLogin);
   $("#loginModal").addEventListener("click",(e)=>{ if(e.target.id==="loginModal") closeLogin(); });
-  $("#li_go").addEventListener("click",async()=>{
-    try{ await BPStore.auth.signIn($("#li_email").value.trim(), $("#li_pass").value); location.reload(); }
-    catch(err){ $("#li_err").textContent=err&&err.message||"Sign in failed"; $("#li_err").hidden=false; }
-  });
+  async function doLogin(){
+    const btn=$("#li_go"); if(btn.disabled) return;
+    const em=$("#li_email").value.trim(), pw=$("#li_pass").value;
+    if(!em||!pw){ $("#li_err").textContent="Enter your email and password."; $("#li_err").hidden=false; (em?$("#li_pass"):$("#li_email")).focus(); return; }
+    $("#li_err").hidden=true;
+    await BPUI.guard(btn, async()=>{
+      try{ await BPStore.auth.signIn(em, pw); location.reload(); }
+      catch(err){ $("#li_err").textContent=err&&err.message||"Sign in failed"; $("#li_err").hidden=false; }
+    },{busyLabel:"Signing in…"});
+  }
+  $("#li_go").addEventListener("click",doLogin);
+  ["#li_email","#li_pass"].forEach(s=>$(s).addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); doLogin(); } }));
 
   let _searchT; $("#search").addEventListener("input",(e)=>{ filter=e.target.value; clearTimeout(_searchT); _searchT=setTimeout(render,150); });  // debounce: don't rebuild the board on every keystroke
+  // Escape is handled by BPUI (clicks the open modal's [data-close]); here only undo/redo shortcuts.
   document.addEventListener("keydown",(e)=>{
-    if(e.key==="Escape"){ closeForm(); closeLogin(); closeDetail(); return; }
     const mod=e.metaKey||e.ctrlKey; if(!mod) return;
+    if(e.target && e.target.closest && e.target.closest("input,textarea,select,[contenteditable]")) return;   // let fields keep their own undo
+    if(!$("#leadModal").hidden || !$("#loginModal").hidden) return;
     if(e.key.toLowerCase()==="z" && !e.shiftKey){ e.preventDefault(); undo(); }
     else if((e.key.toLowerCase()==="z" && e.shiftKey) || e.key.toLowerCase()==="y"){ e.preventDefault(); redo(); }
   });
@@ -428,10 +539,10 @@
   /* ---------- load ---------- */
   async function load(){
     try{ leads = await BPStore.leads.list(); }
-    catch(err){ $("#board").innerHTML=`<div class="colempty" style="margin:20px">Couldn't load leads — ${esc(err&&err.message||"error")}. Run <b>phase2.sql</b> to create the table.</div>`; return; }
-    render();
+    catch(err){ $("#firstRun").hidden=true; $("#noMatch").hidden=true; BPUI.loadError($("#board"), err, load, {what:"leads"}); return; }
+    render(); syncDetail();
   }
-  (async ()=>{
+  BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount(); try{await BPStore.bell.mount(document.querySelector("#bell"));}catch{}
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     if(!(await BPStore.auth.requireView("pipeline"))) return;
@@ -441,7 +552,7 @@
     if(canEdit) $("#ccLink").hidden=false;
     await load();
     startRealtime();
-  })();
+  });
 </script>
 </body>
 </html>

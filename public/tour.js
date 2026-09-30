@@ -203,7 +203,7 @@
     while (i < list.length && !present(list[i].sel)) i++;
     if (i >= list.length) { end(); return; }
     const step = list[i], tgt = present(step.sel);
-    tgt.scrollIntoView({ block: "center", behavior: "smooth" });
+    tgt.scrollIntoView({ block: "center", behavior: (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) ? "auto" : "smooth" });
     setTimeout(() => {
       if (!root) return;
       const r = tgt.getBoundingClientRect(), pad = 6;
@@ -230,15 +230,15 @@
   /* ---- mount: reuse #helpBtn if present, else a floating button ------- */
   function mount() {
     const existing = document.getElementById("helpBtn");
-    if (existing) { existing.addEventListener("click", start); }
+    if (existing) { existing.addEventListener("click", () => start()); }
     else {
       const fab = document.createElement("button");
       fab.className = "htour-fab"; fab.type = "button";
       fab.textContent = "? Tour"; fab.title = "Take a guided tour of this page";
-      fab.addEventListener("click", start);
+      fab.addEventListener("click", () => start());
       document.body.appendChild(fab);
     }
-    document.addEventListener("keydown", e => { if (e.key === "Escape") end(); });
+    document.addEventListener("keydown", e => { if (e.key === "Escape" && root) end(); });
 
     // form coaching: when this page's create-modal opens, run the field tour once
     const form = FORMS[page + ".html"] || FORMS[page];

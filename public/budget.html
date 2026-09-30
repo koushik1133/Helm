@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Budget — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
@@ -17,11 +18,11 @@
   header{display:flex;align-items:center;gap:11px;padding:18px 0}
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
-  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
   .spacer{margin-left:auto}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .crumb{font-size:12px;color:var(--ink-3);margin:2px 0 14px} .crumb a{color:var(--accent)}
 
@@ -36,32 +37,36 @@
   .rowh{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
   .btn{height:36px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
   .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.4;cursor:default}
-  .btn.sm{height:30px;padding:0 10px;font-size:12px}
+  .btn.sm{height:32px;padding:0 10px;font-size:12px}
   table{width:100%;border-collapse:collapse;font-size:13px}
-  thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:9px 10px;border-bottom:1px solid var(--line)}
+  thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:9px 10px;border-bottom:1px solid var(--line)}
   th.num,td.num{text-align:right} tbody td{padding:9px 10px;border-bottom:1px solid var(--line-2);vertical-align:middle}
   .num{font-family:var(--mono)}
-  .kind{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .kind{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
   .kind.internal{background:#eef2ff;color:#4457c8} .kind.vendor{background:#e7f6ee;color:#0f7a43} .kind.other{background:#f2eefc;color:#6b46c1}
-  .st{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .st{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
   .st.requested{background:#fff7e6;color:#946200} .st.approved{background:#e7f6ee;color:#0f7a43} .st.rejected{background:#fdecec;color:#b42318}
-  .cin{height:30px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:var(--mono);font-size:12px;padding:0 6px;width:100px;color:var(--ink);text-align:right}
-  .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:28px;padding:0 9px;font-size:11px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#e5484d;border-color:#f5c6c6}
+  .cin{height:32px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:var(--mono);font-size:12px;padding:0 6px;width:100px;color:var(--ink);text-align:right}
+  .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;min-height:32px;min-width:32px;padding:0 9px;font-size:12px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#e5484d;border-color:#f5c6c6}
   .go{color:#0f7a43;border-color:#b6e3ca} .no{color:#b42318;border-color:#f5c6c6}
   .empty{text-align:center;color:var(--ink-3);padding:20px;font-size:13px}
   .addgrid{display:grid;grid-template-columns:1.6fr .8fr .8fr .8fr auto;gap:8px;align-items:end;margin-top:10px} @media(max-width:680px){.addgrid{grid-template-columns:1fr 1fr}}
-  .fld{display:flex;flex-direction:column;gap:4px} .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld{display:flex;flex-direction:column;gap:4px} .fld label{font-size:12px;font-weight:600;color:var(--ink-2)}
   .fld input,.fld select{height:36px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
+  @media(max-width:480px){.wrap{padding:0 16px 48px} header{flex-wrap:wrap} .nav{margin-left:0;flex-wrap:wrap} .addgrid{grid-template-columns:1fr} .tile .n{font-size:18px}}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
   .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px}
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
   .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(440px,96vw);padding:24px}
   .sheet h3{margin:0 0 12px}.foot{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
+  th{position:relative} .table-scroll{position:relative}
+  .crumb a,.sub a,a#floorLink{text-decoration:underline}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
     <a href="dashboard.html" class="mark" title="Home"></a>
@@ -70,9 +75,11 @@
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
+  <main id="main">
+  <div id="boot" aria-busy="true"></div>
 
   <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to open the budget.</p></div>
-  <div id="notfound" class="card" hidden><p style="color:var(--ink-3)">Event not found. Go to <a href="quotes.html" style="color:var(--accent)">Quotes</a>.</p></div>
+  <div id="notfound" class="card" hidden><p style="color:var(--ink-3)">Event not found. Go to <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a>.</p></div>
 
   <div id="app" hidden>
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
@@ -86,29 +93,30 @@
 
     <div class="card">
       <div class="rowh"><h2 style="margin:0">Cost lines</h2><span class="sub" style="margin:0">Estimated vs actual — internal &amp; vendor.</span>
-        <span class="spacer"></span><button class="btn sm" id="importBtn" hidden>↧ Import vendor bookings</button></div>
-      <table>
-        <thead><tr><th>Description</th><th>Type</th><th class="num">Estimated</th><th class="num">Actual</th><th></th></tr></thead>
+        <span class="spacer"></span><button type="button" class="btn sm" id="importBtn" hidden>↧ Import vendor bookings</button></div>
+      <div class="table-scroll"><table>
+        <thead><tr><th scope="col">Description</th><th scope="col">Type</th><th scope="col" class="num">Estimated</th><th scope="col" class="num">Actual</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody id="costRows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
-      </table>
+      </table></div>
       <div class="addgrid" id="addCost" hidden>
         <div class="fld"><label for="c_desc">Description</label><input id="c_desc" placeholder="e.g. Décor materials"></div>
         <div class="fld"><label for="c_kind">Type</label><select id="c_kind"><option value="internal">Internal</option><option value="vendor">Vendor</option><option value="other">Other</option></select></div>
         <div class="fld"><label for="c_est">Estimated ₹</label><input id="c_est" type="number" min="0" value="0"></div>
         <div class="fld"><label for="c_act">Actual ₹</label><input id="c_act" type="number" min="0" placeholder="—"></div>
-        <div class="fld"><label>&nbsp;</label><button class="btn primary" id="c_add">＋ Add</button></div>
+        <div class="fld"><span aria-hidden="true" style="font-size:12px">&nbsp;</span><button type="button" class="btn primary" id="c_add">＋ Add</button></div>
       </div>
     </div>
 
     <div class="card">
       <div class="rowh"><h2 style="margin:0">Change requests</h2><span class="sub" style="margin:0">Priced scope changes — approved ones roll into the budget.</span>
-        <span class="spacer"></span><button class="btn sm" id="chgBtn" hidden>＋ New change</button></div>
-      <table>
-        <thead><tr><th>Change</th><th class="num">Charge client</th><th class="num">Extra cost</th><th>Status</th><th></th></tr></thead>
-        <tbody id="chgRows"><tr><td colspan="5" class="empty">No change requests.</td></tr></tbody>
-      </table>
+        <span class="spacer"></span><button type="button" class="btn sm" id="chgBtn" hidden>＋ New change</button></div>
+      <div class="table-scroll"><table>
+        <thead><tr><th scope="col">Change</th><th scope="col" class="num">Charge client</th><th scope="col" class="num">Extra cost</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody id="chgRows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+      </table></div>
     </div>
   </div>
+  </main>
   <footer>Helm Events — know your margin before, during and after the event.</footer>
 </div>
 
@@ -122,7 +130,7 @@
       <div class="fld"><label for="ch_cost">Extra cost ₹</label><input id="ch_cost" type="number" value="0"></div>
     </div>
     <div id="ch_err" class="err" hidden style="margin-top:8px" role="alert" aria-live="assertive"></div>
-    <div class="foot"><button class="btn" id="ch_cancel">Cancel</button><button class="btn primary" id="ch_save">Add</button></div>
+    <div class="foot"><button type="button" class="btn" id="ch_cancel" data-close>Cancel</button><button type="button" class="btn primary" id="ch_save">Add</button></div>
   </div>
 </div>
 
@@ -136,9 +144,9 @@
   </div>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -147,6 +155,7 @@
   const KIND={internal:"Internal",vendor:"Vendor",other:"Other"};
   const ST={requested:"Requested",approved:"Approved",rejected:"Rejected"};
   let canEdit=false, canDelete=false, sum=null;
+  function act(btn,fn,action){ return BPUI.guard(btn,async()=>{ try{ await fn(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action}),{type:"err"}); } }); }
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
@@ -163,77 +172,93 @@
     $("#t_marpct").textContent = sum.estMarginPct!=null ? (sum.estMarginPct+"% margin") : "";
 
     $("#costRows").innerHTML = sum.costs.length ? sum.costs.map(c=>`<tr>
-      <td><b>${esc(c.description)}</b>${c.category?`<div style="font-size:11px;color:var(--ink-3)">${esc(c.category)}</div>`:""}</td>
+      <td><b>${esc(c.description)}</b>${c.category?`<div style="font-size:12px;color:var(--ink-3)">${esc(c.category)}</div>`:""}</td>
       <td><span class="kind ${esc(c.kind)}">${esc(KIND[c.kind]||c.kind)}</span></td>
       <td class="num">${inr(c.estimated)}</td>
-      <td class="num">${canEdit?`<input class="cin" type="number" min="0" value="${c.actual!=null?c.actual:""}" placeholder="—" data-act="${c.id}">`:(c.actual!=null?inr(c.actual):"—")}</td>
-      <td>${canDelete?`<button class="rm" data-del="${c.id}" aria-label="Remove cost line">✕</button>`:""}</td>
+      <td class="num">${canEdit?`<input class="cin" type="number" min="0" value="${c.actual!=null?esc(c.actual):""}" placeholder="—" data-act="${esc(c.id)}" aria-label="Actual cost for ${esc(c.description)}">`:(c.actual!=null?inr(c.actual):"—")}</td>
+      <td>${canDelete?`<button type="button" class="rm" data-del="${esc(c.id)}" data-name="${esc(c.description)}" aria-label="Remove cost line ${esc(c.description)}">✕</button>`:""}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="empty">No cost lines yet.</td></tr>';
     $("#costRows").querySelectorAll("[data-act]").forEach(inp=>inp.addEventListener("change",async()=>{
-      await BPStore.budget.updateCost(inp.dataset.act,{actual: inp.value===""?null:Number(inp.value)}); await load(); }));
-    $("#costRows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.budget.removeCost(b.dataset.del); await load(); }));
+      let actual=null; if(inp.value!==""){ const r=BPStore.validate.money(inp.value,{field:"Actual cost"}); if(!r.ok){ BPUI.toast(r.error,{type:"err"}); await load(); return; } actual=r.value; }
+      await BPUI.guard(inp,async()=>{ try{ await BPStore.budget.updateCost(inp.dataset.act,{actual}); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"save the actual cost"}),{type:"err"}); } await load(); }); }));
+    $("#costRows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
+      if(!(await BPUI.confirm(`Remove the cost line “${b.dataset.name||""}”?`,{title:"Remove cost line?",danger:true}))) return;
+      await act(b,async()=>{ await BPStore.budget.removeCost(b.dataset.del); await load(); },"remove the cost line"); }));
 
     $("#chgRows").innerHTML = sum.changes.length ? sum.changes.map(c=>`<tr>
-      <td><b>${esc(c.title)}</b>${c.detail?`<div style="font-size:11px;color:var(--ink-3)">${esc(c.detail)}</div>`:""}</td>
+      <td><b>${esc(c.title)}</b>${c.detail?`<div style="font-size:12px;color:var(--ink-3)">${esc(c.detail)}</div>`:""}</td>
       <td class="num">${inr(c.price_delta)}</td>
       <td class="num">${inr(c.cost_delta)}</td>
       <td><span class="st ${esc(c.status)}">${esc(ST[c.status]||c.status)}</span></td>
-      <td>${canEdit && c.status==="requested"?`<button class="rm go" data-appr="${c.id}">Approve</button> <button class="rm no" data-rej="${c.id}">Reject</button>`:(canDelete?`<button class="rm" data-chdel="${c.id}" aria-label="Remove change request">✕</button>`:"")}</td>
+      <td>${canEdit && c.status==="requested"?`<button type="button" class="rm go" data-appr="${esc(c.id)}" data-name="${esc(c.title)}" aria-label="Approve ${esc(c.title)}">Approve</button> <button type="button" class="rm no" data-rej="${esc(c.id)}" aria-label="Reject ${esc(c.title)}">Reject</button>`:(canDelete?`<button type="button" class="rm" data-chdel="${esc(c.id)}" data-name="${esc(c.title)}" aria-label="Remove change request ${esc(c.title)}">✕</button>`:"")}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="empty">No change requests.</td></tr>';
-    $("#chgRows").querySelectorAll("[data-appr]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.budget.setChangeStatus(b.dataset.appr,"approved"); await load(); }));
-    $("#chgRows").querySelectorAll("[data-rej]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.budget.setChangeStatus(b.dataset.rej,"rejected"); await load(); }));
-    $("#chgRows").querySelectorAll("[data-chdel]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.budget.removeChange(b.dataset.chdel); await load(); }));
+    $("#chgRows").querySelectorAll("[data-appr]").forEach(b=>b.addEventListener("click",async()=>{
+      if(!(await BPUI.confirm(`Approve “${b.dataset.name||""}”? Its charge and cost roll into the budget.`,{title:"Approve change?",okLabel:"Approve"}))) return;
+      await act(b,async()=>{ await BPStore.budget.setChangeStatus(b.dataset.appr,"approved"); await load(); },"approve the change"); }));
+    $("#chgRows").querySelectorAll("[data-rej]").forEach(b=>b.addEventListener("click",()=>act(b,async()=>{ await BPStore.budget.setChangeStatus(b.dataset.rej,"rejected"); await load(); },"reject the change")));
+    $("#chgRows").querySelectorAll("[data-chdel]").forEach(b=>b.addEventListener("click",async()=>{
+      if(!(await BPUI.confirm(`Remove the change request “${b.dataset.name||""}”?`,{title:"Remove change request?",danger:true}))) return;
+      await act(b,async()=>{ await BPStore.budget.removeChange(b.dataset.chdel); await load(); },"remove the change request"); }));
   }
 
   async function addCost(){
     const desc=$("#c_desc").value.trim(); if(!desc){ $("#c_desc").focus(); return; }
-    const V=BPStore.validate; const fail=(m)=>{ alert(m); };
+    const V=BPStore.validate; const fail=(m)=>{ BPUI.toast(m,{type:"err"}); };
     let estimated=0; if($("#c_est").value!==""){ const r=V.money($("#c_est").value,{field:"Estimated cost"}); if(!r.ok){ fail(r.error); return; } estimated=r.value; }
     let actual=null; if($("#c_act").value!==""){ const r=V.money($("#c_act").value,{field:"Actual cost"}); if(!r.ok){ fail(r.error); return; } actual=r.value; }
-    $("#c_add").disabled=true;
-    try{ await BPStore.budget.addCost(id,{ description:desc, kind:$("#c_kind").value, estimated,
-      actual }); $("#c_desc").value=""; $("#c_est").value=0; $("#c_act").value=""; await load(); $("#c_desc").focus(); }
-    catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } finally{ $("#c_add").disabled=false; }
+    await act($("#c_add"),async()=>{ await BPStore.budget.addCost(id,{ description:desc, kind:$("#c_kind").value, estimated,
+      actual }); $("#c_desc").value=""; $("#c_est").value=0; $("#c_act").value=""; await load(); $("#c_desc").focus(); },"add the cost line");
   }
-  async function importVendors(){ $("#importBtn").disabled=true;
-    try{ const n=await BPStore.budget.importVendorCosts(id); await load(); alert(n?`Imported ${n} vendor cost line${n===1?"":"s"}.`:"No new vendor bookings to import."); }
-    catch(e){ alert("Couldn't import — "+((e&&e.message)||"error")); } finally{ $("#importBtn").disabled=false; }
+  function importVendors(){ return act($("#importBtn"),async()=>{
+    const n=await BPStore.budget.importVendorCosts(id); await load(); BPUI.toast(n?`Imported ${n} vendor cost line${n===1?"":"s"}.`:"No new vendor bookings to import.",{type:n?"ok":"info"}); },"import vendor bookings");
   }
-  function openChg(){ $("#ch_title").value=""; $("#ch_detail").value=""; $("#ch_price").value=0; $("#ch_cost").value=0; $("#ch_err").hidden=true; $("#chgModal").hidden=false; setTimeout(()=>$("#ch_title").focus(),50); }
+  const chgDirty=BPUI.trackDirty($("#chgModal"));
+  function openChg(){ $("#ch_title").value=""; $("#ch_detail").value=""; $("#ch_price").value=0; $("#ch_cost").value=0; $("#ch_err").hidden=true; $("#chgModal").hidden=false; chgDirty.clean(); setTimeout(()=>$("#ch_title").focus(),50); }
+  function closeChg(){ $("#chgModal").hidden=true; chgDirty.clean(); }
+  async function requestCloseChg(){ if($("#chgModal").hidden) return; if(!(await BPUI.confirmDiscard(chgDirty))) return; closeChg(); }
   async function saveChg(){ const t=$("#ch_title").value.trim(); if(!t){ $("#ch_err").textContent="Title is required."; $("#ch_err").hidden=false; return; }
     const V=BPStore.validate; const fail=(m)=>{ $("#ch_err").textContent=m; $("#ch_err").hidden=false; };
     let priceDelta=0; if($("#ch_price").value!==""){ const r=V.money($("#ch_price").value,{field:"Charge to client"}); if(!r.ok){ fail(r.error); return; } priceDelta=r.value; }
     let costDelta=0; if($("#ch_cost").value!==""){ const r=V.money($("#ch_cost").value,{field:"Extra cost"}); if(!r.ok){ fail(r.error); return; } costDelta=r.value; }
-    try{ await BPStore.budget.addChange(id,{ title:t, detail:$("#ch_detail").value.trim()||null, price_delta:priceDelta, cost_delta:costDelta });
-      $("#chgModal").hidden=true; await load(); }catch(e){ $("#ch_err").textContent="Couldn't save — "+((e&&e.message)||"error"); $("#ch_err").hidden=false; } }
+    await BPUI.guard($("#ch_save"),async()=>{
+      try{ await BPStore.budget.addChange(id,{ title:t, detail:$("#ch_detail").value.trim()||null, price_delta:priceDelta, cost_delta:costDelta });
+        closeChg(); await load(); }catch(e){ fail(BPUI.friendlyError(e,{action:"save the change request",setupHint:"phase12-budget.sql"})); } },{busyLabel:"Saving…"}); }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
-  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
-    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  $("#li_go").addEventListener("click",()=>{
+    const em=$("#li_email").value.trim(), pw=$("#li_pass").value;
+    if(!em||!pw){ $("#li_err").textContent="Enter your email and password."; $("#li_err").hidden=false; return; }
+    $("#li_err").hidden=true;
+    BPUI.guard($("#li_go"),async()=>{ try{ await BPStore.auth.signIn(em,pw); location.reload(); }
+      catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } },{busyLabel:"Signing in…"});
+  });
   $("#c_add").addEventListener("click",addCost);
   $("#importBtn").addEventListener("click",importVendors);
   $("#chgBtn").addEventListener("click",openChg);
-  $("#ch_cancel").addEventListener("click",()=>$("#chgModal").hidden=true);
+  $("#ch_cancel").addEventListener("click",requestCloseChg);
   $("#ch_save").addEventListener("click",saveChg);
-  $("#chgModal").addEventListener("click",e=>{ if(e.target.id==="chgModal") $("#chgModal").hidden=true; });
+  $("#chgModal").addEventListener("click",e=>{ if(e.target.id==="chgModal") requestCloseChg(); });
 
   async function load(){
     try{ sum=await BPStore.budget.summary(id); }
-    catch(e){ $("#costRows").innerHTML=`<tr><td colspan="5" class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase12-budget.sql</b>.</td></tr>`; return; }
+    catch(e){ BPUI.loadError($("#costRows"),e,load,{what:"the budget"}); BPUI.loadError($("#chgRows"),e,load,{what:"change requests"});
+      ["#t_rev","#t_est","#t_act","#t_mar"].forEach(x=>{ $(x).textContent="—"; }); $("#addCost").hidden=true; $("#importBtn").hidden=true; $("#chgBtn").hidden=true; return; }
+    $("#addCost").hidden=!canEdit; $("#importBtn").hidden=!canEdit; $("#chgBtn").hidden=!canEdit;
     render();
   }
-  (async ()=>{
+  BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
     if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     if(!(await BPStore.auth.requireView("finance"))) return;
     canEdit=await BPStore.auth.canEditArea("finance"); canDelete=await BPStore.auth.can("delete");
-    let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
+    let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
+    if(!ev){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
     $("#app").hidden=false; $("#addCost").hidden=!canEdit; $("#importBtn").hidden=!canEdit; $("#chgBtn").hidden=!canEdit;
     await load();
-  })();
+  });
 </script>
 </body>
 </html>

@@ -3,11 +3,13 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="bp-theme-toggle" content="off">
-<title>You're invited</title>
+<title>You're invited · Helm</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d28d9'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Poppins:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Poppins:wght@300;400;500;600&family=Space+Grotesk:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap">
 <style>
   *{box-sizing:border-box}
   [hidden]{display:none!important}
@@ -71,7 +73,7 @@
   section.blk{max-width:760px;margin:0 auto;padding:26px 22px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:30px;
     box-shadow:0 1px 2px rgba(20,15,30,.03),0 30px 60px -44px rgba(20,15,30,.35)}
-  .sec-t{text-transform:uppercase;letter-spacing:.2em;font-size:11.5px;color:var(--accent);font-weight:600;margin:0 0 16px;text-align:center}
+  .sec-t{text-transform:uppercase;font-family:var(--sans);line-height:1.65;letter-spacing:.2em;font-size:11.5px;color:var(--accent);font-weight:600;margin:0 0 16px;text-align:center}
   .msg{font-family:var(--serif);font-size:clamp(20px,4.2vw,25px);text-align:center;color:var(--ink);margin:0;line-height:1.5}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   @media(max-width:540px){.grid2{grid-template-columns:1fr}}
@@ -113,6 +115,13 @@
   .eq i{width:3px;background:currentColor;border-radius:2px;animation:eq 1s ease-in-out infinite}
   .eq i:nth-child(1){animation-delay:-.2s}.eq i:nth-child(2){animation-delay:-.5s}.eq i:nth-child(3){animation-delay:-.1s}
   .paused .eq i{animation-play-state:paused;height:5px!important}
+  @media (prefers-reduced-motion:reduce){
+    .eq i{animation:none;height:9px!important}
+    .paused .eq i{height:5px!important}
+    #cover,.open-btn,.fab,.toast{transition:none}
+    .open-btn:hover,.fab:hover{transform:none}
+    .hero .bgpic{transform:none}
+  }
   @keyframes eq{0%,100%{height:5px}50%{height:15px}}
   @keyframes rise{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
 
@@ -134,17 +143,20 @@
 </style>
 </head>
 <body>
-  <div id="loading" class="state"><div><h1>Loading your invitation…</h1></div></div>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <main id="main">
+  <div id="loading" class="state" role="status"><div><h1>Loading your invitation…</h1></div></div>
   <div id="missing" class="state" hidden><div>
     <h1>Invitation not found</h1>
     <p>This link may be incorrect, or the invitation hasn’t been published yet.</p>
   </div></div>
+  <div id="loadErr" class="state" hidden></div>
 
   <!-- cover gate -->
   <div id="cover" hidden><div class="cover-in">
-    <div class="flourish">❧</div>
+    <div class="flourish" aria-hidden="true">❧</div>
     <p id="coverEyebrow" class="cover-eyebrow"></p>
-    <div class="seal"><span id="coverSeal">♥</span></div>
+    <div class="seal" aria-hidden="true"><span id="coverSeal">♥</span></div>
     <h1 id="coverNames" class="cover-names"></h1>
     <p id="coverSub" class="cover-sub"></p>
     <button id="openBtn" class="open-btn" type="button">Open Invitation</button>
@@ -154,24 +166,27 @@
   <!-- floating controls -->
   <div id="fabs" class="fabs" hidden>
     <button id="musicFab" class="fab paused" type="button" title="Music" aria-label="Toggle music">
-      <span class="eq"><i style="height:5px"></i><i style="height:5px"></i><i style="height:5px"></i></span>
+      <span class="eq" aria-hidden="true"><i style="height:5px"></i><i style="height:5px"></i><i style="height:5px"></i></span>
     </button>
   </div>
   <button id="shareBtm" class="share-btm" type="button" hidden>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>
     Share
   </button>
-  <div id="toast" class="toast"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <div id="page" hidden></div>
+  </main>
   <audio id="audio" loop preload="none"></audio>
 
-<script src="/telemetry.js?v=1"></script>
-<script src="/config.js?v=90"></script>
-<script src="/store-api.js?v=88"></script>
+<script src="/telemetry.js?v=2"></script>
+<script src="/config.js?v=91"></script>
+<script src="/store-api.js?v=89"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  // CSS url('…') context: percent-encode quotes/parens/backslash/whitespace so a stored URL can't break out of url().
+  const cssUrl=u=>esc(String(u==null?"":u).replace(/['"()\\\s]/g,c=>"%"+c.charCodeAt(0).toString(16).padStart(2,"0")));
   function getSlug(){ const m=location.pathname.match(/^\/i\/([^\/?#]+)/); if(m) return decodeURIComponent(m[1]);
     return new URLSearchParams(location.search).get("s")||""; }
   const EYEBROW={wedding:"Together with their families",engagement:"Save the date",
@@ -180,32 +195,32 @@
   function fmtDate(d){ if(!d) return "";
     const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d));
     const dt=m?new Date(+m[1],+m[2]-1,+m[3]):new Date(d);
-    if(isNaN(dt)) return esc(d);
+    if(isNaN(dt)) return String(d);
     return dt.toLocaleDateString(undefined,{weekday:"long",year:"numeric",month:"long",day:"numeric"}); }
   const initials=n=>{ const p=String(n||"").trim().split(/\s+|&/).filter(Boolean); return p.slice(0,2).map(x=>x[0]).join("").toUpperCase()||"♥"; };
 
   function factsHtml(d){
     const items=[];
-    const when=[fmtDate(d.date), d.time?esc(d.time):""].filter(Boolean).join(" · ");
-    if(when) items.push(`<div class="fact"><p class="k">When</p><p class="v">${when}</p></div>`);
+    const when=[fmtDate(d.date), d.time||""].filter(Boolean).join(" · ");
+    if(when) items.push(`<div class="fact"><p class="k">When</p><p class="v">${esc(when)}</p></div>`);
     if(d.venue||d.address){
       const map=(d.mapUrl&&/^https?:\/\//i.test(d.mapUrl))?` <a href="${esc(d.mapUrl)}" target="_blank" rel="noopener noreferrer">View map</a>`:"";
       items.push(`<div class="fact"><p class="k">Where</p><p class="v">${esc(d.venue||"")}${d.venue&&d.address?"<br>":""}<span style="font-weight:400;color:var(--soft)">${esc(d.address||"")}</span>${map}</p></div>`);
     }
     if(d.dressCode) items.push(`<div class="fact"><p class="k">Dress code</p><p class="v">${esc(d.dressCode)}</p></div>`);
     if(d.host) items.push(`<div class="fact"><p class="k">Hosted by</p><p class="v">${esc(d.host)}${d.hostPhone?`<br><span style="font-weight:400;color:var(--soft)">${esc(d.hostPhone)}</span>`:""}</p></div>`);
-    return items.length?`<section class="blk rv"><div class="card"><p class="sec-t">Details</p><div class="grid2">${items.join("")}</div></div></section>`:"";
+    return items.length?`<section class="blk rv"><div class="card"><h2 class="sec-t">Details</h2><div class="grid2">${items.join("")}</div></div></section>`:"";
   }
   function scheduleHtml(list){
     if(!Array.isArray(list)||!list.length) return "";
     const rows=list.filter(x=>x&&(x.time||x.label)).map(x=>`<li><span class="t">${esc(x.time||"")}</span><span>${esc(x.label||"")}</span></li>`).join("");
-    return rows?`<section class="blk rv"><div class="card"><p class="sec-t">Schedule</p><ul class="sched">${rows}</ul></div></section>`:"";
+    return rows?`<section class="blk rv"><div class="card"><h2 class="sec-t">Schedule</h2><ul class="sched">${rows}</ul></div></section>`:"";
   }
   function galleryHtml(photos){
     if(!Array.isArray(photos)||photos.length<2) return "";   // hero already uses the first
     const rest=photos.slice(1);
-    const cells=rest.map((u,i)=>`<div class="ph${(rest.length%2===1&&i===rest.length-1)?' wide':''}" style="background-image:url('${esc(u)}')"></div>`).join("");
-    return `<section class="blk rv"><p class="sec-t" style="color:var(--accent)">Moments</p><div class="gal">${cells}</div></section>`;
+    const cells=rest.map((u,i)=>`<div class="ph${(rest.length%2===1&&i===rest.length-1)?' wide':''}" role="img" aria-label="Photo ${i+1}" style="background-image:url('${cssUrl(u)}')"></div>`).join("");
+    return `<section class="blk rv"><h2 class="sec-t" style="color:var(--accent)">Moments</h2><div class="gal">${cells}</div></section>`;
   }
 
   let SITE=null;
@@ -219,7 +234,7 @@
     document.title=(site.title||names)+" — Invitation";
     const photos=Array.isArray(d.photos)?d.photos.filter(Boolean):[];
     const hero0=photos[0];
-    const when=[fmtDate(d.date), d.time?esc(d.time):""].filter(Boolean).join(" · ");
+    const when=[fmtDate(d.date), d.time||""].filter(Boolean).join(" · ");   // plain text
 
     // cover gate
     $("#coverEyebrow").textContent=eyebrow;
@@ -228,13 +243,13 @@
     $("#coverSub").textContent=[d.headline, when].filter(Boolean).join(" · ")||"You're invited";
 
     const heroBlock = hero0
-      ? `<div class="hero haspic"><div class="bgpic" style="background-image:url('${esc(hero0)}')"></div><div class="veil"></div>
+      ? `<div class="hero haspic"><div class="bgpic" style="background-image:url('${cssUrl(hero0)}')"></div><div class="veil"></div>
            <div class="inner rv in">
              <p class="eyebrow">${esc(eyebrow)}</p>
              <h1 class="names">${esc(names)}</h1>
              ${d.headline?`<p class="headline">${esc(d.headline)}</p>`:""}
              <div class="divider"><span class="ln"></span><span class="dot">✦</span><span class="ln"></span></div>
-             ${when?`<p class="whenwhere"><b>${when}</b></p>`:""}
+             ${when?`<p class="whenwhere"><b>${esc(when)}</b></p>`:""}
              ${d.venue?`<p class="whenwhere">${esc(d.venue)}</p>`:""}
            </div></div>`
       : `<div class="hero"><div class="inner rv in">
@@ -242,17 +257,17 @@
              <h1 class="names">${esc(names)}</h1>
              ${d.headline?`<p class="headline">${esc(d.headline)}</p>`:""}
              <div class="divider"><span class="ln"></span><span class="dot">✦</span><span class="ln"></span></div>
-             ${when?`<p class="whenwhere"><b>${when}</b></p>`:""}
+             ${when?`<p class="whenwhere"><b>${esc(when)}</b></p>`:""}
              ${d.venue?`<p class="whenwhere">${esc(d.venue)}</p>`:""}
            </div></div>`;
 
     $("#page").innerHTML=`
       ${heroBlock}
-      ${d.message?`<section class="blk rv"><div class="card"><p class="sec-t">A note</p><p class="msg">${esc(d.message)}</p></div></section>`:""}
+      ${d.message?`<section class="blk rv"><div class="card"><h2 class="sec-t">A note</h2><p class="msg">${esc(d.message)}</p></div></section>`:""}
       ${galleryHtml(photos)}
       ${factsHtml(d)}
       ${scheduleHtml(d.schedule)}
-      ${d.rsvpBy?`<p class="note rv">Kindly reply by ${fmtDate(d.rsvpBy)}</p>`:""}
+      ${d.rsvpBy?`<p class="note rv">Kindly reply by ${esc(fmtDate(d.rsvpBy))}</p>`:""}
       <div class="foot rv">With love &amp; joy
         <span class="madeby">Made with <a href="/" target="_blank" rel="noopener">Helm Events</a></span>
       </div>`;
@@ -308,17 +323,23 @@
   window.addEventListener("message",(ev)=>{ if(ev.origin!==location.origin) return;
     const m=ev.data; if(m&&m.type==="helm-preview"&&m.site){ try{ render(m.site); $("#cover").hidden=true; $("#fabs").hidden=false; armReveal(); }catch(e){} } });
 
-  (async ()=>{
+  async function load(){
     if(new URLSearchParams(location.search).get("preview")==="1"){ $("#loading").querySelector("h1").textContent="Preview"; return; }
     const slug=getSlug();
-    try{
-      if(!slug) throw new Error("no slug");
-      await BPStore.init();
-      const site=await BPStore.sites.public(slug);
-      if(!site){ $("#loading").hidden=true; $("#missing").hidden=false; return; }
-      render(site);
-    }catch(e){ $("#loading").hidden=true; $("#missing").hidden=false; }
-  })();
+    if(!slug){ $("#loading").hidden=true; $("#missing").hidden=false; return; }
+    $("#loadErr").hidden=true;
+    let site;
+    try{ await BPStore.init(); site=await BPStore.sites.public(slug); }
+    catch(e){
+      $("#loading").hidden=true;
+      if(BPUI.isNotFound(e)){ $("#missing").hidden=false; return; }
+      // a network / server failure is not "invitation not found" — offer a retry
+      $("#loadErr").hidden=false; BPUI.loadError($("#loadErr"), e, load, {what:"this invitation"}); return;
+    }
+    if(!site){ $("#loading").hidden=true; $("#missing").hidden=false; return; }
+    render(site);
+  }
+  BPUI.boot(load);
 </script>
 </body>
 </html>

@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quote flow — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
@@ -18,11 +19,12 @@
   header{display:flex;align-items:center;gap:11px;padding:18px 0}
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
-  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
-  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;flex-wrap:wrap;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
   .spacer{margin-left:auto}
+  @media(max-width:560px){header{flex-wrap:wrap}.nav{margin-left:0}}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
 
   .layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
@@ -30,26 +32,26 @@
   .col-main{display:flex;flex-direction:column;gap:16px;min-width:0}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px;scroll-margin-top:16px}
   .card h2{font-size:15px;margin:0 0 4px;display:flex;align-items:center;gap:8px}
-  .card .step-n{width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
+  .card .step-n{width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
   .card .sub{font-size:12px;color:var(--ink-3);margin:0 0 14px}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px} @media(max-width:620px){.grid{grid-template-columns:1fr}}
   .fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px} .fld.full{grid-column:1/-1}
-  .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld label{font-size:12px;font-weight:600;color:var(--ink-2)}
   .fld input,.fld select,.fld textarea{border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:13px;color:var(--ink)}
   .fld input,.fld select{height:38px;padding:0 12px} .fld textarea{min-height:70px;resize:vertical}
   .fld input:disabled,.fld textarea:disabled,.fld select:disabled{opacity:.7;cursor:not-allowed}
   .btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
   .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.4;cursor:default}
   .btn.sm{height:32px;padding:0 11px;font-size:12px}
-  .saved{font-size:11px;color:var(--safe);font-weight:600;opacity:0;transition:opacity .2s} .saved.on{opacity:1}
+  .saved{font-size:12px;color:var(--safe-text);font-weight:600;opacity:0;transition:opacity .2s} .saved.on{opacity:1}
   .rowline{display:flex;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--line-2);font-size:13px}
   .rowline .g{flex:1}
-  .rm{border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:16px;padding:2px 6px} .rm:hover{color:#e5484d}
-  .pill{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .rm{border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:16px;padding:2px 6px;min-width:32px;min-height:32px;border-radius:6px} .rm:hover{color:#e5484d}
+  .pill{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .pkgcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
   .pkgcard{text-align:left;border:1px solid var(--line);border-radius:10px;padding:10px 11px;background:var(--panel);cursor:pointer;font-family:inherit}
   .pkgcard.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
-  .pkgcard b{font-size:13px} .pkgcard .m{font-size:11px;color:var(--ink-3);margin-top:2px} .pkgcard .p{font-size:12px;color:var(--accent);font-weight:700;margin-top:4px}
+  .pkgcard b{font-size:13px} .pkgcard .m{font-size:12px;color:var(--ink-3);margin-top:2px} .pkgcard .p{font-size:12px;color:var(--accent);font-weight:700;margin-top:4px}
 
   /* right rail */
   .rail{position:sticky;top:16px;display:flex;flex-direction:column;gap:14px}
@@ -63,33 +65,42 @@
   .prog a:hover{background:var(--panel-2)}
   .prog .dot{width:9px;height:9px;border-radius:50%;background:var(--line);flex:0 0 auto}
   .prog a.done .dot{background:var(--safe)}
-  .statusbadge{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 10px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .statusbadge{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 10px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   footer{padding:22px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
   .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(420px,94vw);padding:24px}
-  .lsheet h3{margin:0 0 12px} .lsheet label{display:block;font-size:10px;font-weight:600;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
+  .lsheet h3{margin:0 0 12px} .lsheet label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
   .lsheet input,.lsheet select{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;margin-bottom:12px;font-family:inherit;color:var(--ink)}
+  .row4{display:grid;grid-template-columns:repeat(3,1fr) auto;gap:8px;align-items:end}
+  .row3{display:grid;grid-template-columns:2fr 1fr auto;gap:8px}
+  @media(max-width:620px){.row4{grid-template-columns:1fr 1fr}.row4>.btn{grid-column:1/-1;justify-content:center}.row3{grid-template-columns:1fr 1fr}.row3>input{grid-column:1/-1}}
+  .secerr:empty{display:none} .secerr{margin:0 0 12px}
+  .meta{color:var(--ink-3);font-size:12px}
+  @media (prefers-reduced-motion:reduce){.saved{transition:none}}
   .banner{background:var(--accent-soft);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--ink);display:flex;gap:10px;align-items:center}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
-    <a href="dashboard.html" class="mark" title="Home"></a>
+    <a href="dashboard.html" class="mark" title="Home" aria-label="Home"></a>
     <div><h1>Quote flow</h1><small>Helm Events</small></div>
     <nav class="nav"><a href="dashboard.html">Home</a><a href="quotes.html">Quotes</a><a href="leads.html">Leads</a></nav>
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
 
-  <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to open the quote flow.</p></div>
+  <main id="main">
+  <div id="gate" class="card" hidden><p style="color:var(--ink-2)">Sign in to open the quote flow.</p></div>
 
+  <div id="boot" aria-busy="true"></div>
   <div id="app" hidden>
     <div id="reminder" class="banner" hidden style="margin-bottom:14px">
       <span>👋 Welcome back — pick up where you left off. Finish the quotation &amp; send for approval below.</span>
-      <span class="spacer"></span><button class="btn sm" id="dismissReminder">Got it</button>
+      <span class="spacer"></span><button type="button" class="btn sm" id="dismissReminder">Got it</button>
     </div>
 
     <div class="card" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
@@ -125,6 +136,7 @@
         <section class="card" id="sec-discovery">
           <h2><span class="step-n">2</span> Discovery <span class="saved" id="sv-discovery">Saved ✓</span></h2>
           <p class="sub">What you learned in the first conversation.</p>
+          <div class="secerr" id="err-discovery"></div>
           <div class="grid">
             <div class="fld"><label for="d_date">Meeting date</label><input id="d_date" type="date"></div>
             <div class="fld"><label for="d_mode">Mode</label><select id="d_mode"><option value="">—</option><option value="in_person">In person</option><option value="call">Phone call</option><option value="video">Video call</option></select></div>
@@ -139,17 +151,18 @@
         <section class="card" id="sec-reqs">
           <h2><span class="step-n">3</span> Requirements</h2>
           <p class="sub">The services the client wants.</p>
-          <div id="reqList"></div>
-          <div style="display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-top:10px">
+          <div id="reqList"><div class="meta">Loading…</div></div>
+          <div class="row3" style="margin-top:10px">
             <input id="rq_title" list="reqTypeList" aria-label="Requirement" class="fld" style="height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px" placeholder="Pick or type a new one…"><datalist id="reqTypeList"></datalist>
             <select id="rq_pri" aria-label="Requirement priority" style="height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 8px"><option value="mandatory">Must-have</option><option value="optional">Optional</option><option value="nice">Nice-to-have</option></select>
-            <button class="btn" id="rq_add">＋ Add</button>
+            <button type="button" class="btn" id="rq_add">＋ Add</button>
           </div>
         </section>
 
         <!-- 4 VENUE -->
         <section class="card" id="sec-venue">
           <h2><span class="step-n">4</span> Venue &amp; access <span class="saved" id="sv-venue">Saved ✓</span></h2>
+          <div class="secerr" id="err-plan"></div>
           <div class="grid">
             <div class="fld"><label for="v_name">Venue name</label><input id="v_name"></div>
             <div class="fld"><label for="v_contact">Venue contact</label><input id="v_contact" placeholder="name / phone"></div>
@@ -162,7 +175,7 @@
         <section class="card" id="sec-menu">
           <h2><span class="step-n">5</span> Menu package <span class="saved" id="sv-menu">Saved ✓</span></h2>
           <p class="sub">Pick a package — it pre-fills the dishes and drives the catering price.</p>
-          <div class="pkgcards" id="pkgCards"></div>
+          <div class="pkgcards" id="pkgCards"><div class="meta">Loading…</div></div>
           <div class="fld full" style="margin-top:12px"><label for="p_menu">Menu / service notes</label><textarea id="p_menu" placeholder="Courses, dietary options, service style, timings…"></textarea></div>
         </section>
 
@@ -170,6 +183,7 @@
         <section class="card" id="sec-proposal">
           <h2><span class="step-n">6</span> Proposal <span class="saved" id="sv-proposal">Saved ✓</span></h2>
           <p class="sub">The creative pitch shown to the client.</p>
+          <div class="secerr" id="err-proposal"></div>
           <div class="grid">
             <div class="fld"><label for="pr_concept">Concept</label><input id="pr_concept" list="conceptList" placeholder="Pick or type a new one…"><datalist id="conceptList"></datalist></div>
             <div class="fld"><label for="pr_theme">Theme</label><input id="pr_theme" list="themeList" placeholder="Pick or type a new one…"><datalist id="themeList"></datalist></div>
@@ -181,11 +195,12 @@
         <section class="card" id="sec-layout">
           <h2><span class="step-n">7</span> Floor layout</h2>
           <p class="sub">Enter the hall size &amp; headcount and generate a default layout for this event type — then tweak it freely. Chairs &amp; objects feed the price automatically.</p>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr) auto;gap:8px;align-items:end;margin-bottom:12px">
+          <div class="secerr" id="err-layout"></div>
+          <div class="row4" style="margin-bottom:12px">
             <div class="fld" style="margin:0"><label for="g_guests">Guests</label><input id="g_guests" type="number" min="0"></div>
             <div class="fld" style="margin:0"><label for="g_len">Hall length (ft)</label><input id="g_len" type="number" min="20" placeholder="200"></div>
             <div class="fld" style="margin:0"><label for="g_wid">Hall breadth (ft)</label><input id="g_wid" type="number" min="20" placeholder="140"></div>
-            <button class="btn primary" id="genLayout">✨ Generate default layout</button>
+            <button type="button" class="btn primary" id="genLayout">✨ Generate default layout</button>
           </div>
           <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
             <div style="font-size:13px;color:var(--ink-2)">Current layout: <b id="layoutSummary">no objects yet</b></div>
@@ -199,6 +214,7 @@
         <section class="card" id="sec-quote">
           <h2><span class="step-n">8</span> Quotation <span class="saved" id="sv-quote">Saved ✓</span></h2>
           <p class="sub">Live total from the layout, guests and package. Adjust and save.</p>
+          <div class="secerr" id="err-rates"></div>
           <div class="grid">
             <div class="fld"><label for="q_chairs">Chairs (from layout)</label><input id="q_chairs" type="number" min="0"></div>
             <div class="fld"><label for="q_guests">Guests / plates</label><input id="q_guests" type="number" min="0"></div>
@@ -207,12 +223,13 @@
             <div class="fld"><label for="q_other">Décor / equipment &amp; setup (₹)</label><input id="q_other" type="number" min="0"></div>
             <div class="fld"><label for="q_discount">Discount (₹)</label><input id="q_discount" type="number" min="0"></div>
             <div class="fld"><label for="q_coupon">Coupon code</label><input id="q_coupon" list="couponList" placeholder="optional"><datalist id="couponList"></datalist>
-              <div id="q_couponMsg" role="status" aria-live="polite" style="font-size:11px;margin-top:3px;color:var(--ink-3)"></div></div>
+              <div id="q_couponMsg" role="status" aria-live="polite" style="font-size:12px;margin-top:3px;color:var(--ink-3)"></div></div>
           </div>
-          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px">
-            <button class="btn" id="q_pdf">⬇ Download quote PDF</button>
-            <button class="btn primary" id="q_save">Save quotation (new version)</button>
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;flex-wrap:wrap">
+            <button type="button" class="btn" id="q_pdf">⬇ Download quote PDF</button>
+            <button type="button" class="btn primary" id="q_save">Save quotation (new version)</button>
           </div>
+          <div id="q_msg" role="status" aria-live="polite" style="font-size:12px;margin-top:6px;text-align:right;color:var(--ink-2)"></div>
           <div id="q_versions" style="margin-top:12px"></div>
         </section>
 
@@ -220,22 +237,22 @@
         <section class="card" id="sec-pay">
           <h2><span class="step-n">9</span> Advance payment &amp; booking <span class="pill" id="bookingBadge" style="display:none">Confirmed</span></h2>
           <p class="sub">Accepting the quote isn't a confirmed booking — recording the advance is. Send an online link or record cash. A receipt is issued and both sides are notified.</p>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr) auto;gap:8px;align-items:end;margin-bottom:10px">
+          <div class="row4" style="margin-bottom:10px">
             <div class="fld" style="margin:0"><label for="pay_pct">Advance %</label><input id="pay_pct" type="number" min="0" max="100" value="10"></div>
             <div class="fld" style="margin:0"><label for="pay_amount">Advance amount (₹)</label><input id="pay_amount" type="number" min="0"></div>
             <div class="fld" style="margin:0"><label for="pay_method">Method</label><select id="pay_method"><option value="cash">Cash / offline</option><option value="online">Online link</option></select></div>
-            <button class="btn primary" id="pay_record">Record payment</button>
+            <button type="button" class="btn primary" id="pay_record">Record payment</button>
           </div>
           <div class="fld" id="pay_receiptWrap"><label for="pay_receipt">Receipt no. (offline — blank to auto‑generate)</label><input id="pay_receipt" placeholder="e.g. RCP‑001 / cash memo no."></div>
           <div id="pay_online" style="display:none;font-size:12px;color:var(--ink-3);margin-top:6px"></div>
-          <div id="pay_receipts" style="margin-top:12px"></div>
+          <div id="pay_receipts" style="margin-top:12px"><div class="meta">Loading…</div></div>
         </section>
 
         <!-- ACTIVITY TRAIL -->
         <section class="card" id="sec-activity">
           <h2>Activity trail</h2>
           <p class="sub">Every change kept on record — quote versions, discounts, advances, receipts, consents, messages.</p>
-          <div id="activityList" style="font-size:13px"></div>
+          <div id="activityList" style="font-size:13px"><div class="meta">Loading…</div></div>
         </section>
 
       </div>
@@ -253,40 +270,42 @@
         <div class="card">
           <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin:0 0 10px">Client approval</h2>
           <div id="apprState" style="font-size:13px;color:var(--ink-2);margin-bottom:10px">Not sent yet.</div>
-          <button class="btn primary" id="sendApproval" style="width:100%">Send for approval →</button>
+          <button type="button" class="btn primary" id="sendApproval" style="width:100%">Send for approval →</button>
           <div id="apprLinks" style="margin-top:10px"></div>
         </div>
       </aside>
     </div>
   </div>
+  </main>
   <footer>Helm Events — one flow from enquiry to client approval.</footer>
 </div>
 
-<div id="leaveModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="leaveModalTitle">
+<div id="leaveModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="leaveModalTitle" aria-describedby="leaveModalDesc">
   <div class="lsheet">
     <h3 id="leaveModalTitle">Save this quote?</h3>
-    <p style="font-size:13px;color:var(--ink-2);margin:0 0 18px">You have unsaved changes to this quote.</p>
+    <p id="leaveModalDesc" style="font-size:13px;color:var(--ink-2);margin:0 0 18px">You have unsaved changes to this quote.</p>
     <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
-      <button class="btn" id="lv_discard">Leave without saving</button>
-      <button class="btn primary" id="lv_save">Save</button>
+      <button type="button" class="btn" id="lv_stay" data-close>Stay on this page</button>
+      <button type="button" class="btn" id="lv_discard">Leave without saving</button>
+      <button type="button" class="btn primary" id="lv_save">Save</button>
     </div>
   </div>
 </div>
 
-<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
+<div id="loginModal" class="lmodal" hidden data-dismissible="false" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
   <div class="lsheet">
     <h3 id="loginModalTitle">Sign in</h3>
-    <label for="li_email">Email</label><input id="li_email" type="email">
-    <label for="li_pass">Password</label><input id="li_pass" type="password">
+    <label for="li_email">Email</label><input id="li_email" type="email" autocomplete="username">
+    <label for="li_pass">Password</label><input id="li_pass" type="password" autocomplete="current-password">
     <div id="li_err" role="alert" aria-live="assertive" style="color:#b42318;font-size:12px;margin-bottom:10px" hidden></div>
-    <button class="btn primary" id="li_go" style="width:100%">Sign in</button>
+    <button type="button" class="btn primary" id="li_go" style="width:100%">Sign in</button>
   </div>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
-<script src="tour.js?v=4"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
+<script src="tour.js?v=5"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -322,6 +341,34 @@
   // right before an intentional navigation so beforeunload doesn't double-prompt.
   let dirty=false, loading=true, leaving=false, pendingLeave=null;
   function markDirty(){ if(!loading) dirty=true; }
+  // ---- per-section load failures ----
+  // If a section's data didn't load, its form shows placeholders/fallbacks
+  // (default rates, empty layout, blank venue/proposal). Saving that would
+  // overwrite the real data, so each failed section is disabled and its save
+  // refuses until a Retry succeeds. Keys: rates, layout, packages, discovery, plan, proposal.
+  const failed={};
+  const SECTION_FIELDS={
+    discovery:["d_date","d_mode","d_bmin","d_bmax","d_att","d_notes"],
+    plan:["v_name","v_contact","v_addr","v_access","p_menu"],
+    proposal:["pr_concept","pr_theme","pr_scope"],
+  };
+  const quoteBlocked=()=>!!(failed.rates||failed.layout||failed.packages);
+  function applyBlocks(){
+    Object.entries(SECTION_FIELDS).forEach(([k,ids])=>ids.forEach(f=>{ const el=$("#"+f); if(el) el.disabled=!!failed[k]; }));
+    const qb=quoteBlocked();
+    [["#q_save","Pricing data didn't load — retry above before saving."],["#pay_record","Pricing data didn't load — retry the quotation section first."]]
+      .forEach(([sel,msg])=>{ const b=$(sel); if(!b) return; if(qb){ b.disabled=true; b.title=msg; b.dataset.blocked="1"; } else if(b.dataset.blocked){ b.disabled=false; b.title=""; delete b.dataset.blocked; } });
+  }
+  function blockedError(what){ const e=new Error(`The ${what} section didn't load, so it wasn't saved (to protect the existing data). Use Retry in that section first.`); e.code="SECTION_NOT_LOADED"; return e; }
+  // Runs one section loader. On failure: remembers it, shows an inline error with Retry, and blocks that section's saves.
+  async function loadSection(key, slot, what, fn){
+    try{ await fn(); delete failed[key]; if(slot && $(slot)) $(slot).innerHTML=""; applyBlocks(); return true; }
+    catch(e){
+      failed[key]=e; applyBlocks();
+      if(slot && $(slot)) BPUI.loadError($(slot), e, ()=>retrySection(key), {what});
+      return false;
+    }
+  }
 
   function saved(which){ const el=$("#sv-"+which); if(!el) return; el.classList.add("on"); setTimeout(()=>el.classList.remove("on"),1400); }
   function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms||600); }; }
@@ -342,8 +389,8 @@
     if(!code){ appliedCoupon=null; if(msg){msg.textContent="";} renderPrice(); return; }
     const c=(COUPONS||[]).find(x=>String(x.code||"").toLowerCase()===code.toLowerCase());
     if(c){ appliedCoupon={kind:c.kind,value:c.value};
-      if(msg){ msg.style.color="var(--safe,#18a558)"; msg.textContent="Applied: "+(c.kind==="percent"?(c.value+"% off"):("₹"+c.value+" off"))+(c.note?(" · "+c.note):""); } }
-    else { appliedCoupon=null; if(msg){ msg.style.color="var(--warn,#e8912d)"; msg.textContent="No such coupon code."; } }
+      if(msg){ msg.style.color="var(--safe-text,#0f7a43)"; msg.textContent="Applied: "+(c.kind==="percent"?(c.value+"% off"):("₹"+c.value+" off"))+(c.note?(" · "+c.note):""); } }
+    else { appliedCoupon=null; if(msg){ msg.style.color="var(--warn-text,#8f5f00)"; msg.textContent="No such coupon code."; } }
     renderPrice();
   }
   function currentInputs(){
@@ -352,9 +399,11 @@
     const guests = nn($("#q_guests").value!==""?(+$("#q_guests").value||0):chairs);
     const platePrice = nn($("#q_platePrice").value!==""?(+$("#q_platePrice").value||0):(appliedPkg?appliedPkg.price_per_plate:rates.platePrice));
     const other = nn($("#q_other").value!==""?(+$("#q_other").value||0):(oi.objectsCost+(+rates.layoutBase||0)));
+    // a configured 0% GST must stay 0 (same as quotes.html / builder breakdown); default 18 only when unset/invalid
+    const gstPct = (rates.gstPct==null||rates.gstPct===""||!isFinite(+rates.gstPct)) ? 18 : +rates.gstPct;
     return { chairs, guests, chairPrice:nn(+$("#q_chairPrice").value||rates.chairPrice), platePrice,
-      other, gstPct:+rates.gstPct||18, serviceChargePct:+rates.serviceChargePct||0,
-      discount:nn($("#q_discount").value||0), catering:{mode:"inhouse",gstPct:+rates.gstPct||18},
+      other, gstPct, serviceChargePct:+rates.serviceChargePct||0,
+      discount:nn($("#q_discount").value||0), catering:{mode:"inhouse",gstPct},
       couponCode:($("#q_coupon")?$("#q_coupon").value.trim():""), coupon:appliedCoupon,
       placeOfSupply:"intra", currency:"INR",
       _objectsCost:oi.objectsCost, _packageName:appliedPkg?appliedPkg.name:null };
@@ -379,18 +428,21 @@
   async function saveClient(){
     const V=BPStore.validate;
     const emailRaw=$("#c_email").value.trim(), phoneRaw=$("#c_phone").value.trim();
-    if(emailRaw){ const r=V.email(emailRaw); if(!r.ok){ alert(r.error); $("#c_email").focus(); return; } }
-    if(phoneRaw){ const r=V.phone(phoneRaw); if(!r.ok){ alert(r.error); $("#c_phone").focus(); return; } }
+    if(emailRaw){ const r=V.email(emailRaw); if(!r.ok){ BPUI.toast(r.error,{type:"err"}); $("#c_email").focus(); return false; } }
+    if(phoneRaw){ const r=V.phone(phoneRaw); if(!r.ok){ BPUI.toast(r.error,{type:"err"}); $("#c_phone").focus(); return false; } }
+    let guestsN=null, budgetN=null;
+    if($("#c_guests").value!==""){ const r=V.count($("#c_guests").value,{field:"Guests"}); if(!r.ok){ BPUI.toast(r.error,{type:"err"}); $("#c_guests").focus(); return false; } guestsN=r.value; }
+    if($("#c_budget").value!==""){ const r=V.money($("#c_budget").value,{field:"Budget"}); if(!r.ok){ BPUI.toast(r.error,{type:"err"}); $("#c_budget").focus(); return false; } budgetN=r.value; }
     const client=Object.assign({}, ev.client||{}, {
       name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:emailRaw,
       phone:phoneRaw,
-      guests:$("#c_guests").value!==""?+$("#c_guests").value:null, budget:$("#c_budget").value!==""?+$("#c_budget").value:null,
+      guests:guestsN, budget:budgetN,
       eventDate:$("#c_date").value||null });
     try{
       const row=await BPStore.quotes.updateMeta(id,{ client, eventType:$("#c_type").value.trim()||null, eventDate:$("#c_date").value||null }, ev.updatedAt);
       ev.client=client; if(row&&row.updated_at) ev.updatedAt=row.updated_at;   // refresh optimistic-lock base
     }catch(e){
-      if(e&&e.code==="CONFLICT"){ alert(e.message); location.reload(); return; }
+      if(e&&e.code==="CONFLICT"){ await BPUI.alert(e.message,{title:"This quote was changed elsewhere"}); leaving=true; location.reload(); return false; }
       throw e;
     }
     vocabAdd("event_types",$("#c_type").value); fillVocab();   // remember a custom event type
@@ -399,12 +451,14 @@
     saved("client"); renderPrice();
   }
   async function saveDiscovery(){
+    if(failed.discovery) throw blockedError("discovery");
     await BPStore.discovery.save(id, { meet_date:$("#d_date").value||null, mode:$("#d_mode").value||null,
       attendees:$("#d_att").value.trim()||null, notes:$("#d_notes").value.trim()||null,
       budget_min:$("#d_bmin").value!==""?+$("#d_bmin").value:null, budget_max:$("#d_bmax").value!==""?+$("#d_bmax").value:null });
     saved("discovery");
   }
   async function saveVenue(){
+    if(failed.plan) throw blockedError("venue & menu");
     await BPStore.plan.save(id, gatherPlan());
     // Venue is entered ONCE here; mirror it back onto the client record so the
     // quote header, lists and lead stay in sync (no separate re-entry elsewhere).
@@ -417,11 +471,12 @@
     }
     saved("venue");
   }
-  async function saveMenuNotes(){ await BPStore.plan.save(id, gatherPlan()); saved("menu"); }
+  async function saveMenuNotes(){ if(failed.plan) throw blockedError("venue & menu"); await BPStore.plan.save(id, gatherPlan()); saved("menu"); }
   function gatherPlan(){ return { venue_name:$("#v_name").value.trim()||null, venue_address:$("#v_addr").value.trim()||null,
     venue_contact:$("#v_contact").value.trim()||null, access_notes:$("#v_access").value.trim()||null,
     package:appliedPkg?appliedPkg.name:( $("#p_menu").dataset.pkg||null), menu:$("#p_menu").value.trim()||null }; }
   async function saveProposal(){
+    if(failed.proposal) throw blockedError("proposal");
     const scope=$("#pr_scope").value.split("\n").map(s=>s.trim()).filter(Boolean);
     await BPStore.proposal.save(id,{ concept:$("#pr_concept").value.trim()||null, theme:$("#pr_theme").value.trim()||null, scope });
     vocabAdd("concepts",$("#pr_concept").value); vocabAdd("themes",$("#pr_theme").value); fillVocab();  // remember custom concept/theme
@@ -442,13 +497,20 @@
   // Persist every section that used to auto-save. saveVenue() also writes the
   // plan (venue + menu notes), so saveMenuNotes() is covered. Quotation versions
   // are intentionally NOT auto-created here — that stays on the explicit button.
+  // Returns true only if every section saved; on any failure `dirty` stays set so
+  // the unsaved edits are not silently dropped on navigation.
+  // Sections that failed to load are skipped (never written) and make this return false.
   async function saveAll(){
-    try{ await saveClient(); }catch(_){}
-    try{ await saveDiscovery(); }catch(_){}
-    try{ await saveVenue(); }catch(_){}
-    try{ await saveProposal(); }catch(_){}
-    dirty=false;
+    let ok=true;
+    try{ if(await saveClient()===false) ok=false; }catch(_){ ok=false; }
+    try{ await saveDiscovery(); }catch(_){ ok=false; }
+    try{ await saveVenue(); }catch(_){ ok=false; }
+    try{ await saveProposal(); }catch(_){ ok=false; }
+    if(ok) dirty=false;
+    return ok;
   }
+  const confirmLeaveAnyway=()=>BPUI.confirm(SAVE_FAIL_MSG,{title:"Some changes weren't saved",okLabel:"Leave anyway",cancelLabel:"Stay",danger:true});
+  const SAVE_FAIL_MSG="Some changes couldn't be saved. Leave anyway and lose them?";
   // Route an intentional leave through the save prompt when there are unsaved
   // changes; otherwise just go. `go` performs the actual navigation.
   function requestLeave(go){
@@ -465,13 +527,15 @@
     return "";
   }
   async function saveQuotation(){
+    if(quoteBlocked()){ BPUI.toast("Pricing data didn't load, so the quotation can't be saved yet — use Retry in the quotation section.",{type:"err"}); return; }
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p);
     const reason=quoteEmptyReason(p,t);
     if(reason){
-      if($("#q_msg")){ $("#q_msg").style.color="var(--warn,#e8912d)"; $("#q_msg").textContent=reason; }
-      if(typeof toast!=='undefined'){ try{ toast("Add at least one priced line before saving."); }catch(_){ } }
+      if($("#q_msg")){ $("#q_msg").style.color="var(--warn-text,#8f5f00)"; $("#q_msg").textContent=reason; }
+      BPUI.toast("Add at least one priced line before saving.",{type:"info"});
       return;
     }
+    if($("#q_msg")) $("#q_msg").style.color="";
     const pricing=Object.assign({}, ev.pricing||{}, p, { computed:t, total:t.total, client:ev.client||{} });
     try{
       const r=await BPStore.quotationVersions.save(id, pricing);   // keeps every Q-version; also updates current pricing
@@ -490,8 +554,8 @@
         || /could not find the function|function[^]*does not exist|schema cache/i.test(msg);
       if(!rpcMissing){
         updateProgress();
-        if($("#q_msg")) $("#q_msg").textContent="Couldn't save — not saved: "+msg;
-        if(typeof toast!=='undefined'){ try{ toast("Save failed — nothing was saved."); }catch(_){ } }
+        if($("#q_msg")) $("#q_msg").textContent="Couldn't save — not saved: "+BPUI.friendlyError(e,{action:"save the quotation"});
+        BPUI.toast("Save failed — nothing was saved.",{type:"err"});
         throw e;   // do NOT swallow; do NOT claim success
       }
       // legacy / pre-phase77 environment: persist current pricing only.
@@ -500,15 +564,18 @@
     }
   }
   async function renderQuoteVersions(){
-    let vs=[]; try{ vs=await BPStore.quotationVersions.list(id); }catch{}
+    let vs=[];
+    try{ vs=(await BPStore.quotationVersions.list(id))||[]; }
+    catch(e){ if(BPUI.isMissingFunction(e)||BPUI.isMissingTable(e)){ $("#q_versions").innerHTML=""; return; }
+      BPUI.loadError($("#q_versions"), e, renderQuoteVersions, {what:"quotation versions"}); return; }
     if(!vs.length){ $("#q_versions").innerHTML=""; return; }
     $("#q_versions").innerHTML='<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:4px">Quotation versions</div>'+
-      vs.map((v,i)=>`<div class="rowline"><span class="g"><b>${esc(v.label)}</b>${i===0?' <span class="pill">current</span>':''}</span><span>${inr(v.total)}</span><span style="color:var(--ink-3);font-size:11px">${(v.created_at||'').slice(0,16).replace('T',' ')}</span></div>`).join('');
+      vs.map((v,i)=>`<div class="rowline"><span class="g"><b>${esc(v.label)}</b>${i===0?' <span class="pill">current</span>':''}</span><span>${inr(v.total)}</span><span class="meta">${esc((v.created_at||'').slice(0,16).replace('T',' '))}</span></div>`).join('');
   }
   function downloadQuotePDF(){
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p), cl=ev.client||{};
     const reason=quoteEmptyReason(p,t);
-    if(reason){ alert("This quote is empty (₹0). Add seating, catering, or décor before downloading a PDF."); return; }
+    if(reason){ BPUI.toast("This quote is empty (₹0). Add seating, catering, or décor before downloading a PDF.",{type:"info"}); return; }
     const line=(l,a)=>`<tr><td>${l}</td><td style="text-align:right">${inr(a)}</td></tr>`;
     const rows=[];
     if(p.chairs>0) rows.push(line(`Seating — ${p.chairs} chairs × ${inr(p.chairPrice)}`, p.chairs*p.chairPrice));
@@ -529,35 +596,39 @@
         <tr class="tot"><td>Total</td><td style="text-align:right">${inr(t.total)}</td></tr>
       </table>
       <p class="muted" style="margin-top:20px">Generated by Helm Events. This is a quotation, not a tax invoice.</p>
-      <script>window.onload=()=>window.print()<\/script></body></html>`;
-    const w=window.open('','_blank'); if(w){ w.document.write(html); w.document.close(); }
-    else alert('Allow pop-ups to download the PDF.');
+      </body></html>`;
+    // print from here (no inline script in the popup — CSP-safe)
+    const w=window.open('','_blank'); if(w){ w.document.write(html); w.document.close(); setTimeout(()=>{ try{ w.focus(); w.print(); }catch(_){} },250); }
+    else BPUI.toast('Allow pop-ups to download the PDF.',{type:"info"});
   }
 
   /* ---------- requirements ---------- */
   async function renderReqs(){
-    let reqs=[]; try{ reqs=await BPStore.discovery.listReqs(id); }catch{}
-    $("#reqList").innerHTML = reqs.length? reqs.map(r=>`<div class="rowline"><span class="g">${esc(r.title)}</span><span class="pill">${esc(r.priority||"")}</span><button class="rm" data-del="${r.id}">×</button></div>`).join("")
+    let reqs=[]; try{ reqs=(await BPStore.discovery.listReqs(id))||[]; }catch(e){ BPUI.loadError($("#reqList"), e, renderReqs, {what:"requirements"}); return; }
+    $("#reqList").innerHTML = reqs.length? reqs.map(r=>`<div class="rowline"><span class="g">${esc(r.title)}</span><span class="pill">${esc(r.priority||"")}</span><button type="button" class="rm" data-del="${esc(r.id)}" data-name="${esc(r.title)}" aria-label="Remove requirement ${esc(r.title)}">×</button></div>`).join("")
       : '<div style="font-size:12px;color:var(--ink-3)">No requirements yet.</div>';
-    $("#reqList").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.discovery.removeReq(b.dataset.del); renderReqs(); }));
+    $("#reqList").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
+      if(!(await BPUI.confirm(`Remove the requirement "${b.dataset.name}"?`,{title:"Remove requirement?",okLabel:"Remove",danger:true}))) return;
+      try{ await BPUI.guard(b, ()=>BPStore.discovery.removeReq(b.dataset.del)); await renderReqs(); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"remove the requirement"}),{type:"err"}); } }));
   }
 
   /* ---------- menu packages ---------- */
   function renderPackages(){
     $("#pkgCards").innerHTML = packages.map(p=>{
       const on = appliedPkg && appliedPkg.id===p.id;
-      return `<button type="button" class="pkgcard ${on?'on':''}" data-id="${p.id}">
+      return `<button type="button" class="pkgcard ${on?'on':''}" data-id="${esc(p.id)}" aria-pressed="${!!on}">
         <b>${esc(p.name)}</b><div class="m">${esc(p.diet||'')} · ${(p.dishes||[]).length} dishes</div>
         <div class="p">${inr(p.price_per_plate)} / plate</div></button>`;
-    }).join("") || '<div style="font-size:12px;color:var(--ink-3)">Run phase62 to enable menu packages.</div>';
-    $("#pkgCards").querySelectorAll(".pkgcard").forEach(b=>b.addEventListener("click",()=>applyPackage(b.dataset.id)));
+    }).join("") || '<div style="font-size:12px;color:var(--ink-3)">No menu packages set up yet — add them in Control Center.</div>';
+    $("#pkgCards").querySelectorAll(".pkgcard").forEach(b=>b.addEventListener("click",()=>applyPackage(b.dataset.id,b)));
   }
-  async function applyPackage(tid){
-    const t=packages.find(x=>x.id===tid); if(!t) return;
-    try{ await BPStore.menuTemplates.apply(id, tid); appliedPkg=t;
+  async function applyPackage(tid,btn){
+    const t=packages.find(x=>String(x.id)===String(tid)); if(!t) return;
+    try{ await BPUI.guard(btn||null, async()=>{ await BPStore.menuTemplates.apply(id, t.id); appliedPkg=t;
       $("#q_platePrice").value=t.price_per_plate; $("#p_menu").dataset.pkg=t.name;
-      renderPackages(); renderPrice(); saved("menu"); updateProgress();
-    }catch(e){ alert("Couldn't apply package — "+((e&&e.message)||"error")); }
+      renderPackages(); renderPrice(); updateAdvance(); saved("menu"); updateProgress(); });
+    }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"apply the package"}),{type:"err"}); }
   }
 
   /* ---------- progress ---------- */
@@ -576,10 +647,14 @@
     if(document.activeElement!==$("#pay_amount")) $("#pay_amount").value=amt;
   }
   async function recordPayment(){
-    const amount=+$("#pay_amount").value||0; const method=$("#pay_method").value;
-    if(amount<=0){ alert("Enter the advance amount."); return; }
-    if(!confirm(`Record ${inr(amount)} (${method==='cash'?'cash / offline':'online'}) as the advance? This confirms the booking.`)) return;
-    $("#pay_record").disabled=true;
+    if(quoteBlocked()){ BPUI.toast("Pricing data didn't load — retry the quotation section before recording a payment.",{type:"err"}); return; }
+    const method=$("#pay_method").value;
+    const vr=BPStore.validate.money($("#pay_amount").value,{field:"Advance amount"});
+    if(!vr.ok || !(vr.value>0)){ BPUI.toast(vr.ok?"Enter the advance amount.":vr.error,{type:"err"}); $("#pay_amount").focus(); return; }
+    const amount=vr.value;
+    if(!(await BPUI.confirm(`Record ${inr(amount)} (${method==='cash'?'cash / offline':'online'}) as the advance? This confirms the booking.`,{title:"Record advance payment?",okLabel:"Record payment"}))) return;
+    if($("#pay_record").disabled) return;
+    $("#pay_record").disabled=true; $("#pay_record").setAttribute("aria-busy","true");
     // W15B/CF (record_payment idempotency): one STABLE key per submission so a
     // retry/replay of THIS payment dedups server-side (phase90 returns the same receipt).
     const idem=(typeof crypto!=="undefined"&&crypto.randomUUID)?crypto.randomUUID():("k"+Date.now()+Math.random().toString(36).slice(2));
@@ -588,82 +663,90 @@
       $("#bookingBadge").style.display=""; $("#statusBadge").textContent="confirmed";
       $("#pay_receipt").value=""; $("#pay_amount").value="";
       if(method==='online'){ const link=location.origin+"/sim-pay.html?ref="+encodeURIComponent(ev.code||"")+"&amount="+amount;
-        $("#pay_online").style.display=""; $("#pay_online").innerHTML=`Online link (simulated): <a href="${esc(link)}" target="_blank" style="color:var(--accent)">${esc(link)}</a> — real Razorpay link goes here in production.`; }
+        $("#pay_online").style.display=""; $("#pay_online").innerHTML=`Online link (simulated): <a href="${esc(link)}" target="_blank" rel="noopener" style="color:var(--accent)">${esc(link)}</a> — real Razorpay link goes here in production.`; }
+      $("#pay_record").removeAttribute("aria-busy");
       await renderReceipts(); await renderActivity();
-      alert("Payment recorded — receipt "+(r&&r.receipt_no||"")+". Booking confirmed.");
+      BPUI.toast("Payment recorded — receipt "+(r&&r.receipt_no||"")+". Booking confirmed.",{type:"ok",timeout:8000});
       // Leave the button disabled after a successful record so the same advance
       // cannot be submitted twice; re-enable only on failure below.
-    }catch(e){ $("#pay_record").disabled=false; alert("Couldn't record payment — "+((e&&e.message)||"error")); }
+    }catch(e){ $("#pay_record").disabled=false; $("#pay_record").removeAttribute("aria-busy"); BPUI.toast(BPUI.friendlyError(e,{action:"record the payment"}),{type:"err"}); }
   }
   async function renderReceipts(){
-    let pays=[]; try{ pays=await BPStore.milestones.payments(id); }catch{}
+    let pays=[]; try{ pays=(await BPStore.milestones.payments(id))||[]; }catch(e){ BPUI.loadError($("#pay_receipts"), e, renderReceipts, {what:"receipts"}); return; }
     const paid=pays.filter(p=>p.status==='paid');
     $("#pay_receipts").innerHTML = paid.length ? '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:4px">Receipts</div>'+
-      paid.map(p=>`<div class="rowline"><span class="g">${esc(p.receipt_no||p.provider_ref||'')} · ${esc(p.method||p.provider)}</span><span>${inr(p.amount)}</span><span style="color:var(--ink-3);font-size:11px">${(p.paid_at||'').slice(0,10)}</span></div>`).join('')
+      paid.map(p=>`<div class="rowline"><span class="g">${esc(p.receipt_no||p.provider_ref||'')} · ${esc(p.method||p.provider)}</span><span>${inr(p.amount)}</span><span class="meta">${esc((p.paid_at||'').slice(0,10))}</span></div>`).join('')
       : '<div style="font-size:12px;color:var(--ink-3)">No payments recorded yet.</div>';
   }
   async function renderActivity(){
-    let acts=[]; try{ acts=await BPStore.milestones.activity(id); }catch{}
+    let acts=[]; try{ acts=await BPStore.milestones.activity(id); }catch(e){ BPUI.loadError($("#activityList"), e, renderActivity, {what:"activity"}); return; }
     if(!acts||!acts.length){ $("#activityList").innerHTML='<div style="color:var(--ink-3)">No activity yet.</div>'; return; }
     const ic={version:'📐',payment:'💳',milestone:'✅',consent:'✍️',notify:'🔔'};
-    $("#activityList").innerHTML = acts.map(a=>`<div class="rowline"><span>${ic[a.kind]||'•'}</span><span class="g">${esc(a.text)}</span><span style="color:var(--ink-3);font-size:11px">${(a.at||'').slice(0,16).replace('T',' ')}</span></div>`).join('');
+    $("#activityList").innerHTML = acts.map(a=>`<div class="rowline"><span>${ic[a.kind]||'•'}</span><span class="g">${esc(a.text)}</span><span class="meta">${esc((a.at||'').slice(0,16).replace('T',' '))}</span></div>`).join('');
   }
 
   /* ---------- approval ---------- */
   async function sendApproval(){
-    if(!ev || !(ev.pricing&&ev.pricing.total)){ if(!confirm("No quotation total saved yet. Send anyway?")) return; }
-    $("#sendApproval").disabled=true;
+    if(!ev || !(ev.pricing&&ev.pricing.total)){ if(!(await BPUI.confirm("No quotation total saved yet. Send anyway?",{title:"Send for approval?",okLabel:"Send anyway"}))) return; }
+    await BPUI.guard($("#sendApproval"), async()=>{
     try{
       const r=await BPStore.approval.generateToken(id);
       const token=(r&&(r.token||r.approval_token))||r;
       const link=location.origin+"/portal.html?token="+encodeURIComponent(token);
       const phone=(ev.client&&ev.client.phone||"").replace(/[^0-9]/g,"");
       const waText=encodeURIComponent(`Hi ${ev.client&&ev.client.name||""}, here's your event proposal & quote: ${link}`);
-      $("#apprState").innerHTML='<b style="color:var(--safe)">Approval link ready.</b> Share it with the client:';
+      $("#apprState").innerHTML='<b style="color:var(--safe-text)">Approval link ready.</b> Share it with the client:';
       $("#apprLinks").innerHTML=
         `<div class="fld"><input id="apprUrl" value="${esc(link)}" readonly aria-label="Approval link" style="font-size:12px"></div>`+
         `<div style="display:flex;gap:8px;flex-wrap:wrap">`+
-        `<button class="btn sm" id="copyLink">Copy link</button>`+
-        (phone?`<a class="btn sm" target="_blank" href="https://wa.me/${phone}?text=${waText}">WhatsApp</a>`:``)+
-        `<a class="btn sm" target="_blank" href="mailto:${esc(ev.client&&ev.client.email||'')}?subject=Your event proposal&body=${waText}">Email</a>`+
-        `<a class="btn sm" target="_blank" href="${esc(link)}">Preview</a></div>`;
-      $("#copyLink").addEventListener("click",()=>{ navigator.clipboard.writeText(link); $("#copyLink").textContent="Copied ✓"; });
+        `<button type="button" class="btn sm" id="copyLink">Copy link</button>`+
+        (phone?`<a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/${phone}?text=${waText}">WhatsApp</a>`:``)+
+        `<a class="btn sm" target="_blank" rel="noopener" href="mailto:${esc(ev.client&&ev.client.email||'')}?subject=Your event proposal&body=${waText}">Email</a>`+
+        `<a class="btn sm" target="_blank" rel="noopener" href="${esc(link)}">Preview</a></div>`;
+      $("#copyLink").addEventListener("click",()=>{ Promise.resolve().then(()=>navigator.clipboard.writeText(link)).then(()=>{ $("#copyLink").textContent="Copied ✓"; }).catch(()=>{ const u=$("#apprUrl"); if(u){ u.focus(); u.select(); } BPUI.toast("Couldn't copy automatically — the link is selected, press Ctrl/⌘+C.",{type:"info"}); }); });
       $("#statusBadge").textContent="sent for approval";
-    }catch(e){ alert("Couldn't create approval link — "+((e&&e.message)||"error")); }
-    finally{ $("#sendApproval").disabled=false; }
+    }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"create the approval link"}),{type:"err"}); }
+    });
   }
 
   /* ---------- load ---------- */
-  async function loadAll(){
-    ev=await BPStore.quotes.get(id);
-    $("#code").textContent=ev.code||"—"; $("#title").textContent=ev.title||"";
-    $("#statusBadge").textContent=ev.status||ev.lifecycleStage||"draft";
-    $("#workspaceLink").href="event.html?id="+encodeURIComponent(id);
-    $("#openBuilder").href="builder.html?quote="+encodeURIComponent(id);
-    const cl=ev.client||{};
-    $("#c_name").value=cl.name||""; $("#c_company").value=cl.company||""; $("#c_email").value=cl.email||"";
-    $("#c_phone").value=cl.phone||""; $("#c_type").value=ev.eventType||""; $("#c_date").value=cl.eventDate||ev.eventDate||"";
-    $("#c_guests").value=cl.guests!=null?cl.guests:""; $("#c_budget").value=cl.budget!=null?cl.budget:"";
-    $("#g_guests").value=cl.guests!=null?cl.guests:"";
-    // rates
-    try{ const pc=await BPStore.config.getPricing(); if(pc) rates=Object.assign(rates,pc); }catch{}
-    $("#q_chairPrice").value=rates.chairPrice;
-    // discovery
-    try{ const d=await BPStore.discovery.get(id); if(d){ $("#d_date").value=d.meet_date||""; $("#d_mode").value=d.mode||"";
+  // Each section loader throws on failure (loadSection turns that into an inline
+  // error + a save block). NO silent fallbacks to default rates / empty layout.
+  // No pricing backend at all (local/offline-first mode, or the config RPC isn't
+  // deployed) means the built-in defaults ARE the rates — that's not a load failure.
+  // Any other error (network, server, permission) is, and blocks the quote saves.
+  const noPricingBackend=(e)=>/supabase not configured/i.test(String((e&&e.message)||"")) || BPUI.isMissingFunction(e) || BPUI.isMissingTable(e);
+  async function loadRates(){
+    let pc=null;
+    try{ pc=await BPStore.config.getPricing(); }catch(e){ if(!noPricingBackend(e)) throw e; }
+    if(pc) rates=Object.assign(rates,pc); $("#q_chairPrice").value=rates.chairPrice; }
+  async function loadDiscovery(){ const cl=ev.client||{};
+    const d=await BPStore.discovery.get(id);
+    if(d){ $("#d_date").value=d.meet_date||""; $("#d_mode").value=d.mode||"";
       $("#d_att").value=d.attendees||""; $("#d_notes").value=d.notes||""; $("#d_bmin").value=d.budget_min!=null?d.budget_min:""; $("#d_bmax").value=d.budget_max!=null?d.budget_max:""; }
-      else if(cl.budget!=null){ $("#d_bmax").value=cl.budget; } }catch{}
-    await renderReqs();
-    // plan (venue + menu)
-    try{ plan=await BPStore.plan.get(id); if(plan){ $("#v_name").value=plan.venue_name||cl.venue||""; $("#v_addr").value=plan.venue_address||cl.address||"";
-      $("#v_contact").value=plan.venue_contact||""; $("#v_access").value=plan.access_notes||""; $("#p_menu").value=plan.menu||""; if(plan.package) $("#p_menu").dataset.pkg=plan.package; } }catch{}
-    // packages
-    try{ packages=await BPStore.menuTemplates.list(); }catch{ packages=[]; }
+    else if(cl.budget!=null){ $("#d_bmax").value=cl.budget; } }
+  async function loadPlan(){ const cl=ev.client||{};
+    plan=await BPStore.plan.get(id);
+    if(plan){ $("#v_name").value=plan.venue_name||cl.venue||""; $("#v_addr").value=plan.venue_address||cl.address||"";
+      $("#v_contact").value=plan.venue_contact||""; $("#v_access").value=plan.access_notes||""; $("#p_menu").value=plan.menu||""; if(plan.package) $("#p_menu").dataset.pkg=plan.package; } }
+  async function loadPackages(){
+    packages=(await BPStore.menuTemplates.list())||[];
     if(plan&&plan.menu_template) appliedPkg=packages.find(p=>p.name===plan.menu_template)||null;
-    renderPackages();
-    // proposal
-    try{ const pr=await BPStore.proposal.get(id); if(pr){ $("#pr_concept").value=pr.concept||""; $("#pr_theme").value=pr.theme||""; $("#pr_scope").value=(pr.scope||[]).join("\n"); } }catch{}
-    // layout (current version items) + quotation seed
-    try{ const v=await BPStore.quotes.getVersion(id, ev.currentVersion); layoutItems=(v.data&&v.data.items)||[]; }catch{ layoutItems=[]; }
+    renderPackages(); }
+  async function loadProposal(){ const pr=await BPStore.proposal.get(id); if(pr){ $("#pr_concept").value=pr.concept||""; $("#pr_theme").value=pr.theme||""; $("#pr_scope").value=(pr.scope||[]).join("\n"); } }
+  async function loadLayout(){ const v=await BPStore.quotes.getVersion(id, ev.currentVersion); layoutItems=(v&&v.data&&v.data.items)||[]; }
+  const SECTIONS={
+    rates:    ["#err-rates","pricing rates",loadRates],
+    discovery:["#err-discovery","discovery notes",loadDiscovery],
+    plan:     ["#err-plan","venue & menu details",loadPlan],
+    packages: ["#pkgCards","menu packages",loadPackages],
+    proposal: ["#err-proposal","the proposal",loadProposal],
+    layout:   ["#err-layout","the floor layout",loadLayout],
+  };
+  const runSection=(k)=>loadSection(k, SECTIONS[k][0], SECTIONS[k][1], SECTIONS[k][2]);
+  // quotation seed: only from data that actually loaded
+  function seedQuote(){
+    const cl=ev.client||{};
     const oi=BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
     const pr=ev.pricing||{};
     $("#q_chairs").value=pr.chairs!=null?pr.chairs:oi.chairs;
@@ -673,13 +756,40 @@
     $("#q_discount").value=pr.discount||0;
     if($("#q_coupon") && pr.couponCode){ $("#q_coupon").value=pr.couponCode; applyCoupon(); }
     if(pr.chairPrice!=null) $("#q_chairPrice").value=pr.chairPrice;
+  }
+  async function retrySection(k){
+    const wasLoading=loading, wasDirty=dirty; loading=true;
+    try{
+      const ok=await runSection(k);
+      if(ok && k==="plan" && !failed.packages) { if(plan&&plan.menu_template) appliedPkg=packages.find(p=>p.name===plan.menu_template)||appliedPkg; renderPackages(); }
+      if(ok && (k==="rates"||k==="layout"||k==="packages"||k==="plan") && !quoteBlocked()) seedQuote();
+    } finally { loading=wasLoading; dirty=wasDirty; renderPrice(); updateAdvance(); updateProgress(); }
+  }
+  async function loadAll(){
+    $("#code").textContent=ev.code||"—"; $("#title").textContent=ev.title||"";
+    $("#statusBadge").textContent=ev.status||ev.lifecycleStage||"draft";
+    $("#workspaceLink").href="event.html?id="+encodeURIComponent(id);
+    $("#openBuilder").href="builder.html?quote="+encodeURIComponent(id);
+    const cl=ev.client||{};
+    $("#c_name").value=cl.name||""; $("#c_company").value=cl.company||""; $("#c_email").value=cl.email||"";
+    $("#c_phone").value=cl.phone||""; $("#c_type").value=ev.eventType||""; $("#c_date").value=cl.eventDate||ev.eventDate||"";
+    $("#c_guests").value=cl.guests!=null?cl.guests:""; $("#c_budget").value=cl.budget!=null?cl.budget:"";
+    $("#g_guests").value=cl.guests!=null?cl.guests:"";
+    await runSection("rates");
+    await runSection("discovery");
+    await renderReqs();
+    await runSection("plan");
+    await runSection("packages");
+    await runSection("proposal");
+    await runSection("layout");
+    seedQuote();
     renderPrice(); updateProgress();
     // advance payment + activity
     updateAdvance();
     if(ev.status==='confirmed' || (ev.approval_status==='paid')) $("#bookingBadge").style.display="";
     await renderReceipts(); await renderActivity(); await renderQuoteVersions();
     // reminder banner
-    try{ if(localStorage.getItem(REMIND_KEY)==="1"){ $("#reminder").hidden=false; localStorage.removeItem(REMIND_KEY); $("#sec-quote").scrollIntoView({behavior:"smooth"}); } }catch{}
+    try{ if(localStorage.getItem(REMIND_KEY)==="1"){ $("#reminder").hidden=false; localStorage.removeItem(REMIND_KEY); $("#sec-quote").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"}); } }catch{}
     $("#remindAfter").checked = false;
     // prefill complete — genuine user edits from here on may mark the quote dirty
     loading=false; dirty=false;
@@ -700,31 +810,38 @@
     $("#app").addEventListener("input",markDirty);
     $("#app").addEventListener("change",markDirty);
     loadCoupons();                                           // populate coupon suggestions
-    $("#q_save").addEventListener("click",saveQuotation);
+    $("#q_save").addEventListener("click",()=>{ BPUI.guard($("#q_save"),saveQuotation,{busyLabel:"Saving…"}).catch(()=>{}); });
     $("#q_pdf").addEventListener("click",downloadQuotePDF);
-    $("#rq_add").addEventListener("click",async()=>{ const t=$("#rq_title").value.trim(); if(!t) return;
-      await BPStore.discovery.addReq(id,{ title:t, priority:$("#rq_pri").value }); vocabAdd("reqs",t); fillVocab(); $("#rq_title").value=""; renderReqs(); });
-    $("#sendApproval").addEventListener("click",sendApproval);
+    const addReq=()=>{ const t=$("#rq_title").value.trim(); if(!t){ $("#rq_title").focus(); return; }
+      BPUI.guard($("#rq_add"), async()=>{
+        try{ await BPStore.discovery.addReq(id,{ title:t, priority:$("#rq_pri").value }); vocabAdd("reqs",t); fillVocab(); $("#rq_title").value=""; await renderReqs(); }
+        catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"add the requirement"}),{type:"err"}); } }); };
+    $("#rq_add").addEventListener("click",addReq);
+    $("#rq_title").addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); addReq(); } });
+    $("#sendApproval").addEventListener("click",()=>{ sendApproval().catch(()=>{}); });
     $("#pay_pct").addEventListener("input",updateAdvance);
     ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount"].forEach(f=>$("#"+f).addEventListener("input",updateAdvance));
     $("#pay_method").addEventListener("change",()=>{ $("#pay_receiptWrap").style.display=$("#pay_method").value==='cash'?'':'none'; $("#pay_online").style.display='none'; });
-    $("#pay_record").addEventListener("click",recordPayment);
+    $("#pay_record").addEventListener("click",()=>{ recordPayment().catch(()=>{}); });
     $("#openBuilder").addEventListener("click", async (e)=>{
       e.preventDefault();
       try{ if($("#remindAfter").checked) localStorage.setItem(REMIND_KEY,"1"); }catch{}
       // flush the current form so the builder opens with up-to-date guests/venue
       // (the layout section's guests wins if the user just typed it there)
       const gg=$("#g_guests").value; if(gg!=="" && $("#c_guests").value!==gg){ $("#c_guests").value=gg; syncClientMem(); markDirty(); }
-      const btn=$("#openBuilder"), t=btn.textContent; btn.textContent="Saving…";
+      const btn=$("#openBuilder"); if(btn.getAttribute("aria-busy")==="true") return;
+      const t=btn.textContent; btn.textContent="Saving…"; btn.setAttribute("aria-busy","true");
       // Only persist if the user actually changed something — no phantom save when
       // the builder is opened on an untouched quote.
-      if(dirty){ try{ await saveAll(); }catch(_){} }
+      if(dirty){ let ok=false; try{ ok=await saveAll(); }catch(_){}
+        if(!ok && !(await confirmLeaveAnyway())){ btn.textContent=t; btn.removeAttribute("aria-busy"); return; } }
       leaving=true;   // intentional navigation — don't trip beforeunload
       location.href="builder.html?quote="+encodeURIComponent(id);
     });
-    $("#genLayout").addEventListener("click",async()=>{
+    $("#genLayout").addEventListener("click",()=>BPUI.guard($("#genLayout"),async()=>{
       try{ if($("#remindAfter").checked) localStorage.setItem(REMIND_KEY,"1"); }catch{}
-      if(dirty){ try{ await saveAll(); }catch(_){} }   // carry unsaved edits into the builder
+      if(dirty){ let ok=false; try{ ok=await saveAll(); }catch(_){}   // carry unsaved edits into the builder
+        if(!ok && !(await confirmLeaveAnyway())) return; }
       leaving=true;
       const type=$("#c_type").value.trim()||(ev&&ev.eventType)||"";
       const guests=$("#g_guests").value||$("#c_guests").value||"";
@@ -733,7 +850,7 @@
       if($("#g_len").value) p.set("len",$("#g_len").value);
       if($("#g_wid").value) p.set("wid",$("#g_wid").value);
       location.href="builder.html?"+p.toString();
-    });
+    }).catch(()=>{}));
     $("#dismissReminder").addEventListener("click",()=>$("#reminder").hidden=true);
 
     // ---- save-on-leave: intercept the in-page leave paths (header logo + nav
@@ -750,10 +867,11 @@
     });
 
     // leave-prompt modal buttons
+    $("#lv_stay").addEventListener("click",()=>{ pendingLeave=null; $("#leaveModal").hidden=true; });
     $("#lv_save").addEventListener("click",async()=>{
-      $("#lv_save").disabled=true;
-      try{ await saveAll(); }catch(_){}
-      $("#lv_save").disabled=false;
+      let ok=false; try{ ok=await BPUI.guard($("#lv_save"), saveAll, {busyLabel:"Saving…"}); }catch(_){}
+      if(ok===undefined) return;   // already saving
+      if(!ok){ BPUI.toast("Some changes couldn't be saved — fix them and try again, or choose “Leave without saving”.",{type:"err"}); return; }
       $("#leaveModal").hidden=true;
       leaving=true; const go=pendingLeave; pendingLeave=null; if(go) go();
     });
@@ -767,24 +885,43 @@
   }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),40); }
-  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
-    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  $("#li_go").addEventListener("click",(ev)=>{ const em=$("#li_email").value.trim(), pw=$("#li_pass").value, er=$("#li_err");
+    if(!em||!pw){ er.textContent="Enter your email and password."; er.hidden=false; (em?$("#li_pass"):$("#li_email")).focus(); return; }
+    er.hidden=true;
+    BPUI.guard(ev.currentTarget, async()=>{ try{ await BPStore.auth.signIn(em,pw); location.reload(); }
+      catch(e){ er.textContent=(e&&e.message)||"Sign in failed"; er.hidden=false; } }, {busyLabel:"Signing in…"}).catch(()=>{}); });
+  ["#li_email","#li_pass"].forEach((s)=>$(s).addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); $("#li_go").click(); } }));
 
-  (async ()=>{
+  let wired=false;
+  // Opens the quote. "Not found" only when the record truly doesn't exist; any
+  // other failure shows an error with Retry (never the not-found message).
+  async function openQuote(){
+    $("#gate").hidden=true;
+    try{ ev=await BPStore.quotes.get(id); }
+    catch(e){
+      if(BPUI.isNotFound(e)){ showNotFound(); return; }
+      $("#gate").hidden=false; BPUI.loadError($("#gate"), e, openQuote, {what:"this quote"}); return;
+    }
+    if(!ev){ showNotFound(); return; }
+    loading=true;
+    await loadAll();
+    $("#app").hidden=false;
+    if(!wired){ wired=true; wire(); }
+  }
+  function showNotFound(){ $("#gate").hidden=false; $("#gate").innerHTML='<h2 style="margin:0 0 6px;font-size:16px">Quote not found</h2><p style="color:var(--ink-2);margin:0">This quote doesn\'t exist or was deleted. Go back to <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a>.</p>'; }
+  BPUI.boot(async ()=>{
     await BPStore.init();
     if(BPStore.auth.enabled()){ const u=BPStore.auth.user();
       const acc=$("#account"); acc.hidden=false;
-      if(u){ const role=await BPStore.auth.role(); acc.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      if(u){ const role=await BPStore.auth.role(); acc.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button type="button" id="logoutBtn">Log out</button>`;
         $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";}); }
-      else { acc.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); }
+      else { acc.innerHTML=`<button type="button" id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); }
       if(BPStore.auth.required() && !u){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     }
-    if(!id){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:var(--ink-3)">No quote selected. Start one from <a href="dashboard.html" style="color:var(--accent)">Home</a> or <a href="leads.html" style="color:var(--accent)">Leads</a>.</p>'; return; }
+    if(!id){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:var(--ink-2)">No quote selected. Start one from <a href="dashboard.html" style="color:var(--accent);text-decoration:underline">Home</a> or <a href="leads.html" style="color:var(--accent);text-decoration:underline">Leads</a>.</p>'; return; }
     try{ canEdit=await BPStore.auth.canEditArea("quotes"); }catch{ canEdit=true; }
-    try{ await loadAll(); }catch(e){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:#b42318">Couldn\'t open this quote — '+esc((e&&e.message)||"error")+'</p>'; return; }
-    $("#app").hidden=false;
-    wire();
-  })();
+    await openQuote();
+  });
 </script>
 </body>
 </html>

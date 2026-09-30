@@ -1,0 +1,144 @@
+// Header parity: vercel.json (production) ≡ server.js (local dev) ≡ public/_headers
+// (Netlify/Cloudflare) for HSTS, COOP, CORP, X-Frame-Options, CSP, X-Robots-Tag and
+// the cache policy of versioned assets.
+//
+// Documented per-host differences (NOT compared):
+//   • server.js drops `upgrade-insecure-requests` on localhost (dev is plain http) —
+//     this test asks server.js for a production host, so UIR must match there.
+//   • Vercel header rules see only the PATH, so every .js/.css is immutable there;
+//     server.js also sees the query and only treats `?v=`-versioned assets as
+//     immutable. Only the versioned case is compared.
+//   • _headers uses Cloudflare "! Header" detach semantics for per-page overrides.
+import assert from 'node:assert/strict';
+import { readFileSync, readdirSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const PUB = join(ROOT, 'public');
+const require = createRequire(import.meta.url);
+const server = require(join(ROOT, 'server.js'));
+
+const MARKETING = ['index', 'about', 'services', 'privacy', 'terms'];
+const PAGES = readdirSync(PUB).filter((f) => f.endsWith('.html')).map((f) => f.slice(0, -5));
+
+/* ---- vercel.json: last matching rule wins per key (Vercel semantics) ---- */
+const vercel = JSON.parse(readFileSync(join(ROOT, 'vercel.json'), 'utf8'));
+function vercelHeaders(p) {
+  const out = {};
+  for (const r of vercel.headers) {
+    // Sources use only regex-compatible path-to-regexp syntax (groups, \\.),
+    // verified against path-to-regexp@6 when written.
+    if (new RegExp('^' + r.source + '$').test(p)) for (const h of r.headers) out[h.key.toLowerCase()] = h.value;
+  }
+  return out;
+}
+
+/* ---- _headers: Cloudflare Pages semantics ---- */
+const blocks = [];
+for (const line of readFileSync(join(PUB, '_headers'), 'utf8').split('\n')) {
+  if (!line.trim() || line.trim().startsWith('#')) continue;
+  if (!/^\s/.test(line)) { blocks.push({ pat: line.trim(), ops: [] }); continue; }
+  const t = line.trim();
+  if (t.startsWith('!')) blocks.at(-1).ops.push(['del', t.slice(1).trim().toLowerCase()]);
+  else { const i = t.indexOf(':'); blocks.at(-1).ops.push(['set', t.slice(0, i).trim().toLowerCase(), t.slice(i + 1).trim()]); }
+}
+function netlifyHeaders(p) {
+  const out = {};
+  for (const b of blocks) {
+    const re = new RegExp('^' + b.pat.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
+    if (!re.test(p)) continue;
+    for (const [op, k, v] of b.ops) {
+      if (op === 'del') delete out[k];
+      else { assert.ok(!(k in out), `_headers: ${k} set twice for ${p} without "! ${k}" detach (hosts would combine them)`); out[k] = v; }
+    }
+  }
+  return out;
+}
+
+/* ---- server.js ---- */
+const PROD_REQ = { headers: { host: 'www.helm.events' } };
+function serverHeaders(p, query = '') {
+  let file;
+  if (p === '/') file = 'index.html';
+  else if (p === '/i' || p.startsWith('/i/')) file = 'invite.html';
+  else if (/\.[a-z0-9]+$/i.test(p)) file = p.slice(1);
+  else file = p.slice(1) + '.html';
+  const h = server.securityHeadersFor(PROD_REQ, join(PUB, file));
+  const out = {};
+  for (const [k, v] of Object.entries(h)) out[k.toLowerCase()] = v;
+  out['cache-control'] = server.cacheControlFor(join(PUB, file), query);
+  return out;
+}
+
+const cspMap = (v) => Object.fromEntries((v || '').split(';').map((d) => d.trim()).filter(Boolean)
+  .map((d) => { const [k, ...rest] = d.split(/\s+/); return [k, rest.sort().join(' ')]; }));
+
+let n = 0;
+const t = (name, fn) => { fn(); n++; };
+
+const SECURITY_KEYS = ['strict-transport-security', 'cross-origin-opener-policy', 'cross-origin-resource-policy',
+  'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy'];
+
+// every page (clean + .html where applicable) + token/docs routes
+const paths = ['/', '/i', '/i/some-slug', '/docs/USER-MANUAL', '/docs/USER-MANUAL.html'];
+for (const p of PAGES) paths.push('/' + p, '/' + p + '.html');
+
+for (const p of paths) {
+  const v = vercelHeaders(p), nf = netlifyHeaders(p);
+  const s = serverHeaders(p.replace(/\.html$/, ''));
+  t(`${p}: security headers match`, () => {
+    for (const k of SECURITY_KEYS) {
+      assert.ok(v[k], `vercel.json missing ${k} for ${p}`);
+      assert.equal(s[k], v[k], `server.js ${k} differs from vercel.json for ${p}`);
+      assert.equal(nf[k], v[k], `_headers ${k} differs from vercel.json for ${p}`);
+    }
+  });
+  t(`${p}: CSP directives match`, () => {
+    assert.deepEqual(cspMap(s['content-security-policy']), cspMap(v['content-security-policy']), `server.js CSP ≠ vercel.json for ${p}`);
+    assert.deepEqual(cspMap(nf['content-security-policy']), cspMap(v['content-security-policy']), `_headers CSP ≠ vercel.json for ${p}`);
+  });
+  t(`${p}: X-Robots-Tag matches`, () => {
+    assert.equal(s['x-robots-tag'], v['x-robots-tag'], `server.js X-Robots-Tag ≠ vercel.json for ${p}`);
+    assert.equal(nf['x-robots-tag'], v['x-robots-tag'], `_headers X-Robots-Tag ≠ vercel.json for ${p}`);
+  });
+}
+
+t('noindex covers every non-marketing page; marketing pages stay indexable', () => {
+  for (const p of PAGES) {
+    for (const u of ['/' + p, '/' + p + '.html']) {
+      const tag = vercelHeaders(u)['x-robots-tag'];
+      if (MARKETING.includes(p)) assert.equal(tag, undefined, `${u} is marketing and must stay indexable`);
+      else assert.match(tag || '', /noindex/, `${u} must be noindex (add it to the vercel.json / _headers / server.js lists)`);
+    }
+  }
+  for (const u of ['/i/x', '/docs/anything', '/.well-known/security.txt']) assert.match(vercelHeaders(u)['x-robots-tag'] || '', /noindex/, u);
+  assert.equal(vercelHeaders('/')['x-robots-tag'], undefined, '/ must stay indexable');
+});
+
+t('base CSP: no jsdelivr; Sentry bundle + ingest kept; cdnjs kept; img/media locked', () => {
+  const c = cspMap(vercelHeaders('/dashboard')['content-security-policy']);
+  assert.ok(!/jsdelivr/.test(c['script-src'] + c['connect-src']), 'jsdelivr back in base CSP (supabase-js is self-hosted in /vendor/)');
+  assert.match(c['script-src'], /https:\/\/browser\.sentry-cdn\.com/);
+  assert.match(c['connect-src'], /\*\.ingest\.sentry\.io/);
+  assert.match(c['script-src'], /cdnjs\.cloudflare\.com/);
+  assert.ok(!/(^| )https:( |$)/.test(c['img-src']) && !/(^| )https:( |$)/.test(c['media-src']), 'base img/media-src must not allow any https: host');
+  // Hash-based CSP: inline scripts are allowed only by their sha256 hash.
+  assert.ok(!/'unsafe-inline'/.test(c['script-src']), "script-src must not allow 'unsafe-inline'");
+  assert.match(c['script-src'], /'sha256-[A-Za-z0-9+/=]{44}'/, 'script-src must carry the inline-script hashes (node scripts/gen-csp.mjs)');
+});
+
+t('cache policy: versioned assets / vendor immutable, config.js short, HTML no-cache', () => {
+  const cases = [['/store-api.js', '?v=1'], ['/theme.css', '?v=1'], ['/vendor/x-1.0.0.min.js', ''], ['/config.js', '?v=1'], ['/dashboard', ''], ['/', '']];
+  for (const [p, q] of cases) {
+    const v = vercelHeaders(p)['cache-control'];
+    assert.equal(serverHeaders(p, q)['cache-control'], v, `server.js Cache-Control ≠ vercel.json for ${p}${q}`);
+    assert.equal(netlifyHeaders(p)['cache-control'], v, `_headers Cache-Control ≠ vercel.json for ${p}`);
+  }
+  assert.match(vercelHeaders('/vendor/a.js')['cache-control'], /immutable/);
+  assert.equal(vercelHeaders('/config.js')['cache-control'], 'public, max-age=300');
+  assert.equal(vercelHeaders('/dashboard')['cache-control'], 'no-cache');
+});
+
+console.log(`headers-parity: ${n} assertion group(s) passed.`);

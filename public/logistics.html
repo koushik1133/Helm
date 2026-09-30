@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Logistics &amp; payments — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
@@ -17,37 +18,38 @@
   header{display:flex;align-items:center;gap:11px;padding:18px 0}
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
-  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
   .spacer{margin-left:auto}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .crumb{font-size:12px;color:var(--ink-3);margin:2px 0 14px} .crumb a{color:var(--accent)}
 
   .tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:4px;flex-wrap:wrap;margin-bottom:16px}
   .tabs button{border:0;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink-2);padding:8px 14px;border-radius:8px;cursor:pointer}
   .tabs button.on{background:var(--accent);color:#fff}
-  .tabs button .b{font-family:var(--mono);font-size:11px;opacity:.75;margin-left:5px}
+  .tabs button .b{font-family:var(--mono);font-size:12px;opacity:.75;margin-left:5px}
 
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
   .card h2{font-size:15px;margin:0 0 4px} .card .sub{font-size:12px;color:var(--ink-3);margin:0 0 12px}
   .addrow{display:grid;gap:8px;align-items:end}
   .addrow.chk{grid-template-columns:1.8fr 1fr .8fr auto} .addrow.guest{grid-template-columns:2fr .8fr auto} .addrow.pay{grid-template-columns:1.6fr .9fr .9fr auto}
   @media(max-width:640px){.addrow{grid-template-columns:1fr 1fr!important}}
-  .fld{display:flex;flex-direction:column;gap:4px} .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  @media(max-width:480px){.addrow{grid-template-columns:1fr!important} .wrap{padding:0 16px 48px} header{flex-wrap:wrap} .nav{margin-left:0;flex-wrap:wrap}}
+  .fld{display:flex;flex-direction:column;gap:4px} .fld label{font-size:12px;font-weight:600;color:var(--ink-2)}
   .fld input,.fld select{height:36px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
   .btn{height:36px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
   .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.4}
   table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
-  thead th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:9px 10px;border-bottom:1px solid var(--line)}
+  thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;padding:9px 10px;border-bottom:1px solid var(--line)}
   th.num,td.num{text-align:right} tbody td{padding:9px 10px;border-bottom:1px solid var(--line-2);vertical-align:middle}
   .num{font-family:var(--mono)}
-  .ssel{height:28px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:11px;padding:0 6px;color:var(--ink)}
-  .st{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .ssel{min-height:32px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:12px;padding:0 6px;color:var(--ink)}
+  .st{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
   .st.open{background:#fff7e6;color:#946200} .st.done{background:#e7f6ee;color:#0f7a43} .st.na{background:#f1f3f7;color:var(--ink-3)}
   .st.due{background:#fff7e6;color:#946200} .st.invoiced{background:#eef2ff;color:#4457c8} .st.paid{background:#e7f6ee;color:#0f7a43} .st.waived{background:#f1f3f7;color:var(--ink-3)}
-  .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:28px;padding:0 9px;font-size:11px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#e5484d;border-color:#f5c6c6}
+  .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;min-height:32px;min-width:32px;padding:0 9px;font-size:12px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#e5484d;border-color:#f5c6c6}
   .empty{text-align:center;color:var(--ink-3);padding:22px;font-size:13px}
   .totbar{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink-2);margin-top:12px;padding-top:10px;border-top:1px solid var(--line-2)}
   .totbar b{font-family:var(--mono);color:var(--ink)}
@@ -57,10 +59,14 @@
   .lmodal[hidden]{display:none!important}
   .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,96vw);padding:24px}
   .sheet h3{margin:0 0 12px}.foot{display:flex;gap:10px;justify-content:flex-end}
+  th{position:relative} .table-scroll{position:relative}
+  .crumb a,.sub a,a#floorLink{text-decoration:underline}
+  html[data-theme="dark"] .tabs button.on{background:#7c3aed;color:#fff}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
     <a href="dashboard.html" class="mark" title="Home"></a>
@@ -69,23 +75,26 @@
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
+  <main id="main">
+  <div id="boot" aria-busy="true"></div>
 
   <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to open this.</p></div>
-  <div id="notfound" class="card" hidden><p style="color:var(--ink-3)">Event not found. Go to <a href="quotes.html" style="color:var(--accent)">Quotes</a>.</p></div>
+  <div id="notfound" class="card" hidden><p style="color:var(--ink-3)">Event not found. Go to <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a>.</p></div>
 
   <div id="app" hidden>
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
 
-    <div class="tabs" id="tabs">
-      <button data-t="compliance" class="on">📋 Permits</button>
-      <button data-t="comms">📣 Comms</button>
-      <button data-t="logistics">🚚 Logistics</button>
-      <button data-t="payments">💳 Payments</button>
-      <button data-t="guests">👥 Guests</button>
+    <div class="tabs" id="tabs" role="group" aria-label="Section">
+      <button type="button" data-t="compliance" class="on" aria-pressed="true">📋 Permits</button>
+      <button type="button" data-t="comms" aria-pressed="false">📣 Comms</button>
+      <button type="button" data-t="logistics" aria-pressed="false">🚚 Logistics</button>
+      <button type="button" data-t="payments" aria-pressed="false">💳 Payments</button>
+      <button type="button" data-t="guests" aria-pressed="false">👥 Guests</button>
     </div>
 
     <div id="pane" class="card"></div>
   </div>
+  </main>
   <footer>Helm Events — the moving parts and the money, event by event.</footer>
 </div>
 
@@ -99,10 +108,10 @@
   </div>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
-<script src="tour.js?v=4"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
+<script src="tour.js?v=5"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -111,7 +120,7 @@
   function peopleSelectHTML(elId, selected){
     const grp=(label,kind)=>{ const arr=PEOPLE_OPTS.filter(p=>p.kind===kind); return arr.length?`<optgroup label="${label}">`+arr.map(p=>`<option value="${esc(p.name)}" ${p.name===selected?"selected":""}>${esc(p.name)}${p.role?" · "+esc(p.role):""}</option>`).join("")+`</optgroup>`:""; };
     const custom=(selected&&!PEOPLE_OPTS.some(p=>p.name===selected))?`<option value="${esc(selected)}" selected>${esc(selected)}</option>`:"";
-    return `<select id="${elId}"><option value="">Select person…</option>${custom}${grp("Staff","staff")}${grp("Vendors","vendor")}</select>`;
+    return `<select id="${elId}" style="min-width:0"><option value="">Select person…</option>${custom}${grp("Staff","staff")}${grp("Vendors","vendor")}</select>`;
   }
   const inr=(n)=>"₹"+Number(n||0).toLocaleString("en-IN");
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
@@ -128,7 +137,13 @@
     compliance:"Permits & compliance — licences, insurance, safety sign-offs.",
     comms:"Who tells whom what, and when — client, crew, vendors, guests." };
 
+  function act(btn,fn,action){ return BPUI.guard(btn,async()=>{ try{ await fn(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action}),{type:"err"}); } }); }
+  const SPACER='<span aria-hidden="true" style="font-size:12px">&nbsp;</span>';
   async function renderPane(){
+    try{ await renderPaneInner(); }
+    catch(e){ BPUI.loadError($("#pane"),e,renderPane,{what:tab==="payments"?"the payment schedule":tab==="guests"?"guest groups":"this checklist"}); }
+  }
+  async function renderPaneInner(){
     if(tab==="payments") return renderPayments();
     if(tab==="guests") return renderGuests();
     // generic checklist (logistics / compliance / comms)
@@ -139,37 +154,38 @@
         <div class="fld"><label for="a_title">Item</label><input id="a_title" placeholder="what needs doing"></div>
         <div class="fld"><label for="a_owner">Owner</label>${peopleSelectHTML("a_owner","")}</div>
         <div class="fld"><label for="a_due">Due</label><input id="a_due" type="date"></div>
-        <div class="fld"><label>&nbsp;</label><button class="btn primary" id="a_add">＋ Add</button></div></div>`:""}
+        <div class="fld">${SPACER}<button type="button" class="btn primary" id="a_add">＋ Add</button></div></div>`:""}
       ${canEdit?'<div id="tplBar" style="margin:6px 0 12px"></div>':""}
-      <table><thead><tr><th>Item</th><th>Owner</th><th>Due</th><th>Status</th><th></th></tr></thead>
-        <tbody>${items.length?items.map(rowChk).join(""):'<tr><td colspan="5" class="empty">Nothing here yet.</td></tr>'}</tbody></table>
+      <div class="table-scroll"><table><thead><tr><th scope="col">Item</th><th scope="col">Owner</th><th scope="col">Due</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody>${items.length?items.map(rowChk).join(""):'<tr><td colspan="5" class="empty">Nothing here yet.</td></tr>'}</tbody></table></div>
       <div class="totbar"><span>${items.length} item${items.length===1?"":"s"} · <b>${done}</b> done</span></div>`;
-    if(canEdit){ $("#a_add").addEventListener("click",()=>addChk(tab)); renderTplBar(tab); }
-    wireChk();
+    if(canEdit){ $("#a_add").addEventListener("click",()=>addChk(tab)); $("#a_title").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); addChk(tab); } }); renderTplBar(tab); }
+    wireRows("item");
   }
   async function renderTplBar(section){
     const bar=$("#tplBar"); if(!bar) return;
     let tpls=[]; try{ tpls=await BPStore.templates.list(section); }catch{ tpls=[]; }
     if(!tpls.length){ bar.innerHTML=""; return; }
     bar.innerHTML=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--ink-2)">
-      <span>Apply a template:</span>
-      <select id="tplPick" class="ssel" style="height:32px">${tpls.map(t=>`<option value="${esc(t.id)}">${esc(t.name)} (${(Array.isArray(t.items)?t.items.length:0)})</option>`).join("")}</select>
-      <button class="btn" id="tplApply" style="height:32px">Apply</button></div>`;
-    $("#tplApply").addEventListener("click",async()=>{ const tid=$("#tplPick").value; if(!tid) return; $("#tplApply").disabled=true;
-      try{ const n=await BPStore.templates.applyTo(id,tid); await renderPane(); if(!n) alert("That template has no items."); }
-      catch(e){ alert("Couldn't apply — "+((e&&e.message)||"error")); } });
+      <label for="tplPick">Apply a template:</label>
+      <select id="tplPick" class="ssel" style="height:32px;max-width:100%">${tpls.map(t=>`<option value="${esc(t.id)}">${esc(t.name)} (${(Array.isArray(t.items)?t.items.length:0)})</option>`).join("")}</select>
+      <button type="button" class="btn" id="tplApply" style="height:32px">Apply</button></div>`;
+    $("#tplApply").addEventListener("click",()=>{ const tid=$("#tplPick").value; if(!tid) return;
+      act($("#tplApply"),async()=>{ const n=await BPStore.templates.applyTo(id,tid); await renderPane(); if(!n) BPUI.toast("That template has no items.",{type:"info"}); },"apply the template"); });
   }
   function rowChk(i){ const opts=["open","done","na"].map(s=>`<option value="${s}" ${s===i.status?"selected":""}>${CHK_ST[s]}</option>`).join("");
-    return `<tr><td><b>${esc(i.title)}</b>${i.detail?`<div style="font-size:11px;color:var(--ink-3)">${esc(i.detail)}</div>`:""}</td>
+    return `<tr><td><b>${esc(i.title)}</b>${i.detail?`<div style="font-size:12px;color:var(--ink-3)">${esc(i.detail)}</div>`:""}</td>
       <td class="muted">${esc(i.owner||"")}</td><td class="muted">${esc(i.due_date||"")}</td>
-      <td>${canEdit?`<select class="ssel" data-st="${i.id}">${opts}</select>`:`<span class="st ${i.status}">${CHK_ST[i.status]}</span>`}</td>
-      <td>${canDelete?`<button class="rm" data-del="${i.id}" aria-label="Remove item">✕</button>`:""}</td></tr>`; }
-  function wireChk(){
-    document.querySelectorAll("[data-st]").forEach(s=>s.addEventListener("change",async()=>{ try{ await BPStore.checklist.update(s.dataset.st,{status:s.value}); await renderPane(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
-    document.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.checklist.remove(b.dataset.del); await renderPane(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
+      <td>${canEdit?`<select class="ssel" data-st="${esc(i.id)}" aria-label="Status for ${esc(i.title)}">${opts}</select>`:`<span class="st ${esc(i.status)}">${esc(CHK_ST[i.status]||i.status)}</span>`}</td>
+      <td>${canDelete?`<button type="button" class="rm" data-del="${esc(i.id)}" data-name="${esc(i.title)}" aria-label="Remove ${esc(i.title)}">✕</button>`:""}</td></tr>`; }
+  function wireRows(noun){
+    document.querySelectorAll("#pane [data-st]").forEach(s=>s.addEventListener("change",()=>act(s,async()=>{ await BPStore.checklist.update(s.dataset.st,{status:s.value}); await renderPane(); },"update the status")));
+    document.querySelectorAll("#pane [data-del]").forEach(b=>b.addEventListener("click",async()=>{
+      if(!(await BPUI.confirm(`Remove the ${noun} “${b.dataset.name||""}”?`,{title:`Remove ${noun}?`,danger:true}))) return;
+      await act(b,async()=>{ await BPStore.checklist.remove(b.dataset.del); await renderPane(); },"remove the "+noun); }));
   }
-  async function addChk(section){ const t=$("#a_title").value.trim(); if(!t){ $("#a_title").focus(); return; }
-    try{ await BPStore.checklist.add(id,{ section, title:t, owner:$("#a_owner").value.trim()||null, due_date:$("#a_due").value||null }); await renderPane(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } }
+  function addChk(section){ const t=$("#a_title").value.trim(); if(!t){ $("#a_title").focus(); return; }
+    return act($("#a_add"),async()=>{ await BPStore.checklist.add(id,{ section, title:t, owner:$("#a_owner").value.trim()||null, due_date:$("#a_due").value||null }); await renderPane(); },"add the item"); }
 
   async function renderGuests(){
     const items = await BPStore.checklist.list(id,"guests");
@@ -178,22 +194,21 @@
       ${canEdit?`<div class="addrow guest">
         <div class="fld"><label for="g_name">Group</label><input id="g_name" placeholder="e.g. Bride's family"></div>
         <div class="fld"><label for="g_qty">Headcount</label><input id="g_qty" type="number" min="0" value="0"></div>
-        <div class="fld"><label>&nbsp;</label><button class="btn primary" id="g_add">＋ Add</button></div></div>`:""}
-      <table><thead><tr><th>Group</th><th class="num">Headcount</th><th>Status</th><th></th></tr></thead>
-        <tbody>${items.length?items.map(rowGuest).join(""):'<tr><td colspan="4" class="empty">No guest groups yet.</td></tr>'}</tbody></table>
+        <div class="fld">${SPACER}<button type="button" class="btn primary" id="g_add">＋ Add</button></div></div>`:""}
+      <div class="table-scroll"><table><thead><tr><th scope="col">Group</th><th scope="col" class="num">Headcount</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody>${items.length?items.map(rowGuest).join(""):'<tr><td colspan="4" class="empty">No guest groups yet.</td></tr>'}</tbody></table></div>
       <div class="totbar"><span>Total expected guests: <b>${total}</b></span><span>${items.length} group${items.length===1?"":"s"}</span></div>`;
     if(canEdit) $("#g_add").addEventListener("click",addGuest);
-    document.querySelectorAll("[data-st]").forEach(s=>s.addEventListener("change",async()=>{ try{ await BPStore.checklist.update(s.dataset.st,{status:s.value}); await renderPane(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
-    document.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.checklist.remove(b.dataset.del); await renderPane(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
+    wireRows("group");
   }
   function rowGuest(g){ const opts=["open","done","na"].map(s=>`<option value="${s}" ${s===g.status?"selected":""}>${({open:"Pending",done:"Confirmed",na:"Declined"})[s]}</option>`).join("");
     return `<tr><td><b>${esc(g.title)}</b></td><td class="num">${esc(g.qty!=null?g.qty:0)}</td>
-      <td>${canEdit?`<select class="ssel" data-st="${g.id}">${opts}</select>`:esc(g.status)}</td>
-      <td>${canDelete?`<button class="rm" data-del="${g.id}" aria-label="Remove group">✕</button>`:""}</td></tr>`; }
-  async function addGuest(){ const t=$("#g_name").value.trim(); if(!t){ $("#g_name").focus(); return; }
+      <td>${canEdit?`<select class="ssel" data-st="${esc(g.id)}" aria-label="Status for ${esc(g.title)}">${opts}</select>`:esc(g.status)}</td>
+      <td>${canDelete?`<button type="button" class="rm" data-del="${esc(g.id)}" data-name="${esc(g.title)}" aria-label="Remove group ${esc(g.title)}">✕</button>`:""}</td></tr>`; }
+  function addGuest(){ const t=$("#g_name").value.trim(); if(!t){ $("#g_name").focus(); return; }
     const V=BPStore.validate;
-    const gr=V.count($("#g_qty").value,{field:"Headcount"}); if(!gr.ok){ alert(gr.error); return; }
-    try{ await BPStore.checklist.add(id,{ section:"guests", title:t, qty:gr.value }); await renderPane(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } }
+    const gr=V.count($("#g_qty").value,{field:"Headcount"}); if(!gr.ok){ BPUI.toast(gr.error,{type:"err"}); return; }
+    return act($("#g_add"),async()=>{ await BPStore.checklist.add(id,{ section:"guests", title:t, qty:gr.value }); await renderPane(); },"add the group"); }
 
   async function renderPayments(){
     const ms = await BPStore.milestones.list(id);
@@ -206,35 +221,45 @@
         <div class="fld"><label for="m_label">Milestone</label><input id="m_label" placeholder="e.g. 50% advance"></div>
         <div class="fld"><label for="m_due">Due date</label><input id="m_due" type="date"></div>
         <div class="fld"><label for="m_amt">Amount ₹</label><input id="m_amt" type="number" min="0" value="0"></div>
-        <div class="fld"><label>&nbsp;</label><button class="btn primary" id="m_add">＋ Add</button></div></div>`:""}
-      <table><thead><tr><th>Milestone</th><th>Due</th><th class="num">Amount</th><th>Status</th><th></th></tr></thead>
-        <tbody>${ms.length?ms.map(rowPay).join(""):'<tr><td colspan="5" class="empty">No milestones yet.</td></tr>'}</tbody></table>
-      <div class="totbar"><span>Scheduled: <b>${inr(total)}</b></span><span style="color:#0f7a43">Paid: <b>${inr(paid)}</b></span><span style="color:#946200">Outstanding: <b>${inr(due)}</b></span></div>`;
+        <div class="fld">${SPACER}<button type="button" class="btn primary" id="m_add">＋ Add</button></div></div>`:""}
+      <div class="table-scroll"><table><thead><tr><th scope="col">Milestone</th><th scope="col">Due</th><th scope="col" class="num">Amount</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <tbody>${ms.length?ms.map(rowPay).join(""):'<tr><td colspan="5" class="empty">No milestones yet.</td></tr>'}</tbody></table></div>
+      <div class="totbar"><span>Scheduled: <b>${inr(total)}</b></span><span style="color:#0f7a43">Paid: <b>${inr(paid)}</b></span><span style="color:#8f5f00">Outstanding: <b>${inr(due)}</b></span></div>`;
     if(canEdit) $("#m_add").addEventListener("click",addMile);
-    document.querySelectorAll("[data-mst]").forEach(s=>s.addEventListener("change",async()=>{ try{ await BPStore.milestones.setStatus(s.dataset.mst,s.value); await renderPane(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
-    document.querySelectorAll("[data-mdel]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.milestones.remove(b.dataset.mdel); await renderPane(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
-    document.querySelectorAll("[data-remind]").forEach(b=>b.addEventListener("click",async()=>{
-      const m=ms.find(x=>x.id===b.dataset.remind); if(!phone){ alert("No client phone on this event."); return; }
-      try{ await BPStore.milestones.sendReminder(id, phone, {label:m.label, amount:m.amount, due:m.due_date}); b.textContent="Sent ✓"; setTimeout(()=>b.textContent="Remind",1500); }
-      catch(e){ alert("Couldn't send — "+((e&&e.message)||"error")); } }));
+    document.querySelectorAll("#pane [data-mst]").forEach(s=>s.addEventListener("change",async()=>{
+      const m=ms.find(x=>x.id===s.dataset.mst);
+      if((s.value==="paid"||s.value==="waived") && !(await BPUI.confirm(`Mark “${m?m.label:"this milestone"}” (${inr(m&&m.amount)}) as ${PAY_ST[s.value].toLowerCase()}?`,{title:"Change payment status?",okLabel:"Mark "+PAY_ST[s.value].toLowerCase()}))){ s.value=m?m.status:s.value; return; }
+      await act(s,async()=>{ await BPStore.milestones.setStatus(s.dataset.mst,s.value); await renderPane(); },"update the milestone"); }));
+    document.querySelectorAll("#pane [data-mdel]").forEach(b=>b.addEventListener("click",async()=>{
+      const m=ms.find(x=>x.id===b.dataset.mdel);
+      if(!(await BPUI.confirm(`Remove the payment milestone “${m?m.label:""}” (${inr(m&&m.amount)})?`,{title:"Remove milestone?",danger:true}))) return;
+      await act(b,async()=>{ await BPStore.milestones.remove(b.dataset.mdel); await renderPane(); },"remove the milestone"); }));
+    document.querySelectorAll("#pane [data-remind]").forEach(b=>b.addEventListener("click",()=>{
+      const m=ms.find(x=>x.id===b.dataset.remind); if(!phone){ BPUI.toast("No client phone on this event.",{type:"err"}); return; }
+      act(b,async()=>{ await BPStore.milestones.sendReminder(id, phone, {label:m.label, amount:m.amount, due:m.due_date}); BPUI.toast("Reminder queued.",{type:"ok"}); },"send the reminder"); }));
   }
   function rowPay(m){ const opts=["due","invoiced","paid","waived"].map(s=>`<option value="${s}" ${s===m.status?"selected":""}>${PAY_ST[s]}</option>`).join("");
     return `<tr><td><b>${esc(m.label)}</b></td><td class="muted">${esc(m.due_date||"")}</td><td class="num">${inr(m.amount)}</td>
-      <td>${canEdit?`<select class="ssel" data-mst="${m.id}">${opts}</select>`:`<span class="st ${m.status}">${PAY_ST[m.status]}</span>`}</td>
-      <td>${canEdit&&m.status!=="paid"?`<button class="rm" data-remind="${m.id}">Remind</button> `:""}${canDelete?`<button class="rm" data-mdel="${m.id}" aria-label="Remove milestone">✕</button>`:""}</td></tr>`; }
-  async function addMile(){ const l=$("#m_label").value.trim(); if(!l){ $("#m_label").focus(); return; }
+      <td>${canEdit?`<select class="ssel" data-mst="${esc(m.id)}" aria-label="Status for ${esc(m.label)}">${opts}</select>`:`<span class="st ${esc(m.status)}">${esc(PAY_ST[m.status]||m.status)}</span>`}</td>
+      <td>${canEdit&&m.status!=="paid"?`<button type="button" class="rm" data-remind="${esc(m.id)}" aria-label="Send reminder for ${esc(m.label)}">Remind</button> `:""}${canDelete?`<button type="button" class="rm" data-mdel="${esc(m.id)}" aria-label="Remove milestone ${esc(m.label)}">✕</button>`:""}</td></tr>`; }
+  function addMile(){ const l=$("#m_label").value.trim(); if(!l){ $("#m_label").focus(); return; }
     const V=BPStore.validate;
-    const ar=V.money($("#m_amt").value,{field:"Amount"}); if(!ar.ok){ alert(ar.error); return; }
-    if(!(ar.value>0)){ alert("Amount must be greater than 0 to add a milestone."); return; }
-    try{ await BPStore.milestones.add(id,{ label:l, due_date:$("#m_due").value||null, amount:ar.value }); await renderPane(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } }
+    const ar=V.money($("#m_amt").value,{field:"Amount"}); if(!ar.ok){ BPUI.toast(ar.error,{type:"err"}); return; }
+    if(!(ar.value>0)){ BPUI.toast("Amount must be greater than 0 to add a milestone.",{type:"err"}); return; }
+    return act($("#m_add"),async()=>{ await BPStore.milestones.add(id,{ label:l, due_date:$("#m_due").value||null, amount:ar.value }); await renderPane(); },"add the milestone"); }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
-  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
-    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  $("#li_go").addEventListener("click",()=>{
+    const em=$("#li_email").value.trim(), pw=$("#li_pass").value;
+    if(!em||!pw){ $("#li_err").textContent="Enter your email and password."; $("#li_err").hidden=false; return; }
+    $("#li_err").hidden=true;
+    BPUI.guard($("#li_go"),async()=>{ try{ await BPStore.auth.signIn(em,pw); location.reload(); }
+      catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } },{busyLabel:"Signing in…"});
+  });
   $("#tabs").addEventListener("click",e=>{ const b=e.target.closest("button[data-t]"); if(!b) return;
-    tab=b.dataset.t; $("#tabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); renderPane(); });
+    tab=b.dataset.t; $("#tabs").querySelectorAll("button").forEach(x=>{ x.classList.toggle("on",x===b); x.setAttribute("aria-pressed",String(x===b)); }); renderPane(); });
 
-  (async ()=>{
+  BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
     if(!id){ $("#notfound").hidden=false; return; }
@@ -243,12 +268,13 @@
     canEdit=await BPStore.auth.canEditArea("logistics"); canDelete=await BPStore.auth.can("delete");
     try{ PEOPLE_OPTS=await BPStore.people.options(); }catch{ PEOPLE_OPTS=[]; }
     // Payments are finance-only — hide that tab (and fall back off it) for roles without finance access
-    if(!(await BPStore.auth.canView("finance"))){ const pb=document.querySelector('#tabs button[data-t="payments"]'); if(pb) pb.hidden=true; if(tab==="payments") tab="guests"; }
-    try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
+    if(!(await BPStore.auth.canView("finance"))){ const pb=document.querySelector('#tabs button[data-t="payments"]'); if(pb) pb.hidden=true; if(tab==="payments"){ tab="guests"; $("#tabs").querySelectorAll("button").forEach(x=>{ const on=x.dataset.t===tab; x.classList.toggle("on",on); x.setAttribute("aria-pressed",String(on)); }); } }
+    try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
+    if(!ev){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
     $("#app").hidden=false;
-    try{ await renderPane(); }catch(e){ $("#pane").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase14-logistics.sql</b>.</div>`; }
-  })();
+    await renderPane();
+  });
 </script>
 </body>
 </html>

@@ -2,10 +2,12 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Invitation Studio — Helm Events</title>
+<title>Invitation Studio · Helm</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d28d9'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
     --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;
@@ -18,19 +20,23 @@
   header{display:flex;align-items:center;gap:11px;padding:18px 0}
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
-  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)}.nav a:hover{color:var(--accent)}
   .spacer{margin-left:auto}
+  @media(max-width:640px){header{flex-wrap:wrap}.nav{margin-left:0;order:3;width:100%}}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
-  h3{font-size:13px;margin:0 0 14px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
+  h2{font-size:13px;margin:0 0 14px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
   .muted{color:var(--ink-3)}
-  label{display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin:0 0 4px}
+  label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin:0 0 4px}
   input,select,textarea{width:100%;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:9px 10px;font-family:inherit;font-size:14px;color:var(--ink)}
   textarea{min-height:80px;resize:vertical}
-  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+  .btn:focus-visible,.tpl:focus-visible,.x:focus-visible,.account button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .mnote{font-size:12px;color:var(--ink-3);margin:0 0 10px}
+  label.btn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
   .fld{margin-bottom:12px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:520px){.two{grid-template-columns:1fr}}
   .btn{height:38px;padding:0 16px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;justify-content:center}
   .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
@@ -41,7 +47,7 @@
   .tpl{border:2px solid var(--line);border-radius:12px;padding:0;cursor:pointer;overflow:hidden;background:var(--panel);text-align:left}
   .tpl.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   .tpl .sw{height:64px;display:grid;place-items:center;font-family:Georgia,serif;font-size:20px;font-weight:600}
-  .tpl .lb{padding:8px 10px;font-size:12px}.tpl .lb b{display:block;font-size:13px}.tpl .lb span{color:var(--ink-3);font-size:11px}
+  .tpl .lb{padding:8px 10px;font-size:12px}.tpl .lb b{display:block;font-size:13px}.tpl .lb span{color:var(--ink-3);font-size:12px}
   .sw.eternal{background:#f7f3ec;color:#9a7b4f}.sw.promise{background:#fdf2f4;color:#c05b83}
   .sw.confetti{background:#fff8ef;color:#e0533b}.sw.summit{background:#f6f7fb;color:#4f46e5;font-family:system-ui}
   .sw.soiree{background:radial-gradient(120px 60px at 50% 0,#241a35,#141019);color:#a78bfa}
@@ -49,40 +55,45 @@
   .preview-wrap{position:sticky;top:16px}
   .frame{width:100%;height:560px;border:1px solid var(--line);border-radius:12px;background:#fff;overflow:hidden}
   .frame iframe{width:100%;height:100%;border:0}
-  .pill{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:4px 10px;border-radius:999px}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px}
   .pill.draft{background:#f4f4f5;color:#71717a;border:1px solid #e4e4e7}
   .pill.pub{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
   .link{display:flex;gap:8px;margin-top:10px}.link input{font-size:12px}
   .msg{border-radius:8px;padding:8px 11px;font-size:13px;margin:10px 0}
   .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca}.msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
   .srow{display:grid;grid-template-columns:120px 1fr auto;gap:8px;margin-bottom:8px}
-  .srow .btn{height:36px;padding:0 10px}
+  .srow .btn{height:36px;min-width:36px;padding:0 10px}
+  @media(max-width:480px){.srow{grid-template-columns:88px 1fr auto}}
   .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px}
   .photos .th{position:relative;aspect-ratio:1;border-radius:10px;background-size:cover;background-position:center;border:1px solid var(--line)}
-  .photos .th .x{position:absolute;top:-6px;right:-6px;width:22px;height:22px;border-radius:50%;border:0;background:#e5484d;color:#fff;cursor:pointer;font-size:12px;line-height:1}
-  .photos .th.cover::after{content:"Cover";position:absolute;left:4px;bottom:4px;font-size:9px;font-weight:700;background:rgba(0,0,0,.6);color:#fff;padding:2px 6px;border-radius:6px}
+  .photos .th .x{position:absolute;top:-8px;right:-8px;width:32px;height:32px;border-radius:50%;border:2px solid #fff;background:#c62a2f;color:#fff;cursor:pointer;font-size:14px;line-height:1}
+  .photos .th.cover::after{content:"Cover";position:absolute;left:4px;bottom:4px;font-size:12px;font-weight:700;background:rgba(0,0,0,.6);color:#fff;padding:2px 6px;border-radius:6px}
   .gatebox{text-align:center;padding:40px}
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
   .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,94vw);padding:26px}
-  .lsheet h3{color:var(--ink);text-transform:none;letter-spacing:0;font-size:18px;margin:0 0 12px}
-  .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
+  .lsheet h2{color:var(--ink);text-transform:none;letter-spacing:0;font-size:18px;margin:0 0 12px}
+  .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:13px;margin-bottom:12px}
 </style>
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
-    <a href="dashboard.html" class="mark" title="Home"></a>
+    <a href="dashboard.html" class="mark" title="Home" aria-label="Home"></a>
     <div><h1>Invitation Studio</h1><small>Helm Events</small></div>
     <nav class="nav"><a href="dashboard.html">Home</a><a href="quotes.html">Quotes</a><a id="evLink" href="#">Event</a></nav>
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
 
+  <main id="main">
+  <div id="boot" aria-busy="true"></div>
+  <div id="loadErrTop" hidden></div>
   <div id="gate" class="card gatebox" hidden><p class="muted">Sign in to open the Invitation Studio.</p></div>
-  <div id="notfound" class="card gatebox" hidden><p class="muted">Event not found. Go to <a href="quotes.html" style="color:var(--accent)">Quotes</a>.</p></div>
+  <div id="notfound" class="card gatebox" hidden><p class="muted">Event not found. Go to <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a>.</p></div>
   <div id="notconfirmed" class="card gatebox" hidden>
-    <h3>Not ready yet</h3>
+    <h2>Not ready yet</h2>
     <p class="muted">You can build a digital invitation once this event is <b>confirmed</b>.<br>
     Confirm the event first, then come back here.</p>
     <p><a class="btn" id="backEv" href="#">← Back to the event</a></p>
@@ -101,13 +112,13 @@
     <div class="layout">
       <div>
         <div class="card">
-          <h3>1 · Choose a template</h3>
+          <h2>1 · Choose a template</h2>
           <div class="tpls" id="tpls"></div>
         </div>
 
         <div class="card">
-          <h3>2 · Event details</h3>
-          <div class="fld"><label>Event type</label>
+          <h2>2 · Event details</h2>
+          <div class="fld"><label for="f_type">Event type</label>
             <select id="f_type">
               <option value="wedding">Wedding / Marriage</option>
               <option value="engagement">Engagement / Anniversary</option>
@@ -116,41 +127,41 @@
               <option value="general">General celebration</option>
             </select>
           </div>
-          <div class="fld"><label id="l_names">Name</label><input id="f_names" placeholder="e.g. Ayla &amp; Sam"></div>
-          <div class="fld"><label id="l_headline">Headline</label><input id="f_headline" placeholder="e.g. are getting married"></div>
+          <div class="fld"><label id="l_names" for="f_names">Name</label><input id="f_names" placeholder="e.g. Ayla &amp; Sam"></div>
+          <div class="fld"><label id="l_headline" for="f_headline">Headline</label><input id="f_headline" placeholder="e.g. are getting married"></div>
           <div class="two">
-            <div class="fld"><label>Date</label><input id="f_date" type="date"></div>
-            <div class="fld"><label>Time</label><input id="f_time" placeholder="e.g. 4:00 PM"></div>
+            <div class="fld"><label for="f_date">Date</label><input id="f_date" type="date"></div>
+            <div class="fld"><label for="f_time">Time</label><input id="f_time" placeholder="e.g. 4:00 PM"></div>
           </div>
-          <div class="fld"><label>Venue name</label><input id="f_venue" placeholder="e.g. The Grand Palm"></div>
-          <div class="fld"><label>Venue address</label><input id="f_address" placeholder="Street, city"></div>
-          <div class="fld"><label>Map link (optional)</label><input id="f_mapUrl" placeholder="https://maps.google.com/…"></div>
-          <div class="fld"><label id="l_message">Welcome message</label><textarea id="f_message" placeholder="A warm line or two for your guests…"></textarea></div>
+          <div class="fld"><label for="f_venue">Venue name</label><input id="f_venue" placeholder="e.g. The Grand Palm"></div>
+          <div class="fld"><label for="f_address">Venue address</label><input id="f_address" placeholder="Street, city"></div>
+          <div class="fld"><label for="f_mapUrl">Map link (optional)</label><input id="f_mapUrl" placeholder="https://maps.google.com/…"></div>
+          <div class="fld"><label id="l_message" for="f_message">Welcome message</label><textarea id="f_message" placeholder="A warm line or two for your guests…"></textarea></div>
           <div class="two">
-            <div class="fld"><label>Hosted by (optional)</label><input id="f_host" placeholder="Name"></div>
-            <div class="fld"><label>Contact (optional)</label><input id="f_hostPhone" placeholder="Phone / email"></div>
+            <div class="fld"><label for="f_host">Hosted by (optional)</label><input id="f_host" placeholder="Name"></div>
+            <div class="fld"><label for="f_hostPhone">Contact (optional)</label><input id="f_hostPhone" placeholder="Phone / email"></div>
           </div>
           <div class="two">
-            <div class="fld"><label>Dress code (optional)</label><input id="f_dressCode" placeholder="e.g. Formal"></div>
-            <div class="fld"><label>Reply by (optional)</label><input id="f_rsvpBy" type="date"></div>
+            <div class="fld"><label for="f_dressCode">Dress code (optional)</label><input id="f_dressCode" placeholder="e.g. Formal"></div>
+            <div class="fld"><label for="f_rsvpBy">Reply by (optional)</label><input id="f_rsvpBy" type="date"></div>
           </div>
         </div>
 
         <div class="card">
-          <h3>3 · Photos (optional)</h3>
+          <h2>3 · Photos (optional)</h2>
           <p class="mnote">The first photo becomes the invitation's cover; the rest appear in a gallery.</p>
           <div id="photos" class="photos"></div>
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
             <label class="btn" style="cursor:pointer;margin:0">＋ Upload photos<input id="photoFile" type="file" accept="image/*" multiple hidden></label>
             <button class="btn" id="photoUrlBtn" type="button">Add by URL</button>
-            <span id="photoMsg" class="mnote" style="margin:0"></span>
+            <span id="photoMsg" class="mnote" style="margin:0" role="status"></span>
           </div>
         </div>
 
         <div class="card">
-          <h3>4 · Music (optional)</h3>
+          <h2>4 · Music (optional)</h2>
           <p class="mnote">Plays softly when a guest opens the invitation. Pick a track or paste a link to your own song (MP3).</p>
-          <div class="fld"><label>Song</label>
+          <div class="fld"><label for="f_musicPick">Song</label>
             <select id="f_musicPick">
               <option value="">No music</option>
               <option value="soundhelix-1">Ambient — gentle</option>
@@ -159,13 +170,13 @@
               <option value="__custom">Custom link…</option>
             </select>
           </div>
-          <div class="fld" id="musicCustomWrap" hidden><label>Song URL (MP3)</label><input id="f_musicUrl" placeholder="https://…/song.mp3"></div>
+          <div class="fld" id="musicCustomWrap" hidden><label for="f_musicUrl">Song URL (MP3)</label><input id="f_musicUrl" placeholder="https://…/song.mp3"></div>
           <audio id="musicTry" preload="none"></audio>
-          <button class="btn" id="musicTryBtn" type="button" hidden>▶ Preview song</button>
+          <button class="btn" id="musicTryBtn" type="button" hidden aria-pressed="false">▶ Preview song</button>
         </div>
 
         <div class="card">
-          <h3>5 · Schedule (optional)</h3>
+          <h2>5 · Schedule (optional)</h2>
           <div id="sched"></div>
           <button class="btn" id="addSched" type="button">+ Add schedule item</button>
         </div>
@@ -173,44 +184,47 @@
 
       <div class="preview-wrap">
         <div class="card">
-          <h3>Live preview</h3>
+          <h2>Live preview</h2>
           <div class="frame"><iframe id="pv" src="invite.html?preview=1" title="Invitation preview"></iframe></div>
-          <div id="msg"></div>
+          <div id="msg" role="status"></div>
           <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
             <button class="btn" id="saveBtn" type="button">Save draft</button>
             <button class="btn primary" id="pubBtn" type="button">Publish</button>
             <button class="btn" id="unpubBtn" type="button" hidden>Unpublish</button>
           </div>
           <div id="linkWrap" hidden>
-            <label style="margin-top:14px">Public link (share with your client)</label>
+            <label for="pubLink" style="margin-top:14px">Public link (share with your client)</label>
             <div class="link">
-              <input id="pubLink" readonly onclick="this.select()">
+              <input id="pubLink" readonly>
               <button class="btn" id="copyBtn" type="button">Copy</button>
-              <a class="btn" id="openBtn" target="_blank" rel="noopener">Open</a>
+              <a class="btn" id="openBtn" target="_blank" rel="noopener noreferrer">Open</a>
             </div>
           </div>
         </div>
       </div>
     </div>
   </div>
+  </main>
 </div>
 
-<div class="lmodal" id="loginModal" hidden>
+<div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle" data-dismissible="false">
   <form class="lsheet" id="loginForm">
-    <h3>Sign in</h3>
-    <div class="fld"><label>Email</label><input type="email" id="li_email" required></div>
-    <div class="fld"><label>Password</label><input type="password" id="li_pw" required></div>
-    <div class="lerr" id="li_err" hidden></div>
+    <h2 id="loginTitle">Sign in</h2>
+    <div class="fld"><label for="li_email">Email</label><input type="email" id="li_email" autocomplete="username" required></div>
+    <div class="fld"><label for="li_pw">Password</label><input type="password" id="li_pw" autocomplete="current-password" required></div>
+    <div class="lerr" id="li_err" role="alert" hidden></div>
     <button class="btn primary" id="li_submit" type="submit" style="width:100%">Sign in</button>
   </form>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  // CSS url('…') context: percent-encode quotes/parens/backslash/whitespace so a stored URL can't break out of url().
+  const cssUrl=u=>esc(String(u==null?"":u).replace(/['"()\\\s]/g,c=>"%"+c.charCodeAt(0).toString(16).padStart(2,"0")));
   const qid=new URLSearchParams(location.search).get("quote");
   const CONFIRMED_ORDER=["confirmed","planning","resources","ready","event_day","settlement","closed"]; // confirmed or beyond
   const TEMPLATES=[
@@ -228,39 +242,45 @@
     general:{names:"Event name",headline:"",tpl:"soiree",np:"e.g. Our celebration"},
   };
 
-  let ev=null, site=null, tpl="eternal", saving=false, dirtyLink=false;
+  let ev=null, site=null, tpl="eternal", dirtyLink=false;
+  // true while the saved site could not be loaded — Save/Publish must not run then,
+  // or ensureSite() would create a second (duplicate) site for this event.
+  let siteLoadFailed=false;
+  let dirty=null;
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
-      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
-      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";});
-    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn" type="button">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{ if(dirty && !(await BPUI.confirmDiscard(dirty))) return; BPUI.allowUnload(); await BPStore.auth.signOut();location.href="dashboard.html";});
+    } else { el.innerHTML=`<button id="loginBtn" type="button">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
 
   function openLogin(){ $("#loginModal").hidden=false; }
   function closeLogin(){ $("#loginModal").hidden=true; }
-  $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault(); $("#li_err").hidden=true;
-    try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pw").value); closeLogin(); $("#gate").hidden=true; await load(); }
-    catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  $("#loginForm").addEventListener("submit",e=>{ e.preventDefault();
+    BPUI.guard($("#loginForm"), async()=>{ $("#li_err").hidden=true;
+      try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pw").value); closeLogin(); $("#gate").hidden=true; await load(); }
+      catch(err){ $("#li_err").textContent=BPUI.friendlyError(err,{action:"sign you in"}); $("#li_err").hidden=false; } }); });
 
   function setMsg(t,tone){ const m=$("#msg"); if(!t){m.innerHTML="";return;} m.innerHTML=`<div class="msg ${tone==='err'?'err':'ok'}">${esc(t)}</div>`; }
 
   // ---- template cards ----
   function paintTpls(){
     $("#tpls").innerHTML=TEMPLATES.map(t=>`
-      <button class="tpl ${t.k===tpl?'on':''}" data-k="${t.k}" type="button">
-        <div class="sw ${t.k}">${esc(t.n.charAt(0))}</div>
+      <button class="tpl ${t.k===tpl?'on':''}" data-k="${t.k}" type="button" aria-pressed="${t.k===tpl?'true':'false'}">
+        <div class="sw ${t.k}" aria-hidden="true">${esc(t.n.charAt(0))}</div>
         <div class="lb"><b>${esc(t.n)}</b><span>${esc(t.d)}</span></div>
       </button>`).join("");
-    $("#tpls").querySelectorAll(".tpl").forEach(b=>b.addEventListener("click",()=>{ tpl=b.dataset.k; paintTpls(); preview(); }));
+    $("#tpls").querySelectorAll(".tpl").forEach(b=>b.addEventListener("click",()=>{ tpl=b.dataset.k; if(dirty) dirty.mark(); paintTpls(); preview(); const nb=$("#tpls").querySelector(`[data-k="${tpl}"]`); if(nb) nb.focus(); }));
   }
 
   // ---- schedule repeater ----
   function addSchedRow(t="",l=""){
     const row=document.createElement("div"); row.className="srow";
-    row.innerHTML=`<input placeholder="Time" value="${esc(t)}"><input placeholder="What happens" value="${esc(l)}"><button class="btn" type="button">✕</button>`;
+    const n=$("#sched").querySelectorAll(".srow").length+1;
+    row.innerHTML=`<input placeholder="Time" value="${esc(t)}" aria-label="Time for schedule item ${n}"><input placeholder="What happens" value="${esc(l)}" aria-label="What happens — schedule item ${n}"><button class="btn" type="button" aria-label="Remove schedule item ${n}">✕</button>`;
     const [ti,la,rm]=row.children;
     [ti,la].forEach(i=>i.addEventListener("input",preview));
-    rm.addEventListener("click",()=>{ row.remove(); preview(); });
+    rm.addEventListener("click",()=>{ row.remove(); if(dirty) dirty.mark(); preview(); $("#addSched").focus(); });
     $("#sched").appendChild(row);
   }
   function gatherSchedule(){ return [...$("#sched").querySelectorAll(".srow")].map(r=>({time:r.children[0].value.trim(),label:r.children[1].value.trim()})).filter(x=>x.time||x.label); }
@@ -268,8 +288,8 @@
   // ---- photos ----
   let PHOTOS=[];
   function paintPhotos(){
-    $("#photos").innerHTML=PHOTOS.map((u,i)=>`<div class="th${i===0?' cover':''}" style="background-image:url('${esc(u)}')"><button class="x" data-i="${i}" title="Remove">✕</button></div>`).join("");
-    $("#photos").querySelectorAll(".x").forEach(b=>b.addEventListener("click",()=>{ PHOTOS.splice(+b.dataset.i,1); paintPhotos(); preview(); }));
+    $("#photos").innerHTML=PHOTOS.map((u,i)=>`<div class="th${i===0?' cover':''}" style="background-image:url('${cssUrl(u)}')" role="img" aria-label="${i===0?'Cover photo':'Photo '+(i+1)}"><button class="x" type="button" data-i="${i}" title="Remove photo ${i+1}" aria-label="Remove photo ${i+1}">✕</button></div>`).join("");
+    $("#photos").querySelectorAll(".x").forEach(b=>b.addEventListener("click",()=>{ PHOTOS.splice(+b.dataset.i,1); if(dirty) dirty.mark(); paintPhotos(); preview(); }));
   }
   function setPhotoMsg(t){ $("#photoMsg").textContent=t||""; }
 
@@ -357,29 +377,76 @@
     site=Array.isArray(r)?r[0]:r;                 // unwrap in case PostgREST returns a 1-row set
     return site;
   }
-  async function doSave(){
-    if(saving) return; saving=true; setMsg("");
-    try{ await ensureSite(); const g=gather(); await netRetry(()=>BPStore.sites.save(site.id,g));
-      site=Object.assign({},site,g); paintState(); setMsg("Saved.","ok");
-    }catch(e){ setMsg(msgOf(e),"err"); } finally{ saving=false; }
+  // Save / Publish / Unpublish share one busy state: the clicked button is guarded
+  // (disabled + aria-busy) and its siblings are disabled until it settles.
+  const ACTION_BTNS=["#saveBtn","#pubBtn","#unpubBtn"];
+  function runAction(btn, fn){
+    return BPUI.guard(btn, async()=>{
+      const others=ACTION_BTNS.map(sel=>$(sel)).filter(b=>b!==btn && !b.disabled);
+      others.forEach(b=>b.disabled=true);
+      try{ await fn(); } finally{ others.forEach(b=>b.disabled=false); paintActions(); }
+    });
+  }
+  function blockedBySiteLoad(){
+    if(!siteLoadFailed) return false;
+    BPUI.toast("The saved invitation couldn't be loaded — retry loading it before saving, so no duplicate is created.",{type:"err"});
+    return true;
+  }
+  function paintActions(){
+    ACTION_BTNS.forEach(sel=>{ const b=$(sel); if(b.getAttribute("aria-busy")==="true") return;
+      b.disabled=siteLoadFailed; if(siteLoadFailed) b.setAttribute("aria-disabled","true"); else b.removeAttribute("aria-disabled"); });
+  }
+  function doSave(){
+    if(blockedBySiteLoad()) return;
+    return runAction($("#saveBtn"), async()=>{ setMsg("");
+      try{ await ensureSite(); const g=gather(); await netRetry(()=>BPStore.sites.save(site.id,g));
+        site=Object.assign({},site,g); paintState(); setMsg("Saved.","ok"); if(dirty) dirty.clean();
+      }catch(e){ setMsg(msgOf(e,"save the invitation"),"err"); }
+    });
   }
   async function doPublish(publish){
-    if(saving) return; saving=true; setMsg("");
-    try{ await ensureSite(); await netRetry(()=>BPStore.sites.save(site.id,gather()));
-      const r=await netRetry(()=>publish?BPStore.sites.publish(site.id):BPStore.sites.unpublish(site.id));
-      site=Object.assign({},site,(Array.isArray(r)?r[0]:r)||{},{status:publish?"published":"unpublished"}); paintState();
-      setMsg(publish?"Published! Share the link below.":"Unpublished.","ok");
-    }catch(e){ setMsg(msgOf(e),"err"); } finally{ saving=false; }
+    if(blockedBySiteLoad()) return;
+    if(!publish && !(await BPUI.confirm("Guests with the link will no longer be able to open the invitation.",{title:"Unpublish this invitation?",okLabel:"Unpublish",danger:true}))) return;
+    return runAction($(publish?"#pubBtn":"#unpubBtn"), async()=>{ setMsg("");
+      try{ await ensureSite(); await netRetry(()=>BPStore.sites.save(site.id,gather()));
+        const r=await netRetry(()=>publish?BPStore.sites.publish(site.id):BPStore.sites.unpublish(site.id));
+        site=Object.assign({},site,(Array.isArray(r)?r[0]:r)||{},{status:publish?"published":"unpublished"}); paintState();
+        setMsg(publish?"Published! Share the link below.":"Unpublished.","ok"); if(dirty) dirty.clean();
+        const f=$(publish?"#unpubBtn":"#pubBtn"); if(f && !f.hidden) f.focus();
+      }catch(e){ setMsg(msgOf(e,publish?"publish the invitation":"unpublish the invitation"),"err"); }
+    });
   }
-  function msgOf(e){ const m=(e&&e.message)||"";
+  function msgOf(e,action){
     if(isNet(e)) return "Network hiccup reaching the server — please check your connection and try again.";
-    return /permit|denied|policy|row-level/i.test(m)?"You don't have permission to do that.":("Something went wrong"+(m?": "+m:".")); }
+    return BPUI.friendlyError(e,{action}); }
+
+  // load the saved site for this event; on failure block Save/Publish (see siteLoadFailed)
+  async function loadSite(){
+    let existing=null;
+    try{ existing=await netRetry(()=>BPStore.sites.forQuote(qid)); }
+    catch(e){
+      siteLoadFailed=true; paintActions();
+      $("#loadErrTop").hidden=false;
+      BPUI.loadError($("#loadErrTop"), e, async()=>{ await loadSite(); }, {what:"the saved invitation"});
+      return;
+    }
+    siteLoadFailed=false; paintActions(); $("#loadErrTop").hidden=true; $("#loadErrTop").innerHTML="";
+    if(existing){ fill(existing); }
+    else { const d=TYPE_DEFAULTS.wedding; $("#f_type").value="wedding"; tpl=d.tpl; $("#f_headline").value=d.headline; applyTypeLabels(); paintTpls(); paintState(); }
+    if(dirty) dirty.clean();
+    preview();
+  }
 
   async function load(){
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     if(!qid){ $("#notfound").hidden=false; return; }
-    try{ ev=await BPStore.quotes.get(qid); }catch(e){ $("#notfound").hidden=false; return; }
+    $("#loadErrTop").hidden=true;
+    try{ ev=await BPStore.quotes.get(qid); }
+    catch(e){
+      if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; }
+      $("#loadErrTop").hidden=false; BPUI.loadError($("#loadErrTop"), e, load, {what:"this event"}); return;
+    }
     if(!ev){ $("#notfound").hidden=false; return; }
     $("#evLink").href="event.html?id="+encodeURIComponent(qid);
     $("#backEv").href="event.html?id="+encodeURIComponent(qid);
@@ -388,11 +455,9 @@
 
     $("#evTitle").textContent=(ev.code?ev.code+" · ":"")+(ev.title||ev.client&&ev.client.name||"Event");
     $("#app").hidden=false;
+    if(!dirty) dirty=BPUI.trackDirty($(".layout"));
     // seed a sensible default type/template from the event, then load any saved site
-    let existing=null; try{ existing=await BPStore.sites.forQuote(qid); }catch(e){}
-    if(existing){ fill(existing); }
-    else { const d=TYPE_DEFAULTS.wedding; $("#f_type").value="wedding"; tpl=d.tpl; $("#f_headline").value=d.headline; applyTypeLabels(); paintTpls(); paintState(); }
-    preview();
+    await loadSite();
   }
 
   // wire inputs
@@ -402,7 +467,7 @@
     const d=TYPE_DEFAULTS[$("#f_type").value]; if(d){ tpl=d.tpl; if(!$("#f_headline").value) $("#f_headline").value=d.headline; }
     applyTypeLabels(); paintTpls(); preview();
   });
-  $("#addSched").addEventListener("click",()=>{ addSchedRow(); });
+  $("#addSched").addEventListener("click",()=>{ addSchedRow(); if(dirty) dirty.mark(); const r=$("#sched").lastElementChild; if(r) r.firstElementChild.focus(); });
 
   // photos — upload to Supabase Storage
   $("#photoFile").addEventListener("change", async (e)=>{
@@ -413,26 +478,33 @@
       for(const f of files){
         if(f.size>8*1024*1024){ setPhotoMsg(f.name+" is over 8MB — skipped."); continue; }
         const url=await BPStore.sites.uploadPhoto(qid, f);
-        PHOTOS.push(url); paintPhotos(); preview();
+        PHOTOS.push(url); if(dirty) dirty.mark(); paintPhotos(); preview();
       }
       setPhotoMsg(PHOTOS.length+" photo"+(PHOTOS.length===1?"":"s")+" added.");
     }catch(err){ const m=(err&&err.message)||"";
-      setPhotoMsg(/bucket|not found|exist/i.test(m)?"Run the storage setup SQL first (invite-media bucket).":("Upload failed"+(m?": "+m:"."))); }
+      setPhotoMsg(/bucket/i.test(m)?"Photo uploads aren't set up yet — please contact your administrator.":BPUI.friendlyError(err,{action:"upload the photo"})); }
   });
-  $("#photoUrlBtn").addEventListener("click",()=>{
-    const u=prompt("Paste an image URL:"); if(u&&/^https?:\/\//i.test(u.trim())){ PHOTOS.push(u.trim()); paintPhotos(); preview(); }
+  $("#photoUrlBtn").addEventListener("click",async()=>{
+    const u=await BPUI.prompt("Paste an image URL:",{title:"Add photo by URL",label:"Image URL",type:"url",placeholder:"https://…/photo.jpg",okLabel:"Add"});
+    if(u==null) return;                       // cancelled
+    const v=u.trim(); if(!v) return;
+    if(!/^https?:\/\/\S+$/i.test(v)){ BPUI.toast("That isn't a valid image link — it must start with https://",{type:"err"}); return; }
+    PHOTOS.push(v); if(dirty) dirty.mark(); paintPhotos(); preview(); BPUI.toast("Photo added.",{type:"ok"});
   });
 
   // music
   $("#f_musicPick").addEventListener("change",()=>{ applyMusicUi(); preview(); });
   $("#f_musicUrl").addEventListener("input",()=>{ applyMusicUi(); preview(); });
   $("#musicTryBtn").addEventListener("click",()=>{
-    const a=$("#musicTry"); const u=musicUrl(); if(!u) return;
-    if(a.src!==u){ a.src=u; }
-    if(a.paused){ a.play().then(()=>{$("#musicTryBtn").textContent="⏸ Stop";}).catch(()=>setMsg("Couldn't play that link.","err")); }
-    else { a.pause(); $("#musicTryBtn").textContent="▶ Preview song"; }
+    const a=$("#musicTry"); const raw=musicUrl(); if(!raw) return;
+    let u; try{ u=new URL(raw, location.href); }catch(_){ u=null; }
+    if(!u || u.protocol!=="https:"){ setMsg("Use an https:// link for the song.","err"); return; }
+    if(a.src!==u.href){ a.src=u.href; }
+    if(a.paused){ a.play().then(()=>{$("#musicTryBtn").textContent="⏸ Stop"; $("#musicTryBtn").setAttribute("aria-pressed","true");}).catch(()=>setMsg("Couldn't play that link.","err")); }
+    else { a.pause(); $("#musicTryBtn").textContent="▶ Preview song"; $("#musicTryBtn").setAttribute("aria-pressed","false"); }
   });
 
+  $("#pubLink").addEventListener("click",()=>$("#pubLink").select());
   $("#saveBtn").addEventListener("click",doSave);
   $("#pubBtn").addEventListener("click",()=>doPublish(true));
   $("#unpubBtn").addEventListener("click",()=>doPublish(false));
@@ -441,7 +513,7 @@
   // re-send preview once the iframe has loaded
   $("#pv").addEventListener("load",()=>{ if($("#app").hidden===false) preview(); });
 
-  load();
+  BPUI.boot(load);
 </script>
 </body>
 </html>

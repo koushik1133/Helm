@@ -1,4 +1,4 @@
-# Blueprint Stage — 2D Event Layout & Blueprint Builder 
+# Helm (formerly Blueprint Stage) — event management platform & 2D layout builder
 
 An interactive, to-scale **2D drag-and-drop floor-plan builder** for events —
 political rallies, conferences & expos, weddings & galas, and outdoor festivals.
@@ -337,13 +337,37 @@ curl -X POST http://localhost:4173/api/layouts \
 
 ```
 2d view/
-├── server.js          # zero-dependency Node http server + REST API
-├── package.json       # start script (no runtime deps)
+├── server.js          # zero-dependency Node dev server + REST API (not used on Vercel)
+├── package.json       # "helm"; only runtime dep is @supabase/supabase-js for server/jobs/
 ├── public/
 │   └── index.html     # the entire single-file builder (HTML + CSS + JS)
 ├── data/              # layouts.json persistence (git-ignored, auto-created)
 └── .claude/launch.json
 ```
+
+## Deployment, headers & crawlers
+- **Production** is a static deploy of `public/` on Vercel (`vercel.json`); `server.js` is local dev only.
+- **Security headers** (HSTS preload, COOP/CORP `same-origin`, CSP) are defined in `vercel.json` and
+  mirrored in `server.js` and `public/_headers` (Netlify/Cloudflare only).
+  `test/headers-parity.test.mjs` (part of `npm test`) fails if they drift. Base CSP: images/media only
+  from self + Supabase Storage; `https:` images are allowed only on pages that render user-pasted URLs
+  (portal, proposal, proposal-view, media, invite-studio, invite / `/i/*`), external music only on
+  invite + invite-studio, and `cdn.jsdelivr.net` only on `/builder` (three.js example modules).
+  `script-src 'unsafe-inline'` is a known gap until the hash-based CSP phase.
+- **Caching**: HTML `no-cache`; `.js/.css/.png/.webp/.svg/.woff2` and `/vendor/*` immutable (pages must
+  reference assets with `?v=`); `config.js` 5 min; unversioned icons/og/docs screenshots 1 h.
+- **Search engines**: only `/`, `/about`, `/services`, `/privacy`, `/terms` are indexable (and in
+  `sitemap.xml`). Every other page, `/i/*`, `/docs/*` and `/.well-known/*` get
+  `X-Robots-Tag: noindex, nofollow, noarchive`; `robots.txt` disallows app/token/docs paths and gives
+  AI crawlers marketing pages only. `llms.txt` summarises the product. **New pages are noindex by
+  default in server.js, but must be added to the lists in `vercel.json` / `_headers`** — the parity
+  test fails until they are.
+- **Secrets**: `.gitleaks.toml` allowlists only the two exact committed anon keys;
+  `scripts/check-jwt-roles.mjs` (in `npm run ci`) fails on any non-anon / `service_role` JWT.
+- **Lighthouse** (`lighthouserc.json`, `.github/workflows/lighthouse.yml`) is blocking on
+  performance, accessibility, FCP, LCP, TBT and CLS for `/`, `/login` and `/builder`.
+- Internal guides (`docs/BLUEPRINT-STAGE-GUIDE*.html`, `docs/MVP-PHASE1-GUIDE.html`) are kept out of
+  the deploy; only `public/docs/USER-MANUAL.html` ships.
 
 ## Notes
 - The front end talks to the API with relative paths, so it works on any host/port.

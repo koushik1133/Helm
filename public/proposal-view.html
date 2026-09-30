@@ -2,11 +2,14 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Your Event Proposal — Helm Events</title>
+<title>Your event proposal · Helm</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
-  :root{--bg:#f4f1ee;--panel:#fff;--panel-2:#faf8f5;--ink:#1c2233;--ink-2:#4b475f;--ink-3:#8a8f9e;
+  :root{--bg:#f4f1ee;--panel:#fff;--panel-2:#faf8f5;--ink:#1c2233;--ink-2:#4b475f;--ink-3:#6b6577;
     --line:#e6e1da;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#e7e0ff;
     --shadow:0 1px 2px rgba(20,27,46,.06),0 16px 40px rgba(20,27,46,.10);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
@@ -16,7 +19,7 @@
   header{display:flex;align-items:center;gap:11px;padding:22px 0}
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
-  header b{font-size:15px} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  header b{font-size:15px} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .hero{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:34px;margin-bottom:18px}
   .hero .kick{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent)}
   .hero h1{font-size:30px;line-height:1.15;margin:8px 0 4px;letter-spacing:-.02em}
@@ -25,9 +28,9 @@
   .sec{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:26px;margin-bottom:18px}
   .sec h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);margin:0 0 14px}
   .concept{font-size:16px;line-height:1.7;color:var(--ink-2);white-space:pre-wrap}
-  .palette{display:flex;gap:10px;flex-wrap:wrap}
+  .palette{display:flex;gap:14px 16px;flex-wrap:wrap;padding-bottom:8px}
   .sw{width:56px;height:56px;border-radius:12px;border:1px solid var(--line);position:relative}
-  .sw small{position:absolute;bottom:-18px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:9px;color:var(--ink-3)}
+  .sw small{position:absolute;bottom:-20px;left:-6px;right:-6px;text-align:center;font-family:var(--mono);font-size:12px;color:var(--ink-3)}
   .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
   .gallery img{width:100%;height:150px;object-fit:cover;border-radius:12px;border:1px solid var(--line);background:var(--panel-2)}
   .scope{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:8px} @media(max-width:560px){.scope{grid-template-columns:1fr}}
@@ -36,16 +39,21 @@
   .foot{text-align:center;color:var(--ink-3);font-size:12px;padding:14px}
   .state{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:40px;text-align:center;color:var(--ink-3)}
   .spin{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:sp 1s linear infinite;margin:0 auto 12px} @keyframes sp{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.spin{animation:none}}
+  #priceRows th{font-weight:inherit;text-align:left}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
     <div class="mark"></div><div><b>Helm Events</b><small>Event Proposal</small></div>
   </header>
 
-  <div id="loading" class="state"><div class="spin"></div>Loading your proposal…</div>
+  <main id="main">
+  <div id="loading" class="state" role="status"><div class="spin" aria-hidden="true"></div>Loading your proposal…</div>
+  <div id="loadErr" hidden></div>
   <div id="error" class="state" hidden>This proposal link is not available. Please contact your event planner.</div>
 
   <div id="doc" hidden>
@@ -60,22 +68,28 @@
     <div class="sec" id="gallerySec" hidden><h2>Mood &amp; inspiration</h2><div class="gallery" id="gallery"></div></div>
     <div class="sec" id="scopeSec" hidden><h2>What's included</h2><ul class="scope" id="scope"></ul></div>
     <div class="sec" id="priceSec" hidden><h2>Investment</h2>
-      <table style="width:100%;border-collapse:collapse;font-size:14px" id="priceRows"></table></div>
+      <div class="table-scroll"><table style="width:100%;border-collapse:collapse;font-size:14px" id="priceRows"><caption class="sr-only">Price breakdown</caption></table></div></div>
     <div class="foot">This is a proposal for discussion — details may evolve. Prepared by your Helm Events planner.</div>
   </div>
+  </main>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
 <script>
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const token=new URLSearchParams(location.search).get("token");
   const $=(s)=>document.querySelector(s);
-  (async ()=>{
+  const isBadLink=(e)=>BPUI.isNotFound(e) || /invalid link|expired|not available/i.test((e&&e.message)||"") || (e&&e.code)==="22P02";
+  async function load(){
     await BPStore.init();
     if(!token){ $("#loading").hidden=true; $("#error").hidden=false; return; }
-    let p; try{ p=await BPStore.proposal.getByToken(token); }catch(e){ p=null; }
+    $("#loadErr").hidden=true;
+    let p; try{ p=await BPStore.proposal.getByToken(token); }
+    catch(e){ $("#loading").hidden=true;
+      if(isBadLink(e)){ $("#error").hidden=false; return; }
+      $("#loadErr").hidden=false; BPUI.loadError($("#loadErr"), e, load, {what:"your proposal"}); return; }
     if(!p){ $("#loading").hidden=true; $("#error").hidden=false; return; }
     $("#loading").hidden=true; $("#doc").hidden=false;
     $("#theme").textContent = p.theme || p.event_title || "Your event";
@@ -84,9 +98,10 @@
     if(p.theme && p.event_title && p.theme!==p.event_title){ $("#themeChip").hidden=false; $("#themeChip").textContent=p.event_title; }
     if(p.concept){ $("#conceptSec").hidden=false; $("#concept").textContent=p.concept; }
     const pal=Array.isArray(p.palette)?p.palette:[]; if(pal.length){ $("#paletteSec").hidden=false;
-      $("#palette").innerHTML=pal.map(c=>`<div class="sw" style="background:${esc(c)}"><small>${esc(c)}</small></div>`).join(""); }
+      $("#palette").innerHTML=pal.map(c=>`<div class="sw" style="background:${/^#[0-9a-f]{3,8}$/i.test(c)?c:"transparent"}"><small>${esc(c)}</small></div>`).join(""); }
     const imgs=(Array.isArray(p.images)?p.images:[]).filter(u=>/^https?:\/\//i.test(u||"")); if(imgs.length){ $("#gallerySec").hidden=false;
-      $("#gallery").innerHTML=imgs.map(u=>`<img src="${esc(u)}" alt="inspiration" onerror="this.style.opacity=.25">`).join(""); }
+      $("#gallery").innerHTML=imgs.map((u,i)=>`<img src="${esc(u)}" alt="Inspiration image ${i+1}" loading="lazy" decoding="async">`).join("");
+      $("#gallery").querySelectorAll("img").forEach(im=>im.addEventListener("error",()=>{ im.style.opacity=".25"; })); }
     const sc=Array.isArray(p.scope)?p.scope:[]; if(sc.length){ $("#scopeSec").hidden=false;
       $("#scope").innerHTML=sc.map(s=>`<li>${esc(s)}</li>`).join(""); }
 
@@ -109,12 +124,13 @@
     const total = p.total || c.total || pr.total;
     if(total)                  rows.push(["Total", inr(total), "total"]);
     if(rows.length){ $("#priceSec").hidden=false;
-      $("#priceRows").innerHTML = rows.map(r=>{
+      $("#priceRows").innerHTML = '<caption class="sr-only">Price breakdown</caption>' + rows.map(r=>{
         const t=r[2]==="total", s=r[2]==="sub";
         const cell="padding:9px 2px;border-bottom:1px solid var(--line);"+(t?"font-weight:700;font-size:16px;padding-top:14px;border-bottom:none;":"")+(s?"color:var(--ink-3);":"");
-        return `<tr><td style="${cell}">${esc(r[0])}</td><td style="${cell}text-align:right;font-variant-numeric:tabular-nums">${esc(r[1])}</td></tr>`;
+        return `<tr><th scope="row" style="${cell}">${esc(r[0])}</th><td style="${cell}text-align:right;font-variant-numeric:tabular-nums">${esc(r[1])}</td></tr>`;
       }).join(""); }
-  })();
+  }
+  BPUI.boot(load);
 </script>
 </body>
 </html>

@@ -2,36 +2,74 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Simulated checkout — Helm Events</title>
+<title>Simulated checkout · Helm</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
-  body{margin:0;font-family:"IBM Plex Sans",system-ui,sans-serif;background:#0b1020;color:#e8ecf4;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
-  .card{background:#141b2e;border:1px solid #26324f;border-radius:16px;max-width:400px;width:100%;padding:28px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  body{margin:0;font-family:"IBM Plex Sans",system-ui,sans-serif;background:#0b1020;color:#e8ecf4;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
+  main{width:100%;max-width:400px}
+  .card{background:#141b2e;border:1px solid #26324f;border-radius:16px;width:100%;box-sizing:border-box;padding:28px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  .sim{background:#3a2f14;border:1px solid #8a6d1f;color:#ffd884;border-radius:12px;padding:12px 14px;margin:0 0 18px;font-size:14px;line-height:1.5;text-align:left}
+  .sim strong{display:block;font-size:15px;color:#ffe7a8;margin-bottom:2px}
   .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#2f6fed,#7c5cff);margin:0 auto 14px}
-  h1{font-size:18px;margin:0 0 4px} .muted{color:#8a95ad;font-size:13px;margin:0 0 18px}
-  .amt{font-family:"IBM Plex Mono",monospace;font-size:34px;font-weight:700;margin:8px 0}
-  .ref{font-family:"IBM Plex Mono",monospace;color:#8a95ad;font-size:12px;margin-bottom:18px}
-  .note{background:#1b2540;border:1px solid #26324f;border-radius:10px;padding:12px;font-size:12px;color:#aab6cf;line-height:1.6}
-  .btn{display:inline-block;margin-top:16px;background:linear-gradient(120deg,#2f6fed,#7c5cff);color:#fff;border:0;border-radius:11px;padding:13px 22px;font-size:15px;font-weight:600;width:100%;cursor:pointer}
+  h1{font-size:18px;margin:0 0 4px} .muted{color:#a3adc2;font-size:13px;margin:0 0 18px}
+  .amt{font-family:"IBM Plex Mono",monospace;font-size:34px;font-weight:700;margin:8px 0;overflow-wrap:anywhere}
+  .ref{font-family:"IBM Plex Mono",monospace;color:#a3adc2;font-size:12px;margin-bottom:18px;overflow-wrap:anywhere}
+  .note{background:#1b2540;border:1px solid #26324f;border-radius:10px;padding:12px;font-size:12px;color:#c3cde0;line-height:1.6}
+  .btn{display:inline-block;margin-top:16px;background:linear-gradient(120deg,#2f6fed,#7c5cff);color:#fff;border:0;border-radius:11px;padding:13px 22px;font-size:15px;font-weight:600;width:100%;cursor:pointer;font-family:inherit}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn:focus-visible{outline:2px solid #ffd884;outline-offset:3px}
+  .unavail{background:#3b1a1d;border:1px solid #8c3a40;color:#ffc9cc;border-radius:10px;padding:12px;font-size:14px;margin-top:16px}
+  .closed{font-size:13px;color:#a3adc2;margin:10px 0 0}
+  [hidden]{display:none!important}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
+<main id="main">
 <div class="card">
-  <div class="logo"></div>
+  <div class="sim" role="note"><strong>Simulation — no money moves.</strong>This page only exists while online payments are in test mode.</div>
+  <div class="logo" aria-hidden="true"></div>
   <h1>Simulated checkout</h1>
   <p class="muted">This is a demo of the payment step.</p>
   <div class="amt" id="amt">₹0</div>
   <div class="ref" id="ref"></div>
   <div class="note">In production this opens the real <b>Razorpay</b> payment page. Here, no money moves.
     Your event manager confirms the payment on their side to complete the booking.</div>
-  <button class="btn" onclick="window.close()">Done</button>
+  <div class="unavail" id="unavail" role="alert" hidden><b>Not available.</b> Online payments are live — use the payment link your event manager sent you.</div>
+  <button class="btn" id="doneBtn" type="button">Done</button>
+  <p class="closed" id="closedMsg" role="status" hidden>You can close this tab now.</p>
 </div>
+</main>
+<script src="config.js?v=91"></script>
 <script>
   const p=new URLSearchParams(location.search);
-  const amt=parseFloat(p.get("amount")||"0");
-  document.getElementById("amt").textContent="₹"+amt.toLocaleString("en-IN");
-  document.getElementById("ref").textContent="Ref: "+(p.get("ref")||"—");
+  // amount: a finite, non-negative number with a sane upper bound; anything else shows "—"
+  const rawAmt=(p.get("amount")||"").trim();
+  const amt=/^\d{1,12}(\.\d{1,2})?$/.test(rawAmt) ? Number(rawAmt) : NaN;
+  document.getElementById("amt").textContent=Number.isFinite(amt) ? "₹"+amt.toLocaleString("en-IN") : "₹—";
+  // ref: a quote code — letters, digits and . _ - only (rendered as text either way)
+  const rawRef=(p.get("ref")||"").trim();
+  document.getElementById("ref").textContent="Ref: "+(/^[A-Za-z0-9._-]{1,64}$/.test(rawRef) ? rawRef : "—");
+
+  const btn=document.getElementById("doneBtn");
+  const cfg=window.SUPABASE_CONFIG;
+  const live=!!(cfg && cfg.liveChannels && cfg.liveChannels.pay === true);
+  if(live){
+    // real payments are on — this simulated checkout must not look like a working payment page
+    document.getElementById("unavail").hidden=false;
+    btn.disabled=true; btn.textContent="Not available";
+  }
+  btn.addEventListener("click",()=>{
+    if(btn.disabled) return;
+    window.close();
+    // window.close() only works for script-opened tabs; otherwise tell the user
+    setTimeout(()=>{ document.getElementById("closedMsg").hidden=false; }, 200);
+  });
 </script>
 </body>
 </html>

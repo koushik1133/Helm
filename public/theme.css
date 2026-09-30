@@ -5,6 +5,78 @@
    specificity selectors (html[...]) so dark tokens win over inline :root values.
    ============================================================================ */
 
+/* ============================================================================
+   Shared tokens (light defaults). Pages define their own palette in an inline
+   :root; these are NEW tokens that pages can adopt without changing theirs.
+   Contrast (WCAG 2.x, computed):
+     --warn-text #8f5f00 : 5.52 on #fff · 5.21 on #faf8f5 · 5.03 on #f6f4f1
+     --safe-text #0f7a43 : 5.41 on #fff · 5.10 on #faf8f5 · 4.92 on #f6f4f1
+     --line-strong #86808f: 3.82 on #fff · 3.60 on #faf8f5 · 3.48 on #f6f4f1 (≥3:1 non-text)
+   Use --warn-text / --safe-text wherever --warn / --safe is used as a TEXT
+   colour (--warn #e8912d is 2.47:1 and --safe #18a558 is 3.20:1 on white).
+   ============================================================================ */
+:root {
+  --warn-text: #8f5f00;
+  --safe-text: #0f7a43;
+  --line-strong: #86808f;
+}
+
+/* ---- accessibility helpers ---- */
+.sr-only {
+  position: absolute !important; width: 1px !important; height: 1px !important;
+  padding: 0 !important; margin: -1px !important; overflow: hidden !important;
+  clip: rect(0 0 0 0) !important; white-space: nowrap !important; border: 0 !important;
+}
+/* <a class="skip-link" href="#main">Skip to content</a> — first thing in <body> */
+.skip-link {
+  position: absolute; left: 8px; top: -60px; z-index: 10000;
+  padding: 10px 16px; border-radius: 8px;
+  background: var(--accent, #6d28d9); color: #fff; font-weight: 600; text-decoration: none;
+  box-shadow: 0 6px 18px rgba(20,27,46,.25);
+}
+.skip-link:focus, .skip-link:focus-visible { top: 8px; }
+html[data-theme="dark"] .skip-link { background: #7c3aed; color: #fff; }   /* 5.70:1 */
+
+/* wide tables: wrap in <div class="table-scroll"> to scroll inside the card */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+
+/* ---- form controls: a ≥3:1 border (WCAG 1.4.11) ----
+   Excludes invalid/error and focused states so pages' own state colours win. */
+:is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"],
+      [type="submit"], [type="button"], [type="reset"], [type="image"], [type="hidden"]),
+    select, textarea):not([aria-invalid="true"]):not(:focus):not(.invalid):not(.err):not(.error) {
+  border-color: var(--line-strong);
+}
+
+/* ---- touch targets: ≥44px on coarse pointers (WCAG 2.5.5) ---- */
+@media (pointer: coarse) {
+  button, .btn, a.btn, .rm, .ic, .close, .chip, .tab, .rtab, [role="button"],
+  select, input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="hidden"]) {
+    min-height: 44px;
+  }
+  button, .btn, a.btn, .rm, .ic, .close, [role="button"] { min-width: 44px; }
+  input[type="checkbox"], input[type="radio"] { min-width: 22px; min-height: 22px; }
+}
+
+/* ---- page boot skeleton: <div id="boot" aria-busy="true"></div> ----
+   BPUI.boot() shows/hides it (and renders an error card into it on failure). */
+#boot {
+  display: flex; flex-direction: column; gap: 14px;
+  max-width: 1100px; margin: 24px auto; padding: 0 16px;
+}
+#boot[hidden] { display: none; }
+#boot:empty::before, #boot:empty::after {
+  content: ""; display: block; border-radius: 12px;
+  background: linear-gradient(90deg, var(--panel-2, #f1eee9) 0%, var(--line, #e8e3db) 50%, var(--panel-2, #f1eee9) 100%);
+  background-size: 200% 100%;
+}
+#boot:empty::before { height: 56px; }
+#boot:empty::after  { height: 320px; }
+@media (prefers-reduced-motion: no-preference) {
+  #boot:empty::before, #boot:empty::after { animation: bpShimmer 1.3s ease-in-out infinite; }
+  @keyframes bpShimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+}
+
 /* ---- responsive safety net (Phase 54 QA) ----
    Media never overflows its container, and wide data tables scroll inside their
    card on narrow screens instead of stretching the whole page sideways. */
@@ -80,7 +152,18 @@ html[data-theme="dark"] {
   --accent: #a78bfa; --accent-2: #8b5cf6; --accent-soft: #1d1730;
   --safe: #34d399; --warn: #fbbf24; --gold: #fbbf24; --bad: #f87171;
   --shadow: 0 1px 2px rgba(0,0,0,.55), 0 16px 40px rgba(0,0,0,.65);
+  /* text-safe variants (already bright in dark: 11.0 / 9.56 on #141418) */
+  --warn-text: #fbbf24; --safe-text: #34d399;
+  --line-strong: #75707f;   /* 3.54 on #1c1c22 · 3.83 on #141418 */
   color-scheme: dark;
+}
+/* Dark primary buttons: white on the light-violet accent gradient was 2.72:1.
+   Use deeper violet stops so white text is ≥4.5:1 (5.70 on #7c3aed, 7.10 on #6d28d9). */
+html[data-theme="dark"] .btn.primary,
+html[data-theme="dark"] button.primary,
+html[data-theme="dark"] a.btn.primary {
+  background: linear-gradient(120deg, #7c3aed, #6d28d9);
+  color: #fff;
 }
 /* Belt-and-suspenders: force the true page background to pure black on every
    dark page, even if a page paints html or a full-bleed wrapper directly. */
@@ -149,5 +232,6 @@ html[data-theme="dark"] #conflictBanner .card { background:#241417 !important; b
     transition-duration: .001ms !important;
     scroll-behavior: auto !important;
   }
+  html, body { scroll-behavior: auto !important; }
 }
 

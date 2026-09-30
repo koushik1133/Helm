@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Live issues — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
@@ -17,11 +18,11 @@
   header{display:flex;align-items:center;gap:11px;padding:18px 0}
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
-  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
   .spacer{margin-left:auto}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .crumb{font-size:12px;color:var(--ink-3);margin:2px 0 14px} .crumb a{color:var(--accent)}
 
@@ -34,7 +35,7 @@
 
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
   .add{display:grid;grid-template-columns:1.8fr .8fr 1fr auto;gap:8px;align-items:end} @media(max-width:640px){.add{grid-template-columns:1fr 1fr}}
-  .fld{display:flex;flex-direction:column;gap:4px} .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld{display:flex;flex-direction:column;gap:4px} .fld label{font-size:12px;font-weight:600;color:var(--ink-2)}
   .fld input,.fld select{height:36px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
   .btn{height:36px;padding:0 14px;border-radius:9px;border:1px solid var(--line);background:var(--panel);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer} .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
 
@@ -43,25 +44,29 @@
   .sev{width:8px;align-self:stretch;border-radius:6px;flex:0 0 auto;margin-top:2px}
   .sev.low{background:#8a95ad} .sev.medium{background:var(--warn)} .sev.high{background:#e5484d}
   .issue .t{font-weight:700;font-size:14px} .issue .d{font-size:12px;color:var(--ink-3);margin-top:2px}
-  .issue .meta{font-size:11px;color:var(--ink-3);margin-top:4px}
-  .tag{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;margin-left:6px}
+  .issue .meta{font-size:12px;color:var(--ink-3);margin-top:4px}
+  .tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;margin-left:6px}
   .tag.low{background:#f1f3f7;color:var(--ink-3)} .tag.medium{background:#fff7e6;color:#946200} .tag.high{background:#fdecec;color:#b42318}
-  .st{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
+  .st{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
   .st.open{background:#fdecec;color:#b42318} .st.in_progress{background:#fff7e6;color:#946200} .st.resolved{background:#e7f6ee;color:#0f7a43}
   .issue .acts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
-  .mini{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:30px;padding:0 10px;font-size:11px;font-weight:600;cursor:pointer;color:var(--ink-2)} .mini:hover{border-color:var(--accent);color:var(--accent)}
+  .mini{border:1px solid var(--line);background:var(--panel);border-radius:7px;min-height:32px;min-width:32px;padding:0 10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)} .mini:hover{border-color:var(--accent);color:var(--accent)}
   .mini.go{color:#0f7a43;border-color:#b6e3ca} .mini.del{color:var(--ink-3)}
   .empty{text-align:center;color:var(--ink-3);padding:30px;font-size:13px}
+  @media(max-width:480px){.wrap{padding:0 16px 48px} header{flex-wrap:wrap} .nav{margin-left:0;flex-wrap:wrap} .add{grid-template-columns:1fr} .issue{flex-wrap:wrap} .issue .acts{margin-left:20px}}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
   .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px}
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
   .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,96vw);padding:24px}
   .sheet h3{margin:0 0 12px}.foot{display:flex;gap:10px;justify-content:flex-end}
+  .crumb a,.sub a,a#floorLink{text-decoration:underline}
+  html[data-theme="dark"] .tabs button.on{background:#7c3aed;color:#fff}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
     <a href="dashboard.html" class="mark" title="Home"></a>
@@ -70,16 +75,18 @@
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
+  <main id="main">
+  <div id="boot" aria-busy="true"></div>
 
   <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to open the issue log.</p></div>
-  <div id="notfound" class="card" hidden><p style="color:var(--ink-3)">Event not found. Go to <a href="quotes.html" style="color:var(--accent)">Quotes</a>.</p></div>
+  <div id="notfound" class="card" hidden><p style="color:var(--ink-3)">Event not found. Go to <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a>.</p></div>
 
   <div id="app" hidden>
     <div class="crumb"><a id="backLink" href="#">← Back to command center</a> · <span id="evName"></span></div>
     <div class="toolbar">
-      <div class="tabs" id="tabs">
-        <button data-t="issue" class="on">🎫 Issues</button>
-        <button data-t="incident">🛟 Incidents</button>
+      <div class="tabs" id="tabs" role="group" aria-label="Log type">
+        <button type="button" data-t="issue" class="on" aria-pressed="true">🎫 Issues</button>
+        <button type="button" data-t="incident" aria-pressed="false">🛟 Incidents</button>
       </div>
       <span class="open-badge" id="openBadge"></span>
       <span class="spacer2"></span>
@@ -91,12 +98,13 @@
         <div class="fld"><label id="titleLbl" for="i_title">Issue</label><input id="i_title" placeholder="what's happening"></div>
         <div class="fld"><label for="i_sev">Severity</label><select id="i_sev"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
         <div class="fld"><label for="i_owner">Owner</label><input id="i_owner" placeholder="who's on it"></div>
-        <div class="fld"><label>&nbsp;</label><button class="btn primary" id="i_add">＋ Log</button></div>
+        <div class="fld"><span aria-hidden="true" style="font-size:12px">&nbsp;</span><button type="button" class="btn primary" id="i_add">＋ Log</button></div>
       </div>
     </div>
 
-    <div id="list"></div>
+    <div id="list"><div class="empty">Loading…</div></div>
   </div>
+  </main>
   <footer>Helm Events — log it, own it, resolve it — with a clear record afterwards.</footer>
 </div>
 
@@ -110,9 +118,9 @@
   </div>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -138,32 +146,41 @@
       <div class="sev ${esc(i.severity)}"></div>
       <div style="flex:1"><div class="t">${esc(i.title)}<span class="tag ${esc(i.severity)}">${esc(SEV[i.severity]||i.severity)}</span></div>
         ${i.detail?`<div class="d">${esc(i.detail)}</div>`:""}
-        <div class="meta">${esc(when(i.created_at))}${i.owner?` · 👤 ${esc(i.owner)}`:""} · <span class="st ${i.status}">${esc(ST[i.status]||i.status)}</span>${i.resolved_at?` · resolved ${esc(when(i.resolved_at))}`:""}</div></div>
+        <div class="meta">${esc(when(i.created_at))}${i.owner?` · 👤 ${esc(i.owner)}`:""} · <span class="st ${esc(i.status)}">${esc(ST[i.status]||i.status)}</span>${i.resolved_at?` · resolved ${esc(when(i.resolved_at))}`:""}</div></div>
       ${canEdit?`<div class="acts">
-        ${i.status==="open"?`<button class="mini" data-st="${i.id}" data-s="in_progress">Start</button>`:""}
-        ${i.status!=="resolved"?`<button class="mini go" data-st="${i.id}" data-s="resolved">Resolve</button>`:`<button class="mini" data-st="${i.id}" data-s="open">Reopen</button>`}
-        ${canDelete?`<button class="mini del" data-del="${i.id}" aria-label="Delete">✕</button>`:""}
+        ${i.status==="open"?`<button type="button" class="mini" data-st="${esc(i.id)}" data-s="in_progress" aria-label="Start ${esc(i.title)}">Start</button>`:""}
+        ${i.status!=="resolved"?`<button type="button" class="mini go" data-st="${esc(i.id)}" data-s="resolved" aria-label="Resolve ${esc(i.title)}">Resolve</button>`:`<button type="button" class="mini" data-st="${esc(i.id)}" data-s="open" aria-label="Reopen ${esc(i.title)}">Reopen</button>`}
+        ${canDelete?`<button type="button" class="mini del" data-del="${esc(i.id)}" data-name="${esc(i.title)}" aria-label="Delete ${esc(i.title)}">✕</button>`:""}
       </div>`:""}
     </div>`).join("") : `<div class="empty">No ${tab==="incident"?"incidents":"issues"} logged. ${tab==="incident"?"Good — keep it that way.":""}</div>`;
-    $("#list").querySelectorAll("[data-st]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.issues.setStatus(b.dataset.st,b.dataset.s); render(); }));
-    $("#list").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.issues.remove(b.dataset.del); render(); }));
+    $("#list").querySelectorAll("[data-st]").forEach(b=>b.addEventListener("click",()=>BPUI.guard(b,async()=>{ try{ await BPStore.issues.setStatus(b.dataset.st,b.dataset.s); await safeRender(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"update the "+tab}),{type:"err"}); } })));
+    $("#list").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
+      if(!(await BPUI.confirm(`Delete “${b.dataset.name||""}”? It will be removed from the ${tab} log.`,{title:"Delete "+tab+"?",danger:true}))) return;
+      await BPUI.guard(b,async()=>{ try{ await BPStore.issues.remove(b.dataset.del); await safeRender(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"delete the "+tab}),{type:"err"}); } }); }));
   }
-  async function add(){ const t=$("#i_title").value.trim(); if(!t){ $("#i_title").focus(); return; }
-    $("#i_add").disabled=true;
-    try{ await BPStore.issues.add(id,{ kind:tab, title:t, severity:$("#i_sev").value, owner:$("#i_owner").value.trim()||null });
-      $("#i_title").value=""; $("#i_owner").value=""; await render(); $("#i_title").focus(); }
-    catch(e){ alert("Couldn't log — "+((e&&e.message)||"error")); } finally{ $("#i_add").disabled=false; }
+  async function safeRender(){ try{ await render(); }catch(e){ $("#openBadge").textContent=""; BPUI.loadError($("#list"),e,safeRender,{what:tab==="incident"?"incidents":"issues"}); } }
+  function add(){ const t=$("#i_title").value.trim(); if(!t){ $("#i_title").focus(); return; }
+    return BPUI.guard($("#i_add"),async()=>{
+      try{ await BPStore.issues.add(id,{ kind:tab, title:t, severity:$("#i_sev").value, owner:$("#i_owner").value.trim()||null });
+        $("#i_title").value=""; $("#i_owner").value=""; await safeRender(); $("#i_title").focus(); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"log the "+tab,setupHint:"phase17-issues.sql"}),{type:"err"}); }
+    });
   }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
-  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
-    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  $("#li_go").addEventListener("click",()=>{
+    const em=$("#li_email").value.trim(), pw=$("#li_pass").value;
+    if(!em||!pw){ $("#li_err").textContent="Enter your email and password."; $("#li_err").hidden=false; return; }
+    $("#li_err").hidden=true;
+    BPUI.guard($("#li_go"),async()=>{ try{ await BPStore.auth.signIn(em,pw); location.reload(); }
+      catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } },{busyLabel:"Signing in…"});
+  });
   $("#i_add").addEventListener("click",add);
-  $("#i_title").addEventListener("keydown",e=>{ if(e.key==="Enter") add(); });
+  $("#i_title").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); add(); } });
   $("#tabs").addEventListener("click",e=>{ const b=e.target.closest("button[data-t]"); if(!b) return;
-    tab=b.dataset.t; $("#tabs").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b)); render(); });
+    tab=b.dataset.t; $("#tabs").querySelectorAll("button").forEach(x=>{ x.classList.toggle("on",x===b); x.setAttribute("aria-pressed",String(x===b)); }); safeRender(); });
 
-  (async ()=>{
+  BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     $("#backLink").href = id?("command.html?quote="+encodeURIComponent(id)):"quotes.html";
     $("#changeLink").href = id?("budget.html?quote="+encodeURIComponent(id)):"#";
@@ -171,11 +188,12 @@
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     if(!(await BPStore.auth.requireView("ops"))) return;
     canEdit=await BPStore.auth.canEditArea("issues"); canDelete=await BPStore.auth.can("delete");
-    try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
+    try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
+    if(!ev){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
     $("#app").hidden=false; $("#addCard").hidden=!canEdit;
-    try{ await render(); }catch(e){ $("#list").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase17-issues.sql</b>.</div>`; }
-  })();
+    await safeRender();
+  });
 </script>
 </body>
 </html>

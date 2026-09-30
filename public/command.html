@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Event-day command — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
@@ -17,11 +18,11 @@
   header{display:flex;align-items:center;gap:11px;padding:18px 0}
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
-  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)}
   .spacer{margin-left:auto}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .crumb{font-size:12px;color:var(--ink-3);margin:2px 0 12px} .crumb a{color:var(--accent)}
 
@@ -38,12 +39,13 @@
   .card h2{font-size:15px;margin:0 0 2px;display:flex;align-items:center;gap:8px} .card .sub{font-size:12px;color:var(--ink-3);margin:0 0 12px}
   .prog{font-family:var(--mono);font-weight:700;color:var(--accent);margin-left:auto;font-size:14px}
   .row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line-2)} .row:last-child{border-bottom:0}
-  .row .nm{font-weight:600;font-size:13px} .row .rl{font-size:11px;color:var(--ink-3)}
-  .row .acts{margin-left:auto;display:flex;gap:5px}
-  .pill{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:20px}
+  .row .nm{font-weight:600;font-size:13px} .row .rl{font-size:12px;color:var(--ink-3)}
+  .row .acts{margin-left:auto;display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+  @media(max-width:480px){.wrap{padding:0 16px 48px} header{flex-wrap:wrap} .nav{margin-left:0;flex-wrap:wrap} .row{flex-wrap:wrap} .banner .links{margin-left:0}}
+  .pill{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:20px}
   .pill.expected{background:#f1f3f7;color:var(--ink-3)} .pill.arrived{background:#e7f6ee;color:#0f7a43} .pill.left{background:#eef2ff;color:#4457c8} .pill.no_show{background:#fdecec;color:#b42318}
   .pill.pending{background:#fff7e6;color:#946200} .pill.done{background:#e7f6ee;color:#0f7a43} .pill.issue{background:#fdecec;color:#b42318}
-  .mini{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:28px;padding:0 9px;font-size:11px;font-weight:600;cursor:pointer;color:var(--ink-2)} .mini:hover{border-color:var(--accent);color:var(--accent)}
+  .mini{border:1px solid var(--line);background:var(--panel);border-radius:7px;min-height:32px;min-width:32px;padding:0 9px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)} .mini:hover{border-color:var(--accent);color:var(--accent)}
   .mini.go{color:#0f7a43;border-color:#b6e3ca} .mini.no{color:#b42318;border-color:#f5c6c6} .mini.del{color:var(--ink-3)}
   .addline{display:flex;gap:8px;margin-top:12px}
   .addline input{flex:1;height:34px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
@@ -54,11 +56,13 @@
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
   .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,96vw);padding:24px}
-  .sheet h3{margin:0 0 12px}.foot{display:flex;gap:10px;justify-content:flex-end}.fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}.fld label{font-size:11px;font-weight:600;color:var(--ink-2)}.fld input{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit}
+  .sheet h3{margin:0 0 12px}.foot{display:flex;gap:10px;justify-content:flex-end}.fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}.fld label{font-size:12px;font-weight:600;color:var(--ink-2)}.fld input{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit}
+  .crumb a,.sub a,a#floorLink{text-decoration:underline}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
     <a href="dashboard.html" class="mark" title="Home"></a>
@@ -67,9 +71,11 @@
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
+  <main id="main">
+  <div id="boot" aria-busy="true"></div>
 
   <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to open the command center.</p></div>
-  <div id="notfound" class="card" hidden><p style="color:var(--ink-3)">Event not found. Go to <a href="quotes.html" style="color:var(--accent)">Quotes</a>.</p></div>
+  <div id="notfound" class="card" hidden><p style="color:var(--ink-3)">Event not found. Go to <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a>.</p></div>
 
   <div id="app" hidden>
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a></div>
@@ -92,8 +98,8 @@
         <p class="sub">Staff &amp; vendors checking in on the day.</p>
         <div id="arrRows"></div>
         <div style="margin-top:10px" id="arrTools" hidden>
-          <button class="btn" id="pullBtn">↧ Pull team &amp; vendors</button>
-          <div class="addline"><input id="arr_name" placeholder="Add a name…" aria-label="Name to add"><button class="btn primary" id="arr_add" aria-label="Add name">＋</button></div>
+          <button type="button" class="btn" id="pullBtn">↧ Pull team &amp; vendors</button>
+          <div class="addline"><input id="arr_name" placeholder="Add a name…" aria-label="Name to add"><button type="button" class="btn primary" id="arr_add" aria-label="Add name">＋</button></div>
         </div>
       </div>
 
@@ -101,7 +107,7 @@
         <h2>🔧 Setup &amp; technical checks <span class="prog" id="chkProg"></span></h2>
         <p class="sub">Go-live checks — stage, sound, lighting, safety…</p>
         <div id="chkRows"></div>
-        <div class="addline" id="chkAdd" hidden><input id="chk_title" placeholder="e.g. Sound check done" aria-label="Check description"><button class="btn primary" id="chk_addb" aria-label="Add check">＋</button></div>
+        <div class="addline" id="chkAdd" hidden><input id="chk_title" placeholder="e.g. Sound check done" aria-label="Check description"><button type="button" class="btn primary" id="chk_addb" aria-label="Add check">＋</button></div>
       </div>
 
       <div class="card">
@@ -109,8 +115,8 @@
         <p class="sub">Welcome desk — check guests in as they arrive.</p>
         <div id="gstRows"></div>
         <div style="margin-top:10px" id="gstTools" hidden>
-          <button class="btn" id="gstPull">↧ Pull from guest list</button>
-          <div class="addline"><input id="gst_label" placeholder="Group name…" aria-label="Guest group name"><input id="gst_exp" type="number" min="0" placeholder="Exp." style="max-width:80px" aria-label="Expected headcount"><button class="btn primary" id="gst_add" aria-label="Add guest group">＋</button></div>
+          <button type="button" class="btn" id="gstPull">↧ Pull from guest list</button>
+          <div class="addline"><input id="gst_label" placeholder="Group name…" aria-label="Guest group name"><input id="gst_exp" type="number" min="0" placeholder="Exp." style="max-width:80px" aria-label="Expected headcount"><button type="button" class="btn primary" id="gst_add" aria-label="Add guest group">＋</button></div>
         </div>
       </div>
 
@@ -120,11 +126,12 @@
         <div id="stkRows"></div>
         <div style="margin-top:10px" id="stkTools" hidden>
           <div class="addline"><select id="stk_item" aria-label="Stock item" style="flex:1;height:34px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)"></select></div>
-          <div class="addline"><input id="stk_label" placeholder="or type an item…" aria-label="Item name"><input id="stk_qty" type="number" min="1" value="1" style="max-width:70px" aria-label="Quantity"><button class="btn primary" id="stk_add" aria-label="Add stock request">＋</button></div>
+          <div class="addline"><input id="stk_label" placeholder="or type an item…" aria-label="Item name"><input id="stk_qty" type="number" min="1" value="1" style="max-width:70px" aria-label="Quantity"><button type="button" class="btn primary" id="stk_add" aria-label="Add stock request">＋</button></div>
         </div>
       </div>
     </div>
   </div>
+  </main>
   <footer>Helm Events — run the day: who's here, what's checked, what's next.</footer>
 </div>
 
@@ -138,10 +145,10 @@
   </div>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
-<script src="tour.js?v=4"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
+<script src="tour.js?v=5"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -156,22 +163,28 @@
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";});
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
 
+  // run a write with a busy guard + friendly error toast
+  function act(btn,fn,action){ return BPUI.guard(btn,async()=>{ try{ await fn(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action}),{type:"err"}); } }); }
+  async function confirmRemove(what){ return BPUI.confirm(`Remove ${what}?`,{title:"Remove?",danger:true}); }
+  async function section(fn,host,what){ try{ await fn(); }catch(e){ BPUI.loadError(host,e,fn,{what}); } }
+
   async function renderArrivals(){
     const items=await BPStore.dayops.list(id,"arrival");
     const here=items.filter(a=>a.status==="arrived"||a.status==="left").length;
     $("#arrProg").textContent = items.length?`${here}/${items.length} here`:"";
     $("#arrRows").innerHTML = items.length ? items.map(a=>`<div class="row">
       <div><div class="nm">${esc(a.who)}</div><div class="rl">${esc(a.role||"")}</div></div>
-      <span class="pill ${a.status}">${ARR[a.status]||a.status}</span>
+      <span class="pill ${esc(a.status)}">${esc(ARR[a.status]||a.status)}</span>
       ${canEdit?`<div class="acts">
-        <button class="mini go" data-arr="${a.id}" data-s="arrived">Arrived</button>
-        <button class="mini" data-arr="${a.id}" data-s="left">Left</button>
-        <button class="mini no" data-arr="${a.id}" data-s="no_show">No-show</button>
-        <button class="mini del" data-del="${a.id}" aria-label="Remove">✕</button></div>`:""}
+        <button type="button" class="mini go" data-arr="${esc(a.id)}" data-s="arrived" aria-label="Mark ${esc(a.who)} arrived">Arrived</button>
+        <button type="button" class="mini" data-arr="${esc(a.id)}" data-s="left" aria-label="Mark ${esc(a.who)} left">Left</button>
+        <button type="button" class="mini no" data-arr="${esc(a.id)}" data-s="no_show" aria-label="Mark ${esc(a.who)} no-show">No-show</button>
+        <button type="button" class="mini del" data-del="${esc(a.id)}" data-name="${esc(a.who)}" aria-label="Remove ${esc(a.who)}">✕</button></div>`:""}
     </div>`).join("") : '<div class="empty">No one added yet. Pull the team &amp; vendors below.</div>';
-    $("#arrRows").querySelectorAll("[data-arr]").forEach(b=>b.addEventListener("click",async()=>{
-      await BPStore.dayops.setStatus(b.dataset.arr, b.dataset.s); renderArrivals(); }));
-    $("#arrRows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.dayops.remove(b.dataset.del); renderArrivals(); }));
+    $("#arrRows").querySelectorAll("[data-arr]").forEach(b=>b.addEventListener("click",()=>act(b,async()=>{
+      await BPStore.dayops.setStatus(b.dataset.arr, b.dataset.s); await section(renderArrivals,$("#arrRows"),"arrivals"); },"update attendance")));
+    $("#arrRows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{ if(!(await confirmRemove(b.dataset.name||"this person")))return;
+      await act(b,async()=>{ await BPStore.dayops.remove(b.dataset.del); await section(renderArrivals,$("#arrRows"),"arrivals"); },"remove the entry"); }));
   }
   async function renderChecks(){
     const items=await BPStore.dayops.list(id,"check");
@@ -179,14 +192,15 @@
     $("#chkProg").textContent = items.length?`${done}/${items.length} done`:"";
     $("#chkRows").innerHTML = items.length ? items.map(c=>`<div class="row">
       <div><div class="nm">${esc(c.who)}</div></div>
-      <span class="pill ${c.status}">${CHK[c.status]||c.status}</span>
+      <span class="pill ${esc(c.status)}">${esc(CHK[c.status]||c.status)}</span>
       ${canEdit?`<div class="acts">
-        <button class="mini go" data-chk="${c.id}" data-s="done">Done</button>
-        <button class="mini no" data-chk="${c.id}" data-s="issue">Issue</button>
-        <button class="mini del" data-cdel="${c.id}" aria-label="Remove">✕</button></div>`:""}
+        <button type="button" class="mini go" data-chk="${esc(c.id)}" data-s="done" aria-label="Mark ${esc(c.who)} done">Done</button>
+        <button type="button" class="mini no" data-chk="${esc(c.id)}" data-s="issue" aria-label="Flag issue on ${esc(c.who)}">Issue</button>
+        <button type="button" class="mini del" data-cdel="${esc(c.id)}" data-name="${esc(c.who)}" aria-label="Remove check ${esc(c.who)}">✕</button></div>`:""}
     </div>`).join("") : '<div class="empty">No checks yet. Add your go-live checks.</div>';
-    $("#chkRows").querySelectorAll("[data-chk]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.dayops.setStatus(b.dataset.chk, b.dataset.s); renderChecks(); }));
-    $("#chkRows").querySelectorAll("[data-cdel]").forEach(b=>b.addEventListener("click",async()=>{ await BPStore.dayops.remove(b.dataset.cdel); renderChecks(); }));
+    $("#chkRows").querySelectorAll("[data-chk]").forEach(b=>b.addEventListener("click",()=>act(b,async()=>{ await BPStore.dayops.setStatus(b.dataset.chk, b.dataset.s); await section(renderChecks,$("#chkRows"),"checks"); },"update the check")));
+    $("#chkRows").querySelectorAll("[data-cdel]").forEach(b=>b.addEventListener("click",async()=>{ if(!(await confirmRemove("the check “"+(b.dataset.name||"")+"”")))return;
+      await act(b,async()=>{ await BPStore.dayops.remove(b.dataset.cdel); await section(renderChecks,$("#chkRows"),"checks"); },"remove the check"); }));
   }
 
   async function renderGuests(){
@@ -196,12 +210,13 @@
     $("#gstRows").innerHTML = items.length ? items.map(g=>`<div class="row">
       <div><div class="nm">${esc(g.label)}</div><div class="rl">${Number(g.arrived||0)} of ${Number(g.expected||0)} arrived</div></div>
       ${canEdit?`<div class="acts">
-        <button class="mini" data-gin="${g.id}" data-d="-1" aria-label="Check out one guest">–</button>
-        <button class="mini go" data-gin="${g.id}" data-d="1">＋ In</button>
-        <button class="mini del" data-gdel="${g.id}" aria-label="Remove group">✕</button></div>`:`<span class="pill arrived">${Number(g.arrived||0)}/${Number(g.expected||0)}</span>`}
+        <button type="button" class="mini" data-gin="${esc(g.id)}" data-d="-1" aria-label="Check out one guest from ${esc(g.label)}">–</button>
+        <button type="button" class="mini go" data-gin="${esc(g.id)}" data-d="1" aria-label="Check in one guest to ${esc(g.label)}">＋ In</button>
+        <button type="button" class="mini del" data-gdel="${esc(g.id)}" data-name="${esc(g.label)}" aria-label="Remove group ${esc(g.label)}">✕</button></div>`:`<span class="pill arrived">${Number(g.arrived||0)}/${Number(g.expected||0)}</span>`}
     </div>`).join("") : '<div class="empty">No guest groups yet. Pull from the guest list or add one.</div>';
-    $("#gstRows").querySelectorAll("[data-gin]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.guests.checkIn(b.dataset.gin, Number(b.dataset.d)); await renderGuests(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
-    $("#gstRows").querySelectorAll("[data-gdel]").forEach(b=>b.addEventListener("click",async()=>{ if(!confirm("Remove this group?"))return; try{ await BPStore.guests.remove(b.dataset.gdel); renderGuests(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
+    $("#gstRows").querySelectorAll("[data-gin]").forEach(b=>b.addEventListener("click",()=>act(b,async()=>{ await BPStore.guests.checkIn(b.dataset.gin, Number(b.dataset.d)); await section(renderGuests,$("#gstRows"),"guest groups"); },"update check-in")));
+    $("#gstRows").querySelectorAll("[data-gdel]").forEach(b=>b.addEventListener("click",async()=>{ if(!(await confirmRemove("the group “"+(b.dataset.name||"")+"”")))return;
+      await act(b,async()=>{ await BPStore.guests.remove(b.dataset.gdel); await section(renderGuests,$("#gstRows"),"guest groups"); },"remove the group"); }));
   }
 
   const STK={requested:"Requested",issued:"Issued",replaced:"Replaced",cancelled:"Cancelled"};
@@ -212,56 +227,69 @@
     $("#stkProg").textContent = items.length? `${open} open` : "";
     $("#stkRows").innerHTML = items.length ? items.map(r=>`<div class="row">
       <div><div class="nm">${esc(r.label)} <span class="rl">×${Number(r.qty||1)}</span></div>${r.note?`<div class="rl">${esc(r.note)}</div>`:""}</div>
-      <span class="pill ${stkPill[r.status]||"pending"}">${STK[r.status]||r.status}</span>
+      <span class="pill ${stkPill[r.status]||"pending"}">${esc(STK[r.status]||r.status)}</span>
       ${canEdit?`<div class="acts">
-        <button class="mini go" data-stk="${r.id}" data-s="issued">Issued</button>
-        <button class="mini" data-stk="${r.id}" data-s="replaced">Replaced</button>
-        <button class="mini del" data-sdel="${r.id}" aria-label="Remove request">✕</button></div>`:""}
+        <button type="button" class="mini go" data-stk="${esc(r.id)}" data-s="issued" aria-label="Mark ${esc(r.label)} issued">Issued</button>
+        <button type="button" class="mini" data-stk="${esc(r.id)}" data-s="replaced" aria-label="Mark ${esc(r.label)} replaced">Replaced</button>
+        <button type="button" class="mini del" data-sdel="${esc(r.id)}" data-name="${esc(r.label)}" aria-label="Remove request for ${esc(r.label)}">✕</button></div>`:""}
     </div>`).join("") : '<div class="empty">No stock requests. Raise one if something is needed on site.</div>';
-    $("#stkRows").querySelectorAll("[data-stk]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.stockreq.setStatus(b.dataset.stk,b.dataset.s); await renderStock(); }catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); } }));
-    $("#stkRows").querySelectorAll("[data-sdel]").forEach(b=>b.addEventListener("click",async()=>{ try{ await BPStore.stockreq.remove(b.dataset.sdel); renderStock(); }catch(e){ alert("Couldn't remove — "+((e&&e.message)||"error")); } }));
+    $("#stkRows").querySelectorAll("[data-stk]").forEach(b=>b.addEventListener("click",()=>act(b,async()=>{ await BPStore.stockreq.setStatus(b.dataset.stk,b.dataset.s); await section(renderStock,$("#stkRows"),"stock requests"); },"update the request")));
+    $("#stkRows").querySelectorAll("[data-sdel]").forEach(b=>b.addEventListener("click",async()=>{ if(!(await confirmRemove("the stock request for “"+(b.dataset.name||"")+"”")))return;
+      await act(b,async()=>{ await BPStore.stockreq.remove(b.dataset.sdel); await section(renderStock,$("#stkRows"),"stock requests"); },"remove the request"); }));
   }
   async function loadStockItems(){
     try{ const items=await BPStore.inventory.items(false);
-      $("#stk_item").innerHTML='<option value="">— pick a stock item —</option>'+items.map(i=>`<option value="${i.id}" data-name="${esc(i.name)}">${esc(i.name)}</option>`).join(""); }
+      $("#stk_item").innerHTML='<option value="">— pick a stock item —</option>'+items.map(i=>`<option value="${esc(i.id)}" data-name="${esc(i.name)}">${esc(i.name)}</option>`).join(""); }
     catch{ $("#stk_item").innerHTML='<option value="">— pick a stock item —</option>'; }
   }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
-  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
-    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
-  $("#pullBtn").addEventListener("click",async()=>{ $("#pullBtn").disabled=true;
-    try{ const n=await BPStore.dayops.pullRoster(id); await renderArrivals(); if(!n) alert("Everyone's already listed (assign crew in Operations and book vendors first)."); }
-    catch(e){ alert("Couldn't pull — "+((e&&e.message)||"error")); } finally{ $("#pullBtn").disabled=false; } });
-  $("#arr_add").addEventListener("click",async()=>{ const n=$("#arr_name").value.trim(); if(!n) return; await BPStore.dayops.add(id,{kind:"arrival",who:n,status:"expected"}); $("#arr_name").value=""; renderArrivals(); });
-  $("#chk_addb").addEventListener("click",async()=>{ const t=$("#chk_title").value.trim(); if(!t) return; await BPStore.dayops.add(id,{kind:"check",who:t,status:"pending"}); $("#chk_title").value=""; renderChecks(); });
-  $("#gst_add").addEventListener("click",async()=>{ const l=$("#gst_label").value.trim(); if(!l) return; const V=BPStore.validate; const er=V.count($("#gst_exp").value,{field:"Expected"}); if(!er.ok){ alert(er.error); return; } try{ await BPStore.guests.add(id,{label:l, expected:er.value}); $("#gst_label").value=""; $("#gst_exp").value=""; renderGuests(); }catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } });
-  $("#gstPull").addEventListener("click",async()=>{ $("#gstPull").disabled=true; try{ const n=await BPStore.guests.pullFromLogistics(id); await renderGuests(); if(!n) alert("Nothing to pull — add guest groups in Logistics → Guests first."); }catch(e){ alert("Couldn't pull — "+((e&&e.message)||"error")); } finally{ $("#gstPull").disabled=false; } });
-  $("#stk_add").addEventListener("click",async()=>{ const sel=$("#stk_item"); const free=$("#stk_label").value.trim();
+  $("#li_go").addEventListener("click",()=>{
+    const em=$("#li_email").value.trim(), pw=$("#li_pass").value;
+    if(!em||!pw){ $("#li_err").textContent="Enter your email and password."; $("#li_err").hidden=false; return; }
+    $("#li_err").hidden=true;
+    BPUI.guard($("#li_go"),async()=>{ try{ await BPStore.auth.signIn(em,pw); location.reload(); }
+      catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } },{busyLabel:"Signing in…"});
+  });
+  $("#pullBtn").addEventListener("click",()=>act($("#pullBtn"),async()=>{
+    const n=await BPStore.dayops.pullRoster(id); await section(renderArrivals,$("#arrRows"),"arrivals");
+    if(!n) BPUI.toast("Everyone's already listed (assign crew in Operations and book vendors first).",{type:"info"}); },"pull the team"));
+  const addArr=()=>{ const n=$("#arr_name").value.trim(); if(!n) return; return act($("#arr_add"),async()=>{ await BPStore.dayops.add(id,{kind:"arrival",who:n,status:"expected"}); $("#arr_name").value=""; await section(renderArrivals,$("#arrRows"),"arrivals"); },"add the name"); };
+  $("#arr_add").addEventListener("click",addArr);
+  $("#arr_name").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); addArr(); } });
+  const addChk=()=>{ const t=$("#chk_title").value.trim(); if(!t) return; return act($("#chk_addb"),async()=>{ await BPStore.dayops.add(id,{kind:"check",who:t,status:"pending"}); $("#chk_title").value=""; await section(renderChecks,$("#chkRows"),"checks"); },"add the check"); };
+  $("#chk_addb").addEventListener("click",addChk);
+  $("#chk_title").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); addChk(); } });
+  $("#gst_add").addEventListener("click",()=>{ const l=$("#gst_label").value.trim(); if(!l) return; const V=BPStore.validate; const er=V.count($("#gst_exp").value,{field:"Expected"}); if(!er.ok){ BPUI.toast(er.error,{type:"err"}); return; }
+    act($("#gst_add"),async()=>{ await BPStore.guests.add(id,{label:l, expected:er.value}); $("#gst_label").value=""; $("#gst_exp").value=""; await section(renderGuests,$("#gstRows"),"guest groups"); },"add the group"); });
+  $("#gstPull").addEventListener("click",()=>act($("#gstPull"),async()=>{ const n=await BPStore.guests.pullFromLogistics(id); await section(renderGuests,$("#gstRows"),"guest groups");
+    if(!n) BPUI.toast("Nothing to pull — add guest groups in Logistics → Guests first.",{type:"info"}); },"pull the guest list"));
+  $("#stk_add").addEventListener("click",()=>{ const sel=$("#stk_item"); const free=$("#stk_label").value.trim();
     let item_id=null,label=free;
     if(!free && sel.value){ item_id=sel.value; label=sel.options[sel.selectedIndex].dataset.name||sel.options[sel.selectedIndex].textContent; }
-    if(!label){ alert("Pick or type an item."); return; }
-    const V=BPStore.validate; const qr=V.count($("#stk_qty").value,{allowZero:false,field:"Quantity"}); if(!qr.ok){ alert(qr.error); return; }
-    try{ await BPStore.stockreq.add(id,{item_id,label,qty:qr.value}); $("#stk_label").value=""; $("#stk_qty").value=1; sel.value=""; renderStock(); }
-    catch(e){ alert("Couldn't add — "+((e&&e.message)||"error")); } });
+    if(!label){ BPUI.toast("Pick or type an item.",{type:"err"}); return; }
+    const V=BPStore.validate; const qr=V.count($("#stk_qty").value,{allowZero:false,field:"Quantity"}); if(!qr.ok){ BPUI.toast(qr.error,{type:"err"}); return; }
+    act($("#stk_add"),async()=>{ await BPStore.stockreq.add(id,{item_id,label,qty:qr.value}); $("#stk_label").value=""; $("#stk_qty").value=1; sel.value=""; await section(renderStock,$("#stkRows"),"stock requests"); },"add the request"); });
 
-  (async ()=>{
+  BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
     if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     if(!(await BPStore.auth.requireView("ops"))) return;
     canEdit=await BPStore.auth.canEditArea("command");
-    try{ ev=await BPStore.quotes.get(id); }catch(e){ $("#notfound").hidden=false; return; }
+    try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
+    if(!ev){ $("#notfound").hidden=false; return; }
     $("#b_code").textContent=ev.code||""; $("#b_meta").textContent=[ev.title,ev.eventDate].filter(Boolean).join(" · ");
     $("#l_issues").href="issues.html?quote="+encodeURIComponent(id); $("#l_runsheet").href="runsheet.html?quote="+encodeURIComponent(id); $("#l_floor").href="builder.html?quote="+encodeURIComponent(id);
     try{ const p=await BPStore.plan.get(id); if(p&&(p.venue_name||p.access_notes)) $("#b_venue").textContent="📍 "+[p.venue_name,p.access_notes].filter(Boolean).join(" — "); }catch{}
     $("#app").hidden=false; $("#arrTools").hidden=!canEdit; $("#chkAdd").hidden=!canEdit; $("#gstTools").hidden=!canEdit; $("#stkTools").hidden=!canEdit;
-    try{ await renderArrivals(); await renderChecks(); }catch(e){ $("#arrRows").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase16-dayops.sql</b>.</div>`; }
-    try{ await renderGuests(); }catch(e){ $("#gstRows").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase22-guest-reception.sql</b>.</div>`; }
+    await section(renderArrivals,$("#arrRows"),"arrivals");
+    await section(renderChecks,$("#chkRows"),"checks");
+    await section(renderGuests,$("#gstRows"),"guest groups");
     if(canEdit) loadStockItems();
-    try{ await renderStock(); }catch(e){ $("#stkRows").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase23-live-stock.sql</b>.</div>`; }
-  })();
+    await section(renderStock,$("#stkRows"),"stock requests");
+  });
 </script>
 </body>
 </html>

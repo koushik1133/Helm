@@ -19,6 +19,8 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: JWT roles — no service_role / non-anon JWT in any tracked file
+        run: node scripts/check-jwt-roles.mjs
       - name: Dependency audit (high/critical)
         run: npm audit --audit-level=high
       - name: Run zero-dependency checks
@@ -33,6 +35,8 @@ jobs:
         run: node scripts/check-deferred-integrations.mjs
       - name: Environment-separation guard (no silent prod from localhost)
         run: node scripts/check-env-safety.mjs
+      - name: CSP inline-script hashes current (no 'unsafe-inline')
+        run: node scripts/gen-csp.mjs --check
       - name: Regression tests (source characterization, no DB)
         run: npm test
       - name: Local dev preserved (server.js /api/health 200)

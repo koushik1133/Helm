@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>My tasks — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
@@ -16,14 +17,14 @@
   header{display:flex;align-items:center;gap:10px;padding:6px 0 16px}
   .mark{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
-  header b{font-size:15px} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  header b{font-size:15px} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:20px;margin-bottom:14px}
   h1{font-size:19px;margin:0 0 2px} .sub{color:var(--ink-3);font-size:13px;margin:0}
   .code{font-family:var(--mono);font-weight:600;color:var(--accent)}
-  .cat{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:700;margin:14px 0 6px}
+  .cat{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:700;margin:14px 0 6px}
   .task{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px}
   .task .tt{font-size:15px;font-weight:600;margin-bottom:8px}
-  .st{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 9px;border-radius:20px;float:right}
+  .st{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 9px;border-radius:20px;float:right}
   .st.assigned{background:#eef2ff;color:#4457c8} .st.accepted{background:#e6f6f2;color:#0f766e}
   .st.in_progress{background:#fff7e6;color:#946200} .st.completed{background:#e7f6ee;color:#0f7a43} .st.rejected{background:#fdecec;color:#b42318}
   .acts{display:flex;gap:8px;flex-wrap:wrap}
@@ -39,51 +40,87 @@
   .prog .lbl{font-size:12px;color:var(--ink-2);margin-bottom:5px;display:flex;justify-content:space-between;font-weight:600}
   .prog .bar{height:10px;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;overflow:hidden}
   .prog .fill{height:100%;background:linear-gradient(120deg,var(--accent),var(--accent-2));width:0%;transition:width .3s}
+  @media (prefers-reduced-motion: reduce){.prog .fill{transition:none}}
   .offline{background:#fff7e6;color:#946200;border:1px solid #f0d9a8;border-radius:10px;padding:9px 12px;font-size:12px;margin-bottom:12px}
   .refresh{width:100%;margin-bottom:12px}
   .eq{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px}
   .eq .en{flex:1;font-size:14px;font-weight:600} .eq .eq-q{font-family:var(--mono);font-size:12px;color:var(--ink-3);font-weight:400;margin-top:2px}
   .eq .btn{flex:0 0 auto;min-width:0;width:auto;height:38px;padding:0 16px}
-  footer{text-align:center;color:var(--ink-3);font-size:11px;margin-top:8px}
+  footer{text-align:center;color:var(--ink-3);font-size:12px;margin-top:8px}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header><div class="mark"></div><div><b>Helm Events</b><small>Staff tasks</small></div></header>
-  <div id="loading" class="card"><p class="muted">Loading your tasks…</p></div>
+  <main id="main">
+  <div id="loading" class="card" role="status"><p class="muted">Loading your tasks…</p></div>
   <div id="badlink" class="card" hidden><h1>Link not found</h1><p class="sub">This task link is invalid. Please ask your manager for a new one.</p></div>
+  <div id="offlineFirst" class="card" role="alert" hidden><h1>You’re offline</h1><p class="sub">We couldn’t load your tasks because you’re not connected. They’ll load automatically when you’re back online.</p><button class="btn primary" id="retryFirst" type="button" style="margin-top:12px">↻ Try again</button></div>
   <div id="content" hidden>
     <div class="card">
       <h1 id="title">Event</h1>
       <p class="sub" id="sub"></p>
     </div>
-    <div id="offline" class="offline" hidden>⚠️ Showing your last saved view — you look offline. It'll refresh when you're back online.</div>
+    <div id="offline" class="offline" role="status" hidden>⚠️ Showing your last saved view — you look offline. It'll refresh when you're back online.</div>
     <div class="prog" id="prog" hidden>
       <div class="lbl"><span>Your progress</span><span id="progTxt">0 / 0</span></div>
       <div class="bar"><span class="fill" id="progFill"></span></div>
     </div>
-    <button class="btn refresh" id="refreshBtn">↻ Refresh</button>
-    <div id="msg"></div>
+    <button class="btn refresh" id="refreshBtn" type="button">↻ Refresh</button>
+    <div id="msg" role="alert"></div>
     <div id="tasks"></div>
     <div id="equipSec" hidden><div class="cat">📦 Equipment to return</div><div id="equip"></div></div>
   </div>
+  </main>
   <footer>Helm Events · you only see tasks assigned to you.</footer>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   const token=new URLSearchParams(location.search).get("token");
   const LABEL={assigned:"Assigned",accepted:"Accepted",in_progress:"In progress",completed:"Completed",rejected:"Rejected"};
   let data=null, equip=[];
-  const CK="bpwork:"+token;
+  // Offline cache: sessionStorage only (cleared when the tab closes), keyed by a
+  // SHA-256 hash of the token (the raw token never becomes a storage key), 12h TTL,
+  // and only the fields this page renders.
+  const CACHE_TTL=12*60*60*1000;
+  let CK=null;
+  try{ Object.keys(localStorage).forEach(k=>{ if(k.indexOf("bpwork:")===0) localStorage.removeItem(k); }); }catch{}
+  async function cacheKey(){
+    if(CK||!token) return CK;
+    try{
+      const buf=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+      CK="bpwork:"+Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+    }catch{ CK=null; }
+    return CK;
+  }
   function setMsg(t){ const m=$("#msg"); m.innerHTML=t?`<div class="msg err">${esc(t)}</div>`:""; }
-  function readCache(){ try{ return JSON.parse(localStorage.getItem(CK)||"null"); }catch{ return null; } }
-  function writeCache(){ try{ localStorage.setItem(CK, JSON.stringify({data,equip})); }catch{} }
+  function readCache(){
+    if(!CK) return null;
+    try{
+      const c=JSON.parse(sessionStorage.getItem(CK)||"null");
+      if(!c||!c.at||Date.now()-c.at>CACHE_TTL){ sessionStorage.removeItem(CK); return null; }
+      return c;
+    }catch{ return null; }
+  }
+  function slim(){
+    const ev=(data&&data.event)||{}, wk=(data&&data.worker)||{};
+    return {
+      data:{
+        event:{title:ev.title,code:ev.code,event_date:ev.event_date,event_time:ev.event_time},
+        worker:{name:wk.name},
+        tasks:((data&&data.tasks)||[]).map(t=>({id:t.id,title:t.title,category:t.category,status:t.status})),
+      },
+      equip:(equip||[]).map(e=>({id:e.id,item:e.item,unit:e.unit,qty_out:e.qty_out,qty_in:e.qty_in,status:e.status})),
+    };
+  }
+  function writeCache(){ if(!CK) return; try{ sessionStorage.setItem(CK, JSON.stringify(Object.assign({at:Date.now()}, slim()))); }catch{} }
   const fmtDate=(d,t)=>{ if(!d) return ""; try{ const dt=new Date(d+"T00:00:00"); let s=dt.toLocaleDateString([], {weekday:'short',day:'numeric',month:'short'}); return s+(t?(" · "+t):""); }catch{ return d+(t?" · "+t:""); } };
 
   function paintHeader(){
@@ -93,6 +130,7 @@
   }
   async function load(){
     if(!token){ $("#loading").hidden=true; $("#badlink").hidden=false; return; }
+    await cacheKey();
     const cached=readCache();
     if(cached && cached.data){ data=cached.data; equip=cached.equip||[]; $("#loading").hidden=true; $("#content").hidden=false; paintHeader(); render(); }
     await BPStore.init();
@@ -106,10 +144,16 @@
         BPStore.ops.worker.getEquipment(token).catch(()=>({equipment:[]})),
       ]);
       data=d; equip=(eq&&eq.equipment)||[]; writeCache();
-      $("#offline").hidden=true; $("#loading").hidden=true; $("#badlink").hidden=true; $("#content").hidden=false;
+      $("#offline").hidden=true; $("#loading").hidden=true; $("#badlink").hidden=true; $("#offlineFirst").hidden=true; $("#content").hidden=false;
       paintHeader(); render();
     }catch(e){
-      if(strict && !readCache()){ $("#loading").hidden=true; $("#badlink").hidden=false; }
+      if(strict && !data){
+        $("#loading").hidden=true;
+        // first load with no cached view: offline is not the same as a bad link
+        if(BPUI.isNetworkError(e)) $("#offlineFirst").hidden=false;
+        else $("#badlink").hidden=false;
+      }
+      else if(!data){ $("#offlineFirst").hidden=!BPUI.isNetworkError(e); if(!BPUI.isNetworkError(e)) setMsg(BPUI.friendlyError(e,{action:"load your tasks"})); }
       else { $("#offline").hidden=false; }   // keep showing the cached view
     }
   }
@@ -125,12 +169,12 @@
     host.innerHTML = all.length ? Object.entries(byCat).map(([cat,ts])=>`<div class="cat">${esc(cat)}</div>`+
       ts.map(t=>{
         let acts="";
-        if(t.status==='assigned') acts=`<button class="btn ok" data-a="accept">✓ Accept</button><button class="btn no" data-a="reject">Reject</button>`;
-        else if(t.status==='accepted') acts=`<button class="btn primary" data-a="start">Start task</button>`;
-        else if(t.status==='in_progress') acts=`<button class="btn primary" data-a="complete">Mark done</button>`;
+        if(t.status==='assigned') acts=`<button type="button" class="btn ok" data-a="accept">✓ Accept</button><button type="button" class="btn no" data-a="reject">Reject</button>`;
+        else if(t.status==='accepted') acts=`<button type="button" class="btn primary" data-a="start">Start task</button>`;
+        else if(t.status==='in_progress') acts=`<button type="button" class="btn primary" data-a="complete">Mark done</button>`;
         else if(t.status==='completed') acts=`<span class="done">✅ Completed — thank you</span>`;
         else if(t.status==='rejected') acts=`<span class="rej">Rejected</span>`;
-        return `<div class="task" data-id="${t.id}"><span class="st ${t.status}">${LABEL[t.status]||t.status}</span>
+        return `<div class="task" data-id="${esc(String(t.id))}"><span class="st ${esc(t.status)}">${LABEL[t.status]||esc(t.status)}</span>
           <div class="tt">${esc(t.title)}</div><div class="acts">${acts}</div></div>`;
       }).join("")).join("") : '<div class="card muted">No tasks assigned to you yet.</div>';
     host.querySelectorAll(".task").forEach(card=>{
@@ -142,27 +186,35 @@
     const sec=$("#equipSec"), host=$("#equip");
     if(!equip || !equip.length){ sec.hidden=true; return; }
     sec.hidden=false;
-    host.innerHTML=equip.map(e=>`<div class="eq" data-id="${esc(e.id)}">
-      <span class="en">${esc(e.item)}<div class="eq-q">${e.qty_out} ${esc(e.unit||"")} out${e.status==='partial'?` · ${e.qty_in||0} returned`:""}</div></span>
-      <button class="btn ok ret">Return</button></div>`).join("");
+    host.innerHTML=equip.map(e=>`<div class="eq" data-id="${esc(String(e.id))}">
+      <span class="en">${esc(e.item)}<div class="eq-q">${Number(e.qty_out)||0} ${esc(e.unit||"")} out${e.status==='partial'?` · ${Number(e.qty_in)||0} returned`:""}</div></span>
+      <button type="button" class="btn ok ret" aria-label="Return ${esc(e.item)}">Return</button></div>`).join("");
     host.querySelectorAll(".ret").forEach(b=>b.addEventListener("click",()=>returnEq(b.closest(".eq").dataset.id,b)));
   }
   async function returnEq(id,btn){
-    const e=equip.find(x=>x.id===id); if(!e) return;
-    const ans=prompt(`How many "${e.item}" are you returning? (${e.qty_out} went out)`, String(e.qty_out));
-    if(ans===null) return; const q=Number(ans);
-    if(isNaN(q)||q<0){ setMsg("Enter a valid number."); return; }
-    setMsg(""); btn.disabled=true; btn.textContent="…";
-    try{ await BPStore.ops.worker.checkinEquipment(token,id,q); await refresh(false); }
-    catch(err){ setMsg((err&&err.message)||"Couldn't record the return"); btn.disabled=false; btn.textContent="Return"; }
+    const e=equip.find(x=>String(x.id)===String(id)); if(!e) return;
+    const max=Math.max(0, Math.floor(Number(e.qty_out)||0));
+    const ans=await BPUI.prompt(`How many "${e.item}" are you returning? (${max} went out)`,{
+      title:"Return equipment", label:"Quantity returned", type:"number", value:String(max), required:true, okLabel:"Return",
+      validate:(v)=>{ const r=BPStore.validate.count(v,{field:"Quantity",max}); return r.ok?"":r.error; },
+    });
+    if(ans===null) return;
+    const r=BPStore.validate.count(ans,{field:"Quantity",max});
+    if(!r.ok){ setMsg(r.error); return; }
+    const q=Math.min(max, Math.max(0, Math.trunc(r.value)));
+    setMsg("");
+    try{ await BPUI.guard(btn, async()=>{ await BPStore.ops.worker.checkinEquipment(token,id,q); await refresh(false); }, {busyLabel:"…"}); }
+    catch(err){ setMsg(BPUI.friendlyError(err,{action:"record the return"})); }
   }
   async function respond(id,action,btn){
-    setMsg(); btn.disabled=true; const old=btn.textContent; btn.textContent="…";
-    try{ await BPStore.ops.worker.respond(token,id,action); await refresh(false); }
-    catch(e){ setMsg((e&&e.message)||"Action failed"); btn.disabled=false; btn.textContent=old; }
+    if(action==='reject' && !(await BPUI.confirm("Reject this task? The office will be told you can't do it.",{title:"Reject task?",okLabel:"Reject",danger:true}))) return;
+    setMsg();
+    try{ await BPUI.guard(btn, async()=>{ await BPStore.ops.worker.respond(token,id,action); await refresh(false); }, {busyLabel:"…"}); }
+    catch(e){ setMsg(BPUI.friendlyError(e,{action:"update the task"})); }
   }
-  $("#refreshBtn").addEventListener("click",()=>{ setMsg(""); refresh(false); });
-  load();
+  $("#refreshBtn").addEventListener("click",(ev)=>{ setMsg(""); BPUI.guard(ev.currentTarget,()=>refresh(false)).catch(()=>{}); });
+  $("#retryFirst").addEventListener("click",(ev)=>{ BPUI.guard(ev.currentTarget,()=>refresh(true)).catch(()=>{}); });
+  BPUI.boot(load);
 </script>
 </body>
 </html>

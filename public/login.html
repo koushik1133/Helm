@@ -3,11 +3,26 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <script>/* Auth screens are ALWAYS light — the saved theme (bps.theme) is applied only after the user lands on an in-app page post-login. */try{document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>
-<title>Sign in — Helm Events</title>
+<title>Sign in · Helm</title>
+<meta name="description" content="Sign in to Helm, or create your studio's private workspace to run every event from first enquiry to final bill.">
+<meta name="robots" content="noindex,nofollow,noarchive">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d28d9'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
+<link rel="canonical" href="https://www.helm.events/login">
+<link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Helm">
+<meta property="og:title" content="Sign in · Helm">
+<meta property="og:description" content="Sign in to Helm, or create your studio&#x27;s private workspace to run every event from first enquiry to final bill.">
+<meta property="og:url" content="https://www.helm.events/login">
+<meta property="og:image" content="https://www.helm.events/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Sign in · Helm">
+<meta name="twitter:description" content="Sign in to Helm, or create your studio&#x27;s private workspace to run every event from first enquiry to final bill.">
+<meta name="twitter:image" content="https://www.helm.events/og.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" media="print" onload="this.media='all'">
-<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"></noscript>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#ffffff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
     --line:#e8e3db;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;
@@ -24,8 +39,8 @@
   .brandpane .logo{display:flex;align-items:center;gap:12px}
   .brandpane .mk{width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.16);position:relative}
   .brandpane .mk::after{content:"";position:absolute;inset:9px;border:2px solid rgba(255,255,255,.92);border-radius:4px}
-  .brandpane h1{font-size:15px;margin:0;font-weight:700} .brandpane small{display:block;font-size:10px;opacity:.8;letter-spacing:.08em;text-transform:uppercase}
-  .brandpane h2{font-size:40px;line-height:1.08;letter-spacing:-.02em;margin:70px 0 16px;max-width:12ch}
+  .brandpane .logo-name{display:block;font-size:15px;margin:0;font-weight:700} .brandpane small{display:block;font-size:10px;opacity:.8;letter-spacing:.08em;text-transform:uppercase}
+  .brandpane .tagline{opacity:1;font-weight:700;font-size:40px;line-height:1.08;letter-spacing:-.02em;margin:70px 0 16px;max-width:12ch}
   .brandpane p{font-size:16px;line-height:1.6;opacity:.92;max-width:38ch;margin:0 0 34px}
   .flist{display:flex;flex-direction:column;gap:14px;max-width:40ch}
   .flist .fi{display:flex;gap:12px;align-items:flex-start;font-size:14px;opacity:.95}
@@ -40,7 +55,7 @@
   .card{width:min(400px,100%);background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:34px 32px}
   .mmk{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;margin-bottom:16px}
   .mmk::after{content:"";position:absolute;inset:9px;border:2px solid rgba(255,255,255,.92);border-radius:4px}
-  .card h3{margin:0 0 4px;font-size:23px;letter-spacing:-.01em} .card .sub{margin:0 0 22px;font-size:13px;color:var(--ink-3)}
+  .card h1{margin:0 0 4px;font-size:23px;letter-spacing:-.01em} .card .sub{margin:0 0 22px;font-size:13px;color:var(--ink-3)}
   label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin:0 0 6px}
   input,select{width:100%;height:44px;border:1px solid var(--line);background:var(--panel-2);border-radius:11px;padding:0 14px;font-family:inherit;font-size:15px;color:var(--ink);margin-bottom:16px}
   /* selects match inputs: same rounded box + a custom chevron (no native square look) */
@@ -59,14 +74,19 @@
   .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
   .gbtn{width:100%;height:46px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--ink);font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px}
   .gbtn:hover{background:var(--panel-2)} .gbtn svg{width:18px;height:18px}
+  .gbtn:disabled{opacity:.6;cursor:default}
+  .info{background:#fff7e6;color:#5c3d00;border:1px solid #f2d492;border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:16px}
+  .linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);cursor:pointer;text-decoration:underline}
+  .hint{font-size:12px;color:var(--ink-3);margin:-10px 0 16px}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+  <a class="skip-link" href="#main">Skip to content</a>
   <section class="brandpane">
     <span class="glow g1"></span><span class="glow g2"></span>
-    <div class="logo"><div class="mk"></div><div><h1>Helm Events</h1><small>Event Operating System</small></div></div>
-    <h2>Run every event, end to end.</h2>
+    <div class="logo"><div class="mk" aria-hidden="true"></div><div><span class="logo-name">Helm Events</span><small>Event Operating System</small></div></div>
+    <p class="tagline">Run every event, end to end.</p>
     <p>From first enquiry to final P&amp;L — leads, 2D/3D floor plans, quotes, resources, the event day, and closure, all in one place.</p>
     <div class="flist">
       <div class="fi"><span class="d">🎯</span><span>Capture leads and convert them into fully-planned events.</span></div>
@@ -76,25 +96,27 @@
     </div>
   </section>
 
-  <section class="formpane">
+  <main class="formpane" id="main">
     <form class="card" id="loginForm">
       <div class="mmk"></div>
       <div class="modetabs">
-        <button type="button" class="mtab on" data-mode="signin">Sign in</button>
-        <button type="button" class="mtab" data-mode="signup">Create studio</button>
+        <button type="button" class="mtab on" data-mode="signin" aria-pressed="true">Sign in</button>
+        <button type="button" class="mtab" data-mode="signup" aria-pressed="false">Create studio</button>
       </div>
-      <h3 id="formTitle">Welcome back</h3>
+      <h1 id="formTitle">Welcome back</h1>
       <p class="sub" id="formSub">Sign in with the account your studio admin created for you.</p>
-      <div class="err" id="err" hidden></div>
-      <div class="okmsg" id="okmsg" hidden></div>
+      <div class="info" id="expiredMsg" role="status" hidden>Your session expired — sign in again.</div>
+      <div class="err" id="err" role="alert" hidden></div>
+      <div class="okmsg" id="okmsg" role="status" hidden></div>
       <div id="studioField" hidden>
         <label for="studio">Studio / business name</label>
-        <input id="studio" placeholder="e.g. Aurora Events">
+        <input id="studio" placeholder="e.g. Aurora Events" autocomplete="organization" minlength="2">
       </div>
       <label for="email">Email</label>
       <input id="email" type="email" autocomplete="username" placeholder="you@studio.com" required>
       <label for="pw">Password</label>
-      <input id="pw" type="password" autocomplete="current-password" placeholder="••••••••" required>
+      <input id="pw" type="password" autocomplete="current-password" placeholder="••••••••" required aria-describedby="pwHint">
+      <p class="hint" id="pwHint" hidden>At least 12 characters.</p>
       <button class="btn" id="submit" type="submit">Sign in →</button>
       <div class="or"><span>or</span></div>
       <button type="button" class="gbtn" id="googleBtn">
@@ -107,10 +129,10 @@
     <!-- Onboarding: shown when a signed-in user (e.g. via Google) has no studio yet -->
     <form class="card" id="onboardForm" hidden>
       <div class="mmk"></div>
-      <h3>Set up your studio</h3>
+      <h1 id="obTitle">Set up your studio</h1>
       <p class="sub" id="obSub">You're signed in — tell us about your business to create your <b>own new</b> workspace.</p>
-      <div class="okmsg" id="obHint" style="text-align:left">Were you invited by a colleague? Don't create a studio here — open the <b>invite link</b> they sent you instead, so you join <em>their</em> studio. <a id="ob_signout2" style="color:var(--accent);cursor:pointer">Sign out</a></div>
-      <div class="err" id="obErr" hidden></div>
+      <div class="okmsg" id="obHint" style="text-align:left">Were you invited by a colleague? Don't create a studio here — open the <b>invite link</b> they sent you instead, so you join <em>their</em> studio. <button type="button" class="linkbtn" id="ob_signout2">Sign out</button></div>
+      <div class="err" id="obErr" role="alert" hidden></div>
       <label for="ob_name">Business / studio name</label>
       <input id="ob_name" placeholder="e.g. Aurora Events" autocomplete="organization" required>
       <label for="ob_location">Location (city, country)</label>
@@ -138,66 +160,100 @@
         </div>
       </div>
       <button class="btn" id="ob_submit" type="submit">Create my studio →</button>
-      <div class="foot">Signed in as <b id="obEmail"></b> · <a id="ob_signout" style="cursor:pointer;color:var(--accent)">Not you? Sign out</a></div>
+      <div class="foot">Signed in as <b id="obEmail"></b> · <button type="button" class="linkbtn" id="ob_signout">Not you? Sign out</button></div>
     </form>
-  </section>
+  </main>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const PENDING="bp_pending_studio";
+  // Matches the Supabase Auth password policy (min length 12 — docs/completion/AUTH-HARDENING.md).
+  const PW_MIN=12;
   // ----- invitation: JOIN an existing studio (vs. Create a new one) -----
-  const INVITE_LS="bp_pending_invite";
+  // The invite token is a bearer secret: keep it only for this tab (sessionStorage),
+  // never in long-lived localStorage. The legacy localStorage copy is read once, then removed.
+  const INVITE_KEY="bp_pending_invite";
   const inviteTok=new URLSearchParams(location.search).get("invite");
-  if(inviteTok){ try{ localStorage.setItem(INVITE_LS, inviteTok); }catch(e){} }
-  const pendingInvite=()=>{ try{ return inviteTok||localStorage.getItem(INVITE_LS)||null; }catch(e){ return inviteTok||null; } };
+  (function migrateInvite(){
+    let legacy=null;
+    try{ legacy=localStorage.getItem(INVITE_KEY); localStorage.removeItem(INVITE_KEY); }catch(e){}
+    try{
+      if(inviteTok) sessionStorage.setItem(INVITE_KEY, inviteTok);
+      else if(legacy && !sessionStorage.getItem(INVITE_KEY)) sessionStorage.setItem(INVITE_KEY, legacy);
+    }catch(e){}
+  })();
+  const pendingInvite=()=>{ try{ return inviteTok||sessionStorage.getItem(INVITE_KEY)||null; }catch(e){ return inviteTok||null; } };
+  const clearInvite=()=>{ try{ sessionStorage.removeItem(INVITE_KEY); }catch(e){} try{ localStorage.removeItem(INVITE_KEY); }catch(e){} };
   const JOINING=!!pendingInvite();   // an invitee joins a studio; they never create one
   // Accept a same-app page name with optional .html and optional query (e.g.
   // "flow.html?quote=…" or the clean-URL form "flow?quote=…"). Reject anything
   // with a slash or protocol to prevent open-redirects.
-  const nextUrl=()=>{ const n=new URLSearchParams(location.search).get("next"); return (n && /^[a-zA-Z0-9_\-]+(\.html)?(\?|$)/.test(n) && !/[\/\\]|:/.test(n)) ? n : "dashboard.html"; };
+  // ?next= may only name one of the app's own pages; the page string comes from
+  // this fixed list (never from the URL) and only its query string is carried over.
+  const NEXT_PAGES=["audit","budget","builder","calendar","closure","command","control","crm","dashboard","design","discovery","event","flow","insights","inventory","invite-studio","issues","leads","logistics","media","nurture","ops","plan","proposal","quotes","ready","reports","resources","runsheet","settlement","staff","teardown","templates","vendors"];
+  const nextUrl=()=>{
+    const m=/^([a-z0-9-]+)(?:\.html)?(?:\?([^#]*))?$/i.exec(new URLSearchParams(location.search).get("next")||"");
+    const page=m && NEXT_PAGES.find(p=>p===m[1].toLowerCase());
+    if(!page) return "dashboard.html";
+    const qs=new URLSearchParams(m[2]||"").toString();
+    return page+".html"+(qs?"?"+qs:"");
+  };
+  const EXPIRED=new URLSearchParams(location.search).get("expired")==="1";
+  const showErr=(el,text)=>{ el.textContent=text; el.hidden=false; };
 
   // Option A — force a user who signed in with a temporary password to set their own.
   // Blocks (returns a promise) until they successfully set a new password.
   function forcePasswordChange(){
     return new Promise((resolve)=>{
       const ov=document.createElement("div");
-      ov.setAttribute("role","dialog"); ov.setAttribute("aria-modal","true"); ov.setAttribute("aria-label","Set a new password");
+      ov.setAttribute("role","dialog"); ov.setAttribute("aria-modal","true"); ov.setAttribute("aria-labelledby","fpc_title");
+      ov.setAttribute("data-dismissible","false");   // must set a password — Escape does nothing
       ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999;padding:16px";
       ov.innerHTML=
-        '<div style="background:#fff;color:#111;max-width:380px;width:100%;border-radius:14px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35)">'+
-        '<h2 style="margin:0 0 6px;font-size:1.15rem">Set your password</h2>'+
+        '<form id="fpc_form" novalidate style="background:#fff;color:#111;max-width:380px;width:100%;border-radius:14px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35)">'+
+        '<h2 id="fpc_title" style="margin:0 0 6px;font-size:1.15rem">Set your password</h2>'+
         '<p style="margin:0 0 14px;color:#555;font-size:.9rem">You signed in with a temporary password. Choose your own to continue.</p>'+
-        '<label for="fpc_pw" style="display:block;font-size:.85rem;margin-bottom:4px">New password (min 8)</label>'+
-        '<input id="fpc_pw" type="password" autocomplete="new-password" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px">'+
-        '<label for="fpc_pw2" style="display:block;font-size:.85rem;margin-bottom:4px">Confirm password</label>'+
-        '<input id="fpc_pw2" type="password" autocomplete="new-password" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:12px">'+
-        '<div id="fpc_err" style="color:#c0392b;font-size:.85rem;min-height:18px;margin-bottom:8px"></div>'+
-        '<button id="fpc_go" type="button" style="width:100%;padding:11px;border:0;border-radius:8px;background:#111;color:#fff;font-weight:600;cursor:pointer">Set password &amp; continue</button>'+
-        '</div>';
+        '<label for="fpc_pw" style="display:block;font-size:.85rem;margin-bottom:4px;text-transform:none;letter-spacing:0;color:#333">New password (min '+PW_MIN+')</label>'+
+        '<input id="fpc_pw" type="password" autocomplete="new-password" minlength="'+PW_MIN+'" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px">'+
+        '<label for="fpc_pw2" style="display:block;font-size:.85rem;margin-bottom:4px;text-transform:none;letter-spacing:0;color:#333">Confirm password</label>'+
+        '<input id="fpc_pw2" type="password" autocomplete="new-password" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:12px">'+
+        '<div id="fpc_err" role="alert" style="color:#b42318;font-size:.85rem;min-height:18px;margin-bottom:8px"></div>'+
+        '<button id="fpc_go" type="submit" style="width:100%;padding:11px;border:0;border-radius:8px;background:#111;color:#fff;font-weight:600;cursor:pointer">Set password &amp; continue</button>'+
+        '</form>';
       document.body.appendChild(ov);
-      const pw=ov.querySelector("#fpc_pw"), pw2=ov.querySelector("#fpc_pw2"), er=ov.querySelector("#fpc_err"), go=ov.querySelector("#fpc_go");
+      const form=ov.querySelector("#fpc_form"), pw=ov.querySelector("#fpc_pw"), pw2=ov.querySelector("#fpc_pw2"), er=ov.querySelector("#fpc_err"), go=ov.querySelector("#fpc_go");
       pw.focus();
-      go.addEventListener("click", async ()=>{
-        er.textContent="";
-        if((pw.value||"").length<8){ er.textContent="Password must be at least 8 characters."; return; }
-        if(pw.value!==pw2.value){ er.textContent="Passwords don't match."; return; }
-        go.disabled=true; go.textContent="Saving…";
-        try{ await BPStore.auth.completePasswordChange(pw.value); ov.remove(); resolve(true); }
-        catch(e){ er.textContent=(e&&e.message)||"Couldn't set password."; go.disabled=false; go.textContent="Set password & continue"; }
+      form.addEventListener("submit",(e)=>{
+        e.preventDefault();
+        BPUI.guard(go, async ()=>{
+          er.textContent="";
+          if((pw.value||"").length<PW_MIN){ er.textContent="Password must be at least "+PW_MIN+" characters."; return; }
+          if(pw.value!==pw2.value){ er.textContent="Passwords don't match."; return; }
+          go.textContent="Saving…";
+          try{ await BPStore.auth.completePasswordChange(pw.value); ov.remove(); resolve(true); }
+          catch(e){ er.textContent=BPUI.friendlyError(e,{action:"set your password"}); }
+          finally{ go.textContent="Set password & continue"; }
+        });
       });
     });
   }
   let mode="signin";
+  function submitLabel(){ return mode==="signup" ? (JOINING?"Create account & join →":"Create studio →") : (JOINING?"Sign in & join →":"Sign in →"); }
   function setMode(m){ mode=m; $("#err").hidden=true; $("#okmsg").hidden=true;
-    document.querySelectorAll(".mtab").forEach(b=>b.classList.toggle("on",b.dataset.mode===m));
-    $("#studioField").hidden = JOINING || m==="signin";   // an invitee never names a studio
+    document.querySelectorAll(".mtab").forEach(b=>{ const on=b.dataset.mode===m; b.classList.toggle("on",on); b.setAttribute("aria-pressed",on?"true":"false"); });
+    const needStudio = !JOINING && m==="signup";
+    $("#studioField").hidden = !needStudio;   // an invitee never names a studio
+    $("#studio").required = needStudio;
     $("#formTitle").textContent = m==="signup" ? (JOINING?"Create your account":"Create your studio") : "Welcome back";
     $("#formSub").textContent = m==="signup" ? (JOINING?"Create your account to join the studio you were invited to.":"Start a fresh workspace, pre-loaded with default templates and catalogs.") : (JOINING?"Sign in to accept your invitation.":"Sign in with the account your studio admin created for you.");
-    $("#submit").textContent = m==="signup" ? (JOINING?"Create account & join →":"Create studio →") : (JOINING?"Sign in & join →":"Sign in →");
+    $("#submit").textContent = submitLabel();
     $("#pw").setAttribute("autocomplete", m==="signup" ? "new-password" : "current-password");
+    // new passwords must meet the policy; existing ones are checked by the server
+    if(m==="signup") $("#pw").setAttribute("minlength", String(PW_MIN)); else $("#pw").removeAttribute("minlength");
+    $("#pwHint").hidden = m!=="signup";
   }
   document.querySelectorAll(".mtab").forEach(b=>b.addEventListener("click",()=>setMode(b.dataset.mode)));
 
@@ -213,20 +269,22 @@
   async function acceptPendingInvite(){
     const tok=pendingInvite(); if(!tok) return;
     try{ await BPStore.invitations.accept(tok); }
-    finally{ try{ localStorage.removeItem(INVITE_LS); }catch(e){} }
+    finally{ clearInvite(); }
   }
   // show who/what the invitee is joining (no PII — org name + role only)
   async function showInviteBanner(){
     const tok=pendingInvite(); if(!tok) return;
-    try{ const info=await BPStore.invitations.byToken(tok);
+    try{ const info=await BPStore.invitations.preview(tok);
       if(info && info.valid){ $("#okmsg").textContent="You're joining "+(info.org_name||"a studio")+" as "+(info.role||"a teammate")+" — sign in or create your account to accept."; $("#okmsg").hidden=false; }
-      else if(info){ $("#err").textContent="This invitation is "+(info.expired?"expired":(info.status||"no longer valid"))+"."; $("#err").hidden=false; }
+      else if(info){ showErr($("#err"),"This invitation is "+(info.expired?"expired":(info.status||"no longer valid"))+"."); }
     }catch(e){}
   }
   // arriving from the intro page's "Sign up" button (login.html#signup) opens the create-studio tab
   if((location.hash||"").toLowerCase().replace("#","")==="signup"){ setMode("signup"); }
   // an invite implies "join", so default to the create-account tab for a new invitee
   if(JOINING){ setMode("signup"); }
+  // redirected here by the shared session-expiry handler (login.html?next=…&expired=1)
+  if(EXPIRED){ $("#expiredMsg").hidden=false; if(mode!=="signin") setMode("signin"); }
   // ----- Onboarding: a signed-in user with no studio (e.g. Google sign-in) -----
   function showOnboarding(){
     const u=BPStore.auth.user()||{};
@@ -241,32 +299,36 @@
       if(tz && [...$("#ob_tz").options].some(o=>o.value===tz)) $("#ob_tz").value=tz; }catch(e){}
     setTimeout(()=>$("#ob_name").focus(),60);
   }
-  $("#onboardForm").addEventListener("submit", async (e)=>{
-    e.preventDefault(); $("#obErr").hidden=true;
-    const name=$("#ob_name").value.trim();
-    if(!name){ $("#obErr").textContent="Please enter your business name."; $("#obErr").hidden=false; return; }
-    const btn=$("#ob_submit"); btn.disabled=true; btn.textContent="Creating…";
-    try{
-      await BPStore.org.createStudio(name,{ email:(BPStore.auth.user()||{}).email,
-        currency:$("#ob_currency").value, timezone:$("#ob_tz").value });
-      const loc=$("#ob_location").value.trim();
-      if(loc){ try{ await BPStore.org.save({ location: loc }); }catch(e){} }
-      try{ localStorage.setItem("bp_force_tour","1"); }catch(e){}   // brand-new studio → show the tour
-      location.replace(nextUrl());
-    }catch(err){ $("#obErr").textContent=(err&&err.message)||"Couldn't create your studio."; $("#obErr").hidden=false;
-      btn.disabled=false; btn.textContent="Create my studio →"; }
+  $("#onboardForm").addEventListener("submit", (e)=>{
+    e.preventDefault();
+    const btn=$("#ob_submit");
+    BPUI.guard(btn, async ()=>{
+      $("#obErr").hidden=true;
+      const name=$("#ob_name").value.trim();
+      if(!name){ showErr($("#obErr"),"Please enter your business name."); $("#ob_name").focus(); return; }
+      btn.textContent="Creating…";
+      try{
+        await BPStore.org.createStudio(name,{ email:(BPStore.auth.user()||{}).email,
+          currency:$("#ob_currency").value, timezone:$("#ob_tz").value });
+        const loc=$("#ob_location").value.trim();
+        if(loc){ try{ await BPStore.org.save({ location: loc }); }catch(e){} }
+        try{ localStorage.setItem("bp_force_tour","1"); }catch(e){}   // brand-new studio → show the tour
+        location.replace(nextUrl());
+      }catch(err){ showErr($("#obErr"),BPUI.friendlyError(err,{action:"create your studio"})); }
+      finally{ btn.textContent="Create my studio →"; }
+    });
   });
-  const doSignOut=async ()=>{ try{ await BPStore.auth.signOut(); }catch(e){} location.reload(); };
+  const doSignOut=async ()=>{ clearInvite(); try{ await BPStore.auth.signOut(); }catch(e){} location.reload(); };
   $("#ob_signout").addEventListener("click", doSignOut);
   const ob2=$("#ob_signout2"); if(ob2) ob2.addEventListener("click", doSignOut);
 
-  (async ()=>{
+  BPUI.boot(async ()=>{
     await BPStore.init();
     if(!BPStore.auth.enabled()){ location.replace(nextUrl()); return; }
     if(BPStore.auth.user()){
       if(pendingInvite()){
         try{ await acceptPendingInvite(); }
-        catch(err){ $("#err").textContent=(err&&err.message)||"Couldn't accept the invitation."; $("#err").hidden=false; return; }
+        catch(err){ showErr($("#err"),BPUI.friendlyError(err,{action:"accept the invitation"})); return; }
       }
       await finishPendingStudio();
       // Signed in but no studio (and not joining one via invite) → collect business info.
@@ -274,62 +336,66 @@
       if(!oid && !JOINING){ showOnboarding(); return; }
       location.replace(nextUrl()); return;
     }
-    setTimeout(()=>$(mode==="signup"?"#studio":"#email").focus(),60);
+    setTimeout(()=>$(mode==="signup"&&!JOINING?"#studio":"#email").focus(),60);
     showInviteBanner();
-  })();
-
-  // Google OAuth — in "Create studio" mode we stash the studio name first, then
-  // finishPendingStudio() (on return) creates it once the session exists.
-  $("#googleBtn").addEventListener("click", async ()=>{
-    $("#err").hidden=true; $("#okmsg").hidden=true;
-    try{
-      // Google users sign in FIRST — no business name is required up front. On
-      // return, showOnboarding() collects the studio name / location / currency /
-      // timezone for brand-new users (invitees skip straight to accepting).
-      $("#googleBtn").disabled=true;
-      await BPStore.auth.signInWithGoogle(location.origin+"/login.html?next="+encodeURIComponent(nextUrl()));
-    }catch(err){
-      $("#googleBtn").disabled=false;
-      $("#err").textContent=(err&&err.message)||"Google sign-in isn’t enabled yet.";
-      $("#err").hidden=false;
-    }
   });
 
-  $("#loginForm").addEventListener("submit", async (e)=>{
+  // Google OAuth — sign in first; on return, showOnboarding() collects the studio
+  // details for brand-new users (invitees skip straight to accepting).
+  $("#googleBtn").addEventListener("click", ()=>{
+    $("#err").hidden=true; $("#okmsg").hidden=true;
+    BPUI.guard($("#googleBtn"), async ()=>{
+      try{ await BPStore.auth.signInWithGoogle(location.origin+"/login.html?next="+encodeURIComponent(nextUrl())); }
+      catch(err){ showErr($("#err"),(err&&err.message&&!/TypeError|undefined/.test(err.message))?err.message:"Google sign-in isn’t enabled yet."); }
+    });
+  });
+
+  $("#loginForm").addEventListener("submit", (e)=>{
     e.preventDefault();
-    const btn=$("#submit"); const email=$("#email").value.trim(), pw=$("#pw").value;
-    $("#err").hidden=true; $("#okmsg").hidden=true; btn.disabled=true;
-    const joining=!!pendingInvite();
-    try{
-      if(mode==="signup"){
-        if(joining){
-          // invitee creating an account, then accepting the invite (no studio to create)
+    const btn=$("#submit");
+    BPUI.guard(btn, async ()=>{
+      const email=$("#email").value.trim(), pw=$("#pw").value;
+      $("#err").hidden=true; $("#okmsg").hidden=true;
+      const joining=!!pendingInvite();
+      try{
+        if(mode==="signup"){
+          if(pw.length<PW_MIN){ showErr($("#err"),"Choose a password of at least "+PW_MIN+" characters."); $("#pw").focus(); return; }
+          if(joining){
+            // invitee creating an account, then accepting the invite (no studio to create)
+            btn.textContent="Creating…";
+            // retry after a partial failure: the account + session already exist → don't sign up again
+            const existing=BPStore.auth.user();
+            const r=existing?{session:true}:await BPStore.auth.signUp(email, pw);
+            if(r.session){ await acceptPendingInvite(); location.replace(nextUrl()); return; }
+            $("#okmsg").textContent="Account created. Confirm your email, then sign in here to join the studio.";
+            $("#okmsg").hidden=false; setMode("signin"); return;
+          }
+          const studio=$("#studio").value.trim();
+          if(studio.length<2){ showErr($("#err"),"Enter your studio / business name."); $("#studio").focus(); return; }
           btn.textContent="Creating…";
-          const r=await BPStore.auth.signUp(email, pw);
-          if(r.session){ await acceptPendingInvite(); location.replace(nextUrl()); return; }
-          $("#okmsg").textContent="Account created. Confirm your email, then sign in here to join the studio.";
-          $("#okmsg").hidden=false; setMode("signin"); btn.disabled=false; return;
+          // If an earlier attempt signed up (session exists) but createStudio failed,
+          // a retry must NOT call signUp again — only create the studio.
+          const existing=BPStore.auth.user();
+          const r=existing?{session:true}:await BPStore.auth.signUp(email, pw);
+          if(r.session){ await BPStore.org.createStudio(studio,{email:(existing&&existing.email)||email}); try{ localStorage.setItem("bp_force_tour","1"); }catch(e){} location.replace(nextUrl()); return; }
+          // email confirmation required → save the name, finish after they confirm + sign in
+          localStorage.setItem(PENDING, studio);
+          $("#okmsg").textContent="Studio saved. Check your email to confirm your address, then sign in here to finish setup.";
+          $("#okmsg").hidden=false; setMode("signin"); return;
         }
-        const studio=$("#studio").value.trim();
-        if(studio.length<2){ throw new Error("Enter your studio / business name."); }
-        btn.textContent="Creating…";
-        const r=await BPStore.auth.signUp(email, pw);
-        if(r.session){ await BPStore.org.createStudio(studio,{email}); try{ localStorage.setItem("bp_force_tour","1"); }catch(e){} location.replace(nextUrl()); return; }
-        // email confirmation required → save the name, finish after they confirm + sign in
-        localStorage.setItem(PENDING, studio);
-        $("#okmsg").textContent="Studio saved. Check your email to confirm your address, then sign in here to finish setup.";
-        $("#okmsg").hidden=false; setMode("signin"); btn.disabled=false; return;
-      }
-      btn.textContent="Signing in…";
-      await BPStore.auth.signIn(email, pw);
-      // Option A: a user created with a one-time temp password MUST set their own now.
-      if(await BPStore.auth.passwordChangeRequired()){ await forcePasswordChange(); }
-      if(joining){ await acceptPendingInvite(); } else { await finishPendingStudio(); }
-      location.replace(nextUrl());
-    }catch(err){
-      $("#err").textContent=(err&&err.message)||(mode==="signup"?"Couldn't create the studio.":"Sign-in failed. Check your email and password.");
-      $("#err").hidden=false; btn.disabled=false; btn.textContent = mode==="signup" ? "Create studio →" : "Sign in →";
-    }
+        btn.textContent="Signing in…";
+        await BPStore.auth.signIn(email, pw);
+        // Option A: a user created with a one-time temp password MUST set their own now.
+        if(await BPStore.auth.passwordChangeRequired()){ await forcePasswordChange(); }
+        if(joining){ await acceptPendingInvite(); } else { await finishPendingStudio(); }
+        location.replace(nextUrl());
+      }catch(err){
+        const m=(err&&err.message)||"";
+        // credential / policy messages from Supabase Auth are written for users; everything else goes through friendlyError
+        const direct=/invalid login|credentials|password|already registered|email/i.test(m) && !/TypeError|undefined|fetch/i.test(m);
+        showErr($("#err"), direct ? m : BPUI.friendlyError(err,{action: mode==="signup"?"create the studio":"sign you in"}));
+      }finally{ btn.textContent=submitLabel(); }
+    });
   });
 </script>
 </body>

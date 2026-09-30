@@ -1,0 +1,23 @@
+# Helm
+
+> Helm is an all-in-one platform for event businesses: one workspace that runs every event from first enquiry to final bill — leads and CRM, floor and layout design, instant pricing and quotes, bookings and payments, staff, inventory and vendors, event-day operations, and settlement and closing.
+
+Helm is built for event studios, agencies and venues that currently juggle spreadsheets, chat threads and paperwork. Each business gets its own private, multi-tenant workspace with role-based access, so sales, planners, crew and managers each see exactly what they need. It supports weddings, conferences, parties, festivals, trade shows, hospitality and corporate events.
+
+The event journey in Helm: Enquiry → Proposal → Quote → Confirm → Plan → Event day → Settle & close.
+
+## Product
+
+- [Home](https://www.helm.events/): overview of the platform and how it works (create a workspace, invite your team, run events, deliver and grow)
+- [Services](https://www.helm.events/services): what is included today — leads & CRM, 2D floor & layout design with templates, live quoting with versioned quotations and shareable proposals, bookings with advance payments and receipts, staff scheduling with double-booking checks, inventory & vendor tracking, event-day run-sheets and checklists, settlement with a profit & loss summary
+- [About](https://www.helm.events/about): the team and mission — a unified, security-first platform with end-to-end visibility across the event lifecycle
+
+## Policies
+
+- [Privacy Policy](https://www.helm.events/privacy)
+- [Terms of Service](https://www.helm.events/terms)
+
+## Notes for AI agents
+
+- Only the pages above are public. Everything else (the signed-in app, client approval and portal links, invitations, crew task links, and documentation) is private and disallowed in robots.txt.
+- Sign-up and sign-in happen at https://www.helm.events/login.

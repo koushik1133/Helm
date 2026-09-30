@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Staff Directory — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
@@ -17,11 +18,11 @@
   header{display:flex;align-items:center;gap:11px;padding:18px 0}
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
-  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
   .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)} .nav a.on{color:var(--accent)}
   .spacer{margin-left:auto}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
 
   .toolbar{display:flex;align-items:center;gap:10px;margin:8px 0 16px;flex-wrap:wrap}
@@ -40,13 +41,16 @@
   .av{width:42px;height:42px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;display:flex;align-items:center;justify-content:center;font-size:15px;flex:0 0 auto}
   .person .nm{font-weight:700;font-size:15px} .person .rl{font-size:12px;color:var(--ink-3)}
   .tags{display:flex;gap:6px;flex-wrap:wrap}
-  .tag{font-size:10px;font-weight:600;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:3px 9px;color:var(--ink-2)}
+  .tag{font-size:12px;font-weight:600;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:3px 9px;color:var(--ink-2)}
   .tag.dept{background:var(--accent-soft);color:var(--accent);border-color:transparent}
   .tag.emp{background:#e7f6ee;color:#0f7a43;border-color:transparent}
   .meta{font-size:12px;color:var(--ink-3);line-height:1.5}
   .person .acts{display:flex;gap:6px;margin-top:auto;padding-top:6px}
   .ic{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:30px;padding:0 11px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)} .ic:hover{border-color:var(--accent);color:var(--accent)}
-  .empty{text-align:center;color:var(--ink-3);padding:48px;font-size:14px;grid-column:1/-1}
+  .empty{text-align:center;color:var(--ink-3);padding:48px 16px;font-size:14px;grid-column:1/-1}
+  .empty .btn{margin-top:12px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr))}
+  @media(max-width:480px){.wrap{padding:0 16px 48px} header{flex-wrap:wrap} .nav{margin-left:0;flex-wrap:wrap} .search{max-width:none}}
   .count{font-size:12px;color:var(--ink-3)}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
 
@@ -54,19 +58,20 @@
   .lmodal[hidden]{display:none!important}
   .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(560px,96vw);max-height:90vh;overflow:auto;padding:24px}
   .sheet h3{margin:0 0 2px;font-size:18px;display:flex;align-items:center;gap:8px}
-  .sheet .close{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:30px;height:30px;font-size:15px;cursor:pointer;color:var(--ink-2)}
+  .sheet .close{margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:32px;height:32px;font-size:15px;cursor:pointer;color:var(--ink-2)}
   .sheet p.sub{margin:0 0 16px;font-size:12px;color:var(--ink-3)}
   .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px} @media(max-width:520px){.fgrid{grid-template-columns:1fr}}
   .fld{display:flex;flex-direction:column;gap:4px} .fld.full{grid-column:1/-1}
-  .fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .fld label{font-size:12px;font-weight:600;color:var(--ink-2)}
   .fld input,.fld select{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit;font-size:13px;color:var(--ink)}
   .foot{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;align-items:center}
   .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px;margin-top:10px}
   .lsheet{width:min(400px,96vw);text-align:center} .lsheet input{width:100%}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
     <a href="dashboard.html" class="mark" title="Home"></a>
@@ -75,10 +80,11 @@
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
+  <main id="main">
 
   <div class="toolbar">
     <h2>In-house team</h2>
-    <input id="search" class="search" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search name, role, skill…">
+    <input id="search" class="search" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search name, role, skill…" aria-label="Search staff">
     <select id="deptFilter" class="sel" aria-label="Filter by department"><option value="">All departments</option></select>
     <select id="skillFilter" class="sel" aria-label="Filter by skill"><option value="">All skills</option></select>
     <label class="chkbox"><input type="checkbox" id="showInactive"> Show inactive</label>
@@ -87,14 +93,15 @@
     <button id="newBtn" class="btn primary" hidden>＋ Add staff</button>
   </div>
 
-  <div id="grid" class="grid"></div>
+  <div id="grid" class="grid"><div class="empty">Loading…</div></div>
+  </main>
   <footer>Helm Events — plan your in-house team first; reach for vendors &amp; freelancers only for the gaps.</footer>
 </div>
 
 <!-- add / edit staff -->
 <div id="staffModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="sm_title">
   <div class="sheet">
-    <h3><span id="sm_title">＋ Add staff</span><button class="close" id="sm_close" aria-label="Close">×</button></h3>
+    <h3><span id="sm_title">＋ Add staff</span><button type="button" class="close" id="sm_close" aria-label="Close" data-close>×</button></h3>
     <p class="sub">Someone on your in-house team. Skills help you match people to event needs.</p>
     <div class="fgrid">
       <div class="fld"><label for="s_name">Name *</label><input id="s_name" placeholder="e.g. Ravi Kumar"></div>
@@ -110,7 +117,7 @@
     <datalist id="deptList"></datalist>
     <div id="sm_err" class="err" role="alert" aria-live="assertive" hidden></div>
     <div class="foot">
-      <button class="btn" id="sm_cancel">Cancel</button>
+      <button type="button" class="btn" id="sm_cancel">Cancel</button>
       <button class="btn primary" id="sm_save">Save</button>
     </div>
   </div>
@@ -118,7 +125,7 @@
 
 <div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
   <div class="sheet lsheet">
-    <h3><span id="loginModalTitle">Sign in</span><button class="close" id="li_close" aria-label="Close">×</button></h3>
+    <h3><span id="loginModalTitle">Sign in</span><button type="button" class="close" id="li_close" aria-label="Close" data-close>×</button></h3>
     <div class="fld" style="margin-bottom:10px"><label for="li_email" style="text-align:left">Email</label><input id="li_email" type="email"></div>
     <div class="fld" style="margin-bottom:10px"><label for="li_pass" style="text-align:left">Password</label><input id="li_pass" type="password"></div>
     <div id="li_err" class="err" role="alert" aria-live="assertive" hidden></div>
@@ -126,10 +133,10 @@
   </div>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
-<script src="tour.js?v=4"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
+<script src="tour.js?v=5"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -181,11 +188,15 @@
       return true;
     });
     $("#count").textContent=shown.length+" of "+team.length;
-    $("#grid").innerHTML = shown.length ? shown.map(personCard).join("") : '<div class="empty">No staff match. Add your first team member.</div>';
+    if(shown.length) $("#grid").innerHTML=shown.map(personCard).join("");
+    else if(!team.length){
+      $("#grid").innerHTML=`<div class="empty">${showInactive?"No staff records yet.":"No team members yet."}${canEdit?` Add your first team member to start matching people to event needs.<br><button type="button" class="btn primary" id="emptyAdd">＋ Add your first team member</button>`:""}</div>`;
+      const b=$("#emptyAdd"); if(b) b.addEventListener("click",()=>openForm(null));
+    } else $("#grid").innerHTML='<div class="empty">No staff match these filters. Try clearing the search or filters.</div>';
     $("#grid").querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>{
       const id=b.closest(".person").dataset.id, s=team.find(x=>x.id===id);
       if(b.dataset.act==="edit") openForm(s);
-      else toggleActive(s);
+      else toggleActive(s,b);
     }));
   }
 
@@ -194,9 +205,11 @@
     $("#s_name").value=s?s.name||"":""; $("#s_role").value=s?s.role||"":""; $("#s_dept").value=s?s.department||"":"";
     $("#s_emp").value=s?s.emp_type||"":""; $("#s_phone").value=s?s.phone||"":""; $("#s_email").value=s?s.email||"":"";
     $("#s_rate").value=s&&s.day_rate!=null?s.day_rate:""; $("#s_skills").value=s&&Array.isArray(s.skills)?s.skills.join(", "):""; $("#s_notes").value=s?s.notes||"":"";
-    $("#sm_err").hidden=true; $("#staffModal").hidden=false; setTimeout(()=>$("#s_name").focus(),50);
+    $("#sm_err").hidden=true; $("#staffModal").hidden=false; formDirty.clean(); setTimeout(()=>$("#s_name").focus(),50);
   }
-  function closeForm(){ $("#staffModal").hidden=true; editingId=null; }
+  const formDirty=BPUI.trackDirty($("#staffModal"));
+  function closeForm(){ $("#staffModal").hidden=true; editingId=null; formDirty.clean(); }
+  async function requestCloseForm(){ if($("#staffModal").hidden) return; if(!(await BPUI.confirmDiscard(formDirty))) return; closeForm(); }
   async function saveStaff(){
     const fail=(m)=>{ $("#sm_err").textContent=m; $("#sm_err").hidden=false; };
     const V=BPStore.validate;
@@ -212,37 +225,45 @@
     const rec={ name, phone:phoneV.value, role:$("#s_role").value.trim()||null, department:$("#s_dept").value.trim()||null,
       emp_type:$("#s_emp").value||null, email,
       day_rate, skills, notes:$("#s_notes").value.trim()||null };
-    $("#sm_save").disabled=true;
-    try{ if(editingId) await BPStore.staff.update(editingId,rec); else await BPStore.staff.add(rec); closeForm(); await load(); }
-    catch(e){ $("#sm_err").textContent="Couldn't save — "+((e&&e.message)||"error"); $("#sm_err").hidden=false; }
-    finally{ $("#sm_save").disabled=false; }
+    await BPUI.guard($("#sm_save"),async()=>{
+      try{ if(editingId) await BPStore.staff.update(editingId,rec); else await BPStore.staff.add(rec); closeForm(); BPUI.toast("Staff saved.",{type:"ok"}); await load(); }
+      catch(e){ fail(BPUI.friendlyError(e,{action:"save the staff member",setupHint:"phase6-staff.sql"})); }
+    },{busyLabel:"Saving…"});
   }
-  async function toggleActive(s){
-    try{ await BPStore.staff.setActive(s.id, s.active===false); await load(); }
-    catch(e){ alert("Couldn't update — "+((e&&e.message)||"error")); }
+  async function toggleActive(s,btn){
+    const reactivate=s.active===false;
+    if(!reactivate && !(await BPUI.confirm(`Deactivate ${s.name}? They'll be hidden from the directory and crew pickers until reactivated.`,{title:"Deactivate staff member?",okLabel:"Deactivate"}))) return;
+    await BPUI.guard(btn,async()=>{
+      try{ await BPStore.staff.setActive(s.id, reactivate); BPUI.toast(reactivate?"Reactivated.":"Deactivated.",{type:"ok"}); await load(); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:reactivate?"reactivate the staff member":"deactivate the staff member"}),{type:"err"}); }
+    });
   }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
   $("#li_close").addEventListener("click",closeLogin);
   $("#loginModal").addEventListener("click",e=>{ if(e.target.id==="loginModal") closeLogin(); });
-  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
-    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  $("#li_go").addEventListener("click",()=>{
+    const em=$("#li_email").value.trim(), pw=$("#li_pass").value;
+    if(!em||!pw){ $("#li_err").textContent="Enter your email and password."; $("#li_err").hidden=false; return; }
+    $("#li_err").hidden=true;
+    BPUI.guard($("#li_go"),async()=>{ try{ await BPStore.auth.signIn(em,pw); location.reload(); }
+      catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } },{busyLabel:"Signing in…"});
+  });
 
   $("#newBtn").addEventListener("click",()=>openForm(null));
-  $("#sm_close").addEventListener("click",closeForm);
-  $("#sm_cancel").addEventListener("click",closeForm);
+  $("#sm_close").addEventListener("click",requestCloseForm);
+  $("#sm_cancel").addEventListener("click",requestCloseForm);
   $("#sm_save").addEventListener("click",saveStaff);
-  $("#staffModal").addEventListener("click",e=>{ if(e.target.id==="staffModal") closeForm(); });
+  $("#staffModal").addEventListener("click",e=>{ if(e.target.id==="staffModal") requestCloseForm(); });
   $("#search").addEventListener("input",e=>{ filter=e.target.value; render(); });
   $("#deptFilter").addEventListener("change",e=>{ deptF=e.target.value; render(); });
   $("#skillFilter").addEventListener("change",e=>{ skillF=e.target.value; render(); });
   $("#showInactive").addEventListener("change",e=>{ showInactive=e.target.checked; load(); });
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeForm(); closeLogin(); } });
 
   async function load(){
     try{ team=await BPStore.staff.list(showInactive); }
-    catch(e){ $("#grid").innerHTML=`<div class="empty">Couldn't load staff — ${esc(e&&e.message||"error")}. Run <b>phase6-staff.sql</b>.</div>`; return; }
+    catch(e){ $("#count").textContent=""; BPUI.loadError($("#grid"),e,load,{what:"staff"}); const c=$("#grid .bpui-loaderr"); if(c) c.style.gridColumn="1/-1"; return; }
     if(quoteId){
       try{ const fe=await BPStore.staff.forEvent(quoteId); eventCrew=new Set(fe.map(x=>x.crew_id)); }catch{}
       try{ const q=await BPStore.quotes.get(quoteId); eventCode=q.code||""; }catch{}
@@ -264,14 +285,14 @@
     $("#allStaffBtn").onclick=()=>{ eventOnly=false; renderEventBar(); render(); };
     $("#evOnlyBtn").classList.toggle("primary",eventOnly); $("#allStaffBtn").classList.toggle("primary",!eventOnly);
   }
-  (async ()=>{
+  BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     if(!(await BPStore.auth.requireView("ops"))) return;
     canEdit=await BPStore.auth.canEditArea("staff"); canDelete=await BPStore.auth.can("delete");
     $("#newBtn").hidden=!canEdit;
     await load();
-  })();
+  });
 </script>
 </body>
 </html>

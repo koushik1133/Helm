@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Resource Calendar — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
@@ -17,11 +18,12 @@
   header{display:flex;align-items:center;gap:11px;padding:18px 0}
   .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
-  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:10px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
-  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)} .nav a.on{color:var(--accent)}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;flex-wrap:wrap;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2)} .nav a:hover{color:var(--accent)} .nav a.on{color:var(--accent)}
   .spacer{margin-left:auto}
+  @media(max-width:560px){header{flex-wrap:wrap}.nav{margin-left:0}.conflict{flex-wrap:wrap}.conflict .when{margin-left:0}}
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
-  .account .role{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
+  .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
 
   h2{font-size:15px;margin:14px 0 10px}
@@ -30,8 +32,8 @@
   .conflict{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid #f5c6c6;background:#fdf2f2;border-radius:11px;margin-bottom:8px}
   .conflict .ico{font-size:16px}
   .conflict .t{font-weight:700;font-size:13px} .conflict .d{font-size:12px;color:var(--ink-2)}
-  .conflict .when{margin-left:auto;font-family:var(--mono);font-size:11px;color:#b42318;white-space:nowrap}
-  .ctype{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;margin-left:8px}
+  .conflict .when{margin-left:auto;font-family:var(--mono);font-size:12px;color:#b42318;white-space:nowrap}
+  .ctype{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;margin-left:8px}
   .ctype.inventory{background:#e7f6ee;color:#0f7a43} .ctype.vendor{background:var(--accent-soft);color:var(--accent)} .ctype.staff{background:#eef2ff;color:#4457c8} .ctype.venue{background:#fdecec;color:#b42318}
   .allclear{display:flex;align-items:center;gap:10px;padding:14px;border:1px solid #b6e3ca;background:#eefaf2;border-radius:11px;color:#0f7a43;font-weight:600;font-size:13px}
 
@@ -44,41 +46,44 @@
   .ev .code{font-family:var(--mono);font-weight:700;color:var(--accent)}
   .ev .ttl{font-weight:600;font-size:14px}
   .ev .chips{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
-  .chip{font-size:11px;font-weight:600;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:4px 10px;color:var(--ink-2)}
+  .chip{font-size:12px;font-weight:600;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:4px 10px;color:var(--ink-2)}
   .chip b{color:var(--ink)} .chip.zero{color:var(--ink-3)}
   .open{border:1px solid var(--line);background:var(--panel);border-radius:8px;height:32px;padding:0 12px;font-size:12px;font-weight:600;cursor:pointer;color:var(--accent)} .open:hover{border-color:var(--accent)}
   .nodate .ev{opacity:.85}
   .empty{color:var(--ink-3);font-size:13px;padding:8px 0}
-  .setdate{height:30px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:12px;padding:0 8px;color:var(--ink)}
+  .setdate{height:32px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:12px;padding:0 8px;color:var(--ink)}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
   .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,96vw);padding:24px}
-  .sheet h3{margin:0 0 12px}.fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}.fld label{font-size:11px;font-weight:600;color:var(--ink-2)}
+  .sheet h3{margin:0 0 12px}.fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}.fld label{font-size:12px;font-weight:600;color:var(--ink-2)}
   .fld input{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit}
   .foot{display:flex;gap:10px;justify-content:flex-end}.btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}.btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
   .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px}
 </style>
-<link rel="stylesheet" href="theme.css?v=72">
+<link rel="stylesheet" href="theme.css?v=73">
 </head>
 <body>
+<a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
-    <a href="dashboard.html" class="mark" title="Home"></a>
+    <a href="dashboard.html" class="mark" title="Home" aria-label="Home"></a>
     <div><h1>Helm Events</h1><small>Resource Calendar</small></div>
-    <nav class="nav"><a href="dashboard.html">Dashboard</a><a href="staff.html">Staff</a><a href="inventory.html">Inventory</a><a href="vendors.html">Vendors</a><a href="calendar.html" class="on">Calendar</a></nav>
+    <nav class="nav"><a href="dashboard.html">Dashboard</a><a href="staff.html">Staff</a><a href="inventory.html">Inventory</a><a href="vendors.html">Vendors</a><a href="calendar.html" class="on" aria-current="page">Calendar</a></nav>
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
 
+  <main id="main">
   <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to view the calendar.</p></div>
 
+  <div id="boot" aria-busy="true"></div>
   <div id="app" hidden>
     <h2>Conflicts</h2>
-    <div id="conflicts"></div>
+    <div id="conflicts"><p class="empty">Loading…</p></div>
 
     <h2 style="margin-top:20px">Upcoming events &amp; commitments</h2>
-    <div id="agenda"></div>
+    <div id="agenda"><p class="empty">Loading…</p></div>
 
     <div id="nodateWrap" class="nodate" hidden>
       <h2 style="margin-top:20px">No date set</h2>
@@ -86,23 +91,24 @@
       <div id="nodate"></div>
     </div>
   </div>
+  </main>
   <footer>Helm Events — one calendar for staff, stock &amp; partners, with double-booking alerts.</footer>
 </div>
 
-<div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
+<div id="loginModal" class="lmodal" hidden data-dismissible="false" role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
   <div class="sheet">
     <h3 id="loginModalTitle">Sign in</h3>
-    <div class="fld"><label for="li_email">Email</label><input id="li_email" type="email"></div>
-    <div class="fld"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+    <div class="fld"><label for="li_email">Email</label><input id="li_email" type="email" autocomplete="username"></div>
+    <div class="fld"><label for="li_pass">Password</label><input id="li_pass" type="password" autocomplete="current-password"></div>
     <div id="li_err" class="err" role="alert" aria-live="assertive" hidden></div>
-    <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
+    <div class="foot"><button type="button" class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>
 
-<script src="telemetry.js?v=1"></script>
-<script src="config.js?v=90"></script>
-<script src="store-api.js?v=88"></script>
-<script src="tour.js?v=4"></script>
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
+<script src="tour.js?v=5"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -115,30 +121,30 @@
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
-      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button type="button" id="logoutBtn">Log out</button>`;
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";});
-    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
+    } else { el.innerHTML=`<button type="button" id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
 
   function renderConflicts(){
     const cs=data.conflicts.slice().sort((a,b)=>(a.date||"").localeCompare(b.date||""));
     if(!cs.length){ $("#conflicts").innerHTML='<div class="allclear">✓ No conflicts — every commitment fits.</div>'; return; }
     const ico={inventory:"📦",vendor:"🤝",staff:"👷",venue:"📍"};
     $("#conflicts").innerHTML=cs.map(c=>`<div class="conflict">
-      <span class="ico">${ico[c.type]||"⚠"}</span>
-      <div><div class="t">${esc(c.label)}<span class="ctype ${c.type}">${c.type}</span></div>
-        <div class="d">${esc(c.detail)} — ${c.events.filter(Boolean).map(e=>esc(e.code)).join(", ")}</div></div>
+      <span class="ico" aria-hidden="true">${ico[c.type]||"⚠"}</span>
+      <div><div class="t">${esc(c.label)}<span class="ctype ${esc(c.type)}">${esc(c.type)}</span></div>
+        <div class="d">${esc(c.detail)} — ${(c.events||[]).filter(Boolean).map(e=>esc(e.code)).join(", ")}</div></div>
       <span class="when">${esc(fmtDate(c.date))}</span></div>`).join("");
   }
 
   function eventRow(a, clashDates){
     const e=a.event; const clash = e.eventDate && clashDates.has(e.eventDate);
-    const chip=(n,l)=>`<span class="chip ${n?'':'zero'}"><b>${n}</b> ${l}</span>`;
+    const chip=(n,l)=>`<span class="chip ${n?'':'zero'}"><b>${Number(n)||0}</b> ${l}</span>`;
     return `<div class="ev ${clash?'clash':''}">
       <div><span class="code">${esc(e.code)}</span> <span class="ttl">${esc(e.title||"")}</span>
         <div style="font-size:12px;color:var(--ink-3)">${esc((e.eventType||""))}</div></div>
       <div class="chips">
         ${chip(a.staffCount,"staff")}${chip(a.invCount,"stock")}${chip(a.vendCount,"partners")}
-        <a class="open" href="event.html?id=${encodeURIComponent(e.id)}">Open</a>
+        <a class="open" href="event.html?id=${encodeURIComponent(e.id)}" aria-label="Open ${esc(e.code)}">Open</a>
       </div></div>`;
   }
 
@@ -167,31 +173,36 @@
     if(nodate.length){ $("#nodate").innerHTML=nodate.map(a=>`<div class="ev">
       <div><span class="code">${esc(a.event.code)}</span> <span class="ttl">${esc(a.event.title||"")}</span></div>
       <div class="chips">
-        ${canEdit?`<input type="date" class="setdate" data-set="${a.event.id}">`:""}
-        <a class="open" href="event.html?id=${encodeURIComponent(a.event.id)}">Open</a>
+        ${canEdit?`<input type="date" class="setdate" data-set="${esc(a.event.id)}" aria-label="Event date for ${esc(a.event.code)}${a.event.title?" "+esc(a.event.title):""}">`:""}
+        <a class="open" href="event.html?id=${encodeURIComponent(a.event.id)}" aria-label="Open ${esc(a.event.code)}">Open</a>
       </div></div>`).join("");
-      $("#nodate").querySelectorAll("[data-set]").forEach(inp=>inp.addEventListener("change",async()=>{
-        try{ await BPStore.quotes.updateMeta(inp.dataset.set,{eventDate:inp.value||null}); await load(); }
-        catch(e){ alert("Couldn't set date — "+((e&&e.message)||"error")); } }));
+      $("#nodate").querySelectorAll("[data-set]").forEach(inp=>inp.addEventListener("change",()=>{
+        if(!inp.value || !validDate(inp.value)) return;
+        BPUI.guard(inp, async()=>{ await BPStore.quotes.updateMeta(inp.dataset.set,{eventDate:inp.value}); BPUI.toast("Date set.",{type:"ok"}); await load(); })
+          .catch((e)=>{ inp.value=""; BPUI.toast(BPUI.friendlyError(e,{action:"set the date"}),{type:"err"}); }); }));
     }
   }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
-  $("#li_go").addEventListener("click",async()=>{ try{ await BPStore.auth.signIn($("#li_email").value.trim(),$("#li_pass").value); location.reload(); }
-    catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } });
+  $("#li_go").addEventListener("click",(ev)=>{ const em=$("#li_email").value.trim(), pw=$("#li_pass").value, er=$("#li_err");
+    if(!em||!pw){ er.textContent="Enter your email and password."; er.hidden=false; (em?$("#li_pass"):$("#li_email")).focus(); return; }
+    er.hidden=true;
+    BPUI.guard(ev.currentTarget, async()=>{ try{ await BPStore.auth.signIn(em,pw); location.reload(); }
+      catch(e){ er.textContent=(e&&e.message)||"Sign in failed"; er.hidden=false; } }, {busyLabel:"Signing in…"}).catch(()=>{}); });
+  ["#li_email","#li_pass"].forEach((s)=>$(s).addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); $("#li_go").click(); } }));
 
   async function load(){
     try{ data=await BPStore.calendar.load(); }
-    catch(e){ $("#agenda").innerHTML=`<div class="empty">Couldn't load — ${esc(e&&e.message||"error")}. Run <b>phase10-calendar.sql</b>.</div>`; return; }
+    catch(e){ $("#conflicts").innerHTML=""; $("#nodateWrap").hidden=true; BPUI.loadError($("#agenda"), e, load, {what:"the calendar"}); return; }
     render();
   }
-  (async ()=>{
+  BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     if(!(await BPStore.auth.requireView("ops"))) return;
     canEdit=await BPStore.auth.canEditArea("calendar"); $("#app").hidden=false;
     await load();
-  })();
+  });
 </script>
 </body>
 </html>

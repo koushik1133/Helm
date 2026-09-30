@@ -6,10 +6,11 @@
 //   MSG91_AUTHKEY          — your MSG91 auth key
 //   MSG91_SENDER           — 6-char DLT sender id (e.g. "HELMEV")
 //   MSG91_OTP_TEMPLATE_ID  — DLT-approved template id containing ##OTP##
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { cors, json } from "../_shared/cors.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.116.0";
+import { responders } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
+  const { cors, json, serverError } = responders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
     const { token, phone } = await req.json();
@@ -18,7 +19,10 @@ Deno.serve(async (req) => {
     if (digits.length < 8) return json({ error: "invalid phone" }, 400);
 
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const code = String(Math.floor(100000 + Math.random() * 900000));
+    // CSPRNG (Math.random is predictable); rejection sampling avoids modulo bias
+    const buf = new Uint32Array(1), lim = 4294967296 - (4294967296 % 900000);
+    do crypto.getRandomValues(buf); while (buf[0] >= lim);
+    const code = String(100000 + (buf[0] % 900000));
 
     // store the hash (rate-limits + validates the token inside the DB)
     const { error } = await admin.rpc("admin_store_otp", { p_token: token, p_phone: phone, p_code: code });
@@ -39,12 +43,15 @@ Deno.serve(async (req) => {
         headers: { "authkey": authkey, "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!r.ok) return json({ error: "sms provider error: " + (await r.text()).slice(0, 160) }, 502);
+      if (!r.ok) {
+        console.error("msg91 error", r.status, (await r.text()).slice(0, 500));
+        return json({ error: "could not send the SMS, please try again" }, 502);
+      }
     }
     // log the notification
     await admin.from("notifications").insert({ channel: "sms", recipient: phone, kind: "otp", status: authkey ? "sent" : "simulated" });
     return json({ sent: true, live: !!authkey });
   } catch (e) {
-    return json({ error: (e as Error).message || "error" }, 500);
+    return serverError(e);
   }
 });
