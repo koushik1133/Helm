@@ -4,9 +4,9 @@ name: CodeQL
 # older code. Uses GitHub's default query suite (init + analyze).
 on:
   push:
-    branches: [main]
+    branches: [main, 'harden/**']
   pull_request:
-    branches: [main]
+    branches: [main, 'harden/**']
   schedule:
     - cron: '27 4 * * 1'   # Mondays 04:27 UTC — weekly baseline scan
 permissions:
