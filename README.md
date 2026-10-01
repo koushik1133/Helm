@@ -201,16 +201,63 @@ After building all 20 phases, the whole app was tested end-to-end with two full
 
 ### Where the data lives
 
-All of this is stored in **Supabase**. The SQL is in `supabase/` — one file per
-phase (`phase1-workspace.sql`, `phase2-leads.sql`, …). The **canonical deploy
-path is those numbered `phaseNN-name.sql` files, applied in order** (phase73/76/
-77/85 are mandatory for tenant isolation and money/data integrity).
+All of this is stored in **Supabase**. See the **Database deployment** section
+below for the one canonical way to stand up or upgrade the schema.
 
-> ⚠️ Do **not** deploy from `supabase/full-schema/complete-setup.sql`. It is a
-> historical snapshot frozen at ~phase 55–58 and is **incomplete**; re-running it
-> would revert security-critical hardening (e.g. phase73 org-isolation). A
-> verified single-file install does not exist. See
-> `supabase/full-schema/README.md` and `docs/OPERATOR-VERIFY-DEFINER-FUNCTIONS.md`.
+---
+
+## Database deployment
+
+### Canonical — use this
+
+A fresh install (or a verifiable upgrade) comes from exactly three things:
+
+1. **`supabase/canonical-base/base-v1-2026-09-25.sql`** — the frozen baseline
+   schema (RLS, RPC, Storage policies) as of 2026-09-25. This file is
+   **immutable**; never edit it in place (CI enforces this — see below).
+2. **`supabase/migrations/MANIFEST`** — the ordered list of forward migrations
+   applied on top of the baseline. New schema changes are added **only** as new
+   numbered forward migrations appended here, never by editing the baseline.
+3. **`scripts/db-migrate.sh`** — the runner that applies the baseline and then
+   each migration in `MANIFEST`, in order.
+
+Verify the result locally on PG17 with:
+
+```bash
+npm run test:db
+```
+
+Full procedure, preconditions, and rollback notes: **`docs/CANONICAL-DEPLOYMENT.md`**.
+
+To change the schema: add a **new numbered forward migration** (and append it to
+`MANIFEST`). If a hard break is unavoidable, cut a new baseline (`base-v2`)
+rather than modifying `base-v1`.
+
+### Historical — DO NOT USE for new installs
+
+The following are retained **for forensic/history purposes only**. They are
+**not** a supported deploy path and must not be used to provision or upgrade any
+environment:
+
+- `supabase/full-schema/` (including **`supabase/full-schema/complete-setup.sql`**
+  — explicitly **deprecated**: re-running it **reverts tenant isolation** and
+  other security-critical hardening)
+- the numbered `supabase/phaseNN-name.sql` scripts
+- `supabase/wave*/` (wave5, wave6, wave9, wave10, wave15b, wave16, …)
+- `supabase/security-fix/`
+- `supabase/prod-fix/`
+- `supabase/harden-2026-10/`
+
+### Release-path separation
+
+Each surface deploys independently and never carries another's artifacts:
+
+- **Vercel** — frontend / static assets only (HTML, JS, CSS). No schema.
+- **Supabase** — database schema, RLS policies, RPC functions, Storage
+  policies, and Edge functions (applied via the canonical path above).
+- **Local-only** — the PG17 cluster plus `supabase/test-harness/` shim and
+  `tests/db/`. These exist for verification on a developer/CI machine and are
+  **never** deployed to any hosted environment.
 
 ---
 
