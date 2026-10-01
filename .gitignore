@@ -24,3 +24,9 @@ supabase/.temp/
 # E2E staging creds (never commit)
 .env.e2e
 .env*.local
+
+# staging access token (local only, never commit)
+.staging.env
+
+# staging test-data factory manifest (contains created object ids; local only)
+scripts/staging/.seed-manifest.json

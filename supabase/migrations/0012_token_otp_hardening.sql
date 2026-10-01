@@ -10,8 +10,11 @@
 -- Idempotent. Forward-only.
 -- ============================================================================
 
--- base-v1 lacks work_tokens.expires_at (SEC-07 assumed prod-rollout added it)
+-- base-v1 lacks work_tokens.expires_at / revoked_at (SEC-07 assumed prod-rollout
+-- added them). Both are created here, additively, so the renewal trigger and the
+-- worker-RPC liveness guard below have the columns they reference.
 alter table public.work_tokens add column if not exists expires_at timestamptz;
+alter table public.work_tokens add column if not exists revoked_at timestamptz;
 
 create or replace function public.tg_approval_token_expiry()
 returns trigger language plpgsql set search_path = public as $$
@@ -66,6 +69,106 @@ revoke all on function public.tg_work_token_renew() from public, anon, authentic
 drop trigger if exists zz_work_token_renew on public.event_tasks;
 create trigger zz_work_token_renew after insert on public.event_tasks
   for each row execute function public.tg_work_token_renew();
+
+-- G2: shared worker-token liveness guard. Rejects an invalid, revoked, or expired
+-- link. The four anon-facing worker_* RPCs route their token lookup through this so
+-- an expired/revoked worker link can no longer read or mutate (base-v1 checked only
+-- that the token existed). Owner-only; the SECURITY DEFINER worker_* fns call it.
+create or replace function public._work_token_live(p_token uuid)
+returns public.work_tokens language plpgsql security definer set search_path = public as $$
+declare w public.work_tokens;
+begin
+  select * into w from public.work_tokens where token = p_token;
+  if w.token is null then raise exception 'invalid link'; end if;
+  if w.revoked_at is not null then raise exception 'link revoked' using errcode='42501'; end if;
+  if w.expires_at is not null and w.expires_at <= now() then raise exception 'link expired' using errcode='42501'; end if;
+  return w;
+end; $$;
+revoke all on function public._work_token_live(uuid) from public, anon, authenticated;
+
+-- Recreate the four worker RPCs to gate on liveness (bodies otherwise identical to
+-- base-v1). CREATE OR REPLACE preserves the anon EXECUTE grants from 0005.
+create or replace function public.worker_get_tasks(p_token uuid)
+ returns jsonb language plpgsql security definer set search_path to 'public' as $function$
+declare w public.work_tokens; q public.quotes; tasks jsonb;
+begin
+  w := public._work_token_live(p_token);
+  select * into q from public.quotes where id=w.quote_id;
+  select coalesce(jsonb_agg(jsonb_build_object('id',id,'category',category,'title',title,'status',status
+           ) order by category, seq), '[]'::jsonb) into tasks
+    from public.event_tasks where quote_id=w.quote_id and assignee_phone=w.phone;
+  return jsonb_build_object(
+    'event', jsonb_build_object('code',q.code,'title',q.title,'event_date',q.event_date,'event_time',q.event_time),
+    'worker', jsonb_build_object('name',w.name,'phone',w.phone),
+    'tasks', tasks);
+end; $function$;
+
+create or replace function public.worker_respond(p_token uuid, p_task_id uuid, p_action text)
+ returns jsonb language plpgsql security definer set search_path to 'public' as $function$
+declare w public.work_tokens; tsk public.event_tasks; newst text;
+begin
+  w := public._work_token_live(p_token);
+  select * into tsk from public.event_tasks where id=p_task_id and quote_id=w.quote_id and assignee_phone=w.phone;
+  if tsk.id is null then raise exception 'task not found'; end if;
+  newst := case p_action
+    when 'accept'   then 'accepted'
+    when 'reject'   then 'rejected'
+    when 'start'    then 'in_progress'
+    when 'complete' then 'completed'
+    else null end;
+  if newst is null then raise exception 'invalid action'; end if;
+  if p_action='start'    and tsk.status not in ('accepted','assigned') then raise exception 'accept the task first'; end if;
+  if p_action='complete' and tsk.status not in ('in_progress','accepted') then raise exception 'start the task first'; end if;
+  update public.event_tasks set status=newst,
+    responded_at = case when p_action in ('accept','reject') then now() else responded_at end,
+    started_at   = case when p_action='start'    then now() else started_at end,
+    completed_at = case when p_action='complete' then now() else completed_at end
+    where id=p_task_id;
+  perform public._notify(w.quote_id,'sms',null,'task_'||p_action, jsonb_build_object('task',tsk.title,'worker',w.name));
+  return jsonb_build_object('ok',true,'status',newst);
+end; $function$;
+
+create or replace function public.worker_get_equipment(p_token uuid)
+ returns jsonb language plpgsql security definer set search_path to 'public' as $function$
+declare w public.work_tokens; items jsonb; digits text;
+begin
+  w := public._work_token_live(p_token);
+  digits := regexp_replace(coalesce(w.phone,''),'[^0-9]','','g');
+  select coalesce(jsonb_agg(jsonb_build_object(
+           'id', c.id, 'item', i.name, 'unit', i.unit,
+           'qty_out', c.qty_out, 'qty_in', c.qty_in, 'status', c.status
+         ) order by i.name), '[]'::jsonb) into items
+    from public.inventory_checkouts c
+    join public.inventory_items i on i.id = c.item_id
+    join public.crew_members cm on cm.id = c.issued_to_id
+   where c.quote_id = w.quote_id
+     and c.status in ('out','partial')
+     and regexp_replace(coalesce(cm.phone,''),'[^0-9]','','g') = digits;
+  return jsonb_build_object('equipment', items);
+end; $function$;
+
+create or replace function public.worker_checkin_equipment(p_token uuid, p_id uuid, p_qty_in numeric)
+ returns jsonb language plpgsql security definer set search_path to 'public' as $function$
+declare w public.work_tokens; row public.inventory_checkouts; digits text; ok boolean;
+begin
+  w := public._work_token_live(p_token);
+  select * into row from public.inventory_checkouts where id = p_id;
+  if not found then raise exception 'checkout not found'; end if;
+  if row.quote_id is distinct from w.quote_id then raise exception 'not your event' using errcode='42501'; end if;
+  digits := regexp_replace(coalesce(w.phone,''),'[^0-9]','','g');
+  select exists(select 1 from public.crew_members cm where cm.id = row.issued_to_id
+                and regexp_replace(coalesce(cm.phone,''),'[^0-9]','','g') = digits) into ok;
+  if not ok then raise exception 'not your equipment' using errcode='42501'; end if;
+  if coalesce(p_qty_in,0) < 0 then raise exception 'returned count cannot be negative'; end if;
+  update public.inventory_checkouts
+     set qty_in = coalesce(p_qty_in,0),
+         returned_by = coalesce(nullif(btrim(w.name),''),'crew'),
+         checked_in_at = now(),
+         status = case when coalesce(p_qty_in,0) >= qty_out then 'returned' else 'partial' end
+   where id = p_id
+   returning * into row;
+  return jsonb_build_object('ok',true,'status',row.status,'qty_in',row.qty_in,'qty_out',row.qty_out);
+end; $function$;
 
 update public.work_tokens w
    set expires_at = greatest(w.created_at + interval '60 days',

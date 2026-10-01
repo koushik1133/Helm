@@ -124,6 +124,22 @@ window.SUPABASE_STAGING = {
       return;
     }
 
+    // 2b) VERCEL BRANCH-PREVIEW host → STAGING (never production).
+    //     Any *.vercel.app that reached this point is, by construction, NOT one of the
+    //     production aliases: PROD_HOSTS is matched first (step 1) and returns early, so
+    //     helm-v01 / helm-alpha-nine can never fall through to here. Every remaining
+    //     *.vercel.app is a branch/preview deploy (e.g. the harden/pre-react-canonical
+    //     preview alias), which must resolve to STAGING or FAIL CLOSED — it can NEVER
+    //     reach production, and it ignores the localhost→prod opt-in entirely.
+    //     This is a deterministic, host-based rule (no build-time env needed): the
+    //     committed SUPABASE_STAGING block makes resolveStaging() succeed on preview,
+    //     and if staging is blank the host fails closed (blank creds) rather than prod.
+    if (/\.vercel\.app$/.test(h)) {
+      var pv = resolveStaging();
+      if (pv) { useStaging(pv); } else { failClosed('a Vercel branch-preview host'); }
+      return;
+    }
+
     // 3) LOCALHOST / LAN handled below.
     var isLocal = isLocalLAN(h);
 
