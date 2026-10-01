@@ -20,3 +20,6 @@ forward  supabase/migrations/0004_tenant_integrity.sql
 forward  supabase/migrations/0005_least_privilege.sql
 forward  supabase/migrations/0006_rls_access_gates.sql
 forward  supabase/migrations/0007_rpc_authz_guards.sql
+forward  supabase/migrations/0008_feature_designer.sql
+forward  supabase/migrations/0009_feature_tasks_files.sql
+forward  supabase/migrations/0010_feature_settlement_teardown.sql

@@ -29,6 +29,7 @@ psql -q -v ON_ERROR_STOP=1 -f supabase/test-harness/10-fixtures.sql >/dev/null 2
 
 run() { local name="$1" marker="$2"; shift 2; local out; out="$("$@" 2>&1)"; if echo "$out" | grep -qE "$marker"; then echo "  ✓ $name"; else echo "  ✗ $name"; echo "$out" | tail -3; fail=1; fi; }
 echo "== behavioral suites =="
+run "contract-coverage" "CONTRACT-COVERAGE: 100%"        node tests/db/contract-coverage.mjs
 run "pricing-parity"  "13 parity case\(s\) passed, 0 failed" node tests/db/pricing-parity.mjs
 run "auth-matrix"     "AUTH-MATRIX: ALL PASS"     psql -q -f tests/db/auth-matrix.sql
 run "tenant-attack"   "TENANT-ATTACK: ALL PASS"   psql -q -f tests/db/tenant-attack.sql

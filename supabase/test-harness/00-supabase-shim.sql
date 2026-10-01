@@ -108,6 +108,19 @@ create table if not exists storage.objects (
 alter table storage.objects enable row level security;
 grant all on storage.objects, storage.buckets to anon, authenticated, service_role;
 
+-- Supabase storage path helpers used by bucket RLS policies.
+create or replace function storage.foldername(name text) returns text[] language sql immutable as $$
+  select case when name is null or position('/' in name)=0 then array[]::text[]
+              else (string_to_array(name,'/'))[1:array_length(string_to_array(name,'/'),1)-1] end;
+$$;
+create or replace function storage.filename(name text) returns text language sql immutable as $$
+  select (string_to_array(name,'/'))[array_length(string_to_array(name,'/'),1)];
+$$;
+create or replace function storage.extension(name text) returns text language sql immutable as $$
+  select nullif(split_part(storage.filename(name),'.',2),'');
+$$;
+grant execute on function storage.foldername(text), storage.filename(text), storage.extension(text) to anon, authenticated, service_role;
+
 -- ---- test helpers: simulate sign-in as a given profile ----------------------
 create or replace function auth.login_as(p_uid uuid) returns void language plpgsql as $$
 declare claims jsonb;
