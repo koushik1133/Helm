@@ -99,6 +99,7 @@
         <input id="pay_amt" type="number" min="0" placeholder="amount" aria-label="Payment amount received">
         <button type="button" class="btn primary" id="pay_btn">Record payment</button>
         <span id="pay_msg" role="status" aria-live="polite" style="font-size:12px;color:var(--safe-text,#0f7a43);font-weight:600"></span>
+        <div id="pay_block" class="err" role="alert" aria-live="assertive" hidden style="flex-basis:100%"></div>
       </div>
     </div>
 
@@ -162,6 +163,24 @@
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const EXP={pending:"Pending",approved:"Approved",paid:"Paid",rejected:"Rejected"};
   let canEdit=false, canDelete=false, s=null, summaryFailed=false;
+  // Capability state: when the settlement recorder RPC isn't deployed, we flip to a
+  // controlled "unavailable" state (disable submit) instead of ever reporting success.
+  let settleUnavailable=false;
+  const DIAG={ SETTLE_RPC_MISSING:"HELM-SETTLE-RPC-MISSING" };
+  // Structured internal diagnostic: console + telemetry only. NEVER rendered to the DOM
+  // (no schema / filename / stack reaches the user — they get a friendly message).
+  function diag(code,err){ try{ console.error("[Helm] "+code,err); }catch(_){}
+    try{ if(window.HelmTelemetry&&HelmTelemetry.report) HelmTelemetry.report(code,err); }catch(_){} }
+  // Blocking, controlled state for a missing settlement recorder. Idempotent: logs once,
+  // disables the pay input + button, shows a stable user-safe message in the assertive region.
+  function markSettlementUnavailable(err){
+    if(!settleUnavailable){ settleUnavailable=true; diag(DIAG.SETTLE_RPC_MISSING,err); }
+    const pb=$("#pay_btn"), pa=$("#pay_amt"); if(pb) pb.disabled=true; if(pa) pa.disabled=true;
+    $("#pay_msg").textContent="";
+    const block=$("#pay_block");
+    block.textContent="Settlement is temporarily unavailable — payments can’t be recorded right now. Please contact your administrator.";
+    block.hidden=false;
+  }
   function act(btn,fn,action){ return BPUI.guard(btn,async()=>{ try{ await fn(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action}),{type:"err"}); } }); }
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
@@ -206,8 +225,17 @@
       await act(b,async()=>{ await BPStore.expenses.remove(b.dataset.edel); await load(); },"remove the claim"); }));
   }
 
-  async function recordPayment(){ if(summaryFailed){ BPUI.toast("The invoice couldn't be loaded — retry loading it before recording a payment.",{type:"err"}); return; } const av=BPStore.validate.money($("#pay_amt").value,{field:"Payment amount"});
-    if(!av.ok || av.value<=0){ $("#pay_msg").style.color="var(--warn-text,#8f5f00)"; $("#pay_msg").textContent=av.ok?"Enter an amount greater than ₹0.":av.error; $("#pay_amt").focus(); return; }
+  async function recordPayment(){
+    const msg=$("#pay_msg"), block=$("#pay_block");
+    const showBlock=(txt)=>{ msg.textContent=""; block.textContent=txt; block.hidden=false; };
+    const clearBlock=()=>{ block.hidden=true; block.textContent=""; };
+    // Capability gate: never attempt (or appear to succeed at) a submit once the
+    // recorder RPC is known-missing.
+    if(settleUnavailable){ markSettlementUnavailable(); return; }
+    if(summaryFailed){ BPUI.toast("The invoice couldn't be loaded — retry loading it before recording a payment.",{type:"err"}); return; }
+    const av=BPStore.validate.money($("#pay_amt").value,{field:"Payment amount"});
+    if(!av.ok || av.value<=0){ showBlock(av.ok?"Enter an amount greater than ₹0.":av.error); $("#pay_amt").focus(); return; }
+    clearBlock();
     const amt=av.value;
     // B5 — stable per-submission idempotency key (never regenerated on retry) so a
     // double-click/replay dedups server-side; settlement recorder adds server receipt +
@@ -215,11 +243,20 @@
     const idemKey=(self.crypto&&crypto.randomUUID)?crypto.randomUUID():(String(Date.now())+"-"+Math.random().toString(16).slice(2));
     if(!(await BPUI.confirm(`Record a payment of ${inr(amt)} received from the client?`,{title:"Record payment?",okLabel:"Record payment"}))) return;
     await BPUI.guard($("#pay_btn"),async()=>{
-      $("#pay_msg").style.color="var(--safe-text,#0f7a43)"; $("#pay_msg").textContent="Recording…";
+      msg.style.color="var(--safe-text,#0f7a43)"; msg.textContent="Recording…";
       try{ await BPStore.milestones.recordSettlement(id, amt, "cash", null, null, "Settlement payment", idemKey);
-        $("#pay_amt").value=""; $("#pay_msg").style.color="var(--safe-text,#0f7a43)"; $("#pay_msg").textContent="Recorded ✓"; setTimeout(()=>$("#pay_msg").textContent="",1500); await load(); }
-      catch(e){ $("#pay_msg").style.color="#b42318"; $("#pay_msg").textContent=BPUI.friendlyError(e,{action:"record the payment"}); }
+        $("#pay_amt").value=""; msg.style.color="var(--safe-text,#0f7a43)"; msg.textContent="Recorded ✓"; setTimeout(()=>{ msg.textContent=""; },1500); await load(); }
+      catch(e){
+        msg.textContent="";
+        // RPC-missing is a capability gap, not a payment failure: flip to the controlled
+        // unavailable state (disables submit) and NEVER fall through to the success path.
+        if(BPUI.isRpcMissing(e)){ markSettlementUnavailable(e); return; }
+        showBlock(BPUI.friendlyError(e,{action:"record the payment"}));
+      }
     });
+    // BPUI.guard re-enables the button when its callback resolves; re-assert the
+    // disabled unavailable state afterward so the control stays blocked (idempotent).
+    if(settleUnavailable) markSettlementUnavailable();
   }
   async function addExpense(){ const who=$("#e_who").value.trim(); if(!who){ BPUI.toast("Enter who the expense is paid to.",{type:"err"}); $("#e_who").focus(); return; }
     const av=BPStore.validate.money($("#e_amt").value,{field:"Expense amount"});

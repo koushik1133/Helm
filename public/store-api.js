@@ -1649,7 +1649,25 @@
   // A public "digital invitation" website for a CONFIRMED event. All manager-side
   // reads/writes are org-scoped by RLS; the ONLY anon path is public(slug), which
   // hits a SECURITY DEFINER read that returns display fields of a PUBLISHED site.
+  // Invitation photos are MAGIC-BYTE validated (never trust the client name/type),
+  // image-only allowlist, size-capped, and stored under a random key. Mirrors the
+  // event-docs `FILE_SNIFF`/`sniffFile` defence below, but restricted to images
+  // (png/jpeg/webp/gif) since these render straight onto the public invite page.
+  const INVITE_IMG_MAX = 8 * 1024 * 1024;                 // 8 MB
+  const INVITE_IMG_SNIFF = [                               // [mime, ext, magic-byte matcher]
+    ["image/png",  "png",  (b) => b[0]===0x89 && b[1]===0x50 && b[2]===0x4E && b[3]===0x47],           // \x89PNG
+    ["image/jpeg", "jpg",  (b) => b[0]===0xFF && b[1]===0xD8 && b[2]===0xFF],                          // JPEG SOI
+    ["image/webp", "webp", (b) => b[0]===0x52 && b[1]===0x49 && b[2]===0x46 && b[3]===0x46 && b[8]===0x57 && b[9]===0x45 && b[10]===0x42 && b[11]===0x50], // RIFF....WEBP
+    ["image/gif",  "gif",  (b) => b[0]===0x47 && b[1]===0x49 && b[2]===0x46 && b[3]===0x38 && (b[4]===0x37 || b[4]===0x39) && b[5]===0x61], // GIF87a / GIF89a
+  ];
+  async function sniffInviteImage(file) {
+    const buf = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+    for (const [mime, ext, ok] of INVITE_IMG_SNIFF) { if (ok(buf)) return { mime, ext }; }
+    return null;
+  }
+
   const sites = {
+    INVITE_IMG_LABEL: "PNG, JPG, WEBP or GIF, up to 8 MB",
     // manager side (authenticated, RLS-scoped) ----------------------------------
     async forQuote(quoteId) { if (!supa) return null;
       const { data, error } = await supa.from("event_sites").select("*").eq("quote_id", quoteId).maybeSingle();
@@ -1665,11 +1683,19 @@
     // Path is prefixed with the org id so storage RLS keeps tenants isolated.
     async uploadPhoto(quoteId, file) {
       if (!supa) throw new Error("Supabase not configured");
+      if (!file) throw new Error("no file");
+      if (file.size > INVITE_IMG_MAX) throw new Error("Image too large (max 8 MB).");
+      // Validate by MAGIC BYTES — never trust the client-declared type or extension.
+      const sniff = await sniffInviteImage(file);
+      if (!sniff) throw new Error("Unsupported image type — allowed: " + this.INVITE_IMG_LABEL + ".");
       const orgId = await org.id();
       if (!orgId) throw new Error("no organization in context");
-      const ext = ((file && file.name || "").split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-      const path = orgId + "/" + quoteId + "/" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + "." + ext;
-      const { error } = await supa.storage.from("invite-media").upload(path, file, { upsert: false, contentType: (file && file.type) || undefined });
+      // Random object key; the client filename is discarded. Extension + content-type
+      // come from the sniff, not from anything the client declared.
+      const uuid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID()
+        : Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
+      const path = orgId + "/" + quoteId + "/" + uuid + "." + sniff.ext;
+      const { error } = await supa.storage.from("invite-media").upload(path, file, { upsert: false, contentType: sniff.mime });
       if (error) throw error;
       const { data } = supa.storage.from("invite-media").getPublicUrl(path);
       return data.publicUrl;
@@ -2846,9 +2872,18 @@
     return c === "42P01" || c === "PGRST205" ||
       /relation ["'][^"']*["'] does not exist|relation \S+ does not exist|could not find the table/i.test(m);
   }
+  // "RPC not deployed" — the function the UI called does not exist in the API /
+  // schema cache yet. PostgREST answers a missing RPC with HTTP 404 + code
+  // PGRST202 ("Could not find the function … in the schema cache"); Postgres
+  // raises 42883. A bare 404 is NOT enough (that is a missing row/route — see
+  // isNotFound): only a 404 whose message points at a function / schema-cache
+  // miss counts here, so this never swallows an ordinary not-found.
   function isMissingFunction(e) {
     var c = errCode(e), m = errMsg(e);
-    return c === "PGRST202" || c === "42883" || /could not find the function|function \S+ does not exist/i.test(m);
+    if (c === "PGRST202" || c === "42883") return true;
+    if (/could not find the function|function \S+ does not exist/i.test(m)) return true;
+    if (errStatus(e) === 404 && /function|schema cache/i.test(m)) return true;
+    return false;
   }
   function isAuthError(e) {
     if (!e) return false;
@@ -3403,6 +3438,8 @@
     alert: alertDlg, confirm: confirmDlg, prompt: promptDlg,
     guard: guard,
     isNotFound: isNotFound, isMissingTable: isMissingTable, isMissingFunction: isMissingFunction,
+    // readable alias for pages that branch on "the RPC this UI needs isn't deployed"
+    isRpcMissing: isMissingFunction,
     isAuthError: isAuthError, isNetworkError: isNetworkError, isPermissionError: isPermissionError,
     friendlyError: friendlyError,
     loadError: loadError,

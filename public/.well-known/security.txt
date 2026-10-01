@@ -1,6 +1,8 @@
 # Helm security contact (RFC 9116).
-# PLACEHOLDER: security@helm.events must be confirmed by the owner (mailbox must exist).
-Contact: mailto:security@helm.events
+# Primary channel is GitHub private vulnerability reporting (works today).
+# OWNER ACTION before public launch: add a monitored security@ mailbox and list it
+# here as an additional Contact.
+Contact: https://github.com/koushik1133/Helm/security/advisories/new
 Expires: 2027-09-30T00:00:00.000Z
 Preferred-Languages: en
 Canonical: https://www.helm.events/.well-known/security.txt
