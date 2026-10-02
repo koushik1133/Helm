@@ -106,8 +106,9 @@ done
 missing_required=0
 plan_secrets_for() {
   local fn="$1" k; k="$(vkey "$fn")"
-  local -n req="SECRETS_${k}_required"
-  local -n opt="SECRETS_${k}_optional"
+  # bash 3.2-compatible array access (no namerefs).
+  eval "local req=(\"\${SECRETS_${k}_required[@]:-}\")"
+  eval "local opt=(\"\${SECRETS_${k}_optional[@]:-}\")"
   printf '   required:\n'
   for name in "${req[@]:-}"; do
     [ -n "$name" ] || continue
@@ -128,8 +129,8 @@ plan_secrets_for() {
 # arg list that we build WITHOUT printing values.
 apply_secrets_for() {
   local fn="$1" k; k="$(vkey "$fn")"
-  local -n req="SECRETS_${k}_required"
-  local -n opt="SECRETS_${k}_optional"
+  eval "local req=(\"\${SECRETS_${k}_required[@]:-}\")"
+  eval "local opt=(\"\${SECRETS_${k}_optional[@]:-}\")"
   local pairs=()
   for name in "${req[@]:-}" "${opt[@]:-}"; do
     [ -n "$name" ] || continue
@@ -144,7 +145,8 @@ apply_secrets_for() {
 head2 "PLAN"
 for fn in "${TARGETS[@]}"; do
   printf '%s• %s%s\n' "$C_BLD" "$fn" "$C_RST"
-  printf '   deploy: supabase functions deploy %s --project-ref %s\n' "$fn" "$REF"
+  jwtflag=""; [ "$fn" = "razorpay-webhook" ] && jwtflag=" --no-verify-jwt"
+  printf '   deploy: supabase functions deploy %s --project-ref %s%s\n' "$fn" "$REF" "$jwtflag"
   plan_secrets_for "$fn"
 done
 
@@ -164,7 +166,14 @@ if [ "$missing_required" -gt 0 ]; then die "$missing_required required secret(s)
 for fn in "${TARGETS[@]}"; do
   head2 "deploy: $fn"
   apply_secrets_for "$fn"
-  supabase functions deploy "$fn" --project-ref "$REF"
+  # razorpay-webhook authenticates via HMAC signature (x-razorpay-signature), NOT a
+  # Supabase JWT — Razorpay sends no JWT, so the gateway must NOT verify one or every
+  # real webhook 401s before reaching the function. Deploy it with --no-verify-jwt.
+  if [ "$fn" = "razorpay-webhook" ]; then
+    supabase functions deploy "$fn" --project-ref "$REF" --no-verify-jwt
+  else
+    supabase functions deploy "$fn" --project-ref "$REF"
+  fi
   ok "deployed $fn to staging"
 done
 ok "all target functions deployed to STAGING ($REF)"
