@@ -26,3 +26,4 @@ forward  supabase/migrations/0010_feature_settlement_teardown.sql
 forward  supabase/migrations/0011_authz_complete.sql
 forward  supabase/migrations/0012_token_otp_hardening.sql
 forward  supabase/migrations/0013_storage_hardening.sql
+forward  supabase/migrations/0014_advisor_hardening.sql

@@ -38,6 +38,7 @@ q() { "${PSQL[@]}" -t -A -c "$1"; }
 # ledger
 q "create table if not exists public.helm_schema_migrations(
      filename text primary key, sha256 text not null, applied_at timestamptz not null default now());" >/dev/null
+q "alter table if exists public.helm_schema_migrations enable row level security; revoke all on public.helm_schema_migrations from anon, authenticated;" >/dev/null
 
 if [ "$MODE" = "--verify" ]; then
   "${PSQL[@]}" -c "select filename, left(sha256,12) as sha, applied_at from public.helm_schema_migrations order by applied_at;"

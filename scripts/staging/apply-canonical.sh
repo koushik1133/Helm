@@ -57,6 +57,7 @@ mgmt_query "$REF" "create table if not exists public.helm_schema_migrations(
   filename text primary key,
   sha256 text not null,
   applied_at timestamptz not null default now());" >/dev/null
+mgmt_query "$REF" "alter table if exists public.helm_schema_migrations enable row level security; revoke all on public.helm_schema_migrations from anon, authenticated;" >/dev/null
 pass "Ledger table public.helm_schema_migrations ensured."
 
 # ---- iterate MANIFEST forward entries -------------------------------------
