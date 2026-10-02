@@ -1,0 +1,998 @@
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "serialNumber": "urn:uuid:88c4044f-723f-4660-8b47-27ff09353ccf",
+  "metadata": {
+    "timestamp": "2026-10-02T20:44:52.485Z",
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "npm",
+          "version": "10.9.8"
+        },
+        {
+          "type": "application",
+          "name": "cyclonedx-npm",
+          "group": "@cyclonedx",
+          "version": "6.0.1",
+          "author": "Jan Kowalleck",
+          "description": "Create CycloneDX Software Bill of Materials (SBOM) from NPM projects.",
+          "licenses": [
+            {
+              "license": {
+                "id": "Apache-2.0"
+              }
+            }
+          ],
+          "externalReferences": [
+            {
+              "url": "git+https://github.com/CycloneDX/cyclonedx-node-npm.git",
+              "type": "vcs",
+              "comment": "as detected from PackageJson property \"repository.url\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-node-npm#readme",
+              "type": "website",
+              "comment": "as detected from PackageJson property \"homepage\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-node-npm/issues",
+              "type": "issue-tracker",
+              "comment": "as detected from PackageJson property \"bugs.url\""
+            }
+          ],
+          "properties": [
+            {
+              "name": "cdx:npm:package:constraint:engine:node",
+              "value": ">=20.18.0"
+            },
+            {
+              "name": "cdx:npm:package:constraint:engine:npm",
+              "value": ">=9"
+            }
+          ]
+        },
+        {
+          "type": "library",
+          "name": "cyclonedx-library",
+          "group": "@cyclonedx",
+          "version": "10.3.0",
+          "author": "Jan Kowalleck",
+          "description": "Core functionality of CycloneDX for JavaScript (Node.js or WebBrowser).",
+          "licenses": [
+            {
+              "license": {
+                "id": "Apache-2.0"
+              }
+            }
+          ],
+          "externalReferences": [
+            {
+              "url": "git+https://github.com/CycloneDX/cyclonedx-javascript-library.git",
+              "type": "vcs",
+              "comment": "as detected from PackageJson property \"repository.url\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-javascript-library#readme",
+              "type": "website",
+              "comment": "as detected from PackageJson property \"homepage\""
+            },
+            {
+              "url": "https://github.com/CycloneDX/cyclonedx-javascript-library/issues",
+              "type": "issue-tracker",
+              "comment": "as detected from PackageJson property \"bugs.url\""
+            }
+          ],
+          "properties": [
+            {
+              "name": "cdx:npm:package:constraint:engine:node",
+              "value": ">=20.18.0"
+            }
+          ]
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "name": "helm",
+      "version": "1.0.0",
+      "bom-ref": "helm@1.0.0",
+      "description": "Helm — event management platform (static front-end on Vercel + Supabase). server.js is the local dev server.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/helm@1.0.0",
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=18"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": ""
+        }
+      ]
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "name": "playwright",
+      "group": "@axe-core",
+      "version": "4.13.0",
+      "bom-ref": "helm@1.0.0|@axe-core/playwright@4.13.0",
+      "description": "Provides a method to inject and analyze web pages using axe",
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40axe-core/playwright@4.13.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/dequelabs/axe-core-npm.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/dequelabs/axe-core-npm#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/dequelabs/axe-core-npm/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@axe-core/playwright/-/playwright-4.13.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "e982f1fa4c57bb918971e1b8a33160fb7ddad84313763630586968277b1bf4ab5ae69a7e64d4b9deec4656883925eb4863cb3ef8fe54aed5fe72b8bebb454056"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@axe-core/playwright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "test",
+      "group": "@playwright",
+      "version": "1.63.0",
+      "bom-ref": "helm@1.0.0|@playwright/test@1.63.0",
+      "author": "Microsoft Corporation",
+      "description": "A high-level API to automate web browsers",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40playwright/test@1.63.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/microsoft/playwright.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://playwright.dev",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/microsoft/playwright/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@playwright/test/-/test-1.63.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "a3130ae2f96507d44ae4d436975a6ad487ce7f602f9c4ba3fef6060e3d07da732d9ad6692ad0b0b7f974d0610eeb18c67e904d02f8e8bef61d0a6e74751424a5"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=20"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@playwright/test"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "supabase-js",
+      "group": "@supabase",
+      "version": "2.117.2",
+      "bom-ref": "helm@1.0.0|@supabase/supabase-js@2.117.2",
+      "author": "Supabase",
+      "description": "Isomorphic Javascript SDK for Supabase",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40supabase/supabase-js@2.117.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/supabase/supabase-js.git#packages/core/supabase-js",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://github.com/supabase/supabase-js/tree/master/packages/core/supabase-js",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/supabase/supabase-js/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@supabase/supabase-js/-/supabase-js-2.117.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "7921b654a9c747e0a5a753e689d675ff0789f0f270a326e3bdadcbd8680aa851b86034b522a99ceb5a6c28664fe71c3a38c4f63bb668acf478d8f63aab504e5e"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=22.0.0"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@supabase/supabase-js"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "axe-core",
+      "version": "4.13.0",
+      "bom-ref": "helm@1.0.0|axe-core@4.13.0",
+      "description": "Accessibility engine for automated Web UI testing",
+      "licenses": [
+        {
+          "license": {
+            "id": "MPL-2.0",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/axe-core@4.13.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/dequelabs/axe-core.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://www.deque.com/axe/",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/dequelabs/axe-core/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/axe-core/-/axe-core-4.13.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "5331adf3383b372f1d8db60c871976cee11ebd56bbaf68098d86392f0af5c4cefe5d4da777a0a421615355c0886c03fadef4b3ef535a572cae4a4f651ca732d0"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=4"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/axe-core"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "playwright-core",
+      "version": "1.63.0",
+      "bom-ref": "helm@1.0.0|playwright-core@1.63.0",
+      "author": "Microsoft Corporation",
+      "description": "A high-level API to automate web browsers",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/playwright-core@1.63.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/microsoft/playwright.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://playwright.dev",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/microsoft/playwright/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/playwright-core/-/playwright-core-1.63.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "ad80ac045fcce478d4721e766dbb5538d1058efe97bbcb26f21ef674d951e5bcc81357ef0bf6f182ca7392349f53e3307843263ccf0a25e6c6ea79f2c68e660a"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=20"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/playwright-core"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "playwright",
+      "version": "1.63.0",
+      "bom-ref": "helm@1.0.0|playwright@1.63.0",
+      "author": "Microsoft Corporation",
+      "description": "A high-level API to automate web browsers",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/playwright@1.63.0",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/microsoft/playwright.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://playwright.dev",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/microsoft/playwright/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/playwright/-/playwright-1.63.0.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "fbbce204b89d4b835a34276de7b4940d3fb062699de5f9a241e8d489cfe46fe62c61208fc8e384f6c79bccc8cd990aec9cda4326a778587bd5ffc95f29f50352"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=20"
+        },
+        {
+          "name": "cdx:npm:package:development",
+          "value": "true"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/playwright"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "auth-js",
+      "group": "@supabase",
+      "version": "2.117.2",
+      "bom-ref": "helm@1.0.0|@supabase/auth-js@2.117.2",
+      "author": "Supabase",
+      "description": "Official SDK for Supabase Auth",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40supabase/auth-js@2.117.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/supabase/supabase-js.git#packages/core/auth-js",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://github.com/supabase/supabase-js/tree/master/packages/core/auth-js",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/supabase/supabase-js/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@supabase/auth-js/-/auth-js-2.117.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "6775a71b0ae985866e6eb2dbc69e48bf4b4b03d0391a1bcacc9fd95e0971ab07764041f6478757465b63549f2c227e31116d814852064f4c802d524881978363"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=22.0.0"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@supabase/auth-js"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "functions-js",
+      "group": "@supabase",
+      "version": "2.117.2",
+      "bom-ref": "helm@1.0.0|@supabase/functions-js@2.117.2",
+      "author": "Supabase",
+      "description": "JS SDK to interact with Supabase Functions.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40supabase/functions-js@2.117.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/supabase/supabase-js.git#packages/core/functions-js",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://github.com/supabase/supabase-js/tree/master/packages/core/functions-js",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/supabase/supabase-js/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@supabase/functions-js/-/functions-js-2.117.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "e834f86488e66716bd00d29a048ae373ce80c8aad7f0cdfbeb29ef35e38105569ddde3fbc77507a967c3476ca71641c6cc2b8ea6bd40fa439b9a76a1c6ec2ea2"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=22.0.0"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@supabase/functions-js"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "postgrest-js",
+      "group": "@supabase",
+      "version": "2.117.2",
+      "bom-ref": "helm@1.0.0|@supabase/postgrest-js@2.117.2",
+      "author": "Supabase",
+      "description": "Isomorphic PostgREST client",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40supabase/postgrest-js@2.117.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/supabase/supabase-js.git#packages/core/postgrest-js",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://github.com/supabase/supabase-js/tree/master/packages/core/postgrest-js",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/supabase/supabase-js/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@supabase/postgrest-js/-/postgrest-js-2.117.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "5754219fe33cc7326a09ab0ec47676286d7d163dfd3f153bc1e10098e2bae7f293b160915dba01e21710c05bf146f33b66291e3fd21958dbd091f8ef4b1cd817"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=22.0.0"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@supabase/postgrest-js"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "realtime-js",
+      "group": "@supabase",
+      "version": "2.117.2",
+      "bom-ref": "helm@1.0.0|@supabase/realtime-js@2.117.2",
+      "author": "Supabase",
+      "description": "Listen to realtime updates to your PostgreSQL database",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40supabase/realtime-js@2.117.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/supabase/supabase-js.git#packages/core/realtime-js",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://github.com/supabase/supabase-js/tree/master/packages/core/realtime-js",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/supabase/supabase-js/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@supabase/realtime-js/-/realtime-js-2.117.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "9585d2008837780280e7cae25040fa55bf930b317c8edc75f2e3a888269527b64cadee85581a7007530f796f81eafca4253fe13dd8aeab071207b20b312db57b"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=22.0.0"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@supabase/realtime-js"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "storage-js",
+      "group": "@supabase",
+      "version": "2.117.2",
+      "bom-ref": "helm@1.0.0|@supabase/storage-js@2.117.2",
+      "author": "Supabase",
+      "description": "Isomorphic storage client for Supabase.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40supabase/storage-js@2.117.2",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/supabase/supabase-js.git#packages/core/storage-js",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\" and \"repository.directory\""
+        },
+        {
+          "url": "https://github.com/supabase/supabase-js/tree/master/packages/core/storage-js",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/supabase/supabase-js/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@supabase/storage-js/-/storage-js-2.117.2.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "f20009a156b165afd66abda41517c93311a4e0cd7dd10ee527bd01a1fc06951c54feef6922875de97c93be65e4c4e2975ae218b640da60f66b20052dd53ffb15"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=22.0.0"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@supabase/storage-js"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "tslib",
+      "version": "2.8.1",
+      "bom-ref": "helm@1.0.0|tslib@2.8.1",
+      "author": "Microsoft Corp.",
+      "description": "Runtime library for TypeScript helper functions",
+      "licenses": [
+        {
+          "license": {
+            "id": "0BSD",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/tslib@2.8.1",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/Microsoft/tslib.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://www.typescriptlang.org/",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/Microsoft/TypeScript/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/tslib/-/tslib-2.8.1.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "a0916ef781d06fe29576e49440bef09e99aa9df98bb0e03f9c087a6fa107d30084a0ad3f98f79753a737c0a0d5f373243ae1cf447b525ca294f7d2016b34bfdb"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/tslib"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "phoenix",
+      "group": "@supabase",
+      "version": "0.4.5",
+      "bom-ref": "helm@1.0.0|@supabase/phoenix@0.4.5",
+      "author": "Chris McCord",
+      "description": "The official JavaScript client for the Phoenix web framework.",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/%40supabase/phoenix@0.4.5",
+      "externalReferences": [
+        {
+          "url": "git://github.com/supabase/phoenix.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/supabase/phoenix#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/supabase/phoenix/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/@supabase/phoenix/-/phoenix-0.4.5.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "6809fd1fda2f572780a4acb5d4e58eaeb386abc0d5ebcc96787e2e77694df5fce7e1a3bc65be462cbf66d69520f672ea21c4fe6437c072c65ed04fe7a9dbf697"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/@supabase/phoenix"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "iceberg-js",
+      "version": "0.8.1",
+      "bom-ref": "helm@1.0.0|iceberg-js@0.8.1",
+      "author": "mandarini",
+      "description": "A small, framework-agnostic JavaScript/TypeScript client for the Apache Iceberg REST Catalog",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT",
+            "acknowledgement": "declared"
+          }
+        }
+      ],
+      "purl": "pkg:npm/iceberg-js@0.8.1",
+      "externalReferences": [
+        {
+          "url": "git+https://github.com/supabase/iceberg-js.git",
+          "type": "vcs",
+          "comment": "as detected from PackageJson property \"repository.url\""
+        },
+        {
+          "url": "https://github.com/supabase/iceberg-js#readme",
+          "type": "website",
+          "comment": "as detected from PackageJson property \"homepage\""
+        },
+        {
+          "url": "https://github.com/supabase/iceberg-js/issues",
+          "type": "issue-tracker",
+          "comment": "as detected from PackageJson property \"bugs.url\""
+        },
+        {
+          "url": "https://registry.npmjs.org/iceberg-js/-/iceberg-js-0.8.1.tgz",
+          "type": "distribution",
+          "hashes": [
+            {
+              "alg": "SHA-512",
+              "content": "d5d8554195e17078deefbf7c21533ec68a3fd597557f338c21cf3fae05528a344adfc103a8e2681ae95af4dffc648e510fc413c4d42d2bf1a8ce9afea94a9144"
+            }
+          ],
+          "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
+        }
+      ],
+      "properties": [
+        {
+          "name": "cdx:npm:package:constraint:engine:node",
+          "value": ">=20.0.0"
+        },
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/iceberg-js"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "helm@1.0.0",
+      "dependsOn": [
+        "helm@1.0.0|@axe-core/playwright@4.13.0",
+        "helm@1.0.0|@playwright/test@1.63.0",
+        "helm@1.0.0|@supabase/supabase-js@2.117.2"
+      ]
+    },
+    {
+      "ref": "helm@1.0.0|@axe-core/playwright@4.13.0",
+      "dependsOn": [
+        "helm@1.0.0|axe-core@4.13.0",
+        "helm@1.0.0|playwright-core@1.63.0"
+      ]
+    },
+    {
+      "ref": "helm@1.0.0|@playwright/test@1.63.0",
+      "dependsOn": [
+        "helm@1.0.0|playwright@1.63.0"
+      ]
+    },
+    {
+      "ref": "helm@1.0.0|@supabase/supabase-js@2.117.2",
+      "dependsOn": [
+        "helm@1.0.0|@supabase/auth-js@2.117.2",
+        "helm@1.0.0|@supabase/functions-js@2.117.2",
+        "helm@1.0.0|@supabase/postgrest-js@2.117.2",
+        "helm@1.0.0|@supabase/realtime-js@2.117.2",
+        "helm@1.0.0|@supabase/storage-js@2.117.2"
+      ]
+    },
+    {
+      "ref": "helm@1.0.0|axe-core@4.13.0"
+    },
+    {
+      "ref": "helm@1.0.0|playwright-core@1.63.0"
+    },
+    {
+      "ref": "helm@1.0.0|playwright@1.63.0",
+      "dependsOn": [
+        "helm@1.0.0|playwright-core@1.63.0"
+      ]
+    },
+    {
+      "ref": "helm@1.0.0|@supabase/auth-js@2.117.2",
+      "dependsOn": [
+        "helm@1.0.0|tslib@2.8.1"
+      ]
+    },
+    {
+      "ref": "helm@1.0.0|@supabase/functions-js@2.117.2",
+      "dependsOn": [
+        "helm@1.0.0|tslib@2.8.1"
+      ]
+    },
+    {
+      "ref": "helm@1.0.0|@supabase/postgrest-js@2.117.2",
+      "dependsOn": [
+        "helm@1.0.0|tslib@2.8.1"
+      ]
+    },
+    {
+      "ref": "helm@1.0.0|@supabase/realtime-js@2.117.2",
+      "dependsOn": [
+        "helm@1.0.0|@supabase/phoenix@0.4.5",
+        "helm@1.0.0|tslib@2.8.1"
+      ]
+    },
+    {
+      "ref": "helm@1.0.0|@supabase/storage-js@2.117.2",
+      "dependsOn": [
+        "helm@1.0.0|iceberg-js@0.8.1",
+        "helm@1.0.0|tslib@2.8.1"
+      ]
+    },
+    {
+      "ref": "helm@1.0.0|tslib@2.8.1"
+    },
+    {
+      "ref": "helm@1.0.0|@supabase/phoenix@0.4.5"
+    },
+    {
+      "ref": "helm@1.0.0|iceberg-js@0.8.1"
+    }
+  ]
+}
