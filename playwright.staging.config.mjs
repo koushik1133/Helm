@@ -37,9 +37,17 @@ export default defineConfig({
     video: 'off',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox',  use: { ...devices['Desktop Firefox'] } },
-    { name: 'webkit',   use: { ...devices['Desktop Safari'] } },
+    // Mapped e2e flows (tests/e2e/**). Per-role storageState is applied inside each
+    // spec via helpers/session.mjs authedPage(browser, '<role>'), which loads the
+    // tests/e2e/.auth/<role>.json files the staging globalSetup signs in and writes
+    // (seeded HARDEN_TEST_ accounts, origin = PREVIEW_URL). This is the per-role
+    // storageState mechanism this suite uses — there is no single shared session.
+    { name: 'e2e-chromium', testDir: './tests/e2e', use: { ...devices['Desktop Chrome'] } },
+    { name: 'e2e-firefox',  testDir: './tests/e2e', use: { ...devices['Desktop Firefox'] } },
+    { name: 'e2e-webkit',   testDir: './tests/e2e', use: { ...devices['Desktop Safari'] } },
+    // TODO-stub flows (tests/staging/specs/**) — all test.fixme, reported as pending,
+    // never silently passing. Single-browser is enough for unimplemented stubs.
+    { name: 'staging-stubs', testDir: './tests/staging/specs', use: { ...devices['Desktop Chrome'] } },
   ],
   // No webServer — we drive a remote preview deploy, not a local static server.
 });
