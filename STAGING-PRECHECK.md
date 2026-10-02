@@ -31,3 +31,13 @@ Candidate SHA: 8fe1206b5dfb9ad071122d30f74e57b10f8abffa (local == remote == orig
 - PostgREST REST tests (anon + signed user JWTs): tenant isolation, IDOR, RPC authz — but only meaningful AFTER canonical migrations are applied.
 - Storage API tests (service + user tokens).
 - Edge function deploy to staging (CLI uses access token) + HTTP behavior tests.
+
+---
+
+## Live precheck — 2026-10-02 01:10:40Z
+
+- Target project ref: `xizehqgeyjcfpzrdymly` (staging)
+- public BASE TABLE count: **61**
+- public routines count: **122**
+- helm_schema_migrations ledger present: **no** (rows: 0)
+- database fresh (profiles absent): **no**

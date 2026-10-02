@@ -114,32 +114,44 @@ check_fn() {
   local n; n="$(mgmt_scalar "$REF" "select count(*)::int from pg_proc p join pg_namespace s on s.oid=p.pronamespace where s.nspname='public' and p.proname='$name';")"
   if [ "${n:-0}" -ge 1 ] 2>/dev/null; then pass "function public.$name present"; else fail "function public.$name MISSING"; mark_fail; fi
 }
-check_trigger() {
-  local name="$1"
-  local n; n="$(mgmt_scalar "$REF" "select count(*)::int from pg_trigger where tgname='$name' and not tgisinternal;")"
-  if [ "${n:-0}" -ge 1 ] 2>/dev/null; then pass "trigger $name present"; else fail "trigger $name MISSING"; mark_fail; fi
+# check that AT LEAST ONE trigger from a candidate name list exists (the enforcing
+# trigger names differ from their function names, so accept any sanctioned alias).
+check_trigger_any() {
+  local label="$1"; shift
+  local inlist; inlist="$(printf "'%s'," "$@" | sed 's/,$//')"
+  local n; n="$(mgmt_scalar "$REF" "select count(*)::int from pg_trigger where tgname in ($inlist) and not tgisinternal;")"
+  if [ "${n:-0}" -ge 1 ] 2>/dev/null; then pass "trigger $label present"; else fail "trigger $label MISSING (any of: $*)"; mark_fail; fi
 }
 
 # functions
 check_fn "helm_quote_total_canonical"
-# triggers (functions enforcing the rules fire via these triggers)
-check_trigger "enforce_pricing_total"
-# quote<->org match trigger is named tg_quote_org_match or zz_quote_org_match
-QOM="$(mgmt_scalar "$REF" "select count(*)::int from pg_trigger where tgname in ('tg_quote_org_match','zz_quote_org_match') and not tgisinternal;")"
-if [ "${QOM:-0}" -ge 1 ] 2>/dev/null; then pass "trigger tg_quote_org_match / zz_quote_org_match present"; else fail "quote-org-match trigger MISSING (tg_quote_org_match / zz_quote_org_match)"; mark_fail; fi
-check_trigger "enforce_no_overpayment"
-check_trigger "tg_approval_token_expiry"
-check_trigger "tg_otp_rate_limit"
+# pricing-authority enforcing trigger on quotes (0001)
+check_trigger_any "pricing-total enforce"     zz_enforce_pricing_total quotes_enforce_pricing_total enforce_pricing_total
+# quote<->org tenant-match trigger (0004)
+check_trigger_any "quote-org match"           zz_quote_org_match tg_quote_org_match
+# no-overpayment money triggers (0003)
+check_trigger_any "no-overpayment"            trg_no_overpayment enforce_no_overpayment
+check_trigger_any "no-overpayment (milestones)" trg_no_overpayment_ms enforce_no_overpayment_ms
+# token/OTP hardening triggers (0012)
+check_trigger_any "approval-token expiry"     zz_approval_token_expiry tg_approval_token_expiry
+check_trigger_any "OTP rate limit"            zz_otp_rate_limit tg_otp_rate_limit
+# 0012 worker-token fix: revoked_at column + liveness guard fn + renew trigger
+WT_REV="$(mgmt_scalar "$REF" "select count(*)::int from information_schema.columns where table_schema='public' and table_name='work_tokens' and column_name='revoked_at';")"
+if [ "${WT_REV:-0}" -ge 1 ] 2>/dev/null; then pass "work_tokens.revoked_at present (0012 fix)"; else fail "work_tokens.revoked_at MISSING (0012 fix)"; mark_fail; fi
+check_fn "_work_token_live"
+check_trigger_any "worker-token renew"        zz_work_token_renew
 
 # storage buckets must exist and be private (public = false)
 for bucket in invite-media event-docs; do
-  pub="$(mgmt_scalar "$REF" "select public from storage.buckets where id='$bucket';")"
-  if [ -z "$pub" ]; then
-    fail "storage bucket '$bucket' MISSING"; mark_fail
-  elif [ "$pub" = "false" ] || [ "$pub" = "f" ]; then
+  n="$(mgmt_scalar "$REF" "select count(*)::int from storage.buckets where id='$bucket';")"
+  if [ "${n:-0}" -lt 1 ] 2>/dev/null; then
+    fail "storage bucket '$bucket' MISSING"; mark_fail; continue
+  fi
+  priv="$(mgmt_scalar "$REF" "select (public is false) from storage.buckets where id='$bucket';")"
+  if [ "$priv" = "true" ] || [ "$priv" = "t" ]; then
     pass "storage bucket '$bucket' present and PRIVATE (public=false)"
   else
-    fail "storage bucket '$bucket' is PUBLIC (public=$pub) — expected private"; mark_fail
+    fail "storage bucket '$bucket' is PUBLIC — expected private"; mark_fail
   fi
 done
 

@@ -84,11 +84,14 @@ mgmt_query() {
     --data "$payload")" || die "Management API request failed (network/transport error)"
   http="${resp##*$'\n'}"
   body="${resp%$'\n'*}"
-  if [ "$http" != "200" ]; then
+  # The Management API query endpoint returns 200 or 201 on success; accept any 2xx.
+  case "$http" in
+    2[0-9][0-9]) : ;;
+    *)
     # Surface the API error message but never the token.
     local msg; msg="$(printf '%s' "$body" | jq -r '.message // .error // .msg // empty' 2>/dev/null || true)"
-    die "Management API returned HTTP $http${msg:+: $msg}"
-  fi
+    die "Management API returned HTTP $http${msg:+: $msg}" ;;
+  esac
   printf '%s' "$body"
 }
 
