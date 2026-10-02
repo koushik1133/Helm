@@ -55,6 +55,15 @@ function assertPrefixed(kind, value) {
     fail(`refused to delete non-${PREFIX} ${kind}: ${JSON.stringify(value)}. Aborting entire run; nothing further deleted.`);
   }
 }
+// Case-insensitive variant for emails (seed emails are lowercase: harden_test_...).
+// Profiles are identified/filtered by EMAIL, not full_name (which can be null for a
+// user whose profile was auto-created by the on_auth_user_created trigger).
+function assertPrefixedEmail(kind, value) {
+  const s = String(value ?? '').toLowerCase();
+  if (!s.startsWith(PREFIX.toLowerCase())) {
+    fail(`refused to delete non-${PREFIX} ${kind}: ${JSON.stringify(value)}. Aborting entire run; nothing further deleted.`);
+  }
+}
 
 const authHeaders = () => ({
   apikey: SERVICE_KEY,
@@ -106,7 +115,7 @@ async function main() {
   quotes.forEach((q) => { assertPrefixed('quote.code', q.code); });
 
   const profiles = await rest(`/profiles?select=id,email,full_name&email=like.${PREFIX.toLowerCase()}*`);
-  profiles.forEach((p) => { assertPrefixed('profile.full_name', p.full_name); });
+  profiles.forEach((p) => { assertPrefixedEmail('profile.email', p.email); });
 
   // GoTrue users: from manifest (re-assert) plus discovery by metadata prefix via email.
   const userIds = new Map(); // id -> email
@@ -119,14 +128,27 @@ async function main() {
       userIds.set(u.id, u.email);
     }
   }
-  // Also sweep live GoTrue for any lingering prefixed users.
-  const body = await gotrue(`/users?per_page=200`);
-  const liveUsers = Array.isArray(body) ? body : (body?.users || []);
-  for (const u of liveUsers) {
-    const email = (u.email || '');
-    if (email.toLowerCase().startsWith(PREFIX.toLowerCase())) {
-      userIds.set(u.id, email);
+  // Also sweep for any lingering prefixed users via the Management API (GoTrue admin
+  // list returns 500 at page>1 on this staging project due to a pre-existing corrupt
+  // auth.users row; a targeted SQL lookup is reliable). Best-effort if no PAT.
+  const ACCESS_TOKEN = env('SUPABASE_ACCESS_TOKEN');
+  if (ACCESS_TOKEN) {
+    const q = `select id, email from auth.users where lower(email) like '${PREFIX.toLowerCase()}%'`;
+    const res = await fetch(`https://api.supabase.com/v1/projects/${STAGING_REF}/database/query`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q }),
+    });
+    if (res.ok) {
+      const rows = await res.json().catch(() => []);
+      for (const u of (Array.isArray(rows) ? rows : [])) {
+        if (String(u.email || '').toLowerCase().startsWith(PREFIX.toLowerCase())) userIds.set(u.id, u.email);
+      }
+    } else {
+      console.warn(`[cleanup] Management API user sweep failed (HTTP ${res.status}); relying on manifest.`);
     }
+  } else {
+    console.warn('[cleanup] no SUPABASE_ACCESS_TOKEN; relying on manifest for user ids.');
   }
   for (const email of userIds.values()) {
     if (!email.toLowerCase().startsWith(PREFIX.toLowerCase())) {
@@ -135,30 +157,46 @@ async function main() {
   }
 
   console.log(`[cleanup] targets -> orgs=${orgs.length} quotes=${quotes.length} profiles=${profiles.length} users=${userIds.size}`);
+  if (orgIds.length === 0) { console.log('[cleanup] nothing to delete.'); return; }
 
-  // 2) Delete in FK-safe order: quotes, profiles, then GoTrue users, then orgs.
-  for (const q of quotes) {
-    assertPrefixed('quote.code', q.code);
-    await rest(`/quotes?id=eq.${q.id}`, { method: 'DELETE', prefer: 'return=minimal' });
-    console.log(`[cleanup] deleted quote ${q.code}`);
-  }
-  for (const p of profiles) {
-    assertPrefixed('profile.full_name', p.full_name);
-    await rest(`/profiles?id=eq.${p.id}`, { method: 'DELETE', prefer: 'return=minimal' });
-    console.log(`[cleanup] deleted profile ${p.full_name}`);
-  }
+  // 2) Org-scoped cascade via the Management API. ALL synthetic data lives in the two
+  // verified HARDEN_TEST orgs (asserted by name above), so delete every row whose
+  // org_id is one of them, across every public table that has an org_id column, with
+  // FK checks disabled for the operation (postgres/replica role). This avoids guessing
+  // the full quote-linked child-table list. Scoped strictly to the 2 synthetic orgs.
+  const ACCESS_TOKEN2 = env('SUPABASE_ACCESS_TOKEN');
+  if (!ACCESS_TOKEN2) fail('SUPABASE_ACCESS_TOKEN (sbp_ PAT) required for the org-scoped cascade delete.');
+  const orgArr = `array[${orgIds.map((x) => `'${x}'::uuid`).join(',')}]`;
+  const sql = `
+    set session_replication_role = replica;
+    do $$
+    declare t text; v_orgs uuid[] := ${orgArr};
+    begin
+      for t in select table_name from information_schema.columns
+               where table_schema='public' and column_name='org_id'
+                 and table_name <> 'organizations'
+      loop execute format('delete from public.%I where org_id = any($1)', t) using v_orgs; end loop;
+    end $$;
+    delete from public.organizations where id = any(${orgArr});
+    set session_replication_role = default;
+    select 1 as ok;`;
+  const res = await fetch(`https://api.supabase.com/v1/projects/${STAGING_REF}/database/query`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${ACCESS_TOKEN2}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: sql }),
+  });
+  if (!res.ok) fail(`org-scoped cascade delete failed: HTTP ${res.status} ${await res.text().catch(() => '')}`);
+  console.log(`[cleanup] org-scoped rows deleted for ${orgIds.length} org(s) (quotes/profiles/children/orgs).`);
+
+  // 3) Delete the GoTrue auth users (single-delete; list is unused).
+  let delUsers = 0;
   for (const [id, email] of userIds) {
     if (!email.toLowerCase().startsWith(PREFIX.toLowerCase())) fail(`refused: ${email}`);
-    await gotrue(`/users/${id}`, { method: 'DELETE' });
-    console.log(`[cleanup] deleted user ${email}`);
-  }
-  for (const o of orgs) {
-    assertPrefixed('organization.name', o.name);
-    await rest(`/organizations?id=eq.${o.id}`, { method: 'DELETE', prefer: 'return=minimal' });
-    console.log(`[cleanup] deleted org ${o.name}`);
+    try { await gotrue(`/users/${id}`, { method: 'DELETE' }); delUsers++; console.log(`[cleanup] deleted user ${email}`); }
+    catch (e) { console.warn(`[cleanup] user delete ${email} -> ${e.message}`); }
   }
 
-  console.log(`[cleanup] done.`);
+  console.log(`[cleanup] done. orgs=${orgs.length} quotes=${quotes.length} profiles=${profiles.length} users=${delUsers}/${userIds.size}`);
 }
 
 if (decodeURIComponent(import.meta.url) === `file://${process.argv[1]}`) {
