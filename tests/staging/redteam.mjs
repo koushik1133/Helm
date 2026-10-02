@@ -178,10 +178,12 @@ async function probeRoleEscalation(F, quoteId, jwtSales, jwtManager) {
   const r = rand(8);
   const esc1 = await rpc('admin_create_user', { p_email: `harden_test_rt_${r}@helm-staging.test`, p_password: 'HelmTest!' + r, p_role: 'sales' }, jwtSales);
   F.probe('A2', 'sales CANNOT admin_create_user', DENIED(esc1), 'Critical', DENIED(esc1) ? 'denied' : `REACHED BODY status=${esc1.status}`);
-  const esc2 = await rpc('record_payment', { p_quote: quoteId, p_amount: 1, p_method: 'cash' }, jwtSales);
-  F.probe('A2', 'sales CANNOT record_payment (no finance.edit)', DENIED(esc2), 'Critical', DENIED(esc2) ? 'denied' : `REACHED BODY status=${esc2.status}`);
+  // record_payment requires can_edit() AND has_area('finance','edit'). By the VERIFIED
+  // default RBAC, sales HAS both — so record_payment by sales is allowed-by-config, not
+  // an escalation (money INTEGRITY is proven separately in payment-redteam). The correct
+  // negative is manager: it has can_edit but NOT finance.edit, so it must be denied.
   const esc3 = await rpc('record_payment', { p_quote: quoteId, p_amount: 1, p_method: 'cash' }, jwtManager);
-  F.probe('A2', 'manager CANNOT record_payment (no can_edit)', DENIED(esc3), 'High', DENIED(esc3) ? 'denied' : `REACHED BODY status=${esc3.status}`);
+  F.probe('A2', 'manager CANNOT record_payment (lacks finance.edit)', DENIED(esc3), 'High', DENIED(esc3) ? 'denied' : `REACHED BODY status=${esc3.status}`);
 }
 
 // B1/B2 — cross-tenant REST sweep with forged victim ids.
@@ -265,11 +267,16 @@ async function probeOverpay(F, jwtAdmin, svc, quoteId) {
 }
 
 // D1/D2 — token replay/forgery cross-check WITHOUT mutating seed rows.
+// A forged token is REJECTED as a business error ('invalid link', P0001, HTTP 400),
+// not an authz (401/403) signal — classify() maps that to ALLOW, so assert rejection
+// as "call failed OR returned no payload", which is the true security outcome.
 async function probeTokenForgery(F) {
+  const rejected = (res) => !res.ok || DENIED(res)
+    || res.data == null || (typeof res.data === 'object' && res.data.ok === false);
   const t1 = await anonClient.rpc('public_get_portal', { p_token: uuid() });
-  F.probe('D1', 'forged approval token DENIED', DENIED(t1), 'High', DENIED(t1) ? 'denied' : `REACHED BODY status=${t1.status}`);
+  F.probe('D1', 'forged approval token REJECTED', rejected(t1), 'High', rejected(t1) ? `rejected status=${t1.status}` : `REACHED BODY status=${t1.status}`);
   const t2 = await anonClient.rpc('worker_get_tasks', { p_token: uuid() });
-  F.probe('D2', 'forged worker token DENIED', DENIED(t2), 'High', DENIED(t2) ? 'denied' : `REACHED BODY status=${t2.status}`);
+  F.probe('D2', 'forged worker token REJECTED', rejected(t2), 'High', rejected(t2) ? `rejected status=${t2.status}` : `REACHED BODY status=${t2.status}`);
 }
 
 // D4 — OTP flood fail-closed: anon request_otp burst on a bad token must not
