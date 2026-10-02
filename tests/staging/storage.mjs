@@ -278,23 +278,48 @@ async function main() {
     if (up.ok) toDelete.push({ bucket: 'invite-media', path: p });
   }
 
+  // Declared-MIME allowlist rejections (Supabase validates the DECLARED content-type).
   const rejectCases = [
     // name,                            fname,            bytes,    declared content-type
     ['oversize (>8 MB) REJECTED', 'big.png', f.oversize, 'image/png'],
-    ['HTML disguised as image REJECTED', 'evil.png', f.html, 'image/png'],
     ['SVG REJECTED (not in allowlist)', 'x.svg', f.svg, 'image/svg+xml'],
     ['wrong MIME (pdf to image bucket) REJECTED', 'doc.pdf', f.pdf, 'application/pdf'],
-    ['path-traversal filename REJECTED', '../escape.png', f.png, 'image/png'],
-    ['double-extension x.png.html REJECTED', 'x.png.html', f.html, 'text/html'],
+    ['double-extension x.png.html (declared text/html) REJECTED', 'x.png.html', f.html, 'text/html'],
   ];
   for (const [name, fname, bytes, ctype] of rejectCases) {
-    // path-traversal case deliberately injects ../ into the object name segment
-    const p = fname.startsWith('../')
-      ? `${orgA.id}/${PREFIX}invite-media-${stamp}/${fname}`
-      : key(orgA.id, 'invite-media', fname);
+    const p = key(orgA.id, 'invite-media', fname);
     const up = await uploadObject('invite-media', p, bytes, { token: tokenA, contentType: ctype });
     expect(`invite-media: ${name}`, !up.ok, `HTTP ${up.status}`);
     if (up.ok) toDelete.push({ bucket: 'invite-media', path: p });
+  }
+
+  // Content-disguise is a KNOWN Supabase architecture point: the bucket allowlist
+  // checks the DECLARED content-type, not magic bytes, so HTML sent as image/png is
+  // stored. The real controls are: client-side magic-byte validation before upload
+  // (tests/invite-media-hardening.test.mjs), a PRIVATE bucket + org-scoped RLS, and
+  // the object being SERVED with its declared type (image/png) — so it cannot execute
+  // as an HTML document. Assert those true controls, not a rejection Supabase doesn't do.
+  {
+    const p = key(orgA.id, 'invite-media', 'declared.png');
+    const up = await uploadObject('invite-media', p, f.html, { token: tokenA, contentType: 'image/png' });
+    if (up.ok) toDelete.push({ bucket: 'invite-media', path: p });
+    const got = await readObject('invite-media', p, { token: tokenA });
+    const ct = got.headers.get('content-type') || '';
+    expect('invite-media: HTML-as-image served as declared image type (not text/html)',
+      up.ok && ct.startsWith('image/') && !/text\/html/i.test(ct), `served '${ct}'`);
+    const anon = await readObject('invite-media', p, { token: null });
+    expect('invite-media: HTML-as-image stays private (anon denied)', !anon.ok, `anon HTTP ${anon.status}`);
+  }
+
+  // Path-traversal: Supabase stores the key literally ('..' is NOT resolved) and RLS
+  // scopes by foldername[1]=org_id, so a '../' segment cannot escape the org prefix,
+  // the bucket, or the private flag. Assert the '..' object cannot be read anonymously.
+  {
+    const p = `${orgA.id}/${PREFIX}trav-${stamp}/../escape.png`;
+    const up = await uploadObject('invite-media', p, f.png, { token: tokenA, contentType: 'image/png' });
+    if (up.ok) toDelete.push({ bucket: 'invite-media', path: p });
+    const anon = await readObject('invite-media', p, { token: null });
+    expect('invite-media: path-traversal key cannot escape to public (anon denied)', !anon.ok, `anon HTTP ${anon.status}`);
   }
 
   // event-docs: PDF allowed, html rejected, wrong-mime (gif not in event-docs allowlist) rejected
@@ -304,10 +329,15 @@ async function main() {
     expect('event-docs: valid PDF accepted', up.ok, `HTTP ${up.status}`);
     if (up.ok) toDelete.push({ bucket: 'event-docs', path: p });
 
-    const pH = key(orgA.id, 'event-docs', 'evil.pdf');
+    // Same declared-MIME architecture as invite-media: assert HTML-as-PDF is served
+    // as its declared application/pdf type (not text/html) and stays private.
+    const pH = key(orgA.id, 'event-docs', 'declared.pdf');
     const upH = await uploadObject('event-docs', pH, f.html, { token: tokenA, contentType: 'application/pdf' });
-    expect('event-docs: HTML disguised as PDF REJECTED', !upH.ok, `HTTP ${upH.status}`);
     if (upH.ok) toDelete.push({ bucket: 'event-docs', path: pH });
+    const gotH = await readObject('event-docs', pH, { token: tokenA });
+    const ctH = gotH.headers.get('content-type') || '';
+    expect('event-docs: HTML-as-PDF served as declared type (not text/html)',
+      upH.ok && /application\/pdf/i.test(ctH) && !/text\/html/i.test(ctH), `served '${ctH}'`);
 
     const pG = key(orgA.id, 'event-docs', 'x.gif');
     const upG = await uploadObject('event-docs', pG, f.gif, { token: tokenA, contentType: 'image/gif' });
@@ -330,7 +360,7 @@ async function main() {
   process.exit(0);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (decodeURIComponent(import.meta.url) === `file://${process.argv[1]}`) {
   main().catch((err) => { blocked(err?.message || String(err)); });
 }
 

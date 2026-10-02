@@ -398,4 +398,4 @@ async function main() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main();
+if (decodeURIComponent(import.meta.url) === `file://${process.argv[1]}`) main();

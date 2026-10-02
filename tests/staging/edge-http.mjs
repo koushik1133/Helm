@@ -372,7 +372,7 @@ async function main() {
   process.exit(0);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (decodeURIComponent(import.meta.url) === `file://${process.argv[1]}`) {
   main().catch((err) => blocked(err?.message || String(err)));
 }
 

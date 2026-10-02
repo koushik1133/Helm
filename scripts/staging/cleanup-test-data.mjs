@@ -161,7 +161,7 @@ async function main() {
   console.log(`[cleanup] done.`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (decodeURIComponent(import.meta.url) === `file://${process.argv[1]}`) {
   main().catch((err) => {
     console.error(`[cleanup] FAILED: ${err.message}`);
     process.exit(1);

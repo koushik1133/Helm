@@ -20,11 +20,14 @@
 //   * Fails CLOSED: missing env/seed -> exit 3 (BLOCKED), never PASS.
 //   * Secrets from env only; never printed. Service key used for fixture setup only.
 //
-// NOTE (finding): in the current staging schema worker_get_tasks() does NOT gate
-//   on work_tokens.expires_at, and work_tokens has no revoked_at column. The
-//   "worker expired -> denied" case below asserts the INTENDED G2 contract and
-//   will FAIL until worker_get_tasks is hardened to reject expired tokens. Revoke
-//   is modelled as row deletion (the only revocation the schema supports).
+// ASSERTION NOTE: token REJECTION surfaces as a P0001 business error ("invalid
+//   link" / "expired") with HTTP 400 — NOT an authz (401/403/42501) signal. The
+//   generic classify()/DENIED() treats a non-authz error as "reached body", so
+//   token-validity cases use the REJECTED()/ACCEPTED() helpers below instead:
+//   ACCEPTED = call ok with real payload; REJECTED = any error or empty payload.
+//   (0012 added work_tokens.revoked_at + _work_token_live, so worker_get_tasks now
+//   rejects expired/revoked/invalid links; revocation is exercised via row removal
+//   here, which also yields "invalid link".)
 // ============================================================================
 
 import {
@@ -38,6 +41,13 @@ const ORG_A_SLUG = 'HARDEN_TEST_org_a';
 const isArr = (d) => Array.isArray(d);
 const ALLOWED = (res) => classify(res) === 'ALLOW';
 const DENIED = (res) => classify(res) === 'DENY';
+// Token-validity helpers (NOT authz): a token-backed read is ACCEPTED only when it
+// returns a real payload; REJECTED covers any error (P0001 'invalid link'/'expired',
+// HTTP 400) or an empty/false payload.
+const ACCEPTED = (res) => !!(res.ok && res.data != null
+  && !(isArr(res.data) && res.data.length === 0)
+  && !(typeof res.data === 'object' && res.data.ok === false));
+const REJECTED = (res) => !ACCEPTED(res);
 function plus(mins) { return new Date(Date.now() + mins * 60000).toISOString(); }
 
 // Service-role fixture helpers (setup only — never asserts security). Built from the
@@ -71,18 +81,20 @@ async function approvalTokenCases(rep, svc, quoteId) {
   const T1 = crypto.randomUUID();
   // valid
   await svc.update('quotes', `id=eq.${quoteId}`, { approval_token: T1, approval_token_expires_at: plus(60 * 24 * 30), approval_token_revoked_at: null });
-  rep.line('approval token: valid accepted', ALLOWED(await anonClient.rpc('public_get_portal', { p_token: T1 })));
+  rep.line('approval token: valid accepted', ACCEPTED(await anonClient.rpc('public_get_portal', { p_token: T1 })));
   // expired
   await svc.update('quotes', `id=eq.${quoteId}`, { approval_token_expires_at: plus(-60) });
-  rep.line('approval token: expired rejected', DENIED(await anonClient.rpc('public_get_portal', { p_token: T1 })));
+  rep.line('approval token: expired rejected', REJECTED(await anonClient.rpc('public_get_portal', { p_token: T1 })));
   // revoked (expiry floored to past + revoked stamp)
   await svc.update('quotes', `id=eq.${quoteId}`, { approval_token_revoked_at: new Date().toISOString(), approval_token_expires_at: plus(-60) });
-  rep.line('approval token: revoked rejected', DENIED(await anonClient.rpc('public_get_portal', { p_token: T1 })));
+  rep.line('approval token: revoked rejected', REJECTED(await anonClient.rpc('public_get_portal', { p_token: T1 })));
   // rotated: new token valid, old token invalid
   const T2 = crypto.randomUUID();
   await svc.update('quotes', `id=eq.${quoteId}`, { approval_token: T2, approval_token_expires_at: plus(60 * 24 * 30), approval_token_revoked_at: null });
-  rep.line('approval token: rotated new accepted', ALLOWED(await anonClient.rpc('public_get_portal', { p_token: T2 })));
-  rep.line('approval token: rotated old invalid', DENIED(await anonClient.rpc('public_get_quote', { p_token: T1 })));
+  rep.line('approval token: rotated new accepted', ACCEPTED(await anonClient.rpc('public_get_portal', { p_token: T2 })));
+  rep.line('approval token: rotated old invalid', REJECTED(await anonClient.rpc('public_get_quote', { p_token: T1 })));
+  // cleanup: clear the token so it never lingers on the fixture quote
+  await svc.update('quotes', `id=eq.${quoteId}`, { approval_token: null, approval_token_revoked_at: null });
 }
 
 // ---- worker-token lifecycle -------------------------------------------------
@@ -91,22 +103,25 @@ async function workerTokenCases(rep, svc, orgId, quoteId) {
   const W1 = crypto.randomUUID();
   const ins1 = await svc.insert('work_tokens', { token: W1, quote_id: quoteId, phone, name: 'HT worker', org_id: orgId });
   if (!ins1.ok) throw new BlockedError(`cannot plant work_token fixture (HTTP ${ins1.status}) — schema/seed mismatch (fail-closed).`);
-  rep.line('worker token: valid accepted', ALLOWED(await anonClient.rpc('worker_get_tasks', { p_token: W1 })));
+  rep.line('worker token: valid accepted', ACCEPTED(await anonClient.rpc('worker_get_tasks', { p_token: W1 })));
 
-  // expired — asserts the INTENDED G2 contract (see file header note).
+  // expired — 0012 _work_token_live rejects an expired link ('link expired').
   await svc.update('work_tokens', `token=eq.${W1}`, { expires_at: plus(-60) });
-  rep.line('worker token: expired rejected (G2 intent)', DENIED(await anonClient.rpc('worker_get_tasks', { p_token: W1 })));
+  rep.line('worker token: expired rejected (G2)', REJECTED(await anonClient.rpc('worker_get_tasks', { p_token: W1 })));
 
-  // revoked — modelled as row removal (no revoked_at column in schema).
+  // revoked — 0012 added work_tokens.revoked_at; stamp it and expect 'link revoked'.
+  await svc.update('work_tokens', `token=eq.${W1}`, { revoked_at: new Date().toISOString(), expires_at: plus(60 * 24) });
+  rep.line('worker token: revoked rejected', REJECTED(await anonClient.rpc('worker_get_tasks', { p_token: W1 })));
+
+  // renewed -> old invalid / new valid. Remove the revoked W1 first so the new
+  // token can reuse the same (quote_id, phone) slot (work_tokens is unique on it).
   await svc.del('work_tokens', `token=eq.${W1}`);
-  rep.line('worker token: revoked rejected', DENIED(await anonClient.rpc('worker_get_tasks', { p_token: W1 })));
-
-  // renewed -> old invalid / new valid.
   const W2 = crypto.randomUUID();
   const ins2 = await svc.insert('work_tokens', { token: W2, quote_id: quoteId, phone, name: 'HT worker', org_id: orgId });
   if (!ins2.ok) throw new BlockedError(`cannot plant renewed work_token (HTTP ${ins2.status}) — fail-closed.`);
-  rep.line('worker token: renewed new accepted', ALLOWED(await anonClient.rpc('worker_get_tasks', { p_token: W2 })));
-  rep.line('worker token: renewed old invalid', DENIED(await anonClient.rpc('worker_get_tasks', { p_token: W1 })));
+  rep.line('worker token: renewed new accepted', ACCEPTED(await anonClient.rpc('worker_get_tasks', { p_token: W2 })));
+  rep.line('worker token: renewed old invalid', REJECTED(await anonClient.rpc('worker_get_tasks', { p_token: W1 })));
+  await svc.del('work_tokens', `token=eq.${W2}`);
   await svc.del('work_tokens', `token=eq.${W2}`);
 }
 
@@ -156,11 +171,15 @@ async function otpConcurrencyCases(rep, svc, orgId, quoteId) {
   const T = crypto.randomUUID();
   await svc.update('quotes', `id=eq.${quoteId}`, { approval_token: T, approval_token_expires_at: plus(60 * 24 * 30), approval_token_revoked_at: null });
   const ePhone = '7' + String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
-  await svc.del('quote_otps', `quote_id=eq.${quoteId}&phone=eq.${ePhone}`);
+  // Clear ALL OTP rows for this quote first: request_otp enforces BOTH the per-phone
+  // (3/hr) AND per-quote (10/day) caps, so leftover rows from prior runs would
+  // pre-exhaust the quote/day cap and wrongly yield 0 successes.
+  await svc.del('quote_otps', `quote_id=eq.${quoteId}`);
   const burst3 = await Promise.all(Array.from({ length: 6 }, () => anonClient.rpc('request_otp', { p_token: T, p_phone: ePhone })));
   const ok3 = burst3.filter((r) => r.ok).length;
   rep.line('OTP: anon request_otp burst capped at 3/phone/hour', ok3 === 3, `${ok3} of 6 request_otp calls succeeded (expect 3)`);
-  await svc.del('quote_otps', `quote_id=eq.${quoteId}&phone=eq.${ePhone}`);
+  await svc.del('quote_otps', `quote_id=eq.${quoteId}`);
+  await svc.update('quotes', `id=eq.${quoteId}`, { approval_token: null });
 }
 
 export async function run() {
@@ -188,4 +207,4 @@ async function main() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main();
+if (decodeURIComponent(import.meta.url) === `file://${process.argv[1]}`) main();

@@ -122,11 +122,57 @@ async function rest(path, init = {}) {
 }
 
 // --- GoTrue user create/update (idempotent by email) ------------------------
+// NOTE: GoTrue's admin "list users" (GET /admin/users) returns HTTP 500
+// ("Database error finding users") at page sizes >1 on this staging project,
+// due to a PRE-EXISTING corrupt auth.users row (not created by this program and
+// outside the HARDEN_TEST_ prefix, so cleanup never touches it). Token-grant
+// sign-in and single-user create are unaffected. To stay idempotent we resolve
+// an existing user's id via the reliable Management API (SQL), not the list.
+const ACCESS_TOKEN = env('SUPABASE_ACCESS_TOKEN');
+async function mgmtUserIdByEmail(email) {
+  if (!ACCESS_TOKEN) return null;
+  const q = `select id from auth.users where lower(email)=lower('${email.replace(/'/g, "''")}') limit 1;`;
+  const res = await fetch(`https://api.supabase.com/v1/projects/${STAGING_REF}/database/query`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: q }),
+  });
+  if (!res.ok) return null;
+  const rows = await res.json().catch(() => null);
+  return Array.isArray(rows) && rows[0] && rows[0].id ? rows[0].id : null;
+}
 async function findUserByEmail(email) {
-  // Admin list supports filtering; page through if needed.
-  const body = await gotrue(`/users?per_page=200`);
-  const users = Array.isArray(body) ? body : (body?.users || []);
-  return users.find((u) => (u.email || '').toLowerCase() === email.toLowerCase()) || null;
+  const id = await mgmtUserIdByEmail(email);
+  return id ? { id } : null;
+}
+
+// role_access is the per-org RBAC matrix that has_area() reads; without it every
+// non-admin role is denied (admin bypasses has_area). Real orgs are provisioned
+// with a default matrix via the app; here we clone that default into each
+// HARDEN_TEST org (from a real org's rows) so the authz matrix reflects reality.
+// Idempotent: clears the HARDEN_TEST org's rows first. Requires the sbp_ PAT.
+async function seedRoleAccess(orgId) {
+  if (!ACCESS_TOKEN) { console.warn('[seed]   role_access skipped (no SUPABASE_ACCESS_TOKEN)'); return 0; }
+  const sql = `
+    delete from public.role_access where org_id='${orgId}';
+    insert into public.role_access (org_id, role, area, can_view, can_edit)
+    select '${orgId}'::uuid, role, area, bool_or(can_view), bool_or(can_edit)
+    from public.role_access
+    where org_id = (
+      select org_id from public.role_access
+      where org_id not in (select id from public.organizations where slug ilike 'harden_test%')
+      group by org_id order by count(*) desc limit 1
+    )
+    group by role, area;
+    select count(*)::int n from public.role_access where org_id='${orgId}';`;
+  const res = await fetch(`https://api.supabase.com/v1/projects/${STAGING_REF}/database/query`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: sql }),
+  });
+  if (!res.ok) { console.warn(`[seed]   role_access clone failed: HTTP ${res.status}`); return 0; }
+  const rows = await res.json().catch(() => null);
+  return Array.isArray(rows) && rows[0] && rows[0].n ? rows[0].n : 0;
 }
 
 async function upsertUser(email, displayName, role, orgName) {
@@ -233,6 +279,8 @@ async function main() {
     const orgRow = await upsertOrg(org);
     manifest.orgs.push({ id: orgRow.id, name: orgRow.name, slug: orgRow.slug });
     console.log(`[seed] org ready: ${orgRow.name} (${orgRow.id})`);
+    const raN = await seedRoleAccess(orgRow.id);
+    console.log(`[seed]   role_access matrix seeded: ${raN} row(s)`);
 
     for (const role of ROLES) {
       const email = `${PREFIX.toLowerCase()}${org.tag}_${role}@${EMAIL_DOMAIN}`;
@@ -262,7 +310,7 @@ async function main() {
 }
 
 // Only run when executed directly (not on import).
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (decodeURIComponent(import.meta.url) === `file://${process.argv[1]}`) {
   main().catch((err) => {
     console.error(`[seed] FAILED: ${err.message}`);
     process.exit(1);

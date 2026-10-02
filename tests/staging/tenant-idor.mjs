@@ -118,9 +118,18 @@ async function runDirection(rep, jwt, attackerOrg, victimOrg, victimQuote, label
       rep.line(`${label} UPDATE ${t}`, v.ok, v.note);
 
       // DELETE is issued cross-tenant only; secure RLS makes it a zero-row no-op.
-      const del = await restDelete(t, `id=eq.${vrow}&select=id`, jwt);
-      v = writeSecure(del);
-      rep.line(`${label} DELETE ${t}`, v.ok, v.note);
+      // PostgREST returns 204 (no body) for a DELETE regardless of rows matched, so
+      // row-count can't be read from the response — instead VERIFY the victim row
+      // still exists afterwards via the service role (authoritative). Still-present
+      // = RLS protected the row; gone = a real cross-tenant deletion breach.
+      const del = await restDelete(t, `id=eq.${vrow}`, jwt);
+      if (DENY(del)) {
+        rep.line(`${label} DELETE ${t}`, true, 'denied');
+      } else {
+        const still = await serviceSelect(t, `id=eq.${vrow}&select=id`);
+        const intact = still.ok && isArr(still.data) && still.data.length > 0;
+        rep.line(`${label} DELETE ${t}`, intact, intact ? 'no-op (victim row intact, RLS)' : 'DELETED cross-tenant row!');
+      }
     } else {
       rep.note(`${label} ${t}: no victim-org row to target (read/update/delete skipped)`);
     }
@@ -186,4 +195,4 @@ async function main() {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main();
+if (decodeURIComponent(import.meta.url) === `file://${process.argv[1]}`) main();

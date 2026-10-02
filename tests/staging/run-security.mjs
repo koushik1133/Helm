@@ -75,6 +75,6 @@ async function main() {
   process.exit(EXIT_PASS);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main();
+if (decodeURIComponent(import.meta.url) === `file://${process.argv[1]}`) main();
 
 export { SUITES };

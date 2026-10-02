@@ -289,7 +289,7 @@ function summarize(records, strategy) {
 }
 
 // ---- CLI entry -------------------------------------------------------------
-const isMain = import.meta.url === `file://${process.argv[1]}`;
+const isMain = decodeURIComponent(import.meta.url) === `file://${process.argv[1]}`;
 if (isMain) {
   run()
     .then((s) => process.exit(s.ok ? EXIT_PASS : EXIT_FAIL))

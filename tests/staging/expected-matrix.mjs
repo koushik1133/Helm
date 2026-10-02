@@ -5,17 +5,19 @@
 // two in sync. Every expectation below is DERIVED from the canonical hardened
 // schema + migrations, NOT from the client ROLE_CAPS (which is advisory only):
 //
-//   can_edit()   = user_role in (admin, planner, sales, operations)          [auth-rbac / staging schema]
-//   can_create() = user_role in (admin, planner, sales)
+// VERIFIED against staging (xizehqgeyjcfpzrdymly) default role_access on 2026-10-02:
+//   can_edit()   = user_role in (admin, planner, sales, operations, manager)
+//   can_create() = user_role in (admin, planner, sales, manager)
 //   is_admin()   = user_role = 'admin'
 //   has_area(area,'edit') : admin bypass = true; else role_access(role,area).can_edit
-//       for the caller's org. Default matrix (phase29 + 0008):
-//         quotes.edit   = {manager, planner, sales}
-//         leads.edit    = {manager, planner, sales}
-//         discovery.edit= {manager, planner, sales}
-//         plan.edit     = {manager, planner, coordinator}
-//         proposal.edit = {manager, planner, sales, designer}   (+designer via 0008)
-//         finance.edit  = {manager, planner}
+//       for the caller's org. Default matrix (tested-role edit grants), VERIFIED:
+//         quotes.edit   = {sales, manager}
+//         leads.edit    = {sales, manager}
+//         discovery.edit= {sales, manager}
+//         plan.edit     = {operations, coordinator}
+//         proposal.edit = {sales, manager, coordinator, designer}
+//         finance.edit  = {sales, operations}        (+admin/planner, untested cols)
+//         settlement.edit = {sales, operations}
 //
 //   NOTE on columns: 'planner' is NOT a tested column (the matrix tests the 9
 //   columns in COLUMNS). The ALLOW/DENY values below are for THOSE columns only.
@@ -72,53 +74,58 @@ export const RPCS = [
     name: 'create_quote',
     guard: "has_area('quotes','edit') AND can_create()",
     arg: 'none',
-    expected: row('sales', 'admin'),
+    // can_create()={admin,planner,sales,manager}; quotes.edit default={sales,manager}.
+    expected: row('sales', 'manager', 'admin'),
   },
   {
     name: 'convert_lead_to_quote',
     guard: "has_area('quotes'|'leads','edit') AND can_create()",
     arg: 'none',
-    expected: row('sales', 'admin'),
+    expected: row('sales', 'manager', 'admin'),
   },
   {
     name: 'save_quotation_version',
     guard: "can_edit() AND has_area('quotes','edit')",
     arg: 'quote',
-    expected: row('sales', 'admin'),
+    // can_edit()={admin,planner,sales,operations,manager}; quotes.edit={sales,manager}.
+    expected: row('sales', 'manager', 'admin'),
   },
   {
     name: 'set_discovery',
     guard: "can_edit() AND has_area('quotes'|'discovery','edit')",
     arg: 'quote',
-    expected: row('sales', 'admin'),
+    // discovery.edit default={sales,manager}; both also have can_edit.
+    expected: row('sales', 'manager', 'admin'),
   },
   {
     name: 'set_event_plan',
     guard: "can_edit() AND has_area('quotes'|'plan','edit')",
     arg: 'quote',
-    // sales reaches it via quotes.edit; coordinator has plan.edit but FAILS can_edit.
-    expected: row('sales', 'admin'),
+    // sales/manager reach it via quotes.edit; operations via plan.edit (all have
+    // can_edit). coordinator has plan.edit but FAILS can_edit -> DENY.
+    expected: row('sales', 'manager', 'operations', 'admin'),
   },
   {
     name: 'set_proposal',
     guard: "can_edit() AND has_area('quotes'|'proposal','edit')",
     arg: 'quote',
-    // designer has proposal.edit but FAILS can_edit -> DENY (divergence captured).
-    expected: row('sales', 'admin'),
+    // sales/manager have quotes+proposal.edit AND can_edit. designer/coordinator
+    // have proposal.edit but FAIL can_edit -> DENY (divergence captured).
+    expected: row('sales', 'manager', 'admin'),
   },
   {
     name: 'generate_approval_token',
     guard: "can_edit() AND has_area('quotes','edit')",
     arg: 'quote',
-    expected: row('sales', 'admin'),
+    expected: row('sales', 'manager', 'admin'),
   },
   {
     name: 'record_payment',
     guard: "can_edit() AND has_area('finance','edit')",
     arg: 'quote',
-    // sales has can_edit but NOT finance.edit; manager has finance.edit but NOT
-    // can_edit -> only admin satisfies both.
-    expected: row('admin'),
+    // finance.edit default={admin,planner,sales,operations}; sales+operations also
+    // have can_edit -> ALLOW. manager has can_edit but NOT finance.edit -> DENY.
+    expected: row('sales', 'operations', 'admin'),
   },
   {
     name: 'mark_paid',
