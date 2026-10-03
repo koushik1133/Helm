@@ -474,6 +474,17 @@
       notes:$("#f_notes").value.trim()||null };
     const id=editingId, cur=id?leadById(id):null;
     const toStage = id && !$("#f_stageWrap").hidden ? $("#f_stage").value : null;
+    // H-05: soft duplicate warning (non-blocking — a client may genuinely book multiple
+    // services). Only on NEW leads; match on normalized phone or email.
+    if(!id && (phone||email)){
+      const nd=s=>String(s||"").replace(/\D/g,"");
+      const pd=nd(phone);
+      const dup=(leads||[]).find(l=> (pd && nd(l.phone)===pd) || (email && String(l.email||"").trim().toLowerCase()===email) );
+      if(dup){
+        const by = (pd && nd(dup.phone)===pd) ? "phone number" : "email";
+        if(!(await BPUI.confirm('A lead with this '+by+' already exists ("'+(dup.name||"")+'"). Add this as a separate lead anyway?',{title:"Possible duplicate lead",okLabel:"Add anyway",cancelLabel:"Cancel"}))) return;
+      }
+    }
     lastLocalWrite=Date.now(); $("#lm_err").hidden=true;
     try{
       if(id) await BPStore.leads.update(id, patch);

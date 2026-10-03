@@ -8,9 +8,13 @@ public/config.staging.js
 # Playwright
 test-results/
 playwright-report/
+playwright-report-staging/
 tests/e2e/.auth/
 blob-report/
 .playwright/
+
+# discarded React POC — product stays vanilla HTML/JS; this is just its build cache
+react-poc/
 
 # secrets — never commit (Wave 15B safety)
 .env
@@ -30,3 +34,6 @@ supabase/.temp/
 
 # staging test-data factory manifest (contains created object ids; local only)
 scripts/staging/.seed-manifest.json
+
+# staging-only admin seed — contains a test password; run in the Supabase SQL editor, never commit
+supabase/staging-seed-admin.sql
