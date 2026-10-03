@@ -160,7 +160,7 @@
       if(b.vendor_id!==vid || b.status==="cancelled") return;
       if(seen.has(b.quote_id)) return; seen.add(b.quote_id);
       const q=QMAP[b.quote_id]; if(!q) return;
-      out.push({ code:q.code||"", client:(q.client&&q.client.name)||"", date:q.event_date||"", status:b.status||"" });
+      out.push({ code:q.code||"", client:(q.client&&q.client.name)||"", date:q.eventDate||"", status:b.status||"" });
     });
     out.sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
     return out;

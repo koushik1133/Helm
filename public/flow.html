@@ -648,6 +648,14 @@
   }
   async function recordPayment(){
     if(quoteBlocked()){ BPUI.toast("Pricing data didn't load — retry the quotation section before recording a payment.",{type:"err"}); return; }
+    // Recording the advance CONFIRMS the booking — require the client's identity first
+    // (name + a valid phone), since the approval/receipt flow needs a real contact.
+    // Checked only on this deliberate action (never on draft save / save-on-leave), so
+    // it can't lose in-progress typing.
+    { const nm=($("#c_name")?$("#c_name").value:"").trim(), ph=($("#c_phone")?$("#c_phone").value:"").trim();
+      if(!nm){ BPUI.toast("Add the client's name (section 1 · Client) before confirming the booking.",{type:"err"}); if($("#c_name")){ $("#c_name").scrollIntoView({block:"center"}); $("#c_name").focus(); } return; }
+      if(!ph){ BPUI.toast("Add the client's phone (section 1 · Client) before confirming the booking.",{type:"err"}); if($("#c_phone")){ $("#c_phone").scrollIntoView({block:"center"}); $("#c_phone").focus(); } return; }
+      const pv=BPStore.validate.phone(ph); if(!pv.ok){ BPUI.toast(pv.error,{type:"err"}); if($("#c_phone")){ $("#c_phone").focus(); } return; } }
     const method=$("#pay_method").value;
     const vr=BPStore.validate.money($("#pay_amount").value,{field:"Advance amount"});
     if(!vr.ok || !(vr.value>0)){ BPUI.toast(vr.ok?"Enter the advance amount.":vr.error,{type:"err"}); $("#pay_amount").focus(); return; }

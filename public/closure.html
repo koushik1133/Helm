@@ -221,6 +221,22 @@
       if(await BPUI.confirm("Open Inventory to return the equipment now?",{title:"Go to Inventory?",okLabel:"Open Inventory"})) location.href="inventory.html?quote="+encodeURIComponent(id);
       return;
     }
+    // Gate 1.5 — financial caution. The server close_event does NOT block on money, so
+    // surface any uncollected client balance or unsettled vendor amount and require an
+    // explicit acknowledgement before archiving. Non-blocking (a manager may legitimately
+    // close with a balance), read-only, and it fails open if settlement can't be read.
+    try{
+      const s=await BPStore.settlement.summary(id);
+      const bal=Math.max(0, Number((s&&s.balance)||0)), vo=Math.max(0, Number((s&&s.vendorOutstanding)||0));
+      const money=n=>"₹"+Math.round(n).toLocaleString("en-IN");
+      if(bal>0 || vo>0){
+        const lines=[]; if(bal>0) lines.push("• Client balance still due: "+money(bal));
+        if(vo>0) lines.push("• Vendor amount unsettled: "+money(vo));
+        if(!(await BPUI.confirm("This event still has money outstanding:\n\n"+lines.join("\n")
+          +"\n\nClosing & archiving now books it as complete with these amounts still open. Close anyway?",
+          {title:"Outstanding balance — close anyway?",okLabel:"Close anyway",danger:true}))) return;
+      }
+    }catch(e){ /* settlement unreadable → fall through to the manual sign-off */ }
     // Gate 2 — explicit manager sign-off that the event is genuinely over
     if(!(await BPUI.confirm("Confirm the event has ENDED and ALL equipment has been returned."
       +(invUnverified?"\n\nNote: equipment returns couldn't be checked automatically right now — verify them yourself.":"")

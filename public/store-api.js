@@ -2182,9 +2182,14 @@
       const all = await this.list(); const t = (all || []).find((x) => x.id === templateId);
       if (!t) throw new Error("template not found");
       const items = Array.isArray(t.items) ? t.items : [];
+      // Idempotent apply: skip titles already on this event's checklist SECTION, so
+      // re-applying a template (or applying one twice) doesn't duplicate every item.
+      const have = new Set();
+      try { const cur = await checklist.list(quoteId, t.section); (cur || []).forEach((c) => { if (c && c.title) have.add(String(c.title).trim().toLowerCase()); }); } catch (e) {}
       let added = 0;
       for (const it of items) { const title = typeof it === "string" ? it : (it && it.title); if (!title) continue;
-        await checklist.add(quoteId, { section: t.section, title }); added++; }
+        const key = String(title).trim().toLowerCase(); if (have.has(key)) continue;
+        await checklist.add(quoteId, { section: t.section, title }); have.add(key); added++; }
       return added;
     },
   };

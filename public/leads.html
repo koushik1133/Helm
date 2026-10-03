@@ -481,8 +481,10 @@
     }catch(err){ fail(BPUI.friendlyError(err,{action:"save the lead"})); return; }
     closeForm();
     // a stage change goes through the same path as drag & drop (undoable, reverts on failure)
-    if(cur && toStage && toStage!==cur.status){ Object.assign(cur, patch); await moveLead(id, cur.status, toStage, true); }
-    BPUI.toast(id?"Lead saved.":"Lead added.",{type:"ok"});
+    let moveOk=true;
+    if(cur && toStage && toStage!==cur.status){ Object.assign(cur, patch); moveOk=await moveLead(id, cur.status, toStage, true); }
+    // Only claim success if the stage move didn't fail (moveLead fired its own error toast on false)
+    if(moveOk!==false) BPUI.toast(id?"Lead saved.":"Lead added.",{type:"ok"});
     await load();
   }
   $("#newBtn").addEventListener("click",()=>openForm(null));

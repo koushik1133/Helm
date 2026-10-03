@@ -464,6 +464,14 @@
       ["#p_camount",v=>V.money(v,{field:"Catering charge"})],["#p_discount",v=>V.money(v,{field:"Discount"})],["#p_discountPct",v=>V.pct(v,{field:"Discount %"})]];
     for(const [sel,fn] of checks){ const raw=$(sel).value; if(raw==="") continue; const r=fn(raw); if(!r.ok){ errEl.textContent=r.error; errEl.hidden=false; $(sel).focus(); return; } }
     if($("#c_email").value.trim()){ const r=V.email($("#c_email").value); if(!r.ok){ errEl.textContent=r.error; errEl.hidden=false; $("#c_email").focus(); return; } }
+    // Confirming LOCKS a priced snapshot for the client — require client name + a valid
+    // phone first (not required for a plain pricing save/draft, so drafts aren't blocked).
+    if(confirmIt){
+      const nm=$("#c_name").value.trim(), ph=$("#c_phone").value.trim();
+      if(!nm){ errEl.textContent="Client name is required to confirm & lock the quote."; errEl.hidden=false; $("#c_name").focus(); return; }
+      if(!ph){ errEl.textContent="Client phone is required to confirm & lock the quote."; errEl.hidden=false; $("#c_phone").focus(); return; }
+      const pv=V.phone(ph); if(!pv.ok){ errEl.textContent=pv.error; errEl.hidden=false; $("#c_phone").focus(); return; }
+    }
     errEl.hidden=true;
     if(confirmIt){ const tt=calcPricing(gatherPricing()); const code=(detailCache[cmId]&&detailCache[cmId].code)||"this quote";
       if(!(await BPUI.confirm(`Confirm ${code} at ${inr(tt.total)}? This locks a priced snapshot for the client.`,{title:"Confirm & lock quote?",okLabel:"Confirm & lock"}))) return; }

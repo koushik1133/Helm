@@ -177,9 +177,12 @@ function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 // quote always show the identical number. Chairs + objects come from the
 // layout; catering = guests × the applied menu package's per-plate price.
 function priceModel(){
+  // Mirror the stored quote's catering MODE so the live panel matches quoteTotal()
+  // (client-provided catering = ₹0). Without this the panel always billed in-house.
   return BPStore.pricing.breakdown(
     { items: store.items, guests: PRICING.guests, menuPlatePrice: PRICING.menuPlatePrice,
-      serviceChargePct: PRICING.serviceChargePct },
+      serviceChargePct: PRICING.serviceChargePct,
+      clientCater: !!(typeof currentPricing!=="undefined" && currentPricing && currentPricing.catering && currentPricing.catering.mode === 'client') },
     PRICING);
 }
 
