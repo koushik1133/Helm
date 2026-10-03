@@ -605,7 +605,7 @@
   /* ---------- requirements ---------- */
   async function renderReqs(){
     let reqs=[]; try{ reqs=(await BPStore.discovery.listReqs(id))||[]; }catch(e){ BPUI.loadError($("#reqList"), e, renderReqs, {what:"requirements"}); return; }
-    $("#reqList").innerHTML = reqs.length? reqs.map(r=>`<div class="rowline"><span class="g">${esc(r.title)}</span><span class="pill">${esc(r.priority||"")}</span><button type="button" class="rm" data-del="${esc(r.id)}" data-name="${esc(r.title)}" aria-label="Remove requirement ${esc(r.title)}">×</button></div>`).join("")
+    $("#reqList").innerHTML = reqs.length? reqs.map(r=>{ const svc=r.service||r.title||""; return `<div class="rowline"><span class="g">${esc(svc)}</span><span class="pill">${esc(r.priority||"")}</span><button type="button" class="rm" data-del="${esc(r.id)}" data-name="${esc(svc)}" aria-label="Remove requirement ${esc(svc)}">×</button></div>`; }).join("")
       : '<div style="font-size:12px;color:var(--ink-3)">No requirements yet.</div>';
     $("#reqList").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
       if(!(await BPUI.confirm(`Remove the requirement "${b.dataset.name}"?`,{title:"Remove requirement?",okLabel:"Remove",danger:true}))) return;
@@ -822,7 +822,7 @@
     $("#q_pdf").addEventListener("click",downloadQuotePDF);
     const addReq=()=>{ const t=$("#rq_title").value.trim(); if(!t){ $("#rq_title").focus(); return; }
       BPUI.guard($("#rq_add"), async()=>{
-        try{ await BPStore.discovery.addReq(id,{ title:t, priority:$("#rq_pri").value }); vocabAdd("reqs",t); fillVocab(); $("#rq_title").value=""; await renderReqs(); }
+        try{ await BPStore.discovery.addReq(id,{ service:t, priority:$("#rq_pri").value }); vocabAdd("reqs",t); fillVocab(); $("#rq_title").value=""; await renderReqs(); }
         catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"add the requirement"}),{type:"err"}); } }); };
     $("#rq_add").addEventListener("click",addReq);
     $("#rq_title").addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); addReq(); } });
