@@ -3559,12 +3559,16 @@
     el.setAttribute("data-phone-hardened", "1");
     if (!el.getAttribute("inputmode")) el.setAttribute("inputmode", "tel");
     if (!el.getAttribute("maxlength")) el.setAttribute("maxlength", "16"); // +<country>+<=15 digits
+    var maxLen = parseInt(el.getAttribute("maxlength") || "16", 10) || 16;
     var clean = function () {
       var v = String(el.value);
       // keep a single leading +, then digits only
       var lead = v.charAt(0) === "+" ? "+" : "";
       var digits = v.replace(/[^\d]/g, "");
       var next = lead + digits;
+      // HARD cap the length — maxlength alone doesn't apply to a programmatic value
+      // rewrite (or to a paste of letters+digits that strips down), so enforce it here.
+      if (next.length > maxLen) next = next.slice(0, maxLen);
       if (next !== el.value) {
         var atEnd = el.selectionStart === el.value.length;
         el.value = next;
