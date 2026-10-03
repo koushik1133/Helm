@@ -336,8 +336,8 @@ details.state pre{margin:0;padding:0 14px 14px;font-family:var(--mono);font-size
 .cform input,.cform select{height:32px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;padding:0 9px;
   color:var(--ink);font-size:13px;font-family:var(--font);text-transform:none;font-weight:500}
 .cform input:focus,.cform select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
-.ctoggles{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin:16px 4px 4px}
-.ctoggles label{flex-direction:row;align-items:center;gap:8px;text-transform:none;font-size:12px;font-weight:500;color:var(--ink)}
+.ctoggles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,max-content));gap:10px 28px;margin:16px 4px 4px}
+.ctoggles label{justify-self:start;width:fit-content;cursor:pointer;flex-direction:row;align-items:center;gap:8px;text-transform:none;font-size:12px;font-weight:500;color:var(--ink)}
 .ctoggles input{width:16px;height:16px;accent-color:var(--accent)}
 .cactions{margin:18px 4px 6px}
 .cresults{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:8px}

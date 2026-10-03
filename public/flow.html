@@ -126,7 +126,7 @@
             <div class="fld"><label for="c_email">Email</label><input id="c_email" type="email"></div>
             <div class="fld"><label for="c_phone">Phone</label><input id="c_phone" type="tel" inputmode="tel" required></div>
             <div class="fld"><label for="c_type">Event type</label><input id="c_type" list="eventTypeList" placeholder="Pick or type a new one…"><datalist id="eventTypeList"></datalist></div>
-            <div class="fld"><label for="c_date">Event date</label><input id="c_date" type="date"></div>
+            <div class="fld"><label for="c_date">Event date</label><input id="c_date" type="date" data-min-today></div>
             <div class="fld"><label for="c_guests">Guests</label><input id="c_guests" type="number" min="0"></div>
             <div class="fld"><label for="c_budget">Budget (₹)</label><input id="c_budget" type="number" min="0"></div>
           </div>
@@ -612,6 +612,8 @@
   /* ---------- requirements ---------- */
   async function renderReqs(){
     let reqs=[]; try{ reqs=(await BPStore.discovery.listReqs(id))||[]; }catch(e){ BPUI.loadError($("#reqList"), e, renderReqs, {what:"requirements"}); return; }
+    $("#reqList").dataset.count = reqs.length;
+    try{ updateProgress(); }catch(_){ }
     $("#reqList").innerHTML = reqs.length? reqs.map(r=>{ const svc=r.service||r.title||""; return `<div class="rowline"><span class="g">${esc(svc)}</span><span class="pill">${esc(r.priority||"")}</span><button type="button" class="rm" data-del="${esc(r.id)}" data-name="${esc(svc)}" aria-label="Remove requirement ${esc(svc)}">×</button></div>`; }).join("")
       : '<div style="font-size:12px;color:var(--ink-3)">No requirements yet.</div>';
     $("#reqList").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
@@ -634,6 +636,9 @@
     const t=packages.find(x=>String(x.id)===String(tid)); if(!t) return;
     try{ await BPUI.guard(btn||null, async()=>{ await BPStore.menuTemplates.apply(id, t.id); appliedPkg=t;
       $("#q_platePrice").value=t.price_per_plate; $("#p_menu").dataset.pkg=t.name;
+      // Persist the chosen package name to the plan immediately so the workspace (event.html)
+      // and the Venue & menu page (plan.html) reflect it without waiting for save-on-leave.
+      try{ await BPStore.plan.save(id, gatherPlan()); }catch(_){ }
       renderPackages(); renderPrice(); updateAdvance(); saved("menu"); updateProgress(); });
     }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"apply the package"}),{type:"err"}); }
   }
@@ -643,9 +648,12 @@
   function updateProgress(){
     const done={ client:!!(ev&&ev.client&&ev.client.name), menu:!!appliedPkg, layout:layoutItems.length>0,
       quote:!!(ev&&ev.pricing&&ev.pricing.total), venue:$("#v_name").value.trim()!=="",
-      discovery:$("#d_notes").value.trim()!==""||$("#d_date").value!=="", proposal:$("#pr_concept").value.trim()!=="", reqs:true };
+      discovery:$("#d_notes").value.trim()!==""||$("#d_date").value!=="", proposal:$("#pr_concept").value.trim()!=="",
+      reqs:(+($("#reqList")&&$("#reqList").dataset.count||0))>0 };
     $("#progList").innerHTML=STEPS.map(([k,label])=>`<a href="#sec-${k==='reqs'?'reqs':k}" class="${done[k]?'done':''}"><span class="dot"></span>${label}</a>`).join("");
   }
+  // Light the progress steps live as the user fills fields (not only on reload/save).
+  try{ document.addEventListener("input", ()=>{ try{ updateProgress(); }catch(_){ } }); }catch(_){ }
 
   /* ---------- advance payment + booking + activity ---------- */
   function quoteTotal(){ return BPStore.pricing.quoteTotal(currentInputs()).total; }

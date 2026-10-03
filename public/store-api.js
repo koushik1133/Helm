@@ -337,7 +337,8 @@
         try { const ok = await loadSupabaseLib();
           if (ok && global.supabase && global.supabase.createClient) {
             supa = global.supabase.createClient(CFG.url, CFG.anonKey,
-              { auth: { persistSession: true, autoRefreshToken: true }, global: { fetch: authAwareFetch } });
+              { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage },
+                global: { fetch: authAwareFetch } });
             const { data: { session } } = await supa.auth.getSession();
             currentUser = session ? session.user : null;
             if (currentUser) hadSession = true;
@@ -347,8 +348,11 @@
               supa.auth.onAuthStateChange((event, sess) => {
                 if (sess && sess.user) { hadSession = true; if (!explicitSignOut) currentUser = sess.user; }
                 if ((event === "SIGNED_OUT" && !explicitSignOut) || (event === "TOKEN_REFRESHED" && !sess)) {
-                  // defer: supabase-js holds its auth lock inside this callback
-                  setTimeout(expireSession, 0);
+                  // Don't log the user out on a transient blip. supabase-js can emit a
+                  // spurious SIGNED_OUT during a flaky refresh; route through onAuthFailure,
+                  // which tries refreshSession() first and only redirects on a hard failure
+                  // while genuinely online. (defer: supabase-js holds its auth lock here.)
+                  setTimeout(function () { onAuthFailure(); }, 0);
                 }
               });
             } catch (e) { /* older client — best effort */ }
@@ -2170,7 +2174,9 @@
       }
       const a = readLs(PLAN_LS).filter((x) => x.quote_id !== quoteId);
       const cur = readLs(PLAN_LS).find((x) => x.quote_id === quoteId) || {};
-      const row = { quote_id: quoteId, menu_locked: cur.menu_locked || false, ...p, updated_at: now() };
+      // Merge onto the existing row so a venue/menu-notes save can't wipe a previously
+      // applied package (menu_template / menu_plate_price) or other prior fields.
+      const row = { ...cur, quote_id: quoteId, menu_locked: cur.menu_locked || false, ...p, updated_at: now() };
       a.push(row); localStorage.setItem(PLAN_LS, JSON.stringify(a)); return row;
     },
     async setLock(quoteId, locked) {
@@ -2678,7 +2684,12 @@
           try { await this.markSeen(); } catch {} dot.hidden = true; } else panel.hidden = true; });
       el.querySelector("#bpBellClear").addEventListener("click", async (e) => { e.stopPropagation(); try { await this.markSeen(); } catch {} dot.hidden = true;
         let f = null; try { f = await this.feed(20); } catch {} renderList((f && f.items) || []); });
-      document.addEventListener("click", (e) => { if (!el.contains(e.target)) panel.hidden = true; });
+      document.addEventListener("click", (e) => {
+        // Ignore clicks on the window scrollbar (target becomes <html>, outside el) so
+        // dragging/clicking the scrollbar doesn't collapse the open notifications panel.
+        try { var de = document.documentElement; if (e.clientX > de.clientWidth || e.clientY > de.clientHeight) return; } catch (_) {}
+        if (!el.contains(e.target)) panel.hidden = true;
+      });
       setInterval(() => { if (!document.hidden && panel.hidden) refresh(); }, 30000);
     },
   };
@@ -2889,6 +2900,11 @@
     ".bpui-overlay{animation:bpuiFade .14s ease-out}.bpui-dialog{animation:bpuiPop .16s ease-out}",
     ".bpui-toast{animation:bpuiUp .18s ease-out}.bpui-spin,.bpui-spin2,:where(#boot:empty)::before{animation:bpuiSpin .8s linear infinite}",
     ".bpui-boot-overlay{animation:bpuiFade .2s ease-out}}",
+    /* Reduced-motion users got a FROZEN ring that read as a broken/odd shape. Give the */
+    /* spinners a gentle opacity pulse instead so a loading state never looks stuck. */
+    "@media (prefers-reduced-motion:reduce){",
+    ".bpui-spin,.bpui-spin2,:where(#boot:empty)::before{animation:bpuiPulse 1.1s ease-in-out infinite}}",
+    "@keyframes bpuiPulse{0%,100%{opacity:.35}50%{opacity:1}}",
     "@keyframes bpuiFade{from{opacity:0}to{opacity:1}}",
     "@keyframes bpuiPop{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}",
     "@keyframes bpuiUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}",
@@ -3298,7 +3314,19 @@
         }
         if (cancelBtn) cancelBtn.addEventListener("click", function () { close(cancelValue); });
         // scrim click cancels alert/confirm (never prompt — don't lose typed input)
-        ov.addEventListener("mousedown", function (e) { if (e.target === ov && kind !== "prompt") close(cancelValue); });
+        // Close only when the press both starts AND ends on the backdrop itself, and not
+        // on the scrollbar — a single scrollbar press used to report e.target===ov and
+        // dismiss the dialog (wiping what the user was reading).
+        var downOnOv = false;
+        ov.addEventListener("mousedown", function (e) {
+          downOnOv = false;
+          try { var de = document.documentElement; if (e.clientX > de.clientWidth || e.clientY > de.clientHeight) return; } catch (_) {}
+          downOnOv = (e.target === ov);
+        });
+        ov.addEventListener("mouseup", function (e) {
+          if (downOnOv && e.target === ov && kind !== "prompt") close(cancelValue);
+          downOnOv = false;
+        });
 
         doc.body.appendChild(ov);
         activate(ov, { own: true, onEscape: function () { close(cancelValue); } });
@@ -3636,6 +3664,23 @@
       var s = String(n);
       if (s !== el.value) { el.value = s; el.dispatchEvent(new Event("change", { bubbles: true })); }
     };
+    // Live sanitiser: keydown blocks typed junk, but PASTE and programmatic sets slip
+    // through until blur — and live consumers read .value on `input` before blur ever
+    // fires. Strip letters/symbols (and the sign/decimal where not allowed) on every
+    // input and after a paste, so a pasted "-5", "5e3" or "12.5x" can never reach a
+    // consumer. The blur `fix` still does the final min/max clamp.
+    var strip = function () {
+      var v = String(el.value);
+      var cleaned = v.replace(allowNeg ? /[^\d.\-]/g : /[^\d.]/g, "");
+      if (integer) cleaned = cleaned.replace(/\./g, "");
+      if (allowNeg) { var neg = cleaned.charAt(0) === "-"; cleaned = (neg ? "-" : "") + cleaned.replace(/-/g, ""); }
+      // keep only the first decimal point
+      var dot = cleaned.indexOf(".");
+      if (dot !== -1) cleaned = cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replace(/\./g, "");
+      if (cleaned !== v) el.value = cleaned;
+    };
+    el.addEventListener("input", strip);
+    el.addEventListener("paste", function () { setTimeout(strip, 0); });
     el.addEventListener("blur", fix);
   }
 
@@ -3752,6 +3797,11 @@
   function hardenDate(el) {
     if (el.getAttribute("data-date-hardened") === "1") return;
     el.setAttribute("data-date-hardened", "1");
+    // Event/booking fields opt into a "no past dates" floor with data-min-today.
+    // (Birthdays, anniversaries and DOB fields leave it off so past dates stay allowed.)
+    if (el.hasAttribute("data-min-today") && !el.getAttribute("min")) {
+      el.setAttribute("min", new Date().toISOString().slice(0, 10));
+    }
     if (!el.getAttribute("min")) el.setAttribute("min", DATE_MIN);
     if (!el.getAttribute("max")) el.setAttribute("max", DATE_MAX);
     var lo = el.getAttribute("min"), hi = el.getAttribute("max");

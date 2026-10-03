@@ -263,7 +263,10 @@
           var v = JSON.parse(localStorage.getItem(k) || "null");
           var sess = v && (v.currentSession || v);
           var exp = sess && Number(sess.expires_at);
-          if (exp && exp > now && sess.access_token) { location.replace("dashboard.html"); return; }
+          // A valid REFRESH token is enough to resume: supabase-js refreshes the access
+          // token on the next page. Forwarding only on an unexpired access token stranded
+          // returning users (after a few hours/days the access token is always expired).
+          if (sess && (sess.refresh_token || (sess.access_token && exp && exp > now))) { location.replace("dashboard.html"); return; }
         }
       } catch (e) { /* stay on the intro page */ }
     })();

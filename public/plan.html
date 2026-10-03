@@ -263,8 +263,14 @@
     BPUI.toast("The saved venue & menu couldn't be loaded, so saving is paused to avoid overwriting them. Retry loading first.",{type:"err"});
     return true;
   }
-  function saveVenue(){ return savePlan($("#v_save"),$("#v_msg")); }
-  function saveMenu(){ if(locked){ BPUI.toast("The menu is locked — unlock it first.",{type:"err"}); return; } return savePlan($("#p_save"),$("#p_msg")); }
+  function saveVenue(){
+    if(!$("#v_name").value.trim()){ const m=$("#v_msg"); m.className="err"; m.textContent="Enter a venue name before saving."; $("#v_name").focus(); return; }
+    return savePlan($("#v_save"),$("#v_msg"));
+  }
+  function saveMenu(){ if(locked){ BPUI.toast("The menu is locked — unlock it first.",{type:"err"}); return; }
+    if(!$("#p_pkg").value.trim() && !$("#p_menu").value.trim() && !(typeof menuItems!=="undefined" && menuItems && menuItems.length)){
+      const m=$("#p_msg"); m.className="err"; m.textContent="Pick a package or add at least one dish before saving the menu."; return; }
+    return savePlan($("#p_save"),$("#p_msg")); }
   function savePlan(btn,msg){
     if(blockedSave()) return;
     return BPUI.guard(btn,async()=>{
@@ -337,6 +343,14 @@
   BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     $("#backLink").href = id?("event.html?id="+encodeURIComponent(id)):"quotes.html";
+    // Don't silently drop unsaved venue/menu edits on "← Back": offer Save first, then Discard/Keep editing.
+    $("#backLink").addEventListener("click", async (e)=>{
+      if(!dirty.isDirty()) return;
+      e.preventDefault(); const href=$("#backLink").href;
+      const save = await BPUI.confirm("You have unsaved venue & menu changes.",{title:"Save before leaving?",okLabel:"Save & leave",cancelLabel:"Review…"});
+      if(save){ try{ await savePlan($("#v_save")||$("#backLink"),$("#v_msg")); }catch(_){ } BPUI.allowUnload(); location.href=href; return; }
+      if(await BPUI.confirmDiscard(dirty,{title:"Discard changes?",message:"Leave without saving your venue & menu changes?"})){ BPUI.allowUnload(); location.href=href; }
+    });
     $("#floorLink").href = id?("builder.html?quote="+encodeURIComponent(id)):"#";
     if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
