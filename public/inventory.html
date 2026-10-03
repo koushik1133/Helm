@@ -129,6 +129,7 @@
       <input id="search" class="search" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search item…" aria-label="Search stock items">
       <select id="catFilter" class="sel" aria-label="Filter by category"><option value="">All categories</option></select>
       <select id="priFilter" class="sel" aria-label="Filter by priority"><option value="">All priority</option><option value="A">A — high value</option><option value="B">B — mid</option><option value="C">C — low</option></select>
+      <label style="font-size:12px;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px" title="Also show items you've deactivated, so you can bring them back. Nothing changes if you haven't deactivated any."><input type="checkbox" id="showInactive"> Show inactive</label>
       <span class="spacer"></span>
       <span id="seedStatus" style="font-size:12px;color:var(--ink-3)" role="status"></span>
       <button type="button" id="seedBtn" class="btn" hidden>Load starter items</button>
@@ -247,7 +248,7 @@
   const fmtDate=(d)=>{ if(!d) return ""; const s=String(d); const dt=new Date(s.length===10?s+"T00:00:00":s); if(isNaN(dt)) return esc(s); return dt.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}); };
   const quoteId=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const ST={reserved:"Reserved",allocated:"Allocated",returned:"Returned",cancelled:"Cancelled"};
-  let canEdit=false, canDelete=false, avail={}, items=[], reservations=[], checkouts=[], quotesById={}, editingId=null, filter="", catF="", priF="";
+  let canEdit=false, canDelete=false, avail={}, items=[], reservations=[], checkouts=[], quotesById={}, editingId=null, filter="", catF="", priF="", showInactive=false;
   const PRI={A:"A",B:"B",C:"C"};
   const INV_CATEGORIES=["Seating","Tables","Linens","Lighting","Sound & AV","Staging & Structures","Decor & Florals","Catering Equipment","Tableware","Power & Cabling","Tents & Canopies","Signage","Office & Misc"];
   const STARTER_ITEMS=[
@@ -299,8 +300,9 @@
     const rowHtml=(i)=>{
       const a=avail[i.id]||{committed:0,available:Number(i.total_qty||0)};
       const p=i.priority||"C";
-      return `<tr>
-        <td><b>${esc(i.name)}</b></td>
+      const inactive=i.active===false;
+      return `<tr${inactive?' style="opacity:.55"':''}>
+        <td><b>${esc(i.name)}</b>${inactive?' <span class="cat" style="background:var(--line);color:var(--ink-3)">Inactive</span>':''}</td>
         <td><span class="pri ${p}" title="Priority ${p}">${p}</span></td>
         <td>${i.category?`<span class="cat">${esc(i.category)}</span>`:""}</td>
         <td class="num">${num(i.total_qty)}</td>
@@ -308,7 +310,9 @@
         <td class="num avail ${availClass(a.available,Number(i.total_qty))}">${num(a.available)}</td>
         <td>${esc(i.unit||"")}</td>
         <td class="num">${Number(i.unit_cost||0)?("₹"+num(i.unit_cost)):'<span style="color:var(--ink-3)">—</span>'}</td>
-        <td>${canEdit?`<button type="button" class="rm" data-edit="${esc(i.id)}" aria-label="Edit ${esc(i.name)}">Edit</button>`:""}</td>
+        <td>${canEdit?(inactive
+            ?`<button type="button" class="rm" data-react="${esc(i.id)}" aria-label="Reactivate ${esc(i.name)}">Reactivate</button>`
+            :`<button type="button" class="rm" data-edit="${esc(i.id)}" aria-label="Edit ${esc(i.name)}">Edit</button>`):""}</td>
       </tr>`;
     };
 
@@ -337,6 +341,13 @@
     }).join("");
     $("#stockRows").innerHTML=html;
     $("#stockRows").querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>openItem(items.find(x=>x.id===b.dataset.edit))));
+    $("#stockRows").querySelectorAll("[data-react]").forEach(b=>b.addEventListener("click",async()=>{
+      const it=items.find(x=>x.id===b.dataset.react)||{};
+      if(!(await BPUI.confirm(`Reactivate ${it.name||"this item"}? It will show in stock and be available to reserve again.`,{title:"Reactivate item?",okLabel:"Reactivate"}))) return;
+      await BPUI.guard(b,async()=>{
+        try{ await BPStore.inventory.updateItem(b.dataset.react,{active:true}); BPUI.toast("Item reactivated.",{type:"ok"}); await load(); }
+        catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"reactivate the item"}),{type:"err"}); } });
+    }));
   }
 
   async function loadStarterItems(srcBtn){
@@ -441,6 +452,7 @@
   let _searchT; $("#search").addEventListener("input",e=>{ filter=e.target.value; clearTimeout(_searchT); _searchT=setTimeout(renderStock,150); });  // debounce: don't rebuild the table on every keystroke
   $("#catFilter").addEventListener("change",e=>{ catF=e.target.value; renderStock(); });
   $("#priFilter").addEventListener("change",e=>{ priF=e.target.value; renderStock(); });
+  $("#showInactive").addEventListener("change",e=>{ showInactive=e.target.checked; load(); });   // re-fetch to (not) include deactivated items
 
   /* ---- sub-tab switching ---- */
   function activatePane(pane){
@@ -586,7 +598,7 @@
     // Wave 16 perf: these five fetches are independent — run them in parallel
     // (was a 5-deep sequential waterfall) while preserving each group's error UI.
     const [itemsR, availR, resR, coR, qlR] = await Promise.allSettled([
-      BPStore.inventory.items(false),
+      BPStore.inventory.items(showInactive),
       BPStore.inventory.availability(),
       quoteId ? BPStore.inventory.reservations(quoteId) : Promise.resolve(null),
       BPStore.inventory.checkouts.list(quoteId||null),

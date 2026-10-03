@@ -2914,6 +2914,12 @@
     "@keyframes bpuiPop{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}",
     "@keyframes bpuiUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}",
     "@keyframes bpuiSpin{to{transform:rotate(360deg)}}",
+    /* Smoother, more modern spinner on capable browsers: a clean accent arc that fades to */
+    /* a faint tail (conic + radial mask), replacing the flat border ring — one shared look */
+    /* across every screen. Falls back to the border ring where mask isn't supported. */
+    "@supports ((-webkit-mask:radial-gradient(#000,#000)) or (mask:radial-gradient(#000,#000))){",
+    ".bpui-spin,:where(#boot:empty)::before{border:none;background:conic-gradient(from 90deg,color-mix(in srgb,var(--bpui-accent) 12%,transparent),var(--bpui-accent));-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3.5px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 3.5px),#000 calc(100% - 3px))}",
+    ".bpui-spin2{border:none;background:conic-gradient(from 90deg,color-mix(in srgb,var(--bpui-accent) 12%,transparent),var(--bpui-accent));-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px));mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px))}}",
     "@media print{.bpui-toasts,.bpui-offline,.bpui-boot-overlay{display:none!important}}",
   ].join("\n");
   function injectCSS() {
