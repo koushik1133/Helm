@@ -3538,14 +3538,88 @@
     };
     el.addEventListener("blur", fix);
   }
+
+  // ---- phone hardener: digits only (plus one optional leading +) --------
+  // Phone fields are type="tel"/inputmode="tel". Browsers do NOT restrict what
+  // you can type into a tel input, so letters/symbols used to be accepted and
+  // only caught on save. This live-strips every keystroke/paste down to a single
+  // optional leading '+' and digits, caps the length, and leaves the final
+  // range check to BPStore.validate.phone (7–15 digits). It never reformats
+  // beyond stripping, so existing +91… numbers keep working.
+  function isPhone(el) {
+    return el.tagName === "INPUT" && (el.type === "tel" || (el.getAttribute("inputmode") || "").toLowerCase() === "tel");
+  }
+  function hardenPhone(el) {
+    if (el.getAttribute("data-phone-hardened") === "1") return;
+    el.setAttribute("data-phone-hardened", "1");
+    if (!el.getAttribute("inputmode")) el.setAttribute("inputmode", "tel");
+    if (!el.getAttribute("maxlength")) el.setAttribute("maxlength", "16"); // +<country>+<=15 digits
+    var clean = function () {
+      var v = String(el.value);
+      // keep a single leading +, then digits only
+      var lead = v.charAt(0) === "+" ? "+" : "";
+      var digits = v.replace(/[^\d]/g, "");
+      var next = lead + digits;
+      if (next !== el.value) {
+        var atEnd = el.selectionStart === el.value.length;
+        el.value = next;
+        if (atEnd) { try { el.setSelectionRange(next.length, next.length); } catch (e) {} }
+      }
+    };
+    el.addEventListener("input", clean);
+    el.addEventListener("blur", clean);
+  }
+
+  // ---- required-field marker: a real "*" beside the label + aria-required
+  // Any field explicitly marked required (required / aria-required="true" /
+  // data-required) gets a visible red "*" appended to its <label> (idempotent —
+  // never doubles up), and aria-required so assistive tech announces it. The
+  // asterisk carries aria-hidden so screen readers hear "required", not "star".
+  function labelFor(el) {
+    var id = el.id;
+    if (id) { var l = document.querySelector('label[for="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]'); if (l) return l; }
+    var p = el.closest && el.closest("label");
+    return p || null;
+  }
+  function markRequired(el) {
+    if (el.getAttribute("data-req-marked") === "1") return;
+    var req = el.hasAttribute("required") || el.getAttribute("aria-required") === "true" || el.hasAttribute("data-required");
+    if (!req) return;
+    el.setAttribute("data-req-marked", "1");
+    el.setAttribute("aria-required", "true");
+    var lab = labelFor(el);
+    if (lab && lab.querySelector(".req-star")) return;      // already has one
+    if (lab && lab.textContent.indexOf("*") !== -1) return;  // author already wrote a *
+    if (lab) {
+      var star = document.createElement("span");
+      star.className = "req-star"; star.setAttribute("aria-hidden", "true"); star.textContent = " *";
+      lab.appendChild(star);
+    }
+  }
+
   function scan(root) {
-    try { (root || document).querySelectorAll('input[type="number"]:not([data-hardened])').forEach(harden); } catch (e) {}
+    var r = root || document;
+    try { r.querySelectorAll('input[type="number"]:not([data-hardened])').forEach(harden); } catch (e) {}
+    try { r.querySelectorAll('input[type="tel"]:not([data-phone-hardened]), input[inputmode="tel"]:not([data-phone-hardened])').forEach(hardenPhone); } catch (e) {}
+    try { r.querySelectorAll('[required]:not([data-req-marked]), [aria-required="true"]:not([data-req-marked]), [data-required]:not([data-req-marked])').forEach(markRequired); } catch (e) {}
   }
   function boot() {
+    try {
+      var st = document.createElement("style");
+      st.textContent = ".req-star{color:var(--danger,#c0392b);font-weight:700}";
+      document.head.appendChild(st);
+    } catch (e) {}
     scan(document);
     try {
       var mo = new MutationObserver(function (muts) {
-        muts.forEach(function (m) { Array.prototype.forEach.call(m.addedNodes || [], function (nd) { if (nd.nodeType === 1) { if (nd.matches && nd.matches('input[type="number"]')) harden(nd); scan(nd); } }); });
+        muts.forEach(function (m) { Array.prototype.forEach.call(m.addedNodes || [], function (nd) {
+          if (nd.nodeType === 1) {
+            if (nd.matches && nd.matches('input[type="number"]')) harden(nd);
+            if (nd.matches && isPhone(nd)) hardenPhone(nd);
+            if (nd.matches && (nd.hasAttribute("required") || nd.getAttribute("aria-required") === "true" || nd.hasAttribute("data-required"))) markRequired(nd);
+            scan(nd);
+          }
+        }); });
       });
       mo.observe(document.documentElement, { childList: true, subtree: true });
     } catch (e) {}

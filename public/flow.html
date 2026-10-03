@@ -121,10 +121,10 @@
           <h2><span class="step-n">1</span> Client &amp; event <span class="saved" id="sv-client">Saved ✓</span></h2>
           <p class="sub">Auto-filled from the lead. Everything below is one flow — no jumping between screens.</p>
           <div class="grid">
-            <div class="fld"><label for="c_name">Client name</label><input id="c_name"></div>
+            <div class="fld"><label for="c_name">Client name</label><input id="c_name" required></div>
             <div class="fld"><label for="c_company">Company (optional)</label><input id="c_company"></div>
             <div class="fld"><label for="c_email">Email</label><input id="c_email" type="email"></div>
-            <div class="fld"><label for="c_phone">Phone</label><input id="c_phone"></div>
+            <div class="fld"><label for="c_phone">Phone</label><input id="c_phone" type="tel" inputmode="tel" required></div>
             <div class="fld"><label for="c_type">Event type</label><input id="c_type" list="eventTypeList" placeholder="Pick or type a new one…"><datalist id="eventTypeList"></datalist></div>
             <div class="fld"><label for="c_date">Event date</label><input id="c_date" type="date"></div>
             <div class="fld"><label for="c_guests">Guests</label><input id="c_guests" type="number" min="0"></div>
