@@ -215,6 +215,8 @@
     const V=BPStore.validate;
     const name=$("#s_name").value.trim();
     if(!name){ fail("Name is required."); return; }
+    // QA M-08: a crew member needs an operational identity so they can be assigned to work
+    if(!$("#s_role").value.trim() && !$("#s_dept").value.trim()){ fail("Add a role or a department so this person can be assigned to the right work."); $("#s_dept").focus(); return; }
     const phoneV=V.phone($("#s_phone").value);
     if(!phoneV.ok){ fail(phoneV.error); return; }
     let email=null;

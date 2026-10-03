@@ -632,7 +632,7 @@
   }
 
   /* ---------- progress ---------- */
-  const STEPS=[["client","1 · Client"],["discovery","2 · Discovery"],["reqs","3 · Requirements"],["venue","4 · Venue"],["menu","5 · Menu"],["layout","6 · Layout"],["proposal","7 · Proposal"],["quote","8 · Quotation"]];
+  const STEPS=[["client","1 · Client"],["discovery","2 · Discovery"],["reqs","3 · Requirements"],["venue","4 · Venue"],["menu","5 · Menu"],["proposal","6 · Proposal"],["layout","7 · Layout"],["quote","8 · Quotation"]];
   function updateProgress(){
     const done={ client:!!(ev&&ev.client&&ev.client.name), menu:!!appliedPkg, layout:layoutItems.length>0,
       quote:!!(ev&&ev.pricing&&ev.pricing.total), venue:$("#v_name").value.trim()!=="",

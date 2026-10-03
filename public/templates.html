@@ -134,7 +134,8 @@
 
   async function save(){
     const name=$("#t_name").value.trim(); if(!name){ $("#t_err").textContent="Name is required."; $("#t_err").hidden=false; $("#t_name").focus(); return; }
-    const items=$("#t_items").value.split("\n").map(x=>x.trim()).filter(Boolean);
+    // split on real newlines OR a pasted literal "\n" (QA saw "Item 1\nItem 2" kept as one)
+    const items=$("#t_items").value.split(/\r?\n|\\n/).map(x=>x.trim()).filter(Boolean);
     const rec={ name, section:$("#t_section").value, items };
     $("#t_err").hidden=true;
     try{ await BPUI.guard($("#t_save"), async()=>{
