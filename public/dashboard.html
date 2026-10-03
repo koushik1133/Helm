@@ -604,6 +604,10 @@
       await BPUI.guard(btn, async () => {
         const code = BPStore.quotes.nextCode(summaries);
         const q = await BPStore.quotes.create(code, code, null, { items: [] }, 0);
+        // M-04: the client code is only a guess; the server assigns the authoritative code.
+        // Seed the title from the REAL code so the event/project name doesn't show a stale
+        // guessed value (which the builder would otherwise re-persist on save).
+        if (q && q.code && q.code !== q.title) { try { await BPStore.quotes.updateMeta(q.id, { title: q.code }); } catch (e) {} }
         location.href = "flow.html?quote=" + encodeURIComponent(q.id);
       });
     } catch (err) { BPUI.toast(BPUI.friendlyError(err, { action: "start a quote" }), { type: "err" }); }

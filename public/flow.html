@@ -333,6 +333,7 @@
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   let ev=null, rates={chairPrice:200,platePrice:500,gstPct:18,layoutBase:0,serviceChargePct:0,assetPrices:null};
   let packages=[], plan=null, appliedPkg=null, layoutItems=[], canEdit=false;
+  let qGuestsOverridden=false;   // H-02: true once the user edits the Quotation guest count directly
   const REMIND_KEY = "bp_flow_remind_"+id;
   // ---- unsaved-changes tracking ----
   // `loading` is true while loadAll() prefills the form so programmatic fills
@@ -491,7 +492,12 @@
       phone:$("#c_phone").value.trim(),
       guests:$("#c_guests").value!==""?+$("#c_guests").value:null, budget:$("#c_budget").value!==""?+$("#c_budget").value:null,
       eventDate:$("#c_date").value||null });
-    if($("#q_guests").value==="" && ev.client.guests!=null){ $("#q_guests").value=ev.client.guests; }
+    // H-02: Client guests is the single source of truth — flow it forward to the Layout
+    // (#g_guests) and Quotation (#q_guests) fields so all three agree. Skip #q_guests only
+    // if the user manually overrode it there.
+    var gv=$("#c_guests").value;
+    if($("#g_guests")) $("#g_guests").value=gv;
+    if(!qGuestsOverridden && $("#q_guests")) $("#q_guests").value=gv;
   }
   function syncVenueMem(){ ev.client=Object.assign({}, ev.client||{}, { venue:$("#v_name").value.trim()||null, address:$("#v_addr").value.trim()||null }); }
   // Persist every section that used to auto-save. saveVenue() also writes the
@@ -758,7 +764,7 @@
     const oi=BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
     const pr=ev.pricing||{};
     $("#q_chairs").value=pr.chairs!=null?pr.chairs:oi.chairs;
-    $("#q_guests").value=pr.guests!=null?pr.guests:(cl.guests!=null?cl.guests:oi.chairs);
+    $("#q_guests").value=pr.guests!=null?pr.guests:(cl.guests!=null?cl.guests:(oi.chairs||""));  // H-02: empty, not "0", when unknown
     $("#q_platePrice").value=pr.platePrice!=null?pr.platePrice:(appliedPkg?appliedPkg.price_per_plate:rates.platePrice);
     $("#q_other").value=pr.other!=null?pr.other:(oi.objectsCost+(+rates.layoutBase||0));
     $("#q_discount").value=pr.discount||0;
@@ -812,6 +818,7 @@
     ["c_name","c_company","c_email","c_phone","c_type","c_date","c_guests","c_budget"].forEach(f=>$("#"+f).addEventListener("input",()=>{ syncClientMem(); if(f==="c_guests"||f==="c_type") renderPrice(); }));
     ["v_name","v_addr"].forEach(f=>$("#"+f).addEventListener("input",syncVenueMem));
     ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount"].forEach(f=>$("#"+f).addEventListener("input",renderPrice));
+    $("#q_guests").addEventListener("input",()=>{ qGuestsOverridden=true; });   // H-02: user took manual control of the quotation guest count
     $("#q_coupon").addEventListener("input",applyCoupon);   // coupon code → discount
     // dirty tracking: any genuine user input/change anywhere in the quote form
     // flips `dirty` (guarded by `loading` so prefills don't count).

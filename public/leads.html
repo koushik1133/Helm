@@ -480,9 +480,14 @@
       else await BPStore.leads.add(patch);
     }catch(err){ fail(BPUI.friendlyError(err,{action:"save the lead"})); return; }
     closeForm();
+    // M-03: reflect the edit on the board IMMEDIATELY. Previously the in-memory lead was
+    // merged only on a stage change, so a plain field edit (name/guests) stayed stale on the
+    // card until a manual reload — the refetch can race read-after-write, and realtime is
+    // suppressed for 2s after a local write.
+    if(cur) { Object.assign(cur, patch); render(); }
     // a stage change goes through the same path as drag & drop (undoable, reverts on failure)
     let moveOk=true;
-    if(cur && toStage && toStage!==cur.status){ Object.assign(cur, patch); moveOk=await moveLead(id, cur.status, toStage, true); }
+    if(cur && toStage && toStage!==cur.status){ moveOk=await moveLead(id, cur.status, toStage, true); }
     // Only claim success if the stage move didn't fail (moveLead fired its own error toast on false)
     if(moveOk!==false) BPUI.toast(id?"Lead saved.":"Lead added.",{type:"ok"});
     await load();
