@@ -188,6 +188,7 @@
         <div class="fld"><label for="p_cgst">Catering GST %</label><input id="p_cgst" type="number" min="0" step="0.5"></div>
         <div class="fld"><label for="p_svc">Service charge % (optional)</label><input id="p_svc" type="number" min="0" step="0.5"></div>
         <div class="fld"><label for="p_layout">Layout &amp; setup fee (₹)</label><input id="p_layout" type="number" min="0" step="1" placeholder="0"></div>
+        <div class="fld"><label for="p_buffer">Venue booking gap (hours)</label><input id="p_buffer" type="number" min="0" step="0.5" placeholder="3" title="Two events at the same venue on the same day that start closer together than this many hours are flagged as a clash on the calendar. A bigger gap (e.g. one ends 3pm, next starts 6pm) is fine."></div>
       </div>
       <div class="actions"><button type="button" class="btn primary" id="savePricing">Save pricing</button></div>
     </div>
@@ -394,6 +395,7 @@
       $("#p_chair").value=p.chairPrice??200; $("#p_plate").value=p.platePrice??500; $("#p_gst").value=p.gstPct??18;
       $("#p_cgst").value=p.cateringGstPct??18; $("#p_svc").value=p.serviceChargePct??0;
       $("#p_layout").value=p.layoutBase??0;
+      $("#p_buffer").value=p.conflictBufferHours??3;
       renderItemPrices();
       $("#pricingErr").innerHTML="";
       pricingLoaded=true; setPricingEnabled(true);
@@ -429,7 +431,8 @@
     let cateringGstPct=0; if($("#p_cgst").value!==""){ const r=V.pct($("#p_cgst").value,{field:"Catering GST %"}); if(!r.ok){ fail(r.error); return; } cateringGstPct=r.value; }
     let serviceChargePct=0; if($("#p_svc").value!==""){ const r=V.pct($("#p_svc").value,{field:"Service charge %"}); if(!r.ok){ fail(r.error); return; } serviceChargePct=r.value; }
     let layoutBase=0; if($("#p_layout").value!==""){ const r=V.money($("#p_layout").value,{field:"Layout & setup fee"}); if(!r.ok){ fail(r.error); return; } layoutBase=r.value; }
-    Object.assign(pricingCfg,{ chairPrice, platePrice, gstPct, cateringGstPct, serviceChargePct, layoutBase, currency:"INR" });
+    let conflictBufferHours=3; if($("#p_buffer").value!==""){ const r=V.num($("#p_buffer").value,{field:"Venue booking gap",min:0,max:48}); if(!r.ok){ fail(r.error); return; } conflictBufferHours=r.value; }
+    Object.assign(pricingCfg,{ chairPrice, platePrice, gstPct, cateringGstPct, serviceChargePct, layoutBase, currency:"INR", conflictBufferHours });
     try{ await BPStore.config.setPricing(pricingCfg); setMsg("ok","Pricing saved — new quotes use these rates."); }
     catch(e){ setMsg("err",errMsg(e,"save pricing")); }
   }));

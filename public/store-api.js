@@ -857,9 +857,14 @@
   };
 
   /* ---------------- control center: pricing config, vendors, coupons ---------------- */
+  const PRICING_DEFAULTS = { chairPrice:200, platePrice:500, gstPct:18, serviceChargePct:0, currency:"INR", conflictBufferHours:3 };
   const config = {
-    getPricing: () => rpc("get_pricing_config"),
-    setPricing: (p) => rpc("set_pricing_config", { p }),
+    getPricing: () => mode === "supabase"
+      ? rpc("get_pricing_config")
+      : Promise.resolve(Object.assign({}, PRICING_DEFAULTS, (() => { try { return JSON.parse(localStorage.getItem("bp_pricing_cfg") || "{}"); } catch (e) { return {}; } })())),
+    setPricing: (p) => mode === "supabase"
+      ? rpc("set_pricing_config", { p })
+      : Promise.resolve((localStorage.setItem("bp_pricing_cfg", JSON.stringify(p || {})), p)),
   };
 
   /* ---------------- ONE shared pricing engine (Phase 66) ----------------
@@ -1937,22 +1942,45 @@
       });
       // 4) venue double-booking: two DIFFERENT events sharing the SAME date + time + venue name + venue address.
       //    All four must be present and equal — a match on fewer fields is NOT a conflict.
+      //    A venue can host back-to-back events if there's enough of a gap between their
+      //    start times (e.g. one at 3pm, the next at 6pm). So we only flag a clash when two
+      //    different events at the SAME venue on the SAME day start CLOSER together than the
+      //    buffer. The buffer (hours) is set in Control Center → Pricing (conflictBufferHours,
+      //    default 3). If an event has no start time we can't measure the gap, so we flag it
+      //    to review rather than silently miss it. Venue identity matches on name, or address
+      //    when the name is blank (no longer requires BOTH to be filled).
+      let bufferHours = 3;
+      try { const _pc = await config.getPricing(); const _b = Number(_pc && _pc.conflictBufferHours); if (isFinite(_b) && _b >= 0) bufferHours = _b; } catch (e) {}
+      const bufferMin = bufferHours * 60;
       const vnorm = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
-      const byVenueSlot = {};
+      const toMin = (t) => { const m = /^(\d{1,2}):(\d{2})/.exec(String(t || "")); return m ? (+m[1] * 60 + +m[2]) : null; };
+      const byVenueDay = {};
       events.forEach((e) => {
-        const d = e.eventDate, t = e.eventTime; const v = venueOf(e);
-        if (!d || !t || !vnorm(t) || !vnorm(v.name) || !vnorm(v.address)) return; // need date + time + venue name + address
-        const k = [d, vnorm(t), vnorm(v.name), vnorm(v.address)].join("||");
-        (byVenueSlot[k] = byVenueSlot[k] || []).push(e);
+        const d = e.eventDate; const v = venueOf(e);
+        const vkey = vnorm(v.name) || vnorm(v.address);     // name preferred, address as fallback
+        if (!d || !vkey) return;                             // need a date + some venue identity
+        const k = d + "||" + vkey;
+        (byVenueDay[k] = byVenueDay[k] || []).push(e);
       });
-      Object.values(byVenueSlot).forEach((list) => {
-        const ids = [...new Set(list.map((e) => e.id))];
-        if (ids.length > 1) {
-          const first = evById[ids[0]]; const v = venueOf(first);
-          conflicts.push({ type: "venue", date: first.eventDate, label: v.name || "Venue",
-            detail: `${ids.length} events booked at ${v.name} on ${first.eventDate} at ${first.eventTime} (same venue, address & time)`,
-            events: ids.map((q) => evById[q]) });
+      Object.values(byVenueDay).forEach((list) => {
+        const uniq = [...new Map(list.map((e) => [e.id, e])).values()];
+        if (uniq.length < 2) return;
+        const clashing = new Set(); let hasTimeClash = false, hasNoTime = false;
+        for (let i = 0; i < uniq.length; i++) {
+          for (let j = i + 1; j < uniq.length; j++) {
+            const ti = toMin(uniq[i].eventTime), tj = toMin(uniq[j].eventTime);
+            if (ti == null || tj == null) { hasNoTime = true; clashing.add(uniq[i].id); clashing.add(uniq[j].id); }
+            else if (Math.abs(ti - tj) < bufferMin) { hasTimeClash = true; clashing.add(uniq[i].id); clashing.add(uniq[j].id); }
+          }
         }
+        if (clashing.size < 2) return;
+        const ev = uniq.filter((e) => clashing.has(e.id));
+        const v = venueOf(ev[0]); const vname = v.name || v.address || "Venue";
+        conflicts.push({ type: "venue", date: ev[0].eventDate, label: vname,
+          detail: hasTimeClash
+            ? `${ev.length} events at ${vname} on ${ev[0].eventDate} within ${bufferHours}h of each other`
+            : `${ev.length} events at ${vname} on ${ev[0].eventDate} — set start times to check the ${bufferHours}h gap`,
+          events: ev });
       });
 
       // ---- per-event commitment rollup (for the agenda) ----
