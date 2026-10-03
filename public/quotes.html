@@ -452,7 +452,8 @@
       `<div class="r"><span>Subtotal</span><span class="amt">${inr(t.subtotal)}</span></div>`+
       taxRows+
       (t.discount?`<div class="r"><span>Discount</span><span class="amt">− ${inr(t.discount)}</span></div>`:"")+
-      `<div class="r grand"><span>Grand total</span><span class="amt">${inr(t.total)}</span></div>`;
+      `<div class="r grand"><span>Grand total</span><span class="amt">${inr(t.total)}</span></div>`+
+      `<div class="r" style="font-style:italic;color:var(--ink-3);font-size:12px;justify-content:flex-end"><span>${esc(BPStore.amountInWords(t.total))}</span></div>`;
   }
   async function savePricing(confirmIt){
     const btn = confirmIt?$("#cm_confirm"):$("#cm_savePricing");
@@ -535,7 +536,8 @@
       <tr class=tot><td>Subtotal</td><td style="text-align:right">${inr(t.subtotal||0)}</td></tr>
       ${tax}
       ${t.discount?`<tr class=tot><td>Discount</td><td style="text-align:right">− ${inr(t.discount)}</td></tr>`:""}
-      <tr class=grand><td>Grand total</td><td style="text-align:right">${inr(t.total||0)}</td></tr></table>
+      <tr class=grand><td>Grand total</td><td style="text-align:right">${inr(t.total||0)}</td></tr>
+      <tr><td colspan=2 style="padding-top:6px;font-style:italic;color:#555;font-size:12px;border:0">${BPStore.amountInWords(t.total||0)}</td></tr></table>
     <p class=muted>Taxes per Indian GST (event management SAC 998596). ${p.catering&&p.catering.vendor?"Caterer: "+esc(p.catering.vendor)+". ":""}This is a computer-generated document.</p>`;
     // No inline <script> in the popup (it inherits this page's CSP) — print from the opener instead.
     const w=window.open("","_blank"); if(w){ w.document.write(html); w.document.close(); setTimeout(()=>{ try{ w.focus(); w.print(); }catch(_){} },250); }

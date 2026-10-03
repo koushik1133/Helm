@@ -3581,6 +3581,28 @@
   };
   BPStore.validate = V;
 
+  // ---- amount in words (Indian numbering: crore/lakh/thousand) — QA M-07 -----
+  // Used on quotes/invoices so a large manually-influenced total is unambiguous
+  // ("₹5,36,000" → "Rupees Five Lakh Thirty Six Thousand only").
+  BPStore.amountInWords = function (amount) {
+    var num = Math.round(Math.abs(Number(amount) || 0));
+    if (num === 0) return "Rupees Zero only";
+    var a = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+      "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+    var b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+    function two(n) { return n < 20 ? a[n] : (b[Math.floor(n / 10)] + (n % 10 ? " " + a[n % 10] : "")); }
+    function three(n) { return (n >= 100 ? a[Math.floor(n / 100)] + " Hundred" + (n % 100 ? " " : "") : "") + (n % 100 ? two(n % 100) : ""); }
+    var out = "";
+    var crore = Math.floor(num / 10000000); num %= 10000000;
+    var lakh = Math.floor(num / 100000); num %= 100000;
+    var thousand = Math.floor(num / 1000); num %= 1000;
+    if (crore) out += three(crore) + " Crore ";
+    if (lakh) out += two(lakh) + " Lakh ";
+    if (thousand) out += two(thousand) + " Thousand ";
+    if (num) out += three(num);
+    return "Rupees " + out.trim() + " only";
+  };
+
   // ---- global input[type=number] hardener -------------------------------
   if (typeof document === "undefined") return;
   function harden(el) {

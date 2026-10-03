@@ -419,6 +419,7 @@
     if(t.discount>0) rows+=`<div class="prow"><span>Discount</span><span class="amt">− ${inr(t.discount)}</span></div>`;
     rows+=`<div class="prow"><span>GST</span><span class="amt">${inr(t.totalGst)}</span></div>`;
     rows+=`<div class="prow total"><span>Total</span><span class="amt">${inr(t.total)}</span></div>`;
+    rows+=`<div class="prow" style="font-style:italic;color:var(--ink-3);font-size:11px;justify-content:flex-end">${esc(BPStore.amountInWords(t.total))}</div>`;
     $("#priceRows").innerHTML=rows;
     const oi=BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
     $("#layoutSummary").textContent = oi.chairs+" chairs · "+(layoutItems.length)+" objects";
