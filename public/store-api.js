@@ -701,8 +701,15 @@
       if (expectedUpdatedAt) q = q.eq("updated_at", expectedUpdatedAt);
       const { data, error } = await q.select();
       if (error) throw error;
-      if (expectedUpdatedAt && (!data || data.length === 0)) {
-        const e = new Error("This event was changed by someone else since you opened it. Reload to get the latest, then reapply your change."); e.code = "CONFLICT"; throw e;
+      // FAIL CLOSED: an update that changed NO rows must never report success — otherwise
+      // the UI flashes "Saved ✓" while nothing persisted and the data is lost on reload
+      // (QA H-01). With an optimistic-lock token a 0-row result means a concurrent edit;
+      // without one it means the write didn't land (lost access / row gone / RLS).
+      if (!data || data.length === 0) {
+        if (expectedUpdatedAt) {
+          const e = new Error("This event was changed by someone else since you opened it. Reload to get the latest, then reapply your change."); e.code = "CONFLICT"; throw e;
+        }
+        const e = new Error("Couldn't save — the change didn't reach the server. Reload the page and try again."); e.code = "NOT_SAVED"; throw e;
       }
       return Array.isArray(data) ? data[0] : data;
     },
@@ -3599,6 +3606,10 @@
       var mn = el.getAttribute("min"), mx = el.getAttribute("max");
       if (mn !== null && mn !== "" && n < Number(mn)) n = Number(mn);
       if (mx !== null && mx !== "" && n > Number(mx)) n = Number(mx);
+      // Default sanity cap (QA H-06): no realistic money/qty/count field exceeds a
+      // trillion, and values past Number.MAX_SAFE_INTEGER silently lose precision.
+      // Fields that genuinely need more set their own higher max=.
+      else if ((mx === null || mx === "") && n > 1e12) n = 1e12;
       if (integer) n = Math.trunc(n);
       var s = String(n);
       if (s !== el.value) { el.value = s; el.dispatchEvent(new Event("change", { bubbles: true })); }
@@ -3668,10 +3679,34 @@
     }
   }
 
+  // ---- date hardener: reject implausible years (QA H-03) --------------------
+  // A native date input still accepts typed/pasted years like 0026 or 61115. We
+  // bound every date field to a sane window (2000–2100 by default — covers any
+  // real event, birthday or anniversary) and clear an out-of-range value so a
+  // nonsense year can't be saved or propagated. A field needing a different window
+  // sets its own min=/max=.
+  var DATE_MIN = "2000-01-01", DATE_MAX = "2100-12-31";
+  function hardenDate(el) {
+    if (el.getAttribute("data-date-hardened") === "1") return;
+    el.setAttribute("data-date-hardened", "1");
+    if (!el.getAttribute("min")) el.setAttribute("min", DATE_MIN);
+    if (!el.getAttribute("max")) el.setAttribute("max", DATE_MAX);
+    var lo = el.getAttribute("min"), hi = el.getAttribute("max");
+    var fix = function () {
+      var v = el.value; if (!v) return;
+      var y = parseInt(String(v).slice(0, 4), 10);
+      if (!isFinite(y) || y < 2000 || y > 2100 || (v < lo) || (v > hi)) {
+        el.value = ""; el.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    };
+    el.addEventListener("blur", fix); el.addEventListener("change", fix);
+  }
+
   function scan(root) {
     var r = root || document;
     try { r.querySelectorAll('input[type="number"]:not([data-hardened])').forEach(harden); } catch (e) {}
     try { r.querySelectorAll('input[type="tel"]:not([data-phone-hardened]), input[inputmode="tel"]:not([data-phone-hardened])').forEach(hardenPhone); } catch (e) {}
+    try { r.querySelectorAll('input[type="date"]:not([data-date-hardened])').forEach(hardenDate); } catch (e) {}
     try { r.querySelectorAll('[required]:not([data-req-marked]), [aria-required="true"]:not([data-req-marked]), [data-required]:not([data-req-marked])').forEach(markRequired); } catch (e) {}
   }
   function boot() {
@@ -3687,6 +3722,7 @@
           if (nd.nodeType === 1) {
             if (nd.matches && nd.matches('input[type="number"]')) harden(nd);
             if (nd.matches && isPhone(nd)) hardenPhone(nd);
+            if (nd.matches && nd.matches('input[type="date"]')) hardenDate(nd);
             if (nd.matches && (nd.hasAttribute("required") || nd.getAttribute("aria-required") === "true" || nd.hasAttribute("data-required"))) markRequired(nd);
             scan(nd);
           }
