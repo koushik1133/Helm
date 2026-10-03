@@ -205,7 +205,7 @@
 
     <div class="card">
       <h3>Coupons</h3>
-      <div id="couponList"><div class="row" style="color:var(--ink-3)">Loading…</div></div>
+      <div id="couponList"><div class="row" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
       <div class="addrow">
         <input id="co_code" placeholder="Code e.g. DIWALI10" aria-label="Coupon code">
         <select id="co_kind" aria-label="Coupon type"><option value="percent">% off</option><option value="flat">₹ off</option></select>
@@ -216,7 +216,7 @@
 
     <div class="card">
       <h3>Chair types &amp; prices</h3>
-      <div id="chairList"><div class="row" style="color:var(--ink-3)">Loading…</div></div>
+      <div id="chairList"><div class="row" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
       <div class="addrow" style="grid-template-columns:1.6fr 1fr auto">
         <input id="ch_name" placeholder="Chair type e.g. Chiavari" aria-label="Chair type name">
         <input id="ch_price" type="number" min="0" step="1" placeholder="Price / chair (₹)" aria-label="Price per chair">
@@ -226,7 +226,7 @@
 
     <div class="card">
       <h3>Plate types &amp; prices (catering)</h3>
-      <div id="plateList"><div class="row" style="color:var(--ink-3)">Loading…</div></div>
+      <div id="plateList"><div class="row" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
       <div class="addrow" style="grid-template-columns:1.6fr 1fr auto">
         <input id="pl_name" placeholder="Plate type e.g. Veg / Non-veg / Special" aria-label="Plate type name">
         <input id="pl_price" type="number" min="0" step="1" placeholder="Price / plate (₹)" aria-label="Price per plate">
@@ -238,7 +238,7 @@
       <h3>Dishes catalog (menu)</h3>
       <p class="mnote" style="margin:-6px 0 10px">The dishes staff can search &amp; add to an event's menu. Add your studio's specialities here.</p>
       <input id="dishFilter" placeholder="Filter dishes…" style="width:100%;margin-bottom:10px" aria-label="Filter dishes">
-      <div id="dishList" style="max-height:320px;overflow:auto"><div class="row" style="color:var(--ink-3)">Loading…</div></div>
+      <div id="dishList" style="max-height:320px;overflow:auto"><div class="row" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
       <div class="addrow" style="grid-template-columns:1.2fr 1.4fr .9fr auto">
         <input id="dc_cat" placeholder="Category e.g. Starters (veg)" aria-label="Dish category">
         <input id="dc_name" placeholder="Dish name" aria-label="Dish name">
@@ -250,13 +250,13 @@
     <div class="card">
       <h3>Menu packages (Standard / Gold / Premium)</h3>
       <p class="mnote" style="margin:-6px 0 10px">The 6 fixed menu packages. Set each one's per-plate price and edit its dish list (one dish per line as <code>Category | Dish name | veg|nonveg|special</code>). Staff pick a package on the event's Menu screen to pre-fill the dishes in one click.</p>
-      <div id="menuTplList"><div class="row" style="color:var(--ink-3)">Loading…</div></div>
+      <div id="menuTplList"><div class="row" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
     </div>
 
     <div class="card">
       <h3>Default layout rules (per event type)</h3>
       <p class="mnote" style="margin:-6px 0 10px">The defaults the layout generator uses for each event type — seats per guest, buffet tables per N guests, bars, and which components to include. Change these here (no developer needed) and every generated layout follows them.</p>
-      <div id="layoutRuleList"><div class="row" style="color:var(--ink-3)">Loading…</div></div>
+      <div id="layoutRuleList"><div class="row" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
     </div>
     </div><!-- /pane-pricing -->
 
@@ -268,7 +268,7 @@
         <h3>Team members</h3>
         <p class="mnote">Add teammates, change each person's role, or remove access. Changes apply immediately.</p>
         <div class="table-scroll"><table class="utable"><thead><tr><th scope="col">Email</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
-          <tbody id="um_rows"><tr><td colspan="3" style="color:var(--ink-3)">Loading…</td></tr></tbody>
+          <tbody id="um_rows"><tr><td colspan="3" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
         </table></div>
         <form id="um_add" class="addrow" style="grid-template-columns:1.6fr 1fr auto">
           <input id="um_email" type="email" placeholder="name@studio.com" required autocomplete="off" aria-label="New user email">
@@ -636,7 +636,7 @@
   }
   async function renderUsers(){
     const tb=$("#um_rows"), me=BPStore.auth.user();
-    tb.innerHTML=`<tr><td colspan="3" style="color:var(--ink-3)">Loading…</td></tr>`;
+    tb.innerHTML=`<tr><td colspan="3" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr>`;
     let users;
     try{ users=await BPStore.auth.admin.listUsers(); }
     catch(e){ BPUI.loadError(tb, e, renderUsers, {what:"team members"}); return; }

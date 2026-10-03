@@ -151,7 +151,7 @@
         <section class="card" id="sec-reqs">
           <h2><span class="step-n">3</span> Requirements</h2>
           <p class="sub">The services the client wants.</p>
-          <div id="reqList"><div class="meta">Loading…</div></div>
+          <div id="reqList"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
           <div class="row3" style="margin-top:10px">
             <input id="rq_title" list="reqTypeList" aria-label="Requirement" class="fld" style="height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px" placeholder="Pick or type a new one…"><datalist id="reqTypeList"></datalist>
             <select id="rq_pri" aria-label="Requirement priority" style="height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 8px"><option value="mandatory">Must-have</option><option value="optional">Optional</option><option value="nice">Nice-to-have</option></select>
@@ -175,7 +175,7 @@
         <section class="card" id="sec-menu">
           <h2><span class="step-n">5</span> Menu package <span class="saved" id="sv-menu">Saved ✓</span></h2>
           <p class="sub">Pick a package — it pre-fills the dishes and drives the catering price.</p>
-          <div class="pkgcards" id="pkgCards"><div class="meta">Loading…</div></div>
+          <div class="pkgcards" id="pkgCards"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
           <div class="fld full" style="margin-top:12px"><label for="p_menu">Menu / service notes</label><textarea id="p_menu" placeholder="Courses, dietary options, service style, timings…"></textarea></div>
         </section>
 
@@ -245,14 +245,14 @@
           </div>
           <div class="fld" id="pay_receiptWrap"><label for="pay_receipt">Receipt no. (offline — blank to auto‑generate)</label><input id="pay_receipt" placeholder="e.g. RCP‑001 / cash memo no."></div>
           <div id="pay_online" style="display:none;font-size:12px;color:var(--ink-3);margin-top:6px"></div>
-          <div id="pay_receipts" style="margin-top:12px"><div class="meta">Loading…</div></div>
+          <div id="pay_receipts" style="margin-top:12px"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
         </section>
 
         <!-- ACTIVITY TRAIL -->
         <section class="card" id="sec-activity">
           <h2>Activity trail</h2>
           <p class="sub">Every change kept on record — quote versions, discounts, advances, receipts, consents, messages.</p>
-          <div id="activityList" style="font-size:13px"><div class="meta">Loading…</div></div>
+          <div id="activityList" style="font-size:13px"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
         </section>
 
       </div>

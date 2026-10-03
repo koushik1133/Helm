@@ -93,7 +93,7 @@
     <div class="card">
       <h2>💳 Client invoice</h2>
       <p class="sub">The final bill = quote + approved change orders, less what's already paid.</p>
-      <div class="table-scroll"><table><tbody id="invBody"><tr><td class="empty">Loading…</td></tr></tbody></table></div>
+      <div class="table-scroll"><table><tbody id="invBody"><tr><td class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody></table></div>
       <div class="payline" id="payLine" hidden>
         <span style="font-size:13px;color:var(--ink-2)">Record a payment received:</span>
         <input id="pay_amt" type="number" min="0" placeholder="amount" aria-label="Payment amount received">
@@ -107,7 +107,7 @@
       <h2>🤝 Vendor settlement</h2>
       <p class="sub">What you owe partners, and what's settled.</p>
       <div class="table-scroll"><table><thead><tr><th scope="col">Partner</th><th scope="col" class="num">Cost</th><th scope="col" class="num">Advance</th><th scope="col" class="num">Outstanding</th><th scope="col">Settled</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
-        <tbody id="vendBody"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody></table></div>
+        <tbody id="vendBody"><tr><td colspan="6" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody></table></div>
       <div class="totbar"><span>Owed to vendors: <b id="v_out">₹0</b></span></div>
     </div>
 
@@ -115,7 +115,7 @@
       <h2>🧾 Staff expense claims</h2>
       <p class="sub">Reimbursements for the staff — approve, then mark paid.</p>
       <div class="table-scroll"><table><thead><tr><th scope="col">Who</th><th scope="col">For</th><th scope="col" class="num">Amount</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
-        <tbody id="expBody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody></table></div>
+        <tbody id="expBody"><tr><td colspan="5" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody></table></div>
       <div class="addgrid" id="expAdd" hidden>
         <div class="fld"><label for="e_who">Who</label><input id="e_who" placeholder="name"></div>
         <div class="fld"><label for="e_desc">For</label><input id="e_desc" placeholder="e.g. Fuel, materials"></div>
@@ -129,7 +129,7 @@
       <h2>↩ Refunds &amp; recovery</h2>
       <p class="sub">Deposits, damage deductions, refunds to the client, and amounts to recover.</p>
       <div class="table-scroll"><table><thead><tr><th scope="col">Type</th><th scope="col">Reason</th><th scope="col" class="num">Amount</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
-        <tbody id="refBody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody></table></div>
+        <tbody id="refBody"><tr><td colspan="5" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody></table></div>
       <div class="addgrid" id="refAdd" hidden>
         <div class="fld"><label for="r_kind">Type</label><select id="r_kind" style="height:36px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)"><option value="refund">Refund to client</option><option value="recovery">Recover from client</option><option value="deduction">Deduction from deposit</option></select></div>
         <div class="fld"><label for="r_reason">Reason</label><input id="r_reason" placeholder="e.g. Damaged linens"></div>

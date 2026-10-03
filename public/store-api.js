@@ -1867,7 +1867,7 @@
   const calendar = {
     // Pull every commitment across all events and detect date clashes.
     async load() {
-      const [events, invRes, vendorBk, items, team, vends, tasks, plans] = await Promise.all([
+      const [events, invRes, vendorBk, items, team, vends, tasks, plans, pricingCfg] = await Promise.all([
         quotes.list(),
         inventory.reservations().catch(() => []),
         bookings.listAll().catch(() => []),
@@ -1885,6 +1885,7 @@
           const { data, error } = await supa.from("event_plan").select("quote_id,venue_name,venue_address");
           if (error) throw error; return data;
         })().catch(() => []),
+        config.getPricing().catch(() => ({})),   // for the venue-clash buffer (parallel, no extra round-trip)
       ]);
       const evById = {}; events.forEach((e) => { evById[e.id] = e; });
       const itemById = {}; items.forEach((i) => { itemById[i.id] = i; });
@@ -1950,7 +1951,7 @@
       //    to review rather than silently miss it. Venue identity matches on name, or address
       //    when the name is blank (no longer requires BOTH to be filled).
       let bufferHours = 3;
-      try { const _pc = await config.getPricing(); const _b = Number(_pc && _pc.conflictBufferHours); if (isFinite(_b) && _b >= 0) bufferHours = _b; } catch (e) {}
+      { const _b = Number(pricingCfg && pricingCfg.conflictBufferHours); if (isFinite(_b) && _b >= 0) bufferHours = _b; }
       const bufferMin = bufferHours * 60;
       const vnorm = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
       const toMin = (t) => { const m = /^(\d{1,2}):(\d{2})/.exec(String(t || "")); return m ? (+m[1] * 60 + +m[2]) : null; };
@@ -2836,6 +2837,8 @@
     /* boot skeleton / spinner / error */
     ".bpui-boot-overlay{background:var(--bpui-veil);flex-direction:column;gap:12px;color:var(--bpui-ink)}",
     ".bpui-spin{width:36px;height:36px;border-radius:50%;border:3px solid var(--bpui-line);border-top-color:var(--bpui-accent);box-sizing:border-box}",
+    ".bpui-spin2{display:inline-block;width:15px;height:15px;border-radius:50%;border:2px solid var(--bpui-line);border-top-color:var(--bpui-accent);box-sizing:border-box;vertical-align:-2px}",
+    ".bpui-loading{display:inline-flex;align-items:center;gap:7px;color:var(--bpui-ink-2);justify-content:center}",
     ":where(#boot){display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:40vh;padding:24px;color:var(--bpui-ink-2)}",
     ":where(#boot[hidden]){display:none}",
     ":where(#boot:empty)::before{content:'';width:36px;height:36px;border-radius:50%;border:3px solid var(--bpui-line);border-top-color:var(--bpui-accent);box-sizing:border-box}",
@@ -2846,7 +2849,7 @@
     "[aria-busy=true].bpui-busy{cursor:progress}",
     "@media (prefers-reduced-motion:no-preference){",
     ".bpui-overlay{animation:bpuiFade .14s ease-out}.bpui-dialog{animation:bpuiPop .16s ease-out}",
-    ".bpui-toast{animation:bpuiUp .18s ease-out}.bpui-spin,:where(#boot:empty)::before{animation:bpuiSpin .8s linear infinite}",
+    ".bpui-toast{animation:bpuiUp .18s ease-out}.bpui-spin,.bpui-spin2,:where(#boot:empty)::before{animation:bpuiSpin .8s linear infinite}",
     ".bpui-boot-overlay{animation:bpuiFade .2s ease-out}}",
     "@keyframes bpuiFade{from{opacity:0}to{opacity:1}}",
     "@keyframes bpuiPop{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}",
