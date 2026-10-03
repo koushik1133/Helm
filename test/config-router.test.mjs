@@ -75,6 +75,19 @@ t('5. non-allow-listed "staging" host → DISABLED', () =>
   assert.equal(run({ host: 'staging.evil.com', withStaging: true }), 'DISABLED'));
 t('6. staging host + prod opt-in → STAGING (never PROD)', () =>
   assert.equal(run({ host: 'helm-staging.vercel.app', withStaging: true, allow: true }), 'STAGING'));
+t('2b. Vercel branch-preview alias (NOT allow-listed) → STAGING, never PROD', () => {
+  // This is the exact hostname shape an auto-generated preview produces
+  // (helm-<branch|hash>-<scope>.vercel.app). It is NOT in STAGING_HOSTS, so it
+  // exercises config.js step 2b: any *.vercel.app that is not a prod alias must
+  // resolve to STAGING when configured, else FAIL CLOSED — never production.
+  assert.equal(run({ host: 'helm-staging-abc123-koushik1133.vercel.app', withStaging: true }), 'STAGING');
+  assert.equal(run({ host: 'helm-staging-abc123-koushik1133.vercel.app' }), 'DISABLED'); // no staging → blank, not PROD
+});
+t('7. production host never resolves to STAGING even when staging IS configured', () => {
+  for (const host of ['www.helm.events', 'helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app']) {
+    assert.equal(run({ host, withStaging: true }), 'PROD', host);
+  }
+});
 t('router uses explicit allowlists, not broad substring match', () => {
   assert.ok(/PROD_HOSTS/.test(SRC) && /STAGING_HOSTS/.test(SRC), 'explicit allowlists present');
   assert.ok(!/\/staging\/\.test\(h\)/.test(SRC), 'no broad /staging/.test(h) substring rule');
