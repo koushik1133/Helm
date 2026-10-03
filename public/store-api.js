@@ -2541,10 +2541,19 @@
   };
   const settlement = {
     async summary(quoteId) {
-      const [b, ms, bk, exp] = await Promise.all([
+      const [b, ms, bk, exp, pays] = await Promise.all([
         budget.summary(quoteId), milestones.list(quoteId), bookings.list(quoteId), expenses.list(quoteId),
+        milestones.payments(quoteId).catch(() => []),
       ]);
-      const received = ms.filter((m) => m.status === "paid").reduce((a, m) => a + Number(m.amount || 0), 0);
+      // "Received" = money actually collected, summed from the quote_payments LEDGER —
+      // the single source of truth that holds EVERY receipt (both the advance and any
+      // settlement/cash payment). The old code summed milestone STATUS, so a recorded
+      // settlement payment (which writes quote_payments with no milestone) never counted,
+      // leaving Balance due overstated. Fall back to paid milestones only if the ledger
+      // is unavailable.
+      const fromLedger = (pays || []).filter((p) => p.status === "paid").reduce((a, p) => a + Number(p.amount || 0), 0);
+      const fromMilestones = ms.filter((m) => m.status === "paid").reduce((a, m) => a + Number(m.amount || 0), 0);
+      const received = (pays && pays.length) ? fromLedger : fromMilestones;
       const revenue = b.revenue, balance = revenue - received;
       const vend = bk.filter((x) => x.status !== "cancelled");
       const vendorCost = vend.reduce((a, x) => a + Number(x.cost || 0), 0);
