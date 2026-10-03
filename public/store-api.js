@@ -1197,13 +1197,22 @@
       return readLs(PROP_LS).find((p) => p.quote_id === quoteId) || null;
     },
     async save(quoteId, p) {
+      // Preserve any field the caller OMITS by merging with what's already saved. Without
+      // this, saving the proposal from the workspace (flow.html sends only concept/theme/
+      // scope) would wipe the colour palette and reference images the planner set on the
+      // Proposal screen — set_proposal and the local upsert both overwrite the whole row.
+      let cur = {};
+      try { cur = (await this.get(quoteId)) || {}; } catch (e) { cur = {}; }
+      const pick = (k, dflt) => (p[k] !== undefined ? p[k] : (cur[k] !== undefined && cur[k] !== null ? cur[k] : dflt));
+      const merged = { concept: pick("concept", null), theme: pick("theme", null),
+        scope: pick("scope", []), palette: pick("palette", []), images: pick("images", []) };
       if (mode === "supabase") {
-        return rpc("set_proposal", { p_quote_id: quoteId, p_concept: p.concept || null, p_theme: p.theme || null,
-          p_palette: p.palette || [], p_images: p.images || [], p_scope: p.scope || [] });
+        return rpc("set_proposal", { p_quote_id: quoteId, p_concept: merged.concept || null, p_theme: merged.theme || null,
+          p_palette: merged.palette || [], p_images: merged.images || [], p_scope: merged.scope || [] });
       }
       const a = readLs(PROP_LS).filter((x) => x.quote_id !== quoteId);
-      const cur = readLs(PROP_LS).find((x) => x.quote_id === quoteId) || {};
-      const row = { quote_id: quoteId, share_token: cur.share_token || null, published: cur.published || false, ...p, updated_at: now() };
+      const curLs = readLs(PROP_LS).find((x) => x.quote_id === quoteId) || {};
+      const row = { quote_id: quoteId, share_token: curLs.share_token || null, published: curLs.published || false, ...merged, updated_at: now() };
       a.push(row); localStorage.setItem(PROP_LS, JSON.stringify(a)); return row;
     },
     async publish(quoteId, published) {
