@@ -1049,6 +1049,19 @@
       if (l.quote_id) return { id: l.quote_id };
       const code = quotes.nextCode(await lsq.list());
       const q = await lsq.create(code, (l.name || "Untitled") + (l.event_type ? " — " + l.event_type : ""), l.event_type, { items: [] }, 0);
+      // Carry the lead's contact details into the new quote's client — mirrors the
+      // production convert_lead_to_quote RPC so local mode behaves the same (the quote
+      // opens pre-filled instead of blank).
+      try {
+        const client = {};
+        if (l.name) client.name = l.name;
+        if (l.phone) client.phone = l.phone;
+        if (l.email) client.email = l.email;
+        const g = (l.guest_count != null ? l.guest_count : l.guests);
+        if (g != null && g !== "") client.guests = g;
+        if (l.budget != null && l.budget !== "") client.budget = l.budget;
+        await lsq.updateMeta(q.id, { client, eventType: l.event_type || null, eventDate: l.event_date || null });
+      } catch (e) {}
       l.status = "quoted"; l.quote_id = q.id; l.updated_at = now(); writeLeadsLs(a); pushArchiveLs("converted", l); return q;
     },
     // Read the immutable CRM archive (all snapshots, or just one lead's history).
