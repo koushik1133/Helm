@@ -167,7 +167,7 @@
     <h3><span id="lm_title">＋ New lead</span><button type="button" class="close" id="lm_close" aria-label="Close" data-close>×</button></h3>
     <p class="sub">Capture the enquiry. You can convert it to a quote once it's qualified.</p>
     <div class="grid">
-      <div class="fld"><label for="f_name">Contact name *</label><input id="f_name" placeholder="e.g. Priya Sharma"></div>
+      <div class="fld"><label for="f_name">Contact name *</label><input id="f_name" required placeholder="e.g. Priya Sharma"></div>
       <div class="fld"><label for="f_phone">Phone</label><input id="f_phone" type="tel" inputmode="tel" autocomplete="off" maxlength="16" placeholder="+91…"></div>
       <div class="fld"><label for="f_email">Email</label><input id="f_email" type="email" autocomplete="off" placeholder="name@email.com"></div>
       <div class="fld" id="f_stageWrap" hidden><label for="f_stage">Stage</label><select id="f_stage"></select></div>
@@ -480,9 +480,16 @@
       else await BPStore.leads.add(patch);
     }catch(err){ fail(BPUI.friendlyError(err,{action:"save the lead"})); return; }
     closeForm();
+    // M-03: reflect the edit on the board IMMEDIATELY. Previously the in-memory lead was
+    // merged only on a stage change, so a plain field edit (name/guests) stayed stale on the
+    // card until a manual reload — the refetch can race read-after-write, and realtime is
+    // suppressed for 2s after a local write.
+    if(cur) { Object.assign(cur, patch); render(); }
     // a stage change goes through the same path as drag & drop (undoable, reverts on failure)
-    if(cur && toStage && toStage!==cur.status){ Object.assign(cur, patch); await moveLead(id, cur.status, toStage, true); }
-    BPUI.toast(id?"Lead saved.":"Lead added.",{type:"ok"});
+    let moveOk=true;
+    if(cur && toStage && toStage!==cur.status){ moveOk=await moveLead(id, cur.status, toStage, true); }
+    // Only claim success if the stage move didn't fail (moveLead fired its own error toast on false)
+    if(moveOk!==false) BPUI.toast(id?"Lead saved.":"Lead added.",{type:"ok"});
     await load();
   }
   $("#newBtn").addEventListener("click",()=>openForm(null));

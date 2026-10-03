@@ -15,8 +15,20 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('node:crypto');
 
-const PORT = process.env.PORT || 4173;
+// Stability mandate: strict env validation BEFORE the server layer starts — fail
+// fast with an actionable message rather than silently binding somewhere unexpected.
+const PORT = (() => {
+  const raw = process.env.PORT;
+  if (raw === undefined || raw === '') return 4173;           // documented default
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > 65535) {
+    console.error(`[helm] FATAL: PORT="${raw}" is not a valid TCP port (1-65535). Refusing to start.`);
+    process.exit(1);
+  }
+  return n;
+})();
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = path.join(ROOT, 'data');
@@ -311,6 +323,29 @@ function rateLimited(req) {
   return e.count > RL_MAX ? Math.ceil((e.resetAt - now) / 1000) : 0;   // 0 = allowed, else Retry-After secs
 }
 
+/* --------------------------------------------------- layout API auth */
+// The /api/layouts file store is unauthenticated and un-tenant-scoped. The live
+// multi-tenant app does NOT use it — layouts persist via Supabase (RLS) + localStorage
+// (see public/store-api.js); this endpoint is a local single-user convenience and is
+// not served by the production (Vercel static) deployment. To stop an exposed server.js
+// from being an open read/write/delete relay, gate it: loopback clients are allowed;
+// any non-local client must present a configured bearer token (timing-safe). With no
+// token configured, remote access fails closed.
+const LAYOUTS_API_TOKEN = process.env.LAYOUTS_API_TOKEN || '';
+function isLoopbackClient(req) {
+  const a = (req.socket && req.socket.remoteAddress) || '';
+  return a === '127.0.0.1' || a === '::1' || a === '::ffff:127.0.0.1';
+}
+function layoutApiAllowed(req) {
+  if (isLoopbackClient(req)) return true;
+  if (!LAYOUTS_API_TOKEN) return false;
+  const m = /^Bearer\s+(.+)$/i.exec(req.headers['authorization'] || '');
+  if (!m) return false;
+  const got = Buffer.from(m[1]);
+  const want = Buffer.from(LAYOUTS_API_TOKEN);
+  return got.length === want.length && crypto.timingSafeEqual(got, want);
+}
+
 /* ----------------------------------------------------------- api */
 async function handleApi(req, res, url) {
   const parts = url.split('/').filter(Boolean); // ['api','layouts',':id']
@@ -318,6 +353,8 @@ async function handleApi(req, res, url) {
 
   if (parts[1] === 'health') return sendJson(res, 200, { ok: true, service: 'blueprint-stage', time: Date.now() });
   if (parts[1] !== 'layouts') return sendJson(res, 404, { error: 'unknown endpoint' });
+  // Fail closed for non-local callers without a valid token (read + write).
+  if (!layoutApiAllowed(req)) return sendJson(res, 401, { error: 'unauthorized' });
 
   // Parse the body first (client errors -> 4xx, never 500). We deliberately
   // read the DB from disk *after* this await so there is no yield point between
@@ -398,7 +435,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 // Exported for test/headers-parity.test.mjs (requiring this file does not listen).
-module.exports = { CSP, CSP_BY_PAGE, SECURITY_HEADERS, INDEXABLE_PAGES, NOINDEX, securityHeadersFor, cacheControlFor };
+module.exports = { CSP, CSP_BY_PAGE, SECURITY_HEADERS, INDEXABLE_PAGES, NOINDEX, securityHeadersFor, cacheControlFor, layoutApiAllowed, isLoopbackClient };
 
 if (require.main === module) {
   server.listen(PORT, () => {

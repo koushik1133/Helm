@@ -173,9 +173,15 @@
 
   function end() {
     if (root) { root.remove(); root = null; }
-    window.removeEventListener("resize", place);
+    window.removeEventListener("resize", onView);
+    window.removeEventListener("scroll", onView, true);
     try { localStorage.setItem(endKey, "1"); } catch (_) {}
   }
+  // Re-glue the spotlight to its target whenever the viewport changes (page scroll
+  // on mobile, inner-container scroll, orientation change, resize) WITHOUT starting
+  // a new scroll — so it can never fight the user's finger. getBoundingClientRect is
+  // viewport-relative and the overlay is position:fixed, so this stays aligned on phones.
+  function onView() { position(); }
 
   function start(customSteps, key) {
     end();
@@ -193,38 +199,72 @@
     root.querySelector(".skip").onclick = end;
     root.querySelector(".back").onclick = () => { if (i > 0) { i--; place(); } };
     root.querySelector(".next").onclick = () => { if (i < list.length - 1) { i++; place(); } else end(); };
-    window.addEventListener("resize", place);
+    window.addEventListener("resize", onView);
+    window.addEventListener("scroll", onView, true);   // capture inner-scroll containers too
     place();
   }
 
-  function place() {
+  // Pure positioning from the target's CURRENT rect — no scrolling. Safe to call
+  // on every scroll/resize frame. Separated from place() so the spotlight can be
+  // re-glued cheaply without ever re-triggering a scroll.
+  function position() {
     if (!root) return;
     // skip forward over any step whose target vanished (the old "jumps to end" bug fix)
     while (i < list.length && !present(list[i].sel)) i++;
     if (i >= list.length) { end(); return; }
     const step = list[i], tgt = present(step.sel);
-    tgt.scrollIntoView({ block: "center", behavior: (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) ? "auto" : "smooth" });
-    setTimeout(() => {
+    if (!tgt) return;
+    const r = tgt.getBoundingClientRect(), pad = 6;
+    const ring = root.querySelector(".ring");
+    ring.style.left = (r.left - pad) + "px"; ring.style.top = (r.top - pad) + "px";
+    ring.style.width = (r.width + pad * 2) + "px"; ring.style.height = (r.height + pad * 2) + "px";
+    const tip = root.querySelector(".tip"), arrow = root.querySelector(".arrow");
+    root.querySelector(".tstep").textContent = `Step ${i + 1} of ${list.length}`;
+    root.querySelector("h4").textContent = step.title;
+    root.querySelector("p").textContent = step.desc;
+    root.querySelector(".back").style.visibility = i ? "visible" : "hidden";
+    root.querySelector(".next").textContent = i < list.length - 1 ? "Next →" : "Done";
+    // Place the tip below the target when it fits, else above; always clamp fully
+    // into the viewport so it can never render off-screen on a short phone screen.
+    const th = tip.offsetHeight || 170;
+    const roomBelow = window.innerHeight - r.bottom;
+    const below = roomBelow >= th + 24 || roomBelow >= r.top; // prefer below unless above has clearly more room
+    const tw = Math.min(320, window.innerWidth - 24);
+    const tx = Math.min(Math.max(12, r.left), window.innerWidth - tw - 12);
+    let ty = below ? r.bottom + 18 : r.top - th - 18;
+    ty = Math.min(Math.max(12, ty), Math.max(12, window.innerHeight - th - 12));
+    tip.style.left = tx + "px"; tip.style.top = ty + "px";
+    arrow.style.left = (r.left + r.width / 2 - 9) + "px";
+    arrow.textContent = below ? "▲" : "▼";
+    arrow.style.top = (below ? r.bottom + 2 : r.top - 30) + "px";
+  }
+
+  function place() {
+    if (!root) return;
+    while (i < list.length && !present(list[i].sel)) i++;
+    if (i >= list.length) { end(); return; }
+    const tgt = present(list[i].sel);
+    if (!tgt) return;
+    const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    tgt.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+    // Position IMMEDIATELY so the ring is never left stranded, even where rAF is
+    // throttled (a backgrounded tab) or the scroll jumps instantly. Then REFINE as
+    // the (possibly long, slow-on-mobile) smooth scroll progresses: the 'scroll'
+    // listener added in start() re-glues the ring on every scroll event, and the
+    // rAF settle below repositions once the rect stops moving (3 stable frames,
+    // ~1s cap). position() is idempotent, so calling it repeatedly is safe. This
+    // replaces the old fixed 240ms timeout that fired mid-scroll on mobile.
+    position();
+    let lastTop = NaN, stable = 0, frames = 0;
+    (function settle() {
       if (!root) return;
-      const r = tgt.getBoundingClientRect(), pad = 6;
-      const ring = root.querySelector(".ring");
-      ring.style.left = (r.left - pad) + "px"; ring.style.top = (r.top - pad) + "px";
-      ring.style.width = (r.width + pad * 2) + "px"; ring.style.height = (r.height + pad * 2) + "px";
-      const tip = root.querySelector(".tip"), arrow = root.querySelector(".arrow");
-      root.querySelector(".tstep").textContent = `Step ${i + 1} of ${list.length}`;
-      root.querySelector("h4").textContent = step.title;
-      root.querySelector("p").textContent = step.desc;
-      root.querySelector(".back").style.visibility = i ? "visible" : "hidden";
-      root.querySelector(".next").textContent = i < list.length - 1 ? "Next →" : "Done";
-      const below = r.bottom + 190 < window.innerHeight;
-      const tw = Math.min(320, window.innerWidth - 24);
-      const tx = Math.min(Math.max(12, r.left), window.innerWidth - tw - 12);
-      const ty = below ? r.bottom + 18 : r.top - tip.offsetHeight - 18;
-      tip.style.left = tx + "px"; tip.style.top = Math.max(12, ty) + "px";
-      arrow.style.left = (r.left + r.width / 2 - 9) + "px";
-      arrow.textContent = below ? "▲" : "▼";
-      arrow.style.top = (below ? r.bottom + 2 : r.top - 30) + "px";
-    }, 240);
+      const top = tgt.getBoundingClientRect().top;
+      if (Math.abs(top - lastTop) < 0.5) { if (++stable >= 3) return position(); }
+      else { stable = 0; }
+      lastTop = top;
+      if (++frames > 60) return position();   // ~1s hard cap (60 frames)
+      requestAnimationFrame(settle);
+    })();
   }
 
   /* ---- mount: reuse #helpBtn if present, else a floating button ------- */

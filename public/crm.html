@@ -87,7 +87,7 @@
         <th scope="col">When</th><th scope="col">Action</th><th scope="col">Name</th><th scope="col">Phone</th><th scope="col">Source</th>
         <th scope="col">Event</th><th scope="col">Date</th><th scope="col">Budget</th><th scope="col">Guests</th><th scope="col">Stage</th><th scope="col"><span class="sr-only">Open</span></th>
       </tr></thead>
-      <tbody id="rows"><tr><td colspan="11" class="empty">Loading…</td></tr></tbody>
+      <tbody id="rows"><tr><td colspan="11" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
     </table>
     </div>
   </div>
@@ -109,7 +109,10 @@
   function latestPerLead(rows){ const seen=new Set(); const out=[];
     for(const r of rows){ if(r.lead_id && seen.has(r.lead_id)) continue; if(r.lead_id) seen.add(r.lead_id); out.push(r); } return out; }
   function fillFilters(){
-    const srcs=[...new Set(recs.map(r=>r.source).filter(Boolean))].sort();
+    // QA M-09: fold casing/whitespace variants (website/Website, referral/Referral) into one
+    // canonical label so the source filter + reporting aren't fragmented.
+    const srcMap={}; recs.forEach(r=>{ const c=String(r.source||"").trim().replace(/\s+/g,' '); if(c){ const k=c.toLowerCase(); if(!srcMap[k]) srcMap[k]=c.replace(/\b\w/g,m=>m.toUpperCase()); } });
+    const srcs=Object.values(srcMap).sort();
     const stages=[...new Set(recs.map(r=>r.status).filter(Boolean))].sort();
     $("#fSource").innerHTML='<option value="">All sources</option>'+srcs.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
     $("#fStage").innerHTML='<option value="">All stages</option>'+stages.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
@@ -128,7 +131,7 @@
     const q=filter.trim().toLowerCase();
     let base = fAll ? recs : latestPerLead(recs);
     let shown = base.filter(r=>
-      (!fSource || r.source===fSource) &&
+      (!fSource || String(r.source||"").trim().replace(/\s+/g,' ').toLowerCase()===fSource.toLowerCase()) &&
       (!fStage  || r.status===fStage) &&
       (!q || [r.name,r.phone,r.event_type,r.source,r.action].some(v=>String(v||"").toLowerCase().includes(q))));
     if(!shown.length){ $("#rows").innerHTML = recs.length

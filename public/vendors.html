@@ -96,7 +96,7 @@
     <button id="newBtn" class="btn primary" hidden>＋ Add partner</button>
   </div>
 
-  <div id="grid" class="grid"><div class="empty">Loading…</div></div>
+  <div id="grid" class="grid"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
   </main>
   <footer>Helm Events — your outside partners, ready to fill the gaps your in-house team can't.</footer>
 </div>
@@ -160,7 +160,7 @@
       if(b.vendor_id!==vid || b.status==="cancelled") return;
       if(seen.has(b.quote_id)) return; seen.add(b.quote_id);
       const q=QMAP[b.quote_id]; if(!q) return;
-      out.push({ code:q.code||"", client:(q.client&&q.client.name)||"", date:q.event_date||"", status:b.status||"" });
+      out.push({ code:q.code||"", client:(q.client&&q.client.name)||"", date:q.eventDate||"", status:b.status||"" });
     });
     out.sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
     return out;

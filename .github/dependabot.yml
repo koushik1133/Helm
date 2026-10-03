@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # Keep GitHub Actions current (and surface SHA-pin opportunities) — the release
+  # audit found all actions floating on major tags. Weekly PRs, grouped.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        patterns: ["*"]
+    open-pull-requests-limit: 5
+  # npm dependencies (1 prod + dev tooling). Weekly, security + version updates.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      npm:
+        patterns: ["*"]
+    open-pull-requests-limit: 5

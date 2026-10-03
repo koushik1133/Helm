@@ -134,7 +134,7 @@
         <th scope="col">Code</th><th scope="col">Event</th><th scope="col">Client</th><th scope="col">Version</th><th scope="col">Status</th>
         <th scope="col" style="text-align:right">Total</th><th scope="col">Updated</th><th scope="col" style="text-align:right">Actions</th>
       </tr></thead>
-      <tbody id="rows"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
+      <tbody id="rows"><tr><td colspan="8" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
     </table>
   </div>
   </main>
@@ -150,10 +150,10 @@
 
     <div class="seclabel">Client &amp; event</div>
     <div class="grid">
-      <div class="fld"><label for="c_name">Client name</label><input id="c_name" placeholder="Full name"></div>
+      <div class="fld"><label for="c_name">Client name</label><input id="c_name" required placeholder="Full name"></div>
       <div class="fld"><label for="c_company">Company / host</label><input id="c_company" placeholder="Optional"></div>
       <div class="fld"><label for="c_email">Email</label><input id="c_email" type="email" placeholder="name@email.com"></div>
-      <div class="fld"><label for="c_phone">Phone</label><input id="c_phone" placeholder="+91…"></div>
+      <div class="fld"><label for="c_phone">Phone</label><input id="c_phone" type="tel" inputmode="tel" placeholder="+91…"></div>
       <div class="fld"><label for="c_date">Event date</label><input id="c_date" type="date"></div>
       <div class="fld"><label for="c_venue">Venue</label><input id="c_venue" placeholder="Venue name"></div>
       <div class="fld" style="grid-column:1/-1"><label for="c_address">Venue address</label><input id="c_address" placeholder="Address"></div>
@@ -464,6 +464,14 @@
       ["#p_camount",v=>V.money(v,{field:"Catering charge"})],["#p_discount",v=>V.money(v,{field:"Discount"})],["#p_discountPct",v=>V.pct(v,{field:"Discount %"})]];
     for(const [sel,fn] of checks){ const raw=$(sel).value; if(raw==="") continue; const r=fn(raw); if(!r.ok){ errEl.textContent=r.error; errEl.hidden=false; $(sel).focus(); return; } }
     if($("#c_email").value.trim()){ const r=V.email($("#c_email").value); if(!r.ok){ errEl.textContent=r.error; errEl.hidden=false; $("#c_email").focus(); return; } }
+    // Confirming LOCKS a priced snapshot for the client — require client name + a valid
+    // phone first (not required for a plain pricing save/draft, so drafts aren't blocked).
+    if(confirmIt){
+      const nm=$("#c_name").value.trim(), ph=$("#c_phone").value.trim();
+      if(!nm){ errEl.textContent="Client name is required to confirm & lock the quote."; errEl.hidden=false; $("#c_name").focus(); return; }
+      if(!ph){ errEl.textContent="Client phone is required to confirm & lock the quote."; errEl.hidden=false; $("#c_phone").focus(); return; }
+      const pv=V.phone(ph); if(!pv.ok){ errEl.textContent=pv.error; errEl.hidden=false; $("#c_phone").focus(); return; }
+    }
     errEl.hidden=true;
     if(confirmIt){ const tt=calcPricing(gatherPricing()); const code=(detailCache[cmId]&&detailCache[cmId].code)||"this quote";
       if(!(await BPUI.confirm(`Confirm ${code} at ${inr(tt.total)}? This locks a priced snapshot for the client.`,{title:"Confirm & lock quote?",okLabel:"Confirm & lock"}))) return; }

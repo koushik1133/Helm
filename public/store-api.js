@@ -701,8 +701,15 @@
       if (expectedUpdatedAt) q = q.eq("updated_at", expectedUpdatedAt);
       const { data, error } = await q.select();
       if (error) throw error;
-      if (expectedUpdatedAt && (!data || data.length === 0)) {
-        const e = new Error("This event was changed by someone else since you opened it. Reload to get the latest, then reapply your change."); e.code = "CONFLICT"; throw e;
+      // FAIL CLOSED: an update that changed NO rows must never report success — otherwise
+      // the UI flashes "Saved ✓" while nothing persisted and the data is lost on reload
+      // (QA H-01). With an optimistic-lock token a 0-row result means a concurrent edit;
+      // without one it means the write didn't land (lost access / row gone / RLS).
+      if (!data || data.length === 0) {
+        if (expectedUpdatedAt) {
+          const e = new Error("This event was changed by someone else since you opened it. Reload to get the latest, then reapply your change."); e.code = "CONFLICT"; throw e;
+        }
+        const e = new Error("Couldn't save — the change didn't reach the server. Reload the page and try again."); e.code = "NOT_SAVED"; throw e;
       }
       return Array.isArray(data) ? data[0] : data;
     },
@@ -857,9 +864,14 @@
   };
 
   /* ---------------- control center: pricing config, vendors, coupons ---------------- */
+  const PRICING_DEFAULTS = { chairPrice:200, platePrice:500, gstPct:18, serviceChargePct:0, currency:"INR", conflictBufferHours:3 };
   const config = {
-    getPricing: () => rpc("get_pricing_config"),
-    setPricing: (p) => rpc("set_pricing_config", { p }),
+    getPricing: () => mode === "supabase"
+      ? rpc("get_pricing_config")
+      : Promise.resolve(Object.assign({}, PRICING_DEFAULTS, (() => { try { return JSON.parse(localStorage.getItem("bp_pricing_cfg") || "{}"); } catch (e) { return {}; } })())),
+    setPricing: (p) => mode === "supabase"
+      ? rpc("set_pricing_config", { p })
+      : Promise.resolve((localStorage.setItem("bp_pricing_cfg", JSON.stringify(p || {})), p)),
   };
 
   /* ---------------- ONE shared pricing engine (Phase 66) ----------------
@@ -1044,6 +1056,19 @@
       if (l.quote_id) return { id: l.quote_id };
       const code = quotes.nextCode(await lsq.list());
       const q = await lsq.create(code, (l.name || "Untitled") + (l.event_type ? " — " + l.event_type : ""), l.event_type, { items: [] }, 0);
+      // Carry the lead's contact details into the new quote's client — mirrors the
+      // production convert_lead_to_quote RPC so local mode behaves the same (the quote
+      // opens pre-filled instead of blank).
+      try {
+        const client = {};
+        if (l.name) client.name = l.name;
+        if (l.phone) client.phone = l.phone;
+        if (l.email) client.email = l.email;
+        const g = (l.guest_count != null ? l.guest_count : l.guests);
+        if (g != null && g !== "") client.guests = g;
+        if (l.budget != null && l.budget !== "") client.budget = l.budget;
+        await lsq.updateMeta(q.id, { client, eventType: l.event_type || null, eventDate: l.event_date || null });
+      } catch (e) {}
       l.status = "quoted"; l.quote_id = q.id; l.updated_at = now(); writeLeadsLs(a); pushArchiveLs("converted", l); return q;
     },
     // Read the immutable CRM archive (all snapshots, or just one lead's history).
@@ -1192,13 +1217,22 @@
       return readLs(PROP_LS).find((p) => p.quote_id === quoteId) || null;
     },
     async save(quoteId, p) {
+      // Preserve any field the caller OMITS by merging with what's already saved. Without
+      // this, saving the proposal from the workspace (flow.html sends only concept/theme/
+      // scope) would wipe the colour palette and reference images the planner set on the
+      // Proposal screen — set_proposal and the local upsert both overwrite the whole row.
+      let cur = {};
+      try { cur = (await this.get(quoteId)) || {}; } catch (e) { cur = {}; }
+      const pick = (k, dflt) => (p[k] !== undefined ? p[k] : (cur[k] !== undefined && cur[k] !== null ? cur[k] : dflt));
+      const merged = { concept: pick("concept", null), theme: pick("theme", null),
+        scope: pick("scope", []), palette: pick("palette", []), images: pick("images", []) };
       if (mode === "supabase") {
-        return rpc("set_proposal", { p_quote_id: quoteId, p_concept: p.concept || null, p_theme: p.theme || null,
-          p_palette: p.palette || [], p_images: p.images || [], p_scope: p.scope || [] });
+        return rpc("set_proposal", { p_quote_id: quoteId, p_concept: merged.concept || null, p_theme: merged.theme || null,
+          p_palette: merged.palette || [], p_images: merged.images || [], p_scope: merged.scope || [] });
       }
       const a = readLs(PROP_LS).filter((x) => x.quote_id !== quoteId);
-      const cur = readLs(PROP_LS).find((x) => x.quote_id === quoteId) || {};
-      const row = { quote_id: quoteId, share_token: cur.share_token || null, published: cur.published || false, ...p, updated_at: now() };
+      const curLs = readLs(PROP_LS).find((x) => x.quote_id === quoteId) || {};
+      const row = { quote_id: quoteId, share_token: curLs.share_token || null, published: curLs.published || false, ...merged, updated_at: now() };
       a.push(row); localStorage.setItem(PROP_LS, JSON.stringify(a)); return row;
     },
     async publish(quoteId, published) {
@@ -1649,7 +1683,25 @@
   // A public "digital invitation" website for a CONFIRMED event. All manager-side
   // reads/writes are org-scoped by RLS; the ONLY anon path is public(slug), which
   // hits a SECURITY DEFINER read that returns display fields of a PUBLISHED site.
+  // Invitation photos are MAGIC-BYTE validated (never trust the client name/type),
+  // image-only allowlist, size-capped, and stored under a random key. Mirrors the
+  // event-docs `FILE_SNIFF`/`sniffFile` defence below, but restricted to images
+  // (png/jpeg/webp/gif) since these render straight onto the public invite page.
+  const INVITE_IMG_MAX = 8 * 1024 * 1024;                 // 8 MB
+  const INVITE_IMG_SNIFF = [                               // [mime, ext, magic-byte matcher]
+    ["image/png",  "png",  (b) => b[0]===0x89 && b[1]===0x50 && b[2]===0x4E && b[3]===0x47],           // \x89PNG
+    ["image/jpeg", "jpg",  (b) => b[0]===0xFF && b[1]===0xD8 && b[2]===0xFF],                          // JPEG SOI
+    ["image/webp", "webp", (b) => b[0]===0x52 && b[1]===0x49 && b[2]===0x46 && b[3]===0x46 && b[8]===0x57 && b[9]===0x45 && b[10]===0x42 && b[11]===0x50], // RIFF....WEBP
+    ["image/gif",  "gif",  (b) => b[0]===0x47 && b[1]===0x49 && b[2]===0x46 && b[3]===0x38 && (b[4]===0x37 || b[4]===0x39) && b[5]===0x61], // GIF87a / GIF89a
+  ];
+  async function sniffInviteImage(file) {
+    const buf = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+    for (const [mime, ext, ok] of INVITE_IMG_SNIFF) { if (ok(buf)) return { mime, ext }; }
+    return null;
+  }
+
   const sites = {
+    INVITE_IMG_LABEL: "PNG, JPG, WEBP or GIF, up to 8 MB",
     // manager side (authenticated, RLS-scoped) ----------------------------------
     async forQuote(quoteId) { if (!supa) return null;
       const { data, error } = await supa.from("event_sites").select("*").eq("quote_id", quoteId).maybeSingle();
@@ -1665,11 +1717,19 @@
     // Path is prefixed with the org id so storage RLS keeps tenants isolated.
     async uploadPhoto(quoteId, file) {
       if (!supa) throw new Error("Supabase not configured");
+      if (!file) throw new Error("no file");
+      if (file.size > INVITE_IMG_MAX) throw new Error("Image too large (max 8 MB).");
+      // Validate by MAGIC BYTES — never trust the client-declared type or extension.
+      const sniff = await sniffInviteImage(file);
+      if (!sniff) throw new Error("Unsupported image type — allowed: " + this.INVITE_IMG_LABEL + ".");
       const orgId = await org.id();
       if (!orgId) throw new Error("no organization in context");
-      const ext = ((file && file.name || "").split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-      const path = orgId + "/" + quoteId + "/" + Date.now() + "-" + Math.random().toString(36).slice(2, 8) + "." + ext;
-      const { error } = await supa.storage.from("invite-media").upload(path, file, { upsert: false, contentType: (file && file.type) || undefined });
+      // Random object key; the client filename is discarded. Extension + content-type
+      // come from the sniff, not from anything the client declared.
+      const uuid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID()
+        : Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
+      const path = orgId + "/" + quoteId + "/" + uuid + "." + sniff.ext;
+      const { error } = await supa.storage.from("invite-media").upload(path, file, { upsert: false, contentType: sniff.mime });
       if (error) throw error;
       const { data } = supa.storage.from("invite-media").getPublicUrl(path);
       return data.publicUrl;
@@ -1836,7 +1896,7 @@
   const calendar = {
     // Pull every commitment across all events and detect date clashes.
     async load() {
-      const [events, invRes, vendorBk, items, team, vends, tasks, plans] = await Promise.all([
+      const [events, invRes, vendorBk, items, team, vends, tasks, plans, pricingCfg] = await Promise.all([
         quotes.list(),
         inventory.reservations().catch(() => []),
         bookings.listAll().catch(() => []),
@@ -1854,6 +1914,7 @@
           const { data, error } = await supa.from("event_plan").select("quote_id,venue_name,venue_address");
           if (error) throw error; return data;
         })().catch(() => []),
+        config.getPricing().catch(() => ({})),   // for the venue-clash buffer (parallel, no extra round-trip)
       ]);
       const evById = {}; events.forEach((e) => { evById[e.id] = e; });
       const itemById = {}; items.forEach((i) => { itemById[i.id] = i; });
@@ -1911,22 +1972,45 @@
       });
       // 4) venue double-booking: two DIFFERENT events sharing the SAME date + time + venue name + venue address.
       //    All four must be present and equal — a match on fewer fields is NOT a conflict.
+      //    A venue can host back-to-back events if there's enough of a gap between their
+      //    start times (e.g. one at 3pm, the next at 6pm). So we only flag a clash when two
+      //    different events at the SAME venue on the SAME day start CLOSER together than the
+      //    buffer. The buffer (hours) is set in Control Center → Pricing (conflictBufferHours,
+      //    default 3). If an event has no start time we can't measure the gap, so we flag it
+      //    to review rather than silently miss it. Venue identity matches on name, or address
+      //    when the name is blank (no longer requires BOTH to be filled).
+      let bufferHours = 3;
+      { const _b = Number(pricingCfg && pricingCfg.conflictBufferHours); if (isFinite(_b) && _b >= 0) bufferHours = _b; }
+      const bufferMin = bufferHours * 60;
       const vnorm = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
-      const byVenueSlot = {};
+      const toMin = (t) => { const m = /^(\d{1,2}):(\d{2})/.exec(String(t || "")); return m ? (+m[1] * 60 + +m[2]) : null; };
+      const byVenueDay = {};
       events.forEach((e) => {
-        const d = e.eventDate, t = e.eventTime; const v = venueOf(e);
-        if (!d || !t || !vnorm(t) || !vnorm(v.name) || !vnorm(v.address)) return; // need date + time + venue name + address
-        const k = [d, vnorm(t), vnorm(v.name), vnorm(v.address)].join("||");
-        (byVenueSlot[k] = byVenueSlot[k] || []).push(e);
+        const d = e.eventDate; const v = venueOf(e);
+        const vkey = vnorm(v.name) || vnorm(v.address);     // name preferred, address as fallback
+        if (!d || !vkey) return;                             // need a date + some venue identity
+        const k = d + "||" + vkey;
+        (byVenueDay[k] = byVenueDay[k] || []).push(e);
       });
-      Object.values(byVenueSlot).forEach((list) => {
-        const ids = [...new Set(list.map((e) => e.id))];
-        if (ids.length > 1) {
-          const first = evById[ids[0]]; const v = venueOf(first);
-          conflicts.push({ type: "venue", date: first.eventDate, label: v.name || "Venue",
-            detail: `${ids.length} events booked at ${v.name} on ${first.eventDate} at ${first.eventTime} (same venue, address & time)`,
-            events: ids.map((q) => evById[q]) });
+      Object.values(byVenueDay).forEach((list) => {
+        const uniq = [...new Map(list.map((e) => [e.id, e])).values()];
+        if (uniq.length < 2) return;
+        const clashing = new Set(); let hasTimeClash = false, hasNoTime = false;
+        for (let i = 0; i < uniq.length; i++) {
+          for (let j = i + 1; j < uniq.length; j++) {
+            const ti = toMin(uniq[i].eventTime), tj = toMin(uniq[j].eventTime);
+            if (ti == null || tj == null) { hasNoTime = true; clashing.add(uniq[i].id); clashing.add(uniq[j].id); }
+            else if (Math.abs(ti - tj) < bufferMin) { hasTimeClash = true; clashing.add(uniq[i].id); clashing.add(uniq[j].id); }
+          }
         }
+        if (clashing.size < 2) return;
+        const ev = uniq.filter((e) => clashing.has(e.id));
+        const v = venueOf(ev[0]); const vname = v.name || v.address || "Venue";
+        conflicts.push({ type: "venue", date: ev[0].eventDate, label: vname,
+          detail: hasTimeClash
+            ? `${ev.length} events at ${vname} on ${ev[0].eventDate} within ${bufferHours}h of each other`
+            : `${ev.length} events at ${vname} on ${ev[0].eventDate} — set start times to check the ${bufferHours}h gap`,
+          events: ev });
       });
 
       // ---- per-event commitment rollup (for the agenda) ----
@@ -2156,9 +2240,14 @@
       const all = await this.list(); const t = (all || []).find((x) => x.id === templateId);
       if (!t) throw new Error("template not found");
       const items = Array.isArray(t.items) ? t.items : [];
+      // Idempotent apply: skip titles already on this event's checklist SECTION, so
+      // re-applying a template (or applying one twice) doesn't duplicate every item.
+      const have = new Set();
+      try { const cur = await checklist.list(quoteId, t.section); (cur || []).forEach((c) => { if (c && c.title) have.add(String(c.title).trim().toLowerCase()); }); } catch (e) {}
       let added = 0;
       for (const it of items) { const title = typeof it === "string" ? it : (it && it.title); if (!title) continue;
-        await checklist.add(quoteId, { section: t.section, title }); added++; }
+        const key = String(title).trim().toLowerCase(); if (have.has(key)) continue;
+        await checklist.add(quoteId, { section: t.section, title }); have.add(key); added++; }
       return added;
     },
   };
@@ -2459,10 +2548,19 @@
   };
   const settlement = {
     async summary(quoteId) {
-      const [b, ms, bk, exp] = await Promise.all([
+      const [b, ms, bk, exp, pays] = await Promise.all([
         budget.summary(quoteId), milestones.list(quoteId), bookings.list(quoteId), expenses.list(quoteId),
+        milestones.payments(quoteId).catch(() => []),
       ]);
-      const received = ms.filter((m) => m.status === "paid").reduce((a, m) => a + Number(m.amount || 0), 0);
+      // "Received" = money actually collected, summed from the quote_payments LEDGER —
+      // the single source of truth that holds EVERY receipt (both the advance and any
+      // settlement/cash payment). The old code summed milestone STATUS, so a recorded
+      // settlement payment (which writes quote_payments with no milestone) never counted,
+      // leaving Balance due overstated. Fall back to paid milestones only if the ledger
+      // is unavailable.
+      const fromLedger = (pays || []).filter((p) => p.status === "paid").reduce((a, p) => a + Number(p.amount || 0), 0);
+      const fromMilestones = ms.filter((m) => m.status === "paid").reduce((a, m) => a + Number(m.amount || 0), 0);
+      const received = (pays && pays.length) ? fromLedger : fromMilestones;
       const revenue = b.revenue, balance = revenue - received;
       const vend = bk.filter((x) => x.status !== "cancelled");
       const vendorCost = vend.reduce((a, x) => a + Number(x.cost || 0), 0);
@@ -2777,6 +2875,8 @@
     /* boot skeleton / spinner / error */
     ".bpui-boot-overlay{background:var(--bpui-veil);flex-direction:column;gap:12px;color:var(--bpui-ink)}",
     ".bpui-spin{width:36px;height:36px;border-radius:50%;border:3px solid var(--bpui-line);border-top-color:var(--bpui-accent);box-sizing:border-box}",
+    ".bpui-spin2{display:inline-block;width:15px;height:15px;border-radius:50%;border:2px solid var(--bpui-line);border-top-color:var(--bpui-accent);box-sizing:border-box;vertical-align:-2px}",
+    ".bpui-loading{display:inline-flex;align-items:center;gap:7px;color:var(--bpui-ink-2);justify-content:center}",
     ":where(#boot){display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:40vh;padding:24px;color:var(--bpui-ink-2)}",
     ":where(#boot[hidden]){display:none}",
     ":where(#boot:empty)::before{content:'';width:36px;height:36px;border-radius:50%;border:3px solid var(--bpui-line);border-top-color:var(--bpui-accent);box-sizing:border-box}",
@@ -2787,7 +2887,7 @@
     "[aria-busy=true].bpui-busy{cursor:progress}",
     "@media (prefers-reduced-motion:no-preference){",
     ".bpui-overlay{animation:bpuiFade .14s ease-out}.bpui-dialog{animation:bpuiPop .16s ease-out}",
-    ".bpui-toast{animation:bpuiUp .18s ease-out}.bpui-spin,:where(#boot:empty)::before{animation:bpuiSpin .8s linear infinite}",
+    ".bpui-toast{animation:bpuiUp .18s ease-out}.bpui-spin,.bpui-spin2,:where(#boot:empty)::before{animation:bpuiSpin .8s linear infinite}",
     ".bpui-boot-overlay{animation:bpuiFade .2s ease-out}}",
     "@keyframes bpuiFade{from{opacity:0}to{opacity:1}}",
     "@keyframes bpuiPop{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}",
@@ -2846,9 +2946,18 @@
     return c === "42P01" || c === "PGRST205" ||
       /relation ["'][^"']*["'] does not exist|relation \S+ does not exist|could not find the table/i.test(m);
   }
+  // "RPC not deployed" — the function the UI called does not exist in the API /
+  // schema cache yet. PostgREST answers a missing RPC with HTTP 404 + code
+  // PGRST202 ("Could not find the function … in the schema cache"); Postgres
+  // raises 42883. A bare 404 is NOT enough (that is a missing row/route — see
+  // isNotFound): only a 404 whose message points at a function / schema-cache
+  // miss counts here, so this never swallows an ordinary not-found.
   function isMissingFunction(e) {
     var c = errCode(e), m = errMsg(e);
-    return c === "PGRST202" || c === "42883" || /could not find the function|function \S+ does not exist/i.test(m);
+    if (c === "PGRST202" || c === "42883") return true;
+    if (/could not find the function|function \S+ does not exist/i.test(m)) return true;
+    if (errStatus(e) === 404 && /function|schema cache/i.test(m)) return true;
+    return false;
   }
   function isAuthError(e) {
     if (!e) return false;
@@ -3403,6 +3512,8 @@
     alert: alertDlg, confirm: confirmDlg, prompt: promptDlg,
     guard: guard,
     isNotFound: isNotFound, isMissingTable: isMissingTable, isMissingFunction: isMissingFunction,
+    // readable alias for pages that branch on "the RPC this UI needs isn't deployed"
+    isRpcMissing: isMissingFunction,
     isAuthError: isAuthError, isNetworkError: isNetworkError, isPermissionError: isPermissionError,
     friendlyError: friendlyError,
     loadError: loadError,
@@ -3495,20 +3606,127 @@
       var mn = el.getAttribute("min"), mx = el.getAttribute("max");
       if (mn !== null && mn !== "" && n < Number(mn)) n = Number(mn);
       if (mx !== null && mx !== "" && n > Number(mx)) n = Number(mx);
+      // Default sanity cap (QA H-06): no realistic money/qty/count field exceeds a
+      // trillion, and values past Number.MAX_SAFE_INTEGER silently lose precision.
+      // Fields that genuinely need more set their own higher max=.
+      else if ((mx === null || mx === "") && n > 1e12) n = 1e12;
       if (integer) n = Math.trunc(n);
       var s = String(n);
       if (s !== el.value) { el.value = s; el.dispatchEvent(new Event("change", { bubbles: true })); }
     };
     el.addEventListener("blur", fix);
   }
+
+  // ---- phone hardener: digits only (plus one optional leading +) --------
+  // Phone fields are type="tel"/inputmode="tel". Browsers do NOT restrict what
+  // you can type into a tel input, so letters/symbols used to be accepted and
+  // only caught on save. This live-strips every keystroke/paste down to a single
+  // optional leading '+' and digits, caps the length, and leaves the final
+  // range check to BPStore.validate.phone (7–15 digits). It never reformats
+  // beyond stripping, so existing +91… numbers keep working.
+  function isPhone(el) {
+    return el.tagName === "INPUT" && (el.type === "tel" || (el.getAttribute("inputmode") || "").toLowerCase() === "tel");
+  }
+  function hardenPhone(el) {
+    if (el.getAttribute("data-phone-hardened") === "1") return;
+    el.setAttribute("data-phone-hardened", "1");
+    if (!el.getAttribute("inputmode")) el.setAttribute("inputmode", "tel");
+    if (!el.getAttribute("maxlength")) el.setAttribute("maxlength", "16"); // +<country>+<=15 digits
+    var maxLen = parseInt(el.getAttribute("maxlength") || "16", 10) || 16;
+    var clean = function () {
+      var v = String(el.value);
+      // keep a single leading +, then digits only
+      var lead = v.charAt(0) === "+" ? "+" : "";
+      var digits = v.replace(/[^\d]/g, "");
+      var next = lead + digits;
+      // HARD cap the length — maxlength alone doesn't apply to a programmatic value
+      // rewrite (or to a paste of letters+digits that strips down), so enforce it here.
+      if (next.length > maxLen) next = next.slice(0, maxLen);
+      if (next !== el.value) {
+        var atEnd = el.selectionStart === el.value.length;
+        el.value = next;
+        if (atEnd) { try { el.setSelectionRange(next.length, next.length); } catch (e) {} }
+      }
+    };
+    el.addEventListener("input", clean);
+    el.addEventListener("blur", clean);
+  }
+
+  // ---- required-field marker: a real "*" beside the label + aria-required
+  // Any field explicitly marked required (required / aria-required="true" /
+  // data-required) gets a visible red "*" appended to its <label> (idempotent —
+  // never doubles up), and aria-required so assistive tech announces it. The
+  // asterisk carries aria-hidden so screen readers hear "required", not "star".
+  function labelFor(el) {
+    var id = el.id;
+    if (id) { var l = document.querySelector('label[for="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]'); if (l) return l; }
+    var p = el.closest && el.closest("label");
+    return p || null;
+  }
+  function markRequired(el) {
+    if (el.getAttribute("data-req-marked") === "1") return;
+    var req = el.hasAttribute("required") || el.getAttribute("aria-required") === "true" || el.hasAttribute("data-required");
+    if (!req) return;
+    el.setAttribute("data-req-marked", "1");
+    el.setAttribute("aria-required", "true");
+    var lab = labelFor(el);
+    if (lab && lab.querySelector(".req-star")) return;      // already has one
+    if (lab && lab.textContent.indexOf("*") !== -1) return;  // author already wrote a *
+    if (lab) {
+      var star = document.createElement("span");
+      star.className = "req-star"; star.setAttribute("aria-hidden", "true"); star.textContent = " *";
+      lab.appendChild(star);
+    }
+  }
+
+  // ---- date hardener: reject implausible years (QA H-03) --------------------
+  // A native date input still accepts typed/pasted years like 0026 or 61115. We
+  // bound every date field to a sane window (2000–2100 by default — covers any
+  // real event, birthday or anniversary) and clear an out-of-range value so a
+  // nonsense year can't be saved or propagated. A field needing a different window
+  // sets its own min=/max=.
+  var DATE_MIN = "2000-01-01", DATE_MAX = "2100-12-31";
+  function hardenDate(el) {
+    if (el.getAttribute("data-date-hardened") === "1") return;
+    el.setAttribute("data-date-hardened", "1");
+    if (!el.getAttribute("min")) el.setAttribute("min", DATE_MIN);
+    if (!el.getAttribute("max")) el.setAttribute("max", DATE_MAX);
+    var lo = el.getAttribute("min"), hi = el.getAttribute("max");
+    var fix = function () {
+      var v = el.value; if (!v) return;
+      var y = parseInt(String(v).slice(0, 4), 10);
+      if (!isFinite(y) || y < 2000 || y > 2100 || (v < lo) || (v > hi)) {
+        el.value = ""; el.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    };
+    el.addEventListener("blur", fix); el.addEventListener("change", fix);
+  }
+
   function scan(root) {
-    try { (root || document).querySelectorAll('input[type="number"]:not([data-hardened])').forEach(harden); } catch (e) {}
+    var r = root || document;
+    try { r.querySelectorAll('input[type="number"]:not([data-hardened])').forEach(harden); } catch (e) {}
+    try { r.querySelectorAll('input[type="tel"]:not([data-phone-hardened]), input[inputmode="tel"]:not([data-phone-hardened])').forEach(hardenPhone); } catch (e) {}
+    try { r.querySelectorAll('input[type="date"]:not([data-date-hardened])').forEach(hardenDate); } catch (e) {}
+    try { r.querySelectorAll('[required]:not([data-req-marked]), [aria-required="true"]:not([data-req-marked]), [data-required]:not([data-req-marked])').forEach(markRequired); } catch (e) {}
   }
   function boot() {
+    try {
+      var st = document.createElement("style");
+      st.textContent = ".req-star{color:var(--danger,#c0392b);font-weight:700}";
+      document.head.appendChild(st);
+    } catch (e) {}
     scan(document);
     try {
       var mo = new MutationObserver(function (muts) {
-        muts.forEach(function (m) { Array.prototype.forEach.call(m.addedNodes || [], function (nd) { if (nd.nodeType === 1) { if (nd.matches && nd.matches('input[type="number"]')) harden(nd); scan(nd); } }); });
+        muts.forEach(function (m) { Array.prototype.forEach.call(m.addedNodes || [], function (nd) {
+          if (nd.nodeType === 1) {
+            if (nd.matches && nd.matches('input[type="number"]')) harden(nd);
+            if (nd.matches && isPhone(nd)) hardenPhone(nd);
+            if (nd.matches && nd.matches('input[type="date"]')) hardenDate(nd);
+            if (nd.matches && (nd.hasAttribute("required") || nd.getAttribute("aria-required") === "true" || nd.hasAttribute("data-required"))) markRequired(nd);
+            scan(nd);
+          }
+        }); });
       });
       mo.observe(document.documentElement, { childList: true, subtree: true });
     } catch (e) {}

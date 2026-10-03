@@ -121,10 +121,10 @@
           <h2><span class="step-n">1</span> Client &amp; event <span class="saved" id="sv-client">Saved ✓</span></h2>
           <p class="sub">Auto-filled from the lead. Everything below is one flow — no jumping between screens.</p>
           <div class="grid">
-            <div class="fld"><label for="c_name">Client name</label><input id="c_name"></div>
+            <div class="fld"><label for="c_name">Client name</label><input id="c_name" required></div>
             <div class="fld"><label for="c_company">Company (optional)</label><input id="c_company"></div>
             <div class="fld"><label for="c_email">Email</label><input id="c_email" type="email"></div>
-            <div class="fld"><label for="c_phone">Phone</label><input id="c_phone"></div>
+            <div class="fld"><label for="c_phone">Phone</label><input id="c_phone" type="tel" inputmode="tel" required></div>
             <div class="fld"><label for="c_type">Event type</label><input id="c_type" list="eventTypeList" placeholder="Pick or type a new one…"><datalist id="eventTypeList"></datalist></div>
             <div class="fld"><label for="c_date">Event date</label><input id="c_date" type="date"></div>
             <div class="fld"><label for="c_guests">Guests</label><input id="c_guests" type="number" min="0"></div>
@@ -151,7 +151,7 @@
         <section class="card" id="sec-reqs">
           <h2><span class="step-n">3</span> Requirements</h2>
           <p class="sub">The services the client wants.</p>
-          <div id="reqList"><div class="meta">Loading…</div></div>
+          <div id="reqList"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
           <div class="row3" style="margin-top:10px">
             <input id="rq_title" list="reqTypeList" aria-label="Requirement" class="fld" style="height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px" placeholder="Pick or type a new one…"><datalist id="reqTypeList"></datalist>
             <select id="rq_pri" aria-label="Requirement priority" style="height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 8px"><option value="mandatory">Must-have</option><option value="optional">Optional</option><option value="nice">Nice-to-have</option></select>
@@ -175,7 +175,7 @@
         <section class="card" id="sec-menu">
           <h2><span class="step-n">5</span> Menu package <span class="saved" id="sv-menu">Saved ✓</span></h2>
           <p class="sub">Pick a package — it pre-fills the dishes and drives the catering price.</p>
-          <div class="pkgcards" id="pkgCards"><div class="meta">Loading…</div></div>
+          <div class="pkgcards" id="pkgCards"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
           <div class="fld full" style="margin-top:12px"><label for="p_menu">Menu / service notes</label><textarea id="p_menu" placeholder="Courses, dietary options, service style, timings…"></textarea></div>
         </section>
 
@@ -245,14 +245,14 @@
           </div>
           <div class="fld" id="pay_receiptWrap"><label for="pay_receipt">Receipt no. (offline — blank to auto‑generate)</label><input id="pay_receipt" placeholder="e.g. RCP‑001 / cash memo no."></div>
           <div id="pay_online" style="display:none;font-size:12px;color:var(--ink-3);margin-top:6px"></div>
-          <div id="pay_receipts" style="margin-top:12px"><div class="meta">Loading…</div></div>
+          <div id="pay_receipts" style="margin-top:12px"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
         </section>
 
         <!-- ACTIVITY TRAIL -->
         <section class="card" id="sec-activity">
           <h2>Activity trail</h2>
           <p class="sub">Every change kept on record — quote versions, discounts, advances, receipts, consents, messages.</p>
-          <div id="activityList" style="font-size:13px"><div class="meta">Loading…</div></div>
+          <div id="activityList" style="font-size:13px"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
         </section>
 
       </div>
@@ -333,6 +333,7 @@
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   let ev=null, rates={chairPrice:200,platePrice:500,gstPct:18,layoutBase:0,serviceChargePct:0,assetPrices:null};
   let packages=[], plan=null, appliedPkg=null, layoutItems=[], canEdit=false;
+  let qGuestsOverridden=false;   // H-02: true once the user edits the Quotation guest count directly
   const REMIND_KEY = "bp_flow_remind_"+id;
   // ---- unsaved-changes tracking ----
   // `loading` is true while loadAll() prefills the form so programmatic fills
@@ -491,7 +492,12 @@
       phone:$("#c_phone").value.trim(),
       guests:$("#c_guests").value!==""?+$("#c_guests").value:null, budget:$("#c_budget").value!==""?+$("#c_budget").value:null,
       eventDate:$("#c_date").value||null });
-    if($("#q_guests").value==="" && ev.client.guests!=null){ $("#q_guests").value=ev.client.guests; }
+    // H-02: Client guests is the single source of truth — flow it forward to the Layout
+    // (#g_guests) and Quotation (#q_guests) fields so all three agree. Skip #q_guests only
+    // if the user manually overrode it there.
+    var gv=$("#c_guests").value;
+    if($("#g_guests")) $("#g_guests").value=gv;
+    if(!qGuestsOverridden && $("#q_guests")) $("#q_guests").value=gv;
   }
   function syncVenueMem(){ ev.client=Object.assign({}, ev.client||{}, { venue:$("#v_name").value.trim()||null, address:$("#v_addr").value.trim()||null }); }
   // Persist every section that used to auto-save. saveVenue() also writes the
@@ -605,7 +611,7 @@
   /* ---------- requirements ---------- */
   async function renderReqs(){
     let reqs=[]; try{ reqs=(await BPStore.discovery.listReqs(id))||[]; }catch(e){ BPUI.loadError($("#reqList"), e, renderReqs, {what:"requirements"}); return; }
-    $("#reqList").innerHTML = reqs.length? reqs.map(r=>`<div class="rowline"><span class="g">${esc(r.title)}</span><span class="pill">${esc(r.priority||"")}</span><button type="button" class="rm" data-del="${esc(r.id)}" data-name="${esc(r.title)}" aria-label="Remove requirement ${esc(r.title)}">×</button></div>`).join("")
+    $("#reqList").innerHTML = reqs.length? reqs.map(r=>{ const svc=r.service||r.title||""; return `<div class="rowline"><span class="g">${esc(svc)}</span><span class="pill">${esc(r.priority||"")}</span><button type="button" class="rm" data-del="${esc(r.id)}" data-name="${esc(svc)}" aria-label="Remove requirement ${esc(svc)}">×</button></div>`; }).join("")
       : '<div style="font-size:12px;color:var(--ink-3)">No requirements yet.</div>';
     $("#reqList").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
       if(!(await BPUI.confirm(`Remove the requirement "${b.dataset.name}"?`,{title:"Remove requirement?",okLabel:"Remove",danger:true}))) return;
@@ -632,7 +638,7 @@
   }
 
   /* ---------- progress ---------- */
-  const STEPS=[["client","1 · Client"],["discovery","2 · Discovery"],["reqs","3 · Requirements"],["venue","4 · Venue"],["menu","5 · Menu"],["layout","6 · Layout"],["proposal","7 · Proposal"],["quote","8 · Quotation"]];
+  const STEPS=[["client","1 · Client"],["discovery","2 · Discovery"],["reqs","3 · Requirements"],["venue","4 · Venue"],["menu","5 · Menu"],["proposal","6 · Proposal"],["layout","7 · Layout"],["quote","8 · Quotation"]];
   function updateProgress(){
     const done={ client:!!(ev&&ev.client&&ev.client.name), menu:!!appliedPkg, layout:layoutItems.length>0,
       quote:!!(ev&&ev.pricing&&ev.pricing.total), venue:$("#v_name").value.trim()!=="",
@@ -648,6 +654,14 @@
   }
   async function recordPayment(){
     if(quoteBlocked()){ BPUI.toast("Pricing data didn't load — retry the quotation section before recording a payment.",{type:"err"}); return; }
+    // Recording the advance CONFIRMS the booking — require the client's identity first
+    // (name + a valid phone), since the approval/receipt flow needs a real contact.
+    // Checked only on this deliberate action (never on draft save / save-on-leave), so
+    // it can't lose in-progress typing.
+    { const nm=($("#c_name")?$("#c_name").value:"").trim(), ph=($("#c_phone")?$("#c_phone").value:"").trim();
+      if(!nm){ BPUI.toast("Add the client's name (section 1 · Client) before confirming the booking.",{type:"err"}); if($("#c_name")){ $("#c_name").scrollIntoView({block:"center"}); $("#c_name").focus(); } return; }
+      if(!ph){ BPUI.toast("Add the client's phone (section 1 · Client) before confirming the booking.",{type:"err"}); if($("#c_phone")){ $("#c_phone").scrollIntoView({block:"center"}); $("#c_phone").focus(); } return; }
+      const pv=BPStore.validate.phone(ph); if(!pv.ok){ BPUI.toast(pv.error,{type:"err"}); if($("#c_phone")){ $("#c_phone").focus(); } return; } }
     const method=$("#pay_method").value;
     const vr=BPStore.validate.money($("#pay_amount").value,{field:"Advance amount"});
     if(!vr.ok || !(vr.value>0)){ BPUI.toast(vr.ok?"Enter the advance amount.":vr.error,{type:"err"}); $("#pay_amount").focus(); return; }
@@ -750,7 +764,7 @@
     const oi=BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
     const pr=ev.pricing||{};
     $("#q_chairs").value=pr.chairs!=null?pr.chairs:oi.chairs;
-    $("#q_guests").value=pr.guests!=null?pr.guests:(cl.guests!=null?cl.guests:oi.chairs);
+    $("#q_guests").value=pr.guests!=null?pr.guests:(cl.guests!=null?cl.guests:(oi.chairs||""));  // H-02: empty, not "0", when unknown
     $("#q_platePrice").value=pr.platePrice!=null?pr.platePrice:(appliedPkg?appliedPkg.price_per_plate:rates.platePrice);
     $("#q_other").value=pr.other!=null?pr.other:(oi.objectsCost+(+rates.layoutBase||0));
     $("#q_discount").value=pr.discount||0;
@@ -804,6 +818,7 @@
     ["c_name","c_company","c_email","c_phone","c_type","c_date","c_guests","c_budget"].forEach(f=>$("#"+f).addEventListener("input",()=>{ syncClientMem(); if(f==="c_guests"||f==="c_type") renderPrice(); }));
     ["v_name","v_addr"].forEach(f=>$("#"+f).addEventListener("input",syncVenueMem));
     ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount"].forEach(f=>$("#"+f).addEventListener("input",renderPrice));
+    $("#q_guests").addEventListener("input",()=>{ qGuestsOverridden=true; });   // H-02: user took manual control of the quotation guest count
     $("#q_coupon").addEventListener("input",applyCoupon);   // coupon code → discount
     // dirty tracking: any genuine user input/change anywhere in the quote form
     // flips `dirty` (guarded by `loading` so prefills don't count).
@@ -814,7 +829,7 @@
     $("#q_pdf").addEventListener("click",downloadQuotePDF);
     const addReq=()=>{ const t=$("#rq_title").value.trim(); if(!t){ $("#rq_title").focus(); return; }
       BPUI.guard($("#rq_add"), async()=>{
-        try{ await BPStore.discovery.addReq(id,{ title:t, priority:$("#rq_pri").value }); vocabAdd("reqs",t); fillVocab(); $("#rq_title").value=""; await renderReqs(); }
+        try{ await BPStore.discovery.addReq(id,{ service:t, priority:$("#rq_pri").value }); vocabAdd("reqs",t); fillVocab(); $("#rq_title").value=""; await renderReqs(); }
         catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"add the requirement"}),{type:"err"}); } }); };
     $("#rq_add").addEventListener("click",addReq);
     $("#rq_title").addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); addReq(); } });

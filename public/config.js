@@ -80,6 +80,38 @@ window.SUPABASE_STAGING = {
       window.SUPABASE_CONFIG.anonKey = s.anonKey;
       window.SUPABASE_CONFIG.__staging = true;
       console.info('[Helm] Using the STAGING Supabase project (isolated from production).');
+      markStagingEnv();
+    }
+    // Phase 4 — STAGING VISUAL SAFETY. Reached ONLY from useStaging(), so it can
+    // never fire on a production host → production UX is untouched. CSP-safe
+    // (style-src allows 'unsafe-inline'); every path is wrapped so it can never
+    // break a page, and it is a no-op outside a browser (e.g. the Node routing
+    // tests), where `document` is undefined.
+    function markStagingEnv() {
+      try {
+        if (typeof document === 'undefined') return;                 // non-browser (tests) → skip
+        if (document.title && document.title.indexOf(' — STAGING') === -1) {
+          document.title = document.title + ' — STAGING';            // "… — STAGING" (idempotent)
+        }
+        var inject = function () {
+          try {
+            if (!document.body || document.getElementById('helm-staging-badge')) return; // idempotent
+            document.documentElement.setAttribute('data-helm-env', 'staging');
+            var b = document.createElement('div');
+            b.id = 'helm-staging-badge';
+            b.setAttribute('role', 'status');
+            b.textContent = 'STAGING — test environment · not production';
+            b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;' +
+              'background:#b45309;color:#fff;font:600 12px/1.7 system-ui,-apple-system,sans-serif;' +
+              'text-align:center;letter-spacing:.04em;padding:2px 8px;pointer-events:none;' +
+              'box-shadow:0 -1px 0 rgba(0,0,0,.25);';
+            document.body.appendChild(b);
+          } catch (e) {}
+        };
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', inject, { once: true });
+        } else { inject(); }
+      } catch (e) { /* visual marker must never break the app */ }
     }
     function failClosed(where) {
       window.SUPABASE_CONFIG.url = '';
@@ -121,6 +153,22 @@ window.SUPABASE_STAGING = {
     if (STAGING_HOSTS[h]) {
       var stg = resolveStaging();
       if (stg) { useStaging(stg); } else { failClosed('the staging host'); }
+      return;
+    }
+
+    // 2b) VERCEL BRANCH-PREVIEW host → STAGING (never production).
+    //     Any *.vercel.app that reached this point is, by construction, NOT one of the
+    //     production aliases: PROD_HOSTS is matched first (step 1) and returns early, so
+    //     helm-v01 / helm-alpha-nine can never fall through to here. Every remaining
+    //     *.vercel.app is a branch/preview deploy (e.g. the harden/pre-react-canonical
+    //     preview alias), which must resolve to STAGING or FAIL CLOSED — it can NEVER
+    //     reach production, and it ignores the localhost→prod opt-in entirely.
+    //     This is a deterministic, host-based rule (no build-time env needed): the
+    //     committed SUPABASE_STAGING block makes resolveStaging() succeed on preview,
+    //     and if staging is blank the host fails closed (blank creds) rather than prod.
+    if (/\.vercel\.app$/.test(h)) {
+      var pv = resolveStaging();
+      if (pv) { useStaging(pv); } else { failClosed('a Vercel branch-preview host'); }
       return;
     }
 

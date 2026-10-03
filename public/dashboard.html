@@ -262,17 +262,17 @@
 
   <section class="events" id="myworkSection" hidden aria-label="Upcoming events and my tasks">
     <div class="head"><h3>Upcoming &amp; my tasks <span id="unreadBadge" class="stat q" hidden></span></h3><span><button type="button" class="linkbtn" id="refreshPending">Refresh</button></span></div>
-    <div id="mywork"><div class="empty">Loading…</div></div>
+    <div id="mywork"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
   </section>
 
   <section class="events" id="mytasksSection" hidden aria-label="My tasks">
     <div class="head"><h3>My tasks <span id="mtTotal" class="stat q" hidden></span></h3><span><button type="button" class="linkbtn" id="refreshMyTasks">Refresh</button></span></div>
-    <div id="mytasks"><div class="empty">Loading…</div></div>
+    <div id="mytasks"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
   </section>
 
   <section class="events">
     <div class="head"><h3>Your quotes</h3><span><a href="quotes.html" style="margin-right:14px">Manage all →</a><button type="button" class="linkbtn" id="refresh">Refresh</button></span></div>
-    <div class="elist" id="elist"><div class="empty">Loading…</div></div>
+    <div class="elist" id="elist"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
   </section>
   </main>
 
@@ -318,6 +318,10 @@
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return "—"; } };
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  // Structured internal diagnostic: console + telemetry only, never rendered to the DOM.
+  const DIAG = { DASH_FALLBACK: "HELM-DASH-FALLBACK" };
+  function diag(code, err) { try { console.error("[Helm] " + code, err); } catch (_) {}
+    try { if (window.HelmTelemetry && HelmTelemetry.report) HelmTelemetry.report(code, err); } catch (_) {} }
 
   function setBadge(mode) {
     const map = { supabase: "Supabase", server: "Server", local: "This browser" };
@@ -449,7 +453,10 @@
     const sec = $("#myworkSection"), host = $("#mywork"); if (!sec || !host) return;
     let res; try { res = await getPending(); }
     catch (e) {
-      if (softFail(e)) { sec.hidden = true; return; }
+      // my_pending unavailable (not deployed / no access): controlled fallback — hide the
+      // widget. We do NOT substitute a client-side quotes query (that would bypass the
+      // server-side org/area scoping my_pending enforces). Log a diagnostic, show nothing raw.
+      if (softFail(e)) { if (BPUI.isRpcMissing(e)) diag(DIAG.DASH_FALLBACK, e); sec.hidden = true; return; }
       sec.hidden = false;
       BPUI.loadError(host, e, () => { clearFeed(); return renderPending(); }, { what: "upcoming events" });
       const card = host.firstElementChild; if (card) card.style.gridColumn = "1/-1";
@@ -597,6 +604,10 @@
       await BPUI.guard(btn, async () => {
         const code = BPStore.quotes.nextCode(summaries);
         const q = await BPStore.quotes.create(code, code, null, { items: [] }, 0);
+        // M-04: the client code is only a guess; the server assigns the authoritative code.
+        // Seed the title from the REAL code so the event/project name doesn't show a stale
+        // guessed value (which the builder would otherwise re-persist on save).
+        if (q && q.code && q.code !== q.title) { try { await BPStore.quotes.updateMeta(q.id, { title: q.code }); } catch (e) {} }
         location.href = "flow.html?quote=" + encodeURIComponent(q.id);
       });
     } catch (err) { BPUI.toast(BPUI.friendlyError(err, { action: "start a quote" }), { type: "err" }); }

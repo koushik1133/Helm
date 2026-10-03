@@ -1,0 +1,30 @@
+# Helm canonical deployment manifest — deterministic, forward-only.
+# Columns:  <scope> <path-relative-to-repo-root>
+#   base    = prod-faithful snapshot schema; applied ONLY on a FRESH database.
+#   forward = forward-only hardening migration; applied once, idempotent.
+# Run with scripts/db-migrate.sh (--plan | --apply | --verify).
+# The ledger (public.helm_schema_migrations) makes re-runs idempotent and catches
+# drift. This manifest is the ONLY sanctioned apply order; the deprecated
+# full-schema/complete-setup.sql and ad-hoc phase files are intentionally absent.
+
+# ---- BASE (fresh install only) --------------------------------------------
+# Prod-extracted schema (2026-09-25). On an existing prod/staging DB this is
+# skipped; the forward migrations below bring it to the hardened target state.
+base     supabase/canonical-base/base-v1-2026-09-25.sql
+
+# ---- FORWARD hardening (always, idempotent, in order) ---------------------
+forward  supabase/migrations/0001_pricing_authority.sql
+forward  supabase/migrations/0002_create_helm_user_lockdown.sql
+forward  supabase/migrations/0003_money_integrity.sql
+forward  supabase/migrations/0004_tenant_integrity.sql
+forward  supabase/migrations/0005_least_privilege.sql
+forward  supabase/migrations/0006_rls_access_gates.sql
+forward  supabase/migrations/0007_rpc_authz_guards.sql
+forward  supabase/migrations/0008_feature_designer.sql
+forward  supabase/migrations/0009_feature_tasks_files.sql
+forward  supabase/migrations/0010_feature_settlement_teardown.sql
+forward  supabase/migrations/0011_authz_complete.sql
+forward  supabase/migrations/0012_token_otp_hardening.sql
+forward  supabase/migrations/0013_storage_hardening.sql
+forward  supabase/migrations/0014_advisor_hardening.sql
+forward  supabase/migrations/0015_checkout_overissue_guard.sql

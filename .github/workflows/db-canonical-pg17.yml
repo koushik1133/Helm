@@ -1,0 +1,49 @@
+name: DB canonical (PostgreSQL 17)
+# ============================================================================
+# Gates the canonical migration path + DB behavioral suites on a real PG17.
+# Runs: fresh canonical install, second/idempotent install, pricing parity,
+# auth matrix, tenant-attack matrix, G4 coverage, grants matrix, and the genuine
+# two-session concurrency test. Local-only semantics — never touches staging/prod.
+# ============================================================================
+on:
+  push:
+    branches: [main, 'harden/**']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  db-canonical:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      LC_ALL: C
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Install psql client (17)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      - name: npm ci
+        run: npm ci
+      - name: Run canonical DB suite (fresh install + idempotent + behavioral)
+        run: npm run test:db

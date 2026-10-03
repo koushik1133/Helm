@@ -118,7 +118,7 @@
       <div id="autoMsg" role="status" aria-live="polite"></div>
       <div class="table-scroll"><table style="margin-top:12px">
         <thead><tr><th scope="col">Client</th><th scope="col">Occasion</th><th scope="col">Next date</th><th scope="col">Auto</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
-        <tbody id="occBody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+        <tbody id="occBody"><tr><td colspan="5" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
       </table></div>
     </div>
 
@@ -126,7 +126,7 @@
       <h2>Nurture list <span id="dueCount" style="font-size:12px;color:#b42318;font-weight:600;margin-left:6px"></span></h2>
       <div class="table-scroll"><table>
         <thead><tr><th scope="col">Client</th><th scope="col">Occasion</th><th scope="col">Next follow-up</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
-        <tbody id="nurBody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+        <tbody id="nurBody"><tr><td colspan="5" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
       </table></div>
     </div>
 
@@ -256,10 +256,16 @@
         await renderAuto(); }
       catch(e){ autoMsg("err",BPUI.friendlyError(e,{action:"send the greeting"})); } },{busyLabel:"Sending…"})));
   }
-  async function toggleAuto(){ const V=BPStore.validate; const dr=V.num($("#autoDays").value,{min:0,max:30,integer:true}); if(!dr.ok){ autoMsg("err","Days ahead "+dr.error); return; } try{ await BPStore.nurture.automation.set($("#autoToggle").checked,dr.value);
-      $("#autoState").textContent=$("#autoToggle").checked?"on":"off"; $("#autoState").classList.toggle("greeted",$("#autoToggle").checked);
-      autoMsg("ok","Automation "+($("#autoToggle").checked?"enabled":"disabled")+"."); }
-    catch(e){ autoMsg("err",BPUI.friendlyError(e,{action:"save automation settings"})); } }
+  async function toggleAuto(){ const V=BPStore.validate; const want=$("#autoToggle").checked;
+    // Revert the switch (and its label) to match the PERSISTED state whenever the save is
+    // rejected — otherwise the toggle shows "on" while nothing was saved. Mirrors the
+    // per-contact toggle's revert-on-error.
+    const revert=()=>{ $("#autoToggle").checked=!want; $("#autoState").textContent=(!want)?"on":"off"; $("#autoState").classList.toggle("greeted",!want); };
+    const dr=V.num($("#autoDays").value,{min:0,max:30,integer:true}); if(!dr.ok){ autoMsg("err","Days ahead "+dr.error); revert(); return; }
+    try{ await BPStore.nurture.automation.set(want,dr.value);
+      $("#autoState").textContent=want?"on":"off"; $("#autoState").classList.toggle("greeted",want);
+      autoMsg("ok","Automation "+(want?"enabled":"disabled")+"."); }
+    catch(e){ autoMsg("err",BPUI.friendlyError(e,{action:"save automation settings"})); revert(); } }
 
   /* ---------------- templates ---------------- */
   let TPLS=[], curType="birthday";

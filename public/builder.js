@@ -177,9 +177,12 @@ function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;'
 // quote always show the identical number. Chairs + objects come from the
 // layout; catering = guests × the applied menu package's per-plate price.
 function priceModel(){
+  // Mirror the stored quote's catering MODE so the live panel matches quoteTotal()
+  // (client-provided catering = ₹0). Without this the panel always billed in-house.
   return BPStore.pricing.breakdown(
     { items: store.items, guests: PRICING.guests, menuPlatePrice: PRICING.menuPlatePrice,
-      serviceChargePct: PRICING.serviceChargePct },
+      serviceChargePct: PRICING.serviceChargePct,
+      clientCater: !!(typeof currentPricing!=="undefined" && currentPricing && currentPricing.catering && currentPricing.catering.mode === 'client') },
     PRICING);
 }
 
@@ -437,8 +440,15 @@ function makeItem(type, x, y, overrides={}){
   };
   return it;
 }
-function addAsset(type, atFt){
+// Items most events only want ONE of — adding a second is usually a slip, so we ask first.
+const SINGULAR_ASSETS = new Set(['stage','dancefloor','dj','mandap','caketable','headtable','foh','videowall','piano','redcarpet','fountain']);
+async function addAsset(type, atFt){
   const a = ASSETS[type];
+  if(SINGULAR_ASSETS.has(type) && store.items.some(it=>it.type===type)){
+    const ok = await BPUI.confirm('There’s already a '+a.label+' on this floor. Most events only need one — add another anyway?',
+      {title:'Add another '+a.label+'?', okLabel:'Add another', cancelLabel:'Keep just one'});
+    if(!ok) return;
+  }
   const cx = atFt ? atFt.x : viewCenterFt().x;
   const cy = atFt ? atFt.y : viewCenterFt().y;
   let x = clamp(snapFt(cx - a.w/2), 0, WORLD.w-a.w);

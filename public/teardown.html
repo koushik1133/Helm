@@ -82,27 +82,27 @@
       <h2>📦 In-house inventory returns <span class="prog" id="invProg"></span></h2>
       <p class="sub">Return stock to free it for other events. Enter any damaged/lost quantity — it comes off what you own.</p>
       <div class="table-scroll"><table><thead><tr><th scope="col">Item</th><th scope="col" class="num">Out</th><th scope="col">Status</th><th scope="col" class="num">Damaged/lost</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
-        <tbody id="invRows"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody></table></div>
+        <tbody id="invRows"><tr><td colspan="5" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody></table></div>
     </div>
 
     <div class="card">
       <h2>🔑 Equipment check-out / check-in <span class="prog" id="loanProg"></span></h2>
       <p class="sub">Gear physically issued for this event. Check items back in as they return — anything short lands in the loss report.</p>
       <div class="table-scroll"><table><thead><tr><th scope="col">Item</th><th scope="col" class="num">Out</th><th scope="col">Issued to</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
-        <tbody id="loanRows"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody></table></div>
+        <tbody id="loanRows"><tr><td colspan="4" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody></table></div>
       <div style="margin-top:12px"><a class="btn go" id="ciLink" href="#">🔑 Open Check-out / Check-in →</a></div>
     </div>
 
     <div class="card">
       <h2>🤝 Vendor &amp; rental exit</h2>
       <p class="sub">Mark each partner off-site / rentals returned.</p>
-      <div id="bkRows"><div class="empty">Loading…</div></div>
+      <div id="bkRows"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
     </div>
 
     <div class="card">
       <h2>✅ Teardown &amp; venue handover <span class="prog" id="tdProg"></span></h2>
       <p class="sub">Dismantle, clear, hand the venue back and verify.</p>
-      <div id="tdRows"><div class="empty">Loading…</div></div>
+      <div id="tdRows"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
       <div class="addline" id="tdAdd" hidden><input id="td_title" placeholder="e.g. Venue walkthrough with manager" aria-label="Teardown item"><button type="button" class="btn primary" id="td_addb">＋ Add</button></div>
     </div>
   </div>

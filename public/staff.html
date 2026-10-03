@@ -93,7 +93,7 @@
     <button id="newBtn" class="btn primary" hidden>＋ Add staff</button>
   </div>
 
-  <div id="grid" class="grid"><div class="empty">Loading…</div></div>
+  <div id="grid" class="grid"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
   </main>
   <footer>Helm Events — plan your in-house team first; reach for vendors &amp; freelancers only for the gaps.</footer>
 </div>
@@ -215,6 +215,8 @@
     const V=BPStore.validate;
     const name=$("#s_name").value.trim();
     if(!name){ fail("Name is required."); return; }
+    // QA M-08: a crew member needs an operational identity so they can be assigned to work
+    if(!$("#s_role").value.trim() && !$("#s_dept").value.trim()){ fail("Add a role or a department so this person can be assigned to the right work."); $("#s_dept").focus(); return; }
     const phoneV=V.phone($("#s_phone").value);
     if(!phoneV.ok){ fail(phoneV.error); return; }
     let email=null;

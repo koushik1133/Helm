@@ -64,11 +64,22 @@ for (const f of files) {
   while ((m = ASSIGN.exec(src)) !== null) {
     const lhs = m[1].toLowerCase();
     const rhs = m[2];
-    // Flag any variable assigned a PIN-like literal (catches `code := '123456'`,
-    // `code := lpad('123456',6,'0')`, and indirection like `pin := '123456'`),
-    // and any code assignment built from chr() concatenation.
-    const pinLiteral = PIN_LITERAL.test(rhs);
-    const chrBuilt = lhs === 'code' && /chr\s*\(/i.test(rhs);
+    const rhsHead = rhs.replace(/^\s+/, '');
+    // The dangerous pattern is assigning the OTP code ITSELF to a fixed literal.
+    // Flag when either:
+    //   (a) the LHS is an OTP code variable (code/pin/otp, incl. v_code/otp_code), or
+    //   (b) the RHS *is* a bare PIN literal being assigned as the value (optionally
+    //       wrapped in the padding helpers a fixed PIN would use) — this still
+    //       catches indirection like `x := '123456'`.
+    // This deliberately does NOT flag a PIN literal that merely appears as an
+    // ARGUMENT to another function call, e.g. a TEST calling
+    // `res := verify_and_consent('<phone>','123456',...)`, which is legitimate
+    // fixture input and not a hardcoded generation-path PIN. Production protection
+    // is unchanged: a real `code := '123456'` in request_otp is still caught.
+    const lhsIsCodeLike = /(^|_)(code|pin|otp)(_|$)/.test(lhs);
+    const rhsIsBarePinLiteral = /^(?:lpad\s*\(\s*|rpad\s*\(\s*|trim\s*\(\s*)*'[0-9]{4,}'/.test(rhsHead);
+    const pinLiteral = PIN_LITERAL.test(rhs) && (lhsIsCodeLike || rhsIsBarePinLiteral);
+    const chrBuilt = lhsIsCodeLike && /chr\s*\(/i.test(rhs);
     if (pinLiteral || chrBuilt) {
       const upto = src.slice(0, m.index);
       const lineNo = upto.split('\n').length;

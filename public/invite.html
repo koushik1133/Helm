@@ -232,7 +232,10 @@
     const names=d.names||site.title||"You're invited";
     const eyebrow=d.eyebrow||EYEBROW[type]||"You're invited";
     document.title=(site.title||names)+" — Invitation";
-    const photos=Array.isArray(d.photos)?d.photos.filter(Boolean):[];
+    // Scheme-allowlist every media URL to http(s) before it is rendered — a stored
+    // value is never injected as HTML, only ever as an <img>/background url(). Matches
+    // proposal-view's gallery guard; blocks javascript:/data:/vbscript: etc.
+    const photos=Array.isArray(d.photos)?d.photos.filter(u=>/^https?:\/\//i.test(u||"")):[];
     const hero0=photos[0];
     const when=[fmtDate(d.date), d.time||""].filter(Boolean).join(" · ");   // plain text
 
