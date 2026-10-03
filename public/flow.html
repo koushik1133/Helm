@@ -881,14 +881,22 @@
     // ---- save-on-leave: intercept the in-page leave paths (header logo + nav
     // links Home/Quotes/Leads, and the "Open full workspace" link) so that if
     // there are unsaved changes we prompt first. Untouched quotes leave freely. ----
-    document.querySelectorAll('header a[href], #workspaceLink').forEach(a=>{
-      a.addEventListener("click",(e)=>{
-        const href=a.getAttribute("href")||"";
-        if(!href || href==="#" || href.charAt(0)==="#") return;   // in-page anchors: ignore
-        if(!dirty) return;                                        // nothing typed → leave freely
-        e.preventDefault();
-        requestLeave(()=>{ location.href=a.href; });
-      });
+    // Delegated so EVERY in-app link (not just the header) prompts to Save/Discard
+    // when there are unsaved changes — and so links added later are covered too.
+    document.addEventListener("click",(e)=>{
+      if(!dirty || leaving) return;
+      if(e.defaultPrevented) return;                               // a specific handler already took it
+      if(e.button!==0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;  // new-tab / non-primary click
+      const a=e.target.closest && e.target.closest('a[href]');
+      if(!a) return;
+      if((a.target && a.target!=="_self") || a.hasAttribute("download")) return;     // opens elsewhere / downloads
+      const href=a.getAttribute("href")||"";
+      if(!href || href.charAt(0)==="#") return;                   // in-page anchor → ignore
+      let url; try{ url=new URL(a.href, location.href); }catch(_){ return; }
+      if(url.origin!==location.origin) return;                    // external site
+      if(url.pathname===location.pathname && url.search===location.search) return;   // same page
+      e.preventDefault();
+      requestLeave(()=>{ location.href=a.href; });
     });
 
     // leave-prompt modal buttons
