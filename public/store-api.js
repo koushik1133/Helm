@@ -3647,31 +3647,72 @@
   // range check to BPStore.validate.phone (7–15 digits). It never reformats
   // beyond stripping, so existing +91… numbers keep working.
   function isPhone(el) {
-    return el.tagName === "INPUT" && (el.type === "tel" || (el.getAttribute("inputmode") || "").toLowerCase() === "tel");
+    return el.tagName === "INPUT" && (el.type === "tel" || (el.getAttribute("inputmode") || "").toLowerCase() === "tel" || el.hasAttribute("data-phone"));
   }
+
+  // ---- international phone component (QA M-01) -------------------------------
+  // A country dropdown + number field that STORES E.164 (+<dial><national>). The input
+  // itself always holds the full E.164 string, so the ~40 pages that read $("#x_phone").value
+  // and run BPStore.validate.phone keep working unchanged. The dropdown just sets/replaces
+  // the leading +dial; the default country comes from Control Center (org settings), India
+  // fallback. [name, iso2, dial]; India first; US/CA share +1 (display picks the first).
+  var COUNTRIES = [
+    ["India","IN","91"],["UAE","AE","971"],["United Kingdom","GB","44"],["USA","US","1"],
+    ["Saudi Arabia","SA","966"],["Singapore","SG","65"],["Australia","AU","61"],["Canada","CA","1"],
+    ["Qatar","QA","974"],["Kuwait","KW","965"],["Bahrain","BH","973"],["Oman","OM","968"],
+    ["Malaysia","MY","60"],["Indonesia","ID","62"],["Philippines","PH","63"],["Thailand","TH","66"],
+    ["Sri Lanka","LK","94"],["Nepal","NP","977"],["Bangladesh","BD","880"],["Pakistan","PK","92"],
+    ["New Zealand","NZ","64"],["South Africa","ZA","27"],["Nigeria","NG","234"],["Kenya","KE","254"],
+    ["Germany","DE","49"],["France","FR","33"],["Italy","IT","39"],["Spain","ES","34"],
+    ["Netherlands","NL","31"],["Ireland","IE","353"],["Switzerland","CH","41"],["Sweden","SE","46"],
+    ["Hong Kong","HK","852"],["Japan","JP","81"],["China","CN","86"]
+  ];
+  var DIALS = COUNTRIES.map(function (c) { return c[2]; }).sort(function (a, b) { return b.length - a.length; });
+  var _defaultCC = (function () { try { return localStorage.getItem("helm_org_country") || "IN"; } catch (e) { return "IN"; } })();
+  function loadDefaultCountry() {
+    try { BPStore.config.getPricing().then(function (p) { var c = (p && p.country) || "IN"; _defaultCC = c; try { localStorage.setItem("helm_org_country", c); } catch (e) {} }).catch(function () {}); } catch (e) {}
+  }
+  function dialOf(iso) { for (var i = 0; i < COUNTRIES.length; i++) if (COUNTRIES[i][1] === iso) return COUNTRIES[i][2]; return "91"; }
+  BPStore.countries = function () { return COUNTRIES.map(function (c) { return { name: c[0], iso: c[1], dial: c[2] }; }); };
+  function matchDial(e164) { if (!e164 || e164.charAt(0) !== "+") return null; var d = e164.slice(1); for (var i = 0; i < DIALS.length; i++) if (d.indexOf(DIALS[i]) === 0) return DIALS[i]; return null; }
+
   function hardenPhone(el) {
     if (el.getAttribute("data-phone-hardened") === "1") return;
     el.setAttribute("data-phone-hardened", "1");
-    if (!el.getAttribute("inputmode")) el.setAttribute("inputmode", "tel");
-    if (!el.getAttribute("maxlength")) el.setAttribute("maxlength", "16"); // +<country>+<=15 digits
+    el.setAttribute("inputmode", "tel");
+    if (!el.getAttribute("maxlength")) el.setAttribute("maxlength", "16"); // +<dial>+<=15 digits
     var maxLen = parseInt(el.getAttribute("maxlength") || "16", 10) || 16;
     var clean = function () {
-      var v = String(el.value);
-      // keep a single leading +, then digits only
-      var lead = v.charAt(0) === "+" ? "+" : "";
-      var digits = v.replace(/[^\d]/g, "");
+      var v = String(el.value); var lead = v.charAt(0) === "+" ? "+" : ""; var digits = v.replace(/[^\d]/g, "");
       var next = lead + digits;
-      // HARD cap the length — maxlength alone doesn't apply to a programmatic value
-      // rewrite (or to a paste of letters+digits that strips down), so enforce it here.
       if (next.length > maxLen) next = next.slice(0, maxLen);
-      if (next !== el.value) {
-        var atEnd = el.selectionStart === el.value.length;
-        el.value = next;
-        if (atEnd) { try { el.setSelectionRange(next.length, next.length); } catch (e) {} }
-      }
+      if (next !== el.value) { var atEnd = el.selectionStart === el.value.length; el.value = next; if (atEnd) { try { el.setSelectionRange(next.length, next.length); } catch (e) {} } }
     };
-    el.addEventListener("input", clean);
-    el.addEventListener("blur", clean);
+    var sel = null;
+    try {
+      if (el.parentNode && !el.getAttribute("data-no-country")) {
+        var wrap = document.createElement("span"); wrap.className = "bpui-tel";
+        sel = document.createElement("select"); sel.className = "bpui-tel-cc"; sel.setAttribute("aria-label", "Country dialing code");
+        COUNTRIES.forEach(function (c) { var o = document.createElement("option"); o.value = c[1]; o.textContent = c[1] + " +" + c[2]; sel.appendChild(o); });
+        el.parentNode.insertBefore(wrap, el); wrap.appendChild(sel); wrap.appendChild(el);
+      }
+    } catch (e) { sel = null; }
+    var syncSel = function () { if (!sel) return; var d = matchDial(String(el.value || "")); if (d) { for (var i = 0; i < COUNTRIES.length; i++) if (COUNTRIES[i][2] === d) { sel.value = COUNTRIES[i][1]; return; } } else { sel.value = _defaultCC; } };
+    syncSel();
+    el.addEventListener("input", function () { clean(); syncSel(); });
+    el.addEventListener("focus", function () { if (sel && el.value === "") { el.value = "+" + dialOf(sel.value); try { el.setSelectionRange(el.value.length, el.value.length); } catch (e) {} } });
+    el.addEventListener("blur", function () {
+      clean();
+      // if only a bare dial code remains (focused but no number typed), treat as empty
+      if (/^\+\d{1,4}$/.test(el.value) && DIALS.indexOf(el.value.slice(1)) !== -1) { el.value = ""; }
+    });
+    if (sel) sel.addEventListener("change", function () {
+      var newDial = dialOf(sel.value); var v = String(el.value); var oldDial = matchDial(v);
+      var national = oldDial ? v.slice(1 + oldDial.length) : v.replace(/[^\d]/g, "");
+      el.value = national ? ("+" + newDial + national) : "";
+      try { el.focus(); } catch (e) {}
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    });
   }
 
   // ---- required-field marker: a real "*" beside the label + aria-required
@@ -3727,16 +3768,20 @@
   function scan(root) {
     var r = root || document;
     try { r.querySelectorAll('input[type="number"]:not([data-hardened])').forEach(harden); } catch (e) {}
-    try { r.querySelectorAll('input[type="tel"]:not([data-phone-hardened]), input[inputmode="tel"]:not([data-phone-hardened])').forEach(hardenPhone); } catch (e) {}
+    try { r.querySelectorAll('input[type="tel"]:not([data-phone-hardened]), input[inputmode="tel"]:not([data-phone-hardened]), input[data-phone]:not([data-phone-hardened])').forEach(hardenPhone); } catch (e) {}
     try { r.querySelectorAll('input[type="date"]:not([data-date-hardened])').forEach(hardenDate); } catch (e) {}
     try { r.querySelectorAll('[required]:not([data-req-marked]), [aria-required="true"]:not([data-req-marked]), [data-required]:not([data-req-marked])').forEach(markRequired); } catch (e) {}
   }
   function boot() {
     try {
       var st = document.createElement("style");
-      st.textContent = ".req-star{color:var(--danger,#c0392b);font-weight:700}";
+      st.textContent = ".req-star{color:var(--danger,#c0392b);font-weight:700}"
+        + ".bpui-tel{display:flex;align-items:stretch;gap:0;width:100%}"
+        + ".bpui-tel>.bpui-tel-cc{flex:0 0 auto;max-width:40%;border:1px solid var(--line,#d9d4cc);border-right:0;border-radius:9px 0 0 9px;background:var(--panel-2,#f4f1ea);color:var(--ink,#1b1930);font:inherit;padding:0 6px}"
+        + ".bpui-tel>input{flex:1 1 auto;min-width:0;border-radius:0 9px 9px 0!important}";
       document.head.appendChild(st);
     } catch (e) {}
+    loadDefaultCountry();
     scan(document);
     try {
       var mo = new MutationObserver(function (muts) {
