@@ -29,6 +29,9 @@
 
 const PX_PER_FT = 12;
 const WORLD = { w: 200, h: 140 };            // floor size in feet
+// Capacity ceilings, loaded from Control Center (config.getPricing). Defaults keep the
+// builder from being asked to render absurd counts (which used to freeze the app).
+let CAPS = { guests:20000, chairs:20000, plates:20000, tables:2000, bars:200, trucks:200, booths:1000, rest:200, exits:200, hall:1000 };
 const FT_PER_M = 3.280839895;
 
 /* ---- category palette (reads live CSS vars so themes stay in sync) ---- */
@@ -1763,7 +1766,7 @@ function seatTheatre(items, o, topY){
   const colW=(WORLD.w-2*margin-aisle)/2, regionH=Math.max(12, bottomY-topY);
   const cols=Math.max(4, Math.floor(colW/DESIGN_PITCH));    // walkable column pitch — never below comfort
   const rowsCap=Math.max(1, Math.floor(regionH/DESIGN_PITCH));
-  const guests=o.guests||(2*cols*rowsCap);
+  const guests=o.guests!=null?o.guests:(2*cols*rowsCap);
   let rows=clamp(Math.ceil(guests/(2*cols)),1,rowsCap);
   const bH=Math.min(regionH, rows*DESIGN_PITCH);            // row pitch = DESIGN_PITCH, so blocks read "comfortable"
   items.push(makeItem('seatblock', margin, topY, {width:colW,height:bH,properties:{rows,cols},label:'Left Seating'}));
@@ -1798,7 +1801,7 @@ function seatBanquetLong(items, o, topY){
   const bottomY=WORLD.h-16, margin=12, cellW=46, cellH=18;
   const cols=Math.max(1,Math.floor((WORLD.w-2*margin+cellW-16)/cellW));
   const rows=Math.max(1,Math.floor((bottomY-topY)/cellH));
-  const need=o.guests?Math.ceil(o.guests/12):cols*rows;
+  const need=o.guests!=null?Math.ceil(o.guests/12):cols*rows;
   let placed=0;
   for(let r=0;r<rows && placed<need;r++)for(let c=0;c<cols && placed<need;c++){
     items.push(makeItem('longtable', margin+c*cellW, topY+r*cellH, {properties:{seats:12},label:'Table '+(placed+1)})); placed++;
@@ -1807,7 +1810,7 @@ function seatBanquetLong(items, o, topY){
 function boothGrid(items, o, topY){
   const margin=16, cell=22, cols=Math.max(1,Math.floor((WORLD.w-2*margin+2)/cell));
   const rows=Math.max(1,Math.floor((WORLD.h-topY-16)/cell));
-  const need=o.booths||cols*rows; let n=1,placed=0;
+  const need=o.booths!=null?o.booths:cols*rows; let n=1,placed=0;
   for(let r=0;r<rows && placed<need;r++)for(let c=0;c<cols && placed<need;c++){
     items.push(makeItem('booth', margin+c*cell, topY+r*cell, {label:'B'+(n++)})); placed++;
   }
@@ -1836,7 +1839,7 @@ function seatCocktail(items, o, topY){
   const cols=Math.max(1,Math.floor((WORLD.w-2*margin)/cell));
   const rows=Math.max(1,Math.floor((bottomY-topY)/cell));
   const capacity=Math.max(1,cols*rows);
-  const need = o.guests ? Math.min(capacity, Math.ceil(o.guests/3)) : Math.round(capacity*0.6);
+  const need = o.guests!=null ? Math.min(capacity, Math.ceil(o.guests/3)) : Math.round(capacity*0.6);
   let placed=0, hb=0;
   for(let r=0;r<rows && placed<need;r++)for(let c=0;c<cols && placed<need;c++){
     if((r*cols+c)%12===5) items.push(makeItem('lounge', margin+c*cell, topY+r*cell, {label:'Lounge'}));
@@ -1938,8 +1941,9 @@ function readCustomForm(){
 function applyRoomFromForm(o){
   // hall length & breadth are physical dimensions — must be > 0 when supplied (blank = keep current)
   const lenRaw=$('#c_len').value.trim(), widRaw=$('#c_wid').value.trim();
-  if(lenRaw!==''){ const r=BPStore.validate.dimension(lenRaw,{field:'Hall length'}); if(!r.ok){ BPUI.alert('Hall length must be greater than 0.',{title:'Check the hall size'}); return false; } WORLD.w = clamp(r.value, 20, 1000); }
-  if(widRaw!==''){ const r=BPStore.validate.dimension(widRaw,{field:'Hall breadth'}); if(!r.ok){ BPUI.alert('Hall breadth must be greater than 0.',{title:'Check the hall size'}); return false; } WORLD.h = clamp(r.value, 20, 1000); }
+  const maxFt = (CAPS&&CAPS.hall)||1000;
+  if(lenRaw!==''){ const r=BPStore.validate.dimension(lenRaw,{field:'Hall length'}); if(!r.ok){ BPUI.alert('Hall length must be greater than 0.',{title:'Check the hall size'}); return false; } WORLD.w = clamp(r.value, 20, maxFt); }
+  if(widRaw!==''){ const r=BPStore.validate.dimension(widRaw,{field:'Hall breadth'}); if(!r.ok){ BPUI.alert('Hall breadth must be greater than 0.',{title:'Check the hall size'}); return false; } WORLD.h = clamp(r.value, 20, maxFt); }
   store.venue = store.venue || {};
   store.venue.room = { w:WORLD.w, h:WORLD.h };
   store.venue.setting = o.setting || store.venue.setting || 'indoor';
@@ -1948,7 +1952,13 @@ function applyRoomFromForm(o){
 function updateDimsLabel(){ const el=$('#dimsLabel'); if(el) el.textContent = `${WORLD.w} × ${WORLD.h} ft · ${PX_PER_FT} px/ft${store.venue&&store.venue.setting==='outdoor'?' · outdoor':''}`; }
 function runCustomGenerate(){
   const o=readCustomForm();
+  // Enforce the Control-Center capacity ceilings so generation stays fast and honest
+  // even if a field wasn't blurred (the blur clamp hadn't run yet).
+  o.guests=clampCap(o.guests,CAPS.guests); o.chairs=clampCap(o.chairs,CAPS.chairs); o.tables=clampCap(o.tables,CAPS.tables);
+  o.bars=clampCap(o.bars,CAPS.bars); o.trucks=clampCap(o.trucks,CAPS.trucks); o.booths=clampCap(o.booths,CAPS.booths);
+  o.rest=clampCap(o.rest,CAPS.rest); o.exits=clampCap(o.exits,CAPS.exits);
   if(applyRoomFromForm(o)===false) return;               // invalid hall dimension → abort (message already shown)
+  sizeCanvas(); renderAll(); fitView();                  // open/redraw the floor at the entered hall size
   const variants=generateVariants(o).map(v=>({...v, items:v.items.map(clampItem)}));
   const host=$('#c_results');
   // Honest capacity check: if the hall physically can't seat the headcount at a walkable pitch, say so.
@@ -1981,7 +1991,30 @@ function runCustomGenerate(){
     toast(v.name+' · '+v.counts.chairs+' chairs, '+v.counts.objects+' objects');
   }));
 }
-function openCustomModal(){ $('#customModal').hidden=false; $('#c_results').innerHTML=''; }
+const clampCap=(v,max)=> (v==null?null:Math.min(v, max));
+// Show a live red "Maximum is N" note under each capped field, set its max to the
+// Control-Center value, and resize the floor the moment the hall size is typed.
+function applyCapHints(){
+  const map=[['c_guests','guests'],['c_chairs','chairs'],['c_tables','tables'],['c_bars','bars'],
+    ['c_trucks','trucks'],['c_booths','booths'],['c_rest','rest'],['c_exits','exits'],['c_len','hall'],['c_wid','hall']];
+  map.forEach(([id,key])=>{ const el=$('#'+id); if(!el) return; const max=CAPS[key];
+    if(max!=null&&isFinite(max)) el.setAttribute('max', String(max));
+    let hint=el.parentNode&&el.parentNode.querySelector('.caphint');
+    if(!hint && el.parentNode){ hint=document.createElement('small'); hint.className='caphint'; hint.hidden=true;
+      hint.style.cssText='display:block;color:var(--danger,#c0362c);font-size:11px;font-weight:600;margin-top:3px';
+      el.parentNode.appendChild(hint); }
+    const check=()=>{ if(!hint) return; const n=parseFloat(el.value);
+      const over=el.value!=='' && isFinite(n) && max!=null && n>max;
+      hint.hidden=!over; if(over) hint.textContent='Maximum is '+Number(max).toLocaleString('en-IN')+'.'; };
+    el.addEventListener('input',check); check();
+  });
+  // Entering the hall length/breadth opens/resizes the floor immediately (on blur/Enter),
+  // so the canvas reflects the dimensions before any layout is generated or chosen.
+  ['c_len','c_wid'].forEach(id=>{ const el=$('#'+id); if(!el||el.dataset.resizeWired) return; el.dataset.resizeWired='1';
+    el.addEventListener('change',()=>{ try{ if(applyRoomFromForm(readCustomForm())===false) return; sizeCanvas(); renderAll(); fitView(); }catch(e){} });
+  });
+}
+function openCustomModal(){ $('#customModal').hidden=false; $('#c_results').innerHTML=''; try{ applyCapHints(); }catch(e){} }
 function closeCustomModal(){ $('#customModal').hidden=true; }
 
 /* ===================================================================
@@ -2702,8 +2735,13 @@ async function init(){
       if(pc.layoutBase!=null) PRICING.layoutBase=+pc.layoutBase;
       if(pc.serviceChargePct!=null) PRICING.serviceChargePct=+pc.serviceChargePct;
       if(pc.assetPrices)      PRICING.assetPrices=pc.assetPrices;
+      CAPS = { guests:+pc.maxGuests||CAPS.guests, chairs:+pc.maxChairs||CAPS.chairs, plates:+pc.maxPlates||CAPS.plates,
+        tables:+pc.maxRoundTables||CAPS.tables, bars:(pc.maxBars!=null?+pc.maxBars:CAPS.bars), trucks:(pc.maxFoodTrucks!=null?+pc.maxFoodTrucks:CAPS.trucks),
+        booths:(pc.maxExpoBooths!=null?+pc.maxExpoBooths:CAPS.booths), rest:(pc.maxRestrooms!=null?+pc.maxRestrooms:CAPS.rest),
+        exits:(pc.maxExits!=null?+pc.maxExits:CAPS.exits), hall:+pc.maxHallFt||CAPS.hall };
     }
   }catch{}
+  try{ applyCapHints(); }catch(e){}
   try{ PRICING.packages = await BPStore.menuTemplates.list(); }catch{ PRICING.packages=[]; }
   buildMenuControls();
   renderPrice();

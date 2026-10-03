@@ -195,6 +195,24 @@
     </div>
 
     <div class="card">
+      <h3>Capacity limits (layout builder)</h3>
+      <p class="mnote" style="margin:-6px 0 10px">The most the layout builder will accept for each. Going over shows a red “Maximum is …” note under the field in the builder and keeps the app fast on very large events.</p>
+      <div class="grid">
+        <div class="fld"><label for="cap_guests">Max guests</label><input id="cap_guests" type="number" min="1" step="1"></div>
+        <div class="fld"><label for="cap_chairs">Max chairs</label><input id="cap_chairs" type="number" min="1" step="1"></div>
+        <div class="fld"><label for="cap_plates">Max plates</label><input id="cap_plates" type="number" min="1" step="1"></div>
+        <div class="fld"><label for="cap_tables">Max round tables</label><input id="cap_tables" type="number" min="1" step="1"></div>
+        <div class="fld"><label for="cap_bars">Max bars</label><input id="cap_bars" type="number" min="0" step="1"></div>
+        <div class="fld"><label for="cap_trucks">Max food trucks / stalls</label><input id="cap_trucks" type="number" min="0" step="1"></div>
+        <div class="fld"><label for="cap_booths">Max expo booths</label><input id="cap_booths" type="number" min="0" step="1"></div>
+        <div class="fld"><label for="cap_rest">Max restrooms</label><input id="cap_rest" type="number" min="0" step="1"></div>
+        <div class="fld"><label for="cap_exits">Max exits</label><input id="cap_exits" type="number" min="0" step="1"></div>
+        <div class="fld"><label for="cap_hall">Max hall length / breadth (ft)</label><input id="cap_hall" type="number" min="20" step="1"></div>
+      </div>
+      <div class="actions"><button type="button" class="btn primary" id="saveCaps">Save capacity limits</button></div>
+    </div>
+
+    <div class="card">
       <h3>Object &amp; item prices (layout builder)</h3>
       <p class="mnote" style="margin:-6px 0 10px">Per-unit price for each object placed on the floor plan. These drive the live price breakdown in the builder. Chairs are priced with the “Price / chair” rate above. Leave blank to use the built-in default.</p>
       <div id="itemPriceList" class="grid"></div>
@@ -398,6 +416,9 @@
       $("#p_layout").value=p.layoutBase??0;
       $("#p_buffer").value=p.conflictBufferHours??3;
       try{ const cc=$("#p_country"); if(cc && !cc.options.length){ cc.innerHTML=(BPStore.countries()||[]).map(c=>`<option value="${c.iso}">${c.name} (+${c.dial})</option>`).join(""); } if(cc) cc.value=p.country||"IN"; }catch(e){}
+      $("#cap_guests").value=p.maxGuests??20000; $("#cap_chairs").value=p.maxChairs??20000; $("#cap_plates").value=p.maxPlates??20000;
+      $("#cap_tables").value=p.maxRoundTables??2000; $("#cap_bars").value=p.maxBars??200; $("#cap_trucks").value=p.maxFoodTrucks??200;
+      $("#cap_booths").value=p.maxExpoBooths??1000; $("#cap_rest").value=p.maxRestrooms??200; $("#cap_exits").value=p.maxExits??200; $("#cap_hall").value=p.maxHallFt??1000;
       renderItemPrices();
       $("#pricingErr").innerHTML="";
       pricingLoaded=true; setPricingEnabled(true);
@@ -439,6 +460,20 @@
     try{ localStorage.setItem("helm_org_country", country); }catch(e){}
     try{ await BPStore.config.setPricing(pricingCfg); setMsg("ok","Pricing saved — new quotes use these rates."); }
     catch(e){ setMsg("err",errMsg(e,"save pricing")); }
+  }));
+  $("#saveCaps").addEventListener("click",()=>BPUI.guard($("#saveCaps"),async()=>{
+    if(!pricingLoaded){ setMsg("err","Pricing didn't load, so limits can't be saved yet — use Retry first."); return; }
+    const V=BPStore.validate; const fail=(m)=>setMsg("err",m);
+    const caps=[["cap_guests","maxGuests","Max guests",1],["cap_chairs","maxChairs","Max chairs",1],["cap_plates","maxPlates","Max plates",1],
+      ["cap_tables","maxRoundTables","Max round tables",1],["cap_bars","maxBars","Max bars",0],["cap_trucks","maxFoodTrucks","Max food trucks",0],
+      ["cap_booths","maxExpoBooths","Max expo booths",0],["cap_rest","maxRestrooms","Max restrooms",0],["cap_exits","maxExits","Max exits",0],
+      ["cap_hall","maxHallFt","Max hall length / breadth",20]];
+    const patch={};
+    for(const [sel,key,label,min] of caps){ const raw=$("#"+sel).value; if(raw===""){ fail(label+" is required."); return; }
+      const r=V.count(raw,{field:label,min}); if(!r.ok){ fail(r.error); return; } patch[key]=r.value; }
+    Object.assign(pricingCfg,patch);
+    try{ await BPStore.config.setPricing(pricingCfg); setMsg("ok","Capacity limits saved — the layout builder uses these now."); }
+    catch(e){ setMsg("err",errMsg(e,"save capacity limits")); }
   }));
   $("#saveItemPrices").addEventListener("click",()=>BPUI.guard($("#saveItemPrices"),async()=>{
     if(!pricingLoaded){ setMsg("err","Pricing didn't load, so item prices can't be saved yet — use Retry first."); return; }

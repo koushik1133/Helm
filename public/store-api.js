@@ -868,7 +868,12 @@
   };
 
   /* ---------------- control center: pricing config, vendors, coupons ---------------- */
-  const PRICING_DEFAULTS = { chairPrice:200, platePrice:500, gstPct:18, serviceChargePct:0, currency:"INR", conflictBufferHours:3 };
+  const PRICING_DEFAULTS = { chairPrice:200, platePrice:500, gstPct:18, serviceChargePct:0, currency:"INR", conflictBufferHours:3,
+    // Capacity ceilings (editable in Control Center). They keep the layout builder from
+    // being asked to render absurd counts (which froze the app), and drive the inline
+    // "Maximum is N" hints. Additive config keys — old blobs fall back to these.
+    maxGuests:20000, maxChairs:20000, maxPlates:20000, maxRoundTables:2000, maxBars:200,
+    maxFoodTrucks:200, maxExpoBooths:1000, maxRestrooms:200, maxExits:200, maxHallFt:1000 };
   const config = {
     getPricing: () => mode === "supabase"
       ? rpc("get_pricing_config")

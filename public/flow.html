@@ -658,7 +658,8 @@
   /* ---------- advance payment + booking + activity ---------- */
   function quoteTotal(){ return BPStore.pricing.quoteTotal(currentInputs()).total; }
   function updateAdvance(){
-    const pct=+$("#pay_pct").value||0; const amt=Math.round(quoteTotal()*pct/100);
+    let pct=+$("#pay_pct").value||0; if(pct<0) pct=0; if(pct>100) pct=100;   // advance % is 0–100
+    const amt=Math.round(quoteTotal()*pct/100);
     if(document.activeElement!==$("#pay_amount")) $("#pay_amount").value=amt;
   }
   async function recordPayment(){
