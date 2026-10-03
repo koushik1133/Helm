@@ -462,7 +462,7 @@
       const card = host.firstElementChild; if (card) card.style.gridColumn = "1/-1";
       return;
     }
-    const up = (res && res.upcoming) || [], unread = (res && res.unread) || 0, ub = $("#unreadBadge");
+    const up = ((res && res.upcoming) || []).filter((e) => e && e.event_date), unread = (res && res.unread) || 0, ub = $("#unreadBadge");
     if (ub) { if (unread > 0) { ub.textContent = unread + " unread"; ub.hidden = false; } else ub.hidden = true; }
     if (!up.length) { sec.hidden = true; return; }          // role without quotes access / nothing active
     sec.hidden = false;
@@ -524,7 +524,7 @@
     }
     const tc0 = tasks.counts || {};
     const tc = tasksOk ? tc0 : { today:"—", overdue:"—", blocked:"—", completed:"—" };
-    const up = pendOk ? (pend.upcoming||[]).length : "—";
+    const up = pendOk ? (pend.upcoming||[]).filter((e) => e && e.event_date).length : "—";
     const dqAt = (...states) => dqOk ? (dq||[]).filter(x => states.includes(x.state)).length : "—";
     const CFG = {
       admin:       { sub:"Everything across the org", cards:[
