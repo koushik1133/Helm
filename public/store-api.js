@@ -1952,7 +1952,22 @@
         const row = { id: uid(), conversation_id: convId, org_id: "local", sender_id: chatLocalUid(), kind: m.kind || "text", body: m.body || null, media_path: m.media_path || null, media_mime: m.media_mime || null, media_duration: m.media_duration || null, reply_to: m.reply_to || null, created_at: now(), deleted: false };
         msgs.push(row); chatWriteLs(CHAT_LS_M, msgs);
         const convs = chatReadLs(CHAT_LS_C); const c = convs.find((x) => x.id === convId); if (c) { c.last_message_at = now(); chatWriteLs(CHAT_LS_C, convs); }
-        chatPing(); return row;
+        chatPing();
+        // Demo only (local fallback): simulate teammates opening the chat a moment
+        // later so the delivered (grey ✓✓) → read (blue ✓✓) transition is visible.
+        // Real Supabase mode uses actual chat_members.last_read_at and never runs this.
+        try {
+          setTimeout(() => {
+            try {
+              const cv = chatReadLs(CHAT_LS_C); const cc = cv.find((x) => x.id === convId); if (!cc) return;
+              cc.members = cc.members || [];
+              const peers = (cc.kind === "broadcast") ? CHAT_LOCAL_ROSTER.map((p) => p.id) : cc.members.map((x) => x.user_id);
+              peers.filter((id) => id && id !== row.sender_id).forEach((id) => { let mm = cc.members.find((x) => x.user_id === id); if (!mm) { mm = { user_id: id }; cc.members.push(mm); } mm.last_read_at = now(); });
+              chatWriteLs(CHAT_LS_C, cv); chatPing();
+            } catch (e) {}
+          }, 1200);
+        } catch (e) {}
+        return row;
       }
       return rpc("chat_send", { p_conversation: convId, p_kind: m.kind || "text", p_body: m.body || null, p_media_path: m.media_path || null, p_media_mime: m.media_mime || null, p_media_duration: m.media_duration || null, p_reply_to: m.reply_to || null });
     },

@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Chat has a bottom composer; the floating toggle would sit on the mic/send
+     button, so we opt out of it and put a theme toggle in the header instead. -->
+<meta name="bp-theme-toggle" content="off">
 <title>Team Chat — Helm Events</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d28d9'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -35,6 +38,8 @@
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
   .account .role{background:var(--accent-soft);color:var(--accent);border-radius:6px;padding:2px 8px;font-weight:700;text-transform:capitalize}
   .account button{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:5px 11px;font-size:12px;font-weight:600;cursor:pointer}
+  .themebtn{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:17px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .themebtn:hover{background:var(--panel-2)}
 
   /* ---------- two-pane chat ---------- */
   .app{flex:1;display:grid;grid-template-columns:min(380px,34%) 1fr;min-height:0}
@@ -65,7 +70,7 @@
   .conv .meta .r1{display:flex;align-items:baseline;gap:8px}
   .conv .meta .nm{font-size:15.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
   .conv .meta .tm{font-size:11.5px;color:var(--ink-3);flex:0 0 auto}
-  .conv .meta .tm.unread{color:var(--accent);font-weight:600}
+  .conv .meta .tm.hilite{color:var(--accent);font-weight:600}
   .conv .meta .r2{display:flex;align-items:center;gap:6px;margin-top:3px}
   .conv .meta .pv{font-size:13px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
   .unread{min-width:19px;height:19px;border-radius:10px;background:var(--accent);color:#fff;font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 6px;flex:0 0 auto}
@@ -99,8 +104,10 @@
   .bub .cap{margin-top:3px}
   .bub audio{height:40px;max-width:260px;margin:2px 0}
   .meta-in{float:right;margin:5px 0 -3px 10px;font-size:10.5px;color:var(--ink-3);display:inline-flex;align-items:center;gap:3px;line-height:1}
-  .tick{font-size:13px;letter-spacing:-3px;color:var(--ink-3)}
-  .tick.read{color:var(--accent)}
+  /* WhatsApp-style receipts: single ✓ = sent, grey ✓✓ = delivered, blue ✓✓ = read */
+  .tick{font-size:13px;color:var(--ink-3);display:inline-block}
+  .tick.dbl{letter-spacing:-3px;margin-right:2px}
+  .tick.read{color:#34b7f1}
   .reacts{display:flex;gap:3px;margin:-7px 6px 3px;position:relative;z-index:3}
   .m.me .reacts{justify-content:flex-end}
   .reacts .rx{background:var(--panel);border:1px solid var(--line);border-radius:999px;font-size:12px;padding:1px 7px;cursor:pointer;display:inline-flex;gap:3px;align-items:center;box-shadow:var(--shadow)}
@@ -175,6 +182,7 @@
     <a href="control.html" id="ccLink" hidden>Control Center</a>
   </nav>
   <span class="spacer"></span>
+  <button class="themebtn" id="themeBtn" type="button" title="Toggle light / dark" aria-label="Toggle light or dark theme">☾</button>
   <span id="bell"></span>
   <span id="account" class="account" hidden></span>
 </header>
@@ -253,6 +261,17 @@
   let rec=null, recChunks=[], recStart=0, recTimer=null;
   let favs=new Set(); try{ favs=new Set(JSON.parse(localStorage.getItem("wa_fav")||"[]")); }catch(e){}
   const saveFavs=()=>{ try{ localStorage.setItem("wa_fav",JSON.stringify([...favs])); }catch(e){} };
+  let pins=new Set(); try{ pins=new Set(JSON.parse(localStorage.getItem("wa_pin")||"[]")); }catch(e){}
+  const savePins=()=>{ try{ localStorage.setItem("wa_pin",JSON.stringify([...pins])); }catch(e){} };
+  let pending=[];  /* optimistic, in-flight messages (single ✓ "sending") */
+
+  /* header theme toggle (floating one is disabled via meta on this page) */
+  (function(){ const b=$("#themeBtn"); if(!b) return;
+    const sync=()=>{ b.textContent=(document.documentElement.getAttribute("data-theme")==="dark")?"☀":"☾"; };
+    sync();
+    b.addEventListener("click",()=>{ const d=(document.documentElement.getAttribute("data-theme")==="dark")?"light":"dark";
+      document.documentElement.setAttribute("data-theme",d); try{ localStorage.setItem("bp_theme",d); }catch(e){} sync(); });
+  })();
 
   function colorFor(id){ let h=0; const s=String(id||""); for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return NAME_COLORS[h%NAME_COLORS.length]; }
   function initials(name){ const p=String(name||"?").trim().split(/\s+/); return ((p[0]||"")[0]||"?").toUpperCase()+((p[1]||"")[0]||"").toUpperCase(); }
@@ -291,9 +310,19 @@
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next=chat.html")); }
   }
 
+  /* ---------- read receipts (single ✓ sent · grey ✓✓ delivered · blue ✓✓ read) ---------- */
+  function readByOthers(m,members){ if(!m||m.sender_id!==ME.id) return null;
+    const others=(members||[]).filter(x=>x.user_id!==ME.id);
+    if(!others.length) return false;
+    const readers=others.filter(x=>x.last_read_at && String(x.last_read_at)>=String(m.created_at));
+    return readers.length===others.length; }
+  function ticksHtml(m,members,pendingFlag){ if(pendingFlag) return '<span class="tick">✓</span>';
+    const r=readByOthers(m,members); if(r===null) return "";
+    return r?'<span class="tick dbl read">✓✓</span>':'<span class="tick dbl">✓✓</span>'; }
+
   /* ---------- conversation list ---------- */
   function lastPreview(c){ const m=c._last; if(!m) return c.kind==="broadcast"?"Broadcast to your whole team":"No messages yet";
-    const youTick=(m.sender_id===ME.id)?'<span class="tick">✓✓</span> ':"";
+    const youTick=(m.sender_id===ME.id)?(ticksHtml(m,c._members,false)+" "):"";
     const who=(m.sender_id!==ME.id&&c.kind!=="dm")?(esc(personName(m.sender_id).split(" ")[0])+": "):"";
     const body=m.kind==="image"?"📷 Photo":m.kind==="voice"?"🎤 Voice message":esc(m.body||"");
     return youTick+who+body; }
@@ -305,7 +334,8 @@
     if(filter==="unread") list=list.filter(c=>c._unread>0);
     else if(filter==="groups") list=list.filter(c=>c.kind==="group"||c.kind==="broadcast");
     else if(filter==="favorites") list=list.filter(c=>favs.has(c.id));
-    list.sort((a,b)=>String(b.last_message_at||"").localeCompare(String(a.last_message_at||"")));
+    list.sort((a,b)=>{ const pa=pins.has(a.id)?1:0,pb=pins.has(b.id)?1:0; if(pa!==pb) return pb-pa;
+      return String(b.last_message_at||"").localeCompare(String(a.last_message_at||"")); });
     const totalUnread=convs.reduce((s,c)=>s+(c._unread||0),0);
     const uc=$("#unreadCt"); if(totalUnread>0){ uc.hidden=false; uc.textContent=totalUnread; } else uc.hidden=true;
     const host=$("#convList");
@@ -313,8 +343,8 @@
     host.innerHTML=list.map(c=>{ const a=convAvatar(c); const t=c._last?c._last.created_at:c.last_message_at;
       return `<div class="conv ${c.id===activeId?'on':''}" data-id="${esc(c.id)}" role="button" tabindex="0">
         ${avHtml(a)}
-        <div class="meta"><div class="r1"><span class="nm">${esc(convTitle(c))}</span><span class="tm ${c._unread?'unread':''}">${esc(fmtListTime(t))}</span></div>
-          <div class="r2"><span class="pv">${lastPreview(c)}</span>${c._unread?`<span class="unread">${c._unread>99?'99+':c._unread}</span>`:(favs.has(c.id)?'<span style="color:var(--ink-3)">★</span>':"")}</div></div>
+        <div class="meta"><div class="r1"><span class="nm">${esc(convTitle(c))}</span><span class="tm ${c._unread?'hilite':''}">${esc(fmtListTime(t))}</span></div>
+          <div class="r2"><span class="pv">${lastPreview(c)}</span>${c._unread?`<span class="unread">${c._unread>99?'99+':c._unread}</span>`:`<span class="marks" style="display:inline-flex;gap:3px;align-items:center;color:var(--ink-3);font-size:12px">${pins.has(c.id)?'📌':''}${favs.has(c.id)?'★':''}</span>`}</div></div>
       </div>`; }).join("");
     host.querySelectorAll(".conv").forEach(el=>{ const go=()=>openConv(el.dataset.id);
       el.addEventListener("click",go); el.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); go(); } }); });
@@ -351,19 +381,20 @@
 
   function renderMessages(){
     const host=$("#msgs"); const c=convs.find(x=>x.id===activeId); const isGroup=c&&c.kind!=="dm";
-    if(!thread.messages.length){ host.innerHTML='<div class="welcome"><div class="big">👋</div><b>No messages yet</b><p>Say hello — this is the start of your conversation.</p></div>'; return; }
+    const msgs=thread.messages.concat(pending.filter(p=>p.conversation_id===activeId));
+    if(!msgs.length){ host.innerHTML='<div class="welcome"><div class="big">👋</div><b>No messages yet</b><p>Say hello — this is the start of your conversation.</p></div>'; return; }
     let html="",lastDay="",lastSender=null;
-    thread.messages.forEach(m=>{
+    msgs.forEach(m=>{
       const day=fmtDay(m.created_at); if(day!==lastDay){ html+=`<div class="daysep">${esc(day)}</div>`; lastDay=day; lastSender=null; }
       const mine=m.sender_id===ME.id; const grpStart=(m.sender_id!==lastSender); lastSender=m.sender_id;
       const by=reactsFor(m.id); const rx=Object.keys(by).map(e=>`<span class="rx ${by[e].indexOf(ME.id)>=0?'on':''}" data-react="${esc(m.id)}" data-emoji="${esc(e)}">${e} ${by[e].length}</span>`).join("");
       let inner="";
       if(isGroup&&!mine&&grpStart) inner+=`<div class="who" style="color:${colorFor(m.sender_id)}">${esc(personName(m.sender_id))}</div>`;
-      if(m.reply_to){ const rm=thread.messages.find(x=>x.id===m.reply_to); if(rm) inner+=`<div class="reply" data-goto="${esc(rm.id)}"><b>${esc(rm.sender_id===ME.id?"You":personName(rm.sender_id))}</b><span class="rt">${esc(rm.kind==="image"?"📷 Photo":rm.kind==="voice"?"🎤 Voice message":(rm.body||""))}</span></div>`; }
+      if(m.reply_to){ const rm=msgs.find(x=>x.id===m.reply_to); if(rm) inner+=`<div class="reply" data-goto="${esc(rm.id)}"><b>${esc(rm.sender_id===ME.id?"You":personName(rm.sender_id))}</b><span class="rt">${esc(rm.kind==="image"?"📷 Photo":rm.kind==="voice"?"🎤 Voice message":(rm.body||""))}</span></div>`; }
       if(m.kind==="image"){ inner+=`<img class="photo" data-media="${esc(m.media_path||"")}" alt="Photo" loading="lazy">`; if(m.body) inner+=`<div class="cap txt">${esc(m.body)}</div>`; }
       else if(m.kind==="voice"){ inner+=`<audio controls preload="none" data-media="${esc(m.media_path||"")}"></audio>`; }
       else inner+=`<span class="txt">${esc(m.body||"")}</span>`;
-      const ticks=mine?`<span class="tick read">✓✓</span>`:"";
+      const ticks=mine?ticksHtml(m,thread.members,!!m._pending):"";
       inner+=`<span class="meta-in">${fmtTime(m.created_at)} ${ticks}</span>`;
       html+=`<div class="m ${mine?'me':'them'} ${grpStart?'grpstart':''}" tabindex="0" data-mid="${esc(m.id)}">
         <div class="bub">${inner}<div class="mtools"><button class="caret" data-caret="${esc(m.id)}" aria-label="Message menu">⌄</button></div></div>
@@ -393,17 +424,19 @@
   /* ---------- sending ---------- */
   async function sendText(){ const ta=$("#msgInput"); const body=ta.value.trim(); if(!body||!activeId) return;
     ta.value=""; autoGrow(); syncSend(); const r=replyTo; replyTo=null; $("#replyBar").hidden=true;
-    try{ await BPStore.chat.send(activeId,{kind:"text",body,reply_to:r?r.id:null}); await loadThread(); await refresh(); }
-    catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"send the message"}),{type:"err"}); } }
+    const tmp={id:"tmp-"+Date.now(),conversation_id:activeId,sender_id:ME.id,kind:"text",body,reply_to:r?r.id:null,created_at:new Date().toISOString(),_pending:true};
+    pending.push(tmp); renderMessages();
+    try{ await BPStore.chat.send(activeId,{kind:"text",body,reply_to:r?r.id:null}); pending=pending.filter(p=>p!==tmp); await loadThread(); await refresh(); localReadSync(); }
+    catch(e){ pending=pending.filter(p=>p!==tmp); renderMessages(); BPUI.toast(BPUI.friendlyError(e,{action:"send the message"}),{type:"err"}); } }
   async function sendImage(file){ if(!file||!activeId) return;
     try{ const up=await BPStore.chat.uploadMedia(activeId,file,{}); const r=replyTo; replyTo=null; $("#replyBar").hidden=true;
-      await BPStore.chat.send(activeId,{kind:"image",media_path:up.path,media_mime:up.mime,reply_to:r?r.id:null}); await loadThread(); await refresh(); }
+      await BPStore.chat.send(activeId,{kind:"image",media_path:up.path,media_mime:up.mime,reply_to:r?r.id:null}); await loadThread(); await refresh(); localReadSync(); }
     catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"send the photo"}),{type:"err"}); } }
   async function sendVoice(blob,dur){ if(!blob||!activeId) return;
     try{ const ext=(blob.type||"").indexOf("ogg")>=0?"ogg":(blob.type||"").indexOf("mp4")>=0?"m4a":"webm";
       const file=new File([blob],"voice."+ext,{type:blob.type||"audio/webm"});
       const up=await BPStore.chat.uploadMedia(activeId,file,{voice:true});
-      await BPStore.chat.send(activeId,{kind:"voice",media_path:up.path,media_mime:up.mime,media_duration:dur}); await loadThread(); await refresh(); }
+      await BPStore.chat.send(activeId,{kind:"voice",media_path:up.path,media_mime:up.mime,media_duration:dur}); await loadThread(); await refresh(); localReadSync(); }
     catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"send the voice note"}),{type:"err"}); } }
 
   async function startRec(){ if(!navigator.mediaDevices||!window.MediaRecorder){ BPUI.toast("Voice notes aren’t supported here.",{type:"info"}); return; }
@@ -443,13 +476,15 @@
     {k:"dm",label:"💬  New chat",on:newDmModal},
     {k:"grp",label:"👥  New group",on:newGroupModal},
   ]));
-  $("#menuBtn").addEventListener("click",()=>{ const items=[{k:"grp",label:"👥  New group",on:newGroupModal}];
-    const m=openMenu($("#menuBtn"),items);
-    if(BPStore.chat.isLocal()){ const sel=document.createElement("select"); sel.innerHTML=BPStore.chat.localRoster().map(p=>`<option value="${p.id}">Viewing as: ${esc(p.full_name)}</option>`).join(""); sel.value=ME.id;
-      sel.addEventListener("click",e=>e.stopPropagation()); sel.addEventListener("change",async()=>{ BPStore.chat.setLocalUser(sel.value); ME=await BPStore.chat.me(); closeMenus(); await refresh(); if(activeId) await openConv(activeId); });
-      m.appendChild(sel); } });
+  $("#menuBtn").addEventListener("click",()=>openMenu($("#menuBtn"),[
+    {k:"dm",label:"💬  New chat",on:newDmModal},
+    {k:"grp",label:"👥  New group",on:newGroupModal},
+  ]));
   $("#headMenuBtn").addEventListener("click",()=>{ const c=convs.find(x=>x.id===activeId); if(!c) return;
-    const items=[{k:"fav",label:favs.has(c.id)?"★  Remove from favorites":"☆  Add to favorites",on:()=>{ if(favs.has(c.id))favs.delete(c.id); else favs.add(c.id); saveFavs(); renderConvs(); }}];
+    const items=[
+      {k:"pin",label:pins.has(c.id)?"📌  Unpin chat":"📌  Pin to top",on:()=>{ if(pins.has(c.id))pins.delete(c.id); else pins.add(c.id); savePins(); renderConvs(); }},
+      {k:"fav",label:favs.has(c.id)?"★  Remove from favorites":"☆  Add to favorites",on:()=>{ if(favs.has(c.id))favs.delete(c.id); else favs.add(c.id); saveFavs(); renderConvs(); }}
+    ];
     if(c.kind==="group") items.push({k:"add",label:"➕  Add members",on:addMembersModal});
     openMenu($("#headMenuBtn"),items); });
 
@@ -475,6 +510,9 @@
 
   /* ---------- realtime ---------- */
   let rtT=null; function onRealtime(){ clearTimeout(rtT); rtT=setTimeout(async()=>{ await refresh(); if(activeId) await loadThread(); },250); }
+  /* local demo only: BroadcastChannel doesn't echo to the sending tab, so after I
+     send, pull the simulated teammate read-receipt (grey ✓✓ → blue ✓✓) in myself. */
+  function localReadSync(){ if(!BPStore.chat.isLocal()) return; setTimeout(async()=>{ await refresh(); if(activeId) await loadThread(); },1500); }
 
   BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
