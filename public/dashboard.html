@@ -346,23 +346,34 @@
       const isAdmin = role === "admin";
       // Each nav link is gated by its own AREA in the live access matrix, so the
       // Control Center's per-role toggles decide exactly what each person sees.
-      const V = {};
-      await Promise.all(["leads","crm","nurture","staff","inventory","vendors","calendar","templates","quotes","controls"]
-        .map(async (k) => { V[k] = await BPStore.auth.canView(k); }));
       // account chip: identity + logout only
       el.innerHTML = `<span class="role">${esc(BPStore.auth.admin.roleLabel(role)||"")}</span><span class="who">${esc(user.email)}</span>`
         + `<button type="button" id="logoutBtn">Log out</button>`;
       $("#logoutBtn").addEventListener("click", async () => { await BPStore.auth.signOut(); location.reload(); });
-      // module nav: its own responsive bar (each pill carries data-nav for the tour)
-      const NAV=[
-        ["leads","leads.html","🎯","Leads",V.leads],["crm","crm.html","🗄","CRM",V.crm],
-        ["nurture","nurture.html","🌱","Nurture",V.nurture],["staff","staff.html","👷","Staff",V.staff],
-        ["inventory","inventory.html","📦","Inventory",V.inventory],["vendors","vendors.html","🤝","Vendors",V.vendors],
-        ["calendar","calendar.html","📅","Calendar",V.calendar],["templates","templates.html","🧩","Templates",V.templates],
-        ["quotes","quotes.html","📋","Quotes",V.quotes],["controls","control.html","⚙","Control Center",V.controls],
-      ];
-      const nav=$("#modnav"); nav.hidden=false;
-      nav.innerHTML=NAV.filter(n=>n[4]).map(n=>`<a class="pill" data-nav="${n[0]}" href="${n[1]}"><span class="pi" aria-hidden="true">${n[2]}</span>${esc(n[3])}</a>`).join("");
+      // Build the module nav (each pill carries data-nav for the tour). The access matrix
+      // loads atomically, and a transient network/auth miss right after sign-in makes
+      // EVERY canView() fail-closed → an empty nav bar (the "Leads tab only appears after
+      // I click another tab" bug). That miss is never cached, so re-running the fan-out
+      // recovers it; retry a few times when the bar comes back empty for a non-admin.
+      const buildNav = async () => {
+        const V = {};
+        await Promise.all(["leads","crm","nurture","staff","inventory","vendors","calendar","templates","quotes","controls"]
+          .map(async (k) => { V[k] = await BPStore.auth.canView(k); }));
+        const NAV=[
+          ["chat","chat.html","💬","Chat",true],
+          ["leads","leads.html","🎯","Leads",V.leads],["crm","crm.html","🗄","CRM",V.crm],
+          ["nurture","nurture.html","🌱","Nurture",V.nurture],["staff","staff.html","👷","Staff",V.staff],
+          ["inventory","inventory.html","📦","Inventory",V.inventory],["vendors","vendors.html","🤝","Vendors",V.vendors],
+          ["calendar","calendar.html","📅","Calendar",V.calendar],["templates","templates.html","🧩","Templates",V.templates],
+          ["quotes","quotes.html","📋","Quotes",V.quotes],["controls","control.html","⚙","Control Center",V.controls],
+        ];
+        const nav=$("#modnav"); nav.hidden=false;
+        const pills=NAV.filter(n=>n[4]);
+        nav.innerHTML=pills.map(n=>`<a class="pill" data-nav="${n[0]}" href="${n[1]}"><span class="pi" aria-hidden="true">${n[2]}</span>${esc(n[3])}</a>`).join("");
+        return pills.length;
+      };
+      let navCount = await buildNav();
+      for (let i=0; i<3 && navCount===0 && !isAdmin; i++) { await new Promise(r=>setTimeout(r,400)); navCount = await buildNav(); }
     } else {
       el.innerHTML = `<button type="button" id="loginBtn">Sign in</button>`;
       $("#loginBtn").addEventListener("click", openLogin);

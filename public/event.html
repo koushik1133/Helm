@@ -452,7 +452,8 @@
       await BPUI.guard(btn||$("#advBtn"), async()=>{
         lock(true);
         try{ await BPStore.quotes.setStage(id, k); ev.lifecycleStage=k; BPUI.toast("Stage set to "+STAGES[stageIndex(k)].label+".",{type:"ok"}); }
-        catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"update the stage"}),{type:"err"}); }
+        catch(e){ if(await BPStore.auth.handleAuthError(e)) return;  // stale token → refresh silently instead of a scary popup
+          BPUI.toast(BPUI.friendlyError(e,{action:"update the stage"}),{type:"err"}); }
       });
     } finally { stageBusy=false; render(); }
   }

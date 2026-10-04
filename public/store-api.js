@@ -337,7 +337,8 @@
         try { const ok = await loadSupabaseLib();
           if (ok && global.supabase && global.supabase.createClient) {
             supa = global.supabase.createClient(CFG.url, CFG.anonKey,
-              { auth: { persistSession: true, autoRefreshToken: true }, global: { fetch: authAwareFetch } });
+              { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage },
+                global: { fetch: authAwareFetch } });
             const { data: { session } } = await supa.auth.getSession();
             currentUser = session ? session.user : null;
             if (currentUser) hadSession = true;
@@ -347,8 +348,11 @@
               supa.auth.onAuthStateChange((event, sess) => {
                 if (sess && sess.user) { hadSession = true; if (!explicitSignOut) currentUser = sess.user; }
                 if ((event === "SIGNED_OUT" && !explicitSignOut) || (event === "TOKEN_REFRESHED" && !sess)) {
-                  // defer: supabase-js holds its auth lock inside this callback
-                  setTimeout(expireSession, 0);
+                  // Don't log the user out on a transient blip. supabase-js can emit a
+                  // spurious SIGNED_OUT during a flaky refresh; route through onAuthFailure,
+                  // which tries refreshSession() first and only redirects on a hard failure
+                  // while genuinely online. (defer: supabase-js holds its auth lock here.)
+                  setTimeout(function () { onAuthFailure(); }, 0);
                 }
               });
             } catch (e) { /* older client — best effort */ }
@@ -864,7 +868,12 @@
   };
 
   /* ---------------- control center: pricing config, vendors, coupons ---------------- */
-  const PRICING_DEFAULTS = { chairPrice:200, platePrice:500, gstPct:18, serviceChargePct:0, currency:"INR", conflictBufferHours:3 };
+  const PRICING_DEFAULTS = { chairPrice:200, platePrice:500, gstPct:18, serviceChargePct:0, currency:"INR", conflictBufferHours:3,
+    // Capacity ceilings (editable in Control Center). They keep the layout builder from
+    // being asked to render absurd counts (which froze the app), and drive the inline
+    // "Maximum is N" hints. Additive config keys — old blobs fall back to these.
+    maxGuests:20000, maxChairs:20000, maxPlates:20000, maxRoundTables:2000, maxBars:200,
+    maxFoodTrucks:200, maxExpoBooths:1000, maxRestrooms:200, maxExits:200, maxHallFt:1000 };
   const config = {
     getPricing: () => mode === "supabase"
       ? rpc("get_pricing_config")
@@ -1799,6 +1808,212 @@
     },
   };
 
+  /* ===================================================================
+     CHAT (Phase: team messaging) — per-org DMs / groups / broadcast, with
+     text, images, voice notes, replies, reactions, read state and realtime.
+     Supabase: tables + RPCs from migration 0016; media in private 'chat-media'
+     bucket (signed URLs). Local fallback: localStorage + BroadcastChannel so it
+     works (and syncs across tabs) offline/in dev.
+     =================================================================== */
+  const CHAT_MEDIA_MAX = 16 * 1024 * 1024;                  // 16 MB (matches the bucket cap)
+  const CHAT_SNIFF = [                                       // images + audio, by magic bytes
+    ["image/png",  "png",  (b) => b[0]===0x89 && b[1]===0x50 && b[2]===0x4E && b[3]===0x47],
+    ["image/jpeg", "jpg",  (b) => b[0]===0xFF && b[1]===0xD8 && b[2]===0xFF],
+    ["image/webp", "webp", (b) => b[0]===0x52 && b[1]===0x49 && b[2]===0x46 && b[3]===0x46 && b[8]===0x57 && b[9]===0x45 && b[10]===0x42 && b[11]===0x50],
+    ["image/gif",  "gif",  (b) => b[0]===0x47 && b[1]===0x49 && b[2]===0x46],
+    ["audio/webm", "webm", (b) => b[0]===0x1A && b[1]===0x45 && b[2]===0xDF && b[3]===0xA3],   // EBML (MediaRecorder webm)
+    ["audio/ogg",  "ogg",  (b) => b[0]===0x4F && b[1]===0x67 && b[2]===0x67 && b[3]===0x53],   // OggS
+    ["audio/mp4",  "m4a",  (b) => b[4]===0x66 && b[5]===0x74 && b[6]===0x79 && b[7]===0x70],   // ....ftyp
+    ["audio/mpeg", "mp3",  (b) => (b[0]===0x49 && b[1]===0x44 && b[2]===0x33) || (b[0]===0xFF && (b[1]&0xE0)===0xE0)],
+  ];
+  async function sniffChat(file) {
+    const buf = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+    for (const [mime, ext, ok] of CHAT_SNIFF) { if (ok(buf)) return { mime, ext }; }
+    return null;
+  }
+  // ---- local-mode state (demo / offline): a settable identity + a seeded roster ----
+  const CHAT_LS_C = "bp_chat_conv", CHAT_LS_M = "bp_chat_msg", CHAT_LS_R = "bp_chat_react";
+  const CHAT_LOCAL_ROSTER = [
+    { id:"u-you",    full_name:"You",          email:"you@demo.in",    role:"admin" },
+    { id:"u-ananya", full_name:"Ananya Rao",   email:"ananya@demo.in", role:"manager" },
+    { id:"u-vikram", full_name:"Vikram Singh", email:"vikram@demo.in", role:"operations" },
+    { id:"u-meera",  full_name:"Meera Nair",   email:"meera@demo.in",  role:"coordinator" },
+    { id:"u-rohit",  full_name:"Rohit Verma",  email:"rohit@demo.in",  role:"crew" },
+  ];
+  // Local demo identity. A per-TAB override (sessionStorage) lets two tabs act as
+  // two different demo teammates for a real two-login test — no UI, demo only.
+  // Real Supabase mode never calls this; identity there comes from the auth session.
+  function chatLocalUid() {
+    try { const s = sessionStorage.getItem("helm_local_uid"); if (s) return s; } catch (e) {}
+    try { return localStorage.getItem("helm_local_uid") || "u-you"; } catch (e) { return "u-you"; }
+  }
+  function chatMultiUser() { try { return !!sessionStorage.getItem("helm_local_uid"); } catch (e) { return false; } }
+  const chatReadLs = (k) => { try { return JSON.parse(localStorage.getItem(k) || "[]"); } catch (e) { return []; } };
+  const chatWriteLs = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+  let chatBC = null; try { chatBC = (typeof BroadcastChannel !== "undefined") ? new BroadcastChannel("helm-chat") : null; } catch (e) {}
+  function chatPing() { try { chatBC && chatBC.postMessage({ t: Date.now() }); } catch (e) {} try { localStorage.setItem("bp_chat_ping", String(Date.now())); } catch (e) {} }
+  function chatDmKey(a, b) { return a < b ? a + ":" + b : b + ":" + a; }
+
+  const chat = {
+    // Is the feature running on localStorage (true) or a real backend (false)?
+    isLocal: () => mode !== "supabase",
+    // Who am I, for display + "is this mine" checks.
+    async me() {
+      if (mode !== "supabase") { const u = CHAT_LOCAL_ROSTER.find((x) => x.id === chatLocalUid()) || CHAT_LOCAL_ROSTER[0]; return { id: u.id, name: u.full_name, email: u.email }; }
+      const id = currentUser && currentUser.id;
+      let name = currentUser && currentUser.email;
+      try { const { data } = await supa.from("profiles").select("full_name,email").eq("id", id).maybeSingle(); if (data) name = data.full_name || data.email || name; } catch (e) {}
+      return { id, name, email: currentUser && currentUser.email };
+    },
+    // Local-mode only: switch the acting identity (two tabs = two "users" for a live demo).
+    localRoster: () => CHAT_LOCAL_ROSTER.slice(),
+    setLocalUser: (id) => { try { localStorage.setItem("helm_local_uid", id); } catch (e) {} },
+    // All login users in my org (RLS scopes to the org). Source of the DM roster.
+    async roster() {
+      if (mode !== "supabase") return CHAT_LOCAL_ROSTER.slice();
+      const { data, error } = await supa.from("profiles").select("id,email,full_name,role").order("full_name");
+      if (error) throw error; return data || [];
+    },
+    // Conversations I can see (my DMs + groups + the org broadcast), newest first.
+    async conversations() {
+      if (mode !== "supabase") {
+        let convs = chatReadLs(CHAT_LS_C);
+        if (!convs.some((c) => c.kind === "broadcast")) { convs.unshift({ id: "bcast", kind: "broadcast", title: "Everyone", created_at: now(), last_message_at: now(), members: [] }); chatWriteLs(CHAT_LS_C, convs); }
+        return convs.slice().sort((a, b) => String(b.last_message_at || "").localeCompare(String(a.last_message_at || "")));
+      }
+      try { await rpc("chat_ensure_broadcast"); } catch (e) {}
+      const { data, error } = await supa.from("chat_conversations").select("*").order("last_message_at", { ascending: false });
+      if (error) throw error; return data || [];
+    },
+    // My membership rows (→ last_read_at per conversation, for unread badges).
+    async myMemberships() {
+      if (mode !== "supabase") { const me = chatLocalUid(); const out = {}; chatReadLs(CHAT_LS_C).forEach((c) => { const m = (c.members || []).find((x) => x.user_id === me); if (m) out[c.id] = m; }); return out; }
+      const { data } = await supa.from("chat_members").select("conversation_id,last_read_at,member_role").eq("user_id", currentUser ? currentUser.id : null);
+      const out = {}; (data || []).forEach((m) => { out[m.conversation_id] = m; }); return out;
+    },
+    // Everything needed to render one conversation: messages (oldest→newest) + reactions + members.
+    async thread(convId, limit) {
+      if (mode !== "supabase") {
+        const msgs = chatReadLs(CHAT_LS_M).filter((x) => x.conversation_id === convId).sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+        const ids = msgs.map((m) => m.id);
+        const reactions = chatReadLs(CHAT_LS_R).filter((r) => ids.indexOf(r.message_id) !== -1);
+        const conv = chatReadLs(CHAT_LS_C).find((c) => c.id === convId) || {};
+        return { messages: msgs, reactions, members: conv.members || [] };
+      }
+      const { data: msgs, error: e1 } = await supa.from("chat_messages").select("*").eq("conversation_id", convId).order("created_at", { ascending: true }).limit(limit || 500);
+      if (e1) throw e1;
+      const ids = (msgs || []).map((m) => m.id);
+      let reactions = []; if (ids.length) { const { data: rr } = await supa.from("chat_reactions").select("*").in("message_id", ids); reactions = rr || []; }
+      const { data: members } = await supa.from("chat_members").select("*").eq("conversation_id", convId);
+      return { messages: msgs || [], reactions, members: members || [] };
+    },
+    async startDm(otherId) {
+      if (mode !== "supabase") {
+        const me = chatLocalUid(); if (otherId === me) throw new Error("invalid recipient");
+        const key = chatDmKey(me, otherId); const convs = chatReadLs(CHAT_LS_C);
+        let c = convs.find((x) => x.dm_key === key);
+        if (!c) { c = { id: uid(), kind: "dm", dm_key: key, created_by: me, created_at: now(), last_message_at: now(), members: [{ user_id: me }, { user_id: otherId }] }; convs.push(c); chatWriteLs(CHAT_LS_C, convs); chatPing(); }
+        return c.id;
+      }
+      return rpc("chat_start_dm", { p_other: otherId });
+    },
+    async createGroup(title, memberIds) {
+      if (mode !== "supabase") {
+        const me = chatLocalUid(); const convs = chatReadLs(CHAT_LS_C);
+        const members = [{ user_id: me, member_role: "admin" }].concat((memberIds || []).filter((x) => x !== me).map((x) => ({ user_id: x })));
+        const c = { id: uid(), kind: "group", title: (title || "Group").trim(), created_by: me, created_at: now(), last_message_at: now(), members };
+        convs.push(c); chatWriteLs(CHAT_LS_C, convs); chatPing(); return c.id;
+      }
+      return rpc("chat_create_group", { p_title: title, p_members: memberIds || [] });
+    },
+    async addMembers(convId, memberIds) {
+      if (mode !== "supabase") { const convs = chatReadLs(CHAT_LS_C); const c = convs.find((x) => x.id === convId); if (c) { c.members = c.members || []; (memberIds || []).forEach((id) => { if (!c.members.some((m) => m.user_id === id)) c.members.push({ user_id: id }); }); chatWriteLs(CHAT_LS_C, convs); chatPing(); } return; }
+      return rpc("chat_add_members", { p_conversation: convId, p_members: memberIds || [] });
+    },
+    // Upload an image or voice note; returns { path, mime } to pass to send().
+    async uploadMedia(convId, file, opts) {
+      opts = opts || {};
+      if (!file) throw new Error("no file");
+      if (file.size > CHAT_MEDIA_MAX) throw new Error("File too large (max 16 MB).");
+      const sniff = await sniffChat(file);
+      if (!sniff) throw new Error("Unsupported file — images or voice notes only.");
+      if (mode !== "supabase") { const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); return { path: dataUrl, mime: sniff.mime }; }
+      const orgId = await org.id(); if (!orgId) throw new Error("no organization in context");
+      const u = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
+      const path = orgId + "/" + convId + "/" + u + "." + sniff.ext;
+      const { error } = await supa.storage.from("chat-media").upload(path, file, { upsert: false, contentType: sniff.mime, cacheControl: "3600" });
+      if (error) throw error;
+      return { path, mime: sniff.mime };
+    },
+    // Resolve a media_path to something an <img>/<audio> can load.
+    async mediaUrl(path, seconds) {
+      if (!path) return null;
+      if (mode !== "supabase" || /^data:/.test(path) || /^https?:/.test(path)) return path;   // local data: URL
+      const { data, error } = await supa.storage.from("chat-media").createSignedUrl(path, seconds || 300);
+      if (error) throw error; return data && data.signedUrl;
+    },
+    async send(convId, m) {
+      m = m || {};
+      if (mode !== "supabase") {
+        const msgs = chatReadLs(CHAT_LS_M);
+        const row = { id: uid(), conversation_id: convId, org_id: "local", sender_id: chatLocalUid(), kind: m.kind || "text", body: m.body || null, media_path: m.media_path || null, media_mime: m.media_mime || null, media_duration: m.media_duration || null, reply_to: m.reply_to || null, created_at: now(), deleted: false };
+        msgs.push(row); chatWriteLs(CHAT_LS_M, msgs);
+        const convs = chatReadLs(CHAT_LS_C); const c = convs.find((x) => x.id === convId); if (c) { c.last_message_at = now(); chatWriteLs(CHAT_LS_C, convs); }
+        chatPing();
+        // Demo only (local fallback): simulate teammates opening the chat a moment
+        // later so the delivered (grey ✓✓) → read (blue ✓✓) transition is visible.
+        // Skipped when two tabs are acting as two real identities (then the other
+        // tab's actual markRead drives the read receipt). Real Supabase never runs this.
+        try {
+         if (!chatMultiUser())
+          setTimeout(() => {
+            try {
+              const cv = chatReadLs(CHAT_LS_C); const cc = cv.find((x) => x.id === convId); if (!cc) return;
+              cc.members = cc.members || [];
+              const peers = (cc.kind === "broadcast") ? CHAT_LOCAL_ROSTER.map((p) => p.id) : cc.members.map((x) => x.user_id);
+              peers.filter((id) => id && id !== row.sender_id).forEach((id) => { let mm = cc.members.find((x) => x.user_id === id); if (!mm) { mm = { user_id: id }; cc.members.push(mm); } mm.last_read_at = now(); });
+              chatWriteLs(CHAT_LS_C, cv); chatPing();
+            } catch (e) {}
+          }, 1200);
+        } catch (e) {}
+        return row;
+      }
+      return rpc("chat_send", { p_conversation: convId, p_kind: m.kind || "text", p_body: m.body || null, p_media_path: m.media_path || null, p_media_mime: m.media_mime || null, p_media_duration: m.media_duration || null, p_reply_to: m.reply_to || null });
+    },
+    async react(messageId, emoji, on) {
+      if (mode !== "supabase") {
+        let rs = chatReadLs(CHAT_LS_R); const me = chatLocalUid();
+        rs = rs.filter((r) => !(r.message_id === messageId && r.user_id === me && r.emoji === emoji));
+        if (on !== false) rs.push({ message_id: messageId, user_id: me, emoji, created_at: now() });
+        chatWriteLs(CHAT_LS_R, rs); chatPing(); return;
+      }
+      return rpc("chat_react", { p_message: messageId, p_emoji: emoji, p_on: on !== false });
+    },
+    async markRead(convId) {
+      if (mode !== "supabase") { const convs = chatReadLs(CHAT_LS_C); const c = convs.find((x) => x.id === convId); const me = chatLocalUid(); if (c) { c.members = c.members || []; let m = c.members.find((x) => x.user_id === me); if (!m) { m = { user_id: me }; c.members.push(m); } m.last_read_at = now(); chatWriteLs(CHAT_LS_C, convs); } return; }
+      try { return await rpc("chat_mark_read", { p_conversation: convId }); } catch (e) {}
+    },
+    // Realtime: call cb() on any chat change. Returns { unsubscribe() }.
+    subscribe(cb, onStatus) {
+      if (mode !== "supabase") {
+        const h = () => cb && cb();
+        try { if (chatBC) chatBC.onmessage = h; } catch (e) {}
+        const sh = (e) => { if (e.key === "bp_chat_ping") h(); };
+        try { window.addEventListener("storage", sh); } catch (e) {}
+        if (onStatus) onStatus("LOCAL");
+        return { unsubscribe() { try { if (chatBC) chatBC.onmessage = null; } catch (e) {} try { window.removeEventListener("storage", sh); } catch (e) {} } };
+      }
+      try {
+        const ch = supa.channel("chat-rt")
+          .on("postgres_changes", { event: "*", schema: "public", table: "chat_messages" }, () => cb && cb())
+          .on("postgres_changes", { event: "*", schema: "public", table: "chat_reactions" }, () => cb && cb())
+          .on("postgres_changes", { event: "*", schema: "public", table: "chat_conversations" }, () => cb && cb())
+          .subscribe((status) => { if (onStatus) onStatus(status); });
+        return ch;
+      } catch (e) { if (onStatus) onStatus("ERROR"); return { unsubscribe() {} }; }
+    },
+  };
+
   /* ---------------- resource needs + capability check (Phase 8) ---------------- */
   const NEED_LS = "bp_resource_needs";
   const resources = {
@@ -2170,7 +2385,9 @@
       }
       const a = readLs(PLAN_LS).filter((x) => x.quote_id !== quoteId);
       const cur = readLs(PLAN_LS).find((x) => x.quote_id === quoteId) || {};
-      const row = { quote_id: quoteId, menu_locked: cur.menu_locked || false, ...p, updated_at: now() };
+      // Merge onto the existing row so a venue/menu-notes save can't wipe a previously
+      // applied package (menu_template / menu_plate_price) or other prior fields.
+      const row = { ...cur, quote_id: quoteId, menu_locked: cur.menu_locked || false, ...p, updated_at: now() };
       a.push(row); localStorage.setItem(PLAN_LS, JSON.stringify(a)); return row;
     },
     async setLock(quoteId, locked) {
@@ -2678,7 +2895,12 @@
           try { await this.markSeen(); } catch {} dot.hidden = true; } else panel.hidden = true; });
       el.querySelector("#bpBellClear").addEventListener("click", async (e) => { e.stopPropagation(); try { await this.markSeen(); } catch {} dot.hidden = true;
         let f = null; try { f = await this.feed(20); } catch {} renderList((f && f.items) || []); });
-      document.addEventListener("click", (e) => { if (!el.contains(e.target)) panel.hidden = true; });
+      document.addEventListener("click", (e) => {
+        // Ignore clicks on the window scrollbar (target becomes <html>, outside el) so
+        // dragging/clicking the scrollbar doesn't collapse the open notifications panel.
+        try { var de = document.documentElement; if (e.clientX > de.clientWidth || e.clientY > de.clientHeight) return; } catch (_) {}
+        if (!el.contains(e.target)) panel.hidden = true;
+      });
       setInterval(() => { if (!document.hidden && panel.hidden) refresh(); }, 30000);
     },
   };
@@ -2747,7 +2969,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat,
     // Phase 3 — personal dashboard feed: upcoming events + per-event task rollup + unread count.
     // Org- and area-scoped server-side (my_pending is SECURITY DEFINER gated on has_area('quotes','view')).
     pending: () => (supa ? rpc("my_pending") : Promise.resolve({ upcoming: [], unread: 0 })),
@@ -2889,10 +3111,21 @@
     ".bpui-overlay{animation:bpuiFade .14s ease-out}.bpui-dialog{animation:bpuiPop .16s ease-out}",
     ".bpui-toast{animation:bpuiUp .18s ease-out}.bpui-spin,.bpui-spin2,:where(#boot:empty)::before{animation:bpuiSpin .8s linear infinite}",
     ".bpui-boot-overlay{animation:bpuiFade .2s ease-out}}",
+    /* Reduced-motion users got a FROZEN ring that read as a broken/odd shape. Give the */
+    /* spinners a gentle opacity pulse instead so a loading state never looks stuck. */
+    "@media (prefers-reduced-motion:reduce){",
+    ".bpui-spin,.bpui-spin2,:where(#boot:empty)::before{animation:bpuiPulse 1.1s ease-in-out infinite}}",
+    "@keyframes bpuiPulse{0%,100%{opacity:.35}50%{opacity:1}}",
     "@keyframes bpuiFade{from{opacity:0}to{opacity:1}}",
     "@keyframes bpuiPop{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}",
     "@keyframes bpuiUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}",
     "@keyframes bpuiSpin{to{transform:rotate(360deg)}}",
+    /* Smoother, more modern spinner on capable browsers: a clean accent arc that fades to */
+    /* a faint tail (conic + radial mask), replacing the flat border ring — one shared look */
+    /* across every screen. Falls back to the border ring where mask isn't supported. */
+    "@supports ((-webkit-mask:radial-gradient(#000,#000)) or (mask:radial-gradient(#000,#000))){",
+    ".bpui-spin,:where(#boot:empty)::before{border:none;background:conic-gradient(from 90deg,color-mix(in srgb,var(--bpui-accent) 12%,transparent),var(--bpui-accent));-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3.5px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 3.5px),#000 calc(100% - 3px))}",
+    ".bpui-spin2{border:none;background:conic-gradient(from 90deg,color-mix(in srgb,var(--bpui-accent) 12%,transparent),var(--bpui-accent));-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px));mask:radial-gradient(farthest-side,transparent calc(100% - 2.5px),#000 calc(100% - 2px))}}",
     "@media print{.bpui-toasts,.bpui-offline,.bpui-boot-overlay{display:none!important}}",
   ].join("\n");
   function injectCSS() {
@@ -3298,7 +3531,19 @@
         }
         if (cancelBtn) cancelBtn.addEventListener("click", function () { close(cancelValue); });
         // scrim click cancels alert/confirm (never prompt — don't lose typed input)
-        ov.addEventListener("mousedown", function (e) { if (e.target === ov && kind !== "prompt") close(cancelValue); });
+        // Close only when the press both starts AND ends on the backdrop itself, and not
+        // on the scrollbar — a single scrollbar press used to report e.target===ov and
+        // dismiss the dialog (wiping what the user was reading).
+        var downOnOv = false;
+        ov.addEventListener("mousedown", function (e) {
+          downOnOv = false;
+          try { var de = document.documentElement; if (e.clientX > de.clientWidth || e.clientY > de.clientHeight) return; } catch (_) {}
+          downOnOv = (e.target === ov);
+        });
+        ov.addEventListener("mouseup", function (e) {
+          if (downOnOv && e.target === ov && kind !== "prompt") close(cancelValue);
+          downOnOv = false;
+        });
 
         doc.body.appendChild(ov);
         activate(ov, { own: true, onEscape: function () { close(cancelValue); } });
@@ -3636,6 +3881,23 @@
       var s = String(n);
       if (s !== el.value) { el.value = s; el.dispatchEvent(new Event("change", { bubbles: true })); }
     };
+    // Live sanitiser: keydown blocks typed junk, but PASTE and programmatic sets slip
+    // through until blur — and live consumers read .value on `input` before blur ever
+    // fires. Strip letters/symbols (and the sign/decimal where not allowed) on every
+    // input and after a paste, so a pasted "-5", "5e3" or "12.5x" can never reach a
+    // consumer. The blur `fix` still does the final min/max clamp.
+    var strip = function () {
+      var v = String(el.value);
+      var cleaned = v.replace(allowNeg ? /[^\d.\-]/g : /[^\d.]/g, "");
+      if (integer) cleaned = cleaned.replace(/\./g, "");
+      if (allowNeg) { var neg = cleaned.charAt(0) === "-"; cleaned = (neg ? "-" : "") + cleaned.replace(/-/g, ""); }
+      // keep only the first decimal point
+      var dot = cleaned.indexOf(".");
+      if (dot !== -1) cleaned = cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replace(/\./g, "");
+      if (cleaned !== v) el.value = cleaned;
+    };
+    el.addEventListener("input", strip);
+    el.addEventListener("paste", function () { setTimeout(strip, 0); });
     el.addEventListener("blur", fix);
   }
 
@@ -3752,6 +4014,11 @@
   function hardenDate(el) {
     if (el.getAttribute("data-date-hardened") === "1") return;
     el.setAttribute("data-date-hardened", "1");
+    // Event/booking fields opt into a "no past dates" floor with data-min-today.
+    // (Birthdays, anniversaries and DOB fields leave it off so past dates stay allowed.)
+    if (el.hasAttribute("data-min-today") && !el.getAttribute("min")) {
+      el.setAttribute("min", new Date().toISOString().slice(0, 10));
+    }
     if (!el.getAttribute("min")) el.setAttribute("min", DATE_MIN);
     if (!el.getAttribute("max")) el.setAttribute("max", DATE_MAX);
     var lo = el.getAttribute("min"), hi = el.getAttribute("max");

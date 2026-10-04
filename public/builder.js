@@ -29,6 +29,9 @@
 
 const PX_PER_FT = 12;
 const WORLD = { w: 200, h: 140 };            // floor size in feet
+// Capacity ceilings, loaded from Control Center (config.getPricing). Defaults keep the
+// builder from being asked to render absurd counts (which used to freeze the app).
+let CAPS = { guests:20000, chairs:20000, plates:20000, tables:2000, bars:200, trucks:200, booths:1000, rest:200, exits:200, hall:1000 };
 const FT_PER_M = 3.280839895;
 
 /* ---- category palette (reads live CSS vars so themes stay in sync) ---- */
@@ -288,6 +291,7 @@ const store = {
   selectedId: null,        // primary selection (drives the single-object inspector, resize/rotate, 3D)
   selectedIds: [],         // full multi-selection set
   grid: { snap:true, show:true, unit:'ft', sizeFt:1 },
+  margins: { left:0, right:0, top:0, bottom:0 },   // usable-area insets in feet (Excel-style draggable guides)
   venue: { capacity: null },       // planner-set venue max, for the capacity/congestion check
   view: { zoom:1 },
   past: [], future: [],
@@ -485,6 +489,36 @@ function focusedObjId(){ const a=document.activeElement; return (a && a.classLis
 function restoreObjFocus(id){ if(id==null) return; const n=svg.querySelector('.obj[data-id="'+CSS.escape(String(id))+'"]');
   if(n){ restoringFocus=true; try{ n.focus({preventScroll:true}); }catch(_){ } restoringFocus=false; } }
 let restoringFocus=false;
+// Excel-style draggable margins: shaded out-of-bounds bands, a dashed usable-area
+// outline, and a thin grab strip along each margin line you can drag in/out.
+function renderMargins(){
+  const m = store.margins || (store.margins={left:0,right:0,top:0,bottom:0});
+  const P=PX_PER_FT, W=WORLD.w*P, H=WORLD.h*P;
+  const L=m.left*P, R=(WORLD.w-m.right)*P, T=m.top*P, B=(WORLD.h-m.bottom)*P;
+  const z=(store.view&&store.view.zoom)||1;
+  const g=el('g',{class:'margins'});
+  const band=(x,y,w,h)=> el('rect',{x:x,y:y,width:Math.max(0,w),height:Math.max(0,h),fill:'var(--grid-strong)','fill-opacity':0.10,'pointer-events':'none'});
+  if(m.left>0)   g.appendChild(band(0,0,L,H));
+  if(m.right>0)  g.appendChild(band(R,0,W-R,H));
+  if(m.top>0)    g.appendChild(band(0,0,W,T));
+  if(m.bottom>0) g.appendChild(band(0,B,W,H-B));
+  // usable-area outline
+  g.appendChild(el('rect',{x:L,y:T,width:Math.max(0,R-L),height:Math.max(0,B-T),fill:'none',stroke:'var(--c-logistics,#2f74d0)','stroke-width':1.5/z,'stroke-dasharray':(7/z)+' '+(5/z),'pointer-events':'none'}));
+  const grab=Math.max(6,14/z);   // grab-strip thickness (≈14 screen px)
+  const sw=1.5/z;
+  const line=(attrs)=> g.appendChild(el('line',Object.assign({stroke:'var(--c-logistics,#2f74d0)','stroke-width':sw,'pointer-events':'none'},attrs)));
+  const strip=(edge,attrs,cursor)=> g.appendChild(el('rect',Object.assign({'data-margin':edge,fill:'transparent',style:'cursor:'+cursor},attrs)));
+  if(!RO){
+    line({x1:L,y1:0,x2:L,y2:H}); strip('left', {x:L-grab/2,y:0,width:grab,height:H},'ew-resize');
+    line({x1:R,y1:0,x2:R,y2:H}); strip('right',{x:R-grab/2,y:0,width:grab,height:H},'ew-resize');
+    line({x1:0,y1:T,x2:W,y2:T}); strip('top',  {x:0,y:T-grab/2,width:W,height:grab},'ns-resize');
+    line({x1:0,y1:B,x2:W,y2:B}); strip('bottom',{x:0,y:B-grab/2,width:W,height:grab},'ns-resize');
+    // visible pips near the ruler edge so the guides are discoverable
+    const ps=Math.max(7,9/z); const pip=(x,y,w,h)=> g.appendChild(el('rect',{x:x-w/2,y:y-h/2,width:w,height:h,rx:2/z,fill:'var(--c-logistics,#2f74d0)','pointer-events':'none'}));
+    pip(L,ps*1.2,ps,ps*1.7); pip(R,ps*1.2,ps,ps*1.7); pip(ps*1.2,T,ps*1.7,ps); pip(ps*1.2,B,ps*1.7,ps);
+  }
+  svg.appendChild(g);
+}
 function renderAll(){
   const refocus=focusedObjId();
   sizeCanvas();
@@ -516,6 +550,9 @@ function renderAll(){
 
   // --- items ---
   store.items.forEach(it=> svg.appendChild(renderItem(it)));
+
+  // --- draggable margins (guides + shaded out-of-bounds) ---
+  renderMargins();
 
   // --- measurement overlay (2D "Work" mode) ---
   if(showMeasure) svg.appendChild(renderMeasurements());
@@ -1164,6 +1201,12 @@ svg.addEventListener('pointerdown',e=>{
     else if(store.selectedIds.length){ clearSelection(); renderAll(); }
     return;
   }
+  const mh=e.target.closest('[data-margin]');   // Excel-style margin guide → drag to adjust
+  if(mh){
+    e.preventDefault();
+    drag={mode:'margin', edge:mh.getAttribute('data-margin'), orig:{...store.margins}, moved:false};
+    svg.setPointerCapture(e.pointerId); return;
+  }
   if(handle){                                  // resize / rotate — single primary object only
     const it=selected(); if(!it) return;
     e.preventDefault();
@@ -1206,6 +1249,15 @@ svg.addEventListener('pointermove',e=>{
   const p=svgPointFt(e);
   updateStatus(p);
   if(!drag) return;
+
+  if(drag.mode==='margin'){
+    drag.moved=true; const m=store.margins, edge=drag.edge;
+    if(edge==='left')        m.left   = round1(clamp(snapFt(p.x),           0, WORLD.w - m.right  - 1));
+    else if(edge==='right')  m.right  = round1(clamp(snapFt(WORLD.w - p.x), 0, WORLD.w - m.left   - 1));
+    else if(edge==='top')    m.top    = round1(clamp(snapFt(p.y),           0, WORLD.h - m.bottom - 1));
+    else if(edge==='bottom') m.bottom = round1(clamp(snapFt(WORLD.h - p.y), 0, WORLD.h - m.top    - 1));
+    renderSceneOnly(); return;
+  }
 
   if(drag.mode==='marquee'){
     drag.moved=true;
@@ -1265,6 +1317,13 @@ function endDrag(e){
 }
 svg.addEventListener('pointerup',endDrag);
 svg.addEventListener('pointercancel',endDrag);
+// Double-click the ruler corner to clear all margins back to the full floor.
+(function wireMarginReset(){ const c=document.getElementById('cornerUnit'); if(!c) return;
+  c.title='Double-click to reset the floor margins'; c.style.cursor='pointer';
+  c.addEventListener('dblclick',()=>{ if(RO) return; const m=store.margins||{};
+    if(!(m.left||m.right||m.top||m.bottom)) return;
+    store.margins={left:0,right:0,top:0,bottom:0}; commit(); renderAll(); toast('Margins reset'); });
+})();
 
 /* light re-render during drag (scene + rulers only, keep inspector fields stable) */
 function renderSceneOnly(){
@@ -1284,6 +1343,7 @@ function renderSceneOnly(){
   }
   svg.appendChild(el('rect',{x:0.5,y:0.5,width:W-1,height:H-1,fill:'none',stroke:'var(--grid-strong)','stroke-width':1.5}));
   store.items.forEach(it=>svg.appendChild(renderItem(it)));
+  renderMargins();
   appendSelectionOverlays();
   // live-sync a couple inspector readouts (single-selection only)
   if(sel && store.selectedIds.length===1){
@@ -1763,7 +1823,7 @@ function seatTheatre(items, o, topY){
   const colW=(WORLD.w-2*margin-aisle)/2, regionH=Math.max(12, bottomY-topY);
   const cols=Math.max(4, Math.floor(colW/DESIGN_PITCH));    // walkable column pitch — never below comfort
   const rowsCap=Math.max(1, Math.floor(regionH/DESIGN_PITCH));
-  const guests=o.guests||(2*cols*rowsCap);
+  const guests=o.guests!=null?o.guests:(2*cols*rowsCap);
   let rows=clamp(Math.ceil(guests/(2*cols)),1,rowsCap);
   const bH=Math.min(regionH, rows*DESIGN_PITCH);            // row pitch = DESIGN_PITCH, so blocks read "comfortable"
   items.push(makeItem('seatblock', margin, topY, {width:colW,height:bH,properties:{rows,cols},label:'Left Seating'}));
@@ -1798,7 +1858,7 @@ function seatBanquetLong(items, o, topY){
   const bottomY=WORLD.h-16, margin=12, cellW=46, cellH=18;
   const cols=Math.max(1,Math.floor((WORLD.w-2*margin+cellW-16)/cellW));
   const rows=Math.max(1,Math.floor((bottomY-topY)/cellH));
-  const need=o.guests?Math.ceil(o.guests/12):cols*rows;
+  const need=o.guests!=null?Math.ceil(o.guests/12):cols*rows;
   let placed=0;
   for(let r=0;r<rows && placed<need;r++)for(let c=0;c<cols && placed<need;c++){
     items.push(makeItem('longtable', margin+c*cellW, topY+r*cellH, {properties:{seats:12},label:'Table '+(placed+1)})); placed++;
@@ -1807,7 +1867,7 @@ function seatBanquetLong(items, o, topY){
 function boothGrid(items, o, topY){
   const margin=16, cell=22, cols=Math.max(1,Math.floor((WORLD.w-2*margin+2)/cell));
   const rows=Math.max(1,Math.floor((WORLD.h-topY-16)/cell));
-  const need=o.booths||cols*rows; let n=1,placed=0;
+  const need=o.booths!=null?o.booths:cols*rows; let n=1,placed=0;
   for(let r=0;r<rows && placed<need;r++)for(let c=0;c<cols && placed<need;c++){
     items.push(makeItem('booth', margin+c*cell, topY+r*cell, {label:'B'+(n++)})); placed++;
   }
@@ -1836,7 +1896,7 @@ function seatCocktail(items, o, topY){
   const cols=Math.max(1,Math.floor((WORLD.w-2*margin)/cell));
   const rows=Math.max(1,Math.floor((bottomY-topY)/cell));
   const capacity=Math.max(1,cols*rows);
-  const need = o.guests ? Math.min(capacity, Math.ceil(o.guests/3)) : Math.round(capacity*0.6);
+  const need = o.guests!=null ? Math.min(capacity, Math.ceil(o.guests/3)) : Math.round(capacity*0.6);
   let placed=0, hb=0;
   for(let r=0;r<rows && placed<need;r++)for(let c=0;c<cols && placed<need;c++){
     if((r*cols+c)%12===5) items.push(makeItem('lounge', margin+c*cell, topY+r*cell, {label:'Lounge'}));
@@ -1938,8 +1998,9 @@ function readCustomForm(){
 function applyRoomFromForm(o){
   // hall length & breadth are physical dimensions — must be > 0 when supplied (blank = keep current)
   const lenRaw=$('#c_len').value.trim(), widRaw=$('#c_wid').value.trim();
-  if(lenRaw!==''){ const r=BPStore.validate.dimension(lenRaw,{field:'Hall length'}); if(!r.ok){ BPUI.alert('Hall length must be greater than 0.',{title:'Check the hall size'}); return false; } WORLD.w = clamp(r.value, 20, 1000); }
-  if(widRaw!==''){ const r=BPStore.validate.dimension(widRaw,{field:'Hall breadth'}); if(!r.ok){ BPUI.alert('Hall breadth must be greater than 0.',{title:'Check the hall size'}); return false; } WORLD.h = clamp(r.value, 20, 1000); }
+  const maxFt = (CAPS&&CAPS.hall)||1000;
+  if(lenRaw!==''){ const r=BPStore.validate.dimension(lenRaw,{field:'Hall length'}); if(!r.ok){ BPUI.alert('Hall length must be greater than 0.',{title:'Check the hall size'}); return false; } WORLD.w = clamp(r.value, 20, maxFt); }
+  if(widRaw!==''){ const r=BPStore.validate.dimension(widRaw,{field:'Hall breadth'}); if(!r.ok){ BPUI.alert('Hall breadth must be greater than 0.',{title:'Check the hall size'}); return false; } WORLD.h = clamp(r.value, 20, maxFt); }
   store.venue = store.venue || {};
   store.venue.room = { w:WORLD.w, h:WORLD.h };
   store.venue.setting = o.setting || store.venue.setting || 'indoor';
@@ -1948,7 +2009,13 @@ function applyRoomFromForm(o){
 function updateDimsLabel(){ const el=$('#dimsLabel'); if(el) el.textContent = `${WORLD.w} × ${WORLD.h} ft · ${PX_PER_FT} px/ft${store.venue&&store.venue.setting==='outdoor'?' · outdoor':''}`; }
 function runCustomGenerate(){
   const o=readCustomForm();
+  // Enforce the Control-Center capacity ceilings so generation stays fast and honest
+  // even if a field wasn't blurred (the blur clamp hadn't run yet).
+  o.guests=clampCap(o.guests,CAPS.guests); o.chairs=clampCap(o.chairs,CAPS.chairs); o.tables=clampCap(o.tables,CAPS.tables);
+  o.bars=clampCap(o.bars,CAPS.bars); o.trucks=clampCap(o.trucks,CAPS.trucks); o.booths=clampCap(o.booths,CAPS.booths);
+  o.rest=clampCap(o.rest,CAPS.rest); o.exits=clampCap(o.exits,CAPS.exits);
   if(applyRoomFromForm(o)===false) return;               // invalid hall dimension → abort (message already shown)
+  sizeCanvas(); renderAll(); fitView();                  // open/redraw the floor at the entered hall size
   const variants=generateVariants(o).map(v=>({...v, items:v.items.map(clampItem)}));
   const host=$('#c_results');
   // Honest capacity check: if the hall physically can't seat the headcount at a walkable pitch, say so.
@@ -1981,7 +2048,30 @@ function runCustomGenerate(){
     toast(v.name+' · '+v.counts.chairs+' chairs, '+v.counts.objects+' objects');
   }));
 }
-function openCustomModal(){ $('#customModal').hidden=false; $('#c_results').innerHTML=''; }
+const clampCap=(v,max)=> (v==null?null:Math.min(v, max));
+// Show a live red "Maximum is N" note under each capped field, set its max to the
+// Control-Center value, and resize the floor the moment the hall size is typed.
+function applyCapHints(){
+  const map=[['c_guests','guests'],['c_chairs','chairs'],['c_tables','tables'],['c_bars','bars'],
+    ['c_trucks','trucks'],['c_booths','booths'],['c_rest','rest'],['c_exits','exits'],['c_len','hall'],['c_wid','hall']];
+  map.forEach(([id,key])=>{ const el=$('#'+id); if(!el) return; const max=CAPS[key];
+    if(max!=null&&isFinite(max)) el.setAttribute('max', String(max));
+    let hint=el.parentNode&&el.parentNode.querySelector('.caphint');
+    if(!hint && el.parentNode){ hint=document.createElement('small'); hint.className='caphint'; hint.hidden=true;
+      hint.style.cssText='display:block;color:var(--danger,#c0362c);font-size:11px;font-weight:600;margin-top:3px';
+      el.parentNode.appendChild(hint); }
+    const check=()=>{ if(!hint) return; const n=parseFloat(el.value);
+      const over=el.value!=='' && isFinite(n) && max!=null && n>max;
+      hint.hidden=!over; if(over) hint.textContent='Maximum is '+Number(max).toLocaleString('en-IN')+'.'; };
+    el.addEventListener('input',check); check();
+  });
+  // Entering the hall length/breadth opens/resizes the floor immediately (on blur/Enter),
+  // so the canvas reflects the dimensions before any layout is generated or chosen.
+  ['c_len','c_wid'].forEach(id=>{ const el=$('#'+id); if(!el||el.dataset.resizeWired) return; el.dataset.resizeWired='1';
+    el.addEventListener('change',()=>{ try{ if(applyRoomFromForm(readCustomForm())===false) return; sizeCanvas(); renderAll(); fitView(); }catch(e){} });
+  });
+}
+function openCustomModal(){ $('#customModal').hidden=false; $('#c_results').innerHTML=''; try{ applyCapHints(); }catch(e){} }
 function closeCustomModal(){ $('#customModal').hidden=true; }
 
 /* ===================================================================
@@ -2417,9 +2507,18 @@ let currentVersionNo = null;      // which version is loaded (for the header rea
 let currentClient = {};           // the open quote's client object (so we can persist guests without clobbering it)
 let currentPricing = {};          // the open quote's saved pricing inputs (discount/coupon/rates) — refreshed, not clobbered
 
+function sanitizeMargins(m){
+  m = m || {}; const w=WORLD.w, h=WORLD.h;
+  const n=(v)=> (isFinite(+v)&&+v>=0) ? +v : 0;
+  let left=n(m.left), right=n(m.right), top=n(m.top), bottom=n(m.bottom);
+  if(left+right  > w-1){ left=Math.min(left,w-1); right=Math.min(right, Math.max(0,w-1-left)); }
+  if(top+bottom > h-1){ top=Math.min(top,h-1);  bottom=Math.min(bottom, Math.max(0,h-1-top)); }
+  return { left:round1(left), right:round1(right), top:round1(top), bottom:round1(bottom) };
+}
 function serialize(){
   return { items: JSON.parse(JSON.stringify(store.items)),
-    grid: { ...store.grid }, venue: JSON.parse(JSON.stringify(store.venue||{})),
+    grid: { ...store.grid }, margins: { ...(store.margins||{left:0,right:0,top:0,bottom:0}) },
+    venue: JSON.parse(JSON.stringify(store.venue||{})),
     scale:{ pxPerFt:PX_PER_FT, worldFt:{ w:WORLD.w, h:WORLD.h } },   // copy, not a live reference
     savedAt: new Date().toISOString() };
 }
@@ -2438,6 +2537,7 @@ function applyLayout(data){
   });
   dedupeIds(store.items);
   if(data.grid){ store.grid = sanitizeGrid(data.grid); syncGridUI(); }
+  store.margins = sanitizeMargins(data.margins);   // restore draggable margins (0s if none saved)
   if(data.venue){ store.venue = sanitizeVenue(data.venue); }
   updateDimsLabel();
   const ci=$('#capInput'); if(ci) ci.value = store.venue.capacity!=null ? store.venue.capacity : '';
@@ -2702,8 +2802,13 @@ async function init(){
       if(pc.layoutBase!=null) PRICING.layoutBase=+pc.layoutBase;
       if(pc.serviceChargePct!=null) PRICING.serviceChargePct=+pc.serviceChargePct;
       if(pc.assetPrices)      PRICING.assetPrices=pc.assetPrices;
+      CAPS = { guests:+pc.maxGuests||CAPS.guests, chairs:+pc.maxChairs||CAPS.chairs, plates:+pc.maxPlates||CAPS.plates,
+        tables:+pc.maxRoundTables||CAPS.tables, bars:(pc.maxBars!=null?+pc.maxBars:CAPS.bars), trucks:(pc.maxFoodTrucks!=null?+pc.maxFoodTrucks:CAPS.trucks),
+        booths:(pc.maxExpoBooths!=null?+pc.maxExpoBooths:CAPS.booths), rest:(pc.maxRestrooms!=null?+pc.maxRestrooms:CAPS.rest),
+        exits:(pc.maxExits!=null?+pc.maxExits:CAPS.exits), hall:+pc.maxHallFt||CAPS.hall };
     }
   }catch{}
+  try{ applyCapHints(); }catch(e){}
   try{ PRICING.packages = await BPStore.menuTemplates.list(); }catch{ PRICING.packages=[]; }
   buildMenuControls();
   renderPrice();
