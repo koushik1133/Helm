@@ -77,7 +77,17 @@
   .emptylist{padding:28px 20px;color:var(--ink-3);font-size:14px;text-align:center}
 
   /* ---------- thread ---------- */
-  .thread{display:flex;flex-direction:column;min-height:0;background:var(--bg)}
+  .thread{display:flex;flex-direction:column;min-height:0;background:var(--bg);position:relative}
+  .tsearch{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--panel);border-bottom:1px solid var(--line-2)}
+  .tsearch input{flex:1;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:9px;padding:8px 12px;font-size:14px;outline:none;font-family:inherit}
+  .tsearch input:focus{border-color:var(--accent)}
+  .tsearch-ct{font-size:12px;color:var(--ink-3);white-space:nowrap}
+  .tsearch .x{border:0;background:none;color:var(--ink-3);font-size:22px;cursor:pointer;line-height:1}
+  .bub mark{background:#ffe08a;color:#1b1930;border-radius:3px;padding:0 1px}
+  html[data-theme="dark"] .bub mark{background:#9a7b1f;color:#fff}
+  .m.dim{opacity:.32}
+  .dropzone{position:absolute;inset:0;z-index:25;background:rgba(109,40,217,.10);border:3px dashed var(--accent);border-radius:10px;margin:10px;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .dropzone .dz-inner{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 24px;font-size:16px;font-weight:600;color:var(--accent);box-shadow:var(--shadow)}
   .thead{flex:0 0 auto;display:flex;align-items:center;gap:13px;padding:11px 16px;background:var(--panel);border-bottom:1px solid var(--line-2)}
   .thead .bk{display:none;border:0;background:none;font-size:23px;cursor:pointer;color:var(--ink-2)}
   @media(max-width:760px){.thead .bk{display:block}}
@@ -229,8 +239,15 @@
       <button class="bk" id="backBtn" aria-label="Back">‹</button>
       <div class="av" id="tAv"></div>
       <div class="ti"><b id="tName">—</b><span id="tSub"></span></div>
+      <button class="circbtn" id="searchBtn" title="Search in conversation" aria-label="Search in conversation">🔍</button>
       <button class="circbtn" id="headMenuBtn" title="Menu" aria-label="Conversation menu" data-menu-anchor="1">⋮</button>
     </div>
+    <div class="tsearch" id="tSearch" hidden>
+      <input id="tSearchInput" type="search" placeholder="Search in this conversation" autocomplete="off" aria-label="Search in this conversation">
+      <span class="tsearch-ct" id="tSearchCt"></span>
+      <button class="x" id="tSearchX" aria-label="Close search">×</button>
+    </div>
+    <div class="dropzone" id="dropZone" hidden><div class="dz-inner">📷 Drop image to send</div></div>
     <div class="msgs" id="msgs">
       <div class="welcome" id="welcome"><div class="big">💬</div><b>Helm Team Chat</b><p>Message your team — text, photos and voice notes, in real time. Pick a chat or start a new one with ＋.</p></div>
     </div>
@@ -279,7 +296,10 @@
   const saveFavs=()=>{ try{ localStorage.setItem("wa_fav",JSON.stringify([...favs])); }catch(e){} };
   let pins=new Set(); try{ pins=new Set(JSON.parse(localStorage.getItem("wa_pin")||"[]")); }catch(e){}
   const savePins=()=>{ try{ localStorage.setItem("wa_pin",JSON.stringify([...pins])); }catch(e){} };
+  let mutes=new Set(); try{ mutes=new Set(JSON.parse(localStorage.getItem("wa_mute")||"[]")); }catch(e){}
+  const saveMutes=()=>{ try{ localStorage.setItem("wa_mute",JSON.stringify([...mutes])); }catch(e){} };
   let pending=[];  /* optimistic, in-flight messages (single ✓ "sending") */
+  let msgQuery="";  /* in-conversation search */
 
   /* header theme toggle (floating one is disabled via meta on this page) */
   (function(){ const b=$("#themeBtn"); if(!b) return;
@@ -362,7 +382,7 @@
     else if(filter==="favorites") list=list.filter(c=>favs.has(c.id));
     list.sort((a,b)=>{ const pa=pins.has(a.id)?1:0,pb=pins.has(b.id)?1:0; if(pa!==pb) return pb-pa;
       return String(b.last_message_at||"").localeCompare(String(a.last_message_at||"")); });
-    const totalUnread=convs.reduce((s,c)=>s+(c._unread||0),0);
+    const totalUnread=convs.reduce((s,c)=>s+(mutes.has(c.id)?0:(c._unread||0)),0);
     const uc=$("#unreadCt"); if(totalUnread>0){ uc.hidden=false; uc.textContent=totalUnread; } else uc.hidden=true;
     const host=$("#convList");
     if(!list.length){ host.innerHTML=`<div class="emptylist">${!backendReady?"Chat isn’t set up on this workspace yet. An admin needs to finish chat setup — once that’s done, your team chats appear here.":q?"No chats found.":filter!=="all"?"Nothing here yet.":"No chats yet. Tap ＋ to start one."}</div>`; return; }
@@ -370,7 +390,7 @@
       return `<div class="conv ${c.id===activeId?'on':''}" data-id="${esc(c.id)}" role="button" tabindex="0">
         ${avHtml(a)}
         <div class="meta"><div class="r1"><span class="nm">${esc(convTitle(c))}</span><span class="tm ${c._unread?'hilite':''}">${esc(fmtListTime(t))}</span></div>
-          <div class="r2"><span class="pv">${lastPreview(c)}</span>${c._unread?`<span class="unread">${c._unread>99?'99+':c._unread}</span>`:`<span class="marks" style="display:inline-flex;gap:3px;align-items:center;color:var(--ink-3);font-size:12px">${pins.has(c.id)?'📌':''}${favs.has(c.id)?'★':''}</span>`}</div></div>
+          <div class="r2"><span class="pv">${lastPreview(c)}</span><span class="marks" style="display:inline-flex;gap:3px;align-items:center;color:var(--ink-3);font-size:12px">${mutes.has(c.id)?'🔕':''}${pins.has(c.id)?'📌':''}${favs.has(c.id)&&!c._unread?'★':''}${c._unread?`<span class="unread">${c._unread>99?'99+':c._unread}</span>`:''}</span></div></div>
       </div>`; }).join("");
     host.querySelectorAll(".conv").forEach(el=>{ const go=()=>openConv(el.dataset.id);
       el.addEventListener("click",go); el.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); go(); } }); });
@@ -388,6 +408,7 @@
   /* ---------- thread ---------- */
   async function openConv(id){
     activeId=id; $("#app").classList.add("show-thread");
+    msgQuery=""; $("#tSearch").hidden=true; $("#tSearchInput").value="";
     const c=convs.find(x=>x.id===id); if(!c) return;
     $("#thead").hidden=false; $("#composer").hidden=false; const w=$("#welcome"); if(w) w.hidden=true;
     const a=convAvatar(c); const av=$("#tAv"); av.style.background=a.bg; av.textContent=a.txt;
@@ -404,6 +425,15 @@
     renderMessages();
   }
   function reactsFor(mid){ const by={}; (thread.reactions||[]).filter(r=>r.message_id===mid).forEach(r=>{ (by[r.emoji]=by[r.emoji]||[]).push(r.user_id); }); return by; }
+
+  function highlight(text,q){ let out="",rest=String(text||""),k; const ql=String(q||"").toLowerCase(); if(!ql) return esc(rest);
+    while(true){ k=rest.toLowerCase().indexOf(ql); if(k<0){ out+=esc(rest); break; } out+=esc(rest.slice(0,k))+"<mark>"+esc(rest.slice(k,k+q.length))+"</mark>"; rest=rest.slice(k+q.length); } return out; }
+  function applyMsgSearch(q){ const host=$("#msgs"); const ql=String(q||"").toLowerCase().trim(); let matches=0;
+    host.querySelectorAll(".m").forEach(el=>{ const hay=(el.textContent||"").toLowerCase(); const hit=!!ql&&hay.includes(ql);
+      el.classList.toggle("dim", !!ql&&!hit);
+      if(hit){ el.querySelectorAll(".txt,.cap").forEach(n=>{ n.innerHTML=highlight(n.textContent,q); }); matches++; } });
+    const ct=$("#tSearchCt"); if(ct) ct.textContent=ql?(matches+" result"+(matches===1?"":"s")):"";
+    if(ql){ const first=host.querySelector(".m:not(.dim)"); if(first) first.scrollIntoView({block:"center"}); } }
 
   function renderMessages(){
     const host=$("#msgs"); const c=convs.find(x=>x.id===activeId); const isGroup=c&&c.kind!=="dm";
@@ -435,7 +465,7 @@
     host.querySelectorAll(".reply[data-goto]").forEach(el=>el.addEventListener("click",()=>{ const t=host.querySelector('.m[data-mid="'+el.dataset.goto+'"]'); if(t){ t.scrollIntoView({block:"center"}); t.style.transition="background .3s"; t.style.background="var(--accent-soft)"; setTimeout(()=>t.style.background="",700); } }));
     host.querySelectorAll("img.photo").forEach(el=>el.addEventListener("click",()=>el.src&&lightbox(el.src)));
     host.querySelectorAll("[data-media]").forEach(async el=>{ const p=el.getAttribute("data-media"); if(!p) return; try{ el.src=await BPStore.chat.mediaUrl(p); }catch(e){} });
-    host.scrollTop=host.scrollHeight;
+    if(msgQuery) applyMsgSearch(msgQuery); else host.scrollTop=host.scrollHeight;
   }
   function msgMenu(anchor,mid){ const r=anchor.getBoundingClientRect(); closeMenus();
     const msg=thread.messages.find(x=>x.id===mid); const mine=msg&&msg.sender_id===ME.id;
@@ -546,6 +576,18 @@
   $("#fileImg").addEventListener("change",e=>{ const f=e.target.files[0]; e.target.value=""; sendImage(f); });
   $("#fileCam").addEventListener("change",e=>{ const f=e.target.files[0]; e.target.value=""; sendImage(f); });
   $("#backBtn").addEventListener("click",()=>$("#app").classList.remove("show-thread"));
+  /* in-conversation search */
+  $("#searchBtn").addEventListener("click",()=>{ const bar=$("#tSearch"); bar.hidden=!bar.hidden; if(!bar.hidden){ $("#tSearchInput").focus(); } else { msgQuery=""; $("#tSearchInput").value=""; renderMessages(); } });
+  $("#tSearchInput").addEventListener("input",e=>{ msgQuery=e.target.value; renderMessages(); });
+  $("#tSearchX").addEventListener("click",()=>{ $("#tSearch").hidden=true; msgQuery=""; $("#tSearchInput").value=""; renderMessages(); });
+  /* paste an image into the composer → send it */
+  $("#msgInput").addEventListener("paste",e=>{ const items=(e.clipboardData&&e.clipboardData.items)||[]; for(const it of items){ if(it.type&&it.type.indexOf("image")===0){ const f=it.getAsFile(); if(f&&activeId){ e.preventDefault(); sendImage(f); return; } } } });
+  /* drag & drop an image onto the open conversation → send it */
+  (function(){ const dz=$("#dropZone"), thread=$("#thread"); let depth=0; const hasFiles=(e)=>{ try{ return e.dataTransfer&&[...e.dataTransfer.types].includes("Files"); }catch(_){ return false; } };
+    thread.addEventListener("dragenter",e=>{ if(!activeId||!hasFiles(e)) return; e.preventDefault(); depth++; dz.hidden=false; });
+    thread.addEventListener("dragover",e=>{ if(activeId&&hasFiles(e)) e.preventDefault(); });
+    thread.addEventListener("dragleave",()=>{ depth--; if(depth<=0){ depth=0; dz.hidden=true; } });
+    thread.addEventListener("drop",e=>{ if(!hasFiles(e)) return; e.preventDefault(); depth=0; dz.hidden=true; const files=(e.dataTransfer&&e.dataTransfer.files)||[]; const img=[...files].find(f=>f.type&&f.type.indexOf("image")===0); if(img&&activeId) sendImage(img); }); })();
   $("#convSearch").addEventListener("input",e=>{ convSearch=e.target.value; renderConvs(); });
   $("#chips").querySelectorAll(".chip").forEach(ch=>ch.addEventListener("click",()=>{ filter=ch.dataset.f; $("#chips").querySelectorAll(".chip").forEach(x=>x.classList.toggle("on",x===ch)); renderConvs(); }));
   (function(){ const bar=$("#emojiBar"); bar.innerHTML=INS_EMOJI.map(e=>`<button type="button">${e}</button>`).join("");
@@ -564,7 +606,8 @@
   $("#headMenuBtn").addEventListener("click",()=>{ const c=convs.find(x=>x.id===activeId); if(!c) return;
     const items=[
       {k:"pin",label:pins.has(c.id)?"📌  Unpin chat":"📌  Pin to top",on:()=>{ if(pins.has(c.id))pins.delete(c.id); else pins.add(c.id); savePins(); renderConvs(); }},
-      {k:"fav",label:favs.has(c.id)?"★  Remove from favorites":"☆  Add to favorites",on:()=>{ if(favs.has(c.id))favs.delete(c.id); else favs.add(c.id); saveFavs(); renderConvs(); }}
+      {k:"fav",label:favs.has(c.id)?"★  Remove from favorites":"☆  Add to favorites",on:()=>{ if(favs.has(c.id))favs.delete(c.id); else favs.add(c.id); saveFavs(); renderConvs(); }},
+      {k:"mute",label:mutes.has(c.id)?"🔔  Unmute":"🔕  Mute notifications",on:()=>{ if(mutes.has(c.id))mutes.delete(c.id); else mutes.add(c.id); saveMutes(); renderConvs(); }}
     ];
     if(c.kind==="group") items.push({k:"add",label:"➕  Add members",on:addMembersModal});
     openMenu($("#headMenuBtn"),items); });
