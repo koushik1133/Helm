@@ -1956,7 +1956,7 @@
       m = m || {};
       if (mode !== "supabase") {
         const msgs = chatReadLs(CHAT_LS_M);
-        const row = { id: uid(), conversation_id: convId, org_id: "local", sender_id: chatLocalUid(), kind: m.kind || "text", body: m.body || null, media_path: m.media_path || null, media_mime: m.media_mime || null, media_duration: m.media_duration || null, reply_to: m.reply_to || null, created_at: now(), deleted: false };
+        const row = { id: uid(), conversation_id: convId, org_id: "local", sender_id: chatLocalUid(), kind: m.kind || "text", body: m.body || null, media_path: m.media_path || null, media_mime: m.media_mime || null, media_duration: m.media_duration || null, reply_to: m.reply_to || null, meta: m.meta || null, created_at: now(), deleted: false };
         msgs.push(row); chatWriteLs(CHAT_LS_M, msgs);
         const convs = chatReadLs(CHAT_LS_C); const c = convs.find((x) => x.id === convId); if (c) { c.last_message_at = now(); chatWriteLs(CHAT_LS_C, convs); }
         chatPing();
@@ -1978,7 +1978,7 @@
         } catch (e) {}
         return row;
       }
-      return rpc("chat_send", { p_conversation: convId, p_kind: m.kind || "text", p_body: m.body || null, p_media_path: m.media_path || null, p_media_mime: m.media_mime || null, p_media_duration: m.media_duration || null, p_reply_to: m.reply_to || null });
+      return rpc("chat_send", { p_conversation: convId, p_kind: m.kind || "text", p_body: m.body || null, p_media_path: m.media_path || null, p_media_mime: m.media_mime || null, p_media_duration: m.media_duration || null, p_reply_to: m.reply_to || null, p_meta: m.meta || null });
     },
     async react(messageId, emoji, on) {
       if (mode !== "supabase") {
