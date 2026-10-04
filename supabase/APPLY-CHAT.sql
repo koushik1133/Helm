@@ -1,24 +1,18 @@
 -- ════════════════════════════════════════════════════════════════════════════
--- HELM — TEAM CHAT (full) — one-shot apply for the Supabase SQL Editor
--- Includes 0016 (chat core) + 0017 (quote/layout attachments) in one paste.
+-- HELM — TEAM CHAT (complete) — one-shot apply for the Supabase SQL Editor
+-- Includes 0016 (chat core) + 0017 (quote/layout attachments) + 0018 (read
+-- tracking for the Everyone broadcast — powers the notification bell). ONE paste.
 -- ════════════════════════════════════════════════════════════════════════════
 -- SAFE: additive + idempotent. Re-running changes nothing and deletes nothing.
--- USE:  STAGING project → SQL Editor → paste ALL → Run → check the VERIFY block →
---       then repeat in PRODUCTION.
+-- USE:  STAGING project → SQL Editor → paste ALL → Run → check VERIFY → then PROD.
 -- ════════════════════════════════════════════════════════════════════════════
-
 do $$
 begin
-  if to_regprocedure('public.current_org_id()') is null then
-    raise exception 'STOP: public.current_org_id() not found — this is not a Helm database. Wrong project?';
-  end if;
-  if to_regclass('public.organizations') is null or to_regclass('public.profiles') is null then
-    raise exception 'STOP: organizations/profiles tables not found — wrong project?';
-  end if;
-  raise notice 'Preflight OK — applying team chat (core + attachments)…';
+  if to_regprocedure('public.current_org_id()') is null then raise exception 'STOP: not a Helm database (current_org_id missing). Wrong project?'; end if;
+  if to_regclass('public.organizations') is null or to_regclass('public.profiles') is null then raise exception 'STOP: organizations/profiles missing — wrong project?'; end if;
+  raise notice 'Preflight OK — applying team chat (core + attachments + read-tracking)…';
 end $$;
-
--- ════════════════════════ PART 1 of 2 — chat core (0016) ════════════════════
+-- ═══════════════════ PART 1/3 — chat core (0016) ════════════════════════════
 -- ============================================================================
 -- 0016_feature_chat.sql
 -- Team chat (WhatsApp-style): per-organization DMs, groups and an org-wide
@@ -342,7 +336,7 @@ end $$;
 -- select id, public, file_size_limit from storage.buckets where id='chat-media';
 -- select relname from pg_publication_tables where pubname='supabase_realtime' and relname like 'chat_%';
 
--- ════════════════════ PART 2 of 2 — attachments (0017) ══════════════════════
+-- ═══════════════════ PART 2/3 — attachments (0017) ══════════════════════════
 -- ============================================================================
 -- 0017_chat_attachments.sql
 -- Rich attachments in team chat: a message can carry a "card" (a quote, a floor
@@ -393,13 +387,37 @@ grant execute on function public.chat_send(uuid, text, text, text, text, integer
 -- select column_name from information_schema.columns where table_name='chat_messages' and column_name='meta';
 -- select pg_get_constraintdef(oid) from pg_constraint where conname='chat_messages_kind_check';
 
+-- ═══════════════════ PART 3/3 — read tracking / bell (0018) ═════════════════
+-- ============================================================================
+-- 0018_chat_read_tracking.sql
+-- Make read-state work for the org-wide "Everyone" broadcast (and any conversation
+-- the caller can SEE but has no explicit chat_members row for yet). Before this,
+-- chat_mark_read only UPDATEd an existing membership row, so the broadcast — which
+-- has no per-user member rows — could never be marked read and always looked unread
+-- (in the chat list and in the notification bell).
+--
+-- Fix: chat_mark_read upserts the caller's membership row, then stamps last_read_at.
+-- This also enables read receipts on the broadcast. Forward-only, idempotent.
+-- Depends on 0016_feature_chat.sql. Grants are preserved by create-or-replace.
+-- ============================================================================
+
+create or replace function public.chat_mark_read(p_conversation uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then return; end if;
+  if not public.chat_can_see(p_conversation) then return; end if;   -- only convos I may see
+  insert into public.chat_members (conversation_id, user_id, org_id)
+    values (p_conversation, auth.uid(), public.current_org_id())
+    on conflict (conversation_id, user_id) do nothing;
+  update public.chat_members set last_read_at = now()
+    where conversation_id = p_conversation and user_id = auth.uid();
+end; $$;
+
+-- ---- VERIFY (read-only) ----------------------------------------------------
+-- select pg_get_functiondef('public.chat_mark_read(uuid)'::regprocedure);
+
 -- ════════════════════════════════ VERIFY ════════════════════════════════════
--- 1) RLS policies on chat tables (expect ~13-15 rows):
-select tablename, policyname from pg_policies where tablename like 'chat\_%' order by tablename, policyname;
--- 2) Private media bucket (expect one row, public=false, 16 MB):
-select id, public, file_size_limit from storage.buckets where id = 'chat-media';
--- 3) Attachment column + 'card' kind present:
-select column_name from information_schema.columns where table_name='chat_messages' and column_name='meta';
-select pg_get_constraintdef(oid) from pg_constraint where conname='chat_messages_kind_check';
--- 4) Chat tables wired into realtime:
-select tablename from pg_publication_tables where pubname='supabase_realtime' and tablename like 'chat_%' order by tablename;
+select tablename, policyname from pg_policies where tablename like 'chat\_%' order by tablename, policyname;  -- ~13 rows
+select id, public, file_size_limit from storage.buckets where id = 'chat-media';                              -- 1 row, public=false
+select column_name from information_schema.columns where table_name='chat_messages' and column_name='meta';   -- 'meta'
+select tablename from pg_publication_tables where pubname='supabase_realtime' and tablename like 'chat_%' order by tablename;  -- chat_* realtime
