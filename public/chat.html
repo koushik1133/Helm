@@ -413,6 +413,7 @@
     msgs.forEach(m=>{
       const day=fmtDay(m.created_at); if(day!==lastDay){ html+=`<div class="daysep">${esc(day)}</div>`; lastDay=day; lastSender=null; }
       const mine=m.sender_id===ME.id; const grpStart=(m.sender_id!==lastSender); lastSender=m.sender_id;
+      if(m.deleted){ html+=`<div class="m ${mine?'me':'them'} ${grpStart?'grpstart':''}"><div class="bub" style="opacity:.65;font-style:italic"><span class="txt">🚫 This message was deleted</span><span class="meta-in">${fmtTime(m.created_at)}</span></div></div>`; return; }
       const by=reactsFor(m.id); const rx=Object.keys(by).map(e=>`<span class="rx ${by[e].indexOf(ME.id)>=0?'on':''}" data-react="${esc(m.id)}" data-emoji="${esc(e)}">${e} ${by[e].length}</span>`).join("");
       let inner="";
       if(isGroup&&!mine&&grpStart) inner+=`<div class="who" style="color:${colorFor(m.sender_id)}">${esc(personName(m.sender_id))}</div>`;
@@ -422,7 +423,8 @@
       else if(m.kind==="card"){ inner+=cardHtml(m.meta); if(m.body) inner+=`<div class="cap txt">${esc(m.body)}</div>`; }
       else inner+=`<span class="txt">${esc(m.body||"")}</span>`;
       const ticks=mine?ticksHtml(m,thread.members,!!m._pending):"";
-      inner+=`<span class="meta-in">${fmtTime(m.created_at)} ${ticks}</span>`;
+      const edited=m.edited_at?'<span style="opacity:.7">(edited)</span> ':"";
+      inner+=`<span class="meta-in">${edited}${fmtTime(m.created_at)} ${ticks}</span>`;
       html+=`<div class="m ${mine?'me':'them'} ${grpStart?'grpstart':''}" tabindex="0" data-mid="${esc(m.id)}">
         <div class="bub">${inner}<div class="mtools"><button class="caret" data-caret="${esc(m.id)}" aria-label="Message menu">⌄</button></div></div>
         ${rx?`<div class="reacts">${rx}</div>`:""}</div>`;
@@ -436,11 +438,32 @@
     host.scrollTop=host.scrollHeight;
   }
   function msgMenu(anchor,mid){ const r=anchor.getBoundingClientRect(); closeMenus();
-    const m=document.createElement("div"); m.className="rxpop"; m.innerHTML=RX_EMOJI.map(e=>`<button data-e="${esc(e)}">${e}</button>`).join("")+`<button data-reply="1" title="Reply" style="font-size:15px">↩</button>`;
-    document.body.appendChild(m); let left=Math.min(r.left-80,window.innerWidth-m.offsetWidth-8); if(left<8)left=8; let top=r.top-m.offsetHeight-4; if(top<8)top=r.bottom+4;
+    const msg=thread.messages.find(x=>x.id===mid); const mine=msg&&msg.sender_id===ME.id;
+    const m=document.createElement("div"); m.className="rxpop";
+    let html=RX_EMOJI.map(e=>`<button data-e="${esc(e)}">${e}</button>`).join("")+`<button data-reply="1" title="Reply" style="font-size:15px">↩</button>`;
+    if(mine) html+=`<button data-fwd="1" title="Forward" style="font-size:15px">↪</button>`;
+    if(mine&&msg&&msg.kind==="text") html+=`<button data-edit="1" title="Edit" style="font-size:15px">✏️</button>`;
+    if(mine) html+=`<button data-del="1" title="Delete" style="font-size:15px">🗑</button>`;
+    m.innerHTML=html; document.body.appendChild(m);
+    let left=Math.min(r.left-80,window.innerWidth-m.offsetWidth-8); if(left<8)left=8; let top=r.top-m.offsetHeight-4; if(top<8)top=r.bottom+4;
     m.style.top=top+"px"; m.style.left=left+"px";
     m.querySelectorAll("button[data-e]").forEach(b=>b.addEventListener("click",()=>{ closeMenus(); toggleReact(mid,b.dataset.e,true); }));
-    m.querySelector("[data-reply]").addEventListener("click",()=>{ closeMenus(); setReply(mid); }); }
+    m.querySelector("[data-reply]").addEventListener("click",()=>{ closeMenus(); setReply(mid); });
+    const fb=m.querySelector("[data-fwd]"); if(fb) fb.addEventListener("click",()=>{ closeMenus(); forwardMsg(mid); });
+    const eb=m.querySelector("[data-edit]"); if(eb) eb.addEventListener("click",()=>{ closeMenus(); doEdit(mid); });
+    const db=m.querySelector("[data-del]"); if(db) db.addEventListener("click",()=>{ closeMenus(); doDelete(mid); }); }
+  async function doEdit(mid){ const m=thread.messages.find(x=>x.id===mid); if(!m||m.kind!=="text") return;
+    let nv; try{ nv=await BPUI.prompt("Edit your message",{title:"Edit message",value:m.body||"",multiline:true,required:true,okLabel:"Save"}); }catch(e){ return; }
+    if(nv==null) return; nv=String(nv).trim(); if(!nv||nv===m.body) return;
+    try{ await BPStore.chat.editMessage(mid,nv); await loadThread(); await refresh(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"edit the message"}),{type:"err"}); } }
+  async function doDelete(mid){ let ok=false; try{ ok=await BPUI.confirm("Delete this message? Everyone in the chat will see it was removed.",{title:"Delete message",okLabel:"Delete",danger:true}); }catch(e){ return; }
+    if(!ok) return;
+    try{ await BPStore.chat.deleteMessage(mid); await loadThread(); await refresh(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"delete the message"}),{type:"err"}); } }
+  async function forwardMsg(mid){ const m=thread.messages.find(x=>x.id===mid); if(!m) return;
+    const targets=convs.filter(c=>c.id!==activeId).map(c=>({id:c.id,icon:convAvatar(c).txt,title:convTitle(c),sub:c.kind==="dm"?"Direct message":c.kind==="broadcast"?"Everyone":"Group"}));
+    pickerModal("Forward to…","↪",targets.map(t=>({icon:typeof t.icon==="string"&&t.icon.length<=2?t.icon:"💬",title:t.title,sub:t.sub,meta:{__to:t.id}})),"No other chats to forward to.",async(meta)=>{
+      const to=meta.__to; try{ await BPStore.chat.send(to,{kind:m.kind,body:m.body,media_path:m.media_path,media_mime:m.media_mime,media_duration:m.media_duration,meta:m.meta||null}); await refresh(); await openConv(to); BPUI.toast("Forwarded.",{type:"ok"}); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"forward the message"}),{type:"err"}); } }); }
   async function toggleReact(mid,emoji,on){ try{ await BPStore.chat.react(mid,emoji,on); await loadThread(); }catch(e){} }
   function setReply(mid){ const m=thread.messages.find(x=>x.id===mid); if(!m) return; replyTo=m;
     $("#replyBar").hidden=false; $("#replyWho").textContent=m.sender_id===ME.id?"You":personName(m.sender_id);
@@ -511,12 +534,12 @@
       sub:(l.objectCount!=null?l.objectCount+" item"+(l.objectCount===1?"":"s"):"Floor layout"),
       meta:{kind:"layout",ref_id:l.id,name:l.name||"Untitled layout",object_count:(l.objectCount!=null?l.objectCount:null)} })),
       "No layouts yet. Build one in the layout builder, then attach it here."); }
-  function pickerModal(title,icon,rows,emptyText){ const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
+  function pickerModal(title,icon,rows,emptyText,onPick){ const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
     ov.innerHTML=`<div class="modal"><h3>${esc(title)}</h3><input class="gname" id="pkSearch" placeholder="Search…" aria-label="Search" autocomplete="off"><div class="body" id="pkBody"></div><div class="foot"><button class="btn" data-close>Cancel</button></div></div>`;
     document.body.appendChild(ov); const body=$("#pkBody",ov);
     const draw=(q)=>{ const ql=(q||"").toLowerCase(); const f=rows.filter(r=>!ql||((r.title+" "+(r.sub||"")).toLowerCase().includes(ql)));
       body.innerHTML=f.length?f.map(r=>`<div class="prow" data-i="${rows.indexOf(r)}"><div class="av" style="width:40px;height:40px;font-size:18px;background:var(--accent-soft);color:var(--accent)">${r.icon}</div><div class="nm" style="font-weight:500"><b style="display:block;font-size:14.5px">${esc(r.title)}</b><span style="font-size:12px;color:var(--ink-3)">${esc(r.sub||"")}</span></div></div>`).join(""):`<div style="padding:18px;color:var(--ink-3)">${esc(emptyText)}</div>`;
-      body.querySelectorAll(".prow[data-i]").forEach(el=>el.addEventListener("click",()=>{ const r=rows[+el.dataset.i]; closeModal(); stageAttachment(r.meta,r.icon,r.title,r.sub); })); };
+      body.querySelectorAll(".prow[data-i]").forEach(el=>el.addEventListener("click",()=>{ const r=rows[+el.dataset.i]; closeModal(); if(onPick) onPick(r.meta); else stageAttachment(r.meta,r.icon,r.title,r.sub); })); };
     draw(""); $("#pkSearch",ov).addEventListener("input",e=>draw(e.target.value));
     ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); }); }
   $("#camBtn").addEventListener("click",()=>$("#fileCam").click());

@@ -1980,6 +1980,27 @@
       }
       return rpc("chat_send", { p_conversation: convId, p_kind: m.kind || "text", p_body: m.body || null, p_media_path: m.media_path || null, p_media_mime: m.media_mime || null, p_media_duration: m.media_duration || null, p_reply_to: m.reply_to || null, p_meta: m.meta || null });
     },
+    // Edit the text of my own message. RLS (chat_msg_upd: sender_id = auth.uid())
+    // enforces "mine only" on the server; the local tier checks sender_id too.
+    async editMessage(messageId, body) {
+      if (mode !== "supabase") {
+        const msgs = chatReadLs(CHAT_LS_M); const me = chatLocalUid(); const m = msgs.find((x) => x.id === messageId);
+        if (m && m.sender_id === me) { m.body = body; m.edited_at = now(); chatWriteLs(CHAT_LS_M, msgs); chatPing(); }
+        return;
+      }
+      const { error } = await supa.from("chat_messages").update({ body: body, edited_at: new Date().toISOString() }).eq("id", messageId);
+      if (error) throw error;
+    },
+    // Soft-delete my own message (kept as a tombstone; content cleared).
+    async deleteMessage(messageId) {
+      if (mode !== "supabase") {
+        const msgs = chatReadLs(CHAT_LS_M); const me = chatLocalUid(); const m = msgs.find((x) => x.id === messageId);
+        if (m && m.sender_id === me) { m.deleted = true; m.body = null; m.media_path = null; m.meta = null; chatWriteLs(CHAT_LS_M, msgs); chatPing(); }
+        return;
+      }
+      const { error } = await supa.from("chat_messages").update({ deleted: true, body: null, media_path: null, meta: null }).eq("id", messageId);
+      if (error) throw error;
+    },
     async react(messageId, emoji, on) {
       if (mode !== "supabase") {
         let rs = chatReadLs(CHAT_LS_R); const me = chatLocalUid();
