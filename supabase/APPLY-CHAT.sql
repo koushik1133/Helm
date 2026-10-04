@@ -1,35 +1,24 @@
 -- ════════════════════════════════════════════════════════════════════════════
--- HELM — TEAM CHAT — one-shot apply for the Supabase SQL Editor
+-- HELM — TEAM CHAT (full) — one-shot apply for the Supabase SQL Editor
+-- Includes 0016 (chat core) + 0017 (quote/layout attachments) in one paste.
 -- ════════════════════════════════════════════════════════════════════════════
--- WHAT THIS DOES:  creates the team-chat tables, row-level security, RPCs, the
---                  private chat-media storage bucket, and turns on realtime.
--- SAFE TO RUN:     additive + idempotent — re-running changes nothing, deletes
---                  nothing, and never touches any existing (non-chat) data.
---
--- HOW TO USE:
---   1) Open your STAGING project → SQL Editor → New query → paste ALL of this → Run.
---   2) Confirm the VERIFY block at the bottom returns rows (policies, bucket, realtime).
---   3) Repeat in your PRODUCTION project.
---
--- This is the exact contents of supabase/migrations/0016_feature_chat.sql, with a
--- preflight check added at the top and a verification query at the bottom.
+-- SAFE: additive + idempotent. Re-running changes nothing and deletes nothing.
+-- USE:  STAGING project → SQL Editor → paste ALL → Run → check the VERIFY block →
+--       then repeat in PRODUCTION.
 -- ════════════════════════════════════════════════════════════════════════════
 
--- ---- PREFLIGHT: make sure this is a real Helm project before we create anything.
 do $$
 begin
   if to_regprocedure('public.current_org_id()') is null then
-    raise exception 'STOP: public.current_org_id() not found — this does not look like a Helm database. Are you in the right project?';
+    raise exception 'STOP: public.current_org_id() not found — this is not a Helm database. Wrong project?';
   end if;
-  if to_regclass('public.organizations') is null then
-    raise exception 'STOP: public.organizations table not found — wrong database?';
+  if to_regclass('public.organizations') is null or to_regclass('public.profiles') is null then
+    raise exception 'STOP: organizations/profiles tables not found — wrong project?';
   end if;
-  if to_regclass('public.profiles') is null then
-    raise exception 'STOP: public.profiles table not found — wrong database?';
-  end if;
-  raise notice 'Preflight OK — Helm database detected. Applying team chat…';
+  raise notice 'Preflight OK — applying team chat (core + attachments)…';
 end $$;
 
+-- ════════════════════════ PART 1 of 2 — chat core (0016) ════════════════════
 -- ============================================================================
 -- 0016_feature_chat.sql
 -- Team chat (WhatsApp-style): per-organization DMs, groups and an org-wide
@@ -353,12 +342,64 @@ end $$;
 -- select id, public, file_size_limit from storage.buckets where id='chat-media';
 -- select relname from pg_publication_tables where pubname='supabase_realtime' and relname like 'chat_%';
 
--- ════════════════════════════════════════════════════════════════════════════
--- VERIFY (read-only) — these three queries should return rows after a good run.
--- ════════════════════════════════════════════════════════════════════════════
--- 1) RLS policies on the chat tables (expect ~15 rows):
+-- ════════════════════ PART 2 of 2 — attachments (0017) ══════════════════════
+-- ============================================================================
+-- 0017_chat_attachments.sql
+-- Rich attachments in team chat: a message can carry a "card" (a quote, a floor
+-- layout, or — in future — any other object) alongside optional text. The card
+-- payload is a free-form JSONB snapshot, so the feature is open-ended and needs
+-- no further schema change to add new attachment types.
+--
+-- Forward-only, additive, idempotent. Depends on 0016_feature_chat.sql.
+--   • chat_messages.meta  (jsonb)  — the attachment snapshot
+--   • kind now allows 'card'
+--   • chat_send() gains p_meta
+-- Tenant isolation / RLS are unchanged (meta travels with the row it belongs to).
+-- ============================================================================
+
+-- 1) Attachment payload column (snapshot: title/amount/ref id/deeplink/etc.).
+alter table public.chat_messages add column if not exists meta jsonb;
+
+-- 2) Allow the new 'card' message kind. Re-created idempotently.
+alter table public.chat_messages drop constraint if exists chat_messages_kind_check;
+alter table public.chat_messages
+  add  constraint chat_messages_kind_check
+  check (kind in ('text','image','voice','system','card'));
+
+-- 3) chat_send() gains p_meta. Drop the old 7-arg version first so the named-arg
+--    RPC call is never ambiguous, then recreate with the extra trailing param.
+drop function if exists public.chat_send(uuid, text, text, text, text, integer, uuid);
+
+create or replace function public.chat_send(
+  p_conversation uuid, p_kind text, p_body text,
+  p_media_path text default null, p_media_mime text default null, p_media_duration integer default null,
+  p_reply_to uuid default null, p_meta jsonb default null)
+returns public.chat_messages language plpgsql security definer set search_path = public as $$
+declare v_org uuid := public.current_org_id(); r public.chat_messages;
+begin
+  if not public.chat_can_see(p_conversation) then raise exception 'not authorized for this conversation' using errcode='42501'; end if;
+  if coalesce(p_kind,'text') not in ('text','image','voice','system','card') then raise exception 'bad kind' using errcode='22023'; end if;
+  insert into public.chat_messages (conversation_id, org_id, sender_id, kind, body, media_path, media_mime, media_duration, reply_to, meta)
+    values (p_conversation, v_org, auth.uid(), coalesce(p_kind,'text'), p_body, p_media_path, p_media_mime, p_media_duration, p_reply_to, p_meta)
+    returning * into r;
+  update public.chat_conversations set last_message_at = now() where id = p_conversation and org_id = v_org;
+  return r;
+end; $$;
+
+revoke all on function public.chat_send(uuid, text, text, text, text, integer, uuid, jsonb) from anon, public;
+grant execute on function public.chat_send(uuid, text, text, text, text, integer, uuid, jsonb) to authenticated;
+
+-- ---- VERIFY (read-only) ----------------------------------------------------
+-- select column_name from information_schema.columns where table_name='chat_messages' and column_name='meta';
+-- select pg_get_constraintdef(oid) from pg_constraint where conname='chat_messages_kind_check';
+
+-- ════════════════════════════════ VERIFY ════════════════════════════════════
+-- 1) RLS policies on chat tables (expect ~13-15 rows):
 select tablename, policyname from pg_policies where tablename like 'chat\_%' order by tablename, policyname;
--- 2) The private media bucket (expect one row, public = false, 16 MB limit):
+-- 2) Private media bucket (expect one row, public=false, 16 MB):
 select id, public, file_size_limit from storage.buckets where id = 'chat-media';
--- 3) Chat tables wired into realtime (expect chat_messages / chat_reactions / chat_conversations):
-select tablename from pg_publication_tables where pubname = 'supabase_realtime' and tablename like 'chat_%' order by tablename;
+-- 3) Attachment column + 'card' kind present:
+select column_name from information_schema.columns where table_name='chat_messages' and column_name='meta';
+select pg_get_constraintdef(oid) from pg_constraint where conname='chat_messages_kind_check';
+-- 4) Chat tables wired into realtime:
+select tablename from pg_publication_tables where pubname='supabase_realtime' and tablename like 'chat_%' order by tablename;
