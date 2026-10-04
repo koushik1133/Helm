@@ -360,6 +360,7 @@
         await Promise.all(["leads","crm","nurture","staff","inventory","vendors","calendar","templates","quotes","controls"]
           .map(async (k) => { V[k] = await BPStore.auth.canView(k); }));
         const NAV=[
+          ["chat","chat.html","💬","Chat",true],
           ["leads","leads.html","🎯","Leads",V.leads],["crm","crm.html","🗄","CRM",V.crm],
           ["nurture","nurture.html","🌱","Nurture",V.nurture],["staff","staff.html","👷","Staff",V.staff],
           ["inventory","inventory.html","📦","Inventory",V.inventory],["vendors","vendors.html","🤝","Vendors",V.vendors],

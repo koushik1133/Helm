@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Team Chat — Helm Events</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d28d9'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#18a558;--warn:#e8912d;--danger:#c0362c;
+    --mine:#e7dcff;--theirs:#ffffff;
+    --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  }
+  :root[data-theme="dark"]{--bg:#15131f;--panel:#1d1a2a;--panel-2:#231f33;--ink:#f1eef7;--ink-2:#b8b2c8;--ink-3:#8a8399;--line:#322c45;--line-2:#282338;--accent-soft:#2a2340;--mine:#4a338f;--theirs:#262035;}
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+  a{color:inherit;text-decoration:none}
+  button{font-family:inherit}
+  header.top{display:flex;align-items:center;gap:11px;padding:12px 20px;border-bottom:1px solid var(--line-2);flex:0 0 auto}
+  .mark{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header.top h1{font-size:15px;margin:0;font-weight:700}
+  header.top small{display:block;font-size:10.5px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:16px;font-size:13px;font-weight:600;color:var(--ink-2)}
+  .nav a:hover,.nav a.on{color:var(--accent)}
+  .spacer{margin-left:auto}
+  .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
+  .account .role{background:var(--accent-soft);color:var(--accent);border-radius:6px;padding:2px 7px;font-weight:700;text-transform:capitalize}
+  .account button,.iconbtn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer}
+  .localpill{font-size:11px;font-weight:700;color:var(--warn);background:#fff6e9;border:1px solid #f0d9ad;border-radius:999px;padding:3px 10px}
+  :root[data-theme="dark"] .localpill{background:#3a2f15}
+
+  /* ---- layout ---- */
+  .app{flex:1;display:grid;grid-template-columns:320px 1fr;min-height:0}
+  @media(max-width:760px){.app{grid-template-columns:1fr}.app.show-thread .side{display:none}.app:not(.show-thread) .thread{display:none}}
+  .side{border-right:1px solid var(--line-2);display:flex;flex-direction:column;min-height:0;background:var(--panel-2)}
+  .side .sidehead{padding:14px 16px 10px;display:flex;flex-direction:column;gap:10px}
+  .side .sidehead .row{display:flex;gap:8px;align-items:center}
+  .side h2{font-size:17px;margin:0;font-weight:700}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+  .btn.primary{border:0;background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff}
+  .btn.sm{padding:6px 10px;font-size:12px}
+  .search{width:100%;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:9px 12px;font-size:13px;font-family:inherit;color:var(--ink)}
+  .convlist{flex:1;overflow-y:auto;padding:6px 8px 16px}
+  .conv{display:flex;align-items:center;gap:11px;padding:10px 10px;border-radius:12px;cursor:pointer}
+  .conv:hover{background:var(--panel)}
+  .conv.on{background:var(--accent-soft)}
+  .av{width:42px;height:42px;border-radius:50%;flex:0 0 auto;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:15px}
+  .conv .meta{min-width:0;flex:1}
+  .conv .meta .nm{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}
+  .conv .meta .pv{font-size:12.5px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .conv .right{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+  .conv .tm{font-size:11px;color:var(--ink-3)}
+  .unread{min-width:18px;height:18px;border-radius:9px;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 5px}
+  .sectlbl{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);padding:12px 12px 4px}
+
+  /* ---- thread ---- */
+  .thread{display:flex;flex-direction:column;min-height:0;background:var(--bg)}
+  .thread .thead{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line-2);background:var(--panel)}
+  .thread .thead .bk{display:none;border:0;background:none;font-size:20px;cursor:pointer;color:var(--ink-2)}
+  @media(max-width:760px){.thread .thead .bk{display:block}}
+  .thread .thead .ti{min-width:0;flex:1}
+  .thread .thead .ti b{font-size:15px}
+  .thread .thead .ti span{display:block;font-size:12px;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .msgs{flex:1;overflow-y:auto;padding:20px 18px 8px;display:flex;flex-direction:column;gap:3px}
+  .empty{margin:auto;text-align:center;color:var(--ink-3);max-width:320px}
+  .empty .big{font-size:40px;opacity:.5;margin-bottom:8px}
+  .daysep{align-self:center;background:var(--panel);border:1px solid var(--line);color:var(--ink-3);font-size:11px;font-weight:600;border-radius:999px;padding:3px 12px;margin:10px 0}
+  .m{max-width:min(560px,78%);display:flex;flex-direction:column;position:relative}
+  .m.me{align-self:flex-end;align-items:flex-end}
+  .m.them{align-self:flex-start}
+  .m .who{font-size:11.5px;font-weight:700;color:var(--accent);margin:0 6px 2px}
+  .bub{background:var(--theirs);border:1px solid var(--line);border-radius:14px;padding:8px 11px 6px;font-size:14px;line-height:1.4;box-shadow:0 1px 1px rgba(20,27,46,.04);position:relative;word-wrap:break-word;overflow-wrap:anywhere}
+  .m.me .bub{background:var(--mine);border-color:transparent}
+  :root[data-theme="dark"] .m.me .bub{color:#fff}
+  .bub .reply{border-left:3px solid var(--accent);background:rgba(109,40,217,.07);border-radius:6px;padding:4px 8px;margin-bottom:5px;font-size:12.5px}
+  .bub .reply b{color:var(--accent);display:block;font-size:11.5px}
+  .bub .reply .rt{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;display:block}
+  .bub img.photo{max-width:260px;max-height:300px;border-radius:10px;display:block;cursor:pointer;background:var(--panel-2)}
+  .bub .cap{margin-top:5px}
+  .bub audio{height:40px;max-width:240px}
+  .bub .tm{font-size:10.5px;color:var(--ink-3);margin-top:3px;text-align:right}
+  .m.me .bub .tm{color:rgba(27,25,48,.5)}
+  :root[data-theme="dark"] .m.me .bub .tm{color:rgba(255,255,255,.6)}
+  .reacts{display:flex;gap:4px;flex-wrap:wrap;margin:3px 6px 2px}
+  .reacts .rx{background:var(--panel);border:1px solid var(--line);border-radius:999px;font-size:12px;padding:1px 7px;cursor:pointer;display:inline-flex;gap:3px;align-items:center}
+  .reacts .rx.on{background:var(--accent-soft);border-color:var(--accent)}
+  .mtools{position:absolute;top:-10px;display:flex;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:999px;box-shadow:var(--shadow);padding:2px;opacity:0;pointer-events:none;transition:opacity .1s}
+  .m:hover .mtools,.m:focus-within .mtools{opacity:1;pointer-events:auto}
+  .m.me .mtools{right:4px}.m.them .mtools{left:4px}
+  .mtools button{border:0;background:none;cursor:pointer;font-size:15px;line-height:1;padding:4px 5px;border-radius:50%}
+  .mtools button:hover{background:var(--panel-2)}
+
+  /* ---- composer ---- */
+  .composer{flex:0 0 auto;border-top:1px solid var(--line-2);background:var(--panel);padding:10px 14px}
+  .replybar{display:flex;align-items:center;gap:10px;background:var(--panel-2);border-left:3px solid var(--accent);border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:12.5px}
+  .replybar .x{margin-left:auto;cursor:pointer;color:var(--ink-3);font-size:16px;border:0;background:none}
+  .cbar{display:flex;align-items:flex-end;gap:8px}
+  .cbar .ic{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--panel);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .cbar .ic:hover{border-color:var(--accent)}
+  .cbar textarea{flex:1;border:1px solid var(--line);border-radius:20px;padding:10px 14px;font-family:inherit;font-size:14px;resize:none;max-height:120px;background:var(--panel-2);color:var(--ink);line-height:1.4}
+  .cbar .send{width:44px;height:44px;border-radius:50%;border:0;background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;font-size:18px;cursor:pointer;flex:0 0 auto;display:flex;align-items:center;justify-content:center}
+  .recording{display:flex;align-items:center;gap:12px;width:100%}
+  .recording .dot{width:11px;height:11px;border-radius:50%;background:var(--danger);animation:pulse 1s infinite}
+  @keyframes pulse{50%{opacity:.3}}
+  .recording .t{font-variant-numeric:tabular-nums;font-weight:600}
+  .emojibar{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+  .emojibar button{border:1px solid var(--line);background:var(--panel-2);border-radius:8px;font-size:18px;padding:4px 7px;cursor:pointer}
+
+  /* ---- modal ---- */
+  .ov{position:fixed;inset:0;background:rgba(20,15,35,.5);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px}
+  .modal{background:var(--panel);border-radius:16px;box-shadow:var(--shadow);width:min(460px,100%);max-height:85vh;display:flex;flex-direction:column;overflow:hidden}
+  .modal h3{margin:0;padding:18px 20px;font-size:17px;border-bottom:1px solid var(--line-2)}
+  .modal .body{padding:16px 20px;overflow-y:auto}
+  .modal .foot{padding:14px 20px;border-top:1px solid var(--line-2);display:flex;gap:10px;justify-content:flex-end}
+  .plist{display:flex;flex-direction:column;gap:2px}
+  .prow{display:flex;align-items:center;gap:11px;padding:9px 8px;border-radius:10px;cursor:pointer}
+  .prow:hover{background:var(--panel-2)}
+  .prow .nm{flex:1;font-size:14px;font-weight:600}
+  .prow .rl{font-size:11px;color:var(--ink-3);text-transform:capitalize}
+  .prow input{width:18px;height:18px;accent-color:var(--accent)}
+  .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:80;cursor:zoom-out}
+  .lightbox img{max-width:92vw;max-height:92vh;border-radius:8px}
+  .skip-link{position:absolute;left:8px;top:-60px;z-index:100;padding:10px 16px;border-radius:8px;background:var(--accent);color:#fff;font-weight:600}
+  .skip-link:focus{top:8px}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#msgs">Skip to messages</a>
+<header class="top">
+  <div class="mark"></div>
+  <div><h1>Helm Events</h1><small>Team Chat</small></div>
+  <nav class="nav">
+    <a href="dashboard.html">Dashboard</a>
+    <a href="chat.html" class="on">Chat</a>
+  </nav>
+  <span class="spacer"></span>
+  <span id="localBar" hidden></span>
+  <button class="iconbtn" id="themeBtn" type="button" title="Toggle theme" aria-label="Toggle light/dark theme">◑</button>
+  <span id="bell"></span>
+  <span id="account" class="account" hidden></span>
+</header>
+
+<div class="app" id="app">
+  <aside class="side">
+    <div class="sidehead">
+      <div class="row"><h2>Messages</h2><span class="spacer"></span>
+        <button class="btn sm" id="newDmBtn" type="button" title="New direct message">✎ Chat</button>
+        <button class="btn sm primary" id="newGroupBtn" type="button" title="New group">＋ Group</button>
+      </div>
+      <input class="search" id="convSearch" type="search" placeholder="Search people &amp; chats…" autocomplete="off" aria-label="Search conversations">
+    </div>
+    <div class="convlist" id="convList"></div>
+  </aside>
+
+  <section class="thread" id="thread">
+    <div class="thead" id="thead" hidden>
+      <button class="bk" id="backBtn" aria-label="Back to conversations">‹</button>
+      <div class="av" id="tAv"></div>
+      <div class="ti"><b id="tName">—</b><span id="tSub"></span></div>
+      <button class="btn sm" id="addMemBtn" type="button" hidden>＋ Add</button>
+    </div>
+    <div class="msgs" id="msgs">
+      <div class="empty" id="welcome"><div class="big">💬</div><b>Your team chat</b><p>Pick a conversation, or start a new one. Messages, photos and voice notes are shared only with your team.</p></div>
+    </div>
+    <div class="composer" id="composer" hidden>
+      <div class="replybar" id="replyBar" hidden><div><b id="replyWho"></b><span id="replyTxt"></span></div><button class="x" id="replyX" aria-label="Cancel reply">×</button></div>
+      <div class="emojibar" id="emojiBar" hidden></div>
+      <div class="cbar" id="cbar">
+        <button class="ic" id="attachBtn" type="button" title="Send a photo" aria-label="Attach photo">📎</button>
+        <button class="ic" id="camBtn" type="button" title="Take a photo" aria-label="Take a photo">📷</button>
+        <button class="ic" id="emojiBtn" type="button" title="Emoji" aria-label="Emoji">😊</button>
+        <textarea id="msgInput" rows="1" placeholder="Type a message…" aria-label="Message"></textarea>
+        <button class="ic" id="micBtn" type="button" title="Record a voice note" aria-label="Record voice note">🎤</button>
+        <button class="send" id="sendBtn" type="button" title="Send" aria-label="Send" hidden>➤</button>
+      </div>
+      <div class="recording" id="recUI" hidden>
+        <span class="dot"></span><span class="t" id="recTime">0:00</span>
+        <span style="color:var(--ink-3);font-size:13px">Recording voice note…</span>
+        <span class="spacer" style="margin-left:auto"></span>
+        <button class="btn sm" id="recCancel" type="button">Cancel</button>
+        <button class="btn sm primary" id="recStop" type="button">Send ➤</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<input type="file" id="fileImg" accept="image/*" hidden>
+<input type="file" id="fileCam" accept="image/*" capture="environment" hidden>
+
+<script src="telemetry.js?v=2"></script>
+<script src="config.js?v=91"></script>
+<script src="store-api.js?v=89"></script>
+<script>
+(function(){
+  const $=(s,r)=>(r||document).querySelector(s);
+  const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const RX_EMOJI=["👍","❤️","😂","😮","😢","🙏"];
+  const INS_EMOJI=["😀","😁","😂","🤣","😊","😍","😎","🤔","👍","🙏","🎉","🔥","✅","❤️","💯","👏","🙌","😅","😢","😮","🚀","⭐","☕","🍾"];
+  let ME={id:null,name:"",email:""}, roster={}, convs=[], activeId=null, replyTo=null, sub=null, thread={messages:[],reactions:[],members:[]}, convSearch="";
+  let rec=null, recChunks=[], recStart=0, recTimer=null;
+
+  const COLORS=["#6d28d9","#4f46e5","#0ea5e9","#16a34a","#d97706","#dc2626","#db2777","#0891b2","#7c3aed","#ca8a04"];
+  function colorFor(id){ let h=0; const s=String(id||""); for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return COLORS[h%COLORS.length]; }
+  function initials(name){ const p=String(name||"?").trim().split(/\s+/); return ((p[0]||"")[0]||"?").toUpperCase()+((p[1]||"")[0]||"").toUpperCase(); }
+  function personName(id){ const p=roster[id]; return p?(p.full_name||p.email||"Member"):(id===ME.id?ME.name:"Member"); }
+  function fmtTime(ts){ try{ return new Date(ts).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}); }catch(e){ return ""; } }
+  function fmtDay(ts){ try{ const d=new Date(ts), t=new Date(); const y=new Date(t); y.setDate(t.getDate()-1);
+    if(d.toDateString()===t.toDateString()) return "Today"; if(d.toDateString()===y.toDateString()) return "Yesterday";
+    return d.toLocaleDateString([], {weekday:"short",day:"numeric",month:"short"}); }catch(e){ return ""; } }
+
+  function convOther(c){ // the other user id for a DM
+    if(c.kind!=="dm") return null;
+    if(c.dm_key){ const ids=c.dm_key.split(":"); return ids[0]===ME.id?ids[1]:ids[0]; }
+    const m=(c._members||[]).map(x=>x.user_id).find(x=>x!==ME.id); return m||null;
+  }
+  function convTitle(c){ if(c.kind==="broadcast") return c.title||"Everyone"; if(c.kind==="group") return c.title||"Group"; const o=convOther(c); return personName(o); }
+  function convAvatar(c){ if(c.kind==="broadcast") return {bg:"var(--accent)",txt:"📣"}; if(c.kind==="group") return {bg:colorFor(c.id),txt:"👥"}; const o=convOther(c); return {bg:colorFor(o),txt:initials(personName(o))}; }
+
+  /* ---------- account / shell ---------- */
+  async function renderAccount(){
+    const el=$("#account"); if(!BPStore.auth.enabled()){ el.hidden=true; return; } el.hidden=false;
+    const u=BPStore.auth.user();
+    if(u){ const role=await BPStore.auth.role();
+      el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn">Log out</button>`;
+      $("#logoutBtn").addEventListener("click",async()=>{ await BPStore.auth.signOut(); location.href="dashboard.html"; });
+    } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next=chat.html")); }
+  }
+  function renderLocalBar(){
+    if(!BPStore.chat.isLocal()) return;
+    const bar=$("#localBar"); bar.hidden=false;
+    const r=BPStore.chat.localRoster();
+    bar.innerHTML='<span class="localpill">Demo mode · viewing as</span> <select id="asWho" class="iconbtn" aria-label="Acting identity"></select>';
+    const sel=$("#asWho"); sel.innerHTML=r.map(p=>`<option value="${p.id}">${esc(p.full_name)}</option>`).join("");
+    sel.value=ME.id;
+    sel.addEventListener("change",async()=>{ BPStore.chat.setLocalUser(sel.value); ME=await BPStore.chat.me(); await refresh(); if(activeId) await openConv(activeId); });
+  }
+
+  /* ---------- conversation list ---------- */
+  function lastPreview(c){ const m=c._last; if(!m) return "No messages yet";
+    const who=(m.sender_id===ME.id?"You: ":(c.kind!=="dm"?(personName(m.sender_id).split(" ")[0]+": "):""));
+    if(m.kind==="image") return who+"📷 Photo"; if(m.kind==="voice") return who+"🎤 Voice note";
+    return who+(m.body||""); }
+
+  function renderConvs(){
+    const q=convSearch.trim().toLowerCase();
+    const list=convs.filter(c=>!q||convTitle(c).toLowerCase().includes(q));
+    const bcast=list.filter(c=>c.kind==="broadcast"), rest=list.filter(c=>c.kind!=="broadcast");
+    const host=$("#convList"); let html="";
+    const rowHtml=(c)=>{ const a=convAvatar(c); const unread=c._unread; const title=convTitle(c);
+      return `<div class="conv ${c.id===activeId?'on':''}" data-id="${esc(c.id)}" role="button" tabindex="0">
+        <div class="av" style="background:${a.bg}">${a.txt&&a.txt.length<=2&&!/\p{Emoji}/u.test(a.txt)?esc(a.txt):a.txt}</div>
+        <div class="meta"><div class="nm">${esc(title)}${c.kind==="group"?' <span style="font-size:11px;color:var(--ink-3);font-weight:500">· group</span>':''}</div>
+          <div class="pv">${esc(lastPreview(c))}</div></div>
+        <div class="right"><span class="tm">${c._last?fmtTime(c._last.created_at):""}</span>${unread?`<span class="unread">${unread>9?'9+':unread}</span>`:""}</div>
+      </div>`; };
+    if(bcast.length){ html+='<div class="sectlbl">Broadcast</div>'+bcast.map(rowHtml).join(""); }
+    html+='<div class="sectlbl">Direct &amp; groups</div>'+(rest.length?rest.map(rowHtml).join(""):'<div style="padding:16px 12px;color:var(--ink-3);font-size:13px">No chats yet. Tap “✎ Chat” to message a teammate.</div>');
+    host.innerHTML=html;
+    host.querySelectorAll(".conv").forEach(el=>{ const go=()=>openConv(el.dataset.id);
+      el.addEventListener("click",go); el.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); go(); } }); });
+  }
+
+  async function refresh(){
+    try{ convs=await BPStore.chat.conversations(); }catch(e){ convs=[]; }
+    const mem=await BPStore.chat.myMemberships().catch(()=>({}));
+    // enrich each conv with members(for DM titles), last message + unread (cheap: one thread peek for preview via last_message_at)
+    for(const c of convs){ const m=mem[c.id]; c._lastRead=m&&m.last_read_at; }
+    // fetch last message + unread lazily per conv (limited)
+    await Promise.all(convs.map(async c=>{
+      try{ const t=await BPStore.chat.thread(c.id, 60); c._members=t.members; c._last=t.messages[t.messages.length-1]||null;
+        c._unread=t.messages.filter(x=>x.sender_id!==ME.id && (!c._lastRead || x.created_at> c._lastRead)).length;
+      }catch(e){ c._members=[]; c._last=null; c._unread=0; }
+    }));
+    renderConvs();
+  }
+
+  /* ---------- open + render a thread ---------- */
+  async function openConv(id){
+    activeId=id; $("#app").classList.add("show-thread");
+    const c=convs.find(x=>x.id===id); if(!c) return;
+    $("#thead").hidden=false; $("#composer").hidden=false; const _w=$("#welcome"); if(_w) _w.hidden=true;
+    const a=convAvatar(c); const av=$("#tAv"); av.style.background=a.bg; av.textContent=a.txt;
+    $("#tName").textContent=convTitle(c);
+    $("#addMemBtn").hidden=(c.kind!=="group");
+    renderConvs();
+    await loadThread();
+    try{ await BPStore.chat.markRead(id); }catch(e){}
+  }
+  async function loadThread(){ if(!activeId) return;
+    try{ thread=await BPStore.chat.thread(activeId); }catch(e){ thread={messages:[],reactions:[],members:[]}; }
+    const c=convs.find(x=>x.id===activeId);
+    if(c){ if(c.kind==="group") $("#tSub").textContent=(thread.members.length||0)+" members";
+      else if(c.kind==="broadcast") $("#tSub").textContent="Everyone in your team";
+      else $("#tSub").textContent=(roster[convOther(c)]?.role)||""; }
+    renderMessages();
+  }
+
+  function reactsFor(mid){ const by={}; thread.reactions.filter(r=>r.message_id===mid).forEach(r=>{ (by[r.emoji]=by[r.emoji]||[]).push(r.user_id); }); return by; }
+
+  function renderMessages(){
+    const host=$("#msgs"); const c=convs.find(x=>x.id===activeId); const isGroup=c&&c.kind!=="dm";
+    if(!thread.messages.length){ host.innerHTML='<div class="empty"><div class="big">👋</div><b>No messages yet</b><p>Say hello — this is the start of your conversation.</p></div>'; return; }
+    let html="", lastDay="";
+    thread.messages.forEach(m=>{
+      const day=fmtDay(m.created_at); if(day!==lastDay){ html+=`<div class="daysep">${esc(day)}</div>`; lastDay=day; }
+      const mine=m.sender_id===ME.id;
+      const by=reactsFor(m.id); const rxHtml=Object.keys(by).map(e=>`<span class="rx ${by[e].indexOf(ME.id)>=0?'on':''}" data-react="${esc(m.id)}" data-emoji="${esc(e)}">${e} ${by[e].length}</span>`).join("");
+      let inner="";
+      if(m.reply_to){ const rm=thread.messages.find(x=>x.id===m.reply_to); if(rm){ inner+=`<div class="reply"><b>${esc(rm.sender_id===ME.id?"You":personName(rm.sender_id))}</b><span class="rt">${esc(rm.kind==="image"?"📷 Photo":rm.kind==="voice"?"🎤 Voice note":(rm.body||""))}</span></div>`; } }
+      if(m.kind==="image"){ inner+=`<img class="photo" data-media="${esc(m.media_path||"")}" alt="Photo" loading="lazy">`; if(m.body) inner+=`<div class="cap">${esc(m.body)}</div>`; }
+      else if(m.kind==="voice"){ inner+=`<audio controls preload="none" data-media="${esc(m.media_path||"")}"></audio>`+(m.media_duration?`<div class="tm" style="text-align:left">🎤 ${Math.floor(m.media_duration/60)}:${String(m.media_duration%60).padStart(2,"0")}</div>`:""); }
+      else { inner+=esc(m.body||""); }
+      html+=`<div class="m ${mine?'me':'them'}" tabindex="0">
+        ${(isGroup&&!mine)?`<div class="who">${esc(personName(m.sender_id))}</div>`:""}
+        <div class="bub">${inner}<div class="tm">${fmtTime(m.created_at)}</div>
+          <div class="mtools">${RX_EMOJI.slice(0,4).map(e=>`<button data-react="${esc(m.id)}" data-emoji="${esc(e)}" title="React ${e}">${e}</button>`).join("")}<button data-reply="${esc(m.id)}" title="Reply">↩</button></div>
+        </div>
+        ${rxHtml?`<div class="reacts">${rxHtml}</div>`:""}
+      </div>`;
+    });
+    host.innerHTML=html;
+    // wire reactions + reply
+    host.querySelectorAll("[data-react]").forEach(el=>el.addEventListener("click",()=>{ const on=!el.classList.contains("on"); toggleReact(el.dataset.react, el.dataset.emoji, on); }));
+    host.querySelectorAll("[data-reply]").forEach(el=>el.addEventListener("click",()=>setReply(el.dataset.reply)));
+    host.querySelectorAll("img.photo").forEach(el=>el.addEventListener("click",()=>lightbox(el.src)));
+    // resolve media urls (images + voice)
+    host.querySelectorAll("[data-media]").forEach(async el=>{ const p=el.getAttribute("data-media"); if(!p) return; try{ el.src=await BPStore.chat.mediaUrl(p); }catch(e){} });
+    host.scrollTop=host.scrollHeight;
+  }
+
+  async function toggleReact(mid,emoji,on){ try{ await BPStore.chat.react(mid,emoji,on); await loadThread(); }catch(e){} }
+  function setReply(mid){ const m=thread.messages.find(x=>x.id===mid); if(!m) return; replyTo=m;
+    $("#replyBar").hidden=false; $("#replyWho").textContent=m.sender_id===ME.id?"You":personName(m.sender_id);
+    $("#replyTxt").textContent=m.kind==="image"?"📷 Photo":m.kind==="voice"?"🎤 Voice note":(m.body||""); $("#msgInput").focus(); }
+  $("#replyX").addEventListener("click",()=>{ replyTo=null; $("#replyBar").hidden=true; });
+
+  function lightbox(src){ const o=document.createElement("div"); o.className="lightbox"; o.innerHTML=`<img src="${esc(src)}" alt="Photo">`; o.addEventListener("click",()=>o.remove()); document.body.appendChild(o); }
+
+  /* ---------- sending ---------- */
+  async function sendText(){ const ta=$("#msgInput"); const body=ta.value.trim(); if(!body||!activeId) return;
+    ta.value=""; autoGrow(); syncSend();
+    const r=replyTo; replyTo=null; $("#replyBar").hidden=true;
+    try{ await BPStore.chat.send(activeId,{kind:"text",body,reply_to:r?r.id:null}); await loadThread(); await refresh(); }
+    catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"send the message"}),{type:"err"}); }
+  }
+  async function sendImage(file){ if(!file||!activeId) return;
+    try{ const up=await BPStore.chat.uploadMedia(activeId,file,{}); const r=replyTo; replyTo=null; $("#replyBar").hidden=true;
+      await BPStore.chat.send(activeId,{kind:"image",media_path:up.path,media_mime:up.mime,reply_to:r?r.id:null}); await loadThread(); await refresh(); }
+    catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"send the photo"}),{type:"err"}); }
+  }
+  async function sendVoice(blob,dur){ if(!blob||!activeId) return;
+    try{ const ext=(blob.type||"").indexOf("ogg")>=0?"ogg":(blob.type||"").indexOf("mp4")>=0?"m4a":"webm";
+      const file=new File([blob],"voice."+ext,{type:blob.type||"audio/webm"});
+      const up=await BPStore.chat.uploadMedia(activeId,file,{voice:true});
+      await BPStore.chat.send(activeId,{kind:"voice",media_path:up.path,media_mime:up.mime,media_duration:dur}); await loadThread(); await refresh(); }
+    catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"send the voice note"}),{type:"err"}); }
+  }
+
+  /* ---------- voice recording ---------- */
+  async function startRec(){
+    if(!navigator.mediaDevices||!window.MediaRecorder){ BPUI.toast("Voice notes aren’t supported in this browser.",{type:"info"}); return; }
+    let stream; try{ stream=await navigator.mediaDevices.getUserMedia({audio:true}); }
+    catch(e){ BPUI.toast("Microphone permission is needed to record a voice note.",{type:"err"}); return; }
+    recChunks=[]; try{ rec=new MediaRecorder(stream); }catch(e){ rec=new MediaRecorder(stream,{mimeType:"audio/webm"}); }
+    rec.ondataavailable=e=>{ if(e.data&&e.data.size) recChunks.push(e.data); };
+    rec._stream=stream; recStart=Date.now();
+    $("#cbar").hidden=true; $("#recUI").hidden=false; tickRec();
+    recTimer=setInterval(tickRec,500);
+    rec.start();
+  }
+  function tickRec(){ const s=Math.floor((Date.now()-recStart)/1000); $("#recTime").textContent=Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
+  function stopRec(send){
+    if(!rec){ return; } const dur=Math.max(1,Math.round((Date.now()-recStart)/1000)); clearInterval(recTimer);
+    rec.onstop=async()=>{ try{ rec._stream.getTracks().forEach(t=>t.stop()); }catch(e){}
+      if(send){ const blob=new Blob(recChunks,{type:rec.mimeType||"audio/webm"}); await sendVoice(blob,dur); }
+      rec=null; recChunks=[]; };
+    try{ rec.stop(); }catch(e){}
+    $("#recUI").hidden=true; $("#cbar").hidden=false; syncSend();
+  }
+
+  /* ---------- composer wiring ---------- */
+  function autoGrow(){ const ta=$("#msgInput"); ta.style.height="auto"; ta.style.height=Math.min(120,ta.scrollHeight)+"px"; }
+  function syncSend(){ const has=$("#msgInput").value.trim().length>0; $("#sendBtn").hidden=!has; $("#micBtn").hidden=has; }
+  $("#msgInput").addEventListener("input",()=>{ autoGrow(); syncSend(); });
+  $("#msgInput").addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); sendText(); } });
+  $("#sendBtn").addEventListener("click",sendText);
+  $("#micBtn").addEventListener("click",startRec);
+  $("#recStop").addEventListener("click",()=>stopRec(true));
+  $("#recCancel").addEventListener("click",()=>stopRec(false));
+  $("#attachBtn").addEventListener("click",()=>$("#fileImg").click());
+  $("#camBtn").addEventListener("click",()=>$("#fileCam").click());
+  $("#fileImg").addEventListener("change",e=>{ const f=e.target.files[0]; e.target.value=""; sendImage(f); });
+  $("#fileCam").addEventListener("change",e=>{ const f=e.target.files[0]; e.target.value=""; sendImage(f); });
+  $("#backBtn").addEventListener("click",()=>{ $("#app").classList.remove("show-thread"); });
+  $("#convSearch").addEventListener("input",e=>{ convSearch=e.target.value; renderConvs(); });
+  // emoji inserter
+  (function(){ const bar=$("#emojiBar"); bar.innerHTML=INS_EMOJI.map(e=>`<button type="button">${e}</button>`).join("");
+    bar.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ const ta=$("#msgInput"); ta.value+=b.textContent; ta.focus(); autoGrow(); syncSend(); }));
+    $("#emojiBtn").addEventListener("click",()=>{ bar.hidden=!bar.hidden; }); })();
+  $("#themeBtn").addEventListener("click",()=>{ const d=document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark"; document.documentElement.setAttribute("data-theme",d); try{localStorage.setItem("bp_theme",d);}catch(e){} });
+
+  /* ---------- new DM / group modals ---------- */
+  function closeModal(){ const m=$("#modalOv"); if(m) m.remove(); }
+  function others(){ return (BPStore.chat.isLocal()?BPStore.chat.localRoster():Object.values(roster)).filter(p=>p.id!==ME.id); }
+  function newDmModal(){
+    const people=others(); const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
+    ov.innerHTML=`<div class="modal"><h3>New chat</h3><div class="body"><div class="plist">${
+      people.map(p=>`<div class="prow" data-id="${esc(p.id)}"><div class="av" style="width:36px;height:36px;font-size:13px;background:${colorFor(p.id)}">${esc(initials(p.full_name||p.email))}</div><div class="nm">${esc(p.full_name||p.email)}</div><span class="rl">${esc(p.role||"")}</span></div>`).join("")||'<div style="color:var(--ink-3)">No other teammates in your organization yet.</div>'
+    }</div></div><div class="foot"><button class="btn" data-close>Cancel</button></div></div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
+    ov.querySelectorAll(".prow").forEach(r=>r.addEventListener("click",async()=>{ closeModal();
+      try{ const id=await BPStore.chat.startDm(r.dataset.id); await refresh(); await openConv(id); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"start the chat"}),{type:"err"}); } }));
+  }
+  function newGroupModal(){
+    const people=others(); const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
+    ov.innerHTML=`<div class="modal"><h3>New group</h3><div class="body">
+      <input class="search" id="gName" placeholder="Group name" style="margin-bottom:12px" aria-label="Group name">
+      <div class="sectlbl" style="padding-left:0">Add members</div>
+      <div class="plist">${people.map(p=>`<label class="prow"><div class="av" style="width:36px;height:36px;font-size:13px;background:${colorFor(p.id)}">${esc(initials(p.full_name||p.email))}</div><div class="nm">${esc(p.full_name||p.email)}</div><input type="checkbox" value="${esc(p.id)}"></label>`).join("")||'<div style="color:var(--ink-3)">No teammates to add yet.</div>'}</div>
+    </div><div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="gCreate">Create group</button></div></div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
+    $("#gCreate").addEventListener("click",async()=>{ const name=$("#gName").value.trim(); if(!name){ $("#gName").focus(); return; }
+      const ids=[...ov.querySelectorAll('input[type=checkbox]:checked')].map(c=>c.value);
+      closeModal(); try{ const id=await BPStore.chat.createGroup(name,ids); await refresh(); await openConv(id); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"create the group"}),{type:"err"}); } });
+  }
+  function addMembersModal(){
+    const c=convs.find(x=>x.id===activeId); if(!c) return; const inIds=(thread.members||[]).map(m=>m.user_id);
+    const people=others().filter(p=>inIds.indexOf(p.id)<0); const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
+    ov.innerHTML=`<div class="modal"><h3>Add members</h3><div class="body"><div class="plist">${people.map(p=>`<label class="prow"><div class="av" style="width:36px;height:36px;font-size:13px;background:${colorFor(p.id)}">${esc(initials(p.full_name||p.email))}</div><div class="nm">${esc(p.full_name||p.email)}</div><input type="checkbox" value="${esc(p.id)}"></label>`).join("")||'<div style="color:var(--ink-3)">Everyone is already in this group.</div>'}</div></div><div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="aAdd">Add</button></div></div>`;
+    document.body.appendChild(ov); ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
+    $("#aAdd").addEventListener("click",async()=>{ const ids=[...ov.querySelectorAll('input[type=checkbox]:checked')].map(c=>c.value); closeModal();
+      if(!ids.length) return; try{ await BPStore.chat.addMembers(activeId,ids); await loadThread(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"add members"}),{type:"err"}); } });
+  }
+  $("#newDmBtn").addEventListener("click",newDmModal);
+  $("#newGroupBtn").addEventListener("click",newGroupModal);
+  $("#addMemBtn").addEventListener("click",addMembersModal);
+
+  /* ---------- realtime ---------- */
+  let rtT=null;
+  function onRealtime(){ clearTimeout(rtT); rtT=setTimeout(async()=>{ await refresh(); if(activeId) await loadThread(); },250); }
+
+  /* ---------- boot ---------- */
+  BPUI.boot(async ()=>{
+    await BPStore.init(); await renderAccount(); try{ await BPStore.bell.mount(document.querySelector("#bell")); }catch(e){}
+    if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next=chat.html"); return; }
+    ME=await BPStore.chat.me();
+    renderLocalBar();
+    const r=await BPStore.chat.roster().catch(()=>[]); roster={}; r.forEach(p=>roster[p.id]=p);
+    await refresh();
+    sub=BPStore.chat.subscribe(onRealtime,()=>{});
+    window.addEventListener("beforeunload",()=>{ try{ sub&&sub.unsubscribe&&sub.unsubscribe(); }catch(e){} });
+    // open the broadcast channel by default
+    const b=convs.find(c=>c.kind==="broadcast"); if(b && window.innerWidth>760) openConv(b.id);
+  });
+})();
+</script>
+</body>
+</html>

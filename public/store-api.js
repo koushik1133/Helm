@@ -1808,6 +1808,188 @@
     },
   };
 
+  /* ===================================================================
+     CHAT (Phase: team messaging) — per-org DMs / groups / broadcast, with
+     text, images, voice notes, replies, reactions, read state and realtime.
+     Supabase: tables + RPCs from migration 0016; media in private 'chat-media'
+     bucket (signed URLs). Local fallback: localStorage + BroadcastChannel so it
+     works (and syncs across tabs) offline/in dev.
+     =================================================================== */
+  const CHAT_MEDIA_MAX = 16 * 1024 * 1024;                  // 16 MB (matches the bucket cap)
+  const CHAT_SNIFF = [                                       // images + audio, by magic bytes
+    ["image/png",  "png",  (b) => b[0]===0x89 && b[1]===0x50 && b[2]===0x4E && b[3]===0x47],
+    ["image/jpeg", "jpg",  (b) => b[0]===0xFF && b[1]===0xD8 && b[2]===0xFF],
+    ["image/webp", "webp", (b) => b[0]===0x52 && b[1]===0x49 && b[2]===0x46 && b[3]===0x46 && b[8]===0x57 && b[9]===0x45 && b[10]===0x42 && b[11]===0x50],
+    ["image/gif",  "gif",  (b) => b[0]===0x47 && b[1]===0x49 && b[2]===0x46],
+    ["audio/webm", "webm", (b) => b[0]===0x1A && b[1]===0x45 && b[2]===0xDF && b[3]===0xA3],   // EBML (MediaRecorder webm)
+    ["audio/ogg",  "ogg",  (b) => b[0]===0x4F && b[1]===0x67 && b[2]===0x67 && b[3]===0x53],   // OggS
+    ["audio/mp4",  "m4a",  (b) => b[4]===0x66 && b[5]===0x74 && b[6]===0x79 && b[7]===0x70],   // ....ftyp
+    ["audio/mpeg", "mp3",  (b) => (b[0]===0x49 && b[1]===0x44 && b[2]===0x33) || (b[0]===0xFF && (b[1]&0xE0)===0xE0)],
+  ];
+  async function sniffChat(file) {
+    const buf = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+    for (const [mime, ext, ok] of CHAT_SNIFF) { if (ok(buf)) return { mime, ext }; }
+    return null;
+  }
+  // ---- local-mode state (demo / offline): a settable identity + a seeded roster ----
+  const CHAT_LS_C = "bp_chat_conv", CHAT_LS_M = "bp_chat_msg", CHAT_LS_R = "bp_chat_react";
+  const CHAT_LOCAL_ROSTER = [
+    { id:"u-you",    full_name:"You",          email:"you@demo.in",    role:"admin" },
+    { id:"u-ananya", full_name:"Ananya Rao",   email:"ananya@demo.in", role:"manager" },
+    { id:"u-vikram", full_name:"Vikram Singh", email:"vikram@demo.in", role:"operations" },
+    { id:"u-meera",  full_name:"Meera Nair",   email:"meera@demo.in",  role:"coordinator" },
+    { id:"u-rohit",  full_name:"Rohit Verma",  email:"rohit@demo.in",  role:"crew" },
+  ];
+  function chatLocalUid() { try { return localStorage.getItem("helm_local_uid") || "u-you"; } catch (e) { return "u-you"; } }
+  const chatReadLs = (k) => { try { return JSON.parse(localStorage.getItem(k) || "[]"); } catch (e) { return []; } };
+  const chatWriteLs = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+  let chatBC = null; try { chatBC = (typeof BroadcastChannel !== "undefined") ? new BroadcastChannel("helm-chat") : null; } catch (e) {}
+  function chatPing() { try { chatBC && chatBC.postMessage({ t: Date.now() }); } catch (e) {} try { localStorage.setItem("bp_chat_ping", String(Date.now())); } catch (e) {} }
+  function chatDmKey(a, b) { return a < b ? a + ":" + b : b + ":" + a; }
+
+  const chat = {
+    // Is the feature running on localStorage (true) or a real backend (false)?
+    isLocal: () => mode !== "supabase",
+    // Who am I, for display + "is this mine" checks.
+    async me() {
+      if (mode !== "supabase") { const u = CHAT_LOCAL_ROSTER.find((x) => x.id === chatLocalUid()) || CHAT_LOCAL_ROSTER[0]; return { id: u.id, name: u.full_name, email: u.email }; }
+      const id = currentUser && currentUser.id;
+      let name = currentUser && currentUser.email;
+      try { const { data } = await supa.from("profiles").select("full_name,email").eq("id", id).maybeSingle(); if (data) name = data.full_name || data.email || name; } catch (e) {}
+      return { id, name, email: currentUser && currentUser.email };
+    },
+    // Local-mode only: switch the acting identity (two tabs = two "users" for a live demo).
+    localRoster: () => CHAT_LOCAL_ROSTER.slice(),
+    setLocalUser: (id) => { try { localStorage.setItem("helm_local_uid", id); } catch (e) {} },
+    // All login users in my org (RLS scopes to the org). Source of the DM roster.
+    async roster() {
+      if (mode !== "supabase") return CHAT_LOCAL_ROSTER.slice();
+      const { data, error } = await supa.from("profiles").select("id,email,full_name,role").order("full_name");
+      if (error) throw error; return data || [];
+    },
+    // Conversations I can see (my DMs + groups + the org broadcast), newest first.
+    async conversations() {
+      if (mode !== "supabase") {
+        let convs = chatReadLs(CHAT_LS_C);
+        if (!convs.some((c) => c.kind === "broadcast")) { convs.unshift({ id: "bcast", kind: "broadcast", title: "Everyone", created_at: now(), last_message_at: now(), members: [] }); chatWriteLs(CHAT_LS_C, convs); }
+        return convs.slice().sort((a, b) => String(b.last_message_at || "").localeCompare(String(a.last_message_at || "")));
+      }
+      try { await rpc("chat_ensure_broadcast"); } catch (e) {}
+      const { data, error } = await supa.from("chat_conversations").select("*").order("last_message_at", { ascending: false });
+      if (error) throw error; return data || [];
+    },
+    // My membership rows (→ last_read_at per conversation, for unread badges).
+    async myMemberships() {
+      if (mode !== "supabase") { const me = chatLocalUid(); const out = {}; chatReadLs(CHAT_LS_C).forEach((c) => { const m = (c.members || []).find((x) => x.user_id === me); if (m) out[c.id] = m; }); return out; }
+      const { data } = await supa.from("chat_members").select("conversation_id,last_read_at,member_role").eq("user_id", currentUser ? currentUser.id : null);
+      const out = {}; (data || []).forEach((m) => { out[m.conversation_id] = m; }); return out;
+    },
+    // Everything needed to render one conversation: messages (oldest→newest) + reactions + members.
+    async thread(convId, limit) {
+      if (mode !== "supabase") {
+        const msgs = chatReadLs(CHAT_LS_M).filter((x) => x.conversation_id === convId).sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+        const ids = msgs.map((m) => m.id);
+        const reactions = chatReadLs(CHAT_LS_R).filter((r) => ids.indexOf(r.message_id) !== -1);
+        const conv = chatReadLs(CHAT_LS_C).find((c) => c.id === convId) || {};
+        return { messages: msgs, reactions, members: conv.members || [] };
+      }
+      const { data: msgs, error: e1 } = await supa.from("chat_messages").select("*").eq("conversation_id", convId).order("created_at", { ascending: true }).limit(limit || 500);
+      if (e1) throw e1;
+      const ids = (msgs || []).map((m) => m.id);
+      let reactions = []; if (ids.length) { const { data: rr } = await supa.from("chat_reactions").select("*").in("message_id", ids); reactions = rr || []; }
+      const { data: members } = await supa.from("chat_members").select("*").eq("conversation_id", convId);
+      return { messages: msgs || [], reactions, members: members || [] };
+    },
+    async startDm(otherId) {
+      if (mode !== "supabase") {
+        const me = chatLocalUid(); if (otherId === me) throw new Error("invalid recipient");
+        const key = chatDmKey(me, otherId); const convs = chatReadLs(CHAT_LS_C);
+        let c = convs.find((x) => x.dm_key === key);
+        if (!c) { c = { id: uid(), kind: "dm", dm_key: key, created_by: me, created_at: now(), last_message_at: now(), members: [{ user_id: me }, { user_id: otherId }] }; convs.push(c); chatWriteLs(CHAT_LS_C, convs); chatPing(); }
+        return c.id;
+      }
+      return rpc("chat_start_dm", { p_other: otherId });
+    },
+    async createGroup(title, memberIds) {
+      if (mode !== "supabase") {
+        const me = chatLocalUid(); const convs = chatReadLs(CHAT_LS_C);
+        const members = [{ user_id: me, member_role: "admin" }].concat((memberIds || []).filter((x) => x !== me).map((x) => ({ user_id: x })));
+        const c = { id: uid(), kind: "group", title: (title || "Group").trim(), created_by: me, created_at: now(), last_message_at: now(), members };
+        convs.push(c); chatWriteLs(CHAT_LS_C, convs); chatPing(); return c.id;
+      }
+      return rpc("chat_create_group", { p_title: title, p_members: memberIds || [] });
+    },
+    async addMembers(convId, memberIds) {
+      if (mode !== "supabase") { const convs = chatReadLs(CHAT_LS_C); const c = convs.find((x) => x.id === convId); if (c) { c.members = c.members || []; (memberIds || []).forEach((id) => { if (!c.members.some((m) => m.user_id === id)) c.members.push({ user_id: id }); }); chatWriteLs(CHAT_LS_C, convs); chatPing(); } return; }
+      return rpc("chat_add_members", { p_conversation: convId, p_members: memberIds || [] });
+    },
+    // Upload an image or voice note; returns { path, mime } to pass to send().
+    async uploadMedia(convId, file, opts) {
+      opts = opts || {};
+      if (!file) throw new Error("no file");
+      if (file.size > CHAT_MEDIA_MAX) throw new Error("File too large (max 16 MB).");
+      const sniff = await sniffChat(file);
+      if (!sniff) throw new Error("Unsupported file — images or voice notes only.");
+      if (mode !== "supabase") { const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); return { path: dataUrl, mime: sniff.mime }; }
+      const orgId = await org.id(); if (!orgId) throw new Error("no organization in context");
+      const u = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
+      const path = orgId + "/" + convId + "/" + u + "." + sniff.ext;
+      const { error } = await supa.storage.from("chat-media").upload(path, file, { upsert: false, contentType: sniff.mime, cacheControl: "3600" });
+      if (error) throw error;
+      return { path, mime: sniff.mime };
+    },
+    // Resolve a media_path to something an <img>/<audio> can load.
+    async mediaUrl(path, seconds) {
+      if (!path) return null;
+      if (mode !== "supabase" || /^data:/.test(path) || /^https?:/.test(path)) return path;   // local data: URL
+      const { data, error } = await supa.storage.from("chat-media").createSignedUrl(path, seconds || 300);
+      if (error) throw error; return data && data.signedUrl;
+    },
+    async send(convId, m) {
+      m = m || {};
+      if (mode !== "supabase") {
+        const msgs = chatReadLs(CHAT_LS_M);
+        const row = { id: uid(), conversation_id: convId, org_id: "local", sender_id: chatLocalUid(), kind: m.kind || "text", body: m.body || null, media_path: m.media_path || null, media_mime: m.media_mime || null, media_duration: m.media_duration || null, reply_to: m.reply_to || null, created_at: now(), deleted: false };
+        msgs.push(row); chatWriteLs(CHAT_LS_M, msgs);
+        const convs = chatReadLs(CHAT_LS_C); const c = convs.find((x) => x.id === convId); if (c) { c.last_message_at = now(); chatWriteLs(CHAT_LS_C, convs); }
+        chatPing(); return row;
+      }
+      return rpc("chat_send", { p_conversation: convId, p_kind: m.kind || "text", p_body: m.body || null, p_media_path: m.media_path || null, p_media_mime: m.media_mime || null, p_media_duration: m.media_duration || null, p_reply_to: m.reply_to || null });
+    },
+    async react(messageId, emoji, on) {
+      if (mode !== "supabase") {
+        let rs = chatReadLs(CHAT_LS_R); const me = chatLocalUid();
+        rs = rs.filter((r) => !(r.message_id === messageId && r.user_id === me && r.emoji === emoji));
+        if (on !== false) rs.push({ message_id: messageId, user_id: me, emoji, created_at: now() });
+        chatWriteLs(CHAT_LS_R, rs); chatPing(); return;
+      }
+      return rpc("chat_react", { p_message: messageId, p_emoji: emoji, p_on: on !== false });
+    },
+    async markRead(convId) {
+      if (mode !== "supabase") { const convs = chatReadLs(CHAT_LS_C); const c = convs.find((x) => x.id === convId); const me = chatLocalUid(); if (c) { c.members = c.members || []; let m = c.members.find((x) => x.user_id === me); if (!m) { m = { user_id: me }; c.members.push(m); } m.last_read_at = now(); chatWriteLs(CHAT_LS_C, convs); } return; }
+      try { return await rpc("chat_mark_read", { p_conversation: convId }); } catch (e) {}
+    },
+    // Realtime: call cb() on any chat change. Returns { unsubscribe() }.
+    subscribe(cb, onStatus) {
+      if (mode !== "supabase") {
+        const h = () => cb && cb();
+        try { if (chatBC) chatBC.onmessage = h; } catch (e) {}
+        const sh = (e) => { if (e.key === "bp_chat_ping") h(); };
+        try { window.addEventListener("storage", sh); } catch (e) {}
+        if (onStatus) onStatus("LOCAL");
+        return { unsubscribe() { try { if (chatBC) chatBC.onmessage = null; } catch (e) {} try { window.removeEventListener("storage", sh); } catch (e) {} } };
+      }
+      try {
+        const ch = supa.channel("chat-rt")
+          .on("postgres_changes", { event: "*", schema: "public", table: "chat_messages" }, () => cb && cb())
+          .on("postgres_changes", { event: "*", schema: "public", table: "chat_reactions" }, () => cb && cb())
+          .on("postgres_changes", { event: "*", schema: "public", table: "chat_conversations" }, () => cb && cb())
+          .subscribe((status) => { if (onStatus) onStatus(status); });
+        return ch;
+      } catch (e) { if (onStatus) onStatus("ERROR"); return { unsubscribe() {} }; }
+    },
+  };
+
   /* ---------------- resource needs + capability check (Phase 8) ---------------- */
   const NEED_LS = "bp_resource_needs";
   const resources = {
@@ -2763,7 +2945,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat,
     // Phase 3 — personal dashboard feed: upcoming events + per-event task rollup + unread count.
     // Org- and area-scoped server-side (my_pending is SECURITY DEFINER gated on has_area('quotes','view')).
     pending: () => (supa ? rpc("my_pending") : Promise.resolve({ upcoming: [], unread: 0 })),
