@@ -1853,6 +1853,16 @@
   let chatBC = null; try { chatBC = (typeof BroadcastChannel !== "undefined") ? new BroadcastChannel("helm-chat") : null; } catch (e) {}
   function chatPing() { try { chatBC && chatBC.postMessage({ t: Date.now() }); } catch (e) {} try { localStorage.setItem("bp_chat_ping", String(Date.now())); } catch (e) {} }
   function chatDmKey(a, b) { return a < b ? a + ":" + b : b + ":" + a; }
+  // One-line preview for a message (used by the list + the notification bell).
+  function chatPreviewText(m) {
+    if (!m) return "";
+    if (m.kind === "image") return "📷 Photo";
+    if (m.kind === "voice") return "🎤 Voice message";
+    if (m.kind === "card") { const t = m.meta || {}; if (t.kind === "layout") return "📐 Layout" + (t.name ? ": " + t.name : ""); return "📄 Quote" + (t.code ? ": " + t.code : (t.title ? ": " + t.title : "")); }
+    return m.body || "";
+  }
+  // Conversations the viewer muted (per-user, stored by the chat page in localStorage).
+  function chatReadMuted() { try { return new Set(JSON.parse(localStorage.getItem("wa_mute") || "[]")); } catch (e) { return new Set(); } }
 
   const chat = {
     // Is the feature running on localStorage (true) or a real backend (false)?
@@ -1978,7 +1988,12 @@
         } catch (e) {}
         return row;
       }
-      return rpc("chat_send", { p_conversation: convId, p_kind: m.kind || "text", p_body: m.body || null, p_media_path: m.media_path || null, p_media_mime: m.media_mime || null, p_media_duration: m.media_duration || null, p_reply_to: m.reply_to || null, p_meta: m.meta || null });
+      // Only pass p_meta when there's actually an attachment. A plain message then
+      // resolves against BOTH the 0016 chat_send (7-arg) and the 0017 one (8-arg),
+      // so sending never breaks if attachments (0017) haven't been applied yet.
+      const sendArgs = { p_conversation: convId, p_kind: m.kind || "text", p_body: m.body || null, p_media_path: m.media_path || null, p_media_mime: m.media_mime || null, p_media_duration: m.media_duration || null, p_reply_to: m.reply_to || null };
+      if (m.meta) sendArgs.p_meta = m.meta;
+      return rpc("chat_send", sendArgs);
     },
     // Edit the text of my own message. RLS (chat_msg_upd: sender_id = auth.uid())
     // enforces "mine only" on the server; the local tier checks sender_id too.
@@ -2014,18 +2029,64 @@
       if (mode !== "supabase") { const convs = chatReadLs(CHAT_LS_C); const c = convs.find((x) => x.id === convId); const me = chatLocalUid(); if (c) { c.members = c.members || []; let m = c.members.find((x) => x.user_id === me); if (!m) { m = { user_id: me }; c.members.push(m); } m.last_read_at = now(); chatWriteLs(CHAT_LS_C, convs); } return; }
       try { return await rpc("chat_mark_read", { p_conversation: convId }); } catch (e) {}
     },
+    // Unread messages FROM OTHERS in MY conversations, one row per conversation
+    // (latest first), for the notification bell. RLS scopes every read to the
+    // conversations I belong to, so this can never leak another team's or another
+    // DM's messages. Muted conversations are skipped.
+    async notifications(limit) {
+      const muted = chatReadMuted(); const cap = limit || 20;
+      if (mode !== "supabase") {
+        const me = chatLocalUid(); const convs = chatReadLs(CHAT_LS_C); const msgs = chatReadLs(CHAT_LS_M);
+        const nameFor = (id) => { const u = CHAT_LOCAL_ROSTER.find((x) => x.id === id); return u ? u.full_name : "Member"; };
+        const out = [];
+        convs.forEach((c) => {
+          if (muted.has(c.id)) return;
+          const mem = (c.members || []).find((x) => x.user_id === me); const lr = mem && mem.last_read_at;
+          const unread = msgs.filter((m) => m.conversation_id === c.id && m.sender_id !== me && !m.deleted && (!lr || String(m.created_at) > String(lr)));
+          if (!unread.length) return;
+          const last = unread[unread.length - 1];
+          let title; if (c.kind === "broadcast") title = c.title || "Everyone"; else if (c.kind === "group") title = c.title || "Group";
+          else { const ids = (c.dm_key || "").split(":"); const o = ids[0] === me ? ids[1] : ids[0]; title = nameFor(o); }
+          out.push({ conversation_id: c.id, kind: c.kind, title, who: nameFor(last.sender_id), preview: chatPreviewText(last), created_at: last.created_at, count: unread.length });
+        });
+        out.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+        return out.slice(0, cap);
+      }
+      const me = currentUser && currentUser.id; if (!me) return [];
+      let convs = [], mem = {}, roster = [];
+      try { [convs, mem, roster] = await Promise.all([this.conversations(), this.myMemberships(), this.roster()]); } catch (e) { return []; }
+      const nameById = {}; roster.forEach((p) => { nameById[p.id] = p.full_name || p.email || "Member"; });
+      const convById = {}; convs.forEach((c) => { convById[c.id] = c; });
+      let msgs = [];
+      try { const { data, error } = await supa.from("chat_messages").select("id,conversation_id,sender_id,kind,body,meta,created_at").neq("sender_id", me).eq("deleted", false).order("created_at", { ascending: false }).limit(60); if (error) return []; msgs = data || []; } catch (e) { return []; }
+      const seen = {}, out = [];
+      msgs.forEach((m) => {
+        const c = convById[m.conversation_id]; if (!c || muted.has(c.id)) return;
+        const lr = mem[m.conversation_id] && mem[m.conversation_id].last_read_at;
+        if (lr && String(m.created_at) <= String(lr)) return;
+        if (seen[m.conversation_id]) { seen[m.conversation_id].count++; return; }
+        let title; if (c.kind === "broadcast") title = c.title || "Everyone"; else if (c.kind === "group") title = c.title || "Group";
+        else { const ids = (c.dm_key || "").split(":"); const o = ids[0] === me ? ids[1] : ids[0]; title = nameById[o] || "Direct message"; }
+        const item = { conversation_id: m.conversation_id, kind: c.kind, title, who: nameById[m.sender_id] || "Member", preview: chatPreviewText(m), created_at: m.created_at, count: 1 };
+        seen[m.conversation_id] = item; out.push(item);
+      });
+      return out.slice(0, cap);
+    },
     // Realtime: call cb() on any chat change. Returns { unsubscribe() }.
-    subscribe(cb, onStatus) {
+    // chanName lets independent subscribers on the same page (e.g. the chat page AND
+    // the notification bell) each have their own channel instead of colliding.
+    subscribe(cb, onStatus, chanName) {
       if (mode !== "supabase") {
         const h = () => cb && cb();
-        try { if (chatBC) chatBC.onmessage = h; } catch (e) {}
+        // addEventListener (not onmessage=) so multiple local subscribers coexist.
+        try { if (chatBC) chatBC.addEventListener("message", h); } catch (e) {}
         const sh = (e) => { if (e.key === "bp_chat_ping") h(); };
         try { window.addEventListener("storage", sh); } catch (e) {}
         if (onStatus) onStatus("LOCAL");
-        return { unsubscribe() { try { if (chatBC) chatBC.onmessage = null; } catch (e) {} try { window.removeEventListener("storage", sh); } catch (e) {} } };
+        return { unsubscribe() { try { if (chatBC) chatBC.removeEventListener("message", h); } catch (e) {} try { window.removeEventListener("storage", sh); } catch (e) {} } };
       }
       try {
-        const ch = supa.channel("chat-rt")
+        const ch = supa.channel(chanName || "chat-rt")
           .on("postgres_changes", { event: "*", schema: "public", table: "chat_messages" }, () => cb && cb())
           .on("postgres_changes", { event: "*", schema: "public", table: "chat_reactions" }, () => cb && cb())
           .on("postgres_changes", { event: "*", schema: "public", table: "chat_conversations" }, () => cb && cb())
@@ -2900,22 +2961,38 @@
       const esc = (t) => String(t == null ? "" : t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
       const renderList = (items) => {
         if (!items || !items.length) { list.innerHTML = `<div style="padding:22px;text-align:center;color:#8b8698;font-size:13px">Nothing yet.</div>`; return; }
-        list.innerHTML = items.map((n) => { const L = this.label(n); const href = n.quote_id ? ("event.html?id=" + encodeURIComponent(n.quote_id)) : null;
+        list.innerHTML = items.map((n) => {
+          if (n.__chat) {
+            const who = esc(n.who || "");
+            const head = n.kind === "dm" ? who : (esc(n.title) + (who ? " · " + who : ""));
+            return `<a href="chat.html?c=${encodeURIComponent(n.conversation_id)}" style="${S({display:'flex',gap:'10px',padding:'10px 14px','border-bottom':'1px solid var(--line-2,#f1ede7)','text-decoration':'none',color:'inherit',background:'#f6f2ff'})}">
+              <span style="font-size:16px">💬</span>
+              <span style="flex:1;min-width:0"><span style="font-size:13px;font-weight:700">${head}${n.count > 1 ? ' <span style="color:#8b8698;font-weight:600">(' + n.count + ')</span>' : ''}</span>
+                <span style="display:block;font-size:12.5px;color:var(--ink-2,#4b475f);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.preview || '')}</span>
+                <span style="display:block;font-size:11px;color:#8b8698">${rel(n.created_at)}</span></span></a>`;
+          }
+          const L = this.label(n); const href = n.quote_id ? ("event.html?id=" + encodeURIComponent(n.quote_id)) : null;
           return `<a ${href ? `href="${href}"` : ""} style="${S({display:'flex',gap:'10px',padding:'10px 14px','border-bottom':'1px solid var(--line-2,#f1ede7)','text-decoration':'none',color:'inherit',background:n.unread?'#f6f2ff':'transparent'})}">
             <span style="font-size:16px">${L.icon}</span>
             <span style="flex:1;min-width:0"><span style="font-size:13px;font-weight:${n.unread?'700':'500'}">${esc(L.text)}</span>
               <span style="display:block;font-size:11px;color:#8b8698">${n.event_code ? esc(n.event_code) + " · " : ""}${rel(n.created_at)}</span></span></a>`;
         }).join("");
       };
-      const refresh = async () => { try { const f = await this.feed(20);
-        if (f.unread > 0) { dot.hidden = false; dot.textContent = f.unread > 99 ? "99+" : f.unread; } else dot.hidden = true;
-        return f; } catch { return null; } };
-      let f0 = await refresh();
+      // Chat notifications (my unread DMs/groups/broadcast) merged into the same bell.
+      let chatItems = [];
+      const chatUnread = () => chatItems.reduce((s, c) => s + (c.count || 1), 0);
+      const mergedFeed = (serverItems) => (serverItems || []).slice()
+        .concat(chatItems.map((c) => Object.assign({ __chat: true }, c)))
+        .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+      const loadChat = async () => { try { chatItems = (chat && chat.notifications) ? (await chat.notifications(20)) : []; } catch (e) { chatItems = []; } };
+      const setDot = (serverUnread) => { const total = (serverUnread || 0) + chatUnread(); if (total > 0) { dot.hidden = false; dot.textContent = total > 99 ? "99+" : total; } else dot.hidden = true; };
+      const refresh = async () => { let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(f && f.unread); if (!panel.hidden) renderList(mergedFeed(f && f.items)); return f; };
+      await refresh();
       btn.addEventListener("click", async (e) => { e.stopPropagation(); const open = panel.hidden;
-        if (open) { panel.hidden = false; let f = null; try { f = await this.feed(20); } catch {} renderList((f && f.items) || []);
-          try { await this.markSeen(); } catch {} dot.hidden = true; } else panel.hidden = true; });
-      el.querySelector("#bpBellClear").addEventListener("click", async (e) => { e.stopPropagation(); try { await this.markSeen(); } catch {} dot.hidden = true;
-        let f = null; try { f = await this.feed(20); } catch {} renderList((f && f.items) || []); });
+        if (open) { panel.hidden = false; let f = null; try { f = await this.feed(20); } catch {} await loadChat(); renderList(mergedFeed(f && f.items));
+          try { await this.markSeen(); } catch {} setDot(0);   // event notifs cleared; any chat unread keeps the dot until that chat is opened
+        } else panel.hidden = true; });
+      el.querySelector("#bpBellClear").addEventListener("click", async (e) => { e.stopPropagation(); try { await this.markSeen(); } catch {} await refresh(); });
       document.addEventListener("click", (e) => {
         // Ignore clicks on the window scrollbar (target becomes <html>, outside el) so
         // dragging/clicking the scrollbar doesn't collapse the open notifications panel.
@@ -2923,6 +3000,10 @@
         if (!el.contains(e.target)) panel.hidden = true;
       });
       setInterval(() => { if (!document.hidden && panel.hidden) refresh(); }, 30000);
+      // Live: refresh the bell whenever a chat message arrives — on ANY page.
+      try { if (chat && chat.subscribe) { var csub = chat.subscribe(function () { refresh(); }, function () {}, "chat-rt-bell"); window.addEventListener("beforeunload", function () { try { csub && csub.unsubscribe && csub.unsubscribe(); } catch (e) {} }); } } catch (e) {}
+      // Let the chat page nudge the bell after it marks a conversation read.
+      try { window.__bpBellRefresh = refresh; } catch (e) {}
     },
   };
 

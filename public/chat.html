@@ -413,7 +413,7 @@
     $("#thead").hidden=false; $("#composer").hidden=false; const w=$("#welcome"); if(w) w.hidden=true;
     const a=convAvatar(c); const av=$("#tAv"); av.style.background=a.bg; av.textContent=a.txt;
     $("#tName").textContent=convTitle(c);
-    renderConvs(); await loadThread(); try{ await BPStore.chat.markRead(id); }catch(e){}
+    renderConvs(); await loadThread(); try{ await BPStore.chat.markRead(id); }catch(e){} bumpBell();
     setTimeout(()=>{ const c2=convs.find(x=>x.id===id); if(c2){ c2._unread=0; renderConvs(); } },300);
   }
   async function loadThread(){ if(!activeId) return;
@@ -428,8 +428,13 @@
 
   function highlight(text,q){ let out="",rest=String(text||""),k; const ql=String(q||"").toLowerCase(); if(!ql) return esc(rest);
     while(true){ k=rest.toLowerCase().indexOf(ql); if(k<0){ out+=esc(rest); break; } out+=esc(rest.slice(0,k))+"<mark>"+esc(rest.slice(k,k+q.length))+"</mark>"; rest=rest.slice(k+q.length); } return out; }
+  // Highlight/dim in place on the existing DOM — never re-renders the thread (so it
+  // doesn't re-fetch every image's signed URL or flicker media on each keystroke).
   function applyMsgSearch(q){ const host=$("#msgs"); const ql=String(q||"").toLowerCase().trim(); let matches=0;
-    host.querySelectorAll(".m").forEach(el=>{ const hay=(el.textContent||"").toLowerCase(); const hit=!!ql&&hay.includes(ql);
+    host.querySelectorAll(".m").forEach(el=>{
+      el.classList.remove("dim");
+      el.querySelectorAll(".txt,.cap").forEach(n=>{ if(n.querySelector("mark")) n.textContent=n.textContent; });  // strip old marks
+      const hay=(el.textContent||"").toLowerCase(); const hit=!!ql&&hay.includes(ql);
       el.classList.toggle("dim", !!ql&&!hit);
       if(hit){ el.querySelectorAll(".txt,.cap").forEach(n=>{ n.innerHTML=highlight(n.textContent,q); }); matches++; } });
     const ct=$("#tSearchCt"); if(ct) ct.textContent=ql?(matches+" result"+(matches===1?"":"s")):"";
@@ -578,7 +583,7 @@
   $("#backBtn").addEventListener("click",()=>$("#app").classList.remove("show-thread"));
   /* in-conversation search */
   $("#searchBtn").addEventListener("click",()=>{ const bar=$("#tSearch"); bar.hidden=!bar.hidden; if(!bar.hidden){ $("#tSearchInput").focus(); } else { msgQuery=""; $("#tSearchInput").value=""; renderMessages(); } });
-  $("#tSearchInput").addEventListener("input",e=>{ msgQuery=e.target.value; renderMessages(); });
+  $("#tSearchInput").addEventListener("input",e=>{ msgQuery=e.target.value; applyMsgSearch(msgQuery); });
   $("#tSearchX").addEventListener("click",()=>{ $("#tSearch").hidden=true; msgQuery=""; $("#tSearchInput").value=""; renderMessages(); });
   /* paste an image into the composer → send it */
   $("#msgInput").addEventListener("paste",e=>{ const items=(e.clipboardData&&e.clipboardData.items)||[]; for(const it of items){ if(it.type&&it.type.indexOf("image")===0){ const f=it.getAsFile(); if(f&&activeId){ e.preventDefault(); sendImage(f); return; } } } });
@@ -586,7 +591,7 @@
   (function(){ const dz=$("#dropZone"), thread=$("#thread"); let depth=0; const hasFiles=(e)=>{ try{ return e.dataTransfer&&[...e.dataTransfer.types].includes("Files"); }catch(_){ return false; } };
     thread.addEventListener("dragenter",e=>{ if(!activeId||!hasFiles(e)) return; e.preventDefault(); depth++; dz.hidden=false; });
     thread.addEventListener("dragover",e=>{ if(activeId&&hasFiles(e)) e.preventDefault(); });
-    thread.addEventListener("dragleave",()=>{ depth--; if(depth<=0){ depth=0; dz.hidden=true; } });
+    thread.addEventListener("dragleave",()=>{ if(depth>0) depth--; if(depth<=0){ depth=0; dz.hidden=true; } });
     thread.addEventListener("drop",e=>{ if(!hasFiles(e)) return; e.preventDefault(); depth=0; dz.hidden=true; const files=(e.dataTransfer&&e.dataTransfer.files)||[]; const img=[...files].find(f=>f.type&&f.type.indexOf("image")===0); if(img&&activeId) sendImage(img); }); })();
   $("#convSearch").addEventListener("input",e=>{ convSearch=e.target.value; renderConvs(); });
   $("#chips").querySelectorAll(".chip").forEach(ch=>ch.addEventListener("click",()=>{ filter=ch.dataset.f; $("#chips").querySelectorAll(".chip").forEach(x=>x.classList.toggle("on",x===ch)); renderConvs(); }));
@@ -635,7 +640,8 @@
   /* ---------- realtime ---------- */
   // Mark the open conversation read whenever it's on screen (like WhatsApp): on
   // open, on focus, and when a new message lands while I'm looking at the thread.
-  function markActiveRead(){ if(!activeId) return; try{ BPStore.chat.markRead(activeId); }catch(e){} const c=convs.find(x=>x.id===activeId); if(c&&c._unread){ c._unread=0; renderConvs(); } }
+  function bumpBell(){ try{ if(window.__bpBellRefresh) window.__bpBellRefresh(); }catch(e){} }
+  function markActiveRead(){ if(!activeId) return; try{ BPStore.chat.markRead(activeId); }catch(e){} const c=convs.find(x=>x.id===activeId); if(c&&c._unread){ c._unread=0; renderConvs(); } bumpBell(); }
   document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") markActiveRead(); });
   window.addEventListener("focus",markActiveRead);
   let rtT=null; function onRealtime(){ clearTimeout(rtT); rtT=setTimeout(async()=>{ await refresh(); if(activeId){ await loadThread(); if(document.visibilityState!=="hidden") markActiveRead(); } },250); }
@@ -655,7 +661,9 @@
       await refresh();
       try{ sub=BPStore.chat.subscribe(onRealtime,()=>{}); }catch(e){}
       window.addEventListener("beforeunload",()=>{ try{ sub&&sub.unsubscribe&&sub.unsubscribe(); }catch(e){} });
-      const b=convs.find(c=>c.kind==="broadcast"); if(b && window.innerWidth>760) openConv(b.id);
+      const want=new URLSearchParams(location.search).get("c");
+      if(want && convs.find(c=>c.id===want)) openConv(want);
+      else { const b=convs.find(c=>c.kind==="broadcast"); if(b && window.innerWidth>760) openConv(b.id); }
     }catch(e){ backendReady=false; try{ renderConvs(); }catch(_){}
       console.warn("Chat backend not ready:",e); }
   });
