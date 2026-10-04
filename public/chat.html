@@ -509,7 +509,12 @@
       try{ await BPStore.chat.addMembers(activeId,ids); await loadThread(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"add members"}),{type:"err"}); } }); }
 
   /* ---------- realtime ---------- */
-  let rtT=null; function onRealtime(){ clearTimeout(rtT); rtT=setTimeout(async()=>{ await refresh(); if(activeId) await loadThread(); },250); }
+  // Mark the open conversation read whenever it's on screen (like WhatsApp): on
+  // open, on focus, and when a new message lands while I'm looking at the thread.
+  function markActiveRead(){ if(!activeId) return; try{ BPStore.chat.markRead(activeId); }catch(e){} const c=convs.find(x=>x.id===activeId); if(c&&c._unread){ c._unread=0; renderConvs(); } }
+  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") markActiveRead(); });
+  window.addEventListener("focus",markActiveRead);
+  let rtT=null; function onRealtime(){ clearTimeout(rtT); rtT=setTimeout(async()=>{ await refresh(); if(activeId){ await loadThread(); if(document.visibilityState!=="hidden") markActiveRead(); } },250); }
   /* local demo only: BroadcastChannel doesn't echo to the sending tab, so after I
      send, pull the simulated teammate read-receipt (grey ✓✓ → blue ✓✓) in myself. */
   function localReadSync(){ if(!BPStore.chat.isLocal()) return; setTimeout(async()=>{ await refresh(); if(activeId) await loadThread(); },1500); }

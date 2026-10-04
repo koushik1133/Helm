@@ -1840,7 +1840,14 @@
     { id:"u-meera",  full_name:"Meera Nair",   email:"meera@demo.in",  role:"coordinator" },
     { id:"u-rohit",  full_name:"Rohit Verma",  email:"rohit@demo.in",  role:"crew" },
   ];
-  function chatLocalUid() { try { return localStorage.getItem("helm_local_uid") || "u-you"; } catch (e) { return "u-you"; } }
+  // Local demo identity. A per-TAB override (sessionStorage) lets two tabs act as
+  // two different demo teammates for a real two-login test — no UI, demo only.
+  // Real Supabase mode never calls this; identity there comes from the auth session.
+  function chatLocalUid() {
+    try { const s = sessionStorage.getItem("helm_local_uid"); if (s) return s; } catch (e) {}
+    try { return localStorage.getItem("helm_local_uid") || "u-you"; } catch (e) { return "u-you"; }
+  }
+  function chatMultiUser() { try { return !!sessionStorage.getItem("helm_local_uid"); } catch (e) { return false; } }
   const chatReadLs = (k) => { try { return JSON.parse(localStorage.getItem(k) || "[]"); } catch (e) { return []; } };
   const chatWriteLs = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
   let chatBC = null; try { chatBC = (typeof BroadcastChannel !== "undefined") ? new BroadcastChannel("helm-chat") : null; } catch (e) {}
@@ -1955,8 +1962,10 @@
         chatPing();
         // Demo only (local fallback): simulate teammates opening the chat a moment
         // later so the delivered (grey ✓✓) → read (blue ✓✓) transition is visible.
-        // Real Supabase mode uses actual chat_members.last_read_at and never runs this.
+        // Skipped when two tabs are acting as two real identities (then the other
+        // tab's actual markRead drives the read receipt). Real Supabase never runs this.
         try {
+         if (!chatMultiUser())
           setTimeout(() => {
             try {
               const cv = chatReadLs(CHAT_LS_C); const cc = cv.find((x) => x.id === convId); if (!cc) return;
