@@ -265,7 +265,7 @@
 <link rel="stylesheet" href="theme.css?v=73">
 <script src="telemetry.js?v=2"></script>
 <script src="config.js?v=91"></script>
-<script src="store-api.js?v=89"></script>
+<script src="store-api.js?v=90"></script>
 <script>
 (function(){
   const $=(s,r)=>(r||document).querySelector(s);
@@ -273,7 +273,7 @@
   const RX_EMOJI=["👍","❤️","😂","😮","😢","🙏"];
   const INS_EMOJI=["😀","😁","😂","🤣","😊","😍","😎","😉","🤔","😅","🙌","👏","👍","🙏","🎉","🔥","✅","❤️","💯","😢","😮","🚀","⭐","🌸","☕","🍾","👌","💪"];
   const NAME_COLORS=["#6d28d9","#4f46e5","#0ea5e9","#16a34a","#d97706","#dc2626","#db2777","#0891b2","#7c3aed","#0d9488"];
-  let ME={id:null,name:"",email:""}, roster={}, convs=[], activeId=null, replyTo=null, staged=null, sub=null, thread={messages:[],reactions:[],members:[]}, convSearch="", filter="all";
+  let ME={id:null,name:"",email:""}, roster={}, convs=[], activeId=null, replyTo=null, staged=null, sub=null, thread={messages:[],reactions:[],members:[]}, convSearch="", filter="all", backendReady=true;
   let rec=null, recChunks=[], recStart=0, recTimer=null;
   let favs=new Set(); try{ favs=new Set(JSON.parse(localStorage.getItem("wa_fav")||"[]")); }catch(e){}
   const saveFavs=()=>{ try{ localStorage.setItem("wa_fav",JSON.stringify([...favs])); }catch(e){} };
@@ -365,7 +365,7 @@
     const totalUnread=convs.reduce((s,c)=>s+(c._unread||0),0);
     const uc=$("#unreadCt"); if(totalUnread>0){ uc.hidden=false; uc.textContent=totalUnread; } else uc.hidden=true;
     const host=$("#convList");
-    if(!list.length){ host.innerHTML=`<div class="emptylist">${q?"No chats found.":filter!=="all"?"Nothing here yet.":"No chats yet. Tap ＋ to start one."}</div>`; return; }
+    if(!list.length){ host.innerHTML=`<div class="emptylist">${!backendReady?"Chat isn’t set up on this workspace yet. An admin needs to finish chat setup — once that’s done, your team chats appear here.":q?"No chats found.":filter!=="all"?"Nothing here yet.":"No chats yet. Tap ＋ to start one."}</div>`; return; }
     host.innerHTML=list.map(c=>{ const a=convAvatar(c); const t=c._last?c._last.created_at:c.last_message_at;
       return `<div class="conv ${c.id===activeId?'on':''}" data-id="${esc(c.id)}" role="button" tabindex="0">
         ${avHtml(a)}
@@ -377,7 +377,7 @@
   }
 
   async function refresh(){
-    try{ convs=await BPStore.chat.conversations(); }catch(e){ convs=[]; }
+    try{ convs=await BPStore.chat.conversations(); backendReady=true; }catch(e){ convs=[]; backendReady=false; }
     const mem=await BPStore.chat.myMemberships().catch(()=>({}));
     convs.forEach(c=>{ const m=mem[c.id]; c._lastRead=m&&m.last_read_at; });
     await Promise.all(convs.map(async c=>{ try{ const t=await BPStore.chat.thread(c.id,80); c._members=t.members; c._msgs=t.messages; c._last=t.messages[t.messages.length-1]||null; c._unread=unreadCount(c); }
@@ -582,12 +582,16 @@
     try{ await BPStore.bell.mount(document.querySelector("#bell")); }catch(e){}
     try{ if(await BPStore.auth.canView("controls")) $("#ccLink").hidden=false; }catch(e){}
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next=chat.html"); return; }
-    ME=await BPStore.chat.me();
-    const r=await BPStore.chat.roster().catch(()=>[]); roster={}; r.forEach(p=>roster[p.id]=p);
-    await refresh();
-    sub=BPStore.chat.subscribe(onRealtime,()=>{});
-    window.addEventListener("beforeunload",()=>{ try{ sub&&sub.unsubscribe&&sub.unsubscribe(); }catch(e){} });
-    const b=convs.find(c=>c.kind==="broadcast"); if(b && window.innerWidth>760) openConv(b.id);
+    try{
+      if(!BPStore.chat) throw new Error("chat module unavailable");
+      ME=await BPStore.chat.me();
+      const r=await BPStore.chat.roster().catch(()=>[]); roster={}; r.forEach(p=>roster[p.id]=p);
+      await refresh();
+      try{ sub=BPStore.chat.subscribe(onRealtime,()=>{}); }catch(e){}
+      window.addEventListener("beforeunload",()=>{ try{ sub&&sub.unsubscribe&&sub.unsubscribe(); }catch(e){} });
+      const b=convs.find(c=>c.kind==="broadcast"); if(b && window.innerWidth>760) openConv(b.id);
+    }catch(e){ backendReady=false; try{ renderConvs(); }catch(_){}
+      console.warn("Chat backend not ready:",e); }
   });
 })();
 </script>
