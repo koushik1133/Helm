@@ -193,6 +193,24 @@
   .prow input{width:18px;height:18px;accent-color:var(--accent)}
   .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;z-index:80;cursor:zoom-out}
   .lightbox img{max-width:92vw;max-height:92vh;border-radius:8px}
+  /* ---------- image editor (preview → crop / draw / caption → send) ---------- */
+  .imgedit{position:fixed;inset:0;z-index:90;background:#0b0b0e;display:flex;flex-direction:column}
+  .ie-top{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:12px 16px}
+  .ie-tools{display:flex;gap:8px}
+  .ie-ic{width:42px;height:42px;border-radius:50%;border:0;background:rgba(255,255,255,.12);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .ie-ic:hover{background:rgba(255,255,255,.22)}
+  .ie-ic.on{background:var(--accent);color:#fff}
+  .ie-stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:8px}
+  #ieCanvas{max-width:100%;max-height:100%;touch-action:none;box-shadow:0 6px 30px rgba(0,0,0,.5);background:#000}
+  #ieCanvas.draw{cursor:crosshair}
+  .ie-cropbox{position:absolute;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.45);pointer-events:none}
+  .ie-apply{position:absolute;bottom:14px;right:14px;z-index:3;border:0;background:var(--accent);color:#fff;border-radius:22px;padding:10px 18px;font-weight:700;cursor:pointer;font-size:14px;box-shadow:var(--shadow)}
+  .ie-bottom{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:12px 16px;background:#141418}
+  .ie-cap{flex:1;display:flex;align-items:center;background:rgba(255,255,255,.1);border-radius:22px;padding:0 15px}
+  .ie-cap input{flex:1;border:0;background:transparent;color:#fff;font-size:15px;padding:12px 0;outline:none;font-family:inherit}
+  .ie-cap input::placeholder{color:rgba(255,255,255,.55)}
+  .ie-to{color:#fff;font-size:12.5px;background:rgba(255,255,255,.1);border-radius:16px;padding:8px 13px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:0 0 auto}
+  .ie-send{width:50px;height:50px;border-radius:50%;border:0;background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;font-size:20px;cursor:pointer;flex:0 0 auto;display:flex;align-items:center;justify-content:center}
 </style>
 </head>
 <body>
@@ -280,6 +298,27 @@
 
 <input type="file" id="fileImg" accept="image/*" hidden>
 <input type="file" id="fileCam" accept="image/*" capture="environment" hidden>
+
+<!-- image preview / editor: crop · draw · caption · send -->
+<div class="imgedit" id="imgEdit" hidden aria-hidden="true">
+  <div class="ie-top">
+    <button class="ie-ic" id="ieClose" title="Cancel" aria-label="Cancel">✕</button>
+    <div class="ie-tools">
+      <button class="ie-ic" id="ieCrop" title="Crop" aria-label="Crop">⛶</button>
+      <button class="ie-ic" id="ieDraw" title="Draw" aria-label="Draw">✏️</button>
+    </div>
+  </div>
+  <div class="ie-stage" id="ieStage">
+    <canvas id="ieCanvas"></canvas>
+    <div class="ie-cropbox" id="ieCropBox" hidden></div>
+    <button class="ie-apply" id="ieApply" hidden>✓ Crop</button>
+  </div>
+  <div class="ie-bottom">
+    <div class="ie-cap"><input id="ieCaption" type="text" placeholder="Add a caption…" aria-label="Caption"></div>
+    <span class="ie-to" id="ieTo"></span>
+    <button class="ie-send" id="ieSend" title="Send" aria-label="Send photo">➤</button>
+  </div>
+</div>
 
 <link rel="stylesheet" href="theme.css?v=73">
 <script src="telemetry.js?v=2"></script>
@@ -509,6 +548,38 @@
   $("#replyX").addEventListener("click",()=>{ replyTo=null; $("#replyBar").hidden=true; });
   function lightbox(src){ const o=document.createElement("div"); o.className="lightbox"; o.innerHTML=`<img src="${esc(src)}" alt="Photo">`; o.addEventListener("click",()=>o.remove()); document.body.appendChild(o); }
 
+  /* ---------- image editor: preview → crop / draw / caption → send ---------- */
+  let ieMode=null, ieDrawing=false, ieStart=null;
+  function ieCtx(){ return $("#ieCanvas").getContext("2d"); }
+  function iePt(e){ const cv=$("#ieCanvas"), r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)*(cv.width/r.width), y:(e.clientY-r.top)*(cv.height/r.height)}; }
+  function ieSetMode(m){ ieMode=(ieMode===m?null:m); $("#ieDraw").classList.toggle("on",ieMode==="draw"); $("#ieCrop").classList.toggle("on",ieMode==="crop"); $("#ieCanvas").classList.toggle("draw",ieMode==="draw"); $("#ieCropBox").hidden=true; $("#ieApply").hidden=true; ieStart=null; }
+  function openImageEditor(file){ if(!file||!activeId) return; const cv=$("#ieCanvas"); const url=URL.createObjectURL(file); const img=new Image();
+    img.onload=function(){ let w=img.naturalWidth,h=img.naturalHeight; const max=1600; if(Math.max(w,h)>max){ const s=max/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s); } cv.width=w; cv.height=h; ieCtx().drawImage(img,0,0,w,h); try{ URL.revokeObjectURL(url); }catch(e){} };
+    img.onerror=function(){ try{ URL.revokeObjectURL(url); }catch(e){} BPUI.toast("Couldn’t open that image.",{type:"err"}); };
+    img.src=url;
+    $("#ieCaption").value=""; const c=convs.find(x=>x.id===activeId); $("#ieTo").textContent=c?("To: "+convTitle(c)):"";
+    ieSetMode(null); $("#imgEdit").hidden=false; $("#imgEdit").setAttribute("aria-hidden","false"); }
+  function ieClose(){ $("#imgEdit").hidden=true; $("#imgEdit").setAttribute("aria-hidden","true"); ieMode=null; ieStart=null; ieDrawing=false; }
+  (function(){ const cv=$("#ieCanvas"), stage=$("#ieStage"), box=$("#ieCropBox");
+    $("#ieClose").addEventListener("click",ieClose);
+    $("#ieDraw").addEventListener("click",()=>ieSetMode("draw"));
+    $("#ieCrop").addEventListener("click",()=>ieSetMode("crop"));
+    cv.addEventListener("pointerdown",e=>{ if(ieMode==="draw"){ ieDrawing=true; const p=iePt(e); const g=ieCtx(); g.strokeStyle="#ff3b30"; g.lineWidth=Math.max(3,cv.width/180); g.lineCap="round"; g.lineJoin="round"; g.beginPath(); g.moveTo(p.x,p.y); e.preventDefault(); }
+      else if(ieMode==="crop"){ const sr=stage.getBoundingClientRect(); ieStart={x:e.clientX,y:e.clientY}; box.hidden=false; box.style.left=(e.clientX-sr.left)+"px"; box.style.top=(e.clientY-sr.top)+"px"; box.style.width="0px"; box.style.height="0px"; $("#ieApply").hidden=true; e.preventDefault(); } });
+    cv.addEventListener("pointermove",e=>{ if(ieMode==="draw"&&ieDrawing){ const p=iePt(e); const g=ieCtx(); g.lineTo(p.x,p.y); g.stroke(); }
+      else if(ieMode==="crop"&&ieStart){ const sr=stage.getBoundingClientRect(); const l=Math.min(ieStart.x,e.clientX)-sr.left, t=Math.min(ieStart.y,e.clientY)-sr.top, w=Math.abs(e.clientX-ieStart.x), h=Math.abs(e.clientY-ieStart.y); box.style.left=l+"px"; box.style.top=t+"px"; box.style.width=w+"px"; box.style.height=h+"px"; $("#ieApply").hidden=(w<12||h<12); } });
+    window.addEventListener("pointerup",()=>{ ieDrawing=false; if(ieMode==="crop") ieStart=null; });
+    $("#ieApply").addEventListener("click",()=>{ const cr=cv.getBoundingClientRect(), br=box.getBoundingClientRect();
+      if(!(cr.width>0)||!(cr.height>0)||!(br.width>=12)||!(br.height>=12)){ ieSetMode(null); return; }   // degenerate → abort (guards NaN/0)
+      const sx=cv.width/cr.width, sy=cv.height/cr.height;
+      let x=(br.left-cr.left)*sx, y=(br.top-cr.top)*sy, w=br.width*sx, h=br.height*sy;
+      x=Math.max(0,Math.min(x,cv.width)); y=Math.max(0,Math.min(y,cv.height)); w=Math.min(w,cv.width-x); h=Math.min(h,cv.height-y);
+      if(!(w>=4)||!(h>=4)){ ieSetMode(null); return; }
+      const tmp=document.createElement("canvas"); tmp.width=Math.round(w); tmp.height=Math.round(h); tmp.getContext("2d").drawImage(cv,x,y,w,h,0,0,tmp.width,tmp.height); cv.width=tmp.width; cv.height=tmp.height; ieCtx().drawImage(tmp,0,0); ieSetMode(null); });
+    $("#ieCaption").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#ieSend").click(); } });
+    $("#ieSend").addEventListener("click",()=>{ const cap=$("#ieCaption").value; cv.toBlob(async(blob)=>{ if(!blob){ BPUI.toast("Couldn’t prepare the image.",{type:"err"}); return; } const f=new File([blob],"photo.jpg",{type:"image/jpeg"}); ieClose(); await sendImage(f,cap); }, "image/jpeg", 0.9); });
+  })();
+
   /* ---------- sending ---------- */
   async function sendText(){ const ta=$("#msgInput"); const body=ta.value.trim(); const att=staged; if((!body&&!att)||!activeId) return;
     ta.value=""; autoGrow(); const r=replyTo; replyTo=null; $("#replyBar").hidden=true;
@@ -518,9 +589,9 @@
     pending.push(tmp); renderMessages();
     try{ await BPStore.chat.send(activeId,{kind,body,meta:att||null,reply_to:r?r.id:null}); pending=pending.filter(p=>p!==tmp); await loadThread(); await refresh(); localReadSync(); }
     catch(e){ pending=pending.filter(p=>p!==tmp); renderMessages(); BPUI.toast(BPUI.friendlyError(e,{action:"send the message"}),{type:"err"}); } }
-  async function sendImage(file){ if(!file||!activeId) return;
+  async function sendImage(file,caption){ if(!file||!activeId) return;
     try{ const up=await BPStore.chat.uploadMedia(activeId,file,{}); const r=replyTo; replyTo=null; $("#replyBar").hidden=true;
-      await BPStore.chat.send(activeId,{kind:"image",media_path:up.path,media_mime:up.mime,reply_to:r?r.id:null}); await loadThread(); await refresh(); localReadSync(); }
+      await BPStore.chat.send(activeId,{kind:"image",media_path:up.path,media_mime:up.mime,body:(caption&&caption.trim())||null,reply_to:r?r.id:null}); await loadThread(); await refresh(); localReadSync(); }
     catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"send the photo"}),{type:"err"}); } }
   async function sendVoice(blob,dur){ if(!blob||!activeId) return;
     try{ const ext=(blob.type||"").indexOf("ogg")>=0?"ogg":(blob.type||"").indexOf("mp4")>=0?"m4a":"webm";
@@ -581,21 +652,21 @@
     draw(""); $("#pkSearch",ov).addEventListener("input",e=>draw(e.target.value));
     ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); }); }
   $("#camBtn").addEventListener("click",()=>$("#fileCam").click());
-  $("#fileImg").addEventListener("change",e=>{ const f=e.target.files[0]; e.target.value=""; sendImage(f); });
-  $("#fileCam").addEventListener("change",e=>{ const f=e.target.files[0]; e.target.value=""; sendImage(f); });
+  $("#fileImg").addEventListener("change",e=>{ const f=e.target.files[0]; e.target.value=""; if(f) openImageEditor(f); });
+  $("#fileCam").addEventListener("change",e=>{ const f=e.target.files[0]; e.target.value=""; if(f) openImageEditor(f); });
   $("#backBtn").addEventListener("click",()=>$("#app").classList.remove("show-thread"));
   /* in-conversation search */
   $("#searchBtn").addEventListener("click",()=>{ const bar=$("#tSearch"); bar.hidden=!bar.hidden; if(!bar.hidden){ $("#tSearchInput").focus(); } else { msgQuery=""; $("#tSearchInput").value=""; renderMessages(); } });
   $("#tSearchInput").addEventListener("input",e=>{ msgQuery=e.target.value; applyMsgSearch(msgQuery); });
   $("#tSearchX").addEventListener("click",()=>{ $("#tSearch").hidden=true; msgQuery=""; $("#tSearchInput").value=""; renderMessages(); });
   /* paste an image into the composer → send it */
-  $("#msgInput").addEventListener("paste",e=>{ const items=(e.clipboardData&&e.clipboardData.items)||[]; for(const it of items){ if(it.type&&it.type.indexOf("image")===0){ const f=it.getAsFile(); if(f&&activeId){ e.preventDefault(); sendImage(f); return; } } } });
+  $("#msgInput").addEventListener("paste",e=>{ const items=(e.clipboardData&&e.clipboardData.items)||[]; for(const it of items){ if(it.type&&it.type.indexOf("image")===0){ const f=it.getAsFile(); if(f&&activeId){ e.preventDefault(); openImageEditor(f); return; } } } });
   /* drag & drop an image onto the open conversation → send it */
   (function(){ const dz=$("#dropZone"), thread=$("#thread"); let depth=0; const hasFiles=(e)=>{ try{ return e.dataTransfer&&[...e.dataTransfer.types].includes("Files"); }catch(_){ return false; } };
     thread.addEventListener("dragenter",e=>{ if(!activeId||!hasFiles(e)) return; e.preventDefault(); depth++; dz.hidden=false; });
     thread.addEventListener("dragover",e=>{ if(activeId&&hasFiles(e)) e.preventDefault(); });
     thread.addEventListener("dragleave",()=>{ if(depth>0) depth--; if(depth<=0){ depth=0; dz.hidden=true; } });
-    thread.addEventListener("drop",e=>{ if(!hasFiles(e)) return; e.preventDefault(); depth=0; dz.hidden=true; const files=(e.dataTransfer&&e.dataTransfer.files)||[]; const img=[...files].find(f=>f.type&&f.type.indexOf("image")===0); if(img&&activeId) sendImage(img); }); })();
+    thread.addEventListener("drop",e=>{ if(!hasFiles(e)) return; e.preventDefault(); depth=0; dz.hidden=true; const files=(e.dataTransfer&&e.dataTransfer.files)||[]; const img=[...files].find(f=>f.type&&f.type.indexOf("image")===0); if(img&&activeId) openImageEditor(img); }); })();
   $("#convSearch").addEventListener("input",e=>{ convSearch=e.target.value; renderConvs(); });
   $("#chips").querySelectorAll(".chip").forEach(ch=>ch.addEventListener("click",()=>{ filter=ch.dataset.f; $("#chips").querySelectorAll(".chip").forEach(x=>x.classList.toggle("on",x===ch)); renderConvs(); }));
   (function(){ const bar=$("#emojiBar"); bar.innerHTML=INS_EMOJI.map(e=>`<button type="button">${e}</button>`).join("");
