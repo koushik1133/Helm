@@ -514,6 +514,10 @@
       return EDIT_ROLES.includes(r);
     },
     areas: () => AREAS.slice(),
+    // Force a fresh read of the access matrix (drop the in-memory + sessionStorage
+    // cache). Used when a just-granted permission must show up without waiting for
+    // the 60s cache TTL or a re-login (e.g. the dashboard nav retry).
+    async refreshAccess() { accessCache = null; accessPromise = null; try { sessionStorage.removeItem("bp_sess_access"); } catch (e) {} return loadAccess(); },
     // Whole-page guard: if the signed-in role can't view `area`, hide #app and show a
     // "no access" panel, returning false. Call it right after the login check on a page.
     // If the role/access matrix could not be LOADED (network), it shows a "Couldn't
