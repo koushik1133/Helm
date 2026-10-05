@@ -29,3 +29,5 @@ forward  supabase/migrations/0013_storage_hardening.sql
 forward  supabase/migrations/0014_advisor_hardening.sql
 forward  supabase/migrations/0015_checkout_overissue_guard.sql
 forward  supabase/migrations/0016_feature_chat.sql
+forward  supabase/migrations/0017_chat_attachments.sql
+forward  supabase/migrations/0018_chat_read_tracking.sql

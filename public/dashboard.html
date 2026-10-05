@@ -313,7 +313,7 @@
 
 <script src="telemetry.js?v=2"></script>
 <script src="config.js?v=91"></script>
-<script src="store-api.js?v=89"></script>
+<script src="store-api.js?v=91"></script>
 <script>
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return "—"; } };
@@ -355,25 +355,30 @@
       // EVERY canView() fail-closed → an empty nav bar (the "Leads tab only appears after
       // I click another tab" bug). That miss is never cached, so re-running the fan-out
       // recovers it; retry a few times when the bar comes back empty for a non-admin.
-      const buildNav = async () => {
-        const V = {};
-        await Promise.all(["leads","crm","nurture","staff","inventory","vendors","calendar","templates","quotes","controls"]
-          .map(async (k) => { V[k] = await BPStore.auth.canView(k); }));
-        const NAV=[
-          ["chat","chat.html","💬","Chat",true],
-          ["leads","leads.html","🎯","Leads",V.leads],["crm","crm.html","🗄","CRM",V.crm],
-          ["nurture","nurture.html","🌱","Nurture",V.nurture],["staff","staff.html","👷","Staff",V.staff],
-          ["inventory","inventory.html","📦","Inventory",V.inventory],["vendors","vendors.html","🤝","Vendors",V.vendors],
-          ["calendar","calendar.html","📅","Calendar",V.calendar],["templates","templates.html","🧩","Templates",V.templates],
-          ["quotes","quotes.html","📋","Quotes",V.quotes],["controls","control.html","⚙","Control Center",V.controls],
-        ];
+      // Data-driven from the access matrix: every area that has a real top-level
+      // page (AREAS.page != null) becomes a tab when the role can view it. This
+      // auto-covers Design studio and any future page-area — no hardcoded list to
+      // fall out of sync. Areas with page=null are per-event workspace sections
+      // (they need an event selected), so they are NOT header tabs.
+      const navAreas = (() => {
+        const seen = {}, out = [];
+        BPStore.auth.areas().forEach((a) => { if (!a.page || seen[a.page]) return; seen[a.page] = 1; out.push(a); });
+        return out;   // leads, crm, nurture, quotes, design, staff, inventory, vendors, calendar, templates, controls
+      })();
+      const buildNav = async (fresh) => {
+        if (fresh) { try { await BPStore.auth.refreshAccess(); } catch (e) {} }
+        const vis = await Promise.all(navAreas.map((a) => BPStore.auth.canView(a.key).catch(() => false)));
+        const granted = navAreas.filter((a, i) => vis[i]);
+        const items = [{ key:"chat", page:"chat.html", icon:"💬", label:"Chat" }].concat(granted);
         const nav=$("#modnav"); nav.hidden=false;
-        const pills=NAV.filter(n=>n[4]);
-        nav.innerHTML=pills.map(n=>`<a class="pill" data-nav="${n[0]}" href="${n[1]}"><span class="pi" aria-hidden="true">${n[2]}</span>${esc(n[3])}</a>`).join("");
-        return pills.length;
+        nav.innerHTML=items.map((a)=>`<a class="pill" data-nav="${esc(a.key)}" href="${a.page}"><span class="pi" aria-hidden="true">${a.icon}</span>${esc(a.label)}</a>`).join("");
+        return granted.length;   // count of REAL (non-chat) tabs — drives the retry
       };
-      let navCount = await buildNav();
-      for (let i=0; i<3 && navCount===0 && !isAdmin; i++) { await new Promise(r=>setTimeout(r,400)); navCount = await buildNav(); }
+      let navCount = await buildNav(false);
+      // Retry (refetching the matrix) when a non-admin comes back with NO granted
+      // tabs — covers a transient fail-closed AND a stale cache right after an admin
+      // grants access, so new permissions appear without a 60s wait or a re-login.
+      for (let i=0; i<3 && navCount===0 && !isAdmin; i++) { await new Promise(r=>setTimeout(r,350)); navCount = await buildNav(true); }
     } else {
       el.innerHTML = `<button type="button" id="loginBtn">Sign in</button>`;
       $("#loginBtn").addEventListener("click", openLogin);

@@ -95,17 +95,12 @@ window.SUPABASE_STAGING = {
         }
         var inject = function () {
           try {
-            if (!document.body || document.getElementById('helm-staging-badge')) return; // idempotent
+            if (!document.body) return;
+            // Visible bottom "STAGING" banner removed per request. The env marker
+            // stays as an attribute (and the tab title suffix above) so staging is
+            // still distinguishable without overlapping the UI (e.g. the chat composer).
             document.documentElement.setAttribute('data-helm-env', 'staging');
-            var b = document.createElement('div');
-            b.id = 'helm-staging-badge';
-            b.setAttribute('role', 'status');
-            b.textContent = 'STAGING — test environment · not production';
-            b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:2147483647;' +
-              'background:#b45309;color:#fff;font:600 12px/1.7 system-ui,-apple-system,sans-serif;' +
-              'text-align:center;letter-spacing:.04em;padding:2px 8px;pointer-events:none;' +
-              'box-shadow:0 -1px 0 rgba(0,0,0,.25);';
-            document.body.appendChild(b);
+            var old = document.getElementById('helm-staging-badge'); if (old) old.remove();
           } catch (e) {}
         };
         if (document.readyState === 'loading') {
