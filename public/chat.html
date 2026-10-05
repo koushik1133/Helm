@@ -122,10 +122,12 @@
   .m.me .reacts{justify-content:flex-end}
   .reacts .rx{background:var(--panel);border:1px solid var(--line);border-radius:999px;font-size:12px;padding:1px 7px;cursor:pointer;display:inline-flex;gap:3px;align-items:center;box-shadow:var(--shadow)}
   .reacts .rx.on{background:var(--accent-soft);border-color:var(--accent)}
-  .mtools{position:absolute;top:1px;display:flex;opacity:0;pointer-events:none;transition:opacity .12s}
-  .m:hover .mtools,.m:focus-within .mtools{opacity:1;pointer-events:auto}
-  .m.me .mtools{left:-32px}.m.them .mtools{right:-32px}
-  .mtools .caret{border:0;background:transparent;color:var(--ink-3);font-size:17px;cursor:pointer;padding:2px 5px}
+  /* menu button lives in the top-right CORNER of the bubble (no detached gap to
+     chase), and stays visible while its menu is open or the bubble is hovered */
+  .mtools{position:absolute;top:4px;right:4px;display:flex;opacity:0;pointer-events:none;transition:opacity .12s;z-index:4}
+  .m:hover .mtools,.m:focus-within .mtools,.m.menu-open .mtools{opacity:1;pointer-events:auto}
+  .mtools .caret{border:0;background:var(--panel);color:var(--ink-2);font-size:13px;cursor:pointer;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(20,27,46,.22);padding:0}
+  .mtools .caret:hover{background:var(--panel-2)}
   .rxpop{position:absolute;display:flex;gap:2px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:4px 6px;box-shadow:var(--shadow);z-index:40}
   .rxpop button{border:0;background:none;font-size:19px;cursor:pointer;padding:2px 4px;border-radius:50%}
   .rxpop button:hover{background:var(--panel-2);transform:scale(1.12)}
@@ -327,7 +329,7 @@
   function convAvatar(c){ if(c.kind==="broadcast") return {bg:"var(--accent)",txt:"📢"}; if(c.kind==="group") return {bg:colorFor(c.id),txt:"👥"}; const o=convOther(c); return {bg:colorFor(o),txt:initials(personName(o))}; }
   function avHtml(a,id){ return `<div class="av"${id?' id="'+id+'"':''} style="background:${a.bg}">${a.txt}</div>`; }
 
-  function closeMenus(){ document.querySelectorAll(".menu,.rxpop").forEach(m=>m.remove()); }
+  function closeMenus(){ document.querySelectorAll(".menu,.rxpop").forEach(m=>m.remove()); document.querySelectorAll(".m.menu-open").forEach(m=>m.classList.remove("menu-open")); }
   document.addEventListener("click",(e)=>{ if(!e.target.closest(".menu")&&!e.target.closest(".rxpop")&&!e.target.closest("[data-menu-anchor]")&&!e.target.closest(".caret")) closeMenus(); });
   function openMenu(anchor, items){ closeMenus(); const r=anchor.getBoundingClientRect(); const m=document.createElement("div"); m.className="menu";
     m.innerHTML=items.map(it=>it.sep?'<div class="sep"></div>':`<button data-k="${esc(it.k)}">${esc(it.label)}</button>`).join("");
@@ -480,6 +482,7 @@
     if(mine&&msg&&msg.kind==="text") html+=`<button data-edit="1" title="Edit" style="font-size:15px">✏️</button>`;
     if(mine) html+=`<button data-del="1" title="Delete" style="font-size:15px">🗑</button>`;
     m.innerHTML=html; document.body.appendChild(m);
+    const mEl=anchor.closest(".m"); if(mEl) mEl.classList.add("menu-open");
     let left=Math.min(r.left-80,window.innerWidth-m.offsetWidth-8); if(left<8)left=8; let top=r.top-m.offsetHeight-4; if(top<8)top=r.bottom+4;
     m.style.top=top+"px"; m.style.left=left+"px";
     m.querySelectorAll("button[data-e]").forEach(b=>b.addEventListener("click",()=>{ closeMenus(); toggleReact(mid,b.dataset.e,true); }));
