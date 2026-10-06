@@ -204,6 +204,7 @@
   }
 
   BPUI.boot(async function init(){
+    await BPStore.init();   // connect to Supabase (loads the client) — without this the page never leaves local mode
     await renderAccount();
     if(!BPStore.auth.enabled()){ showGate("The Design Studio needs a signed-in account — it isn’t available in local/offline mode."); return; }
     if(!BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent("design.html"+location.search)); return; }
