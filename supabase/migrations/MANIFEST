@@ -36,3 +36,5 @@ forward  supabase/migrations/0020_studio_links.sql
 forward  supabase/migrations/0021_profiles_privilege_lockdown.sql
 forward  supabase/migrations/0022_client_link_windows.sql
 forward  supabase/migrations/0023_work_token_no_date_fix.sql
+forward  supabase/migrations/0024_injection_guards.sql
+forward  supabase/migrations/0025_write_path_lockdown.sql

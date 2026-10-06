@@ -323,7 +323,7 @@
 <link rel="stylesheet" href="theme.css?v=73">
 <script src="telemetry.js?v=2"></script>
 <script src="config.js?v=91"></script>
-<script src="store-api.js?v=97"></script>
+<script src="store-api.js?v=98"></script>
 <script>
 (function(){
   const $=(s,r)=>(r||document).querySelector(s);
@@ -490,7 +490,7 @@
       const day=fmtDay(m.created_at); if(day!==lastDay){ html+=`<div class="daysep">${esc(day)}</div>`; lastDay=day; lastSender=null; }
       const mine=m.sender_id===ME.id; const grpStart=(m.sender_id!==lastSender); lastSender=m.sender_id;
       if(m.deleted){ html+=`<div class="m ${mine?'me':'them'} ${grpStart?'grpstart':''}"><div class="bub" style="opacity:.65;font-style:italic"><span class="txt">🚫 This message was deleted</span><span class="meta-in">${fmtTime(m.created_at)}</span></div></div>`; return; }
-      const by=reactsFor(m.id); const rx=Object.keys(by).map(e=>`<span class="rx ${by[e].indexOf(ME.id)>=0?'on':''}" data-react="${esc(m.id)}" data-emoji="${esc(e)}">${e} ${by[e].length}</span>`).join("");
+      const by=reactsFor(m.id); const rx=Object.keys(by).map(e=>`<span class="rx ${by[e].indexOf(ME.id)>=0?'on':''}" data-react="${esc(m.id)}" data-emoji="${esc(e)}">${esc(e)} ${by[e].length}</span>`).join("");
       let inner="";
       if(isGroup&&!mine&&grpStart) inner+=`<div class="who" style="color:${colorFor(m.sender_id)}">${esc(personName(m.sender_id))}</div>`;
       if(m.reply_to){ const rm=msgs.find(x=>x.id===m.reply_to); if(rm){ const rsnip=rm.kind==="image"?"📷 Photo":rm.kind==="voice"?"🎤 Voice message":rm.kind==="card"?cardLabel(rm):(rm.body||""); inner+=`<div class="reply" data-goto="${esc(rm.id)}"><b>${esc(rm.sender_id===ME.id?"You":personName(rm.sender_id))}</b><span class="rt">${esc(rsnip)}</span></div>`; } }

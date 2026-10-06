@@ -229,7 +229,7 @@
 
 <script src="telemetry.js?v=2"></script>
 <script src="config.js?v=91"></script>
-<script src="store-api.js?v=97"></script>
+<script src="store-api.js?v=98"></script>
 <script src="tour.js?v=5"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
@@ -522,6 +522,8 @@
     const hasContent=(Number(t&&t.total)>0)||(Number(p.chairs)>0)||(Number(p.guests)>0)||((cl.name||"").trim()!=="");
     if(!hasContent){ BPUI.toast("This quote is empty — add the client, seating, catering or décor before downloading.",{type:"info"}); return; }
     const isInv=full.status==="confirmed"; const pos=p.placeOfSupply;
+    // pricing is jsonb the server doesn't type-check for every shape — only numbers reach the popup HTML
+    const num=(v)=>{ const x=Number(v); return Number.isFinite(x)?x:0; };
     const line=(l,a)=>`<tr><td>${l}</td><td style="text-align:right">${inr(a)}</td></tr>`;
     const tax = pos==="inter" ? line("IGST", t.igst||0) : line("CGST", t.cgst||0)+line("SGST", t.sgst||0);
     const html=`<!doctype html><meta charset=utf8><title>${isInv?"Invoice":"Quotation"} ${esc(full.code)}</title>
@@ -540,10 +542,10 @@
       ${cl.eventDate?`<tr><td class=muted>Event date</td><td>${esc(cl.eventDate)}</td></tr>`:""}
       ${cl.venue?`<tr><td class=muted>Venue</td><td>${esc(cl.venue)}${cl.address?", "+esc(cl.address):""}</td></tr>`:""}</table>
     <table><tr><th>Item</th><th style="text-align:right">Amount</th></tr>
-      ${line(`Chairs (${p.chairs||0} × ${inr(p.chairPrice||0)})`, (p.chairs||0)*(p.chairPrice||0))}
+      ${line(`Chairs (${num(p.chairs)} × ${inr(p.chairPrice||0)})`, num(p.chairs)*num(p.chairPrice))}
       ${p.other?line("Other charges", p.other):""}
-      ${p.catering&&p.catering.mode==="client"?`<tr><td>Catering</td><td style="text-align:right">Client-provided</td></tr>`:line(`Catering (${p.guests||0} plates × ${inr(p.platePrice||0)}${p.catering&&p.catering.amount?" + "+inr(p.catering.amount):""})`, (t.cateringBucket||0))}
-      ${t.serviceCharge?line(`Service charge (${p.serviceChargePct}%)`, t.serviceCharge):""}
+      ${p.catering&&p.catering.mode==="client"?`<tr><td>Catering</td><td style="text-align:right">Client-provided</td></tr>`:line(`Catering (${num(p.guests)} plates × ${inr(p.platePrice||0)}${p.catering&&p.catering.amount?" + "+inr(p.catering.amount):""})`, (t.cateringBucket||0))}
+      ${t.serviceCharge?line(`Service charge (${num(p.serviceChargePct)}%)`, t.serviceCharge):""}
       <tr class=tot><td>Subtotal</td><td style="text-align:right">${inr(t.subtotal||0)}</td></tr>
       ${tax}
       ${t.discount?`<tr class=tot><td>Discount</td><td style="text-align:right">− ${inr(t.discount)}</td></tr>`:""}
@@ -551,7 +553,7 @@
       <tr><td colspan=2 style="padding-top:6px;font-style:italic;color:#555;font-size:12px;border:0">${BPStore.amountInWords(t.total||0)}</td></tr></table>
     <p class=muted>Taxes per Indian GST (event management SAC 998596). ${p.catering&&p.catering.vendor?"Caterer: "+esc(p.catering.vendor)+". ":""}This is a computer-generated document.</p>`;
     // No inline <script> in the popup (it inherits this page's CSP) — print from the opener instead.
-    const w=window.open("","_blank"); if(w){ w.document.write(html); w.document.close(); setTimeout(()=>{ try{ w.focus(); w.print(); }catch(_){} },250); }
+    const w=window.open("","_blank"); if(w){ w.opener=null; w.document.write(html); w.document.close(); setTimeout(()=>{ try{ w.focus(); w.print(); }catch(_){} },250); }
     else BPUI.toast("Popup blocked — allow popups to download/print.",{type:"err"});
   }
 

@@ -1897,6 +1897,7 @@
      works (and syncs across tabs) offline/in dev.
      =================================================================== */
   const CHAT_MEDIA_MAX = 16 * 1024 * 1024;                  // 16 MB (matches the bucket cap)
+  const CHAT_MEDIA_KEY = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[A-Za-z0-9-]{1,64}\.[a-z0-9]{2,5}$/i;   // uploadMedia()'s key shape
   const CHAT_SNIFF = [                                       // images + audio, by magic bytes
     ["image/png",  "png",  (b) => b[0]===0x89 && b[1]===0x50 && b[2]===0x4E && b[3]===0x47],
     ["image/jpeg", "jpg",  (b) => b[0]===0xFF && b[1]===0xD8 && b[2]===0xFF],
@@ -2041,7 +2042,10 @@
     // Resolve a media_path to something an <img>/<audio> can load.
     async mediaUrl(path, seconds) {
       if (!path) return null;
-      if (mode !== "supabase" || /^data:/.test(path) || /^https?:/.test(path)) return path;   // local data: URL
+      if (mode !== "supabase") return path;   // local data: URL
+      // Only our own storage keys (<org>/<conversation>/<file>.<ext>) are signed. A message
+      // carrying an external URL is never loaded — it would let a sender track every viewer.
+      if (!CHAT_MEDIA_KEY.test(path)) return null;
       const { data, error } = await supa.storage.from("chat-media").createSignedUrl(path, seconds || 300);
       if (error) throw error; return data && data.signedUrl;
     },
