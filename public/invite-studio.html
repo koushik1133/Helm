@@ -160,17 +160,14 @@
 
         <div class="card">
           <h2>4 · Music (optional)</h2>
-          <p class="mnote">Plays softly when a guest opens the invitation. Pick a track or paste a link to your own song (MP3).</p>
+          <p class="mnote">Plays softly when a guest opens the invitation. Paste an https:// link to your own song (MP3).</p>
           <div class="fld"><label for="f_musicPick">Song</label>
             <select id="f_musicPick">
               <option value="">No music</option>
-              <option value="soundhelix-1">Ambient — gentle</option>
-              <option value="soundhelix-8">Piano — warm</option>
-              <option value="soundhelix-3">Strings — cinematic</option>
               <option value="__custom">Custom link…</option>
             </select>
           </div>
-          <div class="fld" id="musicCustomWrap" hidden><label for="f_musicUrl">Song URL (MP3)</label><input id="f_musicUrl" placeholder="https://…/song.mp3"></div>
+          <div class="fld" id="musicCustomWrap" hidden><label for="f_musicUrl">Song URL (MP3, https:// only)</label><input id="f_musicUrl" placeholder="https://…/song.mp3"></div>
           <audio id="musicTry" preload="none"></audio>
           <button class="btn" id="musicTryBtn" type="button" hidden aria-pressed="false">▶ Preview song</button>
         </div>
@@ -299,11 +296,11 @@
   function setPhotoMsg(t){ $("#photoMsg").textContent=t||""; }
 
   // ---- music ----
-  const SONGS={
-    "soundhelix-1":"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-    "soundhelix-8":"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
-    "soundhelix-3":"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"
-  };
+  // Built-in tracks. Deliberately empty: the old presets pointed at a third-party
+  // demo host we don't control (audit Phase 9). Add self-hosted https:// files here
+  // (e.g. under /media/…) once licensed tracks exist. Sites saved with an old preset
+  // keep their URL — it loads as a custom link.
+  const SONGS={};
   function musicUrl(){
     const pick=$("#f_musicPick").value;
     if(pick==="__custom") return $("#f_musicUrl").value.trim();

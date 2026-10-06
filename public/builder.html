@@ -9,8 +9,8 @@
   /* Pin the builder to a light background by default (user preference persisted). */
   (function(){
     try{
-      var t = localStorage.getItem('bps.theme') || 'light';
-      document.documentElement.setAttribute('data-theme', t);
+      var t = localStorage.getItem('bps.theme');
+      document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');   // allowlisted: storage is not trusted
     }catch(e){ document.documentElement.setAttribute('data-theme','light'); }
   })();
 </script>

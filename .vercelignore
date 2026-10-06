@@ -1,0 +1,12 @@
+# Files Vercel must never upload/serve (audit Phase 9 — internal files in prod).
+# public/ is the deploy root (vercel.json outputDirectory); these live there only
+# for tooling. Backstop: vercel.json also redirects these paths to /404, and
+# test/html5-config-hardening.test.mjs fails CI if public/ gains unexpected files.
+#
+# Cloudflare Pages / Netlify header file — kept in public/ for the header-parity
+# tests (Vercel reads vercel.json, not this file).
+public/_headers
+# Vendoring notes for public/vendor/ (how the SRI hashes were produced).
+public/vendor/README.md
+# OS junk
+**/.DS_Store

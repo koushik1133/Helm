@@ -104,10 +104,11 @@ const MIME = {
    script-src has NO 'unsafe-inline': every inline <script> is allowed by its
    sha256 hash (scripts/csp-hashes.cjs). Here the hashes are computed from the
    files on disk, so local dev never drifts; vercel.json / _headers carry the
-   same list via `node scripts/gen-csp.mjs` (CI --check). Do not add CDN hosts back
-   (supabase-js is self-hosted under /vendor/; jsdelivr is builder-only). */
+   same list via `node scripts/gen-csp.mjs` (CI --check). Do not add CDN hosts back:
+   script-src host sources come from SCRIPT_SRC_BASE / SCRIPT_SRC_BUILDER in
+   scripts/csp-hashes.cjs (path-scoped; CDNs are builder-only). */
 // Inline-script hashes, recomputed only when a page under public/ changes.
-const { computeHashes, htmlFiles, withHashes } = require('./scripts/csp-hashes.cjs');
+const { computeHashes, htmlFiles, withHashes, SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER } = require('./scripts/csp-hashes.cjs');
 let hashCache = { sig: null, hashes: [] };
 function inlineScriptHashes() {
   let sig = '';
@@ -126,8 +127,8 @@ const CSP_BASE = [
   ['media-src', "'self' blob: https://*.supabase.co"],
   ['font-src', "'self' https://fonts.gstatic.com"],
   ['style-src', "'self' 'unsafe-inline' https://fonts.googleapis.com"],
-  // cdnjs = builder's three.js; browser.sentry-cdn.com = Sentry browser bundle (npm ships no bundle)
-  ['script-src', "'self' https://cdnjs.cloudflare.com https://browser.sentry-cdn.com"],
+  // 'self' + the pinned Sentry bundle directory only (no whole-CDN hosts)
+  ['script-src', SCRIPT_SRC_BASE.join(' ')],
   ['connect-src', "'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io https://*.ingest.us.sentry.io"],
   ['upgrade-insecure-requests', ''],
 ];
@@ -138,7 +139,8 @@ const buildCsp = (over = {}) => CSP_BASE
 //  • portal / proposal-view / proposal / media render user-pasted image URLs → img-src https:
 //  • invite-studio also plays external music URLs → + media-src https:
 //  • invite (/invite, /i/<slug>) = studio policy + same-origin framing for the studio preview
-//  • builder lazy-loads three.js example modules (SRI-pinned) from cdn.jsdelivr.net
+//  • builder lazy-loads three.js r128 + example modules (SRI-pinned) from the exact
+//    cdnjs / jsdelivr directories in SCRIPT_SRC_BUILDER
 const USER_IMG = "'self' data: blob: https:";
 const USER_MEDIA = "'self' blob: https:";
 const CSP = {
@@ -146,7 +148,7 @@ const CSP = {
   userImg: buildCsp({ 'img-src': USER_IMG }),
   studio: buildCsp({ 'img-src': USER_IMG, 'media-src': USER_MEDIA }),
   invite: buildCsp({ 'img-src': USER_IMG, 'media-src': USER_MEDIA, 'frame-ancestors': "'self'" }),
-  builder: buildCsp({ 'script-src': "'self' https://cdnjs.cloudflare.com https://browser.sentry-cdn.com https://cdn.jsdelivr.net" }),
+  builder: buildCsp({ 'script-src': SCRIPT_SRC_BUILDER.join(' ') }),
 };
 const CSP_BY_PAGE = {
   portal: 'userImg', 'proposal-view': 'userImg', proposal: 'userImg', media: 'userImg',
@@ -167,6 +169,10 @@ const SECURITY_HEADERS = {
 // page (app, token pages, login, sim-pay, 404), /docs/* and /.well-known/* get
 // X-Robots-Tag. Same list as vercel.json (derived from public/*.html).
 const INDEXABLE_PAGES = new Set(['index', 'about', 'services', 'privacy', 'terms']);
+// Pages served for client links that carry a bearer token in the URL (/approve?token=,
+// /<studio>/<kind>/<ref>, /i/<slug>): Referrer-Policy no-referrer + Cache-Control
+// no-store, private (audit Phase 9). Same list as vercel.json / _headers.
+const TOKEN_PAGES = new Set(['approve', 'portal', 'proposal-view', 'work', 'invite']);
 const NOINDEX = 'noindex, nofollow, noarchive';
 
 // Loopback host? On localhost we serve over http, so `upgrade-insecure-requests`
@@ -192,6 +198,9 @@ function securityHeadersFor(req, filePath) {
   const variant = page && CSP_BY_PAGE[page];
   if (variant) h['Content-Security-Policy'] = CSP[variant];
   if (page === 'invite') h['X-Frame-Options'] = 'SAMEORIGIN';   // Invitation Studio preview (same-origin only)
+  // Client-link (bearer token) pages: the token is in the URL, so never send it
+  // on as a Referer (same rule as vercel.json / _headers).
+  if (page && TOKEN_PAGES.has(page)) h['Referrer-Policy'] = 'no-referrer';
   if ((page && !INDEXABLE_PAGES.has(page)) || rel.startsWith('docs/') || rel.startsWith('.well-known/')) {
     h['X-Robots-Tag'] = NOINDEX;
   }
@@ -208,6 +217,7 @@ const SHORT = 'public, max-age=3600, must-revalidate';
 function cacheControlFor(filePath, query) {
   const rel = relFromPublic(filePath);
   const ext = path.extname(rel).toLowerCase();
+  if (ext === '.html' && !rel.includes('/') && TOKEN_PAGES.has(pageName(rel))) return 'no-store, private';
   if (ext === '.html') return 'no-cache';
   if (rel === 'config.js') return 'public, max-age=300';
   if (rel.startsWith('vendor/')) return IMMUTABLE;
@@ -266,6 +276,12 @@ function serveFile(res, req, file) {
   fs.readFile(file, (e, buf) => (e ? sendNotFound(res, req) : sendFileRes(res, file, buf, req)));
 }
 
+const INTERNAL_EXT = /\.(md|map|sql|bak|log|env)$/i;
+function isInternalFile(rel) {
+  const base = rel.split('/').pop() || '';
+  return base === '_headers' || base === '.DS_Store' || INTERNAL_EXT.test(base);
+}
+
 function serveStatic(req, res) {
   let rel;
   try { rel = decodeURIComponent(req.url.split('?')[0]); }
@@ -275,6 +291,10 @@ function serveStatic(req, res) {
 
   // The public front door.
   if (rel === '/') return serveFile(res, req, path.join(PUBLIC_DIR, 'index.html'));
+
+  // Internal files kept in public/ for tooling (the Cloudflare/Netlify _headers file,
+  // vendor notes) are never served. Production: .vercelignore + vercel.json redirects.
+  if (isInternalFile(rel)) return sendNotFound(res, req);
 
   // Public digital-invitation sites: /i/<slug> is served by invite.html, which
   // reads the slug from the path and fetches ONLY the published display fields.
@@ -446,7 +466,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 // Exported for test/headers-parity.test.mjs (requiring this file does not listen).
-module.exports = { CSP, CSP_BY_PAGE, SECURITY_HEADERS, INDEXABLE_PAGES, NOINDEX, securityHeadersFor, cacheControlFor, layoutApiAllowed, isLoopbackClient };
+module.exports = { CSP, CSP_BY_PAGE, SECURITY_HEADERS, INDEXABLE_PAGES, NOINDEX, TOKEN_PAGES, securityHeadersFor, cacheControlFor, layoutApiAllowed, isLoopbackClient, isInternalFile };
 
 if (require.main === module) {
   server.listen(PORT, () => {
