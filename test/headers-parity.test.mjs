@@ -47,7 +47,8 @@ for (const line of readFileSync(join(PUB, '_headers'), 'utf8').split('\n')) {
 function netlifyHeaders(p) {
   const out = {};
   for (const b of blocks) {
-    const re = new RegExp('^' + b.pat.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
+    const re = new RegExp('^' + b.pat.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')
+      .replace(/:[a-z]+/g, '[^/]+') + '$');   // Cloudflare placeholders (:name) = one path segment
     if (!re.test(p)) continue;
     for (const [op, k, v] of b.ops) {
       if (op === 'del') delete out[k];
@@ -61,8 +62,10 @@ function netlifyHeaders(p) {
 const PROD_REQ = { headers: { host: 'www.helm.events' } };
 function serverHeaders(p, query = '') {
   let file;
+  const branded = /^\/[a-z0-9-]{3,40}\/(invite|quote|proposal|portal|work)\/[^/]+$/.exec(p);
   if (p === '/') file = 'index.html';
   else if (p === '/i' || p.startsWith('/i/')) file = 'invite.html';
+  else if (branded) file = { invite: 'invite', quote: 'approve', proposal: 'proposal-view', portal: 'portal', work: 'work' }[branded[1]] + '.html';
   else if (/\.[a-z0-9]+$/i.test(p)) file = p.slice(1);
   else file = p.slice(1) + '.html';
   const h = server.securityHeadersFor(PROD_REQ, join(PUB, file));
@@ -84,6 +87,8 @@ const SECURITY_KEYS = ['strict-transport-security', 'cross-origin-opener-policy'
 // every page (clean + .html where applicable) + token/docs routes
 const paths = ['/', '/i', '/i/some-slug', '/docs/USER-MANUAL', '/docs/USER-MANUAL.html'];
 for (const p of PAGES) paths.push('/' + p, '/' + p + '.html');
+const BRANDED = ['invite', 'quote', 'proposal', 'portal', 'work'].map((k) => `/aurora-events/${k}/tok-123`);
+paths.push(...BRANDED);
 
 for (const p of paths) {
   const v = vercelHeaders(p), nf = netlifyHeaders(p);
@@ -103,7 +108,25 @@ for (const p of paths) {
     assert.equal(s['x-robots-tag'], v['x-robots-tag'], `server.js X-Robots-Tag ≠ vercel.json for ${p}`);
     assert.equal(nf['x-robots-tag'], v['x-robots-tag'], `_headers X-Robots-Tag ≠ vercel.json for ${p}`);
   });
+  t(`${p}: HTML Cache-Control matches`, () => {
+    if (p.startsWith('/docs/')) return;   // docs: server.js serves them as files (no clean-URL mapping)
+    assert.equal(s['cache-control'], v['cache-control'], `server.js Cache-Control ≠ vercel.json for ${p}`);
+    assert.equal(nf['cache-control'], v['cache-control'], `_headers Cache-Control ≠ vercel.json for ${p}`);
+  });
 }
+
+t('client-link (token) pages: Referrer-Policy no-referrer + Cache-Control no-store, private on every host', () => {
+  const tokenPaths = ['/i', '/i/some-slug', ...BRANDED];
+  for (const pg of ['approve', 'portal', 'proposal-view', 'work', 'invite']) tokenPaths.push('/' + pg, '/' + pg + '.html');
+  for (const p of tokenPaths) {
+    for (const [host, h] of [['vercel.json', vercelHeaders(p)], ['_headers', netlifyHeaders(p)], ['server.js', serverHeaders(p.replace(/\.html$/, ''))]]) {
+      assert.equal(h['referrer-policy'], 'no-referrer', `${host}: ${p} Referrer-Policy`);
+      assert.equal(h['cache-control'], 'no-store, private', `${host}: ${p} Cache-Control`);
+    }
+  }
+  // other pages keep the site-wide policy
+  for (const p of ['/dashboard', '/', '/proposal', '/invite-studio']) assert.equal(vercelHeaders(p)['referrer-policy'], 'strict-origin-when-cross-origin', p);
+});
 
 t('noindex covers every non-marketing page; marketing pages stay indexable', () => {
   for (const p of PAGES) {
@@ -117,12 +140,12 @@ t('noindex covers every non-marketing page; marketing pages stay indexable', () 
   assert.equal(vercelHeaders('/')['x-robots-tag'], undefined, '/ must stay indexable');
 });
 
-t('base CSP: no jsdelivr; Sentry bundle + ingest kept; cdnjs kept; img/media locked', () => {
+t('base CSP: no CDN hosts (builder-only); pinned Sentry bundle dir + ingest kept; img/media locked', () => {
   const c = cspMap(vercelHeaders('/dashboard')['content-security-policy']);
   assert.ok(!/jsdelivr/.test(c['script-src'] + c['connect-src']), 'jsdelivr back in base CSP (supabase-js is self-hosted in /vendor/)');
-  assert.match(c['script-src'], /https:\/\/browser\.sentry-cdn\.com/);
+  assert.ok(!/cdnjs/.test(c['script-src']), 'cdnjs back in base CSP (three.js is builder-only — scripts/csp-hashes.cjs)');
+  assert.match(c['script-src'], /(^| )https:\/\/browser\.sentry-cdn\.com\/8\.35\.0\/( |$)/);
   assert.match(c['connect-src'], /\*\.ingest\.sentry\.io/);
-  assert.match(c['script-src'], /cdnjs\.cloudflare\.com/);
   assert.ok(!/(^| )https:( |$)/.test(c['img-src']) && !/(^| )https:( |$)/.test(c['media-src']), 'base img/media-src must not allow any https: host');
   // Hash-based CSP: inline scripts are allowed only by their sha256 hash.
   assert.ok(!/'unsafe-inline'/.test(c['script-src']), "script-src must not allow 'unsafe-inline'");

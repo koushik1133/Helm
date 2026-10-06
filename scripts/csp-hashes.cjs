@@ -65,4 +65,46 @@ function withHashes(csp, hashes) {
   }).filter(Boolean).join('; ');
 }
 
-module.exports = { computeHashes, inlineScripts, htmlFiles, withHashes };
+// ---------------------------------------------------------------------------
+// script-src HOST sources — the single allowlist (audit Phase 9, CSP-01).
+// A whole-CDN host source (https://cdnjs.cloudflare.com, https://cdn.jsdelivr.net)
+// lets an attacker who finds any HTML injection load an old gadget library from
+// the same CDN and run script despite the hash-based policy. So:
+//   • every page: only the pinned Sentry bundle directory (dormant until a DSN is
+//     set — telemetry.js loads https://browser.sentry-cdn.com/8.35.0/bundle.min.js);
+//   • the 3D builder only: the exact three.js r128 directories it loads
+//     (public/builder-3d.js, every file also SRI-pinned).
+// A source ending in "/" matches by path prefix (CSP3 §6.7.2.12), so nothing
+// else on those CDNs is allowed. server.js builds its policies from these
+// constants; scripts/gen-csp.mjs fails when vercel.json / public/_headers drift.
+const SCRIPT_SRC_BASE = ["'self'", 'https://browser.sentry-cdn.com/8.35.0/'];
+const SCRIPT_SRC_BUILDER = [...SCRIPT_SRC_BASE,
+  'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/',
+  'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/'];
+// Pages (clean URL or .html) whose policy may use SCRIPT_SRC_BUILDER.
+const BUILDER_SOURCES = new Set(['/builder', '/builder\\.html', '/builder.html']);
+
+// Sign-in / password-reset pages may also load the Cloudflare Turnstile CAPTCHA
+// widget (a single-purpose origin, not a library CDN).
+const AUTH_ROUTE = /(^|\/|\()(login|reset)/;
+const TURNSTILE = /^https:\/\/challenges\.cloudflare\.com(\/[^\s;]*)?$/;
+
+// Host sources of a CSP's script-src (hashes / nonces dropped).
+function scriptHosts(csp) {
+  const d = String(csp || '').split(';').map((x) => x.trim().split(/\s+/)).find((p) => p[0] === 'script-src');
+  return d ? d.slice(1).filter((s) => !/^'(sha(256|384|512)|nonce)-/.test(s)) : null;
+}
+// Problems with one policy's script-src for the given route ('' = no problem).
+function scriptSrcProblem(csp, route) {
+  const hosts = scriptHosts(csp);
+  if (!hosts) return 'no script-src directive';
+  const allowed = BUILDER_SOURCES.has(route) ? SCRIPT_SRC_BUILDER : SCRIPT_SRC_BASE;
+  const extra = hosts.filter((h) => !allowed.includes(h) && !(AUTH_ROUTE.test(route) && TURNSTILE.test(h)));
+  if (extra.length) return 'script-src allows ' + extra.join(' ') + (BUILDER_SOURCES.has(route) ? '' : ' (CDN sources are builder-only)');
+  return '';
+}
+
+module.exports = {
+  computeHashes, inlineScripts, htmlFiles, withHashes,
+  SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER, BUILDER_SOURCES, scriptHosts, scriptSrcProblem,
+};

@@ -142,7 +142,10 @@
 
   // ---- CSV helpers ----
   function toCSV(rows){ if(!rows.length) return ""; const cols=Object.keys(rows[0]);
-    const cell=(v)=>{ const isStr=typeof v==="string"; v=(v==null?"":String(v)); if(isStr&&/^[=+\-@\t\r]/.test(v)) v="'"+v; return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
+    // Formula-injection guard: a text cell that a spreadsheet would read as a formula
+    // (=, +, -, @, tab, CR — also after leading whitespace, and the full-width ＝＋－＠
+    // forms some spreadsheets normalise) is prefixed with ' so it stays text.
+    const cell=(v)=>{ const isStr=typeof v==="string"; v=(v==null?"":String(v)); if(isStr&&/^[\s 　]*[=+\-@\t\r＝＋－＠]/.test(v)) v="'"+v; return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
     return cols.join(",")+"\n"+rows.map(r=>cols.map(c=>cell(r[c])).join(",")).join("\n"); }
   function download(name, text){ const blob=new Blob([text],{type:"text/csv;charset=utf-8"}); const url=URL.createObjectURL(blob);
     const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500); }

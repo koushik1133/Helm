@@ -198,7 +198,10 @@
   function renderPalette(){ $("#swatches").innerHTML=palette.map((c,i)=>{ const ok=HEX.test(String(c||"")); const lbl=ok?String(c):"invalid colour";
       return `<div class="sw${ok?"":" bad"}" role="img" aria-label="Colour ${esc(lbl)}" title="${esc(lbl)}" ${ok?`style="background:${c}"`:""}>${editable()?`<button type="button" class="xbtn" data-i="${i}" aria-label="Remove colour ${esc(lbl)}">×</button>`:""}</div>`; }).join("")||'<span class="muted">No colours yet.</span>';
     if(editable()) $("#swatches").querySelectorAll(".xbtn").forEach(x=>x.addEventListener("click",e=>{e.stopPropagation();palette.splice(+x.dataset.i,1);dirty.mark();renderPalette();})); }
-  function renderGallery(){ $("#gallery").innerHTML=images.map((u,i)=>`<div class="thumbwrap"><img class="thumb" src="${esc(u)}" alt="Inspiration image ${i+1}" loading="lazy" decoding="async">${editable()?`<button type="button" class="xbtn" data-i="${i}" aria-label="Remove inspiration image ${i+1}">×</button>`:""}</div>`).join("")||'<span class="muted">No images yet.</span>';
+  // Only https:// image URLs are ever loaded (stored values are not trusted — same
+  // rule as the client pages). Others stay in the list, shown as a removable placeholder.
+  const safeImg=u=>typeof u==="string"&&/^https:\/\/[^\s"'<>\\]+$/i.test(u.trim());
+  function renderGallery(){ $("#gallery").innerHTML=images.map((u,i)=>`<div class="thumbwrap">${safeImg(u)?`<img class="thumb" src="${esc(u.trim())}" alt="Inspiration image ${i+1}" loading="lazy" decoding="async">`:`<div class="thumb" role="img" aria-label="Inspiration image ${i+1}: not an https link, not loaded" title="Not an https:// link — not loaded"></div>`}${editable()?`<button type="button" class="xbtn" data-i="${i}" aria-label="Remove inspiration image ${i+1}">×</button>`:""}</div>`).join("")||'<span class="muted">No images yet.</span>';
     $("#gallery").querySelectorAll("img.thumb").forEach(img=>img.addEventListener("error",()=>{ img.style.opacity=".3"; },{once:true}));
     if(editable()) $("#gallery").querySelectorAll(".xbtn").forEach(x=>x.addEventListener("click",()=>{images.splice(+x.dataset.i,1);dirty.mark();renderGallery();})); }
   function renderScope(){ $("#scopeList").innerHTML=scope.map((s,i)=>`<span class="chip">${esc(s)}${editable()?`<button type="button" data-i="${i}" aria-label="Remove scope item ${esc(s)}">×</button>`:""}</span>`).join("")||'<span class="muted">No scope items yet.</span>';
@@ -294,7 +297,7 @@
   }
 
   $("#p_addColor").addEventListener("click",()=>{ if(!editable()) return; const c=String($("#p_color").value||"").toLowerCase(); if(!HEX.test(c)){ BPUI.toast("Pick a valid colour.",{type:"err"}); return; } if(!palette.includes(c)){ palette.push(c); dirty.mark(); } renderPalette(); });
-  $("#p_addImg").addEventListener("click",()=>{ if(!editable()) return; const raw=$("#p_img").value.trim(); if(!raw) return; const r=BPStore.validate.url(raw); if(!r.ok){ BPUI.toast(r.error,{type:"err"}); $("#p_img").focus(); return; } images.push(r.value); dirty.mark(); $("#p_img").value=""; renderGallery(); });
+  $("#p_addImg").addEventListener("click",()=>{ if(!editable()) return; const raw=$("#p_img").value.trim(); if(!raw) return; const r=BPStore.validate.url(raw); if(!r.ok||!safeImg(r.value)){ BPUI.toast(r.ok?"Use an https:// image link.":r.error,{type:"err"}); $("#p_img").focus(); return; } images.push(r.value); dirty.mark(); $("#p_img").value=""; renderGallery(); });
   $("#p_addScope").addEventListener("click",()=>{ if(!editable()) return; const s=$("#p_scope").value.trim(); if(s){ scope.push(s); dirty.mark(); $("#p_scope").value=""; renderScope(); } });
   ["#p_concept","#p_theme"].forEach(x=>$(x).addEventListener("input",()=>dirty.mark()));
   $("#propRetry").addEventListener("click",()=>BPUI.guard($("#propRetry"),loadProposal));

@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { computeHashes, withHashes, htmlFiles } = require('./csp-hashes.cjs');
+const { computeHashes, withHashes, htmlFiles, scriptSrcProblem } = require('./csp-hashes.cjs');
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = join(ROOT, 'public');
@@ -45,7 +45,11 @@ const vercel = JSON.parse(vRaw);
 let cspCount = 0;
 for (const rule of vercel.headers || []) {
   for (const h of rule.headers || []) {
-    if (h.key.toLowerCase() === 'content-security-policy') { h.value = withHashes(h.value, hashes); cspCount++; }
+    if (h.key.toLowerCase() === 'content-security-policy') {
+      h.value = withHashes(h.value, hashes); cspCount++;
+      const bad = scriptSrcProblem(h.value, rule.source);
+      if (bad) { console.error(`  ✗ vercel.json ${rule.source}: ${bad} — host sources live in scripts/csp-hashes.cjs`); problems++; }
+    }
   }
 }
 if (!cspCount) { console.error('  ✗ vercel.json has no Content-Security-Policy header'); problems++; }
@@ -55,6 +59,15 @@ const vNext = JSON.stringify(vercel, null, 2) + '\n';
 const hPath = join(PUBLIC, '_headers');
 const hRaw = readFileSync(hPath, 'utf8');
 const hNext = hRaw.replace(/^(\s*Content-Security-Policy:\s*)(.*)$/gm, (_, k, v) => k + withHashes(v, hashes));
+{ // script-src host allowlist per _headers block (route = the unindented line above)
+  let route = '';
+  for (const line of hRaw.split('\n')) {
+    if (line.trim() && !line.trim().startsWith('#') && !/^\s/.test(line)) route = line.trim();
+    const m = /^\s+Content-Security-Policy:\s*(.*)$/.exec(line);
+    const bad = m && scriptSrcProblem(m[1], route);
+    if (bad) { console.error(`  ✗ public/_headers ${route}: ${bad} — host sources live in scripts/csp-hashes.cjs`); problems++; }
+  }
+}
 
 if (check) {
   if (vNext !== vRaw) { console.error('  ✗ vercel.json CSP script hashes are stale — run: node scripts/gen-csp.mjs'); problems++; }
