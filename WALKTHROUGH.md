@@ -2,7 +2,7 @@
 
 One example event — a **wedding for Priya Sharma** — taken through every feature.
 Values in `code` are exactly what to type. Tag test data with **(testing)** so you can spot it later.
-Sign in as **admin@helm.com / helm** for the walkthrough (admin sees everything; other roles see only their part).
+Sign in with **your own admin test account on STAGING** (admin sees everything; other roles see only their part). Never put real logins in this file — the repo is public.
 
 Order of the real client journey:
 **Set up directories → Lead → Discovery → Proposal → Quote → Confirm/Approve → Resource plan → Plan the day → Readiness → Event day → Teardown → Settlement → Closure → Nurture.**
@@ -12,7 +12,7 @@ Order of the real client journey:
 ## 0. One-time setup (your directories) — do this once, reused for every event
 
 ### 0a. Sign in
-- Open the app (Dashboard). Click **Sign in**. Email `admin@helm.com`, Password `helm`.
+- Open the app (Dashboard). Click **Sign in** with your staging admin test account.
 
 ### 0b. Add in-house staff — Dashboard → **👷 Staff** → **＋ Add staff**
 - Name `Ravi Kumar (testing)` · Role/title `Lead photographer` · Department `Creative` · Employment `full_time` · Phone `+919810000001` · Email `ravi@studio.test` · Day rate `3500` · Skills `photography, photo` · Notes `Senior shooter`
