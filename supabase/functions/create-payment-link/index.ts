@@ -31,10 +31,13 @@ Deno.serve(async (req) => {
 
     // Reuse an open (unpaid) live link for the same amount instead of creating a
     // new one on every click — multiple open links let the client pay twice.
-    const { data: open } = await admin.from("quote_payments").select("link_url, amount")
+    // Only a link Razorpay itself issued (plink_ id + rzp.io URL) is ever handed to the client.
+    const { data: open } = await admin.from("quote_payments").select("link_url, amount, provider_ref")
       .eq("quote_id", q.id).eq("provider", "razorpay").eq("status", "created").eq("simulated", false)
       .not("link_url", "is", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
-    if (open?.link_url && Number(open.amount) === total) {
+    const isRazorpayLink = !!open && /^plink_[A-Za-z0-9]+$/.test(String(open.provider_ref || ""))
+      && /^https:\/\/rzp\.io\/[A-Za-z0-9/_-]+$/.test(String(open.link_url || ""));
+    if (isRazorpayLink && Number(open.amount) === total) {
       return json({ link_url: open.link_url, amount: total, live: true });
     }
 
