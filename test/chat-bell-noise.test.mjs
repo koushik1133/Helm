@@ -17,4 +17,9 @@ t('chat_ensure_broadcast runs once per page, not per poll', () => {
 t('signed-out pages skip the members-only get_pricing_config RPC', () => {
   assert.match(api, /if \(BPStore\.mode\(\) === "supabase" && !BPStore\.auth\.user\(\)\) return null;\s*return BPStore\.config\.getPricing\(\);/);
 });
+t('sign-out clears per-user browser state (shared-computer hygiene, audit Phase 4)', () => {
+  const m = api.match(/const USER_LOCAL_KEYS = \[([^\]]+)\]/); assert.ok(m, 'USER_LOCAL_KEYS missing');
+  for (const k of ['bps.clip', 'wa_pin', 'wa_mute', 'wa_fav']) assert.ok(m[1].includes(`"${k}"`), `${k} must be cleared on sign-out`);
+  assert.match(api, /async signOut\(\) \{[^\n]*sessClear\(\); userLocalClear\(\);/);
+});
 console.log(`\nchat-bell-noise: ${n} passed`);

@@ -91,6 +91,10 @@
   // no user id is stored: sessClear() runs on every sign-in / sign-out / auth change
   function sessSet(key, uid, val) { try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), val: val })); } catch (e) {} }
   function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); } catch (e) {} }
+  // Per-USER browser state that must not carry over to the next person who signs in
+  // on a shared computer (audit Phase 4). Device prefs (theme, tours) are kept.
+  const USER_LOCAL_KEYS = ["bps.clip", "wa_pin", "wa_mute", "wa_fav", "bp_chat_ping", "helm_org_country", "helm_ev_showall"];
+  function userLocalClear() { USER_LOCAL_KEYS.forEach((k) => { try { localStorage.removeItem(k); } catch (e) {} }); }
   let authRequired = false;     // true when Supabase enforces login (RLS) and nobody is signed in
 
   /* ---- session-expiry handling ------------------------------------------
@@ -566,7 +570,7 @@
       if (error) throw error;
       return data; // browser navigates away to Google
     },
-    async signOut() { explicitSignOut = true; if (supa) await supa.auth.signOut(); currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear();
+    async signOut() { explicitSignOut = true; if (supa) await supa.auth.signOut(); currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); userLocalClear(); studioSlugCache = null;
       if (mode === "supabase") authRequired = true; },
     // Option A: does the signed-in user still hold a temp password they must replace?
     async passwordChangeRequired() {
