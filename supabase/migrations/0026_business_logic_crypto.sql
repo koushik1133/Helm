@@ -203,6 +203,10 @@ create trigger aa_quote_delete_guard before delete on public.quotes
 --    active code row is locked (single use under concurrency).
 --    Body = supabase/prod-fix/C2b (what prod runs) + harden-2026-10/H02 FOR UPDATE.
 -- ============================================================================
+-- Replace ONLY if the database still has the old body (no row lock / persisted attempts). Production already has its own hardened version — keep it.
+do $guard$ begin
+  if not exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'verify_and_consent' and position('for update' in lower(prosrc)) > 0 and position('attempts + 1' in prosrc) > 0) then
+    execute $sql$
 CREATE OR REPLACE FUNCTION public.verify_and_consent(p_token uuid, p_phone text, p_code text, p_agreed boolean, p_terms_version text, p_consent_text text, p_client_name text, p_user_agent text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -242,7 +246,10 @@ begin
     values (q.id, p_phone, p_client_name, p_terms_version, p_consent_text, true, true, p_user_agent);
   update public.quotes set approval_status = 'approved', updated_at = now() where id = q.id;
   return jsonb_build_object('approved', true);
-end; $function$;
+end; $function$
+$sql$;
+  end if;
+end $guard$;
 revoke all on function public.verify_and_consent(uuid,text,text,boolean,text,text,text,text) from public;
 grant execute on function public.verify_and_consent(uuid,text,text,boolean,text,text,text,text) to anon, authenticated, service_role;
 
@@ -250,6 +257,10 @@ grant execute on function public.verify_and_consent(uuid,text,text,boolean,text,
 -- 4) request_otp: cryptographically secure, uniform 6-digit code
 --    (rejection sampling over 32 random bits from pgcrypto's gen_random_bytes).
 -- ============================================================================
+-- Replace ONLY if the database still generates codes with random(). Production already uses gen_random_bytes — keep its body.
+do $guard$ begin
+  if not exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'request_otp' and position('gen_random_bytes' in prosrc) > 0) then
+    execute $sql$
 CREATE OR REPLACE FUNCTION public.request_otp(p_token uuid, p_phone text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -281,7 +292,10 @@ begin
     return jsonb_build_object('sent', false, 'live', false, 'delivery', 'unavailable', 'dev_code', null,
       'message', 'OTP delivery is not configured. Enable a live SMS provider (sms_live=true) or, for local development only, set channels.otp_dev_echo=true in app_config.');
   end if;
-end; $function$;
+end; $function$
+$sql$;
+  end if;
+end $guard$;
 revoke all on function public.request_otp(uuid,text) from public;
 grant execute on function public.request_otp(uuid,text) to anon, authenticated, service_role;
 

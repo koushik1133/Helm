@@ -45,7 +45,7 @@ const manifest = read('supabase/migrations/MANIFEST').split('\n')
 let canonical = null;
 for (const f of manifest) {
   const body = activeSql(read(f));
-  const m = body.match(/create\s+or\s+replace\s+function\s+public\.request_otp\s*\([\s\S]*?\$function\$;/gi);
+  const m = body.match(/create\s+or\s+replace\s+function\s+public\.request_otp\s*\([\s\S]*?\$function\$[\s\S]*?\$function\$/gi);
   if (m) canonical = { file: f, body: m[m.length - 1] };
 }
 t('canonical request_otp found on the MANIFEST path', () => assert.ok(canonical, 'no request_otp on the canonical path'));
