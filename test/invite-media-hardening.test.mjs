@@ -83,4 +83,34 @@ t('invite render places media only in a CSS url(), never as injected HTML', () =
   assert.ok(!/innerHTML[^\n]*\$\{(hero0|u)\}/.test(invite), 'a raw media URL must not be injected as HTML');
 });
 
+// --- P2-01: private bucket => photos render through SIGNED urls, never assumed public ---
+t('store-api exposes sites.mediaUrls that signs invite-media refs (short-lived)', () => {
+  const i = api.indexOf('async mediaUrls(');
+  assert.ok(i > 0, 'sites.mediaUrls must exist');
+  const body = api.slice(i, i + 1400);
+  assert.match(body, /from\("invite-media"\)\.createSignedUrls\(paths, seconds \|\| 3600\)/, 'must sign via createSignedUrls (<=1h)');
+  assert.match(body, /object\\\/\(\?:public\|sign\|authenticated\)\\\/invite-media\\\//, 'must only rewrite invite-media refs');
+});
+t('public invitation signs photos before render (load + studio preview)', () => {
+  assert.match(invite, /site=await signPhotos\(site\);[\s\S]{0,40}render\(site\)/, 'load() must sign before render');
+  assert.match(invite, /site=await signPhotos\(m\.site\)/, 'preview message must sign before render');
+  assert.match(invite, /if\(seq!==pvSeq\) return;/, 'stale preview renders must be dropped');
+  assert.match(invite, /BPStore\.sites\.mediaUrls\(need\)/);
+});
+t('invite studio thumbnails render signed URLs, store references', () => {
+  const studio = read('public/invite-studio.html');
+  assert.match(studio, /BPStore\.sites\.mediaUrls\(need\)/, 'studio must sign thumbnails');
+  assert.match(studio, /cssUrl\(SIGNED\.get\(u\)\|\|u\)/, 'thumbnails must use the signed URL');
+  assert.match(studio, /photos:PHOTOS\.slice\(\)/, 'saved data keeps the stable references, not expiring signed URLs');
+});
+t('migration 0019 keeps bucket private + published-only anon read', () => {
+  const m = read('supabase/migrations/0019_invite_media_published_read.sql');
+  assert.match(m, /set public = false where id = 'invite-media'/);
+  assert.match(m, /for select to anon, authenticated\s+using \( bucket_id = 'invite-media' and public\.invite_media_on_published_site\(name\) \)/);
+  assert.match(m, /s\.status = 'published'/);
+  assert.match(m, /s\.org_id::text\s+= split_part\(p_name, '\/', 1\)/, 'org folder must match the site');
+  assert.match(m, /security definer\s+set search_path = ''/);
+  assert.ok(!/to public\b/.test(m) && !/public = true/.test(m), 'never re-open the bucket');
+});
+
 console.log('\ninvite-media-hardening: ' + passed + ' assertion(s) passed.');

@@ -181,7 +181,7 @@
 
 <script src="/telemetry.js?v=2"></script>
 <script src="/config.js?v=91"></script>
-<script src="/store-api.js?v=91"></script>
+<script src="/store-api.js?v=92"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -323,8 +323,22 @@
   $("#musicFab").addEventListener("click", toggleMusic);
   $("#shareBtm").addEventListener("click", share);
   // Preview (studio) posts drafts; also lets the studio show without the gate.
-  window.addEventListener("message",(ev)=>{ if(ev.origin!==location.origin) return;
-    const m=ev.data; if(m&&m.type==="helm-preview"&&m.site){ try{ render(m.site); $("#cover").hidden=true; $("#fabs").hidden=false; armReveal(); }catch(e){} } });
+  // Photos live in a PRIVATE bucket (P2-01): stored values are references, rendered via
+  // short-lived signed URLs (cached ~50 min; a sign failure keeps the reference).
+  const SIGNED=new Map();
+  async function signPhotos(site){
+    const d=site&&site.data; if(!d||!Array.isArray(d.photos)||!d.photos.length) return site;
+    const now=Date.now(), need=d.photos.filter(u=>{ const c=SIGNED.get(u); return !c||now-c.t>3e6; });
+    if(need.length){ const out=await BPStore.sites.mediaUrls(need); need.forEach((u,i)=>SIGNED.set(u,{url:out[i]||u,t:now})); }
+    return Object.assign({},site,{data:Object.assign({},d,{photos:d.photos.map(u=>(SIGNED.get(u)||{}).url||u)})});
+  }
+  let pvSeq=0;
+  window.addEventListener("message",async(ev)=>{ if(ev.origin!==location.origin) return;
+    const m=ev.data; if(!(m&&m.type==="helm-preview"&&m.site)) return;
+    const seq=++pvSeq; let site=m.site;
+    try{ site=await signPhotos(m.site); }catch(e){}
+    if(seq!==pvSeq) return;                 // a newer draft arrived while signing
+    try{ render(site); $("#cover").hidden=true; $("#fabs").hidden=false; armReveal(); }catch(e){} });
 
   async function load(){
     if(new URLSearchParams(location.search).get("preview")==="1"){ $("#loading").querySelector("h1").textContent="Preview"; return; }
@@ -340,6 +354,7 @@
       $("#loadErr").hidden=false; BPUI.loadError($("#loadErr"), e, load, {what:"this invitation"}); return;
     }
     if(!site){ $("#loading").hidden=true; $("#missing").hidden=false; return; }
+    try{ site=await signPhotos(site); }catch(e){}
     render(site);
   }
   BPUI.boot(load);

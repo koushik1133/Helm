@@ -1,11 +1,11 @@
 # robots.txt — https://www.helm.events
-# Only the marketing pages are for crawlers. App pages, private token links
-# (/approve, /portal, /proposal-view, /invite, /i/…, /sim-pay, /work) and /docs are
-# disallowed here AND sent "X-Robots-Tag: noindex" (vercel.json).
-# /login is crawlable but carries "X-Robots-Tag: noindex" so it never appears in
-# results; it is not in the sitemap.
-# NOTE: robots rules are prefix matches — never add "Disallow: /i" (it would also
-# block /index); token invites are "/i/".
+# ALLOWLIST policy: only the public marketing pages (and the assets they render
+# with) are crawlable; everything else is "Disallow: /". App routes are deliberately
+# NOT named here, so this public file doesn't hand anyone a map of the app.
+# Real protection is still the login gate + RLS; every non-marketing page also
+# sends "X-Robots-Tag: noindex" (vercel.json, pinned by test/headers-parity).
+# /login is crawlable but noindex, so it never appears in results.
+# Pinned by test/robots-policy.test.mjs.
 
 User-agent: *
 Allow: /$
@@ -16,52 +16,15 @@ Allow: /privacy
 Allow: /terms
 Allow: /login
 Allow: /landing.css
+Allow: /theme.css
+Allow: /telemetry.js
 Allow: /og.png
+Allow: /favicon
+Allow: /apple-touch-icon.png
 Allow: /llms.txt
-Disallow: /approve
-Disallow: /audit
-Disallow: /budget
-Disallow: /builder
-Disallow: /calendar
-Disallow: /closure
-Disallow: /command
-Disallow: /control
-Disallow: /crm
-Disallow: /dashboard
-Disallow: /design
-Disallow: /discovery
-Disallow: /event
-Disallow: /flow
-Disallow: /insights
-Disallow: /inventory
-Disallow: /invite
-Disallow: /invite-studio
-Disallow: /issues
-Disallow: /leads
-Disallow: /logistics
-Disallow: /media
-Disallow: /nurture
-Disallow: /ops
-Disallow: /plan
-Disallow: /portal
-Disallow: /proposal
-Disallow: /proposal-view
-Disallow: /quotes
-Disallow: /ready
-Disallow: /reports
-Disallow: /resources
-Disallow: /runsheet
-Disallow: /settlement
-Disallow: /sim-pay
-Disallow: /staff
-Disallow: /teardown
-Disallow: /templates
-Disallow: /vendors
-Disallow: /work
-Disallow: /i/
-Disallow: /docs/
-Disallow: /api/
-Disallow: /404
+Allow: /sitemap.xml
+Allow: /.well-known/security.txt
+Disallow: /
 
 # AI / LLM crawlers: marketing pages only, nothing else.
 User-agent: GPTBot

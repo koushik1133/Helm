@@ -1744,8 +1744,29 @@
       const path = orgId + "/" + quoteId + "/" + uuid + "." + sniff.ext;
       const { error } = await supa.storage.from("invite-media").upload(path, file, { upsert: false, contentType: sniff.mime });
       if (error) throw error;
+      // The returned URL is a stable REFERENCE stored in site data; the bucket is private,
+      // so render it through mediaUrls() (signed) — never assume it is publicly fetchable.
       const { data } = supa.storage.from("invite-media").getPublicUrl(path);
       return data.publicUrl;
+    },
+    // Resolve stored invite-media references to short-lived signed URLs (P2-01). Guests
+    // can sign only photos on a PUBLISHED site (storage policy 0019); staff sign their
+    // own org's. Non-invite-media http(s) URLs pass through; a failed sign keeps the
+    // original reference (still works on a DB whose bucket hasn't been made private yet).
+    async mediaUrls(urls, seconds) {
+      const list = Array.isArray(urls) ? urls.slice() : [];
+      if (!supa) { try { await BPStore.init(); } catch (e) {} }
+      if (!supa || !list.length) return list;
+      const re = /\/storage\/v1\/object\/(?:public|sign|authenticated)\/invite-media\/([^?#]+)/;
+      const idx = [], paths = [];
+      list.forEach((u, i) => { const m = re.exec(String(u || "")); if (m) { idx.push(i); paths.push(decodeURIComponent(m[1])); } });
+      if (!paths.length) return list;
+      try {
+        const { data, error } = await supa.storage.from("invite-media").createSignedUrls(paths, seconds || 3600);
+        if (error || !Array.isArray(data)) return list;
+        data.forEach((r, k) => { if (r && r.signedUrl && !r.error) list[idx[k]] = r.signedUrl; });
+      } catch (e) {}
+      return list;
     },
     // public side (anonymous guests) --------------------------------------------
     async public(slug) {                                                                  // display fields of a PUBLISHED site only
