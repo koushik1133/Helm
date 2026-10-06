@@ -454,9 +454,20 @@ grant all on public.payment_reconciliation to service_role;
 drop policy if exists payment_reconciliation_read on public.payment_reconciliation;
 create policy payment_reconciliation_read on public.payment_reconciliation for select to authenticated
   using ( public.has_area('finance', 'view') and org_id = (select public.current_org_id()) );
+-- a reconciliation row always belongs to its quote's studio (self-contained: production has no
+-- tg_quote_org_match(), so this does not depend on it)
+create or replace function public.tg_payment_reconciliation_org()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if new.quote_id is not null then
+    select q.org_id into new.org_id from public.quotes q where q.id = new.quote_id;
+  end if;
+  return new;
+end $$;
+revoke all on function public.tg_payment_reconciliation_org() from public, anon, authenticated;
 drop trigger if exists zz_quote_org_match on public.payment_reconciliation;
 create trigger zz_quote_org_match before insert or update on public.payment_reconciliation
-  for each row execute function public.tg_quote_org_match();
+  for each row execute function public.tg_payment_reconciliation_org();
 
 -- finance editors close an item once the refund / reconciliation is done (no deletes)
 create or replace function public.resolve_payment_reconciliation(p_id uuid, p_status text, p_note text default null)

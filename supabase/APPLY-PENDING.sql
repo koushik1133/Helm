@@ -1,10 +1,11 @@
 -- ════════════════════════════════════════════════════════════════════════════
--- HELM — EVERYTHING PENDING (one paste) — Supabase SQL Editor            (v6, 2026-10-06)
+-- HELM — EVERYTHING PENDING (one paste) — Supabase SQL Editor            (v7, 2026-10-06)
 --   PART A  Business logic + cryptography ................ 0026  (audit Phase 7)
 --   PART B  File uploads + card payments + messaging ...... 0027  (audit Phase 8)
 --   PART C  Login + password hardening .................... 0028  (audit Phase 3-4 follow-up)
 -- BOTH production and staging need this (both are up to date through 0025).
--- RUN supabase/audit/P7-10-PRECHECK.sql FIRST (read-only) and send me its result.
+-- v7 vs v6: keeps production's own (already hardened) OTP functions instead of replacing them,
+--   and no longer depends on tg_quote_org_match() (missing on production). Staging can re-run it safely.
 -- ════════════════════════════════════════════════════════════════════════════
 -- SAFE TO RE-RUN: every part is idempotent. NO rows are changed or deleted. New data
 --   rules are NOT VALID: existing rows are not re-checked. Nothing here uses temporary
@@ -231,6 +232,10 @@ create trigger aa_quote_delete_guard before delete on public.quotes
 --    active code row is locked (single use under concurrency).
 --    Body = supabase/prod-fix/C2b (what prod runs) + harden-2026-10/H02 FOR UPDATE.
 -- ============================================================================
+-- Replace ONLY if the database still has the old body (no row lock / persisted attempts). Production already has its own hardened version — keep it.
+do $guard$ begin
+  if not exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'verify_and_consent' and position('for update' in lower(prosrc)) > 0 and position('attempts + 1' in prosrc) > 0) then
+    execute $sql$
 CREATE OR REPLACE FUNCTION public.verify_and_consent(p_token uuid, p_phone text, p_code text, p_agreed boolean, p_terms_version text, p_consent_text text, p_client_name text, p_user_agent text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -270,7 +275,10 @@ begin
     values (q.id, p_phone, p_client_name, p_terms_version, p_consent_text, true, true, p_user_agent);
   update public.quotes set approval_status = 'approved', updated_at = now() where id = q.id;
   return jsonb_build_object('approved', true);
-end; $function$;
+end; $function$
+$sql$;
+  end if;
+end $guard$;
 revoke all on function public.verify_and_consent(uuid,text,text,boolean,text,text,text,text) from public;
 grant execute on function public.verify_and_consent(uuid,text,text,boolean,text,text,text,text) to anon, authenticated, service_role;
 
@@ -278,6 +286,10 @@ grant execute on function public.verify_and_consent(uuid,text,text,boolean,text,
 -- 4) request_otp: cryptographically secure, uniform 6-digit code
 --    (rejection sampling over 32 random bits from pgcrypto's gen_random_bytes).
 -- ============================================================================
+-- Replace ONLY if the database still generates codes with random(). Production already uses gen_random_bytes — keep its body.
+do $guard$ begin
+  if not exists (select 1 from pg_proc where pronamespace = 'public'::regnamespace and proname = 'request_otp' and position('gen_random_bytes' in prosrc) > 0) then
+    execute $sql$
 CREATE OR REPLACE FUNCTION public.request_otp(p_token uuid, p_phone text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -309,7 +321,10 @@ begin
     return jsonb_build_object('sent', false, 'live', false, 'delivery', 'unavailable', 'dev_code', null,
       'message', 'OTP delivery is not configured. Enable a live SMS provider (sms_live=true) or, for local development only, set channels.otp_dev_echo=true in app_config.');
   end if;
-end; $function$;
+end; $function$
+$sql$;
+  end if;
+end $guard$;
 revoke all on function public.request_otp(uuid,text) from public;
 grant execute on function public.request_otp(uuid,text) to anon, authenticated, service_role;
 
@@ -1095,9 +1110,20 @@ grant all on public.payment_reconciliation to service_role;
 drop policy if exists payment_reconciliation_read on public.payment_reconciliation;
 create policy payment_reconciliation_read on public.payment_reconciliation for select to authenticated
   using ( public.has_area('finance', 'view') and org_id = (select public.current_org_id()) );
+-- a reconciliation row always belongs to its quote's studio (self-contained: production has no
+-- tg_quote_org_match(), so this does not depend on it)
+create or replace function public.tg_payment_reconciliation_org()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if new.quote_id is not null then
+    select q.org_id into new.org_id from public.quotes q where q.id = new.quote_id;
+  end if;
+  return new;
+end $$;
+revoke all on function public.tg_payment_reconciliation_org() from public, anon, authenticated;
 drop trigger if exists zz_quote_org_match on public.payment_reconciliation;
 create trigger zz_quote_org_match before insert or update on public.payment_reconciliation
-  for each row execute function public.tg_quote_org_match();
+  for each row execute function public.tg_payment_reconciliation_org();
 
 -- finance editors close an item once the refund / reconciliation is done (no deletes)
 create or replace function public.resolve_payment_reconciliation(p_id uuid, p_status text, p_note text default null)
