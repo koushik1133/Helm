@@ -29,5 +29,62 @@ do $$ declare r record; begin
          then 'PASS: private, '||r.file_size_limit||'B cap, '||array_length(r.allowed_mime_types,1)||' mime types'
          else 'FAIL: public='||r.public end);
 end $$;
+-- ---- P2-01 (0019): guests read ONLY photos on a PUBLISHED site of the same org+quote ----
+-- setup as superuser with A-admin claims (event_sites guard stamps org from the JWT)
+do $$ declare base text := 'https://x.supabase.co/storage/v1/object/public/invite-media/'; begin
+  execute 'reset role';   -- disposable test DB: make the setup re-runnable
+  delete from public.event_sites where slug like 'p201-%';
+  delete from storage.objects where bucket_id='invite-media' and storage.filename(name) in ('on-site.png','draft-only.png');
+  perform auth.login_as((select id from auth.users where email='a_admin@a.test')); execute 'reset role';
+  insert into storage.objects(bucket_id,name) values
+    ('invite-media','a0000000-0000-4000-8000-000000000001/a0000000-0000-4000-8000-00000000da01/on-site.png'),
+    ('invite-media','a0000000-0000-4000-8000-000000000001/a0000000-0000-4000-8000-00000000da01/draft-only.png');
+  insert into public.event_sites(quote_id,slug,status,data) values
+    ('a0000000-0000-4000-8000-00000000da01','p201-a','draft',
+     jsonb_build_object('photos', jsonb_build_array(base||'a0000000-0000-4000-8000-000000000001/a0000000-0000-4000-8000-00000000da01/on-site.png')));
+  -- org B publishes a site that pastes A's NOT-published photo URL (claim attack)
+  perform auth.login_as((select id from auth.users where email='b_admin@b.test')); execute 'reset role';
+  insert into public.event_sites(quote_id,slug,status,data) values
+    ('b0000000-0000-4000-8000-00000000da01','p201-b','published',
+     jsonb_build_object('photos', jsonb_build_array(base||'a0000000-0000-4000-8000-000000000001/a0000000-0000-4000-8000-00000000da01/draft-only.png')));
+  perform auth.logout();
+end $$;
+do $$ declare n int; begin
+  perform auth.login_anon();
+  select count(*) into n from storage.objects where bucket_id='invite-media';
+  insert into _sp values('P2-01 anon: draft site photo unreadable', case when n=0 then 'PASS: 0 visible' else 'FAIL: anon sees '||n end);
+  perform auth.logout();
+end $$;
+do $$ begin
+  perform auth.login_as((select id from auth.users where email='a_admin@a.test')); execute 'reset role';
+  update public.event_sites set status='published' where slug='p201-a';
+  perform auth.logout();
+end $$;
+do $$ declare n int; names text; begin
+  perform auth.login_anon();
+  select count(*), string_agg(storage.filename(name),',') into n, names from storage.objects where bucket_id='invite-media';
+  insert into _sp values('P2-01 anon: published site photo readable', case when n=1 and names='on-site.png' then 'PASS: exactly the on-site photo' else 'FAIL: n='||n||' '||coalesce(names,'') end);
+  perform auth.logout();
+end $$;
+do $$ declare n int; begin
+  perform auth.login_as((select id from auth.users where email='b_staff@b.test'));
+  select count(*) into n from storage.objects where bucket_id='invite-media' and storage.filename(name)='draft-only.png';
+  insert into _sp values('P2-01 cross-org claim attack blocked', case when n=0 then 'PASS: pasted URL grants nothing' else 'FAIL: B reads A draft photo' end);
+  perform auth.logout();
+end $$;
+do $$ declare n int; begin
+  perform auth.login_as((select id from auth.users where email='a_admin@a.test')); execute 'reset role';
+  update public.event_sites set status='unpublished' where slug='p201-a';
+  perform auth.logout(); perform auth.login_anon();
+  select count(*) into n from storage.objects where bucket_id='invite-media';
+  insert into _sp values('P2-01 anon: unpublish revokes read', case when n=0 then 'PASS: 0 visible after unpublish' else 'FAIL: anon still sees '||n end);
+  perform auth.logout();
+end $$;
+do $$ begin
+  begin perform auth.login_anon(); insert into storage.objects(bucket_id,name) values('invite-media','x/y/z.png');
+    insert into _sp values('P2-01 anon cannot upload','FAIL: allowed');
+  exception when others then insert into _sp values('P2-01 anon cannot upload','PASS: denied'); end;
+  perform auth.logout();
+end $$;
 select name,result from _sp order by name;
 select case when count(*) filter (where result like 'FAIL%')=0 then 'STORAGE-POLICY: ALL PASS' else 'STORAGE-POLICY: '||count(*) filter (where result like 'FAIL%')||' FAILED' end from _sp;

@@ -219,7 +219,7 @@
 
 <script src="telemetry.js?v=2"></script>
 <script src="config.js?v=91"></script>
-<script src="store-api.js?v=91"></script>
+<script src="store-api.js?v=94"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -286,9 +286,13 @@
   function gatherSchedule(){ return [...$("#sched").querySelectorAll(".srow")].map(r=>({time:r.children[0].value.trim(),label:r.children[1].value.trim()})).filter(x=>x.time||x.label); }
 
   // ---- photos ----
-  let PHOTOS=[];
+  let PHOTOS=[];                            // stored REFERENCES (bucket is private — P2-01)
+  const SIGNED=new Map();                    // reference -> signed display URL
   function paintPhotos(){
-    $("#photos").innerHTML=PHOTOS.map((u,i)=>`<div class="th${i===0?' cover':''}" style="background-image:url('${cssUrl(u)}')" role="img" aria-label="${i===0?'Cover photo':'Photo '+(i+1)}"><button class="x" type="button" data-i="${i}" title="Remove photo ${i+1}" aria-label="Remove photo ${i+1}">✕</button></div>`).join("");
+    const need=PHOTOS.filter(u=>!SIGNED.has(u));
+    if(need.length){ need.forEach(u=>SIGNED.set(u,u));    // placeholder; avoid re-requesting
+      BPStore.sites.mediaUrls(need).then(out=>{ need.forEach((u,i)=>SIGNED.set(u,out[i]||u)); paintPhotos(); }).catch(()=>{}); }
+    $("#photos").innerHTML=PHOTOS.map((u,i)=>`<div class="th${i===0?' cover':''}" style="background-image:url('${cssUrl(SIGNED.get(u)||u)}')" role="img" aria-label="${i===0?'Cover photo':'Photo '+(i+1)}"><button class="x" type="button" data-i="${i}" title="Remove photo ${i+1}" aria-label="Remove photo ${i+1}">✕</button></div>`).join("");
     $("#photos").querySelectorAll(".x").forEach(b=>b.addEventListener("click",()=>{ PHOTOS.splice(+b.dataset.i,1); if(dirty) dirty.mark(); paintPhotos(); preview(); }));
   }
   function setPhotoMsg(t){ $("#photoMsg").textContent=t||""; }

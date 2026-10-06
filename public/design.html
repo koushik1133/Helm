@@ -80,7 +80,7 @@
 
 <script src="telemetry.js?v=2"></script>
 <script src="config.js?v=91"></script>
-<script src="store-api.js?v=91"></script>
+<script src="store-api.js?v=94"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -204,16 +204,22 @@
   }
 
   BPUI.boot(async function init(){
+    await BPStore.init();   // connect to Supabase (loads the client) — without this the page never leaves local mode
     await renderAccount();
-    if(!BPStore.auth.enabled()){ $("#gate").hidden=false; return; }   // needs a signed-in Supabase session
+    if(!BPStore.auth.enabled()){ showGate("The Design Studio needs a signed-in account — it isn’t available in local/offline mode."); return; }
     if(!BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent("design.html"+location.search)); return; }
     // Edit capability is derived from role for the UI; the server (design_advance)
     // is the real gate — it re-checks has_area('design','edit') on every call.
     let role=null; try{ role=await BPStore.auth.role(); }catch(_){}
     canEdit=["admin","manager","planner","designer"].includes(role);
+    // Accurate access gate: only tell someone to "ask an admin" when their role
+    // genuinely can't view Design. Admins (and granted roles) pass straight through,
+    // so a load failure below shows the REAL reason, not a misleading access message.
+    try{ if(!(await BPStore.auth.canView("design"))){ showGate("Your role doesn’t have access to the Design Studio. An admin can grant the Design area in Control Center."); return; } }catch(_){}
     try{
       if(quoteId){ await loadSingle(); } else { await loadQueue(); }
-    }catch(e){ $("#gate").hidden=false; }
+    }catch(e){ if(backendMissing(e)){ showGate("The Design Studio isn’t set up on this environment yet (design tables/functions not deployed)."); }
+      else { showGate("Couldn’t load the Design Studio — please try again."); } }
   });
 </script>
 </body>
