@@ -1,13 +1,15 @@
 -- ════════════════════════════════════════════════════════════════════════════
--- HELM — EVERYTHING PENDING (one paste) — Supabase SQL Editor        (rebuilt 2026-10-06, v2)
+-- HELM — EVERYTHING PENDING (one paste) — Supabase SQL Editor        (rebuilt 2026-10-06, v3 — safe to re-run)
 --   PART A  Invitation photos private ............. 0019   (prod: done · staging: done)
 --   PART B  Studio client links + anti-phishing ... 0020   (prod: done · staging: NEW)
 --   PART C  CRITICAL privilege lockdown ........... 0021   (prod: done · staging: NEW)
 --   PART D  Links expire after the event .......... 0022   (prod: done · staging: NEW)
---   PART E  Fix: undated crew links keep 60 days .. 0023   (NEW on both)
+--   PART E  Fix: undated crew links keep 60 days .. 0023   (prod: done · staging: NEW)
 -- Team chat (0016-0018) is already on both projects and is no longer in this file.
 -- ════════════════════════════════════════════════════════════════════════════
--- SAFE: additive + idempotent; re-running parts already applied changes nothing.
+-- SAFE: additive + idempotent. Re-running on a project that already has everything
+--   changes NO data: the two one-time data steps (crew-link re-timing in D, the 0023
+--   repair in E) are guarded and only run on a project that actually needs them.
 -- The whole paste runs as ONE transaction: if any line fails, nothing is applied.
 -- ORDER: run on STAGING first, then PRODUCTION. App code for C/D is backward
 --   compatible, so the SQL can go before or after the code deploy.
@@ -24,6 +26,14 @@ begin
   if to_regclass('public.chat_messages') is null then raise exception 'STOP: team chat (0016-0018) not installed — run APPLY-CHAT.sql first'; end if;
   raise notice 'Preflight OK — applying 0019-0023…';
 end $$;
+
+-- run-once guards for the two DATA steps (captured before anything changes)
+drop table if exists _helm_apply;
+create temp table _helm_apply as
+select to_regprocedure('public.public_event_site__base(text)') is null as first_0022,   -- link expiry not installed yet
+       exists (select 1 from pg_proc p
+                where p.oid = to_regprocedure('public.work_token_expiry_for(uuid)')
+                  and position('x.deadline is null' in p.prosrc) = 0) as buggy_0022;  -- 0022 bug present, 0023 missing
 
 -- ═══════════════════ PART A — Invitation photos private (0019) ═══════════════════
 -- ============================================================================
@@ -519,7 +529,8 @@ create trigger zz_work_token_expiry before insert on public.work_tokens
 -- re-time LIVE crew links that already exist (revoked / expired ones untouched)
 update public.work_tokens w
    set expires_at = public.work_token_expiry_for(w.quote_id)
- where w.revoked_at is null and (w.expires_at is null or w.expires_at > now());
+ where w.revoked_at is null and (w.expires_at is null or w.expires_at > now())
+   and (select first_0022 from _helm_apply);                 -- [paste-file guard] first install only
 
 -- ---- VERIFY (read-only) ----------------------------------------------------
 -- select s.slug, public.event_site_live_until(s.id) from public.event_sites s where s.status='published';
@@ -558,12 +569,15 @@ update public.work_tokens w
    and q.event_date is null
    and w.revoked_at is null
    and w.expires_at is not null and w.expires_at > now()
-   and w.expires_at < now() + interval '59 days';
+   and w.expires_at < now() + interval '59 days'
+   and (select first_0022 or buggy_0022 from _helm_apply);    -- [paste-file guard] only when the 0022 bug ran
 
 -- ---- VERIFY (read-only) ----------------------------------------------------
 -- select q.code, q.event_date, w.expires_at from public.work_tokens w join public.quotes q on q.id=w.quote_id
 --  where w.revoked_at is null order by w.expires_at;
 
+
+drop table if exists _helm_apply;
 
 -- ════════════════════════════════ VERIFY (one table — every row must say ok) ═══
 select item, case when ok then 'ok' else 'PROBLEM' end as status from (values
@@ -589,8 +603,7 @@ select item, case when ok then 'ok' else 'PROBLEM' end as status from (values
      and not has_function_privilege('anon','public.public_get_proposal__base(uuid)','execute')),
   ('D guests can still open invitations',
      has_function_privilege('anon','public.public_event_site(text)','execute')),
-  ('E undated crew links keep 60 days',
-     not exists (select 1 from public.work_tokens w join public.quotes q on q.id = w.quote_id
-                  where q.event_date is null and w.revoked_at is null
-                    and w.expires_at > now() and w.expires_at < now() + interval '59 days'))
+  ('E crew-link fix installed (undated events keep 60 days)',
+     exists (select 1 from pg_proc p where p.oid = to_regprocedure('public.work_token_expiry_for(uuid)')
+              and position('x.deadline is null' in p.prosrc) > 0))
 ) v(item, ok);
