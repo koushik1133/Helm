@@ -2655,7 +2655,16 @@
       if (mode === "supabase") { const { error } = await supa.from("payment_milestones").update(patch).eq("id", id); if (error) throw error; return true; }
       const a = readLs(MILE_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(MILE_LS, JSON.stringify(a)); } return true;
     },
-    async setStatus(id, status) { return this.update(id, { status, paid_at: status === "paid" ? now() : null }); },
+    // Audit Phase 8: "paid" is a money event — in Supabase mode it goes through
+    // settle_milestone (receipt in the ledger + overpayment lock); the DB refuses a
+    // direct paid write. Other statuses (due / invoiced / waived) stay plain edits.
+    async setStatus(id, status) {
+      if (status === "paid" && mode === "supabase") return this.settle(id);
+      return this.update(id, { status, paid_at: status === "paid" ? now() : null });
+    },
+    settle: (id, method, idempotencyKey) =>
+      rpc("settle_milestone", { p_milestone: id, p_method: method || "cash",
+        p_idempotency_key: idempotencyKey || ((typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : "ms-" + id + "-" + Date.now()) }),
     async remove(id) {
       if (mode === "supabase") { const { error } = await supa.from("payment_milestones").delete().eq("id", id); if (error) throw error; return true; }
       localStorage.setItem(MILE_LS, JSON.stringify(readLs(MILE_LS).filter((m) => m.id !== id))); return true;
