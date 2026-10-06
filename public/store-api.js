@@ -87,15 +87,79 @@
   // navigations within a tab reuse them. RLS on the server is the real gate, so a
   // briefly-stale UI role/matrix cannot grant access — it only saves round-trips.
   const SESS_TTL = 60000;
-  function sessGet(key, uid) { try { const raw = sessionStorage.getItem(key); if (!raw) return null; const o = JSON.parse(raw); if ((Date.now() - o.ts) > SESS_TTL) return null; return o.val; } catch (e) { return null; } }
-  // no user id is stored: sessClear() runs on every sign-in / sign-out / auth change
-  function sessSet(key, uid, val) { try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), val: val })); } catch (e) {} }
-  function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); } catch (e) {} }
+  // Entries carry the user id they belong to: a cached role/matrix is ignored when a
+  // DIFFERENT user is signed in (cross-tab account switch — audit session puzzling).
+  function sessGet(key, uid) { try { const raw = sessionStorage.getItem(key); if (!raw) return null; const o = JSON.parse(raw); if ((Date.now() - o.ts) > SESS_TTL) return null; if (!uid || o.uid !== uid) return null; return o.val; } catch (e) { return null; } }
+  function sessSet(key, uid, val) { try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), uid: uid || null, val: val })); } catch (e) {} }
+  function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); sessionStorage.removeItem(PW_OK_KEY); } catch (e) {} }
+  const PW_OK_KEY = "bp_pw_ok";                 // per tab: "<uid>" once password_change_required() said no
   // Per-USER browser state that must not carry over to the next person who signs in
   // on a shared computer (audit Phase 4). Device prefs (theme, tours) are kept.
   const USER_LOCAL_KEYS = ["bps.clip", "wa_pin", "wa_mute", "wa_fav", "bp_chat_ping", "helm_org_country", "helm_ev_showall"];
   function userLocalClear() { USER_LOCAL_KEYS.forEach((k) => { try { localStorage.removeItem(k); } catch (e) {} }); }
   let authRequired = false;     // true when Supabase enforces login (RLS) and nobody is signed in
+
+  /* ---- sign-in steps, session limits, CAPTCHA (audit Phase 3-4 follow-up) ----
+     pendingStep: a session exists but the person may NOT use the app yet:
+       "mfa"      — has a verified authenticator but the session is only aal1
+       "password" — signed in with a one-time temp password (must set their own)
+       "recovery" — arrived via a password-reset link and hasn't set the new password
+       "verify"   — the account status could not be checked (fail CLOSED)
+     While a step is pending auth.user() returns null, so every page's gate
+     (required() && !user()) sends the person to login.html, which finishes the step.
+     Config (window.SUPABASE_CONFIG, all optional — defaults keep today's behaviour):
+       captcha: { provider: "turnstile", siteKey: "" }       empty siteKey = off
+       auth: { mfaRequiredForAdmins: false,
+               session: { idleMinutes: 30, warnSeconds: 60, maxHours: 12 } }   0 = off */
+  let pendingStep = null;
+  let localAuthOp = 0;                  // >0 while THIS tab is signing in (its own SIGNED_IN is not a cross-tab switch)
+  let pwChangedAwaitingClear = false;   // forced change: password updated, flag not cleared yet
+  const AUTH_CFG = (function () {
+    const a = (CFG && CFG.auth) || {}; const s = a.session || {};
+    const num = (v, d) => (v === 0 || v === "0") ? 0 : (Number(v) > 0 ? Number(v) : d);
+    return {
+      idleMs: num(s.idleMinutes, 30) * 60000,
+      warnMs: num(s.warnSeconds, 60) * 1000,
+      maxMs: num(s.maxHours, 12) * 3600000,
+      mfaRequiredForAdmins: a.mfaRequiredForAdmins === true,
+    };
+  })();
+  const CAPTCHA = (function () {
+    const c = (CFG && CFG.captcha) || {};
+    const key = typeof c.siteKey === "string" ? c.siteKey.trim() : "";
+    return (c.provider === "turnstile" && key) ? { provider: "turnstile", siteKey: key } : null;
+  })();
+  const PW_MIN = 12;
+  // Password rule used everywhere a password is SET (mirrors public._password_ok in 0028).
+  function passwordProblem(pw) {
+    pw = String(pw || "");
+    if (pw.length < PW_MIN) return "Use at least " + PW_MIN + " characters.";
+    if (!/[A-Za-z]/.test(pw) || !/[0-9]/.test(pw)) return "Include at least one letter and one number.";
+    return null;
+  }
+  const SESSION_START_KEY = "bp_session_start";  // localStorage {uid, ts}: absolute session age (shared by tabs)
+  const ACTIVITY_KEY = "bp_last_activity";       // localStorage ms timestamp: last activity in ANY tab
+  const RECOVERY_KEY = "bp_recovery_pending";    // localStorage "<uid>": reset link used, new password not set yet
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
+  function sessionStart() { try { const o = JSON.parse(lsGet(SESSION_START_KEY) || "null"); return (o && o.uid && o.ts) ? o : null; } catch (e) { return null; } }
+  function stampSessionStart(uid, fresh) {
+    if (!uid) return;
+    const cur = sessionStart();
+    if (fresh || !cur || cur.uid !== uid) lsSet(SESSION_START_KEY, JSON.stringify({ uid: uid, ts: Date.now() }));
+    lsSet(ACTIVITY_KEY, String(Date.now()));
+  }
+  // Pure decision used by the session-limit timer (exported for tests).
+  function sessionDecision(now, lastActivity, startedAt, cfg) {
+    if (cfg.maxMs > 0 && startedAt && now - startedAt >= cfg.maxMs) return "max";
+    if (cfg.idleMs > 0) {
+      const idle = now - (lastActivity || now);
+      if (idle >= cfg.idleMs) return "idle";
+      if (idle >= Math.max(0, cfg.idleMs - cfg.warnMs)) return "warn";
+    }
+    return "ok";
+  }
 
   /* ---- session-expiry handling ------------------------------------------
      When a signed-in session dies underneath a page (refresh token revoked or
@@ -106,7 +170,7 @@
      Only pages that GATE on auth (called auth.required() or auth.requireView())
      redirect, and never the public token pages below. */
   const PUBLIC_PAGES = { approve: 1, portal: 1, "proposal-view": 1, invite: 1, work: 1, "sim-pay": 1,
-    index: 1, login: 1, about: 1, services: 1, privacy: 1, terms: 1 };
+    index: 1, login: 1, about: 1, services: 1, privacy: 1, terms: 1, "reset-password": 1 };
   let authGateUsed = false;     // page called auth.required()/requireView()
   let hadSession = false;       // a user was signed in at some point on this page
   let explicitSignOut = false;  // the user clicked "sign out" (not an expiry)
@@ -175,6 +239,142 @@
       return res;
     });
   }
+  /* ---- sign-in gate: which step (if any) must be finished before the app opens ---- */
+  function isMissingFn(e) {
+    if (global.BPUI && global.BPUI.isMissingFunction) return global.BPUI.isMissingFunction(e);
+    const c = (e && e.code) || ""; return c === "PGRST202" || c === "42883";
+  }
+  async function evaluateGate() {
+    pendingStep = null;
+    if (!supa || !currentUser) return null;
+    // 1) two-step verification: a verified factor exists but this session is aal1.
+    //    (local check — reads the session; no network)
+    try {
+      const { data, error } = await supa.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (error) throw error;
+      if (data && data.nextLevel === "aal2" && data.currentLevel !== "aal2") { pendingStep = "mfa"; return pendingStep; }
+    } catch (e) { pendingStep = "verify"; return pendingStep; }
+    // 2) a password-reset link was used in this browser and the new password isn't set yet
+    if (lsGet(RECOVERY_KEY) === currentUser.id) { pendingStep = "recovery"; return pendingStep; }
+    // 3) one-time temp password — checked once per tab, FAILS CLOSED on error
+    let ok = null; try { ok = sessionStorage.getItem(PW_OK_KEY); } catch (e) {}
+    if (ok === currentUser.id) return null;
+    try {
+      const { data, error } = await supa.rpc("password_change_required");
+      if (error && !isMissingFn(error)) throw error;
+      if (!error && data === true) { pendingStep = "password"; return pendingStep; }
+      try { sessionStorage.setItem(PW_OK_KEY, currentUser.id); } catch (e) {}
+    } catch (e) { pendingStep = "verify"; }
+    return pendingStep;
+  }
+  // gate is evaluated on staff pages + the auth pages, not on public client-link pages
+  function gatePage() { const k = pageKey(); if (publicLinkPath()) return false; return !PUBLIC_PAGES[k] || k === "login" || k === "reset-password"; }
+  // branded client links (/<studio>/quote|portal|proposal|work|invite/<ref>) and /i/<slug>
+  function publicLinkPath() {
+    try { const p = location.pathname || ""; return /^\/i(\/|$)/.test(p) || /^\/[a-z0-9-]+\/(invite|quote|proposal|portal|work)\/[^/]+\/?$/i.test(p); }
+    catch (e) { return false; }
+  }
+
+  /* ---- session limits: inactivity logout + absolute max age (client side) ----
+     Activity in ANY tab keeps every tab alive (shared localStorage timestamp, so
+     the 'storage' event syncs tabs); a limit logout in one tab tells the others
+     over BroadcastChannel. Never runs on public client-link pages. */
+  let limitsStarted = false, limitTimer = null, warnBox = null, lastLocalActivity = 0, lastWrite = 0, bc = null, limitOut = false;
+  function touchActivity(force) {
+    const t = Date.now(); lastLocalActivity = t;
+    if (force || t - lastWrite > 5000) { lastWrite = t; lsSet(ACTIVITY_KEY, String(t)); }
+  }
+  function lastActivity() { return Math.max(lastLocalActivity, Number(lsGet(ACTIVITY_KEY)) || 0); }
+  function hideWarn() { if (warnBox) { try { warnBox.remove(); } catch (e) {} warnBox = null; } }
+  function showWarn(secondsLeft) {
+    if (!warnBox) {
+      warnBox = document.createElement("div");
+      warnBox.className = "bpui-overlay"; warnBox.id = "bpIdleWarn";
+      warnBox.setAttribute("role", "alertdialog"); warnBox.setAttribute("aria-modal", "true"); warnBox.setAttribute("aria-labelledby", "bpIdleTitle");
+      warnBox.style.cssText = "position:fixed;inset:0;z-index:2147483600;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(20,27,46,.5)";
+      const card = document.createElement("div");
+      card.className = "bpui-dialog";
+      card.style.cssText = "background:var(--bpui-bg,#fff);color:var(--bpui-ink,#141b2e);border-radius:14px;padding:22px;max-width:400px;width:100%;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 24px 60px rgba(20,27,46,.3)";
+      const h = document.createElement("h2"); h.id = "bpIdleTitle"; h.textContent = "Still there?"; h.style.cssText = "margin:0 0 8px;font-size:18px";
+      const p = document.createElement("p"); p.id = "bpIdleText"; p.style.margin = "0 0 14px";
+      const b = document.createElement("button"); b.type = "button"; b.textContent = "Stay signed in";
+      b.style.cssText = "min-height:40px;padding:0 18px;border:0;border-radius:10px;background:var(--bpui-accent,#6d28d9);color:#fff;font:inherit;font-weight:600;cursor:pointer";
+      b.addEventListener("click", () => { touchActivity(true); hideWarn(); });
+      card.appendChild(h); card.appendChild(p); card.appendChild(b); warnBox.appendChild(card);
+      document.body.appendChild(warnBox);
+      try { b.focus(); } catch (e) {}
+    }
+    const p = warnBox.querySelector("#bpIdleText");
+    if (p) p.textContent = "For your security you'll be signed out in " + Math.max(0, Math.ceil(secondsLeft)) + " seconds because there has been no activity.";
+  }
+  async function limitLogout(reason, fromOtherTab) {
+    if (limitOut) return; limitOut = true;
+    if (limitTimer) { clearInterval(limitTimer); limitTimer = null; }
+    explicitSignOut = true;
+    if (!fromOtherTab) { try { if (bc) bc.postMessage({ type: "logout", reason: reason }); } catch (e) {} }
+    try { if (supa) await supa.auth.signOut({ scope: "local" }); } catch (e) {}
+    currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; pendingStep = null;
+    sessClear(); userLocalClear(); lsDel(SESSION_START_KEY); authRequired = true;
+    let page = "dashboard.html";
+    try { page = (location.pathname.split("/").pop() || "dashboard.html") + location.search; } catch (e) {}
+    try { if (global.BPUI && global.BPUI.allowUnload) global.BPUI.allowUnload(); } catch (e) {}
+    try { location.replace("login.html?next=" + encodeURIComponent(page) + "&expired=1&reason=" + (reason === "max" ? "max" : "idle")); } catch (e) {}
+  }
+  function checkLimits() {
+    if (limitOut || !currentUser) return;
+    const st = sessionStart();
+    if (!st || st.uid !== currentUser.id) stampSessionStart(currentUser.id, false);   // sessions from before this release: start the clock now
+    const s2 = sessionStart();
+    const now = Date.now(), last = lastActivity();
+    const d = sessionDecision(now, last, s2 && s2.ts, AUTH_CFG);
+    if (d === "max" || d === "idle") { hideWarn(); limitLogout(d); return; }
+    if (d === "warn") showWarn((AUTH_CFG.idleMs - (now - last)) / 1000); else hideWarn();
+  }
+  function startSessionLimits() {
+    if (limitsStarted || mode !== "supabase" || !currentUser || pendingStep || !gatePage() || pageKey() === "login" || pageKey() === "reset-password") return;
+    if (typeof document === "undefined" || typeof window === "undefined") return;
+    limitsStarted = true;
+    touchActivity(true);
+    const onAct = (e) => {
+      // while the warning is up, only a deliberate click / key press counts
+      if (warnBox && (e.type === "mousemove" || e.type === "scroll" || e.type === "wheel")) return;
+      touchActivity(false);
+    };
+    ["pointerdown", "keydown", "touchstart", "wheel", "scroll", "mousemove"].forEach((ev) => {
+      try { window.addEventListener(ev, onAct, { passive: true, capture: true }); } catch (e) {}
+    });
+    try {
+      window.addEventListener("storage", (e) => {
+        if (e.key === ACTIVITY_KEY && warnBox) checkLimits();
+        if (e.key === SESSION_START_KEY) checkLimits();
+      });
+    } catch (e) {}
+    try {
+      if (typeof BroadcastChannel !== "undefined") {
+        bc = new BroadcastChannel("helm-session");
+        bc.addEventListener("message", (m) => { const d = m && m.data; if (d && d.type === "logout") limitLogout(d.reason, true); });
+      }
+    } catch (e) { bc = null; }
+    try { document.addEventListener("visibilitychange", () => { if (!document.hidden) checkLimits(); }); } catch (e) {}
+    limitTimer = setInterval(checkLimits, 5000);
+    checkLimits();
+    loadAuthUi();
+  }
+  // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
+  const AUTH_UI_VERSION = "1";
+  let authUiLoading = null;
+  function loadAuthUi() {
+    if (authUiLoading || typeof document === "undefined") return authUiLoading;
+    authUiLoading = new Promise((resolve) => {
+      if (global.HelmAuthUI) return resolve(true);
+      const s = document.createElement("script");
+      s.src = vendorUrl("auth-ui.js?v=" + AUTH_UI_VERSION);
+      s.onload = () => resolve(true); s.onerror = () => resolve(false);
+      document.head.appendChild(s);
+    }).then((ok) => { try { if (ok && global.HelmAuthUI && global.HelmAuthUI.mountAppChrome) global.HelmAuthUI.mountAppChrome(); } catch (e) {} return ok; });
+    return authUiLoading;
+  }
+
   // capability matrix per role (10 roles)
   // capability matrix per role. IMPORTANT: `create` and `delete` here gate
   // buttons (dashboard/quotes/leads/builder create, delete controls) that map to
@@ -322,21 +522,37 @@
       document.head.appendChild(s);
     });
   }
+  // Layouts are the one table the anon role has no grant on, so a request made after the
+  // session died showed up as "permission denied for table layouts" in the DB log. Don't
+  // send it: treat a missing user as an expired session (redirects gated pages to login).
+  function needUser() {
+    if (currentUser) return;
+    try { onAuthFailure(); } catch (e) {}
+    const e = new Error("Your session has ended — please sign in again."); e.status = 401; e.code = "PGRST301"; throw e;
+  }
   const sb = {
     map: (r) => ({ id: r.id, name: r.name, createdAt: r.created_at, updatedAt: r.updated_at, data: r.data }),
-    async list() { const { data, error } = await supa.from(TABLE).select("id,name,created_at,updated_at,data").order("updated_at", { ascending: false });
+    async list() { needUser(); const { data, error } = await supa.from(TABLE).select("id,name,created_at,updated_at,data").order("updated_at", { ascending: false });
       if (error) throw error; return data.map((r) => ({ id: r.id, name: r.name, createdAt: r.created_at, updatedAt: r.updated_at, objectCount: objectCount({ data: r.data }) })); },
-    async get(id) { const { data, error } = await supa.from(TABLE).select("*").eq("id", id).single(); if (error) throw error; return this.map(data); },
-    async create(name, data) { const { data: r, error } = await supa.from(TABLE).insert({ name, data }).select().single(); if (error) throw error; return this.map(r); },
-    async update(id, patch) { const upd = { updated_at: now() }; if (patch.name != null) upd.name = patch.name; if (patch.data) upd.data = patch.data;
+    async get(id) { needUser(); const { data, error } = await supa.from(TABLE).select("*").eq("id", id).single(); if (error) throw error; return this.map(data); },
+    async create(name, data) { needUser(); const { data: r, error } = await supa.from(TABLE).insert({ name, data }).select().single(); if (error) throw error; return this.map(r); },
+    async update(id, patch) { needUser(); const upd = { updated_at: now() }; if (patch.name != null) upd.name = patch.name; if (patch.data) upd.data = patch.data;
       const { data: r, error } = await supa.from(TABLE).update(upd).eq("id", id).select().single(); if (error) throw error; return this.map(r); },
-    async remove(id) { const { error } = await supa.from(TABLE).delete().eq("id", id); if (error) throw error; return true; },
+    async remove(id) { needUser(); const { error } = await supa.from(TABLE).delete().eq("id", id); if (error) throw error; return true; },
   };
 
   /* ---------------- init: pick the best available backend ---------------- */
   async function init() {
     if (ready) return ready;
     ready = (async () => {
+      // A password-reset email link that landed on any other page (e.g. the Site
+      // URL) must NOT just sign the person in: hand it to the reset page.
+      try {
+        if (/(^#|&)type=recovery(&|$)/.test(location.hash || "") && pageKey() !== "reset-password") {
+          location.replace("/reset-password" + location.hash);
+          return new Promise(() => {});
+        }
+      } catch (e) {}
       if (supaConfigured()) {
         try { const ok = await loadSupabaseLib();
           if (ok && global.supabase && global.supabase.createClient) {
@@ -350,6 +566,16 @@
             // failed / revoked / signed out in another tab) → back to login.
             try {
               supa.auth.onAuthStateChange((event, sess) => {
+                // Another tab signed in as a DIFFERENT person: this tab's role / matrix /
+                // studio caches belong to the old user — drop them and reload.
+                if (sess && sess.user && currentUser && sess.user.id !== currentUser.id && !explicitSignOut && !localAuthOp && gatePage() && pageKey() !== "login" && pageKey() !== "reset-password") {
+                  currentUser = sess.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null;
+                  studioSlugCache = null; pendingStep = null; sessClear();
+                  setTimeout(function () { try { location.reload(); } catch (e) {} }, 0);
+                  return;
+                }
+                // first sign-in in this browser (e.g. returning from Google): start the session clock
+                if (event === "SIGNED_IN" && sess && sess.user) { const st = sessionStart(); if (!st || st.uid !== sess.user.id) stampSessionStart(sess.user.id, true); }
                 if (sess && sess.user) { hadSession = true; if (!explicitSignOut) currentUser = sess.user; }
                 if ((event === "SIGNED_OUT" && !explicitSignOut) || (event === "TOKEN_REFRESHED" && !sess)) {
                   // Don't log the user out on a transient blip. supabase-js can emit a
@@ -362,6 +588,9 @@
             } catch (e) { /* older client — best effort */ }
             // Supabase is configured ⇒ the app uses accounts; no session ⇒ must sign in.
             authRequired = !currentUser;
+            mode = "supabase";
+            // signed in, but a sign-in step (two-step code / temp password / reset) may be pending
+            if (currentUser && gatePage()) await evaluateGate();
             mode = "supabase"; return mode;
           }
         } catch (e) { console.warn("[BPStore] Supabase init error, falling back:", e && e.message); }
@@ -470,8 +699,13 @@
   const auth = {
     enabled: () => mode === "supabase",
     // Calling required() marks this page as auth-gated (session expiry → login redirect).
-    required: () => { authGateUsed = true; return authRequired; },
-    user: () => currentUser,
+    required: () => { authGateUsed = true; if (currentUser && !pendingStep) startSessionLimits(); return authRequired || !!pendingStep; },
+    // null while a sign-in step is pending (two-step code, temp password, reset) — see evaluateGate
+    user: () => (pendingStep ? null : currentUser),
+    // the signed-in account even while a step is pending (login / reset pages only)
+    pendingUser: () => currentUser,
+    pendingStep: () => pendingStep,
+    resolveGate: () => evaluateGate(),
     role: getRole,
     // Synchronous, cache-only role (null if not loaded yet / unknown). Never fetches.
     cachedRole: () => roleCache || (currentUser ? sessGet("bp_sess_role", currentUser.id) : null),
@@ -528,6 +762,8 @@
     // reach the server — Retry" panel instead of the lock panel (still returns false).
     async requireView(area) {
       authGateUsed = true;
+      if (mode === "supabase" && (pendingStep || !currentUser)) { gatePanel("denied"); return false; }
+      startSessionLimits();
       if (mode === "supabase" && currentUser) {
         const r = await getRole();
         let unknown = !r;
@@ -538,57 +774,230 @@
       gatePanel("denied");
       return false;
     },
-    async signIn(email, password) {
+    // Password sign-in. opts.captchaToken = the Turnstile token when CAPTCHA is on.
+    // Always starts a FRESH session: a previous session in this browser is ended
+    // first, and per-user browser state is cleared when the account changes.
+    async signIn(email, password, opts) {
       if (!supa) throw new Error("Supabase not configured");
-      const { data, error } = await supa.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      currentUser = data.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = false;
-      hadSession = true; explicitSignOut = false; sessionExpired = false;
-      return currentUser;
+      const captchaToken = opts && opts.captchaToken;
+      if (CAPTCHA && !captchaToken) {
+        // in-page sign-in boxes have no CAPTCHA widget → send them to the sign-in page
+        const e = new Error("Please sign in on the sign-in page."); e.code = "captcha_required";
+        if (pageKey() !== "login") { try { location.href = "login.html?next=" + encodeURIComponent((location.pathname.split("/").pop() || "dashboard.html") + location.search); } catch (x) {} }
+        throw e;
+      }
+      localAuthOp++;
+      try {
+        const prev = currentUser;
+        if (prev) { explicitSignOut = true; try { await supa.auth.signOut({ scope: "local" }); } catch (e) {} currentUser = null; pendingStep = null; }
+        const { data, error } = await supa.auth.signInWithPassword(captchaToken ? { email, password, options: { captchaToken } } : { email, password });
+        if (error) throw error;
+        const st = sessionStart();
+        if ((prev && prev.id !== data.user.id) || (st && st.uid !== data.user.id)) userLocalClear();
+        currentUser = data.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = false;
+        hadSession = true; explicitSignOut = false; sessionExpired = false; limitOut = false;
+        stampSessionStart(currentUser.id, true);
+        lsDel(RECOVERY_KEY);
+        await evaluateGate();
+        return currentUser;
+      } finally { localAuthOp--; }
     },
     // Phase 58 — self-serve sign-up (studio created via create_studio once a session exists)
-    async signUp(email, password) {
+    async signUp(email, password, opts) {
       if (!supa) throw new Error("Supabase not configured");
-      const { data, error } = await supa.auth.signUp({ email, password });
-      if (error) throw error;
-      if (data.session) { currentUser = data.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = false; }
-      return { user: data.user, session: data.session };   // session null when email confirmation is required
+      const bad = passwordProblem(password); if (bad) throw new Error(bad);
+      const captchaToken = opts && opts.captchaToken;
+      if (CAPTCHA && !captchaToken) { const e = new Error("Please complete the security check."); e.code = "captcha_required"; throw e; }
+      localAuthOp++;
+      try {
+        const { data, error } = await supa.auth.signUp(captchaToken ? { email, password, options: { captchaToken } } : { email, password });
+        if (error) throw error;
+        if (data.session) { userLocalClear(); currentUser = data.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = false; stampSessionStart(currentUser.id, true); await evaluateGate(); }
+        return { user: data.user, session: data.session };   // session null when email confirmation is required
+      } finally { localAuthOp--; }
     },
     // Google OAuth sign-in (requires the Google provider enabled in Supabase).
     // Redirects the browser to Google; on return, login.html resumes (and, for a
     // pending studio signup, calls create_studio). redirectTo must be an allowed
     // Redirect URL in Supabase → Authentication → URL Configuration.
+    // No offline access is requested: Helm never calls Google APIs, so it neither
+    // needs nor should receive a long-lived Google refresh token. The implicit flow
+    // is kept on purpose (PKCE recommended later — docs/AUTH-DASHBOARD-SETTINGS.md).
     async signInWithGoogle(redirectTo) {
       if (!supa) throw new Error("Supabase not configured");
       const { data, error } = await supa.auth.signInWithOAuth({
         provider: "google",
         options: {
           redirectTo: redirectTo || (location.origin + "/login.html"),
-          queryParams: { access_type: "offline", prompt: "select_account" },
+          queryParams: { prompt: "select_account" },
         },
       });
       if (error) throw error;
       return data; // browser navigates away to Google
     },
-    async signOut() { explicitSignOut = true; if (supa) await supa.auth.signOut(); currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); userLocalClear(); studioSlugCache = null;
+    // Explicit "Log out" = global sign-out (revokes every device's refresh token).
+    async signOut() { explicitSignOut = true; if (supa) { try { await supa.auth.signOut(); } catch (e) { try { await supa.auth.signOut({ scope: "local" }); } catch (x) {} } } currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; pendingStep = null; sessClear(); userLocalClear(); studioSlugCache = null;
+      lsDel(SESSION_START_KEY); lsDel(RECOVERY_KEY);
       if (mode === "supabase") authRequired = true; },
+    // End every OTHER session of this account (other browsers / devices); this one stays.
+    async signOutOthers() {
+      if (!supa) throw new Error("Supabase not configured");
+      const { error } = await supa.auth.signOut({ scope: "others" });
+      if (error) throw error; return true;
+    },
     // Option A: does the signed-in user still hold a temp password they must replace?
+    // FAILS CLOSED: an error is thrown (never "no"), so a failed check can't let
+    // someone skip the forced change. A database without the function → false.
     async passwordChangeRequired() {
       if (!supa) return false;
       const { data, error } = await supa.rpc("password_change_required");
-      if (error) return false;   // fail open to not lock anyone out of the app
+      if (error) { if (isMissingFn(error)) return false; throw error; }
       return data === true;
     },
-    // Set the user's own new password, then clear the must-change flag.
+    // Set the user's own new password (forced temp-password change), then clear the
+    // must-change flag. The server refuses to clear it until the password really
+    // changed (0028); a failure is an error — never silently ignored.
     async completePasswordChange(newPassword) {
       if (!supa) throw new Error("Supabase not configured");
-      if (!newPassword || String(newPassword).length < 8) throw new Error("Password must be at least 8 characters.");
-      const { error } = await supa.auth.updateUser({ password: newPassword });
-      if (error) throw error;
-      await supa.rpc("clear_password_change_required");   // best-effort; ignore RPC error
+      const bad = passwordProblem(newPassword); if (bad) throw new Error(bad);
+      if (!pwChangedAwaitingClear) {
+        const { error } = await supa.auth.updateUser({ password: newPassword });
+        if (error) {
+          if (/different from the old|same_password/i.test(String(error.message || "") + " " + String(error.code || ""))) throw new Error("Choose a password that's different from the temporary one.");
+          throw error;
+        }
+        pwChangedAwaitingClear = true;   // a retry only re-runs the clear below
+      }
+      let lastErr = null;
+      for (let i = 0; i < 3; i++) {
+        const { error } = await supa.rpc("clear_password_change_required");
+        if (!error || isMissingFn(error)) { lastErr = null; break; }
+        lastErr = error; await new Promise((r) => setTimeout(r, 300 * (i + 1)));
+      }
+      if (lastErr) throw lastErr;
+      pwChangedAwaitingClear = false;
+      try { if (currentUser) sessionStorage.setItem(PW_OK_KEY, currentUser.id); } catch (e) {}
+      try { await supa.auth.signOut({ scope: "others" }); } catch (e) {}
+      await evaluateGate();
       return true;
     },
+    // ---- self-service password reset / change -----------------------------------
+    passwordRule: { min: PW_MIN, problem: passwordProblem },
+    // Resolves the same way whether or not the email has an account (the caller
+    // shows one generic message). Only rate-limit / network / CAPTCHA errors throw.
+    async requestPasswordReset(email, opts) {
+      if (!supa) throw new Error("Supabase not configured");
+      const captchaToken = opts && opts.captchaToken;
+      if (CAPTCHA && !captchaToken) { const e = new Error("Please complete the security check."); e.code = "captcha_required"; throw e; }
+      const o = { redirectTo: (opts && opts.redirectTo) || (location.origin + "/reset-password") };
+      if (captchaToken) o.captchaToken = captchaToken;
+      const { error } = await supa.auth.resetPasswordForEmail(String(email || "").trim(), o);
+      if (error) {
+        const st = Number(error.status) || 0, m = String(error.message || "");
+        if (st === 429 || /rate limit|too many/i.test(m)) { const e = new Error("Too many requests — please wait a few minutes and try again."); e.code = "rate_limited"; throw e; }
+        if (/captcha/i.test(m)) { const e = new Error("The security check failed — please try again."); e.code = "captcha_failed"; throw e; }
+        if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) throw error;
+        // anything else (e.g. "user not found" on older GoTrue builds) is deliberately not shown
+      }
+      return true;
+    },
+    // Re-check the CURRENT password before a change (signs in again as the same
+    // email). Returns "mfa" when the new session still needs the two-step code.
+    async reverifyPassword(currentPassword, opts) {
+      if (!supa || !currentUser || !currentUser.email) throw new Error("Not signed in");
+      const captchaToken = opts && opts.captchaToken;
+      if (CAPTCHA && !captchaToken) { const e = new Error("Please complete the security check."); e.code = "captcha_required"; throw e; }
+      localAuthOp++;
+      try {
+        const email = currentUser.email;
+        const { data, error } = await supa.auth.signInWithPassword(captchaToken ? { email, password: currentPassword, options: { captchaToken } } : { email, password: currentPassword });
+        if (error) { const e = new Error("Your current password isn't right."); e.code = "bad_current_password"; e.cause = error; throw e; }
+        currentUser = data.user; explicitSignOut = false;
+        const { data: lv } = await supa.auth.mfa.getAuthenticatorAssuranceLevel();
+        return (lv && lv.nextLevel === "aal2" && lv.currentLevel !== "aal2") ? "mfa" : null;
+      } finally { localAuthOp--; }
+    },
+    // Set a new password for the signed-in user (reset link or change), then end
+    // every other session. The rule is enforced here AND by the Supabase policy.
+    async updatePassword(newPassword) {
+      if (!supa) throw new Error("Supabase not configured");
+      const bad = passwordProblem(newPassword); if (bad) throw new Error(bad);
+      const { error } = await supa.auth.updateUser({ password: newPassword });
+      if (error) {
+        if (/different from the old|same_password/i.test(String(error.message || "") + " " + String(error.code || ""))) throw new Error("Choose a password that's different from your current one.");
+        throw error;
+      }
+      lsDel(RECOVERY_KEY);
+      try { await supa.auth.signOut({ scope: "others" }); } catch (e) {}
+      return true;
+    },
+    // reset-link bookkeeping (reset-password.html): until the new password is set,
+    // every staff page in this browser sends the person back to the reset page.
+    recovery: {
+      mark(uid) { if (uid) lsSet(RECOVERY_KEY, uid); if (currentUser && uid === currentUser.id) pendingStep = "recovery"; },
+      clear() { lsDel(RECOVERY_KEY); },
+    },
+    // ---- two-step verification (TOTP, Supabase Auth MFA) ------------------------
+    mfa: {
+      async level() { if (!supa) return null; const { data, error } = await supa.auth.mfa.getAuthenticatorAssuranceLevel(); if (error) throw error; return data; },
+      // every factor of this user, incl. unfinished enrolments
+      async factors() {
+        if (!supa) return [];
+        const { data, error } = await supa.auth.mfa.listFactors();
+        if (error) throw error;
+        return (data && (data.all || data.totp)) || [];
+      },
+      async verifiedTotp() { return (await this.factors()).filter((f) => f.factor_type === "totp" && f.status === "verified"); },
+      // Start enrolment → { factorId, qr (SVG data URI for <img src>), secret }.
+      // Unfinished earlier attempts are removed first (Supabase refuses duplicates).
+      async enrollTotp() {
+        if (!supa) throw new Error("Supabase not configured");
+        for (const f of await this.factors()) {
+          if (f.factor_type === "totp" && f.status !== "verified") { try { await supa.auth.mfa.unenroll({ factorId: f.id }); } catch (e) {} }
+        }
+        const { data, error } = await supa.auth.mfa.enroll({ factorType: "totp", friendlyName: "Helm " + new Date().toISOString().slice(0, 16).replace("T", " ") });
+        if (error) throw error;
+        return { factorId: data.id, qr: (data.totp && data.totp.qr_code) || "", secret: (data.totp && data.totp.secret) || "" };
+      },
+      // finish enrolment (or step up) with a 6-digit code from the authenticator app
+      async verify(factorId, code) {
+        if (!supa) throw new Error("Supabase not configured");
+        const c = String(code || "").replace(/\s+/g, "");
+        if (!/^\d{6}$/.test(c)) throw new Error("Enter the 6-digit code from your authenticator app.");
+        const { error } = await supa.auth.mfa.challengeAndVerify({ factorId, code: c });
+        if (error) { const e = new Error("That code didn't work — check the time on your phone and try the newest code."); e.code = "mfa_invalid"; e.cause = error; throw e; }
+        const { data: s } = await supa.auth.getSession(); if (s && s.session) currentUser = s.session.user;
+        await evaluateGate();
+        return true;
+      },
+      // sign-in step-up: verify against the account's verified authenticator
+      async challenge(code) {
+        const f = (await this.verifiedTotp())[0];
+        if (!f) throw new Error("No authenticator is set up for this account.");
+        return this.verify(f.id, code);
+      },
+      async unenroll(factorId) {
+        if (!supa) throw new Error("Supabase not configured");
+        const { error } = await supa.auth.mfa.unenroll({ factorId });
+        if (error) throw error;
+        try { await supa.auth.refreshSession(); } catch (e) {}
+        return true;
+      },
+      requiredForAdmins: () => AUTH_CFG.mfaRequiredForAdmins,
+    },
+    // ---- CAPTCHA (Cloudflare Turnstile through Supabase's captchaToken) ----------
+    captcha: { enabled: () => !!CAPTCHA, siteKey: () => (CAPTCHA ? CAPTCHA.siteKey : ""), provider: () => (CAPTCHA ? CAPTCHA.provider : "") },
+    // ---- the caller's own sign-in details (my_auth_info, 0028) -------------------
+    async myAuthInfo() {
+      if (!supa || !currentUser) return null;
+      const { data, error } = await supa.rpc("my_auth_info");
+      if (error) { if (isMissingFn(error)) return null; throw error; }
+      return data;
+    },
+    // ---- session limits (account panel + tests) ----------------------------------
+    sessionLimits: { config: () => Object.assign({}, AUTH_CFG), decision: sessionDecision, start: () => startSessionLimits() },
     onChange(cb) { if (supa) supa.auth.onAuthStateChange((_e, session) => {
+      if (localAuthOp) return;   // this tab's own sign-in in progress — its caller updates state
       currentUser = session ? session.user : null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear();
       if (mode === "supabase") authRequired = !currentUser; if (cb) cb(currentUser); }); },
     // ---- admin user management (RPC guarded by is_admin() at the DB) ----
@@ -617,6 +1026,7 @@
       },
       async createUser(email, password, role) {
         if (!supa) throw new Error("Supabase not configured");
+        const bad = passwordProblem(password); if (bad) throw new Error(bad);   // same rule as 0028 admin_create_user
         const { data, error } = await supa.rpc("admin_create_user",
           { p_email: email, p_password: password, p_role: role });
         if (error) throw error; return data;   // new user id
@@ -657,6 +1067,8 @@
         updatedAt: q.updated_at, createdAt: q.created_at, confirmedAt: q.confirmed_at }));
     },
     async get(id) {
+      // a truncated/garbled id from a link would reach Postgres as a 22P02 error — answer "not found" instead
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id || ""))) { const e = new Error("This event link is incomplete or no longer exists."); e.code = "PGRST116"; throw e; }
       const { data: q, error } = await supa.from("quotes").select("*").eq("id", id).single(); if (error) throw error;
       const { data: vs, error: e2 } = await supa.from("quote_versions")
         .select("id,version_no,label,object_count,created_at").eq("quote_id", id).order("version_no", { ascending: false });
@@ -2655,7 +3067,16 @@
       if (mode === "supabase") { const { error } = await supa.from("payment_milestones").update(patch).eq("id", id); if (error) throw error; return true; }
       const a = readLs(MILE_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(MILE_LS, JSON.stringify(a)); } return true;
     },
-    async setStatus(id, status) { return this.update(id, { status, paid_at: status === "paid" ? now() : null }); },
+    // Audit Phase 8: "paid" is a money event — in Supabase mode it goes through
+    // settle_milestone (receipt in the ledger + overpayment lock); the DB refuses a
+    // direct paid write. Other statuses (due / invoiced / waived) stay plain edits.
+    async setStatus(id, status) {
+      if (status === "paid" && mode === "supabase") return this.settle(id);
+      return this.update(id, { status, paid_at: status === "paid" ? now() : null });
+    },
+    settle: (id, method, idempotencyKey) =>
+      rpc("settle_milestone", { p_milestone: id, p_method: method || "cash",
+        p_idempotency_key: idempotencyKey || ((typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : "ms-" + id + "-" + Date.now()) }),
     async remove(id) {
       if (mode === "supabase") { const { error } = await supa.from("payment_milestones").delete().eq("id", id); if (error) throw error; return true; }
       localStorage.setItem(MILE_LS, JSON.stringify(readLs(MILE_LS).filter((m) => m.id !== id))); return true;

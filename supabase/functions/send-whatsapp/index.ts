@@ -2,119 +2,154 @@
 // (graph.facebook.com). Called by the app in LIVE mode via callFn("send-whatsapp", …).
 // All Meta credentials live ONLY here as secret env vars — never in the frontend.
 //
-// Secrets (supabase secrets set …):
-//   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY   (provided automatically in most setups)
+// Secrets / env (supabase secrets set …):
+//   SUPABASE_URL, SUPABASE_ANON_KEY            (provided automatically)
+//   SUPABASE_SERVICE_ROLE_KEY                  (provided automatically; used ONLY to log)
 //   WHATSAPP_TOKEN            — permanent access token of the Meta system user
 //   WHATSAPP_PHONE_ID         — the WhatsApp Business phone number ID (numeric)
 //   WHATSAPP_API_VERSION      — optional, defaults to "v21.0"
+//   WHATSAPP_TEMPLATES        — comma-separated allowlist of approved template names
+//                               (default: the names in DEFAULT_TEMPLATES below)
+//   WHATSAPP_ALLOW_TEXT=1     — optional: also allow free-form text (24h session window)
 //
-// Auth: the caller must be a SIGNED-IN staff user (Authorization: Bearer <user
-// access token>). The public anon key alone is rejected — otherwise anyone could
-// use the business WhatsApp account as an open relay.
+// Audit Phase 8 — no open relay on the shared platform number. Every send must:
+//   * come from a signed-in user (their JWT, not the anon key),
+//   * name the event (quote_id) it is about; the caller's OWN JWT is used (RLS +
+//     public.whatsapp_authorize) to prove the event is in their studio, that they have
+//     quotes edit rights, that the number belongs to that event (client, crew link,
+//     booked vendor) and that the studio is under its hourly WhatsApp limit,
+//   * use an allowlisted template (free text only when WHATSAPP_ALLOW_TEXT=1),
+//   * be logged to notifications with channel 'whatsapp' (insert error checked).
 //
 // Requests:
-//   { "ping": true }
-//        → GET the phone number (credential/connection check, no send)
-//   { "number": "<phone>", "text": "<message>" }
-//        → session text message (only valid inside the 24h customer-service window)
-//   { "number": "<phone>", "template": "<name>", "lang": "en_US",
-//     "params": ["v1","v2", …] }
-//        → business-initiated TEMPLATE message (required to OPEN a conversation)
-//
-// NOTE: Meta only allows free-form text within 24h of the customer's last inbound
-// message. To start a conversation you MUST use an approved template.
-import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.116.0";
-import { responders } from "../_shared/cors.ts";
+//   { "ping": true }                                     → credential check, no send
+//   { "quote_id": "<uuid>", "number": "<phone>", "template": "<name>",
+//     "lang": "en_US", "params": ["v1","v2", …], "kind": "<label>" }
+//   { "quote_id": "<uuid>", "number": "<phone>", "text": "<message>" }  (if allowed)
+import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { bearer, errTag, responders, UUID_RE } from "../_shared/cors.ts";
 
 const TOKEN = Deno.env.get("WHATSAPP_TOKEN") || "";
 const PHONE_ID = Deno.env.get("WHATSAPP_PHONE_ID") || "";
 const VER = Deno.env.get("WHATSAPP_API_VERSION") || "v21.0";
 const GRAPH = "https://graph.facebook.com";
+const DEFAULT_TEMPLATES = ["event_update", "payment_reminder", "event_reminder", "crew_assignment"];
+const TEMPLATE_NAME = /^[a-z0-9_]{1,512}$/;
+const LANG = /^[a-z]{2,3}(_[A-Z]{2})?$/;
 
-// Roles allowed to send business WhatsApp messages (clients / crew are not).
-const STAFF_ROLES = ["admin", "manager", "planner", "sales", "operations", "coordinator"];
-
-// Returns the staff user's id, or null when the caller is anonymous / not staff.
-async function staffUserId(req: Request, admin: SupabaseClient) {
-  const jwt = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
-  if (!jwt) return null;
-  const { data: { user } } = await admin.auth.getUser(jwt);   // anon key → no user
-  if (!user) return null;
-  const { data: prof } = await admin.from("profiles").select("role").eq("id", user.id).maybeSingle();
-  return prof && STAFF_ROLES.includes(prof.role) ? user.id : null;
+function templateAllowlist(): string[] {
+  const env = (Deno.env.get("WHATSAPP_TEMPLATES") || "").trim();
+  const list = env ? env.split(",").map((s) => s.trim()).filter(Boolean) : DEFAULT_TEMPLATES;
+  return list.filter((n) => TEMPLATE_NAME.test(n));
 }
 
 function authHeaders() {
   return { "Authorization": "Bearer " + TOKEN, "Content-Type": "application/json" };
 }
 
+// DB error → [http status, generic message] (never the raw message)
+function authzFailure(code: string): [number, string] {
+  if (code === "HL429") return [429, "WhatsApp limit reached for your studio — try again later"];
+  if (code === "22023") return [400, "invalid number"];
+  return [403, "you can't send WhatsApp messages for this event to that number"];
+}
+
 Deno.serve(async (req) => {
   const { cors, json, serverError } = responders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
   try {
     if (!TOKEN || !PHONE_ID) {
       return json({ error: "WhatsApp Cloud API not configured (set WHATSAPP_TOKEN / WHATSAPP_PHONE_ID)" }, 500);
     }
-    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    if (!(await staffUserId(req, admin))) return json({ error: "sign in as a staff user" }, 401);
+    const url = Deno.env.get("SUPABASE_URL")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || "";
+    const jwt = bearer(req);
+    if (!jwt || !anonKey || jwt === anonKey) return json({ error: "sign in as a staff user" }, 401);
+
+    // Everything about WHO may send WHAT to WHOM runs as the CALLER (their JWT → RLS).
+    const asCaller = createClient(url, anonKey, {
+      global: { headers: { Authorization: "Bearer " + jwt } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: { user } } = await asCaller.auth.getUser(jwt);
+    if (!user) return json({ error: "sign in as a staff user" }, 401);
 
     const body = await req.json().catch(() => ({}));
 
     // ---- credential / connection check (no message sent) ----
-    if (body && body.ping) {
+    if (body && body.ping === true) {
       const r = await fetch(`${GRAPH}/${VER}/${encodeURIComponent(PHONE_ID)}?fields=verified_name,display_phone_number,quality_rating`, {
         headers: authHeaders(),
       });
-      const t = await r.text();
-      if (!r.ok) { console.error("meta error", r.status, t.slice(0, 500)); return json({ error: "whatsapp connection check failed" }, 502); }
-      let state = t; try { state = JSON.parse(t); } catch (_) { /* keep raw */ }
-      return json({ ok: true, state });
+      await r.text();
+      if (!r.ok) { console.error("meta ping failed", r.status); return json({ error: "whatsapp connection check failed" }, 502); }
+      return json({ ok: true });
     }
 
-    // ---- normalise recipient (E.164 digits, no +) ----
-    const number = String(body.number || "").replace(/[^0-9]/g, "");
-    if (number.length < 8) return json({ error: "invalid number" }, 400);
+    const quoteId = String(body.quote_id || "");
+    if (!UUID_RE.test(quoteId)) return json({ error: "quote_id is required" }, 400);
 
-    // ---- build the message payload: template (business-initiated) or text ----
-    let payload: Record<string, unknown>;
-    if (body.template) {
-      const params = Array.isArray(body.params) ? body.params : [];
-      payload = {
-        messaging_product: "whatsapp",
-        to: number,
+    // ---- message content: allowlisted template, or (opt-in) session text ----
+    let content: Record<string, unknown>;
+    if (body.template != null) {
+      const name = String(body.template);
+      if (!templateAllowlist().includes(name)) return json({ error: "template not allowed" }, 400);
+      const lang = String(body.lang || "en_US");
+      if (!LANG.test(lang)) return json({ error: "invalid language" }, 400);
+      const params = Array.isArray(body.params) ? body.params.slice(0, 10) : [];
+      content = {
         type: "template",
         template: {
-          name: String(body.template),
-          language: { code: String(body.lang || "en_US") },
+          name,
+          language: { code: lang },
           ...(params.length
-            ? { components: [{ type: "body", parameters: params.map((p: unknown) => ({ type: "text", text: String(p) })) }] }
+            ? { components: [{ type: "body", parameters: params.map((p: unknown) => ({ type: "text", text: String(p ?? "").slice(0, 300) })) }] }
             : {}),
         },
       };
     } else {
-      const text = String(body.text || "").trim();
+      if (Deno.env.get("WHATSAPP_ALLOW_TEXT") !== "1") return json({ error: "use an approved template" }, 400);
+      const text = String(body.text || "").trim().slice(0, 1000);
       if (!text) return json({ error: "text or template is required" }, 400);
-      payload = { messaging_product: "whatsapp", to: number, type: "text", text: { preview_url: false, body: text } };
+      content = { type: "text", text: { preview_url: false, body: text } };
     }
+
+    // ---- the caller's studio must own the event (RLS) ----
+    const { data: q, error: qErr } = await asCaller.from("quotes").select("id").eq("id", quoteId).maybeSingle();
+    if (qErr) { console.error("quote lookup failed", errTag(qErr)); return json({ error: "could not check the event" }, 500); }
+    if (!q) return json({ error: "you can't send WhatsApp messages for this event to that number" }, 403);
+
+    // ---- area right + number belongs to the event + per-studio rate limit ----
+    const { data: ok, error: aErr } = await asCaller.rpc("whatsapp_authorize", { p_quote: quoteId, p_recipient: String(body.number || "") });
+    if (aErr || !ok || !ok.to) {
+      const [status, msg] = authzFailure(String(aErr?.code || ""));
+      return json({ error: msg }, status);
+    }
+    const to = String(ok.to);
 
     const r = await fetch(`${GRAPH}/${VER}/${encodeURIComponent(PHONE_ID)}/messages`, {
       method: "POST",
       headers: authHeaders(),
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ messaging_product: "whatsapp", to, ...content }),
     });
     const out = await r.text();
-    if (!r.ok) { console.error("whatsapp send failed", r.status, out.slice(0, 500)); return json({ error: "whatsapp send failed" }, 502); }
+    const sent = r.ok;
+    if (!sent) console.error("whatsapp send failed", r.status);
 
-    // best-effort log to the notifications outbox (non-fatal)
-    try {
-      await admin.from("notifications").insert({
-        quote_id: body.quote_id || null, channel: "whatsapp", recipient: number,
-        kind: body.kind || (body.template ? "template" : "message"), status: "sent",
-      });
-    } catch (_) { /* logging is best-effort */ }
+    // log with the right channel; the service role is used ONLY for this insert
+    // (org_id is taken from the quote by the org_from_quote trigger)
+    const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+    const kind = String(body.kind || (body.template ? "template" : "message")).slice(0, 40);
+    const { error: logErr } = await admin.from("notifications").insert({
+      quote_id: quoteId, channel: "whatsapp", recipient: to, kind, status: sent ? "sent" : "failed",
+    });
+    if (logErr) console.error("whatsapp log insert failed", errTag(logErr));
 
-    let data = out; try { data = JSON.parse(out); } catch (_) { /* keep raw */ }
-    return json({ sent: true, data });
+    if (!sent) return json({ error: "whatsapp send failed" }, 502);
+    let id: string | null = null;
+    try { id = JSON.parse(out)?.messages?.[0]?.id ?? null; } catch (_) { /* keep null */ }
+    return json({ sent: true, id });
   } catch (e) {
     return serverError(e);
   }

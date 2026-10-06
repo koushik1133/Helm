@@ -9,8 +9,8 @@
   /* Pin the builder to a light background by default (user preference persisted). */
   (function(){
     try{
-      var t = localStorage.getItem('bps.theme') || 'light';
-      document.documentElement.setAttribute('data-theme', t);
+      var t = localStorage.getItem('bps.theme');
+      document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');   // allowlisted: storage is not trusted
     }catch(e){ document.documentElement.setAttribute('data-theme','light'); }
   })();
 </script>
@@ -310,9 +310,9 @@
   </aside>
 </main>
 
-<script src="telemetry.js?v=2"></script>
-<script src="config.js?v=91"></script>
-<script src="store-api.js?v=98"></script>
+<script src="telemetry.js?v=3"></script>
+<script src="config.js?v=92"></script>
+<script src="store-api.js?v=100"></script>
 <script src="tour.js?v=5"></script>
 <script src="builder.js?v=1"></script>
 

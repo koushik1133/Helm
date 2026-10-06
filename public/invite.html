@@ -183,9 +183,9 @@
   </main>
   <audio id="audio" loop preload="none"></audio>
 
-<script src="/telemetry.js?v=2"></script>
-<script src="/config.js?v=91"></script>
-<script src="/store-api.js?v=98"></script>
+<script src="/telemetry.js?v=3"></script>
+<script src="/config.js?v=92"></script>
+<script src="/store-api.js?v=100"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -228,6 +228,7 @@
     return `<section class="blk rv"><h2 class="sec-t" style="color:var(--accent)">Moments</h2><div class="gal">${cells}</div></section>`;
   }
 
+  const safeMusic=u=>(typeof u==="string"&&/^https:\/\/[^\s"'<>\\]+$/i.test(u.trim()))?u.trim():"";
   let SITE=null;
   function render(site){
     SITE=site;
@@ -280,12 +281,14 @@
         <span class="madeby">Made with <a href="/" target="_blank" rel="noopener">Helm Events</a></span>
       </div>`;
 
-    // music
-    if(d.music){ $("#audio").src=d.music; }
+    // music — https:// only (same rule as the Invitation Studio's song preview);
+    // anything else (http:, data:, javascript:, relative) is ignored.
+    const music=safeMusic(d.music);
+    if(music){ $("#audio").src=music; } else { $("#audio").removeAttribute("src"); }
 
     // show gate
     $("#loading").hidden=true; $("#cover").hidden=false;
-    if(d.music) $("#coverNote").hidden=false;
+    if(music) $("#coverNote").hidden=false;
     $("#page").hidden=false;                 // behind the cover; revealed on open
   }
 
@@ -305,7 +308,7 @@
     $("#fabs").hidden=false; $("#shareBtm").hidden=false;
     armReveal();
     const a=$("#audio");
-    if(SITE&&SITE.data&&SITE.data.music){
+    if(SITE&&SITE.data&&safeMusic(SITE.data.music)){
       a.volume=0.7;
       a.play().then(()=>{ $("#musicFab").classList.remove("paused"); }).catch(()=>{ $("#musicFab").classList.add("paused"); });
     }

@@ -40,12 +40,12 @@
   <div class="ref" id="ref"></div>
   <div class="note">In production this opens the real <b>Razorpay</b> payment page. Here, no money moves.
     Your event manager confirms the payment on their side to complete the booking.</div>
-  <div class="unavail" id="unavail" role="alert" hidden><b>Not available.</b> Online payments are live — use the payment link your event manager sent you.</div>
+  <div class="unavail" id="unavail" role="alert" hidden><b>Not available.</b> This test checkout is switched off here — use the payment link your event manager sent you.</div>
   <button class="btn" id="doneBtn" type="button">Done</button>
   <p class="closed" id="closedMsg" role="status" hidden>You can close this tab now.</p>
 </div>
 </main>
-<script src="config.js?v=91"></script>
+<script src="config.js?v=92"></script>
 <script>
   const p=new URLSearchParams(location.search);
   // amount: a finite, non-negative number with a sane upper bound; anything else shows "—"
@@ -59,7 +59,14 @@
   const btn=document.getElementById("doneBtn");
   const cfg=window.SUPABASE_CONFIG;
   const live=!!(cfg && cfg.liveChannels && cfg.liveChannels.pay === true);
-  if(live){
+  // Audit Phase 8: the simulated checkout only works on local / staging. On a
+  // production host, or whenever the page is wired to the PRODUCTION database, it
+  // refuses — a fake "payment" page must never exist where real clients pay.
+  const PROD_HOST=/^(www\.)?helm\.events$|^helm-v01\.vercel\.app$|^helm-alpha-nine\.vercel\.app$/i;
+  const PROD_DB=/^https:\/\/nqltzgiwznphugcfhmbm\.supabase\.co\/?$/i;
+  const host=String(location.hostname||"").toLowerCase();
+  const simAllowed=!PROD_HOST.test(host) && !PROD_DB.test(String((cfg&&cfg.url)||""));
+  if(live || !simAllowed){
     // real payments are on — this simulated checkout must not look like a working payment page
     document.getElementById("unavail").hidden=false;
     btn.disabled=true; btn.textContent="Not available";

@@ -160,17 +160,14 @@
 
         <div class="card">
           <h2>4 · Music (optional)</h2>
-          <p class="mnote">Plays softly when a guest opens the invitation. Pick a track or paste a link to your own song (MP3).</p>
+          <p class="mnote">Plays softly when a guest opens the invitation. Paste an https:// link to your own song (MP3).</p>
           <div class="fld"><label for="f_musicPick">Song</label>
             <select id="f_musicPick">
               <option value="">No music</option>
-              <option value="soundhelix-1">Ambient — gentle</option>
-              <option value="soundhelix-8">Piano — warm</option>
-              <option value="soundhelix-3">Strings — cinematic</option>
               <option value="__custom">Custom link…</option>
             </select>
           </div>
-          <div class="fld" id="musicCustomWrap" hidden><label for="f_musicUrl">Song URL (MP3)</label><input id="f_musicUrl" placeholder="https://…/song.mp3"></div>
+          <div class="fld" id="musicCustomWrap" hidden><label for="f_musicUrl">Song URL (MP3, https:// only)</label><input id="f_musicUrl" placeholder="https://…/song.mp3"></div>
           <audio id="musicTry" preload="none"></audio>
           <button class="btn" id="musicTryBtn" type="button" hidden aria-pressed="false">▶ Preview song</button>
         </div>
@@ -218,9 +215,9 @@
   </form>
 </div>
 
-<script src="telemetry.js?v=2"></script>
-<script src="config.js?v=91"></script>
-<script src="store-api.js?v=98"></script>
+<script src="telemetry.js?v=3"></script>
+<script src="config.js?v=92"></script>
+<script src="store-api.js?v=100"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -299,11 +296,11 @@
   function setPhotoMsg(t){ $("#photoMsg").textContent=t||""; }
 
   // ---- music ----
-  const SONGS={
-    "soundhelix-1":"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
-    "soundhelix-8":"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
-    "soundhelix-3":"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"
-  };
+  // Built-in tracks. Deliberately empty: the old presets pointed at a third-party
+  // demo host we don't control (audit Phase 9). Add self-hosted https:// files here
+  // (e.g. under /media/…) once licensed tracks exist. Sites saved with an old preset
+  // keep their URL — it loads as a custom link.
+  const SONGS={};
   function musicUrl(){
     const pick=$("#f_musicPick").value;
     if(pick==="__custom") return $("#f_musicUrl").value.trim();
@@ -486,13 +483,17 @@
   });
   $("#addSched").addEventListener("click",()=>{ addSchedRow(); if(dirty) dirty.mark(); const r=$("#sched").lastElementChild; if(r) r.firstElementChild.focus(); });
 
-  // photos — upload to Supabase Storage
+  // photos — upload to Supabase Storage. Server caps (0027): 60 photos on a site,
+  // 120 stored objects per event, 100 uploads per user per 10 minutes.
+  const MAX_PHOTOS=60;
   $("#photoFile").addEventListener("change", async (e)=>{
     const files=[...(e.target.files||[])]; e.target.value="";
     if(!files.length) return;
+    if(PHOTOS.length>=MAX_PHOTOS){ setPhotoMsg("An invitation can show up to "+MAX_PHOTOS+" photos. Remove one to add another."); return; }
     setPhotoMsg("Uploading…");
     try{
       for(const f of files){
+        if(PHOTOS.length>=MAX_PHOTOS){ setPhotoMsg("An invitation can show up to "+MAX_PHOTOS+" photos — the rest were skipped."); return; }
         if(f.size>8*1024*1024){ setPhotoMsg(f.name+" is over 8MB — skipped."); continue; }
         const url=await BPStore.sites.uploadPhoto(qid, f);
         PHOTOS.push(url); if(dirty) dirty.mark(); paintPhotos(); preview();
@@ -505,6 +506,7 @@
     const u=await BPUI.prompt("Paste an image URL:",{title:"Add photo by URL",label:"Image URL",type:"url",placeholder:"https://…/photo.jpg",okLabel:"Add"});
     if(u==null) return;                       // cancelled
     const v=u.trim(); if(!v) return;
+    if(PHOTOS.length>=MAX_PHOTOS){ BPUI.toast("An invitation can show up to "+MAX_PHOTOS+" photos.",{type:"err"}); return; }
     if(!/^https?:\/\/\S+$/i.test(v)){ BPUI.toast("That isn't a valid image link — it must start with https://",{type:"err"}); return; }
     PHOTOS.push(v); if(dirty) dirty.mark(); paintPhotos(); preview(); BPUI.toast("Photo added.",{type:"ok"});
   });

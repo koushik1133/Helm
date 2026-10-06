@@ -162,3 +162,24 @@ begin
   values (uid, jsonb_build_object('sub', uid::text, 'email', p_email), 'email', uid::text, now());
   return uid;
 end $$;
+
+-- ---- auth.mfa_factors / auth.sessions (GoTrue subset, used by 0028 helpers) --
+-- On Supabase status/factor_type/aal are enums; text here (0028 compares ::text).
+create table if not exists auth.mfa_factors (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid not null references auth.users(id) on delete cascade,
+  friendly_name text,
+  factor_type   text not null default 'totp',
+  status        text not null default 'unverified',
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+create table if not exists auth.sessions (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  aal        text,
+  user_agent text,
+  ip         inet
+);

@@ -21,16 +21,67 @@
   var ENABLED = !!CFG.dsn;
 
   // Redact anything that looks like a token/JWT/OTP/email/phone from a string.
+  // Client links carry bearer tokens in the URL itself, so these are scrubbed too
+  // (audit Phase 9): the <ref> of /<studio>/<invite|quote|proposal|portal|work>/<ref>,
+  // the slug of /i/<slug>, query/fragment tokens (?token= &t= #access_token= …) and
+  // any bare UUID (approval / portal / crew / proposal tokens are UUIDs).
+  var LINK_PATH = /(\/[a-z0-9-]{1,40}\/(?:invite|quote|proposal|portal|work)\/)[^\/?#\s"'<>]+/gi;
+  var INVITE_PATH = /(\/i\/)[^\/?#\s"'<>]+/g;
+  var QUERY_TOKEN = /([?&#;](?:token|t|ref|slug|code|key|access_token|refresh_token|provider_token|provider_refresh_token)=)[^&#\s"'<>]*/gi;
+  var UUID = /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
   function redact(s) {
     if (s == null) return s;
     try {
       return String(s)
+        .replace(LINK_PATH, '$1[REDACTED]')
+        .replace(INVITE_PATH, '$1[REDACTED]')
+        .replace(QUERY_TOKEN, '$1[REDACTED]')
+        .replace(UUID, '[UUID_REDACTED]')
         .replace(/eyJ[A-Za-z0-9._-]{10,}/g, '[JWT_REDACTED]')
         .replace(/(access_token|refresh_token|apikey|api_key|authorization|bearer)["':=\s]+[^\s"'&]+/gi, '$1=[REDACTED]')
         .replace(/\b\d{6}\b(?=.*\botp\b)/gi, '[OTP_REDACTED]')
         .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[EMAIL_REDACTED]')
         .replace(/\b(?:\+?\d[ -]?){9,13}\d\b/g, '[PHONE_REDACTED]');
     } catch (e) { return '[unredactable]'; }
+  }
+
+  // Breadcrumbs (navigation from/to, fetch/xhr url, console/ui messages) carry
+  // URLs with client-link tokens — scrub every string field of crumb.data.
+  function redactBreadcrumb(crumb) {
+    try {
+      if (!crumb) return crumb;
+      if (crumb.message) crumb.message = redact(crumb.message);
+      if (crumb.data && typeof crumb.data === 'object') {
+        Object.keys(crumb.data).forEach(function (k) {
+          if (typeof crumb.data[k] === 'string') crumb.data[k] = redact(crumb.data[k]);
+        });
+      }
+    } catch (e) {}
+    return crumb;
+  }
+  // Every URL-bearing field of a Sentry event: message, request url / query /
+  // Referer header, transaction name, exception values, breadcrumbs.
+  function redactEvent(ev) {
+    try {
+      if (!ev) return ev;
+      if (ev.message) ev.message = redact(ev.message);
+      if (ev.transaction) ev.transaction = redact(ev.transaction);
+      if (ev.request) {
+        if (ev.request.url) ev.request.url = redact(ev.request.url);
+        if (ev.request.query_string) ev.request.query_string = '[REDACTED]';
+        if (ev.request.cookies) ev.request.cookies = '[REDACTED]';
+        if (ev.request.headers) {
+          Object.keys(ev.request.headers).forEach(function (k) {
+            if (/^(referer|referrer|authorization|cookie)$/i.test(k)) ev.request.headers[k] = '[REDACTED]';
+            else if (typeof ev.request.headers[k] === 'string') ev.request.headers[k] = redact(ev.request.headers[k]);
+          });
+        }
+      }
+      if (ev.exception && ev.exception.values) ev.exception.values.forEach(function (v) { if (v && v.value) v.value = redact(v.value); });
+      var crumbs = ev.breadcrumbs && (Array.isArray(ev.breadcrumbs) ? ev.breadcrumbs : ev.breadcrumbs.values);
+      if (Array.isArray(crumbs)) crumbs.forEach(redactBreadcrumb);
+    } catch (e) {}
+    return ev;
   }
 
   function report(kind, payload) {
@@ -55,8 +106,9 @@
 
   // When a DSN is configured but no reporter SDK is present yet, lazy-load the Sentry
   // browser SDK and init it (redaction-aware via beforeSend). Completely NO-OP when no
-  // DSN is set. Requires the CSP to allow browser.sentry-cdn.com + *.ingest.sentry.io
-  // (already added in vercel.json). To enable in production: set window.HELM_TELEMETRY
+  // DSN is set. Requires the CSP to allow https://browser.sentry-cdn.com/8.35.0/ +
+  // *.ingest.sentry.io (already in vercel.json; the script-src entry is pinned to this
+  // version's directory — change both together, see scripts/csp-hashes.cjs). To enable in production: set window.HELM_TELEMETRY
   // = { dsn, env, release } in config.js — nothing else.
   function loadSentry() {
     if (!ENABLED || (typeof window === 'undefined') || window.Sentry || CFG.loadSentry === false) return;
@@ -75,14 +127,9 @@
               environment: CFG.env || 'production',
               release: CFG.release || undefined,
               tracesSampleRate: CFG.tracesSampleRate || 0,
-              beforeSend: function (ev) {
-                try {
-                  if (ev.message) ev.message = redact(ev.message);
-                  if (ev.request && ev.request.url) ev.request.url = redact(ev.request.url);
-                  if (ev.exception && ev.exception.values) ev.exception.values.forEach(function (v) { if (v && v.value) v.value = redact(v.value); });
-                } catch (e) {}
-                return ev;
-              }
+              sendDefaultPii: false,
+              beforeSend: redactEvent,
+              beforeBreadcrumb: redactBreadcrumb
             });
           }
         } catch (e) {}
@@ -130,7 +177,7 @@
       report('unhandledrejection', r);
       showErrorToast();
     });
-    window.HelmTelemetry = { report: report, redact: redact, enabled: ENABLED };
+    window.HelmTelemetry = { report: report, redact: redact, redactEvent: redactEvent, redactBreadcrumb: redactBreadcrumb, enabled: ENABLED };
     loadSentry();
   }
 })();
