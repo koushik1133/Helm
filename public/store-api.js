@@ -522,15 +522,23 @@
       document.head.appendChild(s);
     });
   }
+  // Layouts are the one table the anon role has no grant on, so a request made after the
+  // session died showed up as "permission denied for table layouts" in the DB log. Don't
+  // send it: treat a missing user as an expired session (redirects gated pages to login).
+  function needUser() {
+    if (currentUser) return;
+    try { onAuthFailure(); } catch (e) {}
+    const e = new Error("Your session has ended — please sign in again."); e.status = 401; e.code = "PGRST301"; throw e;
+  }
   const sb = {
     map: (r) => ({ id: r.id, name: r.name, createdAt: r.created_at, updatedAt: r.updated_at, data: r.data }),
-    async list() { const { data, error } = await supa.from(TABLE).select("id,name,created_at,updated_at,data").order("updated_at", { ascending: false });
+    async list() { needUser(); const { data, error } = await supa.from(TABLE).select("id,name,created_at,updated_at,data").order("updated_at", { ascending: false });
       if (error) throw error; return data.map((r) => ({ id: r.id, name: r.name, createdAt: r.created_at, updatedAt: r.updated_at, objectCount: objectCount({ data: r.data }) })); },
-    async get(id) { const { data, error } = await supa.from(TABLE).select("*").eq("id", id).single(); if (error) throw error; return this.map(data); },
-    async create(name, data) { const { data: r, error } = await supa.from(TABLE).insert({ name, data }).select().single(); if (error) throw error; return this.map(r); },
-    async update(id, patch) { const upd = { updated_at: now() }; if (patch.name != null) upd.name = patch.name; if (patch.data) upd.data = patch.data;
+    async get(id) { needUser(); const { data, error } = await supa.from(TABLE).select("*").eq("id", id).single(); if (error) throw error; return this.map(data); },
+    async create(name, data) { needUser(); const { data: r, error } = await supa.from(TABLE).insert({ name, data }).select().single(); if (error) throw error; return this.map(r); },
+    async update(id, patch) { needUser(); const upd = { updated_at: now() }; if (patch.name != null) upd.name = patch.name; if (patch.data) upd.data = patch.data;
       const { data: r, error } = await supa.from(TABLE).update(upd).eq("id", id).select().single(); if (error) throw error; return this.map(r); },
-    async remove(id) { const { error } = await supa.from(TABLE).delete().eq("id", id); if (error) throw error; return true; },
+    async remove(id) { needUser(); const { error } = await supa.from(TABLE).delete().eq("id", id); if (error) throw error; return true; },
   };
 
   /* ---------------- init: pick the best available backend ---------------- */
@@ -1059,6 +1067,8 @@
         updatedAt: q.updated_at, createdAt: q.created_at, confirmedAt: q.confirmed_at }));
     },
     async get(id) {
+      // a truncated/garbled id from a link would reach Postgres as a 22P02 error — answer "not found" instead
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id || ""))) { const e = new Error("This event link is incomplete or no longer exists."); e.code = "PGRST116"; throw e; }
       const { data: q, error } = await supa.from("quotes").select("*").eq("id", id).single(); if (error) throw error;
       const { data: vs, error: e2 } = await supa.from("quote_versions")
         .select("id,version_no,label,object_count,created_at").eq("quote_id", id).order("version_no", { ascending: false });
