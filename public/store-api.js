@@ -1872,6 +1872,7 @@
     try { const s = sessionStorage.getItem("helm_local_uid"); if (s) return s; } catch (e) {}
     try { return localStorage.getItem("helm_local_uid") || "u-you"; } catch (e) { return "u-you"; }
   }
+  let chatBackendMissing = false, chatBcastEnsured = false;   // bell: skip when chat SQL absent; ensure broadcast once
   function chatMultiUser() { try { return !!sessionStorage.getItem("helm_local_uid"); } catch (e) { return false; } }
   const chatReadLs = (k) => { try { return JSON.parse(localStorage.getItem(k) || "[]"); } catch (e) { return []; } };
   const chatWriteLs = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
@@ -1916,7 +1917,8 @@
         if (!convs.some((c) => c.kind === "broadcast")) { convs.unshift({ id: "bcast", kind: "broadcast", title: "Everyone", created_at: now(), last_message_at: now(), members: [] }); chatWriteLs(CHAT_LS_C, convs); }
         return convs.slice().sort((a, b) => String(b.last_message_at || "").localeCompare(String(a.last_message_at || "")));
       }
-      try { await rpc("chat_ensure_broadcast"); } catch (e) {}
+      // ensure the org "Everyone" channel ONCE per page — not on every bell poll
+      if (!chatBcastEnsured) { try { await rpc("chat_ensure_broadcast"); chatBcastEnsured = true; } catch (e) {} }
       const { data, error } = await supa.from("chat_conversations").select("*").order("last_message_at", { ascending: false });
       if (error) throw error; return data || [];
     },
@@ -2077,9 +2079,14 @@
         out.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
         return out.slice(0, cap);
       }
-      const me = currentUser && currentUser.id; if (!me) return [];
+      const me = currentUser && currentUser.id; if (!me || chatBackendMissing) return [];
       let convs = [], mem = {}, roster = [];
-      try { [convs, mem, roster] = await Promise.all([this.conversations(), this.myMemberships(), this.roster()]); } catch (e) { return []; }
+      try { [convs, mem, roster] = await Promise.all([this.conversations(), this.myMemberships(), this.roster()]); }
+      catch (e) {
+        // chat SQL not installed on this project: stop the bell re-asking every poll (404 noise)
+        const U = global.BPUI; if (U && ((U.isMissingTable && U.isMissingTable(e)) || (U.isMissingFunction && U.isMissingFunction(e)))) chatBackendMissing = true;
+        return [];
+      }
       const nameById = {}; roster.forEach((p) => { nameById[p.id] = p.full_name || p.email || "Member"; });
       const convById = {}; convs.forEach((c) => { convById[c.id] = c; });
       let msgs = [];
@@ -4059,7 +4066,12 @@
   var DIALS = COUNTRIES.map(function (c) { return c[2]; }).sort(function (a, b) { return b.length - a.length; });
   var _defaultCC = (function () { try { return localStorage.getItem("helm_org_country") || "IN"; } catch (e) { return "IN"; } })();
   function loadDefaultCountry() {
-    try { BPStore.config.getPricing().then(function (p) { var c = (p && p.country) || "IN"; _defaultCC = c; try { localStorage.setItem("helm_org_country", c); } catch (e) {} }).catch(function () {}); } catch (e) {}
+    // Signed-out pages (login, client token pages) must not call the members-only
+    // get_pricing_config RPC — it 401s for anon and floods the API logs (Oct 2026).
+    try { BPStore.init().then(function () {
+      if (BPStore.mode() === "supabase" && !BPStore.auth.user()) return null;
+      return BPStore.config.getPricing();
+    }).then(function (p) { if (!p) return; var c = p.country || "IN"; _defaultCC = c; try { localStorage.setItem("helm_org_country", c); } catch (e) {} }).catch(function () {}); } catch (e) {}
   }
   function dialOf(iso) { for (var i = 0; i < COUNTRIES.length; i++) if (COUNTRIES[i][1] === iso) return COUNTRIES[i][2]; return "91"; }
   BPStore.countries = function () { return COUNTRIES.map(function (c) { return { name: c[0], iso: c[1], dial: c[2] }; }); };
