@@ -176,6 +176,15 @@
         <div class="fld"><label for="o_gst">GSTIN</label><input id="o_gst" placeholder="22AAAAA0000A1Z5"></div>
       </div>
       <div class="actions"><button type="button" class="btn primary" id="o_save">Save studio settings</button></div>
+      <div id="slugBox" hidden style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)">
+        <h3 style="margin:0 0 4px">Client link name</h3>
+        <p class="mnote" style="margin:0 0 10px">Every link you send clients and crew starts with this name, e.g. <code id="slugPreview">www.helm.events/your-studio/quote/…</code>. 3–40 lowercase letters, numbers or dashes. Links you already sent keep working after a change.</p>
+        <div id="slugMsg" role="status" aria-live="polite"></div>
+        <div class="grid">
+          <div class="fld"><label for="o_slug">Link name</label><input id="o_slug" autocomplete="off" spellcheck="false" maxlength="40" placeholder="aurora-events"></div>
+        </div>
+        <div class="actions"><button type="button" class="btn" id="o_slug_save">Save link name</button></div>
+      </div>
     </div>
 
     <div class="card">
@@ -357,7 +366,7 @@
 
 <script src="telemetry.js?v=2"></script>
 <script src="config.js?v=91"></script>
-<script src="store-api.js?v=94"></script>
+<script src="store-api.js?v=95"></script>
 <script src="tour.js?v=5"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -624,7 +633,22 @@
     $("#o_accent").value=b.accent||""; $("#o_currency").value=o.currency||""; $("#o_tz").value=o.timezone||""; $("#o_gst").value=o.gst_number||"";
     if($("#o_location")) $("#o_location").value=o.location||"";
     orgMsg("",""); orgLoaded=true; $("#o_save").disabled=false;
+    // branded client links (migration 0020) — only shown once the column exists
+    if(Object.prototype.hasOwnProperty.call(o,"public_slug")){ $("#slugBox").hidden=false; $("#o_slug").value=o.public_slug||""; paintSlugPreview(); }
   }
+  const SLUG_RE=/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
+  function slugMsg(k,t){ $("#slugMsg").innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; }
+  function paintSlugPreview(){ const v=$("#o_slug").value.trim().toLowerCase()||"your-studio";
+    $("#slugPreview").textContent=BPStore.links.base().replace(/^https?:\/\//,"")+"/"+v+"/quote/…"; }
+  $("#o_slug").addEventListener("input",()=>{ const el=$("#o_slug"), c=el.value.toLowerCase().replace(/[^a-z0-9-]+/g,"-");
+    if(c!==el.value) el.value=c; paintSlugPreview(); });
+  $("#o_slug_save").addEventListener("click",()=>BPUI.guard($("#o_slug_save"),async()=>{
+    const v=$("#o_slug").value.trim().toLowerCase();
+    if(!SLUG_RE.test(v)||v.includes("--")){ slugMsg("err","Use 3–40 lowercase letters, numbers or single dashes (no dash at the start or end)."); $("#o_slug").focus(); return; }
+    if(!(await BPUI.confirm(`Change your client link name to “${v}”? New links will use it; links you already sent keep working.`,{title:"Change link name",okLabel:"Change"}))) return;
+    try{ const r=await BPStore.links.rename(v); $("#o_slug").value=r||v; paintSlugPreview(); slugMsg("ok","Link name saved."); setTimeout(()=>slugMsg("",""),2500); }
+    catch(e){ const m=(e&&e.message)||""; slugMsg("err", /taken/i.test(m)?"That name is already used by another studio — try another.":/reserved|3-40|letters/i.test(m)?"That name isn't allowed (reserved word or wrong format) — try another.":errMsg(e,"save the link name")); }
+  }));
   $("#o_save").addEventListener("click",()=>BPUI.guard($("#o_save"),async()=>{
     if(!orgLoaded){ orgMsg("err","Studio settings didn't load, so they can't be saved yet."); return; }
     const V=BPStore.validate;

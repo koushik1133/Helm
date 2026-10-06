@@ -284,6 +284,17 @@ function serveStatic(req, res) {
     return serveFile(res, req, path.join(PUBLIC_DIR, 'invite.html'));
   }
 
+  // Branded client links (migration 0020): /<studio>/<kind>/<ref> → the client page.
+  // Same pattern + page mapping as the vercel.json rewrites. The page asks the server
+  // whether <studio> owns <ref> before showing anything (anti-phishing).
+  {
+    const m = /^\/[a-z0-9-]{3,40}\/(invite|quote|proposal|portal|work)\/[^/]+\/?$/.exec(rel);
+    if (m && !path.extname(rel)) {
+      const page = { invite: 'invite', quote: 'approve', proposal: 'proposal-view', portal: 'portal', work: 'work' }[m[1]];
+      return serveFile(res, req, path.join(PUBLIC_DIR, page + '.html'));
+    }
+  }
+
   // Clean URLs: hide the .html extension. /foo.html → 302 /foo (served from
   // foo.html below). Only real pages redirect, to the index's own path — so
   // "//evil.com.html" style requests can't produce an off-site Location.

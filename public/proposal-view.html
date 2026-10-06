@@ -42,7 +42,7 @@
   @media (prefers-reduced-motion:reduce){.spin{animation:none}}
   #priceRows th{font-weight:inherit;text-align:left}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="/theme.css?v=73">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -74,19 +74,20 @@
   </main>
 </div>
 
-<script src="telemetry.js?v=2"></script>
-<script src="config.js?v=91"></script>
-<script src="store-api.js?v=94"></script>
+<script src="/telemetry.js?v=2"></script>
+<script src="/config.js?v=91"></script>
+<script src="/store-api.js?v=95"></script>
 <script>
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const token=new URLSearchParams(location.search).get("token");
+  const LINK=BPStore.links.parse("proposal");   // branded /<studio>/proposal/<token> (server-verified below)
+  const token=LINK?LINK.ref:new URLSearchParams(location.search).get("token");
   const $=(s)=>document.querySelector(s);
   const isBadLink=(e)=>BPUI.isNotFound(e) || /invalid link|expired|not available/i.test((e&&e.message)||"") || (e&&e.code)==="22P02";
   async function load(){
     await BPStore.init();
     if(!token){ $("#loading").hidden=true; $("#error").hidden=false; return; }
     $("#loadErr").hidden=true;
-    let p; try{ p=await BPStore.proposal.getByToken(token); }
+    let p; try{ await BPStore.links.require(LINK); p=await BPStore.proposal.getByToken(token); }
     catch(e){ $("#loading").hidden=true;
       if(isBadLink(e)){ $("#error").hidden=false; return; }
       $("#loadErr").hidden=false; BPUI.loadError($("#loadErr"), e, load, {what:"your proposal"}); return; }

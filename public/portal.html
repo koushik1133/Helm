@@ -48,7 +48,7 @@
   footer{text-align:center;color:var(--ink-3);font-size:12px;margin-top:10px}
   .loading,.bad{text-align:center;padding:60px 20px;color:var(--ink-3)}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="/theme.css?v=73">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -95,14 +95,15 @@
   <footer>Helm Events · this page shows only your event.</footer>
 </div>
 
-<script src="telemetry.js?v=2"></script>
-<script src="config.js?v=91"></script>
-<script src="store-api.js?v=94"></script>
+<script src="/telemetry.js?v=2"></script>
+<script src="/config.js?v=91"></script>
+<script src="/store-api.js?v=95"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   const inr=(n)=>"₹"+Math.round(Number(n||0)).toLocaleString("en-IN");
-  const token=new URLSearchParams(location.search).get("token");
+  const LINK=BPStore.links.parse("portal");   // branded /<studio>/portal/<token> (server-verified below)
+  const token=LINK?LINK.ref:new URLSearchParams(location.search).get("token");
   const fmtWhen=(d,t)=>{ if(!d) return ""; try{ const dt=new Date(d+"T00:00:00"); return dt.toLocaleDateString([], {weekday:'long',day:'numeric',month:'long',year:'numeric'})+(t?(" · "+t):""); }catch{ return d+(t?" · "+t:""); } };
   const isUrl=(u)=>/^https?:\/\//i.test(u||"");
 
@@ -111,7 +112,7 @@
     if(!token){ $("#loading").hidden=true; $("#bad").hidden=false; return; }
     await BPStore.init();
     $("#loadErr").hidden=true;
-    let d; try{ d=await BPStore.portal.get(token); }
+    let d; try{ await BPStore.links.require(LINK); d=await BPStore.portal.get(token); }
     catch(e){ $("#loading").hidden=true;
       if(isBadLink(e)){ $("#bad").hidden=false; return; }
       $("#loadErr").hidden=false; BPUI.loadError($("#loadErr"), e, load, {what:"your event"}); return; }
@@ -132,7 +133,7 @@
     const apBadge = ap==="paid"?'<span class="stat ok">Paid</span>':ap==="approved"?'<span class="stat ok">Approved</span>':ap==="sent"?'<span class="stat st">Awaiting your approval</span>':"";
     $("#badges").innerHTML=`<span class="stat ${e.status==='confirmed'?'ok':'q'}">${esc(e.status||"")}</span>${apBadge}`;
     // approval CTA when pending
-    if(ap==="sent"||ap==="none"||!ap){ const c=$("#approveCta"); c.hidden=false; c.href="approve.html?token="+encodeURIComponent(token); }
+    if(ap==="sent"||ap==="none"||!ap){ const c=$("#approveCta"); c.hidden=false; c.href=LINK?("/"+LINK.studio+"/quote/"+encodeURIComponent(token)):("/approve.html?token="+encodeURIComponent(token)); }
     // proposal
     const p=d.proposal;
     if(p){ $("#proposalCard").hidden=false;

@@ -219,7 +219,7 @@
 
 <script src="telemetry.js?v=2"></script>
 <script src="config.js?v=91"></script>
-<script src="store-api.js?v=94"></script>
+<script src="store-api.js?v=95"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -359,11 +359,12 @@
     $("#musicTryBtn").hidden=!musicUrl();
   }
   function paintState(){
+    if(!paintState._s){ paintState._s=1; BPStore.links.studio().then(s=>{ if(s) paintState(); }).catch(()=>{}); }   // re-render once the branded studio link name is known
     const pub = site && site.status==="published";
     $("#statePill").className="pill "+(pub?"pub":"draft"); $("#statePill").textContent=pub?"Published":"Draft";
     $("#pubBtn").hidden=pub; $("#unpubBtn").hidden=!pub;
     if(site && site.slug){
-      const link=location.origin+"/i/"+site.slug;
+      const link=BPStore.links.url("invite", site.slug, location.origin+"/i/"+site.slug);
       $("#pubLink").value=link; $("#openBtn").href=link; $("#linkWrap").hidden=!pub;
     }
   }

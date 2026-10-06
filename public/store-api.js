@@ -1654,6 +1654,54 @@
     exportPackage: () => rpc("export_tenant_organization_package", {}),
   };
 
+  /* ---------------- branded client links: /<studio>/<kind>/<ref> (0020) ----------------
+     The <ref> (token / published invitation slug) is the only secret; <studio> is a
+     public label. Public pages call links.require() first: the server confirms that
+     <studio> really owns that link (current or retired name), so nobody can dress
+     their own token up in another studio's name. Legacy URLs keep working. */
+  const LINK_KINDS = { invite: 1, quote: 1, proposal: 1, portal: 1, work: 1 };
+  const LINK_PROD_HOSTS = ["helm-v01.vercel.app", "helm.events", "www.helm.events"];
+  const LINK_RE = /^\/([a-z0-9-]{3,40})\/(invite|quote|proposal|portal|work)\/([^\/?#]+)\/?$/;
+  let studioSlugCache = null, studioSlugPromise = null;
+  const links = {
+    // production links always use the public brand domain; staging/local keep their host
+    base() { return LINK_PROD_HOSTS.indexOf(location.hostname) >= 0 ? "https://www.helm.events" : location.origin; },
+    parse(kind) {
+      const m = LINK_RE.exec(location.pathname); if (!m || (kind && m[2] !== kind)) return null;
+      let ref; try { ref = decodeURIComponent(m[3]); } catch (e) { return null; }
+      return { studio: m[1], kind: m[2], ref: ref };
+    },
+    async studio() {                                   // my studio's link name (null = not set up → legacy links)
+      if (studioSlugCache) return studioSlugCache;
+      if (!studioSlugPromise) studioSlugPromise = (async () => {
+        try { const o = await org.current(); studioSlugCache = (o && o.public_slug) || null; } catch (e) { studioSlugCache = null; }
+        studioSlugPromise = null; return studioSlugCache;
+      })();
+      return studioSlugPromise;
+    },
+    url(kind, ref, legacy) {                           // sync — call studio() once first
+      return (studioSlugCache && ref && LINK_KINDS[kind])
+        ? links.base() + "/" + studioSlugCache + "/" + kind + "/" + encodeURIComponent(ref) : legacy;
+    },
+    async build(kind, ref, legacy) { await links.studio(); return links.url(kind, ref, legacy); },
+    // true = this studio owns the link; false = mismatch/unknown; throws on network errors
+    async verify(L) {
+      if (!L) return true;
+      await init(); if (!supa) return false;
+      const { data, error } = await supa.rpc("public_link_studio", { p_kind: L.kind, p_ref: L.ref, p_studio: L.studio });
+      if (error) { if (global.BPUI && global.BPUI.isMissingFunction(error)) return false; throw error; }
+      if (!data) return false;
+      if (data !== L.studio) {                         // retired name → show the studio's current one
+        try { history.replaceState(null, "", location.pathname.replace("/" + L.studio + "/", "/" + data + "/") + location.search + location.hash); } catch (e) {}
+      }
+      return true;
+    },
+    async require(L) {                                 // throw a "link not found" the pages already handle
+      if (!(await links.verify(L))) { const e = new Error("invalid link"); e.code = "PGRST116"; throw e; }
+    },
+    rename: (slug) => rpc("set_studio_link_name", { p_slug: slug }).then((r) => { studioSlugCache = r || null; return r; }),
+  };
+
   /* ---------------- invitations: join an existing studio (Phase 83) ---------------- */
   // Onboarding split: create a NEW company = org.createStudio; JOIN an existing
   // one = accept an admin's invite token. Tenant is resolved server-side by RLS.
@@ -3103,7 +3151,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat,
     // Phase 3 — personal dashboard feed: upcoming events + per-event task rollup + unread count.
     // Org- and area-scoped server-side (my_pending is SECURITY DEFINER gated on has_area('quotes','view')).
     pending: () => (supa ? rpc("my_pending") : Promise.resolve({ upcoming: [], unread: 0 })),

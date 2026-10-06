@@ -171,7 +171,7 @@
 
 <script src="telemetry.js?v=2"></script>
 <script src="config.js?v=91"></script>
-<script src="store-api.js?v=94"></script>
+<script src="store-api.js?v=95"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -204,7 +204,8 @@
     if(editable()) $("#scopeList").querySelectorAll(".chip button").forEach(b=>b.addEventListener("click",()=>{scope.splice(+b.dataset.i,1);dirty.mark();renderScope();})); }
 
   function renderPublish(){
-    const link = token ? (location.origin+"/proposal-view.html?token="+token) : "";
+    if(!renderPublish._s){ renderPublish._s=1; BPStore.links.studio().then(s=>{ if(s) renderPublish(); }).catch(()=>{}); }   // re-render once the branded studio link name is known
+    const link = token ? BPStore.links.url("proposal", token, location.origin+"/proposal-view.html?token="+token) : "";
     $("#pubBadge").className="badge "+(published?"live":"draft"); $("#pubBadge").textContent=published?"Published":"Draft";
     $("#shareLink").value=link;
     $("#copyLink").hidden=!link; $("#openView").hidden=!(link&&published); if(link) $("#openView").href=link;
