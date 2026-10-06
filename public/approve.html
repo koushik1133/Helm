@@ -60,6 +60,7 @@
 
   <main id="main">
   <div id="loading" class="card" role="status"><p class="muted">Loading your event…</p></div>
+  <div id="payReturn" class="card" hidden><h1>Thank you</h1><p class="sub">Your payment was submitted. Once it is confirmed you will receive a receipt, and your approval link will show the booking as paid.</p></div>
   <div id="badlink" class="card" hidden><h1>Link not found</h1><p class="sub">This approval link is invalid or has expired. Please ask your event manager for a new one.</p></div>
 
   <div id="content" hidden>
@@ -183,6 +184,8 @@
 
   let quote=null;
   async function load(){
+    // back from Razorpay: the callback carries no approval token (it is a bearer secret)
+    if(!token && new URLSearchParams(location.search).get("payment")==="done"){ $("#loading").hidden=true; $("#payReturn").hidden=false; return; }
     if(!token){ $("#loading").hidden=true; $("#badlink").hidden=false; return; }
     await BPStore.init();
     $("#loadErr").hidden=true;

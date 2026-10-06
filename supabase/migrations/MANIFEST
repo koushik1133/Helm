@@ -39,3 +39,4 @@ forward  supabase/migrations/0023_work_token_no_date_fix.sql
 forward  supabase/migrations/0024_injection_guards.sql
 forward  supabase/migrations/0025_write_path_lockdown.sql
 forward  supabase/migrations/0026_business_logic_crypto.sql
+forward  supabase/migrations/0027_uploads_payments.sql

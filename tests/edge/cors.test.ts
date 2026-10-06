@@ -1,7 +1,7 @@
 // _shared/cors.ts — CORS allowlist + escHtml. Pure, runtime-verified.
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { setEnv } from "./harness.ts";
-import { isAllowedOrigin, corsFor, escHtml } from "../../supabase/functions/_shared/cors.ts";
+import { isAllowedOrigin, corsFor, escHtml, normPhone } from "../../supabase/functions/_shared/cors.ts";
 
 function reqWithOrigin(origin: string | null): Request {
   const h: Record<string, string> = {};
@@ -18,12 +18,22 @@ Deno.test("CORS: allowed production origin is echoed", () => {
   } finally { restore(); }
 });
 
-Deno.test("CORS: allowed vercel preview origin (regex) is echoed", () => {
+Deno.test("CORS: attacker-registrable Vercel names are NOT trusted (no preview regex)", () => {
   const restore = setEnv({});
   try {
-    const o = "https://helm-v01-abc123def-vk-hub.vercel.app";
-    assert(isAllowedOrigin(o));
-    assertEquals(corsFor(reqWithOrigin(o))["Access-Control-Allow-Origin"], o);
+    // anyone can create a Vercel project literally named like this
+    assert(!isAllowedOrigin("https://helm-v01-abc123def-vk-hub.vercel.app"));
+    assert(!isAllowedOrigin("https://helm-v01-x-vk-hub.vercel.app"));
+    assertEquals(corsFor(reqWithOrigin("https://helm-v01-x-vk-hub.vercel.app"))["Access-Control-Allow-Origin"], undefined);
+  } finally { restore(); }
+});
+
+Deno.test("CORS: one preview can be allowed EXACTLY via EXTRA_ALLOWED_ORIGINS", () => {
+  const restore = setEnv({ EXTRA_ALLOWED_ORIGINS: "https://helm-v01-abc123def-vk-hub.vercel.app, not a url" });
+  try {
+    assert(isAllowedOrigin("https://helm-v01-abc123def-vk-hub.vercel.app"));
+    assert(isAllowedOrigin("https://helm.events"));                       // defaults kept
+    assert(!isAllowedOrigin("https://helm-v01-zzz-vk-hub.vercel.app"));     // no pattern
   } finally { restore(); }
 });
 
@@ -65,13 +75,13 @@ Deno.test("CORS: localhost blocked unless ALLOW_LOCALHOST=1", () => {
   } finally { restore(); }
 });
 
-Deno.test("CORS: ALLOWED_ORIGINS env REPLACES default list (preview regex kept)", () => {
+Deno.test("CORS: ALLOWED_ORIGINS env REPLACES default list", () => {
   const restore = setEnv({ ALLOWED_ORIGINS: "https://a.example,https://b.example/" });
   try {
     assert(isAllowedOrigin("https://a.example"));
     assert(isAllowedOrigin("https://b.example")); // trailing slash trimmed
     assert(!isAllowedOrigin("https://helm.events")); // default no longer present
-    assert(isAllowedOrigin("https://helm-v01-xyz-vk-hub.vercel.app")); // preview still allowed
+    assert(!isAllowedOrigin("https://helm-v01-xyz-vk-hub.vercel.app")); // no preview pattern
   } finally { restore(); }
 });
 
@@ -84,4 +94,12 @@ Deno.test("escHtml: escapes HTML/quote metacharacters (XSS in email bodies)", ()
   assertEquals(escHtml(`<script>&"'`), "&lt;script&gt;&amp;&quot;&#39;");
   assertEquals(escHtml(null), "");
   assertEquals(escHtml(undefined), "");
+});
+
+Deno.test("normPhone: Indian formats agree with public.helm_norm_phone", () => {
+  assertEquals(normPhone("+91 98000 00001"), "919800000001");
+  assertEquals(normPhone("09800000001"), "919800000001");
+  assertEquals(normPhone("9800000001"), "919800000001");
+  assertEquals(normPhone("0044 7700 900123"), "447700900123");
+  assertEquals(normPhone(null), "");
 });

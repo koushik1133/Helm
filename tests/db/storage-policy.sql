@@ -5,7 +5,8 @@ drop table if exists _sp; create temp table _sp(name text, result text); grant a
 -- own-org upload allowed
 do $$ begin
   perform auth.login_as((select id from auth.users where email='a_staff@a.test'));
-  insert into storage.objects(bucket_id,name,owner) values('invite-media','a0000000-0000-4000-8000-000000000001/q1/x.png',auth.uid());
+  -- 0027: key must be <org>/<own event>/<random uuid>.<ext> (a_staff = sales, quotes edit)
+  insert into storage.objects(bucket_id,name,owner) values('invite-media','a0000000-0000-4000-8000-000000000001/a0000000-0000-4000-8000-00000000da01/5d0e3f7e-8d0c-4f43-9f6a-0d1f6c6a8a11.png',auth.uid());
   insert into _sp values('own-org invite-media upload','PASS: allowed');
 exception when others then insert into _sp values('own-org invite-media upload','FAIL: '||left(sqlerrm,30)); end $$;
 -- cross-org upload denied (foldername = other org)

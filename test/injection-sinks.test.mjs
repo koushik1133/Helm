@@ -102,17 +102,25 @@ t('flow Email button: a stored address cannot add Cc/Bcc headers', () => {
 });
 
 // --- create-payment-link: only Razorpay-issued links are re-served --------------
+// (audit Phase 8: the reuse decision moved into payment_link_begin / 0027 under the
+//  per-quote lock; the Edge Function re-checks what Razorpay hands back)
 t('payment link: a stored link is reused only if Razorpay issued it', () => {
   const fn = read('supabase/functions/create-payment-link/index.ts');
-  const m = fn.match(/const isRazorpayLink = ([\s\S]*?);\n/);
-  assert.ok(m, 'isRazorpayLink check must exist');
-  assert.match(fn, /if \(isRazorpayLink && Number\(open\.amount\) === total\)/, 'reuse must be gated on isRazorpayLink');
-  const check = (open) => eval(m[1]);
+  const mig = read('supabase/migrations/0027_uploads_payments.sql');
+  const P = fn.match(/const PLINK = (\/.*\/);/), U = fn.match(/const RZP_URL = (\/.*\/);/);
+  assert.ok(P && U && /const isRazorpayLink = /.test(fn), 'isRazorpayLink check must exist');
+  const PLINK = eval(P[1]), RZP_URL = eval(U[1]);
+  const check = (open) => !!open && PLINK.test(String(open.provider_ref || '')) && RZP_URL.test(String(open.link_url || ''));
   assert.equal(check({ provider_ref: 'plink_NdQ2kZ8sJ3', link_url: 'https://rzp.io/i/Ab3dE' }), true);
   for (const bad of [{ provider_ref: 'plink_x', link_url: 'https://rzp-io.pay-secure.example/i/abc' },
     { provider_ref: 'plink_x', link_url: 'https://rzp.io.evil.example/i/abc' }, { provider_ref: 'fake', link_url: 'https://rzp.io/i/abc' },
     { provider_ref: 'plink_x', link_url: 'javascript:alert(1)' }, null])
     assert.equal(check(bad), false, 'must refuse ' + JSON.stringify(bad));
+  // the SQL reuse + attach gates use the same two patterns
+  assert.match(mig, /coalesce\(open_row\.provider_ref, ''\) ~ '\^plink_\[A-Za-z0-9\]\+\$'/);
+  assert.match(mig, /coalesce\(open_row\.link_url, ''\) ~ '\^https:\/\/rzp\\\.io\/\[A-Za-z0-9\/_-\]\+\$'/);
+  assert.match(mig, /coalesce\(p_link_url, ''\) !~ '\^https:\/\/rzp\\\.io\//);
+  assert.match(fn, /isRazorpayLink\(link\.id, link\.short_url\)/, 'a non-Razorpay link from the provider is never stored');
 });
 
 console.log(`\ninjection-sinks: ${passed} passed`);

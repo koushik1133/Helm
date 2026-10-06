@@ -8,7 +8,7 @@ or network calls, no deploy, no DB, no git.**
 - `_shared/cors.ts` is imported directly (pure functions).
 - The 4 functions call `Deno.serve(handler)` at module top level. `harness.ts`
   stubs `Deno.serve` to **capture the handler**, then invokes it with crafted `Request`s.
-- `import_map.json` redirects `https://esm.sh/@supabase/supabase-js@2.116.0` to a
+- `import_map.json` redirects `npm:@supabase/supabase-js@2.117.2` to a
   local programmable mock (`mocks/supabase-js.ts`) — the real SDK is **never fetched**.
 - `Deno.env`, `fetch` (MSG91 / Meta Graph / Razorpay / Resend) are all stubbed.
   The mock `fetch` **throws** on any URL a test did not explicitly allow.
@@ -25,7 +25,7 @@ call went to the mock and **zero real network calls happened**.
 cd tests/edge
 deno test --allow-env --allow-read --no-check --import-map=import_map.json
 ```
-Result: **42 passed | 0 failed**. (Runtime-verified; no `--allow-net`.)
+Result: **47 passed | 0 failed** (audit Phase 8 rewrite; also run by `test/edge-functions-hardening.test.mjs`). (Runtime-verified; no `--allow-net`.)
 
 ## Per-function matrix
 
@@ -33,7 +33,7 @@ Result: **42 passed | 0 failed**. (Runtime-verified; no `--allow-net`.)
 | Behavior | Status |
 |---|---|
 | Allowed prod origin echoed (`helm.events`) | PASS |
-| Allowed Vercel preview origin (regex) echoed | PASS |
+| Vercel preview lookalikes NOT trusted (no regex; exact `EXTRA_ALLOWED_ORIGINS` only) | PASS |
 | Random/evil origin blocked (no ACAO) | PASS |
 | Preview-lookalike on another host blocked | PASS |
 | `Vary: Origin` always present | PASS |

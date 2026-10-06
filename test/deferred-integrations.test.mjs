@@ -26,6 +26,7 @@ const payLink  = read('supabase/functions/create-payment-link/index.ts');
 const webhook  = read('supabase/functions/razorpay-webhook/index.ts');
 const whatsapp = read('supabase/functions/send-whatsapp/index.ts');
 const sendOtp  = read('supabase/functions/send-otp/index.ts');
+const mig27    = read('supabase/migrations/0027_uploads_payments.sql');
 
 // ---- Razorpay create-payment-link ----
 t('create-payment-link reads secrets from Deno.env (no committed key)', () => {
@@ -33,18 +34,19 @@ t('create-payment-link reads secrets from Deno.env (no committed key)', () => {
   assert.match(payLink, /Deno\.env\.get\(\s*["']RAZORPAY_KEY_SECRET/);
 });
 t('create-payment-link amount is SERVER-authoritative (from stored quote, not request body)', () => {
-  // request body carries only { token }; amount is derived from the DB row q.pricing.total
-  assert.match(payLink, /q\.pricing\?\.\s*total/);
+  // request body carries only { token }; the amount comes from the server's quote total
+  // via payment_link_begin (0027), never from the request
+  assert.match(payLink, /rpc\(\s*["']payment_link_begin["']/);
   assert.match(payLink, /Math\.round\(total\s*\*\s*100\)/);
   assert.doesNotMatch(payLink, /body\.(amount|total)|req\.\w*\.amount/i,
     'amount must never come from the client request');
 });
 t('create-payment-link cannot double-charge: refuses an already-paid quote', () => {
-  assert.match(payLink, /approval_status\s*===\s*["']paid["']/);
+  assert.match(payLink, /case\s*["']paid["']/);
   assert.match(payLink, /already\s*paid/i);
 });
 t('create-payment-link requires an approved quote (no fake success before consent)', () => {
-  assert.match(payLink, /approval_status\s*!==\s*["']approved["']/);
+  assert.match(payLink, /case\s*["']not_approved["']/);
 });
 
 // ---- Razorpay webhook: HMAC + amount-coverage + idempotency, no retry loop ----
@@ -55,10 +57,13 @@ t('razorpay-webhook verifies HMAC signature before acting (fail closed)', () => 
   assert.match(webhook, /status:\s*401/);
 });
 t('razorpay-webhook settles only when paid amount COVERS the current quote total', () => {
-  assert.match(webhook, /paidPaise\s*<\s*expectedPaise/);
+  assert.match(webhook, /rpc\(\s*["']razorpay_settle["']/);
+  assert.match(mig27, /p_paid_paise\s*<\s*v_exp/);
 });
 t('razorpay-webhook transition is idempotent (conditional UPDATE guards replays)', () => {
-  assert.match(webhook, /\.neq\(\s*["']approval_status["']\s*,\s*["']paid["']\s*\)/);
+  // the same Razorpay payment id is applied once, under the per-quote lock (0027)
+  assert.match(mig27, /result', 'replay'/);
+  assert.match(mig27, /pg_advisory_xact_lock\(hashtextextended\('helm:pay:quote:'/);
 });
 t('razorpay-webhook does not loop: bad/unknown ids return 200, not 5xx', () => {
   assert.match(webhook, /no quote["']\s*,\s*\{\s*status:\s*200/);
@@ -70,7 +75,7 @@ t('send-whatsapp fails closed when TOKEN/PHONE_ID unset', () => {
   assert.match(whatsapp, /not configured/i);
 });
 t('send-whatsapp requires a signed-in staff user (not the anon key)', () => {
-  assert.match(whatsapp, /staffUserId/);
+  assert.match(whatsapp, /rpc\(\s*["']whatsapp_authorize["']/);
   assert.match(whatsapp, /sign in as a staff user/i);
 });
 t('send-whatsapp reads the token from Deno.env and only uses it in the Authorization header', () => {
