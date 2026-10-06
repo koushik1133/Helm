@@ -1,19 +1,19 @@
 -- ════════════════════════════════════════════════════════════════════════════
--- HELM — EVERYTHING PENDING (one paste) — Supabase SQL Editor        (rebuilt 2026-10-06, v3 — safe to re-run)
---   PART A  Invitation photos private ............. 0019   (prod: done · staging: done)
---   PART B  Studio client links + anti-phishing ... 0020   (prod: done · staging: NEW)
---   PART C  CRITICAL privilege lockdown ........... 0021   (prod: done · staging: NEW)
---   PART D  Links expire after the event .......... 0022   (prod: done · staging: NEW)
---   PART E  Fix: undated crew links keep 60 days .. 0023   (prod: done · staging: NEW)
--- Team chat (0016-0018) is already on both projects and is no longer in this file.
+-- HELM — EVERYTHING PENDING (one paste) — Supabase SQL Editor            (v4, 2026-10-06)
+--   PART A  Invitation photos private ............. 0019
+--   PART B  Studio client links + anti-phishing ... 0020
+--   PART C  CRITICAL privilege lockdown ........... 0021
+--   PART D  Links expire after the event .......... 0022
+--   PART E  Undated crew links keep 60 days ....... 0023
+--   DATA    One-time crew-link re-timing (re-run-safe)
+-- PRODUCTION already has all of this (verified 2026-10-06) — running it there changes nothing.
+-- STAGING needs it (studio links, privilege lockdown, link expiry).
 -- ════════════════════════════════════════════════════════════════════════════
--- SAFE: additive + idempotent. Re-running on a project that already has everything
---   changes NO data: the two one-time data steps (crew-link re-timing in D, the 0023
---   repair in E) are guarded and only run on a project that actually needs them.
--- The whole paste runs as ONE transaction: if any line fails, nothing is applied.
--- ORDER: run on STAGING first, then PRODUCTION. App code for C/D is backward
---   compatible, so the SQL can go before or after the code deploy.
--- USE: project → SQL Editor → paste ALL → Run → the last table must show all "ok".
+-- SAFE TO RE-RUN: every part is idempotent, the data step only moves a crew-link date that
+--   is still on the OLD rule, and nothing here uses temporary tables or session state.
+-- If any statement fails, Supabase rolls the whole run back (your failed v3 run left
+--   staging untouched — checked), so you can simply fix and run again.
+-- USE: SQL Editor → paste ALL → Run → the last table must show every row "ok".
 -- ════════════════════════════════════════════════════════════════════════════
 do $$
 begin
@@ -26,14 +26,6 @@ begin
   if to_regclass('public.chat_messages') is null then raise exception 'STOP: team chat (0016-0018) not installed — run APPLY-CHAT.sql first'; end if;
   raise notice 'Preflight OK — applying 0019-0023…';
 end $$;
-
--- run-once guards for the two DATA steps (captured before anything changes)
-drop table if exists _helm_apply;
-create temp table _helm_apply as
-select to_regprocedure('public.public_event_site__base(text)') is null as first_0022,   -- link expiry not installed yet
-       exists (select 1 from pg_proc p
-                where p.oid = to_regprocedure('public.work_token_expiry_for(uuid)')
-                  and position('x.deadline is null' in p.prosrc) = 0) as buggy_0022;  -- 0022 bug present, 0023 missing
 
 -- ═══════════════════ PART A — Invitation photos private (0019) ═══════════════════
 -- ============================================================================
@@ -526,18 +518,14 @@ drop trigger if exists zz_work_token_expiry on public.work_tokens;
 create trigger zz_work_token_expiry before insert on public.work_tokens
   for each row execute function public.tg_work_token_expiry();
 
--- re-time LIVE crew links that already exist (revoked / expired ones untouched)
-update public.work_tokens w
-   set expires_at = public.work_token_expiry_for(w.quote_id)
- where w.revoked_at is null and (w.expires_at is null or w.expires_at > now())
-   and (select first_0022 from _helm_apply);                 -- [paste-file guard] first install only
+-- [paste file] the one-time crew-link re-timing runs in the DATA STEP at the end, in a re-run-safe form.
 
 -- ---- VERIFY (read-only) ----------------------------------------------------
 -- select s.slug, public.event_site_live_until(s.id) from public.event_sites s where s.status='published';
 -- select quote_id, phone, expires_at from public.work_tokens where revoked_at is null order by expires_at;
 
 
--- ═══════════════════ PART E — Fix: undated crew links keep 60 days (0023) ═══════════════════
+-- ═══════════════════ PART E — Undated crew links keep 60 days (0023) ═══════════════════
 -- ============================================================================
 -- 0023_work_token_no_date_fix.sql — CANONICAL forward-only. Fixes a bug in 0022
 -- (found by live verification on production, 2026-10-06).
@@ -561,23 +549,40 @@ returns timestamptz language sql stable security definer set search_path = '' as
 $$;
 revoke all on function public.work_token_expiry_for(uuid) from public, anon;
 
--- repair links 0022 shortened (undated events only; live + not revoked; only ever extends)
-update public.work_tokens w
-   set expires_at = greatest(w.expires_at, now() + interval '60 days')
-  from public.quotes q
- where q.id = w.quote_id
-   and q.event_date is null
-   and w.revoked_at is null
-   and w.expires_at is not null and w.expires_at > now()
-   and w.expires_at < now() + interval '59 days'
-   and (select first_0022 or buggy_0022 from _helm_apply);    -- [paste-file guard] only when the 0022 bug ran
+-- [paste file] the one-time repair is not needed here: production was repaired on 2026-10-06 and no other
+-- project ever ran the buggy 0022 step (crew links are re-timed with the FIXED rule in the DATA STEP below).
 
 -- ---- VERIFY (read-only) ----------------------------------------------------
 -- select q.code, q.event_date, w.expires_at from public.work_tokens w join public.quotes q on q.id=w.quote_id
 --  where w.revoked_at is null order by w.expires_at;
 
 
-drop table if exists _helm_apply;
+-- ═══════════════════ DATA STEP — one-time crew-link re-timing (re-run-safe) ═══════════════════
+-- Moves a live crew link only while it is still on the OLD rule, so running this again never
+-- changes a date:
+--  1) event still ahead → exactly the end of (event day + 7), studio timezone (a fixed date)
+update public.work_tokens w
+   set expires_at = d.deadline
+  from (select q.id, public.client_link_deadline(q.event_date, q.org_id, public.client_link_window_days('work')) as deadline
+          from public.quotes q) d
+ where d.id = w.quote_id
+   and w.revoked_at is null and (w.expires_at is null or w.expires_at > now())
+   and d.deadline is not null and d.deadline > now() + interval '2 days'
+   and w.expires_at is distinct from d.deadline;
+--  2) event already over (or ending within 2 days) → a 2-day grace, but only ever SHORTENED
+update public.work_tokens w
+   set expires_at = now() + interval '2 days'
+  from (select q.id, public.client_link_deadline(q.event_date, q.org_id, public.client_link_window_days('work')) as deadline
+          from public.quotes q) d
+ where d.id = w.quote_id
+   and w.revoked_at is null and (w.expires_at is null or w.expires_at > now() + interval '2 days')
+   and d.deadline is not null and d.deadline <= now() + interval '2 days';
+--  3) event with no date → keeps its existing 60-day link; a link with no expiry at all gets 60 days
+update public.work_tokens w
+   set expires_at = now() + interval '60 days'
+  from public.quotes q
+ where q.id = w.quote_id and q.event_date is null
+   and w.revoked_at is null and w.expires_at is null;
 
 -- ════════════════════════════════ VERIFY (one table — every row must say ok) ═══
 select item, case when ok then 'ok' else 'PROBLEM' end as status from (values
@@ -605,5 +610,10 @@ select item, case when ok then 'ok' else 'PROBLEM' end as status from (values
      has_function_privilege('anon','public.public_event_site(text)','execute')),
   ('E crew-link fix installed (undated events keep 60 days)',
      exists (select 1 from pg_proc p where p.oid = to_regprocedure('public.work_token_expiry_for(uuid)')
-              and position('x.deadline is null' in p.prosrc) > 0))
+              and position('x.deadline is null' in p.prosrc) > 0)),
+  ('DATA live crew links follow the new rule',
+     not exists (select 1 from public.work_tokens w join public.quotes q on q.id = w.quote_id
+                  where w.revoked_at is null and (w.expires_at is null or w.expires_at > now())
+                    and q.event_date is not null
+                    and w.expires_at > greatest(public.client_link_deadline(q.event_date, q.org_id, 7), now() + interval '2 days') + interval '1 minute'))
 ) v(item, ok);
