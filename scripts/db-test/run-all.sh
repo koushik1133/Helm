@@ -47,6 +47,7 @@ run "privilege-escalation" "PRIVILEGE-ESCALATION: ALL PASS"  psql -q -f tests/db
 run "link-windows"       "LINK-WINDOWS: ALL PASS"          psql -q -f tests/db/link-windows.sql
 run "injection-guards"   "INJECTION-GUARDS: ALL PASS"      psql -q -f tests/db/injection-guards.sql
 run "write-path-lockdown" "WRITE-PATH-LOCKDOWN: ALL PASS"  psql -q -f tests/db/write-path-lockdown.sql
+run "auth-hardening"     "AUTH-HARDENING: ALL PASS \(34/34\)" psql -q -f tests/db/auth-hardening.sql
 run "payment-matrix"     "PAYMENT-MATRIX: ALL PASS"        psql -q -f tests/db/payment-matrix.sql
 run "checkout-overissue" "CHECKOUT-OVERISSUE: ALL PASS"    psql -q -f tests/db/checkout-overissue.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh

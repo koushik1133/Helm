@@ -51,7 +51,7 @@ do $$ declare uid uuid; neworg uuid; myorg uuid; begin
   begin
     perform auth.login_as((select id from auth.users where email='a_admin@a.test'));
     myorg := public.current_org_id();
-    uid := public.admin_create_user('newuser@a.test','pw12','sales');
+    uid := public.admin_create_user('newuser@a.test','Helm-test-pass-2026','sales');
     select org_id into neworg from public.profiles where id=uid;
     if neworg = myorg then insert into _m values (4,'same-org admin -> admin_create_user','PASS: created in own org');
     else insert into _m values (4,'same-org admin -> admin_create_user','FAIL: landed in org '||neworg); end if;
@@ -76,7 +76,7 @@ do $$ declare uid uuid; neworg uuid; orgB uuid; begin
   begin
     select org_id into orgB from public.profiles where email='b_admin@b.test';
     perform auth.login_as((select id from auth.users where email='a_admin@a.test'));
-    uid := public.admin_create_user('xorg@a.test','pw12','sales');
+    uid := public.admin_create_user('xorg@a.test','Helm-test-pass-2026','sales');
     select org_id into neworg from public.profiles where id=uid;
     if neworg <> orgB then insert into _m values (6,'cross-org: A-admin cannot create into org B','PASS: confined to caller org (not B)');
     else insert into _m values (6,'cross-org: A-admin cannot create into org B','FAIL: created in org B'); end if;

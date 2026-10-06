@@ -148,9 +148,18 @@ const CSP = {
   invite: buildCsp({ 'img-src': USER_IMG, 'media-src': USER_MEDIA, 'frame-ancestors': "'self'" }),
   builder: buildCsp({ 'script-src': "'self' https://cdnjs.cloudflare.com https://browser.sentry-cdn.com https://cdn.jsdelivr.net" }),
 };
+//  • login / reset-password may load the Cloudflare Turnstile CAPTCHA (script + iframe
+//    from challenges.cloudflare.com) — those two pages only (auth hardening)
+const TURNSTILE = 'https://challenges.cloudflare.com';
+const baseDirective = (k) => CSP_BASE.find(([d]) => d === k)[1];
+CSP.auth = buildCsp({
+  'script-src': baseDirective('script-src').replace(/^'self'/, "'self' " + TURNSTILE),
+  'frame-src': baseDirective('frame-src') + ' ' + TURNSTILE,
+});
 const CSP_BY_PAGE = {
   portal: 'userImg', 'proposal-view': 'userImg', proposal: 'userImg', media: 'userImg',
   'invite-studio': 'studio', invite: 'invite', builder: 'builder',
+  login: 'auth', 'reset-password': 'auth',
 };
 const SECURITY_HEADERS = {
   'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
@@ -200,7 +209,8 @@ function securityHeadersFor(req, filePath) {
   return h;
 }
 
-// Cache policy (mirrors vercel.json): HTML revalidates every time; /vendor/ and
+// Cache policy (mirrors vercel.json): marketing HTML revalidates every time; app,
+// auth and client-link pages are never stored (no-store); /vendor/ and
 // ?v=-versioned assets are immutable; config.js is short-lived; unversioned
 // images / crawler files get an hour.
 const IMMUTABLE = 'public, max-age=31536000, immutable';
@@ -208,7 +218,7 @@ const SHORT = 'public, max-age=3600, must-revalidate';
 function cacheControlFor(filePath, query) {
   const rel = relFromPublic(filePath);
   const ext = path.extname(rel).toLowerCase();
-  if (ext === '.html') return 'no-cache';
+  if (ext === '.html') return (!rel.includes('/') && !INDEXABLE_PAGES.has(pageName(rel))) ? 'no-store' : 'no-cache';
   if (rel === 'config.js') return 'public, max-age=300';
   if (rel.startsWith('vendor/')) return IMMUTABLE;
   if (/[?&]v=/.test(query || '') && ['.js', '.css', '.png', '.webp', '.svg', '.woff2'].includes(ext)) return IMMUTABLE;
