@@ -57,7 +57,7 @@ function allPolicies() {
     const m = /^\s+Content-Security-Policy:\s*(.*)$/.exec(line);
     if (m) out.push(['_headers', route, m[1]]);
   }
-  for (const [k, v] of Object.entries(server.CSP)) out.push(['server.js', k === 'builder' ? '/builder' : '/' + k, v]);
+  for (const [k, v] of Object.entries(server.CSP)) out.push(['server.js', k === 'builder' ? '/builder' : k === 'auth' ? '/login' : '/' + k, v]);
   return out;
 }
 // CSP3 source-expression match for host+path sources (no wildcards needed here).

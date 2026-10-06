@@ -165,10 +165,10 @@ t('cache policy: versioned assets / vendor immutable, config.js short, marketing
   // auth hardening: signed-in app pages and the login / reset pages must never be stored
   for (const p of PAGES.filter((x) => !MARKETING.includes(x))) {
     for (const u of ['/' + p, '/' + p + '.html']) {
-      assert.equal(vercelHeaders(u)['cache-control'], 'no-store', `${u} must be Cache-Control: no-store (vercel.json)`);
-      assert.equal(netlifyHeaders(u)['cache-control'], 'no-store', `${u} must be Cache-Control: no-store (_headers)`);
+      assert.match(vercelHeaders(u)['cache-control'] || '', /^no-store(, private)?$/, `${u} must be Cache-Control: no-store (vercel.json)`);
+      assert.match(netlifyHeaders(u)['cache-control'] || '', /^no-store(, private)?$/, `${u} must be Cache-Control: no-store (_headers)`);
     }
-    assert.equal(serverHeaders('/' + p)['cache-control'], 'no-store', `/${p} must be no-store (server.js)`);
+    assert.match(serverHeaders('/' + p)['cache-control'] || '', /^no-store(, private)?$/, `/${p} must be no-store (server.js)`);
   }
   for (const p of MARKETING) assert.equal(vercelHeaders('/' + (p === 'index' ? '' : p))['cache-control'], 'no-cache', `${p} keeps no-cache`);
 });

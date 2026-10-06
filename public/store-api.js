@@ -352,7 +352,7 @@
     try {
       if (typeof BroadcastChannel !== "undefined") {
         bc = new BroadcastChannel("helm-session");
-        bc.onmessage = (m) => { const d = m && m.data; if (d && d.type === "logout") limitLogout(d.reason, true); };
+        bc.addEventListener("message", (m) => { const d = m && m.data; if (d && d.type === "logout") limitLogout(d.reason, true); });
       }
     } catch (e) { bc = null; }
     try { document.addEventListener("visibilitychange", () => { if (!document.hidden) checkLimits(); }); } catch (e) {}
