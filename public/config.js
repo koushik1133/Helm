@@ -17,6 +17,18 @@ window.SUPABASE_CONFIG = {
     sms: false,       // send-otp        → MSG91
     pay: false,       // create-payment-link → Razorpay Payment Links (enable only after deploy+secrets — see docs/INTEGRATIONS-WHATSAPP-RAZORPAY.md)
     whatsapp: false   // send-whatsapp   → Meta WhatsApp Cloud API   (enable only after deploy+secrets — see docs/INTEGRATIONS-WHATSAPP-RAZORPAY.md)
+  },
+  // Bot protection on sign-in / sign-up / password reset (Cloudflare Turnstile).
+  // siteKey is the PUBLIC site key. EMPTY = off (sign-in works exactly as before).
+  // Turn on only AFTER Supabase → Authentication → Bot protection is enabled with
+  // the Turnstile SECRET key (docs/AUTH-DASHBOARD-SETTINGS.md) — never put the secret here.
+  captcha: { provider: "turnstile", siteKey: "" },
+  auth: {
+    // true = admins without two-step verification must set it up before using the app
+    mfaRequiredForAdmins: false,
+    // signed-in staff pages: sign out after idleMinutes without activity (warning
+    // warnSeconds before), and always after maxHours since sign-in. 0 = off.
+    session: { idleMinutes: 30, warnSeconds: 60, maxHours: 12 }
   }
 };
 

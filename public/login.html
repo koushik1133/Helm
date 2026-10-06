@@ -78,6 +78,7 @@
   .info{background:#fff7e6;color:#5c3d00;border:1px solid #f2d492;border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:16px}
   .linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);cursor:pointer;text-decoration:underline}
   .hint{font-size:12px;color:var(--ink-3);margin:-10px 0 16px}
+  .captcha{margin:0 0 16px;min-height:65px}
 </style>
 <link rel="stylesheet" href="theme.css?v=73">
 </head>
@@ -116,7 +117,9 @@
       <input id="email" type="email" autocomplete="username" placeholder="you@studio.com" required>
       <label for="pw">Password</label>
       <input id="pw" type="password" autocomplete="current-password" placeholder="••••••••" required aria-describedby="pwHint">
-      <p class="hint" id="pwHint" hidden>At least 12 characters.</p>
+      <p class="hint" id="pwHint" hidden>At least 12 characters, with a letter and a number.</p>
+      <p class="hint" id="forgotRow"><button type="button" class="linkbtn" id="forgotBtn">Forgot password?</button></p>
+      <div class="captcha" id="captcha" hidden></div>
       <button class="btn" id="submit" type="submit">Sign in →</button>
       <div class="or"><span>or</span></div>
       <button type="button" class="gbtn" id="googleBtn">
@@ -124,6 +127,32 @@
         Continue with Google
       </button>
       <div class="foot">By continuing you agree to our <a href="terms" style="color:var(--accent)">Terms</a> &amp; <a href="privacy" style="color:var(--accent)">Privacy Policy</a>. · <a href="/" style="color:var(--accent)">← Home</a></div>
+    </form>
+
+    <!-- Forgot password: always the same answer, whether or not the email has an account -->
+    <form class="card" id="forgotForm" hidden novalidate>
+      <div class="mmk"></div>
+      <h1>Reset your password</h1>
+      <p class="sub">Enter the email you sign in with. If it has a Helm account, we'll email a link to choose a new password.</p>
+      <div class="err" id="fgErr" role="alert" hidden></div>
+      <div class="okmsg" id="fgOk" role="status" hidden></div>
+      <label for="fg_email">Email</label>
+      <input id="fg_email" type="email" autocomplete="username" placeholder="you@studio.com" required>
+      <div class="captcha" id="fgCaptcha" hidden></div>
+      <button class="btn" id="fg_submit" type="submit">Send reset link →</button>
+      <div class="foot"><button type="button" class="linkbtn" id="fg_back">← Back to sign in</button></div>
+    </form>
+
+    <!-- Two-step verification: shown after the password when the account has an authenticator -->
+    <form class="card" id="mfaForm" hidden novalidate>
+      <div class="mmk"></div>
+      <h1>Two-step verification</h1>
+      <p class="sub">Open your authenticator app and enter the 6-digit code for Helm.</p>
+      <div class="err" id="mfaErr" role="alert" hidden></div>
+      <label for="mfa_code">6-digit code</label>
+      <input id="mfa_code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="123456" required>
+      <button class="btn" id="mfa_submit" type="submit">Verify →</button>
+      <div class="foot">Signed in as <b id="mfaEmail"></b> · <button type="button" class="linkbtn" id="mfa_signout">Use a different account</button></div>
     </form>
 
     <!-- Onboarding: shown when a signed-in user (e.g. via Google) has no studio yet -->
@@ -167,11 +196,20 @@
 <script src="telemetry.js?v=2"></script>
 <script src="config.js?v=91"></script>
 <script src="store-api.js?v=98"></script>
+<script src="auth-ui.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const PENDING="bp_pending_studio";
-  // Matches the Supabase Auth password policy (min length 12 — docs/completion/AUTH-HARDENING.md).
+  // Matches the Supabase Auth password policy + 0028 (min 12, a letter and a number —
+  // docs/AUTH-DASHBOARD-SETTINGS.md). One rule, from store-api.js.
   const PW_MIN=12;
+  const pwProblem=(p)=>(BPStore.auth.passwordRule? BPStore.auth.passwordRule.problem(p) : ((p||"").length<PW_MIN?"Use at least "+PW_MIN+" characters.":null));
+  const QS=new URLSearchParams(location.search);
+  // Cloudflare Turnstile — only when config.captcha.siteKey is set (else null = off, sign-in unchanged)
+  let cap=null, fgCap=null;
+  const capToken=(c)=>c? c.token() : undefined;
+  const capReset=(c)=>{ if(c) c.reset(); };
+  const capMissing=(c)=>!!c && !c.token();
   // ----- invitation: JOIN an existing studio (vs. Create a new one) -----
   // The invite token is a bearer secret: keep it only for this tab (sessionStorage),
   // never in long-lived localStorage. The legacy localStorage copy is read once, then removed.
@@ -216,7 +254,7 @@
         '<form id="fpc_form" novalidate style="background:#fff;color:#111;max-width:380px;width:100%;border-radius:14px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35)">'+
         '<h2 id="fpc_title" style="margin:0 0 6px;font-size:1.15rem">Set your password</h2>'+
         '<p style="margin:0 0 14px;color:#555;font-size:.9rem">You signed in with a temporary password. Choose your own to continue.</p>'+
-        '<label for="fpc_pw" style="display:block;font-size:.85rem;margin-bottom:4px;text-transform:none;letter-spacing:0;color:#333">New password (min '+PW_MIN+')</label>'+
+        '<label for="fpc_pw" style="display:block;font-size:.85rem;margin-bottom:4px;text-transform:none;letter-spacing:0;color:#333">New password (min '+PW_MIN+', a letter and a number)</label>'+
         '<input id="fpc_pw" type="password" autocomplete="new-password" minlength="'+PW_MIN+'" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px">'+
         '<label for="fpc_pw2" style="display:block;font-size:.85rem;margin-bottom:4px;text-transform:none;letter-spacing:0;color:#333">Confirm password</label>'+
         '<input id="fpc_pw2" type="password" autocomplete="new-password" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:12px">'+
@@ -230,7 +268,7 @@
         e.preventDefault();
         BPUI.guard(go, async ()=>{
           er.textContent="";
-          if((pw.value||"").length<PW_MIN){ er.textContent="Password must be at least "+PW_MIN+" characters."; return; }
+          const bad=pwProblem(pw.value); if(bad){ er.textContent=bad; return; }
           if(pw.value!==pw2.value){ er.textContent="Passwords don't match."; return; }
           go.textContent="Saving…";
           try{ await BPStore.auth.completePasswordChange(pw.value); ov.remove(); resolve(true); }
@@ -254,6 +292,77 @@
     // new passwords must meet the policy; existing ones are checked by the server
     if(m==="signup") $("#pw").setAttribute("minlength", String(PW_MIN)); else $("#pw").removeAttribute("minlength");
     $("#pwHint").hidden = m!=="signup";
+    $("#forgotRow").hidden = m==="signup";
+  }
+  // ----- views: sign-in form / forgot password / two-step code -----
+  function showView(id){ ["#loginForm","#forgotForm","#mfaForm","#onboardForm"].forEach(s=>{ $(s).hidden = s!==id; }); }
+  function openForgot(){
+    showView("#forgotForm"); $("#fgErr").hidden=true; $("#fgOk").hidden=true;
+    if($("#email").value && !$("#fg_email").value) $("#fg_email").value=$("#email").value;
+    if(!fgCap && window.HelmAuthUI) fgCap=HelmAuthUI.mountCaptcha($("#fgCaptcha"),{action:"reset"});
+    setTimeout(()=>$("#fg_email").focus(),60);
+  }
+  $("#forgotBtn").addEventListener("click", openForgot);
+  // the widget is mounted only while its form is visible (Turnstile can't size a hidden box)
+  function ensureCap(){ if(!cap && window.HelmAuthUI) cap=HelmAuthUI.mountCaptcha($("#captcha"),{action:"login"}); }
+  $("#fg_back").addEventListener("click", ()=>{ showView("#loginForm"); ensureCap(); setTimeout(()=>$("#email").focus(),60); });
+  $("#forgotForm").addEventListener("submit",(e)=>{
+    e.preventDefault();
+    const btn=$("#fg_submit");
+    BPUI.guard(btn, async ()=>{
+      $("#fgErr").hidden=true; $("#fgOk").hidden=true;
+      const em=$("#fg_email").value.trim();
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){ showErr($("#fgErr"),"Enter the email you sign in with."); $("#fg_email").focus(); return; }
+      if(capMissing(fgCap)){ showErr($("#fgErr"),"Please complete the security check."); return; }
+      btn.textContent="Sending…";
+      try{
+        await BPStore.auth.requestPasswordReset(em,{ captchaToken:capToken(fgCap), redirectTo: location.origin+"/reset-password" });
+        // Same message whether or not the account exists — never reveal which emails are registered.
+        $("#fgOk").textContent="If an account exists for that email, we've sent a link to reset your password. It can take a few minutes — check spam too.";
+        $("#fgOk").hidden=false;
+      }catch(err){
+        const c=(err&&err.code)||"";
+        showErr($("#fgErr"), /^(rate_limited|captcha_)/.test(c) ? err.message : BPUI.friendlyError(err,{action:"send the reset link"}));
+      }finally{ capReset(fgCap); btn.textContent="Send reset link →"; }
+    });
+  });
+  // Finish whatever sign-in step is pending (two-step code, temp password, reset link).
+  // Resolves true when the account may enter the app.
+  function askMfaCode(){
+    return new Promise((resolve)=>{
+      showView("#mfaForm"); $("#mfaErr").hidden=true; $("#mfa_code").value="";
+      $("#mfaEmail").textContent=((BPStore.auth.pendingUser()||{}).email)||"";
+      setTimeout(()=>$("#mfa_code").focus(),60);
+      const form=$("#mfaForm");
+      const onSubmit=(e)=>{
+        e.preventDefault();
+        BPUI.guard($("#mfa_submit"), async ()=>{
+          $("#mfaErr").hidden=true;
+          try{ await BPStore.auth.mfa.challenge($("#mfa_code").value); form.removeEventListener("submit",onSubmit); resolve(true); }
+          catch(err){
+            const direct=!!err && (err.code==="mfa_invalid" || /6-digit/.test(err.message||""));
+            showErr($("#mfaErr"), direct ? err.message : BPUI.friendlyError(err,{action:"verify the code"})); $("#mfa_code").select();
+          }
+        });
+      };
+      form.addEventListener("submit",onSubmit);
+    });
+  }
+  $("#mfa_signout").addEventListener("click", async ()=>{ clearInvite(); try{ await BPStore.auth.signOut(); }catch(e){} location.replace("login.html"); });
+  async function finishGate(){
+    for(let i=0;i<5;i++){
+      const step=BPStore.auth.pendingStep();
+      if(!step) return true;
+      if(step==="mfa"){ await askMfaCode(); continue; }
+      if(step==="password"){ showView("#loginForm"); await forcePasswordChange(); continue; }
+      if(step==="recovery"){ location.replace("reset-password"); return false; }
+      // "verify": the account status couldn't be checked — fail closed, let them retry
+      await BPStore.auth.resolveGate();
+      if(BPStore.auth.pendingStep()==="verify"){
+        const e=new Error("We couldn't confirm your account status. Check your connection and try again."); e.code="gate_verify"; throw e;
+      }
+    }
+    return !BPStore.auth.pendingStep();
   }
   document.querySelectorAll(".mtab").forEach(b=>b.addEventListener("click",()=>setMode(b.dataset.mode)));
 
@@ -284,7 +393,15 @@
   // an invite implies "join", so default to the create-account tab for a new invitee
   if(JOINING){ setMode("signup"); }
   // redirected here by the shared session-expiry handler (login.html?next=…&expired=1)
-  if(EXPIRED){ $("#expiredMsg").hidden=false; if(mode!=="signin") setMode("signin"); }
+  if(EXPIRED){
+    const why=QS.get("reason");
+    if(why==="idle") $("#expiredMsg").textContent="You were signed out after a period of inactivity — sign in again.";
+    else if(why==="max") $("#expiredMsg").textContent="For security, sessions end after a set time — sign in again.";
+    $("#expiredMsg").hidden=false; if(mode!=="signin") setMode("signin");
+  }
+  // back from reset-password.html after choosing a new password
+  if(QS.get("reset")==="1"){ $("#okmsg").textContent="Your password was updated and other devices were signed out. Sign in with your new password."; $("#okmsg").hidden=false; if(mode!=="signin") setMode("signin"); }
+  if((location.hash||"").toLowerCase()==="#forgot"){ setTimeout(openForgot,0); }
   // ----- Onboarding: a signed-in user with no studio (e.g. Google sign-in) -----
   function showOnboarding(){
     const u=BPStore.auth.user()||{};
@@ -325,7 +442,10 @@
   BPUI.boot(async ()=>{
     await BPStore.init();
     if(!BPStore.auth.enabled()){ location.replace(nextUrl()); return; }
-    if(BPStore.auth.user()){
+    if(BPStore.auth.pendingUser()){
+      // a session exists: finish any pending step (two-step code / temp password / reset) first
+      try{ if(!(await finishGate())) return; }
+      catch(err){ showView("#loginForm"); showErr($("#err"), err&&err.code==="gate_verify" ? err.message : BPUI.friendlyError(err,{action:"finish signing you in"})); return; }
       if(pendingInvite()){
         try{ await acceptPendingInvite(); }
         catch(err){ showErr($("#err"),BPUI.friendlyError(err,{action:"accept the invitation"})); return; }
@@ -336,7 +456,8 @@
       if(!oid && !JOINING){ showOnboarding(); return; }
       location.replace(nextUrl()); return;
     }
-    setTimeout(()=>$(mode==="signup"&&!JOINING?"#studio":"#email").focus(),60);
+    if($("#forgotForm").hidden) ensureCap();
+    if($("#forgotForm").hidden) setTimeout(()=>$(mode==="signup"&&!JOINING?"#studio":"#email").focus(),60);
     showInviteBanner();
   });
 
@@ -359,13 +480,14 @@
       const joining=!!pendingInvite();
       try{
         if(mode==="signup"){
-          if(pw.length<PW_MIN){ showErr($("#err"),"Choose a password of at least "+PW_MIN+" characters."); $("#pw").focus(); return; }
+          const bad=pwProblem(pw); if(bad){ showErr($("#err"),"Choose a stronger password: "+bad); $("#pw").focus(); return; }
+          if(!BPStore.auth.user() && capMissing(cap)){ showErr($("#err"),"Please complete the security check."); return; }
           if(joining){
             // invitee creating an account, then accepting the invite (no studio to create)
             btn.textContent="Creating…";
             // retry after a partial failure: the account + session already exist → don't sign up again
             const existing=BPStore.auth.user();
-            const r=existing?{session:true}:await BPStore.auth.signUp(email, pw);
+            const r=existing?{session:true}:await BPStore.auth.signUp(email, pw, {captchaToken:capToken(cap)});
             if(r.session){ await acceptPendingInvite(); location.replace(nextUrl()); return; }
             $("#okmsg").textContent="Account created. Confirm your email, then sign in here to join the studio.";
             $("#okmsg").hidden=false; setMode("signin"); return;
@@ -376,25 +498,29 @@
           // If an earlier attempt signed up (session exists) but createStudio failed,
           // a retry must NOT call signUp again — only create the studio.
           const existing=BPStore.auth.user();
-          const r=existing?{session:true}:await BPStore.auth.signUp(email, pw);
+          const r=existing?{session:true}:await BPStore.auth.signUp(email, pw, {captchaToken:capToken(cap)});
           if(r.session){ await BPStore.org.createStudio(studio,{email:(existing&&existing.email)||email}); try{ localStorage.setItem("bp_force_tour","1"); }catch(e){} location.replace(nextUrl()); return; }
           // email confirmation required → save the name, finish after they confirm + sign in
           localStorage.setItem(PENDING, studio);
           $("#okmsg").textContent="Studio saved. Check your email to confirm your address, then sign in here to finish setup.";
           $("#okmsg").hidden=false; setMode("signin"); return;
         }
+        if(capMissing(cap)){ showErr($("#err"),"Please complete the security check."); return; }
         btn.textContent="Signing in…";
-        await BPStore.auth.signIn(email, pw);
-        // Option A: a user created with a one-time temp password MUST set their own now.
-        if(await BPStore.auth.passwordChangeRequired()){ await forcePasswordChange(); }
+        await BPStore.auth.signIn(email, pw, {captchaToken:capToken(cap)});
+        // Two-step code / temp password (Option A: MUST set their own now) — fails closed.
+        if(!(await finishGate())) return;
         if(joining){ await acceptPendingInvite(); } else { await finishPendingStudio(); }
         location.replace(nextUrl());
       }catch(err){
+        showView("#loginForm");
         const m=(err&&err.message)||"";
+        if(err&&err.code==="gate_verify"){ showErr($("#err"),m); return; }
+        if(/captcha/i.test(m)){ showErr($("#err"),"The security check failed or expired — please try again."); return; }
         // credential / policy messages from Supabase Auth are written for users; everything else goes through friendlyError
         const direct=/invalid login|credentials|password|already registered|email/i.test(m) && !/TypeError|undefined|fetch/i.test(m);
         showErr($("#err"), direct ? m : BPUI.friendlyError(err,{action: mode==="signup"?"create the studio":"sign you in"}));
-      }finally{ btn.textContent=submitLabel(); }
+      }finally{ capReset(cap); btn.textContent=submitLabel(); }
     });
   });
 </script>

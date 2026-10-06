@@ -152,8 +152,9 @@ t('base CSP: no CDN hosts (builder-only); pinned Sentry bundle dir + ingest kept
   assert.match(c['script-src'], /'sha256-[A-Za-z0-9+/=]{44}'/, 'script-src must carry the inline-script hashes (node scripts/gen-csp.mjs)');
 });
 
-t('cache policy: versioned assets / vendor immutable, config.js short, HTML no-cache', () => {
-  const cases = [['/store-api.js', '?v=1'], ['/theme.css', '?v=1'], ['/vendor/x-1.0.0.min.js', ''], ['/config.js', '?v=1'], ['/dashboard', ''], ['/', '']];
+t('cache policy: versioned assets / vendor immutable, config.js short, marketing HTML no-cache, app/auth pages no-store', () => {
+  const cases = [['/store-api.js', '?v=1'], ['/theme.css', '?v=1'], ['/vendor/x-1.0.0.min.js', ''], ['/config.js', '?v=1'], ['/dashboard', ''], ['/', ''],
+    ['/login', ''], ['/reset-password', ''], ['/approve', ''], ['/about', '']];
   for (const [p, q] of cases) {
     const v = vercelHeaders(p)['cache-control'];
     assert.equal(serverHeaders(p, q)['cache-control'], v, `server.js Cache-Control ≠ vercel.json for ${p}${q}`);
@@ -161,7 +162,25 @@ t('cache policy: versioned assets / vendor immutable, config.js short, HTML no-c
   }
   assert.match(vercelHeaders('/vendor/a.js')['cache-control'], /immutable/);
   assert.equal(vercelHeaders('/config.js')['cache-control'], 'public, max-age=300');
-  assert.equal(vercelHeaders('/dashboard')['cache-control'], 'no-cache');
+  // auth hardening: signed-in app pages and the login / reset pages must never be stored
+  for (const p of PAGES.filter((x) => !MARKETING.includes(x))) {
+    for (const u of ['/' + p, '/' + p + '.html']) {
+      assert.equal(vercelHeaders(u)['cache-control'], 'no-store', `${u} must be Cache-Control: no-store (vercel.json)`);
+      assert.equal(netlifyHeaders(u)['cache-control'], 'no-store', `${u} must be Cache-Control: no-store (_headers)`);
+    }
+    assert.equal(serverHeaders('/' + p)['cache-control'], 'no-store', `/${p} must be no-store (server.js)`);
+  }
+  for (const p of MARKETING) assert.equal(vercelHeaders('/' + (p === 'index' ? '' : p))['cache-control'], 'no-cache', `${p} keeps no-cache`);
+});
+
+t('CAPTCHA CSP allowance (Turnstile) only on the login / reset pages', () => {
+  for (const p of PAGES) {
+    const c = cspMap(vercelHeaders('/' + p)['content-security-policy']);
+    const auth = p === 'login' || p === 'reset-password';
+    assert.equal(/challenges\.cloudflare\.com/.test(c['script-src']), auth, `/${p} script-src Turnstile allowance`);
+    assert.equal(/challenges\.cloudflare\.com/.test(c['frame-src']), auth, `/${p} frame-src Turnstile allowance`);
+    assert.ok(!/challenges\.cloudflare\.com/.test(c['connect-src'] || ''), `/${p} connect-src must not gain Turnstile`);
+  }
 });
 
 console.log(`headers-parity: ${n} assertion group(s) passed.`);
