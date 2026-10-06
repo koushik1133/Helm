@@ -1821,6 +1821,10 @@
       return list;
     },
     // public side (anonymous guests) --------------------------------------------
+    // when guests stop being able to open this invitation (0022): Date, or null = no event date yet
+    async liveUntil(siteId) { if (!supa) return null;
+      const { data, error } = await supa.rpc("event_site_live_until", { p_site_id: siteId });
+      if (error) throw error; return data ? new Date(data) : null; },
     async public(slug) {                                                                  // display fields of a PUBLISHED site only
       if (!supa) { try { await BPStore.init(); } catch (e) {} }
       if (!supa) throw new Error("Supabase not configured");

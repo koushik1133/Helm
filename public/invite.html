@@ -150,6 +150,10 @@
     <h1>Invitation not found</h1>
     <p>This link may be incorrect, or the invitation hasn’t been published yet.</p>
   </div></div>
+  <div id="ended" class="state" hidden><div>
+    <h1>This invitation has ended</h1>
+    <p>Thank you for celebrating with us. This invitation link is no longer active.</p>
+  </div></div>
   <div id="loadErr" class="state" hidden></div>
 
   <!-- cover gate -->
@@ -181,7 +185,7 @@
 
 <script src="/telemetry.js?v=2"></script>
 <script src="/config.js?v=91"></script>
-<script src="/store-api.js?v=96"></script>
+<script src="/store-api.js?v=97"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -351,6 +355,7 @@
     catch(e){
       $("#loading").hidden=true;
       if(BPUI.isNotFound(e)){ $("#missing").hidden=false; return; }
+      if(/has ended|expired/i.test((e&&e.message)||"")){ $("#ended").hidden=false; return; }   // past its live window (0022)
       // a network / server failure is not "invitation not found" — offer a retry
       $("#loadErr").hidden=false; BPUI.loadError($("#loadErr"), e, load, {what:"this invitation"}); return;
     }

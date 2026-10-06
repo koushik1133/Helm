@@ -79,7 +79,7 @@
 
 <script src="/telemetry.js?v=2"></script>
 <script src="/config.js?v=91"></script>
-<script src="/store-api.js?v=96"></script>
+<script src="/store-api.js?v=97"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -151,6 +151,14 @@
       $("#offline").hidden=true; $("#loading").hidden=true; $("#badlink").hidden=true; $("#offlineFirst").hidden=true; $("#content").hidden=false;
       paintHeader(); render();
     }catch(e){
+      // link expired / revoked (0022): never keep showing cached tasks
+      if(/expired|revoked/i.test((e&&e.message)||"")){
+        try{ if(CK) sessionStorage.removeItem(CK); }catch{}
+        data=null; $("#content").hidden=true; $("#offline").hidden=true; $("#loading").hidden=true;
+        $("#badlink").querySelector("h1").textContent="Link expired";
+        $("#badlink").querySelector(".sub").textContent="This task link has expired. Please ask your manager for a new one.";
+        $("#badlink").hidden=false; return;
+      }
       if(strict && !data){
         $("#loading").hidden=true;
         // first load with no cached view: offline is not the same as a bad link

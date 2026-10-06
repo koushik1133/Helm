@@ -199,6 +199,7 @@
               <button class="btn" id="copyBtn" type="button">Copy</button>
               <a class="btn" id="openBtn" target="_blank" rel="noopener noreferrer">Open</a>
             </div>
+            <p class="mnote" id="liveUntil" style="margin:6px 0 0" hidden></p>
           </div>
         </div>
       </div>
@@ -219,7 +220,7 @@
 
 <script src="telemetry.js?v=2"></script>
 <script src="config.js?v=91"></script>
-<script src="store-api.js?v=96"></script>
+<script src="store-api.js?v=97"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -366,6 +367,10 @@
     if(site && site.slug){
       const link=BPStore.links.url("invite", site.slug, location.origin+"/i/"+site.slug);
       $("#pubLink").value=link; $("#openBtn").href=link; $("#linkWrap").hidden=!pub;
+      if(pub && site.id) BPStore.sites.liveUntil(site.id).then(d=>{ const el=$("#liveUntil"); if(!el) return;
+        el.textContent=d ? "Guests can open this link until "+d.toLocaleString(undefined,{day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"})+" (7 days after the event)."
+                         : "Add the event date so this link closes automatically 7 days after the event.";
+        el.hidden=false; }).catch(()=>{});
     }
   }
 
