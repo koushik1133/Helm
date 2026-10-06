@@ -48,7 +48,7 @@
   .eq .btn{flex:0 0 auto;min-width:0;width:auto;height:38px;padding:0 16px}
   footer{text-align:center;color:var(--ink-3);font-size:12px;margin-top:8px}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="/theme.css?v=73">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -77,13 +77,14 @@
   <footer>Helm Events · you only see tasks assigned to you.</footer>
 </div>
 
-<script src="telemetry.js?v=2"></script>
-<script src="config.js?v=91"></script>
-<script src="store-api.js?v=94"></script>
+<script src="/telemetry.js?v=2"></script>
+<script src="/config.js?v=91"></script>
+<script src="/store-api.js?v=96"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-  const token=new URLSearchParams(location.search).get("token");
+  const LINK=BPStore.links.parse("work");   // branded /<studio>/work/<token> (server-verified below)
+  const token=LINK?LINK.ref:new URLSearchParams(location.search).get("token");
   const LABEL={assigned:"Assigned",accepted:"Accepted",in_progress:"In progress",completed:"Completed",rejected:"Rejected"};
   let data=null, equip=[];
   // Offline cache: sessionStorage only (cleared when the tab closes), keyed by a
@@ -130,6 +131,9 @@
   }
   async function load(){
     if(!token){ $("#loading").hidden=true; $("#badlink").hidden=false; return; }
+    if(LINK){                                // studio name must own this crew link (offline: fall through to cache)
+      try{ if(!(await BPStore.links.verify(LINK))){ $("#loading").hidden=true; $("#badlink").hidden=false; return; } }catch(e){}
+    }
     await cacheKey();
     const cached=readCache();
     if(cached && cached.data){ data=cached.data; equip=cached.equip||[]; $("#loading").hidden=true; $("#content").hidden=false; paintHeader(); render(); }

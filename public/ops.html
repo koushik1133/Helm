@@ -184,7 +184,7 @@
 
 <script src="telemetry.js?v=2"></script>
 <script src="config.js?v=91"></script>
-<script src="store-api.js?v=94"></script>
+<script src="store-api.js?v=96"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -328,6 +328,7 @@
       ${canVerify && t.verify_status==='pending' ? `<button type="button" class="btn sm vpass" aria-label="Pass QC for ${tn}">✓ Pass</button><button type="button" class="btn sm vrej" aria-label="Reject QC for ${tn}">✗ Reject</button>`:""}</div>`;
   }
   function renderDashboard(){
+    if(!renderDashboard._s){ renderDashboard._s=1; BPStore.links.studio().then(s=>{ if(s) renderDashboard(); }).catch(()=>{}); }   // re-render once the branded studio link name is known
     const host=$("#dashboard");
     if(!tasks.length){ host.innerHTML='<div class="empty">No tasks assigned yet. Pick a section above, select tasks, choose a staff member, and Assign.</div>'; return; }
     const byId=Object.fromEntries(tasks.map(t=>[t.id,t]));
@@ -347,7 +348,7 @@
     } else {
       // group by assignee phone
       const byPhone={}; tasks.forEach(t=>{ const k=t.assignee_phone||"—"; (byPhone[k]=byPhone[k]||[]).push(t); });
-      const tokenFor=(phone)=>{ const w=tokens.find(x=>x.phone===phone); return w? location.origin+"/work.html?token="+w.token : null; };
+      const tokenFor=(phone)=>{ const w=tokens.find(x=>x.phone===phone); return w? BPStore.links.url("work", w.token, location.origin+"/work.html?token="+w.token) : null; };
       host.innerHTML=Object.entries(byPhone).map(([phone,ts])=>{
         const name=ts[0].assignee_name||"Unassigned"; const link=tokenFor(phone);
         const done=ts.filter(t=>t.status==='completed').length;

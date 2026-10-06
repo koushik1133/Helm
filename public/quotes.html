@@ -229,7 +229,7 @@
 
 <script src="telemetry.js?v=2"></script>
 <script src="config.js?v=91"></script>
-<script src="store-api.js?v=94"></script>
+<script src="store-api.js?v=96"></script>
 <script src="tour.js?v=5"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
@@ -567,7 +567,7 @@
   let lkQuoteId=null, lkPhone="";
   async function sendApprovalLink(id){
     try{ const tok=await BPStore.approval.generateToken(id);
-      const url=location.origin+"/approve.html?token="+encodeURIComponent(tok);
+      const url=await BPStore.links.build("quote", tok, location.origin+"/approve.html?token="+encodeURIComponent(tok));
       lkQuoteId=id; $("#lk_msg").innerHTML="";
       try{ const q=(quotes.find(x=>x.id===id)); lkPhone=(q&&q.client&&q.client.phone)|| (q&&q.pricing&&q.pricing.client&&q.pricing.client.phone) ||""; }catch{ lkPhone=""; }
       $("#lk_url").value=url; $("#lk_open").href=url; $("#linkModal").hidden=false;

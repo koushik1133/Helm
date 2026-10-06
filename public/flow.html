@@ -304,7 +304,7 @@
 
 <script src="telemetry.js?v=2"></script>
 <script src="config.js?v=91"></script>
-<script src="store-api.js?v=94"></script>
+<script src="store-api.js?v=96"></script>
 <script src="tour.js?v=5"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -716,7 +716,7 @@
     try{
       const r=await BPStore.approval.generateToken(id);
       const token=(r&&(r.token||r.approval_token))||r;
-      const link=location.origin+"/portal.html?token="+encodeURIComponent(token);
+      const link=await BPStore.links.build("portal", token, location.origin+"/portal.html?token="+encodeURIComponent(token));
       const phone=(ev.client&&ev.client.phone||"").replace(/[^0-9]/g,"");
       const waText=encodeURIComponent(`Hi ${ev.client&&ev.client.name||""}, here's your event proposal & quote: ${link}`);
       $("#apprState").innerHTML='<b style="color:var(--safe-text)">Approval link ready.</b> Share it with the client:';

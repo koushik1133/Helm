@@ -181,13 +181,14 @@
 
 <script src="/telemetry.js?v=2"></script>
 <script src="/config.js?v=91"></script>
-<script src="/store-api.js?v=94"></script>
+<script src="/store-api.js?v=96"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   // CSS url('…') context: percent-encode quotes/parens/backslash/whitespace so a stored URL can't break out of url().
   const cssUrl=u=>esc(String(u==null?"":u).replace(/['"()\\\s]/g,c=>"%"+c.charCodeAt(0).toString(16).padStart(2,"0")));
-  function getSlug(){ const m=location.pathname.match(/^\/i\/([^\/?#]+)/); if(m) return decodeURIComponent(m[1]);
+  const LINK=BPStore.links.parse("invite");   // branded /<studio>/invite/<slug> (server-verified in load)
+  function getSlug(){ if(LINK) return LINK.ref; const m=location.pathname.match(/^\/i\/([^\/?#]+)/); if(m) return decodeURIComponent(m[1]);
     return new URLSearchParams(location.search).get("s")||""; }
   const EYEBROW={wedding:"Together with their families",engagement:"Save the date",
     birthday:"You're invited to celebrate",corporate:"You're invited",general:"You're invited"};
@@ -346,7 +347,7 @@
     if(!slug){ $("#loading").hidden=true; $("#missing").hidden=false; return; }
     $("#loadErr").hidden=true;
     let site;
-    try{ await BPStore.init(); site=await BPStore.sites.public(slug); }
+    try{ await BPStore.init(); await BPStore.links.require(LINK); site=await BPStore.sites.public(slug); }
     catch(e){
       $("#loading").hidden=true;
       if(BPUI.isNotFound(e)){ $("#missing").hidden=false; return; }
