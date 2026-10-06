@@ -138,6 +138,7 @@
         <button type="button" class="btn primary" id="pubBtn" hidden>Publish</button>
         <button type="button" class="btn" id="unpubBtn" hidden>Unpublish</button>
       </div>
+      <small style="display:block;margin-top:6px;color:var(--ink-3)">The proposal link stops working 7 days after the event.</small>
     </div>
 
     <div class="card">
@@ -171,7 +172,7 @@
 
 <script src="telemetry.js?v=2"></script>
 <script src="config.js?v=91"></script>
-<script src="store-api.js?v=96"></script>
+<script src="store-api.js?v=97"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

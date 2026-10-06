@@ -203,7 +203,7 @@
   <div class="sheet" style="width:min(560px,94vw)">
     <h3><span id="lk_title">🔗 Client approval link</span> <button class="close" id="lk_close" type="button" aria-label="Close" data-close>✕</button></h3>
     <p class="sub">Share this link with the client. They review the terms, verify an OTP on their phone, consent, and pay. You'll see the status update here.</p>
-    <div class="fld"><label for="lk_url">Approval link</label><input id="lk_url" readonly></div>
+    <div class="fld"><label for="lk_url">Approval link</label><input id="lk_url" readonly><small style="display:block;margin-top:4px;color:var(--ink-3)">Works until 30 days after the event (client approval, payments and the event portal).</small></div>
     <div id="lk_msg" role="status" aria-live="polite"></div>
     <div class="modbtns">
       <button class="btn" id="lk_copy" type="button">Copy link</button>
@@ -229,7 +229,7 @@
 
 <script src="telemetry.js?v=2"></script>
 <script src="config.js?v=91"></script>
-<script src="store-api.js?v=96"></script>
+<script src="store-api.js?v=97"></script>
 <script src="tour.js?v=5"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
