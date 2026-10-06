@@ -1,9 +1,10 @@
 -- ════════════════════════════════════════════════════════════════════════════
--- HELM — EVERYTHING PENDING (one paste) — Supabase SQL Editor        (rebuilt 2026-10-06)
+-- HELM — EVERYTHING PENDING (one paste) — Supabase SQL Editor        (rebuilt 2026-10-06, v2)
 --   PART A  Invitation photos private ............. 0019   (prod: done · staging: done)
 --   PART B  Studio client links + anti-phishing ... 0020   (prod: done · staging: NEW)
---   PART C  CRITICAL privilege lockdown ........... 0021   (NEW on both)
---   PART D  Links expire after the event .......... 0022   (NEW on both)
+--   PART C  CRITICAL privilege lockdown ........... 0021   (prod: done · staging: NEW)
+--   PART D  Links expire after the event .......... 0022   (prod: done · staging: NEW)
+--   PART E  Fix: undated crew links keep 60 days .. 0023   (NEW on both)
 -- Team chat (0016-0018) is already on both projects and is no longer in this file.
 -- ════════════════════════════════════════════════════════════════════════════
 -- SAFE: additive + idempotent; re-running parts already applied changes nothing.
@@ -21,7 +22,7 @@ begin
   if not exists (select 1 from information_schema.columns where table_schema='public' and table_name='work_tokens' and column_name='expires_at')
     then raise exception 'STOP: work_tokens.expires_at missing (worker-token hardening not installed)'; end if;
   if to_regclass('public.chat_messages') is null then raise exception 'STOP: team chat (0016-0018) not installed — run APPLY-CHAT.sql first'; end if;
-  raise notice 'Preflight OK — applying 0019-0022…';
+  raise notice 'Preflight OK — applying 0019-0023…';
 end $$;
 
 -- ═══════════════════ PART A — Invitation photos private (0019) ═══════════════════
@@ -525,6 +526,45 @@ update public.work_tokens w
 -- select quote_id, phone, expires_at from public.work_tokens where revoked_at is null order by expires_at;
 
 
+-- ═══════════════════ PART E — Fix: undated crew links keep 60 days (0023) ═══════════════════
+-- ============================================================================
+-- 0023_work_token_no_date_fix.sql — CANONICAL forward-only. Fixes a bug in 0022
+-- (found by live verification on production, 2026-10-06).
+-- Bug: work_token_expiry_for() used greatest(deadline, now()+2 days) and fell back to
+-- 60 days only when that was NULL — but Postgres greatest() IGNORES NULLs, so for an
+-- event with NO date it returned now()+2 days instead of the intended 60 days. 0022's
+-- backfill therefore cut crew links for undated events down to 2 days.
+-- Fix: explicit CASE. Repair: live, non-revoked crew links on undated events get their
+-- 60 days back (never shortened by this; dated events are untouched).
+-- Idempotent. Nothing deleted.
+-- ============================================================================
+
+create or replace function public.work_token_expiry_for(p_quote uuid)
+returns timestamptz language sql stable security definer set search_path = '' as $$
+  select case
+           when x.deadline is null then now() + interval '60 days'          -- no event date → previous rule
+           else greatest(x.deadline, now() + interval '2 days')               -- event + 7, but >= 2 days to open it
+         end
+    from (select public.client_link_deadline(q.event_date, q.org_id, public.client_link_window_days('work')) as deadline
+            from public.quotes q where q.id = p_quote) x;
+$$;
+revoke all on function public.work_token_expiry_for(uuid) from public, anon;
+
+-- repair links 0022 shortened (undated events only; live + not revoked; only ever extends)
+update public.work_tokens w
+   set expires_at = greatest(w.expires_at, now() + interval '60 days')
+  from public.quotes q
+ where q.id = w.quote_id
+   and q.event_date is null
+   and w.revoked_at is null
+   and w.expires_at is not null and w.expires_at > now()
+   and w.expires_at < now() + interval '59 days';
+
+-- ---- VERIFY (read-only) ----------------------------------------------------
+-- select q.code, q.event_date, w.expires_at from public.work_tokens w join public.quotes q on q.id=w.quote_id
+--  where w.revoked_at is null order by w.expires_at;
+
+
 -- ════════════════════════════════ VERIFY (one table — every row must say ok) ═══
 select item, case when ok then 'ok' else 'PROBLEM' end as status from (values
   ('A invite photos bucket is private',
@@ -548,5 +588,9 @@ select item, case when ok then 'ok' else 'PROBLEM' end as status from (values
      not has_function_privilege('anon','public.public_event_site__base(text)','execute')
      and not has_function_privilege('anon','public.public_get_proposal__base(uuid)','execute')),
   ('D guests can still open invitations',
-     has_function_privilege('anon','public.public_event_site(text)','execute'))
+     has_function_privilege('anon','public.public_event_site(text)','execute')),
+  ('E undated crew links keep 60 days',
+     not exists (select 1 from public.work_tokens w join public.quotes q on q.id = w.quote_id
+                  where q.event_date is null and w.revoked_at is null
+                    and w.expires_at > now() and w.expires_at < now() + interval '59 days'))
 ) v(item, ok);

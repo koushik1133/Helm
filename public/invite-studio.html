@@ -367,9 +367,16 @@
     if(site && site.slug){
       const link=BPStore.links.url("invite", site.slug, location.origin+"/i/"+site.slug);
       $("#pubLink").value=link; $("#openBtn").href=link; $("#linkWrap").hidden=!pub;
-      if(pub && site.id) BPStore.sites.liveUntil(site.id).then(d=>{ const el=$("#liveUntil"); if(!el) return;
-        el.textContent=d ? "Guests can open this link until "+d.toLocaleString(undefined,{day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"})+" (7 days after the event)."
-                         : "Add the event date so this link closes automatically 7 days after the event.";
+      if(pub && site.id) Promise.all([BPStore.sites.liveUntil(site.id), BPStore.org.current().catch(()=>null)]).then(([d,o])=>{
+        const el=$("#liveUntil"); if(!el) return;
+        if(!d){ el.textContent="Add the event date so this link closes automatically 7 days after the event."; el.hidden=false; return; }
+        // the link closes at midnight (studio timezone) after its last day → show that last day, in the studio's timezone
+        const tz=(o&&o.timezone)||undefined, last=new Date(d.getTime()-1);
+        let day; try{ day=last.toLocaleDateString(undefined,{timeZone:tz,weekday:"short",day:"numeric",month:"short",year:"numeric"}); }
+        catch(e){ day=last.toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short",year:"numeric"}); }
+        el.textContent = d.getTime() > Date.now()
+          ? "Guests can open this link until the end of "+day+" (7 days after the event)."
+          : "This invitation ended on "+day+" — guests now see \u201cThis invitation has ended\u201d. Change the event date to reopen it.";
         el.hidden=false; }).catch(()=>{});
     }
   }

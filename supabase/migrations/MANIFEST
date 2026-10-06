@@ -35,3 +35,4 @@ forward  supabase/migrations/0019_invite_media_published_read.sql
 forward  supabase/migrations/0020_studio_links.sql
 forward  supabase/migrations/0021_profiles_privilege_lockdown.sql
 forward  supabase/migrations/0022_client_link_windows.sql
+forward  supabase/migrations/0023_work_token_no_date_fix.sql

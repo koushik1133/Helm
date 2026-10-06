@@ -14,7 +14,10 @@ t('crew page never keeps showing cached tasks once the link expired/revoked', ()
   assert.match(s, /\/expired\|revoked\/i\.test[\s\S]{0,120}sessionStorage\.removeItem\(CK\)[\s\S]{0,80}data=null; \$\("#content"\)\.hidden=true;/);
 });
 t('invite studio shows until when guests can open the link', () => {
-  assert.match(r('public/invite-studio.html'), /BPStore\.sites\.liveUntil\(site\.id\)/);
+  const st = r('public/invite-studio.html');
+  assert.match(st, /BPStore\.sites\.liveUntil\(site\.id\)/);
+  assert.match(st, /toLocaleDateString\(undefined,\{timeZone:tz,/, 'show the last day in the STUDIO timezone, not the viewer\'s');
+  assert.match(st, /This invitation ended on /, 'an already-ended invitation must not say "can open"');
   assert.match(r('public/store-api.js'), /rpc\("event_site_live_until", \{ p_site_id: siteId \}\)/);
 });
 t('0022 wraps (never rewrites) the public RPC bodies and keeps originals private', () => {

@@ -94,6 +94,10 @@ do $$ declare e timestamptz; begin
   select expires_at into e from public.work_tokens where token='a0000000-0000-4000-8000-0000000000dd';
   insert into _lw values('crew: past event -> still >= 2 days to open it',
     case when e > now() + interval '47 hours' and e < now() + interval '49 hours' then 'PASS' else 'FAIL: '||e end);
+  perform pg_temp.set_event(null, null);
+  select expires_at into e from public.work_tokens where token='a0000000-0000-4000-8000-0000000000dd';
+  insert into _lw values('crew: event with NO date keeps the 60-day rule (0023)',
+    case when e > now() + interval '59 days' and e < now() + interval '61 days' then 'PASS' else 'FAIL: '||e end);
   execute 'reset role'; update public.work_tokens set revoked_at = now(), expires_at = now() - interval '1 minute' where token='a0000000-0000-4000-8000-0000000000dd';
   perform pg_temp.set_event(current_date + 40, null);
   select expires_at into e from public.work_tokens where token='a0000000-0000-4000-8000-0000000000dd';
@@ -110,4 +114,4 @@ exception when others then execute 'reset role'; insert into _lw values('anon ca
 do $$ begin execute 'reset role'; perform auth.logout(); execute 'reset role';
   update public.quotes set event_date = null where id = 'a0000000-0000-4000-8000-00000000da01'; end $$;
 select name,result from _lw order by name;
-select case when count(*) filter (where result like 'FAIL%')=0 and count(*)=14 then 'LINK-WINDOWS: ALL PASS' else 'LINK-WINDOWS: '||count(*) filter (where result like 'FAIL%')||' FAILED, '||count(*)||'/14 ran' end from _lw;
+select case when count(*) filter (where result like 'FAIL%')=0 and count(*)=15 then 'LINK-WINDOWS: ALL PASS' else 'LINK-WINDOWS: '||count(*) filter (where result like 'FAIL%')||' FAILED, '||count(*)||'/15 ran' end from _lw;
