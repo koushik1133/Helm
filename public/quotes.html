@@ -630,7 +630,7 @@
     let confirmedId=null;
     try{
       if(confirmIt){ await BPStore.quotes.confirm(cmId, client, pricing); confirmedId=cmId;
-        try{ await BPStore.quotes.setStage(cmId, "confirmed"); }catch(_){}   // advance the lifecycle so the workspace stepper isn't stuck on "quote"
+        try{ await BPStore.quotes.setStage(cmId, "confirmed"); }catch(_){ BPUI.toast("Couldn't move this event to Confirmed — your role needs Quotes edit access. Ask an admin.",{type:"err"}); }   // advance the lifecycle so the workspace stepper isn't stuck on "quote"
       }
       else await BPStore.quotes.updateMeta(cmId, { pricing, client }, expUpd);
       // keep the event_date column in sync, then re-brand the code to the event date (draft only)
@@ -729,7 +729,7 @@
     markingPaid=true;
     try{ await BPUI.guard(btn||null, async()=>{
       try{ await BPStore.approval.markPaid(id, "manual-dev");
-        try{ await BPStore.quotes.setStage(id, "planning"); }catch(_){}   // paid → move the event into planning
+        try{ await BPStore.quotes.setStage(id, "planning"); }catch(_){ BPUI.toast("Couldn't move this event to Planning — your role needs Quotes edit access. Ask an admin.",{type:"err"}); }   // paid → move the event into planning
         BPUI.toast("Payment marked as received.",{type:"ok"});
         await load(); }
       catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"mark the payment received"}),{type:"err"}); } }); }
