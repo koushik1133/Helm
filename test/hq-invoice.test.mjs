@@ -16,7 +16,9 @@ t('formatMoney: Indian grouping, 2 decimals, INR symbol', () => {
   assert.equal(formatMoney(1234567.5, 'INR'), '₹12,34,567.50');
   assert.equal(formatMoney(999), '₹999.00');
   assert.equal(formatMoney('179.82'), '₹179.82');
-  assert.equal(formatMoney(100, 'usd'), 'USD 100.00');
+  assert.equal(formatMoney(100, 'usd'), '$100.00');
+  assert.equal(formatMoney(100, 'EUR'), '€100.00');
+  assert.equal(formatMoney(100, 'X1'), 'X1 100.00');
   assert.equal(formatMoney(null), '—');
   assert.equal(formatMoney('abc'), '—');
 });
@@ -128,6 +130,57 @@ t('render: buyer fields, CGST/SGST rows and place of supply appear', () => {
   const texts = allText(doc.body);
   for (const s of ['Studio A LLP', 'GSTIN: 36AAAAA0000A1Z5', 'State: Telangana', 'CGST @ 9%', 'SGST @ 9%', 'Place of supply: Telangana']) assert.ok(texts.includes(s), s);
   assert.ok(!texts.some((x) => /^IGST/.test(x)));
+});
+
+t('global: export with 0% tax + LUT note -> "Invoice", no tax lines, note shown', () => {
+  const data = { invoice_no: 'E1', currency: 'USD', net_amount: 100, total: 100,
+    tax: { regime: 'export_lut', components: [], note: 'Supply meant for export under LUT without payment of IGST', lut_number: 'AD360000000000X' },
+    seller: { legal_name: 'Helm Pvt Ltd', gstin: '36ABCDE1234F1Z5', state: 'Telangana', country: 'India' },
+    buyer: { legal_name: 'Acme Inc', country: 'United States', state: 'CA', tax_id_type: 'EIN', tax_id: '12-3456789', address: 'SF' },
+    place_of_supply: 'Outside India' };
+  const m = normalize(data);
+  assert.equal(m.title, 'Invoice');
+  assert.deepEqual(m.gstLines, []);
+  assert.match(m.taxNote, /under LUT/); assert.match(m.taxNote, /AD360000000000X/);
+  assert.equal(m.placeOfSupply, 'Outside India');
+  const doc = fakeDoc(); inv.render(doc, data);
+  const texts = allText(doc.body);
+  for (const s of ['INVOICE', 'EIN: 12-3456789', 'Country: United States', 'Country: India', 'Place of supply: Outside India']) assert.ok(texts.includes(s), s);
+  assert.ok(allNodes(doc.body).some((e) => e.className === 'note' && /LUT/.test(e.textContent)));
+  assert.ok(!texts.some((x) => /^(IGST|CGST|GST) @/.test(x)));
+  assert.match(doc.title, /^Invoice /);
+});
+
+t('global: reverse charge -> note prominent, VAT label, 0 lines', () => {
+  const m = normalize({ currency: 'EUR', net_amount: 200, total: 200, tax: { regime: 'reverse_charge', components: [], note: 'Reverse charge: VAT to be accounted for by the recipient' },
+    buyer: { legal_name: 'Beta GmbH', country: 'Germany', tax_id_type: 'vat', tax_id: 'DE123456789' } });
+  assert.equal(m.title, 'Invoice');
+  assert.equal(m.buyer.taxIdLabel, 'VAT');
+  assert.equal(m.total, '€200.00');
+  assert.match(m.taxNote, /^Reverse charge/);
+});
+
+t('global: USD with INR equivalent', () => {
+  const m = normalize({ currency: 'USD', net_amount: 49, total: 49, fx_rate_to_inr: 83.25, tax: { components: [] }, buyer: { country: 'US' } });
+  assert.equal(m.total, '$49.00');
+  assert.equal(m.inrEquivalent, 'INR equivalent @ 83.25: ₹4,079.25');
+  const given = normalize({ currency: 'USD', total: 49, fx_rate_to_inr: 83.25, inr_equivalent: 4080 });
+  assert.equal(given.inrEquivalent, 'INR equivalent @ 83.25: ₹4,080.00');
+  assert.equal(normalize({ currency: 'INR', total: 49, fx_rate_to_inr: 1 }).inrEquivalent, '');
+});
+
+t('global: Indian intra-state from tax.components -> "Tax Invoice", CGST+SGST, lines[]', () => {
+  const data = { currency: 'INR', net_amount: 1000, total: 1180,
+    tax: { regime: 'gst_intra', components: [{ name: 'CGST', rate: 9, amount: 90 }, { name: 'SGST', rate: 9, amount: 90 }] },
+    seller: { state: 'Telangana', country: 'India' }, buyer: { legal_name: 'Studio A LLP', country: 'India', state: 'Telangana', tax_id_type: 'GSTIN', tax_id: '36AAAAA0000A1Z5' },
+    place_of_supply: 'Telangana (36)', lines: [{ description: 'Studio Pro — Oct 2026', amount: 1000 }] };
+  const m = normalize(data);
+  assert.equal(m.title, 'Tax Invoice');
+  assert.deepEqual(m.gstLines, [{ label: 'CGST @ 9%', amount: '₹90.00' }, { label: 'SGST @ 9%', amount: '₹90.00' }]);
+  assert.equal(m.gstAmount, '₹180.00');
+  const doc = fakeDoc(); inv.render(doc, data);
+  const texts = allText(doc.body);
+  for (const s of ['TAX INVOICE', 'GSTIN: 36AAAAA0000A1Z5', 'Studio Pro — Oct 2026', 'Place of supply: Telangana (36)', 'CGST @ 9%']) assert.ok(texts.includes(s), s);
 });
 
 console.log(`hq-invoice: ${n} passed`);

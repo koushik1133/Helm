@@ -33,6 +33,17 @@
  *                 CGST_SGST (half each), different states → IGST, either unknown →
  *                 one plain "GST" line. Place of supply = buyer.state.
  * }
+ *
+ * GLOBAL SHAPE (preferred; the GST fields above are the fallback when `tax` is absent):
+ * { invoice_no, issued_on, paid_on, currency, fx_rate_to_inr, inr_equivalent,
+ *   net_amount, total, status, voided_at, period_start, period_end, method, reference,
+ *   tax: { regime, components: [{ name, rate, amount }], note, lut_number },  (0 lines OK)
+ *   seller: { legal_name, gstin, address, state, country },
+ *   buyer:  { legal_name, name, country, state, tax_id_type, tax_id, address, email },
+ *   place_of_supply, plan: { name }, lines: [{ description, amount }] }
+ * Title: "Tax Invoice" for Indian buyers, "Invoice" for exports (buyer.country not India,
+ * or tax.regime mentions export). Money uses Intl.NumberFormat in the invoice currency;
+ * a non-INR invoice with fx_rate_to_inr also shows "INR equivalent @ rate: ₹x".
  * Also usable from node: module.exports = { helpers } for unit tests.
  * ========================================================================== */
 (function (root) {
@@ -54,11 +65,20 @@
   }
   function round2(n) { return Math.round(n * 100) / 100; }
 
-  // 1234567.5 → "₹12,34,567.50" (Indian grouping, always 2 decimals)
+  // Intl.NumberFormat in the invoice currency (en-IN grouping for INR); a bad code or
+  // missing Intl falls back to the manual formatter below.
   function formatMoney(v, currency) {
     var n = num(v);
     if (!isFinite(n)) return '—';
     var cur = str(currency || 'INR').toUpperCase();
+    if (/^[A-Z]{3}$/.test(cur) && typeof Intl !== 'undefined' && Intl.NumberFormat) {
+      try {
+        return new Intl.NumberFormat(cur === 'INR' ? 'en-IN' : 'en-US', { style: 'currency', currency: cur, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(round2(n));
+      } catch (_) { /* fall through */ }
+    }
+    return manualMoney(n, cur);
+  }
+  function manualMoney(n, cur) {
     var neg = n < 0; n = Math.abs(round2(n));
     var parts = n.toFixed(2).split('.');
     var int = parts[0];
@@ -124,14 +144,33 @@
     var buyer = (d.buyer && typeof d.buyer === 'object') ? d.buyer : {};
     var plan = (d.plan && typeof d.plan === 'object') ? d.plan : {};
     var currency = str(pick(d.currency, 'INR')).toUpperCase().slice(0, 3);
-    var net = num(d.net);
+    var net = num(pick(d.net_amount, d.net));
+    var tax = (d.tax && typeof d.tax === 'object') ? d.tax : null;
+    var comps = tax && Array.isArray(tax.components) ? tax.components.filter(function (c) { return c && typeof c === 'object'; }) : null;
     var rate = num(pick(d.gst_rate, d.gst_percent, seller.gst_rate));
     var gst = num(d.gst_amount);
+    if (comps && !isFinite(gst)) gst = round2(comps.reduce(function (a, c) { var x = num(c.amount); return a + (isFinite(x) ? x : 0); }, 0));
     if (!isFinite(gst) && isFinite(net) && isFinite(rate)) gst = round2(net * rate / 100);
     var total = num(pick(d.amount, d.total));
     if (!isFinite(total) && isFinite(net)) total = round2(net + (isFinite(gst) ? gst : 0));
     if (!isFinite(net) && isFinite(total) && isFinite(gst)) net = round2(total - gst);
     var split = deriveSplit(d.gst_split, gst, str(pick(seller.state, d.seller_state)), str(pick(buyer.state, d.buyer_state)));
+    var taxLines = comps ? comps.map(function (c) {
+      var cr = num(c.rate);
+      return { label: (str(c.name) || 'Tax') + (isFinite(cr) ? ' @ ' + round2(cr) + '%' : ''), amount: formatMoney(c.amount, currency) };
+    }) : null;
+    var taxNote = tax ? str(tax.note) : '';
+    if (tax && str(tax.lut_number) && taxNote.indexOf(str(tax.lut_number)) < 0) taxNote = (taxNote ? taxNote + ' ' : '') + '(LUT ' + str(tax.lut_number) + ')';
+    var country = str(buyer.country).trim().toLowerCase();
+    var isExport = (!!country && ['in', 'ind', 'india'].indexOf(country) < 0) || /export/i.test(str(tax && tax.regime));
+    var fx = num(d.fx_rate_to_inr), inrEq = '';
+    if (currency !== 'INR' && isFinite(fx) && fx > 0) {
+      var eq = num(d.inr_equivalent);
+      if (!isFinite(eq) && isFinite(total)) eq = round2(total * fx);
+      if (isFinite(eq)) inrEq = 'INR equivalent @ ' + fx + ': ' + formatMoney(eq, 'INR');
+    }
+    var lines = Array.isArray(d.lines) ? d.lines.filter(function (l) { return l && typeof l === 'object'; })
+      .map(function (l) { return { description: str(l.description) || '—', amount: formatMoney(l.amount, currency) }; }) : [];
     var today = new Date().toISOString().slice(0, 10);
     return {
       invoiceNo: str(pick(d.invoice_no, d.number)) || '—',
@@ -142,8 +181,13 @@
       net: formatMoney(net, currency),
       gstRate: isFinite(rate) ? (round2(rate) + '%') : '—',
       gstAmount: formatMoney(gst, currency),
-      gstLines: gstLines(split, isFinite(rate) ? round2(rate) : NaN, gst, currency),
-      placeOfSupply: str(pick(buyer.state, d.buyer_state, d.place_of_supply)) || '—',
+      gstLines: taxLines || gstLines(split, isFinite(rate) ? round2(rate) : NaN, gst, currency),
+      taxNote: taxNote,
+      isExport: isExport,
+      title: isExport ? 'Invoice' : 'Tax Invoice',
+      inrEquivalent: inrEq,
+      lines: lines,
+      placeOfSupply: str(pick(d.place_of_supply, buyer.state, d.buyer_state)) || '—',
       total: formatMoney(total, currency),
       method: str(d.method) || '—',
       reference: str(pick(d.reference, d.provider_payment_id)) || '—',
@@ -153,11 +197,14 @@
         gstin: str(pick(seller.gstin, d.seller_gstin)),
         address: str(pick(seller.address, d.seller_address)),
         state: str(pick(seller.state, d.seller_state)),
+        country: str(seller.country),
       },
       buyer: {
         name: str(pick(buyer.legal_name, buyer.name, d.studio_name, d.org_name)) || '—',
         state: str(pick(buyer.state, d.buyer_state)),
-        gstin: str(pick(buyer.gstin, d.buyer_gstin)),
+        gstin: str(pick(buyer.tax_id, buyer.gstin, d.buyer_gstin)),
+        taxIdLabel: str(pick(buyer.tax_id_type, buyer.tax_id ? 'Tax ID' : 'GSTIN')).toUpperCase().slice(0, 12),
+        country: str(buyer.country),
         address: str(pick(buyer.address, d.buyer_address)),
       },
     };
@@ -171,6 +218,7 @@
     'table{width:100%;border-collapse:collapse;margin-top:16px}th,td{padding:8px 10px;border-bottom:1px solid #ddd;text-align:left}',
     'td.n,th.n{text-align:right}tr.tot td{font-weight:700;border-top:2px solid #111}',
     '.void{position:fixed;top:40%;left:0;right:0;text-align:center;font-size:120px;font-weight:800;color:rgba(200,0,0,.18);transform:rotate(-24deg);pointer-events:none}',
+    '.note{margin:16px 0;padding:10px 14px;border:2px solid #111;font-weight:600}.fx{margin-top:8px;text-align:right;color:#333}',
     '.foot{margin-top:28px;font-size:12px;color:#666}@media print{.inv{margin:0;padding:12mm}.noprint{display:none}}',
   ].join('');
 
@@ -184,7 +232,7 @@
   // Build the invoice DOM into `doc` (a blank document). Pure DOM, no HTML strings.
   function render(doc, data) {
     var m = normalize(data);
-    doc.title = 'Tax Invoice ' + m.invoiceNo;
+    doc.title = m.title + ' ' + m.invoiceNo;
     var style = doc.createElement('style');
     style.textContent = CSS;
     (doc.head || doc.documentElement).appendChild(style);
@@ -192,17 +240,19 @@
     while (body.firstChild) body.removeChild(body.firstChild);
     var w = el(doc, 'div', 'inv');
     if (m.voided) w.appendChild(el(doc, 'div', 'void', 'VOID'));
-    w.appendChild(el(doc, 'h1', '', m.voided ? 'TAX INVOICE (VOID)' : 'TAX INVOICE'));
+    w.appendChild(el(doc, 'h1', '', m.title.toUpperCase() + (m.voided ? ' (VOID)' : '')));
     w.appendChild(el(doc, 'div', 'muted', 'Invoice no. ' + m.invoiceNo + ' · Date ' + m.date));
 
+    if (m.taxNote) w.appendChild(el(doc, 'div', 'note', m.taxNote));
     var row = el(doc, 'div', 'row');
     function party(title, p) {
       var b = el(doc, 'div', 'box');
       b.appendChild(el(doc, 'h3', '', title));
       b.appendChild(el(doc, 'div', '', p.name)).style.fontWeight = '600';
-      if (p.gstin) b.appendChild(el(doc, 'div', '', 'GSTIN: ' + p.gstin));
+      if (p.gstin) b.appendChild(el(doc, 'div', '', (p.taxIdLabel || 'GSTIN') + ': ' + p.gstin));
       if (p.address) b.appendChild(el(doc, 'div', 'pre', p.address));
       if (p.state) b.appendChild(el(doc, 'div', '', 'State: ' + p.state));
+      if (p.country) b.appendChild(el(doc, 'div', '', 'Country: ' + p.country));
       return b;
     }
     row.appendChild(party('Seller', m.seller));
@@ -221,12 +271,14 @@
       r.appendChild(el(doc, 'td', '', a)); r.appendChild(el(doc, 'td', '', b)); r.appendChild(el(doc, 'td', 'n', c));
       tb.appendChild(r);
     }
-    line('Helm subscription — ' + m.plan, m.period, m.net);
+    if (m.lines.length) m.lines.forEach(function (l) { line(l.description, m.period, l.amount); });
+    else line('Helm subscription — ' + m.plan, m.period, m.net);
     line('Taxable value', '', m.net);
     m.gstLines.forEach(function (g) { line(g.label, '', g.amount); });
     line('Total (' + m.currency + ')', '', m.total, 'tot');
     t.appendChild(tb);
     w.appendChild(t);
+    if (m.inrEquivalent) w.appendChild(el(doc, 'div', 'fx', m.inrEquivalent));
 
     w.appendChild(el(doc, 'div', 'foot', 'Place of supply: ' + m.placeOfSupply));
     w.appendChild(el(doc, 'div', 'foot', 'Paid via ' + m.method + ' · Reference ' + m.reference));
