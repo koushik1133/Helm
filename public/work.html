@@ -206,11 +206,14 @@
       paintHeader(); render();
     }catch(e){
       // link expired / revoked (0022): never keep showing cached tasks
-      if(/expired|revoked/i.test((e&&e.message)||"")){
+      // link expired / revoked (0022) or not a real link: never keep showing cached tasks
+      const em=(e&&e.message)||"";
+      if(/expired|revoked|invalid link/i.test(em)){
         try{ if(CK) sessionStorage.removeItem(CK); }catch{}
-        data=null; $("#content").hidden=true; $("#offline").hidden=true; $("#loading").hidden=true;
-        $("#badlink").querySelector("h1").textContent="Link expired";
-        $("#badlink").querySelector(".sub").textContent="This task link has expired. Please ask your manager for a new one.";
+        const bad=/invalid link/i.test(em);
+        data=null; $("#content").hidden=true; $("#offline").hidden=true; $("#offlineFirst").hidden=true; $("#loading").hidden=true;
+        $("#badlink").querySelector("h1").textContent=bad?"Link not valid":"Link expired";
+        $("#badlink").querySelector(".sub").textContent=bad?"This task link isn't valid. Please check you opened the full link, or ask your manager to send it again.":"This task link has expired. Please ask your manager for a new one.";
         $("#badlink").hidden=false; return;
       }
       if(strict && !data){

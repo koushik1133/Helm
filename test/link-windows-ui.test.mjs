@@ -11,7 +11,9 @@ t('invite page shows a friendly "ended" state for an expired invitation', () => 
 });
 t('crew page never keeps showing cached tasks once the link expired/revoked', () => {
   const s = r('public/work.html');
-  assert.match(s, /\/expired\|revoked\/i\.test[\s\S]{0,120}sessionStorage\.removeItem\(CK\)[\s\S]{0,80}data=null; \$\("#content"\)\.hidden=true;/);
+  // expired / revoked / not-a-real link: cached tasks are dropped and never shown
+  assert.match(s, /\/expired\|revoked\|invalid link\/i\.test\(em\)[\s\S]{0,120}sessionStorage\.removeItem\(CK\)[\s\S]{0,120}data=null; \$\("#content"\)\.hidden=true;/);
+  assert.match(s, /"Link not valid"/);
 });
 t('invite studio shows until when guests can open the link', () => {
   const st = r('public/invite-studio.html');
