@@ -32,6 +32,7 @@ run() { local name="$1" marker="$2"; shift 2; reseed; local out; out="$("$@" 2>&
 echo "== behavioral suites =="
 # first: later suites re-apply older migrations (e.g. rescore2 → 0032) over the entry points
 run "audit-run2"         "AUDIT-RUN2: ALL PASS"            bash -c "cd tests/db && psql -q -f audit-run2.sql"
+run "d6-money-freeze"    "D6-MONEY-FREEZE: ALL PASS \(49/49\)" bash -c "cd tests/db && psql -q -f d6-money-freeze.sql"
 run "matrix-seed-revert" "MATRIX-SEED-REVERT: ALL PASS \(13/13\)" psql -q -f tests/db/matrix-seed-revert.sql
 run "mfa-enforce"        "MFA-ENFORCE: ALL PASS"           bash -c "cd tests/db && psql -q -f mfa-enforce.sql"
 run "contract-coverage"  "CONTRACT-COVERAGE: 100%"         node tests/db/contract-coverage.mjs
@@ -59,6 +60,7 @@ run "business-logic"     "BUSINESS-LOGIC: ALL PASS"        psql -q -f tests/db/b
 run "uploads-payments"   "UPLOADS-PAYMENTS: ALL PASS"     psql -q -f tests/db/uploads-payments.sql
 run "platform-admin"     "PLATFORM-ADMIN: ALL PASS \(33/33\)" psql -q -f tests/db/platform-admin.sql
 run "hq-subscriptions"   "HQ-SUBSCRIPTIONS: ALL PASS \(80/80\)" psql -q -f tests/db/hq-subscriptions.sql
+run "hq-mfa-optional"   "HQ-MFA-OPTIONAL: ALL PASS \(17/17\)" psql -q -f tests/db/hq-mfa-optional.sql
 run "auth-hardening"     "AUTH-HARDENING: ALL PASS \(41/41\)" psql -q -f tests/db/auth-hardening.sql
 run "payment-matrix"     "PAYMENT-MATRIX: ALL PASS"        psql -q -f tests/db/payment-matrix.sql
 run "checkout-overissue" "CHECKOUT-OVERISSUE: ALL PASS"    psql -q -f tests/db/checkout-overissue.sql

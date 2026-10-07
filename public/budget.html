@@ -150,7 +150,7 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=112"></script>
+<script src="store-api.js?v=113"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -194,7 +194,7 @@
       <td class="num">${inr(c.price_delta)}</td>
       <td class="num">${inr(c.cost_delta)}</td>
       <td><span class="st ${esc(c.status)}">${esc(ST[c.status]||c.status)}</span></td>
-      <td>${canEdit && c.status==="requested"?`<button type="button" class="rm go" data-appr="${esc(c.id)}" data-name="${esc(c.title)}" aria-label="Approve ${esc(c.title)}">Approve</button> <button type="button" class="rm no" data-rej="${esc(c.id)}" aria-label="Reject ${esc(c.title)}">Reject</button>`:(canDelete?`<button type="button" class="rm" data-chdel="${esc(c.id)}" data-name="${esc(c.title)}" aria-label="Remove change request ${esc(c.title)}">✕</button>`:"")}</td>
+      <td>${canEdit && c.status==="requested"?`<button type="button" class="rm go" data-appr="${esc(c.id)}" data-name="${esc(c.title)}" aria-label="Approve ${esc(c.title)}">Approve</button> <button type="button" class="rm no" data-rej="${esc(c.id)}" aria-label="Reject ${esc(c.title)}">Reject</button>`:(c.status!=="requested"?`<span title="Decided change requests are locked — add a new change request instead." style="font-size:12px;color:var(--ink-3)">Locked</span>`:(canDelete?`<button type="button" class="rm" data-chdel="${esc(c.id)}" data-name="${esc(c.title)}" aria-label="Remove change request ${esc(c.title)}">✕</button>`:""))}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="empty">No change requests.</td></tr>';
     $("#chgRows").querySelectorAll("[data-appr]").forEach(b=>b.addEventListener("click",async()=>{
       if(!(await BPUI.confirm(`Approve “${b.dataset.name||""}”? Its charge and cost roll into the budget.`,{title:"Approve change?",okLabel:"Approve"}))) return;
