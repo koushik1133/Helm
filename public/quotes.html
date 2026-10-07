@@ -517,15 +517,22 @@
   async function downloadQuote(id, ver){
     let full; try{ full=detailCache[id]||(detailCache[id]=await BPStore.quotes.get(id)); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"load the quote"}),{type:"err"}); return; }
     if(!full){ BPUI.toast("This quote no longer exists.",{type:"err"}); return; }
-    const p=full.pricing||{}, t=p.computed||calcPricing(p), cl=(p.client)||full.client||{};
+    const p=full.pricing||{}, cl=(p.client)||full.client||{};
+    // The stored client-side `computed` breakdown is NOT trusted (same rule as approve.html):
+    // the grand total is the server-stamped pricing.total; the line breakdown is re-derived
+    // from the raw inputs and shown ONLY when it adds up to that total.
+    const grand=Number.isFinite(Number(p.total))?Number(p.total):0;
+    const canonical=("gstPct" in p) && ("chairs" in p || "guests" in p || "other" in p || "catering" in p || "platePrice" in p);
+    let t=null;
+    if(canonical && Number.isFinite(Number(p.total))){ try{ const c=calcPricing(p); if(c && Math.round(c.total)===Math.round(grand)) t=c; }catch(_){ t=null; } }
     // Don't download an empty quote (QA): needs a client or some priced content.
-    const hasContent=(Number(t&&t.total)>0)||(Number(p.chairs)>0)||(Number(p.guests)>0)||((cl.name||"").trim()!=="");
+    const hasContent=(grand>0)||(Number(p.chairs)>0)||(Number(p.guests)>0)||((cl.name||"").trim()!=="");
     if(!hasContent){ BPUI.toast("This quote is empty — add the client, seating, catering or décor before downloading.",{type:"info"}); return; }
     const isInv=full.status==="confirmed"; const pos=p.placeOfSupply;
     // pricing is jsonb the server doesn't type-check for every shape — only numbers reach the popup HTML
     const num=(v)=>{ const x=Number(v); return Number.isFinite(x)?x:0; };
     const line=(l,a)=>`<tr><td>${l}</td><td style="text-align:right">${inr(a)}</td></tr>`;
-    const tax = pos==="inter" ? line("IGST", t.igst||0) : line("CGST", t.cgst||0)+line("SGST", t.sgst||0);
+    const tax = !t ? "" : pos==="inter" ? line("IGST", t.igst||0) : line("CGST", t.cgst||0)+line("SGST", t.sgst||0);
     const html=`<!doctype html><meta charset=utf8><title>${isInv?"Invoice":"Quotation"} ${esc(full.code)}</title>
     <style>body{font-family:system-ui,sans-serif;max-width:720px;margin:32px auto;color:#141b2e;padding:0 20px}
     h1{font-size:20px;margin:0} .muted{color:#5b6475;font-size:12px} table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
@@ -542,15 +549,15 @@
       ${cl.eventDate?`<tr><td class=muted>Event date</td><td>${esc(cl.eventDate)}</td></tr>`:""}
       ${cl.venue?`<tr><td class=muted>Venue</td><td>${esc(cl.venue)}${cl.address?", "+esc(cl.address):""}</td></tr>`:""}</table>
     <table><tr><th>Item</th><th style="text-align:right">Amount</th></tr>
-      ${line(`Chairs (${num(p.chairs)} × ${inr(p.chairPrice||0)})`, num(p.chairs)*num(p.chairPrice))}
-      ${p.other?line("Other charges", p.other):""}
-      ${p.catering&&p.catering.mode==="client"?`<tr><td>Catering</td><td style="text-align:right">Client-provided</td></tr>`:line(`Catering (${num(p.guests)} plates × ${inr(p.platePrice||0)}${p.catering&&p.catering.amount?" + "+inr(p.catering.amount):""})`, (t.cateringBucket||0))}
+      ${t?`${line(`Chairs (${num(p.chairs)} × ${inr(num(p.chairPrice))})`, num(p.chairs)*num(p.chairPrice))}
+      ${p.other?line("Other charges", num(p.other)):""}
+      ${p.catering&&p.catering.mode==="client"?`<tr><td>Catering</td><td style="text-align:right">Client-provided</td></tr>`:line(`Catering (${num(p.guests)} plates × ${inr(num(p.platePrice))}${p.catering&&p.catering.amount?" + "+inr(num(p.catering.amount)):""})`, (t.cateringBucket||0))}
       ${t.serviceCharge?line(`Service charge (${num(p.serviceChargePct)}%)`, t.serviceCharge):""}
       <tr class=tot><td>Subtotal</td><td style="text-align:right">${inr(t.subtotal||0)}</td></tr>
       ${tax}
-      ${t.discount?`<tr class=tot><td>Discount</td><td style="text-align:right">− ${inr(t.discount)}</td></tr>`:""}
-      <tr class=grand><td>Grand total</td><td style="text-align:right">${inr(t.total||0)}</td></tr>
-      <tr><td colspan=2 style="padding-top:6px;font-style:italic;color:#555;font-size:12px;border:0">${BPStore.amountInWords(t.total||0)}</td></tr></table>
+      ${t.discount?`<tr class=tot><td>Discount</td><td style="text-align:right">− ${inr(t.discount)}</td></tr>`:""}`:""}
+      <tr class=grand><td>Grand total</td><td style="text-align:right">${inr(grand)}</td></tr>
+      <tr><td colspan=2 style="padding-top:6px;font-style:italic;color:#555;font-size:12px;border:0">${BPStore.amountInWords(grand)}</td></tr></table>
     <p class=muted>Taxes per Indian GST (event management SAC 998596). ${p.catering&&p.catering.vendor?"Caterer: "+esc(p.catering.vendor)+". ":""}This is a computer-generated document.</p>`;
     // No inline <script> in the popup (it inherits this page's CSP) — print from the opener instead.
     const w=window.open("","_blank"); if(w){ w.opener=null; w.document.write(html); w.document.close(); setTimeout(()=>{ try{ w.focus(); w.print(); }catch(_){} },250); }

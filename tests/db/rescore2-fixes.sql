@@ -326,6 +326,8 @@ do $$ declare f record; begin
   drop function if exists public.invitation_preview(text);
 end $$;
 \i supabase/migrations/0032_rescore2_fixes.sql
+-- forward-only order: everything after 0032 is re-applied too (0033 replaces some 0032 wrappers)
+\i supabase/migrations/0033_rescore3_fixes.sql
 set client_min_messages = warning;
 do $$ declare bad text; begin
   perform pg_temp.su();

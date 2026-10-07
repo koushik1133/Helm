@@ -1,7 +1,7 @@
 -- ============================================================================
 -- GRANT-PARITY.sql — READ-ONLY. Run in the Supabase SQL Editor (prod or staging).
 -- Lists every public function / view whose anon / authenticated privileges differ
--- from the intended canonical state (migrations 0001-0032). Changes nothing.
+-- from the intended canonical state (migrations 0001-0033). Changes nothing.
 --
 -- Result: one row per problem. NO ROWS = parity. Columns:
 --   kind     function | view | table
@@ -10,7 +10,9 @@
 --   fix_hint the statement that would restore the intended state (review first;
 --            0032 applies these for functions automatically)
 --
--- Intended state (source: 0005 least-privilege + later migrations, 0032 rescore2):
+-- Intended state (source: 0005 least-privilege + later migrations, 0032 rescore2,
+-- 0033 rescore3 — _notify / export_tenant_organization_package keep their own
+-- bodies as *__base, which are never callable by API roles):
 --   * anon may EXECUTE only the client-link RPCs in "anon_allow" below (the token
 --     pages approve / proposal / portal / work / invite / branded links / login
 --     invite banner) plus a few pure helpers. Trigger functions are ignored.
@@ -19,7 +21,7 @@
 --   * views: security_invoker = true, no anon privilege, no API write privilege.
 --   * event_closure: no direct INSERT / UPDATE / DELETE for anon / authenticated.
 -- "canonical" is every function name the canonical path creates (generated from
--- the disposable test DB after 0032). A function that exists on this database
+-- the disposable test DB after 0033). A function that exists on this database
 -- but not in that list is reported only if anon can call it (prod-only drift).
 -- ============================================================================
 with
@@ -37,7 +39,7 @@ auth_deny(n) as (values
   ('payment_link_fail'),('razorpay_settle')),
 canonical(n) as (select unnest(array[
     '_admin_create_user_core', '_flag', '_hq_gate', '_hq_num', '_hq_studio_rows', '_next_occasion',
-    '_notify', '_password_ok', '_valid_role', '_work_token_live', 'accept_invitation', 'add_event_dish',
+    '_notify', '_notify__base', '_password_ok', '_valid_role', '_work_token_live', 'accept_invitation', 'add_event_dish',
     'add_quote_version', 'adjust_inventory_total', 'admin_create_user', 'admin_create_user_temp',
     'admin_delete_user', 'admin_get_role_access', 'admin_set_role', 'admin_set_role_access',
     'admin_store_otp', 'apply_menu_template', 'assert_quote_org', 'assign_tasks', 'assign_tasks_vendor',
@@ -48,7 +50,7 @@ canonical(n) as (select unnest(array[
     'client_link_window_days', 'close_event', 'confirm_quote', 'convert_lead_to_quote', 'create_event_site',
     'create_helm_user', 'create_invitation', 'create_payment', 'create_payment__base', 'create_quote',
     'create_studio', 'current_org_id', 'design_advance', 'design_get', 'design_queue', 'event_activity',
-    'event_site_live_until', 'export_org_data', 'export_tenant_organization_package',
+    'event_site_live_until', 'export_org_data', 'export_tenant_organization_package', 'export_tenant_organization_package__base',
     'generate_approval_token', 'get_pricing_config', 'has_area', 'helm_contact_ok', 'helm_event_date_parse',
     'helm_norm_phone', 'helm_otp_phone_on_file', 'helm_pricing_assert_sane', 'helm_pricing_num',
     'helm_pw_change_pending', 'helm_quote_total', 'helm_quote_total__base', 'helm_quote_total_canonical',
