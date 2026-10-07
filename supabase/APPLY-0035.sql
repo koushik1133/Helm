@@ -28,8 +28,6 @@ begin
     then raise exception 'STOP: chat attachments (0017) not installed'; end if;
   if to_regproc('public.api_write_block') is null or to_regproc('public.chat_messages_api_guard') is null
     then raise exception 'STOP: 0025 (write-path lockdown) not installed'; end if;
-  if to_regproc('public.tg_quote_org_match') is null
-    then raise exception 'STOP: 0004 (quote/studio integrity trigger) not installed'; end if;
   if to_regprocedure('public.has_area(text,text)') is null or to_regclass('public.quotes') is null
      or to_regclass('public.quote_versions') is null or to_regclass('public.event_plan') is null
      or to_regclass('public.event_menu_items') is null or to_regclass('public.audit_log') is null
@@ -95,6 +93,27 @@ do $$ begin
 end $$;
 create unique index if not exists chat_conv_quote_uq on public.chat_conversations(quote_id) where quote_id is not null;
 -- same G4 guard every quote_id + org_id table has (0004): the quote must be this studio's
+-- prod drift: some databases never got 0004's shared helper. Create it (exact 0004
+-- body) only when missing; never replaces an existing one.
+do $guard$ begin
+  if to_regproc('public.tg_quote_org_match') is null then
+    execute $sql$
+create function public.tg_quote_org_match() returns trigger
+  language plpgsql security definer set search_path = public as $fn$
+declare v_org uuid;
+begin
+  if new.quote_id is null then return new; end if;
+  select org_id into v_org from public.quotes where id = new.quote_id;
+  if v_org is not null and new.org_id is distinct from v_org then
+    raise exception 'quote % belongs to another studio (row org % <> quote org %)',
+      new.quote_id, new.org_id, v_org using errcode = '42501';
+  end if;
+  return new;
+end $fn$;
+$sql$;
+    execute 'revoke all on function public.tg_quote_org_match() from public';
+  end if;
+end $guard$;
 drop trigger if exists zz_quote_org_match on public.chat_conversations;
 create trigger zz_quote_org_match before insert or update on public.chat_conversations
   for each row execute function public.tg_quote_org_match();
