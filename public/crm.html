@@ -102,23 +102,24 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=106"></script>
-<script src="tour.js?v=6"></script>
+<script src="store-api.js?v=107"></script>
+<script src="tour.js?v=7"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const fmt=(n)=> n==null||n===""?"":"₹"+Number(n).toLocaleString("en-IN");
   const when=(t)=>{ if(!t) return ""; const d=new Date(t); return d.toLocaleString("en-IN",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}); };
-  let recs=[], filter="", fSource="", fStage="", fAll=false;
-  // keep only the newest snapshot per lead (recs arrive newest-first) unless "Full history"
-  function latestPerLead(rows){ const seen=new Set(); const out=[];
-    for(const r of rows){ if(r.lead_id && seen.has(r.lead_id)) continue; if(r.lead_id) seen.add(r.lead_id); out.push(r); } return out; }
-  function fillFilters(){
+  // Perf (Oct 2026): the archive is server-paged newest-first without the snapshot JSON;
+  // filters + search run on the server (debounced). "Latest per lead" keeps only each
+  // lead's newest snapshot (checked server-side), exactly as before. recs = rows loaded so far.
+  let recs=[], filter="", fSource="", fStage="", fAll=false, pager=null;
+  async function fillFilters(){
+    let fx={sources:[],stages:[]}; try{ fx=await BPStore.leads.archiveFacets(); }catch(e){}
     // QA M-09: fold casing/whitespace variants (website/Website, referral/Referral) into one
     // canonical label so the source filter + reporting aren't fragmented.
-    const srcMap={}; recs.forEach(r=>{ const c=String(r.source||"").trim().replace(/\s+/g,' '); if(c){ const k=c.toLowerCase(); if(!srcMap[k]) srcMap[k]=c.replace(/\b\w/g,m=>m.toUpperCase()); } });
+    const srcMap={}; fx.sources.forEach(v=>{ const c=String(v||"").trim().replace(/\s+/g,' '); if(c){ const k=c.toLowerCase(); if(!srcMap[k]) srcMap[k]=c.replace(/\b\w/g,m=>m.toUpperCase()); } });
     const srcs=Object.values(srcMap).sort();
-    const stages=[...new Set(recs.map(r=>r.status).filter(Boolean))].sort();
+    const stages=[...new Set(fx.stages.filter(Boolean))].sort();
     $("#fSource").innerHTML='<option value="">All sources</option>'+srcs.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
     $("#fStage").innerHTML='<option value="">All stages</option>'+stages.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join("");
   }
@@ -132,14 +133,12 @@
     } else { el.innerHTML=`<button type="button" id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); }
   }
 
+  let anyRecs=null;   // does the archive hold anything at all (first-run empty state)
   function render(){
-    const q=filter.trim().toLowerCase();
-    let base = fAll ? recs : latestPerLead(recs);
-    let shown = base.filter(r=>
-      (!fSource || String(r.source||"").trim().replace(/\s+/g,' ').toLowerCase()===fSource.toLowerCase()) &&
-      (!fStage  || r.status===fStage) &&
-      (!q || [r.name,r.phone,r.event_type,r.source,r.action].some(v=>String(v||"").toLowerCase().includes(q))));
-    if(!shown.length){ $("#rows").innerHTML = recs.length
+    const shown = recs;   // filtered + de-duplicated by the server query
+    if(!shown.length){
+      if(pager&&pager.hasMore()) { $("#rows").innerHTML='<tr><td colspan="11" class="empty">Searching older records…</td></tr>'; return; }
+      $("#rows").innerHTML = (anyRecs!==false)
       ? '<tr><td colspan="11" class="empty">No records match these filters.</td></tr>'
       : '<tr><td colspan="11" class="empty">No CRM records yet. They appear here automatically as you <a class="open" href="leads.html">add and work leads</a>.</td></tr>'; return; }
     $("#rows").innerHTML = shown.map(r=>{
@@ -167,22 +166,26 @@
     }));
   }
 
-  let _searchT; $("#search").addEventListener("input",(e)=>{ filter=e.target.value; clearTimeout(_searchT); _searchT=setTimeout(render,150); });  // debounce: don't rebuild the list on every keystroke
-  $("#fSource").addEventListener("change",(e)=>{ fSource=e.target.value; render(); });
-  $("#fStage").addEventListener("change",(e)=>{ fStage=e.target.value; render(); });
-  $("#fAll").addEventListener("change",(e)=>{ fAll=e.target.checked; render(); });
+  const reload=()=>loadRecs();
+  $("#search").addEventListener("input",BPUI.debounce((e)=>{ filter=$("#search").value; reload(); },300));   // server search after a pause in typing
+  $("#fSource").addEventListener("change",(e)=>{ fSource=e.target.value; reload(); });
+  $("#fStage").addEventListener("change",(e)=>{ fStage=e.target.value; reload(); });
+  $("#fAll").addEventListener("change",(e)=>{ fAll=e.target.checked; reload(); });
 
   async function loadRecs(){
-    try{ recs = (await BPStore.leads.archive()) || []; }
+    if(!pager) pager=BPUI.pager({ after: $("#rows").closest(".table-scroll"), what:"records",
+      fetch:(offset)=>BPStore.leads.archivePage({ offset, latest:!fAll, source:fSource, stage:fStage, search:filter.trim() }),
+      render:(rows,info)=>{ recs=info.all; render(); } });
+    try{ await pager.reset(); }
     catch(err){ BPUI.loadError($("#rows"), err, loadRecs, {what:"the CRM archive"}); return; }
-    fillFilters();
+    if(anyRecs===null){ anyRecs = recs.length>0 || pager.hasMore() || !!(filter.trim()||fSource||fStage); }
     render();
   }
   BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     if(!(await BPStore.auth.requireView("pipeline"))) return;
-    await loadRecs();
+    await Promise.all([loadRecs(), fillFilters()]);
   });
 </script>
 </body>

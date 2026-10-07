@@ -109,7 +109,7 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=106"></script>
+<script src="store-api.js?v=107"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -144,10 +144,12 @@
   }
   function short(v){ if(v==null) return "∅"; if(typeof v==='object') { try{ return JSON.stringify(v).slice(0,40); }catch{ return "…"; } } const s=String(v); return s.length>40?s.slice(0,40)+"…":s; }
 
+  // Perf (Oct 2026): the log is server-paged newest-first (keyset on time) — the area
+  // filter and the search run on the server; Load more / infinite scroll brings older rows.
   function draw(){
-    const term=$("#fSearch").value.trim().toLowerCase();
-    let list=all;
-    if(term) list=list.filter(r=>JSON.stringify(r).toLowerCase().includes(term));
+    const term=$("#fSearch").value.trim();
+    const list=all;
+    $("#empty").textContent = term||$("#fEntity").value ? "No audit entries match." : "No audit entries yet.";
     $("#empty").hidden = list.length>0;
     $("#rows").innerHTML=list.map(r=>`<tr>
       <td class="when">${esc(fmt(r.at))}</td>
@@ -159,11 +161,14 @@
     </tr>`).join("");
   }
 
+  let pager=null;
   async function loadData(){
     $("#empty").hidden=true;
-    try{ all=await BPStore.audit.list({ entity: $("#fEntity").value||undefined, limit:200 }); }
+    if(!pager) pager=BPUI.pager({ after: $("#rows").closest(".table-scroll"), what:"audit entries",
+      fetch:(after)=>BPStore.audit.page({ entity: $("#fEntity").value||undefined, search: $("#fSearch").value.trim(), after: after||null, limit:50 }),
+      render:(rows,info)=>{ all=info.all; draw(); } });
+    try{ await pager.reset(); }
     catch(e){ all=[]; BPUI.loadError($("#rows"), e, loadData, {what:"the audit log"}); return; }
-    draw();
   }
   async function load(){
     await BPStore.init(); await renderAccount();
@@ -179,7 +184,7 @@
   }
   $("#refresh").addEventListener("click",e=>BPUI.guard(e.currentTarget,loadData));
   $("#fEntity").addEventListener("change",loadData);
-  $("#fSearch").addEventListener("input",draw);
+  $("#fSearch").addEventListener("input",BPUI.debounce(loadData,300));   // server search after a pause in typing
   $("#loginForm").addEventListener("submit",async e=>{ e.preventDefault();
     const btn=$("#li_submit"); if(btn.disabled) return;
     const em=$("#li_email").value.trim(), pw=$("#li_pw").value;

@@ -169,8 +169,8 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=106"></script>
-<script src="tour.js?v=6"></script>
+<script src="store-api.js?v=107"></script>
+<script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -184,13 +184,20 @@
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";});
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
 
+  // Perf (Oct 2026): the list is server-paged (soonest follow-up first) with Load more /
+  // infinite scroll; the "N due" badge is a HEAD count. render() = reload both.
+  let pager=null;
   async function render(){
-    let list=[];
-    try{ list=await BPStore.nurture.list(); }
-    catch(e){ $("#dueCount").textContent=""; BPUI.loadError($("#nurBody"), e, render, {what:"the nurture list"}); return; }
+    if(!pager) pager=BPUI.pager({ after: $("#nurBody").closest(".table-scroll"), what:"clients",
+      fetch:(offset)=>BPStore.nurture.page({ offset }), render:(rows,info)=>drawRows(info.all) });
     const td=today();
-    const due=list.filter(n=>n.status==="active" && n.next_followup && n.next_followup<=td).length;
+    const [lr, dr]=await Promise.allSettled([pager.reset(), BPStore.nurture.dueCount(td)]);
+    if(lr.status==="rejected"){ $("#dueCount").textContent=""; BPUI.loadError($("#nurBody"), lr.reason, render, {what:"the nurture list"}); return; }
+    const due = dr.status==="fulfilled" ? dr.value : 0;
     $("#dueCount").textContent = due? `${due} follow-up${due===1?"":"s"} due` : "";
+  }
+  function drawRows(list){
+    const td=today();
     $("#nurBody").innerHTML = list.length ? list.map(n=>{ const isDue=n.status==="active"&&n.next_followup&&n.next_followup<=td;
       return `<tr>
         <td><b>${esc(n.name)}</b><div class="muted" style="font-size:12px">${[n.phone,n.email].filter(Boolean).map(esc).join(" · ")}</div></td>

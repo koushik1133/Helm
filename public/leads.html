@@ -210,8 +210,8 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=106"></script>
-<script src="tour.js?v=6"></script>
+<script src="store-api.js?v=107"></script>
+<script src="tour.js?v=7"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -225,6 +225,12 @@
     {k:"lost",label:"Lost",c:"#e5484d"},
   ];
   let leads=[], canEdit=false, canCreate=false, canDelete=false, filter="", editingId=null;
+  // Perf (Oct 2026): each stage column loads its newest COL_PAGE leads (server-side search,
+  // column total from the same request); "Load more" / scrolling to a column's end fetches
+  // the next page. `leads` = every lead loaded so far; each remembers the stage the server
+  // had it in (_srv), so local moves keep the column counts right without a refetch.
+  const COL_PAGE=25;
+  let col={}, loadGen=0, lastTerm=null, anyLeads=true;
   let undoStack=[], redoStack=[], dragging=false, rtChannel=null, lastLocalWrite=0;
 
   async function renderAccount(){
@@ -256,22 +262,46 @@
     </div>`;
   }
 
+  // a column's lead count: the server total, corrected for cards moved locally since
+  function colCount(k){ const c=col[k]; if(!c) return leads.filter(l=>l.status===k).length;
+    let n=c.total; leads.forEach(l=>{ if(l._srv===k&&l.status!==k) n--; else if(l._srv!==k&&l.status===k) n++; }); return Math.max(0,n); }
   function render(){
     const q=filter.trim().toLowerCase();
-    const shown = q ? leads.filter(l=>[l.name,l.phone,l.email,l.event_type,l.source].some(v=>String(v||"").toLowerCase().includes(q))) : leads;
+    const shown = leads;   // the search already ran on the server
+    const total = STAGES.reduce((a,s)=>a+colCount(s.k),0);
     // first-run (no leads at all) vs. "no matches for this search"
-    $("#firstRun").hidden = leads.length>0;
+    $("#firstRun").hidden = anyLeads;
     $("#firstRunBtn").hidden = !canCreate;
-    const nm=$("#noMatch"); nm.hidden = !(leads.length>0 && q && !shown.length);
+    const nm=$("#noMatch"); nm.hidden = !(anyLeads && q && !total);
     nm.textContent = nm.hidden ? "" : `No leads match “${filter.trim()}”.`;
     $("#board").innerHTML = STAGES.map(s=>{
-      const items=shown.filter(l=>l.status===s.k);
-      return `<div class="col" data-stage="${s.k}" role="group" aria-label="${esc(s.label)} — ${items.length} lead${items.length===1?"":"s"}">
-        <h3><span class="dot" style="background:${s.c}"></span>${s.label}<span class="n">${items.length}</span></h3>
-        ${items.map(card).join("")||'<div class="colempty">Drop here</div>'}
+      const items=shown.filter(l=>l.status===s.k), n=colCount(s.k), c=col[s.k]||{};
+      const more = c.loading ? '<div class="colempty" role="status"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div>'
+        : c.hasMore ? `<button type="button" class="ic go" data-more="${s.k}" style="width:100%;margin-top:6px">Load more${n>items.length?` (${n-items.length})`:""}</button>` : "";
+      return `<div class="col" data-stage="${s.k}" role="group" aria-label="${esc(s.label)} — ${n} lead${n===1?"":"s"}">
+        <h3><span class="dot" style="background:${s.c}"></span>${s.label}<span class="n">${n}</span></h3>
+        ${items.map(card).join("")||(c.hasMore?"":'<div class="colempty">Drop here</div>')}${more}
       </div>`;
     }).join("");
+    if(colIO){ colIO.disconnect(); $("#board").querySelectorAll("[data-more]").forEach(b=>colIO.observe(b)); }
   }
+  // next page of one column (button, or its end scrolling into view)
+  async function loadMore(k){
+    const c=col[k]; if(!c||c.loading||!c.hasMore) return;
+    const gen=loadGen; c.loading=true; render();
+    // the server column shrank / grew by the cards moved out of / into it since: shift the offset
+    let off=c.offset; leads.forEach(l=>{ if(l._srv===k&&l.status!==k) off--; else if(l._srv!==k&&l.status===k) off++; });
+    let r=null; try{ r=await BPStore.leads.page({status:k, search:filter.trim(), offset:Math.max(0,off), limit:COL_PAGE}); }
+    catch(err){ BPUI.toast(BPUI.friendlyError(err,{action:"load more leads"}),{type:"err"}); }
+    if(gen!==loadGen) return;   // the board was reloaded meanwhile
+    c.loading=false;
+    if(r){ const have=new Set(leads.map(l=>l.id));
+      r.rows.forEach(l=>{ if(!have.has(l.id)){ l._srv=l.status; leads.push(l); } });
+      c.offset=c.offset+(r.offset-Math.max(0,off)); c.hasMore=r.hasMore; }
+    render();
+  }
+  const colIO = ("IntersectionObserver" in window) ? new IntersectionObserver(ents=>ents.forEach(en=>{ if(en.isIntersecting) loadMore(en.target.dataset.more); }),{rootMargin:"200px 0px"}) : null;
+  $("#board").addEventListener("click",(e)=>{ const b=e.target.closest("[data-more]"); if(b) loadMore(b.dataset.more); });
 
   const leadById=(id)=>leads.find(l=>l.id===id);
 
@@ -484,7 +514,8 @@
     if(!id && (phone||email)){
       const nd=s=>String(s||"").replace(/\D/g,"");
       const pd=nd(phone);
-      const dup=(leads||[]).find(l=> (pd && nd(l.phone)===pd) || (email && String(l.email||"").trim().toLowerCase()===email) );
+      let pool=leads||[]; try{ pool=await BPStore.leads.contacts(); }catch(_){}   // every lead's phone/email, not just the loaded pages
+      const dup=pool.find(l=> (pd && nd(l.phone)===pd) || (email && String(l.email||"").trim().toLowerCase()===email) );
       if(dup){
         const by = (pd && nd(dup.phone)===pd) ? "phone number" : "email";
         if(!(await BPUI.confirm('A lead with this '+by+' already exists ("'+(dup.name||"")+'"). Add this as a separate lead anyway?',{title:"Possible duplicate lead",okLabel:"Add anyway",cancelLabel:"Cancel"}))) return;
@@ -533,7 +564,8 @@
   $("#li_go").addEventListener("click",doLogin);
   ["#li_email","#li_pass"].forEach(s=>$(s).addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); doLogin(); } }));
 
-  let _searchT; $("#search").addEventListener("input",(e)=>{ filter=e.target.value; clearTimeout(_searchT); _searchT=setTimeout(render,150); });  // debounce: don't rebuild the board on every keystroke
+  // search runs on the server (name / phone / email / type / source) after a 300 ms pause in typing
+  const searchLoad=BPUI.debounce(load,300); $("#search").addEventListener("input",(e)=>{ filter=e.target.value; searchLoad(); });
   // Escape is handled by BPUI (clicks the open modal's [data-close]); here only undo/redo shortcuts.
   document.addEventListener("keydown",(e)=>{
     const mod=e.metaKey||e.ctrlKey; if(!mod) return;
@@ -561,8 +593,17 @@
 
   /* ---------- load ---------- */
   async function load(){
-    try{ leads = await BPStore.leads.list(); }
-    catch(err){ $("#firstRun").hidden=true; $("#noMatch").hidden=true; BPUI.loadError($("#board"), err, load, {what:"leads"}); return; }
+    const gen=++loadGen, term=filter.trim(), sameTerm=term===lastTerm;
+    // a refresh (realtime / after a save) keeps each column as deep as it was scrolled
+    const depth=(k)=> sameTerm ? Math.max(COL_PAGE, leads.filter(l=>l._srv===k).length) : COL_PAGE;
+    let res;
+    try{ res=await Promise.all(STAGES.map(s=>BPStore.leads.page({status:s.k, search:term, count:true, limit:depth(s.k)}))); }
+    catch(err){ if(gen!==loadGen) return; $("#firstRun").hidden=true; $("#noMatch").hidden=true; BPUI.loadError($("#board"), err, load, {what:"leads"}); return; }
+    if(gen!==loadGen) return;   // a newer search / refresh superseded this one
+    lastTerm=term; leads=[]; col={};
+    STAGES.forEach((s,i)=>{ const r=res[i]; r.rows.forEach(l=>{ l._srv=l.status; leads.push(l); });
+      col[s.k]={ offset:r.offset, hasMore:r.hasMore, total:(r.total!=null?r.total:r.rows.length), loading:false }; });
+    if(!term) anyLeads = STAGES.some(s=>col[s.k].total>0);
     render(); syncDetail();
   }
   BPUI.boot(async ()=>{

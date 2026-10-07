@@ -66,6 +66,12 @@
   .stat.ap{background:#e7f6ee;color:#0f7a43} .stat.st{background:#fff7e6;color:#946200}
   .stat.done{background:#f1f3f7;color:#5b5670}
   .stat.warn{background:#fdecec;color:#b42318}
+  /* Archive / Deleted shelves (0040) */
+  .tabs .tcount{display:inline-block;min-width:18px;margin-left:6px;padding:0 6px;border-radius:20px;background:var(--panel-2,#f1f3f7);color:var(--ink-2);font-size:11px;line-height:18px;text-align:center}
+  .tabs button.on .tcount{background:rgba(255,255,255,.25);color:#fff}
+  .tabs .tcount[hidden]{display:none}
+  .shelfnote{margin-top:4px;font-size:12px;color:var(--ink-3);line-height:1.35;max-width:260px}
+  .ic.restore{color:#0f7a43;border-color:#b6e3ca}
   .vsel{height:32px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:var(--mono);font-size:12px;padding:0 6px;color:var(--ink)}
   .row-actions{display:flex;gap:6px;flex-wrap:wrap}
   .ic{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:32px;min-width:32px;padding:0 10px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)}
@@ -136,7 +142,8 @@
       <button type="button" data-f="quote" aria-pressed="false">Quotes</button>
       <button type="button" data-f="confirmed" aria-pressed="false">Confirmed</button>
       <button type="button" data-f="attention" aria-pressed="false">⚠ Attention</button>
-      <button type="button" data-f="archived" aria-pressed="false">Archived</button>
+      <button type="button" data-f="archived" aria-pressed="false">Archive<span class="tcount" id="cnt_archived" hidden></span></button>
+      <button type="button" data-f="deleted" aria-pressed="false" id="tab_deleted" hidden>Deleted<span class="tcount" id="cnt_deleted"></span></button>
     </div>
     <input id="search" class="search" type="search" aria-label="Search quotes" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search code, client, title…">
     <select id="typeFilter" class="typefilter" title="Filter by event type" aria-label="Filter by event type"><option value="">All types</option></select>
@@ -266,8 +273,8 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=106"></script>
-<script src="tour.js?v=6"></script>
+<script src="store-api.js?v=107"></script>
+<script src="tour.js?v=7"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
   const esc = (s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -277,9 +284,85 @@
   const apprBadge=(a)=> a==="paid"?'<span class="stat ok">Paid</span>':a==="approved"?'<span class="stat ap">Approved</span>':a==="sent"?'<span class="stat st">Sent</span>':"";
 
   let quotes=[], filter="all", typeFilter="", canEdit=false, canDelete=false, canCreate=false, canMarkPaid=false;
-  const PAGE=50; let shown=PAGE;   // cap rows rendered; "Show more" reveals the next PAGE
+  // Perf (Oct 2026): the list is server-paged — each tab / type / search asks the server for
+  // the first page (light columns, no pricing JSON) and Load more / infinite scroll fetches
+  // the next. `quotes` = the rows loaded so far for the current view.
+  let pager=null, anyQuotes=null;   // anyQuotes: does the studio have ANY quote (first-run empty state)
+  const viewOf=(f)=> f==="all" ? "active" : f;   // the "Active" tab = everything not archived
   const detailCache={};   // id -> full quote (with versions)
   let egIndex={}, egReady=false;   // event groups (0035): quote id -> { conversation_id, is_member }
+
+  /* ---------- Archive / Deleted shelves (0040) ---------- */
+  // Soft flags on the quote (archived_at / deleted_at) — "Deleted" is a tab with Restore,
+  // nothing is erased. shelf.byId = the quotes flagged right now: the day-to-day tabs skip
+  // them, the Archive tab lists the flagged-archived above the finished events the server
+  // pages, and the Deleted tab lists only the flagged-deleted. Without 0040 (or offline)
+  // shelf.ready stays false and the page works exactly as before.
+  const shelf={ready:false, rows:[], byId:{}, archived:0, deleted:0};
+  const shelfFmt=(iso)=>{ try{ const d=new Date(iso); return isNaN(d)?"":d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}); }catch(e){ return ""; } };
+  function shelfItem(r){ return { id:r.id, code:r.code, title:r.title, eventType:r.event_type, status:r.status,
+      lifecycleStage:r.lifecycle_stage||"quote", approvalStatus:r.approval_status||"none", currentVersion:r.current_version,
+      client:{name:r.client_name||""}, pricing:{}, total:Number(r.total)||0, eventDate:r.event_date||null,
+      updatedAt:r.updated_at, createdAt:r.created_at }; }
+  function shelfNote(s){
+    if(!s) return "";
+    if(s.reason==="link_expired"){ const d=shelfFmt(s.link_expired_at); return "Moved automatically — client link expired"+(d?" on "+d:""); }
+    const d=shelfFmt(s.shelved_at); return (s.shelf==="deleted"?"Moved to Deleted":"Archived")+" by hand"+(d?" on "+d:"");
+  }
+  function paintShelfTabs(){
+    $("#cnt_archived").hidden=!shelf.ready; $("#cnt_archived").textContent=shelf.ready?String(shelf.archived):"";
+    $("#tab_deleted").hidden=!shelf.ready; $("#cnt_deleted").textContent=shelf.ready?String(shelf.deleted):"";
+  }
+  async function loadShelf(){
+    if(BPStore.mode()!=="supabase" || !BPStore.quoteShelf){ shelf.ready=false; paintShelfTabs(); return; }
+    try{ const r=(await BPStore.quoteShelf.list())||{}; const rows=Array.isArray(r.rows)?r.rows:[];
+      shelf.rows=rows; shelf.byId={}; rows.forEach(x=>{ shelf.byId[x.id]=x; });
+      shelf.archived=Number(r.archived_count)||0; shelf.deleted=Number(r.deleted_count)||0; shelf.ready=true;
+    }catch(e){ shelf.ready=false; shelf.rows=[]; shelf.byId={}; }   // 0040 not installed / no access → classic tabs
+    paintShelfTabs();
+  }
+  // one page of the current tab (wraps BPStore.quotes.page): the first page also refreshes the
+  // shelf, in parallel, so a tab switch costs no extra wait
+  async function shelfPage(offset, base){
+    const view=filter, term=($("#search").value||"").trim().toLowerCase(), type=(typeFilter||"").toLowerCase();
+    const mine=()=>shelf.rows.filter(r=>r.shelf===(view==="deleted"?"deleted":"archived")).map(shelfItem)
+      .filter(x=>(!type || (x.eventType||"").toLowerCase()===type)
+               && (!term || [x.code,x.title,x.client.name].some(v=>String(v||"").toLowerCase().includes(term))));
+    if(view==="deleted"){ if(!offset) await loadShelf(); return { rows: shelf.ready?mine():[], hasMore:false, offset:0 }; }
+    const [, r]=await Promise.all([offset?null:loadShelf(), base()]);
+    const rows=((r&&r.rows)||[]).filter(x=>!shelf.byId[x.id]);
+    return { rows: view==="archived"&&!offset ? mine().concat(rows) : rows, hasMore:!!(r&&r.hasMore), offset:r?r.offset:offset };
+  }
+  // opening Quotes runs the studio's "client link expired → Archive / Deleted" choice (the
+  // server does it at most once per 10 minutes per studio); never blocks the page
+  async function runShelfTick(){
+    if(BPStore.mode()!=="supabase" || !BPStore.quoteShelf) return;
+    let t=null; try{ t=await BPStore.quoteShelf.tick(); }catch(e){ return; }
+    const n=(t&&Number(t.moved))||0;
+    if(n>0){ BPUI.toast(`${n} quote${n===1?"":"s"} moved to ${t.action==="delete"?"Deleted":"the Archive"} — the client link expired without approval.`,{type:"info"}); reloadQuiet(); }
+  }
+  async function shelfMove(id, kind, btn){
+    const q=quotes.find(x=>x.id===id), name=q&&q.code?q.code:"this quote", del=kind==="delete";
+    if(!(await BPUI.confirm(del
+        ? `Move ${name} to Deleted quotes? Nothing is erased — you can restore it from the Deleted tab.`
+        : `Move ${name} to the Archive? It leaves the day-to-day lists; you can restore it any time.`,
+        {title:del?"Delete quote?":"Archive quote?",okLabel:del?"Move to Deleted":"Archive",danger:del}))) return;
+    await BPUI.guard(btn,async()=>{
+      try{ await BPStore.quoteShelf.move(id, del?"delete":"archive");
+        if(pager) pager.remove(id); quotes=quotes.filter(x=>x.id!==id); delete detailCache[id];
+        await loadShelf(); render(); BPUI.toast(del?"Moved to Deleted quotes.":"Moved to the Archive.",{type:"ok"}); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:del?"delete the quote":"archive the quote"}),{type:"err"}); }
+    });
+  }
+  async function restoreQuote(id, btn){
+    await BPUI.guard(btn,async()=>{
+      try{ await BPStore.quoteShelf.restore(id);
+        if(pager) pager.remove(id); quotes=quotes.filter(x=>x.id!==id);
+        await loadShelf(); render(); BPUI.toast("Restored — it's back in your quotes.",{type:"ok"}); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"restore the quote"}),{type:"err"}); }
+    });
+  }
+  /* ---------- end Archive / Deleted shelves ---------- */
 
   /* ---------- seat/chair counting from a version's layout ---------- */
   function countSeats(items){ let seats=0; (items||[]).forEach(i=>{ const p=i.properties||{};
@@ -308,15 +391,23 @@
     // mark_paid is admin/manager only server-side (SEC-05 F11); offline mode has no roles
     canMarkPaid = canEdit && (!BPStore.auth.enabled() || ["admin","manager"].includes(await BPStore.auth.role()));
     $("#newBtn").hidden = !canCreate;
-    try { quotes = await BPStore.quotes.list(); }
-    catch(e){ BPUI.loadError($("#rows"), e, load, {what:"quotes"}); return; }
-    await loadEventGroups();
+    runShelfTick();   // 0040: client link expired → Archive / Deleted (rate-limited server-side; never awaited)
     // opened from an event workspace? focus that quote by pre-filling the search
     const focus=new URLSearchParams(location.search).get("focus");
     if(focus){ $("#search").value=focus; }
-    fillTypeFilter();
+    const [listR]=await Promise.allSettled([reloadList(), loadEventGroups(), fillTypeFilter()]);
+    if(listR.status==="rejected"){ BPUI.loadError($("#rows"), listR.reason, load, {what:"quotes"}); return; }
     render();
   }
+  // first page of the current tab / type / search (resolves after it painted)
+  function reloadList(){
+    if(!pager) pager=BPUI.pager({ after: $("#rows").closest(".card"), what:"quotes",
+      fetch:(offset)=>shelfPage(offset, ()=>BPStore.quotes.page({ offset, view:viewOf(filter), eventType:typeFilter, search:($("#search").value||"").trim(), sort:"confirmedFirst" })),
+      render:(rows,info)=>{ quotes=info.all; render(); } });
+    anyQuotes=null;
+    return pager.reset();
+  }
+  const reloadQuiet=()=>reloadList().catch(e=>{ BPUI.loadError($("#rows"), e, reloadQuiet, {what:"quotes"}); });
   function render(){
     const q=($("#search").value||"").toLowerCase().trim();
     // Archived = closed or cancelled events — kept out of the day-to-day views,
@@ -325,34 +416,30 @@
     // confirmed. A quote that was never confirmed can't be "closed" in the real
     // flow, so a stray quote+closed record stays in the active views (visible to
     // clean up) instead of silently sitting in the archive.
-    const isArchived=x=> x.status==="cancelled" || (x.lifecycleStage==="closed" && x.status==="confirmed");
+    // (+ 0040: a quote flagged archived). Same rule the server-side "archived" view uses.
+    const isArchived=x=> BPStore.quotes.isArchived(x);
     // Needs attention = the event date has passed but the event isn't wrapped up
     // (not closed / cancelled) — e.g. it happened but equipment isn't returned or
     // it was never settled & closed. Draft quotes with no date are never flagged.
     const startOfToday=new Date(); startOfToday.setHours(0,0,0,0);
+    const sh=x=>shelf.byId[x.id];   // flagged Archive / Deleted (0040)
     const needsAttention=x=>{
-      if(isArchived(x) || x.status==="cancelled" || !x.eventDate) return false;
+      if(sh(x) || isArchived(x) || x.status==="cancelled" || !x.eventDate) return false;
       const d=new Date(x.eventDate); if(isNaN(d)) return false;
       return d < startOfToday;
     };
-    let list=quotes.filter(x=>
-      filter==="attention" ? needsAttention(x) :
-      filter==="all"       ? !isArchived(x) :
-      filter==="archived"  ?  isArchived(x) :
-      (x.status===filter && !isArchived(x)));
-    if(typeFilter) list=list.filter(x=> (x.eventType||"").toLowerCase()===typeFilter.toLowerCase());
-    if(q) list=list.filter(x=> (x.code||"").toLowerCase().includes(q) || (x.title||"").toLowerCase().includes(q) || ((x.client&&x.client.name)||"").toLowerCase().includes(q));
-    // confirmed rise to the top (so you don't have to scroll for them), then newest first
-    const rank=x=> x.status==="confirmed"?0:1;
-    list.sort((a,b)=> (rank(a)-rank(b)) || (b.updatedAt||"").localeCompare(a.updatedAt||""));
+    // The tab (BPStore.quotes.page view), type and search are applied by the SERVER, which
+    // also orders the rows: confirmed rise to the top, then newest first.
+    const list=quotes;
     const tb=$("#rows");
     if(!list.length){
-      // first run (no quotes at all) vs. nothing in this tab / filter
-      tb.innerHTML = !quotes.length
+      // first run (no quotes at all) vs. nothing in this tab / filter — one HEAD count, only when empty
+      if(anyQuotes===null){ anyQuotes="?"; BPStore.quotes.counts().then(c=>{ anyQuotes=c.total>0; if(!quotes.length) render(); }).catch(()=>{ anyQuotes=true; }); }
+      tb.innerHTML = anyQuotes===false
         ? `<tr><td colspan="8" class="empty"><b>No quotes yet.</b><br>${canCreate?'Design a layout and save it to create your first quote.<div style="margin-top:12px"><a class="btn primary" href="dashboard.html">✨ Create your first quote</a></div>':"Quotes will appear here once they're created."}</td></tr>`
         : `<tr><td colspan="8" class="empty">${(q||typeFilter)?"No quotes match this search or filter.":"No quotes in this view."}</td></tr>`;
       return; }
-    const visible=list.slice(0, shown);
+    const visible=list;
     tb.innerHTML=visible.map(x=>{
       const pr=x.pricing||{}; const client=(x.client&&x.client.name)||(pr.client&&pr.client.name)||"";
       return `<tr data-id="${esc(x.id)}" class="${needsAttention(x)?'is-attention':(x.status==='confirmed'?'is-confirmed':'')}">
@@ -360,17 +447,22 @@
         <td>${esc(x.title||"—")}<div class="muted">${esc(x.eventType||"")}</div></td>
         <td>${esc(client)||'<span class="muted">—</span>'}</td>
         <td><select class="vsel" data-role="vsel" aria-label="Version of ${esc(x.code)}"><option>v${esc(x.currentVersion)}</option></select></td>
-        <td>${needsAttention(x)?'<span class="stat warn" title="Event date has passed but this event isn\'t wrapped up — settle, return equipment and close it">⚠ Overdue</span> ':''}${isArchived(x)&&x.lifecycleStage==="closed"?'<span class="stat done">Closed · Archived</span>':statBadge(x.status)} ${apprBadge(x.approvalStatus)}</td>
+        <td>${sh(x)?(sh(x).shelf==="deleted"?'<span class="stat no">Deleted</span> ':'<span class="stat done">Archived</span> '):''}${needsAttention(x)?'<span class="stat warn" title="Event date has passed but this event isn\'t wrapped up — settle, return equipment and close it">⚠ Overdue</span> ':''}${isArchived(x)&&x.lifecycleStage==="closed"?'<span class="stat done">Closed · Archived</span>':statBadge(x.status)} ${apprBadge(x.approvalStatus)}${sh(x)?`<div class="shelfnote">${esc(shelfNote(sh(x)))}</div>`:""}</td>
         <td style="text-align:right" class="amt">${x.total?inr(x.total):'<span class="muted">—</span>'}</td>
         <td class="muted">${fmtDate(x.updatedAt)}</td>
         <td><div class="row-actions" style="justify-content:flex-end">
-          ${isArchived(x)
+          ${sh(x)
+            ? // in Archive / Deleted (0040) → put it back, look at it, download it — never erase
+              `${canEdit?`<button type="button" class="ic restore" data-act="restore" title="Put it back in your quotes" aria-label="Restore ${esc(x.code)}">↩ Restore</button>`:""}
+               <button type="button" class="ic go" data-act="workspace" title="Open the event workspace" aria-label="Open workspace for ${esc(x.code)}">⧉ Open</button>
+               <button type="button" class="ic" data-act="download" aria-label="Download ${esc(x.code)}">Download</button>`
+          : isArchived(x)
             ? // finished event → read-only set: review its details, reopen the workspace, download
               `<button type="button" class="ic go" data-act="details" title="View closure, P&amp;L and feedback for this completed event" aria-label="Details for ${esc(x.code)}">📄 Details</button>
                <button type="button" class="ic go" data-act="workspace" title="Open the event workspace" aria-label="Open workspace for ${esc(x.code)}">⧉ Open</button>
                ${egReady&&egIndex[x.id]?`<button type="button" class="ic go" data-act="egroup" aria-label="Open the event group for ${esc(x.code)}">💬 Event group</button>`:""}
                <button type="button" class="ic" data-act="download" aria-label="Download ${esc(x.code)}">Download</button>
-               ${canDelete?`<button type="button" class="ic del" data-act="del" title="Delete permanently" aria-label="Delete ${esc(x.code)}">✕</button>`:""}`
+               ${canDelete?`<button type="button" class="ic del" data-act="del" title="${shelf.ready?"Move to Deleted quotes (restorable)":"Delete permanently"}" aria-label="Delete ${esc(x.code)}">✕</button>`:""}`
             : // active event → the full working set
               `<button type="button" class="ic go" data-act="workspace" title="Open the event workspace" aria-label="Open workspace for ${esc(x.code)}">⧉ Open</button>
                <button type="button" class="ic go" data-act="edit" aria-label="Edit ${esc(x.code)}">Edit</button>
@@ -380,13 +472,10 @@
                ${egReady&&(egIndex[x.id]||x.status==="confirmed")?`<button type="button" class="ic go" data-act="egroup" title="${egIndex[x.id]?"Open this event's team chat":"Create a team chat for this event"}" aria-label="${egIndex[x.id]?"Open event group":"Create event group"} for ${esc(x.code)}">${egIndex[x.id]?"💬 Open event group":"💬 Event group"}</button>`:""}
                ${canMarkPaid&&x.approvalStatus==="approved"?`<button type="button" class="ic confirm" data-act="paid" title="Mark payment received (dev)" aria-label="Mark ${esc(x.code)} paid">Mark paid</button>`:""}
                <button type="button" class="ic" data-act="download" aria-label="Download ${esc(x.code)}">Download</button>
-               ${canDelete?`<button type="button" class="ic del" data-act="del" title="Delete permanently" aria-label="Delete ${esc(x.code)}">✕</button>`:""}`}
+               ${shelf.ready&&canEdit?`<button type="button" class="ic" data-act="archive" title="Move to the Archive (restorable)" aria-label="Archive ${esc(x.code)}">🗄 Archive</button>`:""}
+               ${canDelete?`<button type="button" class="ic del" data-act="del" title="${shelf.ready?"Move to Deleted quotes (restorable)":"Delete permanently"}" aria-label="Delete ${esc(x.code)}">✕</button>`:""}`}
         </div></td></tr>`;
-    }).join("") + (list.length>shown
-      ? `<tr><td colspan="8" style="text-align:center;padding:16px"><button type="button" class="btn" id="showMore">Show ${Math.min(PAGE,list.length-shown)} more (${list.length-shown} hidden)</button></td></tr>`
-      : "");
-    // "Show more" renders the next batch — keeps the DOM small on large lists
-    const moreBtn=$("#showMore"); if(moreBtn) moreBtn.addEventListener("click",()=>{ shown+=PAGE; render(); });
+    }).join("");   // Load more / infinite scroll lives in the pager footer under the table
     // lazy-load versions into each dropdown + wire actions
     tb.querySelectorAll("tr[data-id]").forEach(tr=>{
       const id=tr.dataset.id;
@@ -403,6 +492,8 @@
         else if(act==="link") BPUI.guard(b,()=>sendApprovalLink(id));
         else if(act==="paid") markPaid(id, b);
         else if(act==="del") delQuote(id, b);
+        else if(act==="archive") shelfMove(id, "archive", b);
+        else if(act==="restore") restoreQuote(id, b);
         else if(act==="egroup") BPUI.guard(b,()=>openEventGroup(id));
       }));
     });
@@ -609,10 +700,12 @@
   }
 
   async function delQuote(id, btn){
+    // 0040 installed: Delete = move to Deleted quotes (soft, restorable) — never erased
+    if(shelf.ready) return shelfMove(id, "delete", btn);
     const q=quotes.find(x=>x.id===id);
     if(!(await BPUI.confirm(`Delete ${q&&q.code?q.code:"this quote"} and all its versions? This can't be undone.`,{title:"Delete quote?",danger:true}))) return;
     await BPUI.guard(btn,async()=>{
-      try{ await BPStore.quotes.remove(id); quotes=quotes.filter(x=>x.id!==id); delete detailCache[id]; render(); BPUI.toast("Quote deleted.",{type:"ok"}); }
+      try{ await BPStore.quotes.remove(id); if(pager) pager.remove(id); quotes=quotes.filter(x=>x.id!==id); delete detailCache[id]; render(); BPUI.toast("Quote deleted.",{type:"ok"}); }
       catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"delete the quote"}),{type:"err"}); }
     });
   }
@@ -698,14 +791,16 @@
 
   /* ---------- wire up ---------- */
   $("#tabs").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return;
-    $("#tabs").querySelectorAll("button").forEach(x=>{ x.classList.toggle("on",x===b); x.setAttribute("aria-pressed",String(x===b)); }); filter=b.dataset.f; shown=PAGE; render(); });
-  $("#search").addEventListener("input",()=>{ shown=PAGE; render(); });
-  $("#typeFilter").addEventListener("change",e=>{ typeFilter=e.target.value; shown=PAGE; render(); });
+    $("#tabs").querySelectorAll("button").forEach(x=>{ x.classList.toggle("on",x===b); x.setAttribute("aria-pressed",String(x===b)); }); filter=b.dataset.f; reloadQuiet(); });
+  // search asks the server (code / title / client name), after a 300 ms pause in typing
+  $("#search").addEventListener("input",BPUI.debounce(reloadQuiet,300));
+  $("#typeFilter").addEventListener("change",e=>{ typeFilter=e.target.value; reloadQuiet(); });
   $("#refresh").addEventListener("click",()=>BPUI.guard($("#refresh"),load));
-  function fillTypeFilter(){
+  async function fillTypeFilter(){
     // dedupe event types case-insensitively (so "wedding" and "Wedding" merge), keeping the nicest-cased label
     const byLower={};
-    quotes.map(x=>x.eventType).filter(Boolean).forEach(t=>{
+    let all=[]; try{ all=await BPStore.quotes.eventTypes(); }catch(e){ all=quotes.map(x=>x.eventType); }
+    all.filter(Boolean).forEach(t=>{
       const k=t.toLowerCase();
       if(!byLower[k] || (t[0]===t[0].toUpperCase() && byLower[k][0]!==byLower[k][0].toUpperCase())) byLower[k]=t;
     });

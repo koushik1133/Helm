@@ -363,7 +363,7 @@
 <link rel="stylesheet" href="theme.css?v=73">
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=106"></script>
+<script src="store-api.js?v=107"></script>
 <script>
 (function(){
   const $=(s,r)=>(r||document).querySelector(s);
@@ -530,7 +530,7 @@
     try{ convs=await BPStore.chat.conversations(); backendReady=true; }catch(e){ convs=[]; backendReady=false; }
     const mem=await BPStore.chat.myMemberships().catch(()=>({}));
     convs.forEach(c=>{ const m=mem[c.id]; c._lastRead=m&&m.last_read_at; });
-    await Promise.all(convs.map(async c=>{ try{ const t=await BPStore.chat.thread(c.id,80); c._members=t.members; c._msgs=t.messages; c._last=t.messages[t.messages.length-1]||null; c._unread=unreadCount(c); }
+    await Promise.all(convs.map(async c=>{ try{ const t=await BPStore.chat.thread(c.id,80,{light:true}); c._members=t.members; c._msgs=t.messages; c._last=t.messages[t.messages.length-1]||null; c._unread=unreadCount(c); }
       catch(e){ c._members=[]; c._last=null; c._unread=0; } }));
     await resolveEventTypes();
     renderConvs();
@@ -547,8 +547,22 @@
     renderConvs(); await loadThread(); try{ await BPStore.chat.markRead(id); }catch(e){} bumpBell();
     setTimeout(()=>{ const c2=convs.find(x=>x.id===id); if(c2){ c2._unread=0; renderConvs(); } },300);
   }
+  // Perf (Oct 2026): a thread opens with its latest THREAD_PAGE messages; older ones load
+  // on scroll-up (loadOlder) with the scroll position kept. A re-sync of the open thread
+  // (new message, edit, reaction, realtime) re-reads only what's already on screen.
+  const THREAD_PAGE=50;
+  let loadingOlder=false;
   async function loadThread(){ if(!activeId) return;
-    try{ thread=await BPStore.chat.thread(activeId); }catch(e){ thread={messages:[],reactions:[],members:[]}; }
+    const conv=activeId, prev=thread, sameConv=prev.conv===conv;
+    const oldest=sameConv?(prev.messages||[]).find(m=>!m._pending):null;
+    try{
+      // older history already on screen → re-read from its oldest message so it stays (and stays fresh)
+      if(sameConv&&oldest&&prev.messages.length>THREAD_PAGE){
+        const t=await BPStore.chat.thread(conv,THREAD_PAGE,{since:oldest.created_at}); t.hasMore=prev.hasMore; thread=t;
+      } else thread=await BPStore.chat.thread(conv,THREAD_PAGE);
+    }catch(e){ thread={messages:[],reactions:[],members:[],hasMore:false}; }
+    if(conv!==activeId) return;   // switched chats while this was loading
+    thread.conv=conv;
     const c=convs.find(x=>x.id===activeId);
     renderPinBar(c);
     if(c){ if(c.kind==="group") $("#tSub").textContent=(c.quote_id?"Event group · ":"")+((thread.members||[]).map(m=>m.user_id===ME.id?"You":personName(m.user_id).split(" ")[0]).join(", ")||"group");
@@ -580,11 +594,42 @@
     const ct=$("#tSearchCt"); if(ct) ct.textContent=ql?(matches+" result"+(matches===1?"":"s")):"";
     if(ql){ const first=host.querySelector(".m:not(.dim)"); if(first) first.scrollIntoView({block:"center"}); } }
 
-  function renderMessages(){
+  // scroll-up history: fetch the page just older than the oldest message on screen and
+  // prepend it, keeping what the reader is looking at in place
+  async function loadOlder(){
+    if(loadingOlder||!activeId||!thread.hasMore||thread.conv!==activeId) return;
+    const first=(thread.messages||[])[0]; if(!first) return;
+    const conv=activeId; loadingOlder=true; paintOlderRow();
+    let t=null; try{ t=await BPStore.chat.thread(conv,THREAD_PAGE,{before:first}); }catch(e){ t=null; }
+    loadingOlder=false;
+    if(conv!==activeId||thread.conv!==conv){ return; }
+    if(!t){ paintOlderRow(true); return; }
+    const have=new Set(thread.messages.map(m=>m.id));
+    const older=(t.messages||[]).filter(m=>!have.has(m.id));
+    thread.messages=older.concat(thread.messages);
+    thread.reactions=(t.reactions||[]).concat(thread.reactions||[]);
+    thread.hasMore=!!t.hasMore;
+    const host=$("#msgs"), fromBottom=host.scrollHeight-host.scrollTop;
+    renderMessages({keepFromBottom:fromBottom});
+  }
+  // the row at the top of the thread: Load earlier messages / Loading… / start of the chat
+  function olderRowHtml(failed){
+    if(loadingOlder) return '<div class="daysep" data-older role="status"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading earlier messages…</span></div>';
+    if(thread.hasMore) return `<div class="daysep" data-older>${failed?"Couldn’t load earlier messages · ":""}<button type="button" class="linkbtn" data-older-btn style="background:none;border:0;color:var(--accent);font:inherit;cursor:pointer;text-decoration:underline">${failed?"Retry":"Load earlier messages"}</button></div>`;
+    return "";
+  }
+  function paintOlderRow(failed){ const host=$("#msgs"); const row=host.querySelector("[data-older]");
+    const html=olderRowHtml(failed);
+    if(row){ if(html) row.outerHTML=html; else row.remove(); } else if(html) host.insertAdjacentHTML("afterbegin",html);
+    const b=host.querySelector("[data-older-btn]"); if(b) b.addEventListener("click",loadOlder); }
+  $("#msgs").addEventListener("scroll",()=>{ const h=$("#msgs"); if(h.scrollTop<120&&thread.hasMore&&!loadingOlder&&!msgQuery) loadOlder(); },{passive:true});
+
+  function renderMessages(o){
+    o=o||{};
     const host=$("#msgs"); const c=convs.find(x=>x.id===activeId); const isGroup=c&&c.kind!=="dm";
     const msgs=thread.messages.concat(pending.filter(p=>p.conversation_id===activeId));
     if(!msgs.length){ host.innerHTML='<div class="welcome"><div class="big">👋</div><b>No messages yet</b><p>Say hello — this is the start of your conversation.</p></div>'; return; }
-    let html="",lastDay="",lastSender=null;
+    let html=olderRowHtml(),lastDay="",lastSender=null;
     msgs.forEach(m=>{
       const day=fmtDay(m.created_at); if(day!==lastDay){ html+=`<div class="daysep">${esc(day)}</div>`; lastDay=day; lastSender=null; }
       const mine=m.sender_id===ME.id; const grpStart=(m.sender_id!==lastSender); lastSender=m.sender_id;
@@ -611,7 +656,10 @@
     host.querySelectorAll(".reply[data-goto]").forEach(el=>el.addEventListener("click",()=>{ const t=host.querySelector('.m[data-mid="'+el.dataset.goto+'"]'); if(t){ t.scrollIntoView({block:"center"}); t.style.transition="background .3s"; t.style.background="var(--accent-soft)"; setTimeout(()=>t.style.background="",700); } }));
     host.querySelectorAll("img.photo").forEach(el=>el.addEventListener("click",()=>el.src&&lightbox(el.src)));
     host.querySelectorAll("[data-media]").forEach(async el=>{ const p=el.getAttribute("data-media"); if(!p) return; try{ el.src=await BPStore.chat.mediaUrl(p); }catch(e){} });
-    if(msgQuery) applyMsgSearch(msgQuery); else host.scrollTop=host.scrollHeight;
+    { const b=host.querySelector("[data-older-btn]"); if(b) b.addEventListener("click",loadOlder); }
+    if(msgQuery) applyMsgSearch(msgQuery);
+    else if(o.keepFromBottom!=null) host.scrollTop=Math.max(0,host.scrollHeight-o.keepFromBottom);   // prepended history: keep the reader's place
+    else host.scrollTop=host.scrollHeight;
   }
   function msgMenu(anchor,mid){ const r=anchor.getBoundingClientRect(); closeMenus();
     const msg=thread.messages.find(x=>x.id===mid); const mine=msg&&msg.sender_id===ME.id;

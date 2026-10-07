@@ -25,7 +25,7 @@
     ],
     "quotes.html": [
       { sel: "#newBtn", title: "Start a new quote", desc: "Price a fresh event here. It becomes the event everything else hangs off." },
-      { sel: "#tabs", title: "Find confirmed fast", desc: "Active · Quotes · Confirmed · Archived. Confirmed events rise to the top and are highlighted so you never scroll to find them." },
+      { sel: "#tabs", title: "Find confirmed fast", desc: "Active · Quotes · Confirmed · Archive · Deleted. Confirmed events rise to the top and are highlighted so you never scroll to find them." },
       { sel: "#search", title: "Search", desc: "Jump to any quote by client name or quote code." },
       { sel: "#rows", title: "Your quotes", desc: "Click a row to open it, confirm it, re-price it, or take client approval by OTP / consent / payment link." },
     ],
@@ -96,7 +96,7 @@
     "closure.html": [
       { sel: "#c_feedback", title: "Capture feedback", desc: "Record the client's feedback and a quotable testimonial for your marketing." },
       { sel: "#rateAdd", title: "Rate vendors & staff", desc: "Score who worked well so you know who to rebook next time." },
-      { sel: "#closeBtn", title: "Close & archive", desc: "Once all equipment is returned, close the event. It moves to the Archived tab with a clean P&L." },
+      { sel: "#closeBtn", title: "Close & archive", desc: "Once all equipment is returned, close the event. It moves to the Archive tab with a clean P&L." },
     ],
     "event.html": [
       { sel: "#steps", title: "The event lifecycle", desc: "Every stage of this event, from proposal to settlement. Click a step to jump straight to it." },
