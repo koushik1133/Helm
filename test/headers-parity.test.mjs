@@ -161,7 +161,7 @@ t('cache policy: versioned assets / vendor immutable, config.js short, marketing
     assert.equal(netlifyHeaders(p)['cache-control'], v, `_headers Cache-Control ≠ vercel.json for ${p}`);
   }
   assert.match(vercelHeaders('/vendor/a.js')['cache-control'], /immutable/);
-  assert.equal(vercelHeaders('/config.js')['cache-control'], 'public, max-age=300');
+  assert.equal(vercelHeaders('/config.js')['cache-control'], 'public, max-age=300, stale-while-revalidate=3600');
   // auth hardening: signed-in app pages and the login / reset pages must never be stored
   for (const p of PAGES.filter((x) => !MARKETING.includes(x))) {
     for (const u of ['/' + p, '/' + p + '.html']) {

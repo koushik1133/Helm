@@ -47,3 +47,6 @@ forward  supabase/migrations/0031_manual_private_bucket.sql
 forward  supabase/migrations/0032_rescore2_fixes.sql
 forward  supabase/migrations/0033_rescore3_fixes.sql
 forward  supabase/migrations/0034_display_names.sql
+forward  supabase/migrations/0035_event_groups_mentions.sql
+forward  supabase/migrations/0036_notification_prefs.sql
+forward  supabase/migrations/0037_platform_operator_check.sql

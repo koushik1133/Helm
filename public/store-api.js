@@ -72,6 +72,19 @@
   const TABLE = CFG.table || "layouts";
   const LS_KEY = "bps.layouts";
   const API = "/api";
+  // Warm the connection to the configured Supabase origin (DNS + TCP + TLS) while
+  // supabase-js loads. Pages already preconnect to the production origin in <head>;
+  // this covers staging / local. No-op when that origin is already preconnected.
+  (function preconnectSupabase() {
+    try {
+      if (typeof document === "undefined" || !document.head || !CFG.url || !/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(CFG.url)) return;
+      const origin = CFG.url.replace(/\/$/, "");
+      if (document.querySelector('link[rel="preconnect"][href="' + origin + '"]')) return;
+      const l = document.createElement("link");
+      l.setAttribute("rel", "preconnect"); l.setAttribute("href", origin); l.setAttribute("crossorigin", "anonymous");
+      document.head.appendChild(l);
+    } catch (e) {}
+  })();
 
   let mode = "local";           // resolved backend: 'supabase' | 'server' | 'local'
   let supa = null;              // Supabase client (lazy)
@@ -87,9 +100,23 @@
   // navigations within a tab reuse them. RLS on the server is the real gate, so a
   // briefly-stale UI role/matrix cannot grant access — it only saves round-trips.
   const SESS_TTL = 60000;
+  // Stale-while-revalidate (perf, Oct 2026): an entry older than SESS_TTL but younger
+  // than SESS_STALE is still used for THIS navigation while a background re-check
+  // refreshes it (studio id: a changed / revoked answer hides the page and reloads or
+  // signs out; role / matrix: the next navigation picks up the new value). Entries are
+  // only ever written after a successful server answer for the same user in this tab.
+  const SESS_STALE = 10 * 60000;
   // Entries carry the user id they belong to: a cached role/matrix is ignored when a
   // DIFFERENT user is signed in (cross-tab account switch — audit session puzzling).
-  function sessGet(key, uid) { try { const raw = sessionStorage.getItem(key); if (!raw) return null; const o = JSON.parse(raw); if ((Date.now() - o.ts) > SESS_TTL) return null; if (!uid || o.uid !== uid) return null; return o.val; } catch (e) { return null; } }
+  function sessEntry(key, uid) {
+    try {
+      const raw = sessionStorage.getItem(key); if (!raw) return null; const o = JSON.parse(raw);
+      const age = Date.now() - o.ts;
+      if (!(age >= 0) || age > SESS_STALE) return null; if (!uid || o.uid !== uid) return null;
+      return { val: o.val, age: age, fresh: age <= SESS_TTL };
+    } catch (e) { return null; }
+  }
+  function sessGet(key, uid) { const e = sessEntry(key, uid); return e && e.fresh ? e.val : null; }
   function sessSet(key, uid, val) { try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), uid: uid || null, val: val })); } catch (e) {} }
   function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); sessionStorage.removeItem("bp_sess_org"); sessionStorage.removeItem(PW_OK_KEY); } catch (e) {} }
   const PW_OK_KEY = "bp_pw_ok";                 // per tab: "<uid>" once password_change_required() said no
@@ -321,19 +348,53 @@
   // is never mistaken for "no studio"); a found id is cached per tab for SESS_TTL.
   async function orgIdStrict() {
     if (!supa || !currentUser) return null;
-    const hit = sessGet("bp_sess_org", currentUser.id);
-    if (hit) return hit;
+    const uid = currentUser.id;
+    const hit = sessEntry("bp_sess_org", uid);
+    if (hit && hit.val) {
+      if (!hit.fresh) revalidateOrg(uid, hit.val);   // stale: use it now, re-check in the background
+      return hit.val;
+    }
+    return fetchOrgId(uid);
+  }
+  async function fetchOrgId(uid) {
     const { data, error } = await supa.rpc("current_org_id");
     if (error) throw error;
-    if (data) sessSet("bp_sess_org", currentUser.id, data);
+    if (data) sessSet("bp_sess_org", uid, data);
     return data || null;
   }
+  // Background re-check of a stale cached studio id. A different / missing studio →
+  // drop the caches, hide the page and reload (the gate decides again); a rejected
+  // token → hide + sign-in. A network blip keeps the cached answer (RLS still checks
+  // every data call).
+  let orgRecheck = null;
+  let orgRevoked = false;       // a background re-check said no: never (re)show this page
+  function revalidateOrg(uid, was) {
+    if (orgRecheck || !supa) return;
+    orgRecheck = fetchOrgId(uid).then((now) => {
+      if (!currentUser || currentUser.id !== uid || now === was) return;
+      orgRevoked = true; sessClear();
+      if (PAGE_GATED) { hidePage(); try { location.reload(); } catch (e) {} }
+    }, (e) => {
+      if (!looksLikeAuthError(e)) return;
+      orgRevoked = true; sessClear();
+      if (PAGE_GATED) { hidePage(); gotoLogin(); }
+    }).then(() => { orgRecheck = null; }, () => { orgRecheck = null; });
+  }
+  // Started alongside the sign-in step check on a protected page (one round-trip
+  // instead of two before the page shows); runPageGate awaits it.
+  let orgEarly = null;
   // Helm platform operator (public.platform_admins)? Asked ONLY for an account with no
   // studio; any error counts as "no". The hq_* RPCs remain the real server gate.
   async function isPlatformAdmin() {
     if (!supa || !currentUser || pendingStep) return false;
-    try { const { data, error } = await supa.rpc("is_platform_admin"); return !error && data === true; }
-    catch (e) { return false; }
+    // 0037 is_platform_operator: "is my e-mail on the HQ list" WITHOUT the two-step
+    // requirement, so an operator who still owes a code is routed to the code step
+    // (never to studio setup). Falls back to is_platform_admin before 0037 exists.
+    try {
+      const r = await supa.rpc("is_platform_operator");
+      if (!r.error && typeof r.data === "boolean") return r.data;
+      const { data, error } = await supa.rpc("is_platform_admin"); return !error && data === true;
+    } catch (e) { return false; }
   }
   // The ONE place the HQ path appears outside hq.html/hq.js (test/hq-private.test.mjs):
   // reached only after is_platform_admin() said true for an account with no studio.
@@ -360,12 +421,14 @@
     // forged local token fails here). Rejected token → sign-in; any other failure →
     // "Couldn't reach Helm — Retry". The app is shown only after a real answer.
     let oid = null;
-    try { oid = await orgIdStrict(); }
+    const early = orgEarly; orgEarly = null;
+    try { oid = await (early || orgIdStrict()); }
     catch (e) {
       if (looksLikeAuthError(e)) { gotoLogin(); return HANG(); }
       gateUnreachable(); return HANG();
     }
     if (!oid) { await routeNoStudio(); return HANG(); }
+    if (orgRevoked) return HANG();   // a background re-check already took the page away
     revealPage();
   }
   // Back/Forward restored this page from the bfcache: re-check before showing it again.
@@ -468,6 +531,36 @@
     } catch (e) { pendingStep = "verify"; }
     return pendingStep;
   }
+  /* ---- two-step code lockout (UX layer; Supabase Auth's own rate limit is the real one) ----
+     After MFA_MAX_TRIES wrong codes in a row the form pauses for 60 s, doubling for
+     each further run of wrong codes (max 15 min). Kept in localStorage per account so a
+     reload or a new tab does not reset it; cleared by the next correct code. */
+  const MFA_LOCK_KEY = "bp_mfa_lock", MFA_MAX_TRIES = 5, MFA_LOCK_BASE = 60000, MFA_LOCK_MAX = 15 * 60000;
+  function mfaLockRead(uid) {
+    try { const o = JSON.parse(lsGet(MFA_LOCK_KEY) || "null"); return (o && uid && o.uid === uid) ? o : { uid: uid, n: 0, until: 0 }; }
+    catch (e) { return { uid: uid, n: 0, until: 0 }; }
+  }
+  function mfaLockLeft(uid) { const o = mfaLockRead(uid); return Math.max(0, (Number(o.until) || 0) - Date.now()); }
+  function mfaLockFor(uid, ms) { const o = mfaLockRead(uid); o.until = Date.now() + ms; lsSet(MFA_LOCK_KEY, JSON.stringify(o)); return ms; }
+  function mfaStrike(uid) {
+    const o = mfaLockRead(uid); o.n = (Number(o.n) || 0) + 1;
+    if (o.n % MFA_MAX_TRIES === 0) o.until = Date.now() + Math.min(MFA_LOCK_MAX, MFA_LOCK_BASE * Math.pow(2, o.n / MFA_MAX_TRIES - 1));
+    lsSet(MFA_LOCK_KEY, JSON.stringify(o));
+    return Math.max(0, (Number(o.until) || 0) - Date.now());
+  }
+  function mfaLockClear() { lsDel(MFA_LOCK_KEY); }
+  function mfaLockedError(ms, cause) {
+    const s = Math.max(1, Math.ceil(ms / 1000));
+    const e = new Error("Too many incorrect codes. For your security, wait " + (s >= 90 ? Math.ceil(s / 60) + " minutes" : s + " seconds") + ", then enter the newest code from your app.");
+    e.code = "mfa_locked"; e.retryAfter = s; if (cause) e.cause = cause; return e;
+  }
+  // Pure decision for a platform operator (exported for tests): no verified
+  // authenticator → enroll; verified but session below aal2 → challenge; else ok.
+  function operatorMfaDecision(level, verifiedCount) {
+    if (!(verifiedCount > 0)) return "enroll";
+    return (level && level.currentLevel === "aal2") ? "ok" : "challenge";
+  }
+
   // gate is evaluated on staff pages + the auth pages, not on public client-link pages
   function gatePage() { const k = pageKey(); if (publicLinkPath()) return false; return !PUBLIC_PAGES[k] || k === "login" || k === "reset-password"; }
   // branded client links (/<studio>/quote|portal|proposal|work|invite/<ref>) and /i/<slug>
@@ -562,7 +655,7 @@
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "5";
+  const AUTH_UI_VERSION = "6";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -790,8 +883,16 @@
             // Supabase is configured ⇒ the app uses accounts; no session ⇒ must sign in.
             authRequired = !currentUser;
             mode = "supabase";
-            // signed in, but a sign-in step (two-step code / temp password / reset) may be pending
-            if (currentUser && gatePage()) await evaluateGate();
+            // signed in, but a sign-in step (two-step code / temp password / reset) may be pending.
+            // On a protected page the studio lookup runs at the same time (it is only
+            // USED after the step check passed — the page still shows only after both).
+            if (currentUser && gatePage()) {
+              if (PAGE_GATED) { orgEarly = orgIdStrict(); orgEarly.catch(() => {}); }
+              await evaluateGate();
+              // role + access matrix are needed by nearly every page right after it
+              // shows: start them now (cached per tab; failures are retried by the page)
+              if (PAGE_GATED && !pendingStep) loadAccess().catch(() => {});
+            }
             mode = "supabase";
             await runPageGate();          // protected page: confirm session + studio before it shows
             return mode;
@@ -826,11 +927,30 @@
   // tab" bug). Instead: retry a few times, dedupe concurrent callers with one
   // in-flight promise, cache ONLY a successful lookup, and return null (unknown)
   // if it genuinely can't resolve so callers deny-this-render without caching.
+  // Background refresh of a stale cached role + matrix (stale-while-revalidate). Both
+  // entries are written together, and only when BOTH reads succeed; the in-memory
+  // values of this page are left alone (the next navigation uses the new ones).
+  let accessRecheck = false;
+  function revalidateAccess(uid) {
+    if (accessRecheck || !supa || !uid) return;
+    accessRecheck = true;
+    (async () => {
+      const p = await supa.from("profiles").select("role").eq("id", uid).single();
+      if (!p || p.error || !currentUser || currentUser.id !== uid) return;
+      const r = (p.data && p.data.role) || "client";
+      const ra = await supa.from("role_access").select("area,can_view,can_edit").eq("role", r);
+      if (!ra || ra.error || !currentUser || currentUser.id !== uid) return;
+      const map = {};
+      (ra.data || []).forEach((row) => { map[row.area] = { view: !!row.can_view, edit: !!row.can_edit }; });
+      sessSet("bp_sess_role", uid, r);
+      sessSet("bp_sess_access", uid, { role: r, map });
+    })().catch(() => {}).then(() => { accessRecheck = false; });
+  }
   async function getRole() {
     if (!supa || !currentUser) return null;
     if (roleCache) return roleCache;
-    const cached = sessGet("bp_sess_role", currentUser.id);
-    if (cached) { roleCache = cached; return roleCache; }
+    const cached = sessEntry("bp_sess_role", currentUser.id);
+    if (cached && cached.val) { roleCache = cached.val; if (!cached.fresh) revalidateAccess(currentUser.id); return roleCache; }
     if (rolePromise) return rolePromise;
     rolePromise = (async () => {
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -853,8 +973,12 @@
   // callers fall back to the legacy VIEW_SCOPE. Cached until sign-in/out/role change.
   async function loadAccess() {
     if (accessCache) return accessCache;
-    const csnap = currentUser && sessGet("bp_sess_access", currentUser.id);
-    if (csnap) { accessCache = csnap; return accessCache; }
+    const csnap = currentUser && sessEntry("bp_sess_access", currentUser.id);
+    // a snapshot is used only for the role this page resolved (never mixes two roles)
+    if (csnap && csnap.val && csnap.val.role && (!roleCache || csnap.val.role === roleCache)) {
+      roleCache = csnap.val.role;   // role and matrix of this page always come from the same snapshot
+      accessCache = csnap.val; if (!csnap.fresh) revalidateAccess(currentUser.id); return accessCache;
+    }
     if (accessPromise) return accessPromise;              // dedupe the parallel canView fan-out
     accessPromise = (async () => {
       const r = await getRole();
@@ -1196,13 +1320,47 @@
       // finish enrolment (or step up) with a 6-digit code from the authenticator app
       async verify(factorId, code) {
         if (!supa) throw new Error("Supabase not configured");
+        const uid = currentUser && currentUser.id;
+        const wait = mfaLockLeft(uid);
+        if (wait > 0) throw mfaLockedError(wait);
         const c = String(code || "").replace(/\s+/g, "");
         if (!/^\d{6}$/.test(c)) throw new Error("Enter the 6-digit code from your authenticator app.");
-        const { error } = await supa.auth.mfa.challengeAndVerify({ factorId, code: c });
-        if (error) { const e = new Error("That code didn't work — check the time on your phone and try the newest code."); e.code = "mfa_invalid"; e.cause = error; throw e; }
+        let error = null;
+        try { error = (await supa.auth.mfa.challengeAndVerify({ factorId, code: c })).error; } catch (x) { error = x; }
+        if (error) {
+          // Network trouble is not a wrong code (no lockout strike; friendlyError explains it)
+          if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) throw error;
+          const st = Number(error.status) || 0, msg = String(error.message || "") + " " + String(error.code || "");
+          const left = (st === 429 || /rate.?limit|too many/i.test(msg)) ? mfaLockFor(uid, 60000) : mfaStrike(uid);
+          if (left > 0) throw mfaLockedError(left, error);
+          // one generic message: never says whether the factor, the challenge or the code was the problem
+          const e = new Error("That code didn't work. Codes change every 30 seconds — enter the newest one, and check the time on your phone is set automatically."); e.code = "mfa_invalid"; e.cause = error; throw e;
+        }
+        mfaLockClear();
         const { data: s } = await supa.auth.getSession(); if (s && s.session) currentUser = s.session.user;
         await evaluateGate();
         return true;
+      },
+      // seconds until another code may be tried (0 = now) — UI countdown
+      lockedSeconds() { return Math.ceil(mfaLockLeft(currentUser && currentUser.id) / 1000); },
+      // Helm platform operator (HQ) two-step requirement — no skip, no opt-out:
+      //   "none"      not an operator (or not signed in): nothing changes for this account
+      //   "enroll"    operator without a verified authenticator → must set one up now
+      //   "challenge" operator with an authenticator, session still aal1 → must enter a code
+      //               (also any session already waiting for its two-step code)
+      //   "ok"        operator at aal2
+      //   "unknown"   operator, but the factors / level couldn't be read → fail CLOSED
+      // Factors are only ever read AFTER is_platform_admin() said yes (nothing about an
+      // ordinary account's authenticators is looked at or shown here).
+      async operatorStep() {
+        if (!supa || !currentUser) return "none";
+        if (pendingStep === "mfa") return "challenge";       // aal1 with a verified factor (is_platform_admin() is false until aal2)
+        if (pendingStep) return "none";                       // temp password / reset: those pages finish it first
+        if (!(await isPlatformAdmin())) return "none";
+        try {
+          const [lv, fs] = await Promise.all([this.level(), this.verifiedTotp()]);
+          return operatorMfaDecision(lv, fs.length);
+        } catch (e) { return "unknown"; }
       },
       // sign-in step-up: verify against the account's verified authenticator
       async challenge(code) {
@@ -1218,6 +1376,7 @@
         return true;
       },
       requiredForAdmins: () => AUTH_CFG.mfaRequiredForAdmins,
+      _operatorDecision: operatorMfaDecision,
     },
     // ---- CAPTCHA (Cloudflare Turnstile through Supabase's captchaToken) ----------
     captcha: { enabled: () => !!CAPTCHA, siteKey: () => (CAPTCHA ? CAPTCHA.siteKey : ""), provider: () => (CAPTCHA ? CAPTCHA.provider : "") },
@@ -2590,11 +2749,45 @@
     if (!m) return "";
     if (m.kind === "image") return "📷 Photo";
     if (m.kind === "voice") return "🎤 Voice message";
-    if (m.kind === "card") { const t = m.meta || {}; if (t.kind === "layout") return "📐 Layout" + (t.name ? ": " + t.name : ""); return "📄 Quote" + (t.code ? ": " + t.code : (t.title ? ": " + t.title : "")); }
+    if (m.kind === "card") { const t = m.meta || {}; if (t.kind === "event") return "📋 Event details" + (t.code ? ": " + t.code : ""); if (t.kind === "layout") return "📐 Layout" + (t.name ? ": " + t.name : ""); return "📄 Quote" + (t.code ? ": " + t.code : (t.title ? ": " + t.title : "")); }
     return m.body || "";
   }
   // Conversations the viewer muted (per-user, stored by the chat page in localStorage).
   function chatReadMuted() { try { return new Set(JSON.parse(localStorage.getItem("wa_mute") || "[]")); } catch (e) { return new Set(); } }
+  // A conversation's display title (group / broadcast name, or the other person of a DM).
+  function chatConvTitle(c, me, nameFor) {
+    if (c.kind === "broadcast") return c.title || "Everyone";
+    if (c.kind === "group") return c.title || "Group";
+    const ids = (c.dm_key || "").split(":"); const o = ids[0] === me ? ids[1] : ids[0]; return nameFor(o);
+  }
+  // @mentions (0035) → bell items. A mention turns that conversation's bell row into
+  // "X mentioned you in <group>" and is shown EVEN IF the chat is muted.
+  function chatMergeMentions(out, mentions) {
+    const byConv = {};
+    (mentions || []).forEach((m) => { const b = byConv[m.conversation_id]; if (b) b.n++; else byConv[m.conversation_id] = { m, n: 1 }; });
+    Object.keys(byConv).forEach((cid) => {
+      const { m, n } = byConv[cid];
+      const title = m.conv_kind === "dm" ? (m.who + " mentioned you") : (m.who + " mentioned you in " + m.title);
+      const item = out.find((x) => x.conversation_id === cid);
+      if (item) { item.kind = "mention"; item.mention = true; item.title = title; item.who = ""; item.preview = m.preview; if (String(m.created_at) > String(item.created_at)) item.created_at = m.created_at; }
+      else out.push({ conversation_id: cid, kind: "mention", mention: true, title, who: "", preview: m.preview, created_at: m.created_at, count: n });
+    });
+    out.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    return out;
+  }
+  let chatMentionsMissing = false;   // 0035 not installed yet → no mention lookups
+  // Local/offline event card — the SAME whitelist as the server's _event_card (0035):
+  // client contact, event type/date/time, venue, guests, layout, menu, notes. Never money.
+  function chatLocalEventCard(q) {
+    q = q || {}; const cl = q.client || (q.pricing && q.pricing.client) || {}; const pr = q.pricing || {};
+    const s = (v, n) => { const t = String(v == null ? "" : v).trim(); return t ? t.slice(0, n || 200) : undefined; };
+    const g = [pr.guests, cl.guests, pr.chairs].map((x) => Number(x)).find((x) => Number.isInteger(x) && x >= 0);
+    const card = { kind: "event", v: 1, quote_id: q.id, code: s(q.code, 40), title: s(q.title), status: q.status, event_type: s(q.eventType, 80),
+      event_date: s(q.eventDate || cl.eventDate, 10), client: { name: s(cl.name, 120), phone: s(cl.phone, 40), email: s(cl.email), company: s(cl.company, 120) },
+      venue: s(cl.venue), venue_address: s(cl.address, 400), guests: g, layout: { kind: "layout", quote_id: q.id, version: q.currentVersion },
+      notes: s(cl.notes, 2000), generated_at: new Date().toISOString() };
+    return JSON.parse(JSON.stringify(card));   // drops undefined keys
+  }
 
   /* ---------------- display names (0034) ---------------- */
   // What to call a person: their display name → the part of their e-mail before "@"
@@ -2839,6 +3032,7 @@
           out.push({ conversation_id: c.id, kind: c.kind, title, who: nameFor(last.sender_id), preview: chatPreviewText(last), created_at: last.created_at, count: unread.length });
         });
         out.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+        try { chatMergeMentions(out, await this.mentionsForMe(cap)); } catch (e) {}   // @mentions: even when muted
         return out.slice(0, cap);
       }
       const me = currentUser && currentUser.id; if (!me || chatBackendMissing) return [];
@@ -2864,7 +3058,79 @@
         const item = { conversation_id: m.conversation_id, kind: c.kind, title, who: nameById[m.sender_id] || "Member", preview: chatPreviewText(m), created_at: m.created_at, count: 1 };
         seen[m.conversation_id] = item; out.push(item);
       });
+      try { chatMergeMentions(out, await this.mentionsForMe(cap, nameById)); } catch (e) {}   // @mentions: even when muted
       return out.slice(0, cap);
+    },
+    // My unread @mentions (0035 chat_my_mentions; the server checks I'm still in that
+    // conversation), newest first: [{ id, conversation_id, conv_kind, title, who, preview, created_at }].
+    async mentionsForMe(limit, nameById) {
+      const cap = limit || 20;
+      if (mode !== "supabase") {
+        const me = chatLocalUid(); const convs = chatReadLs(CHAT_LS_C);
+        const nameFor = (id) => { const u = CHAT_LOCAL_ROSTER.find((x) => x.id === id); return u ? u.full_name : "Member"; };
+        const out = [];
+        chatReadLs(CHAT_LS_M).forEach((m) => {
+          if (m.deleted || m.sender_id === me || !(m.meta && Array.isArray(m.meta.mentions) && m.meta.mentions.indexOf(me) >= 0)) return;
+          const c = convs.find((x) => x.id === m.conversation_id); if (!c) return;
+          const mem = (c.members || []).find((x) => x.user_id === me); const lr = mem && mem.last_read_at;
+          if (lr && String(m.created_at) <= String(lr)) return;
+          out.push({ id: m.id, conversation_id: c.id, conv_kind: c.kind, title: chatConvTitle(c, me, nameFor), who: nameFor(m.sender_id), preview: chatPreviewText(m), created_at: m.created_at });
+        });
+        out.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+        return out.slice(0, cap);
+      }
+      const me = currentUser && currentUser.id; if (!me || chatBackendMissing || chatMentionsMissing) return [];
+      const { data, error } = await supa.rpc("chat_my_mentions", { p_limit: cap });
+      if (error) { if (rpcMissing(error)) chatMentionsMissing = true; return []; }
+      let names = nameById;
+      if (!names) { names = {}; try { (await this.roster()).forEach((p) => { names[p.id] = personDisplayName(p); }); } catch (e) {} }
+      return (data || []).map((r) => ({ id: r.id, conversation_id: r.conversation_id, conv_kind: r.conv_kind,
+        title: chatConvTitle({ kind: r.conv_kind, title: r.conv_title, dm_key: r.dm_key }, me, (id) => names[id] || "Direct message"),
+        who: names[r.sender_id] || "Member", preview: r.body || chatPreviewText(r), created_at: r.created_at }));
+    },
+    // Event groups (0035): one chat group per confirmed quote, opened with an event card the
+    // SERVER builds (client contact, date, venue, guests, layout, menu, notes — never money).
+    eventGroups: {
+      // { [quoteId]: { conversation_id, is_member } } for my studio (quotes-view access)
+      async index() {
+        if (mode !== "supabase") {
+          const me = chatLocalUid(); const out = {};
+          chatReadLs(CHAT_LS_C).forEach((c) => { if (c.quote_id) out[c.quote_id] = { conversation_id: c.id, is_member: (c.members || []).some((m) => m.user_id === me) }; });
+          return out;
+        }
+        const data = await rpc("event_group_index", {});
+        const out = {}; (data || []).forEach((r) => { out[r.quote_id] = { conversation_id: r.conversation_id, is_member: !!r.is_member }; });
+        return out;
+      },
+      // create (or, if it already exists, return) the quote's event group → conversation id
+      async create(quoteId, memberIds) {
+        if (mode !== "supabase") {
+          const convs = chatReadLs(CHAT_LS_C); const found = convs.find((c) => c.quote_id === quoteId); if (found) return found.id;
+          const q = await quotes.get(quoteId); if (!q || q.status !== "confirmed") throw new Error("Confirm this quote before creating its event group.");
+          const card = chatLocalEventCard(q);
+          const name = (q.title && q.title !== "Untitled event") ? q.title : ((card.client && card.client.name) || "Event");
+          const id = await chat.createGroup(String((q.code || "") + " · " + name).slice(0, 120), memberIds || []);
+          const cv = chatReadLs(CHAT_LS_C); const c = cv.find((x) => x.id === id); if (c) { c.quote_id = quoteId; chatWriteLs(CHAT_LS_C, cv); }
+          const msgs = chatReadLs(CHAT_LS_M);
+          msgs.push({ id: uid(), conversation_id: id, org_id: "local", sender_id: null, kind: "card", body: "Event details", meta: card, created_at: now(), deleted: false });
+          chatWriteLs(CHAT_LS_M, msgs); chatPing(); return id;
+        }
+        return rpc("create_event_group", { p_quote: quoteId, p_members: memberIds || [] });
+      },
+      // post an updated event card when the details changed → new message id, or null if unchanged
+      async refresh(convId) {
+        if (mode !== "supabase") {
+          const c = chatReadLs(CHAT_LS_C).find((x) => x.id === convId); if (!c || !c.quote_id) throw new Error("This group isn't linked to an event any more.");
+          const q = await quotes.get(c.quote_id); if (!q || q.status !== "confirmed") throw new Error("This event is no longer confirmed — its details can't be refreshed.");
+          const card = chatLocalEventCard(q); const msgs = chatReadLs(CHAT_LS_M);
+          const last = msgs.filter((m) => m.conversation_id === convId && m.sender_id == null && m.meta && m.meta.kind === "event").pop();
+          const strip = (o) => { const x = Object.assign({}, o); delete x.generated_at; delete x.refreshed; return JSON.stringify(x); };
+          if (last && strip(last.meta) === strip(card)) return null;
+          const row = { id: uid(), conversation_id: convId, org_id: "local", sender_id: null, kind: "card", body: "Event details updated", meta: Object.assign(card, { refreshed: true }), created_at: now(), deleted: false };
+          msgs.push(row); chatWriteLs(CHAT_LS_M, msgs); chatPing(); return row.id;
+        }
+        return rpc("refresh_event_group", { p_conversation: convId });
+      },
     },
     // Realtime: call cb() on any chat change. Returns { unsubscribe() }.
     // chanName lets independent subscribers on the same page (e.g. the chat page AND
@@ -3742,10 +4008,33 @@
         payment: ["💳", "Payment update"],
         payment_link: ["💳", "Payment link sent"],
         payment_received: ["💰", "Payment received"],
+        task_due: ["⏰", "Task due" + (d.task ? ": " + d.task : "")],
+        payment_reminder: ["💳", "Payment reminder sent"],
+        payment_receipt: ["🧾", "Payment receipt sent"],
+        advance_paid: ["💰", "Payment received"],
+        payment_reconcile: ["⚠️", "Payment needs attention"],
       };
-      const hit = m[k];
-      if (hit) return { icon: hit[0], text: hit[1] };
-      return { icon: "🔔", text: (n.kind || "Update").replace(/_/g, " ") };
+      const hit = m[k] || (k.indexOf("design_") === 0 ? ["🎨", "Design stage: " + k.slice(7).replace(/_/g, " ")]
+                        : k.indexOf("nurture_") === 0 ? ["🌱", "Greeting queued" + (k.length > 8 ? " · " + k.slice(8).replace(/_/g, " ") : "")] : null);
+      // 0036: an automatic staff text/e-mail the studio switched off is logged, not sent
+      const off = n.status === "suppressed" ? " (not sent — switched off)" : "";
+      if (hit) return { icon: hit[0], text: hit[1] + off };
+      return { icon: "🔔", text: (n.kind || "Update").replace(/_/g, " ") + off };
+    },
+    // 0036 admin-managed notifications. mine() → { hidden:[type…] } for the signed-in
+    // person (fail-open: an older database without 0036 hides nothing).
+    prefs: {
+      async mine() {
+        if (mode !== "supabase" || !supa || !currentUser) return { hidden: [] };
+        try { const r = await rpc("my_notification_prefs", {}); return { hidden: (r && Array.isArray(r.hidden)) ? r.hidden : [] }; }
+        catch (e) { return { hidden: [] }; }
+      },
+      // studio admin only (the DB refuses anyone else): catalog + effective matrix
+      get: () => rpc("admin_get_notification_prefs", {}),
+      // one cell; enabled null = back to the default. role for the bell; user for a person override
+      set: (type, channel, role, enabled, userId) => rpc("admin_set_notification_pref",
+        { p_type: type, p_channel: channel, p_role: role || null, p_enabled: enabled === null || enabled === undefined ? null : !!enabled, p_user: userId || null }),
+      reset: () => rpc("admin_reset_notification_prefs", {}),
     },
     // Mount a self-contained bell widget into `el` (works on any page, inline-styled).
     async mount(el) {
@@ -3787,7 +4076,13 @@
       const mergedFeed = (serverItems) => (serverItems || []).slice()
         .concat(chatItems.map((c) => Object.assign({ __chat: true }, c)))
         .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
-      const loadChat = async () => { try { chatItems = (chat && chat.notifications) ? (await chat.notifications(20)) : []; } catch (e) { chatItems = []; } };
+      // 0036: the studio admin can switch chat off in the bell for a role / person
+      // (re-checked every 5 minutes; server-side types are already filtered by bell_feed).
+      let hiddenTypes = [], hiddenAt = 0;
+      const loadHidden = async () => { if (Date.now() - hiddenAt < 300000) return; hiddenAt = Date.now(); hiddenTypes = (await this.prefs.mine()).hidden; };
+      const loadChat = async () => { try { await loadHidden(); } catch (e) {} const chatOff = hiddenTypes.indexOf("chat_message") !== -1;   // chat switched off → @mentions still come through
+        try { chatItems = (chat && chat.notifications) ? (await chat.notifications(20)) : []; } catch (e) { chatItems = []; }
+        if (chatOff) chatItems = chatItems.filter((c) => c && c.mention); };
       const setDot = (serverUnread) => { const total = (serverUnread || 0) + chatUnread(); if (total > 0) { dot.hidden = false; dot.textContent = total > 99 ? "99+" : total; } else dot.hidden = true; };
       const refresh = async () => { let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(f && f.unread); if (!panel.hidden) renderList(mergedFeed(f && f.items)); return f; };
       await refresh();

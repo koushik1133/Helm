@@ -20,6 +20,9 @@
 <meta name="twitter:title" content="Sign in · Helm">
 <meta name="twitter:description" content="Sign in to Helm, or create your studio&#x27;s private workspace to run every event from first enquiry to final bill.">
 <meta name="twitter:image" content="https://www.helm.events/og.png">
+<link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
+<link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
+<link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -151,10 +154,22 @@
       <p class="sub">Open your authenticator app and enter the 6-digit code for Helm.</p>
       <div class="err" id="mfaErr" role="alert" hidden></div>
       <label for="mfa_code">6-digit code</label>
-      <input id="mfa_code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="123456" required>
+      <input id="mfa_code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="123456" required aria-describedby="mfaHint">
+      <p class="hint" id="mfaHint">Codes refresh every 30 seconds — enter the newest one.</p>
       <button class="btn" id="mfa_submit" type="submit">Verify →</button>
+      <p class="hint" style="margin:14px 0 0">Lost access to your authenticator app? Email <b>security@helm.events</b> from this account's address — we confirm who you are before resetting two-step verification.</p>
       <div class="foot">Signed in as <b id="mfaEmail"></b> · <button type="button" class="linkbtn" id="mfa_signout">Use a different account</button></div>
     </form>
+
+    <!-- Two-step set-up that cannot be skipped: shown only to accounts that must use it -->
+    <div class="card" id="mfaSetupForm" hidden>
+      <div class="mmk"></div>
+      <h1>Set up two-step verification</h1>
+      <p class="sub">This account must use two-step verification before it can continue. It takes about a minute: scan the code with an authenticator app, then enter the 6-digit code it shows.</p>
+      <div id="mfaSetupBox" aria-live="polite"></div>
+      <p class="hint" style="margin:12px 0 0">Codes refresh every 30 seconds — enter the newest one. Keep the app on a phone only you use. If you ever lose it, email <b>security@helm.events</b> from this account's address.</p>
+      <div class="foot">Signed in as <b id="mfaSetupEmail"></b> · <button type="button" class="linkbtn" id="mfaSetup_signout">Sign out</button></div>
+    </div>
 
     <!-- Onboarding: shown when a signed-in user (e.g. via Google) has no studio yet -->
     <form class="card" id="onboardForm" hidden>
@@ -196,8 +211,8 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=104"></script>
-<script src="auth-ui.js?v=5"></script>
+<script src="store-api.js?v=105"></script>
+<script src="auth-ui.js?v=6"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const PENDING="bp_pending_studio";
@@ -244,6 +259,7 @@
     let oid=null, known=false;
     try{ oid=await BPStore.org.resolveId(); known=true; }catch(e){}
     if(oid || !known){ location.replace(nextUrl()); return; }   // unknown: the page gate re-checks
+    if(!(await operatorTwoStep())) return;          // operators: two-step code (or set-up) first, no skip
     if(await BPStore.auth.operatorToHq()) return;   // Helm platform operator → HQ (replace)
     showOnboarding();
   }
@@ -307,7 +323,7 @@
     $("#forgotRow").hidden = m==="signup";
   }
   // ----- views: sign-in form / forgot password / two-step code -----
-  function showView(id){ ["#loginForm","#forgotForm","#mfaForm","#onboardForm"].forEach(s=>{ $(s).hidden = s!==id; }); }
+  function showView(id){ ["#loginForm","#forgotForm","#mfaForm","#mfaSetupForm","#onboardForm"].forEach(s=>{ $(s).hidden = s!==id; }); }
   function openForgot(){
     showView("#forgotForm"); $("#fgErr").hidden=true; $("#fgOk").hidden=true;
     if($("#email").value && !$("#fg_email").value) $("#fg_email").value=$("#email").value;
@@ -340,20 +356,37 @@
   });
   // Finish whatever sign-in step is pending (two-step code, temp password, reset link).
   // Resolves true when the account may enter the app.
+  // After repeated wrong codes the form pauses (store-api lockout): keep the button
+  // disabled and count down, then let them try again with the newest code.
+  let mfaTick=null;
+  function mfaLockUi(){
+    clearInterval(mfaTick);
+    const btn=$("#mfa_submit");
+    const tick=()=>{
+      const s=BPStore.auth.mfa.lockedSeconds? BPStore.auth.mfa.lockedSeconds() : 0;
+      if(s>0){ btn.disabled=true; btn.textContent="Try again in "+s+" s"; return; }
+      clearInterval(mfaTick); btn.disabled=false; btn.textContent="Verify →";
+    };
+    tick(); mfaTick=setInterval(tick,1000);
+  }
   function askMfaCode(){
     return new Promise((resolve)=>{
       showView("#mfaForm"); $("#mfaErr").hidden=true; $("#mfa_code").value="";
       $("#mfaEmail").textContent=((BPStore.auth.pendingUser()||{}).email)||"";
       setTimeout(()=>$("#mfa_code").focus(),60);
+      mfaLockUi();
       const form=$("#mfaForm");
       const onSubmit=(e)=>{
         e.preventDefault();
+        if($("#mfa_submit").disabled) return;
         BPUI.guard($("#mfa_submit"), async ()=>{
           $("#mfaErr").hidden=true;
           try{ await BPStore.auth.mfa.challenge($("#mfa_code").value); form.removeEventListener("submit",onSubmit); resolve(true); }
           catch(err){
-            const direct=!!err && (err.code==="mfa_invalid" || /6-digit/.test(err.message||""));
+            // only our own generic texts are shown as-is; nothing about the factor is revealed
+            const direct=!!err && (err.code==="mfa_invalid" || err.code==="mfa_locked" || /6-digit/.test(err.message||""));
             showErr($("#mfaErr"), direct ? err.message : BPUI.friendlyError(err,{action:"verify the code"})); $("#mfa_code").select();
+            if(err && err.code==="mfa_locked") setTimeout(mfaLockUi,0);
           }
         });
       };
@@ -361,6 +394,33 @@
     });
   }
   $("#mfa_signout").addEventListener("click", async ()=>{ clearInvite(); try{ await BPStore.auth.signOut(); }catch(e){} location.replace("login.html"); });
+  $("#mfaSetup_signout").addEventListener("click", async ()=>{ clearInvite(); try{ await BPStore.auth.signOut(); }catch(e){} location.replace("login.html"); });
+  // Mandatory two-step set-up (QR + first code, auth-ui.js). Resolves only once a code
+  // has verified — the only way out is "Sign out".
+  function operatorEnroll(){
+    return new Promise((resolve)=>{
+      showView("#mfaSetupForm");
+      $("#mfaSetupEmail").textContent=((BPStore.auth.pendingUser()||{}).email)||"";
+      const box=$("#mfaSetupBox");
+      if(!window.HelmAuthUI || !HelmAuthUI.renderEnroll){ box.textContent="Two-step set-up couldn't load. Check your connection and reload this page."; return; }
+      HelmAuthUI.renderEnroll(box, ()=>setTimeout(()=>resolve(true),900));
+    });
+  }
+  // Helm platform operators must pass two-step verification before their console opens:
+  // set it up if they have none, otherwise enter the code. Ordinary accounts → "none"
+  // (nothing changes for them). Any doubt fails CLOSED with a retry message.
+  async function operatorTwoStep(){
+    for(let i=0;i<4;i++){
+      const st=await BPStore.auth.mfa.operatorStep();
+      if(st==="none" || st==="ok") return true;
+      if(st==="enroll"){ await operatorEnroll(); continue; }
+      if(st==="challenge"){ await askMfaCode(); continue; }
+      break;
+    }
+    showView("#loginForm");
+    showErr($("#err"),"We couldn't confirm your two-step verification. Check your connection and try again.");
+    return false;
+  }
   async function finishGate(){
     for(let i=0;i<5;i++){
       const step=BPStore.auth.pendingStep();

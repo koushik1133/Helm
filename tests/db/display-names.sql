@@ -156,11 +156,29 @@ do $$ declare m text := ''; v_org uuid; begin perform pg_temp.su();
   delete from public.organizations where slug = 'owner-seeded-x1';
 end $$;
 
+-- ---- 0037: operator who still owes a two-step code (aal1, require_mfa) ---------------
+do $$ declare m text := ''; v_org uuid; op boolean; adm boolean; begin perform pg_temp.su();
+  select org_id into v_org from public.profiles where email = 'b_staff@b.test';
+  update public.profiles set org_id = null where email = 'b_staff@b.test';
+  insert into public.platform_admins(email, added_by, require_mfa) values ('b_staff@b.test', 'test', true)
+    on conflict (email) do update set require_mfa = true;
+  perform pg_temp.login('b_staff@b.test');
+  op := public.is_platform_operator(); adm := public.is_platform_admin();
+  begin perform public.create_studio('Operator Studio 2', null, 'INR', 'Asia/Kolkata'); exception when others then m := sqlerrm; end;
+  perform pg_temp.res('37 operator at aal1 (code owed): recognised as operator, not admin, and cannot create a studio',
+    op and not adm and m like '%HQ accounts%', op||'/'||adm||'/'||coalesce(nullif(m,''),'(created!)'));
+  perform pg_temp.anon();
+  begin op := public.is_platform_operator(); m := 'ran'; exception when others then m := sqlstate; end;
+  perform pg_temp.res('38 is_platform_operator not callable signed out', m = '42501', m);
+  perform pg_temp.su(); delete from public.platform_admins where email = 'b_staff@b.test';
+  update public.profiles set org_id = v_org where email = 'b_staff@b.test';
+end $$;
+
 -- cleanup (superuser)
 do $$ begin perform pg_temp.su();
   update public.profiles set full_name = null where email in ('a_admin@a.test','a_staff@a.test','b_admin@b.test','b_staff@b.test');
   delete from public.audit_log where action = 'profile.display_name';
 end $$;
 select name, result from _dn order by name;
-select case when count(*) filter (where result like 'FAIL%') = 0 and count(*) = 36 then 'DISPLAY-NAMES: ALL PASS (36/36)'
-            else 'DISPLAY-NAMES: '||count(*) filter (where result like 'FAIL%')||' FAILED, '||count(*)||'/36 ran' end from _dn;
+select case when count(*) filter (where result like 'FAIL%') = 0 and count(*) = 38 then 'DISPLAY-NAMES: ALL PASS (38/38)'
+            else 'DISPLAY-NAMES: '||count(*) filter (where result like 'FAIL%')||' FAILED, '||count(*)||'/38 ran' end from _dn;

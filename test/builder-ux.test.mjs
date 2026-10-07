@@ -32,7 +32,7 @@ const m = js.match(/function setUnit\(u\)\{[\s\S]*?\n\}/); ok(m, 'setUnit exists
 ok(/\$\('#unitSel'\)\.value = store\.grid\.unit/.test(js), 'syncGridUI reflects unit into the select');
 
 // 2. no SUPABASE connection indicator
-ok(!/SUPABASE/i.test(html), 'no Supabase text in builder.html');
+ok(!/SUPABASE/i.test(html.replace(/<link\b[^>]*>/g, '')), 'no Supabase text in builder.html (head preconnect/preload <link>s are not UI text)');
 ok(!/id="conn"|id="connLbl"/.test(html) && !/#connLbl/.test(js), 'connection indicator removed');
 ok(/id="acctMenu"/.test(html) && /id="acct"/.test(html), 'account menu keeps role/email/sign-out');
 for (const id of ['exportBtn', 'jsonBtn', 'importBtn']) ok(new RegExp(`id="moreMenu"[\\s\\S]*id="${id}"[\\s\\S]*</details>`).test(html), `${id} lives in More menu`);

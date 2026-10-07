@@ -233,7 +233,7 @@ function cacheControlFor(filePath, query) {
   const ext = path.extname(rel).toLowerCase();
   if (ext === '.html' && !rel.includes('/') && TOKEN_PAGES.has(pageName(rel))) return 'no-store, private';
   if (ext === '.html') return (!rel.includes('/') && !INDEXABLE_PAGES.has(pageName(rel))) ? 'no-store' : 'no-cache';
-  if (rel === 'config.js') return 'public, max-age=300';
+  if (rel === 'config.js') return 'public, max-age=300, stale-while-revalidate=3600';
   if (rel.startsWith('vendor/')) return IMMUTABLE;
   if (/[?&]v=/.test(query || '') && ['.js', '.css', '.png', '.webp', '.svg', '.woff2'].includes(ext)) return IMMUTABLE;
   if (['.js', '.css'].includes(ext)) return 'no-cache';   // unversioned script/style: always revalidate locally
