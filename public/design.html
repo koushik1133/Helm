@@ -1,6 +1,7 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="light" class="auth-pending">
 <head>
+<style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Design Studio · Helm</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -80,7 +81,7 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=103"></script>
+<script src="store-api.js?v=104"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -92,7 +93,7 @@
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
       el.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button id="logoutBtn" type="button">Log out</button>`;
-      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";});
+      $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.replace("/login");});
     } else { el.innerHTML=`<button id="loginBtn" type="button">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
 
   function railHtml(state,revision){

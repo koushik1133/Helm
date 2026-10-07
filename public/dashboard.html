@@ -1,6 +1,7 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="light" class="auth-pending">
 <head>
+<style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Helm Events — Event Layout Builder</title>
@@ -313,7 +314,7 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=103"></script>
+<script src="store-api.js?v=104"></script>
 <script src="tour.js?v=6"></script>
 <script>
   const $ = (s) => document.querySelector(s);
@@ -394,13 +395,10 @@
     const mustLogin = BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user();
 
     // Supabase enforces login and nobody's signed in → go to the full sign-in page
-    if (mustLogin) { location.replace("login.html"); return; }
-    // Signed in but no studio yet (e.g. just signed up with Google) → finish onboarding.
-    // Only redirect on a CONFIRMED null (rpc succeeded) so a transient error can't loop.
-    if (BPStore.auth.enabled() && BPStore.auth.user()) {
-      let oid = null, ok = false; try { oid = await BPStore.org.id(); ok = true; } catch (e) {}
-      if (ok && !oid) { location.replace("login.html"); return; }
-    }
+    if (mustLogin) { location.replace("/login?next=dashboard"); return; }
+    // "Signed in but no studio" (→ onboarding, or /hq for a platform operator) is
+    // decided by the store-api page gate BEFORE this page is shown (owner bug: the
+    // dashboard used to paint first, then bounce to onboarding — a Back-button loop).
     // These four are independent of one another — fire them together and keep each
     // one's original error handling (bell was best-effort, quotes shows retry UI).
     const [, createRes, deleteRes, listRes] = await Promise.allSettled([

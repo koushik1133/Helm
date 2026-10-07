@@ -167,6 +167,7 @@
     panel.appendChild(card);
     card.appendChild(el("h2", { id: "hauTitle" }, "Your account"));
     card.appendChild(el("p", { class: "hau-muted" }, "Signed in as " + (u.email || "")));
+    if (st.profile && st.profile.setMine) card.appendChild(displayNameSection(st));
 
     // sign-in details (my_auth_info — caller's own data only)
     var info = el("div", { class: "hau-sec" });
@@ -237,6 +238,31 @@
     }, function () { infoBody.textContent = ""; infoBody.appendChild(el("p", { class: "hau-muted" }, "Couldn't load sign-in activity.")); });
 
     renderMfaSection(mfBody);
+  }
+  // "Display name" — the name teammates see in chat (set_my_display_name, 0034)
+  function displayNameSection(st) {
+    var sec = el("div", { class: "hau-sec" });
+    sec.appendChild(el("h3", null, "Display name"));
+    sec.appendChild(el("p", { class: "hau-muted" }, "The name your teammates see in chat and around Helm."));
+    var inp = el("input", { id: "hauDisplayName", type: "text", class: "hau-input", maxlength: "80", autocomplete: "name", "aria-label": "Display name", placeholder: "e.g. Ananya Rao", style: "font-size:15px;letter-spacing:normal" });
+    var save = el("button", { type: "button", class: "hau-btn primary" }, "Save name");
+    var msg = el("div", { class: "hau-err", role: "status", "aria-live": "polite" });
+    var row = el("div", { class: "hau-row" }); row.appendChild(save);
+    sec.appendChild(inp); sec.appendChild(row); sec.appendChild(msg);
+    var current = "";
+    Promise.resolve(st.profile.mine()).then(function (p) { current = (p && p.full_name) || ""; if (!inp.value) inp.value = current; }, function () {});
+    var submit = function () {
+      msg.className = "hau-err"; msg.textContent = "";
+      var bad = st.profile.problem(inp.value); if (bad) { msg.textContent = bad; inp.focus(); return; }
+      save.disabled = true;
+      st.profile.setMine(inp.value).then(function (saved) {
+        current = saved || st.profile.clean(inp.value); inp.value = current;
+        msg.className = "hau-ok"; msg.textContent = "Saved. Teammates will see “" + current + "”.";
+      }, function (e) { msg.textContent = errText(e, "save your display name"); }).then(function () { save.disabled = false; });
+    };
+    save.addEventListener("click", submit);
+    inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); submit(); } });
+    return sec;
   }
   function renderMfaSection(box) {
     var st = S();

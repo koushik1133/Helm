@@ -2618,7 +2618,7 @@ async function renderAccountChip(){
   if(menu) menu.hidden=false;
   const role=await BPStore.auth.role(), email=BPStore.auth.user().email;
   el.innerHTML=`<span class="role">${escapeHtml(role||'')}</span><span class="acct-email">${escapeHtml(email||'')}</span><button type="button" id="signOutBtn">Sign out</button>`;
-  $('#signOutBtn').addEventListener('click', async ()=>{ await BPStore.auth.signOut(); location.href='dashboard.html'; });
+  $('#signOutBtn').addEventListener('click', async ()=>{ await BPStore.auth.signOut(); location.replace('/login'); });
 }
 
 // Save via the button / ⌘S is double-submit guarded (the button is disabled while it runs).
@@ -2888,7 +2888,7 @@ async function init(){
   renderPrice();
   // Auth gate: if Supabase enforces login and nobody's signed in → go to the sign-in page
   if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){
-    location.href='dashboard.html'; return;
+    location.replace('/login?next='+encodeURIComponent('builder'+location.search)); return;
   }
   // Role gate: view-only roles (crew/client) get a read-only builder; capture create capability
   if(BPStore.auth.enabled() && BPStore.auth.user()){

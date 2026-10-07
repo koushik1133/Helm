@@ -31,7 +31,9 @@ t('/manual page: noindex, no inline script, gated exactly like app pages', () =>
   assert.ok(!/<script>(?!<\/script>)/.test(html) && !/<script>[\s\S]*?<\/script>/.test(html), 'no inline <script>');
   assert.match(js, /BPStore\.auth\.required\(\) && !BPStore\.auth\.user\(\)/);
   assert.match(js, /location\.replace\("login\.html\?next=" \+ encodeURIComponent\("manual"\)\)/);
-  assert.match(read('public/login.html'), /"manual"/, 'login ?next= allowlist includes manual');
+  // the ?next= allowlist moved from login.html into store-api.js safeNext() (auth-gate fix)
+  assert.match(read('public/login.html'), /BPStore\.auth\.safeNext\(/, 'login ?next= uses the shared sanitiser');
+  assert.match(read('public/store-api.js'), /const NEXT_PAGES = \[[^\]]*"manual"/, 'login ?next= allowlist includes manual');
   assert.match(js, /script,iframe,frame,object,embed,link,meta,base,form/, 'strips executable / remote-loading tags');
   assert.ok(!/innerHTML/.test(js), 'no innerHTML sinks');
 });

@@ -91,7 +91,7 @@
   // DIFFERENT user is signed in (cross-tab account switch — audit session puzzling).
   function sessGet(key, uid) { try { const raw = sessionStorage.getItem(key); if (!raw) return null; const o = JSON.parse(raw); if ((Date.now() - o.ts) > SESS_TTL) return null; if (!uid || o.uid !== uid) return null; return o.val; } catch (e) { return null; } }
   function sessSet(key, uid, val) { try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), uid: uid || null, val: val })); } catch (e) {} }
-  function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); sessionStorage.removeItem(PW_OK_KEY); } catch (e) {} }
+  function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); sessionStorage.removeItem("bp_sess_org"); sessionStorage.removeItem(PW_OK_KEY); } catch (e) {} }
   const PW_OK_KEY = "bp_pw_ok";                 // per tab: "<uid>" once password_change_required() said no
   // Per-USER browser state that must not carry over to the next person who signs in
   // on a shared computer (audit Phase 4). Device prefs (theme, tours) are kept.
@@ -266,6 +266,124 @@
   function shouldRedirectOnExpiry() {
     return mode === "supabase" && authGateUsed && hadSession && !explicitSignOut && !PUBLIC_PAGES[pageKey()];
   }
+
+  /* ---- page auth gate: nothing of a signed-in page paints before auth is confirmed ----
+     Every protected page ships  <html class="auth-pending">  plus a head rule that
+     hides <body> while that class is present (set statically, so it holds from the
+     first paint). init() removes the class ONLY after it has confirmed, in order:
+       1. a Supabase session with no sign-in step pending (else → /login?next=…),
+       2. the account belongs to a studio (else → platform operator? /hq : onboarding).
+     Every redirect uses location.replace, so Back never lands on a protected page.
+     Public pages (no class) are untouched. The class is read once, at load. */
+  const PAGE_GATED = (function () {
+    try { return !!(document.documentElement && document.documentElement.classList && document.documentElement.classList.contains("auth-pending")); }
+    catch (e) { return false; }
+  })();
+  const HANG = () => new Promise(() => {});   // a redirect is under way — the page's own code must not run
+  function revealPage() { try { document.documentElement.classList.remove("auth-pending"); } catch (e) {} }
+  function hidePage() { try { document.documentElement.classList.add("auth-pending"); } catch (e) {} }
+  // ?next= may only name one of the app's own pages (fixed list — the page string is
+  // never taken from the URL); only its query string is carried over, re-encoded.
+  // Anything else (//host, https://…, /\host, javascript:, encoded tricks) → dashboard.
+  const NEXT_PAGES = ["audit", "budget", "builder", "calendar", "chat", "closure", "command", "control", "crm", "dashboard", "design", "discovery", "event", "flow", "insights", "inventory", "invite-studio", "issues", "leads", "logistics", "manual", "media", "nurture", "ops", "plan", "proposal", "quotes", "ready", "reports", "resources", "runsheet", "settlement", "staff", "teardown", "templates", "vendors"];
+  function safeNext(raw) {
+    const m = /^\/?([a-z0-9-]+)(?:\.html)?(?:\?([^#]*))?$/i.exec(typeof raw === "string" ? raw : "");
+    const page = m && NEXT_PAGES.find((p) => p === m[1].toLowerCase());
+    if (!page) return "dashboard.html";
+    let qs = "";
+    try { qs = new URLSearchParams(m[2] || "").toString(); } catch (e) { qs = ""; }
+    return page + ".html" + (qs ? "?" + qs : "");
+  }
+  function gotoLogin() {
+    let page = "dashboard";
+    try { page = (location.pathname.split("/").pop() || "dashboard") + (location.search || ""); } catch (e) {}
+    try { location.replace("/login?next=" + encodeURIComponent(page)); } catch (e) {}
+  }
+  // Supabase is configured but its client could not start: never fall back to showing
+  // the app shell on a protected page — show a retry notice instead.
+  function gateUnreachable() {
+    try {
+      const b = document.body; if (!b) return;
+      while (b.firstChild) b.removeChild(b.firstChild);
+      const box = document.createElement("div");
+      box.setAttribute("role", "alert");
+      box.style.cssText = "max-width:480px;margin:64px auto;padding:28px;border-radius:14px;background:#fff;border:1px solid #d7deea;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;text-align:center;color:#4a5673";
+      const h = document.createElement("h2"); h.textContent = "Couldn’t reach Helm"; h.style.cssText = "color:#141b2e;margin:0 0 6px";
+      const p = document.createElement("p"); p.textContent = "We couldn’t confirm your sign-in. Check your connection and try again."; p.style.margin = "0 0 16px";
+      const r = document.createElement("button"); r.type = "button"; r.textContent = "Retry";
+      r.style.cssText = "min-height:40px;padding:0 18px;border:0;border-radius:10px;background:#6d28d9;color:#fff;font:inherit;font-weight:600;cursor:pointer";
+      r.addEventListener("click", () => { try { location.reload(); } catch (e) {} });
+      box.appendChild(h); box.appendChild(p); box.appendChild(r); b.appendChild(box);
+      revealPage();
+    } catch (e) {}
+  }
+  // The studio this account belongs to. Throws on a failed lookup (so a network blip
+  // is never mistaken for "no studio"); a found id is cached per tab for SESS_TTL.
+  async function orgIdStrict() {
+    if (!supa || !currentUser) return null;
+    const hit = sessGet("bp_sess_org", currentUser.id);
+    if (hit) return hit;
+    const { data, error } = await supa.rpc("current_org_id");
+    if (error) throw error;
+    if (data) sessSet("bp_sess_org", currentUser.id, data);
+    return data || null;
+  }
+  // Helm platform operator (public.platform_admins)? Asked ONLY for an account with no
+  // studio; any error counts as "no". The hq_* RPCs remain the real server gate.
+  async function isPlatformAdmin() {
+    if (!supa || !currentUser || pendingStep) return false;
+    try { const { data, error } = await supa.rpc("is_platform_admin"); return !error && data === true; }
+    catch (e) { return false; }
+  }
+  // The ONE place the HQ path appears outside hq.html/hq.js (test/hq-private.test.mjs):
+  // reached only after is_platform_admin() said true for an account with no studio.
+  // Resolves true when it has sent the browser to HQ (location.replace).
+  async function operatorToHq() {
+    if (!(await isPlatformAdmin())) return false;
+    try { location.replace("/hq"); } catch (e) {}
+    return true;
+  }
+  // Signed in with no studio: operators go to HQ, everyone else to onboarding.
+  async function routeNoStudio() {
+    if (await operatorToHq()) return;
+    try { location.replace("/login?next=" + encodeURIComponent(safeNext((location.pathname.split("/").pop() || "") + (location.search || "")))); } catch (e) {}
+  }
+  async function runPageGate() {
+    if (!PAGE_GATED) return;
+    authGateUsed = true;
+    if (mode !== "supabase") {
+      if (supaConfigured()) { gateUnreachable(); return HANG(); }
+      revealPage(); return;                              // no accounts configured (local/offline dev)
+    }
+    if (!currentUser || pendingStep) { gotoLogin(); return HANG(); }
+    // The studio lookup is also the SERVER's confirmation of the session (a stale or
+    // forged local token fails here). Rejected token → sign-in; any other failure →
+    // "Couldn't reach Helm — Retry". The app is shown only after a real answer.
+    let oid = null;
+    try { oid = await orgIdStrict(); }
+    catch (e) {
+      if (looksLikeAuthError(e)) { gotoLogin(); return HANG(); }
+      gateUnreachable(); return HANG();
+    }
+    if (!oid) { await routeNoStudio(); return HANG(); }
+    revealPage();
+  }
+  // Back/Forward restored this page from the bfcache: re-check before showing it again.
+  function onPageShow(ev) {
+    if (!ev || !ev.persisted || !PAGE_GATED) return;
+    hidePage();
+    (async () => {
+      try {
+        if (mode !== "supabase" || !supa) { location.reload(); return; }
+        const { data } = await supa.auth.getSession();
+        const s = data && data.session;
+        if (!s || !s.user || pendingStep) { gotoLogin(); return; }
+        if (currentUser && s.user.id !== currentUser.id) { location.reload(); return; }
+        revealPage();
+      } catch (e) { gotoLogin(); }
+    })();
+  }
+  try { if (PAGE_GATED && typeof window !== "undefined" && window.addEventListener) window.addEventListener("pageshow", onPageShow); } catch (e) {}
   function looksLikeAuthError(e) {
     if (global.BPUI && global.BPUI.isAuthError) return global.BPUI.isAuthError(e);
     const c = (e && e.code) || ""; const m = String((e && e.message) || "");
@@ -282,7 +400,7 @@
     // Don't yank the page away from unsaved work: tell the user and let them choose.
     if (UI && UI.hasUnsavedChanges && UI.hasUnsavedChanges()) {
       UI.toast("Your session expired — sign in again. Copy any unsaved changes first.",
-        { type: "err", timeout: 0, action: { label: "Sign in", onClick: () => { UI.allowUnload(); location.href = url; } } });
+        { type: "err", timeout: 0, action: { label: "Sign in", onClick: () => { UI.allowUnload(); location.replace(url); } } });
       return true;
     }
     try { location.replace(url); } catch (e) {}
@@ -444,7 +562,7 @@
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "4";
+  const AUTH_UI_VERSION = "5";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -674,12 +792,15 @@
             mode = "supabase";
             // signed in, but a sign-in step (two-step code / temp password / reset) may be pending
             if (currentUser && gatePage()) await evaluateGate();
-            mode = "supabase"; return mode;
+            mode = "supabase";
+            await runPageGate();          // protected page: confirm session + studio before it shows
+            return mode;
           }
         } catch (e) { console.warn("[BPStore] Supabase init error, falling back:", e && e.message); }
       }
-      try { await api("GET", "/health"); mode = "server"; return mode; } catch (e) { /* fall through */ }
-      mode = "local"; return mode;
+      try { await api("GET", "/health"); mode = "server"; } catch (e) { mode = "local"; }
+      await runPageGate();            // no Supabase session possible: reveal only when accounts aren't configured
+      return mode;
     })();
     return ready;
   }
@@ -789,6 +910,14 @@
     pendingUser: () => currentUser,
     pendingStep: () => pendingStep,
     resolveGate: () => evaluateGate(),
+    // same-site ?next= sanitiser (login.html) — always returns one of the app's own pages
+    safeNext: (raw) => safeNext(raw),
+    // Helm platform operator? Only meaningful (and only asked) for an account with no
+    // studio; false on any error. UI routing only — hq_* RPCs enforce it server-side.
+    isPlatformAdmin: () => isPlatformAdmin(),
+    // No-studio account: if it is a platform operator, location.replace → HQ and resolve
+    // true; otherwise resolve false (caller shows onboarding). Never creates anything.
+    operatorToHq: () => operatorToHq(),
     role: getRole,
     // Synchronous, cache-only role (null if not loaded yet / unknown). Never fetches.
     cachedRole: () => roleCache || (currentUser ? sessGet("bp_sess_role", currentUser.id) : null),
@@ -1126,7 +1255,7 @@
       async listUsers() {
         if (!supa) throw new Error("Supabase not configured");
         const { data, error } = await supa.from("profiles")
-          .select("id,email,role,created_at").order("role", { ascending: true });
+          .select("id,email,full_name,role,created_at").order("role", { ascending: true });
         if (error) throw error; return data;
       },
       async createUser(email, password, role) {
@@ -2160,7 +2289,10 @@
 
   /* ---------------- organization / studio (Phase 58) ---------------- */
   const org = {
-    async id() { if (!supa) return null; const { data } = await supa.rpc("current_org_id"); return data || null; },
+    async id() { if (!supa) return null; try { return await orgIdStrict(); } catch (e) { return null; } },
+    // Like id() but THROWS when the lookup fails, so callers can tell "no studio"
+    // (null) from "couldn't check" (error) — onboarding must only follow a real null.
+    resolveId: () => orgIdStrict(),
     async current() { if (!supa) return null;
       const { data, error } = await supa.from("organizations").select("*").eq("id", (await this.id())).maybeSingle();
       if (error) throw error; return data; },
@@ -2464,6 +2596,49 @@
   // Conversations the viewer muted (per-user, stored by the chat page in localStorage).
   function chatReadMuted() { try { return new Set(JSON.parse(localStorage.getItem("wa_mute") || "[]")); } catch (e) { return new Set(); } }
 
+  /* ---------------- display names (0034) ---------------- */
+  // What to call a person: their display name → the part of their e-mail before "@"
+  // → their role → "Member". Plain text — callers must still escape it.
+  function personDisplayName(p) {
+    if (!p) return "Member";
+    const n = String(p.full_name || "").trim(); if (n) return n;
+    const local = String(p.email_name || String(p.email || "").split("@")[0] || "").trim(); if (local) return local;
+    return p.role ? roleLabel(p.role) : "Member";
+  }
+  // Same rule as public._clean_display_name: spaces collapsed, 1-80 characters, no < > or control characters.
+  const cleanDisplayName = (name) => String(name == null ? "" : name).replace(/\s+/g, " ").trim();
+  function displayNameProblem(name) {
+    const v = cleanDisplayName(name);
+    if (!v || [...v].length > 80) return "A display name must be 1 to 80 characters.";
+    if (/[<>]/.test(v)) return "A display name can't contain < or >.";
+    if (/[\u0000-\u001f\u007f-\u009f]/.test(v)) return "A display name can't contain control characters.";
+    return null;
+  }
+  const profile = {
+    displayName: personDisplayName,
+    clean: cleanDisplayName,
+    problem: displayNameProblem,
+    // my own profile row (own row is always readable under RLS)
+    async mine() {
+      if (mode !== "supabase") { const u = CHAT_LOCAL_ROSTER.find((x) => x.id === chatLocalUid()) || CHAT_LOCAL_ROSTER[0]; return Object.assign({}, u); }
+      if (!supa || !currentUser) return null;
+      const { data, error } = await supa.from("profiles").select("id,email,full_name,role").eq("id", currentUser.id).maybeSingle();
+      if (error) throw error; return data || null;
+    },
+    // name yourself (set_my_display_name) → the saved, cleaned name
+    async setMine(name) {
+      const bad = displayNameProblem(name); if (bad) throw new Error(bad);
+      if (mode !== "supabase") { const u = CHAT_LOCAL_ROSTER.find((x) => x.id === chatLocalUid()); if (u) u.full_name = cleanDisplayName(name); return cleanDisplayName(name); }
+      return rpc("set_my_display_name", { p_name: cleanDisplayName(name) });
+    },
+    // admin: name a member of your own studio (admin_set_display_name; the DB refuses anyone else)
+    async setName(userId, name) {
+      const bad = displayNameProblem(name); if (bad) throw new Error(bad);
+      return rpc("admin_set_display_name", { p_user: userId, p_name: cleanDisplayName(name) });
+    },
+  };
+  let chatDirectoryMissing = false;   // 0034 not installed yet → fall back to the RLS-scoped profiles read
+
   const chat = {
     // Is the feature running on localStorage (true) or a real backend (false)?
     isLocal: () => mode !== "supabase",
@@ -2471,16 +2646,26 @@
     async me() {
       if (mode !== "supabase") { const u = CHAT_LOCAL_ROSTER.find((x) => x.id === chatLocalUid()) || CHAT_LOCAL_ROSTER[0]; return { id: u.id, name: u.full_name, email: u.email }; }
       const id = currentUser && currentUser.id;
-      let name = currentUser && currentUser.email;
-      try { const { data } = await supa.from("profiles").select("full_name,email").eq("id", id).maybeSingle(); if (data) name = data.full_name || data.email || name; } catch (e) {}
+      let name = personDisplayName({ email: currentUser && currentUser.email });
+      try { const { data } = await supa.from("profiles").select("full_name,email,role").eq("id", id).maybeSingle(); if (data) name = personDisplayName(data); } catch (e) {}
       return { id, name, email: currentUser && currentUser.email };
     },
+    // display name for a roster row (name → e-mail before "@" → role)
+    displayName: personDisplayName,
     // Local-mode only: switch the acting identity (two tabs = two "users" for a live demo).
     localRoster: () => CHAT_LOCAL_ROSTER.slice(),
     setLocalUser: (id) => { try { localStorage.setItem("helm_local_uid", id); } catch (e) {} },
-    // All login users in my org (RLS scopes to the org). Source of the DM roster.
+    // Everyone in my studio, by name (chat_directory, 0034: names + e-mail local part
+    // + role, own studio only). Before 0034 is installed, falls back to the profiles
+    // read — RLS then shows colleagues only to users with the users-view capability.
     async roster() {
       if (mode !== "supabase") return CHAT_LOCAL_ROSTER.slice();
+      if (!chatDirectoryMissing) {
+        const { data, error } = await supa.rpc("chat_directory");
+        if (!error) return (data || []).map((p) => ({ id: p.id, full_name: p.full_name, email_name: p.email_name, role: p.role }));
+        if (!rpcMissing(error)) throw error;
+        chatDirectoryMissing = true;
+      }
       const { data, error } = await supa.from("profiles").select("id,email,full_name,role").order("full_name");
       if (error) throw error; return data || [];
     },
@@ -2664,7 +2849,7 @@
         const U = global.BPUI; if (U && ((U.isMissingTable && U.isMissingTable(e)) || (U.isMissingFunction && U.isMissingFunction(e)))) chatBackendMissing = true;
         return [];
       }
-      const nameById = {}; roster.forEach((p) => { nameById[p.id] = p.full_name || p.email || "Member"; });
+      const nameById = {}; roster.forEach((p) => { nameById[p.id] = personDisplayName(p); });
       const convById = {}; convs.forEach((c) => { convById[c.id] = c; });
       let msgs = [];
       try { const { data, error } = await supa.from("chat_messages").select("id,conversation_id,sender_id,kind,body,meta,created_at").neq("sender_id", me).eq("deleted", false).order("created_at", { ascending: false }).limit(60); if (error) return []; msgs = data || []; } catch (e) { return []; }
@@ -3689,7 +3874,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat, profile,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.
@@ -3754,6 +3939,9 @@
     },
   };
   global.BPStore = BPStore;
+  // Protected page: start the auth gate now (init is idempotent), so the sign-in
+  // redirect never depends on the page's own boot code running.
+  if (PAGE_GATED) Promise.resolve().then(init).catch(() => {});
 })(window);
 
 /* =========================================================================

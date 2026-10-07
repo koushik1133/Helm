@@ -1,6 +1,7 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="light" class="auth-pending">
 <head>
+<style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Control Center — Helm Events</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -52,6 +53,9 @@
   .utable{width:100%;border-collapse:collapse;font-size:13px}
   .utable th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
   .utable td{padding:8px;border-bottom:1px solid var(--line-2)}
+  .utable td.dn{white-space:nowrap} .utable .dnTxt{font-weight:600}
+  .utable .dnEdit{appearance:none;border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:14px;margin-left:6px;padding:2px 6px;border-radius:6px}
+  .utable .dnEdit:hover{color:var(--accent);background:var(--accent-soft)} .utable .dnEdit:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   .utable td.em{font-weight:500} .utable .me{font-size:12px;color:var(--accent);background:var(--accent-soft);padding:2px 6px;border-radius:10px;margin-left:6px}
   .utable select{height:32px}
   /* access matrix */
@@ -294,9 +298,9 @@
 
       <div class="card">
         <h3>Team members</h3>
-        <p class="mnote">Add teammates, change each person's role, or remove access. Changes apply immediately.</p>
-        <div class="table-scroll"><table class="utable"><thead><tr><th scope="col">Email</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
-          <tbody id="um_rows"><tr><td colspan="3" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
+        <p class="mnote">Add teammates, set the name chat shows for each person, change each person's role, or remove access. Changes apply immediately.</p>
+        <div class="table-scroll"><table class="utable"><thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody id="um_rows"><tr><td colspan="4" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
         </table></div>
         <form id="um_add" class="addrow" style="grid-template-columns:1.6fr 1fr auto">
           <input id="um_email" type="email" placeholder="name@studio.com" required autocomplete="off" aria-label="New user email">
@@ -366,7 +370,7 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=103"></script>
+<script src="store-api.js?v=104"></script>
 <script src="tour.js?v=6"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -699,7 +703,7 @@
   }
   async function renderUsers(){
     const tb=$("#um_rows"), me=BPStore.auth.user();
-    tb.innerHTML=`<tr><td colspan="3" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr>`;
+    tb.innerHTML=`<tr><td colspan="4" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr>`;
     let users;
     try{ users=await BPStore.auth.admin.listUsers(); }
     catch(e){ BPUI.loadError(tb, e, renderUsers, {what:"team members"}); return; }
@@ -708,17 +712,29 @@
     tb.innerHTML = users.map(u=>{
       const self = me && u.id===me.id;
       const opts = ROLES.map(r=>`<option value="${esc(r)}"${r===u.role?" selected":""}>${esc(BPStore.auth.admin.roleLabel(r))}</option>`).join("");
+      const dn=(u.full_name||"").trim(), who=dn||u.email||"user";
       return `<tr data-id="${esc(u.id)}">
+        <td class="dn"><span class="dnTxt"${dn?"":' style="color:var(--ink-3)"'}>${esc(dn||"Not set")}</span><button type="button" class="dnEdit" title="Edit display name" aria-label="Edit display name for ${esc(who)}">✎</button></td>
         <td class="em">${esc(u.email||"—")}${self?'<span class="me">you</span>':""}</td>
         <td><select class="roleSel" aria-label="Role for ${esc(u.email||"user")}"${self?" disabled title=\"You can&#39;t change your own role\"":""}>${opts}</select></td>
         <td style="text-align:right">${self?"":`<button type="button" class="rm" title="Remove user" aria-label="Remove user ${esc(u.email||"")}">🗑</button>`}</td>
       </tr>`;
-    }).join("") || `<tr><td colspan="3" style="color:var(--ink-3)">No users.</td></tr>`;
+    }).join("") || `<tr><td colspan="4" style="color:var(--ink-3)">No users.</td></tr>`;
     tb.querySelectorAll(".roleSel").forEach(sel=>sel.addEventListener("change", async (e)=>{
       const tr=e.target.closest("tr"), id=tr.dataset.id, role=e.target.value;
       const prev=[...e.target.options].find(o=>o.defaultSelected);
       try{ await BPUI.guard(e.target, ()=>BPStore.auth.admin.setRole(id, role)); setUMsg("ok","Role updated."); e.target.querySelectorAll("option").forEach(o=>o.defaultSelected=o.value===role); }
       catch(err){ setUMsg("err",errMsg(err,"change the role")); if(prev) e.target.value=prev.value; }
+    }));
+    tb.querySelectorAll(".dnEdit").forEach(btn=>btn.addEventListener("click", async ()=>{
+      const tr=btn.closest("tr"), id=tr.dataset.id, u=users.find(x=>x.id===id); if(!u) return;
+      const name=await BPUI.prompt(`The name teammates see for ${u.email||"this person"} in chat and around Helm.`,
+        {title:"Display name", label:"Display name", value:u.full_name||"", required:true, maxLength:80, okLabel:"Save",
+         validate:(v)=>BPStore.profile.problem(v)});
+      if(name==null) return;
+      try{ const saved=await BPUI.guard(btn, ()=>BPStore.profile.setName(id, name)); if(saved===undefined) return; u.full_name=saved||BPStore.profile.clean(name);
+        const t=tr.querySelector(".dnTxt"); t.textContent=u.full_name; t.removeAttribute("style"); setUMsg("ok","Display name updated."); }
+      catch(err){ setUMsg("err",errMsg(err,"change the display name")); }
     }));
     tb.querySelectorAll(".rm").forEach(btn=>btn.addEventListener("click", async ()=>{
       const tr=btn.closest("tr"), id=tr.dataset.id, email=tr.querySelector(".em").textContent;
