@@ -335,6 +335,24 @@
       ]
     },
     {
+      "source": "/chat",
+      "headers": [
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(self), geolocation=(), payment=()"
+        }
+      ]
+    },
+    {
+      "source": "/chat\\.html",
+      "headers": [
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(self), geolocation=(), payment=()"
+        }
+      ]
+    },
+    {
       "source": "/(.*)\\.(js|css|png|webp|svg|woff2)",
       "headers": [
         {
