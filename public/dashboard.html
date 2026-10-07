@@ -198,7 +198,7 @@
     <a href="dashboard.html" class="mark" aria-label="Helm Events home"></a>
     <div><h1>Helm Events</h1><small>Event Layout Builder</small></div>
     <span class="spacer" style="flex:1"></span>
-    <a href="docs/USER-MANUAL.html" target="_blank" rel="noopener" class="helpbtn" title="Open the user manual" style="text-decoration:none">📖 Manual</a>
+    <a href="manual" target="_blank" rel="noopener" class="helpbtn" title="Open the user manual (sign-in required)" style="text-decoration:none">📖 Manual</a>
     <button type="button" id="helpBtn" class="helpbtn" title="Take the guided tour" aria-label="Take the guided tour">? Tour</button>
     <span id="bell"></span>
     <span id="account" class="account" hidden></span>
@@ -314,6 +314,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=92"></script>
 <script src="store-api.js?v=100"></script>
+<script src="tour.js?v=6"></script>
 <script>
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return "—"; } };
@@ -663,62 +664,11 @@
     {sel:'[data-nav="controls"]', title:"Control Center", desc:"Set default pricing, chair types and coupons, add teammates, and tick exactly who can view or edit each area."},
     {sel:'#bpThemeToggle', title:"Light / dark mode", desc:"Tap this any time to switch the whole app between light and dark. Your choice is remembered on this device."},
   ];
-  let tourSteps=[], tourI=0, tourEl=null;
-  // visible = exists, not [hidden], has size (rect-based so position:fixed targets count too)
-  function tourVisible(sel){ const t=document.querySelector(sel); if(!t||t.hidden) return null;
-    const cs=getComputedStyle(t); if(cs.display==="none"||cs.visibility==="hidden") return null;
-    const r=t.getBoundingClientRect(); return (r.width>0&&r.height>0)?t:null; }
-  function endTour(){ document.querySelectorAll(".spot").forEach(e=>e.remove()); tourEl=null; window.removeEventListener("resize",placeTour); try{ localStorage.setItem("bp_seen_tour","1"); }catch{} }
-  function startTour(){
-    endTour();   // never stack overlays
-    tourSteps=TOUR.filter(s=> tourVisible(s.sel));
-    if(!tourSteps.length) return;
-    tourI=0;
-    tourEl=document.createElement("div"); tourEl.className="spot";
-    tourEl.innerHTML=`<div class="ring" aria-hidden="true"></div><div class="arrow" aria-hidden="true">▼</div>
-      <div class="tip"><div class="tstep"></div><h4></h4><p></p>
-        <div class="trow"><button type="button" class="skip">Skip tour</button><span class="sp"></span>
-        <button type="button" class="back">Back</button><button type="button" class="pri next">Next →</button></div></div>`;
-    document.body.appendChild(tourEl);
-    tourEl.querySelector(".skip").addEventListener("click",endTour);
-    tourEl.querySelector(".back").addEventListener("click",()=>{ if(tourI>0){ tourI--; placeTour(); } });
-    tourEl.querySelector(".next").addEventListener("click",()=>{ if(tourI<tourSteps.length-1){ tourI++; placeTour(); } else endTour(); });
-    window.addEventListener("resize",placeTour);
-    placeTour();
-  }
-  function placeTour(){
-    if(!tourEl) return;
-    // skip forward over any step whose target vanished (never end the whole tour early)
-    while(tourI<tourSteps.length){ if(tourVisible(tourSteps[tourI].sel)) break; tourI++; }
-    if(tourI>=tourSteps.length){ endTour(); return; }
-    const step=tourSteps[tourI], tgt=document.querySelector(step.sel);
-    if(!tgt){ endTour(); return; }
-    tgt.scrollIntoView({block:"center",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
-    setTimeout(()=>{
-      if(!tourEl) return;
-      const r=tgt.getBoundingClientRect(), pad=6;
-      const ring=tourEl.querySelector(".ring");
-      ring.style.left=(r.left-pad)+"px"; ring.style.top=(r.top-pad)+"px";
-      ring.style.width=(r.width+pad*2)+"px"; ring.style.height=(r.height+pad*2)+"px";
-      const tip=tourEl.querySelector(".tip"), arrow=tourEl.querySelector(".arrow");
-      tourEl.querySelector(".tstep").textContent=`Step ${tourI+1} of ${tourSteps.length}`;
-      tourEl.querySelector("h4").textContent=step.title;
-      tourEl.querySelector("p").textContent=step.desc;
-      tourEl.querySelector(".back").style.visibility=tourI?"visible":"hidden";
-      tourEl.querySelector(".next").textContent=tourI<tourSteps.length-1?"Next →":"Done";
-      // place tip below the target if room, else above
-      const below=r.bottom+180 < window.innerHeight;
-      const tw=Math.min(310, window.innerWidth-24);
-      let tx=Math.min(Math.max(12, r.left), window.innerWidth-tw-12);
-      let ty=below ? r.bottom+18 : r.top-tip.offsetHeight-18;
-      tip.style.left=tx+"px"; tip.style.top=Math.max(12,ty)+"px";
-      arrow.style.left=(r.left+r.width/2-9)+"px";
-      arrow.textContent=below?"▲":"▼";
-      arrow.style.top=(below ? r.bottom+2 : r.top-30)+"px";
-    },260);
-  }
+  // The spotlight engine lives in tour.js (shared with every page): it re-glues the
+  // ring on scroll/resize/orientation/layout changes, flips + clamps the tip inside
+  // the viewport, and shows a centered card when a target is hidden at this size.
+  function startTour(){ if(window.HelmTour) window.HelmTour.start(TOUR, "bp_seen_tour"); }
   $("#helpBtn").addEventListener("click", startTour);
-  document.addEventListener("keydown",(e)=>{ if(e.key==="Escape") endTour(); });
   // Auto-start the tour once for a first-time visitor, and ALWAYS for a brand-new
   // signup (onboarding sets bp_force_tour so it fires even if bp_seen_tour was set
   // earlier on this browser). Waits for the session to be ready before starting.

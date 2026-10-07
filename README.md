@@ -414,7 +414,8 @@ curl -X POST http://localhost:4173/api/layouts \
 - **Lighthouse** (`lighthouserc.json`, `.github/workflows/lighthouse.yml`) is blocking on
   performance, accessibility, FCP, LCP, TBT and CLS for `/`, `/login` and `/builder`.
 - Internal guides (`docs/BLUEPRINT-STAGE-GUIDE*.html`, `docs/MVP-PHASE1-GUIDE.html`) are kept out of
-  the deploy; only `public/docs/USER-MANUAL.html` ships.
+  the deploy. The user manual source is `docs/manual/` (not deployed); it is served only to
+  signed-in users from the private `helm-manual` storage bucket via `/manual` (migration 0031).
 
 ## Notes
 - The front end talks to the API with relative paths, so it works on any host/port.

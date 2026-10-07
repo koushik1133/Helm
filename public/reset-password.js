@@ -97,6 +97,7 @@
     });
   });
 
+  if (BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist) BPStore.auth.passwordRule.attachChecklist($("#new_pw"), $("#newRules"));
   $("#vSet").addEventListener("submit", function (e) {
     e.preventDefault();
     guard($("#set_go"), async function () {

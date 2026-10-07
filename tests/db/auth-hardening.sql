@@ -22,7 +22,17 @@ insert into _ah select 1, '_password_ok rejects 11 chars',          case when no
 insert into _ah select 2, '_password_ok rejects letters only',      case when not public._password_ok('abcdefghijklmnop') then 'PASS' else 'FAIL' end;
 insert into _ah select 3, '_password_ok rejects digits only',       case when not public._password_ok('123456789012345') then 'PASS' else 'FAIL' end;
 insert into _ah select 4, '_password_ok rejects null',              case when not coalesce(public._password_ok(null), false) then 'PASS' else 'FAIL' end;
-insert into _ah select 5, '_password_ok accepts 12 chars letter+digit', case when public._password_ok('abcdefghij12') then 'PASS' else 'FAIL' end;
+insert into _ah select 5, '_password_ok accepts 12 chars lower+upper+digit+symbol', case when public._password_ok('Abcdefghij1!') then 'PASS' else 'FAIL' end;
+-- 35-41) 0030: Supabase "lowercase, uppercase, digits and symbols" (min 12)
+insert into _ah select 35, '0030: old letter+digit password now rejected (no upper, no symbol)', case when not public._password_ok('abcdefghij12') then 'PASS' else 'FAIL' end;
+insert into _ah select 36, '0030: rejects missing uppercase',  case when not public._password_ok('abcdefghij1!') then 'PASS' else 'FAIL' end;
+insert into _ah select 37, '0030: rejects missing lowercase',  case when not public._password_ok('ABCDEFGHIJ1!') then 'PASS' else 'FAIL' end;
+insert into _ah select 38, '0030: rejects missing symbol',     case when not public._password_ok('Abcdefghij12') then 'PASS' else 'FAIL' end;
+insert into _ah select 39, '0030: rejects missing digit',      case when not public._password_ok('Abcdefghijk!') then 'PASS' else 'FAIL' end;
+insert into _ah select 40, '0030: rejects 11 chars with all four kinds', case when not public._password_ok('Abcdefghi1!') then 'PASS' else 'FAIL' end;
+insert into _ah select 41, '0030: every Supabase symbol counts (incl. quote, backslash, brackets, backtick)',
+  case when (select bool_and(public._password_ok('Abcdefghij1' || c)) from regexp_split_to_table('!@#$%^&*()_+-=[]{};''\:"|<>?,./`~', '') c)
+        and not public._password_ok('Abcdefghij1 ') and not public._password_ok('Abcdefghij1é') then 'PASS' else 'FAIL' end;
 
 -- 6) drift-safe wrapper: core kept private, wrapper carries the marker
 insert into _ah select 6, 'admin_create_user is the 0028 wrapper; old body kept as private core',
@@ -55,7 +65,7 @@ do $$ begin
   begin perform public.admin_create_user('ah_nodigit@a.test','abcdefghijklmnop','sales');
         insert into _ah values (9,'admin_create_user refuses a password without a digit','FAIL: created');
   exception when others then insert into _ah values (9,'admin_create_user refuses a password without a digit',
-        case when sqlerrm like '%letter and a number%' then 'PASS' else 'FAIL: '||sqlerrm end); end;
+        case when sqlerrm like '%uppercase letter, a number and a symbol%' then 'PASS' else 'FAIL: '||sqlerrm end); end;
   perform auth.logout();
 end $$;
 -- 10-12) compliant password: created in own org, bcrypt cost 12, password verifies
@@ -119,7 +129,7 @@ do $$ declare r jsonb; mcp boolean; h text; tp text; begin
     tp := r->>'temp_password';
     select must_change_password into mcp from public.profiles where id=(r->>'user_id')::uuid;
     select encrypted_password into h from auth.users where id=(r->>'user_id')::uuid;
-    insert into _ah values (17,'temp password meets the rule (>=12, letter+digit)', case when public._password_ok(tp) then 'PASS' else 'FAIL: '||coalesce(tp,'null') end);
+    insert into _ah values (17,'temp password meets the 0030 rule (>=12, lower+upper+digit+symbol)', case when public._password_ok(tp) then 'PASS' else 'FAIL: '||coalesce(tp,'null') end);
     insert into _ah values (18,'temp user must change password; hash cost 12',
       case when mcp and h like '$2a$12$%' and extensions.crypt(tp,h)=h then 'PASS' else 'FAIL' end);
     insert into _ah values (19,'temp password hash recorded for the fail-closed check',
@@ -216,13 +226,17 @@ insert into _ah select 34, 're-applying 0028 is safe (one core, wrapper intact, 
         and pg_get_functiondef('public.admin_create_user(text,text,text)'::regprocedure) like '%auth-hardening-0028%'
         and not has_function_privilege('authenticated','public._admin_create_user_core(text,text,text)','EXECUTE')
        then 'PASS' else 'FAIL' end;
+-- re-applying 0028 by hand rolls _password_ok back to the old rule; the ledger
+-- (db-migrate.sh) never does that, but restore the canonical 0030 state here so
+-- this suite leaves the database exactly as the MANIFEST builds it.
+\i supabase/migrations/0030_password_rule_symbols.sql
 
 -- cleanup fixtures touched
 delete from auth.mfa_factors where user_id in (select id from auth.users where email in ('a_staff@a.test','b_staff@b.test'));
 delete from auth.sessions where user_id in (select id from auth.users where email in ('a_staff@a.test','b_staff@b.test'));
 
 select n, name, result from _ah order by n;
-select case when count(*) filter (where result not like 'PASS%') = 0 and count(*) = 34
-            then 'AUTH-HARDENING: ALL PASS (' || count(*) || '/34)'
-            else 'AUTH-HARDENING: ' || count(*) filter (where result not like 'PASS%') || ' FAILED of ' || count(*) || ' (expected 34)' end as summary
+select case when count(*) filter (where result not like 'PASS%') = 0 and count(*) = 41
+            then 'AUTH-HARDENING: ALL PASS (' || count(*) || '/41)'
+            else 'AUTH-HARDENING: ' || count(*) filter (where result not like 'PASS%') || ' FAILED of ' || count(*) || ' (expected 41)' end as summary
   from _ah;

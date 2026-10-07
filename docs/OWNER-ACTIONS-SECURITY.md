@@ -193,9 +193,14 @@ apex is served by the project instead of by the domain-level redirect:
   by `.vercelignore`, and `vercel.json` also redirects them (and any `.md/.map/
   .sql/.bak/.log/.env/.DS_Store` path) to `/404`. After the next deploy, check:
   `curl -sI https://www.helm.events/_headers` must not return 200 with the file.
-- **User manual.** `/docs/USER-MANUAL` stays public on purpose. The dashboard's
-  "📖 Manual" button links to it, and a static host cannot put it behind login.
-  It holds only end-user help and demo screenshots, with no credentials or
-  internals, and is `noindex`.
+- **User manual (changed 2026-10).** The manual is now behind sign-in: `/manual`
+  (gated like every app page) downloads it from the PRIVATE storage bucket
+  `helm-manual` (migration `0031_manual_private_bucket.sql`) with the user's own
+  session; screenshots get 1-hour signed URLs. The old `/docs/USER-MANUAL` and
+  `/docs/screenshots/*` URLs redirect to `/manual`, and the content is no longer
+  deployed (source moved to `docs/manual/`). **Owner action:** apply 0031, then
+  upload `docs/manual/USER-MANUAL.html` to the bucket root and the 7 files in
+  `docs/manual/screenshots/` to `screenshots/` (Dashboard → Storage → helm-manual).
+  Until then `/manual` shows "The manual isn't available yet".
 - **sim-pay.html** and the **Edge Function CORS preview-origin regex** belong to the
   uploads/payments work (0027), not this list.

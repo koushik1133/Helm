@@ -117,7 +117,8 @@
       <input id="email" type="email" autocomplete="username" placeholder="you@studio.com" required>
       <label for="pw">Password</label>
       <input id="pw" type="password" autocomplete="current-password" placeholder="••••••••" required aria-describedby="pwHint">
-      <p class="hint" id="pwHint" hidden>At least 12 characters, with a letter and a number.</p>
+      <p class="hint" id="pwHint" hidden>At least 12 characters, with a lowercase letter, an uppercase letter, a number and a symbol (like ! @ # $ %).</p>
+      <ul id="pwRules" hidden></ul>
       <p class="hint" id="forgotRow"><button type="button" class="linkbtn" id="forgotBtn">Forgot password?</button></p>
       <div class="captcha" id="captcha" hidden></div>
       <button class="btn" id="submit" type="submit">Sign in →</button>
@@ -196,14 +197,16 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=92"></script>
 <script src="store-api.js?v=100"></script>
-<script src="auth-ui.js?v=1"></script>
+<script src="auth-ui.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const PENDING="bp_pending_studio";
-  // Matches the Supabase Auth password policy + 0028 (min 12, a letter and a number —
-  // docs/AUTH-DASHBOARD-SETTINGS.md). One rule, from store-api.js.
+  // Matches the Supabase Auth password policy + 0030 (min 12 with a lowercase letter,
+  // an uppercase letter, a number and a symbol — docs/AUTH-DASHBOARD-SETTINGS.md).
+  // One rule, from store-api.js.
   const PW_MIN=12;
   const pwProblem=(p)=>(BPStore.auth.passwordRule? BPStore.auth.passwordRule.problem(p) : ((p||"").length<PW_MIN?"Use at least "+PW_MIN+" characters.":null));
+  if(BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist) BPStore.auth.passwordRule.attachChecklist(document.getElementById("pw"), document.getElementById("pwRules"));
   const QS=new URLSearchParams(location.search);
   // Cloudflare Turnstile — only when config.captcha.siteKey is set (else null = off, sign-in unchanged)
   let cap=null, fgCap=null;
@@ -231,7 +234,7 @@
   // with a slash or protocol to prevent open-redirects.
   // ?next= may only name one of the app's own pages; the page string comes from
   // this fixed list (never from the URL) and only its query string is carried over.
-  const NEXT_PAGES=["audit","budget","builder","calendar","closure","command","control","crm","dashboard","design","discovery","event","flow","insights","inventory","invite-studio","issues","leads","logistics","media","nurture","ops","plan","proposal","quotes","ready","reports","resources","runsheet","settlement","staff","teardown","templates","vendors"];
+  const NEXT_PAGES=["audit","budget","builder","calendar","closure","command","control","crm","dashboard","design","discovery","event","flow","insights","inventory","invite-studio","issues","leads","logistics","manual","media","nurture","ops","plan","proposal","quotes","ready","reports","resources","runsheet","settlement","staff","teardown","templates","vendors"];
   const nextUrl=()=>{
     const m=/^([a-z0-9-]+)(?:\.html)?(?:\?([^#]*))?$/i.exec(new URLSearchParams(location.search).get("next")||"");
     const page=m && NEXT_PAGES.find(p=>p===m[1].toLowerCase());
@@ -254,8 +257,10 @@
         '<form id="fpc_form" novalidate style="background:#fff;color:#111;max-width:380px;width:100%;border-radius:14px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35)">'+
         '<h2 id="fpc_title" style="margin:0 0 6px;font-size:1.15rem">Set your password</h2>'+
         '<p style="margin:0 0 14px;color:#555;font-size:.9rem">You signed in with a temporary password. Choose your own to continue.</p>'+
-        '<label for="fpc_pw" style="display:block;font-size:.85rem;margin-bottom:4px;text-transform:none;letter-spacing:0;color:#333">New password (min '+PW_MIN+', a letter and a number)</label>'+
-        '<input id="fpc_pw" type="password" autocomplete="new-password" minlength="'+PW_MIN+'" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:10px">'+
+        '<label for="fpc_pw" style="display:block;font-size:.85rem;margin-bottom:4px;text-transform:none;letter-spacing:0;color:#333">New password</label>'+
+        '<p style="margin:0 0 6px;color:#555;font-size:.8rem">At least '+PW_MIN+' characters with a lowercase letter, an uppercase letter, a number and a symbol.</p>'+
+        '<input id="fpc_pw" type="password" autocomplete="new-password" minlength="'+PW_MIN+'" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:4px">'+
+        '<ul id="fpc_rules"></ul>'+
         '<label for="fpc_pw2" style="display:block;font-size:.85rem;margin-bottom:4px;text-transform:none;letter-spacing:0;color:#333">Confirm password</label>'+
         '<input id="fpc_pw2" type="password" autocomplete="new-password" required style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;margin-bottom:12px">'+
         '<div id="fpc_err" role="alert" style="color:#b42318;font-size:.85rem;min-height:18px;margin-bottom:8px"></div>'+
@@ -263,6 +268,7 @@
         '</form>';
       document.body.appendChild(ov);
       const form=ov.querySelector("#fpc_form"), pw=ov.querySelector("#fpc_pw"), pw2=ov.querySelector("#fpc_pw2"), er=ov.querySelector("#fpc_err"), go=ov.querySelector("#fpc_go");
+      if(BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist) BPStore.auth.passwordRule.attachChecklist(pw, ov.querySelector("#fpc_rules"));
       pw.focus();
       form.addEventListener("submit",(e)=>{
         e.preventDefault();
@@ -292,6 +298,7 @@
     // new passwords must meet the policy; existing ones are checked by the server
     if(m==="signup") $("#pw").setAttribute("minlength", String(PW_MIN)); else $("#pw").removeAttribute("minlength");
     $("#pwHint").hidden = m!=="signup";
+    $("#pwRules").hidden = m!=="signup";
     $("#forgotRow").hidden = m==="signup";
   }
   // ----- views: sign-in form / forgot password / two-step code -----
