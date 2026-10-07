@@ -33,6 +33,32 @@
 -- existing row, drops no table or column, replaces no existing function.
 -- ============================================================================
 
+-- prod drift: some databases do the crew-link liveness check inline and never got
+-- 0012's shared helper. Create it (exact 0012 body) only when missing; never
+-- replaces an existing one. Needs work_tokens.revoked_at / expires_at (checked above).
+do $guard$ begin
+  if to_regprocedure('public._work_token_live(uuid)') is null then
+    execute $sql$
+create function public._work_token_live(p_token uuid)
+returns public.work_tokens language plpgsql security definer set search_path = public as $fn$
+declare w public.work_tokens;
+begin
+  select * into w from public.work_tokens where token = p_token;
+  if w.token is null then raise exception 'invalid link'; end if;
+  if w.revoked_at is not null then raise exception 'link revoked' using errcode='42501'; end if;
+  if w.expires_at is not null and w.expires_at <= now() then raise exception 'link expired' using errcode='42501'; end if;
+  return w;
+end; $fn$;
+$sql$;
+    execute 'revoke all on function public._work_token_live(uuid) from public';
+    if exists (select 1 from pg_roles where rolname = 'anon') then
+      execute 'revoke all on function public._work_token_live(uuid) from anon'; end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then
+      execute 'revoke all on function public._work_token_live(uuid) from authenticated'; end if;
+  end if;
+end $guard$;
+
+
 -- ---------------------------------------------------------------- tables -----
 create table if not exists public.task_evidence (
   id            uuid primary key default gen_random_uuid(),
