@@ -1445,19 +1445,173 @@
     },
   };
 
+  /* ---------------- list paging (perf, Oct 2026) ----------------
+     The production DB is ~250 ms away from the people using it, so a list view must
+     never download a whole table (or a table's heavy JSON) to show one screen.
+     A page = { rows, hasMore, offset } where offset is where the NEXT page starts.
+     We ask for limit+1 rows: the extra row says "there is more" without a COUNT. */
+  const PAGE_SIZE = Math.max(5, Math.min(200, parseInt(CFG.pageSize, 10) || 25));   // window.SUPABASE_CONFIG.pageSize
+  const pageLimit = (n) => Math.max(1, Math.min(500, parseInt(n, 10) || PAGE_SIZE));
+  const pageOffset = (n) => Math.max(0, parseInt(n, 10) || 0);
+  // User text inside a LIKE pattern must match literally: escape \ % _ ; PostgREST turns
+  // every * into %, which can't be escaped, so it is dropped.
+  function likeEscape(s) { return String(s == null ? "" : s).replace(/\*/g, "").replace(/[\\%_]/g, (c) => "\\" + c); }
+  // "%term%" for .ilike(), or null for a blank search (capped at 100 chars)
+  function likeTerm(term) { const t = likeEscape(String(term == null ? "" : term).trim().slice(0, 100)); return t ? "%" + t + "%" : null; }
+  // inside or=(…) a value with reserved chars (, . : ( ) ") must be double-quoted, \ and " escaped
+  const pgQuote = (v) => '"' + String(v).replace(/[\\"]/g, (c) => "\\" + c) + '"';
+  // or=(colA.ilike."%t%",colB.ilike."%t%") — null when the search is blank
+  function orIlike(cols, term) { const p = likeTerm(term); return p ? cols.map((c) => c + ".ilike." + pgQuote(p)).join(",") : null; }
+  // run a built query for one page (limit+1 rows → hasMore)
+  async function sbPage(query, o) {
+    const limit = pageLimit(o && o.limit), offset = pageOffset(o && o.offset);
+    const { data, error, count } = await query.range(offset, offset + limit);
+    if (error) throw error;
+    const rows = data || [];
+    const out = { rows: rows.slice(0, limit), hasMore: rows.length > limit, offset: offset + Math.min(rows.length, limit) };
+    if (typeof count === "number") out.total = count;   // only when the query asked for { count: "exact" }
+    return out;
+  }
+  // the same contract over an in-memory array (local / offline mode)
+  function arrPage(arr, o) {
+    const limit = pageLimit(o && o.limit), offset = pageOffset(o && o.offset), a = arr || [];
+    const rows = a.slice(offset, offset + limit);
+    return { rows, hasMore: offset + limit < a.length, offset: offset + rows.length, total: a.length };
+  }
+  // case-insensitive "contains" over a few fields (local mirror of orIlike)
+  function textHit(term, vals) { const t = String(term == null ? "" : term).trim().toLowerCase(); if (!t) return true;
+    return vals.some((v) => String(v == null ? "" : v).toLowerCase().indexOf(t) !== -1); }
+  // HEAD count: no rows travel, only the Content-Range total
+  async function sbCount(query) { const { count, error } = await query; if (error) throw error; return count || 0; }
+  // a column the query names doesn't exist on this database yet (older schema)
+  const isMissingColumn = (e) => { const c = (e && e.code) || ""; return c === "42703" || c === "PGRST204" || /column .* does not exist/i.test(String((e && e.message) || "")); };
+  const localISODate = (d) => { const x = d || new Date(); return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); };
+
   /* ---------------- quotes + versions ---------------- */
+  // What a quotes LIST shows — never the full pricing JSON (line items, computed
+  // breakdown, catering…), only its total and client; layouts live in quote_versions.
+  const QUOTE_LIST_COLS = "id,code,title,event_type,status,lifecycle_stage,approval_status,approval_token,current_version," +
+    "event_date,event_time,updated_at,created_at,confirmed_at,client,total:pricing->total,pricing_client:pricing->client";
+  // A list VIEW (page) needs even less: the client's name + phone, not the whole client JSON.
+  const QUOTE_PAGE_COLS = "id,code,title,event_type,status,lifecycle_stage,approval_status,current_version,event_date,event_time," +
+    "updated_at,created_at,confirmed_at,client_name:client->>name,client_phone:client->>phone,total:pricing->total," +
+    "pricing_client_name:pricing->client->>name,pricing_client_phone:pricing->client->>phone";
+  const nameOnly = (n, p) => { const o = {}; if (n != null) o.name = n; if (p != null) o.phone = p; return o; };
+  function mapQuoteSummary(q) {
+    let pricing = q.pricing;
+    if (!pricing) { pricing = {}; if (q.total != null) pricing.total = q.total;
+      if (q.pricing_client != null) pricing.client = q.pricing_client;
+      else if (q.pricing_client_name != null || q.pricing_client_phone != null) pricing.client = nameOnly(q.pricing_client_name, q.pricing_client_phone); }
+    if (!q.client && (q.client_name != null || q.client_phone != null)) q = Object.assign({}, q, { client: nameOnly(q.client_name, q.client_phone) });
+    return { id: q.id, code: q.code, title: q.title, eventType: q.event_type, status: q.status,
+      lifecycleStage: q.lifecycle_stage || "quote",
+      approvalStatus: q.approval_status || "none", approvalToken: q.approval_token,
+      currentVersion: q.current_version, client: q.client || {}, pricing, total: pricing.total || 0,
+      eventDate: q.event_date || null, eventTime: q.event_time || null,
+      updatedAt: q.updated_at, createdAt: q.created_at, confirmedAt: q.confirmed_at,
+      // 0040 soft shelves (absent → null on a database without them)
+      archivedAt: q.archived_at || null, archivedReason: q.archived_reason || null,
+      deletedAt: q.deleted_at || null, deletedReason: q.deleted_reason || null, linkExpiredAt: q.link_expired_at || null };
+  }
+  // 0040 adds quotes.archived_at / deleted_at (soft Archive / Deleted shelves). Until a
+  // database has them the list queries must not name them: learn it once per tab.
+  const QUOTE_SHELF_COLS = ",archived_at,archived_reason,deleted_at,deleted_reason,link_expired_at";
+  let shelfColsKnown = (() => { try { const v = sessionStorage.getItem("bp_q_shelf"); return v === "1" ? true : v === "0" ? false : null; } catch (e) { return null; } })();
+  const setShelfColsKnown = (v) => { shelfColsKnown = v; try { sessionStorage.setItem("bp_q_shelf", v ? "1" : "0"); } catch (e) {} };
+  // run build(shelf) with the shelf columns when the database may have them; on "no
+  // such column" remember that and run it again without
+  async function withShelf(run) {
+    if (shelfColsKnown !== false) {
+      try { const r = await run(true); if (shelfColsKnown === null) setShelfColsKnown(true); return r; }
+      catch (e) { if (!isMissingColumn(e)) throw e; setShelfColsKnown(false); }
+    }
+    return run(false);
+  }
+  // Quote list views (quotes.html tabs). ONE place defines them so the list, the counts
+  // and the local mirror agree:
+  //   archived  = flagged archived (0040), cancelled, or closed after it was confirmed
+  //   deleted   = flagged deleted (0040 soft delete) — never in any other view
+  //   active    = everything else;  attention = active, not cancelled, event date passed
+  //   all       = everything not moved to Archive / Deleted (dashboard, pickers, counters)
+  const QUOTE_VIEWS = ["all", "active", "quote", "confirmed", "attention", "archived", "deleted"];
+  const quoteIsArchived = (x) => !x.deletedAt && (!!x.archivedAt || x.status === "cancelled" || (x.lifecycleStage === "closed" && x.status === "confirmed"));
+  function quoteInView(x, view, today) {
+    if (view === "deleted") return !!x.deletedAt;
+    if (x.deletedAt) return false;
+    const arch = quoteIsArchived(x);
+    if (view === "archived") return arch;
+    if (view === "all" || !view) return !x.archivedAt;
+    if (arch) return false;
+    if (view === "quote" || view === "confirmed") return x.status === view;
+    if (view === "attention") return x.status !== "cancelled" && !!x.eventDate && String(x.eventDate).slice(0, 10) < today;
+    return true;   // "active"
+  }
+  function sbQuoteView(q, view, today, shelf) {
+    if (view === "deleted") return shelf ? q.not("deleted_at", "is", null) : q.eq("id", "00000000-0000-0000-0000-000000000000");
+    if (shelf) q = q.is("deleted_at", null);
+    if (view === "archived") return q.or("status.eq.cancelled,and(lifecycle_stage.eq.closed,status.eq.confirmed)" + (shelf ? ",archived_at.not.is.null" : ""));
+    if (shelf) q = q.is("archived_at", null);   // moved quotes leave every other view
+    if (view === "all" || !view) return q;
+    q = q.neq("status", "cancelled").or("lifecycle_stage.is.null,lifecycle_stage.neq.closed,status.neq.confirmed");
+    if (view === "quote" || view === "confirmed") q = q.eq("status", view);
+    if (view === "attention") q = q.lt("event_date", today);
+    return q;
+  }
   // Supabase tier (RPC-backed; errors surface). Falls back to localStorage when not in supabase mode.
   const sbq = {
+    // every quote, light columns (pickers, calendar, availability…). A database that
+    // is missing one of the named columns falls back to select * rather than a 400.
+    // Quotes moved to Archive / Deleted (0040) are left out, guarded like page().
     async list() {
-      // select * so a not-yet-migrated column (e.g. lifecycle_stage before its SQL runs) is simply absent, never a 400
-      const { data, error } = await supa.from("quotes").select("*").order("updated_at", { ascending: false });
-      if (error) throw error;
-      return data.map((q) => ({ id: q.id, code: q.code, title: q.title, eventType: q.event_type, status: q.status,
-        lifecycleStage: q.lifecycle_stage || "quote",
-        approvalStatus: q.approval_status || "none", approvalToken: q.approval_token,
-        currentVersion: q.current_version, client: q.client || {}, pricing: q.pricing || {}, total: (q.pricing && q.pricing.total) || 0,
-        eventDate: q.event_date || null, eventTime: q.event_time || null,
-        updatedAt: q.updated_at, createdAt: q.created_at, confirmedAt: q.confirmed_at }));
+      const r = await withShelf(async (shelf) => {
+        let q = supa.from("quotes").select(QUOTE_LIST_COLS + (shelf ? QUOTE_SHELF_COLS : ""));
+        if (shelf) q = q.is("archived_at", null).is("deleted_at", null);
+        const x = await q.order("updated_at", { ascending: false });
+        if (x.error) throw x.error; return x;
+      }).catch(async (e) => {
+        if (!isMissingColumn(e)) throw e;   // an even older schema (pre lifecycle columns): select *
+        const x = await supa.from("quotes").select("*").order("updated_at", { ascending: false }); if (x.error) throw x.error; return x;
+      });
+      return (r.data || []).map(mapQuoteSummary);
+    },
+    // one page of a list view: { rows, hasMore, offset }
+    //   o.view    QUOTE_VIEWS (default "all")       o.search  code / title / client name
+    //   o.eventType  exact, case-insensitive          o.sort  "updated" (default) | "confirmedFirst"
+    //   o.offset / o.limit
+    async page(o) {
+      o = o || {}; const today = localISODate();
+      const build = (cols, shelf) => {
+        let q = supa.from("quotes").select(cols);
+        q = sbQuoteView(q, o.view, today, shelf);
+        if (o.eventType) q = q.ilike("event_type", likeEscape(o.eventType));
+        const s = orIlike(["code", "title", "client->>name"], o.search); if (s) q = q.or(s);
+        // confirmed first: status sorts cancelled < confirmed < quote, so ascending puts
+        // confirmed above quote in the active views and descending puts closed-confirmed
+        // above cancelled in the archive (status is CHECK-limited to those three).
+        if (o.sort === "confirmedFirst") q = q.order("status", { ascending: o.view !== "archived" });
+        return q.order("updated_at", { ascending: false }).order("id", { ascending: false });
+      };
+      const r = await withShelf((shelf) => sbPage(build(QUOTE_PAGE_COLS + (shelf ? QUOTE_SHELF_COLS : ""), shelf), o));
+      return { rows: r.rows.map(mapQuoteSummary), hasMore: r.hasMore, offset: r.offset };
+    },
+    // KPI counters without downloading rows (quotes moved to Archive / Deleted excluded):
+    // { total, quote, confirmed, cancelled }
+    async counts() {
+      return withShelf(async (shelf) => {
+        const c = () => { const q = supa.from("quotes").select("id", { count: "exact", head: true }); return shelf ? q.is("archived_at", null).is("deleted_at", null) : q; };
+        const [total, confirmed, cancelled] = await Promise.all([sbCount(c()), sbCount(c().eq("status", "confirmed")), sbCount(c().eq("status", "cancelled"))]);
+        return { total, confirmed, cancelled, quote: Math.max(0, total - confirmed - cancelled) };
+      });
+    },
+    // codes issued for one MMDDYYYY stamp (→ nextCode) — a few short strings, not the table
+    async codesFor(stamp) {
+      const { data, error } = await supa.from("quotes").select("code").like("code", stamp + "-%").limit(1000);
+      if (error) throw error; return data || [];
+    },
+    // distinct event types for the type filter (one short column, capped)
+    async eventTypes() {
+      const { data, error } = await supa.from("quotes").select("event_type").not("event_type", "is", null).limit(5000);
+      if (error) throw error; return [...new Set((data || []).map((x) => x.event_type).filter(Boolean))];
     },
     async get(id) {
       // a truncated/garbled id from a link would reach Postgres as a 22P02 error — answer "not found" instead
@@ -1552,7 +1706,23 @@
       lifecycleStage: q.lifecycleStage || "quote",
       currentVersion: q.currentVersion, client: q.client || {}, pricing: q.pricing || {}, total: (q.pricing && q.pricing.total) || 0,
       eventDate: q.eventDate || null, eventTime: q.eventTime || null,
-      updatedAt: q.updatedAt, createdAt: q.createdAt, confirmedAt: q.confirmedAt })); },
+      updatedAt: q.updatedAt, createdAt: q.createdAt, confirmedAt: q.confirmedAt,
+      archivedAt: q.archivedAt || null, deletedAt: q.deletedAt || null })); },
+    // local mirror of sbq.page / counts / codesFor / eventTypes (same filters, same order)
+    async page(o) {
+      o = o || {}; const today = localISODate(), et = String(o.eventType || "").toLowerCase();
+      const rank = (x) => (x.status === "cancelled" ? 0 : x.status === "confirmed" ? 1 : 2);
+      const arch = o.view === "archived";
+      const rows = (await this.list()).filter((x) => quoteInView(x, o.view, today) && (!et || String(x.eventType || "").toLowerCase() === et) &&
+        textHit(o.search, [x.code, x.title, x.client && x.client.name]))
+        .sort((a, b) => (o.sort === "confirmedFirst" ? (arch ? rank(b) - rank(a) : rank(a) - rank(b)) : 0) ||
+          String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")) || String(b.id).localeCompare(String(a.id)));
+      return arrPage(rows, o);
+    },
+    async counts() { const a = this.read().filter((q) => !q.deletedAt && !q.archivedAt); const n = (s) => a.filter((q) => q.status === s).length;
+      const confirmed = n("confirmed"), cancelled = n("cancelled"); return { total: a.length, confirmed, cancelled, quote: Math.max(0, a.length - confirmed - cancelled) }; },
+    async codesFor(stamp) { return this.read().filter((q) => String(q.code || "").indexOf(stamp + "-") === 0).map((q) => ({ code: q.code })); },
+    async eventTypes() { return [...new Set(this.read().map((q) => q.eventType).filter(Boolean))]; },
     async get(id) { const q = this.read().find((x) => x.id === id); if (!q) throw new Error("not found");
       return { ...q, lifecycleStage: q.lifecycleStage || "quote", versions: (q.versions || []).map((v) => ({ id: v.id, versionNo: v.versionNo, label: v.label, objectCount: v.objectCount, createdAt: v.createdAt })).sort((a, b) => b.versionNo - a.versionNo) }; },
     async setStage(id, stage) { const a = this.read(); const q = a.find((x) => x.id === id); if (q) { q.lifecycleStage = stage; q.updatedAt = now(); this.write(a); } return { stage }; },
@@ -1582,6 +1752,27 @@
   const qt = () => (mode === "supabase" ? sbq : lsq);
   const quotes = {
     list: () => qt().list(),
+    // paged list view + counters (perf): see sbq.page / sbq.counts
+    PAGE_SIZE,
+    VIEWS: QUOTE_VIEWS.slice(),
+    isArchived: quoteIsArchived,
+    page: (o) => qt().page(o),
+    counts: () => qt().counts(),
+    eventTypes: () => qt().eventTypes(),
+    // the next MMDDYYYY-NN guess for a date, from just that day's codes (not every quote)
+    async nextCodeFor(date) {
+      const d = date || new Date();
+      const stamp = String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0") + d.getFullYear();
+      return quotes.nextCode(await qt().codesFor(stamp), d);
+    },
+    // a few quotes by id, light columns (lookups for a page of something else)
+    async byIds(ids) {
+      const a = [...new Set((ids || []).filter((x) => typeof x === "string" && x))]; if (!a.length) return [];
+      if (mode !== "supabase") { const set = new Set(a); return (await lsq.list()).filter((q) => set.has(q.id)); }
+      let r = await supa.from("quotes").select(QUOTE_LIST_COLS).in("id", a);
+      if (r.error && isMissingColumn(r.error)) r = await supa.from("quotes").select("*").in("id", a);
+      if (r.error) throw r.error; return (r.data || []).map(mapQuoteSummary);
+    },
     get: (id) => qt().get(id),
     getVersion: (id, no) => qt().getVersion(id, no),
     versions: (id) => qt().versions(id),
@@ -1862,6 +2053,21 @@
     async listAll(includeInactive) { if (!supa) throw new Error("Supabase not configured");
       let q = supa.from("vendors").select("*").order("name"); if (!includeInactive) q = q.eq("active", true);
       const { data, error } = await q; if (error) throw error; return data; },
+    // one page of the directory, by name (perf). o.includeInactive, o.kind, o.ids (only
+    // these partners — "this event only"), o.search (name / category / email / phone, or
+    // an exact service). Needs Supabase, like listAll().
+    async page(o) { o = o || {}; if (!supa) throw new Error("Supabase not configured");
+      let q = supa.from("vendors").select("*");
+      if (!o.includeInactive) q = q.eq("active", true);
+      if (o.kind) q = q.eq("kind", o.kind);
+      if (o.ids) q = q.in("id", o.ids.length ? o.ids : ["00000000-0000-0000-0000-000000000000"]);
+      const s = orIlike(["name", "category", "email", "phone"], o.search);
+      if (s) q = q.or(s + ",services.cs." + pgQuote(JSON.stringify([String(o.search).trim()])));   // services is a jsonb array
+      return sbPage(q.order("name").order("id"), o); },
+    // does the studio have any partner at all (first-run empty state) — HEAD count
+    async count(includeInactive) { if (!supa) throw new Error("Supabase not configured");
+      let q = supa.from("vendors").select("id", { count: "exact", head: true }); if (!includeInactive) q = q.eq("active", true);
+      return sbCount(q); },
     async addFull(v) { const { data, error } = await supa.from("vendors").insert(v).select().single(); if (error) throw error; return data; },
     async update(id, patch) { const { error } = await supa.from("vendors").update(patch).eq("id", id); if (error) throw error; return true; },
   };
@@ -1947,6 +2153,26 @@
       } catch (e) {}
       l.status = "quoted"; l.quote_id = q.id; l.updated_at = now(); writeLeadsLs(a); pushArchiveLs("converted", l); return q;
     },
+    // One page of the board (perf): o.status = one stage column, o.search = name / phone /
+    // email / event type / source, o.count → also the column total (same request).
+    // Newest-updated first, like list(). → { rows, hasMore, offset, total? }
+    async page(o) {
+      o = o || {};
+      if (mode === "supabase") {
+        let q = supa.from("leads").select("*", o.count ? { count: "exact" } : undefined);
+        if (o.status) q = q.eq("status", o.status);
+        const s = orIlike(["name", "phone", "email", "event_type", "source"], o.search); if (s) q = q.or(s);
+        return sbPage(q.order("updated_at", { ascending: false }).order("id", { ascending: false }), o);
+      }
+      const rows = readLeadsLs().filter((l) => (!o.status || l.status === o.status) && textHit(o.search, [l.name, l.phone, l.email, l.event_type, l.source]))
+        .sort((a, b) => String(b.updated_at || "").localeCompare(String(a.updated_at || "")) || String(b.id).localeCompare(String(a.id)));
+      return arrPage(rows, o);
+    },
+    // Contact fields of every lead (duplicate check on "add lead") — four short columns, not the rows.
+    async contacts() {
+      if (mode === "supabase") { const { data, error } = await supa.from("leads").select("id,name,phone,email"); if (error) throw error; return data || []; }
+      return readLeadsLs().map((l) => ({ id: l.id, name: l.name, phone: l.phone, email: l.email }));
+    },
     // Read the immutable CRM archive (all snapshots, or just one lead's history).
     async archive(leadId) {
       if (mode === "supabase") {
@@ -1956,6 +2182,50 @@
       }
       let a = []; try { a = JSON.parse(localStorage.getItem(ARCH_LS) || "[]"); } catch {}
       return leadId ? a.filter((x) => x.lead_id === leadId) : a;
+    },
+    // One page of the CRM archive, newest first, WITHOUT the full `snapshot` JSON (perf).
+    //   o.stage / o.source (case-insensitive) / o.search (name, phone, type, source, action)
+    //   o.latest → only rows that are their lead's NEWEST snapshot (one light lookup per
+    //   page), so "latest per lead" filters exactly like before. A page may then hold
+    //   fewer rows than the limit; hasMore / offset still describe the raw archive.
+    async archivePage(o) {
+      o = o || {};
+      const COLS = "id,lead_id,action,name,phone,email,source,event_type,event_date,budget,guest_count,status,quote_id,archived_at";
+      if (mode === "supabase") {
+        let q = supa.from("lead_archive").select(COLS);
+        if (o.stage) q = q.eq("status", o.stage);
+        if (o.source) q = q.ilike("source", likeEscape(String(o.source).trim()));
+        const s = orIlike(["name", "phone", "event_type", "source", "action"], o.search); if (s) q = q.or(s);
+        const r = await sbPage(q.order("archived_at", { ascending: false }).order("id", { ascending: false }), o);
+        if (o.latest) {
+          const ids = [...new Set(r.rows.map((x) => x.lead_id).filter(Boolean))];
+          if (ids.length) {
+            const { data, error } = await supa.from("lead_archive").select("id,lead_id,archived_at").in("lead_id", ids)
+              .order("archived_at", { ascending: false }).order("id", { ascending: false });
+            if (error) throw error;
+            const newest = {}; (data || []).forEach((x) => { if (!newest[x.lead_id]) newest[x.lead_id] = x.id; });
+            r.rows = r.rows.filter((x) => !x.lead_id || newest[x.lead_id] === x.id);
+          }
+        }
+        return r;
+      }
+      let a = []; try { a = JSON.parse(localStorage.getItem(ARCH_LS) || "[]"); } catch {}
+      a = a.slice().sort((x, y) => String(y.archived_at || "").localeCompare(String(x.archived_at || "")) || String(y.id).localeCompare(String(x.id)));
+      const newest = {}; a.forEach((x) => { if (x.lead_id && !newest[x.lead_id]) newest[x.lead_id] = x.id; });
+      const src = String(o.source || "").trim().toLowerCase();
+      const rows = a.filter((r) => (!o.stage || r.status === o.stage) && (!src || String(r.source || "").trim().toLowerCase() === src) &&
+        textHit(o.search, [r.name, r.phone, r.event_type, r.source, r.action]));
+      const pg = arrPage(rows, o);
+      if (o.latest) pg.rows = pg.rows.filter((x) => !x.lead_id || newest[x.lead_id] === x.id);
+      pg.rows = pg.rows.map((x) => { const c = Object.assign({}, x); delete c.snapshot; return c; });
+      return pg;
+    },
+    // values for the CRM filter dropdowns (two short columns, capped)
+    async archiveFacets() {
+      let rows;
+      if (mode === "supabase") { const { data, error } = await supa.from("lead_archive").select("source,status").limit(5000); if (error) throw error; rows = data || []; }
+      else { try { rows = JSON.parse(localStorage.getItem(ARCH_LS) || "[]"); } catch { rows = []; } }
+      return { sources: rows.map((r) => r.source), stages: rows.map((r) => r.status) };
     },
     // Realtime: call cb on any leads change. Returns a channel with .unsubscribe().
     subscribe(cb, onStatus) {
@@ -1977,6 +2247,19 @@
         if (error) throw error; return data;
       }
       return readLs(NURTURE_LS);
+    },
+    // one page, soonest follow-up first (no date last) → { rows, hasMore, offset }
+    async page(o) {
+      o = o || {};
+      if (mode === "supabase") return sbPage(supa.from("nurture").select("*").order("next_followup", { nullsFirst: false }).order("id"), o);
+      const rows = readLs(NURTURE_LS).slice().sort((a, b) => (a.next_followup ? 0 : 1) - (b.next_followup ? 0 : 1) ||
+        String(a.next_followup || "").localeCompare(String(b.next_followup || "")) || String(a.id).localeCompare(String(b.id)));
+      return arrPage(rows, o);
+    },
+    // "N follow-ups due" without loading the list: active + next_followup on/before `today`
+    async dueCount(today) {
+      if (mode === "supabase") return sbCount(supa.from("nurture").select("id", { count: "exact", head: true }).eq("status", "active").lte("next_followup", today));
+      return readLs(NURTURE_LS).filter((n) => n.status === "active" && n.next_followup && n.next_followup <= today).length;
     },
     async add(n) {
       if (mode === "supabase") { const { data, error } = await supa.from("nurture").insert(n).select().single(); if (error) throw error; return data; }
@@ -2202,6 +2485,37 @@
         const { data, error } = await q; if (error) throw error; return data;
       }
       const a = readLs(STAFF_LS); return includeInactive ? a : a.filter((s) => s.active !== false);
+    },
+    // one page of the directory, by name (perf). o.includeInactive, o.dept, o.skill,
+    // o.ids (only these people — "this event only"), o.search (name / role / department /
+    // email / phone, or an exact skill), o.count → also the filtered total.
+    async page(o) {
+      o = o || {};
+      if (mode === "supabase") {
+        let q = supa.from("crew_members").select("*", o.count ? { count: "exact" } : undefined);
+        if (!o.includeInactive) q = q.eq("active", true);
+        if (o.dept) q = q.eq("department", o.dept);
+        if (o.skill) q = q.filter("skills", "cs", JSON.stringify([o.skill]));   // skills is a jsonb array
+        if (o.ids) q = q.in("id", o.ids.length ? o.ids : ["00000000-0000-0000-0000-000000000000"]);
+        let s = orIlike(["name", "role", "department", "email", "phone"], o.search);
+        if (s) { s += ",skills.cs." + pgQuote(JSON.stringify([String(o.search).trim()])); q = q.or(s); }   // + an exact skill
+        return sbPage(q.order("name").order("id"), o);
+      }
+      const ids = o.ids ? new Set(o.ids) : null;
+      const rows = readLs(STAFF_LS).filter((p) => (o.includeInactive || p.active !== false) && (!o.dept || p.department === o.dept) &&
+        (!o.skill || (Array.isArray(p.skills) && p.skills.includes(o.skill))) && (!ids || ids.has(p.id)) &&
+        textHit(o.search, [p.name, p.role, p.department, (p.skills || []).join(" "), p.email, p.phone]))
+        .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")) || String(a.id).localeCompare(String(b.id)));
+      return arrPage(rows, o);
+    },
+    // departments + skills for the filters (two short columns) and the headcount
+    async facets(includeInactive) {
+      let rows;
+      if (mode === "supabase") { let q = supa.from("crew_members").select("department,skills"); if (!includeInactive) q = q.eq("active", true);
+        const { data, error } = await q.limit(5000); if (error) throw error; rows = data || []; }
+      else rows = readLs(STAFF_LS).filter((p) => includeInactive || p.active !== false);
+      return { total: rows.length, depts: [...new Set(rows.map((r) => r.department).filter(Boolean))].sort(),
+        skills: [...new Set(rows.flatMap((r) => (Array.isArray(r.skills) ? r.skills : [])))].sort() };
     },
     async add(s) {
       if (mode === "supabase") {
@@ -2570,7 +2884,29 @@
     autoExpire: {
       get: () => rpc("admin_get_link_autoexpire", {}),
       set: (enabled, days) => rpc("admin_set_link_autoexpire", { p_enabled: !!enabled, p_days: days }),
+      // what happens to a never-approved quote once its client link expired (0040):
+      // "keep" | "archive" | "delete" (soft — Deleted quotes tab, restorable). Admin only.
+      onExpiry: {
+        get: () => rpc("admin_get_link_expiry_shelf", {}),
+        set: (action) => rpc("admin_set_link_expiry_shelf", { p_action: action }),
+      },
     },
+  };
+
+  /* ---------------- quote Archive / Deleted shelves (0040) ----------------
+     Soft flags on the quote row (archived_at / deleted_at) — nothing is ever removed;
+     Restore puts it back. The server checks has_area quotes (view to list, edit to
+     move/restore; moving to Deleted also needs the delete right + no money/consent). */
+  const quoteShelf = {
+    // { rows: [{ id, code, title, event_type, status, approval_status, client_name, total, updated_at,
+    //    shelf: "archived"|"deleted", shelved_at, reason: "manual"|"link_expired", link_expired_at }],
+    //   archived_count, deleted_count }   (Archive count includes cancelled / closed events)
+    list: () => rpc("list_quote_shelf", {}).then((r) => r || { rows: [], archived_count: 0, deleted_count: 0 }),
+    move: (quoteId, shelf) => rpc("move_quote_to_shelf", { p_quote_id: quoteId, p_shelf: shelf }),
+    restore: (quoteId) => rpc("restore_quote_from_shelf", { p_quote_id: quoteId }),
+    // opening Quotes / Dashboard: moves quotes whose client link expired, per the studio's
+    // Control Center choice — the server runs it at most once per 10 minutes per studio
+    tick: () => rpc("link_expiry_shelf_tick", {}),
   };
 
   /* ---------------- invitations: join an existing studio (Phase 83) ---------------- */
@@ -2968,20 +3304,50 @@
       const out = {}; (data || []).forEach((m) => { out[m.conversation_id] = m; }); return out;
     },
     // Everything needed to render one conversation: messages (oldest→newest) + reactions + members.
-    async thread(convId, limit) {
+    // Perf (Oct 2026): the LATEST `limit` messages (default 50) — a long thread no longer
+    // ships hundreds of messages (and it used to get the OLDEST 500, so the newest went missing).
+    //   opts.before = a message → the `limit` messages just older than it (scroll-up history)
+    //   opts.since  = timestamp → every message from then on (re-sync what's already on screen)
+    //   opts.light  → skip reactions (conversation-list previews don't show them)
+    // returns { messages, reactions, members, hasMore }  hasMore = older messages exist
+    // (undefined for `since`; members are not re-read for `before`).
+    async thread(convId, limit, opts) {
+      opts = opts || {};
+      const n = Math.max(1, Math.min(500, parseInt(limit, 10) || 50));
+      const byTime = (a, b) => String(a.created_at).localeCompare(String(b.created_at)) || String(a.id).localeCompare(String(b.id));
       if (mode !== "supabase") {
-        const msgs = chatReadLs(CHAT_LS_M).filter((x) => x.conversation_id === convId).sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+        let all = chatReadLs(CHAT_LS_M).filter((x) => x.conversation_id === convId).sort(byTime);
+        let msgs, hasMore;
+        if (opts.since) { msgs = all.filter((m) => String(m.created_at) >= String(opts.since)); hasMore = undefined; }
+        else {
+          if (opts.before) all = all.filter((m) => byTime(m, opts.before) < 0);
+          msgs = all.slice(Math.max(0, all.length - n)); hasMore = all.length > n;
+        }
         const ids = msgs.map((m) => m.id);
-        const reactions = chatReadLs(CHAT_LS_R).filter((r) => ids.indexOf(r.message_id) !== -1);
+        const reactions = opts.light ? [] : chatReadLs(CHAT_LS_R).filter((r) => ids.indexOf(r.message_id) !== -1);
         const conv = chatReadLs(CHAT_LS_C).find((c) => c.id === convId) || {};
-        return { messages: msgs, reactions, members: conv.members || [] };
+        return { messages: msgs, reactions, members: opts.before ? [] : (conv.members || []), hasMore };
       }
-      const { data: msgs, error: e1 } = await supa.from("chat_messages").select("*").eq("conversation_id", convId).order("created_at", { ascending: true }).limit(limit || 500);
-      if (e1) throw e1;
-      const ids = (msgs || []).map((m) => m.id);
-      let reactions = []; if (ids.length) { const { data: rr } = await supa.from("chat_reactions").select("*").in("message_id", ids); reactions = rr || []; }
-      const { data: members } = await supa.from("chat_members").select("*").eq("conversation_id", convId);
-      return { messages: msgs || [], reactions, members: members || [] };
+      let q = supa.from("chat_messages").select("*").eq("conversation_id", convId);
+      let msgs = [], hasMore;
+      if (opts.since) {
+        const { data, error } = await q.gte("created_at", opts.since).order("created_at", { ascending: true }).order("id", { ascending: true }).limit(1000);
+        if (error) throw error; msgs = data || [];
+      } else {
+        if (opts.before && opts.before.created_at) {
+          const t = pgQuote(opts.before.created_at);
+          q = q.or("created_at.lt." + t + (opts.before.id ? ",and(created_at.eq." + t + ",id.lt." + pgQuote(opts.before.id) + ")" : ""));
+        }
+        const { data, error } = await q.order("created_at", { ascending: false }).order("id", { ascending: false }).limit(n + 1);
+        if (error) throw error;
+        const d = data || []; hasMore = d.length > n; msgs = d.slice(0, n).reverse();
+      }
+      const ids = msgs.map((m) => m.id);
+      const [rr, mm] = await Promise.all([
+        (!opts.light && ids.length) ? supa.from("chat_reactions").select("*").in("message_id", ids) : Promise.resolve({ data: [] }),
+        opts.before ? Promise.resolve({ data: [] }) : supa.from("chat_members").select("*").eq("conversation_id", convId),
+      ]);
+      return { messages: msgs, reactions: (rr && rr.data) || [], members: (mm && mm.data) || [], hasMore };
     },
     async startDm(otherId) {
       if (mode !== "supabase") {
@@ -3327,6 +3693,12 @@
     async listAll() {
       if (mode === "supabase") { const { data, error } = await supa.from("event_resources").select("*"); if (error) throw error; return data; }
       return readLs(BOOK_LS);
+    },
+    // event history for a page of partners: just vendor / event / status of their bookings
+    async forVendors(vendorIds) {
+      const ids = [...new Set((vendorIds || []).filter(Boolean))]; if (!ids.length) return [];
+      if (mode === "supabase") { const { data, error } = await supa.from("event_resources").select("vendor_id,quote_id,status").in("vendor_id", ids); if (error) throw error; return data || []; }
+      return readLs(BOOK_LS).filter((b) => ids.indexOf(b.vendor_id) !== -1);
     },
     async add(quoteId, b) {
       let row;
@@ -4511,13 +4883,33 @@
       if (opts.quoteId) q = q.eq("quote_id", opts.quoteId);
       if (opts.actor) q = q.eq("actor", opts.actor);
       const { data, error } = await q; if (error) throw error; return data; },
+    // One page of the log, newest first. Keyset paging (at, id) — a busy log never shifts
+    // rows between pages. o.after = the last row shown; o.search matches who / action /
+    // area / the identifying fields of the change (code, title, name, status).
+    // → { rows, hasMore, offset: <last row, pass back as o.after> }
+    async page(opts) { const o = opts || {}; if (!supa) throw new Error("Supabase not configured");
+      const limit = pageLimit(o.limit);
+      let q = supa.from("audit_log").select("*");
+      if (o.entity) q = q.eq("entity", o.entity);
+      if (o.quoteId) q = q.eq("quote_id", o.quoteId);
+      if (o.actor) q = q.eq("actor", o.actor);
+      const s = orIlike(["actor_email", "action", "entity", "changed->>code", "changed->>title", "changed->>name", "changed->>status"], o.search); if (s) q = q.or(s);
+      if (o.after && o.after.at) { const t = pgQuote(o.after.at); q = q.or("at.lt." + t + (o.after.id ? ",and(at.eq." + t + ",id.lt." + pgQuote(o.after.id) + ")" : "")); }
+      const { data, error } = await q.order("at", { ascending: false }).order("id", { ascending: false }).limit(limit + 1);
+      if (error) throw error;
+      const d = data || [], rows = d.slice(0, limit);
+      return { rows, hasMore: d.length > limit, offset: rows.length ? rows[rows.length - 1] : (o.after || null) }; },
+    // Areas for the filter: every audited table, plus any other area seen in the recent
+    // log (was: the WHOLE log's entity column, every row, on every visit).
+    AREAS: ["app_config", "chair_types", "change_requests", "coupons", "crew_members", "event_costs", "expense_claims", "inventory_checkouts",
+      "inventory_items", "payment_milestones", "plate_types", "profiles", "quote_payments", "quotes", "role_access", "vendors"],
     async entities() { if (!supa) throw new Error("Supabase not configured");
-      const { data, error } = await supa.from("audit_log").select("entity").order("entity"); if (error) throw error;
-      return [...new Set((data || []).map((x) => x.entity))]; },
+      const { data, error } = await supa.from("audit_log").select("entity").order("at", { ascending: false }).limit(1000); if (error) throw error;
+      return [...new Set(this.AREAS.concat((data || []).map((x) => x.entity).filter(Boolean)))].sort(); },
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat, profile,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat, profile, quoteShelf,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.
@@ -4681,6 +5073,11 @@
     ".bpui-loaderr{border:1px solid var(--bpui-line);border-radius:12px;padding:16px;margin:8px 0;background:var(--bpui-bg);color:var(--bpui-ink);text-align:center;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}",
     ".bpui-loaderr strong{display:block;margin-bottom:4px;color:var(--bpui-ink)}",
     ".bpui-loaderr p{margin:0 0 10px;color:var(--bpui-ink-2)}",
+    /* paged lists: loading row / Load more / end of list (BPUI.pager) */
+    ".bpui-pager{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px 4px;color:var(--bpui-ink-2);font:13px/1.4 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-align:center}",
+    ".bpui-pager[hidden]{display:none}",
+    ".bpui-pager .bpui-pager-end{font-size:12px;opacity:.8}",
+    ".bpui-pager .bpui-pager-err{color:var(--bpui-ink)}",
     "[aria-busy=true].bpui-busy{cursor:progress}",
     "@media (prefers-reduced-motion:no-preference){",
     ".bpui-overlay{animation:bpuiFade .14s ease-out}.bpui-dialog{animation:bpuiPop .16s ease-out}",
@@ -5320,6 +5717,108 @@
     });
   }
 
+  /* --------------------------------------------------------------- pager */
+  // pager({ after, fetch, render, what, endText, key }) — "Load more" + infinite scroll
+  // for a server-paged list.
+  //   fetch(offset)  → Promise<{ rows, hasMore, offset }>  (offset = where the next page starts)
+  //   render(rows, { reset, all })  paints: reset → replace the list, else append `rows`
+  //   after          element the footer (loading row / Load more / end of list) goes after
+  // An IntersectionObserver on the footer loads the next page when it scrolls into view.
+  // reset() starts over (new filter / search) and resolves after the first page (rejects
+  // on error so the page can show its own loadError); a response from before the latest
+  // reset is dropped, so fast typing can never paint stale results. Rows already shown
+  // (same `key`, default "id") are skipped — offset paging can repeat a row when new
+  // ones are inserted above it.
+  function pager(o) {
+    injectCSS();
+    var key = o.key === undefined ? "id" : o.key;
+    var st = { gen: 0, offset: 0, hasMore: false, loading: false, err: null, rows: [], seen: {}, auto: 0 };
+    var foot = h("div", { class: "bpui-pager", "data-bpui-pager": "", hidden: true });
+    if (o.after && o.after.parentNode) o.after.parentNode.insertBefore(foot, o.after.nextSibling);
+    var io = null;
+    function paint() {
+      while (foot.firstChild) foot.removeChild(foot.firstChild);
+      if (st.loading) {
+        var l = h("span", { class: "bpui-loading", role: "status" });
+        l.appendChild(h("i", { class: "bpui-spin2", "aria-hidden": "true" }));
+        l.appendChild(doc.createTextNode(st.rows.length ? "Loading more…" : "Loading…"));
+        foot.appendChild(l); foot.hidden = false; return;
+      }
+      if (st.err) {
+        var e = h("div", { class: "bpui-pager-err", role: "alert" }, "Couldn’t load more " + (o.what || "") + " — " + friendlyError(st.err));
+        var rb = h("button", { type: "button", class: "bpui-btn" }, "Retry");
+        rb.addEventListener("click", function () { more(); });
+        foot.appendChild(e); foot.appendChild(rb); foot.hidden = false; return;
+      }
+      if (st.hasMore) {
+        var b = h("button", { type: "button", class: "bpui-btn", "data-bpui-more": "" }, "Load more");
+        b.addEventListener("click", function () { st.auto = 0; more(); });
+        foot.appendChild(b); foot.hidden = false; return;
+      }
+      if (st.rows.length && o.endText !== false) {
+        foot.appendChild(h("span", { class: "bpui-pager-end" }, typeof o.endText === "function" ? o.endText(st.rows.length) : "End of list · " + st.rows.length + " shown"));
+        foot.hidden = false; return;
+      }
+      foot.hidden = true;
+    }
+    function visible() {
+      try { if (!foot.isConnected || foot.hidden || foot.offsetParent === null) return false;
+        var r = foot.getBoundingClientRect(); return r.top < (global.innerHeight || 800) + 300 && r.bottom > -300; } catch (e) { return false; }
+    }
+    // a short page can leave the footer on screen (the observer won't fire again):
+    // keep going, but at most 10 automatic pages in a row without a scroll / click
+    function check() { if (st.hasMore && !st.loading && !st.err && st.auto < 10 && visible()) { st.auto++; more(); } }
+    function load(reset) {
+      if (st.loading && !reset) return Promise.resolve();
+      if (reset) { st.gen++; st.offset = 0; st.hasMore = false; st.rows = []; st.seen = {}; st.auto = 0; }
+      var gen = st.gen, from = st.offset;
+      st.loading = true; st.err = null; paint();
+      return Promise.resolve().then(function () { return o.fetch(from); }).then(function (r) {
+        if (gen !== st.gen) return;
+        r = r || {};
+        var rows = (r.rows || []).filter(function (x) {
+          if (!key || !x || x[key] == null) return true;
+          if (st.seen[x[key]]) return false; st.seen[x[key]] = 1; return true;
+        });
+        st.rows = st.rows.concat(rows);
+        st.offset = r.offset != null ? r.offset : from + (r.rows || []).length;
+        st.hasMore = !!r.hasMore; st.loading = false;
+        try { o.render(rows, { reset: !!reset, all: st.rows }); } finally { paint(); }
+        setTimeout(check, 0);
+      }, function (e) {
+        if (gen !== st.gen) return;
+        st.loading = false;
+        if (reset) { paint(); foot.hidden = true; throw e; }
+        st.err = e; paint();
+      });
+    }
+    function more() { return load(false); }
+    if (typeof global.IntersectionObserver === "function") {
+      try {
+        io = new global.IntersectionObserver(function (ents) {
+          ents.forEach(function (en) { if (en.isIntersecting && st.hasMore && !st.loading && !st.err) { st.auto = 0; more(); } });
+        }, { rootMargin: "300px 0px" });
+        io.observe(foot);
+      } catch (e) { io = null; }
+    }
+    return {
+      el: foot,
+      reset: function () { return load(true); },
+      more: more,
+      rows: function () { return st.rows.slice(); },
+      hasMore: function () { return st.hasMore; },
+      loading: function () { return st.loading; },
+      // keep the shown list in step with a local delete (no refetch)
+      remove: function (id) { st.rows = st.rows.filter(function (x) { return !x || x[key] !== id; }); if (st.offset > 0) st.offset--; paint(); },
+      destroy: function () { st.gen++; if (io) try { io.disconnect(); } catch (e) {} if (foot.parentNode) foot.parentNode.removeChild(foot); },
+    };
+  }
+  // debounce(fn, ms) — the search box waits for a pause in typing before querying
+  function debounce(fn, ms) {
+    var t = null;
+    return function () { var a = arguments, self = this; clearTimeout(t); t = setTimeout(function () { fn.apply(self, a); }, ms == null ? 300 : ms); };
+  }
+
   /* --------------------------------------------------------------- wire */
   global.addEventListener("keydown", onKeydown, true);
   doc.addEventListener("focusin", onFocusin, true);
@@ -5338,6 +5837,7 @@
     friendlyError: friendlyError,
     loadError: loadError,
     boot: boot,
+    pager: pager, debounce: debounce,
     trackDirty: trackDirty, confirmDiscard: confirmDiscard,
     hasUnsavedChanges: anyDirty,
     allowUnload: function () { unloadBypass = true; },

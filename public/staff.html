@@ -139,8 +139,8 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=106"></script>
-<script src="tour.js?v=6"></script>
+<script src="store-api.js?v=107"></script>
+<script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -175,25 +175,30 @@
     </div>`;
   }
 
+  // Perf (Oct 2026): the directory is server-paged by name (filters + search on the server,
+  // Load more / infinite scroll); facets + headcount come from two short columns.
+  // team = people loaded so far for the current filters; teamTotal / shownTotal = counts.
+  let pager=null, facets={total:0,depts:[],skills:[]}, shownTotal=0;
   function applyFacets(){
-    const depts=[...new Set(team.map(s=>s.department).filter(Boolean))].sort();
-    const skills=[...new Set(team.flatMap(s=>Array.isArray(s.skills)?s.skills:[]))].sort();
+    const depts=facets.depts, skills=facets.skills;
     $("#deptFilter").innerHTML='<option value="">All departments</option>'+depts.map(d=>`<option ${d===deptF?"selected":""}>${esc(d)}</option>`).join("");
     $("#skillFilter").innerHTML='<option value="">All skills</option>'+skills.map(k=>`<option ${k===skillF?"selected":""}>${esc(k)}</option>`).join("");
     $("#deptList").innerHTML=depts.map(d=>`<option value="${esc(d)}">`).join("");
   }
+  // first page for the current filters / search / event scope
+  function reloadList(){
+    if(!pager) pager=BPUI.pager({ after: $("#grid"), what:"staff",
+      fetch:(offset)=>BPStore.staff.page({ offset, count:offset===0, includeInactive:showInactive, dept:deptF, skill:skillF,
+        ids:(quoteId&&eventOnly)?[...eventCrew]:null, search:filter.trim() }).then(r=>{ if(r.total!=null) shownTotal=r.total; return r; }),
+      render:(rows,info)=>{ team=info.all; render(); } });
+    return pager.reset();
+  }
+  const reloadQuiet=()=>reloadList().catch(e=>{ $("#count").textContent=""; BPUI.loadError($("#grid"),e,reloadQuiet,{what:"staff"}); const c=$("#grid .bpui-loaderr"); if(c) c.style.gridColumn="1/-1"; });
   function render(){
-    const q=filter.trim().toLowerCase();
-    const shown=team.filter(s=>{
-      if(quoteId && eventOnly && !eventCrew.has(s.id)) return false;
-      if(deptF && s.department!==deptF) return false;
-      if(skillF && !(Array.isArray(s.skills)&&s.skills.includes(skillF))) return false;
-      if(q){ const hay=[s.name,s.role,s.department,(s.skills||[]).join(" "),s.email,s.phone].join(" ").toLowerCase(); if(!hay.includes(q)) return false; }
-      return true;
-    });
-    $("#count").textContent=shown.length+" of "+team.length;
+    const shown=team;   // filtered on the server
+    $("#count").textContent=shownTotal+" of "+facets.total;
     if(shown.length) $("#grid").innerHTML=shown.map(personCard).join("");
-    else if(!team.length){
+    else if(!facets.total){
       $("#grid").innerHTML=`<div class="empty">${showInactive?"No staff records yet.":"No team members yet."}${canEdit?` Add your first team member to start matching people to event needs.<br><button type="button" class="btn primary" id="emptyAdd">＋ Add your first team member</button>`:""}</div>`;
       const b=$("#emptyAdd"); if(b) b.addEventListener("click",()=>openForm(null));
     } else $("#grid").innerHTML='<div class="empty">No staff match these filters. Try clearing the search or filters.</div>';
@@ -262,19 +267,21 @@
   $("#sm_cancel").addEventListener("click",requestCloseForm);
   $("#sm_save").addEventListener("click",saveStaff);
   $("#staffModal").addEventListener("click",e=>{ if(e.target.id==="staffModal") requestCloseForm(); });
-  $("#search").addEventListener("input",e=>{ filter=e.target.value; render(); });
-  $("#deptFilter").addEventListener("change",e=>{ deptF=e.target.value; render(); });
-  $("#skillFilter").addEventListener("change",e=>{ skillF=e.target.value; render(); });
+  $("#search").addEventListener("input",BPUI.debounce(e=>{ filter=$("#search").value; reloadQuiet(); },300));   // server search after a pause in typing
+  $("#deptFilter").addEventListener("change",e=>{ deptF=e.target.value; reloadQuiet(); });
+  $("#skillFilter").addEventListener("change",e=>{ skillF=e.target.value; reloadQuiet(); });
   $("#showInactive").addEventListener("change",e=>{ showInactive=e.target.checked; load(); });
 
   async function load(){
-    try{ team=await BPStore.staff.list(showInactive); }
-    catch(e){ $("#count").textContent=""; BPUI.loadError($("#grid"),e,load,{what:"staff"}); const c=$("#grid .bpui-loaderr"); if(c) c.style.gridColumn="1/-1"; return; }
     if(quoteId){
-      try{ const fe=await BPStore.staff.forEvent(quoteId); eventCrew=new Set(fe.map(x=>x.crew_id)); }catch{}
-      try{ const q=await BPStore.quotes.get(quoteId); eventCode=q.code||""; }catch{}
+      const [fe,q]=await Promise.allSettled([BPStore.staff.forEvent(quoteId), BPStore.quotes.get(quoteId)]);
+      if(fe.status==="fulfilled") eventCrew=new Set(fe.value.map(x=>x.crew_id));
+      if(q.status==="fulfilled") eventCode=q.value.code||"";
       renderEventBar();
     }
+    const [lr,fr]=await Promise.allSettled([reloadList(), BPStore.staff.facets(showInactive)]);
+    if(fr.status==="fulfilled") facets=fr.value;
+    if(lr.status==="rejected"){ const e=lr.reason; $("#count").textContent=""; BPUI.loadError($("#grid"),e,load,{what:"staff"}); const c=$("#grid .bpui-loaderr"); if(c) c.style.gridColumn="1/-1"; return; }
     applyFacets(); render();
   }
   function renderEventBar(){
@@ -287,8 +294,8 @@
       <span class="spacer" style="flex:1"></span>
       <button class="btn sm" id="evOnlyBtn">${eventOnly?"Showing this event":"This event only"}</button>
       <button class="btn sm" id="allStaffBtn">${eventOnly?"Show all staff":"Showing all staff"}</button>`;
-    $("#evOnlyBtn").onclick=()=>{ eventOnly=true; renderEventBar(); render(); };
-    $("#allStaffBtn").onclick=()=>{ eventOnly=false; renderEventBar(); render(); };
+    $("#evOnlyBtn").onclick=()=>{ eventOnly=true; renderEventBar(); reloadQuiet(); };
+    $("#allStaffBtn").onclick=()=>{ eventOnly=false; renderEventBar(); reloadQuiet(); };
     $("#evOnlyBtn").classList.toggle("primary",eventOnly); $("#allStaffBtn").classList.toggle("primary",!eventOnly);
   }
   BPUI.boot(async ()=>{

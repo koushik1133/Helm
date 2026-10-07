@@ -83,8 +83,25 @@
   .chip .pen.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
   .chip.locked{opacity:.6;cursor:not-allowed}
   .mnote{font-size:12px;color:var(--ink-3);margin:0 0 6px}
-  .lxtoggle{display:inline-flex;align-items:center;gap:9px;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;min-height:32px}
-  .lxtoggle input{width:18px;height:18px;padding:0;margin:0;accent-color:var(--accent);cursor:pointer}
+  .lxswitchrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .lxtoggle{display:inline-flex;align-items:center;gap:10px;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;min-height:32px}
+  /* an on/off switch (still a real checkbox: keyboard + screen readers get role=switch) */
+  .lxtoggle input{appearance:none;-webkit-appearance:none;position:relative;flex:none;width:42px;height:24px;padding:0;margin:0;border-radius:999px;
+    background:var(--line);border:1px solid var(--line);cursor:pointer;transition:background .15s}
+  .lxtoggle input::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+  .lxtoggle input:checked{background:#2eb872;border-color:#2eb872}
+  .lxtoggle input:checked::after{transform:translateX(18px)}
+  .lxtoggle input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .lxstate{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:3px 10px;border-radius:20px;background:#f1f3f7;color:#5b5670}
+  .lxstate.on{background:#e7f6ee;color:#0f7a43}
+  .lxstate small{font-weight:600;text-transform:none;letter-spacing:0;margin-left:4px}
+  .lxmove{border:1px solid var(--line);border-radius:10px;padding:10px 14px 8px;margin:14px 0 0;min-width:0}
+  .lxmove legend{font-size:13px;font-weight:600;color:var(--ink);padding:0 4px}
+  .lxmove label{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--ink);padding:5px 0;cursor:pointer}
+  .lxmove label span{color:var(--ink-3);font-size:12px}
+  .lxmove input{width:17px;height:17px;margin:0;accent-color:var(--accent)}
+  .lxmove:disabled{opacity:.55} .lxmove:disabled label{cursor:not-allowed}
+  @media (prefers-reduced-motion:reduce){.lxtoggle input,.lxtoggle input::after{transition:none}}
   .lxwhich{margin-top:8px;font-size:13px;color:var(--ink-2)} .lxwhich summary{cursor:pointer;font-weight:600;color:var(--ink)}
   .lxwhich ul{margin:8px 0 0;padding-left:20px;line-height:1.55} #lx_days:disabled{opacity:.55}
   @media (prefers-reduced-motion:reduce){.chip{transition:none}}
@@ -205,7 +222,10 @@
       <p class="mnote">Optional. When on, every link you send outside the studio stops working a set number of calendar days (weekends count) after it was sent. It never makes a link last longer: if the usual limit after the event comes first, that one still applies.</p>
       <div id="lxMsg" role="status" aria-live="polite"></div>
       <div id="lxErr"></div>
-      <label class="lxtoggle" for="lx_on"><input type="checkbox" id="lx_on"> <span>Auto-expire client links</span></label>
+      <div class="lxswitchrow">
+        <label class="lxtoggle" for="lx_on"><input type="checkbox" role="switch" id="lx_on" aria-describedby="lx_state"> <span>Auto-expire client links</span></label>
+        <span class="lxstate" id="lx_state" aria-live="polite">Disabled</span>
+      </div>
       <div class="grid" style="margin-top:12px">
         <div class="fld"><label for="lx_days">Days after the link is sent (1–365)</label><input id="lx_days" type="number" min="1" max="365" step="1" inputmode="numeric" value="10" aria-describedby="lx_example"></div>
       </div>
@@ -220,6 +240,14 @@
           <li><b>Invitation websites</b> (and their photos) — counted from when the site was published. Invitations usually go out weeks before the event, so a short limit will switch them off before the day.</li>
         </ul>
       </details>
+      <fieldset class="lxmove" id="lx_moveSet" hidden>
+        <legend>When a quote's client link expires (and it was never approved, confirmed or paid)</legend>
+        <label for="lx_move_keep"><input type="radio" name="lx_move" id="lx_move_keep" value="keep" checked> Keep it in Quotes <span>(default)</span></label>
+        <label for="lx_move_archive"><input type="radio" name="lx_move" id="lx_move_archive" value="archive"> Move to Archive</label>
+        <label for="lx_move_delete"><input type="radio" name="lx_move" id="lx_move_delete" value="delete"> Move to Deleted quotes <span>(nothing is erased — restore it any time)</span></label>
+        <p class="mnote" id="lx_moveNote" aria-live="polite" style="margin:6px 0 2px">Only quotes the studio never confirmed, that the client never approved or paid, with no payment or approval on record. Confirmed and paid events never move. A quote you restore stays put for the same number of days.</p>
+        <p class="mnote" id="lx_moveWait" aria-live="polite" style="margin:2px 0 2px"></p>
+      </fieldset>
       <p class="mnote" style="margin-top:10px">Links you already sent count from when they were sent, so any older than the limit stop working as soon as you save. Switching this off, or raising the number, makes them work again. To give someone a fresh link, send it again (Send approval link, publish the proposal again, or assign the crew member a task). Anyone opening an expired link sees the usual “this link has expired — please contact the studio for a new one” page.</p>
       <div class="actions"><button type="button" class="btn primary" id="lx_save">Save link expiry</button></div>
     </div>
@@ -470,8 +498,8 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=106"></script>
-<script src="tour.js?v=6"></script>
+<script src="store-api.js?v=107"></script>
+<script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -785,10 +813,27 @@
   const lxPlural=(n)=>n+" day"+(n===1?"":"s");
   function lxFmt(d){ const o={day:"numeric",month:"short",year:"numeric"};
     try{ return d.toLocaleDateString("en-GB",Object.assign({timeZone:lxTz},o)); }catch(e){ return d.toLocaleDateString("en-GB",o); } }
+  // 0040: what happens to a never-approved quote once its link expired — keep | archive | delete
+  // (soft). Shown only when the server has 0040 (BPStore.links.autoExpire.onExpiry answers).
+  const LX_MOVES=["keep","archive","delete"], LX_MOVE_LBL={archive:"Archive",delete:"Deleted quotes"};
+  let lxSavedOn=false, lxMoveReady=false, lxSavedMove="keep", lxWaiting=null;
+  function lxMove(){ return LX_MOVES.find(v=>$("#lx_move_"+v).checked) || "keep"; }
+  function setLxMove(v){ LX_MOVES.forEach(k=>{ $("#lx_move_"+k).checked = k===(LX_MOVES.includes(v)?v:"keep"); }); }
   function paintLx(){
-    const on=$("#lx_on").checked, n=lxDays(), ex=$("#lx_example");
+    const on=$("#lx_on").checked, n=lxDays(), ex=$("#lx_example"), st=$("#lx_state");
+    // explicit Enabled / Disabled state next to the switch (+ a hint while it isn't saved yet)
+    st.className="lxstate"+(on?" on":"");
+    st.innerHTML=(on?"Enabled":"Disabled")+(lxLoaded&&on!==lxSavedOn?' <small>— not saved yet</small>':"");
+    $("#lx_on").setAttribute("aria-checked", on?"true":"false");
     $("#lx_days").disabled=!on;
     $("#lx_days").setAttribute("aria-invalid", on && n==null ? "true" : "false");
+    $("#lx_moveSet").hidden=!lxMoveReady;
+    $("#lx_moveSet").disabled=!on;
+    const mv=lxMove(), w=$("#lx_moveWait");
+    w.textContent = !on ? "Turn auto-expire on to use this — while it's off, no quote is moved."
+      : mv==="keep" ? ""
+      : (lxWaiting!=null&&mv!==lxSavedMove ? `${lxWaiting} quote${lxWaiting===1?"":"s"} would move right now. ` : "")+
+        `Quotes move to ${LX_MOVE_LBL[mv]} the next time someone opens Quotes or the Dashboard (checked at most every 10 minutes).`;
     if(!on){ ex.textContent="Off — links follow only the usual limits after the event."; return; }
     if(n==null){ ex.textContent=`Enter a whole number of days from ${LX_MIN} to ${LX_MAX}.`; return; }
     ex.textContent=`A link sent today would stop working on ${lxFmt(new Date(Date.now()+n*LX_DAY_MS))}.`;
@@ -802,20 +847,38 @@
       BPUI.loadError($("#lxErr"), e, initLinkExpiry, {what:"link expiry"}); return;
     }
     s=s||{}; if(s.timezone) lxTz=s.timezone;
-    $("#lx_on").checked=!!s.enabled; $("#lx_days").value=numAttr(s.days,10);
-    paintLx(); lxLoaded=true; $("#lx_save").disabled=false;
+    $("#lx_on").checked=!!s.enabled; $("#lx_days").value=numAttr(s.days,10); lxSavedOn=!!s.enabled;
+    // the "when the link expires" choice (0040) — missing on an older database: hide just that part
+    lxMoveReady=false; lxSavedMove="keep"; lxWaiting=null;
+    const oe=BPStore.links.autoExpire.onExpiry;
+    if(oe){ try{ const m=(await oe.get())||{}; lxSavedMove=LX_MOVES.includes(m.action)?m.action:"keep";
+                 lxWaiting=Number.isFinite(Number(m.waiting))?Number(m.waiting):null; lxMoveReady=true; }
+            catch(e){ if(!(BPUI.isMissingFunction && BPUI.isMissingFunction(e))){ BPUI.loadError($("#lxErr"), e, initLinkExpiry, {what:"link expiry"}); return; } } }
+    setLxMove(lxSavedMove);
+    lxLoaded=true; paintLx(); $("#lx_save").disabled=false;
   }
   $("#lx_on").addEventListener("change",paintLx);
   $("#lx_days").addEventListener("input",paintLx);
+  LX_MOVES.forEach(v=>$("#lx_move_"+v).addEventListener("change",paintLx));
   $("#lx_save").addEventListener("click",()=>BPUI.guard($("#lx_save"),async()=>{
     if(!lxLoaded){ lxMsg("err","Link expiry didn't load, so it can't be saved yet."); return; }
-    const on=$("#lx_on").checked, n=lxDays();
+    const on=$("#lx_on").checked, n=lxDays(), mv=lxMoveReady?lxMove():lxSavedMove;
     if(on && n==null){ lxMsg("err",`Enter a whole number of days from ${LX_MIN} to ${LX_MAX}.`); $("#lx_days").focus(); return; }
-    if(on && !(await BPUI.confirm(`Every client, crew and guest link will stop working ${lxPlural(n)} after it was sent — including links already sent more than ${lxPlural(n)} ago, from the moment you save.`,{title:"Auto-expire client links?",okLabel:"Turn on"}))) return;
+    const moving = on && mv!=="keep" && mv!==lxSavedMove;
+    if(on && !(await BPUI.confirm(`Every client, crew and guest link will stop working ${lxPlural(n)} after it was sent — including links already sent more than ${lxPlural(n)} ago, from the moment you save.`+
+        (moving?` Quotes whose link has expired and that were never confirmed, approved or paid will move to ${LX_MOVE_LBL[mv]}${lxWaiting!=null?` (${lxWaiting} right now)`:""} — you can restore them from the Quotes page.`:""),
+        {title:"Auto-expire client links?",okLabel:"Turn on"}))) return;
     try{
       const r=(await BPStore.links.autoExpire.set(on, n)) || {};
-      $("#lx_on").checked=!!r.enabled; $("#lx_days").value=numAttr(r.days, n||10); paintLx();
-      lxMsg("ok", r.enabled ? `Saved — links now stop working ${lxPlural(Number(r.days))} after they're sent.` : "Saved — auto-expire is off.");
+      $("#lx_on").checked=!!r.enabled; $("#lx_days").value=numAttr(r.days, n||10); lxSavedOn=!!r.enabled;
+      if(lxMoveReady && mv!==lxSavedMove){
+        const m=(await BPStore.links.autoExpire.onExpiry.set(mv)) || {};
+        lxSavedMove=LX_MOVES.includes(m.action)?m.action:mv; setLxMove(lxSavedMove);
+        if(Number.isFinite(Number(m.waiting))) lxWaiting=Number(m.waiting);
+      }
+      paintLx();
+      const tail = lxMoveReady && r.enabled && lxSavedMove!=="keep" ? ` Expired, never-approved quotes go to ${LX_MOVE_LBL[lxSavedMove]}.` : "";
+      lxMsg("ok", (r.enabled ? `Saved — links now stop working ${lxPlural(Number(r.days))} after they're sent.` : "Saved — auto-expire is off.")+tail);
       setTimeout(()=>lxMsg("",""),3000);
     }catch(e){ lxMsg("err",errMsg(e,"save link expiry")); }
   }));

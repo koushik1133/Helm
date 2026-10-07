@@ -317,8 +317,8 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=106"></script>
-<script src="tour.js?v=6"></script>
+<script src="store-api.js?v=107"></script>
+<script src="tour.js?v=7"></script>
 <script>
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return "—"; } };
@@ -336,7 +336,10 @@
   function eg() { const d = new Date(); const mm = String(d.getMonth() + 1).padStart(2, "0"), dd = String(d.getDate()).padStart(2, "0");
     return mm + dd + d.getFullYear(); }
 
-  let summaries = [];
+  let summaries = [];          // the quotes loaded so far (pages of "Your quotes")
+  let counts = null;           // { total, quote, confirmed, cancelled } from count queries
+  let nextCode = "";           // next MMDDYYYY-NN guess (server assigns the real code)
+  let pager = null;            // BPUI.pager for "Your quotes"
 
   /* ---- auth UI ---- */
   function openLogin(){ $("#loginModal").hidden = false; setTimeout(()=>$("#li_email").focus(), 50); }
@@ -399,16 +402,27 @@
 
     // Supabase enforces login and nobody's signed in → go to the full sign-in page
     if (mustLogin) { location.replace("/login?next=dashboard"); return; }
+    // 0040: client link expired → Archive / Deleted, per the studio's Control Center choice.
+    // The server runs it at most once per 10 minutes per studio; never awaited, never blocks.
+    if (BPStore.mode() === "supabase" && BPStore.quoteShelf) BPStore.quoteShelf.tick().catch(() => {});
     // "Signed in but no studio" (→ onboarding, or /hq for a platform operator) is
     // decided by the store-api page gate BEFORE this page is shown (owner bug: the
     // dashboard used to paint first, then bounce to onboarding — a Back-button loop).
     // These four are independent of one another — fire them together and keep each
     // one's original error handling (bell was best-effort, quotes shows retry UI).
-    const [, createRes, deleteRes, listRes] = await Promise.allSettled([
+    // Perf (Oct 2026): "Your quotes" loads the latest page only (light columns, no
+    // pricing JSON) with Load more / infinite scroll; the role-board KPIs come from
+    // HEAD count queries and the next-code hint from just today's codes.
+    if (!pager) pager = BPUI.pager({ after: $("#elist"), what: "quotes",
+      fetch: (offset) => BPStore.quotes.page({ offset, sort: "updated" }),
+      render: (rows, info) => { summaries = info.all; renderList(); } });
+    const [, createRes, deleteRes, listRes, countRes, codeRes] = await Promise.allSettled([
       BPStore.bell.mount($("#bell")),                       // was try/catch {} → swallow
       BPStore.auth.can("create"),
       BPStore.auth.can("delete"),
-      BPStore.quotes.list()
+      pager.reset(),
+      BPStore.quotes.counts(),
+      BPStore.quotes.nextCodeFor()
     ]);
     if (createRes.status === "rejected") throw createRes.reason;  // preserve original propagation
     if (deleteRes.status === "rejected") throw deleteRes.reason;
@@ -421,9 +435,10 @@
       if (box) box.style.gridColumn = "1/-1";
       return;
     }
-    summaries = listRes.value;
-    $("#nextName").textContent = BPStore.quotes.nextCode(summaries);
-    renderList();
+    counts = countRes.status === "fulfilled" ? countRes.value : null;
+    nextCode = codeRes.status === "fulfilled" ? codeRes.value : BPStore.quotes.nextCode(summaries);
+    $("#nextName").textContent = nextCode;
+    renderList();   // canDelete is known now (the first page may have painted before it was)
     renderRoleBoard();                                     // Build 2 — role-specific workspace board (best-effort)
     renderPending();                                        // Phase 3 — personal feed (best-effort)
     renderMyTasks();                                        // Build 3 — bucketed personal tasks (best-effort)
@@ -434,7 +449,7 @@
   function renderList() {
     const host = $("#elist");
     if (!summaries.length) { host.innerHTML = '<div class="empty">No quotes yet' + (canCreate ? ' — hit <b>Generate a quote</b> to create your first.' : '.') + '</div>'; return; }
-    const sorted = [...summaries].sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+    const sorted = summaries;   // pages arrive newest-first (updated_at desc) from the server
     // Each card's code is a real link (keyboard + screen readers); the rest of the
     // card is a mouse convenience that follows the same link.
     host.innerHTML = sorted.map((s) =>
@@ -451,8 +466,11 @@
       if (!(await BPUI.confirm(`Delete quote ${(q && q.code) || ""} and all its versions? This can't be undone.`, { title: "Delete quote?", danger: true }))) return;
       try { await BPUI.guard(b, () => BPStore.quotes.remove(b.dataset.id)); }
       catch (err) { BPUI.toast(BPUI.friendlyError(err, { action: "delete the quote" }), { type: "err" }); return; }
+      if (pager) pager.remove(b.dataset.id);
       summaries = summaries.filter((s) => String(s.id) !== b.dataset.id); renderList();
-      $("#nextName").textContent = BPStore.quotes.nextCode(summaries);
+      if (counts && q) { counts.total = Math.max(0, counts.total - 1); const k = counts[q.status] != null && q.status !== "total" ? q.status : "quote"; counts[k] = Math.max(0, counts[k] - 1); }
+      try { nextCode = await BPStore.quotes.nextCodeFor(); } catch (e2) {}
+      $("#nextName").textContent = nextCode;
       BPUI.toast("Quote deleted.", { type: "ok" });
     }));
   }
@@ -522,9 +540,10 @@
     const sec = $("#roleboard"), host = $("#rbcards"); if (!sec || !host) return;
     let role = null; try { role = await BPStore.auth.role(); } catch(e){}
     if (!role) { sec.hidden = true; return; }
-    // quote status rollup from summaries the page already loaded
-    const st = { quote:0, confirmed:0, cancelled:0 };
-    (summaries||[]).forEach(s => { const k = (s.status||"quote"); if (st[k]!=null) st[k]++; else st.quote++; });
+    // quote status rollup from server-side COUNT queries (not the loaded page);
+    // a failed count shows "—", never a misleading 0
+    const st = counts ? { quote: counts.quote, confirmed: counts.confirmed, cancelled: counts.cancelled, total: counts.total }
+                      : { quote: "—", confirmed: "—", cancelled: "—", total: "—" };
     // best-effort async signals
     // A failed feed must never read as "0": real failures show a load error with
     // Retry; a feed this role can't use shows "—".
@@ -556,7 +575,7 @@
         card(up,"Upcoming events",""), card(tc.overdue||0,"Tasks overdue",(tc.overdue>0?"alert":"")) ] },
       sales:       { sub:"Your pipeline", cards:[
         card(st.quote,"Open quotes","link","quotes.html"), card(st.confirmed,"Won / confirmed","good"),
-        card((summaries||[]).length,"Total quotes",""), card("→","New lead","link","leads.html") ] },
+        card(st.total,"Total quotes",""), card("→","New lead","link","leads.html") ] },
       coordinator: { sub:"Today's delivery", cards:[
         card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue>0?"alert":"")),
         card(tc.blocked||0,"Blocked",(tc.blocked>0?"warn":"")), card(up,"Upcoming events","") ] },
@@ -579,7 +598,7 @@
         card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue>0?"alert":"")),
         card(tc.completed||0,"Done","good") ] },
       client:      { sub:"Your events", cards:[
-        card((summaries||[]).length,"Your events",""), card(st.confirmed,"Confirmed","good"),
+        card(st.total,"Your events",""), card(st.confirmed,"Confirmed","good"),
         card(up,"Coming up","") ] },
     };
     const conf = CFG[role]; if (!conf || !conf.cards.length) { sec.hidden = true; return; }
@@ -620,7 +639,7 @@
     const btn = $("#createBtn");
     try {
       await BPUI.guard(btn, async () => {
-        const code = BPStore.quotes.nextCode(summaries);
+        const code = nextCode || BPStore.quotes.nextCode(summaries);   // a guess — the server assigns the real code (M-04)
         const q = await BPStore.quotes.create(code, code, null, { items: [] }, 0);
         // M-04: the client code is only a guess; the server assigns the authoritative code.
         // Seed the title from the REAL code so the event/project name doesn't show a stale

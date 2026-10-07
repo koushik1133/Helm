@@ -140,8 +140,8 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=106"></script>
-<script src="tour.js?v=6"></script>
+<script src="store-api.js?v=107"></script>
+<script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -190,16 +190,28 @@
       ${canEdit?`<div class="acts"><button class="ic" data-edit="${v.id}">Edit</button></div>`:""}
     </div>`;
   }
+  // Perf (Oct 2026): the directory is server-paged by name (type tab, search and "this event
+  // only" run on the server) with Load more / infinite scroll; each page brings the event
+  // history of just its partners. list = partners loaded so far for the current filters.
+  let pager=null, anyPartners=true;
+  async function fetchPage(offset){
+    const r=await BPStore.vendors.page({ offset, includeInactive:showInactive, kind:kindF, ids:(quoteId&&eventOnly)?[...eventVendors]:null, search:filter.trim() });
+    // vendor→event history for this page: its bookings + a light lookup of those events
+    try{ const bk=await BPStore.bookings.forVendors(r.rows.map(v=>v.id)); ALLBOOK=ALLBOOK.concat(bk);
+      const need=[...new Set(bk.map(b=>b.quote_id).filter(id=>id&&!QMAP[id]))];
+      if(need.length){ const qs=await BPStore.quotes.byIds(need); qs.forEach(q=>{ QMAP[q.id]=q; }); } }catch(_){}
+    return r;
+  }
+  function reloadList(){
+    if(!pager) pager=BPUI.pager({ after: $("#grid"), what:"partners", fetch:fetchPage, render:(rows,info)=>{ list=info.all; render(); } });
+    ALLBOOK=[];
+    return pager.reset();
+  }
+  const reloadQuiet=()=>reloadList().catch(e=>{ BPUI.loadError($("#grid"),e,reloadQuiet,{what:"partners"}); const c=$("#grid .bpui-loaderr"); if(c) c.style.gridColumn="1/-1"; });
   function render(){
-    const q=filter.trim().toLowerCase();
-    const shown=list.filter(v=>{
-      if(quoteId && eventOnly && !eventVendors.has(v.id)) return false;
-      if(kindF && (v.kind||'vendor')!==kindF) return false;
-      if(q){ const hay=[v.name,v.category,(v.services||[]).join(" "),v.email,v.phone].join(" ").toLowerCase(); if(!hay.includes(q)) return false; }
-      return true;
-    });
+    const shown=list;   // filtered on the server
     if(shown.length) $("#grid").innerHTML=shown.map(card).join("");
-    else if(!list.length){
+    else if(!anyPartners){
       $("#grid").innerHTML=`<div class="empty">No partners yet.${canEdit?` Add your first vendor, freelancer or rental partner.<br><button type="button" class="btn primary" id="emptyAdd">＋ Add your first partner</button>`:""}</div>`;
       const b=$("#emptyAdd"); if(b) b.addEventListener("click",()=>openForm(null));
     } else $("#grid").innerHTML='<div class="empty">No partners match this filter. Try another type or clear the search.</div>';
@@ -256,21 +268,21 @@
       catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"reactivate the partner"}),{type:"err"}); } }); });
   $("#showInactive").addEventListener("change",e=>{ showInactive=e.target.checked; load(); });
   $("#vModal").addEventListener("click",e=>{ if(e.target.id==="vModal") requestCloseForm(); });
-  $("#search").addEventListener("input",e=>{ filter=e.target.value; render(); });
+  $("#search").addEventListener("input",BPUI.debounce(e=>{ filter=$("#search").value; reloadQuiet(); },300));   // server search after a pause in typing
   $("#kindTabs").addEventListener("click",e=>{ const b=e.target.closest("button[data-k]"); if(!b) return;
-    kindF=b.dataset.k; $("#kindTabs").querySelectorAll("button").forEach(x=>{ x.classList.toggle("on",x===b); x.setAttribute("aria-pressed",String(x===b)); }); render(); });
+    kindF=b.dataset.k; $("#kindTabs").querySelectorAll("button").forEach(x=>{ x.classList.toggle("on",x===b); x.setAttribute("aria-pressed",String(x===b)); }); reloadQuiet(); });
 
   async function load(){
-    try{ list=await BPStore.vendors.listAll(showInactive); }
-    catch(e){ BPUI.loadError($("#grid"),e,load,{what:"partners"}); const c=$("#grid .bpui-loaderr"); if(c) c.style.gridColumn="1/-1"; return; }
-    // vendor→event history (all bookings + a quote lookup, fetched once)
-    try{ ALLBOOK=await BPStore.bookings.listAll(); }catch{ ALLBOOK=[]; }
-    try{ const qs=await BPStore.quotes.list(); QMAP=Object.fromEntries((qs||[]).map(q=>[q.id,q])); }catch{ QMAP={}; }
     if(quoteId){
-      try{ const b=await BPStore.bookings.list(quoteId); eventBookings=b.length; eventVendors=new Set(b.map(x=>x.vendor_id).filter(Boolean)); }catch{}
-      try{ const q=await BPStore.quotes.get(quoteId); eventCode=q.code||""; }catch{}
+      const [b,q]=await Promise.allSettled([BPStore.bookings.list(quoteId), BPStore.quotes.get(quoteId)]);
+      if(b.status==="fulfilled"){ eventBookings=b.value.length; eventVendors=new Set(b.value.map(x=>x.vendor_id).filter(Boolean)); }
+      if(q.status==="fulfilled") eventCode=q.value.code||"";
       renderEventBar();
     }
+    QMAP={};
+    const [lr,cr]=await Promise.allSettled([reloadList(), BPStore.vendors.count(showInactive)]);
+    if(lr.status==="rejected"){ const e=lr.reason; BPUI.loadError($("#grid"),e,load,{what:"partners"}); const c=$("#grid .bpui-loaderr"); if(c) c.style.gridColumn="1/-1"; return; }
+    anyPartners = cr.status==="fulfilled" ? cr.value>0 : true;
     render();
   }
   function renderEventBar(){
@@ -283,8 +295,8 @@
       <span class="spacer" style="flex:1"></span>
       <button class="btn sm ${eventOnly?"primary":""}" id="evOnlyBtn">This event only</button>
       <button class="btn sm ${eventOnly?"":"primary"}" id="allBtn">Show all vendors</button>`;
-    $("#evOnlyBtn").onclick=()=>{ eventOnly=true; renderEventBar(); render(); };
-    $("#allBtn").onclick=()=>{ eventOnly=false; renderEventBar(); render(); };
+    $("#evOnlyBtn").onclick=()=>{ eventOnly=true; renderEventBar(); reloadQuiet(); };
+    $("#allBtn").onclick=()=>{ eventOnly=false; renderEventBar(); reloadQuiet(); };
   }
   BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
