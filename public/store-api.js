@@ -727,7 +727,7 @@
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "7";
+  const AUTH_UI_VERSION = "10";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -5577,6 +5577,14 @@
     // Inherently personal + org-scoped server-side (my_tasks is SECURITY DEFINER, crew_id = caller).
     // Operator-only read RPCs (0029). The database refuses every non-operator (42501).
     hq: (fn, args) => (/^hq_[a-z_]+$/.test(fn) ? rpc(fn, args || {}) : Promise.reject(new Error("bad call"))),
+    // 0045 — this studio's Helm subscription (read-only). Every member gets {status, read_only};
+    // studio admins also get plan, period and payments. invoice(): admins, own studio only.
+    subscription: {
+      mine: () => (supa ? rpc("my_subscription").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      invoice: (id) => rpc("my_invoice", { p_payment_id: id }),
+      account: () => (supa ? rpc("my_studio_account").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      updateAccount: (patch) => rpc("my_studio_account_update", { p_account: patch || {} }),
+    },
     myTasks: () => (supa ? rpc("my_tasks") : Promise.resolve({ today: [], overdue: [], blocked: [], upcoming: [], completed: [], counts: {} })),
     // Build 1 — Designer 2D->3D design-approval state machine.
     design: {

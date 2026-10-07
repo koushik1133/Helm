@@ -226,6 +226,15 @@
 
     <!-- ============ PRICING PANE ============ -->
     <div id="pane-pricing">
+    <div class="card" id="accCard" hidden>
+      <h3>Studio account</h3>
+      <p class="mnote">Used on your Helm invoices (GST place of supply) and for Helm to reach you. Contact phone numbers are visible only to studio admins and Helm.</p>
+      <div id="accBody"></div>
+    </div>
+    <div class="card" id="subCard" hidden>
+      <h3>Subscription</h3>
+      <div id="subBody"></div>
+    </div>
     <div class="card">
       <h3>Organization / studio</h3>
       <div id="orgMsg" role="status" aria-live="polite"></div>
@@ -567,7 +576,8 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=109"></script>
+<script src="store-api.js?v=112"></script>
+<script src="hq-invoice.js?v=1"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);

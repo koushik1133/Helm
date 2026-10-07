@@ -26,7 +26,7 @@ begin perform pg_temp.su(); insert into _pa values (p_name, case when p_ok then 
 create or replace function pg_temp.leaks() returns text language plpgsql as $$
 declare out text := ''; sql text;
 begin
-  foreach sql in array array['select public.hq_overview()', 'select count(*) from public.hq_studios(null,25,0)',
+  foreach sql in array array['select public.hq_overview()', 'select count(*) from public.hq_studios(null,null,25,0)',
       'select public.hq_studio_detail(''a0000000-0000-4000-8000-000000000001'')', 'select count(*) from public.hq_users(null,25,0)',
       'select public.hq_payments(null,null)'] loop
     begin execute sql; out := out || sql || ' ; ';
@@ -113,7 +113,7 @@ end $$;
 do $$ begin perform pg_temp.su();
   perform pg_temp.res('grants: anon cannot execute any hq_* RPC or is_platform_admin',
     not has_function_privilege('anon','public.hq_overview()','EXECUTE')
-    and not has_function_privilege('anon','public.hq_studios(text,int,int)','EXECUTE')
+    and not has_function_privilege('anon','public.hq_studios(text,text,int,int)','EXECUTE')
     and not has_function_privilege('anon','public.hq_studio_detail(uuid)','EXECUTE')
     and not has_function_privilege('anon','public.hq_users(text,int,int)','EXECUTE')
     and not has_function_privilege('anon','public.hq_payments(date,date)','EXECUTE')
@@ -129,51 +129,40 @@ do $$ begin perform pg_temp.su();
     (select array_agg(email order by email) from public.platform_admins) = array['admin@helm.events','security@helm.events'], 'seed differs');
 end $$;
 
--- ---- 3) the operator gets correct numbers ---------------------------------------------------
-do $$ declare r jsonb; e_orgs bigint; e_users bigint; e_rev numeric; e_paid numeric; e_out numeric; e_q bigint; begin
+-- ---- 3) the operator gets correct numbers (0045: no studio business data) --------------------
+do $$ declare r jsonb; e_orgs bigint; e_users bigint; begin
   perform pg_temp.su();
   select count(*) into e_orgs from public.organizations; select count(*) into e_users from auth.users;
-  select count(*) into e_q from public.quotes;
-  select coalesce(sum(public._hq_num(pricing->>'total')),0) into e_rev from public.quotes where status='confirmed';
-  select coalesce(sum(amount),0) into e_paid from public.quote_payments where status='paid' and not simulated;
   perform pg_temp.login('admin@helm.events');
   begin r := public.hq_overview(); exception when others then perform pg_temp.res('operator: hq_overview returns data', false, sqlerrm); return; end;
-  perform pg_temp.res('operator: hq_overview returns data', r ? 'studios' and r ? 'money' and r ? 'signups_30d', r::text);
-  perform pg_temp.res('overview: studio + user + event totals match the database',
-    (r#>>'{studios,total}')::bigint = e_orgs and (r#>>'{users,total}')::bigint = e_users and (r#>>'{events,total}')::bigint = e_q,
-    (r->>'studios') || (r->>'users') || (r->>'events'));
-  perform pg_temp.res('overview: revenue booked = confirmed totals (incl. Studio A 236000)',
-    (r#>>'{money,revenue_booked}')::numeric = e_rev and e_rev >= 236000, (r#>>'{money,revenue_booked}')||' vs '||e_rev);
-  perform pg_temp.res('overview: received excludes simulated payments',
-    (r#>>'{money,received_all}')::numeric = e_paid and (r#>>'{money,received_30d}')::numeric = e_paid, (r->>'money'));
-  select coalesce(sum(greatest(public._hq_num(q.pricing->>'total') - coalesce((select sum(amount) from public.quote_payments p
-           where p.quote_id=q.id and p.status='paid' and not p.simulated),0),0)),0) into e_out from public.quotes q where q.status='confirmed';
-  perform pg_temp.res('overview: outstanding balance (A = 236000 - 1000)',
-    (r#>>'{money,outstanding}')::numeric = e_out, (r#>>'{money,outstanding}')||' vs '||e_out);
-  perform pg_temp.res('overview: milestones overdue 5000 / due-in-14d 7000 (paid one ignored)',
-    (r#>>'{money,overdue_amount}')::numeric = 5000 and (r#>>'{money,overdue_count}')::int = 1
-    and (r#>>'{money,due_14d_amount}')::numeric = 7000 and (r#>>'{money,due_14d_count}')::int = 1, r->>'money');
+  perform pg_temp.res('operator: hq_overview returns data', r ? 'studios' and r ? 'billing' and r ? 'signups_30d', r::text);
+  perform pg_temp.res('overview: studio + user totals match the database',
+    (r#>>'{studios,total}')::bigint = e_orgs and (r#>>'{users,total}')::bigint = e_users, (r->>'studios') || (r->>'users'));
+  perform pg_temp.res('overview: no events section (0045)', not r ? 'events', r::text);
+  perform pg_temp.res('overview: no studio money section (0045)', not r ? 'money', r::text);
+  perform pg_temp.res('overview: no top-studios / churn by revenue (0045)', not r ? 'top_studios' and not r ? 'churn_risk', r::text);
+  perform pg_temp.res('overview: no storage / chat numbers (0045)', not r ? 'storage' and not r ? 'chat_messages_7d', r::text);
+  perform pg_temp.res('overview: billing section has MRR + past-due count', r#>'{billing}' ? 'mrr' and r#>'{billing}' ? 'past_due_count', r::text);
   perform pg_temp.res('overview: signups series has 30 days, active users counted',
     jsonb_array_length(r->'signups_30d') = 30 and (r#>>'{users,active_7d}')::int >= 2, (r->'users')::text);
-  perform pg_temp.res('overview: MFA adoption + storage sections present', r ? 'mfa' and r ? 'storage', r::text);
+  perform pg_temp.res('overview: MFA adoption section present', r ? 'mfa', r::text);
 end $$;
 do $$ declare rec record; n int; begin
   perform pg_temp.login('admin@helm.events');
-  select * into rec from public.hq_studios('Studio A', 25, 0) limit 1;
-  select count(*) into n from public.hq_studios('Studio A', 25, 0);
-  perform pg_temp.res('hq_studios: search finds Studio A with revenue 236000 / paid 1000 / owner admin',
-    n = 1 and rec.name = 'Studio A' and rec.revenue = 236000 and rec.paid = 1000 and rec.users_count >= 2
-    and rec.events_count >= 1 and rec.confirmed_count = 1 and rec.owner_email = 'a_admin@a.test' and rec.total_count = 1,
-    coalesce(row_to_json(rec)::text, 'none'));
+  select * into rec from public.hq_studios('Studio A', null, 25, 0) limit 1;
+  select count(*) into n from public.hq_studios('Studio A', null, 25, 0);
+  perform pg_temp.res('hq_studios: search finds Studio A with users + owner (no revenue columns)',
+    n = 1 and rec.name = 'Studio A' and rec.users_count >= 2 and rec.owner_email = 'a_admin@a.test' and rec.total_count = 1
+    and not (to_jsonb(rec) ? 'revenue') and not (to_jsonb(rec) ? 'events_count'), coalesce(row_to_json(rec)::text, 'none'));
   perform pg_temp.login('admin@helm.events');
-  select count(*) into n from public.hq_studios(null, 1, 0);
+  select count(*) into n from public.hq_studios(null, null, 1, 0);
   perform pg_temp.res('hq_studios: paging limit honoured', n = 1, n::text);
 end $$;
 do $$ declare r jsonb; begin
   perform pg_temp.login('admin@helm.events');
   r := public.hq_studio_detail('b0000000-0000-4000-8000-000000000001');
-  perform pg_temp.res('hq_studio_detail: Studio B members + no revenue (simulated only)',
-    r->>'name' = 'Studio B' and jsonb_array_length(r->'members') >= 2 and (r->>'paid')::numeric = 0 and (r->>'revenue')::numeric = 0, r::text);
+  perform pg_temp.res('hq_studio_detail: Studio B members, no events / milestones',
+    r->>'name' = 'Studio B' and jsonb_array_length(r->'members') >= 2 and not r ? 'recent_events' and not r ? 'open_milestones', r::text);
 end $$;
 do $$ declare rec record; cols text; begin
   perform pg_temp.login('admin@helm.events');
@@ -188,11 +177,9 @@ end $$;
 do $$ declare r jsonb; begin
   perform pg_temp.login('admin@helm.events');
   r := public.hq_payments(current_date - 7, current_date);
-  perform pg_temp.res('hq_payments: recent payments incl. simulated flag + open milestones with overdue flag',
-    jsonb_array_length(r->'payments') >= 2
-    and exists (select 1 from jsonb_array_elements(r->'milestones') m where m->>'label' = 'pa-overdue' and (m->>'overdue')::boolean)
-    and exists (select 1 from jsonb_array_elements(r->'milestones') m where m->>'label' = 'pa-soon' and not (m->>'overdue')::boolean)
-    and not exists (select 1 from jsonb_array_elements(r->'milestones') m where m->>'label' = 'pa-paid'), r::text);
+  perform pg_temp.res('hq_payments: Helm subscription payments only (no studio client payments / milestones)',
+    r ? 'payments' and not r ? 'milestones'
+    and not exists (select 1 from jsonb_array_elements(r->'payments') p where p->>'reference' in ('RCP-PA-1','RCP-PA-SIM')), r::text);
 end $$;
 do $$ declare n int; begin perform pg_temp.su();
   select count(*) into n from public.audit_log a join auth.users u on u.id = a.actor
@@ -225,5 +212,5 @@ do $$ begin perform pg_temp.su();
   delete from auth.mfa_factors where user_id in (select id from auth.users where email like '%@helm.events');
 end $$;
 select name, result from _pa order by name;
-select case when count(*) filter (where result like 'FAIL%') = 0 and count(*) = 32 then 'PLATFORM-ADMIN: ALL PASS (32/32)'
-            else 'PLATFORM-ADMIN: '||count(*) filter (where result like 'FAIL%')||' FAILED, '||count(*)||'/32 ran' end from _pa;
+select case when count(*) filter (where result like 'FAIL%') = 0 and count(*) = 33 then 'PLATFORM-ADMIN: ALL PASS (33/33)'
+            else 'PLATFORM-ADMIN: '||count(*) filter (where result like 'FAIL%')||' FAILED, '||count(*)||'/33 ran' end from _pa;

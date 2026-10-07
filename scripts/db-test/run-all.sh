@@ -57,7 +57,8 @@ run "injection-guards"   "INJECTION-GUARDS: ALL PASS"      psql -q -f tests/db/i
 run "write-path-lockdown" "WRITE-PATH-LOCKDOWN: ALL PASS"  psql -q -f tests/db/write-path-lockdown.sql
 run "business-logic"     "BUSINESS-LOGIC: ALL PASS"        psql -q -f tests/db/business-logic.sql
 run "uploads-payments"   "UPLOADS-PAYMENTS: ALL PASS"     psql -q -f tests/db/uploads-payments.sql
-run "platform-admin"     "PLATFORM-ADMIN: ALL PASS \(32/32\)" psql -q -f tests/db/platform-admin.sql
+run "platform-admin"     "PLATFORM-ADMIN: ALL PASS \(33/33\)" psql -q -f tests/db/platform-admin.sql
+run "hq-subscriptions"   "HQ-SUBSCRIPTIONS: ALL PASS \(80/80\)" psql -q -f tests/db/hq-subscriptions.sql
 run "auth-hardening"     "AUTH-HARDENING: ALL PASS \(41/41\)" psql -q -f tests/db/auth-hardening.sql
 run "payment-matrix"     "PAYMENT-MATRIX: ALL PASS"        psql -q -f tests/db/payment-matrix.sql
 run "checkout-overissue" "CHECKOUT-OVERISSUE: ALL PASS"    psql -q -f tests/db/checkout-overissue.sql

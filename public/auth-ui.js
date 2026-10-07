@@ -741,6 +741,87 @@
     b.addEventListener("click", openAccount);
     lo.parentNode.insertBefore(b, lo);
   }
+  /* ------------------------------- Helm subscription (0045): read-only banner + Control Center card */
+  var subBanner = null;
+  function money2(v, cur) {
+    try { return new Intl.NumberFormat("en-IN", { style: "currency", currency: cur || "INR", maximumFractionDigits: 2 }).format(Number(v) || 0); }
+    catch (e) { return (cur || "INR") + " " + (Number(v) || 0).toFixed(2); }
+  }
+  function day(v) { if (!v) return "—"; try { return new Date(v).toLocaleDateString(undefined, { dateStyle: "medium" }); } catch (e) { return String(v); } }
+  function subscriptionCard(st, sub) {
+    var box = doc.getElementById("subCard"); if (!box) return;
+    var body = doc.getElementById("subBody"); if (!body) return;
+    if (!sub || !("payments" in sub)) { box.hidden = true; return; }        // admins only (the DB decides)
+    css(); box.hidden = false; body.textContent = "";
+    var plan = sub.plan || {};
+    var line = (plan.name || "No plan yet") + (plan.price_monthly != null ? " · " + money2(plan.price_monthly, plan.currency) + " / month" : "");
+    body.appendChild(el("p", { class: "hau-muted", style: "font-weight:600" }, line));
+    body.appendChild(el("p", { class: "hau-muted" }, "Status: " + String(sub.status || "not set").replace("_", " ") +
+      (sub.current_period_end ? " · current period ends " + day(sub.current_period_end) : "") +
+      (sub.trial_ends_at ? " · trial ends " + day(sub.trial_ends_at) : "")));
+    var list = el("ul", { class: "hau-list" });
+    (sub.payments || []).forEach(function (p) {
+      var li = el("li", null, day(p.paid_on) + " · " + money2(p.amount, p.currency) + " · " + (p.invoice_no || "") + (p.voided ? " (void)" : "") + " ");
+      var b = el("button", { type: "button", class: "hau-btn" }, "Invoice");
+      b.addEventListener("click", function () {
+        st.subscription.invoice(p.id).then(function (data) {
+          if (global.HelmInvoice && typeof global.HelmInvoice.open === "function") global.HelmInvoice.open(data);
+        }).catch(function (e) { try { global.alert(errText(e, "open the invoice")); } catch (x) {} });
+      });
+      li.appendChild(b); list.appendChild(li);
+    });
+    if (!list.firstChild) list.appendChild(el("li", null, "No payments recorded yet."));
+    body.appendChild(list);
+    body.appendChild(el("p", { class: "hau-muted" }, "Billing is managed by Helm. Questions about your plan or an invoice? Contact Helm."));
+  }
+  var ACC_FIELDS = [["legal_business_name", "Legal business name"], ["gstin", "GSTIN (optional)"], ["country", "Country (2 letters, e.g. IN)"],
+    ["state", "State"], ["city", "City"], ["billing_address", "Billing address"], ["website", "Website (https://…)"], ["timezone", "Timezone"],
+    ["primary_contact_name", "Primary contact name"], ["primary_contact_email", "Primary contact e-mail"], ["primary_contact_phone", "Primary contact phone (+91…)"],
+    ["secondary_contact_name", "Secondary contact name"], ["secondary_contact_email", "Secondary contact e-mail"], ["secondary_contact_phone", "Secondary contact phone"],
+    ["billing_contact_email", "Billing e-mail"], ["team_size_band", "Team size (1, 2-5, 6-15, 16-50, 51+)"], ["signup_source", "How did you hear about Helm?"],
+    ["business_type", "Business type (wedding, corporate, decor, catering, other)"], ["events_per_month_band", "Events per month (0-2, 3-5, 6-10, 11-20, 21+)"],
+    ["preferred_contact_method", "Preferred contact (whatsapp, phone, email)"], ["preferred_language", "Preferred language (e.g. en, hi)"],
+    ["is_business", "Registered business? (true / false)"], ["tax_id_type", "Tax ID type (IN_GSTIN, IN_PAN, EU_VAT, UK_VAT, AU_ABN, CA_GST, SG_GST, AE_TRN, US_EIN, OTHER)"],
+    ["tax_id", "Tax ID"], ["pan", "PAN (India only)"], ["billing_currency", "Billing currency (e.g. INR, USD)"], ["referred_by", "Referred by"]];
+  function accountCard(st) {
+    var box = doc.getElementById("accCard"), body = doc.getElementById("accBody");
+    if (!box || !body || !st.subscription || !st.subscription.account) return;
+    st.subscription.account().then(function (a) {
+      if (!a || !a.can_edit) { box.hidden = true; return; }
+      css(); box.hidden = false; body.textContent = "";
+      var grid = el("div", { class: "hpf-grid" }), inputs = {};
+      ACC_FIELDS.forEach(function (f) {
+        var w = el("div", { class: "hpf-f" }), id = "acc_" + f[0];
+        w.appendChild(el("label", { for: id, class: "hpf-l" }, f[1]));
+        var i = el("input", { id: id, class: "hpf-i", type: "text" }); i.value = a[f[0]] == null ? "" : String(a[f[0]]); inputs[f[0]] = i;
+        w.appendChild(i); grid.appendChild(w);
+      });
+      var wrap = el("div", { class: "hpf" }); wrap.appendChild(grid); body.appendChild(wrap);
+      var msg = el("div", { class: "hau-muted", role: "status" });
+      var save = el("button", { type: "button", class: "hau-btn primary" }, "Save account details");
+      save.addEventListener("click", function () {
+        var patch = {}; ACC_FIELDS.forEach(function (f) { var v = String(inputs[f[0]].value || "").trim(); if (v !== (a[f[0]] == null ? "" : String(a[f[0]]))) patch[f[0]] = v; });
+        save.disabled = true;
+        st.subscription.updateAccount(patch).then(function (r) { a = r || a; msg.textContent = "Saved."; },
+          function (e) { msg.textContent = errText(e, "save the account details"); }).then(function () { save.disabled = false; });
+      });
+      body.appendChild(save); body.appendChild(msg);
+    }).catch(function () { box.hidden = true; });
+  }
+  function subscriptionStatus() {
+    var st = S(); if (!st || !st.auth.user() || !st.subscription || !st.subscription.mine) return;
+    st.subscription.mine().then(function (sub) {
+      subscriptionCard(st, sub);
+      if (!sub || !sub.read_only || subBanner || !doc.body) return;
+      css();
+      subBanner = el("div", { class: "hau-banner", role: "status", "aria-label": "Subscription suspended", id: "hauReadOnly" });
+      var t = el("span", null); t.appendChild(el("b", null, "Read-only: subscription suspended — contact Helm."));
+      t.appendChild(doc.createTextNode(" You can view and export everything, but nothing can be created, changed or deleted until it is reactivated."));
+      subBanner.appendChild(t);
+      doc.body.insertBefore(subBanner, doc.body.firstChild);
+    }).catch(function () {});
+  }
+
   var chromeMounted = false;
   function mountAppChrome() {
     if (chromeMounted) return; chromeMounted = true;
@@ -754,6 +835,8 @@
     } catch (e) {}
     adminTwoStep();
     profileNudge();
+    subscriptionStatus();
+    accountCard(S());
   }
 
   global.HelmAuthUI = {

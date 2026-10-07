@@ -112,3 +112,37 @@ update public.app_config set value='{"sms_live":true,"email_live":true,"pay_live
 - **Razorpay:** complete KYC; use Payment Links so the client pays on Razorpay's PCI-compliant page (no card data ever touches this app).
 - **Consent:** every approval stores the phone, the exact terms version + text, an OTP-verified flag, and a timestamp in `quote_consents` — your audit trail.
 - Keep the service-role key and all provider secrets **only** in Supabase secrets, never in client code.
+
+## Helm subscription billing functions (LATER — owner only, both DORMANT)
+`billing-reminder` and `razorpay-subscription-webhook` bill studios for Helm itself
+(migration 0045). Both are **no-ops (200)** until their enable flag is `true`, so
+deploying them changes nothing. Do these steps only when subscription billing goes live:
+
+1. Apply migration 0045 (tables `billing_reminders`, `studio_subscriptions`,
+   `subscription_payments`, RPC `hq_settle_provider_payment`) on staging, then prod.
+2. Deploy (the webhook is called by Razorpay without a Supabase JWT; the reminder is
+   called by cron with its own shared secret):
+   ```bash
+   supabase functions deploy billing-reminder --no-verify-jwt
+   supabase functions deploy razorpay-subscription-webhook --no-verify-jwt
+   ```
+3. Secrets:
+   ```bash
+   supabase secrets set \
+     HELM_BILLING_CRON_SECRET="<long random string>" \
+     RAZORPAY_SUBSCRIPTION_WEBHOOK_SECRET="<from Razorpay dashboard>"
+   # optional: RAZORPAY_EVENT_MAX_AGE_SEC=86400  BILLING_REMINDER_BATCH=50
+   # RESEND_API_KEY / RESEND_FROM are shared with razorpay-webhook; without a key,
+   # reminders are marked channel='skipped' instead of sent.
+   ```
+4. Razorpay dashboard → Webhooks → add `…/functions/v1/razorpay-subscription-webhook`
+   with event `subscription.charged` and the secret above. Each subscription must
+   carry `notes.org_id`; the org is still resolved from
+   `studio_subscriptions.provider_subscription_id` and a mismatch is refused.
+5. Schedule the reminder (pg_cron / external cron), POST with header
+   `x-helm-cron-secret: <HELM_BILLING_CRON_SECRET>`.
+6. Flip the flags last: `supabase secrets set HELM_BILLING_REMINDERS_ENABLED=true
+   HELM_RAZORPAY_SUBSCRIPTIONS_ENABLED=true`. Unset them to go dormant again.
+
+Tests: `tests/edge/billing-extras.test.ts` (signature valid/invalid/missing/tampered,
+dormant mode, cron secret, org mismatch, idempotent marking).

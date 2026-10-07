@@ -78,6 +78,21 @@
   .nf p{color:var(--ink-2);max-width:46ch;margin:0 auto 24px}
   .nf a{color:var(--accent)}
   .loading{min-height:60vh}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+  .tab{height:34px;padding:0 14px;border:1px solid var(--line);background:var(--panel);color:var(--ink-2);border-radius:999px;font:inherit;font-size:13px;cursor:pointer}
+  .tab[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+  .form{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+  .fld{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--ink-3);min-width:140px}
+  .fld.chk{flex-direction:row;align-items:center;min-width:0}
+  .fld input,.fld select,.card select{height:32px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:8px;padding:0 10px;font:inherit;font-size:13px}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.danger{color:var(--bad)}
+  .btn.sm{height:26px;padding:0 8px;font-size:12px;margin-right:4px}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .detail h3{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2);margin:14px 0 6px}
+  tr.void td{color:var(--ink-3);text-decoration:line-through}
+  tr.void td:last-child,tr.void td:nth-last-child(2){text-decoration:none}
+  .okm{background:#e9f8ef;color:#126b39;border:1px solid #b8e6c9;border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:14px}
 </style>
 <link rel="stylesheet" href="theme.css?v=73">
 </head>
@@ -96,61 +111,156 @@
 <div id="vApp" class="wrap" hidden>
   <header class="top">
     <div class="mk" aria-hidden="true"></div>
-    <div><h1>Helm HQ</h1><div class="sub">Platform overview · all studios · read-only</div></div>
+    <div><h1>Helm HQ</h1><div class="sub">Studios · people · Helm subscriptions — no studio business data</div></div>
     <div class="sp"></div>
     <span class="who" id="who"></span>
     <button class="btn" id="btnRefresh" type="button">Refresh</button>
     <button class="btn" id="btnOut" type="button">Sign out</button>
   </header>
-  <div id="err" class="err" hidden></div>
+  <nav class="tabs" aria-label="HQ sections">
+    <button type="button" class="tab" id="tab-overview" aria-pressed="true">Overview</button>
+    <button type="button" class="tab" id="tab-studios" aria-pressed="false">Studios</button>
+    <button type="button" class="tab" id="tab-billing" aria-pressed="false">Billing</button>
+    <button type="button" class="tab" id="tab-plans" aria-pressed="false">Plans</button>
+    <button type="button" class="tab" id="tab-people" aria-pressed="false">People</button>
+    <button type="button" class="tab" id="tab-activity" aria-pressed="false">Activity log</button>
+  </nav>
+  <div id="err" class="err" hidden role="alert"></div>
+  <div id="ok" class="okm" hidden role="status"></div>
 
-  <section class="kpis" id="kpis" aria-label="Key numbers"></section>
+  <section id="pane-overview">
+    <section class="kpis" id="kpis" aria-label="Key numbers"></section>
+    <div class="grid">
+      <section class="card"><h2>Studios by subscription status</h2><ul class="list" id="byStatus"></ul></section>
+      <section class="card"><h2>Two-step verification</h2><div id="mfa"></div></section>
+    </div>
+  </section>
 
-  <div class="grid">
-    <section class="card chart">
-      <h2>Sign-ups · last 30 days</h2>
-      <div id="chart"></div>
-      <div class="legend"><span><i style="background:var(--accent)"></i>Users</span><span><i style="background:var(--warn)"></i>Studios</span></div>
-    </section>
+  <section id="pane-studios" hidden>
     <section class="card">
-      <h2>Payments due</h2>
-      <div id="due"></div>
-    </section>
-  </div>
-
-  <div class="grid">
-    <section class="card">
-      <div class="hd"><h2>Studios</h2><input type="search" id="qStudios" placeholder="Search name, slug, owner" aria-label="Search studios"></div>
-      <div class="scroll"><table><thead><tr><th>Studio</th><th>Owner</th><th>Plan</th><th class="n">Users</th><th class="n">Events</th><th class="n">Revenue</th><th class="n">Paid</th><th>Last active</th><th>Created</th></tr></thead><tbody id="tStudios"></tbody></table></div>
+      <div class="hd"><h2>Studios</h2>
+        <select id="fStatus" aria-label="Filter by status"><option value="">All statuses</option><option value="trial">Trial</option><option value="active">Active</option><option value="past_due">Past due</option><option value="suspended">Suspended</option><option value="cancelled">Cancelled</option><option value="none">No plan</option></select>
+        <input type="search" id="qStudios" placeholder="Search name, slug, owner" aria-label="Search studios"></div>
+      <div class="scroll"><table><thead><tr><th>Studio</th><th>Primary contact</th><th>State</th><th>Plan</th><th>Status</th><th>Period ends</th><th class="n">People</th><th class="n">Paid Helm</th><th>Last sign-in</th></tr></thead><tbody id="tStudios"></tbody></table></div>
       <div class="pager" id="pStudios"></div>
       <div id="studioDetail"></div>
     </section>
-    <div>
-      <section class="card" style="margin-bottom:14px"><h2>Top studios</h2><ul class="list" id="top"></ul></section>
-      <section class="card" style="margin-bottom:14px"><h2>Churn risk · no activity 30 days</h2><ul class="list" id="churn"></ul></section>
-      <section class="card" style="margin-bottom:14px"><h2>Two-step verification</h2><div id="mfa"></div></section>
-      <section class="card"><h2>Storage</h2><ul class="list" id="storage"></ul></section>
-    </div>
-  </div>
-
-  <section class="card" style="margin-bottom:14px">
-    <div class="hd"><h2>Users</h2><input type="search" id="qUsers" placeholder="Search e-mail or studio" aria-label="Search users"></div>
-    <div class="scroll"><table><thead><tr><th>E-mail</th><th>Studio</th><th>Role</th><th>Joined</th><th>Last sign-in</th><th>Confirmed</th><th>2-step</th></tr></thead><tbody id="tUsers"></tbody></table></div>
-    <div class="pager" id="pUsers"></div>
   </section>
 
-  <section class="card">
-    <div class="hd"><h2>Payments</h2>
-      <label class="muted" for="pFrom">From</label><input type="date" id="pFrom">
-      <label class="muted" for="pTo">To</label><input type="date" id="pTo">
-      <button class="btn" id="btnPay" type="button">Show</button></div>
-    <div class="scroll"><table><thead><tr><th>Date</th><th>Studio</th><th>Event</th><th>Method</th><th>Status</th><th class="n">Amount</th></tr></thead><tbody id="tPay"></tbody></table></div>
+  <section id="pane-billing" hidden>
+    <section class="card" style="margin-bottom:14px">
+      <div class="hd"><h2>Billing</h2>
+        <label class="muted" for="bFrom">From</label><input type="date" id="bFrom">
+        <label class="muted" for="bTo">To</label><input type="date" id="bTo">
+        <button class="btn" id="btnBill" type="button">Show</button>
+        <button class="btn" id="btnCsv" type="button">Export CSV</button>
+        <button class="btn" id="btnRefreshBilling" type="button">Refresh past-due</button></div>
+      <div class="kpis" id="bKpis"></div>
+      <div class="scroll"><table><thead><tr><th>Paid on</th><th>Studio</th><th>Invoice</th><th>Method</th><th>Period</th><th class="n">Amount</th><th>Status</th><th></th></tr></thead><tbody id="tPay"></tbody></table></div>
+    </section>
+    <div class="grid">
+      <section class="card">
+        <h2>Record a payment</h2>
+        <p class="muted">Studio: <strong id="rOrgName">open a studio and choose “Record a payment”</strong></p>
+        <div class="form">
+          <input type="hidden" id="rOrg">
+          <label class="fld"><span>Amount (incl. tax)</span><input type="number" id="rAmount" min="1" step="0.01"></label>
+          <label class="fld"><span>Currency</span><input type="text" id="rCur" maxlength="3" value="INR"></label>
+          <label class="fld"><span>Rate to INR (non-INR only)</span><input type="number" id="rFx" min="0" step="0.000001"></label>
+          <label class="fld"><span>Paid on</span><input type="date" id="rPaidOn"></label>
+          <label class="fld"><span>Method</span><select id="rMethod"><option value="upi">UPI</option><option value="bank">Bank transfer</option><option value="cash">Cash</option><option value="card">Card</option><option value="other">Other</option></select></label>
+          <label class="fld"><span>Period start</span><input type="date" id="rPs"></label>
+          <label class="fld"><span>Period end</span><input type="date" id="rPe"></label>
+          <label class="fld"><span>Reference (UTR / note)</span><input type="text" id="rRef" maxlength="120"></label>
+          <button class="btn primary" id="btnRecord" type="button">Record payment</button>
+        </div>
+      </section>
+      <div>
+        <section class="card" style="margin-bottom:14px"><h2>Past due</h2><ul class="list" id="pastDue"></ul></section>
+        <section class="card" style="margin-bottom:14px"><h2>Reminder queue</h2><ul class="list" id="reminders"></ul></section>
+        <section class="card"><h2>Export payments not yet realised (FIRA / FIRC)</h2><ul class="list" id="unrealised"></ul></section>
+      </div>
+    </div>
+    <section class="card">
+      <h2>Invoice settings</h2>
+      <div class="form">
+        <label class="fld"><span>Legal name</span><input type="text" id="sName" maxlength="160"></label>
+        <label class="fld"><span>GSTIN</span><input type="text" id="sGstin" maxlength="15"></label>
+        <label class="fld"><span>Address</span><input type="text" id="sAddr" maxlength="500"></label>
+        <label class="fld"><span>Seller country</span><input type="text" id="sCountry" maxlength="2"></label>
+        <label class="fld"><span>Seller state</span><input type="text" id="sState" maxlength="80"></label>
+        <label class="fld"><span>LUT number</span><input type="text" id="sLut" maxlength="40"></label>
+        <label class="fld"><span>LUT valid from</span><input type="date" id="sLutFrom"></label>
+        <label class="fld"><span>LUT valid to</span><input type="date" id="sLutTo"></label>
+        <label class="fld"><span>Default GST % (legacy)</span><input type="number" id="sRate" min="0" max="50" step="0.01"></label>
+        <label class="fld"><span>Invoice prefix</span><input type="text" id="sPrefix" maxlength="16"></label>
+        <button class="btn" id="btnSettings" type="button">Save invoice settings</button>
+      </div>
+    </section>
+  </section>
+
+  <section id="pane-plans" hidden>
+    <section class="card">
+      <h2>Plans</h2>
+      <div class="scroll"><table><thead><tr><th>Code</th><th>Name</th><th class="n">Per month</th><th>Status</th><th class="n">Studios</th><th></th></tr></thead><tbody id="tPlans"></tbody></table></div>
+      <div class="form" style="margin-top:12px">
+        <label class="fld"><span>Code</span><input type="text" id="plCode" maxlength="40" placeholder="pro"></label>
+        <label class="fld"><span>Name</span><input type="text" id="plName" maxlength="80" placeholder="Pro"></label>
+        <label class="fld"><span>Price / month (₹)</span><input type="number" id="plPrice" min="0" step="1"></label>
+        <label class="fld chk"><input type="checkbox" id="plActive" checked> <span>Offered</span></label>
+        <button class="btn primary" id="btnPlan" type="button">Save plan</button>
+      </div>
+    </section>
+    <section class="card" style="margin-top:14px">
+      <h2>Tax rules</h2>
+      <p class="muted">Defaults only — rates, regimes and wording must be confirmed by your Chartered Accountant. Changes apply to new payments; recorded invoices never change.</p>
+      <div class="scroll"><table><thead><tr><th>Country</th><th>Regime</th><th class="n">Rate</th><th>Effective</th><th>Status</th><th>Invoice note</th></tr></thead><tbody id="tTax"></tbody></table></div>
+      <div class="form" style="margin-top:12px">
+        <label class="fld"><span>Country</span><input type="text" id="txCountry" maxlength="2" placeholder="SG"></label>
+        <label class="fld"><span>Region (optional)</span><input type="text" id="txRegion" maxlength="80"></label>
+        <label class="fld"><span>Regime</span><select id="txRegime"><option>LOCAL_REGISTERED</option><option>NO_TAX</option><option>IN_GST_INTRA</option><option>IN_GST_INTER</option></select></label>
+        <label class="fld"><span>Rate %</span><input type="number" id="txRate" min="0" max="50" step="0.01"></label>
+        <label class="fld"><span>Invoice note</span><input type="text" id="txNote" maxlength="300"></label>
+        <label class="fld"><span>From</span><input type="date" id="txFrom"></label>
+        <label class="fld"><span>To</span><input type="date" id="txTo"></label>
+        <label class="fld chk"><input type="checkbox" id="txActive" checked> <span>Active</span></label>
+        <button class="btn" id="btnTax" type="button">Save tax rule</button>
+      </div>
+    </section>
+  </section>
+
+  <section id="pane-people" hidden>
+    <section class="card">
+      <div class="hd"><h2>People</h2><input type="search" id="qUsers" placeholder="Search e-mail or studio" aria-label="Search users"></div>
+      <div class="scroll"><table><thead><tr><th>E-mail</th><th>Studio</th><th>Role</th><th>Joined</th><th>Last sign-in</th><th>Confirmed</th><th>2-step</th></tr></thead><tbody id="tUsers"></tbody></table></div>
+      <div class="pager" id="pUsers"></div>
+    </section>
+  </section>
+
+  <section id="pane-activity" hidden>
+    <section class="card" style="margin-bottom:14px">
+      <div class="hd"><h2>HQ activity log</h2>
+        <label class="muted" for="aFrom">From</label><input type="date" id="aFrom">
+        <label class="muted" for="aTo">To</label><input type="date" id="aTo">
+        <label class="muted"><input type="checkbox" id="aWrites" checked> changes only</label>
+        <button class="btn" id="btnAudit" type="button">Show</button></div>
+      <div class="scroll"><table><thead><tr><th>When</th><th>Operator</th><th>Action</th><th>What</th></tr></thead><tbody id="tAudit"></tbody></table></div>
+    </section>
+    <section class="card">
+      <h2>HQ operators</h2>
+      <ul class="list" id="operators"></ul>
+      <div class="form" style="margin-top:10px">
+        <label class="fld"><span>Add operator (e-mail)</span><input type="email" id="opEmail" maxlength="254"></label>
+        <button class="btn" id="btnOp" type="button">Add operator</button>
+      </div>
+    </section>
   </section>
 </div>
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=109"></script>
-<script src="hq.js?v=3"></script>
+<script src="store-api.js?v=112"></script>
+<script src="hq-invoice.js?v=1"></script>
+<script src="hq.js?v=6"></script>
 </body>
 </html>
