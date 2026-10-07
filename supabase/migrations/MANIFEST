@@ -57,3 +57,4 @@ forward  supabase/migrations/0041_member_profile.sql
 forward  supabase/migrations/0042_audit_run2_fixes.sql
 forward  supabase/migrations/0043_mfa_enforce.sql
 forward  supabase/migrations/0044_revert_matrix_seed.sql
+forward  supabase/migrations/0045_hq_subscriptions.sql

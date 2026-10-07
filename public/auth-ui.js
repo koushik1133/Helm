@@ -741,6 +741,53 @@
     b.addEventListener("click", openAccount);
     lo.parentNode.insertBefore(b, lo);
   }
+  /* ------------------------------- Helm subscription (0045): read-only banner + Control Center card */
+  var subBanner = null;
+  function money2(v, cur) {
+    try { return new Intl.NumberFormat("en-IN", { style: "currency", currency: cur || "INR", maximumFractionDigits: 2 }).format(Number(v) || 0); }
+    catch (e) { return (cur || "INR") + " " + (Number(v) || 0).toFixed(2); }
+  }
+  function day(v) { if (!v) return "—"; try { return new Date(v).toLocaleDateString(undefined, { dateStyle: "medium" }); } catch (e) { return String(v); } }
+  function subscriptionCard(st, sub) {
+    var box = doc.getElementById("subCard"); if (!box) return;
+    var body = doc.getElementById("subBody"); if (!body) return;
+    if (!sub || !("payments" in sub)) { box.hidden = true; return; }        // admins only (the DB decides)
+    css(); box.hidden = false; body.textContent = "";
+    var plan = sub.plan || {};
+    var line = (plan.name || "No plan yet") + (plan.price_monthly != null ? " · " + money2(plan.price_monthly, plan.currency) + " / month" : "");
+    body.appendChild(el("p", { class: "hau-muted", style: "font-weight:600" }, line));
+    body.appendChild(el("p", { class: "hau-muted" }, "Status: " + String(sub.status || "not set").replace("_", " ") +
+      (sub.current_period_end ? " · current period ends " + day(sub.current_period_end) : "") +
+      (sub.trial_ends_at ? " · trial ends " + day(sub.trial_ends_at) : "")));
+    var list = el("ul", { class: "hau-list" });
+    (sub.payments || []).forEach(function (p) {
+      var li = el("li", null, day(p.paid_on) + " · " + money2(p.amount, p.currency) + " · " + (p.invoice_no || "") + (p.voided ? " (void)" : "") + " ");
+      var b = el("button", { type: "button", class: "hau-btn" }, "Invoice");
+      b.addEventListener("click", function () {
+        st.subscription.invoice(p.id).then(function (data) {
+          if (global.HelmInvoice && typeof global.HelmInvoice.open === "function") global.HelmInvoice.open(data);
+        }).catch(function (e) { try { global.alert(errText(e, "open the invoice")); } catch (x) {} });
+      });
+      li.appendChild(b); list.appendChild(li);
+    });
+    if (!list.firstChild) list.appendChild(el("li", null, "No payments recorded yet."));
+    body.appendChild(list);
+    body.appendChild(el("p", { class: "hau-muted" }, "Billing is managed by Helm. Questions about your plan or an invoice? Contact Helm."));
+  }
+  function subscriptionStatus() {
+    var st = S(); if (!st || !st.auth.user() || !st.subscription || !st.subscription.mine) return;
+    st.subscription.mine().then(function (sub) {
+      subscriptionCard(st, sub);
+      if (!sub || !sub.read_only || subBanner || !doc.body) return;
+      css();
+      subBanner = el("div", { class: "hau-banner", role: "status", "aria-label": "Subscription suspended", id: "hauReadOnly" });
+      var t = el("span", null); t.appendChild(el("b", null, "Read-only: subscription suspended — contact Helm."));
+      t.appendChild(doc.createTextNode(" You can view and export everything, but nothing can be created, changed or deleted until it is reactivated."));
+      subBanner.appendChild(t);
+      doc.body.insertBefore(subBanner, doc.body.firstChild);
+    }).catch(function () {});
+  }
+
   var chromeMounted = false;
   function mountAppChrome() {
     if (chromeMounted) return; chromeMounted = true;
@@ -754,6 +801,7 @@
     } catch (e) {}
     adminTwoStep();
     profileNudge();
+    subscriptionStatus();
   }
 
   global.HelmAuthUI = {
