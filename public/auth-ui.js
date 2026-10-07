@@ -176,7 +176,7 @@
     // password
     var pw = el("div", { class: "hau-sec" });
     pw.appendChild(el("h3", null, "Password"));
-    pw.appendChild(el("p", { class: "hau-muted" }, "You'll confirm your current password, then choose a new one (at least 12 characters with a letter and a number). Other devices are signed out."));
+    pw.appendChild(el("p", { class: "hau-muted" }, "You'll confirm your current password, then choose a new one (at least 12 characters with a lowercase letter, an uppercase letter, a number and a symbol). Other devices are signed out."));
     var pwRow = el("div", { class: "hau-row" });
     var pwLink = el("a", { class: "hau-btn", href: "/reset-password?mode=change", style: "display:inline-flex;align-items:center;text-decoration:none" }, "Change password");
     pwRow.appendChild(pwLink); pw.appendChild(pwRow); card.appendChild(pw);

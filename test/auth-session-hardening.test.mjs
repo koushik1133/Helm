@@ -85,6 +85,7 @@ function makeEnv(o = {}) {
 }
 const flush = () => new Promise((r) => setImmediate(r));
 const CAPTCHA_ON = { captcha: { provider: 'turnstile', siteKey: '0x4AAAAAAA-test-site-key' } };
+const SESSION_ON = { auth: { session: { idleMinutes: 30, warnSeconds: 60, maxHours: 12 } } };
 
 /* ------------------------------------------------------- 1. CAPTCHA */
 t('CAPTCHA OFF (empty siteKey, the default): sign-in sends exactly email+password, as before', async () => {
@@ -99,7 +100,7 @@ t('committed config.js ships CAPTCHA off (empty siteKey) and the documented defa
   const cfg = read('public/config.js');
   assert.match(cfg, /captcha:\s*\{\s*provider:\s*"turnstile",\s*siteKey:\s*""\s*\}/);
   assert.match(cfg, /mfaRequiredForAdmins:\s*false/);
-  assert.match(cfg, /session:\s*\{\s*idleMinutes:\s*30,\s*warnSeconds:\s*60,\s*maxHours:\s*12\s*\}/);
+  assert.match(cfg, /session:\s*\{\s*idleMinutes:\s*0,\s*warnSeconds:\s*60,\s*maxHours:\s*0\s*\}/, 'idle + max-age logout OFF by default (owner decision)');
 });
 t('CAPTCHA ON: sign-in / sign-up / reset carry captchaToken; missing token is refused before any request', async () => {
   const e = makeEnv({ user: null, path: '/login', cfg: CAPTCHA_ON });
@@ -110,7 +111,7 @@ t('CAPTCHA ON: sign-in / sign-up / reset carry captchaToken; missing token is re
   assert.ok(!e.calls.some((x) => x[0] === 'signInWithPassword'), 'no request without a token');
   await e.S.auth.signIn('a@b.co', 'pw', { captchaToken: 'tok1' });
   assert.equal(e.calls.find((x) => x[0] === 'signInWithPassword')[1].options.captchaToken, 'tok1');
-  await e.S.auth.signUp('n@b.co', 'longpassword12', { captchaToken: 'tok2' });
+  await e.S.auth.signUp('n@b.co', 'Long-password12', { captchaToken: 'tok2' });
   assert.equal(e.calls.find((x) => x[0] === 'signUp')[1].options.captchaToken, 'tok2');
   await e.S.auth.requestPasswordReset('n@b.co', { captchaToken: 'tok3' });
   assert.equal(e.calls.find((x) => x[0] === 'resetPasswordForEmail')[2].captchaToken, 'tok3');
@@ -124,13 +125,50 @@ t('CAPTCHA ON: an in-page sign-in box (no widget) is sent to the sign-in page', 
 });
 
 /* ------------------------------------------------- 2. password rule */
-t('password rule: >= 12 chars with a letter and a number (signup / change / admin create)', async () => {
+t('password rule = Supabase policy: >=12 + lowercase + uppercase + digit + symbol', () => {
+  const e = makeEnv({ user: null, path: '/login' });
+  const R = e.S.auth.passwordRule, p = R.problem;
+  assert.equal(p('Abcdefghij1!'), null);
+  assert.match(p('abcdefghij12'), /uppercase letter and a symbol/);
+  assert.match(p('ABCDEFGHIJ1!'), /lowercase/);
+  assert.match(p('Abcdefghijk!'), /a number/);
+  assert.match(p('Abcdefghij12'), /symbol/);
+  assert.match(p('Abc1!'), /12 characters/);
+  for (const c of "!@#$%^&*()_+-=[]{};'\\:\"|<>?,./`~") assert.equal(p('Abcdefghij1' + c), null, 'symbol ' + c);
+  assert.ok(p('Abcdefghij1 '), 'space is not a Supabase symbol');
+  assert.ok(p('Abcdefghij1é'), 'non-ASCII is not a Supabase symbol');
+  assert.equal(R.symbols, "!@#$%^&*()_+-=[]{};'\\:\"|<>?,./`~");
+  assert.deepEqual([...R.checks('Abcdefghij1!').map((c) => c.ok)], [true, true, true, true, true]);
+  assert.deepEqual([...R.checks('abc').map((c) => c.id)], ['len', 'lower', 'upper', 'digit', 'symbol']);
+  assert.equal(typeof R.attachChecklist, 'function');
+});
+t('every "set a password" screen shows the new rule text + a live checklist', () => {
+  const L = read('public/login.html'), RP = read('public/reset-password.html'), RJ = read('public/reset-password.js'), AU = read('public/auth-ui.js');
+  for (const [n, s] of [['login', L], ['reset-password', RP], ['auth-ui', AU]]) {
+    assert.match(s, /lowercase letter, an uppercase letter, a number and a symbol/, n + ' helper text');
+    assert.ok(!/with a letter and a number/.test(s), n + ' still shows the old rule');
+  }
+  assert.match(L, /attachChecklist\(document\.getElementById\("pw"\), document\.getElementById\("pwRules"\)\)/, 'sign-up checklist');
+  assert.match(L, /attachChecklist\(pw, ov\.querySelector\("#fpc_rules"\)\)/, 'temp-password checklist');
+  assert.match(RJ, /attachChecklist\(\$\("#new_pw"\), \$\("#newRules"\)\)/, 'reset / change checklist');
+});
+t('0030 migration: _password_ok = Supabase rule, in MANIFEST after 0028, temp passwords carry a symbol', () => {
+  const m = read('supabase/migrations/0030_password_rule_symbols.sql');
+  assert.match(read('supabase/migrations/MANIFEST'), /0028_auth_hardening\.sql\s*\n(?:.*\n)*forward\s+supabase\/migrations\/0030_password_rule_symbols\.sql/);
+  assert.match(m, /create or replace function public\._password_ok/);
+  assert.match(m, /p ~ '\[a-z\]'/); assert.match(m, /p ~ '\[A-Z\]'/); assert.match(m, /p ~ '\[0-9\]'/);
+  assert.match(m, /auth-hardening-0028/, 'keeps the 0028 marker so 0028 re-runs stay no-ops');
+  assert.match(m, /v_sym text := '!#%\*-_\+=\?'/);
+  assert.ok(!/\b(drop|delete|truncate)\b/i.test(m.replace(/--.*$/gm, '')), 'additive only');
+});
+t('password rule: weak passwords never reach Supabase (signup / change / admin create)', async () => {
   const e = makeEnv({ user: null, path: '/login' });
   const p = e.S.auth.passwordRule.problem;
   assert.ok(p('short1'));
   assert.ok(p('abcdefghijklmnop'));
   assert.ok(p('123456789012345'));
-  assert.equal(p('abcdefghij12'), null);
+  assert.ok(p('abcdefghij12'), 'old letter+digit rule no longer enough');
+  assert.equal(p('Abcdefghij1!'), null);
   assert.equal(e.S.auth.passwordRule.min, 12);
   await e.S.init();
   await assert.rejects(e.S.auth.signUp('a@b.co', 'onlyletterslong'));
@@ -161,7 +199,7 @@ t('an unfinished reset keeps the app closed (pending "recovery") until the new p
   assert.equal(e.S.auth.pendingStep(), 'recovery');
   assert.equal(e.S.auth.user(), null);
   assert.equal(e.S.auth.required(), true);
-  await e.S.auth.updatePassword('newpassword123');
+  await e.S.auth.updatePassword('New-password123');
   assert.equal(e.win.localStorage.getItem('bp_recovery_pending'), null);
   assert.ok(e.calls.some((x) => x[0] === 'signOut' && x[1] && x[1].scope === 'others'), 'other sessions signed out');
 });
@@ -226,18 +264,24 @@ t('temp password: a failed flag clear is an error, not ignored; retry does not r
   let fail = true;
   const e = makeEnv({ rpc: { password_change_required: { data: true, error: null }, clear_password_change_required: () => (fail ? { data: null, error: { message: 'set a new password first' } } : { data: null, error: null }) } });
   await e.S.init();
-  await assert.rejects(e.S.auth.completePasswordChange('brandnewpass12'));
+  await assert.rejects(e.S.auth.completePasswordChange('Brand-new-pass12'));
   assert.equal(e.calls.filter((x) => x[0] === 'updateUser').length, 1);
   fail = false;
   e.win.SUPABASE_CONFIG.__x = 1;
-  await e.S.auth.completePasswordChange('brandnewpass12');
+  await e.S.auth.completePasswordChange('Brand-new-pass12');
   assert.equal(e.calls.filter((x) => x[0] === 'updateUser').length, 1, 'password not re-sent on retry');
   await assert.rejects(e.S.auth.completePasswordChange('short'), /12 characters/);
 });
 
 /* ---------------------------------------------- 6. session limits */
-t('session decision: defaults 30 min idle (60 s warning) and 12 h max; 0 turns a limit off', () => {
-  const e = makeEnv();
+t('session defaults: idle + max-age logout are OFF (0) unless config turns them on', () => {
+  const d0 = makeEnv().S.auth.sessionLimits.config();
+  assert.equal(d0.idleMs, 0); assert.equal(d0.maxMs, 0); assert.equal(d0.warnMs, 60000);
+  const T = 1e12;
+  assert.equal(makeEnv().S.auth.sessionLimits.decision(T, T - 30 * 24 * 3600000, T - 30 * 24 * 3600000, d0), 'ok', '30 days idle → still signed in');
+});
+t('session decision (when enabled): 30 min idle (60 s warning) and 12 h max; 0 turns a limit off', () => {
+  const e = makeEnv({ cfg: SESSION_ON });
   const cfg = e.S.auth.sessionLimits.config();
   assert.equal(cfg.idleMs, 30 * 60000); assert.equal(cfg.warnMs, 60000); assert.equal(cfg.maxMs, 12 * 3600000);
   const d = e.S.auth.sessionLimits.decision; const T = 1e12;
@@ -251,7 +295,7 @@ t('session decision: defaults 30 min idle (60 s warning) and 12 h max; 0 turns a
   assert.equal(c2.idleMs, 5 * 60000); assert.equal(c2.warnMs, 30000); assert.equal(c2.maxMs, 0);
 });
 t('idle logout: after 30 min without activity → local sign-out + login?expired=1&reason=idle', async () => {
-  const e = makeEnv({ path: '/quotes' });
+  const e = makeEnv({ path: '/quotes', cfg: SESSION_ON });
   await e.S.init();
   e.S.auth.required();                          // page gate → starts the limits
   assert.equal(e.intervals.length, 1, 'timer started on a staff page');
@@ -265,7 +309,7 @@ t('idle logout: after 30 min without activity → local sign-out + login?expired
   assert.equal(e.win.localStorage.getItem('bp_session_start'), null);
 });
 t('activity in ANOTHER tab (shared localStorage timestamp) keeps this tab signed in', async () => {
-  const e = makeEnv({ path: '/quotes' });
+  const e = makeEnv({ path: '/quotes', cfg: SESSION_ON });
   await e.S.init(); e.S.auth.required();
   for (let i = 0; i < 6; i++) {               // 60 minutes, another tab active every 10
     e.clock.advance(10 * 60000);
@@ -277,7 +321,7 @@ t('activity in ANOTHER tab (shared localStorage timestamp) keeps this tab signed
 });
 t('max session age: 12 h after sign-in → signed out even when active', async () => {
   const start = Date.UTC(2026, 9, 6, 9, 0, 0);
-  const e = makeEnv({ path: '/dashboard', now: start + 12 * 3600000 + 1000, ls: { bp_session_start: JSON.stringify({ uid: 'u-1', ts: start }) } });
+  const e = makeEnv({ path: '/dashboard', cfg: SESSION_ON, now: start + 12 * 3600000 + 1000, ls: { bp_session_start: JSON.stringify({ uid: 'u-1', ts: start }) } });
   await e.S.init(); e.S.auth.required();
   await flush(); await flush();
   const r = e.calls.find((x) => x[0] === 'location.replace');

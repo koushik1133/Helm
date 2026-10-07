@@ -87,5 +87,47 @@ do $$ begin
   exception when others then insert into _sp values('P2-01 anon cannot upload','PASS: denied'); end;
   perform auth.logout();
 end $$;
+-- ---- 0031: helm-manual bucket — private; signed-in studio staff read; nobody writes via the API ----
+do $$ begin
+  execute 'reset role';
+  delete from storage.objects where bucket_id='helm-manual' and name in ('USER-MANUAL.html','screenshots/index.webp','evil.html');
+  insert into storage.objects(bucket_id,name) values ('helm-manual','USER-MANUAL.html'),('helm-manual','screenshots/index.webp');
+end $$;
+do $$ declare r record; begin
+  select public into r from storage.buckets where id='helm-manual';
+  insert into _sp values('0031 helm-manual bucket private', case when r.public = false then 'PASS: private' else 'FAIL: public='||coalesce(r.public::text,'missing') end);
+end $$;
+do $$ declare n int; begin
+  perform auth.login_anon();
+  select count(*) into n from storage.objects where bucket_id='helm-manual';
+  insert into _sp values('0031 anon cannot read the manual', case when n=0 then 'PASS: anon sees 0' else 'FAIL: anon sees '||n end);
+  perform auth.logout();
+end $$;
+do $$ declare na int; nb int; begin
+  perform auth.login_as((select id from auth.users where email='a_staff@a.test'));
+  select count(*) into na from storage.objects where bucket_id='helm-manual';
+  perform auth.logout();
+  perform auth.login_as((select id from auth.users where email='b_staff@b.test'));
+  select count(*) into nb from storage.objects where bucket_id='helm-manual';
+  perform auth.logout();
+  insert into _sp values('0031 signed-in staff (both studios) read the manual', case when na=2 and nb=2 then 'PASS: 2 + 2' else 'FAIL: a='||na||' b='||nb end);
+end $$;
+do $$ begin
+  perform auth.login_as((select id from auth.users where email='a_admin@a.test'));
+  begin insert into storage.objects(bucket_id,name) values('helm-manual','evil.html');
+        insert into _sp values('0031 staff/admin cannot upload to helm-manual','FAIL: allowed');
+  exception when others then insert into _sp values('0031 staff/admin cannot upload to helm-manual','PASS: denied'); end;
+  perform auth.logout();
+end $$;
+do $$ declare n int; begin
+  perform auth.login_as((select id from auth.users where email='a_admin@a.test'));
+  update storage.objects set name='hijack.html' where bucket_id='helm-manual' and name='USER-MANUAL.html';
+  get diagnostics n = row_count;
+  delete from storage.objects where bucket_id='helm-manual';
+  perform auth.logout();
+  execute 'reset role';
+  select count(*) into n from storage.objects where bucket_id='helm-manual' and name in ('USER-MANUAL.html','screenshots/index.webp');
+  insert into _sp values('0031 staff/admin cannot modify or delete manual files', case when n=2 then 'PASS: untouched' else 'FAIL: '||n||' left' end);
+end $$;
 select name,result from _sp order by name;
 select case when count(*) filter (where result like 'FAIL%')=0 then 'STORAGE-POLICY: ALL PASS' else 'STORAGE-POLICY: '||count(*) filter (where result like 'FAIL%')||' FAILED' end from _sp;

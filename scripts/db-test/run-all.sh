@@ -51,6 +51,7 @@ run "business-logic"     "BUSINESS-LOGIC: ALL PASS"        psql -q -f tests/db/b
 run "uploads-payments"   "UPLOADS-PAYMENTS: ALL PASS"     psql -q -f tests/db/uploads-payments.sql
 run "auth-hardening"     "AUTH-HARDENING: ALL PASS \(34/34\)" psql -q -f tests/db/auth-hardening.sql
 run "platform-admin"     "PLATFORM-ADMIN: ALL PASS \(32/32\)" psql -q -f tests/db/platform-admin.sql
+run "auth-hardening"     "AUTH-HARDENING: ALL PASS \(41/41\)" psql -q -f tests/db/auth-hardening.sql
 run "payment-matrix"     "PAYMENT-MATRIX: ALL PASS"        psql -q -f tests/db/payment-matrix.sql
 run "checkout-overissue" "CHECKOUT-OVERISSUE: ALL PASS"    psql -q -f tests/db/checkout-overissue.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
