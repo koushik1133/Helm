@@ -19,9 +19,8 @@ do $$
 begin
   if to_regprocedure('public.current_org_id()') is null then raise exception 'STOP: not a Helm database'; end if;
   if to_regprocedure('public.is_platform_operator()') is null then raise exception 'STOP: 0037 not installed — run APPLY-0037 first'; end if;
-  if to_regprocedure('public._work_token_live(uuid)') is null
-     or to_regprocedure('public.worker_respond(uuid,uuid,text)') is null
-    then raise exception 'STOP: crew-link guard (_work_token_live / worker_respond) missing'; end if;
+  if to_regprocedure('public.worker_respond(uuid,uuid,text)') is null
+    then raise exception 'STOP: crew-link worker_respond(uuid,uuid,text) missing'; end if;
   if to_regprocedure('public.has_area(text,text)') is null
     then raise exception 'STOP: has_area missing'; end if;
   if to_regclass('public.event_tasks') is null or to_regclass('public.work_tokens') is null
@@ -32,6 +31,32 @@ begin
     then raise exception 'STOP: work_tokens.expires_at / revoked_at missing (0012)'; end if;
   raise notice 'Preflight OK — applying 0038…';
 end $$;
+
+-- prod drift: some databases do the crew-link liveness check inline and never got
+-- 0012's shared helper. Create it (exact 0012 body) only when missing; never
+-- replaces an existing one. Needs work_tokens.revoked_at / expires_at (checked above).
+do $guard$ begin
+  if to_regprocedure('public._work_token_live(uuid)') is null then
+    execute $sql$
+create function public._work_token_live(p_token uuid)
+returns public.work_tokens language plpgsql security definer set search_path = public as $fn$
+declare w public.work_tokens;
+begin
+  select * into w from public.work_tokens where token = p_token;
+  if w.token is null then raise exception 'invalid link'; end if;
+  if w.revoked_at is not null then raise exception 'link revoked' using errcode='42501'; end if;
+  if w.expires_at is not null and w.expires_at <= now() then raise exception 'link expired' using errcode='42501'; end if;
+  return w;
+end; $fn$;
+$sql$;
+    execute 'revoke all on function public._work_token_live(uuid) from public';
+    if exists (select 1 from pg_roles where rolname = 'anon') then
+      execute 'revoke all on function public._work_token_live(uuid) from anon'; end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then
+      execute 'revoke all on function public._work_token_live(uuid) from authenticated'; end if;
+  end if;
+end $guard$;
+
 
 -- ---------------------------------------------------------------- tables -----
 create table if not exists public.task_evidence (
