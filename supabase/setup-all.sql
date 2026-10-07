@@ -1,7 +1,17 @@
+-- ════ SUPERSEDED (audit run 2, RC-11) ════════════════════════════════════════
+-- This legacy file predates the canonical migrations (supabase/migrations + MANIFEST).
+-- Re-running it on a database that already has them would put back old, weaker function
+-- bodies, so it refuses to run there. Use scripts/db-migrate.sh / the APPLY-00xx files.
+do $a42guard$ begin
+  if to_regprocedure('public.verify_and_consent__pre0039(uuid, text, text, boolean, text, text, text, text)') is not null then
+    raise exception 'superseded by 0039+ (canonical migrations) — do not re-run this legacy file';
+  end if;
+end $a42guard$;
+-- ═════════════════════════════════════════════════════════════════════════════
 -- =========================================================================
 -- Blueprint Stage — COMPLETE setup (run this ONE file in the Supabase SQL editor)
 -- Idempotent & self-contained: layouts table + RBAC (profiles/roles/RLS)
--- + six team users (password "helm"). Safe to re-run.
+-- + six team users (random, unknown passwords — set each one from the Supabase dashboard; NV-12). Safe to re-run.
 -- =========================================================================
 
 create extension if not exists pgcrypto with schema extensions;
@@ -81,7 +91,7 @@ create policy "editors insert layouts" on public.layouts for insert to authentic
 create policy "editors update layouts" on public.layouts for update to authenticated using ( public.can_edit() ) with check ( public.can_edit() );
 create policy "editors delete layouts" on public.layouts for delete to authenticated using ( public.can_delete() );
 
--- 4) Seed the six team users (password "helm") ---------------------------------
+-- 4) Seed the six team users (random, unknown passwords — set each one from the Supabase dashboard; NV-12) ---------------------------------
 create or replace function public.create_helm_user(p_email text, p_password text, p_role text)
 returns void language plpgsql security definer set search_path = auth, public, extensions as $$
 declare uid uuid;
@@ -126,12 +136,12 @@ begin
   on conflict (id) do update set role = excluded.role, email = excluded.email;
 end; $$;
 
-select public.create_helm_user('admin@helm.com',      'helm', 'admin');
-select public.create_helm_user('planner@helm.com',    'helm', 'planner');
-select public.create_helm_user('sales@helm.com',      'helm', 'sales');
-select public.create_helm_user('operations@helm.com', 'helm', 'operations');
-select public.create_helm_user('crew@helm.com',       'helm', 'crew');
-select public.create_helm_user('client@helm.com',     'helm', 'client');
+select public.create_helm_user('admin@helm.com',      encode(extensions.gen_random_bytes(18), 'base64'), 'admin');
+select public.create_helm_user('planner@helm.com',    encode(extensions.gen_random_bytes(18), 'base64'), 'planner');
+select public.create_helm_user('sales@helm.com',      encode(extensions.gen_random_bytes(18), 'base64'), 'sales');
+select public.create_helm_user('operations@helm.com', encode(extensions.gen_random_bytes(18), 'base64'), 'operations');
+select public.create_helm_user('crew@helm.com',       encode(extensions.gen_random_bytes(18), 'base64'), 'crew');
+select public.create_helm_user('client@helm.com',     encode(extensions.gen_random_bytes(18), 'base64'), 'client');
 
 -- verify (expect 6 rows)
 select p.email, p.role from public.profiles p order by p.role;

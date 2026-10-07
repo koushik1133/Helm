@@ -23,3 +23,10 @@ regexes = [
   # xizehqgeyjcfpzrdymly (role=anon)
   '''^eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpemVocWdleWpjZnB6cmR5bWx5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxOTAyNTMsImV4cCI6MjEwNTc2NjI1M30\.KvL6N\-N7iIY7GzsxglWJRmP3JVZuXrHDeqQX1GWaZFo$''',
 ]
+
+# audit run 2 (NV-11): a password written next to "password" in docs / HTML
+[[rules]]
+id = "helm-published-password"
+description = "Password published in documentation"
+regex = '''(?i)password[^<\n]{0,40}<code>[^<\s]{4,64}</code>'''
+keywords = ["password"]

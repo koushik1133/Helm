@@ -54,3 +54,5 @@ forward  supabase/migrations/0038_worker_evidence.sql
 forward  supabase/migrations/0039_link_autoexpire.sql
 forward  supabase/migrations/0040_link_expiry_archive.sql
 forward  supabase/migrations/0041_member_profile.sql
+forward  supabase/migrations/0042_audit_run2_fixes.sql
+forward  supabase/migrations/0043_mfa_enforce.sql

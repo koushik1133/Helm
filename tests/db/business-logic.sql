@@ -197,7 +197,9 @@ do $$ declare n int; r int; begin
   perform pg_temp.res('delete: an event with refunds cannot be deleted', n = 1 and r = 1, 'event '||n||', refund '||r);
 end $$;
 do $$ declare n int; begin
-  perform pg_temp.login('a_staff@a.test');
+  -- 0042: hard delete only from the Deleted shelf, by a can_delete() role (admin / planner)
+  perform pg_temp.su(); update public.quotes set deleted_at = now() where id = pg_temp.id('del4');
+  perform pg_temp.login('a_admin@a.test');
   begin delete from public.quotes where id = pg_temp.id('del4');
   exception when others then perform pg_temp.res('delete: an unpaid draft still deletes', false, sqlerrm); return; end;
   perform pg_temp.su(); select count(*) into n from public.quotes where id = pg_temp.id('del4');

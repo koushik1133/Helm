@@ -62,5 +62,12 @@ begin
             'b0000000-0000-4000-8000-0000000000bb', now(), now())
     on conflict (id) do update set pricing=excluded.pricing;
 
+  -- 0042: this disposable test cluster is a "staging-like" environment where the OTP
+  -- dev echo may be used (the audit-run2 suite removes it inside its own transaction)
+  if to_regclass('public.helm_env_settings') is not null then
+    insert into public.helm_env_settings(key, value) values ('allow_otp_dev_echo', 'true'::jsonb)
+      on conflict (key) do update set value = excluded.value;
+  end if;
+
   raise notice 'fixture ready: orgA=% orgB=% a_staff=% b_staff=% qA=% qB=%', orgA,orgB,a_staff,b_staff,qA,qB;
 end $$;

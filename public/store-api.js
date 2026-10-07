@@ -1799,7 +1799,9 @@
       }
       return Array.isArray(data) ? data[0] : data;
     },
-    async remove(quoteId) { const { error } = await supa.from("quotes").delete().eq("id", quoteId); if (error) throw error; return true; },
+    // 0042: "Delete" moves the quote to the Deleted shelf (Restore brings it back); the
+    // server refuses a hard delete of a quote that is not on that shelf
+    async remove(quoteId) { await rpc("move_quote_to_shelf", { p_quote_id: quoteId, p_shelf: "delete" }); return true; },
   };
   // localStorage fallback tier
   const LSQ = "bps.quotes";

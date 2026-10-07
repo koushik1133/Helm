@@ -414,8 +414,9 @@ do $$ declare t uuid := 'a0000000-0000-4000-8000-0000000000aa'; s1 text; s2 text
   perform pg_temp.su(); update public.quotes set client = '{"name":"Alice"}'::jsonb where id = pg_temp.id('q')::uuid;
   perform pg_temp.svc();
   begin perform public.otp_send_authorize(t, '+1 415 555 0100'); exception when others then s3 := sqlstate; end;
+  -- 0042 (owner D5): with no mobile on file a real SMS code is refused (HL403), not sent to any Indian mobile
   perform pg_temp.res('otp: only the client phone on file (else an Indian mobile)',
-    s1 = 'HL403' and s2 is null and r->>'mobile' = '919800000001' and s3 = 'HL400',
+    s1 = 'HL403' and s2 is null and r->>'mobile' = '919800000001' and s3 = 'HL403',
     concat_ws('/', s1, s2, s3, r::text));
 end $$;
 do $$ declare st text; begin
@@ -423,6 +424,7 @@ do $$ declare st text; begin
   insert into public.messaging_rate(org_id, channel, window_secs, window_start, hits)
     values (pg_temp.id('org')::uuid, 'sms', 86400, to_timestamp(floor(extract(epoch from now())/86400)*86400), 200)
     on conflict (org_id, channel, window_secs, window_start) do update set hits = 200;
+  update public.quotes set client = '{"name":"Alice","phone":"9800000001"}'::jsonb where id = pg_temp.id('q')::uuid;  -- 0042 D5
   perform pg_temp.svc();
   begin perform public.otp_send_authorize('a0000000-0000-4000-8000-0000000000aa', '9800000001'); exception when others then st := sqlstate; end;
   perform pg_temp.res('otp: per-studio daily SMS cap', st = 'HL429', coalesce(st, 'sent'));

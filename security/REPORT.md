@@ -41,7 +41,7 @@ Totals:
 - `inventory_availability` does not leak on prod (signed-out visitors get 0 rows). It does leak in the canonical schema and on staging, and needs a follow-up fix.
 
 ## Owner actions (details: docs/OWNER-ACTIONS-SECURITY.md, docs/AUTH-DASHBOARD-SETTINGS.md)
-1. Rotate or delete the 11 production accounts on published default passwords. Change the staging `helm0909` users.
+1. Rotate or delete the 11 production accounts on published default passwords. Change the staging shared-password users.
 2. Make both GitHub repos private (koushik1133/Helm and praneethreddykiwik/Helm). Both are public today.
 3. Supabase Auth on both projects:
    - password rules (min 12, letters and digits) and leaked-password protection

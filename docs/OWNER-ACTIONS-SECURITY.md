@@ -15,7 +15,7 @@ Order: do **1–3 first**. They close the issues an outsider can use today.
 There are 11 production accounts still on published default passwords:
 `admin@helm.com`, 5 `@helm.events` managers, and
 `client|crew|operations|planner|sales@helm.com`. Staging synthetic users share
-`helm0909`, which is printed in `docs/tester-guide/index.html`.
+the shared staging password (redacted), which is printed in `docs/tester-guide/index.html`.
 
 - [ ] Supabase → project `nqltzgiwznphugcfhmbm` (prod) → SQL Editor. Run
       `supabase/audit/P3-CHECK-default-passwords.sql` and **read the row count**.

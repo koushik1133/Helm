@@ -35,10 +35,12 @@ do $$ begin perform pg_temp.su();
   -- everyone in the fixture joined BEFORE the cutoff unless a test says otherwise
   update public.profiles set created_at = (select gate_cutoff from public.member_profile_settings) - interval '30 days'
    where email in ('a_admin@a.test','a_staff@a.test','b_admin@b.test','b_staff@b.test');
-  -- an existing, unlinked staff row in studio A with a_staff's future mobile, written differently
+  -- an existing, unlinked staff row in studio A with a_staff's future mobile, written differently.
+  -- 0042 (C-08): self-service links it because the row carries a_staff's confirmed sign-in
+  -- e-mail (a typed mobile alone no longer claims a row — see tests/db/audit-run2.sql)
   insert into public.crew_members (id, name, phone, department, role, skills, email, emp_type, day_rate, notes, org_id, active)
     values ('a0000000-0000-4000-8000-0000000c0001', 'Old Staff Name', '090000 01001', 'Kitchen', 'Cook', '["tandoor"]'::jsonb,
-            null, 'on_call', 1500, 'keep me', 'a0000000-0000-4000-8000-000000000001', true);
+            'a_staff@a.test', 'on_call', 1500, 'keep me', 'a0000000-0000-4000-8000-000000000001', true);
 end $$;
 
 -- ---- 1) self: complete + update -------------------------------------------------------
