@@ -100,8 +100,24 @@ t('every protected page ships <html class="auth-pending"> + a head rule hiding <
   }
 });
 t('protected set includes the dashboard and every signed-in studio page', () => {
-  for (const p of ['dashboard', 'quotes', 'flow', 'event', 'builder', 'design', 'control', 'chat', 'staff', 'settlement', 'invite-studio'])
+  for (const p of ['dashboard', 'quotes', 'flow', 'event', 'builder', 'design', 'control', 'chat', 'staff', 'settlement', 'invite-studio', 'profile-setup'])
     assert.ok(PROTECTED.includes(p), p + ' must be protected');
+});
+t('profile-setup (0041) is protected but can never be a ?next= target (no redirect loop)', async () => {
+  assert.ok(PROTECTED.includes('profile-setup'));
+  const S = makeEnv({ user: null, path: '/login', gated: false }).S;
+  for (const raw of ['profile-setup', '/profile-setup', 'profile-setup.html', 'profile-setup?next=dashboard'])
+    assert.equal(S.auth.safeNext(raw), 'dashboard.html', raw);
+  // signed out on /profile-setup → login (like every protected page)
+  const out = makeEnv({ user: null, path: '/profile-setup', search: '?next=quotes' });
+  assert.equal(await settles(out.S.init()), false);
+  assert.deepEqual(out.replaced(), ['/login?next=' + encodeURIComponent('profile-setup?next=quotes')]);
+  // a member who must complete it: /profile-setup itself is shown, never redirected to itself
+  const req = { data: { complete: false, required: true, nudge: false }, error: null };
+  const e = makeEnv({ path: '/profile-setup', search: '?next=quotes.html', rpc: { ...ORG, my_profile_status: req } });
+  assert.equal(await e.S.init(), 'supabase');
+  assert.deepEqual(e.replaced(), []);
+  assert.equal(e.gated(), false);
 });
 t('NO public page carries the gate (index, about, login, token pages, 404, manual, hq …)', () => {
   for (const p of PUBLIC) {

@@ -48,6 +48,12 @@
   .tag{font-size:12px;font-weight:600;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:3px 9px;color:var(--ink-2)}
   .tag.dept{background:var(--accent-soft);color:var(--accent);border-color:transparent}
   .tag.emp{background:#e7f6ee;color:#0f7a43;border-color:transparent}
+  .tag.linked{background:#e0ecff;color:#1d4ed8;border-color:transparent}
+  html[data-theme="dark"] .tag.linked{background:#172a4d;color:#93c5fd}
+  .av{position:relative;overflow:hidden}
+  .linknote{background:var(--accent-soft);color:var(--ink-2);border-radius:9px;padding:9px 12px;font-size:12.5px;line-height:1.5;margin:0 0 14px}
+  .linknote a{color:var(--accent);font-weight:600;text-decoration:underline}
+  .fld input[readonly]{background:var(--line-2);color:var(--ink-3);cursor:not-allowed}
   .meta{font-size:12px;color:var(--ink-3);line-height:1.5}
   .person .acts{display:flex;gap:6px;margin-top:auto;padding-top:6px}
   .ic{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:30px;padding:0 11px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)} .ic:hover{border-color:var(--accent);color:var(--accent)}
@@ -107,6 +113,7 @@
   <div class="sheet">
     <h3><span id="sm_title">＋ Add staff</span><button type="button" class="close" id="sm_close" aria-label="Close" data-close>×</button></h3>
     <p class="sub">Someone on your in-house team. Skills help you match people to event needs.</p>
+    <div id="sm_link" class="linknote" role="note" hidden></div>
     <div class="fgrid">
       <div class="fld"><label for="s_name">Name *</label><input id="s_name" placeholder="e.g. Ravi Kumar"></div>
       <div class="fld"><label for="s_role">Role / title</label><input id="s_role" placeholder="e.g. Lead planner, AV technician"></div>
@@ -139,7 +146,7 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=107"></script>
+<script src="store-api.js?v=108"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -156,12 +163,16 @@
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";});
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); } }
 
+  // 0041: a staff row with profile_id is linked to a Helm account (photo from the member's profile)
+  let memberDir={}, isAdminUser=false;
   function personCard(s){
     const skills=Array.isArray(s.skills)?s.skills:[];
-    return `<div class="person ${s.active===false?'off':''}" data-id="${s.id}">
-      <div class="top"><div class="av">${esc(initials(s.name))}</div>
+    const linked=BPStore.staff.isLinked(s), m=linked?memberDir[s.profile_id]:null, photo=m&&m.avatar_path;
+    return `<div class="person ${s.active===false?'off':''}" data-id="${esc(s.id)}">
+      <div class="top"><div class="av"${photo?` data-avatar-path="${esc(photo)}"`:""}>${esc(initials(s.name))}</div>
         <div><div class="nm">${esc(s.name)}</div><div class="rl">${esc(s.role||"—")}</div></div></div>
       <div class="tags">
+        ${linked?`<span class="tag linked" title="Name, phone, e-mail, department and title follow this person's Helm profile">🔗 Linked account</span>`:""}
         ${s.department?`<span class="tag dept">${esc(s.department)}</span>`:""}
         ${s.emp_type?`<span class="tag emp">${esc(EMP[s.emp_type]||s.emp_type)}</span>`:""}
         ${s.active===false?`<span class="tag">Inactive</span>`:""}
@@ -197,7 +208,7 @@
   function render(){
     const shown=team;   // filtered on the server
     $("#count").textContent=shownTotal+" of "+facets.total;
-    if(shown.length) $("#grid").innerHTML=shown.map(personCard).join("");
+    if(shown.length){ $("#grid").innerHTML=shown.map(personCard).join(""); try{ BPStore.chat.paintAvatars($("#grid")); }catch(e){} }
     else if(!facets.total){
       $("#grid").innerHTML=`<div class="empty">${showInactive?"No staff records yet.":"No team members yet."}${canEdit?` Add your first team member to start matching people to event needs.<br><button type="button" class="btn primary" id="emptyAdd">＋ Add your first team member</button>`:""}</div>`;
       const b=$("#emptyAdd"); if(b) b.addEventListener("click",()=>openForm(null));
@@ -209,36 +220,59 @@
     }));
   }
 
+  // linked rows: who they are comes from the member's profile — those fields are read-only here
+  const LOCKED=[["#s_name","name"],["#s_role","role"],["#s_dept","department"],["#s_phone","phone"],["#s_email","email"]];
+  function setLinkedLock(s){
+    const linked=BPStore.staff.isLinked(s), note=$("#sm_link");
+    LOCKED.forEach(([sel])=>{ const el=$(sel); el.readOnly=linked; if(linked) el.setAttribute("aria-readonly","true"); else el.removeAttribute("aria-readonly");
+      const cc=el.parentNode&&el.parentNode.querySelector&&el.parentNode.querySelector(".bpui-tel-cc"); if(cc) cc.disabled=linked; });
+    if(!linked){ note.hidden=true; note.innerHTML=""; return; }
+    note.innerHTML=`🔗 <b>Linked to a Helm account.</b> Name, phone, e-mail, department and title follow ${esc(s.name||"this person")}'s profile`+
+      (isAdminUser?` — <a href="control.html#users">Edit in User control</a>.`:` — an admin can change them in Control Center → User control.`)+
+      ` Day rate, employment type, skills and notes stay editable here.`;
+    note.hidden=false;
+  }
   function openForm(s){
     editingId=s?s.id:null; $("#sm_title").textContent=s?"Edit staff":"＋ Add staff";
     $("#s_name").value=s?s.name||"":""; $("#s_role").value=s?s.role||"":""; $("#s_dept").value=s?s.department||"":"";
     $("#s_emp").value=s?s.emp_type||"":""; $("#s_phone").value=s?s.phone||"":""; $("#s_email").value=s?s.email||"":"";
     $("#s_rate").value=s&&s.day_rate!=null?s.day_rate:""; $("#s_skills").value=s&&Array.isArray(s.skills)?s.skills.join(", "):""; $("#s_notes").value=s?s.notes||"":"";
-    $("#sm_err").hidden=true; $("#staffModal").hidden=false; formDirty.clean(); setTimeout(()=>$("#s_name").focus(),50);
+    editingRow=s||null; setLinkedLock(s);
+    $("#sm_err").hidden=true; $("#staffModal").hidden=false; formDirty.clean(); setTimeout(()=>(BPStore.staff.isLinked(s)?$("#s_emp"):$("#s_name")).focus(),50);
   }
+  let editingRow=null;
   const formDirty=BPUI.trackDirty($("#staffModal"));
-  function closeForm(){ $("#staffModal").hidden=true; editingId=null; formDirty.clean(); }
+  function closeForm(){ $("#staffModal").hidden=true; editingId=null; editingRow=null; formDirty.clean(); }
   async function requestCloseForm(){ if($("#staffModal").hidden) return; if(!(await BPUI.confirmDiscard(formDirty))) return; closeForm(); }
   async function saveStaff(){
     const fail=(m)=>{ $("#sm_err").textContent=m; $("#sm_err").hidden=false; };
     const V=BPStore.validate;
+    const linked=!!(editingId&&BPStore.staff.isLinked(editingRow));
     const name=$("#s_name").value.trim();
-    if(!name){ fail("Name is required."); return; }
-    // QA M-08: a crew member needs an operational identity so they can be assigned to work
-    if(!$("#s_role").value.trim() && !$("#s_dept").value.trim()){ fail("Add a role or a department so this person can be assigned to the right work."); $("#s_dept").focus(); return; }
-    const phoneV=V.phone($("#s_phone").value);
-    if(!phoneV.ok){ fail(phoneV.error); return; }
-    let email=null;
-    if($("#s_email").value.trim()){ const ev=V.email($("#s_email").value); if(!ev.ok){ fail(ev.error); return; } email=ev.value; }
+    let phoneV={ok:true,value:editingRow&&editingRow.phone}, email=null;
+    if(!linked){
+      if(!name){ fail("Name is required."); return; }
+      // QA M-08: a crew member needs an operational identity so they can be assigned to work
+      if(!$("#s_role").value.trim() && !$("#s_dept").value.trim()){ fail("Add a role or a department so this person can be assigned to the right work."); $("#s_dept").focus(); return; }
+      phoneV=V.phone($("#s_phone").value);
+      if(!phoneV.ok){ fail(phoneV.error); return; }
+      if($("#s_email").value.trim()){ const ev=V.email($("#s_email").value); if(!ev.ok){ fail(ev.error); return; } email=ev.value; }
+    }
     let day_rate=null;
     if($("#s_rate").value!==""){ const rv=V.money($("#s_rate").value,{field:"Day rate"}); if(!rv.ok){ fail(rv.error); return; } day_rate=rv.value; }
     const skills=$("#s_skills").value.split(",").map(x=>x.trim()).filter(Boolean);
     const rec={ name, phone:phoneV.value, role:$("#s_role").value.trim()||null, department:$("#s_dept").value.trim()||null,
       emp_type:$("#s_emp").value||null, email,
       day_rate, skills, notes:$("#s_notes").value.trim()||null };
+    if(linked) BPStore.staff.LINKED_FIELDS.forEach(k=>{ delete rec[k]; });   // follow the profile; the DB refuses changes here
     await BPUI.guard($("#sm_save"),async()=>{
+      // one account = one staff record: a new / renumbered row can't take a linked member's number
+      if(!linked && (!editingId || BPStore.staff.normPhone(rec.phone)!==BPStore.staff.normPhone(editingRow&&editingRow.phone))){
+        const owner=await BPStore.staff.linkedOwnerOfPhone(rec.phone, editingId);
+        if(owner){ fail(`This number belongs to ${owner.name}, who already has a staff record linked to their Helm account. Find them in the directory instead of adding a second record.`); $("#s_phone").focus(); return; }
+      }
       try{ if(editingId) await BPStore.staff.update(editingId,rec); else await BPStore.staff.add(rec); closeForm(); BPUI.toast("Staff saved.",{type:"ok"}); await load(); }
-      catch(e){ fail(BPUI.friendlyError(e,{action:"save the staff member",setupHint:"phase6-staff.sql"})); }
+      catch(e){ fail(BPStore.staff.linkErrorText(e)||BPUI.friendlyError(e,{action:"save the staff member",setupHint:"phase6-staff.sql"})); }
     },{busyLabel:"Saving…"});
   }
   async function toggleActive(s,btn){
@@ -303,7 +337,10 @@
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
     if(!(await BPStore.auth.requireView("ops"))) return;
     canEdit=await BPStore.auth.canEditArea("staff"); canDelete=await BPStore.auth.can("delete");
+    isAdminUser=(await BPStore.auth.role())==="admin";
     $("#newBtn").hidden=!canEdit;
+    // photos for linked members (one chat_directory read; the directory never waits for it)
+    BPStore.chat.directory().then(d=>{ memberDir=d||{}; if(team.some(x=>BPStore.staff.isLinked(x))) render(); }).catch(()=>{});
     await load();
   });
 </script>

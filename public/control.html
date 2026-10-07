@@ -61,6 +61,42 @@
   .utable .dnEdit:hover{color:var(--accent);background:var(--accent-soft)} .utable .dnEdit:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   .utable td.em{font-weight:500} .utable .me{font-size:12px;color:var(--accent);background:var(--accent-soft);padding:2px 6px;border-radius:10px;margin-left:6px}
   .utable select{height:32px}
+  /* User control: member profiles (0041) */
+  #pane-users .table-scroll{position:relative}   /* keeps the sr-only "Actions" header inside the scroller (no page-wide scroll on phones) */
+  .uctools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 10px}
+  .uctools input[type=search]{flex:1 1 220px;min-width:0}
+  .uccount{font-size:12px;color:var(--ink-3)}
+  .ucwho{display:flex;align-items:center;gap:10px;min-width:0}
+  .ucav{width:34px;height:34px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:12px;position:relative;overflow:hidden}
+  .ucsub{font-size:11.5px;color:var(--ink-3);font-weight:400;margin-top:1px}
+  .utable td.ucph{white-space:nowrap;font-family:var(--mono);font-size:12px}
+  .ucok{display:inline-block;font-size:11.5px;font-weight:700;color:#0f7a43;background:#e7f6ee;border-radius:10px;padding:2px 8px;white-space:nowrap}
+  .ucno{display:inline-block;font-size:11.5px;font-weight:700;color:#8a5a00;background:#fff4dc;border-radius:10px;padding:2px 8px;white-space:nowrap}
+  .utable td.ucact{text-align:right;white-space:nowrap}
+  html[data-theme="dark"] .ucok{background:rgba(46,184,114,.14);color:#6ee7a8}
+  html[data-theme="dark"] .ucno{background:rgba(245,158,11,.15);color:#fbbf24}
+  /* profile edit dialog */
+  .lsheet.mpsheet{width:min(640px,96vw);max-height:92vh;overflow:auto;text-align:left}
+  .mpsheet h3{margin:0 0 4px}
+  .mpgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;margin-top:10px}
+  .mpgrid .full{grid-column:1/-1}
+  .mpgrid .fld input,.mpgrid .fld select{width:100%;margin:0}
+  .mpsec{grid-column:1/-1;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin:6px 0 -4px;padding-top:10px;border-top:1px solid var(--line-2)}
+  .mpph{display:flex;align-items:stretch}
+  .mpph span{display:inline-flex;align-items:center;padding:0 10px;border:1px solid var(--line);border-right:0;border-radius:8px 0 0 8px;background:var(--panel);font-size:13px;color:var(--ink-2);font-family:var(--mono)}
+  .mpph input{border-radius:0 8px 8px 0!important;flex:1;min-width:0}
+  .mpgrid .mpchk{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--ink-2);min-height:38px;margin:0;cursor:pointer}
+  .mpgrid .mpchk input{width:17px;height:17px;margin:0;accent-color:var(--accent);flex:0 0 auto}
+  .mpgrid .mplbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)}
+  .ferr{margin:2px 0 0;font-size:12px;color:#b42318}
+  .mpgrid [aria-invalid="true"]{border-color:#e5484d}
+  .mpchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+  .mpchips:empty{display:none}
+  .mpchip{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;background:var(--accent-soft);color:var(--accent);border-radius:20px;padding:3px 4px 3px 10px}
+  .mpchip button{appearance:none;border:0;background:transparent;color:inherit;cursor:pointer;font-size:14px;line-height:1;width:22px;height:22px;border-radius:50%}
+  .mpchip button:hover{background:rgba(0,0,0,.08)}
+  .mpfoot{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+  @media(max-width:560px){.mpgrid{grid-template-columns:1fr}}
   /* access matrix */
   .roletabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
   .rtab{appearance:none;border:1px solid var(--line);background:var(--panel-2);font-family:inherit;font-size:12px;font-weight:600;
@@ -360,7 +396,12 @@
       <div class="card">
         <h3>Team members</h3>
         <p class="mnote">Add teammates, set the name chat shows for each person, change each person's role, or remove access. Changes apply immediately.</p>
-        <div class="table-scroll"><table class="utable"><thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+        <div class="uctools" id="uc_tools" hidden>
+          <input id="uc_q" type="search" placeholder="Search name, email, phone, title…" autocomplete="off" aria-label="Search team members">
+          <select id="uc_f" aria-label="Show"><option value="">Everyone</option><option value="incomplete">Incomplete profiles</option><option value="complete">Complete profiles</option></select>
+          <span class="uccount" id="uc_count" role="status" aria-live="polite"></span>
+        </div>
+        <div class="table-scroll"><table class="utable"><thead id="um_head"><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
           <tbody id="um_rows"><tr><td colspan="4" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
         </table></div>
         <form id="um_add" class="addrow" style="grid-template-columns:1.6fr 1fr auto">
@@ -485,6 +526,34 @@
   </main>
 </div>
 
+<!-- User control: edit a member's profile (admin, 0041) -->
+<div class="lmodal" id="mpModal" hidden role="dialog" aria-modal="true" aria-labelledby="mp_title">
+  <form class="lsheet mpsheet" id="mpForm" novalidate>
+    <h3 id="mp_title">Edit profile</h3>
+    <p class="mnote" id="mp_sub"></p>
+    <div class="mpgrid">
+      <div class="fld full"><label for="mp_full_name">Full name *</label><input id="mp_full_name" maxlength="80" autocomplete="off" aria-required="true" aria-describedby="mp_e_full_name"><p class="ferr" id="mp_e_full_name" hidden></p></div>
+      <div class="fld"><label for="mp_phone">Mobile number</label><div class="mpph"><span aria-hidden="true">+91</span><input id="mp_phone" type="tel" data-no-country="1" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="98765 43210" aria-describedby="mp_e_phone"></div><p class="ferr" id="mp_e_phone" hidden></p></div>
+      <div class="fld"><span class="mplbl" aria-hidden="true">WhatsApp</span>
+        <label class="mpchk" for="mp_wa_same"><input type="checkbox" id="mp_wa_same" checked aria-label="WhatsApp number is the same as the mobile"> Same as mobile</label>
+        <div class="mpph" id="mp_wa_box" hidden><span aria-hidden="true">+91</span><input id="mp_whatsapp" type="tel" data-no-country="1" inputmode="numeric" maxlength="14" autocomplete="off" aria-label="WhatsApp number" aria-describedby="mp_e_whatsapp"></div><p class="ferr" id="mp_e_whatsapp" hidden></p></div>
+      <div class="fld"><label for="mp_job_title">Job title</label><input id="mp_job_title" maxlength="80" autocomplete="off" placeholder="e.g. Lead planner" aria-describedby="mp_e_job_title"><p class="ferr" id="mp_e_job_title" hidden></p></div>
+      <div class="fld"><label for="mp_department">Department</label><input id="mp_department" maxlength="80" autocomplete="off" placeholder="e.g. Production" aria-describedby="mp_e_department"><p class="ferr" id="mp_e_department" hidden></p></div>
+      <div class="fld"><label for="mp_city">City</label><input id="mp_city" maxlength="80" autocomplete="off" aria-describedby="mp_e_city"><p class="ferr" id="mp_e_city" hidden></p></div>
+      <div class="fld full"><label for="mp_skill">Skills <span style="text-transform:none;letter-spacing:0;font-weight:400">(up to 20 — press Enter or comma to add)</span></label>
+        <div class="mpchips" id="mp_chips"></div>
+        <input id="mp_skill" maxlength="40" autocomplete="off" placeholder="e.g. lighting" aria-describedby="mp_e_skills"><p class="ferr" id="mp_e_skills" hidden></p></div>
+      <div class="fld"><label for="mp_emergency_contact_name">Emergency contact name</label><input id="mp_emergency_contact_name" maxlength="80" autocomplete="off" aria-describedby="mp_e_emergency_contact_name"><p class="ferr" id="mp_e_emergency_contact_name" hidden></p></div>
+      <div class="fld"><label for="mp_emergency_contact_phone">Emergency contact number</label><input id="mp_emergency_contact_phone" type="tel" data-no-country="1" maxlength="16" autocomplete="off" placeholder="98765 43210 or +44…" aria-describedby="mp_e_emergency_contact_phone"><p class="ferr" id="mp_e_emergency_contact_phone" hidden></p></div>
+      <div class="mpsec" id="mp_staffsec">Staff record (admins only)</div>
+      <div class="fld" id="mp_rate_fld"><label for="mp_day_rate">Day rate (₹)</label><input id="mp_day_rate" type="number" min="0" step="0.01" placeholder="optional" aria-describedby="mp_e_day_rate"><p class="ferr" id="mp_e_day_rate" hidden></p></div>
+      <div class="fld" id="mp_emp_fld"><label for="mp_emp_type">Employment type</label><select id="mp_emp_type" aria-describedby="mp_e_emp_type"><option value="">—</option><option value="full_time">Full-time</option><option value="part_time">Part-time</option><option value="on_call">On-call</option></select><p class="ferr" id="mp_e_emp_type" hidden></p></div>
+    </div>
+    <div class="lerr" id="mp_err" role="alert" hidden style="margin-top:12px"></div>
+    <div class="mpfoot"><button type="button" class="btn" id="mp_cancel" data-close>Cancel</button><button type="submit" class="btn primary" id="mp_save">Save</button></div>
+  </form>
+</div>
+
 <div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <form class="lsheet" id="loginForm">
     <div class="mark" style="margin:0 auto 10px" aria-hidden="true"></div>
@@ -498,7 +567,7 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=107"></script>
+<script src="store-api.js?v=108"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -915,33 +984,90 @@
     if(isel && !isel.options.length){ isel.innerHTML = ROLES.map(r=>`<option value="${esc(r)}"${r==="coordinator"?" selected":""}>${esc(BPStore.auth.admin.roleLabel(r))}</option>`).join(""); }
     await renderUsers();
   }
-  async function renderUsers(){
-    const tb=$("#um_rows"), me=BPStore.auth.user();
-    tb.innerHTML=`<tr><td colspan="4" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr>`;
-    let users;
-    try{ users=await BPStore.auth.admin.listUsers(); }
-    catch(e){ BPUI.loadError(tb, e, renderUsers, {what:"team members"}); return; }
-    users=users||[];
-    users.sort((a,b)=>(a.email||"").localeCompare(b.email||""));
-    tb.innerHTML = users.map(u=>{
-      const self = me && u.id===me.id;
-      const opts = ROLES.map(r=>`<option value="${esc(r)}"${r===u.role?" selected":""}>${esc(BPStore.auth.admin.roleLabel(r))}</option>`).join("");
-      const dn=(u.full_name||"").trim(), who=dn||u.email||"user";
-      return `<tr data-id="${esc(u.id)}">
+  // ---- User control table (0041 profiles; before 0041 → today's name / email / role list) ----
+  let ucRows=[], ucProfiles=false;
+  const ucId=(u)=>u.user_id||u.id;
+  function ucDate(iso){ if(!iso) return ""; try{ return new Date(iso).toLocaleDateString([], {day:"numeric",month:"short",year:"numeric"}); }catch(e){ return ""; } }
+  function ucPhone(p){ const m=/^\+91([6-9]\d{4})(\d{5})$/.exec(String(p||"")); return m?"+91 "+m[1]+" "+m[2]:String(p||""); }
+  function ucInitials(n){ const p=String(n||"?").trim().split(/\s+/); return (((p[0]||"")[0]||"?")+((p[1]||"")[0]||"")).toUpperCase(); }
+  // Phone / private fields are shown only when the DB returned them (admins + users-view):
+  // a colleague-level row has whatsapp_same = null. My own row always has them, so it alone
+  // doesn't count unless I'm the only member.
+  function ucPrivateVisible(list, meId){
+    const others=list.filter(u=>ucId(u)!==meId);
+    return (others.length?others:list).some(u=>typeof u.whatsapp_same==="boolean");
+  }
+  function ucMatches(u, q, f){
+    if(f==="incomplete" && u.complete!==false) return false;
+    if(f==="complete" && u.complete!==true) return false;
+    q=String(q||"").trim().toLowerCase(); if(!q) return true;
+    return [u.full_name,u.email,u.email_name,u.phone,u.job_title,u.department,u.city].some(v=>v&&String(v).toLowerCase().indexOf(q)>=0)
+      || (u.phone && String(u.phone).replace(/\D/g,"").indexOf(q.replace(/\D/g,"")||"\u0000")>=0);
+  }
+  // → { head, body, shown, total } (pure: everything it shows goes through esc())
+  function ucTable(list, o){
+    const meId=o.meId, roles=o.roles||[], rl=o.roleLabel||((r)=>r);
+    const roleSel=(u,self)=>`<select class="roleSel" aria-label="Role for ${esc(u.email||u.full_name||"user")}"${self?" disabled title=\"You can&#39;t change your own role\"":""}>${roles.map(r=>`<option value="${esc(r)}"${r===u.role?" selected":""}>${esc(rl(r))}</option>`).join("")}</select>`;
+    const rm=(u,self)=>self?"":`<button type="button" class="rm" title="Remove user" aria-label="Remove user ${esc(u.email||u.full_name||"")}">🗑</button>`;
+    if(!o.profiles){
+      const head=`<tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Actions</span></th></tr>`;
+      const rows=list.filter(u=>ucMatches(u,o.q,""));
+      const body=rows.map(u=>{ const self=meId&&ucId(u)===meId; const dn=(u.full_name||"").trim(), who=dn||u.email||"user";
+        return `<tr data-id="${esc(ucId(u))}">
         <td class="dn"><span class="dnTxt"${dn?"":' style="color:var(--ink-3)"'}>${esc(dn||"Not set")}</span><button type="button" class="dnEdit" title="Edit display name" aria-label="Edit display name for ${esc(who)}">✎</button></td>
         <td class="em">${esc(u.email||"—")}${self?'<span class="me">you</span>':""}</td>
-        <td><select class="roleSel" aria-label="Role for ${esc(u.email||"user")}"${self?" disabled title=\"You can&#39;t change your own role\"":""}>${opts}</select></td>
-        <td style="text-align:right">${self?"":`<button type="button" class="rm" title="Remove user" aria-label="Remove user ${esc(u.email||"")}">🗑</button>`}</td>
-      </tr>`;
-    }).join("") || `<tr><td colspan="4" style="color:var(--ink-3)">No users.</td></tr>`;
+        <td>${roleSel(u,self)}</td>
+        <td style="text-align:right">${rm(u,self)}</td>
+      </tr>`; }).join("") || `<tr><td colspan="4" style="color:var(--ink-3)">${list.length?"No one matches.":"No users."}</td></tr>`;
+      return { head, body, shown:rows.length, total:list.length };
+    }
+    const priv=ucPrivateVisible(list, meId);
+    const cols=priv?8:7;
+    const head=`<tr><th scope="col">Name</th>${priv?'<th scope="col">Phone</th>':""}<th scope="col">Job title</th><th scope="col">Department</th><th scope="col">Role</th><th scope="col">Profile</th><th scope="col"><span class="sr-only">Actions</span></th></tr>`;
+    const rows=list.filter(u=>ucMatches(u,o.q,o.filter));
+    const body=rows.map(u=>{ const self=meId&&ucId(u)===meId; const dn=(u.full_name||"").trim(); const who=dn||u.email||u.email_name||"user";
+      const av=`<span class="ucav"${u.avatar_path?` data-avatar-path="${esc(u.avatar_path)}"`:""} aria-hidden="true">${esc(ucInitials(dn||u.email||u.email_name))}</span>`;
+      const joined=ucDate(u.created_at);
+      const st=u.complete?`<span class="ucok" title="${esc(u.profile_completed_at?"Completed "+ucDate(u.profile_completed_at):"Profile complete")}">✓ Complete</span>`:`<span class="ucno" title="No full name or mobile number yet">✗ Incomplete</span>`;
+      return `<tr data-id="${esc(ucId(u))}">
+        <td class="dn"><div class="ucwho">${av}<div><span class="dnTxt"${dn?"":' style="color:var(--ink-3)"'}>${esc(dn||"Not set")}</span>${self?'<span class="me">you</span>':""}<div class="ucsub em">${esc(u.email||u.email_name||"")}</div></div></div></td>
+        ${priv?`<td class="ucph">${esc(u.phone?ucPhone(u.phone):"—")}</td>`:""}
+        <td>${esc(u.job_title||"—")}</td>
+        <td>${esc(u.department||"—")}</td>
+        <td>${roleSel(u,self)}</td>
+        <td>${st}${joined?`<div class="ucsub">Joined ${esc(joined)}</div>`:""}</td>
+        <td class="ucact">${o.canEdit?`<button type="button" class="btn sm ucEdit" aria-label="Edit profile for ${esc(who)}">Edit</button>`:""}${rm(u,self)}</td>
+      </tr>`; }).join("") || `<tr><td colspan="${cols}" style="color:var(--ink-3)">${list.length?"No one matches these filters.":"No users."}</td></tr>`;
+    return { head, body, shown:rows.length, total:list.length };
+  }
+  async function renderUsers(){
+    const tb=$("#um_rows");
+    tb.innerHTML=`<tr><td colspan="4" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr>`;
+    let res;
+    try{ res=await BPStore.auth.admin.members(); }
+    catch(e){ BPUI.loadError(tb, e, renderUsers, {what:"team members"}); return; }
+    ucProfiles=!!res.profiles; ucRows=res.rows||[];
+    if(!ucProfiles) ucRows.sort((a,b)=>(a.email||"").localeCompare(b.email||""));
+    $("#uc_tools").hidden=false; $("#uc_f").hidden=!ucProfiles;
+    drawUsers();
+  }
+  function drawUsers(){
+    const tb=$("#um_rows"), me=BPStore.auth.user();
+    const t=ucTable(ucRows,{profiles:ucProfiles, meId:me&&me.id, roles:ROLES, roleLabel:BPStore.auth.admin.roleLabel, canEdit:isAdmin,
+      q:$("#uc_q").value, filter:ucProfiles?$("#uc_f").value:""});
+    $("#um_head").innerHTML=t.head; tb.innerHTML=t.body;
+    const inc=ucProfiles?ucRows.filter(u=>u.complete===false).length:0;
+    $("#uc_count").textContent=(t.shown===t.total?t.total+" member"+(t.total===1?"":"s"):t.shown+" of "+t.total)+(inc?" · "+inc+" incomplete":"");
+    try{ BPStore.chat.paintAvatars(tb); }catch(e){}
+    const users=ucRows, rowOf=(tr)=>users.find(x=>ucId(x)===tr.dataset.id);
     tb.querySelectorAll(".roleSel").forEach(sel=>sel.addEventListener("change", async (e)=>{
       const tr=e.target.closest("tr"), id=tr.dataset.id, role=e.target.value;
       const prev=[...e.target.options].find(o=>o.defaultSelected);
-      try{ await BPUI.guard(e.target, ()=>BPStore.auth.admin.setRole(id, role)); setUMsg("ok","Role updated."); e.target.querySelectorAll("option").forEach(o=>o.defaultSelected=o.value===role); }
+      try{ await BPUI.guard(e.target, ()=>BPStore.auth.admin.setRole(id, role)); setUMsg("ok","Role updated."); e.target.querySelectorAll("option").forEach(o=>o.defaultSelected=o.value===role); const u=rowOf(tr); if(u) u.role=role; }
       catch(err){ setUMsg("err",errMsg(err,"change the role")); if(prev) e.target.value=prev.value; }
     }));
     tb.querySelectorAll(".dnEdit").forEach(btn=>btn.addEventListener("click", async ()=>{
-      const tr=btn.closest("tr"), id=tr.dataset.id, u=users.find(x=>x.id===id); if(!u) return;
+      const tr=btn.closest("tr"), id=tr.dataset.id, u=rowOf(tr); if(!u) return;
       const name=await BPUI.prompt(`The name teammates see for ${u.email||"this person"} in chat and around Helm.`,
         {title:"Display name", label:"Display name", value:u.full_name||"", required:true, maxLength:80, okLabel:"Save",
          validate:(v)=>BPStore.profile.problem(v)});
@@ -950,13 +1076,91 @@
         const t=tr.querySelector(".dnTxt"); t.textContent=u.full_name; t.removeAttribute("style"); setUMsg("ok","Display name updated."); }
       catch(err){ setUMsg("err",errMsg(err,"change the display name")); }
     }));
+    tb.querySelectorAll(".ucEdit").forEach(btn=>btn.addEventListener("click",()=>{ const u=rowOf(btn.closest("tr")); if(u) openMemberEdit(u, btn); }));
     tb.querySelectorAll(".rm").forEach(btn=>btn.addEventListener("click", async ()=>{
-      const tr=btn.closest("tr"), id=tr.dataset.id, email=tr.querySelector(".em").textContent;
+      const tr=btn.closest("tr"), id=tr.dataset.id, u=rowOf(tr)||{}, email=u.email||u.full_name||"this user";
       if(!(await BPUI.confirm(`Remove ${email}? This permanently deletes their account and they lose access immediately.`,{title:"Delete user account?",okLabel:"Delete account",danger:true}))) return;
       try{ await BPUI.guard(btn, ()=>BPStore.auth.admin.deleteUser(id)); await renderUsers(); setUMsg("ok","User removed."); }
       catch(err){ setUMsg("err",errMsg(err,"remove the user")); }
     }));
   }
+  $("#uc_q").addEventListener("input",BPUI.debounce(drawUsers,150));
+  $("#uc_f").addEventListener("change",drawUsers);
+
+  // ---- admin: edit a member's profile (admin_update_member_profile) ----
+  const MP_FIELDS=["full_name","phone","whatsapp","job_title","department","city","skills","emergency_contact_name","emergency_contact_phone","day_rate","emp_type"];
+  let mpRow=null, mpSkills=[], mpOpener=null;
+  const mpNat=(p)=>{ const m=/^\+91([6-9]\d{9})$/.exec(String(p||"")); return m?m[1]:String(p||""); };
+  function mpFieldErr(k,msg){ const e=$("#mp_e_"+k); if(!e) return; const inp=k==="skills"?$("#mp_skill"):$("#mp_"+k);
+    if(msg){ e.textContent=msg; e.hidden=false; if(inp) inp.setAttribute("aria-invalid","true"); }
+    else { e.textContent=""; e.hidden=true; if(inp) inp.removeAttribute("aria-invalid"); } }
+  function mpClearErrs(){ MP_FIELDS.forEach(k=>mpFieldErr(k,null)); $("#mp_err").hidden=true; }
+  function mpDrawChips(){ $("#mp_chips").innerHTML=mpSkills.map((k,i)=>`<span class="mpchip">${esc(k)}<button type="button" data-i="${i}" aria-label="Remove skill ${esc(k)}">×</button></span>`).join("");
+    $("#mp_chips").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ mpSkills.splice(+b.dataset.i,1); mpDrawChips(); mpFieldErr("skills",null); $("#mp_skill").focus(); })); }
+  // add the typed skill(s) as chips → problem text or null
+  function mpAddSkill(){ const inp=$("#mp_skill"); const parts=inp.value.split(",").map(x=>x.replace(/\s+/g," ").trim()).filter(Boolean); if(!parts.length) return null;
+    for(const p of parts){ const bad=BPStore.auth.admin.memberProblems({skills:[p]}).skills; if(bad) return bad;
+      if(mpSkills.some(s=>s.toLowerCase()===p.toLowerCase())) continue;
+      if(mpSkills.length>=20) return "Add up to 20 skills."; mpSkills.push(p); }
+    inp.value=""; mpDrawChips(); return null; }
+  function openMemberEdit(u, opener){
+    mpRow=u; mpOpener=opener||null; mpClearErrs();
+    const who=(u.full_name||"").trim()||u.email||"this member";
+    $("#mp_title").textContent="Edit profile — "+who;
+    $("#mp_sub").textContent=(u.email?u.email+" · ":"")+"Changes also update their Staff-directory record (name, mobile, department, title).";
+    $("#mp_full_name").value=u.full_name||""; $("#mp_phone").value=mpNat(u.phone);
+    const same=u.whatsapp_same!==false; $("#mp_wa_same").checked=same; $("#mp_wa_box").hidden=same; $("#mp_whatsapp").value=same?"":mpNat(u.whatsapp);
+    ["job_title","department","city","emergency_contact_name","emergency_contact_phone"].forEach(k=>{ $("#mp_"+k).value=u[k]||""; });
+    mpSkills=Array.isArray(u.skills)?u.skills.slice():[]; $("#mp_skill").value=""; mpDrawChips();
+    const staffOk=u.role!=="client";
+    ["#mp_staffsec","#mp_rate_fld","#mp_emp_fld"].forEach(s=>{ $(s).hidden=!staffOk; });
+    $("#mp_day_rate").value=u.day_rate!=null?u.day_rate:""; $("#mp_emp_type").value=u.emp_type||"";
+    $("#mpModal").hidden=false; mpDirty.clean(); setTimeout(()=>$("#mp_full_name").focus(),50);
+  }
+  // the dialog → a profile form object (only keys the DB should consider)
+  function mpForm(){
+    const u=mpRow||{}, f={ full_name:$("#mp_full_name").value };
+    const ph=$("#mp_phone").value.trim(); if(ph||u.phone) f.phone=ph;
+    f.whatsapp_same=$("#mp_wa_same").checked; if(!f.whatsapp_same) f.whatsapp=$("#mp_whatsapp").value.trim();
+    ["job_title","department","city","emergency_contact_name","emergency_contact_phone"].forEach(k=>{ f[k]=$("#mp_"+k).value; });
+    f.skills=mpSkills.slice();
+    if(u.role!=="client"){ f.day_rate=$("#mp_day_rate").value; f.emp_type=$("#mp_emp_type").value||null; }
+    return f;
+  }
+  const mpDirty=BPUI.trackDirty($("#mpModal"));
+  function closeMemberEdit(){ $("#mpModal").hidden=true; mpRow=null; mpDirty.clean(); if(mpOpener&&mpOpener.isConnected) try{ mpOpener.focus(); }catch(e){} }
+  async function requestCloseMemberEdit(){ if($("#mpModal").hidden) return; if(!(await BPUI.confirmDiscard(mpDirty))) return; closeMemberEdit(); }
+  async function saveMemberEdit(){
+    if(!mpRow) return; mpClearErrs();
+    const pending=mpAddSkill(); if(pending){ mpFieldErr("skills",pending); $("#mp_skill").focus(); return; }
+    const form=mpForm(); const bad=BPStore.auth.admin.memberProblems(form);
+    const keys=MP_FIELDS.filter(k=>bad[k]);
+    if(keys.length){ keys.forEach(k=>mpFieldErr(k,bad[k])); const first=keys[0]; ($(first==="skills"?"#mp_skill":"#mp_"+first)||$("#mp_full_name")).focus(); return; }
+    const row=mpRow, id=ucId(row);
+    await BPUI.guard($("#mp_save"), async()=>{
+      try{
+        const saved=await BPStore.auth.admin.updateMember(id, row, form);
+        if(saved && typeof saved==="object"){ const i=ucRows.findIndex(x=>ucId(x)===id); if(i>=0) ucRows[i]=Object.assign({}, ucRows[i], saved); }
+        closeMemberEdit(); drawUsers(); setUMsg("ok", saved?"Profile saved.":"No changes to save.");
+      }catch(err){
+        if(err&&err.fields){ Object.keys(err.fields).forEach(k=>mpFieldErr(k,err.fields[k])); return; }
+        const el=$("#mp_err"); el.textContent=BPStore.auth.admin.memberErrorText(err)||errMsg(err,"save the profile"); el.hidden=false;
+      }
+    }, {busyLabel:"Saving…"});
+  }
+  $("#mpForm").addEventListener("submit",(e)=>{ e.preventDefault(); saveMemberEdit(); });
+  $("#mp_cancel").addEventListener("click",requestCloseMemberEdit);
+  $("#mpModal").addEventListener("click",(e)=>{ if(e.target.id==="mpModal") requestCloseMemberEdit(); });
+  $("#mp_wa_same").addEventListener("change",()=>{ const same=$("#mp_wa_same").checked; $("#mp_wa_box").hidden=same; mpFieldErr("whatsapp",null); if(!same) $("#mp_whatsapp").focus(); });
+  $("#mp_skill").addEventListener("keydown",(e)=>{ if(e.key==="Enter"||e.key===","){ e.preventDefault(); const bad=mpAddSkill(); mpFieldErr("skills",bad); } });
+  $("#mp_skill").addEventListener("input",()=>mpFieldErr("skills",null));
+  // inline: check a field as soon as the person leaves it
+  ["full_name","phone","whatsapp","job_title","department","city","emergency_contact_name","emergency_contact_phone","day_rate"].forEach(k=>{
+    const el=$("#mp_"+k); if(!el) return;
+    el.addEventListener("blur",()=>{ if(!mpRow) return; const f=mpForm(); const one={}; if(k in f) one[k]=f[k]; if(k==="whatsapp"){ one.whatsapp_same=f.whatsapp_same; }
+      mpFieldErr(k, BPStore.auth.admin.memberProblems(one)[k]||null); });
+    el.addEventListener("input",()=>{ if(el.getAttribute("aria-invalid")) mpFieldErr(k,null); });
+  });
   $("#um_add").addEventListener("submit", async (e)=>{
     e.preventDefault();
     const email=$("#um_email").value.trim(), role=$("#um_role").value;

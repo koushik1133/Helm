@@ -120,6 +120,7 @@
   .eglist label:hover{background:var(--panel-2)}
   .eglist input{width:17px;height:17px;accent-color:var(--accent)}
   .eglist .rl{margin-left:auto;color:var(--ink-3);font-size:12px;text-transform:capitalize}
+  .eglist .egav{width:28px;height:28px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;position:relative;overflow:hidden}
 </style>
 <link rel="stylesheet" href="theme.css?v=73">
 </head>
@@ -273,7 +274,7 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=107"></script>
+<script src="store-api.js?v=108"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
@@ -759,10 +760,12 @@
     const nm=(p)=>BPStore.chat.displayName?BPStore.chat.displayName(p):(p.full_name||p.email||"Member");
     const rl=(r)=>{ try{ return r?BPStore.auth.admin.roleLabel(r):""; }catch(_){ return r||""; } };
     const rows=egPeople.filter(p=>!f||nm(p).toLowerCase().includes(f));
-    $("#eg_list").innerHTML=rows.length?rows.map(p=>`<label><input type="checkbox" value="${esc(p.id)}"${checked.has(p.id)?" checked":""}><span>${esc(nm(p))}</span><span class="rl">${esc(rl(p.role))}</span></label>`).join("")
+    const ini=(n)=>{ const w=String(n||"?").trim().split(/\s+/); return (((w[0]||"")[0]||"?")+((w[1]||"")[0]||"")).toUpperCase(); };
+    $("#eg_list").innerHTML=rows.length?rows.map(p=>`<label><input type="checkbox" value="${esc(p.id)}"${checked.has(p.id)?" checked":""}><span class="egav"${p.avatar_path?` data-avatar-path="${esc(p.avatar_path)}"`:""} aria-hidden="true">${esc(ini(nm(p)))}</span><span>${esc(nm(p))}</span><span class="rl">${esc(p.job_title||rl(p.role))}</span></label>`).join("")
       :`<div class="muted" style="padding:14px">${egPeople.length?"Nobody matches.":"No teammates yet — you can create the group and add people later."}</div>`;
     // keep hidden (filtered-out) selections
     [...checked].filter(id=>!rows.some(p=>p.id===id)).forEach(id=>{ const i=document.createElement("input"); i.type="checkbox"; i.value=id; i.checked=true; i.hidden=true; $("#eg_list").appendChild(i); });
+    try{ BPStore.chat.paintAvatars($("#eg_list")); }catch(_){}
   }
   function closeEgModal(){ $("#egModal").hidden=true; egQuote=null; }
   async function createEventGroup(){
