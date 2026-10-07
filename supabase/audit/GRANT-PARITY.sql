@@ -31,7 +31,9 @@ anon_allow(n) as (values
   ('worker_get_tasks'),('worker_get_equipment'),('worker_respond'),('worker_checkin_equipment'),
   ('invitation_preview'),('invite_media_on_published_site'),('public_link_studio'),
   ('helm_norm_phone'),('mfa_ok'),('studio_slug_reserved'),('studio_slug_valid'),('studio_slugify'),
-  ('try_date'),('client_link_window_days')),
+  ('try_date'),('client_link_window_days'),
+  -- 0038 crew work link evidence (token-checked inside; storage policy helper)
+  ('worker_evidence_upload'),('worker_respond_evidence'),('task_proof_upload_ok')),
 auth_deny(n) as (values
   ('_admin_create_user_core'),('_flag'),('_hq_gate'),('_hq_num'),('_hq_studio_rows'),('_notify'),
   ('_password_ok'),('_work_token_live'),('admin_store_otp'),('create_helm_user'),('helm_total_paid'),
@@ -71,7 +73,8 @@ canonical(n) as (select unnest(array[
     'studio_slug_pick', 'studio_slug_reserved', 'studio_slug_valid', 'studio_slugify', 'task_verify_summary',
     'try_date', 'user_role', 'verify_and_consent', 'verify_and_consent__base', 'verify_task',
     'whatsapp_authorize', 'work_token_expiry_for', 'worker_checkin_equipment', 'worker_get_equipment',
-    'worker_get_tasks', 'worker_respond'
+    'worker_get_tasks', 'worker_respond',
+    'worker_evidence_upload', 'worker_respond_evidence', 'task_proof_upload_ok'
   ]::text[])),
 fns as (
   select p.oid, p.oid::regprocedure::text as sig, p.proname as n,

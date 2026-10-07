@@ -5,6 +5,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quotes &amp; Confirmations — Helm Events</title>
+<link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
+<link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
+<link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -99,6 +102,18 @@
   .taxnote{font-size:12px;color:var(--ink-3);margin-top:6px;line-height:1.5}
   .msg{border-radius:8px;padding:8px 11px;font-size:13px}
   .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca} .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
+  /* event group (0035): prompt after confirming + member picker */
+  .egbar{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:70;display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;width:min(620px,calc(100vw - 32px));font-size:13.5px}
+  .egbar[hidden]{display:none!important}
+  .egbar .egtxt{flex:1;min-width:200px}
+  .egbar .egtxt b{display:block}
+  .egbar .egtxt span{color:var(--ink-3);font-size:12px}
+  .eglist{max-height:46vh;overflow-y:auto;border:1px solid var(--line);border-radius:10px;margin-top:10px}
+  .eglist label{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line-2,#f1ede7);cursor:pointer;font-size:13.5px}
+  .eglist label:last-child{border-bottom:0}
+  .eglist label:hover{background:var(--panel-2)}
+  .eglist input{width:17px;height:17px;accent-color:var(--accent)}
+  .eglist .rl{margin-left:auto;color:var(--ink-3);font-size:12px;text-transform:capitalize}
 </style>
 <link rel="stylesheet" href="theme.css?v=73">
 </head>
@@ -215,6 +230,27 @@
   </div>
 </div>
 
+<!-- Event group: pick the team (0035) -->
+<div class="lmodal" id="egModal" hidden role="dialog" aria-modal="true" aria-labelledby="eg_title">
+  <div class="sheet" style="width:min(520px,94vw)">
+    <h3><span id="eg_title">💬 Create event group</span> <button class="close" id="eg_close" type="button" aria-label="Close" data-close>✕</button></h3>
+    <p class="sub" id="eg_sub">A team chat for this event. Helm posts the event details — client contact, date, venue, guests, layout, menu and notes. Never prices or payments. You can add more people later.</p>
+    <div class="fld"><label for="eg_search">Add people</label><input id="eg_search" type="search" placeholder="Search your team…" autocomplete="off"></div>
+    <div class="eglist" id="eg_list"></div>
+    <div class="lerr" id="eg_err" role="alert" aria-live="assertive" hidden></div>
+    <div class="modbtns">
+      <button class="btn" id="eg_cancel" type="button">Cancel</button>
+      <button class="btn primary" id="eg_create" type="button">Create group</button>
+    </div>
+  </div>
+</div>
+<div class="egbar" id="egBar" role="status" aria-live="polite" hidden>
+  <span aria-hidden="true" style="font-size:20px">💬</span>
+  <div class="egtxt"><b id="egBarTitle">Create event group?</b><span>Brief your team in one chat — event details are posted for you (no prices).</span></div>
+  <button class="btn primary" id="egBarGo" type="button">Create event group</button>
+  <button class="btn" id="egBarNo" type="button">Not now</button>
+</div>
+
 <!-- Login modal (reused) -->
 <div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle" data-dismissible="false">
   <form class="sheet" id="loginForm" style="width:min(380px,94vw);text-align:center">
@@ -230,7 +266,7 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=104"></script>
+<script src="store-api.js?v=106"></script>
 <script src="tour.js?v=6"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
@@ -243,6 +279,7 @@
   let quotes=[], filter="all", typeFilter="", canEdit=false, canDelete=false, canCreate=false, canMarkPaid=false;
   const PAGE=50; let shown=PAGE;   // cap rows rendered; "Show more" reveals the next PAGE
   const detailCache={};   // id -> full quote (with versions)
+  let egIndex={}, egReady=false;   // event groups (0035): quote id -> { conversation_id, is_member }
 
   /* ---------- seat/chair counting from a version's layout ---------- */
   function countSeats(items){ let seats=0; (items||[]).forEach(i=>{ const p=i.properties||{};
@@ -273,6 +310,7 @@
     $("#newBtn").hidden = !canCreate;
     try { quotes = await BPStore.quotes.list(); }
     catch(e){ BPUI.loadError($("#rows"), e, load, {what:"quotes"}); return; }
+    await loadEventGroups();
     // opened from an event workspace? focus that quote by pre-filling the search
     const focus=new URLSearchParams(location.search).get("focus");
     if(focus){ $("#search").value=focus; }
@@ -330,6 +368,7 @@
             ? // finished event → read-only set: review its details, reopen the workspace, download
               `<button type="button" class="ic go" data-act="details" title="View closure, P&amp;L and feedback for this completed event" aria-label="Details for ${esc(x.code)}">📄 Details</button>
                <button type="button" class="ic go" data-act="workspace" title="Open the event workspace" aria-label="Open workspace for ${esc(x.code)}">⧉ Open</button>
+               ${egReady&&egIndex[x.id]?`<button type="button" class="ic go" data-act="egroup" aria-label="Open the event group for ${esc(x.code)}">💬 Event group</button>`:""}
                <button type="button" class="ic" data-act="download" aria-label="Download ${esc(x.code)}">Download</button>
                ${canDelete?`<button type="button" class="ic del" data-act="del" title="Delete permanently" aria-label="Delete ${esc(x.code)}">✕</button>`:""}`
             : // active event → the full working set
@@ -338,6 +377,7 @@
                ${canEdit?`<button type="button" class="ic confirm" data-act="confirm" aria-label="${x.status==="confirmed"?"Re-price":"Confirm"} ${esc(x.code)}">${x.status==="confirmed"?"Re-price":"Confirm"}</button>`:""}
                ${canEdit&&x.status==="confirmed"?`<button type="button" class="ic" data-act="link" title="Get the client approval link" aria-label="Approval link for ${esc(x.code)}">🔗 Approve link</button>`:""}
                <button type="button" class="ic go" data-act="ops" title="Assign & track work" aria-label="Operations for ${esc(x.code)}">⚙ Ops</button>
+               ${egReady&&(egIndex[x.id]||x.status==="confirmed")?`<button type="button" class="ic go" data-act="egroup" title="${egIndex[x.id]?"Open this event's team chat":"Create a team chat for this event"}" aria-label="${egIndex[x.id]?"Open event group":"Create event group"} for ${esc(x.code)}">${egIndex[x.id]?"💬 Open event group":"💬 Event group"}</button>`:""}
                ${canMarkPaid&&x.approvalStatus==="approved"?`<button type="button" class="ic confirm" data-act="paid" title="Mark payment received (dev)" aria-label="Mark ${esc(x.code)} paid">Mark paid</button>`:""}
                <button type="button" class="ic" data-act="download" aria-label="Download ${esc(x.code)}">Download</button>
                ${canDelete?`<button type="button" class="ic del" data-act="del" title="Delete permanently" aria-label="Delete ${esc(x.code)}">✕</button>`:""}`}
@@ -363,6 +403,7 @@
         else if(act==="link") BPUI.guard(b,()=>sendApprovalLink(id));
         else if(act==="paid") markPaid(id, b);
         else if(act==="del") delQuote(id, b);
+        else if(act==="egroup") BPUI.guard(b,()=>openEventGroup(id));
       }));
     });
   }
@@ -494,8 +535,9 @@
     // user/tab changed the quote since, updateMeta throws {code:"CONFLICT"} instead of
     // silently overwriting their edit.
     const expUpd = (detailCache[cmId] && detailCache[cmId].updatedAt) || null;
+    let confirmedId=null;
     try{
-      if(confirmIt){ await BPStore.quotes.confirm(cmId, client, pricing);
+      if(confirmIt){ await BPStore.quotes.confirm(cmId, client, pricing); confirmedId=cmId;
         try{ await BPStore.quotes.setStage(cmId, "confirmed"); }catch(_){}   // advance the lifecycle so the workspace stepper isn't stuck on "quote"
       }
       else await BPStore.quotes.updateMeta(cmId, { pricing, client }, expUpd);
@@ -506,6 +548,7 @@
       }
       delete detailCache[cmId];
       closeConfirm(); BPUI.toast(confirmIt?"Quote confirmed and locked.":"Pricing saved.",{type:"ok"}); await load();
+      if(confirmedId) showEventGroupPrompt(confirmedId);
     }catch(e){ const el=$("#cm_err");
       el.textContent = (e&&e.code==="CONFLICT")
         ? "This quote was changed in another tab or by another user since you opened it. Reload to see the latest, then re-apply your changes."
@@ -598,6 +641,60 @@
       catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"mark the payment received"}),{type:"err"}); } }); }
     finally{ markingPaid=false; }
   }
+
+  /* ---------- event group (0035): a team chat per confirmed event — never prices ---------- */
+  async function loadEventGroups(){
+    try{ egIndex=await BPStore.chat.eventGroups.index(); egReady=true; }
+    catch(e){ egIndex={}; egReady=false; }   // 0035 not installed / no chat → no event-group buttons
+  }
+  let egQuote=null, egPeople=[];
+  async function openEventGroup(id){
+    const q=quotes.find(x=>x.id===id); if(!q) return;
+    const g=egIndex[id];
+    if(g){ if(g.is_member) location.href="chat.html?c="+encodeURIComponent(g.conversation_id);
+           else BPUI.toast("This event already has a group. Ask someone in it to add you.",{type:"info"});
+           return; }
+    if(q.status!=="confirmed"){ BPUI.toast("Confirm this quote before creating its event group.",{type:"info"}); return; }
+    let me=null; try{ me=(BPStore.auth.user()||{}).id||(await BPStore.chat.me()).id; }catch(_){}
+    try{ egPeople=(await BPStore.chat.roster()).filter(p=>p.id&&p.id!==me); }catch(_){ egPeople=[]; }
+    egQuote=q; $("#eg_err").hidden=true; $("#eg_search").value="";
+    $("#eg_title").textContent="💬 Event group · "+(q.code||"");
+    drawEgList(""); $("#egModal").hidden=false; setTimeout(()=>$("#eg_search").focus(),50);
+  }
+  function drawEgList(filterText){
+    const f=String(filterText||"").toLowerCase().trim(); const checked=new Set([...document.querySelectorAll("#eg_list input:checked")].map(i=>i.value));
+    const nm=(p)=>BPStore.chat.displayName?BPStore.chat.displayName(p):(p.full_name||p.email||"Member");
+    const rl=(r)=>{ try{ return r?BPStore.auth.admin.roleLabel(r):""; }catch(_){ return r||""; } };
+    const rows=egPeople.filter(p=>!f||nm(p).toLowerCase().includes(f));
+    $("#eg_list").innerHTML=rows.length?rows.map(p=>`<label><input type="checkbox" value="${esc(p.id)}"${checked.has(p.id)?" checked":""}><span>${esc(nm(p))}</span><span class="rl">${esc(rl(p.role))}</span></label>`).join("")
+      :`<div class="muted" style="padding:14px">${egPeople.length?"Nobody matches.":"No teammates yet — you can create the group and add people later."}</div>`;
+    // keep hidden (filtered-out) selections
+    [...checked].filter(id=>!rows.some(p=>p.id===id)).forEach(id=>{ const i=document.createElement("input"); i.type="checkbox"; i.value=id; i.checked=true; i.hidden=true; $("#eg_list").appendChild(i); });
+  }
+  function closeEgModal(){ $("#egModal").hidden=true; egQuote=null; }
+  async function createEventGroup(){
+    const q=egQuote; if(!q) return;
+    const ids=[...new Set([...document.querySelectorAll("#eg_list input:checked")].map(i=>i.value))];
+    try{
+      const cid=await BPStore.chat.eventGroups.create(q.id, ids);
+      await loadEventGroups(); const g=egIndex[q.id];
+      if(g&&!g.is_member){ closeEgModal(); render(); BPUI.toast("This event already has a group. Ask someone in it to add you.",{type:"info"}); return; }
+      closeEgModal(); location.href="chat.html?c="+encodeURIComponent((g&&g.conversation_id)||cid);
+    }catch(e){ const el=$("#eg_err"); el.textContent=BPUI.friendlyError(e,{action:"create the event group"}); el.hidden=false; }
+  }
+  // after "Confirm & lock": offer the group (manual — nothing is created until they click)
+  function showEventGroupPrompt(id){
+    const q=quotes.find(x=>x.id===id); if(!egReady||!q||q.status!=="confirmed"||egIndex[id]) return;
+    $("#egBarTitle").textContent="Create an event group for "+(q.code||"this event")+"?";
+    $("#egBar").dataset.qid=id; $("#egBar").hidden=false;
+  }
+  $("#egBarGo").addEventListener("click",()=>{ const id=$("#egBar").dataset.qid; $("#egBar").hidden=true; if(id) openEventGroup(id); });
+  $("#egBarNo").addEventListener("click",()=>{ $("#egBar").hidden=true; });
+  $("#eg_search").addEventListener("input",e=>drawEgList(e.target.value));
+  $("#eg_close").addEventListener("click",closeEgModal);
+  $("#eg_cancel").addEventListener("click",closeEgModal);
+  $("#egModal").addEventListener("click",e=>{ if(e.target.id==="egModal") closeEgModal(); });
+  $("#eg_create").addEventListener("click",()=>BPUI.guard($("#eg_create"),createEventGroup,{busyLabel:"Creating…"}));
 
   /* ---------- wire up ---------- */
   $("#tabs").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return;

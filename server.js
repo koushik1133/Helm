@@ -173,9 +173,11 @@ const SECURITY_HEADERS = {
   'Cross-Origin-Resource-Policy': 'same-origin',
   'Content-Security-Policy': CSP.base,
 };
-// Chat records voice notes, so only /chat may use this site's own microphone.
-// Camera stays off: the photo button is a plain file picker.
+// Chat and the crew work link (/work, /<studio>/work/<ref>: voice note on a rejected
+// task, 0038) record voice notes, so only those pages may use this site's own
+// microphone. Camera stays off: photo buttons are plain file pickers / capture inputs.
 const CHAT_PERMISSIONS = 'camera=(), microphone=(self), geolocation=(), payment=()';
+const MIC_PAGES = new Set(['chat', 'work']);
 
 // Search-engine policy: only the marketing pages are indexable. Every other
 // page (app, token pages, login, sim-pay, 404), /docs/* and /.well-known/* get
@@ -210,7 +212,7 @@ function securityHeadersFor(req, filePath) {
   const variant = page && CSP_BY_PAGE[page];
   if (variant) h['Content-Security-Policy'] = CSP[variant];
   if (page === 'invite') h['X-Frame-Options'] = 'SAMEORIGIN';   // Invitation Studio preview (same-origin only)
-  if (page === 'chat') h['Permissions-Policy'] = CHAT_PERMISSIONS; // voice notes (same rule as vercel.json / _headers)
+  if (page && MIC_PAGES.has(page)) h['Permissions-Policy'] = CHAT_PERMISSIONS; // voice notes (same rule as vercel.json / _headers)
   // Client-link (bearer token) pages: the token is in the URL, so never send it
   // on as a Referer (same rule as vercel.json / _headers).
   if (page && TOKEN_PAGES.has(page)) h['Referrer-Policy'] = 'no-referrer';
@@ -233,7 +235,7 @@ function cacheControlFor(filePath, query) {
   const ext = path.extname(rel).toLowerCase();
   if (ext === '.html' && !rel.includes('/') && TOKEN_PAGES.has(pageName(rel))) return 'no-store, private';
   if (ext === '.html') return (!rel.includes('/') && !INDEXABLE_PAGES.has(pageName(rel))) ? 'no-store' : 'no-cache';
-  if (rel === 'config.js') return 'public, max-age=300';
+  if (rel === 'config.js') return 'public, max-age=300, stale-while-revalidate=3600';
   if (rel.startsWith('vendor/')) return IMMUTABLE;
   if (/[?&]v=/.test(query || '') && ['.js', '.css', '.png', '.webp', '.svg', '.woff2'].includes(ext)) return IMMUTABLE;
   if (['.js', '.css'].includes(ext)) return 'no-cache';   // unversioned script/style: always revalidate locally

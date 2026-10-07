@@ -9,6 +9,9 @@
 <meta name="bp-theme-toggle" content="off">
 <title>Team Chat — Helm Events</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d28d9'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
+<link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
+<link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
@@ -155,6 +158,35 @@
   .bub .card .cmeta b{display:block;font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .bub .card .cmeta .csub{display:block;font-size:12px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .bub .card .copen{display:inline-block;margin-top:4px;font-size:12.5px;font-weight:700;color:var(--accent)}
+  /* event group: the system "event card" (0035) — centred, full width, no money */
+  .m.sys{align-self:center;max-width:min(560px,94%);width:100%;margin:8px 0}
+  .evcard{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:12px;padding:11px 14px 8px;box-shadow:0 1px 2px rgba(20,27,46,.05);font-size:13.5px}
+  .evcard .ev-h{display:flex;flex-direction:column;gap:1px;margin-bottom:8px}
+  .evcard .ev-h span{font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--accent)}
+  .evcard .ev-h b{font-size:15px;font-weight:700}
+  .evcard .ev-h .ev-emo{font-style:normal;font-size:15px;letter-spacing:0;margin-right:2px}
+  .evcard .ev-r{display:grid;grid-template-columns:92px 1fr;gap:8px;padding:3px 0;border-top:1px dashed var(--line-2)}
+  .evcard .ev-k{color:var(--ink-3);font-size:12.5px}
+  .evcard .ev-v{white-space:pre-wrap;overflow-wrap:anywhere}
+  .evcard .ev-v a{color:var(--accent)}
+  .evcard .ev-dish{display:inline-block;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;padding:1px 8px;margin:2px 4px 2px 0;font-size:12px}
+  .evcard .card{margin:8px 0 4px;max-width:none;display:flex;gap:10px;align-items:flex-start;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:9px 11px;text-decoration:none;color:inherit}
+  .evcard .card:hover{border-color:var(--accent)}
+  .evcard .card .cic{font-size:22px}
+  .evcard .card b{display:block;font-size:13.5px}
+  .evcard .card .csub{display:block;font-size:12px;color:var(--ink-2)}
+  .evcard .card .copen,.evcard .ev-open{display:inline-block;margin-top:3px;font-size:12.5px;font-weight:700;color:var(--accent)}
+  .evcard .meta-in{float:none;display:block;text-align:right;margin:4px 0 0}
+  .pinbar{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:7px 16px;background:var(--panel);border-bottom:1px solid var(--line-2);font-size:13px;cursor:pointer;color:var(--ink-2)}
+  .pinbar:hover{background:var(--panel-2)}
+  .pinbar b{color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* @mentions */
+  .bub .mention{color:var(--accent);font-weight:600}
+  .bub .mention.me{background:var(--accent-soft);border-radius:4px;padding:0 2px}
+  .mentionpop{background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);margin-bottom:8px;max-height:240px;overflow-y:auto;padding:4px 0}
+  .mentionpop button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;text-align:left;padding:7px 12px;font-size:14px;cursor:pointer;color:var(--ink)}
+  .mentionpop button.on,.mentionpop button:hover{background:var(--accent-soft)}
+  .mentionpop .av{width:28px;height:28px;font-size:11px}
   .emojibar{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px}
   .emojibar button{border:0;background:transparent;font-size:21px;padding:3px 5px;cursor:pointer;border-radius:7px}
   .emojibar button:hover{background:var(--panel)}
@@ -265,6 +297,7 @@
       <button class="circbtn" id="searchBtn" title="Search in conversation" aria-label="Search in conversation">🔍</button>
       <button class="circbtn" id="headMenuBtn" title="Menu" aria-label="Conversation menu" data-menu-anchor="1">⋮</button>
     </div>
+    <div class="pinbar" id="pinBar" role="button" tabindex="0" hidden><span aria-hidden="true">📌</span><b id="pinTxt"></b></div>
     <div class="tsearch" id="tSearch" hidden>
       <input id="tSearchInput" type="search" placeholder="Search in this conversation" autocomplete="off" aria-label="Search in this conversation">
       <span class="tsearch-ct" id="tSearchCt"></span>
@@ -278,6 +311,7 @@
       <div class="replybar" id="replyBar" hidden><div class="rc"><b id="replyWho"></b><span id="replyTxt"></span></div><button class="x" id="replyX" aria-label="Cancel reply">×</button></div>
       <div class="attachbar" id="attachBar" hidden><div class="ac" id="attachInfo"></div><button class="x" id="attachX" aria-label="Remove attachment">×</button></div>
       <div class="emojibar" id="emojiBar" hidden></div>
+      <div class="mentionpop" id="mentionPop" role="listbox" aria-label="Mention someone" hidden></div>
       <div class="cbar" id="cbar">
         <button class="ic" id="attachBtn" type="button" title="Attach" aria-label="Attach" data-menu-anchor="1">📎</button>
         <div class="inputwrap">
@@ -329,7 +363,7 @@
 <link rel="stylesheet" href="theme.css?v=73">
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=104"></script>
+<script src="store-api.js?v=106"></script>
 <script>
 (function(){
   const $=(s,r)=>(r||document).querySelector(s);
@@ -374,8 +408,11 @@
     if(c.dm_key){ const ids=c.dm_key.split(":"); return ids[0]===ME.id?ids[1]:ids[0]; }
     const m=(c._members||[]).map(x=>x.user_id).find(x=>x!==ME.id); return m||null; }
   function convTitle(c){ if(c.kind==="broadcast") return c.title||"Everyone"; if(c.kind==="group") return c.title||"Group"; return personName(convOther(c)); }
-  function convAvatar(c){ if(c.kind==="broadcast") return {bg:"var(--accent)",txt:"📢"}; if(c.kind==="group") return {bg:colorFor(c.id),txt:"👥"}; const o=convOther(c); return {bg:colorFor(o),txt:initials(personName(o))}; }
-  function avHtml(a,id){ return `<div class="av"${id?' id="'+id+'"':''} style="background:${a.bg}">${a.txt}</div>`; }
+  /* event groups: an emoji for the event type (wedding 💍, birthday 🎂 … default 📅) — BPStore.chat.eventEmoji */
+  function evEmoji(type,title){ try{ return (typeof BPStore!=="undefined"&&BPStore.chat&&BPStore.chat.eventEmoji)?BPStore.chat.eventEmoji(type,title):"📅"; }catch(e){ return "📅"; } }
+  const evTypeCache={};  /* quote id → {event_type,title}: one quotes read per refresh, only for groups not seen yet */
+  function convAvatar(c){ if(c.kind==="broadcast") return {bg:"var(--accent)",txt:"📢"}; if(c.kind==="group") return {bg:colorFor(c.id),txt:c.quote_id?evEmoji(c._evType,c._evTitle||c.title):"👥"}; const o=convOther(c); return {bg:colorFor(o),txt:initials(personName(o))}; }
+  function avHtml(a,id){ return `<div class="av"${id?' id="'+id+'"':''} style="background:${a.bg}">${esc(a.txt)}</div>`; }
 
   function closeMenus(){ document.querySelectorAll(".menu,.rxpop").forEach(m=>m.remove()); document.querySelectorAll(".m.menu-open").forEach(m=>m.classList.remove("menu-open")); }
   document.addEventListener("click",(e)=>{ if(!e.target.closest(".menu")&&!e.target.closest(".rxpop")&&!e.target.closest("[data-menu-anchor]")&&!e.target.closest(".caret")) closeMenus(); });
@@ -408,18 +445,49 @@
 
   /* ---------- attachment cards (quote / layout) ---------- */
   const inr=(n)=>{ const v=Number(n||0); try{ return "₹"+v.toLocaleString("en-IN"); }catch(e){ return "₹"+v; } };
-  function cardLabel(m){ const mt=(m&&m.meta)||{}; if(mt.kind==="layout") return "📐 Layout"+(mt.name?": "+mt.name:""); return "📄 Quote"+(mt.code?": "+mt.code:(mt.title?": "+mt.title:"")); }
+  function cardLabel(m){ const mt=(m&&m.meta)||{}; if(mt.kind==="event") return "📋 Event details"+(mt.code?": "+mt.code:""); if(mt.kind==="layout") return "📐 Layout"+(mt.name?": "+mt.name:""); return "📄 Quote"+(mt.code?": "+mt.code:(mt.title?": "+mt.title:"")); }
+  /* event group card (0035): built by the server from a whitelist (no money); every value escaped here */
+  function isEventCard(m){ return !!(m&&m.kind==="card"&&m.sender_id==null&&m.meta&&m.meta.kind==="event"); }
+  function fmtEvDate(d){ if(!/^\d{4}-\d{2}-\d{2}$/.test(String(d||""))) return ""; try{ return new Date(d+"T00:00:00").toLocaleDateString([], {weekday:"short",day:"numeric",month:"short",year:"numeric"}); }catch(e){ return String(d); } }
+  function eventCardHtml(mt){ mt=mt||{}; const cl=(mt.client&&typeof mt.client==="object")?mt.client:{}; const menu=(mt.menu&&typeof mt.menu==="object")?mt.menu:{};
+    const qid=String(mt.quote_id||""); const rows=[];
+    const row=(k,vHtml)=>{ if(vHtml) rows.push(`<div class="ev-r"><span class="ev-k">${esc(k)}</span><span class="ev-v">${vHtml}</span></div>`); };
+    row("Client", esc([cl.name,cl.company].filter(Boolean).join(" · ")));
+    if(cl.phone) row("Phone", `<a href="tel:${esc(String(cl.phone).replace(/[^0-9+]/g,""))}">${esc(cl.phone)}</a>`);
+    if(cl.email) row("Email", `<a href="mailto:${esc(encodeURIComponent(String(cl.email)).replace(/%40/g,"@"))}">${esc(cl.email)}</a>`);
+    row("Event", esc(mt.event_type||""));
+    row("Date", esc([fmtEvDate(mt.event_date),mt.event_time].filter(Boolean).join(" · ")));
+    row("Venue", esc([mt.venue,mt.venue_address].filter(Boolean).join(", ")));
+    if(mt.guests!=null&&mt.guests!=="") row("Guests", esc(String(mt.guests)));
+    row("Menu", esc(menu.package||""));
+    const dishes=Array.isArray(menu.dishes)?menu.dishes:[];
+    if(dishes.length) row("Dishes", dishes.map(d=>`<span class="ev-dish">${esc((d&&d.name)||"")}</span>`).join(""));
+    row("Menu notes", esc(menu.notes||""));
+    row("Notes", esc(mt.notes||""));
+    row("Access", esc(mt.access_notes||""));
+    const lay=(mt.layout&&typeof mt.layout==="object")?mt.layout:{}; const n=Number(lay.object_count);
+    const layHtml=qid?`<a class="card" href="builder.html?quote=${encodeURIComponent(qid)}"><span class="cic">📐</span><div class="cmeta"><b>Floor layout${lay.version?" · v"+esc(String(lay.version)):""}</b><span class="csub">${Number.isFinite(n)?esc(n+" item"+(n===1?"":"s")):"Floor layout"}</span><span class="copen">Open in builder →</span></div></a>`:"";
+    return `<div class="ev-h"><span><i class="ev-emo" aria-hidden="true">${esc(evEmoji(mt.event_type,mt.title))}</i> ${mt.refreshed?"Event details · updated":"Event details"}</span><b>${esc([mt.code,mt.title].filter(Boolean).join(" · ")||"Event")}</b></div>`
+      + rows.join("") + layHtml
+      + (qid?`<a class="ev-open" href="event.html?id=${encodeURIComponent(qid)}">Open event workspace →</a>`:""); }
+  /* @mentions: highlight "@Name" for the people the server kept in meta.mentions (escaped) */
+  function mentionHtml(body,ids){ const txt=String(body||""); ids=Array.isArray(ids)?ids:[]; if(!ids.length) return esc(txt);
+    const names=ids.map(id=>({id,n:"@"+personName(id)})).filter(x=>x.n.length>1).sort((a,b)=>b.n.length-a.n.length);
+    let out="",i=0,plain="";
+    outer: while(i<txt.length){ for(const x of names){ if(txt.startsWith(x.n,i)){ out+=esc(plain)+`<span class="mention${x.id===ME.id?" me":""}">${esc(x.n)}</span>`; plain=""; i+=x.n.length; continue outer; } } plain+=txt[i]; i++; }
+    return out+esc(plain); }
   function cardHtml(meta){ meta=meta||{};
     if(meta.kind==="quote"){ const sub=[meta.total?inr(meta.total):null, meta.status, meta.client, meta.event_date].filter(Boolean).join(" · ");
       return `<a class="card" href="quotes.html?focus=${encodeURIComponent(meta.code||meta.title||"")}"><span class="cic">📄</span><div class="cmeta"><b>${esc((meta.code?meta.code+" · ":"")+(meta.title||"Quote"))}</b><span class="csub">${esc(sub||"Quote")}</span><span class="copen">Open quote →</span></div></a>`; }
+    if(meta.kind==="event") return `<div class="card"><span class="cic">📋</span><div class="cmeta"><b>${esc(cardLabel({meta}))}</b></div></div>`;
     if(meta.kind==="layout"){ const sub=(meta.object_count!=null?meta.object_count+" item"+(meta.object_count===1?"":"s"):"Floor layout");
-      return `<a class="card" href="builder.html"><span class="cic">📐</span><div class="cmeta"><b>${esc(meta.name||"Layout")}</b><span class="csub">${esc(sub)}</span><span class="copen">Open in builder →</span></div></a>`; }
+      return `<a class="card" href="builder.html${meta.quote_id?"?quote="+encodeURIComponent(meta.quote_id):""}"><span class="cic">📐</span><div class="cmeta"><b>${esc(meta.name||"Layout")}</b><span class="csub">${esc(sub)}</span><span class="copen">Open in builder →</span></div></a>`; }
     return `<div class="card"><span class="cic">📎</span><div class="cmeta"><b>Attachment</b></div></div>`; }
 
   /* ---------- conversation list ---------- */
   function lastPreview(c){ const m=c._last; if(!m) return c.kind==="broadcast"?"Broadcast to your whole team":"No messages yet";
     const youTick=(m.sender_id===ME.id)?(ticksHtml(m,c._members,false)+" "):"";
-    const who=(m.sender_id!==ME.id&&c.kind!=="dm")?(esc(personName(m.sender_id).split(" ")[0])+": "):"";
+    const who=(m.sender_id&&m.sender_id!==ME.id&&c.kind!=="dm")?(esc(personName(m.sender_id).split(" ")[0])+": "):"";
     const body=m.kind==="image"?"📷 Photo":m.kind==="voice"?"🎤 Voice message":m.kind==="card"?esc(cardLabel(m)):esc(m.body||"");
     return youTick+who+body; }
   function unreadCount(c){ if(!c._last) return 0; return (c._msgs||[]).filter(x=>x.sender_id!==ME.id && (!c._lastRead || x.created_at> c._lastRead)).length; }
@@ -446,19 +514,32 @@
       el.addEventListener("click",go); el.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); go(); } }); });
   }
 
+  /* event-group avatars: the event type comes from the group's latest event card (already loaded
+     with the thread) or, for groups whose card scrolled out, ONE RLS-scoped quotes read for all of them */
+  async function resolveEventTypes(){
+    const need=[];
+    convs.forEach(c=>{ if(c.kind!=="group"||!c.quote_id) return;
+      const card=(c._msgs||[]).filter(isEventCard).pop();
+      if(card&&card.meta.event_type){ evTypeCache[c.quote_id]={event_type:card.meta.event_type,title:card.meta.title||null}; }
+      else if(!evTypeCache[c.quote_id]) need.push(c.quote_id); });
+    if(need.length){ let got={}; try{ got=await BPStore.chat.eventGroups.types(need); }catch(e){}
+      need.forEach(id=>{ evTypeCache[id]=got[id]||{event_type:null,title:null}; }); }
+    convs.forEach(c=>{ const t=c.quote_id&&evTypeCache[c.quote_id]; if(t){ c._evType=t.event_type; c._evTitle=t.title; } });
+  }
   async function refresh(){
     try{ convs=await BPStore.chat.conversations(); backendReady=true; }catch(e){ convs=[]; backendReady=false; }
     const mem=await BPStore.chat.myMemberships().catch(()=>({}));
     convs.forEach(c=>{ const m=mem[c.id]; c._lastRead=m&&m.last_read_at; });
     await Promise.all(convs.map(async c=>{ try{ const t=await BPStore.chat.thread(c.id,80); c._members=t.members; c._msgs=t.messages; c._last=t.messages[t.messages.length-1]||null; c._unread=unreadCount(c); }
       catch(e){ c._members=[]; c._last=null; c._unread=0; } }));
+    await resolveEventTypes();
     renderConvs();
   }
 
   /* ---------- thread ---------- */
   async function openConv(id){
     activeId=id; $("#app").classList.add("show-thread");
-    msgQuery=""; $("#tSearch").hidden=true; $("#tSearchInput").value="";
+    msgQuery=""; $("#tSearch").hidden=true; $("#tSearchInput").value=""; mentionSel.clear(); mpClose();
     const c=convs.find(x=>x.id===id); if(!c) return;
     $("#thead").hidden=false; $("#composer").hidden=false; const w=$("#welcome"); if(w) w.hidden=true;
     const a=convAvatar(c); const av=$("#tAv"); av.style.background=a.bg; av.textContent=a.txt;
@@ -469,11 +550,20 @@
   async function loadThread(){ if(!activeId) return;
     try{ thread=await BPStore.chat.thread(activeId); }catch(e){ thread={messages:[],reactions:[],members:[]}; }
     const c=convs.find(x=>x.id===activeId);
-    if(c){ if(c.kind==="group") $("#tSub").textContent=(thread.members||[]).map(m=>m.user_id===ME.id?"You":personName(m.user_id).split(" ")[0]).join(", ")||"group";
+    renderPinBar(c);
+    if(c){ if(c.kind==="group") $("#tSub").textContent=(c.quote_id?"Event group · ":"")+((thread.members||[]).map(m=>m.user_id===ME.id?"You":personName(m.user_id).split(" ")[0]).join(", ")||"group");
       else if(c.kind==="broadcast") $("#tSub").textContent="Everyone in your team";
       else { const o=convOther(c); $("#tSub").textContent=(roster[o]&&roleLbl(roster[o].role))||""; } }
     renderMessages();
   }
+  /* event group: keep the latest event card pinned above the thread */
+  function renderPinBar(c){ const bar=$("#pinBar"); const ev=(thread.messages||[]).filter(isEventCard).pop();
+    if(!c||!ev){ bar.hidden=true; bar.dataset.mid=""; return; } const mt=ev.meta||{};
+    $("#pinTxt").textContent=["Event details",mt.code,fmtEvDate(mt.event_date),mt.venue].filter(Boolean).join(" · ");
+    bar.dataset.mid=ev.id; bar.hidden=false; }
+  function gotoPinned(){ const id=$("#pinBar").dataset.mid; if(!id) return; const t=$("#msgs").querySelector('.m[data-mid="'+id+'"]'); if(t) t.scrollIntoView({block:"start",behavior:"smooth"}); }
+  $("#pinBar").addEventListener("click",gotoPinned);
+  $("#pinBar").addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); gotoPinned(); } });
   function reactsFor(mid){ const by={}; (thread.reactions||[]).filter(r=>r.message_id===mid).forEach(r=>{ (by[r.emoji]=by[r.emoji]||[]).push(r.user_id); }); return by; }
 
   function highlight(text,q){ let out="",rest=String(text||""),k; const ql=String(q||"").toLowerCase(); if(!ql) return esc(rest);
@@ -498,6 +588,7 @@
     msgs.forEach(m=>{
       const day=fmtDay(m.created_at); if(day!==lastDay){ html+=`<div class="daysep">${esc(day)}</div>`; lastDay=day; lastSender=null; }
       const mine=m.sender_id===ME.id; const grpStart=(m.sender_id!==lastSender); lastSender=m.sender_id;
+      if(isEventCard(m)&&!m.deleted){ html+=`<div class="m sys" tabindex="0" data-mid="${esc(m.id)}"><div class="evcard">${eventCardHtml(m.meta)}<span class="meta-in">${fmtTime(m.created_at)}</span></div></div>`; lastSender=null; return; }
       if(m.deleted){ html+=`<div class="m ${mine?'me':'them'} ${grpStart?'grpstart':''}"><div class="bub" style="opacity:.65;font-style:italic"><span class="txt">🚫 This message was deleted</span><span class="meta-in">${fmtTime(m.created_at)}</span></div></div>`; return; }
       const by=reactsFor(m.id); const rx=Object.keys(by).map(e=>`<span class="rx ${by[e].indexOf(ME.id)>=0?'on':''}" data-react="${esc(m.id)}" data-emoji="${esc(e)}">${esc(e)} ${by[e].length}</span>`).join("");
       let inner="";
@@ -505,8 +596,8 @@
       if(m.reply_to){ const rm=msgs.find(x=>x.id===m.reply_to); if(rm){ const rsnip=rm.kind==="image"?"📷 Photo":rm.kind==="voice"?"🎤 Voice message":rm.kind==="card"?cardLabel(rm):(rm.body||""); inner+=`<div class="reply" data-goto="${esc(rm.id)}"><b>${esc(rm.sender_id===ME.id?"You":personName(rm.sender_id))}</b><span class="rt">${esc(rsnip)}</span></div>`; } }
       if(m.kind==="image"){ inner+=`<img class="photo" data-media="${esc(m.media_path||"")}" alt="Photo" loading="lazy">`; if(m.body) inner+=`<div class="cap txt">${esc(m.body)}</div>`; }
       else if(m.kind==="voice"){ inner+=`<audio controls preload="none" data-media="${esc(m.media_path||"")}"></audio>`; }
-      else if(m.kind==="card"){ inner+=cardHtml(m.meta); if(m.body) inner+=`<div class="cap txt">${esc(m.body)}</div>`; }
-      else inner+=`<span class="txt">${esc(m.body||"")}</span>`;
+      else if(m.kind==="card"){ inner+=cardHtml(m.meta); if(m.body) inner+=`<div class="cap txt">${mentionHtml(m.body,m.meta&&m.meta.mentions)}</div>`; }
+      else inner+=`<span class="txt">${mentionHtml(m.body,m.meta&&m.meta.mentions)}</span>`;
       const ticks=mine?ticksHtml(m,thread.members,!!m._pending):"";
       const edited=m.edited_at?'<span style="opacity:.7">(edited)</span> ':"";
       inner+=`<span class="meta-in">${edited}${fmtTime(m.created_at)} ${ticks}</span>`;
@@ -547,7 +638,7 @@
     try{ await BPStore.chat.deleteMessage(mid); await loadThread(); await refresh(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"delete the message"}),{type:"err"}); } }
   async function forwardMsg(mid){ const m=thread.messages.find(x=>x.id===mid); if(!m) return;
     const targets=convs.filter(c=>c.id!==activeId).map(c=>({id:c.id,icon:convAvatar(c).txt,title:convTitle(c),sub:c.kind==="dm"?"Direct message":c.kind==="broadcast"?"Everyone":"Group"}));
-    pickerModal("Forward to…","↪",targets.map(t=>({icon:typeof t.icon==="string"&&t.icon.length<=2?t.icon:"💬",title:t.title,sub:t.sub,meta:{__to:t.id}})),"No other chats to forward to.",async(meta)=>{
+    pickerModal("Forward to…","↪",targets.map(t=>({icon:typeof t.icon==="string"&&Array.from(t.icon).length<=2?t.icon:"💬",title:t.title,sub:t.sub,meta:{__to:t.id}})),"No other chats to forward to.",async(meta)=>{
       const to=meta.__to; try{ await BPStore.chat.send(to,{kind:m.kind,body:m.body,media_path:m.media_path,media_mime:m.media_mime,media_duration:m.media_duration,meta:m.meta||null}); await refresh(); await openConv(to); BPUI.toast("Forwarded.",{type:"ok"}); }
       catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"forward the message"}),{type:"err"}); } }); }
   async function toggleReact(mid,emoji,on){ try{ await BPStore.chat.react(mid,emoji,on); await loadThread(); }catch(e){} }
@@ -627,11 +718,14 @@
   /* ---------- sending ---------- */
   async function sendText(){ const ta=$("#msgInput"); const body=ta.value.trim(); const att=staged; if((!body&&!att)||!activeId) return;
     ta.value=""; autoGrow(); const r=replyTo; replyTo=null; $("#replyBar").hidden=true;
-    staged=null; $("#attachBar").hidden=true; syncSend();
+    staged=null; $("#attachBar").hidden=true; mpClose(); syncSend();
     const kind=att?"card":"text";
-    const tmp={id:"tmp-"+Date.now(),conversation_id:activeId,sender_id:ME.id,kind,body,meta:att||null,reply_to:r?r.id:null,created_at:new Date().toISOString(),_pending:true};
+    // @mentions still present in the text (the server keeps only members of this chat)
+    const mentions=[...mentionSel].filter(([,n])=>body.indexOf("@"+n)>=0).map(([id])=>id); mentionSel.clear();
+    const meta=mentions.length?Object.assign({},att||{},{mentions}):(att||null);
+    const tmp={id:"tmp-"+Date.now(),conversation_id:activeId,sender_id:ME.id,kind,body,meta,reply_to:r?r.id:null,created_at:new Date().toISOString(),_pending:true};
     pending.push(tmp); renderMessages();
-    try{ await BPStore.chat.send(activeId,{kind,body,meta:att||null,reply_to:r?r.id:null}); pending=pending.filter(p=>p!==tmp); await loadThread(); await refresh(); localReadSync(); }
+    try{ await BPStore.chat.send(activeId,{kind,body,meta,reply_to:r?r.id:null}); pending=pending.filter(p=>p!==tmp); await loadThread(); await refresh(); localReadSync(); }
     catch(e){ pending=pending.filter(p=>p!==tmp); renderMessages(); BPUI.toast(BPUI.friendlyError(e,{action:"send the message"}),{type:"err"}); } }
   async function sendImage(file,caption){ if(!file||!activeId) return;
     try{ const up=await BPStore.chat.uploadMedia(activeId,file,{}); const r=replyTo; replyTo=null; $("#replyBar").hidden=true;
@@ -656,8 +750,37 @@
 
   function autoGrow(){ const ta=$("#msgInput"); ta.style.height="auto"; ta.style.height=Math.min(120,ta.scrollHeight)+"px"; }
   function syncSend(){ const has=$("#msgInput").value.trim().length>0 || !!staged; $("#sendBtn").hidden=!has; $("#micBtn").hidden=has; }
-  $("#msgInput").addEventListener("input",()=>{ autoGrow(); syncSend(); });
-  $("#msgInput").addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); sendText(); } });
+  $("#msgInput").addEventListener("input",()=>{ autoGrow(); syncSend(); mpUpdate(); });
+  $("#msgInput").addEventListener("keydown",e=>{ if(mpKey(e)) return; if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); sendText(); } });
+  $("#msgInput").addEventListener("click",mpUpdate);
+  $("#msgInput").addEventListener("blur",()=>setTimeout(mpClose,150));
+
+  /* ---------- @mention picker: type @ → the people in this chat ---------- */
+  const mentionSel=new Map();   /* draft: user id → name inserted as "@Name" */
+  const mp={open:false,start:-1,items:[],idx:0};
+  function mentionCandidates(){ const c=convs.find(x=>x.id===activeId); if(!c) return [];
+    const ids=c.kind==="broadcast"?Object.keys(roster):(thread.members||[]).map(m=>m.user_id);
+    return [...new Set(ids)].filter(id=>id&&id!==ME.id&&roster[id]).map(id=>({id,name:personName(id)})).sort((a,b)=>a.name.localeCompare(b.name)); }
+  function mpClose(){ mp.open=false; mp.items=[]; const el=$("#mentionPop"); if(el){ el.hidden=true; el.innerHTML=""; } }
+  function mpRender(){ const el=$("#mentionPop");
+    el.innerHTML=mp.items.map((p,i)=>`<button type="button" role="option" aria-selected="${i===mp.idx}" class="${i===mp.idx?'on':''}" data-i="${i}"><span class="av" style="background:${colorFor(p.id)}">${esc(initials(p.name))}</span>${esc(p.name)}</button>`).join("");
+    el.hidden=false; mp.open=true;
+    el.querySelectorAll("button[data-i]").forEach(b=>b.addEventListener("mousedown",e=>{ e.preventDefault(); mpPick(+b.dataset.i); })); }
+  function mpUpdate(){ const ta=$("#msgInput"); if(!activeId||!ta) return mpClose(); const pos=ta.selectionStart; const before=ta.value.slice(0,pos);
+    const m=/(^|\s)@([^\s@]{0,30})$/.exec(before); if(!m) return mpClose();
+    const q=m[2].toLowerCase(); const items=mentionCandidates().filter(p=>p.name.toLowerCase().indexOf(q)>=0).slice(0,8);
+    if(!items.length) return mpClose();
+    mp.start=pos-m[2].length-1; mp.items=items; if(mp.idx>=items.length) mp.idx=0; mpRender(); }
+  function mpPick(i){ const p=mp.items[i]; const ta=$("#msgInput"); if(!p||mp.start<0) return mpClose();
+    const ins="@"+p.name+" "; const end=ta.selectionStart;
+    ta.value=ta.value.slice(0,mp.start)+ins+ta.value.slice(end); const caret=mp.start+ins.length;
+    ta.setSelectionRange(caret,caret); mentionSel.set(p.id,p.name); mpClose(); ta.focus(); autoGrow(); syncSend(); }
+  function mpKey(e){ if(!mp.open) return false;
+    if(e.key==="ArrowDown"){ e.preventDefault(); mp.idx=(mp.idx+1)%mp.items.length; mpRender(); return true; }
+    if(e.key==="ArrowUp"){ e.preventDefault(); mp.idx=(mp.idx-1+mp.items.length)%mp.items.length; mpRender(); return true; }
+    if(e.key==="Enter"||e.key==="Tab"){ e.preventDefault(); mpPick(mp.idx); return true; }
+    if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); mpClose(); return true; }
+    return false; }
   $("#sendBtn").addEventListener("click",sendText);
   $("#micBtn").addEventListener("click",startRec);
   $("#recStop").addEventListener("click",()=>stopRec(true));
@@ -691,7 +814,7 @@
     ov.innerHTML=`<div class="modal"><h3>${esc(title)}</h3><input class="gname" id="pkSearch" placeholder="Search…" aria-label="Search" autocomplete="off"><div class="body" id="pkBody"></div><div class="foot"><button class="btn" data-close>Cancel</button></div></div>`;
     document.body.appendChild(ov); const body=$("#pkBody",ov);
     const draw=(q)=>{ const ql=(q||"").toLowerCase(); const f=rows.filter(r=>!ql||((r.title+" "+(r.sub||"")).toLowerCase().includes(ql)));
-      body.innerHTML=f.length?f.map(r=>`<div class="prow" data-i="${rows.indexOf(r)}"><div class="av" style="width:40px;height:40px;font-size:18px;background:var(--accent-soft);color:var(--accent)">${r.icon}</div><div class="nm" style="font-weight:500"><b style="display:block;font-size:14.5px">${esc(r.title)}</b><span style="font-size:12px;color:var(--ink-3)">${esc(r.sub||"")}</span></div></div>`).join(""):`<div style="padding:18px;color:var(--ink-3)">${esc(emptyText)}</div>`;
+      body.innerHTML=f.length?f.map(r=>`<div class="prow" data-i="${rows.indexOf(r)}"><div class="av" style="width:40px;height:40px;font-size:18px;background:var(--accent-soft);color:var(--accent)">${esc(r.icon)}</div><div class="nm" style="font-weight:500"><b style="display:block;font-size:14.5px">${esc(r.title)}</b><span style="font-size:12px;color:var(--ink-3)">${esc(r.sub||"")}</span></div></div>`).join(""):`<div style="padding:18px;color:var(--ink-3)">${esc(emptyText)}</div>`;
       body.querySelectorAll(".prow[data-i]").forEach(el=>el.addEventListener("click",()=>{ const r=rows[+el.dataset.i]; closeModal(); if(onPick) onPick(r.meta); else stageAttachment(r.meta,r.icon,r.title,r.sub); })); };
     draw(""); $("#pkSearch",ov).addEventListener("input",e=>draw(e.target.value));
     ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); }); }
@@ -733,7 +856,16 @@
       {k:"mute",label:mutes.has(c.id)?"🔔  Unmute":"🔕  Mute notifications",on:()=>{ if(mutes.has(c.id))mutes.delete(c.id); else mutes.add(c.id); saveMutes(); renderConvs(); }}
     ];
     if(c.kind==="group") items.push({k:"add",label:"➕  Add members",on:addMembersModal});
+    if(c.kind==="group"&&c.quote_id){
+      items.push({k:"evref",label:"🔄  Refresh event details",on:refreshEventDetails});
+      items.push({k:"evws",label:"⧉  Open event workspace",on:()=>{ location.href="event.html?id="+encodeURIComponent(c.quote_id); }}); }
     openMenu($("#headMenuBtn"),items); });
+
+  async function refreshEventDetails(){ const c=convs.find(x=>x.id===activeId); if(!c||!c.quote_id) return;
+    try{ const id=await BPStore.chat.eventGroups.refresh(c.id);
+      if(id){ await loadThread(); await refresh(); BPUI.toast("Event details updated.",{type:"ok"}); }
+      else BPUI.toast("Event details are already up to date.",{type:"info"}); }
+    catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"refresh the event details"}),{type:"err"}); } }
 
   /* ---------- modals ---------- */
   function closeModal(){ const m=$("#modalOv"); if(m) m.remove(); }

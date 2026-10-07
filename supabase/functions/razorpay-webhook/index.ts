@@ -129,7 +129,13 @@ Deno.serve(async (req) => {
     const html = `<h2>Payment received — ${escHtml(q.code)}</h2><p>Your event <b>${escHtml(q.title || q.code)}</b> is confirmed.</p><p>Amount: <b>${total}</b></p><p>Thank you — ${escHtml(studio)}.</p>`;
     const clientEmail = String(q.client?.email || "");
     const clientStatus = await sendEmail(clientEmail, `Payment received — ${subjCode}`, html, from, studioEmail);
-    const studioStatus = await sendEmail(studioEmail, `Event confirmed (paid) — ${subjCode}`, html, from);
+    // studio copy: the studio admin may have switched the automatic "payment received"
+    // e-mail off (0036 notification_prefs). Fail-open: if the check errors, send as before.
+    const { data: studioOn, error: pErr } = await admin.rpc("notify_allowed", { p_org: q.org_id, p_role: "*", p_type: "advance_paid", p_channel: "email" });
+    if (pErr) console.error("notification prefs check failed", errTag(pErr));
+    const studioStatus = (pErr || studioOn !== false)
+      ? await sendEmail(studioEmail, `Event confirmed (paid) — ${subjCode}`, html, from)
+      : "suppressed";
     const { error: nErr } = await admin.from("notifications").insert([
       { quote_id: q.id, channel: "email", recipient: clientEmail || null, kind: "payment_receipt", status: clientStatus },
       { quote_id: q.id, channel: "email", recipient: studioEmail || null, kind: "payment_receipt", status: studioStatus },

@@ -161,7 +161,7 @@ t('cache policy: versioned assets / vendor immutable, config.js short, marketing
     assert.equal(netlifyHeaders(p)['cache-control'], v, `_headers Cache-Control ≠ vercel.json for ${p}`);
   }
   assert.match(vercelHeaders('/vendor/a.js')['cache-control'], /immutable/);
-  assert.equal(vercelHeaders('/config.js')['cache-control'], 'public, max-age=300');
+  assert.equal(vercelHeaders('/config.js')['cache-control'], 'public, max-age=300, stale-while-revalidate=3600');
   // auth hardening: signed-in app pages and the login / reset pages must never be stored
   for (const p of PAGES.filter((x) => !MARKETING.includes(x))) {
     for (const u of ['/' + p, '/' + p + '.html']) {
@@ -213,16 +213,25 @@ t('security.txt: e-mail contact + Expires (RFC 9116), no internal notes, no unve
   for (const l of fields) assert.match(l, /^(Contact|Expires|Encryption|Acknowledgments|Preferred-Languages|Canonical|Policy|Hiring|CSAF):\s\S/, 'unknown field: ' + l);
 });
 
-t('microphone: only /chat may use it (voice notes), self only; camera stays off everywhere', () => {
+t('microphone: only /chat and the crew work link may use it (voice notes), self only; camera stays off everywhere', () => {
+  const MIC = (p) => p === '/chat' || p === '/chat.html' || p === '/work' || p === '/work.html' || /^\/[a-z0-9-]+\/work\/[^/]+$/.test(p);
   for (const p of paths) {
-    const pp = vercelHeaders(p)['permissions-policy'];
-    assert.match(pp, /camera=\(\)/, 'camera must stay off on ' + p);
-    assert.match(pp, /geolocation=\(\)/); assert.match(pp, /payment=\(\)/);
-    const chat = p === '/chat' || p === '/chat.html';
-    assert.match(pp, chat ? /microphone=\(self\)/ : /microphone=\(\)/, (chat ? 'chat needs' : 'only chat may have') + ' the microphone: ' + p);
+    const want = MIC(p) ? /microphone=\(self\)/ : /microphone=\(\)/;
+    for (const [host, h] of [['vercel.json', vercelHeaders(p)], ['_headers', netlifyHeaders(p)], ['server.js', serverHeaders(p.replace(/\.html$/, ''))]]) {
+      const pp = h['permissions-policy'];
+      assert.match(pp, /camera=\(\)/, host + ': camera must stay off on ' + p);
+      assert.match(pp, /geolocation=\(\)/); assert.match(pp, /payment=\(\)/);
+      assert.match(pp, want, host + ': ' + (MIC(p) ? 'needs' : 'must not have') + ' the microphone: ' + p);
+    }
   }
-  // the page that records really asks for the microphone (so the rule is needed)
+  // the routes really are covered (branded crew link included), and nothing else is
+  for (const p of ['/work', '/work.html', '/aurora-events/work/tok-123', '/chat', '/chat.html'])
+    assert.match(vercelHeaders(p)['permissions-policy'], /microphone=\(self\)/, p);
+  for (const p of ['/aurora-events/portal/tok-123', '/aurora-events/quote/tok-123', '/workers', '/dashboard'])
+    assert.match(vercelHeaders(p)['permissions-policy'], /microphone=\(\)/, p);
+  // the pages that record really ask for the microphone (so the rule is needed)
   assert.match(readFileSync(join(PUB, 'chat.html'), 'utf8'), /getUserMedia\(\{audio:true\}\)/);
+  assert.match(readFileSync(join(PUB, 'work.html'), 'utf8'), /getUserMedia\(\{audio:true\}\)/);
 });
 
 console.log(`headers-parity: ${n} assertion group(s) passed.`);

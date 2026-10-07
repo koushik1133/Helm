@@ -297,11 +297,23 @@ const store = {
   past: [], future: [],
 };
 let uid = 1;
-/* ---- unsaved-work protection: marked on every edit, cleaned after a successful (auto)save ---- */
+/* ---- unsaved-work protection ----
+   Dirty = "the document differs from the last saved/opened one". Every edit (2D, 3D gizmo, undo/redo,
+   name, capacity) calls markDirty(), which compares a content signature against the saved baseline —
+   so undoing back to the saved state is clean again. BPUI's tracker drives the beforeunload warning. */
 const dirty = BPUI.trackDirty();
-let editSeq = 0;
-function markDirty(){ editSeq++; dirty.mark(); }
-function markClean(seq){ if(seq==null || seq===editSeq) dirty.clean(); }
+let savedSig = null;   // signature of the last saved / opened document; null = nothing saved yet → any edit is dirty
+// Content signature: items + margins + venue + hall size + name. A non-custom colour is theme-derived
+// (re-resolved on theme toggle), so it is left out — switching theme never makes the floor "unsaved".
+function layoutSig(items, margins, venue, world, name){
+  const its=(items||[]).map(it=>{ const c=Object.assign({}, it); if(!c.colorCustom) delete c.color; return c; });
+  return JSON.stringify([its, margins||null, venue||null, world?[world.w,world.h]:null, String(name==null?'':name).trim()]);
+}
+function docSig(){ const pn=$('#projName'); return layoutSig(store.items, store.margins, store.venue, WORLD, pn?pn.value:''); }
+function markDirty(){ if(savedSig!==null && docSig()===savedSig) dirty.clean(); else dirty.mark(); }
+// the document now matches what's stored (just opened or saved). Pass the signature captured when the
+// save STARTED so edits made while it was in flight keep the page dirty.
+function setSavedBaseline(sig){ savedSig = sig==null ? docSig() : sig; if(docSig()===savedSig) dirty.clean(); else dirty.mark(); }
 const nid = () => 'obj_' + (uid++).toString(36) + Date.now().toString(36).slice(-3);
 
 /* ---- selection model (single "primary" + multi set kept in sync) ---- */
@@ -2595,7 +2607,7 @@ function applyLayout(data){
   updateDimsLabel();
   const ci=$('#capInput'); if(ci) ci.value = store.venue.capacity!=null ? store.venue.capacity : '';
   setSelection([]); resetHistory();          // opened doc is the clean baseline — nothing to undo before it
-  markClean();
+  setSavedBaseline();
   renderAll(); fitView();
 }
 function syncGridUI(){
@@ -2624,25 +2636,30 @@ async function renderAccountChip(){
 // Save via the button / ⌘S is double-submit guarded (the button is disabled while it runs).
 function guardedSave(){ return BPUI.guard($('#saveBtn'), ()=>saveLayout(false)).catch(()=>{}); }
 let saving=false;
-async function saveLayout(silent){
-  if(RO){ if(!silent) toast('View only — you can’t save'); return; }
-  if(!currentQuoteId && !currentLayoutId && !CAN_CREATE){ if(!silent) toast('Your role can edit existing events, not create new ones'); return; }
-  if(saving) return;                          // in-flight lock: a second Save/⌘S before the first resolves must not create a duplicate
+// → true when the layout was stored. With a quote open, EVERY save appends a new version (never an
+// overwrite) — also when an older version is on screen; opts.label is the version's note.
+async function saveLayout(silent, opts){
+  if(RO){ if(!silent) toast('View only — you can’t save'); return false; }
+  if(!currentQuoteId && !currentLayoutId && !CAN_CREATE){ if(!silent) toast('Your role can edit existing events, not create new ones'); return false; }
+  if(saving) return false;                    // in-flight lock: a second Save/⌘S before the first resolves must not create a duplicate
   saving=true;
-  const seq = editSeq;                         // edits made while this save is in flight keep the page dirty
+  const sig = docSig();                        // edits made while this save is in flight keep the page dirty
   const name = ($('#projName').value || 'Untitled event').trim().slice(0,120);
   const data = serialize();
   const btn=$('#saveBtn'); if(btn){ btn.disabled=true; if(silent) btn.textContent='⏳ Saving…'; }
   try{
     if(currentQuoteId){
       // primary flow: every save is a new VERSION of the open quote
+      const fromNo = currentVersionNo, fromOlder = isViewingOlder();
+      const label = (opts && opts.label) || (fromOlder ? 'Based on V'+fromNo : null);
       if(name) { try{ await BPStore.quotes.updateMeta(currentQuoteId, { title:name }); }catch{} }
-      const v = await BPStore.quotes.addVersion(currentQuoteId, null, data, store.items.length);
+      const v = await BPStore.quotes.addVersion(currentQuoteId, label, data, store.items.length);
       currentVersionNo = v.version_no || v.versionNo;
+      noteSavedVersion(v, label);
       updateQuoteBadge();
       syncQuotePricing();                       // keep the stored quote total in step with the layout
       if(silent){ if(btn){ btn.textContent='✓ v'+currentVersionNo; clearTimeout(saveBtnT); saveBtnT=setTimeout(()=>{ btn.innerHTML='💾 Save'; },1500); } }
-      else toast('Saved version '+currentVersionNo);
+      else toast(fromOlder ? 'Saved as V'+currentVersionNo+' (new latest) — V'+fromNo+' is unchanged' : 'Saved version '+currentVersionNo);
     } else {
       const isLocalId = currentLayoutId && String(currentLayoutId).startsWith('local_');
       const saved = (!currentLayoutId || (isLocalId && BPStore.mode()!=='local'))
@@ -2654,18 +2671,190 @@ async function saveLayout(silent){
       else toast('Saved “'+saved.name+'”');
     }
     setConn(BPStore.mode());
-    markClean(seq);
+    setSavedBaseline(sig);
+    return true;
   }catch(e){ if(btn) btn.innerHTML='💾 Save';
     if(!silent) BPUI.toast(BPUI.friendlyError(e,{action:'save the layout'}),{type:'err'});
-    else toast('Autosave failed — press Save to retry'); }
+    else toast('Autosave failed — press Save to retry');
+    return false; }
   finally{ saving=false; if(btn) btn.disabled=false; }
 }
 function updateQuoteBadge(){
   const el=$('#quoteBadge'); if(!el) return;
-  if(currentQuoteId && currentQuoteCode){ el.hidden=false; el.textContent=currentQuoteCode+' · v'+(currentVersionNo||1); }
+  if(currentQuoteId && currentQuoteCode){ el.hidden=false; el.textContent=quoteBadgeText(); }
   else el.hidden=true;
+  renderVersionUI();
   updateDesignChip();
 }
+// the version dropdown shows the version, so the badge then carries just the quote code
+function quoteBadgeText(){ const sel=$('#verSel'); return currentQuoteCode + (sel && !sel.hidden ? '' : ' · v'+(currentVersionNo||1)); }
+
+/* ===================================================================
+   LAYOUT VERSIONS — a dropdown of every saved version of the open quote
+   (version · date/time · who · note). Picking one only LOADS it into the
+   editor: no saved version and no current_version pointer is touched.
+   Saving — from any version — appends a NEW version (history is append-only).
+   =================================================================== */
+let versionsList = [];        // [{versionNo,label,createdAt,createdBy,objectCount}] newest first
+let latestVersionNo = null;   // highest saved version_no of the open quote
+let versionNames = null;      // user id → display name, for "who saved" (best-effort)
+let myUserId = null;
+let verBusy = false;          // a switch is in progress (dropdown locked)
+function isViewingOlder(){ return !!(currentQuoteId && currentVersionNo && latestVersionNo && currentVersionNo<latestVersionNo); }
+function versionOptionLabel(v, latestNo, names, meId){
+  const parts=['V'+v.versionNo+(v.versionNo===latestNo?' (latest)':'')];
+  if(v.createdAt){ const d=new Date(v.createdAt); if(!isNaN(d)) parts.push(d.toLocaleString(undefined,{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})); }
+  if(v.createdBy){ const who = (meId && v.createdBy===meId) ? 'you' : (names && names[v.createdBy]); if(who) parts.push(who); }
+  const note=String(v.label||'').replace(/\s+/g,' ').trim();
+  if(note) parts.push('“'+(note.length>40 ? note.slice(0,39)+'…' : note)+'”');
+  return parts.join(' · ');
+}
+async function loadVersionNames(){
+  if(versionNames) return versionNames;
+  const names={};
+  try{ const u=BPStore.auth && BPStore.auth.user && BPStore.auth.user(); if(u && u.id) myUserId=u.id; }catch{}
+  try{ (await BPStore.chat.roster() || []).forEach(p=>{ if(p && p.id) names[p.id]=BPStore.chat.displayName(p); }); }catch{}
+  versionNames=names; return names;
+}
+async function refreshVersions(){
+  if(!currentQuoteId){ versionsList=[]; renderVersionUI(); return; }
+  try{ versionsList = await BPStore.quotes.versions(currentQuoteId) || []; }catch{ /* keep what we had */ }
+  latestVersionNo = Math.max(latestVersionNo||0, ...versionsList.map(v=>+v.versionNo||0)) || currentVersionNo;
+  if(versionsList.some(v=>v.createdBy)) await loadVersionNames();
+  updateQuoteBadge();
+}
+// a save just appended version v — reflect it without another round trip
+function noteSavedVersion(v, label){
+  const no = currentVersionNo;
+  latestVersionNo = Math.max(latestVersionNo||0, no);
+  if(!versionsList.some(x=>x.versionNo===no))
+    versionsList.unshift({ versionNo:no, label:(v && v.label) || label || null, objectCount:store.items.length,
+      createdAt:(v && (v.created_at||v.createdAt)) || new Date().toISOString(), createdBy:(v && (v.created_by||v.createdBy)) || myUserId || null });
+  setVersionInUrl(no);
+}
+function setVersionInUrl(no){
+  try{ const u=new URL(location.href);
+    if(!no || no===latestVersionNo) u.searchParams.delete('v'); else u.searchParams.set('v', String(no));
+    history.replaceState(history.state, '', u.pathname+u.search+u.hash); }catch{}
+}
+function renderVersionUI(){
+  const sel=$('#verSel'), banner=$('#verBanner'); if(!sel) return;
+  const show = !!currentQuoteId && versionsList.length>0;
+  sel.hidden = !show;
+  if(show){
+    const list=versionsList.slice().sort((a,b)=>b.versionNo-a.versionNo);
+    if(currentVersionNo && !list.some(v=>v.versionNo===currentVersionNo)) list.unshift({ versionNo:currentVersionNo });
+    sel.textContent='';
+    list.forEach(v=>{ const o=document.createElement('option'); o.value=String(v.versionNo);
+      o.textContent=versionOptionLabel(v, latestVersionNo, versionNames, myUserId); sel.appendChild(o); });
+    sel.value=String(currentVersionNo||'');
+    sel.disabled = verBusy;
+  }
+  const older = show && isViewingOlder();
+  if(banner){
+    banner.hidden = !older;
+    if(older){
+      $('#verBannerTxt').textContent='Viewing V'+currentVersionNo+' (older) — the latest is V'+latestVersionNo+'. Saving creates a new version; history is never overwritten.';
+      const rb=$('#verRestoreBtn'); if(rb) rb.hidden=RO;
+    }
+  }
+  const qb=$('#quoteBadge'); if(qb && !qb.hidden) qb.textContent=quoteBadgeText();
+}
+// Small static picture of a layout for the switch dialog — built with DOM nodes (no HTML strings).
+function drawLayoutThumb(host, data){
+  if(!host) return; host.textContent='';
+  const wf=data && data.scale && data.scale.worldFt;
+  const w=(wf && +wf.w>0) ? +wf.w : WORLD.w, h=(wf && +wf.h>0) ? +wf.h : WORLD.h;
+  const items=(data && Array.isArray(data.items)) ? data.items : [];
+  const s=el('svg',{ viewBox:`0 0 ${w} ${h}`, preserveAspectRatio:'xMidYMid meet', role:'img',
+    'aria-label':items.length+' object'+(items.length===1?'':'s') });
+  const floor=el('rect',{ x:0, y:0, width:w, height:h, 'stroke-width':Math.max(w,h)/150 });
+  floor.style.fill='var(--panel)'; floor.style.stroke='var(--line)'; s.appendChild(floor);
+  items.forEach(it=>{
+    if(!it || typeof it!=='object') return;
+    const x=+it.x, y=+it.y, iw=Math.max(.5,+it.width), ih=Math.max(.5,+it.height), r=+it.rotation||0;
+    if(![x,y,iw,ih,r].every(Number.isFinite)) return;
+    const c=String(it.color||'').trim();   // same rule as the canvas: custom colour, else the category colour
+    const fill = (it.colorCustom && HEXRE.test(c)) ? c : CATS[it.category] ? catColor(it.category) : HEXRE.test(c) ? c : '#8a93a8';
+    s.appendChild(el('rect',{ x, y, width:iw, height:ih, rx:Math.min(iw,ih)*.12, fill, 'fill-opacity':.8,
+      transform:`rotate(${r} ${x+iw/2} ${y+ih/2})` }));
+  });
+  if(!items.length){ const t=el('text',{ x:w/2, y:h/2, 'text-anchor':'middle', 'dominant-baseline':'middle', 'font-size':Math.max(w,h)/14 });
+    t.style.fill='var(--ink-3)'; t.textContent='Empty floor'; s.appendChild(t); }
+  host.appendChild(s);
+}
+// "unsaved changes — what now?" → Promise<'save'|'discard'|'cancel'>. Esc / ✕ / backdrop = cancel.
+function askVersionSwitch(o){ return new Promise(resolve=>{
+  const m=$('#verModal'); if(!m){ resolve('cancel'); return; }
+  $('#verModalDesc').textContent='You have unsaved changes'+(o.fromNo?' on V'+o.fromNo:'')+'. What should happen to them before V'+o.toNo+' opens? Saved versions are never overwritten.';
+  $('#verCapCur').textContent='Your unsaved canvas';
+  $('#verCapTgt').textContent='V'+o.toNo+' (saved)';
+  drawLayoutThumb($('#verThumbCur'), o.current);
+  drawLayoutThumb($('#verThumbTgt'), o.target);
+  let done=false;
+  const finish=v=>{ if(done) return; done=true; m.hidden=true;
+    m.removeEventListener('click',onClick); m.removeEventListener('keydown',onKey); resolve(v); };
+  const onClick=e=>{ if(e.target===m) return finish('cancel');
+    const b=e.target.closest && e.target.closest('[data-choice],[data-close]'); if(b) finish(b.getAttribute('data-choice')||'cancel'); };
+  const onKey=e=>{ if(e.key==='Escape'||e.key==='Esc'){ e.preventDefault(); finish('cancel'); } };
+  m.addEventListener('click',onClick); m.addEventListener('keydown',onKey);
+  m.hidden=false;
+  const first=m.querySelector('[data-choice="save"]'); if(first){ first.hidden=RO; try{ first.focus(); }catch{} }
+}); }
+// The switch flow itself — pure, with every effect injected (test/builder-versions.test.mjs drives it with stubs).
+function createVersionController(d){
+  let busy=false;
+  async function switchTo(no){
+    no=parseInt(no,10);
+    if(!(no>0) || busy || no===d.currentNo() || d.isDragging()){ d.sync(busy); return 'noop'; }
+    busy=true; d.sync(true);
+    try{
+      let target;
+      try{ target=await d.fetchVersion(no); }
+      catch(e){ d.notify('Couldn’t open V'+no+' — it may no longer exist.'); return 'error'; }
+      const data=(target && target.data && Array.isArray(target.data.items)) ? target.data : { items:[] };
+      if(d.isDirty()){
+        const choice=await d.ask({ fromNo:d.currentNo(), toNo:no, current:d.currentData(), target:data });
+        if(choice==='save'){ if(!(await d.save())) return 'save-failed'; }
+        else if(choice!=='discard') return 'cancel';
+      }
+      d.load(no, data);
+      return 'switched';
+    } finally { busy=false; d.sync(false); }
+  }
+  return { switchTo, isBusy:()=>busy };
+}
+function loadVersionIntoEditor(no, data){
+  applyLayout(data);                       // resets undo history + makes this version the clean baseline
+  currentVersionNo=no;
+  setVersionInUrl(no);
+  updateQuoteBadge();
+  toast(no===latestVersionNo ? 'Back to the latest version (V'+no+')' : 'Viewing V'+no+' — saved versions stay unchanged');
+}
+const versionCtl = createVersionController({
+  currentNo: ()=>currentVersionNo,
+  isDirty: ()=>dirty.isDirty(),
+  isDragging: ()=>isDragging(),
+  currentData: ()=>serialize(),
+  fetchVersion: no=>BPStore.quotes.getVersion(currentQuoteId, no),
+  ask: askVersionSwitch,
+  save: ()=>saveLayout(false),
+  load: loadVersionIntoEditor,
+  notify: msg=>BPUI.toast(msg,{type:'err'}),
+  sync: b=>{ verBusy=!!b; renderVersionUI(); },
+});
+// after a switch / cancel the dropdown is re-enabled; hand focus back to it if the dialog or banner took it away
+function switchVersion(no){
+  return versionCtl.switchTo(no).then(r=>{ const s=$('#verSel'), a=document.activeElement;
+    if(s && !s.hidden && (!a || a===document.body || a.disabled || a.closest('[hidden]'))) { try{ s.focus(); }catch{} }
+    return r; });
+}
+$('#verSel').addEventListener('change',e=>{ switchVersion(e.target.value); });
+$('#verLatestBtn').addEventListener('click',()=>{ if(latestVersionNo) switchVersion(latestVersionNo); });
+$('#verRestoreBtn').addEventListener('click',()=>{
+  const from=currentVersionNo;
+  BPUI.guard($('#verRestoreBtn'), ()=>saveLayout(false,{ label:'Restored from V'+from })).catch(()=>{});
+});
 // Build 1 — show the current design stage (if any) with a link to the Design Studio. Best-effort.
 async function updateDesignChip(){
   const chip=$('#designChip'); if(!chip) return;
@@ -2714,13 +2903,13 @@ async function openLoadModal(){
       const full=await getLayout(id);
       if(!full){ BPUI.toast('Couldn’t open that layout — it may have been deleted.',{type:'err'}); return; }
       applyLayout(full.data); currentLayoutId=id;
-      $('#projName').value=full.name; closeLoadModal(); toast('Opened “'+full.name+'”');
+      $('#projName').value=full.name; setSavedBaseline(); closeLoadModal(); toast('Opened “'+full.name+'”');
     }).catch(()=>{}));
     delB.addEventListener('click',()=>BPUI.guard(delB, async()=>{
       const nm=row.querySelector('b').textContent;
       if(!(await BPUI.confirm('Delete “'+nm+'”? This can’t be undone.',{title:'Delete layout?',danger:true}))) return;
       if(!await deleteLayout(id)) return;
-      if(currentLayoutId===id){ currentLayoutId=null; if(store.items.length) markDirty(); }
+      if(currentLayoutId===id){ currentLayoutId=null; savedSig=null; if(store.items.length) markDirty(); }
       BPUI.toast('Deleted “'+nm+'”',{type:'ok'});
       openLoadModal();
     }).catch(()=>{}));
@@ -2780,7 +2969,7 @@ function importJSON(file){ return new Promise(resolve=>{
     if(!src || typeof src!=='object' || !Array.isArray(src.items)){ bad(); return; }
     applyLayout(src); currentLayoutId=null;
     $('#projName').value=(file.name||'Imported').replace(/\.json$/i,'').slice(0,120); toast('Imported');
-    markDirty();                                   // an import is unsaved until the user saves it
+    savedSig=null; markDirty();                    // an import is unsaved until the user saves it
     resolve(true); }
     catch{ bad(); } };
   fr.onerror=bad;
@@ -2927,16 +3116,19 @@ async function init(){
           store.items = TEMPLATES[presetKey]();
           toast('Loaded default '+(q.eventType||'')+' layout');
         } else { store.items=[]; }
-        resetHistory(); renderAll();
+        resetHistory(); setSavedBaseline(); renderAll();
       }
+      versionsList = q.versions || [];
+      latestVersionNo = Math.max(+q.currentVersion||0, ...versionsList.map(v=>+v.versionNo||0)) || currentVersionNo;
       updateQuoteBadge();
+      refreshVersions();                     // adds who-saved names; non-blocking
       if(q.status==='confirmed'){ const b=$('#quoteBadge'); if(b) b.classList.add('confirmed'); }
       toast('Opened '+q.code+' · v'+currentVersionNo);
     }catch(e){ toast('Could not open that quote'); }
   } else if(evId){
     try{ const full=await getLayout(evId);
       if(full){ applyLayout(full.data); currentLayoutId=full.id;
-        const pn=$('#projName'); if(pn) pn.value=full.name; toast('Opened “'+full.name+'”'); } }
+        const pn=$('#projName'); if(pn) pn.value=full.name; setSavedBaseline(); toast('Opened “'+full.name+'”'); } }
     catch{ toast('Could not open that event'); }
   }
   populateRefEvents();   // fill the "Past events" reference picker

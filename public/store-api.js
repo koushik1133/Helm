@@ -72,6 +72,19 @@
   const TABLE = CFG.table || "layouts";
   const LS_KEY = "bps.layouts";
   const API = "/api";
+  // Warm the connection to the configured Supabase origin (DNS + TCP + TLS) while
+  // supabase-js loads. Pages already preconnect to the production origin in <head>;
+  // this covers staging / local. No-op when that origin is already preconnected.
+  (function preconnectSupabase() {
+    try {
+      if (typeof document === "undefined" || !document.head || !CFG.url || !/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(CFG.url)) return;
+      const origin = CFG.url.replace(/\/$/, "");
+      if (document.querySelector('link[rel="preconnect"][href="' + origin + '"]')) return;
+      const l = document.createElement("link");
+      l.setAttribute("rel", "preconnect"); l.setAttribute("href", origin); l.setAttribute("crossorigin", "anonymous");
+      document.head.appendChild(l);
+    } catch (e) {}
+  })();
 
   let mode = "local";           // resolved backend: 'supabase' | 'server' | 'local'
   let supa = null;              // Supabase client (lazy)
@@ -87,9 +100,23 @@
   // navigations within a tab reuse them. RLS on the server is the real gate, so a
   // briefly-stale UI role/matrix cannot grant access — it only saves round-trips.
   const SESS_TTL = 60000;
+  // Stale-while-revalidate (perf, Oct 2026): an entry older than SESS_TTL but younger
+  // than SESS_STALE is still used for THIS navigation while a background re-check
+  // refreshes it (studio id: a changed / revoked answer hides the page and reloads or
+  // signs out; role / matrix: the next navigation picks up the new value). Entries are
+  // only ever written after a successful server answer for the same user in this tab.
+  const SESS_STALE = 10 * 60000;
   // Entries carry the user id they belong to: a cached role/matrix is ignored when a
   // DIFFERENT user is signed in (cross-tab account switch — audit session puzzling).
-  function sessGet(key, uid) { try { const raw = sessionStorage.getItem(key); if (!raw) return null; const o = JSON.parse(raw); if ((Date.now() - o.ts) > SESS_TTL) return null; if (!uid || o.uid !== uid) return null; return o.val; } catch (e) { return null; } }
+  function sessEntry(key, uid) {
+    try {
+      const raw = sessionStorage.getItem(key); if (!raw) return null; const o = JSON.parse(raw);
+      const age = Date.now() - o.ts;
+      if (!(age >= 0) || age > SESS_STALE) return null; if (!uid || o.uid !== uid) return null;
+      return { val: o.val, age: age, fresh: age <= SESS_TTL };
+    } catch (e) { return null; }
+  }
+  function sessGet(key, uid) { const e = sessEntry(key, uid); return e && e.fresh ? e.val : null; }
   function sessSet(key, uid, val) { try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), uid: uid || null, val: val })); } catch (e) {} }
   function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); sessionStorage.removeItem("bp_sess_org"); sessionStorage.removeItem(PW_OK_KEY); } catch (e) {} }
   const PW_OK_KEY = "bp_pw_ok";                 // per tab: "<uid>" once password_change_required() said no
@@ -321,19 +348,53 @@
   // is never mistaken for "no studio"); a found id is cached per tab for SESS_TTL.
   async function orgIdStrict() {
     if (!supa || !currentUser) return null;
-    const hit = sessGet("bp_sess_org", currentUser.id);
-    if (hit) return hit;
+    const uid = currentUser.id;
+    const hit = sessEntry("bp_sess_org", uid);
+    if (hit && hit.val) {
+      if (!hit.fresh) revalidateOrg(uid, hit.val);   // stale: use it now, re-check in the background
+      return hit.val;
+    }
+    return fetchOrgId(uid);
+  }
+  async function fetchOrgId(uid) {
     const { data, error } = await supa.rpc("current_org_id");
     if (error) throw error;
-    if (data) sessSet("bp_sess_org", currentUser.id, data);
+    if (data) sessSet("bp_sess_org", uid, data);
     return data || null;
   }
+  // Background re-check of a stale cached studio id. A different / missing studio →
+  // drop the caches, hide the page and reload (the gate decides again); a rejected
+  // token → hide + sign-in. A network blip keeps the cached answer (RLS still checks
+  // every data call).
+  let orgRecheck = null;
+  let orgRevoked = false;       // a background re-check said no: never (re)show this page
+  function revalidateOrg(uid, was) {
+    if (orgRecheck || !supa) return;
+    orgRecheck = fetchOrgId(uid).then((now) => {
+      if (!currentUser || currentUser.id !== uid || now === was) return;
+      orgRevoked = true; sessClear();
+      if (PAGE_GATED) { hidePage(); try { location.reload(); } catch (e) {} }
+    }, (e) => {
+      if (!looksLikeAuthError(e)) return;
+      orgRevoked = true; sessClear();
+      if (PAGE_GATED) { hidePage(); gotoLogin(); }
+    }).then(() => { orgRecheck = null; }, () => { orgRecheck = null; });
+  }
+  // Started alongside the sign-in step check on a protected page (one round-trip
+  // instead of two before the page shows); runPageGate awaits it.
+  let orgEarly = null;
   // Helm platform operator (public.platform_admins)? Asked ONLY for an account with no
   // studio; any error counts as "no". The hq_* RPCs remain the real server gate.
   async function isPlatformAdmin() {
     if (!supa || !currentUser || pendingStep) return false;
-    try { const { data, error } = await supa.rpc("is_platform_admin"); return !error && data === true; }
-    catch (e) { return false; }
+    // 0037 is_platform_operator: "is my e-mail on the HQ list" WITHOUT the two-step
+    // requirement, so an operator who still owes a code is routed to the code step
+    // (never to studio setup). Falls back to is_platform_admin before 0037 exists.
+    try {
+      const r = await supa.rpc("is_platform_operator");
+      if (!r.error && typeof r.data === "boolean") return r.data;
+      const { data, error } = await supa.rpc("is_platform_admin"); return !error && data === true;
+    } catch (e) { return false; }
   }
   // The ONE place the HQ path appears outside hq.html/hq.js (test/hq-private.test.mjs):
   // reached only after is_platform_admin() said true for an account with no studio.
@@ -360,12 +421,14 @@
     // forged local token fails here). Rejected token → sign-in; any other failure →
     // "Couldn't reach Helm — Retry". The app is shown only after a real answer.
     let oid = null;
-    try { oid = await orgIdStrict(); }
+    const early = orgEarly; orgEarly = null;
+    try { oid = await (early || orgIdStrict()); }
     catch (e) {
       if (looksLikeAuthError(e)) { gotoLogin(); return HANG(); }
       gateUnreachable(); return HANG();
     }
     if (!oid) { await routeNoStudio(); return HANG(); }
+    if (orgRevoked) return HANG();   // a background re-check already took the page away
     revealPage();
   }
   // Back/Forward restored this page from the bfcache: re-check before showing it again.
@@ -468,6 +531,36 @@
     } catch (e) { pendingStep = "verify"; }
     return pendingStep;
   }
+  /* ---- two-step code lockout (UX layer; Supabase Auth's own rate limit is the real one) ----
+     After MFA_MAX_TRIES wrong codes in a row the form pauses for 60 s, doubling for
+     each further run of wrong codes (max 15 min). Kept in localStorage per account so a
+     reload or a new tab does not reset it; cleared by the next correct code. */
+  const MFA_LOCK_KEY = "bp_mfa_lock", MFA_MAX_TRIES = 5, MFA_LOCK_BASE = 60000, MFA_LOCK_MAX = 15 * 60000;
+  function mfaLockRead(uid) {
+    try { const o = JSON.parse(lsGet(MFA_LOCK_KEY) || "null"); return (o && uid && o.uid === uid) ? o : { uid: uid, n: 0, until: 0 }; }
+    catch (e) { return { uid: uid, n: 0, until: 0 }; }
+  }
+  function mfaLockLeft(uid) { const o = mfaLockRead(uid); return Math.max(0, (Number(o.until) || 0) - Date.now()); }
+  function mfaLockFor(uid, ms) { const o = mfaLockRead(uid); o.until = Date.now() + ms; lsSet(MFA_LOCK_KEY, JSON.stringify(o)); return ms; }
+  function mfaStrike(uid) {
+    const o = mfaLockRead(uid); o.n = (Number(o.n) || 0) + 1;
+    if (o.n % MFA_MAX_TRIES === 0) o.until = Date.now() + Math.min(MFA_LOCK_MAX, MFA_LOCK_BASE * Math.pow(2, o.n / MFA_MAX_TRIES - 1));
+    lsSet(MFA_LOCK_KEY, JSON.stringify(o));
+    return Math.max(0, (Number(o.until) || 0) - Date.now());
+  }
+  function mfaLockClear() { lsDel(MFA_LOCK_KEY); }
+  function mfaLockedError(ms, cause) {
+    const s = Math.max(1, Math.ceil(ms / 1000));
+    const e = new Error("Too many incorrect codes. For your security, wait " + (s >= 90 ? Math.ceil(s / 60) + " minutes" : s + " seconds") + ", then enter the newest code from your app.");
+    e.code = "mfa_locked"; e.retryAfter = s; if (cause) e.cause = cause; return e;
+  }
+  // Pure decision for a platform operator (exported for tests): no verified
+  // authenticator → enroll; verified but session below aal2 → challenge; else ok.
+  function operatorMfaDecision(level, verifiedCount) {
+    if (!(verifiedCount > 0)) return "enroll";
+    return (level && level.currentLevel === "aal2") ? "ok" : "challenge";
+  }
+
   // gate is evaluated on staff pages + the auth pages, not on public client-link pages
   function gatePage() { const k = pageKey(); if (publicLinkPath()) return false; return !PUBLIC_PAGES[k] || k === "login" || k === "reset-password"; }
   // branded client links (/<studio>/quote|portal|proposal|work|invite/<ref>) and /i/<slug>
@@ -562,7 +655,7 @@
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "5";
+  const AUTH_UI_VERSION = "6";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -790,8 +883,16 @@
             // Supabase is configured ⇒ the app uses accounts; no session ⇒ must sign in.
             authRequired = !currentUser;
             mode = "supabase";
-            // signed in, but a sign-in step (two-step code / temp password / reset) may be pending
-            if (currentUser && gatePage()) await evaluateGate();
+            // signed in, but a sign-in step (two-step code / temp password / reset) may be pending.
+            // On a protected page the studio lookup runs at the same time (it is only
+            // USED after the step check passed — the page still shows only after both).
+            if (currentUser && gatePage()) {
+              if (PAGE_GATED) { orgEarly = orgIdStrict(); orgEarly.catch(() => {}); }
+              await evaluateGate();
+              // role + access matrix are needed by nearly every page right after it
+              // shows: start them now (cached per tab; failures are retried by the page)
+              if (PAGE_GATED && !pendingStep) loadAccess().catch(() => {});
+            }
             mode = "supabase";
             await runPageGate();          // protected page: confirm session + studio before it shows
             return mode;
@@ -826,11 +927,30 @@
   // tab" bug). Instead: retry a few times, dedupe concurrent callers with one
   // in-flight promise, cache ONLY a successful lookup, and return null (unknown)
   // if it genuinely can't resolve so callers deny-this-render without caching.
+  // Background refresh of a stale cached role + matrix (stale-while-revalidate). Both
+  // entries are written together, and only when BOTH reads succeed; the in-memory
+  // values of this page are left alone (the next navigation uses the new ones).
+  let accessRecheck = false;
+  function revalidateAccess(uid) {
+    if (accessRecheck || !supa || !uid) return;
+    accessRecheck = true;
+    (async () => {
+      const p = await supa.from("profiles").select("role").eq("id", uid).single();
+      if (!p || p.error || !currentUser || currentUser.id !== uid) return;
+      const r = (p.data && p.data.role) || "client";
+      const ra = await supa.from("role_access").select("area,can_view,can_edit").eq("role", r);
+      if (!ra || ra.error || !currentUser || currentUser.id !== uid) return;
+      const map = {};
+      (ra.data || []).forEach((row) => { map[row.area] = { view: !!row.can_view, edit: !!row.can_edit }; });
+      sessSet("bp_sess_role", uid, r);
+      sessSet("bp_sess_access", uid, { role: r, map });
+    })().catch(() => {}).then(() => { accessRecheck = false; });
+  }
   async function getRole() {
     if (!supa || !currentUser) return null;
     if (roleCache) return roleCache;
-    const cached = sessGet("bp_sess_role", currentUser.id);
-    if (cached) { roleCache = cached; return roleCache; }
+    const cached = sessEntry("bp_sess_role", currentUser.id);
+    if (cached && cached.val) { roleCache = cached.val; if (!cached.fresh) revalidateAccess(currentUser.id); return roleCache; }
     if (rolePromise) return rolePromise;
     rolePromise = (async () => {
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -853,8 +973,12 @@
   // callers fall back to the legacy VIEW_SCOPE. Cached until sign-in/out/role change.
   async function loadAccess() {
     if (accessCache) return accessCache;
-    const csnap = currentUser && sessGet("bp_sess_access", currentUser.id);
-    if (csnap) { accessCache = csnap; return accessCache; }
+    const csnap = currentUser && sessEntry("bp_sess_access", currentUser.id);
+    // a snapshot is used only for the role this page resolved (never mixes two roles)
+    if (csnap && csnap.val && csnap.val.role && (!roleCache || csnap.val.role === roleCache)) {
+      roleCache = csnap.val.role;   // role and matrix of this page always come from the same snapshot
+      accessCache = csnap.val; if (!csnap.fresh) revalidateAccess(currentUser.id); return accessCache;
+    }
     if (accessPromise) return accessPromise;              // dedupe the parallel canView fan-out
     accessPromise = (async () => {
       const r = await getRole();
@@ -1196,13 +1320,47 @@
       // finish enrolment (or step up) with a 6-digit code from the authenticator app
       async verify(factorId, code) {
         if (!supa) throw new Error("Supabase not configured");
+        const uid = currentUser && currentUser.id;
+        const wait = mfaLockLeft(uid);
+        if (wait > 0) throw mfaLockedError(wait);
         const c = String(code || "").replace(/\s+/g, "");
         if (!/^\d{6}$/.test(c)) throw new Error("Enter the 6-digit code from your authenticator app.");
-        const { error } = await supa.auth.mfa.challengeAndVerify({ factorId, code: c });
-        if (error) { const e = new Error("That code didn't work — check the time on your phone and try the newest code."); e.code = "mfa_invalid"; e.cause = error; throw e; }
+        let error = null;
+        try { error = (await supa.auth.mfa.challengeAndVerify({ factorId, code: c })).error; } catch (x) { error = x; }
+        if (error) {
+          // Network trouble is not a wrong code (no lockout strike; friendlyError explains it)
+          if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) throw error;
+          const st = Number(error.status) || 0, msg = String(error.message || "") + " " + String(error.code || "");
+          const left = (st === 429 || /rate.?limit|too many/i.test(msg)) ? mfaLockFor(uid, 60000) : mfaStrike(uid);
+          if (left > 0) throw mfaLockedError(left, error);
+          // one generic message: never says whether the factor, the challenge or the code was the problem
+          const e = new Error("That code didn't work. Codes change every 30 seconds — enter the newest one, and check the time on your phone is set automatically."); e.code = "mfa_invalid"; e.cause = error; throw e;
+        }
+        mfaLockClear();
         const { data: s } = await supa.auth.getSession(); if (s && s.session) currentUser = s.session.user;
         await evaluateGate();
         return true;
+      },
+      // seconds until another code may be tried (0 = now) — UI countdown
+      lockedSeconds() { return Math.ceil(mfaLockLeft(currentUser && currentUser.id) / 1000); },
+      // Helm platform operator (HQ) two-step requirement — no skip, no opt-out:
+      //   "none"      not an operator (or not signed in): nothing changes for this account
+      //   "enroll"    operator without a verified authenticator → must set one up now
+      //   "challenge" operator with an authenticator, session still aal1 → must enter a code
+      //               (also any session already waiting for its two-step code)
+      //   "ok"        operator at aal2
+      //   "unknown"   operator, but the factors / level couldn't be read → fail CLOSED
+      // Factors are only ever read AFTER is_platform_admin() said yes (nothing about an
+      // ordinary account's authenticators is looked at or shown here).
+      async operatorStep() {
+        if (!supa || !currentUser) return "none";
+        if (pendingStep === "mfa") return "challenge";       // aal1 with a verified factor (is_platform_admin() is false until aal2)
+        if (pendingStep) return "none";                       // temp password / reset: those pages finish it first
+        if (!(await isPlatformAdmin())) return "none";
+        try {
+          const [lv, fs] = await Promise.all([this.level(), this.verifiedTotp()]);
+          return operatorMfaDecision(lv, fs.length);
+        } catch (e) { return "unknown"; }
       },
       // sign-in step-up: verify against the account's verified authenticator
       async challenge(code) {
@@ -1218,6 +1376,7 @@
         return true;
       },
       requiredForAdmins: () => AUTH_CFG.mfaRequiredForAdmins,
+      _operatorDecision: operatorMfaDecision,
     },
     // ---- CAPTCHA (Cloudflare Turnstile through Supabase's captchaToken) ----------
     captcha: { enabled: () => !!CAPTCHA, siteKey: () => (CAPTCHA ? CAPTCHA.siteKey : ""), provider: () => (CAPTCHA ? CAPTCHA.provider : "") },
@@ -1323,6 +1482,17 @@
         .eq("quote_id", quoteId).eq("version_no", versionNo).single();
       if (error) throw error; return { versionNo: data.version_no, data: data.data };
     },
+    // Read-only list of every saved layout version (newest first) for the builder's version
+    // switcher, incl. who saved it (created_by) when that column is readable. Falls back to the
+    // same column set get() uses, so an older schema can never break the list. Never writes.
+    async versions(quoteId) {
+      const cols = "id,version_no,label,object_count,created_at";
+      let r = await supa.from("quote_versions").select(cols + ",created_by").eq("quote_id", quoteId).order("version_no", { ascending: false });
+      if (r.error) r = await supa.from("quote_versions").select(cols).eq("quote_id", quoteId).order("version_no", { ascending: false });
+      if (r.error) throw r.error;
+      return (r.data || []).map((v) => ({ id: v.id, versionNo: v.version_no, label: v.label, objectCount: v.object_count,
+        createdAt: v.created_at, createdBy: v.created_by || null }));
+    },
     async create(code, title, eventType, data, objectCount, eventDate) {
       const { data: q, error } = await supa.rpc("create_quote",
         { p_code: code, p_title: title, p_event_type: eventType, p_data: data, p_object_count: objectCount, p_event_date: eventDate || null });
@@ -1388,6 +1558,9 @@
     async setStage(id, stage) { const a = this.read(); const q = a.find((x) => x.id === id); if (q) { q.lifecycleStage = stage; q.updatedAt = now(); this.write(a); } return { stage }; },
     async getVersion(id, no) { const q = this.read().find((x) => x.id === id); const v = q && (q.versions || []).find((v) => v.versionNo === no);
       if (!v) throw new Error("no version"); return { versionNo: no, data: v.data }; },
+    async versions(id) { const q = this.read().find((x) => x.id === id); if (!q) throw new Error("not found");
+      return (q.versions || []).map((v) => ({ id: v.id, versionNo: v.versionNo, label: v.label, objectCount: v.objectCount, createdAt: v.createdAt, createdBy: v.createdBy || null }))
+        .sort((a, b) => b.versionNo - a.versionNo); },
     async create(code, title, eventType, data, objectCount) { const q = { id: uid(), code, title: title || "Untitled event", eventType,
       status: "quote", client: {}, pricing: {}, currentVersion: 1, createdAt: now(), updatedAt: now(), confirmedAt: null,
       versions: [{ id: uid(), versionNo: 1, label: null, data: data || { items: [] }, objectCount: objectCount || 0, createdAt: now() }] };
@@ -1411,6 +1584,7 @@
     list: () => qt().list(),
     get: (id) => qt().get(id),
     getVersion: (id, no) => qt().getVersion(id, no),
+    versions: (id) => qt().versions(id),
     create: (code, title, eventType, data, objectCount) => qt().create(code, title, eventType, data, objectCount),
     addVersion: (id, label, data, objectCount) => qt().addVersion(id, label, data, objectCount),
     confirm: (id, client, pricing) => qt().confirm(id, client, pricing),
@@ -1511,6 +1685,21 @@
     setSpecial: (taskId, on, everyMin) => rpc("set_task_special", { p_id: taskId, p_on: !!on, p_every_min: everyMin || 5 }),
     runReminders: (quoteId) => rpc("run_task_reminders", quoteId ? { p_quote: quoteId } : {}),
     async setEventManager(quoteId, managerId) { const { error } = await supa.from("quotes").update({ manager_id: managerId }).eq("id", quoteId); if (error) throw error; return true; },
+    // ---- 0038: crew evidence (reject reason / voice note, proof photos) — staff read ----
+    // Rows are RLS-gated (Staff view, own studio). Before 0038 is applied the table is
+    // missing: treat that as "no evidence" so the Operations page keeps working.
+    async listEvidence(quoteId) { if (!supa) return [];
+      const { data, error } = await supa.from("task_evidence")
+        .select("id,task_id,kind,body,storage_path,mime,duration_s,worker_name,created_at")
+        .eq("quote_id", quoteId).order("created_at", { ascending: true });
+      if (error) { const c = error.code || ""; if (c === "PGRST205" || c === "42P01" || /task_evidence/.test(String(error.message || "")) && /does not exist|schema cache/i.test(String(error.message || ""))) return []; throw error; }
+      return data || []; },
+    // Signed, short-lived (300 s) URLs; only our own task-proof keys are ever signed.
+    async evidenceUrls(paths, seconds) { if (!supa) return {};
+      const ok = (paths || []).filter((p) => TASK_PROOF_KEY.test(String(p || ""))); if (!ok.length) return {};
+      const { data, error } = await supa.storage.from("task-proof").createSignedUrls(ok, seconds || 300);
+      if (error) throw error;
+      const out = {}; (data || []).forEach((r, k) => { if (r && r.signedUrl && !r.error) out[ok[k]] = r.signedUrl; }); return out; },
     // ---- worker (no login; token-scoped) ----
     worker: {
       getTasks: (token) => rpc("worker_get_tasks", { p_token: token }),
@@ -1518,8 +1707,32 @@
       // Phase 52 — crew equipment (kit out to them for this event) + check-in
       getEquipment: (token) => rpc("worker_get_equipment", { p_token: token }),
       checkinEquipment: (token, id, qtyIn) => rpc("worker_checkin_equipment", { p_token: token, p_id: id, p_qty_in: qtyIn }),
+      // 0038 — upload one evidence file: the link asks the server for a one-time
+      // 15-minute grant (checks link + task + status + type, 30/hour), then writes
+      // the file to that exact key in the private 'task-proof' bucket. Type comes
+      // from the file's bytes, never from its name. Returns the key.
+      async uploadEvidence(token, taskId, kind, file) {
+        if (!supa) throw new Error("Supabase not configured");
+        if (!file) throw new Error("no file");
+        if (file.size > TASK_PROOF_MAX) throw new Error("File too large (max 8 MB).");
+        const sniff = await sniffChat(file);
+        const allowed = kind === "proof_photo" ? /^image\/(jpeg|png|webp)$/ : /^audio\/(webm|ogg|mp4)$/;
+        if (!sniff || !allowed.test(sniff.mime)) throw new Error(kind === "proof_photo" ? "Photos must be JPEG, PNG or WebP." : "That voice note format isn't supported.");
+        const g = await rpc("worker_evidence_upload", { p_token: token, p_task_id: taskId, p_kind: kind, p_mime: sniff.mime });
+        if (!g || !TASK_PROOF_KEY.test(String(g.path || ""))) throw new Error("upload not available");
+        const { error } = await supa.storage.from("task-proof").upload(g.path, file, { upsert: false, contentType: g.mime });
+        if (error) throw error;
+        return g.path;
+      },
+      // reject / complete together with the evidence, in one server transaction
+      respondEvidence: (token, taskId, action, ev) => { ev = ev || {};
+        return rpc("worker_respond_evidence", { p_token: token, p_task_id: taskId, p_action: action,
+          p_reason: ev.reason || null, p_voice_path: ev.voicePath || null, p_voice_seconds: ev.voiceSeconds == null ? null : Math.round(ev.voiceSeconds),
+          p_photo_paths: (ev.photoPaths && ev.photoPaths.length) ? ev.photoPaths : null }); },
     },
   };
+  const TASK_PROOF_MAX = 8 * 1024 * 1024;                   // matches the task-proof bucket cap (0038)
+  const TASK_PROOF_KEY = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp|webm|ogg|m4a)$/;
 
   /* ---------------- control center: pricing config, vendors, coupons ---------------- */
   const PRICING_DEFAULTS = { chairPrice:200, platePrice:500, gstPct:18, serviceChargePct:0, currency:"INR", conflictBufferHours:3,
@@ -2353,6 +2566,11 @@
       if (!(await links.verify(L))) { const e = new Error("invalid link"); e.code = "PGRST116"; throw e; }
     },
     rename: (slug) => rpc("set_studio_link_name", { p_slug: slug }).then((r) => { studioSlugCache = r || null; return r; }),
+    // optional "links stop working N days after they're sent" (0039) — studio admin only, enforced server-side
+    autoExpire: {
+      get: () => rpc("admin_get_link_autoexpire", {}),
+      set: (enabled, days) => rpc("admin_set_link_autoexpire", { p_enabled: !!enabled, p_days: days }),
+    },
   };
 
   /* ---------------- invitations: join an existing studio (Phase 83) ---------------- */
@@ -2590,11 +2808,71 @@
     if (!m) return "";
     if (m.kind === "image") return "📷 Photo";
     if (m.kind === "voice") return "🎤 Voice message";
-    if (m.kind === "card") { const t = m.meta || {}; if (t.kind === "layout") return "📐 Layout" + (t.name ? ": " + t.name : ""); return "📄 Quote" + (t.code ? ": " + t.code : (t.title ? ": " + t.title : "")); }
+    if (m.kind === "card") { const t = m.meta || {}; if (t.kind === "event") return "📋 Event details" + (t.code ? ": " + t.code : ""); if (t.kind === "layout") return "📐 Layout" + (t.name ? ": " + t.name : ""); return "📄 Quote" + (t.code ? ": " + t.code : (t.title ? ": " + t.title : "")); }
     return m.body || "";
   }
   // Conversations the viewer muted (per-user, stored by the chat page in localStorage).
   function chatReadMuted() { try { return new Set(JSON.parse(localStorage.getItem("wa_mute") || "[]")); } catch (e) { return new Set(); } }
+  // A conversation's display title (group / broadcast name, or the other person of a DM).
+  function chatConvTitle(c, me, nameFor) {
+    if (c.kind === "broadcast") return c.title || "Everyone";
+    if (c.kind === "group") return c.title || "Group";
+    const ids = (c.dm_key || "").split(":"); const o = ids[0] === me ? ids[1] : ids[0]; return nameFor(o);
+  }
+  // @mentions (0035) → bell items. A mention turns that conversation's bell row into
+  // "X mentioned you in <group>" and is shown EVEN IF the chat is muted.
+  function chatMergeMentions(out, mentions) {
+    const byConv = {};
+    (mentions || []).forEach((m) => { const b = byConv[m.conversation_id]; if (b) b.n++; else byConv[m.conversation_id] = { m, n: 1 }; });
+    Object.keys(byConv).forEach((cid) => {
+      const { m, n } = byConv[cid];
+      const title = m.conv_kind === "dm" ? (m.who + " mentioned you") : (m.who + " mentioned you in " + m.title);
+      const item = out.find((x) => x.conversation_id === cid);
+      if (item) { item.kind = "mention"; item.mention = true; item.title = title; item.who = ""; item.preview = m.preview; if (String(m.created_at) > String(item.created_at)) item.created_at = m.created_at; }
+      else out.push({ conversation_id: cid, kind: "mention", mention: true, title, who: "", preview: m.preview, created_at: m.created_at, count: n });
+    });
+    out.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    return out;
+  }
+  let chatMentionsMissing = false;   // 0035 not installed yet → no mention lookups
+  // Local/offline event card — the SAME whitelist as the server's _event_card (0035):
+  // client contact, event type/date/time, venue, guests, layout, menu, notes. Never money.
+  function chatLocalEventCard(q) {
+    q = q || {}; const cl = q.client || (q.pricing && q.pricing.client) || {}; const pr = q.pricing || {};
+    const s = (v, n) => { const t = String(v == null ? "" : v).trim(); return t ? t.slice(0, n || 200) : undefined; };
+    const g = [pr.guests, cl.guests, pr.chairs].map((x) => Number(x)).find((x) => Number.isInteger(x) && x >= 0);
+    const card = { kind: "event", v: 1, quote_id: q.id, code: s(q.code, 40), title: s(q.title), status: q.status, event_type: s(q.eventType, 80),
+      event_date: s(q.eventDate || cl.eventDate, 10), client: { name: s(cl.name, 120), phone: s(cl.phone, 40), email: s(cl.email), company: s(cl.company, 120) },
+      venue: s(cl.venue), venue_address: s(cl.address, 400), guests: g, layout: { kind: "layout", quote_id: q.id, version: q.currentVersion },
+      notes: s(cl.notes, 2000), generated_at: new Date().toISOString() };
+    return JSON.parse(JSON.stringify(card));   // drops undefined keys
+  }
+  // Event-group avatar: an emoji for the quote's event type, else keywords in its title,
+  // else 📅. Whole words, case-insensitive; "_"/"-" count as spaces ("wedding_reception").
+  // Order matters — the more specific occasion wins ("baby shower" before "party",
+  // "reception" before "wedding", "birthday party" → 🎂). Output is a fixed emoji, never user text.
+  function chatEventEmoji(eventType, title) {
+    const RULES = [
+      [/\bbaby ?shower\b|\bgodh ?bharai\b|\bseemantham\b/, "🍼"],
+      [/\bengage(?:ment|d)?\b|\bring ceremony\b|\broka\b|\bsagai\b/, "💞"],
+      [/\breception\b/, "🥂"],
+      [/\bwedding\b|\bmarriage\b|\bshaadi\b|\bvivah\b|\bsangeet\b|\bmehe?ndi\b|\bhaldi\b/, "💍"],
+      [/\banniversary\b/, "💐"],
+      [/\bbirthday\b|\bbday\b/, "🎂"],
+      [/\bgraduation\b|\bconvocation\b/, "🎓"],
+      [/\bpolitical\b|\brally\b|\belection\b/, "🗳️"],
+      [/\bconcert\b|\bmusic(?:al)?\b|\blive show\b/, "🎤"],
+      [/\bsports?\b|\btournament\b|\bmarathon\b/, "🏟️"],
+      [/\bfestival\b|\bfest\b|\bmela\b|\bcarnival\b/, "🎪"],
+      [/\bexhibition\b|\bexpo\b|\btrade show\b/, "🖼️"],
+      [/\breligious\b|\bpuja\b|\bpooja\b|\bhavan\b|\bsatsang\b/, "🪔"],
+      [/\bcorporate\b|\bconference\b|\bseminar\b|\bsummit\b|\boffsite\b/, "🏢"],
+      [/\bparty\b|\bcelebration\b/, "🎉"],
+    ];
+    const hit = (v) => { v = String(v == null ? "" : v).toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim(); if (!v) return null;
+      for (let i = 0; i < RULES.length; i++) if (RULES[i][0].test(v)) return RULES[i][1]; return null; };
+    return hit(eventType) || hit(title) || "📅";
+  }
 
   /* ---------------- display names (0034) ---------------- */
   // What to call a person: their display name → the part of their e-mail before "@"
@@ -2652,6 +2930,8 @@
     },
     // display name for a roster row (name → e-mail before "@" → role)
     displayName: personDisplayName,
+    // event-group avatar emoji from an event type / title (see chatEventEmoji)
+    eventEmoji: chatEventEmoji,
     // Local-mode only: switch the acting identity (two tabs = two "users" for a live demo).
     localRoster: () => CHAT_LOCAL_ROSTER.slice(),
     setLocalUser: (id) => { try { localStorage.setItem("helm_local_uid", id); } catch (e) {} },
@@ -2839,6 +3119,7 @@
           out.push({ conversation_id: c.id, kind: c.kind, title, who: nameFor(last.sender_id), preview: chatPreviewText(last), created_at: last.created_at, count: unread.length });
         });
         out.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+        try { chatMergeMentions(out, await this.mentionsForMe(cap)); } catch (e) {}   // @mentions: even when muted
         return out.slice(0, cap);
       }
       const me = currentUser && currentUser.id; if (!me || chatBackendMissing) return [];
@@ -2864,7 +3145,96 @@
         const item = { conversation_id: m.conversation_id, kind: c.kind, title, who: nameById[m.sender_id] || "Member", preview: chatPreviewText(m), created_at: m.created_at, count: 1 };
         seen[m.conversation_id] = item; out.push(item);
       });
+      try { chatMergeMentions(out, await this.mentionsForMe(cap, nameById)); } catch (e) {}   // @mentions: even when muted
       return out.slice(0, cap);
+    },
+    // My unread @mentions (0035 chat_my_mentions; the server checks I'm still in that
+    // conversation), newest first: [{ id, conversation_id, conv_kind, title, who, preview, created_at }].
+    async mentionsForMe(limit, nameById) {
+      const cap = limit || 20;
+      if (mode !== "supabase") {
+        const me = chatLocalUid(); const convs = chatReadLs(CHAT_LS_C);
+        const nameFor = (id) => { const u = CHAT_LOCAL_ROSTER.find((x) => x.id === id); return u ? u.full_name : "Member"; };
+        const out = [];
+        chatReadLs(CHAT_LS_M).forEach((m) => {
+          if (m.deleted || m.sender_id === me || !(m.meta && Array.isArray(m.meta.mentions) && m.meta.mentions.indexOf(me) >= 0)) return;
+          const c = convs.find((x) => x.id === m.conversation_id); if (!c) return;
+          const mem = (c.members || []).find((x) => x.user_id === me); const lr = mem && mem.last_read_at;
+          if (lr && String(m.created_at) <= String(lr)) return;
+          out.push({ id: m.id, conversation_id: c.id, conv_kind: c.kind, title: chatConvTitle(c, me, nameFor), who: nameFor(m.sender_id), preview: chatPreviewText(m), created_at: m.created_at });
+        });
+        out.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+        return out.slice(0, cap);
+      }
+      const me = currentUser && currentUser.id; if (!me || chatBackendMissing || chatMentionsMissing) return [];
+      const { data, error } = await supa.rpc("chat_my_mentions", { p_limit: cap });
+      if (error) { if (rpcMissing(error)) chatMentionsMissing = true; return []; }
+      let names = nameById;
+      if (!names) { names = {}; try { (await this.roster()).forEach((p) => { names[p.id] = personDisplayName(p); }); } catch (e) {} }
+      return (data || []).map((r) => ({ id: r.id, conversation_id: r.conversation_id, conv_kind: r.conv_kind,
+        title: chatConvTitle({ kind: r.conv_kind, title: r.conv_title, dm_key: r.dm_key }, me, (id) => names[id] || "Direct message"),
+        who: names[r.sender_id] || "Member", preview: r.body || chatPreviewText(r), created_at: r.created_at }));
+    },
+    // Event groups (0035): one chat group per confirmed quote, opened with an event card the
+    // SERVER builds (client contact, date, venue, guests, layout, menu, notes — never money).
+    eventGroups: {
+      // { [quoteId]: { conversation_id, is_member } } for my studio (quotes-view access)
+      async index() {
+        if (mode !== "supabase") {
+          const me = chatLocalUid(); const out = {};
+          chatReadLs(CHAT_LS_C).forEach((c) => { if (c.quote_id) out[c.quote_id] = { conversation_id: c.id, is_member: (c.members || []).some((m) => m.user_id === me) }; });
+          return out;
+        }
+        const data = await rpc("event_group_index", {});
+        const out = {}; (data || []).forEach((r) => { out[r.quote_id] = { conversation_id: r.conversation_id, is_member: !!r.is_member }; });
+        return out;
+      },
+      // { [quoteId]: { event_type, title } } for event-group avatars — ONE read for all the
+      // groups (not one per conversation), RLS-scoped to quotes I can already see. Fail-open:
+      // no quotes access / an error → {} and the avatar falls back to the group title.
+      async types(quoteIds) {
+        const ids = Array.from(new Set((quoteIds || []).filter((x) => typeof x === "string" && x))).slice(0, 200);
+        const out = {}; if (!ids.length) return out;
+        if (mode !== "supabase") {
+          for (const id of ids) { try { const q = await quotes.get(id); if (q) out[id] = { event_type: q.eventType || null, title: q.title || null }; } catch (e) {} }
+          return out;
+        }
+        try {
+          const { data, error } = await supa.from("quotes").select("id,event_type,title").in("id", ids);
+          if (error) return out;
+          (data || []).forEach((q) => { out[q.id] = { event_type: q.event_type || null, title: q.title || null }; });
+        } catch (e) {}
+        return out;
+      },
+      // create (or, if it already exists, return) the quote's event group → conversation id
+      async create(quoteId, memberIds) {
+        if (mode !== "supabase") {
+          const convs = chatReadLs(CHAT_LS_C); const found = convs.find((c) => c.quote_id === quoteId); if (found) return found.id;
+          const q = await quotes.get(quoteId); if (!q || q.status !== "confirmed") throw new Error("Confirm this quote before creating its event group.");
+          const card = chatLocalEventCard(q);
+          const name = (q.title && q.title !== "Untitled event") ? q.title : ((card.client && card.client.name) || "Event");
+          const id = await chat.createGroup(String((q.code || "") + " · " + name).slice(0, 120), memberIds || []);
+          const cv = chatReadLs(CHAT_LS_C); const c = cv.find((x) => x.id === id); if (c) { c.quote_id = quoteId; chatWriteLs(CHAT_LS_C, cv); }
+          const msgs = chatReadLs(CHAT_LS_M);
+          msgs.push({ id: uid(), conversation_id: id, org_id: "local", sender_id: null, kind: "card", body: "Event details", meta: card, created_at: now(), deleted: false });
+          chatWriteLs(CHAT_LS_M, msgs); chatPing(); return id;
+        }
+        return rpc("create_event_group", { p_quote: quoteId, p_members: memberIds || [] });
+      },
+      // post an updated event card when the details changed → new message id, or null if unchanged
+      async refresh(convId) {
+        if (mode !== "supabase") {
+          const c = chatReadLs(CHAT_LS_C).find((x) => x.id === convId); if (!c || !c.quote_id) throw new Error("This group isn't linked to an event any more.");
+          const q = await quotes.get(c.quote_id); if (!q || q.status !== "confirmed") throw new Error("This event is no longer confirmed — its details can't be refreshed.");
+          const card = chatLocalEventCard(q); const msgs = chatReadLs(CHAT_LS_M);
+          const last = msgs.filter((m) => m.conversation_id === convId && m.sender_id == null && m.meta && m.meta.kind === "event").pop();
+          const strip = (o) => { const x = Object.assign({}, o); delete x.generated_at; delete x.refreshed; return JSON.stringify(x); };
+          if (last && strip(last.meta) === strip(card)) return null;
+          const row = { id: uid(), conversation_id: convId, org_id: "local", sender_id: null, kind: "card", body: "Event details updated", meta: Object.assign(card, { refreshed: true }), created_at: now(), deleted: false };
+          msgs.push(row); chatWriteLs(CHAT_LS_M, msgs); chatPing(); return row.id;
+        }
+        return rpc("refresh_event_group", { p_conversation: convId });
+      },
     },
     // Realtime: call cb() on any chat change. Returns { unsubscribe() }.
     // chanName lets independent subscribers on the same page (e.g. the chat page AND
@@ -3723,90 +4093,363 @@
     },
   };
 
+  /* ---------------- notification bell: view (pure — unit-tested in test/bell-panel.test.mjs) ----------------
+     bellPanelView(items, { filter, now, label }) → { filter, tabs, tabsHtml, html, unread }
+     items = the merged feed: bell_feed rows + chat rows ({ __chat:true, … }). Every piece of
+     server / chat text goes through esc(); hrefs are built from encodeURIComponent'd ids. */
+  function bellPanelView(items, opts) {
+    opts = opts || {};
+    const esc = (t) => String(t == null ? "" : t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const label = opts.label || ((n) => ({ icon: "🔔", text: String((n && n.kind) || "Update").replace(/_/g, " ") }));
+    const now = Number(opts.now) || Date.now();
+    const list = (items || []).filter((n) => n && typeof n === "object");
+    // which filter group a row belongs to (also drives the icon-chip colour)
+    const groupOf = (n) => {
+      if (n.__chat) return n.mention ? "mention" : "chat";
+      const k = String(n.kind || "").toLowerCase();
+      if (k.indexOf("task_") === 0) return "task";
+      if (/payment|advance_paid/.test(k)) return "payment";
+      return "other";
+    };
+    const inFilter = (f, g) => f === "all" || (f === "mentions" && g === "mention") || (f === "tasks" && g === "task")
+      || (f === "payments" && g === "payment") || (f === "chat" && (g === "chat" || g === "mention"));
+    const rows = list.map((n, i) => ({ n, i, g: groupOf(n) }));
+    const count = (f) => rows.filter((r) => inFilter(f, r.g)).length;
+    // Payments only when the feed carries any (bell_feed already hides money types this role can't see)
+    const tabs = [["all", "All"], ["mentions", "Mentions"], ["tasks", "Tasks"], ["payments", "Payments"], ["chat", "Chat"]]
+      .filter(([id]) => id !== "payments" || count("payments") > 0)
+      .map(([id, name]) => ({ id, label: name, count: count(id) }));
+    let filter = String(opts.filter || "all"); if (!tabs.some((t) => t.id === filter)) filter = "all";
+    const tabsHtml = tabs.map((t) => `<button type="button" role="tab" class="bpb-tab" id="bpBellTab-${t.id}" data-f="${t.id}" aria-selected="${t.id === filter}" aria-controls="bpBellList" tabindex="${t.id === filter ? 0 : -1}">${t.label}${t.count ? `<span class="bpb-n">${t.count > 99 ? "99+" : t.count}</span>` : ""}</button>`).join("");
+    const unread = rows.reduce((s, r) => s + (r.n.__chat ? (Number(r.n.count) || 1) : (r.n.unread ? 1 : 0)), 0);
+    // relative time + Today / Yesterday / Earlier (local calendar days)
+    const ts = (n) => { const t = new Date(n.created_at).getTime(); return Number.isFinite(t) ? t : NaN; };
+    const rel = (t) => {
+      if (!Number.isFinite(t)) return "";
+      const s = Math.max(0, (now - t) / 1000);
+      if (s < 60) return "now"; if (s < 3600) return Math.floor(s / 60) + "m"; if (s < 86400) return Math.floor(s / 3600) + "h";
+      if (s < 7 * 86400) return Math.floor(s / 86400) + "d";
+      try { return new Date(t).toLocaleDateString([], { day: "numeric", month: "short" }); } catch (e) { return Math.floor(s / 86400) + "d"; }
+    };
+    const sod = new Date(now); sod.setHours(0, 0, 0, 0); const today0 = sod.getTime();
+    const yd = new Date(today0); yd.setDate(yd.getDate() - 1); const yest0 = yd.getTime();
+    const bucket = (t) => !Number.isFinite(t) ? "Earlier" : t >= today0 ? "Today" : t >= yest0 ? "Yesterday" : "Earlier";
+    const item = (r) => {
+      const n = r.n, t = ts(n); let icon, title, preview, href, isUnread, key;
+      if (n.__chat) {
+        const who = n.who || "";
+        title = esc(n.kind === "dm" ? (who || n.title || "Direct message") : ((n.title || "Chat") + (who ? " · " + who : "")));
+        if (Number(n.count) > 1) title += ` <span class="bpb-c">(${Number(n.count) > 99 ? "99+" : Number(n.count)})</span>`;
+        preview = esc(n.preview || ""); icon = n.mention ? "@" : "💬"; isUnread = true;
+        href = "chat.html?c=" + encodeURIComponent(n.conversation_id || ""); key = "c:" + (n.conversation_id || r.i);
+      } else {
+        const L = label(n) || {}; icon = esc(L.icon || "🔔"); title = esc(L.text || "Update");
+        preview = esc([n.event_code, n.event_title].filter(Boolean).join(" · "));
+        href = n.quote_id ? "event.html?id=" + encodeURIComponent(n.quote_id) : ""; isUnread = !!n.unread; key = "n:" + (n.id || r.i);
+      }
+      const cls = `bpb-item g-${r.g}${isUnread ? " is-unread" : ""}`;
+      const inner = `<span class="bpb-chip" aria-hidden="true">${icon}</span>`
+        + `<span class="bpb-body"><span class="bpb-t">${title}</span>${preview ? `<span class="bpb-p">${preview}</span>` : ""}</span>`
+        + `<span class="bpb-meta">${Number.isFinite(t) ? `<time datetime="${esc(new Date(t).toISOString())}">${esc(rel(t))}</time>` : ""}`
+        + `${isUnread ? '<span class="bpb-u"><span class="sr-only">Unread</span></span>' : ""}</span>`;
+      return href ? `<a class="${cls}" href="${esc(href)}" data-k="${esc(key)}">${inner}</a>`
+                  : `<div class="${cls}" tabindex="0" data-k="${esc(key)}">${inner}</div>`;
+    };
+    const shown = rows.filter((r) => inFilter(filter, r.g));
+    let html;
+    if (!shown.length) {
+      const msg = { all: ["You’re all caught up", "New tasks, payments and messages will show up here."],
+        mentions: ["No mentions", "When a teammate @mentions you in chat, it lands here."],
+        tasks: ["No task updates", "Assignments, check-ins and reminders will appear here."],
+        payments: ["No payment updates", "Payment links, receipts and reminders will appear here."],
+        chat: ["No unread messages", "Unread chats from your team show up here."] }[filter];
+      html = `<div class="bpb-empty"><svg class="bpb-art" viewBox="0 0 120 96" aria-hidden="true" focusable="false">`
+        + `<circle cx="60" cy="50" r="38" class="bpb-art-bg"/><path class="bpb-art-bell" d="M60 26c-10 0-17 8-17 18v11l-6 8h46l-6-8V44c0-10-7-18-17-18z"/>`
+        + `<circle cx="60" cy="69" r="5" class="bpb-art-bell"/><path class="bpb-art-z" d="M84 18h8l-8 9h8M96 8h5l-5 6h5"/></svg>`
+        + `<b>${msg[0]}</b><span>${msg[1]}</span></div>`;
+    } else {
+      const order = ["Today", "Yesterday", "Earlier"], by = { Today: [], Yesterday: [], Earlier: [] };
+      shown.slice().sort((a, b) => (ts(b.n) || 0) - (ts(a.n) || 0)).forEach((r) => by[bucket(ts(r.n))].push(r));
+      html = order.filter((d) => by[d].length).map((d) =>
+        `<div class="bpb-sec" role="group" aria-label="${d}"><div class="bpb-day" aria-hidden="true">${d}</div>${by[d].map(item).join("")}</div>`).join("");
+    }
+    return { filter, tabs, tabsHtml, html, unread };
+  }
+  // Bell styles: injected once (the bell must look the same on pages without theme.css).
+  // Light/dark follow the page tokens (theme.css re-points them under html[data-theme=dark]).
+  const BELL_CSS = [
+    ".bpb-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;height:32px;width:36px;padding:0;border:1px solid var(--line,#e8e3db);background:var(--panel,#fff);color:var(--ink,#1b1930);border-radius:10px;cursor:pointer;transition:background .15s,border-color .15s}",
+    ".bpb-btn:hover{border-color:var(--accent,#6d28d9);background:var(--accent-soft,#efe9ff)}",
+    ".bpb-btn[aria-expanded=true]{border-color:var(--accent,#6d28d9);background:var(--accent-soft,#efe9ff);color:var(--accent,#6d28d9)}",
+    ".bpb-btn svg{width:17px;height:17px}",
+    ".bpb-dot{position:absolute;top:-6px;right:-7px;min-width:17px;height:17px;padding:0 4px;box-sizing:border-box;border-radius:9px;background:#e5484d;color:#fff;font:700 10px/17px system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-align:center;box-shadow:0 0 0 2px var(--panel,#fff)}",
+    ".bpb-dot[hidden]{display:none}",
+    ".bpb-root{--bpb-bg:var(--panel,#fff);--bpb-bg2:var(--panel-2,#faf8f5);--bpb-ink:var(--ink,#1b1930);--bpb-ink2:var(--ink-2,#4b475f);--bpb-ink3:var(--ink-3,#6b6577);",
+    "--bpb-line:var(--line,#e8e3db);--bpb-acc:var(--accent,#6d28d9);--bpb-unread:#f7f3ff;",
+    "--bpb-mention-bg:#ffe4ec;--bpb-mention:#be123c;--bpb-chat-bg:#e0ecff;--bpb-chat:#1d4ed8;--bpb-task-bg:#dcf5e7;--bpb-task:#0f7a43;",
+    "--bpb-pay-bg:#fff1d6;--bpb-pay:#8f5f00;--bpb-other-bg:var(--accent-soft,#efe9ff);--bpb-other:var(--accent,#6d28d9);",
+    "--bpb-scrim:rgba(24,20,40,.42);--bpb-scrim-blur:rgba(24,20,40,.18);--bpb-shadow:0 24px 60px rgba(20,27,46,.22),0 2px 8px rgba(20,27,46,.08);",
+    "position:fixed;inset:0;z-index:2147482000;font:14px/1.4 var(--font,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif);color:var(--bpb-ink)}",
+    "html[data-theme=dark] .bpb-root{--bpb-unread:#19152a;--bpb-mention-bg:#3a1424;--bpb-mention:#fda4af;--bpb-chat-bg:#172a4d;--bpb-chat:#93c5fd;--bpb-task-bg:#12301f;--bpb-task:#6ee7b7;",
+    "--bpb-pay-bg:#3a2a0c;--bpb-pay:#fcd34d;--bpb-other-bg:#1d1730;--bpb-other:#c4b5fd;--bpb-scrim:rgba(0,0,0,.66);--bpb-scrim-blur:rgba(0,0,0,.42);--bpb-shadow:0 24px 60px rgba(0,0,0,.7)}",
+    ".bpb-root[hidden]{display:none}",
+    // backdrop: solid scrim everywhere; a lighter, blurred one where backdrop-filter works
+    ".bpb-scrim{position:absolute;inset:0;background:var(--bpb-scrim);opacity:0;transition:opacity .2s ease}",
+    "@supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){.bpb-scrim{background:var(--bpb-scrim-blur);-webkit-backdrop-filter:blur(8px) saturate(120%);backdrop-filter:blur(8px) saturate(120%)}}",
+    ".bpb-root.is-open .bpb-scrim{opacity:1}",
+    // desktop: a popover anchored under the bell (top/right set from the button's position)
+    ".bpb-panel{position:absolute;top:56px;right:16px;width:420px;max-width:calc(100vw - 24px);max-height:min(640px,calc(100vh - 72px));display:flex;flex-direction:column;box-sizing:border-box;",
+    "background:var(--bpb-bg);color:var(--bpb-ink);border:1px solid var(--bpb-line);border-radius:16px;box-shadow:var(--bpb-shadow);overflow:hidden;outline:none;",
+    "opacity:0;transform:translateY(-8px) scale(.98);transform-origin:top right;transition:opacity .18s ease,transform .22s cubic-bezier(.2,.8,.2,1)}",
+    ".bpb-root.is-open .bpb-panel{opacity:1;transform:none}",
+    ".bpb-grab{display:none}",
+    ".bpb-head{padding:14px 14px 0;border-bottom:1px solid var(--bpb-line);background:var(--bpb-bg)}",
+    ".bpb-hrow{display:flex;align-items:center;gap:8px}",
+    ".bpb-title{margin:0;font-size:16px;font-weight:750;letter-spacing:-.01em;color:var(--bpb-ink)}",
+    ".bpb-count{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:var(--bpb-acc);color:#fff;font-size:11px;font-weight:700}",
+    "html[data-theme=dark] .bpb-count{color:#141418}",
+    ".bpb-count[hidden]{display:none}",
+    ".bpb-sp{flex:1}",
+    ".bpb-link{border:0;background:transparent;color:var(--bpb-acc);font:inherit;font-size:12.5px;font-weight:650;cursor:pointer;padding:6px 8px;border-radius:8px}",
+    ".bpb-link:hover{background:var(--bpb-other-bg)}.bpb-link[disabled]{opacity:.5;cursor:default}",
+    ".bpb-x{border:0;background:transparent;color:var(--bpb-ink3);font-size:16px;line-height:1;cursor:pointer;width:32px;height:32px;border-radius:8px}",
+    ".bpb-x:hover{background:var(--bpb-bg2);color:var(--bpb-ink)}",
+    ".bpb-tabs{display:flex;gap:2px;margin:10px -4px 0;overflow-x:auto;scrollbar-width:none}",
+    ".bpb-tabs::-webkit-scrollbar{display:none}",
+    ".bpb-tab{flex:1 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:5px;border:0;background:transparent;color:var(--bpb-ink2);font:inherit;font-size:12.5px;font-weight:600;",
+    "padding:7px 6px 9px;border-bottom:2px solid transparent;border-radius:8px 8px 0 0;cursor:pointer}",
+    ".bpb-tab:hover{color:var(--bpb-ink);background:var(--bpb-bg2)}",
+    ".bpb-tab[aria-selected=true]{color:var(--bpb-acc);border-bottom-color:var(--bpb-acc)}",
+    ".bpb-n{min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;border-radius:9px;background:var(--bpb-bg2);border:1px solid var(--bpb-line);color:var(--bpb-ink2);font-size:10.5px;font-weight:700;line-height:16px;text-align:center}",
+    ".bpb-tab[aria-selected=true] .bpb-n{background:var(--bpb-other-bg);border-color:transparent;color:var(--bpb-acc)}",
+    ".bpb-list{flex:1;min-height:120px;overflow:auto;overscroll-behavior:contain;padding:4px 0 10px}",
+    ".bpb-day{position:sticky;top:0;z-index:1;padding:10px 16px 6px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--bpb-ink3);background:var(--bpb-bg)}",
+    ".bpb-item{position:relative;display:flex;align-items:flex-start;gap:12px;margin:2px 8px;padding:10px 10px;border-radius:12px;text-decoration:none;color:inherit;cursor:pointer;outline:none;transition:background .12s}",
+    "div.bpb-item{cursor:default}",
+    ".bpb-item:hover{background:var(--bpb-bg2)}",
+    ".bpb-item.is-unread{background:var(--bpb-unread)}",
+    ".bpb-item:focus-visible{box-shadow:0 0 0 2px var(--bpb-acc)}",
+    ".bpb-chip{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;font-size:17px;font-weight:800;line-height:1;background:var(--bpb-other-bg);color:var(--bpb-other)}",
+    ".g-mention .bpb-chip{background:var(--bpb-mention-bg);color:var(--bpb-mention);font-size:19px}",
+    ".g-chat .bpb-chip{background:var(--bpb-chat-bg);color:var(--bpb-chat)}",
+    ".g-task .bpb-chip{background:var(--bpb-task-bg);color:var(--bpb-task)}",
+    ".g-payment .bpb-chip{background:var(--bpb-pay-bg);color:var(--bpb-pay)}",
+    ".bpb-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:1px}",
+    ".bpb-t{font-size:13.5px;font-weight:650;color:var(--bpb-ink);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}",
+    ".bpb-item.is-unread .bpb-t{font-weight:750}",
+    ".bpb-c{color:var(--bpb-ink3);font-weight:600}",
+    ".bpb-p{font-size:12.5px;color:var(--bpb-ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    ".bpb-meta{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:7px;padding-top:2px}",
+    ".bpb-meta time{font-size:11.5px;color:var(--bpb-ink3);font-variant-numeric:tabular-nums;white-space:nowrap}",
+    ".bpb-u{width:8px;height:8px;border-radius:50%;background:var(--bpb-acc);box-shadow:0 0 0 3px var(--bpb-other-bg)}",
+    ".bpb-empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;padding:34px 28px 30px;color:var(--bpb-ink2)}",
+    ".bpb-empty b{font-size:15px;color:var(--bpb-ink);margin-top:6px}.bpb-empty span{font-size:13px;max-width:260px}",
+    ".bpb-art{width:120px;height:96px}.bpb-art-bg{fill:var(--bpb-other-bg)}.bpb-art-bell{fill:var(--bpb-acc);opacity:.85}",
+    ".bpb-art-z{fill:none;stroke:var(--bpb-acc);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;opacity:.6}",
+    ".bpb-skel{margin:10px 18px;height:44px;border-radius:12px;background:linear-gradient(90deg,var(--bpb-bg2) 0%,var(--bpb-line) 50%,var(--bpb-bg2) 100%);background-size:200% 100%;animation:bpbShimmer 1.2s linear infinite}",
+    "@keyframes bpbShimmer{to{background-position:-200% 0}}",
+    // phone: a full-height sheet that slides up from the bottom
+    "@media (max-width:640px){",
+    ".bpb-panel{top:max(10px,env(safe-area-inset-top,0px))!important;right:0!important;left:0;bottom:0;width:auto;max-width:none;max-height:none;border-radius:20px 20px 0 0;border-bottom:0;",
+    "padding-bottom:env(safe-area-inset-bottom,0px);transform:translateY(100%);opacity:1;transition:transform .28s cubic-bezier(.2,.8,.2,1)}",
+    ".bpb-root.is-open .bpb-panel{transform:none}",
+    ".bpb-grab{display:block;width:40px;height:4px;border-radius:2px;background:var(--bpb-line);margin:8px auto 0}",
+    ".bpb-head{padding-top:8px}.bpb-item{padding:12px 10px}.bpb-x{width:40px;height:40px}}",
+    "@media (prefers-reduced-motion:reduce){.bpb-root .bpb-scrim,.bpb-root .bpb-panel,.bpb-btn{transition:none!important}.bpb-panel{transform:none!important}.bpb-skel{animation:none}}",
+    "@media print{.bpb-root{display:none!important}}",
+  ].join("\n");
+  function bellInjectCss() {
+    if (typeof document === "undefined" || document.getElementById("bpb-style")) return;
+    const st = document.createElement("style"); st.id = "bpb-style"; st.textContent = BELL_CSS;
+    (document.head || document.documentElement).appendChild(st);
+  }
+  // friendly label + icon for a raw notification kind
+  function bellLabel(n) {
+    const k = (n.kind || "").toLowerCase(); const d = n.detail || {};
+    const m = {
+      task_assigned: ["🛠️", d.outsourced ? `Tasks outsourced to ${d.vendor || "a vendor"}` : `${d.count || ""} task(s) assigned${d.category ? " · " + d.category : ""}`],
+      task_accept: ["✅", "Task accepted" + (d.worker ? " by " + d.worker : "")],
+      task_reject: ["⛔", "Task rejected" + (d.worker ? " by " + d.worker : "")],
+      task_start: ["▶️", "Task started" + (d.worker ? " by " + d.worker : "")],
+      task_complete: ["🎉", "Task completed" + (d.worker ? " by " + d.worker : "")],
+      task_reminder: ["🔔", "Task reminder" + (d.task ? ": " + d.task : "")],
+      otp: ["🔐", "Approval OTP sent"],
+      approval_link: ["✉️", "Approval link sent"],
+      payment: ["💳", "Payment update"],
+      payment_link: ["💳", "Payment link sent"],
+      payment_received: ["💰", "Payment received"],
+      task_due: ["⏰", "Task due" + (d.task ? ": " + d.task : "")],
+      payment_reminder: ["💳", "Payment reminder sent"],
+      payment_receipt: ["🧾", "Payment receipt sent"],
+      advance_paid: ["💰", "Payment received"],
+      payment_reconcile: ["⚠️", "Payment needs attention"],
+    };
+    const hit = m[k] || (k.indexOf("design_") === 0 ? ["🎨", "Design stage: " + k.slice(7).replace(/_/g, " ")]
+                      : k.indexOf("nurture_") === 0 ? ["🌱", "Greeting queued" + (k.length > 8 ? " · " + k.slice(8).replace(/_/g, " ") : "")] : null);
+    // 0036: an automatic staff text/e-mail the studio switched off is logged, not sent
+    const off = n.status === "suppressed" ? " (not sent — switched off)" : "";
+    if (hit) return { icon: hit[0], text: hit[1] + off };
+    return { icon: "🔔", text: (n.kind || "Update").replace(/_/g, " ") + off };
+  }
+
   /* ---------------- notification center: in-app bell (Phase 48) ---------------- */
   const bell = {
     feed: (limit) => rpc("bell_feed", limit ? { p_limit: limit } : {}),
     markSeen: () => rpc("bell_mark_seen", {}),
-    // friendly label + icon for a raw notification kind
-    label(n) {
-      const k = (n.kind || "").toLowerCase(); const d = n.detail || {};
-      const m = {
-        task_assigned: ["🛠️", d.outsourced ? `Tasks outsourced to ${d.vendor || "a vendor"}` : `${d.count || ""} task(s) assigned${d.category ? " · " + d.category : ""}`],
-        task_accept: ["✅", "Task accepted" + (d.worker ? " by " + d.worker : "")],
-        task_reject: ["⛔", "Task rejected" + (d.worker ? " by " + d.worker : "")],
-        task_start: ["▶️", "Task started" + (d.worker ? " by " + d.worker : "")],
-        task_complete: ["🎉", "Task completed" + (d.worker ? " by " + d.worker : "")],
-        task_reminder: ["🔔", "Task reminder" + (d.task ? ": " + d.task : "")],
-        otp: ["🔐", "Approval OTP sent"],
-        approval_link: ["✉️", "Approval link sent"],
-        payment: ["💳", "Payment update"],
-        payment_link: ["💳", "Payment link sent"],
-        payment_received: ["💰", "Payment received"],
-      };
-      const hit = m[k];
-      if (hit) return { icon: hit[0], text: hit[1] };
-      return { icon: "🔔", text: (n.kind || "Update").replace(/_/g, " ") };
+    label: bellLabel,
+    // 0036 admin-managed notifications. mine() → { hidden:[type…] } for the signed-in
+    // person (fail-open: an older database without 0036 hides nothing).
+    prefs: {
+      async mine() {
+        if (mode !== "supabase" || !supa || !currentUser) return { hidden: [] };
+        try { const r = await rpc("my_notification_prefs", {}); return { hidden: (r && Array.isArray(r.hidden)) ? r.hidden : [] }; }
+        catch (e) { return { hidden: [] }; }
+      },
+      // studio admin only (the DB refuses anyone else): catalog + effective matrix
+      get: () => rpc("admin_get_notification_prefs", {}),
+      // one cell; enabled null = back to the default. role for the bell; user for a person override
+      set: (type, channel, role, enabled, userId) => rpc("admin_set_notification_pref",
+        { p_type: type, p_channel: channel, p_role: role || null, p_enabled: enabled === null || enabled === undefined ? null : !!enabled, p_user: userId || null }),
+      reset: () => rpc("admin_reset_notification_prefs", {}),
     },
-    // Mount a self-contained bell widget into `el` (works on any page, inline-styled).
+    // Mount the bell into `el` (works on any page): a button in the header + a panel portalled
+    // to <body> (blurred backdrop; anchored popover on desktop, full-height sheet on phones).
     async mount(el) {
       if (!el) return;
       if (!(auth.enabled() && auth.user())) { el.innerHTML = ""; return; }
-      const S = (o) => Object.entries(o).map(([k, v]) => `${k}:${v}`).join(";");
+      bellInjectCss();
+      // a second mount on the same page replaces the first (no duplicate panels / timers)
+      try { if (typeof window.__bpBellTeardown === "function") window.__bpBellTeardown(); } catch (e) {}
       el.style.position = "relative";
-      el.innerHTML = `<button id="bpBellBtn" title="Notifications" style="${S({position:'relative',height:'30px',width:'34px','border':'1px solid var(--line,#e8e3db)',background:'var(--panel,#fff)','border-radius':'8px',cursor:'pointer','font-size':'15px'})}">🔔<span id="bpBellDot" hidden style="${S({position:'absolute',top:'-6px',right:'-6px',background:'#e5484d',color:'#fff','font-size':'10px','font-weight':'700','min-width':'16px',height:'16px','line-height':'16px','border-radius':'9px',padding:'0 4px'})}">0</span></button>
-        <div id="bpBellPanel" hidden style="${S({position:'absolute',right:'0',top:'38px',width:'340px','max-width':'86vw',background:'var(--panel,#fff)',border:'1px solid var(--line,#e8e3db)','border-radius':'12px','box-shadow':'0 10px 30px rgba(20,27,46,.18)','z-index':'90',overflow:'hidden'})}">
-          <div style="${S({padding:'10px 14px','border-bottom':'1px solid var(--line,#eee)','font-weight':'700','font-size':'13px',display:'flex','align-items':'center','justify-content':'space-between'})}">Notifications <span id="bpBellClear" style="${S({'font-size':'11px',color:'var(--accent,#6d28d9)',cursor:'pointer','font-weight':'600'})}">Mark all read</span></div>
-          <div id="bpBellList" style="${S({'max-height':'380px','overflow':'auto'})}"><div style="padding:18px;text-align:center;color:#8b8698;font-size:13px">Loading…</div></div>
-        </div>`;
-      const btn = el.querySelector("#bpBellBtn"), dot = el.querySelector("#bpBellDot"),
-            panel = el.querySelector("#bpBellPanel"), list = el.querySelector("#bpBellList");
-      const rel = (iso) => { const s = (Date.now() - new Date(iso).getTime()) / 1000; if (s < 60) return "just now"; if (s < 3600) return Math.floor(s / 60) + "m ago"; if (s < 86400) return Math.floor(s / 3600) + "h ago"; return Math.floor(s / 86400) + "d ago"; };
-      const esc = (t) => String(t == null ? "" : t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-      const renderList = (items) => {
-        if (!items || !items.length) { list.innerHTML = `<div style="padding:22px;text-align:center;color:#8b8698;font-size:13px">Nothing yet.</div>`; return; }
-        list.innerHTML = items.map((n) => {
-          if (n.__chat) {
-            const who = esc(n.who || "");
-            const head = n.kind === "dm" ? who : (esc(n.title) + (who ? " · " + who : ""));
-            return `<a href="chat.html?c=${encodeURIComponent(n.conversation_id)}" style="${S({display:'flex',gap:'10px',padding:'10px 14px','border-bottom':'1px solid var(--line-2,#f1ede7)','text-decoration':'none',color:'inherit',background:'#f6f2ff'})}">
-              <span style="font-size:16px">💬</span>
-              <span style="flex:1;min-width:0"><span style="font-size:13px;font-weight:700">${head}${n.count > 1 ? ' <span style="color:#8b8698;font-weight:600">(' + n.count + ')</span>' : ''}</span>
-                <span style="display:block;font-size:12.5px;color:var(--ink-2,#4b475f);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.preview || '')}</span>
-                <span style="display:block;font-size:11px;color:#8b8698">${rel(n.created_at)}</span></span></a>`;
-          }
-          const L = this.label(n); const href = n.quote_id ? ("event.html?id=" + encodeURIComponent(n.quote_id)) : null;
-          return `<a ${href ? `href="${href}"` : ""} style="${S({display:'flex',gap:'10px',padding:'10px 14px','border-bottom':'1px solid var(--line-2,#f1ede7)','text-decoration':'none',color:'inherit',background:n.unread?'#f6f2ff':'transparent'})}">
-            <span style="font-size:16px">${L.icon}</span>
-            <span style="flex:1;min-width:0"><span style="font-size:13px;font-weight:${n.unread?'700':'500'}">${esc(L.text)}</span>
-              <span style="display:block;font-size:11px;color:#8b8698">${n.event_code ? esc(n.event_code) + " · " : ""}${rel(n.created_at)}</span></span></a>`;
-        }).join("");
-      };
+      el.innerHTML = `<button type="button" id="bpBellBtn" class="bpb-btn" title="Notifications" aria-label="Notifications" aria-haspopup="dialog" aria-expanded="false" aria-controls="bpBellPanel">`
+        + `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>`
+        + `<span id="bpBellDot" class="bpb-dot" hidden>0</span></button>`;
+      const root = document.createElement("div");
+      root.className = "bpb-root"; root.id = "bpBellRoot"; root.hidden = true;
+      root.innerHTML = `<div class="bpb-scrim" data-bpb-close></div>
+        <section id="bpBellPanel" class="bpb-panel" role="dialog" aria-modal="true" aria-labelledby="bpBellTitle" tabindex="-1" data-bpui-skip>
+          <div class="bpb-grab" aria-hidden="true"></div>
+          <header class="bpb-head">
+            <div class="bpb-hrow"><h2 id="bpBellTitle" class="bpb-title">Notifications</h2><span id="bpBellCount" class="bpb-count" hidden></span><span class="bpb-sp"></span>
+              <button type="button" id="bpBellClear" class="bpb-link">Mark all read</button>
+              <button type="button" class="bpb-x" data-bpb-close aria-label="Close notifications">✕</button></div>
+            <div id="bpBellTabs" class="bpb-tabs" role="tablist" aria-label="Filter notifications"></div>
+          </header>
+          <div id="bpBellList" class="bpb-list" role="tabpanel" aria-labelledby="bpBellTitle"><div class="bpb-skel"></div><div class="bpb-skel"></div><div class="bpb-skel"></div></div>
+        </section>`;
+      document.body.appendChild(root);
+      const btn = el.querySelector("#bpBellBtn"), dot = el.querySelector("#bpBellDot");
+      const panel = root.querySelector("#bpBellPanel"), list = root.querySelector("#bpBellList"),
+            tabsEl = root.querySelector("#bpBellTabs"), countEl = root.querySelector("#bpBellCount");
+      const reduced = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } };
+      const isPhone = () => { try { return window.matchMedia("(max-width: 640px)").matches; } catch (e) { return false; } };
+      let isOpen = false, filter = "all", lastItems = [], loaded = false, closeTimer = null, prevOverflow = "", lastFocus = null;
       // Chat notifications (my unread DMs/groups/broadcast) merged into the same bell.
       let chatItems = [];
       const chatUnread = () => chatItems.reduce((s, c) => s + (c.count || 1), 0);
       const mergedFeed = (serverItems) => (serverItems || []).slice()
         .concat(chatItems.map((c) => Object.assign({ __chat: true }, c)))
         .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
-      const loadChat = async () => { try { chatItems = (chat && chat.notifications) ? (await chat.notifications(20)) : []; } catch (e) { chatItems = []; } };
-      const setDot = (serverUnread) => { const total = (serverUnread || 0) + chatUnread(); if (total > 0) { dot.hidden = false; dot.textContent = total > 99 ? "99+" : total; } else dot.hidden = true; };
-      const refresh = async () => { let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(f && f.unread); if (!panel.hidden) renderList(mergedFeed(f && f.items)); return f; };
-      await refresh();
-      btn.addEventListener("click", async (e) => { e.stopPropagation(); const open = panel.hidden;
-        if (open) { panel.hidden = false; let f = null; try { f = await this.feed(20); } catch {} await loadChat(); renderList(mergedFeed(f && f.items));
-          try { await this.markSeen(); } catch {} setDot(0);   // event notifs cleared; any chat unread keeps the dot until that chat is opened
-        } else panel.hidden = true; });
-      el.querySelector("#bpBellClear").addEventListener("click", async (e) => { e.stopPropagation(); try { await this.markSeen(); } catch {} await refresh(); });
-      document.addEventListener("click", (e) => {
-        // Ignore clicks on the window scrollbar (target becomes <html>, outside el) so
-        // dragging/clicking the scrollbar doesn't collapse the open notifications panel.
-        try { var de = document.documentElement; if (e.clientX > de.clientWidth || e.clientY > de.clientHeight) return; } catch (_) {}
-        if (!el.contains(e.target)) panel.hidden = true;
+      // 0036: the studio admin can switch chat off in the bell for a role / person
+      // (re-checked every 5 minutes; server-side types are already filtered by bell_feed).
+      let hiddenTypes = [], hiddenAt = 0;
+      const loadHidden = async () => { if (Date.now() - hiddenAt < 300000) return; hiddenAt = Date.now(); hiddenTypes = (await this.prefs.mine()).hidden; };
+      const loadChat = async () => { try { await loadHidden(); } catch (e) {} const chatOff = hiddenTypes.indexOf("chat_message") !== -1;   // chat switched off → @mentions still come through
+        try { chatItems = (chat && chat.notifications) ? (await chat.notifications(20)) : []; } catch (e) { chatItems = []; }
+        if (chatOff) chatItems = chatItems.filter((c) => c && c.mention); };
+      const setDot = (serverUnread) => { const total = (serverUnread || 0) + chatUnread();
+        if (total > 0) { dot.hidden = false; dot.textContent = total > 99 ? "99+" : total; } else dot.hidden = true;
+        btn.setAttribute("aria-label", total > 0 ? `Notifications, ${total > 99 ? "99+" : total} unread` : "Notifications"); };
+      // render the open panel, keeping keyboard focus on the same row / tab across live refreshes
+      const render = () => {
+        const ae = document.activeElement, keepKey = ae && root.contains(ae) && ae.getAttribute ? (ae.getAttribute("data-k") || (ae.getAttribute("data-f") ? "tab:" + ae.getAttribute("data-f") : null)) : null;
+        const v = bellPanelView(lastItems, { filter, now: Date.now(), label: bellLabel });
+        filter = v.filter; tabsEl.innerHTML = v.tabsHtml; list.innerHTML = v.html;
+        list.setAttribute("aria-labelledby", "bpBellTab-" + filter);
+        if (v.unread > 0) { countEl.hidden = false; countEl.textContent = (v.unread > 99 ? "99+" : v.unread) + " new"; } else countEl.hidden = true;
+        if (keepKey) { const sel = keepKey.indexOf("tab:") === 0 ? `[data-f="${keepKey.slice(4)}"]` : `[data-k="${String(keepKey).replace(/["\\]/g, "\\$&")}"]`;
+          const t = root.querySelector(sel); if (t) try { t.focus(); } catch (e) {} }
+      };
+      const refresh = async () => { let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(f && f.unread);
+        if (isOpen) { lastItems = mergedFeed(f && f.items); loaded = true; render(); } return f; };
+      // desktop: anchor the popover under the bell; phone: the CSS sheet takes over
+      const position = () => {
+        if (isPhone()) { panel.style.top = ""; panel.style.right = ""; panel.style.maxHeight = ""; return; }
+        const r = btn.getBoundingClientRect(), vw = document.documentElement.clientWidth || window.innerWidth, vh = window.innerHeight;
+        const top = Math.max(8, Math.round(r.bottom + 10)), right = Math.max(12, Math.round(vw - r.right - 4));
+        panel.style.top = top + "px"; panel.style.right = right + "px"; panel.style.maxHeight = Math.max(240, Math.min(640, vh - top - 16)) + "px";
+      };
+      const items = () => Array.prototype.slice.call(list.querySelectorAll(".bpb-item"));
+      const focusables = () => Array.prototype.filter.call(panel.querySelectorAll('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'),
+        (n) => !n.hidden && n.getClientRects().length > 0);
+      const open = async () => {
+        if (isOpen) return; isOpen = true; clearTimeout(closeTimer);
+        lastFocus = document.activeElement;
+        root.hidden = false; position(); btn.setAttribute("aria-expanded", "true");
+        try { prevOverflow = document.documentElement.style.overflow; document.documentElement.style.overflow = "hidden"; } catch (e) {}
+        void root.offsetWidth; root.classList.add("is-open");     // next frame → CSS transition runs
+        try { panel.focus({ preventScroll: true }); } catch (e) { panel.focus(); }
+        if (loaded) render();                                       // show the last list at once, then refresh
+        let f = null; try { f = await this.feed(20); } catch {} await loadChat();
+        if (!isOpen) return;
+        lastItems = mergedFeed(f && f.items); loaded = true; render();
+        try { await this.markSeen(); } catch {} setDot(0);   // event notifs cleared; any chat unread keeps the dot until that chat is opened
+      };
+      const close = (restore) => {
+        if (!isOpen) return; isOpen = false;
+        root.classList.remove("is-open"); btn.setAttribute("aria-expanded", "false");
+        try { document.documentElement.style.overflow = prevOverflow || ""; } catch (e) {}
+        const hide = () => { if (!isOpen) root.hidden = true; };
+        if (reduced()) hide(); else closeTimer = setTimeout(hide, 280);
+        if (restore !== false) { const t = (lastFocus && lastFocus.isConnected && lastFocus !== document.body) ? lastFocus : btn; try { t.focus({ preventScroll: true }); } catch (e) {} }
+      };
+      btn.addEventListener("click", (e) => { e.stopPropagation(); if (isOpen) close(); else open(); });
+      root.addEventListener("click", (e) => {
+        const c = e.target.closest && e.target.closest("[data-bpb-close]"); if (c) { e.preventDefault(); close(); return; }
+        const tab = e.target.closest && e.target.closest(".bpb-tab"); if (tab) { filter = tab.getAttribute("data-f") || "all"; render(); try { root.querySelector(`[data-f="${filter}"]`).focus(); } catch (x) {} return; }
+        const it = e.target.closest && e.target.closest("a.bpb-item"); if (it) close(false);   // navigating away
       });
-      setInterval(() => { if (!document.hidden && panel.hidden) refresh(); }, 30000);
+      root.querySelector("#bpBellClear").addEventListener("click", async (e) => { e.stopPropagation(); const b = e.currentTarget; b.disabled = true;
+        try { await this.markSeen(); } catch {} await refresh(); b.disabled = false; });
+      // keyboard: Esc closes, Tab is trapped, arrows walk the list, ←/→ switch tabs
+      root.addEventListener("keydown", (e) => {
+        if (!isOpen) return;
+        if (e.key === "Escape" || e.key === "Esc") { e.preventDefault(); e.stopPropagation(); close(); return; }
+        const ae = document.activeElement;
+        if (e.key === "Tab") {
+          const f = focusables(); if (!f.length) { e.preventDefault(); return; }
+          const first = f[0], last = f[f.length - 1];
+          if (e.shiftKey && (ae === first || ae === panel || !panel.contains(ae))) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && (ae === last || !panel.contains(ae))) { e.preventDefault(); first.focus(); }
+          return;
+        }
+        const onTab = ae && ae.classList && ae.classList.contains("bpb-tab");
+        if (onTab && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+          const ts = Array.prototype.slice.call(tabsEl.querySelectorAll(".bpb-tab")); const i = ts.indexOf(ae);
+          const nx = ts[(i + (e.key === "ArrowRight" ? 1 : -1) + ts.length) % ts.length];
+          if (nx) { e.preventDefault(); filter = nx.getAttribute("data-f"); render(); try { root.querySelector(`[data-f="${filter}"]`).focus(); } catch (x) {} }
+          return;
+        }
+        if (["ArrowDown", "ArrowUp", "Home", "End"].indexOf(e.key) === -1) return;
+        const its = items(); if (!its.length) return;
+        const i = its.indexOf(ae); let n;
+        if (e.key === "ArrowUp" && i === 0) { const sel = tabsEl.querySelector('[aria-selected="true"]'); e.preventDefault(); if (sel) sel.focus(); return; }   // top row → back to the tabs
+        if (e.key === "Home") n = 0; else if (e.key === "End") n = its.length - 1;
+        else if (e.key === "ArrowDown") n = i < 0 ? 0 : Math.min(its.length - 1, i + 1);
+        else n = i < 0 ? its.length - 1 : i - 1;
+        e.preventDefault(); try { its[n].focus(); its[n].scrollIntoView({ block: "nearest" }); } catch (x) {}
+      });
+      const onResize = () => { if (isOpen) position(); };
+      window.addEventListener("resize", onResize);
+      await refresh();
+      const timer = setInterval(() => { if (!document.hidden && !isOpen) refresh(); }, 30000);
       // Live: refresh the bell whenever a chat message arrives — on ANY page.
-      try { if (chat && chat.subscribe) { var csub = chat.subscribe(function () { refresh(); }, function () {}, "chat-rt-bell"); window.addEventListener("beforeunload", function () { try { csub && csub.unsubscribe && csub.unsubscribe(); } catch (e) {} }); } } catch (e) {}
+      var csub = null;
+      try { if (chat && chat.subscribe) { csub = chat.subscribe(function () { refresh(); }, function () {}, "chat-rt-bell"); window.addEventListener("beforeunload", function () { try { csub && csub.unsubscribe && csub.unsubscribe(); } catch (e) {} }); } } catch (e) {}
       // Let the chat page nudge the bell after it marks a conversation read.
       try { window.__bpBellRefresh = refresh; } catch (e) {}
+      try { window.__bpBellTeardown = () => { clearInterval(timer); window.removeEventListener("resize", onResize); if (isOpen) close(false);
+        try { csub && csub.unsubscribe && csub.unsubscribe(); } catch (e) {} try { root.remove(); } catch (e) {} }; } catch (e) {}
     },
   };
 

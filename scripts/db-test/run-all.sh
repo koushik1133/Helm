@@ -39,12 +39,15 @@ run "g4-coverage"        "G4-COVERAGE: ALL expected"       psql -q -f tests/db/g
 run "grants-matrix"      "GRANTS-MATRIX: ALL PASS"         psql -q -f tests/db/grants-matrix.sql
 run "token-otp"          "TOKEN-OTP: ALL PASS"             psql -q -f tests/db/token-otp.sql
 run "worker-token"       "WORKER-TOKEN: ALL PASS"          psql -q -f tests/db/worker-token.sql
+# before rescore2: that suite re-applies 0032, whose anon allowlist predates 0038's link RPCs
+run "worker-evidence"    "WORKER-EVIDENCE: ALL PASS \(38/38\)" psql -q -f tests/db/worker-evidence.sql
 run "advisor-hardening"  "ADVISOR-HARDENING: ALL PASS"     psql -q -f tests/db/advisor-hardening.sql
 run "storage-policy"     "STORAGE-POLICY: ALL PASS"        psql -q -f tests/db/storage-policy.sql
 run "chat-rls"           "CHAT-RLS: ALL PASS"              psql -q -f tests/db/chat-rls.sql
 run "studio-links"       "STUDIO-LINKS: ALL PASS"          psql -q -f tests/db/studio-links.sql
 run "privilege-escalation" "PRIVILEGE-ESCALATION: ALL PASS"  psql -q -f tests/db/privilege-escalation.sql
 run "link-windows"       "LINK-WINDOWS: ALL PASS"          psql -q -f tests/db/link-windows.sql
+run "link-autoexpire"    "LINK-AUTOEXPIRE: ALL PASS \(45/45\)" psql -q -f tests/db/link-autoexpire.sql
 run "injection-guards"   "INJECTION-GUARDS: ALL PASS"      psql -q -f tests/db/injection-guards.sql
 run "write-path-lockdown" "WRITE-PATH-LOCKDOWN: ALL PASS"  psql -q -f tests/db/write-path-lockdown.sql
 run "business-logic"     "BUSINESS-LOGIC: ALL PASS"        psql -q -f tests/db/business-logic.sql
@@ -55,7 +58,10 @@ run "payment-matrix"     "PAYMENT-MATRIX: ALL PASS"        psql -q -f tests/db/p
 run "checkout-overissue" "CHECKOUT-OVERISSUE: ALL PASS"    psql -q -f tests/db/checkout-overissue.sql
 run "rescore2-fixes"     "RESCORE2-FIXES: ALL PASS \(33/33\)" psql -q -f tests/db/rescore2-fixes.sql
 run "rescore3-fixes"     "RESCORE3-FIXES: ALL PASS \(26/26\)" psql -q -f tests/db/rescore3-fixes.sql
-run "display-names"      "DISPLAY-NAMES: ALL PASS \(36/36\)" psql -q -f tests/db/display-names.sql
+run "display-names"      "DISPLAY-NAMES: ALL PASS \(38/38\)" psql -q -f tests/db/display-names.sql
+run "event-groups"       "EVENT-GROUPS: ALL PASS \(36/36\)" psql -q -f tests/db/event-groups.sql
+run "event-groups-race"  "EVENT-GROUP-RACE: PASS"          bash tests/db/event-groups-race.sh
+run "notification-prefs" "NOTIFICATION-PREFS: ALL PASS \(47/47\)" psql -q -f tests/db/notification-prefs.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

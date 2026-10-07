@@ -504,3 +504,19 @@ header .kbd{font-size:11px;white-space:nowrap}
 @media (prefers-reduced-motion:reduce){ .navpad{transition:none} }
 /* keep the floating "? Tour" button from covering the toolbox hint (both sit bottom-left) */
 .htour-fab{left:auto !important;right:16px}
+/* layout version switcher: dropdown + "viewing an older version" banner + unsaved-changes modal */
+header select.versel{max-width:220px;font-family:var(--mono)}
+.verbanner{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;padding:6px 14px;font-size:12.5px;font-weight:600;
+  color:var(--ink);background:var(--accent-soft,#efe9ff);border-bottom:1px solid var(--line);flex:0 0 auto;z-index:19}
+.verbanner .tbtn{height:26px;font-size:12px;padding:0 10px;border-radius:6px}
+.sheet-ver{width:min(560px,94vw)}
+.vermsg{margin:0 0 12px;font-size:13px;color:var(--ink-2);line-height:1.45}
+.vercmp{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.vercmp figure{flex:1;min-width:0;margin:0}
+.vercmp figcaption{margin-top:5px;font-size:12px;color:var(--ink-3);text-align:center;font-family:var(--mono)}
+.verarrow{font-size:18px;color:var(--ink-3)}
+.verthumb{aspect-ratio:10/7;border:1px solid var(--line);border-radius:8px;background:var(--canvas);overflow:hidden}
+.verthumb svg{display:block;width:100%;height:100%}
+.veracts{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+.veracts .tbtn{height:32px;padding:0 12px}
+@media (max-width:520px){ .vercmp{flex-direction:column} .verarrow{transform:rotate(90deg)} .vercmp figure{width:100%} .veracts .tbtn{flex:1 1 100%} }

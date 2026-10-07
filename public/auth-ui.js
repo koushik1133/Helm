@@ -37,7 +37,7 @@
   }
   function errText(e, action) {
     var UI = global.BPUI;
-    if (e && e.code && /^(mfa_invalid|bad_current_password|captcha_|rate_limited)/.test(e.code)) return e.message;
+    if (e && e.code && /^(mfa_invalid|mfa_locked|bad_current_password|captcha_|rate_limited)/.test(e.code)) return e.message;
     if (e && e.message && /^(Use at least|Include at least|Enter the 6-digit|Choose a password)/.test(e.message)) return e.message;
     return UI && UI.friendlyError ? UI.friendlyError(e, { action: action }) : ((e && e.message) || "Something went wrong.");
   }
@@ -136,17 +136,24 @@
       box.appendChild(el("p", { class: "hau-muted" }, "Can't scan? Type this key into the app instead:"));
       box.appendChild(el("div", { class: "hau-code" }, r.secret || ""));
       var lab = el("label", { for: "hauEnrollCode", style: "display:block;margin:10px 0 4px;font-weight:600;font-size:14px" }, "2. Enter the 6-digit code the app shows");
-      var inp = el("input", { id: "hauEnrollCode", class: "hau-input", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "6", pattern: "[0-9]{6}" });
+      var inp = el("input", { id: "hauEnrollCode", class: "hau-input", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "6", pattern: "[0-9]{6}", "aria-describedby": "hauEnrollHint" });
+      var hint = el("p", { id: "hauEnrollHint", class: "hau-muted", style: "margin:4px 0 0" }, "Codes refresh every 30 seconds — enter the newest one.");
       var er = el("div", { class: "hau-err", role: "alert" });
       var go = el("button", { type: "button", class: "hau-btn primary" }, "Verify & turn on");
-      box.appendChild(lab); box.appendChild(inp); box.appendChild(er);
+      box.appendChild(lab); box.appendChild(inp); box.appendChild(hint); box.appendChild(er);
       var row = el("div", { class: "hau-row" }); row.appendChild(go); box.appendChild(row);
       var submit = function () {
+        if (go.disabled) return;
         er.textContent = ""; go.disabled = true;
         S().auth.mfa.verify(r.factorId, inp.value).then(function () {
           box.textContent = ""; box.appendChild(el("p", { class: "hau-ok" }, "Two-step verification is on. You'll be asked for a code each time you sign in."));
           if (onDone) onDone();
-        }, function (e) { er.textContent = errText(e, "verify the code"); go.disabled = false; inp.focus(); });
+        }, function (e) {
+          er.textContent = errText(e, "verify the code"); inp.focus();
+          // too many wrong codes: keep the button off until the pause is over
+          if (e && e.code === "mfa_locked" && e.retryAfter > 0) setTimeout(function () { go.disabled = false; er.textContent = ""; }, e.retryAfter * 1000);
+          else go.disabled = false;
+        });
       };
       go.addEventListener("click", submit);
       inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); submit(); } });

@@ -136,7 +136,7 @@ t('REF-01: token routes send Referrer-Policy no-referrer + Cache-Control no-stor
   // static assets keep long-lived caching; app HTML is not marked immutable
   assert.match(vercelHeaders('/store-api.js')['cache-control'], /immutable/);
   assert.match(vercelHeaders('/vendor/supabase-js-2.117.2.min.js')['cache-control'], /immutable/);
-  assert.equal(vercelHeaders('/config.js')['cache-control'], 'public, max-age=300');
+  assert.equal(vercelHeaders('/config.js')['cache-control'], 'public, max-age=300, stale-while-revalidate=3600');
   assert.ok(!/immutable/.test(vercelHeaders('/dashboard')['cache-control'] || ''));
 });
 

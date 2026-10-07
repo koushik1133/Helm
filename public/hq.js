@@ -206,18 +206,34 @@
 
   async function loadAll() {
     $("#err").hidden = true;
-    var o = await call("hq_overview");
-    renderOverview(o || {});
-    await Promise.all([loadStudios(0), loadUsers(0), loadPayments()]);
+    // the four reads are independent: one round-trip instead of two
+    var r = await Promise.all([call("hq_overview"), loadStudios(0), loadUsers(0), loadPayments()]);
+    renderOverview(r[0] || {});
+  }
+
+  // Who may see HQ, decided BEFORE any hq_* data is requested:
+  //   signed out / a sign-in step pending (incl. the two-step code) → sign-in page
+  //   not a platform operator                                         → ordinary 404
+  //   operator without a verified authenticator, or session < aal2    → sign-in page,
+  //     which forces set-up / the code (no skip); "unknown" fails closed the same way
+  //   operator at aal2                                                → HQ
+  // Authenticators are only looked at after is_platform_admin() said yes.
+  async function gate() {
+    if (!BPStore.auth.pendingUser()) return "login";
+    if (BPStore.auth.pendingStep()) return "login";
+    var step = BPStore.auth.mfa && BPStore.auth.mfa.operatorStep ? await BPStore.auth.mfa.operatorStep() : "unknown";
+    if (step === "none") return "notfound";
+    return step === "ok" ? "hq" : "login";
   }
 
   async function start() {
     try { await BPStore.init(); } catch (e) { notFound(); return; }
     if (!BPStore.auth.enabled()) { notFound(); return; }
     BPStore.auth.required();
-    if (!BPStore.auth.user()) {
-      location.replace("login.html?next=hq"); return;
-    }
+    var g = "notfound";
+    try { g = await gate(); } catch (e) { g = "notfound"; }
+    if (g === "login") { location.replace("login.html"); return; }
+    if (g !== "hq") { notFound(); return; }
     var today = new Date(), past = new Date(Date.now() - 30 * 864e5);
     $("#pFrom").value = iso(past); $("#pTo").value = iso(today);
     try { await loadAll(); }

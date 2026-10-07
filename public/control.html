@@ -4,6 +4,9 @@
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Control Center — Helm Events</title>
+<link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
+<link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
+<link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -80,6 +83,10 @@
   .chip .pen.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
   .chip.locked{opacity:.6;cursor:not-allowed}
   .mnote{font-size:12px;color:var(--ink-3);margin:0 0 6px}
+  .lxtoggle{display:inline-flex;align-items:center;gap:9px;font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;min-height:32px}
+  .lxtoggle input{width:18px;height:18px;padding:0;margin:0;accent-color:var(--accent);cursor:pointer}
+  .lxwhich{margin-top:8px;font-size:13px;color:var(--ink-2)} .lxwhich summary{cursor:pointer;font-weight:600;color:var(--ink)}
+  .lxwhich ul{margin:8px 0 0;padding-left:20px;line-height:1.55} #lx_days:disabled{opacity:.55}
   @media (prefers-reduced-motion:reduce){.chip{transition:none}}
   /* login modal */
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -159,6 +166,7 @@
     <div class="tabs">
       <button type="button" class="tab active" data-pane="pricing" id="tab-pricing" aria-pressed="true">💲 Pricing</button>
       <button type="button" class="tab" data-pane="users" id="tab-users" aria-pressed="false" hidden>👥 User control</button>
+      <button type="button" class="tab" data-pane="notify" id="tab-notify" aria-pressed="false" hidden>🔔 Notifications</button>
     </div>
 
     <div id="msg" role="status" aria-live="polite"></div>
@@ -189,6 +197,31 @@
         </div>
         <div class="actions"><button type="button" class="btn" id="o_slug_save">Save link name</button></div>
       </div>
+    </div>
+
+    <!-- client link auto-expire (0039) — revealed for studio admins only -->
+    <div class="card" id="lxCard" hidden>
+      <h3>Client links — auto-expire</h3>
+      <p class="mnote">Optional. When on, every link you send outside the studio stops working a set number of calendar days (weekends count) after it was sent. It never makes a link last longer: if the usual limit after the event comes first, that one still applies.</p>
+      <div id="lxMsg" role="status" aria-live="polite"></div>
+      <div id="lxErr"></div>
+      <label class="lxtoggle" for="lx_on"><input type="checkbox" id="lx_on"> <span>Auto-expire client links</span></label>
+      <div class="grid" style="margin-top:12px">
+        <div class="fld"><label for="lx_days">Days after the link is sent (1–365)</label><input id="lx_days" type="number" min="1" max="365" step="1" inputmode="numeric" value="10" aria-describedby="lx_example"></div>
+      </div>
+      <p class="mnote" id="lx_example" aria-live="polite" style="margin-top:10px">Off — links follow only the usual limits after the event.</p>
+      <details class="lxwhich">
+        <summary>Which links this covers</summary>
+        <ul>
+          <li><b>Quote approval link</b> — and the client portal and payment pages it opens (counted from when the link was first created).</li>
+          <li><b>Payment links</b> — a pay-online link never outlives the approval link it came from.</li>
+          <li><b>Proposal link</b> — counted from when it was first published.</li>
+          <li><b>Crew task links</b> — counted from the last time a task was assigned to that person.</li>
+          <li><b>Invitation websites</b> (and their photos) — counted from when the site was published. Invitations usually go out weeks before the event, so a short limit will switch them off before the day.</li>
+        </ul>
+      </details>
+      <p class="mnote" style="margin-top:10px">Links you already sent count from when they were sent, so any older than the limit stop working as soon as you save. Switching this off, or raising the number, makes them work again. To give someone a fresh link, send it again (Send approval link, publish the proposal again, or assign the crew member a task). Anyone opening an expired link sees the usual “this link has expired — please contact the studio for a new one” page.</p>
+      <div class="actions"><button type="button" class="btn primary" id="lx_save">Save link expiry</button></div>
     </div>
 
     <div class="card">
@@ -353,6 +386,73 @@
         </div>
       </div>
     </div>
+
+    <!-- ============ NOTIFICATIONS PANE (admin only, 0036) ============ -->
+    <div id="pane-notify" hidden>
+      <style>
+        .ntools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 12px}
+        .ntools input[type=search]{flex:1 1 220px;min-width:0} .ntools .spacer{flex:1 1 auto}
+        .ncount{font-size:12px;color:var(--ink-3)}
+        .ntable{width:100%;border-collapse:separate;border-spacing:0;font-size:13px;min-width:860px}
+        .ntable th,.ntable td{padding:7px 4px;border-bottom:1px solid var(--line-2);text-align:center;vertical-align:middle}
+        .ntable thead th{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);font-weight:600;line-height:1.25;border-bottom:1px solid var(--line);background:var(--panel)}
+        .ntable .nlbl{text-align:left;position:sticky;left:0;z-index:1;background:var(--panel);min-width:230px;max-width:290px;padding:8px 14px 8px 2px}
+        .ntable .nt{display:block;font-weight:600;color:var(--ink);font-size:13px}
+        .ntable .nd{display:block;font-weight:400;color:var(--ink-3);font-size:11.5px;line-height:1.4;margin-top:2px}
+        .ntable tr.ngrp th{text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);background:var(--panel-2);padding:7px 10px}
+        .ntable tr.ngrp th span{position:sticky;left:10px}
+        .ncell{appearance:none;position:relative;width:30px;height:30px;border-radius:8px;border:2px solid var(--line);background:var(--panel-2);color:#fff;font:700 13px/1 var(--font);cursor:pointer;display:inline-grid;place-items:center;padding:0}
+        .ncell.on{background:#2eb872;border-color:#2eb872}
+        .ncell:hover,.nch:hover{border-color:var(--accent)}
+        .ncell:focus-visible,.nch:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+        .ncell.chg::after,.nch.chg::after{content:"";position:absolute;top:-5px;right:-5px;width:9px;height:9px;border-radius:50%;background:var(--accent);border:2px solid var(--panel)}
+        .ntable td.nchs{text-align:left;white-space:nowrap;padding-left:10px}
+        .nch{appearance:none;position:relative;display:inline-flex;align-items:center;height:26px;padding:0 10px;margin:2px 4px 2px 0;border-radius:20px;border:1px solid var(--line);background:var(--panel-2);font:600 11.5px/1 var(--font);color:var(--ink-3);cursor:pointer}
+        .nch.on{background:#eafaf1;border-color:#2eb872;color:#0f7a43}
+        span.nch.req{cursor:default;background:var(--accent-soft);border-color:transparent;color:var(--accent)}
+        .nnone{color:var(--ink-3);font-size:12px}
+        .nbadge{display:inline-block;margin-top:4px;font-size:10.5px;font-weight:700;color:#8a5a00;background:#fff4dc;border-radius:10px;padding:1px 7px}
+        #nf_rows[aria-busy="true"] .ncell,#nf_rows[aria-busy="true"] .nch,#np_list[aria-busy="true"] select{cursor:progress}
+        .nlegend{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;margin-top:12px}
+        .nlegend i{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--accent);margin-right:5px;vertical-align:middle}
+        .nprow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line-2)}
+        .nprow .nt{flex:1;font-size:13px;font-weight:600;min-width:0} .nprow select{height:32px;font-size:13px;max-width:52%}
+        .nprow.ov .nt::after{content:" · custom";color:var(--accent);font-weight:600;font-size:11px}
+        html[data-theme="dark"] .nch.on{background:rgba(46,184,114,.14);color:#6ee7a8}
+        html[data-theme="dark"] .nbadge{background:rgba(245,158,11,.15);color:#fbbf24}
+        @media(max-width:640px){.ntable .nlbl{min-width:170px}.nprow{flex-wrap:wrap}.nprow select{max-width:100%;width:100%}}
+      </style>
+      <div id="nmsg" role="status" aria-live="polite"></div>
+
+      <div class="card">
+        <h3>Notifications — who hears about what</h3>
+        <p class="mnote">Each row is something Helm tells your team about. A green tick means that role sees it in their 🔔 bell — tap to switch it.
+          <b>Texts &amp; e-mails</b> are the automatic SMS / e-mail that go to staff; switch one off and it is logged but not sent.
+          Messages to clients marked <b>required</b> (approval codes, receipts, payment links) always go out.
+          Money notifications start on only for roles with Budget &amp; finance access. Nothing changes until you change it here, and every change is recorded in the Audit log.</p>
+        <div class="ntools">
+          <input id="nf_q" type="search" placeholder="Search notifications…" autocomplete="off" aria-label="Search notifications">
+          <select id="nf_grp" aria-label="Show group"><option value="">All groups</option></select>
+          <span class="spacer"></span>
+          <span id="nf_changed" class="ncount" role="status"></span>
+          <button type="button" class="btn sm" id="nf_reset" disabled>Reset to defaults</button>
+        </div>
+        <div id="nf_err"></div>
+        <div class="table-scroll"><table class="ntable" id="nf_table">
+          <caption class="sr-only">Notification types by role. Each button shows or hides that notification in the role's bell.</caption>
+          <thead id="nf_head"></thead>
+          <tbody id="nf_rows"><tr><td style="color:var(--ink-3);text-align:left"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
+        </table></div>
+        <div class="nlegend mnote"><span><i aria-hidden="true"></i>changed from the default</span><span>₹ finance = starts on only for roles with finance access</span></div>
+      </div>
+
+      <div class="card">
+        <h3>Per-person overrides</h3>
+        <p class="mnote">Mute a notification for one person, or show it to them even if their role hides it. Everyone else keeps their role's setting.</p>
+        <div class="ntools"><select id="np_user" aria-label="Person"><option value="">Choose a person…</option></select></div>
+        <div id="np_list"></div>
+      </div>
+    </div>
   </div>
   </main>
 </div>
@@ -370,7 +470,7 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=104"></script>
+<script src="store-api.js?v=106"></script>
 <script src="tour.js?v=6"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -400,8 +500,11 @@
     // Only admins get the User-control tab (add/remove users + access matrix).
     if(isAdmin){
       $("#tab-users").hidden=false;
+      $("#tab-notify").hidden=false;   // loads on first open (initNotify)
+      $("#lxCard").hidden=false; await initLinkExpiry();   // client link auto-expire (0039)
       await initUsers(); await initMatrix();
       if(location.hash==="#users") switchTab("users");
+      if(location.hash==="#notifications") switchTab("notify");
     }
   }
 
@@ -410,6 +513,8 @@
     document.querySelectorAll(".tab").forEach(t=>{ t.classList.toggle("active", t.dataset.pane===name); t.setAttribute("aria-pressed", String(t.dataset.pane===name)); });
     $("#pane-pricing").hidden = name!=="pricing";
     $("#pane-users").hidden   = name!=="users";
+    $("#pane-notify").hidden  = name!=="notify";
+    if(name==="notify") initNotify();
   }
   document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>switchTab(t.dataset.pane)));
   // full pricing config blob (preserved across saves so builder item prices survive)
@@ -669,6 +774,52 @@
     catch(e){ orgMsg("err",errMsg(e,"save studio settings")); }
   }));
 
+  /* ---------------- CLIENT LINK AUTO-EXPIRE (0039, admin only) ---------------- */
+  // The server decides (admin_set_link_autoexpire checks admin + 1..365 and audits);
+  // this card only shows the setting and a worked example date in the studio timezone.
+  const LX_MIN=1, LX_MAX=365, LX_DAY_MS=86400000;
+  let lxLoaded=false, lxTz="Asia/Kolkata";
+  function lxMsg(k,t){ $("#lxMsg").innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; }
+  function lxDays(){ const v=String($("#lx_days").value||"").trim(); if(!/^\d{1,3}$/.test(v)) return null;
+    const n=Number(v); return n>=LX_MIN && n<=LX_MAX ? n : null; }
+  const lxPlural=(n)=>n+" day"+(n===1?"":"s");
+  function lxFmt(d){ const o={day:"numeric",month:"short",year:"numeric"};
+    try{ return d.toLocaleDateString("en-GB",Object.assign({timeZone:lxTz},o)); }catch(e){ return d.toLocaleDateString("en-GB",o); } }
+  function paintLx(){
+    const on=$("#lx_on").checked, n=lxDays(), ex=$("#lx_example");
+    $("#lx_days").disabled=!on;
+    $("#lx_days").setAttribute("aria-invalid", on && n==null ? "true" : "false");
+    if(!on){ ex.textContent="Off — links follow only the usual limits after the event."; return; }
+    if(n==null){ ex.textContent=`Enter a whole number of days from ${LX_MIN} to ${LX_MAX}.`; return; }
+    ex.textContent=`A link sent today would stop working on ${lxFmt(new Date(Date.now()+n*LX_DAY_MS))}.`;
+  }
+  async function initLinkExpiry(){
+    lxLoaded=false; $("#lx_save").disabled=true; $("#lxErr").innerHTML="";
+    let s=null;
+    try{ s=await BPStore.links.autoExpire.get(); }
+    catch(e){
+      if(BPUI.isMissingFunction && BPUI.isMissingFunction(e)){ $("#lxCard").hidden=true; return; }   // 0039 not installed yet
+      BPUI.loadError($("#lxErr"), e, initLinkExpiry, {what:"link expiry"}); return;
+    }
+    s=s||{}; if(s.timezone) lxTz=s.timezone;
+    $("#lx_on").checked=!!s.enabled; $("#lx_days").value=numAttr(s.days,10);
+    paintLx(); lxLoaded=true; $("#lx_save").disabled=false;
+  }
+  $("#lx_on").addEventListener("change",paintLx);
+  $("#lx_days").addEventListener("input",paintLx);
+  $("#lx_save").addEventListener("click",()=>BPUI.guard($("#lx_save"),async()=>{
+    if(!lxLoaded){ lxMsg("err","Link expiry didn't load, so it can't be saved yet."); return; }
+    const on=$("#lx_on").checked, n=lxDays();
+    if(on && n==null){ lxMsg("err",`Enter a whole number of days from ${LX_MIN} to ${LX_MAX}.`); $("#lx_days").focus(); return; }
+    if(on && !(await BPUI.confirm(`Every client, crew and guest link will stop working ${lxPlural(n)} after it was sent — including links already sent more than ${lxPlural(n)} ago, from the moment you save.`,{title:"Auto-expire client links?",okLabel:"Turn on"}))) return;
+    try{
+      const r=(await BPStore.links.autoExpire.set(on, n)) || {};
+      $("#lx_on").checked=!!r.enabled; $("#lx_days").value=numAttr(r.days, n||10); paintLx();
+      lxMsg("ok", r.enabled ? `Saved — links now stop working ${lxPlural(Number(r.days))} after they're sent.` : "Saved — auto-expire is off.");
+      setTimeout(()=>lxMsg("",""),3000);
+    }catch(e){ lxMsg("err",errMsg(e,"save link expiry")); }
+  }));
+
   let dishCache=[];
   const KINDLBL={veg:'<span style="color:#0f7a43">veg</span>',nonveg:'<span style="color:#b42318">non-veg</span>',special:'<span style="color:#7c3aed">special</span>'};
   async function renderDishes(){
@@ -902,6 +1053,116 @@
     });
     return cellQueue;
   }
+
+  /* ---------------- NOTIFICATIONS (0036): per-role bell + staff texts/e-mails ---------------- */
+  // NP = admin_get_notification_prefs(): {catalog, roles, in_app{type:{role:{on,default,set}}},
+  //   outbound{type:{channel:{on,default,required,switchable}}}, people[{user_id,type,enabled}], changed}
+  let NP=null, npErr=null, npStarted=false, npUsers=[];
+  const NP_CH={sms:"SMS", email:"E-mail", whatsapp:"WhatsApp"};
+  const roleLbl=(r)=>BPStore.auth.admin.roleLabel(r);
+  function setNMsg(k,t){ const m=$("#nmsg"); m.innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; if(t&&k!=="err") setTimeout(()=>{ if(m.firstChild) m.innerHTML=""; },4000); }
+  async function loadNotify(){ try{ NP=await BPStore.bell.prefs.get(); npErr=null; return true; }catch(e){ npErr=e; return false; } }
+  async function reloadNotify(){ await loadNotify(); renderNotify(); renderPeople(); if(npErr) throw npErr; }
+  async function initNotify(){
+    if(npStarted) return; npStarted=true;
+    await loadNotify(); renderNotify();
+    try{ npUsers=(await BPStore.auth.admin.listUsers())||[]; }catch(e){ npUsers=[]; }
+    npUsers.sort((a,b)=>String(a.full_name||a.email||"").localeCompare(String(b.full_name||b.email||"")));
+    $("#np_user").innerHTML='<option value="">Choose a person…</option>'+npUsers.map(u=>`<option value="${esc(u.id)}">${esc((u.full_name||u.email||"user")+" · "+roleLbl(u.role))}</option>`).join("");
+    renderPeople();
+  }
+  function npMatches(c){
+    const q=($("#nf_q").value||"").trim().toLowerCase(), g=$("#nf_grp").value;
+    return (!g||c.group===g) && (!q || (c.label+" "+c.description+" "+c.group).toLowerCase().includes(q));
+  }
+  function renderNotify(){
+    if(npErr||!NP){ $("#nf_table").hidden=true; if(npErr) BPUI.loadError($("#nf_err"), npErr, reloadNotify, {what:"notification settings"}); return; }
+    $("#nf_err").innerHTML=""; $("#nf_table").hidden=false;
+    const roles=NP.roles||[], cat=NP.catalog||[], cols=roles.length+2;
+    const gsel=$("#nf_grp"); if(gsel.options.length<2){ const gs=[]; cat.forEach(c=>{ if(!gs.includes(c.group)) gs.push(c.group); }); gsel.innerHTML='<option value="">All groups</option>'+gs.map(g=>`<option value="${esc(g)}">${esc(g)}</option>`).join(""); }
+    $("#nf_head").innerHTML=`<tr><th scope="col" class="nlbl">Notification</th>${roles.map(r=>`<th scope="col">${esc(roleLbl(r))}</th>`).join("")}<th scope="col" class="nchs">Texts &amp; e-mails</th></tr>`;
+    let html="", last=null;
+    cat.filter(npMatches).forEach(c=>{
+      if(c.group!==last){ last=c.group; html+=`<tr class="ngrp"><th colspan="${cols}" scope="colgroup"><span>${esc(c.group)}</span></th></tr>`; }
+      const ia=(NP.in_app&&NP.in_app[c.type])||{};
+      const cells=roles.map(r=>{ const x=ia[r]||{on:true,default:true}; const chg=x.on!==x.default;
+        const lbl=`${c.label} — ${roleLbl(r)}: ${x.on?"shown":"hidden"} in the bell${chg?" (changed from the default)":""}`;
+        return `<td><button type="button" class="ncell${x.on?" on":""}${chg?" chg":""}" data-type="${esc(c.type)}" data-role="${esc(r)}" aria-pressed="${!!x.on}" aria-label="${esc(lbl)}" title="${esc(lbl)}">${x.on?"✓":""}</button></td>`; }).join("");
+      const ob=(NP.outbound&&NP.outbound[c.type])||{};
+      const chs=Object.keys(ob).map(ch=>{ const o=ob[ch], nm=NP_CH[ch]||ch;
+        if(o.required) return `<span class="nch req" title="Always sent to the client — required">${esc(nm)} · required</span>`;
+        if(o.switchable){ const chg=o.on!==o.default; const lbl=`${c.label} — automatic ${nm} to staff: ${o.on?"on":"off"}${chg?" (changed from the default)":""}`;
+          return `<button type="button" class="nch${o.on?" on":""}${chg?" chg":""}" data-type="${esc(c.type)}" data-ch="${esc(ch)}" aria-pressed="${!!o.on}" aria-label="${esc(lbl)}" title="${esc(lbl)}">${esc(nm)} ${o.on?"on":"off"}</button>`; }
+        return ""; }).join("") || '<span class="nnone">Bell only</span>';
+      html+=`<tr><th scope="row" class="nlbl"><span class="nt">${esc(c.label)}</span><span class="nd">${esc(c.description)}</span>${c.money?'<span class="nbadge" title="Starts on only for roles with Budget &amp; finance access">₹ finance</span>':""}</th>${cells}<td class="nchs">${chs}</td></tr>`;
+    });
+    $("#nf_rows").innerHTML = html || `<tr><td colspan="${cols}" class="nnone" style="text-align:left">No notification matches your search.</td></tr>`;
+    const n=Number(NP.changed)||0;
+    $("#nf_changed").textContent = n ? `${n} setting${n===1?"":"s"} changed from the defaults` : "Using the defaults";
+    $("#nf_reset").disabled = !n;
+  }
+  function renderPeople(){
+    const box=$("#np_list"), id=$("#np_user").value;
+    if(!NP||!id){ box.innerHTML=`<p class="mnote">${NP?"Pick a person to see or change their bell.":""}</p>`; return; }
+    const u=npUsers.find(x=>x.id===id)||{}; const ov={};
+    (NP.people||[]).filter(p=>p.user_id===id).forEach(p=>{ ov[p.type]=p.enabled; });
+    let html="", last=null;
+    (NP.catalog||[]).forEach(c=>{
+      if(c.group!==last){ last=c.group; html+=`<div class="mgroup">${esc(c.group)}</div>`; }
+      const x=((NP.in_app||{})[c.type]||{})[u.role]; const roleOn = x ? !!x.on : true;
+      const v = ov[c.type]===true ? "1" : ov[c.type]===false ? "0" : "";
+      html+=`<div class="nprow${v?" ov":""}"><span class="nt">${esc(c.label)}</span>
+        <select data-type="${esc(c.type)}" aria-label="${esc(c.label)} for ${esc(u.full_name||u.email||"this person")}">
+          <option value=""${v===""?" selected":""}>Follow role (${roleOn?"shown":"hidden"})</option>
+          <option value="1"${v==="1"?" selected":""}>Always show</option>
+          <option value="0"${v==="0"?" selected":""}>Never show</option></select></div>`;
+    });
+    box.innerHTML=html;
+  }
+  // SERIALIZED like saveCell: each toggle is computed from the state re-read after the
+  // previous save, so fast clicks never send conflicting values built from stale state.
+  let npQueue=Promise.resolve(), npPending=0;
+  function saveNotify(build){
+    npPending++; $("#nf_rows").setAttribute("aria-busy","true"); $("#np_list").setAttribute("aria-busy","true");
+    npQueue=npQueue.then(async()=>{
+      const a=build(); if(!a) return;
+      let saved=false;
+      try{ await BPStore.bell.prefs.set(a.type, a.channel, a.role, a.enabled, a.user); saved=true; }
+      catch(e){ setNMsg("err",errMsg(e,"change the notification")); }
+      const ok=await loadNotify();
+      if(!ok && saved){ npErr=null; BPUI.toast("Saved, but couldn't refresh — reload to double-check.",{type:"info"}); }
+      if(saved) setNMsg("ok",a.msg);
+    }).catch(()=>{}).finally(()=>{
+      npPending--; if(!npPending){ $("#nf_rows").removeAttribute("aria-busy"); $("#np_list").removeAttribute("aria-busy"); }
+      renderNotify(); renderPeople();
+    });
+    return npQueue;
+  }
+  const npLabel=(t)=>(((NP&&NP.catalog)||[]).find(c=>c.type===t)||{}).label||t;
+  $("#nf_rows").addEventListener("click",(e)=>{
+    const cell=e.target.closest(".ncell"), ch=e.target.closest("button.nch");
+    if(cell){ const t=cell.dataset.type, r=cell.dataset.role;
+      saveNotify(()=>{ const cur=(((NP||{}).in_app||{})[t]||{})[r]; const on=!(cur?cur.on:true);
+        return {type:t, channel:"in_app", role:r, enabled:on, msg:`${npLabel(t)} · ${roleLbl(r)}: ${on?"shown in the bell":"hidden from the bell"}`}; }); }
+    else if(ch){ const t=ch.dataset.type, c=ch.dataset.ch;
+      saveNotify(()=>{ const cur=(((NP||{}).outbound||{})[t]||{})[c]; if(!cur||!cur.switchable) return null; const on=!cur.on;
+        return {type:t, channel:c, role:null, enabled:on, msg:`${npLabel(t)} · ${NP_CH[c]||c} to staff: ${on?"on":"off (logged, not sent)"}`}; }); }
+  });
+  $("#np_list").addEventListener("change",(e)=>{
+    const s=e.target.closest("select[data-type]"); if(!s) return; const id=$("#np_user").value; if(!id) return;
+    const t=s.dataset.type, v=s.value, u=npUsers.find(x=>x.id===id)||{};
+    saveNotify(()=>({type:t, channel:"in_app", role:null, user:id, enabled: v===""?null:v==="1",
+      msg:`${npLabel(t)} for ${u.full_name||u.email||"this person"}: ${v===""?"follows their role":v==="1"?"always shown":"never shown"}`}));
+  });
+  $("#np_user").addEventListener("change", renderPeople);
+  $("#nf_q").addEventListener("input", renderNotify);
+  $("#nf_grp").addEventListener("change", renderNotify);
+  $("#nf_reset").addEventListener("click", async ()=>{
+    if(!(await BPUI.confirm("Put every notification setting back to the defaults — every role, every person, and the staff texts & e-mails? The change is recorded in the Audit log.",{title:"Reset notifications?",okLabel:"Reset to defaults",danger:true}))) return;
+    try{ const n=await BPUI.guard($("#nf_reset"), ()=>BPStore.bell.prefs.reset()); await loadNotify(); setNMsg("ok", n ? `Back to the defaults (${n} setting${n===1?"":"s"} cleared).` : "Already using the defaults."); }
+    catch(e){ setNMsg("err",errMsg(e,"reset the notifications")); }
+    renderNotify(); renderPeople();
+  });
 
   $("#loginForm").addEventListener("submit",e=>{ e.preventDefault();
     const em=$("#li_email").value.trim(), pw=$("#li_pw").value, er=$("#li_err");
