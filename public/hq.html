@@ -141,7 +141,7 @@
       <div class="hd"><h2>Studios</h2>
         <select id="fStatus" aria-label="Filter by status"><option value="">All statuses</option><option value="trial">Trial</option><option value="active">Active</option><option value="past_due">Past due</option><option value="suspended">Suspended</option><option value="cancelled">Cancelled</option><option value="none">No plan</option></select>
         <input type="search" id="qStudios" placeholder="Search name, slug, owner" aria-label="Search studios"></div>
-      <div class="scroll"><table><thead><tr><th>Studio</th><th>Owner</th><th>Plan</th><th>Status</th><th>Period ends</th><th class="n">People</th><th class="n">Paid Helm</th><th>Last sign-in</th></tr></thead><tbody id="tStudios"></tbody></table></div>
+      <div class="scroll"><table><thead><tr><th>Studio</th><th>Primary contact</th><th>State</th><th>Plan</th><th>Status</th><th>Period ends</th><th class="n">People</th><th class="n">Paid Helm</th><th>Last sign-in</th></tr></thead><tbody id="tStudios"></tbody></table></div>
       <div class="pager" id="pStudios"></div>
       <div id="studioDetail"></div>
     </section>
@@ -184,6 +184,7 @@
         <label class="fld"><span>Legal name</span><input type="text" id="sName" maxlength="160"></label>
         <label class="fld"><span>GSTIN</span><input type="text" id="sGstin" maxlength="15"></label>
         <label class="fld"><span>Address</span><input type="text" id="sAddr" maxlength="500"></label>
+        <label class="fld"><span>State (place of supply)</span><input type="text" id="sState" maxlength="80"></label>
         <label class="fld"><span>GST %</span><input type="number" id="sRate" min="0" max="50" step="0.01"></label>
         <label class="fld"><span>Invoice prefix</span><input type="text" id="sPrefix" maxlength="16"></label>
         <button class="btn" id="btnSettings" type="button">Save invoice settings</button>
@@ -235,8 +236,8 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=110"></script>
+<script src="store-api.js?v=111"></script>
 <script src="hq-invoice.js?v=1"></script>
-<script src="hq.js?v=4"></script>
+<script src="hq.js?v=5"></script>
 </body>
 </html>

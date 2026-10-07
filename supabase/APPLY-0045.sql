@@ -1,6 +1,8 @@
 -- ════════════════════════════════════════════════════════════════════════════
 -- HELM — 0045 Helm HQ subscriptions + read-only suspend (one paste)          (2026-10-07)
 --   HQ stops seeing any studio business data (events, clients, revenue, studio payments).
+--   + a studio ACCOUNT profile (legal name, GSTIN, state, contacts) that studio admins fill in
+--     Control Center and HQ can see; invoices split GST as IGST or CGST+SGST by state.
 --   HQ now sees: studios, their people (name, e-mail, role, active, last sign-in, two-step),
 --   and Helm subscription billing (plans, subscriptions, payments with invoice numbers,
 --   reminders queue, operator list, HQ activity log).
@@ -866,6 +868,251 @@ do $$ begin
   end if;
 end $$;
 
+-- ============================================================================
+-- 11) STUDIO ACCOUNT PROFILE (business account data only — never client / event data)
+--   studio_account: one row per studio. Studio admins (or users-edit) edit via
+--   my_studio_account_update; HQ reads via hq_studio_detail / hq_studios and edits via
+--   hq_set_studio_account (audited). Phones are returned only to studio admins / users-edit
+--   and HQ. Prefill fills EMPTY fields only, from the creating admin's profile.
+--   Invoice buyer = legal_business_name, gstin, billing_address, state; gst_split is IGST
+--   when buyer state <> seller state, else CGST + SGST (half each).
+-- ============================================================================
+alter table public.helm_billing_settings add column if not exists state text;
+
+create table if not exists public.studio_account (
+  org_id                 uuid primary key references public.organizations(id) on delete restrict,
+  country                text check (country is null or country ~ '^[A-Z]{2}$'),
+  state                  text check (state is null or length(state) <= 80),
+  city                   text check (city is null or length(city) <= 80),
+  billing_address        text check (billing_address is null or length(billing_address) <= 500),
+  legal_business_name    text check (legal_business_name is null or length(legal_business_name) <= 160),
+  gstin                  text check (gstin is null or gstin ~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$'),
+  website                text check (website is null or (length(website) <= 200 and website ~* '^https?://[^\s]+$')),
+  timezone               text check (timezone is null or length(timezone) <= 64),
+  primary_contact_name   text check (primary_contact_name is null or length(primary_contact_name) <= 120),
+  primary_contact_email  text check (primary_contact_email is null or primary_contact_email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
+  primary_contact_phone  text check (primary_contact_phone is null or primary_contact_phone ~ '^\+[1-9][0-9]{7,14}$'),
+  secondary_contact_name text check (secondary_contact_name is null or length(secondary_contact_name) <= 120),
+  secondary_contact_email text check (secondary_contact_email is null or secondary_contact_email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
+  secondary_contact_phone text check (secondary_contact_phone is null or secondary_contact_phone ~ '^\+[1-9][0-9]{7,14}$'),
+  billing_contact_email  text check (billing_contact_email is null or billing_contact_email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
+  team_size_band         text check (team_size_band is null or team_size_band in ('1','2-5','6-15','16-50','51+')),
+  signup_source          text check (signup_source is null or length(signup_source) <= 80),
+  updated_at             timestamptz not null default now(),
+  updated_by             uuid
+);
+alter table public.studio_account enable row level security;
+revoke all on table public.studio_account from public;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then revoke all on table public.studio_account from anon; end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then revoke all on table public.studio_account from authenticated; end if;
+end $$;
+select public._a45_attach_read_only_guards();   -- the new table is a studio table: suspend guard applies
+
+-- prefill EMPTY fields only (never overwrites)
+create or replace function public._studio_account_prefill(p_org uuid)
+returns void language plpgsql volatile security definer set search_path = '' as $$
+declare v_uid uuid; v_name text; v_email text; v_phone text; v_city text; v_tz text;
+begin
+  select coalesce(o.created_by, (select p.id from public.profiles p where p.org_id = o.id and p.role = 'admin' order by p.created_at limit 1)), o.timezone
+    into v_uid, v_tz from public.organizations o where o.id = p_org;
+  if not found then return; end if;
+  select p.full_name, coalesce(u.email, p.email) into v_name, v_email
+    from public.profiles p left join auth.users u on u.id = p.id where p.id = v_uid and p.org_id = p_org;
+  if to_regclass('public.member_profiles') is not null then
+    execute 'select phone, city from public.member_profiles where user_id = $1' into v_phone, v_city using v_uid;
+  end if;
+  if v_phone is not null and v_phone !~ '^\+[1-9][0-9]{7,14}$' then v_phone := null; end if;
+  if v_email is not null and v_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then v_email := null; end if;
+  insert into public.studio_account(org_id) values (p_org) on conflict (org_id) do nothing;
+  update public.studio_account a set
+    country = coalesce(a.country, case when v_phone like '+91%' then 'IN' end),
+    city = coalesce(a.city, left(v_city, 80)),
+    timezone = coalesce(a.timezone, v_tz),
+    primary_contact_name = coalesce(a.primary_contact_name, left(v_name, 120)),
+    primary_contact_email = coalesce(a.primary_contact_email, lower(v_email)),
+    primary_contact_phone = coalesce(a.primary_contact_phone, v_phone)
+   where a.org_id = p_org
+     and (a.country is null or a.city is null or a.timezone is null or a.primary_contact_name is null
+          or a.primary_contact_email is null or a.primary_contact_phone is null);
+end $$;
+do $$ declare o uuid; begin
+  for o in select id from public.organizations loop perform public._studio_account_prefill(o); end loop;
+end $$;
+
+-- validated patch (keys absent = unchanged, '' = clear)
+create or replace function public._studio_account_apply(p_org uuid, p jsonb)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+declare k text; v text; allowed text[] := array['country','state','city','billing_address','legal_business_name','gstin','website',
+  'timezone','primary_contact_name','primary_contact_email','primary_contact_phone','secondary_contact_name',
+  'secondary_contact_email','secondary_contact_phone','billing_contact_email','team_size_band','signup_source'];
+begin
+  if p is null or jsonb_typeof(p) <> 'object' then raise exception 'account must be an object' using errcode = '22023'; end if;
+  insert into public.studio_account(org_id) values (p_org) on conflict (org_id) do nothing;
+  for k, v in select key, nullif(btrim(value #>> '{}'), '') from jsonb_each(p) loop
+    if not (k = any(allowed)) then raise exception 'unknown field %', k using errcode = '22023'; end if;
+    if k in ('country') then v := upper(v); end if;
+    if k = 'gstin' then v := upper(replace(v, ' ', '')); end if;
+    if k like '%email' then v := lower(v); end if;
+    if k like '%phone' then v := regexp_replace(v, '[\s()-]', '', 'g'); end if;
+    if k like '%phone' and v is not null and v !~ '^\+[1-9][0-9]{7,14}$' then
+      raise exception 'phone must be in international format, e.g. +919876543210' using errcode = '22023'; end if;
+    if k = 'gstin' and v is not null and v !~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$' then
+      raise exception 'GSTIN is not valid' using errcode = '22023'; end if;
+    begin
+      execute format('update public.studio_account set %I = $1, updated_at = now(), updated_by = auth.uid() where org_id = $2', k) using v, p_org;
+    exception when check_violation then raise exception '% is not valid', replace(k, '_', ' ') using errcode = '22023';
+    end;
+  end loop;
+  return (select to_jsonb(a) from public.studio_account a where a.org_id = p_org);
+end $$;
+
+create or replace function public.my_studio_account()
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+declare v_org uuid := public.current_org_id(); r jsonb;
+begin
+  if v_org is null then raise exception 'not authorized' using errcode = '42501'; end if;
+  begin perform public._studio_account_prefill(v_org); exception when others then null; end;   -- empty fields only
+  select to_jsonb(a) into r from public.studio_account a where a.org_id = v_org;
+  r := coalesce(r, jsonb_build_object('org_id', v_org));
+  if not (public.is_admin() or public.has_area('users', 'edit')) then
+    r := r - 'primary_contact_phone' - 'secondary_contact_phone' - 'updated_by';
+  end if;
+  return r || jsonb_build_object('can_edit', public.is_admin() or public.has_area('users', 'edit'));
+end $$;
+
+create or replace function public.my_studio_account_update(p_account jsonb)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+declare v_org uuid := public.current_org_id(); r jsonb;
+begin
+  if v_org is null or not (public.is_admin() or public.has_area('users', 'edit')) then
+    raise exception 'not authorized' using errcode = '42501'; end if;
+  r := public._studio_account_apply(v_org, p_account);
+  insert into public.audit_log(actor, actor_email, action, entity, entity_id, changed, org_id, at)
+    select auth.uid(), u.email, 'studio_account.update', 'studio_account', v_org::text,
+           p_account - 'primary_contact_phone' - 'secondary_contact_phone', v_org, now()
+      from auth.users u where u.id = auth.uid();
+  return r;
+end $$;
+
+create or replace function public.hq_set_studio_account(p_org uuid, p_account jsonb)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+begin
+  perform public._hq_wgate('hq.studio_account.set', 'studio_account', p_org::text,
+    p_account - 'primary_contact_phone' - 'secondary_contact_phone');
+  if not exists (select 1 from public.organizations o where o.id = p_org) then raise exception 'unknown studio' using errcode = '22023'; end if;
+  return public._studio_account_apply(p_org, p_account);
+end $$;
+
+-- hq_studios: + country, state, primary contact
+drop function if exists public.hq_studios(text, text, int, int);
+create or replace function public.hq_studios(p_search text default null, p_status text default null,
+                                             p_limit int default 25, p_offset int default 0)
+returns table(org_id uuid, name text, slug text, created_at timestamptz, owner_email text, users_count bigint,
+              plan_code text, plan_name text, status text, current_period_end date, last_activity timestamptz,
+              total_paid numeric, country text, state text, primary_contact_name text, primary_contact_email text,
+              primary_contact_phone text, total_count bigint)
+language plpgsql volatile security definer set search_path = '' as $$
+#variable_conflict use_column
+declare s text := nullif(btrim(coalesce(p_search, '')), ''); st text := nullif(btrim(coalesce(p_status, '')), '');
+begin
+  perform public._hq_gate('hq_studios', left(coalesce(s, '') || '|' || coalesce(st, ''), 80));
+  if st is not null and st not in ('trial','active','past_due','suspended','cancelled','none') then
+    raise exception 'unknown status filter' using errcode = '22023'; end if;
+  return query
+    select r.org_id, r.name, r.slug, r.created_at, r.owner_email, r.users_count, r.plan_code, r.plan_name, r.status,
+           r.current_period_end, r.last_activity, r.total_paid, a.country, a.state, a.primary_contact_name,
+           a.primary_contact_email, a.primary_contact_phone, count(*) over ()
+      from public._hq_studio_rows() r left join public.studio_account a on a.org_id = r.org_id
+     where (st is null or r.status = st)
+       and (s is null or strpos(lower(r.name), lower(s)) > 0 or strpos(lower(coalesce(r.slug, '')), lower(s)) > 0
+            or strpos(lower(coalesce(r.owner_email, '')), lower(s)) > 0
+            or strpos(lower(coalesce(a.primary_contact_email, '')), lower(s)) > 0)
+     order by r.created_at desc, r.org_id
+     limit least(greatest(coalesce(p_limit, 25), 1), 200) offset greatest(coalesce(p_offset, 0), 0);
+end $$;
+
+-- hq_studio_detail: + account (wraps the section-4 body, kept as _hq_studio_detail_core)
+do $$ declare d text; begin
+  if to_regprocedure('public._hq_studio_detail_core(uuid)') is null
+     or position('studio_account' in pg_get_functiondef('public.hq_studio_detail(uuid)'::regprocedure)) = 0 then
+    d := pg_get_functiondef('public.hq_studio_detail(uuid)'::regprocedure);
+    if position('studio_account' in d) = 0 then
+      d := replace(d, 'FUNCTION public.hq_studio_detail(', 'FUNCTION public._hq_studio_detail_core(');
+      execute d;
+    end if;
+  end if;
+end $$;
+create or replace function public.hq_studio_detail(p_org uuid)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+declare r jsonb;
+begin
+  r := public._hq_studio_detail_core(p_org);   -- gates + audits
+  if r is null then return null; end if;
+  return r || jsonb_build_object('account', (select to_jsonb(a) - 'org_id' from public.studio_account a where a.org_id = p_org));
+end $$;
+-- hq_studio_detail_core must stay gated even if called directly: it calls _hq_gate itself.
+
+-- invoice: buyer from the account profile + GST split by place of supply
+create or replace function public._sub_invoice_json(p_id uuid)
+returns jsonb language sql stable security definer set search_path = '' as $$
+  select jsonb_build_object(
+    'invoice_no', p.invoice_no, 'issued_on', p.paid_on, 'paid_on', p.paid_on, 'recorded_at', p.recorded_at,
+    'net', p.net_amount, 'amount', p.amount, 'provider_payment_id', p.provider_payment_id,
+    'status', case when p.voided_at is null then 'paid' else 'void' end,
+    'voided_at', p.voided_at, 'void_reason', p.void_reason,
+    'seller', coalesce(p.seller, '{}'::jsonb) || jsonb_build_object('gst_rate', p.gst_rate),
+    'buyer', jsonb_build_object('org_id', o.id, 'name', coalesce(a.legal_business_name, o.name),
+              'gstin', coalesce(a.gstin, o.gst_number), 'email', coalesce(a.billing_contact_email, o.business_email),
+              'address', coalesce(a.billing_address, o.location), 'state', a.state),
+    'gst_split', case
+       when lower(btrim(coalesce(a.state, ''))) <> '' and lower(btrim(coalesce(p.seller ->> 'state', ''))) <> ''
+            and lower(btrim(a.state)) = lower(btrim(p.seller ->> 'state'))
+         then jsonb_build_object('type', 'CGST_SGST', 'igst', 0, 'cgst', round(p.gst_amount / 2, 2), 'sgst', p.gst_amount - round(p.gst_amount / 2, 2))
+       else jsonb_build_object('type', 'IGST', 'igst', p.gst_amount, 'cgst', 0, 'sgst', 0) end,
+    'plan', jsonb_build_object('code', p.plan_code, 'name', (select hp.name from public.helm_plans hp where hp.code = p.plan_code)),
+    'period_start', p.period_start, 'period_end', p.period_end, 'method', p.method, 'reference', p.reference,
+    'currency', p.currency, 'gst_rate', p.gst_rate, 'net_amount', p.net_amount, 'gst_amount', p.gst_amount, 'total', p.amount,
+    'lines', jsonb_build_array(jsonb_build_object(
+       'description', 'Helm subscription' || coalesce(' — ' || (select hp.name from public.helm_plans hp where hp.code = p.plan_code), '')
+                      || coalesce(' (' || p.period_start::text || ' to ' || p.period_end::text || ')', ''),
+       'amount', p.net_amount)))
+  from public.subscription_payments p join public.organizations o on o.id = p.org_id
+  left join public.studio_account a on a.org_id = p.org_id where p.id = p_id;
+$$;
+
+-- seller snapshot now carries the seller state (set in hq_set_billing_settings_state)
+create or replace function public.hq_set_billing_state(p_state text)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+begin
+  perform public._hq_wgate('hq.billing.settings', 'helm_billing_settings', 'state', jsonb_build_object('state', p_state));
+  if length(coalesce(p_state, '')) > 80 then raise exception 'state too long' using errcode = '22023'; end if;
+  update public.helm_billing_settings set state = nullif(btrim(coalesce(p_state, '')), ''), updated_at = now(), updated_by = auth.uid() where id;
+  return (select to_jsonb(b) - 'id' from public.helm_billing_settings b where b.id);
+end $$;
+do $$ declare d text; begin
+  d := pg_get_functiondef('public._sub_record_payment(uuid,numeric,text,date,date,date,text,text,uuid,text,text,text)'::regprocedure);
+  if position('''state'', b.state' in d) = 0 then
+    d := replace(d, '''address'', b.address)', '''address'', b.address, ''state'', b.state)');
+    execute d;
+  end if;
+end $$;
+
+do $$ declare fn text; begin
+  foreach fn in array array['public.hq_studios(text,text,int,int)', 'public.hq_set_studio_account(uuid,jsonb)',
+      'public.my_studio_account()', 'public.my_studio_account_update(jsonb)', 'public.hq_set_billing_state(text)'] loop
+    execute 'revoke all on function ' || fn || ' from public';
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on function ' || fn || ' from anon'; end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'grant execute on function ' || fn || ' to authenticated'; end if;
+  end loop;
+  foreach fn in array array['public._studio_account_prefill(uuid)', 'public._studio_account_apply(uuid,jsonb)',
+      'public._hq_studio_detail_core(uuid)', 'public._sub_invoice_json(uuid)'] loop
+    execute 'revoke all on function ' || fn || ' from public';
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on function ' || fn || ' from anon'; end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'revoke all on function ' || fn || ' from authenticated'; end if;
+  end loop;
+end $$;
+
 -- VERIFY — every row must say ok = true
 select item, ok from (values
   ('new billing tables are private (RLS on, no anon / authenticated access)',
@@ -893,6 +1140,10 @@ select item, ok from (values
      and not has_function_privilege('authenticated', 'public._billing_refresh()', 'execute')),
   ('payments can never be deleted (immutability trigger present)',
      exists (select 1 from pg_trigger where tgname = 'subscription_payments_immutable')),
+  ('studio account table is private + guarded, phones not exposed by API',
+     (select relrowsecurity from pg_class where oid = 'public.studio_account'::regclass)
+     and not has_table_privilege('authenticated', 'public.studio_account', 'select')
+     and exists (select 1 from pg_trigger where tgrelid = 'public.studio_account'::regclass and tgname = 'zzz_studio_read_only')),
   ('billing settings row present',
      exists (select 1 from public.helm_billing_settings where id))
 ) v(item, ok);

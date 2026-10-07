@@ -318,11 +318,67 @@ do $$ declare missing text; begin perform pg_temp.su();
   perform pg_temp.res('54 every studio table has the read-only guard', missing is null, missing);
 end $$;
 
+-- ---- 13) studio account profile + GST split ---------------------------------------------------------------
+do $$ declare r jsonb; e text; begin
+  perform pg_temp.login('a_admin@a.test');
+  r := public.my_studio_account_update('{"legal_business_name":"Studio A LLP","state":"Telangana","gstin":"36abcde1234f1z5","primary_contact_phone":"+91 98765 43210","country":"in"}');
+  perform pg_temp.res('55 studio admin edits own account (normalised)', r->>'gstin' = '36ABCDE1234F1Z5' and r->>'primary_contact_phone' = '+919876543210'
+    and r->>'country' = 'IN', r::text);
+  e := pg_temp.try('select public.my_studio_account_update(''{"primary_contact_phone":"98765"}'')') || '|'
+    || pg_temp.try('select public.my_studio_account_update(''{"gstin":"NOTAGSTIN"}'')') || '|'
+    || pg_temp.try('select public.my_studio_account_update(''{"website":"javascript:alert(1)"}'')') || '|'
+    || pg_temp.try('select public.my_studio_account_update(''{"org_id":"b0000000-0000-4000-8000-000000000001"}'')');
+  perform pg_temp.res('56 bad phone / GSTIN / website / unknown field rejected', e = '22023|22023|22023|22023', e);
+  perform pg_temp.login('a_staff@a.test');
+  e := pg_temp.try('select public.my_studio_account_update(''{"city":"X"}'')');
+  r := public.my_studio_account();
+  perform pg_temp.res('57 non-admin member: edit denied, no phone numbers', e = '42501' and not r ? 'primary_contact_phone'
+    and r->>'legal_business_name' = 'Studio A LLP', e || r::text);
+  perform pg_temp.login('b_admin@b.test');
+  perform public.my_studio_account_update('{"city":"Pune"}');
+  perform pg_temp.su();
+  perform pg_temp.res('58 Org B admin edit lands only on Org B (A untouched)',
+    (select city from public.studio_account where org_id = 'b0000000-0000-4000-8000-000000000001') = 'Pune'
+    and (select coalesce(city, '') from public.studio_account where org_id = 'a0000000-0000-4000-8000-000000000001') <> 'Pune', '');
+  perform pg_temp.login('b_admin@b.test');
+  e := pg_temp.try('select public.hq_set_studio_account(''a0000000-0000-4000-8000-000000000001'', ''{"city":"Hack"}'')');
+  perform pg_temp.res('59 Org B cannot edit Org A (HQ RPC refused)', e = '42501', e);
+  perform pg_temp.login('a_admin@a.test');
+  e := pg_temp.try('select count(*) from public.studio_account');
+  perform pg_temp.res('60 no direct table access to studio_account', e = '42501', e);
+  perform pg_temp.op();
+  r := public.hq_studio_detail('a0000000-0000-4000-8000-000000000001');
+  perform pg_temp.res('61 HQ reads account in detail + list', r#>>'{account,legal_business_name}' = 'Studio A LLP'
+    and (select s.state from public.hq_studios('Studio A', null, 5, 0) s limit 1) = 'Telangana', r::text);
+  r := public.hq_set_studio_account('a0000000-0000-4000-8000-000000000001', '{"secondary_contact_email":"Ops@A.test"}');
+  perform pg_temp.res('62 HQ edits account (audited)', r->>'secondary_contact_email' = 'ops@a.test'
+    and exists (select 1 from jsonb_array_elements(public.hq_audit(current_date, current_date)->'rows') x where x->>'action' = 'hq.studio_account.set'), r::text);
+end $$;
+do $$ declare r jsonb; i1 jsonb; i2 jsonb; begin
+  perform pg_temp.op();
+  perform public.hq_set_billing_state('Telangana');
+  r := public.hq_record_payment('a0000000-0000-4000-8000-000000000001', 1180, current_date, 'upi');
+  i1 := public.hq_invoice((r->>'id')::uuid);
+  perform pg_temp.res('63 same state → CGST + SGST half each; buyer from account profile',
+    i1#>>'{gst_split,type}' = 'CGST_SGST' and (i1#>>'{gst_split,cgst}')::numeric = 90 and (i1#>>'{gst_split,sgst}')::numeric = 90
+    and i1#>>'{buyer,name}' = 'Studio A LLP' and i1#>>'{buyer,gstin}' = '36ABCDE1234F1Z5' and i1#>>'{buyer,state}' = 'Telangana'
+    and i1#>>'{seller,state}' = 'Telangana', i1::text);
+  perform public.hq_set_studio_account('a0000000-0000-4000-8000-000000000001', '{"state":"Karnataka"}');
+  i2 := public.hq_invoice((r->>'id')::uuid);
+  perform pg_temp.res('64 different state → IGST full', i2#>>'{gst_split,type}' = 'IGST' and (i2#>>'{gst_split,igst}')::numeric = 180
+    and (i2#>>'{gst_split,cgst}')::numeric = 0, i2::text);
+  perform public.hq_set_billing_state(null);
+end $$;
+do $$ declare n int; begin perform pg_temp.su();
+  select count(*) into n from public.studio_account where primary_contact_email is not null;
+  perform pg_temp.res('65 prefill: primary contact filled from the creating admin', n >= 1, n::text);
+end $$;
+
 -- cleanup of mutable state that other suites read (payments are append-only by design)
 do $$ begin perform pg_temp.su();
   update public.studio_subscriptions set status = 'active', prev_status = null, suspended_at = null, suspend_reason = null;
   delete from auth.mfa_factors where user_id in (select id from auth.users where email like '%@helm.events');
 end $$;
 select name, result from _hs order by name;
-select case when count(*) filter (where result like 'FAIL%') = 0 and count(*) = 54 then 'HQ-SUBSCRIPTIONS: ALL PASS (54/54)'
-            else 'HQ-SUBSCRIPTIONS: '||count(*) filter (where result like 'FAIL%')||' FAILED, '||count(*)||'/54 ran' end from _hs;
+select case when count(*) filter (where result like 'FAIL%') = 0 and count(*) = 65 then 'HQ-SUBSCRIPTIONS: ALL PASS (65/65)'
+            else 'HQ-SUBSCRIPTIONS: '||count(*) filter (where result like 'FAIL%')||' FAILED, '||count(*)||'/65 ran' end from _hs;

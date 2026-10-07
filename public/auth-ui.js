@@ -774,6 +774,36 @@
     body.appendChild(list);
     body.appendChild(el("p", { class: "hau-muted" }, "Billing is managed by Helm. Questions about your plan or an invoice? Contact Helm."));
   }
+  var ACC_FIELDS = [["legal_business_name", "Legal business name"], ["gstin", "GSTIN (optional)"], ["country", "Country (2 letters, e.g. IN)"],
+    ["state", "State"], ["city", "City"], ["billing_address", "Billing address"], ["website", "Website (https://…)"], ["timezone", "Timezone"],
+    ["primary_contact_name", "Primary contact name"], ["primary_contact_email", "Primary contact e-mail"], ["primary_contact_phone", "Primary contact phone (+91…)"],
+    ["secondary_contact_name", "Secondary contact name"], ["secondary_contact_email", "Secondary contact e-mail"], ["secondary_contact_phone", "Secondary contact phone"],
+    ["billing_contact_email", "Billing e-mail"], ["team_size_band", "Team size (1, 2-5, 6-15, 16-50, 51+)"], ["signup_source", "How did you hear about Helm?"]];
+  function accountCard(st) {
+    var box = doc.getElementById("accCard"), body = doc.getElementById("accBody");
+    if (!box || !body || !st.subscription || !st.subscription.account) return;
+    st.subscription.account().then(function (a) {
+      if (!a || !a.can_edit) { box.hidden = true; return; }
+      css(); box.hidden = false; body.textContent = "";
+      var grid = el("div", { class: "hpf-grid" }), inputs = {};
+      ACC_FIELDS.forEach(function (f) {
+        var w = el("div", { class: "hpf-f" }), id = "acc_" + f[0];
+        w.appendChild(el("label", { for: id, class: "hpf-l" }, f[1]));
+        var i = el("input", { id: id, class: "hpf-i", type: "text" }); i.value = a[f[0]] || ""; inputs[f[0]] = i;
+        w.appendChild(i); grid.appendChild(w);
+      });
+      var wrap = el("div", { class: "hpf" }); wrap.appendChild(grid); body.appendChild(wrap);
+      var msg = el("div", { class: "hau-muted", role: "status" });
+      var save = el("button", { type: "button", class: "hau-btn primary" }, "Save account details");
+      save.addEventListener("click", function () {
+        var patch = {}; ACC_FIELDS.forEach(function (f) { var v = String(inputs[f[0]].value || "").trim(); if (v !== (a[f[0]] || "")) patch[f[0]] = v; });
+        save.disabled = true;
+        st.subscription.updateAccount(patch).then(function (r) { a = r || a; msg.textContent = "Saved."; },
+          function (e) { msg.textContent = errText(e, "save the account details"); }).then(function () { save.disabled = false; });
+      });
+      body.appendChild(save); body.appendChild(msg);
+    }).catch(function () { box.hidden = true; });
+  }
   function subscriptionStatus() {
     var st = S(); if (!st || !st.auth.user() || !st.subscription || !st.subscription.mine) return;
     st.subscription.mine().then(function (sub) {
@@ -802,6 +832,7 @@
     adminTwoStep();
     profileNudge();
     subscriptionStatus();
+    accountCard(S());
   }
 
   global.HelmAuthUI = {

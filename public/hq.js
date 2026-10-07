@@ -112,7 +112,8 @@
     rows.forEach(function (r) {
       var tr = el("tr", { cls: "click", tabindex: "0" }, [
         el("td", null, [el("strong", { text: r.name || "—" }), r.slug ? el("div", { cls: "muted", text: r.slug }) : null]),
-        el("td", { text: r.owner_email || "—" }), el("td", { text: r.plan_name || "—" }), el("td", null, [statusPill(r.status)]),
+        el("td", null, [r.primary_contact_name || r.owner_email || "—", el("div", { cls: "muted", text: [r.primary_contact_email, r.primary_contact_phone].filter(Boolean).join(" · ") })]),
+        el("td", { text: [r.state, r.country].filter(Boolean).join(", ") || "—" }), el("td", { text: r.plan_name || "—" }), el("td", null, [statusPill(r.status)]),
         el("td", { text: date(r.current_period_end) }), el("td", { cls: "n", text: int(r.users_count) }),
         el("td", { cls: "n", text: money(r.total_paid) }), el("td", { text: ago(r.last_activity) })]);
       var open = function () { loadDetail(r.org_id).catch(showErr); };
@@ -120,7 +121,7 @@
       tr.addEventListener("keydown", function (e) { if (e.key === "Enter") open(); });
       tb.appendChild(tr);
     });
-    if (!rows.length) tb.appendChild(el("tr", null, [el("td", { colspan: "8", cls: "empty", text: "No studios match." })]));
+    if (!rows.length) tb.appendChild(el("tr", null, [el("td", { colspan: "9", cls: "empty", text: "No studios match." })]));
     pager($("#pStudios"), sOff, rows.length ? num(rows[0].total_count) : 0, function (o) { loadStudios(o).catch(showErr); });
   }
   function field(label, input) { return el("label", { cls: "fld" }, [el("span", { text: label }), input]); }
@@ -192,6 +193,24 @@
       }
     });
     wrap.appendChild(el("div", { cls: "actions" }, [sus]));
+
+    // account profile (business account data only)
+    var acc = d.account || {};
+    wrap.appendChild(el("h3", { text: "Account" }));
+    var AF = [["legal_business_name", "Legal name"], ["gstin", "GSTIN"], ["country", "Country (ISO-2)"], ["state", "State"], ["city", "City"],
+      ["billing_address", "Billing address"], ["website", "Website"], ["timezone", "Timezone"], ["primary_contact_name", "Primary contact"],
+      ["primary_contact_email", "Primary e-mail"], ["primary_contact_phone", "Primary phone (+91…)"], ["secondary_contact_name", "Secondary contact"],
+      ["secondary_contact_email", "Secondary e-mail"], ["secondary_contact_phone", "Secondary phone"], ["billing_contact_email", "Billing e-mail"],
+      ["team_size_band", "Team size (1, 2-5, 6-15, 16-50, 51+)"], ["signup_source", "Signup source"]];
+    var inputs = {};
+    var af = el("div", { cls: "form" });
+    AF.forEach(function (f) { var i = el("input", { type: "text" }); i.value = acc[f[0]] || ""; inputs[f[0]] = i; af.appendChild(field(f[1], i)); });
+    var asave = el("button", { cls: "btn", type: "button", text: "Save account" });
+    asave.addEventListener("click", function () {
+      var patch = {}; AF.forEach(function (f) { var v = String(inputs[f[0]].value || "").trim(); if (v !== (acc[f[0]] || "")) patch[f[0]] = v; });
+      call("hq_set_studio_account", { p_org: org, p_account: patch }).then(function () { okMsg("Account saved."); refreshAfterWrite(org); }).catch(showErr);
+    });
+    af.appendChild(asave); wrap.appendChild(af);
 
     // members (no phone, no client data)
     wrap.appendChild(el("h3", { text: "People" }));
@@ -274,11 +293,13 @@
   async function loadSettings() {
     var s = await call("hq_billing_settings"); s = s && !Array.isArray(s) ? s : {};
     $("#sName").value = s.legal_name || ""; $("#sGstin").value = s.gstin || ""; $("#sAddr").value = s.address || "";
+    $("#sState").value = s.state || "";
     $("#sRate").value = s.gst_rate != null ? s.gst_rate : 18; $("#sPrefix").value = s.invoice_prefix != null ? s.invoice_prefix : "HELM-";
   }
   function saveSettings() {
     call("hq_set_billing_settings", { p_legal_name: $("#sName").value, p_gstin: $("#sGstin").value || null, p_address: $("#sAddr").value || null,
-      p_gst_rate: Number($("#sRate").value), p_invoice_prefix: $("#sPrefix").value }).then(function () { okMsg("Invoice settings saved — used for new payments."); }).catch(showErr);
+      p_gst_rate: Number($("#sRate").value), p_invoice_prefix: $("#sPrefix").value })
+      .then(function () { return call("hq_set_billing_state", { p_state: $("#sState").value || null }); }).then(function () { okMsg("Invoice settings saved — used for new payments."); }).catch(showErr);
   }
 
   /* ---------------- plans ---------------- */
