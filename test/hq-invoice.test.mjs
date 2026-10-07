@@ -98,4 +98,36 @@ t('source: no innerHTML / document.write / eval / external URLs', () => {
   assert.doesNotMatch(code, /https?:\/\//);
 });
 
+t('gst_split from RPC: IGST line / CGST+SGST lines', () => {
+  const base = { net: 1000, gst_rate: 18, gst_amount: 180, seller: { state: 'Telangana' }, buyer: { legal_name: 'Studio A LLP', name: 'A', gstin: '29AAAAA0000A1Z5', address: 'Blr', state: 'Karnataka' } };
+  const i = normalize({ ...base, gst_split: { type: 'IGST', igst: 180 } });
+  assert.deepEqual(i.gstLines, [{ label: 'IGST @ 18%', amount: '₹180.00' }]);
+  assert.equal(i.buyer.name, 'Studio A LLP');
+  assert.equal(i.buyer.state, 'Karnataka');
+  assert.equal(i.placeOfSupply, 'Karnataka');
+  const c = normalize({ ...base, gst_split: { type: 'CGST_SGST', cgst: 90, sgst: 90 } });
+  assert.deepEqual(c.gstLines.map((x) => x.label + ' ' + x.amount), ['CGST @ 9% ₹90.00', 'SGST @ 9% ₹90.00']);
+});
+
+t('gst_split missing: derived from seller/buyer states', () => {
+  const same = normalize({ net: 1000, gst_rate: 18, seller: { state: 'Telangana' }, buyer: { state: ' telangana ' } });
+  assert.deepEqual(same.gstLines.map((x) => x.label), ['CGST @ 9%', 'SGST @ 9%']);
+  assert.equal(same.gstLines[0].amount, '₹90.00');
+  const other = normalize({ net: 1000, gst_rate: 18, seller: { state: 'Telangana' }, buyer: { state: 'Kerala' } });
+  assert.deepEqual(other.gstLines, [{ label: 'IGST @ 18%', amount: '₹180.00' }]);
+  const unknown = normalize({ net: 1000, gst_rate: 18 });
+  assert.deepEqual(unknown.gstLines, [{ label: 'GST @ 18%', amount: '₹180.00' }]);
+  assert.equal(unknown.placeOfSupply, '—');
+  const odd = normalize({ net: 1001, gst_rate: 18, gst_amount: 180.19, seller: { state: 'X' }, buyer: { state: 'X' } });
+  assert.deepEqual(odd.gstLines.map((x) => x.amount), ['₹90.10', '₹90.09']);  // halves sum to total GST
+});
+
+t('render: buyer fields, CGST/SGST rows and place of supply appear', () => {
+  const doc = fakeDoc();
+  inv.render(doc, { net: 1000, gst_rate: 18, seller: { state: 'Telangana' }, buyer: { legal_name: 'Studio A LLP', gstin: '36AAAAA0000A1Z5', address: 'Hyd', state: 'Telangana' } });
+  const texts = allText(doc.body);
+  for (const s of ['Studio A LLP', 'GSTIN: 36AAAAA0000A1Z5', 'State: Telangana', 'CGST @ 9%', 'SGST @ 9%', 'Place of supply: Telangana']) assert.ok(texts.includes(s), s);
+  assert.ok(!texts.some((x) => /^IGST/.test(x)));
+});
+
 console.log(`hq-invoice: ${n} passed`);

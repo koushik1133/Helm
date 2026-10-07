@@ -26,7 +26,12 @@
  *   plan:         { name: "Studio Pro" }  (or plan_name: "Studio Pro")
  *   seller:       { legal_name, gstin, address, gst_rate, invoice_prefix }
  *                 (or flat: seller_legal_name / seller_gstin / seller_address)
- *   buyer:        { name, gstin?, address? }  (or studio_name / org_name)
+ *   buyer:        { legal_name?, name, gstin?, address?, state? }  (or studio_name / org_name)
+ *   seller.state: "Telangana"
+ *   gst_split:    { type: 'IGST' | 'CGST_SGST', igst, cgst, sgst }
+ *                 Missing → derived: seller.state === buyer.state (case-insensitive) →
+ *                 CGST_SGST (half each), different states → IGST, either unknown →
+ *                 one plain "GST" line. Place of supply = buyer.state.
  * }
  * Also usable from node: module.exports = { helpers } for unit tests.
  * ========================================================================== */
@@ -80,6 +85,38 @@
     return x + ' – ' + y;
   }
 
+  // { type, igst, cgst, sgst } from the RPC, or derived from the two states.
+  function deriveSplit(given, gst, sellerState, buyerState) {
+    var g = (given && typeof given === 'object') ? given : null;
+    var type = g ? str(g.type).toUpperCase() : '';
+    if (type === 'IGST' || type === 'CGST_SGST') {
+      var out = { type: type, igst: num(g.igst), cgst: num(g.cgst), sgst: num(g.sgst) };
+      if (type === 'IGST' && !isFinite(out.igst)) out.igst = gst;
+      if (type === 'CGST_SGST' && isFinite(gst)) {
+        if (!isFinite(out.cgst)) out.cgst = round2(gst / 2);
+        if (!isFinite(out.sgst)) out.sgst = round2(gst - out.cgst);
+      }
+      return out;
+    }
+    var a = sellerState.trim().toLowerCase(), b = buyerState.trim().toLowerCase();
+    if (!a || !b) return { type: 'GST', igst: NaN, cgst: NaN, sgst: NaN };
+    if (a === b) {
+      var c = isFinite(gst) ? round2(gst / 2) : NaN;
+      return { type: 'CGST_SGST', igst: NaN, cgst: c, sgst: isFinite(gst) ? round2(gst - c) : NaN };
+    }
+    return { type: 'IGST', igst: gst, cgst: NaN, sgst: NaN };
+  }
+  function gstLines(split, rate, gst, cur) {
+    var r = isFinite(rate) ? rate + '%' : '—';
+    var h = isFinite(rate) ? round2(rate / 2) + '%' : '—';
+    if (split.type === 'IGST') return [{ label: 'IGST @ ' + r, amount: formatMoney(split.igst, cur) }];
+    if (split.type === 'CGST_SGST') return [
+      { label: 'CGST @ ' + h, amount: formatMoney(split.cgst, cur) },
+      { label: 'SGST @ ' + h, amount: formatMoney(split.sgst, cur) },
+    ];
+    return [{ label: 'GST @ ' + r, amount: formatMoney(gst, cur) }];
+  }
+
   // Normalise any plausible invoice JSON into one flat, display-ready model.
   function normalize(data) {
     var d = (data && typeof data === 'object') ? data : {};
@@ -94,6 +131,7 @@
     var total = num(pick(d.amount, d.total));
     if (!isFinite(total) && isFinite(net)) total = round2(net + (isFinite(gst) ? gst : 0));
     if (!isFinite(net) && isFinite(total) && isFinite(gst)) net = round2(total - gst);
+    var split = deriveSplit(d.gst_split, gst, str(pick(seller.state, d.seller_state)), str(pick(buyer.state, d.buyer_state)));
     var today = new Date().toISOString().slice(0, 10);
     return {
       invoiceNo: str(pick(d.invoice_no, d.number)) || '—',
@@ -104,6 +142,8 @@
       net: formatMoney(net, currency),
       gstRate: isFinite(rate) ? (round2(rate) + '%') : '—',
       gstAmount: formatMoney(gst, currency),
+      gstLines: gstLines(split, isFinite(rate) ? round2(rate) : NaN, gst, currency),
+      placeOfSupply: str(pick(buyer.state, d.buyer_state, d.place_of_supply)) || '—',
       total: formatMoney(total, currency),
       method: str(d.method) || '—',
       reference: str(pick(d.reference, d.provider_payment_id)) || '—',
@@ -112,9 +152,11 @@
         name: str(pick(seller.legal_name, d.seller_legal_name)) || 'Helm',
         gstin: str(pick(seller.gstin, d.seller_gstin)),
         address: str(pick(seller.address, d.seller_address)),
+        state: str(pick(seller.state, d.seller_state)),
       },
       buyer: {
-        name: str(pick(buyer.name, d.studio_name, d.org_name)) || '—',
+        name: str(pick(buyer.legal_name, buyer.name, d.studio_name, d.org_name)) || '—',
+        state: str(pick(buyer.state, d.buyer_state)),
         gstin: str(pick(buyer.gstin, d.buyer_gstin)),
         address: str(pick(buyer.address, d.buyer_address)),
       },
@@ -160,6 +202,7 @@
       b.appendChild(el(doc, 'div', '', p.name)).style.fontWeight = '600';
       if (p.gstin) b.appendChild(el(doc, 'div', '', 'GSTIN: ' + p.gstin));
       if (p.address) b.appendChild(el(doc, 'div', 'pre', p.address));
+      if (p.state) b.appendChild(el(doc, 'div', '', 'State: ' + p.state));
       return b;
     }
     row.appendChild(party('Seller', m.seller));
@@ -180,11 +223,12 @@
     }
     line('Helm subscription — ' + m.plan, m.period, m.net);
     line('Taxable value', '', m.net);
-    line('GST @ ' + m.gstRate, '', m.gstAmount);
+    m.gstLines.forEach(function (g) { line(g.label, '', g.amount); });
     line('Total (' + m.currency + ')', '', m.total, 'tot');
     t.appendChild(tb);
     w.appendChild(t);
 
+    w.appendChild(el(doc, 'div', 'foot', 'Place of supply: ' + m.placeOfSupply));
     w.appendChild(el(doc, 'div', 'foot', 'Paid via ' + m.method + ' · Reference ' + m.reference));
     w.appendChild(el(doc, 'div', 'foot', 'This is a computer-generated invoice and does not require a signature.'));
     body.appendChild(w);
@@ -203,7 +247,7 @@
     return win;
   }
 
-  var api = { open: open, render: render, helpers: { formatMoney: formatMoney, formatDate: formatDate, formatPeriod: formatPeriod, normalize: normalize } };
+  var api = { open: open, render: render, helpers: { formatMoney: formatMoney, formatDate: formatDate, formatPeriod: formatPeriod, normalize: normalize, deriveSplit: deriveSplit } };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) root.HelmInvoice = api;
 })(typeof window !== 'undefined' ? window : null);
