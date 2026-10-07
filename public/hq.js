@@ -221,7 +221,7 @@
     var today = new Date(), past = new Date(Date.now() - 30 * 864e5);
     $("#pFrom").value = iso(past); $("#pTo").value = iso(today);
     try { await loadAll(); }
-    catch (e) { if (denied(e)) { notFound(); return; } $("#vLoading").hidden = true; $("#vApp").hidden = false; showErr(e); return; }
+    catch (e) { notFound(); return; }   // any failure on first load (refused, missing, offline) looks like a missing page — never reveal HQ exists
     document.title = "Helm HQ";
     $("#who").textContent = (BPStore.auth.user() && BPStore.auth.user().email) || "";
     $("#vLoading").hidden = true; $("#vApp").hidden = false;

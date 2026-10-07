@@ -438,7 +438,7 @@ header select,header .tbtn,header .seg button{height:28px;font-size:12px;padding
 header .seg button{height:26px}
 header .tbtn.icon{width:28px;padding:0}
 header .nameinput{height:28px;min-width:120px;max-width:180px}
-header .capinput{min-width:72px;max-width:90px}
+header .capinput{width:118px;min-width:118px;max-width:118px}
 header .capmeter{height:28px;padding:0 8px;font-size:12px}
 header .qbadge{padding:3px 8px;font-size:11px}
 header select#preset,header select#refEvents{max-width:150px}
@@ -451,7 +451,7 @@ header .kbd{font-size:11px;white-space:nowrap}
 .brand small{font-size:10px;letter-spacing:.03em}
 .hsep{height:20px}
 @media (min-width:721px){
-  header{gap:8px;padding:4px 10px;row-gap:4px}
+  header{gap:8px;padding:12px 16px 10px;row-gap:8px}
 }
 @media (max-width:1440px){ .brand small{display:none} }
 @media (max-width:1280px){ .brand-txt{display:none} header .kbd{display:none} }
@@ -502,3 +502,5 @@ header .kbd{font-size:11px;white-space:nowrap}
 @media (pointer:coarse){ .navpad{grid-template-columns:repeat(3,40px);grid-template-rows:repeat(3,40px)} .navpad button{width:40px;height:40px} }
 @media (max-width:720px){ .viewport.is3d .navpad{bottom:56px} }
 @media (prefers-reduced-motion:reduce){ .navpad{transition:none} }
+/* keep the floating "? Tour" button from covering the toolbox hint (both sit bottom-left) */
+.htour-fab{left:auto !important;right:16px}
