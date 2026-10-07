@@ -118,7 +118,9 @@
   }
   function sessGet(key, uid) { const e = sessEntry(key, uid); return e && e.fresh ? e.val : null; }
   function sessSet(key, uid, val) { try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), uid: uid || null, val: val })); } catch (e) {} }
-  function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); sessionStorage.removeItem("bp_sess_org"); sessionStorage.removeItem(PW_OK_KEY); } catch (e) {} }
+  function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); sessionStorage.removeItem("bp_sess_org"); sessionStorage.removeItem(PROFILE_SESS_KEY); sessionStorage.removeItem(PW_OK_KEY); } catch (e) {} }
+  const PROFILE_SESS_KEY = "bp_sess_profile";   // per tab: my_profile_status() answer (never a "must complete" one)
+  const NUDGE_KEY = "helm_profile_nudge";       // localStorage {uid, until}: "complete your profile" banner snoozed
   const PW_OK_KEY = "bp_pw_ok";                 // per tab: "<uid>" once password_change_required() said no
   // Per-USER browser state that must not carry over to the next person who signs in
   // on a shared computer (audit Phase 4). Device prefs (theme, tours) are kept.
@@ -409,6 +411,56 @@
     if (await operatorToHq()) return;
     try { location.replace("/login?next=" + encodeURIComponent(safeNext((location.pathname.split("/").pop() || "") + (location.search || "")))); } catch (e) {}
   }
+  /* ---- "Complete your profile" (0041) — first sign-in step for NEW members ----
+     my_profile_status() → {complete, required, nudge}. The server decides who must
+     complete it (a non-client studio member, not an HQ operator, whose account was
+     created after the 0041 cutoff and who has no full name or mobile yet); older
+     incomplete members only get a dismissible banner (nudge). This is a UX step,
+     not a security boundary: an unknown answer (network) never blocks the app,
+     and 0041 not installed (PGRST202 / 42883) = the feature is simply off.
+     Answers that do NOT require the step are cached per tab (bp_sess_profile); a
+     "must complete" answer is always asked again. */
+  const PROFILE_SETUP_PAGE = "profile-setup";
+  let profEarly = null;         // started alongside the studio lookup on a protected page
+  // Pure decision (exported for tests): "setup" (send to /profile-setup), "nudge" (banner), "none".
+  function profileGateDecision(st, page, role) {
+    if (!st || typeof st !== "object" || st.missing) return "none";
+    if (role === "client" || st.complete === true) return "none";
+    if (st.required === true) return page === PROFILE_SETUP_PAGE ? "none" : "setup";
+    if (st.nudge === true) return "nudge";
+    return "none";
+  }
+  // Throws on a failed lookup (callers decide); {missing:true} when 0041 isn't installed.
+  async function fetchProfileStatus(force) {
+    if (!supa || !currentUser) return null;
+    const uid = currentUser.id;
+    if (!force) { const hit = sessEntry(PROFILE_SESS_KEY, uid); if (hit && hit.val && typeof hit.val === "object") return hit.val; }
+    const { data, error } = await supa.rpc("my_profile_status");
+    if (error) {
+      if (isMissingFn(error)) { const v = { missing: true }; sessSet(PROFILE_SESS_KEY, uid, v); return v; }
+      throw error;
+    }
+    if (!data || typeof data !== "object") return null;
+    const v = { complete: data.complete === true, required: data.required === true, nudge: data.nudge === true };
+    if (!v.required) sessSet(PROFILE_SESS_KEY, uid, v); else { try { sessionStorage.removeItem(PROFILE_SESS_KEY); } catch (e) {} }
+    return v;
+  }
+  // After a successful save: remember "complete" for this tab (no re-ask on the next page).
+  function noteProfileComplete(complete) {
+    if (!currentUser) return;
+    if (complete) sessSet(PROFILE_SESS_KEY, currentUser.id, { complete: true, required: false, nudge: false });
+    else { try { sessionStorage.removeItem(PROFILE_SESS_KEY); } catch (e) {} }
+  }
+  // "/profile-setup?next=<this page>" — next always goes through safeNext.
+  function profileSetupUrl(next) {
+    return "/" + PROFILE_SETUP_PAGE + "?next=" + encodeURIComponent(safeNext(next));
+  }
+  function currentPageRef() {
+    try { return (location.pathname.split("/").pop() || "dashboard") + (location.search || ""); } catch (e) { return "dashboard"; }
+  }
+  function nextParam() {
+    try { return new URLSearchParams(location.search || "").get("next") || ""; } catch (e) { return ""; }
+  }
   async function runPageGate() {
     if (!PAGE_GATED) return;
     authGateUsed = true;
@@ -429,6 +481,26 @@
     }
     if (!oid) { await routeNoStudio(); return HANG(); }
     if (orgRevoked) return HANG();   // a background re-check already took the page away
+    // "Complete your profile" (0041): decided BEFORE the page shows (no flash).
+    const pk = pageKey();
+    let pst = null;
+    const pe = profEarly; profEarly = null;
+    try { pst = await (pe || fetchProfileStatus(false)); }
+    catch (e) {
+      if (looksLikeAuthError(e)) { gotoLogin(); return HANG(); }
+      pst = null;                    // unknown (network): never blocks the app
+    }
+    if (pk === PROFILE_SETUP_PAGE) {
+      // nothing to complete here (done, not a studio member, client, HQ operator, or
+      // 0041 not installed) → straight on to ?next= (never back to this page: no loop)
+      if (pst && (pst.missing || pst.complete || (!pst.required && !pst.nudge))) {
+        try { location.replace(safeNext(nextParam())); } catch (e) {}
+        return HANG();
+      }
+    } else if (profileGateDecision(pst, pk, roleCache) === "setup") {
+      try { location.replace(profileSetupUrl(currentPageRef())); } catch (e) {}
+      return HANG();
+    }
     revealPage();
   }
   // Back/Forward restored this page from the bfcache: re-check before showing it again.
@@ -655,7 +727,7 @@
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "6";
+  const AUTH_UI_VERSION = "7";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -887,7 +959,10 @@
             // On a protected page the studio lookup runs at the same time (it is only
             // USED after the step check passed — the page still shows only after both).
             if (currentUser && gatePage()) {
-              if (PAGE_GATED) { orgEarly = orgIdStrict(); orgEarly.catch(() => {}); }
+              if (PAGE_GATED) {
+                orgEarly = orgIdStrict(); orgEarly.catch(() => {});
+                profEarly = fetchProfileStatus(false); profEarly.catch(() => {});   // 0041 profile step, same round-trip
+              }
               await evaluateGate();
               // role + access matrix are needed by nearly every page right after it
               // shows: start them now (cached per tab; failures are retried by the page)
@@ -1417,6 +1492,35 @@
           .select("id,email,full_name,role,created_at").order("role", { ascending: true });
         if (error) throw error; return data;
       },
+      // User control (0041): everyone in my studio WITH their profile, privacy-filtered by the
+      // DB (phone / city / emergency contact only for admins + users-view). Before 0041 is
+      // applied → today's list. → { rows, profiles: true|false }
+      async members() {
+        if (!supa) throw new Error("Supabase not configured");
+        if (!memberListMissing) {
+          const { data, error } = await supa.rpc("member_profile_list");
+          if (!error) return { rows: Array.isArray(data) ? data : [], profiles: true };
+          if (!rpcMissing(error)) throw error;
+          memberListMissing = true;
+        }
+        return { rows: (await this.listUsers()) || [], profiles: false };
+      },
+      // admin edit of a member's profile (+ day rate / employment type on their staff row).
+      // `orig` = the row as loaded, `form` = the dialog's values: only CHANGED fields are sent.
+      // → the saved row, or null when nothing changed.
+      async updateMember(userId, orig, form) {
+        if (!supa) throw new Error("Supabase not configured");
+        const bad = memberProfileProblems(form);
+        const keys = Object.keys(bad);
+        if (keys.length) { const e = new Error(bad[keys[0]]); e.code = "22023"; e.fields = bad; throw e; }
+        const patch = memberProfilePatch(orig, form);
+        if (!Object.keys(patch).length) return null;
+        return rpc("admin_update_member_profile", { p_user: userId, p_profile: patch });
+      },
+      memberProblems: memberProfileProblems,
+      memberPatch: memberProfilePatch,
+      memberErrorText,
+      mobile: memberMobile,
       async createUser(email, password, role) {
         if (!supa) throw new Error("Supabase not configured");
         const bad = passwordProblem(password); if (bad) throw new Error(bad);   // same rule as 0028 admin_create_user
@@ -2530,6 +2634,25 @@
       const a = readLs(STAFF_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(STAFF_LS, JSON.stringify(a)); } return true;
     },
     async setActive(id, active) { return this.update(id, { active: !!active }); },
+    // 0041: a row with profile_id is LINKED to a Helm account — its name / phone / e-mail /
+    // department / title follow the member's profile (edited in Control Center → User control).
+    isLinked: (s) => !!(s && s.profile_id),
+    normPhone: memberNormPhone,
+    // The linked staff record that already has this number (another row would be a second
+    // record for one account) → { id, name } or null. Before 0041 / on error → null (the DB
+    // guard still refuses it; its message is shown through linkErrorText).
+    async linkedOwnerOfPhone(phone, exceptId) {
+      const want = memberNormPhone(phone); if (!want || mode !== "supabase" || !supa) return null;
+      try {
+        const { data, error } = await supa.from("crew_members").select("id,name,phone,profile_id").not("profile_id", "is", null).limit(2000);
+        if (error) return null;
+        const hit = (data || []).find((r) => r && r.id !== exceptId && r.profile_id && memberNormPhone(r.phone) === want);
+        return hit ? { id: hit.id, name: hit.name || "a team member" } : null;
+      } catch (e) { return null; }
+    },
+    linkErrorText: memberErrorText,
+    // the fields a linked row must NOT send (the DB refuses changes to them from the Staff page)
+    LINKED_FIELDS: ["name", "phone", "email", "department", "role"],
     // crew actually assigned to ONE event (derived from their tasks) — for event-scoped views
     async forEvent(quoteId) {
       if (mode === "supabase") {
@@ -3228,16 +3351,334 @@
     if (/[\u0000-\u001f\u007f-\u009f]/.test(v)) return "A display name can't contain control characters.";
     return null;
   }
+  /* ---------------- member profile (0041 "Complete your profile") ----------------
+     Client-side mirror of the SQL rules in 0041 (_mp_text / _mp_mobile / _mp_any_phone
+     / _mp_skills) so the form can explain a problem before the round-trip. The server
+     re-checks everything; these never relax it. */
+  const MP_TEXT_MAX = 80, MP_SKILL_MAX = 40, MP_SKILLS_MAX = 20;
+  const MP_KEYS = ["full_name", "phone", "whatsapp", "whatsapp_same", "job_title", "department", "skills",
+    "city", "emergency_contact_name", "emergency_contact_phone"];
+  const MP_TEXT_LABEL = { full_name: "Full name", job_title: "Job title", department: "Department", city: "City",
+    emergency_contact_name: "Emergency contact name" };
+  const mpClean = (v) => String(v == null ? "" : v).replace(/\s+/g, " ").trim();
+  // → { val } (null = blank) or { err }
+  function mpText(v, label, max) {
+    const s = mpClean(v);
+    if (!s) return { val: null };
+    if ([...s].length > max) return { err: label + " must be " + max + " characters or fewer." };
+    if (/[<>]/.test(s)) return { err: label + " can't contain < or >." };
+    if (/[\u0000-\u001f\u007f-\u009f]/.test(s)) return { err: label + " can't contain control characters." };
+    return { val: s };
+  }
+  // Indian mobile → +91XXXXXXXXXX (accepts 98765 43210, 098765…, +91 98765…, 91 98765…)
+  function mpMobile(v, label) {
+    const s = String(v == null ? "" : v).trim();
+    if (!s) return { val: null };
+    if (!/^\+?[0-9 ().-]{6,24}$/.test(s)) return { err: label + " must be a 10-digit Indian mobile number." };
+    let d = s.replace(/[^0-9]/g, "");
+    if (d.length === 12 && d.slice(0, 2) === "91") d = d.slice(2);
+    else if (d.length === 11 && d.charAt(0) === "0") d = d.slice(1);
+    if (!/^[6-9][0-9]{9}$/.test(d)) return { err: label + " must be a 10-digit Indian mobile number starting with 6, 7, 8 or 9." };
+    return { val: "+91" + d };
+  }
+  // emergency contact: an Indian mobile, or an international number written with a leading +
+  function mpAnyPhone(v, label) {
+    const s = String(v == null ? "" : v).trim();
+    if (!s) return { val: null };
+    const m = mpMobile(s, label); if (!m.err) return m;
+    const d = s.replace(/[^0-9]/g, "");
+    if (/^\+[0-9 ().-]{6,24}$/.test(s) && /^[1-9][0-9]{7,14}$/.test(d)) return { val: "+" + d };
+    return { err: label + " must be a 10-digit Indian mobile number, or an international number starting with +." };
+  }
+  function mpSkills(v) {
+    let src = v;
+    if (src == null) return { val: [] };
+    if (typeof src === "string") src = src.split(",");
+    if (!Array.isArray(src)) return { err: "Skills must be a list." };
+    const out = [];
+    for (const item of src) {
+      if (typeof item !== "string") return { err: "Each skill must be text." };
+      const t = mpText(item, "A skill", MP_SKILL_MAX); if (t.err) return t;
+      if (t.val && !out.some((s) => s.toLowerCase() === t.val.toLowerCase())) out.push(t.val);
+    }
+    if (out.length > MP_SKILLS_MAX) return { err: "Add up to " + MP_SKILLS_MAX + " skills." };
+    return { val: out };
+  }
+  // "+919876543210" → "9876543210" (for an input that shows the +91 prefix itself)
+  function mpLocalMobile(e164) {
+    const m = /^\+91([6-9][0-9]{9})$/.exec(String(e164 || ""));
+    return m ? m[1] : String(e164 || "");
+  }
+  // validate(fields, {requireName, requirePhone}) → {ok, errors:{key:msg}, clean:{…}}.
+  // `clean` holds only the keys the RPCs accept; a blank optional text is sent as null
+  // (clears it); a blank name / mobile is left out unless required (they can't be cleared).
+  function mpValidate(fields, opts) {
+    const f = fields || {}, o = opts || {};
+    const errors = {}, clean = {};
+    const name = mpText(f.full_name, "Full name", MP_TEXT_MAX);
+    if (name.err) errors.full_name = name.err;
+    else if (name.val) clean.full_name = name.val;
+    else if (o.requireName) errors.full_name = "Full name is required.";
+    const ph = mpMobile(f.phone, "Mobile number");
+    if (ph.err) errors.phone = ph.err;
+    else if (ph.val) clean.phone = ph.val;
+    else if (o.requirePhone) errors.phone = "Mobile number is required.";
+    const same = f.whatsapp_same !== false;
+    clean.whatsapp_same = same;
+    if (!same) {
+      const wa = mpMobile(f.whatsapp, "WhatsApp number");
+      if (wa.err) errors.whatsapp = wa.err; else clean.whatsapp = wa.val;
+    }
+    ["job_title", "department", "city", "emergency_contact_name"].forEach((k) => {
+      if (!(k in f)) return;
+      const t = mpText(f[k], MP_TEXT_LABEL[k], MP_TEXT_MAX);
+      if (t.err) errors[k] = t.err; else clean[k] = t.val;
+    });
+    if ("emergency_contact_phone" in f) {
+      const ep = mpAnyPhone(f.emergency_contact_phone, "Emergency contact number");
+      if (ep.err) errors.emergency_contact_phone = ep.err; else clean.emergency_contact_phone = ep.val;
+    }
+    if ("skills" in f) {
+      const sk = mpSkills(f.skills);
+      if (sk.err) errors.skills = sk.err; else clean.skills = sk.val;
+    }
+    return { ok: Object.keys(errors).length === 0, errors, clean };
+  }
+  function mpInvalid(r) {
+    const k = Object.keys(r.errors)[0];
+    const e = new Error(r.errors[k]); e.code = "profile_invalid"; e.fields = r.errors; e.field = k; return e;
+  }
+
+  /* ---- profile photo: checked + resized in the browser, then uploaded ----
+     Private bucket member-avatars (0041): key <studio>/<user>/<uuid>.<png|jpg|webp>,
+     <= 2 MB, png / jpeg / webp. Only real PNG / JPEG / WebP files are accepted (by
+     their first bytes, not the file name or the browser's guess); the picture is
+     centre-cropped to a square and redrawn at <= 512 px, so whatever was in the
+     original file (metadata, scripts, extra frames) is never uploaded. */
+  const AVATAR_BUCKET = "member-avatars";
+  const AVATAR_PX = 512, AVATAR_MAX_BYTES = 2 * 1024 * 1024, AVATAR_MAX_INPUT = 20 * 1024 * 1024, AVATAR_MAX_PIXELS = 60e6;
+  const UUID_RE = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+  const AVATAR_PATH_RE = new RegExp("^" + UUID_RE + "/" + UUID_RE + "/" + UUID_RE + "\\.(png|jpg|webp)$");
+  // first bytes → "png" | "jpeg" | "webp" | null (GIF, SVG, HEIC, PDF … → null)
+  function sniffImage(b) {
+    if (!b || b.length < 12) return null;
+    if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 && b[4] === 0x0d && b[5] === 0x0a && b[6] === 0x1a && b[7] === 0x0a) return "png";
+    if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "jpeg";
+    if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return "webp";
+    return null;
+  }
+  // centre square of a w×h picture, drawn at min(side, max) px
+  function avatarCrop(w, h, max) {
+    w = Math.floor(Number(w) || 0); h = Math.floor(Number(h) || 0);
+    if (!(w > 0 && h > 0)) return null;
+    const side = Math.min(w, h);
+    return { sx: Math.floor((w - side) / 2), sy: Math.floor((h - side) / 2), side: side, size: Math.min(side, max || AVATAR_PX) };
+  }
+  function avatarPathFor(orgId, uid, id, ext) {
+    const p = String(orgId || "").toLowerCase() + "/" + String(uid || "").toLowerCase() + "/" + String(id || "").toLowerCase() + "." + ext;
+    return AVATAR_PATH_RE.test(p) ? p : null;
+  }
+  function newUuid() {
+    const c = global.crypto;
+    if (c && typeof c.randomUUID === "function") return c.randomUUID();
+    if (c && typeof c.getRandomValues === "function") {
+      const b = c.getRandomValues(new Uint8Array(16)); b[6] = (b[6] & 0x0f) | 0x40; b[8] = (b[8] & 0x3f) | 0x80;
+      const hx = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+      return hx.slice(0, 8) + "-" + hx.slice(8, 12) + "-" + hx.slice(12, 16) + "-" + hx.slice(16, 20) + "-" + hx.slice(20);
+    }
+    return null;
+  }
+  function photoErr(msg, code) { const e = new Error(msg); e.code = code || "avatar_invalid"; return e; }
+  async function readHead(file, n) {
+    const part = file.slice(0, n);
+    if (part && typeof part.arrayBuffer === "function") return new Uint8Array(await part.arrayBuffer());
+    return new Uint8Array(await new Response(part).arrayBuffer());
+  }
+  // a File / Blob → { blob, type, ext } (square, <= 512 px, <= 2 MB) — throws a user-facing error
+  async function processAvatar(file) {
+    if (!file || typeof file.size !== "number" || typeof file.slice !== "function") throw photoErr("Choose a photo to upload.");
+    if (file.size < 12) throw photoErr("That file is empty or not a photo.");
+    if (file.size > AVATAR_MAX_INPUT) throw photoErr("That photo is too large — choose one under 20 MB.");
+    const kind = sniffImage(await readHead(file, 16));
+    if (!kind) throw photoErr("Use a PNG, JPEG or WebP photo.");
+    if (typeof document === "undefined") throw photoErr("Photos can't be processed here.");
+    let img = null, url = null;
+    try {
+      if (typeof global.createImageBitmap === "function") {
+        try { img = await global.createImageBitmap(file, { imageOrientation: "from-image" }); } catch (e) { img = null; }
+      }
+      if (!img) {
+        url = URL.createObjectURL(file);
+        img = await new Promise((resolve, reject) => {
+          const im = new Image();
+          im.onload = () => resolve(im); im.onerror = () => reject(photoErr("That photo couldn't be opened — try another one."));
+          im.src = url;
+        });
+      }
+      const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+      if (w * h > AVATAR_MAX_PIXELS) throw photoErr("That photo is too large — choose a smaller one.");
+      const box = avatarCrop(w, h, AVATAR_PX);
+      if (!box || box.side < 32) throw photoErr("That photo is too small — use one at least 32 × 32 pixels.");
+      const cv = document.createElement("canvas"); cv.width = box.size; cv.height = box.size;
+      const ctx = cv.getContext("2d");
+      if (!ctx) throw photoErr("Photos can't be processed in this browser.");
+      ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, box.size, box.size);
+      try { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high"; } catch (e) {}
+      ctx.drawImage(img, box.sx, box.sy, box.side, box.side, 0, 0, box.size, box.size);
+      const toBlob = (type, q) => new Promise((resolve) => { try { cv.toBlob((b) => resolve(b), type, q); } catch (e) { resolve(null); } });
+      let out = null;
+      for (const q of [0.88, 0.8, 0.7, 0.6, 0.5]) {
+        let b = await toBlob("image/webp", q);
+        if (!b || b.type !== "image/webp") b = await toBlob("image/jpeg", q);
+        if (b && b.size <= AVATAR_MAX_BYTES) { out = b; break; }
+      }
+      if (!out) throw photoErr("That photo couldn't be made small enough — try another one.");
+      const outKind = sniffImage(await readHead(out, 16));
+      if (outKind !== "webp" && outKind !== "jpeg") throw photoErr("That photo couldn't be converted — try another one.");
+      return { blob: out, type: outKind === "webp" ? "image/webp" : "image/jpeg", ext: outKind === "webp" ? "webp" : "jpg" };
+    } finally {
+      if (url) { try { URL.revokeObjectURL(url); } catch (e) {} }
+      if (img && typeof img.close === "function") { try { img.close(); } catch (e) {} }
+    }
+  }
+  // signed photo URLs (private bucket), cached briefly per page
+  const avatarUrlCache = new Map();   // path → { url, exp } | { pending }
+  const AVATAR_URL_TTL = 3600, AVATAR_URL_REUSE = 45 * 60000;
+  let avatarSignQueue = null;         // { paths, done } — one createSignedUrls call per tick
+  let profileRpcMissing = false;      // 0041 not installed → my_profile() falls back to the profiles row
+
   const profile = {
     displayName: personDisplayName,
     clean: cleanDisplayName,
     problem: displayNameProblem,
-    // my own profile row (own row is always readable under RLS)
+    // My own profile. With 0041: my_profile() (name, mobile, WhatsApp, title, department,
+    // skills, city, emergency contact, photo path, complete). Without it: the profiles
+    // row (id, email, full_name, role) as before. Always carries id + full_name.
     async mine() {
       if (mode !== "supabase") { const u = CHAT_LOCAL_ROSTER.find((x) => x.id === chatLocalUid()) || CHAT_LOCAL_ROSTER[0]; return Object.assign({}, u); }
       if (!supa || !currentUser) return null;
+      if (!profileRpcMissing) {
+        const { data, error } = await supa.rpc("my_profile");
+        if (!error) return data && typeof data === "object" ? Object.assign({ id: data.user_id }, data) : null;
+        if (!rpcMissing(error)) { if (looksLikeAuthError(error)) onAuthFailure(); throw error; }
+        profileRpcMissing = true;
+      }
       const { data, error } = await supa.from("profiles").select("id,email,full_name,role").eq("id", currentUser.id).maybeSingle();
       if (error) throw error; return data || null;
+    },
+    // {complete, required, nudge} | {missing:true} (0041 not installed) | null (offline /
+    // signed out / unknown). Never throws. {fresh:true} skips the per-tab cache.
+    async status(o) {
+      if (mode !== "supabase") return null;
+      try { return await fetchProfileStatus(!!(o && o.fresh)); } catch (e) { return null; }
+    },
+    // Is the profile feature installed on this database (0041)?
+    async available() { const s = await profile.status(); return !!(s && !s.missing); },
+    // "setup" | "nudge" | "none" for a status answer (pure — see profileGateDecision)
+    gateDecision: (st, page, role) => profileGateDecision(st, page, role),
+    // Signed in and about to leave the login page: a NEW member who must complete their
+    // profile goes to /profile-setup?next=… first (location.replace). Resolves true when
+    // it redirected; false otherwise (incl. any error — the next page's gate re-checks).
+    async routeIfRequired(next) {
+      if (mode !== "supabase" || !currentUser || pendingStep) return false;
+      let st = null; try { st = await fetchProfileStatus(true); } catch (e) { return false; }
+      if (profileGateDecision(st, "login", roleCache) !== "setup") return false;
+      try { location.replace(profileSetupUrl(next)); } catch (e) { return false; }
+      return true;
+    },
+    // where /profile-setup sends you afterwards (always one of the app's own pages)
+    setupNext: () => safeNext(nextParam()),
+    // mirror of the SQL checks → {ok, errors, clean}
+    validate: (fields, opts) => mpValidate(fields, opts),
+    localMobile: mpLocalMobile,
+    limits: { text: MP_TEXT_MAX, skill: MP_SKILL_MAX, skills: MP_SKILLS_MAX, photoBytes: AVATAR_MAX_BYTES, photoPx: AVATAR_PX },
+    // save some fields (update_my_profile) → the saved profile
+    async update(fields, opts) {
+      const r = mpValidate(fields, Object.assign({ requireName: false, requirePhone: false }, opts || {}));
+      if (!r.ok) throw mpInvalid(r);
+      const row = await rpc("update_my_profile", { p_profile: r.clean });
+      if (row && typeof row === "object") noteProfileComplete(row.complete === true);
+      return row;
+    },
+    // finish the first sign-in step (complete_my_profile: name + mobile required)
+    async complete(fields) {
+      const r = mpValidate(fields, { requireName: true, requirePhone: true });
+      if (!r.ok) throw mpInvalid(r);
+      const row = await rpc("complete_my_profile", { p_profile: r.clean });
+      noteProfileComplete(true);
+      return row;
+    },
+    // pure helpers (exported for tests)
+    _sniffImage: sniffImage, _avatarCrop: avatarCrop, _avatarPath: avatarPathFor,
+    // check + square-crop + resize a picked photo → {blob, type, ext}
+    processAvatar: processAvatar,
+    // upload my photo, then point my profile at it (set_my_avatar) → the stored path
+    async uploadAvatar(file) {
+      if (mode !== "supabase" || !supa || !currentUser) throw photoErr("Sign in to add a photo.", "avatar_unavailable");
+      const p = await processAvatar(file);
+      const oid = await orgIdStrict();
+      const path = avatarPathFor(oid, currentUser.id, newUuid(), p.ext);
+      if (!path) throw photoErr("Your photo couldn't be saved — reload the page and try again.", "avatar_unavailable");
+      const up = await supa.storage.from(AVATAR_BUCKET).upload(path, p.blob, { contentType: p.type, upsert: false, cacheControl: "3600" });
+      if (up && up.error) { if (looksLikeAuthError(up.error)) onAuthFailure(); throw up.error; }
+      const saved = await rpc("set_my_avatar", { p_path: path });
+      try { avatarUrlCache.set(path, { url: URL.createObjectURL(p.blob), exp: Date.now() + 24 * 3600000 }); } catch (e) {}
+      return saved || path;
+    },
+    // remove my photo (the file stays in storage — "remove" only clears the link)
+    async removeAvatar() {
+      if (mode !== "supabase") throw photoErr("Sign in to change your photo.", "avatar_unavailable");
+      await rpc("set_my_avatar", { p_path: null });
+      return null;
+    },
+    // a short-lived signed URL for a photo path (null when it can't be shown)
+    async avatarUrl(path) {
+      if (mode !== "supabase" || !supa || !currentUser || !AVATAR_PATH_RE.test(String(path || ""))) return null;
+      const hit = avatarUrlCache.get(path);
+      if (hit && hit.pending) return hit.pending;
+      if (hit && hit.url && hit.exp > Date.now()) return hit.url;
+      // paths asked for in the same tick are signed in ONE request
+      if (!avatarSignQueue) {
+        const q = avatarSignQueue = { paths: [] };
+        q.done = new Promise((r) => setTimeout(r, 0)).then(async () => {
+          avatarSignQueue = null;
+          const st = supa.storage.from(AVATAR_BUCKET), out = {};
+          if (typeof st.createSignedUrls === "function") {
+            const { data, error } = await st.createSignedUrls(q.paths, AVATAR_URL_TTL);
+            if (!error) (data || []).forEach((r, k) => { const p = (r && r.path) || q.paths[k]; if (r && r.signedUrl && !r.error) out[p] = r.signedUrl; });
+          } else {
+            await Promise.all(q.paths.map(async (p) => { const { data, error } = await st.createSignedUrl(p, AVATAR_URL_TTL); if (!error && data && data.signedUrl) out[p] = data.signedUrl; }));
+          }
+          return out;
+        });
+      }
+      const q = avatarSignQueue;
+      if (q.paths.indexOf(path) < 0) q.paths.push(path);
+      const pending = q.done.then((out) => {
+        const url = out[path] || null;
+        if (url) avatarUrlCache.set(path, { url: url, exp: Date.now() + AVATAR_URL_REUSE }); else avatarUrlCache.delete(path);
+        return url;
+      }, () => { avatarUrlCache.delete(path); return null; });
+      avatarUrlCache.set(path, { pending: pending });
+      return pending;
+    },
+    // several at once → { path: url|null }
+    async avatarUrls(paths) {
+      const list = Array.from(new Set((paths || []).filter((p) => AVATAR_PATH_RE.test(String(p || "")))));
+      const out = {};
+      await Promise.all(list.map(async (p) => { out[p] = await profile.avatarUrl(p); }));
+      return out;
+    },
+    // "Complete your profile" banner snooze (7 days, this browser, per account)
+    nudgeSnoozed() {
+      if (!currentUser) return false;
+      try { const o = JSON.parse(localStorage.getItem(NUDGE_KEY) || "null"); return !!(o && o.uid === currentUser.id && Number(o.until) > Date.now()); }
+      catch (e) { return false; }
+    },
+    snoozeNudge(days) {
+      if (!currentUser) return;
+      const d = Number(days) > 0 ? Number(days) : 7;
+      try { localStorage.setItem(NUDGE_KEY, JSON.stringify({ uid: currentUser.id, until: Date.now() + d * 86400000 })); } catch (e) {}
     },
     // name yourself (set_my_display_name) → the saved, cleaned name
     async setMine(name) {
@@ -3266,6 +3707,11 @@
     },
     // display name for a roster row (name → e-mail before "@" → role)
     displayName: personDisplayName,
+    // member photos (0041): signed URL for an avatar_path / paint [data-avatar-path] avatars
+    avatarUrl: memberAvatarUrl,
+    paintAvatars: paintMemberAvatars,
+    // everyone in my studio by id (one chat_directory read per page)
+    directory: memberDirectory,
     // event-group avatar emoji from an event type / title (see chatEventEmoji)
     eventEmoji: chatEventEmoji,
     // Local-mode only: switch the acting identity (two tabs = two "users" for a live demo).
@@ -3278,7 +3724,7 @@
       if (mode !== "supabase") return CHAT_LOCAL_ROSTER.slice();
       if (!chatDirectoryMissing) {
         const { data, error } = await supa.rpc("chat_directory");
-        if (!error) return (data || []).map((p) => ({ id: p.id, full_name: p.full_name, email_name: p.email_name, role: p.role }));
+        if (!error) return (data || []).map(chatPerson);   // + avatar_path / job_title / department (0041)
         if (!rpcMissing(error)) throw error;
         chatDirectoryMissing = true;
       }
@@ -4875,6 +5321,177 @@
     },
   };
 
+  /* ---------------- member profiles (0041) — where profiles show up ----------------
+     Shared by Control Center → User control, the Staff directory, task pickers, chat and
+     the audit log. The DB decides who sees what (member_profile_list hides phone / city /
+     emergency contact from colleagues); nothing here assumes a field is present.
+     Client checks mirror 0041's SQL validators so mistakes show inline, before a round trip. */
+  const MEMBER_AVATAR_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(png|jpg|webp)$/;
+  const MEMBER_EMP_TYPES = ["full_time", "part_time", "on_call"];
+  let memberListMissing = false;   // member_profile_list not deployed (pre-0041) → plain profiles list
+  // Indian mobile → "+91XXXXXXXXXX" (accepts 98765 43210, 098765…, +91 98765…, 91 98765…), else null
+  function memberMobile(v) {
+    const s = String(v == null ? "" : v).trim(); if (!s || !/^\+?[0-9 ().-]{6,24}$/.test(s)) return null;
+    let d = s.replace(/\D/g, "");
+    if (d.length === 12 && d.slice(0, 2) === "91") d = d.slice(2); else if (d.length === 11 && d[0] === "0") d = d.slice(1);
+    return /^[6-9]\d{9}$/.test(d) ? "+91" + d : null;
+  }
+  // emergency contact: an Indian mobile, or an international number written with a leading +
+  function memberAnyPhone(v) {
+    const s = String(v == null ? "" : v).trim(); if (!s) return null;
+    const m = memberMobile(s); if (m) return m;
+    const d = s.replace(/\D/g, "");
+    return /^\+[0-9 ().-]{6,24}$/.test(s) && /^[1-9]\d{7,14}$/.test(d) ? "+" + d : null;
+  }
+  // same digits rule as the DB's helm_norm_phone (used to spot "the same number written differently")
+  function memberNormPhone(p) {
+    const d = String(p == null ? "" : p).replace(/\D/g, "");
+    if (/^\d{10}$/.test(d)) return "91" + d;
+    if (/^0\d{10}$/.test(d)) return "91" + d.slice(1);
+    if (/^00\d{8,15}$/.test(d)) return d.slice(2);
+    return d;
+  }
+  // a short text field: trimmed, spaces collapsed, <= max, no < >, no control characters → problem or null
+  function memberTextProblem(v, label, max) {
+    const s = String(v == null ? "" : v).replace(/\s+/g, " ").trim(); if (!s) return null;
+    if ([...s].length > max) return label + " must be " + max + " characters or fewer.";
+    if (/[<>]/.test(s)) return label + " can't contain < or >.";
+    if (/[\u0000-\u001f\u007f-\u009f]/.test(s)) return label + " can't contain control characters.";
+    return null;
+  }
+  const memberClean = (v) => { const s = String(v == null ? "" : v).replace(/\s+/g, " ").trim(); return s || null; };
+  // skills: array (or "a, b") → deduped (case-insensitive) list of trimmed tags
+  function memberSkills(v) {
+    const a = Array.isArray(v) ? v : String(v == null ? "" : v).split(","); const out = [];
+    a.forEach((x) => { const s = memberClean(x); if (s && !out.some((o) => o.toLowerCase() === s.toLowerCase())) out.push(s); });
+    return out;
+  }
+  // Validate a profile form (the keys present only). → { field: message } ({} = all good)
+  function memberProfileProblems(f) {
+    f = f || {}; const bad = {}; const has = (k) => Object.prototype.hasOwnProperty.call(f, k);
+    if (has("full_name")) { const p = displayNameProblem(f.full_name); if (p) bad.full_name = p.replace(/^A display name/, "Full name"); }
+    if (has("phone")) { if (!String(f.phone == null ? "" : f.phone).trim()) bad.phone = "Mobile number is required.";
+      else if (!memberMobile(f.phone)) bad.phone = "Enter a 10-digit Indian mobile number starting with 6, 7, 8 or 9."; }
+    if (has("whatsapp") && f.whatsapp_same === false && String(f.whatsapp == null ? "" : f.whatsapp).trim() && !memberMobile(f.whatsapp))
+      bad.whatsapp = "Enter a 10-digit Indian mobile number starting with 6, 7, 8 or 9.";
+    [["job_title", "Job title"], ["department", "Department"], ["city", "City"], ["emergency_contact_name", "Emergency contact name"]]
+      .forEach(([k, label]) => { if (has(k)) { const p = memberTextProblem(f[k], label, 80); if (p) bad[k] = p; } });
+    if (has("emergency_contact_phone") && String(f.emergency_contact_phone == null ? "" : f.emergency_contact_phone).trim() && !memberAnyPhone(f.emergency_contact_phone))
+      bad.emergency_contact_phone = "Enter a 10-digit Indian mobile, or an international number starting with +.";
+    if (has("skills")) { const sk = memberSkills(f.skills);
+      if (sk.length > 20) bad.skills = "Add up to 20 skills.";
+      else { const b = sk.map((s) => memberTextProblem(s, "A skill", 40)).find(Boolean); if (b) bad.skills = b; } }
+    if (has("day_rate") && f.day_rate !== null && String(f.day_rate).trim() !== "") {
+      const n = Number(f.day_rate);
+      if (!/^\d+(\.\d{1,2})?$/.test(String(f.day_rate).trim()) || !Number.isFinite(n) || n < 0 || n > 10000000)
+        bad.day_rate = "Day rate must be between 0 and 1,00,00,000 (up to 2 decimals).";
+    }
+    if (has("emp_type") && f.emp_type && MEMBER_EMP_TYPES.indexOf(f.emp_type) < 0) bad.emp_type = "Employment type must be full-time, part-time or on-call.";
+    return bad;
+  }
+  // The admin edit: only the fields that CHANGED from the loaded row, normalised the way the
+  // DB stores them (so nothing unchanged is re-sent, re-audited or re-synced to the staff row).
+  function memberProfilePatch(orig, form) {
+    orig = orig || {}; form = form || {}; const out = {}; const has = (k) => Object.prototype.hasOwnProperty.call(form, k);
+    const same = (a, b) => (a == null ? null : a) === (b == null ? null : b);
+    if (has("full_name")) { const v = cleanDisplayName(form.full_name); if (!same(v || null, memberClean(orig.full_name))) out.full_name = v; }
+    if (has("phone")) { const v = memberMobile(form.phone) || memberClean(form.phone); if (!same(v, orig.phone)) out.phone = v; }
+    if (has("whatsapp_same")) { const ws = form.whatsapp_same !== false;
+      if (ws !== (orig.whatsapp_same !== false)) out.whatsapp_same = ws;
+      if (!ws && has("whatsapp")) { const v = memberMobile(form.whatsapp) || memberClean(form.whatsapp); if (!same(v, orig.whatsapp)) out.whatsapp = v; } }
+    ["job_title", "department", "city", "emergency_contact_name"].forEach((k) => { if (has(k)) { const v = memberClean(form[k]); if (!same(v, memberClean(orig[k]))) out[k] = v; } });
+    if (has("emergency_contact_phone")) { const v = memberAnyPhone(form.emergency_contact_phone) || memberClean(form.emergency_contact_phone);
+      if (!same(v, orig.emergency_contact_phone)) out.emergency_contact_phone = v; }
+    if (has("skills")) { const v = memberSkills(form.skills), o = memberSkills(orig.skills || []);
+      if (v.length !== o.length || v.some((s, i) => s !== o[i])) out.skills = v; }
+    if (has("day_rate")) { const raw = form.day_rate; const v = raw === null || String(raw).trim() === "" ? null : Math.round(Number(raw) * 100) / 100;
+      const o = orig.day_rate == null ? null : Number(orig.day_rate); if (v !== o) out.day_rate = v; }
+    if (has("emp_type")) { const v = form.emp_type || null; if (!same(v, orig.emp_type || null)) out.emp_type = v; }
+    return out;
+  }
+  // a DB business message from 0041 (validation / duplicate number / linked staff row) that is
+  // safe to show as-is → that text; anything else → null (the caller uses BPUI.friendlyError)
+  function memberErrorText(e) {
+    const c = (e && e.code) || "", m = String((e && e.message) || "").trim();
+    if (!m || m.length > 300 || /violates|constraint|duplicate key|column|relation|syntax|PGRST|SQLSTATE/i.test(m)) return null;
+    if (c === "22023" || c === "23505") return m;
+    if (c === "42501" && /linked to (a Helm|an) account|Only a studio admin/i.test(m)) return m;
+    return null;
+  }
+  // chat_directory row → roster person (0041 adds photo / job title / department)
+  const chatPerson = (p) => ({ id: p.id, full_name: p.full_name, email_name: p.email_name, role: p.role,
+    avatar_path: p.avatar_path || null, job_title: p.job_title || null, department: p.department || null });
+
+  // ---- photos: lazy, batched, short-lived signed URLs, cached for this browser session ----
+  // Only our own bucket keys (<studio>/<user>/<uuid>.<ext>) are ever signed — anything else
+  // (an outside URL, a data: URI, ../) never loads. Uses BPStore.profile.avatarUrl when the
+  // profile module provides one; otherwise the local signer below (one batched call).
+  const AV_TTL = 3600, AV_SS = "helm_member_av";
+  let avMem = null, avQueue = null;
+  function avCache() {
+    if (avMem) return avMem; avMem = {};
+    try { const o = JSON.parse(sessionStorage.getItem(AV_SS) || "{}"); Object.keys(o).forEach((k) => { if (o[k] && o[k].exp > Date.now() && MEMBER_AVATAR_KEY.test(k)) avMem[k] = o[k]; }); } catch (e) {}
+    return avMem;
+  }
+  function avSave() { try { sessionStorage.setItem(AV_SS, JSON.stringify(avMem || {})); } catch (e) {} }
+  async function avSignBatch(paths) {
+    const { data, error } = await supa.storage.from("member-avatars").createSignedUrls(paths, AV_TTL);
+    if (error) throw error;
+    const c = avCache(), exp = Date.now() + (AV_TTL - 300) * 1000;
+    (data || []).forEach((r, k) => { const p = (r && r.path) || paths[k]; if (r && r.signedUrl && !r.error && paths.indexOf(p) >= 0) c[p] = { url: r.signedUrl, exp }; });
+    avSave();
+  }
+  async function memberAvatarUrl(path) {
+    path = String(path == null ? "" : path);
+    if (!path || !MEMBER_AVATAR_KEY.test(path) || mode !== "supabase" || !supa) return null;
+    const ext = profile.avatarUrl;
+    if (typeof ext === "function" && ext !== memberAvatarUrl) { try { const u = await ext(path); return u || null; } catch (e) { return null; } }
+    const hit = avCache()[path]; if (hit && hit.exp > Date.now()) return hit.url;
+    if (!avQueue) {
+      avQueue = { paths: [], done: null };
+      avQueue.done = new Promise((res) => setTimeout(res, 0)).then(() => { const q = avQueue; avQueue = null; return avSignBatch(q.paths.slice(0, 100)); });
+    }
+    if (avQueue.paths.indexOf(path) < 0) avQueue.paths.push(path);
+    try { await avQueue.done; } catch (e) { return null; }
+    const got = avCache()[path]; return got ? got.url : null;
+  }
+  // Fill every <… data-avatar-path="…"> under root with the member's photo (initials stay
+  // underneath as the fallback, and come back if the photo fails). Off-screen ones wait until
+  // they scroll into view. → Promise (settles when the visible ones are done).
+  let avIO = null;
+  function avPaintOne(el) {
+    const p = el.getAttribute("data-avatar-path"); el.setAttribute("data-av-done", "1");
+    if (!p || !MEMBER_AVATAR_KEY.test(p)) return Promise.resolve(false);
+    return memberAvatarUrl(p).then((url) => {
+      if (!url || el.isConnected === false) return false;
+      const img = document.createElement("img");
+      img.alt = ""; img.setAttribute("aria-hidden", "true"); img.decoding = "async"; img.loading = "lazy"; img.referrerPolicy = "no-referrer";
+      img.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:inherit";
+      img.onerror = () => { try { img.remove(); } catch (e) {} };
+      try { const cs = el.style; if (!cs.position) cs.position = "relative"; cs.overflow = "hidden"; } catch (e) {}
+      img.src = url; el.appendChild(img); return true;
+    }).catch(() => false);
+  }
+  function paintMemberAvatars(root) {
+    const host = root || (typeof document !== "undefined" ? document : null); if (!host || !host.querySelectorAll) return Promise.resolve([]);
+    const els = Array.prototype.slice.call(host.querySelectorAll("[data-avatar-path]:not([data-av-done])"));
+    if (!els.length) return Promise.resolve([]);
+    if (typeof global.IntersectionObserver === "function") {
+      if (!avIO) avIO = new global.IntersectionObserver((ents) => ents.forEach((en) => { if (en.isIntersecting) { avIO.unobserve(en.target); avPaintOne(en.target); } }), { rootMargin: "200px" });
+      els.forEach((el) => { el.setAttribute("data-av-done", "0"); avIO.observe(el); });
+      return Promise.resolve([]);
+    }
+    return Promise.all(els.map(avPaintOne));
+  }
+  // Everyone in my studio by id (chat_directory) — photos / job titles for the Staff directory
+  // and task pickers (crew_members.profile_id → this). One read per page; {} if unavailable.
+  let memberDirPromise = null;
+  function memberDirectory() {
+    if (!memberDirPromise) memberDirPromise = chat.roster().then((rows) => { const by = {}; (rows || []).forEach((p) => { if (p && p.id) by[p.id] = p; }); return by; })
+      .catch(() => { memberDirPromise = null; return {}; });
+    return memberDirPromise;
+  }
+
   /* ---------------- audit log (Phase 47) ---------------- */
   const audit = {
     async list(opts) { opts = opts || {}; if (!supa) throw new Error("Supabase not configured");
@@ -4893,7 +5510,11 @@
       if (o.entity) q = q.eq("entity", o.entity);
       if (o.quoteId) q = q.eq("quote_id", o.quoteId);
       if (o.actor) q = q.eq("actor", o.actor);
-      const s = orIlike(["actor_email", "action", "entity", "changed->>code", "changed->>title", "changed->>name", "changed->>status"], o.search); if (s) q = q.or(s);
+      let s = orIlike(["actor_email", "action", "entity", "changed->>code", "changed->>title", "changed->>name", "changed->>status"], o.search);
+      // + people whose display NAME matches the search (ids from actorNames(); uuids only)
+      const ids = (Array.isArray(o.actorIds) ? o.actorIds : []).filter((x) => /^[0-9a-f-]{36}$/i.test(String(x))).slice(0, 50);
+      if (s && ids.length) s += ",actor.in.(" + ids.join(",") + ")";
+      if (s) q = q.or(s);
       if (o.after && o.after.at) { const t = pgQuote(o.after.at); q = q.or("at.lt." + t + (o.after.id ? ",and(at.eq." + t + ",id.lt." + pgQuote(o.after.id) + ")" : "")); }
       const { data, error } = await q.order("at", { ascending: false }).order("id", { ascending: false }).limit(limit + 1);
       if (error) throw error;
@@ -4902,7 +5523,22 @@
     // Areas for the filter: every audited table, plus any other area seen in the recent
     // log (was: the WHOLE log's entity column, every row, on every visit).
     AREAS: ["app_config", "chair_types", "change_requests", "coupons", "crew_members", "event_costs", "expense_claims", "inventory_checkouts",
-      "inventory_items", "payment_milestones", "plate_types", "profiles", "quote_payments", "quotes", "role_access", "vendors"],
+      "inventory_items", "member_profiles", "payment_milestones", "plate_types", "profiles", "quote_payments", "quotes", "role_access", "vendors"],
+    // Who is who in my studio (audit_actor_names, 0041) → { <user id>: { full_name, email } }.
+    // Before 0041 (or no access) → {} and the log keeps showing e-mails.
+    async actorNames() { if (!supa) return {};
+      const { data, error } = await supa.rpc("audit_actor_names");
+      if (error) { if (rpcMissing(error) || (error.code || "") === "42501") return {}; throw error; }
+      const by = {}; (data || []).forEach((r) => { if (r && r.id) by[r.id] = { full_name: r.full_name || null, email: r.email || null }; }); return by; },
+    // How a row's actor is shown: the display name (e-mail on hover), else the e-mail, else "system".
+    actorLabel(row, names) { row = row || {}; const p = (names && row.actor && names[row.actor]) || null;
+      const nm = p && String(p.full_name || "").replace(/\s+/g, " ").trim();
+      const email = row.actor_email || (p && p.email) || "";
+      if (nm) return { text: nm, title: email || nm };
+      return { text: email || "system", title: email || "" }; },
+    // ids of the people whose display name contains the search (for page({actorIds}))
+    actorIdsMatching(names, term) { const t = String(term == null ? "" : term).trim().toLowerCase(); if (!t || !names) return [];
+      return Object.keys(names).filter((id) => String((names[id] && names[id].full_name) || "").toLowerCase().indexOf(t) >= 0); },
     async entities() { if (!supa) throw new Error("Supabase not configured");
       const { data, error } = await supa.from("audit_log").select("entity").order("at", { ascending: false }).limit(1000); if (error) throw error;
       return [...new Set(this.AREAS.concat((data || []).map((x) => x.entity).filter(Boolean)))].sort(); },

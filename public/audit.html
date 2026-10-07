@@ -109,11 +109,11 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=107"></script>
+<script src="store-api.js?v=108"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-  let all=[];
+  let all=[], names={};   // names: audit_actor_names() (0041) → {id:{full_name,email}}; {} before 0041
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
@@ -126,10 +126,21 @@
   const areaLabel=(e)=>({role_access:"Access matrix",app_config:"Pricing config",plate_types:"Plate types",chair_types:"Chair types",
     quote_payments:"Payments",event_costs:"Budget/costs",inventory_items:"Inventory",inventory_checkouts:"Equipment check-in/out",
     change_requests:"Change orders",expense_claims:"Expense claims",payment_milestones:"Payment milestones",
-    crew_members:"Crew",vendors:"Vendors",coupons:"Coupons",profiles:"Users/roles",quotes:"Event/quote"}[e]||e);
+    crew_members:"Crew",vendors:"Vendors",coupons:"Coupons",profiles:"Users/roles",quotes:"Event/quote",member_profiles:"Member profiles"}[e]||e);
 
   function renderChange(r){
     const c=r.changed||{};
+    // member profile changes (0041): {field:{old,new}} — numbers arrive masked; the emergency
+    // number arrives only as {changed:true}
+    if(/^profile\./.test(String(r.action||""))){
+      const keys=Object.keys(c).filter(k=>k!=="by"); const by=c.by==="admin"?' <span class="muted">(by an admin)</span>':"";
+      const html=keys.slice(0,5).map(k=>{ const v=c[k]; if(v&&typeof v==="object"&&!Array.isArray(v)){
+          if("changed" in v) return `<div><span class="k">${esc(k)}</span>: <span class="n">${v.set?"changed":"removed"}</span></div>`;
+          if("old" in v||"new" in v) return `<div><span class="k">${esc(k)}</span>: <span class="o">${esc(short(v.old))}</span> → <span class="n">${esc(short(v.new))}</span></div>`; }
+        return `<div><span class="k">${esc(k)}</span> ${esc(short(v))}</div>`; }).join("");
+      const more=keys.length>5?`<div class="muted">+${keys.length-5} more</div>`:"";
+      return (html+more||'<span class="muted">—</span>')+by;
+    }
     if(r.action==='update'){
       const keys=Object.keys(c).slice(0,5);
       const html=keys.map(k=>{ const pair=c[k]; const o=Array.isArray(pair)?pair[0]:null, n=Array.isArray(pair)?pair[1]:pair;
@@ -153,7 +164,7 @@
     $("#empty").hidden = list.length>0;
     $("#rows").innerHTML=list.map(r=>`<tr>
       <td class="when">${esc(fmt(r.at))}</td>
-      <td class="who">${esc(r.actor_email||"system")}</td>
+      ${whoCell(r)}
       <td><span class="act ${esc(r.action)}">${esc(r.action)}</span></td>
       <td><span class="ent">${esc(areaLabel(r.entity))}</span></td>
       <td class="chg">${renderChange(r)}</td>
@@ -161,11 +172,14 @@
     </tr>`).join("");
   }
 
+  // actor: display name (e-mail on hover), else e-mail, else "system"
+  function whoCell(r){ const l=BPStore.audit.actorLabel(r,names); return `<td class="who"${l.title?` title="${esc(l.title)}"`:""}>${esc(l.text)}</td>`; }
   let pager=null;
   async function loadData(){
     $("#empty").hidden=true;
     if(!pager) pager=BPUI.pager({ after: $("#rows").closest(".table-scroll"), what:"audit entries",
-      fetch:(after)=>BPStore.audit.page({ entity: $("#fEntity").value||undefined, search: $("#fSearch").value.trim(), after: after||null, limit:50 }),
+      fetch:(after)=>BPStore.audit.page({ entity: $("#fEntity").value||undefined, search: $("#fSearch").value.trim(), after: after||null, limit:50,
+        actorIds: BPStore.audit.actorIdsMatching(names, $("#fSearch").value) }),
       render:(rows,info)=>{ all=info.all; draw(); } });
     try{ await pager.reset(); }
     catch(e){ all=[]; BPUI.loadError($("#rows"), e, loadData, {what:"the audit log"}); return; }
@@ -177,9 +191,11 @@
     const ok = (await BPStore.auth.role())==='admin' || await BPStore.auth.canView("controls");
     if(!ok){ $("#noaccess").hidden=false; return; }
     $("#app").hidden=false;
+    const namesP=BPStore.audit.actorNames().catch(()=>({}));   // in parallel with the area list
     // populate the area filter
     try{ const ents=await BPStore.audit.entities();
       $("#fEntity").innerHTML=`<option value="">All areas</option>`+ents.map(e=>`<option value="${esc(e)}">${esc(areaLabel(e))}</option>`).join(""); }catch{}
+    names=(await namesP)||{};
     await loadData();
   }
   $("#refresh").addEventListener("click",e=>BPUI.guard(e.currentTarget,loadData));

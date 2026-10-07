@@ -363,7 +363,7 @@
 <link rel="stylesheet" href="theme.css?v=73">
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=107"></script>
+<script src="store-api.js?v=108"></script>
 <script>
 (function(){
   const $=(s,r)=>(r||document).querySelector(s);
@@ -413,6 +413,13 @@
   const evTypeCache={};  /* quote id → {event_type,title}: one quotes read per refresh, only for groups not seen yet */
   function convAvatar(c){ if(c.kind==="broadcast") return {bg:"var(--accent)",txt:"📢"}; if(c.kind==="group") return {bg:colorFor(c.id),txt:c.quote_id?evEmoji(c._evType,c._evTitle||c.title):"👥"}; const o=convOther(c); return {bg:colorFor(o),txt:initials(personName(o))}; }
   function avHtml(a,id){ return `<div class="av"${id?' id="'+id+'"':''} style="background:${a.bg}">${esc(a.txt)}</div>`; }
+  /* member photos (0041): chat_directory's avatar_path → a lazily signed photo over the initials
+     (initials stay underneath as the fallback). The path is escaped here and checked again
+     (own bucket keys only) before anything is signed — see BPStore.chat.paintAvatars. */
+  function photoOf(id){ const p=roster[id]; return (p&&p.avatar_path)||""; }
+  function photoAttr(id){ const p=photoOf(id); return p?` data-avatar-path="${esc(p)}"`:""; }
+  function personAv(id,style){ return `<div class="av" style="background:${colorFor(id)};${style||""}"${photoAttr(id)}>${esc(initials(personName(id)))}</div>`; }
+  function paintAv(root){ try{ if(BPStore.chat.paintAvatars) BPStore.chat.paintAvatars(root); }catch(e){} }
 
   function closeMenus(){ document.querySelectorAll(".menu,.rxpop").forEach(m=>m.remove()); document.querySelectorAll(".m.menu-open").forEach(m=>m.classList.remove("menu-open")); }
   document.addEventListener("click",(e)=>{ if(!e.target.closest(".menu")&&!e.target.closest(".rxpop")&&!e.target.closest("[data-menu-anchor]")&&!e.target.closest(".caret")) closeMenus(); });
@@ -506,10 +513,11 @@
     if(!list.length){ host.innerHTML=`<div class="emptylist">${!backendReady?"Chat isn’t set up on this workspace yet. An admin needs to finish chat setup — once that’s done, your team chats appear here.":q?"No chats found.":filter!=="all"?"Nothing here yet.":"No chats yet. Tap ＋ to start one."}</div>`; return; }
     host.innerHTML=list.map(c=>{ const a=convAvatar(c); const t=c._last?c._last.created_at:c.last_message_at;
       return `<div class="conv ${c.id===activeId?'on':''}" data-id="${esc(c.id)}" role="button" tabindex="0">
-        ${avHtml(a)}
+        ${c.kind==="dm"?personAv(convOther(c)):avHtml(a)}
         <div class="meta"><div class="r1"><span class="nm">${esc(convTitle(c))}</span><span class="tm ${c._unread?'hilite':''}">${esc(fmtListTime(t))}</span></div>
           <div class="r2"><span class="pv">${lastPreview(c)}</span><span class="marks" style="display:inline-flex;gap:3px;align-items:center;color:var(--ink-3);font-size:12px">${mutes.has(c.id)?'🔕':''}${pins.has(c.id)?'📌':''}${favs.has(c.id)&&!c._unread?'★':''}${c._unread?`<span class="unread">${c._unread>99?'99+':c._unread}</span>`:''}</span></div></div>
       </div>`; }).join("");
+    paintAv(host);
     host.querySelectorAll(".conv").forEach(el=>{ const go=()=>openConv(el.dataset.id);
       el.addEventListener("click",go); el.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); go(); } }); });
   }
@@ -543,6 +551,7 @@
     const c=convs.find(x=>x.id===id); if(!c) return;
     $("#thead").hidden=false; $("#composer").hidden=false; const w=$("#welcome"); if(w) w.hidden=true;
     const a=convAvatar(c); const av=$("#tAv"); av.style.background=a.bg; av.textContent=a.txt;
+    { const ph=c.kind==="dm"?photoOf(convOther(c)):""; av.removeAttribute("data-av-done"); if(ph) av.setAttribute("data-avatar-path",ph); else av.removeAttribute("data-avatar-path"); paintAv($("#thead")); }
     $("#tName").textContent=convTitle(c);
     renderConvs(); await loadThread(); try{ await BPStore.chat.markRead(id); }catch(e){} bumpBell();
     setTimeout(()=>{ const c2=convs.find(x=>x.id===id); if(c2){ c2._unread=0; renderConvs(); } },300);
@@ -567,7 +576,7 @@
     renderPinBar(c);
     if(c){ if(c.kind==="group") $("#tSub").textContent=(c.quote_id?"Event group · ":"")+((thread.members||[]).map(m=>m.user_id===ME.id?"You":personName(m.user_id).split(" ")[0]).join(", ")||"group");
       else if(c.kind==="broadcast") $("#tSub").textContent="Everyone in your team";
-      else { const o=convOther(c); $("#tSub").textContent=(roster[o]&&roleLbl(roster[o].role))||""; } }
+      else { const o=convOther(c), p=roster[o]; $("#tSub").textContent=(p&&p.job_title)||(p&&roleLbl(p.role))||""; } }
     renderMessages();
   }
   /* event group: keep the latest event card pinned above the thread */
@@ -637,7 +646,7 @@
       if(m.deleted){ html+=`<div class="m ${mine?'me':'them'} ${grpStart?'grpstart':''}"><div class="bub" style="opacity:.65;font-style:italic"><span class="txt">🚫 This message was deleted</span><span class="meta-in">${fmtTime(m.created_at)}</span></div></div>`; return; }
       const by=reactsFor(m.id); const rx=Object.keys(by).map(e=>`<span class="rx ${by[e].indexOf(ME.id)>=0?'on':''}" data-react="${esc(m.id)}" data-emoji="${esc(e)}">${esc(e)} ${by[e].length}</span>`).join("");
       let inner="";
-      if(isGroup&&!mine&&grpStart) inner+=`<div class="who" style="color:${colorFor(m.sender_id)}">${esc(personName(m.sender_id))}</div>`;
+      if(isGroup&&!mine&&grpStart) inner+=`<div class="who" style="color:${colorFor(m.sender_id)}">${personAv(m.sender_id,"width:20px;height:20px;font-size:9px;display:inline-flex;vertical-align:-5px;margin-right:6px")}${esc(personName(m.sender_id))}</div>`;
       if(m.reply_to){ const rm=msgs.find(x=>x.id===m.reply_to); if(rm){ const rsnip=rm.kind==="image"?"📷 Photo":rm.kind==="voice"?"🎤 Voice message":rm.kind==="card"?cardLabel(rm):(rm.body||""); inner+=`<div class="reply" data-goto="${esc(rm.id)}"><b>${esc(rm.sender_id===ME.id?"You":personName(rm.sender_id))}</b><span class="rt">${esc(rsnip)}</span></div>`; } }
       if(m.kind==="image"){ inner+=`<img class="photo" data-media="${esc(m.media_path||"")}" alt="Photo" loading="lazy">`; if(m.body) inner+=`<div class="cap txt">${esc(m.body)}</div>`; }
       else if(m.kind==="voice"){ inner+=`<audio controls preload="none" data-media="${esc(m.media_path||"")}"></audio>`; }
@@ -650,7 +659,7 @@
         <div class="bub">${inner}<div class="mtools"><button class="caret" data-caret="${esc(m.id)}" aria-label="Message menu">⌄</button></div></div>
         ${rx?`<div class="reacts">${rx}</div>`:""}</div>`;
     });
-    host.innerHTML=html;
+    host.innerHTML=html; paintAv(host);
     host.querySelectorAll(".rx[data-react]").forEach(el=>el.addEventListener("click",()=>toggleReact(el.dataset.react,el.dataset.emoji,!el.classList.contains("on"))));
     host.querySelectorAll(".caret[data-caret]").forEach(el=>el.addEventListener("click",(e)=>{ e.stopPropagation(); msgMenu(el,el.dataset.caret); }));
     host.querySelectorAll(".reply[data-goto]").forEach(el=>el.addEventListener("click",()=>{ const t=host.querySelector('.m[data-mid="'+el.dataset.goto+'"]'); if(t){ t.scrollIntoView({block:"center"}); t.style.transition="background .3s"; t.style.background="var(--accent-soft)"; setTimeout(()=>t.style.background="",700); } }));
@@ -811,7 +820,7 @@
     return [...new Set(ids)].filter(id=>id&&id!==ME.id&&roster[id]).map(id=>({id,name:personName(id)})).sort((a,b)=>a.name.localeCompare(b.name)); }
   function mpClose(){ mp.open=false; mp.items=[]; const el=$("#mentionPop"); if(el){ el.hidden=true; el.innerHTML=""; } }
   function mpRender(){ const el=$("#mentionPop");
-    el.innerHTML=mp.items.map((p,i)=>`<button type="button" role="option" aria-selected="${i===mp.idx}" class="${i===mp.idx?'on':''}" data-i="${i}"><span class="av" style="background:${colorFor(p.id)}">${esc(initials(p.name))}</span>${esc(p.name)}</button>`).join("");
+    el.innerHTML=mp.items.map((p,i)=>`<button type="button" role="option" aria-selected="${i===mp.idx}" class="${i===mp.idx?'on':''}" data-i="${i}"><span class="av" style="background:${colorFor(p.id)}"${photoAttr(p.id)}>${esc(initials(p.name))}</span>${esc(p.name)}</button>`).join(""); paintAv(el);
     el.hidden=false; mp.open=true;
     el.querySelectorAll("button[data-i]").forEach(b=>b.addEventListener("mousedown",e=>{ e.preventDefault(); mpPick(+b.dataset.i); })); }
   function mpUpdate(){ const ta=$("#msgInput"); if(!activeId||!ta) return mpClose(); const pos=ta.selectionStart; const before=ta.value.slice(0,pos);
@@ -918,20 +927,20 @@
   /* ---------- modals ---------- */
   function closeModal(){ const m=$("#modalOv"); if(m) m.remove(); }
   function others(){ return (BPStore.chat.isLocal()?BPStore.chat.localRoster():Object.values(roster)).filter(p=>p.id!==ME.id); }
-  function prowAvatar(p){ return `<div class="av" style="width:40px;height:40px;font-size:14px;background:${colorFor(p.id)}">${esc(initials(pname(p)))}</div>`; }
+  function prowAvatar(p){ return `<div class="av" style="width:40px;height:40px;font-size:14px;background:${colorFor(p.id)}"${p.avatar_path?` data-avatar-path="${esc(p.avatar_path)}"`:""}>${esc(initials(pname(p)))}</div>`; }
   function newDmModal(){ const people=others(); const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
     ov.innerHTML=`<div class="modal"><h3>New chat</h3><div class="body">${people.map(p=>`<div class="prow" data-id="${esc(p.id)}">${prowAvatar(p)}<div class="nm">${esc(pname(p))}</div><span class="rl">${esc(roleLbl(p.role))}</span></div>`).join("")||'<div style="padding:16px;color:var(--ink-3)">No teammates in your organization yet.</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button></div></div>`;
-    document.body.appendChild(ov); ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
+    document.body.appendChild(ov); paintAv(ov); ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
     ov.querySelectorAll(".prow").forEach(r=>r.addEventListener("click",async()=>{ closeModal(); try{ const id=await BPStore.chat.startDm(r.dataset.id); await refresh(); await openConv(id); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"start the chat"}),{type:"err"}); } })); }
   function newGroupModal(){ const people=others(); const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
     ov.innerHTML=`<div class="modal"><h3>New group</h3><input class="gname" id="gName" placeholder="Group name" aria-label="Group name"><div class="body">${people.map(p=>`<label class="prow">${prowAvatar(p)}<div class="nm">${esc(pname(p))}</div><input type="checkbox" value="${esc(p.id)}"></label>`).join("")||'<div style="padding:16px;color:var(--ink-3)">No teammates to add yet.</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="gCreate">Create</button></div></div>`;
-    document.body.appendChild(ov); ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
+    document.body.appendChild(ov); paintAv(ov); ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
     $("#gCreate").addEventListener("click",async()=>{ const name=$("#gName").value.trim(); if(!name){ $("#gName").focus(); return; } const ids=[...ov.querySelectorAll("input[type=checkbox]:checked")].map(c=>c.value);
       closeModal(); try{ const id=await BPStore.chat.createGroup(name,ids); await refresh(); await openConv(id); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"create the group"}),{type:"err"}); } }); }
   function addMembersModal(){ const c=convs.find(x=>x.id===activeId); if(!c) return; const inIds=(thread.members||[]).map(m=>m.user_id);
     const people=others().filter(p=>inIds.indexOf(p.id)<0); const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
     ov.innerHTML=`<div class="modal"><h3>Add members</h3><div class="body">${people.map(p=>`<label class="prow">${prowAvatar(p)}<div class="nm">${esc(pname(p))}</div><input type="checkbox" value="${esc(p.id)}"></label>`).join("")||'<div style="padding:16px;color:var(--ink-3)">Everyone is already in this group.</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="aAdd">Add</button></div></div>`;
-    document.body.appendChild(ov); ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
+    document.body.appendChild(ov); paintAv(ov); ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
     $("#aAdd").addEventListener("click",async()=>{ const ids=[...ov.querySelectorAll("input[type=checkbox]:checked")].map(c=>c.value); closeModal(); if(!ids.length) return;
       try{ await BPStore.chat.addMembers(activeId,ids); await loadThread(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"add members"}),{type:"err"}); } }); }
 

@@ -38,7 +38,10 @@ auth_deny(n) as (values
   ('_admin_create_user_core'),('_flag'),('_hq_gate'),('_hq_num'),('_hq_studio_rows'),('_notify'),
   ('_password_ok'),('_work_token_live'),('admin_store_otp'),('create_helm_user'),('helm_total_paid'),
   ('messaging_rate_hit'),('otp_send_authorize'),('payment_link_attach'),('payment_link_begin'),
-  ('payment_link_fail'),('razorpay_settle')),
+  ('payment_link_fail'),('razorpay_settle'),
+  -- 0041 member profile internals (definer helpers; only the app RPCs below are callable)
+  ('_mp_text'),('_mp_mobile'),('_mp_any_phone'),('_mp_skills'),('_mp_mask'),('_mp_pw_pending'),
+  ('_mp_is_operator'),('_mp_row_json'),('_mp_sync_staff'),('_mp_apply')),
 canonical(n) as (select unnest(array[
     '_admin_create_user_core', '_flag', '_hq_gate', '_hq_num', '_hq_studio_rows', '_next_occasion',
     '_notify', '_notify__base', '_password_ok', '_valid_role', '_work_token_live', 'accept_invitation', 'add_event_dish',
@@ -74,7 +77,13 @@ canonical(n) as (select unnest(array[
     'try_date', 'user_role', 'verify_and_consent', 'verify_and_consent__base', 'verify_task',
     'whatsapp_authorize', 'work_token_expiry_for', 'worker_checkin_equipment', 'worker_get_equipment',
     'worker_get_tasks', 'worker_respond',
-    'worker_evidence_upload', 'worker_respond_evidence', 'task_proof_upload_ok'
+    'worker_evidence_upload', 'worker_respond_evidence', 'task_proof_upload_ok',
+    -- 0041 member profile (signed-in app RPCs + the storage policy helper)
+    'chat_directory', 'my_profile', 'my_profile_status', 'update_my_profile', 'complete_my_profile',
+    'admin_update_member_profile', 'member_profile_list', 'set_my_avatar', 'audit_actor_names',
+    'member_avatar_upload_ok',
+    '_mp_text', '_mp_mobile', '_mp_any_phone', '_mp_skills', '_mp_mask', '_mp_pw_pending',
+    '_mp_is_operator', '_mp_row_json', '_mp_sync_staff', '_mp_apply', 'chat_directory__base'
   ]::text[])),
 fns as (
   select p.oid, p.oid::regprocedure::text as sig, p.proname as n,

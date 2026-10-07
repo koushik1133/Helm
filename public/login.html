@@ -211,8 +211,8 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=107"></script>
-<script src="auth-ui.js?v=6"></script>
+<script src="store-api.js?v=108"></script>
+<script src="auth-ui.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const PENDING="bp_pending_studio";
@@ -258,6 +258,8 @@
   async function routeSignedIn(){
     let oid=null, known=false;
     try{ oid=await BPStore.org.resolveId(); known=true; }catch(e){}
+    // a NEW studio member completes their profile first (0041; no-op when it isn't installed)
+    if(oid && BPStore.profile.routeIfRequired && await BPStore.profile.routeIfRequired(nextUrl())) return;
     if(oid || !known){ location.replace(nextUrl()); return; }   // unknown: the page gate re-checks
     if(!(await operatorTwoStep())) return;          // operators: two-step code (or set-up) first, no skip
     if(await BPStore.auth.operatorToHq()) return;   // Helm platform operator → HQ (replace)

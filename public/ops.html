@@ -44,6 +44,11 @@
   @media(max-width:640px){.crewrow{grid-template-columns:1fr 1fr}}
   .chip{display:inline-flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-size:12px;margin:0 6px 6px 0}
   .chip .dep{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--ink-3)}
+  /* staff photos (0041: linked members carry their profile photo) */
+  .cav{width:22px;height:22px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-size:9.5px;font-weight:700;position:relative;overflow:hidden}
+  .chip .cav{margin-left:-6px}
+  .chip .lk{font-size:11px} .crewwho{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2);min-height:32px}
+  .crewwho:empty{display:none} .crewwho .cav{width:28px;height:28px;font-size:11px}
   .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
   .tabs button{border:1px solid var(--line);background:var(--panel-2);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;color:var(--ink-2);padding:7px 12px;cursor:pointer}
   .tabs button.on{background:var(--accent);color:#fff;border-color:transparent}
@@ -138,6 +143,7 @@
           <option value="outsourced">🤝 Outsource</option>
         </select>
         <select id="assignCrew" style="min-width:180px" aria-label="Assign to staff"></select>
+        <span class="crewwho" id="assignWho" aria-live="polite"></span>
         <select id="assignVendor" style="min-width:200px" hidden aria-label="Assign to vendor"></select>
         <button type="button" class="btn primary" id="assignBtn">Assign selected →</button>
       </div>
@@ -164,6 +170,7 @@
     <p class="muted" id="ra_task" style="margin:0 0 12px"></p>
     <label for="ra_crew">Staff member</label>
     <select id="ra_crew" required></select>
+    <div class="crewwho" id="raWho" aria-live="polite" style="margin-top:8px"></div>
     <div class="lerr" id="ra_err" role="alert" hidden></div>
     <div class="foot"><button type="button" class="btn" id="ra_cancel" data-close>Cancel</button><button type="submit" class="btn primary" id="ra_save">Reassign</button></div>
   </form>
@@ -205,7 +212,7 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=107"></script>
+<script src="store-api.js?v=108"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -229,6 +236,8 @@
     const canEdit=await BPStore.auth.canEditArea("staff");
     canVerify=['admin','manager','planner','quality'].includes(await BPStore.auth.role());
     canEditOps=await BPStore.auth.canEditArea("staff");
+    // photos for linked members (one chat_directory read; the page never waits for it)
+    BPStore.chat.directory().then(d=>{ memberDir=d||{}; if(crew.some(c=>c.profile_id)){ renderCrew(); crewWho($("#assignCrew"),$("#assignWho")); } }).catch(()=>{});
     $("#loadErr").innerHTML=""; $("#noquote").hidden=true;
     try{ quote=await BPStore.quotes.get(quoteId); }
     catch(e){
@@ -262,13 +271,13 @@
     host.innerHTML=`<div class="muted" style="margin-bottom:6px">💡 Suggested for ${esc(activeCat)}${quote&&quote.eventDate?" on "+esc(quote.eventDate):""} — click to pick:</div>`+
       sugg.map(s=>`<button type="button" class="btn sm sugg" data-id="${esc(s.id)}" style="margin:0 6px 6px 0;${s.available?'':'opacity:.6'}" title="${s.match?'Skill/department match':'No skill match'}${s.available?'':' · already booked that day'}">
         ${s.match?'⭐ ':''}${esc(s.name)}${s.department?` · ${esc(s.department)}`:''} ${s.available?'<span style="color:#0f7a43">● free</span>':'<span style="color:#b42318">● busy</span>'}</button>`).join("");
-    host.querySelectorAll(".sugg").forEach(b=>b.addEventListener("click",()=>{ $("#assignKind").value="in_house"; $("#assignCrew").hidden=false; $("#assignVendor").hidden=true; $("#assignCrew").value=b.dataset.id; }));
+    host.querySelectorAll(".sugg").forEach(b=>b.addEventListener("click",()=>{ $("#assignKind").value="in_house"; $("#assignCrew").hidden=false; $("#assignVendor").hidden=true; $("#assignCrew").value=b.dataset.id; crewWho($("#assignCrew"),$("#assignWho")); }));
   }
   async function refresh(){
     [crew,tasks,tokens,vendors,evidence]=await Promise.all([BPStore.ops.listCrew(), BPStore.ops.listTasks(quoteId), BPStore.ops.listTokens(quoteId),
       BPStore.vendors.listAll(false).catch(()=>[]), BPStore.ops.listEvidence(quoteId).catch(()=>[])]);
     renderCrew(); renderDashboard();
-    $("#assignCrew").innerHTML=`<option value="">— pick staff —</option>`+crew.map(c=>`<option value="${esc(c.id)}">${esc(c.name)} · ${esc(c.phone)}</option>`).join("");
+    $("#assignCrew").innerHTML=`<option value="">— pick staff —</option>`+crew.map(crewOption).join(""); crewWho($("#assignCrew"),$("#assignWho"));
     $("#assignVendor").innerHTML = vendors.length
       ? `<option value="">— pick vendor —</option>`+vendors.map(v=>`<option value="${esc(v.id)}">${esc(v.name)}${v.category?" · "+esc(v.category):""}${v.phone?" · "+esc(v.phone):" · (no phone)"}</option>`).join("")
       : `<option value="">No vendors — add them in Vendors</option>`;
@@ -279,10 +288,23 @@
     $("#assignCrew").hidden = outsource; $("#assignVendor").hidden = !outsource;
     renderSuggestions();
   });
+  // staff by name + phone + photo (crew_members; 0041-linked members carry their profile photo)
+  let memberDir={};
+  const crewInitials=(n)=>String(n||"?").trim().split(/\s+/).slice(0,2).map(w=>w[0]||"").join("").toUpperCase()||"?";
+  function crewAv(c){ const m=c&&c.profile_id?memberDir[c.profile_id]:null, p=m&&m.avatar_path;
+    return `<span class="cav"${p?` data-avatar-path="${esc(p)}"`:""} aria-hidden="true">${esc(crewInitials(c&&c.name))}</span>`; }
+  function crewOption(c){ return `<option value="${esc(c.id)}">${esc(c.name)}${c.department?" · "+esc(c.department):""} · ${esc(c.phone)}${c.profile_id?" · 🔗":""}</option>`; }
+  // the picked person, with photo, beside a staff <select>
+  function crewWho(sel, host){ if(!sel||!host) return; const c=crew.find(x=>x.id===sel.value);
+    host.innerHTML=c?`${crewAv(c)}<span><b>${esc(c.name)}</b> · ${esc(c.phone)}${c.profile_id?' <span title="Linked to a Helm account">🔗</span>':""}</span>`:"";
+    try{ BPStore.chat.paintAvatars(host); }catch(e){} }
   function renderCrew(){
-    $("#crewChips").innerHTML = crew.length? crew.map(c=>`<span class="chip">${esc(c.name)} <span class="dep">${esc(c.department||"")}</span> · ${esc(c.phone)}</span>`).join("")
+    $("#crewChips").innerHTML = crew.length? crew.map(c=>`<span class="chip">${crewAv(c)}${esc(c.name)} <span class="dep">${esc(c.department||"")}</span> · ${esc(c.phone)}${c.profile_id?' <span class="lk" title="Linked to a Helm account">🔗</span>':""}</span>`).join("")
       : '<span class="muted">No staff yet — add people below.</span>';
+    try{ BPStore.chat.paintAvatars($("#crewChips")); }catch(e){}
   }
+  $("#assignCrew").addEventListener("change",()=>crewWho($("#assignCrew"),$("#assignWho")));
+  $("#ra_crew").addEventListener("change",()=>crewWho($("#ra_crew"),$("#raWho")));
   async function renderTasks(){
     let tpl; try{ tpl=await BPStore.ops.templates(activeCat); }catch(e){ BPUI.loadError($("#taskList"), e, renderTasks, {what:"task templates"}); return; }
     if(!tpl.length){ $("#taskList").innerHTML='<span class="muted">No task templates in this section yet.</span>'; updateSel(); return; }
@@ -325,8 +347,11 @@
     if(name.length<2){ setMsg("err","Enter the staff member's name."); $("#cr_name").focus(); return; }
     const pv=BPStore.validate.phone(phone); if(!pv.ok){ setMsg("err",pv.error); $("#cr_phone").focus(); return; }
     await BPUI.guard($("#cr_add"),async()=>{   // no duplicate staff on a double-click / Enter
+      // 0041: one account = one staff record — a linked member's number can't get a second row
+      const owner=await BPStore.staff.linkedOwnerOfPhone(phone);
+      if(owner){ setMsg("err",`This number belongs to ${owner.name}, who already has a staff record linked to their Helm account — pick them from the list instead.`); $("#cr_phone").focus(); return; }
       try{ await BPStore.ops.addCrew(name,phone,dept); $("#cr_name").value="";$("#cr_phone").value=""; await refresh(); setMsg("ok","Crew added."); }
-      catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"add the staff member"})); }
+      catch(e){ setMsg("err",BPStore.staff.linkErrorText(e)||BPUI.friendlyError(e,{action:"add the staff member"})); }
     },{busyLabel:"Adding…"});
   }
   $("#cr_add") && $("#cr_add").addEventListener("click",addCrew);
@@ -465,7 +490,7 @@
     if(!crew.length){ BPUI.toast("No staff yet — add people in the Staff section first.",{type:"info"}); $("#cr_name").focus(); return; }
     raTaskId=id;
     $("#ra_task").textContent=`${t.title||"Task"}${t.assignee_name?" — currently "+t.assignee_name:""}`;
-    $("#ra_crew").innerHTML=`<option value="">— pick staff —</option>`+crew.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}${c.department?" · "+esc(c.department):""} · ${esc(c.phone)}</option>`).join("");
+    $("#ra_crew").innerHTML=`<option value="">— pick staff —</option>`+crew.map(crewOption).join(""); crewWho($("#ra_crew"),$("#raWho"));
     $("#ra_err").hidden=true; raDirty.clean(); $("#reassignModal").hidden=false;
   }
   async function closeReassign(force){ if(!force && !(await BPUI.confirmDiscard(raDirty))) return; $("#reassignModal").hidden=true; raTaskId=null; raDirty.clean(); }

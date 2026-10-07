@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en" data-theme="light" class="auth-pending">
+<head>
+<style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Complete your profile · Helm</title>
+<meta name="description" content="Add your contact details so your Helm team can reach you, assign you work and check you in on event days.">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
+<link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
+<link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#f6f4f1;--panel:#ffffff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
+    --line:#e8e3db;--line-strong:#a39dab;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;
+    --shadow:0 1px 2px rgba(27,25,48,.05),0 14px 36px rgba(27,25,48,.11);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;min-height:100vh;font-family:var(--font);color:var(--ink);-webkit-font-smoothing:antialiased;
+    background:radial-gradient(700px 380px at 90% -10%,#ece3ff 0%,transparent 60%),radial-gradient(560px 340px at -10% 110%,#ffe9d6 0%,transparent 55%),var(--bg)}
+  .top{display:flex;align-items:center;gap:11px;max-width:680px;margin:0 auto;padding:20px 16px 0}
+  .mark{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:8px;border:2px solid rgba(255,255,255,.92);border-radius:3px}
+  .brand{font-weight:700;font-size:15px} .brand small{display:block;font-size:10px;font-weight:600;color:var(--ink-3);letter-spacing:.08em;text-transform:uppercase}
+  main{max-width:680px;margin:0 auto;padding:18px 16px 48px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:30px 30px 24px}
+  @media(max-width:560px){.card{padding:22px 18px 18px;border-radius:14px}}
+  .step{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);padding:4px 10px;border-radius:99px;margin:0 0 12px}
+  h1{margin:0 0 6px;font-size:24px;letter-spacing:-.01em;line-height:1.2}
+  .sub{margin:0 0 20px;font-size:14px;line-height:1.55;color:var(--ink-2)}
+  .btn{min-height:46px;padding:0 22px;border:0;border-radius:11px;background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer}
+  .btn:disabled{opacity:.6;cursor:default}
+  .btn:focus-visible,.linkbtn:focus-visible{outline:3px solid var(--accent-soft);outline-offset:2px}
+  @media(max-width:560px){.btn{width:100%}}
+  .err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:10px;padding:10px 13px;font-size:13px;margin:0 0 16px}
+  .foot{margin-top:18px;font-size:12.5px;color:var(--ink-3);text-align:center}
+  .linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);cursor:pointer;text-decoration:underline}
+  html[data-theme="dark"] body{background:var(--bg)}
+  html[data-theme="dark"] .err{background:#3a1414;color:#fecaca;border-color:#7f1d1d}
+</style>
+<link rel="stylesheet" href="theme.css?v=73">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="top"><div class="mark" aria-hidden="true"></div><div class="brand">Helm<small>Event Operating System</small></div></div>
+  <main id="main">
+    <section class="card" aria-labelledby="psTitle">
+      <span class="step">One last step</span>
+      <h1 id="psTitle" tabindex="-1">Complete your profile</h1>
+      <p class="sub">Your team uses these details to reach you, assign you work and check you in on event days. Only your <b>full name</b> and <b>mobile number</b> are required — you can add the rest later from <b>Account</b>.</p>
+      <div class="err" id="psErr" role="alert" hidden></div>
+      <div id="psForm"></div>
+    </section>
+    <p class="foot">Signed in as <b id="psEmail"></b> · <button type="button" class="linkbtn" id="psSignOut">Sign out</button></p>
+  </main>
+<script src="telemetry.js?v=3"></script>
+<script src="config.js?v=93"></script>
+<script src="store-api.js?v=108"></script>
+<script src="auth-ui.js?v=7"></script>
+<script>
+  // "Complete your profile" (0041) — the first step for a NEW studio member. The page
+  // gate in store-api.js decides before anything shows: signed out → login; no studio
+  // → onboarding / HQ; nothing to complete (done, client, HQ operator, 0041 not
+  // installed) → straight on to ?next=. Saving sends you to ?next= (the shared
+  // same-site sanitiser), always with location.replace.
+  const $=(s)=>document.querySelector(s);
+  $("#psSignOut").addEventListener("click", async ()=>{ try{ await BPStore.auth.signOut(); }catch(e){} location.replace("login.html"); });
+  BPUI.boot(async ()=>{
+    await BPStore.init();
+    BPStore.auth.required();   // marks this page signed-in only (session expiry + idle sign-out)
+    const u=BPStore.auth.user()||{};
+    $("#psEmail").textContent=u.email||"";
+    const next=BPStore.profile.setupNext();
+    let p={};
+    try{ p=(await BPStore.profile.mine())||{}; }
+    catch(e){ $("#psErr").textContent=BPUI.friendlyError(e,{action:"load your profile"}); $("#psErr").hidden=false; }
+    // a Google sign-in already knows the name: offer it (the person can still change it)
+    const meta=u.user_metadata||{};
+    if(!String(p.full_name||"").trim() && (meta.full_name||meta.name)) p=Object.assign({},p,{full_name:String(meta.full_name||meta.name).slice(0,80)});
+    if(!window.HelmAuthUI || !HelmAuthUI.profileForm){ $("#psErr").textContent="This page couldn't load completely. Check your connection and reload."; $("#psErr").hidden=false; return; }
+    const f=HelmAuthUI.profileForm(BPStore,{ mode:"setup", idp:"ps", profile:p, email:u.email, labelledBy:"psTitle",
+      submitLabel:"Save and continue →", onSaved:()=>{ location.replace(next); } });
+    $("#psForm").appendChild(f.el);
+    f.focusFirst();
+  });
+</script>
+</body>
+</html>

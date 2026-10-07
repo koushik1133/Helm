@@ -79,6 +79,42 @@
       ".hau-list li{padding:3px 0;color:var(--bpui-ink-2,#4a5673)}",
       ".hau-banner{position:relative;z-index:50;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 16px;background:var(--bpui-warn-bg,#fff4d6);color:var(--bpui-warn-ink,#5c3d00);border-bottom:1px solid var(--bpui-warn-line,#e8c26a);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}",
       ".hau-banner b{font-weight:700}.hau-banner .hau-sp{flex:1}",
+      /* profile form (Account panel + /profile-setup) — page tokens first, BPUI tokens as fallback */
+      ".hpf{--hpf-ink:var(--ink,var(--bpui-ink,#141b2e));--hpf-ink2:var(--ink-3,var(--bpui-ink-2,#4a5673));--hpf-line:var(--line-strong,var(--bpui-line,#86808f));--hpf-bg:var(--panel-2,var(--bpui-bg,#fff));--hpf-acc:var(--accent,var(--bpui-accent,#6d28d9));--hpf-soft:var(--accent-soft,var(--bpui-soft,#f4f2fb));--hpf-bad:var(--bpui-danger,#b91c1c);color:var(--hpf-ink);font-size:15px}",
+      "html[data-theme=dark] .hpf{--hpf-bad:#f87171}",
+      ".hpf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:0 14px}",
+      ".hpf-f{margin:0 0 14px;min-width:0}",
+      ".hpf .hpf-l{display:block;font-size:13px;font-weight:600;text-transform:none;letter-spacing:normal;color:var(--hpf-ink);margin:0 0 5px}",
+      ".hpf .hpf-l .hpf-opt{font-weight:400;color:var(--hpf-ink2)}",
+      ".hpf .hpf-i{display:block;width:100%;box-sizing:border-box;min-height:44px;height:auto;padding:9px 12px;border:1px solid var(--hpf-line);border-radius:10px;background:var(--hpf-bg);color:var(--hpf-ink);font:inherit;font-size:16px;letter-spacing:normal;margin:0}",
+      ".hpf .hpf-i:focus{outline:none;border-color:var(--hpf-acc);box-shadow:0 0 0 3px var(--hpf-soft)}",
+      ".hpf .hpf-i[aria-invalid=true]{border-color:var(--hpf-bad)}",
+      ".hpf-pre{display:flex;align-items:stretch}",
+      ".hpf-pre>span{display:flex;align-items:center;padding:0 12px;border:1px solid var(--hpf-line);border-right:0;border-radius:10px 0 0 10px;background:var(--hpf-soft);color:var(--hpf-ink);font-weight:600;font-size:15px}",
+      ".hpf .hpf-pre>.hpf-i{border-radius:0 10px 10px 0;flex:1;min-width:0}",
+      ".hpf .hpf-h{margin:5px 0 0;font-size:12.5px;color:var(--hpf-ink2)}",
+      ".hpf .hpf-e{margin:5px 0 0;font-size:13px;color:var(--hpf-bad);font-weight:600}.hpf .hpf-e:empty{display:none}",
+      ".hpf-cbrow{display:flex;align-items:center;gap:8px;margin:-4px 0 14px;font-size:14px;color:var(--hpf-ink)}",
+      ".hpf .hpf-cb{width:18px!important;height:18px!important;min-height:0!important;padding:0!important;margin:0!important;accent-color:var(--hpf-acc);flex:0 0 auto}",
+      ".hpf .hpf-cbrow label{margin:0;font-size:14px;font-weight:500;text-transform:none;letter-spacing:normal;color:var(--hpf-ink)}",
+      ".hpf-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px;padding:0;list-style:none}.hpf-chips:empty{display:none}",
+      ".hpf-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 4px 3px 10px;border-radius:999px;background:var(--hpf-soft);color:var(--hpf-ink);font-size:13.5px;border:1px solid var(--hpf-line);max-width:100%}",
+      ".hpf-chip>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+      ".hpf-x{width:26px;height:26px;border:0;border-radius:50%;background:transparent;color:var(--hpf-ink2);font:inherit;font-size:16px;line-height:1;cursor:pointer;padding:0}",
+      ".hpf-x:hover,.hpf-x:focus-visible{background:var(--hpf-line);color:var(--hpf-ink)}",
+      ".hpf-photo{display:flex;align-items:center;gap:14px;margin:0 0 16px;flex-wrap:wrap}",
+      ".hpf-av{position:relative;width:76px;height:76px;border-radius:50%;overflow:hidden;flex:0 0 auto;background:linear-gradient(135deg,#6d28d9,#4f46e5);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:26px}",
+      ".hpf-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}",
+      ".hpf-photo .hau-row{margin:0}",
+      ".hpf .hpf-file{position:absolute!important;width:1px!important;height:1px!important;min-height:0!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;border:0!important}",
+      ".hpf-prog{margin:0 0 16px}.hpf-bar{height:6px;border-radius:99px;background:var(--hpf-soft);overflow:hidden;border:1px solid var(--hpf-line)}",
+      ".hpf-bar>span{display:block;height:100%;width:0;background:var(--hpf-acc);transition:width .25s}",
+      "@media (prefers-reduced-motion:reduce){.hpf-bar>span{transition:none}}",
+      ".hpf .hpf-alert{border-radius:10px;padding:10px 13px;font-size:13.5px;margin:0 0 14px;background:#fdecec;color:#b42318;border:1px solid #f5c6c6}",
+      ".hpf .hpf-alert.ok{background:#e7f6ee;color:#0f7a43;border-color:#b6e3ca}",
+      "html[data-theme=dark] .hpf-alert{background:#3a1414;color:#fecaca;border-color:#7f1d1d}html[data-theme=dark] .hpf-alert.ok{background:#0f2a1c;color:#a7f3d0;border-color:#14532d}",
+      ".hpf .hpf-legend{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hpf-ink2);margin:6px 0 10px;padding:0}",
+      ".hpf fieldset{border:0;margin:0;padding:0;min-width:0}",
     ].join("\n");
     (doc.head || doc.documentElement).appendChild(s);
   }
@@ -166,7 +202,9 @@
   /* ----------------------------------------------------- account panel */
   var panel = null;
   function closePanel() { if (panel) { try { panel.remove(); } catch (e) {} panel = null; } }
-  function openAccount() {
+  // openAccount({focus:"profile"}) opens the panel scrolled to "Your profile"
+  function openAccount(opts) {
+    var focusProfile = !!(opts && opts.focus === "profile");
     css(); closePanel();
     var st = S(); var u = st && st.auth.user(); if (!u) return;
     panel = el("div", { class: "bpui-overlay", role: "dialog", "aria-modal": "true", "aria-labelledby": "hauTitle", id: "hauAccount" });
@@ -174,7 +212,8 @@
     panel.appendChild(card);
     card.appendChild(el("h2", { id: "hauTitle" }, "Your account"));
     card.appendChild(el("p", { class: "hau-muted" }, "Signed in as " + (u.email || "")));
-    if (st.profile && st.profile.setMine) card.appendChild(displayNameSection(st));
+    if (st.profile && st.profile.validate && st.profile.update) card.appendChild(profileSection(st, focusProfile));
+    else if (st.profile && st.profile.setMine) card.appendChild(displayNameSection(st));
 
     // sign-in details (my_auth_info — caller's own data only)
     var info = el("div", { class: "hau-sec" });
@@ -227,7 +266,7 @@
     panel.addEventListener("click", function (e) { if (e.target === panel) closePanel(); });
     panel.addEventListener("keydown", function (e) { if (e.key === "Escape") closePanel(); });
     doc.body.appendChild(panel);
-    setTimeout(function () { try { close.focus(); } catch (e) {} }, 30);
+    if (!focusProfile) setTimeout(function () { try { close.focus(); } catch (e) {} }, 30);
 
     st.auth.myAuthInfo().then(function (d) {
       infoBody.textContent = "";
@@ -271,6 +310,356 @@
     inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); submit(); } });
     return sec;
   }
+  /* ------------------------------------------- member profile form (0041) ----
+     Shared by the Account panel ("Your profile") and /profile-setup. Rules + upload
+     live in BPStore.profile (validate / complete / update / uploadAvatar); this only
+     draws the form. Everything user-supplied is set with textContent / value. */
+  var PF_FIELD_OF = [["That mobile number", "phone"], ["Mobile number", "phone"], ["WhatsApp", "whatsapp"], ["Full name", "full_name"],
+    ["Job title", "job_title"], ["Department", "department"], ["City", "city"], ["Emergency contact name", "emergency_contact_name"],
+    ["Emergency contact number", "emergency_contact_phone"], ["A skill", "skills"], ["Each skill", "skills"], ["Skills", "skills"], ["Add up to", "skills"]];
+  function pfFieldOf(msg) {
+    msg = String(msg || "");
+    for (var i = 0; i < PF_FIELD_OF.length; i++) if (msg.indexOf(PF_FIELD_OF[i][0]) === 0) return PF_FIELD_OF[i][1];
+    return null;
+  }
+  function pfServerText(e) {
+    var c = (e && e.code) || "", m = String((e && e.message) || "");
+    if (c === "profile_invalid" || c === "avatar_invalid" || c === "avatar_unavailable") return m;
+    if (/set your own password first/i.test(m)) return "Set your own password first, then try again.";
+    // 0041 raises plain-language messages (22023 bad value, 23505 mobile already used)
+    if ((c === "22023" || c === "23505") && m && m.length < 240 && !/[<>{}]|violates|constraint|column/i.test(m)) return m;
+    return null;
+  }
+  function initials(name, email) {
+    var s = String(name || "").trim() || String(email || "").split("@")[0] || "";
+    var parts = s.split(/\s+/).filter(Boolean);
+    var out = parts.length > 1 ? parts[0].charAt(0) + parts[parts.length - 1].charAt(0) : s.slice(0, 2);
+    return (out || "?").toUpperCase();
+  }
+  // profileForm(BPStore, {mode:"setup"|"panel", idp, profile, email, submitLabel, onSaved(row)})
+  //   → {el, focusFirst()}
+  function profileForm(st, opts) {
+    css();
+    var o = opts || {}, P = o.profile || {}, idp = o.idp || "hpf", setup = o.mode === "setup";
+    var hadName = !!String(P.full_name || "").trim(), hadPhone = !!P.phone;
+    var vopts = setup ? { requireName: true, requirePhone: true } : { requireName: hadName, requirePhone: hadPhone };
+    var lim = (st.profile && st.profile.limits) || { text: 80, skill: 40, skills: 20 };
+    var form = el("form", { class: "hpf", novalidate: "" });
+    if (o.labelledBy) form.setAttribute("aria-labelledby", o.labelledBy);
+    var alertBox = el("div", { class: "hpf-alert", role: "alert", tabindex: "-1" }); alertBox.hidden = true;
+    form.appendChild(alertBox);
+    var inputs = {}, errs = {}, touched = {}, busy = false;
+
+    // progress
+    var prog = el("div", { class: "hpf-prog" });
+    var bar = el("div", { class: "hpf-bar", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-labelledby": idp + "_progtxt" });
+    var fill = el("span"); bar.appendChild(fill);
+    var progTxt = el("p", { class: "hpf-h", id: idp + "_progtxt", style: "margin:0 0 6px" });
+    prog.appendChild(progTxt); prog.appendChild(bar); form.appendChild(prog);
+
+    // photo
+    var avPath = P.avatar_path || null;
+    var photo = el("div", { class: "hpf-photo" });
+    var av = el("div", { class: "hpf-av" });
+    var avIni = el("span", { "aria-hidden": "true" }, initials(P.full_name, P.email || o.email));
+    var avImg = el("img", { alt: "Your profile photo" }); avImg.hidden = true;
+    av.appendChild(avIni); av.appendChild(avImg);
+    var photoCol = el("div", { style: "min-width:0;flex:1" });
+    photoCol.appendChild(el("div", { class: "hpf-l", id: idp + "_photo_l" }, "Photo"));
+    var fileIn = el("input", { type: "file", id: idp + "_photo", class: "hpf-file", accept: "image/png,image/jpeg,image/webp", tabindex: "-1", "aria-hidden": "true" });
+    var upBtn = el("button", { type: "button", class: "hau-btn", "aria-describedby": idp + "_photo_h" });
+    var rmBtn = el("button", { type: "button", class: "hau-btn danger" }, "Remove photo");
+    var photoRow = el("div", { class: "hau-row" }); photoRow.appendChild(upBtn); photoRow.appendChild(rmBtn);
+    var photoMsg = el("p", { class: "hpf-h", id: idp + "_photo_h", role: "status", "aria-live": "polite" }, "PNG, JPEG or WebP — cropped to a square.");
+    photoCol.appendChild(photoRow); photoCol.appendChild(photoMsg); photoCol.appendChild(fileIn);
+    photo.appendChild(av); photo.appendChild(photoCol); form.appendChild(photo);
+    function showPhoto() {
+      upBtn.textContent = avPath ? "Change photo" : "Add photo";
+      rmBtn.hidden = !avPath;
+      if (!avPath) { avImg.hidden = true; avImg.removeAttribute("src"); avIni.hidden = false; return; }
+      var want = avPath;
+      Promise.resolve(st.profile.avatarUrl ? st.profile.avatarUrl(want) : null).then(function (u) {
+        if (want !== avPath) return;
+        if (u) { avImg.src = u; avImg.hidden = false; avIni.hidden = true; } else { avImg.hidden = true; avIni.hidden = false; }
+      }, function () {});
+    }
+    avImg.addEventListener("error", function () { avImg.hidden = true; avIni.hidden = false; });
+    upBtn.addEventListener("click", function () { if (!busy) fileIn.click(); });
+    fileIn.addEventListener("change", function () {
+      var f = fileIn.files && fileIn.files[0]; fileIn.value = "";
+      if (!f || busy) return;
+      busy = true; upBtn.disabled = true; rmBtn.disabled = true; photoMsg.style.color = ""; photoMsg.textContent = "Uploading your photo…";
+      st.profile.uploadAvatar(f).then(function (path) {
+        avPath = path; showPhoto(); photoMsg.textContent = "Photo saved."; progress();
+      }, function (e) {
+        photoMsg.style.color = "var(--hpf-bad)";
+        photoMsg.textContent = pfServerText(e) || errText(e, "upload your photo");
+      }).then(function () { busy = false; upBtn.disabled = false; rmBtn.disabled = false; try { upBtn.focus(); } catch (x) {} });
+    });
+    rmBtn.addEventListener("click", function () {
+      if (busy) return;
+      busy = true; upBtn.disabled = true; rmBtn.disabled = true; photoMsg.style.color = "";
+      st.profile.removeAvatar().then(function () { avPath = null; showPhoto(); photoMsg.textContent = "Photo removed."; progress(); },
+        function (e) { photoMsg.style.color = "var(--hpf-bad)"; photoMsg.textContent = pfServerText(e) || errText(e, "remove your photo"); })
+        .then(function () { busy = false; upBtn.disabled = false; rmBtn.disabled = false; try { upBtn.focus(); } catch (x) {} });
+    });
+    showPhoto();
+
+    // one labelled input with its hint + error line
+    function field(parent, key, label, a) {
+      a = a || {};
+      var id = idp + "_" + key;
+      var wrap = el("div", { class: "hpf-f" });
+      var lab = el("label", { for: id, class: "hpf-l" }, label);
+      if (a.req) lab.appendChild(el("span", { class: "req-star", "aria-hidden": "true" }, " *"));
+      else if (a.optional) lab.appendChild(el("span", { class: "hpf-opt" }, " (optional)"));
+      var inp = el("input", { id: id, class: "hpf-i", type: a.type || "text", autocomplete: a.ac || "off", maxlength: String(a.max || lim.text) });
+      if (a.ph) inp.setAttribute("placeholder", a.ph);
+      if (a.inputmode) inp.setAttribute("inputmode", a.inputmode);
+      if (a.type === "tel") inp.setAttribute("data-no-country", "1");   // our own +91 prefix, not the global country picker
+      if (a.req) inp.setAttribute("aria-required", "true");
+      var desc = [];
+      var hint = a.hint ? el("p", { class: "hpf-h", id: id + "_h" }, a.hint) : null;
+      if (hint) desc.push(hint.id);
+      var er = el("p", { class: "hpf-e", id: id + "_e" }); desc.push(er.id);
+      inp.setAttribute("aria-describedby", desc.join(" "));
+      wrap.appendChild(lab);
+      if (a.prefix) { var pre = el("div", { class: "hpf-pre" }); pre.appendChild(el("span", { "aria-hidden": "true" }, a.prefix)); pre.appendChild(inp); wrap.appendChild(pre); }
+      else wrap.appendChild(inp);
+      if (hint) wrap.appendChild(hint);
+      wrap.appendChild(er);
+      parent.appendChild(wrap);
+      inp.value = a.value == null ? "" : String(a.value);
+      inputs[key] = inp; errs[key] = er;
+      inp.addEventListener("blur", function () { touched[key] = true; check(key); });
+      inp.addEventListener("input", function () { if (inp.getAttribute("aria-invalid") === "true") check(key); progress(); });
+      return { wrap: wrap, input: inp };
+    }
+
+    // --- about you
+    var fsA = el("fieldset"); fsA.appendChild(el("legend", { class: "hpf-legend" }, "About you"));
+    field(fsA, "full_name", "Full name", { req: setup || hadName, ac: "name", ph: "e.g. Ananya Rao", value: P.full_name });
+    var mob = field(fsA, "phone", "Mobile number", { req: setup || hadPhone, type: "tel", ac: "tel-national", inputmode: "tel", max: 16, prefix: "+91",
+      ph: "98765 43210", hint: "Indian mobile: 10 digits starting with 6, 7, 8 or 9.", value: P.phone ? st.profile.localMobile(P.phone) : "" });
+    mob.input.setAttribute("aria-label", "Mobile number, after +91");
+    var cbRow = el("div", { class: "hpf-cbrow" });
+    var same = el("input", { type: "checkbox", id: idp + "_wa_same", class: "hpf-cb" });
+    same.checked = P.whatsapp_same !== false;
+    cbRow.appendChild(same); cbRow.appendChild(el("label", { for: idp + "_wa_same" }, "WhatsApp is on the same number"));
+    fsA.appendChild(cbRow);
+    var wa = field(fsA, "whatsapp", "WhatsApp number", { type: "tel", ac: "off", inputmode: "tel", max: 16, prefix: "+91", optional: true, ph: "98765 43210",
+      value: P.whatsapp_same === false && P.whatsapp ? st.profile.localMobile(P.whatsapp) : "" });
+    wa.input.setAttribute("aria-label", "WhatsApp number, after +91");
+    function syncWa() { wa.wrap.hidden = same.checked; if (same.checked) setErr("whatsapp", ""); }
+    same.addEventListener("change", function () { syncWa(); progress(); if (!same.checked) try { wa.input.focus(); } catch (x) {} });
+    syncWa();
+    form.appendChild(fsA);
+
+    // --- work
+    var fsW = el("fieldset"); fsW.appendChild(el("legend", { class: "hpf-legend" }, "Work"));
+    var gW = el("div", { class: "hpf-grid" });
+    field(gW, "job_title", "Job title", { ac: "organization-title", ph: "e.g. Event coordinator", optional: true, value: P.job_title });
+    field(gW, "department", "Department", { ph: "e.g. Operations", optional: true, value: P.department });
+    fsW.appendChild(gW);
+    // skills: chips (Enter or comma adds, × removes, Backspace on an empty box removes the last)
+    var skills = Array.isArray(P.skills) ? P.skills.slice(0, lim.skills) : [];
+    var skWrap = el("div", { class: "hpf-f" });
+    skWrap.appendChild(el("label", { for: idp + "_skills", class: "hpf-l" }, "Skills"));
+    skWrap.lastChild.appendChild(el("span", { class: "hpf-opt" }, " (optional)"));
+    var chips = el("ul", { class: "hpf-chips", "aria-label": "Your skills" });
+    var skIn = el("input", { id: idp + "_skills", class: "hpf-i", type: "text", autocomplete: "off", maxlength: String(lim.skill), placeholder: "e.g. Lighting, Décor — press Enter to add",
+      "aria-describedby": idp + "_skills_h " + idp + "_skills_e" });
+    var skHint = el("p", { class: "hpf-h", id: idp + "_skills_h" });
+    var skErr = el("p", { class: "hpf-e", id: idp + "_skills_e" });
+    skWrap.appendChild(chips); skWrap.appendChild(skIn); skWrap.appendChild(skHint); skWrap.appendChild(skErr);
+    inputs.skills = skIn; errs.skills = skErr;
+    fsW.appendChild(skWrap);
+    function renderChips() {
+      while (chips.firstChild) chips.removeChild(chips.firstChild);
+      skills.forEach(function (s, i) {
+        var li = el("li", { class: "hpf-chip" });
+        li.appendChild(el("span", { title: s }, s));
+        var x = el("button", { type: "button", class: "hpf-x", "aria-label": "Remove skill " + s }, "×");
+        x.addEventListener("click", function () {
+          skills.splice(i, 1); renderChips(); progress();
+          skHint.textContent = "Removed " + s + ". " + skills.length + " of " + lim.skills + " skills.";
+          try { skIn.focus(); } catch (e) {}
+        });
+        li.appendChild(x); chips.appendChild(li);
+      });
+      if (!skHint.textContent || /of \d+ skills\.$/.test(skHint.textContent)) skHint.textContent = "Press Enter or type a comma to add. " + skills.length + " of " + lim.skills + " skills.";
+    }
+    function addSkills(raw) {
+      var parts = String(raw || "").split(",").map(function (s) { return s.replace(/\s+/g, " ").trim(); }).filter(Boolean);
+      if (!parts.length) return true;
+      var r = st.profile.validate({ skills: skills.concat(parts) });
+      if (r.errors.skills) { setErr("skills", r.errors.skills); return false; }
+      setErr("skills", "");
+      var before = skills.length; skills = r.clean.skills; renderChips(); progress();
+      skHint.textContent = (skills.length > before ? "Added. " : "Already added. ") + skills.length + " of " + lim.skills + " skills.";
+      return true;
+    }
+    skIn.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === ",") { e.preventDefault(); if (addSkills(skIn.value)) skIn.value = ""; }
+      else if (e.key === "Backspace" && !skIn.value && skills.length) { var gone = skills.pop(); renderChips(); progress(); skHint.textContent = "Removed " + gone + ". " + skills.length + " of " + lim.skills + " skills."; }
+    });
+    skIn.addEventListener("input", function () {
+      if (skIn.value.indexOf(",") < 0) return;
+      var parts = skIn.value.split(","), last = parts.pop();
+      if (addSkills(parts.join(","))) skIn.value = last;
+    });
+    skIn.addEventListener("blur", function () { if (skIn.value.trim() && addSkills(skIn.value)) skIn.value = ""; });
+    renderChips();
+    field(fsW, "city", "City", { ac: "address-level2", ph: "e.g. Hyderabad", optional: true, value: P.city });
+    form.appendChild(fsW);
+
+    // --- emergency contact
+    var fsE = el("fieldset"); fsE.appendChild(el("legend", { class: "hpf-legend" }, "Emergency contact"));
+    var gE = el("div", { class: "hpf-grid" });
+    field(gE, "emergency_contact_name", "Name", { ac: "off", ph: "e.g. Ravi Rao", optional: true, value: P.emergency_contact_name });
+    inputs.emergency_contact_name.setAttribute("aria-label", "Emergency contact name");
+    field(gE, "emergency_contact_phone", "Phone number", { type: "tel", ac: "off", inputmode: "tel", max: 18, optional: true, ph: "98765 43210 or +44 …",
+      hint: "Indian mobile, or an international number starting with +.", value: P.emergency_contact_phone ? st.profile.localMobile(P.emergency_contact_phone) : "" });
+    inputs.emergency_contact_phone.setAttribute("aria-label", "Emergency contact phone number");
+    fsE.appendChild(gE);
+    fsE.appendChild(el("p", { class: "hpf-h", style: "margin:-6px 0 14px" }, "Only you and your studio admins can see your mobile, WhatsApp, city and emergency contact."));
+    form.appendChild(fsE);
+
+    var row = el("div", { class: "hau-row", style: "margin-top:4px" });
+    var save = el("button", { type: "submit", class: setup ? "btn primary hpf-save" : "hau-btn primary" }, o.submitLabel || "Save");
+    row.appendChild(save); form.appendChild(row);
+
+    function collect() {
+      var pending = skIn.value.trim() ? skills.concat([skIn.value]) : skills;
+      return {
+        full_name: inputs.full_name.value, phone: inputs.phone.value, whatsapp_same: same.checked,
+        whatsapp: same.checked ? null : inputs.whatsapp.value, job_title: inputs.job_title.value, department: inputs.department.value,
+        skills: pending, city: inputs.city.value, emergency_contact_name: inputs.emergency_contact_name.value,
+        emergency_contact_phone: inputs.emergency_contact_phone.value,
+      };
+    }
+    function setErr(key, msg) {
+      var inp = inputs[key], er = errs[key]; if (!inp || !er) return;
+      er.textContent = msg || "";
+      if (msg) inp.setAttribute("aria-invalid", "true"); else inp.removeAttribute("aria-invalid");
+    }
+    function check(key) {
+      var r = st.profile.validate(collect(), vopts);
+      setErr(key, r.errors[key] || "");
+      return !r.errors[key];
+    }
+    var ORDER = ["full_name", "phone", "whatsapp", "job_title", "department", "skills", "city", "emergency_contact_name", "emergency_contact_phone"];
+    function progress() {
+      var f = collect(), n = 0;
+      if (avPath) n++;
+      if (String(f.full_name).trim()) n++;
+      var hasPhone = !!String(f.phone).trim(); if (hasPhone) n++;
+      if (f.whatsapp_same ? hasPhone : String(f.whatsapp || "").trim()) n++;
+      ["job_title", "department", "city", "emergency_contact_name", "emergency_contact_phone"].forEach(function (k) { if (String(f[k] || "").trim()) n++; });
+      if (skills.length) n++;
+      var pct = Math.round(n * 10);
+      fill.style.width = pct + "%"; bar.setAttribute("aria-valuenow", String(pct));
+      var need = [];
+      if (!String(f.full_name).trim()) need.push("full name");
+      if (!hasPhone) need.push("mobile number");
+      progTxt.textContent = n + " of 10 details added" + (need.length ? " · still needed: " + need.join(" and ") : (setup ? " · ready to save" : ""));
+    }
+    function showAlert(msg, ok) {
+      alertBox.className = "hpf-alert" + (ok ? " ok" : "");
+      alertBox.textContent = msg || ""; alertBox.hidden = !msg;
+    }
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      if (busy) return;
+      showAlert("");
+      var fields = collect();
+      var r = st.profile.validate(fields, vopts);
+      ORDER.forEach(function (k) { setErr(k, r.errors[k] || ""); });
+      if (!r.ok) {
+        var first = ORDER.filter(function (k) { return r.errors[k]; })[0];
+        showAlert(Object.keys(r.errors).length > 1 ? "Please fix the highlighted fields." : r.errors[first]);
+        try { inputs[first].focus(); } catch (x) {}
+        return;
+      }
+      busy = true; save.disabled = true; var label = save.textContent; save.textContent = "Saving…";
+      var p = setup ? st.profile.complete(fields) : st.profile.update(fields, vopts);
+      p.then(function (row) {
+        if (row && typeof row === "object") {
+          hadName = !!String(row.full_name || "").trim(); hadPhone = !!row.phone;
+          if (!setup) vopts = { requireName: hadName, requirePhone: hadPhone };
+          if (!skIn.value.trim() || !setup) skIn.value = "";
+          if (Array.isArray(row.skills)) { skills = row.skills.slice(); renderChips(); }
+          avIni.textContent = initials(row.full_name, row.email || o.email);
+        }
+        progress();
+        if (!setup) showAlert("Profile saved.", true);
+        if (o.onSaved) o.onSaved(row || null);
+      }, function (err) {
+        var msg = pfServerText(err), key = msg ? pfFieldOf(msg) : null;
+        if (err && err.fields) { ORDER.forEach(function (k) { setErr(k, err.fields[k] || ""); }); key = err.field || key; }
+        else if (key) setErr(key, msg);
+        showAlert(msg || errText(err, "save your profile"));
+        try { (key && inputs[key] ? inputs[key] : alertBox).focus(); } catch (x) {}
+      }).then(function () { busy = false; save.disabled = false; save.textContent = label; });
+    });
+    progress();
+    return {
+      el: form,
+      focusFirst: function () {
+        var k = !String(inputs.full_name.value).trim() ? "full_name" : (!String(inputs.phone.value).trim() ? "phone" : "full_name");
+        setTimeout(function () { try { inputs[k].focus(); } catch (e) {} }, 30);
+      },
+    };
+  }
+  // "Your profile" (Account panel) — falls back to the display-name section without 0041
+  function profileSection(st, focusIt) {
+    var sec = el("div", { class: "hau-sec", id: "hauProfile" });
+    sec.appendChild(el("h3", { id: "hauProfileTitle" }, "Your profile"));
+    var body = el("div", null); body.appendChild(el("p", { class: "hau-muted" }, "Loading…"));
+    sec.appendChild(body);
+    Promise.resolve(st.profile.mine()).then(function (p) {
+      if (!p || !("complete" in p)) { sec.replaceWith(displayNameSection(st)); return; }   // 0041 not installed
+      body.textContent = "";
+      body.appendChild(el("p", { class: "hau-muted" }, "Teammates see your name, job title, department and photo."));
+      if (!p.complete) body.appendChild(el("p", { class: "hau-muted", style: "font-weight:600" }, "Add your full name and mobile number to complete your profile."));
+      var u = st.auth.user() || {};
+      var f = profileForm(st, { mode: "panel", idp: "hap", profile: p, email: u.email, labelledBy: "hauProfileTitle", submitLabel: "Save profile",
+        onSaved: function (row) { if (row && row.complete) hideProfileBanner(); } });
+      body.appendChild(f.el);
+      if (focusIt) { try { sec.scrollIntoView({ block: "start" }); } catch (e) {} f.focusFirst(); }
+    }, function (e) {
+      body.textContent = "";
+      body.appendChild(el("p", { class: "hau-err" }, errText(e, "load your profile")));
+    });
+    return sec;
+  }
+
+  /* ------------------------------- "Complete your profile" banner (0041) */
+  var pBanner = null;
+  function hideProfileBanner() { if (pBanner) { try { pBanner.remove(); } catch (e) {} pBanner = null; } }
+  function pageName() {
+    try { return (location.pathname.split("/").pop() || "index").toLowerCase().replace(/\.html$/, "") || "index"; } catch (e) { return ""; }
+  }
+  function profileNudge() {
+    var st = S(); if (!st || !st.auth.user() || !st.profile || !st.profile.status || !st.profile.gateDecision) return;
+    var page = pageName(); if (page === "profile-setup") return;
+    st.profile.status().then(function (s) {
+      if (st.profile.gateDecision(s, page, st.auth.cachedRole ? st.auth.cachedRole() : null) !== "nudge") return;
+      if (st.profile.nudgeSnoozed() || pBanner || !doc.body) return;
+      css();
+      pBanner = el("div", { class: "hau-banner", role: "region", "aria-label": "Complete your profile", id: "hauProfileNudge" });
+      pBanner.appendChild(el("span", { "aria-hidden": "true" }, "👤"));
+      var t = el("span", null); t.appendChild(el("b", null, "Please complete your profile")); t.appendChild(doc.createTextNode(" — add your mobile number so your team can reach you and assign you work."));
+      pBanner.appendChild(t); pBanner.appendChild(el("span", { class: "hau-sp" }));
+      var go = el("button", { type: "button", class: "hau-btn primary" }, "Complete now");
+      var later = el("button", { type: "button", class: "hau-btn", "aria-label": "Remind me in 7 days" }, "Later");
+      go.addEventListener("click", function () { openAccount({ focus: "profile" }); });
+      later.addEventListener("click", function () { st.profile.snoozeNudge(7); hideProfileBanner(); });
+      pBanner.appendChild(go); pBanner.appendChild(later);
+      doc.body.insertBefore(pBanner, doc.body.firstChild);
+    }).catch(function () {});
+  }
+
   function renderMfaSection(box) {
     var st = S();
     st.auth.mfa.verifiedTotp().then(function (fs) {
@@ -364,6 +753,7 @@
       }).observe(doc.body, { childList: true, subtree: true });
     } catch (e) {}
     adminTwoStep();
+    profileNudge();
   }
 
   global.HelmAuthUI = {
@@ -371,6 +761,7 @@
     openAccount: openAccount,
     mountCaptcha: mountCaptcha,
     renderEnroll: renderEnroll,
+    profileForm: profileForm,
     _safeQr: safeQr,
   };
 })(window);
