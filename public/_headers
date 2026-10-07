@@ -187,6 +187,16 @@
   ! Cache-Control
   Cache-Control: no-store
 
+/hq
+  X-Robots-Tag: noindex, nofollow, noarchive
+  ! Cache-Control
+  Cache-Control: no-store
+
+/hq.html
+  X-Robots-Tag: noindex, nofollow, noarchive
+  ! Cache-Control
+  Cache-Control: no-store
+
 /insights
   X-Robots-Tag: noindex, nofollow, noarchive
   ! Cache-Control

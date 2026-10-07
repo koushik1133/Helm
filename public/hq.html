@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Helm</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{--bg:#f6f4f1;--panel:#ffffff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
+    --line:#e8e3db;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#18a558;--warn:#e8912d;--bad:#d64545;
+    --shadow:0 1px 2px rgba(27,25,48,.05),0 8px 24px rgba(27,25,48,.07);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;-webkit-font-smoothing:antialiased}
+  [hidden]{display:none!important}
+  .wrap{max-width:1240px;margin:0 auto;padding:20px 16px 56px}
+  header.top{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+  .mk{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:none}
+  .mk::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.92);border-radius:3px}
+  header.top h1{font-size:18px;margin:0;letter-spacing:-.01em}
+  header.top .sub{color:var(--ink-3);font-size:12px}
+  header.top .sp{flex:1}
+  .who{font-size:12px;color:var(--ink-3)}
+  .btn{height:32px;padding:0 12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;font:inherit;font-size:13px;cursor:pointer}
+  .btn:hover{border-color:var(--accent)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:14px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--shadow)}
+  .kpi .l{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:600}
+  .kpi .v{font-size:22px;font-weight:700;margin-top:4px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+  .kpi .s{font-size:12px;color:var(--ink-3);margin-top:2px}
+  .kpi.warn .v{color:var(--warn)} .kpi.bad .v{color:var(--bad)}
+  .grid{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow);min-width:0}
+  .card h2{font-size:13px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2)}
+  .card .hd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .card .hd h2{margin:0;flex:1}
+  .card input[type=search],.card input[type=date]{height:32px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:8px;padding:0 10px;font:inherit;font-size:13px}
+  .card input[type=search]{width:min(240px,100%)}
+  .chart svg{width:100%;height:150px;display:block}
+  .chart .ax{fill:var(--ink-3);font-size:10px;font-family:var(--font)}
+  .chart .grid-l{stroke:var(--line)}
+  .chart .ln-u{stroke:var(--accent);fill:none;stroke-width:2}
+  .chart .ar-u{fill:var(--accent-soft)}
+  .chart .ln-s{stroke:var(--warn);fill:none;stroke-width:2;stroke-dasharray:4 3}
+  .legend{display:flex;gap:14px;font-size:12px;color:var(--ink-3);margin-top:6px}
+  .legend i{display:inline-block;width:12px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
+  .scroll{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+  td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  td.m{font-family:var(--mono);font-size:12px}
+  tr.click{cursor:pointer} tr.click:hover td{background:var(--panel-2)}
+  .pill{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:600;background:var(--panel-2);border:1px solid var(--line);color:var(--ink-2)}
+  .pill.ok{color:var(--safe);border-color:currentColor} .pill.bad{color:var(--bad);border-color:currentColor} .pill.warn{color:var(--warn);border-color:currentColor}
+  .pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:8px;font-size:12px;color:var(--ink-3)}
+  .list{list-style:none;margin:0;padding:0}
+  .list li{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .list li:last-child{border-bottom:0}
+  .muted{color:var(--ink-3)} .empty{color:var(--ink-3);font-size:13px;padding:6px 0}
+  .bar{height:8px;border-radius:99px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden;margin:6px 0}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+  .detail{margin-top:10px;padding:12px;border:1px dashed var(--line);border-radius:10px;background:var(--panel-2)}
+  .err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:14px}
+  /* not-found look (identical to a missing page — the route never confirms it exists) */
+  .nf{min-height:80vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:48px 16px}
+  .nf .code{font-size:clamp(64px,14vw,120px);font-weight:700;letter-spacing:-.04em;line-height:1;margin:0 0 8px;color:var(--accent)}
+  .nf h2{font-size:clamp(22px,3.4vw,30px);margin:0 0 12px}
+  .nf p{color:var(--ink-2);max-width:46ch;margin:0 auto 24px}
+  .nf a{color:var(--accent)}
+  .loading{min-height:60vh}
+</style>
+<link rel="stylesheet" href="theme.css?v=73">
+</head>
+<body>
+<div id="vLoading" class="loading" aria-busy="true"></div>
+
+<main id="vNotFound" class="nf" hidden>
+  <div>
+    <p class="code" aria-hidden="true">404</p>
+    <h2>We couldn’t find that page</h2>
+    <p>The link may be broken, or the page may have moved.</p>
+    <a href="/">Go to the home page →</a>
+  </div>
+</main>
+
+<div id="vApp" class="wrap" hidden>
+  <header class="top">
+    <div class="mk" aria-hidden="true"></div>
+    <div><h1>Helm HQ</h1><div class="sub">Platform overview · all studios · read-only</div></div>
+    <div class="sp"></div>
+    <span class="who" id="who"></span>
+    <button class="btn" id="btnRefresh" type="button">Refresh</button>
+    <button class="btn" id="btnOut" type="button">Sign out</button>
+  </header>
+  <div id="err" class="err" hidden></div>
+
+  <section class="kpis" id="kpis" aria-label="Key numbers"></section>
+
+  <div class="grid">
+    <section class="card chart">
+      <h2>Sign-ups · last 30 days</h2>
+      <div id="chart"></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>Users</span><span><i style="background:var(--warn)"></i>Studios</span></div>
+    </section>
+    <section class="card">
+      <h2>Payments due</h2>
+      <div id="due"></div>
+    </section>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <div class="hd"><h2>Studios</h2><input type="search" id="qStudios" placeholder="Search name, slug, owner" aria-label="Search studios"></div>
+      <div class="scroll"><table><thead><tr><th>Studio</th><th>Owner</th><th>Plan</th><th class="n">Users</th><th class="n">Events</th><th class="n">Revenue</th><th class="n">Paid</th><th>Last active</th><th>Created</th></tr></thead><tbody id="tStudios"></tbody></table></div>
+      <div class="pager" id="pStudios"></div>
+      <div id="studioDetail"></div>
+    </section>
+    <div>
+      <section class="card" style="margin-bottom:14px"><h2>Top studios</h2><ul class="list" id="top"></ul></section>
+      <section class="card" style="margin-bottom:14px"><h2>Churn risk · no activity 30 days</h2><ul class="list" id="churn"></ul></section>
+      <section class="card" style="margin-bottom:14px"><h2>Two-step verification</h2><div id="mfa"></div></section>
+      <section class="card"><h2>Storage</h2><ul class="list" id="storage"></ul></section>
+    </div>
+  </div>
+
+  <section class="card" style="margin-bottom:14px">
+    <div class="hd"><h2>Users</h2><input type="search" id="qUsers" placeholder="Search e-mail or studio" aria-label="Search users"></div>
+    <div class="scroll"><table><thead><tr><th>E-mail</th><th>Studio</th><th>Role</th><th>Joined</th><th>Last sign-in</th><th>Confirmed</th><th>2-step</th></tr></thead><tbody id="tUsers"></tbody></table></div>
+    <div class="pager" id="pUsers"></div>
+  </section>
+
+  <section class="card">
+    <div class="hd"><h2>Payments</h2>
+      <label class="muted" for="pFrom">From</label><input type="date" id="pFrom">
+      <label class="muted" for="pTo">To</label><input type="date" id="pTo">
+      <button class="btn" id="btnPay" type="button">Show</button></div>
+    <div class="scroll"><table><thead><tr><th>Date</th><th>Studio</th><th>Event</th><th>Method</th><th>Status</th><th class="n">Amount</th></tr></thead><tbody id="tPay"></tbody></table></div>
+  </section>
+</div>
+
+<script src="telemetry.js?v=3"></script>
+<script src="config.js?v=92"></script>
+<script src="store-api.js?v=100"></script>
+<script src="hq.js?v=1"></script>
+</body>
+</html>

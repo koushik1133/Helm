@@ -3590,6 +3590,8 @@
     pending: () => (supa ? rpc("my_pending") : Promise.resolve({ upcoming: [], unread: 0 })),
     // Build 3 — personal task list bucketed TODAY/OVERDUE/BLOCKED/UPCOMING/COMPLETED.
     // Inherently personal + org-scoped server-side (my_tasks is SECURITY DEFINER, crew_id = caller).
+    // Operator-only read RPCs (0029). The database refuses every non-operator (42501).
+    hq: (fn, args) => (/^hq_[a-z_]+$/.test(fn) ? rpc(fn, args || {}) : Promise.reject(new Error("bad call"))),
     myTasks: () => (supa ? rpc("my_tasks") : Promise.resolve({ today: [], overdue: [], blocked: [], upcoming: [], completed: [], counts: {} })),
     // Build 1 — Designer 2D->3D design-approval state machine.
     design: {
