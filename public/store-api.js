@@ -114,6 +114,41 @@
   let pendingStep = null;
   let localAuthOp = 0;                  // >0 while THIS tab is signing in (its own SIGNED_IN is not a cross-tab switch)
   let pwChangedAwaitingClear = false;   // forced change: password updated, flag not cleared yet
+  // Password CHANGE (Account → Change password) proof: set only by a successful
+  // reverifyPassword() for this same account, kept in memory (never stored), and
+  // valid for REAUTH_MS. updatePassword() refuses without it unless the session is
+  // a genuine password-reset session (signed JWT amr says "recovery").
+  const REAUTH_MS = 10 * 60 * 1000;
+  let reauth = null;                    // { uid, until, pw }
+  function reauthClear() { reauth = null; }
+  function reauthFresh() { return !!(reauth && currentUser && reauth.uid === currentUser.id && Date.now() < reauth.until); }
+  // amr methods from the signed access token (Supabase signs it; a client cannot
+  // forge "recovery"). Any decode problem → [] (fail closed).
+  function jwtAmrMethods(token) {
+    try {
+      const part = String(token || "").split(".")[1]; if (!part) return [];
+      const b64 = part.replace(/-/g, "+").replace(/_/g, "/"); const pad = b64 + "===".slice((b64.length + 3) % 4);
+      const claims = JSON.parse(decodeURIComponent(Array.prototype.map.call(atob(pad), (c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join("")));
+      return Array.isArray(claims.amr) ? claims.amr.map((a) => String((a && a.method) || a || "")) : [];
+    } catch (e) { return []; }
+  }
+  async function isRecoverySession() {
+    if (!supa || !currentUser) return false;
+    try {
+      const { data } = await supa.auth.getSession();
+      const s = data && data.session;
+      if (!s || !s.user || s.user.id !== currentUser.id) return false;
+      return jwtAmrMethods(s.access_token).indexOf("recovery") !== -1;
+    } catch (e) { return false; }
+  }
+  // Does this account have a Helm (email) password at all? Google-only → false.
+  function hasPasswordLogin(u) {
+    u = u || currentUser; if (!u) return false;
+    const am = u.app_metadata || {};
+    const provs = Array.isArray(am.providers) ? am.providers : (am.provider ? [am.provider] : []);
+    if (Array.isArray(u.identities) && u.identities.length) return u.identities.some((i) => i && i.provider === "email") || provs.indexOf("email") !== -1;
+    return provs.length ? provs.indexOf("email") !== -1 : true;   // unknown shape → assume password (reverify still decides)
+  }
   const AUTH_CFG = (function () {
     const a = (CFG && CFG.auth) || {}; const s = a.session || {};
     const num = (v, d) => (v === 0 || v === "0") ? 0 : (Number(v) > 0 ? Number(v) : d);
@@ -409,7 +444,7 @@
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "3";
+  const AUTH_UI_VERSION = "4";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -884,7 +919,7 @@
       return data; // browser navigates away to Google
     },
     // Explicit "Log out" = global sign-out (revokes every device's refresh token).
-    async signOut() { explicitSignOut = true; if (supa) { try { await supa.auth.signOut(); } catch (e) { try { await supa.auth.signOut({ scope: "local" }); } catch (x) {} } } currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; pendingStep = null; sessClear(); userLocalClear(); studioSlugCache = null;
+    async signOut() { explicitSignOut = true; reauthClear(); if (supa) { try { await supa.auth.signOut(); } catch (e) { try { await supa.auth.signOut({ scope: "local" }); } catch (x) {} } } currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; pendingStep = null; sessClear(); userLocalClear(); studioSlugCache = null;
       lsDel(SESSION_START_KEY); lsDel(RECOVERY_KEY);
       if (mode === "supabase") authRequired = true; },
     // End every OTHER session of this account (other browsers / devices); this one stays.
@@ -908,6 +943,8 @@
     async completePasswordChange(newPassword) {
       if (!supa) throw new Error("Supabase not configured");
       const bad = passwordProblem(newPassword); if (bad) throw new Error(bad);
+      // only while the server says this account holds a temp password (evaluateGate)
+      if (!pwChangedAwaitingClear && pendingStep !== "password") { const e = new Error("Please sign in again to change your password."); e.code = "reauth_required"; throw e; }
       if (!pwChangedAwaitingClear) {
         const { error } = await supa.auth.updateUser({ password: newPassword });
         if (error) {
@@ -951,30 +988,50 @@
     },
     // Re-check the CURRENT password before a change (signs in again as the same
     // email). Returns "mfa" when the new session still needs the two-step code.
+    // FAILS CLOSED: any error (wrong password, rate limit, a different account
+    // coming back) → one generic message, and no change proof is recorded.
+    hasPassword: () => hasPasswordLogin(),
+    isRecoverySession: () => isRecoverySession(),
     async reverifyPassword(currentPassword, opts) {
+      reauthClear();
       if (!supa || !currentUser || !currentUser.email) throw new Error("Not signed in");
+      if (!hasPasswordLogin()) { const e = new Error("This account signs in with Google, so it has no Helm password to change."); e.code = "bad_current_password"; throw e; }
+      if (typeof currentPassword !== "string" || !currentPassword) { const e = new Error("Your current password isn't right."); e.code = "bad_current_password"; throw e; }
       const captchaToken = opts && opts.captchaToken;
       if (CAPTCHA && !captchaToken) { const e = new Error("Please complete the security check."); e.code = "captcha_required"; throw e; }
       localAuthOp++;
       try {
-        const email = currentUser.email;
-        const { data, error } = await supa.auth.signInWithPassword(captchaToken ? { email, password: currentPassword, options: { captchaToken } } : { email, password: currentPassword });
-        if (error) { const e = new Error("Your current password isn't right."); e.code = "bad_current_password"; e.cause = error; throw e; }
+        const email = currentUser.email, uid = currentUser.id;
+        let res;
+        try { res = await supa.auth.signInWithPassword(captchaToken ? { email, password: currentPassword, options: { captchaToken } } : { email, password: currentPassword }); }
+        catch (x) { res = { data: null, error: x }; }
+        const { data, error } = res || {};
+        if (error || !data || !data.user || data.user.id !== uid) { const e = new Error("Your current password isn't right."); e.code = "bad_current_password"; e.cause = error; throw e; }
         currentUser = data.user; explicitSignOut = false;
+        reauth = { uid, until: Date.now() + REAUTH_MS, pw: currentPassword };
         const { data: lv } = await supa.auth.mfa.getAuthenticatorAssuranceLevel();
         return (lv && lv.nextLevel === "aal2" && lv.currentLevel !== "aal2") ? "mfa" : null;
       } finally { localAuthOp--; }
     },
     // Set a new password for the signed-in user (reset link or change), then end
     // every other session. The rule is enforced here AND by the Supabase policy.
+    // Allowed only (a) right after reverifyPassword() for this account, or (b) in a
+    // genuine reset-link session (JWT amr "recovery"). Anything else fails closed.
+    // The current password is also sent as current_password so the server-side
+    // "require current password" Auth setting can be switched on without app changes.
     async updatePassword(newPassword) {
       if (!supa) throw new Error("Supabase not configured");
       const bad = passwordProblem(newPassword); if (bad) throw new Error(bad);
-      const { error } = await supa.auth.updateUser({ password: newPassword });
+      const fresh = reauthFresh();
+      if (!fresh && !(await isRecoverySession())) { reauthClear(); const e = new Error("Please confirm your current password first."); e.code = "reauth_required"; throw e; }
+      const attrs = { password: newPassword };
+      if (fresh && reauth.pw) attrs.current_password = reauth.pw;
+      const { error } = await supa.auth.updateUser(attrs);
       if (error) {
         if (/different from the old|same_password/i.test(String(error.message || "") + " " + String(error.code || ""))) throw new Error("Choose a password that's different from your current one.");
         throw error;
       }
+      reauthClear();
       lsDel(RECOVERY_KEY);
       try { await supa.auth.signOut({ scope: "others" }); } catch (e) {}
       return true;

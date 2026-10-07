@@ -1,0 +1,111 @@
+name: DB tests (payment/OTP/RLS hardening — staging, gated)
+# ============================================================================
+# Database-layer tests for the payment ledger, OTP approval and RLS boundaries.
+# They run supabase/tests/run-db-tests.sh (psql, multi-session concurrency) and
+# tests/db/rest-ledger-rls.mjs (PostgREST RLS negatives) against an ISOLATED
+# NON-PRODUCTION database.
+#
+# NOT EXECUTED IN THIS CHANGE. This job REQUIRES the HELM_TEST_DB_* secrets
+# below and has not been run here (no isolated test DB credentials were
+# available). Like the E2E workflow, it is GATED on secret presence: forks and
+# external PRs (which never receive secrets) detect the missing secrets and exit
+# cleanly WITHOUT failing.
+#
+# EXPECTED STATUS until the pending fixes land: this job is RED on purpose — it
+# contains REGRESSION GUARDS for not-yet-applied fixes:
+#   * CASE 3  (quote_payments UPDATE-path overpayment)  -> harden-2026-10/H01
+#   * CASE 4  (ledger writable outside the RPC boundary) -> ledger RLS lockdown
+#   * CASE 5 race (two concurrent OTP verifies approve)  -> harden-2026-10/H02
+# Do NOT mark this a required check until those fixes are applied to the test DB.
+# This file does not claim the suite passes.
+#
+# OWNER ACTION — add these repository secrets (Settings → Secrets and variables →
+#   Actions). They must point ONLY at staging (xizehqgeyjcfpzrdymly) or a
+#   throwaway project, NEVER production (nqltzgiwznphugcfhmbm):
+#     HELM_TEST_DB_URL     DIRECT (port 5432) postgres connection string
+#     HELM_TEST_REST_URL   the project's Supabase REST base URL   (for the REST test)
+#     HELM_TEST_ANON_KEY   the project's anon public key           (for the REST test)
+#     HELM_TEST_STAFF_JWT  a signed access token for a seeded staff user (optional;
+#                          enables the staff REST regression guards)
+#     HELM_TEST_QUOTE_ID   a quote id in that user's org to target (for the REST test)
+# ============================================================================
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gate:
+    # Secrets cannot be used in a job-level `if:`, so surface presence as output.
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - id: check
+        run: |
+          if [ -n "${{ secrets.HELM_TEST_DB_URL }}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "HELM_TEST_DB_URL present — DB tests will run."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "HELM_TEST_DB_URL absent — skipping DB tests (expected for forks/external PRs)."
+          fi
+
+  db-tests:
+    needs: gate
+    if: needs.gate.outputs.enabled == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install PostgreSQL client (psql)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Refuse to run against production
+        env:
+          HELM_TEST_DB_URL: ${{ secrets.HELM_TEST_DB_URL }}
+          HELM_TEST_REST_URL: ${{ secrets.HELM_TEST_REST_URL }}
+        run: |
+          case "$HELM_TEST_DB_URL$HELM_TEST_REST_URL" in
+            *nqltzgiwznphugcfhmbm*) echo "REFUSING: a secret points at the PRODUCTION project."; exit 1;;
+          esac
+          echo "Target is not the production project — proceeding."
+
+      - name: SQL + concurrency suite (psql)
+        env:
+          HELM_TEST_DB_URL: ${{ secrets.HELM_TEST_DB_URL }}
+          # ALLOW_NON_STAGING left unset -> the runner refuses non-staging URLs
+          # unless the target is staging. Set it to 1 here only if you use a
+          # throwaway project instead of staging.
+        run: bash supabase/tests/run-db-tests.sh
+
+      - name: PostgREST RLS negatives (node)
+        env:
+          HELM_TEST_REST_URL: ${{ secrets.HELM_TEST_REST_URL }}
+          HELM_TEST_ANON_KEY: ${{ secrets.HELM_TEST_ANON_KEY }}
+          HELM_TEST_STAFF_JWT: ${{ secrets.HELM_TEST_STAFF_JWT }}
+          HELM_TEST_QUOTE_ID: ${{ secrets.HELM_TEST_QUOTE_ID }}
+        run: |
+          if [ -z "$HELM_TEST_REST_URL" ] || [ -z "$HELM_TEST_ANON_KEY" ] || [ -z "$HELM_TEST_QUOTE_ID" ]; then
+            echo "REST test env not fully configured — skipping tests/db/rest-ledger-rls.mjs"
+          else
+            node tests/db/rest-ledger-rls.mjs
+          fi
+
+      - name: Tenant isolation — zero cross-tenant reads (node)
+        # VERIFIED PASSING against staging 2026-10-01 (12 tables, 0 leaks). Signs in
+        # as a staff user and asserts 0 rows from any other org. Self-skips if the
+        # email/password secrets are absent. This one SHOULD stay green (no pending fix).
+        env:
+          HELM_TEST_REST_URL: ${{ secrets.HELM_TEST_REST_URL }}
+          HELM_TEST_ANON_KEY: ${{ secrets.HELM_TEST_ANON_KEY }}
+          HELM_TEST_EMAIL: ${{ secrets.HELM_TEST_EMAIL }}
+          HELM_TEST_PASSWORD: ${{ secrets.HELM_TEST_PASSWORD }}
+        run: node tests/db/tenant-isolation.mjs

@@ -59,13 +59,27 @@
       return;
     }
     $("#acct_email").value = u.email || "";
-    if (RECOVERY_LINK) BPStore.auth.recovery.mark(u.id);
-    recovering = RECOVERY_LINK || BPStore.auth.pendingStep() === "recovery";
+    // "#type=recovery" in the URL is NOT proof (anyone can type it): only a session
+    // whose signed token says it came from a reset link skips the current-password step.
+    var realRecovery = await BPStore.auth.isRecoverySession();
+    if (RECOVERY_LINK && realRecovery) BPStore.auth.recovery.mark(u.id);
+    recovering = realRecovery;
     if (recovering) { await toNewPassword(); return; }
+    if (RECOVERY_LINK || BPStore.auth.pendingStep() === "recovery") {
+      // a stale / spoofed reset marker: fall back to the normal signed-in change flow
+      BPStore.auth.recovery.clear();
+      try { await BPStore.auth.resolveGate(); } catch (x) {}
+    }
     // change mode: the session must be fully signed in (two-step done etc.)
     var step = BPStore.auth.pendingStep();
     if (step) { location.replace("login"); return; }
     $("#title").textContent = "Change your password";
+    $("#toLogin").setAttribute("href", "dashboard"); $("#toLogin").textContent = "← Back to Helm";
+    if (BPStore.auth.hasPassword && !BPStore.auth.hasPassword()) {
+      // Google-only account: there is no Helm password to confirm or change
+      sub("You sign in to Helm with Google, so there's no Helm password to change. Manage your password in your Google account.");
+      return;
+    }
     sub("Signed in as " + (u.email || "") + ". First confirm your current password.");
     show("#vCurrent");
     $("#toLogin").setAttribute("href", "dashboard"); $("#toLogin").textContent = "← Back to Helm";

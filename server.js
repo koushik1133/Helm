@@ -123,13 +123,13 @@ const CSP_BASE = [
   ['frame-ancestors', "'none'"],
   ['frame-src', "'self'"],                  // the invitation studio previews /invite in a same-origin iframe
   ['form-action', "'self'"],
-  ['img-src', "'self' data: blob: https://*.supabase.co"],
-  ['media-src', "'self' blob: https://*.supabase.co"],
+  ['img-src', "'self' data: blob: https://nqltzgiwznphugcfhmbm.supabase.co https://xizehqgeyjcfpzrdymly.supabase.co"],
+  ['media-src', "'self' blob: https://nqltzgiwznphugcfhmbm.supabase.co https://xizehqgeyjcfpzrdymly.supabase.co"],
   ['font-src', "'self' https://fonts.gstatic.com"],
   ['style-src', "'self' 'unsafe-inline' https://fonts.googleapis.com"],
   // 'self' + the pinned Sentry bundle directory only (no whole-CDN hosts)
   ['script-src', SCRIPT_SRC_BASE.join(' ')],
-  ['connect-src', "'self' https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io https://*.ingest.us.sentry.io"],
+  ['connect-src', "'self' https://nqltzgiwznphugcfhmbm.supabase.co https://xizehqgeyjcfpzrdymly.supabase.co wss://nqltzgiwznphugcfhmbm.supabase.co wss://xizehqgeyjcfpzrdymly.supabase.co https://*.ingest.sentry.io https://*.ingest.us.sentry.io"],
   ['upgrade-insecure-requests', ''],
 ];
 const buildCsp = (over = {}) => CSP_BASE

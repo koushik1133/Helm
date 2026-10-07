@@ -76,7 +76,7 @@
 
 <script src="/telemetry.js?v=3"></script>
 <script src="/config.js?v=93"></script>
-<script src="/store-api.js?v=102"></script>
+<script src="/store-api.js?v=103"></script>
 <script>
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const LINK=BPStore.links.parse("proposal");   // branded /<studio>/proposal/<token> (server-verified below)
@@ -107,7 +107,12 @@
       $("#scope").innerHTML=sc.map(s=>`<li>${esc(s)}</li>`).join(""); }
 
     // ---- Investment (price total + breakdown) — Cluster C ----
-    const pr=p.pricing||{}, c=pr.computed||{};
+    const pr=p.pricing||{};
+    // the stored client-side `computed` breakdown is not trusted: re-derive it from the
+    // raw inputs (same canonical formula as the server's helm_quote_total) and use it
+    // only when it adds up to the server-stamped total.
+    const c=(function(){ try{ if(!("gstPct" in pr) || !BPStore.pricing || !BPStore.pricing.quoteTotal || !isFinite(+pr.total)) return {};
+      const q=BPStore.pricing.quoteTotal(pr); if(!q || Math.round(q.total)!==Math.round(+pr.total)) return {}; const r={}; Object.keys(q).forEach(k=>{ r[k]=Math.round(+q[k]||0); }); return r; }catch(e){ return {}; } })();
     const inr=(n)=> (n==null||n===""||isNaN(+n))?"":"₹"+Number(n).toLocaleString("en-IN");
     const num=(v)=>+v||0;
     const chairs=num(pr.chairs), chairPrice=num(pr.chairPrice), guests=num(pr.guests), platePrice=num(pr.platePrice), other=num(pr.other);

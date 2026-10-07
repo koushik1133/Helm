@@ -75,9 +75,9 @@ begin
   insert into public.quote_otps(quote_id, phone, code_hash, expires_at)
     values (pg_temp.id('del4'), '+919811100044', 'h', now() + interval '10 minutes');
 
-  -- OTP lockout fixture: a known code for a known phone
+  -- OTP lockout fixture: a known code for the client phone on file (0032: OTP only goes to that number)
   insert into public.quote_otps(quote_id, phone, code_hash, expires_at)
-    values (pg_temp.id('otp1'), '+919811100001', extensions.crypt('246810', extensions.gen_salt('bf')), now() + interval '10 minutes');
+    values (pg_temp.id('otp1'), '+919811100000', extensions.crypt('246810', extensions.gen_salt('bf')), now() + interval '10 minutes');
   -- dev echo so the real request_otp -> verify_and_consent flow can run end to end
   insert into public.app_config(org_id, key, value) values (orgA, 'channels', '{"otp_dev_echo":true}'::jsonb)
     on conflict (org_id, key) do update set value = excluded.value;
@@ -208,21 +208,21 @@ end $$;
 do $$ declare i int; r jsonb; begin
   perform pg_temp.anon();
   for i in 1..5 loop
-    begin perform public.verify_and_consent(pg_temp.id('tok_otp1'), '+919811100001', '000000', true, 'v1', 'I accept', 'Alice', 'ua');
+    begin perform public.verify_and_consent(pg_temp.id('tok_otp1'), '+919811100000', '000000', true, 'v1', 'I accept', 'Alice', 'ua');
     exception when others then null; end;
   end loop;
-  begin r := public.verify_and_consent(pg_temp.id('tok_otp1'), '+919811100001', '246810', true, 'v1', 'I accept', 'Alice', 'ua');
+  begin r := public.verify_and_consent(pg_temp.id('tok_otp1'), '+919811100000', '246810', true, 'v1', 'I accept', 'Alice', 'ua');
   exception when others then r := jsonb_build_object('approved', false, 'error', sqlerrm); end;
   perform pg_temp.res('otp: after 5 wrong codes the right code is refused (locked)', coalesce(r->>'approved','') <> 'true', r::text);
 end $$;
 do $$ declare a int; begin
-  perform pg_temp.su(); select attempts into a from public.quote_otps where quote_id = pg_temp.id('otp1') and phone = '+919811100001';
+  perform pg_temp.su(); select attempts into a from public.quote_otps where quote_id = pg_temp.id('otp1') and phone = '+919811100000';
   perform pg_temp.res('otp: wrong attempts are counted and kept', a = 5, 'attempts '||coalesce(a::text,'null'));
 end $$;
 do $$ declare r jsonb; v jsonb; begin
   perform pg_temp.anon();
-  r := public.request_otp(pg_temp.id('tok_otp2'), '+919811100002');
-  v := public.verify_and_consent(pg_temp.id('tok_otp2'), '+919811100002', r->>'dev_code', true, 'v3', 'I accept the quote', 'Alice', repeat('U', 3000));
+  r := public.request_otp(pg_temp.id('tok_otp2'), '+919811100000');
+  v := public.verify_and_consent(pg_temp.id('tok_otp2'), '+919811100000', r->>'dev_code', true, 'v3', 'I accept the quote', 'Alice', repeat('U', 3000));
   perform pg_temp.res('otp: request code -> enter it -> approved still works', (r->>'dev_code') ~ '^[0-9]{6}$' and v->>'approved' = 'true', r::text||' / '||v::text);
 exception when others then perform pg_temp.res('otp: request code -> enter it -> approved still works', false, sqlerrm);
 end $$;
@@ -238,7 +238,7 @@ do $$ declare c record; begin
   exception when others then perform pg_temp.res('consent: records the total, version and text hash that were approved', false, sqlerrm); return; end;
   perform pg_temp.res('consent: records the total, version and text hash that were approved',
     c.quote_total = 118000 and c.quote_version = 1 and c.consent_text_sha256 = encode(sha256(convert_to('I accept the quote','UTF8')),'hex')
-    and c.ua <= 1000 and c.phone_matches_client is false, row_to_json(c)::text);
+    and c.ua <= 1000 and c.phone_matches_client is true, row_to_json(c)::text);
 end $$;
 do $$ declare n int; begin
   perform pg_temp.su(); select count(*) into n from public.audit_log where entity = 'quote_consents' and quote_id = pg_temp.id('otp2');

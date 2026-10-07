@@ -129,7 +129,7 @@
 
 <script src="/telemetry.js?v=3"></script>
 <script src="/config.js?v=93"></script>
-<script src="/store-api.js?v=102"></script>
+<script src="/store-api.js?v=103"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -149,20 +149,42 @@
 
   function setMsg(kind,text){ const m=$("#msg"); if(!text){m.innerHTML="";return;} m.innerHTML=`<div class="msg ${kind}">${esc(text)}</div>`; }
 
+  // The client-side `computed` breakdown stored with a quote is NOT trusted: the
+  // server stamps pricing.total itself (helm_quote_total, 0001). The breakdown is
+  // re-derived here from the raw inputs with the same canonical formula, and shown
+  // ONLY when it adds up to the server total; otherwise just the total is shown.
+  function serverBreakdown(p){
+    if(!p || typeof p!=="object") return null;
+    const total=Number(p.total); if(!isFinite(total)) return null;
+    const canonical=("gstPct" in p) && ("chairs" in p || "guests" in p || "other" in p || "catering" in p || "platePrice" in p);
+    if(canonical && BPStore.pricing && BPStore.pricing.quoteTotal){
+      try{ const c=BPStore.pricing.quoteTotal(p); return (c && Math.round(c.total)===Math.round(total)) ? {kind:"canonical",c} : null; }catch(e){ return null; }
+    }
+    if("subtotal" in p){
+      const sub=Number(p.subtotal)||0, gp=("gstPct" in p)?(Number(p.gstPct)||0):18;
+      const disc=Math.min(Math.max(0,Number(p.discount)||0),sub), gst=Math.max(0,sub-disc)*gp/100;
+      if(Math.round(sub-disc+gst)!==Math.round(total)) return null;
+      const inter=p.placeOfSupply==='inter';
+      return {kind:"legacy",c:{subtotal:sub,discount:disc,cgst:inter?0:gst/2,sgst:inter?0:gst/2,igst:inter?gst:0}};
+    }
+    return null;
+  }
   function renderPricing(p){
-    const c=(p&&p.computed)||{}; const rows=[];
+    const rows=[]; const b=serverBreakdown(p); const c=b?b.c:null;
     const add=(l,a)=>rows.push(`<div class="r"><span>${esc(l)}</span><span class="amt">${inr(a)}</span></div>`);
-    if(p){
+    if(b && b.kind==="canonical"){
       add(`Chairs (${p.chairs||0} × ${inr(p.chairPrice||0)})`, (p.chairs||0)*(p.chairPrice||0));
       if(p.other) add("Other charges", p.other);
       if(p.catering&&p.catering.mode==='client') rows.push(`<div class="r"><span>Catering</span><span class="amt">Client-provided</span></div>`);
-      else add(`Catering (${p.guests||0} plates × ${inr(p.platePrice||0)}${p.catering&&p.catering.amount?" + "+inr(p.catering.amount):""})`, (c.cateringBucket||0));
-      if(c.serviceCharge) add(`Service charge (${p.serviceChargePct}%)`, c.serviceCharge);
-      rows.push(`<div class="r"><span>Subtotal</span><span class="amt">${inr(c.subtotal||0)}</span></div>`);
-      if(p.placeOfSupply==='inter') add("IGST", c.igst||0); else { add("CGST", c.cgst||0); add("SGST", c.sgst||0); }
-      if(c.discount) rows.push(`<div class="r"><span>Discount</span><span class="amt">− ${inr(c.discount)}</span></div>`);
+      else add(`Catering (${p.guests||0} plates × ${inr(p.platePrice||0)}${p.catering&&p.catering.amount?" + "+inr(p.catering.amount):""})`, Math.round(c.cateringBucket||0));
+      if(c.serviceCharge) add(`Service charge (${p.serviceChargePct}%)`, Math.round(c.serviceCharge));
     }
-    rows.push(`<div class="r grand"><span>Total payable</span><span class="amt">${inr((p&&p.total)||0)}</span></div>`);
+    if(c){
+      rows.push(`<div class="r"><span>Subtotal</span><span class="amt">${inr(Math.round(c.subtotal||0))}</span></div>`);
+      if(c.discount) rows.push(`<div class="r"><span>Discount</span><span class="amt">− ${inr(Math.round(c.discount))}</span></div>`);
+      if(p.placeOfSupply==='inter') add("IGST", Math.round(c.igst||0)); else { add("CGST", Math.round(c.cgst||0)); add("SGST", Math.round(c.sgst||0)); }
+    }
+    rows.push(`<div class="r grand"><span>Total payable</span><span class="amt">${inr((p&&Number(p.total))||0)}</span></div>`);
     return rows.join("");
   }
 

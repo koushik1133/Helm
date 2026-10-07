@@ -37,3 +37,7 @@ scripts/staging/.seed-manifest.json
 
 # staging-only admin seed — contains a test password; run in the Supabase SQL editor, never commit
 supabase/staging-seed-admin.sql
+
+# iCloud Desktop-sync conflict copies ("name 2.ext") — never commit these
+* 2.*
+* 2

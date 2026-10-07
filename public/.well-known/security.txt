@@ -1,8 +1,6 @@
-# Helm security contact (RFC 9116). Contacts are listed in priority order.
-# Primary channel is GitHub private vulnerability reporting (works today).
-# OWNER ACTION before public launch: confirm the security@helm.events mailbox below
-# is provisioned and actively MONITORED (it is listed as a secondary contact).
-Contact: https://github.com/koushik1133/Helm/security/advisories/new
+# Helm security contact (RFC 9116).
+# Please report suspected vulnerabilities privately by email. Do not include
+# personal data of other people in your report.
 Contact: mailto:security@helm.events
 Expires: 2027-09-30T00:00:00.000Z
 Preferred-Languages: en
