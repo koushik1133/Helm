@@ -5848,6 +5848,8 @@
     if (isAuthError(e)) return "Your session expired — sign in again.";
     if (typeof navigator !== "undefined" && navigator.onLine === false) return "You’re offline — reconnect and try again.";
     if (isNetworkError(e)) return pre + "Couldn’t reach the server — check your connection and try again.";
+    // 0046 D6: a locked (approved / paid / closed-event) money record — the DB message says why
+    if (e && e.hint === "money_frozen" && e.message && !TECHNICAL.test(e.message)) return pre + endDot(clip(String(e.message), 240));
     if (isPermissionError(e)) return "You don’t have permission to " + (action || "do that") + ".";
     if (isMissingTable(e) || isMissingFunction(e)) {
       if (isAdmin()) return "Admin notice: this feature’s database setup hasn’t been applied yet" +

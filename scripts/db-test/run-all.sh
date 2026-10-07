@@ -32,6 +32,7 @@ run() { local name="$1" marker="$2"; shift 2; reseed; local out; out="$("$@" 2>&
 echo "== behavioral suites =="
 # first: later suites re-apply older migrations (e.g. rescore2 → 0032) over the entry points
 run "audit-run2"         "AUDIT-RUN2: ALL PASS"            bash -c "cd tests/db && psql -q -f audit-run2.sql"
+run "d6-money-freeze"    "D6-MONEY-FREEZE: ALL PASS \(49/49\)" bash -c "cd tests/db && psql -q -f d6-money-freeze.sql"
 run "matrix-seed-revert" "MATRIX-SEED-REVERT: ALL PASS \(13/13\)" psql -q -f tests/db/matrix-seed-revert.sql
 run "mfa-enforce"        "MFA-ENFORCE: ALL PASS"           bash -c "cd tests/db && psql -q -f mfa-enforce.sql"
 run "contract-coverage"  "CONTRACT-COVERAGE: 100%"         node tests/db/contract-coverage.mjs
