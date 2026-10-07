@@ -183,4 +183,34 @@ t('CAPTCHA CSP allowance (Turnstile) only on the login / reset pages', () => {
   }
 });
 
+t('CSP: Supabase allowed ONLY for the exact prod + staging projects (no *.supabase.co), on every host + page', () => {
+  const PROJ = ['nqltzgiwznphugcfhmbm.supabase.co', 'xizehqgeyjcfpzrdymly.supabase.co'];
+  for (const [file, src] of [['vercel.json', readFileSync(join(ROOT, 'vercel.json'), 'utf8')], ['_headers', readFileSync(join(PUB, '_headers'), 'utf8')], ['server.js', readFileSync(join(ROOT, 'server.js'), 'utf8')]])
+    assert.ok(!/\*\.supabase\.co/.test(src), file + ' still allows any *.supabase.co project');
+  const hostsIn = (v) => (v || '').split(/\s+/).filter((x) => /supabase\.co/.test(x));
+  for (const p of PAGES) {
+    for (const [who, h] of [['vercel.json', vercelHeaders('/' + p)], ['_headers', netlifyHeaders('/' + p)], ['server.js', serverHeaders('/' + p)]]) {
+      const c = cspMap(h['content-security-policy']);
+      const conn = hostsIn(c['connect-src']).sort();
+      assert.deepEqual(conn, [...PROJ.map((x) => 'https://' + x), ...PROJ.map((x) => 'wss://' + x)].sort(), `${who} /${p} connect-src supabase hosts`);
+      for (const d of ['img-src', 'media-src']) {
+        for (const x of hostsIn(c[d])) assert.ok(PROJ.some((pr) => x === 'https://' + pr), `${who} /${p} ${d} has unexpected ${x}`);
+      }
+    }
+  }
+});
+
+t('security.txt: e-mail contact + Expires (RFC 9116), no internal notes, no unverified GitHub channel', () => {
+  const txt = readFileSync(join(PUB, '.well-known', 'security.txt'), 'utf8');
+  const fields = txt.split('\n').filter((l) => l && !l.startsWith('#'));
+  assert.deepEqual(fields.filter((l) => l.startsWith('Contact:')), ['Contact: mailto:security@helm.events']);
+  const exp = (fields.find((l) => l.startsWith('Expires:')) || '').slice(8).trim();
+  assert.ok(exp && !isNaN(Date.parse(exp)) && Date.parse(exp) > Date.now(), 'Expires present and in the future');
+  assert.ok(Date.parse(exp) - Date.now() < 366 * 864e5 * 1.1, 'Expires no more than ~1 year ahead (RFC 9116 advice)');
+  assert.ok(fields.includes('Canonical: https://www.helm.events/.well-known/security.txt'));
+  assert.ok(!/OWNER ACTION|TODO|works today|provisioned|MONITORED/i.test(txt), 'internal owner notes must not ship');
+  assert.ok(!/github\.com/i.test(txt), 'no GitHub advisory channel until private reporting is verified');
+  for (const l of fields) assert.match(l, /^(Contact|Expires|Encryption|Acknowledgments|Preferred-Languages|Canonical|Policy|Hiring|CSAF):\s\S/, 'unknown field: ' + l);
+});
+
 console.log(`headers-parity: ${n} assertion group(s) passed.`);

@@ -141,6 +141,11 @@ do $$ declare ok boolean; ok2 boolean; begin
   perform pg_temp.login('a_staff@a.test');
   ok := pg_temp.up('event-docs', pg_temp.id('org')||'/'||pg_temp.id('q')||'/9d0e3f7e-8d0c-4f43-9f6a-0d1f6c6a8a11.pdf');
   perform pg_temp.su(); update storage.objects set created_at = now() - interval '1 hour' where bucket_id='event-docs' and name not like '%/'||pg_temp.id('q')||'/%';
+  -- 0032: uploads are also counted from the upload log — let that time pass too
+  if to_regclass('public.storage_upload_log') is not null then
+    execute 'update public.storage_upload_log set created_at = now() - interval ''1 hour'' where owner = $1'
+      using (select id from auth.users where email='a_staff@a.test');
+  end if;
   perform pg_temp.login('a_staff@a.test');
   ok2 := pg_temp.up('event-docs', pg_temp.id('org')||'/'||pg_temp.id('q')||'/9d0e3f7e-8d0c-4f43-9f6a-0d1f6c6a8a11.pdf');
   perform pg_temp.res('uploads: per-user rate limit (100 per 10 minutes) enforced, then lifts', not ok and ok2,

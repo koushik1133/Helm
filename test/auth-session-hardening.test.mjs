@@ -28,7 +28,7 @@ function makeEnv(o = {}) {
   class FakeDate extends RealDate { constructor(...a) { if (a.length) super(...a); else super(now); } static now() { return now; } }
   const intervals = [];
   const user = o.user === null ? null : (o.user || { id: 'u-1', email: 'staff@a.test', factors: [] });
-  let session = user ? { user, access_token: 'x' } : null;
+  let session = user ? { user, access_token: o.accessToken || 'x' } : null;
   const listeners = [];
   const supaAuth = {
     async getSession() { return { data: { session } }; },
@@ -76,6 +76,7 @@ function makeEnv(o = {}) {
     addEventListener() {}, removeEventListener() {},
     setTimeout: (fn) => { try { fn(); } catch (e) {} return 0; }, clearTimeout() {},
     setInterval: (fn, ms) => { intervals.push(fn); return intervals.length; }, clearInterval: (id) => { intervals[id - 1] = null; },
+    atob: (b) => Buffer.from(b, 'base64').toString('binary'),
     console, Date: FakeDate, Promise, URLSearchParams, URL, JSON, Math, Object, Array, String, Number, RegExp, Error, Map, Set,
   };
   win.window = win; win.globalThis = win;
@@ -84,6 +85,10 @@ function makeEnv(o = {}) {
   return { win, S: win.BPStore, calls, clock, intervals, tick: () => intervals.forEach((f) => f && f()), emit: (ev, s) => listeners.forEach((cb) => cb(ev, s)) };
 }
 const flush = () => new Promise((r) => setImmediate(r));
+// unsigned test JWT carrying only the claims store-api reads (amr) — never a real token
+const fakeJwt = (claims) => ['{"alg":"none"}', JSON.stringify(claims)].map((x) => Buffer.from(x).toString('base64url')).join('.') + '.sig';
+const RECOVERY_JWT = fakeJwt({ sub: 'u-1', amr: [{ method: 'recovery', timestamp: 1 }] });
+const PASSWORD_JWT = fakeJwt({ sub: 'u-1', amr: [{ method: 'password', timestamp: 1 }] });
 const CAPTCHA_ON = { captcha: { provider: 'turnstile', siteKey: '0x4AAAAAAA-test-site-key' } };
 const SESSION_ON = { auth: { session: { idleMinutes: 30, warnSeconds: 60, maxHours: 12 } } };
 
@@ -194,7 +199,7 @@ t('a recovery link that lands on another page is handed to /reset-password (neve
   assert.deepEqual(e.calls.find((x) => x[0] === 'location.replace'), ['location.replace', '/reset-password#access_token=a&refresh_token=b&type=recovery']);
 });
 t('an unfinished reset keeps the app closed (pending "recovery") until the new password is set', async () => {
-  const e = makeEnv({ path: '/dashboard', ls: { bp_recovery_pending: 'u-1' } });
+  const e = makeEnv({ path: '/dashboard', ls: { bp_recovery_pending: 'u-1' }, accessToken: RECOVERY_JWT });
   await e.S.init();
   assert.equal(e.S.auth.pendingStep(), 'recovery');
   assert.equal(e.S.auth.user(), null);
@@ -202,6 +207,89 @@ t('an unfinished reset keeps the app closed (pending "recovery") until the new p
   await e.S.auth.updatePassword('New-password123');
   assert.equal(e.win.localStorage.getItem('bp_recovery_pending'), null);
   assert.ok(e.calls.some((x) => x[0] === 'signOut' && x[1] && x[1].scope === 'others'), 'other sessions signed out');
+});
+
+/* ------------------------- 3b. password CHANGE needs the current password */
+const updates = (e) => e.calls.filter((x) => x[0] === 'updateUser');
+t('change password: updatePassword without a fresh current-password check is refused (no request)', async () => {
+  const e = makeEnv({ accessToken: PASSWORD_JWT });
+  await e.S.init();
+  await assert.rejects(e.S.auth.updatePassword('Brand-new-pass12'), (x) => x.code === 'reauth_required');
+  assert.equal(updates(e).length, 0, 'updateUser never called');
+});
+t('change password: a WRONG current password fails closed with one generic message and grants nothing', async () => {
+  const e = makeEnv({ accessToken: PASSWORD_JWT, signInError: { status: 400, message: 'Invalid login credentials' } });
+  await e.S.init();
+  await assert.rejects(e.S.auth.reverifyPassword('wrong-one'), (x) => x.code === 'bad_current_password' && x.message === "Your current password isn't right.");
+  await assert.rejects(e.S.auth.reverifyPassword(''), (x) => x.code === 'bad_current_password');
+  await assert.rejects(e.S.auth.updatePassword('Brand-new-pass12'), (x) => x.code === 'reauth_required');
+  assert.equal(updates(e).length, 0);
+});
+t('change password: re-sign-in uses the user\'s OWN email; then one change is allowed and carries current_password', async () => {
+  const e = makeEnv({ accessToken: PASSWORD_JWT });
+  await e.S.init();
+  await e.S.auth.reverifyPassword('Old-password12!');
+  const si = e.calls.filter((x) => x[0] === 'signInWithPassword').pop();
+  assert.equal(si[1].email, 'staff@a.test');
+  await e.S.auth.updatePassword('Brand-new-pass12!');
+  assert.deepEqual(JSON.parse(JSON.stringify(updates(e)[0][1])), { password: 'Brand-new-pass12!', current_password: 'Old-password12!' });
+  await assert.rejects(e.S.auth.updatePassword('Another-pass12!'), (x) => x.code === 'reauth_required', 'proof is single-use');
+  assert.equal(updates(e).length, 1);
+});
+t('change password: the current-password proof expires after 10 minutes', async () => {
+  const e = makeEnv({ accessToken: PASSWORD_JWT });
+  await e.S.init();
+  await e.S.auth.reverifyPassword('Old-password12!');
+  e.clock.advance(10 * 60 * 1000 + 1);
+  await assert.rejects(e.S.auth.updatePassword('Brand-new-pass12!'), (x) => x.code === 'reauth_required');
+  assert.equal(updates(e).length, 0);
+});
+t('change password: a re-sign-in that returns a DIFFERENT account is refused', async () => {
+  const e = makeEnv({ accessToken: PASSWORD_JWT, signInUser: { id: 'u-OTHER', email: 'staff@a.test' } });
+  await e.S.init();
+  await assert.rejects(e.S.auth.reverifyPassword('Old-password12!'), (x) => x.code === 'bad_current_password');
+  await assert.rejects(e.S.auth.updatePassword('Brand-new-pass12!'), (x) => x.code === 'reauth_required');
+});
+t('reset link: only a session whose signed token says amr=recovery may skip the current password', async () => {
+  // spoofed marker (anyone can open /reset-password#type=recovery or set localStorage)
+  const spoof = makeEnv({ path: '/reset-password', ls: { bp_recovery_pending: 'u-1' }, accessToken: PASSWORD_JWT });
+  await spoof.S.init();
+  assert.equal(await spoof.S.auth.isRecoverySession(), false);
+  await assert.rejects(spoof.S.auth.updatePassword('Brand-new-pass12!'), (x) => x.code === 'reauth_required');
+  assert.equal(updates(spoof).length, 0);
+  const junk = makeEnv({ path: '/reset-password', accessToken: 'not.a.jwt' }); await junk.S.init();
+  assert.equal(await junk.S.auth.isRecoverySession(), false, 'undecodable token → fail closed');
+  const real = makeEnv({ path: '/reset-password', accessToken: RECOVERY_JWT });
+  await real.S.init();
+  assert.equal(await real.S.auth.isRecoverySession(), true);
+  await real.S.auth.updatePassword('Brand-new-pass12!');
+  assert.deepEqual(JSON.parse(JSON.stringify(updates(real)[0][1])), { password: 'Brand-new-pass12!' });
+});
+t('Google-only account: no password to confirm — refused before any request; UI says so', async () => {
+  const g = { id: 'u-1', email: 'g@a.test', app_metadata: { provider: 'google', providers: ['google'] }, identities: [{ provider: 'google' }] };
+  const e = makeEnv({ user: g, accessToken: PASSWORD_JWT });
+  await e.S.init();
+  assert.equal(e.S.auth.hasPassword(), false);
+  await assert.rejects(e.S.auth.reverifyPassword('anything'), (x) => x.code === 'bad_current_password');
+  assert.ok(!e.calls.some((x) => x[0] === 'signInWithPassword'));
+  const both = makeEnv({ user: { id: 'u-1', email: 'b@a.test', app_metadata: { providers: ['email', 'google'] }, identities: [{ provider: 'email' }, { provider: 'google' }] } });
+  await both.S.init();
+  assert.equal(both.S.auth.hasPassword(), true, 'email+google account keeps its password');
+  assert.match(read('public/auth-ui.js'), /hasPassword\(\)/);
+  assert.match(read('public/reset-password.js'), /hasPassword\(\)/);
+});
+t('forced temp-password change only runs while the server flags the account (pendingStep "password")', async () => {
+  const e = makeEnv({ accessToken: PASSWORD_JWT });
+  await e.S.init();
+  assert.equal(e.S.auth.pendingStep(), null);
+  await assert.rejects(e.S.auth.completePasswordChange('Brand-new-pass12!'), (x) => x.code === 'reauth_required');
+  assert.equal(updates(e).length, 0);
+});
+t('reset-password.js trusts the signed recovery session, not the "#type=recovery" fragment alone', () => {
+  const js = read('public/reset-password.js');
+  assert.match(js, /isRecoverySession\(\)/);
+  assert.match(js, /recovering = realRecovery;/);
+  assert.ok(!/recovering = RECOVERY_LINK \|\|/.test(js), 'fragment alone must not skip the current-password step');
 });
 
 /* ------------------------------------------------ 4. two-step gate */
