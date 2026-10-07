@@ -639,8 +639,8 @@ do $$ declare s text; n int; v_c uuid := 'c0000000-0000-4000-8000-000000000042';
   insert into public.organizations(id, name, currency, timezone, brand, plan, created_at) values (v_c, 'Studio C', 'INR', 'Asia/Kolkata', '{}', 'pro', now());
   insert into public.role_access(role, area, can_view, can_edit, org_id, updated_at) values ('planner', 'settlement', true, false, v_c, now());
   n := public._a42_seed_matrix_defaults();
-  perform pg_temp.res('D2-05 rollout: missing matrix rows for the old role-list roles are added (nobody loses access)',
-    (select count(*) from public.role_access where org_id = v_c and can_edit) = 9, n::text);
+  perform pg_temp.res('D2-05 the matrix seed is retired by 0044: no rows are added (nobody gains access)',
+    n = 0 and (select count(*) from public.role_access where org_id = v_c) = 1, n::text);
   perform pg_temp.res('D2-06 … but a studio''s explicit "no edit" row is kept as chosen',
     (select can_edit from public.role_access where org_id = v_c and role = 'planner' and area = 'settlement') = false, '');
   perform pg_temp.res('D2-07 seeding is idempotent', public._a42_seed_matrix_defaults() = 0, '');

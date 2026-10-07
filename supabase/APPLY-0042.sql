@@ -6,8 +6,8 @@
 --   client's mobile on file; links stop working while the quote is on the Archive /
 --   Deleted shelf (and work again on restore). Crew links die when the staff member is
 --   deactivated. Bell / notifications never carry links or tokens. Money, closure and
---   lifecycle actions follow the Control Center role matrix (missing matrix rows for the
---   roles that had access are added, so nobody loses access; admins always pass).
+--   lifecycle actions follow the Control Center role matrix (no rows are added — the matrix
+--   is the single authority; admins always pass. 0044 retired the earlier seed).
 --   Approved refunds are frozen; quotes are hard-deleted only from the Deleted shelf.
 --   Operator accounts can't join studios; invitations need a confirmed e-mail.
 -- REQUIRES 0041 (member profiles) on this database — the preflight stops if not.
@@ -227,28 +227,15 @@ do $$ declare f text; d text; d2 text; begin
   end loop;
 end $$;
 
--- nobody loses access on rollout: the roles the hardcoded lists let in get the matching
--- matrix row WHERE THE STUDIO HAS NO ROW YET (an explicit row, e.g. edit = false, is the
--- studio's own choice and is kept). Insert-only; admin needs no row.
+-- audit-run2-0044: the matrix seed is RETIRED (owner decision D2: the matrix is the single
+-- authority, nobody gains access). Kept as a no-op so re-pasting never re-seeds.
 create or replace function public._a42_seed_matrix_defaults()
 returns integer language plpgsql volatile security definer set search_path = '' as $$
-declare n int;
 begin
-  insert into public.role_access(org_id, role, area, can_view, can_edit, updated_at)
-  select o.id, x.role, x.area, true, true, now()
-    from public.organizations o
-    cross join (values ('planner','settlement'), ('sales','settlement'), ('operations','settlement'),
-                       ('planner','closure'),    ('sales','closure'),    ('operations','closure'),
-                       ('planner','quotes'),     ('sales','quotes'),     ('operations','quotes'),
-                       ('manager','finance')) x(role, area)
-   where not exists (select 1 from public.role_access ra where ra.org_id = o.id and ra.role = x.role and ra.area = x.area)
-  on conflict do nothing;
-  get diagnostics n = row_count;
-  return n;
+  return 0;  -- a44-noop
 end $$;
 revoke all on function public._a42_seed_matrix_defaults() from public, anon, authenticated;
 grant execute on function public._a42_seed_matrix_defaults() to service_role;
-select public._a42_seed_matrix_defaults();
 
 -- ---- 2) RC-1 / RC-3 / RC-10: approval-link entry points -------------------------
 create or replace function public.verify_and_consent(p_token uuid, p_phone text, p_code text, p_agreed boolean,
