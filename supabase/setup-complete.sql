@@ -1,3 +1,13 @@
+-- ════ SUPERSEDED (audit run 2, RC-11) ════════════════════════════════════════
+-- This legacy file predates the canonical migrations (supabase/migrations + MANIFEST).
+-- Re-running it on a database that already has them would put back old, weaker function
+-- bodies, so it refuses to run there. Use scripts/db-migrate.sh / the APPLY-00xx files.
+do $a42guard$ begin
+  if to_regprocedure('public.verify_and_consent__pre0039(uuid, text, text, boolean, text, text, text, text)') is not null then
+    raise exception 'superseded by 0039+ (canonical migrations) — do not re-run this legacy file';
+  end if;
+end $a42guard$;
+-- ═════════════════════════════════════════════════════════════════════════════
 -- =========================================================================
 -- DEPRECATED — DO NOT RUN (PR-DEPLOY-01). This aggregate defines PRE-HARDENING,
 -- NON-org-scoped admin_*/confirm_quote/create_quote bodies. Running it after the
@@ -266,7 +276,7 @@ grant execute on function public.confirm_quote(uuid,jsonb,jsonb)        to authe
 
 -- =========================================================================
 -- 6) (OPTIONAL) seed / reset the six team users — YOU ALREADY HAVE THESE.
---    Leave commented. Uncomment only to (re)create them or reset passwords to 'helm'.
+--    Leave commented. Uncomment only to (re)create them or reset passwords (choose strong ones).
 -- =========================================================================
 -- create or replace function public.create_helm_user(p_email text, p_password text, p_role text)
 -- returns void language plpgsql security definer set search_path = auth, public, extensions as $$
@@ -289,12 +299,12 @@ grant execute on function public.confirm_quote(uuid,jsonb,jsonb)        to authe
 --   insert into public.profiles (id,email,role) values (uid,p_email,p_role)
 --     on conflict (id) do update set role=excluded.role, email=excluded.email;
 -- end; $$;
--- select public.create_helm_user('admin@helm.com','helm','admin');
--- select public.create_helm_user('planner@helm.com','helm','planner');
--- select public.create_helm_user('sales@helm.com','helm','sales');
--- select public.create_helm_user('operations@helm.com','helm','operations');
--- select public.create_helm_user('crew@helm.com','helm','crew');
--- select public.create_helm_user('client@helm.com','helm','client');
+-- select public.create_helm_user('admin@helm.com','<set-a-strong-password>','admin');
+-- select public.create_helm_user('planner@helm.com','<set-a-strong-password>','planner');
+-- select public.create_helm_user('sales@helm.com','<set-a-strong-password>','sales');
+-- select public.create_helm_user('operations@helm.com','<set-a-strong-password>','operations');
+-- select public.create_helm_user('crew@helm.com','<set-a-strong-password>','crew');
+-- select public.create_helm_user('client@helm.com','<set-a-strong-password>','client');
 
 -- =========================================================================
 -- VERIFY (expect: profiles listed, policies present, quotes/versions = 0)

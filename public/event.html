@@ -138,7 +138,7 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=108"></script>
+<script src="store-api.js?v=109"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -450,6 +450,7 @@
   let stageBusy=false;
   async function setStage(k, btn){
     if(stageBusy || !ev || k===ev.lifecycleStage) return;
+    if(k==="closed"){ location.href="closure.html?quote="+encodeURIComponent(id); return; }  // 0042: closing happens on the Closure page
     stageBusy=true;
     const lock=(on)=>{ $("#steps").querySelectorAll(".step").forEach(b=>{ b.disabled=on||!canEdit; }); };
     try{

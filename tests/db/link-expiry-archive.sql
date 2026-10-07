@@ -297,7 +297,10 @@ do $$ declare r text; j jsonb; begin
   r := pg_temp.as_who('a_admin@a.test', format('select public.move_quote_to_shelf(%L, %L)', pg_temp.q('P1'), 'delete'));
   perform pg_temp.res('a quote with a payment cannot go to Deleted (0026 rule)', r like 'P0001%', r);
   r := pg_temp.as_who('a_admin@a.test', format('delete from public.quotes where id = %L', pg_temp.q('P1')));
-  perform pg_temp.res('the 0026 real-delete guard still blocks a paid quote', r like 'P0001%', r);
+  -- 0042: a quote not on the Deleted shelf can't be hard-deleted at all (0 rows); the 0026
+  -- guard (P0001) still applies behind it. Either way the paid quote must still exist.
+  perform pg_temp.res('the 0026 real-delete guard still blocks a paid quote',
+    (r like 'P0001%' or r = 'ok') and exists (select 1 from public.quotes where id = pg_temp.q('P1')), r);
   r := pg_temp.as_who('a_admin@a.test', format('select public.move_quote_to_shelf(%L, %L)', pg_temp.q('F1'), 'delete'));
   perform pg_temp.res('admin moves an unpaid quote to Deleted by hand', r = 'ok' and pg_temp.flag('F1') = 'deleted:manual', r || ' ' || pg_temp.flag('F1'));
   r := pg_temp.as_who('a_staff@a.test', format('select public.move_quote_to_shelf(%L, %L)', pg_temp.q('C1'), 'archive'));

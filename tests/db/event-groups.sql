@@ -248,7 +248,9 @@ do $$ declare v uuid := pg_temp.getv('conv')::uuid; s text; r uuid; begin perfor
   perform pg_temp.su();
   perform pg_temp.res('32 cancelled event: group stays, refresh refused (22023), create returns the same group',
     s = '22023' and r = v and exists (select 1 from public.chat_conversations where id = v), s);
-  perform pg_temp.login('a_admin@a.test');                       -- the app deletes a quote with a direct API delete
+  -- the app deletes a quote with a direct API delete — since 0042 only from the Deleted shelf
+  update public.quotes set deleted_at = now() where id = 'a0000000-0000-4000-8000-0000000e0001';
+  perform pg_temp.login('a_admin@a.test');
   s := pg_temp.try($q$delete from public.quotes where id = 'a0000000-0000-4000-8000-0000000e0001'$q$);
   perform pg_temp.su();
   perform pg_temp.res('33 deleting the quote (as the app does) keeps the group and its history (link cleared)',

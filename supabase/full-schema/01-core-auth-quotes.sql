@@ -267,7 +267,7 @@ grant execute on function public.confirm_quote(uuid,jsonb,jsonb)        to authe
 
 -- =========================================================================
 -- 6) (OPTIONAL) seed / reset the six team users — YOU ALREADY HAVE THESE.
---    Leave commented. Uncomment only to (re)create them or reset passwords to 'helm'.
+--    Leave commented. Uncomment only to (re)create them or reset passwords (choose strong ones).
 -- =========================================================================
 -- create or replace function public.create_helm_user(p_email text, p_password text, p_role text)
 -- returns void language plpgsql security definer set search_path = auth, public, extensions as $$
@@ -290,12 +290,12 @@ grant execute on function public.confirm_quote(uuid,jsonb,jsonb)        to authe
 --   insert into public.profiles (id,email,role) values (uid,p_email,p_role)
 --     on conflict (id) do update set role=excluded.role, email=excluded.email;
 -- end; $$;
--- select public.create_helm_user('admin@helm.com','helm','admin');
--- select public.create_helm_user('planner@helm.com','helm','planner');
--- select public.create_helm_user('sales@helm.com','helm','sales');
--- select public.create_helm_user('operations@helm.com','helm','operations');
--- select public.create_helm_user('crew@helm.com','helm','crew');
--- select public.create_helm_user('client@helm.com','helm','client');
+-- select public.create_helm_user('admin@helm.com','<set-a-strong-password>','admin');
+-- select public.create_helm_user('planner@helm.com','<set-a-strong-password>','planner');
+-- select public.create_helm_user('sales@helm.com','<set-a-strong-password>','sales');
+-- select public.create_helm_user('operations@helm.com','<set-a-strong-password>','operations');
+-- select public.create_helm_user('crew@helm.com','<set-a-strong-password>','crew');
+-- select public.create_helm_user('client@helm.com','<set-a-strong-password>','client');
 
 -- =========================================================================
 -- VERIFY (expect: profiles listed, policies present, quotes/versions = 0)

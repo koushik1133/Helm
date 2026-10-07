@@ -111,6 +111,22 @@ for (const f of files) {
 }
 if (!echoLeaks) ok('every request_otp that echoes dev_code gates it on otp_dev_echo');
 
+// audit run 2 (RC-1 / RC-11): the newest canonical verify_and_consent must reject a NULL /
+// malformed code before any crypt() comparison (crypt(NULL, h) <> h is NULL, not true)
+{
+  const migDir = join(SUPA, 'migrations');
+  const migs = readdirSync(migDir).filter((n) => /^\d{4}_.*\.sql$/.test(n)).sort();
+  let latest = null;
+  for (const n of migs) {
+    const src = stripComments(readFileSync(join(migDir, n), 'utf8'));
+    if (/create\s+or\s+replace\s+function\s+public\.verify_and_consent\s*\(/i.test(src)) latest = { n, src };
+  }
+  if (!latest) fail('no canonical verify_and_consent found in supabase/migrations');
+  else if (!/p_code\s+is\s+null|p_code\s+is\s+distinct\s+from/i.test(latest.src))
+    fail(`${latest.n}: verify_and_consent does not reject a NULL code (C-01)`);
+  else ok(`${latest.n}: verify_and_consent rejects a NULL / malformed code`);
+}
+
 console.log('');
 if (errors) { console.error(`FAILED — ${errors} OTP-safety problem(s).`); process.exit(1); }
 console.log('OTP-safety checks passed.');
