@@ -42,11 +42,17 @@
     return UI && UI.friendlyError ? UI.friendlyError(e, { action: action }) : ((e && e.message) || "Something went wrong.");
   }
   // Only ever an image data: URI from Supabase — never a remote URL.
+  // Supabase returns the TOTP QR as raw "<svg…>", as "data:image/svg+xml;utf-8,<svg…>" (unescaped,
+  // so a "#" in a colour cuts the URI short), or already URL-encoded. Normalise every form to a
+  // properly encoded SVG data URI; only SVG/PNG images are ever rendered.
   function safeQr(src) {
-    src = String(src || "");
-    var m = /^data:image\/svg\+xml;utf-?8,(.*)$/i.exec(src);
-    if (m) return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(m[1]);
-    if (/^data:image\/(svg\+xml|png);(charset=utf-8,|base64,)/i.test(src)) return src;
+    src = String(src || "").trim();
+    var svg = null;
+    if (/^<svg[\s>]/i.test(src)) svg = src;
+    var m = /^data:image\/svg\+xml(?:;charset=utf-?8|;utf-?8)?,(.*)$/is.exec(src);
+    if (m) { svg = m[1]; if (/^%3Csvg/i.test(svg)) { try { svg = decodeURIComponent(svg); } catch (e) { return ""; } } }
+    if (svg !== null) return /^<svg[\s>]/i.test(svg) ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg) : "";
+    if (/^data:image\/(svg\+xml|png);base64,[A-Za-z0-9+\/=]+$/i.test(src)) return src;
     return "";
   }
 
