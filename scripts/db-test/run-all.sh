@@ -55,6 +55,7 @@ run "payment-matrix"     "PAYMENT-MATRIX: ALL PASS"        psql -q -f tests/db/p
 run "checkout-overissue" "CHECKOUT-OVERISSUE: ALL PASS"    psql -q -f tests/db/checkout-overissue.sql
 run "rescore2-fixes"     "RESCORE2-FIXES: ALL PASS \(33/33\)" psql -q -f tests/db/rescore2-fixes.sql
 run "rescore3-fixes"     "RESCORE3-FIXES: ALL PASS \(26/26\)" psql -q -f tests/db/rescore3-fixes.sql
+run "display-names"      "DISPLAY-NAMES: ALL PASS \(36/36\)" psql -q -f tests/db/display-names.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

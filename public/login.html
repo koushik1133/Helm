@@ -196,8 +196,8 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=103"></script>
-<script src="auth-ui.js?v=4"></script>
+<script src="store-api.js?v=104"></script>
+<script src="auth-ui.js?v=5"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const PENDING="bp_pending_studio";
@@ -229,19 +229,24 @@
   const pendingInvite=()=>{ try{ return inviteTok||sessionStorage.getItem(INVITE_KEY)||null; }catch(e){ return inviteTok||null; } };
   const clearInvite=()=>{ try{ sessionStorage.removeItem(INVITE_KEY); }catch(e){} try{ localStorage.removeItem(INVITE_KEY); }catch(e){} };
   const JOINING=!!pendingInvite();   // an invitee joins a studio; they never create one
-  // Accept a same-app page name with optional .html and optional query (e.g.
-  // "flow.html?quote=…" or the clean-URL form "flow?quote=…"). Reject anything
-  // with a slash or protocol to prevent open-redirects.
-  // ?next= may only name one of the app's own pages; the page string comes from
-  // this fixed list (never from the URL) and only its query string is carried over.
-  const NEXT_PAGES=["audit","budget","builder","calendar","closure","command","control","crm","dashboard","design","discovery","event","flow","insights","inventory","invite-studio","issues","leads","logistics","manual","media","nurture","ops","plan","proposal","quotes","ready","reports","resources","runsheet","settlement","staff","teardown","templates","vendors"];
-  const nextUrl=()=>{
-    const m=/^([a-z0-9-]+)(?:\.html)?(?:\?([^#]*))?$/i.exec(new URLSearchParams(location.search).get("next")||"");
-    const page=m && NEXT_PAGES.find(p=>p===m[1].toLowerCase());
-    if(!page) return "dashboard.html";
-    const qs=new URLSearchParams(m[2]||"").toString();
-    return page+".html"+(qs?"?"+qs:"");
-  };
+  // ?next= may only name one of the app's own pages (no open redirect): the shared
+  // sanitiser in store-api.js takes the page from a fixed list, never from the URL,
+  // and carries over only its query string. Anything else → dashboard.
+  const nextUrl=()=>BPStore.auth.safeNext(new URLSearchParams(location.search).get("next")||"");
+  // Signed in and past every sign-in step: send the account where it belongs.
+  // Decided HERE, before any app page is shown (so no dashboard flash and no
+  // Back-button loop), always with location.replace:
+  //   has a studio            → ?next= page (default dashboard)
+  //   no studio, HQ operator  → /hq        (operators are never studio members)
+  //   no studio               → onboarding ("Set up your studio") on this page
+  // is_platform_admin() is asked only when there is no studio; errors count as "no".
+  async function routeSignedIn(){
+    let oid=null, known=false;
+    try{ oid=await BPStore.org.resolveId(); known=true; }catch(e){}
+    if(oid || !known){ location.replace(nextUrl()); return; }   // unknown: the page gate re-checks
+    if(await BPStore.auth.operatorToHq()) return;   // Helm platform operator → HQ (replace)
+    showOnboarding();
+  }
   const EXPIRED=new URLSearchParams(location.search).get("expired")==="1";
   const showErr=(el,text)=>{ el.textContent=text; el.hidden=false; };
 
@@ -377,6 +382,7 @@
   async function finishPendingStudio(){
     try{ const oid=await BPStore.org.id(); if(oid) return;
       const name=localStorage.getItem(PENDING); if(!name) return;
+      if(await BPStore.auth.isPlatformAdmin()) return;   // HQ operators never get a studio
       await BPStore.org.createStudio(name,{email:(BPStore.auth.user()||{}).email}); localStorage.removeItem(PENDING);
       try{ localStorage.setItem("bp_force_tour","1"); }catch(e){}   // brand-new studio → show the tour
     }catch(e){}
@@ -432,6 +438,8 @@
       if(!name){ showErr($("#obErr"),"Please enter your business name."); $("#ob_name").focus(); return; }
       btn.textContent="Creating…";
       try{
+        // a Helm platform operator must never create a studio from here → HQ
+        if(await BPStore.auth.operatorToHq()) return;
         await BPStore.org.createStudio(name,{ email:(BPStore.auth.user()||{}).email,
           currency:$("#ob_currency").value, timezone:$("#ob_tz").value });
         const loc=$("#ob_location").value.trim();
@@ -458,10 +466,8 @@
         catch(err){ showErr($("#err"),BPUI.friendlyError(err,{action:"accept the invitation"})); return; }
       }
       await finishPendingStudio();
-      // Signed in but no studio (and not joining one via invite) → collect business info.
-      let oid=null; try{ oid=await BPStore.org.id(); }catch(e){}
-      if(!oid && !JOINING){ showOnboarding(); return; }
-      location.replace(nextUrl()); return;
+      // studio → next page · no studio → /hq (operator) or onboarding
+      await routeSignedIn(); return;
     }
     if($("#forgotForm").hidden) ensureCap();
     if($("#forgotForm").hidden) setTimeout(()=>$(mode==="signup"&&!JOINING?"#studio":"#email").focus(),60);
@@ -506,6 +512,13 @@
           // a retry must NOT call signUp again — only create the studio.
           const existing=BPStore.auth.user();
           const r=existing?{session:true}:await BPStore.auth.signUp(email, pw, {captchaToken:capToken(cap)});
+          if(r.session && existing){
+            // already signed in: an account that has a studio goes to it; a Helm platform
+            // operator (asked only when there is no studio) goes to HQ — never a new studio
+            let o=null; try{ o=await BPStore.org.resolveId(); }catch(e){}
+            if(o){ location.replace(nextUrl()); return; }
+            if(await BPStore.auth.operatorToHq()) return;
+          }
           if(r.session){ await BPStore.org.createStudio(studio,{email:(existing&&existing.email)||email}); try{ localStorage.setItem("bp_force_tour","1"); }catch(e){} location.replace(nextUrl()); return; }
           // email confirmation required → save the name, finish after they confirm + sign in
           localStorage.setItem(PENDING, studio);
@@ -518,7 +531,9 @@
         // Two-step code / temp password (Option A: MUST set their own now) — fails closed.
         if(!(await finishGate())) return;
         if(joining){ await acceptPendingInvite(); } else { await finishPendingStudio(); }
-        location.replace(nextUrl());
+        // decide studio / HQ / onboarding BEFORE leaving this page (was: straight to the
+        // dashboard, which then bounced back here — the Back-button loop)
+        await routeSignedIn();
       }catch(err){
         showView("#loginForm");
         const m=(err&&err.message)||"";

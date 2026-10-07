@@ -39,10 +39,23 @@ t('hq.html: no inline script, loads hq.js, robots meta noindex', () => {
   assert(/<script src="hq\.js/.test(h), 'hq.js not loaded');
   assert(/name="robots" content="noindex/.test(h), 'robots meta missing');
 });
+const OPERATOR_TO_HQ = /async function operatorToHq\(\) \{\n\s*if \(!\(await isPlatformAdmin\(\)\)\) return false;\n\s*try \{ location\.replace\("\/hq"\); \} catch \(e\) \{\}\n\s*return true;\n\s*\}/;
 t('nothing links to /hq (pages, sitemap, robots, llms.txt)', () => {
   const files = readdirSync(join(ROOT, 'public')).filter((f) => /\.(html|js|txt|xml)$/.test(f) && !/^hq\.(html|js)$/.test(f));
-  const bad = files.filter((f) => /(href|src|location[^;]{0,40})\s*=?\s*["'`]\/?hq(\.html)?["'?#`]/.test(rd('public/' + f)) || /\/hq(\.html)?\b/.test(f.endsWith('.xml') || f.endsWith('.txt') ? rd('public/' + f) : ''));
+  // One sanctioned exception (owner request, auth-gate fix): store-api.js operatorToHq()
+  // sends an account with NO studio to HQ, and only after is_platform_admin() said true.
+  // It is stripped before the scan and pinned by the next test.
+  const src = (f) => { const s = rd('public/' + f); return f === 'store-api.js' ? s.replace(OPERATOR_TO_HQ, '') : s; };
+  const bad = files.filter((f) => /(href|src|location[^;]{0,40})\s*=?\s*["'`]\/?hq(\.html)?["'?#`]/.test(src(f)) || /\/hq(\.html)?\b/.test(f.endsWith('.xml') || f.endsWith('.txt') ? rd('public/' + f) : ''));
   assert(!bad.length, 'linked from: ' + bad.join(', '));
+});
+t('the only HQ redirect is store-api operatorToHq(), gated on is_platform_admin() (never an href)', () => {
+  const s = rd('public/store-api.js');
+  assert(OPERATOR_TO_HQ.test(s), 'operatorToHq() shape changed');
+  const all = s.match(/["'`]\/hq(\.html)?["'?#`]/g) || [];
+  assert(all.length === 1, 'exactly one HQ path literal in store-api.js (found ' + all.length + ')');
+  // HQ is only considered for an account with NO studio (routeNoStudio follows a confirmed null org)
+  assert(/if \(!oid\) \{ await routeNoStudio\(\); return HANG\(\); \}/.test(s), 'gate asks only when no studio');
 });
 t('hq.js: no innerHTML / insertAdjacentHTML / eval', () => {
   const j = rd('public/hq.js');

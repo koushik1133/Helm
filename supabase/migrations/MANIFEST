@@ -46,3 +46,4 @@ forward  supabase/migrations/0030_password_rule_symbols.sql
 forward  supabase/migrations/0031_manual_private_bucket.sql
 forward  supabase/migrations/0032_rescore2_fixes.sql
 forward  supabase/migrations/0033_rescore3_fixes.sql
+forward  supabase/migrations/0034_display_names.sql

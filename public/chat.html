@@ -1,6 +1,7 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="light" class="auth-pending">
 <head>
+<style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- Chat has a bottom composer; the floating toggle would sit on the mic/send
@@ -198,7 +199,9 @@
   .ie-top{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:12px 16px}
   .ie-tools{display:flex;gap:8px}
   .ie-ic{width:42px;height:42px;border-radius:50%;border:0;background:rgba(255,255,255,.12);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-  .ie-ic:hover{background:rgba(255,255,255,.22)}
+  .ie-ic:hover:not(:disabled){background:rgba(255,255,255,.22)}
+  .ie-ic:disabled{opacity:.35;cursor:default}
+  .ie-ic:focus-visible{outline:2px solid #fff;outline-offset:2px}
   .ie-ic.on{background:var(--accent);color:#fff}
   .ie-stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:8px}
   #ieCanvas{max-width:100%;max-height:100%;touch-action:none;box-shadow:0 6px 30px rgba(0,0,0,.5);background:#000}
@@ -304,6 +307,9 @@
   <div class="ie-top">
     <button class="ie-ic" id="ieClose" title="Cancel" aria-label="Cancel">✕</button>
     <div class="ie-tools">
+      <button class="ie-ic" id="ieUndo" type="button" title="Undo (Ctrl+Z)" aria-label="Undo" aria-keyshortcuts="Control+Z Meta+Z" disabled><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+      <button class="ie-ic" id="ieRedo" type="button" title="Redo (Ctrl+Shift+Z)" aria-label="Redo" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z Control+Y" disabled><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+      <button class="ie-ic" id="ieClear" type="button" title="Clear marks (keeps the crop)" aria-label="Clear all drawn marks" disabled><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4l10-10a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4L11 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg></button>
       <button class="ie-ic" id="ieCrop" title="Crop" aria-label="Crop">⛶</button>
       <button class="ie-ic" id="ieDraw" title="Draw" aria-label="Draw">✏️</button>
     </div>
@@ -323,7 +329,7 @@
 <link rel="stylesheet" href="theme.css?v=73">
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=103"></script>
+<script src="store-api.js?v=104"></script>
 <script>
 (function(){
   const $=(s,r)=>(r||document).querySelector(s);
@@ -352,7 +358,10 @@
 
   function colorFor(id){ let h=0; const s=String(id||""); for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return NAME_COLORS[h%NAME_COLORS.length]; }
   function initials(name){ const p=String(name||"?").trim().split(/\s+/); return ((p[0]||"")[0]||"?").toUpperCase()+((p[1]||"")[0]||"").toUpperCase(); }
-  function personName(id){ const p=roster[id]; return p?(p.full_name||p.email||"Member"):(id===ME.id?ME.name:"Member"); }
+  /* names: display name → e-mail before "@" → role (BPStore.chat.displayName); always esc() before HTML */
+  function pname(p){ return BPStore.chat.displayName?BPStore.chat.displayName(p):((p&&(p.full_name||p.email))||"Member"); }
+  function roleLbl(r){ try{ return r?BPStore.auth.admin.roleLabel(r):""; }catch(e){ return r||""; } }
+  function personName(id){ const p=roster[id]; return p?pname(p):(id===ME.id?ME.name:"Member"); }
   function fmtTime(ts){ try{ return new Date(ts).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"}); }catch(e){ return ""; } }
   function fmtListTime(ts){ try{ const d=new Date(ts),t=new Date(),y=new Date(t); y.setDate(t.getDate()-1);
     if(d.toDateString()===t.toDateString()) return fmtTime(ts); if(d.toDateString()===y.toDateString()) return "Yesterday";
@@ -462,7 +471,7 @@
     const c=convs.find(x=>x.id===activeId);
     if(c){ if(c.kind==="group") $("#tSub").textContent=(thread.members||[]).map(m=>m.user_id===ME.id?"You":personName(m.user_id).split(" ")[0]).join(", ")||"group";
       else if(c.kind==="broadcast") $("#tSub").textContent="Everyone in your team";
-      else { const o=convOther(c); $("#tSub").textContent=(roster[o]&&(roster[o].email||roster[o].role))||""; } }
+      else { const o=convOther(c); $("#tSub").textContent=(roster[o]&&roleLbl(roster[o].role))||""; } }
     renderMessages();
   }
   function reactsFor(mid){ const by={}; (thread.reactions||[]).filter(r=>r.message_id===mid).forEach(r=>{ (by[r.emoji]=by[r.emoji]||[]).push(r.user_id); }); return by; }
@@ -548,34 +557,69 @@
   $("#replyX").addEventListener("click",()=>{ replyTo=null; $("#replyBar").hidden=true; });
   function lightbox(src){ const o=document.createElement("div"); o.className="lightbox"; o.innerHTML=`<img src="${esc(src)}" alt="Photo">`; o.addEventListener("click",()=>o.remove()); document.body.appendChild(o); }
 
-  /* ---------- image editor: preview → crop / draw / caption → send ---------- */
-  let ieMode=null, ieDrawing=false, ieStart=null;
+  /* ---------- image editor: preview → crop / draw / caption → send ----------
+     State = the photo (ieState.base: an off-screen canvas, cropped but never drawn on)
+     + the pen strokes on top (ieState.strokes, canvas pixels). Every change (stroke,
+     crop, clear marks) pushes the previous state on ieHist, so Undo / Redo are exact
+     and "Clear marks" can always restore the untouched (cropped) photo. */
+  let ieMode=null, ieDrawing=false, ieStart=null, ieState=null, ieHist=[], ieFut=[], ieCur=null;
+  const IE_HIST_MAX=30, IE_PEN="#ff3b30";
   function ieCtx(){ return $("#ieCanvas").getContext("2d"); }
   function iePt(e){ const cv=$("#ieCanvas"), r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)*(cv.width/r.width), y:(e.clientY-r.top)*(cv.height/r.height)}; }
   function ieSetMode(m){ ieMode=(ieMode===m?null:m); $("#ieDraw").classList.toggle("on",ieMode==="draw"); $("#ieCrop").classList.toggle("on",ieMode==="crop"); $("#ieCanvas").classList.toggle("draw",ieMode==="draw"); $("#ieCropBox").hidden=true; $("#ieApply").hidden=true; ieStart=null; }
+  function ieSnap(){ return {base:ieState.base, strokes:ieState.strokes.slice()}; }
+  function ieSync(){ $("#ieUndo").disabled=!ieHist.length; $("#ieRedo").disabled=!ieFut.length; $("#ieClear").disabled=!(ieState&&ieState.strokes.length); }
+  function iePush(){ ieHist.push(ieSnap()); if(ieHist.length>IE_HIST_MAX) ieHist.shift(); ieFut=[]; }
+  function ieStroke(g,st){ const p=st.pts; if(!p.length) return; g.strokeStyle=st.color; g.lineWidth=st.width; g.lineCap="round"; g.lineJoin="round"; g.beginPath(); g.moveTo(p[0].x,p[0].y);
+    if(p.length===1) g.lineTo(p[0].x+0.01,p[0].y); else for(let i=1;i<p.length;i++) g.lineTo(p[i].x,p[i].y); g.stroke(); }
+  function ieRender(){ if(!ieState) return; const cv=$("#ieCanvas"), b=ieState.base; cv.width=b.width; cv.height=b.height; const g=ieCtx(); g.drawImage(b,0,0); ieState.strokes.forEach(st=>ieStroke(g,st)); }
+  function ieHideCrop(){ $("#ieCropBox").hidden=true; $("#ieApply").hidden=true; ieStart=null; }
+  function ieUndo(){ if(ieDrawing||!ieState||!ieHist.length) return; ieFut.push(ieSnap()); ieState=ieHist.pop(); ieHideCrop(); ieRender(); ieSync(); }
+  function ieRedo(){ if(ieDrawing||!ieState||!ieFut.length) return; ieHist.push(ieSnap()); ieState=ieFut.pop(); ieHideCrop(); ieRender(); ieSync(); }
+  function ieClearMarks(){ if(ieDrawing||!ieState||!ieState.strokes.length) return; iePush(); ieState={base:ieState.base, strokes:[]}; ieRender(); ieSync(); }
+  function ieEndStroke(){ if(!ieDrawing) return; ieDrawing=false; const st=ieCur; ieCur=null; if(!st||!ieState) return;
+    if(st.pts.length===1) ieStroke(ieCtx(),st);   // a tap leaves a dot
+    iePush(); ieState={base:ieState.base, strokes:ieState.strokes.concat([st])}; ieSync(); }
   function openImageEditor(file){ if(!file||!activeId) return; const cv=$("#ieCanvas"); const url=URL.createObjectURL(file); const img=new Image();
-    img.onload=function(){ let w=img.naturalWidth,h=img.naturalHeight; const max=1600; if(Math.max(w,h)>max){ const s=max/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s); } cv.width=w; cv.height=h; ieCtx().drawImage(img,0,0,w,h); try{ URL.revokeObjectURL(url); }catch(e){} };
+    ieState=null; ieHist=[]; ieFut=[]; ieCur=null; ieSync();
+    img.onload=function(){ let w=img.naturalWidth,h=img.naturalHeight; const max=1600; if(Math.max(w,h)>max){ const s=max/Math.max(w,h); w=Math.round(w*s); h=Math.round(h*s); }
+      const base=document.createElement("canvas"); base.width=w; base.height=h; base.getContext("2d").drawImage(img,0,0,w,h);
+      ieState={base, strokes:[]}; ieHist=[]; ieFut=[]; ieRender(); ieSync(); try{ URL.revokeObjectURL(url); }catch(e){} };
     img.onerror=function(){ try{ URL.revokeObjectURL(url); }catch(e){} BPUI.toast("Couldn’t open that image.",{type:"err"}); };
     img.src=url;
     $("#ieCaption").value=""; const c=convs.find(x=>x.id===activeId); $("#ieTo").textContent=c?("To: "+convTitle(c)):"";
     ieSetMode(null); $("#imgEdit").hidden=false; $("#imgEdit").setAttribute("aria-hidden","false"); }
-  function ieClose(){ $("#imgEdit").hidden=true; $("#imgEdit").setAttribute("aria-hidden","true"); ieMode=null; ieStart=null; ieDrawing=false; }
+  function ieClose(){ $("#imgEdit").hidden=true; $("#imgEdit").setAttribute("aria-hidden","true"); ieMode=null; ieStart=null; ieDrawing=false; ieCur=null; ieState=null; ieHist=[]; ieFut=[]; ieSync(); }
   (function(){ const cv=$("#ieCanvas"), stage=$("#ieStage"), box=$("#ieCropBox");
     $("#ieClose").addEventListener("click",ieClose);
     $("#ieDraw").addEventListener("click",()=>ieSetMode("draw"));
     $("#ieCrop").addEventListener("click",()=>ieSetMode("crop"));
-    cv.addEventListener("pointerdown",e=>{ if(ieMode==="draw"){ ieDrawing=true; const p=iePt(e); const g=ieCtx(); g.strokeStyle="#ff3b30"; g.lineWidth=Math.max(3,cv.width/180); g.lineCap="round"; g.lineJoin="round"; g.beginPath(); g.moveTo(p.x,p.y); e.preventDefault(); }
+    $("#ieUndo").addEventListener("click",ieUndo);
+    $("#ieRedo").addEventListener("click",ieRedo);
+    $("#ieClear").addEventListener("click",ieClearMarks);
+    // Ctrl/Cmd+Z undo · Ctrl/Cmd+Shift+Z or Ctrl+Y redo (the caption box keeps its own text undo)
+    document.addEventListener("keydown",e=>{ if($("#imgEdit").hidden||!(e.ctrlKey||e.metaKey)||e.altKey) return;
+      const t=e.target; if(t&&(t.tagName==="INPUT"||t.tagName==="TEXTAREA"||t.isContentEditable)) return;
+      const k=String(e.key||"").toLowerCase();
+      if(k==="z"&&!e.shiftKey){ e.preventDefault(); ieUndo(); }
+      else if((k==="z"&&e.shiftKey)||(k==="y"&&!e.shiftKey)){ e.preventDefault(); ieRedo(); } });
+    cv.addEventListener("pointerdown",e=>{ if(ieMode==="draw"){ if(!ieState) return; ieDrawing=true; const p=iePt(e); ieCur={color:IE_PEN, width:Math.max(3,cv.width/180), pts:[p]}; const g=ieCtx(); g.strokeStyle=ieCur.color; g.lineWidth=ieCur.width; g.lineCap="round"; g.lineJoin="round"; g.beginPath(); g.moveTo(p.x,p.y); e.preventDefault(); }
       else if(ieMode==="crop"){ const sr=stage.getBoundingClientRect(); ieStart={x:e.clientX,y:e.clientY}; box.hidden=false; box.style.left=(e.clientX-sr.left)+"px"; box.style.top=(e.clientY-sr.top)+"px"; box.style.width="0px"; box.style.height="0px"; $("#ieApply").hidden=true; e.preventDefault(); } });
-    cv.addEventListener("pointermove",e=>{ if(ieMode==="draw"&&ieDrawing){ const p=iePt(e); const g=ieCtx(); g.lineTo(p.x,p.y); g.stroke(); }
+    cv.addEventListener("pointermove",e=>{ if(ieMode==="draw"&&ieDrawing&&ieCur){ const p=iePt(e); ieCur.pts.push(p); const g=ieCtx(); g.lineTo(p.x,p.y); g.stroke(); }
       else if(ieMode==="crop"&&ieStart){ const sr=stage.getBoundingClientRect(); const l=Math.min(ieStart.x,e.clientX)-sr.left, t=Math.min(ieStart.y,e.clientY)-sr.top, w=Math.abs(e.clientX-ieStart.x), h=Math.abs(e.clientY-ieStart.y); box.style.left=l+"px"; box.style.top=t+"px"; box.style.width=w+"px"; box.style.height=h+"px"; $("#ieApply").hidden=(w<12||h<12); } });
-    window.addEventListener("pointerup",()=>{ ieDrawing=false; if(ieMode==="crop") ieStart=null; });
+    window.addEventListener("pointerup",()=>{ ieEndStroke(); if(ieMode==="crop") ieStart=null; });
+    window.addEventListener("pointercancel",()=>{ ieEndStroke(); if(ieMode==="crop") ieStart=null; });
     $("#ieApply").addEventListener("click",()=>{ const cr=cv.getBoundingClientRect(), br=box.getBoundingClientRect();
-      if(!(cr.width>0)||!(cr.height>0)||!(br.width>=12)||!(br.height>=12)){ ieSetMode(null); return; }   // degenerate → abort (guards NaN/0)
+      if(!ieState||!(cr.width>0)||!(cr.height>0)||!(br.width>=12)||!(br.height>=12)){ ieSetMode(null); return; }   // degenerate → abort (guards NaN/0)
       const sx=cv.width/cr.width, sy=cv.height/cr.height;
       let x=(br.left-cr.left)*sx, y=(br.top-cr.top)*sy, w=br.width*sx, h=br.height*sy;
       x=Math.max(0,Math.min(x,cv.width)); y=Math.max(0,Math.min(y,cv.height)); w=Math.min(w,cv.width-x); h=Math.min(h,cv.height-y);
       if(!(w>=4)||!(h>=4)){ ieSetMode(null); return; }
-      const tmp=document.createElement("canvas"); tmp.width=Math.round(w); tmp.height=Math.round(h); tmp.getContext("2d").drawImage(cv,x,y,w,h,0,0,tmp.width,tmp.height); cv.width=tmp.width; cv.height=tmp.height; ieCtx().drawImage(tmp,0,0); ieSetMode(null); });
+      // crop the clean photo; shift the strokes with it (marks outside the crop simply fall off-canvas)
+      const tmp=document.createElement("canvas"); tmp.width=Math.round(w); tmp.height=Math.round(h); tmp.getContext("2d").drawImage(ieState.base,x,y,w,h,0,0,tmp.width,tmp.height);
+      const fx=tmp.width/w, fy=tmp.height/h;
+      const strokes=ieState.strokes.map(st=>({color:st.color, width:st.width, pts:st.pts.map(p=>({x:(p.x-x)*fx, y:(p.y-y)*fy}))}));
+      iePush(); ieState={base:tmp, strokes}; ieRender(); ieSync(); ieSetMode(null); });
     $("#ieCaption").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#ieSend").click(); } });
     $("#ieSend").addEventListener("click",()=>{ const cap=$("#ieCaption").value; cv.toBlob(async(blob)=>{ if(!blob){ BPUI.toast("Couldn’t prepare the image.",{type:"err"}); return; } const f=new File([blob],"photo.jpg",{type:"image/jpeg"}); ieClose(); await sendImage(f,cap); }, "image/jpeg", 0.9); });
   })();
@@ -694,19 +738,19 @@
   /* ---------- modals ---------- */
   function closeModal(){ const m=$("#modalOv"); if(m) m.remove(); }
   function others(){ return (BPStore.chat.isLocal()?BPStore.chat.localRoster():Object.values(roster)).filter(p=>p.id!==ME.id); }
-  function prowAvatar(p){ return `<div class="av" style="width:40px;height:40px;font-size:14px;background:${colorFor(p.id)}">${esc(initials(p.full_name||p.email))}</div>`; }
+  function prowAvatar(p){ return `<div class="av" style="width:40px;height:40px;font-size:14px;background:${colorFor(p.id)}">${esc(initials(pname(p)))}</div>`; }
   function newDmModal(){ const people=others(); const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
-    ov.innerHTML=`<div class="modal"><h3>New chat</h3><div class="body">${people.map(p=>`<div class="prow" data-id="${esc(p.id)}">${prowAvatar(p)}<div class="nm">${esc(p.full_name||p.email)}</div><span class="rl">${esc(p.role||"")}</span></div>`).join("")||'<div style="padding:16px;color:var(--ink-3)">No teammates in your organization yet.</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button></div></div>`;
+    ov.innerHTML=`<div class="modal"><h3>New chat</h3><div class="body">${people.map(p=>`<div class="prow" data-id="${esc(p.id)}">${prowAvatar(p)}<div class="nm">${esc(pname(p))}</div><span class="rl">${esc(roleLbl(p.role))}</span></div>`).join("")||'<div style="padding:16px;color:var(--ink-3)">No teammates in your organization yet.</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button></div></div>`;
     document.body.appendChild(ov); ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
     ov.querySelectorAll(".prow").forEach(r=>r.addEventListener("click",async()=>{ closeModal(); try{ const id=await BPStore.chat.startDm(r.dataset.id); await refresh(); await openConv(id); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"start the chat"}),{type:"err"}); } })); }
   function newGroupModal(){ const people=others(); const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
-    ov.innerHTML=`<div class="modal"><h3>New group</h3><input class="gname" id="gName" placeholder="Group name" aria-label="Group name"><div class="body">${people.map(p=>`<label class="prow">${prowAvatar(p)}<div class="nm">${esc(p.full_name||p.email)}</div><input type="checkbox" value="${esc(p.id)}"></label>`).join("")||'<div style="padding:16px;color:var(--ink-3)">No teammates to add yet.</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="gCreate">Create</button></div></div>`;
+    ov.innerHTML=`<div class="modal"><h3>New group</h3><input class="gname" id="gName" placeholder="Group name" aria-label="Group name"><div class="body">${people.map(p=>`<label class="prow">${prowAvatar(p)}<div class="nm">${esc(pname(p))}</div><input type="checkbox" value="${esc(p.id)}"></label>`).join("")||'<div style="padding:16px;color:var(--ink-3)">No teammates to add yet.</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="gCreate">Create</button></div></div>`;
     document.body.appendChild(ov); ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
     $("#gCreate").addEventListener("click",async()=>{ const name=$("#gName").value.trim(); if(!name){ $("#gName").focus(); return; } const ids=[...ov.querySelectorAll("input[type=checkbox]:checked")].map(c=>c.value);
       closeModal(); try{ const id=await BPStore.chat.createGroup(name,ids); await refresh(); await openConv(id); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"create the group"}),{type:"err"}); } }); }
   function addMembersModal(){ const c=convs.find(x=>x.id===activeId); if(!c) return; const inIds=(thread.members||[]).map(m=>m.user_id);
     const people=others().filter(p=>inIds.indexOf(p.id)<0); const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
-    ov.innerHTML=`<div class="modal"><h3>Add members</h3><div class="body">${people.map(p=>`<label class="prow">${prowAvatar(p)}<div class="nm">${esc(p.full_name||p.email)}</div><input type="checkbox" value="${esc(p.id)}"></label>`).join("")||'<div style="padding:16px;color:var(--ink-3)">Everyone is already in this group.</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="aAdd">Add</button></div></div>`;
+    ov.innerHTML=`<div class="modal"><h3>Add members</h3><div class="body">${people.map(p=>`<label class="prow">${prowAvatar(p)}<div class="nm">${esc(pname(p))}</div><input type="checkbox" value="${esc(p.id)}"></label>`).join("")||'<div style="padding:16px;color:var(--ink-3)">Everyone is already in this group.</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="aAdd">Add</button></div></div>`;
     document.body.appendChild(ov); ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
     $("#aAdd").addEventListener("click",async()=>{ const ids=[...ov.querySelectorAll("input[type=checkbox]:checked")].map(c=>c.value); closeModal(); if(!ids.length) return;
       try{ await BPStore.chat.addMembers(activeId,ids); await loadThread(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"add members"}),{type:"err"}); } }); }
