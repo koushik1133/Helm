@@ -236,8 +236,11 @@ t('FILE-01: internal files are excluded from the Vercel upload and 404/redirecte
     assert.ok(r, 'no vercel.json redirect for ' + p);
     assert.equal(r.destination, '/404', p);
   }
-  for (const p of ['/', '/dashboard', '/store-api.js', '/robots.txt', '/i/x', '/aurora/quote/abc', '/.well-known/security.txt', '/docs/USER-MANUAL'])
+  for (const p of ['/', '/dashboard', '/store-api.js', '/robots.txt', '/i/x', '/aurora/quote/abc', '/.well-known/security.txt', '/manual'])
     assert.ok(!redirectFor(p), p + ' must not be redirected');
+  // the manual moved behind sign-in: the old public URLs go to the gated /manual page
+  for (const p of ['/docs/USER-MANUAL', '/docs/USER-MANUAL.html', '/docs/screenshots/index.webp'])
+    assert.equal((redirectFor(p) || {}).destination, '/manual', p + ' must redirect to /manual');
   // local dev mirrors it
   for (const p of ['/_headers', '/vendor/README.md', '/x.map', '/a/.DS_Store']) assert.ok(server.isInternalFile(p), p);
   for (const p of ['/dashboard.html', '/store-api.js', '/robots.txt', '/vendor/supabase-js-2.117.2.min.js']) assert.ok(!server.isInternalFile(p), p);

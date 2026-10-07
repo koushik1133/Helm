@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="builder.css?v=1">
+<link rel="stylesheet" href="builder.css?v=5">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -29,7 +29,7 @@
   </div>
   <a class="brand" href="dashboard.html" title="Back to your events">
     <div class="mark"></div>
-    <div><h1>Helm Events</h1><small>← All events</small></div>
+    <div class="brand-txt"><h1>Helm Events</h1><small>← All events</small></div>
   </a>
 
   <div class="hgroup">
@@ -84,12 +84,12 @@
 
   <div class="hgroup">
     <div class="field">
-      <span class="flabel" id="unitLbl">Units</span>
-      <div class="seg" id="unitSeg" role="group" aria-labelledby="unitLbl"><button data-u="ft" class="on">Feet</button><button data-u="m">Meter</button></div>
+      <label for="unitSel">Units</label>
+      <select id="unitSel" class="unitsel" title="Measurement units"><option value="ft" selected>Feet</option><option value="m">Meter</option></select>
     </div>
     <div class="field">
       <span class="flabel" id="gridLbl">Grid</span>
-      <div class="seg" role="group" aria-labelledby="gridLbl"><button id="snapBtn" class="on" title="Snap moves to grid">Snap</button><button id="gridBtn" class="on" title="Show grid lines">Show</button></div>
+      <div class="seg" role="group" aria-labelledby="gridLbl"><button id="snapBtn" class="on" title="Snap: items jump to the nearest grid line when you move them">Snap</button><button id="gridBtn" class="on" title="Grid: show or hide the grid lines on the floor">Grid</button></div>
     </div>
     <div class="field">
       <span class="flabel" id="viewLbl">View</span>
@@ -120,9 +120,14 @@
     <a id="designChip" class="qbadge qlink" hidden title="Design stage — open the Design Studio"></a>
     <button class="tbtn primary" id="saveBtn" title="Save a new version (⌘S)">💾 Save</button>
     <button class="tbtn" id="loadBtn" title="Open a saved layout">📂 Open</button>
-    <button class="tbtn" id="exportBtn" title="Download as PNG image">⤓ PNG</button>
-    <button class="tbtn" id="jsonBtn" title="Download layout JSON">{ } JSON</button>
-    <button class="tbtn" id="importBtn" title="Import a layout JSON file">⤒ Import</button>
+    <details class="hmenu" id="moreMenu">
+      <summary class="tbtn" title="More actions" aria-label="More actions">More ▾</summary>
+      <div class="hmenu-pop" role="menu">
+        <button class="tbtn" id="exportBtn" role="menuitem" title="Download as PNG image">⤓ PNG</button>
+        <button class="tbtn" id="jsonBtn" role="menuitem" title="Download layout JSON">{ } JSON</button>
+        <button class="tbtn" id="importBtn" role="menuitem" title="Import a layout JSON file">⤒ Import</button>
+      </div>
+    </details>
     <input type="file" id="importFile" accept="application/json,.json" hidden>
   </div>
 
@@ -137,13 +142,40 @@
 
   <div style="flex:1"></div>
   <div class="hgroup" style="gap:8px">
-    <span class="conn" id="conn" title="Backend connection"><i class="dotc"></i><span id="connLbl">…</span></span>
-    <span id="acct" class="acct" hidden></span>
+    <details class="hmenu acctmenu" id="acctMenu" hidden>
+      <summary class="tbtn icon" title="Account" aria-label="Account menu">👤</summary>
+      <div class="hmenu-pop" id="acct"></div>
+    </details>
     <button class="tbtn icon" id="themeBtn" title="Toggle light / dark" aria-label="Toggle light or dark theme">◑</button>
     <span class="kbd" id="dimsLabel">200 × 140 ft · 12 px/ft</span>
   </div>
 </header>
 <div class="capbanner" id="capBanner" role="status" hidden></div>
+
+<!-- KEYBOARD SHORTCUTS -->
+<div class="modal" id="shortcutsModal" hidden role="dialog" aria-modal="true" aria-labelledby="scTitle">
+  <div class="sheet sheet-sc">
+    <div class="sheet-head"><b id="scTitle">Keyboard shortcuts</b><button type="button" class="tbtn icon" id="scClose" title="Close" aria-label="Close shortcuts" data-close>✕</button></div>
+    <div class="sheet-body pad14">
+      <dl class="sclist">
+        <dt>Click / Enter</dt><dd>Drop the focused tool</dd>
+        <dt>Drag</dt><dd>Drag a tool onto the floor</dd>
+        <dt>Drag empty floor</dt><dd>Marquee-select</dd>
+        <dt>Shift-click</dt><dd>Add / remove from selection</dd>
+        <dt>⌘A</dt><dd>Select all</dd>
+        <dt>⌘C / ⌘V</dt><dd>Copy / paste</dd>
+        <dt>⌘D</dt><dd>Duplicate</dd>
+        <dt>⌘Z / ⌘⇧Z</dt><dd>Undo / redo</dd>
+        <dt>⌘S</dt><dd>Save</dd>
+        <dt>Arrows</dt><dd>Nudge selection (Shift = ×5)</dd>
+        <dt>Shift + arrows</dt><dd>Pan the view (nothing selected)</dd>
+        <dt>R</dt><dd>Rotate 15°</dd>
+        <dt>Del</dt><dd>Remove selection</dd>
+        <dt>G / T / Y</dt><dd>3D gizmo: move / rotate / scale</dd>
+      </dl>
+    </div>
+  </div>
+</div>
 
 <!-- OPEN dialog -->
 <div class="modal" id="loadModal" hidden role="dialog" aria-modal="true" aria-labelledby="loadTitle">
@@ -249,7 +281,12 @@
   <aside class="left" id="leftPanel" aria-label="Asset toolbox">
     <div class="panel-head">Asset Toolbox</div>
     <div class="scroller" id="toolbox"></div>
-    <div class="hint"><b>Click</b> (or focus and press <b>Enter</b>) a tool to drop it, or <b>drag</b> it onto the floor.<br><b>Drag empty floor</b> to marquee-select · <b>Shift-click</b> to add/remove · <b>⌘A</b> all · <b>⌘C/⌘V</b> copy/paste · <b>⌘D</b> duplicate · arrows nudge · <b>R</b> rotate · <b>Del</b> remove.</div>
+    <div class="hint hint1" id="toolHint" data-tour="toolbox-shortcuts">
+      <span class="hint-txt">Click or drag a tool onto the floor.</span>
+      <button type="button" class="hint-btn" id="shortcutsBtn" title="Keyboard shortcuts" aria-label="Show keyboard shortcuts" aria-haspopup="dialog">?</button>
+      <button type="button" class="hint-btn" id="hintClose" title="Hide hint" aria-label="Hide hint">×</button>
+    </div>
+    <button type="button" class="hint-reopen" id="shortcutsBtn2" hidden aria-haspopup="dialog">⌨ Shortcuts</button>
   </aside>
 
   <!-- CENTER : canvas -->
@@ -290,6 +327,13 @@
       <button id="zoomIn" title="Zoom in" aria-label="Zoom in">+</button>
       <button id="zoomFit" title="Fit floor to view" aria-label="Fit floor to view" class="zfit">FIT</button>
     </div>
+    <div class="navpad" id="navPad" role="group" aria-label="Pan the view">
+      <button type="button" data-pan="up" aria-label="Pan up" title="Pan up">▲</button>
+      <button type="button" data-pan="left" aria-label="Pan left" title="Pan left">◀</button>
+      <button type="button" data-pan="center" class="np-c" aria-label="Recenter view" title="Recenter / fit">◎</button>
+      <button type="button" data-pan="right" aria-label="Pan right" title="Pan right">▶</button>
+      <button type="button" data-pan="down" aria-label="Pan down" title="Pan down">▼</button>
+    </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </section>
 
@@ -311,12 +355,12 @@
 </main>
 
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=92"></script>
-<script src="store-api.js?v=100"></script>
-<script src="tour.js?v=5"></script>
-<script src="builder.js?v=1"></script>
+<script src="config.js?v=93"></script>
+<script src="store-api.js?v=101"></script>
+<script src="tour.js?v=6"></script>
+<script src="builder.js?v=2"></script>
 
 <!-- ================= 3D RENDERED VIEW (Three.js, lazy-loaded on first use) ================= -->
-<script src="builder-3d.js?v=1"></script>
+<script src="builder-3d.js?v=2"></script>
 </body>
 </html>

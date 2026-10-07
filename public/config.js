@@ -26,9 +26,12 @@ window.SUPABASE_CONFIG = {
   auth: {
     // true = admins without two-step verification must set it up before using the app
     mfaRequiredForAdmins: false,
-    // signed-in staff pages: sign out after idleMinutes without activity (warning
-    // warnSeconds before), and always after maxHours since sign-in. 0 = off.
-    session: { idleMinutes: 30, warnSeconds: 60, maxHours: 12 }
+    // Optional app-side sign-out on signed-in staff pages: after idleMinutes without
+    // activity (warning warnSeconds before), and always after maxHours since sign-in.
+    // 0 = off (the default — people stay signed in like Google/consumer apps; session
+    // lifetime is governed by Supabase Auth → Sessions, see docs/AUTH-DASHBOARD-SETTINGS.md §3).
+    // Signing out in one tab still signs out every tab.
+    session: { idleMinutes: 0, warnSeconds: 60, maxHours: 0 }
   }
 };
 

@@ -691,6 +691,34 @@
   window.__on3DStateChange=function(){ if(active && !transform?.dragging) requestBuild(); };
   window.__on3DSnapChange=function(){ syncGizmoSnap(); };
   window.__is3DDragging=function(){ return !!(transform && transform.dragging); };
+  /* camera pan pad: move OrbitControls target AND camera together along the ground plane,
+     relative to the current heading ("up" = away from the viewer). `frac` is a fraction of the
+     current viewing distance (so the step scales with zoom), capped by the venue size. */
+  function pan3D(dir, frac){
+    if(!active || !camera || !controls || (transform && transform.dragging)) return;
+    const fwd=new THREE.Vector3().subVectors(controls.target, camera.position); fwd.y=0;
+    if(fwd.lengthSq()<1e-6) fwd.set(0,0,-1); fwd.normalize();
+    const right=new THREE.Vector3(-fwd.z,0,fwd.x);           // fwd × up
+    const dist=camera.position.distanceTo(controls.target);
+    const span=Math.max(floorW||100, floorH||100);
+    const step=Math.min(dist*(frac==null?0.08:frac), span*0.5);
+    const d=new THREE.Vector3();
+    if(dir==='up') d.copy(fwd).multiplyScalar(step); else if(dir==='down') d.copy(fwd).multiplyScalar(-step);
+    else if(dir==='right') d.copy(right).multiplyScalar(step); else if(dir==='left') d.copy(right).multiplyScalar(-step);
+    else return;
+    // keep the target within (a margin around) the floor so you can't get lost
+    const lim=span*0.75, t=controls.target.clone().add(d);
+    t.x=Math.max(-lim,Math.min(lim,t.x)); t.z=Math.max(-lim,Math.min(lim,t.z));
+    d.subVectors(t, controls.target);
+    controls.target.add(d); camera.position.add(d); controls.update();
+  }
+  function recenter3D(){
+    if(!camera || !controls) return;
+    const off=new THREE.Vector3().subVectors(camera.position, controls.target);
+    controls.target.set(0,0,0); camera.position.copy(off); controls.update();
+  }
+  window.__pan3D=pan3D;
+  window.__recenter3D=recenter3D;
 
   /* ---------------- wire the transform-mode toolbar + shortcuts ---------------- */
   document.querySelectorAll('#tools3d [data-m]').forEach(b=>b.addEventListener('click',()=>setTMode(b.dataset.m)));

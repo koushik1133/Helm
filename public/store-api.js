@@ -110,7 +110,7 @@
      Config (window.SUPABASE_CONFIG, all optional — defaults keep today's behaviour):
        captcha: { provider: "turnstile", siteKey: "" }       empty siteKey = off
        auth: { mfaRequiredForAdmins: false,
-               session: { idleMinutes: 30, warnSeconds: 60, maxHours: 12 } }   0 = off */
+               session: { idleMinutes: 0, warnSeconds: 60, maxHours: 0 } }   0 = off (default) */
   let pendingStep = null;
   let localAuthOp = 0;                  // >0 while THIS tab is signing in (its own SIGNED_IN is not a cross-tab switch)
   let pwChangedAwaitingClear = false;   // forced change: password updated, flag not cleared yet
@@ -118,9 +118,9 @@
     const a = (CFG && CFG.auth) || {}; const s = a.session || {};
     const num = (v, d) => (v === 0 || v === "0") ? 0 : (Number(v) > 0 ? Number(v) : d);
     return {
-      idleMs: num(s.idleMinutes, 30) * 60000,
+      idleMs: num(s.idleMinutes, 0) * 60000,      // default OFF (owner decision 2026-10)
       warnMs: num(s.warnSeconds, 60) * 1000,
-      maxMs: num(s.maxHours, 12) * 3600000,
+      maxMs: num(s.maxHours, 0) * 3600000,        // default OFF
       mfaRequiredForAdmins: a.mfaRequiredForAdmins === true,
     };
   })();
@@ -130,12 +130,60 @@
     return (c.provider === "turnstile" && key) ? { provider: "turnstile", siteKey: key } : null;
   })();
   const PW_MIN = 12;
-  // Password rule used everywhere a password is SET (mirrors public._password_ok in 0028).
+  // Password rule used everywhere a password is SET. Identical to the Supabase Auth
+  // policy ("Lowercase, uppercase letters, digits and symbols", min 12) and to
+  // public._password_ok in migration 0030. The symbol set is Supabase's exactly.
+  const PW_SYMBOLS = "!@#$%^&*()_+-=[]{};'\\:\"|<>?,./`~";
+  const PW_HINT = "At least " + PW_MIN + " characters, with a lowercase letter, an uppercase letter, a number and a symbol (like ! @ # $ %).";
+  function passwordChecks(pw) {
+    pw = String(pw || "");
+    let sym = false;
+    for (const ch of pw) if (PW_SYMBOLS.indexOf(ch) !== -1) { sym = true; break; }
+    return [
+      { id: "len",   label: "At least " + PW_MIN + " characters", ok: pw.length >= PW_MIN },
+      { id: "lower", label: "A lowercase letter (a–z)",            ok: /[a-z]/.test(pw) },
+      { id: "upper", label: "An uppercase letter (A–Z)",           ok: /[A-Z]/.test(pw) },
+      { id: "digit", label: "A number (0–9)",                      ok: /[0-9]/.test(pw) },
+      { id: "symbol", label: "A symbol, e.g. ! @ # $ % & * ? -",   ok: sym },
+    ];
+  }
   function passwordProblem(pw) {
     pw = String(pw || "");
     if (pw.length < PW_MIN) return "Use at least " + PW_MIN + " characters.";
-    if (!/[A-Za-z]/.test(pw) || !/[0-9]/.test(pw)) return "Include at least one letter and one number.";
+    const miss = passwordChecks(pw).filter((c) => !c.ok && c.id !== "len");
+    if (miss.length) {
+      const names = { lower: "a lowercase letter", upper: "an uppercase letter", digit: "a number", symbol: "a symbol (like ! @ # $ %)" };
+      const parts = miss.map((c) => names[c.id]);
+      return "Include at least " + (parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1] : parts[0]) + ".";
+    }
     return null;
+  }
+  // Live checklist for any "new password" input: renders under `input` (or into
+  // `host`) and ticks each requirement as the person types. Pure DOM, no innerHTML.
+  function attachPasswordChecklist(input, host) {
+    if (!input || typeof document === "undefined") return null;
+    let box = host;
+    if (!box) { box = document.createElement("ul"); input.insertAdjacentElement("afterend", box); }
+    box.className = (box.className ? box.className + " " : "") + "pw-checklist";
+    box.setAttribute("aria-live", "polite");
+    box.style.cssText = "list-style:none;margin:6px 0 10px;padding:0;font-size:12.5px;line-height:1.7";
+    if (!box.id) box.id = (input.id || "pw") + "_rules";
+    const prev = input.getAttribute("aria-describedby");
+    if (!prev || prev.split(" ").indexOf(box.id) === -1) input.setAttribute("aria-describedby", ((prev ? prev + " " : "") + box.id).trim());
+    function render() {
+      while (box.firstChild) box.removeChild(box.firstChild);
+      passwordChecks(input.value).forEach((c) => {
+        const li = document.createElement("li");
+        li.textContent = (c.ok ? "✓ " : "○ ") + c.label;
+        li.style.color = c.ok ? "#15803d" : "#6b6577";
+        li.style.fontWeight = c.ok ? "600" : "400";
+        li.setAttribute("data-ok", c.ok ? "1" : "0");
+        box.appendChild(li);
+      });
+    }
+    input.addEventListener("input", render);
+    render();
+    return { render: render, el: box };
   }
   const SESSION_START_KEY = "bp_session_start";  // localStorage {uid, ts}: absolute session age (shared by tabs)
   const ACTIVITY_KEY = "bp_last_activity";       // localStorage ms timestamp: last activity in ANY tab
@@ -361,7 +409,7 @@
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "1";
+  const AUTH_UI_VERSION = "2";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -882,7 +930,7 @@
       return true;
     },
     // ---- self-service password reset / change -----------------------------------
-    passwordRule: { min: PW_MIN, problem: passwordProblem },
+    passwordRule: { min: PW_MIN, symbols: PW_SYMBOLS, hint: PW_HINT, problem: passwordProblem, checks: passwordChecks, attachChecklist: attachPasswordChecklist },
     // Resolves the same way whether or not the email has an account (the caller
     // shows one generic message). Only rate-limit / network / CAPTCHA errors throw.
     async requestPasswordReset(email, opts) {
@@ -3585,11 +3633,35 @@
 
   const BPStore = {
     init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat,
+    // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
+    // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
+    // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.
+    manual: {
+      BUCKET: "helm-manual",
+      async load(seconds) {
+        if (!supa) { try { await init(); } catch (e) {} }
+        if (!supa || !currentUser) { const e = new Error("Please sign in to read the manual."); e.code = "auth"; throw e; }
+        const b = supa.storage.from("helm-manual"), ttl = seconds || 3600;
+        const { data: d, error } = await b.download("USER-MANUAL.html");
+        if (error || !d) { const e = new Error("The manual hasn't been published yet."); e.code = "manual_missing"; e.cause = error; throw e; }
+        const html = await d.text();
+        const files = {};
+        const { data: shots } = await b.list("screenshots", { limit: 200 });
+        const names = (shots || []).map((o) => o && o.name).filter((n) => n && /^[\w.-]+\.(webp|png|jpe?g)$/i.test(n)).map((n) => "screenshots/" + n);
+        if (names.length) {
+          const { data: signed } = await b.createSignedUrls(names, ttl);
+          (signed || []).forEach((r, k) => { if (r && r.signedUrl && !r.error) files[names[k]] = r.signedUrl; });
+        }
+        return { html, files };
+      },
+    },
     // Phase 3 — personal dashboard feed: upcoming events + per-event task rollup + unread count.
     // Org- and area-scoped server-side (my_pending is SECURITY DEFINER gated on has_area('quotes','view')).
     pending: () => (supa ? rpc("my_pending") : Promise.resolve({ upcoming: [], unread: 0 })),
     // Build 3 — personal task list bucketed TODAY/OVERDUE/BLOCKED/UPCOMING/COMPLETED.
     // Inherently personal + org-scoped server-side (my_tasks is SECURITY DEFINER, crew_id = caller).
+    // Operator-only read RPCs (0029). The database refuses every non-operator (42501).
+    hq: (fn, args) => (/^hq_[a-z_]+$/.test(fn) ? rpc(fn, args || {}) : Promise.reject(new Error("bad call"))),
     myTasks: () => (supa ? rpc("my_tasks") : Promise.resolve({ today: [], overdue: [], blocked: [], upcoming: [], completed: [], counts: {} })),
     // Build 1 — Designer 2D->3D design-approval state machine.
     design: {

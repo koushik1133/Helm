@@ -123,18 +123,19 @@
   // (the app is served under clean URLs, e.g. "/builder" as well as "/builder.html").
   const base = (location.pathname.split("/").pop() || "index").toLowerCase().replace(/\.html$/, "");
   const page = base || "index";
-  const steps = STEPS[page + ".html"] || STEPS[page];
-  if (!steps || !steps.length) return;   // this page has no tour — do nothing
+  // Pages without built-in steps (e.g. the dashboard, which passes its own list to
+  // HelmTour.start) still get the engine, just no "? Tour" button of our own.
+  const steps = STEPS[page + ".html"] || STEPS[page] || [];
 
   /* ---- inject spotlight styles once ---------------------------------- */
   const css = `
   .htour{position:fixed;inset:0;z-index:9000;pointer-events:none;font-family:inherit}
-  .htour .ring{position:absolute;border:3px solid var(--gold,#e0a938);border-radius:12px;
-    box-shadow:0 0 0 9999px rgba(20,18,40,.58);transition:all .28s cubic-bezier(.4,0,.2,1)}
+  .htour .ring{position:absolute;box-sizing:border-box;border:3px solid var(--gold,#e0a938);border-radius:12px;
+    box-shadow:0 0 0 9999px rgba(20,18,40,.58)}
   .htour .arrow{position:absolute;color:var(--gold,#e0a938);font-size:28px;line-height:1;
     filter:drop-shadow(0 2px 3px rgba(0,0,0,.25));animation:htbob 1s ease-in-out infinite}
   @keyframes htbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
-  .htour .tip{position:absolute;max-width:320px;background:var(--panel,#fff);color:var(--ink,#1b1930);
+  .htour .tip{position:absolute;max-width:calc(100vw - 24px);box-sizing:border-box;max-height:calc(100vh - 24px);overflow:auto;background:var(--panel,#fff);color:var(--ink,#1b1930);
     border:1px solid var(--line,#e8e3db);border-radius:14px;box-shadow:0 10px 30px rgba(20,18,40,.22);
     padding:16px 18px;pointer-events:auto}
   .htour .tip .tstep{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent,#6d28d9)}
@@ -158,41 +159,129 @@
   let list = [], i = 0, root = null, endKey = "helm_tour_seen_" + page;
   const seenKey = "helm_tour_seen_" + page;
 
-  // A target counts as "present" when it exists, isn't [hidden], and actually
-  // occupies space. We use getBoundingClientRect (not offsetParent) because
-  // position:fixed elements — modals, the theme toggle, the tour button — always
-  // report a null offsetParent even when fully visible.
+  // A target counts as "present" when it exists, isn't [hidden], isn't inside a
+  // display:none / visibility:hidden / collapsed ancestor, and actually occupies
+  // space. We use getBoundingClientRect (not offsetParent) because position:fixed
+  // elements always report a null offsetParent even when fully visible.
   function present(sel) {
     const t = document.querySelector(sel);
-    if (!t || t.hidden) return null;
+    if (!t || t.hidden || (t.closest && t.closest("[hidden]"))) return null;
     const cs = getComputedStyle(t);
-    if (cs.display === "none" || cs.visibility === "hidden") return null;
+    if (cs.display === "none" || cs.visibility === "hidden" || cs.visibility === "collapse") return null;
+    if (typeof t.checkVisibility === "function" && !t.checkVisibility({ checkVisibilityCSS: true })) return null;
     const r = t.getBoundingClientRect();
-    return (r.width > 0 && r.height > 0) ? t : null;
+    return (r.width > 1 && r.height > 1) ? t : null;
   }
 
+  // ---- pure geometry (exported for tests via HelmTour._layout) -------------
+  // r: target rect in VIEWPORT coords (getBoundingClientRect — matches the
+  // position:fixed overlay, no scrollX/scrollY mixing); vw/vh: viewport size;
+  // tw/th: tip size. Returns ring/tip/arrow boxes, all clamped into the viewport,
+  // with the tip flipped to whichever side (below/above/right/left) has room.
+  // r === null means "target not visible at this breakpoint" -> centered step.
+  function layout(r, vw, vh, tw, th) {
+    const M = 12, GAP = 18, pad = 6;
+    tw = Math.min(tw || 320, vw - M * 2); th = th || 170;
+    if (!r) return { centered: true, side: "center", ring: null, arrow: null,
+      tip: { left: Math.max(M, (vw - tw) / 2), top: Math.max(M, (vh - th) / 2), width: tw } };
+    // Target scrolled completely out of view (the user scrolled away mid-step):
+    // no ring; the card sits at that edge with an arrow pointing toward the target.
+    if (r.bottom <= 0 || r.top >= vh || r.right <= 0 || r.left >= vw) {
+      const up = r.bottom <= 0, cx0 = Math.min(Math.max(M + 14, (r.left + r.right) / 2), vw - M - 14);
+      return { centered: false, offscreen: true, side: up ? "above" : "below", ring: null,
+        arrow: { left: cx0 - 14, top: up ? 2 : vh - 30, glyph: up ? "▲" : "▼" },
+        tip: { left: Math.min(Math.max(M, cx0 - tw / 2), Math.max(M, vw - tw - M)), top: up ? 34 : Math.max(M, vh - th - 34), width: tw } };
+    }
+    // ring: target box + padding, clipped to the viewport (huge targets stay visible)
+    const rl = Math.max(2, r.left - pad), rt = Math.max(2, r.top - pad);
+    const rr = Math.min(vw - 2, r.right + pad), rb = Math.min(vh - 2, r.bottom + pad);
+    const ring = { left: rl, top: rt, width: Math.max(0, rr - rl), height: Math.max(0, rb - rt) };
+    const room = { below: vh - rb, above: rt, right: vw - rr, left: rl };
+    let side;
+    if (room.below >= th + GAP) side = "below";
+    else if (room.above >= th + GAP) side = "above";
+    else if (room.right >= tw + GAP) side = "right";
+    else if (room.left >= tw + GAP) side = "left";
+    else side = room.below >= room.above ? "below" : "above";   // nothing fits: larger gap, then clamp
+    const cx = (rl + rr) / 2, cy = (rt + rb) / 2;
+    let tx, ty;
+    if (side === "below" || side === "above") {
+      tx = cx - tw / 2;
+      ty = side === "below" ? rb + GAP : rt - th - GAP;
+    } else {
+      ty = cy - th / 2;
+      tx = side === "right" ? rr + GAP : rl - tw - GAP;
+    }
+    tx = Math.min(Math.max(M, tx), Math.max(M, vw - tw - M));
+    ty = Math.min(Math.max(M, ty), Math.max(M, vh - th - M));
+    const A = 14;   // arrow glyph half-size
+    const arrow = side === "below" ? { left: cx - A, top: rb + 1, glyph: "▲" }
+      : side === "above" ? { left: cx - A, top: rt - 28, glyph: "▼" }
+      : side === "right" ? { left: rr + 1, top: cy - A, glyph: "◀" }
+      : { left: rl - 26, top: cy - A, glyph: "▶" };
+    arrow.left = Math.min(Math.max(2, arrow.left), vw - 28);
+    arrow.top = Math.min(Math.max(2, arrow.top), vh - 30);
+    return { centered: false, side, ring, arrow, tip: { left: tx, top: ty, width: tw } };
+  }
+
+  // The part of the target actually visible: its rect intersected with every
+  // scrolling/clipping ancestor (e.g. a horizontally-scrolling nav bar on a phone,
+  // where a pill's raw rect can sit outside the bar). null when fully clipped.
+  function visibleRect(t) {
+    const r = t.getBoundingClientRect();
+    let l = r.left, tp = r.top, rt = r.right, b = r.bottom;
+    for (let a = t.parentElement; a && a !== document.body && a !== document.documentElement; a = a.parentElement) {
+      const cs = getComputedStyle(a);
+      if (/(auto|scroll|hidden|clip)/.test(cs.overflow + cs.overflowX + cs.overflowY)) {
+        const ar = a.getBoundingClientRect();
+        l = Math.max(l, ar.left); tp = Math.max(tp, ar.top); rt = Math.min(rt, ar.right); b = Math.min(b, ar.bottom);
+      }
+      if (cs.position === "fixed") break;
+    }
+    if (rt - l < 2 || b - tp < 2) return null;
+    return { left: l, top: tp, right: rt, bottom: b, width: rt - l, height: b - tp };
+  }
+
+  let ro = null, rafPending = false;
   function end() {
     if (root) { root.remove(); root = null; }
     window.removeEventListener("resize", onView);
     window.removeEventListener("scroll", onView, true);
+    window.removeEventListener("orientationchange", onView);
+    if (window.visualViewport) { visualViewport.removeEventListener("resize", onView); visualViewport.removeEventListener("scroll", onView); }
+    if (ro) { ro.disconnect(); ro = null; }
     try { localStorage.setItem(endKey, "1"); } catch (_) {}
   }
-  // Re-glue the spotlight to its target whenever the viewport changes (page scroll
-  // on mobile, inner-container scroll, orientation change, resize) WITHOUT starting
-  // a new scroll — so it can never fight the user's finger. getBoundingClientRect is
-  // viewport-relative and the overlay is position:fixed, so this stays aligned on phones.
-  function onView() { position(); }
+  // Re-glue the spotlight to its target whenever the viewport OR layout changes
+  // (page/inner scroll, resize, orientation change, pinch-zoom, sidebar collapse,
+  // late-loading content) WITHOUT starting a new scroll — so it never fights the
+  // user. Coalesced to one position() per animation frame.
+  function onView() {
+    if (document.hidden) { position(); return; }   // rAF is paused in background tabs
+    if (rafPending) return; rafPending = true;
+    requestAnimationFrame(() => { rafPending = false; position(); });
+  }
+  function observe(tgt) {
+    if (!ro) return;
+    ro.disconnect();
+    ro.observe(document.documentElement);
+    if (document.body) ro.observe(document.body);
+    if (tgt) ro.observe(tgt);
+  }
 
   function start(customSteps, key) {
     end();
     endKey = key || seenKey;
-    list = (customSteps || steps).filter(s => present(s.sel));   // only steps whose target is on-screen now
+    // Keep every step whose target EXISTS. Visibility is decided per render: a
+    // target hidden at the current breakpoint gets a centered card instead of
+    // being dropped, and a later resize brings the spotlight back.
+    list = (customSteps || steps).filter(s => document.querySelector(s.sel));
     if (!list.length) return;
     i = 0;
     root = document.createElement("div");
     root.className = "htour";
     root.innerHTML = `<div class="ring"></div><div class="arrow">▼</div>
-      <div class="tip"><div class="tstep"></div><h4></h4><p></p>
+      <div class="tip" role="dialog" aria-live="polite"><div class="tstep"></div><h4></h4><p></p>
         <div class="trow"><button class="skip">Skip</button><span class="sp"></span>
         <button class="back">Back</button><button class="pri next">Next →</button></div></div>`;
     document.body.appendChild(root);
@@ -201,60 +290,71 @@
     root.querySelector(".next").onclick = () => { if (i < list.length - 1) { i++; place(); } else end(); };
     window.addEventListener("resize", onView);
     window.addEventListener("scroll", onView, true);   // capture inner-scroll containers too
+    window.addEventListener("orientationchange", onView);
+    if (window.visualViewport) { visualViewport.addEventListener("resize", onView); visualViewport.addEventListener("scroll", onView); }
+    if (typeof ResizeObserver === "function") ro = new ResizeObserver(onView);
     place();
   }
 
   // Pure positioning from the target's CURRENT rect — no scrolling. Safe to call
-  // on every scroll/resize frame. Separated from place() so the spotlight can be
-  // re-glued cheaply without ever re-triggering a scroll.
+  // on every scroll/resize frame.
   function position() {
     if (!root) return;
-    // skip forward over any step whose target vanished (the old "jumps to end" bug fix)
-    while (i < list.length && !present(list[i].sel)) i++;
     if (i >= list.length) { end(); return; }
-    const step = list[i], tgt = present(step.sel);
-    if (!tgt) return;
-    const r = tgt.getBoundingClientRect(), pad = 6;
+    const step = list[i], el = present(step.sel), vr = el ? visibleRect(el) : null, tgt = vr ? el : null;
+    const de = document.documentElement;
+    const vw = de.clientWidth || window.innerWidth, vh = window.innerHeight || de.clientHeight;
     const ring = root.querySelector(".ring");
-    ring.style.left = (r.left - pad) + "px"; ring.style.top = (r.top - pad) + "px";
-    ring.style.width = (r.width + pad * 2) + "px"; ring.style.height = (r.height + pad * 2) + "px";
     const tip = root.querySelector(".tip"), arrow = root.querySelector(".arrow");
     root.querySelector(".tstep").textContent = `Step ${i + 1} of ${list.length}`;
     root.querySelector("h4").textContent = step.title;
-    root.querySelector("p").textContent = step.desc;
+    root.querySelector("p").textContent = tgt ? step.desc
+      : step.desc + " (This part isn't shown at the current screen size — widen the window or open the menu to see it.)";
     root.querySelector(".back").style.visibility = i ? "visible" : "hidden";
     root.querySelector(".next").textContent = i < list.length - 1 ? "Next →" : "Done";
-    // Place the tip below the target when it fits, else above; always clamp fully
-    // into the viewport so it can never render off-screen on a short phone screen.
-    const th = tip.offsetHeight || 170;
-    const roomBelow = window.innerHeight - r.bottom;
-    const below = roomBelow >= th + 24 || roomBelow >= r.top; // prefer below unless above has clearly more room
-    const tw = Math.min(320, window.innerWidth - 24);
-    const tx = Math.min(Math.max(12, r.left), window.innerWidth - tw - 12);
-    let ty = below ? r.bottom + 18 : r.top - th - 18;
-    ty = Math.min(Math.max(12, ty), Math.max(12, window.innerHeight - th - 12));
-    tip.style.left = tx + "px"; tip.style.top = ty + "px";
-    arrow.style.left = (r.left + r.width / 2 - 9) + "px";
-    arrow.textContent = below ? "▲" : "▼";
-    arrow.style.top = (below ? r.bottom + 2 : r.top - 30) + "px";
+    tip.style.width = Math.min(320, vw - 24) + "px";
+    const L = layout(vr, vw, vh, tip.offsetWidth, tip.offsetHeight);
+    if (!L.ring) {
+      // no visible target (hidden at this size, or scrolled out of view): dim the
+      // page and collapse the ring instead of outlining the wrong spot
+      ring.style.left = (vw / 2) + "px"; ring.style.top = (vh / 2) + "px";
+      ring.style.width = "0px"; ring.style.height = "0px"; ring.style.borderWidth = "0px";
+    } else {
+      ring.style.borderWidth = "";
+      ring.style.left = L.ring.left + "px"; ring.style.top = L.ring.top + "px";
+      ring.style.width = L.ring.width + "px"; ring.style.height = L.ring.height + "px";
+    }
+    if (!L.arrow) arrow.style.display = "none";
+    else {
+      arrow.style.display = "";
+      arrow.textContent = L.arrow.glyph;
+      arrow.style.left = L.arrow.left + "px"; arrow.style.top = L.arrow.top + "px";
+    }
+    tip.style.left = L.tip.left + "px"; tip.style.top = L.tip.top + "px";
   }
 
   function place() {
     if (!root) return;
-    while (i < list.length && !present(list[i].sel)) i++;
     if (i >= list.length) { end(); return; }
     const tgt = present(list[i].sel);
-    if (!tgt) return;
-    const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-    tgt.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+    observe(tgt);
+    if (tgt) {
+      // Scroll the target into view BEFORE measuring (only when not already fully on screen).
+      const r = tgt.getBoundingClientRect();
+      const vr = visibleRect(tgt);   // also catches a pill clipped inside a scrolling nav bar
+      if (!vr || vr.width < r.width - 1 || vr.height < r.height - 1 ||
+          r.top < 0 || r.bottom > window.innerHeight || r.left < 0 || r.right > window.innerWidth) {
+        const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+        tgt.scrollIntoView({ block: "center", inline: "center", behavior: (reduce || document.hidden) ? "auto" : "smooth" });
+      }
+    }
     // Position IMMEDIATELY so the ring is never left stranded, even where rAF is
     // throttled (a backgrounded tab) or the scroll jumps instantly. Then REFINE as
-    // the (possibly long, slow-on-mobile) smooth scroll progresses: the 'scroll'
-    // listener added in start() re-glues the ring on every scroll event, and the
-    // rAF settle below repositions once the rect stops moving (3 stable frames,
-    // ~1s cap). position() is idempotent, so calling it repeatedly is safe. This
-    // replaces the old fixed 240ms timeout that fired mid-scroll on mobile.
+    // the smooth scroll progresses: the 'scroll' listener re-glues on every scroll
+    // event, and the rAF settle below repositions once the rect stops moving
+    // (3 stable frames, ~1s cap). position() is idempotent.
     position();
+    if (!tgt) return;
     let lastTop = NaN, stable = 0, frames = 0;
     (function settle() {
       if (!root) return;
@@ -269,6 +369,8 @@
 
   /* ---- mount: reuse #helpBtn if present, else a floating button ------- */
   function mount() {
+    document.addEventListener("keydown", e => { if (e.key === "Escape" && root) end(); });
+    if (!steps.length) return;   // engine-only page: the page wires its own button
     const existing = document.getElementById("helpBtn");
     if (existing) { existing.addEventListener("click", () => start()); }
     else {
@@ -278,7 +380,6 @@
       fab.addEventListener("click", () => start());
       document.body.appendChild(fab);
     }
-    document.addEventListener("keydown", e => { if (e.key === "Escape" && root) end(); });
 
     // form coaching: when this page's create-modal opens, run the field tour once
     const form = FORMS[page + ".html"] || FORMS[page];
@@ -298,7 +399,7 @@
     // for the form-coaching hints above, which remain click-triggered.)
   }
 
-  window.HelmTour = { start, end };
+  window.HelmTour = { start, end, _layout: layout, _present: present };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
   else mount();
 })();

@@ -2313,6 +2313,55 @@ function fitView(){
   scrollEl.scrollTop=0;
   renderRulers();
 }
+/* ---- camera pan pad (2D: scroll offset · 3D: delegated to builder-3d.js) ---- */
+const PAN_DIRS={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
+function is3DActive(){ const st=$('#stage3d'); return !!(st && !st.hidden); }
+// pan the 2D viewport by `frac` of the visible area (step scales with what you see, i.e. with zoom)
+function pan2D(dir, frac){
+  const v=PAN_DIRS[dir]; if(!v) return;
+  const f=(frac==null?0.15:frac);
+  scrollEl.scrollLeft += v[0]*scrollEl.clientWidth*f;
+  scrollEl.scrollTop  += v[1]*scrollEl.clientHeight*f;
+  renderRulers();
+}
+function panViewStep(dir, mult){
+  if(is3DActive() && typeof window.__pan3D==='function') window.__pan3D(dir, 0.08*(mult||1));
+  else pan2D(dir, 0.15*(mult||1));
+}
+function recenterView(){
+  if(is3DActive() && typeof window.__recenter3D==='function') window.__recenter3D();
+  else fitView();
+}
+(function wireNavPad(){
+  const pad=$('#navPad'); if(!pad) return;
+  // keep pointer/mouse/touch/wheel events off the canvas (no marquee, drag or gizmo underneath)
+  ['pointerdown','mousedown','touchstart','click','dblclick','wheel','contextmenu'].forEach(t=>pad.addEventListener(t,e=>e.stopPropagation(),{passive:t!=='contextmenu'&&t!=='wheel'?true:false}));
+  let raf=null, held=null, last=0;
+  const stop=()=>{ held=null; if(raf){ cancelAnimationFrame(raf); raf=null; } };
+  const tick=ts=>{ if(!held) return;
+    const dt=Math.min(64, ts-(last||ts)); last=ts;
+    // continuous: ~60% of a view per second (2D) / proportional in 3D
+    if(is3DActive() && typeof window.__pan3D==='function') window.__pan3D(held, 0.35*dt/1000);
+    else pan2D(held, 0.6*dt/1000);
+    raf=requestAnimationFrame(tick); };
+  pad.querySelectorAll('button[data-pan]').forEach(b=>{
+    const dir=b.dataset.pan;
+    if(dir==='center'){ b.addEventListener('click',()=>recenterView()); return; }
+    b.addEventListener('pointerdown',e=>{
+      if(e.button!==undefined && e.button!==0) return;
+      panViewStep(dir,1);                       // immediate step on press
+      stop(); held=dir; last=0;
+      try{ b.setPointerCapture(e.pointerId); }catch{}
+      const reduce=window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if(!reduce) setTimeout(()=>{ if(held===dir && !raf) raf=requestAnimationFrame(tick); }, 250);
+    });
+    ['pointerup','pointercancel','lostpointercapture','pointerleave'].forEach(t=>b.addEventListener(t,stop));
+    b.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); e.stopPropagation(); panViewStep(dir,1); } });
+  });
+  window.addEventListener('blur',stop);
+})();
+window.__builderPan={pan2D, panViewStep, recenterView};
+
 $('#zoomIn').addEventListener('click',()=>setZoom(store.view.zoom*1.2));
 $('#zoomOut').addEventListener('click',()=>setZoom(store.view.zoom/1.2));
 $('#zoomFit').addEventListener('click',()=>fitView());
@@ -2367,14 +2416,14 @@ $('#refEvents').addEventListener('change', async (e)=>{
   }catch(err){ toast('Could not load that layout'); }
   e.target.value='';
 });
-$('#unitSeg').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
-  $('#unitSeg').querySelectorAll('button').forEach(x=>x.classList.remove('on'));
-  b.classList.add('on');
-  store.grid.unit=b.dataset.u;
+function setUnit(u){
+  store.grid.unit = (u==='m') ? 'm' : 'ft';     // allowlisted
   store.grid.sizeFt=cellFt();
   $('#cornerUnit').textContent=uLabel();
+  const sel=$('#unitSel'); if(sel && sel.value!==store.grid.unit) sel.value=store.grid.unit;
   renderAll();
-}));
+}
+$('#unitSel').addEventListener('change',e=>setUnit(e.target.value));
 $('#measureBtn').addEventListener('click',()=>{
   showMeasure=!showMeasure;
   $('#measureBtn').classList.toggle('on', showMeasure);
@@ -2450,7 +2499,11 @@ window.addEventListener('keydown',e=>{
   if(mod&&e.key.toLowerCase()==='d'){ e.preventDefault(); duplicateSelection(); return; }
   if((e.key==='Delete'||e.key==='Backspace')&&store.selectedIds.length){ e.preventDefault(); deleteSelected(); return; }
   if(e.key==='Escape'&&store.selectedIds.length){ clearSelection(); renderAll(); return; }
-  if(!store.selectedIds.length) return;
+  if(!store.selectedIds.length){
+    const d={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up',ArrowDown:'down'}[e.key];
+    if(d && e.shiftKey){ e.preventDefault(); panViewStep(d, 1); }
+    return;
+  }
   const step=e.shiftKey?cellFt()*5:cellFt();
   if(e.key==='ArrowLeft'){ e.preventDefault(); nudgeSelection(-step,0); }
   else if(e.key==='ArrowRight'){ e.preventDefault(); nudgeSelection(step,0); }
@@ -2547,26 +2600,24 @@ function applyLayout(data){
 }
 function syncGridUI(){
   $('#cornerUnit').textContent = uLabel();
-  $('#unitSeg').querySelectorAll('button').forEach(x=>x.classList.toggle('on', x.dataset.u===store.grid.unit));
+  $('#unitSel').value = store.grid.unit==='m' ? 'm' : 'ft';
   $('#snapBtn').classList.toggle('on', store.grid.snap);
   $('#gridBtn').classList.toggle('on', store.grid.show);
 }
 
 /* ---- storage: delegated to BPStore (Supabase → Node API → localStorage) ---- */
 const MODE_LABEL = { supabase:'Supabase', server:'Server', local:'Local' };
-function setConn(mode){
-  const c=$('#conn'); const label=MODE_LABEL[mode]||mode;
-  c.classList.toggle('ok', mode!=='local'); c.classList.toggle('off', mode==='local');
-  $('#connLbl').textContent = label;
-  c.title = 'Storage: '+label + (mode==='local'?' (this browser only)':'');
+function setConn(mode){                       // no on-screen indicator any more — keep the storage mode as a tooltip on the account menu
+  const label=MODE_LABEL[mode]||mode; const m=$('#acctMenu');
+  if(m) m.title = 'Storage: '+label + (mode==='local'?' (this browser only)':'');
 }
 async function initStore(){ await BPStore.init(); setConn(BPStore.mode()); }
 async function renderAccountChip(){
-  const el=$('#acct'); if(!el) return;
-  if(!BPStore.auth.enabled() || !BPStore.auth.user()){ el.hidden=true; return; }
-  el.hidden=false;
+  const el=$('#acct'); if(!el) return; const menu=$('#acctMenu');
+  if(!BPStore.auth.enabled() || !BPStore.auth.user()){ if(menu) menu.hidden=true; return; }
+  if(menu) menu.hidden=false;
   const role=await BPStore.auth.role(), email=BPStore.auth.user().email;
-  el.innerHTML=`<span class="role">${escapeHtml(role||'')}</span><span>${escapeHtml(email||'')}</span><button type="button" id="signOutBtn">Sign out</button>`;
+  el.innerHTML=`<span class="role">${escapeHtml(role||'')}</span><span class="acct-email">${escapeHtml(email||'')}</span><button type="button" id="signOutBtn">Sign out</button>`;
   $('#signOutBtn').addEventListener('click', async ()=>{ await BPStore.auth.signOut(); location.href='dashboard.html'; });
 }
 
@@ -2751,6 +2802,29 @@ function toggleTheme(){
 $('#saveBtn').addEventListener('click',()=>guardedSave());
 $('#loadBtn').addEventListener('click',openLoadModal);
 $('#loadClose').addEventListener('click',closeLoadModal);
+/* ---- toolbox hint (dismissible) + shortcuts dialog ---- */
+(function wireHint(){
+  const KEY='bps.toolHintHidden', hint=$('#toolHint'), re=$('#shortcutsBtn2');
+  let hidden=false; try{ hidden=localStorage.getItem(KEY)==='1'; }catch{}
+  const apply=()=>{ if(hint) hint.hidden=hidden; if(re) re.hidden=!hidden; };
+  apply();
+  $('#hintClose')?.addEventListener('click',()=>{ hidden=true; try{ localStorage.setItem(KEY,'1'); }catch{} apply(); re?.focus(); });
+  const modal=$('#shortcutsModal'); let opener=null;
+  const open=e=>{ opener=e && e.currentTarget; modal.hidden=false; $('#scClose').focus(); };
+  const close=()=>{ modal.hidden=true; if(opener && opener.focus) opener.focus(); };
+  $('#shortcutsBtn')?.addEventListener('click',open);
+  re?.addEventListener('click',open);
+  $('#scClose').addEventListener('click',close);
+  modal.addEventListener('click',e=>{ if(e.target===modal) close(); });
+  modal.addEventListener('keydown',e=>{ if(e.key==='Escape'){ e.preventDefault(); close(); } });
+  window.__openShortcuts=open;
+})();
+/* header dropdown menus (<details>): close on outside click / Escape / after picking an item */
+document.querySelectorAll('header details.hmenu').forEach(d=>{
+  d.querySelectorAll('.hmenu-pop .tbtn').forEach(b=>b.addEventListener('click',()=>{ d.open=false; }));
+});
+document.addEventListener('click',e=>{ document.querySelectorAll('header details.hmenu[open]').forEach(d=>{ if(!d.contains(e.target)) d.open=false; }); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') document.querySelectorAll('header details.hmenu[open]').forEach(d=>{ d.open=false; d.querySelector('summary')?.focus(); }); });
 $('#loadModal').addEventListener('click',e=>{ if(e.target.id==='loadModal') closeLoadModal(); });
 $('#exportBtn').addEventListener('click',()=>{ BPUI.guard($('#exportBtn'), exportPNG,{busyLabel:'Exporting…'}).catch(()=>{}); });
 $('#jsonBtn').addEventListener('click',()=>{ BPUI.guard($('#jsonBtn'), async()=>exportJSON()).catch(()=>{}); });

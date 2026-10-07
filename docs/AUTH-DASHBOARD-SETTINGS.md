@@ -2,13 +2,13 @@
 
 Apply on **both** projects — production `nqltzgiwznphugcfhmbm` and staging `xizehqgeyjcfpzrdymly`
 (Supabase Dashboard → select project). Do staging first, test sign-in, then production.
-The app code (0028 + login/reset pages) already enforces the same rules; these settings make
+The app code (0028/0030 + login/reset pages) already enforces the same rules; these settings make
 Supabase enforce them server-side too. Menu names follow the 2026 dashboard; if a label moved,
 search the Auth settings page for the setting name in **bold**.
 
 ## 1. Passwords — Authentication → Providers → Email (or Authentication → Policies / Passwords)
 1. **Minimum password length**: `12`.
-2. **Password requirements**: "Letters and digits" (at minimum; "lowercase, uppercase, digits" is also fine — the app requires a letter + a number).
+2. **Password requirements**: "Lowercase, uppercase letters, digits and symbols" (set 2026-10). The app now requires exactly the same thing everywhere a password is set — sign-up, reset, change-password, temp-password screen (live checklist) and admin-created users (`public._password_ok`, migration `0030_password_rule_symbols.sql`). Symbols = Supabase's set `!@#$%^&*()_+-=[]{};'\:"|<>?,./`~` (a space or accented letter does not count).
 3. **Prevent use of leaked passwords** (HaveIBeenPwned): ON. (Pro plan feature.)
 4. **Secure password change**: ON (password change needs a recent sign-in).
 5. **Secure email change**: ON (both old and new address must confirm).
@@ -20,12 +20,18 @@ search the Auth settings page for the setting name in **bold**.
 3. Optional later: set `auth.mfaRequiredForAdmins: true` in `public/config.js` to force admins to enrol.
 
 ## 3. Sessions — Authentication → Sessions (and Project Settings → JWT)
-1. **JWT expiry**: `3600` seconds.
-2. **Detect and revoke compromised refresh tokens** (refresh-token rotation): ON; **Refresh token reuse interval**: `10` seconds.
-3. **Time-box user sessions**: `7 days` (168 h).
-4. **Inactivity timeout**: `24 hours`.
-   (The app additionally signs staff out after 30 min idle and 12 h total — `auth.session` in config.js.)
+Recommendation (owner decision 2026-10: keep clients signed in like Google / consumer apps):
+1. **JWT expiry**: `3600` seconds (access token refreshes silently every hour).
+2. **Detect and revoke compromised refresh tokens** (refresh-token rotation): **ON**; **Refresh token reuse interval**: `10` seconds.
+3. **Time-box user sessions**: `0` (never) — or `30 days` if you want a monthly re-login.
+4. **Inactivity timeout**: `14 days` (someone who hasn't opened Helm for two weeks signs in again).
 5. Single session per user: leave OFF.
+6. MFA → **Limit duration of AAL1 sessions**: ON is fine (only affects sessions that haven't completed two-step on an account that has it).
+
+App-side timers: `public/config.js` → `auth.session` now defaults to `{ idleMinutes: 0, warnSeconds: 60, maxHours: 0 }` —
+**0 = off**, so the app no longer signs people out after 30 min idle / 12 h. The feature is still there: set e.g.
+`idleMinutes: 30, maxHours: 12` (and redeploy) for a stricter studio. Signing out (or another account signing in)
+in one tab still signs out every open tab.
 
 ## 4. Bot protection — Authentication → Attack Protection (Bot and Abuse Protection)
 1. In Cloudflare dashboard → Turnstile → Add site: domains `www.helm.events`, `helm.events`, `helm-v01.vercel.app` (+ staging host, `localhost` for testing). Mode: Managed. Copy the **site key** and **secret key**.
@@ -47,10 +53,89 @@ search the Auth settings page for the setting name in **bold**.
   - local: `http://localhost:4173/reset-password`, `http://localhost:4173/login.html**`
 
 ## 7. Email templates — Authentication → Emails / Templates
-1. **Reset password** template: keep `{{ .ConfirmationURL }}`; wording "Reset your Helm password — this link works once and expires in 1 hour."
-2. **Password changed** notification (Security notifications → "Password changed"): ON. Text: "Your Helm password was just changed. If this wasn't you, reset it now and contact your studio admin."
-3. Also enable **Email changed** and **MFA factor enrolled/removed** notifications if offered.
-4. Recovery/OTP expiry: `3600` s.
+Paste these as-is (Source / HTML view). Plain tables + inline styles only, so they render the same in
+Gmail, Outlook (desktop + web), Apple Mail and phone clients. Recovery/OTP expiry: `3600` s.
+Also enable **Email changed** and **MFA factor enrolled/removed** security notifications if offered.
+
+### 7a. Reset password (Templates → "Reset password")
+**Subject:** `Reset your Helm password`
+
+```html
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f2ee;padding:24px 0;">
+  <tr><td align="center">
+    <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;background:#ffffff;border:1px solid #e8e3db;border-radius:12px;">
+      <tr><td style="padding:28px 32px 8px 32px;font-family:Arial,Helvetica,sans-serif;">
+        <div style="font-size:20px;font-weight:bold;color:#6d28d9;letter-spacing:.5px;">Helm</div>
+      </td></tr>
+      <tr><td style="padding:8px 32px 0 32px;font-family:Arial,Helvetica,sans-serif;color:#1b1930;">
+        <h1 style="margin:0 0 12px 0;font-size:22px;line-height:1.3;color:#1b1930;">Reset your password</h1>
+        <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#4b475f;">
+          We got a request to reset the password for your Helm account <strong>{{ .Email }}</strong>.
+          Click the button below to choose a new one.
+        </p>
+      </td></tr>
+      <tr><td align="left" style="padding:8px 32px 8px 32px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td bgcolor="#6d28d9" style="border-radius:8px;">
+            <a href="{{ .ConfirmationURL }}" target="_blank"
+               style="display:inline-block;padding:13px 26px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:8px;">Reset my password</a>
+          </td></tr></table>
+      </td></tr>
+      <tr><td style="padding:12px 32px 0 32px;font-family:Arial,Helvetica,sans-serif;">
+        <p style="margin:0 0 12px 0;font-size:13px;line-height:1.6;color:#6b6577;">
+          This link works <strong>once</strong> and expires in <strong>1 hour</strong>. Your new password needs at least
+          12 characters with a lowercase letter, an uppercase letter, a number and a symbol.
+        </p>
+        <p style="margin:0 0 12px 0;font-size:13px;line-height:1.6;color:#6b6577;">
+          Button not working? Copy this link into your browser:<br>
+          <a href="{{ .ConfirmationURL }}" style="color:#6d28d9;word-break:break-all;">{{ .ConfirmationURL }}</a>
+        </p>
+        <p style="margin:0 0 24px 0;font-size:13px;line-height:1.6;color:#6b6577;">
+          Didn't ask for this? You can ignore this email — your password stays the same.
+        </p>
+      </td></tr>
+      <tr><td style="padding:16px 32px 24px 32px;border-top:1px solid #eeeae4;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#9a95a8;">
+        Helm · event planning for studios. This is an automatic security email; replies aren't read.
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+```
+
+### 7b. Password changed (Security notifications → "Password changed": ON)
+**Subject:** `Your Helm password was changed`
+
+No link variable is needed; the only link is the optional `{{ .SiteURL }}/reset-password`.
+
+```html
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f2ee;padding:24px 0;">
+  <tr><td align="center">
+    <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;width:100%;background:#ffffff;border:1px solid #e8e3db;border-radius:12px;">
+      <tr><td style="padding:28px 32px 8px 32px;font-family:Arial,Helvetica,sans-serif;">
+        <div style="font-size:20px;font-weight:bold;color:#6d28d9;letter-spacing:.5px;">Helm</div>
+      </td></tr>
+      <tr><td style="padding:8px 32px 0 32px;font-family:Arial,Helvetica,sans-serif;color:#1b1930;">
+        <h1 style="margin:0 0 12px 0;font-size:22px;line-height:1.3;color:#1b1930;">Your password was changed</h1>
+        <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#4b475f;">
+          The password for your Helm account <strong>{{ .Email }}</strong> was just changed.
+          For your security, other devices were signed out.
+        </p>
+        <p style="margin:0 0 8px 0;font-size:15px;line-height:1.6;color:#4b475f;"><strong>Was this you?</strong> Then there's nothing to do.</p>
+        <p style="margin:0 0 8px 0;font-size:15px;line-height:1.6;color:#4b475f;"><strong>Wasn't you?</strong> Act now:</p>
+        <ol style="margin:0 0 16px 20px;padding:0;font-size:15px;line-height:1.6;color:#4b475f;">
+          <li>Reset your password straight away using "Forgot password?" on the sign-in page, or
+            <a href="{{ .SiteURL }}/reset-password" style="color:#6d28d9;">{{ .SiteURL }}/reset-password</a>.</li>
+          <li>Tell your studio admin, so they can check your account and turn on two-step verification.</li>
+          <li>If you used the same password anywhere else, change it there too.</li>
+        </ol>
+      </td></tr>
+      <tr><td style="padding:16px 32px 24px 32px;border-top:1px solid #eeeae4;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#9a95a8;">
+        Helm · event planning for studios. This is an automatic security email; replies aren't read.
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+```
 
 ## 8. Recommendation (not applied): PKCE for Google sign-in
 The app still uses the implicit OAuth flow (tokens in the URL fragment). Switching to

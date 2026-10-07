@@ -429,3 +429,78 @@ details.state pre{margin:0;padding:0 14px 14px;font-family:var(--mono);font-size
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{transition:none!important;animation:none!important;scroll-behavior:auto!important}
 }
+
+/* ===================== Compact header + canvas nav (UX pass) ===================== */
+/* visually hide header field labels (still read by screen readers via <label for>) */
+header .field label,header .field .flabel{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+header .field{flex-direction:row}
+header select,header .tbtn,header .seg button{height:28px;font-size:12px;padding:0 8px;border-radius:6px}
+header .seg button{height:26px}
+header .tbtn.icon{width:28px;padding:0}
+header .nameinput{height:28px;min-width:120px;max-width:180px}
+header .capinput{width:118px;min-width:118px;max-width:118px}
+header .capmeter{height:28px;padding:0 8px;font-size:12px}
+header .qbadge{padding:3px 8px;font-size:11px}
+header select#preset,header select#refEvents{max-width:150px}
+header .unitsel{width:auto}
+header .kbd{font-size:11px;white-space:nowrap}
+.brand{gap:6px;padding-right:2px}
+.brand .mark{width:18px;height:18px;border-radius:4px}
+.brand .mark::after{inset:4px;border-width:1.25px}
+.brand h1{font-size:13px;line-height:1.1}
+.brand small{font-size:10px;letter-spacing:.03em}
+.hsep{height:20px}
+@media (min-width:721px){
+  header{gap:8px;padding:12px 16px 10px;row-gap:8px}
+}
+@media (max-width:1440px){ .brand small{display:none} }
+@media (max-width:1280px){ .brand-txt{display:none} header .kbd{display:none} }
+/* header dropdown menus (More ▾ / account) */
+.hmenu{position:relative}
+.hmenu>summary{list-style:none;cursor:pointer;user-select:none}
+.hmenu>summary::-webkit-details-marker{display:none}
+.hmenu[open]>summary{border-color:var(--accent);color:var(--accent)}
+.hmenu-pop{position:absolute;right:0;top:calc(100% + 4px);z-index:50;display:flex;flex-direction:column;gap:4px;
+  min-width:150px;padding:6px;background:var(--panel);border:1px solid var(--line);border-radius:9px;box-shadow:var(--shadow)}
+.hmenu-pop .tbtn{width:100%;justify-content:flex-start}
+.acctmenu .hmenu-pop.acct{display:flex;flex-direction:column;align-items:stretch;gap:6px;min-width:200px;max-width:min(300px,90vw)}
+.acctmenu .acct-email{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.acctmenu .role{align-self:flex-start}
+@media (max-width:720px){
+  /* header scrolls horizontally on phones — float the menus instead of clipping them */
+  .hmenu[open] .hmenu-pop{position:fixed;top:48px;right:10px}
+}
+/* toolbox one-line hint */
+.hint.hint1{display:flex;align-items:center;gap:6px;padding:6px 8px 6px 12px;line-height:1.3}
+.hint1[hidden]{display:none}
+.hint1 .hint-txt{flex:1 1 auto;min-width:0}
+.hint-btn{flex:0 0 auto;width:22px;height:22px;border:1px solid var(--line);background:var(--panel-2);border-radius:50%;
+  font-size:12px;font-weight:700;line-height:1;display:inline-flex;align-items:center;justify-content:center;color:var(--ink-2);padding:0}
+.hint-btn:hover,.hint-btn:focus-visible{border-color:var(--accent);color:var(--accent)}
+.hint-reopen{margin:6px 10px;align-self:flex-start;height:24px;padding:0 9px;border:1px solid var(--line);background:var(--panel-2);
+  border-radius:12px;font-size:11px;font-weight:600;color:var(--ink-2)}
+.hint-reopen:hover{border-color:var(--accent);color:var(--accent)}
+.sheet-sc{width:min(420px,94vw)}
+.sclist{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:13px}
+.sclist dt{font-family:var(--mono);font-weight:600;color:var(--ink);white-space:nowrap}
+.sclist dd{margin:0;color:var(--ink-2)}
+/* on-canvas camera pan pad */
+.navpad{position:absolute;right:14px;bottom:64px;z-index:9;display:grid;grid-template-columns:repeat(3,28px);grid-template-rows:repeat(3,28px);
+  gap:2px;padding:4px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);
+  opacity:.72;transition:opacity .15s;touch-action:none;user-select:none}
+.navpad:hover,.navpad:focus-within{opacity:1}
+.navpad button{width:28px;height:28px;border:0;background:transparent;border-radius:6px;color:var(--ink-2);font-size:11px;
+  display:flex;align-items:center;justify-content:center;padding:0}
+.navpad button:hover{background:var(--panel-2);color:var(--ink)}
+.navpad button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.navpad [data-pan="up"]{grid-column:2;grid-row:1}
+.navpad [data-pan="left"]{grid-column:1;grid-row:2}
+.navpad .np-c{grid-column:2;grid-row:2;font-size:14px;color:var(--accent)}
+.navpad [data-pan="right"]{grid-column:3;grid-row:2}
+.navpad [data-pan="down"]{grid-column:2;grid-row:3}
+.viewport.is3d .navpad{bottom:14px}
+@media (pointer:coarse){ .navpad{grid-template-columns:repeat(3,40px);grid-template-rows:repeat(3,40px)} .navpad button{width:40px;height:40px} }
+@media (max-width:720px){ .viewport.is3d .navpad{bottom:56px} }
+@media (prefers-reduced-motion:reduce){ .navpad{transition:none} }
+/* keep the floating "? Tour" button from covering the toolbox hint (both sit bottom-left) */
+.htour-fab{left:auto !important;right:16px}
