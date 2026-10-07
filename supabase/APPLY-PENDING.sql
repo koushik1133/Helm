@@ -13,6 +13,10 @@
 --   HQ stops seeing any studio business data (events, clients, revenue, studio payments).
 --   + a studio ACCOUNT profile (legal name, GSTIN, state, contacts) that studio admins fill in
 --     Control Center and HQ can see; invoices split GST as IGST or CGST+SGST by state.
+--   + GLOBAL billing: country-aware tax engine (GST intra/inter, export under LUT, reverse
+--     charge, local registrations), multi-currency with INR equivalent, FIRA/FIRC tracking;
+--     buyer + tax are snapshotted on each payment so old invoices never change.
+--     Tax rates and wording are DEFAULTS — confirm with your CA (Helm gives no tax advice).
 --   HQ now sees: studios, their people (name, e-mail, role, active, last sign-in, two-step),
 --   and Helm subscription billing (plans, subscriptions, payments with invoice numbers,
 --   reminders queue, operator list, HQ activity log).
@@ -887,7 +891,7 @@ end $$;
 --   Invoice buyer = legal_business_name, gstin, billing_address, state; gst_split is IGST
 --   when buyer state <> seller state, else CGST + SGST (half each).
 -- ============================================================================
-alter table public.helm_billing_settings add column if not exists state text;
+alter table public.helm_billing_settings add column if not exists seller_state text;
 
 create table if not exists public.studio_account (
   org_id                 uuid primary key references public.organizations(id) on delete restrict,
@@ -1097,15 +1101,8 @@ returns jsonb language plpgsql volatile security definer set search_path = '' as
 begin
   perform public._hq_wgate('hq.billing.settings', 'helm_billing_settings', 'state', jsonb_build_object('state', p_state));
   if length(coalesce(p_state, '')) > 80 then raise exception 'state too long' using errcode = '22023'; end if;
-  update public.helm_billing_settings set state = nullif(btrim(coalesce(p_state, '')), ''), updated_at = now(), updated_by = auth.uid() where id;
+  update public.helm_billing_settings set seller_state = nullif(btrim(coalesce(p_state, '')), ''), updated_at = now(), updated_by = auth.uid() where id;
   return (select to_jsonb(b) - 'id' from public.helm_billing_settings b where b.id);
-end $$;
-do $$ declare d text; begin
-  d := pg_get_functiondef('public._sub_record_payment(uuid,numeric,text,date,date,date,text,text,uuid,text,text,text)'::regprocedure);
-  if position('''state'', b.state' in d) = 0 then
-    d := replace(d, '''address'', b.address)', '''address'', b.address, ''state'', b.state)');
-    execute d;
-  end if;
 end $$;
 
 do $$ declare fn text; begin
@@ -1121,6 +1118,536 @@ do $$ declare fn text; begin
     if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on function ' || fn || ' from anon'; end if;
     if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'revoke all on function ' || fn || ' from authenticated'; end if;
   end loop;
+end $$;
+
+-- ============================================================================
+-- 12) GLOBAL: extra account fields, country-aware tax engine, multi-currency, export
+--     realisation, buyer + tax SNAPSHOT on every payment (old invoices never change).
+--   !! Tax rates, regimes and invoice wording below are DEFAULTS ONLY. They must be
+--   !! confirmed by the owner's Chartered Accountant before use. Helm (and this code)
+--   !! is not giving tax advice.
+--   Regime resolution (_resolve_tax, server-side only — never from the client):
+--     buyer country = seller country (IN): same state → IN_GST_INTRA (CGST + SGST, half
+--       each), otherwise IN_GST_INTER (IGST).
+--     foreign buyer: active NO_TAX rule for the country → NO_TAX; active LOCAL_REGISTERED
+--       rule → that rule's rate; otherwise export: valid LUT on paid_on → EXPORT_LUT_ZERO
+--       (0%), no LUT → EXPORT_IGST_PAID (IN rate as IGST, refundable).
+--       A foreign BUSINESS buyer with a tax_id gets the reverse-charge wording; when the
+--       supply is zero-rated under LUT the regime is REVERSE_CHARGE (0%, both notes).
+--   Amounts are tax-inclusive (net = amount / (1 + rate/100)).
+-- ============================================================================
+alter table public.studio_account add column if not exists business_type text check (business_type is null or business_type in ('wedding','corporate','decor','catering','other'));
+alter table public.studio_account add column if not exists events_per_month_band text check (events_per_month_band is null or events_per_month_band in ('0-2','3-5','6-10','11-20','21+'));
+alter table public.studio_account add column if not exists preferred_contact_method text check (preferred_contact_method is null or preferred_contact_method in ('whatsapp','phone','email'));
+alter table public.studio_account add column if not exists preferred_language text check (preferred_language is null or preferred_language ~ '^[a-z]{2}(-[A-Z]{2})?$');
+alter table public.studio_account add column if not exists referral_code text check (referral_code is null or referral_code ~ '^[A-Z0-9-]{3,32}$');
+alter table public.studio_account add column if not exists referred_by text check (referred_by is null or length(referred_by) <= 80);
+alter table public.studio_account add column if not exists terms_version_accepted text check (terms_version_accepted is null or terms_version_accepted ~ '^[A-Za-z0-9._-]{1,32}$');
+alter table public.studio_account add column if not exists terms_accepted_at timestamptz;
+alter table public.studio_account add column if not exists consent_version text check (consent_version is null or consent_version ~ '^[A-Za-z0-9._-]{1,32}$');
+alter table public.studio_account add column if not exists data_processing_consent_at timestamptz;
+alter table public.studio_account add column if not exists marketing_opt_in boolean not null default false;
+alter table public.studio_account add column if not exists is_business boolean not null default true;
+alter table public.studio_account add column if not exists tax_id_type text check (tax_id_type is null or tax_id_type in ('IN_GSTIN','IN_PAN','EU_VAT','UK_VAT','AU_ABN','CA_GST','SG_GST','AE_TRN','US_EIN','OTHER'));
+alter table public.studio_account add column if not exists tax_id text check (tax_id is null or length(tax_id) <= 40);
+alter table public.studio_account add column if not exists pan text check (pan is null or pan ~ '^[A-Z]{5}[0-9]{4}[A-Z]$');
+alter table public.studio_account add column if not exists billing_currency text check (billing_currency is null or billing_currency ~ '^[A-Z]{3}$');
+alter table public.studio_account add column if not exists payment_mandate_ref text check (payment_mandate_ref is null or payment_mandate_ref ~ '^[A-Za-z0-9_-]{3,64}$');
+
+create table if not exists public.studio_consent_log (
+  id       uuid primary key default gen_random_uuid(),
+  org_id   uuid not null references public.organizations(id) on delete restrict,
+  kind     text not null check (kind in ('terms','data_processing','marketing')),
+  version  text,
+  value    boolean,
+  at       timestamptz not null default now(),
+  actor    uuid
+);
+alter table public.studio_consent_log enable row level security;
+revoke all on table public.studio_consent_log from public;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then revoke all on table public.studio_consent_log from anon; end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then revoke all on table public.studio_consent_log from authenticated; end if;
+end $$;
+
+alter table public.helm_billing_settings add column if not exists seller_country text not null default 'IN' check (seller_country ~ '^[A-Z]{2}$');
+alter table public.helm_billing_settings add column if not exists lut_number text check (lut_number is null or length(lut_number) <= 40);
+alter table public.helm_billing_settings add column if not exists lut_valid_from date;
+alter table public.helm_billing_settings add column if not exists lut_valid_to date;
+
+create table if not exists public.tax_rules (
+  id             uuid primary key default gen_random_uuid(),
+  country        text not null check (country ~ '^[A-Z]{2}$'),
+  region         text check (region is null or length(region) <= 80),
+  regime         text not null check (regime in ('IN_GST_INTRA','IN_GST_INTER','EXPORT_LUT_ZERO','EXPORT_IGST_PAID','REVERSE_CHARGE','LOCAL_REGISTERED','NO_TAX')),
+  rate           numeric(5,2) not null default 0 check (rate >= 0 and rate <= 50),
+  invoice_note   text check (invoice_note is null or length(invoice_note) <= 300),
+  effective_from date not null default date '2017-07-01',
+  effective_to   date,
+  active         boolean not null default true,
+  updated_at     timestamptz not null default now(),
+  updated_by     uuid,
+  check (effective_to is null or effective_to >= effective_from)
+);
+create unique index if not exists tax_rules_key_uq on public.tax_rules(country, coalesce(region, ''), regime, effective_from);
+insert into public.tax_rules(country, regime, rate, invoice_note)
+  select 'IN', r, 18, null from (values ('IN_GST_INTRA'), ('IN_GST_INTER')) v(r)
+   where not exists (select 1 from public.tax_rules t where t.country = 'IN' and t.regime = v.r);
+
+create table if not exists public.helm_plan_prices (
+  plan_id       uuid not null references public.helm_plans(id) on delete restrict,
+  currency      text not null check (currency ~ '^[A-Z]{3}$'),
+  price_monthly numeric(12,2) not null check (price_monthly >= 0),
+  price_yearly  numeric(12,2) check (price_yearly is null or price_yearly >= 0),
+  updated_at    timestamptz not null default now(),
+  primary key (plan_id, currency)
+);
+
+alter table public.subscription_payments add column if not exists tax_regime text;
+alter table public.subscription_payments add column if not exists tax_components jsonb;
+alter table public.subscription_payments add column if not exists tax_note text;
+alter table public.subscription_payments add column if not exists tax_refundable boolean not null default false;
+alter table public.subscription_payments add column if not exists buyer jsonb;
+alter table public.subscription_payments add column if not exists place_of_supply text;
+alter table public.subscription_payments add column if not exists fx_rate_to_inr numeric(14,6) check (fx_rate_to_inr is null or fx_rate_to_inr > 0);
+alter table public.subscription_payments add column if not exists inr_equivalent numeric(14,2);
+alter table public.subscription_payments add column if not exists fira_firc_ref text check (fira_firc_ref is null or length(fira_firc_ref) <= 80);
+alter table public.subscription_payments add column if not exists realised_on date;
+
+do $$ declare t text; begin
+  foreach t in array array['tax_rules','helm_plan_prices'] loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('revoke all on table public.%I from public', t);
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on table public.%I from anon', t); end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on table public.%I from authenticated', t); end if;
+  end loop;
+end $$;
+select public._a45_attach_read_only_guards();   -- studio_consent_log is a studio table
+
+-- payments: only void fields (once) and realisation fields (once) may change; never deleted
+create or replace function public.tg_subscription_payment_immutable()
+returns trigger language plpgsql set search_path = '' as $$
+declare keep text[] := array['voided_at','voided_by','void_reason','fira_firc_ref','realised_on'];
+begin
+  if tg_op = 'DELETE' then
+    raise exception 'subscription payments are never deleted — void them with a reason' using errcode = '42501'; end if;
+  if (to_jsonb(new) - keep) is distinct from (to_jsonb(old) - keep) then
+    raise exception 'a recorded payment can only be voided, not changed' using errcode = '42501'; end if;
+  if old.voided_at is not null and (new.voided_at, new.void_reason) is distinct from (old.voided_at, old.void_reason) then
+    raise exception 'this payment is already void' using errcode = '42501'; end if;
+  if old.realised_on is not null and (new.realised_on, new.fira_firc_ref) is distinct from (old.realised_on, old.fira_firc_ref) then
+    raise exception 'realisation is already recorded' using errcode = '42501'; end if;
+  return new;
+end $$;
+
+-- per-type tax id format (normalised: upper case, no spaces)
+create or replace function public._tax_id_ok(p_type text, p_id text)
+returns boolean language sql immutable set search_path = '' as $$
+  select case p_type
+    when 'IN_GSTIN' then p_id ~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$'
+    when 'IN_PAN'   then p_id ~ '^[A-Z]{5}[0-9]{4}[A-Z]$'
+    when 'EU_VAT'   then p_id ~ '^(AT|BE|BG|CY|CZ|DE|DK|EE|EL|ES|FI|FR|HR|HU|IE|IT|LT|LU|LV|MT|NL|PL|PT|RO|SE|SI|SK|XI)[0-9A-Z]{2,12}$'
+    when 'UK_VAT'   then p_id ~ '^GB([0-9]{9}|[0-9]{12}|GD[0-9]{3}|HA[0-9]{3})$'
+    when 'AU_ABN'   then p_id ~ '^[0-9]{11}$'
+    when 'CA_GST'   then p_id ~ '^[0-9]{9}RT[0-9]{4}$'
+    when 'SG_GST'   then p_id ~ '^(M[0-9]{8}[A-Z]|[0-9]{8,9}[A-Z])$'
+    when 'AE_TRN'   then p_id ~ '^[0-9]{15}$'
+    when 'US_EIN'   then p_id ~ '^[0-9]{2}-?[0-9]{7}$'
+    when 'OTHER'    then p_id ~ '^[A-Z0-9./-]{3,40}$'
+    else false end;
+$$;
+
+-- validated account patch (keys absent = unchanged, '' = clear). Consent / terms timestamps
+-- are set HERE from now() — the client can never send them.
+create or replace function public._studio_account_apply(p_org uuid, p jsonb)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+declare k text; v text; t text; a public.studio_account;
+  allowed text[] := array['country','state','city','billing_address','legal_business_name','gstin','website',
+  'timezone','primary_contact_name','primary_contact_email','primary_contact_phone','secondary_contact_name',
+  'secondary_contact_email','secondary_contact_phone','billing_contact_email','team_size_band','signup_source',
+  'business_type','events_per_month_band','preferred_contact_method','preferred_language','referral_code','referred_by',
+  'terms_version_accepted','consent_version','marketing_opt_in','is_business','tax_id_type','tax_id','pan',
+  'billing_currency','payment_mandate_ref'];
+begin
+  if p is null or jsonb_typeof(p) <> 'object' then raise exception 'account must be an object' using errcode = '22023'; end if;
+  insert into public.studio_account(org_id) values (p_org) on conflict (org_id) do nothing;
+  for k, v in select key, nullif(btrim(value #>> '{}'), '') from jsonb_each(p) loop
+    if not (k = any(allowed)) then raise exception 'unknown field %', k using errcode = '22023'; end if;
+    if k in ('country','billing_currency','tax_id_type','referral_code') then v := upper(v); end if;
+    if k in ('gstin','tax_id','pan') then v := upper(replace(v, ' ', '')); end if;
+    if k like '%email' then v := lower(v); end if;
+    if k like '%phone' then v := regexp_replace(v, '[\s()-]', '', 'g'); end if;
+    if k like '%phone' and v is not null and v !~ '^\+[1-9][0-9]{7,14}$' then
+      raise exception 'phone must be in international format, e.g. +919876543210' using errcode = '22023'; end if;
+    if k = 'gstin' and v is not null and v !~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$' then
+      raise exception 'GSTIN is not valid' using errcode = '22023'; end if;
+    if k in ('marketing_opt_in','is_business') then
+      if v is null or lower(v) not in ('true','false') then raise exception '% must be true or false', k using errcode = '22023'; end if;
+    end if;
+    select format_type(at.atttypid, at.atttypmod) into t from pg_attribute at
+     where at.attrelid = 'public.studio_account'::regclass and at.attname = k;
+    begin
+      execute format('update public.studio_account set %I = $1::%s, updated_at = now(), updated_by = auth.uid() where org_id = $2', k, t) using v, p_org;
+    exception when check_violation or invalid_text_representation then
+      raise exception '% is not valid', replace(k, '_', ' ') using errcode = '22023';
+    end;
+    if k = 'terms_version_accepted' and v is not null then
+      update public.studio_account set terms_accepted_at = now() where org_id = p_org;
+      insert into public.studio_consent_log(org_id, kind, version, value, actor) values (p_org, 'terms', v, true, auth.uid());
+    elsif k = 'consent_version' then
+      update public.studio_account set data_processing_consent_at = case when v is null then null else now() end where org_id = p_org;
+      insert into public.studio_consent_log(org_id, kind, version, value, actor) values (p_org, 'data_processing', v, v is not null, auth.uid());
+    elsif k = 'marketing_opt_in' then
+      insert into public.studio_consent_log(org_id, kind, value, actor) values (p_org, 'marketing', v::boolean, auth.uid());
+    end if;
+  end loop;
+  select * into a from public.studio_account where org_id = p_org;
+  if (a.tax_id is null) <> (a.tax_id_type is null) then
+    raise exception 'tax ID and tax ID type go together' using errcode = '22023'; end if;
+  if a.tax_id is not null and not public._tax_id_ok(a.tax_id_type, a.tax_id) then
+    raise exception 'tax ID is not a valid % number', a.tax_id_type using errcode = '22023'; end if;
+  if a.pan is not null and coalesce(a.country, 'IN') <> 'IN' then
+    raise exception 'PAN applies to Indian studios only' using errcode = '22023'; end if;
+  return to_jsonb(a);
+end $$;
+
+-- the tax engine
+create or replace function public._resolve_tax(p_org uuid, p_paid_on date, p_amount numeric default null)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+declare a public.studio_account; b public.helm_billing_settings; v_country text; v_seller text; v_rate numeric;
+  r record; v_regime text; v_note text; v_comp jsonb := '[]'::jsonb; v_refund boolean := false; v_rc boolean := false;
+  v_lut boolean; v_net numeric; v_tax numeric; v_half numeric; d date := coalesce(p_paid_on, current_date);
+begin
+  select * into a from public.studio_account where org_id = p_org;
+  select * into b from public.helm_billing_settings where id;
+  v_seller := coalesce(b.seller_country, 'IN');
+  v_country := coalesce(a.country, v_seller);
+  select t.rate into v_rate from public.tax_rules t
+   where t.country = 'IN' and t.regime in ('IN_GST_INTER','IN_GST_INTRA') and t.active and t.region is null
+     and t.effective_from <= d and (t.effective_to is null or t.effective_to >= d)
+   order by (t.regime = 'IN_GST_INTER') desc, t.effective_from desc limit 1;
+  v_rate := coalesce(v_rate, 18);
+  if v_country = v_seller then
+    if lower(btrim(coalesce(a.state, ''))) <> '' and lower(btrim(coalesce(a.state, ''))) = lower(btrim(coalesce(b.seller_state, ''))) then
+      select coalesce((select t.rate from public.tax_rules t where t.country = 'IN' and t.regime = 'IN_GST_INTRA' and t.active and t.region is null
+         and t.effective_from <= d and (t.effective_to is null or t.effective_to >= d) order by t.effective_from desc limit 1), v_rate) into v_rate;
+      v_regime := 'IN_GST_INTRA';
+      v_comp := jsonb_build_array(jsonb_build_object('name', 'CGST', 'rate', round(v_rate / 2, 2)), jsonb_build_object('name', 'SGST', 'rate', round(v_rate / 2, 2)));
+    else
+      v_regime := 'IN_GST_INTER';
+      v_comp := jsonb_build_array(jsonb_build_object('name', 'IGST', 'rate', v_rate));
+    end if;
+  else
+    select t.* into r from public.tax_rules t
+     where t.country = v_country and t.regime in ('NO_TAX','LOCAL_REGISTERED') and t.active
+       and (t.region is null or lower(t.region) = lower(coalesce(a.state, '')))
+       and t.effective_from <= d and (t.effective_to is null or t.effective_to >= d)
+     order by (t.region is not null) desc, (t.regime = 'NO_TAX') desc, t.effective_from desc limit 1;
+    v_rc := coalesce(a.is_business, true) and a.tax_id is not null;
+    if found and r.regime = 'NO_TAX' then
+      v_regime := 'NO_TAX'; v_rate := 0; v_note := r.invoice_note;
+    elsif found then
+      v_regime := 'LOCAL_REGISTERED'; v_rate := r.rate; v_note := r.invoice_note; v_rc := false;
+      v_comp := jsonb_build_array(jsonb_build_object('name', 'Tax (' || v_country || ')', 'rate', r.rate));
+    else
+      v_lut := b.lut_number is not null and (b.lut_valid_from is null or b.lut_valid_from <= d)
+               and (b.lut_valid_to is null or b.lut_valid_to >= d);
+      if v_lut then
+        v_regime := case when v_rc then 'REVERSE_CHARGE' else 'EXPORT_LUT_ZERO' end; v_rate := 0;
+        v_note := 'Supply meant for export under LUT without payment of IGST — LUT ' || b.lut_number;
+      else
+        v_regime := 'EXPORT_IGST_PAID'; v_refund := true;
+        v_note := 'Export of services with payment of IGST (refund claimable)';
+        v_comp := jsonb_build_array(jsonb_build_object('name', 'IGST', 'rate', v_rate));
+      end if;
+    end if;
+    if v_rc then
+      v_note := concat_ws('. ', v_note, 'Reverse charge — VAT to be accounted for by the recipient');
+    end if;
+  end if;
+  if p_amount is not null then
+    v_net := round(p_amount / (1 + v_rate / 100), 2); v_tax := round(p_amount, 2) - v_net;
+    if v_regime = 'IN_GST_INTRA' then
+      v_half := round(v_tax / 2, 2);
+      v_comp := jsonb_build_array(jsonb_build_object('name', 'CGST', 'rate', round(v_rate / 2, 2), 'amount', v_half),
+                                  jsonb_build_object('name', 'SGST', 'rate', round(v_rate / 2, 2), 'amount', v_tax - v_half));
+    elsif jsonb_array_length(v_comp) = 1 then
+      v_comp := jsonb_build_array(v_comp -> 0 || jsonb_build_object('amount', v_tax));
+    end if;
+  end if;
+  return jsonb_build_object('regime', v_regime, 'rate', v_rate, 'components', v_comp, 'note', v_note,
+    'refundable', v_refund, 'reverse_charge', v_rc, 'net', v_net, 'tax', v_tax,
+    'place_of_supply', case when v_country = 'IN' then coalesce(nullif(btrim(a.state), ''), 'IN') else v_country end,
+    'lut_number', case when v_regime in ('EXPORT_LUT_ZERO','REVERSE_CHARGE') then b.lut_number end);
+end $$;
+
+-- record one payment: tax ONLY from _resolve_tax; buyer, seller and tax snapshotted on the row
+drop function if exists public._sub_record_payment(uuid,numeric,text,date,date,date,text,text,uuid,text,text,text);
+create or replace function public._sub_record_payment(p_org uuid, p_amount numeric, p_currency text, p_paid_on date,
+  p_period_start date, p_period_end date, p_method text, p_reference text, p_actor uuid,
+  p_provider text, p_provider_payment_id text, p_provider_subscription_id text, p_fx_rate_to_inr numeric)
+returns uuid language plpgsql volatile security definer set search_path = '' as $$
+declare v_id uuid; v_seq bigint; b record; a public.studio_account; o public.organizations; v_plan text; tx jsonb;
+  v_cur text := upper(coalesce(nullif(btrim(p_currency), ''), 'INR')); v_fx numeric;
+begin
+  select * into o from public.organizations where id = p_org;
+  if not found then raise exception 'unknown studio' using errcode = '22023'; end if;
+  if p_amount is null or p_amount <= 0 or p_amount > 100000000 then raise exception 'amount must be more than 0' using errcode = '22023'; end if;
+  if p_paid_on is null or p_paid_on > current_date + 1 or p_paid_on < date '2020-01-01' then
+    raise exception 'paid on date is not valid' using errcode = '22023'; end if;
+  if coalesce(p_method, '') not in ('upi','bank','cash','card','other') then raise exception 'method must be upi, bank, cash, card or other' using errcode = '22023'; end if;
+  if p_period_start is not null and p_period_end is not null and p_period_end < p_period_start then
+    raise exception 'period end is before period start' using errcode = '22023'; end if;
+  if v_cur !~ '^[A-Z]{3}$' then raise exception 'currency must be a 3-letter ISO code' using errcode = '22023'; end if;
+  if v_cur = 'INR' then v_fx := 1;
+  elsif p_fx_rate_to_inr is null or p_fx_rate_to_inr <= 0 or p_fx_rate_to_inr > 100000 then
+    raise exception 'an exchange rate to INR is required for % payments', v_cur using errcode = '22023';
+  else v_fx := p_fx_rate_to_inr; end if;
+  select * into b from public.helm_billing_settings where id;
+  select * into a from public.studio_account where org_id = p_org;
+  select p.code into v_plan from public.studio_subscriptions s join public.helm_plans p on p.id = s.plan_id where s.org_id = p_org;
+  tx := public._resolve_tax(p_org, p_paid_on, p_amount);
+  v_seq := nextval('public.helm_invoice_seq');
+  insert into public.subscription_payments(org_id, amount, currency, paid_on, period_start, period_end, method, reference,
+      recorded_by, invoice_seq, invoice_no, gst_rate, net_amount, gst_amount, seller, plan_code,
+      provider, provider_payment_id, provider_subscription_id,
+      tax_regime, tax_components, tax_note, tax_refundable, buyer, place_of_supply, fx_rate_to_inr, inr_equivalent)
+    values (p_org, round(p_amount, 2), v_cur, p_paid_on, p_period_start, p_period_end,
+      p_method, nullif(left(btrim(coalesce(p_reference, '')), 120), ''), p_actor, v_seq,
+      coalesce(b.invoice_prefix, 'HELM-') || lpad(v_seq::text, 6, '0'), (tx ->> 'rate')::numeric, (tx ->> 'net')::numeric, (tx ->> 'tax')::numeric,
+      jsonb_build_object('legal_name', b.legal_name, 'gstin', b.gstin, 'address', b.address, 'state', b.seller_state,
+                         'country', coalesce(b.seller_country, 'IN'), 'lut_number', tx ->> 'lut_number'),
+      v_plan, p_provider, p_provider_payment_id, p_provider_subscription_id,
+      tx ->> 'regime', tx -> 'components', tx ->> 'note', coalesce((tx ->> 'refundable')::boolean, false),
+      jsonb_build_object('org_id', o.id, 'legal_name', coalesce(a.legal_business_name, o.name), 'name', o.name,
+        'country', coalesce(a.country, coalesce(b.seller_country, 'IN')), 'state', a.state,
+        'tax_id_type', coalesce(a.tax_id_type, case when coalesce(a.gstin, o.gst_number) is not null then 'IN_GSTIN' end),
+        'tax_id', coalesce(a.tax_id, a.gstin, o.gst_number), 'gstin', coalesce(a.gstin, o.gst_number),
+        'is_business', coalesce(a.is_business, true), 'address', coalesce(a.billing_address, o.location),
+        'email', coalesce(a.billing_contact_email, o.business_email), 'reverse_charge', coalesce((tx ->> 'reverse_charge')::boolean, false)),
+      tx ->> 'place_of_supply', v_fx, round(round(p_amount, 2) * v_fx, 2))
+    returning id into v_id;
+  return v_id;
+end $$;
+
+create or replace function public._sub_payment_json(p public.subscription_payments)
+returns jsonb language sql stable security definer set search_path = '' as $$
+  select jsonb_build_object('id', p.id, 'org_id', p.org_id, 'invoice_no', p.invoice_no, 'amount', p.amount,
+    'currency', p.currency, 'paid_on', p.paid_on, 'period_start', p.period_start, 'period_end', p.period_end,
+    'method', p.method, 'reference', p.reference, 'recorded_at', p.recorded_at, 'net_amount', p.net_amount,
+    'gst_amount', p.gst_amount, 'gst_rate', p.gst_rate, 'voided', p.voided_at is not null, 'voided_at', p.voided_at,
+    'void_reason', p.void_reason, 'provider', p.provider, 'tax_regime', p.tax_regime, 'fx_rate_to_inr', p.fx_rate_to_inr,
+    'inr_equivalent', p.inr_equivalent, 'place_of_supply', p.place_of_supply, 'fira_firc_ref', p.fira_firc_ref,
+    'realised_on', p.realised_on);
+$$;
+
+-- invoice: built ONLY from the payment row's snapshots (old invoices never change)
+create or replace function public._sub_invoice_json(p_id uuid)
+returns jsonb language sql stable security definer set search_path = '' as $$
+  select jsonb_build_object(
+    'invoice_no', p.invoice_no, 'issued_on', p.paid_on, 'paid_on', p.paid_on, 'recorded_at', p.recorded_at,
+    'status', case when p.voided_at is null then 'paid' else 'void' end, 'voided_at', p.voided_at, 'void_reason', p.void_reason,
+    'currency', p.currency, 'fx_rate_to_inr', p.fx_rate_to_inr, 'inr_equivalent', p.inr_equivalent,
+    'amount', p.amount, 'total', p.amount, 'net', p.net_amount, 'net_amount', p.net_amount,
+    'gst_rate', p.gst_rate, 'gst_amount', p.gst_amount, 'provider_payment_id', p.provider_payment_id,
+    'method', p.method, 'reference', p.reference, 'period_start', p.period_start, 'period_end', p.period_end,
+    'place_of_supply', p.place_of_supply,
+    'seller', coalesce(p.seller, '{}'::jsonb) || jsonb_build_object('gst_rate', p.gst_rate),
+    'buyer', coalesce(p.buyer, jsonb_build_object('org_id', p.org_id)),
+    'tax', jsonb_build_object('regime', p.tax_regime, 'rate', p.gst_rate, 'components', coalesce(p.tax_components, '[]'::jsonb),
+           'note', p.tax_note, 'lut_number', p.seller ->> 'lut_number', 'refundable', p.tax_refundable,
+           'reverse_charge', coalesce((p.buyer ->> 'reverse_charge')::boolean, false)),
+    'gst_split', case
+       when p.tax_regime = 'IN_GST_INTRA' then jsonb_build_object('type', 'CGST_SGST', 'igst', 0,
+            'cgst', (p.tax_components -> 0 ->> 'amount')::numeric, 'sgst', (p.tax_components -> 1 ->> 'amount')::numeric)
+       when p.tax_regime = 'IN_GST_INTER' then jsonb_build_object('type', 'IGST', 'igst', p.gst_amount, 'cgst', 0, 'sgst', 0) end,
+    'plan', jsonb_build_object('code', p.plan_code, 'name', (select hp.name from public.helm_plans hp where hp.code = p.plan_code)),
+    'lines', jsonb_build_array(jsonb_build_object(
+       'description', 'Helm subscription' || coalesce(' — ' || (select hp.name from public.helm_plans hp where hp.code = p.plan_code), '')
+                      || coalesce(' (' || p.period_start::text || ' to ' || p.period_end::text || ')', ''),
+       'amount', p.net_amount)))
+  from public.subscription_payments p where p.id = p_id;
+$$;
+
+drop function if exists public.hq_record_payment(uuid,numeric,date,text,text,date,date,text);
+create or replace function public.hq_record_payment(p_org uuid, p_amount numeric, p_paid_on date, p_method text,
+  p_currency text default 'INR', p_period_start date default null, p_period_end date default null, p_reference text default null,
+  p_fx_rate_to_inr numeric default null)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+declare v_id uuid;
+begin
+  perform public._hq_wgate('hq.payment.record', 'subscription_payments', p_org::text,
+    jsonb_build_object('amount', p_amount, 'currency', p_currency, 'paid_on', p_paid_on, 'method', p_method, 'fx_rate_to_inr', p_fx_rate_to_inr,
+                       'period_start', p_period_start, 'period_end', p_period_end, 'reference', left(p_reference, 120)));
+  v_id := public._sub_record_payment(p_org, p_amount, p_currency, p_paid_on, p_period_start, p_period_end, p_method, p_reference,
+            auth.uid(), null, null, null, p_fx_rate_to_inr);
+  return (select public._sub_payment_json(sp) from public.subscription_payments sp where sp.id = v_id);
+end $$;
+
+drop function if exists public.hq_settle_provider_payment(text,uuid,numeric,date,date,date,text,text,text);
+create or replace function public.hq_settle_provider_payment(p_provider_payment_id text, p_org uuid, p_amount numeric,
+  p_paid_on date, p_period_start date default null, p_period_end date default null, p_currency text default 'INR',
+  p_provider text default 'razorpay', p_provider_subscription_id text default null, p_fx_rate_to_inr numeric default null)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+declare v_id uuid; v_created boolean := false; v_ppid text := btrim(coalesce(p_provider_payment_id, ''));
+begin
+  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role' then raise exception 'not authorized' using errcode = '42501'; end if;
+  if v_ppid = '' or length(v_ppid) > 100 then raise exception 'provider_payment_id is required' using errcode = '22023'; end if;
+  perform pg_advisory_xact_lock(hashtext('helm_settle:' || v_ppid));
+  select id into v_id from public.subscription_payments where provider_payment_id = v_ppid;
+  if v_id is null then
+    v_id := public._sub_record_payment(p_org, p_amount, p_currency, p_paid_on, p_period_start, p_period_end, 'other',
+              v_ppid, null, coalesce(nullif(btrim(p_provider), ''), 'razorpay'), v_ppid, p_provider_subscription_id, p_fx_rate_to_inr);
+    v_created := true;
+    insert into public.audit_log(actor, actor_email, action, entity, entity_id, changed, org_id, at)
+      values (null, null, 'hq.payment.provider_settled', 'subscription_payments', v_id::text,
+              jsonb_build_object('org_id', p_org, 'provider_payment_id', v_ppid, 'amount', p_amount, 'currency', p_currency), null, now());
+  end if;
+  return (select public._sub_payment_json(sp) || jsonb_build_object('created', v_created,
+           'result', case when v_created then 'settled' else 'replay' end) from public.subscription_payments sp where sp.id = v_id);
+end $$;
+
+-- HQ: tax rules, seller tax settings, plan prices, realisation
+create or replace function public.hq_tax_rules()
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+begin
+  perform public._hq_gate('hq_tax_rules');
+  return coalesce((select jsonb_agg(to_jsonb(t) - 'updated_by' order by t.country, t.regime, t.effective_from desc) from public.tax_rules t), '[]'::jsonb);
+end $$;
+
+create or replace function public.hq_upsert_tax_rule(p_country text, p_region text, p_regime text, p_rate numeric,
+  p_invoice_note text default null, p_effective_from date default null, p_effective_to date default null, p_active boolean default true)
+returns uuid language plpgsql volatile security definer set search_path = '' as $$
+declare v_id uuid; v_c text := upper(btrim(coalesce(p_country, ''))); v_r text := nullif(btrim(coalesce(p_region, '')), '');
+  v_f date := coalesce(p_effective_from, current_date);
+begin
+  perform public._hq_wgate('hq.tax_rule.upsert', 'tax_rules', v_c || ':' || coalesce(v_r, '') || ':' || coalesce(p_regime, ''),
+    jsonb_build_object('rate', p_rate, 'note', p_invoice_note, 'from', v_f, 'to', p_effective_to, 'active', p_active));
+  if v_c !~ '^[A-Z]{2}$' then raise exception 'country must be a 2-letter ISO code' using errcode = '22023'; end if;
+  if coalesce(p_regime, '') not in ('IN_GST_INTRA','IN_GST_INTER','EXPORT_LUT_ZERO','EXPORT_IGST_PAID','REVERSE_CHARGE','LOCAL_REGISTERED','NO_TAX') then
+    raise exception 'unknown regime' using errcode = '22023'; end if;
+  if p_rate is null or p_rate < 0 or p_rate > 50 then raise exception 'rate must be 0-50' using errcode = '22023'; end if;
+  if p_effective_to is not null and p_effective_to < v_f then raise exception 'effective to is before effective from' using errcode = '22023'; end if;
+  select id into v_id from public.tax_rules where country = v_c and coalesce(region, '') = coalesce(v_r, '') and regime = p_regime and effective_from = v_f;
+  if v_id is null then
+    insert into public.tax_rules(country, region, regime, rate, invoice_note, effective_from, effective_to, active, updated_by)
+      values (v_c, v_r, p_regime, p_rate, nullif(left(btrim(coalesce(p_invoice_note, '')), 300), ''), v_f, p_effective_to, coalesce(p_active, true), auth.uid())
+      returning id into v_id;
+  else
+    update public.tax_rules set rate = p_rate, invoice_note = nullif(left(btrim(coalesce(p_invoice_note, '')), 300), ''),
+           effective_to = p_effective_to, active = coalesce(p_active, true), updated_at = now(), updated_by = auth.uid() where id = v_id;
+  end if;
+  return v_id;
+end $$;
+
+create or replace function public.hq_set_seller_tax(p_seller_country text, p_seller_state text, p_lut_number text,
+  p_lut_valid_from date, p_lut_valid_to date)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+begin
+  perform public._hq_wgate('hq.billing.settings', 'helm_billing_settings', 'seller_tax',
+    jsonb_build_object('seller_country', p_seller_country, 'seller_state', p_seller_state, 'lut_number', p_lut_number,
+                       'lut_valid_from', p_lut_valid_from, 'lut_valid_to', p_lut_valid_to));
+  if upper(coalesce(p_seller_country, 'IN')) !~ '^[A-Z]{2}$' then raise exception 'country must be a 2-letter ISO code' using errcode = '22023'; end if;
+  if p_lut_valid_from is not null and p_lut_valid_to is not null and p_lut_valid_to < p_lut_valid_from then
+    raise exception 'LUT end is before LUT start' using errcode = '22023'; end if;
+  update public.helm_billing_settings set seller_country = upper(coalesce(nullif(btrim(p_seller_country), ''), 'IN')),
+         seller_state = nullif(btrim(coalesce(p_seller_state, '')), ''), lut_number = nullif(left(btrim(coalesce(p_lut_number, '')), 40), ''),
+         lut_valid_from = p_lut_valid_from, lut_valid_to = p_lut_valid_to, updated_at = now(), updated_by = auth.uid() where id;
+  return (select to_jsonb(b) - 'id' from public.helm_billing_settings b where b.id);
+end $$;
+
+create or replace function public.hq_upsert_plan_price(p_plan_code text, p_currency text, p_price_monthly numeric, p_price_yearly numeric default null)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+declare v_plan uuid; v_cur text := upper(btrim(coalesce(p_currency, '')));
+begin
+  perform public._hq_wgate('hq.plan.price', 'helm_plan_prices', coalesce(p_plan_code, '') || ':' || v_cur,
+    jsonb_build_object('monthly', p_price_monthly, 'yearly', p_price_yearly));
+  select id into v_plan from public.helm_plans where code = lower(btrim(coalesce(p_plan_code, '')));
+  if v_plan is null then raise exception 'unknown plan' using errcode = '22023'; end if;
+  if v_cur !~ '^[A-Z]{3}$' then raise exception 'currency must be a 3-letter ISO code' using errcode = '22023'; end if;
+  if p_price_monthly is null or p_price_monthly < 0 or (p_price_yearly is not null and p_price_yearly < 0) then
+    raise exception 'prices must be 0 or more' using errcode = '22023'; end if;
+  insert into public.helm_plan_prices(plan_id, currency, price_monthly, price_yearly) values (v_plan, v_cur, p_price_monthly, p_price_yearly)
+  on conflict (plan_id, currency) do update set price_monthly = excluded.price_monthly, price_yearly = excluded.price_yearly, updated_at = now();
+  return jsonb_build_object('plan', lower(p_plan_code), 'currency', v_cur, 'price_monthly', p_price_monthly, 'price_yearly', p_price_yearly);
+end $$;
+
+create or replace function public.hq_record_realisation(p_id uuid, p_fira_firc_ref text, p_realised_on date)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+declare n int;
+begin
+  perform public._hq_wgate('hq.payment.realised', 'subscription_payments', p_id::text,
+    jsonb_build_object('fira_firc_ref', p_fira_firc_ref, 'realised_on', p_realised_on));
+  if length(btrim(coalesce(p_fira_firc_ref, ''))) < 3 or p_realised_on is null or p_realised_on > current_date + 1 then
+    raise exception 'FIRA / FIRC reference and realised date are required' using errcode = '22023'; end if;
+  update public.subscription_payments set fira_firc_ref = left(btrim(p_fira_firc_ref), 80), realised_on = p_realised_on
+   where id = p_id and realised_on is null and voided_at is null;
+  get diagnostics n = row_count;
+  if n = 0 then raise exception 'payment not found, void, or already realised' using errcode = '22023'; end if;
+  return (select public._sub_payment_json(sp) from public.subscription_payments sp where sp.id = p_id);
+end $$;
+
+create or replace function public.hq_unrealised_exports()
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+begin
+  perform public._hq_gate('hq_unrealised_exports');
+  return coalesce((select jsonb_agg(public._sub_payment_json(sp) || jsonb_build_object('studio', o.name) order by sp.paid_on)
+    from public.subscription_payments sp join public.organizations o on o.id = sp.org_id
+   where sp.voided_at is null and sp.realised_on is null
+     and sp.tax_regime in ('EXPORT_LUT_ZERO','EXPORT_IGST_PAID','REVERSE_CHARGE')), '[]'::jsonb);
+end $$;
+
+-- MRR in INR: plan price in the studio's billing currency (if priced) × that currency's latest recorded rate
+create or replace function public._hq_mrr_inr()
+returns numeric language sql stable security definer set search_path = '' as $$
+  select coalesce(round(sum(
+           case when pp.price_monthly is not null and coalesce(a.billing_currency, 'INR') <> 'INR'
+                then pp.price_monthly * coalesce((select sp.fx_rate_to_inr from public.subscription_payments sp
+                       where sp.currency = a.billing_currency and sp.fx_rate_to_inr is not null and sp.voided_at is null
+                       order by sp.paid_on desc, sp.recorded_at desc limit 1), 0)
+                when p.currency = 'INR' then p.price_monthly
+                else p.price_monthly * coalesce((select sp.fx_rate_to_inr from public.subscription_payments sp
+                       where sp.currency = p.currency and sp.fx_rate_to_inr is not null and sp.voided_at is null
+                       order by sp.paid_on desc, sp.recorded_at desc limit 1), 0) end), 2), 0)
+    from public.studio_subscriptions s join public.helm_plans p on p.id = s.plan_id
+    left join public.studio_account a on a.org_id = s.org_id
+    left join public.helm_plan_prices pp on pp.plan_id = p.id and pp.currency = a.billing_currency
+   where s.status in ('active', 'past_due');
+$$;
+do $$ declare d text; begin
+  d := pg_get_functiondef('public.hq_overview()'::regprocedure);
+  if position('_hq_mrr_inr' in d) = 0 then
+    d := replace(d, '''mrr'', public._hq_mrr(),', '''mrr'', public._hq_mrr(), ''mrr_inr'', public._hq_mrr_inr(),');
+    execute d;
+  end if;
+  d := pg_get_functiondef('public.hq_billing(date,date)'::regprocedure);
+  if position('_hq_mrr_inr' in d) = 0 then
+    d := replace(d, '''mrr'', public._hq_mrr(),', '''mrr'', public._hq_mrr(), ''mrr_inr'', public._hq_mrr_inr(), ''unrealised_exports'',
+      (select count(*) from public.subscription_payments x where x.voided_at is null and x.realised_on is null
+         and x.tax_regime in (''EXPORT_LUT_ZERO'',''EXPORT_IGST_PAID'',''REVERSE_CHARGE'')),');
+    execute d;
+  end if;
+end $$;
+
+do $$ declare fn text; begin
+  foreach fn in array array['public.hq_record_payment(uuid,numeric,date,text,text,date,date,text,numeric)', 'public.hq_tax_rules()',
+      'public.hq_upsert_tax_rule(text,text,text,numeric,text,date,date,boolean)', 'public.hq_set_seller_tax(text,text,text,date,date)',
+      'public.hq_upsert_plan_price(text,text,numeric,numeric)', 'public.hq_record_realisation(uuid,text,date)', 'public.hq_unrealised_exports()'] loop
+    execute 'revoke all on function ' || fn || ' from public';
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on function ' || fn || ' from anon'; end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'grant execute on function ' || fn || ' to authenticated'; end if;
+  end loop;
+  foreach fn in array array['public._resolve_tax(uuid,date,numeric)', 'public._tax_id_ok(text,text)', 'public._hq_mrr_inr()',
+      'public._sub_record_payment(uuid,numeric,text,date,date,date,text,text,uuid,text,text,text,numeric)',
+      'public._sub_payment_json(public.subscription_payments)', 'public._sub_invoice_json(uuid)', 'public._studio_account_apply(uuid,jsonb)',
+      'public.hq_settle_provider_payment(text,uuid,numeric,date,date,date,text,text,text,numeric)'] loop
+    execute 'revoke all on function ' || fn || ' from public';
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on function ' || fn || ' from anon'; end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'revoke all on function ' || fn || ' from authenticated'; end if;
+  end loop;
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    grant execute on function public.hq_settle_provider_payment(text,uuid,numeric,date,date,date,text,text,text,numeric) to service_role;
+  end if;
 end $$;
 
 -- VERIFY — every row must say ok = true
@@ -1143,9 +1670,9 @@ select item, ok from (values
                   where n.nspname = 'public' and (p.proname like 'hq\_%' or p.proname like '\_hq\_%')
                     and p.prosrc ~* '\m(quotes|quote_payments|payment_milestones|leads|clients|crew|crew_members|event_[a-z_]+)\M')),
   ('HQ RPCs: signed-in only; settlement is service-role only',
-     has_function_privilege('authenticated', 'public.hq_record_payment(uuid,numeric,date,text,text,date,date,text)', 'execute')
-     and not has_function_privilege('anon', 'public.hq_record_payment(uuid,numeric,date,text,text,date,date,text)', 'execute')
-     and not has_function_privilege('authenticated', 'public.hq_settle_provider_payment(text,uuid,numeric,date,date,date,text,text,text)', 'execute')
+     has_function_privilege('authenticated', 'public.hq_record_payment(uuid,numeric,date,text,text,date,date,text,numeric)', 'execute')
+     and not has_function_privilege('anon', 'public.hq_record_payment(uuid,numeric,date,text,text,date,date,text,numeric)', 'execute')
+     and not has_function_privilege('authenticated', 'public.hq_settle_provider_payment(text,uuid,numeric,date,date,date,text,text,text,numeric)', 'execute')
      and has_function_privilege('authenticated', 'public.my_subscription()', 'execute')
      and not has_function_privilege('authenticated', 'public._billing_refresh()', 'execute')),
   ('payments can never be deleted (immutability trigger present)',
@@ -1154,6 +1681,12 @@ select item, ok from (values
      (select relrowsecurity from pg_class where oid = 'public.studio_account'::regclass)
      and not has_table_privilege('authenticated', 'public.studio_account', 'select')
      and exists (select 1 from pg_trigger where tgrelid = 'public.studio_account'::regclass and tgname = 'zzz_studio_read_only')),
+  ('tax engine: tax rules + plan prices private, India 18% default seeded',
+     (select relrowsecurity from pg_class where oid = 'public.tax_rules'::regclass)
+     and not has_table_privilege('authenticated', 'public.tax_rules', 'select')
+     and not has_table_privilege('authenticated', 'public.studio_consent_log', 'select')
+     and exists (select 1 from public.tax_rules where country = 'IN' and regime = 'IN_GST_INTER')
+     and not has_function_privilege('authenticated', 'public._resolve_tax(uuid,date,numeric)', 'execute')),
   ('billing settings row present',
      exists (select 1 from public.helm_billing_settings where id))
 ) v(item, ok);

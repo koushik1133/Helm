@@ -229,11 +229,13 @@ end $$;
 do $$ declare r jsonb; begin
   perform pg_temp.op();
   perform public.hq_set_billing_settings('Helm Technologies Pvt Ltd', '36AAAAA0000A1Z5', 'Hyderabad', 12, 'HLM/');
+  perform public.hq_upsert_tax_rule('IN', null, 'IN_GST_INTER', 12, null, current_date, null, true);
   r := public.hq_record_payment('b0000000-0000-4000-8000-000000000001', 1120, current_date, 'cash', 'INR', current_date - 25, current_date + 5);
-  perform pg_temp.res('39 billing settings: new GST rate + prefix used, seller snapshot on invoice',
+  perform pg_temp.res('39 billing settings + IN tax rule: new rate + prefix used, seller snapshot on invoice',
     (r->>'gst_amount')::numeric = 120 and r->>'invoice_no' like 'HLM/%'
     and public.hq_invoice((r->>'id')::uuid)#>>'{seller,legal_name}' = 'Helm Technologies Pvt Ltd', r::text);
   perform public.hq_set_billing_settings('Helm', null, null, 18, 'HELM-');
+  perform public.hq_upsert_tax_rule('IN', null, 'IN_GST_INTER', 12, null, current_date, null, false);
 end $$;
 
 -- ---- 8) operators -------------------------------------------------------------------------------------
@@ -361,17 +363,99 @@ do $$ declare r jsonb; i1 jsonb; i2 jsonb; begin
   i1 := public.hq_invoice((r->>'id')::uuid);
   perform pg_temp.res('63 same state → CGST + SGST half each; buyer from account profile',
     i1#>>'{gst_split,type}' = 'CGST_SGST' and (i1#>>'{gst_split,cgst}')::numeric = 90 and (i1#>>'{gst_split,sgst}')::numeric = 90
-    and i1#>>'{buyer,name}' = 'Studio A LLP' and i1#>>'{buyer,gstin}' = '36ABCDE1234F1Z5' and i1#>>'{buyer,state}' = 'Telangana'
+    and i1#>>'{buyer,legal_name}' = 'Studio A LLP' and i1#>>'{buyer,gstin}' = '36ABCDE1234F1Z5' and i1#>>'{buyer,state}' = 'Telangana'
     and i1#>>'{seller,state}' = 'Telangana', i1::text);
   perform public.hq_set_studio_account('a0000000-0000-4000-8000-000000000001', '{"state":"Karnataka"}');
-  i2 := public.hq_invoice((r->>'id')::uuid);
-  perform pg_temp.res('64 different state → IGST full', i2#>>'{gst_split,type}' = 'IGST' and (i2#>>'{gst_split,igst}')::numeric = 180
-    and (i2#>>'{gst_split,cgst}')::numeric = 0, i2::text);
+  i2 := public.hq_invoice((public.hq_record_payment('a0000000-0000-4000-8000-000000000001', 1180, current_date, 'upi')->>'id')::uuid);
+  perform pg_temp.res('64 different state → IGST full (new payment); old invoice unchanged after the account change',
+    i2#>>'{gst_split,type}' = 'IGST' and (i2#>>'{gst_split,igst}')::numeric = 180 and (i2#>>'{gst_split,cgst}')::numeric = 0
+    and public.hq_invoice((r->>'id')::uuid) = i1, i2::text);
   perform public.hq_set_billing_state(null);
+  perform pg_temp.su(); update public.studio_account set state = 'Telangana' where org_id = 'a0000000-0000-4000-8000-000000000001';
 end $$;
 do $$ declare n int; begin perform pg_temp.su();
   select count(*) into n from public.studio_account where primary_contact_email is not null;
   perform pg_temp.res('65 prefill: primary contact filled from the creating admin', n >= 1, n::text);
+end $$;
+
+-- ---- 14) global tax engine, FX, realisation, consent -----------------------------------------------------
+do $$ declare B uuid := 'b0000000-0000-4000-8000-000000000001'; r jsonb; i jsonb; e text; begin
+  perform pg_temp.op();
+  perform public.hq_set_seller_tax('IN', 'Telangana', 'AD360325000001X', current_date - 100, current_date + 200);
+  perform public.hq_set_studio_account(B, '{"country":"US","state":"CA","is_business":"false","billing_currency":"USD"}');
+  r := public.hq_record_payment(B, 100, current_date, 'card', 'USD', null, null, 'wire', 83.5);
+  i := public.hq_invoice((r->>'id')::uuid);
+  perform pg_temp.setv('payLUT', r->>'id');
+  perform pg_temp.res('66 foreign buyer + valid LUT → EXPORT_LUT_ZERO 0% with LUT note; place of supply = country',
+    i#>>'{tax,regime}' = 'EXPORT_LUT_ZERO' and (i->>'gst_amount')::numeric = 0 and i#>>'{tax,note}' like '%under LUT%AD360325000001X'
+    and i#>>'{tax,lut_number}' = 'AD360325000001X' and i->>'place_of_supply' = 'US' and i->'gst_split' = 'null'::jsonb, i::text);
+  perform pg_temp.res('67 FX: currency + rate + INR equivalent stored (100 USD × 83.5 = 8350)',
+    i->>'currency' = 'USD' and (i->>'fx_rate_to_inr')::numeric = 83.5 and (i->>'inr_equivalent')::numeric = 8350, i::text);
+  e := pg_temp.try('select public.hq_record_payment(''' || B || ''', 100, current_date, ''card'', ''USD'')');
+  perform pg_temp.res('68 FX: a non-INR payment without a rate is refused', e = '22023', e);
+  perform public.hq_set_seller_tax('IN', 'Telangana', null, null, null);
+  i := public.hq_invoice((public.hq_record_payment(B, 118, current_date, 'card', 'USD', null, null, null, 83)->>'id')::uuid);
+  perform pg_temp.res('69 foreign buyer, no LUT → EXPORT_IGST_PAID 18% IGST, refundable',
+    i#>>'{tax,regime}' = 'EXPORT_IGST_PAID' and (i->>'gst_amount')::numeric = 18 and (i#>>'{tax,refundable}')::boolean
+    and i#>'{tax,components}'->0->>'name' = 'IGST', i::text);
+  perform public.hq_set_studio_account(B, '{"country":"DE","state":"","is_business":"true","tax_id_type":"EU_VAT","tax_id":"de 123456789"}');
+  i := public.hq_invoice((public.hq_record_payment(B, 100, current_date, 'bank', 'EUR', null, null, null, 90)->>'id')::uuid);
+  perform pg_temp.res('70 EU business with VAT ID → reverse-charge note, buyer tax id snapshotted',
+    i#>>'{tax,note}' like '%Reverse charge — VAT to be accounted for by the recipient%' and (i#>>'{tax,reverse_charge}')::boolean
+    and i#>>'{buyer,tax_id}' = 'DE123456789' and i#>>'{buyer,tax_id_type}' = 'EU_VAT' and i#>>'{buyer,country}' = 'DE', i::text);
+  perform public.hq_set_seller_tax('IN', 'Telangana', 'AD360325000001X', current_date - 100, current_date + 200);
+  i := public.hq_invoice((public.hq_record_payment(B, 100, current_date, 'bank', 'EUR', null, null, null, 90)->>'id')::uuid);
+  perform pg_temp.res('71 EU business + LUT → REVERSE_CHARGE 0% with both notes', i#>>'{tax,regime}' = 'REVERSE_CHARGE'
+    and (i->>'gst_amount')::numeric = 0 and i#>>'{tax,note}' like '%LUT%Reverse charge%', i::text);
+  perform public.hq_set_studio_account(B, '{"country":"SG","tax_id_type":"","tax_id":""}');
+  perform public.hq_upsert_tax_rule('SG', null, 'LOCAL_REGISTERED', 9, 'GST registered in Singapore', date '2024-01-01', null, true);
+  r := public.hq_record_payment(B, 109, current_date, 'card', 'SGD', null, null, null, 62);
+  i := public.hq_invoice((r->>'id')::uuid);
+  perform pg_temp.res('72 LOCAL_REGISTERED rule applies its rate (9% on 109 = 9)', i#>>'{tax,regime}' = 'LOCAL_REGISTERED'
+    and (i->>'gst_amount')::numeric = 9 and i#>>'{tax,note}' = 'GST registered in Singapore', i::text);
+  perform public.hq_upsert_tax_rule('SG', null, 'LOCAL_REGISTERED', 5, 'changed', date '2024-01-01', null, true);
+  perform public.hq_set_studio_account(B, '{"legal_business_name":"Renamed Pte Ltd","country":"AE"}');
+  perform pg_temp.res('73 snapshot: old invoice unchanged after a rule change AND an account change',
+    public.hq_invoice((r->>'id')::uuid) = i, public.hq_invoice((r->>'id')::uuid)::text);
+  perform public.hq_upsert_tax_rule('SG', null, 'LOCAL_REGISTERED', 5, 'changed', date '2024-01-01', null, false);
+  perform pg_temp.su(); e := pg_temp.try('update public.subscription_payments set tax_regime = ''NO_TAX'' where id = ''' || (r->>'id') || '''');
+  perform pg_temp.res('74 tax snapshot columns cannot be edited even by the owner', e = '42501', e);
+end $$;
+do $$ declare B uuid := 'b0000000-0000-4000-8000-000000000001'; e text := ''; t text; begin
+  perform pg_temp.op();
+  foreach t in array array['IN_GSTIN:12345','IN_PAN:ABCDE12345','EU_VAT:US123456789','UK_VAT:GB12','AU_ABN:1234567890',
+      'CA_GST:123456789XX0001','SG_GST:12345','AE_TRN:12345678901234','US_EIN:12-345','OTHER:!!'] loop
+    e := e || pg_temp.try(format('select public.hq_set_studio_account(%L, %L)', B,
+           jsonb_build_object('tax_id_type', split_part(t, ':', 1), 'tax_id', split_part(t, ':', 2))::text)) || ',';
+  end loop;
+  perform pg_temp.res('75 every tax-id type rejects a malformed id', e = repeat('22023,', 10), e);
+  e := pg_temp.try(format('select public.hq_set_studio_account(%L, %L)', B, '{"tax_id_type":"UK_VAT","tax_id":"GB123456789"}'))
+    || '|' || pg_temp.try(format('select public.hq_set_studio_account(%L, %L)', B, '{"country":"AE","pan":"ABCDE1234F"}'))
+    || '|' || pg_temp.try(format('select public.hq_set_studio_account(%L, %L)', B, '{"payment_mandate_ref":"4111 1111 1111 1111"}'));
+  perform pg_temp.res('76 valid UK VAT accepted; PAN outside India refused; card-number-like mandate ref refused', e = '|22023|22023', e);
+end $$;
+do $$ declare r jsonb; e text; n int; begin
+  perform pg_temp.login('a_admin@a.test');
+  e := pg_temp.try('select public.my_studio_account_update(''{"terms_accepted_at":"2001-01-01T00:00:00Z"}'')') || '|'
+    || pg_temp.try('select public.my_studio_account_update(''{"data_processing_consent_at":"2001-01-01"}'')');
+  r := public.my_studio_account_update('{"terms_version_accepted":"2026-10","consent_version":"dp-1","marketing_opt_in":"true","business_type":"wedding"}');
+  perform pg_temp.su(); select count(*) into n from public.studio_consent_log where org_id = 'a0000000-0000-4000-8000-000000000001';
+  perform pg_temp.res('77 consent: timestamps set by the server (client values refused), consent log written',
+    e = '22023|22023' and (r->>'terms_accepted_at')::timestamptz > now() - interval '1 minute'
+    and (r->>'data_processing_consent_at')::timestamptz > now() - interval '1 minute' and (r->>'marketing_opt_in')::boolean and n = 3, e || r::text || n);
+end $$;
+do $$ declare r jsonb; e text; begin
+  perform pg_temp.op(); r := public.hq_unrealised_exports();
+  perform pg_temp.res('78 HQ lists export payments not yet realised', jsonb_array_length(r) >= 3
+    and not exists (select 1 from jsonb_array_elements(r) x where x->>'tax_regime' not in ('EXPORT_LUT_ZERO','EXPORT_IGST_PAID','REVERSE_CHARGE')), r::text);
+  perform public.hq_record_realisation(pg_temp.getv('payLUT')::uuid, 'FIRA-0001', current_date);
+  e := pg_temp.try('select public.hq_record_realisation(''' || pg_temp.getv('payLUT') || ''', ''FIRA-0002'', current_date)');
+  perform pg_temp.res('79 realisation recorded once (FIRA/FIRC), then locked; gone from the unrealised list', e = '22023'
+    and not exists (select 1 from jsonb_array_elements(public.hq_unrealised_exports()) x where x->>'id' = pg_temp.getv('payLUT')), e);
+  perform public.hq_upsert_plan_price('pro', 'USD', 49, 490);
+  r := public.hq_overview();
+  perform pg_temp.res('80 MRR in INR present', r#>'{billing}' ? 'mrr_inr' and (r#>>'{billing,mrr_inr}')::numeric >= 0, r->>'billing');
+  perform public.hq_set_seller_tax('IN', null, null, null, null);
 end $$;
 
 -- cleanup of mutable state that other suites read (payments are append-only by design)
@@ -380,5 +464,5 @@ do $$ begin perform pg_temp.su();
   delete from auth.mfa_factors where user_id in (select id from auth.users where email like '%@helm.events');
 end $$;
 select name, result from _hs order by name;
-select case when count(*) filter (where result like 'FAIL%') = 0 and count(*) = 65 then 'HQ-SUBSCRIPTIONS: ALL PASS (65/65)'
-            else 'HQ-SUBSCRIPTIONS: '||count(*) filter (where result like 'FAIL%')||' FAILED, '||count(*)||'/65 ran' end from _hs;
+select case when count(*) filter (where result like 'FAIL%') = 0 and count(*) = 80 then 'HQ-SUBSCRIPTIONS: ALL PASS (80/80)'
+            else 'HQ-SUBSCRIPTIONS: '||count(*) filter (where result like 'FAIL%')||' FAILED, '||count(*)||'/80 ran' end from _hs;

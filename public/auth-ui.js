@@ -778,7 +778,11 @@
     ["state", "State"], ["city", "City"], ["billing_address", "Billing address"], ["website", "Website (https://…)"], ["timezone", "Timezone"],
     ["primary_contact_name", "Primary contact name"], ["primary_contact_email", "Primary contact e-mail"], ["primary_contact_phone", "Primary contact phone (+91…)"],
     ["secondary_contact_name", "Secondary contact name"], ["secondary_contact_email", "Secondary contact e-mail"], ["secondary_contact_phone", "Secondary contact phone"],
-    ["billing_contact_email", "Billing e-mail"], ["team_size_band", "Team size (1, 2-5, 6-15, 16-50, 51+)"], ["signup_source", "How did you hear about Helm?"]];
+    ["billing_contact_email", "Billing e-mail"], ["team_size_band", "Team size (1, 2-5, 6-15, 16-50, 51+)"], ["signup_source", "How did you hear about Helm?"],
+    ["business_type", "Business type (wedding, corporate, decor, catering, other)"], ["events_per_month_band", "Events per month (0-2, 3-5, 6-10, 11-20, 21+)"],
+    ["preferred_contact_method", "Preferred contact (whatsapp, phone, email)"], ["preferred_language", "Preferred language (e.g. en, hi)"],
+    ["is_business", "Registered business? (true / false)"], ["tax_id_type", "Tax ID type (IN_GSTIN, IN_PAN, EU_VAT, UK_VAT, AU_ABN, CA_GST, SG_GST, AE_TRN, US_EIN, OTHER)"],
+    ["tax_id", "Tax ID"], ["pan", "PAN (India only)"], ["billing_currency", "Billing currency (e.g. INR, USD)"], ["referred_by", "Referred by"]];
   function accountCard(st) {
     var box = doc.getElementById("accCard"), body = doc.getElementById("accBody");
     if (!box || !body || !st.subscription || !st.subscription.account) return;
@@ -789,14 +793,14 @@
       ACC_FIELDS.forEach(function (f) {
         var w = el("div", { class: "hpf-f" }), id = "acc_" + f[0];
         w.appendChild(el("label", { for: id, class: "hpf-l" }, f[1]));
-        var i = el("input", { id: id, class: "hpf-i", type: "text" }); i.value = a[f[0]] || ""; inputs[f[0]] = i;
+        var i = el("input", { id: id, class: "hpf-i", type: "text" }); i.value = a[f[0]] == null ? "" : String(a[f[0]]); inputs[f[0]] = i;
         w.appendChild(i); grid.appendChild(w);
       });
       var wrap = el("div", { class: "hpf" }); wrap.appendChild(grid); body.appendChild(wrap);
       var msg = el("div", { class: "hau-muted", role: "status" });
       var save = el("button", { type: "button", class: "hau-btn primary" }, "Save account details");
       save.addEventListener("click", function () {
-        var patch = {}; ACC_FIELDS.forEach(function (f) { var v = String(inputs[f[0]].value || "").trim(); if (v !== (a[f[0]] || "")) patch[f[0]] = v; });
+        var patch = {}; ACC_FIELDS.forEach(function (f) { var v = String(inputs[f[0]].value || "").trim(); if (v !== (a[f[0]] == null ? "" : String(a[f[0]]))) patch[f[0]] = v; });
         save.disabled = true;
         st.subscription.updateAccount(patch).then(function (r) { a = r || a; msg.textContent = "Saved."; },
           function (e) { msg.textContent = errText(e, "save the account details"); }).then(function () { save.disabled = false; });

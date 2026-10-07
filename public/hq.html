@@ -164,7 +164,9 @@
         <p class="muted">Studio: <strong id="rOrgName">open a studio and choose “Record a payment”</strong></p>
         <div class="form">
           <input type="hidden" id="rOrg">
-          <label class="fld"><span>Amount (₹, incl. GST)</span><input type="number" id="rAmount" min="1" step="0.01"></label>
+          <label class="fld"><span>Amount (incl. tax)</span><input type="number" id="rAmount" min="1" step="0.01"></label>
+          <label class="fld"><span>Currency</span><input type="text" id="rCur" maxlength="3" value="INR"></label>
+          <label class="fld"><span>Rate to INR (non-INR only)</span><input type="number" id="rFx" min="0" step="0.000001"></label>
           <label class="fld"><span>Paid on</span><input type="date" id="rPaidOn"></label>
           <label class="fld"><span>Method</span><select id="rMethod"><option value="upi">UPI</option><option value="bank">Bank transfer</option><option value="cash">Cash</option><option value="card">Card</option><option value="other">Other</option></select></label>
           <label class="fld"><span>Period start</span><input type="date" id="rPs"></label>
@@ -175,7 +177,8 @@
       </section>
       <div>
         <section class="card" style="margin-bottom:14px"><h2>Past due</h2><ul class="list" id="pastDue"></ul></section>
-        <section class="card"><h2>Reminder queue</h2><ul class="list" id="reminders"></ul></section>
+        <section class="card" style="margin-bottom:14px"><h2>Reminder queue</h2><ul class="list" id="reminders"></ul></section>
+        <section class="card"><h2>Export payments not yet realised (FIRA / FIRC)</h2><ul class="list" id="unrealised"></ul></section>
       </div>
     </div>
     <section class="card">
@@ -184,8 +187,12 @@
         <label class="fld"><span>Legal name</span><input type="text" id="sName" maxlength="160"></label>
         <label class="fld"><span>GSTIN</span><input type="text" id="sGstin" maxlength="15"></label>
         <label class="fld"><span>Address</span><input type="text" id="sAddr" maxlength="500"></label>
-        <label class="fld"><span>State (place of supply)</span><input type="text" id="sState" maxlength="80"></label>
-        <label class="fld"><span>GST %</span><input type="number" id="sRate" min="0" max="50" step="0.01"></label>
+        <label class="fld"><span>Seller country</span><input type="text" id="sCountry" maxlength="2"></label>
+        <label class="fld"><span>Seller state</span><input type="text" id="sState" maxlength="80"></label>
+        <label class="fld"><span>LUT number</span><input type="text" id="sLut" maxlength="40"></label>
+        <label class="fld"><span>LUT valid from</span><input type="date" id="sLutFrom"></label>
+        <label class="fld"><span>LUT valid to</span><input type="date" id="sLutTo"></label>
+        <label class="fld"><span>Default GST % (legacy)</span><input type="number" id="sRate" min="0" max="50" step="0.01"></label>
         <label class="fld"><span>Invoice prefix</span><input type="text" id="sPrefix" maxlength="16"></label>
         <button class="btn" id="btnSettings" type="button">Save invoice settings</button>
       </div>
@@ -202,6 +209,22 @@
         <label class="fld"><span>Price / month (₹)</span><input type="number" id="plPrice" min="0" step="1"></label>
         <label class="fld chk"><input type="checkbox" id="plActive" checked> <span>Offered</span></label>
         <button class="btn primary" id="btnPlan" type="button">Save plan</button>
+      </div>
+    </section>
+    <section class="card" style="margin-top:14px">
+      <h2>Tax rules</h2>
+      <p class="muted">Defaults only — rates, regimes and wording must be confirmed by your Chartered Accountant. Changes apply to new payments; recorded invoices never change.</p>
+      <div class="scroll"><table><thead><tr><th>Country</th><th>Regime</th><th class="n">Rate</th><th>Effective</th><th>Status</th><th>Invoice note</th></tr></thead><tbody id="tTax"></tbody></table></div>
+      <div class="form" style="margin-top:12px">
+        <label class="fld"><span>Country</span><input type="text" id="txCountry" maxlength="2" placeholder="SG"></label>
+        <label class="fld"><span>Region (optional)</span><input type="text" id="txRegion" maxlength="80"></label>
+        <label class="fld"><span>Regime</span><select id="txRegime"><option>LOCAL_REGISTERED</option><option>NO_TAX</option><option>IN_GST_INTRA</option><option>IN_GST_INTER</option></select></label>
+        <label class="fld"><span>Rate %</span><input type="number" id="txRate" min="0" max="50" step="0.01"></label>
+        <label class="fld"><span>Invoice note</span><input type="text" id="txNote" maxlength="300"></label>
+        <label class="fld"><span>From</span><input type="date" id="txFrom"></label>
+        <label class="fld"><span>To</span><input type="date" id="txTo"></label>
+        <label class="fld chk"><input type="checkbox" id="txActive" checked> <span>Active</span></label>
+        <button class="btn" id="btnTax" type="button">Save tax rule</button>
       </div>
     </section>
   </section>
@@ -236,8 +259,8 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=111"></script>
+<script src="store-api.js?v=112"></script>
 <script src="hq-invoice.js?v=1"></script>
-<script src="hq.js?v=5"></script>
+<script src="hq.js?v=6"></script>
 </body>
 </html>

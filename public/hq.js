@@ -49,7 +49,7 @@
     var tone = { active: "ok", trial: "", past_due: "warn", suspended: "bad", cancelled: "", none: "" }[s || "none"];
     return el("span", { cls: "pill " + (tone || ""), text: (s || "none").replace("_", " ") });
   }
-  function ask(text) { var r = window.prompt(text); return r == null ? null : String(r).trim(); }
+  function ask(text, def) { var r = window.prompt(text, def || ""); return r == null ? null : String(r).trim(); }
   function openInvoice(fn, id) {
     call(fn, { p_payment_id: id }).then(function (data) {
       if (window.HelmInvoice && typeof window.HelmInvoice.open === "function") window.HelmInvoice.open(data);
@@ -201,13 +201,15 @@
       ["billing_address", "Billing address"], ["website", "Website"], ["timezone", "Timezone"], ["primary_contact_name", "Primary contact"],
       ["primary_contact_email", "Primary e-mail"], ["primary_contact_phone", "Primary phone (+91…)"], ["secondary_contact_name", "Secondary contact"],
       ["secondary_contact_email", "Secondary e-mail"], ["secondary_contact_phone", "Secondary phone"], ["billing_contact_email", "Billing e-mail"],
-      ["team_size_band", "Team size (1, 2-5, 6-15, 16-50, 51+)"], ["signup_source", "Signup source"]];
+      ["team_size_band", "Team size (1, 2-5, 6-15, 16-50, 51+)"], ["signup_source", "Signup source"],
+      ["business_type", "Business type"], ["is_business", "Business (true/false)"], ["tax_id_type", "Tax ID type"], ["tax_id", "Tax ID"], ["pan", "PAN (India)"],
+      ["billing_currency", "Billing currency"], ["payment_mandate_ref", "Mandate reference"], ["referral_code", "Referral code"], ["referred_by", "Referred by"]];
     var inputs = {};
     var af = el("div", { cls: "form" });
-    AF.forEach(function (f) { var i = el("input", { type: "text" }); i.value = acc[f[0]] || ""; inputs[f[0]] = i; af.appendChild(field(f[1], i)); });
+    AF.forEach(function (f) { var i = el("input", { type: "text" }); i.value = acc[f[0]] == null ? "" : String(acc[f[0]]); inputs[f[0]] = i; af.appendChild(field(f[1], i)); });
     var asave = el("button", { cls: "btn", type: "button", text: "Save account" });
     asave.addEventListener("click", function () {
-      var patch = {}; AF.forEach(function (f) { var v = String(inputs[f[0]].value || "").trim(); if (v !== (acc[f[0]] || "")) patch[f[0]] = v; });
+      var patch = {}; AF.forEach(function (f) { var v = String(inputs[f[0]].value || "").trim(); if (v !== (acc[f[0]] == null ? "" : String(acc[f[0]]))) patch[f[0]] = v; });
       call("hq_set_studio_account", { p_org: org, p_account: patch }).then(function () { okMsg("Account saved."); refreshAfterWrite(org); }).catch(showErr);
     });
     af.appendChild(asave); wrap.appendChild(af);
@@ -263,6 +265,18 @@
     var rm = clear($("#reminders"));
     (r.reminders || []).slice(0, 30).forEach(function (x) { rm.appendChild(el("li", null, [el("span", { text: (x.studio || "—") + " · " + String(x.kind || "").replace("_", " ") }), el("span", { cls: "muted", text: "period " + date(x.period_end) + " · " + (x.sent_at ? "sent " + date(x.sent_at) + " (" + (x.channel || "") + ")" : "queued") })])); });
     if (!rm.firstChild) rm.appendChild(el("li", { cls: "empty", text: "No reminders." }));
+    var ux = await call("hq_unrealised_exports"); ux = Array.isArray(ux) ? ux : [];
+    var ul = clear($("#unrealised"));
+    ux.forEach(function (p) {
+      var b = el("button", { cls: "btn sm", type: "button", text: "Mark realised" });
+      b.addEventListener("click", function () {
+        var ref = ask("FIRA / FIRC reference for " + (p.invoice_no || "") + ":"); if (!ref) return;
+        var on = ask("Realised on (YYYY-MM-DD):", iso(new Date())); if (!on) return;
+        call("hq_record_realisation", { p_id: p.id, p_fira_firc_ref: ref, p_realised_on: on }).then(function () { okMsg("Realisation recorded."); loadBilling().catch(showErr); }).catch(showErr);
+      });
+      ul.appendChild(el("li", null, [el("span", { text: (p.studio || "—") + " · " + (p.invoice_no || "") + " · " + money(p.amount, p.currency) }), el("span", { cls: "muted", text: (p.tax_regime || "") + " · " + date(p.paid_on) }), b]));
+    });
+    if (!ul.firstChild) ul.appendChild(el("li", { cls: "empty", text: "Every export payment is realised." }));
   }
   function csvCell(v) {
     var s = v == null ? "" : String(v);
@@ -286,20 +300,22 @@
     if (!(amt > 0)) { showErr(new Error("Amount must be more than 0")); return; }
     var b = $("#btnRecord"); b.disabled = true;
     call("hq_record_payment", { p_org: org, p_amount: amt, p_paid_on: $("#rPaidOn").value || iso(new Date()), p_method: $("#rMethod").value,
-      p_currency: "INR", p_period_start: $("#rPs").value || null, p_period_end: $("#rPe").value || null, p_reference: $("#rRef").value || null })
+      p_currency: ($("#rCur").value || "INR").toUpperCase(), p_fx_rate_to_inr: $("#rFx").value ? Number($("#rFx").value) : null, p_period_start: $("#rPs").value || null, p_period_end: $("#rPe").value || null, p_reference: $("#rRef").value || null })
       .then(function (p) { okMsg("Payment recorded" + (p && p.invoice_no ? " — invoice " + p.invoice_no : "") + "."); $("#rAmount").value = ""; $("#rRef").value = ""; refreshAfterWrite(org); })
       .catch(showErr).then(function () { b.disabled = false; });
   }
   async function loadSettings() {
     var s = await call("hq_billing_settings"); s = s && !Array.isArray(s) ? s : {};
     $("#sName").value = s.legal_name || ""; $("#sGstin").value = s.gstin || ""; $("#sAddr").value = s.address || "";
-    $("#sState").value = s.state || "";
+    $("#sState").value = s.seller_state || ""; $("#sCountry").value = s.seller_country || "IN";
+    $("#sLut").value = s.lut_number || ""; $("#sLutFrom").value = s.lut_valid_from || ""; $("#sLutTo").value = s.lut_valid_to || "";
     $("#sRate").value = s.gst_rate != null ? s.gst_rate : 18; $("#sPrefix").value = s.invoice_prefix != null ? s.invoice_prefix : "HELM-";
   }
   function saveSettings() {
     call("hq_set_billing_settings", { p_legal_name: $("#sName").value, p_gstin: $("#sGstin").value || null, p_address: $("#sAddr").value || null,
       p_gst_rate: Number($("#sRate").value), p_invoice_prefix: $("#sPrefix").value })
-      .then(function () { return call("hq_set_billing_state", { p_state: $("#sState").value || null }); }).then(function () { okMsg("Invoice settings saved — used for new payments."); }).catch(showErr);
+      .then(function () { return call("hq_set_seller_tax", { p_seller_country: $("#sCountry").value || "IN", p_seller_state: $("#sState").value || null,
+        p_lut_number: $("#sLut").value || null, p_lut_valid_from: $("#sLutFrom").value || null, p_lut_valid_to: $("#sLutTo").value || null }); }).then(function () { okMsg("Invoice settings saved — used for new payments."); }).catch(showErr);
   }
 
   /* ---------------- plans ---------------- */
@@ -312,7 +328,17 @@
       tb.appendChild(el("tr", null, [el("td", { cls: "m", text: p.code }), el("td", { text: p.name }), el("td", { cls: "n", text: money(p.price_monthly, p.currency) }),
         el("td", null, [el("span", { cls: "pill " + (p.active ? "ok" : ""), text: p.active ? "active" : "hidden" })]), el("td", { cls: "n", text: int(p.studios) }), el("td", null, [edit])]));
     });
+    var tr = await call("hq_tax_rules"); tr = Array.isArray(tr) ? tr : [];
+    var tt = clear($("#tTax"));
+    tr.forEach(function (x) { tt.appendChild(el("tr", null, [el("td", { text: x.country + (x.region ? " · " + x.region : "") }), el("td", { cls: "m", text: x.regime }),
+      el("td", { cls: "n", text: num(x.rate) + "%" }), el("td", { text: date(x.effective_from) + " – " + (x.effective_to ? date(x.effective_to) : "open") }),
+      el("td", null, [el("span", { cls: "pill " + (x.active ? "ok" : ""), text: x.active ? "active" : "off" })]), el("td", { text: x.invoice_note || "" })])); });
     if (!plans.length) tb.appendChild(el("tr", null, [el("td", { colspan: "6", cls: "empty", text: "No plans yet — add one below." })]));
+  }
+  function saveTaxRule() {
+    call("hq_upsert_tax_rule", { p_country: $("#txCountry").value, p_region: $("#txRegion").value || null, p_regime: $("#txRegime").value,
+      p_rate: Number($("#txRate").value), p_invoice_note: $("#txNote").value || null, p_effective_from: $("#txFrom").value || null,
+      p_effective_to: $("#txTo").value || null, p_active: $("#txActive").checked }).then(function () { okMsg("Tax rule saved."); loadPlans().catch(showErr); }).catch(showErr);
   }
   function savePlan() {
     call("hq_upsert_plan", { p_code: $("#plCode").value, p_name: $("#plName").value, p_price_monthly: Number($("#plPrice").value), p_currency: "INR", p_active: $("#plActive").checked })
@@ -403,6 +429,7 @@
     on("#btnRecord", "click", recordPayment);
     on("#btnSettings", "click", saveSettings);
     on("#btnPlan", "click", savePlan);
+    on("#btnTax", "click", saveTaxRule);
     on("#btnAudit", "click", function () { loadAudit().catch(showErr); });
     on("#aWrites", "change", function () { loadAudit().catch(showErr); });
     on("#btnOp", "click", addOperator);
