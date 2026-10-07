@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="builder.css?v=5">
+<link rel="stylesheet" href="builder.css?v=6">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -121,6 +121,7 @@
       <input id="projName" class="nameinput" type="text" value="Untitled event" title="Event / quote name" maxlength="120">
     </div>
     <span id="quoteBadge" class="qbadge" hidden title="Quote code · current version"></span>
+    <select id="verSel" class="versel" hidden aria-label="Layout version" title="Saved versions of this layout — pick one to view it (saved versions are never changed)"></select>
     <a id="designChip" class="qbadge qlink" hidden title="Design stage — open the Design Studio"></a>
     <button class="tbtn primary" id="saveBtn" title="Save a new version (⌘S)">💾 Save</button>
     <button class="tbtn" id="loadBtn" title="Open a saved layout">📂 Open</button>
@@ -155,6 +156,31 @@
   </div>
 </header>
 <div class="capbanner" id="capBanner" role="status" hidden></div>
+<div class="verbanner" id="verBanner" role="status" hidden>
+  <span id="verBannerTxt"></span>
+  <button type="button" class="tbtn" id="verRestoreBtn" title="Save what you see as a brand-new latest version (older versions stay as they are)">Restore as new version</button>
+  <button type="button" class="tbtn" id="verLatestBtn">Back to latest</button>
+</div>
+
+<!-- SWITCH VERSION with unsaved changes -->
+<div class="modal" id="verModal" hidden role="dialog" aria-modal="true" aria-labelledby="verModalTitle" aria-describedby="verModalDesc">
+  <div class="sheet sheet-ver">
+    <div class="sheet-head"><b id="verModalTitle">Unsaved changes</b><button type="button" class="tbtn icon" id="verModalX" title="Cancel" aria-label="Cancel and keep editing" data-close>✕</button></div>
+    <div class="sheet-body pad14">
+      <p class="vermsg" id="verModalDesc"></p>
+      <div class="vercmp">
+        <figure><div class="verthumb" id="verThumbCur"></div><figcaption id="verCapCur">Your unsaved canvas</figcaption></figure>
+        <span class="verarrow" aria-hidden="true">→</span>
+        <figure><div class="verthumb" id="verThumbTgt"></div><figcaption id="verCapTgt"></figcaption></figure>
+      </div>
+      <div class="veracts">
+        <button type="button" class="tbtn primary" data-choice="save">Save as new version, then switch</button>
+        <button type="button" class="tbtn danger" data-choice="discard">Discard changes and switch</button>
+        <button type="button" class="tbtn" data-choice="cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- KEYBOARD SHORTCUTS -->
 <div class="modal" id="shortcutsModal" hidden role="dialog" aria-modal="true" aria-labelledby="scTitle">
@@ -360,9 +386,9 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=105"></script>
+<script src="store-api.js?v=106"></script>
 <script src="tour.js?v=6"></script>
-<script src="builder.js?v=3"></script>
+<script src="builder.js?v=4"></script>
 
 <!-- ================= 3D RENDERED VIEW (Three.js, lazy-loaded on first use) ================= -->
 <script src="builder-3d.js?v=2"></script>

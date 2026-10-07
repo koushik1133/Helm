@@ -164,6 +164,7 @@
   .evcard .ev-h{display:flex;flex-direction:column;gap:1px;margin-bottom:8px}
   .evcard .ev-h span{font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--accent)}
   .evcard .ev-h b{font-size:15px;font-weight:700}
+  .evcard .ev-h .ev-emo{font-style:normal;font-size:15px;letter-spacing:0;margin-right:2px}
   .evcard .ev-r{display:grid;grid-template-columns:92px 1fr;gap:8px;padding:3px 0;border-top:1px dashed var(--line-2)}
   .evcard .ev-k{color:var(--ink-3);font-size:12.5px}
   .evcard .ev-v{white-space:pre-wrap;overflow-wrap:anywhere}
@@ -362,7 +363,7 @@
 <link rel="stylesheet" href="theme.css?v=73">
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=105"></script>
+<script src="store-api.js?v=106"></script>
 <script>
 (function(){
   const $=(s,r)=>(r||document).querySelector(s);
@@ -407,8 +408,11 @@
     if(c.dm_key){ const ids=c.dm_key.split(":"); return ids[0]===ME.id?ids[1]:ids[0]; }
     const m=(c._members||[]).map(x=>x.user_id).find(x=>x!==ME.id); return m||null; }
   function convTitle(c){ if(c.kind==="broadcast") return c.title||"Everyone"; if(c.kind==="group") return c.title||"Group"; return personName(convOther(c)); }
-  function convAvatar(c){ if(c.kind==="broadcast") return {bg:"var(--accent)",txt:"📢"}; if(c.kind==="group") return {bg:colorFor(c.id),txt:c.quote_id?"🎉":"👥"}; const o=convOther(c); return {bg:colorFor(o),txt:initials(personName(o))}; }
-  function avHtml(a,id){ return `<div class="av"${id?' id="'+id+'"':''} style="background:${a.bg}">${a.txt}</div>`; }
+  /* event groups: an emoji for the event type (wedding 💍, birthday 🎂 … default 📅) — BPStore.chat.eventEmoji */
+  function evEmoji(type,title){ try{ return (typeof BPStore!=="undefined"&&BPStore.chat&&BPStore.chat.eventEmoji)?BPStore.chat.eventEmoji(type,title):"📅"; }catch(e){ return "📅"; } }
+  const evTypeCache={};  /* quote id → {event_type,title}: one quotes read per refresh, only for groups not seen yet */
+  function convAvatar(c){ if(c.kind==="broadcast") return {bg:"var(--accent)",txt:"📢"}; if(c.kind==="group") return {bg:colorFor(c.id),txt:c.quote_id?evEmoji(c._evType,c._evTitle||c.title):"👥"}; const o=convOther(c); return {bg:colorFor(o),txt:initials(personName(o))}; }
+  function avHtml(a,id){ return `<div class="av"${id?' id="'+id+'"':''} style="background:${a.bg}">${esc(a.txt)}</div>`; }
 
   function closeMenus(){ document.querySelectorAll(".menu,.rxpop").forEach(m=>m.remove()); document.querySelectorAll(".m.menu-open").forEach(m=>m.classList.remove("menu-open")); }
   document.addEventListener("click",(e)=>{ if(!e.target.closest(".menu")&&!e.target.closest(".rxpop")&&!e.target.closest("[data-menu-anchor]")&&!e.target.closest(".caret")) closeMenus(); });
@@ -463,7 +467,7 @@
     row("Access", esc(mt.access_notes||""));
     const lay=(mt.layout&&typeof mt.layout==="object")?mt.layout:{}; const n=Number(lay.object_count);
     const layHtml=qid?`<a class="card" href="builder.html?quote=${encodeURIComponent(qid)}"><span class="cic">📐</span><div class="cmeta"><b>Floor layout${lay.version?" · v"+esc(String(lay.version)):""}</b><span class="csub">${Number.isFinite(n)?esc(n+" item"+(n===1?"":"s")):"Floor layout"}</span><span class="copen">Open in builder →</span></div></a>`:"";
-    return `<div class="ev-h"><span>📋 ${mt.refreshed?"Event details · updated":"Event details"}</span><b>${esc([mt.code,mt.title].filter(Boolean).join(" · ")||"Event")}</b></div>`
+    return `<div class="ev-h"><span><i class="ev-emo" aria-hidden="true">${esc(evEmoji(mt.event_type,mt.title))}</i> ${mt.refreshed?"Event details · updated":"Event details"}</span><b>${esc([mt.code,mt.title].filter(Boolean).join(" · ")||"Event")}</b></div>`
       + rows.join("") + layHtml
       + (qid?`<a class="ev-open" href="event.html?id=${encodeURIComponent(qid)}">Open event workspace →</a>`:""); }
   /* @mentions: highlight "@Name" for the people the server kept in meta.mentions (escaped) */
@@ -510,12 +514,25 @@
       el.addEventListener("click",go); el.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); go(); } }); });
   }
 
+  /* event-group avatars: the event type comes from the group's latest event card (already loaded
+     with the thread) or, for groups whose card scrolled out, ONE RLS-scoped quotes read for all of them */
+  async function resolveEventTypes(){
+    const need=[];
+    convs.forEach(c=>{ if(c.kind!=="group"||!c.quote_id) return;
+      const card=(c._msgs||[]).filter(isEventCard).pop();
+      if(card&&card.meta.event_type){ evTypeCache[c.quote_id]={event_type:card.meta.event_type,title:card.meta.title||null}; }
+      else if(!evTypeCache[c.quote_id]) need.push(c.quote_id); });
+    if(need.length){ let got={}; try{ got=await BPStore.chat.eventGroups.types(need); }catch(e){}
+      need.forEach(id=>{ evTypeCache[id]=got[id]||{event_type:null,title:null}; }); }
+    convs.forEach(c=>{ const t=c.quote_id&&evTypeCache[c.quote_id]; if(t){ c._evType=t.event_type; c._evTitle=t.title; } });
+  }
   async function refresh(){
     try{ convs=await BPStore.chat.conversations(); backendReady=true; }catch(e){ convs=[]; backendReady=false; }
     const mem=await BPStore.chat.myMemberships().catch(()=>({}));
     convs.forEach(c=>{ const m=mem[c.id]; c._lastRead=m&&m.last_read_at; });
     await Promise.all(convs.map(async c=>{ try{ const t=await BPStore.chat.thread(c.id,80); c._members=t.members; c._msgs=t.messages; c._last=t.messages[t.messages.length-1]||null; c._unread=unreadCount(c); }
       catch(e){ c._members=[]; c._last=null; c._unread=0; } }));
+    await resolveEventTypes();
     renderConvs();
   }
 
@@ -621,7 +638,7 @@
     try{ await BPStore.chat.deleteMessage(mid); await loadThread(); await refresh(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"delete the message"}),{type:"err"}); } }
   async function forwardMsg(mid){ const m=thread.messages.find(x=>x.id===mid); if(!m) return;
     const targets=convs.filter(c=>c.id!==activeId).map(c=>({id:c.id,icon:convAvatar(c).txt,title:convTitle(c),sub:c.kind==="dm"?"Direct message":c.kind==="broadcast"?"Everyone":"Group"}));
-    pickerModal("Forward to…","↪",targets.map(t=>({icon:typeof t.icon==="string"&&t.icon.length<=2?t.icon:"💬",title:t.title,sub:t.sub,meta:{__to:t.id}})),"No other chats to forward to.",async(meta)=>{
+    pickerModal("Forward to…","↪",targets.map(t=>({icon:typeof t.icon==="string"&&Array.from(t.icon).length<=2?t.icon:"💬",title:t.title,sub:t.sub,meta:{__to:t.id}})),"No other chats to forward to.",async(meta)=>{
       const to=meta.__to; try{ await BPStore.chat.send(to,{kind:m.kind,body:m.body,media_path:m.media_path,media_mime:m.media_mime,media_duration:m.media_duration,meta:m.meta||null}); await refresh(); await openConv(to); BPUI.toast("Forwarded.",{type:"ok"}); }
       catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"forward the message"}),{type:"err"}); } }); }
   async function toggleReact(mid,emoji,on){ try{ await BPStore.chat.react(mid,emoji,on); await loadThread(); }catch(e){} }
@@ -797,7 +814,7 @@
     ov.innerHTML=`<div class="modal"><h3>${esc(title)}</h3><input class="gname" id="pkSearch" placeholder="Search…" aria-label="Search" autocomplete="off"><div class="body" id="pkBody"></div><div class="foot"><button class="btn" data-close>Cancel</button></div></div>`;
     document.body.appendChild(ov); const body=$("#pkBody",ov);
     const draw=(q)=>{ const ql=(q||"").toLowerCase(); const f=rows.filter(r=>!ql||((r.title+" "+(r.sub||"")).toLowerCase().includes(ql)));
-      body.innerHTML=f.length?f.map(r=>`<div class="prow" data-i="${rows.indexOf(r)}"><div class="av" style="width:40px;height:40px;font-size:18px;background:var(--accent-soft);color:var(--accent)">${r.icon}</div><div class="nm" style="font-weight:500"><b style="display:block;font-size:14.5px">${esc(r.title)}</b><span style="font-size:12px;color:var(--ink-3)">${esc(r.sub||"")}</span></div></div>`).join(""):`<div style="padding:18px;color:var(--ink-3)">${esc(emptyText)}</div>`;
+      body.innerHTML=f.length?f.map(r=>`<div class="prow" data-i="${rows.indexOf(r)}"><div class="av" style="width:40px;height:40px;font-size:18px;background:var(--accent-soft);color:var(--accent)">${esc(r.icon)}</div><div class="nm" style="font-weight:500"><b style="display:block;font-size:14.5px">${esc(r.title)}</b><span style="font-size:12px;color:var(--ink-3)">${esc(r.sub||"")}</span></div></div>`).join(""):`<div style="padding:18px;color:var(--ink-3)">${esc(emptyText)}</div>`;
       body.querySelectorAll(".prow[data-i]").forEach(el=>el.addEventListener("click",()=>{ const r=rows[+el.dataset.i]; closeModal(); if(onPick) onPick(r.meta); else stageAttachment(r.meta,r.icon,r.title,r.sub); })); };
     draw(""); $("#pkSearch",ov).addEventListener("input",e=>draw(e.target.value));
     ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); }); }

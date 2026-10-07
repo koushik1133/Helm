@@ -50,3 +50,5 @@ forward  supabase/migrations/0034_display_names.sql
 forward  supabase/migrations/0035_event_groups_mentions.sql
 forward  supabase/migrations/0036_notification_prefs.sql
 forward  supabase/migrations/0037_platform_operator_check.sql
+forward  supabase/migrations/0038_worker_evidence.sql
+forward  supabase/migrations/0039_link_autoexpire.sql

@@ -64,7 +64,7 @@ t('server card: built from an explicit whitelist; pricing is only read for the g
   assert.match(mig, /new\.meta ->> 'kind' = 'event' and new\.sender_id is not null/);   // users can't forge one
 });
 t('chat: event card renders escaped (client data never becomes markup)', () => {
-  const src = ['fmtEvDate', 'eventCardHtml'].map((f) => fnSrc(chat, f)).join('\n');
+  const src = ['evEmoji', 'fmtEvDate', 'eventCardHtml'].map((f) => fnSrc(chat, f)).join('\n');
   const ctx = { esc }; vm.runInNewContext(src + '\nglobalThis.f=eventCardHtml;', ctx);
   const html = ctx.f({ kind: 'event', quote_id: 'q-1', code: 'C<1>', title: '<img src=x onerror=alert(1)>',
     client: { name: '<b>x</b>', phone: '+91 98"765', email: 'a@b.in"><script>' }, venue: 'V&V', guests: 10,

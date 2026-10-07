@@ -81,6 +81,14 @@
   .lsheet input,.lsheet select{width:100%;margin-bottom:12px}
   .lsheet.form{text-align:left} .lsheet .foot{display:flex;gap:8px;justify-content:flex-end;margin-top:4px} .lsheet .hint{margin:-6px 0 12px}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
+  /* crew evidence (0038): reject reason / voice note / proof photos */
+  .lsheet.evsheet{width:min(640px,94vw);max-height:88vh;overflow:auto}
+  .evitem{border:1px solid var(--line-2);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:var(--panel-2)}
+  .evitem .evq{white-space:pre-wrap;word-break:break-word;font-size:14px;margin-top:4px}
+  .evitem audio{width:100%;margin-top:6px}
+  .evgal{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:6px}
+  .evgal a{display:block;border:1px solid var(--line);border-radius:8px;overflow:hidden;aspect-ratio:1/1;background:var(--panel)}
+  .evgal img{width:100%;height:100%;object-fit:cover;display:block}
 </style>
 <link rel="stylesheet" href="theme.css?v=73">
 </head>
@@ -175,6 +183,15 @@
   </form>
 </div>
 
+<div class="lmodal" id="evModal" hidden role="dialog" aria-modal="true" aria-labelledby="ev_title">
+  <div class="lsheet form evsheet">
+    <h3 id="ev_title">Crew notes &amp; photos</h3>
+    <p class="muted" id="ev_task" style="margin:0 0 12px"></p>
+    <div id="ev_body"></div>
+    <div class="foot"><button type="button" class="btn" id="ev_close" data-close>Close</button></div>
+  </div>
+</div>
+
 <div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle" data-dismissible="false">
   <form class="lsheet" id="loginForm">
     <div class="mark" style="margin:0 auto 12px" aria-hidden="true"></div>
@@ -188,13 +205,13 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=105"></script>
+<script src="store-api.js?v=106"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const quoteId=new URLSearchParams(location.search).get("quote");
   let CATS=["Stage setup","Carpets","Backdrops","Flower decoration","Mandapam","Lighting","Catering","Labour","Transport","AV & sound"];
-  let quote=null, crew=[], vendors=[], tasks=[], tokens=[], activeCat=CATS[0], canVerify=false, canEditOps=false, groupMode="section";
+  let quote=null, crew=[], vendors=[], tasks=[], tokens=[], evidence=[], activeCat=CATS[0], canVerify=false, canEditOps=false, groupMode="section";
 
   function setMsg(kind,t){ const m=$("#msg"); if(!t){m.innerHTML="";return;} m.innerHTML=`<div class="msg ${kind}"${kind==="err"?' role="alert"':""}>${esc(t)}</div>`; }
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
@@ -248,8 +265,8 @@
     host.querySelectorAll(".sugg").forEach(b=>b.addEventListener("click",()=>{ $("#assignKind").value="in_house"; $("#assignCrew").hidden=false; $("#assignVendor").hidden=true; $("#assignCrew").value=b.dataset.id; }));
   }
   async function refresh(){
-    [crew,tasks,tokens,vendors]=await Promise.all([BPStore.ops.listCrew(), BPStore.ops.listTasks(quoteId), BPStore.ops.listTokens(quoteId),
-      BPStore.vendors.listAll(false).catch(()=>[])]);
+    [crew,tasks,tokens,vendors,evidence]=await Promise.all([BPStore.ops.listCrew(), BPStore.ops.listTasks(quoteId), BPStore.ops.listTokens(quoteId),
+      BPStore.vendors.listAll(false).catch(()=>[]), BPStore.ops.listEvidence(quoteId).catch(()=>[])]);
     renderCrew(); renderDashboard();
     $("#assignCrew").innerHTML=`<option value="">— pick staff —</option>`+crew.map(c=>`<option value="${esc(c.id)}">${esc(c.name)} · ${esc(c.phone)}</option>`).join("");
     $("#assignVendor").innerHTML = vendors.length
@@ -326,6 +343,7 @@
       ${t.is_special?'<span class="gate special" title="Special task — recurring reminder">🔔 special</span>':''}
       ${gateChip(t,byId)}
       ${verifyChip(t)}
+      ${evidenceBtn(t)}
       ${canEditOps?`<button type="button" class="btn sm sched" title="Set start time & prerequisite" aria-label="Schedule ${tn}">⏱</button>`:""}
       ${canEditOps?`<button type="button" class="btn sm spc" title="Toggle recurring reminder" aria-label="${t.is_special?"Turn off recurring reminder for":"Turn on recurring reminder for"} ${tn}">${t.is_special?'🔕':'🔔'}</button>`:""}
       ${['rejected','assigned'].includes(t.status)?`<button type="button" class="btn sm reassign" aria-label="Reassign ${tn}">Reassign</button>`:""}
@@ -365,6 +383,7 @@
     }
     host.querySelectorAll(".copy").forEach(b=>b.addEventListener("click",async()=>{ try{await navigator.clipboard.writeText(b.dataset.l); b.textContent="Copied ✓"; BPUI.toast("Worker link copied.",{type:"ok",timeout:2000}); setTimeout(()=>b.textContent="Copy link",1400);}catch{ BPUI.toast("Couldn't copy — select the link and copy it manually.",{type:"err"}); } }));
     host.querySelectorAll(".reassign").forEach(b=>b.addEventListener("click",()=>openReassign(b.closest(".trow").dataset.id)));
+    host.querySelectorAll(".evid").forEach(b=>b.addEventListener("click",()=>openEvidence(b.closest(".trow").dataset.id)));
     // QC / special buttons: guarded (no double-submit) — while one is in flight, its whole row is locked
     const rowGuard=(b,fn)=>{ const row=b.closest(".trow"); if(row.dataset.busy) return; row.dataset.busy="1";
       const others=[...row.querySelectorAll("button")].filter(x=>x!==b && !x.disabled); others.forEach(x=>x.disabled=true);
@@ -398,6 +417,37 @@
     return '';
   }
   const fmtTime=(iso)=>{ try{ return new Date(iso).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }catch{ return iso; } };
+  /* ---- crew evidence (0038): what the worker sent with a reject / done ---- */
+  function evidenceBtn(t){
+    const rows=evidence.filter(e=>e.task_id===t.id); if(!rows.length) return '';
+    const n=(k)=>rows.filter(e=>e.kind===k).length, parts=[];
+    if(n('reject_reason')) parts.push('💬 reason'); if(n('reject_voice')) parts.push('🎙 voice'); if(n('proof_photo')) parts.push('📷 '+n('proof_photo'));
+    return `<button type="button" class="btn sm evid" aria-label="View crew notes and photos for ${esc(t.title||'task')}">${esc(parts.join(' · '))}</button>`;
+  }
+  async function openEvidence(taskId){
+    const t=tasks.find(x=>x.id===taskId); const rows=evidence.filter(e=>e.task_id===taskId); if(!rows.length) return;
+    $("#ev_task").textContent=(t?(t.title||"Task")+(t.assignee_name?" — "+t.assignee_name:""):"Task");
+    const body=$("#ev_body"); body.innerHTML='<p class="muted">Loading…</p>'; $("#evModal").hidden=false;
+    let urls={}, urlErr=null;
+    try{ urls=await BPStore.ops.evidenceUrls(rows.filter(r=>r.storage_path).map(r=>r.storage_path), 300); }catch(e){ urlErr=e; }
+    if($("#evModal").hidden) return;
+    const who=(r)=>`<div class="muted">${esc(r.worker_name||"Crew")} · ${esc(fmtTime(r.created_at))}</div>`;
+    const missing='<div class="muted">File not available.</div>';
+    let html='';
+    rows.filter(r=>r.kind==='reject_reason').forEach(r=>{ html+=`<div class="evitem"><b>💬 Reason for rejecting</b>${who(r)}<div class="evq">${esc(r.body)}</div></div>`; });
+    rows.filter(r=>r.kind==='reject_voice').forEach(r=>{ const u=urls[r.storage_path];
+      html+=`<div class="evitem"><b>🎙 Voice note${r.duration_s?` (${esc(Math.floor(r.duration_s/60)+":"+String(r.duration_s%60).padStart(2,"0"))})`:""}</b>${who(r)}
+        ${u?`<audio controls preload="none" src="${esc(u)}"></audio>`:missing}</div>`; });
+    const ph=rows.filter(r=>r.kind==='proof_photo');
+    if(ph.length) html+=`<div class="evitem"><b>📷 Proof photos (${ph.length})</b>${who(ph[0])}<div class="evgal">`+
+      ph.map((r,i)=>{ const u=urls[r.storage_path]; return u?`<a href="${esc(u)}" target="_blank" rel="noopener noreferrer" aria-label="Open proof photo ${i+1}"><img src="${esc(u)}" alt="Proof photo ${i+1}" loading="lazy"></a>`:`<a aria-disabled="true">${missing}</a>`; }).join("")+`</div></div>`;
+    if(urlErr) html+=`<div class="lerr" role="alert">${esc(BPUI.friendlyError(urlErr,{action:"load the files"}))}</div>`;
+    else if(rows.some(r=>r.storage_path)) html+='<p class="muted">File links expire after 5 minutes — reopen this to refresh them.</p>';
+    body.innerHTML=html;
+  }
+  function closeEvidence(){ $("#evModal").hidden=true; $("#ev_body").innerHTML=""; }
+  $("#ev_close").addEventListener("click",closeEvidence);
+  $("#evModal").addEventListener("click",e=>{ if(e.target.id==="evModal") closeEvidence(); });
   function gateChip(t, byId){
     if(['completed','cancelled'].includes(t.status)) return '';
     if(t.depends_on){ const d=byId[t.depends_on];
@@ -483,9 +533,9 @@
   $("#loginModal").addEventListener("click",e=>{ if(e.target.id==="loginModal"&&BPStore.auth.user()) closeLogin(); });
   // live dashboard — poll tasks/statuses so accepts/starts/completes appear without reloading
   async function refreshDashboard(){ if(!quoteId) return;
-    try{ [tasks,tokens]=await Promise.all([BPStore.ops.listTasks(quoteId), BPStore.ops.listTokens(quoteId)]); renderDashboard(); }catch{} }
+    try{ [tasks,tokens,evidence]=await Promise.all([BPStore.ops.listTasks(quoteId), BPStore.ops.listTokens(quoteId), BPStore.ops.listEvidence(quoteId).catch(()=>evidence)]); renderDashboard(); }catch{} }
   // skip the poll while a modal is open or a row action is in flight, so the list doesn't re-render under the user
-  setInterval(()=>{ if(document.hidden || $("#app").hidden) return; if(!$("#reassignModal").hidden || !$("#schedModal").hidden) return; if(document.querySelector("#dashboard [data-busy]")) return; refreshDashboard(); }, 7000);
+  setInterval(()=>{ if(document.hidden || $("#app").hidden) return; if(!$("#reassignModal").hidden || !$("#schedModal").hidden || !$("#evModal").hidden) return; if(document.querySelector("#dashboard [data-busy]")) return; refreshDashboard(); }, 7000);
   BPUI.boot(load);
 </script>
 </body>

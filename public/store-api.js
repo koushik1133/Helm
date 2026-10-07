@@ -1482,6 +1482,17 @@
         .eq("quote_id", quoteId).eq("version_no", versionNo).single();
       if (error) throw error; return { versionNo: data.version_no, data: data.data };
     },
+    // Read-only list of every saved layout version (newest first) for the builder's version
+    // switcher, incl. who saved it (created_by) when that column is readable. Falls back to the
+    // same column set get() uses, so an older schema can never break the list. Never writes.
+    async versions(quoteId) {
+      const cols = "id,version_no,label,object_count,created_at";
+      let r = await supa.from("quote_versions").select(cols + ",created_by").eq("quote_id", quoteId).order("version_no", { ascending: false });
+      if (r.error) r = await supa.from("quote_versions").select(cols).eq("quote_id", quoteId).order("version_no", { ascending: false });
+      if (r.error) throw r.error;
+      return (r.data || []).map((v) => ({ id: v.id, versionNo: v.version_no, label: v.label, objectCount: v.object_count,
+        createdAt: v.created_at, createdBy: v.created_by || null }));
+    },
     async create(code, title, eventType, data, objectCount, eventDate) {
       const { data: q, error } = await supa.rpc("create_quote",
         { p_code: code, p_title: title, p_event_type: eventType, p_data: data, p_object_count: objectCount, p_event_date: eventDate || null });
@@ -1547,6 +1558,9 @@
     async setStage(id, stage) { const a = this.read(); const q = a.find((x) => x.id === id); if (q) { q.lifecycleStage = stage; q.updatedAt = now(); this.write(a); } return { stage }; },
     async getVersion(id, no) { const q = this.read().find((x) => x.id === id); const v = q && (q.versions || []).find((v) => v.versionNo === no);
       if (!v) throw new Error("no version"); return { versionNo: no, data: v.data }; },
+    async versions(id) { const q = this.read().find((x) => x.id === id); if (!q) throw new Error("not found");
+      return (q.versions || []).map((v) => ({ id: v.id, versionNo: v.versionNo, label: v.label, objectCount: v.objectCount, createdAt: v.createdAt, createdBy: v.createdBy || null }))
+        .sort((a, b) => b.versionNo - a.versionNo); },
     async create(code, title, eventType, data, objectCount) { const q = { id: uid(), code, title: title || "Untitled event", eventType,
       status: "quote", client: {}, pricing: {}, currentVersion: 1, createdAt: now(), updatedAt: now(), confirmedAt: null,
       versions: [{ id: uid(), versionNo: 1, label: null, data: data || { items: [] }, objectCount: objectCount || 0, createdAt: now() }] };
@@ -1570,6 +1584,7 @@
     list: () => qt().list(),
     get: (id) => qt().get(id),
     getVersion: (id, no) => qt().getVersion(id, no),
+    versions: (id) => qt().versions(id),
     create: (code, title, eventType, data, objectCount) => qt().create(code, title, eventType, data, objectCount),
     addVersion: (id, label, data, objectCount) => qt().addVersion(id, label, data, objectCount),
     confirm: (id, client, pricing) => qt().confirm(id, client, pricing),
@@ -1670,6 +1685,21 @@
     setSpecial: (taskId, on, everyMin) => rpc("set_task_special", { p_id: taskId, p_on: !!on, p_every_min: everyMin || 5 }),
     runReminders: (quoteId) => rpc("run_task_reminders", quoteId ? { p_quote: quoteId } : {}),
     async setEventManager(quoteId, managerId) { const { error } = await supa.from("quotes").update({ manager_id: managerId }).eq("id", quoteId); if (error) throw error; return true; },
+    // ---- 0038: crew evidence (reject reason / voice note, proof photos) — staff read ----
+    // Rows are RLS-gated (Staff view, own studio). Before 0038 is applied the table is
+    // missing: treat that as "no evidence" so the Operations page keeps working.
+    async listEvidence(quoteId) { if (!supa) return [];
+      const { data, error } = await supa.from("task_evidence")
+        .select("id,task_id,kind,body,storage_path,mime,duration_s,worker_name,created_at")
+        .eq("quote_id", quoteId).order("created_at", { ascending: true });
+      if (error) { const c = error.code || ""; if (c === "PGRST205" || c === "42P01" || /task_evidence/.test(String(error.message || "")) && /does not exist|schema cache/i.test(String(error.message || ""))) return []; throw error; }
+      return data || []; },
+    // Signed, short-lived (300 s) URLs; only our own task-proof keys are ever signed.
+    async evidenceUrls(paths, seconds) { if (!supa) return {};
+      const ok = (paths || []).filter((p) => TASK_PROOF_KEY.test(String(p || ""))); if (!ok.length) return {};
+      const { data, error } = await supa.storage.from("task-proof").createSignedUrls(ok, seconds || 300);
+      if (error) throw error;
+      const out = {}; (data || []).forEach((r, k) => { if (r && r.signedUrl && !r.error) out[ok[k]] = r.signedUrl; }); return out; },
     // ---- worker (no login; token-scoped) ----
     worker: {
       getTasks: (token) => rpc("worker_get_tasks", { p_token: token }),
@@ -1677,8 +1707,32 @@
       // Phase 52 — crew equipment (kit out to them for this event) + check-in
       getEquipment: (token) => rpc("worker_get_equipment", { p_token: token }),
       checkinEquipment: (token, id, qtyIn) => rpc("worker_checkin_equipment", { p_token: token, p_id: id, p_qty_in: qtyIn }),
+      // 0038 — upload one evidence file: the link asks the server for a one-time
+      // 15-minute grant (checks link + task + status + type, 30/hour), then writes
+      // the file to that exact key in the private 'task-proof' bucket. Type comes
+      // from the file's bytes, never from its name. Returns the key.
+      async uploadEvidence(token, taskId, kind, file) {
+        if (!supa) throw new Error("Supabase not configured");
+        if (!file) throw new Error("no file");
+        if (file.size > TASK_PROOF_MAX) throw new Error("File too large (max 8 MB).");
+        const sniff = await sniffChat(file);
+        const allowed = kind === "proof_photo" ? /^image\/(jpeg|png|webp)$/ : /^audio\/(webm|ogg|mp4)$/;
+        if (!sniff || !allowed.test(sniff.mime)) throw new Error(kind === "proof_photo" ? "Photos must be JPEG, PNG or WebP." : "That voice note format isn't supported.");
+        const g = await rpc("worker_evidence_upload", { p_token: token, p_task_id: taskId, p_kind: kind, p_mime: sniff.mime });
+        if (!g || !TASK_PROOF_KEY.test(String(g.path || ""))) throw new Error("upload not available");
+        const { error } = await supa.storage.from("task-proof").upload(g.path, file, { upsert: false, contentType: g.mime });
+        if (error) throw error;
+        return g.path;
+      },
+      // reject / complete together with the evidence, in one server transaction
+      respondEvidence: (token, taskId, action, ev) => { ev = ev || {};
+        return rpc("worker_respond_evidence", { p_token: token, p_task_id: taskId, p_action: action,
+          p_reason: ev.reason || null, p_voice_path: ev.voicePath || null, p_voice_seconds: ev.voiceSeconds == null ? null : Math.round(ev.voiceSeconds),
+          p_photo_paths: (ev.photoPaths && ev.photoPaths.length) ? ev.photoPaths : null }); },
     },
   };
+  const TASK_PROOF_MAX = 8 * 1024 * 1024;                   // matches the task-proof bucket cap (0038)
+  const TASK_PROOF_KEY = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp|webm|ogg|m4a)$/;
 
   /* ---------------- control center: pricing config, vendors, coupons ---------------- */
   const PRICING_DEFAULTS = { chairPrice:200, platePrice:500, gstPct:18, serviceChargePct:0, currency:"INR", conflictBufferHours:3,
@@ -2512,6 +2566,11 @@
       if (!(await links.verify(L))) { const e = new Error("invalid link"); e.code = "PGRST116"; throw e; }
     },
     rename: (slug) => rpc("set_studio_link_name", { p_slug: slug }).then((r) => { studioSlugCache = r || null; return r; }),
+    // optional "links stop working N days after they're sent" (0039) — studio admin only, enforced server-side
+    autoExpire: {
+      get: () => rpc("admin_get_link_autoexpire", {}),
+      set: (enabled, days) => rpc("admin_set_link_autoexpire", { p_enabled: !!enabled, p_days: days }),
+    },
   };
 
   /* ---------------- invitations: join an existing studio (Phase 83) ---------------- */
@@ -2788,6 +2847,32 @@
       notes: s(cl.notes, 2000), generated_at: new Date().toISOString() };
     return JSON.parse(JSON.stringify(card));   // drops undefined keys
   }
+  // Event-group avatar: an emoji for the quote's event type, else keywords in its title,
+  // else 📅. Whole words, case-insensitive; "_"/"-" count as spaces ("wedding_reception").
+  // Order matters — the more specific occasion wins ("baby shower" before "party",
+  // "reception" before "wedding", "birthday party" → 🎂). Output is a fixed emoji, never user text.
+  function chatEventEmoji(eventType, title) {
+    const RULES = [
+      [/\bbaby ?shower\b|\bgodh ?bharai\b|\bseemantham\b/, "🍼"],
+      [/\bengage(?:ment|d)?\b|\bring ceremony\b|\broka\b|\bsagai\b/, "💞"],
+      [/\breception\b/, "🥂"],
+      [/\bwedding\b|\bmarriage\b|\bshaadi\b|\bvivah\b|\bsangeet\b|\bmehe?ndi\b|\bhaldi\b/, "💍"],
+      [/\banniversary\b/, "💐"],
+      [/\bbirthday\b|\bbday\b/, "🎂"],
+      [/\bgraduation\b|\bconvocation\b/, "🎓"],
+      [/\bpolitical\b|\brally\b|\belection\b/, "🗳️"],
+      [/\bconcert\b|\bmusic(?:al)?\b|\blive show\b/, "🎤"],
+      [/\bsports?\b|\btournament\b|\bmarathon\b/, "🏟️"],
+      [/\bfestival\b|\bfest\b|\bmela\b|\bcarnival\b/, "🎪"],
+      [/\bexhibition\b|\bexpo\b|\btrade show\b/, "🖼️"],
+      [/\breligious\b|\bpuja\b|\bpooja\b|\bhavan\b|\bsatsang\b/, "🪔"],
+      [/\bcorporate\b|\bconference\b|\bseminar\b|\bsummit\b|\boffsite\b/, "🏢"],
+      [/\bparty\b|\bcelebration\b/, "🎉"],
+    ];
+    const hit = (v) => { v = String(v == null ? "" : v).toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim(); if (!v) return null;
+      for (let i = 0; i < RULES.length; i++) if (RULES[i][0].test(v)) return RULES[i][1]; return null; };
+    return hit(eventType) || hit(title) || "📅";
+  }
 
   /* ---------------- display names (0034) ---------------- */
   // What to call a person: their display name → the part of their e-mail before "@"
@@ -2845,6 +2930,8 @@
     },
     // display name for a roster row (name → e-mail before "@" → role)
     displayName: personDisplayName,
+    // event-group avatar emoji from an event type / title (see chatEventEmoji)
+    eventEmoji: chatEventEmoji,
     // Local-mode only: switch the acting identity (two tabs = two "users" for a live demo).
     localRoster: () => CHAT_LOCAL_ROSTER.slice(),
     setLocalUser: (id) => { try { localStorage.setItem("helm_local_uid", id); } catch (e) {} },
@@ -3100,6 +3187,23 @@
         }
         const data = await rpc("event_group_index", {});
         const out = {}; (data || []).forEach((r) => { out[r.quote_id] = { conversation_id: r.conversation_id, is_member: !!r.is_member }; });
+        return out;
+      },
+      // { [quoteId]: { event_type, title } } for event-group avatars — ONE read for all the
+      // groups (not one per conversation), RLS-scoped to quotes I can already see. Fail-open:
+      // no quotes access / an error → {} and the avatar falls back to the group title.
+      async types(quoteIds) {
+        const ids = Array.from(new Set((quoteIds || []).filter((x) => typeof x === "string" && x))).slice(0, 200);
+        const out = {}; if (!ids.length) return out;
+        if (mode !== "supabase") {
+          for (const id of ids) { try { const q = await quotes.get(id); if (q) out[id] = { event_type: q.eventType || null, title: q.title || null }; } catch (e) {} }
+          return out;
+        }
+        try {
+          const { data, error } = await supa.from("quotes").select("id,event_type,title").in("id", ids);
+          if (error) return out;
+          (data || []).forEach((q) => { out[q.id] = { event_type: q.event_type || null, title: q.title || null }; });
+        } catch (e) {}
         return out;
       },
       // create (or, if it already exists, return) the quote's event group → conversation id
@@ -3989,38 +4093,210 @@
     },
   };
 
+  /* ---------------- notification bell: view (pure — unit-tested in test/bell-panel.test.mjs) ----------------
+     bellPanelView(items, { filter, now, label }) → { filter, tabs, tabsHtml, html, unread }
+     items = the merged feed: bell_feed rows + chat rows ({ __chat:true, … }). Every piece of
+     server / chat text goes through esc(); hrefs are built from encodeURIComponent'd ids. */
+  function bellPanelView(items, opts) {
+    opts = opts || {};
+    const esc = (t) => String(t == null ? "" : t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const label = opts.label || ((n) => ({ icon: "🔔", text: String((n && n.kind) || "Update").replace(/_/g, " ") }));
+    const now = Number(opts.now) || Date.now();
+    const list = (items || []).filter((n) => n && typeof n === "object");
+    // which filter group a row belongs to (also drives the icon-chip colour)
+    const groupOf = (n) => {
+      if (n.__chat) return n.mention ? "mention" : "chat";
+      const k = String(n.kind || "").toLowerCase();
+      if (k.indexOf("task_") === 0) return "task";
+      if (/payment|advance_paid/.test(k)) return "payment";
+      return "other";
+    };
+    const inFilter = (f, g) => f === "all" || (f === "mentions" && g === "mention") || (f === "tasks" && g === "task")
+      || (f === "payments" && g === "payment") || (f === "chat" && (g === "chat" || g === "mention"));
+    const rows = list.map((n, i) => ({ n, i, g: groupOf(n) }));
+    const count = (f) => rows.filter((r) => inFilter(f, r.g)).length;
+    // Payments only when the feed carries any (bell_feed already hides money types this role can't see)
+    const tabs = [["all", "All"], ["mentions", "Mentions"], ["tasks", "Tasks"], ["payments", "Payments"], ["chat", "Chat"]]
+      .filter(([id]) => id !== "payments" || count("payments") > 0)
+      .map(([id, name]) => ({ id, label: name, count: count(id) }));
+    let filter = String(opts.filter || "all"); if (!tabs.some((t) => t.id === filter)) filter = "all";
+    const tabsHtml = tabs.map((t) => `<button type="button" role="tab" class="bpb-tab" id="bpBellTab-${t.id}" data-f="${t.id}" aria-selected="${t.id === filter}" aria-controls="bpBellList" tabindex="${t.id === filter ? 0 : -1}">${t.label}${t.count ? `<span class="bpb-n">${t.count > 99 ? "99+" : t.count}</span>` : ""}</button>`).join("");
+    const unread = rows.reduce((s, r) => s + (r.n.__chat ? (Number(r.n.count) || 1) : (r.n.unread ? 1 : 0)), 0);
+    // relative time + Today / Yesterday / Earlier (local calendar days)
+    const ts = (n) => { const t = new Date(n.created_at).getTime(); return Number.isFinite(t) ? t : NaN; };
+    const rel = (t) => {
+      if (!Number.isFinite(t)) return "";
+      const s = Math.max(0, (now - t) / 1000);
+      if (s < 60) return "now"; if (s < 3600) return Math.floor(s / 60) + "m"; if (s < 86400) return Math.floor(s / 3600) + "h";
+      if (s < 7 * 86400) return Math.floor(s / 86400) + "d";
+      try { return new Date(t).toLocaleDateString([], { day: "numeric", month: "short" }); } catch (e) { return Math.floor(s / 86400) + "d"; }
+    };
+    const sod = new Date(now); sod.setHours(0, 0, 0, 0); const today0 = sod.getTime();
+    const yd = new Date(today0); yd.setDate(yd.getDate() - 1); const yest0 = yd.getTime();
+    const bucket = (t) => !Number.isFinite(t) ? "Earlier" : t >= today0 ? "Today" : t >= yest0 ? "Yesterday" : "Earlier";
+    const item = (r) => {
+      const n = r.n, t = ts(n); let icon, title, preview, href, isUnread, key;
+      if (n.__chat) {
+        const who = n.who || "";
+        title = esc(n.kind === "dm" ? (who || n.title || "Direct message") : ((n.title || "Chat") + (who ? " · " + who : "")));
+        if (Number(n.count) > 1) title += ` <span class="bpb-c">(${Number(n.count) > 99 ? "99+" : Number(n.count)})</span>`;
+        preview = esc(n.preview || ""); icon = n.mention ? "@" : "💬"; isUnread = true;
+        href = "chat.html?c=" + encodeURIComponent(n.conversation_id || ""); key = "c:" + (n.conversation_id || r.i);
+      } else {
+        const L = label(n) || {}; icon = esc(L.icon || "🔔"); title = esc(L.text || "Update");
+        preview = esc([n.event_code, n.event_title].filter(Boolean).join(" · "));
+        href = n.quote_id ? "event.html?id=" + encodeURIComponent(n.quote_id) : ""; isUnread = !!n.unread; key = "n:" + (n.id || r.i);
+      }
+      const cls = `bpb-item g-${r.g}${isUnread ? " is-unread" : ""}`;
+      const inner = `<span class="bpb-chip" aria-hidden="true">${icon}</span>`
+        + `<span class="bpb-body"><span class="bpb-t">${title}</span>${preview ? `<span class="bpb-p">${preview}</span>` : ""}</span>`
+        + `<span class="bpb-meta">${Number.isFinite(t) ? `<time datetime="${esc(new Date(t).toISOString())}">${esc(rel(t))}</time>` : ""}`
+        + `${isUnread ? '<span class="bpb-u"><span class="sr-only">Unread</span></span>' : ""}</span>`;
+      return href ? `<a class="${cls}" href="${esc(href)}" data-k="${esc(key)}">${inner}</a>`
+                  : `<div class="${cls}" tabindex="0" data-k="${esc(key)}">${inner}</div>`;
+    };
+    const shown = rows.filter((r) => inFilter(filter, r.g));
+    let html;
+    if (!shown.length) {
+      const msg = { all: ["You’re all caught up", "New tasks, payments and messages will show up here."],
+        mentions: ["No mentions", "When a teammate @mentions you in chat, it lands here."],
+        tasks: ["No task updates", "Assignments, check-ins and reminders will appear here."],
+        payments: ["No payment updates", "Payment links, receipts and reminders will appear here."],
+        chat: ["No unread messages", "Unread chats from your team show up here."] }[filter];
+      html = `<div class="bpb-empty"><svg class="bpb-art" viewBox="0 0 120 96" aria-hidden="true" focusable="false">`
+        + `<circle cx="60" cy="50" r="38" class="bpb-art-bg"/><path class="bpb-art-bell" d="M60 26c-10 0-17 8-17 18v11l-6 8h46l-6-8V44c0-10-7-18-17-18z"/>`
+        + `<circle cx="60" cy="69" r="5" class="bpb-art-bell"/><path class="bpb-art-z" d="M84 18h8l-8 9h8M96 8h5l-5 6h5"/></svg>`
+        + `<b>${msg[0]}</b><span>${msg[1]}</span></div>`;
+    } else {
+      const order = ["Today", "Yesterday", "Earlier"], by = { Today: [], Yesterday: [], Earlier: [] };
+      shown.slice().sort((a, b) => (ts(b.n) || 0) - (ts(a.n) || 0)).forEach((r) => by[bucket(ts(r.n))].push(r));
+      html = order.filter((d) => by[d].length).map((d) =>
+        `<div class="bpb-sec" role="group" aria-label="${d}"><div class="bpb-day" aria-hidden="true">${d}</div>${by[d].map(item).join("")}</div>`).join("");
+    }
+    return { filter, tabs, tabsHtml, html, unread };
+  }
+  // Bell styles: injected once (the bell must look the same on pages without theme.css).
+  // Light/dark follow the page tokens (theme.css re-points them under html[data-theme=dark]).
+  const BELL_CSS = [
+    ".bpb-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;height:32px;width:36px;padding:0;border:1px solid var(--line,#e8e3db);background:var(--panel,#fff);color:var(--ink,#1b1930);border-radius:10px;cursor:pointer;transition:background .15s,border-color .15s}",
+    ".bpb-btn:hover{border-color:var(--accent,#6d28d9);background:var(--accent-soft,#efe9ff)}",
+    ".bpb-btn[aria-expanded=true]{border-color:var(--accent,#6d28d9);background:var(--accent-soft,#efe9ff);color:var(--accent,#6d28d9)}",
+    ".bpb-btn svg{width:17px;height:17px}",
+    ".bpb-dot{position:absolute;top:-6px;right:-7px;min-width:17px;height:17px;padding:0 4px;box-sizing:border-box;border-radius:9px;background:#e5484d;color:#fff;font:700 10px/17px system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;text-align:center;box-shadow:0 0 0 2px var(--panel,#fff)}",
+    ".bpb-dot[hidden]{display:none}",
+    ".bpb-root{--bpb-bg:var(--panel,#fff);--bpb-bg2:var(--panel-2,#faf8f5);--bpb-ink:var(--ink,#1b1930);--bpb-ink2:var(--ink-2,#4b475f);--bpb-ink3:var(--ink-3,#6b6577);",
+    "--bpb-line:var(--line,#e8e3db);--bpb-acc:var(--accent,#6d28d9);--bpb-unread:#f7f3ff;",
+    "--bpb-mention-bg:#ffe4ec;--bpb-mention:#be123c;--bpb-chat-bg:#e0ecff;--bpb-chat:#1d4ed8;--bpb-task-bg:#dcf5e7;--bpb-task:#0f7a43;",
+    "--bpb-pay-bg:#fff1d6;--bpb-pay:#8f5f00;--bpb-other-bg:var(--accent-soft,#efe9ff);--bpb-other:var(--accent,#6d28d9);",
+    "--bpb-scrim:rgba(24,20,40,.42);--bpb-scrim-blur:rgba(24,20,40,.18);--bpb-shadow:0 24px 60px rgba(20,27,46,.22),0 2px 8px rgba(20,27,46,.08);",
+    "position:fixed;inset:0;z-index:2147482000;font:14px/1.4 var(--font,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif);color:var(--bpb-ink)}",
+    "html[data-theme=dark] .bpb-root{--bpb-unread:#19152a;--bpb-mention-bg:#3a1424;--bpb-mention:#fda4af;--bpb-chat-bg:#172a4d;--bpb-chat:#93c5fd;--bpb-task-bg:#12301f;--bpb-task:#6ee7b7;",
+    "--bpb-pay-bg:#3a2a0c;--bpb-pay:#fcd34d;--bpb-other-bg:#1d1730;--bpb-other:#c4b5fd;--bpb-scrim:rgba(0,0,0,.66);--bpb-scrim-blur:rgba(0,0,0,.42);--bpb-shadow:0 24px 60px rgba(0,0,0,.7)}",
+    ".bpb-root[hidden]{display:none}",
+    // backdrop: solid scrim everywhere; a lighter, blurred one where backdrop-filter works
+    ".bpb-scrim{position:absolute;inset:0;background:var(--bpb-scrim);opacity:0;transition:opacity .2s ease}",
+    "@supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){.bpb-scrim{background:var(--bpb-scrim-blur);-webkit-backdrop-filter:blur(8px) saturate(120%);backdrop-filter:blur(8px) saturate(120%)}}",
+    ".bpb-root.is-open .bpb-scrim{opacity:1}",
+    // desktop: a popover anchored under the bell (top/right set from the button's position)
+    ".bpb-panel{position:absolute;top:56px;right:16px;width:420px;max-width:calc(100vw - 24px);max-height:min(640px,calc(100vh - 72px));display:flex;flex-direction:column;box-sizing:border-box;",
+    "background:var(--bpb-bg);color:var(--bpb-ink);border:1px solid var(--bpb-line);border-radius:16px;box-shadow:var(--bpb-shadow);overflow:hidden;outline:none;",
+    "opacity:0;transform:translateY(-8px) scale(.98);transform-origin:top right;transition:opacity .18s ease,transform .22s cubic-bezier(.2,.8,.2,1)}",
+    ".bpb-root.is-open .bpb-panel{opacity:1;transform:none}",
+    ".bpb-grab{display:none}",
+    ".bpb-head{padding:14px 14px 0;border-bottom:1px solid var(--bpb-line);background:var(--bpb-bg)}",
+    ".bpb-hrow{display:flex;align-items:center;gap:8px}",
+    ".bpb-title{margin:0;font-size:16px;font-weight:750;letter-spacing:-.01em;color:var(--bpb-ink)}",
+    ".bpb-count{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:var(--bpb-acc);color:#fff;font-size:11px;font-weight:700}",
+    "html[data-theme=dark] .bpb-count{color:#141418}",
+    ".bpb-count[hidden]{display:none}",
+    ".bpb-sp{flex:1}",
+    ".bpb-link{border:0;background:transparent;color:var(--bpb-acc);font:inherit;font-size:12.5px;font-weight:650;cursor:pointer;padding:6px 8px;border-radius:8px}",
+    ".bpb-link:hover{background:var(--bpb-other-bg)}.bpb-link[disabled]{opacity:.5;cursor:default}",
+    ".bpb-x{border:0;background:transparent;color:var(--bpb-ink3);font-size:16px;line-height:1;cursor:pointer;width:32px;height:32px;border-radius:8px}",
+    ".bpb-x:hover{background:var(--bpb-bg2);color:var(--bpb-ink)}",
+    ".bpb-tabs{display:flex;gap:2px;margin:10px -4px 0;overflow-x:auto;scrollbar-width:none}",
+    ".bpb-tabs::-webkit-scrollbar{display:none}",
+    ".bpb-tab{flex:1 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:5px;border:0;background:transparent;color:var(--bpb-ink2);font:inherit;font-size:12.5px;font-weight:600;",
+    "padding:7px 6px 9px;border-bottom:2px solid transparent;border-radius:8px 8px 0 0;cursor:pointer}",
+    ".bpb-tab:hover{color:var(--bpb-ink);background:var(--bpb-bg2)}",
+    ".bpb-tab[aria-selected=true]{color:var(--bpb-acc);border-bottom-color:var(--bpb-acc)}",
+    ".bpb-n{min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;border-radius:9px;background:var(--bpb-bg2);border:1px solid var(--bpb-line);color:var(--bpb-ink2);font-size:10.5px;font-weight:700;line-height:16px;text-align:center}",
+    ".bpb-tab[aria-selected=true] .bpb-n{background:var(--bpb-other-bg);border-color:transparent;color:var(--bpb-acc)}",
+    ".bpb-list{flex:1;min-height:120px;overflow:auto;overscroll-behavior:contain;padding:4px 0 10px}",
+    ".bpb-day{position:sticky;top:0;z-index:1;padding:10px 16px 6px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--bpb-ink3);background:var(--bpb-bg)}",
+    ".bpb-item{position:relative;display:flex;align-items:flex-start;gap:12px;margin:2px 8px;padding:10px 10px;border-radius:12px;text-decoration:none;color:inherit;cursor:pointer;outline:none;transition:background .12s}",
+    "div.bpb-item{cursor:default}",
+    ".bpb-item:hover{background:var(--bpb-bg2)}",
+    ".bpb-item.is-unread{background:var(--bpb-unread)}",
+    ".bpb-item:focus-visible{box-shadow:0 0 0 2px var(--bpb-acc)}",
+    ".bpb-chip{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;font-size:17px;font-weight:800;line-height:1;background:var(--bpb-other-bg);color:var(--bpb-other)}",
+    ".g-mention .bpb-chip{background:var(--bpb-mention-bg);color:var(--bpb-mention);font-size:19px}",
+    ".g-chat .bpb-chip{background:var(--bpb-chat-bg);color:var(--bpb-chat)}",
+    ".g-task .bpb-chip{background:var(--bpb-task-bg);color:var(--bpb-task)}",
+    ".g-payment .bpb-chip{background:var(--bpb-pay-bg);color:var(--bpb-pay)}",
+    ".bpb-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:1px}",
+    ".bpb-t{font-size:13.5px;font-weight:650;color:var(--bpb-ink);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}",
+    ".bpb-item.is-unread .bpb-t{font-weight:750}",
+    ".bpb-c{color:var(--bpb-ink3);font-weight:600}",
+    ".bpb-p{font-size:12.5px;color:var(--bpb-ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    ".bpb-meta{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:7px;padding-top:2px}",
+    ".bpb-meta time{font-size:11.5px;color:var(--bpb-ink3);font-variant-numeric:tabular-nums;white-space:nowrap}",
+    ".bpb-u{width:8px;height:8px;border-radius:50%;background:var(--bpb-acc);box-shadow:0 0 0 3px var(--bpb-other-bg)}",
+    ".bpb-empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;padding:34px 28px 30px;color:var(--bpb-ink2)}",
+    ".bpb-empty b{font-size:15px;color:var(--bpb-ink);margin-top:6px}.bpb-empty span{font-size:13px;max-width:260px}",
+    ".bpb-art{width:120px;height:96px}.bpb-art-bg{fill:var(--bpb-other-bg)}.bpb-art-bell{fill:var(--bpb-acc);opacity:.85}",
+    ".bpb-art-z{fill:none;stroke:var(--bpb-acc);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round;opacity:.6}",
+    ".bpb-skel{margin:10px 18px;height:44px;border-radius:12px;background:linear-gradient(90deg,var(--bpb-bg2) 0%,var(--bpb-line) 50%,var(--bpb-bg2) 100%);background-size:200% 100%;animation:bpbShimmer 1.2s linear infinite}",
+    "@keyframes bpbShimmer{to{background-position:-200% 0}}",
+    // phone: a full-height sheet that slides up from the bottom
+    "@media (max-width:640px){",
+    ".bpb-panel{top:max(10px,env(safe-area-inset-top,0px))!important;right:0!important;left:0;bottom:0;width:auto;max-width:none;max-height:none;border-radius:20px 20px 0 0;border-bottom:0;",
+    "padding-bottom:env(safe-area-inset-bottom,0px);transform:translateY(100%);opacity:1;transition:transform .28s cubic-bezier(.2,.8,.2,1)}",
+    ".bpb-root.is-open .bpb-panel{transform:none}",
+    ".bpb-grab{display:block;width:40px;height:4px;border-radius:2px;background:var(--bpb-line);margin:8px auto 0}",
+    ".bpb-head{padding-top:8px}.bpb-item{padding:12px 10px}.bpb-x{width:40px;height:40px}}",
+    "@media (prefers-reduced-motion:reduce){.bpb-root .bpb-scrim,.bpb-root .bpb-panel,.bpb-btn{transition:none!important}.bpb-panel{transform:none!important}.bpb-skel{animation:none}}",
+    "@media print{.bpb-root{display:none!important}}",
+  ].join("\n");
+  function bellInjectCss() {
+    if (typeof document === "undefined" || document.getElementById("bpb-style")) return;
+    const st = document.createElement("style"); st.id = "bpb-style"; st.textContent = BELL_CSS;
+    (document.head || document.documentElement).appendChild(st);
+  }
+  // friendly label + icon for a raw notification kind
+  function bellLabel(n) {
+    const k = (n.kind || "").toLowerCase(); const d = n.detail || {};
+    const m = {
+      task_assigned: ["🛠️", d.outsourced ? `Tasks outsourced to ${d.vendor || "a vendor"}` : `${d.count || ""} task(s) assigned${d.category ? " · " + d.category : ""}`],
+      task_accept: ["✅", "Task accepted" + (d.worker ? " by " + d.worker : "")],
+      task_reject: ["⛔", "Task rejected" + (d.worker ? " by " + d.worker : "")],
+      task_start: ["▶️", "Task started" + (d.worker ? " by " + d.worker : "")],
+      task_complete: ["🎉", "Task completed" + (d.worker ? " by " + d.worker : "")],
+      task_reminder: ["🔔", "Task reminder" + (d.task ? ": " + d.task : "")],
+      otp: ["🔐", "Approval OTP sent"],
+      approval_link: ["✉️", "Approval link sent"],
+      payment: ["💳", "Payment update"],
+      payment_link: ["💳", "Payment link sent"],
+      payment_received: ["💰", "Payment received"],
+      task_due: ["⏰", "Task due" + (d.task ? ": " + d.task : "")],
+      payment_reminder: ["💳", "Payment reminder sent"],
+      payment_receipt: ["🧾", "Payment receipt sent"],
+      advance_paid: ["💰", "Payment received"],
+      payment_reconcile: ["⚠️", "Payment needs attention"],
+    };
+    const hit = m[k] || (k.indexOf("design_") === 0 ? ["🎨", "Design stage: " + k.slice(7).replace(/_/g, " ")]
+                      : k.indexOf("nurture_") === 0 ? ["🌱", "Greeting queued" + (k.length > 8 ? " · " + k.slice(8).replace(/_/g, " ") : "")] : null);
+    // 0036: an automatic staff text/e-mail the studio switched off is logged, not sent
+    const off = n.status === "suppressed" ? " (not sent — switched off)" : "";
+    if (hit) return { icon: hit[0], text: hit[1] + off };
+    return { icon: "🔔", text: (n.kind || "Update").replace(/_/g, " ") + off };
+  }
+
   /* ---------------- notification center: in-app bell (Phase 48) ---------------- */
   const bell = {
     feed: (limit) => rpc("bell_feed", limit ? { p_limit: limit } : {}),
     markSeen: () => rpc("bell_mark_seen", {}),
-    // friendly label + icon for a raw notification kind
-    label(n) {
-      const k = (n.kind || "").toLowerCase(); const d = n.detail || {};
-      const m = {
-        task_assigned: ["🛠️", d.outsourced ? `Tasks outsourced to ${d.vendor || "a vendor"}` : `${d.count || ""} task(s) assigned${d.category ? " · " + d.category : ""}`],
-        task_accept: ["✅", "Task accepted" + (d.worker ? " by " + d.worker : "")],
-        task_reject: ["⛔", "Task rejected" + (d.worker ? " by " + d.worker : "")],
-        task_start: ["▶️", "Task started" + (d.worker ? " by " + d.worker : "")],
-        task_complete: ["🎉", "Task completed" + (d.worker ? " by " + d.worker : "")],
-        task_reminder: ["🔔", "Task reminder" + (d.task ? ": " + d.task : "")],
-        otp: ["🔐", "Approval OTP sent"],
-        approval_link: ["✉️", "Approval link sent"],
-        payment: ["💳", "Payment update"],
-        payment_link: ["💳", "Payment link sent"],
-        payment_received: ["💰", "Payment received"],
-        task_due: ["⏰", "Task due" + (d.task ? ": " + d.task : "")],
-        payment_reminder: ["💳", "Payment reminder sent"],
-        payment_receipt: ["🧾", "Payment receipt sent"],
-        advance_paid: ["💰", "Payment received"],
-        payment_reconcile: ["⚠️", "Payment needs attention"],
-      };
-      const hit = m[k] || (k.indexOf("design_") === 0 ? ["🎨", "Design stage: " + k.slice(7).replace(/_/g, " ")]
-                        : k.indexOf("nurture_") === 0 ? ["🌱", "Greeting queued" + (k.length > 8 ? " · " + k.slice(8).replace(/_/g, " ") : "")] : null);
-      // 0036: an automatic staff text/e-mail the studio switched off is logged, not sent
-      const off = n.status === "suppressed" ? " (not sent — switched off)" : "";
-      if (hit) return { icon: hit[0], text: hit[1] + off };
-      return { icon: "🔔", text: (n.kind || "Update").replace(/_/g, " ") + off };
-    },
+    label: bellLabel,
     // 0036 admin-managed notifications. mine() → { hidden:[type…] } for the signed-in
     // person (fail-open: an older database without 0036 hides nothing).
     prefs: {
@@ -4036,40 +4312,38 @@
         { p_type: type, p_channel: channel, p_role: role || null, p_enabled: enabled === null || enabled === undefined ? null : !!enabled, p_user: userId || null }),
       reset: () => rpc("admin_reset_notification_prefs", {}),
     },
-    // Mount a self-contained bell widget into `el` (works on any page, inline-styled).
+    // Mount the bell into `el` (works on any page): a button in the header + a panel portalled
+    // to <body> (blurred backdrop; anchored popover on desktop, full-height sheet on phones).
     async mount(el) {
       if (!el) return;
       if (!(auth.enabled() && auth.user())) { el.innerHTML = ""; return; }
-      const S = (o) => Object.entries(o).map(([k, v]) => `${k}:${v}`).join(";");
+      bellInjectCss();
+      // a second mount on the same page replaces the first (no duplicate panels / timers)
+      try { if (typeof window.__bpBellTeardown === "function") window.__bpBellTeardown(); } catch (e) {}
       el.style.position = "relative";
-      el.innerHTML = `<button id="bpBellBtn" title="Notifications" style="${S({position:'relative',height:'30px',width:'34px','border':'1px solid var(--line,#e8e3db)',background:'var(--panel,#fff)','border-radius':'8px',cursor:'pointer','font-size':'15px'})}">🔔<span id="bpBellDot" hidden style="${S({position:'absolute',top:'-6px',right:'-6px',background:'#e5484d',color:'#fff','font-size':'10px','font-weight':'700','min-width':'16px',height:'16px','line-height':'16px','border-radius':'9px',padding:'0 4px'})}">0</span></button>
-        <div id="bpBellPanel" hidden style="${S({position:'absolute',right:'0',top:'38px',width:'340px','max-width':'86vw',background:'var(--panel,#fff)',border:'1px solid var(--line,#e8e3db)','border-radius':'12px','box-shadow':'0 10px 30px rgba(20,27,46,.18)','z-index':'90',overflow:'hidden'})}">
-          <div style="${S({padding:'10px 14px','border-bottom':'1px solid var(--line,#eee)','font-weight':'700','font-size':'13px',display:'flex','align-items':'center','justify-content':'space-between'})}">Notifications <span id="bpBellClear" style="${S({'font-size':'11px',color:'var(--accent,#6d28d9)',cursor:'pointer','font-weight':'600'})}">Mark all read</span></div>
-          <div id="bpBellList" style="${S({'max-height':'380px','overflow':'auto'})}"><div style="padding:18px;text-align:center;color:#8b8698;font-size:13px">Loading…</div></div>
-        </div>`;
-      const btn = el.querySelector("#bpBellBtn"), dot = el.querySelector("#bpBellDot"),
-            panel = el.querySelector("#bpBellPanel"), list = el.querySelector("#bpBellList");
-      const rel = (iso) => { const s = (Date.now() - new Date(iso).getTime()) / 1000; if (s < 60) return "just now"; if (s < 3600) return Math.floor(s / 60) + "m ago"; if (s < 86400) return Math.floor(s / 3600) + "h ago"; return Math.floor(s / 86400) + "d ago"; };
-      const esc = (t) => String(t == null ? "" : t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-      const renderList = (items) => {
-        if (!items || !items.length) { list.innerHTML = `<div style="padding:22px;text-align:center;color:#8b8698;font-size:13px">Nothing yet.</div>`; return; }
-        list.innerHTML = items.map((n) => {
-          if (n.__chat) {
-            const who = esc(n.who || "");
-            const head = n.kind === "dm" ? who : (esc(n.title) + (who ? " · " + who : ""));
-            return `<a href="chat.html?c=${encodeURIComponent(n.conversation_id)}" style="${S({display:'flex',gap:'10px',padding:'10px 14px','border-bottom':'1px solid var(--line-2,#f1ede7)','text-decoration':'none',color:'inherit',background:'#f6f2ff'})}">
-              <span style="font-size:16px">💬</span>
-              <span style="flex:1;min-width:0"><span style="font-size:13px;font-weight:700">${head}${n.count > 1 ? ' <span style="color:#8b8698;font-weight:600">(' + n.count + ')</span>' : ''}</span>
-                <span style="display:block;font-size:12.5px;color:var(--ink-2,#4b475f);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n.preview || '')}</span>
-                <span style="display:block;font-size:11px;color:#8b8698">${rel(n.created_at)}</span></span></a>`;
-          }
-          const L = this.label(n); const href = n.quote_id ? ("event.html?id=" + encodeURIComponent(n.quote_id)) : null;
-          return `<a ${href ? `href="${href}"` : ""} style="${S({display:'flex',gap:'10px',padding:'10px 14px','border-bottom':'1px solid var(--line-2,#f1ede7)','text-decoration':'none',color:'inherit',background:n.unread?'#f6f2ff':'transparent'})}">
-            <span style="font-size:16px">${L.icon}</span>
-            <span style="flex:1;min-width:0"><span style="font-size:13px;font-weight:${n.unread?'700':'500'}">${esc(L.text)}</span>
-              <span style="display:block;font-size:11px;color:#8b8698">${n.event_code ? esc(n.event_code) + " · " : ""}${rel(n.created_at)}</span></span></a>`;
-        }).join("");
-      };
+      el.innerHTML = `<button type="button" id="bpBellBtn" class="bpb-btn" title="Notifications" aria-label="Notifications" aria-haspopup="dialog" aria-expanded="false" aria-controls="bpBellPanel">`
+        + `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>`
+        + `<span id="bpBellDot" class="bpb-dot" hidden>0</span></button>`;
+      const root = document.createElement("div");
+      root.className = "bpb-root"; root.id = "bpBellRoot"; root.hidden = true;
+      root.innerHTML = `<div class="bpb-scrim" data-bpb-close></div>
+        <section id="bpBellPanel" class="bpb-panel" role="dialog" aria-modal="true" aria-labelledby="bpBellTitle" tabindex="-1" data-bpui-skip>
+          <div class="bpb-grab" aria-hidden="true"></div>
+          <header class="bpb-head">
+            <div class="bpb-hrow"><h2 id="bpBellTitle" class="bpb-title">Notifications</h2><span id="bpBellCount" class="bpb-count" hidden></span><span class="bpb-sp"></span>
+              <button type="button" id="bpBellClear" class="bpb-link">Mark all read</button>
+              <button type="button" class="bpb-x" data-bpb-close aria-label="Close notifications">✕</button></div>
+            <div id="bpBellTabs" class="bpb-tabs" role="tablist" aria-label="Filter notifications"></div>
+          </header>
+          <div id="bpBellList" class="bpb-list" role="tabpanel" aria-labelledby="bpBellTitle"><div class="bpb-skel"></div><div class="bpb-skel"></div><div class="bpb-skel"></div></div>
+        </section>`;
+      document.body.appendChild(root);
+      const btn = el.querySelector("#bpBellBtn"), dot = el.querySelector("#bpBellDot");
+      const panel = root.querySelector("#bpBellPanel"), list = root.querySelector("#bpBellList"),
+            tabsEl = root.querySelector("#bpBellTabs"), countEl = root.querySelector("#bpBellCount");
+      const reduced = () => { try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { return false; } };
+      const isPhone = () => { try { return window.matchMedia("(max-width: 640px)").matches; } catch (e) { return false; } };
+      let isOpen = false, filter = "all", lastItems = [], loaded = false, closeTimer = null, prevOverflow = "", lastFocus = null;
       // Chat notifications (my unread DMs/groups/broadcast) merged into the same bell.
       let chatItems = [];
       const chatUnread = () => chatItems.reduce((s, c) => s + (c.count || 1), 0);
@@ -4083,25 +4357,99 @@
       const loadChat = async () => { try { await loadHidden(); } catch (e) {} const chatOff = hiddenTypes.indexOf("chat_message") !== -1;   // chat switched off → @mentions still come through
         try { chatItems = (chat && chat.notifications) ? (await chat.notifications(20)) : []; } catch (e) { chatItems = []; }
         if (chatOff) chatItems = chatItems.filter((c) => c && c.mention); };
-      const setDot = (serverUnread) => { const total = (serverUnread || 0) + chatUnread(); if (total > 0) { dot.hidden = false; dot.textContent = total > 99 ? "99+" : total; } else dot.hidden = true; };
-      const refresh = async () => { let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(f && f.unread); if (!panel.hidden) renderList(mergedFeed(f && f.items)); return f; };
-      await refresh();
-      btn.addEventListener("click", async (e) => { e.stopPropagation(); const open = panel.hidden;
-        if (open) { panel.hidden = false; let f = null; try { f = await this.feed(20); } catch {} await loadChat(); renderList(mergedFeed(f && f.items));
-          try { await this.markSeen(); } catch {} setDot(0);   // event notifs cleared; any chat unread keeps the dot until that chat is opened
-        } else panel.hidden = true; });
-      el.querySelector("#bpBellClear").addEventListener("click", async (e) => { e.stopPropagation(); try { await this.markSeen(); } catch {} await refresh(); });
-      document.addEventListener("click", (e) => {
-        // Ignore clicks on the window scrollbar (target becomes <html>, outside el) so
-        // dragging/clicking the scrollbar doesn't collapse the open notifications panel.
-        try { var de = document.documentElement; if (e.clientX > de.clientWidth || e.clientY > de.clientHeight) return; } catch (_) {}
-        if (!el.contains(e.target)) panel.hidden = true;
+      const setDot = (serverUnread) => { const total = (serverUnread || 0) + chatUnread();
+        if (total > 0) { dot.hidden = false; dot.textContent = total > 99 ? "99+" : total; } else dot.hidden = true;
+        btn.setAttribute("aria-label", total > 0 ? `Notifications, ${total > 99 ? "99+" : total} unread` : "Notifications"); };
+      // render the open panel, keeping keyboard focus on the same row / tab across live refreshes
+      const render = () => {
+        const ae = document.activeElement, keepKey = ae && root.contains(ae) && ae.getAttribute ? (ae.getAttribute("data-k") || (ae.getAttribute("data-f") ? "tab:" + ae.getAttribute("data-f") : null)) : null;
+        const v = bellPanelView(lastItems, { filter, now: Date.now(), label: bellLabel });
+        filter = v.filter; tabsEl.innerHTML = v.tabsHtml; list.innerHTML = v.html;
+        list.setAttribute("aria-labelledby", "bpBellTab-" + filter);
+        if (v.unread > 0) { countEl.hidden = false; countEl.textContent = (v.unread > 99 ? "99+" : v.unread) + " new"; } else countEl.hidden = true;
+        if (keepKey) { const sel = keepKey.indexOf("tab:") === 0 ? `[data-f="${keepKey.slice(4)}"]` : `[data-k="${String(keepKey).replace(/["\\]/g, "\\$&")}"]`;
+          const t = root.querySelector(sel); if (t) try { t.focus(); } catch (e) {} }
+      };
+      const refresh = async () => { let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(f && f.unread);
+        if (isOpen) { lastItems = mergedFeed(f && f.items); loaded = true; render(); } return f; };
+      // desktop: anchor the popover under the bell; phone: the CSS sheet takes over
+      const position = () => {
+        if (isPhone()) { panel.style.top = ""; panel.style.right = ""; panel.style.maxHeight = ""; return; }
+        const r = btn.getBoundingClientRect(), vw = document.documentElement.clientWidth || window.innerWidth, vh = window.innerHeight;
+        const top = Math.max(8, Math.round(r.bottom + 10)), right = Math.max(12, Math.round(vw - r.right - 4));
+        panel.style.top = top + "px"; panel.style.right = right + "px"; panel.style.maxHeight = Math.max(240, Math.min(640, vh - top - 16)) + "px";
+      };
+      const items = () => Array.prototype.slice.call(list.querySelectorAll(".bpb-item"));
+      const focusables = () => Array.prototype.filter.call(panel.querySelectorAll('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'),
+        (n) => !n.hidden && n.getClientRects().length > 0);
+      const open = async () => {
+        if (isOpen) return; isOpen = true; clearTimeout(closeTimer);
+        lastFocus = document.activeElement;
+        root.hidden = false; position(); btn.setAttribute("aria-expanded", "true");
+        try { prevOverflow = document.documentElement.style.overflow; document.documentElement.style.overflow = "hidden"; } catch (e) {}
+        void root.offsetWidth; root.classList.add("is-open");     // next frame → CSS transition runs
+        try { panel.focus({ preventScroll: true }); } catch (e) { panel.focus(); }
+        if (loaded) render();                                       // show the last list at once, then refresh
+        let f = null; try { f = await this.feed(20); } catch {} await loadChat();
+        if (!isOpen) return;
+        lastItems = mergedFeed(f && f.items); loaded = true; render();
+        try { await this.markSeen(); } catch {} setDot(0);   // event notifs cleared; any chat unread keeps the dot until that chat is opened
+      };
+      const close = (restore) => {
+        if (!isOpen) return; isOpen = false;
+        root.classList.remove("is-open"); btn.setAttribute("aria-expanded", "false");
+        try { document.documentElement.style.overflow = prevOverflow || ""; } catch (e) {}
+        const hide = () => { if (!isOpen) root.hidden = true; };
+        if (reduced()) hide(); else closeTimer = setTimeout(hide, 280);
+        if (restore !== false) { const t = (lastFocus && lastFocus.isConnected && lastFocus !== document.body) ? lastFocus : btn; try { t.focus({ preventScroll: true }); } catch (e) {} }
+      };
+      btn.addEventListener("click", (e) => { e.stopPropagation(); if (isOpen) close(); else open(); });
+      root.addEventListener("click", (e) => {
+        const c = e.target.closest && e.target.closest("[data-bpb-close]"); if (c) { e.preventDefault(); close(); return; }
+        const tab = e.target.closest && e.target.closest(".bpb-tab"); if (tab) { filter = tab.getAttribute("data-f") || "all"; render(); try { root.querySelector(`[data-f="${filter}"]`).focus(); } catch (x) {} return; }
+        const it = e.target.closest && e.target.closest("a.bpb-item"); if (it) close(false);   // navigating away
       });
-      setInterval(() => { if (!document.hidden && panel.hidden) refresh(); }, 30000);
+      root.querySelector("#bpBellClear").addEventListener("click", async (e) => { e.stopPropagation(); const b = e.currentTarget; b.disabled = true;
+        try { await this.markSeen(); } catch {} await refresh(); b.disabled = false; });
+      // keyboard: Esc closes, Tab is trapped, arrows walk the list, ←/→ switch tabs
+      root.addEventListener("keydown", (e) => {
+        if (!isOpen) return;
+        if (e.key === "Escape" || e.key === "Esc") { e.preventDefault(); e.stopPropagation(); close(); return; }
+        const ae = document.activeElement;
+        if (e.key === "Tab") {
+          const f = focusables(); if (!f.length) { e.preventDefault(); return; }
+          const first = f[0], last = f[f.length - 1];
+          if (e.shiftKey && (ae === first || ae === panel || !panel.contains(ae))) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && (ae === last || !panel.contains(ae))) { e.preventDefault(); first.focus(); }
+          return;
+        }
+        const onTab = ae && ae.classList && ae.classList.contains("bpb-tab");
+        if (onTab && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+          const ts = Array.prototype.slice.call(tabsEl.querySelectorAll(".bpb-tab")); const i = ts.indexOf(ae);
+          const nx = ts[(i + (e.key === "ArrowRight" ? 1 : -1) + ts.length) % ts.length];
+          if (nx) { e.preventDefault(); filter = nx.getAttribute("data-f"); render(); try { root.querySelector(`[data-f="${filter}"]`).focus(); } catch (x) {} }
+          return;
+        }
+        if (["ArrowDown", "ArrowUp", "Home", "End"].indexOf(e.key) === -1) return;
+        const its = items(); if (!its.length) return;
+        const i = its.indexOf(ae); let n;
+        if (e.key === "ArrowUp" && i === 0) { const sel = tabsEl.querySelector('[aria-selected="true"]'); e.preventDefault(); if (sel) sel.focus(); return; }   // top row → back to the tabs
+        if (e.key === "Home") n = 0; else if (e.key === "End") n = its.length - 1;
+        else if (e.key === "ArrowDown") n = i < 0 ? 0 : Math.min(its.length - 1, i + 1);
+        else n = i < 0 ? its.length - 1 : i - 1;
+        e.preventDefault(); try { its[n].focus(); its[n].scrollIntoView({ block: "nearest" }); } catch (x) {}
+      });
+      const onResize = () => { if (isOpen) position(); };
+      window.addEventListener("resize", onResize);
+      await refresh();
+      const timer = setInterval(() => { if (!document.hidden && !isOpen) refresh(); }, 30000);
       // Live: refresh the bell whenever a chat message arrives — on ANY page.
-      try { if (chat && chat.subscribe) { var csub = chat.subscribe(function () { refresh(); }, function () {}, "chat-rt-bell"); window.addEventListener("beforeunload", function () { try { csub && csub.unsubscribe && csub.unsubscribe(); } catch (e) {} }); } } catch (e) {}
+      var csub = null;
+      try { if (chat && chat.subscribe) { csub = chat.subscribe(function () { refresh(); }, function () {}, "chat-rt-bell"); window.addEventListener("beforeunload", function () { try { csub && csub.unsubscribe && csub.unsubscribe(); } catch (e) {} }); } } catch (e) {}
       // Let the chat page nudge the bell after it marks a conversation read.
       try { window.__bpBellRefresh = refresh; } catch (e) {}
+      try { window.__bpBellTeardown = () => { clearInterval(timer); window.removeEventListener("resize", onResize); if (isOpen) close(false);
+        try { csub && csub.unsubscribe && csub.unsubscribe(); } catch (e) {} try { root.remove(); } catch (e) {} }; } catch (e) {}
     },
   };
 

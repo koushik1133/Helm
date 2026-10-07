@@ -60,3 +60,6 @@ ok(/\.navpad\{position:absolute/.test(css), 'pad is positioned on the canvas');
 // CSP: no inline handlers
 ok(!/\son[a-z]+="/i.test(html), 'no inline event handlers');
 console.log(`builder-ux: ${n} checks passed`);
+
+// layout version switcher (dropdown, unsaved-changes modal, dirty tracking) — runs as part of this suite
+await import('./builder-versions.test.mjs');
