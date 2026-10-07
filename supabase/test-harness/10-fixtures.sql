@@ -71,3 +71,11 @@ begin
 
   raise notice 'fixture ready: orgA=% orgB=% a_staff=% b_staff=% qA=% qB=%', orgA,orgB,a_staff,b_staff,qA,qB;
 end $$;
+
+-- 0047: the pre-existing suites assert the "two-step required" HQ rules; the
+-- hq-mfa-optional suite flips the switch itself.
+do $$ begin
+  if to_regclass('public.helm_hq_settings') is not null then
+    update public.helm_hq_settings set hq_require_mfa = true where id and not hq_require_mfa;
+  end if;
+end $$;

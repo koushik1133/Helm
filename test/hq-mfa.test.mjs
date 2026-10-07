@@ -66,6 +66,7 @@ function makeEnv(o = {}) {
       if (name === 'is_platform_admin') return { data: !!o.operator && (verified().length ? aal === 'aal2' : true), error: null };
       if (name === 'password_change_required') return { data: false, error: null };
       if (name === 'current_org_id') return { data: o.org || null, error: null };
+      if (name === 'operator_mfa_required') return o.flagError ? { data: null, error: { message: 'Failed to fetch' } } : { data: o.mfaOptional ? false : true, error: null };
       if (/^hq_/.test(name)) return { data: name === 'hq_overview' ? {} : [], error: null };
       return { data: null, error: null };
     },
@@ -207,6 +208,34 @@ t('hq.js: operator whose factors cannot be read → sign-in page, never HQ', asy
   e.loadHq(); await flush();
   assert.deepEqual(e.replaced(), ['login.html']);
   assert.deepEqual(e.hqCalls(), []);
+});
+/* ------------------------------------------------ 0047: two-step optional switch */
+t('0047 switch off: operator without a factor → "ok" (no forced set-up) and HQ opens', async () => {
+  const e = makeEnv({ operator: true, mfaOptional: true, path: '/login' });
+  await e.S.init();
+  assert.equal(await e.S.auth.mfa.operatorStep(), 'ok');
+  const h = makeEnv({ operator: true, mfaOptional: true });
+  h.loadHq(); await flush();
+  assert.deepEqual(h.replaced(), []);
+  assert.ok(h.hqCalls().includes('hq_overview'));
+  assert.ok(shown(h, 'vApp'));
+});
+t('0047 switch off: operator WITH a factor at aal1 is still asked for the code', async () => {
+  const e = makeEnv({ operator: true, mfaOptional: true, factors: VERIFIED, aal: 'aal1', path: '/login' });
+  await e.S.init();
+  assert.equal(await e.S.auth.mfa.operatorStep(), 'challenge');
+});
+t('0047 switch unreadable → treated as required (fail closed: set-up forced)', async () => {
+  const e = makeEnv({ operator: true, flagError: true, path: '/login' });
+  await e.S.init();
+  assert.equal(await e.S.auth.mfa.operatorStep(), 'enroll');
+});
+t('login.html: BPUI.boot only covers init — the interactive sign-in steps run after it (no endless spinner)', () => {
+  const html = readFileSync(new URL('../public/login.html', import.meta.url), 'utf8');
+  const m = html.match(/BPUI\.boot\(async \(\)=>\{([\s\S]*?)\n  \}\)/);
+  assert.ok(m, 'boot block found');
+  assert.ok(!/finishGate|routeSignedIn|operatorTwoStep|askMfaCode|operatorEnroll/.test(m[1]), 'boot must not await user-driven steps');
+  assert.match(html, /\.then\(\(resume\)=>\{ if\(resume===true\) resumeSession\(\); \}\)/);
 });
 t('hq.js: signed out → sign-in page', async () => {
   const e = makeEnv({ user: null });

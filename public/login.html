@@ -211,7 +211,7 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=112"></script>
+<script src="store-api.js?v=113"></script>
 <script src="auth-ui.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -516,25 +516,33 @@
   $("#ob_signout").addEventListener("click", doSignOut);
   const ob2=$("#ob_signout2"); if(ob2) ob2.addEventListener("click", doSignOut);
 
-  BPUI.boot(async ()=>{
-    await BPStore.init();
-    if(!BPStore.auth.enabled()){ location.replace(nextUrl()); return; }
-    if(BPStore.auth.pendingUser()){
-      // a session exists: finish any pending step (two-step code / temp password / reset) first
-      try{ if(!(await finishGate())) return; }
-      catch(err){ showView("#loginForm"); showErr($("#err"), err&&err.code==="gate_verify" ? err.message : BPUI.friendlyError(err,{action:"finish signing you in"})); return; }
+  // A signed-in session resumes OUTSIDE BPUI.boot: the remaining steps can wait on the
+  // user (two-step set-up / code, new password), and boot keeps its full-page loading
+  // overlay up until its callback settles — awaiting them inside boot left the set-up
+  // screen behind an endless spinner. Boot now only covers init().
+  async function resumeSession(){
+    // a session exists: finish any pending step (two-step code / temp password / reset) first
+    try{ if(!(await finishGate())) return; }
+    catch(err){ showView("#loginForm"); showErr($("#err"), err&&err.code==="gate_verify" ? err.message : BPUI.friendlyError(err,{action:"finish signing you in"})); return; }
+    try{
       if(pendingInvite()){
         try{ await acceptPendingInvite(); }
         catch(err){ showErr($("#err"),BPUI.friendlyError(err,{action:"accept the invitation"})); return; }
       }
       await finishPendingStudio();
       // studio → next page · no studio → /hq (operator) or onboarding
-      await routeSignedIn(); return;
-    }
+      await routeSignedIn();
+    }catch(err){ showView("#loginForm"); showErr($("#err"),BPUI.friendlyError(err,{action:"finish signing you in"})); }
+  }
+  BPUI.boot(async ()=>{
+    await BPStore.init();
+    if(!BPStore.auth.enabled()){ location.replace(nextUrl()); return false; }
+    if(BPStore.auth.pendingUser()) return true;
     if($("#forgotForm").hidden) ensureCap();
     if($("#forgotForm").hidden) setTimeout(()=>$(mode==="signup"&&!JOINING?"#studio":"#email").focus(),60);
     showInviteBanner();
-  });
+    return false;
+  }).then((resume)=>{ if(resume===true) resumeSession(); });
 
   // Google OAuth — sign in first; on return, showOnboarding() collects the studio
   // details for brand-new users (invitees skip straight to accepting).

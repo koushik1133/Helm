@@ -387,6 +387,13 @@
   let orgEarly = null;
   // Helm platform operator (public.platform_admins)? Asked ONLY for an account with no
   // studio; any error counts as "no". The hq_* RPCs remain the real server gate.
+  // 0047 platform flag: must HQ operators use two-step? Anything but an explicit
+  // false (missing RPC, error, offline) counts as "required" — fails closed.
+  async function hqMfaRequired() {
+    if (!supa || !currentUser) return true;
+    try { const r = await supa.rpc("operator_mfa_required"); return !(r && !r.error && r.data === false); }
+    catch (e) { return true; }
+  }
   async function isPlatformAdmin() {
     if (!supa || !currentUser || pendingStep) return false;
     // 0037 is_platform_operator: "is my e-mail on the HQ list" WITHOUT the two-step
@@ -628,8 +635,11 @@
   }
   // Pure decision for a platform operator (exported for tests): no verified
   // authenticator → enroll; verified but session below aal2 → challenge; else ok.
-  function operatorMfaDecision(level, verifiedCount) {
-    if (!(verifiedCount > 0)) return "enroll";
+  // `required` (0047 operator_mfa_required(), default true = fail closed): when the platform
+  // flag is off an operator without an authenticator may enter at aal1; one who has
+  // set it up is still asked for the code.
+  function operatorMfaDecision(level, verifiedCount, required) {
+    if (!(verifiedCount > 0)) return required === false ? "ok" : "enroll";
     return (level && level.currentLevel === "aal2") ? "ok" : "challenge";
   }
 
@@ -1433,8 +1443,8 @@
         if (pendingStep) return "none";                       // temp password / reset: those pages finish it first
         if (!(await isPlatformAdmin())) return "none";
         try {
-          const [lv, fs] = await Promise.all([this.level(), this.verifiedTotp()]);
-          return operatorMfaDecision(lv, fs.length);
+          const [lv, fs, req] = await Promise.all([this.level(), this.verifiedTotp(), hqMfaRequired()]);
+          return operatorMfaDecision(lv, fs.length, req);
         } catch (e) { return "unknown"; }
       },
       // sign-in step-up: verify against the account's verified authenticator
