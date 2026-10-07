@@ -213,4 +213,16 @@ t('security.txt: e-mail contact + Expires (RFC 9116), no internal notes, no unve
   for (const l of fields) assert.match(l, /^(Contact|Expires|Encryption|Acknowledgments|Preferred-Languages|Canonical|Policy|Hiring|CSAF):\s\S/, 'unknown field: ' + l);
 });
 
+t('microphone: only /chat may use it (voice notes), self only; camera stays off everywhere', () => {
+  for (const p of paths) {
+    const pp = vercelHeaders(p)['permissions-policy'];
+    assert.match(pp, /camera=\(\)/, 'camera must stay off on ' + p);
+    assert.match(pp, /geolocation=\(\)/); assert.match(pp, /payment=\(\)/);
+    const chat = p === '/chat' || p === '/chat.html';
+    assert.match(pp, chat ? /microphone=\(self\)/ : /microphone=\(\)/, (chat ? 'chat needs' : 'only chat may have') + ' the microphone: ' + p);
+  }
+  // the page that records really asks for the microphone (so the rule is needed)
+  assert.match(readFileSync(join(PUB, 'chat.html'), 'utf8'), /getUserMedia\(\{audio:true\}\)/);
+});
+
 console.log(`headers-parity: ${n} assertion group(s) passed.`);
