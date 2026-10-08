@@ -73,3 +73,4 @@ forward  supabase/migrations/0057_welcome_email.sql
 forward  supabase/migrations/0058_trial_reminders.sql
 forward  supabase/migrations/0059_getting_started.sql
 forward  supabase/migrations/0060_studio_avatars.sql
+forward  supabase/migrations/0061_studio_search.sql

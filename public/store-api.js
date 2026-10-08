@@ -827,8 +827,21 @@
       s.src = vendorUrl("auth-ui.js?v=" + AUTH_UI_VERSION);
       s.onload = () => resolve(true); s.onerror = () => resolve(false);
       document.head.appendChild(s);
-    }).then((ok) => { try { if (ok && global.HelmAuthUI && global.HelmAuthUI.mountAppChrome) global.HelmAuthUI.mountAppChrome(); } catch (e) {} return ok; });
+    }).then((ok) => { try { if (ok && global.HelmAuthUI && global.HelmAuthUI.mountAppChrome) global.HelmAuthUI.mountAppChrome(); } catch (e) {} loadStudioSearch(); return ok; });
     return authUiLoading;
+  }
+  // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
+  // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
+  const STUDIO_SEARCH_VERSION = "1";
+  const NO_SEARCH_PAGES = { hq: 1, login: 1, "reset-password": 1, "profile-setup": 1 };
+  let studioSearchLoading = false;
+  function loadStudioSearch() {
+    if (studioSearchLoading || typeof document === "undefined" || global.HelmStudioSearch) return;
+    if (NO_SEARCH_PAGES[pageKey()] || PUBLIC_PAGES[pageKey()] || publicLinkPath()) return;
+    studioSearchLoading = true;
+    const s = document.createElement("script");
+    s.src = vendorUrl("studio-search.js?v=" + STUDIO_SEARCH_VERSION);
+    document.head.appendChild(s);
   }
 
   // capability matrix per role (10 roles)
@@ -6315,6 +6328,25 @@
     // 0059 — dashboard "Getting started" checklist. Flags are computed server-side for the
     // caller's own studio (no personal data); dismissal is stored per member. Before 0059
     // (or local mode) → null, and the dashboard simply shows no checklist.
+    // 0061 — universal studio search. studio_search() returns {kind: [{id,title,subtitle,link}]}
+    // for the caller's own studio and only the areas their role may view. Before 0061, in
+    // local mode, or for < 2 characters → {} (the palette then shows "no matches").
+    // opts.signal (AbortSignal) cancels a stale request.
+    search: (q, opts) => {
+      const t = String(q == null ? "" : q).replace(/\s+/g, " ").trim().slice(0, 80);
+      if (!supa || t.length < 2) return Promise.resolve({});
+      let call = supa.rpc("studio_search", { p_q: t, p_limit: (opts && opts.limit) || 5 });
+      const sig = opts && opts.signal;
+      if (sig && call && typeof call.abortSignal === "function") call = call.abortSignal(sig);
+      return Promise.resolve(call).then(({ data, error }) => {
+        if (error) {
+          if (rpcMissing(error)) return {};
+          if (looksLikeAuthError(error)) onAuthFailure();
+          throw error;
+        }
+        return data && typeof data === "object" && !Array.isArray(data) ? data : {};
+      });
+    },
     gettingStarted: {
       get: () => (supa ? rpc("my_getting_started").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       dismiss: (on) => rpc("my_getting_started_dismiss", { p_dismissed: on !== false }),
