@@ -128,6 +128,10 @@
           "value": "max-age=63072000; includeSubDomains; preload"
         },
         {
+          "key": "Access-Control-Allow-Origin",
+          "value": "https://www.helm.events"
+        },
+        {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
         },
@@ -548,6 +552,36 @@
         {
           "key": "Cache-Control",
           "value": "no-store, private"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "helm-v01.vercel.app"
+        }
+      ],
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "helm-alpha-nine.vercel.app"
+        }
+      ],
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
         }
       ]
     }

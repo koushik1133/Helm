@@ -28,6 +28,7 @@ const vercel = JSON.parse(readFileSync(join(ROOT, 'vercel.json'), 'utf8'));
 function vercelHeaders(p) {
   const out = {};
   for (const r of vercel.headers) {
+    if (r.has) continue; // host-conditioned rules (legacy *.vercel.app noindex) — checked separately below
     // Sources use only regex-compatible path-to-regexp syntax (groups, \\.),
     // verified against path-to-regexp@6 when written.
     if (new RegExp('^' + r.source + '$').test(p)) for (const h of r.headers) out[h.key.toLowerCase()] = h.value;
@@ -82,7 +83,8 @@ let n = 0;
 const t = (name, fn) => { fn(); n++; };
 
 const SECURITY_KEYS = ['strict-transport-security', 'cross-origin-opener-policy', 'cross-origin-resource-policy',
-  'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy'];
+  'x-frame-options', 'x-content-type-options', 'referrer-policy', 'permissions-policy',
+  'access-control-allow-origin'];
 
 // every page (clean + .html where applicable) + token/docs routes
 const paths = ['/', '/i', '/i/some-slug', '/docs/USER-MANUAL', '/docs/USER-MANUAL.html'];
@@ -235,3 +237,16 @@ t('microphone: only /chat and the crew work link may use it (voice notes), self 
 });
 
 console.log(`headers-parity: ${n} assertion group(s) passed.`);
+
+/* ---- no wildcard ACAO anywhere; legacy *.vercel.app aliases are noindex ---- */
+{
+  for (const r of vercel.headers) for (const h of r.headers) {
+    if (h.key.toLowerCase() === 'access-control-allow-origin') assert.notEqual(h.value.trim(), '*', 'vercel.json must not send wildcard ACAO');
+  }
+  assert.equal(vercelHeaders('/store-api.js')['access-control-allow-origin'], 'https://www.helm.events');
+  for (const host of ['helm-v01.vercel.app', 'helm-alpha-nine.vercel.app']) {
+    const r = vercel.headers.find((x) => x.has && x.has.some((c) => c.type === 'host' && c.value === host));
+    assert.ok(r && r.source === '/(.*)' && /noindex/.test(r.headers.find((h) => h.key === 'X-Robots-Tag').value), host + ' must be noindex');
+  }
+  console.log('ok — no wildcard ACAO; legacy aliases noindex');
+}
