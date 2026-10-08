@@ -449,6 +449,59 @@ begin
 
 end $$;
 
+-- 0070: booklet payments = ledger paid rows if any, else paid milestones; receipts client-safe
+do $$ declare r jsonb; a uuid := 'a0000000-0000-4000-8000-000000000001'; qa uuid := 'a0000000-0000-4000-8000-00000000da01'; tok text; v_total numeric;
+begin
+  perform pg_temp.login('a_admin@a.test');
+  r := public.booklet_share(qa, 30, null, null, null, '{"payments":true,"quotation":true}'::jsonb);
+  tok := r ->> 'token';
+  perform pg_temp.su();
+  v_total := public._pkg_total((select pricing from public.quotes where id = qa));
+  set local session_replication_role = replica;
+  delete from public.quote_payments where quote_id = qa; delete from public.payment_milestones where quote_id = qa;
+  insert into public.quote_payments(quote_id, org_id, provider, amount, status, simulated, paid_at, receipt_no, method, note, provider_ref, link_url)
+    values (qa, a, 'manual', 50000, 'paid', true, now(), 'RCP-T-01', 'cash', 'STAFF-NOTE-X', 'PREF-X', 'https://pay.test/LINK-X'),
+           (qa, a, 'razorpay', 1234, 'created', false, null, null, null, null, null, null);
+  insert into public.payment_milestones(quote_id, org_id, label, amount, status, seq) values (qa, a, 'Advance', 9999, 'paid', 1);
+  set local session_replication_role = origin;
+  perform pg_temp.anon();
+  r := public.public_get_booklet(tok::uuid);
+  perform pg_temp.res('90 booklet paid via ledger (milestones ignored when ledger exists)', (r #>> '{payments,paid}')::numeric = 50000
+    and (r #>> '{payments,outstanding}')::numeric = round(v_total - 50000, 2) and jsonb_array_length(r #> '{payments,milestones}') = 1, (r -> 'payments')::text);
+  perform pg_temp.res('91 receipts: number, date, amount, method only', jsonb_array_length(r #> '{payments,receipts}') = 1
+    and r #>> '{payments,receipts,0,number}' = 'RCP-T-01' and (r #>> '{payments,receipts,0,amount}')::numeric = 50000
+    and r #>> '{payments,receipts,0,method}' = 'cash' and r #>> '{payments,receipts,0,date}' is not null
+    and (select count(*) from jsonb_object_keys(r #> '{payments,receipts,0}')) = 4
+    and r::text not like '%STAFF-NOTE-X%' and r::text not like '%PREF-X%' and r::text not like '%LINK-X%', (r -> 'payments')::text);
+  perform pg_temp.res('92 booklet paid matches the package panel', (r #>> '{payments,paid}')::numeric = (public.public_booklet_packages(tok::uuid) #>> '{totals,paid}')::numeric, '');
+  perform pg_temp.su();
+  set local session_replication_role = replica;
+  delete from public.quote_payments where quote_id = qa;
+  insert into public.payment_milestones(quote_id, org_id, label, amount, status, seq) values (qa, a, 'Second', 3000, 'due', 2);
+  set local session_replication_role = origin;
+  perform pg_temp.anon();
+  r := public.public_get_booklet(tok::uuid);
+  perform pg_temp.res('93 booklet paid via milestones when no ledger rows', (r #>> '{payments,paid}')::numeric = 9999
+    and (r #>> '{payments,outstanding}')::numeric = round(v_total - 9999, 2) and jsonb_array_length(r #> '{payments,receipts}') = 0, (r -> 'payments')::text);
+  perform pg_temp.su();
+  set local session_replication_role = replica;
+  insert into public.quote_payments(quote_id, org_id, provider, amount, status, simulated, paid_at, receipt_no, method)
+    values (qa, a, 'manual', v_total + 500, 'paid', true, now(), 'RCP-T-02', 'upi');
+  set local session_replication_role = origin;
+  perform pg_temp.anon();
+  r := public.public_get_booklet(tok::uuid);
+  perform pg_temp.res('94 overpaid -> negative outstanding (credit)', (r #>> '{payments,outstanding}')::numeric = -500, (r -> 'payments')::text);
+  perform pg_temp.login('a_admin@a.test');
+  r := public.booklet_share(qa, 30, null, null, null, '{"payments":false}'::jsonb);
+  tok := r ->> 'token';
+  perform pg_temp.anon();
+  r := public.public_get_booklet(tok::uuid);
+  perform pg_temp.res('95 hidden payments section: no payments, no receipts leaked', not (r ? 'payments') and r::text not like '%RCP-T-02%', r::text);
+  perform pg_temp.su();
+  perform pg_temp.res('96 payments helper not callable by link users', not has_function_privilege('anon', 'public._bk_payments(uuid,uuid,jsonb)', 'execute')
+    and not has_function_privilege('authenticated', 'public._bk_payments(uuid,uuid,jsonb)', 'execute'), '');
+end $$;
+
 -- suspended checks need a clean block (the previous one stops at a refused share)
 do $$ declare e text; r jsonb; a uuid := 'a0000000-0000-4000-8000-000000000001'; pk text := 'a0000000-0000-4000-8000-0000000c0001'; tok text;
 begin

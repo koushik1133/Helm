@@ -83,3 +83,5 @@ forward  supabase/migrations/0067_pretty_urls.sql
 forward  supabase/migrations/0068_client_timeline_totals.sql
 # 0069 (package flow + share checklist) goes after 0068; 0067 still lands above 0068.
 forward  supabase/migrations/0069_package_flow.sql
+# 0070 (booklet payments: ledger-else-milestones paid + receipts) goes after 0069.
+forward  supabase/migrations/0070_booklet_payments.sql
