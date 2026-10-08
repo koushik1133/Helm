@@ -1,8 +1,8 @@
 // Notification bell panel (Oct 2026 redesign).
 // Pins the pure view (bellPanelView): Today / Yesterday / Earlier grouping, the filter tabs
 // (Payments only when the feed carries payment rows), unread counting, links, and that
-// every server / chat string is escaped. Plus static checks on the mount: blurred scrim with
-// a solid fallback, dialog semantics + own focus trap (BPUI skip), Esc / arrows, reduced
+// every server / chat string is escaped. Plus static checks on the mount: light dim scrim (no
+// blur), one-line header, scrolling tab bar, dialog semantics + own focus trap (BPUI skip), Esc / arrows, reduced
 // motion, phone sheet, and the unchanged data flow (feed + chat merge + 0036 hidden types).
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
@@ -106,9 +106,15 @@ t('empty states per filter', () => {
   assert.match(view([FEED[1]], 'chat', NOW).html, /No unread messages/);
 });
 
-t('mount: blurred scrim with a solid fallback, phone sheet, reduced motion, light + dark tokens', () => {
+t('mount: light dim scrim (no blur), one-line header, scrolling tab bar, phone sheet, reduced motion, light + dark tokens', () => {
   assert.match(api, /\.bpb-scrim\{position:absolute;inset:0;background:var\(--bpb-scrim\)/);
-  assert.match(api, /@supports \(\(-webkit-backdrop-filter:blur\(1px\)\) or \(backdrop-filter:blur\(1px\)\)\)\{\.bpb-scrim\{[^}]*backdrop-filter:blur\(8px\)/);
+  assert.doesNotMatch(api, /backdrop-filter:blur/);                                   // owner: no heavy blur behind
+  assert.match(api, /--bpb-scrim:rgba\(24,20,40,\.10\)/);
+  assert.match(api, /\.bpb-panel\{position:absolute;top:56px;right:16px;width:min\(420px,calc\(100vw - 32px\)\)/);
+  assert.match(api, /\.bpb-hrow\{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;[^}]*white-space:nowrap\}/);
+  assert.match(api, /\.bpb-link\{flex:0 0 auto;white-space:nowrap;/);                 // "Mark all read" never wraps
+  assert.match(api, /\.bpb-tabs\{[^}]*overflow-x:auto;/);
+  assert.match(api, /\.bpb-tab\{flex:0 0 auto;white-space:nowrap;/);                  // tabs keep full labels, bar scrolls
   assert.match(api, /@media \(max-width:640px\)\{/);
   assert.match(api, /@media \(prefers-reduced-motion:reduce\)\{\.bpb-root \.bpb-scrim,\.bpb-root \.bpb-panel/);
   assert.match(api, /html\[data-theme=dark\] \.bpb-root\{/);
@@ -129,7 +135,7 @@ t('mount: dialog semantics, own focus trap (BPUI skip), Esc closes, arrows walk 
 t('mount keeps the data flow: feed + chat merge, 0036 hidden chat, markSeen on open, live refresh', () => {
   assert.match(api, /const chatOff = hiddenTypes\.indexOf\("chat_message"\) !== -1;/);
   assert.match(api, /if \(chatOff\) chatItems = chatItems\.filter\(\(c\) => c && c\.mention\);/);
-  assert.match(api, /lastItems = mergedFeed\(f && f\.items\); loaded = true; render\(\);\s*try \{ await this\.markSeen\(\); \} catch \{\} setDot\(0\);/);
+  assert.match(api, /lastItems = mergedFeed\(f && f\.items\); loaded = true; render\(\); if \(f\) popToasts\(lastItems\);[^\n]*\n\s*try \{ await this\.markSeen\(\); \} catch \{\} setDot\(0\);/);
   assert.match(api, /chat\.subscribe\(function \(\) \{ refresh\(\); \}, function \(\) \{\}, "chat-rt-bell"\)/);
   assert.match(api, /window\.__bpBellRefresh = refresh;/);
   assert.match(api, /label: bellLabel,/);
