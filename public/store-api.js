@@ -832,7 +832,7 @@
   }
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
-  const STUDIO_SEARCH_VERSION = "1";
+  const STUDIO_SEARCH_VERSION = "2";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
   const NAV_TRAIL_VERSION = "1";
@@ -6479,6 +6479,37 @@
       const ref = String(id == null ? "" : id).trim();
       if (!supa || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref)) return Promise.resolve(null);
       return rpc("client_timeline", { p_ref: ref, p_limit: 300 }).catch((e) => { if (rpcMissing(e)) return null; throw e; });
+    },
+    // 0064 — saved filters / views for list pages (public/saved-filters.js). RLS: own rows +
+    // studio-shared rows the role may view; the DB stamps owner + studio and refuses shared
+    // from non-admins. Before 0064 / local mode → list() is [] and writes are refused.
+    savedViews: {
+      list: (page) => {
+        if (!supa) return Promise.resolve([]);
+        return Promise.resolve(supa.from("saved_views").select("id,user_id,page,name,state,shared,is_default,updated_at")
+          .eq("page", String(page || "")).order("name", { ascending: true }).limit(200)).then(({ data, error }) => {
+            if (error) { if (rpcMissing(error) || error.code === "42P01" || error.code === "PGRST205") return []; if (looksLikeAuthError(error)) onAuthFailure(); throw error; }
+            return Array.isArray(data) ? data : [];
+          });
+      },
+      save: (page, name, state, shared) => {
+        if (!supa) return Promise.reject(new Error("Saved views need a signed-in studio."));
+        return Promise.resolve(supa.from("saved_views").insert({ page: String(page), name: String(name).trim().slice(0, 60), state: state || {}, shared: !!shared })
+          .select("id,user_id,page,name,state,shared,is_default,updated_at").single()).then(({ data, error }) => { if (error) throw error; return data; });
+      },
+      update: (id, patch) => {
+        if (!supa) return Promise.reject(new Error("Saved views need a signed-in studio."));
+        const p = {};
+        if (patch && "name" in patch) p.name = String(patch.name).trim().slice(0, 60);
+        if (patch && "shared" in patch) p.shared = !!patch.shared;
+        if (patch && "state" in patch) p.state = patch.state || {};
+        return Promise.resolve(supa.from("saved_views").update(p).eq("id", id).select("id").single()).then(({ error }) => { if (error) throw error; return true; });
+      },
+      remove: (id) => {
+        if (!supa) return Promise.reject(new Error("Saved views need a signed-in studio."));
+        return Promise.resolve(supa.from("saved_views").delete().eq("id", id)).then(({ error }) => { if (error) throw error; return true; });
+      },
+      setDefault: (id, on) => rpc("saved_view_set_default", { p_id: id, p_on: on !== false }),
     },
     gettingStarted: {
       get: () => (supa ? rpc("my_getting_started").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),

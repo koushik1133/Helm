@@ -76,3 +76,4 @@ forward  supabase/migrations/0060_studio_avatars.sql
 forward  supabase/migrations/0061_studio_search.sql
 forward  supabase/migrations/0062_client_timeline.sql
 forward  supabase/migrations/0063_notification_mutes.sql
+forward  supabase/migrations/0064_saved_views.sql
