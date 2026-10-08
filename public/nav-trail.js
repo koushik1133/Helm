@@ -95,6 +95,8 @@
   }
   function setCurrent(o) {
     if (!o || !o.title) return;
+    // "CODE CODE" (event with no separate name) -> "CODE"
+    { const t = String(o.title).trim(), h = t.split(/\s+/); if (h.length % 2 === 0 && h.length) { const a = h.slice(0, h.length / 2).join(" "); if (a === h.slice(h.length / 2).join(" ")) o = Object.assign({}, o, { title: a }); } }
     if (!booted) { (global.__helmTrailQ = global.__helmTrailQ || []).push(o); return; }
     const kind = kindOf(o.kind);
     let href = safeHref(o.href);
