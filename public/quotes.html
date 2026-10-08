@@ -274,7 +274,7 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=95"></script>
-<script src="store-api.js?v=117"></script>
+<script src="store-api.js?v=118"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
@@ -404,9 +404,15 @@
   function reloadList(){
     if(!pager) pager=BPUI.pager({ after: $("#rows").closest(".card"), what:"quotes",
       fetch:(offset)=>shelfPage(offset, ()=>BPStore.quotes.page({ offset, view:viewOf(filter), eventType:typeFilter, search:($("#search").value||"").trim(), sort:"confirmedFirst" })),
-      render:(rows,info)=>{ quotes=info.all; render(); } });
+      render:(rows,info)=>{ quotes=info.all; render(); refreshStale(); } });
     anyQuotes=null;
     return pager.reset();
+  }
+  // 0052: quotes whose client approval went stale after a price change (fail-soft)
+  let staleSet=new Set(), staleKey="";
+  async function refreshStale(){
+    const ids=quotes.map(x=>x.id), key=ids.join(","); if(key===staleKey) return; staleKey=key;
+    try{ const s=await BPStore.quotes.staleApprovals(ids); const changed=s.size||staleSet.size; staleSet=s; if(changed) render(); }catch(_){}
   }
   const reloadQuiet=()=>reloadList().catch(e=>{ BPUI.loadError($("#rows"), e, reloadQuiet, {what:"quotes"}); });
   function render(){
@@ -448,7 +454,7 @@
         <td>${esc(x.title||"—")}<div class="muted">${esc(x.eventType||"")}</div></td>
         <td>${esc(client)||'<span class="muted">—</span>'}</td>
         <td><select class="vsel" data-role="vsel" aria-label="Version of ${esc(x.code)}"><option>v${esc(x.currentVersion)}</option></select></td>
-        <td>${sh(x)?(sh(x).shelf==="deleted"?'<span class="stat no">Deleted</span> ':'<span class="stat done">Archived</span> '):''}${needsAttention(x)?'<span class="stat warn" title="Event date has passed but this event isn\'t wrapped up — settle, return equipment and close it">⚠ Overdue</span> ':''}${isArchived(x)&&x.lifecycleStage==="closed"?'<span class="stat done">Closed · Archived</span>':statBadge(x.status)} ${apprBadge(x.approvalStatus)}${sh(x)?`<div class="shelfnote">${esc(shelfNote(sh(x)))}</div>`:""}</td>
+        <td>${sh(x)?(sh(x).shelf==="deleted"?'<span class="stat no">Deleted</span> ':'<span class="stat done">Archived</span> '):''}${needsAttention(x)?'<span class="stat warn" title="Event date has passed but this event isn\'t wrapped up — settle, return equipment and close it">⚠ Overdue</span> ':''}${isArchived(x)&&x.lifecycleStage==="closed"?'<span class="stat done">Closed · Archived</span>':statBadge(x.status)} ${apprBadge(x.approvalStatus)}${staleSet.has(x.id)?`<div class="stat warn" role="status" style="margin-top:4px">⚠ Price changed after approval — client must approve again${canEdit?` <button type="button" class="ic" data-act="relink" aria-label="Send a new approval link for ${esc(x.code)}">Send new approval link</button>`:""}</div>`:""}${sh(x)?`<div class="shelfnote">${esc(shelfNote(sh(x)))}</div>`:""}</td>
         <td style="text-align:right" class="amt">${x.total?inr(x.total):'<span class="muted">—</span>'}</td>
         <td class="muted">${fmtDate(x.updatedAt)}</td>
         <td><div class="row-actions" style="justify-content:flex-end">
@@ -491,6 +497,7 @@
         else if(act==="download") BPUI.guard(b,()=>downloadQuote(id, ver));
         else if(act==="ops") location.href="ops.html?quote="+encodeURIComponent(id);
         else if(act==="link") BPUI.guard(b,()=>sendApprovalLink(id));
+        else if(act==="relink") BPUI.guard(b,()=>sendApprovalLink(id, true));
         else if(act==="paid") markPaid(id, b);
         else if(act==="del") delQuote(id, b);
         else if(act==="archive") shelfMove(id, "archive", b);
@@ -630,7 +637,9 @@
     let confirmedId=null;
     try{
       if(confirmIt){ await BPStore.quotes.confirm(cmId, client, pricing); confirmedId=cmId;
-        try{ await BPStore.quotes.setStage(cmId, "confirmed"); }catch(_){ BPUI.toast("Couldn't move this event to Confirmed — your role needs Quotes edit access. Ask an admin.",{type:"err"}); }   // advance the lifecycle so the workspace stepper isn't stuck on "quote"
+        // 0052: Confirmed needs the client's approval (or an admin override); the client's OTP
+        // approval moves the event to Confirmed by itself, so a refusal here is informational
+        try{ await BPStore.quotes.setStage(cmId, "confirmed"); }catch(e){ if(e&&e.code==="HL409") BPUI.toast("Quote locked. The event moves to Confirmed when the client approves it — send them the approval link.",{type:"info"}); else BPUI.toast(BPUI.friendlyError(e,{action:"move this event to Confirmed"}),{type:"err"}); }
       }
       else await BPStore.quotes.updateMeta(cmId, { pricing, client }, expUpd);
       // keep the event_date column in sync, then re-brand the code to the event date (draft only)
@@ -712,8 +721,9 @@
   }
   // generate/return the per-quote client approval link (OTP + consent + payment)
   let lkQuoteId=null, lkPhone="";
-  async function sendApprovalLink(id){
-    try{ const tok=await BPStore.approval.generateToken(id);
+  async function sendApprovalLink(id, fresh){
+    try{ const tok = (fresh||staleSet.has(id)) ? await BPStore.quotes.reissueApprovalLink(id) : await BPStore.approval.generateToken(id);
+      if(fresh||staleSet.has(id)){ staleKey=""; BPUI.toast("New approval link created — the old link no longer works. Send this one to the client.",{type:"ok"}); }
       const url=await BPStore.links.build("quote", tok, location.origin+"/approve.html?token="+encodeURIComponent(tok));
       lkQuoteId=id; $("#lk_msg").innerHTML="";
       try{ const q=(quotes.find(x=>x.id===id)); lkPhone=(q&&q.client&&q.client.phone)|| (q&&q.pricing&&q.pricing.client&&q.pricing.client.phone) ||""; }catch{ lkPhone=""; }
@@ -729,7 +739,7 @@
     markingPaid=true;
     try{ await BPUI.guard(btn||null, async()=>{
       try{ await BPStore.approval.markPaid(id, "manual-dev");
-        try{ await BPStore.quotes.setStage(id, "planning"); }catch(_){ BPUI.toast("Couldn't move this event to Planning — your role needs Quotes edit access. Ask an admin.",{type:"err"}); }   // paid → move the event into planning
+        try{ await BPStore.quotes.setStageGuided(id, "planning"); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"move this event to Planning"}),{type:"err"}); }   // paid → move the event into planning (0052 gates explained / admin override)
         BPUI.toast("Payment marked as received.",{type:"ok"});
         await load(); }
       catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"mark the payment received"}),{type:"err"}); } }); }

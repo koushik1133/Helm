@@ -1832,8 +1832,29 @@
         confirmedAt: q.confirmed_at, versions: vs.map((v) => ({ id: v.id, versionNo: v.version_no, label: v.label,
           objectCount: v.object_count, createdAt: v.created_at })) };
     },
-    async setStage(id, stage) {
-      const { data, error } = await supa.rpc("set_lifecycle_stage", { p_quote_id: id, p_stage: stage });
+    async setStage(id, stage, overrideReason) {
+      // 0052: forward moves are gated server-side; an admin may pass a gate with a reason (audited)
+      const args = { p_quote_id: id, p_stage: stage };
+      if (overrideReason) args.p_override_reason = String(overrideReason);
+      const { data, error } = await supa.rpc("set_lifecycle_stage", args);
+      if (error) throw error; return data;
+    },
+    // 0052: ids (of the given ones) whose client approval went stale after a price change.
+    // Fail-soft: a database without 0052 simply has no stale quotes.
+    async staleApprovals(ids) {
+      const list = (ids || []).filter(Boolean); if (!list.length) return new Set();
+      try {
+        const { data, error } = await supa.from("quotes").select("id,consent_stale,consent_stale_prev_total,consent_stale_new_total")
+          .in("id", list.slice(0, 200)).eq("consent_stale", true);
+        if (error) return new Set();
+        const out = new Set((data || []).map((r) => r.id)); out.detail = {};
+        (data || []).forEach((r) => { out.detail[r.id] = { prev: r.consent_stale_prev_total, next: r.consent_stale_new_total }; });
+        return out;
+      } catch { return new Set(); }
+    },
+    // 0052: rotate the client approval link after a price change (fresh OTP approval)
+    async reissueApprovalLink(id) {
+      const { data, error } = await supa.rpc("reissue_approval_link", { p_quote_id: id });
       if (error) throw error; return data;
     },
     async getVersion(quoteId, versionNo) {
@@ -1986,7 +2007,31 @@
     create: (code, title, eventType, data, objectCount) => qt().create(code, title, eventType, data, objectCount),
     addVersion: (id, label, data, objectCount) => qt().addVersion(id, label, data, objectCount),
     confirm: (id, client, pricing) => qt().confirm(id, client, pricing),
-    setStage: (id, stage) => qt().setStage(id, stage),
+    setStage: (id, stage, overrideReason) => qt().setStage(id, stage, overrideReason),
+    staleApprovals: (ids) => (qt().staleApprovals ? qt().staleApprovals(ids) : Promise.resolve(new Set())),
+    reissueApprovalLink: (id) => qt().reissueApprovalLink(id),
+    // stage change that explains a refused move and, for an admin, offers an audited override.
+    // Resolves {stage} on success, null when the user cancelled; throws other errors.
+    async setStageGuided(id, stage) {
+      try { return await qt().setStage(id, stage); }
+      catch (e) {
+        const code = e && e.code;
+        if (code === "HL428") {
+          await window.BPUI.alert(String(e.message || "Price changed after approval — client must approve again."),
+            { title: "Client must approve again" });
+          return null;
+        }
+        if (code !== "HL409") throw e;
+        let admin = false; try { admin = (await auth.role()) === "admin"; } catch {}
+        if (!admin) { await window.BPUI.alert(String(e.message || "This stage can't be set yet.") + " Ask an admin if it must be moved anyway.",
+          { title: "Can't move the event yet" }); return null; }
+        const reason = await window.BPUI.prompt(String(e.message || "") + "\n\nAs an admin you can move it anyway. The reason is recorded in the audit log.",
+          { title: "Override stage check?", label: "Reason (5–1000 characters)", required: true, multiline: true, okLabel: "Move anyway",
+            validate: (v) => (String(v || "").trim().length < 5 ? "Give a reason of at least 5 characters." : "") });
+        if (!reason) return null;
+        return await qt().setStage(id, stage, reason.trim());
+      }
+    },
     updateMeta: (id, patch, expectedUpdatedAt) => qt().updateMeta(id, patch, expectedUpdatedAt),
     remove: (id) => qt().remove(id),
     // next MMDDYYYY-NN given a list of quote summaries (uses .code)
@@ -6171,6 +6216,8 @@
     if (isNetworkError(e)) return pre + "Couldn’t reach the server — check your connection and try again.";
     // 0046 D6: a locked (approved / paid / closed-event) money record — the DB message says why
     if (e && e.hint === "money_frozen" && e.message && !TECHNICAL.test(e.message)) return pre + endDot(clip(String(e.message), 240));
+    // 0052 lifecycle gates / re-approval: the DB message is written for people
+    if (e && (e.code === "HL409" || e.code === "HL428") && e.message) return endDot(clip(String(e.message), 300));
     if (isPermissionError(e)) return "You don’t have permission to " + (action || "do that") + ".";
     if (isMissingTable(e) || isMissingFunction(e)) {
       if (isAdmin()) return "Admin notice: this feature’s database setup hasn’t been applied yet" +
