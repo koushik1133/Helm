@@ -3075,13 +3075,6 @@ window.HelmUrl = HelmUrl;
       }
       return [];
     },
-    // distinct departments/skills across the team (for filters)
-    async facets() {
-      const list = await this.list(true);
-      const depts = [...new Set(list.map((s) => s.department).filter(Boolean))].sort();
-      const skills = [...new Set(list.flatMap((s) => Array.isArray(s.skills) ? s.skills : []))].sort();
-      return { depts, skills };
-    },
     // Phase 50 — suggest in-house crew for a category, ranked by skill match + availability.
     // Marks anyone already booked on the event's date as busy (one batched query).
     async suggest({ category, date, excludeQuote, limit } = {}) {
