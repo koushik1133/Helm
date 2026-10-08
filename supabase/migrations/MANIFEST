@@ -65,3 +65,5 @@ forward  supabase/migrations/0049_db_gates.sql
 forward  supabase/migrations/0050_auth_limits.sql
 forward  supabase/migrations/0051_upload_quarantine.sql
 forward  supabase/migrations/0052_lifecycle_reapproval.sql
+# NOTE (merge): 0053 (password lockouts, parallel branch) must stay BEFORE 0054 on merge.
+forward  supabase/migrations/0054_security_alerts.sql

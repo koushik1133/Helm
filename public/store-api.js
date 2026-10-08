@@ -5471,6 +5471,11 @@
       payment_receipt: ["🧾", "Payment receipt sent"],
       advance_paid: ["💰", "Payment received"],
       payment_reconcile: ["⚠️", "Payment needs attention"],
+      // 0054: names only (who / whom) — never e-mails, links or tokens
+      security_alert: ["🛡️", "Security: " + String(d.label || "security event")
+        + ((Number(d.count) || 1) > 1 ? " ×" + (Number(d.count) || 1) : "")
+        + (d.subject_name ? " · " + d.subject_name : d.actor_name ? " · by " + d.actor_name : "")
+        + (d.event_code ? " · " + d.event_code : "")],
     };
     const hit = m[k] || (k.indexOf("design_") === 0 ? ["🎨", "Design stage: " + k.slice(7).replace(/_/g, " ")]
                       : k.indexOf("nurture_") === 0 ? ["🌱", "Greeting queued" + (k.length > 8 ? " · " + k.slice(8).replace(/_/g, " ") : "")] : null);

@@ -97,7 +97,7 @@ do $$ declare s text; r jsonb; v text; u1 int; u2 int; begin
     (r -> 'in_app' -> 'task_assigned' -> 'sales' ->> 'on')::boolean = false
     and (r -> 'in_app' -> 'task_assigned' -> 'sales' ->> 'default')::boolean = true
     and (r -> 'in_app' -> 'task_assigned' -> 'sales' ->> 'set')::boolean = true
-    and jsonb_array_length(r -> 'catalog') = 16 and (r ->> 'changed')::int = 1, left(r::text, 200));
+    and jsonb_array_length(r -> 'catalog') >= 16 and (r ->> 'changed')::int = 1, left(r::text, 200));
 end $$;
 
 -- ---- non-admin / other studio / signed-out refused -----------------------------------

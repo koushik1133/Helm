@@ -192,3 +192,26 @@ new uploads are recorded as "pending" but stay readable exactly as today (the en
 
 Optional: `UPLOAD_SCAN_BATCH` (1..50, default 20). Scanned buckets: event-docs, chat-media,
 invite-media, task-proof (member-avatars and helm-manual are not scanned).
+
+## Security alert e-mails (LATER — owner only, DORMANT)
+`security-alert-mailer` e-mails the alerts queued by migration 0054
+(`security_alert_outbox`) to each studio's admins, and HQ-level alerts (HQ operator
+added/removed) to the HQ inbox. It is a **no-op (200)** until enabled. In-app bell alerts
+and the HQ "Security" panel work without it.
+
+1. Apply 0054 (staging, then prod): `supabase/APPLY-0054.sql`.
+2. Deploy (called by cron with its own shared secret, no Supabase JWT):
+   ```bash
+   supabase functions deploy security-alert-mailer --no-verify-jwt
+   ```
+3. Secrets:
+   ```bash
+   supabase secrets set \
+     HELM_SECURITY_ALERT_SECRET="<long random string>" \
+     HELM_SECURITY_ALERT_HQ_TO="security@helm.events"
+   # optional: SECURITY_ALERT_BATCH=25. RESEND_API_KEY / RESEND_FROM are shared;
+   # without a key rows are marked status='skipped'.
+   ```
+4. Schedule a POST every 5 minutes with header `x-helm-cron-secret: <secret>`.
+5. Turn it on: `supabase secrets set HELM_SECURITY_ALERTS_ENABLED=true`.
+Studios can switch security e-mails off in Control Center → Notifications → Security.
