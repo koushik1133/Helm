@@ -10,7 +10,7 @@
 -- WHAT IT TOUCHES: 5 new tables, 6 new nullable columns (menu_templates x3,
 -- client_booklets x3 incl. sections with an all-shown default), 1 bucket, new functions,
 -- policies and triggers; 4 functions wrapped (renamed once to *__pre0069), the upload
--- name guard extended in place. NO row is deleted. SAFE TO RE-RUN.
+-- name guard and the quote money guard extended in place (old bodies kept as *__pre0069). NO row is deleted. SAFE TO RE-RUN.
 -- Plain ASCII on purpose (the SQL editor mangles fancy characters).
 -- ============================================================================
 -- ============================================================================
@@ -580,7 +580,7 @@ create or replace function public.pkg_selection_review(p_id uuid, p_action text,
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
 declare v_org uuid := public._pkg_staff(true); v_me uuid := auth.uid(); s public.package_selections; q public.quotes;
   t public.menu_templates; v_ver public.quotation_versions; v_pricing jsonb; v_single boolean; v_is_admin boolean;
-  v_override boolean := false; v_new numeric; v_paid numeric; v_ledger numeric; v_claims text; v_n int := 0;
+  v_override boolean := false; v_new numeric; v_paid numeric; v_ledger numeric; v_n int := 0;
   v_mode text; v_credit jsonb := null; v_url text; v_had_consent boolean; v_reason text; v_ch text;
 begin
   if p_action not in ('accept', 'decline') then raise exception 'action must be accept or decline' using errcode = '22023'; end if;
@@ -647,12 +647,22 @@ begin
   v_new := public.helm_quote_total(v_ver.pricing);
   v_paid := public._pkg_paid(q.id);
   select coalesce(sum(pm.amount), 0) into v_ledger from public.quote_payments pm where pm.quote_id = q.id and pm.status = 'paid';
+  -- overpay first: the credit / refund-due row must exist BEFORE the price drop (the money
+  -- guard checks for it). Never an automatic refund.
+  if v_new < v_paid - 0.5 then
+    v_mode := public._pkg_settings(v_org) ->> 'overpay_mode';
+    insert into public.pkg_credits(org_id, quote_id, selection_id, kind, amount, created_by)
+      values (v_org, q.id, s.id, case when v_mode = 'manual_refund' then 'refund_due' else 'credit' end, round(v_paid - v_new, 2), v_me);
+    v_credit := jsonb_build_object('mode', v_mode, 'amount', round(v_paid - v_new, 2));
+    insert into public.audit_log(actor, action, entity, entity_id, quote_id, changed, org_id)
+      values (v_me, 'pkg.overpay', 'pkg_credits', s.id::text, q.id, v_credit || jsonb_build_object('paid', v_paid, 'new_total', v_new), v_org);
+  end if;
   if v_new < v_ledger - 0.5 then
-    -- the money guard refuses API callers lowering below paid; this server path records the overpay itself
-    v_claims := current_setting('request.jwt.claims', true);
-    perform set_config('request.jwt.claims', (coalesce(nullif(v_claims, ''), '{}')::jsonb || '{"role":"service_role"}'::jsonb)::text, true);
+    -- narrow, audited bypass of the "total can't drop below paid" guard: a transaction-local
+    -- flag naming THIS selection; the guard also requires this transaction's credit row.
+    perform set_config('helm.pkg_overpay_ok', s.id::text, true);
     update public.quotes set pricing = v_ver.pricing, updated_at = now() where id = q.id;
-    perform set_config('request.jwt.claims', coalesce(v_claims, ''), true);
+    perform set_config('helm.pkg_overpay_ok', '', true);
   else
     update public.quotes set pricing = v_ver.pricing, updated_at = now() where id = q.id;
   end if;
@@ -662,16 +672,6 @@ begin
   -- unpaid links for the old amount
   update public.quote_payments set status = 'cancelled' where quote_id = q.id and status = 'created';
   get diagnostics v_n = row_count;
-
-  -- overpay
-  if v_new < v_paid - 0.5 then
-    v_mode := public._pkg_settings(v_org) ->> 'overpay_mode';
-    insert into public.pkg_credits(org_id, quote_id, selection_id, kind, amount, created_by)
-      values (v_org, q.id, s.id, case when v_mode = 'manual_refund' then 'refund_due' else 'credit' end, round(v_paid - v_new, 2), v_me);
-    v_credit := jsonb_build_object('mode', v_mode, 'amount', round(v_paid - v_new, 2));
-    insert into public.audit_log(actor, action, entity, entity_id, quote_id, changed, org_id)
-      values (v_me, 'pkg.overpay', 'pkg_credits', s.id::text, q.id, v_credit || jsonb_build_object('paid', v_paid, 'new_total', v_new), v_org);
-  end if;
 
   -- a live approval link (rotated when the client must approve again)
   select * into q from public.quotes x where x.id = q.id;
@@ -739,6 +739,98 @@ begin
     values (auth.uid(), 'pkg.settings', 'pkg_settings', v_org::text, p, v_org);
   return public._pkg_settings(v_org);
 end $$;
+
+-- ---- 11b) money guard: the ONE allowed drop below paid ---------------------------------------
+-- tg_quote_money_guard (0033) is attached to quotes by OID, so it is replaced IN PLACE (its
+-- current body is first copied ONCE to tg_quote_money_guard__pre0069 for the record). The new
+-- body is the 0033 rule unchanged, except: a total below what was paid is allowed only when
+-- the transaction-local flag helm.pkg_overpay_ok names a package selection of THIS event AND a
+-- pkg_credits row for that selection + event was inserted in THIS transaction covering the
+-- difference. Only pkg_selection_review sets the flag (and clears it right after); a member
+-- setting it by hand has no such credit row (pkg_credits is not writable by API roles).
+do $$ begin
+  if to_regprocedure('public.tg_quote_money_guard()') is not null
+     and to_regprocedure('public.tg_quote_money_guard__pre0069()') is null then
+    execute replace(pg_get_functiondef('public.tg_quote_money_guard()'::regprocedure),
+                    'public.tg_quote_money_guard(', 'public.tg_quote_money_guard__pre0069(');
+    execute 'revoke all on function public.tg_quote_money_guard__pre0069() from public, anon, authenticated';
+  end if;
+end $$;
+
+create or replace function public._pkg_overpay_allowed(p_quote uuid, p_new numeric, p_paid numeric)
+returns boolean language plpgsql stable security definer set search_path = '' as $$
+declare v_flag text := nullif(current_setting('helm.pkg_overpay_ok', true), '');
+begin
+  if v_flag is null or v_flag !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then return false; end if;
+  return exists (select 1 from public.package_selections s
+                   join public.pkg_credits c on c.selection_id = s.id and c.quote_id = s.quote_id
+                  where s.id = v_flag::uuid and s.quote_id = p_quote and s.status = 'pending'
+                    and c.created_at = now()                                  -- inserted in this transaction
+                    and c.amount >= (p_paid - coalesce(p_new, 0)) - 1);
+end $$;
+revoke all on function public._pkg_overpay_allowed(uuid, numeric, numeric) from public;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on function public._pkg_overpay_allowed(uuid, numeric, numeric) from anon'; end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'revoke all on function public._pkg_overpay_allowed(uuid, numeric, numeric) from authenticated'; end if;
+end $$;
+
+create or replace function public.tg_quote_money_guard()
+returns trigger language plpgsql security definer set search_path = '' as $$
+-- rescore3-0033 + package-flow-0069 (one audited overpay path, see _pkg_overpay_allowed)
+declare c jsonb; v_code text; v_val numeric; k public.coupons; v_new numeric; v_old numeric; v_paid numeric;
+begin
+  if coalesce(auth.role(), '') not in ('anon', 'authenticated') then return new; end if;
+  if tg_op = 'UPDATE' and new.pricing is not distinct from old.pricing then return new; end if;
+
+  -- 3e) coupon added or changed: an active coupon of this studio, same kind, not inflated
+  c := case when jsonb_typeof(new.pricing) = 'object' then new.pricing -> 'coupon' end;
+  if jsonb_typeof(c) = 'object' and coalesce(public.helm_pricing_num(c -> 'value'), 0) > 0
+     and (tg_op = 'INSERT'
+          or c is distinct from (case when jsonb_typeof(old.pricing) = 'object' then old.pricing -> 'coupon' end)
+          or (new.pricing ->> 'couponCode') is distinct from (case when jsonb_typeof(old.pricing) = 'object' then old.pricing ->> 'couponCode' end)) then
+    v_code := nullif(btrim(coalesce(new.pricing ->> 'couponCode', c ->> 'code', '')), '');
+    v_val  := public.helm_pricing_num(c -> 'value');
+    if v_code is null then
+      raise exception 'a coupon discount needs its coupon code' using errcode = '22023';
+    end if;
+    select * into k from public.coupons x
+     where x.org_id = new.org_id and lower(x.code) = lower(v_code) and x.active
+     order by x.created_at desc limit 1;
+    if k.id is null then
+      raise exception 'coupon "%" is not an active coupon of this studio', v_code using errcode = '22023';
+    end if;
+    if (coalesce(c ->> 'kind', '') = 'percent') is distinct from (k.kind = 'percent') or v_val > k.value then
+      raise exception 'coupon "%" is worth % (%) - the quote can''t apply more', v_code, k.value, k.kind using errcode = '22023';
+    end if;
+  end if;
+
+  -- 3b) the total can't drop below what the client has already paid (net of refunds)
+  if tg_op = 'UPDATE' then
+    v_new := case when jsonb_typeof(new.pricing) = 'object' then public.helm_pricing_num(new.pricing -> 'total') end;
+    v_old := case when jsonb_typeof(old.pricing) = 'object' then public.helm_pricing_num(old.pricing -> 'total') end;
+    if v_new is distinct from v_old and (v_new is null or v_old is null or v_new < v_old) then
+      select coalesce(sum(qp.amount), 0) into v_paid from public.quote_payments qp
+       where qp.quote_id = new.id and qp.status = 'paid';
+      if v_paid > 0 then
+        v_paid := v_paid - coalesce((select sum(r.amount) from public.event_refunds r
+                                      where r.quote_id = new.id and r.kind = 'refund'
+                                        and r.status in ('approved', 'processed')), 0);
+        if v_paid > 0 and coalesce(v_new, 0) < v_paid - 0.5 then
+          if public._pkg_overpay_allowed(new.id, v_new, v_paid) then
+            insert into public.audit_log(actor, action, entity, entity_id, quote_id, changed, org_id)
+              values (auth.uid(), 'pkg.overpay_guard_pass', 'quotes', new.id::text, new.id,
+                      jsonb_build_object('selection_id', current_setting('helm.pkg_overpay_ok', true), 'paid', v_paid, 'new_total', v_new), new.org_id);
+            return new;
+          end if;
+          raise exception 'the quote total (%) can''t be lower than what the client has already paid (%) - record a refund first',
+            coalesce(v_new, 0), v_paid using errcode = '23514';
+        end if;
+      end if;
+    end if;
+  end if;
+  return new;
+end $$;
+revoke all on function public.tg_quote_money_guard() from public, anon, authenticated;
 
 -- ---- 12) payment received -> pkg_payment (never blocks a payment) ---------------------------
 create or replace function public._pkg_tg_payment()
@@ -1121,5 +1213,8 @@ select item, ok from (values
       and not has_function_privilege('anon', 'public.public_get_booklet__pre0069(uuid)', 'execute')),
   ('snapshot bucket is private', (select not public from storage.buckets where id = 'booklet-snapshots')),
   ('snapshot upload policy', exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname = 'booklet_snapshots_insert')),
+  ('money guard: overpay only via the audited package path', position('_pkg_overpay_allowed' in pg_get_functiondef('public.tg_quote_money_guard()'::regprocedure)) > 0
+      and to_regprocedure('public.tg_quote_money_guard__pre0069()') is not null
+      and not has_function_privilege('authenticated', 'public._pkg_overpay_allowed(uuid,numeric,numeric)', 'execute')),
   ('upload name guard knows the bucket', position('booklet-snapshots' in pg_get_functiondef('public.storage_object_name_ok(text,text)'::regprocedure)) > 0)
 ) v(item, ok);

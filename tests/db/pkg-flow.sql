@@ -286,6 +286,23 @@ begin
     and exists (select 1 from public.audit_log where action = 'pkg.self_approve_override' and entity_id = t), r::text);
   perform pg_temp.res('55 manual_refund -> refund_due flagged', exists (select 1 from public.pkg_credits where quote_id = qa::uuid and kind = 'refund_due' and amount = 80000 - 41300), r::text);
 
+  -- the overpay bypass is narrow: flag + this transaction's credit row for a PENDING selection of this event
+  perform pg_temp.su();
+  perform pg_temp.res('55a flag cleared right after the accept (no leak)', coalesce(current_setting('helm.pkg_overpay_ok', true), '') = '', current_setting('helm.pkg_overpay_ok', true));
+  perform pg_temp.res('55b guard pass audited', exists (select 1 from public.audit_log where action = 'pkg.overpay_guard_pass' and entity_id = qa), '');
+  perform pg_temp.res('55c no claims/role switch in the accept path', position('request.jwt.claims' in pg_get_functiondef('public.pkg_selection_review(uuid,text,numeric,text)'::regprocedure)) = 0, '');
+  perform pg_temp.login('a_admin@a.test');
+  e := pg_temp.try(format($q$select set_config('helm.pkg_overpay_ok', %L, true); update public.quotes set pricing = pricing || '{"guests":10}'::jsonb where id = %L$q$, t, qa));
+  perform pg_temp.res('55d member + flag (accepted selection with a credit) + direct update: still refused', e like '23514%', e);
+  perform pg_temp.login('a_admin@a.test');
+  e := pg_temp.try(format($q$select set_config('helm.pkg_overpay_ok', %L, true); update public.quotes set pricing = pricing || '{"guests":10}'::jsonb where id = %L$q$, 'a0000000-0000-4000-8000-0000000c0001', qa));
+  perform pg_temp.res('55e member + made-up flag + direct update: refused', e like '23514%', e);
+  perform pg_temp.login('a_admin@a.test');
+  e := pg_temp.try(format($q$update public.quotes set pricing = pricing || '{"guests":10}'::jsonb where id = %L$q$, qa));
+  perform pg_temp.res('55f no flag: refused (0033 rule kept)', e like '23514%', e);
+  perform pg_temp.su();
+  perform pg_temp.res('55g credit/refund rows untouched by refused attempts', (select count(*) from public.pkg_credits where quote_id = qa::uuid) = 2, '');
+
   -- decline path
   perform pg_temp.su(); set local session_replication_role = replica;
   update public.package_selections set status = 'cancelled' where id = t::uuid;
