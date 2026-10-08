@@ -201,3 +201,17 @@ verified* to **STAGING VERIFIED**.
   real payments.
 - Razorpay/WhatsApp stay **DEFERRED — SECURELY DISABLED** on staging too
   (`liveChannels` all false).
+
+## Vercel previews cannot reach staging (by design)
+
+All CSP rules in `vercel.json` and `public/_headers` are **staging-free**: they
+allow only the production Supabase project, so production can never talk to
+staging. A consequence is that Vercel preview deployments cannot connect to the
+staging Supabase (the browser CSP blocks it). Do staging work on **localhost**
+(`server.js` adds the staging origin to its CSP for localhost only).
+
+We previously emitted per-production-host duplicate CSP rules instead; that grew
+`vercel.json` to ~700 KB and Vercel rejected it ("Invalid vercel.json file
+provided"). `node scripts/gen-csp.mjs --check` now fails CI if `vercel.json`
+reaches 200 KB or 200 header+redirect rules, uses undocumented rule keys, or
+names the staging project.

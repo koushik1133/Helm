@@ -190,7 +190,7 @@ t('CAPTCHA CSP allowance (Turnstile) only on the login / reset pages', () => {
   }
 });
 
-t('CSP: prod hosts allow ONLY the prod Supabase project; previews/local also allow staging (no *.supabase.co)', () => {
+t('CSP: vercel.json/_headers allow ONLY the prod Supabase project (previews cannot reach staging by design); localhost also allows staging (no *.supabase.co)', () => {
   const PRODP = 'nqltzgiwznphugcfhmbm.supabase.co', STGP = 'xizehqgeyjcfpzrdymly.supabase.co';
   for (const [file, src] of [['vercel.json', readFileSync(join(ROOT, 'vercel.json'), 'utf8')], ['_headers', readFileSync(join(PUB, '_headers'), 'utf8')], ['server.js', readFileSync(join(ROOT, 'server.js'), 'utf8')]])
     assert.ok(!/\*\.supabase\.co/.test(src), file + ' still allows any *.supabase.co project');
@@ -200,7 +200,7 @@ t('CSP: prod hosts allow ONLY the prod Supabase project; previews/local also all
   const LOCAL_REQ = { headers: { host: 'localhost:3000' } };
   for (const p of PAGES) {
     const cases = [['_headers', netlifyHeaders('/' + p), [PRODP]], ['server.js@prod', serverHeaders('/' + p), [PRODP]],
-      ['vercel.json@preview', vercelHeaders('/' + p), [PRODP, STGP]],
+      ['vercel.json@preview', vercelHeaders('/' + p), [PRODP]],
       ['server.js@localhost', { 'content-security-policy': server.securityHeadersFor(LOCAL_REQ, join(PUB, p + '.html'))['Content-Security-Policy'] }, [PRODP, STGP]]];
     for (const host of ['www.helm.events', 'helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app'])
       cases.push(['vercel.json@' + host, vercelHeaders('/' + p, host), [PRODP]]);
