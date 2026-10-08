@@ -12,7 +12,8 @@
 //   BILLING_REMINDER_BATCH                  rows per run, 1..200 (default 50)
 //
 // ASSUMED SCHEMA (migration 0045, NOT FINAL — read defensively):
-//   billing_reminders(id uuid, org_id uuid, kind 'due_soon'|'past_due', period_end date,
+//   billing_reminders(id uuid, org_id uuid, kind 'due_soon'|'past_due'
+//                     |'trial_7d'|'trial_3d'|'trial_1d'|'trial_ended' (0058; period_end = trial end), period_end date,
 //                     sent_at timestamptz null, channel text null)
 //   organizations(id, name, business_email)
 // A row is "unsent" while sent_at IS NULL. Marking is idempotent: UPDATE … WHERE id = $1
@@ -26,6 +27,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, escHtml } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped } from "../_shared/limits.ts";
+import { isTrialKind, trialMessage } from "./trial-email.ts";
 
 const enc = new TextEncoder();
 const ALLOWED_HOSTS = new Set(["api.resend.com"]);
@@ -76,8 +78,9 @@ async function sendEmail(to: string, subject: string, html: string): Promise<Sen
   }
 }
 
-function message(kind: string, studio: string, periodEnd: string) {
+export function message(kind: string, studio: string, periodEnd: string) {
   const app = (Deno.env.get("APP_URL") || "https://www.helm.events").replace(/\/+$/, "");
+  if (isTrialKind(kind)) return trialMessage(kind, studio, periodEnd, app);   // 0058: branded trial e-mails
   const date = /^\d{4}-\d{2}-\d{2}/.test(periodEnd) ? periodEnd.slice(0, 10) : "";
   if (kind === "past_due") {
     return {
@@ -114,7 +117,7 @@ Deno.serve(async (req) => {
     const counts = { sent: 0, skipped: 0, failed: 0, invalid: 0 };
     for (const r of (Array.isArray(rows) ? rows : [])) {
       const id = String(r?.id ?? ""), kind = String(r?.kind ?? "");
-      if (!UUIDISH.test(id) || !["due_soon", "past_due"].includes(kind)) { counts.invalid++; continue; }
+      if (!UUIDISH.test(id) || !(["due_soon", "past_due"].includes(kind) || isTrialKind(kind))) { counts.invalid++; continue; }
       const { data: org, error: oErr } = await admin.from("organizations").select("name, business_email").eq("id", r.org_id).maybeSingle();
       if (oErr) { console.error("billing-reminder: studio load failed", errTag(oErr)); counts.failed++; continue; }
       const msg = message(kind, String(org?.name || "there"), String(r.period_end ?? ""));
