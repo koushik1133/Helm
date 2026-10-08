@@ -332,6 +332,8 @@
       def.fields.forEach((f) => { const ci = map[f.key]; vals[f.key] = ci >= 0 ? cells[ci] : undefined; });
       const line = i + 2;     // spreadsheet-style line number (header = 1)
       const v = validateRow(kind, vals);
+      // more cells than header columns = an unquoted comma split a value (e.g. 1,250) — never import a guessed value
+      if (table[0] && cells.filter((c, ci) => ci >= table[0].length && String(c == null ? "" : c).trim() !== "").length) v.errors = v.errors.concat(["Row has more cells than the header — put values that contain commas in quotes"]);
       const row = { line, data: v.data, errors: v.errors, status: "new", action: "add", matchId: null, mergeable: false };
       if (v.errors.length) { row.status = "invalid"; row.action = "skip"; rows.push(row); return; }
       const k = dupKey(kind, v.data);
