@@ -78,6 +78,16 @@
       });
       if (items.length) out.push({ type: t.key, label: t.label, icon: t.icon, items });
     });
+    // 0062: leads and events also open their client's one-page timeline (client.html?id=)
+    const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const clients = [];
+    out.forEach((g) => {
+      if (g.type !== "leads" && g.type !== "events") return;
+      g.items.forEach((it) => {
+        if (clients.length < 3 && UUID.test(it.id)) clients.push({ id: "c:" + it.id, title: it.title, subtitle: "Client page", href: "client.html?id=" + it.id });
+      });
+    });
+    if (clients.length) out.push({ type: "clients", label: "Client pages", icon: "🧑", items: clients });
     return out;
   }
   // split text into [{t, hit}] runs for highlighting (case-insensitive, every occurrence)

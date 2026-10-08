@@ -6347,6 +6347,16 @@
         return data && typeof data === "object" && !Array.isArray(data) ? data : {};
       });
     },
+    // 0062 — one page per client (client.html?id=<lead or event id>). client_timeline()
+    // merges that person's leads, events, payments, files, tasks and event-chat messages in
+    // the caller's own studio, only for the areas their role may view. Returns
+    // {client:{name,phone,email,status}, totals, sections, counts, items:[{kind,at,id,title,subtitle,link}]}.
+    // Not found / not allowed → the RPC error (P0002 / 42501). Before 0062 or local mode → null.
+    clientTimeline: (id) => {
+      const ref = String(id == null ? "" : id).trim();
+      if (!supa || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref)) return Promise.resolve(null);
+      return rpc("client_timeline", { p_ref: ref, p_limit: 300 }).catch((e) => { if (rpcMissing(e)) return null; throw e; });
+    },
     gettingStarted: {
       get: () => (supa ? rpc("my_getting_started").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       dismiss: (on) => rpc("my_getting_started_dismiss", { p_dismissed: on !== false }),
