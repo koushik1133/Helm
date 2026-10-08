@@ -194,6 +194,7 @@
       ".hpf-priv{display:flex;gap:8px;align-items:flex-start;margin:4px 2px 16px;font-size:12.5px;line-height:1.5;color:var(--hpf-ink3)}.hpf-privic{width:16px;height:16px;flex:0 0 auto;margin-top:1px}",
       ".hpf-actions{display:flex;align-items:center;justify-content:flex-end;gap:14px;margin-top:4px}",
       ".hpf-actx{margin:0;font-size:13px;color:var(--hpf-ink3);flex:1 1 auto;min-width:0}",
+      ".hpf-setup .hpf-priv{margin-bottom:40px;position:relative;z-index:0}",
       ".hpf-setup .hpf-actions{position:sticky;bottom:0;z-index:5;margin:8px -30px -24px;padding:14px 30px calc(14px + env(safe-area-inset-bottom,0px));background:color-mix(in srgb,var(--hpf-bg) 92%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-top:1px solid var(--hpf-line2);border-radius:0 0 18px 18px}",
       "@media (max-width:560px){.hpf-setup .hpf-actions{margin:8px -18px -18px;padding:12px 18px calc(12px + env(safe-area-inset-bottom,0px));border-radius:0 0 14px 14px}.hpf-setup .hpf-actx{display:none}.hpf-setup .hpf-save{width:100%}}",
       ".hpf-save{display:inline-flex;align-items:center;justify-content:center;gap:8px}",
