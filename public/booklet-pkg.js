@@ -40,8 +40,9 @@
   // which face the section shows
   function phase(d) {
     if (!d || typeof d !== "object") return "off";
-    if (d.mode === "hidden" || d.mode === "selected") return "off";     // menu hidden / studio already picked the package
     const sel = d.current_selection && STATUS[d.current_selection.status] ? d.current_selection : null;
+    // menu hidden, or the studio picked the package itself (no client choice to track) -> nothing to show here
+    if (d.mode === "hidden" || (d.mode === "selected" && !sel)) return "off";
     const t = d.totals || {};
     if (sel && sel.status === "accepted" && num(t.paid) > 0) return "paid";
     if (sel && sel.status === "accepted" && d.quote_ready && safeUrl(d.quote_ready.approve_url)) return "ready";
@@ -251,8 +252,10 @@
   }
 
   function render(d) {
-    S.data = d; S.box.hidden = false;
+    S.data = d;
     const p = phase(d);
+    S.box.hidden = p === "off";
+    if (p === "off") return;
     S.box.querySelector("#pkLede").textContent = p === "choose" || (p === "declined" && S.choosing)
       ? "Pick the package that suits you best and tell us how many guests to plan for. The studio confirms every choice before anything changes."
       : "Your package choice and where it stands.";

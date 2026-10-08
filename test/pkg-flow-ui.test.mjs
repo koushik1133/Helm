@@ -97,6 +97,8 @@ await t('phase: choose / pending / accepted / ready / paid / locked / declined',
   assert.equal(B.phase(sel('pending')), 'pending');
   assert.equal(B.phase(sel('accepted')), 'accepted');
   assert.equal(B.phase(sel('accepted', { quote_ready: { approve_url: 'https://helm.events/a/x' } })), 'ready');
+  assert.equal(B.phase(sel('accepted', { mode: 'selected', quote_ready: { approve_url: '/approve?token=x' } })), 'ready', 'client-chosen package still shows its status once the package is set');
+  assert.equal(B.phase(Object.assign(base(), { mode: 'selected' })), 'off', 'studio-picked package with no client choice shows nothing');
   assert.equal(B.phase(sel('accepted', { quote_ready: { approve_url: 'javascript:alert(1)' } })), 'accepted');
   assert.equal(B.phase(sel('accepted', { totals: { total: 96000, paid: 20000, balance: 76000 } })), 'paid');
   assert.equal(B.phase(Object.assign(base(), { locked: true })), 'locked');
@@ -274,7 +276,7 @@ await t('pages: CSP-clean markup, panels + settings card + scripts wired', () =>
     const h = read(f); const added = h.match(/<(section|div)[^>]*(data-pkg-review|data-pkg-settings|id="packages"|id="pkModal")[^>]*>/g) || [];
     added.forEach((tag) => assert.doesNotMatch(tag, /\sstyle=|\son[a-z]+=/i, f));
   }
-  assert.match(read('public/booklet.html'), /booklet-pkg\.js\?v=2/); assert.match(read('public/booklet.html'), /booklet-pkg\.css\?v=1/);
+  assert.match(read('public/booklet.html'), /booklet-pkg\.js\?v=3/); assert.match(read('public/booklet.html'), /booklet-pkg\.css\?v=1/);
   assert.match(read('public/booklet.html'), /id="pkModal" role="dialog" aria-modal="true"/);
   assert.match(read('public/booklet.html'), /id="pkLive" role="status" aria-live="polite"/);
   assert.match(read('public/event.html'), /id="pkg-selections" class="card" data-pkg-review data-quote-from-url/);
