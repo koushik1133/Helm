@@ -51,6 +51,7 @@ run "storage-policy"     "STORAGE-POLICY: ALL PASS"        psql -q -f tests/db/s
 run "upload-hardening"   "UPLOAD-HARDENING: ALL PASS \(20/20\)" psql -q -f tests/db/upload-hardening.sql
 run "db-gates-0049"     "DB-GATES-0049: ALL PASS \(51/51\)" psql -q -f tests/db/db-gates-0049.sql
 run "lifecycle-reapproval-0052" "LIFECYCLE-REAPPROVAL-0052: ALL PASS \(49/49\)" psql -q -f tests/db/lifecycle-reapproval-0052.sql
+run "password-lockout"   "PASSWORD-LOCKOUT: ALL PASS \(33/33\)" psql -q -f tests/db/password-lockout.sql
 run "upload-quarantine"  "UPLOAD-QUARANTINE: ALL PASS \(21/21\)" psql -q -f tests/db/upload-quarantine.sql
 run "chat-rls"           "CHAT-RLS: ALL PASS"              psql -q -f tests/db/chat-rls.sql
 run "studio-links"       "STUDIO-LINKS: ALL PASS"          psql -q -f tests/db/studio-links.sql

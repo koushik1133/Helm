@@ -65,3 +65,4 @@ forward  supabase/migrations/0049_db_gates.sql
 forward  supabase/migrations/0050_auth_limits.sql
 forward  supabase/migrations/0051_upload_quarantine.sql
 forward  supabase/migrations/0052_lifecycle_reapproval.sql
+forward  supabase/migrations/0053_password_lockout.sql

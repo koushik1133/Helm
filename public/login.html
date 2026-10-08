@@ -309,7 +309,7 @@
           go.textContent="Saving…";
           const opts={ currentPassword: cur.value };
           try{ await BPStore.auth.completePasswordChange(pw.value, opts); cur.value=""; ov.remove(); resolve(true); }
-          catch(e){ er.textContent=(e&&/^(bad_current_password|current_password_required)$/.test(e.code||""))?e.message:BPUI.friendlyError(e,{action:"set your password"}); }
+          catch(e){ er.textContent=(e&&/^(bad_current_password|current_password_required|account_locked)$/.test(e.code||""))?e.message:BPUI.friendlyError(e,{action:"set your password"}); }
           finally{ opts.currentPassword=null; go.textContent="Set password & continue"; }
         });
       });
@@ -626,7 +626,7 @@
         if(/captcha/i.test(m)){ showErr($("#err"),"The security check failed or expired — please try again."); return; }
         // credential / policy messages from Supabase Auth are written for users; everything else goes through friendlyError
         // never echo "already registered" / "not confirmed" (account enumeration): one answer
-        const direct=(err&&(err.code==="invalid_credentials"||err.code==="rate_limited"||err.code==="captcha_failed")) || (/^(Use at least|Include at least|Choose a)/.test(m));
+        const direct=(err&&(err.code==="invalid_credentials"||err.code==="account_locked"||err.code==="rate_limited"||err.code==="captcha_failed")) || (/^(Use at least|Include at least|Choose a)/.test(m));
         showErr($("#err"), direct ? m : BPUI.friendlyError(err,{action: mode==="signup"?"create the studio":"sign you in"}));
       }finally{ capReset(cap); btn.textContent=submitLabel(); }
     });

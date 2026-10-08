@@ -940,8 +940,11 @@
   // Account enumeration: one answer whether or not an email is registered.
   const GENERIC_SIGNIN = "Invalid email or password.";
   const GENERIC_SENT = "If this email can be used, we've sent a link. It can take a few minutes — check spam too.";
+  const LOCKOUT_RE = /^Too many attempts\. Try again in (15 minutes|1 hour) or reset your password\.$/;
   function genericSignInError(error) {
     const c = String((error && error.code) || ""), m = String((error && error.message) || ""), st = Number(error && error.status) || 0;
+    // 0053: the server-side password lockout (Supabase password-verification hook) — show its message as-is
+    if (LOCKOUT_RE.test(m)) { const e = new Error(m); e.code = "account_locked"; return e; }
     if (st === 429 || /rate limit|too many/i.test(m) || /captcha/i.test(m + " " + c)) return error;
     if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) return error;
     if (/invalid_credentials|email_not_confirmed|user_not_found|user_banned|invalid login|not confirmed|credentials|user not found/i.test(c + " " + m) || st === 400) {
@@ -1420,6 +1423,7 @@
         catch (x) { res = { data: null, error: x }; }
         finally { pw = null; }
         const { data, error } = res || {};
+        if (error && LOCKOUT_RE.test(String(error.message || ""))) { const e = new Error(String(error.message)); e.code = "account_locked"; throw e; }
         if (error || !data || !data.user || data.user.id !== uid) { const e = new Error("Your current password isn't right."); e.code = "bad_current_password"; e.cause = error; throw e; }
         currentUser = data.user; explicitSignOut = false;
         reauth = { uid, until: Date.now() + REAUTH_MS };
