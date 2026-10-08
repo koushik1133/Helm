@@ -210,7 +210,7 @@
       ]
     },
     {
-      "source": "/(404|approve|audit|budget|builder|calendar|chat|checkout|client|closure|command|control|crm|dashboard|design|discovery|event|flow|hq|insights|inventory|invite|invite-studio|issues|leads|login|logistics|manual|media|nurture|ops|plan|portal|profile-setup|proposal|proposal-view|quotes|ready|reports|reset-password|resources|runsheet|settlement|sim-pay|staff|teardown|templates|vendors|work)",
+      "source": "/(404|approve|audit|booklet|budget|builder|calendar|chat|checkout|client|closure|command|control|crm|dashboard|design|discovery|event|flow|hq|insights|inventory|invite|invite-studio|issues|leads|login|logistics|manual|media|nurture|ops|plan|portal|profile-setup|proposal|proposal-view|quotes|ready|reports|reset-password|resources|runsheet|settlement|sim-pay|staff|teardown|templates|vendors|work)",
       "headers": [
         {
           "key": "X-Robots-Tag",
@@ -223,7 +223,7 @@
       ]
     },
     {
-      "source": "/(404|approve|audit|budget|builder|calendar|chat|checkout|client|closure|command|control|crm|dashboard|design|discovery|event|flow|hq|insights|inventory|invite|invite-studio|issues|leads|login|logistics|manual|media|nurture|ops|plan|portal|profile-setup|proposal|proposal-view|quotes|ready|reports|reset-password|resources|runsheet|settlement|sim-pay|staff|teardown|templates|vendors|work)\\.html",
+      "source": "/(404|approve|audit|booklet|budget|builder|calendar|chat|checkout|client|closure|command|control|crm|dashboard|design|discovery|event|flow|hq|insights|inventory|invite|invite-studio|issues|leads|login|logistics|manual|media|nurture|ops|plan|portal|profile-setup|proposal|proposal-view|quotes|ready|reports|reset-password|resources|runsheet|settlement|sim-pay|staff|teardown|templates|vendors|work)\\.html",
       "headers": [
         {
           "key": "X-Robots-Tag",
@@ -308,7 +308,7 @@
       ]
     },
     {
-      "source": "/(portal|proposal-view|proposal|media)",
+      "source": "/(booklet|portal|proposal-view|proposal|media)",
       "headers": [
         {
           "key": "Content-Security-Policy",
@@ -317,7 +317,7 @@
       ]
     },
     {
-      "source": "/(portal|proposal-view|proposal|media)\\.html",
+      "source": "/(booklet|portal|proposal-view|proposal|media)\\.html",
       "headers": [
         {
           "key": "Content-Security-Policy",
@@ -553,7 +553,7 @@
       ]
     },
     {
-      "source": "/(approve|portal|proposal-view|work|invite)",
+      "source": "/(approve|booklet|portal|proposal-view|work|invite)",
       "headers": [
         {
           "key": "Referrer-Policy",
@@ -566,7 +566,7 @@
       ]
     },
     {
-      "source": "/(approve|portal|proposal-view|work|invite)\\.html",
+      "source": "/(approve|booklet|portal|proposal-view|work|invite)\\.html",
       "headers": [
         {
           "key": "Referrer-Policy",

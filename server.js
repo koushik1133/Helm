@@ -170,7 +170,7 @@ CSP.checkout = buildCsp({
   'connect-src': baseDirective('connect-src') + ' https://api.razorpay.com https://checkout.razorpay.com https://lumberjack.razorpay.com',
 });
 const CSP_BY_PAGE = {
-  portal: 'userImg', 'proposal-view': 'userImg', proposal: 'userImg', media: 'userImg',
+  portal: 'userImg', booklet: 'userImg', 'proposal-view': 'userImg', proposal: 'userImg', media: 'userImg',
   'invite-studio': 'studio', invite: 'invite', builder: 'builder',
   login: 'auth', 'reset-password': 'auth', checkout: 'checkout',
 };
@@ -199,7 +199,7 @@ const INDEXABLE_PAGES = new Set(['index', 'about', 'services', 'privacy', 'terms
 // Pages served for client links that carry a bearer token in the URL (/approve?token=,
 // /<studio>/<kind>/<ref>, /i/<slug>): Referrer-Policy no-referrer + Cache-Control
 // no-store, private (audit Phase 9). Same list as vercel.json / _headers.
-const TOKEN_PAGES = new Set(['approve', 'portal', 'proposal-view', 'work', 'invite']);
+const TOKEN_PAGES = new Set(['approve', 'portal', 'booklet', 'proposal-view', 'work', 'invite']);
 const NOINDEX = 'noindex, nofollow, noarchive';
 
 // Loopback host? On localhost we serve over http, so `upgrade-insecure-requests`

@@ -1,0 +1,30 @@
+/* booklet-share.css — the studio "Share booklet" button + dialog (booklet-share.js, 0065). */
+.bk-share{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:7px 14px;border-radius:999px;border:1px solid var(--accent,#6d28d9);
+  background:transparent;color:var(--accent,#6d28d9);font:600 13px/1 var(--font,system-ui,sans-serif);cursor:pointer;text-decoration:none}
+.bk-share:hover{background:var(--accent-soft,#efe9ff)}
+.bk-dlg{width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 48px);overflow:auto;border:1px solid var(--line,#e8e3db);border-radius:16px;padding:20px;
+  background:var(--panel,#fff);color:var(--ink,#1b1930);box-shadow:0 24px 60px rgba(20,27,46,.3);font-family:var(--font,system-ui,sans-serif)}
+.bk-dlg::backdrop{background:rgba(20,27,46,.5)}
+.bk-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.bk-head h2{margin:0;font-size:18px}
+.bk-x{border:0;background:transparent;font-size:24px;line-height:1;cursor:pointer;color:var(--ink-3,#6b6577);min-width:40px;min-height:40px;border-radius:8px}
+.bk-sub{margin:6px 0 16px;font-size:13px;color:var(--ink-3,#6b6577)}
+.bk-lab{display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2,#4b475f);margin:12px 0 6px}
+.bk-in,.bk-url{width:100%;min-height:40px;padding:8px 10px;border:1px solid var(--line,#e8e3db);border-radius:10px;background:var(--panel-2,#faf8f5);color:inherit;font:14px/1.4 inherit}
+textarea.bk-in{resize:vertical}
+.bk-row{display:flex;gap:8px;flex-wrap:wrap}
+.bk-url{flex:1 1 220px;font-family:var(--mono,ui-monospace,monospace);font-size:12px}
+.bk-btn{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 16px;border-radius:10px;border:1px solid var(--accent,#6d28d9);
+  background:var(--accent,#6d28d9);color:#fff;font:600 14px/1 inherit;cursor:pointer;text-decoration:none}
+.bk-btn.ghost{background:transparent;color:var(--accent,#6d28d9)}
+.bk-btn.danger{background:#b91c1c;border-color:#b91c1c;color:#fff}
+.bk-btn:disabled{opacity:.6;cursor:not-allowed}
+.bk-acts{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;margin-top:18px}
+.bk-meta{font-size:13px;color:var(--ink-3,#6b6577);margin:8px 0 0}
+.bk-warn{color:#9a4a00}
+.bk-err{color:#b91c1c;font-size:13px;margin:8px 0 0;min-height:1em}
+.bk-fs{border:0;padding:0;margin:0}
+.bk-vers{display:grid;gap:6px;max-height:180px;overflow:auto}
+.bk-check{display:flex;align-items:center;gap:6px;font-size:14px;min-height:32px}
+html[data-theme=dark] .bk-dlg{background:#1c1c22;color:#f3f1fa;border-color:#3a3644}
+html[data-theme=dark] .bk-in,html[data-theme=dark] .bk-url{background:#26222f;border-color:#3a3644}

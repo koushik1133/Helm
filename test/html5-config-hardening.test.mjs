@@ -120,7 +120,7 @@ t('CSP-01: gen-csp rejects a whole-CDN host on a non-builder route', () => {
 });
 
 /* ------------------------------------------------------------------ REF-01 */
-const TOKEN_PAGES = ['approve', 'portal', 'proposal-view', 'work', 'invite'];
+const TOKEN_PAGES = ['approve', 'portal', 'booklet', 'proposal-view', 'work', 'invite'];
 t('REF-01: every client-link page carries <meta name="referrer" content="no-referrer">', () => {
   for (const p of TOKEN_PAGES) assert.match(read(`public/${p}.html`), /<meta name="referrer" content="no-referrer">/, p);
   assert.deepEqual([...server.TOKEN_PAGES].sort(), [...TOKEN_PAGES].sort());

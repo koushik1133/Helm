@@ -16,7 +16,7 @@ const t = (name, fn) => tests.push([name, fn]);
 // Pages anyone may open without a studio session. Everything else is protected
 // (default-deny: a NEW page must either get the gate or be added here on purpose).
 const PUBLIC = ['index', 'about', 'services', 'privacy', 'terms', 'refund-policy', 'login', 'reset-password',
-  'approve', 'portal', 'proposal-view', 'work', 'invite', 'sim-pay', '404', 'manual', 'hq'];
+  'approve', 'portal', 'booklet', 'proposal-view', 'work', 'invite', 'sim-pay', '404', 'manual', 'hq'];
 const PAGES = readdirSync(new URL('public/', root)).filter((f) => f.endsWith('.html')).map((f) => f.slice(0, -5));
 const PROTECTED = PAGES.filter((p) => !PUBLIC.includes(p));
 const GATE_CSS = /<style[^>]*>[^<]*html\.auth-pending body[^{]*\{[^}]*visibility:\s*hidden/;

@@ -44,7 +44,7 @@
       var page = (location.pathname.split("/").pop() || "dashboard.html").toLowerCase().replace(/\.html$/, "") || "index";
       if (page === "index" || page === "welcome" || page === "login") return;   // home / auth pages: no self-link
       // client-facing token pages: clients have no dashboard to go "home" to
-      if (/^(approve|portal|proposal-view|invite|work|sim-pay)$/.test(page) || location.pathname.indexOf("/i/") === 0) return;
+      if (/^(approve|portal|booklet|proposal-view|invite|work|sim-pay)$/.test(page) || location.pathname.indexOf("/i/") === 0) return;
       var mark = document.querySelector("header .mark") || document.querySelector(".mark");
       if (!mark) return;
       if (mark.tagName !== "A" && mark.closest("a[href]")) return;   // brand already WRAPPED in one home link (e.g. builder)
@@ -284,7 +284,7 @@
      expired" when expired=1.
      Only pages that GATE on auth (called auth.required() or auth.requireView())
      redirect, and never the public token pages below. */
-  const PUBLIC_PAGES = { approve: 1, portal: 1, "proposal-view": 1, invite: 1, work: 1, "sim-pay": 1,
+  const PUBLIC_PAGES = { approve: 1, portal: 1, booklet: 1, "proposal-view": 1, invite: 1, work: 1, "sim-pay": 1,
     index: 1, login: 1, about: 1, services: 1, privacy: 1, terms: 1, "refund-policy": 1, "reset-password": 1 };
   let authGateUsed = false;     // page called auth.required()/requireView()
   let hadSession = false;       // a user was signed in at some point on this page
@@ -6541,6 +6541,21 @@
       const ref = String(id == null ? "" : id).trim();
       if (!supa || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref)) return Promise.resolve(null);
       return rpc("client_timeline", { p_ref: ref, p_limit: 300 }).catch((e) => { if (rpcMissing(e)) return null; throw e; });
+    },
+    // 0065 — client event booklet (public/booklet.html?t=<token>). Staff whose role may EDIT
+    // quotes share / revoke; current() needs quotes VIEW. get() is the signed-out client read
+    // (client-safe fields only, rate-limited + logged server-side). Before 0065 / local mode:
+    // current() → null and share() rejects with a friendly message.
+    booklet: {
+      get: (token) => rpc("public_get_booklet", { p_token: token }),
+      current: (quoteId) => (supa ? rpc("booklet_current", { p_quote_id: quoteId }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      share: (quoteId, o) => { o = o || {};
+        if (!supa) return Promise.reject(new Error("Sharing a booklet needs a signed-in studio."));
+        return rpc("booklet_share", { p_quote_id: quoteId, p_days: Math.max(1, Math.min(365, Math.round(Number(o.days) || 30))),
+          p_version_ids: Array.isArray(o.versionIds) ? o.versionIds : null,
+          p_terms: o.terms ? String(o.terms).slice(0, 8000) : null, p_note: o.note ? String(o.note).slice(0, 1000) : null }); },
+      revoke: (quoteId) => rpc("booklet_revoke", { p_quote_id: quoteId }),
+      url: (token) => links.base() + "/booklet?t=" + encodeURIComponent(String(token || "")),
     },
     // 0064 — saved filters / views for list pages (public/saved-filters.js). RLS: own rows +
     // studio-shared rows the role may view; the DB stamps owner + studio and refuses shared
