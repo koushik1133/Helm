@@ -48,7 +48,7 @@
       if (res.files[src]) { img.setAttribute("src", res.files[src]); img.setAttribute("referrerpolicy", "no-referrer"); }
       else if (!/^data:image\//.test(src)) img.remove();
     });
-    if (css) { var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st); }
+    if (css) __helmAdoptCss(document, css);
     var host = $("#mDoc");
     while (host.firstChild) host.removeChild(host.firstChild);
     Array.prototype.slice.call(doc.body.childNodes).forEach(function (n) { host.appendChild(document.importNode(n, true)); });
@@ -67,3 +67,20 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })();
+
+/* CSP: style-src-elem carries no 'unsafe-inline', so runtime CSS goes through a
+   constructable stylesheet (CSSOM — not an inline <style>, not governed by CSP).
+   Falls back to a <style> element only on browsers without adoptedStyleSheets. */
+function __helmAdoptCss(doc, css) {
+  try {
+    var W = doc.defaultView || window;
+    if (W.CSSStyleSheet && "adoptedStyleSheets" in doc && "replaceSync" in W.CSSStyleSheet.prototype) {
+      var sh = new W.CSSStyleSheet(); sh.replaceSync(css);
+      doc.adoptedStyleSheets = Array.prototype.slice.call(doc.adoptedStyleSheets).concat([sh]);
+      return true;
+    }
+  } catch (e) {}
+  var st = doc.createElement("style"); st.textContent = css;
+  (doc.head || doc.documentElement).appendChild(st);
+  return true;
+}

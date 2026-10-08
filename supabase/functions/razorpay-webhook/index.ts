@@ -22,6 +22,7 @@
 //     not a global manager address or hard-coded branding.
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, escHtml, UUID_RE } from "../_shared/cors.ts";
+import { BodyTooLarge, clientIp, rateLimit, readBodyCapped, WEBHOOK_BODY_LIMIT } from "../_shared/limits.ts";
 
 const enc = new TextEncoder();
 async function hmacHex(secret: string, body: string) {
@@ -69,7 +70,9 @@ const oneLine = (s: unknown) => String(s ?? "").replace(/[\r\n]/g, " ").slice(0,
 
 Deno.serve(async (req) => {
   try {
-    const raw = await req.text();
+    const wait = await rateLimit("rzp:ip:" + clientIp(req), 300, 60_000);
+    if (wait) return new Response("too many requests", { status: 429, headers: { "Retry-After": String(wait) } });
+    const raw = await readBodyCapped(req, WEBHOOK_BODY_LIMIT);
     const sig = req.headers.get("x-razorpay-signature") || "";
     const secret = Deno.env.get("RAZORPAY_WEBHOOK_SECRET") || "";
     if (!secret || !timingSafeEqual(await hmacHex(secret, raw), sig)) return new Response("invalid signature", { status: 401 });
@@ -147,6 +150,7 @@ Deno.serve(async (req) => {
     if (ops) await sendEmail(ops, "Helm: a Razorpay payment was settled", "<p>A payment-link payment was settled. Details are in the studio's own account.</p>", fromHeader("Helm"));
     return new Response("ok", { status: 200 });
   } catch (e) {
+    if (e instanceof BodyTooLarge) return new Response("payload too large", { status: 413 });
     console.error("webhook error", errTag(e));
     return new Response("error", { status: 500 });
   }

@@ -59,9 +59,9 @@ function sendJson(res, code, obj) {
   const body = JSON.stringify(obj);
   res.writeHead(code, {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    // same-origin API (the pages call it from this origin) — no CORS headers
+    'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
+    'X-Content-Type-Options': 'nosniff',
     'Cache-Control': 'no-store',
   });
   res.end(body);
@@ -108,14 +108,15 @@ const MIME = {
    script-src host sources come from SCRIPT_SRC_BASE / SCRIPT_SRC_BUILDER in
    scripts/csp-hashes.cjs (path-scoped; CDNs are builder-only). */
 // Inline-script hashes, recomputed only when a page under public/ changes.
-const { computeHashes, htmlFiles, withHashes, SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER } = require('./scripts/csp-hashes.cjs');
-let hashCache = { sig: null, hashes: [] };
+const { computeHashes, computeStyleHashes, htmlFiles, withHashes, SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER } = require('./scripts/csp-hashes.cjs');
+let hashCache = { sig: null, hashes: [], styles: [] };
 function inlineScriptHashes() {
   let sig = '';
   try { for (const f of htmlFiles(PUBLIC_DIR)) sig += f + ':' + fs.statSync(f).mtimeMs + ';'; } catch { return hashCache.hashes; }
-  if (sig !== hashCache.sig) hashCache = { sig, hashes: computeHashes(PUBLIC_DIR) };
+  if (sig !== hashCache.sig) hashCache = { sig, hashes: computeHashes(PUBLIC_DIR), styles: computeStyleHashes(PUBLIC_DIR) };
   return hashCache.hashes;
 }
+function inlineStyleHashes() { inlineScriptHashes(); return hashCache.styles; }
 const CSP_BASE = [
   ['default-src', "'self'"],
   ['base-uri', "'self'"],
@@ -126,7 +127,9 @@ const CSP_BASE = [
   ['img-src', "'self' data: blob: https://nqltzgiwznphugcfhmbm.supabase.co https://xizehqgeyjcfpzrdymly.supabase.co"],
   ['media-src', "'self' blob: https://nqltzgiwznphugcfhmbm.supabase.co https://xizehqgeyjcfpzrdymly.supabase.co"],
   ['font-src', "'self' https://fonts.gstatic.com"],
-  ['style-src', "'self' 'unsafe-inline' https://fonts.googleapis.com"],
+  // style-src / style-src-elem: 'self' + fonts + <style> hashes; style-src-attr 'unsafe-inline'
+  // (see withHashes in scripts/csp-hashes.cjs — added per request)
+  ['style-src', "'self' https://fonts.googleapis.com"],
   // 'self' + the pinned Sentry bundle directory only (no whole-CDN hosts)
   ['script-src', SCRIPT_SRC_BASE.join(' ')],
   ['connect-src', "'self' https://nqltzgiwznphugcfhmbm.supabase.co https://xizehqgeyjcfpzrdymly.supabase.co wss://nqltzgiwznphugcfhmbm.supabase.co wss://xizehqgeyjcfpzrdymly.supabase.co https://*.ingest.sentry.io https://*.ingest.us.sentry.io"],
@@ -219,7 +222,7 @@ function securityHeadersFor(req, filePath) {
   if ((page && !INDEXABLE_PAGES.has(page)) || rel.startsWith('docs/') || rel.startsWith('.well-known/')) {
     h['X-Robots-Tag'] = NOINDEX;
   }
-  h['Content-Security-Policy'] = withHashes(h['Content-Security-Policy'], inlineScriptHashes());
+  h['Content-Security-Policy'] = withHashes(h['Content-Security-Policy'], inlineScriptHashes(), inlineStyleHashes());
   if (isLocalHost(req)) h['Content-Security-Policy'] = h['Content-Security-Policy'].replace(/;\s*upgrade-insecure-requests/, '');
   return h;
 }
@@ -451,11 +454,10 @@ async function handleApi(req, res, url) {
 /* ----------------------------------------------------------- server */
 const server = http.createServer(async (req, res) => {
   try {
-    if (req.method === 'OPTIONS') {   // CORS preflight — 204 must carry no body
+    if (req.method === 'OPTIONS') {   // no CORS: a cross-origin preflight gets no Allow-Origin → refused
       res.writeHead(204, {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
+        'Allow': 'GET, POST, PUT, DELETE, OPTIONS',
       });
       return res.end();
     }
@@ -466,7 +468,7 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(429, {
           'Content-Type': 'application/json',
           'Retry-After': String(retry),
-          'Access-Control-Allow-Origin': '*',
+          'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
           'Cache-Control': 'no-store',
         });
         return res.end(JSON.stringify({ error: 'rate limited — slow down', retryAfter: retry }));

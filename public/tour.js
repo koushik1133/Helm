@@ -151,9 +151,7 @@
     border:1px solid var(--line,#e8e3db);background:var(--panel,#fff);color:var(--accent,#6d28d9);font-family:inherit;
     font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 4px 14px rgba(20,18,40,.14);display:inline-flex;align-items:center;gap:5px}
   .htour-fab:hover{border-color:var(--accent,#6d28d9);background:var(--accent-soft,#efe9ff)}`;
-  const style = document.createElement("style");
-  style.textContent = css;
-  document.head.appendChild(style);
+  __helmAdoptCss(document, css);
 
   /* ---- engine -------------------------------------------------------- */
   let list = [], i = 0, root = null, endKey = "helm_tour_seen_" + page;
@@ -403,3 +401,20 @@
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
   else mount();
 })();
+
+/* CSP: style-src-elem carries no 'unsafe-inline', so runtime CSS goes through a
+   constructable stylesheet (CSSOM — not an inline <style>, not governed by CSP).
+   Falls back to a <style> element only on browsers without adoptedStyleSheets. */
+function __helmAdoptCss(doc, css) {
+  try {
+    var W = doc.defaultView || window;
+    if (W.CSSStyleSheet && "adoptedStyleSheets" in doc && "replaceSync" in W.CSSStyleSheet.prototype) {
+      var sh = new W.CSSStyleSheet(); sh.replaceSync(css);
+      doc.adoptedStyleSheets = Array.prototype.slice.call(doc.adoptedStyleSheets).concat([sh]);
+      return true;
+    }
+  } catch (e) {}
+  var st = doc.createElement("style"); st.textContent = css;
+  (doc.head || doc.documentElement).appendChild(st);
+  return true;
+}

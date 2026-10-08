@@ -45,6 +45,25 @@ function inlineScripts(html) {
   return res;
 }
 
+// Inline <style> blocks of one HTML document: [{ hash, line }]
+function inlineStyles(html) {
+  const res = [];
+  const re = /<style\b([^>]*)>([\s\S]*?)<\/style(?=[\s/>])[^>]*>/gi;
+  let m;
+  while ((m = re.exec(html)) !== null) {
+    const hash = "'sha256-" + crypto.createHash('sha256').update(m[2], 'utf8').digest('base64') + "'";
+    res.push({ hash, line: html.slice(0, m.index).split('\n').length });
+  }
+  return res;
+}
+function computeStyleHashes(publicDir) {
+  const set = new Set();
+  for (const f of htmlFiles(publicDir)) {
+    for (const s of inlineStyles(fs.readFileSync(f, 'utf8'))) set.add(s.hash);
+  }
+  return [...set].sort();
+}
+
 // Sorted, de-duplicated hash list for every page under publicDir.
 function computeHashes(publicDir) {
   const set = new Set();
@@ -56,13 +75,33 @@ function computeHashes(publicDir) {
 
 // Rewrite the script-src directive of a CSP string: keep its host sources,
 // drop 'unsafe-inline' and any old hashes, append the current hashes.
-function withHashes(csp, hashes) {
-  return csp.split(';').map((d) => {
+//
+// With styleHashes (array), the style directives are rewritten too:
+//   style-src       'self' <hosts> <style hashes>   (legacy fallback, no 'unsafe-inline')
+//   style-src-elem  'self' <hosts> <style hashes>   (<style> blocks by hash; runtime CSS
+//                                                    uses constructable sheets / CSSOM)
+//   style-src-attr  'unsafe-inline'                 (style="" attributes are pervasive:
+//                                                    ~580 in HTML + many built in JS; an
+//                                                    attribute cannot load or run script)
+const isHash = (s) => /^'sha(256|384|512)-/.test(s);
+function withHashes(csp, hashes, styleHashes) {
+  const out = [];
+  for (const d of csp.split(';')) {
     const parts = d.trim().split(/\s+/);
-    if (parts[0] !== 'script-src') return d.trim();
-    const keep = parts.slice(1).filter((s) => s !== "'unsafe-inline'" && !/^'sha(256|384|512)-/.test(s));
-    return ['script-src', ...keep, ...hashes].join(' ');
-  }).filter(Boolean).join('; ');
+    if (!parts[0]) continue;
+    if (parts[0] === 'script-src') {
+      const keep = parts.slice(1).filter((s) => s !== "'unsafe-inline'" && !isHash(s));
+      out.push(['script-src', ...keep, ...hashes].join(' '));
+    } else if (styleHashes && (parts[0] === 'style-src-elem' || parts[0] === 'style-src-attr')) {
+      continue;
+    } else if (styleHashes && parts[0] === 'style-src') {
+      const keep = parts.slice(1).filter((s) => s !== "'unsafe-inline'" && s !== "'unsafe-hashes'" && !isHash(s));
+      out.push(['style-src', ...keep, ...styleHashes].join(' '));
+      out.push(['style-src-elem', ...keep, ...styleHashes].join(' '));
+      out.push("style-src-attr 'unsafe-inline'");
+    } else out.push(d.trim());
+  }
+  return out.join('; ');
 }
 
 // ---------------------------------------------------------------------------
@@ -105,6 +144,6 @@ function scriptSrcProblem(csp, route) {
 }
 
 module.exports = {
-  computeHashes, inlineScripts, htmlFiles, withHashes,
+  computeHashes, computeStyleHashes, inlineScripts, inlineStyles, htmlFiles, withHashes,
   SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER, BUILDER_SOURCES, scriptHosts, scriptSrcProblem,
 };
