@@ -197,6 +197,17 @@
         <button class="btn" id="btnSettings" type="button">Save invoice settings</button>
       </div>
     </section>
+    <section class="card" aria-labelledby="coSetH">
+      <h2 id="coSetH">Studio checkout (new studios)</h2>
+      <p class="muted">Controls the plan page new studio owners see after sign-up (/checkout). Saved switches apply immediately.</p>
+      <div class="form">
+        <label class="fld chk"><input type="checkbox" id="coLive"> <span><b>Online payment is live</b> — new studios pay by Razorpay. Turn on only after the payment function is deployed with its keys and every plan has its Razorpay plan ids. Off = new studios start a 14-day free trial.</span></label>
+        <label class="fld chk"><input type="checkbox" id="coBypass"> <span><b>Testing bypass: show “Skip payment (testing only)”</b> — lets a new studio start a free trial without paying. For internal testing only. <b>Turn OFF before launch.</b></span></label>
+        <label class="fld"><span>Terms version new studios accept</span><input type="text" id="coTermsV" maxlength="32" pattern="[A-Za-z0-9._-]{1,32}"></label>
+        <button class="btn" id="btnCheckout" type="button">Save checkout settings</button>
+      </div>
+      <p class="muted" id="coState"></p>
+    </section>
   </section>
 
   <section id="pane-plans" hidden>
@@ -209,6 +220,20 @@
         <label class="fld"><span>Price / month (₹)</span><input type="number" id="plPrice" min="0" step="1"></label>
         <label class="fld chk"><input type="checkbox" id="plActive" checked> <span>Offered</span></label>
         <button class="btn primary" id="btnPlan" type="button">Save plan</button>
+      </div>
+    </section>
+    <section class="card" aria-labelledby="pcH">
+      <h2 id="pcH">Checkout details per plan</h2>
+      <p class="muted">What new studios see on the plan cards, and the Razorpay plan ids used for payment (create the plans in the Razorpay dashboard, then paste the ids — they look like plan_XXXXXXXXXXXX). Each Razorpay plan must charge the price including tax.</p>
+      <div class="scroll"><table><thead><tr><th>Plan</th><th>Description</th><th>Included</th><th>Razorpay ids</th><th></th></tr></thead><tbody id="tPlanCo"></tbody></table></div>
+      <div class="form s-56f4356" id="pcForm" hidden>
+        <label class="fld"><span>Plan</span><input type="text" id="pcCode" readonly></label>
+        <label class="fld"><span>Price currency</span><select id="pcCur"></select></label>
+        <label class="fld"><span>Description</span><input type="text" id="pcDesc" maxlength="300"></label>
+        <label class="fld"><span>What's included (one per line, up to 20)</span><textarea id="pcFeat" rows="5" maxlength="2600"></textarea></label>
+        <label class="fld"><span>Razorpay plan id — monthly</span><input type="text" id="pcRzpM" maxlength="45" placeholder="plan_XXXXXXXXXXXX" spellcheck="false"></label>
+        <label class="fld"><span>Razorpay plan id — yearly</span><input type="text" id="pcRzpY" maxlength="45" placeholder="plan_XXXXXXXXXXXX" spellcheck="false"></label>
+        <button class="btn primary" id="btnPlanCo" type="button">Save checkout details</button>
       </div>
     </section>
     <section class="card s-d6f2af6">
@@ -269,6 +294,6 @@
 <script src="config.js?v=97"></script>
 <script src="store-api.js?v=122"></script>
 <script src="hq-invoice.js?v=1"></script>
-<script src="hq.js?v=7"></script>
+<script src="hq.js?v=8"></script>
 </body>
 </html>

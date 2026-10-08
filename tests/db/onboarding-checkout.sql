@@ -201,12 +201,30 @@ do $$ declare j jsonb; begin
     and pg_temp.try('select public.hq_set_plan_checkout(''zz-co-basic'', ''INR'', null, null)') = '42501');
 end $$;
 
+-- ---- 6) HQ operator UI writes/reads ------------------------------------------------------------
+do $$ declare j jsonb; begin
+  perform pg_temp.login('admin@helm.events');
+  perform set_config('request.jwt.claims', (auth.jwt() || jsonb_build_object('aal', 'aal2'))::text, false);
+  j := public.hq_set_checkout_settings(false, true, '2026-11');
+  perform pg_temp.res('44 HQ: checkout switches saved', not (j ->> 'allow_trial_bypass')::boolean and (j ->> 'online_payments_live')::boolean and j ->> 'terms_version' = '2026-11', j::text);
+  perform public.hq_set_plan_checkout('zz-co-basic', 'INR', 'Basic plan', '["One","Two"]'::jsonb, null, 'plan_HQSET12345', 'plan_HQYEAR12345');
+  select x into j from jsonb_array_elements(public.hq_plan_checkout()) x where x ->> 'code' = 'zz-co-basic';
+  perform pg_temp.res('45 HQ: plan checkout details saved + listed',
+    j ->> 'description' = 'Basic plan' and j -> 'features' = '["One","Two"]'::jsonb
+    and exists (select 1 from jsonb_array_elements(j -> 'prices') p where p ->> 'currency' = 'INR' and p ->> 'razorpay_plan_id_monthly' = 'plan_HQSET12345' and p ->> 'razorpay_plan_id_yearly' = 'plan_HQYEAR12345'), j::text);
+  perform pg_temp.res('46 HQ: bad Razorpay id / features refused',
+    pg_temp.try('select public.hq_set_plan_checkout(''zz-co-basic'', ''INR'', null, null, null, ''pay_x'', null)') = '22023'
+    and pg_temp.try('select public.hq_set_plan_checkout(''zz-co-basic'', ''INR'', null, ''[1]''::jsonb)') = '22023');
+  perform pg_temp.login('c_admin@c.test');
+  perform pg_temp.res('47 studio admin cannot read HQ plan checkout', pg_temp.try('select public.hq_plan_checkout()') = '42501');
+end $$;
+
 -- ---- restore --------------------------------------------------------------------------------------
 do $$ begin perform pg_temp.su();
   update public.helm_billing_settings b set seller_state = s.seller_state, seller_country = s.seller_country, lut_number = s.lut_number,
-    allow_trial_bypass = s.allow_trial_bypass, online_payments_live = s.online_payments_live from _ocs s where b.id;
+    allow_trial_bypass = s.allow_trial_bypass, online_payments_live = s.online_payments_live, terms_version = s.terms_version from _ocs s where b.id;
 end $$;
 select pg_temp.su();
 select name, result from _oc order by name;
-select case when count(*) filter (where result like 'FAIL%') = 0 and count(*) = 43 then 'ONBOARDING-CHECKOUT: ALL PASS (43/43)'
-            else 'ONBOARDING-CHECKOUT: '||count(*) filter (where result like 'FAIL%')||' FAILED, '||count(*)||'/43 ran' end from _oc;
+select case when count(*) filter (where result like 'FAIL%') = 0 and count(*) = 47 then 'ONBOARDING-CHECKOUT: ALL PASS (47/47)'
+            else 'ONBOARDING-CHECKOUT: '||count(*) filter (where result like 'FAIL%')||' FAILED, '||count(*)||'/47 ran' end from _oc;

@@ -13,7 +13,7 @@
 -- REQUIRES 0045 — the preflight stops if not. Works with or without 0055 (phone verify);
 -- if you have 0055, run it FIRST. STAGING first, then PROD.
 -- WHAT IT TOUCHES: new columns on helm_billing_settings / helm_plans / helm_plan_prices /
---   studio_subscriptions (all with defaults), 11 new functions. NO row is deleted and no
+--   studio_subscriptions (all with defaults), 12 new functions. NO row is deleted and no
 --   existing value is changed (checkout_required_after is set once, only when empty).
 -- SAFE TO RE-RUN. If anything fails, it rolls back.
 -- ════════════════════════════════════════════════════════════════════════════
@@ -272,6 +272,18 @@ begin
             'terms_version', b.terms_version, 'checkout_required_after', b.checkout_required_after) from public.helm_billing_settings b where b.id);
 end $$;
 
+create or replace function public.hq_plan_checkout()
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+begin
+  perform public._hq_gate('hq_plan_checkout');
+  return coalesce((select jsonb_agg(jsonb_build_object('code', hp.code, 'name', hp.name, 'active', hp.active,
+      'description', hp.description, 'features', hp.features, 'sort_order', hp.sort_order,
+      'prices', coalesce((select jsonb_agg(jsonb_build_object('currency', pp.currency, 'monthly', pp.price_monthly, 'yearly', pp.price_yearly,
+                 'razorpay_plan_id_monthly', pp.razorpay_plan_id_monthly, 'razorpay_plan_id_yearly', pp.razorpay_plan_id_yearly)
+                 order by pp.currency) from public.helm_plan_prices pp where pp.plan_id = hp.id), '[]'::jsonb))
+    order by hp.sort_order, hp.code) from public.helm_plans hp), '[]'::jsonb);
+end $$;
+
 create or replace function public.hq_set_plan_checkout(p_code text, p_currency text, p_description text, p_features jsonb,
   p_sort_order integer default null, p_razorpay_plan_id_monthly text default null, p_razorpay_plan_id_yearly text default null)
 returns jsonb language plpgsql volatile security definer set search_path = '' as $$
@@ -306,7 +318,7 @@ do $$ declare s text; begin
     'public.my_checkout_prepare(text, text)', 'public.my_start_trial(text, text)',
     'public.checkout_attach_subscription(uuid, text, text, text)',
     'public.hq_set_checkout_settings(boolean, boolean, text)',
-    'public.hq_set_plan_checkout(text, text, text, jsonb, integer, text, text)'] loop
+    'public.hq_set_plan_checkout(text, text, text, jsonb, integer, text, text)', 'public.hq_plan_checkout()'] loop
     execute format('revoke all on function %s from public', s);
     if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', s); end if;
     if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on function %s from authenticated', s); end if;
@@ -319,6 +331,7 @@ do $$ declare s text; begin
     grant execute on function public.my_start_trial(text, text) to authenticated;       -- admin + flag gate inside
     grant execute on function public.hq_set_checkout_settings(boolean, boolean, text) to authenticated;   -- operator gate inside
     grant execute on function public.hq_set_plan_checkout(text, text, text, jsonb, integer, text, text) to authenticated;
+    grant execute on function public.hq_plan_checkout() to authenticated;                -- operator gate inside
   end if;
   if exists (select 1 from pg_roles where rolname = 'service_role') then
     grant execute on function public.checkout_attach_subscription(uuid, text, text, text) to service_role;
