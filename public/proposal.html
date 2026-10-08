@@ -307,7 +307,7 @@
 
   $("#p_addColor").addEventListener("click",()=>{ if(!editable()) return; const c=String($("#p_color").value||"").toLowerCase(); if(!HEX.test(c)){ BPUI.toast("Pick a valid colour.",{type:"err"}); return; } if(!palette.includes(c)){ palette.push(c); dirty.mark(); } renderPalette(); });
   $("#p_addImg").addEventListener("click",()=>{ if(!editable()) return; const raw=$("#p_img").value.trim(); if(!raw) return; const r=BPStore.validate.url(raw); if(!r.ok||!safeImg(r.value)){ BPUI.toast(r.ok?"Use an https:// image link.":r.error,{type:"err"}); $("#p_img").focus(); return; } images.push(r.value); dirty.mark(); $("#p_img").value=""; renderGallery(); });
-  $("#p_addScope").addEventListener("click",()=>{ if(!editable()) return; const s=$("#p_scope").value.trim(); if(s){ scope.push(s); dirty.mark(); $("#p_scope").value=""; renderScope(); } });
+  $("#p_addScope").addEventListener("click",()=>{ if(!editable()) return; const s=$("#p_scope").value.trim(); const nk=(t)=>String(t||"").normalize("NFKC").toLowerCase().replace(/&/g," and ").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\p{L}\p{N}]+/gu," ").trim(); if(s && scope.some(x=>nk(x)===nk(s))){ BPUI.toast("\u201c"+s+"\u201d is already in the scope list.",{type:"err"}); return; } if(s){ scope.push(s); dirty.mark(); $("#p_scope").value=""; renderScope(); } });
   ["#p_concept","#p_theme"].forEach(x=>$(x).addEventListener("input",()=>dirty.mark()));
   $("#propRetry").addEventListener("click",()=>BPUI.guard($("#propRetry"),loadProposal));
   $("#p_img").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("#p_addImg").click(); } });

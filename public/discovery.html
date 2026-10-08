@@ -197,6 +197,10 @@
     const V=BPStore.validate;
     let qty=null; if($("#r_qty").value!==""){ const r=V.count($("#r_qty").value,{field:"Quantity"}); if(!r.ok){ BPUI.toast(r.error,{type:"err"}); return; } qty=r.value; }
     const req={ service, priority:$("#r_priority").value, qty, note:$("#r_note").value.trim()||null };
+    // duplicate guard: same service ignoring case/spacing/punctuation/accents -> ask before adding a second one
+    const normSvc=(t)=>String(t||"").normalize("NFKC").toLowerCase().replace(/&/g," and ").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\p{L}\p{N}]+/gu," ").trim();
+    const dupReq=reqs.find(x=>normSvc(x.service)===normSvc(service));
+    if(dupReq && !(await BPUI.confirm("\u201c"+dupReq.service+"\u201d is already on the list. Add it again?",{title:"Already listed",okLabel:"Add anyway"}))) return;
     await BPUI.guard($("#r_add"),async()=>{
       try{ const row=await BPStore.discovery.addReq(id,req); reqs.push(row); renderReqs();
         $("#r_service").value=""; $("#r_qty").value=""; $("#r_note").value=""; $("#r_service").focus(); }
