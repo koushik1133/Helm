@@ -1029,6 +1029,8 @@ window.HelmUrl = HelmUrl;
     { key: "issues",     label: "Issues & incidents",icon: "🚨", page: null,             group: "Event day" },
     { key: "media",      label: "Media & gallery",   icon: "📸", page: null,             group: "Event day" },
     { key: "controls",   label: "Control Center",    icon: "⚙", page: "control.html",   group: "Admin" },
+    { key: "pkg_review", label: "Package review",    icon: "🍽", page: null,             group: "Workspace" },
+    { key: "pkg_payments", label: "Package payments", icon: "💳", page: null,             group: "Finance" },
     { key: "codes",      label: "Coupons & codes",   icon: "🔑", page: null,             group: "Admin" },
     { key: "users",      label: "Users & access",    icon: "👥", page: "control.html",   group: "Admin" },
   ];
@@ -2288,6 +2290,9 @@ window.HelmUrl = HelmUrl;
   const rpcMissing = (e) => { const c = (e && e.code) || ""; const m = String((e && e.message) || "");
     return c === "PGRST202" || c === "42883" || /could not find the function|function[^]*does not exist/i.test(m); };
   // Edge Function caller — used only when live channels are enabled in config.js
+  // 0069 booklet share checklist keys (server validates the same list)
+  const BOOKLET_SECTIONS = ["studio", "client", "venue", "menu", "layout2d", "layout3d", "quotation", "payments", "terms", "note"];
+  const UUID_RE_PKG = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const fnUrl = (name) => (CFG.url ? CFG.url.replace(/\/$/, "") + "/functions/v1/" + name : null);
   async function callFn(name, body) {
     // signed-in staff send their own access token (send-whatsapp requires it);
@@ -6654,13 +6659,66 @@ window.HelmUrl = HelmUrl;
         .then((r) => { if (r && r !== studio) { try { history.replaceState(null, "", "/" + r + "/booklet/" + encodeURIComponent(String(token))); } catch (e) {} } return !!r; })
         .catch((e) => { if (rpcMissing(e)) return true; throw e; }) : Promise.resolve(true)),
       current: (quoteId) => (supa ? rpc("booklet_current", { p_quote_id: quoteId }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      // 0069: o.sections = { studio, client, venue, menu, layout2d, layout3d, quotation, payments, terms, note } (booleans;
+      // missing = shown). Hidden sections are removed server-side. o.versions is an alias of o.versionIds.
       share: (quoteId, o) => { o = o || {};
         if (!supa) return Promise.reject(new Error("Sharing a booklet needs a signed-in studio."));
+        const vers = Array.isArray(o.versionIds) ? o.versionIds : (Array.isArray(o.versions) ? o.versions : null);
+        let sec = null;
+        if (o.sections && typeof o.sections === "object") { sec = {}; for (const k of BOOKLET_SECTIONS) if (k in o.sections) sec[k] = !!o.sections[k]; }
         return rpc("booklet_share", { p_quote_id: quoteId, p_days: Math.max(1, Math.min(365, Math.round(Number(o.days) || 30))),
-          p_version_ids: Array.isArray(o.versionIds) ? o.versionIds : null,
-          p_terms: o.terms ? String(o.terms).slice(0, 8000) : null, p_note: o.note ? String(o.note).slice(0, 1000) : null }); },
+          p_version_ids: vers, p_terms: o.terms ? String(o.terms).slice(0, 8000) : null, p_note: o.note ? String(o.note).slice(0, 1000) : null,
+          ...(sec ? { p_sections: sec } : {}) }); },
       revoke: (quoteId) => rpc("booklet_revoke", { p_quote_id: quoteId }),
       url: (token) => (HelmUrl.studio() ? links.base() + "/" + HelmUrl.studio() + "/booklet/" + encodeURIComponent(String(token || "")) : links.base() + "/booklet?t=" + encodeURIComponent(String(token || ""))),
+      sections: () => BOOKLET_SECTIONS.slice(),
+      // 0069: 2D / 3D snapshot -> private bucket booklet-snapshots at <org>/<quote>/<kind>.<png|jpg|webp> (<= 3 MB),
+      // then recorded on the live booklet link. Returns the storage path.
+      uploadSnapshot: async (quoteId, kind, blob) => {
+        if (!supa || mode !== "supabase") throw new Error("Snapshots need a signed-in studio.");
+        if (kind !== "2d" && kind !== "3d") throw new Error("Snapshot kind must be 2d or 3d.");
+        if (!UUID_RE_PKG.test(String(quoteId || ""))) throw new Error("Unknown event.");
+        const type = String((blob && blob.type) || "");
+        const ext = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" }[type];
+        if (!ext) throw new Error("Snapshot must be a PNG, JPEG or WebP image.");
+        if (!blob.size || blob.size > 3 * 1024 * 1024) throw new Error("Snapshot must be 3 MB or smaller.");
+        const oid = await orgIdStrict();
+        const path = oid + "/" + quoteId + "/" + kind + "." + ext;
+        const up = await supa.storage.from("booklet-snapshots").upload(path, blob, { contentType: type, upsert: true, cacheControl: "300" });
+        if (up && up.error) { if (looksLikeAuthError(up.error)) onAuthFailure(); throw up.error; }
+        await rpc("booklet_set_snapshot", { p_quote_id: quoteId, p_kind: kind, p_path: path });
+        return path;
+      },
+      // signed-out booklet page: <img src> for a ticked snapshot (dormant edge function booklet-snapshot)
+      snapshotUrl: (token, kind) => { const u = fnUrl("booklet-snapshot");
+        return u ? u + "?t=" + encodeURIComponent(String(token || "")) + "&k=" + (kind === "3d" ? "3d" : "2d") : ""; },
+    },
+    // 0069 - client package selection (booklet) + staff review. Before 0069 is applied (or local
+    // mode) the reads return null / [] and writes reject with a friendly message.
+    pkgflow: {
+      packages: (token) => (supa ? rpc("public_booklet_packages", { p_token: token }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      choose: (token, pkg, guests, note, otp) => {
+        if (!supa) return Promise.reject(new Error("Package selection is not available."));
+        return rpc("public_booklet_choose", { p_token: token, p_package: pkg, p_guests: Math.round(Number(guests) || 0),
+          p_note: note ? String(note).slice(0, 1000) : null, p_otp: otp ? String(otp).trim().slice(0, 12) : null })
+          .catch((e) => { if (rpcMissing(e)) return null; throw e; });
+      },
+      otpRequest: (token) => (supa ? rpc("public_booklet_otp_request", { p_token: token }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      list: (quoteId) => (supa ? rpc("pkg_selection_list", { p_quote: quoteId || null }).then((d) => (Array.isArray(d) ? d : []))
+        .catch((e) => { if (rpcMissing(e)) return []; throw e; }) : Promise.resolve([])),
+      review: (id, action, price, reason) => {
+        if (!supa) return Promise.reject(new Error("Reviewing needs a signed-in studio."));
+        const p = price === null || price === undefined || price === "" ? null : Number(price);
+        return rpc("pkg_selection_review", { p_id: id, p_action: action === "decline" ? "decline" : "accept",
+          p_price_override: Number.isFinite(p) ? p : null, p_reason: reason ? String(reason).slice(0, 500) : null });
+      },
+      settingsGet: () => (supa ? rpc("pkg_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      settingsSet: (obj) => {
+        if (!supa) return Promise.reject(new Error("Settings need a signed-in studio."));
+        const o = obj || {}, out = {};
+        for (const k of ["pkg_require_otp", "pkg_client_channel", "overpay_mode", "pkg_lock_days"]) if (k in o) out[k] = o[k];
+        return rpc("pkg_settings_set", { p: out });
+      },
     },
     // 0064 — saved filters / views for list pages (public/saved-filters.js). RLS: own rows +
     // studio-shared rows the role may view; the DB stamps owner + studio and refuses shared
