@@ -80,15 +80,27 @@ function computeHashes(publicDir) {
 //   style-src       'self' <hosts> <style hashes>   (legacy fallback, no 'unsafe-inline')
 //   style-src-elem  'self' <hosts> <style hashes>   (<style> blocks by hash; runtime CSS
 //                                                    uses constructable sheets / CSSOM)
-//   style-src-attr  'unsafe-inline'                 (style="" attributes are pervasive:
-//                                                    ~580 in HTML + many built in JS; an
+//   style-src-attr  'unsafe-inline'                 (static markup style="" were moved to
+//                                                    classes — scripts/extract-inline-styles.mjs —
+//                                                    but ~280 remain in JS-built templates; an
 //                                                    attribute cannot load or run script)
+//
+// Trusted Types: public/trusted-types.js installs a `default` policy (allowlist
+// sanitizer) plus the `helm` policy. Enforcement is a FLAG, off until every page
+// has been exercised logged-in with zero violations (see docs in that file):
+//   TRUSTED_TYPES_ENFORCE = true  → every policy gets
+//     require-trusted-types-for 'script'; trusted-types helm default
+// HELM_TRUSTED_TYPES=1 turns it on for the local server only (verification runs).
+const TRUSTED_TYPES_ENFORCE = false;
+const TT_DIRECTIVES = ["require-trusted-types-for 'script'", 'trusted-types helm default'];
+const ttOn = () => TRUSTED_TYPES_ENFORCE || process.env.HELM_TRUSTED_TYPES === '1';
 const isHash = (s) => /^'sha(256|384|512)-/.test(s);
 function withHashes(csp, hashes, styleHashes) {
   const out = [];
   for (const d of csp.split(';')) {
     const parts = d.trim().split(/\s+/);
     if (!parts[0]) continue;
+    if (parts[0] === 'require-trusted-types-for' || parts[0] === 'trusted-types') continue;
     if (parts[0] === 'script-src') {
       const keep = parts.slice(1).filter((s) => s !== "'unsafe-inline'" && !isHash(s));
       out.push(['script-src', ...keep, ...hashes].join(' '));
@@ -101,6 +113,7 @@ function withHashes(csp, hashes, styleHashes) {
       out.push("style-src-attr 'unsafe-inline'");
     } else out.push(d.trim());
   }
+  if (ttOn()) out.push(...TT_DIRECTIVES);
   return out.join('; ');
 }
 
@@ -144,6 +157,7 @@ function scriptSrcProblem(csp, route) {
 }
 
 module.exports = {
+  TRUSTED_TYPES_ENFORCE, TT_DIRECTIVES,
   computeHashes, computeStyleHashes, inlineScripts, inlineStyles, htmlFiles, withHashes,
   SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER, BUILDER_SOURCES, scriptHosts, scriptSrcProblem,
 };

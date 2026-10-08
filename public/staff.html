@@ -78,7 +78,7 @@
   .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px;margin-top:10px}
   .lsheet{width:min(400px,96vw);text-align:center} .lsheet input{width:100%}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -137,13 +137,14 @@
 <div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
   <div class="sheet lsheet">
     <h3><span id="loginModalTitle">Sign in</span><button type="button" class="close" id="li_close" aria-label="Close" data-close>×</button></h3>
-    <div class="fld" style="margin-bottom:10px"><label for="li_email" style="text-align:left">Email</label><input id="li_email" type="email"></div>
-    <div class="fld" style="margin-bottom:10px"><label for="li_pass" style="text-align:left">Password</label><input id="li_pass" type="password"></div>
+    <div class="fld s-761d3ad"><label class="s-6be0d8b" for="li_email">Email</label><input id="li_email" type="email"></div>
+    <div class="fld s-761d3ad"><label class="s-6be0d8b" for="li_pass">Password</label><input id="li_pass" type="password"></div>
     <div id="li_err" class="err" role="alert" aria-live="assertive" hidden></div>
     <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
 <script src="store-api.js?v=118"></script>

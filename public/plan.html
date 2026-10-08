@@ -59,7 +59,7 @@
   .sheet h3{margin:0 0 12px}.foot2{display:flex;gap:10px;justify-content:flex-end}
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -75,7 +75,7 @@
   <div id="boot" aria-busy="true"></div>
 
   <div id="gate" class="card" hidden><p class="muted">Sign in to open event details.</p></div>
-  <div id="notfound" class="card" hidden><p class="muted">Event not found. Go to <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a>.</p></div>
+  <div id="notfound" class="card" hidden><p class="muted">Event not found. Go to <a class="s-dea29d3" href="quotes.html">Quotes</a>.</p></div>
 
   <div id="app" hidden>
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
@@ -83,7 +83,7 @@
 
     <div class="card">
       <h2>🏛 Venue &amp; access</h2>
-      <p class="sub">Where the event happens, and how the staff gets in. <a id="floorLink" href="#" style="color:var(--accent)">Open floor layout →</a></p>
+      <p class="sub">Where the event happens, and how the staff gets in. <a class="s-a805525" id="floorLink" href="#">Open floor layout →</a></p>
       <div class="grid">
         <div class="fld"><label for="v_name">Venue name</label><input id="v_name" placeholder="e.g. Grand Ballroom, Taj"></div>
         <div class="fld"><label for="v_contact">Venue contact</label><input id="v_contact" placeholder="name / phone"></div>
@@ -97,21 +97,21 @@
       <h2>🍽 Menu &amp; package <span id="lockBadge" class="lockbadge off" hidden>Draft</span></h2>
       <p class="sub">Once agreed with the client, lock it — later changes should go through a change order.</p>
 
-      <div id="pkgBlock" style="margin-bottom:12px">
-        <div id="pkgLabel" style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)">Menu packages — pick one to pre-fill the dishes</div>
-        <div id="pkgCards" role="group" aria-labelledby="pkgLabel" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:8px"></div>
+      <div class="s-da12f28" id="pkgBlock">
+        <div class="s-6dfde5d" id="pkgLabel">Menu packages — pick one to pre-fill the dishes</div>
+        <div class="s-1e9d45c" id="pkgCards" role="group" aria-labelledby="pkgLabel"></div>
       </div>
 
       <div class="fld"><label for="p_pkg">Package</label><input id="p_pkg" placeholder="e.g. Gold package — 400 pax"></div>
-      <div class="fld"><label for="p_menu">Menu / service details (notes)</label><textarea id="p_menu" placeholder="Courses, dietary options, service style, timings…" style="min-height:90px"></textarea></div>
+      <div class="fld"><label for="p_menu">Menu / service details (notes)</label><textarea class="s-92e99af" id="p_menu" placeholder="Courses, dietary options, service style, timings…"></textarea></div>
 
-      <div id="dishBlock" style="margin-top:6px;border-top:1px solid var(--line);padding-top:14px">
-        <label for="dishSearch" style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)">Dishes — search &amp; add</label>
-        <div id="dishAdd" style="position:relative;margin:6px 0 4px">
-          <input id="dishSearch" placeholder="Search dishes — e.g. paneer, biryani, dosa, chicken…" autocomplete="off" style="width:100%">
-          <div id="dishResults" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:20;max-height:260px;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)"></div>
+      <div class="s-140b790" id="dishBlock">
+        <label class="s-6dfde5d" for="dishSearch">Dishes — search &amp; add</label>
+        <div class="s-7715f6a" id="dishAdd">
+          <input class="s-0466783" id="dishSearch" placeholder="Search dishes — e.g. paneer, biryani, dosa, chicken…" autocomplete="off">
+          <div class="s-ec289ab" id="dishResults"></div>
         </div>
-        <div id="selDishes" style="margin-top:8px"></div>
+        <div class="s-8a77e5a" id="selDishes"></div>
       </div>
 
       <div class="foot"><span id="p_msg" role="status" aria-live="polite"></span>
@@ -136,7 +136,7 @@
   <div class="sheet">
     <h3 id="lockTitle">Lock the menu &amp; package?</h3>
     <p class="muted" id="lockMsg">Once locked, the fields become read-only. You can unlock later, but the intent is that changes go through a change order.</p>
-    <div class="foot2" style="margin-top:14px"><button type="button" class="btn" id="lock_cancel" data-close>Cancel</button><button type="button" class="btn primary" id="lock_ok">Lock</button></div>
+    <div class="foot2 s-d6f2af6"><button type="button" class="btn" id="lock_cancel" data-close>Cancel</button><button type="button" class="btn primary" id="lock_ok">Lock</button></div>
   </div>
 </div>
 
@@ -150,6 +150,7 @@
   </div>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
 <script src="store-api.js?v=118"></script>

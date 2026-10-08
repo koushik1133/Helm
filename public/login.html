@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="/trusted-types.js?v=1"></script>
 <script>/* Auth screens are ALWAYS light — the saved theme (bps.theme) is applied only after the user lands on an in-app page post-login. */try{document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>
 <title>Sign in · Helm</title>
 <meta name="description" content="Sign in to Helm, or create your studio's private workspace to run every event from first enquiry to final bill.">
@@ -83,7 +84,7 @@
   .hint{font-size:12px;color:var(--ink-3);margin:-10px 0 16px}
   .captcha{margin:0 0 16px;min-height:65px}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -130,7 +131,7 @@
         <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
         Continue with Google
       </button>
-      <div class="foot">By continuing you agree to our <a href="terms" style="color:var(--accent)">Terms</a> &amp; <a href="privacy" style="color:var(--accent)">Privacy Policy</a>. · <a href="/" style="color:var(--accent)">← Home</a></div>
+      <div class="foot">By continuing you agree to our <a class="s-a805525" href="terms">Terms</a> &amp; <a class="s-a805525" href="privacy">Privacy Policy</a>. · <a class="s-a805525" href="/">← Home</a></div>
     </form>
 
     <!-- Forgot password: always the same answer, whether or not the email has an account -->
@@ -157,7 +158,7 @@
       <input id="mfa_code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="123456" required aria-describedby="mfaHint">
       <p class="hint" id="mfaHint">Codes refresh every 30 seconds — enter the newest one.</p>
       <button class="btn" id="mfa_submit" type="submit">Verify →</button>
-      <p class="hint" style="margin:14px 0 0">Lost access to your authenticator app? Email <b>security@helm.events</b> from this account's address — we confirm who you are before resetting two-step verification.</p>
+      <p class="hint s-2d724d0">Lost access to your authenticator app? Email <b>security@helm.events</b> from this account's address — we confirm who you are before resetting two-step verification.</p>
       <div class="foot">Signed in as <b id="mfaEmail"></b> · <button type="button" class="linkbtn" id="mfa_signout">Use a different account</button></div>
     </form>
 
@@ -167,7 +168,7 @@
       <h1>Set up two-step verification</h1>
       <p class="sub">This account must use two-step verification before it can continue. It takes about a minute: scan the code with an authenticator app, then enter the 6-digit code it shows.</p>
       <div id="mfaSetupBox" aria-live="polite"></div>
-      <p class="hint" style="margin:12px 0 0">Codes refresh every 30 seconds — enter the newest one. Keep the app on a phone only you use. If you ever lose it, email <b>security@helm.events</b> from this account's address.</p>
+      <p class="hint s-d870e82">Codes refresh every 30 seconds — enter the newest one. Keep the app on a phone only you use. If you ever lose it, email <b>security@helm.events</b> from this account's address.</p>
       <div class="foot">Signed in as <b id="mfaSetupEmail"></b> · <button type="button" class="linkbtn" id="mfaSetup_signout">Sign out</button></div>
     </div>
 
@@ -176,13 +177,13 @@
       <div class="mmk"></div>
       <h1 id="obTitle">Set up your studio</h1>
       <p class="sub" id="obSub">You're signed in — tell us about your business to create your <b>own new</b> workspace.</p>
-      <div class="okmsg" id="obHint" style="text-align:left">Were you invited by a colleague? Don't create a studio here — open the <b>invite link</b> they sent you instead, so you join <em>their</em> studio. <button type="button" class="linkbtn" id="ob_signout2">Sign out</button></div>
+      <div class="okmsg s-6be0d8b" id="obHint">Were you invited by a colleague? Don't create a studio here — open the <b>invite link</b> they sent you instead, so you join <em>their</em> studio. <button type="button" class="linkbtn" id="ob_signout2">Sign out</button></div>
       <div class="err" id="obErr" role="alert" hidden></div>
       <label for="ob_name">Business / studio name</label>
       <input id="ob_name" placeholder="e.g. Aurora Events" autocomplete="organization" required>
       <label for="ob_location">Location (city, country)</label>
       <input id="ob_location" placeholder="e.g. Hyderabad, India" autocomplete="address-level2">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="s-8aed95a">
         <div>
           <label for="ob_currency">Currency</label>
           <select id="ob_currency">

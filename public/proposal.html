@@ -84,7 +84,7 @@
   th{position:relative} .table-scroll{position:relative}
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -100,7 +100,7 @@
   <div id="boot" aria-busy="true"></div>
 
   <div id="gate" class="card" hidden><p class="muted">Sign in to open the proposal.</p></div>
-  <div id="notfound" class="card" hidden><p class="muted">Event not found. Go to <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a>.</p></div>
+  <div id="notfound" class="card" hidden><p class="muted">Event not found. Go to <a class="s-dea29d3" href="quotes.html">Quotes</a>.</p></div>
 
   <div id="app" hidden>
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
@@ -113,18 +113,18 @@
       <div class="fld"><label for="p_theme">Theme</label><input id="p_theme" placeholder="e.g. Pastel garden romance"></div>
 
       <div class="fld"><label for="p_color">Colour palette</label>
-        <div class="row"><input type="color" id="p_color" value="#7c5cff" style="width:48px;height:38px;padding:2px"><button type="button" class="btn sm" id="p_addColor">＋ Add colour</button></div>
+        <div class="row"><input class="s-115332a" type="color" id="p_color" value="#7c5cff"><button type="button" class="btn sm" id="p_addColor">＋ Add colour</button></div>
         <div class="swatches" id="swatches"></div>
       </div>
 
       <div class="fld"><label for="p_img">Reference images (paste image URLs)</label>
-        <div class="row"><input id="p_img" placeholder="https://…/inspiration.jpg" style="flex:1;min-width:200px"><button type="button" class="btn sm" id="p_addImg">＋ Add image</button></div>
+        <div class="row"><input class="s-7b1dd1f" id="p_img" placeholder="https://…/inspiration.jpg"><button type="button" class="btn sm" id="p_addImg">＋ Add image</button></div>
         <div class="gallery" id="gallery"></div>
       </div>
 
       <div class="fld"><label for="p_scope">Scope — what's included</label>
-        <div class="row"><input id="p_scope" placeholder="e.g. Stage & backdrop décor" style="flex:1;min-width:200px"><button type="button" class="btn sm" id="p_addScope">＋ Add item</button></div>
-        <div id="scopeList" style="margin-top:8px"></div>
+        <div class="row"><input class="s-7b1dd1f" id="p_scope" placeholder="e.g. Stage & backdrop décor"><button type="button" class="btn sm" id="p_addScope">＋ Add item</button></div>
+        <div class="s-8a77e5a" id="scopeList"></div>
       </div>
 
       <div class="foot"><span id="p_msg" role="status" aria-live="polite"></span><button type="button" class="btn primary" id="p_save" hidden>Save proposal</button></div>
@@ -142,17 +142,17 @@
         <button type="button" class="btn primary" id="pubBtn" hidden>Publish</button>
         <button type="button" class="btn" id="unpubBtn" hidden>Unpublish</button>
       </div>
-      <small style="display:block;margin-top:6px;color:var(--ink-3)">The proposal link stops working 7 days after the event.</small>
+      <small class="s-6ae803c">The proposal link stops working 7 days after the event.</small>
     </div>
 
     <div class="card">
       <h2>Feasibility &amp; risk checklist</h2>
       <p class="sub">Internal only — never shown to the client. Track what could go wrong and how you'll handle it.</p>
       <div id="addRisk" class="reqrow" hidden>
-        <div class="fld" style="margin:0"><label for="rk_title">Risk</label><input id="rk_title" placeholder="e.g. Outdoor venue — rain"></div>
-        <div class="fld" style="margin:0"><label for="rk_sev">Severity</label><select id="rk_sev"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
-        <div class="fld" style="margin:0"><label for="rk_mit">Mitigation</label><input id="rk_mit" placeholder="e.g. Tent on standby"></div>
-        <div class="fld" style="margin:0"><span aria-hidden="true" style="font-size:12px">&nbsp;</span><button type="button" class="btn primary sm" id="rk_add">＋ Add</button></div>
+        <div class="fld s-1169661"><label for="rk_title">Risk</label><input id="rk_title" placeholder="e.g. Outdoor venue — rain"></div>
+        <div class="fld s-1169661"><label for="rk_sev">Severity</label><select id="rk_sev"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
+        <div class="fld s-1169661"><label for="rk_mit">Mitigation</label><input id="rk_mit" placeholder="e.g. Tent on standby"></div>
+        <div class="fld s-1169661"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary sm" id="rk_add">＋ Add</button></div>
       </div>
       <div class="table-scroll"><table>
         <thead><tr><th scope="col">Risk</th><th scope="col">Severity</th><th scope="col">Mitigation</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
@@ -166,14 +166,15 @@
 <div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
   <form class="lsheet" id="loginForm" novalidate>
     <button type="button" class="lclose" id="li_close" aria-label="Close" data-close>×</button>
-    <div class="mark" style="margin:0 auto 10px" aria-hidden="true"></div><h3 id="loginModalTitle">Sign in</h3>
+    <div class="mark s-ffac540" aria-hidden="true"></div><h3 id="loginModalTitle">Sign in</h3>
     <label for="li_email">Email</label><input type="email" id="li_email" required>
     <label for="li_pw">Password</label><input type="password" id="li_pw" required>
     <div class="lerr" id="li_err" role="alert" aria-live="assertive" hidden></div>
-    <button class="btn primary" id="li_submit" type="submit" style="width:100%;justify-content:center">Sign in</button>
+    <button class="btn primary s-4a27002" id="li_submit" type="submit">Sign in</button>
   </form>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
 <script src="store-api.js?v=118"></script>

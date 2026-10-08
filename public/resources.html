@@ -65,7 +65,7 @@
   th{position:relative} .table-scroll{position:relative}
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -81,7 +81,7 @@
   <div id="boot" aria-busy="true"></div>
 
   <div id="gate" class="card" hidden><p class="muted">Sign in to open the resource plan.</p></div>
-  <div id="notfound" class="card" hidden><p class="muted">Event not found. Go to <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a>.</p></div>
+  <div id="notfound" class="card" hidden><p class="muted">Event not found. Go to <a class="s-dea29d3" href="quotes.html">Quotes</a>.</p></div>
 
   <div id="app" hidden>
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
@@ -102,12 +102,12 @@
         <div class="fld" id="wrap_skill" hidden><label for="n_skill">Skill / role</label><input id="n_skill" placeholder="e.g. sound"></div>
         <div class="fld" id="wrap_item" hidden><label for="n_item">Item</label><select id="n_item"></select></div>
         <div class="fld"><label for="n_qty">Qty</label><input id="n_qty" type="number" min="1" value="1"></div>
-        <div class="fld"><span aria-hidden="true" style="font-size:12px">&nbsp;</span><button type="button" class="btn primary" id="n_add">＋ Add</button></div>
+        <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="n_add">＋ Add</button></div>
       </div>
-      <div style="margin-top:10px"><button type="button" class="btn sm" id="pullBtn">↧ Pull from discovery requirements</button> <span class="muted" id="pullMsg" role="status" aria-live="polite"></span></div>
+      <div class="s-d2c171b"><button type="button" class="btn sm" id="pullBtn">↧ Pull from discovery requirements</button> <span class="muted" id="pullMsg" role="status" aria-live="polite"></span></div>
     </div>
 
-    <div class="card" style="padding:0;overflow:auto">
+    <div class="card s-8d8d59e">
       <table>
         <thead><tr><th scope="col">Need</th><th scope="col">Type</th><th scope="col" class="num">Need</th><th scope="col" class="num">In-house</th><th scope="col">Coverage</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody id="rows"><tr><td colspan="6" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
@@ -115,10 +115,10 @@
     </div>
     <p class="muted" id="gapHint" hidden></p>
 
-    <div class="card" style="margin-top:16px">
-      <h2>External bookings <span class="muted" style="font-weight:400">— vendors · freelancers · rentals</span></h2>
-      <p class="sub">Book outside partners to cover the gaps. <a href="vendors.html" style="color:var(--accent)">Manage partners →</a></p>
-      <div style="margin-bottom:10px"><button type="button" class="btn sm" id="bookBtn" hidden>＋ Book a partner</button></div>
+    <div class="card s-1b0f499">
+      <h2>External bookings <span class="muted s-7e3a944">— vendors · freelancers · rentals</span></h2>
+      <p class="sub">Book outside partners to cover the gaps. <a class="s-a805525" href="vendors.html">Manage partners →</a></p>
+      <div class="s-761d3ad"><button type="button" class="btn sm" id="bookBtn" hidden>＋ Book a partner</button></div>
       <div class="table-scroll">
       <table>
         <thead><tr><th scope="col">Partner</th><th scope="col">For</th><th scope="col" class="num">Cost</th><th scope="col" class="num">Advance</th><th scope="col">Contract</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
@@ -132,18 +132,18 @@
 
 <div id="bookModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="bm_title">
   <div class="sheet">
-    <h3 style="display:flex;align-items:center;gap:8px"><span id="bm_title">Book a partner</span><button type="button" class="close" id="bm_close" aria-label="Close" data-close style="margin-left:auto;border:1px solid var(--line);background:var(--panel);border-radius:8px;width:32px;height:32px;font-size:15px;cursor:pointer;color:var(--ink-3)">×</button></h3>
+    <h3 class="s-015a5e7"><span id="bm_title">Book a partner</span><button type="button" class="close s-af04dd5" id="bm_close" aria-label="Close" data-close>×</button></h3>
     <div class="fld"><label for="bk_label">Covers need</label><input id="bk_label" placeholder="what this covers"></div>
-    <div class="fld" style="margin-top:10px"><label for="bk_vendor">Partner</label><select id="bk_vendor"></select></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+    <div class="fld s-d2c171b"><label for="bk_vendor">Partner</label><select id="bk_vendor"></select></div>
+    <div class="s-0a349e0">
       <div class="fld"><label for="bk_cost">Cost (₹)</label><input id="bk_cost" type="number" min="0" placeholder="optional"></div>
       <div class="fld"><label for="bk_adv">Advance (₹)</label><input id="bk_adv" type="number" min="0" placeholder="optional"></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+    <div class="s-0a349e0">
       <div class="fld"><label for="bk_status">Status</label><select id="bk_status"><option value="enquiry">Enquiry</option><option value="booked" selected>Booked</option><option value="confirmed">Confirmed</option><option value="delivered">Delivered</option></select></div>
-      <div class="fld"><label style="display:flex;align-items:center;gap:6px;height:38px;margin-top:18px"><input type="checkbox" id="bk_contract" style="width:auto;height:auto"> Contract signed</label></div>
+      <div class="fld"><label class="s-e648473"><input class="s-e210402" type="checkbox" id="bk_contract"> Contract signed</label></div>
     </div>
-    <div class="fld" style="margin-top:6px"><label for="bk_note">Note</label><input id="bk_note" placeholder="optional"></div>
+    <div class="fld s-fe7b497"><label for="bk_note">Note</label><input id="bk_note" placeholder="optional"></div>
     <div id="bm_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot"><button type="button" class="btn" id="bm_cancel">Cancel</button><button class="btn primary" id="bm_save">Save booking</button></div>
   </div>
@@ -159,6 +159,7 @@
   </div>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
 <script src="store-api.js?v=118"></script>

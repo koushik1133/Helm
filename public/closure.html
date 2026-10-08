@@ -60,7 +60,7 @@
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
   :root{--neg:#b42318} html[data-theme="dark"]{--neg:#f87171}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -75,12 +75,12 @@
   <main id="main">
   <div id="boot" aria-busy="true"></div>
 
-  <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to open closure.</p></div>
-  <div id="notfound" class="card" hidden><p style="color:var(--ink-3)">Event not found. Go to <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a>.</p></div>
+  <div id="gate" class="card" hidden><p class="s-1a1aca0">Sign in to open closure.</p></div>
+  <div id="notfound" class="card" hidden><p class="s-1a1aca0">Event not found. Go to <a class="s-dea29d3" href="quotes.html">Quotes</a>.</p></div>
 
   <div id="app" hidden>
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
-    <div id="closedBanner" class="closed-banner" hidden>✓ Event closed &amp; archived <span id="closedWhen" style="font-weight:400;color:#0f7a43"></span></div>
+    <div id="closedBanner" class="closed-banner" hidden>✓ Event closed &amp; archived <span class="s-1afaaf4" id="closedWhen"></span></div>
 
     <div class="card">
       <h2>📊 Profit &amp; loss</h2>
@@ -90,11 +90,11 @@
 
     <div class="card">
       <h2>⭐ Client feedback &amp; testimonial</h2>
-      <div id="closureErr" class="loadbanner" role="alert" hidden><span id="closureErrMsg"></span><button type="button" class="btn" id="closureRetry" style="height:32px">Retry</button></div>
-      <div class="fld"><span id="starsLabel" style="font-size:12px;font-weight:600;color:var(--ink-2)">Client rating</span><div class="stars" id="stars" role="radiogroup" aria-labelledby="starsLabel"></div></div>
+      <div id="closureErr" class="loadbanner" role="alert" hidden><span id="closureErrMsg"></span><button type="button" class="btn s-268b76c" id="closureRetry">Retry</button></div>
+      <div class="fld"><span class="s-74d3c28" id="starsLabel">Client rating</span><div class="stars" id="stars" role="radiogroup" aria-labelledby="starsLabel"></div></div>
       <div class="fld"><label for="c_feedback">Feedback</label><textarea id="c_feedback" placeholder="What did the client say?"></textarea></div>
       <div class="fld"><label for="c_testi">Testimonial (quotable)</label><textarea id="c_testi" placeholder="A line you can use in marketing…"></textarea></div>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:12px"><input type="checkbox" id="c_consent"> Client consents to using photos / testimonial in marketing</label>
+      <label class="s-2c85849"><input type="checkbox" id="c_consent"> Client consents to using photos / testimonial in marketing</label>
       <div class="fld"><label for="c_lessons">Lessons learned (internal)</label><textarea id="c_lessons" placeholder="What to do differently next time…"></textarea></div>
       <div class="foot"><span id="c_msg" role="status" aria-live="polite"></span><button type="button" class="btn primary" id="c_save" hidden>Save</button></div>
     </div>
@@ -104,10 +104,10 @@
       <p class="sub">A quick score to remember who to rebook.</p>
       <div id="ratings"></div>
       <div class="addr" id="rateAdd" hidden>
-        <div class="fld" style="margin:0"><label for="r_kind">Type</label><select id="r_kind"><option value="vendor">Vendor</option><option value="staff">Staff</option></select></div>
-        <div class="fld" style="margin:0"><label for="r_name">Name</label><input id="r_name" list="rnames" placeholder="who"></div>
-        <div class="fld" style="margin:0"><label for="r_stars">Stars</label><select id="r_stars"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div>
-        <div class="fld" style="margin:0"><span aria-hidden="true" style="font-size:12px">&nbsp;</span><button type="button" class="btn primary" id="r_add">＋ Rate</button></div>
+        <div class="fld s-1169661"><label for="r_kind">Type</label><select id="r_kind"><option value="vendor">Vendor</option><option value="staff">Staff</option></select></div>
+        <div class="fld s-1169661"><label for="r_name">Name</label><input id="r_name" list="rnames" placeholder="who"></div>
+        <div class="fld s-1169661"><label for="r_stars">Stars</label><select id="r_stars"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div>
+        <div class="fld s-1169661"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="r_add">＋ Rate</button></div>
       </div>
       <datalist id="rnames"></datalist>
     </div>
@@ -115,7 +115,7 @@
     <div class="card">
       <h2>🗄 Close &amp; archive</h2>
       <p class="sub">Marks the event complete and moves it to Closed. Follow-up: keep the client warm for the next occasion.</p>
-      <div class="foot" style="justify-content:space-between">
+      <div class="foot s-a562f4f">
         <a class="btn" id="followBtn" href="#">＋ Add CRM follow-up lead</a>
         <button type="button" class="btn go" id="closeBtn" hidden>Mark event closed &amp; archived</button>
       </div>
@@ -135,6 +135,7 @@
   </div>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
 <script src="store-api.js?v=118"></script>
@@ -174,7 +175,7 @@
       <div class="k">Revenue (client)</div><div class="v">${inr(pl.revenue)}</div>
       <div class="k">Delivery cost${(pl.actCost&&pl.actCost>=pl.finalCost)?" (actual)":pl.actCost?" (actual + est.)":" (estimated)"}</div><div class="v">− ${inr(pl.cost)}</div>
       <div class="k">Staff expenses paid</div><div class="v">− ${inr(pl.expenses)}</div>
-      <div class="k tot">Profit</div><div class="v tot ${pl.profit>=0?'pos':'neg'}">${inr(pl.profit)}${pl.marginPct!=null?`  ·  ${pl.marginPct}%`:""}</div>`;
+      <div class="k tot">Profit</div><div class="v tot ${pl.profit>=0?'pos':'neg'}">${inr(pl.profit)}${pl.marginPct!=null?`  ·  ${esc(pl.marginPct)}%`:""}</div>`;
   }
 
   async function renderRatings(){
