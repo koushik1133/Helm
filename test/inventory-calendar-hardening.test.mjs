@@ -149,7 +149,6 @@ t('source: local-date floor, prefilled past date kept, max logout global, Broadc
   assert.match(SRC, /todayFloor/);
   assert.match(SRC, /reason === "max" && !fromOtherTab\) \? "global" : "local"/);
   assert.match(SRC, /bc\.postMessage\(\{ type: "logout"/);
-  assert.match(SRC, /"checkout", "client"/);
 });
 
 let pass = 0, fail = 0;

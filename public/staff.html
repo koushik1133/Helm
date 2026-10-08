@@ -148,7 +148,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=97"></script>
 <script src="phone-input.js?v=1"></script>
-<script src="store-api.js?v=131"></script>
+<script src="store-api.js?v=132"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -283,7 +283,7 @@
     await BPUI.guard($("#sm_save"),async()=>{
       if(!linked){
         try{
-          const dc=dupCheck(await BPStore.staff.list(true),editingId,name,rec.phone,"staff member");
+          const dc=dupCheck((await BPStore.staff.page({includeInactive:true,search:(name.match(/[\p{L}\p{N}]{2,}/u)||[name])[0],limit:200})).rows,editingId,name,rec.phone,"staff member");
           if(dc&&dc.block){ fail(dc.block); return; }
           if(dc&&dc.ask&&!(await BPUI.confirm(dc.ask,{title:"Possible duplicate",okLabel:"Save anyway"}))) return;
         }catch(e){ /* lookup failed: don't block the save */ }

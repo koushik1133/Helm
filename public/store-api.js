@@ -408,7 +408,7 @@ window.HelmUrl = HelmUrl;
   // ?next= may only name one of the app's own pages (fixed list — the page string is
   // never taken from the URL); only its query string is carried over, re-encoded.
   // Anything else (//host, https://…, /\host, javascript:, encoded tricks) → dashboard.
-  const NEXT_PAGES = ["audit", "budget", "builder", "calendar", "chat", "checkout", "client", "closure", "command", "control", "crm", "dashboard", "design", "discovery", "event", "flow", "insights", "inventory", "invite-studio", "issues", "leads", "logistics", "manual", "media", "nurture", "ops", "plan", "proposal", "quotes", "ready", "reports", "resources", "runsheet", "settlement", "staff", "teardown", "templates", "vendors"];
+  const NEXT_PAGES = ["audit", "budget", "builder", "calendar", "chat", "closure", "command", "control", "crm", "dashboard", "design", "discovery", "event", "flow", "insights", "inventory", "invite-studio", "issues", "leads", "logistics", "manual", "media", "nurture", "ops", "plan", "proposal", "quotes", "ready", "reports", "resources", "runsheet", "settlement", "staff", "teardown", "templates", "vendors"];
   function safeNext(raw) {
     // 0067: a pretty studio path (/<slug>/<section>…) is re-built from its parsed parts
     if (typeof raw === "string" && raw.charAt(0) === "/" && raw.charAt(1) !== "/" && raw.charAt(1) !== "\\") {
