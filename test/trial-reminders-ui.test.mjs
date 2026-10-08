@@ -16,7 +16,7 @@ const fnSrc = (src, name) => {
   for (; i < src.length; i++) { if (src[i] === '{') depth++; else if (src[i] === '}' && --depth === 0) return src.slice(at, i + 1); }
   throw new Error(name + ' unterminated');
 };
-const ctx = {}; vm.runInNewContext(fnSrc(AUI, 'trialNotice') + '\n' + ['bellLabel', 'bellToastPick'].map((f) => fnSrc(API, f)).join('\n')
+const ctx = {}; vm.runInNewContext(fnSrc(AUI, 'trialNotice') + '\n' + ['bellTypeOf', 'bellLabel', 'bellToastPick'].map((f) => fnSrc(API, f)).join('\n')
   + '\nglobalThis.notice=trialNotice; globalThis.pick=bellToastPick; globalThis.label=bellLabel;', ctx);
 const notice = (x) => JSON.parse(JSON.stringify(ctx.notice(x)));
 const admin = (o) => Object.assign({ is_admin: true, can_pay: true }, o);

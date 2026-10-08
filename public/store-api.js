@@ -5436,31 +5436,61 @@
      bellPanelView(items, { filter, now, label }) → { filter, tabs, tabsHtml, html, unread }
      items = the merged feed: bell_feed rows + chat rows ({ __chat:true, … }). Every piece of
      server / chat text goes through esc(); hrefs are built from encodeURIComponent'd ids. */
+  // 0063: a feed row → its catalog type (mirrors notification_type_of in SQL). @mentions → null (never muted).
+  function bellTypeOf(n) {
+    if (!n || typeof n !== "object") return "other";
+    if (n.__chat) return n.mention ? null : "chat_message";
+    const k = String(n.kind || "").toLowerCase().trim();
+    if (["approval_link", "otp", "payment_link", "payment_reminder", "payment_receipt", "advance_paid", "payment_reconcile",
+         "task_assigned", "task_reminder", "task_due", "security_alert"].indexOf(k) !== -1) return k;
+    if (k === "payment" || k === "payment_received") return "payment_receipt";
+    if (k === "trial_reminder") return "billing_trial";
+    if (/^task_(accept|reject|start|complete)$/.test(k)) return "task_update";
+    if (k.indexOf("design_") === 0) return "design_update";
+    if (k.indexOf("nurture_") === 0) return "nurture_greeting";
+    if (k.indexOf("chat_") === 0) return "chat_message";
+    if (n.channel === "whatsapp") return "whatsapp_message";
+    return "other";
+  }
+  // friendly names for the muted-types list (types the bell can show)
+  const BELL_TYPE_LABELS = { approval_link: "Approval links", otp: "Approval codes (OTP)", whatsapp_message: "WhatsApp messages",
+    nurture_greeting: "Greetings", design_update: "Design stage changes", task_assigned: "Tasks assigned", task_update: "Task updates",
+    task_reminder: "Task reminders", task_due: "Tasks due", payment_link: "Payment links", payment_reminder: "Payment reminders",
+    payment_receipt: "Payment receipts", advance_paid: "Payments received", payment_reconcile: "Payments needing attention",
+    chat_message: "Chat messages", security_alert: "Security alerts", billing_trial: "Free trial reminders", other: "Other updates" };
   function bellPanelView(items, opts) {
     opts = opts || {};
+    const muted = Array.isArray(opts.muted) ? opts.muted : [], readKeys = Array.isArray(opts.read) ? opts.read : [];
     const esc = (t) => String(t == null ? "" : t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const label = opts.label || ((n) => ({ icon: "🔔", text: String((n && n.kind) || "Update").replace(/_/g, " ") }));
     const now = Number(opts.now) || Date.now();
-    const list = (items || []).filter((n) => n && typeof n === "object");
+    // 0063: a type this person muted never shows (an @mention always does)
+    const list = (items || []).filter((n) => n && typeof n === "object" && muted.indexOf(bellTypeOf(n)) === -1);
     // which filter group a row belongs to (also drives the icon-chip colour)
     const groupOf = (n) => {
       if (n.__chat) return n.mention ? "mention" : "chat";
       const k = String(n.kind || "").toLowerCase();
+      if (k === "security_alert") return "security";
       if (k.indexOf("task_") === 0) return "task";
-      if (/payment|advance_paid/.test(k)) return "payment";
+      if (/payment|advance_paid|trial_reminder/.test(k)) return "billing";
       return "other";
     };
     const inFilter = (f, g) => f === "all" || (f === "mentions" && g === "mention") || (f === "tasks" && g === "task")
-      || (f === "payments" && g === "payment") || (f === "chat" && (g === "chat" || g === "mention"));
-    const rows = list.map((n, i) => ({ n, i, g: groupOf(n) }));
-    const count = (f) => rows.filter((r) => inFilter(f, r.g)).length;
-    // Payments only when the feed carries any (bell_feed already hides money types this role can't see)
-    const tabs = [["all", "All"], ["mentions", "Mentions"], ["tasks", "Tasks"], ["payments", "Payments"], ["chat", "Chat"]]
-      .filter(([id]) => id !== "payments" || count("payments") > 0)
-      .map(([id, name]) => ({ id, label: name, count: count(id) }));
-    let filter = String(opts.filter || "all"); if (!tabs.some((t) => t.id === filter)) filter = "all";
+      || (f === "billing" && g === "billing") || (f === "security" && g === "security") || (f === "chat" && (g === "chat" || g === "mention"));
+    const keyOf = (n, i) => n.__chat ? "c:" + (n.conversation_id || i) : "n:" + (n.id || i);
+    const rows = list.map((n, i) => { const k = keyOf(n, i);
+      return { n, i, g: groupOf(n), k, un: readKeys.indexOf(k) === -1 && (n.__chat || !!n.unread) }; });
+    const has = (f) => rows.some((r) => inFilter(f, r.g));
+    const unreadIn = (f) => rows.filter((r) => r.un && inFilter(f, r.g)).length;
+    const secMuted = muted.indexOf("security_alert") !== -1;
+    // Billing only when the feed carries any (bell_feed already hides money types this role can't see);
+    // Security when there are alerts or they are muted (so the "turn back on" line stays reachable)
+    const tabs = [["all", "All"], ["mentions", "Mentions"], ["tasks", "Tasks"], ["billing", "Billing"], ["security", "Security"], ["chat", "Chat"]]
+      .filter(([id]) => (id !== "billing" || has("billing")) && (id !== "security" || has("security") || secMuted))
+      .map(([id, name]) => ({ id, label: name, count: unreadIn(id) }));
+    let filter = String(opts.filter || "all"); if (filter !== "muted" && !tabs.some((t) => t.id === filter)) filter = "all";
     const tabsHtml = tabs.map((t) => `<button type="button" role="tab" class="bpb-tab" id="bpBellTab-${t.id}" data-f="${t.id}" aria-selected="${t.id === filter}" aria-controls="bpBellList" tabindex="${t.id === filter ? 0 : -1}">${t.label}${t.count ? `<span class="bpb-n">${t.count > 99 ? "99+" : t.count}</span>` : ""}</button>`).join("");
-    const unread = rows.reduce((s, r) => s + (r.n.__chat ? (Number(r.n.count) || 1) : (r.n.unread ? 1 : 0)), 0);
+    const unread = rows.reduce((s, r) => s + (!r.un ? 0 : r.n.__chat ? (Number(r.n.count) || 1) : 1), 0);
     // relative time + Today / Yesterday / Earlier (local calendar days)
     const ts = (n) => { const t = new Date(n.created_at).getTime(); return Number.isFinite(t) ? t : NaN; };
     const rel = (t) => {
@@ -5479,38 +5509,50 @@
         const who = n.who || "";
         title = esc(n.kind === "dm" ? (who || n.title || "Direct message") : ((n.title || "Chat") + (who ? " · " + who : "")));
         if (Number(n.count) > 1) title += ` <span class="bpb-c">(${Number(n.count) > 99 ? "99+" : Number(n.count)})</span>`;
-        preview = esc(n.preview || ""); icon = n.mention ? "@" : "💬"; isUnread = true;
-        href = "chat.html?c=" + encodeURIComponent(n.conversation_id || ""); key = "c:" + (n.conversation_id || r.i);
+        preview = esc(n.preview || ""); icon = n.mention ? "@" : "💬"; isUnread = r.un;
+        href = "chat.html?c=" + encodeURIComponent(n.conversation_id || ""); key = r.k;
       } else {
         const L = label(n) || {}; icon = esc(L.icon || "🔔"); title = esc(L.text || "Update");
         preview = esc([n.event_code, n.event_title].filter(Boolean).join(" · "));
-        href = n.kind === "trial_reminder" ? "checkout.html" : n.quote_id ? "event.html?id=" + encodeURIComponent(n.quote_id) : ""; isUnread = !!n.unread; key = "n:" + (n.id || r.i);
+        href = n.kind === "trial_reminder" ? "checkout.html" : n.quote_id ? "event.html?id=" + encodeURIComponent(n.quote_id) : ""; isUnread = r.un; key = r.k;
       }
       const cls = `bpb-item g-${r.g}${isUnread ? " is-unread" : ""}`;
       const inner = `<span class="bpb-chip" aria-hidden="true">${icon}</span>`
         + `<span class="bpb-body"><span class="bpb-t">${title}</span>${preview ? `<span class="bpb-p">${preview}</span>` : ""}</span>`
         + `<span class="bpb-meta">${Number.isFinite(t) ? `<time datetime="${esc(new Date(t).toISOString())}">${esc(rel(t))}</time>` : ""}`
         + `${isUnread ? '<span class="bpb-u"><span class="sr-only">Unread</span></span>' : ""}</span>`;
-      return href ? `<a class="${cls}" href="${esc(href)}" data-k="${esc(key)}">${inner}</a>`
-                  : `<div class="${cls}" tabindex="0" data-k="${esc(key)}">${inner}</div>`;
+      const ty = bellTypeOf(n);
+      const more = `<button type="button" class="bpb-more" data-mk="${esc(key)}" data-ty="${esc(ty || "")}" aria-haspopup="menu" aria-expanded="false" aria-label="More actions">⋯</button>`;
+      return `<div class="bpb-row">` + (href ? `<a class="${cls}" href="${esc(href)}" data-k="${esc(key)}">${inner}</a>`
+                  : `<div class="${cls}" tabindex="0" data-k="${esc(key)}">${inner}</div>`) + more + `</div>`;
     };
-    const shown = rows.filter((r) => inFilter(filter, r.g));
+    const shown = filter === "muted" ? [] : rows.filter((r) => inFilter(filter, r.g));
+    const secLine = secMuted && (filter === "security" || filter === "all")
+      ? `<div class="bpb-mline">Security alerts muted - <button type="button" class="bpb-link" data-unmute="security_alert">turn back on</button></div>` : "";
     let html;
-    if (!shown.length) {
+    if (filter === "muted") {
+      html = `<div class="bpb-mhead"><button type="button" class="bpb-link" data-f-back>‹ Back</button><b>Muted types</b></div>`
+        + (muted.length ? `<ul class="bpb-mlist">` + muted.map((ty) => `<li><span>${esc(BELL_TYPE_LABELS[ty] || String(ty).replace(/_/g, " "))}</span>`
+          + `<button type="button" class="bpb-link" data-unmute="${esc(ty)}">Unmute</button></li>`).join("") + `</ul>`
+          : `<div class="bpb-empty"><b>Nothing muted</b><span>Use the ⋯ menu on a notification to mute that type.</span></div>`);
+    } else if (!shown.length) {
       const msg = { all: ["You’re all caught up", "New tasks, payments and messages will show up here."],
         mentions: ["No mentions", "When a teammate @mentions you in chat, it lands here."],
         tasks: ["No task updates", "Assignments, check-ins and reminders will appear here."],
-        payments: ["No payment updates", "Payment links, receipts and reminders will appear here."],
+        billing: ["No billing updates", "Payment links, receipts, reminders and trial notices will appear here."],
+        security: ["No security alerts", "Admin overrides, lockouts and role changes will appear here."],
         chat: ["No unread messages", "Unread chats from your team show up here."] }[filter];
       html = `<div class="bpb-empty"><svg class="bpb-art" viewBox="0 0 120 96" aria-hidden="true" focusable="false">`
         + `<circle cx="60" cy="50" r="38" class="bpb-art-bg"/><path class="bpb-art-bell" d="M60 26c-10 0-17 8-17 18v11l-6 8h46l-6-8V44c0-10-7-18-17-18z"/>`
         + `<circle cx="60" cy="69" r="5" class="bpb-art-bell"/><path class="bpb-art-z" d="M84 18h8l-8 9h8M96 8h5l-5 6h5"/></svg>`
         + `<b>${msg[0]}</b><span>${msg[1]}</span></div>`;
+      html = secLine + html;
     } else {
       const order = ["Today", "Yesterday", "Earlier"], by = { Today: [], Yesterday: [], Earlier: [] };
       shown.slice().sort((a, b) => (ts(b.n) || 0) - (ts(a.n) || 0)).forEach((r) => by[bucket(ts(r.n))].push(r));
       html = order.filter((d) => by[d].length).map((d) =>
         `<div class="bpb-sec" role="group" aria-label="${d}"><div class="bpb-day" aria-hidden="true">${d}</div>${by[d].map(item).join("")}</div>`).join("");
+      html = secLine + html;
     }
     return { filter, tabs, tabsHtml, html, unread };
   }
@@ -5523,7 +5565,8 @@
   function bellToastPick(items, seen, opts) {
     opts = opts || {};
     const label = opts.label || ((n) => ({ icon: "🔔", text: String((n && n.kind) || "Update").replace(/_/g, " ") }));
-    const list = (items || []).filter((n) => n && typeof n === "object");
+    const muted = Array.isArray(opts.muted) ? opts.muted : [];   // 0063: muted types never pop up (mentions always do)
+    const list = (items || []).filter((n) => n && typeof n === "object" && muted.indexOf(bellTypeOf(n)) === -1);
     const keyOf = (n) => n.__chat ? "c:" + (n.conversation_id || "") + "@" + (n.created_at || "") : "n:" + (n.id || "") + "@" + (n.created_at || "");
     const newest = list.reduce((m, n) => { const c = String(n.created_at || ""); return c > m ? c : m; }, String((seen && seen.t) || ""));
     const ids = (seen && Array.isArray(seen.ids)) ? seen.ids.slice(-60) : [];
@@ -5605,7 +5648,19 @@
     ".g-mention .bpb-chip{background:var(--bpb-mention-bg);color:var(--bpb-mention);font-size:19px}",
     ".g-chat .bpb-chip{background:var(--bpb-chat-bg);color:var(--bpb-chat)}",
     ".g-task .bpb-chip{background:var(--bpb-task-bg);color:var(--bpb-task)}",
-    ".g-payment .bpb-chip{background:var(--bpb-pay-bg);color:var(--bpb-pay)}",
+    ".g-billing .bpb-chip{background:var(--bpb-pay-bg);color:var(--bpb-pay)}",
+    ".g-security .bpb-chip{background:var(--bpb-mention-bg);color:var(--bpb-mention)}",
+    // 0063: per-row ⋯ menu, muted line, muted-types list
+    ".bpb-row{position:relative}.bpb-row .bpb-item{padding-right:40px}",
+    ".bpb-more{position:absolute;right:14px;bottom:8px;width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:var(--bpb-ink3);font:inherit;font-size:16px;line-height:1;cursor:pointer}",
+    ".bpb-more:hover,.bpb-more[aria-expanded=true]{background:var(--bpb-bg2);color:var(--bpb-ink)}.bpb-more:focus-visible{outline:2px solid var(--bpb-acc)}",
+    ".bpb-menu{position:absolute;right:14px;top:calc(100% - 6px);z-index:3;min-width:170px;padding:4px;background:var(--bpb-bg);border:1px solid var(--bpb-line);border-radius:10px;box-shadow:var(--bpb-shadow)}",
+    ".bpb-menu button{display:block;width:100%;text-align:left;border:0;background:transparent;color:var(--bpb-ink);font:inherit;font-size:13px;padding:8px 10px;border-radius:7px;cursor:pointer}",
+    ".bpb-menu button:hover,.bpb-menu button:focus-visible{background:var(--bpb-bg2);outline:none}",
+    ".bpb-mline{margin:8px 16px 4px;padding:8px 10px;border-radius:10px;background:var(--bpb-bg2);color:var(--bpb-ink2);font-size:12.5px}",
+    ".bpb-mhead{display:flex;align-items:center;gap:8px;padding:10px 12px}.bpb-mlist{list-style:none;margin:0;padding:0 8px}",
+    ".bpb-mlist li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border-bottom:1px solid var(--bpb-line)}",
+    ".bpb-foot{border-top:1px solid var(--bpb-line);padding:6px 10px;text-align:right}",
     ".bpb-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:1px}",
     ".bpb-t{font-size:13.5px;font-weight:650;color:var(--bpb-ink);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}",
     ".bpb-chip{width:36px;height:36px;font-size:16px}",
@@ -5692,6 +5747,12 @@
       set: (type, channel, role, enabled, userId) => rpc("admin_set_notification_pref",
         { p_type: type, p_channel: channel, p_role: role || null, p_enabled: enabled === null || enabled === undefined ? null : !!enabled, p_user: userId || null }),
       reset: () => rpc("admin_reset_notification_prefs", {}),
+      // 0063: types this person muted for themselves (fail-open: no 0063 → nothing muted)
+      async mutes() {
+        if (mode !== "supabase" || !supa || !currentUser) return [];
+        try { const r = await rpc("my_notification_mutes", {}); return Array.isArray(r) ? r.map(String) : []; } catch (e) { return []; }
+      },
+      setMute: (type, muted) => rpc("set_notification_mute", { p_type: String(type || ""), p_muted: !!muted }),
     },
     // Mount the bell into `el` (works on any page): a button in the header + a panel portalled
     // to <body> (blurred backdrop; anchored popover on desktop, full-height sheet on phones).
@@ -5717,6 +5778,7 @@
             <div id="bpBellTabs" class="bpb-tabs" role="tablist" aria-label="Filter notifications"></div>
           </header>
           <div id="bpBellList" class="bpb-list" role="tabpanel" aria-labelledby="bpBellTitle"><div class="bpb-skel"></div><div class="bpb-skel"></div><div class="bpb-skel"></div></div>
+          <div class="bpb-foot"><button type="button" id="bpBellMuted" class="bpb-link">Muted types</button></div>
         </section>`;
       document.body.appendChild(root);
       const btn = el.querySelector("#bpBellBtn"), dot = el.querySelector("#bpBellDot");
@@ -5728,23 +5790,33 @@
       // Chat notifications (my unread DMs/groups/broadcast) merged into the same bell.
       let chatItems = [];
       const chatUnread = () => chatItems.reduce((s, c) => s + (c.count || 1), 0);
+      const chatReadCount = () => chatItems.reduce((s, c) => s + (readKeys.indexOf("c:" + c.conversation_id) !== -1 ? (c.count || 1) : 0), 0);
+      // server unread minus muted / marked-read rows (only recounted when something is muted or read)
+      const serverUnread = (f) => !f ? 0 : (muted.length || readKeys.length)
+        ? bellPanelView((f.items || []), { muted, read: readKeys }).unread : f.unread;
       const mergedFeed = (serverItems) => (serverItems || []).slice()
         .concat(chatItems.map((c) => Object.assign({ __chat: true }, c)))
         .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
       // 0036: the studio admin can switch chat off in the bell for a role / person
       // (re-checked every 5 minutes; server-side types are already filtered by bell_feed).
-      let hiddenTypes = [], hiddenAt = 0;
-      const loadHidden = async () => { if (Date.now() - hiddenAt < 300000) return; hiddenAt = Date.now(); hiddenTypes = (await this.prefs.mine()).hidden; };
+      let hiddenTypes = [], hiddenAt = 0, muted = [];
+      const loadHidden = async () => { if (Date.now() - hiddenAt < 300000) return; hiddenAt = Date.now(); hiddenTypes = (await this.prefs.mine()).hidden;
+        muted = await this.prefs.mutes(); };
+      // 0063: rows this person marked read from the ⋯ menu (this browser only; try/catch for private mode)
+      const readKey = "bpBellRead:" + ((auth.user() && auth.user().id) || "anon");
+      let readKeys = (() => { try { const v = JSON.parse(localStorage.getItem(readKey) || "[]"); return Array.isArray(v) ? v.slice(-200) : []; } catch (e) { return []; } })();
+      const saveRead = () => { try { localStorage.setItem(readKey, JSON.stringify(readKeys.slice(-200))); } catch (e) {} };
       const loadChat = async () => { try { await loadHidden(); } catch (e) {} const chatOff = hiddenTypes.indexOf("chat_message") !== -1;   // chat switched off → @mentions still come through
         try { chatItems = (chat && chat.notifications) ? (await chat.notifications(20)) : []; } catch (e) { chatItems = []; }
-        if (chatOff) chatItems = chatItems.filter((c) => c && c.mention); };
-      const setDot = (serverUnread) => { const total = (serverUnread || 0) + chatUnread();
+        if (chatOff) chatItems = chatItems.filter((c) => c && c.mention);
+        if (muted.indexOf("chat_message") !== -1) chatItems = chatItems.filter((c) => c && c.mention); };
+      const setDot = (serverUnread) => { const total = (serverUnread || 0) + chatUnread() - chatReadCount();
         if (total > 0) { dot.hidden = false; dot.textContent = total > 99 ? "99+" : total; } else dot.hidden = true;
         btn.setAttribute("aria-label", total > 0 ? `Notifications, ${total > 99 ? "99+" : total} unread` : "Notifications"); };
       // render the open panel, keeping keyboard focus on the same row / tab across live refreshes
       const render = () => {
         const ae = document.activeElement, keepKey = ae && root.contains(ae) && ae.getAttribute ? (ae.getAttribute("data-k") || (ae.getAttribute("data-f") ? "tab:" + ae.getAttribute("data-f") : null)) : null;
-        const v = bellPanelView(lastItems, { filter, now: Date.now(), label: bellLabel });
+        const v = bellPanelView(lastItems, { filter, now: Date.now(), label: bellLabel, muted, read: readKeys });
         filter = v.filter; tabsEl.innerHTML = v.tabsHtml; list.innerHTML = v.html;
         list.setAttribute("aria-labelledby", "bpBellTab-" + filter);
         if (v.unread > 0) { countEl.hidden = false; countEl.textContent = (v.unread > 99 ? "99+" : v.unread) + " new"; } else countEl.hidden = true;
@@ -5758,11 +5830,11 @@
       const readSeen = () => { try { const v = JSON.parse(localStorage.getItem(seenKey) || "null"); return v && typeof v === "object" ? v : null; } catch (e) { return null; } };
       const writeSeen = (v) => { try { localStorage.setItem(seenKey, JSON.stringify(v)); } catch (e) {} };
       const popToasts = (merged) => {
-        const r = bellToastPick(merged, readSeen(), { label: bellLabel }); writeSeen(r.seen);
+        const r = bellToastPick(merged, readSeen(), { label: bellLabel, muted }); writeSeen(r.seen);
         if (isOpen || !window.BPUI || !window.BPUI.toast) return;
         r.toasts.slice().reverse().forEach((x) => { try { window.BPUI.toast(x.message, { title: x.title, type: x.type, icon: x.icon, href: x.href || null, linkLabel: "View", timeout: 5000 }); } catch (e) {} });
       };
-      const refresh = async () => { let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(f && f.unread);
+      const refresh = async () => { let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(serverUnread(f));
         const merged = mergedFeed(f && f.items); if (f) popToasts(merged);
         if (isOpen) { lastItems = merged; loaded = true; render(); } return f; };
       // desktop: anchor the popover under the bell; phone: the CSS sheet takes over
@@ -5797,7 +5869,35 @@
         if (restore !== false) { const t = (lastFocus && lastFocus.isConnected && lastFocus !== document.body) ? lastFocus : btn; try { t.focus({ preventScroll: true }); } catch (e) {} }
       };
       btn.addEventListener("click", (e) => { e.stopPropagation(); if (isOpen) close(); else open(); });
+      // 0063: per-row ⋯ menu (Mute this type / Mark read) with an Undo toast
+      const say = (msg, undo) => { try { window.BPUI && window.BPUI.toast && window.BPUI.toast(msg, { type: "info", timeout: 6000, action: undo ? { label: "Undo", onClick: undo } : undefined }); } catch (x) {} };
+      const closeMenu = () => { const m = root.querySelector(".bpb-menu"); if (m) { const b = m.__btn; m.remove(); if (b) b.setAttribute("aria-expanded", "false"); return b; } return null; };
+      const setMuted = async (ty, on) => {
+        try { const r = await this.prefs.setMute(ty, on); muted = Array.isArray(r) ? r.map(String) : muted; }
+        catch (x) { say("Could not update muted types. Try again."); return false; }
+        await refresh(); if (isOpen) render(); return true;
+      };
+      const markRead = (k, on) => { readKeys = readKeys.filter((x) => x !== k); if (on) readKeys.push(k); saveRead(); render(); refresh(); };
+      const openMenu = (btn) => {
+        closeMenu();
+        const k = btn.getAttribute("data-mk") || "", ty = btn.getAttribute("data-ty") || "";
+        const m = document.createElement("div"); m.className = "bpb-menu"; m.setAttribute("role", "menu"); m.__btn = btn;
+        const add = (text, fn) => { const b = document.createElement("button"); b.type = "button"; b.setAttribute("role", "menuitem"); b.textContent = text;
+          b.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); closeMenu(); fn(); }); m.appendChild(b); return b; };
+        if (ty) add("Mute this type", async () => { if (await setMuted(ty, true))
+          say("Muted: " + (BELL_TYPE_LABELS[ty] || ty.replace(/_/g, " ")), () => { setMuted(ty, false); }); });
+        add("Mark read", () => { markRead(k, true); say("Marked as read", () => markRead(k, false)); });
+        btn.parentNode.appendChild(m); btn.setAttribute("aria-expanded", "true");
+        try { m.querySelector("button").focus(); } catch (x) {}
+      };
       root.addEventListener("click", (e) => {
+        const mb = e.target.closest && e.target.closest(".bpb-more");
+        if (mb) { e.preventDefault(); e.stopPropagation(); if (mb.getAttribute("aria-expanded") === "true") closeMenu(); else openMenu(mb); return; }
+        if (!(e.target.closest && e.target.closest(".bpb-menu"))) closeMenu();
+        const um = e.target.closest && e.target.closest("[data-unmute]");
+        if (um) { e.preventDefault(); const ty = um.getAttribute("data-unmute"); setMuted(ty, false).then((ok) => { if (ok) say("Turned back on: " + (BELL_TYPE_LABELS[ty] || ty)); }); return; }
+        if (e.target.closest && e.target.closest("#bpBellMuted")) { e.preventDefault(); filter = "muted"; render(); return; }
+        if (e.target.closest && e.target.closest("[data-f-back]")) { e.preventDefault(); filter = "all"; render(); return; }
         const c = e.target.closest && e.target.closest("[data-bpb-close]"); if (c) { e.preventDefault(); close(); return; }
         const tab = e.target.closest && e.target.closest(".bpb-tab"); if (tab) { filter = tab.getAttribute("data-f") || "all"; render(); try { root.querySelector(`[data-f="${filter}"]`).focus(); } catch (x) {} return; }
         const it = e.target.closest && e.target.closest("a.bpb-item"); if (it) close(false);   // navigating away
@@ -5807,6 +5907,7 @@
       // keyboard: Esc closes, Tab is trapped, arrows walk the list, ←/→ switch tabs
       root.addEventListener("keydown", (e) => {
         if (!isOpen) return;
+        if ((e.key === "Escape" || e.key === "Esc") && root.querySelector(".bpb-menu")) { e.preventDefault(); e.stopPropagation(); const b = closeMenu(); try { b && b.focus(); } catch (x) {} return; }
         if (e.key === "Escape" || e.key === "Esc") { e.preventDefault(); e.stopPropagation(); close(); return; }
         const ae = document.activeElement;
         if (e.key === "Tab") {

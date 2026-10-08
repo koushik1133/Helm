@@ -52,6 +52,7 @@ run "upload-hardening"   "UPLOAD-HARDENING: ALL PASS \(20/20\)" psql -q -f tests
 run "db-gates-0049"     "DB-GATES-0049: ALL PASS \(51/51\)" psql -q -f tests/db/db-gates-0049.sql
 run "lifecycle-reapproval-0052" "LIFECYCLE-REAPPROVAL-0052: ALL PASS \(49/49\)" psql -q -f tests/db/lifecycle-reapproval-0052.sql
 run "password-lockout"   "PASSWORD-LOCKOUT: ALL PASS \(34/34\)" psql -q -f tests/db/password-lockout.sql
+run "notification-mutes" "NOTIFICATION-MUTES: ALL PASS \(17/17\)" psql -q -f tests/db/notification-mutes.sql
 # before security-alerts / notification-prefs: they re-apply 0054 / 0036 over the 0058 catalog wrappers
 run "trial-reminders"    "TRIAL-REMINDERS: ALL PASS \(36/36\)" psql -q -f tests/db/trial-reminders.sql
 # before notification-prefs: that suite re-applies 0036 (which resets the 0054 catalog wrapper)

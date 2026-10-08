@@ -15,7 +15,7 @@ const fnSrc = (src, name) => {
   for (; i < src.length; i++) { if (src[i] === '{') depth++; else if (src[i] === '}' && --depth === 0) return src.slice(at, i + 1); }
   throw new Error(name + ' unterminated');
 };
-const ctx = {}; vm.runInNewContext(['bellLabel', 'bellToastPick'].map((f) => fnSrc(api, f)).join('\n') + '\nglobalThis.pick=bellToastPick; globalThis.label=bellLabel;', ctx);
+const ctx = {}; vm.runInNewContext(['bellTypeOf', 'bellLabel', 'bellToastPick'].map((f) => fnSrc(api, f)).join('\n') + '\nglobalThis.pick=bellToastPick; globalThis.label=bellLabel;', ctx);
 const pick = (items, seen) => JSON.parse(JSON.stringify(ctx.pick(items, seen, { label: ctx.label })));
 
 const FEED = [
