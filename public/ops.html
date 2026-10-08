@@ -43,6 +43,7 @@
   .crewrow{display:grid;grid-template-columns:1.3fr 1fr 1fr auto;gap:8px;align-items:center;margin-bottom:8px}
   @media(max-width:640px){.crewrow{grid-template-columns:1fr 1fr}}
   .chip{display:inline-flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-size:12px;margin:0 6px 6px 0}
+  .chip{max-width:100%;min-width:0;flex-wrap:wrap;overflow-wrap:anywhere;word-break:break-word} #crewChips{min-width:0;max-width:100%}
   .chip .dep{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--ink-3)}
   /* staff photos (0041: linked members carry their profile photo) */
   .cav{width:22px;height:22px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-size:9.5px;font-weight:700;position:relative;overflow:hidden}

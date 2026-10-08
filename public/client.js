@@ -37,8 +37,9 @@
     catch (e) { return d.toISOString(); }
   }
   function initials(name) {
-    const p = String(name || "").trim().split(/\s+/).filter(Boolean);
-    return ((p[0] || "?")[0] + (p.length > 1 ? p[p.length - 1][0] : "")).toUpperCase();
+    // first letters of the first two alphabetic words; skip "(testing)", "E2E"-style digits, emoji
+    const p = String(name || "").split(/\s+/).map((w) => (w.match(/\p{L}/u) || [""])[0]).filter(Boolean);
+    return p.length ? (p[0] + (p[1] || "")).toUpperCase() : "?";
   }
   function normalize(data) {
     const out = { client: { name: "Client", phone: "", email: "", status: "" }, totals: null, sections: [], counts: {}, items: [] };
