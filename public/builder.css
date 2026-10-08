@@ -520,3 +520,8 @@ header select.versel{max-width:220px;font-family:var(--mono)}
 .veracts{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
 .veracts .tbtn{height:32px;padding:0 12px}
 @media (max-width:520px){ .vercmp{flex-direction:column} .verarrow{transform:rotate(90deg)} .vercmp figure{width:100%} .veracts .tbtn{flex:1 1 100%} }
+
+/* BEGIN generated: inline-style classes (scripts/extract-inline-styles.mjs) */
+.s-33fcd4c:not(#_):not(#_):not(#_){gap:8px}
+.s-97445a8:not(#_):not(#_):not(#_){flex:1}
+/* END generated: inline-style classes */

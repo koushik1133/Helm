@@ -67,7 +67,7 @@
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
   html[data-theme="dark"] .tabs button.on{background:#7c3aed;color:#fff}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -82,8 +82,8 @@
   <main id="main">
   <div id="boot" aria-busy="true"></div>
 
-  <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to open the issue log.</p></div>
-  <div id="notfound" class="card" hidden><p style="color:var(--ink-3)">Event not found. Go to <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a>.</p></div>
+  <div id="gate" class="card" hidden><p class="s-1a1aca0">Sign in to open the issue log.</p></div>
+  <div id="notfound" class="card" hidden><p class="s-1a1aca0">Event not found. Go to <a class="s-dea29d3" href="quotes.html">Quotes</a>.</p></div>
 
   <div id="app" hidden>
     <div class="crumb"><a id="backLink" href="#">← Back to command center</a> · <span id="evName"></span></div>
@@ -102,7 +102,7 @@
         <div class="fld"><label id="titleLbl" for="i_title">Issue</label><input id="i_title" placeholder="what's happening"></div>
         <div class="fld"><label for="i_sev">Severity</label><select id="i_sev"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select></div>
         <div class="fld"><label for="i_owner">Owner</label><input id="i_owner" placeholder="who's on it"></div>
-        <div class="fld"><span aria-hidden="true" style="font-size:12px">&nbsp;</span><button type="button" class="btn primary" id="i_add">＋ Log</button></div>
+        <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="i_add">＋ Log</button></div>
       </div>
     </div>
 
@@ -115,16 +115,17 @@
 <div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="sheet">
     <h3 id="loginTitle">Sign in</h3>
-    <div class="fld" style="margin-bottom:10px"><label for="li_email">Email</label><input id="li_email" type="email"></div>
-    <div class="fld" style="margin-bottom:10px"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
+    <div class="fld s-761d3ad"><label for="li_email">Email</label><input id="li_email" type="email"></div>
+    <div class="fld s-761d3ad"><label for="li_pass">Password</label><input id="li_pass" type="password"></div>
     <div id="li_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot"><button class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
-<script src="store-api.js?v=118"></script>
+<script src="store-api.js?v=120"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

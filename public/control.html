@@ -198,7 +198,7 @@
     box-shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -16px rgba(0,0,0,.7);
   }
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -212,7 +212,7 @@
   </header>
 
   <main id="main">
-  <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in as a manager to open the Control Center.</p></div>
+  <div id="gate" class="card" hidden><p class="s-1a1aca0">Sign in as a manager to open the Control Center.</p></div>
 
   <div id="boot" aria-busy="true"></div>
   <div id="app" hidden>
@@ -250,9 +250,9 @@
         <div class="fld"><label for="o_gst">GSTIN</label><input id="o_gst" placeholder="22AAAAA0000A1Z5"></div>
       </div>
       <div class="actions"><button type="button" class="btn primary" id="o_save">Save studio settings</button></div>
-      <div id="slugBox" hidden style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line)">
-        <h3 style="margin:0 0 4px">Client link name</h3>
-        <p class="mnote" style="margin:0 0 10px">Every link you send clients and crew starts with this name, e.g. <code id="slugPreview">www.helm.events/your-studio/quote/…</code>. 3–40 lowercase letters, numbers or dashes. Links you already sent keep working after a change.</p>
+      <div class="s-e3ae377" id="slugBox" hidden>
+        <h3 class="s-58d955e">Client link name</h3>
+        <p class="mnote s-759e41d">Every link you send clients and crew starts with this name, e.g. <code id="slugPreview">www.helm.events/your-studio/quote/…</code>. 3–40 lowercase letters, numbers or dashes. Links you already sent keep working after a change.</p>
         <div id="slugMsg" role="status" aria-live="polite"></div>
         <div class="grid">
           <div class="fld"><label for="o_slug">Link name</label><input id="o_slug" autocomplete="off" spellcheck="false" maxlength="40" placeholder="aurora-events"></div>
@@ -271,10 +271,10 @@
         <label class="lxtoggle" for="lx_on"><input type="checkbox" role="switch" id="lx_on" aria-describedby="lx_state"> <span>Auto-expire client links</span></label>
         <span class="lxstate" id="lx_state" aria-live="polite">Disabled</span>
       </div>
-      <div class="grid" style="margin-top:12px">
+      <div class="grid s-56f4356">
         <div class="fld"><label for="lx_days">Days after the link is sent (1–365)</label><input id="lx_days" type="number" min="1" max="365" step="1" inputmode="numeric" value="10" aria-describedby="lx_example"></div>
       </div>
-      <p class="mnote" id="lx_example" aria-live="polite" style="margin-top:10px">Off — links follow only the usual limits after the event.</p>
+      <p class="mnote s-d2c171b" id="lx_example" aria-live="polite">Off — links follow only the usual limits after the event.</p>
       <details class="lxwhich">
         <summary>Which links this covers</summary>
         <ul>
@@ -290,10 +290,10 @@
         <label for="lx_move_keep"><input type="radio" name="lx_move" id="lx_move_keep" value="keep" checked> Keep it in Quotes <span>(default)</span></label>
         <label for="lx_move_archive"><input type="radio" name="lx_move" id="lx_move_archive" value="archive"> Move to Archive</label>
         <label for="lx_move_delete"><input type="radio" name="lx_move" id="lx_move_delete" value="delete"> Move to Deleted quotes <span>(nothing is erased — restore it any time)</span></label>
-        <p class="mnote" id="lx_moveNote" aria-live="polite" style="margin:6px 0 2px">Only quotes the studio never confirmed, that the client never approved or paid, with no payment or approval on record. Confirmed and paid events never move. A quote you restore stays put for the same number of days.</p>
-        <p class="mnote" id="lx_moveWait" aria-live="polite" style="margin:2px 0 2px"></p>
+        <p class="mnote s-937b1b6" id="lx_moveNote" aria-live="polite">Only quotes the studio never confirmed, that the client never approved or paid, with no payment or approval on record. Confirmed and paid events never move. A quote you restore stays put for the same number of days.</p>
+        <p class="mnote s-3598ad4" id="lx_moveWait" aria-live="polite"></p>
       </fieldset>
-      <p class="mnote" style="margin-top:10px">Links you already sent count from when they were sent, so any older than the limit stop working as soon as you save. Switching this off, or raising the number, makes them work again. To give someone a fresh link, send it again (Send approval link, publish the proposal again, or assign the crew member a task). Anyone opening an expired link sees the usual “this link has expired — please contact the studio for a new one” page.</p>
+      <p class="mnote s-d2c171b">Links you already sent count from when they were sent, so any older than the limit stop working as soon as you save. Switching this off, or raising the number, makes them work again. To give someone a fresh link, send it again (Send approval link, publish the proposal again, or assign the crew member a task). Anyone opening an expired link sees the usual “this link has expired — please contact the studio for a new one” page.</p>
       <div class="actions"><button type="button" class="btn primary" id="lx_save">Save link expiry</button></div>
     </div>
 
@@ -315,7 +315,7 @@
 
     <div class="card">
       <h3>Capacity limits (layout builder)</h3>
-      <p class="mnote" style="margin:-6px 0 10px">The most the layout builder will accept for each. Going over shows a red “Maximum is …” note under the field in the builder and keeps the app fast on very large events.</p>
+      <p class="mnote s-020d693">The most the layout builder will accept for each. Going over shows a red “Maximum is …” note under the field in the builder and keeps the app fast on very large events.</p>
       <div class="grid">
         <div class="fld"><label for="cap_guests">Max guests</label><input id="cap_guests" type="number" min="1" step="1"></div>
         <div class="fld"><label for="cap_chairs">Max chairs</label><input id="cap_chairs" type="number" min="1" step="1"></div>
@@ -333,7 +333,7 @@
 
     <div class="card">
       <h3>Object &amp; item prices (layout builder)</h3>
-      <p class="mnote" style="margin:-6px 0 10px">Per-unit price for each object placed on the floor plan. These drive the live price breakdown in the builder. Chairs are priced with the “Price / chair” rate above. Leave blank to use the built-in default.</p>
+      <p class="mnote s-020d693">Per-unit price for each object placed on the floor plan. These drive the live price breakdown in the builder. Chairs are priced with the “Price / chair” rate above. Leave blank to use the built-in default.</p>
       <div id="itemPriceList" class="grid"></div>
       <div class="actions"><button type="button" class="btn primary" id="saveItemPrices">Save item prices</button></div>
     </div>
@@ -343,7 +343,7 @@
 
     <div class="card">
       <h3>Coupons</h3>
-      <div id="couponList"><div class="row" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
+      <div id="couponList"><div class="row s-1a1aca0"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
       <div class="addrow">
         <input id="co_code" placeholder="Code e.g. DIWALI10" aria-label="Coupon code">
         <select id="co_kind" aria-label="Coupon type"><option value="percent">% off</option><option value="flat">₹ off</option></select>
@@ -354,8 +354,8 @@
 
     <div class="card">
       <h3>Chair types &amp; prices</h3>
-      <div id="chairList"><div class="row" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
-      <div class="addrow" style="grid-template-columns:1.6fr 1fr auto">
+      <div id="chairList"><div class="row s-1a1aca0"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
+      <div class="addrow s-0dff578">
         <input id="ch_name" placeholder="Chair type e.g. Chiavari" aria-label="Chair type name">
         <input id="ch_price" type="number" min="0" step="1" placeholder="Price / chair (₹)" aria-label="Price per chair">
         <button type="button" class="btn" id="ch_add">+ Add chair type</button>
@@ -364,8 +364,8 @@
 
     <div class="card">
       <h3>Plate types &amp; prices (catering)</h3>
-      <div id="plateList"><div class="row" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
-      <div class="addrow" style="grid-template-columns:1.6fr 1fr auto">
+      <div id="plateList"><div class="row s-1a1aca0"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
+      <div class="addrow s-0dff578">
         <input id="pl_name" placeholder="Plate type e.g. Veg / Non-veg / Special" aria-label="Plate type name">
         <input id="pl_price" type="number" min="0" step="1" placeholder="Price / plate (₹)" aria-label="Price per plate">
         <button type="button" class="btn" id="pl_add">+ Add plate type</button>
@@ -374,10 +374,10 @@
 
     <div class="card">
       <h3>Dishes catalog (menu)</h3>
-      <p class="mnote" style="margin:-6px 0 10px">The dishes staff can search &amp; add to an event's menu. Add your studio's specialities here.</p>
-      <input id="dishFilter" placeholder="Filter dishes…" style="width:100%;margin-bottom:10px" aria-label="Filter dishes">
-      <div id="dishList" style="max-height:320px;overflow:auto"><div class="row" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
-      <div class="addrow" style="grid-template-columns:1.2fr 1.4fr .9fr auto">
+      <p class="mnote s-020d693">The dishes staff can search &amp; add to an event's menu. Add your studio's specialities here.</p>
+      <input class="s-31b5119" id="dishFilter" placeholder="Filter dishes…" aria-label="Filter dishes">
+      <div class="s-5f8400a" id="dishList"><div class="row s-1a1aca0"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
+      <div class="addrow s-07db89a">
         <input id="dc_cat" placeholder="Category e.g. Starters (veg)" aria-label="Dish category">
         <input id="dc_name" placeholder="Dish name" aria-label="Dish name">
         <select id="dc_kind" aria-label="Dish type"><option value="veg">Veg</option><option value="nonveg">Non-veg</option><option value="special">Special</option></select>
@@ -387,14 +387,14 @@
 
     <div class="card">
       <h3>Menu packages (Standard / Gold / Premium)</h3>
-      <p class="mnote" style="margin:-6px 0 10px">The 6 fixed menu packages. Set each one's per-plate price and edit its dish list (one dish per line as <code>Category | Dish name | veg|nonveg|special</code>). Staff pick a package on the event's Menu screen to pre-fill the dishes in one click.</p>
-      <div id="menuTplList"><div class="row" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
+      <p class="mnote s-020d693">The 6 fixed menu packages. Set each one's per-plate price and edit its dish list (one dish per line as <code>Category | Dish name | veg|nonveg|special</code>). Staff pick a package on the event's Menu screen to pre-fill the dishes in one click.</p>
+      <div id="menuTplList"><div class="row s-1a1aca0"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
     </div>
 
     <div class="card">
       <h3>Default layout rules (per event type)</h3>
-      <p class="mnote" style="margin:-6px 0 10px">The defaults the layout generator uses for each event type — seats per guest, buffet tables per N guests, bars, and which components to include. Change these here (no developer needed) and every generated layout follows them.</p>
-      <div id="layoutRuleList"><div class="row" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
+      <p class="mnote s-020d693">The defaults the layout generator uses for each event type — seats per guest, buffet tables per N guests, bars, and which components to include. Change these here (no developer needed) and every generated layout follows them.</p>
+      <div id="layoutRuleList"><div class="row s-1a1aca0"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
     </div>
     </div><!-- /pane-pricing -->
 
@@ -411,26 +411,26 @@
           <span class="uccount" id="uc_count" role="status" aria-live="polite"></span>
         </div>
         <div class="table-scroll"><table class="utable"><thead id="um_head"><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Role</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
-          <tbody id="um_rows"><tr><td colspan="4" style="color:var(--ink-3)"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
+          <tbody id="um_rows"><tr><td class="s-1a1aca0" colspan="4"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
         </table></div>
-        <form id="um_add" class="addrow" style="grid-template-columns:1.6fr 1fr auto">
+        <form id="um_add" class="addrow s-0dff578">
           <input id="um_email" type="email" placeholder="name@studio.com" required autocomplete="off" aria-label="New user email">
           <select id="um_role" aria-label="New user role"></select>
           <button class="btn primary" type="submit" id="um_submit">Add user</button>
         </form>
-        <p class="mnote" style="margin-top:6px">No password needed — a one-time temporary password is generated and shown once. Share it with the person; they'll be asked to set their own on first sign-in.</p>
+        <p class="mnote s-fe7b497">No password needed — a one-time temporary password is generated and shown once. Share it with the person; they'll be asked to set their own on first sign-in.</p>
       </div>
 
       <div class="card">
         <h3>Invite by email link</h3>
         <p class="mnote">Create a join link for a teammate. They sign up with it and are added to <b>your studio</b> with the role you pick. The link expires in 7 days; nothing is charged.</p>
-        <form id="inv_add" class="addrow" style="grid-template-columns:1.6fr 1fr auto">
+        <form id="inv_add" class="addrow s-0dff578">
           <input id="inv_email" type="email" placeholder="name@studio.com" required autocomplete="off" aria-label="Invite email">
           <select id="inv_role" aria-label="Invite role"></select>
           <button class="btn primary" type="submit" id="inv_submit">Create invite link</button>
         </form>
-        <div id="inv_out" hidden style="margin-top:10px;display:flex;gap:8px;align-items:center">
-          <input id="inv_link" readonly style="flex:1;min-width:0" aria-label="Invitation link">
+        <div class="s-e93d1e1" id="inv_out" hidden>
+          <input class="s-59eddc6" id="inv_link" readonly aria-label="Invitation link">
           <button class="btn" type="button" id="inv_copy">Copy</button>
         </div>
       </div>
@@ -519,7 +519,7 @@
         <div class="table-scroll"><table class="ntable" id="nf_table">
           <caption class="sr-only">Notification types by role. Each button shows or hides that notification in the role's bell.</caption>
           <thead id="nf_head"></thead>
-          <tbody id="nf_rows"><tr><td style="color:var(--ink-3);text-align:left"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
+          <tbody id="nf_rows"><tr><td class="s-b6d945c"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
         </table></div>
         <div class="nlegend mnote"><span><i aria-hidden="true"></i>changed from the default</span><span>₹ finance = starts on only for roles with finance access</span></div>
       </div>
@@ -549,7 +549,7 @@
       <div class="fld"><label for="mp_job_title">Job title</label><input id="mp_job_title" maxlength="80" autocomplete="off" placeholder="e.g. Lead planner" aria-describedby="mp_e_job_title"><p class="ferr" id="mp_e_job_title" hidden></p></div>
       <div class="fld"><label for="mp_department">Department</label><input id="mp_department" maxlength="80" autocomplete="off" placeholder="e.g. Production" aria-describedby="mp_e_department"><p class="ferr" id="mp_e_department" hidden></p></div>
       <div class="fld"><label for="mp_city">City</label><input id="mp_city" maxlength="80" autocomplete="off" aria-describedby="mp_e_city"><p class="ferr" id="mp_e_city" hidden></p></div>
-      <div class="fld full"><label for="mp_skill">Skills <span style="text-transform:none;letter-spacing:0;font-weight:400">(up to 20 — press Enter or comma to add)</span></label>
+      <div class="fld full"><label for="mp_skill">Skills <span class="s-6947eeb">(up to 20 — press Enter or comma to add)</span></label>
         <div class="mpchips" id="mp_chips"></div>
         <input id="mp_skill" maxlength="40" autocomplete="off" placeholder="e.g. lighting" aria-describedby="mp_e_skills"><p class="ferr" id="mp_e_skills" hidden></p></div>
       <div class="fld"><label for="mp_emergency_contact_name">Emergency contact name</label><input id="mp_emergency_contact_name" maxlength="80" autocomplete="off" aria-describedby="mp_e_emergency_contact_name"><p class="ferr" id="mp_e_emergency_contact_name" hidden></p></div>
@@ -558,25 +558,26 @@
       <div class="fld" id="mp_rate_fld"><label for="mp_day_rate">Day rate (₹)</label><input id="mp_day_rate" type="number" min="0" step="0.01" placeholder="optional" aria-describedby="mp_e_day_rate"><p class="ferr" id="mp_e_day_rate" hidden></p></div>
       <div class="fld" id="mp_emp_fld"><label for="mp_emp_type">Employment type</label><select id="mp_emp_type" aria-describedby="mp_e_emp_type"><option value="">—</option><option value="full_time">Full-time</option><option value="part_time">Part-time</option><option value="on_call">On-call</option></select><p class="ferr" id="mp_e_emp_type" hidden></p></div>
     </div>
-    <div class="lerr" id="mp_err" role="alert" hidden style="margin-top:12px"></div>
+    <div class="lerr s-56f4356" id="mp_err" role="alert" hidden></div>
     <div class="mpfoot"><button type="button" class="btn" id="mp_cancel" data-close>Cancel</button><button type="submit" class="btn primary" id="mp_save">Save</button></div>
   </form>
 </div>
 
 <div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <form class="lsheet" id="loginForm">
-    <div class="mark" style="margin:0 auto 10px" aria-hidden="true"></div>
+    <div class="mark s-ffac540" aria-hidden="true"></div>
     <h3 id="loginTitle">Sign in</h3>
     <label for="li_email">Email</label><input type="email" id="li_email" autocomplete="username" required>
     <label for="li_pw">Password</label><input type="password" id="li_pw" autocomplete="current-password" required>
     <div class="lerr" id="li_err" hidden role="alert" aria-live="assertive"></div>
-    <button class="btn primary" id="li_submit" type="submit" style="width:100%">Sign in</button>
+    <button class="btn primary s-0466783" id="li_submit" type="submit">Sign in</button>
   </form>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
-<script src="store-api.js?v=118"></script>
+<script src="store-api.js?v=120"></script>
 <script src="hq-invoice.js?v=1"></script>
 <script src="tour.js?v=7"></script>
 <script>
@@ -640,7 +641,7 @@
       $("#p_cgst").value=p.cateringGstPct??18; $("#p_svc").value=p.serviceChargePct??0;
       $("#p_layout").value=p.layoutBase??0;
       $("#p_buffer").value=p.conflictBufferHours??3;
-      try{ const cc=$("#p_country"); if(cc && !cc.options.length){ cc.innerHTML=(BPStore.countries()||[]).map(c=>`<option value="${c.iso}">${c.name} (+${c.dial})</option>`).join(""); } if(cc) cc.value=p.country||"IN"; }catch(e){}
+      try{ const cc=$("#p_country"); if(cc && !cc.options.length){ cc.innerHTML=(BPStore.countries()||[]).map(c=>`<option value="${esc(c.iso)}">${esc(c.name)} (+${esc(c.dial)})</option>`).join(""); } if(cc) cc.value=p.country||"IN"; }catch(e){}
       $("#cap_guests").value=p.maxGuests??20000; $("#cap_chairs").value=p.maxChairs??20000; $("#cap_plates").value=p.maxPlates??20000;
       $("#cap_tables").value=p.maxRoundTables??2000; $("#cap_bars").value=p.maxBars??200; $("#cap_trucks").value=p.maxFoodTrucks??200;
       $("#cap_booths").value=p.maxExpoBooths??1000; $("#cap_rest").value=p.maxRestrooms??200; $("#cap_exits").value=p.maxExits??200; $("#cap_hall").value=p.maxHallFt??1000;

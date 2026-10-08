@@ -66,7 +66,7 @@
   :root{--neg:#b42318} html[data-theme="dark"]{--neg:#f87171}
   html[data-theme="dark"] .tile.bal .n.due,html[data-theme="dark"] .tile.margin .n.neg{color:var(--neg)} html[data-theme="dark"] .tile.bal .n.clear,html[data-theme="dark"] .tile.margin .n.pos,html[data-theme="dark"] .btn.go{color:var(--safe-text)}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -81,8 +81,8 @@
   <main id="main">
   <div id="boot" aria-busy="true"></div>
 
-  <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to open settlement.</p></div>
-  <div id="notfound" class="card" hidden><p style="color:var(--ink-3)">Event not found. Go to <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a>.</p></div>
+  <div id="gate" class="card" hidden><p class="s-1a1aca0">Sign in to open settlement.</p></div>
+  <div id="notfound" class="card" hidden><p class="s-1a1aca0">Event not found. Go to <a class="s-dea29d3" href="quotes.html">Quotes</a>.</p></div>
 
   <div id="app" hidden>
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
@@ -99,11 +99,11 @@
       <p class="sub">The final bill = quote + approved change orders, less what's already paid.</p>
       <div class="table-scroll"><table><tbody id="invBody"><tr><td class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody></table></div>
       <div class="payline" id="payLine" hidden>
-        <span style="font-size:13px;color:var(--ink-2)">Record a payment received:</span>
+        <span class="s-365d601">Record a payment received:</span>
         <input id="pay_amt" type="number" min="0" placeholder="amount" aria-label="Payment amount received">
         <button type="button" class="btn primary" id="pay_btn">Record payment</button>
-        <span id="pay_msg" role="status" aria-live="polite" style="font-size:12px;color:var(--safe-text,#0f7a43);font-weight:600"></span>
-        <div id="pay_block" class="err" role="alert" aria-live="assertive" hidden style="flex-basis:100%"></div>
+        <span class="s-d63f0e9" id="pay_msg" role="status" aria-live="polite"></span>
+        <div id="pay_block" class="err s-3717df5" role="alert" aria-live="assertive" hidden></div>
       </div>
     </div>
 
@@ -124,7 +124,7 @@
         <div class="fld"><label for="e_who">Who</label><input id="e_who" placeholder="name"></div>
         <div class="fld"><label for="e_desc">For</label><input id="e_desc" placeholder="e.g. Fuel, materials"></div>
         <div class="fld"><label for="e_amt">Amount ₹</label><input id="e_amt" type="number" min="0" value="0"></div>
-        <div class="fld"><span aria-hidden="true" style="font-size:12px">&nbsp;</span><button type="button" class="btn primary" id="e_add">＋ Add</button></div>
+        <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="e_add">＋ Add</button></div>
       </div>
       <div class="totbar"><span>Claims total: <b id="e_tot">₹0</b></span><span>Paid: <b id="e_paid">₹0</b></span></div>
     </div>
@@ -135,10 +135,10 @@
       <div class="table-scroll"><table><thead><tr><th scope="col">Type</th><th scope="col">Reason</th><th scope="col" class="num">Amount</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody id="refBody"><tr><td colspan="5" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody></table></div>
       <div class="addgrid" id="refAdd" hidden>
-        <div class="fld"><label for="r_kind">Type</label><select id="r_kind" style="height:36px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)"><option value="refund">Refund to client</option><option value="recovery">Recover from client</option><option value="deduction">Deduction from deposit</option></select></div>
+        <div class="fld"><label for="r_kind">Type</label><select class="s-23199e2" id="r_kind"><option value="refund">Refund to client</option><option value="recovery">Recover from client</option><option value="deduction">Deduction from deposit</option></select></div>
         <div class="fld"><label for="r_reason">Reason</label><input id="r_reason" placeholder="e.g. Damaged linens"></div>
         <div class="fld"><label for="r_amt">Amount ₹</label><input id="r_amt" type="number" min="0" value="0"></div>
-        <div class="fld"><span aria-hidden="true" style="font-size:12px">&nbsp;</span><button type="button" class="btn primary" id="r_add">＋ Add</button></div>
+        <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="r_add">＋ Add</button></div>
       </div>
       <div class="totbar"><span>Refunds due: <b id="r_ref">₹0</b></span><span>To recover: <b id="r_rec">₹0</b></span></div>
     </div>
@@ -157,9 +157,10 @@
   </div>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
-<script src="store-api.js?v=118"></script>
+<script src="store-api.js?v=120"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

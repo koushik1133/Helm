@@ -18,6 +18,7 @@ Allow: /login
 Allow: /landing.css
 Allow: /theme.css
 Allow: /telemetry.js
+Allow: /trusted-types.js
 Allow: /og.png
 Allow: /favicon
 Allow: /apple-touch-icon.png

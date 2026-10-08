@@ -95,7 +95,7 @@
   .evgal a{display:block;border:1px solid var(--line);border-radius:8px;overflow:hidden;aspect-ratio:1/1;background:var(--panel)}
   .evgal img{width:100%;height:100%;object-fit:cover;display:block}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -113,7 +113,7 @@
   <div id="gate" class="card" hidden><p class="muted">Please sign in as a manager to run operations.</p></div>
   <div id="boot" aria-busy="true"></div>
   <div id="loadErr"></div>
-  <div id="noquote" class="card" hidden><p class="muted" id="noquoteMsg">Open an event from <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a> → Operations.</p></div>
+  <div id="noquote" class="card" hidden><p class="muted" id="noquoteMsg">Open an event from <a class="s-dea29d3" href="quotes.html">Quotes</a> → Operations.</p></div>
 
   <div id="app" hidden>
     <div class="card evhead" id="evhead"></div>
@@ -121,7 +121,7 @@
     <div class="card">
       <h3>Staff</h3>
       <div id="crewChips"></div>
-      <div class="crewrow" style="margin-top:10px">
+      <div class="crewrow s-d2c171b">
         <input id="cr_name" placeholder="Name (e.g. Karthik)" aria-label="Staff name">
         <input id="cr_phone" type="tel" data-phone placeholder="Phone" aria-label="Staff phone">
         <select id="cr_dept" aria-label="Department"></select>
@@ -133,28 +133,28 @@
       <h3>Assign work</h3>
       <div id="msg" role="status" aria-live="polite"></div>
       <div class="tabs" id="catTabs" role="group" aria-label="Task section"></div>
-      <label style="font-size:12px;color:var(--ink-2);display:flex;gap:8px;align-items:center;margin-bottom:8px">
-        <input type="checkbox" id="selAll" style="width:18px;height:18px;accent-color:var(--accent)"> Select all in this category</label>
+      <label class="s-1c780c5">
+        <input class="s-47124b2" type="checkbox" id="selAll"> Select all in this category</label>
       <div class="tasklist" id="taskList"></div>
       <div class="assignbar">
         <span class="muted"><b id="selCount">0</b> selected →</span>
-        <select id="assignKind" style="min-width:130px" aria-label="Assignment type">
+        <select class="s-b62dc2d" id="assignKind" aria-label="Assignment type">
           <option value="in_house">🏠 In-house staff</option>
           <option value="outsourced">🤝 Outsource</option>
         </select>
-        <select id="assignCrew" style="min-width:180px" aria-label="Assign to staff"></select>
+        <select class="s-66dbd5d" id="assignCrew" aria-label="Assign to staff"></select>
         <span class="crewwho" id="assignWho" aria-live="polite"></span>
-        <select id="assignVendor" style="min-width:200px" hidden aria-label="Assign to vendor"></select>
+        <select class="s-47b618f" id="assignVendor" hidden aria-label="Assign to vendor"></select>
         <button type="button" class="btn primary" id="assignBtn">Assign selected →</button>
       </div>
-      <div id="suggestBar" style="margin-top:10px"></div>
+      <div class="s-d2c171b" id="suggestBar"></div>
     </div>
 
     <div class="card">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-        <h3 style="margin:0">Live status</h3>
-        <div class="tabs" id="groupToggle" style="margin:0" role="group" aria-label="Group tasks"><button type="button" data-g="section" class="on" aria-pressed="true">By section</button><button type="button" data-g="crew" aria-pressed="false">By staff</button></div>
-        <span class="spacer" style="flex:1"></span>
+      <div class="s-a522af5">
+        <h3 class="s-1169661">Live status</h3>
+        <div class="tabs s-1169661" id="groupToggle" role="group" aria-label="Group tasks"><button type="button" data-g="section" class="on" aria-pressed="true">By section</button><button type="button" data-g="crew" aria-pressed="false">By staff</button></div>
+        <span class="spacer s-97445a8"></span>
         <button type="button" class="btn sm" id="remindDue" title="Send reminders for special tasks that aren't done yet">🔔 Remind due</button>
         <button type="button" class="btn sm" id="fireDue" title="Notify assignees of scheduled tasks whose time has come and whose prerequisite is done">▶ Fire due tasks</button>
       </div>
@@ -167,10 +167,10 @@
 <div class="lmodal" id="reassignModal" hidden role="dialog" aria-modal="true" aria-labelledby="ra_title">
   <form class="lsheet form" id="reassignForm" novalidate>
     <h3 id="ra_title">Reassign task</h3>
-    <p class="muted" id="ra_task" style="margin:0 0 12px"></p>
+    <p class="muted s-249d010" id="ra_task"></p>
     <label for="ra_crew">Staff member</label>
     <select id="ra_crew" required></select>
-    <div class="crewwho" id="raWho" aria-live="polite" style="margin-top:8px"></div>
+    <div class="crewwho s-8a77e5a" id="raWho" aria-live="polite"></div>
     <div class="lerr" id="ra_err" role="alert" hidden></div>
     <div class="foot"><button type="button" class="btn" id="ra_cancel" data-close>Cancel</button><button type="submit" class="btn primary" id="ra_save">Reassign</button></div>
   </form>
@@ -179,7 +179,7 @@
 <div class="lmodal" id="schedModal" hidden role="dialog" aria-modal="true" aria-labelledby="sc_title">
   <form class="lsheet form" id="schedForm" novalidate>
     <h3 id="sc_title">Schedule task</h3>
-    <p class="muted" id="sc_task" style="margin:0 0 12px"></p>
+    <p class="muted s-249d010" id="sc_task"></p>
     <label for="sc_when">Start time</label>
     <input type="datetime-local" id="sc_when">
     <p class="muted hint">Leave blank for no start time.</p>
@@ -193,7 +193,7 @@
 <div class="lmodal" id="evModal" hidden role="dialog" aria-modal="true" aria-labelledby="ev_title">
   <div class="lsheet form evsheet">
     <h3 id="ev_title">Crew notes &amp; photos</h3>
-    <p class="muted" id="ev_task" style="margin:0 0 12px"></p>
+    <p class="muted s-249d010" id="ev_task"></p>
     <div id="ev_body"></div>
     <div class="foot"><button type="button" class="btn" id="ev_close" data-close>Close</button></div>
   </div>
@@ -201,18 +201,19 @@
 
 <div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle" data-dismissible="false">
   <form class="lsheet" id="loginForm">
-    <div class="mark" style="margin:0 auto 12px" aria-hidden="true"></div>
+    <div class="mark s-9690e1d" aria-hidden="true"></div>
     <h3 id="loginTitle">Sign in</h3>
     <label for="li_email">Email</label><input type="email" id="li_email" autocomplete="email" required>
     <label for="li_pw">Password</label><input type="password" id="li_pw" autocomplete="current-password" required>
     <div class="lerr" id="li_err" hidden role="alert" aria-live="assertive"></div>
-    <button class="btn primary" id="li_submit" type="submit" style="width:100%;justify-content:center">Sign in</button>
+    <button class="btn primary s-4a27002" id="li_submit" type="submit">Sign in</button>
   </form>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
-<script src="store-api.js?v=118"></script>
+<script src="store-api.js?v=120"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

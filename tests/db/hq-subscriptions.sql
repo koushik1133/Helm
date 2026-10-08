@@ -316,7 +316,8 @@ do $$ declare missing text; begin perform pg_temp.su();
    where n.nspname = 'public' and c.relkind = 'r'
      and exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'org_id' and not a.attisdropped)
      and c.relname not in ('audit_log','notification_seen','studio_subscriptions','subscription_payments','billing_reminders','helm_audit_0044_reverted',
-                           'upload_scans')  -- 0051: system scan metadata (scanner must work for suspended studios too)
+                           'upload_scans',  -- 0051: system scan metadata (scanner must work for suspended studios too)
+                           'security_alert_events', 'security_alert_outbox')  -- 0054: system alert log (written by triggers only)
      and not exists (select 1 from pg_trigger t where t.tgrelid = c.oid and t.tgname = 'zzz_studio_read_only');
   perform pg_temp.res('54 every studio table has the read-only guard', missing is null, missing);
 end $$;

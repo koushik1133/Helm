@@ -84,7 +84,7 @@
   @media (prefers-reduced-motion:reduce){.saved{transition:none}}
   .banner{background:var(--accent-soft);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--ink);display:flex;gap:10px;align-items:center}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -98,26 +98,26 @@
   </header>
 
   <main id="main">
-  <div id="gate" class="card" hidden><p style="color:var(--ink-2)">Sign in to open the quote flow.</p></div>
+  <div id="gate" class="card" hidden><p class="s-d968463">Sign in to open the quote flow.</p></div>
 
   <div id="boot" aria-busy="true"></div>
   <div id="app" hidden>
-    <div id="reminder" class="banner" hidden style="margin-bottom:14px">
+    <div id="reminder" class="banner s-2b583d7" hidden>
       <span>👋 Welcome back — pick up where you left off. Finish the quotation &amp; send for approval below.</span>
       <span class="spacer"></span><button type="button" class="btn sm" id="dismissReminder">Got it</button>
     </div>
 
-    <div class="card" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <div class="card s-f6c797b">
       <div>
-        <div style="font-family:var(--mono);font-weight:700;font-size:20px;color:var(--accent)" id="code">—</div>
-        <div style="font-size:14px;font-weight:600" id="title"></div>
+        <div class="s-25f7a3d" id="code">—</div>
+        <div class="s-fe496b8" id="title"></div>
       </div>
       <span class="statusbadge" id="statusBadge">draft</span>
       <span class="spacer"></span>
       <a class="btn" id="workspaceLink" href="#">Open full workspace →</a>
     </div>
 
-    <div class="layout" style="margin-top:16px">
+    <div class="layout s-1b0f499">
       <div class="col-main">
 
         <!-- 1 CLIENT -->
@@ -156,9 +156,9 @@
           <h2><span class="step-n">3</span> Requirements</h2>
           <p class="sub">The services the client wants.</p>
           <div id="reqList"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
-          <div class="row3" style="margin-top:10px">
-            <input id="rq_title" list="reqTypeList" aria-label="Requirement" class="fld" style="height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px" placeholder="Pick or type a new one…"><datalist id="reqTypeList"></datalist>
-            <select id="rq_pri" aria-label="Requirement priority" style="height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 8px"><option value="mandatory">Must-have</option><option value="optional">Optional</option><option value="nice">Nice-to-have</option></select>
+          <div class="row3 s-d2c171b">
+            <input id="rq_title" list="reqTypeList" aria-label="Requirement" class="fld s-f8eca89" placeholder="Pick or type a new one…"><datalist id="reqTypeList"></datalist>
+            <select class="s-28098e6" id="rq_pri" aria-label="Requirement priority"><option value="mandatory">Must-have</option><option value="optional">Optional</option><option value="nice">Nice-to-have</option></select>
             <button type="button" class="btn" id="rq_add">＋ Add</button>
           </div>
         </section>
@@ -180,7 +180,7 @@
           <h2><span class="step-n">5</span> Menu package <span class="saved" id="sv-menu">Saved ✓</span></h2>
           <p class="sub">Pick a package — it pre-fills the dishes and drives the catering price.</p>
           <div class="pkgcards" id="pkgCards"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
-          <div class="fld full" style="margin-top:12px"><label for="p_menu">Menu / service notes</label><textarea id="p_menu" placeholder="Courses, dietary options, service style, timings…"></textarea></div>
+          <div class="fld full s-56f4356"><label for="p_menu">Menu / service notes</label><textarea id="p_menu" placeholder="Courses, dietary options, service style, timings…"></textarea></div>
         </section>
 
         <!-- 6 PROPOSAL (moved above the floor layout so the concept is set before the room is laid out) -->
@@ -200,16 +200,16 @@
           <h2><span class="step-n">7</span> Floor layout</h2>
           <p class="sub">Enter the hall size &amp; headcount and generate a default layout for this event type — then tweak it freely. Chairs &amp; objects feed the price automatically.</p>
           <div class="secerr" id="err-layout"></div>
-          <div class="row4" style="margin-bottom:12px">
-            <div class="fld" style="margin:0"><label for="g_guests">Guests</label><input id="g_guests" type="number" min="0"></div>
-            <div class="fld" style="margin:0"><label for="g_len">Hall length (ft)</label><input id="g_len" type="number" min="20" placeholder="200"></div>
-            <div class="fld" style="margin:0"><label for="g_wid">Hall breadth (ft)</label><input id="g_wid" type="number" min="20" placeholder="140"></div>
+          <div class="row4 s-da12f28">
+            <div class="fld s-1169661"><label for="g_guests">Guests</label><input id="g_guests" type="number" min="0"></div>
+            <div class="fld s-1169661"><label for="g_len">Hall length (ft)</label><input id="g_len" type="number" min="20" placeholder="200"></div>
+            <div class="fld s-1169661"><label for="g_wid">Hall breadth (ft)</label><input id="g_wid" type="number" min="20" placeholder="140"></div>
             <button type="button" class="btn primary" id="genLayout">✨ Generate default layout</button>
           </div>
-          <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
-            <div style="font-size:13px;color:var(--ink-2)">Current layout: <b id="layoutSummary">no objects yet</b></div>
+          <div class="s-593718e">
+            <div class="s-365d601">Current layout: <b id="layoutSummary">no objects yet</b></div>
             <span class="spacer"></span>
-            <label style="font-size:12px;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px"><input type="checkbox" id="remindAfter"> Remind me to finish this after the layout</label>
+            <label class="s-af1acab"><input type="checkbox" id="remindAfter"> Remind me to finish this after the layout</label>
             <a class="btn primary" id="openBuilder" href="#">🎨 Open floor builder →</a>
           </div>
         </section>
@@ -222,41 +222,41 @@
           <div class="grid">
             <div class="fld"><label for="q_chairs">Chairs (from layout)</label><input id="q_chairs" type="number" min="0"></div>
             <div class="fld"><label for="q_guests">Guests / plates</label><input id="q_guests" type="number" min="0"></div>
-            <div class="fld"><label for="q_chairPrice">Chair rate (₹) <span style="color:var(--ink-3);font-weight:400;text-transform:none">· set in Control Center</span></label><input id="q_chairPrice" type="number" min="0" readonly title="Fixed — change it in Control Center → Pricing" style="background:var(--bg);color:var(--ink-2);cursor:not-allowed"></div>
-            <div class="fld"><label for="q_platePrice">Plate price (₹) <span style="color:var(--ink-3);font-weight:400;text-transform:none">· from package / Control Center</span></label><input id="q_platePrice" type="number" min="0" readonly title="Fixed — set by the menu package or Control Center → Pricing" style="background:var(--bg);color:var(--ink-2);cursor:not-allowed"></div>
+            <div class="fld"><label for="q_chairPrice">Chair rate (₹) <span class="s-c78b388">· set in Control Center</span></label><input class="s-10bfcec" id="q_chairPrice" type="number" min="0" readonly title="Fixed — change it in Control Center → Pricing"></div>
+            <div class="fld"><label for="q_platePrice">Plate price (₹) <span class="s-c78b388">· from package / Control Center</span></label><input class="s-10bfcec" id="q_platePrice" type="number" min="0" readonly title="Fixed — set by the menu package or Control Center → Pricing"></div>
             <div class="fld"><label for="q_other">Décor / equipment &amp; setup (₹)</label><input id="q_other" type="number" min="0"></div>
             <div class="fld"><label for="q_discount">Discount (₹)</label><input id="q_discount" type="number" min="0"></div>
             <div class="fld"><label for="q_coupon">Coupon code</label><input id="q_coupon" list="couponList" placeholder="optional"><datalist id="couponList"></datalist>
-              <div id="q_couponMsg" role="status" aria-live="polite" style="font-size:12px;margin-top:3px;color:var(--ink-3)"></div></div>
+              <div class="s-40d0688" id="q_couponMsg" role="status" aria-live="polite"></div></div>
           </div>
-          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:6px;flex-wrap:wrap">
+          <div class="s-7ffa8ad">
             <button type="button" class="btn" id="q_pdf">⬇ Download quote PDF</button>
             <button type="button" class="btn primary" id="q_save">Save quotation (new version)</button>
           </div>
-          <div id="q_msg" role="status" aria-live="polite" style="font-size:12px;margin-top:6px;text-align:right;color:var(--ink-2)"></div>
-          <div id="q_versions" style="margin-top:12px"></div>
+          <div class="s-3e8ce99" id="q_msg" role="status" aria-live="polite"></div>
+          <div class="s-56f4356" id="q_versions"></div>
         </section>
 
         <!-- 9 ADVANCE PAYMENT & BOOKING -->
         <section class="card" id="sec-pay">
-          <h2><span class="step-n">9</span> Advance payment &amp; booking <span class="pill" id="bookingBadge" style="display:none">Confirmed</span></h2>
+          <h2><span class="step-n">9</span> Advance payment &amp; booking <span class="pill" id="bookingBadge" hidden>Confirmed</span></h2>
           <p class="sub">Accepting the quote isn't a confirmed booking — recording the advance is. Send an online link or record cash. A receipt is issued and both sides are notified.</p>
-          <div class="row4" style="margin-bottom:10px">
-            <div class="fld" style="margin:0"><label for="pay_pct">Advance %</label><input id="pay_pct" type="number" min="0" max="100" value="10"></div>
-            <div class="fld" style="margin:0"><label for="pay_amount">Advance amount (₹)</label><input id="pay_amount" type="number" min="0"></div>
-            <div class="fld" style="margin:0"><label for="pay_method">Method</label><select id="pay_method"><option value="cash">Cash / offline</option><option value="online">Online link</option></select></div>
+          <div class="row4 s-761d3ad">
+            <div class="fld s-1169661"><label for="pay_pct">Advance %</label><input id="pay_pct" type="number" min="0" max="100" value="10"></div>
+            <div class="fld s-1169661"><label for="pay_amount">Advance amount (₹)</label><input id="pay_amount" type="number" min="0"></div>
+            <div class="fld s-1169661"><label for="pay_method">Method</label><select id="pay_method"><option value="cash">Cash / offline</option><option value="online">Online link</option></select></div>
             <button type="button" class="btn primary" id="pay_record">Record payment</button>
           </div>
           <div class="fld" id="pay_receiptWrap"><label for="pay_receipt">Receipt no. (offline — blank to auto‑generate)</label><input id="pay_receipt" placeholder="e.g. RCP‑001 / cash memo no."></div>
-          <div id="pay_online" style="display:none;font-size:12px;color:var(--ink-3);margin-top:6px"></div>
-          <div id="pay_receipts" style="margin-top:12px"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
+          <div class="s-4856645" id="pay_online" hidden></div>
+          <div class="s-56f4356" id="pay_receipts"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
         </section>
 
         <!-- ACTIVITY TRAIL -->
         <section class="card" id="sec-activity">
           <h2>Activity trail</h2>
           <p class="sub">Every change kept on record — quote versions, discounts, advances, receipts, consents, messages.</p>
-          <div id="activityList" style="font-size:13px"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
+          <div class="s-5e0faad" id="activityList"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
         </section>
 
       </div>
@@ -264,18 +264,18 @@
       <!-- RIGHT RAIL -->
       <aside class="rail">
         <div class="card price">
-          <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin:0 0 10px">Live price</h2>
+          <h2 class="s-d5d221b">Live price</h2>
           <div id="priceRows"></div>
         </div>
         <div class="card">
-          <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin:0 0 8px">Steps</h2>
+          <h2 class="s-67af347">Steps</h2>
           <div class="prog" id="progList"></div>
         </div>
         <div class="card">
-          <h2 style="font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin:0 0 10px">Client approval</h2>
-          <div id="apprState" style="font-size:13px;color:var(--ink-2);margin-bottom:10px">Not sent yet.</div>
-          <button type="button" class="btn primary" id="sendApproval" style="width:100%">Send for approval →</button>
-          <div id="apprLinks" style="margin-top:10px"></div>
+          <h2 class="s-d5d221b">Client approval</h2>
+          <div class="s-28b4c11" id="apprState">Not sent yet.</div>
+          <button type="button" class="btn primary s-0466783" id="sendApproval">Send for approval →</button>
+          <div class="s-d2c171b" id="apprLinks"></div>
         </div>
       </aside>
     </div>
@@ -287,8 +287,8 @@
 <div id="leaveModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="leaveModalTitle" aria-describedby="leaveModalDesc">
   <div class="lsheet">
     <h3 id="leaveModalTitle">Save this quote?</h3>
-    <p id="leaveModalDesc" style="font-size:13px;color:var(--ink-2);margin:0 0 18px">You have unsaved changes to this quote.</p>
-    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+    <p class="s-c7cb7a5" id="leaveModalDesc">You have unsaved changes to this quote.</p>
+    <div class="s-d50b8a8">
       <button type="button" class="btn" id="lv_stay" data-close>Stay on this page</button>
       <button type="button" class="btn" id="lv_discard">Leave without saving</button>
       <button type="button" class="btn primary" id="lv_save">Save</button>
@@ -301,14 +301,15 @@
     <h3 id="loginModalTitle">Sign in</h3>
     <label for="li_email">Email</label><input id="li_email" type="email" autocomplete="username">
     <label for="li_pass">Password</label><input id="li_pass" type="password" autocomplete="current-password">
-    <div id="li_err" role="alert" aria-live="assertive" style="color:#b42318;font-size:12px;margin-bottom:10px" hidden></div>
-    <button type="button" class="btn primary" id="li_go" style="width:100%">Sign in</button>
+    <div class="s-8a9f83e" id="li_err" role="alert" aria-live="assertive" hidden></div>
+    <button type="button" class="btn primary s-0466783" id="li_go">Sign in</button>
   </div>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
-<script src="store-api.js?v=118"></script>
+<script src="store-api.js?v=120"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -688,10 +689,10 @@
     const idem=(typeof crypto!=="undefined"&&crypto.randomUUID)?crypto.randomUUID():("k"+Date.now()+Math.random().toString(36).slice(2));
     try{
       const r=await BPStore.milestones.record(id, amount, method, $("#pay_receipt").value.trim()||null, null, null, idem);
-      $("#bookingBadge").style.display=""; $("#statusBadge").textContent="confirmed";
+      $("#bookingBadge").hidden=false; $("#statusBadge").textContent="confirmed";
       $("#pay_receipt").value=""; $("#pay_amount").value="";
       if(method==='online' && BPStore.approval.onlinePayAvailable()){ const link=location.origin+"/sim-pay.html?ref="+encodeURIComponent(ev.code||"")+"&amount="+amount;
-        $("#pay_online").style.display=""; $("#pay_online").innerHTML=`Online link (simulated): <a href="${esc(link)}" target="_blank" rel="noopener" style="color:var(--accent)">${esc(link)}</a> — real Razorpay link goes here in production.`; }
+        $("#pay_online").hidden=false; $("#pay_online").style.display=""; $("#pay_online").innerHTML=`Online link (simulated): <a href="${esc(link)}" target="_blank" rel="noopener" style="color:var(--accent)">${esc(link)}</a> — real Razorpay link goes here in production.`; }
       $("#pay_record").removeAttribute("aria-busy");
       await renderReceipts(); await renderActivity();
       BPUI.toast("Payment recorded — receipt "+(r&&r.receipt_no||"")+". Booking confirmed.",{type:"ok",timeout:8000});
@@ -816,7 +817,7 @@
     renderPrice(); updateProgress();
     // advance payment + activity
     updateAdvance();
-    if(ev.status==='confirmed' || (ev.approval_status==='paid')) $("#bookingBadge").style.display="";
+    if(ev.status==='confirmed' || (ev.approval_status==='paid')) $("#bookingBadge").hidden=false;
     await renderReceipts(); await renderActivity(); await renderQuoteVersions();
     // reminder banner
     try{ if(localStorage.getItem(REMIND_KEY)==="1"){ $("#reminder").hidden=false; localStorage.removeItem(REMIND_KEY); $("#sec-quote").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"}); } }catch{}

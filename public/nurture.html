@@ -76,7 +76,7 @@
   .msg{border-radius:8px;padding:8px 11px;font-size:13px;margin:8px 0}
   .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca} .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -90,14 +90,14 @@
   </header>
 
   <main id="main">
-  <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to open the nurture list.</p></div>
+  <div id="gate" class="card" hidden><p class="s-1a1aca0">Sign in to open the nurture list.</p></div>
 
   <div id="boot" aria-busy="true"></div>
   <div id="app" hidden>
     <div class="card" id="addCard" hidden>
       <h2>Add to nurture list</h2>
       <p class="sub">Keep past & prospective clients warm — set the next follow-up date and the occasion.</p>
-      <div class="addgrid" style="grid-template-columns:1.1fr .9fr .8fr 1fr .9fr auto">
+      <div class="addgrid s-4504b58">
         <div class="fld"><label for="n_name">Name</label><input id="n_name" list="clientList" placeholder="Pick a client or type a new one" autocomplete="off">
           <datalist id="clientList"></datalist></div>
         <div class="fld"><label for="n_email">Email</label><input id="n_email" type="email" placeholder="for greetings"></div>
@@ -106,9 +106,9 @@
           <option value="festival">✨ Festival</option><option value="custom">📌 Custom</option></select></div>
         <div class="fld"><label for="n_occ">Occasion label</label><input id="n_occ" placeholder="e.g. Wedding anniversary"></div>
         <div class="fld"><label for="n_occd">Occasion date</label><input id="n_occd" type="date"></div>
-        <div class="fld"><span aria-hidden="true" style="font-size:12px">&nbsp;</span><button class="btn primary" id="n_add" type="button">＋ Add</button></div>
+        <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button class="btn primary" id="n_add" type="button">＋ Add</button></div>
       </div>
-      <label style="display:inline-flex;align-items:center;gap:8px;margin-top:12px;font-size:13px;color:var(--ink-2);cursor:pointer">
+      <label class="s-3181245">
         <input type="checkbox" id="n_auto"> Auto-send a greeting each year on this occasion</label>
     </div>
 
@@ -120,19 +120,19 @@
         <label class="switch"><input type="checkbox" id="autoToggle" aria-label="Automatic greetings"><span class="slider"></span></label>
         <div><div class="lab">Automatic greetings <span id="autoState" class="occ paused">Paused</span></div>
           <div class="desc">Sends to everyone below whose auto-greet is on.</div></div>
-        <span class="spacer" style="margin-left:auto"></span>
-        <label class="desc">Days ahead <input id="autoDays" type="number" min="0" max="30" style="width:64px;height:34px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2);padding:0 8px;margin-left:6px"></label>
+        <span class="spacer s-6d00061"></span>
+        <label class="desc">Days ahead <input class="s-1a2a924" id="autoDays" type="number" min="0" max="30"></label>
         <button class="btn" id="runNow" type="button">▶ Run today's greetings</button>
       </div>
       <div id="autoMsg" role="status" aria-live="polite"></div>
-      <div class="table-scroll"><table style="margin-top:12px">
+      <div class="table-scroll"><table class="s-56f4356">
         <thead><tr><th scope="col">Client</th><th scope="col">Occasion</th><th scope="col">Next date</th><th scope="col">Auto</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody id="occBody"><tr><td colspan="5" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
       </table></div>
     </div>
 
     <div class="card">
-      <h2>Nurture list <span id="dueCount" style="font-size:12px;color:#b42318;font-weight:600;margin-left:6px"></span></h2>
+      <h2>Nurture list <span class="s-ded3e35" id="dueCount"></span></h2>
       <div class="table-scroll"><table>
         <thead><tr><th scope="col">Client</th><th scope="col">Occasion</th><th scope="col">Next follow-up</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody id="nurBody"><tr><td colspan="5" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
@@ -145,12 +145,12 @@
       <p class="sub">A ready-made message per occasion — edit it to match your voice. Placeholders get filled in automatically:
         <span class="ph">{{name}}</span> <span class="ph">{{occasion}}</span> <span class="ph">{{years}}</span> <span class="ph">{{last_event}}</span> <span class="ph">{{studio}}</span></p>
       <div class="pill-tabs" id="tplTabs"></div>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);margin-bottom:10px;cursor:pointer">
+      <label class="s-3f68575">
         <input type="checkbox" id="tplEnabled"> Use this template for automatic greetings</label>
       <input class="tpl-sub" id="tplSubject" placeholder="Subject line" aria-label="Template subject line">
       <textarea class="tpl-body" id="tplBody" placeholder="Message body" aria-label="Template message body"></textarea>
       <div id="tplMsg" role="status" aria-live="polite"></div>
-      <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn primary" id="tplSave" type="button">Save template</button></div>
+      <div class="s-63492d1"><button class="btn primary" id="tplSave" type="button">Save template</button></div>
     </div>
   </div>
   </main>
@@ -167,9 +167,10 @@
   </div>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
-<script src="store-api.js?v=118"></script>
+<script src="store-api.js?v=120"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);

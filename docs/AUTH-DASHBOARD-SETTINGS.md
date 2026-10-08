@@ -168,3 +168,25 @@ Google sign-in no longer requests offline access (no Google refresh token).
 ## 9. Optional server-side MFA backstop
 `public.mfa_ok()` (0028) returns false for an aal1 token of a user with a verified factor.
 It is not in any policy yet; add it as RESTRICTIVE policies table-by-table after staging tests.
+
+## 10. Per-account password lockout — Authentication → Hooks (migration 0053, Pro plan)
+Locks an account after repeated wrong passwords, enforced by Supabase Auth itself (not the browser):
+5 wrong passwords within 15 minutes → locked 15 minutes; a second lock within 24 h → 1 hour. While
+locked, even the right password is refused with *"Too many attempts. Try again in 15 minutes (or 1 hour)
+or reset your password."* A successful sign-in clears the counter; a password reset/change clears a lock.
+Lock / unlock events are written to `audit_log` (`auth.password.locked` / `auth.password.unlocked`, user id only).
+**Until step 3 below is done, nothing changes for anyone.**
+
+1. Staging first: SQL Editor → paste `supabase/APPLY-0053.sql` → Run. Every VERIFY row must say `ok = true`
+   (`locked_now` = 0). Safe to re-run.
+2. Authentication → **Hooks** → **Add hook** → **Password Verification Attempt**.
+3. Hook type: **Postgres**. Schema: **public**. Function: **hook_password_verification_attempt**. Enable → **Create / Save**.
+   (The dashboard grants `supabase_auth_admin` execute; the migration already did, and revoked it from anon/authenticated/service_role.)
+4. Test on staging: wrong password 5× on a test account → 5th shows the "Too many attempts…" message; the right
+   password is then refused too; "Forgot password" → reset link → new password → sign-in works.
+5. Repeat steps 1–3 on production.
+
+To unlock someone by hand (owner, SQL editor): `delete from public.auth_password_attempts where user_id = '<uuid>';`
+(or have them reset their password). To turn the feature off: disable the hook in step 3 (nothing else needed).
+Note: the hook only runs for accounts that exist, so the lock message itself can reveal that an email is
+registered after 5 attempts; Supabase's IP rate limits and CAPTCHA (§4, §5) remain the first line against enumeration.

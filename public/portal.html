@@ -51,7 +51,7 @@
   footer{text-align:center;color:var(--ink-3);font-size:12px;margin-top:10px}
   .loading,.bad{text-align:center;padding:60px 20px;color:var(--ink-3)}
 </style>
-<link rel="stylesheet" href="/theme.css?v=73">
+<link rel="stylesheet" href="/theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -60,7 +60,7 @@
 
   <main id="main">
   <div id="loading" class="card loading" role="status">Loading your event…</div>
-  <div id="bad" class="card bad" hidden><h1 style="color:var(--ink);font-size:20px">Link not found</h1><p>This portal link is invalid or expired. Please ask your event planner for a new one.</p></div>
+  <div id="bad" class="card bad" hidden><h1 class="s-a265251">Link not found</h1><p>This portal link is invalid or expired. Please ask your event planner for a new one.</p></div>
 
   <div id="app" hidden>
     <div class="card hero">
@@ -75,7 +75,7 @@
       <h2><span aria-hidden="true">🎨</span> Your proposal</h2>
       <div class="theme" id="ptheme"></div>
       <div class="concept" id="pconcept"></div>
-      <div id="ppalette" style="margin-top:12px"></div>
+      <div class="s-56f4356" id="ppalette"></div>
       <div class="chips" id="pscope"></div>
       <div class="imgs" id="pimages"></div>
     </div>
@@ -84,7 +84,7 @@
       <h2><span aria-hidden="true">💳</span> Payments</h2>
       <div class="totbar"><span>Event total</span><span class="n" id="total">—</span></div>
       <div id="milestones"></div>
-      <div class="muted" id="outstanding" style="margin-top:10px"></div>
+      <div class="muted s-d2c171b" id="outstanding"></div>
     </div>
 
     <div class="card" id="galleryCard" hidden>
@@ -98,9 +98,10 @@
   <footer>Helm Events · this page shows only your event.</footer>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="/telemetry.js?v=3"></script>
 <script src="/config.js?v=96"></script>
-<script src="/store-api.js?v=118"></script>
+<script src="/store-api.js?v=120"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));

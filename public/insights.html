@@ -52,7 +52,7 @@
   @media(max-width:480px){.wrap{padding:0 16px 48px} header{flex-wrap:wrap} .nav{margin-left:0;flex-wrap:wrap} .bar .lb{width:90px} .bar .v{width:auto;min-width:52px} .kpi .n{font-size:18px}}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -110,18 +110,19 @@
 <div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <form class="lsheet" id="loginForm" novalidate>
     <button type="button" class="lclose" id="li_close" aria-label="Close" data-close>×</button>
-    <div class="mark" style="margin:0 auto 12px"></div>
+    <div class="mark s-9690e1d"></div>
     <h3 id="loginTitle">Sign in</h3>
     <label for="li_email">Email</label><input type="email" id="li_email" required autocomplete="email">
     <label for="li_pw">Password</label><input type="password" id="li_pw" required autocomplete="current-password">
     <div class="lerr" id="li_err" role="alert" hidden></div>
-    <button class="btn" type="submit" id="li_submit" style="width:100%;height:40px;border:0;border-radius:9px;background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;font-family:inherit;font-weight:700;cursor:pointer">Sign in</button>
+    <button class="btn s-9bc19ca" type="submit" id="li_submit">Sign in</button>
   </form>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
-<script src="store-api.js?v=118"></script>
+<script src="store-api.js?v=120"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -139,7 +140,7 @@
     if(!rows.length){ el.innerHTML='<div class="empty">'+(opts.empty||"Nothing yet.")+'</div>'; return; }
     const max=Math.max(...rows.map(r=>r.value),1);
     el.innerHTML=rows.map(r=>`<div class="bar"><span class="lb" title="${esc(r.label)}">${esc(r.label)}</span>
-      <span class="track"><span class="fill" style="width:${Math.max(4,Math.round(r.value/max*100))}%;background:${r.color||'var(--accent)'}"></span></span>
+      <span class="track"><span class="fill" style="width:${Math.max(4,Math.round(r.value/max*100))}%;background:${esc(r.color||'var(--accent)')}"></span></span>
       <span class="v">${esc(r.text!=null?r.text:r.value)}</span></div>`).join("");
   }
 
@@ -169,8 +170,8 @@
     const totalRejects=d.taskSlips.reduce((a,c)=>a+c.rejected,0);
     $("#kpis").innerHTML=`
       <div class="kpi"><div class="n">${d.vendors.length}</div><div class="l">Vendors tracked</div></div>
-      <div class="kpi"><div class="n">${totalRejects}</div><div class="l">QC rejections</div></div>
-      <div class="kpi"><div class="n">${d.losses.total}</div><div class="l">Items lost / not returned</div></div>
+      <div class="kpi"><div class="n">${esc(totalRejects)}</div><div class="l">QC rejections</div></div>
+      <div class="kpi"><div class="n">${esc(d.losses.total)}</div><div class="l">Items lost / not returned</div></div>
       <div class="kpi"><div class="n ${d.margins.totalProfit>=0?'pos':'neg'}">${canFin?inr(d.margins.totalProfit):'—'}</div><div class="l">Profit · ${d.margins.events.length} closed</div></div>`;
     // vendor reliability — bar = reject rate
     bars("vendors", d.vendors.slice(0,8).map(v=>({label:v.name, value:v.rejectRate,
@@ -186,10 +187,10 @@
     if(!canFin){ $("#marginCard").hidden=true; }
     else if(!d.margins.events.length){ $("#margins").innerHTML='<div class="empty">No closed events yet.</div>'; }
     else { const maxRev=Math.max(...d.margins.events.map(e=>Math.abs(e.revenue||0)),1);
-      $("#margins").innerHTML=`<div class="muted" style="margin-bottom:10px">Average margin across closed events: <b>${d.margins.avgMargin!=null?d.margins.avgMargin+"%":"—"}</b></div>`+
+      $("#margins").innerHTML=`<div class="muted" style="margin-bottom:10px">Average margin across closed events: <b>${d.margins.avgMargin!=null?esc(d.margins.avgMargin)+"%":"—"}</b></div>`+
       d.margins.events.map(e=>`<div class="bar"><span class="lb" title="${esc(e.code)}">${esc(e.code)}${e.date?` · ${esc(e.date)}`:""}</span>
         <span class="track"><span class="fill" style="width:${Math.max(4,Math.round(Math.abs(e.profit||0)/maxRev*100))}%;background:${(e.profit||0)>=0?'var(--safe)':'var(--bad)'}"></span></span>
-        <span class="v ${(e.profit||0)>=0?'pos':'neg'}">${inr(e.profit)}${e.marginPct!=null?` (${e.marginPct}%)`:""}</span></div>`).join(""); }
+        <span class="v ${(e.profit||0)>=0?'pos':'neg'}">${inr(e.profit)}${e.marginPct!=null?` (${esc(e.marginPct)}%)`:""}</span></div>`).join(""); }
   }
   $("#li_close").addEventListener("click",closeLogin);
   $("#loginForm").addEventListener("submit",e=>{ e.preventDefault();

@@ -45,7 +45,7 @@
   @media (prefers-reduced-motion:reduce){.spin{animation:none}}
   #priceRows th{font-weight:inherit;text-align:left}
 </style>
-<link rel="stylesheet" href="/theme.css?v=73">
+<link rel="stylesheet" href="/theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -67,19 +67,20 @@
       <span class="theme" id="themeChip" hidden></span>
     </div>
     <div class="sec" id="conceptSec" hidden><h2>The concept</h2><div class="concept" id="concept"></div></div>
-    <div class="sec" id="paletteSec" hidden><h2>Colour palette</h2><div class="palette" id="palette" style="margin-bottom:14px"></div></div>
+    <div class="sec" id="paletteSec" hidden><h2>Colour palette</h2><div class="palette s-2b583d7" id="palette"></div></div>
     <div class="sec" id="gallerySec" hidden><h2>Mood &amp; inspiration</h2><div class="gallery" id="gallery"></div></div>
     <div class="sec" id="scopeSec" hidden><h2>What's included</h2><ul class="scope" id="scope"></ul></div>
     <div class="sec" id="priceSec" hidden><h2>Investment</h2>
-      <div class="table-scroll"><table style="width:100%;border-collapse:collapse;font-size:14px" id="priceRows"><caption class="sr-only">Price breakdown</caption></table></div></div>
+      <div class="table-scroll"><table class="s-31655b4" id="priceRows"><caption class="sr-only">Price breakdown</caption></table></div></div>
     <div class="foot">This is a proposal for discussion — details may evolve. Prepared by your Helm Events planner.</div>
   </div>
   </main>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="/telemetry.js?v=3"></script>
 <script src="/config.js?v=96"></script>
-<script src="/store-api.js?v=118"></script>
+<script src="/store-api.js?v=120"></script>
 <script>
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const LINK=BPStore.links.parse("proposal");   // branded /<studio>/proposal/<token> (server-verified below)

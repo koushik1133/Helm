@@ -56,7 +56,7 @@
   .lsheet input{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;margin-bottom:12px;font-family:inherit}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -81,10 +81,10 @@
       <p class="sub">Every change to access, pricing, money, resources and config — who did it, and when.</p>
       <div class="toolbar">
         <select id="fEntity" aria-label="Filter by area"><option value="">All areas</option></select>
-        <input id="fSearch" type="search" aria-label="Search audit log" placeholder="Search actor / field / value…" style="flex:1;min-width:180px">
+        <input class="s-2f7ab6d" id="fSearch" type="search" aria-label="Search audit log" placeholder="Search actor / field / value…">
         <button class="btn" id="refresh">↻ Refresh</button>
       </div>
-      <div class="table-scroll" style="overflow:auto">
+      <div class="table-scroll s-a632715">
         <table>
           <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">Action</th><th scope="col">Area</th><th scope="col">Change</th><th scope="col">Event</th></tr></thead>
           <tbody id="rows"></tbody>
@@ -98,18 +98,19 @@
 
 <div class="lmodal" id="loginModal" role="dialog" aria-modal="true" aria-labelledby="li_title" data-dismissible="false" hidden>
   <form class="lsheet" id="loginForm">
-    <div class="mark" style="margin:0 auto 12px"></div>
+    <div class="mark s-9690e1d"></div>
     <h3 id="li_title">Sign in</h3>
     <label for="li_email">Email</label><input type="email" id="li_email" autocomplete="email" required>
     <label for="li_pw">Password</label><input type="password" id="li_pw" autocomplete="current-password" required>
     <div class="lerr" id="li_err" role="alert" hidden></div>
-    <button class="btn" type="submit" id="li_submit" style="width:100%;justify-content:center">Sign in</button>
+    <button class="btn s-4a27002" type="submit" id="li_submit">Sign in</button>
   </form>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
-<script src="store-api.js?v=118"></script>
+<script src="store-api.js?v=120"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));

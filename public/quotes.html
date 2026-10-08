@@ -122,7 +122,7 @@
   .eglist .rl{margin-left:auto;color:var(--ink-3);font-size:12px;text-transform:capitalize}
   .eglist .egav{width:28px;height:28px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;position:relative;overflow:hidden}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -156,7 +156,7 @@
     <table>
       <thead><tr>
         <th scope="col">Code</th><th scope="col">Event</th><th scope="col">Client</th><th scope="col">Version</th><th scope="col">Status</th>
-        <th scope="col" style="text-align:right">Total</th><th scope="col">Updated</th><th scope="col" style="text-align:right">Actions</th>
+        <th class="s-54c2afb" scope="col">Total</th><th scope="col">Updated</th><th class="s-54c2afb" scope="col">Actions</th>
       </tr></thead>
       <tbody id="rows"><tr><td colspan="8" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
     </table>
@@ -180,18 +180,18 @@
       <div class="fld"><label for="c_phone">Phone</label><input id="c_phone" type="tel" inputmode="tel" placeholder="+91…"></div>
       <div class="fld"><label for="c_date">Event date</label><input id="c_date" type="date" data-min-today></div>
       <div class="fld"><label for="c_venue">Venue</label><input id="c_venue" placeholder="Venue name"></div>
-      <div class="fld" style="grid-column:1/-1"><label for="c_address">Venue address</label><input id="c_address" placeholder="Address"></div>
-      <div class="fld" style="grid-column:1/-1"><label for="c_notes">Notes</label><textarea id="c_notes" placeholder="Anything to remember…"></textarea></div>
+      <div class="fld s-068a8dd"><label for="c_address">Venue address</label><input id="c_address" placeholder="Address"></div>
+      <div class="fld s-068a8dd"><label for="c_notes">Notes</label><textarea id="c_notes" placeholder="Anything to remember…"></textarea></div>
     </div>
 
-    <div class="seclabel">Pricing (₹ INR) <span class="muted" id="rateNote" style="text-transform:none;letter-spacing:0"></span></div>
+    <div class="seclabel">Pricing (₹ INR) <span class="muted s-4496197" id="rateNote"></span></div>
     <div class="grid three">
       <div class="fld"><label for="p_chairs">Chairs (count)</label><input id="p_chairs" type="number" min="0" step="1"></div>
       <div class="fld"><label for="p_guests">Guests / plates</label><input id="p_guests" type="number" min="0" step="1"></div>
       <div class="fld"><label for="p_pos">Place of supply</label>
         <select id="p_pos"><option value="intra">Intra-state (CGST + SGST)</option><option value="inter">Inter-state (IGST)</option></select></div>
     </div>
-    <div class="grid three" style="margin-top:10px">
+    <div class="grid three s-d2c171b">
       <div class="fld"><label for="p_cmode">Catering source</label>
         <select id="p_cmode">
           <option value="inhouse">In-house catering</option>
@@ -202,7 +202,7 @@
       <div class="fld"><label for="p_vendor">Vendor</label><select id="p_vendor"></select></div>
       <div class="fld"><label for="p_camount">Catering charge ₹ (extra)</label><input id="p_camount" type="number" min="0" step="1" value="0" title="Any vendor bill on top of per-plate"></div>
     </div>
-    <div class="grid three" style="margin-top:10px">
+    <div class="grid three s-d2c171b">
       <div class="fld"><label for="p_coupon">Coupon</label><select id="p_coupon"><option value="">— none —</option></select></div>
       <div class="fld"><label for="p_discount">Discount ₹</label><input id="p_discount" type="number" min="0" step="1" value="0"></div>
       <div class="fld"><label for="p_discountPct">Discount %</label><input id="p_discountPct" type="number" min="0" max="100" step="0.5" value="0"></div>
@@ -210,7 +210,7 @@
     <!-- rates come from the Control Center; kept as hidden inputs so the calculator stays unchanged -->
     <input type="hidden" id="p_chairPrice"><input type="hidden" id="p_platePrice"><input type="hidden" id="p_gst">
     <input type="hidden" id="p_cgst"><input type="hidden" id="p_svc"><input type="hidden" id="p_other" value="0">
-    <div class="taxnote">Rates (₹/chair, ₹/plate, GST) are set once in the <a href="control.html" style="color:var(--accent)">Control Center</a>. Enter a coupon or discount here. Only GST applies as a tax in India; confirm with a CA.</div>
+    <div class="taxnote">Rates (₹/chair, ₹/plate, GST) are set once in the <a class="s-a805525" href="control.html">Control Center</a>. Enter a coupon or discount here. Only GST applies as a tax in India; confirm with a CA.</div>
 
     <div class="totals" id="totals"></div>
     <div class="lerr" id="cm_err" role="alert" aria-live="assertive" hidden></div>
@@ -224,10 +224,10 @@
 
 <!-- Approval link modal -->
 <div class="lmodal" id="linkModal" hidden role="dialog" aria-modal="true" aria-labelledby="lk_title">
-  <div class="sheet" style="width:min(560px,94vw)">
+  <div class="sheet s-353abc7">
     <h3><span id="lk_title">🔗 Client approval link</span> <button class="close" id="lk_close" type="button" aria-label="Close" data-close>✕</button></h3>
     <p class="sub">Share this link with the client. They review the terms, verify an OTP on their phone, consent, and pay. You'll see the status update here.</p>
-    <div class="fld"><label for="lk_url">Approval link</label><input id="lk_url" readonly><small style="display:block;margin-top:4px;color:var(--ink-3)">Works until 30 days after the event (client approval, payments and the event portal).</small></div>
+    <div class="fld"><label for="lk_url">Approval link</label><input id="lk_url" readonly><small class="s-bed5c70">Works until 30 days after the event (client approval, payments and the event portal).</small></div>
     <div id="lk_msg" role="status" aria-live="polite"></div>
     <div class="modbtns">
       <button class="btn" id="lk_copy" type="button">Copy link</button>
@@ -240,7 +240,7 @@
 
 <!-- Event group: pick the team (0035) -->
 <div class="lmodal" id="egModal" hidden role="dialog" aria-modal="true" aria-labelledby="eg_title">
-  <div class="sheet" style="width:min(520px,94vw)">
+  <div class="sheet s-a8091bf">
     <h3><span id="eg_title">💬 Create event group</span> <button class="close" id="eg_close" type="button" aria-label="Close" data-close>✕</button></h3>
     <p class="sub" id="eg_sub">A team chat for this event. Helm posts the event details — client contact, date, venue, guests, layout, menu and notes. Never prices or payments. You can add more people later.</p>
     <div class="fld"><label for="eg_search">Add people</label><input id="eg_search" type="search" placeholder="Search your team…" autocomplete="off"></div>
@@ -253,7 +253,7 @@
   </div>
 </div>
 <div class="egbar" id="egBar" role="status" aria-live="polite" hidden>
-  <span aria-hidden="true" style="font-size:20px">💬</span>
+  <span class="s-b9199e2" aria-hidden="true">💬</span>
   <div class="egtxt"><b id="egBarTitle">Create event group?</b><span>Brief your team in one chat — event details are posted for you (no prices).</span></div>
   <button class="btn primary" id="egBarGo" type="button">Create event group</button>
   <button class="btn" id="egBarNo" type="button">Not now</button>
@@ -261,20 +261,21 @@
 
 <!-- Login modal (reused) -->
 <div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle" data-dismissible="false">
-  <form class="sheet" id="loginForm" style="width:min(380px,94vw);text-align:center">
-    <div class="mark" style="margin:0 auto 14px" aria-hidden="true"></div>
-    <h3 id="loginModalTitle" style="justify-content:center">Sign in</h3>
+  <form class="sheet s-99ef7a5" id="loginForm">
+    <div class="mark s-95baf7c" aria-hidden="true"></div>
+    <h3 class="s-03c4bb6" id="loginModalTitle">Sign in</h3>
     <p class="sub">Use the account your studio admin created for you.</p>
-    <div class="fld" style="text-align:left;margin-bottom:12px"><label for="li_email">Email</label><input type="email" id="li_email" autocomplete="email" required></div>
-    <div class="fld" style="text-align:left;margin-bottom:12px"><label for="li_pw">Password</label><input type="password" id="li_pw" autocomplete="current-password" required></div>
+    <div class="fld s-67539bc"><label for="li_email">Email</label><input type="email" id="li_email" autocomplete="email" required></div>
+    <div class="fld s-67539bc"><label for="li_pw">Password</label><input type="password" id="li_pw" autocomplete="current-password" required></div>
     <div class="lerr" id="li_err" role="alert" aria-live="assertive" hidden></div>
-    <button class="btn primary" id="li_submit" type="submit" style="width:100%;justify-content:center;margin-top:6px">Sign in</button>
+    <button class="btn primary s-9b4b3be" id="li_submit" type="submit">Sign in</button>
   </form>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
-<script src="store-api.js?v=118"></script>
+<script src="store-api.js?v=120"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
@@ -509,7 +510,7 @@
   function selectedVersion(sel){ const m=/v(\d+)/.exec(sel.value||""); return m?parseInt(m[1],10):null; }
   async function fillVersions(id,sel){
     try{ const full=detailCache[id]||(detailCache[id]=await BPStore.quotes.get(id));
-      sel.innerHTML=full.versions.map(v=>`<option value="v${v.versionNo}">v${v.versionNo} · ${v.objectCount} obj · ${fmtDate(v.createdAt)}</option>`).join("");
+      sel.innerHTML=full.versions.map(v=>`<option value="v${esc(v.versionNo)}">v${esc(v.versionNo)} · ${esc(v.objectCount)} obj · ${fmtDate(v.createdAt)}</option>`).join("");
     }catch(e){/* keep current */}
   }
 

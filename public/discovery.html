@@ -64,7 +64,7 @@
   th{position:relative} .table-scroll{position:relative}
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -80,7 +80,7 @@
   <div id="boot" aria-busy="true"></div>
 
   <div id="gate" class="card" hidden><p class="muted">Sign in to open discovery.</p></div>
-  <div id="notfound" class="card" hidden><p class="muted">Event not found. Go to <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a>.</p></div>
+  <div id="notfound" class="card" hidden><p class="muted">Event not found. Go to <a class="s-dea29d3" href="quotes.html">Quotes</a>.</p></div>
 
   <div id="app" hidden>
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
@@ -88,7 +88,7 @@
     <div class="card">
       <h2>Discovery meeting</h2>
       <p class="sub">Capture what you learned before quoting. Saved to this event.</p>
-      <div id="discErr" class="loadbanner" role="alert" hidden><span id="discErrMsg"></span><button type="button" class="btn" id="discRetry" style="height:32px">Retry</button></div>
+      <div id="discErr" class="loadbanner" role="alert" hidden><span id="discErrMsg"></span><button type="button" class="btn s-268b76c" id="discRetry">Retry</button></div>
       <div class="grid">
         <div class="fld"><label for="d_date">Meeting date</label><input type="date" id="d_date"></div>
         <div class="fld"><label for="d_mode">Mode</label>
@@ -111,7 +111,7 @@
           <select id="r_priority"><option value="mandatory">Must-have</option><option value="optional">Optional</option><option value="nice">Nice-to-have</option></select></div>
         <div class="fld"><label for="r_qty">Qty</label><input type="number" min="0" id="r_qty" placeholder="#"></div>
         <div class="fld"><label for="r_note">Note</label><input id="r_note" placeholder="detail (optional)"></div>
-        <div class="fld"><span aria-hidden="true" style="font-size:12px">&nbsp;</span><button type="button" class="btn primary" id="r_add">＋ Add</button></div>
+        <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="r_add">＋ Add</button></div>
       </div>
       <div class="table-scroll"><table>
         <thead><tr><th scope="col">Service</th><th scope="col">Priority</th><th scope="col">Qty</th><th scope="col">Note</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
@@ -125,17 +125,18 @@
 <div class="lmodal" id="loginModal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
   <form class="lsheet" id="loginForm" novalidate>
     <button type="button" class="lclose" id="li_close" aria-label="Close" data-close>×</button>
-    <div class="mark" style="margin:0 auto 10px" aria-hidden="true"></div><h3 id="loginModalTitle">Sign in</h3>
+    <div class="mark s-ffac540" aria-hidden="true"></div><h3 id="loginModalTitle">Sign in</h3>
     <label for="li_email">Email</label><input type="email" id="li_email" required>
     <label for="li_pw">Password</label><input type="password" id="li_pw" required>
     <div class="lerr" id="li_err" role="alert" aria-live="assertive" hidden></div>
-    <button class="btn primary" id="li_submit" type="submit" style="width:100%;justify-content:center">Sign in</button>
+    <button class="btn primary s-4a27002" id="li_submit" type="submit">Sign in</button>
   </form>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
-<script src="store-api.js?v=118"></script>
+<script src="store-api.js?v=120"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

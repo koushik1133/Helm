@@ -74,7 +74,7 @@ t('token links, docs, api, unknown paths are disallowed', () => {
 
 t('marketing pages + their assets stay crawlable', () => {
   for (const u of ['/', '/index', '/index.html', '/about', '/services', '/privacy', '/terms', '/login', '/about.html',
-    '/landing.css?v=2', '/theme.css?v=73', '/telemetry.js?v=2', '/og.png', '/favicon.ico', '/favicon-48.png',
+    '/landing.css?v=2', '/theme.css?v=73', '/telemetry.js?v=2', '/trusted-types.js?v=1', '/og.png', '/favicon.ico', '/favicon-48.png',
     '/apple-touch-icon.png', '/llms.txt', '/sitemap.xml', '/.well-known/security.txt'])
     assert.equal(allowed(star.rules, u), true, `${u} must stay crawlable`);
 });

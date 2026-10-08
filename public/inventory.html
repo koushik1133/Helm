@@ -87,7 +87,7 @@
   .lsheet{width:min(400px,96vw)}
   .sub2{font-size:12px;color:var(--ink-3)}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -113,9 +113,9 @@
         <div class="fld"><label for="rv_item">Item</label><select id="rv_item"></select></div>
         <div class="fld"><label for="rv_qty">Quantity</label><input id="rv_qty" type="number" min="1" value="1"></div>
         <div class="fld"><label for="rv_note">Note</label><input id="rv_note" placeholder="optional"></div>
-        <div class="fld"><span aria-hidden="true" style="font-size:12px">&nbsp;</span><button type="button" class="btn primary" id="rv_add">Reserve</button></div>
+        <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="rv_add">Reserve</button></div>
       </div>
-      <div class="table-scroll"><table style="margin-top:14px">
+      <div class="table-scroll"><table class="s-d6f2af6">
         <thead><tr><th scope="col">Item</th><th scope="col" class="num">Qty</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody id="resRows"><tr><td colspan="4" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
       </table></div>
@@ -133,13 +133,13 @@
       <input id="search" class="search" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search item…" aria-label="Search stock items">
       <select id="catFilter" class="sel" aria-label="Filter by category"><option value="">All categories</option></select>
       <select id="priFilter" class="sel" aria-label="Filter by priority"><option value="">All priority</option><option value="A">A — high value</option><option value="B">B — mid</option><option value="C">C — low</option></select>
-      <label style="font-size:12px;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px" title="Also show items you've deactivated, so you can bring them back. Nothing changes if you haven't deactivated any."><input type="checkbox" id="showInactive"> Show inactive</label>
+      <label class="s-af1acab" title="Also show items you've deactivated, so you can bring them back. Nothing changes if you haven't deactivated any."><input type="checkbox" id="showInactive"> Show inactive</label>
       <span class="spacer"></span>
-      <span id="seedStatus" style="font-size:12px;color:var(--ink-3)" role="status"></span>
+      <span class="s-bbce15d" id="seedStatus" role="status"></span>
       <button type="button" id="seedBtn" class="btn" hidden>Load starter items</button>
       <button type="button" id="newBtn" class="btn primary" hidden>＋ Add item</button>
     </div>
-    <div class="card table-scroll" style="padding:0;overflow:auto">
+    <div class="card table-scroll s-8d8d59e">
       <table>
         <thead><tr><th scope="col">Item</th><th scope="col">Pri</th><th scope="col">Category</th><th scope="col" class="num">Total</th><th scope="col" class="num">Committed</th><th scope="col" class="num">Available</th><th scope="col">Unit</th><th scope="col" class="num">Unit cost</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody id="stockRows"><tr><td colspan="9" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
@@ -157,20 +157,20 @@
           <div class="fld"><label for="co_qty">Qty out</label><input id="co_qty" type="number" min="1" value="1"></div>
           <div class="fld"><label for="co_to">Issued to</label><select id="co_to"><option value="">Select person…</option></select></div>
           <div class="fld"><label for="co_note">Note</label><input id="co_note" placeholder="optional"></div>
-          <div class="fld"><span aria-hidden="true" style="font-size:12px">&nbsp;</span><button type="button" class="btn primary" id="co_add">Check out</button></div>
+          <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="co_add">Check out</button></div>
         </div>
       </div>
 
-      <div class="card table-scroll" style="padding:0;overflow:auto">
-        <div style="padding:14px 16px 0"><h2 style="margin:0;font-size:15px">Out on loan <span id="loanCount" class="onloan"></span></h2></div>
+      <div class="card table-scroll s-8d8d59e">
+        <div class="s-57844cb"><h2 class="s-62c1a69">Out on loan <span id="loanCount" class="onloan"></span></h2></div>
         <table>
           <thead><tr><th scope="col">Item</th><th scope="col">Event</th><th scope="col">Pri</th><th scope="col" class="num">Out</th><th scope="col">Issued to</th><th scope="col">When</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
           <tbody id="loanRows"><tr><td colspan="7" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
         </table>
       </div>
 
-      <div class="card table-scroll" style="padding:0;overflow:auto">
-        <div style="padding:14px 16px 4px;display:flex;align-items:center;gap:10px"><h2 style="margin:0;font-size:15px">Loss report</h2><span id="lossTotal"></span></div>
+      <div class="card table-scroll s-8d8d59e">
+        <div class="s-f145ee8"><h2 class="s-62c1a69">Loss report</h2><span id="lossTotal"></span></div>
         <table>
           <thead><tr><th scope="col">Item</th><th scope="col">Event</th><th scope="col" class="num">Out</th><th scope="col" class="num">Back</th><th scope="col" class="num">Missing</th><th scope="col" class="num">Value lost</th><th scope="col">Signed off</th><th scope="col">When</th></tr></thead>
           <tbody id="lossRows"><tr><td colspan="8" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
@@ -179,7 +179,7 @@
     </div><!-- /pane-loans -->
   </div>
 
-  <div id="gate" class="card" hidden><p style="color:var(--ink-3)">Sign in to manage inventory.</p></div>
+  <div id="gate" class="card" hidden><p class="s-1a1aca0">Sign in to manage inventory.</p></div>
   </main>
   <footer>Helm Events — know what you own, and what's committed to each event.</footer>
 </div>
@@ -198,7 +198,7 @@
         <option value="B">B — mid value</option>
         <option value="C" selected>C — low value (e.g. plastic chairs)</option></select></div>
       <div class="fld"><label for="i_cost">Unit cost (₹)</label><input id="i_cost" type="number" min="0" step="1" value="0"></div>
-      <div class="fld" style="grid-column:1/-1"><label for="i_notes">Notes</label><input id="i_notes" placeholder="optional"></div>
+      <div class="fld s-068a8dd"><label for="i_notes">Notes</label><input id="i_notes" placeholder="optional"></div>
     </div>
     <datalist id="catList"></datalist>
     <div id="im_err" class="err" hidden role="alert" aria-live="assertive"></div>
@@ -221,7 +221,7 @@
       <div class="fld"><label for="ci_in">How many came back?</label><input id="ci_in" type="number" min="0" step="1"></div>
       <div class="fld"><label for="ci_by">Confirmed by (your name)</label><input id="ci_by" placeholder="sign-off name"></div>
     </div>
-    <div id="ci_warn" class="err" hidden style="background:#fff7e6;color:#946200" role="status" aria-live="polite"></div>
+    <div id="ci_warn" class="err s-e3b81b7" hidden role="status" aria-live="polite"></div>
     <div id="ci_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot">
       <span class="spacer"></span>
@@ -234,16 +234,17 @@
 <div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="sheet lsheet">
     <h3><span id="loginTitle">Sign in</span><button type="button" class="close" id="li_close" aria-label="Close" data-close>×</button></h3>
-    <div class="fld" style="margin-bottom:10px"><label for="li_email">Email</label><input id="li_email" type="email" autocomplete="email"></div>
-    <div class="fld" style="margin-bottom:10px"><label for="li_pass">Password</label><input id="li_pass" type="password" autocomplete="current-password"></div>
+    <div class="fld s-761d3ad"><label for="li_email">Email</label><input id="li_email" type="email" autocomplete="email"></div>
+    <div class="fld s-761d3ad"><label for="li_pass">Password</label><input id="li_pass" type="password" autocomplete="current-password"></div>
     <div id="li_err" class="err" hidden role="alert" aria-live="assertive"></div>
     <div class="foot"><button type="button" class="btn primary" id="li_go">Sign in</button></div>
   </div>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
-<script src="store-api.js?v=118"></script>
+<script src="store-api.js?v=120"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -477,7 +478,7 @@
       if(!ev) return '<span style="color:var(--ink-3)">—</span>';
       const name=ev.title||ev.code||"(event)"; const d=fmtDate(ev.eventDate);
       return `<div style="font-weight:600">${esc(name)}</div>${d?`<div class="sub2">${esc(d)}</div>`:""}`; };
-    $("#co_item").innerHTML=items.map(i=>`<option value="${esc(i.id)}">${esc(i.name)}${i.priority?` (${i.priority})`:""}</option>`).join("");
+    $("#co_item").innerHTML=items.map(i=>`<option value="${esc(i.id)}">${esc(i.name)}${i.priority?` (${esc(i.priority)})`:""}</option>`).join("");
     // open vs closed decided by REMAINING qty, not status alone:
     //   open = still out ('out', or 'partial' with units outstanding); loss = missing>0 and not open
     const remainingOut=(c)=>Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0);
@@ -492,7 +493,7 @@
       return `<tr>
         <td><b>${esc(it.name)}</b>${c.note?`<div class="sub2">${esc(c.note)}</div>`:""}${c.status==="partial"?' <span class="miss">partial</span>':""}</td>
         <td>${eventCell(c)}</td>
-        <td><span class="pri ${it.priority||'C'}">${it.priority||'C'}</span></td>
+        <td><span class="pri ${esc(it.priority||'C')}">${esc(it.priority||'C')}</span></td>
         <td class="num" style="color:#b42318;font-weight:700">${num(c.qty_out)}${c.status==="partial"?` <span style="color:var(--ink-3)">(${num(c.qty_in)} back)</span>`:""}</td>
         <td>${esc(c.issued_to||"")}</td>
         <td style="font-size:12px;color:var(--ink-3)">${c.checked_out_at?new Date(c.checked_out_at).toLocaleDateString():""}</td>
@@ -503,7 +504,7 @@
     const lossRows = closed.map(c=>{ const it=byId[c.item_id]||{name:"(item)"}; const missing=Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0);
       if(missing<=0) return ""; const val=missing*Number(it.unit_cost||0); lostVal+=val; lostUnits+=missing;
       return `<tr>
-        <td><b>${esc(it.name)}</b> <span class="pri ${it.priority||'C'}">${it.priority||'C'}</span></td>
+        <td><b>${esc(it.name)}</b> <span class="pri ${esc(it.priority||'C')}">${esc(it.priority||'C')}</span></td>
         <td>${eventCell(c)}</td>
         <td class="num">${num(c.qty_out)}</td>
         <td class="num">${num(c.qty_in)}</td>

@@ -94,7 +94,7 @@
   tr.void td:last-child,tr.void td:nth-last-child(2){text-decoration:none}
   .okm{background:#e9f8ef;color:#126b39;border:1px solid #b8e6c9;border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:14px}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
 <div id="vLoading" class="loading" aria-busy="true"></div>
@@ -148,7 +148,7 @@
   </section>
 
   <section id="pane-billing" hidden>
-    <section class="card" style="margin-bottom:14px">
+    <section class="card s-2b583d7">
       <div class="hd"><h2>Billing</h2>
         <label class="muted" for="bFrom">From</label><input type="date" id="bFrom">
         <label class="muted" for="bTo">To</label><input type="date" id="bTo">
@@ -176,8 +176,8 @@
         </div>
       </section>
       <div>
-        <section class="card" style="margin-bottom:14px"><h2>Past due</h2><ul class="list" id="pastDue"></ul></section>
-        <section class="card" style="margin-bottom:14px"><h2>Reminder queue</h2><ul class="list" id="reminders"></ul></section>
+        <section class="card s-2b583d7"><h2>Past due</h2><ul class="list" id="pastDue"></ul></section>
+        <section class="card s-2b583d7"><h2>Reminder queue</h2><ul class="list" id="reminders"></ul></section>
         <section class="card"><h2>Export payments not yet realised (FIRA / FIRC)</h2><ul class="list" id="unrealised"></ul></section>
       </div>
     </div>
@@ -203,7 +203,7 @@
     <section class="card">
       <h2>Plans</h2>
       <div class="scroll"><table><thead><tr><th>Code</th><th>Name</th><th class="n">Per month</th><th>Status</th><th class="n">Studios</th><th></th></tr></thead><tbody id="tPlans"></tbody></table></div>
-      <div class="form" style="margin-top:12px">
+      <div class="form s-56f4356">
         <label class="fld"><span>Code</span><input type="text" id="plCode" maxlength="40" placeholder="pro"></label>
         <label class="fld"><span>Name</span><input type="text" id="plName" maxlength="80" placeholder="Pro"></label>
         <label class="fld"><span>Price / month (₹)</span><input type="number" id="plPrice" min="0" step="1"></label>
@@ -211,11 +211,11 @@
         <button class="btn primary" id="btnPlan" type="button">Save plan</button>
       </div>
     </section>
-    <section class="card" style="margin-top:14px">
+    <section class="card s-d6f2af6">
       <h2>Tax rules</h2>
       <p class="muted">Defaults only — rates, regimes and wording must be confirmed by your Chartered Accountant. Changes apply to new payments; recorded invoices never change.</p>
       <div class="scroll"><table><thead><tr><th>Country</th><th>Regime</th><th class="n">Rate</th><th>Effective</th><th>Status</th><th>Invoice note</th></tr></thead><tbody id="tTax"></tbody></table></div>
-      <div class="form" style="margin-top:12px">
+      <div class="form s-56f4356">
         <label class="fld"><span>Country</span><input type="text" id="txCountry" maxlength="2" placeholder="SG"></label>
         <label class="fld"><span>Region (optional)</span><input type="text" id="txRegion" maxlength="80"></label>
         <label class="fld"><span>Regime</span><select id="txRegime"><option>LOCAL_REGISTERED</option><option>NO_TAX</option><option>IN_GST_INTRA</option><option>IN_GST_INTER</option></select></label>
@@ -238,7 +238,7 @@
   </section>
 
   <section id="pane-activity" hidden>
-    <section class="card" style="margin-bottom:14px">
+    <section class="card s-2b583d7">
       <div class="hd"><h2>HQ activity log</h2>
         <label class="muted" for="aFrom">From</label><input type="date" id="aFrom">
         <label class="muted" for="aTo">To</label><input type="date" id="aTo">
@@ -246,10 +246,17 @@
         <button class="btn" id="btnAudit" type="button">Show</button></div>
       <div class="scroll"><table><thead><tr><th>When</th><th>Operator</th><th>Action</th><th>What</th></tr></thead><tbody id="tAudit"></tbody></table></div>
     </section>
+    <section class="card s-2b583d7" aria-labelledby="hSec">
+      <div class="hd"><h2 id="hSec">Security</h2><span class="muted" id="secTotal"></span></div>
+      <p class="muted">Security events across all studios for the dates above: admin overrides, sign-in lockouts, rejected uploads, suspensions, role changes, removed members and HQ operator changes.</p>
+      <div class="scroll"><table><thead><tr><th>Alert</th><th>Studio</th><th class="n">Count</th><th>Latest</th></tr></thead><tbody id="tSec"></tbody></table></div>
+      <h3 class="s-56f4356">Latest</h3>
+      <div class="scroll"><table><thead><tr><th>When</th><th>Alert</th><th>Studio</th><th>Who</th></tr></thead><tbody id="tSecLatest"></tbody></table></div>
+    </section>
     <section class="card">
       <h2>HQ operators</h2>
       <ul class="list" id="operators"></ul>
-      <div class="form" style="margin-top:10px">
+      <div class="form s-d2c171b">
         <label class="fld"><span>Add operator (e-mail)</span><input type="email" id="opEmail" maxlength="254"></label>
         <button class="btn" id="btnOp" type="button">Add operator</button>
       </div>
@@ -257,10 +264,11 @@
   </section>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
-<script src="store-api.js?v=118"></script>
+<script src="store-api.js?v=120"></script>
 <script src="hq-invoice.js?v=1"></script>
-<script src="hq.js?v=6"></script>
+<script src="hq.js?v=7"></script>
 </body>
 </html>

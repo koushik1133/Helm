@@ -54,7 +54,7 @@
   .empty{text-align:center;color:var(--ink-3);padding:48px;font-size:14px}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -78,10 +78,10 @@
     <h2>CRM</h2>
     <span class="sub">Your clients &amp; leads — latest status. Click a row to open its workspace (2D/3D).</span>
     <span class="spacer"></span>
-    <select id="fSource" class="search" style="min-width:150px" aria-label="Filter by source"><option value="">All sources</option></select>
-    <select id="fStage" class="search" style="min-width:150px" aria-label="Filter by stage"><option value="">All stages</option></select>
+    <select id="fSource" class="search s-c6cca58" aria-label="Filter by source"><option value="">All sources</option></select>
+    <select id="fStage" class="search s-c6cca58" aria-label="Filter by stage"><option value="">All stages</option></select>
     <input id="search" class="search" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search name, phone, type…" aria-label="Search CRM records">
-    <label class="sub" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+    <label class="sub s-1f7fa59">
       <input type="checkbox" id="fAll"> Full history</label>
   </div>
 
@@ -100,9 +100,10 @@
   <footer>Helm Events — the CRM archive is append-only and read-only. Records are written automatically.</footer>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
-<script src="store-api.js?v=118"></script>
+<script src="store-api.js?v=120"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
