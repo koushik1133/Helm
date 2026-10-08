@@ -1344,15 +1344,22 @@
     // Set the user's own new password (forced temp-password change), then clear the
     // must-change flag. The server refuses to clear it until the password really
     // changed (0028); a failure is an error — never silently ignored.
-    async completePasswordChange(newPassword) {
+    // The temporary password is the "current password" Supabase requires (prod has
+    // "require current password" ON): completePasswordChange(newPw, { currentPassword }).
+    async completePasswordChange(newPassword, opts) {
       if (!supa) throw new Error("Supabase not configured");
       const bad = passwordProblem(newPassword); if (bad) throw new Error(bad);
       // only while the server says this account holds a temp password (evaluateGate)
       if (!pwChangedAwaitingClear && pendingStep !== "password") { const e = new Error("Please sign in again to change your password."); e.code = "reauth_required"; throw e; }
+      let cur = opts && typeof opts.currentPassword === "string" ? opts.currentPassword : "";
+      if (opts) opts.currentPassword = null;
       if (!pwChangedAwaitingClear) {
-        const { error } = await supa.auth.updateUser({ password: newPassword });
+        if (!cur) { const e = new Error("Enter the temporary password you signed in with."); e.code = "current_password_required"; throw e; }
+        const attrs = { password: newPassword, current_password: cur }; cur = null;
+        const { error } = await supa.auth.updateUser(attrs);   // attrs is local: dropped with this call
         if (error) {
           if (/different from the old|same_password/i.test(String(error.message || "") + " " + String(error.code || ""))) throw new Error("Choose a password that's different from the temporary one.");
+          if (/current.?password|reauthenticat/i.test(String(error.message || "") + " " + String(error.code || ""))) { const e = new Error("The temporary password isn't right."); e.code = "bad_current_password"; e.cause = error; throw e; }
           throw error;
         }
         pwChangedAwaitingClear = true;   // a retry only re-runs the clear below
@@ -1425,18 +1432,28 @@
     // Allowed only (a) right after reverifyPassword() for this account, or (b) in a
     // genuine reset-link session (JWT amr "recovery"). Anything else fails closed.
     // The current password is NOT retained after reverifyPassword(). If the Supabase
-    // "require current password" Auth setting is switched on later, the change form
-    // passes it again here: updatePassword(newPw, { currentPassword }) — used once.
+    // Prod has Supabase "require current password" ON: an ordinary change MUST pass it
+    // here — updatePassword(newPw, { currentPassword }) — sent once as current_password
+    // and never kept. A genuine reset-link (recovery) session needs no current password
+    // (Supabase skips the check for recovery sessions), so none is sent there.
     async updatePassword(newPassword, opts) {
       if (!supa) throw new Error("Supabase not configured");
       const bad = passwordProblem(newPassword); if (bad) throw new Error(bad);
+      let cur = opts && typeof opts.currentPassword === "string" ? opts.currentPassword : "";
+      if (opts) opts.currentPassword = null;
+      const recovery = await isRecoverySession();
       const fresh = reauthFresh();
-      if (!fresh && !(await isRecoverySession())) { reauthClear(); const e = new Error("Please confirm your current password first."); e.code = "reauth_required"; throw e; }
+      if (!fresh && !recovery) { reauthClear(); const e = new Error("Please confirm your current password first."); e.code = "reauth_required"; throw e; }
       const attrs = { password: newPassword };
-      if (fresh && opts && typeof opts.currentPassword === "string" && opts.currentPassword) attrs.current_password = opts.currentPassword;
-      const { error } = await supa.auth.updateUser(attrs);
+      if (!recovery) {
+        if (!cur) { const e = new Error("Enter your current password."); e.code = "current_password_required"; throw e; }
+        attrs.current_password = cur;
+      }
+      cur = null;
+      const { error } = await supa.auth.updateUser(attrs);   // attrs is local: dropped with this call
       if (error) {
         if (/different from the old|same_password/i.test(String(error.message || "") + " " + String(error.code || ""))) throw new Error("Choose a password that's different from your current one.");
+        if (/current.?password|reauthenticat/i.test(String(error.message || "") + " " + String(error.code || ""))) { const e = new Error("Your current password isn't right."); e.code = "bad_current_password"; e.cause = error; throw e; }
         throw error;
       }
       reauthClear();

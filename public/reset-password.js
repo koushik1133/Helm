@@ -39,8 +39,9 @@
   }
   async function toNewPassword() {
     if (await needsCode()) { show("#vMfa"); sub("Your account uses two-step verification. Enter your code to continue."); setTimeout(function () { $("#mfa_code").focus(); }, 50); return; }
-    show("#vSet"); sub(recovering ? "Choose a new password for your Helm account." : "Choose your new password.");
-    setTimeout(function () { $("#new_pw").focus(); }, 50);
+    show("#vSet"); sub(recovering ? "Choose a new password for your Helm account." : "Enter your current password again, then choose your new one.");
+    $("#setCurWrap").hidden = !!recovering;
+    setTimeout(function () { (recovering ? $("#new_pw") : $("#set_cur_pw")).focus(); }, 50);
   }
 
   async function start() {
@@ -129,8 +130,12 @@
       var bad = BPStore.auth.passwordRule.problem(a);
       if (bad) { err(bad); $("#new_pw").focus(); return; }
       if (a !== b) { err("The two passwords don't match."); $("#new_pw2").focus(); return; }
+      // ordinary change: Supabase requires the current password (sent once, field cleared);
+      // a reset-link (recovery) session needs none
+      var opts = recovering ? undefined : { currentPassword: $("#set_cur_pw").value };
+      if (opts && !opts.currentPassword) { err("Enter your current password."); $("#set_cur_pw").focus(); return; }
       try {
-        await BPStore.auth.updatePassword(a);   // also signs out every OTHER session
+        await BPStore.auth.updatePassword(a, opts);   // also signs out every OTHER session
         $("#new_pw").value = ""; $("#new_pw2").value = "";
         if (recovering) {
           // reset via email: end this session too and sign in fresh with the new password
@@ -142,6 +147,7 @@
         show("#vDone"); $("#title").textContent = "Password changed";
         sub(""); ok("Your password was changed and your other devices were signed out.");
       } catch (x) { err(friendly(x, "save your new password")); }
+      finally { $("#set_cur_pw").value = ""; if (opts) opts.currentPassword = null; }
     });
   });
 

@@ -233,9 +233,14 @@ t('change password: re-sign-in uses the user\'s OWN email; then one change is al
   await e.S.auth.reverifyPassword('Old-password12!');
   const si = e.calls.filter((x) => x[0] === 'signInWithPassword').pop();
   assert.equal(si[1].email, 'staff@a.test');
-  await e.S.auth.updatePassword('Brand-new-pass12!');
-  assert.deepEqual(JSON.parse(JSON.stringify(updates(e)[0][1])), { password: 'Brand-new-pass12!' }, 'the current password is NOT retained after re-verification');
-  await assert.rejects(e.S.auth.updatePassword('Another-pass12!'), (x) => x.code === 'reauth_required', 'proof is single-use');
+  // prod requires the current password: without it nothing is sent (proof not consumed)
+  await assert.rejects(e.S.auth.updatePassword('Brand-new-pass12!'), (x) => x.code === 'current_password_required');
+  assert.equal(updates(e).length, 0, 'the password kept by reverify is NOT reused');
+  const opts = { currentPassword: 'Old-password12!' };
+  await e.S.auth.updatePassword('Brand-new-pass12!', opts);
+  assert.deepEqual(JSON.parse(JSON.stringify(updates(e)[0][1])), { password: 'Brand-new-pass12!', current_password: 'Old-password12!' });
+  assert.equal(opts.currentPassword, null, 'caller copy cleared after use');
+  await assert.rejects(e.S.auth.updatePassword('Another-pass12!', { currentPassword: 'x' }), (x) => x.code === 'reauth_required', 'proof is single-use');
   assert.equal(updates(e).length, 1);
 });
 t('change password: the current-password proof expires after 10 minutes', async () => {
@@ -361,12 +366,44 @@ t('temp password: database without the function → not gated (no lock-out)', as
   await e.S.init();
   assert.equal(e.S.auth.pendingStep(), null);
 });
+t('reset link (recovery session): password set WITHOUT a current password — none sent, none required', async () => {
+  const e = makeEnv({ path: '/reset-password', ls: { bp_recovery_pending: 'u-1' }, accessToken: RECOVERY_JWT });
+  await e.S.init();
+  await e.S.auth.updatePassword('Recovered-pass12!');
+  const u = updates(e);
+  assert.equal(u.length, 1);
+  assert.deepEqual(JSON.parse(JSON.stringify(u[0][1])), { password: 'Recovered-pass12!' });
+});
+t('Supabase rejecting the current password maps to one generic message', async () => {
+  const e = makeEnv({ accessToken: PASSWORD_JWT, updateError: { message: 'Current password required', code: 'current_password_mismatch' } });
+  await e.S.init();
+  await e.S.auth.reverifyPassword('Old-password12!');
+  await assert.rejects(e.S.auth.updatePassword('Brand-new-pass12!', { currentPassword: 'nope' }), (x) => x.code === 'bad_current_password');
+});
+t('UI wiring: change form + forced temp-password form collect the current password and pass it once', () => {
+  const rp = readFileSync(new URL('../public/reset-password.js', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../public/reset-password.html', import.meta.url), 'utf8');
+  const login = readFileSync(new URL('../public/login.html', import.meta.url), 'utf8');
+  assert.match(html, /id="set_cur_pw"[^>]*autocomplete="current-password"/);
+  assert.match(rp, /recovering \? undefined : \{ currentPassword: \$\("#set_cur_pw"\)\.value \}/);
+  assert.match(rp, /updatePassword\(a, opts\)/);
+  assert.match(rp, /\$\("#set_cur_pw"\)\.value = ""/);
+  assert.match(login, /id="fpc_cur" type="password" autocomplete="current-password"/);
+  assert.match(login, /completePasswordChange\(pw\.value, opts\)/);
+  assert.match(login, /opts\.currentPassword=null/);
+});
 t('temp password: a failed flag clear is an error, not ignored; retry does not re-send the password', async () => {
   let fail = true;
   const e = makeEnv({ rpc: { password_change_required: { data: true, error: null }, clear_password_change_required: () => (fail ? { data: null, error: { message: 'set a new password first' } } : { data: null, error: null }) } });
   await e.S.init();
-  await assert.rejects(e.S.auth.completePasswordChange('Brand-new-pass12'));
-  assert.equal(e.calls.filter((x) => x[0] === 'updateUser').length, 1);
+  await assert.rejects(e.S.auth.completePasswordChange('Brand-new-pass12'), (x) => x.code === 'current_password_required');
+  assert.equal(e.calls.filter((x) => x[0] === 'updateUser').length, 0, 'nothing sent without the temporary password');
+  const o1 = { currentPassword: 'Temp-pass-1234!' };
+  await assert.rejects(e.S.auth.completePasswordChange('Brand-new-pass12', o1));
+  assert.equal(o1.currentPassword, null, 'caller copy cleared');
+  const sent = e.calls.filter((x) => x[0] === 'updateUser');
+  assert.equal(sent.length, 1);
+  assert.deepEqual(JSON.parse(JSON.stringify(sent[0][1])), { password: 'Brand-new-pass12', current_password: 'Temp-pass-1234!' }, 'temp password sent as current_password');
   fail = false;
   e.win.SUPABASE_CONFIG.__x = 1;
   await e.S.auth.completePasswordChange('Brand-new-pass12');
