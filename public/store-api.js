@@ -3770,8 +3770,8 @@
       const { m, n } = byConv[cid];
       const title = m.conv_kind === "dm" ? (m.who + " mentioned you") : (m.who + " mentioned you in " + m.title);
       const item = out.find((x) => x.conversation_id === cid);
-      if (item) { item.kind = "mention"; item.mention = true; item.title = title; item.who = ""; item.preview = m.preview; if (String(m.created_at) > String(item.created_at)) item.created_at = m.created_at; }
-      else out.push({ conversation_id: cid, kind: "mention", mention: true, title, who: "", preview: m.preview, created_at: m.created_at, count: n });
+      if (item) { item.kind = "mention"; item.mention = true; item.title = title; item.who = ""; item.preview = m.preview; if (m.id) item.msg_id = m.id; if (String(m.created_at) > String(item.created_at)) item.created_at = m.created_at; }
+      else out.push({ conversation_id: cid, msg_id: m.id, kind: "mention", mention: true, title, who: "", preview: m.preview, created_at: m.created_at, count: n });
     });
     out.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
     return out;
@@ -4459,7 +4459,7 @@
           const last = unread[unread.length - 1];
           let title; if (c.kind === "broadcast") title = c.title || "Everyone"; else if (c.kind === "group") title = c.title || "Group";
           else { const ids = (c.dm_key || "").split(":"); const o = ids[0] === me ? ids[1] : ids[0]; title = nameFor(o); }
-          out.push({ conversation_id: c.id, kind: c.kind, title, who: nameFor(last.sender_id), preview: chatPreviewText(last), created_at: last.created_at, count: unread.length });
+          out.push({ conversation_id: c.id, msg_id: last.id, kind: c.kind, title, who: nameFor(last.sender_id), preview: chatPreviewText(last), created_at: last.created_at, count: unread.length });
         });
         out.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
         try { chatMergeMentions(out, await this.mentionsForMe(cap)); } catch (e) {}   // @mentions: even when muted
@@ -4485,7 +4485,7 @@
         if (seen[m.conversation_id]) { seen[m.conversation_id].count++; return; }
         let title; if (c.kind === "broadcast") title = c.title || "Everyone"; else if (c.kind === "group") title = c.title || "Group";
         else { const ids = (c.dm_key || "").split(":"); const o = ids[0] === me ? ids[1] : ids[0]; title = nameById[o] || "Direct message"; }
-        const item = { conversation_id: m.conversation_id, kind: c.kind, title, who: nameById[m.sender_id] || "Member", preview: chatPreviewText(m), created_at: m.created_at, count: 1 };
+        const item = { conversation_id: m.conversation_id, msg_id: m.id, kind: c.kind, title, who: nameById[m.sender_id] || "Member", preview: chatPreviewText(m), created_at: m.created_at, count: 1 };
         seen[m.conversation_id] = item; out.push(item);
       });
       try { chatMergeMentions(out, await this.mentionsForMe(cap, nameById)); } catch (e) {}   // @mentions: even when muted
@@ -5454,6 +5454,33 @@
     },
   };
 
+  /* ---------------- notification deep links (pure — unit-tested in test/notif-deeplinks.test.mjs) ----------------
+     notifLink(n) → a RELATIVE link to one of the app's own pages ("" when there is nowhere to go).
+     Every id is encodeURIComponent'd; the destination page reads ?task= / ?msg= / #payments and
+     scrolls to + briefly highlights the row (deeplinkFocus below). */
+  function notifLink(n) {
+    if (!n || typeof n !== "object") return "";
+    const enc = (v) => encodeURIComponent(String(v));
+    const has = (v) => v != null && String(v) !== "";
+    if (n.__chat) {
+      if (!has(n.conversation_id)) return "chat.html";
+      return "chat.html?c=" + enc(n.conversation_id) + (has(n.msg_id) ? "&msg=" + enc(n.msg_id) : "");
+    }
+    const k = String(n.kind || "").toLowerCase().trim(), q = has(n.quote_id) ? n.quote_id : null;
+    const d = (n.detail && typeof n.detail === "object") ? n.detail : {};
+    if (k === "trial_reminder") return "checkout.html";
+    if (k === "security_alert") return "control.html#users";
+    if (k.indexOf("chat_") === 0) return "chat.html";
+    if (k.indexOf("nurture_") === 0) return "nurture.html";
+    if (!q) return "";
+    if (k.indexOf("task_") === 0) return "ops.html?quote=" + enc(q) + (has(d.task_id) ? "&task=" + enc(d.task_id) : "");
+    if (/^(payment_link|payment_reminder|payment_receipt|payment|payment_received|advance_paid|payment_reconcile)$/.test(k))
+      return "settlement.html?quote=" + enc(q) + "#payments";
+    if (/^(approval_link|otp|reapproval_required|quote_approved|quote_changed|approved|change_order)$/.test(k))
+      return "quotes.html?focus=" + enc(has(n.event_code) ? n.event_code : q);
+    if (k.indexOf("design_") === 0) return "design.html?quote=" + enc(q);
+    return "event.html?id=" + enc(q);
+  }
   /* ---------------- notification bell: view (pure — unit-tested in test/bell-panel.test.mjs) ----------------
      bellPanelView(items, { filter, now, label }) → { filter, tabs, tabsHtml, html, unread }
      items = the merged feed: bell_feed rows + chat rows ({ __chat:true, … }). Every piece of
@@ -5532,11 +5559,11 @@
         title = esc(n.kind === "dm" ? (who || n.title || "Direct message") : ((n.title || "Chat") + (who ? " · " + who : "")));
         if (Number(n.count) > 1) title += ` <span class="bpb-c">(${Number(n.count) > 99 ? "99+" : Number(n.count)})</span>`;
         preview = esc(n.preview || ""); icon = n.mention ? "@" : "💬"; isUnread = r.un;
-        href = "chat.html?c=" + encodeURIComponent(n.conversation_id || ""); key = r.k;
+        href = notifLink(n); key = r.k;
       } else {
         const L = label(n) || {}; icon = esc(L.icon || "🔔"); title = esc(L.text || "Update");
         preview = esc([n.event_code, n.event_title].filter(Boolean).join(" · "));
-        href = n.kind === "trial_reminder" ? "checkout.html" : n.quote_id ? "event.html?id=" + encodeURIComponent(n.quote_id) : ""; isUnread = r.un; key = r.k;
+        href = notifLink(n); isUnread = r.un; key = r.k;
       }
       const cls = `bpb-item g-${r.g}${isUnread ? " is-unread" : ""}`;
       const inner = `<span class="bpb-chip" aria-hidden="true">${icon}</span>`
@@ -5603,12 +5630,12 @@
         const who = n.who || "";
         return { key: keyOf(n), type: "info", icon: n.mention ? "@" : "💬",
           title: n.mention ? (n.title || "You were mentioned") : n.kind === "dm" ? (who || n.title || "Direct message") : ((n.title || "Chat") + (who ? " · " + who : "")),
-          message: String(n.preview || "New message"), href: "chat.html?c=" + encodeURIComponent(n.conversation_id || "") };
+          message: String(n.preview || "New message"), href: notifLink(n), rk: "c:" + (n.conversation_id || "") };
       }
       const L = label(n) || {}, k = String(n.kind || "").toLowerCase();
       return { key: keyOf(n), type: typeOf(k), icon: L.icon || "🔔", title: String(L.text || "Update"),
         message: k === "trial_reminder" ? "Choose a plan to keep using Helm" : [n.event_code, n.event_title].filter(Boolean).join(" · ") || "Open to see details",
-        href: k === "trial_reminder" ? "checkout.html" : n.quote_id ? "event.html?id=" + encodeURIComponent(n.quote_id) : "" };
+        href: notifLink(n), rk: "n:" + (n.id || "") };
     });
     return { toasts, seen: { t: newest, ids: ids.concat(fresh.map(keyOf)).slice(-60) } };
   }
@@ -5751,7 +5778,40 @@
   }
 
   /* ---------------- notification center: in-app bell (Phase 48) ---------------- */
+  /* destination side of a notification deep link: ?task=<id> (ops), ?msg=<id> (chat), #payments
+     (settlement). Waits for the row to render (≤15 s), scrolls it into view and highlights it briefly.
+     Ids are allow-listed ([A-Za-z0-9_-]) before going into a selector. */
+  function deeplinkTarget(search, hash) {
+    let p; try { p = new URLSearchParams(search || ""); } catch (e) { return null; }
+    const ok = (v) => (v && /^[A-Za-z0-9_-]{1,64}$/.test(v)) ? v : null;
+    const task = ok(p.get("task")), msg = ok(p.get("msg"));
+    if (task) return '.trow[data-id="' + task + '"]';
+    if (msg) return '.m[data-mid="' + msg + '"]';
+    if (hash === "#payments") return "#payments";
+    return null;
+  }
+  function deeplinkFocus() {
+    if (typeof document === "undefined" || typeof location === "undefined") return;
+    const sel = deeplinkTarget(location.search, location.hash); if (!sel) return;
+    __helmAdoptCss(document, "@keyframes bpDlFlash{0%,60%{box-shadow:0 0 0 3px var(--accent,#c8a24a);background-color:var(--accent-soft,rgba(200,162,74,.18))}100%{box-shadow:0 0 0 0 transparent}}"
+      + ".bp-dl-hl{animation:bpDlFlash 2.4s ease-out 1;scroll-margin:96px}@media (prefers-reduced-motion:reduce){.bp-dl-hl{animation:none;outline:3px solid var(--accent,#c8a24a)}}");
+    let tries = 0, done = 0, last = null;
+    const tick = () => {
+      const el = document.querySelector(sel);
+      if (el && el !== last) {
+        last = el; el.classList.add("bp-dl-hl"); done++;
+        try { el.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { try { el.scrollIntoView(); } catch (x) {} }
+        setTimeout(() => { try { el.classList.remove("bp-dl-hl"); } catch (e) {} }, 2600);
+      }
+      // keep watching briefly: pages re-render lists after load (chat scrolls to the bottom)
+      if (++tries < 60 && done < 2) setTimeout(tick, done ? 700 : 250);
+    };
+    tick();
+  }
+  try { if (typeof document !== "undefined") { if (document.readyState !== "loading") setTimeout(deeplinkFocus, 0); else document.addEventListener("DOMContentLoaded", deeplinkFocus); } } catch (e) {}
+
   const bell = {
+    link: notifLink,
     feed: (limit) => rpc("bell_feed", limit ? { p_limit: limit } : {}),
     markSeen: () => rpc("bell_mark_seen", {}),
     label: bellLabel,
@@ -5854,7 +5914,8 @@
       const popToasts = (merged) => {
         const r = bellToastPick(merged, readSeen(), { label: bellLabel, muted }); writeSeen(r.seen);
         if (isOpen || !window.BPUI || !window.BPUI.toast) return;
-        r.toasts.slice().reverse().forEach((x) => { try { window.BPUI.toast(x.message, { title: x.title, type: x.type, icon: x.icon, href: x.href || null, linkLabel: "View", timeout: 5000 }); } catch (e) {} });
+        r.toasts.slice().reverse().forEach((x) => { try { window.BPUI.toast(x.message, { title: x.title, type: x.type, icon: x.icon, href: x.href || null, linkLabel: "View", timeout: 5000,
+          onOpen: () => { if (x.rk && readKeys.indexOf(x.rk) === -1) { readKeys.push(x.rk); saveRead(); } } }); } catch (e) {} });
       };
       const refresh = async () => { let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(serverUnread(f));
         const merged = mergedFeed(f && f.items); if (f) popToasts(merged);
@@ -5922,7 +5983,8 @@
         if (e.target.closest && e.target.closest("[data-f-back]")) { e.preventDefault(); filter = "all"; render(); return; }
         const c = e.target.closest && e.target.closest("[data-bpb-close]"); if (c) { e.preventDefault(); close(); return; }
         const tab = e.target.closest && e.target.closest(".bpb-tab"); if (tab) { filter = tab.getAttribute("data-f") || "all"; render(); try { root.querySelector(`[data-f="${filter}"]`).focus(); } catch (x) {} return; }
-        const it = e.target.closest && e.target.closest("a.bpb-item"); if (it) close(false);   // navigating away
+        const it = e.target.closest && e.target.closest("a.bpb-item");
+        if (it) { const k = it.getAttribute("data-k"); if (k && readKeys.indexOf(k) === -1) { readKeys.push(k); saveRead(); } close(false); }   // mark read, navigate away
       });
       root.querySelector("#bpBellClear").addEventListener("click", async (e) => { e.stopPropagation(); const b = e.currentTarget; b.disabled = true;
         try { await this.markSeen(); } catch {} await refresh(); b.disabled = false; });

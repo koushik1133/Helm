@@ -16,7 +16,7 @@ const fnSrc = (src, name) => {
   throw new Error(name + ' unterminated');
 };
 const labelsSrc = api.slice(api.indexOf('const BELL_TYPE_LABELS'), api.indexOf('};', api.indexOf('const BELL_TYPE_LABELS')) + 2);
-const ctx = {}; vm.runInNewContext(labelsSrc + '\n' + ['bellTypeOf', 'bellLabel', 'bellPanelView'].map((f) => fnSrc(api, f)).join('\n') + '\nglobalThis.view=bellPanelView; globalThis.label=bellLabel; globalThis.typeOf=bellTypeOf;', ctx);
+const ctx = {}; vm.runInNewContext(labelsSrc + '\n' + ['notifLink', 'bellTypeOf', 'bellLabel', 'bellPanelView'].map((f) => fnSrc(api, f)).join('\n') + '\nglobalThis.view=bellPanelView; globalThis.label=bellLabel; globalThis.typeOf=bellTypeOf;', ctx);
 const view = (items, filter, now, extra) => JSON.parse(JSON.stringify(ctx.view(items, Object.assign({ filter, now, label: ctx.label }, extra || {}))));   // plain objects (vm realm)
 
 // a fixed local "now": 7 Oct 2026, 15:00 local time
@@ -69,8 +69,8 @@ t('each filter shows only its rows; Chat includes mentions', () => {
 
 t('rows: type chip per group, bold title, preview, unread dot, links to the target', () => {
   const h = view(FEED, 'all', NOW).html;
-  assert.match(h, /<a class="bpb-item g-task is-unread" href="event\.html\?id=q-1" data-k="n:n1"><span class="bpb-chip" aria-hidden="true">🛠️<\/span><span class="bpb-body"><span class="bpb-t">3 task\(s\) assigned · Decor<\/span><span class="bpb-p">C-101 · Sharma wedding<\/span>/);
-  assert.match(h, /<a class="bpb-item g-billing" href="event\.html\?id=q-2"/);       // read → no is-unread
+  assert.match(h, /<a class="bpb-item g-task is-unread" href="ops\.html\?quote=q-1" data-k="n:n1"><span class="bpb-chip" aria-hidden="true">🛠️<\/span><span class="bpb-body"><span class="bpb-t">3 task\(s\) assigned · Decor<\/span><span class="bpb-p">C-101 · Sharma wedding<\/span>/);
+  assert.match(h, /<a class="bpb-item g-billing" href="settlement\.html\?quote=q-2#payments"/);       // read → no is-unread
   assert.match(h, /<div class="bpb-item g-other" tabindex="0" data-k="n:n3">/);       // no quote → not a link, still focusable
   assert.match(h, /<a class="bpb-item g-chat is-unread" href="chat\.html\?c=g1"[^>]*><span class="bpb-chip" aria-hidden="true">💬<\/span><span class="bpb-body"><span class="bpb-t">Crew · Ravi <span class="bpb-c">\(3\)<\/span>/);
   assert.match(h, /<a class="bpb-item g-mention is-unread" href="chat\.html\?c=g2"[^>]*><span class="bpb-chip" aria-hidden="true">@<\/span>/);
@@ -141,7 +141,7 @@ t('escaping: server + chat text never becomes markup; ids are URL-encoded', () =
   assert.doesNotMatch(v.html, /<img|<script|<svg|<i>|<u>|<s>|<b>/);
   assert.match(v.html, /Task accepted by &lt;img src=x onerror=alert\(1\)&gt;/);
   assert.match(v.html, /&quot;quoted&quot; &amp; &#39;x&#39;/);
-  assert.match(v.html, /href="event\.html\?id=q%22%2F%3E%3Cscript%3E"/);
+  assert.match(v.html, /href="ops\.html\?quote=q%22%2F%3E%3Cscript%3E"/);
   assert.match(v.html, /href="chat\.html\?c=c%22%3E%3Csvg%20onload%3D1%3E"/);
   assert.match(v.html, /data-k="n:&quot;&gt;&lt;b&gt;"/);
   assert.match(v.html, /<span class="bpb-t">&lt;i&gt;Mallory&lt;\/i&gt;<\/span>/);        // DM title = sender
