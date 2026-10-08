@@ -425,6 +425,12 @@
     const cr=V.money($("#i_cost").value,{field:"Unit cost"}); if(!cr.ok){ $("#im_err").textContent=cr.error; $("#im_err").hidden=false; return; }
     const rec={ name, category:$("#i_cat").value.trim()||null, total_qty:qr.value, unit:$("#i_unit").value.trim()||null, notes:$("#i_notes").value.trim()||null, priority:$("#i_pri").value||"C", unit_cost:cr.value };
     $("#im_err").hidden=true;
+    // duplicate guard: same name ignoring case, spacing, punctuation, accents and "&" vs "and" (inactive items count too)
+    try{
+      const norm=(t)=>String(t||"").normalize("NFKC").toLowerCase().replace(/&/g," and ").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\p{L}\p{N}]+/gu," ").trim();
+      const key=norm(name), dup=(await BPStore.inventory.items(true)).find(x=>x.id!==editingId && norm(x.name)===key);
+      if(dup){ $("#im_err").textContent="You already have \u201c"+dup.name+"\u201d"+(dup.active===false?" (inactive \u2014 tick \u201cShow inactive\u201d and reactivate it)":" \u2014 edit that item's quantity instead of adding it again.")+""; $("#im_err").hidden=false; return; }
+    }catch(e){ /* if the check itself can't run, fall through to the normal save */ }
     try{ if(editingId) await BPStore.inventory.updateItem(editingId,rec); else await BPStore.inventory.addItem(rec); }
     catch(e){ $("#im_err").textContent=BPUI.friendlyError(e,{action:"save the item"}); $("#im_err").hidden=false; return; }
     const wasEdit=!!editingId; closeItem(); BPUI.toast(wasEdit?"Item saved.":"Item added.",{type:"ok"}); await load();
