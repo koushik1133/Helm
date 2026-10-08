@@ -2,8 +2,8 @@
 node_modules/
 data/
 
-# staging Supabase config (never commit keys)
-public/config.staging.js
+# public/config.staging.js IS committed: it holds only the PUBLIC staging url +
+# anon key (RLS-protected, same posture as config.js). Never put secrets there.
 
 # Playwright
 test-results/

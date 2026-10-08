@@ -10,8 +10,15 @@
  * refuses that script in production (script-src has no 'unsafe-inline').
  * Also fails when a page carries an inline event-handler attribute (on*=) or a
  * javascript: URL, which a hash-based CSP blocks.
+ *
+ * Env split: the base vercel.json CSP rules allow BOTH Supabase projects (prod +
+ * staging) because Vercel branch previews resolve to staging. This script also
+ * (re)generates, at the END of vercel.json "headers", one host-conditioned copy
+ * of every CSP rule per PRODUCTION host with every staging origin stripped, so
+ * production hosts only ever allow the production project. public/_headers
+ * (non-Vercel static hosting = production-like) carries the prod-only CSP.
  * ========================================================================== */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -19,10 +26,24 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { computeHashes, computeStyleHashes, withHashes, htmlFiles, scriptSrcProblem } = require('./csp-hashes.cjs');
 
+// Production hosts (must match PROD_HOSTS in public/config.js) and the staging
+// Supabase project ref (from public/config.staging.js) that they must never allow.
+export const PROD_HOSTS = ['www.helm.events', 'helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app'];
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = join(ROOT, 'public');
 const check = process.argv.includes('--check');
 let problems = 0;
+const STAGING_PATH = join(PUBLIC, 'config.staging.js');
+const STAGING_REF = existsSync(STAGING_PATH)
+  ? (/https:\/\/([a-z0-9]{20})\.supabase\.co/.exec(readFileSync(STAGING_PATH, 'utf8')) || [])[1] : '';
+function stripStaging(v) {
+  if (!STAGING_REF) return v;   // no staging project configured → nothing to strip
+  return v.split(';').map((d) => d.split(' ').filter((tok) => !tok.includes(STAGING_REF)).join(' ')).join(';');
+}
+function isProdCspRule(r) {
+  return Array.isArray(r.has) && r.has.length === 1 && r.has[0].type === 'host' && PROD_HOSTS.includes(r.has[0].value) &&
+    (r.headers || []).length === 1 && r.headers[0].key.toLowerCase() === 'content-security-policy';
+}
 
 // 1) inline handlers / javascript: URLs can't be hash-allowed — must not exist
 const HANDLER = /<[a-z][^>]*\son[a-z]+\s*=\s*["']/i;
@@ -44,6 +65,8 @@ const vPath = join(ROOT, 'vercel.json');
 const vRaw = readFileSync(vPath, 'utf8');
 const vercel = JSON.parse(vRaw);
 let cspCount = 0;
+// drop previously generated prod-host overrides; they are rebuilt below
+vercel.headers = (vercel.headers || []).filter((r) => !r.__prodCsp && !isProdCspRule(r));
 for (const rule of vercel.headers || []) {
   for (const h of rule.headers || []) {
     if (h.key.toLowerCase() === 'content-security-policy') {
@@ -54,12 +77,23 @@ for (const rule of vercel.headers || []) {
   }
 }
 if (!cspCount) { console.error('  ✗ vercel.json has no Content-Security-Policy header'); problems++; }
+{ // per-prod-host CSP overrides (staging origins stripped). Later rules win in Vercel.
+  const base = vercel.headers.filter((r) => !r.has && !r.missing &&
+    (r.headers || []).some((h) => h.key.toLowerCase() === 'content-security-policy'));
+  for (const host of PROD_HOSTS) {
+    for (const r of base) {
+      const csp = r.headers.find((h) => h.key.toLowerCase() === 'content-security-policy');
+      vercel.headers.push({ source: r.source, has: [{ type: 'host', value: host }],
+        headers: [{ key: 'Content-Security-Policy', value: stripStaging(csp.value) }] });
+    }
+  }
+}
 const vNext = JSON.stringify(vercel, null, 2) + '\n';
 
 // 3) public/_headers (Netlify / Cloudflare Pages format)
 const hPath = join(PUBLIC, '_headers');
 const hRaw = readFileSync(hPath, 'utf8');
-const hNext = hRaw.replace(/^(\s*Content-Security-Policy:\s*)(.*)$/gm, (_, k, v) => k + withHashes(v, hashes, styleHashes));
+const hNext = hRaw.replace(/^(\s*Content-Security-Policy:\s*)(.*)$/gm, (_, k, v) => k + stripStaging(withHashes(v, hashes, styleHashes)));
 { // script-src host allowlist per _headers block (route = the unindented line above)
   let route = '';
   for (const line of hRaw.split('\n')) {

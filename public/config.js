@@ -43,19 +43,10 @@ window.SUPABASE_CONFIG = {
 };
 
 // ---------------------------------------------------------------------------
-// STAGING project (PUBLIC values only — same posture as the prod anon key above,
-// which is public-by-design and RLS-protected). The staging anon/publishable key
-// and URL are safe to commit. NEVER put the elevated service-role key, DB password, OAuth
-// client secret, or any provider secret here — those live only in Supabase/Vercel
-// dashboards. Leave BLANK until the staging project is created; blank = "no
-// staging configured", which makes staging hosts and localhost fail closed rather
-// than ever touching production.
+// STAGING project config lives in public/config.staging.js (public values only).
+// It is loaded below ONLY on non-production hosts, and vercel.json 404s it on
+// the production hosts, so the staging URL/key never reach production visitors.
 // ---------------------------------------------------------------------------
-window.SUPABASE_STAGING = {
-  url: "https://xizehqgeyjcfpzrdymly.supabase.co",   // Helm-staging project (isolated from prod)
-  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhpemVocWdleWpjZnB6cmR5bWx5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxOTAyNTMsImV4cCI6MjEwNTc2NjI1M30.KvL6N-N7iIY7GzsxglWJRmP3JVZuXrHDeqQX1GWaZFo",  // staging ANON/publishable key (public-by-design, RLS-protected — never the elevated key)
-  hosts: []       // EXACT staging frontend hostname(s) — add the Vercel staging host at deploy time, e.g. ["helm-staging.vercel.app"]
-};
 
 // ---------------------------------------------------------------------------
 // ENV SEPARATION (Wave 4 / finding ENV / DEPLOY-02): local development must NOT
@@ -71,9 +62,24 @@ window.SUPABASE_STAGING = {
 // sticky value '1' is treated as expired).
 // See docs/STAGING-SETUP.md for wiring a real isolated staging project.
 // ---------------------------------------------------------------------------
+var CONFIG_STAGING_V = '1';
 (function () {
+  var h = '';
+  try { h = ((location && location.hostname) || '').toLowerCase(); } catch (e) {}
+  // EXPLICIT production allowlist (no broad substring matching). Unknown hosts fail closed.
+  var PROD_HOSTS = {
+    'www.helm.events': 1, 'helm.events': 1,
+    'helm-v01.vercel.app': 1, 'helm-alpha-nine.vercel.app': 1
+  };
+  var PROD_URL = window.SUPABASE_CONFIG.url, PROD_KEY = window.SUPABASE_CONFIG.anonKey;
+  var routed = false;
+  function route() {
+  if (routed) return; routed = true;
   try {
-    var h = ((location && location.hostname) || '').toLowerCase();
+    // Restore the committed prod values (a deferred route blanked them provisionally).
+    window.SUPABASE_CONFIG.url = PROD_URL;
+    window.SUPABASE_CONFIG.anonKey = PROD_KEY;
+    try { delete window.SUPABASE_CONFIG.__localFallback; } catch (e) {}
 
     // Resolve staging creds from (in priority): committed SUPABASE_STAGING block →
     // window.HELM_STAGING_SUPABASE override → localStorage 'helm.staging'. Returns
@@ -139,11 +145,6 @@ window.SUPABASE_STAGING = {
         'Fill window.SUPABASE_STAGING in config.js (public url+anonKey) — see docs/STAGING-SETUP.md.');
     }
 
-    // EXPLICIT ALLOWLISTS (no broad substring matching). Unknown hosts fail closed.
-    var PROD_HOSTS = {
-      'www.helm.events': 1, 'helm.events': 1,
-      'helm-v01.vercel.app': 1, 'helm-alpha-nine.vercel.app': 1
-    };
     var STAGING_HOSTS = {};
     try {
       ((window.SUPABASE_STAGING && window.SUPABASE_STAGING.hosts) || []).forEach(function (x) {
@@ -246,4 +247,20 @@ window.SUPABASE_STAGING = {
 
     failClosed('localhost');   // no staging + no opt-in → disabled (never prod)
   } catch (e) { /* never break config load */ }
+  }
+
+  // Production host, staging already defined (e.g. tests / pre-set), or no DOM
+  // (Node tests) → route now. Otherwise load config.staging.js synchronously
+  // (parser-inserted, so it runs before any later <script>) and let it call
+  // route(). Until then the credentials are BLANK, so if the staging file fails
+  // to load the page stays fail-closed — never production.
+  try {
+    if (PROD_HOSTS[h] || window.SUPABASE_STAGING || typeof document === 'undefined' ||
+        document.readyState !== 'loading') { route(); return; }
+    window.SUPABASE_CONFIG.url = '';
+    window.SUPABASE_CONFIG.anonKey = '';
+    window.SUPABASE_CONFIG.__localFallback = true;
+    window.__helmRouteEnv = route;
+    document.write('<script src="/config.staging.js?v=' + CONFIG_STAGING_V + '"><\/script>');
+  } catch (e) { /* stays blank → fail closed */ }
 })();
