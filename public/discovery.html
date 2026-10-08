@@ -228,7 +228,7 @@
     if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("pipeline"))) return;
-    canEdit=await BPStore.auth.canEditArea("discovery"); canDelete=await BPStore.auth.can("delete");
+    canEdit=await BPStore.auth.canEditArea("discovery"); canDelete=canEdit && await BPStore.auth.can("delete");
     try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
     if(!ev){ $("#notfound").hidden=false; return; }
     $("#evName").textContent = (ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");

@@ -482,10 +482,23 @@
     if(canEdit){ el.innerHTML=`📅 Event date: <input type="date" id="evDate" aria-label="Event date" value="${esc(d)}" style="${inp}">
         <span style="margin-left:8px">🕒 Time:</span> <input type="time" id="evTime" aria-label="Event time" value="${esc(tm)}" style="${inp}">${warn}`;
       const di=$("#evDate"), ti=$("#evTime");
-      di.addEventListener("change",()=>BPUI.guard(di,async()=>{ try{ const nd=di.value||null;
-          const client=Object.assign({}, ev.client||{}, { eventDate: nd });   // keep client.eventDate in sync (invoice/meta read it)
+      // Save only a complete, plausible date (a half-typed year like 0002-10-08 or a hardener-cleared
+      // value must never be written as null). Clearing on purpose is committed on blur only.
+      const dateOk=(v)=>/^\d{4}-\d{2}-\d{2}$/.test(v) && +v.slice(0,4)>=2000 && +v.slice(0,4)<=2100;
+      const commitDate=(fromBlur)=>{
+        const raw=di.value;
+        if(raw===(ev.eventDate||"")) return;
+        if(raw===""){ if(!fromBlur || di.validity.badInput) return; }
+        else if(!dateOk(raw)){ if(fromBlur){ di.value=ev.eventDate||""; } return; }
+        return BPUI.guard(di,async()=>{ try{ const nd=raw||null;
+          // merge into the FRESH client JSON (not the page-load copy) so other fields edited elsewhere aren't overwritten
+          let base=ev.client||{}; try{ const fresh=await BPStore.quotes.get(id); if(fresh&&fresh.client) base=fresh.client; }catch(_){}
+          const client=Object.assign({}, base, { eventDate: nd });   // keep client.eventDate in sync (invoice/meta read it)
           await BPStore.quotes.updateMeta(id,{eventDate:nd, client}); ev.eventDate=nd; ev.client=client; renderDateRow(); BPUI.toast("Event date saved.",{type:"ok"}); }
-        catch(e){ di.value=ev.eventDate||""; BPUI.toast(BPUI.friendlyError(e,{action:"save the event date"}),{type:"err"}); } }));
+        catch(e){ di.value=ev.eventDate||""; BPUI.toast(BPUI.friendlyError(e,{action:"save the event date"}),{type:"err"}); } });
+      };
+      di.addEventListener("change",()=>commitDate(false));
+      di.addEventListener("blur",()=>commitDate(true));
       ti.addEventListener("change",()=>BPUI.guard(ti,async()=>{ try{ const nt=ti.value||null; await BPStore.quotes.updateMeta(id,{eventTime:nt}); ev.eventTime=nt; renderDateRow(); BPUI.toast("Event time saved.",{type:"ok"}); }
         catch(e){ ti.value=ev.eventTime||""; BPUI.toast(BPUI.friendlyError(e,{action:"save the event time"}),{type:"err"}); } }));
     } else { el.innerHTML = (d||tm) ? ("📅 "+esc(d)+(tm?(" · 🕒 "+esc(tm)):"")) : ""; }

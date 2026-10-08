@@ -193,7 +193,7 @@
     if(!templates.length){ $("#pkgBlock").style.display="none"; return; }
     $("#pkgBlock").style.display="";
     const editable=dishEditable();
-    const guests=(ev&&(ev.guest_count||ev.guests))||null;
+    const guests=(ev&&((ev.pricing&&Number(ev.pricing.guests))||(ev.client&&Number(ev.client.guests))))||null;
     host.innerHTML=templates.map(t=>{
       const est=guests?` · est ${inr((t.price_per_plate||0)*guests)} / ${guests} pax`:"";
       const n=(t.dishes||[]).length;
