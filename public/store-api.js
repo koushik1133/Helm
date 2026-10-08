@@ -3168,7 +3168,8 @@ window.HelmUrl = HelmUrl;
           const missing = error.code === "PGRST202" || error.code === "42883" || /could not find the function|does not exist/i.test(error.message || "");
           if (!missing) {
             if (error.code === "P0001" && /not enough stock/i.test(error.message || "")) {
-              const err = new Error("Not enough stock free (" + String(error.message).replace(/^.*\(/, "").replace(/\).*$/, "") + " left). Someone else may have just reserved it.");
+              const lm = /\((\d+(?:\.\d+)?) left\)/.exec(String(error.message || ""));   // server says "not enough stock free (N left)"
+              const err = new Error("Not enough stock free" + (lm ? ": only " + lm[1] + " left" : "") + ". Someone else may have just reserved it.");
               err.code = "INVENTORY_CONFLICT"; throw err;
             }
             throw error;
