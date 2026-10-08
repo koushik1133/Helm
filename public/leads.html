@@ -441,6 +441,7 @@
   function syncDetail(){ if($("#detailModal").hidden||!detailId) return; const l=leadById(detailId); if(l) fillDetail(l); }
   function openDetail(id){
     const l=leadById(id); if(!l) return; editingId=id; detailId=id;
+    try{ if(window.HelmTrail&&l.name) HelmTrail.setCurrent({title:l.name,kind:"lead",href:"leads.html?hs="+encodeURIComponent(String(l.name).slice(0,80))}); }catch(e){}
     fillDetail(l);
     $("#dt_del").hidden=!canDelete;
     $("#dt_edit").hidden=!canEdit;
