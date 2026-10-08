@@ -300,7 +300,7 @@
     $("#seedBtn").hidden=!canEdit;
 
     const q=filter.trim().toLowerCase();
-    const shown=items.filter(i=>(!catF||i.category===catF)&&(!priF||(i.priority||"C")===priF)&&(!q||[i.name,i.category].join(" ").toLowerCase().includes(q)));
+    const shown=items.filter(i=>(!catF||i.category===catF)&&(!priF||(i.priority||"C")===priF)&&(!q||[i.name,i.category].join(" ").toLowerCase().includes(q))&&(!window.HelmSavedFilters||HelmSavedFilters.match("inventory",{item:i,avail:avail[i.id]})));
 
     const rowHtml=(i)=>{
       const a=avail[i.id]||{committed:0,available:Number(i.total_qty||0)};
@@ -654,5 +654,6 @@
     await load();
   });
 </script>
+<script src="saved-filters.js?v=1"></script>
 </body>
 </html>
