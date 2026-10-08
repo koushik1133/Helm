@@ -280,7 +280,7 @@ await t('pages: CSP-clean markup, panels + settings card + scripts wired', () =>
   assert.match(read('public/event.html'), /id="pkg-selections" class="card" data-pkg-review data-quote-from-url/);
   assert.match(read('public/client.html'), /id="pkg-selections" class="card" data-pkg-review data-wait-quote/);
   assert.match(read('public/control.html'), /id="pkgFlowCard" data-pkg-settings hidden/);
-  for (const f of ['public/event.html', 'public/client.html', 'public/control.html']) assert.match(read(f), /pkg-review\.js\?v=1/, f);
+  for (const f of ['public/event.html', 'public/client.html', 'public/control.html']) assert.match(read(f), /pkg-review\.js\?v=2/, f);
   for (const f of ['public/booklet-pkg.js', 'public/pkg-review.js', 'public/booklet.js'])
     assert.doesNotMatch(read(f), /\.innerHTML|\.outerHTML|insertAdjacentHTML|document\.write/, f);
   assert.match(read('public/booklet-pkg.css'), /@media print\{[^}]*\.pk-ctl/);
@@ -381,8 +381,8 @@ await t('final contract: mode selected/hidden, choose error hints, review outcom
   await t('share checklist wired on flow.html + Share booklet dialog', () => {
     const f = read('public/flow.html');
     assert.ok(f.indexOf('id="sec-share"') > f.indexOf('id="sec-pay"') && f.indexOf('id="sec-share"') < f.indexOf('id="sec-activity"'));
-    assert.match(f, /share-checklist\.js\?v=1/); assert.match(f, /share-checklist\.css\?v=1/);
-    for (const p of ['public/event.html', 'public/client.html']) assert.match(read(p), /share-checklist\.js\?v=1[\s\S]*booklet-share\.js/, p);
+    assert.match(f, /share-checklist\.js\?v=2/); assert.match(f, /share-checklist\.css\?v=1/);
+    for (const p of ['public/event.html', 'public/client.html']) assert.match(read(p), /share-checklist\.js\?v=2[\s\S]*booklet-share\.js/, p);
     assert.match(read('public/booklet-share.js'), /HelmShareChecklist\.mount\(form/);
     assert.doesNotMatch(read('public/share-checklist.js'), /\.innerHTML|\.outerHTML|insertAdjacentHTML|document\.write/);
   });
