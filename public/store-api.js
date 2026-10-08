@@ -939,6 +939,7 @@
 
   // Account enumeration: one answer whether or not an email is registered.
   const GENERIC_SIGNIN = "Invalid email or password.";
+  const GENERIC_RESEND = "If an account needs confirming, we've sent a new link. It can take a few minutes — check spam too.";
   const GENERIC_SENT = "If this email can be used, we've sent a link. It can take a few minutes — check spam too.";
   const LOCKOUT_RE = /^Too many attempts\. Try again in (15 minutes|1 hour) or reset your password\.$/;
   function genericSignInError(error) {
@@ -1292,6 +1293,8 @@
         // emailRedirectTo: the confirm link returns to the sign-in page with ?code= (PKCE)
         const so = { emailRedirectTo: (opts && opts.emailRedirectTo) || (location.origin + "/login.html") };
         if (captchaToken) so.captchaToken = captchaToken;
+        const fullName = opts && typeof opts.fullName === "string" ? opts.fullName.trim().slice(0, 50) : "";
+        if (fullName) so.data = { full_name: fullName };
         const { data, error } = await supa.auth.signUp({ email, password, options: so });
         if (error) {
           const c = String(error.code || ""), m = String(error.message || ""), st = Number(error.status) || 0;
@@ -1381,7 +1384,7 @@
       return true;
     },
     // ---- self-service password reset / change -----------------------------------
-    genericMessages: { signIn: GENERIC_SIGNIN, sent: GENERIC_SENT },
+    genericMessages: { signIn: GENERIC_SIGNIN, sent: GENERIC_SENT, resend: GENERIC_RESEND },
     passwordRule: { min: PW_MIN, symbols: PW_SYMBOLS, hint: PW_HINT, problem: passwordProblem, checks: passwordChecks, attachChecklist: attachPasswordChecklist },
     // Resolves the same way whether or not the email has an account (the caller
     // shows one generic message). Only rate-limit / network / CAPTCHA errors throw.
@@ -1398,6 +1401,24 @@
         if (/captcha/i.test(m)) { const e = new Error("The security check failed — please try again."); e.code = "captcha_failed"; throw e; }
         if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) throw error;
         // anything else (e.g. "user not found" on older GoTrue builds) is deliberately not shown
+      }
+      return true;
+    },
+    // Re-send the sign-up confirmation email. Resolves the same way whether or not the
+    // email has an account / still needs confirming (no enumeration) — the caller shows
+    // GENERIC_RESEND. Only rate-limit / network / CAPTCHA errors throw.
+    async resendSignup(email, opts) {
+      if (!supa) throw new Error("Supabase not configured");
+      const em = String(email || "").trim().toLowerCase();
+      if (!em) return true;
+      const o = { emailRedirectTo: (opts && opts.emailRedirectTo) || (location.origin + "/login.html") };
+      if (opts && opts.captchaToken) o.captchaToken = opts.captchaToken;
+      const { error } = await supa.auth.resend({ type: "signup", email: em, options: o });
+      if (error) {
+        const st = Number(error.status) || 0, m = String(error.message || "");
+        if (st === 429 || /rate limit|too many|seconds/i.test(m)) { const e = new Error("Too many requests — please wait a minute and try again."); e.code = "rate_limited"; throw e; }
+        if (/captcha/i.test(m)) { const e = new Error("The security check failed — please try again."); e.code = "captcha_failed"; throw e; }
+        if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) throw error;
       }
       return true;
     },
@@ -6847,7 +6868,13 @@
   /* --------------------------------------------------------------- wire */
   global.addEventListener("keydown", onKeydown, true);
   doc.addEventListener("focusin", onFocusin, true);
-  function start() { injectCSS(); startModalObserver(); installOffline(); }
+  // one-shot "flash" toast carried across a location.replace (e.g. "Email confirmed")
+  function showFlash() {
+    var f = null;
+    try { f = sessionStorage.getItem("bp_flash"); sessionStorage.removeItem("bp_flash"); } catch (e) {}
+    if (f && /^[\w .,'!—-]{1,80}$/.test(f)) setTimeout(function () { toast(f, { type: "ok" }); }, 300);
+  }
+  function start() { injectCSS(); startModalObserver(); installOffline(); showFlash(); }
   if (doc.readyState !== "loading") start(); else doc.addEventListener("DOMContentLoaded", start, { once: true });
 
   global.BPUI = {
