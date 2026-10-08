@@ -690,7 +690,7 @@
       const r=await BPStore.milestones.record(id, amount, method, $("#pay_receipt").value.trim()||null, null, null, idem);
       $("#bookingBadge").style.display=""; $("#statusBadge").textContent="confirmed";
       $("#pay_receipt").value=""; $("#pay_amount").value="";
-      if(method==='online'){ const link=location.origin+"/sim-pay.html?ref="+encodeURIComponent(ev.code||"")+"&amount="+amount;
+      if(method==='online' && BPStore.approval.onlinePayAvailable()){ const link=location.origin+"/sim-pay.html?ref="+encodeURIComponent(ev.code||"")+"&amount="+amount;
         $("#pay_online").style.display=""; $("#pay_online").innerHTML=`Online link (simulated): <a href="${esc(link)}" target="_blank" rel="noopener" style="color:var(--accent)">${esc(link)}</a> — real Razorpay link goes here in production.`; }
       $("#pay_record").removeAttribute("aria-busy");
       await renderReceipts(); await renderActivity();
@@ -852,6 +852,8 @@
     $("#sendApproval").addEventListener("click",()=>{ sendApproval().catch(()=>{}); });
     $("#pay_pct").addEventListener("input",updateAdvance);
     ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount"].forEach(f=>$("#"+f).addEventListener("input",updateAdvance));
+    // Production without live Razorpay: manual recording only (no simulated link option)
+    if(!BPStore.approval.onlinePayAvailable()){ const o=$("#pay_method").querySelector('option[value="online"]'); if(o) o.remove(); }
     $("#pay_method").addEventListener("change",()=>{ $("#pay_receiptWrap").style.display=$("#pay_method").value==='cash'?'':'none'; $("#pay_online").style.display='none'; });
     $("#pay_record").addEventListener("click",()=>{ recordPayment().catch(()=>{}); });
     $("#openBuilder").addEventListener("click", async (e)=>{

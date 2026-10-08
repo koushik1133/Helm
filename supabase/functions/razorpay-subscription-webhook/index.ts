@@ -33,6 +33,7 @@
 // 500 DB error (Razorpay retries). Logs never contain payload contents.
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, UUID_RE } from "../_shared/cors.ts";
+import { BodyTooLarge, clientIp, rateLimit, readBodyCapped, WEBHOOK_BODY_LIMIT } from "../_shared/limits.ts";
 
 const enc = new TextEncoder();
 async function hmacHex(secret: string, body: string) {
@@ -61,7 +62,9 @@ Deno.serve(async (req) => {
   try {
     if (Deno.env.get("HELM_RAZORPAY_SUBSCRIPTIONS_ENABLED") !== "true") return text("dormant");
     if (req.method !== "POST") return text("method not allowed", 405);
-    const raw = await req.text();
+    const wait = await rateLimit("rzs:ip:" + clientIp(req), 300, 60_000);
+    if (wait) return new Response("too many requests", { status: 429, headers: { "Retry-After": String(wait) } });
+    const raw = await readBodyCapped(req, WEBHOOK_BODY_LIMIT);
     const sig = (req.headers.get("x-razorpay-signature") || "").trim().toLowerCase();
     const secret = Deno.env.get("RAZORPAY_SUBSCRIPTION_WEBHOOK_SECRET") || "";
     if (!secret || !sig || !timingSafeEqual(await hmacHex(secret, raw), sig)) return text("invalid signature", 401);
@@ -110,6 +113,7 @@ Deno.serve(async (req) => {
     if (out && typeof out === "object" && out.result === "replay") return text("already recorded (idempotent)");
     return text("ok");
   } catch (e) {
+    if (e instanceof BodyTooLarge) return text("payload too large", 413);
     console.error("sub-webhook error", errTag(e));
     return text("error", 500);
   }

@@ -1989,7 +1989,13 @@
       rpc("verify_and_consent", { p_token: token, p_phone: phone, p_code: code, p_agreed: agreed,
         p_terms_version: termsVersion, p_consent_text: consentText, p_client_name: clientName, p_user_agent: ua }),
     // simulation → RPC (mock link); live → Razorpay via Edge Function (real payment link)
-    createPayment: (token) => LIVE.pay ? callFn("create-payment-link", { token }) : rpc("create_payment", { p_token: token }),
+    // Online pay is offered only when it is real (pay live) or off production: the
+    // simulated checkout (/sim-pay) is 404 on prod hosts, so prod never links there.
+    onlinePayAvailable: () => !!LIVE.pay || (typeof window === "undefined" || window.HELM_IS_PROD_HOST !== true),
+    createPayment: (token) => LIVE.pay ? callFn("create-payment-link", { token })
+      : (typeof window !== "undefined" && window.HELM_IS_PROD_HOST === true)
+        ? Promise.reject(new Error("Online payment isn't available — your planner will share payment details."))
+        : rpc("create_payment", { p_token: token }),
     // ---- manager (authenticated) ----
     generateToken: (quoteId) => rpc("generate_approval_token", { p_quote_id: quoteId }),
     markPaid: (quoteId, ref) => rpc("mark_paid", { p_quote_id: quoteId, p_provider_ref: ref || null }),
@@ -5329,9 +5335,8 @@
     "@media print{.bpb-root{display:none!important}}",
   ].join("\n");
   function bellInjectCss() {
-    if (typeof document === "undefined" || document.getElementById("bpb-style")) return;
-    const st = document.createElement("style"); st.id = "bpb-style"; st.textContent = BELL_CSS;
-    (document.head || document.documentElement).appendChild(st);
+    if (typeof document === "undefined" || document.__bpbStyle) return;
+    document.__bpbStyle = true; __helmAdoptCss(document, BELL_CSS);
   }
   // friendly label + icon for a raw notification kind
   function bellLabel(n) {
@@ -5997,10 +6002,8 @@
     "@media print{.bpui-toasts,.bpui-offline,.bpui-boot-overlay{display:none!important}}",
   ].join("\n");
   function injectCSS() {
-    if (doc.getElementById("bpui-style")) return;
-    var s = doc.createElement("style");
-    s.id = "bpui-style"; s.textContent = CSS;
-    (doc.head || doc.documentElement).appendChild(s);
+    if (doc.__bpuiStyle) return;
+    doc.__bpuiStyle = true; __helmAdoptCss(doc, CSS);
   }
 
   /* -------------------------------------------------------------- helpers */
@@ -7019,12 +7022,10 @@
   }
   function boot() {
     try {
-      var st = document.createElement("style");
-      st.textContent = ".req-star{color:var(--danger,#c0392b);font-weight:700}"
+      __helmAdoptCss(document, ".req-star{color:var(--danger,#c0392b);font-weight:700}"
         + ".bpui-tel{display:flex;align-items:stretch;gap:0;width:100%}"
         + ".bpui-tel>.bpui-tel-cc{flex:0 0 auto;max-width:40%;border:1px solid var(--line,#d9d4cc);border-right:0;border-radius:9px 0 0 9px;background:var(--panel-2,#f4f1ea);color:var(--ink,#1b1930);font:inherit;padding:0 6px}"
-        + ".bpui-tel>input{flex:1 1 auto;min-width:0;border-radius:0 9px 9px 0!important}";
-      document.head.appendChild(st);
+        + ".bpui-tel>input{flex:1 1 auto;min-width:0;border-radius:0 9px 9px 0!important}");
     } catch (e) {}
     loadDefaultCountry();
     scan(document);
@@ -7045,3 +7046,20 @@
   }
   if (document.readyState !== "loading") boot(); else document.addEventListener("DOMContentLoaded", boot);
 })(window);
+
+/* CSP: style-src-elem carries no 'unsafe-inline', so runtime CSS goes through a
+   constructable stylesheet (CSSOM — not an inline <style>, not governed by CSP).
+   Falls back to a <style> element only on browsers without adoptedStyleSheets. */
+function __helmAdoptCss(doc, css) {
+  try {
+    var W = doc.defaultView || window;
+    if (W.CSSStyleSheet && "adoptedStyleSheets" in doc && "replaceSync" in W.CSSStyleSheet.prototype) {
+      var sh = new W.CSSStyleSheet(); sh.replaceSync(css);
+      doc.adoptedStyleSheets = Array.prototype.slice.call(doc.adoptedStyleSheets).concat([sh]);
+      return true;
+    }
+  } catch (e) {}
+  var st = doc.createElement("style"); st.textContent = css;
+  (doc.head || doc.documentElement).appendChild(st);
+  return true;
+}

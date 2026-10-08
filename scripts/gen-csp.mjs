@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { computeHashes, withHashes, htmlFiles, scriptSrcProblem } = require('./csp-hashes.cjs');
+const { computeHashes, computeStyleHashes, withHashes, htmlFiles, scriptSrcProblem } = require('./csp-hashes.cjs');
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = join(ROOT, 'public');
@@ -37,6 +37,7 @@ for (const f of htmlFiles(PUBLIC)) {
 }
 
 const hashes = computeHashes(PUBLIC);
+const styleHashes = computeStyleHashes(PUBLIC);
 
 // 2) vercel.json — every Content-Security-Policy header value
 const vPath = join(ROOT, 'vercel.json');
@@ -46,7 +47,7 @@ let cspCount = 0;
 for (const rule of vercel.headers || []) {
   for (const h of rule.headers || []) {
     if (h.key.toLowerCase() === 'content-security-policy') {
-      h.value = withHashes(h.value, hashes); cspCount++;
+      h.value = withHashes(h.value, hashes, styleHashes); cspCount++;
       const bad = scriptSrcProblem(h.value, rule.source);
       if (bad) { console.error(`  ✗ vercel.json ${rule.source}: ${bad} — host sources live in scripts/csp-hashes.cjs`); problems++; }
     }
@@ -58,7 +59,7 @@ const vNext = JSON.stringify(vercel, null, 2) + '\n';
 // 3) public/_headers (Netlify / Cloudflare Pages format)
 const hPath = join(PUBLIC, '_headers');
 const hRaw = readFileSync(hPath, 'utf8');
-const hNext = hRaw.replace(/^(\s*Content-Security-Policy:\s*)(.*)$/gm, (_, k, v) => k + withHashes(v, hashes));
+const hNext = hRaw.replace(/^(\s*Content-Security-Policy:\s*)(.*)$/gm, (_, k, v) => k + withHashes(v, hashes, styleHashes));
 { // script-src host allowlist per _headers block (route = the unindented line above)
   let route = '';
   for (const line of hRaw.split('\n')) {
@@ -73,10 +74,11 @@ if (check) {
   if (vNext !== vRaw) { console.error('  ✗ vercel.json CSP script hashes are stale — run: node scripts/gen-csp.mjs'); problems++; }
   if (hNext !== hRaw) { console.error('  ✗ public/_headers CSP script hashes are stale — run: node scripts/gen-csp.mjs'); problems++; }
   if (/script-src[^;]*'unsafe-inline'/.test(vRaw)) { console.error("  ✗ vercel.json script-src still allows 'unsafe-inline'"); problems++; }
+  if (/style-src(-elem)? [^;\n]*'unsafe-inline'/.test(vRaw + hRaw)) { console.error("  ✗ style-src / style-src-elem still allows 'unsafe-inline'"); problems++; }
   if (!problems) console.log(`  ✓ CSP script hashes current (${hashes.length} inline scripts, ${cspCount} policies)`);
 } else {
   writeFileSync(vPath, vNext);
   writeFileSync(hPath, hNext);
-  console.log(`  ✓ wrote ${hashes.length} script hashes into ${cspCount} vercel.json policies + public/_headers`);
+  console.log(`  ✓ wrote ${hashes.length} script + ${styleHashes.length} style hashes into ${cspCount} vercel.json policies + public/_headers`);
 }
 process.exit(problems ? 1 : 0);
