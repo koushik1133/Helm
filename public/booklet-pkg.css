@@ -56,3 +56,4 @@ body.pk-open{overflow:hidden}
   .pk-card{box-shadow:none;break-inside:avoid}
   .pk-status{break-inside:avoid}
 }
+.plan img.snap{display:block;width:100%;height:auto;border-radius:12px;background:#fff}

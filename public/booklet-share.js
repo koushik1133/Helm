@@ -96,6 +96,8 @@
       vbox.appendChild(lab);
     });
 
+    // 0069: which sections the client sees (+ 2D / 3D screenshots) — share-checklist.js
+    const ck = global.HelmShareChecklist ? global.HelmShareChecklist.mount(form, { quoteId: quoteId, cur: cur, embedded: true }) : null;
     const f3 = el("label", "bk-lab", "Note to your client (optional)"); f3.setAttribute("for", "bkNote");
     const note = el("textarea", "bk-in"); note.id = "bkNote"; note.rows = 2; note.maxLength = 1000; note.value = (cur && cur.note) || "";
     const f4 = el("label", "bk-lab", "Terms (optional — standard terms are shown if empty)"); f4.setAttribute("for", "bkTerms");
@@ -110,7 +112,10 @@
       e.preventDefault(); msg.textContent = ""; go.disabled = true;
       const ids = Array.from(form.querySelectorAll('input[name="bkv"]')).filter((c) => c.checked).map((c) => c.value);
       try {
-        await st.booklet.share(quoteId, { days: Number(sel.value), versionIds: versions.length ? ids : null, note: note.value.trim(), terms: terms.value.trim() });
+        const vids = versions.length ? ids : null;
+        if (ck) await ck.uploadSnapshots();
+        await st.booklet.share(quoteId, ck ? global.HelmShareChecklist.sharePayload({ days: sel.value, versions: vids, note: note.value.trim(), terms: terms.value.trim(), sections: ck.sections() })
+          : { days: Number(sel.value), versionIds: vids, note: note.value.trim(), terms: terms.value.trim() });
         toast("Booklet link ready"); await load(quoteId);
       } catch (err) { go.disabled = false; msg.textContent = errText(err); }
     });

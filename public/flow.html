@@ -84,6 +84,7 @@
   @media (prefers-reduced-motion:reduce){.saved{transition:none}}
   .banner{background:var(--accent-soft);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--ink);display:flex;gap:10px;align-items:center}
 </style>
+<link rel="stylesheet" href="share-checklist.css?v=1">
 <link rel="stylesheet" href="theme.css?v=76">
 </head>
 <body>
@@ -252,6 +253,13 @@
           <div class="s-56f4356" id="pay_receipts"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
         </section>
 
+        <!-- SHARE WITH CLIENT (0069) — share-checklist.js fills it -->
+        <section class="card" id="sec-share" data-share-checklist hidden>
+          <h2>Share with client</h2>
+          <p class="sub">Choose what goes into the client's private booklet, then create or update the link.</p>
+          <div class="sc-body"></div>
+        </section>
+
         <!-- ACTIVITY TRAIL -->
         <section class="card" id="sec-activity">
           <h2>Activity trail</h2>
@@ -312,6 +320,8 @@
 <script src="phone-input.js?v=1"></script>
 <script src="store-api.js?v=129"></script>
 <script src="tour.js?v=7"></script>
+<script src="booklet.js?v=1"></script>
+<script src="share-checklist.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

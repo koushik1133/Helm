@@ -307,4 +307,65 @@ await t('store-api: role-matrix areas, bell labels, deep links for pkg_* (pkgflo
   vm.runInContext(d[0] + 'globalThis.dt = deeplinkTarget;', c);
   assert.equal(c.dt('?id=' + q, '#pkg-selections'), '#pkg-selections');
 });
+
+/* ================= share checklist (0069 scope addition) ================= */
+{
+  const c3 = { console, URLSearchParams, Intl, document: undefined, location: { search: '' } }; c3.window = c3; c3.globalThis = c3;
+  vm.createContext(c3); vm.runInContext(read('public/share-checklist.js'), c3);
+  const S = c3.HelmShareChecklist;
+  await t('share checklist: normalize / menu rule / preview / payload / fit', () => {
+    assert.deepEqual(J(S.normalize(null)), { studio: true, client: true, venue: true, menu: true, layout2d: true, layout3d: true, quotation: true, payments: true, terms: true });
+    assert.equal(S.normalize({ studio: true, menu: 'yes' }).menu, false, 'only real true counts');
+    assert.equal(S.menuRule(true), 'Client will see your selected package');
+    assert.equal(S.menuRule(false), "Client will choose from all packages and you'll be notified");
+    const pv = J(S.preview({ menu: true, terms: true }, false));
+    assert.deepEqual(pv, ['Event title and date', "Menu — Choose from all packages and you'll be notified", 'Terms']);
+    assert.ok(J(S.preview({ layout2d: true }, true)).includes('2D floor plan'));
+    const pl = J(S.sharePayload({ days: '14', versions: ['v1'], note: 'Hi', terms: '', sections: { menu: true } }));
+    assert.equal(pl.days, 14); assert.deepEqual(pl.versions, ['v1']); assert.deepEqual(pl.versionIds, ['v1']); assert.equal(pl.sections.menu, true); assert.equal(pl.sections.terms, false);
+    assert.deepEqual(J(S.fitSize(3200, 1600)), { w: 1600, h: 800 }); assert.deepEqual(J(S.fitSize(800, 600)), { w: 800, h: 600 });
+  });
+  await t('share checklist mount: toggles drive the preview; uploads snapshots via uploadSnapshot', async () => {
+    const d = { documentElement: new Node_('html'), readyState: 'complete', createElement: (tg) => new Node_(tg), createTextNode: (x) => { const k = new Node_('#text'); k._text = String(x); return k; } };
+    d.body = d.documentElement.appendChild(new Node_('body')); d.getElementById = (id) => d.documentElement.querySelector("#" + id); d.querySelector = (q) => d.documentElement.querySelector(q);
+    const ups = [];
+    const cx = { console, URLSearchParams, Intl, document: d, location: { search: '' }, URL: { createObjectURL: () => 'blob:x', revokeObjectURL() {} },
+      BPStore: { plan: { get: async () => ({ menu_template: 'Gold' }) }, booklet: { uploadSnapshot: async (q, k, b) => { ups.push([q, k, b.size]); } } },
+      HelmBooklet: null };
+    cx.window = cx; cx.globalThis = cx; vm.createContext(cx); vm.runInContext(read('public/share-checklist.js'), cx);
+    const host = d.body.appendChild(new Node_('div'));
+    const ck = cx.HelmShareChecklist.mount(host, { quoteId: 'q1', cur: { sections: { studio: true, menu: true, layout2d: false, layout3d: false, terms: true } } });
+    await tick();
+    assert.match(host.textContent, /Client will see your selected package/);
+    const terms = host.querySelectorAll('input').find((i) => i.getAttribute('data-sec') === 'terms');
+    terms.checked = false; terms.dispatch('change');
+    assert.equal(ck.sections().terms, false);
+    assert.doesNotMatch(host.querySelector('.sc-pvl').textContent, /Terms/);
+    const two = host.querySelectorAll('input').find((i) => i.getAttribute('data-sec') === 'layout2d');
+    two.checked = true; two.dispatch('change'); await tick();
+    assert.match(host.textContent, /Screenshot tools aren't loaded|Retake|Capture/);
+    ck.snapshots.layout2d = { blob: { size: 4096 }, url: 'blob:x' };
+    await ck.uploadSnapshots();
+    assert.deepEqual(ups, [['q1', '2d', 4096]]);
+  });
+  await t('booklet renders only shared sections and hides empty ones', () => {
+    const H = (() => { const c = { console, URLSearchParams }; c.window = c; c.globalThis = c; vm.createContext(c); vm.runInContext(read('public/booklet.js'), c); return c.HelmBooklet; })();
+    const legacy = J(H.visibleSections({})); assert.ok(Object.values(legacy.show).every(Boolean), 'no sections from server → legacy, all shown');
+    const v = J(H.visibleSections({ sections: { menu: true, terms: true, layout2d: true, quotation: false }, menu: { package: 'Gold' }, layout: { items: [] } }));
+    assert.equal(v.show.menu, true); assert.equal(v.show.packages, true); assert.equal(v.show.terms, true);
+    assert.equal(v.show.layout2d, false, 'ticked but empty → hidden, no placeholder');
+    assert.equal(v.show.quote, false); assert.equal(v.show.payments, false); assert.equal(v.studio, false);
+    const w = J(H.visibleSections({ sections: { layout2d: true }, snapshots: { layout2d: 'https://x.supabase.co/s/a.png?token=1' } }));
+    assert.equal(w.show.layout2d, true);
+    assert.equal(H.snapUrl({ snapshots: { layout3d: { url: 'javascript:1' } } }, 'layout3d'), null);
+  });
+  await t('share checklist wired on flow.html + Share booklet dialog', () => {
+    const f = read('public/flow.html');
+    assert.ok(f.indexOf('id="sec-share"') > f.indexOf('id="sec-pay"') && f.indexOf('id="sec-share"') < f.indexOf('id="sec-activity"'));
+    assert.match(f, /share-checklist\.js\?v=1/); assert.match(f, /share-checklist\.css\?v=1/);
+    for (const p of ['public/event.html', 'public/client.html']) assert.match(read(p), /share-checklist\.js\?v=1[\s\S]*booklet-share\.js/, p);
+    assert.match(read('public/booklet-share.js'), /HelmShareChecklist\.mount\(form/);
+    assert.doesNotMatch(read('public/share-checklist.js'), /\.innerHTML|\.outerHTML|insertAdjacentHTML|document\.write/);
+  });
+}
 console.log(`\npkg-flow-ui: ${n} passed`);

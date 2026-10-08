@@ -129,6 +129,7 @@
     return "#" + [16, 8, 0].map((s) => ch(s).toString(16).padStart(2, "0")).join("");
   }
 
+  let VISIBLE = {};
   /* ---- DOM ---- */
   const $ = (s) => doc.querySelector(s);
   function el(tag, cls, text) { const n = doc.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
@@ -158,7 +159,7 @@
   }
   function renderToc() {
     const ol = clear($("#tocList"));
-    SECTIONS.forEach((s, i) => {
+    SECTIONS.filter((s) => VISIBLE[s[0]] !== false).forEach((s, i) => {
       const li = el("li"); const a = el("a"); a.setAttribute("href", "#" + s[0]);
       a.appendChild(el("span", "n", String(i + 1).padStart(2, "0"))); a.appendChild(doc.createTextNode(s[1]));
       li.appendChild(a); ol.appendChild(li);
@@ -193,8 +194,9 @@
     fact(dl, "Guests", num(e.guests) != null ? Number(e.guests).toLocaleString(FMT.locale) : "");
     fact(dl, "Reference", e.code);
   }
-  function render2d(d) {
-    const fig = clear($("#plan2d")), leg = clear($("#legend2d"));
+  function render2d(d, figEl, legEl) {
+    const fig = clear(figEl || $("#plan2d")), leg = clear(legEl || $("#legend2d") || el("ul"));
+    if (!figEl && snapUrl(d, "layout2d")) { snapFigure(fig, snapUrl(d, "layout2d"), "Floor plan of the event"); return; }
     const m = normalizeItems(d.layout);
     if (!m.items.length) { emptyNote(fig, "The floor plan will appear here once it's ready."); return; }
     const b = bounds(m), pad = 4, w = b.x1 - b.x0 + pad * 2, h = b.y1 - b.y0 + pad * 2;
@@ -222,8 +224,9 @@
       const li = el("li"); li.appendChild(el("span", "sw sw-" + c)); li.appendChild(doc.createTextNode(CAT_LABEL[c] || "Other")); leg.appendChild(li);
     });
   }
-  function render3d(d) {
-    const fig = clear($("#plan3d"));
+  function render3d(d, figEl) {
+    const fig = clear(figEl || $("#plan3d"));
+    if (!figEl && snapUrl(d, "layout3d")) { snapFigure(fig, snapUrl(d, "layout3d"), "3D view of the event"); return; }
     const m = normalizeItems(d.layout);
     if (!m.items.length) { emptyNote(fig, "A 3D preview will appear here once the floor plan is ready."); return; }
     const b = bounds(m);
@@ -321,13 +324,56 @@
     const box = clear($("#termsBody"));
     const paras = d.terms ? String(d.terms).split(/\n{2,}/) : DEFAULT_TERMS;
     paras.forEach((t) => { if (t.trim()) box.appendChild(el("p", "", t.trim())); });
+    renderFoot(d);
+  }
+  function renderFoot(d) {
     const s = d.studio || {};
     $("#footLine").textContent = "Prepared by " + (s.name || "your event studio") + (d.shared_at ? " on " + shortDate(d.shared_at) : "");
     $("#expLine").textContent = d.expires_at ? "This link is valid until " + shortDate(d.expires_at) + "." : "";
   }
+  // 0069: studio-captured screenshots (signed https URLs from the server) win over the drawn plan
+  function snapUrl(d, k) {
+    const s = d && d.snapshots && typeof d.snapshots === "object" ? d.snapshots[k] : null;
+    const u = s && typeof s === "object" ? s.url : s;
+    return typeof u === "string" && /^https:\/\/[^\s"'<>]+$/i.test(u) && u.length <= 2000 ? u : null;
+  }
+  function snapFigure(fig, url, alt) {
+    const img = el("img", "snap"); img.setAttribute("src", url); img.setAttribute("alt", alt); img.setAttribute("referrerpolicy", "no-referrer"); img.setAttribute("loading", "lazy");
+    fig.appendChild(img);
+  }
+  // 0069: which sections the studio chose to share. No `sections` from the server → legacy booklet (all on).
+  const SEC_MAP = { details: ["client", "venue"], layout2d: ["layout2d"], layout3d: ["layout3d"], menu: ["menu"], packages: ["menu"],
+    quote: ["quotation"], versions: ["quotation"], payments: ["payments"], terms: ["terms"] };
+  function visibleSections(d) {
+    const sc = d && d.sections && typeof d.sections === "object" ? d.sections : null;
+    const on = (k) => !sc || sc[k] === true;
+    const out = {};
+    Object.keys(SEC_MAP).forEach((id) => { out[id] = SEC_MAP[id].some(on); });
+    out.details = true;                                   // event date / title always shown
+    if (sc) {                                             // hide empty sections — never placeholders
+      const lay = normalizeItems(d.layout).items.length;
+      if (!lay && !snapUrl(d, "layout2d")) out.layout2d = false;
+      if (!lay && !snapUrl(d, "layout3d")) out.layout3d = false;
+      const mn = d.menu || {};
+      if (!(mn.selected_package || mn.package || mn.menu || (Array.isArray(mn.items) && mn.items.length))) out.menu = false;
+      if (!quoteLines(d.quote).lines.length && quoteLines(d.quote).total == null) out.quote = false;
+      if (!(Array.isArray(d.versions) && d.versions.length)) out.versions = false;
+      const p = d.payments || {}; if (!(Array.isArray(p.milestones) && p.milestones.length) && p.paid == null && p.outstanding == null) out.payments = false;
+    }
+    return { show: out, studio: on("studio"), client: on("client"), venue: on("venue") };
+  }
   function render(d) {
     const q = d.quote || {}; setFormat(d.locale || q.locale, q.currency || d.currency);
-    renderCover(d); renderToc(); renderDetails(d); render2d(d); render3d(d); renderMenu(d); renderQuote(d); renderVersions(d); renderPayments(d); renderTerms(d);
+    const vis = visibleSections(d);
+    if (!vis.studio) d = Object.assign({}, d, { studio: { name: (d.studio || {}).name, accent: (d.studio || {}).accent } });
+    if (!vis.client) d = Object.assign({}, d, { event: Object.assign({}, d.event, { client_name: null }) });
+    if (!vis.venue) d = Object.assign({}, d, { event: Object.assign({}, d.event, { venue_name: null, venue_address: null, venue_map_url: null }) });
+    VISIBLE = vis.show;
+    Object.keys(vis.show).forEach((id) => { const n = doc.getElementById(id); if (n && id !== "packages") n.hidden = !vis.show[id]; });
+    let ix = 0; SECTIONS.forEach((x) => { const h = doc.getElementById(x[0]); const nm = h && h.querySelector(".num"); if (nm && vis.show[x[0]] !== false) nm.textContent = String(++ix).padStart(2, "0"); });
+    renderCover(d); renderToc(); renderDetails(d);
+    if (vis.show.layout2d) render2d(d); if (vis.show.layout3d) render3d(d); if (vis.show.menu) renderMenu(d);
+    if (vis.show.quote) renderQuote(d); if (vis.show.versions) renderVersions(d); if (vis.show.payments) renderPayments(d); if (vis.show.terms) renderTerms(d); else renderFoot(d);
   }
 
   function show(id) { ["#loading", "#bad", "#err", "#app"].forEach((s) => { $(s).hidden = s !== id; }); }
@@ -345,10 +391,10 @@
     }
     if (!d || typeof d !== "object") { show("#bad"); return; }
     render(d); show("#app");
-    if (global.HelmBookletPkg) global.HelmBookletPkg.mount(token, d).catch(() => {});
+    if (global.HelmBookletPkg && VISIBLE.packages !== false) global.HelmBookletPkg.mount(token, d).catch(() => {});
   }
 
-  global.HelmBooklet = { money, setFormat, fmtTime, mapLink, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
+  global.HelmBooklet = { render2d, render3d, visibleSections, snapUrl, money, setFormat, fmtTime, mapLink, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
   if (doc && doc.getElementById("tocList")) {
     const pb = doc.getElementById("printBtn"); if (pb) pb.addEventListener("click", () => global.print());
     const rt = doc.getElementById("retry"); if (rt) rt.addEventListener("click", () => start());
