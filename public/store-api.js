@@ -9,6 +9,97 @@
      summary = { id, name, createdAt, updatedAt, objectCount }
      layout  = { id, name, createdAt, updatedAt, data }   (data = { items:[...] , ... })
    ========================================================================= */
+/* ---- 0067 pretty studio URLs: HelmUrl (sync core) ---------------------------------
+   https://www.helm.events/<studio>/<section>[/<ref>[/<sub>]]  →  the existing pages
+   (vercel.json rewrites; server.js prettyPage mirrors them). <studio> is the studio's
+   link name (organizations.public_slug); <ref> is an event number, a client ref or a
+   booklet token. HelmUrl.build(kind, params) is the ONE place app links are made;
+   HelmUrl.parse(path) the one place they are read. Every value is encodeURIComponent'd
+   and every path starts with "/<slug>/" from a fixed section list (no open redirect). */
+var HelmUrl = (function (global) {
+  var SLUG = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
+  var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  // kind → [section, sub, page, legacy query key]
+  var KINDS = {
+    dashboard: ["dashboard", "", "dashboard", ""], quotes: ["quotes", "", "quotes", ""], leads: ["leads", "", "leads", ""],
+    chat: ["chat", "", "chat", ""], settings: ["settings", "", "control", ""],
+    event: ["events", "", "event", "id"], "floor-plan": ["events", "floor-plan", "builder", "quote"], tasks: ["events", "tasks", "ops", "quote"],
+    client: ["clients", "", "client", "id"], booklet: ["booklet", "", "booklet", "t"]
+  };
+  var PAGE_KIND = { dashboard: "dashboard", quotes: "quotes", leads: "leads", chat: "chat", control: "settings",
+    event: "event", builder: "floor-plan", ops: "tasks", client: "client", booklet: "booklet" };
+  var RE = /^\/([a-z0-9-]{3,40})\/(dashboard|quotes|leads|chat|settings|events|clients|booklet)(?:\/([^/?#]{1,160})(?:\/(floor-plan|tasks))?)?\/?$/;
+  var slug = null;
+  try { var s0 = global.sessionStorage && sessionStorage.getItem("bp_studio_slug"); if (s0 && SLUG.test(s0)) slug = s0; } catch (e) {}
+  function dec(v) { try { return decodeURIComponent(v); } catch (e) { return null; } }
+  function parse(pathname) {
+    var m = RE.exec(String(pathname || "")); if (!m) return null;
+    var sec = m[2], ref = m[3] ? dec(m[3]) : null, sub = m[4] || "";
+    if (m[3] && ref == null) return null;
+    var kind = null;
+    if (sec === "events") kind = ref ? (sub === "floor-plan" ? "floor-plan" : sub === "tasks" ? "tasks" : "event") : null;
+    else if (sub) kind = null;
+    else if (sec === "clients" || sec === "booklet") kind = ref ? (sec === "clients" ? "client" : "booklet") : null;
+    else if (!ref) kind = sec === "settings" ? "settings" : sec;
+    if (!kind) return null;
+    return { studio: m[1], kind: kind, ref: ref, page: KINDS[kind][2], key: KINDS[kind][3] };
+  }
+  var route = null;
+  try { route = parse(global.location.pathname); } catch (e) {}
+  function qs(extra) {
+    if (!extra) return "";
+    var p = new URLSearchParams();
+    Object.keys(extra).forEach(function (k) { var v = extra[k]; if (v != null && v !== "") p.set(k, String(v)); });
+    var s = p.toString(); return s ? "?" + s : "";
+  }
+  // build("event", {ref:"EVT-0912"}) → "/sharma-events/events/EVT-0912"; no studio → legacy URL
+  function build(kind, params) {
+    var k = KINDS[kind]; params = params || {};
+    if (!k) return "dashboard.html";
+    var ref = params.ref != null ? String(params.ref) : (params.code || params.id || params.token || "");
+    ref = String(ref || "");
+    var extra = params.query || null, hash = params.hash ? "#" + String(params.hash).replace(/^#/, "") : "";
+    var s = params.studio && SLUG.test(params.studio) ? params.studio : slug;
+    if (k[3] && !ref) return k[2] + ".html" + qs(extra) + hash;
+    if (!s) {
+      var q = {}; if (k[3]) q[k[3]] = ref;
+      if (extra) Object.keys(extra).forEach(function (x) { q[x] = extra[x]; });
+      return k[2] + ".html" + qs(q) + hash;
+    }
+    return "/" + s + "/" + k[0] + (k[3] ? "/" + encodeURIComponent(ref) : "") + (k[1] ? "/" + k[1] : "") + qs(extra) + hash;
+  }
+  // a legacy relative/absolute app link → its pretty form (or the input unchanged)
+  function upgrade(href) {
+    if (!slug || typeof href !== "string") return href;
+    var m = /^\/?([a-z-]+)(?:\.html)?(\?[^#]*)?(#.*)?$/.exec(href); if (!m) return href;
+    var kind = PAGE_KIND[m[1]]; if (!kind) return href;
+    var p; try { p = new URLSearchParams(m[2] || ""); } catch (e) { return href; }
+    var key = KINDS[kind][3], ref = key ? p.get(key) : null;
+    if (key && !ref) return href;
+    if (kind === "booklet") return href;   // public client page: shared links come from booklet_share
+    if (key) p.delete(key);
+    var extra = {}; p.forEach(function (v, x) { extra[x] = v; });
+    return build(kind, { ref: ref, query: extra, hash: m[3] ? m[3].slice(1) : "" });
+  }
+  function page() {
+    if (route) return route.page;
+    try { return (global.location.pathname.split("/").pop() || "index").toLowerCase().replace(/\.html$/, "") || "index"; } catch (e) { return "index"; }
+  }
+  // where am I, for login ?next= (pretty path kept; legacy: page + query)
+  function here() {
+    try {
+      if (route) return global.location.pathname + (global.location.search || "");
+      return (global.location.pathname.split("/").pop() || "dashboard") + (global.location.search || "");
+    } catch (e) { return "dashboard"; }
+  }
+  function setStudio(s) {
+    if (s && SLUG.test(s)) { slug = s; try { sessionStorage.setItem("bp_studio_slug", s); } catch (e) {} }
+  }
+  return { parse: parse, build: build, upgrade: upgrade, page: page, here: here, setStudio: setStudio,
+    route: function () { return route; }, studio: function () { return slug; }, KINDS: KINDS, isUuid: function (v) { return UUID.test(String(v || "")); } };
+})(window);
+window.HelmUrl = HelmUrl;
+
 /* Phase 54 — apply the saved light/dark theme synchronously (before the body
    paints, so there is no flash), and mount a floating theme toggle on every page. */
 (function () {
@@ -41,7 +132,7 @@
 (function () {
   function wireHome() {
     try {
-      var page = (location.pathname.split("/").pop() || "dashboard.html").toLowerCase().replace(/\.html$/, "") || "index";
+      var page = HelmUrl.page();
       if (page === "index" || page === "welcome" || page === "login") return;   // home / auth pages: no self-link
       // client-facing token pages: clients have no dashboard to go "home" to
       if (/^(approve|portal|booklet|proposal-view|invite|work|sim-pay)$/.test(page) || location.pathname.indexOf("/i/") === 0) return;
@@ -119,7 +210,7 @@
   }
   function sessGet(key, uid) { const e = sessEntry(key, uid); return e && e.fresh ? e.val : null; }
   function sessSet(key, uid, val) { try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), uid: uid || null, val: val })); } catch (e) {} }
-  function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); sessionStorage.removeItem("bp_sess_org"); sessionStorage.removeItem(PROFILE_SESS_KEY); sessionStorage.removeItem(CHECKOUT_SESS_KEY); sessionStorage.removeItem(PW_OK_KEY); } catch (e) {} }
+  function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); sessionStorage.removeItem("bp_sess_org"); sessionStorage.removeItem(PROFILE_SESS_KEY); sessionStorage.removeItem(CHECKOUT_SESS_KEY); sessionStorage.removeItem(PW_OK_KEY); sessionStorage.removeItem("bp_studio_slug"); } catch (e) {} }
   const CHECKOUT_SESS_KEY = "bp_sess_checkout"; // per tab: my_checkout_status() answer (never a "must check out" one)
   const PROFILE_SESS_KEY = "bp_sess_profile";   // per tab: my_profile_status() answer (never a "must complete" one)
   const NUDGE_KEY = "helm_profile_nudge";       // localStorage {uid, until}: "complete your profile" banner snoozed
@@ -292,7 +383,7 @@
   let sessionExpired = false;   // redirect already triggered (run once)
   let authFailPromise = null;   // in-flight verification of a suspected auth failure
   function pageKey() {
-    try { return (location.pathname.split("/").pop() || "index").toLowerCase().replace(/\.html$/, "") || "index"; }
+    try { return HelmUrl.page(); }
     catch (e) { return "index"; }
   }
   function shouldRedirectOnExpiry() {
@@ -319,6 +410,14 @@
   // Anything else (//host, https://…, /\host, javascript:, encoded tricks) → dashboard.
   const NEXT_PAGES = ["audit", "budget", "builder", "calendar", "chat", "closure", "command", "control", "crm", "dashboard", "design", "discovery", "event", "flow", "insights", "inventory", "invite-studio", "issues", "leads", "logistics", "manual", "media", "nurture", "ops", "plan", "proposal", "quotes", "ready", "reports", "resources", "runsheet", "settlement", "staff", "teardown", "templates", "vendors"];
   function safeNext(raw) {
+    // 0067: a pretty studio path (/<slug>/<section>…) is re-built from its parsed parts
+    if (typeof raw === "string" && raw.charAt(0) === "/" && raw.charAt(1) !== "/" && raw.charAt(1) !== "\\") {
+      const qi = raw.indexOf("?"), r = HelmUrl.parse(qi < 0 ? raw : raw.slice(0, qi));
+      if (r) {
+        let q = {}; try { new URLSearchParams(qi < 0 ? "" : raw.slice(qi + 1).split("#")[0]).forEach((v, k) => { q[k] = v; }); } catch (e) { q = {}; }
+        return HelmUrl.build(r.kind, { studio: r.studio, ref: r.ref, query: q });
+      }
+    }
     const m = /^\/?([a-z0-9-]+)(?:\.html)?(?:\?([^#]*))?$/i.exec(typeof raw === "string" ? raw : "");
     const page = m && NEXT_PAGES.find((p) => p === m[1].toLowerCase());
     if (!page) return "dashboard.html";
@@ -328,7 +427,7 @@
   }
   function gotoLogin() {
     let page = "dashboard";
-    try { page = (location.pathname.split("/").pop() || "dashboard") + (location.search || ""); } catch (e) {}
+    try { page = HelmUrl.here(); } catch (e) {}
     try { location.replace("/login?next=" + encodeURIComponent(page)); } catch (e) {}
   }
   // Supabase is configured but its client could not start: never fall back to showing
@@ -419,7 +518,7 @@
   // Signed in with no studio: operators go to HQ, everyone else to onboarding.
   async function routeNoStudio() {
     if (await operatorToHq()) return;
-    try { location.replace("/login?next=" + encodeURIComponent(safeNext((location.pathname.split("/").pop() || "") + (location.search || "")))); } catch (e) {}
+    try { location.replace("/login?next=" + encodeURIComponent(safeNext(HelmUrl.here()))); } catch (e) {}
   }
   /* ---- "Complete your profile" (0041) — first sign-in step for NEW members ----
      my_profile_status() → {complete, required, nudge}. The server decides who must
@@ -466,7 +565,7 @@
     return "/" + PROFILE_SETUP_PAGE + "?next=" + encodeURIComponent(safeNext(next));
   }
   function currentPageRef() {
-    try { return (location.pathname.split("/").pop() || "dashboard") + (location.search || ""); } catch (e) { return "dashboard"; }
+    try { return HelmUrl.here(); } catch (e) { return "dashboard"; }
   }
   function nextParam() {
     try { return new URLSearchParams(location.search || "").get("next") || ""; } catch (e) { return ""; }
@@ -598,7 +697,7 @@
     sessionExpired = true;
     currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = true;
     let page = "dashboard.html";
-    try { page = (location.pathname.split("/").pop() || "dashboard.html") + location.search; } catch (e) {}
+    try { page = HelmUrl.here(); } catch (e) {}
     const url = "login.html?next=" + encodeURIComponent(page) + "&expired=1";
     const UI = global.BPUI;
     // Don't yank the page away from unsaved work: tell the user and let them choose.
@@ -772,7 +871,7 @@
     currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; pendingStep = null;
     sessClear(); userLocalClear(); lsDel(SESSION_START_KEY); authRequired = true;
     let page = "dashboard.html";
-    try { page = (location.pathname.split("/").pop() || "dashboard.html") + location.search; } catch (e) {}
+    try { page = HelmUrl.here(); } catch (e) {}
     try { if (global.BPUI && global.BPUI.allowUnload) global.BPUI.allowUnload(); } catch (e) {}
     try { location.replace("login.html?next=" + encodeURIComponent(page) + "&expired=1&reason=" + (reason === "max" ? "max" : "idle")); } catch (e) {}
   }
@@ -832,7 +931,7 @@
   }
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
-  const STUDIO_SEARCH_VERSION = "2";
+  const STUDIO_SEARCH_VERSION = "3";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
   const NAV_TRAIL_VERSION = "1";
@@ -926,6 +1025,10 @@
     { key: "finance",    label: "Budget & finance",  icon: "💰", page: null,             group: "Finance" },
     { key: "settlement", label: "Settlement",        icon: "🧾", page: null,             group: "Finance" },
     { key: "closure",    label: "Closure & P&L",     icon: "🏁", page: null,             group: "Finance" },
+    // 0069 client package flow: pkg_review view = notified of client choices, edit = accept / decline;
+    // pkg_payments view = package payment alerts
+    { key: "pkg_review",   label: "Package selections (review)", icon: "📦", page: null, group: "Finance" },
+    { key: "pkg_payments", label: "Package payment alerts",      icon: "💸", page: null, group: "Finance" },
     { key: "command",    label: "Event-day command", icon: "🎛", page: null,             group: "Event day" },
     { key: "issues",     label: "Issues & incidents",icon: "🚨", page: null,             group: "Event day" },
     { key: "media",      label: "Media & gallery",   icon: "📸", page: null,             group: "Event day" },
@@ -1359,7 +1462,7 @@
       if (CAPTCHA && !captchaToken) {
         // in-page sign-in boxes have no CAPTCHA widget → send them to the sign-in page
         const e = new Error("Please sign in on the sign-in page."); e.code = "captcha_required";
-        if (pageKey() !== "login") { try { location.href = "login.html?next=" + encodeURIComponent((location.pathname.split("/").pop() || "dashboard.html") + location.search); } catch (x) {} }
+        if (pageKey() !== "login") { try { location.href = "login.html?next=" + encodeURIComponent(HelmUrl.here()); } catch (x) {} }
         throw e;
       }
       localAuthOp++;
@@ -2189,6 +2292,9 @@
   const rpcMissing = (e) => { const c = (e && e.code) || ""; const m = String((e && e.message) || "");
     return c === "PGRST202" || c === "42883" || /could not find the function|function[^]*does not exist/i.test(m); };
   // Edge Function caller — used only when live channels are enabled in config.js
+  // 0069 booklet share checklist keys (server validates the same list)
+  const BOOKLET_SECTIONS = ["studio", "client", "venue", "menu", "layout2d", "layout3d", "quotation", "payments", "terms", "note"];
+  const UUID_RE_PKG = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const fnUrl = (name) => (CFG.url ? CFG.url.replace(/\/$/, "") + "/functions/v1/" + name : null);
   async function callFn(name, body) {
     // signed-in staff send their own access token (send-whatsapp requires it);
@@ -3272,7 +3378,7 @@
     async studio() {                                   // my studio's link name (null = not set up → legacy links)
       if (studioSlugCache) return studioSlugCache;
       if (!studioSlugPromise) studioSlugPromise = (async () => {
-        try { const o = await org.current(); studioSlugCache = (o && o.public_slug) || null; } catch (e) { studioSlugCache = null; }
+        try { const o = await org.current(); studioSlugCache = (o && o.public_slug) || null; } catch (e) { studioSlugCache = null; } if (studioSlugCache) HelmUrl.setStudio(studioSlugCache);
         studioSlugPromise = null; return studioSlugCache;
       })();
       return studioSlugPromise;
@@ -3297,7 +3403,7 @@
     async require(L) {                                 // throw a "link not found" the pages already handle
       if (!(await links.verify(L))) { const e = new Error("invalid link"); e.code = "PGRST116"; throw e; }
     },
-    rename: (slug) => rpc("set_studio_link_name", { p_slug: slug }).then((r) => { studioSlugCache = r || null; return r; }),
+    rename: (slug) => rpc("set_studio_link_name", { p_slug: slug }).then((r) => { studioSlugCache = r || null; if (r) HelmUrl.setStudio(r); return r; }),
     // optional "links stop working N days after they're sent" (0039) — studio admin only, enforced server-side
     autoExpire: {
       get: () => rpc("admin_get_link_autoexpire", {}),
@@ -5458,6 +5564,8 @@
      notifLink(n) → a RELATIVE link to one of the app's own pages ("" when there is nowhere to go).
      Every id is encodeURIComponent'd; the destination page reads ?task= / ?msg= / #payments and
      scrolls to + briefly highlights the row (deeplinkFocus below). */
+  // 0067: the same link in its pretty studio form (/<studio>/events/<id>/tasks?task=…) once the studio is known
+  function notifHref(n) { const h = notifLink(n); return typeof HelmUrl !== "undefined" ? HelmUrl.upgrade(h) : h; }
   function notifLink(n) {
     if (!n || typeof n !== "object") return "";
     const enc = (v) => encodeURIComponent(String(v));
@@ -5466,19 +5574,29 @@
       if (!has(n.conversation_id)) return "chat.html";
       return "chat.html?c=" + enc(n.conversation_id) + (has(n.msg_id) ? "&msg=" + enc(n.msg_id) : "");
     }
-    const k = String(n.kind || "").toLowerCase().trim(), q = has(n.quote_id) ? n.quote_id : null;
+    const k0 = String(n.kind || "").toLowerCase().trim();
     const d = (n.detail && typeof n.detail === "object") ? n.detail : {};
+    // 0069: package-flow notifications carry their own deep link in detail.path — internal relative pages only
+    if (/^pkg_(selected|accepted|declined|payment)$/.test(k0)) {
+      const p = typeof d.path === "string" ? d.path.trim() : "";
+      if (/^(event|settlement)\.html\?(id|quote)=[0-9a-f-]{36}(#[a-z-]{1,32})?$/i.test(p))
+        return k0 === "pkg_payment" ? p.replace(/#.*$/, "") + "#payments" : p.replace(/#.*$/, "") + "#pkg-selections";
+      if (!has(n.quote_id) && has(d.quote_id)) n = Object.assign({}, n, { quote_id: d.quote_id });
+    }
+    const k = k0, q = has(n.quote_id) ? n.quote_id : null;
     if (k === "trial_reminder") return "checkout.html";
     if (k === "security_alert") return "control.html#users";
     if (k.indexOf("chat_") === 0) return "chat.html";
     if (k.indexOf("nurture_") === 0) return "nurture.html";
     if (!q) return "";
     if (k.indexOf("task_") === 0) return "ops.html?quote=" + enc(q) + (has(d.task_id) ? "&task=" + enc(d.task_id) : "");
-    if (/^(payment_link|payment_reminder|payment_receipt|payment|payment_received|advance_paid|payment_reconcile)$/.test(k))
+    if (/^(payment_link|payment_reminder|payment_receipt|payment|payment_received|advance_paid|payment_reconcile|pkg_payment)$/.test(k))
       return "settlement.html?quote=" + enc(q) + "#payments";
     if (/^(approval_link|otp|reapproval_required|quote_approved|quote_changed|approved|change_order)$/.test(k))
       return "quotes.html?focus=" + enc(has(n.event_code) ? n.event_code : q);
     if (k.indexOf("design_") === 0) return "design.html?quote=" + enc(q);
+    if (/^pkg_(selected|accepted|declined)$/.test(k)) return "event.html?id=" + enc(q) + "#pkg-selections";
+    if (k === "pkg_payment") return "settlement.html?quote=" + enc(q) + "#payments";
     return "event.html?id=" + enc(q);
   }
   /* ---------------- notification bell: view (pure — unit-tested in test/bell-panel.test.mjs) ----------------
@@ -5494,6 +5612,7 @@
          "task_assigned", "task_reminder", "task_due", "security_alert"].indexOf(k) !== -1) return k;
     if (k === "payment" || k === "payment_received") return "payment_receipt";
     if (k === "trial_reminder") return "billing_trial";
+    if (/^pkg_(selected|accepted|declined|payment)$/.test(k)) return k;
     if (/^task_(accept|reject|start|complete)$/.test(k)) return "task_update";
     if (k.indexOf("design_") === 0) return "design_update";
     if (k.indexOf("nurture_") === 0) return "nurture_greeting";
@@ -5506,7 +5625,8 @@
     nurture_greeting: "Greetings", design_update: "Design stage changes", task_assigned: "Tasks assigned", task_update: "Task updates",
     task_reminder: "Task reminders", task_due: "Tasks due", payment_link: "Payment links", payment_reminder: "Payment reminders",
     payment_receipt: "Payment receipts", advance_paid: "Payments received", payment_reconcile: "Payments needing attention",
-    chat_message: "Chat messages", security_alert: "Security alerts", billing_trial: "Free trial reminders", other: "Other updates" };
+    chat_message: "Chat messages", pkg_selected: "Client package choices", pkg_accepted: "Package choices accepted",
+    pkg_declined: "Package choices declined", pkg_payment: "Package payments", security_alert: "Security alerts", billing_trial: "Free trial reminders", other: "Other updates" };
   function bellPanelView(items, opts) {
     opts = opts || {};
     const muted = Array.isArray(opts.muted) ? opts.muted : [], readKeys = Array.isArray(opts.read) ? opts.read : [];
@@ -5559,11 +5679,11 @@
         title = esc(n.kind === "dm" ? (who || n.title || "Direct message") : ((n.title || "Chat") + (who ? " · " + who : "")));
         if (Number(n.count) > 1) title += ` <span class="bpb-c">(${Number(n.count) > 99 ? "99+" : Number(n.count)})</span>`;
         preview = esc(n.preview || ""); icon = n.mention ? "@" : "💬"; isUnread = r.un;
-        href = notifLink(n); key = r.k;
+        href = notifHref(n); key = r.k;
       } else {
         const L = label(n) || {}; icon = esc(L.icon || "🔔"); title = esc(L.text || "Update");
         preview = esc([n.event_code, n.event_title].filter(Boolean).join(" · "));
-        href = notifLink(n); isUnread = r.un; key = r.k;
+        href = notifHref(n); isUnread = r.un; key = r.k;
       }
       const cls = `bpb-item g-${r.g}${isUnread ? " is-unread" : ""}`;
       const inner = `<span class="bpb-chip" aria-hidden="true">${icon}</span>`
@@ -5630,12 +5750,12 @@
         const who = n.who || "";
         return { key: keyOf(n), type: "info", icon: n.mention ? "@" : "💬",
           title: n.mention ? (n.title || "You were mentioned") : n.kind === "dm" ? (who || n.title || "Direct message") : ((n.title || "Chat") + (who ? " · " + who : "")),
-          message: String(n.preview || "New message"), href: notifLink(n), rk: "c:" + (n.conversation_id || "") };
+          message: String(n.preview || "New message"), href: notifHref(n), rk: "c:" + (n.conversation_id || "") };
       }
       const L = label(n) || {}, k = String(n.kind || "").toLowerCase();
       return { key: keyOf(n), type: typeOf(k), icon: L.icon || "🔔", title: String(L.text || "Update"),
         message: k === "trial_reminder" ? "Choose a plan to keep using Helm" : [n.event_code, n.event_title].filter(Boolean).join(" · ") || "Open to see details",
-        href: notifLink(n), rk: "n:" + (n.id || "") };
+        href: notifHref(n), rk: "n:" + (n.id || "") };
     });
     return { toasts, seen: { t: newest, ids: ids.concat(fresh.map(keyOf)).slice(-60) } };
   }
@@ -5768,6 +5888,11 @@
         + (d.event_code ? " · " + d.event_code : "")],
       // 0058: free-trial reminders (admins only — the server decides)
       trial_reminder: ["⏳", String(d.label || "Free trial update")],
+      // 0069 client package flow
+      pkg_selected: ["📦", "Client chose a package" + (d.package ? ": " + d.package : "") + (d.event_code ? " · " + d.event_code : "")],
+      pkg_accepted: ["✅", "Package choice accepted" + (d.event_code ? " · " + d.event_code : "")],
+      pkg_declined: ["↩️", "Package choice declined" + (d.event_code ? " · " + d.event_code : "")],
+      pkg_payment: ["💸", "Package payment received" + (d.event_code ? " · " + d.event_code : "")],
     };
     const hit = m[k] || (k.indexOf("design_") === 0 ? ["🎨", "Design stage: " + k.slice(7).replace(/_/g, " ")]
                       : k.indexOf("nurture_") === 0 ? ["🌱", "Greeting queued" + (k.length > 8 ? " · " + k.slice(8).replace(/_/g, " ") : "")] : null);
@@ -5788,6 +5913,7 @@
     if (task) return '.trow[data-id="' + task + '"]';
     if (msg) return '.m[data-mid="' + msg + '"]';
     if (hash === "#payments") return "#payments";
+    if (hash === "#pkg-selections") return "#pkg-selections";
     return null;
   }
   function deeplinkFocus() {
@@ -6548,14 +6674,71 @@
     // current() → null and share() rejects with a friendly message.
     booklet: {
       get: (token) => rpc("public_get_booklet", { p_token: token }),
+      // 0067: /<studio>/booklet/<token> — the studio name must belong to the token's studio
+      studioOk: (token, studio) => (supa ? rpc("public_booklet_studio", { p_token: String(token || ""), p_studio: String(studio || "") })
+        .then((r) => { if (r && r !== studio) { try { history.replaceState(null, "", "/" + r + "/booklet/" + encodeURIComponent(String(token))); } catch (e) {} } return !!r; })
+        .catch((e) => { if (rpcMissing(e)) return true; throw e; }) : Promise.resolve(true)),
       current: (quoteId) => (supa ? rpc("booklet_current", { p_quote_id: quoteId }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      // 0069: o.sections = { studio, client, venue, menu, layout2d, layout3d, quotation, payments, terms, note } (booleans;
+      // missing = shown). Hidden sections are removed server-side. o.versions is an alias of o.versionIds.
       share: (quoteId, o) => { o = o || {};
         if (!supa) return Promise.reject(new Error("Sharing a booklet needs a signed-in studio."));
+        const vers = Array.isArray(o.versionIds) ? o.versionIds : (Array.isArray(o.versions) ? o.versions : null);
+        let sec = null;
+        if (o.sections && typeof o.sections === "object") { sec = {}; for (const k of BOOKLET_SECTIONS) if (k in o.sections) sec[k] = !!o.sections[k]; }
         return rpc("booklet_share", { p_quote_id: quoteId, p_days: Math.max(1, Math.min(365, Math.round(Number(o.days) || 30))),
-          p_version_ids: Array.isArray(o.versionIds) ? o.versionIds : null,
-          p_terms: o.terms ? String(o.terms).slice(0, 8000) : null, p_note: o.note ? String(o.note).slice(0, 1000) : null }); },
+          p_version_ids: vers, p_terms: o.terms ? String(o.terms).slice(0, 8000) : null, p_note: o.note ? String(o.note).slice(0, 1000) : null,
+          ...(sec ? { p_sections: sec } : {}) }); },
       revoke: (quoteId) => rpc("booklet_revoke", { p_quote_id: quoteId }),
-      url: (token) => links.base() + "/booklet?t=" + encodeURIComponent(String(token || "")),
+      url: (token) => (HelmUrl.studio() ? links.base() + "/" + HelmUrl.studio() + "/booklet/" + encodeURIComponent(String(token || "")) : links.base() + "/booklet?t=" + encodeURIComponent(String(token || ""))),
+      sections: () => BOOKLET_SECTIONS.slice(),
+      // 0069: 2D / 3D snapshot -> private bucket booklet-snapshots at <org>/<quote>/<kind>.<png|jpg|webp> (<= 3 MB),
+      // then recorded on the live booklet link. Returns the storage path.
+      uploadSnapshot: async (quoteId, kind, blob) => {
+        if (!supa || mode !== "supabase") throw new Error("Snapshots need a signed-in studio.");
+        if (kind !== "2d" && kind !== "3d") throw new Error("Snapshot kind must be 2d or 3d.");
+        if (!UUID_RE_PKG.test(String(quoteId || ""))) throw new Error("Unknown event.");
+        const type = String((blob && blob.type) || "");
+        const ext = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" }[type];
+        if (!ext) throw new Error("Snapshot must be a PNG, JPEG or WebP image.");
+        if (!blob.size || blob.size > 3 * 1024 * 1024) throw new Error("Snapshot must be 3 MB or smaller.");
+        const oid = await orgIdStrict();
+        const path = oid + "/" + quoteId + "/" + kind + "." + ext;
+        const up = await supa.storage.from("booklet-snapshots").upload(path, blob, { contentType: type, upsert: true, cacheControl: "300" });
+        if (up && up.error) { if (looksLikeAuthError(up.error)) onAuthFailure(); throw up.error; }
+        await rpc("booklet_set_snapshot", { p_quote_id: quoteId, p_kind: kind, p_path: path });
+        return path;
+      },
+      // signed-out booklet page: <img src> for a ticked snapshot (dormant edge function booklet-snapshot)
+      snapshotUrl: (token, kind) => { const u = fnUrl("booklet-snapshot");
+        return u ? u + "?t=" + encodeURIComponent(String(token || "")) + "&k=" + (kind === "3d" ? "3d" : "2d") : ""; },
+    },
+    // 0069 - client package selection (booklet) + staff review. Before 0069 is applied (or local
+    // mode) the reads return null / [] and writes reject with a friendly message.
+    pkgflow: {
+      packages: (token) => (supa ? rpc("public_booklet_packages", { p_token: token }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      choose: (token, pkg, guests, note, otp) => {
+        if (!supa) return Promise.reject(new Error("Package selection is not available."));
+        return rpc("public_booklet_choose", { p_token: token, p_package: pkg, p_guests: Math.round(Number(guests) || 0),
+          p_note: note ? String(note).slice(0, 1000) : null, p_otp: otp ? String(otp).trim().slice(0, 12) : null })
+          .catch((e) => { if (rpcMissing(e)) return null; throw e; });
+      },
+      otpRequest: (token) => (supa ? rpc("public_booklet_otp_request", { p_token: token }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      list: (quoteId) => (supa ? rpc("pkg_selection_list", { p_quote: quoteId || null }).then((d) => (Array.isArray(d) ? d : []))
+        .catch((e) => { if (rpcMissing(e)) return []; throw e; }) : Promise.resolve([])),
+      review: (id, action, price, reason) => {
+        if (!supa) return Promise.reject(new Error("Reviewing needs a signed-in studio."));
+        const p = price === null || price === undefined || price === "" ? null : Number(price);
+        return rpc("pkg_selection_review", { p_id: id, p_action: action === "decline" ? "decline" : "accept",
+          p_price_override: Number.isFinite(p) ? p : null, p_reason: reason ? String(reason).slice(0, 500) : null });
+      },
+      settingsGet: () => (supa ? rpc("pkg_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      settingsSet: (obj) => {
+        if (!supa) return Promise.reject(new Error("Settings need a signed-in studio."));
+        const o = obj || {}, out = {};
+        for (const k of ["pkg_require_otp", "pkg_client_channel", "overpay_mode", "pkg_lock_days"]) if (k in o) out[k] = o[k];
+        return rpc("pkg_settings_set", { p: out });
+      },
     },
     // 0064 — saved filters / views for list pages (public/saved-filters.js). RLS: own rows +
     // studio-shared rows the role may view; the DB stamps owner + studio and refuses shared
@@ -6627,6 +6810,117 @@
     },
   };
   global.BPStore = BPStore;
+  /* ---- 0067 pretty studio URLs: studio check + ref resolution (HelmUrl.get) ----
+     Signed-in pages only. my_studio_route() answers for the caller's OWN studio only:
+     another studio's slug (or an unknown one) shows "not your studio" and the page's own
+     code never runs (no data is requested). Event numbers / client refs resolve through
+     resolve_event_ref / resolve_client_ref (caller org + has_area). Old ?id= URLs keep
+     working; once resolved the address bar shows the pretty URL (history.replaceState). */
+  (function prettyRoutes() {
+    const R = HelmUrl.route();
+    const resolved = {};
+    let readyP = null;
+    const query = () => { const o = {}; try { new URLSearchParams(location.search).forEach((v, k) => { o[k] = v; }); } catch (e) {} return o; };
+    const swap = (path) => { try { if (path && path.charAt(0) === "/" && path.charAt(1) !== "/") history.replaceState(history.state, "", path + (location.hash || "")); } catch (e) {} };
+    const leadRef = (name, id) => { const b = String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40); return (b ? b + "-" : "") + String(id).slice(0, 8); };
+    function notYourStudio(own) {
+      try {
+        revealPage();
+        const main = document.createElement("main"); main.className = "bp-not-your-studio"; main.id = "main";
+        const h1 = document.createElement("h1"); h1.textContent = "This page belongs to another studio";
+        const p = document.createElement("p"); p.textContent = "You are signed in to a different studio, so there is nothing to show here. Check the link, or go back to your own workspace.";
+        const a = document.createElement("a"); a.className = "btn primary"; a.href = HelmUrl.build("dashboard", { studio: own || undefined }); a.textContent = "Go to my dashboard";
+        main.appendChild(h1); main.appendChild(p); main.appendChild(a);
+        document.title = "Not your studio · Helm";
+        document.body.replaceChildren(main);
+      } catch (e) {}
+    }
+    async function refToId(kind, ref) {
+      try {
+        if (kind === "client") {
+          const c = await rpc("resolve_client_ref", { p_ref: ref });
+          if (!c || !c.id) return null;
+          return { id: c.id, ref: c.kind === "lead" ? leadRef(c.name, c.id) : (c.code || c.id) };
+        }
+        const e = await rpc("resolve_event_ref", { p_ref: ref });
+        return e && e.id ? { id: e.id, ref: e.code || e.id } : null;
+      } catch (e) { if (rpcMissing(e)) return { id: HelmUrl.isUuid(ref) ? ref : null, ref: ref }; return null; }
+    }
+    function ready() {
+      if (readyP) return readyP;
+      readyP = (async () => {
+        try { await init(); } catch (e) { return; }
+        if (!supa || !currentUser) return;                       // signed out: the page gate sends them to login
+        if (!R) {                                                // legacy URL: learn the studio name for links
+          try { const s = await links.studio(); if (s) HelmUrl.setStudio(s); } catch (e) {}
+          return;
+        }
+        if (R.kind === "booklet") return;                        // public page: booklet.js checks the token's studio
+        let j = null;
+        try { j = await rpc("my_studio_route", { p_slug: R.studio }); }
+        catch (e) { if (rpcMissing(e)) return; j = null; }
+        if (!j || j.own !== true) { notYourStudio(j && j.slug); return HANG(); }
+        HelmUrl.setStudio(j.slug);
+        if (R.key) {
+          const r = await refToId(R.kind, R.ref);
+          resolved[R.key] = (r && r.id) || "";
+          if (r && r.id) swap(HelmUrl.build(R.kind, { studio: j.slug, ref: r.ref, query: query() }));
+        } else if (j.slug !== R.studio) swap(HelmUrl.build(R.kind, { studio: j.slug, query: query() }));
+      })();
+      return readyP;
+    }
+    // await HelmUrl.get("id", legacyValue) → the record id for this page
+    HelmUrl.get = async function (name, fallback) {
+      await ready();
+      if (R && R.key === name && R.kind !== "booklet") return resolved[name] != null ? resolved[name] : (HelmUrl.isUuid(R.ref) ? R.ref : "");
+      if (!R && fallback && HelmUrl.studio()) {                // legacy ?id= → pretty address bar
+        const kind = HelmUrl.KINDS[{ event: "event", builder: "floor-plan", ops: "tasks", client: "client" }[HelmUrl.page()]] ? { event: "event", builder: "floor-plan", ops: "tasks", client: "client" }[HelmUrl.page()] : null;
+        if (kind && HelmUrl.KINDS[kind][3] === name) {
+          const r = await refToId(kind, fallback);
+          if (r && r.id === fallback) { const q = query(); delete q[name]; swap(HelmUrl.build(kind, { ref: r.ref, query: q })); }
+        }
+      }
+      return fallback;
+    };
+    // sync: a value already resolved by get() (or the query string)
+    HelmUrl.value = function (name) {
+      if (R && R.key === name) return resolved[name] != null ? resolved[name] : (HelmUrl.isUuid(R.ref) ? R.ref : "");
+      try { return new URLSearchParams(location.search).get(name); } catch (e) { return null; }
+    };
+    HelmUrl.ready = ready;
+    // keyless pages (quotes, leads, chat, settings, dashboard): pretty address bar once the studio is known
+    if (PAGE_GATED) Promise.resolve().then(ready).then(() => {
+      const k = { dashboard: "dashboard", quotes: "quotes", leads: "leads", chat: "chat", control: "settings" }[HelmUrl.page()];
+      if (!R && k && HelmUrl.studio()) swap(HelmUrl.build(k, { query: query() }));
+    }).catch(() => {});
+    // legacy app links in the DOM (nav, breadcrumbs, search results, bell) → pretty links
+    function upgradeLinks(root) {
+      if (!HelmUrl.studio() || !root || !root.querySelectorAll) return;
+      root.querySelectorAll("a[href]").forEach((a) => {
+        const h = a.getAttribute("href"); if (!h || h.charAt(0) === "#" || /^[a-z]+:/i.test(h) || h.charAt(1) === "/") return;
+        const u = HelmUrl.upgrade(h); if (u !== h) a.setAttribute("href", u);
+      });
+    }
+    // <base href="/"> pages: in-page "#x" links must not navigate to "/#x"
+    document.addEventListener("click", (ev) => {
+      const a = ev.target && ev.target.closest ? ev.target.closest("a[href]") : null;
+      if (!a || !document.querySelector("base[href]")) return;
+      const h = a.getAttribute("href"); if (!h || h.charAt(0) !== "#") return;
+      ev.preventDefault();
+      if (h.length > 1) {
+        const t = document.getElementById(decodeURIComponent(h.slice(1)));
+        if (t) { try { t.scrollIntoView(); if (!t.hasAttribute("tabindex")) t.setAttribute("tabindex", "-1"); t.focus({ preventScroll: true }); } catch (e) {} }
+        try { history.replaceState(history.state, "", location.pathname + location.search + h); } catch (e) {}
+      }
+    }, true);
+    if (PAGE_GATED) {
+      const boot = () => ready().then(() => {
+        upgradeLinks(document);
+        try { new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => { if (n.nodeType === 1) { if (n.matches && n.matches("a[href]")) upgradeLinks(n.parentNode); else upgradeLinks(n); } }))).observe(document.documentElement, { childList: true, subtree: true }); } catch (e) {}
+      }).catch(() => {});
+      if (document.readyState !== "loading") boot(); else document.addEventListener("DOMContentLoaded", boot);
+    }
+  })();
   // Protected page: start the auth gate now (init is idempotent), so the sign-in
   // redirect never depends on the page's own boot code running.
   if (PAGE_GATED) Promise.resolve().then(init).catch(() => {});
@@ -7353,7 +7647,7 @@
     var reload = h("button", { type: "button", class: "bpui-btn bpui-primary" }, "Reload");
     reload.addEventListener("click", function () { location.reload(); });
     var page = "";
-    try { page = (location.pathname.split("/").pop() || "").replace(/\.html$/, ""); } catch (e) {}
+    try { page = HelmUrl.page(); } catch (e) {}
     if (page !== "dashboard") { var back = h("a", { href: "dashboard.html", class: "bpui-btn" }, "Dashboard"); back.style.cssText = "display:inline-flex;align-items:center;text-decoration:none"; row.appendChild(back); }
     row.appendChild(reload);
     card.appendChild(row);

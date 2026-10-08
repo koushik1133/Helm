@@ -92,6 +92,7 @@ export function resetSupaMock() {
   g.__supaRpc = undefined;
   g.__supaGetUser = undefined;
   g.__supaResolver = undefined;
+  g.__supaStorage = undefined;
 }
 export function supaLog(): any[] {
   return (g.__supaLog as any[]) || [];

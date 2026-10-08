@@ -1,0 +1,59 @@
+/* booklet-pkg.css — "Choose your package" on the client booklet (booklet-pkg.js, 0069). Mobile-first. */
+.map-link{display:inline-block;margin-left:8px;font-weight:600;font-size:14px}
+.pk-cards{display:grid;gap:16px;margin-top:16px}
+@media (min-width:720px){.pk-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.pk-card{display:flex;flex-direction:column;gap:10px;padding:20px;border:1px solid var(--line);border-radius:16px;background:var(--paper);box-shadow:var(--shadow)}
+.pk-card h3{margin:0;font-family:var(--serif);font-size:24px;font-weight:600;overflow-wrap:anywhere}
+.pk-price{margin:0;font-weight:700;color:var(--accent);font-size:18px}
+.pk-desc{margin:0;color:var(--ink-2)}
+.pk-items{margin:0;padding-left:18px;color:var(--ink-2);columns:1}
+@media (min-width:480px){.pk-items{columns:2;column-gap:20px}}
+.pk-items li{break-inside:avoid}
+.pk-lab{display:block;font-size:13px;font-weight:600;color:var(--ink-2);margin-bottom:4px}
+.pk-srow{display:flex;align-items:center;gap:8px}
+.pk-sb{min-width:44px;min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:600 20px/1 var(--sans);cursor:pointer}
+.pk-g{width:96px;min-height:44px;text-align:center;border:1px solid var(--line);border-radius:12px;background:var(--paper);color:var(--ink);font:600 16px var(--sans)}
+.pk-hint{display:block;font-size:12px;color:var(--ink-3);margin-top:4px}
+.pk-est{margin:0;font-weight:600}
+.pk-card .btn{margin-top:auto;align-self:stretch}
+.pk-status{padding:20px;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:14px;background:var(--paper)}
+.pk-status h3{margin:0 0 6px;font-family:var(--serif);font-size:22px;font-weight:600}
+.pk-status p{margin:0 0 10px;color:var(--ink-2)}
+.pk-status.pk-declined{border-left-color:var(--due)}
+.pk-status.pk-paid{border-left-color:var(--ok)}
+.pk-sel{font-weight:600;color:var(--ink)!important}
+.pk-reason{margin:8px 0 14px;padding:10px 14px;border-left:3px solid var(--line);color:var(--ink-2);font-style:italic}
+.pk-steps{list-style:none;margin:12px 0;padding:0;display:grid;gap:8px}
+@media (min-width:640px){.pk-steps{grid-template-columns:repeat(4,1fr)}}
+.pk-step{position:relative;padding:8px 10px 8px 30px;border-radius:10px;background:var(--bg);font-size:14px;color:var(--ink-3)}
+.pk-step::before{content:"";position:absolute;left:10px;top:50%;width:12px;height:12px;margin-top:-6px;border-radius:50%;border:2px solid var(--line)}
+.pk-step.done{color:var(--ink)}
+.pk-step.done::before{background:var(--ok);border-color:var(--ok)}
+.pk-step.current{color:var(--ink);font-weight:600;background:var(--accent-soft)}
+.pk-step.current::before{border-color:var(--accent);background:var(--paper)}
+.pk-totals{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0 0}
+.pk-totals div{padding:8px 10px;border-radius:10px;background:var(--bg)}
+.pk-totals dt{font-size:12px;color:var(--ink-3)} .pk-totals dd{margin:0;font-weight:700}
+/* modal */
+body.pk-open{overflow:hidden}
+.pk-modal{position:fixed;inset:0;z-index:50;display:flex;align-items:flex-end;justify-content:center;background:rgba(31,26,23,.55);padding:0}
+@media (min-width:640px){.pk-modal{align-items:center;padding:24px}}
+.pk-sheet{width:100%;max-width:520px;max-height:92vh;overflow:auto;padding:22px 20px 24px;background:var(--paper);color:var(--ink);border-radius:18px 18px 0 0;box-shadow:0 24px 60px rgba(0,0,0,.3)}
+@media (min-width:640px){.pk-sheet{border-radius:18px}}
+.pk-sheet h2{margin:0 0 12px;font-family:var(--serif);font-size:26px;font-weight:600}
+.pk-sum{display:grid;gap:6px;margin:0 0 12px}
+.pk-sum div{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line-2)}
+.pk-sum dt{color:var(--ink-3)} .pk-sum dd{margin:0;font-weight:600;text-align:right}
+.pk-fine{font-size:14px;color:var(--ink-2)}
+.pk-note,.pk-otp{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font:16px var(--sans)}
+.pk-otp{letter-spacing:.4em;font-size:22px;text-align:center}
+.pk-err{min-height:1.2em;color:var(--due);font-weight:600;margin:8px 0}
+.pk-ok{font-size:17px}
+.pk-acts{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px}
+.pk-acts .btn{flex:1 1 140px}
+@media print{
+  .pk-ctl,.pk-modal,#pkAgain{display:none!important}
+  .pk-card{box-shadow:none;break-inside:avoid}
+  .pk-status{break-inside:avoid}
+}
+.plan img.snap{display:block;width:100%;height:auto;border-radius:12px;background:#fff}

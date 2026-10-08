@@ -3047,7 +3047,7 @@ async function init(){
   $('#cornerUnit').textContent=uLabel();
   const params=new URLSearchParams(location.search);
   const evId=params.get('id'), evName=params.get('event'), isNew=params.get('new')==='1';
-  const quoteId=params.get('quote'), openVer=params.get('v');
+  const quoteId=await HelmUrl.get('quote', params.get('quote')), openVer=params.get('v');
   store.items = (isNew||quoteId) ? [] : TEMPLATES.political();   // blank for a new event/quote, else a working default
   if(evName){ const pn=$('#projName'); if(pn) pn.value=evName; }
   resetHistory();                                     // establish the initial undo baseline

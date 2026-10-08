@@ -84,6 +84,7 @@
   @media (prefers-reduced-motion:reduce){.saved{transition:none}}
   .banner{background:var(--accent-soft);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--ink);display:flex;gap:10px;align-items:center}
 </style>
+<link rel="stylesheet" href="share-checklist.css?v=1">
 <link rel="stylesheet" href="theme.css?v=76">
 </head>
 <body>
@@ -252,6 +253,13 @@
           <div class="s-56f4356" id="pay_receipts"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
         </section>
 
+        <!-- SHARE WITH CLIENT (0069) — share-checklist.js fills it -->
+        <section class="card" id="sec-share" data-share-checklist hidden>
+          <h2>Share with client</h2>
+          <p class="sub">Choose what goes into the client's private booklet, then create or update the link.</p>
+          <div class="sc-body"></div>
+        </section>
+
         <!-- ACTIVITY TRAIL -->
         <section class="card" id="sec-activity">
           <h2>Activity trail</h2>
@@ -310,8 +318,10 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=97"></script>
 <script src="phone-input.js?v=1"></script>
-<script src="store-api.js?v=129"></script>
+<script src="store-api.js?v=131"></script>
 <script src="tour.js?v=7"></script>
+<script src="booklet.js?v=1"></script>
+<script src="share-checklist.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -958,8 +968,8 @@
       const acc=$("#account"); acc.hidden=false;
       if(u){ const role=await BPStore.auth.role(); acc.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button type="button" id="logoutBtn">Log out</button>`;
         $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";}); }
-      else { acc.innerHTML=`<button type="button" id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); }
-      if(BPStore.auth.required() && !u){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
+      else { acc.innerHTML=`<button type="button" id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(HelmUrl.here()))); }
+      if(BPStore.auth.required() && !u){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     }
     if(!id){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:var(--ink-2)">No quote selected. Start one from <a href="dashboard.html" style="color:var(--accent);text-decoration:underline">Home</a> or <a href="leads.html" style="color:var(--accent);text-decoration:underline">Leads</a>.</p>'; return; }
     try{ canEdit=await BPStore.auth.canEditArea("quotes"); }catch{ canEdit=true; }

@@ -447,7 +447,7 @@
     if (!r.href) return;
     if (newTab) { try { global.open(r.href, "_blank", "noopener"); } catch (e) {} return; }
     close();
-    global.location.href = r.href;
+    global.location.href = global.HelmUrl ? global.HelmUrl.upgrade(r.href) : r.href;
   }
   function onKey(e) {
     if (e.key === "ArrowDown") { e.preventDefault(); setActive(S.active + 1); }
