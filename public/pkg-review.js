@@ -28,7 +28,8 @@
     return { id: String(r.id || ""), name: String(r.package_name || r.name || "Package").slice(0, 80), guests: num(r.guests),
       status: st, statusLabel: STATUS_LABEL[st], at: when(r.created_at), note: r.note ? String(r.note).slice(0, 500) : "",
       reason: r.decline_reason ? String(r.decline_reason).slice(0, 500) : "",
-      total: num(draft.total != null ? draft.total : r.draft_total), currency: draft.currency || r.currency || "INR" };
+      total: num(draft.total != null ? draft.total : r.draft_total), currency: draft.currency || r.currency || "INR",
+      current: num(r.current_total), paid: num(r.paid), locked: !!r.locked, canReview: r.can_review !== false };
   }
   // a valid accept / decline payload, or { error }
   function reviewArgs(action, override, reason) {
@@ -46,11 +47,30 @@
   }
   function errText(e) {
     const m = String((e && e.message) || "");
-    if (/self|own (request|selection)|yourself/i.test(m)) return m.slice(0, 240);  // server's self-approval-blocked message, verbatim
+    if ((e && e.hint === "maker_checker") || /self|own (request|selection)|yourself|someone else must approve/i.test(m)) return m.slice(0, 240);  // server's self-approval-blocked message, verbatim
     try { if (global.BPUI && global.BPUI.friendlyError) return global.BPUI.friendlyError(e, { action: "review the package choice" }); } catch (x) {}
     return m.slice(0, 240) || "Something went wrong.";
   }
-  function safeUrl(u) { const s = typeof u === "string" ? u.trim() : ""; return /^https:\/\/[^\s"'<>\\]+$/i.test(s) && s.length <= 600 ? s : null; }
+  // server returns "/approve?token=…" (relative) — make it a full client link on the studio's domain
+  function safeUrl(u, base) {
+    const s = typeof u === "string" ? u.trim() : "";
+    if (s.length > 600 || /[\s"'<>\\]/.test(s)) return null;
+    if (/^https:\/\//i.test(s)) return s;
+    if (/^\/(?!\/)/.test(s)) return String(base || "").replace(/\/+$/, "") + s;
+    return null;
+  }
+  function linkBase() { try { if (global.BPStore && global.BPStore.links && global.BPStore.links.base) return global.BPStore.links.base(); } catch (e) {} try { return global.location.origin; } catch (e) { return ""; } }
+  // what to tell the reviewer after review()
+  function reviewOutcome(r, action) {
+    r = r || {};
+    if (r.needs_checker || (r.status === "pending" && action === "accept")) return { msg: "Saved — this adjusted price needs a second approver before the client is told.", url: null };
+    if (action === "decline") return { msg: "Package choice declined — the client has been told.", url: null };
+    const bits = ["Package accepted — updated quote created."];
+    if (r.reapproval_required) bits.push("The client must approve the new quote again.");
+    if (Number(r.cancelled_links) > 0) bits.push(Number(r.cancelled_links) + " old payment link(s) cancelled.");
+    if (r.credit && Number(r.credit.amount) > 0) bits.push("Client has paid more than the new total — " + (r.credit.mode === "manual_refund" ? "refund " : "credit ") + money(r.credit.amount) + ".");
+    return { msg: bits.join(" "), url: safeUrl(r.approve_url, linkBase()) };
+  }
   function quoteIdFor(n) {
     const q = n && n.getAttribute("data-quote");
     if (q && UUID_RE.test(q)) return q;
@@ -90,7 +110,7 @@
     const f = el("div", "pkr-form");
     const err = el("p", "pkr-err"); err.setAttribute("role", "alert");
     const oid = "pkrO_" + v.id.replace(/[^A-Za-z0-9_-]/g, ""), rid = "pkrR_" + v.id.replace(/[^A-Za-z0-9_-]/g, "");
-    const ol = el("label", "pkr-lab", "Price per guest override (optional)"); ol.setAttribute("for", oid);
+    const ol = el("label", "pkr-lab", "Price per person override (optional)"); ol.setAttribute("for", oid);
     const ov = el("input", "pkr-in"); ov.id = oid; ov.type = "number"; ov.min = "1"; ov.step = "1"; ov.inputMode = "decimal"; ov.placeholder = "Package price";
     const rl = el("label", "pkr-lab", "Reason for declining (shown to the client)"); rl.setAttribute("for", rid);
     const rs = el("textarea", "pkr-in"); rs.id = rid; rs.rows = 2; rs.maxLength = 500;
@@ -104,8 +124,8 @@
       try {
         const r = await global.BPStore.pkgflow.review(v.id, a.action, a.price, a.reason);
         if (r && r.ok === false) throw new Error(r.error || r.message || "The server refused this review.");
-        toast(action === "accept" ? "Package accepted — updated quote created" : "Package choice declined");
-        await load(panel, quoteId, action === "accept" && r ? safeUrl(r.approve_url) : null);
+        const out = reviewOutcome(r, action); toast(out.msg);
+        await load(panel, quoteId, out.url, out.msg);
       } catch (e) { err.textContent = errText(e); acc.disabled = dec.disabled = false; b.focus(); }
     };
     acc.addEventListener("click", () => go("accept", acc)); dec.addEventListener("click", () => go("decline", dec));
@@ -116,13 +136,14 @@
     li.appendChild(f);
   }
 
-  async function load(panel, quoteId, freshUrl) {
+  async function load(panel, quoteId, freshUrl, note) {
     const body = clear(panel.querySelector(".pkr-body"));
     body.appendChild(el("p", "muted", "Loading…"));
     let rows;
     try { rows = await global.BPStore.pkgflow.list(quoteId); }
     catch (e) { clear(body); body.appendChild(el("p", "pkr-err", errText(e))); return; }
     clear(body);
+    if (note) body.appendChild(el("p", "pkr-done", note));
     if (freshUrl) body.appendChild(linkBox(freshUrl));
     rows = Array.isArray(rows) ? rows : [];
     if (!rows.length) { body.appendChild(el("p", "muted", "No package choices from the client yet. They choose from the booklet link.")); return; }
@@ -133,10 +154,11 @@
       top.appendChild(el("strong", "pkr-name", v.name));
       top.appendChild(el("span", "pkr-pill " + v.status, v.statusLabel));
       li.appendChild(top);
-      li.appendChild(el("p", "pkr-meta", [v.guests != null ? v.guests + " guests" : "", v.total != null ? "draft " + money(v.total, v.currency) : "", v.at].filter(Boolean).join(" · ")));
+      li.appendChild(el("p", "pkr-meta", [v.guests != null ? v.guests + " guests" : "", v.total != null ? "draft " + money(v.total, v.currency) : "",
+        v.current != null ? "current " + money(v.current, v.currency) : "", v.paid ? "paid " + money(v.paid, v.currency) : "", v.locked ? "🔒 locked" : "", v.at].filter(Boolean).join(" · ")));
       if (v.note) li.appendChild(el("p", "pkr-note", "Client note: " + v.note));
       if (v.reason) li.appendChild(el("p", "pkr-note", "Declined: " + v.reason));
-      if (v.status === "pending") { if (panel.dataset.pkrEdit === "1") reviewForm(li, v, quoteId, panel); else li.appendChild(el("p", "muted", "Waiting for a reviewer with approval rights.")); }
+      if (v.status === "pending") { if (panel.dataset.pkrEdit === "1" && v.canReview && !v.locked) reviewForm(li, v, quoteId, panel); else li.appendChild(el("p", "muted", v.locked ? "Locked — this event can't take package changes now." : "Waiting for a reviewer with approval rights.")); }
       ol.appendChild(li);
     });
     body.appendChild(ol);
@@ -211,7 +233,7 @@
     card.hidden = false;
   }
 
-  global.HelmPkgReview = { wire, rowView, reviewArgs, errText, settingsView, quoteIdFor, safeUrl, money, STATUS_LABEL };
+  global.HelmPkgReview = { wire, rowView, reviewOutcome, reviewArgs, errText, settingsView, quoteIdFor, safeUrl, money, STATUS_LABEL };
   if (doc && (doc.querySelector("[data-pkg-review]") || doc.querySelector("[data-pkg-settings]"))) {
     if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", wire); else wire();
   }

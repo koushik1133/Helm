@@ -14,7 +14,7 @@
 @media (min-width:720px){.pkr-form{grid-template-columns:1fr 1.4fr}.pkr-acts,.pkr-err{grid-column:1/-1}}
 .pkr-fld{display:flex;flex-direction:column;gap:4px}
 .pkr-lab{font-size:12px;font-weight:600;color:var(--ink-2,#4b475f)}
-.pkr-in,.pkr-url{width:100%;min-height:40px;padding:8px 10px;border:1px solid var(--line,#e8e3db);border-radius:10px;background:var(--panel,#fff);color:var(--ink,#1b1930);font:14px var(--font,system-ui,sans-serif)}
+.pkr-in,.pkr-url{box-sizing:border-box;width:100%;min-height:40px;padding:8px 10px;border:1px solid var(--line,#e8e3db);border-radius:10px;background:var(--panel,#fff);color:var(--ink,#1b1930);font:14px var(--font,system-ui,sans-serif)}
 .pkr-acts{display:flex;gap:8px;flex-wrap:wrap}
 .pkr-err{margin:6px 0 0;min-height:1em;font-size:13px;font-weight:600;color:#b4231b}
 .pkr-link{margin:0 0 12px;padding:12px;border:1px solid rgba(24,165,88,.4);border-radius:12px;background:rgba(24,165,88,.06)}
@@ -24,3 +24,4 @@
 .pkr-fs legend{font-size:13px;font-weight:600;margin-bottom:6px;width:100%}
 .pkr-radio,.pkr-switch{display:inline-flex;align-items:center;gap:6px;min-height:36px;font-size:14px;cursor:pointer}
 .pkr-sbody .fld{margin-top:12px;max-width:360px}
+.pkr-done{margin:0 0 10px;padding:10px 12px;border-radius:10px;background:var(--accent-soft,#efe9ff);font-size:13px;font-weight:600}

@@ -40,6 +40,7 @@
   // which face the section shows
   function phase(d) {
     if (!d || typeof d !== "object") return "off";
+    if (d.mode === "hidden" || d.mode === "selected") return "off";     // menu hidden / studio already picked the package
     const sel = d.current_selection && STATUS[d.current_selection.status] ? d.current_selection : null;
     const t = d.totals || {};
     if (sel && sel.status === "accepted" && num(t.paid) > 0) return "paid";
@@ -64,8 +65,17 @@
   function el(tag, cls, text) { const n = doc.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
   function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); return n; }
   function btn(cls, text) { const b = el("button", cls, text); b.type = "button"; return b; }
+  const LOCK_REASON = { frozen: "the event details are frozen", confirmed: "the event is confirmed", too_close: "the event is too close",
+    menu_locked: "the menu is locked", selected: "the studio has already chosen your package", hidden: "the studio hasn't shared packages" };
   function errText(e) {
-    const m = String((e && e.message) || "");
+    const m = String((e && e.message) || ""), h = String((e && e.hint) || (e && e.status) || "");
+    if (e && (e.code === "25006" || h === "studio_suspended")) return "This booklet is paused right now. Please contact the studio.";
+    if (h === "otp_invalid") return "That code didn't match. Please check it and try again.";
+    if (h === "otp_required") return "Please enter the code we sent you.";
+    if (h === "rate_limited") return "Too many attempts — please wait a few minutes and try again.";
+    if (h === "guests") return "Please choose a guest count within the package's limits.";
+    if (h === "package") return "This package is no longer available. Please choose another.";
+    if (h === "locked") { const r = (/\(([a-z_]+)\)/.exec(m) || [])[1]; return "Package choices are closed" + (LOCK_REASON[r] ? " — " + LOCK_REASON[r] : "") + ". Please contact the studio."; }
     if (/too many/i.test(m)) return "Too many attempts — please wait a few minutes and try again.";
     if (/code|otp/i.test(m)) return "That code didn't match. Please check it and try again.";
     if (/lock/i.test(m)) return "Package choices are closed for this event. Please contact the studio.";
@@ -103,9 +113,9 @@
       const a = el("a", "btn pk-ctl", p === "ready" ? "Review & pay" : "Pay the balance"); a.setAttribute("href", payUrl); a.setAttribute("rel", "noopener noreferrer");
       card.appendChild(a);
     }
-    if (p === "paid" || p === "ready") {
-      const dl = el("dl", "pk-totals");
-      [["Total", t.total], ["Paid", t.paid], ["Balance", t.balance]].forEach((x) => { const w = el("div"); w.appendChild(el("dt", "", x[0])); w.appendChild(el("dd", "", money(x[1], t.currency))); dl.appendChild(w); });
+    if ((p === "paid" || p === "ready") && d.totals && num(t.total) != null) {
+      const dl = el("dl", "pk-totals"), bal = num(t.balance);
+      [["Total", t.total], ["Paid", t.paid], [bal != null && bal < 0 ? "Credit" : "Balance", bal != null && bal < 0 ? -bal : t.balance]].filter((x) => x[1] != null).forEach((x) => { const w = el("div"); w.appendChild(el("dt", "", x[0])); w.appendChild(el("dd", "", money(x[1], t.currency))); dl.appendChild(w); });
       card.appendChild(dl);
     }
     live.appendChild(card);
@@ -194,8 +204,11 @@
       try {
         if (S.data && S.data.require_otp) {
           const r = await global.BPStore.pkgflow.otpRequest(S.token);
+          if (!r) throw new Error("Package selection is not available yet.");
           otpStep(p, guests, note.value.trim(), r || {});
-        } else await submit(p, guests, note.value.trim(), null, err, ok);
+        } else if (!(await submit(p, guests, note.value.trim(), null, err, ok)) && S.needOtp) {
+          S.needOtp = false; const r = await global.BPStore.pkgflow.otpRequest(S.token); otpStep(p, guests, note.value.trim(), r || {});
+        }
       } catch (e) { err.textContent = errText(e); ok.disabled = false; }
     });
     m.hidden = false; doc.body.classList.add("pk-open");
@@ -207,6 +220,7 @@
     m.querySelector("#pkModalTitle").textContent = "Enter your code";
     const via = r.channel === "email" ? "e-mail" : "WhatsApp";
     body.appendChild(el("p", "", r.sent === false ? "We couldn't send a code just now. Please try again in a minute." : "We've sent a 6-digit code to you on " + via + "."));
+    if (r.dev_code && /^\d{6}$/.test(String(r.dev_code))) body.appendChild(el("p", "pk-fine", "Test mode — your code is " + r.dev_code));
     const lab = el("label", "pk-lab", "Code"); lab.setAttribute("for", "pkOtp");
     const inp = el("input", "pk-otp"); inp.id = "pkOtp"; inp.inputMode = "numeric"; inp.autocomplete = "one-time-code"; inp.maxLength = 6; inp.pattern = "[0-9]{6}";
     body.appendChild(lab); body.appendChild(inp);
@@ -225,14 +239,15 @@
   async function submit(p, guests, note, otp, err, ok) {
     try {
       const r = await global.BPStore.pkgflow.choose(S.token, p.id, guests, note || null, otp);
-      if (r && r.ok === false) throw new Error(r.error || r.status || "failed");
+      if (r && r.ok === false) { const x = new Error(r.error || r.status || "failed"); x.status = r.status; throw x; }
+      if (!r) throw new Error("Package selection is not available yet.");
       const m = modal(), body = clear(m.querySelector("#pkModalBody"));
       m.querySelector("#pkModalTitle").textContent = "Choice sent";
       body.appendChild(el("p", "pk-ok", "Thank you! " + p.name + " for " + guests + " guests is now with the studio for review."));
       const acts = el("div", "pk-acts"); const done = btn("btn", "Done"); done.addEventListener("click", closeModal); acts.appendChild(done); body.appendChild(acts);
       done.focus();
-      S.choosing = false; await refresh();
-    } catch (e) { err.textContent = errText(e); ok.disabled = false; }
+      S.choosing = false; await refresh(); return true;
+    } catch (e) { S.needOtp = !!(e && e.hint === "otp_required"); err.textContent = errText(e); ok.disabled = false; return false; }
   }
 
   function render(d) {

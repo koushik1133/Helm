@@ -37,6 +37,10 @@ const CASES = [
   ['security_alert', ['security_alert'], 'control.html#users'],
   ['billing_trial', ['trial_reminder'], 'checkout.html'],
   ['chat_message', ['chat_message'], 'chat.html'],
+  ['pkg_selected', ['pkg_selected'], `event.html?id=${Q}#pkg-selections`],
+  ['pkg_accepted', ['pkg_accepted'], `event.html?id=${Q}#pkg-selections`],
+  ['pkg_declined', ['pkg_declined'], `event.html?id=${Q}#pkg-selections`],
+  ['pkg_payment', ['pkg_payment'], `settlement.html?quote=${Q}#payments`],
 ];
 t('every server catalog type → expected URL (table)', () => {
   for (const [type, kinds, url] of CASES) for (const k of kinds) {
@@ -53,6 +57,14 @@ t('catalog coverage: every type in the SQL catalogs + bell labels has a case', (
   const covered = new Set(CASES.map((c) => c[0]).concat(['whatsapp_message', 'other']));
   assert.ok(types.size >= 15, 'catalog parsed: ' + [...types]);
   for (const ty of types) assert.ok(covered.has(ty), 'no deep-link case for catalog type ' + ty);
+});
+t('0069 pkg_*: detail.path (internal only) wins; foreign paths ignored', () => {
+  const U = '0b8c2f1e-1111-4222-8333-944445555666';
+  assert.equal(ctx.link({ kind: 'pkg_selected', detail: { path: 'event.html?id=' + U + '#quote', quote_id: U } }), 'event.html?id=' + U + '#pkg-selections');
+  assert.equal(ctx.link({ kind: 'pkg_payment', detail: { path: 'settlement.html?quote=' + U + '#payments' } }), 'settlement.html?quote=' + U + '#payments');
+  assert.equal(ctx.link({ kind: 'pkg_selected', detail: { path: 'https://evil.test/x', quote_id: U } }), 'event.html?id=' + U + '#pkg-selections');
+  assert.equal(ctx.link({ kind: 'pkg_declined', detail: { path: 'javascript:alert(1)' } }), '');
+  assert.equal(ctx.target('?id=' + U, '#pkg-selections'), '#pkg-selections');
 });
 t('whatsapp / other / reapproval fall back to the event (or quote) page', () => {
   assert.equal(ctx.link(row('whatsapp_in', { channel: 'whatsapp' })), `event.html?id=${Q}`);
@@ -79,7 +91,7 @@ t('links are always relative own pages; ids encoded (no injection, no external h
     const all = CASES.flatMap(([, ks]) => ks).map((k) => ctx.link(row(k, { quote_id: e, event_code: e, detail: { task_id: e } })))
       .concat([ctx.link({ __chat: true, conversation_id: e, msg_id: e })]);
     for (const u of all) {
-      assert.match(u, /^[a-z0-9-]+\.html(\?[A-Za-z0-9_.~%=&()!*'-]*)?(#[a-z]+)?$/, u);
+      assert.match(u, /^[a-z0-9-]+\.html(\?[A-Za-z0-9_.~%=&()!*'-]*)?(#[a-z-]+)?$/, u);
       assert.ok(!/[<>" ]|javascript:|\/\//.test(u), u);
       const f = u.split(/[?#]/)[0]; assert.ok(rd(f).length > 0, 'page exists: ' + f);
     }

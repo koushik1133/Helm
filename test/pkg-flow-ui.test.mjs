@@ -308,6 +308,25 @@ await t('store-api: role-matrix areas, bell labels, deep links for pkg_* (pkgflo
   assert.equal(c.dt('?id=' + q, '#pkg-selections'), '#pkg-selections');
 });
 
+await t('final contract: mode selected/hidden, choose error hints, review outcomes, relative approve URL', () => {
+  assert.equal(B.phase(Object.assign(base(), { mode: 'selected', locked: true })), 'off');
+  assert.equal(B.phase(Object.assign(base(), { mode: 'hidden' })), 'off');
+  const E = (hint, msg, code) => Object.assign(new Error(msg || 'x'), { hint, code });
+  assert.match(B.errText(E('locked', 'package selection is closed for this event (too_close)')), /too close/);
+  assert.match(B.errText(E('otp_required')), /enter the code/);
+  assert.match(B.errText({ status: 'otp_invalid' }), /didn't match/);
+  assert.match(B.errText(E('rate_limited')), /wait/);
+  assert.match(B.errText(E(null, 'Read-only', '25006')), /paused/);
+  assert.match(R.reviewOutcome({ ok: true, status: 'pending', needs_checker: true }, 'accept').msg, /second approver/);
+  const o = R.reviewOutcome({ ok: true, status: 'accepted', approve_url: '/approve?token=abc', reapproval_required: true, credit: { mode: 'credit', amount: 500 } }, 'accept');
+  assert.match(o.msg, /approve the new quote again/); assert.match(o.msg, /credit/);
+  assert.match(String(o.url), /\/approve\?token=abc$/);
+  assert.equal(R.safeUrl('/approve?token=a', 'https://www.helm.events'), 'https://www.helm.events/approve?token=a');
+  assert.equal(R.safeUrl('//evil.test/a', 'https://x'), null);
+  assert.match(read('public/pkg-review.js'), /Price per person override/);
+  assert.equal(R.rowView({ can_review: false }).canReview, false);
+});
+
 /* ================= share checklist (0069 scope addition) ================= */
 {
   const c3 = { console, URLSearchParams, Intl, document: undefined, location: { search: '' } }; c3.window = c3; c3.globalThis = c3;

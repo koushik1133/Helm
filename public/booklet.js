@@ -196,7 +196,7 @@
   }
   function render2d(d, figEl, legEl) {
     const fig = clear(figEl || $("#plan2d")), leg = clear(legEl || $("#legend2d") || el("ul"));
-    if (!figEl && snapUrl(d, "layout2d")) { snapFigure(fig, snapUrl(d, "layout2d"), "Floor plan of the event"); return; }
+    if (!figEl && snapUrl(d, "layout2d")) { snapFigure(fig, snapUrl(d, "layout2d"), "Floor plan of the event", () => render2d(Object.assign({}, d, { snapshots: null }))); return; }
     const m = normalizeItems(d.layout);
     if (!m.items.length) { emptyNote(fig, "The floor plan will appear here once it's ready."); return; }
     const b = bounds(m), pad = 4, w = b.x1 - b.x0 + pad * 2, h = b.y1 - b.y0 + pad * 2;
@@ -226,7 +226,7 @@
   }
   function render3d(d, figEl) {
     const fig = clear(figEl || $("#plan3d"));
-    if (!figEl && snapUrl(d, "layout3d")) { snapFigure(fig, snapUrl(d, "layout3d"), "3D view of the event"); return; }
+    if (!figEl && snapUrl(d, "layout3d")) { snapFigure(fig, snapUrl(d, "layout3d"), "3D view of the event", () => render3d(Object.assign({}, d, { snapshots: null }))); return; }
     const m = normalizeItems(d.layout);
     if (!m.items.length) { emptyNote(fig, "A 3D preview will appear here once the floor plan is ready."); return; }
     const b = bounds(m);
@@ -333,12 +333,16 @@
   }
   // 0069: studio-captured screenshots (signed https URLs from the server) win over the drawn plan
   function snapUrl(d, k) {
-    const s = d && d.snapshots && typeof d.snapshots === "object" ? d.snapshots[k] : null;
-    const u = s && typeof s === "object" ? s.url : s;
+    const sn = d && d.snapshots && typeof d.snapshots === "object" ? d.snapshots : null;
+    const kind = k === "layout3d" ? "3d" : "2d";
+    let u = sn ? (sn[kind] != null ? sn[kind] : sn[k]) : null;
+    if (u === true) { try { u = d.__token && global.BPStore && global.BPStore.booklet && global.BPStore.booklet.snapshotUrl ? global.BPStore.booklet.snapshotUrl(d.__token, kind) : null; } catch (e) { u = null; } }
+    if (u && typeof u === "object") u = u.url;
     return typeof u === "string" && /^https:\/\/[^\s"'<>]+$/i.test(u) && u.length <= 2000 ? u : null;
   }
-  function snapFigure(fig, url, alt) {
+  function snapFigure(fig, url, alt, fallback) {
     const img = el("img", "snap"); img.setAttribute("src", url); img.setAttribute("alt", alt); img.setAttribute("referrerpolicy", "no-referrer"); img.setAttribute("loading", "lazy");
+    if (fallback) img.addEventListener("error", fallback, { once: true });   // edge function dormant → drawn plan
     fig.appendChild(img);
   }
   // 0069: which sections the studio chose to share. No `sections` from the server → legacy booklet (all on).
@@ -390,8 +394,9 @@
       show("#err"); return;
     }
     if (!d || typeof d !== "object") { show("#bad"); return; }
+    d.__token = token;
     render(d); show("#app");
-    if (global.HelmBookletPkg && VISIBLE.packages !== false) global.HelmBookletPkg.mount(token, d).catch(() => {});
+    if (global.HelmBookletPkg && VISIBLE.packages !== false && !(d.menu && (d.menu.mode === "selected" || d.menu.mode === "hidden"))) global.HelmBookletPkg.mount(token, d).catch(() => {});
   }
 
   global.HelmBooklet = { render2d, render3d, visibleSections, snapUrl, money, setFormat, fmtTime, mapLink, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
