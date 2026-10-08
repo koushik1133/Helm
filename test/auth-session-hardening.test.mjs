@@ -31,10 +31,10 @@ function makeEnv(o = {}) {
   let session = user ? { user, access_token: o.accessToken || 'x' } : null;
   const listeners = [];
   const supaAuth = {
-    async getSession() { return { data: { session } }; },
+    async getSession() { if (o.exchangeFails) return { data: { session: null }, error: { message: 'code verifier missing', code: 'pkce_code_verifier_not_found' } }; return { data: { session } }; },
     onAuthStateChange(cb) { listeners.push(cb); return { data: { subscription: { unsubscribe() {} } } }; },
     async signInWithPassword(arg) { calls.push(['signInWithPassword', arg]); if (o.signInError) return { data: {}, error: o.signInError }; session = { user: o.signInUser || user || { id: 'u-1', email: arg.email } }; return { data: { user: session.user, session }, error: null }; },
-    async signUp(arg) { calls.push(['signUp', arg]); return { data: { user: { id: 'u-new' }, session: null }, error: null }; },
+    async signUp(arg) { calls.push(['signUp', arg]); if (o.signUpError) return { data: {}, error: o.signUpError }; return { data: { user: { id: 'u-new' }, session: null }, error: null }; },
     async signInWithOAuth(arg) { calls.push(['signInWithOAuth', arg]); return { data: {}, error: null }; },
     async signOut(arg) { calls.push(['signOut', arg || null]); if (!arg || arg.scope !== 'others') session = null; return { error: null }; },
     async resetPasswordForEmail(email, opts) { calls.push(['resetPasswordForEmail', email, opts]); return { data: {}, error: o.resetError || null }; },
@@ -59,6 +59,7 @@ function makeEnv(o = {}) {
     },
     from() { const q = { select: () => q, eq: () => q, order: () => q, single: async () => ({ data: { role: o.role || 'sales' }, error: null }) }; return q; },
   };
+  const hist = { replaceState(a, b, u) { calls.push(['replaceState', u]); } };
   const loc = { pathname: o.path || '/dashboard', search: o.search || '', hash: o.hash || '', origin: 'https://www.helm.events', href: '', hostname: 'www.helm.events',
     replace(u) { calls.push(['location.replace', u]); }, reload() { calls.push(['location.reload']); } };
   const doc = {
@@ -69,9 +70,9 @@ function makeEnv(o = {}) {
   };
   const win = {
     SUPABASE_CONFIG: Object.assign({ url: 'https://abcdefghijklmnopqrst.supabase.co', anonKey: 'anon' }, o.cfg || {}),
-    supabase: { createClient: () => client },
+    supabase: { createClient: (u, k, opts) => { calls.push(['createClient', opts]); return client; } },
     localStorage: memStore(o.ls), sessionStorage: memStore(o.ss),
-    location: loc, document: doc, navigator: { onLine: true },
+    location: loc, history: hist, document: doc, navigator: { onLine: true },
     fetch: async () => ({ status: 200, ok: true, json: async () => ({}) }),
     addEventListener() {}, removeEventListener() {},
     setTimeout: (fn) => { try { fn(); } catch (e) {} return 0; }, clearTimeout() {},
@@ -192,11 +193,11 @@ t('reset request: same result whether or not the account exists; redirect to /re
   const c = makeEnv({ user: null, path: '/login', resetError: { status: 429, message: 'Email rate limit exceeded' } }); await c.S.init();
   await assert.rejects(c.S.auth.requestPasswordReset('x@b.co'), (x) => x.code === 'rate_limited');
 });
-t('a recovery link that lands on another page is handed to /reset-password (never a silent sign-in)', async () => {
-  const e = makeEnv({ path: '/', hash: '#access_token=a&refresh_token=b&type=recovery' });
+t('a legacy implicit recovery fragment is NOT forwarded or used (PKCE only; see 7b)', async () => {
+  const e = makeEnv({ user: null, path: '/', hash: '#access_token=a&refresh_token=b&type=recovery' });
   e.S.init();
   await flush();
-  assert.deepEqual(e.calls.find((x) => x[0] === 'location.replace'), ['location.replace', '/reset-password#access_token=a&refresh_token=b&type=recovery']);
+  assert.ok(!e.calls.some((x) => x[0] === 'location.replace' && /access_token/.test(x[1])));
 });
 t('an unfinished reset keeps the app closed (pending "recovery") until the new password is set', async () => {
   const e = makeEnv({ path: '/dashboard', ls: { bp_recovery_pending: 'u-1' }, accessToken: RECOVERY_JWT });
@@ -448,21 +449,102 @@ t('cross-tab account switch: another user signing in elsewhere drops caches and 
 });
 
 /* ------------------------------------------------ 7. Google OAuth */
-t('Google sign-in: no offline access / consent prompt; implicit flow unchanged (no PKCE switch)', async () => {
+t('Google sign-in: no offline access / consent prompt; returns to login with ?code= (PKCE)', async () => {
   const e = makeEnv({ user: null, path: '/login' });
   await e.S.init();
   await e.S.auth.signInWithGoogle('https://www.helm.events/login.html');
   const q = e.calls.find((x) => x[0] === 'signInWithOAuth')[1].options.queryParams;
   assert.deepEqual(JSON.parse(JSON.stringify(q)), { prompt: 'select_account' });
   assert.ok(!/access_type/.test(SRC), 'no access_type anywhere');
-  assert.ok(!/flowType/.test(SRC), 'flow type not changed (PKCE is a documented recommendation)');
+});
+
+/* ------------------------------------------------ 7b. PKCE flow */
+t('PKCE: createClient uses flowType "pkce" + detectSessionInUrl (code exchange on return)', async () => {
+  const e = makeEnv({ user: null, path: '/login' });
+  await e.S.init();
+  const opts = e.calls.find((x) => x[0] === 'createClient')[1].auth;
+  assert.equal(opts.flowType, 'pkce');
+  assert.equal(opts.detectSessionInUrl, true);
+  assert.match(SRC, /flowType: "pkce"/);
+  assert.ok(!/flowType: "implicit"/.test(SRC));
+});
+t('PKCE: ?code= exchanged → session, code removed from the address bar, no link error', async () => {
+  const e = makeEnv({ path: '/login.html', search: '?code=abc&next=dashboard' });
+  await e.S.init();
+  assert.equal(e.S.auth.linkReturned(), true);
+  assert.equal(e.S.auth.linkError(), '');
+  const r = e.calls.find((x) => x[0] === 'replaceState');
+  assert.ok(r && !/code=/.test(r[1]) && /next=dashboard/.test(r[1]), 'code stripped, other params kept');
+});
+t('PKCE: ?code= that cannot be exchanged (other browser) → linkError, pages explain "same browser"', async () => {
+  const e = makeEnv({ user: null, path: '/reset-password', search: '?code=abc', exchangeFails: true });
+  await e.S.init();
+  assert.equal(e.S.auth.pendingUser(), null);
+  assert.equal(e.S.auth.linkError(), 'pkce_exchange_failed');
+  assert.match(read('public/reset-password.js'), /Open the link in the same browser you requested it from/);
+  assert.match(read('public/login.html'), /Open the link in the same browser you requested it from/);
+});
+t('PKCE: tokens are never read from the URL fragment (legacy #access_token is stripped)', async () => {
+  const e = makeEnv({ user: null, path: '/login', hash: '#access_token=AAA&refresh_token=BBB&type=recovery' });
+  await e.S.init();
+  assert.ok(e.calls.some((x) => x[0] === 'replaceState' && !/access_token/.test(x[1])));
+  assert.ok(!e.calls.some((x) => x[0] === 'location.replace' && /access_token/.test(x[1])), 'fragment not forwarded anywhere');
+  const rp = read('public/reset-password.js');
+  assert.ok(!/location\.hash/.test(rp), 'reset page reads ?code=, not the fragment');
+  assert.match(rp, /qp\.get\("code"\)/);
+});
+t('PKCE: a recovery code that lands on another page is sent to /reset-password', async () => {
+  const e = makeEnv({ path: '/login.html', search: '?code=abc', accessToken: RECOVERY_JWT });
+  e.S.init();
+  await flush(); await flush();
+  assert.ok(e.calls.some((x) => x[0] === 'location.replace' && x[1] === '/reset-password'));
+});
+t('sign-up sends emailRedirectTo (confirm link returns with ?code= to the sign-in page)', async () => {
+  const e = makeEnv({ user: null, path: '/login' });
+  await e.S.init();
+  await e.S.auth.signUp('n@b.co', 'Long-password12!');
+  assert.equal(e.calls.find((x) => x[0] === 'signUp')[1].options.emailRedirectTo, 'https://www.helm.events/login.html');
+  assert.match(read('public/login.html'), /emailRedirectTo:confirmRedirect\(\)/);
+});
+
+/* ------------------------------------- 7c. no account enumeration */
+t('enumeration: wrong password / unknown email / unconfirmed email → the same generic sign-in error', async () => {
+  for (const err of [{ message: 'Invalid login credentials', code: 'invalid_credentials', status: 400 },
+                     { message: 'Email not confirmed', code: 'email_not_confirmed', status: 400 },
+                     { message: 'User not found', status: 400 }]) {
+    const e = makeEnv({ user: null, path: '/login', signInError: err });
+    await e.S.init();
+    await assert.rejects(e.S.auth.signIn('a@b.co', 'pw'), (x) => x.message === 'Invalid email or password.' && x.code === 'invalid_credentials');
+  }
+  const e = makeEnv({ user: null, path: '/login', signInError: { message: 'Too many requests', status: 429 } });
+  await e.S.init();
+  await assert.rejects(e.S.auth.signIn('a@b.co', 'pw'), (x) => /Too many/.test(x.message), 'rate limit still explained');
+});
+t('enumeration: sign-up of an existing email looks exactly like a new one (generic "sent")', async () => {
+  const a = makeEnv({ user: null, path: '/login', signUpError: { message: 'User already registered', code: 'user_already_exists', status: 422 } });
+  await a.S.init();
+  const ra = await a.S.auth.signUp('x@b.co', 'Long-password12!');
+  const b = makeEnv({ user: null, path: '/login' });
+  await b.S.init();
+  const rb = await b.S.auth.signUp('y@b.co', 'Long-password12!');
+  assert.deepEqual(JSON.parse(JSON.stringify(ra)), JSON.parse(JSON.stringify(rb)));
+  assert.equal(ra.generic, "If this email can be used, we've sent a link. It can take a few minutes — check spam too.");
+});
+t('enumeration: reset for unknown email resolves like a known one; login page shows one message', async () => {
+  const e = makeEnv({ user: null, path: '/login', resetError: { message: 'User not found', status: 400 } });
+  await e.S.init();
+  assert.equal(await e.S.auth.requestPasswordReset('nobody@b.co'), true);
+  const h = read('public/login.html');
+  assert.match(h, /\$\("#fgOk"\)\.textContent=BPStore\.auth\.genericMessages\.sent/);
+  assert.ok(!/already registered\|email/.test(h), 'login no longer echoes "already registered"');
+  assert.ok(!/Account created\. Confirm/.test(h));
 });
 
 /* ------------------------------------------- 8. pages + headers */
 t('login.html: Forgot password view with a generic answer, two-step code view, CAPTCHA mounts', () => {
   const h = read('public/login.html');
   assert.match(h, /id="forgotBtn"/);
-  assert.match(h, /If an account exists for that email, we've sent a link/);
+  assert.match(h, /genericMessages\.sent/);
   assert.match(h, /id="mfaForm"/);
   assert.match(h, /HelmAuthUI\.mountCaptcha\(\$\("#captcha"\)/);
   assert.match(h, /signIn\(email, pw, \{captchaToken:capToken\(cap\)\}\)/);
