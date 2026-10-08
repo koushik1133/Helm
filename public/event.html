@@ -257,6 +257,7 @@
     $("#statusBadge").innerHTML=statBadge(ev.status);
     $("#apprBadge").innerHTML=apprBadge(ev.approvalStatus);
     $("#title").textContent=ev.title||ev.code;
+    try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[ev.code,ev.title].filter(Boolean).join(" "),kind:"event",href:"event.html?id="+encodeURIComponent(id)}); }catch(e){}
     const cl=ev.client||{};
     $("#meta").textContent=[ev.eventType, cl.name?("for "+cl.name):"", cl.eventDate||""].filter(Boolean).join(" · ")||"No client details yet";
     $("#total").textContent = canFin ? (evTotal()? inr(evTotal()):"—") : "—";

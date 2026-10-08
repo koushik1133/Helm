@@ -833,6 +833,13 @@
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
   const STUDIO_SEARCH_VERSION = "1";
+  // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
+  // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
+  const NAV_TRAIL_VERSION = "1";
+  if (typeof global.HelmTrail === "undefined") {
+    global.HelmTrail = { setCurrent(o) { if (o) (global.__helmTrailQ = global.__helmTrailQ || []).push(o); }, recent() { return []; }, _stub: true };
+  }
+  function navTrailClear() { try { const del = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.indexOf("helm_trail_") === 0) del.push(k); } del.forEach((k) => localStorage.removeItem(k)); } catch (e) {} }
   const NO_SEARCH_PAGES = { hq: 1, login: 1, "reset-password": 1, "profile-setup": 1 };
   let studioSearchLoading = false;
   function loadStudioSearch() {
@@ -842,6 +849,9 @@
     const s = document.createElement("script");
     s.src = vendorUrl("studio-search.js?v=" + STUDIO_SEARCH_VERSION);
     document.head.appendChild(s);
+    const t = document.createElement("script");
+    t.src = vendorUrl("nav-trail.js?v=" + NAV_TRAIL_VERSION);
+    document.head.appendChild(t);
     loadMobileNav();
   }
   // Mobile bottom bar (< 768px): same pages as the studio search; mobile-nav.js re-checks the role.
@@ -1415,7 +1425,7 @@
       return data; // browser navigates away to Google
     },
     // Explicit "Log out" = global sign-out (revokes every device's refresh token).
-    async signOut() { explicitSignOut = true; reauthClear(); if (supa) { try { await supa.auth.signOut(); } catch (e) { try { await supa.auth.signOut({ scope: "local" }); } catch (x) {} } } currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; pendingStep = null; sessClear(); userLocalClear(); studioSlugCache = null;
+    async signOut() { explicitSignOut = true; reauthClear(); if (supa) { try { await supa.auth.signOut(); } catch (e) { try { await supa.auth.signOut({ scope: "local" }); } catch (x) {} } } currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; pendingStep = null; sessClear(); userLocalClear(); navTrailClear(); studioSlugCache = null;
       lsDel(SESSION_START_KEY); lsDel(RECOVERY_KEY);
       if (mode === "supabase") authRequired = true; },
     // End every OTHER session of this account (other browsers / devices); this one stays.
