@@ -160,7 +160,11 @@ t('source: local-date floor, prefilled past date kept, max logout global, Broadc
   const page = read('public/inventory.html');
   assert.match(page, /overOk=true/);
   assert.match(page, /\{allowOver:overOk\}/);
+});t('store-api: staff.facets is defined once (a stale duplicate returned no total -> "2 of undefined")', () => {
+  assert.equal((SRC.match(/async facets\(/g) || []).length, 1);
+  assert.match(SRC, /async facets\(includeInactive\)/);
 });
+
 
 
 
