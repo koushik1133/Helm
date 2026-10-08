@@ -92,7 +92,7 @@
   .eye:hover{color:var(--ink)} .eye:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   .eye svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   .eye .eye-off{display:none} .eye[aria-pressed="true"] .eye-on{display:none} .eye[aria-pressed="true"] .eye-off{display:block}
-  .meter{display:flex;gap:4px;align-items:center;margin:-8px 0 12px} .meter span{flex:1;height:4px;border-radius:4px;background:var(--line)}
+  .meter{display:flex;gap:4px;align-items:center;margin:-8px 0 12px} .meter[hidden],#pwRules[hidden],#pwHint[hidden]{display:none} .meter span{flex:1;height:4px;border-radius:4px;background:var(--line)}
   .meter b{font-size:11.5px;font-weight:600;color:var(--ink-3);min-width:72px;text-align:right}
   .meter[data-level="1"] span:nth-child(-n+1){background:#d92d20} .meter[data-level="2"] span:nth-child(-n+2){background:#f79009}
   .meter[data-level="3"] span:nth-child(-n+3){background:#eab308} .meter[data-level="4"] span:nth-child(-n+4){background:#12b76a}

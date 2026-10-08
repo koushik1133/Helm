@@ -78,6 +78,7 @@
       ".hau-list{margin:4px 0 0;padding:0;list-style:none;font-size:13px}",
       ".hau-list li{padding:3px 0;color:var(--bpui-ink-2,#4a5673)}",
       /* notice cards (MFA nudge, profile nudge, read-only) — one stack above the theme toggle, max 2 visible (1 on phones), priority-ordered */
+      "@media (max-width:600px){body.hau-notes-pad{padding-bottom:var(--hau-notes-pad,0px)}}",
       ".hau-notes{position:fixed;right:20px;bottom:80px;z-index:900;display:flex;flex-direction:column;gap:10px;width:min(400px,calc(100vw - 32px));pointer-events:none;font-family:inherit}",
       ".hau-note{pointer-events:auto;display:grid;grid-template-columns:36px 1fr auto;gap:12px;align-items:start;padding:14px 12px 14px 14px;background:var(--panel,#fff);color:var(--ink,#141b2e);border:1px solid var(--line,#e5e0ea);border-radius:14px;box-shadow:0 1px 2px rgba(20,27,46,.06),0 12px 32px rgba(20,27,46,.14);font-size:14px;line-height:1.45;animation:hauIn .22s ease-out}",
       "html[data-theme=dark] .hau-note{box-shadow:0 1px 2px rgba(0,0,0,.5),0 16px 40px rgba(0,0,0,.6)}",
@@ -164,6 +165,13 @@
       ".hpf .hau-btn.ghost:hover{background:var(--hpf-soft)}",
       ".hpf .hpf-file{position:absolute!important;width:1px!important;height:1px!important;min-height:0!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;border:0!important}",
       "@media (max-width:420px){.hpf-photo{gap:14px;padding:14px}.hpf-av{width:68px;height:68px;font-size:23px}}",
+      /* photo crop step */
+      ".hpf-crop{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(10,12,20,.6)}",
+      ".hpf-cropbox{width:100%;max-width:360px;background:var(--hpf-bg,#fff);color:var(--hpf-ink,#111);border:1px solid var(--hpf-line,#ddd);border-radius:16px;padding:18px;box-shadow:0 20px 50px rgba(0,0,0,.35)}",
+      ".hpf-croptitle{margin:0 0 12px;font-weight:650;font-size:16px}",
+      ".hpf-cropcv{display:block;width:100%;aspect-ratio:1/1;border-radius:12px;background:#111;touch-action:none;cursor:grab}",
+      ".hpf-cropzoom{display:flex;align-items:center;gap:10px;margin:12px 0;font-size:13px}.hpf-cropzoom input{flex:1}",
+      ".hpf-crop .hau-row{justify-content:flex-end;gap:8px;margin:0}",
       /* progress */
       ".hpf-prog{margin:0 0 18px}.hpf-progtxt{margin:0 0 8px;font-size:13px;color:var(--hpf-ink2)}.hpf-progtxt b{color:var(--hpf-ink)}",
       ".hpf-bar{height:6px;border-radius:99px;background:var(--hpf-line2);overflow:hidden}",
@@ -596,6 +604,55 @@
       }, function () {});
     }
     function photoNote(text, bad) { photoMsg.textContent = text; photoMsg.classList.toggle("is-bad", !!bad); }
+    // Square crop + zoom before upload. Falls back to the raw file if the image can't be decoded.
+    function cropThen(f, done) {
+      if (!f || !/^image\/(png|jpeg|webp)$/.test(f.type || "") || typeof URL === "undefined" || !URL.createObjectURL) { done(f); return; }
+      var url = URL.createObjectURL(f), img = new Image();
+      img.onerror = function () { URL.revokeObjectURL(url); done(f); };
+      img.onload = function () {
+        var OUT = 512, cv = el("canvas", { class: "hpf-cropcv", width: String(OUT), height: String(OUT), "aria-label": "Drag to position your photo" });
+        var ctx = cv.getContext("2d"), base = OUT / Math.min(img.naturalWidth, img.naturalHeight), z = 1, ox = 0, oy = 0;
+        function clamp() { var w = img.naturalWidth * base * z, h = img.naturalHeight * base * z;
+          ox = Math.min(0, Math.max(OUT - w, ox)); oy = Math.min(0, Math.max(OUT - h, oy)); }
+        function draw() { clamp(); ctx.fillStyle = "#111"; ctx.fillRect(0, 0, OUT, OUT);
+          ctx.drawImage(img, ox, oy, img.naturalWidth * base * z, img.naturalHeight * base * z); }
+        ox = (OUT - img.naturalWidth * base) / 2; oy = (OUT - img.naturalHeight * base) / 2; draw();
+        var ov = el("div", { class: "hpf-crop", role: "dialog", "aria-modal": "true", "aria-label": "Crop your photo" });
+        var box = el("div", { class: "hpf-cropbox" });
+        box.appendChild(el("p", { class: "hpf-croptitle" }, "Crop your photo"));
+        box.appendChild(cv);
+        var zl = el("label", { class: "hpf-cropzoom" }, "Zoom");
+        var zr = el("input", { type: "range", min: "1", max: "3", step: "0.01", value: "1", "aria-label": "Zoom" });
+        zl.appendChild(zr); box.appendChild(zl);
+        var row = el("div", { class: "hau-row" });
+        var cancel = el("button", { type: "button", class: "hau-btn ghost" }, "Cancel");
+        var ok = el("button", { type: "button", class: "hau-btn primary" }, "Use photo");
+        row.appendChild(cancel); row.appendChild(ok); box.appendChild(row); ov.appendChild(box);
+        (form.closest(".hpf") || doc.body).appendChild(ov);
+        function close() { URL.revokeObjectURL(url); doc.removeEventListener("keydown", onKey); if (ov.parentNode) ov.parentNode.removeChild(ov); }
+        function onKey(e) { if (e.key === "Escape") { close(); } }
+        doc.addEventListener("keydown", onKey);
+        zr.addEventListener("input", function () { var nz = parseFloat(zr.value) || 1, c = OUT / 2;
+          ox = c - (c - ox) * nz / z; oy = c - (c - oy) * nz / z; z = nz; draw(); });
+        var drag = null;
+        cv.addEventListener("pointerdown", function (e) { drag = { x: e.clientX, y: e.clientY }; try { cv.setPointerCapture(e.pointerId); } catch (x) {} });
+        cv.addEventListener("pointermove", function (e) { if (!drag) return; var k = OUT / (cv.getBoundingClientRect().width || OUT);
+          ox += (e.clientX - drag.x) * k; oy += (e.clientY - drag.y) * k; drag = { x: e.clientX, y: e.clientY }; draw(); });
+        cv.addEventListener("pointerup", function () { drag = null; });
+        cv.addEventListener("pointercancel", function () { drag = null; });
+        ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+        cancel.addEventListener("click", close);
+        ok.addEventListener("click", function () {
+          var type = f.type === "image/png" ? "image/png" : "image/jpeg";
+          cv.toBlob(function (b) { close(); if (!b) { done(f); return; }
+            var name = String(f.name || "avatar").replace(/\.[a-z0-9]+$/i, "") + (type === "image/png" ? ".png" : ".jpg");
+            var out; try { out = new File([b], name, { type: type }); } catch (x) { out = b; }
+            done(out); }, type, 0.92);
+        });
+        ok.focus();
+      };
+      img.src = url;
+    }
     function upload(f) {
       if (!f || busy) return;
       busy = true; upBtn.disabled = true; rmBtn.disabled = true; photo.classList.add("is-busy"); photoNote("Uploading your photo…");
@@ -607,13 +664,13 @@
     avImg.addEventListener("error", function () { avImg.hidden = true; avIni.hidden = false; });
     upBtn.addEventListener("click", function () { if (!busy) fileIn.click(); });
     av.addEventListener("click", function () { if (!busy) fileIn.click(); });
-    fileIn.addEventListener("change", function () { var f = fileIn.files && fileIn.files[0]; fileIn.value = ""; upload(f); });
+    fileIn.addEventListener("change", function () { var f = fileIn.files && fileIn.files[0]; fileIn.value = ""; cropThen(f, upload); });
     ["dragenter", "dragover"].forEach(function (t) { photo.addEventListener(t, function (e) { e.preventDefault(); photo.classList.add("is-drag"); }); });
     ["dragleave", "dragend"].forEach(function (t) { photo.addEventListener(t, function () { photo.classList.remove("is-drag"); }); });
     photo.addEventListener("drop", function (e) {
       e.preventDefault(); photo.classList.remove("is-drag");
       var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-      if (f) upload(f);
+      if (f) cropThen(f, upload);
     });
     rmBtn.addEventListener("click", function () {
       if (busy) return;
@@ -1031,6 +1088,16 @@
     notes.sort(function (a, b) { return a.priority - b.priority; });
     var max = NOTE_MAX; try { if (global.matchMedia && global.matchMedia("(max-width:600px)").matches) max = 1; } catch (e) {}
     notes.forEach(function (n, i) { n.node.hidden = i >= max; if (noteHost) noteHost.appendChild(n.node); });
+    // mobile: reserve room under the page so content scrolls clear of the floating notice
+    try {
+      var pad = (max === 1 && notes.length && noteHost) ? Math.ceil(noteHost.getBoundingClientRect().height) + 16 : 0;
+      doc.body.classList.toggle("hau-notes-pad", pad > 0);
+      if (pad) doc.body.style.setProperty("--hau-notes-pad", pad + "px"); else doc.body.style.removeProperty("--hau-notes-pad");
+    } catch (e) {}
+  }
+  function tourActive() {
+    var t = doc.querySelector(".htour");
+    return !!(t && !t.hidden && t.isConnected && t.getClientRects().length);
   }
   // showNote({id, priority (lower = more important), icon, tone, title, body, primary:{label,onClick}, secondary:{label,onClick}, onDismiss, dismissLabel})
   function showNote(o) {
@@ -1135,13 +1202,27 @@
         if (st.auth.mfa.requiredForAdmins()) return forceEnroll();
         var dismissed = noteSnoozed("mfa");
         if (dismissed || banner) return;
+        // at most once per browser session, and never on top of a tour step
+        var SK = "hau_mfa_nudge_session";
+        try { if (global.sessionStorage && sessionStorage.getItem(SK)) return; } catch (e) {}
+        var tries = 0;
+        function waitTour() {
+          if (banner) return;
+          if (tourActive() && tries++ < 200) { setTimeout(waitTour, 3000); return; }
+          if (tourActive()) return;
+          try { if (global.sessionStorage) sessionStorage.setItem(SK, "1"); } catch (e) {}
+          showMfaNudge();
+        }
+        setTimeout(waitTour, 2500);
+      });
+    }).catch(function () {});
+  }
+  function showMfaNudge() {
         banner = showNote({ id: "hauMfaNudge", priority: 2, icon: "shield", title: "Turn on two-step verification",
           body: "Admins control every user and setting — protect your studio with a code from your phone.",
           primary: { label: "Set up now", onClick: function () { openAccount(); } },
           secondary: { label: "Later", onClick: function () { snoozeNote("mfa", 3); banner = null; } },
           onDismiss: function () { snoozeNote("mfa", 3); banner = null; }, dismissLabel: "Dismiss — remind me in 3 days" });
-      });
-    }).catch(function () {});
   }
   // MFA_REQUIRED_FOR_ADMINS: a blocking set-up screen (no close button).
   function forceEnroll() {

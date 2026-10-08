@@ -79,3 +79,5 @@ forward  supabase/migrations/0063_notification_mutes.sql
 forward  supabase/migrations/0064_saved_views.sql
 forward  supabase/migrations/0065_client_booklet.sql
 forward  supabase/migrations/0066_notification_task_ref.sql
+# 0067 (pretty URLs) lands here, above 0068, when its branch merges.
+forward  supabase/migrations/0068_client_timeline_totals.sql
