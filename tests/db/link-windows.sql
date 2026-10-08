@@ -67,6 +67,8 @@ do $$ declare n int; m int; begin
   perform pg_temp.set_event(current_date + 5, null);
   perform auth.login_as((select id from auth.users where email='a_admin@a.test')); execute 'reset role';
   update public.event_sites set data = jsonb_build_object('photos', jsonb_build_array('https://x/storage/v1/object/public/invite-media/a0000000-0000-4000-8000-000000000001/a0000000-0000-4000-8000-00000000da01/lw.png')) where slug='lw-a';
+  -- 0048 (NV-04): a guest read is bound to the slug the invitation page sends
+  perform set_config('request.headers', '{"x-helm-site-slug":"lw-a"}', false);
   perform auth.login_anon(); select count(*) into n from storage.objects where bucket_id='invite-media' and storage.filename(name)='lw.png';
   perform pg_temp.set_event(current_date - 9, null);
   perform auth.login_as((select id from auth.users where email='a_admin@a.test')); execute 'reset role';
@@ -74,6 +76,7 @@ do $$ declare n int; m int; begin
   perform auth.logout(); execute 'reset role';
   perform auth.login_anon(); select count(*) into m from storage.objects where bucket_id='invite-media' and storage.filename(name)='lw.png';
   execute 'reset role'; perform auth.logout(); execute 'reset role';
+  perform set_config('request.headers', '', false);
   insert into _lw values('invite photos readable while live, hidden after', case when n=1 and m=0 then 'PASS' else 'FAIL: '||n||'/'||m end);
 end $$;
 

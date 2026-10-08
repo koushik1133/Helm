@@ -81,9 +81,12 @@ const sEnd = api.indexOf('// ---- local-mode state');
 const consts = api.match(/const TASK_PROOF_MAX = [^\n]*\n\s*const TASK_PROOF_KEY = [^\n]*\n/);
 assert.ok(wStart > 0 && wEnd > wStart && sStart > 0 && sEnd > sStart && consts, 'store-api evidence code not found');
 function harness(grant) {
-  const calls = { rpc: [], upload: [] };
+  const calls = { rpc: [], upload: [], guard: [] };
   const ctx = {
     Error, Math, Uint8Array,
+    // 0048 upload guard (covered by upload-guard.test.mjs): record the call, pass the bytes through
+    ugPrepareImage: async (f, o) => { calls.guard.push(['image', o && o.maxBytes]); return { blob: f, mime: 'image/jpeg', ext: 'jpg' }; },
+    ugCheckFile: async (f, allow) => { calls.guard.push(['file', allow.length]); return null; },
     rpc: async (fn, args) => { calls.rpc.push([fn, args]); return fn === 'worker_evidence_upload' ? grant : { ok: true, status: 'completed' }; },
     supa: { storage: { from: (b) => ({ upload: async (path, file, opts) => { calls.upload.push([b, path, opts]); return { error: null }; } }) } },
   };
@@ -101,7 +104,7 @@ await t('upload: grant first, then write exactly the granted key (no upsert, ser
   const p = await W.uploadEvidence('tok', 'task', 'proof_photo', jpeg);
   assert.equal(p, KEY + '.jpg');
   assert.deepEqual(JSON.parse(JSON.stringify(calls.rpc)), [['worker_evidence_upload', { p_token: 'tok', p_task_id: 'task', p_kind: 'proof_photo', p_mime: 'image/jpeg' }]]);
-  assert.deepEqual(JSON.parse(JSON.stringify(calls.upload)), [['task-proof', KEY + '.jpg', { upsert: false, contentType: 'image/jpeg' }]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(calls.upload)), [['task-proof', KEY + '.jpg', { upsert: false, contentType: 'image/jpeg' }]]);  assert.deepEqual(calls.guard, [['image', 8 * 1024 * 1024]], 'proof photo is re-encoded (EXIF/GPS stripped) before upload');
 });
 
 await t('upload: wrong bytes / wrong kind / too big / odd server key are refused before anything is written', async () => {

@@ -95,7 +95,7 @@ t('public invitation signs photos before render (load + studio preview)', () => 
   assert.match(invite, /site=await signPhotos\(site\);[\s\S]{0,40}render\(site\)/, 'load() must sign before render');
   assert.match(invite, /site=await signPhotos\(m\.site\)/, 'preview message must sign before render');
   assert.match(invite, /if\(seq!==pvSeq\) return;/, 'stale preview renders must be dropped');
-  assert.match(invite, /BPStore\.sites\.mediaUrls\(need\)/);
+  assert.match(invite, /BPStore\.sites\.mediaUrls\(need,undefined,\(site&&site\.slug\)\|\|getSlug\(\)\)/, "guest signing is slug-bound (0048)");
 });
 t('invite studio thumbnails render signed URLs, store references', () => {
   const studio = read('public/invite-studio.html');

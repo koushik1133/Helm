@@ -60,3 +60,4 @@ forward  supabase/migrations/0044_revert_matrix_seed.sql
 forward  supabase/migrations/0045_hq_subscriptions.sql
 forward  supabase/migrations/0046_d6_money_freeze.sql
 forward  supabase/migrations/0047_hq_mfa_optional.sql
+forward  supabase/migrations/0048_upload_hardening.sql

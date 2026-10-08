@@ -63,7 +63,9 @@ do $$ begin
 end $$;
 do $$ declare n int; names text; begin
   perform auth.login_anon();
+  perform set_config('request.headers', '{"x-helm-site-slug":"p201-a"}', false);   -- 0048: slug-bound guest read
   select count(*), string_agg(storage.filename(name),',') into n, names from storage.objects where bucket_id='invite-media';
+  perform set_config('request.headers', '', false);
   insert into _sp values('P2-01 anon: published site photo readable', case when n=1 and names='on-site.png' then 'PASS: exactly the on-site photo' else 'FAIL: n='||n||' '||coalesce(names,'') end);
   perform auth.logout();
 end $$;

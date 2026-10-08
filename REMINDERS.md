@@ -35,3 +35,8 @@ parked. (Kept out of the phase flow; pick up when ready.)
 ---
 
 _Fixed on 2026-09-17 instead of deferring: Readiness empty-passes, Inventory over-commit guard._
+
+## 0048 upload hardening — owner items (2026-10-07)
+- Paste `supabase/APPLY-0048.sql` on STAGING, then PROD, together with the front-end deploy (store-api.js v114 / invite.html). Every VERIFY row must be `true`.
+- On staging, with only the anon key: `POST /storage/v1/object/list/invite-media {prefix:""}` must return nothing; open a published invitation and confirm photos load (the page sends `x-helm-site-slug`). This confirms the deployed storage-api forwards request headers and `storage.operation` to RLS.
+- **Antivirus is NOT implemented.** It needs an external scanner (e.g. ClamAV or a vendor API run from an edge function or storage webhook that quarantines a file before anyone can read it). Uploads today are limited to re-encoded images, PDFs and audio, checked by bytes, but PDFs and audio are not scanned for malware.

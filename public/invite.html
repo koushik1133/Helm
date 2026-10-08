@@ -188,7 +188,7 @@
 
 <script src="/telemetry.js?v=3"></script>
 <script src="/config.js?v=93"></script>
-<script src="/store-api.js?v=113"></script>
+<script src="/store-api.js?v=114"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -340,7 +340,7 @@
   async function signPhotos(site){
     const d=site&&site.data; if(!d||!Array.isArray(d.photos)||!d.photos.length) return site;
     const now=Date.now(), need=d.photos.filter(u=>{ const c=SIGNED.get(u); return !c||now-c.t>3e6; });
-    if(need.length){ const out=await BPStore.sites.mediaUrls(need); need.forEach((u,i)=>SIGNED.set(u,{url:out[i]||u,t:now})); }
+    if(need.length){ const out=await BPStore.sites.mediaUrls(need,undefined,(site&&site.slug)||getSlug()); need.forEach((u,i)=>SIGNED.set(u,{url:out[i]||u,t:now})); }
     return Object.assign({},site,{data:Object.assign({},d,{photos:d.photos.map(u=>(SIGNED.get(u)||{}).url||u)})});
   }
   let pvSeq=0;
