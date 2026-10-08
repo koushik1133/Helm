@@ -1,6 +1,6 @@
 # Gitleaks config for Helm.
 # Extends the default ruleset and allowlists ONLY the exact Supabase anon keys
-# that are committed on purpose (public/config.js: production + staging). They are
+# that are committed on purpose (public/config.js: production; public/config.staging.js: staging). They are
 # public-by-design, RLS-protected JWTs with role=anon — NOT secrets.
 #
 # There is deliberately NO path allowlist: any other credential added to

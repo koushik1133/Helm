@@ -24,7 +24,11 @@ import { dirname, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = join(__dirname, '..', '..', 'public', 'config.js');
-const SRC = readFileSync(CONFIG_PATH, 'utf8');
+// Staging values live in config.staging.js (non-prod hosts only); evaluate it
+// first, as the browser effectively does, so config.js routes with it defined.
+const STAGING_PATH = join(__dirname, '..', '..', 'public', 'config.staging.js');
+const CONFIG_ONLY_SRC = readFileSync(CONFIG_PATH, 'utf8');
+const SRC = readFileSync(STAGING_PATH, 'utf8') + '\n' + CONFIG_ONLY_SRC;
 
 const PROD_REF = 'nqltzgiwznphugcfhmbm';
 const STAGING_REF = 'xizehqgeyjcfpzrdymly';

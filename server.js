@@ -197,6 +197,16 @@ const NOINDEX = 'noindex, nofollow, noarchive';
 // Loopback host? On localhost we serve over http, so `upgrade-insecure-requests`
 // would rewrite same-origin subresources (e.g. the invitation preview iframe) to
 // https://localhost and break them. Prod is https, where UIR is kept.
+// Production hosts (same list as public/config.js + scripts/gen-csp.mjs): their CSP
+// allows ONLY the production Supabase project — the staging origin is stripped.
+const PROD_HOSTS = new Set(['www.helm.events', 'helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app']);
+const STAGING_SUPABASE_REF = 'xizehqgeyjcfpzrdymly';
+function isProdHost(req) {
+  return PROD_HOSTS.has(String((req && req.headers && req.headers.host) || '').toLowerCase().replace(/:\d+$/, ''));
+}
+function stripStagingCsp(v) {
+  return v.split(';').map((d) => d.split(' ').filter((t) => !t.includes(STAGING_SUPABASE_REF)).join(' ')).join(';');
+}
 function isLocalHost(req) {
   return /^(localhost|127\.0\.0\.1|\[::1\])(:|$)/i.test((req && req.headers && req.headers.host) || '');
 }
@@ -226,6 +236,7 @@ function securityHeadersFor(req, filePath) {
   }
   h['Content-Security-Policy'] = withHashes(h['Content-Security-Policy'], inlineScriptHashes(), inlineStyleHashes());
   if (isLocalHost(req)) h['Content-Security-Policy'] = h['Content-Security-Policy'].replace(/;\s*upgrade-insecure-requests/, '');
+  if (isProdHost(req)) h['Content-Security-Policy'] = stripStagingCsp(h['Content-Security-Policy']);
   return h;
 }
 
