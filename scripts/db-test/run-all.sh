@@ -79,6 +79,7 @@ run "event-groups"       "EVENT-GROUPS: ALL PASS \(36/36\)" psql -q -f tests/db/
 run "event-groups-race"  "EVENT-GROUP-RACE: PASS"          bash tests/db/event-groups-race.sh
 run "notification-prefs" "NOTIFICATION-PREFS: ALL PASS \(47/47\)" psql -q -f tests/db/notification-prefs.sql
 run "member-profile"     "MEMBER-PROFILE: ALL PASS \(81/81\)" psql -q -f tests/db/member-profile.sql
+run "phone-verify"       "PHONE-VERIFY: ALL PASS \(40/40\)" psql -q -f tests/db/phone-verify.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

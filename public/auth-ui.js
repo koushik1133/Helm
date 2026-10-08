@@ -98,41 +98,101 @@
       "@media (prefers-reduced-motion:reduce){.hau-note{animation:none}}",
       "@media (max-width:600px){.hau-notes{left:16px;right:16px;bottom:72px;width:auto}}",
       /* profile form (Account panel + /profile-setup) — page tokens first, BPUI tokens as fallback */
-      ".hpf{--hpf-ink:var(--ink,var(--bpui-ink,#141b2e));--hpf-ink2:var(--ink-3,var(--bpui-ink-2,#4a5673));--hpf-line:var(--line-strong,var(--bpui-line,#86808f));--hpf-bg:var(--panel-2,var(--bpui-bg,#fff));--hpf-acc:var(--accent,var(--bpui-accent,#6d28d9));--hpf-soft:var(--accent-soft,var(--bpui-soft,#f4f2fb));--hpf-bad:var(--bpui-danger,#b91c1c);color:var(--hpf-ink);font-size:15px}",
-      "html[data-theme=dark] .hpf{--hpf-bad:#f87171}",
-      ".hpf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:0 14px}",
-      ".hpf-f{margin:0 0 14px;min-width:0}",
-      ".hpf .hpf-l{display:block;font-size:13px;font-weight:600;text-transform:none;letter-spacing:normal;color:var(--hpf-ink);margin:0 0 5px}",
-      ".hpf .hpf-l .hpf-opt{font-weight:400;color:var(--hpf-ink2)}",
-      ".hpf .hpf-i{display:block;width:100%;box-sizing:border-box;min-height:44px;height:auto;padding:9px 12px;border:1px solid var(--hpf-line);border-radius:10px;background:var(--hpf-bg);color:var(--hpf-ink);font:inherit;font-size:16px;letter-spacing:normal;margin:0}",
+      ".hpf{--hpf-ink:var(--ink,var(--bpui-ink,#141b2e));--hpf-ink2:var(--ink-2,var(--bpui-ink-2,#4a5673));--hpf-ink3:var(--ink-3,#6b6577);--hpf-line:var(--line-strong,var(--bpui-line,#86808f));--hpf-line2:var(--line,#e8e3db);--hpf-bg:var(--panel,var(--bpui-bg,#fff));--hpf-bg2:var(--panel-2,#faf8f5);--hpf-acc:var(--accent,var(--bpui-accent,#6d28d9));--hpf-soft:var(--accent-soft,var(--bpui-soft,#f4f2fb));--hpf-bad:var(--bad,var(--bpui-danger,#b91c1c));--hpf-ok:var(--safe-text,#0f7a43);color:var(--hpf-ink);font-size:15px}",
+      ".hpf-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}",
+      "@media (max-width:620px){.hpf-grid{grid-template-columns:minmax(0,1fr)}}",
+      ".hpf-grid>.hpf-wide{grid-column:1/-1}",
+      ".hpf-f{margin:0 0 16px;min-width:0}",
+      ".hpf .hpf-l{display:block;font-size:13.5px;font-weight:600;text-transform:none;letter-spacing:normal;color:var(--hpf-ink);margin:0 0 6px}",
+      ".hpf .hpf-l .hpf-opt,.hpf .hpf-l .fv-opt{font-weight:400;color:var(--hpf-ink3)}",
+      "@media (max-width:420px){.hpf-line{flex-wrap:wrap}.hpf .hpf-vbtn{flex:1 1 100%}}",
+      ".hpf-line{display:flex;gap:8px;align-items:stretch;min-width:0}.hpf-line>.hp,.hpf-line>.hpf-i{flex:1 1 auto;min-width:0}",
+      ".hpf .hpf-i{display:block;width:100%;box-sizing:border-box;min-height:46px;height:auto;padding:10px 13px;border:1px solid var(--hpf-line);border-radius:10px;background:var(--hpf-bg);color:var(--hpf-ink);font:inherit;font-size:16px;letter-spacing:normal;margin:0;transition:border-color .15s,box-shadow .15s}",
+      ".hpf .hpf-i::placeholder,.hpf .hp-num::placeholder,.hpf .hpf-skin::placeholder{color:var(--hpf-ink3);opacity:.85}",
       ".hpf .hpf-i:focus{outline:none;border-color:var(--hpf-acc);box-shadow:0 0 0 3px var(--hpf-soft)}",
-      ".hpf .hpf-i[aria-invalid=true]{border-color:var(--hpf-bad)}",
-      ".hpf-pre{display:flex;align-items:stretch}",
-      ".hpf-pre>span{display:flex;align-items:center;padding:0 12px;border:1px solid var(--hpf-line);border-right:0;border-radius:10px 0 0 10px;background:var(--hpf-soft);color:var(--hpf-ink);font-weight:600;font-size:15px}",
-      ".hpf .hpf-pre>.hpf-i{border-radius:0 10px 10px 0;flex:1;min-width:0}",
-      ".hpf .hpf-h{margin:5px 0 0;font-size:12.5px;color:var(--hpf-ink2)}",
-      ".hpf .hpf-e{margin:5px 0 0;font-size:13px;color:var(--hpf-bad);font-weight:600}.hpf .hpf-e:empty{display:none}",
-      ".hpf-cbrow{display:flex;align-items:center;gap:8px;margin:-4px 0 14px;font-size:14px;color:var(--hpf-ink)}",
-      ".hpf .hpf-cb{width:18px!important;height:18px!important;min-height:0!important;padding:0!important;margin:0!important;accent-color:var(--hpf-acc);flex:0 0 auto}",
+      ".hpf .hp{min-height:46px;background:var(--hpf-bg)}",
+      ".hpf .hpf-h{margin:6px 0 0;font-size:12.5px;line-height:1.45;color:var(--hpf-ink3)}",
+      ".hpf .hpf-h.is-bad{color:var(--hpf-bad);font-weight:600}",
+      ".hpf .hpf-e{margin:6px 0 0}",
+      /* sections */
+      ".hpf-sec{border:1px solid var(--hpf-line2);border-radius:14px;padding:18px 18px 4px;margin:0 0 14px;min-width:0;background:var(--hpf-bg)}",
+      "fieldset.hpf-sec>legend{float:left;width:100%;padding:0;margin:0 0 2px}",
+      "fieldset.hpf-sec>legend+.hpf-secs{clear:both}",
+      ".hpf-sect{display:block;font-size:15.5px;font-weight:650;color:var(--hpf-ink);letter-spacing:-.005em}",
+      ".hpf-secs{display:block;margin:2px 0 14px;font-size:13px;color:var(--hpf-ink3);font-weight:400}",
+      "details.hpf-sec{padding:0}",
+      "details.hpf-sec>.hpf-secb{padding:2px 18px 4px}",
+      ".hpf-sum{list-style:none;display:flex;align-items:center;gap:12px;padding:16px 18px;cursor:pointer;border-radius:14px}",
+      ".hpf-sum::-webkit-details-marker{display:none}",
+      ".hpf-sum::after{content:\"\";flex:0 0 auto;width:9px;height:9px;border-right:2px solid var(--hpf-ink3);border-bottom:2px solid var(--hpf-ink3);transform:rotate(45deg) translate(-2px,-2px);transition:transform .15s}",
+      "details[open]>.hpf-sum::after{transform:rotate(-135deg) translate(-2px,-2px)}",
+      ".hpf-sum:hover{background:var(--hpf-bg2)}.hpf-sum:focus-visible{outline:2px solid var(--hpf-acc);outline-offset:2px}",
+      ".hpf-sumtx{flex:1 1 auto;min-width:0}.hpf-sum .hpf-secs{margin:2px 0 0}",
+      ".hpf-badge{flex:0 0 auto;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--hpf-ink3);background:var(--hpf-bg2);border:1px solid var(--hpf-line2);border-radius:99px;padding:3px 9px}",
+      /* checkbox row */
+      ".hpf-cbrow{display:flex;align-items:center;gap:10px;margin:-4px 0 16px;font-size:14px;color:var(--hpf-ink)}",
+      ".hpf .hpf-cb{width:18px!important;height:18px!important;min-height:0!important;min-width:0!important;padding:0!important;margin:0!important;accent-color:var(--hpf-acc);flex:0 0 auto}",
       ".hpf .hpf-cbrow label{margin:0;font-size:14px;font-weight:500;text-transform:none;letter-spacing:normal;color:var(--hpf-ink)}",
-      ".hpf-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px;padding:0;list-style:none}.hpf-chips:empty{display:none}",
-      ".hpf-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 4px 3px 10px;border-radius:999px;background:var(--hpf-soft);color:var(--hpf-ink);font-size:13.5px;border:1px solid var(--hpf-line);max-width:100%}",
+      /* skills chips inside one box */
+      ".hpf-skbox{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-height:46px;box-sizing:border-box;padding:6px 8px;border:1px solid var(--hpf-line);border-radius:10px;background:var(--hpf-bg);cursor:text;transition:border-color .15s,box-shadow .15s}",
+      ".hpf-skbox:focus-within{border-color:var(--hpf-acc);box-shadow:0 0 0 3px var(--hpf-soft)}",
+      ".hpf-chips{display:contents;margin:0;padding:0;list-style:none}",
+      ".hpf-chip{display:inline-flex;align-items:center;gap:2px;padding:3px 3px 3px 11px;border-radius:999px;background:var(--hpf-soft);color:var(--hpf-ink);font-size:13.5px;font-weight:500;border:1px solid transparent;max-width:100%}",
       ".hpf-chip>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
-      ".hpf-x{width:26px;height:26px;border:0;border-radius:50%;background:transparent;color:var(--hpf-ink2);font:inherit;font-size:16px;line-height:1;cursor:pointer;padding:0}",
-      ".hpf-x:hover,.hpf-x:focus-visible{background:var(--hpf-line);color:var(--hpf-ink)}",
-      ".hpf-photo{display:flex;align-items:center;gap:14px;margin:0 0 16px;flex-wrap:wrap}",
-      ".hpf-av{position:relative;width:76px;height:76px;border-radius:50%;overflow:hidden;flex:0 0 auto;background:linear-gradient(135deg,#6d28d9,#4f46e5);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:26px}",
+      ".hpf .hpf-x{width:24px;height:24px;min-height:0!important;min-width:0!important;border:0;border-radius:50%;background:transparent;color:var(--hpf-ink2);font:inherit;font-size:16px;line-height:1;cursor:pointer;padding:0}",
+      ".hpf-x:hover,.hpf-x:focus-visible{background:var(--hpf-line2);color:var(--hpf-ink)}",
+      ".hpf .hpf-skin{flex:1 1 140px;min-width:120px;border:0!important;outline:none;background:transparent!important;box-shadow:none!important;color:var(--hpf-ink);font:inherit;font-size:16px;padding:6px 4px;min-height:0;margin:0}",
+      /* photo */
+      ".hpf-photo{display:flex;align-items:center;gap:18px;margin:0 0 18px;padding:16px;border:1.5px dashed var(--hpf-line2);border-radius:16px;background:var(--hpf-bg2);transition:border-color .15s,background .15s}",
+      ".hpf-photo.is-drag{border-color:var(--hpf-acc);background:var(--hpf-soft)}",
+      ".hpf-photo.is-busy .hpf-av{opacity:.6}",
+      ".hpf-av{position:relative;width:84px;height:84px;border-radius:50%;overflow:hidden;flex:0 0 auto;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:28px;cursor:pointer;box-shadow:0 0 0 4px var(--hpf-bg),0 0 0 5px var(--hpf-line2)}",
       ".hpf-av img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}",
+      ".hpf-avcam{position:absolute;right:0;bottom:0;width:28px;height:28px;border-radius:50%;background:var(--hpf-bg);color:var(--hpf-ink);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.25)}",
+      ".hpf-avcam svg{width:15px;height:15px}",
+      ".hpf-photocol{min-width:0;flex:1}",
+      ".hpf-phototitle{margin:0 0 8px;font-weight:650;font-size:14.5px}",
       ".hpf-photo .hau-row{margin:0}",
+      ".hpf .hau-btn{background:var(--hpf-bg);color:var(--hpf-ink);border-color:var(--hpf-line)}",
+      ".hpf .hau-btn.ghost{background:transparent;border-color:transparent}",
+      ".hpf .hau-btn.danger{color:var(--hpf-bad)}",
+      ".hpf .hau-btn.primary{background:var(--hpf-acc);border-color:var(--hpf-acc);color:#fff}",
+      ".hpf .hau-btn.ghost:hover{background:var(--hpf-soft)}",
       ".hpf .hpf-file{position:absolute!important;width:1px!important;height:1px!important;min-height:0!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;border:0!important}",
-      ".hpf-prog{margin:0 0 16px}.hpf-bar{height:6px;border-radius:99px;background:var(--hpf-soft);overflow:hidden;border:1px solid var(--hpf-line)}",
-      ".hpf-bar>span{display:block;height:100%;width:0;background:var(--hpf-acc);transition:width .25s}",
-      "@media (prefers-reduced-motion:reduce){.hpf-bar>span{transition:none}}",
+      "@media (max-width:420px){.hpf-photo{gap:14px;padding:14px}.hpf-av{width:68px;height:68px;font-size:23px}}",
+      /* progress */
+      ".hpf-prog{margin:0 0 18px}.hpf-progtxt{margin:0 0 8px;font-size:13px;color:var(--hpf-ink2)}.hpf-progtxt b{color:var(--hpf-ink)}",
+      ".hpf-bar{height:6px;border-radius:99px;background:var(--hpf-line2);overflow:hidden}",
+      ".hpf-bar>span{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--hpf-acc),var(--accent-2,#4f46e5));transition:width .3s}",
+      ".hpf-prog.is-ready .hpf-bar>span{background:linear-gradient(90deg,#16a34a,#0f7a43)}",
+      "@media (prefers-reduced-motion:reduce){.hpf-bar>span,.hpf-sum::after{transition:none}}",
+      /* phone verify */
+      ".hpf .hpf-vbtn{flex:0 0 auto;min-height:46px;padding:0 16px;border-radius:10px;border-color:var(--hpf-line);font-weight:650;color:var(--hpf-acc)}",
+      ".hpf .hpf-vbtn:hover{background:var(--hpf-soft)}",
+      ".hpf-vstate{display:none;align-items:center;gap:6px;margin:6px 0 0;font-size:13px;font-weight:600;color:var(--hpf-ok)}.hpf-vstate.is-ok{display:flex}",
+      ".hpf-vic{width:16px;height:16px}",
+      ".hpf-vpanel{margin:10px 0 0;padding:14px;border-radius:12px;background:var(--hpf-bg2);border:1px solid var(--hpf-line2)}",
+      ".hpf-vinfo{margin:0;font-size:13.5px;line-height:1.5;color:var(--hpf-ink2)}",
+      ".hpf-otp{display:flex;gap:8px;margin:12px 0 4px}",
+      ".hpf .hpf-otpc{width:46px;height:52px;min-height:0;box-sizing:border-box;padding:0;text-align:center;font:inherit;font-size:22px;font-weight:650;border:1px solid var(--hpf-line);border-radius:10px;background:var(--hpf-bg);color:var(--hpf-ink);font-variant-numeric:tabular-nums}",
+      ".hpf .hpf-otpc:focus{outline:none;border-color:var(--hpf-acc);box-shadow:0 0 0 3px var(--hpf-soft)}",
+      ".hpf-otp.is-bad .hpf-otpc{border-color:var(--hpf-bad)}",
+      "@media (max-width:400px){.hpf-otp{gap:6px}.hpf .hpf-otpc{width:40px;height:48px;font-size:20px}}",
+      /* privacy + actions */
+      ".hpf-priv{display:flex;gap:8px;align-items:flex-start;margin:4px 2px 16px;font-size:12.5px;line-height:1.5;color:var(--hpf-ink3)}.hpf-privic{width:16px;height:16px;flex:0 0 auto;margin-top:1px}",
+      ".hpf-actions{display:flex;align-items:center;justify-content:flex-end;gap:14px;margin-top:4px}",
+      ".hpf-actx{margin:0;font-size:13px;color:var(--hpf-ink3);flex:1 1 auto;min-width:0}",
+      ".hpf-setup .hpf-actions{position:sticky;bottom:0;z-index:5;margin:8px -30px -24px;padding:14px 30px calc(14px + env(safe-area-inset-bottom,0px));background:color-mix(in srgb,var(--hpf-bg) 92%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-top:1px solid var(--hpf-line2);border-radius:0 0 18px 18px}",
+      "@media (max-width:560px){.hpf-setup .hpf-actions{margin:8px -18px -18px;padding:12px 18px calc(12px + env(safe-area-inset-bottom,0px));border-radius:0 0 14px 14px}.hpf-setup .hpf-actx{display:none}.hpf-setup .hpf-save{width:100%}}",
+      ".hpf-save{display:inline-flex;align-items:center;justify-content:center;gap:8px}",
+      ".hpf-spin{display:none;width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-right-color:transparent;animation:hpfSpin .7s linear infinite}",
+      ".hpf-save.is-loading .hpf-spin{display:inline-block}",
+      "@keyframes hpfSpin{to{transform:rotate(360deg)}}",
+      "@media (prefers-reduced-motion:reduce){.hpf-spin{animation-duration:1.6s}}",
       ".hpf .hpf-alert{border-radius:10px;padding:10px 13px;font-size:13.5px;margin:0 0 14px;background:#fdecec;color:#b42318;border:1px solid #f5c6c6}",
       ".hpf .hpf-alert.ok{background:#e7f6ee;color:#0f7a43;border-color:#b6e3ca}",
       "html[data-theme=dark] .hpf-alert{background:#3a1414;color:#fecaca;border-color:#7f1d1d}html[data-theme=dark] .hpf-alert.ok{background:#0f2a1c;color:#a7f3d0;border-color:#14532d}",
-      ".hpf .hpf-legend{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hpf-ink2);margin:6px 0 10px;padding:0}",
-      ".hpf fieldset{border:0;margin:0;padding:0;min-width:0}",
+      "html[data-theme=dark] .hpf{--hpf-ok:#34d399}",
     ].join("\n");
     // CSP: style-src-elem has no 'unsafe-inline' — inject via a constructable stylesheet.
     if (typeof window.__helmAdoptCss === "function") window.__helmAdoptCss(doc, s.textContent);
@@ -361,45 +421,80 @@
     var out = parts.length > 1 ? parts[0].charAt(0) + parts[parts.length - 1].charAt(0) : s.slice(0, 2);
     return (out || "?").toUpperCase();
   }
+  // phone-input.js + form-validate.js: included by /profile-setup; loaded on demand elsewhere
+  var libsP = null;
+  function ensureFormLibs() {
+    if (global.HelmPhone && global.HelmPhone.attach && global.HelmValidate && global.HelmValidate.bind) return Promise.resolve(true);
+    if (libsP) return libsP;
+    function load(src, ready) {
+      return new Promise(function (res) {
+        if (ready()) return res(true);
+        var s = el("script"); s.src = src;
+        s.onload = function () { res(ready()); }; s.onerror = function () { res(false); };
+        (doc.head || doc.documentElement).appendChild(s);
+      });
+    }
+    libsP = Promise.all([
+      load("/phone-input.js?v=" + FORM_LIB_V, function () { return !!(global.HelmPhone && global.HelmPhone.attach); }),
+      load("/form-validate.js?v=" + FORM_LIB_V, function () { return !!(global.HelmValidate && global.HelmValidate.bind); }),
+    ]).then(function (r) { return r[0] && r[1]; });
+    return libsP;
+  }
+  var FORM_LIB_V = "1";
+  function svgIcon(path, cls) {
+    var ns = "http://www.w3.org/2000/svg", s = doc.createElementNS(ns, "svg");
+    s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("width", "16"); s.setAttribute("height", "16"); s.setAttribute("aria-hidden", "true"); if (cls) s.setAttribute("class", cls);
+    var p = doc.createElementNS(ns, "path"); p.setAttribute("d", path); p.setAttribute("fill", "none"); p.setAttribute("stroke", "currentColor");
+    p.setAttribute("stroke-width", "2"); p.setAttribute("stroke-linecap", "round"); p.setAttribute("stroke-linejoin", "round");
+    s.appendChild(p); return s;
+  }
+  var IC_CAMERA = "M4 8h3l2-3h6l2 3h3v11H4zM12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z";
+  var IC_CHECK = "M5 12.5l4.5 4.5L19 7.5";
+  var IC_SHIELD = "M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z";
+
   // profileForm(BPStore, {mode:"setup"|"panel", idp, profile, email, submitLabel, onSaved(row)})
   //   → {el, focusFirst()}
+  // Phones use HelmPhone.attach (flag + country list, .value = E.164); inline errors on
+  // blur via HelmValidate; the save still goes through BPStore.profile.validate (the
+  // client mirror of the SQL rules) so nothing invalid is ever sent.
   function profileForm(st, opts) {
     css();
     var o = opts || {}, P = o.profile || {}, idp = o.idp || "hpf", setup = o.mode === "setup";
     var hadName = !!String(P.full_name || "").trim(), hadPhone = !!P.phone;
     var vopts = setup ? { requireName: true, requirePhone: true } : { requireName: hadName, requirePhone: hadPhone };
     var lim = (st.profile && st.profile.limits) || { text: 80, skill: 40, skills: 20 };
-    var form = el("form", { class: "hpf", novalidate: "" });
+    var form = el("form", { class: "hpf" + (setup ? " hpf-setup" : ""), novalidate: "" });
     if (o.labelledBy) form.setAttribute("aria-labelledby", o.labelledBy);
     var alertBox = el("div", { class: "hpf-alert", role: "alert", tabindex: "-1" }); alertBox.hidden = true;
     form.appendChild(alertBox);
-    var inputs = {}, errs = {}, touched = {}, busy = false;
+    var inputs = {}, errs = {}, binds = {}, busy = false;
 
-    // progress
+    // ---- progress (text + bar)
     var prog = el("div", { class: "hpf-prog" });
+    var progTxt = el("p", { class: "hpf-progtxt", id: idp + "_progtxt" });
     var bar = el("div", { class: "hpf-bar", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100", "aria-labelledby": idp + "_progtxt" });
     var fill = el("span"); bar.appendChild(fill);
-    var progTxt = el("p", { class: "hpf-h", id: idp + "_progtxt", style: "margin:0 0 6px" });
     prog.appendChild(progTxt); prog.appendChild(bar); form.appendChild(prog);
 
-    // photo
+    // ---- photo: circular preview, click or drag & drop
     var avPath = P.avatar_path || null;
     var photo = el("div", { class: "hpf-photo" });
     var av = el("div", { class: "hpf-av" });
-    var avIni = el("span", { "aria-hidden": "true" }, initials(P.full_name, P.email || o.email));
+    var avIni = el("span", { class: "hpf-ini", "aria-hidden": "true" }, initials(P.full_name, P.email || o.email));
     var avImg = el("img", { alt: "Your profile photo" }); avImg.hidden = true;
+    var avCam = el("span", { class: "hpf-avcam", "aria-hidden": "true" }); avCam.appendChild(svgIcon(IC_CAMERA));
     av.appendChild(avIni); av.appendChild(avImg);
-    var photoCol = el("div", { style: "min-width:0;flex:1" });
-    photoCol.appendChild(el("div", { class: "hpf-l", id: idp + "_photo_l" }, "Photo"));
+    var photoCol = el("div", { class: "hpf-photocol" });
+    photoCol.appendChild(el("p", { class: "hpf-phototitle", id: idp + "_photo_l" }, "Profile photo"));
     var fileIn = el("input", { type: "file", id: idp + "_photo", class: "hpf-file", accept: "image/png,image/jpeg,image/webp", tabindex: "-1", "aria-hidden": "true" });
     var upBtn = el("button", { type: "button", class: "hau-btn", "aria-describedby": idp + "_photo_h" });
-    var rmBtn = el("button", { type: "button", class: "hau-btn danger" }, "Remove photo");
+    var rmBtn = el("button", { type: "button", class: "hau-btn ghost danger" }, "Remove");
     var photoRow = el("div", { class: "hau-row" }); photoRow.appendChild(upBtn); photoRow.appendChild(rmBtn);
-    var photoMsg = el("p", { class: "hpf-h", id: idp + "_photo_h", role: "status", "aria-live": "polite" }, "PNG, JPEG or WebP — cropped to a square.");
+    var photoMsg = el("p", { class: "hpf-h", id: idp + "_photo_h", role: "status", "aria-live": "polite" }, "Drag a photo here, or choose one. PNG, JPEG or WebP — cropped to a circle.");
     photoCol.appendChild(photoRow); photoCol.appendChild(photoMsg); photoCol.appendChild(fileIn);
     photo.appendChild(av); photo.appendChild(photoCol); form.appendChild(photo);
     function showPhoto() {
-      upBtn.textContent = avPath ? "Change photo" : "Add photo";
+      upBtn.textContent = avPath ? "Change photo" : "Upload photo";
       rmBtn.hidden = !avPath;
       if (!avPath) { avImg.hidden = true; avImg.removeAttribute("src"); avIni.hidden = false; return; }
       var want = avPath;
@@ -408,97 +503,130 @@
         if (u) { avImg.src = u; avImg.hidden = false; avIni.hidden = true; } else { avImg.hidden = true; avIni.hidden = false; }
       }, function () {});
     }
+    function photoNote(text, bad) { photoMsg.textContent = text; photoMsg.classList.toggle("is-bad", !!bad); }
+    function upload(f) {
+      if (!f || busy) return;
+      busy = true; upBtn.disabled = true; rmBtn.disabled = true; photo.classList.add("is-busy"); photoNote("Uploading your photo…");
+      st.profile.uploadAvatar(f).then(function (path) {
+        avPath = path; showPhoto(); photoNote("Photo saved."); progress();
+      }, function (e) { photoNote(pfServerText(e) || errText(e, "upload your photo"), true); })
+        .then(function () { busy = false; upBtn.disabled = false; rmBtn.disabled = false; photo.classList.remove("is-busy"); });
+    }
     avImg.addEventListener("error", function () { avImg.hidden = true; avIni.hidden = false; });
     upBtn.addEventListener("click", function () { if (!busy) fileIn.click(); });
-    fileIn.addEventListener("change", function () {
-      var f = fileIn.files && fileIn.files[0]; fileIn.value = "";
-      if (!f || busy) return;
-      busy = true; upBtn.disabled = true; rmBtn.disabled = true; photoMsg.style.color = ""; photoMsg.textContent = "Uploading your photo…";
-      st.profile.uploadAvatar(f).then(function (path) {
-        avPath = path; showPhoto(); photoMsg.textContent = "Photo saved."; progress();
-      }, function (e) {
-        photoMsg.style.color = "var(--hpf-bad)";
-        photoMsg.textContent = pfServerText(e) || errText(e, "upload your photo");
-      }).then(function () { busy = false; upBtn.disabled = false; rmBtn.disabled = false; try { upBtn.focus(); } catch (x) {} });
+    av.addEventListener("click", function () { if (!busy) fileIn.click(); });
+    fileIn.addEventListener("change", function () { var f = fileIn.files && fileIn.files[0]; fileIn.value = ""; upload(f); });
+    ["dragenter", "dragover"].forEach(function (t) { photo.addEventListener(t, function (e) { e.preventDefault(); photo.classList.add("is-drag"); }); });
+    ["dragleave", "dragend"].forEach(function (t) { photo.addEventListener(t, function () { photo.classList.remove("is-drag"); }); });
+    photo.addEventListener("drop", function (e) {
+      e.preventDefault(); photo.classList.remove("is-drag");
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) upload(f);
     });
     rmBtn.addEventListener("click", function () {
       if (busy) return;
-      busy = true; upBtn.disabled = true; rmBtn.disabled = true; photoMsg.style.color = "";
-      st.profile.removeAvatar().then(function () { avPath = null; showPhoto(); photoMsg.textContent = "Photo removed."; progress(); },
-        function (e) { photoMsg.style.color = "var(--hpf-bad)"; photoMsg.textContent = pfServerText(e) || errText(e, "remove your photo"); })
+      busy = true; upBtn.disabled = true; rmBtn.disabled = true; photoNote("Removing…");
+      st.profile.removeAvatar().then(function () { avPath = null; showPhoto(); photoNote("Photo removed."); progress(); },
+        function (e) { photoNote(pfServerText(e) || errText(e, "remove your photo"), true); })
         .then(function () { busy = false; upBtn.disabled = false; rmBtn.disabled = false; try { upBtn.focus(); } catch (x) {} });
     });
     showPhoto();
 
-    // one labelled input with its hint + error line
+    // ---- one labelled input (+ hint + error line)
     function field(parent, key, label, a) {
       a = a || {};
       var id = idp + "_" + key;
-      var wrap = el("div", { class: "hpf-f" });
+      var wrap = el("div", { class: "hpf-f" + (a.wide ? " hpf-wide" : "") });
       var lab = el("label", { for: id, class: "hpf-l" }, label);
       if (a.req) lab.appendChild(el("span", { class: "req-star", "aria-hidden": "true" }, " *"));
-      else if (a.optional) lab.appendChild(el("span", { class: "hpf-opt" }, " (optional)"));
+      else lab.appendChild(el("span", { class: "hpf-opt" }, " (optional)"));
       var inp = el("input", { id: id, class: "hpf-i", type: a.type || "text", autocomplete: a.ac || "off", maxlength: String(a.max || lim.text) });
       if (a.ph) inp.setAttribute("placeholder", a.ph);
-      if (a.inputmode) inp.setAttribute("inputmode", a.inputmode);
-      if (a.type === "tel") inp.setAttribute("data-no-country", "1");   // our own +91 prefix, not the global country picker
+      if (a.type === "tel") { inp.setAttribute("inputmode", "tel"); inp.setAttribute("data-phone-hardened", "1"); if (a.mobile) inp.setAttribute("data-phone-mobile", "1"); }
       if (a.req) inp.setAttribute("aria-required", "true");
       var desc = [];
       var hint = a.hint ? el("p", { class: "hpf-h", id: id + "_h" }, a.hint) : null;
       if (hint) desc.push(hint.id);
-      var er = el("p", { class: "hpf-e", id: id + "_e" }); desc.push(er.id);
+      var er = el("p", { class: "hpf-e fv-msg", id: id + "_e" }); er.hidden = true; desc.push(er.id);
       inp.setAttribute("aria-describedby", desc.join(" "));
       wrap.appendChild(lab);
-      if (a.prefix) { var pre = el("div", { class: "hpf-pre" }); pre.appendChild(el("span", { "aria-hidden": "true" }, a.prefix)); pre.appendChild(inp); wrap.appendChild(pre); }
-      else wrap.appendChild(inp);
-      if (hint) wrap.appendChild(hint);
+      var line = el("div", { class: "hpf-line" }); line.appendChild(inp); wrap.appendChild(line);
       wrap.appendChild(er);
+      if (hint) wrap.appendChild(hint);
       parent.appendChild(wrap);
       inp.value = a.value == null ? "" : String(a.value);
       inputs[key] = inp; errs[key] = er;
-      inp.addEventListener("blur", function () { touched[key] = true; check(key); });
-      inp.addEventListener("input", function () { if (inp.getAttribute("aria-invalid") === "true") check(key); progress(); });
-      return { wrap: wrap, input: inp };
+      inp.addEventListener("input", function () { progress(); });
+      return { wrap: wrap, input: inp, line: line };
+    }
+    function section(title, sub, optional, filled) {
+      var sec;
+      if (optional) {
+        sec = el("details", { class: "hpf-sec is-opt" });
+        if (!setup || filled) sec.open = true;
+        var sum = el("summary", { class: "hpf-sum" });
+        var tx = el("span", { class: "hpf-sumtx" });
+        tx.appendChild(el("span", { class: "hpf-sect" }, title));
+        tx.appendChild(el("span", { class: "hpf-secs" }, sub));
+        sum.appendChild(tx);
+        sum.appendChild(el("span", { class: "hpf-badge" }, "Optional"));
+        sec.appendChild(sum);
+      } else {
+        sec = el("fieldset", { class: "hpf-sec" });
+        var lg = el("legend", { class: "hpf-sect" }, title);
+        sec.appendChild(lg);
+        sec.appendChild(el("p", { class: "hpf-secs" }, sub));
+      }
+      var body = el("div", { class: "hpf-secb" }); sec.appendChild(body);
+      form.appendChild(sec);
+      return body;
     }
 
-    // --- about you
-    var fsA = el("fieldset"); fsA.appendChild(el("legend", { class: "hpf-legend" }, "About you"));
-    field(fsA, "full_name", "Full name", { req: setup || hadName, ac: "name", ph: "e.g. Ananya Rao", value: P.full_name });
-    var mob = field(fsA, "phone", "Mobile number", { req: setup || hadPhone, type: "tel", ac: "tel-national", inputmode: "tel", max: 16, prefix: "+91",
-      ph: "98765 43210", hint: "Indian mobile: 10 digits starting with 6, 7, 8 or 9.", value: P.phone ? st.profile.localMobile(P.phone) : "" });
-    mob.input.setAttribute("aria-label", "Mobile number, after +91");
+    // ---- About you
+    var sA = section("About you", "How your team will see and reach you.", false);
+    field(sA, "full_name", "Full name", { req: setup || hadName, ac: "name", max: 50, ph: "e.g. Ananya Rao", value: P.full_name, wide: true });
+    var mob = field(sA, "phone", "Mobile number", { req: setup || hadPhone, type: "tel", ac: "tel", max: 24, mobile: true, value: P.phone || "", wide: true,
+      hint: "We'll use this for event-day check-ins and urgent updates." });
+    // verify (0055)
+    var vBtn = el("button", { type: "button", class: "hau-btn hpf-vbtn", "aria-describedby": idp + "_vstate" }, "Verify");
+    var vState = el("span", { class: "hpf-vstate", id: idp + "_vstate", role: "status", "aria-live": "polite" });
+    mob.line.appendChild(vBtn);
+    var vPanel = el("div", { class: "hpf-vpanel" }); vPanel.hidden = true;
+    mob.wrap.insertBefore(vState, mob.wrap.querySelector(".hpf-e"));
+    mob.wrap.appendChild(vPanel);
     var cbRow = el("div", { class: "hpf-cbrow" });
     var same = el("input", { type: "checkbox", id: idp + "_wa_same", class: "hpf-cb" });
     same.checked = P.whatsapp_same !== false;
-    cbRow.appendChild(same); cbRow.appendChild(el("label", { for: idp + "_wa_same" }, "WhatsApp is on the same number"));
-    fsA.appendChild(cbRow);
-    var wa = field(fsA, "whatsapp", "WhatsApp number", { type: "tel", ac: "off", inputmode: "tel", max: 16, prefix: "+91", optional: true, ph: "98765 43210",
-      value: P.whatsapp_same === false && P.whatsapp ? st.profile.localMobile(P.whatsapp) : "" });
-    wa.input.setAttribute("aria-label", "WhatsApp number, after +91");
-    function syncWa() { wa.wrap.hidden = same.checked; if (same.checked) setErr("whatsapp", ""); }
+    cbRow.appendChild(same); cbRow.appendChild(el("label", { for: idp + "_wa_same" }, "WhatsApp is on this number"));
+    sA.appendChild(cbRow);
+    var wa = field(sA, "whatsapp", "WhatsApp number", { type: "tel", ac: "off", max: 24, mobile: true, wide: true,
+      value: P.whatsapp_same === false && P.whatsapp ? P.whatsapp : "" });
+    function syncWa() { wa.wrap.hidden = same.checked; if (same.checked && binds.whatsapp) binds.whatsapp.reset(); }
     same.addEventListener("change", function () { syncWa(); progress(); if (!same.checked) try { wa.input.focus(); } catch (x) {} });
     syncWa();
-    form.appendChild(fsA);
 
-    // --- work
-    var fsW = el("fieldset"); fsW.appendChild(el("legend", { class: "hpf-legend" }, "Work"));
-    var gW = el("div", { class: "hpf-grid" });
-    field(gW, "job_title", "Job title", { ac: "organization-title", ph: "e.g. Event coordinator", optional: true, value: P.job_title });
-    field(gW, "department", "Department", { ph: "e.g. Operations", optional: true, value: P.department });
-    fsW.appendChild(gW);
+    // ---- Work (optional)
+    var wFilled = !!(P.job_title || P.department || P.city || (P.skills && P.skills.length));
+    var sW = section("Work", "Helps planners assign the right jobs to you.", true, wFilled);
+    var gW = el("div", { class: "hpf-grid" }); sW.appendChild(gW);
+    field(gW, "job_title", "Job title", { ac: "organization-title", ph: "e.g. Event coordinator", value: P.job_title });
+    field(gW, "department", "Department", { ph: "e.g. Operations", value: P.department });
     // skills: chips (Enter or comma adds, × removes, Backspace on an empty box removes the last)
     var skills = Array.isArray(P.skills) ? P.skills.slice(0, lim.skills) : [];
-    var skWrap = el("div", { class: "hpf-f" });
-    skWrap.appendChild(el("label", { for: idp + "_skills", class: "hpf-l" }, "Skills"));
-    skWrap.lastChild.appendChild(el("span", { class: "hpf-opt" }, " (optional)"));
+    var skWrap = el("div", { class: "hpf-f hpf-wide" });
+    var skLab = el("label", { for: idp + "_skills", class: "hpf-l" }, "Skills"); skLab.appendChild(el("span", { class: "hpf-opt" }, " (optional)"));
+    skWrap.appendChild(skLab);
+    var skBox = el("div", { class: "hpf-skbox" });
     var chips = el("ul", { class: "hpf-chips", "aria-label": "Your skills" });
-    var skIn = el("input", { id: idp + "_skills", class: "hpf-i", type: "text", autocomplete: "off", maxlength: String(lim.skill), placeholder: "e.g. Lighting, Décor — press Enter to add",
+    var skIn = el("input", { id: idp + "_skills", class: "hpf-skin", type: "text", autocomplete: "off", maxlength: String(lim.skill), placeholder: "Type a skill and press Enter",
       "aria-describedby": idp + "_skills_h " + idp + "_skills_e" });
+    skBox.appendChild(chips); skBox.appendChild(skIn);
+    skBox.addEventListener("click", function (e) { if (e.target === skBox) try { skIn.focus(); } catch (x) {} });
     var skHint = el("p", { class: "hpf-h", id: idp + "_skills_h" });
-    var skErr = el("p", { class: "hpf-e", id: idp + "_skills_e" });
-    skWrap.appendChild(chips); skWrap.appendChild(skIn); skWrap.appendChild(skHint); skWrap.appendChild(skErr);
+    var skErr = el("p", { class: "hpf-e fv-msg", id: idp + "_skills_e" }); skErr.hidden = true;
+    skWrap.appendChild(skBox); skWrap.appendChild(skErr); skWrap.appendChild(skHint);
     inputs.skills = skIn; errs.skills = skErr;
-    fsW.appendChild(skWrap);
+    gW.appendChild(skWrap);
     function renderChips() {
       while (chips.firstChild) chips.removeChild(chips.firstChild);
       skills.forEach(function (s, i) {
@@ -512,10 +640,10 @@
         });
         li.appendChild(x); chips.appendChild(li);
       });
-      if (!skHint.textContent || /of \d+ skills\.$/.test(skHint.textContent)) skHint.textContent = "Press Enter or type a comma to add. " + skills.length + " of " + lim.skills + " skills.";
+      if (!skHint.textContent || /of \d+ skills\.$/.test(skHint.textContent)) skHint.textContent = "e.g. Lighting, Décor, Sound — " + skills.length + " of " + lim.skills + " skills.";
     }
     function addSkills(raw) {
-      var parts = String(raw || "").split(",").map(function (s) { return s.replace(/\s+/g, " ").trim(); }).filter(Boolean);
+      var parts = String(raw || "").split(",").map(function (s) { return s.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim(); }).filter(Boolean);
       if (!parts.length) return true;
       var r = st.profile.validate({ skills: skills.concat(parts) });
       if (r.errors.skills) { setErr("skills", r.errors.skills); return false; }
@@ -535,43 +663,44 @@
     });
     skIn.addEventListener("blur", function () { if (skIn.value.trim() && addSkills(skIn.value)) skIn.value = ""; });
     renderChips();
-    field(fsW, "city", "City", { ac: "address-level2", ph: "e.g. Hyderabad", optional: true, value: P.city });
-    form.appendChild(fsW);
+    field(gW, "city", "City", { ac: "address-level2", ph: "e.g. Hyderabad", value: P.city });
 
-    // --- emergency contact
-    var fsE = el("fieldset"); fsE.appendChild(el("legend", { class: "hpf-legend" }, "Emergency contact"));
-    var gE = el("div", { class: "hpf-grid" });
-    field(gE, "emergency_contact_name", "Name", { ac: "off", ph: "e.g. Ravi Rao", optional: true, value: P.emergency_contact_name });
-    inputs.emergency_contact_name.setAttribute("aria-label", "Emergency contact name");
-    field(gE, "emergency_contact_phone", "Phone number", { type: "tel", ac: "off", inputmode: "tel", max: 18, optional: true, ph: "98765 43210 or +44 …",
-      hint: "Indian mobile, or an international number starting with +.", value: P.emergency_contact_phone ? st.profile.localMobile(P.emergency_contact_phone) : "" });
-    inputs.emergency_contact_phone.setAttribute("aria-label", "Emergency contact phone number");
-    fsE.appendChild(gE);
-    fsE.appendChild(el("p", { class: "hpf-h", style: "margin:-6px 0 14px" }, "Only you and your studio admins can see your mobile, WhatsApp, city and emergency contact."));
-    form.appendChild(fsE);
+    // ---- Emergency contact (optional)
+    var eFilled = !!(P.emergency_contact_name || P.emergency_contact_phone);
+    var sE = section("Emergency contact", "Someone we can call if something happens on an event day.", true, eFilled);
+    var gE = el("div", { class: "hpf-grid" }); sE.appendChild(gE);
+    field(gE, "emergency_contact_name", "Contact name", { ac: "off", max: 50, ph: "e.g. Ravi Rao", value: P.emergency_contact_name });
+    field(gE, "emergency_contact_phone", "Contact phone", { type: "tel", ac: "off", max: 24, value: P.emergency_contact_phone || "" });
+    var priv = el("p", { class: "hpf-priv" });
+    priv.appendChild(doc.createTextNode("Only you and your studio admins can see your mobile, WhatsApp, city and emergency contact."));
+    form.appendChild(priv);
 
-    var row = el("div", { class: "hau-row", style: "margin-top:4px" });
-    var save = el("button", { type: "submit", class: setup ? "btn primary hpf-save" : "hau-btn primary" }, o.submitLabel || "Save");
-    row.appendChild(save); form.appendChild(row);
+    // ---- actions (sticky on the setup page)
+    var row = el("div", { class: "hpf-actions" });
+    var save = el("button", { type: "submit", class: setup ? "btn primary hpf-save" : "hau-btn primary hpf-save" });
+    var spin = el("span", { class: "hpf-spin", "aria-hidden": "true" });
+    var saveTx = el("span", null, o.submitLabel || "Save");
+    save.appendChild(spin); save.appendChild(saveTx);
+    var rowTx = el("p", { class: "hpf-actx", "aria-hidden": "true" });
+    row.appendChild(rowTx); row.appendChild(save); form.appendChild(row);
 
     function collect() {
       var pending = skIn.value.trim() ? skills.concat([skIn.value]) : skills;
+      var t = function (k) { return String(inputs[k].value || "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim(); };
       return {
-        full_name: inputs.full_name.value, phone: inputs.phone.value, whatsapp_same: same.checked,
-        whatsapp: same.checked ? null : inputs.whatsapp.value, job_title: inputs.job_title.value, department: inputs.department.value,
-        skills: pending, city: inputs.city.value, emergency_contact_name: inputs.emergency_contact_name.value,
+        full_name: t("full_name"), phone: inputs.phone.value, whatsapp_same: same.checked,
+        whatsapp: same.checked ? null : inputs.whatsapp.value, job_title: t("job_title"), department: t("department"),
+        skills: pending, city: t("city"), emergency_contact_name: t("emergency_contact_name"),
         emergency_contact_phone: inputs.emergency_contact_phone.value,
       };
     }
     function setErr(key, msg) {
+      if (binds[key]) { binds[key].setError(msg || ""); return; }
       var inp = inputs[key], er = errs[key]; if (!inp || !er) return;
-      er.textContent = msg || "";
+      while (er.firstChild) er.removeChild(er.firstChild);
+      if (msg) { var ic = el("span", { class: "fv-ic", "aria-hidden": "true" }, "!"); er.appendChild(ic); er.appendChild(doc.createTextNode(msg)); }
+      er.hidden = !msg;
       if (msg) inp.setAttribute("aria-invalid", "true"); else inp.removeAttribute("aria-invalid");
-    }
-    function check(key) {
-      var r = st.profile.validate(collect(), vopts);
-      setErr(key, r.errors[key] || "");
-      return !r.errors[key];
     }
     var ORDER = ["full_name", "phone", "whatsapp", "job_title", "department", "skills", "city", "emergency_contact_name", "emergency_contact_phone"];
     function progress() {
@@ -587,26 +716,155 @@
       var need = [];
       if (!String(f.full_name).trim()) need.push("full name");
       if (!hasPhone) need.push("mobile number");
-      progTxt.textContent = n + " of 10 details added" + (need.length ? " · still needed: " + need.join(" and ") : (setup ? " · ready to save" : ""));
+      progTxt.textContent = "";
+      progTxt.appendChild(el("b", null, n + " of 10"));
+      progTxt.appendChild(doc.createTextNode(" details added" + (need.length ? " · still needed: " + need.join(" and ") : (setup ? " · ready to save" : ""))));
+      rowTx.textContent = need.length ? "Still needed: " + need.join(", ") : "All required details added";
+      prog.classList.toggle("is-ready", !need.length);
     }
     function showAlert(msg, ok) {
       alertBox.className = "hpf-alert" + (ok ? " ok" : "");
       alertBox.textContent = msg || ""; alertBox.hidden = !msg;
     }
+
+    // ---- phone verification (0055) — dormant until WhatsApp is live
+    var PV = st.profile && st.profile.phoneVerify, verifiedPhone = null, cool = 0, coolT = null;
+    function vPaint() {
+      var cur = inputs.phone.value;
+      var ok = !!(verifiedPhone && cur && cur === verifiedPhone);
+      vBtn.hidden = ok || !cur;
+      vState.textContent = "";
+      vState.className = "hpf-vstate" + (ok ? " is-ok" : "");
+      if (ok) { vState.appendChild(svgIcon(IC_CHECK, "hpf-vic")); vState.appendChild(doc.createTextNode("Verified on WhatsApp")); }
+    }
+    function vInfo(text) { vPanel.hidden = false; vPanel.textContent = ""; vPanel.appendChild(el("p", { class: "hpf-vinfo" }, text)); }
+    function startCooldown(secs, resend) {
+      cool = secs; clearInterval(coolT);
+      var tick = function () {
+        if (!resend) return;
+        resend.disabled = cool > 0;
+        resend.textContent = cool > 0 ? "Resend code in " + cool + "s" : "Resend code";
+        if (cool <= 0) clearInterval(coolT); cool--;
+      };
+      tick(); coolT = setInterval(tick, 1000);
+    }
+    function codePanel(e164) {
+      vPanel.hidden = false; vPanel.textContent = "";
+      var shown = global.HelmPhone && global.HelmPhone.display ? global.HelmPhone.display(e164) : e164;
+      vPanel.appendChild(el("p", { class: "hpf-vinfo", id: idp + "_vlead" }, "We sent a 6-digit code on WhatsApp to " + shown + ". It expires in 10 minutes."));
+      var boxes = el("div", { class: "hpf-otp", role: "group", "aria-labelledby": idp + "_vlead" });
+      var cells = [];
+      for (var i = 0; i < 6; i++) {
+        var c = el("input", { class: "hpf-otpc", type: "text", inputmode: "numeric", maxlength: "1", autocomplete: i === 0 ? "one-time-code" : "off", "aria-label": "Digit " + (i + 1) + " of 6", "data-no-validate": "1" });
+        cells.push(c); boxes.appendChild(c);
+      }
+      var vErr = el("p", { class: "hpf-e fv-msg", role: "alert" }); vErr.hidden = true;
+      var acts = el("div", { class: "hau-row" });
+      var resend = el("button", { type: "button", class: "hau-btn ghost" }, "Resend code");
+      var cancel = el("button", { type: "button", class: "hau-btn ghost" }, "Use a different number");
+      acts.appendChild(resend); acts.appendChild(cancel);
+      vPanel.appendChild(boxes); vPanel.appendChild(vErr); vPanel.appendChild(acts);
+      function code() { return cells.map(function (x) { return x.value; }).join(""); }
+      function fail(t) { vErr.textContent = ""; vErr.appendChild(el("span", { class: "fv-ic", "aria-hidden": "true" }, "!")); vErr.appendChild(doc.createTextNode(t)); vErr.hidden = false; boxes.classList.add("is-bad"); }
+      var checking = false;
+      function submit() {
+        var c = code(); if (c.length !== 6 || checking) return;
+        checking = true; vErr.hidden = true; boxes.classList.remove("is-bad");
+        PV.check(c).then(function (r) {
+          if (r && r.ok) { verifiedPhone = e164; vPanel.hidden = true; vPanel.textContent = ""; vPaint(); clearInterval(coolT); return; }
+          var why = r && r.reason;
+          cells.forEach(function (x) { x.value = ""; });
+          if (why === "locked") fail("Too many wrong tries. Request a new code.");
+          else if (why === "expired") fail("This code has expired. Request a new one.");
+          else fail("That code isn't right." + (r && r.remaining != null ? " " + r.remaining + (r.remaining === 1 ? " try" : " tries") + " left." : ""));
+          try { cells[0].focus(); } catch (x) {}
+        }, function (e) { fail(errText(e, "check the code")); }).then(function () { checking = false; });
+      }
+      cells.forEach(function (c, i) {
+        c.addEventListener("input", function () {
+          var d = c.value.replace(/\D/g, "");
+          if (d.length > 1) { for (var k = 0; k < d.length && i + k < 6; k++) cells[i + k].value = d.charAt(k); try { cells[Math.min(5, i + d.length)].focus(); } catch (x) {} }
+          else { c.value = d; if (d && i < 5) try { cells[i + 1].focus(); } catch (x) {} }
+          if (code().length === 6) submit();
+        });
+        c.addEventListener("keydown", function (e) {
+          if (e.key === "Backspace" && !c.value && i > 0) { e.preventDefault(); cells[i - 1].value = ""; cells[i - 1].focus(); }
+          else if (e.key === "ArrowLeft" && i > 0) { e.preventDefault(); cells[i - 1].focus(); }
+          else if (e.key === "ArrowRight" && i < 5) { e.preventDefault(); cells[i + 1].focus(); }
+          else if (e.key === "Enter") { e.preventDefault(); submit(); }
+        });
+        c.addEventListener("paste", function (e) {
+          var t = ((e.clipboardData || global.clipboardData) || { getData: function () { return ""; } }).getData("text").replace(/\D/g, "").slice(0, 6);
+          if (!t) return; e.preventDefault();
+          for (var k = 0; k < 6; k++) cells[k].value = t.charAt(k) || "";
+          try { cells[Math.min(5, t.length)].focus(); } catch (x) {}
+          if (t.length === 6) submit();
+        });
+      });
+      resend.addEventListener("click", function () { sendCode(true); });
+      cancel.addEventListener("click", function () { vPanel.hidden = true; vPanel.textContent = ""; clearInterval(coolT); try { inputs.phone.focus(); } catch (x) {} });
+      startCooldown(60, resend);
+      setTimeout(function () { try { cells[0].focus(); } catch (x) {} }, 30);
+    }
+    function sendCode(again) {
+      var b = binds.phone, r = b ? b.check(true) : { ok: !!inputs.phone.value };
+      if (!r.ok) { try { inputs.phone.focus(); } catch (x) {} return; }
+      var e164 = inputs.phone.value;
+      if (!PV || !PV.available || !PV.available()) { vInfo("Phone verification will be available shortly — you can continue."); return; }
+      vBtn.disabled = true;
+      if (!again) vInfo("Sending a code on WhatsApp…");
+      PV.send(e164).then(function () { codePanel(e164); }, function (e) {
+        if (e && e.code === "verify_unavailable") vInfo("Phone verification will be available shortly — you can continue.");
+        else vInfo(/wait|too many/i.test(String(e && e.message)) ? "Please wait a minute before asking for another code." : "We couldn't send the code right now. You can continue and verify later from Account.");
+      }).then(function () { vBtn.disabled = false; });
+    }
+    vBtn.addEventListener("click", function () { sendCode(false); });
+    inputs.phone.addEventListener("input", function () { vPaint(); if (!vPanel.hidden && verifiedPhone !== inputs.phone.value) { /* keep an open code panel only for the same number */ } });
+    if (PV && PV.available && PV.available() && PV.status) PV.status().then(function (s) { if (s && s.verified_at && s.phone) { verifiedPhone = s.phone; vPaint(); } });
+
+    // ---- inline validation (on blur; live once touched) + phone component
+    function wire() {
+      var HP = global.HelmPhone, HV = global.HelmValidate;
+      ["phone", "whatsapp", "emergency_contact_phone"].forEach(function (k) {
+        if (HP && HP.attach && !inputs[k].helmPhone) { inputs[k].removeAttribute("data-phone-hardened"); HP.attach(inputs[k], { mobile: k !== "emergency_contact_phone" }); }
+      });
+      if (!HV || !HV.bind) return;
+      var reqName = function () { return !!vopts.requireName; }, reqPhone = function () { return !!vopts.requirePhone; };
+      binds.full_name = HV.bind(inputs.full_name, { rule: "name", label: "full name", required: reqName, max: 50, msgEl: errs.full_name, onChange: progress });
+      binds.phone = HV.bind(inputs.phone, { rule: "phone", label: "mobile number", required: reqPhone, mobile: true, msgEl: errs.phone, onChange: function () { progress(); vPaint(); } });
+      binds.whatsapp = HV.bind(inputs.whatsapp, { rule: "phone", label: "WhatsApp number", required: function () { return !same.checked; }, mobile: true, msgEl: errs.whatsapp, onChange: progress });
+      binds.job_title = HV.bind(inputs.job_title, { rule: "text", label: "Job title", max: lim.text, msgEl: errs.job_title, onChange: progress });
+      binds.department = HV.bind(inputs.department, { rule: "text", label: "Department", max: lim.text, msgEl: errs.department, onChange: progress });
+      binds.city = HV.bind(inputs.city, { rule: "text", label: "City", max: lim.text, msgEl: errs.city, onChange: progress });
+      binds.emergency_contact_name = HV.bind(inputs.emergency_contact_name, { rule: "name", label: "Contact name", article: false, max: 50, msgEl: errs.emergency_contact_name, onChange: progress });
+      binds.emergency_contact_phone = HV.bind(inputs.emergency_contact_phone, { rule: "phone", label: "contact phone", msgEl: errs.emergency_contact_phone, onChange: progress });
+      vPaint(); progress();
+    }
+    ensureFormLibs().then(wire, wire);
+
     form.addEventListener("submit", function (e) {
       e.preventDefault();
       if (busy) return;
       showAlert("");
+      // 1) owner rules, inline (all fields marked as touched)
+      var HV = global.HelmValidate, firstBad = null;
+      if (HV && HV.checkAll) {
+        var list = ORDER.filter(function (k) { return binds[k] && !(k === "whatsapp" && same.checked); }).map(function (k) { return binds[k]; });
+        firstBad = HV.checkAll(list);
+      }
+      // 2) the SQL-mirror rules (what the server will accept)
       var fields = collect();
       var r = st.profile.validate(fields, vopts);
-      ORDER.forEach(function (k) { setErr(k, r.errors[k] || ""); });
-      if (!r.ok) {
-        var first = ORDER.filter(function (k) { return r.errors[k]; })[0];
-        showAlert(Object.keys(r.errors).length > 1 ? "Please fix the highlighted fields." : r.errors[first]);
-        try { inputs[first].focus(); } catch (x) {}
+      if (!firstBad) ORDER.forEach(function (k) { if (r.errors[k]) setErr(k, r.errors[k]); });
+      if (firstBad || !r.ok) {
+        var bad = ORDER.filter(function (k) { return r.errors[k] || (binds[k] && binds[k].input.getAttribute("aria-invalid") === "true"); });
+        bad.forEach(function (k) { var d = inputs[k].closest && inputs[k].closest("details"); if (d) d.open = true; });
+        showAlert(bad.length > 1 ? "Please check the " + bad.length + " highlighted fields." : (r.errors[bad[0]] || "Please check the highlighted field."));
+        try { inputs[bad[0] || "full_name"].focus(); } catch (x) {}
         return;
       }
-      busy = true; save.disabled = true; var label = save.textContent; save.textContent = "Saving…";
+      busy = true; save.disabled = true; save.classList.add("is-loading"); save.setAttribute("aria-busy", "true");
+      var label = saveTx.textContent; saveTx.textContent = "Saving…";
       var p = setup ? st.profile.complete(fields) : st.profile.update(fields, vopts);
       p.then(function (row) {
         if (row && typeof row === "object") {
@@ -621,18 +879,18 @@
         if (o.onSaved) o.onSaved(row || null);
       }, function (err) {
         var msg = pfServerText(err), key = msg ? pfFieldOf(msg) : null;
-        if (err && err.fields) { ORDER.forEach(function (k) { setErr(k, err.fields[k] || ""); }); key = err.field || key; }
+        if (err && err.fields) { ORDER.forEach(function (k) { if (err.fields[k]) setErr(k, err.fields[k]); }); key = err.field || key; }
         else if (key) setErr(key, msg);
         showAlert(msg || errText(err, "save your profile"));
         try { (key && inputs[key] ? inputs[key] : alertBox).focus(); } catch (x) {}
-      }).then(function () { busy = false; save.disabled = false; save.textContent = label; });
+      }).then(function () { busy = false; save.disabled = false; save.classList.remove("is-loading"); save.removeAttribute("aria-busy"); saveTx.textContent = label; });
     });
-    progress();
+    progress(); vPaint();
     return {
       el: form,
       focusFirst: function () {
         var k = !String(inputs.full_name.value).trim() ? "full_name" : (!String(inputs.phone.value).trim() ? "phone" : "full_name");
-        setTimeout(function () { try { inputs[k].focus(); } catch (e) {} }, 30);
+        setTimeout(function () { try { inputs[k].focus(); } catch (e) {} }, 60);
       },
     };
   }
@@ -854,7 +1112,7 @@
   }
   var ACC_FIELDS = [["legal_business_name", "Legal business name"], ["gstin", "GSTIN (optional)"], ["country", "Country (2 letters, e.g. IN)"],
     ["state", "State"], ["city", "City"], ["billing_address", "Billing address"], ["website", "Website (https://…)"], ["timezone", "Timezone"],
-    ["primary_contact_name", "Primary contact name"], ["primary_contact_email", "Primary contact e-mail"], ["primary_contact_phone", "Primary contact phone (+91…)"],
+    ["primary_contact_name", "Primary contact name"], ["primary_contact_email", "Primary contact e-mail"], ["primary_contact_phone", "Primary contact phone"],
     ["secondary_contact_name", "Secondary contact name"], ["secondary_contact_email", "Secondary contact e-mail"], ["secondary_contact_phone", "Secondary contact phone"],
     ["billing_contact_email", "Billing e-mail"], ["team_size_band", "Team size (1, 2-5, 6-15, 16-50, 51+)"], ["signup_source", "How did you hear about Helm?"],
     ["business_type", "Business type (wedding, corporate, decor, catering, other)"], ["events_per_month_band", "Events per month (0-2, 3-5, 6-10, 11-20, 21+)"],
@@ -871,7 +1129,7 @@
       ACC_FIELDS.forEach(function (f) {
         var w = el("div", { class: "hpf-f" }), id = "acc_" + f[0];
         w.appendChild(el("label", { for: id, class: "hpf-l" }, f[1]));
-        var i = el("input", { id: id, class: "hpf-i", type: "text" }); i.value = a[f[0]] == null ? "" : String(a[f[0]]); inputs[f[0]] = i;
+        var i = el("input", { id: id, class: "hpf-i", type: /_phone$/.test(f[0]) ? "tel" : (/_email$/.test(f[0]) ? "email" : "text") }); i.value = a[f[0]] == null ? "" : String(a[f[0]]); inputs[f[0]] = i;
         w.appendChild(i); grid.appendChild(w);
       });
       var wrap = el("div", { class: "hpf" }); wrap.appendChild(grid); body.appendChild(wrap);

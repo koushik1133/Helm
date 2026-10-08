@@ -198,7 +198,7 @@
     box-shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -16px rgba(0,0,0,.7);
   }
 </style>
-<link rel="stylesheet" href="theme.css?v=74">
+<link rel="stylesheet" href="theme.css?v=75">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -542,10 +542,10 @@
     <p class="mnote" id="mp_sub"></p>
     <div class="mpgrid">
       <div class="fld full"><label for="mp_full_name">Full name *</label><input id="mp_full_name" maxlength="80" autocomplete="off" aria-required="true" aria-describedby="mp_e_full_name"><p class="ferr" id="mp_e_full_name" hidden></p></div>
-      <div class="fld"><label for="mp_phone">Mobile number</label><div class="mpph"><span aria-hidden="true">+91</span><input id="mp_phone" type="tel" data-no-country="1" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="98765 43210" aria-describedby="mp_e_phone"></div><p class="ferr" id="mp_e_phone" hidden></p></div>
+      <div class="fld"><label for="mp_phone">Mobile number</label><input id="mp_phone" type="tel" data-phone-mobile="1" inputmode="tel" autocomplete="off" aria-describedby="mp_e_phone"><p class="ferr" id="mp_e_phone" hidden></p></div>
       <div class="fld"><span class="mplbl" aria-hidden="true">WhatsApp</span>
         <label class="mpchk" for="mp_wa_same"><input type="checkbox" id="mp_wa_same" checked aria-label="WhatsApp number is the same as the mobile"> Same as mobile</label>
-        <div class="mpph" id="mp_wa_box" hidden><span aria-hidden="true">+91</span><input id="mp_whatsapp" type="tel" data-no-country="1" inputmode="numeric" maxlength="14" autocomplete="off" aria-label="WhatsApp number" aria-describedby="mp_e_whatsapp"></div><p class="ferr" id="mp_e_whatsapp" hidden></p></div>
+        <div id="mp_wa_box" hidden><input id="mp_whatsapp" type="tel" data-phone-mobile="1" inputmode="tel" autocomplete="off" aria-label="WhatsApp number" aria-describedby="mp_e_whatsapp"></div><p class="ferr" id="mp_e_whatsapp" hidden></p></div>
       <div class="fld"><label for="mp_job_title">Job title</label><input id="mp_job_title" maxlength="80" autocomplete="off" placeholder="e.g. Lead planner" aria-describedby="mp_e_job_title"><p class="ferr" id="mp_e_job_title" hidden></p></div>
       <div class="fld"><label for="mp_department">Department</label><input id="mp_department" maxlength="80" autocomplete="off" placeholder="e.g. Production" aria-describedby="mp_e_department"><p class="ferr" id="mp_e_department" hidden></p></div>
       <div class="fld"><label for="mp_city">City</label><input id="mp_city" maxlength="80" autocomplete="off" aria-describedby="mp_e_city"><p class="ferr" id="mp_e_city" hidden></p></div>
@@ -553,7 +553,7 @@
         <div class="mpchips" id="mp_chips"></div>
         <input id="mp_skill" maxlength="40" autocomplete="off" placeholder="e.g. lighting" aria-describedby="mp_e_skills"><p class="ferr" id="mp_e_skills" hidden></p></div>
       <div class="fld"><label for="mp_emergency_contact_name">Emergency contact name</label><input id="mp_emergency_contact_name" maxlength="80" autocomplete="off" aria-describedby="mp_e_emergency_contact_name"><p class="ferr" id="mp_e_emergency_contact_name" hidden></p></div>
-      <div class="fld"><label for="mp_emergency_contact_phone">Emergency contact number</label><input id="mp_emergency_contact_phone" type="tel" data-no-country="1" maxlength="16" autocomplete="off" placeholder="98765 43210 or +44…" aria-describedby="mp_e_emergency_contact_phone"><p class="ferr" id="mp_e_emergency_contact_phone" hidden></p></div>
+      <div class="fld"><label for="mp_emergency_contact_phone">Emergency contact number</label><input id="mp_emergency_contact_phone" type="tel" autocomplete="off" aria-describedby="mp_e_emergency_contact_phone"><p class="ferr" id="mp_e_emergency_contact_phone" hidden></p></div>
       <div class="mpsec" id="mp_staffsec">Staff record (admins only)</div>
       <div class="fld" id="mp_rate_fld"><label for="mp_day_rate">Day rate (₹)</label><input id="mp_day_rate" type="number" min="0" step="0.01" placeholder="optional" aria-describedby="mp_e_day_rate"><p class="ferr" id="mp_e_day_rate" hidden></p></div>
       <div class="fld" id="mp_emp_fld"><label for="mp_emp_type">Employment type</label><select id="mp_emp_type" aria-describedby="mp_e_emp_type"><option value="">—</option><option value="full_time">Full-time</option><option value="part_time">Part-time</option><option value="on_call">On-call</option></select><p class="ferr" id="mp_e_emp_type" hidden></p></div>
@@ -577,7 +577,8 @@
 <script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
-<script src="store-api.js?v=121"></script>
+<script src="phone-input.js?v=1"></script>
+<script src="store-api.js?v=122"></script>
 <script src="hq-invoice.js?v=1"></script>
 <script src="tour.js?v=7"></script>
 <script>
@@ -999,7 +1000,7 @@
   let ucRows=[], ucProfiles=false;
   const ucId=(u)=>u.user_id||u.id;
   function ucDate(iso){ if(!iso) return ""; try{ return new Date(iso).toLocaleDateString([], {day:"numeric",month:"short",year:"numeric"}); }catch(e){ return ""; } }
-  function ucPhone(p){ const m=/^\+91([6-9]\d{4})(\d{5})$/.exec(String(p||"")); return m?"+91 "+m[1]+" "+m[2]:String(p||""); }
+  function ucPhone(p){ if(typeof HelmPhone!=="undefined"&&HelmPhone.display) return HelmPhone.display(String(p||"")); const m=/^\+91([6-9]\d{4})(\d{5})$/.exec(String(p||"")); return m?"+91 "+m[1]+" "+m[2]:String(p||""); }
   function ucInitials(n){ const p=String(n||"?").trim().split(/\s+/); return (((p[0]||"")[0]||"?")+((p[1]||"")[0]||"")).toUpperCase(); }
   // Phone / private fields are shown only when the DB returned them (admins + users-view):
   // a colleague-level row has whatsapp_same = null. My own row always has them, so it alone
@@ -1101,7 +1102,6 @@
   // ---- admin: edit a member's profile (admin_update_member_profile) ----
   const MP_FIELDS=["full_name","phone","whatsapp","job_title","department","city","skills","emergency_contact_name","emergency_contact_phone","day_rate","emp_type"];
   let mpRow=null, mpSkills=[], mpOpener=null;
-  const mpNat=(p)=>{ const m=/^\+91([6-9]\d{9})$/.exec(String(p||"")); return m?m[1]:String(p||""); };
   function mpFieldErr(k,msg){ const e=$("#mp_e_"+k); if(!e) return; const inp=k==="skills"?$("#mp_skill"):$("#mp_"+k);
     if(msg){ e.textContent=msg; e.hidden=false; if(inp) inp.setAttribute("aria-invalid","true"); }
     else { e.textContent=""; e.hidden=true; if(inp) inp.removeAttribute("aria-invalid"); } }
@@ -1119,8 +1119,8 @@
     const who=(u.full_name||"").trim()||u.email||"this member";
     $("#mp_title").textContent="Edit profile — "+who;
     $("#mp_sub").textContent=(u.email?u.email+" · ":"")+"Changes also update their Staff-directory record (name, mobile, department, title).";
-    $("#mp_full_name").value=u.full_name||""; $("#mp_phone").value=mpNat(u.phone);
-    const same=u.whatsapp_same!==false; $("#mp_wa_same").checked=same; $("#mp_wa_box").hidden=same; $("#mp_whatsapp").value=same?"":mpNat(u.whatsapp);
+    $("#mp_full_name").value=u.full_name||""; $("#mp_phone").value=u.phone||"";
+    const same=u.whatsapp_same!==false; $("#mp_wa_same").checked=same; $("#mp_wa_box").hidden=same; $("#mp_whatsapp").value=same?"":(u.whatsapp||"");
     ["job_title","department","city","emergency_contact_name","emergency_contact_phone"].forEach(k=>{ $("#mp_"+k).value=u[k]||""; });
     mpSkills=Array.isArray(u.skills)?u.skills.slice():[]; $("#mp_skill").value=""; mpDrawChips();
     const staffOk=u.role!=="client";

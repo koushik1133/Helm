@@ -70,8 +70,8 @@ do $$ declare s text; begin
   s := pg_temp.try($q$select public.update_my_profile('{"phone":"5876543210"}')$q$);
   perform pg_temp.res('05 mobile not starting 6-9 refused', s = '22023', s);
   perform pg_temp.login('a_staff@a.test');
-  s := pg_temp.try($q$select public.update_my_profile('{"phone":"+1 415 555 2671"}')$q$);
-  perform pg_temp.res('06 non-Indian mobile refused', s = '22023', s);
+  s := pg_temp.try($q$select public.update_my_profile('{"phone":"+1 415"}')$q$);
+  perform pg_temp.res('06 malformed mobile refused (0055 allows full international numbers)', s = '22023', s);
   perform pg_temp.login('a_staff@a.test');
   s := pg_temp.try($q$select public.update_my_profile('{"phone":"abc9000001001"}')$q$);
   perform pg_temp.res('07 letters in a mobile refused', s = '22023', s);

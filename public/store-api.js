@@ -757,7 +757,7 @@
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "12";
+  const AUTH_UI_VERSION = "13";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -3728,8 +3728,13 @@
   function mpMobile(v, label) {
     const s = String(v == null ? "" : v).trim();
     if (!s) return { val: null };
-    if (!/^\+?[0-9 ().-]{6,24}$/.test(s)) return { err: label + " must be a 10-digit Indian mobile number." };
+    if (!/^\+?[0-9 ().-]{6,24}$/.test(s)) return { err: label + " must be a valid mobile number." };
     let d = s.replace(/[^0-9]/g, "");
+    // 0055: international mobiles (E.164) are accepted; Indian numbers keep the 6–9 rule
+    if (s.charAt(0) === "+" && d.slice(0, 2) !== "91") {
+      if (!/^[1-9][0-9]{6,14}$/.test(d)) return { err: label + " must be 7–15 digits including the country code." };
+      return { val: "+" + d };
+    }
     if (d.length === 12 && d.slice(0, 2) === "91") d = d.slice(2);
     else if (d.length === 11 && d.charAt(0) === "0") d = d.slice(1);
     if (!/^[6-9][0-9]{9}$/.test(d)) return { err: label + " must be a 10-digit Indian mobile number starting with 6, 7, 8 or 9." };
@@ -3962,6 +3967,23 @@
       const row = await rpc("complete_my_profile", { p_profile: r.clean });
       noteProfileComplete(true);
       return row;
+    },
+    // 0055 phone verification by WhatsApp code. DORMANT while config.liveChannels.whatsapp
+    // is false: available() says so and the page lets the member continue unverified.
+    // The code is minted + sent server-side (send-phone-code edge function); it is never
+    // returned to the browser, in any mode.
+    phoneVerify: {
+      available: () => mode === "supabase" && !!LIVE.whatsapp,
+      async send(e164) {
+        if (!(mode === "supabase" && LIVE.whatsapp)) { const e = new Error("Phone verification will be available shortly — you can continue."); e.code = "verify_unavailable"; throw e; }
+        if (!/^\+[1-9][0-9]{6,14}$/.test(String(e164 || ""))) { const e = new Error("Enter a valid mobile number first."); e.code = "profile_invalid"; throw e; }
+        return callFn("send-phone-code", { phone: e164 });
+      },
+      async check(code) {
+        if (!/^[0-9]{6}$/.test(String(code || ""))) return { ok: false, reason: "format", remaining: null };
+        return rpc("phone_verify_check", { p_code: String(code) });
+      },
+      async status() { try { return await rpc("phone_verify_status", {}); } catch (e) { return null; } },
     },
     // pure helpers (exported for tests)
     _sniffImage: sniffImage, _avatarCrop: avatarCrop, _avatarPath: avatarPathFor,
@@ -5712,6 +5734,7 @@
   function memberMobile(v) {
     const s = String(v == null ? "" : v).trim(); if (!s || !/^\+?[0-9 ().-]{6,24}$/.test(s)) return null;
     let d = s.replace(/\D/g, "");
+    if (s.charAt(0) === "+" && d.slice(0, 2) !== "91") return /^[1-9]\d{6,14}$/.test(d) ? "+" + d : null;   // 0055: international
     if (d.length === 12 && d.slice(0, 2) === "91") d = d.slice(2); else if (d.length === 11 && d[0] === "0") d = d.slice(1);
     return /^[6-9]\d{9}$/.test(d) ? "+91" + d : null;
   }
@@ -5750,9 +5773,9 @@
     f = f || {}; const bad = {}; const has = (k) => Object.prototype.hasOwnProperty.call(f, k);
     if (has("full_name")) { const p = displayNameProblem(f.full_name); if (p) bad.full_name = p.replace(/^A display name/, "Full name"); }
     if (has("phone")) { if (!String(f.phone == null ? "" : f.phone).trim()) bad.phone = "Mobile number is required.";
-      else if (!memberMobile(f.phone)) bad.phone = "Enter a 10-digit Indian mobile number starting with 6, 7, 8 or 9."; }
+      else if (!memberMobile(f.phone)) bad.phone = "Enter a valid mobile number — Indian mobiles are 10 digits starting with 6, 7, 8 or 9."; }
     if (has("whatsapp") && f.whatsapp_same === false && String(f.whatsapp == null ? "" : f.whatsapp).trim() && !memberMobile(f.whatsapp))
-      bad.whatsapp = "Enter a 10-digit Indian mobile number starting with 6, 7, 8 or 9.";
+      bad.whatsapp = "Enter a valid WhatsApp number — Indian mobiles are 10 digits starting with 6, 7, 8 or 9.";
     [["job_title", "Job title"], ["department", "Department"], ["city", "City"], ["emergency_contact_name", "Emergency contact name"]]
       .forEach(([k, label]) => { if (has(k)) { const p = memberTextProblem(f[k], label, 80); if (p) bad[k] = p; } });
     if (has("emergency_contact_phone") && String(f.emergency_contact_phone == null ? "" : f.emergency_contact_phone).trim() && !memberAnyPhone(f.emergency_contact_phone))
@@ -7037,13 +7060,42 @@
     try { BPStore.init().then(function () {
       if (BPStore.mode() === "supabase" && !BPStore.auth.user()) return null;
       return BPStore.config.getPricing();
-    }).then(function (p) { if (!p) return; var c = p.country || "IN"; _defaultCC = c; try { localStorage.setItem("helm_org_country", c); } catch (e) {} }).catch(function () {}); } catch (e) {}
+    }).then(function (p) { if (!p) return; var c = p.country || "IN"; _defaultCC = c; try { localStorage.setItem("helm_org_country", c); } catch (e) {}
+      try { if (window.HelmPhone && window.HelmPhone.setDefaultCountry) window.HelmPhone.setDefaultCountry(c); } catch (e) {} }).catch(function () {}); } catch (e) {}
   }
   function dialOf(iso) { for (var i = 0; i < COUNTRIES.length; i++) if (COUNTRIES[i][1] === iso) return COUNTRIES[i][2]; return "91"; }
   BPStore.countries = function () { return COUNTRIES.map(function (c) { return { name: c[0], iso: c[1], dial: c[2] }; }); };
   function matchDial(e164) { if (!e164 || e164.charAt(0) !== "+") return null; var d = e164.slice(1); for (var i = 0; i < DIALS.length; i++) if (d.indexOf(DIALS[i]) === 0) return DIALS[i]; return null; }
 
+  // Every phone field becomes the HelmPhone component (phone-input.js: flag + searchable
+  // country list + as-you-type format; .value stays E.164). Pages that don't include the
+  // script get it loaded on demand; if it can't load, the legacy hardener below is used.
+  var PHONE_LIB_V = "1", phoneLib = null;
+  function loadPhoneLib() {
+    if (window.HelmPhone && window.HelmPhone.attach) return Promise.resolve(true);
+    if (phoneLib) return phoneLib;
+    phoneLib = new Promise(function (resolve) {
+      var s = document.createElement("script");
+      s.src = "/phone-input.js?v=" + PHONE_LIB_V;
+      s.onload = function () { resolve(!!(window.HelmPhone && window.HelmPhone.attach)); };
+      s.onerror = function () { resolve(false); };
+      (document.head || document.documentElement).appendChild(s);
+    });
+    return phoneLib;
+  }
   function hardenPhone(el) {
+    if (el.getAttribute("data-phone-hardened") === "1" || el.helmPhone || el.getAttribute("data-phone-pending") === "1") return;
+    if (el.classList && (el.classList.contains("hp-search") || el.type === "search")) return;
+    if (window.HelmPhone && window.HelmPhone.attach && el.parentNode) { try { window.HelmPhone.attach(el); return; } catch (e) {} }
+    el.setAttribute("data-phone-pending", "1");
+    loadPhoneLib().then(function (ok) {
+      el.removeAttribute("data-phone-pending");
+      if (el.helmPhone) return;
+      if (ok && el.parentNode) { try { window.HelmPhone.attach(el); return; } catch (e) {} }
+      legacyHardenPhone(el);
+    });
+  }
+  function legacyHardenPhone(el) {
     if (el.getAttribute("data-phone-hardened") === "1") return;
     el.setAttribute("data-phone-hardened", "1");
     el.setAttribute("inputmode", "tel");
@@ -7140,7 +7192,7 @@
   function scan(root) {
     var r = root || document;
     try { r.querySelectorAll('input[type="number"]:not([data-hardened])').forEach(harden); } catch (e) {}
-    try { r.querySelectorAll('input[type="tel"]:not([data-phone-hardened]), input[inputmode="tel"]:not([data-phone-hardened]), input[data-phone]:not([data-phone-hardened])').forEach(hardenPhone); } catch (e) {}
+    try { r.querySelectorAll('input[type="tel"]:not([data-phone-hardened]), input[inputmode="tel"]:not([data-phone-hardened]), input[data-phone]:not([data-phone-hardened])').forEach(function (x) { if (isPhone(x)) hardenPhone(x); }); } catch (e) {}
     try { r.querySelectorAll('input[type="date"]:not([data-date-hardened])').forEach(hardenDate); } catch (e) {}
     try { r.querySelectorAll('[required]:not([data-req-marked]), [aria-required="true"]:not([data-req-marked]), [data-required]:not([data-req-marked])').forEach(markRequired); } catch (e) {}
   }

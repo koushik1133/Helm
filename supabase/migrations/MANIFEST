@@ -67,3 +67,4 @@ forward  supabase/migrations/0051_upload_quarantine.sql
 forward  supabase/migrations/0052_lifecycle_reapproval.sql
 forward  supabase/migrations/0053_password_lockout.sql
 forward  supabase/migrations/0054_security_alerts.sql
+forward  supabase/migrations/0055_phone_verify.sql

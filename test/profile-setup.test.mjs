@@ -280,11 +280,13 @@ t('login.html: profile step is checked after the studio lookup, before leaving f
 
 /* ----------------------------------------------------- 2. validation */
 const V = makeEnv({ user: null, path: '/login', gated: false }).S.profile.validate;
-t('mobile: Indian 10-digit numbers starting 6-9, stored as +91XXXXXXXXXX', () => {
+t('mobile: Indian 10-digit numbers starting 6-9 (+91XXXXXXXXXX); international E.164 with a leading + (0055)', () => {
   for (const ok of ['9876543210', '98765 43210', '+91 98765 43210', '+91-98765-43210', '919876543210', '09876543210', '(98765) 43210', '6000000000'])
     assert.equal(V({ phone: ok }).clean.phone, '+919876543210'.replace('9876543210', ok.replace(/\D/g, '').slice(-10)), ok);
-  for (const bad of ['5876543210', '12345', '98765abc10', '987654321', '98765432101', '+1 202 555 0123', '+44 7911 123456', '0000000000', '+91 5876543210'])
+  for (const bad of ['5876543210', '12345', '98765abc10', '987654321', '98765432101', '+1 202', '+44 12', '0000000000', '+91 5876543210', '+1234567890123456'])
     assert.ok(V({ phone: bad }).errors.phone, bad);
+  assert.equal(V({ phone: '+1 202 555 0123' }).clean.phone, '+12025550123');
+  assert.equal(V({ phone: '+44 7911 123456' }).clean.phone, '+447911123456');
   assert.match(V({ phone: '5876543210' }).errors.phone, /starting with 6, 7, 8 or 9/);
   assert.equal(V({ phone: '' }, { requirePhone: true }).errors.phone, 'Mobile number is required.');
   assert.ok(!('phone' in V({ phone: '  ' }).clean), 'a blank optional mobile is left out (it can never be cleared)');
@@ -498,7 +500,8 @@ t('auth-ui: "Your profile" in the Account panel (display-name fallback kept), ba
   assert.match(a, /profileForm: profileForm/);
   const pf = a.slice(a.indexOf('function profileForm('), a.indexOf('function profileSection('));
   assert.doesNotMatch(pf, /innerHTML|insertAdjacentHTML|outerHTML/, 'form builds DOM with textContent only');
-  assert.match(pf, /data-no-country/, 'own +91 prefix, not the global country picker');
+  assert.match(pf, /HP\.attach\(inputs\[k\]/, 'phones use the shared HelmPhone component (E.164)');
+  assert.match(pf, /Phone verification will be available shortly — you can continue./, 'dormant WhatsApp verify lets the member continue');
 });
 
 /* ------------------------------------------------------------- run */

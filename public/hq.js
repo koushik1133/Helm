@@ -199,14 +199,14 @@
     wrap.appendChild(el("h3", { text: "Account" }));
     var AF = [["legal_business_name", "Legal name"], ["gstin", "GSTIN"], ["country", "Country (ISO-2)"], ["state", "State"], ["city", "City"],
       ["billing_address", "Billing address"], ["website", "Website"], ["timezone", "Timezone"], ["primary_contact_name", "Primary contact"],
-      ["primary_contact_email", "Primary e-mail"], ["primary_contact_phone", "Primary phone (+91…)"], ["secondary_contact_name", "Secondary contact"],
+      ["primary_contact_email", "Primary e-mail"], ["primary_contact_phone", "Primary phone"], ["secondary_contact_name", "Secondary contact"],
       ["secondary_contact_email", "Secondary e-mail"], ["secondary_contact_phone", "Secondary phone"], ["billing_contact_email", "Billing e-mail"],
       ["team_size_band", "Team size (1, 2-5, 6-15, 16-50, 51+)"], ["signup_source", "Signup source"],
       ["business_type", "Business type"], ["is_business", "Business (true/false)"], ["tax_id_type", "Tax ID type"], ["tax_id", "Tax ID"], ["pan", "PAN (India)"],
       ["billing_currency", "Billing currency"], ["payment_mandate_ref", "Mandate reference"], ["referral_code", "Referral code"], ["referred_by", "Referred by"]];
     var inputs = {};
     var af = el("div", { cls: "form" });
-    AF.forEach(function (f) { var i = el("input", { type: "text" }); i.value = acc[f[0]] == null ? "" : String(acc[f[0]]); inputs[f[0]] = i; af.appendChild(field(f[1], i)); });
+    AF.forEach(function (f) { var i = el("input", { type: /_phone$/.test(f[0]) ? "tel" : (/_email$/.test(f[0]) ? "email" : "text") }); i.value = acc[f[0]] == null ? "" : String(acc[f[0]]); inputs[f[0]] = i; af.appendChild(field(f[1], i)); });
     var asave = el("button", { cls: "btn", type: "button", text: "Save account" });
     asave.addEventListener("click", function () {
       var patch = {}; AF.forEach(function (f) { var v = String(inputs[f[0]].value || "").trim(); if (v !== (acc[f[0]] == null ? "" : String(acc[f[0]]))) patch[f[0]] = v; });
