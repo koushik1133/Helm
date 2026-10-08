@@ -84,9 +84,9 @@
     </section>
     <p class="foot">Signed in as <b id="psEmail"></b> · <button type="button" class="linkbtn" id="psSignOut">Sign out</button></p>
   </main>
-<script src="/trusted-types.js?v=1"></script>
+<script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=96"></script>
+<script src="config.js?v=97"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="form-validate.js?v=1"></script>
 <script src="store-api.js?v=122"></script>
@@ -113,7 +113,10 @@
     if(!String(p.full_name||"").trim() && (meta.full_name||meta.name)) p=Object.assign({},p,{full_name:String(meta.full_name||meta.name).slice(0,80)});
     if(!window.HelmAuthUI || !HelmAuthUI.profileForm){ $("#psErr").textContent="This page couldn't load completely. Check your connection and reload."; $("#psErr").hidden=false; return; }
     const f=HelmAuthUI.profileForm(BPStore,{ mode:"setup", idp:"ps", profile:p, email:u.email, labelledBy:"psTitle",
-      submitLabel:"Save and continue", onSaved:()=>{ location.replace(next); } });
+      submitLabel:"Save and continue", onSaved:async ()=>{
+        // a NEW studio's owner goes on to pick a plan (0056); everyone else straight to ?next=
+        try{ if(BPStore.checkout && await BPStore.checkout.routeIfRequired(next)) return; }catch(e){}
+        location.replace(next); } });
     $("#psForm").appendChild(f.el);
     f.focusFirst();
   });

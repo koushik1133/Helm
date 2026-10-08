@@ -39,7 +39,7 @@ function allowed(rules, url) {
 }
 
 const star = groups(txt).find((g) => g.agents.includes('*'));
-const MARKETING = ['index', 'about', 'services', 'privacy', 'terms', 'login'];
+const MARKETING = ['index', 'about', 'services', 'privacy', 'terms', 'refund-policy', 'login'];
 const appPages = readdirSync(new URL('public/', root))
   .filter((f) => f.endsWith('.html')).map((f) => f.slice(0, -5))
   .filter((p) => !MARKETING.includes(p));

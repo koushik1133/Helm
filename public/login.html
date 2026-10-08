@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="/trusted-types.js?v=1"></script>
+<script src="/trusted-types.js?v=2"></script>
 <script>/* Auth screens are ALWAYS light — the saved theme (bps.theme) is applied only after the user lands on an in-app page post-login. */try{document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>
 <title>Sign in · Helm</title>
 <meta name="description" content="Sign in to Helm, or create your studio's private workspace to run every event from first enquiry to final bill.">
@@ -279,7 +279,7 @@
   </main>
 
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=96"></script>
+<script src="config.js?v=97"></script>
 <script src="store-api.js?v=122"></script>
 <script src="auth-ui.js?v=13"></script>
 <script>
@@ -333,6 +333,8 @@
     try{ oid=await BPStore.org.resolveId(); known=true; }catch(e){}
     // a NEW studio member completes their profile first (0041; no-op when it isn't installed)
     if(oid && BPStore.profile.routeIfRequired && await BPStore.profile.routeIfRequired(nextUrl())) return;
+    // then a NEW studio's owner picks a plan / starts the trial (0056; no-op when it isn't installed)
+    if(oid && BPStore.checkout && await BPStore.checkout.routeIfRequired(nextUrl())) return;
     if(oid || !known){ location.replace(nextUrl()); return; }   // unknown: the page gate re-checks
     if(!(await operatorTwoStep())) return;          // operators: two-step code (or set-up) first, no skip
     if(await BPStore.auth.operatorToHq()) return;   // Helm platform operator → HQ (replace)

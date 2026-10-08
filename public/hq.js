@@ -310,6 +310,29 @@
     $("#sState").value = s.seller_state || ""; $("#sCountry").value = s.seller_country || "IN";
     $("#sLut").value = s.lut_number || ""; $("#sLutFrom").value = s.lut_valid_from || ""; $("#sLutTo").value = s.lut_valid_to || "";
     $("#sRate").value = s.gst_rate != null ? s.gst_rate : 18; $("#sPrefix").value = s.invoice_prefix != null ? s.invoice_prefix : "HELM-";
+    showCheckoutSettings(s);
+  }
+  /* ---------------- 0056 studio checkout switches ---------------- */
+  function showCheckoutSettings(s) {
+    var has = s && Object.prototype.hasOwnProperty.call(s, "allow_trial_bypass");
+    $("#coLive").checked = !!(s && s.online_payments_live); $("#coBypass").checked = !!(s && s.allow_trial_bypass);
+    $("#coTermsV").value = (s && s.terms_version) || "";
+    ["#coLive", "#coBypass", "#coTermsV", "#btnCheckout"].forEach(function (q) { $(q).disabled = !has; });
+    $("#coState").textContent = !has ? "Checkout settings appear after migration 0056 is applied."
+      : "Online payment: " + (s.online_payments_live ? "LIVE" : "off (free trial)") + " · Testing bypass: " + (s.allow_trial_bypass ? "ON — turn off before launch" : "off");
+  }
+  // pure: validated args for hq_set_checkout_settings (exported for tests)
+  function checkoutSettingsArgs(live, bypass, terms) {
+    var t = String(terms == null ? "" : terms).trim();
+    if (t && !/^[A-Za-z0-9._-]{1,32}$/.test(t)) throw new Error("Terms version: letters, numbers, . _ - only (up to 32)");
+    return { p_allow_trial_bypass: !!bypass, p_online_payments_live: !!live, p_terms_version: t || null };
+  }
+  function saveCheckoutSettings() {
+    var a; try { a = checkoutSettingsArgs($("#coLive").checked, $("#coBypass").checked, $("#coTermsV").value); } catch (e) { showErr(e); return; }
+    if (a.p_online_payments_live && !window.confirm("Turn ON online payment? New studios will be asked to pay through Razorpay.")) { $("#coLive").checked = false; return; }
+    var b = $("#btnCheckout"); b.disabled = true;
+    call("hq_set_checkout_settings", a).then(function (s) { showCheckoutSettings(s); okMsg("Checkout settings saved."); })
+      .catch(showErr).then(function () { b.disabled = false; });
   }
   function saveSettings() {
     call("hq_set_billing_settings", { p_legal_name: $("#sName").value, p_gstin: $("#sGstin").value || null, p_address: $("#sAddr").value || null,
@@ -334,11 +357,60 @@
       el("td", { cls: "n", text: num(x.rate) + "%" }), el("td", { text: date(x.effective_from) + " – " + (x.effective_to ? date(x.effective_to) : "open") }),
       el("td", null, [el("span", { cls: "pill " + (x.active ? "ok" : ""), text: x.active ? "active" : "off" })]), el("td", { text: x.invoice_note || "" })])); });
     if (!plans.length) tb.appendChild(el("tr", null, [el("td", { colspan: "6", cls: "empty", text: "No plans yet — add one below." })]));
+    loadPlanCheckout().catch(showErr);
   }
   function saveTaxRule() {
     call("hq_upsert_tax_rule", { p_country: $("#txCountry").value, p_region: $("#txRegion").value || null, p_regime: $("#txRegime").value,
       p_rate: Number($("#txRate").value), p_invoice_note: $("#txNote").value || null, p_effective_from: $("#txFrom").value || null,
       p_effective_to: $("#txTo").value || null, p_active: $("#txActive").checked }).then(function () { okMsg("Tax rule saved."); loadPlans().catch(showErr); }).catch(showErr);
+  }
+  /* ---------------- 0056 per-plan checkout details ---------------- */
+  var planCo = [];
+  // pure: validated args for hq_set_plan_checkout (exported for tests)
+  function planCheckoutArgs(code, cur, desc, featText, rzpM, rzpY) {
+    var RZ = /^plan_[A-Za-z0-9]{6,40}$/;
+    var feats = String(featText || "").split(/\r?\n/).map(function (x) { return x.replace(/\s+/g, " ").trim(); }).filter(Boolean);
+    if (feats.length > 20) throw new Error("Up to 20 included items");
+    feats.forEach(function (f) { if (f.length > 120) throw new Error("Each included item: up to 120 characters"); if (/[<>]/.test(f)) throw new Error("Remove < and > from included items"); });
+    var d = String(desc || "").replace(/\s+/g, " ").trim();
+    if (d.length > 300 || /[<>]/.test(d)) throw new Error("Description: up to 300 characters, no < or >");
+    var m = String(rzpM || "").trim(), y = String(rzpY || "").trim();
+    if (m && !RZ.test(m)) throw new Error("Monthly Razorpay plan id must look like plan_XXXXXXXXXXXX");
+    if (y && !RZ.test(y)) throw new Error("Yearly Razorpay plan id must look like plan_XXXXXXXXXXXX");
+    if (!/^[a-z0-9][a-z0-9_-]{1,39}$/.test(String(code || ""))) throw new Error("Choose a plan");
+    return { p_code: code, p_currency: /^[A-Z]{3}$/.test(cur) ? cur : "INR", p_description: d || null, p_features: feats,
+      p_sort_order: null, p_razorpay_plan_id_monthly: m || null, p_razorpay_plan_id_yearly: y || null };
+  }
+  function fillPlanCoForm(p, cur) {
+    var sel = clear($("#pcCur")), prices = Array.isArray(p.prices) ? p.prices : [];
+    prices.forEach(function (x) { var o = el("option", { value: x.currency, text: x.currency }); if (x.currency === cur) o.selected = true; sel.appendChild(o); });
+    if (!prices.length) sel.appendChild(el("option", { value: "INR", text: "INR (add a price first)" }));
+    var pr = prices.filter(function (x) { return x.currency === sel.value; })[0] || {};
+    $("#pcCode").value = p.code; $("#pcDesc").value = p.description || "";
+    $("#pcFeat").value = (Array.isArray(p.features) ? p.features : []).join("\n");
+    $("#pcRzpM").value = pr.razorpay_plan_id_monthly || ""; $("#pcRzpY").value = pr.razorpay_plan_id_yearly || "";
+    $("#pcForm").hidden = false; $("#pcDesc").focus();
+  }
+  async function loadPlanCheckout() {
+    var tb = clear($("#tPlanCo"));
+    try { var r = await call("hq_plan_checkout"); planCo = Array.isArray(r) ? r : []; }
+    catch (e) { planCo = []; tb.appendChild(el("tr", null, [el("td", { colspan: "5", cls: "empty", text: "Checkout details appear after migration 0056 is applied." })])); return; }
+    planCo.forEach(function (p) {
+      var ids = (Array.isArray(p.prices) ? p.prices : []).map(function (x) {
+        return x.currency + ": " + (x.razorpay_plan_id_monthly || "— monthly") + " / " + (x.razorpay_plan_id_yearly || "— yearly"); }).join("; ") || "no prices yet";
+      var edit = el("button", { cls: "btn sm", type: "button", text: "Edit" });
+      edit.addEventListener("click", function () { fillPlanCoForm(p, "INR"); });
+      tb.appendChild(el("tr", null, [el("td", { text: p.name + " (" + p.code + ")" }), el("td", { text: p.description || "—" }),
+        el("td", { cls: "n", text: int((p.features || []).length) + " items" }), el("td", { cls: "m", text: ids }), el("td", null, [edit])]));
+    });
+    if (!planCo.length) tb.appendChild(el("tr", null, [el("td", { colspan: "5", cls: "empty", text: "No plans yet — add one above." })]));
+  }
+  function savePlanCheckout() {
+    var a; try { a = planCheckoutArgs($("#pcCode").value, $("#pcCur").value, $("#pcDesc").value, $("#pcFeat").value, $("#pcRzpM").value, $("#pcRzpY").value); }
+    catch (e) { showErr(e); return; }
+    var b = $("#btnPlanCo"); b.disabled = true;
+    call("hq_set_plan_checkout", a).then(function () { okMsg("Checkout details saved."); loadPlanCheckout().catch(showErr); })
+      .catch(showErr).then(function () { b.disabled = false; });
   }
   function savePlan() {
     call("hq_upsert_plan", { p_code: $("#plCode").value, p_name: $("#plName").value, p_price_monthly: Number($("#plPrice").value), p_currency: "INR", p_active: $("#plActive").checked })
@@ -447,6 +519,9 @@
     on("#btnRecord", "click", recordPayment);
     on("#btnSettings", "click", saveSettings);
     on("#btnPlan", "click", savePlan);
+    on("#btnCheckout", "click", saveCheckoutSettings);
+    on("#btnPlanCo", "click", savePlanCheckout);
+    on("#pcCur", "change", function () { var p = planCo.filter(function (x) { return x.code === $("#pcCode").value; })[0]; if (p) fillPlanCoForm(p, $("#pcCur").value); });
     on("#btnTax", "click", saveTaxRule);
     on("#btnAudit", "click", function () { loadAudit().catch(showErr); loadSecurity().catch(showErr); });
     on("#aWrites", "change", function () { loadAudit().catch(showErr); });

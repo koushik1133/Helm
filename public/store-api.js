@@ -119,7 +119,8 @@
   }
   function sessGet(key, uid) { const e = sessEntry(key, uid); return e && e.fresh ? e.val : null; }
   function sessSet(key, uid, val) { try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), uid: uid || null, val: val })); } catch (e) {} }
-  function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); sessionStorage.removeItem("bp_sess_org"); sessionStorage.removeItem(PROFILE_SESS_KEY); sessionStorage.removeItem(PW_OK_KEY); } catch (e) {} }
+  function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); sessionStorage.removeItem("bp_sess_org"); sessionStorage.removeItem(PROFILE_SESS_KEY); sessionStorage.removeItem(CHECKOUT_SESS_KEY); sessionStorage.removeItem(PW_OK_KEY); } catch (e) {} }
+  const CHECKOUT_SESS_KEY = "bp_sess_checkout"; // per tab: my_checkout_status() answer (never a "must check out" one)
   const PROFILE_SESS_KEY = "bp_sess_profile";   // per tab: my_profile_status() answer (never a "must complete" one)
   const NUDGE_KEY = "helm_profile_nudge";       // localStorage {uid, until}: "complete your profile" banner snoozed
   const PW_OK_KEY = "bp_pw_ok";                 // per tab: "<uid>" once password_change_required() said no
@@ -284,7 +285,7 @@
      Only pages that GATE on auth (called auth.required() or auth.requireView())
      redirect, and never the public token pages below. */
   const PUBLIC_PAGES = { approve: 1, portal: 1, "proposal-view": 1, invite: 1, work: 1, "sim-pay": 1,
-    index: 1, login: 1, about: 1, services: 1, privacy: 1, terms: 1, "reset-password": 1 };
+    index: 1, login: 1, about: 1, services: 1, privacy: 1, terms: 1, "refund-policy": 1, "reset-password": 1 };
   let authGateUsed = false;     // page called auth.required()/requireView()
   let hadSession = false;       // a user was signed in at some point on this page
   let explicitSignOut = false;  // the user clicked "sign out" (not an expiry)
@@ -470,6 +471,44 @@
   function nextParam() {
     try { return new URLSearchParams(location.search || "").get("next") || ""; } catch (e) { return ""; }
   }
+  /* ---- Onboarding checkout (0056) — after the profile step, for NEW studio owners ----
+     my_checkout_status() → {required, reason, …}. The SERVER decides: required only for a
+     studio admin whose studio was created after 0056 and has no subscription row yet.
+     Invited members, older studios, clients and HQ operators never see /checkout.
+     UX step, not a security boundary: unknown (network) never blocks the app, and 0056
+     not installed (PGRST202 / 42883) = the feature is off. "Not required" answers are
+     cached per tab (bp_sess_checkout); a "must check out" answer is always asked again. */
+  const CHECKOUT_PAGE = "checkout";
+  let coEarly = null;
+  // Pure decision (exported for tests): "checkout" (send to /checkout) or "none".
+  function checkoutGateDecision(st, page, role) {
+    if (!st || typeof st !== "object" || st.missing) return "none";
+    if (role === "client" || st.required !== true) return "none";
+    if (page === CHECKOUT_PAGE || page === PROFILE_SETUP_PAGE) return "none";   // profile step comes first
+    return "checkout";
+  }
+  async function fetchCheckoutStatus(force) {
+    if (!supa || !currentUser) return null;
+    const uid = currentUser.id;
+    if (!force) { const hit = sessEntry(CHECKOUT_SESS_KEY, uid); if (hit && hit.val && typeof hit.val === "object") return hit.val; }
+    const { data, error } = await supa.rpc("my_checkout_status");
+    if (error) {
+      if (isMissingFn(error)) { const v = { missing: true }; sessSet(CHECKOUT_SESS_KEY, uid, v); return v; }
+      throw error;
+    }
+    if (!data || typeof data !== "object") return null;
+    const v = { required: data.required === true, is_admin: data.is_admin === true, has_subscription: data.has_subscription === true,
+      reason: typeof data.reason === "string" ? data.reason : "" };
+    if (!v.required) sessSet(CHECKOUT_SESS_KEY, uid, v); else { try { sessionStorage.removeItem(CHECKOUT_SESS_KEY); } catch (e) {} }
+    return v;
+  }
+  function noteCheckoutDone() {
+    if (!currentUser) return;
+    sessSet(CHECKOUT_SESS_KEY, currentUser.id, { required: false, is_admin: true, has_subscription: true, reason: "subscribed" });
+  }
+  function checkoutUrl(next) {
+    return "/" + CHECKOUT_PAGE + "?next=" + encodeURIComponent(safeNext(next));
+  }
   async function runPageGate() {
     if (!PAGE_GATED) return;
     authGateUsed = true;
@@ -509,6 +548,27 @@
     } else if (profileGateDecision(pst, pk, roleCache) === "setup") {
       try { location.replace(profileSetupUrl(currentPageRef())); } catch (e) {}
       return HANG();
+    }
+    // Onboarding checkout (0056): decided BEFORE the page shows (no flash).
+    if (pk !== PROFILE_SETUP_PAGE) {
+      let cst = null;
+      const ce = coEarly; coEarly = null;
+      try { cst = await (ce || fetchCheckoutStatus(pk === CHECKOUT_PAGE)); }
+      catch (e) {
+        if (looksLikeAuthError(e)) { gotoLogin(); return HANG(); }
+        cst = null;                  // unknown (network): never blocks the app
+      }
+      if (pk === CHECKOUT_PAGE) {
+        // nothing to buy here (member, already subscribed, older studio, 0056 not
+        // installed) → straight on to ?next= (never back to this page: no loop)
+        if (cst && (cst.missing || cst.required !== true)) {
+          try { location.replace(safeNext(nextParam())); } catch (e) {}
+          return HANG();
+        }
+      } else if (checkoutGateDecision(cst, pk, roleCache) === "checkout") {
+        try { location.replace(checkoutUrl(currentPageRef())); } catch (e) {}
+        return HANG();
+      }
     }
     revealPage();
   }
@@ -1027,6 +1087,7 @@
               if (PAGE_GATED) {
                 orgEarly = orgIdStrict(); orgEarly.catch(() => {});
                 profEarly = fetchProfileStatus(false); profEarly.catch(() => {});   // 0041 profile step, same round-trip
+                coEarly = fetchCheckoutStatus(false); coEarly.catch(() => {});      // 0056 checkout step, same round-trip
               }
               await evaluateGate();
               // role + access matrix are needed by nearly every page right after it
@@ -5967,6 +6028,169 @@
       return [...new Set(this.AREAS.concat((data || []).map((x) => x.entity).filter(Boolean)))].sort(); },
   };
 
+  /* ---------------- onboarding checkout (0056) ----------------
+     Billing rules mirror the SQL checks on studio_account (0045): trimmed, legal name
+     <= 160, address <= 500, state/city <= 80, ISO country, GSTIN format (optional).
+     Card / UPI / netbanking data is NEVER collected here: paying opens Razorpay Standard
+     Checkout (its own modal) for a subscription created server-side; the signature is
+     verified server-side and the webhook stays the source of truth. Dormant → trial. */
+  const CO_GSTIN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+  const CO_BAD_TEXT = /[<>\u0000-\u001f]/;
+  function coValidate(fields) {
+    const f = fields && typeof fields === "object" ? fields : {};
+    const t = (k) => String(f[k] == null ? "" : f[k]).replace(/\s+/g, " ").trim();
+    const clean = {
+      legal_business_name: t("legal_business_name"),
+      gstin: t("gstin").toUpperCase().replace(/\s+/g, ""),
+      billing_address: String(f.billing_address == null ? "" : f.billing_address).trim().replace(/[ \t]+/g, " "),
+      city: t("city"), state: t("state"), country: t("country").toUpperCase(),
+    };
+    const errors = {};
+    if (!clean.legal_business_name) errors.legal_business_name = "Enter your studio's legal name";
+    else if (clean.legal_business_name.length > 160) errors.legal_business_name = "Keep it under 160 characters";
+    else if (CO_BAD_TEXT.test(clean.legal_business_name)) errors.legal_business_name = "Remove < and > characters";
+    if (clean.gstin && !CO_GSTIN.test(clean.gstin)) errors.gstin = "Enter a valid 15-character GSTIN, e.g. 36ABCDE1234F1Z5";
+    if (clean.gstin && clean.country && clean.country !== "IN") errors.gstin = "GSTIN applies to Indian studios only";
+    if (!clean.billing_address) errors.billing_address = "Enter your billing address";
+    else if (clean.billing_address.length > 500) errors.billing_address = "Keep it under 500 characters";
+    else if (/[<>]/.test(clean.billing_address)) errors.billing_address = "Remove < and > characters";
+    if (clean.city.length > 80) errors.city = "Keep it under 80 characters";
+    else if (CO_BAD_TEXT.test(clean.city)) errors.city = "Remove < and > characters";
+    if (!clean.state) errors.state = "Enter your state or region";
+    else if (clean.state.length > 80) errors.state = "Keep it under 80 characters";
+    else if (CO_BAD_TEXT.test(clean.state)) errors.state = "Remove < and > characters";
+    if (!/^[A-Z]{2}$/.test(clean.country)) errors.country = "Choose your country";
+    return { ok: Object.keys(errors).length === 0, errors, clean };
+  }
+  // One error → {kind, message} for the page. Validation messages are shown as-is;
+  // provider declines get a retry message; anything security-related (auth, rate
+  // limit, permission) gets ONE generic message — never the details.
+  const CO_SECURITY_MSG = "We couldn't verify this request. Please sign in again, or contact support if this keeps happening.";
+  function coClassify(e) {
+    const kind = e && typeof e === "object" ? String(e.kind || "") : "";
+    const code = e && typeof e === "object" ? String(e.code || "") : "";
+    const status = e && typeof e === "object" ? Number(e.status) || 0 : 0;
+    const msg = String((e && e.message) || "");
+    if (kind === "cancelled") return { kind: "cancelled", message: "Payment window closed — nothing was charged. You can try again whenever you're ready." };
+    if (kind === "dormant" || status === 503) return { kind: "dormant", message: "Online payment is being enabled — your studio starts on a free trial." };
+    if (kind === "security" || code === "42501" || status === 401 || status === 403 || status === 429 || /jwt|not authori[sz]ed|permission denied/i.test(msg))
+      return { kind: "security", message: CO_SECURITY_MSG };
+    if (kind === "declined" || status === 402 || status === 502)
+      return { kind: "declined", message: msg && kind === "declined" ? msg : "The payment didn't go through. No money was taken — please try again or use another method." };
+    if (kind === "validation" || code === "22023" || status === 400 || status === 409)
+      return { kind: "validation", message: (msg || "Please check your details").replace(/[<>]/g, "").slice(0, 160) };
+    if (e instanceof TypeError || /failed to fetch|network/i.test(msg)) return { kind: "network", message: "Couldn't reach Helm. Check your connection and try again." };
+    return { kind: "server", message: "Something went wrong. Please try again." };
+  }
+  const CO_ONB = (CFG && CFG.onboarding) || {};
+  const checkout = {
+    // {required, is_admin, has_subscription, reason} | {missing:true} | null. Never throws.
+    async status(o) {
+      if (mode !== "supabase") return null;
+      try { return await fetchCheckoutStatus(!!(o && o.fresh)); } catch (e) { return null; }
+    },
+    gateDecision: (st, page, role) => checkoutGateDecision(st, page, role),
+    // where /checkout sends you afterwards (always one of the app's own pages)
+    next: () => safeNext(nextParam()),
+    url: (next) => checkoutUrl(next),
+    // signed in and leaving login / profile-setup: a new studio owner goes to /checkout first
+    async routeIfRequired(next) {
+      if (mode !== "supabase" || !currentUser || pendingStep) return false;
+      let st = null; try { st = await fetchCheckoutStatus(true); } catch (e) { return false; }
+      if (checkoutGateDecision(st, "login", roleCache) !== "checkout") return false;
+      try { location.replace(checkoutUrl(next)); } catch (e) { return false; }
+      return true;
+    },
+    options: () => rpc("my_checkout_options"),
+    preview: (plan, interval) => rpc("my_checkout_preview", { p_plan: String(plan || ""), p_interval: interval === "yearly" ? "yearly" : "monthly" }),
+    validate: (fields) => coValidate(fields),
+    classify: (e) => coClassify(e),
+    // the client-side switch for the "Skip payment (testing only)" button (the server
+    // flag helm_billing_settings.allow_trial_bypass is the real gate)
+    bypassEnabled: () => CO_ONB.allowPaymentBypass === true,
+    // online payment is offered only when BOTH config.js and HQ say it is live
+    payLive: (opts) => !!(LIVE.pay && opts && opts.online_payments_live === true),
+    // save billing details + accept the Terms (the server stamps the time)
+    async saveBilling(fields, termsVersion) {
+      const r = coValidate(fields);
+      if (!r.ok) { const e = new Error("Please fix the highlighted fields"); e.kind = "validation"; e.fields = r.errors; throw e; }
+      if (!/^[A-Za-z0-9._-]{1,32}$/.test(String(termsVersion || ""))) { const e = new Error("Please accept the Terms of Service"); e.kind = "validation"; throw e; }
+      const patch = Object.assign({}, r.clean, { terms_version_accepted: termsVersion });
+      return rpc("my_studio_account_update", { p_account: patch });
+    },
+    async startTrial(source, plan) {
+      const out = await rpc("my_start_trial", { p_source: source === "payment_pending" ? "payment_pending" : "bypass", p_plan: plan || null });
+      noteCheckoutDone();
+      return out;
+    },
+    // Edge function call → JSON; throws an Error carrying {kind, status}.
+    async _fn(body) {
+      if (!supa || !fnUrl("create-subscription-checkout")) { const e = new Error("dormant"); e.kind = "dormant"; throw e; }
+      let token = "";
+      try { const { data: { session } } = await supa.auth.getSession(); token = (session && session.access_token) || ""; } catch (e) {}
+      if (!token) { const e = new Error("signed out"); e.kind = "security"; e.status = 401; throw e; }
+      const res = await fetch(fnUrl("create-subscription-checkout"), { method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token, "apikey": CFG.anonKey },
+        body: JSON.stringify(body) });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) { const e = new Error(String(j.error || ("HTTP " + res.status))); e.kind = j.kind || ""; e.status = res.status; throw e; }
+      return j;
+    },
+    // create the Razorpay subscription server-side → {key_id, subscription_id}
+    async begin(plan, interval) {
+      const j = await checkout._fn({ plan: String(plan || ""), interval: interval === "yearly" ? "yearly" : "monthly" });
+      if (!/^rzp_(test|live)_[A-Za-z0-9]+$/.test(String(j.key_id || "")) || !/^sub_[A-Za-z0-9]{6,40}$/.test(String(j.subscription_id || ""))) {
+        const e = new Error("bad provider answer"); e.kind = "declined"; e.status = 502; throw e; }
+      return j;
+    },
+    // Razorpay Standard Checkout (the ONLY place payment details are entered). The exact
+    // script URL is the one the /checkout CSP + Trusted Types allow.
+    RAZORPAY_JS: "https://checkout.razorpay.com/v1/checkout.js",
+    loadRazorpay() {
+      if (typeof window === "undefined") return Promise.reject(Object.assign(new Error("no window"), { kind: "declined" }));
+      if (typeof window.Razorpay === "function") return Promise.resolve(window.Razorpay);
+      return new Promise((resolve, reject) => {
+        const sc = document.createElement("script");
+        sc.src = checkout.RAZORPAY_JS; sc.async = true;
+        sc.onload = () => (typeof window.Razorpay === "function" ? resolve(window.Razorpay)
+          : reject(Object.assign(new Error("The payment window couldn't load. Please try again."), { kind: "declined" })));
+        sc.onerror = () => reject(Object.assign(new Error("The payment window couldn't load. Check your connection and try again."), { kind: "declined" }));
+        document.head.appendChild(sc);
+      });
+    },
+    // Razorpay "payment.failed" → an Error the page can classify. Risk / fraud /
+    // authentication failures get the generic security message (never the reason).
+    failure(resp) {
+      const er = (resp && resp.error) || {};
+      const reason = String(er.reason || "") + " " + String(er.code || "");
+      const e = new Error(String(er.description || "").replace(/[<>]/g, "").slice(0, 160));
+      e.kind = /risk|fraud|blocked|authenticat|security/i.test(reason) ? "security"
+        : /BAD_REQUEST/i.test(reason) && /input|invalid/i.test(String(er.reason || "")) ? "validation" : "declined";
+      return e;
+    },
+    // open the modal → resolves {verified} after the server checked the signature;
+    // rejects {kind:"cancelled"} when the person closes it.
+    async pay(plan, interval, prefill) {
+      const { key_id, subscription_id } = await checkout.begin(plan, interval);
+      const Rzp = await checkout.loadRazorpay();
+      const resp = await new Promise((resolve, reject) => {
+        const p = prefill && typeof prefill === "object" ? prefill : {};
+        const rz = new Rzp({ key: key_id, subscription_id, name: "Helm Events", description: "Helm subscription",
+          prefill: { name: String(p.name || "").slice(0, 100), email: String(p.email || "").slice(0, 200), contact: String(p.contact || "").slice(0, 20) },
+          theme: { color: "#6C4CF1" },
+          handler: (r) => resolve(r),
+          modal: { ondismiss: () => reject(Object.assign(new Error("Payment cancelled"), { kind: "cancelled" })), escape: true } });
+        try { rz.on("payment.failed", (r) => reject(checkout.failure(r))); } catch (e) {}
+        rz.open();
+      });
+      const v = await checkout._fn({ action: "verify", razorpay_payment_id: String(resp.razorpay_payment_id || ""),
+        razorpay_subscription_id: String(resp.razorpay_subscription_id || subscription_id), razorpay_signature: String(resp.razorpay_signature || "") });
+      if (v && v.verified === true) noteCheckoutDone();
+      return v;
+    },
+    done: () => noteCheckoutDone(),
+  };
+
   const BPStore = {
     init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat, profile, quoteShelf, uploads,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
@@ -6000,6 +6224,7 @@
     hq: (fn, args) => (/^hq_[a-z_]+$/.test(fn) ? rpc(fn, args || {}) : Promise.reject(new Error("bad call"))),
     // 0045 — this studio's Helm subscription (read-only). Every member gets {status, read_only};
     // studio admins also get plan, period and payments. invoice(): admins, own studio only.
+    checkout,
     subscription: {
       mine: () => (supa ? rpc("my_subscription").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       invoice: (id) => rpc("my_invoice", { p_payment_id: id }),

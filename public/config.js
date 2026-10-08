@@ -23,6 +23,12 @@ window.SUPABASE_CONFIG = {
   // Turn on only AFTER Supabase → Authentication → Bot protection is enabled with
   // the Turnstile SECRET key (docs/AUTH-DASHBOARD-SETTINGS.md) — never put the secret here.
   captcha: { provider: "turnstile", siteKey: "" },
+  // Onboarding checkout (0056). allowPaymentBypass shows the clearly-labelled
+  // "Skip payment (testing only)" button on /checkout. The SERVER flag
+  // helm_billing_settings.allow_trial_bypass is the real gate — set BOTH to false
+  // for launch. Online payment there needs liveChannels.pay AND HQ's
+  // online_payments_live, plus the create-subscription-checkout edge function.
+  onboarding: { allowPaymentBypass: true },
   auth: {
     // ── THE two-step switch (one place) ─────────────────────────────────────────
     // false (now, owner decision: two-step OPTIONAL while testing) — admins may use
