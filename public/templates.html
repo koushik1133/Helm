@@ -140,12 +140,19 @@
   async function save(){
     const name=$("#t_name").value.trim(); if(!name){ $("#t_err").textContent="Name is required."; $("#t_err").hidden=false; $("#t_name").focus(); return; }
     // split on real newlines OR a pasted literal "\n" (QA saw "Item 1\nItem 2" kept as one)
-    const items=$("#t_items").value.split(/\r?\n|\\n/).map(x=>x.trim()).filter(Boolean);
+    const nk=(t)=>String(t||"").normalize("NFKC").toLowerCase().replace(/&/g," and ").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\p{L}\p{N}]+/gu," ").trim();
+    const seenK=new Set(); const rawItems=$("#t_items").value.split(/\r?\n|\\n/).map(x=>x.trim()).filter(Boolean);
+    const items=rawItems.filter(x=>{ const k=nk(x)||x; if(seenK.has(k)) return false; seenK.add(k); return true; });   // repeated lines (any case/spacing) are kept once
+    const droppedDup=rawItems.length-items.length;
     const rec={ name, section:$("#t_section").value, items };
     $("#t_err").hidden=true;
+    // same template name already exists -> ask first (never silently create a twin)
+    try{ const all=await BPStore.templates.list(); const twin=(all||[]).find(t=>t.id!==editingId && nk(t.name)===nk(name));
+      if(twin && !(await BPUI.confirm("A template called \u201c"+twin.name+"\u201d already exists. Save another one with the same name?",{title:"Name already used",okLabel:"Save anyway"}))) return;
+    }catch(e){ /* lookup failed: don't block the save */ }
     try{ await BPUI.guard($("#t_save"), async()=>{
         if(editingId) await BPStore.templates.update(editingId,rec); else await BPStore.templates.add(rec);
-        $("#t_msg").textContent="Saved ✓"; setTimeout(()=>$("#t_msg").textContent="",1500); resetForm(); await render(); }, {busyLabel:"Saving…"}); }
+        $("#t_msg").textContent=droppedDup?("Saved ✓ ("+droppedDup+" repeated line"+(droppedDup===1?"":"s")+" removed)"):"Saved ✓"; setTimeout(()=>$("#t_msg").textContent="",1500); resetForm(); await render(); }, {busyLabel:"Saving…"}); }
     catch(e){ $("#t_err").textContent=BPUI.friendlyError(e,{action:"save the template",setupHint:"phase26"}); $("#t_err").hidden=false; }
   }
 
