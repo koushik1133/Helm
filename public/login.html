@@ -168,6 +168,10 @@
       <div class="meter" id="pwMeter" data-level="0" hidden><span></span><span></span><span></span><span></span><b id="pwMeterTxt" aria-live="polite"></b></div>
       <p class="hint" id="pwHint" hidden>At least 12 characters, with a lowercase letter, an uppercase letter, a number and a symbol (like ! @ # $ %).</p>
       <ul id="pwRules" hidden></ul>
+      <div id="pw2Row" hidden>
+        <label for="pw2">Confirm password</label>
+        <input id="pw2" type="password" autocomplete="new-password" placeholder="Type the password again">
+      </div>
       <p class="hint" id="forgotRow"><button type="button" class="linkbtn" id="forgotBtn">Forgot password?</button></p>
       <div class="captcha" id="captcha" hidden></div>
       <button class="btn" id="submit" type="submit">Sign in →</button>
@@ -401,6 +405,8 @@
     if(m==="signup") $("#pw").setAttribute("minlength", String(PW_MIN)); else $("#pw").removeAttribute("minlength");
     $("#pwHint").hidden = m!=="signup";
     $("#pwRules").hidden = m!=="signup";
+    $("#pw2Row").hidden = m!=="signup";
+    if(m!=="signup") $("#pw2").value="";
     $("#forgotRow").hidden = m==="signup";
     $("#nameField").hidden = m!=="signup";
     $("#pwMeter").hidden = m!=="signup";
@@ -734,6 +740,7 @@
       try{
         if(mode==="signup"){
           const bad=pwProblem(pw); if(bad){ showErr($("#err"),"Choose a stronger password: "+bad); $("#pw").focus(); return; }
+          if($("#pw2").value!==pw){ showErr($("#err"),"The two passwords don't match — type the same password in both boxes."); $("#pw2").focus(); return; }
           if(!BPStore.auth.user() && capMissing(cap)){ showErr($("#err"),"Please complete the security check."); return; }
           if(joining){
             // invitee creating an account, then accepting the invite (no studio to create)
