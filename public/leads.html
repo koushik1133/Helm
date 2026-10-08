@@ -103,7 +103,7 @@
   .firstrun .btn{margin:0 auto}
   .pill{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-radius:20px;padding:2px 9px;background:var(--accent-soft);color:var(--accent)}
 </style>
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -141,7 +141,7 @@
     <p>Every enquiry you capture shows up here as a card you can move through the pipeline.</p>
     <button type="button" class="btn primary" id="firstRunBtn" hidden>＋ Add your first lead</button>
   </div>
-  <div id="noMatch" class="colempty" style="margin:0 0 14px" role="status" hidden></div>
+  <div id="noMatch" class="colempty s-d6758a1" role="status" hidden></div>
   <div id="boot" aria-busy="true"></div>
   <div id="board" class="board" role="region" aria-label="Lead pipeline" tabindex="0"></div>
   </main>
@@ -150,10 +150,10 @@
 
 <!-- detail view -->
 <div id="detailModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="dt_name">
-  <div class="sheet" style="width:min(520px,96vw)">
+  <div class="sheet s-df0ede1">
     <h3><span id="dt_name">Lead</span><button type="button" class="close" id="dt_close" aria-label="Close" data-close>×</button></h3>
     <p class="sub" id="dt_sub"></p>
-    <div class="fld" id="dt_stageWrap" style="margin:0 0 12px;max-width:260px" hidden>
+    <div class="fld s-634040c" id="dt_stageWrap" hidden>
       <label for="dt_stage">Stage</label>
       <select id="dt_stage"></select>
     </div>
@@ -197,9 +197,9 @@
 
 <!-- login modal -->
 <div id="loginModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="loginModalTitle">
-  <div class="sheet" style="width:min(400px,96vw)">
+  <div class="sheet s-21afb5a">
     <h3><span id="loginModalTitle">Sign in</span><button type="button" class="close" id="li_close" aria-label="Close" data-close>×</button></h3>
-    <div class="grid" style="grid-template-columns:1fr">
+    <div class="grid s-6384e36">
       <div class="fld"><label for="li_email">Email</label><input id="li_email" type="email" autocomplete="email"></div>
       <div class="fld"><label for="li_pass">Password</label><input id="li_pass" type="password" autocomplete="current-password"></div>
     </div>
@@ -208,9 +208,10 @@
   </div>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
-<script src="store-api.js?v=119"></script>
+<script src="store-api.js?v=120"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);

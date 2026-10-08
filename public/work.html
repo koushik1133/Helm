@@ -67,7 +67,7 @@
   .thumbs button{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(20,27,46,.7);color:#fff;font-size:15px;line-height:26px;cursor:pointer;padding:0}
   .sheet .foot{display:flex;gap:8px;margin-top:16px}
 </style>
-<link rel="stylesheet" href="/theme.css?v=73">
+<link rel="stylesheet" href="/theme.css?v=74">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -76,7 +76,7 @@
   <main id="main">
   <div id="loading" class="card" role="status"><p class="muted">Loading your tasks…</p></div>
   <div id="badlink" class="card" hidden><h1>Link not found</h1><p class="sub">This task link is invalid. Please ask your manager for a new one.</p></div>
-  <div id="offlineFirst" class="card" role="alert" hidden><h1>You’re offline</h1><p class="sub">We couldn’t load your tasks because you’re not connected. They’ll load automatically when you’re back online.</p><button class="btn primary" id="retryFirst" type="button" style="margin-top:12px">↻ Try again</button></div>
+  <div id="offlineFirst" class="card" role="alert" hidden><h1>You’re offline</h1><p class="sub">We couldn’t load your tasks because you’re not connected. They’ll load automatically when you’re back online.</p><button class="btn primary s-56f4356" id="retryFirst" type="button">↻ Try again</button></div>
   <div id="content" hidden>
     <div class="card">
       <h1 id="title">Event</h1>
@@ -121,9 +121,9 @@
       <input type="file" id="evCamIn" accept="image/*" capture="environment" multiple hidden>
       <input type="file" id="evPickIn" accept="image/jpeg,image/png,image/webp" multiple hidden>
       <div class="thumbs" id="evThumbs"></div>
-      <div class="muted" id="evPhCount" style="margin-top:6px"></div>
+      <div class="muted s-fe7b497" id="evPhCount"></div>
     </div>
-    <div class="msg err" id="evErr" role="alert" hidden style="margin:12px 0 0"></div>
+    <div class="msg err s-d870e82" id="evErr" role="alert" hidden></div>
     <div class="foot">
       <button type="button" class="btn" id="evCancel" data-close>Cancel</button>
       <button type="button" class="btn no" id="evGo">Reject task</button>
@@ -131,9 +131,10 @@
   </div>
 </div>
 
+<script src="/trusted-types.js?v=1"></script>
 <script src="/telemetry.js?v=3"></script>
 <script src="/config.js?v=96"></script>
-<script src="/store-api.js?v=119"></script>
+<script src="/store-api.js?v=120"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));

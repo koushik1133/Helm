@@ -315,10 +315,10 @@
       <div class="cbar" id="cbar">
         <button class="ic" id="attachBtn" type="button" title="Attach" aria-label="Attach" data-menu-anchor="1">📎</button>
         <div class="inputwrap">
-          <button class="ic" id="emojiBtn" type="button" title="Emoji" aria-label="Emoji" style="width:32px;height:32px;font-size:18px">😊</button>
+          <button class="ic s-9877b0e" id="emojiBtn" type="button" title="Emoji" aria-label="Emoji">😊</button>
           <textarea id="msgInput" rows="1" placeholder="Type a message" aria-label="Message"></textarea>
         </div>
-        <button class="ic" id="camBtn" type="button" title="Take a photo" aria-label="Camera" style="font-size:18px">📷</button>
+        <button class="ic s-4ff818f" id="camBtn" type="button" title="Take a photo" aria-label="Camera">📷</button>
         <button class="send" id="micBtn" type="button" title="Record voice note" aria-label="Record voice note">🎤</button>
         <button class="send" id="sendBtn" type="button" title="Send" aria-label="Send" hidden>➤</button>
       </div>
@@ -326,7 +326,7 @@
         <button class="rbtn trash" id="recCancel" title="Cancel" aria-label="Cancel recording">🗑</button>
         <span class="dot"></span><span class="t" id="recTime">0:00</span>
         <span class="lbl">Recording…</span>
-        <span style="margin-left:auto"></span>
+        <span class="s-6d00061"></span>
         <button class="rbtn go" id="recStop" title="Send" aria-label="Send voice note">➤</button>
       </div>
     </div>
@@ -360,10 +360,11 @@
   </div>
 </div>
 
-<link rel="stylesheet" href="theme.css?v=73">
+<link rel="stylesheet" href="theme.css?v=74">
+<script src="/trusted-types.js?v=1"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
-<script src="store-api.js?v=119"></script>
+<script src="store-api.js?v=120"></script>
 <script>
 (function(){
   const $=(s,r)=>(r||document).querySelector(s);

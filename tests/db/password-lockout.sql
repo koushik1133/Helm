@@ -47,6 +47,11 @@ begin
     (select count(*) from public.audit_log where action = 'auth.password.locked' and actor = a and actor_email is null) = 1, null);
   perform pg_temp.t('audit row has no email', not exists (select 1 from public.audit_log where action like 'auth.password.%'
     and changed::text ilike '%@%'), null);
+  -- 0054 integration: the real 0053 lock audit row raises a password_lockout security alert for a's studio
+  perform pg_temp.t('0054 alert fires on auth.password.locked (event, a''s org)',
+    to_regclass('public.security_alert_events') is null or exists (select 1 from public.security_alert_events e
+      where e.alert_type = 'password_lockout' and e.source = 'audit_log.auth.password.locked'
+        and e.org_id = (select org_id from public.profiles where id = a)), null);
   -- locked rejects even a valid password, and does not clear the lock
   r := pg_temp.hook(a, true);
   perform pg_temp.t('locked: valid password still rejected', r like 'reject:Too many attempts%', r);
