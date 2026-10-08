@@ -197,6 +197,46 @@
       ".hpf .hpf-alert.ok{background:#e7f6ee;color:#0f7a43;border-color:#b6e3ca}",
       "html[data-theme=dark] .hpf-alert{background:#3a1414;color:#fecaca;border-color:#7f1d1d}html[data-theme=dark] .hpf-alert.ok{background:#0f2a1c;color:#a7f3d0;border-color:#14532d}",
       "html[data-theme=dark] .hpf{--hpf-ok:#34d399}",
+      /* account dialog bits */
+      ".hau-acc{width:min(520px,100%)}",
+      ".hau-foot{justify-content:flex-end;margin-top:12px}",
+      ".hau-lbl{display:block;margin:6px 0 4px;font-weight:600;font-size:13.5px}",
+      ".hau-input.hau-text{font-size:15px;letter-spacing:normal}",
+      /* profile menu (top-right avatar) — page tokens first, BPUI/bell fallbacks */
+      ".hau-gone{display:none!important}",
+      ".hau-host{display:flex;align-items:center;gap:8px}",
+      ".hau-tb{display:flex;align-items:center;gap:8px;min-width:0}",
+      ".hau-tb-slot{display:flex;align-items:center;min-width:0}",
+      ".hau-tb-slot:empty{display:none}",
+      ".hau-mw{position:relative;display:flex}",
+      ".hau-avbtn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;min-width:36px;min-height:36px;padding:0;margin:0;border:1px solid var(--line,#e8e3db);border-radius:50%;background:var(--panel,#fff);cursor:pointer;transition:box-shadow .15s,border-color .15s}",
+      ".hau-avbtn:hover{border-color:var(--accent,#6d28d9)}",
+      ".hau-avbtn[aria-expanded=true],.hau-avbtn:focus-visible{outline:none;border-color:var(--accent,#6d28d9);box-shadow:0 0 0 3px var(--accent-soft,#efe9ff)}",
+      ".hau-av{position:relative;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;overflow:hidden;color:#fff;font:700 12px/1 var(--font,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif);letter-spacing:.02em;flex:0 0 auto;user-select:none}",
+      ".hau-av-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}",
+      ".hau-av-img[hidden]{display:none}",
+      ".hau-av-lg{width:44px;height:44px;font-size:16px}",
+      ".hau-c0{background:#6d28d9}.hau-c1{background:#2563eb}.hau-c2{background:#0f766e}.hau-c3{background:#b45309}.hau-c4{background:#be185d}.hau-c5{background:#4d7c0f}.hau-c6{background:#7c3aed}.hau-c7{background:#0369a1}",
+      ".hau-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:2147481000;width:272px;max-width:calc(100vw - 24px);box-sizing:border-box;padding:6px;background:var(--panel,#fff);color:var(--ink,#1b1930);border:1px solid var(--line,#e8e3db);border-radius:14px;box-shadow:0 24px 60px rgba(20,27,46,.22),0 2px 8px rgba(20,27,46,.08);text-align:left;font:14px/1.4 var(--font,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif);animation:hauIn .16s ease-out}",
+      "html[data-theme=dark] .hau-menu{box-shadow:0 24px 60px rgba(0,0,0,.7)}",
+      ".hau-menu[hidden]{display:none}",
+      ".hau-mh{display:flex;gap:12px;align-items:center;padding:10px 10px 12px;margin:0 0 4px;border-bottom:1px solid var(--line,#e8e3db)}",
+      ".hau-mh-t{min-width:0;flex:1}",
+      ".hau-mh-n{margin:0;font-weight:700;font-size:14.5px;color:var(--ink,#1b1930);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+      ".hau-mh-e{margin:1px 0 6px;font-size:12.5px;color:var(--ink-2,#4b475f);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+      ".hau-chip{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:var(--accent-soft,#efe9ff);color:var(--accent,#6d28d9);font-size:11px;font-weight:700;letter-spacing:.02em}",
+      "html[data-theme=dark] .hau-chip{background:#1d1730;color:#c4b5fd}",
+      ".hau-msep{height:1px;margin:4px 6px;background:var(--line,#e8e3db)}",
+      ".hau-mi{display:flex;align-items:center;gap:10px;width:100%;min-height:36px;box-sizing:border-box;padding:7px 10px;margin:0;border:0;border-radius:9px;background:transparent;color:var(--ink,#1b1930);font:inherit;font-size:14px;font-weight:500;text-align:left;text-decoration:none;cursor:pointer}",
+      ".hau-mi:hover,.hau-mi:focus{outline:none;background:var(--accent-soft,#f4f2fb);color:var(--ink,#1b1930)}",
+      ".hau-mi:focus-visible{box-shadow:inset 0 0 0 2px var(--accent,#6d28d9)}",
+      "html[data-theme=dark] .hau-mi:hover,html[data-theme=dark] .hau-mi:focus{background:#1d1730}",
+      ".hau-mi.is-out{color:var(--bad,#b91c1c)}",
+      "html[data-theme=dark] .hau-mi.is-out{color:#fca5a5}",
+      ".hau-mi-ic{width:16px;height:16px;flex:0 0 auto;color:var(--ink-3,#6b6577)}",
+      ".hau-mi.is-out .hau-mi-ic{color:inherit}",
+      "@media (prefers-reduced-motion:reduce){.hau-menu{animation:none}}",
+      "@media (max-width:600px){.hau-menu{position:fixed;top:60px;right:12px;left:auto;width:min(300px,calc(100vw - 24px))}}",
     ].join("\n");
     // CSP: style-src-elem has no 'unsafe-inline' — inject via a constructable stylesheet.
     if (typeof window.__helmAdoptCss === "function") window.__helmAdoptCss(doc, s.textContent);
@@ -290,19 +330,34 @@
 
   /* ----------------------------------------------------- account panel */
   var panel = null;
-  function closePanel() { if (panel) { try { panel.remove(); } catch (e) {} panel = null; } }
+  function closePanel() {
+    if (!panel) return;
+    var back = panel._hauReturn; try { panel.remove(); } catch (e) {} panel = null;
+    refreshMenuIdentity();
+    if (back && back.isConnected && back.focus) try { back.focus(); } catch (e) {}
+  }
   // openAccount({focus:"profile"}) opens the panel scrolled to "Your profile"
+  // openAccount({section:"profile"|"settings"}) shows just that half (profile menu);
+  // no section = everything (older callers, the profile / two-step notices).
   function openAccount(opts) {
-    var focusProfile = !!(opts && opts.focus === "profile");
+    if (opts && opts.type) opts = null;                 // called as a click handler
+    var section = (opts && opts.section) || "all";
+    var focusProfile = !!(opts && opts.focus === "profile") || section === "profile";
     css(); closePanel();
     var st = S(); var u = st && st.auth.user(); if (!u) return;
+    var returnFocus = doc.activeElement;
     panel = el("div", { class: "bpui-overlay", role: "dialog", "aria-modal": "true", "aria-labelledby": "hauTitle", id: "hauAccount" });
-    var card = el("div", { class: "bpui-dialog", style: "width:min(520px,100%)" });
+    var card = el("div", { class: "bpui-dialog hau-acc" });
     panel.appendChild(card);
-    card.appendChild(el("h2", { id: "hauTitle" }, "Your account"));
+    card.appendChild(el("h2", { id: "hauTitle" }, section === "profile" ? "Your profile" : section === "settings" ? "Account settings" : "Your account"));
     card.appendChild(el("p", { class: "hau-muted" }, "Signed in as " + (u.email || "")));
-    if (st.profile && st.profile.validate && st.profile.update) card.appendChild(profileSection(st, focusProfile));
-    else if (st.profile && st.profile.setMine) card.appendChild(displayNameSection(st));
+    if (section !== "settings") {
+      if (st.profile && st.profile.validate && st.profile.update) card.appendChild(profileSection(st, focusProfile));
+      else if (st.profile && st.profile.setMine) card.appendChild(displayNameSection(st));
+    }
+    panel._hauReturn = returnFocus;
+    if (section === "profile") { finishPanel(card, true); return; }
+    if (st.auth.changeEmail) card.appendChild(emailSection(st, u));
 
     // sign-in details (my_auth_info — caller's own data only)
     var info = el("div", { class: "hau-sec" });
@@ -348,14 +403,7 @@
     });
     var dvRow = el("div", { class: "hau-row" }); dvRow.appendChild(dvBtn); dv.appendChild(dvRow); dv.appendChild(dvMsg); card.appendChild(dv);
 
-    var foot = el("div", { class: "hau-row", style: "justify-content:flex-end;margin-top:12px" });
-    var close = el("button", { type: "button", class: "hau-btn", "data-close": "" }, "Close");
-    close.addEventListener("click", closePanel);
-    foot.appendChild(close); card.appendChild(foot);
-    panel.addEventListener("click", function (e) { if (e.target === panel) closePanel(); });
-    panel.addEventListener("keydown", function (e) { if (e.key === "Escape") closePanel(); });
-    doc.body.appendChild(panel);
-    if (!focusProfile) setTimeout(function () { try { close.focus(); } catch (e) {} }, 30);
+    finishPanel(card, focusProfile);
 
     st.auth.myAuthInfo().then(function (d) {
       infoBody.textContent = "";
@@ -373,6 +421,46 @@
     }, function () { infoBody.textContent = ""; infoBody.appendChild(el("p", { class: "hau-muted" }, "Couldn't load sign-in activity.")); });
 
     renderMfaSection(mfBody);
+  }
+  function finishPanel(card, focusProfile) {
+    var foot = el("div", { class: "hau-row hau-foot" });
+    var close = el("button", { type: "button", class: "hau-btn", "data-close": "" }, "Close");
+    close.addEventListener("click", closePanel);
+    foot.appendChild(close); card.appendChild(foot);
+    panel.addEventListener("click", function (e) { if (e.target === panel) closePanel(); });
+    panel.addEventListener("keydown", function (e) { if (e.key === "Escape") closePanel(); });
+    doc.body.appendChild(panel);
+    if (!focusProfile) setTimeout(function () { try { close.focus(); } catch (e) {} }, 30);
+  }
+  // "E-mail address" — Supabase change-email flow (confirmation link; nothing changes until clicked)
+  function emailSection(st, u) {
+    var sec = el("div", { class: "hau-sec" });
+    sec.appendChild(el("h3", null, "E-mail address"));
+    if (st.auth.hasPassword && !st.auth.hasPassword()) {
+      sec.appendChild(el("p", { class: "hau-muted" }, "You sign in with Google as " + (u.email || "") + ". To use a different address, sign in with that Google account instead."));
+      return sec;
+    }
+    sec.appendChild(el("p", { class: "hau-muted" }, "We'll e-mail a confirmation link. Your sign-in address changes only after you click it."));
+    var lab = el("label", { for: "hauNewEmail", class: "hau-lbl" }, "New e-mail address");
+    var inp = el("input", { id: "hauNewEmail", type: "email", class: "hau-input hau-text", maxlength: "254", autocomplete: "email", placeholder: "you@studio.com" });
+    var go = el("button", { type: "button", class: "hau-btn" }, "Send confirmation link");
+    var msg = el("div", { class: "hau-err", role: "status", "aria-live": "polite" });
+    var row = el("div", { class: "hau-row" }); row.appendChild(go);
+    sec.appendChild(lab); sec.appendChild(inp); sec.appendChild(row); sec.appendChild(msg);
+    var submit = function () {
+      if (go.disabled) return;
+      msg.className = "hau-err"; msg.textContent = ""; go.disabled = true;
+      st.auth.changeEmail(inp.value).then(function (r) {
+        msg.className = "hau-ok"; msg.textContent = "Check " + r.pending + " for a confirmation link. Until then you keep signing in with " + (u.email || "your current address") + ".";
+        inp.value = "";
+      }, function (e) {
+        msg.textContent = e && /^email_(invalid|same)$/.test(e.code || "") ? e.message : errText(e, "change your e-mail");
+        try { inp.focus(); } catch (x) {}
+      }).then(function () { go.disabled = false; });
+    };
+    go.addEventListener("click", submit);
+    inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); submit(); } });
+    return sec;
   }
   // "Display name" — the name teammates see in chat (set_my_display_name, 0034)
   function displayNameSection(st) {
@@ -445,7 +533,7 @@
     return libsP;
   }
   var FORM_LIB_V = "1";
-  function svgIcon(path, cls) {
+  function pathIcon(path, cls) {
     var ns = "http://www.w3.org/2000/svg", s = doc.createElementNS(ns, "svg");
     s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("width", "16"); s.setAttribute("height", "16"); s.setAttribute("aria-hidden", "true"); if (cls) s.setAttribute("class", cls);
     var p = doc.createElementNS(ns, "path"); p.setAttribute("d", path); p.setAttribute("fill", "none"); p.setAttribute("stroke", "currentColor");
@@ -486,7 +574,7 @@
     var av = el("div", { class: "hpf-av" });
     var avIni = el("span", { class: "hpf-ini", "aria-hidden": "true" }, initials(P.full_name, P.email || o.email));
     var avImg = el("img", { alt: "Your profile photo" }); avImg.hidden = true;
-    var avCam = el("span", { class: "hpf-avcam", "aria-hidden": "true" }); avCam.appendChild(svgIcon(IC_CAMERA));
+    var avCam = el("span", { class: "hpf-avcam", "aria-hidden": "true" }); avCam.appendChild(pathIcon(IC_CAMERA));
     av.appendChild(avIni); av.appendChild(avImg);
     var photoCol = el("div", { class: "hpf-photocol" });
     photoCol.appendChild(el("p", { class: "hpf-phototitle", id: idp + "_photo_l" }, "Profile photo"));
@@ -739,7 +827,7 @@
       vBtn.hidden = ok || !cur;
       vState.textContent = "";
       vState.className = "hpf-vstate" + (ok ? " is-ok" : "");
-      if (ok) { vState.appendChild(svgIcon(IC_CHECK, "hpf-vic")); vState.appendChild(doc.createTextNode("Verified on WhatsApp")); }
+      if (ok) { vState.appendChild(pathIcon(IC_CHECK, "hpf-vic")); vState.appendChild(doc.createTextNode("Verified on WhatsApp")); }
     }
     function vInfo(text) { vPanel.hidden = false; vPanel.textContent = ""; vPanel.appendChild(el("p", { class: "hpf-vinfo" }, text)); }
     function startCooldown(secs, resend) {
@@ -1071,16 +1159,181 @@
     renderEnroll(area, function () { setTimeout(function () { try { ov.remove(); } catch (e) {} }, 1200); });
   }
 
-  /* ------------------------------------- account button next to Log out */
+  /* ------------------------------- profile menu (avatar, top-right) ---------
+     Replaces the old "Account" button + role/e-mail/Log out chip on signed-in studio
+     pages (never HQ, never client pages). Like GitHub: a round avatar button opens a
+     menu (role=menu) with the identity header, Profile, Account settings, User manual,
+     Control Center (only when the access matrix lets this role view 'controls') and
+     Sign out. Keyboard: Enter/Space/ArrowDown open, arrows/Home/End move, Esc closes
+     and returns focus, Tab stays inside the open menu. Click outside closes.
+     #helm-topbar-search is an empty slot left of the avatar for the studio search. */
+  var AV_COLORS = 8;
+  function avColorIdx(seed) {
+    var h = 0; seed = String(seed || "");
+    for (var i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+    return h % AV_COLORS;
+  }
+  // pure (unit-tested): what the menu shows for a user / profile / role
+  function menuModel(u, prof, role, canControls) {
+    u = u || {}; prof = prof || {};
+    var name = String(prof.full_name || "").trim();
+    var email = String(u.email || prof.email || "");
+    var st = S(), label = role && st && st.auth && st.auth.admin && st.auth.admin.roleLabel ? st.auth.admin.roleLabel(role) : (role || "");
+    var items = [
+      { id: "profile", label: "Profile" },
+      { id: "settings", label: "Account settings" },
+      { id: "manual", label: "User manual", href: "manual.html" },
+    ];
+    if (canControls === true) items.push({ id: "control", label: "Control Center", href: "control.html", sep: true });
+    items.push({ id: "signout", label: "Sign out", sep: true });
+    return { name: name || email.split("@")[0] || "Account", email: email, role: label,
+      initials: initials(name, email), color: avColorIdx(u.id || email),
+      avatarPath: typeof prof.avatar_path === "string" && prof.avatar_path ? prof.avatar_path : null, items: items };
+  }
+  function menuHidden() {
+    var p = pageName(); if (p === "hq" || p === "login" || p === "portal") return true;
+    var st = S(); var r = st && st.auth.cachedRole ? st.auth.cachedRole() : null;
+    return r === "client";
+  }
+  var menu = { root: null, btn: null, pop: null, open: false, model: null, avImgs: [], btnImg: null };
+  function avatarNode(m, cls) {
+    var w = el("span", { class: "hau-av hau-c" + m.color + (cls ? " " + cls : ""), "aria-hidden": "true" });
+    w.appendChild(el("span", { class: "hau-av-i" }, m.initials));
+    var img = el("img", { alt: "", class: "hau-av-img" }); img.hidden = true;
+    img.addEventListener("error", function () { img.hidden = true; });
+    img.addEventListener("load", function () { img.hidden = false; });
+    w.appendChild(img); menu.avImgs.push(img);
+    return w;
+  }
+  function paintAvatar(path) {
+    var st = S();
+    var imgs = menu.avImgs.filter(function (i) { return i.isConnected; }); menu.avImgs = imgs;
+    if (!path || !st || !st.profile || !st.profile.avatarUrl) { imgs.forEach(function (i) { i.hidden = true; i.removeAttribute("src"); }); return; }
+    Promise.resolve(st.profile.avatarUrl(path)).then(function (url) {
+      if (!url || !/^(https:|blob:|http:\/\/localhost)/.test(String(url))) return;
+      imgs.forEach(function (i) { if (i.getAttribute("src") !== url) i.src = url; });
+    }, function () {});
+  }
+  var MI_ICONS = {
+    profile: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5",
+    settings: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 12h2M18 12h2M12 4v2M12 18v2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4",
+    manual: "M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2zM5 18a2 2 0 0 1 2-2h11M9 8h5",
+    control: "M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1M15 5v4M9 10v4M17 15v4",
+    signout: "M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10",
+  };
+  function menuItems() { return menu.pop ? Array.prototype.slice.call(menu.pop.querySelectorAll("[role=menuitem]")) : []; }
+  function focusItem(i) { var it = menuItems(); if (!it.length) return; i = (i + it.length) % it.length; try { it[i].focus(); } catch (e) {} }
+  function outside(e) { if (menu.root && !menu.root.contains(e.target)) closeMenu(false); }
+  function closeMenu(refocus) {
+    if (!menu.open) return; menu.open = false;
+    if (menu.pop) menu.pop.hidden = true;
+    if (menu.btn) menu.btn.setAttribute("aria-expanded", "false");
+    doc.removeEventListener("mousedown", outside, true); doc.removeEventListener("touchstart", outside, true);
+    if (refocus && menu.btn) try { menu.btn.focus(); } catch (e) {}
+  }
+  function openMenu(focusLast) {
+    if (!menu.pop) return;
+    buildPop(); menu.open = true; menu.pop.hidden = false;
+    menu.btn.setAttribute("aria-expanded", "true");
+    doc.addEventListener("mousedown", outside, true); doc.addEventListener("touchstart", outside, true);
+    focusItem(focusLast ? -1 : 0);
+  }
+  function runItem(id) {
+    closeMenu(id !== "signout");
+    var st = S();
+    if (id === "profile") return openAccount({ section: "profile" });
+    if (id === "settings") return openAccount({ section: "settings" });
+    if (id === "signout") {
+      var lo = doc.getElementById("logoutBtn");
+      if (lo) { lo.click(); return; }                     // keeps each page's own sign-out (unsaved-changes checks)
+      if (st) st.auth.signOut().then(function () { location.replace("login.html"); });
+    }
+  }
+  function buildPop() {
+    var m = menu.model, pop = menu.pop; if (!m || !pop) return;
+    pop.textContent = ""; menu.avImgs = menu.avImgs.filter(function (i) { return i === menu.btnImg; });
+    var head = el("div", { class: "hau-mh", role: "presentation" });
+    head.appendChild(avatarNode(m, "hau-av-lg"));
+    var who = el("div", { class: "hau-mh-t" });
+    who.appendChild(el("p", { class: "hau-mh-n" }, m.name));
+    if (m.email) who.appendChild(el("p", { class: "hau-mh-e" }, m.email));
+    if (m.role) who.appendChild(el("span", { class: "hau-chip" }, m.role));
+    head.appendChild(who); pop.appendChild(head);
+    m.items.forEach(function (it) {
+      if (it.sep) pop.appendChild(el("div", { class: "hau-msep", role: "separator" }));
+      var node = it.href ? el("a", { href: it.href, class: "hau-mi", role: "menuitem", tabindex: "-1" })
+        : el("button", { type: "button", class: "hau-mi" + (it.id === "signout" ? " is-out" : ""), role: "menuitem", tabindex: "-1" });
+      node.setAttribute("data-mi", it.id);
+      node.appendChild(pathIcon(MI_ICONS[it.id] || MI_ICONS.profile, "hau-mi-ic"));
+      node.appendChild(el("span", null, it.label));
+      node.addEventListener("click", function () { if (it.href) closeMenu(false); else runItem(it.id); });
+      pop.appendChild(node);
+    });
+    paintAvatar(m.avatarPath);
+  }
+  function refreshMenuIdentity() {
+    var st = S(); if (!st || !menu.btn) return;
+    var u = st.auth.user(); if (!u) return;
+    Promise.all([
+      Promise.resolve().then(function () { return st.profile && st.profile.mine ? st.profile.mine() : null; }).catch(function () { return null; }),
+      Promise.resolve().then(function () { return st.auth.role ? st.auth.role() : null; }).catch(function () { return null; }),
+      Promise.resolve().then(function () { return st.auth.canView ? st.auth.canView("controls") : false; }).catch(function () { return false; }),
+    ]).then(function (r) {
+      if (r[1] === "client") { if (menu.root) menu.root.remove(); return; }
+      var m = menuModel(u, r[0], r[1], r[2] === true);
+      menu.model = m;
+      var ini = menu.btn.querySelector(".hau-av-i"); if (ini) ini.textContent = m.initials;
+      var av = menu.btn.querySelector(".hau-av"); if (av) av.className = "hau-av hau-c" + m.color;
+      menu.btn.setAttribute("aria-label", "Open profile menu for " + m.name);
+      if (menu.open) buildPop();
+      paintAvatar(m.avatarPath);
+    });
+  }
   function placeAccountButton() {
     var lo = doc.getElementById("logoutBtn");
-    if (!lo || !lo.parentNode) return;
-    var prev = lo.previousElementSibling;
-    if (prev && prev.id === "hauAccountBtn") return;
-    var old = doc.getElementById("hauAccountBtn"); if (old) old.remove();
-    var b = el("button", { type: "button", id: "hauAccountBtn", title: "Password, two-step verification, sign-in activity" }, "Account");
-    b.addEventListener("click", openAccount);
-    lo.parentNode.insertBefore(b, lo);
+    if (!lo || !lo.parentNode || menuHidden()) return;
+    var host = lo.parentNode;
+    // the role / e-mail chip and Log out live in the menu now (Log out stays in the DOM,
+    // hidden, so "Sign out" still runs the page's own handler)
+    Array.prototype.forEach.call(host.children, function (c) {
+      if (c.id === "hauTopbar") return;
+      if (c === lo || (c.tagName === "SPAN" && /\b(role|who)\b/.test(c.className || "")) || (c.tagName === "SPAN" && !c.className && c.textContent.indexOf("@") > 0)) c.classList.add("hau-gone");
+    });
+    host.classList.add("hau-host");
+    if (menu.root && menu.root.isConnected && menu.root.parentNode === host) return;
+    var old = doc.getElementById("hauTopbar"); if (old) old.remove();
+    var st = S(), u = st && st.auth.user(); if (!u) return;
+    css();
+    var m = menuModel(u, null, st.auth.cachedRole ? st.auth.cachedRole() : null, false);
+    menu.model = m; menu.avImgs = [];
+    var root = el("div", { id: "hauTopbar", class: "hau-tb" });
+    root.appendChild(el("div", { id: "helm-topbar-search", class: "hau-tb-slot" }));   // studio search mounts here
+    var wrap = el("div", { class: "hau-mw" });
+    var btn = el("button", { type: "button", id: "hauAccountBtn", class: "hau-avbtn", "aria-haspopup": "menu", "aria-expanded": "false",
+      "aria-controls": "hauMenu", "aria-label": "Open profile menu for " + m.name, title: "Profile and account" });
+    var av = avatarNode(m); btn.appendChild(av); menu.btnImg = av.querySelector("img");
+    var pop = el("div", { id: "hauMenu", class: "hau-menu", role: "menu", "aria-labelledby": "hauAccountBtn" }); pop.hidden = true;
+    wrap.appendChild(btn); wrap.appendChild(pop); root.appendChild(wrap);
+    menu.root = root; menu.btn = btn; menu.pop = pop; menu.open = false;
+    btn.addEventListener("click", function () { if (menu.open) closeMenu(true); else openMenu(false); });
+    btn.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); openMenu(e.key === "ArrowUp"); }
+    });
+    pop.addEventListener("keydown", function (e) {
+      var it = menuItems(), i = it.indexOf(doc.activeElement);
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeMenu(true); }
+      else if (e.key === "ArrowDown") { e.preventDefault(); focusItem(i + 1); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); focusItem(i - 1); }
+      else if (e.key === "Home") { e.preventDefault(); focusItem(0); }
+      else if (e.key === "End") { e.preventDefault(); focusItem(-1); }
+      else if (e.key === "Tab") { e.preventDefault(); focusItem(e.shiftKey ? i - 1 : i + 1); }   // focus stays in the open menu
+      else if (e.key.length === 1 && /\S/.test(e.key)) {                                        // type-ahead
+        var k = e.key.toLowerCase();
+        for (var n = 1; n <= it.length; n++) { var c = it[(i + n) % it.length]; if (c.textContent.trim().toLowerCase().charAt(0) === k) { c.focus(); break; } }
+      }
+    });
+    host.insertBefore(root, lo);
+    refreshMenuIdentity();
   }
   /* ------------------------------- Helm subscription (0045): read-only banner + Control Center card */
   var subBanner = null;
@@ -1217,6 +1470,8 @@
     mountCaptcha: mountCaptcha,
     renderEnroll: renderEnroll,
     profileForm: profileForm,
+    menuModel: menuModel,
+    refreshMenu: refreshMenuIdentity,
     showNote: showNote,
     hideNote: hideNote,
     trialNotice: trialNotice,

@@ -817,7 +817,7 @@
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "15";
+  const AUTH_UI_VERSION = "16";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1398,6 +1398,18 @@
       if (!supa) throw new Error("Supabase not configured");
       const { error } = await supa.auth.signOut({ scope: "others" });
       if (error) throw error; return true;
+    },
+    // Change my sign-in e-mail (Supabase change-email flow): Supabase sends a confirmation
+    // link (to both addresses when "secure e-mail change" is on); nothing changes until it
+    // is clicked. → { pending: newEmail }
+    async changeEmail(newEmail) {
+      if (!supa || !currentUser) throw new Error("Supabase not configured");
+      const em = String(newEmail == null ? "" : newEmail).trim().toLowerCase();
+      if (!/^[^\s@<>()\[\],;:"]{1,64}@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/.test(em) || em.length > 254) { const e = new Error("Enter a valid e-mail address."); e.code = "email_invalid"; throw e; }
+      if (em === String(currentUser.email || "").toLowerCase()) { const e = new Error("That's already your e-mail address."); e.code = "email_same"; throw e; }
+      const { error } = await supa.auth.updateUser({ email: em }, { emailRedirectTo: location.origin + "/login.html" });
+      if (error) throw error;
+      return { pending: em };
     },
     // Option A: does the signed-in user still hold a temp password they must replace?
     // FAILS CLOSED: an error is thrown (never "no"), so a failed check can't let
@@ -3984,6 +3996,7 @@
     }
   }
   // signed photo URLs (private bucket), cached briefly per page
+  let studioAvMemo = null;          // 0060 studio_avatars() memo
   const avatarUrlCache = new Map();   // path → { url, exp } | { pending }
   const AVATAR_URL_TTL = 3600, AVATAR_URL_REUSE = 45 * 60000;
   let avatarSignQueue = null;         // { paths, done } — one createSignedUrls call per tick
@@ -4120,6 +4133,22 @@
       }, () => { avatarUrlCache.delete(path); return null; });
       avatarUrlCache.set(path, { pending: pending });
       return pending;
+    },
+    // 0060: own-studio members → { user_id: { full_name, role, avatar_path } } (cached 5 min).
+    // Never throws: offline / older database / refused → {}.
+    async studioAvatars() {
+      if (mode !== "supabase" || !supa || !currentUser) return {};
+      if (studioAvMemo && studioAvMemo.uid === currentUser.id && studioAvMemo.exp > Date.now()) return studioAvMemo.p;
+      const p = (async () => {
+        try {
+          const { data, error } = await supa.rpc("studio_avatars");
+          if (error) return {};
+          const out = {}; (data || []).forEach((r) => { if (r && r.user_id) out[r.user_id] = { full_name: r.full_name || "", role: r.role || "", avatar_path: AVATAR_PATH_RE.test(String(r.avatar_path || "")) ? r.avatar_path : null }; });
+          return out;
+        } catch (e) { return {}; }
+      })();
+      studioAvMemo = { uid: currentUser.id, exp: Date.now() + 300000, p };
+      return p;
     },
     // several at once → { path: url|null }
     async avatarUrls(paths) {
