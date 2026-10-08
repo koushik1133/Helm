@@ -3091,7 +3091,7 @@ async function init(){
       const q=await BPStore.quotes.get(quoteId);
       currentQuoteId=q.id; currentQuoteCode=q.code; currentClient=q.client||{}; currentPricing=q.pricing||{};
       const pn=$('#projName'); if(pn) pn.value=q.title||q.code;
-      const verNo = openVer ? parseInt(openVer,10) : q.currentVersion;
+      const verNo = (openVer && /^\d{1,6}$/.test(String(openVer)) && +openVer>0) ? parseInt(openVer,10) : q.currentVersion;   // ignore junk like v=abc
       const ver = await BPStore.quotes.getVersion(q.id, verNo);
       currentVersionNo = ver.versionNo;
       PRICING.eventType = q.eventType || null;
@@ -3124,7 +3124,13 @@ async function init(){
       refreshVersions();                     // adds who-saved names; non-blocking
       if(q.status==='confirmed'){ const b=$('#quoteBadge'); if(b) b.classList.add('confirmed'); }
       toast('Opened '+q.code+' · v'+currentVersionNo);
-    }catch(e){ toast('Could not open that quote'); }
+    }catch(e){
+      // The quote didn't fully load: unbind it and lock the builder so a Save can never write an
+      // empty layout over a real quote (which would also zero its pricing).
+      currentQuoteId=null; currentQuoteCode=null; currentVersionNo=null; currentClient={}; currentPricing={};
+      try{ applyReadonly('locked — that quote/version could not be opened; reload the page'); }catch{}
+      toast('Could not open that quote — editing is locked so nothing gets overwritten');
+    }
   } else if(evId){
     try{ const full=await getLayout(evId);
       if(full){ applyLayout(full.data); currentLayoutId=full.id;

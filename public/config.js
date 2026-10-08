@@ -38,7 +38,7 @@ window.SUPABASE_CONFIG = {
     //   warnSeconds — the "Still there?" warning appears this long before that
     //   maxHours    — always sign out this long after sign-in (re-login required)
     // 0 = that limit off. Signing out in one tab signs out every tab.
-    session: { idleMinutes: 60, warnSeconds: 120, maxHours: 12 }
+    session: { idleMinutes: 60, warnSeconds: 120, maxHours: 72 }   // 12h forced re-login was too aggressive; the 60-min idle sign-out still protects unattended screens
   }
 };
 
