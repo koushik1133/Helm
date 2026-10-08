@@ -27,21 +27,41 @@
 
   /* ---- pure helpers (exported for tests) ---- */
   function num(v) { const n = Number(v); return isFinite(n) ? n : null; }
+  // 0069: language / currency come from the quote (validated; default en-IN / INR)
+  const FMT = { locale: "en-IN", currency: "INR" };
+  function setFormat(locale, currency) {
+    try { if (locale && typeof locale === "string" && locale.length < 36) { new Intl.DateTimeFormat(locale); FMT.locale = locale; } } catch (e) {}
+    if (currency && /^[A-Z]{3}$/.test(String(currency))) FMT.currency = String(currency);
+    try { if (doc && /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(FMT.locale)) doc.documentElement.setAttribute("lang", FMT.locale); } catch (e) {}
+    return { locale: FMT.locale, currency: FMT.currency };
+  }
   function money(n) {
     const v = num(n); if (v == null) return "—";
-    try { return "₹" + v.toLocaleString("en-IN", { maximumFractionDigits: 0 }); } catch (e) { return "₹" + Math.round(v); }
+    try { return new Intl.NumberFormat(FMT.locale, { style: "currency", currency: FMT.currency, maximumFractionDigits: 0 }).format(v); } catch (e) { return String(Math.round(v)); }
+  }
+  function fmtTime(t) {
+    const m = /^(\d{1,2}):(\d{2})/.exec(String(t || "")); if (!m) return t ? String(t).slice(0, 40) : "";
+    const dt = new Date(2000, 0, 1, Number(m[1]), Number(m[2]));
+    try { return dt.toLocaleTimeString(FMT.locale, { hour: "numeric", minute: "2-digit" }); } catch (e) { return m[1] + ":" + m[2]; }
+  }
+  // a maps search link for the venue (external, no app links); only https and a text query
+  function mapLink(e) {
+    e = e || {};
+    if (typeof e.venue_map_url === "string" && /^https:\/\/[^\s"'<>]+$/i.test(e.venue_map_url) && e.venue_map_url.length <= 500) return e.venue_map_url;
+    const q = [e.venue_name, e.venue_address].filter(Boolean).join(", ").slice(0, 300);
+    return q ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q) : null;
   }
   function fmtDate(d) {
     if (!d) return "";
     const s = String(d); const dt = new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? s + "T00:00:00" : s);
     if (isNaN(dt.getTime())) return s;
-    try { return dt.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" }); } catch (e) { return s; }
+    try { return dt.toLocaleDateString(FMT.locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" }); } catch (e) { return s; }
   }
   function shortDate(d) {
     if (!d) return "";
     const dt = new Date(String(d).length === 10 ? d + "T00:00:00" : d);
     if (isNaN(dt.getTime())) return String(d);
-    try { return dt.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return String(d); }
+    try { return dt.toLocaleDateString(FMT.locale, { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return String(d); }
   }
   function safeHex(c) { return typeof c === "string" && HEX_RE.test(c.trim()) ? c.trim() : null; }
   function safeLogo(u) { return typeof u === "string" && /^https:\/\/[^\s"'<>]+$/i.test(u) && u.length <= 500 ? u : null; }
@@ -151,16 +171,26 @@
     }, { rootMargin: "-20% 0px -70% 0px" });
     SECTIONS.forEach((s) => { const n = doc.getElementById(s[0]); if (n) io.observe(n); });
   }
-  function fact(dl, k, v) { if (v == null || v === "") return; const d = el("div"); d.appendChild(el("dt", "", k)); d.appendChild(el("dd", "", String(v))); dl.appendChild(d); }
+  function fact(dl, k, v) { if (v == null || v === "") return null; const d = el("div"); d.appendChild(el("dt", "", k)); const dd = el("dd", "", String(v)); d.appendChild(dd); dl.appendChild(d); return dd; }
   function renderDetails(d) {
     const e = d.event || {}, dl = clear($("#factList"));
     fact(dl, "Event", e.title || e.code);
     fact(dl, "Occasion", e.event_type);
     fact(dl, "Date", fmtDate(e.event_date));
-    fact(dl, "Time", e.event_time);
+    const st = fmtTime(e.start_time || e.event_time), en = fmtTime(e.end_time);
+    fact(dl, "Time", st && en ? st + " – " + en : st);
     fact(dl, "Venue", e.venue_name);
-    fact(dl, "Address", e.venue_address);
-    fact(dl, "Guests", num(e.guests) != null ? Number(e.guests).toLocaleString("en-IN") : "");
+    const ad = fact(dl, "Address", e.venue_address), ml = mapLink(e);
+    if (ml && (e.venue_name || e.venue_address)) {
+      const a = el("a", "map-link", "Open in Maps"); a.setAttribute("href", ml); a.setAttribute("target", "_blank"); a.setAttribute("rel", "noopener noreferrer");
+      (ad || fact(dl, "Map", " ")).appendChild(a);
+    }
+    const co = (d.coordinator && typeof d.coordinator === "object") ? d.coordinator : { name: e.coordinator_name, phone: e.coordinator_phone };
+    if (co.name || co.phone) {
+      const cd = fact(dl, "Your coordinator", co.name || "");
+      if (cd && co.phone) { const a = el("a", "tel", String(co.phone).slice(0, 32)); a.setAttribute("href", "tel:" + String(co.phone).replace(/[^\d+]/g, "")); cd.appendChild(doc.createTextNode(co.name ? " · " : "")); cd.appendChild(a); }
+    }
+    fact(dl, "Guests", num(e.guests) != null ? Number(e.guests).toLocaleString(FMT.locale) : "");
     fact(dl, "Reference", e.code);
   }
   function render2d(d) {
@@ -296,6 +326,7 @@
     $("#expLine").textContent = d.expires_at ? "This link is valid until " + shortDate(d.expires_at) + "." : "";
   }
   function render(d) {
+    const q = d.quote || {}; setFormat(d.locale || q.locale, q.currency || d.currency);
     renderCover(d); renderToc(); renderDetails(d); render2d(d); render3d(d); renderMenu(d); renderQuote(d); renderVersions(d); renderPayments(d); renderTerms(d);
   }
 
@@ -314,9 +345,10 @@
     }
     if (!d || typeof d !== "object") { show("#bad"); return; }
     render(d); show("#app");
+    if (global.HelmBookletPkg) global.HelmBookletPkg.mount(token, d).catch(() => {});
   }
 
-  global.HelmBooklet = { money, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
+  global.HelmBooklet = { money, setFormat, fmtTime, mapLink, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
   if (doc && doc.getElementById("tocList")) {
     const pb = doc.getElementById("printBtn"); if (pb) pb.addEventListener("click", () => global.print());
     const rt = doc.getElementById("retry"); if (rt) rt.addEventListener("click", () => start());

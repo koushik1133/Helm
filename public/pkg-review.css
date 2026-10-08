@@ -1,0 +1,26 @@
+/* pkg-review.css — studio "Package selections" panel + Control Center card (pkg-review.js, 0069). */
+.pkr-h{margin:0 0 4px;font-size:16px}
+.pkr-sub{margin:0 0 12px;font-size:13px;color:var(--ink-3,#6b6577)}
+.pkr-list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.pkr-item{padding:12px 14px;border:1px solid var(--line,#e8e3db);border-radius:12px;background:var(--panel-2,#faf8f5)}
+.pkr-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.pkr-name{font-size:15px;overflow-wrap:anywhere}
+.pkr-pill{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--accent-soft,#efe9ff);color:var(--accent,#6d28d9)}
+.pkr-pill.accepted{background:rgba(24,165,88,.12);color:#13804a}
+.pkr-pill.declined{background:rgba(232,145,45,.14);color:#9a5a12}
+.pkr-pill.superseded{background:var(--line-2,#f1ede7);color:var(--ink-3,#6b6577)}
+.pkr-meta,.pkr-note{margin:4px 0 0;font-size:13px;color:var(--ink-2,#4b475f);overflow-wrap:anywhere}
+.pkr-form{display:grid;gap:10px;margin-top:10px}
+@media (min-width:720px){.pkr-form{grid-template-columns:1fr 1.4fr}.pkr-acts,.pkr-err{grid-column:1/-1}}
+.pkr-fld{display:flex;flex-direction:column;gap:4px}
+.pkr-lab{font-size:12px;font-weight:600;color:var(--ink-2,#4b475f)}
+.pkr-in,.pkr-url{width:100%;min-height:40px;padding:8px 10px;border:1px solid var(--line,#e8e3db);border-radius:10px;background:var(--panel,#fff);color:var(--ink,#1b1930);font:14px var(--font,system-ui,sans-serif)}
+.pkr-acts{display:flex;gap:8px;flex-wrap:wrap}
+.pkr-err{margin:6px 0 0;min-height:1em;font-size:13px;font-weight:600;color:#b4231b}
+.pkr-link{margin:0 0 12px;padding:12px;border:1px solid rgba(24,165,88,.4);border-radius:12px;background:rgba(24,165,88,.06)}
+.pkr-row{display:flex;gap:8px;margin-top:4px}
+.pkr-row .pkr-url{flex:1;min-width:0}
+.pkr-fs{border:0;margin:12px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:6px 16px}
+.pkr-fs legend{font-size:13px;font-weight:600;margin-bottom:6px;width:100%}
+.pkr-radio,.pkr-switch{display:inline-flex;align-items:center;gap:6px;min-height:36px;font-size:14px;cursor:pointer}
+.pkr-sbody .fld{margin-top:12px;max-width:360px}

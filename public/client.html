@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="client.css?v=1">
 <link rel="stylesheet" href="booklet-share.css?v=1">
+<link rel="stylesheet" href="pkg-review.css?v=1">
 <link rel="stylesheet" href="theme.css?v=76">
 </head>
 <body>
@@ -44,6 +45,8 @@
       </dl>
     </section>
 
+    <section id="pkg-selections" class="card" data-pkg-review data-wait-quote aria-label="Package selections" hidden></section>
+
     <div class="filters" id="filters" role="group" aria-label="Filter the timeline"></div>
     <ol class="timeline" id="timeline" aria-live="polite"></ol>
   </div>
@@ -56,5 +59,6 @@
 <script src="store-api.js?v=129"></script>
 <script src="client.js?v=1"></script>
 <script src="booklet-share.js?v=1"></script>
+<script src="pkg-review.js?v=1"></script>
 </body>
 </html>

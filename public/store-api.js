@@ -926,6 +926,10 @@
     { key: "finance",    label: "Budget & finance",  icon: "💰", page: null,             group: "Finance" },
     { key: "settlement", label: "Settlement",        icon: "🧾", page: null,             group: "Finance" },
     { key: "closure",    label: "Closure & P&L",     icon: "🏁", page: null,             group: "Finance" },
+    // 0069 client package flow: pkg_review view = notified of client choices, edit = accept / decline;
+    // pkg_payments view = package payment alerts
+    { key: "pkg_review",   label: "Package selections (review)", icon: "📦", page: null, group: "Finance" },
+    { key: "pkg_payments", label: "Package payment alerts",      icon: "💸", page: null, group: "Finance" },
     { key: "command",    label: "Event-day command", icon: "🎛", page: null,             group: "Event day" },
     { key: "issues",     label: "Issues & incidents",icon: "🚨", page: null,             group: "Event day" },
     { key: "media",      label: "Media & gallery",   icon: "📸", page: null,             group: "Event day" },
@@ -5474,11 +5478,12 @@
     if (k.indexOf("nurture_") === 0) return "nurture.html";
     if (!q) return "";
     if (k.indexOf("task_") === 0) return "ops.html?quote=" + enc(q) + (has(d.task_id) ? "&task=" + enc(d.task_id) : "");
-    if (/^(payment_link|payment_reminder|payment_receipt|payment|payment_received|advance_paid|payment_reconcile)$/.test(k))
+    if (/^(payment_link|payment_reminder|payment_receipt|payment|payment_received|advance_paid|payment_reconcile|pkg_payment)$/.test(k))
       return "settlement.html?quote=" + enc(q) + "#payments";
     if (/^(approval_link|otp|reapproval_required|quote_approved|quote_changed|approved|change_order)$/.test(k))
       return "quotes.html?focus=" + enc(has(n.event_code) ? n.event_code : q);
     if (k.indexOf("design_") === 0) return "design.html?quote=" + enc(q);
+    if (/^pkg_(selected|accepted|declined)$/.test(k)) return "event.html?id=" + enc(q) + "#pkg-selections";
     return "event.html?id=" + enc(q);
   }
   /* ---------------- notification bell: view (pure — unit-tested in test/bell-panel.test.mjs) ----------------
@@ -5768,6 +5773,11 @@
         + (d.event_code ? " · " + d.event_code : "")],
       // 0058: free-trial reminders (admins only — the server decides)
       trial_reminder: ["⏳", String(d.label || "Free trial update")],
+      // 0069 client package flow
+      pkg_selected: ["📦", "Client chose a package" + (d.package ? ": " + d.package : "") + (d.event_code ? " · " + d.event_code : "")],
+      pkg_accepted: ["✅", "Package choice accepted" + (d.event_code ? " · " + d.event_code : "")],
+      pkg_declined: ["↩️", "Package choice declined" + (d.event_code ? " · " + d.event_code : "")],
+      pkg_payment: ["💸", "Package payment received" + (d.event_code ? " · " + d.event_code : "")],
     };
     const hit = m[k] || (k.indexOf("design_") === 0 ? ["🎨", "Design stage: " + k.slice(7).replace(/_/g, " ")]
                       : k.indexOf("nurture_") === 0 ? ["🌱", "Greeting queued" + (k.length > 8 ? " · " + k.slice(8).replace(/_/g, " ") : "")] : null);
@@ -5788,6 +5798,7 @@
     if (task) return '.trow[data-id="' + task + '"]';
     if (msg) return '.m[data-mid="' + msg + '"]';
     if (hash === "#payments") return "#payments";
+    if (hash === "#pkg-selections") return "#pkg-selections";
     return null;
   }
   function deeplinkFocus() {

@@ -198,6 +198,7 @@
     box-shadow:0 1px 2px rgba(0,0,0,.4), 0 14px 30px -16px rgba(0,0,0,.7);
   }
 </style>
+<link rel="stylesheet" href="pkg-review.css?v=1">
 <link rel="stylesheet" href="theme.css?v=76">
 </head>
 <body>
@@ -295,6 +296,13 @@
       </fieldset>
       <p class="mnote s-d2c171b">Links you already sent count from when they were sent, so any older than the limit stop working as soon as you save. Switching this off, or raising the number, makes them work again. To give someone a fresh link, send it again (Send approval link, publish the proposal again, or assign the crew member a task). Anyone opening an expired link sees the usual “this link has expired — please contact the studio for a new one” page.</p>
       <div class="actions"><button type="button" class="btn primary" id="lx_save">Save link expiry</button></div>
+    </div>
+
+    <!-- client package flow (0069) — pkg-review.js fills it; hidden until the server answers -->
+    <div class="card" id="pkgFlowCard" data-pkg-settings hidden>
+      <h3>Client package flow</h3>
+      <p class="mnote">How clients choose a package from their booklet link, and what happens next. Who reviews choices is set in the role matrix (“Package selections (review)” and “Package payment alerts”).</p>
+      <div class="pkr-sbody"></div>
     </div>
 
     <div class="card" id="pricingCard">
@@ -581,6 +589,7 @@
 <script src="store-api.js?v=129"></script>
 <script src="hq-invoice.js?v=1"></script>
 <script src="tour.js?v=7"></script>
+<script src="pkg-review.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
