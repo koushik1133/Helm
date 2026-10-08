@@ -74,6 +74,28 @@
   ],
   "redirects": [
     {
+      "source": "/:path((?!api/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "helm-v01.vercel.app"
+        }
+      ],
+      "destination": "https://www.helm.events/:path",
+      "permanent": false
+    },
+    {
+      "source": "/:path((?!api/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "helm-alpha-nine.vercel.app"
+        }
+      ],
+      "destination": "https://www.helm.events/:path",
+      "permanent": false
+    },
+    {
       "source": "/:path*",
       "has": [
         {
