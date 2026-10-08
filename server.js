@@ -161,10 +161,18 @@ CSP.auth = buildCsp({
   'script-src': baseDirective('script-src').replace(/^'self'/, "'self' " + TURNSTILE),
   'frame-src': baseDirective('frame-src') + ' ' + TURNSTILE,
 });
+//  • /checkout may load Razorpay Standard Checkout (exact script URL; its payment form
+//    runs in Razorpay's iframe — Helm never renders card fields) — that page only (0056)
+const RZP_SCRIPT = 'https://checkout.razorpay.com/v1/checkout.js';
+CSP.checkout = buildCsp({
+  'script-src': baseDirective('script-src').replace(/^'self'/, "'self' " + RZP_SCRIPT),
+  'frame-src': baseDirective('frame-src') + ' https://api.razorpay.com https://checkout.razorpay.com',
+  'connect-src': baseDirective('connect-src') + ' https://api.razorpay.com https://checkout.razorpay.com https://lumberjack.razorpay.com',
+});
 const CSP_BY_PAGE = {
   portal: 'userImg', 'proposal-view': 'userImg', proposal: 'userImg', media: 'userImg',
   'invite-studio': 'studio', invite: 'invite', builder: 'builder',
-  login: 'auth', 'reset-password': 'auth',
+  login: 'auth', 'reset-password': 'auth', checkout: 'checkout',
 };
 const SECURITY_HEADERS = {
   'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
@@ -187,7 +195,7 @@ const MIC_PAGES = new Set(['chat', 'work']);
 // Search-engine policy: only the marketing pages are indexable. Every other
 // page (app, token pages, login, sim-pay, 404), /docs/* and /.well-known/* get
 // X-Robots-Tag. Same list as vercel.json (derived from public/*.html).
-const INDEXABLE_PAGES = new Set(['index', 'about', 'services', 'privacy', 'terms']);
+const INDEXABLE_PAGES = new Set(['index', 'about', 'services', 'privacy', 'terms', 'refund-policy']);
 // Pages served for client links that carry a bearer token in the URL (/approve?token=,
 // /<studio>/<kind>/<ref>, /i/<slug>): Referrer-Policy no-referrer + Cache-Control
 // no-store, private (audit Phase 9). Same list as vercel.json / _headers.

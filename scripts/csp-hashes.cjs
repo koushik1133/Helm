@@ -140,6 +140,11 @@ const BUILDER_SOURCES = new Set(['/builder', '/builder\\.html', '/builder.html']
 // widget (a single-purpose origin, not a library CDN).
 const AUTH_ROUTE = /(^|\/|\()(login|reset)/;
 const TURNSTILE = /^https:\/\/challenges\.cloudflare\.com(\/[^\s;]*)?$/;
+// The onboarding checkout page (0056) only may load Razorpay Standard Checkout — the
+// EXACT script URL, nothing else on that origin. Card / UPI / netbanking fields live
+// in Razorpay's own iframe (frame-src), never in Helm's DOM.
+const CHECKOUT_ROUTE = /(^|\/|\()checkout/;
+const RAZORPAY_SCRIPT = 'https://checkout.razorpay.com/v1/checkout.js';
 
 // Host sources of a CSP's script-src (hashes / nonces dropped).
 function scriptHosts(csp) {
@@ -151,7 +156,7 @@ function scriptSrcProblem(csp, route) {
   const hosts = scriptHosts(csp);
   if (!hosts) return 'no script-src directive';
   const allowed = BUILDER_SOURCES.has(route) ? SCRIPT_SRC_BUILDER : SCRIPT_SRC_BASE;
-  const extra = hosts.filter((h) => !allowed.includes(h) && !(AUTH_ROUTE.test(route) && TURNSTILE.test(h)));
+  const extra = hosts.filter((h) => !allowed.includes(h) && !(AUTH_ROUTE.test(route) && TURNSTILE.test(h)) && !(CHECKOUT_ROUTE.test(route) && h === RAZORPAY_SCRIPT));
   if (extra.length) return 'script-src allows ' + extra.join(' ') + (BUILDER_SOURCES.has(route) ? '' : ' (CDN sources are builder-only)');
   return '';
 }
@@ -159,5 +164,5 @@ function scriptSrcProblem(csp, route) {
 module.exports = {
   TRUSTED_TYPES_ENFORCE, TT_DIRECTIVES,
   computeHashes, computeStyleHashes, inlineScripts, inlineStyles, htmlFiles, withHashes,
-  SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER, BUILDER_SOURCES, scriptHosts, scriptSrcProblem,
+  SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER, BUILDER_SOURCES, RAZORPAY_SCRIPT, scriptHosts, scriptSrcProblem,
 };
