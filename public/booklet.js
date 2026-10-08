@@ -422,7 +422,7 @@
     if (!d || typeof d !== "object") { show("#bad"); return; }
     d.__token = token;
     render(d); show("#app");
-    if (global.HelmBookletPkg && VISIBLE.packages !== false && !(d.menu && (d.menu.mode === "selected" || d.menu.mode === "hidden"))) global.HelmBookletPkg.mount(token, d).catch(() => {});
+    if (global.HelmBookletPkg && VISIBLE.packages !== false && !(d.menu && d.menu.mode === "hidden")) global.HelmBookletPkg.mount(token, d).catch(() => {});
   }
 
   global.HelmBooklet = { render2d, render3d, visibleSections, snapUrl, money, setFormat, fmtTime, mapLink, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };

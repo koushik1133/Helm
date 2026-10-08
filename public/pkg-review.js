@@ -25,7 +25,7 @@
     r = r || {};
     const st = STATUS_LABEL[r.status] ? r.status : "pending";
     const draft = r.draft_totals || r.draft || {};
-    return { id: String(r.id || ""), name: String(r.package_name || r.name || "Package").slice(0, 80), guests: num(r.guests),
+    return { id: String(r.id || ""), name: String(r.package_name || r.package || r.name || "Package").slice(0, 80), guests: num(r.guests),
       status: st, statusLabel: STATUS_LABEL[st], at: when(r.created_at), note: r.note ? String(r.note).slice(0, 500) : "",
       reason: r.decline_reason ? String(r.decline_reason).slice(0, 500) : "",
       total: num(draft.total != null ? draft.total : r.draft_total), currency: draft.currency || r.currency || "INR",
