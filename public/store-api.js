@@ -5139,8 +5139,20 @@
       const row = { quote_id: quoteId, closed_at: cur.closed_at || null, ...c, updated_at: now() }; a.push(row);
       localStorage.setItem(CLOSE_LS, JSON.stringify(a)); return row;
     },
-    async setClosed(quoteId, closed) {
-      if (mode === "supabase") return rpc("close_event", { p_quote_id: quoteId, p_closed: !!closed });
+    // 0049: the server refuses to close while the ledger balance is owed or equipment is
+    // still checked out. blockers() shows why up front; an admin may pass an override reason
+    // (required, audited server-side).
+    async blockers(quoteId) {
+      if (mode !== "supabase") return null;
+      try { return await rpc("close_event_blockers", { p_quote_id: quoteId }); }
+      catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+    async setClosed(quoteId, closed, overrideReason) {
+      if (mode === "supabase") {
+        const reason = overrideReason == null ? "" : String(overrideReason).trim();
+        if (closed && reason) return rpc("close_event", { p_quote_id: quoteId, p_closed: true, p_override_reason: reason });
+        return rpc("close_event", { p_quote_id: quoteId, p_closed: !!closed });
+      }
       const a = readLs(CLOSE_LS); let row = a.find((x) => x.quote_id === quoteId);
       if (!row) { row = { quote_id: quoteId }; a.push(row); }
       row.closed_at = closed ? now() : null; localStorage.setItem(CLOSE_LS, JSON.stringify(a));

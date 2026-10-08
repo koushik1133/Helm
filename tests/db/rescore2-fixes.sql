@@ -204,7 +204,7 @@ do $$ declare n int; begin
 end $$;
 do $$ declare n int; begin
   perform pg_temp.login('a_admin@a.test');
-  begin perform public.close_event(pg_temp.id('refund'), true);
+  begin perform public.close_event(pg_temp.id('refund'), true, 'rescore2: balance still open (0049 admin override)');
   exception when others then perform pg_temp.res('closure: close_event still works', false, sqlerrm); return; end;
   perform pg_temp.su(); select count(*) into n from public.event_closure where quote_id = pg_temp.id('refund') and closed_at is not null;
   perform pg_temp.res('closure: close_event still works', n = 1, n||' row(s)');

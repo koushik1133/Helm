@@ -137,7 +137,7 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=93"></script>
-<script src="store-api.js?v=114"></script>
+<script src="store-api.js?v=115"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -225,11 +225,41 @@
       if(await BPUI.confirm("Open Inventory to return the equipment now?",{title:"Go to Inventory?",okLabel:"Open Inventory"})) location.href="inventory.html?quote="+encodeURIComponent(id);
       return;
     }
-    // Gate 1.5 — financial caution. The server close_event does NOT block on money, so
+    // Gate 1.2 — the SERVER gate (0049): close is refused while the client still owes money
+    // on the payment ledger or equipment checkouts are still out. Show the reasons here; an
+    // admin may close anyway with a written reason (recorded in the audit log).
+    let overrideReason=null;
+    try{
+      const b=await BPStore.closure.blockers(id);
+      if(b && b.blocked){
+        const money=n=>"₹"+Math.round(Number(n)||0).toLocaleString("en-IN");
+        const lines=[];
+        if(Number(b.balance_owed)>0) lines.push("• Client balance still owed (payment ledger): "+money(b.balance_owed));
+        if(Number(b.open_checkouts)>0) lines.push("• "+b.open_checkouts+" equipment checkout"+(b.open_checkouts>1?"s":"")+" still out: "
+          +(b.checkouts||[]).slice(0,8).map(c=>(c.item||"item")+" ×"+c.qty).join(", "));
+        const role=await BPStore.auth.role().catch(()=>"");
+        if(role!=="admin"){
+          await BPUI.alert("Can't close this event yet:\n\n"+lines.join("\n")
+            +"\n\nCollect the balance and check the equipment back in first. Only an admin can close with something outstanding.",{title:"Not ready to close"});
+          return;
+        }
+        if(!(await BPUI.confirm("This event still has:\n\n"+lines.join("\n")
+          +"\n\nAs an admin you can close it anyway. You'll be asked for a reason, which is saved in the audit log.",
+          {title:"Close with an override?",okLabel:"Override & close",danger:true}))) return;
+        for(;;){
+          const r=await BPUI.prompt("Why is it OK to close with this outstanding? (5–1000 characters — saved in the audit log)",{title:"Override reason",label:"Reason"});
+          if(r==null) return;
+          const t=String(r).trim();
+          if(t.length>=5 && t.length<=1000){ overrideReason=t; break; }
+          await BPUI.alert("Please write a reason of 5 to 1000 characters.",{title:"Reason needed"});
+        }
+      }
+    }catch(e){ /* blockers unreadable → the server still enforces the gate on close */ }
+    // Gate 1.5 — financial caution. The server blocks only on the client LEDGER balance (above), so
     // surface any uncollected client balance or unsettled vendor amount and require an
     // explicit acknowledgement before archiving. Non-blocking (a manager may legitimately
     // close with a balance), read-only, and it fails open if settlement can't be read.
-    try{
+    if(!overrideReason) try{
       const s=await BPStore.settlement.summary(id);
       const bal=Math.max(0, Number((s&&s.balance)||0)), vo=Math.max(0, Number((s&&s.vendorOutstanding)||0));
       const money=n=>"₹"+Math.round(n).toLocaleString("en-IN");
@@ -246,7 +276,7 @@
       +(invUnverified?"\n\nNote: equipment returns couldn't be checked automatically right now — verify them yourself.":"")
       +"\n\nThis closes the event and moves it to the archive. Continue?",{title:"Close & archive event?",okLabel:"Close event",danger:true}))) return;
     await BPUI.guard($("#closeBtn"),async()=>{
-      try{ await BPStore.closure.setClosed(id,true); BPUI.allowUnload(); location.reload(); }
+      try{ await BPStore.closure.setClosed(id,true,overrideReason); BPUI.allowUnload(); location.reload(); }
       catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"close the event"}),{type:"err"}); } });
   }
 
