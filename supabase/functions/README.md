@@ -146,3 +146,49 @@ deploying them changes nothing. Do these steps only when subscription billing go
 
 Tests: `tests/edge/billing-extras.test.ts` (signature valid/invalid/missing/tampered,
 dormant mode, cron secret, org mismatch, idempotent marking).
+
+## Upload verification + quarantine (`verify-upload`, migration 0051) — DORMANT until you do this
+
+Browser uploads are already checked in the browser (magic bytes, re-encoding), but someone
+calling Storage directly with their own login skips that. 0051 + `verify-upload` re-check every
+new file **on the server**. Until every step below is done **nothing changes for users**:
+new uploads are recorded as "pending" but stay readable exactly as today (the enforce flag is OFF).
+
+1. **SQL** — paste `supabase/APPLY-0051.sql` (STAGING first, then PROD). Every VERIFY row must be `t`;
+   the last query shows `enforce = f`. Files that already exist are marked `clean` (grandfathered).
+2. **Deploy the function** (it authenticates with its own shared secret, not a user JWT):
+   ```bash
+   supabase functions deploy verify-upload --no-verify-jwt
+   supabase secrets set HELM_UPLOAD_SCAN_SECRET="$(openssl rand -hex 32)" HELM_UPLOAD_SCAN_ENABLED=true
+   ```
+3. **Trigger it** — either or both:
+   * Dashboard → Database → Webhooks → *Create*: table `storage.objects`, event **Insert**, type
+     *Supabase Edge Function* → `verify-upload`, method POST, add HTTP header
+     `x-helm-cron-secret: <the secret>`. (The payload is ignored — the function claims pending rows itself.)
+   * A safety-net cron (pg_cron + pg_net), e.g. every 2 minutes:
+     ```sql
+     select cron.schedule('verify-upload', '*/2 * * * *', $$
+       select net.http_post('https://<project-ref>.supabase.co/functions/v1/verify-upload',
+         '{}'::jsonb, '{}'::jsonb, jsonb_build_object('x-helm-cron-secret', '<the secret>'), 15000) $$);
+     ```
+4. **Watch it** for a day: `select status, reason, count(*) from public.upload_scans group by 1, 2;`
+   Pending should drain to `clean`; check any `rejected` rows (`audit_log` action `upload.rejected`).
+   Rejected files are moved to the private `upload-quarantine` bucket (set `HELM_UPLOAD_QUARANTINE=keep`
+   to leave them in place — they are hidden either way). Nothing is hard-deleted.
+5. **Flip enforcement ON** (pending files become visible only to their uploader until clean):
+   ```sql
+   update public.upload_scan_config set enforce = true, updated_at = now();
+   ```
+   Roll back any time with `set enforce = false`. Rejected files stay hidden regardless of the flag.
+6. **Optional antivirus** — point it at a ClamAV REST service you run (HTTPS only, host allowlisted):
+   ```bash
+   supabase secrets set HELM_AV_URL="https://av.example.com/scan" HELM_AV_ALLOWED_HOSTS="av.example.com" \
+     HELM_AV_TOKEN="<optional bearer>" HELM_AV_TIMEOUT_MS=15000
+   ```
+   The scanner receives the raw bytes by POST and must answer JSON `{"infected": true|false}` or
+   `{"status": "OK"|"FOUND"}`. If it is down, times out, or the host isn't allowlisted, files stay
+   pending (retried each run, up to 10 attempts) — they are never marked clean without a verdict.
+   Unset `HELM_AV_URL` = antivirus off (magic-byte checks only).
+
+Optional: `UPLOAD_SCAN_BATCH` (1..50, default 20). Scanned buckets: event-docs, chat-media,
+invite-media, task-proof (member-avatars and helm-manual are not scanned).
