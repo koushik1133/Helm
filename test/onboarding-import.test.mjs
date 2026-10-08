@@ -110,6 +110,11 @@ t('wrong headers: required fields reported missing, no column used twice', () =>
 /* ---- preview: validation + duplicates ---- */
 const H = ['name', 'category', 'quantity', 'unit', 'unit_cost'];
 const inv = (rows, existing, prior) => { const m = O.mapHeaders(H, 'inventory').mapping; return O.buildPreview('inventory', [H].concat(rows), m, existing || [], prior); };
+t('a row with more cells than the header (unquoted comma) is rejected, not guessed', () => {
+  const p = inv([['Lamp', '', '7', 'pcs', 'Rs 1', '250/-']]);
+  assert.equal(p.rows[0].status, 'invalid');
+  assert.match(p.rows[0].errors.join(' '), /more cells/);
+});
 t('duplicates within the file are flagged, first wins', () => {
   const p = inv([['Chair', 'Seating', '10', 'pcs', '5'], ['  CHAIR!! ', 'Seating', '3', '', ''], ['Table', '', '2', '', '']]);
   deq(p.rows.map((r) => r.status), ['new', 'dup-file', 'new']);
