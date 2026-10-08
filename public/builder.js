@@ -219,12 +219,17 @@ async function persistGuests(){
 // the same money calc the confirm modal uses, and write it back — so the quotes
 // list, event workspace and invoice never show a stale price. Commercial terms
 // already set on the quote (discount, coupon, place-of-supply, rates) are kept.
-let _syncTimer=null;
+let _syncTimer=null, _lastAutoOther=null;
 function syncQuotePricing(){
   if(!currentQuoteId) return;
   clearTimeout(_syncTimer);
   _syncTimer=setTimeout(async ()=>{
     try{
+      // refetch the latest saved pricing (discount/coupon/rates may have changed in quotes.html since
+      // this page opened) and write back conditioned on its updated_at, so nothing is clobbered
+      let expectedUpdatedAt = null;
+      try{ const latest = await BPStore.quotes.get(currentQuoteId);
+        if(latest){ currentPricing = latest.pricing || currentPricing; expectedUpdatedAt = latest.updatedAt || null; } }catch(_){}
       const oi = BPStore.pricing.fromItems(store.items, PRICING.assetPrices);
       const chairs = oi.chairs;
       const guests = PRICING.guests!=null ? PRICING.guests : chairs;
@@ -235,26 +240,38 @@ function syncQuotePricing(){
         chairPrice: currentPricing.chairPrice!=null?currentPricing.chairPrice:PRICING.chairPrice,
         gstPct: currentPricing.gstPct!=null?currentPricing.gstPct:PRICING.gstPct,
         serviceChargePct: currentPricing.serviceChargePct!=null?currentPricing.serviceChargePct:PRICING.serviceChargePct,
-        other: oi.objectsCost + (+PRICING.layoutBase||0),
+        // never overwrite a hand-edited 'other': it counts as hand-edited when it no longer matches the
+        // last value this builder computed (otherAuto, stored beside it, or this session's last write)
+        other: (()=>{ const auto = oi.objectsCost + (+PRICING.layoutBase||0);
+          const prevAuto = currentPricing.otherAuto!=null ? +currentPricing.otherAuto : _lastAutoOther;
+          const hand = currentPricing.other!=null && prevAuto!=null && +currentPricing.other !== prevAuto;
+          return hand ? currentPricing.other : auto; })(),
+        otherAuto: oi.objectsCost + (+PRICING.layoutBase||0),
         catering: currentPricing.catering || { mode:'inhouse', amount:0, gstPct:PRICING.gstPct },
       });
       const t = BPStore.pricing.quoteTotal(p);
       const pricing = Object.assign({}, p, { computed:t, total:t.total, client: currentClient });
-      await BPStore.quotes.updateMeta(currentQuoteId, { pricing });
-      currentPricing = pricing;
+      await BPStore.quotes.updateMeta(currentQuoteId, { pricing }, expectedUpdatedAt);
+      currentPricing = pricing; _lastAutoOther = pricing.otherAuto;
       updateQuoteBadge && updateQuoteBadge();
     }catch(e){ /* non-fatal */ }
   }, 600);
 }
 async function onPickPackage(){
-  const tid=$('#bPkg').value; PRICING.appliedPkgId=tid;
+  const tid=$('#bPkg').value;
+  const prev={ id:PRICING.appliedPkgId, plate:PRICING.menuPlatePrice, name:PRICING.menuPackageName };
+  // there is no API to un-apply a package from the plan, so "No package…" can't be saved — keep the current one
+  if(!tid && prev.id){ $('#bPkg').value=prev.id; toast('A package can be changed but not removed here — pick another package'); return; }
+  PRICING.appliedPkgId=tid;
   const pkg=(PRICING.packages||[]).find(p=>p.id===tid);
   PRICING.menuPlatePrice = pkg ? pkg.price_per_plate : null;
   PRICING.menuPackageName = pkg ? pkg.name : null;
   // persist to the event's plan so the quote screen shows the same package + price
   if(currentQuoteId && tid){
     try{ await BPStore.menuTemplates.apply(currentQuoteId, tid); toast('Applied '+(pkg?pkg.name:'package')); }
-    catch(e){ toast('Couldn\'t apply package'); }
+    catch(e){ PRICING.appliedPkgId=prev.id; PRICING.menuPlatePrice=prev.plate; PRICING.menuPackageName=prev.name;
+      const sel=$('#bPkg'); if(sel) sel.value=prev.id||'';
+      toast('Couldn\'t apply package — price left unchanged'); renderAll(); return; }
   }
   renderAll();
   syncQuotePricing();
@@ -2570,6 +2587,7 @@ let currentQuoteId = null;        // id of the open QUOTE (primary flow) — sav
 let currentQuoteCode = null;      // the quote's MMDDYYYY-NN code (for the header readout)
 let currentVersionNo = null;      // which version is loaded (for the header readout)
 let currentClient = {};           // the open quote's client object (so we can persist guests without clobbering it)
+let currentQuoteGuard = { approved:false, closed:false }, _staleAck=false;
 let currentPricing = {};          // the open quote's saved pricing inputs (discount/coupon/rates) — refreshed, not clobbered
 
 function sanitizeMargins(m){
@@ -2652,6 +2670,13 @@ async function saveLayout(silent, opts){
       // primary flow: every save is a new VERSION of the open quote
       const fromNo = currentVersionNo, fromOlder = isViewingOlder();
       const label = (opts && opts.label) || (fromOlder ? 'Based on V'+fromNo : null);
+      if(currentQuoteGuard.closed){ if(!silent) await BPUI.alert('This event is closed, so its layout can’t be changed.',{title:'Event closed'}); return false; }
+      if(currentQuoteGuard.approved && !_staleAck){
+        if(silent) return false;
+        const go = await BPUI.confirm('This quote is already confirmed/approved. Saving a new layout re-prices it, so the client’s approval will go stale and they will need to approve again (payments pause until then). Save anyway?',{title:'Client approval will go stale',okLabel:'Save and re-price'});
+        if(!go) return false;
+        _staleAck=true;
+      }
       if(name) { try{ await BPStore.quotes.updateMeta(currentQuoteId, { title:name }); }catch{} }
       const v = await BPStore.quotes.addVersion(currentQuoteId, label, data, store.items.length);
       currentVersionNo = v.version_no || v.versionNo;
@@ -3090,6 +3115,7 @@ async function init(){
     try{
       const q=await BPStore.quotes.get(quoteId);
       currentQuoteId=q.id; currentQuoteCode=q.code; currentClient=q.client||{}; currentPricing=q.pricing||{};
+      currentQuoteGuard = { approved: q.status==='confirmed' || (q.approvalStatus && q.approvalStatus!=='none'), closed: q.lifecycleStage==='closed' };
       const pn=$('#projName'); if(pn) pn.value=q.title||q.code;
       try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[q.code,q.title].filter((v,i,a)=>v&&a.indexOf(v)===i).join(' '),kind:'builder',href:'builder.html?quote='+encodeURIComponent(q.id),recordHref:'event.html?id='+encodeURIComponent(q.id)}); }catch(e){}
       const verNo = (openVer && /^\d{1,6}$/.test(String(openVer)) && +openVer>0) ? parseInt(openVer,10) : q.currentVersion;   // ignore junk like v=abc
@@ -3098,6 +3124,7 @@ async function init(){
       PRICING.eventType = q.eventType || null;
       // pull the event's guest count + applied menu package so the price is synced
       if(q.client && q.client.guests!=null) PRICING.guests = +q.client.guests;
+      else if(currentPricing.guests!=null) PRICING.guests = +currentPricing.guests;   // set in the Confirm modal
       try{
         const plan = await BPStore.plan.get(q.id);
         if(plan){
