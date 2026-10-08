@@ -33,6 +33,7 @@ function makeClient(respond) {
     rpc(name) {
       if (name === 'current_org_id') return Promise.resolve({ data: 'org-1', error: null });
       if (name === 'password_change_required') return Promise.resolve({ data: false, error: null });
+      if (name === 'reserve_inventory') return Promise.resolve({ data: null, error: { code: 'PGRST202', message: 'Could not find the function public.reserve_inventory' } });   // not deployed -> client falls back
       return Promise.resolve({ data: null, error: null });
     },
     from(table) {
@@ -149,7 +150,12 @@ t('source: local-date floor, prefilled past date kept, max logout global, Broadc
   assert.match(SRC, /todayFloor/);
   assert.match(SRC, /reason === "max" && !fromOtherTab\) \? "global" : "local"/);
   assert.match(SRC, /bc\.postMessage\(\{ type: "logout"/);
+});t('reserve() prefers the atomic RPC and falls back when it is not deployed', () => {
+  assert.match(SRC, /supa\.rpc\("reserve_inventory"/);
+  assert.match(SRC, /PGRST202/);
+  assert.match(SRC, /_reserveRpc = false/);
 });
+
 
 let pass = 0, fail = 0;
 for (const [name, fn] of tests) {
