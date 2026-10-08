@@ -81,3 +81,5 @@ forward  supabase/migrations/0065_client_booklet.sql
 forward  supabase/migrations/0066_notification_task_ref.sql
 # 0067 (pretty URLs) lands here, above 0068, when its branch merges.
 forward  supabase/migrations/0068_client_timeline_totals.sql
+# 0069 (package flow + share checklist) goes after 0068; 0067 still lands above 0068.
+forward  supabase/migrations/0069_package_flow.sql
