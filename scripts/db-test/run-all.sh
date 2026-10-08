@@ -85,6 +85,7 @@ run "phone-verify"       "PHONE-VERIFY: ALL PASS \(40/40\)" psql -q -f tests/db/
 run "getting-started"    "GETTING-STARTED: ALL PASS \(40/40\)" psql -q -f tests/db/getting-started.sql
 run "onboarding-checkout" "ONBOARDING-CHECKOUT: ALL PASS \(47/47\)" psql -q -f tests/db/onboarding-checkout.sql
 run "welcome-email"      "WELCOME-EMAIL: ALL PASS \(31/31\)" psql -q -f tests/db/welcome-email.sql
+run "studio-search"      "STUDIO-SEARCH: ALL PASS \(52/52\)" psql -q -f tests/db/studio-search.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

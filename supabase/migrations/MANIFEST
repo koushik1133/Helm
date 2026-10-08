@@ -72,3 +72,5 @@ forward  supabase/migrations/0056_onboarding_checkout.sql
 forward  supabase/migrations/0057_welcome_email.sql
 forward  supabase/migrations/0058_trial_reminders.sql
 forward  supabase/migrations/0059_getting_started.sql
+# 0061 studio search. NOTE: 0060 (profile menu, branch feat/profile-menu-search) lands ABOVE this line.
+forward  supabase/migrations/0061_studio_search.sql
