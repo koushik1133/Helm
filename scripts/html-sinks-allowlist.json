@@ -1,905 +1,905 @@
 {
-  "_doc": "Reviewed exceptions for scripts/check-html-sinks.mjs. safeHelpers: functions read and confirmed to return escaped/fixed markup. sites: a specific interpolated value at a sink (file :: expression) with the reason it cannot carry attacker HTML.",
-  "safeHelpers": [
-    {
-      "name": "gsMarkup",
-      "why": "getting-started.js (0059): every step title/why/icon/href is a fixed constant from STEPS and is still esc()'d; counts go through Number(); ring values are numeric"
-    },
-    {
-      "name": "inr",
-      "why": "number → '₹'+Number(n).toLocaleString(); digits/commas only"
-    },
-    {
-      "name": "num",
-      "why": "Number(...).toLocaleString / numAttr: always a finite number"
-    },
-    {
-      "name": "fmt",
-      "why": "leads/crm: '₹'+Number(n).toLocaleString(); auth-ui fmt formats a timestamp"
-    },
-    {
-      "name": "fmtU",
-      "why": "builder.js: Math.round(...).toString() — a number"
-    },
-    {
-      "name": "fmtDate",
-      "why": "toLocaleDateString of a parsed date; inventory/calendar esc() fallback; invite.html result is esc()'d by caller"
-    },
-    {
-      "name": "grp",
-      "why": "optgroup builder: label args are string constants at every call site; every name/role/id esc()'d"
-    },
-    {
-      "name": "bucket",
-      "why": "dashboard: key/label/cls are literals at call sites; rows rendered by row() which esc()s"
-    },
-    {
-      "name": "prowAvatar",
-      "why": "chat: colorFor() palette constant + esc(avatar_path) + esc(initials)"
-    },
-    {
-      "name": "statBadge",
-      "why": "returns one of three fixed badge strings"
-    },
-    {
-      "name": "apprBadge",
-      "why": "returns one of fixed badge strings"
-    },
-    {
-      "name": "stageOptions",
-      "why": "STAGES constant keys + esc(label)"
-    },
-    {
-      "name": "crewAv",
-      "why": "ops: esc(avatar_path) + esc(initials)"
-    },
-    {
-      "name": "catColor",
-      "why": "builder.js: CSS custom property value from our own stylesheet"
-    },
-    {
-      "name": "whoCell",
-      "why": "audit: esc(title)/esc(text)"
-    },
-    {
-      "name": "toHexColor",
-      "why": "builder.js: HEXRE-validated hex or '#cccccc'"
-    },
-    {
-      "name": "scheduleHtml",
-      "why": "invite: every time/label esc()'d"
-    },
-    {
-      "name": "galleryHtml",
-      "why": "invite: cssUrl() percent-encodes quotes/parens then esc()"
-    },
-    {
-      "name": "factsHtml",
-      "why": "invite: every field esc()'d; map URL https-only + esc"
-    },
-    {
-      "name": "renderPricing",
-      "why": "approve: labels esc()'d, amounts via inr()"
-    },
-    {
-      "name": "renderChange",
-      "why": "audit: every key/value esc()'d"
-    },
-    {
-      "name": "refCls",
-      "why": "returns one of four fixed class names"
-    },
-    {
-      "name": "railHtml",
-      "why": "design: esc(revision), esc(LABEL)"
-    },
-    {
-      "name": "advanceControls",
-      "why": "design: every id/label esc()'d"
-    },
-    {
-      "name": "photoAttr",
-      "why": "chat: esc(avatar path) attribute or ''"
-    },
-    {
-      "name": "peopleSelectHTML",
-      "why": "logistics: elId is a literal at call sites; names esc()'d; grp labels constant"
-    },
-    {
-      "name": "numAttr",
-      "why": "control: Number.isFinite(n)?n:default"
-    },
-    {
-      "name": "lastPreview",
-      "why": "chat: esc(name)/esc(body)/esc(cardLabel), ticksHtml fixed svg"
-    },
-    {
-      "name": "isArchived",
-      "why": "returns a boolean (true/false text only)"
-    },
-    {
-      "name": "highlight",
-      "why": "chat: esc() on every slice, only <mark> added"
-    },
-    {
-      "name": "eventCell",
-      "why": "inventory: esc(name), esc(date)"
-    },
-    {
-      "name": "cssUrl",
-      "why": "percent-encodes quotes/parens/backslash/space then esc()"
-    },
-    {
-      "name": "colorFor",
-      "why": "chat: picks from NAME_COLORS constant palette"
-    },
-    {
-      "name": "assetGlyph",
-      "why": "builder.js: fixed SVG per asset type"
-    },
-    {
-      "name": "personAv",
-      "why": "chat: colorFor palette + photoAttr + esc(initials); style arg literal"
-    },
-    {
-      "name": "avHtml",
-      "why": "chat: a.bg from palette, esc(a.txt); id arg literal"
-    },
-    {
-      "name": "clampStars",
-      "why": "integer 0..5"
-    }
-  ],
-  "sites": [
-    {
-      "file": "public/approve.html",
-      "expr": "kind",
-      "why": "CSS class token: literal ('ok'/'err'/'done'/'active'…) at every call site / computed from literals in this function"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "a.label",
-      "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "c",
-      "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "catBadge",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "chairs",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "fitNote",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "html",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "idx",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "k",
-      "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "m.chairs",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "m.guests",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "n",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "note",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "o.cols",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "o.rows",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "o.total",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "opts",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "pv",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "r[0]",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "r[1]",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "rows",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "s",
-      "why": "status-bar text: round1(toU(...)) numbers + literal &nbsp;/⌖ glyphs"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "tables",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "tax",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "toHexColor(it.color)===c",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "type",
-      "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "typeSpec",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "u",
-      "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
-    },
-    {
-      "file": "public/builder.js",
-      "expr": "unit",
-      "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
-    },
-    {
-      "file": "public/calendar.html",
-      "expr": "(upcoming.length||past.length) ? html : '<div class=\"empty\">No dated events yet.</div>'",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/calendar.html",
-      "expr": "ico[c.type]||\"⚠\"",
-      "why": "lookup in a local literal map (icon/pill table) with literal fallback"
-    },
-    {
-      "file": "public/chat.html",
-      "expr": "c._unread>99?'99+':c._unread",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/chat.html",
-      "expr": "e",
-      "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
-    },
-    {
-      "file": "public/chat.html",
-      "expr": "html",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/chat.html",
-      "expr": "i",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/chat.html",
-      "expr": "icon",
-      "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
-    },
-    {
-      "file": "public/chat.html",
-      "expr": "rows.indexOf(r)",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/closure.html",
-      "expr": "(()=>{ const n=clampStars(r.stars); return `<span class=\"rstars\" role=\"img\" aria-label=\"${n} of 5 stars\">${\"★\".repeat(n)}${\"☆\".repeat(5-n)}</span>`; })()",
-      "why": "n=clampStars() integer 0..5"
-    },
-    {
-      "file": "public/closure.html",
-      "expr": "(pl.actCost&&pl.actCost>=pl.finalCost)?\" (actual)\":pl.actCost?\" (actual + est.)\":\" (estimated)\"",
-      "why": "all branches are literals"
-    },
-    {
-      "file": "public/closure.html",
-      "expr": "n",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/command.html",
-      "expr": "stkPill[r.status]||\"pending\"",
-      "why": "lookup in a local literal map (icon/pill table) with literal fallback"
-    },
-    {
-      "file": "public/control.html",
-      "expr": "cols",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/control.html",
-      "expr": "def",
-      "why": "ITEM_CATALOG default price — numeric literal from the constant table"
-    },
-    {
-      "file": "public/control.html",
-      "expr": "et",
-      "why": "assigned esc(…) on the line above (const et=esc(r.event_type) / nm=esc(t.name))"
-    },
-    {
-      "file": "public/control.html",
-      "expr": "html",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/control.html",
-      "expr": "html || `<tr><td colspan=\"${cols}\" class=\"nnone\" style=\"text-align:left\">No notification matches your search.</td></tr>`",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/control.html",
-      "expr": "i",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/control.html",
-      "expr": "k",
-      "why": "CSS class token: literal ('ok'/'err'/'done'/'active'…) at every call site / computed from literals in this function"
-    },
-    {
-      "file": "public/control.html",
-      "expr": "label",
-      "why": "restores the button's own previous innerHTML (captured from our markup before the export)"
-    },
-    {
-      "file": "public/control.html",
-      "expr": "msg.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))",
-      "why": "every dynamic part is esc()'d / inr()'d inside this expression; the checker cannot see through the nested template/arrow"
-    },
-    {
-      "file": "public/control.html",
-      "expr": "nm",
-      "why": "assigned esc(…) on the line above (const et=esc(r.event_type) / nm=esc(t.name))"
-    },
-    {
-      "file": "public/control.html",
-      "expr": "t.body",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/control.html",
-      "expr": "t.head",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/dashboard.html",
-      "expr": "badge",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/dashboard.html",
-      "expr": "conf.cards.join(\"\")",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/dashboard.html",
-      "expr": "open",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/design.html",
-      "expr": "pill",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/event.html",
-      "expr": "cls",
-      "why": "CSS class token: literal ('ok'/'err'/'done'/'active'…) at every call site / computed from literals in this function"
-    },
-    {
-      "file": "public/event.html",
-      "expr": "html",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/event.html",
-      "expr": "i<cur?\"✓\":i+1",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/event.html",
-      "expr": "ico[c.type]||\"⚠️\"",
-      "why": "lookup in a local literal map (icon/pill table) with literal fallback"
-    },
-    {
-      "file": "public/event.html",
-      "expr": "inp",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/event.html",
-      "expr": "s.k",
-      "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
-    },
-    {
-      "file": "public/event.html",
-      "expr": "s.label",
-      "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
-    },
-    {
-      "file": "public/event.html",
-      "expr": "scan[f.storage_path]===\"pending\"?'<span class=\"muted\" style=\"font-size:12px\" role=\"status\">Scanning…</span>':scan[f.storage_path]===\"rejected\"?'<span style=\"font-size:12px;color:#b42318\" role=\"status\">Blocked — failed the safety check</span>':''",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/event.html",
-      "expr": "state.count",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/event.html",
-      "expr": "warn",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/flow.html",
-      "expr": "html",
-      "why": "print document assembled from esc()/inr() values (pinned by test/injection-sinks.test.mjs)"
-    },
-    {
-      "file": "public/flow.html",
-      "expr": "ic[a.kind]||'•'",
-      "why": "lookup in a local literal map (icon/pill table) with literal fallback"
-    },
-    {
-      "file": "public/flow.html",
-      "expr": "k==='reqs'?'reqs':k",
-      "why": "k is a literal tab key from the fixed tab list"
-    },
-    {
-      "file": "public/flow.html",
-      "expr": "label",
-      "why": "literal section label passed by the caller"
-    },
-    {
-      "file": "public/flow.html",
-      "expr": "paid.length ? '<div style=\"font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:4px\">Receipts</div>'",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/flow.html",
-      "expr": "paid.map(p=>`<div class=\"rowline\"><span class=\"g\">${esc(p.receipt_no||p.provider_ref||'')} · ${esc(p.method||p.provider)}</span><span>${inr(p.amount)}</span><span class=\"meta\">${esc((p.paid_at||'').slice(0,10))}</span></div>`).join('') : '<div style=\"font-size:12px;color:var(--ink-3)\">No payments recorded yet.</div>'",
-      "why": "every dynamic part is esc()'d / inr()'d inside this expression; the checker cannot see through the nested template/arrow"
-    },
-    {
-      "file": "public/flow.html",
-      "expr": "phone",
-      "why": "digits only: .replace(/[^0-9]/g,'')"
-    },
-    {
-      "file": "public/flow.html",
-      "expr": "rows",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/flow.html",
-      "expr": "waText",
-      "why": "encodeURIComponent(...) — URL-encoded, no HTML metacharacters"
-    },
-    {
-      "file": "public/insights.html",
-      "expr": "(opts.empty||\"Nothing yet.\")",
-      "why": "opts.empty is a literal passed by each caller"
-    },
-    {
-      "file": "public/inventory.html",
-      "expr": "c.checked_out_at?new Date(c.checked_out_at).toLocaleDateString():\"\"",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/inventory.html",
-      "expr": "goEvent",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/inventory.html",
-      "expr": "html",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/inventory.html",
-      "expr": "lossRows || '<tr><td colspan=\"8\" class=\"empty\">No missing items — everything came back. 🎉</td></tr>'",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/inventory.html",
-      "expr": "open.length ? open.map(c=>{ const it=byId[c.item_id]||{name:\"(item)\"}; // still out = \"left over\" → show the outstanding qty in RED so it's obvious const goEvent = c.quote_id ? `<a class=\"btn sm\" href=\"event.html?id=${esc(c.quote_id)}\" title=\"Open the event to check this back in\">Go to event →</a>` : \"\"; return `<tr> <td><b>${esc(it.name)}</b>${c.note?`<div class=\"sub2\">${esc(c.note)}</div>`:\"\"}${c.status===\"partial\"?' <span class=\"miss\">partial</span>':\"\"}</td> <td>${eventCell(c)}</td> <td><span class=\"pri ${esc(it.priority||'C')}\">${esc(it.priority||'C')}</span></td> <td class=\"num\" style=\"color:#b42318;font-weight:700\">${num(c.qty_out)}${c.status===\"partial\"?` <span style=\"color:var(--ink-3)\">(${num(c.qty_in)} back)</span>`:\"\"}</td> <td>${esc(c.issued_to||\"\")}</td> <td style=\"font-size:12px;color:var(--ink-3)\">${c.checked_out_at?new Date(c.checked_out_at).toLocaleDateString():\"\"}</td> <td style=\"display:flex;gap:6px;flex-wrap:wrap\">${goEvent}${canEdit?`<button type=\"button\" class=\"btn sm\" data-in=\"${esc(c.id)}\" aria-label=\"Check in ${esc(it.name)}\">Check in</button>`:\"\"}</td> </tr>`; }).join(\"\") : '<tr><td colspan=\"7\" class=\"empty\">Nothing out on loan.</td></tr>'",
-      "why": "every dynamic part is esc()'d / inr()'d inside this expression; the checker cannot see through the nested template/arrow"
-    },
-    {
-      "file": "public/inventory.html",
-      "expr": "opts",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/inventory.html",
-      "expr": "s",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/invite-studio.html",
-      "expr": "i",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/invite-studio.html",
-      "expr": "i+1",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/invite-studio.html",
-      "expr": "i===0?'Cover photo':'Photo '+(i+1)",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/invite-studio.html",
-      "expr": "n",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/invite-studio.html",
-      "expr": "t.k",
-      "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
-    },
-    {
-      "file": "public/invite.html",
-      "expr": "heroBlock",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/issues.html",
-      "expr": "open",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/leads.html",
-      "expr": "more",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/leads.html",
-      "expr": "n",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/leads.html",
-      "expr": "s.c",
-      "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
-    },
-    {
-      "file": "public/leads.html",
-      "expr": "s.k",
-      "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
-    },
-    {
-      "file": "public/leads.html",
-      "expr": "s.label",
-      "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
-    },
-    {
-      "file": "public/logistics.html",
-      "expr": "done",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/logistics.html",
-      "expr": "tab[0].toUpperCase()+tab.slice(1)",
-      "why": "tab is one of the fixed tab keys (route whitelist) in this page"
-    },
-    {
-      "file": "public/logistics.html",
-      "expr": "total",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/media.html",
-      "expr": "media",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/media.html",
-      "expr": "thumb",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/nurture.html",
-      "expr": "k",
-      "why": "CSS class token: literal ('ok'/'err'/'done'/'active'…) at every call site / computed from literals in this function"
-    },
-    {
-      "file": "public/ops.html",
-      "expr": "badges",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/ops.html",
-      "expr": "blocked",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/ops.html",
-      "expr": "done",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/ops.html",
-      "expr": "html",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/ops.html",
-      "expr": "kind",
-      "why": "CSS class token: literal ('ok'/'err'/'done'/'active'…) at every call site / computed from literals in this function"
-    },
-    {
-      "file": "public/ops.html",
-      "expr": "pend",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/ops.html",
-      "expr": "rows",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/ops.html",
-      "expr": "spec",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/ops.html",
-      "expr": "vendors.length ? `<option value=\"\">— pick vendor —</option>`",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/ops.html",
-      "expr": "vendors.map(v=>`<option value=\"${esc(v.id)}\">${esc(v.name)}${v.category?\" · \"+esc(v.category):\"\"}${v.phone?\" · \"+esc(v.phone):\" · (no phone)\"}</option>`).join(\"\") : `<option value=\"\">No vendors — add them in Vendors</option>`",
-      "why": "every dynamic part is esc()'d / inr()'d inside this expression; the checker cannot see through the nested template/arrow"
-    },
-    {
-      "file": "public/plan.html",
-      "expr": "editable?1:.6",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/plan.html",
-      "expr": "guests",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/plan.html",
-      "expr": "l",
-      "why": "each line is built with esc(client_name/status) + toLocaleDateString"
-    },
-    {
-      "file": "public/plan.html",
-      "expr": "n",
-      "why": "Math.round(n).toLocaleString via inr()/number in this function"
-    },
-    {
-      "file": "public/portal.html",
-      "expr": "/^#[0-9a-f]{3,8}$/i.test(c)?c:\"transparent\"",
-      "why": "regex-validated hex colour or literal"
-    },
-    {
-      "file": "public/portal.html",
-      "expr": "apBadge",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/portal.html",
-      "expr": "i+1",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/proposal-view.html",
-      "expr": "/^#[0-9a-f]{3,8}$/i.test(c)?c:\"transparent\"",
-      "why": "regex-validated hex colour or literal"
-    },
-    {
-      "file": "public/proposal-view.html",
-      "expr": "cell",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/proposal-view.html",
-      "expr": "i+1",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/proposal.html",
-      "expr": "c",
-      "why": "palette entry rendered only when HEX.test() passes (ok flag), otherwise literal"
-    },
-    {
-      "file": "public/proposal.html",
-      "expr": "i",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/proposal.html",
-      "expr": "i+1",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/proposal.html",
-      "expr": "opts(r.status)",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/quotes.html",
-      "expr": "html",
-      "why": "print document assembled from numbers only (pinned by test/injection-sinks.test.mjs)"
-    },
-    {
-      "file": "public/quotes.html",
-      "expr": "p.chairs",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/quotes.html",
-      "expr": "p.guests",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/quotes.html",
-      "expr": "p.serviceChargePct",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/quotes.html",
-      "expr": "sh(x) ? // in Archive / Deleted (0040) → put it back, look at it, download it — never erase `${canEdit?`<button type=\"button\" class=\"ic restore\" data-act=\"restore\" title=\"Put it back in your quotes\" aria-label=\"Restore ${esc(x.code)}\">↩ Restore</button>`:\"\"} <button type=\"button\" class=\"ic go\" data-act=\"workspace\" title=\"Open the event workspace\" aria-label=\"Open workspace for ${esc(x.code)}\">⧉ Open</button> <button type=\"button\" class=\"ic\" data-act=\"download\" aria-label=\"Download ${esc(x.code)}\">Download</button>` : isArchived(x) ? // finished event → read-only set: review its details, reopen the workspace, download `<button type=\"button\" class=\"ic go\" data-act=\"details\" title=\"View closure, P&amp;L and feedback for this completed event\" aria-label=\"Details for ${esc(x.code)}\">📄 Details</button> <button type=\"button\" class=\"ic go\" data-act=\"workspace\" title=\"Open the event workspace\" aria-label=\"Open workspace for ${esc(x.code)}\">⧉ Open</button> <button type=\"button\" class=\"ic go\" data-act=\"edit\" title=\"View the quotation, pricing and floor layout (don't save changes to a closed event)\" aria-label=\"View quote and layout for ${esc(x.code)}\">👁 View quote &amp; layout</button> ${egReady&&egIndex[x.id]?`<button type=\"button\" class=\"ic go\" data-act=\"egroup\" aria-label=\"Open the event group for ${esc(x.code)}\">💬 Event group</button>`:\"\"} <button type=\"button\" class=\"ic\" data-act=\"download\" aria-label=\"Download ${esc(x.code)}\">Download</button> ${canDelete?`<button type=\"button\" class=\"ic del\" data-act=\"del\" title=\"${shelf.ready?\"Move to Deleted quotes (restorable)\":\"Delete permanently\"}\" aria-label=\"Delete ${esc(x.code)}\">✕</button>`:\"\"}` : // active event → the full working set `<button type=\"button\" class=\"ic go\" data-act=\"workspace\" title=\"Open the event workspace\" aria-label=\"Open workspace for ${esc(x.code)}\">⧉ Open</button> <button type=\"button\" class=\"ic go\" data-act=\"edit\" aria-label=\"Edit ${esc(x.code)}\">Edit</button> ${canEdit?`<button type=\"button\" class=\"ic confirm\" data-act=\"confirm\" aria-label=\"${x.status===\"confirmed\"?\"Re-price\":\"Confirm\"} ${esc(x.code)}\">${x.status===\"confirmed\"?\"Re-price\":\"Confirm\"}</button>`:\"\"} ${canEdit&&x.status===\"confirmed\"?`<button type=\"button\" class=\"ic\" data-act=\"link\" title=\"Get the client approval link\" aria-label=\"Approval link for ${esc(x.code)}\">🔗 Approve link</button>`:\"\"} <button type=\"button\" class=\"ic go\" data-act=\"ops\" title=\"Assign & track work\" aria-label=\"Operations for ${esc(x.code)}\">⚙ Ops</button> ${egReady&&(egIndex[x.id]||x.status===\"confirmed\")?`<button type=\"button\" class=\"ic go\" data-act=\"egroup\" title=\"${egIndex[x.id]?\"Open this event's team chat\":\"Create a team chat for this event\"}\" aria-label=\"${egIndex[x.id]?\"Open event group\":\"Create event group\"} for ${esc(x.code)}\">${egIndex[x.id]?\"💬 Open event group\":\"💬 Event group\"}</button>`:\"\"} ${canMarkPaid&&x.approvalStatus===\"approved\"?`<button type=\"button\" class=\"ic confirm\" data-act=\"paid\" title=\"Mark payment received (dev)\" aria-label=\"Mark ${esc(x.code)} paid\">Mark paid</button>`:\"\"} <button type=\"button\" class=\"ic\" data-act=\"download\" aria-label=\"Download ${esc(x.code)}\">Download</button> ${shelf.ready&&canEdit?`<button type=\"button\" class=\"ic\" data-act=\"archive\" title=\"Move to the Archive (restorable)\" aria-label=\"Archive ${esc(x.code)}\">🗄 Archive</button>`:\"\"} ${canDelete?`<button type=\"button\" class=\"ic del\" data-act=\"del\" title=\"${shelf.ready?\"Move to Deleted quotes (restorable)\":\"Delete permanently\"}\" aria-label=\"Delete ${esc(x.code)}\">✕</button>`:\"\"}`",
-      "why": "every dynamic part is esc()'d / inr()'d inside this expression; the checker cannot see through the nested template/arrow (re-reviewed after PR #46 added the View quote & layout button: only constant markup and esc() values)"
-    },
-    {
-      "file": "public/quotes.html",
-      "expr": "taxRows",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/ready.html",
-      "expr": "act",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/ready.html",
-      "expr": "cls",
-      "why": "CSS class token: literal ('ok'/'err'/'done'/'active'…) at every call site / computed from literals in this function"
-    },
-    {
-      "file": "public/ready.html",
-      "expr": "icon",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/reports.html",
-      "expr": "k",
-      "why": "CSS class token: literal ('ok'/'err'/'done'/'active'…) at every call site / computed from literals in this function"
-    },
-    {
-      "file": "public/resources.html",
-      "expr": "cov",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/resources.html",
-      "expr": "label",
-      "why": "literal status label chosen by a ternary in this function"
-    },
-    {
-      "file": "public/resources.html",
-      "expr": "opts",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/resources.html",
-      "expr": "s",
-      "why": "literal option/status string from a constant list in this function"
-    },
-    {
-      "file": "public/runsheet.html",
-      "expr": "custom",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/store-api.js",
-      "expr": "v.html",
-      "why": "bellPanelView() escapes every title/body (covered by test/chat-bell-noise.test.mjs)"
-    },
-    {
-      "file": "public/store-api.js",
-      "expr": "v.tabsHtml",
-      "why": "bellPanelView() escapes every title/body (covered by test/chat-bell-noise.test.mjs)"
-    },
-    {
-      "file": "public/teardown.html",
-      "expr": "s",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/templates.html",
-      "expr": "items.length-6",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/vendors.html",
-      "expr": "eventBookings",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/work.html",
-      "expr": "acts",
-      "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-    },
-    {
-      "file": "public/work.html",
-      "expr": "i",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/work.html",
-      "expr": "i+1",
-      "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-    },
-    {
-      "file": "public/trusted-types.js",
-      "expr": "raw.createHTML(String(html))",
-      "why": "the sanitizer itself: parses into an inert <template> (no script runs, nothing loads) and then strips everything not on the allowlist"
-    }
-  ]
+ "_doc": "Reviewed exceptions for scripts/check-html-sinks.mjs. safeHelpers: functions read and confirmed to return escaped/fixed markup. sites: a specific interpolated value at a sink (file :: expression) with the reason it cannot carry attacker HTML.",
+ "safeHelpers": [
+  {
+   "name": "gsMarkup",
+   "why": "getting-started.js (0059): every step title/why/icon/href is a fixed constant from STEPS and is still esc()'d; counts go through Number(); ring values are numeric"
+  },
+  {
+   "name": "inr",
+   "why": "number → '₹'+Number(n).toLocaleString(); digits/commas only"
+  },
+  {
+   "name": "num",
+   "why": "Number(...).toLocaleString / numAttr: always a finite number"
+  },
+  {
+   "name": "fmt",
+   "why": "leads/crm: '₹'+Number(n).toLocaleString(); auth-ui fmt formats a timestamp"
+  },
+  {
+   "name": "fmtU",
+   "why": "builder.js: Math.round(...).toString() — a number"
+  },
+  {
+   "name": "fmtDate",
+   "why": "toLocaleDateString of a parsed date; inventory/calendar esc() fallback; invite.html result is esc()'d by caller"
+  },
+  {
+   "name": "grp",
+   "why": "optgroup builder: label args are string constants at every call site; every name/role/id esc()'d"
+  },
+  {
+   "name": "bucket",
+   "why": "dashboard: key/label/cls are literals at call sites; rows rendered by row() which esc()s"
+  },
+  {
+   "name": "prowAvatar",
+   "why": "chat: colorFor() palette constant + esc(avatar_path) + esc(initials)"
+  },
+  {
+   "name": "statBadge",
+   "why": "returns one of three fixed badge strings"
+  },
+  {
+   "name": "apprBadge",
+   "why": "returns one of fixed badge strings"
+  },
+  {
+   "name": "stageOptions",
+   "why": "STAGES constant keys + esc(label)"
+  },
+  {
+   "name": "crewAv",
+   "why": "ops: esc(avatar_path) + esc(initials)"
+  },
+  {
+   "name": "catColor",
+   "why": "builder.js: CSS custom property value from our own stylesheet"
+  },
+  {
+   "name": "whoCell",
+   "why": "audit: esc(title)/esc(text)"
+  },
+  {
+   "name": "toHexColor",
+   "why": "builder.js: HEXRE-validated hex or '#cccccc'"
+  },
+  {
+   "name": "scheduleHtml",
+   "why": "invite: every time/label esc()'d"
+  },
+  {
+   "name": "galleryHtml",
+   "why": "invite: cssUrl() percent-encodes quotes/parens then esc()"
+  },
+  {
+   "name": "factsHtml",
+   "why": "invite: every field esc()'d; map URL https-only + esc"
+  },
+  {
+   "name": "renderPricing",
+   "why": "approve: labels esc()'d, amounts via inr()"
+  },
+  {
+   "name": "renderChange",
+   "why": "audit: every key/value esc()'d"
+  },
+  {
+   "name": "refCls",
+   "why": "returns one of four fixed class names"
+  },
+  {
+   "name": "railHtml",
+   "why": "design: esc(revision), esc(LABEL)"
+  },
+  {
+   "name": "advanceControls",
+   "why": "design: every id/label esc()'d"
+  },
+  {
+   "name": "photoAttr",
+   "why": "chat: esc(avatar path) attribute or ''"
+  },
+  {
+   "name": "peopleSelectHTML",
+   "why": "logistics: elId is a literal at call sites; names esc()'d; grp labels constant"
+  },
+  {
+   "name": "numAttr",
+   "why": "control: Number.isFinite(n)?n:default"
+  },
+  {
+   "name": "lastPreview",
+   "why": "chat: esc(name)/esc(body)/esc(cardLabel), ticksHtml fixed svg"
+  },
+  {
+   "name": "isArchived",
+   "why": "returns a boolean (true/false text only)"
+  },
+  {
+   "name": "highlight",
+   "why": "chat: esc() on every slice, only <mark> added"
+  },
+  {
+   "name": "eventCell",
+   "why": "inventory: esc(name), esc(date)"
+  },
+  {
+   "name": "cssUrl",
+   "why": "percent-encodes quotes/parens/backslash/space then esc()"
+  },
+  {
+   "name": "colorFor",
+   "why": "chat: picks from NAME_COLORS constant palette"
+  },
+  {
+   "name": "assetGlyph",
+   "why": "builder.js: fixed SVG per asset type"
+  },
+  {
+   "name": "personAv",
+   "why": "chat: colorFor palette + photoAttr + esc(initials); style arg literal"
+  },
+  {
+   "name": "avHtml",
+   "why": "chat: a.bg from palette, esc(a.txt); id arg literal"
+  },
+  {
+   "name": "clampStars",
+   "why": "integer 0..5"
+  }
+ ],
+ "sites": [
+  {
+   "file": "public/approve.html",
+   "expr": "kind",
+   "why": "CSS class token: literal ('ok'/'err'/'done'/'active'…) at every call site / computed from literals in this function"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "a.label",
+   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "c",
+   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "catBadge",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "chairs",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "fitNote",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "html",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "idx",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "k",
+   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "m.chairs",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "m.guests",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "n",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "note",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "o.cols",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "o.rows",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "o.total",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "opts",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "pv",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "r[0]",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "r[1]",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "rows",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "s",
+   "why": "status-bar text: round1(toU(...)) numbers + literal &nbsp;/⌖ glyphs"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "tables",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "tax",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "toHexColor(it.color)===c",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "type",
+   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "typeSpec",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "u",
+   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
+  },
+  {
+   "file": "public/builder.js",
+   "expr": "unit",
+   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
+  },
+  {
+   "file": "public/calendar.html",
+   "expr": "(upcoming.length||past.length) ? html : '<div class=\"empty\">No dated events yet.</div>'",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/calendar.html",
+   "expr": "ico[c.type]||\"⚠\"",
+   "why": "lookup in a local literal map (icon/pill table) with literal fallback"
+  },
+  {
+   "file": "public/chat.html",
+   "expr": "c._unread>99?'99+':c._unread",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/chat.html",
+   "expr": "e",
+   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
+  },
+  {
+   "file": "public/chat.html",
+   "expr": "html",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/chat.html",
+   "expr": "i",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/chat.html",
+   "expr": "icon",
+   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
+  },
+  {
+   "file": "public/chat.html",
+   "expr": "rows.indexOf(r)",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/closure.html",
+   "expr": "(()=>{ const n=clampStars(r.stars); return `<span class=\"rstars\" role=\"img\" aria-label=\"${n} of 5 stars\">${\"★\".repeat(n)}${\"☆\".repeat(5-n)}</span>`; })()",
+   "why": "n=clampStars() integer 0..5"
+  },
+  {
+   "file": "public/closure.html",
+   "expr": "(pl.actCost&&pl.actCost>=pl.finalCost)?\" (actual)\":pl.actCost?\" (actual + est.)\":\" (estimated)\"",
+   "why": "all branches are literals"
+  },
+  {
+   "file": "public/closure.html",
+   "expr": "n",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/command.html",
+   "expr": "stkPill[r.status]||\"pending\"",
+   "why": "lookup in a local literal map (icon/pill table) with literal fallback"
+  },
+  {
+   "file": "public/control.html",
+   "expr": "cols",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/control.html",
+   "expr": "def",
+   "why": "ITEM_CATALOG default price — numeric literal from the constant table"
+  },
+  {
+   "file": "public/control.html",
+   "expr": "et",
+   "why": "assigned esc(…) on the line above (const et=esc(r.event_type) / nm=esc(t.name))"
+  },
+  {
+   "file": "public/control.html",
+   "expr": "html",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/control.html",
+   "expr": "html || `<tr><td colspan=\"${cols}\" class=\"nnone\" style=\"text-align:left\">No notification matches your search.</td></tr>`",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/control.html",
+   "expr": "i",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/control.html",
+   "expr": "k",
+   "why": "CSS class token: literal ('ok'/'err'/'done'/'active'…) at every call site / computed from literals in this function"
+  },
+  {
+   "file": "public/control.html",
+   "expr": "label",
+   "why": "restores the button's own previous innerHTML (captured from our markup before the export)"
+  },
+  {
+   "file": "public/control.html",
+   "expr": "msg.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))",
+   "why": "every dynamic part is esc()'d / inr()'d inside this expression; the checker cannot see through the nested template/arrow"
+  },
+  {
+   "file": "public/control.html",
+   "expr": "nm",
+   "why": "assigned esc(…) on the line above (const et=esc(r.event_type) / nm=esc(t.name))"
+  },
+  {
+   "file": "public/control.html",
+   "expr": "t.body",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/control.html",
+   "expr": "t.head",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/dashboard.html",
+   "expr": "badge",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/dashboard.html",
+   "expr": "conf.cards.join(\"\")",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/dashboard.html",
+   "expr": "open",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/design.html",
+   "expr": "pill",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/event.html",
+   "expr": "cls",
+   "why": "CSS class token: literal ('ok'/'err'/'done'/'active'…) at every call site / computed from literals in this function"
+  },
+  {
+   "file": "public/event.html",
+   "expr": "html",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/event.html",
+   "expr": "i<cur?\"✓\":i+1",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/event.html",
+   "expr": "ico[c.type]||\"⚠️\"",
+   "why": "lookup in a local literal map (icon/pill table) with literal fallback"
+  },
+  {
+   "file": "public/event.html",
+   "expr": "inp",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/event.html",
+   "expr": "s.k",
+   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
+  },
+  {
+   "file": "public/event.html",
+   "expr": "s.label",
+   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
+  },
+  {
+   "file": "public/event.html",
+   "expr": "scan[f.storage_path]===\"pending\"?'<span class=\"muted\" style=\"font-size:12px\" role=\"status\">Scanning…</span>':scan[f.storage_path]===\"rejected\"?'<span style=\"font-size:12px;color:#b42318\" role=\"status\">Blocked — failed the safety check</span>':''",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/event.html",
+   "expr": "state.count",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/event.html",
+   "expr": "warn",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/flow.html",
+   "expr": "html",
+   "why": "print document assembled from esc()/inr() values (pinned by test/injection-sinks.test.mjs)"
+  },
+  {
+   "file": "public/flow.html",
+   "expr": "ic[a.kind]||'•'",
+   "why": "lookup in a local literal map (icon/pill table) with literal fallback"
+  },
+  {
+   "file": "public/flow.html",
+   "expr": "k==='reqs'?'reqs':k",
+   "why": "k is a literal tab key from the fixed tab list"
+  },
+  {
+   "file": "public/flow.html",
+   "expr": "label",
+   "why": "literal section label passed by the caller"
+  },
+  {
+   "file": "public/flow.html",
+   "expr": "paid.length ? '<div style=\"font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:4px\">Receipts</div>'",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/flow.html",
+   "expr": "paid.map(p=>`<div class=\"rowline\"><span class=\"g\">${esc(p.receipt_no||p.provider_ref||'')} · ${esc(p.method||p.provider)}</span><span>${inr(p.amount)}</span><span class=\"meta\">${esc((p.paid_at||'').slice(0,10))}</span></div>`).join('') : '<div style=\"font-size:12px;color:var(--ink-3)\">No payments recorded yet.</div>'",
+   "why": "every dynamic part is esc()'d / inr()'d inside this expression; the checker cannot see through the nested template/arrow"
+  },
+  {
+   "file": "public/flow.html",
+   "expr": "phone",
+   "why": "digits only: .replace(/[^0-9]/g,'')"
+  },
+  {
+   "file": "public/flow.html",
+   "expr": "rows",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/flow.html",
+   "expr": "waText",
+   "why": "encodeURIComponent(...) — URL-encoded, no HTML metacharacters"
+  },
+  {
+   "file": "public/insights.html",
+   "expr": "(opts.empty||\"Nothing yet.\")",
+   "why": "opts.empty is a literal passed by each caller"
+  },
+  {
+   "file": "public/inventory.html",
+   "expr": "c.checked_out_at?new Date(c.checked_out_at).toLocaleDateString():\"\"",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/inventory.html",
+   "expr": "goEvent",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/inventory.html",
+   "expr": "html",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/inventory.html",
+   "expr": "lossRows || '<tr><td colspan=\"8\" class=\"empty\">No missing items — everything came back. 🎉</td></tr>'",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/inventory.html",
+   "expr": "open.length ? open.map(c=>{ const it=byId[c.item_id]||{name:\"(item)\"}; // still out = \"left over\" → show the outstanding qty in RED so it's obvious const goEvent = c.quote_id ? `<a class=\"btn sm\" href=\"event.html?id=${esc(c.quote_id)}\" title=\"Open the event to check this back in\">Go to event →</a>` : \"\"; return `<tr> <td><b>${esc(it.name)}</b>${c.note?`<div class=\"sub2\">${esc(c.note)}</div>`:\"\"}${c.status===\"partial\"?' <span class=\"miss\">partial</span>':\"\"}</td> <td>${eventCell(c)}</td> <td><span class=\"pri ${esc(it.priority||'C')}\">${esc(it.priority||'C')}</span></td> <td class=\"num\" style=\"color:#b42318;font-weight:700\">${num(c.qty_out)}${c.status===\"partial\"?` <span style=\"color:var(--ink-3)\">(${num(c.qty_in)} back)</span>`:\"\"}</td> <td>${esc(c.issued_to||\"\")}</td> <td style=\"font-size:12px;color:var(--ink-3)\">${c.checked_out_at?new Date(c.checked_out_at).toLocaleDateString():\"\"}</td> <td style=\"display:flex;gap:6px;flex-wrap:wrap\">${goEvent}${canEdit?`<button type=\"button\" class=\"btn sm\" data-in=\"${esc(c.id)}\" aria-label=\"Check in ${esc(it.name)}\">Check in</button>`:\"\"}</td> </tr>`; }).join(\"\") : '<tr><td colspan=\"7\" class=\"empty\">Nothing out on loan.</td></tr>'",
+   "why": "every dynamic part is esc()'d / inr()'d inside this expression; the checker cannot see through the nested template/arrow"
+  },
+  {
+   "file": "public/inventory.html",
+   "expr": "opts",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/inventory.html",
+   "expr": "s",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/invite-studio.html",
+   "expr": "i",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/invite-studio.html",
+   "expr": "i+1",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/invite-studio.html",
+   "expr": "i===0?'Cover photo':'Photo '+(i+1)",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/invite-studio.html",
+   "expr": "n",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/invite-studio.html",
+   "expr": "t.k",
+   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
+  },
+  {
+   "file": "public/invite.html",
+   "expr": "heroBlock",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/issues.html",
+   "expr": "open",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/leads.html",
+   "expr": "more",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/leads.html",
+   "expr": "n",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/leads.html",
+   "expr": "s.c",
+   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
+  },
+  {
+   "file": "public/leads.html",
+   "expr": "s.k",
+   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
+  },
+  {
+   "file": "public/leads.html",
+   "expr": "s.label",
+   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
+  },
+  {
+   "file": "public/logistics.html",
+   "expr": "done",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/logistics.html",
+   "expr": "tab[0].toUpperCase()+tab.slice(1)",
+   "why": "tab is one of the fixed tab keys (route whitelist) in this page"
+  },
+  {
+   "file": "public/logistics.html",
+   "expr": "total",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/media.html",
+   "expr": "media",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/media.html",
+   "expr": "thumb",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/nurture.html",
+   "expr": "k",
+   "why": "CSS class token: literal ('ok'/'err'/'done'/'active'…) at every call site / computed from literals in this function"
+  },
+  {
+   "file": "public/ops.html",
+   "expr": "badges",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/ops.html",
+   "expr": "blocked",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/ops.html",
+   "expr": "done",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/ops.html",
+   "expr": "html",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/ops.html",
+   "expr": "kind",
+   "why": "CSS class token: literal ('ok'/'err'/'done'/'active'…) at every call site / computed from literals in this function"
+  },
+  {
+   "file": "public/ops.html",
+   "expr": "pend",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/ops.html",
+   "expr": "rows",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/ops.html",
+   "expr": "spec",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/ops.html",
+   "expr": "vendors.length ? `<option value=\"\">— pick vendor —</option>`",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/ops.html",
+   "expr": "vendors.map(v=>`<option value=\"${esc(v.id)}\">${esc(v.name)}${v.category?\" · \"+esc(v.category):\"\"}${v.phone?\" · \"+esc(v.phone):\" · (no phone)\"}</option>`).join(\"\") : `<option value=\"\">No vendors — add them in Vendors</option>`",
+   "why": "every dynamic part is esc()'d / inr()'d inside this expression; the checker cannot see through the nested template/arrow"
+  },
+  {
+   "file": "public/plan.html",
+   "expr": "editable?1:.6",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/plan.html",
+   "expr": "guests",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/plan.html",
+   "expr": "l",
+   "why": "each line is built with esc(client_name/status) + toLocaleDateString"
+  },
+  {
+   "file": "public/plan.html",
+   "expr": "n",
+   "why": "Math.round(n).toLocaleString via inr()/number in this function"
+  },
+  {
+   "file": "public/portal.html",
+   "expr": "/^#[0-9a-f]{3,8}$/i.test(c)?c:\"transparent\"",
+   "why": "regex-validated hex colour or literal"
+  },
+  {
+   "file": "public/portal.html",
+   "expr": "apBadge",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/portal.html",
+   "expr": "i+1",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/proposal-view.html",
+   "expr": "/^#[0-9a-f]{3,8}$/i.test(c)?c:\"transparent\"",
+   "why": "regex-validated hex colour or literal"
+  },
+  {
+   "file": "public/proposal-view.html",
+   "expr": "cell",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/proposal-view.html",
+   "expr": "i+1",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/proposal.html",
+   "expr": "c",
+   "why": "palette entry rendered only when HEX.test() passes (ok flag), otherwise literal"
+  },
+  {
+   "file": "public/proposal.html",
+   "expr": "i",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/proposal.html",
+   "expr": "i+1",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/proposal.html",
+   "expr": "opts(r.status)",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/quotes.html",
+   "expr": "html",
+   "why": "print document assembled from numbers only (pinned by test/injection-sinks.test.mjs)"
+  },
+  {
+   "file": "public/quotes.html",
+   "expr": "p.chairs",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/quotes.html",
+   "expr": "p.guests",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/quotes.html",
+   "expr": "p.serviceChargePct",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/quotes.html",
+   "expr": "sh(x) ? // in Archive / Deleted (0040) → put it back, look at it, download it — never erase `${canEdit?`<button type=\"button\" class=\"ic restore\" data-act=\"restore\" title=\"Put it back in your quotes\" aria-label=\"Restore ${esc(x.code)}\">↩ Restore</button>`:\"\"} <button type=\"button\" class=\"ic go\" data-act=\"workspace\" title=\"Open the event workspace\" aria-label=\"Open workspace for ${esc(x.code)}\">⧉ Open</button> <button type=\"button\" class=\"ic\" data-act=\"download\" aria-label=\"Download ${esc(x.code)}\">Download</button>` : isArchived(x) ? // finished event → read-only set: review its details, reopen the workspace, download `<button type=\"button\" class=\"ic go\" data-act=\"details\" title=\"View closure, P&amp;L and feedback for this completed event\" aria-label=\"Details for ${esc(x.code)}\">📄 Details</button> <button type=\"button\" class=\"ic go\" data-act=\"workspace\" title=\"Open the event workspace\" aria-label=\"Open workspace for ${esc(x.code)}\">⧉ Open</button> <button type=\"button\" class=\"ic go\" data-act=\"edit\" title=\"View the quotation, pricing and floor layout (don't save changes to a closed event)\" aria-label=\"View quote and layout for ${esc(x.code)}\">👁 View quote &amp; layout</button> ${egReady&&egIndex[x.id]?`<button type=\"button\" class=\"ic go\" data-act=\"egroup\" aria-label=\"Open the event group for ${esc(x.code)}\">💬 Event group</button>`:\"\"} <button type=\"button\" class=\"ic\" data-act=\"download\" aria-label=\"Download ${esc(x.code)}\">Download</button> ${canDelete?`<button type=\"button\" class=\"ic del\" data-act=\"del\" title=\"${shelf.ready?\"Move to Deleted quotes (restorable)\":\"Delete permanently\"}\" aria-label=\"Delete ${esc(x.code)}\">✕</button>`:\"\"}` : // active event → the full working set `<button type=\"button\" class=\"ic go\" data-act=\"workspace\" title=\"Open the event workspace\" aria-label=\"Open workspace for ${esc(x.code)}\">⧉ Open</button> <button type=\"button\" class=\"ic go\" data-act=\"edit\" aria-label=\"Edit ${esc(x.code)}\">Edit</button> ${canEdit?`<button type=\"button\" class=\"ic confirm\" data-act=\"confirm\" aria-label=\"${x.status===\"confirmed\"?\"Re-price\":\"Confirm\"} ${esc(x.code)}\">${x.status===\"confirmed\"?\"Re-price\":\"Confirm\"}</button>`:\"\"} ${canEdit&&x.status===\"confirmed\"?`<button type=\"button\" class=\"ic\" data-act=\"link\" title=\"Get the client approval link\" aria-label=\"Approval link for ${esc(x.code)}\">🔗 Approve link</button>`:\"\"} <button type=\"button\" class=\"ic go\" data-act=\"ops\" title=\"Assign & track work\" aria-label=\"Operations for ${esc(x.code)}\">⚙ Ops</button> ${egReady&&(egIndex[x.id]||x.status===\"confirmed\")?`<button type=\"button\" class=\"ic go\" data-act=\"egroup\" title=\"${egIndex[x.id]?\"Open this event's team chat\":\"Create a team chat for this event\"}\" aria-label=\"${egIndex[x.id]?\"Open event group\":\"Create event group\"} for ${esc(x.code)}\">${egIndex[x.id]?\"💬 Open event group\":\"💬 Event group\"}</button>`:\"\"} ${canMarkPaid&&x.approvalStatus===\"approved\"?`<button type=\"button\" class=\"ic confirm\" data-act=\"paid\" title=\"Mark payment received (dev)\" aria-label=\"Mark ${esc(x.code)} paid\">Mark paid</button>`:\"\"} <button type=\"button\" class=\"ic\" data-act=\"download\" aria-label=\"Download ${esc(x.code)}\">Download</button> ${shelf.ready&&canEdit?`<button type=\"button\" class=\"ic\" data-act=\"archive\" title=\"Move to the Archive (restorable)\" aria-label=\"Archive ${esc(x.code)}\">🗄 Archive</button>`:\"\"} ${canDelete?`<button type=\"button\" class=\"ic del\" data-act=\"del\" title=\"${shelf.ready?\"Move to Deleted quotes (restorable)\":\"Delete permanently\"}\" aria-label=\"Delete ${esc(x.code)}\">✕</button>`:\"\"}`",
+   "why": "every dynamic part is esc()'d / inr()'d inside this expression; the checker cannot see through the nested template/arrow (re-reviewed after PR #46 added the View quote & layout button: only constant markup and esc() values)"
+  },
+  {
+   "file": "public/quotes.html",
+   "expr": "taxRows",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/ready.html",
+   "expr": "act",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/ready.html",
+   "expr": "cls",
+   "why": "CSS class token: literal ('ok'/'err'/'done'/'active'…) at every call site / computed from literals in this function"
+  },
+  {
+   "file": "public/ready.html",
+   "expr": "icon",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/reports.html",
+   "expr": "k",
+   "why": "CSS class token: literal ('ok'/'err'/'done'/'active'…) at every call site / computed from literals in this function"
+  },
+  {
+   "file": "public/resources.html",
+   "expr": "cov",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/resources.html",
+   "expr": "label",
+   "why": "literal status label chosen by a ternary in this function"
+  },
+  {
+   "file": "public/resources.html",
+   "expr": "opts",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/resources.html",
+   "expr": "s",
+   "why": "literal option/status string from a constant list in this function"
+  },
+  {
+   "file": "public/runsheet.html",
+   "expr": "custom",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/store-api.js",
+   "expr": "v.html",
+   "why": "bellPanelView() escapes every title/body (covered by test/chat-bell-noise.test.mjs)"
+  },
+  {
+   "file": "public/store-api.js",
+   "expr": "v.tabsHtml",
+   "why": "bellPanelView() escapes every title/body (covered by test/chat-bell-noise.test.mjs)"
+  },
+  {
+   "file": "public/teardown.html",
+   "expr": "s",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/templates.html",
+   "expr": "items.length-6",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/vendors.html",
+   "expr": "eventBookings",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/work.html",
+   "expr": "acts",
+   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
+  },
+  {
+   "file": "public/work.html",
+   "expr": "i",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/work.html",
+   "expr": "i+1",
+   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
+  },
+  {
+   "file": "public/trusted-types.js",
+   "expr": "raw.createHTML(String(html))",
+   "why": "the sanitizer itself: parses into an inert <template> (no script runs, nothing loads) and then strips everything not on the allowlist"
+  }
+ ]
 }
