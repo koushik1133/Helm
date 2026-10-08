@@ -3286,8 +3286,21 @@
     if (ugMismatch(file, sniff)) throw ugErr("That file's name or type doesn't match its contents — it was not uploaded.", "upload_mismatch");
     return sniff;
   }
+  /* 0051 server-side verification: { path: "pending" | "clean" | "rejected" } for objects of the
+     caller's studio. Unknown / not tracked → absent (treat as clean). Best-effort: {} on error or
+     before 0051 is applied, so the UI never breaks while the scanner is not deployed. */
+  async function ugScanStatus(bucket, paths) {
+    const list = (Array.isArray(paths) ? paths : []).filter((p) => typeof p === "string" && p).slice(0, 200);
+    if (!supa || !list.length) return {};
+    try {
+      const { data, error } = await supa.rpc("upload_scan_status", { p_bucket: String(bucket || ""), p_names: list });
+      if (error || !Array.isArray(data)) return {};
+      const out = {}; data.forEach((r) => { if (r && r.name && /^(pending|clean|rejected)$/.test(r.status)) out[r.name] = r.status; });
+      return out;
+    } catch (e) { return {}; }
+  }
   const uploads = { sniff: ugSniff, mismatch: ugMismatch, objectName: ugObjectName, displayName: ugDisplayName, fit: ugFit,
-    prepareImage: ugPrepareImage, checkFile: ugCheckFile };
+    prepareImage: ugPrepareImage, checkFile: ugCheckFile, scanStatus: ugScanStatus };
 
   /* ---------------- digital invitation sites (Phase 87) ---------------- */
   // A public "digital invitation" website for a CONFIRMED event. All manager-side

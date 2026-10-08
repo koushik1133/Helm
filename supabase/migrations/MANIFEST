@@ -61,3 +61,5 @@ forward  supabase/migrations/0045_hq_subscriptions.sql
 forward  supabase/migrations/0046_d6_money_freeze.sql
 forward  supabase/migrations/0047_hq_mfa_optional.sql
 forward  supabase/migrations/0048_upload_hardening.sql
+# 0049/0050 are taken by parallel branches — on merge keep numeric order 0048, 0049, 0050, 0051.
+forward  supabase/migrations/0051_upload_quarantine.sql
