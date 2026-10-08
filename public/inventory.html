@@ -244,7 +244,7 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=97"></script>
-<script src="store-api.js?v=135"></script>
+<script src="store-api.js?v=136"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -601,7 +601,10 @@
       if(!(await BPUI.confirm(`Only ${free} ${it.unit||""} of ${it.name||"this item"} free — reserving ${qty} will over-commit by ${qty-free}. It'll show as a calendar conflict. Reserve anyway?`,{title:"Over-commit stock?",okLabel:"Reserve anyway",danger:true}))) return; overOk=true; }
     await BPUI.guard($("#rv_add"),async()=>{
       try{ await BPStore.inventory.reserve(itemId, quoteId, qty, $("#rv_note").value.trim()||null, {allowOver:overOk}); $("#rv_qty").value=1; $("#rv_note").value=""; BPUI.toast("Reserved.",{type:"ok"}); await load(); }
-      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"reserve the item"}),{type:"err"}); }
+      catch(e){
+        // someone else took the stock first (atomic check refused it): say so plainly and refresh the numbers
+        if(e && e.code==="INVENTORY_CONFLICT"){ BPUI.toast(e.message||"Not enough stock free. Someone else may have just reserved it.",{type:"err"}); try{ await load(); }catch(_){} }
+        else BPUI.toast(BPUI.friendlyError(e,{action:"reserve the item"}),{type:"err"}); }
     });
   });
   // Escape is handled by BPUI (clicks the open modal's [data-close] → the dirty-checked close).
