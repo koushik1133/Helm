@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="/trusted-types.js?v=1"></script>
+<script src="/trusted-types.js?v=2"></script>
 <script>/* Auth screens are ALWAYS light — the saved theme (bps.theme) is applied only after the user lands on an in-app page post-login. */try{document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>
 <title>Sign in · Helm</title>
 <meta name="description" content="Sign in to Helm, or create your studio's private workspace to run every event from first enquiry to final bill.">
@@ -83,8 +83,38 @@
   .linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);cursor:pointer;text-decoration:underline}
   .hint{font-size:12px;color:var(--ink-3);margin:-10px 0 16px}
   .captcha{margin:0 0 16px;min-height:65px}
+  .req{color:#c2410c;font-weight:700} .opt{text-transform:none;letter-spacing:0;font-weight:500;color:var(--ink-3)}
+  .ferr{font-size:12.5px;color:#b42318;margin:-10px 0 14px}
+  input.is-err{border-color:#d92d20;box-shadow:0 0 0 3px rgba(217,45,32,.12)}
+  input.is-ok{border-color:#12b76a}
+  .pwwrap{position:relative} .pwwrap input{padding-right:46px}
+  .eye{position:absolute;right:4px;top:4px;width:36px;height:36px;border:0;background:transparent;border-radius:8px;cursor:pointer;color:var(--ink-3);display:flex;align-items:center;justify-content:center}
+  .eye:hover{color:var(--ink)} .eye:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+  .eye svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .eye .eye-off{display:none} .eye[aria-pressed="true"] .eye-on{display:none} .eye[aria-pressed="true"] .eye-off{display:block}
+  .meter{display:flex;gap:4px;align-items:center;margin:-8px 0 12px} .meter span{flex:1;height:4px;border-radius:4px;background:var(--line)}
+  .meter b{font-size:11.5px;font-weight:600;color:var(--ink-3);min-width:72px;text-align:right}
+  .meter[data-level="1"] span:nth-child(-n+1){background:#d92d20} .meter[data-level="2"] span:nth-child(-n+2){background:#f79009}
+  .meter[data-level="3"] span:nth-child(-n+3){background:#eab308} .meter[data-level="4"] span:nth-child(-n+4){background:#12b76a}
+  .helper{font-size:12.5px;color:var(--ink-3);text-align:center;margin:14px 0 0;line-height:1.5}
+  .linkbtn:disabled{color:var(--ink-3);cursor:default;text-decoration:none}
+  .inbox{text-align:center} .inbox .sub{margin-bottom:16px} .inbox .sub b{color:var(--ink);word-break:break-all}
+  .env{margin:0 auto 14px;width:96px} .env svg{width:96px;height:80px;display:block}
+  .env-b{fill:var(--accent-soft);stroke:var(--accent);stroke-width:2.5} .env-f{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round}
+  .env-dot{fill:#12b76a} .env-ck{fill:none;stroke:#fff;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+  .steps{text-align:left;margin:0 0 18px;padding-left:20px;font-size:13.5px;color:var(--ink-2);line-height:1.6} .steps li{margin-bottom:4px}
+  .mailbtns{display:flex;gap:8px;margin-bottom:14px} .card a.mailbtn{flex:1;min-height:42px;padding:10px 12px;box-sizing:border-box;line-height:1.2;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:11px;color:var(--ink);font-weight:600;font-size:14px;text-decoration:none;background:var(--panel)}
+  .card a.mailbtn:hover{background:var(--panel-2)} .mailbtn:focus-visible,.btn:focus-visible,.gbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .btn.ghost{background:var(--panel);color:var(--accent);border:1px solid var(--accent)}
+  @media(max-width:420px){.card{padding:26px 18px;border-radius:14px}.formpane{padding:20px 12px}.mailbtns{flex-direction:column}}
+  @media(prefers-color-scheme:dark){
+    :root:not([data-auth-theme="light"]){--bg:#121019;--panel:#1c1927;--panel-2:#232030;--ink:#f3f1fa;--ink-2:#cfcadf;--ink-3:#9a94ad;--line:#353047;--accent-soft:#2c2347}
+    .formpane{background:var(--bg)} .gbtn{background:var(--panel-2);color:var(--ink)} .btn.ghost{color:#c4b5fd;border-color:#8b5cf6}
+    .err{background:#3a1717;color:#fda29b;border-color:#5c2222} .ferr{color:#fda29b}
+    .okmsg{background:#0f2e20;color:#75e0a7;border-color:#1d4d35} .info{background:#3a2f14;color:#ffd884;border-color:#5a4a1e}
+  }
 </style>
-<link rel="stylesheet" href="theme.css?v=74">
+<link rel="stylesheet" href="theme.css?v=76">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -114,13 +144,28 @@
       <div class="err" id="err" role="alert" hidden></div>
       <div class="okmsg" id="okmsg" role="status" hidden></div>
       <div id="studioField" hidden>
-        <label for="studio">Studio / business name</label>
-        <input id="studio" placeholder="e.g. Aurora Events" autocomplete="organization" minlength="2">
+        <label for="studio">Studio / business name <span class="req" aria-hidden="true">*</span></label>
+        <input id="studio" placeholder="e.g. Aurora Events" autocomplete="organization" minlength="2" maxlength="80" aria-describedby="studio_err">
+        <p class="ferr" id="studio_err" hidden></p>
       </div>
-      <label for="email">Email</label>
-      <input id="email" type="email" autocomplete="username" placeholder="you@studio.com" required>
-      <label for="pw">Password</label>
-      <input id="pw" type="password" autocomplete="current-password" placeholder="••••••••" required aria-describedby="pwHint">
+      <div id="nameField" hidden>
+        <label for="fullname">Your name <span class="opt">(optional)</span></label>
+        <input id="fullname" placeholder="e.g. Priya Sharma" autocomplete="name" maxlength="50" aria-describedby="fullname_err">
+        <p class="ferr" id="fullname_err" hidden></p>
+      </div>
+      <label for="email">Email <span class="req" aria-hidden="true">*</span></label>
+      <input id="email" type="email" autocomplete="username" placeholder="you@studio.com" required maxlength="254" aria-describedby="email_err">
+      <p class="ferr" id="email_err" hidden></p>
+      <label for="pw">Password <span class="req" aria-hidden="true">*</span></label>
+      <div class="pwwrap">
+        <input id="pw" type="password" autocomplete="current-password" placeholder="••••••••" required aria-describedby="pwHint pw_err">
+        <button type="button" class="eye" id="pwEye" aria-label="Show password" aria-pressed="false">
+          <svg class="eye-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg class="eye-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.1A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a17.7 17.7 0 0 1-3.2 4.1M6.6 6.6C3.9 8.3 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/></svg>
+        </button>
+      </div>
+      <p class="ferr" id="pw_err" hidden></p>
+      <div class="meter" id="pwMeter" data-level="0" hidden><span></span><span></span><span></span><span></span><b id="pwMeterTxt" aria-live="polite"></b></div>
       <p class="hint" id="pwHint" hidden>At least 12 characters, with a lowercase letter, an uppercase letter, a number and a symbol (like ! @ # $ %).</p>
       <ul id="pwRules" hidden></ul>
       <p class="hint" id="forgotRow"><button type="button" class="linkbtn" id="forgotBtn">Forgot password?</button></p>
@@ -131,8 +176,31 @@
         <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
         Continue with Google
       </button>
+      <p class="helper" id="confirmHelp">Just signed up? Confirm your email first — <button type="button" class="linkbtn" id="resendConfirmBtn">Resend confirmation link</button></p>
       <div class="foot">By continuing you agree to our <a class="s-a805525" href="terms">Terms</a> &amp; <a class="s-a805525" href="privacy">Privacy Policy</a>. · <a class="s-a805525" href="/">← Home</a></div>
     </form>
+
+    <!-- After sign-up: the account exists but its email is not confirmed yet -->
+    <section class="card inbox" id="inboxCard" hidden aria-labelledby="inboxTitle">
+      <div class="env" aria-hidden="true">
+        <svg viewBox="0 0 96 80"><rect x="6" y="14" width="84" height="58" rx="10" class="env-b"/><path d="M8 20l40 28 40-28" class="env-f"/><circle cx="78" cy="16" r="12" class="env-dot"/><path d="M72.5 16l4 4 7-8" class="env-ck"/></svg>
+      </div>
+      <h1 id="inboxTitle" tabindex="-1">Check your inbox</h1>
+      <p class="sub">We sent a confirmation link to <b id="inboxEmail"></b>.</p>
+      <ol class="steps">
+        <li>Open the email from <b>Helm Events</b> (check spam or promotions too).</li>
+        <li>Click <b>Confirm my email</b> — open it in this browser.</li>
+        <li>You'll come straight back here, signed in, to finish setting up.</li>
+      </ol>
+      <div class="mailbtns">
+        <a class="mailbtn" id="openGmail" href="https://mail.google.com/mail/u/0/#search/from%3Ahelm+in%3Aanywhere" target="_blank" rel="noopener noreferrer">Open Gmail</a>
+        <a class="mailbtn" id="openOutlook" href="https://outlook.live.com/mail/0/" target="_blank" rel="noopener noreferrer">Open Outlook</a>
+      </div>
+      <div class="okmsg" id="inboxOk" role="status" hidden></div>
+      <div class="err" id="inboxErr" role="alert" hidden></div>
+      <button type="button" class="btn ghost" id="inboxResend">Resend email</button>
+      <div class="foot"><button type="button" class="linkbtn" id="inboxOther">Use a different email</button> · <button type="button" class="linkbtn" id="inboxBack">Back to sign in</button></div>
+    </section>
 
     <!-- Forgot password: always the same answer, whether or not the email has an account -->
     <form class="card" id="forgotForm" hidden novalidate>
@@ -211,9 +279,9 @@
   </main>
 
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=96"></script>
-<script src="store-api.js?v=121"></script>
-<script src="auth-ui.js?v=10"></script>
+<script src="config.js?v=97"></script>
+<script src="store-api.js?v=123"></script>
+<script src="auth-ui.js?v=14"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const PENDING="bp_pending_studio";
@@ -265,6 +333,8 @@
     try{ oid=await BPStore.org.resolveId(); known=true; }catch(e){}
     // a NEW studio member completes their profile first (0041; no-op when it isn't installed)
     if(oid && BPStore.profile.routeIfRequired && await BPStore.profile.routeIfRequired(nextUrl())) return;
+    // then a NEW studio's owner picks a plan / starts the trial (0056; no-op when it isn't installed)
+    if(oid && BPStore.checkout && await BPStore.checkout.routeIfRequired(nextUrl())) return;
     if(oid || !known){ location.replace(nextUrl()); return; }   // unknown: the page gate re-checks
     if(!(await operatorTwoStep())) return;          // operators: two-step code (or set-up) first, no skip
     if(await BPStore.auth.operatorToHq()) return;   // Helm platform operator → HQ (replace)
@@ -332,9 +402,78 @@
     $("#pwHint").hidden = m!=="signup";
     $("#pwRules").hidden = m!=="signup";
     $("#forgotRow").hidden = m==="signup";
+    $("#nameField").hidden = m!=="signup";
+    $("#pwMeter").hidden = m!=="signup";
+    $("#confirmHelp").hidden = m==="signup";
+    clearFieldErrs();
   }
+  // ----- field rules (owner form rules): inline errors on blur, polite + specific -----
+  const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  const NAME_RE=/^[\p{L} '\-]{1,50}$/u;
+  const normEmail=(v)=>String(v||"").trim().toLowerCase();
+  function emailProblem(v){ const e=normEmail(v); if(!e) return "Please enter your email address."; if(e.length>254||!EMAIL_RE.test(e)) return "That doesn't look like a valid email — check for typos (e.g. name@studio.com)."; return null; }
+  function nameProblem(v){ const n=String(v||"").trim(); if(!n) return null; if(n.length>50) return "Please keep your name to 50 characters or fewer."; if(!NAME_RE.test(n)) return "Names can use letters, spaces, hyphens (-) and apostrophes (') only."; return null; }
+  function studioProblem(v){ const n=String(v||"").trim(); if(n.length<2) return "Please enter your studio or business name (at least 2 characters)."; if(n.length>80) return "Please keep the studio name to 80 characters or fewer."; return null; }
+  function setFieldErr(input, msg){
+    const box=document.getElementById(input.id+"_err"); if(!box) return !msg;
+    box.textContent=msg||""; box.hidden=!msg;
+    input.classList.toggle("is-err",!!msg); input.setAttribute("aria-invalid",msg?"true":"false");
+    input.classList.toggle("is-ok",!msg && !!input.value.trim());
+    return !msg;
+  }
+  function clearFieldErrs(){ ["studio","fullname","email","pw"].forEach(id=>{ const i=document.getElementById(id); if(i){ i.classList.remove("is-err","is-ok"); i.removeAttribute("aria-invalid"); } const b=document.getElementById(id+"_err"); if(b){ b.textContent=""; b.hidden=true; } }); }
+  const fieldRule={ email:(v)=>emailProblem(v), fullname:(v)=>nameProblem(v), studio:(v)=>studioProblem(v),
+    pw:(v)=> mode==="signup" ? (v? pwProblem(v) : "Please choose a password.") : (v? null : "Please enter your password.") };
+  Object.keys(fieldRule).forEach(id=>{
+    const i=document.getElementById(id); if(!i) return;
+    i.addEventListener("blur", ()=>{ if(id==="email") i.value=normEmail(i.value); if(i.value || i.classList.contains("is-err")) setFieldErr(i, fieldRule[id](i.value)); });
+    i.addEventListener("input", ()=>{ if(i.classList.contains("is-err")) setFieldErr(i, fieldRule[id](i.value)); });
+  });
+  // show / hide password
+  $("#pwEye").addEventListener("click", ()=>{ const i=$("#pw"), show=i.type==="password"; i.type=show?"text":"password";
+    $("#pwEye").setAttribute("aria-pressed",show?"true":"false"); $("#pwEye").setAttribute("aria-label",show?"Hide password":"Show password"); i.focus(); });
+  // strength meter (same rule as the server: min 12 + lower/upper/digit/symbol)
+  function pwLevel(p){ if(!p) return 0; let n=0; if(/[a-z]/.test(p)) n++; if(/[A-Z]/.test(p)) n++; if(/[0-9]/.test(p)) n++; if(/[^A-Za-z0-9]/.test(p)) n++;
+    if(p.length<PW_MIN) return Math.min(n,2)||1; if(pwProblem(p)) return Math.min(n,3); return 4; }
+  const PW_WORDS=["","Too weak","Weak","Almost there","Strong"];
+  $("#pw").addEventListener("input", ()=>{ const l=pwLevel($("#pw").value); $("#pwMeter").setAttribute("data-level",String(l)); $("#pwMeterTxt").textContent=PW_WORDS[l]; });
+
+  // ----- "Check your inbox" (sign-up done, email not confirmed yet) -----
+  const COOLDOWN=60;
+  function cooldown(btn, label, secs){
+    let left=secs; btn.disabled=true;
+    const tick=()=>{ if(left<=0){ btn.disabled=false; btn.textContent=label; clearInterval(btn._cd); btn._cd=null; return; } btn.textContent=label+" ("+left+"s)"; left--; };
+    if(btn._cd) clearInterval(btn._cd); tick(); btn._cd=setInterval(tick,1000);
+  }
+  let inboxAddr="";
+  function showInbox(email){
+    inboxAddr=normEmail(email);
+    $("#pw").value=""; $("#pw").type="password"; $("#pwEye").setAttribute("aria-pressed","false");   // never carry the password over
+    $("#inboxEmail").textContent=inboxAddr;
+    $("#inboxOk").hidden=true; $("#inboxErr").hidden=true;
+    showView("#inboxCard");
+    cooldown($("#inboxResend"),"Resend email",COOLDOWN);   // an email was just sent
+    setTimeout(()=>$("#inboxTitle").focus(),60);
+  }
+  async function doResend(email, okEl, errEl, btn, label){
+    okEl.hidden=true; errEl.hidden=true;
+    try{ await BPStore.auth.resendSignup(email,{ emailRedirectTo:confirmRedirect() });
+      okEl.textContent=BPStore.auth.genericMessages.resend; okEl.hidden=false; cooldown(btn,label,COOLDOWN); }
+    catch(err){ showErr(errEl, err&&(err.code==="rate_limited"||err.code==="captcha_failed")? err.message : BPUI.friendlyError(err,{action:"resend the email"}));
+      if(err&&err.code==="rate_limited") cooldown(btn,label,COOLDOWN); }
+  }
+  $("#inboxResend").addEventListener("click", ()=>{ const b=$("#inboxResend"); if(b.disabled) return; doResend(inboxAddr,$("#inboxOk"),$("#inboxErr"),b,"Resend email"); });
+  $("#inboxOther").addEventListener("click", ()=>{ showView("#loginForm"); setMode("signup"); $("#email").value=""; ensureCap(); setTimeout(()=>$("#email").focus(),60); });
+  $("#inboxBack").addEventListener("click", ()=>{ showView("#loginForm"); setMode("signin"); $("#email").value=inboxAddr; $("#pw").value=""; ensureCap(); setTimeout(()=>$("#pw").focus(),60); });
+  // sign-in helper: same generic answer whatever the account state (no enumeration)
+  $("#resendConfirmBtn").addEventListener("click", ()=>{
+    const b=$("#resendConfirmBtn"); if(b.disabled) return;
+    const i=$("#email"); i.value=normEmail(i.value);
+    if(!setFieldErr(i, emailProblem(i.value))){ i.focus(); return; }
+    doResend(i.value,$("#okmsg"),$("#err"),b,"Resend confirmation link");
+  });
   // ----- views: sign-in form / forgot password / two-step code -----
-  function showView(id){ ["#loginForm","#forgotForm","#mfaForm","#mfaSetupForm","#onboardForm"].forEach(s=>{ $(s).hidden = s!==id; }); }
+  function showView(id){ ["#loginForm","#forgotForm","#mfaForm","#mfaSetupForm","#onboardForm","#inboxCard"].forEach(s=>{ $(s).hidden = s!==id; }); }
   function openForgot(){
     showView("#forgotForm"); $("#fgErr").hidden=true; $("#fgOk").hidden=true;
     if($("#email").value && !$("#fg_email").value) $("#fg_email").value=$("#email").value;
@@ -492,6 +631,7 @@
   function showOnboarding(){
     const u=BPStore.auth.user()||{};
     $("#loginForm").hidden=true; $("#onboardForm").hidden=false;
+    try{ sessionStorage.removeItem("bp_flash"); }catch(e){}   // already toasted on this page
     $("#obEmail").textContent=u.email||"";
     // prefill a friendly default name from the Google profile, if any
     const meta=u.user_metadata||{};
@@ -548,7 +688,15 @@
   BPUI.boot(async ()=>{
     await BPStore.init();
     if(!BPStore.auth.enabled()){ location.replace(nextUrl()); return false; }
-    if(BPStore.auth.pendingUser()) return true;
+    if(BPStore.auth.pendingUser()){
+      // back from the email-confirmation link (PKCE ?code= exchanged) → "Email confirmed"
+      if(BPStore.auth.linkReturned && BPStore.auth.linkReturned() && !(BPStore.auth.linkError && BPStore.auth.linkError())){
+        // toast here (onboarding stays on this page) + a one-shot flash for the next page
+        if(window.BPUI && BPUI.toast) BPUI.toast("Email confirmed — welcome to Helm!",{type:"ok"});
+        try{ sessionStorage.setItem("bp_flash","Email confirmed — welcome to Helm!"); }catch(e){}
+      }
+      return true;
+    }
     // a ?code= link (Google / email confirm / magic link) that could not be exchanged
     if(BPStore.auth.linkError && BPStore.auth.linkError()){
       if(mode!=="signin") setMode("signin");
@@ -574,8 +722,14 @@
     e.preventDefault();
     const btn=$("#submit");
     BPUI.guard(btn, async ()=>{
-      const email=$("#email").value.trim(), pw=$("#pw").value;
+      $("#email").value=normEmail($("#email").value);
+      const email=$("#email").value, pw=$("#pw").value;
       $("#err").hidden=true; $("#okmsg").hidden=true;
+      // inline field checks first (first invalid field gets focus)
+      const ids = mode==="signup" ? [...(JOINING?[]:["studio"]),"fullname","email","pw"] : ["email","pw"];
+      let firstBad=null; ids.forEach(id=>{ const i=document.getElementById(id); if(!setFieldErr(i, fieldRule[id](i.value)) && !firstBad) firstBad=i; });
+      if(firstBad){ firstBad.focus(); return; }
+      const fullName=$("#fullname").value.trim();
       const joining=!!pendingInvite();
       try{
         if(mode==="signup"){
@@ -586,10 +740,9 @@
             btn.textContent="Creating…";
             // retry after a partial failure: the account + session already exist → don't sign up again
             const existing=BPStore.auth.user();
-            const r=existing?{session:true}:await BPStore.auth.signUp(email, pw, {captchaToken:capToken(cap), emailRedirectTo:confirmRedirect()});
+            const r=existing?{session:true}:await BPStore.auth.signUp(email, pw, {captchaToken:capToken(cap), emailRedirectTo:confirmRedirect(), fullName});
             if(r.session){ await acceptPendingInvite(); location.replace(nextUrl()); return; }
-            $("#okmsg").textContent=BPStore.auth.genericMessages.sent+" Confirm your email, then sign in here to join the studio.";
-            $("#okmsg").hidden=false; setMode("signin"); return;
+            showInbox(email); return;
           }
           const studio=$("#studio").value.trim();
           if(studio.length<2){ showErr($("#err"),"Enter your studio / business name."); $("#studio").focus(); return; }
@@ -597,7 +750,7 @@
           // If an earlier attempt signed up (session exists) but createStudio failed,
           // a retry must NOT call signUp again — only create the studio.
           const existing=BPStore.auth.user();
-          const r=existing?{session:true}:await BPStore.auth.signUp(email, pw, {captchaToken:capToken(cap), emailRedirectTo:confirmRedirect()});
+          const r=existing?{session:true}:await BPStore.auth.signUp(email, pw, {captchaToken:capToken(cap), emailRedirectTo:confirmRedirect(), fullName});
           if(r.session && existing){
             // already signed in: an account that has a studio goes to it; a Helm platform
             // operator (asked only when there is no studio) goes to HQ — never a new studio
@@ -608,8 +761,7 @@
           if(r.session){ await BPStore.org.createStudio(studio,{email:(existing&&existing.email)||email}); try{ localStorage.setItem("bp_force_tour","1"); }catch(e){} location.replace(nextUrl()); return; }
           // email confirmation required → save the name, finish after they confirm + sign in
           localStorage.setItem(PENDING, studio);
-          $("#okmsg").textContent=BPStore.auth.genericMessages.sent+" Confirm your email, then sign in here to finish setup.";
-          $("#okmsg").hidden=false; setMode("signin"); return;
+          showInbox(email); return;
         }
         if(capMissing(cap)){ showErr($("#err"),"Please complete the security check."); return; }
         btn.textContent="Signing in…";

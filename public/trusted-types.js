@@ -94,7 +94,8 @@
     'https://browser.sentry-cdn.com/8.35.0/',
     'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/',
     'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/',
-    'https://challenges.cloudflare.com/turnstile/'
+    'https://challenges.cloudflare.com/turnstile/',
+    'https://checkout.razorpay.com/v1/checkout.js'   // /checkout only (CSP limits it to that page)
   ];
   // config.js loads the staging config with document.write on non-prod hosts.
   var CONFIG_WRITE = /^<script src="\/config\.staging\.js\?v=[\w.\-]+"><\/script>$/;

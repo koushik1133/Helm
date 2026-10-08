@@ -119,7 +119,8 @@
   }
   function sessGet(key, uid) { const e = sessEntry(key, uid); return e && e.fresh ? e.val : null; }
   function sessSet(key, uid, val) { try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), uid: uid || null, val: val })); } catch (e) {} }
-  function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); sessionStorage.removeItem("bp_sess_org"); sessionStorage.removeItem(PROFILE_SESS_KEY); sessionStorage.removeItem(PW_OK_KEY); } catch (e) {} }
+  function sessClear() { try { sessionStorage.removeItem("bp_sess_role"); sessionStorage.removeItem("bp_sess_access"); sessionStorage.removeItem("bp_sess_org"); sessionStorage.removeItem(PROFILE_SESS_KEY); sessionStorage.removeItem(CHECKOUT_SESS_KEY); sessionStorage.removeItem(PW_OK_KEY); } catch (e) {} }
+  const CHECKOUT_SESS_KEY = "bp_sess_checkout"; // per tab: my_checkout_status() answer (never a "must check out" one)
   const PROFILE_SESS_KEY = "bp_sess_profile";   // per tab: my_profile_status() answer (never a "must complete" one)
   const NUDGE_KEY = "helm_profile_nudge";       // localStorage {uid, until}: "complete your profile" banner snoozed
   const PW_OK_KEY = "bp_pw_ok";                 // per tab: "<uid>" once password_change_required() said no
@@ -284,7 +285,7 @@
      Only pages that GATE on auth (called auth.required() or auth.requireView())
      redirect, and never the public token pages below. */
   const PUBLIC_PAGES = { approve: 1, portal: 1, "proposal-view": 1, invite: 1, work: 1, "sim-pay": 1,
-    index: 1, login: 1, about: 1, services: 1, privacy: 1, terms: 1, "reset-password": 1 };
+    index: 1, login: 1, about: 1, services: 1, privacy: 1, terms: 1, "refund-policy": 1, "reset-password": 1 };
   let authGateUsed = false;     // page called auth.required()/requireView()
   let hadSession = false;       // a user was signed in at some point on this page
   let explicitSignOut = false;  // the user clicked "sign out" (not an expiry)
@@ -470,6 +471,44 @@
   function nextParam() {
     try { return new URLSearchParams(location.search || "").get("next") || ""; } catch (e) { return ""; }
   }
+  /* ---- Onboarding checkout (0056) — after the profile step, for NEW studio owners ----
+     my_checkout_status() → {required, reason, …}. The SERVER decides: required only for a
+     studio admin whose studio was created after 0056 and has no subscription row yet.
+     Invited members, older studios, clients and HQ operators never see /checkout.
+     UX step, not a security boundary: unknown (network) never blocks the app, and 0056
+     not installed (PGRST202 / 42883) = the feature is off. "Not required" answers are
+     cached per tab (bp_sess_checkout); a "must check out" answer is always asked again. */
+  const CHECKOUT_PAGE = "checkout";
+  let coEarly = null;
+  // Pure decision (exported for tests): "checkout" (send to /checkout) or "none".
+  function checkoutGateDecision(st, page, role) {
+    if (!st || typeof st !== "object" || st.missing) return "none";
+    if (role === "client" || st.required !== true) return "none";
+    if (page === CHECKOUT_PAGE || page === PROFILE_SETUP_PAGE) return "none";   // profile step comes first
+    return "checkout";
+  }
+  async function fetchCheckoutStatus(force) {
+    if (!supa || !currentUser) return null;
+    const uid = currentUser.id;
+    if (!force) { const hit = sessEntry(CHECKOUT_SESS_KEY, uid); if (hit && hit.val && typeof hit.val === "object") return hit.val; }
+    const { data, error } = await supa.rpc("my_checkout_status");
+    if (error) {
+      if (isMissingFn(error)) { const v = { missing: true }; sessSet(CHECKOUT_SESS_KEY, uid, v); return v; }
+      throw error;
+    }
+    if (!data || typeof data !== "object") return null;
+    const v = { required: data.required === true, is_admin: data.is_admin === true, has_subscription: data.has_subscription === true,
+      reason: typeof data.reason === "string" ? data.reason : "" };
+    if (!v.required) sessSet(CHECKOUT_SESS_KEY, uid, v); else { try { sessionStorage.removeItem(CHECKOUT_SESS_KEY); } catch (e) {} }
+    return v;
+  }
+  function noteCheckoutDone() {
+    if (!currentUser) return;
+    sessSet(CHECKOUT_SESS_KEY, currentUser.id, { required: false, is_admin: true, has_subscription: true, reason: "subscribed" });
+  }
+  function checkoutUrl(next) {
+    return "/" + CHECKOUT_PAGE + "?next=" + encodeURIComponent(safeNext(next));
+  }
   async function runPageGate() {
     if (!PAGE_GATED) return;
     authGateUsed = true;
@@ -509,6 +548,27 @@
     } else if (profileGateDecision(pst, pk, roleCache) === "setup") {
       try { location.replace(profileSetupUrl(currentPageRef())); } catch (e) {}
       return HANG();
+    }
+    // Onboarding checkout (0056): decided BEFORE the page shows (no flash).
+    if (pk !== PROFILE_SETUP_PAGE) {
+      let cst = null;
+      const ce = coEarly; coEarly = null;
+      try { cst = await (ce || fetchCheckoutStatus(pk === CHECKOUT_PAGE)); }
+      catch (e) {
+        if (looksLikeAuthError(e)) { gotoLogin(); return HANG(); }
+        cst = null;                  // unknown (network): never blocks the app
+      }
+      if (pk === CHECKOUT_PAGE) {
+        // nothing to buy here (member, already subscribed, older studio, 0056 not
+        // installed) → straight on to ?next= (never back to this page: no loop)
+        if (cst && (cst.missing || cst.required !== true)) {
+          try { location.replace(safeNext(nextParam())); } catch (e) {}
+          return HANG();
+        }
+      } else if (checkoutGateDecision(cst, pk, roleCache) === "checkout") {
+        try { location.replace(checkoutUrl(currentPageRef())); } catch (e) {}
+        return HANG();
+      }
     }
     revealPage();
   }
@@ -757,7 +817,7 @@
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "12";
+  const AUTH_UI_VERSION = "14";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -939,6 +999,7 @@
 
   // Account enumeration: one answer whether or not an email is registered.
   const GENERIC_SIGNIN = "Invalid email or password.";
+  const GENERIC_RESEND = "If an account needs confirming, we've sent a new link. It can take a few minutes — check spam too.";
   const GENERIC_SENT = "If this email can be used, we've sent a link. It can take a few minutes — check spam too.";
   const LOCKOUT_RE = /^Too many attempts\. Try again in (15 minutes|1 hour) or reset your password\.$/;
   function genericSignInError(error) {
@@ -1026,6 +1087,7 @@
               if (PAGE_GATED) {
                 orgEarly = orgIdStrict(); orgEarly.catch(() => {});
                 profEarly = fetchProfileStatus(false); profEarly.catch(() => {});   // 0041 profile step, same round-trip
+                coEarly = fetchCheckoutStatus(false); coEarly.catch(() => {});      // 0056 checkout step, same round-trip
               }
               await evaluateGate();
               // role + access matrix are needed by nearly every page right after it
@@ -1292,6 +1354,8 @@
         // emailRedirectTo: the confirm link returns to the sign-in page with ?code= (PKCE)
         const so = { emailRedirectTo: (opts && opts.emailRedirectTo) || (location.origin + "/login.html") };
         if (captchaToken) so.captchaToken = captchaToken;
+        const fullName = opts && typeof opts.fullName === "string" ? opts.fullName.trim().slice(0, 50) : "";
+        if (fullName) so.data = { full_name: fullName };
         const { data, error } = await supa.auth.signUp({ email, password, options: so });
         if (error) {
           const c = String(error.code || ""), m = String(error.message || ""), st = Number(error.status) || 0;
@@ -1381,7 +1445,7 @@
       return true;
     },
     // ---- self-service password reset / change -----------------------------------
-    genericMessages: { signIn: GENERIC_SIGNIN, sent: GENERIC_SENT },
+    genericMessages: { signIn: GENERIC_SIGNIN, sent: GENERIC_SENT, resend: GENERIC_RESEND },
     passwordRule: { min: PW_MIN, symbols: PW_SYMBOLS, hint: PW_HINT, problem: passwordProblem, checks: passwordChecks, attachChecklist: attachPasswordChecklist },
     // Resolves the same way whether or not the email has an account (the caller
     // shows one generic message). Only rate-limit / network / CAPTCHA errors throw.
@@ -1398,6 +1462,24 @@
         if (/captcha/i.test(m)) { const e = new Error("The security check failed — please try again."); e.code = "captcha_failed"; throw e; }
         if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) throw error;
         // anything else (e.g. "user not found" on older GoTrue builds) is deliberately not shown
+      }
+      return true;
+    },
+    // Re-send the sign-up confirmation email. Resolves the same way whether or not the
+    // email has an account / still needs confirming (no enumeration) — the caller shows
+    // GENERIC_RESEND. Only rate-limit / network / CAPTCHA errors throw.
+    async resendSignup(email, opts) {
+      if (!supa) throw new Error("Supabase not configured");
+      const em = String(email || "").trim().toLowerCase();
+      if (!em) return true;
+      const o = { emailRedirectTo: (opts && opts.emailRedirectTo) || (location.origin + "/login.html") };
+      if (opts && opts.captchaToken) o.captchaToken = opts.captchaToken;
+      const { error } = await supa.auth.resend({ type: "signup", email: em, options: o });
+      if (error) {
+        const st = Number(error.status) || 0, m = String(error.message || "");
+        if (st === 429 || /rate limit|too many|seconds/i.test(m)) { const e = new Error("Too many requests — please wait a minute and try again."); e.code = "rate_limited"; throw e; }
+        if (/captcha/i.test(m)) { const e = new Error("The security check failed — please try again."); e.code = "captcha_failed"; throw e; }
+        if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) throw error;
       }
       return true;
     },
@@ -3728,8 +3810,13 @@
   function mpMobile(v, label) {
     const s = String(v == null ? "" : v).trim();
     if (!s) return { val: null };
-    if (!/^\+?[0-9 ().-]{6,24}$/.test(s)) return { err: label + " must be a 10-digit Indian mobile number." };
+    if (!/^\+?[0-9 ().-]{6,24}$/.test(s)) return { err: label + " must be a valid mobile number." };
     let d = s.replace(/[^0-9]/g, "");
+    // 0055: international mobiles (E.164) are accepted; Indian numbers keep the 6–9 rule
+    if (s.charAt(0) === "+" && d.slice(0, 2) !== "91") {
+      if (!/^[1-9][0-9]{6,14}$/.test(d)) return { err: label + " must be 7–15 digits including the country code." };
+      return { val: "+" + d };
+    }
     if (d.length === 12 && d.slice(0, 2) === "91") d = d.slice(2);
     else if (d.length === 11 && d.charAt(0) === "0") d = d.slice(1);
     if (!/^[6-9][0-9]{9}$/.test(d)) return { err: label + " must be a 10-digit Indian mobile number starting with 6, 7, 8 or 9." };
@@ -3962,6 +4049,23 @@
       const row = await rpc("complete_my_profile", { p_profile: r.clean });
       noteProfileComplete(true);
       return row;
+    },
+    // 0055 phone verification by WhatsApp code. DORMANT while config.liveChannels.whatsapp
+    // is false: available() says so and the page lets the member continue unverified.
+    // The code is minted + sent server-side (send-phone-code edge function); it is never
+    // returned to the browser, in any mode.
+    phoneVerify: {
+      available: () => mode === "supabase" && !!LIVE.whatsapp,
+      async send(e164) {
+        if (!(mode === "supabase" && LIVE.whatsapp)) { const e = new Error("Phone verification will be available shortly — you can continue."); e.code = "verify_unavailable"; throw e; }
+        if (!/^\+[1-9][0-9]{6,14}$/.test(String(e164 || ""))) { const e = new Error("Enter a valid mobile number first."); e.code = "profile_invalid"; throw e; }
+        return callFn("send-phone-code", { phone: e164 });
+      },
+      async check(code) {
+        if (!/^[0-9]{6}$/.test(String(code || ""))) return { ok: false, reason: "format", remaining: null };
+        return rpc("phone_verify_check", { p_code: String(code) });
+      },
+      async status() { try { return await rpc("phone_verify_status", {}); } catch (e) { return null; } },
     },
     // pure helpers (exported for tests)
     _sniffImage: sniffImage, _avatarCrop: avatarCrop, _avatarPath: avatarPathFor,
@@ -5368,6 +5472,39 @@
     }
     return { filter, tabs, tabsHtml, html, unread };
   }
+  /* ---------------- notification toasts: which feed rows pop up (pure — unit-tested in test/toast.test.mjs) ----------------
+     bellToastPick(items, seen, { label }) → { toasts:[{ key, title, message, href, type, icon }], seen }
+     seen = { t: newest created_at already handled (ISO), ids: [recent keys] } or null.
+     null (first load for this person on this browser) → baseline only, nothing pops up, so an old
+     backlog never floods the screen. Only unread server rows / unread chats newer than the
+     baseline and not already seen become toasts (newest 3). Text is plain (BPUI.toast uses textContent). */
+  function bellToastPick(items, seen, opts) {
+    opts = opts || {};
+    const label = opts.label || ((n) => ({ icon: "🔔", text: String((n && n.kind) || "Update").replace(/_/g, " ") }));
+    const list = (items || []).filter((n) => n && typeof n === "object");
+    const keyOf = (n) => n.__chat ? "c:" + (n.conversation_id || "") + "@" + (n.created_at || "") : "n:" + (n.id || "") + "@" + (n.created_at || "");
+    const newest = list.reduce((m, n) => { const c = String(n.created_at || ""); return c > m ? c : m; }, String((seen && seen.t) || ""));
+    const ids = (seen && Array.isArray(seen.ids)) ? seen.ids.slice(-60) : [];
+    if (!seen || typeof seen !== "object") return { toasts: [], seen: { t: newest, ids: list.map(keyOf).slice(0, 60) } };
+    const since = String(seen.t || "");
+    const fresh = list.filter((n) => (n.__chat || n.unread) && String(n.created_at || "") > since && ids.indexOf(keyOf(n)) === -1)
+      .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))).slice(0, 3);
+    const typeOf = (k) => k === "security_alert" ? "security" : /^(payment_received|advance_paid|task_complete|task_accept)$/.test(k) ? "success"
+      : /^(payment_reconcile|task_reject|task_due)$/.test(k) ? "warning" : "info";
+    const toasts = fresh.map((n) => {
+      if (n.__chat) {
+        const who = n.who || "";
+        return { key: keyOf(n), type: "info", icon: n.mention ? "@" : "💬",
+          title: n.mention ? (n.title || "You were mentioned") : n.kind === "dm" ? (who || n.title || "Direct message") : ((n.title || "Chat") + (who ? " · " + who : "")),
+          message: String(n.preview || "New message"), href: "chat.html?c=" + encodeURIComponent(n.conversation_id || "") };
+      }
+      const L = label(n) || {}, k = String(n.kind || "").toLowerCase();
+      return { key: keyOf(n), type: typeOf(k), icon: L.icon || "🔔", title: String(L.text || "Update"),
+        message: [n.event_code, n.event_title].filter(Boolean).join(" · ") || "Open to see details",
+        href: n.quote_id ? "event.html?id=" + encodeURIComponent(n.quote_id) : "" };
+    });
+    return { toasts, seen: { t: newest, ids: ids.concat(fresh.map(keyOf)).slice(-60) } };
+  }
   // Bell styles: injected once (the bell must look the same on pages without theme.css).
   // Light/dark follow the page tokens (theme.css re-points them under html[data-theme=dark]).
   const BELL_CSS = [
@@ -5381,36 +5518,36 @@
     "--bpb-line:var(--line,#e8e3db);--bpb-acc:var(--accent,#6d28d9);--bpb-unread:#f7f3ff;",
     "--bpb-mention-bg:#ffe4ec;--bpb-mention:#be123c;--bpb-chat-bg:#e0ecff;--bpb-chat:#1d4ed8;--bpb-task-bg:#dcf5e7;--bpb-task:#0f7a43;",
     "--bpb-pay-bg:#fff1d6;--bpb-pay:#8f5f00;--bpb-other-bg:var(--accent-soft,#efe9ff);--bpb-other:var(--accent,#6d28d9);",
-    "--bpb-scrim:rgba(24,20,40,.42);--bpb-scrim-blur:rgba(24,20,40,.18);--bpb-shadow:0 24px 60px rgba(20,27,46,.22),0 2px 8px rgba(20,27,46,.08);",
+    "--bpb-scrim:rgba(24,20,40,.10);--bpb-scrim-phone:rgba(24,20,40,.38);--bpb-shadow:0 24px 60px rgba(20,27,46,.22),0 2px 8px rgba(20,27,46,.08);",
     "position:fixed;inset:0;z-index:2147482000;font:14px/1.4 var(--font,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif);color:var(--bpb-ink)}",
     "html[data-theme=dark] .bpb-root{--bpb-unread:#19152a;--bpb-mention-bg:#3a1424;--bpb-mention:#fda4af;--bpb-chat-bg:#172a4d;--bpb-chat:#93c5fd;--bpb-task-bg:#12301f;--bpb-task:#6ee7b7;",
-    "--bpb-pay-bg:#3a2a0c;--bpb-pay:#fcd34d;--bpb-other-bg:#1d1730;--bpb-other:#c4b5fd;--bpb-scrim:rgba(0,0,0,.66);--bpb-scrim-blur:rgba(0,0,0,.42);--bpb-shadow:0 24px 60px rgba(0,0,0,.7)}",
+    "--bpb-pay-bg:#3a2a0c;--bpb-pay:#fcd34d;--bpb-other-bg:#1d1730;--bpb-other:#c4b5fd;--bpb-scrim:rgba(0,0,0,.28);--bpb-scrim-phone:rgba(0,0,0,.55);--bpb-shadow:0 24px 60px rgba(0,0,0,.7)}",
     ".bpb-root[hidden]{display:none}",
-    // backdrop: solid scrim everywhere; a lighter, blurred one where backdrop-filter works
+    // backdrop: a light dim only (no blur — the page behind stays readable); darker under the phone sheet
     ".bpb-scrim{position:absolute;inset:0;background:var(--bpb-scrim);opacity:0;transition:opacity .2s ease}",
-    "@supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){.bpb-scrim{background:var(--bpb-scrim-blur);-webkit-backdrop-filter:blur(8px) saturate(120%);backdrop-filter:blur(8px) saturate(120%)}}",
     ".bpb-root.is-open .bpb-scrim{opacity:1}",
     // desktop: a popover anchored under the bell (top/right set from the button's position)
-    ".bpb-panel{position:absolute;top:56px;right:16px;width:420px;max-width:calc(100vw - 24px);max-height:min(640px,calc(100vh - 72px));display:flex;flex-direction:column;box-sizing:border-box;",
+    ".bpb-panel{position:absolute;top:56px;right:16px;width:min(420px,calc(100vw - 32px));max-height:min(640px,calc(100vh - 72px));display:flex;flex-direction:column;box-sizing:border-box;",
     "background:var(--bpb-bg);color:var(--bpb-ink);border:1px solid var(--bpb-line);border-radius:16px;box-shadow:var(--bpb-shadow);overflow:hidden;outline:none;",
     "opacity:0;transform:translateY(-8px) scale(.98);transform-origin:top right;transition:opacity .18s ease,transform .22s cubic-bezier(.2,.8,.2,1)}",
     ".bpb-root.is-open .bpb-panel{opacity:1;transform:none}",
     ".bpb-grab{display:none}",
-    ".bpb-head{padding:14px 14px 0;border-bottom:1px solid var(--bpb-line);background:var(--bpb-bg)}",
-    ".bpb-hrow{display:flex;align-items:center;gap:8px}",
-    ".bpb-title{margin:0;font-size:16px;font-weight:750;letter-spacing:-.01em;color:var(--bpb-ink)}",
-    ".bpb-count{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:var(--bpb-acc);color:#fff;font-size:11px;font-weight:700}",
+    ".bpb-head{display:block;position:static;height:auto;margin:0;box-shadow:none;padding:12px 10px 0 16px;border-bottom:1px solid var(--bpb-line);background:var(--bpb-bg)}",
+    // header = ONE row: title + count on the left, "Mark all read" + close on the right (never wraps)
+    ".bpb-hrow{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;min-width:0;white-space:nowrap}",
+    ".bpb-title{margin:0;font-size:16px;font-weight:750;letter-spacing:-.01em;color:var(--bpb-ink);white-space:nowrap;flex:0 0 auto}",
+    ".bpb-count{flex:0 0 auto;display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:var(--bpb-acc);color:#fff;font-size:11px;font-weight:700;white-space:nowrap}",
     "html[data-theme=dark] .bpb-count{color:#141418}",
     ".bpb-count[hidden]{display:none}",
-    ".bpb-sp{flex:1}",
-    ".bpb-link{border:0;background:transparent;color:var(--bpb-acc);font:inherit;font-size:12.5px;font-weight:650;cursor:pointer;padding:6px 8px;border-radius:8px}",
+    ".bpb-sp{flex:1 1 auto;min-width:4px}",
+    ".bpb-link{flex:0 0 auto;white-space:nowrap;border:0;background:transparent;color:var(--bpb-acc);font:inherit;font-size:12.5px;font-weight:650;cursor:pointer;padding:6px 8px;border-radius:8px}",
     ".bpb-link:hover{background:var(--bpb-other-bg)}.bpb-link[disabled]{opacity:.5;cursor:default}",
-    ".bpb-x{border:0;background:transparent;color:var(--bpb-ink3);font-size:16px;line-height:1;cursor:pointer;width:32px;height:32px;border-radius:8px}",
+    ".bpb-x{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--bpb-ink3);font-size:16px;line-height:1;cursor:pointer;width:32px;height:32px;border-radius:8px}",
     ".bpb-x:hover{background:var(--bpb-bg2);color:var(--bpb-ink)}",
-    ".bpb-tabs{display:flex;gap:2px;margin:10px -4px 0;overflow-x:auto;scrollbar-width:none}",
+    ".bpb-tabs{display:flex;gap:4px;margin:8px 0 0 -6px;padding-right:6px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}",
     ".bpb-tabs::-webkit-scrollbar{display:none}",
-    ".bpb-tab{flex:1 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:5px;border:0;background:transparent;color:var(--bpb-ink2);font:inherit;font-size:12.5px;font-weight:600;",
-    "padding:7px 6px 9px;border-bottom:2px solid transparent;border-radius:8px 8px 0 0;cursor:pointer}",
+    ".bpb-tab{flex:0 0 auto;white-space:nowrap;scroll-snap-align:start;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;background:transparent;color:var(--bpb-ink2);font:inherit;font-size:13px;font-weight:600;",
+    "padding:8px 10px 10px;border-bottom:2px solid transparent;border-radius:8px 8px 0 0;cursor:pointer}",
     ".bpb-tab:hover{color:var(--bpb-ink);background:var(--bpb-bg2)}",
     ".bpb-tab[aria-selected=true]{color:var(--bpb-acc);border-bottom-color:var(--bpb-acc)}",
     ".bpb-n{min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;border-radius:9px;background:var(--bpb-bg2);border:1px solid var(--bpb-line);color:var(--bpb-ink2);font-size:10.5px;font-weight:700;line-height:16px;text-align:center}",
@@ -5429,6 +5566,7 @@
     ".g-payment .bpb-chip{background:var(--bpb-pay-bg);color:var(--bpb-pay)}",
     ".bpb-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:1px}",
     ".bpb-t{font-size:13.5px;font-weight:650;color:var(--bpb-ink);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}",
+    ".bpb-chip{width:36px;height:36px;font-size:16px}",
     ".bpb-item.is-unread .bpb-t{font-weight:750}",
     ".bpb-c{color:var(--bpb-ink3);font-weight:600}",
     ".bpb-p{font-size:12.5px;color:var(--bpb-ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
@@ -5443,12 +5581,14 @@
     "@keyframes bpbShimmer{to{background-position:-200% 0}}",
     // phone: a full-height sheet that slides up from the bottom
     "@media (max-width:640px){",
-    ".bpb-panel{top:max(10px,env(safe-area-inset-top,0px))!important;right:0!important;left:0;bottom:0;width:auto;max-width:none;max-height:none;border-radius:20px 20px 0 0;border-bottom:0;",
+    ".bpb-panel{top:max(48px,env(safe-area-inset-top,0px))!important;right:0!important;left:0;bottom:0;width:auto;max-width:none;max-height:none;border-radius:20px 20px 0 0;border-bottom:0;",
     "padding-bottom:env(safe-area-inset-bottom,0px);transform:translateY(100%);opacity:1;transition:transform .28s cubic-bezier(.2,.8,.2,1)}",
     ".bpb-root.is-open .bpb-panel{transform:none}",
     ".bpb-grab{display:block;width:40px;height:4px;border-radius:2px;background:var(--bpb-line);margin:8px auto 0}",
+    ".bpb-scrim{background:var(--bpb-scrim-phone)}",
     ".bpb-head{padding-top:8px}.bpb-item{padding:12px 10px}.bpb-x{width:40px;height:40px}}",
     "@media (prefers-reduced-motion:reduce){.bpb-root .bpb-scrim,.bpb-root .bpb-panel,.bpb-btn{transition:none!important}.bpb-panel{transform:none!important}.bpb-skel{animation:none}}",
+    "@media (min-width:641px){html.bpb-is-open .bpui-toasts{right:calc(28px + min(420px,calc(100vw - 32px)))}}",
     "@media print{.bpb-root{display:none!important}}",
   ].join("\n");
   function bellInjectCss() {
@@ -5567,8 +5707,20 @@
         if (keepKey) { const sel = keepKey.indexOf("tab:") === 0 ? `[data-f="${keepKey.slice(4)}"]` : `[data-k="${String(keepKey).replace(/["\\]/g, "\\$&")}"]`;
           const t = root.querySelector(sel); if (t) try { t.focus(); } catch (e) {} }
       };
+      // On-screen toasts for NEW notifications (bell_feed already applies the per-role prefs; chat
+      // honours 0036 via loadChat). Last-seen is kept per user in localStorage (try/catch: private
+      // mode just means a fresh baseline). Nothing pops up while the panel is open.
+      const seenKey = "bpBellToastSeen:" + ((auth.user() && auth.user().id) || "anon");
+      const readSeen = () => { try { const v = JSON.parse(localStorage.getItem(seenKey) || "null"); return v && typeof v === "object" ? v : null; } catch (e) { return null; } };
+      const writeSeen = (v) => { try { localStorage.setItem(seenKey, JSON.stringify(v)); } catch (e) {} };
+      const popToasts = (merged) => {
+        const r = bellToastPick(merged, readSeen(), { label: bellLabel }); writeSeen(r.seen);
+        if (isOpen || !window.BPUI || !window.BPUI.toast) return;
+        r.toasts.slice().reverse().forEach((x) => { try { window.BPUI.toast(x.message, { title: x.title, type: x.type, icon: x.icon, href: x.href || null, linkLabel: "View", timeout: 5000 }); } catch (e) {} });
+      };
       const refresh = async () => { let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(f && f.unread);
-        if (isOpen) { lastItems = mergedFeed(f && f.items); loaded = true; render(); } return f; };
+        const merged = mergedFeed(f && f.items); if (f) popToasts(merged);
+        if (isOpen) { lastItems = merged; loaded = true; render(); } return f; };
       // desktop: anchor the popover under the bell; phone: the CSS sheet takes over
       const position = () => {
         if (isPhone()) { panel.style.top = ""; panel.style.right = ""; panel.style.maxHeight = ""; return; }
@@ -5584,17 +5736,17 @@
         lastFocus = document.activeElement;
         root.hidden = false; position(); btn.setAttribute("aria-expanded", "true");
         try { prevOverflow = document.documentElement.style.overflow; document.documentElement.style.overflow = "hidden"; } catch (e) {}
-        void root.offsetWidth; root.classList.add("is-open");     // next frame → CSS transition runs
+        void root.offsetWidth; root.classList.add("is-open"); document.documentElement.classList.add("bpb-is-open");     // next frame → CSS transition runs
         try { panel.focus({ preventScroll: true }); } catch (e) { panel.focus(); }
         if (loaded) render();                                       // show the last list at once, then refresh
         let f = null; try { f = await this.feed(20); } catch {} await loadChat();
         if (!isOpen) return;
-        lastItems = mergedFeed(f && f.items); loaded = true; render();
+        lastItems = mergedFeed(f && f.items); loaded = true; render(); if (f) popToasts(lastItems);   // panel open → just moves the baseline
         try { await this.markSeen(); } catch {} setDot(0);   // event notifs cleared; any chat unread keeps the dot until that chat is opened
       };
       const close = (restore) => {
         if (!isOpen) return; isOpen = false;
-        root.classList.remove("is-open"); btn.setAttribute("aria-expanded", "false");
+        root.classList.remove("is-open"); document.documentElement.classList.remove("bpb-is-open"); btn.setAttribute("aria-expanded", "false");
         try { document.documentElement.style.overflow = prevOverflow || ""; } catch (e) {}
         const hide = () => { if (!isOpen) root.hidden = true; };
         if (reduced()) hide(); else closeTimer = setTimeout(hide, 280);
@@ -5712,6 +5864,7 @@
   function memberMobile(v) {
     const s = String(v == null ? "" : v).trim(); if (!s || !/^\+?[0-9 ().-]{6,24}$/.test(s)) return null;
     let d = s.replace(/\D/g, "");
+    if (s.charAt(0) === "+" && d.slice(0, 2) !== "91") return /^[1-9]\d{6,14}$/.test(d) ? "+" + d : null;   // 0055: international
     if (d.length === 12 && d.slice(0, 2) === "91") d = d.slice(2); else if (d.length === 11 && d[0] === "0") d = d.slice(1);
     return /^[6-9]\d{9}$/.test(d) ? "+91" + d : null;
   }
@@ -5750,9 +5903,9 @@
     f = f || {}; const bad = {}; const has = (k) => Object.prototype.hasOwnProperty.call(f, k);
     if (has("full_name")) { const p = displayNameProblem(f.full_name); if (p) bad.full_name = p.replace(/^A display name/, "Full name"); }
     if (has("phone")) { if (!String(f.phone == null ? "" : f.phone).trim()) bad.phone = "Mobile number is required.";
-      else if (!memberMobile(f.phone)) bad.phone = "Enter a 10-digit Indian mobile number starting with 6, 7, 8 or 9."; }
+      else if (!memberMobile(f.phone)) bad.phone = "Enter a valid mobile number — Indian mobiles are 10 digits starting with 6, 7, 8 or 9."; }
     if (has("whatsapp") && f.whatsapp_same === false && String(f.whatsapp == null ? "" : f.whatsapp).trim() && !memberMobile(f.whatsapp))
-      bad.whatsapp = "Enter a 10-digit Indian mobile number starting with 6, 7, 8 or 9.";
+      bad.whatsapp = "Enter a valid WhatsApp number — Indian mobiles are 10 digits starting with 6, 7, 8 or 9.";
     [["job_title", "Job title"], ["department", "Department"], ["city", "City"], ["emergency_contact_name", "Emergency contact name"]]
       .forEach(([k, label]) => { if (has(k)) { const p = memberTextProblem(f[k], label, 80); if (p) bad[k] = p; } });
     if (has("emergency_contact_phone") && String(f.emergency_contact_phone == null ? "" : f.emergency_contact_phone).trim() && !memberAnyPhone(f.emergency_contact_phone))
@@ -5923,6 +6076,169 @@
       return [...new Set(this.AREAS.concat((data || []).map((x) => x.entity).filter(Boolean)))].sort(); },
   };
 
+  /* ---------------- onboarding checkout (0056) ----------------
+     Billing rules mirror the SQL checks on studio_account (0045): trimmed, legal name
+     <= 160, address <= 500, state/city <= 80, ISO country, GSTIN format (optional).
+     Card / UPI / netbanking data is NEVER collected here: paying opens Razorpay Standard
+     Checkout (its own modal) for a subscription created server-side; the signature is
+     verified server-side and the webhook stays the source of truth. Dormant → trial. */
+  const CO_GSTIN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+  const CO_BAD_TEXT = /[<>\u0000-\u001f]/;
+  function coValidate(fields) {
+    const f = fields && typeof fields === "object" ? fields : {};
+    const t = (k) => String(f[k] == null ? "" : f[k]).replace(/\s+/g, " ").trim();
+    const clean = {
+      legal_business_name: t("legal_business_name"),
+      gstin: t("gstin").toUpperCase().replace(/\s+/g, ""),
+      billing_address: String(f.billing_address == null ? "" : f.billing_address).trim().replace(/[ \t]+/g, " "),
+      city: t("city"), state: t("state"), country: t("country").toUpperCase(),
+    };
+    const errors = {};
+    if (!clean.legal_business_name) errors.legal_business_name = "Enter your studio's legal name";
+    else if (clean.legal_business_name.length > 160) errors.legal_business_name = "Keep it under 160 characters";
+    else if (CO_BAD_TEXT.test(clean.legal_business_name)) errors.legal_business_name = "Remove < and > characters";
+    if (clean.gstin && !CO_GSTIN.test(clean.gstin)) errors.gstin = "Enter a valid 15-character GSTIN, e.g. 36ABCDE1234F1Z5";
+    if (clean.gstin && clean.country && clean.country !== "IN") errors.gstin = "GSTIN applies to Indian studios only";
+    if (!clean.billing_address) errors.billing_address = "Enter your billing address";
+    else if (clean.billing_address.length > 500) errors.billing_address = "Keep it under 500 characters";
+    else if (/[<>]/.test(clean.billing_address)) errors.billing_address = "Remove < and > characters";
+    if (clean.city.length > 80) errors.city = "Keep it under 80 characters";
+    else if (CO_BAD_TEXT.test(clean.city)) errors.city = "Remove < and > characters";
+    if (!clean.state) errors.state = "Enter your state or region";
+    else if (clean.state.length > 80) errors.state = "Keep it under 80 characters";
+    else if (CO_BAD_TEXT.test(clean.state)) errors.state = "Remove < and > characters";
+    if (!/^[A-Z]{2}$/.test(clean.country)) errors.country = "Choose your country";
+    return { ok: Object.keys(errors).length === 0, errors, clean };
+  }
+  // One error → {kind, message} for the page. Validation messages are shown as-is;
+  // provider declines get a retry message; anything security-related (auth, rate
+  // limit, permission) gets ONE generic message — never the details.
+  const CO_SECURITY_MSG = "We couldn't verify this request. Please sign in again, or contact support if this keeps happening.";
+  function coClassify(e) {
+    const kind = e && typeof e === "object" ? String(e.kind || "") : "";
+    const code = e && typeof e === "object" ? String(e.code || "") : "";
+    const status = e && typeof e === "object" ? Number(e.status) || 0 : 0;
+    const msg = String((e && e.message) || "");
+    if (kind === "cancelled") return { kind: "cancelled", message: "Payment window closed — nothing was charged. You can try again whenever you're ready." };
+    if (kind === "dormant" || status === 503) return { kind: "dormant", message: "Online payment is being enabled — your studio starts on a free trial." };
+    if (kind === "security" || code === "42501" || status === 401 || status === 403 || status === 429 || /jwt|not authori[sz]ed|permission denied/i.test(msg))
+      return { kind: "security", message: CO_SECURITY_MSG };
+    if (kind === "declined" || status === 402 || status === 502)
+      return { kind: "declined", message: msg && kind === "declined" ? msg : "The payment didn't go through. No money was taken — please try again or use another method." };
+    if (kind === "validation" || code === "22023" || status === 400 || status === 409)
+      return { kind: "validation", message: (msg || "Please check your details").replace(/[<>]/g, "").slice(0, 160) };
+    if (e instanceof TypeError || /failed to fetch|network/i.test(msg)) return { kind: "network", message: "Couldn't reach Helm. Check your connection and try again." };
+    return { kind: "server", message: "Something went wrong. Please try again." };
+  }
+  const CO_ONB = (CFG && CFG.onboarding) || {};
+  const checkout = {
+    // {required, is_admin, has_subscription, reason} | {missing:true} | null. Never throws.
+    async status(o) {
+      if (mode !== "supabase") return null;
+      try { return await fetchCheckoutStatus(!!(o && o.fresh)); } catch (e) { return null; }
+    },
+    gateDecision: (st, page, role) => checkoutGateDecision(st, page, role),
+    // where /checkout sends you afterwards (always one of the app's own pages)
+    next: () => safeNext(nextParam()),
+    url: (next) => checkoutUrl(next),
+    // signed in and leaving login / profile-setup: a new studio owner goes to /checkout first
+    async routeIfRequired(next) {
+      if (mode !== "supabase" || !currentUser || pendingStep) return false;
+      let st = null; try { st = await fetchCheckoutStatus(true); } catch (e) { return false; }
+      if (checkoutGateDecision(st, "login", roleCache) !== "checkout") return false;
+      try { location.replace(checkoutUrl(next)); } catch (e) { return false; }
+      return true;
+    },
+    options: () => rpc("my_checkout_options"),
+    preview: (plan, interval) => rpc("my_checkout_preview", { p_plan: String(plan || ""), p_interval: interval === "yearly" ? "yearly" : "monthly" }),
+    validate: (fields) => coValidate(fields),
+    classify: (e) => coClassify(e),
+    // the client-side switch for the "Skip payment (testing only)" button (the server
+    // flag helm_billing_settings.allow_trial_bypass is the real gate)
+    bypassEnabled: () => CO_ONB.allowPaymentBypass === true,
+    // online payment is offered only when BOTH config.js and HQ say it is live
+    payLive: (opts) => !!(LIVE.pay && opts && opts.online_payments_live === true),
+    // save billing details + accept the Terms (the server stamps the time)
+    async saveBilling(fields, termsVersion) {
+      const r = coValidate(fields);
+      if (!r.ok) { const e = new Error("Please fix the highlighted fields"); e.kind = "validation"; e.fields = r.errors; throw e; }
+      if (!/^[A-Za-z0-9._-]{1,32}$/.test(String(termsVersion || ""))) { const e = new Error("Please accept the Terms of Service"); e.kind = "validation"; throw e; }
+      const patch = Object.assign({}, r.clean, { terms_version_accepted: termsVersion });
+      return rpc("my_studio_account_update", { p_account: patch });
+    },
+    async startTrial(source, plan) {
+      const out = await rpc("my_start_trial", { p_source: source === "payment_pending" ? "payment_pending" : "bypass", p_plan: plan || null });
+      noteCheckoutDone();
+      return out;
+    },
+    // Edge function call → JSON; throws an Error carrying {kind, status}.
+    async _fn(body) {
+      if (!supa || !fnUrl("create-subscription-checkout")) { const e = new Error("dormant"); e.kind = "dormant"; throw e; }
+      let token = "";
+      try { const { data: { session } } = await supa.auth.getSession(); token = (session && session.access_token) || ""; } catch (e) {}
+      if (!token) { const e = new Error("signed out"); e.kind = "security"; e.status = 401; throw e; }
+      const res = await fetch(fnUrl("create-subscription-checkout"), { method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token, "apikey": CFG.anonKey },
+        body: JSON.stringify(body) });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) { const e = new Error(String(j.error || ("HTTP " + res.status))); e.kind = j.kind || ""; e.status = res.status; throw e; }
+      return j;
+    },
+    // create the Razorpay subscription server-side → {key_id, subscription_id}
+    async begin(plan, interval) {
+      const j = await checkout._fn({ plan: String(plan || ""), interval: interval === "yearly" ? "yearly" : "monthly" });
+      if (!/^rzp_(test|live)_[A-Za-z0-9]+$/.test(String(j.key_id || "")) || !/^sub_[A-Za-z0-9]{6,40}$/.test(String(j.subscription_id || ""))) {
+        const e = new Error("bad provider answer"); e.kind = "declined"; e.status = 502; throw e; }
+      return j;
+    },
+    // Razorpay Standard Checkout (the ONLY place payment details are entered). The exact
+    // script URL is the one the /checkout CSP + Trusted Types allow.
+    RAZORPAY_JS: "https://checkout.razorpay.com/v1/checkout.js",
+    loadRazorpay() {
+      if (typeof window === "undefined") return Promise.reject(Object.assign(new Error("no window"), { kind: "declined" }));
+      if (typeof window.Razorpay === "function") return Promise.resolve(window.Razorpay);
+      return new Promise((resolve, reject) => {
+        const sc = document.createElement("script");
+        sc.src = checkout.RAZORPAY_JS; sc.async = true;
+        sc.onload = () => (typeof window.Razorpay === "function" ? resolve(window.Razorpay)
+          : reject(Object.assign(new Error("The payment window couldn't load. Please try again."), { kind: "declined" })));
+        sc.onerror = () => reject(Object.assign(new Error("The payment window couldn't load. Check your connection and try again."), { kind: "declined" }));
+        document.head.appendChild(sc);
+      });
+    },
+    // Razorpay "payment.failed" → an Error the page can classify. Risk / fraud /
+    // authentication failures get the generic security message (never the reason).
+    failure(resp) {
+      const er = (resp && resp.error) || {};
+      const reason = String(er.reason || "") + " " + String(er.code || "");
+      const e = new Error(String(er.description || "").replace(/[<>]/g, "").slice(0, 160));
+      e.kind = /risk|fraud|blocked|authenticat|security/i.test(reason) ? "security"
+        : /BAD_REQUEST/i.test(reason) && /input|invalid/i.test(String(er.reason || "")) ? "validation" : "declined";
+      return e;
+    },
+    // open the modal → resolves {verified} after the server checked the signature;
+    // rejects {kind:"cancelled"} when the person closes it.
+    async pay(plan, interval, prefill) {
+      const { key_id, subscription_id } = await checkout.begin(plan, interval);
+      const Rzp = await checkout.loadRazorpay();
+      const resp = await new Promise((resolve, reject) => {
+        const p = prefill && typeof prefill === "object" ? prefill : {};
+        const rz = new Rzp({ key: key_id, subscription_id, name: "Helm Events", description: "Helm subscription",
+          prefill: { name: String(p.name || "").slice(0, 100), email: String(p.email || "").slice(0, 200), contact: String(p.contact || "").slice(0, 20) },
+          theme: { color: "#6C4CF1" },
+          handler: (r) => resolve(r),
+          modal: { ondismiss: () => reject(Object.assign(new Error("Payment cancelled"), { kind: "cancelled" })), escape: true } });
+        try { rz.on("payment.failed", (r) => reject(checkout.failure(r))); } catch (e) {}
+        rz.open();
+      });
+      const v = await checkout._fn({ action: "verify", razorpay_payment_id: String(resp.razorpay_payment_id || ""),
+        razorpay_subscription_id: String(resp.razorpay_subscription_id || subscription_id), razorpay_signature: String(resp.razorpay_signature || "") });
+      if (v && v.verified === true) noteCheckoutDone();
+      return v;
+    },
+    done: () => noteCheckoutDone(),
+  };
+
   const BPStore = {
     init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat, profile, quoteShelf, uploads,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
@@ -5956,6 +6272,7 @@
     hq: (fn, args) => (/^hq_[a-z_]+$/.test(fn) ? rpc(fn, args || {}) : Promise.reject(new Error("bad call"))),
     // 0045 — this studio's Helm subscription (read-only). Every member gets {status, read_only};
     // studio admins also get plan, period and payments. invoice(): admins, own studio only.
+    checkout,
     subscription: {
       mine: () => (supa ? rpc("my_subscription").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       invoice: (id) => rpc("my_invoice", { p_payment_id: id }),
@@ -6066,20 +6383,40 @@
     ".bpui-btn.bpui-primary{background:var(--bpui-accent);border-color:var(--bpui-accent);color:var(--bpui-on-accent)}",
     ".bpui-btn.bpui-primary:hover{filter:brightness(1.08)}",
     ".bpui-btn.bpui-danger{background:var(--bpui-danger);border-color:var(--bpui-danger);color:var(--bpui-on-danger)}",
-    ".bpui-btn:focus-visible,.bpui-toast button:focus-visible,.bpui-dialog :focus-visible{outline:2px solid var(--bpui-accent);outline-offset:2px}",
+    ".bpui-btn:focus-visible,.bpui-toast button:focus-visible,.bpui-toast a:focus-visible,.bpui-dialog :focus-visible{outline:2px solid var(--bpui-accent);outline-offset:2px}",
     ".bpui-btn[disabled]{opacity:.6;cursor:not-allowed}",
     "@media (pointer:coarse){.bpui-btn,.bpui-toast button{min-height:44px}}",
-    /* toasts */
-    ".bpui-toasts{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:2147483600;display:flex;flex-direction:column;gap:8px;",
-    "width:min(520px,calc(100vw - 32px));pointer-events:none}",
-    ".bpui-lane{display:flex;flex-direction:column;gap:8px}",
-    ".bpui-toast{pointer-events:auto;display:flex;align-items:center;gap:10px;padding:10px 10px 10px 14px;border-radius:10px;background:var(--bpui-toast-bg);",
-    "color:var(--bpui-toast-ink);border-left:4px solid var(--bpui-info);box-shadow:0 10px 30px rgba(0,0,0,.3);font:14px/1.4 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}",
-    ".bpui-toast.bpui-ok{border-left-color:var(--bpui-ok)}.bpui-toast.bpui-err{border-left-color:var(--bpui-err)}",
-    ".bpui-toast-msg{flex:1;min-width:0;overflow-wrap:anywhere}",
-    ".bpui-toast button{background:transparent;border:0;color:var(--bpui-toast-act);font:inherit;font-weight:700;cursor:pointer;min-height:32px;min-width:32px;padding:0 8px;border-radius:6px}",
-    ".bpui-toast button:hover{background:rgba(255,255,255,.1)}",
-    ".bpui-toast .bpui-x{color:var(--bpui-toast-ink);opacity:.85;font-size:18px;line-height:1}",
+    /* toasts — white cards, top-right stack (bottom on phones), max 3, title + message + link + close + progress */
+    ".bpui-toasts{position:fixed;top:72px;right:16px;z-index:2147483600;display:flex;flex-direction:column;gap:10px;",
+    "width:min(380px,calc(100vw - 32px));pointer-events:none;--bpui-t-bg:#fff;--bpui-t-ink:#1b1930;--bpui-t-ink2:#5b566b;--bpui-t-line:#e8e3db;",
+    "--bpui-t-info:#6d28d9;--bpui-t-info-bg:#efe9ff;--bpui-t-ok:#0f7a43;--bpui-t-ok-bg:#dcf5e7;--bpui-t-warn:#8f5f00;--bpui-t-warn-bg:#fff1d6;",
+    "--bpui-t-err:#c0262d;--bpui-t-err-bg:#ffe3e3;--bpui-t-sec:#1d4ed8;--bpui-t-sec-bg:#e0ecff;--bpui-t-shadow:0 12px 32px rgba(20,27,46,.16),0 2px 6px rgba(20,27,46,.06)}",
+    "html[data-theme=dark] .bpui-toasts{--bpui-t-bg:#221e2e;--bpui-t-ink:#f3f1fa;--bpui-t-ink2:#c6c2d6;--bpui-t-line:#3a3548;--bpui-t-info:#c4b5fd;--bpui-t-info-bg:#2c2346;",
+    "--bpui-t-ok:#6ee7b7;--bpui-t-ok-bg:#12301f;--bpui-t-warn:#fcd34d;--bpui-t-warn-bg:#3a2a0c;--bpui-t-err:#fca5a5;--bpui-t-err-bg:#3d1518;--bpui-t-sec:#93c5fd;--bpui-t-sec-bg:#172a4d;--bpui-t-shadow:0 14px 36px rgba(0,0,0,.6)}",
+    ".bpui-lane{display:flex;flex-direction:column;gap:10px}",
+    ".bpui-toast{--bpui-t-c:var(--bpui-t-info);--bpui-t-cbg:var(--bpui-t-info-bg);position:relative;overflow:hidden;pointer-events:auto;display:flex;align-items:flex-start;gap:12px;padding:12px 8px 14px 12px;",
+    "border-radius:14px;background:var(--bpui-t-bg);color:var(--bpui-t-ink);border:1px solid var(--bpui-t-line);box-shadow:var(--bpui-t-shadow);font:14px/1.4 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}",
+    ".bpui-toast.bpui-ok{--bpui-t-c:var(--bpui-t-ok);--bpui-t-cbg:var(--bpui-t-ok-bg)}.bpui-toast.bpui-err{--bpui-t-c:var(--bpui-t-err);--bpui-t-cbg:var(--bpui-t-err-bg)}",
+    ".bpui-toast.bpui-warn{--bpui-t-c:var(--bpui-t-warn);--bpui-t-cbg:var(--bpui-t-warn-bg)}.bpui-toast.bpui-sec{--bpui-t-c:var(--bpui-t-sec);--bpui-t-cbg:var(--bpui-t-sec-bg)}",
+    ".bpui-toast-ic{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:10px;background:var(--bpui-t-cbg);color:var(--bpui-t-c);font-size:16px;font-weight:800;line-height:1}",
+    ".bpui-toast-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:1px}",
+    ".bpui-toast-title{font-weight:700;font-size:14px;color:var(--bpui-t-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    ".bpui-toast-msg{font-size:13px;color:var(--bpui-t-ink2);overflow-wrap:anywhere}",
+    ".bpui-toast.has-title .bpui-toast-msg{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    ".bpui-toast.no-title .bpui-toast-msg{color:var(--bpui-t-ink);font-size:13.5px;padding-top:5px}",
+    ".bpui-toast-act{align-self:flex-start;margin-top:4px;background:transparent;border:0;padding:0;color:var(--bpui-t-c);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:none}",
+    ".bpui-toast-act:hover{text-decoration:underline}",
+    ".bpui-toast .bpui-x{flex:0 0 auto;background:transparent;border:0;color:var(--bpui-t-ink2);font-size:18px;line-height:1;cursor:pointer;width:30px;height:30px;border-radius:8px}",
+    ".bpui-toast .bpui-x:hover{background:var(--bpui-t-cbg);color:var(--bpui-t-ink)}",
+    ".bpui-toast.is-link{cursor:pointer}",
+    ".bpui-toast-bar{position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--bpui-t-c);opacity:.7;transform-origin:left center}",
+    ".bpui-toast.is-paused .bpui-toast-bar{animation-play-state:paused!important}",
+    "@keyframes bpuiBar{from{transform:scaleX(1)}to{transform:scaleX(0)}}",
+    "@keyframes bpuiIn{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}",
+    "@media (max-width:640px){.bpui-toasts{top:auto;right:auto;left:50%;transform:translateX(-50%);bottom:max(16px,env(safe-area-inset-bottom,0px));flex-direction:column-reverse}",
+    ".bpui-lane{flex-direction:column-reverse}@keyframes bpuiIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}}",
+    "@media (pointer:coarse){.bpui-toast .bpui-x{width:44px;height:44px}}",
+    "@media (prefers-reduced-motion:reduce){.bpui-toast-bar{display:none}}",
     /* offline banner */
     ".bpui-offline{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:2147483500;max-width:calc(100vw - 32px);padding:8px 14px;border-radius:999px;",
     "background:var(--bpui-warn-bg);color:var(--bpui-warn-ink);border:1px solid var(--bpui-warn-line);font:600 13px/1.4 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.15);text-align:center}",
@@ -6104,7 +6441,7 @@
     "[aria-busy=true].bpui-busy{cursor:progress}",
     "@media (prefers-reduced-motion:no-preference){",
     ".bpui-overlay{animation:bpuiFade .14s ease-out}.bpui-dialog{animation:bpuiPop .16s ease-out}",
-    ".bpui-toast{animation:bpuiUp .18s ease-out}.bpui-spin,.bpui-spin2,:where(#boot:empty)::before{animation:bpuiSpin .8s linear infinite}",
+    ".bpui-toast{animation:bpuiIn .22s cubic-bezier(.2,.8,.2,1)}.bpui-spin,.bpui-spin2,:where(#boot:empty)::before{animation:bpuiSpin .8s linear infinite}",
     ".bpui-boot-overlay{animation:bpuiFade .2s ease-out}}",
     /* Reduced-motion users got a FROZEN ring that read as a broken/odd shape. Give the */
     /* spinners a gentle opacity pulse instead so a loading state never looks stuck. */
@@ -6261,52 +6598,88 @@
     doc.body.appendChild(toastRoot);
     return true;
   }
-  // toast(msg, {type:'ok'|'err'|'info', timeout:ms (0 = sticky), action:{label,onClick}})
-  // → { close() }. Same message+type already showing → its timer restarts (no stacking).
+  // toast(msg, {type, title, timeout:ms (0 = sticky), action:{label,onClick}, href, linkLabel, icon})
+  //   type: 'info' | 'ok'/'success' | 'warn'/'warning' | 'err'/'error' | 'security'
+  //   href: a same-site link — "Open" action + clicking the card opens it.
+  // → { close() }. Same title+message+type already showing → its timer restarts (no stacking).
+  // At most 3 cards are visible (oldest dropped). Auto-dismiss pauses on hover / focus.
+  var TOAST_TYPES = { ok: "ok", success: "ok", err: "err", error: "err", warn: "warn", warning: "warn", security: "sec", sec: "sec", info: "info" };
+  var TOAST_ICON = { info: "i", ok: "✓", warn: "!", err: "✕", sec: "🛡" };
+  function toastType(t) { return TOAST_TYPES[t] || "info"; }
+  // only relative / same-origin http(s) links (never javascript: / data:)
+  function safeHref(u) {
+    u = String(u == null ? "" : u).trim(); if (!u) return null;
+    if (/^[a-z][a-z0-9+.-]*:/i.test(u) || u.indexOf("//") === 0) {
+      try { var x = new URL(u, global.location.href); return x.origin === global.location.origin ? x.href : null; } catch (e) { return null; }
+    }
+    return u;
+  }
   function toast(msg, o) {
     o = o || {};
-    var type = o.type === "ok" || o.type === "err" ? o.type : "info";
-    var timeout = o.timeout != null ? +o.timeout : (type === "err" ? 8000 : 4000);
+    var type = toastType(o.type);
+    var timeout = o.timeout != null ? +o.timeout : (type === "err" ? 8000 : 5000);
     var handle = { close: function () {} };
     var run = function () {
       var fresh = !(toastRoot && toastRoot.isConnected);
       if (!ensureToasts()) return;
-      var lane = type === "err" ? lanes.assertive : lanes.polite;
-      var text = String(msg == null ? "" : msg);
-      var existing = null;
-      Array.prototype.forEach.call(lane.children, function (t) { if (t.__bpuiKey === type + "|" + text) existing = t; });
-      if (existing) { existing.__bpuiArm(); handle.close = existing.__bpuiClose; return; }
-      var t = h("div", { class: "bpui-toast bpui-" + type });
-      t.__bpuiKey = type + "|" + text;
+      var lane = (type === "err" || type === "sec") ? lanes.assertive : lanes.polite;
+      var text = String(msg == null ? "" : msg), title = o.title != null ? String(o.title) : "";
+      var key = type + "|" + title + "|" + text, existing = null;
+      Array.prototype.forEach.call(lane.children, function (t) { if (t.__bpuiKey === key) existing = t; });
+      if (existing) { existing.__bpuiArm(true); handle.close = existing.__bpuiClose; return; }
+      var href = safeHref(o.href);
+      var t = h("div", { class: "bpui-toast bpui-" + type + (title ? " has-title" : " no-title") + (href ? " is-link" : "") });
+      t.__bpuiKey = key;
+      t.appendChild(h("span", { class: "bpui-toast-ic", "aria-hidden": "true" }, o.icon ? String(o.icon).slice(0, 4) : TOAST_ICON[type]));
+      var col = h("div", { class: "bpui-toast-body" });
+      var tEl = title ? h("strong", { class: "bpui-toast-title" }) : null;
       var body = h("span", { class: "bpui-toast-msg" });
-      t.appendChild(body);
-      var timer = null, closed = false;
+      if (tEl) col.appendChild(tEl);
+      col.appendChild(body);
+      t.appendChild(col);
+      var timer = null, closed = false, left = timeout, startedAt = 0, bar = null;
       function close() {
         if (closed) return; closed = true; clearTimeout(timer);
         if (t.parentNode) t.parentNode.removeChild(t);
+        try { o.onClose && o.onClose(); } catch (e) {}
       }
-      function arm() { clearTimeout(timer); if (timeout > 0) timer = setTimeout(close, timeout); }
+      function pause() { if (!timer) return; clearTimeout(timer); timer = null; left = Math.max(800, left - (Date.now() - startedAt)); t.classList.add("is-paused"); }
+      function arm(restart) {
+        clearTimeout(timer); timer = null; t.classList.remove("is-paused");
+        if (!(timeout > 0)) return;
+        if (restart) { left = timeout; if (bar) { bar.style.animation = "none"; void bar.offsetWidth; bar.style.animation = "bpuiBar " + timeout + "ms linear forwards"; } }
+        startedAt = Date.now(); timer = setTimeout(close, left);
+      }
       t.__bpuiClose = close; t.__bpuiArm = arm;
       if (o.action && o.action.label) {
-        var a = h("button", { type: "button" }, o.action.label);
-        a.addEventListener("click", function () { try { o.action.onClick && o.action.onClick(); } finally { if (o.action.keepOpen !== true) close(); } });
-        t.appendChild(a);
+        var a = h("button", { type: "button", class: "bpui-toast-act" }, o.action.label);
+        a.addEventListener("click", function (ev) { ev.stopPropagation(); try { o.action.onClick && o.action.onClick(); } finally { if (o.action.keepOpen !== true) close(); } });
+        col.appendChild(a);
+      } else if (href) {
+        var ln = h("a", { class: "bpui-toast-act", href: href }, o.linkLabel || "Open");
+        ln.addEventListener("click", function (ev) { ev.stopPropagation(); try { o.onOpen && o.onOpen(); } catch (e) {} close(); });
+        col.appendChild(ln);
       }
       var x = h("button", { type: "button", class: "bpui-x", "aria-label": "Dismiss notification" }, "×");
-      x.addEventListener("click", close);
+      x.addEventListener("click", function (ev) { ev.stopPropagation(); close(); });
       t.appendChild(x);
+      if (href) t.addEventListener("click", function () { try { o.onOpen && o.onOpen(); } catch (e) {} close(); try { global.location.assign(href); } catch (e) {} });
+      if (timeout > 0) { bar = h("span", { class: "bpui-toast-bar", "aria-hidden": "true" }); bar.style.animation = "bpuiBar " + timeout + "ms linear forwards"; t.appendChild(bar); }
       // pause while hovered / focused so it can be read and acted on
-      t.addEventListener("mouseenter", function () { clearTimeout(timer); });
-      t.addEventListener("mouseleave", arm);
-      t.addEventListener("focusin", function () { clearTimeout(timer); });
-      t.addEventListener("focusout", arm);
+      t.addEventListener("mouseenter", pause);
+      t.addEventListener("mouseleave", function () { arm(false); });
+      t.addEventListener("focusin", pause);
+      t.addEventListener("focusout", function () { arm(false); });
       lane.appendChild(t);
-      while (lane.children.length > 3) lane.removeChild(lane.firstChild);
+      // at most 3 visible across both lanes — drop the oldest
+      var all = function () { return Array.prototype.slice.call(toastRoot.querySelectorAll(".bpui-toast")); };
+      var cards = all();
+      while (cards.length > 3) { var old = cards.filter(function (c) { return c !== t; })[0]; if (!old) break; if (old.__bpuiClose) old.__bpuiClose(); else old.remove(); cards = all(); }
       // Set the text AFTER insertion (and after a tick when the live region is
       // brand new) so screen readers reliably announce it.
-      var setText = function () { body.textContent = text; };
+      var setText = function () { if (tEl) tEl.textContent = title; body.textContent = text; };
       if (fresh) setTimeout(setText, 60); else setText();
-      arm();
+      arm(false);
       handle.close = close;
     };
     whenBody(run);
@@ -6847,7 +7220,13 @@
   /* --------------------------------------------------------------- wire */
   global.addEventListener("keydown", onKeydown, true);
   doc.addEventListener("focusin", onFocusin, true);
-  function start() { injectCSS(); startModalObserver(); installOffline(); }
+  // one-shot "flash" toast carried across a location.replace (e.g. "Email confirmed")
+  function showFlash() {
+    var f = null;
+    try { f = sessionStorage.getItem("bp_flash"); sessionStorage.removeItem("bp_flash"); } catch (e) {}
+    if (f && /^[\w .,'!—-]{1,80}$/.test(f)) setTimeout(function () { toast(f, { type: "ok" }); }, 300);
+  }
+  function start() { injectCSS(); startModalObserver(); installOffline(); showFlash(); }
   if (doc.readyState !== "loading") start(); else doc.addEventListener("DOMContentLoaded", start, { once: true });
 
   global.BPUI = {
@@ -7037,13 +7416,42 @@
     try { BPStore.init().then(function () {
       if (BPStore.mode() === "supabase" && !BPStore.auth.user()) return null;
       return BPStore.config.getPricing();
-    }).then(function (p) { if (!p) return; var c = p.country || "IN"; _defaultCC = c; try { localStorage.setItem("helm_org_country", c); } catch (e) {} }).catch(function () {}); } catch (e) {}
+    }).then(function (p) { if (!p) return; var c = p.country || "IN"; _defaultCC = c; try { localStorage.setItem("helm_org_country", c); } catch (e) {}
+      try { if (window.HelmPhone && window.HelmPhone.setDefaultCountry) window.HelmPhone.setDefaultCountry(c); } catch (e) {} }).catch(function () {}); } catch (e) {}
   }
   function dialOf(iso) { for (var i = 0; i < COUNTRIES.length; i++) if (COUNTRIES[i][1] === iso) return COUNTRIES[i][2]; return "91"; }
   BPStore.countries = function () { return COUNTRIES.map(function (c) { return { name: c[0], iso: c[1], dial: c[2] }; }); };
   function matchDial(e164) { if (!e164 || e164.charAt(0) !== "+") return null; var d = e164.slice(1); for (var i = 0; i < DIALS.length; i++) if (d.indexOf(DIALS[i]) === 0) return DIALS[i]; return null; }
 
+  // Every phone field becomes the HelmPhone component (phone-input.js: flag + searchable
+  // country list + as-you-type format; .value stays E.164). Pages that don't include the
+  // script get it loaded on demand; if it can't load, the legacy hardener below is used.
+  var PHONE_LIB_V = "1", phoneLib = null;
+  function loadPhoneLib() {
+    if (window.HelmPhone && window.HelmPhone.attach) return Promise.resolve(true);
+    if (phoneLib) return phoneLib;
+    phoneLib = new Promise(function (resolve) {
+      var s = document.createElement("script");
+      s.src = "/phone-input.js?v=" + PHONE_LIB_V;
+      s.onload = function () { resolve(!!(window.HelmPhone && window.HelmPhone.attach)); };
+      s.onerror = function () { resolve(false); };
+      (document.head || document.documentElement).appendChild(s);
+    });
+    return phoneLib;
+  }
   function hardenPhone(el) {
+    if (el.getAttribute("data-phone-hardened") === "1" || el.helmPhone || el.getAttribute("data-phone-pending") === "1") return;
+    if (el.classList && (el.classList.contains("hp-search") || el.type === "search")) return;
+    if (window.HelmPhone && window.HelmPhone.attach && el.parentNode) { try { window.HelmPhone.attach(el); return; } catch (e) {} }
+    el.setAttribute("data-phone-pending", "1");
+    loadPhoneLib().then(function (ok) {
+      el.removeAttribute("data-phone-pending");
+      if (el.helmPhone) return;
+      if (ok && el.parentNode) { try { window.HelmPhone.attach(el); return; } catch (e) {} }
+      legacyHardenPhone(el);
+    });
+  }
+  function legacyHardenPhone(el) {
     if (el.getAttribute("data-phone-hardened") === "1") return;
     el.setAttribute("data-phone-hardened", "1");
     el.setAttribute("inputmode", "tel");
@@ -7140,7 +7548,7 @@
   function scan(root) {
     var r = root || document;
     try { r.querySelectorAll('input[type="number"]:not([data-hardened])').forEach(harden); } catch (e) {}
-    try { r.querySelectorAll('input[type="tel"]:not([data-phone-hardened]), input[inputmode="tel"]:not([data-phone-hardened]), input[data-phone]:not([data-phone-hardened])').forEach(hardenPhone); } catch (e) {}
+    try { r.querySelectorAll('input[type="tel"]:not([data-phone-hardened]), input[inputmode="tel"]:not([data-phone-hardened]), input[data-phone]:not([data-phone-hardened])').forEach(function (x) { if (isPhone(x)) hardenPhone(x); }); } catch (e) {}
     try { r.querySelectorAll('input[type="date"]:not([data-date-hardened])').forEach(hardenDate); } catch (e) {}
     try { r.querySelectorAll('[required]:not([data-req-marked]), [aria-required="true"]:not([data-req-marked]), [data-required]:not([data-req-marked])').forEach(markRequired); } catch (e) {}
   }

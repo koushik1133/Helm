@@ -20,7 +20,7 @@ const PUB = join(ROOT, 'public');
 const require = createRequire(import.meta.url);
 const server = require(join(ROOT, 'server.js'));
 
-const MARKETING = ['index', 'about', 'services', 'privacy', 'terms'];
+const MARKETING = ['index', 'about', 'services', 'privacy', 'terms', 'refund-policy'];
 const PAGES = readdirSync(PUB).filter((f) => f.endsWith('.html')).map((f) => f.slice(0, -5));
 
 /* ---- vercel.json: last matching rule wins per key (Vercel semantics) ---- */

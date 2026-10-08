@@ -151,7 +151,8 @@ t('edit dialog validation mirrors 0041 (mobile, text, skills, day rate, employme
   assert.deepEqual(P({ full_name: 'Ravi Kumar', phone: '98765 43210', job_title: 'Lead', department: 'AV', skills: ['a', 'b'], day_rate: '1500.50', emp_type: 'on_call' }), {});
   for (const ok of ['9876543210', '+91 98765 43210', '09876543210', '919876543210', '+91-98765-43210', '6000000000'])
     assert.equal(P({ phone: ok }).phone, undefined, 'mobile should pass: ' + ok);
-  for (const bad of ['12345', '5876543210', '+1 415 555 0100', '98765432101', 'abcdefghij', '+92 98765 43210'])
+  for (const ok of ['+1 415 555 0100', '+92 301 2345678']) assert.equal(P({ phone: ok }).phone, undefined, 'international mobile should pass (0055): ' + ok);
+  for (const bad of ['12345', '5876543210', '+1 415', '98765432101', 'abcdefghij', '+9999 9999 9999 9999'])
     assert.ok(P({ phone: bad }).phone, 'mobile should fail: ' + bad);
   assert.equal(P({ phone: '' }).phone, 'Mobile number is required.');
   assert.equal(e.S.auth.admin.mobile('098765 43210'), '+919876543210');
@@ -271,7 +272,7 @@ t('control.html wiring: members() + edit dialog fields + Day rate / Employment t
     assert.match(ctl, new RegExp(`id="${id}"`), id + ' missing');
   for (const k of ['full_name', 'phone', 'whatsapp', 'job_title', 'department', 'city', 'skills', 'emergency_contact_name', 'emergency_contact_phone', 'day_rate', 'emp_type'])
     assert.match(ctl, new RegExp(`id="mp_e_${k}"`), 'inline error slot for ' + k);
-  assert.match(ctl, /<span aria-hidden="true">\+91<\/span><input id="mp_phone" type="tel" data-no-country="1"/);
+  assert.match(ctl, /<input id="mp_phone" type="tel" data-phone-mobile="1"/, 'mobile uses the shared international phone input (0055)');
   assert.match(ctl, /<option value="full_time">Full-time<\/option><option value="part_time">Part-time<\/option><option value="on_call">On-call<\/option>/);
   // and the admin RPC exists in 0041 with these argument names, admin + same studio only
   assert.match(mig, /create or replace function public\.admin_update_member_profile\(p_user uuid, p_profile jsonb\)/);

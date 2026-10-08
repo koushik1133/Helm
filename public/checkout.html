@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en" data-theme="light" class="auth-pending">
+<head>
+<style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Choose your plan · Helm</title>
+<meta name="description" content="Pick a Helm plan for your studio, review the tax, and start your subscription or free trial.">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
+<link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
+<link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#f6f4f1;--panel:#ffffff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
+    --line:#e8e3db;--line-strong:#a39dab;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;
+    --safe:#0f7a43;--bad:#b42318;--warn-bg:#fff7e6;--warn-ink:#8a5300;--warn-line:#f3d9a4;
+    --shadow:0 1px 2px rgba(27,25,48,.05),0 14px 36px rgba(27,25,48,.11);
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;min-height:100vh;font-family:var(--font);color:var(--ink);-webkit-font-smoothing:antialiased;
+    background:radial-gradient(760px 400px at 92% -12%,#ece3ff 0%,transparent 60%),radial-gradient(600px 360px at -10% 105%,#ffe9d6 0%,transparent 55%),var(--bg)}
+  html[data-theme="dark"] body{background:var(--bg)}
+  .top{display:flex;align-items:center;gap:11px;max-width:1120px;margin:0 auto;padding:20px 16px 0}
+  .mark{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:8px;border:2px solid rgba(255,255,255,.92);border-radius:3px}
+  .brand{font-weight:700;font-size:15px} .brand small{display:block;font-size:10px;font-weight:600;color:var(--ink-3);letter-spacing:.08em;text-transform:uppercase}
+  .steps{margin-left:auto;display:flex;gap:6px;align-items:center;font-size:12px;color:var(--ink-3);list-style:none;padding:0}
+  .steps li{display:flex;align-items:center;gap:6px}
+  .steps li+li::before{content:"";width:18px;height:1px;background:var(--line-strong)}
+  .steps .dot{width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:1px solid var(--line-strong)}
+  .steps .done .dot{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+  .steps .now{color:var(--ink);font-weight:600} .steps .now .dot{background:var(--accent);color:#fff;border-color:transparent}
+  @media(max-width:640px){.steps .lbl{display:none}}
+  main{max-width:1120px;margin:0 auto;padding:22px 16px 56px}
+  .head h1:focus,.head h1:focus-visible{outline:none!important;box-shadow:none}
+  .head h1{margin:0 0 6px;font-size:28px;letter-spacing:-.02em;line-height:1.2}
+  .head p{margin:0 0 22px;font-size:14.5px;line-height:1.55;color:var(--ink-2);max-width:640px}
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:22px;align-items:start}
+  @media(max-width:920px){.grid{grid-template-columns:minmax(0,1fr)}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:24px}
+  @media(max-width:560px){.card{padding:18px 16px;border-radius:14px}}
+  .card+.card{margin-top:18px}
+  .card h2{margin:0 0 4px;font-size:17px;letter-spacing:-.01em}
+  .card .hint{margin:0 0 16px;font-size:13px;color:var(--ink-3)}
+  .seg{display:inline-flex;padding:4px;border-radius:12px;background:var(--panel-2);border:1px solid var(--line);margin:0 0 16px}
+  .seg label{position:relative;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 16px;border-radius:9px;font-size:14px;font-weight:600;color:var(--ink-2);cursor:pointer}
+  .seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+  .seg label.on{background:var(--panel);color:var(--ink);box-shadow:0 1px 3px rgba(27,25,48,.12)}
+  .seg label:focus-within{outline:3px solid var(--accent-soft);outline-offset:1px}
+  .save{font-size:11px;font-weight:700;color:var(--safe);background:#e7f6ee;padding:2px 7px;border-radius:99px}
+  html[data-theme="dark"] .save{background:#0f2a1c;color:#a7f3d0}
+  .plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+  .plan{position:relative;display:flex;flex-direction:column;border:1.5px solid var(--line);border-radius:14px;padding:18px;cursor:pointer;background:var(--panel);transition:border-color .15s,box-shadow .15s}
+  .plan:hover{border-color:var(--line-strong)}
+  .plan.on{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+  .plan.off{opacity:.55;cursor:not-allowed}
+  .plan input{position:absolute;opacity:0;width:1px;height:1px;margin:0}
+  .plan:focus-within{outline:3px solid var(--accent-soft);outline-offset:2px}
+  .plan .pn{font-weight:700;font-size:16px;display:flex;align-items:center;gap:8px}
+  .plan .tick{margin-left:auto;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--line-strong);flex:0 0 auto}
+  .plan.on .tick{border:6px solid var(--accent)}
+  .plan .pd{font-size:13px;color:var(--ink-3);margin:4px 0 12px;min-height:18px}
+  .plan .pp{font-size:26px;font-weight:700;letter-spacing:-.02em} .plan .pp small{font-size:13px;font-weight:500;color:var(--ink-3);margin-left:2px}
+  .plan .px{font-size:12px;color:var(--ink-3);margin:2px 0 12px}
+  .plan h3{margin:4px 0 8px;font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3)}
+  .plan ul{list-style:none;margin:0;padding:0;display:grid;gap:7px}
+  .plan li{position:relative;padding-left:22px;font-size:13.5px;color:var(--ink-2);line-height:1.4}
+  .plan li::before{content:"";position:absolute;left:2px;top:4px;width:11px;height:6px;border-left:2px solid var(--accent);border-bottom:2px solid var(--accent);transform:rotate(-45deg)}
+  .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px}
+  @media(max-width:560px){.fgrid{grid-template-columns:1fr}}
+  .fld{display:flex;flex-direction:column;gap:6px;min-width:0} .fld.wide{grid-column:1/-1}
+  .fld label{font-size:13px;font-weight:600;color:var(--ink)} .fld label .req{color:var(--bad);margin-left:2px} .fld label .opt{font-weight:400;color:var(--ink-3)}
+  .fld input,.fld select,.fld textarea{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line-strong);border-radius:10px;background:var(--panel);color:var(--ink);font:inherit;font-size:15px}
+  .fld textarea{min-height:76px;resize:vertical}
+  .fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .fld .ferr{font-size:12.5px;color:var(--bad);min-height:0}
+  .fld.bad input,.fld.bad select,.fld.bad textarea{border-color:var(--bad)}
+  .terms{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.5;color:var(--ink-2);padding:14px;border-radius:12px;background:var(--panel-2);border:1px solid var(--line)}
+  .terms input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--accent);flex:0 0 auto}
+  .terms a{color:var(--accent);text-underline-offset:2px}
+  .terms.bad{border-color:var(--bad)}
+  .sum{position:sticky;top:18px}
+  @media(max-width:920px){.sum{position:static}}
+  .sum h2{margin-bottom:14px}
+  .row{display:flex;justify-content:space-between;gap:12px;font-size:14px;color:var(--ink-2);padding:6px 0}
+  .row b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+  .row.tot{border-top:1px solid var(--line);margin-top:8px;padding-top:14px;font-size:16px;color:var(--ink);font-weight:700}
+  .row.tot b{font-size:22px;letter-spacing:-.01em}
+  .note{font-size:12.5px;color:var(--ink-3);line-height:1.5;margin:10px 0 0}
+  .skel{height:14px;border-radius:6px;background:linear-gradient(90deg,var(--line) 0%,var(--panel-2) 50%,var(--line) 100%);background-size:200% 100%;animation:sk 1.2s infinite}
+  @keyframes sk{to{background-position:-200% 0}} @media(prefers-reduced-motion:reduce){.skel{animation:none}}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;min-height:50px;padding:0 22px;border:0;border-radius:12px;background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;font-family:inherit;font-size:15.5px;font-weight:700;cursor:pointer;margin-top:16px}
+  html[data-theme="dark"] .btn{background:linear-gradient(120deg,#6d28d9,#5b21b6)}
+  .btn:disabled{opacity:.65;cursor:progress}
+  .btn:focus-visible,.ghost:focus-visible,.linkbtn:focus-visible{outline:3px solid var(--accent-soft);outline-offset:2px}
+  .spin{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;animation:rot .8s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}} @media(prefers-reduced-motion:reduce){.spin{animation:none}}
+  .secure{display:flex;gap:8px;align-items:center;justify-content:center;font-size:12px;color:var(--ink-3);margin-top:10px;text-align:center}
+  .alert{border-radius:12px;padding:12px 14px;font-size:13.5px;line-height:1.5;margin:0 0 16px;border:1px solid}
+  .alert.err{background:#fdecec;color:#b42318;border-color:#f5c6c6}
+  .alert.info{background:var(--warn-bg);color:var(--warn-ink);border-color:var(--warn-line)}
+  .alert.ok{background:#e7f6ee;color:#0f7a43;border-color:#b6e3ca}
+  html[data-theme="dark"] .alert.err{background:#3a1414;color:#fecaca;border-color:#7f1d1d}
+  html[data-theme="dark"] .alert.info{background:#2a2110;color:#fde68a;border-color:#6b4f12}
+  html[data-theme="dark"] .alert.ok{background:#0f2a1c;color:#a7f3d0;border-color:#14532d}
+  .test{margin-top:22px;border:1.5px dashed var(--line-strong);border-radius:14px;padding:16px;background:transparent}
+  .test .tl{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--warn-ink);background:var(--warn-bg);border:1px solid var(--warn-line);padding:2px 8px;border-radius:99px;margin:0 0 8px}
+  html[data-theme="dark"] .test .tl{background:#2a2110;color:#fde68a;border-color:#6b4f12}
+  .test p{margin:0 0 12px;font-size:13px;color:var(--ink-3)}
+  .ghost{min-height:44px;padding:0 18px;border:1px solid var(--line-strong);border-radius:11px;background:var(--panel);color:var(--ink);font-family:inherit;font-size:14px;font-weight:600;cursor:pointer}
+  .ghost:disabled{opacity:.6;cursor:progress}
+  @media(max-width:560px){.ghost{width:100%}}
+  .foot{margin-top:22px;font-size:12.5px;color:var(--ink-3);text-align:center}
+  .linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);cursor:pointer;text-decoration:underline}
+  .sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+<link rel="stylesheet" href="theme.css?v=76">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="top">
+    <div class="mark" aria-hidden="true"></div><div class="brand">Helm<small>Event Operating System</small></div>
+    <ol class="steps" aria-label="Setup progress">
+      <li class="done"><span class="dot" aria-hidden="true">✓</span><span class="lbl">Account</span></li>
+      <li class="done"><span class="dot" aria-hidden="true">✓</span><span class="lbl">Profile</span></li>
+      <li class="now" aria-current="step"><span class="dot" aria-hidden="true">3</span><span class="lbl">Plan</span></li>
+    </ol>
+  </div>
+  <main id="main">
+    <div class="head">
+      <h1 id="coTitle" tabindex="-1">Choose your Helm plan</h1>
+      <p>Pick the plan that fits your studio. You'll see exactly what you pay — tax included — before anything is charged. You can change plans later.</p>
+    </div>
+    <div class="alert err" id="coErr" role="alert" hidden></div>
+    <form id="coForm" novalidate>
+      <div class="grid">
+        <div>
+          <section class="card" aria-labelledby="plH">
+            <h2 id="plH">Plan</h2>
+            <p class="hint">Prices shown in <b id="coCur">your billing currency</b>, before tax.</p>
+            <div class="seg" role="radiogroup" aria-label="Billing period">
+              <label class="on" id="ivMonthlyL"><input type="radio" name="interval" value="monthly" checked>Monthly</label>
+              <label id="ivYearlyL"><input type="radio" name="interval" value="yearly">Yearly <span class="save" id="coSave" hidden>2 months free</span></label>
+            </div>
+            <div class="plans" id="coPlans" role="radiogroup" aria-labelledby="plH"><div class="skel"></div></div>
+          </section>
+
+          <section class="card" aria-labelledby="biH">
+            <h2 id="biH">Billing details</h2>
+            <p class="hint">Shown on your invoices. Fields marked <span aria-hidden="true">*</span><span class="sr">with an asterisk</span> are required.</p>
+            <div class="fgrid">
+              <div class="fld wide" data-f="legal_business_name"><label for="f_legal">Studio legal name<span class="req" aria-hidden="true">*</span></label>
+                <input id="f_legal" name="legal_business_name" autocomplete="organization" maxlength="160" required aria-describedby="e_legal"><span class="ferr" id="e_legal" aria-live="polite"></span></div>
+              <div class="fld" data-f="gstin"><label for="f_gstin">GSTIN <span class="opt">(optional)</span></label>
+                <input id="f_gstin" name="gstin" maxlength="15" autocapitalize="characters" spellcheck="false" aria-describedby="e_gstin"><span class="ferr" id="e_gstin" aria-live="polite"></span></div>
+              <div class="fld" data-f="country"><label for="f_country">Country<span class="req" aria-hidden="true">*</span></label>
+                <select id="f_country" name="country" autocomplete="country" required aria-describedby="e_country"></select><span class="ferr" id="e_country" aria-live="polite"></span></div>
+              <div class="fld wide" data-f="billing_address"><label for="f_addr">Billing address<span class="req" aria-hidden="true">*</span></label>
+                <textarea id="f_addr" name="billing_address" autocomplete="street-address" maxlength="500" required aria-describedby="e_addr"></textarea><span class="ferr" id="e_addr" aria-live="polite"></span></div>
+              <div class="fld" data-f="city"><label for="f_city">City <span class="opt">(optional)</span></label>
+                <input id="f_city" name="city" autocomplete="address-level2" maxlength="80" aria-describedby="e_city"><span class="ferr" id="e_city" aria-live="polite"></span></div>
+              <div class="fld" data-f="state"><label for="f_state">State / region<span class="req" aria-hidden="true">*</span></label>
+                <input id="f_state" name="state" autocomplete="address-level1" maxlength="80" required aria-describedby="e_state"><span class="ferr" id="e_state" aria-live="polite"></span></div>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="tH">
+            <h2 id="tH">Terms</h2>
+            <label class="terms" id="coTermsBox">
+              <input type="checkbox" id="coTerms" required aria-describedby="e_terms">
+              <span>I agree to the <a href="/terms" target="_blank" rel="noopener">Terms of Service</a>, the <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> and the <a href="/refund-policy" target="_blank" rel="noopener">Refund &amp; Cancellation Policy</a> on behalf of my studio.<span class="req" aria-hidden="true"> *</span></span>
+            </label>
+            <div class="fld"><span class="ferr" id="e_terms" aria-live="polite"></span></div>
+          </section>
+        </div>
+
+        <aside class="card sum" aria-labelledby="sumH">
+          <h2 id="sumH">Order summary</h2>
+          <div id="coSummary" aria-live="polite"><div class="skel"></div></div>
+          <div class="alert info" id="coDormant" role="status" hidden>Online payment is being enabled — your studio starts on a free trial. We'll remind you before it ends.</div>
+          <button type="submit" class="btn" id="coPay" disabled>Continue</button>
+          <p class="secure" id="coSecure"><span aria-hidden="true">🔒</span><span>Payments are processed securely by Razorpay. Helm never sees or stores your card details.</span></p>
+        </aside>
+      </div>
+    </form>
+
+    <section class="test" id="coTest" aria-labelledby="tstH" hidden>
+      <span class="tl">Testing only</span>
+      <h2 id="tstH" class="sr">Skip payment for testing</h2>
+      <p>For internal testing: starts a 14-day trial without paying. You still need to accept the Terms above. Helm can switch this off at any time.</p>
+      <button type="button" class="ghost" id="coSkip">Skip payment (testing only)</button>
+    </section>
+
+    <p class="foot">Signed in as <b id="coEmail"></b> · <button type="button" class="linkbtn" id="coSignOut">Sign out</button></p>
+  </main>
+<script src="/trusted-types.js?v=2"></script>
+<script src="telemetry.js?v=3"></script>
+<script src="config.js?v=97"></script>
+<script src="store-api.js?v=123"></script>
+<script src="checkout.js?v=1"></script>
+</body>
+</html>

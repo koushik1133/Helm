@@ -17,39 +17,66 @@
 <style>
   :root{--bg:#f6f4f1;--panel:#ffffff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
     --line:#e8e3db;--line-strong:#a39dab;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;
-    --shadow:0 1px 2px rgba(27,25,48,.05),0 14px 36px rgba(27,25,48,.11);
+    --shadow:0 1px 2px rgba(27,25,48,.05),0 24px 60px -12px rgba(27,25,48,.16);
     --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
   *{box-sizing:border-box} [hidden]{display:none!important}
   body{margin:0;min-height:100vh;font-family:var(--font);color:var(--ink);-webkit-font-smoothing:antialiased;
-    background:radial-gradient(700px 380px at 90% -10%,#ece3ff 0%,transparent 60%),radial-gradient(560px 340px at -10% 110%,#ffe9d6 0%,transparent 55%),var(--bg)}
-  .top{display:flex;align-items:center;gap:11px;max-width:680px;margin:0 auto;padding:20px 16px 0}
+    background:radial-gradient(760px 420px at 88% -12%,#ece3ff 0%,transparent 62%),radial-gradient(620px 380px at -12% 112%,#ffe9d6 0%,transparent 58%),var(--bg)}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:720px;margin:0 auto;padding:22px 16px 0}
+  .brandrow{display:flex;align-items:center;gap:11px;min-width:0}
   .mark{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
   .mark::after{content:"";position:absolute;inset:8px;border:2px solid rgba(255,255,255,.92);border-radius:3px}
   .brand{font-weight:700;font-size:15px} .brand small{display:block;font-size:10px;font-weight:600;color:var(--ink-3);letter-spacing:.08em;text-transform:uppercase}
-  main{max-width:680px;margin:0 auto;padding:18px 16px 48px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:30px 30px 24px}
-  @media(max-width:560px){.card{padding:22px 18px 18px;border-radius:14px}}
-  .step{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);padding:4px 10px;border-radius:99px;margin:0 0 12px}
-  h1{margin:0 0 6px;font-size:24px;letter-spacing:-.01em;line-height:1.2}
-  .sub{margin:0 0 20px;font-size:14px;line-height:1.55;color:var(--ink-2)}
-  .btn{min-height:46px;padding:0 22px;border:0;border-radius:11px;background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer}
-  .btn:disabled{opacity:.6;cursor:default}
+  main{max-width:720px;margin:0 auto;padding:20px 16px 40px}
+  /* step indicator: Account ✓ → Profile → Plan & payment */
+  .steps{list-style:none;display:flex;align-items:center;gap:0;margin:0 0 18px;padding:0;counter-reset:st}
+  .steps li{display:flex;align-items:center;gap:8px;flex:1 1 0;min-width:0;font-size:13px;font-weight:600;color:var(--ink-3)}
+  .steps li:not(:last-child)::after{content:"";flex:1 1 auto;height:2px;margin:0 10px;border-radius:2px;background:var(--line);min-width:12px}
+  .steps li.done:not(:last-child)::after{background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+  .steps .dot{flex:0 0 auto;width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid var(--line-strong);background:var(--panel);color:var(--ink-3)}
+  .steps .done .dot{background:var(--accent);border-color:var(--accent);color:#fff}
+  .steps .cur{color:var(--ink)} .steps .cur .dot{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+  .steps .lbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  @media(max-width:480px){.steps li{font-size:12px;gap:6px}.steps li:not(:last-child)::after{margin:0 6px}.steps .dot{width:22px;height:22px;font-size:11px}}
+  @media(max-width:360px){.steps li:not(.cur) .lbl{display:none}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:30px 30px 24px}
+  @media(max-width:560px){.card{padding:22px 18px 18px;border-radius:16px}}
+  .eyebrow{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);padding:4px 10px;border-radius:99px;margin:0 0 12px}
+  h1{margin:0 0 6px;font-size:26px;letter-spacing:-.015em;line-height:1.2}
+  @media(max-width:560px){h1{font-size:22px}}
+  .sub{margin:0 0 22px;font-size:14.5px;line-height:1.6;color:var(--ink-2)}
+  .btn{min-height:48px;padding:0 24px;border:0;border-radius:12px;background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 6px 18px -6px rgba(109,40,217,.55);transition:transform .12s,box-shadow .12s}
+  .btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 10px 22px -8px rgba(109,40,217,.6)}
+  .btn:disabled{opacity:.7;cursor:default}
   .btn:focus-visible,.linkbtn:focus-visible{outline:3px solid var(--accent-soft);outline-offset:2px}
-  @media(max-width:560px){.btn{width:100%}}
   .err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:10px;padding:10px 13px;font-size:13px;margin:0 0 16px}
-  .foot{margin-top:18px;font-size:12.5px;color:var(--ink-3);text-align:center}
+  .foot{margin-top:18px;font-size:12.5px;color:var(--ink-3);text-align:center;overflow-wrap:anywhere}
   .linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--accent);cursor:pointer;text-decoration:underline}
-  html[data-theme="dark"] body{background:var(--bg)}
+  html[data-theme="dark"] body{background:radial-gradient(760px 420px at 88% -12%,#1d1730 0%,transparent 62%),var(--bg)}
   html[data-theme="dark"] .err{background:#3a1414;color:#fecaca;border-color:#7f1d1d}
+  html[data-theme="dark"] .steps .dot{background:var(--panel)}
+  html[data-theme="dark"] .steps .done .dot{background:var(--accent);color:#141418}
+  /* notice cards + theme toggle never cover the form here: they flow below the card */
+  html body .hau-notes{position:static;width:auto;max-width:720px;margin:0 auto 32px;padding:0 16px;right:auto;bottom:auto;left:auto}
+  html body .bp-theme-toggle{position:absolute;top:18px;bottom:auto;right:16px}
+  @media(max-width:560px){html body .bp-theme-toggle{top:14px}}
+  .top{padding-right:68px}
 </style>
-<link rel="stylesheet" href="theme.css?v=74">
+<link rel="stylesheet" href="theme.css?v=76">
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
-  <div class="top"><div class="mark" aria-hidden="true"></div><div class="brand">Helm<small>Event Operating System</small></div></div>
+  <header class="top"><div class="brandrow"><div class="mark" aria-hidden="true"></div><div class="brand">Helm<small>Event Operating System</small></div></div></header>
   <main id="main">
+    <nav aria-label="Sign-up progress">
+      <ol class="steps">
+        <li class="done"><span class="dot" aria-hidden="true">✓</span><span class="lbl">Account</span><span class="sr-only"> (done)</span></li>
+        <li class="cur" aria-current="step"><span class="dot" aria-hidden="true">2</span><span class="lbl">Profile</span></li>
+        <li><span class="dot" aria-hidden="true">3</span><span class="lbl">Plan &amp; payment</span></li>
+      </ol>
+    </nav>
     <section class="card" aria-labelledby="psTitle">
-      <span class="step">One last step</span>
+      <span class="eyebrow">Step 2 of 3 · about 1 minute</span>
       <h1 id="psTitle" tabindex="-1">Complete your profile</h1>
       <p class="sub">Your team uses these details to reach you, assign you work and check you in on event days. Only your <b>full name</b> and <b>mobile number</b> are required — you can add the rest later from <b>Account</b>.</p>
       <div class="err" id="psErr" role="alert" hidden></div>
@@ -57,11 +84,13 @@
     </section>
     <p class="foot">Signed in as <b id="psEmail"></b> · <button type="button" class="linkbtn" id="psSignOut">Sign out</button></p>
   </main>
-<script src="/trusted-types.js?v=1"></script>
+<script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=96"></script>
-<script src="store-api.js?v=121"></script>
-<script src="auth-ui.js?v=10"></script>
+<script src="config.js?v=97"></script>
+<script src="phone-input.js?v=1"></script>
+<script src="form-validate.js?v=1"></script>
+<script src="store-api.js?v=123"></script>
+<script src="auth-ui.js?v=14"></script>
 <script>
   // "Complete your profile" (0041) — the first step for a NEW studio member. The page
   // gate in store-api.js decides before anything shows: signed out → login; no studio
@@ -84,7 +113,10 @@
     if(!String(p.full_name||"").trim() && (meta.full_name||meta.name)) p=Object.assign({},p,{full_name:String(meta.full_name||meta.name).slice(0,80)});
     if(!window.HelmAuthUI || !HelmAuthUI.profileForm){ $("#psErr").textContent="This page couldn't load completely. Check your connection and reload."; $("#psErr").hidden=false; return; }
     const f=HelmAuthUI.profileForm(BPStore,{ mode:"setup", idp:"ps", profile:p, email:u.email, labelledBy:"psTitle",
-      submitLabel:"Save and continue →", onSaved:()=>{ location.replace(next); } });
+      submitLabel:"Save and continue", onSaved:async ()=>{
+        // a NEW studio's owner goes on to pick a plan (0056); everyone else straight to ?next=
+        try{ if(BPStore.checkout && await BPStore.checkout.routeIfRequired(next)) return; }catch(e){}
+        location.replace(next); } });
     $("#psForm").appendChild(f.el);
     f.focusFirst();
   });
