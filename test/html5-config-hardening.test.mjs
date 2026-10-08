@@ -333,12 +333,14 @@ t('MSG-01: every postMessage to a window targets an explicit origin (never "*")'
 });
 
 /* ------------------------------------------------------------------ CORS-01 */
-t('CORS-01: no Access-Control-* header on any static/HTML route (vercel.json, _headers, server.js pages)', () => {
-  for (const r of vercel.headers) for (const h of r.headers) assert.ok(!/^access-control-/i.test(h.key), r.source);
-  assert.ok(!/^\s+Access-Control-/im.test(headersFile));
+t('CORS-01: static/HTML routes send no wildcard ACAO — only the pinned canonical origin, no other Access-Control-* (vercel.json, _headers, server.js)', () => {
+  // Vercel's CDN adds ACAO:* to static files by default; we override it with the canonical origin.
+  const ok = (k, v) => !/^access-control-/i.test(k) || (/^access-control-allow-origin$/i.test(k) && v === 'https://www.helm.events');
+  for (const r of vercel.headers) for (const h of r.headers) assert.ok(ok(h.key, h.value), r.source + ' ' + h.key);
+  for (const m of headersFile.matchAll(/^\s+(Access-Control-[\w-]+):\s*(.*)$/gim)) assert.ok(ok(m[1], m[2].trim()), '_headers ' + m[1]);
   for (const p of ['dashboard', 'approve', 'invite', 'index']) {
     const h = server.securityHeadersFor({ headers: { host: 'www.helm.events' } }, join(PUB, p + '.html'));
-    assert.ok(!Object.keys(h).some((k) => /^access-control-/i.test(k)), p);
+    for (const k of Object.keys(h)) assert.ok(ok(k, h[k]), p + ' ' + k);
   }
 });
 
@@ -421,7 +423,10 @@ t('SIM-01: /sim-pay is redirected to /404 on every production host (staging + lo
 });
 t('CORS-02 / HSTS-01: server.js local API sends no Access-Control-* and carries HSTS', () => {
   const src = read('server.js');
-  assert.ok(!/Access-Control-Allow-Origin/.test(src));
+  // Only the pinned static-asset ACAO (canonical origin) may appear — never '*', never credentials.
+  const acao = [...src.matchAll(/'Access-Control-Allow-Origin':\s*'([^']*)'/g)].map((m) => m[1]);
+  assert.deepEqual(acao, ['https://www.helm.events']);
+  assert.ok(!/Access-Control-Allow-(Credentials|Headers|Methods)/.test(src));
   assert.ok((src.match(/includeSubDomains; preload/g) || []).length >= 4);
 });
 

@@ -137,8 +137,8 @@
 </div>
 
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=93"></script>
-<script src="store-api.js?v=114"></script>
+<script src="config.js?v=95"></script>
+<script src="store-api.js?v=117"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -270,14 +270,20 @@
     let items=[];
     try{ items=await BPStore.files.list(id); }catch(e){ sec.hidden=true; return; }
     sec.hidden=false;
+    // 0051: server-side scan state ("Scanning…" until verify-upload marks it clean)
+    let scan={}; try{ scan=(BPStore.uploads&&BPStore.uploads.scanStatus)?await BPStore.uploads.scanStatus("event-docs",items.map(f=>f.storage_path)):{}; }catch(e){ scan={}; }
+    clearTimeout(renderFiles._t);
+    const pending=items.some(f=>scan[f.storage_path]==="pending");
+    if(pending){ renderFiles._n=(renderFiles._n||0)+1; if(renderFiles._n<=24) renderFiles._t=setTimeout(renderFiles,5000); } else renderFiles._n=0;
     if(!items.length){ list.innerHTML='<div class="muted" style="font-size:13px">No files yet.'+(canEdit?' Use “Add file” to attach a PDF or image.':'')+'</div>'; }
     else{
       list.innerHTML=items.map(f=>`<div class="frow" data-id="${esc(f.id)}" data-path="${esc(f.storage_path)}" style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line)">
         <span>${f.mime==='application/pdf'?'📄':'🖼'}</span>
         <b style="font-size:13px;font-weight:600">${esc(f.filename)}</b>
         <span class="muted" style="font-size:12px">${esc(fmtBytes(f.size_bytes))}</span>
+        ${scan[f.storage_path]==="pending"?'<span class="muted" style="font-size:12px" role="status">Scanning…</span>':scan[f.storage_path]==="rejected"?'<span style="font-size:12px;color:#b42318" role="status">Blocked — failed the safety check</span>':''}
         <span style="flex:1"></span>
-        <button type="button" class="btn sm" data-act="dl" aria-label="Download ${esc(f.filename)}">Download</button>
+        ${scan[f.storage_path]==="rejected"?'':`<button type="button" class="btn sm" data-act="dl" aria-label="Download ${esc(f.filename)}">Download</button>`}
         ${canEdit?`<button type="button" class="btn sm" data-act="rm" title="Remove" aria-label="Remove ${esc(f.filename)}" style="color:#b42318">✕</button>`:''}
       </div>`).join("");
       list.querySelectorAll(".frow").forEach(r=>{

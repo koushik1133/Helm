@@ -146,10 +146,11 @@
   let pwChangedAwaitingClear = false;   // forced change: password updated, flag not cleared yet
   // Password CHANGE (Account → Change password) proof: set only by a successful
   // reverifyPassword() for this same account, kept in memory (never stored), and
-  // valid for REAUTH_MS. updatePassword() refuses without it unless the session is
+  // valid for REAUTH_MS. The proof holds NO password: the current password is used
+  // for the one re-sign-in and dropped immediately (callers clear their field too). updatePassword() refuses without it unless the session is
   // a genuine password-reset session (signed JWT amr says "recovery").
   const REAUTH_MS = 10 * 60 * 1000;
-  let reauth = null;                    // { uid, until, pw }
+  let reauth = null;                    // { uid, until } — never the password
   function reauthClear() { reauth = null; }
   function reauthFresh() { return !!(reauth && currentUser && reauth.uid === currentUser.id && Date.now() < reauth.until); }
   // amr methods from the signed access token (Supabase signs it; a client cannot
@@ -611,24 +612,42 @@
     } catch (e) { pendingStep = "verify"; }
     return pendingStep;
   }
-  /* ---- two-step code lockout (UX layer; Supabase Auth's own rate limit is the real one) ----
-     After MFA_MAX_TRIES wrong codes in a row the form pauses for 60 s, doubling for
-     each further run of wrong codes (max 15 min). Kept in localStorage per account so a
-     reload or a new tab does not reset it; cleared by the next correct code. */
-  const MFA_LOCK_KEY = "bp_mfa_lock", MFA_MAX_TRIES = 5, MFA_LOCK_BASE = 60000, MFA_LOCK_MAX = 15 * 60000;
-  function mfaLockRead(uid) {
-    try { const o = JSON.parse(lsGet(MFA_LOCK_KEY) || "null"); return (o && uid && o.uid === uid) ? o : { uid: uid, n: 0, until: 0 }; }
-    catch (e) { return { uid: uid, n: 0, until: 0 }; }
+  /* ---- two-step code lockout — SERVER side (0050 mfa_record_failure / mfa_lock_status) ----
+     5 wrong codes → the account's code entry is locked for 15 minutes, counted in the
+     database (every tab, device and reload sees the same lock; locks are audited). This
+     tab keeps only an in-memory copy of the lock for the countdown. If the server
+     functions aren't installed yet / can't be reached, a per-tab in-memory fallback
+     (5 wrong → 60 s) applies; Supabase Auth's own MFA rate limit stays the backstop.
+     Nothing here changes the session's assurance level (aal). */
+  const MFA_MAX_TRIES = 5, MFA_FALLBACK_LOCK = 60000;
+  let mfaLock = { uid: null, until: 0, n: 0 };
+  function mfaLockFor(uid, ms) { if (mfaLock.uid !== uid) mfaLock = { uid: uid, until: 0, n: 0 }; mfaLock.until = Date.now() + ms; return ms; }
+  function mfaLockLeft(uid) { return (uid && mfaLock.uid === uid) ? Math.max(0, mfaLock.until - Date.now()) : 0; }
+  function mfaLockClear() { mfaLock = { uid: null, until: 0, n: 0 }; }
+  function mfaServerVerdict(uid, d) {
+    if (!d || typeof d !== "object") return null;
+    const ra = Math.max(0, Number(d.retry_after) || 0);
+    if (d.locked === true && ra > 0) return mfaLockFor(uid, ra * 1000);
+    if (mfaLock.uid === uid) mfaLock.until = 0;
+    return 0;
   }
-  function mfaLockLeft(uid) { const o = mfaLockRead(uid); return Math.max(0, (Number(o.until) || 0) - Date.now()); }
-  function mfaLockFor(uid, ms) { const o = mfaLockRead(uid); o.until = Date.now() + ms; lsSet(MFA_LOCK_KEY, JSON.stringify(o)); return ms; }
-  function mfaStrike(uid) {
-    const o = mfaLockRead(uid); o.n = (Number(o.n) || 0) + 1;
-    if (o.n % MFA_MAX_TRIES === 0) o.until = Date.now() + Math.min(MFA_LOCK_MAX, MFA_LOCK_BASE * Math.pow(2, o.n / MFA_MAX_TRIES - 1));
-    lsSet(MFA_LOCK_KEY, JSON.stringify(o));
-    return Math.max(0, (Number(o.until) || 0) - Date.now());
+  // current lock from the server (null = server can't tell → local copy decides)
+  async function mfaLockFetch(uid) {
+    if (!supa || !uid) return null;
+    try { const { data, error } = await supa.rpc("mfa_lock_status"); if (error) return null; return mfaServerVerdict(uid, data); }
+    catch (e) { return null; }
   }
-  function mfaLockClear() { lsDel(MFA_LOCK_KEY); }
+  // one wrong code: count it on the server; fallback per-tab counter if unavailable
+  async function mfaStrike(uid) {
+    try {
+      const { data, error } = await supa.rpc("mfa_record_failure");
+      if (!error) { const v = mfaServerVerdict(uid, data); if (v !== null) return v; }
+    } catch (e) {}
+    if (mfaLock.uid !== uid) mfaLock = { uid: uid, until: 0, n: 0 };
+    mfaLock.n++;
+    if (mfaLock.n % MFA_MAX_TRIES === 0) mfaLock.until = Date.now() + MFA_FALLBACK_LOCK;
+    return Math.max(0, mfaLock.until - Date.now());
+  }
   function mfaLockedError(ms, cause) {
     const s = Math.max(1, Math.ceil(ms / 1000));
     const e = new Error("Too many incorrect codes. For your security, wait " + (s >= 90 ? Math.ceil(s / 60) + " minutes" : s + " seconds") + ", then enter the newest code from your app.");
@@ -738,7 +757,7 @@
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "10";
+  const AUTH_UI_VERSION = "11";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1325,15 +1344,22 @@
     // Set the user's own new password (forced temp-password change), then clear the
     // must-change flag. The server refuses to clear it until the password really
     // changed (0028); a failure is an error — never silently ignored.
-    async completePasswordChange(newPassword) {
+    // The temporary password is the "current password" Supabase requires (prod has
+    // "require current password" ON): completePasswordChange(newPw, { currentPassword }).
+    async completePasswordChange(newPassword, opts) {
       if (!supa) throw new Error("Supabase not configured");
       const bad = passwordProblem(newPassword); if (bad) throw new Error(bad);
       // only while the server says this account holds a temp password (evaluateGate)
       if (!pwChangedAwaitingClear && pendingStep !== "password") { const e = new Error("Please sign in again to change your password."); e.code = "reauth_required"; throw e; }
+      let cur = opts && typeof opts.currentPassword === "string" ? opts.currentPassword : "";
+      if (opts) opts.currentPassword = null;
       if (!pwChangedAwaitingClear) {
-        const { error } = await supa.auth.updateUser({ password: newPassword });
+        if (!cur) { const e = new Error("Enter the temporary password you signed in with."); e.code = "current_password_required"; throw e; }
+        const attrs = { password: newPassword, current_password: cur }; cur = null;
+        const { error } = await supa.auth.updateUser(attrs);   // attrs is local: dropped with this call
         if (error) {
           if (/different from the old|same_password/i.test(String(error.message || "") + " " + String(error.code || ""))) throw new Error("Choose a password that's different from the temporary one.");
+          if (/current.?password|reauthenticat/i.test(String(error.message || "") + " " + String(error.code || ""))) { const e = new Error("The temporary password isn't right."); e.code = "bad_current_password"; e.cause = error; throw e; }
           throw error;
         }
         pwChangedAwaitingClear = true;   // a retry only re-runs the clear below
@@ -1383,18 +1409,20 @@
       if (!supa || !currentUser || !currentUser.email) throw new Error("Not signed in");
       if (!hasPasswordLogin()) { const e = new Error("This account signs in with Google, so it has no Helm password to change."); e.code = "bad_current_password"; throw e; }
       if (typeof currentPassword !== "string" || !currentPassword) { const e = new Error("Your current password isn't right."); e.code = "bad_current_password"; throw e; }
+      let pw = currentPassword; currentPassword = null;   // only this local survives, until the re-sign-in returns
       const captchaToken = opts && opts.captchaToken;
       if (CAPTCHA && !captchaToken) { const e = new Error("Please complete the security check."); e.code = "captcha_required"; throw e; }
       localAuthOp++;
       try {
         const email = currentUser.email, uid = currentUser.id;
         let res;
-        try { res = await supa.auth.signInWithPassword(captchaToken ? { email, password: currentPassword, options: { captchaToken } } : { email, password: currentPassword }); }
+        try { res = await supa.auth.signInWithPassword(captchaToken ? { email, password: pw, options: { captchaToken } } : { email, password: pw }); }
         catch (x) { res = { data: null, error: x }; }
+        finally { pw = null; }
         const { data, error } = res || {};
         if (error || !data || !data.user || data.user.id !== uid) { const e = new Error("Your current password isn't right."); e.code = "bad_current_password"; e.cause = error; throw e; }
         currentUser = data.user; explicitSignOut = false;
-        reauth = { uid, until: Date.now() + REAUTH_MS, pw: currentPassword };
+        reauth = { uid, until: Date.now() + REAUTH_MS };
         const { data: lv } = await supa.auth.mfa.getAuthenticatorAssuranceLevel();
         return (lv && lv.nextLevel === "aal2" && lv.currentLevel !== "aal2") ? "mfa" : null;
       } finally { localAuthOp--; }
@@ -1403,18 +1431,29 @@
     // every other session. The rule is enforced here AND by the Supabase policy.
     // Allowed only (a) right after reverifyPassword() for this account, or (b) in a
     // genuine reset-link session (JWT amr "recovery"). Anything else fails closed.
-    // The current password is also sent as current_password so the server-side
-    // "require current password" Auth setting can be switched on without app changes.
-    async updatePassword(newPassword) {
+    // The current password is NOT retained after reverifyPassword(). If the Supabase
+    // Prod has Supabase "require current password" ON: an ordinary change MUST pass it
+    // here — updatePassword(newPw, { currentPassword }) — sent once as current_password
+    // and never kept. A genuine reset-link (recovery) session needs no current password
+    // (Supabase skips the check for recovery sessions), so none is sent there.
+    async updatePassword(newPassword, opts) {
       if (!supa) throw new Error("Supabase not configured");
       const bad = passwordProblem(newPassword); if (bad) throw new Error(bad);
+      let cur = opts && typeof opts.currentPassword === "string" ? opts.currentPassword : "";
+      if (opts) opts.currentPassword = null;
+      const recovery = await isRecoverySession();
       const fresh = reauthFresh();
-      if (!fresh && !(await isRecoverySession())) { reauthClear(); const e = new Error("Please confirm your current password first."); e.code = "reauth_required"; throw e; }
+      if (!fresh && !recovery) { reauthClear(); const e = new Error("Please confirm your current password first."); e.code = "reauth_required"; throw e; }
       const attrs = { password: newPassword };
-      if (fresh && reauth.pw) attrs.current_password = reauth.pw;
-      const { error } = await supa.auth.updateUser(attrs);
+      if (!recovery) {
+        if (!cur) { const e = new Error("Enter your current password."); e.code = "current_password_required"; throw e; }
+        attrs.current_password = cur;
+      }
+      cur = null;
+      const { error } = await supa.auth.updateUser(attrs);   // attrs is local: dropped with this call
       if (error) {
         if (/different from the old|same_password/i.test(String(error.message || "") + " " + String(error.code || ""))) throw new Error("Choose a password that's different from your current one.");
+        if (/current.?password|reauthenticat/i.test(String(error.message || "") + " " + String(error.code || ""))) { const e = new Error("Your current password isn't right."); e.code = "bad_current_password"; e.cause = error; throw e; }
         throw error;
       }
       reauthClear();
@@ -1454,7 +1493,8 @@
       async verify(factorId, code) {
         if (!supa) throw new Error("Supabase not configured");
         const uid = currentUser && currentUser.id;
-        const wait = mfaLockLeft(uid);
+        let wait = mfaLockLeft(uid);
+        if (wait <= 0) { const sv = await mfaLockFetch(uid); wait = sv || 0; }
         if (wait > 0) throw mfaLockedError(wait);
         const c = String(code || "").replace(/\s+/g, "");
         if (!/^\d{6}$/.test(c)) throw new Error("Enter the 6-digit code from your authenticator app.");
@@ -1464,18 +1504,21 @@
           // Network trouble is not a wrong code (no lockout strike; friendlyError explains it)
           if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) throw error;
           const st = Number(error.status) || 0, msg = String(error.message || "") + " " + String(error.code || "");
-          const left = (st === 429 || /rate.?limit|too many/i.test(msg)) ? mfaLockFor(uid, 60000) : mfaStrike(uid);
+          const left = (st === 429 || /rate.?limit|too many/i.test(msg)) ? mfaLockFor(uid, 60000) : await mfaStrike(uid);
           if (left > 0) throw mfaLockedError(left, error);
           // one generic message: never says whether the factor, the challenge or the code was the problem
           const e = new Error("That code didn't work. Codes change every 30 seconds — enter the newest one, and check the time on your phone is set automatically."); e.code = "mfa_invalid"; e.cause = error; throw e;
         }
         mfaLockClear();
         const { data: s } = await supa.auth.getSession(); if (s && s.session) currentUser = s.session.user;
+        try { await supa.rpc("mfa_record_success"); } catch (e) {}   // server clears the counter only at aal2
         await evaluateGate();
         return true;
       },
       // seconds until another code may be tried (0 = now) — UI countdown
       lockedSeconds() { return Math.ceil(mfaLockLeft(currentUser && currentUser.id) / 1000); },
+      // ask the server for this account's lock (another tab / device may have set it)
+      async refreshLock() { const uid = currentUser && currentUser.id; await mfaLockFetch(uid); return Math.ceil(mfaLockLeft(uid) / 1000); },
       // Helm platform operator (HQ) two-step requirement — no skip, no opt-out:
       //   "none"      not an operator (or not signed in): nothing changes for this account
       //   "enroll"    operator without a verified authenticator → must set one up now
@@ -3286,8 +3329,21 @@
     if (ugMismatch(file, sniff)) throw ugErr("That file's name or type doesn't match its contents — it was not uploaded.", "upload_mismatch");
     return sniff;
   }
+  /* 0051 server-side verification: { path: "pending" | "clean" | "rejected" } for objects of the
+     caller's studio. Unknown / not tracked → absent (treat as clean). Best-effort: {} on error or
+     before 0051 is applied, so the UI never breaks while the scanner is not deployed. */
+  async function ugScanStatus(bucket, paths) {
+    const list = (Array.isArray(paths) ? paths : []).filter((p) => typeof p === "string" && p).slice(0, 200);
+    if (!supa || !list.length) return {};
+    try {
+      const { data, error } = await supa.rpc("upload_scan_status", { p_bucket: String(bucket || ""), p_names: list });
+      if (error || !Array.isArray(data)) return {};
+      const out = {}; data.forEach((r) => { if (r && r.name && /^(pending|clean|rejected)$/.test(r.status)) out[r.name] = r.status; });
+      return out;
+    } catch (e) { return {}; }
+  }
   const uploads = { sniff: ugSniff, mismatch: ugMismatch, objectName: ugObjectName, displayName: ugDisplayName, fit: ugFit,
-    prepareImage: ugPrepareImage, checkFile: ugCheckFile };
+    prepareImage: ugPrepareImage, checkFile: ugCheckFile, scanStatus: ugScanStatus };
 
   /* ---------------- digital invitation sites (Phase 87) ---------------- */
   // A public "digital invitation" website for a CONFIRMED event. All manager-side
@@ -5139,8 +5195,20 @@
       const row = { quote_id: quoteId, closed_at: cur.closed_at || null, ...c, updated_at: now() }; a.push(row);
       localStorage.setItem(CLOSE_LS, JSON.stringify(a)); return row;
     },
-    async setClosed(quoteId, closed) {
-      if (mode === "supabase") return rpc("close_event", { p_quote_id: quoteId, p_closed: !!closed });
+    // 0049: the server refuses to close while the ledger balance is owed or equipment is
+    // still checked out. blockers() shows why up front; an admin may pass an override reason
+    // (required, audited server-side).
+    async blockers(quoteId) {
+      if (mode !== "supabase") return null;
+      try { return await rpc("close_event_blockers", { p_quote_id: quoteId }); }
+      catch (e) { if (rpcMissing(e)) return null; throw e; }
+    },
+    async setClosed(quoteId, closed, overrideReason) {
+      if (mode === "supabase") {
+        const reason = overrideReason == null ? "" : String(overrideReason).trim();
+        if (closed && reason) return rpc("close_event", { p_quote_id: quoteId, p_closed: true, p_override_reason: reason });
+        return rpc("close_event", { p_quote_id: quoteId, p_closed: !!closed });
+      }
       const a = readLs(CLOSE_LS); let row = a.find((x) => x.quote_id === quoteId);
       if (!row) { row = { quote_id: quoteId }; a.push(row); }
       row.closed_at = closed ? now() : null; localStorage.setItem(CLOSE_LS, JSON.stringify(a));

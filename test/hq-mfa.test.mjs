@@ -34,6 +34,7 @@ function makeEnv(o = {}) {
   const calls = [];
   const user = o.user === null ? null : (o.user || { id: 'op-1', email: 'admin@helm.events' });
   let aal = o.aal || 'aal1';
+  const srv = o.srv || { fails: 0, until: 0 };
   let factors = (o.factors || []).map((f) => Object.assign({ factor_type: 'totp' }, f));
   let session = user ? { user, access_token: 'x' } : null;
   const verified = () => factors.filter((f) => f.factor_type === 'totp' && f.status === 'verified');
@@ -68,6 +69,15 @@ function makeEnv(o = {}) {
       if (name === 'current_org_id') return { data: o.org || null, error: null };
       if (name === 'operator_mfa_required') return o.flagError ? { data: null, error: { message: 'Failed to fetch' } } : { data: o.mfaOptional ? false : true, error: null };
       if (/^hq_/.test(name)) return { data: name === 'hq_overview' ? {} : [], error: null };
+      // 0050 server-side lockout (shared server state: o.srv survives a "reload" / other tab)
+      if (/^mfa_(lock_status|record_failure|record_success)$/.test(name) && o.noLockRpc) return { data: null, error: { code: 'PGRST202', message: 'not found' } };
+      if (name === 'mfa_lock_status' || name === 'mfa_record_failure') {
+        const sv = srv; const now = Date.now();
+        if (sv.until && sv.until <= now) { sv.until = 0; sv.fails = 0; }
+        if (name === 'mfa_record_failure' && !(sv.until > now)) { sv.fails++; if (sv.fails >= 5) sv.until = now + 900000; }
+        return { data: { locked: sv.until > now, retry_after: sv.until > now ? Math.ceil((sv.until - now) / 1000) : 0, fails: sv.fails }, error: null };
+      }
+      if (name === 'mfa_record_success') { if (aal === 'aal2') { srv.fails = 0; srv.until = 0; return { data: true, error: null }; } return { data: false, error: null }; }
       return { data: null, error: null };
     },
     from() { const q = { select: () => q, eq: () => q, order: () => q, single: async () => ({ data: { role: 'admin' }, error: null }) }; return q; },
@@ -258,30 +268,38 @@ t('wrong code: one generic message (server text never shown), no lock before 5 t
   }
   assert.equal(e.S.auth.mfa.lockedSeconds(), 0);
 });
-t('5 wrong codes → locked (even the right code is refused without asking the server); clears after the pause', async () => {
-  const e = makeEnv({ operator: true, factors: VERIFIED, aal: 'aal1', path: '/login' });
+t('5 wrong codes → locked ON THE SERVER for 15 min (right code refused without asking Auth); another tab/reload sees it; aal2 success clears', async () => {
+  const srv = { fails: 0, until: 0 };
+  const e = makeEnv({ operator: true, factors: VERIFIED, aal: 'aal1', path: '/login', srv });
   await e.S.init();
-  for (let i = 1; i <= 4; i++) await assert.rejects(e.S.auth.mfa.challenge('000000'));
-  await assert.rejects(e.S.auth.mfa.challenge('000000'), (err) => err.code === 'mfa_locked' && err.retryAfter >= 59 && /wait 60 seconds/.test(err.message));
+  for (let i = 1; i <= 4; i++) await assert.rejects(e.S.auth.mfa.challenge('000000'), (err) => err.code === 'mfa_invalid');
+  await assert.rejects(e.S.auth.mfa.challenge('000000'), (err) => err.code === 'mfa_locked' && err.retryAfter >= 899 && /wait 15 minutes/.test(err.message));
+  assert.equal(e.calls.filter((c) => c[0] === 'rpc' && c[1] === 'mfa_record_failure').length, 5, 'each wrong code recorded on the server');
   const before = e.calls.filter((c) => c[0] === 'verify').length;
   await assert.rejects(e.S.auth.mfa.challenge('123456'), (err) => err.code === 'mfa_locked');
-  assert.equal(e.calls.filter((c) => c[0] === 'verify').length, before, 'no server call while locked');
+  assert.equal(e.calls.filter((c) => c[0] === 'verify').length, before, 'no Auth verify while locked');
   assert.ok(e.S.auth.mfa.lockedSeconds() > 0);
-  // a reload does not reset it (localStorage, per account) — simulate the pause ending
-  const lock = JSON.parse(e.win.localStorage.getItem('bp_mfa_lock'));
-  assert.equal(lock.uid, 'op-1');
-  lock.until = Date.now() - 1; e.win.localStorage.setItem('bp_mfa_lock', JSON.stringify(lock));
-  await e.S.auth.mfa.challenge('123456');
-  assert.equal(e.win.localStorage.getItem('bp_mfa_lock'), null, 'a correct code clears the counter');
+  assert.equal(e.win.localStorage.getItem('bp_mfa_lock'), null, 'nothing kept in localStorage');
+  // a fresh tab / reload (new store instance, same server state) is still locked
+  const e2 = makeEnv({ operator: true, factors: VERIFIED, aal: 'aal1', path: '/login', srv });
+  await e2.S.init();
+  assert.equal(e2.S.auth.mfa.lockedSeconds(), 0, 'nothing local');
+  assert.ok((await e2.S.auth.mfa.refreshLock()) > 0, 'server lock visible to the new tab');
+  await assert.rejects(e2.S.auth.mfa.challenge('123456'), (err) => err.code === 'mfa_locked');
+  // the lock ends → correct code → server counter cleared (at aal2)
+  srv.until = Date.now() - 1;
+  const e3 = makeEnv({ operator: true, factors: VERIFIED, aal: 'aal1', path: '/login', srv });
+  await e3.S.init();
+  await e3.S.auth.mfa.challenge('123456');
+  assert.deepEqual([srv.fails, srv.until], [0, 0]);
+  assert.ok(e3.calls.some((c) => c[0] === 'rpc' && c[1] === 'mfa_record_success'));
 });
-t('the pause doubles for each further run of 5 wrong codes', async () => {
-  const e = makeEnv({ operator: true, factors: VERIFIED, aal: 'aal1', path: '/login' });
+t('server lockout functions missing (0050 not applied) → per-tab fallback: 5 wrong → 60 s pause', async () => {
+  const e = makeEnv({ operator: true, factors: VERIFIED, aal: 'aal1', path: '/login', noLockRpc: true });
   await e.S.init();
-  const unlock = () => { const l = JSON.parse(e.win.localStorage.getItem('bp_mfa_lock')); l.until = 0; e.win.localStorage.setItem('bp_mfa_lock', JSON.stringify(l)); };
-  for (let i = 0; i < 5; i++) await assert.rejects(e.S.auth.mfa.challenge('000000'));
-  unlock();
   for (let i = 0; i < 4; i++) await assert.rejects(e.S.auth.mfa.challenge('000000'), (err) => err.code === 'mfa_invalid');
-  await assert.rejects(e.S.auth.mfa.challenge('000000'), (err) => err.code === 'mfa_locked' && err.retryAfter >= 119);
+  await assert.rejects(e.S.auth.mfa.challenge('000000'), (err) => err.code === 'mfa_locked' && err.retryAfter >= 59 && err.retryAfter <= 60);
+  assert.equal(e.win.localStorage.getItem('bp_mfa_lock'), null);
 });
 t('server rate limit (429) → the same lockout message', async () => {
   const e = makeEnv({ operator: true, factors: VERIFIED, aal: 'aal1', path: '/login', rateLimited: true });

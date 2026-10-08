@@ -25,7 +25,7 @@
 // Outbound HTTP goes only to a FIXED host allowlist (no URL is ever taken from input).
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, escHtml } from "../_shared/cors.ts";
-import { BodyTooLarge, clientIp, rateLimit, readBodyCapped } from "../_shared/limits.ts";
+import { BodyTooLarge, clientIp, checkLimits, readBodyCapped } from "../_shared/limits.ts";
 
 const enc = new TextEncoder();
 const ALLOWED_HOSTS = new Set(["api.resend.com"]);
@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
   try {
     if (Deno.env.get("HELM_BILLING_REMINDERS_ENABLED") !== "true") return json({ status: "dormant" });
     if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
-    const wait = await rateLimit("bill:ip:" + clientIp(req), 30, 60_000);
+    const wait = await checkLimits([["bill:ip:" + clientIp(req), 30, 60_000]]);
     if (wait) return new Response(JSON.stringify({ error: "too many requests" }), { status: 429, headers: { "Content-Type": "application/json", "Retry-After": String(wait) } });
     await readBodyCapped(req);   // body unused; drained under the 16 KB cap (413 above it)
     const ok = await secretMatches(req.headers.get("x-helm-cron-secret") || "", Deno.env.get("HELM_BILLING_CRON_SECRET") || "");

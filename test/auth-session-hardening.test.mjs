@@ -106,7 +106,8 @@ t('committed config.js ships CAPTCHA off (empty siteKey) and the documented defa
   const cfg = read('public/config.js');
   assert.match(cfg, /captcha:\s*\{\s*provider:\s*"turnstile",\s*siteKey:\s*""\s*\}/);
   assert.match(cfg, /mfaRequiredForAdmins:\s*false/);
-  assert.match(cfg, /session:\s*\{\s*idleMinutes:\s*0,\s*warnSeconds:\s*60,\s*maxHours:\s*0\s*\}/, 'idle + max-age logout OFF by default (owner decision)');
+  assert.match(cfg, /session:\s*\{\s*idleMinutes:\s*60,\s*warnSeconds:\s*120,\s*maxHours:\s*12\s*\}/, 'idle 60 min (warning 2 min before) + 12 h absolute max');
+  assert.match(cfg, /mfaRequiredForAdmins:\s*false/, 'two-step stays optional (owner decision) — documented switch');
 });
 t('CAPTCHA ON: sign-in / sign-up / reset carry captchaToken; missing token is refused before any request', async () => {
   const e = makeEnv({ user: null, path: '/login', cfg: CAPTCHA_ON });
@@ -232,9 +233,14 @@ t('change password: re-sign-in uses the user\'s OWN email; then one change is al
   await e.S.auth.reverifyPassword('Old-password12!');
   const si = e.calls.filter((x) => x[0] === 'signInWithPassword').pop();
   assert.equal(si[1].email, 'staff@a.test');
-  await e.S.auth.updatePassword('Brand-new-pass12!');
+  // prod requires the current password: without it nothing is sent (proof not consumed)
+  await assert.rejects(e.S.auth.updatePassword('Brand-new-pass12!'), (x) => x.code === 'current_password_required');
+  assert.equal(updates(e).length, 0, 'the password kept by reverify is NOT reused');
+  const opts = { currentPassword: 'Old-password12!' };
+  await e.S.auth.updatePassword('Brand-new-pass12!', opts);
   assert.deepEqual(JSON.parse(JSON.stringify(updates(e)[0][1])), { password: 'Brand-new-pass12!', current_password: 'Old-password12!' });
-  await assert.rejects(e.S.auth.updatePassword('Another-pass12!'), (x) => x.code === 'reauth_required', 'proof is single-use');
+  assert.equal(opts.currentPassword, null, 'caller copy cleared after use');
+  await assert.rejects(e.S.auth.updatePassword('Another-pass12!', { currentPassword: 'x' }), (x) => x.code === 'reauth_required', 'proof is single-use');
   assert.equal(updates(e).length, 1);
 });
 t('change password: the current-password proof expires after 10 minutes', async () => {
@@ -244,6 +250,17 @@ t('change password: the current-password proof expires after 10 minutes', async 
   e.clock.advance(10 * 60 * 1000 + 1);
   await assert.rejects(e.S.auth.updatePassword('Brand-new-pass12!'), (x) => x.code === 'reauth_required');
   assert.equal(updates(e).length, 0);
+});
+t('change password: the current password is never retained in memory after re-verification', async () => {
+  const src = readFileSync(new URL('../public/store-api.js', import.meta.url), 'utf8');
+  assert.ok(!/reauth\s*=\s*\{[^}]*\bpw\s*:/.test(src), 'reauth proof must not hold the password');
+  assert.ok(!/reauth\.pw/.test(src));
+  const e = makeEnv({ accessToken: PASSWORD_JWT });
+  await e.S.init();
+  await e.S.auth.reverifyPassword('Old-password12!');
+  // explicit, single-use pass-through when the Supabase "require current password" setting is on
+  await e.S.auth.updatePassword('Brand-new-pass12!', { currentPassword: 'Old-password12!' });
+  assert.deepEqual(JSON.parse(JSON.stringify(updates(e)[0][1])), { password: 'Brand-new-pass12!', current_password: 'Old-password12!' });
 });
 t('change password: a re-sign-in that returns a DIFFERENT account is refused', async () => {
   const e = makeEnv({ accessToken: PASSWORD_JWT, signInUser: { id: 'u-OTHER', email: 'staff@a.test' } });
@@ -349,12 +366,44 @@ t('temp password: database without the function → not gated (no lock-out)', as
   await e.S.init();
   assert.equal(e.S.auth.pendingStep(), null);
 });
+t('reset link (recovery session): password set WITHOUT a current password — none sent, none required', async () => {
+  const e = makeEnv({ path: '/reset-password', ls: { bp_recovery_pending: 'u-1' }, accessToken: RECOVERY_JWT });
+  await e.S.init();
+  await e.S.auth.updatePassword('Recovered-pass12!');
+  const u = updates(e);
+  assert.equal(u.length, 1);
+  assert.deepEqual(JSON.parse(JSON.stringify(u[0][1])), { password: 'Recovered-pass12!' });
+});
+t('Supabase rejecting the current password maps to one generic message', async () => {
+  const e = makeEnv({ accessToken: PASSWORD_JWT, updateError: { message: 'Current password required', code: 'current_password_mismatch' } });
+  await e.S.init();
+  await e.S.auth.reverifyPassword('Old-password12!');
+  await assert.rejects(e.S.auth.updatePassword('Brand-new-pass12!', { currentPassword: 'nope' }), (x) => x.code === 'bad_current_password');
+});
+t('UI wiring: change form + forced temp-password form collect the current password and pass it once', () => {
+  const rp = readFileSync(new URL('../public/reset-password.js', import.meta.url), 'utf8');
+  const html = readFileSync(new URL('../public/reset-password.html', import.meta.url), 'utf8');
+  const login = readFileSync(new URL('../public/login.html', import.meta.url), 'utf8');
+  assert.match(html, /id="set_cur_pw"[^>]*autocomplete="current-password"/);
+  assert.match(rp, /recovering \? undefined : \{ currentPassword: \$\("#set_cur_pw"\)\.value \}/);
+  assert.match(rp, /updatePassword\(a, opts\)/);
+  assert.match(rp, /\$\("#set_cur_pw"\)\.value = ""/);
+  assert.match(login, /id="fpc_cur" type="password" autocomplete="current-password"/);
+  assert.match(login, /completePasswordChange\(pw\.value, opts\)/);
+  assert.match(login, /opts\.currentPassword=null/);
+});
 t('temp password: a failed flag clear is an error, not ignored; retry does not re-send the password', async () => {
   let fail = true;
   const e = makeEnv({ rpc: { password_change_required: { data: true, error: null }, clear_password_change_required: () => (fail ? { data: null, error: { message: 'set a new password first' } } : { data: null, error: null }) } });
   await e.S.init();
-  await assert.rejects(e.S.auth.completePasswordChange('Brand-new-pass12'));
-  assert.equal(e.calls.filter((x) => x[0] === 'updateUser').length, 1);
+  await assert.rejects(e.S.auth.completePasswordChange('Brand-new-pass12'), (x) => x.code === 'current_password_required');
+  assert.equal(e.calls.filter((x) => x[0] === 'updateUser').length, 0, 'nothing sent without the temporary password');
+  const o1 = { currentPassword: 'Temp-pass-1234!' };
+  await assert.rejects(e.S.auth.completePasswordChange('Brand-new-pass12', o1));
+  assert.equal(o1.currentPassword, null, 'caller copy cleared');
+  const sent = e.calls.filter((x) => x[0] === 'updateUser');
+  assert.equal(sent.length, 1);
+  assert.deepEqual(JSON.parse(JSON.stringify(sent[0][1])), { password: 'Brand-new-pass12', current_password: 'Temp-pass-1234!' }, 'temp password sent as current_password');
   fail = false;
   e.win.SUPABASE_CONFIG.__x = 1;
   await e.S.auth.completePasswordChange('Brand-new-pass12');
@@ -382,6 +431,14 @@ t('session decision (when enabled): 30 min idle (60 s warning) and 12 h max; 0 t
   const e2 = makeEnv({ cfg: { auth: { session: { idleMinutes: 5, warnSeconds: 30, maxHours: 0 } } } });
   const c2 = e2.S.auth.sessionLimits.config();
   assert.equal(c2.idleMs, 5 * 60000); assert.equal(c2.warnMs, 30000); assert.equal(c2.maxMs, 0);
+});
+t('committed config: 60 min idle with the warning 2 min before, 12 h absolute max', () => {
+  const e = makeEnv({ cfg: { auth: { session: { idleMinutes: 60, warnSeconds: 120, maxHours: 12 } } } });
+  const cfg = e.S.auth.sessionLimits.config(); const d = e.S.auth.sessionLimits.decision; const T = 1e12;
+  assert.equal(d(T, T - 57 * 60000, T - 3600000, cfg), 'ok');
+  assert.equal(d(T, T - 58 * 60000, T - 3600000, cfg), 'warn');
+  assert.equal(d(T, T - 60 * 60000, T - 3600000, cfg), 'idle');
+  assert.equal(d(T, T, T - 12 * 3600000, cfg), 'max');
 });
 t('idle logout: after 30 min without activity → local sign-out + login?expired=1&reason=idle', async () => {
   const e = makeEnv({ path: '/quotes', cfg: SESSION_ON });

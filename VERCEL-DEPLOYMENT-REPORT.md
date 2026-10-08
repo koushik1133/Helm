@@ -52,3 +52,10 @@ Because `framework/buildCommand/installCommand` are all null and `outputDirector
 5. **Cleanup nit (non-blocking):** a leftover `react-poc/.next/cache/` exists at repo root (React POC was discarded). It is outside `public/`, so it does **not** deploy; consider removing it for hygiene.
 
 **Verdict: deploys to Vercel cleanly as a static site.**
+
+## Legacy *.vercel.app aliases (2026-10-07)
+`helm-v01.vercel.app` and `helm-alpha-nine.vercel.app` are NOT redirected: config.js lists both in `PROD_HOSTS`, and
+helm-v01 is the auto-deploy preview used for testing, so a 308 would break that workflow. Instead vercel.json sends
+`X-Robots-Tag: noindex, nofollow` on every path for both hosts (host-conditioned header rules).
+**Owner step:** once testing no longer uses them, remove the aliases in Vercel → Project → Domains (or add a
+host redirect to https://www.helm.events there), then drop them from `PROD_HOSTS` in public/config.js.

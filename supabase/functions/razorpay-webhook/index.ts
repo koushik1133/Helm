@@ -22,7 +22,7 @@
 //     not a global manager address or hard-coded branding.
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, escHtml, UUID_RE } from "../_shared/cors.ts";
-import { BodyTooLarge, clientIp, rateLimit, readBodyCapped, WEBHOOK_BODY_LIMIT } from "../_shared/limits.ts";
+import { BodyTooLarge, clientIp, checkLimits, readBodyCapped, WEBHOOK_BODY_LIMIT } from "../_shared/limits.ts";
 
 const enc = new TextEncoder();
 async function hmacHex(secret: string, body: string) {
@@ -70,7 +70,7 @@ const oneLine = (s: unknown) => String(s ?? "").replace(/[\r\n]/g, " ").slice(0,
 
 Deno.serve(async (req) => {
   try {
-    const wait = await rateLimit("rzp:ip:" + clientIp(req), 300, 60_000);
+    const wait = await checkLimits([["rzp:ip:" + clientIp(req), 300, 60_000]]);
     if (wait) return new Response("too many requests", { status: 429, headers: { "Retry-After": String(wait) } });
     const raw = await readBodyCapped(req, WEBHOOK_BODY_LIMIT);
     const sig = req.headers.get("x-razorpay-signature") || "";

@@ -404,7 +404,7 @@ do $$ declare s text; begin
   s := pg_temp.try($q$select public.close_event('a0000000-0000-4000-8000-00000042a002', true)$q$);
   perform pg_temp.res('RC4-10 denied: Org B admin closes an Org A event', s like '42501%', s);
   perform pg_temp.login('a_admin@a.test');
-  s := pg_temp.try($q$select public.close_event('a0000000-0000-4000-8000-00000042a002', true)$q$);
+  s := pg_temp.try($q$select public.close_event('a0000000-0000-4000-8000-00000042a002', true, 'audit-run2: balance open (0049 admin override)')$q$);
   perform pg_temp.res('RC4-11 allowed: Org A admin closes the event', s = '', s);
   perform pg_temp.login('a_admin@a.test');
   s := pg_temp.try($q$select public.set_lifecycle_stage('a0000000-0000-4000-8000-00000042a003', 'closed')$q$);
@@ -456,8 +456,15 @@ do $$ declare n int; s text; begin perform pg_temp.su();
   perform pg_temp.res('RC4-20 denied: a role outside can_create() can''t insert a quote', s like '42501%', s);
   perform pg_temp.su(); update public.profiles set role = 'sales' where email = 'a_staff@a.test';
   perform pg_temp.login('a_staff@a.test');
+  -- 0049: direct INSERT is closed for every API role; quotes are created through create_quote
   s := pg_temp.try($q$insert into public.quotes(code, title, status, client, pricing, current_version, approval_status) values ('A-0433', 'x', 'quote', '{}', '{"subtotal":0,"discount":0,"gstPct":18,"total":0}', 1, 'none')$q$);
-  perform pg_temp.res('RC4-21 allowed: sales (can_create) inserts a quote', s = '', s);
+  perform pg_temp.res('RC4-21a denied (0049): even sales can''t insert a quote directly', s like '42501%', s);
+  perform pg_temp.su();   -- create_quote also needs quotes edit in the matrix (the app path)
+  insert into public.role_access(role, area, can_view, can_edit, org_id) values ('sales', 'quotes', true, true, 'a0000000-0000-4000-8000-000000000001')
+    on conflict (org_id, role, area) do update set can_view = true, can_edit = true;
+  perform pg_temp.login('a_staff@a.test');
+  s := pg_temp.try($q$select public.create_quote('A-0433', 'x', 'wedding', '{}'::jsonb, 0, null)$q$);
+  perform pg_temp.res('RC4-21 allowed: sales (can_create) creates a quote via create_quote', s = '', s);
 end $$;
 
 -- =====================================================================================
