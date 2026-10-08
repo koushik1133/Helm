@@ -282,7 +282,7 @@ await t('pages: CSP-clean markup, panels + settings card + scripts wired', () =>
   assert.match(read('public/event.html'), /id="pkg-selections" class="card" data-pkg-review data-quote-from-url/);
   assert.match(read('public/client.html'), /id="pkg-selections" class="card" data-pkg-review data-wait-quote/);
   assert.match(read('public/control.html'), /id="pkgFlowCard" data-pkg-settings hidden/);
-  for (const f of ['public/event.html', 'public/client.html', 'public/control.html']) assert.match(read(f), /pkg-review\.js\?v=3/, f);
+  for (const f of ['public/event.html', 'public/client.html', 'public/control.html']) assert.match(read(f), /pkg-review\.js\?v=4/, f);
   for (const f of ['public/booklet-pkg.js', 'public/pkg-review.js', 'public/booklet.js'])
     assert.doesNotMatch(read(f), /\.innerHTML|\.outerHTML|insertAdjacentHTML|document\.write/, f);
   assert.match(read('public/booklet-pkg.css'), /@media print\{[^}]*\.pk-ctl/);
