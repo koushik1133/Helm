@@ -6279,6 +6279,13 @@
       account: () => (supa ? rpc("my_studio_account").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       updateAccount: (patch) => rpc("my_studio_account_update", { p_account: patch || {} }),
     },
+    // 0059 — dashboard "Getting started" checklist. Flags are computed server-side for the
+    // caller's own studio (no personal data); dismissal is stored per member. Before 0059
+    // (or local mode) → null, and the dashboard simply shows no checklist.
+    gettingStarted: {
+      get: () => (supa ? rpc("my_getting_started").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      dismiss: (on) => rpc("my_getting_started_dismiss", { p_dismissed: on !== false }),
+    },
     myTasks: () => (supa ? rpc("my_tasks") : Promise.resolve({ today: [], overdue: [], blocked: [], upcoming: [], completed: [], counts: {} })),
     // Build 1 — Designer 2D->3D design-approval state machine.
     design: {

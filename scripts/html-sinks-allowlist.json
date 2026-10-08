@@ -2,6 +2,10 @@
  "_doc": "Reviewed exceptions for scripts/check-html-sinks.mjs. safeHelpers: functions read and confirmed to return escaped/fixed markup. sites: a specific interpolated value at a sink (file :: expression) with the reason it cannot carry attacker HTML.",
  "safeHelpers": [
   {
+   "name": "gsMarkup",
+   "why": "getting-started.js (0059): every step title/why/icon/href is a fixed constant from STEPS and is still esc()'d; counts go through Number(); ring values are numeric"
+  },
+  {
    "name": "inr",
    "why": "number → '₹'+Number(n).toLocaleString(); digits/commas only"
   },
