@@ -297,7 +297,7 @@
       <div class="actions"><button type="button" class="btn primary" id="lx_save">Save link expiry</button></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="pricingCard">
       <h3>Default pricing (applies to every new quote)</h3>
       <div id="pricingErr"></div>
       <div class="grid">
@@ -385,7 +385,7 @@
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="menuCard">
       <h3>Menu packages (Standard / Gold / Premium)</h3>
       <p class="mnote s-020d693">The 6 fixed menu packages. Set each one's per-plate price and edit its dish list (one dish per line as <code>Category | Dish name | veg|nonveg|special</code>). Staff pick a package on the event's Menu screen to pre-fill the dishes in one click.</p>
       <div id="menuTplList"><div class="row s-1a1aca0"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
@@ -578,7 +578,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=97"></script>
 <script src="phone-input.js?v=1"></script>
-<script src="store-api.js?v=124"></script>
+<script src="store-api.js?v=125"></script>
 <script src="hq-invoice.js?v=1"></script>
 <script src="tour.js?v=7"></script>
 <script>
@@ -615,6 +615,20 @@
       if(location.hash==="#users") switchTab("users");
       if(location.hash==="#notifications") switchTab("notify");
     }
+    focusHashCard();
+  }
+
+  // Deep links from the dashboard "Getting started" checklist: #account → Studio account
+  // card (revealed by auth-ui for admins, so wait for it), #pricing → Default pricing.
+  function focusHashCard(){
+    const id = ({"#account":"accCard","#pricing":"pricingCard","#menu":"menuCard"})[location.hash];
+    if(!id) return;
+    let tries=0;
+    (function go(){
+      const el=document.getElementById(id);
+      if(el && !el.hidden){ try{ el.scrollIntoView({block:"start",behavior:"smooth"}); }catch{} return; }
+      if(tries++ < 20) setTimeout(go, 250);
+    })();
   }
 
   /* ---------------- tab switching ---------------- */
