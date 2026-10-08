@@ -1941,7 +1941,13 @@
       rpc("verify_and_consent", { p_token: token, p_phone: phone, p_code: code, p_agreed: agreed,
         p_terms_version: termsVersion, p_consent_text: consentText, p_client_name: clientName, p_user_agent: ua }),
     // simulation → RPC (mock link); live → Razorpay via Edge Function (real payment link)
-    createPayment: (token) => LIVE.pay ? callFn("create-payment-link", { token }) : rpc("create_payment", { p_token: token }),
+    // Online pay is offered only when it is real (pay live) or off production: the
+    // simulated checkout (/sim-pay) is 404 on prod hosts, so prod never links there.
+    onlinePayAvailable: () => !!LIVE.pay || (typeof window === "undefined" || window.HELM_IS_PROD_HOST !== true),
+    createPayment: (token) => LIVE.pay ? callFn("create-payment-link", { token })
+      : (typeof window !== "undefined" && window.HELM_IS_PROD_HOST === true)
+        ? Promise.reject(new Error("Online payment isn't available — your planner will share payment details."))
+        : rpc("create_payment", { p_token: token }),
     // ---- manager (authenticated) ----
     generateToken: (quoteId) => rpc("generate_approval_token", { p_quote_id: quoteId }),
     markPaid: (quoteId, ref) => rpc("mark_paid", { p_quote_id: quoteId, p_provider_ref: ref || null }),

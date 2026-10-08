@@ -109,6 +109,7 @@
           <p class="muted" id="approvedNote"></p>
         </div>
         <button class="btn primary" id="payBtn" type="button" style="margin-top:12px">Proceed to payment</button>
+        <p class="muted" id="payManual" hidden style="text-align:center;margin-top:12px">Your planner will share payment details.</p>
       </div>
 
       <div id="step4" hidden>
@@ -275,6 +276,8 @@
     finally{ b.textContent="✓ Confirm & approve"; }
   }));
 
+  // No online pay on a production host until Razorpay is live (sim checkout is 404 there)
+  if(!(BPStore.approval.onlinePayAvailable && BPStore.approval.onlinePayAvailable())){ $("#payBtn").hidden=true; $("#payBtn").style.display="none"; $("#payManual").hidden=false; }
   let payReady=false;
   $("#payBtn").addEventListener("click", ()=>{ if(payReady) return; BPUI.guard($("#payBtn"), async ()=>{
     setMsg(); const b=$("#payBtn"); b.textContent="Preparing…";

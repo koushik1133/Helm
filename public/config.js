@@ -156,7 +156,7 @@ window.SUPABASE_STAGING = {
     }
 
     // 1) EXPLICIT PRODUCTION host → production Supabase (committed config as-is).
-    if (PROD_HOSTS[h]) return;
+    if (PROD_HOSTS[h]) { try { window.HELM_IS_PROD_HOST = true; } catch (e) {} return; }
 
     // 2) EXPLICIT STAGING host (allow-listed) → staging Supabase, or fail closed.
     //    Never falls back to production, and ignores the localhost prod opt-in.
