@@ -429,8 +429,15 @@
     ACTION_BTNS.forEach(sel=>{ const b=$(sel); if(b.getAttribute("aria-busy")==="true") return;
       b.disabled=siteLoadFailed; if(siteLoadFailed) b.setAttribute("aria-disabled","true"); else b.removeAttribute("aria-disabled"); });
   }
+  // input checks shared by Save and Publish: the map link must be https, and "reply by" can't be after the event
+  function inputProblem(g){
+    if(g.mapUrl && !/^https:\/\/[^\s]+$/i.test(g.mapUrl)) return "Map link must start with https:// (or leave it blank).";
+    if(g.rsvpBy && g.date && g.rsvpBy>g.date) return "\u201cReply by\u201d can't be after the event date.";
+    return "";
+  }
   function doSave(){
     if(blockedBySiteLoad()) return;
+    { const bad=inputProblem(gather()); if(bad){ setMsg(bad,"err"); return; } }
     return runAction($("#saveBtn"), async()=>{ setMsg("");
       try{ await ensureSite(); const g=gather(); await netRetry(()=>BPStore.sites.save(site.id,g));
         site=Object.assign({},site,g); paintState(); setMsg("Saved.","ok"); if(dirty) dirty.clean();
@@ -439,6 +446,7 @@
   }
   async function doPublish(publish){
     if(blockedBySiteLoad()) return;
+    if(publish){ const bad=inputProblem(gather()); if(bad){ setMsg(bad,"err"); return; } }
     if(!publish && !(await BPUI.confirm("Guests with the link will no longer be able to open the invitation.",{title:"Unpublish this invitation?",okLabel:"Unpublish",danger:true}))) return;
     return runAction($(publish?"#pubBtn":"#unpubBtn"), async()=>{ setMsg("");
       try{ await ensureSite(); await netRetry(()=>BPStore.sites.save(site.id,gather()));

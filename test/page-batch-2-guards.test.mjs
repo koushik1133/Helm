@@ -32,6 +32,14 @@ t('control: studio GSTIN is format-checked and pricing needs both rates', () => 
   assert.match(h, re);
   assert.match(read('public/store-api.js'), re);
 });
+t('invite-studio: map link must be https and reply-by cannot be after the event (save + publish)', () => {
+  const h = read('public/invite-studio.html');
+  assert.match(h, /function inputProblem\(g\)/);
+  assert.match(h, /Map link must start with https/);
+  assert.match(h, /can't be after the event date/);
+  assert.match(h, /if\(publish\)\{ const bad=inputProblem\(gather\(\)\)/);
+  assert.match(h, /const bad=inputProblem\(gather\(\)\); if\(bad\)\{ setMsg\(bad,\"err\"\); return; \}/);
+});
 t('GSTIN pattern accepts a real-shaped value and rejects junk', () => {
   const re = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
   assert.ok(re.test('36ABCDE1234F1Z5'));
