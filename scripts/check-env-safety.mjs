@@ -72,19 +72,17 @@ console.log('Env-safety: production hosts never receive the staging project:');
   if (stgRef) {
     const hdr = readFileSync(join(ROOT, 'public', '_headers'), 'utf8');
     hdr.includes(stgRef) ? fail('public/_headers (served on prod) names the staging project') : ok('public/_headers is prod-only');
-    const vercel = JSON.parse(readFileSync(join(ROOT, 'vercel.json'), 'utf8'));
+    const vRaw = readFileSync(join(ROOT, 'vercel.json'), 'utf8');
+    const vercel = JSON.parse(vRaw);
+    // Base CSP is staging-free (no per-host duplicates; Vercel previews can't reach staging by design).
+    vRaw.includes(stgRef) ? fail('vercel.json names the staging project') : ok('vercel.json CSP is staging-free');
+    (vercel.headers || []).some((r) => (r.has || []).some((c) => c.type === 'host') &&
+      (r.headers || []).some((h) => h.key.toLowerCase() === 'content-security-policy'))
+      ? fail('vercel.json has host-conditioned CSP rules (per-host CSP duplicates must not return)') : ok('vercel.json has no per-host CSP duplicates');
     for (const host of ['www.helm.events', 'helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app']) {
       const blocked = (vercel.redirects || []).some((r) => r.destination === '/404' && /config\\?\.staging\\?\.js/.test(r.source) &&
         (r.has || []).some((c) => c.type === 'host' && c.value === host));
       blocked ? ok(host + ': /config.staging.js → 404') : fail(host + ': /config.staging.js is not blocked in vercel.json');
-      const leaks = (vercel.headers || []).filter((r) => (r.has || []).some((c) => c.type === 'host' && c.value === host) &&
-        r.headers.some((h) => h.key.toLowerCase() === 'content-security-policy' && h.value.includes(stgRef)));
-      const bases = (vercel.headers || []).filter((r) => !r.has && r.headers.some((h) => h.key.toLowerCase() === 'content-security-policy'));
-      const overrides = (vercel.headers || []).filter((r) => (r.has || []).some((c) => c.type === 'host' && c.value === host) &&
-        r.headers.some((h) => h.key.toLowerCase() === 'content-security-policy'));
-      !leaks.length && overrides.length === bases.length
-        ? ok(host + ': prod-only CSP override for every CSP rule (' + overrides.length + ')')
-        : fail(host + ': CSP overrides missing/leaky — run node scripts/gen-csp.mjs');
     }
   }
 }

@@ -11,12 +11,14 @@
  * Also fails when a page carries an inline event-handler attribute (on*=) or a
  * javascript: URL, which a hash-based CSP blocks.
  *
- * Env split: the base vercel.json CSP rules allow BOTH Supabase projects (prod +
- * staging) because Vercel branch previews resolve to staging. This script also
- * (re)generates, at the END of vercel.json "headers", one host-conditioned copy
- * of every CSP rule per PRODUCTION host with every staging origin stripped, so
- * production hosts only ever allow the production project. public/_headers
- * (non-Vercel static hosting = production-like) carries the prod-only CSP.
+ * Env split: every vercel.json and public/_headers CSP is STAGING-FREE (staging
+ * Supabase origins are stripped), so production never allows staging. Only
+ * server.js (localhost dev) adds staging to its CSP. Trade-off: Vercel preview
+ * deployments cannot reach the staging Supabase (CSP blocks it) — use localhost
+ * for staging work (see docs/STAGING-SETUP.md). We deliberately do NOT emit
+ * per-host duplicate CSP rules: that grew vercel.json to 700 KB and Vercel
+ * rejected it ("Invalid vercel.json file provided"). Guard: vercel.json must
+ * stay < 200 KB and < 200 header+redirect rules, with only documented keys.
  * ========================================================================== */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
@@ -70,25 +72,28 @@ vercel.headers = (vercel.headers || []).filter((r) => !r.__prodCsp && !isProdCsp
 for (const rule of vercel.headers || []) {
   for (const h of rule.headers || []) {
     if (h.key.toLowerCase() === 'content-security-policy') {
-      h.value = withHashes(h.value, hashes, styleHashes); cspCount++;
+      h.value = stripStaging(withHashes(h.value, hashes, styleHashes)); cspCount++;
       const bad = scriptSrcProblem(h.value, rule.source);
       if (bad) { console.error(`  ✗ vercel.json ${rule.source}: ${bad} — host sources live in scripts/csp-hashes.cjs`); problems++; }
     }
   }
 }
 if (!cspCount) { console.error('  ✗ vercel.json has no Content-Security-Policy header'); problems++; }
-{ // per-prod-host CSP overrides (staging origins stripped). Later rules win in Vercel.
-  const base = vercel.headers.filter((r) => !r.has && !r.missing &&
-    (r.headers || []).some((h) => h.key.toLowerCase() === 'content-security-policy'));
-  for (const host of PROD_HOSTS) {
-    for (const r of base) {
-      const csp = r.headers.find((h) => h.key.toLowerCase() === 'content-security-policy');
-      vercel.headers.push({ source: r.source, has: [{ type: 'host', value: host }],
-        headers: [{ key: 'Content-Security-Policy', value: stripStaging(csp.value) }] });
-    }
-  }
-}
 const vNext = JSON.stringify(vercel, null, 2) + '\n';
+{ // Vercel config limits + documented schema keys
+  const MAX_BYTES = 200 * 1024, MAX_RULES = 200;
+  const bytes = Buffer.byteLength(vNext);
+  const rules = (vercel.headers || []).length + (vercel.redirects || []).length;
+  if (bytes >= MAX_BYTES) { console.error(`  ✗ vercel.json is ${bytes} bytes (limit ${MAX_BYTES})`); problems++; }
+  if (rules >= MAX_RULES) { console.error(`  ✗ vercel.json has ${rules} header+redirect rules (limit ${MAX_RULES})`); problems++; }
+  const allowed = { headers: ['source', 'has', 'missing', 'headers'], redirects: ['source', 'destination', 'permanent', 'statusCode', 'has', 'missing'] };
+  for (const [k, keys] of Object.entries(allowed)) {
+    (vercel[k] || []).forEach((r, i) => Object.keys(r).forEach((key) => {
+      if (!keys.includes(key)) { console.error(`  ✗ vercel.json ${k}[${i}] has undocumented key "${key}"`); problems++; }
+    }));
+  }
+  if (STAGING_REF && vNext.includes(STAGING_REF)) { console.error('  ✗ vercel.json names the staging Supabase project'); problems++; }
+}
 
 // 3) public/_headers (Netlify / Cloudflare Pages format)
 const hPath = join(PUBLIC, '_headers');
