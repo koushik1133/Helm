@@ -42,7 +42,7 @@ t('markup: clear labels, testing bypass obvious, no inline handlers / style=', (
   for (const id of ['coLive', 'coBypass', 'coTermsV', 'btnCheckout', 'tPlanCo', 'pcDesc', 'pcFeat', 'pcRzpM', 'pcRzpY', 'btnPlanCo'])
     assert.match(HTML, new RegExp('id="' + id + '"'), id);
   assert.doesNotMatch(HTML, /\sstyle="/); assert.doesNotMatch(HTML, /\son[a-z]+="/i);
-  assert.match(HTML, /hq\.js\?v=8/);
+  assert.match(HTML, /hq\.js\?v=9/);
 });
 t('rendering: textContent / createElement only; writes go through the gated RPCs', () => {
   assert.doesNotMatch(JS, /innerHTML|outerHTML|insertAdjacentHTML|document\.write/);
