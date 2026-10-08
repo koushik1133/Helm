@@ -244,7 +244,7 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=97"></script>
-<script src="store-api.js?v=133"></script>
+<script src="store-api.js?v=134"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -596,10 +596,11 @@
     const rvV=BPStore.validate.count($("#rv_qty").value,{allowZero:false,field:"Quantity"}); if(!rvV.ok){ BPUI.toast(rvV.error,{type:"err"}); $("#rv_qty").focus(); return; } const qty=rvV.value;
     // over-commit guard: warn if this reservation exceeds what's free
     const a=avail[itemId]||{}; const free=Number(a.available!=null?a.available:(a.total_qty||0));
+    let overOk=false;   // user explicitly accepted an over-commit → the store must not hard-block it
     if(qty>free){ const it=items.find(x=>x.id===itemId)||{};
-      if(!(await BPUI.confirm(`Only ${free} ${it.unit||""} of ${it.name||"this item"} free — reserving ${qty} will over-commit by ${qty-free}. It'll show as a calendar conflict. Reserve anyway?`,{title:"Over-commit stock?",okLabel:"Reserve anyway",danger:true}))) return; }
+      if(!(await BPUI.confirm(`Only ${free} ${it.unit||""} of ${it.name||"this item"} free — reserving ${qty} will over-commit by ${qty-free}. It'll show as a calendar conflict. Reserve anyway?`,{title:"Over-commit stock?",okLabel:"Reserve anyway",danger:true}))) return; overOk=true; }
     await BPUI.guard($("#rv_add"),async()=>{
-      try{ await BPStore.inventory.reserve(itemId, quoteId, qty, $("#rv_note").value.trim()||null); $("#rv_qty").value=1; $("#rv_note").value=""; BPUI.toast("Reserved.",{type:"ok"}); await load(); }
+      try{ await BPStore.inventory.reserve(itemId, quoteId, qty, $("#rv_note").value.trim()||null, {allowOver:overOk}); $("#rv_qty").value=1; $("#rv_note").value=""; BPUI.toast("Reserved.",{type:"ok"}); await load(); }
       catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"reserve the item"}),{type:"err"}); }
     });
   });
