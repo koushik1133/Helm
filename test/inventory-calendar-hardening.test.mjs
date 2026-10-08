@@ -154,7 +154,14 @@ t('source: local-date floor, prefilled past date kept, max logout global, Broadc
   assert.match(SRC, /supa\.rpc\("reserve_inventory"/);
   assert.match(SRC, /PGRST202/);
   assert.match(SRC, /_reserveRpc = false/);
+});t('a confirmed "Reserve anyway" over-commit is not hard-blocked (page passes allowOver, store skips RPC + precheck)', () => {
+  assert.match(SRC, /allowOver = !!\(opts && opts\.allowOver\)/);
+  assert.match(SRC, /_reserveRpc !== false && !allowOver/);
+  const page = read('public/inventory.html');
+  assert.match(page, /overOk=true/);
+  assert.match(page, /\{allowOver:overOk\}/);
 });
+
 
 
 let pass = 0, fail = 0;
