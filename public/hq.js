@@ -355,6 +355,24 @@
     });
     if (!tb.firstChild) tb.appendChild(el("tr", null, [el("td", { colspan: "4", cls: "empty", text: "No HQ activity in this range." })]));
   }
+  // 0054: cross-studio security feed (operators only; names, no e-mails)
+  async function loadSecurity() {
+    var r = await call("hq_security_alerts", { p_from: $("#aFrom").value || null, p_to: $("#aTo").value || null }); r = r && !Array.isArray(r) ? r : {};
+    $("#secTotal").textContent = int(r.total) + " event" + (num(r.total) === 1 ? "" : "s");
+    var tb = clear($("#tSec"));
+    (r.by_studio || []).forEach(function (x) {
+      tb.appendChild(el("tr", null, [el("td", { text: "🛡️ " + (x.label || x.type || "") }), el("td", { text: x.studio || "—" }),
+        el("td", { cls: "n", text: int(x.count) }), el("td", { text: x.latest ? new Date(x.latest).toLocaleString("en-IN") : "—" })]));
+    });
+    if (!tb.firstChild) tb.appendChild(el("tr", null, [el("td", { colspan: "4", cls: "empty", text: "No security events in this range." })]));
+    var tl = clear($("#tSecLatest"));
+    (r.latest || []).slice(0, 100).forEach(function (x) {
+      var who = [x.actor_name ? "by " + x.actor_name : "", x.subject_name || ""].filter(Boolean).join(" · ");
+      tl.appendChild(el("tr", null, [el("td", { text: x.at ? new Date(x.at).toLocaleString("en-IN") : "—" }), el("td", { text: x.label || x.type || "" }),
+        el("td", { text: x.studio || "—" }), el("td", { text: who || "—" })]));
+    });
+    if (!tl.firstChild) tl.appendChild(el("tr", null, [el("td", { colspan: "4", cls: "empty", text: "Nothing yet." })]));
+  }
   async function loadOperators() {
     var r = await call("hq_operators"); r = Array.isArray(r) ? r : [];
     var ul = clear($("#operators"));
@@ -419,7 +437,7 @@
 
     TABS.forEach(function (t) { on("#tab-" + t, "click", function () {
       showTab(t);
-      if (t === "activity") { loadAudit().catch(showErr); loadOperators().catch(showErr); }
+      if (t === "activity") { loadAudit().catch(showErr); loadSecurity().catch(showErr); loadOperators().catch(showErr); }
       if (t === "billing") loadSettings().catch(showErr);
     }); });
     on("#btnRefresh", "click", function () { loadAll().catch(showErr); });
@@ -430,7 +448,7 @@
     on("#btnSettings", "click", saveSettings);
     on("#btnPlan", "click", savePlan);
     on("#btnTax", "click", saveTaxRule);
-    on("#btnAudit", "click", function () { loadAudit().catch(showErr); });
+    on("#btnAudit", "click", function () { loadAudit().catch(showErr); loadSecurity().catch(showErr); });
     on("#aWrites", "change", function () { loadAudit().catch(showErr); });
     on("#btnOp", "click", addOperator);
     on("#btnRefreshBilling", "click", function () { call("hq_refresh_billing_status").then(function (r) { okMsg("Billing status refreshed: " + int(r && r.past_due_set) + " now past due, " + int(r && r.reminders_queued) + " reminders queued."); refreshAfterWrite(null); }).catch(showErr); });

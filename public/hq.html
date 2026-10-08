@@ -246,6 +246,13 @@
         <button class="btn" id="btnAudit" type="button">Show</button></div>
       <div class="scroll"><table><thead><tr><th>When</th><th>Operator</th><th>Action</th><th>What</th></tr></thead><tbody id="tAudit"></tbody></table></div>
     </section>
+    <section class="card" style="margin-bottom:14px" aria-labelledby="hSec">
+      <div class="hd"><h2 id="hSec">Security</h2><span class="muted" id="secTotal"></span></div>
+      <p class="muted">Security events across all studios for the dates above: admin overrides, sign-in lockouts, rejected uploads, suspensions, role changes, removed members and HQ operator changes.</p>
+      <div class="scroll"><table><thead><tr><th>Alert</th><th>Studio</th><th class="n">Count</th><th>Latest</th></tr></thead><tbody id="tSec"></tbody></table></div>
+      <h3 style="margin-top:12px">Latest</h3>
+      <div class="scroll"><table><thead><tr><th>When</th><th>Alert</th><th>Studio</th><th>Who</th></tr></thead><tbody id="tSecLatest"></tbody></table></div>
+    </section>
     <section class="card">
       <h2>HQ operators</h2>
       <ul class="list" id="operators"></ul>
@@ -259,8 +266,8 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=96"></script>
-<script src="store-api.js?v=118"></script>
+<script src="store-api.js?v=119"></script>
 <script src="hq-invoice.js?v=1"></script>
-<script src="hq.js?v=6"></script>
+<script src="hq.js?v=7"></script>
 </body>
 </html>
