@@ -77,8 +77,26 @@
       ".hau-input{width:100%;box-sizing:border-box;min-height:40px;padding:8px 10px;border:1px solid var(--bpui-line,#c9c3d3);border-radius:8px;font:inherit;font-size:18px;letter-spacing:.2em}",
       ".hau-list{margin:4px 0 0;padding:0;list-style:none;font-size:13px}",
       ".hau-list li{padding:3px 0;color:var(--bpui-ink-2,#4a5673)}",
-      ".hau-banner{position:relative;z-index:50;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 16px;background:var(--bpui-warn-bg,#fff4d6);color:var(--bpui-warn-ink,#5c3d00);border-bottom:1px solid var(--bpui-warn-line,#e8c26a);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}",
-      ".hau-banner b{font-weight:700}.hau-banner .hau-sp{flex:1}",
+      /* notice cards (MFA nudge, profile nudge, read-only) — one stack above the theme toggle, max 2 visible (1 on phones), priority-ordered */
+      ".hau-notes{position:fixed;right:20px;bottom:80px;z-index:900;display:flex;flex-direction:column;gap:10px;width:min(400px,calc(100vw - 32px));pointer-events:none;font-family:inherit}",
+      ".hau-note{pointer-events:auto;display:grid;grid-template-columns:36px 1fr auto;gap:12px;align-items:start;padding:14px 12px 14px 14px;background:var(--panel,#fff);color:var(--ink,#141b2e);border:1px solid var(--line,#e5e0ea);border-radius:14px;box-shadow:0 1px 2px rgba(20,27,46,.06),0 12px 32px rgba(20,27,46,.14);font-size:14px;line-height:1.45;animation:hauIn .22s ease-out}",
+      "html[data-theme=dark] .hau-note{box-shadow:0 1px 2px rgba(0,0,0,.5),0 16px 40px rgba(0,0,0,.6)}",
+      ".hau-note[hidden]{display:none}",
+      ".hau-note-ic{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--accent-soft,#f1ebfd);color:var(--accent,#6d28d9)}",
+      ".hau-note.warn .hau-note-ic{background:rgba(232,145,45,.14);color:var(--warn-text,#8f5f00)}",
+      ".hau-note-ic svg{width:18px;height:18px}.hau-note-x svg{width:16px;height:16px}",
+      ".hau-note-t{margin:0;font-weight:650;font-size:14px;color:var(--ink,#141b2e)}",
+      ".hau-note-b{margin:2px 0 0;color:var(--ink-2,#4a5673);font-size:13px}",
+      ".hau-note-a{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}",
+      ".hau-note .hau-btn{min-height:32px;padding:0 12px;font-size:13px;border-radius:8px}",
+      ".hau-note .hau-btn.ghost{background:transparent;border-color:transparent;color:var(--ink-2,#4a5673)}",
+      ".hau-note .hau-btn.ghost:hover{background:var(--accent-soft,#f4f2fb)}",
+      ".hau-note-x{width:28px;height:28px;min-height:0;min-width:0;border:0;background:transparent;color:var(--ink-3,#7a7590);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}",
+      ".hau-note-x:hover{background:var(--accent-soft,#f4f2fb);color:var(--ink,#141b2e)}",
+      ".hau-note button:focus-visible{outline:2px solid var(--accent,#6d28d9);outline-offset:2px}",
+      "@keyframes hauIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}",
+      "@media (prefers-reduced-motion:reduce){.hau-note{animation:none}}",
+      "@media (max-width:600px){.hau-notes{left:16px;right:16px;bottom:72px;width:auto}}",
       /* profile form (Account panel + /profile-setup) — page tokens first, BPUI tokens as fallback */
       ".hpf{--hpf-ink:var(--ink,var(--bpui-ink,#141b2e));--hpf-ink2:var(--ink-3,var(--bpui-ink-2,#4a5673));--hpf-line:var(--line-strong,var(--bpui-line,#86808f));--hpf-bg:var(--panel-2,var(--bpui-bg,#fff));--hpf-acc:var(--accent,var(--bpui-accent,#6d28d9));--hpf-soft:var(--accent-soft,var(--bpui-soft,#f4f2fb));--hpf-bad:var(--bpui-danger,#b91c1c);color:var(--hpf-ink);font-size:15px}",
       "html[data-theme=dark] .hpf{--hpf-bad:#f87171}",
@@ -634,9 +652,73 @@
     return sec;
   }
 
+  /* ------------------------------- notice cards: one stack for every nudge */
+  var NOTE_ICONS = {
+    shield: [["path", { d: "M12 3l7 3v5c0 4.5-3 8.3-7 9.5-4-1.2-7-5-7-9.5V6l7-3z" }], ["path", { d: "M9.5 12l1.8 1.8L15 10" }]],
+    user: [["circle", { cx: "12", cy: "8", r: "3.5" }], ["path", { d: "M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" }]],
+    lock: [["rect", { x: "5", y: "11", width: "14", height: "9", rx: "2" }], ["path", { d: "M8 11V8a4 4 0 018 0v3" }]],
+    x: [["path", { d: "M6 6l12 12M18 6L6 18" }]]
+  };
+  var notes = []; var noteHost = null; var NOTE_MAX = 2;
+  function svgIcon(name) {
+    var ns = "http://www.w3.org/2000/svg", s = doc.createElementNS(ns, "svg");
+    s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor");
+    s.setAttribute("stroke-width", "1.8"); s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round"); s.setAttribute("aria-hidden", "true");
+    (NOTE_ICONS[name] || []).forEach(function (spec) {
+      var c = doc.createElementNS(ns, spec[0]); Object.keys(spec[1]).forEach(function (k) { c.setAttribute(k, spec[1][k]); }); s.appendChild(c);
+    });
+    return s;
+  }
+  function layoutNotes() {
+    notes.sort(function (a, b) { return a.priority - b.priority; });
+    var max = NOTE_MAX; try { if (global.matchMedia && global.matchMedia("(max-width:600px)").matches) max = 1; } catch (e) {}
+    notes.forEach(function (n, i) { n.node.hidden = i >= max; if (noteHost) noteHost.appendChild(n.node); });
+  }
+  // showNote({id, priority (lower = more important), icon, tone, title, body, primary:{label,onClick}, secondary:{label,onClick}, onDismiss, dismissLabel})
+  function showNote(o) {
+    if (!doc.body || notes.some(function (n) { return n.id === o.id; })) return null;
+    css();
+    if (!noteHost || !noteHost.isConnected) { noteHost = el("div", { class: "hau-notes", "aria-label": "Notices" }); doc.body.appendChild(noteHost); }
+    var card = el("div", { class: "hau-note" + (o.tone ? " " + o.tone : ""), id: o.id, role: o.role || "status", "aria-labelledby": o.id + "T" });
+    var ic = el("div", { class: "hau-note-ic" }); ic.appendChild(svgIcon(o.icon)); card.appendChild(ic);
+    var mid = el("div", null);
+    mid.appendChild(el("p", { class: "hau-note-t", id: o.id + "T" }, o.title));
+    if (o.body) mid.appendChild(el("p", { class: "hau-note-b" }, o.body));
+    if (o.primary || o.secondary) {
+      var acts = el("div", { class: "hau-note-a" });
+      if (o.primary) { var p = el("button", { type: "button", class: "hau-btn primary" }, o.primary.label); p.addEventListener("click", o.primary.onClick); acts.appendChild(p); }
+      if (o.secondary) { var q = el("button", { type: "button", class: "hau-btn ghost" }, o.secondary.label); q.addEventListener("click", function () { o.secondary.onClick(); hideNote(o.id); }); acts.appendChild(q); }
+      mid.appendChild(acts);
+    }
+    card.appendChild(mid);
+    if (o.onDismiss) {
+      var x = el("button", { type: "button", class: "hau-note-x", "aria-label": o.dismissLabel || "Dismiss" });
+      x.appendChild(svgIcon("x"));
+      x.addEventListener("click", function () { o.onDismiss(); hideNote(o.id); });
+      card.appendChild(x);
+    }
+    card.addEventListener("keydown", function (e) { if (e.key === "Escape" && o.onDismiss) { o.onDismiss(); hideNote(o.id); } });
+    notes.push({ id: o.id, priority: o.priority || 9, node: card });
+    layoutNotes();
+    return card;
+  }
+  function hideNote(id) {
+    notes = notes.filter(function (n) { if (n.id === id) { try { n.node.remove(); } catch (e) {} return false; } return true; });
+    layoutNotes();
+  }
+  // per-user snooze for notices without a store-level snooze (localStorage, try/catch)
+  function noteSnoozed(key) {
+    var st = S(), u = st && st.auth.user(); if (!u) return false;
+    try { var o = JSON.parse(localStorage.getItem("helm_note_" + key) || "null"); return !!(o && o.uid === u.id && Number(o.until) > Date.now()); } catch (e) { return false; }
+  }
+  function snoozeNote(key, days) {
+    var st = S(), u = st && st.auth.user(); if (!u) return;
+    try { localStorage.setItem("helm_note_" + key, JSON.stringify({ uid: u.id, until: Date.now() + days * 86400000 })); } catch (e) {}
+  }
+
   /* ------------------------------- "Complete your profile" banner (0041) */
   var pBanner = null;
-  function hideProfileBanner() { if (pBanner) { try { pBanner.remove(); } catch (e) {} pBanner = null; } }
+  function hideProfileBanner() { if (pBanner) { hideNote("hauProfileNudge"); pBanner = null; } }
   function pageName() {
     try { return (location.pathname.split("/").pop() || "index").toLowerCase().replace(/\.html$/, "") || "index"; } catch (e) { return ""; }
   }
@@ -647,16 +729,11 @@
       if (st.profile.gateDecision(s, page, st.auth.cachedRole ? st.auth.cachedRole() : null) !== "nudge") return;
       if (st.profile.nudgeSnoozed() || pBanner || !doc.body) return;
       css();
-      pBanner = el("div", { class: "hau-banner", role: "region", "aria-label": "Complete your profile", id: "hauProfileNudge" });
-      pBanner.appendChild(el("span", { "aria-hidden": "true" }, "👤"));
-      var t = el("span", null); t.appendChild(el("b", null, "Please complete your profile")); t.appendChild(doc.createTextNode(" — add your mobile number so your team can reach you and assign you work."));
-      pBanner.appendChild(t); pBanner.appendChild(el("span", { class: "hau-sp" }));
-      var go = el("button", { type: "button", class: "hau-btn primary" }, "Complete now");
-      var later = el("button", { type: "button", class: "hau-btn", "aria-label": "Remind me in 7 days" }, "Later");
-      go.addEventListener("click", function () { openAccount({ focus: "profile" }); });
-      later.addEventListener("click", function () { st.profile.snoozeNudge(7); hideProfileBanner(); });
-      pBanner.appendChild(go); pBanner.appendChild(later);
-      doc.body.insertBefore(pBanner, doc.body.firstChild);
+      pBanner = showNote({ id: "hauProfileNudge", priority: 3, icon: "user", title: "Complete your profile",
+        body: "Add your mobile number so your team can reach you and assign you work.",
+        primary: { label: "Complete now", onClick: function () { openAccount({ focus: "profile" }); } },
+        secondary: { label: "Later", onClick: function () { st.profile.snoozeNudge(7); pBanner = null; } },
+        onDismiss: function () { st.profile.snoozeNudge(7); pBanner = null; }, dismissLabel: "Dismiss — remind me in 7 days" });
     }).catch(function () {});
   }
 
@@ -690,7 +767,7 @@
 
   /* ------------------------------------------ admin two-step banner/gate */
   var banner = null;
-  function hideBanner() { if (banner) { try { banner.remove(); } catch (e) {} banner = null; } }
+  function hideBanner() { if (banner) { hideNote("hauMfaNudge"); banner = null; } }
   function adminTwoStep() {
     var st = S(); if (!st || !st.auth.user()) return;
     Promise.resolve(st.auth.role()).then(function (role) {
@@ -698,19 +775,13 @@
       return st.auth.mfa.verifiedTotp().then(function (fs) {
         if (fs.length) return;
         if (st.auth.mfa.requiredForAdmins()) return forceEnroll();
-        var dismissed = false; try { dismissed = sessionStorage.getItem("hau_banner_later") === "1"; } catch (e) {}
+        var dismissed = noteSnoozed("mfa");
         if (dismissed || banner) return;
-        css();
-        banner = el("div", { class: "hau-banner", role: "region", "aria-label": "Security recommendation" });
-        banner.appendChild(el("span", null, "🔐"));
-        var t = el("span", null); t.appendChild(el("b", null, "Protect your studio: ")); t.appendChild(doc.createTextNode("admins control every user and setting — turn on two-step verification."));
-        banner.appendChild(t); banner.appendChild(el("span", { class: "hau-sp" }));
-        var set = el("button", { type: "button", class: "hau-btn primary" }, "Set up now");
-        var later = el("button", { type: "button", class: "hau-btn" }, "Later");
-        set.addEventListener("click", openAccount);
-        later.addEventListener("click", function () { try { sessionStorage.setItem("hau_banner_later", "1"); } catch (e) {} hideBanner(); });
-        banner.appendChild(set); banner.appendChild(later);
-        doc.body.insertBefore(banner, doc.body.firstChild);
+        banner = showNote({ id: "hauMfaNudge", priority: 2, icon: "shield", title: "Turn on two-step verification",
+          body: "Admins control every user and setting — protect your studio with a code from your phone.",
+          primary: { label: "Set up now", onClick: function () { openAccount(); } },
+          secondary: { label: "Later", onClick: function () { snoozeNote("mfa", 3); banner = null; } },
+          onDismiss: function () { snoozeNote("mfa", 3); banner = null; }, dismissLabel: "Dismiss — remind me in 3 days" });
       });
     }).catch(function () {});
   }
@@ -813,12 +884,8 @@
     st.subscription.mine().then(function (sub) {
       subscriptionCard(st, sub);
       if (!sub || !sub.read_only || subBanner || !doc.body) return;
-      css();
-      subBanner = el("div", { class: "hau-banner", role: "status", "aria-label": "Subscription suspended", id: "hauReadOnly" });
-      var t = el("span", null); t.appendChild(el("b", null, "Read-only: subscription suspended — contact Helm."));
-      t.appendChild(doc.createTextNode(" You can view and export everything, but nothing can be created, changed or deleted until it is reactivated."));
-      subBanner.appendChild(t);
-      doc.body.insertBefore(subBanner, doc.body.firstChild);
+      subBanner = showNote({ id: "hauReadOnly", priority: 1, icon: "lock", tone: "warn", title: "Read-only: subscription suspended — contact Helm",
+        body: "You can view and export everything, but nothing can be created, changed or deleted until it is reactivated." });
     }).catch(function () {});
   }
 
@@ -845,6 +912,8 @@
     mountCaptcha: mountCaptcha,
     renderEnroll: renderEnroll,
     profileForm: profileForm,
+    showNote: showNote,
+    hideNote: hideNote,
     _safeQr: safeQr,
   };
 })(window);

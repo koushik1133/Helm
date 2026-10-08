@@ -168,6 +168,8 @@ const CSP_BY_PAGE = {
 };
 const SECURITY_HEADERS = {
   'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
+  // Vercel's static CDN defaults to ACAO:* — pinned to the canonical origin (all assets are same-origin).
+  'Access-Control-Allow-Origin': 'https://www.helm.events',
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'X-Frame-Options': 'DENY',
