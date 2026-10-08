@@ -61,10 +61,12 @@ alter table public.event_close_overrides enable row level security;
 revoke all on public.event_close_overrides from public, anon, authenticated;
 grant select on public.event_close_overrides to authenticated;
 grant all on public.event_close_overrides to service_role;
-drop trigger if exists zz_quote_org_match on public.event_close_overrides;          -- G4: row's studio = quote's studio
-create trigger zz_quote_org_match before insert or update on public.event_close_overrides
-  for each row execute function public.tg_quote_org_match();
 do $$ begin
+  if to_regprocedure('public.tg_quote_org_match()') is not null then                  -- G4: row's studio = quote's studio
+    drop trigger if exists zz_quote_org_match on public.event_close_overrides;
+    create trigger zz_quote_org_match before insert or update on public.event_close_overrides
+      for each row execute function public.tg_quote_org_match();
+  end if;
   if to_regprocedure('public.tg_studio_read_only()') is not null then                 -- 0045: suspended studio = read-only
     drop trigger if exists zzz_studio_read_only on public.event_close_overrides;
     create trigger zzz_studio_read_only before insert or update or delete on public.event_close_overrides

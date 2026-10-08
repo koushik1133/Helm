@@ -1,1692 +1,862 @@
 -- ════════════════════════════════════════════════════════════════════════════
--- HELM — EVERYTHING PENDING (one paste) — Supabase SQL Editor           (v14, 2026-10-07)
---   0045 Helm HQ subscriptions + read-only suspend (HQ no longer sees studio business data)
--- 0041–0044 are applied on staging + production; this paste only carries 0045.
--- REQUIRES 0044 on this database (the preflight stops if 0029/0042/0043 are missing).
--- SAFE TO RE-RUN. If anything fails, the whole run rolls back.
--- USE: SQL Editor → paste ALL → Run → every verification row must show ok = true.
+-- HELM — EVERYTHING PENDING (one paste) — Supabase SQL Editor           (v15, 2026-10-07)
+--   0049 DB gates (close balance/equipment gate, quotes write lockdown, clean matrix, timeouts, quotas)
+--   0050 auth limits (server-side MFA lockout, durable edge rate limits)
+--   0051 upload verification + quarantine
+-- REQUIRES 0048 on this database. Each part has its own transaction + preflight.
+-- SAFE TO RE-RUN. If a part fails, that part rolls back.
+-- USE: SQL Editor → paste ALL → Run. The editor shows only the LAST result grid (0051 verify);
+--      to see the 0049/0050 verify rows too, run APPLY-0049/0050/0051 separately.
 -- ════════════════════════════════════════════════════════════════════════════
 
--- ═══════════════════════════════ PART 0045 ═══════════════════════════════
+-- ═══════════════════════════════ PART 0049 ═══════════════════════════════
 -- ════════════════════════════════════════════════════════════════════════════
--- HELM — 0045 Helm HQ subscriptions + read-only suspend (one paste)          (2026-10-07)
---   HQ stops seeing any studio business data (events, clients, revenue, studio payments).
---   + a studio ACCOUNT profile (legal name, GSTIN, state, contacts) that studio admins fill in
---     Control Center and HQ can see; invoices split GST as IGST or CGST+SGST by state.
---   + GLOBAL billing: country-aware tax engine (GST intra/inter, export under LUT, reverse
---     charge, local registrations), multi-currency with INR equivalent, FIRA/FIRC tracking;
---     buyer + tax are snapshotted on each payment so old invoices never change.
---     Tax rates and wording are DEFAULTS — confirm with your CA (Helm gives no tax advice).
---   HQ now sees: studios, their people (name, e-mail, role, active, last sign-in, two-step),
---   and Helm subscription billing (plans, subscriptions, payments with invoice numbers,
---   reminders queue, operator list, HQ activity log).
---   SUSPEND = READ-ONLY, enforced by the database: members (and client / crew links) of a
---   suspended studio can view and export but every create / change / delete is refused.
--- REQUIRES 0029, 0037, 0042, 0043 — the preflight stops if not. STAGING first, then PROD.
--- WHAT IT TOUCHES: 5 new private tables (RLS on, no API access), 1 sequence, new functions,
---   the old HQ read functions are replaced, a BEFORE trigger "zzz_studio_read_only" is added
---   to every studio table (it does nothing unless a studio is suspended), a daily pg_cron job
---   if pg_cron is installed. One settings row is inserted. NO existing row is changed or deleted.
--- SAFE TO RE-RUN. If anything fails, the whole paste rolls back.
+-- HELM — 0049 DB gates (one paste)                                           (2026-10-07)
+--   * Closing an event is REFUSED while the client still owes money on the payment ledger
+--     or equipment checkouts are still out; the error lists what is outstanding. A studio
+--     admin can close anyway with a written reason — recorded in event_close_overrides +
+--     audit_log.  >> Deploy closure.html + store-api.js v115 together with this. <<
+--   * quotes: no direct INSERT from the API (DELETE stays Deleted-shelf-only as in 0042);
+--     direct UPDATE only on title,
+--     event_type, client, pricing, event_date, event_time, manager_id (everything else is
+--     RPC-only). RLS is unchanged.
+--   * NV-08: a NEW studio gets a clean default access matrix (not the template's).
+--     Existing studios are not touched.
+--   * statement_timeout anon 8s / authenticated 15s (only tightened, never loosened);
+--     per-studio storage quota (default 2 GB) + 200 uploads / hour, configurable per plan
+--     (helm_plans) or per studio (studio_subscriptions.storage_quota_bytes / uploads_per_hour).
+-- REQUIRES 0042, 0045, 0048 — the preflight stops if not. STAGING first.
+-- RUN AS the default SQL-editor role (postgres) — needed for ALTER ROLE; if not allowed,
+--   that one step is skipped with a NOTICE and everything else still applies.
+-- WHAT IT TOUCHES: close_event + create_studio wrapped (old bodies kept as *__pre0049),
+--   1 new table, 2+2 new columns, new functions, 1 new RESTRICTIVE storage policy,
+--   privileges on public.quotes. NO app row is changed or deleted. SAFE TO RE-RUN.
 -- ════════════════════════════════════════════════════════════════════════════
--- ============================================================================
--- 0045_hq_subscriptions.sql — CANONICAL forward-only. REQUIRES 0029, 0037, 0042, 0043.
--- Owner decision: Helm HQ (platform operators) sees NO studio business data. HQ sees only
---   (a) the studio list, (b) the people in each studio (name, e-mail, role, active, last
---   sign-in, two-step on/off — never a phone), (c) what each studio paid Helm.
---
--- 1. HQ read RPCs redefined: no event / client / revenue numbers any more. hq_payments now
---    returns Helm SUBSCRIPTION payments. last_activity = latest member sign-in.
--- 2. Subscriptions: helm_plans, studio_subscriptions, subscription_payments (+ invoice
---    numbers, GST split computed here), helm_billing_settings (one row), billing_reminders
---    (queue only — nothing is sent from SQL). RLS on, NO table grants to anon/authenticated.
---    Every HQ write goes through an hq_* RPC that needs an operator at aal2 and writes an
---    'hq.*' audit row (org_id NULL). Payments are never deleted — they are voided with a
---    reason; the invoice number stays.
--- 3. Suspend = READ-ONLY, enforced by the DATABASE: a BEFORE INSERT/UPDATE/DELETE trigger
---    (zzz_studio_read_only) on every studio table refuses writes (SQLSTATE 25006) by signed-in
---    members AND anonymous link visitors (approve / portal / crew / invite) of a suspended
---    studio. A trigger is used instead of RESTRICTIVE policies because most writes go
---    through SECURITY DEFINER RPCs, which bypass RLS; triggers fire for every path.
---    Reads and exports are untouched. service_role / no-JWT maintenance is unaffected.
--- 4. Auto past-due (never auto-suspends) + reminder queue, scheduled with pg_cron if present.
--- 5. Operator management (list / add / remove, aal2, audited, never the last / yourself).
--- 6. Razorpay-ready nullable provider columns (dormant) + a service-role-only idempotent
---    settlement RPC keyed on provider_payment_id.
--- Additive + idempotent + drift-safe. No existing row is changed or deleted. The only
--- objects dropped are the old HQ read functions whose result columns change shape.
--- ============================================================================
-
 do $$ begin
-  if to_regprocedure('public.is_platform_admin()') is null or to_regprocedure('public._hq_gate(text,text)') is null then
-    raise exception '0045: Helm HQ (0029) is not installed on this database'; end if;
-  if to_regprocedure('public._a42_operator_binding_ok()') is null then
-    raise exception '0045: 0042 is not installed on this database'; end if;
-  if to_regprocedure('public.current_org_id__pre0043()') is null then
-    raise exception '0045: 0043 is not installed on this database'; end if;
+  if to_regprocedure('public.close_event__pre0042(uuid, boolean)') is null then raise exception 'STOP: 0042 not installed'; end if;
+  if to_regclass('public.studio_subscriptions') is null then raise exception 'STOP: 0045 not installed'; end if;
+  if to_regprocedure('public.storage_object_name_ok(text,text)') is null then raise exception 'STOP: 0048 not installed'; end if;
+  raise notice 'Preflight OK — applying 0049…';
 end $$;
-
--- ---- 1) tables -----------------------------------------------------------------------
-create table if not exists public.helm_plans (
-  id            uuid primary key default gen_random_uuid(),
-  code          text not null unique check (code ~ '^[a-z0-9][a-z0-9_-]{1,39}$'),
-  name          text not null check (length(btrim(name)) between 1 and 80),
-  price_monthly numeric(12,2) not null default 0 check (price_monthly >= 0),
-  currency      text not null default 'INR' check (currency ~ '^[A-Z]{3}$'),
-  active        boolean not null default true,
-  created_at    timestamptz not null default now(),
-  updated_at    timestamptz not null default now()
-);
-
-create table if not exists public.studio_subscriptions (
-  org_id               uuid primary key references public.organizations(id) on delete restrict,
-  plan_id              uuid references public.helm_plans(id) on delete restrict,
-  status               text not null default 'trial'
-                       check (status in ('trial','active','past_due','suspended','cancelled')),
-  trial_ends_at        date,
-  current_period_start date,
-  current_period_end   date,
-  notes                text check (notes is null or length(notes) <= 1000),
-  prev_status          text check (prev_status is null or prev_status in ('trial','active','past_due','cancelled')),
-  suspended_at         timestamptz,
-  suspend_reason       text,
-  updated_at           timestamptz not null default now(),
-  updated_by           uuid,
-  check (current_period_end is null or current_period_start is null or current_period_end >= current_period_start)
-);
-alter table public.studio_subscriptions add column if not exists provider text;
-alter table public.studio_subscriptions add column if not exists provider_subscription_id text;
-alter table public.studio_subscriptions add column if not exists provider_payment_id text;
-create index if not exists studio_subscriptions_suspended_idx on public.studio_subscriptions(org_id) where status = 'suspended';
-
-create sequence if not exists public.helm_invoice_seq start 1 minvalue 1 no cycle;
-
-create table if not exists public.subscription_payments (
-  id           uuid primary key default gen_random_uuid(),
-  org_id       uuid not null references public.organizations(id) on delete restrict,
-  amount       numeric(12,2) not null check (amount > 0),
-  currency     text not null default 'INR' check (currency ~ '^[A-Z]{3}$'),
-  paid_on      date not null,
-  period_start date,
-  period_end   date,
-  method       text not null check (method in ('upi','bank','cash','card','other')),
-  reference    text check (reference is null or length(reference) <= 120),
-  recorded_by  uuid,
-  recorded_at  timestamptz not null default now(),
-  voided_at    timestamptz,
-  voided_by    uuid,
-  void_reason  text,
-  check (period_end is null or period_start is null or period_end >= period_start),
-  check ((voided_at is null) = (void_reason is null))
-);
-alter table public.subscription_payments add column if not exists invoice_seq bigint;
-alter table public.subscription_payments add column if not exists invoice_no text;
-alter table public.subscription_payments add column if not exists gst_rate numeric(5,2);
-alter table public.subscription_payments add column if not exists net_amount numeric(12,2);
-alter table public.subscription_payments add column if not exists gst_amount numeric(12,2);
-alter table public.subscription_payments add column if not exists seller jsonb;
-alter table public.subscription_payments add column if not exists plan_code text;
-alter table public.subscription_payments add column if not exists provider text;
-alter table public.subscription_payments add column if not exists provider_subscription_id text;
-alter table public.subscription_payments add column if not exists provider_payment_id text;
-create unique index if not exists subscription_payments_invoice_no_uq on public.subscription_payments(invoice_no) where invoice_no is not null;
-create unique index if not exists subscription_payments_invoice_seq_uq on public.subscription_payments(invoice_seq) where invoice_seq is not null;
-create unique index if not exists subscription_payments_provider_payment_uq on public.subscription_payments(provider_payment_id) where provider_payment_id is not null;
-create index if not exists subscription_payments_org_idx on public.subscription_payments(org_id, paid_on);
-
-create table if not exists public.helm_billing_settings (
-  id             boolean primary key default true check (id),
-  legal_name     text not null default 'Helm',
-  gstin          text,
-  address        text,
-  gst_rate       numeric(5,2) not null default 18 check (gst_rate >= 0 and gst_rate <= 50),
-  invoice_prefix text not null default 'HELM-' check (invoice_prefix ~ '^[A-Za-z0-9/_-]{0,16}$'),
-  updated_at     timestamptz not null default now(),
-  updated_by     uuid
-);
-insert into public.helm_billing_settings(id) values (true) on conflict (id) do nothing;
-
-create table if not exists public.billing_reminders (
-  id         uuid primary key default gen_random_uuid(),
-  org_id     uuid not null references public.organizations(id) on delete restrict,
-  kind       text not null check (kind in ('due_soon','past_due')),
-  period_end date not null,
-  created_at timestamptz not null default now(),
-  sent_at    timestamptz,
-  channel    text check (channel is null or channel in ('email','whatsapp','sms','manual','skipped')),
-  unique (org_id, kind, period_end)
-);
-
-do $$ declare t text; begin
-  foreach t in array array['helm_plans','studio_subscriptions','subscription_payments','helm_billing_settings','billing_reminders'] loop
-    execute format('alter table public.%I enable row level security', t);
-    execute format('revoke all on table public.%I from public', t);
-    if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on table public.%I from anon', t); end if;
-    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on table public.%I from authenticated', t); end if;
-  end loop;
-  revoke all on sequence public.helm_invoice_seq from public;
-  if exists (select 1 from pg_roles where rolname = 'anon') then revoke all on sequence public.helm_invoice_seq from anon; end if;
-  if exists (select 1 from pg_roles where rolname = 'authenticated') then revoke all on sequence public.helm_invoice_seq from authenticated; end if;
-  -- the reminder sender (Edge Function, service role) reads the queue and stamps sent_at/channel
-  if exists (select 1 from pg_roles where rolname = 'service_role') then
-    grant select on table public.billing_reminders to service_role;
-    grant update (sent_at, channel) on table public.billing_reminders to service_role;
-    grant select on table public.studio_subscriptions to service_role;   -- webhook: org by provider_subscription_id
-  end if;
-end $$;
--- (no policies on purpose: RLS on + no grants → only definer code reads these tables)
-
--- payments: never deleted; after insert only the void fields may be set, once
-create or replace function public.tg_subscription_payment_immutable()
-returns trigger language plpgsql set search_path = '' as $$
-begin
-  if tg_op = 'DELETE' then
-    raise exception 'subscription payments are never deleted — void them with a reason' using errcode = '42501';
-  end if;
-  if old.voided_at is not null then
-    raise exception 'this payment is already void' using errcode = '42501';
-  end if;
-  if (new.id, new.org_id, new.amount, new.currency, new.paid_on, new.period_start, new.period_end, new.method,
-      new.reference, new.recorded_by, new.recorded_at, new.invoice_seq, new.invoice_no, new.gst_rate, new.net_amount,
-      new.gst_amount, new.seller, new.plan_code, new.provider, new.provider_subscription_id, new.provider_payment_id)
-     is distinct from
-     (old.id, old.org_id, old.amount, old.currency, old.paid_on, old.period_start, old.period_end, old.method,
-      old.reference, old.recorded_by, old.recorded_at, old.invoice_seq, old.invoice_no, old.gst_rate, old.net_amount,
-      old.gst_amount, old.seller, old.plan_code, old.provider, old.provider_subscription_id, old.provider_payment_id) then
-    raise exception 'a recorded payment can only be voided, not changed' using errcode = '42501';
-  end if;
-  return new;
-end $$;
-revoke all on function public.tg_subscription_payment_immutable() from public;
-drop trigger if exists subscription_payments_immutable on public.subscription_payments;
-create trigger subscription_payments_immutable before update or delete on public.subscription_payments
-  for each row execute function public.tg_subscription_payment_immutable();
-
--- ---- 2) suspend = read-only (database-enforced) --------------------------------------------
-create or replace function public._studio_writable(p_org uuid)
-returns boolean language sql stable security definer set search_path = '' as $$
-  select p_org is null
-      or not exists (select 1 from public.studio_subscriptions s where s.org_id = p_org and s.status = 'suspended');
-$$;
-
--- TG_ARGV[0] says how a row names its studio: org_id | id (organizations) | user_id | owner | quote_id
-create or replace function public.tg_studio_read_only()
-returns trigger language plpgsql security definer set search_path = '' as $$
-declare
-  v_role text := coalesce(auth.jwt() ->> 'role', '');
-  v_how text := tg_argv[0];
-  v_orgs uuid[] := '{}';
-  v_key text; r jsonb; o uuid;
-begin
-  if v_role not in ('authenticated', 'anon') then return coalesce(new, old); end if;      -- service role / maintenance
-  if not exists (select 1 from public.studio_subscriptions s where s.status = 'suspended') then
-    return coalesce(new, old); end if;                                                      -- fast path
-  foreach r in array (case tg_op when 'INSERT' then array[to_jsonb(new)]
-                                  when 'DELETE' then array[to_jsonb(old)]
-                                  else array[to_jsonb(new), to_jsonb(old)] end) loop
-    v_key := r ->> v_how; o := null;
-    if v_key is not null and v_key ~* '^[0-9a-f-]{36}$' then
-      if v_how in ('org_id', 'id') then o := v_key::uuid;
-      elsif v_how in ('user_id', 'owner') then select p.org_id into o from public.profiles p where p.id = v_key::uuid;
-      elsif v_how = 'quote_id' then select q.org_id into o from public.quotes q where q.id = v_key::uuid;
+-- ---- 0) keep this database's own bodies (rename once) --------------------------
+do $$ declare f text[]; begin
+  foreach f slice 1 in array array[
+    ['close_event',   'uuid, boolean'],
+    ['create_studio', 'text, text, text, text']
+  ] loop
+    if to_regprocedure(format('public.%s(%s)', f[1] || '__pre0049', f[2])) is null then
+      if to_regprocedure(format('public.%s(%s)', f[1], f[2])) is null then
+        raise exception '0049: public.%(%) is missing on this database', f[1], f[2];
       end if;
+      execute format('alter function public.%I(%s) rename to %I', f[1], f[2], f[1] || '__pre0049');
     end if;
-    if o is not null then v_orgs := v_orgs || o; end if;
-  end loop;
-  foreach o in array v_orgs loop
-    if not public._studio_writable(o) and not public.is_platform_admin() then
-      raise exception 'Read-only: this studio''s Helm subscription is suspended — contact Helm'
-        using errcode = '25006', hint = 'studio_suspended';
-    end if;
-  end loop;
-  return coalesce(new, old);
-end $$;
-revoke all on function public.tg_studio_read_only() from public;
-
-create or replace function public._a45_attach_read_only_guards()
-returns integer language plpgsql volatile security definer set search_path = '' as $$
-declare rec record; n int := 0; v_how text;
-begin
-  for rec in
-    select c.oid, c.relname,
-           exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'org_id' and not a.attisdropped) has_org,
-           exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'user_id' and not a.attisdropped) has_user,
-           exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'owner' and not a.attisdropped) has_owner,
-           exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'quote_id' and not a.attisdropped) has_quote
-      from pg_class c join pg_namespace ns on ns.oid = c.relnamespace
-     where ns.nspname = 'public' and c.relkind in ('r', 'p') and not c.relispartition
-       and c.relname not in ('audit_log', 'notification_seen', 'platform_admins', 'helm_plans', 'studio_subscriptions',
-                             'subscription_payments', 'helm_billing_settings', 'billing_reminders',
-                             'helm_schema_migrations', 'helm_env_settings', 'helm_audit_0044_reverted',
-                             'member_profile_settings', 'auth_temp_passwords')
-  loop
-    v_how := case when rec.has_org then 'org_id' when rec.relname = 'organizations' then 'id'
-                  when rec.has_user then 'user_id' when rec.has_owner then 'owner'
-                  when rec.has_quote then 'quote_id' end;
-    if v_how is null then continue; end if;
-    execute format('drop trigger if exists zzz_studio_read_only on public.%I', rec.relname);
-    execute format('create trigger zzz_studio_read_only before insert or update or delete on public.%I '
-                   'for each row execute function public.tg_studio_read_only(%L)', rec.relname, v_how);
-    n := n + 1;
-  end loop;
-  return n;
-end $$;
-revoke all on function public._a45_attach_read_only_guards() from public;
-select public._a45_attach_read_only_guards();
-
--- ---- 3) internal helpers ---------------------------------------------------------------------
--- HQ write gate: operator AND a two-step (aal2) session, always; writes the audit row.
-create or replace function public._hq_wgate(p_action text, p_entity text, p_entity_id text, p_changed jsonb default null)
-returns void language plpgsql volatile security definer set search_path = '' as $$
-begin
-  if not public.is_platform_admin() or coalesce(auth.jwt() ->> 'aal', '') <> 'aal2' then
-    raise exception 'not authorized' using errcode = '42501';
-  end if;
-  insert into public.audit_log(actor, actor_email, action, entity, entity_id, changed, org_id, at)
-    select auth.uid(), u.email, p_action, p_entity, p_entity_id, p_changed, null, now()
-      from auth.users u where u.id = auth.uid();
-end $$;
-
-create or replace function public._hq_money_by_currency(p_from date, p_to date)
-returns jsonb language sql stable security definer set search_path = '' as $$
-  select coalesce(jsonb_agg(jsonb_build_object('currency', currency, 'amount', amt) order by currency), '[]'::jsonb)
-    from (select sp.currency, sum(sp.amount) amt from public.subscription_payments sp
-           where sp.voided_at is null and sp.paid_on between p_from and p_to group by sp.currency) t;
-$$;
-
-create or replace function public._hq_mrr()
-returns jsonb language sql stable security definer set search_path = '' as $$
-  select coalesce(jsonb_agg(jsonb_build_object('currency', currency, 'amount', amt) order by currency), '[]'::jsonb)
-    from (select p.currency, sum(p.price_monthly) amt from public.studio_subscriptions s
-            join public.helm_plans p on p.id = s.plan_id
-           where s.status in ('active', 'past_due') group by p.currency) t;
-$$;
-
--- the internal billing refresh (no gate: called by the gated RPCs and by pg_cron)
-create or replace function public._billing_refresh()
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare n_pd int := 0; n_rem int := 0; n int; rec record;
-begin
-  for rec in
-    select s.org_id, s.current_period_end from public.studio_subscriptions s
-     where s.status = 'active' and s.current_period_end is not null and s.current_period_end < current_date
-       and not exists (select 1 from public.subscription_payments sp where sp.org_id = s.org_id and sp.voided_at is null
-                        and sp.period_end is not null and sp.period_end >= current_date)
-     for update of s
-  loop
-    update public.studio_subscriptions set status = 'past_due', updated_at = now() where org_id = rec.org_id and status = 'active';
-    insert into public.audit_log(actor, actor_email, action, entity, entity_id, changed, org_id, at)
-      values (null, null, 'hq.billing.auto_past_due', 'studio_subscriptions', rec.org_id::text,
-              jsonb_build_object('current_period_end', rec.current_period_end), null, now());
-    n_pd := n_pd + 1;
-  end loop;
-  insert into public.billing_reminders(org_id, kind, period_end)
-    select s.org_id, 'past_due', s.current_period_end from public.studio_subscriptions s
-     where s.status = 'past_due' and s.current_period_end is not null
-  on conflict (org_id, kind, period_end) do nothing;
-  get diagnostics n = row_count; n_rem := n_rem + n;
-  insert into public.billing_reminders(org_id, kind, period_end)
-    select s.org_id, 'due_soon', s.current_period_end from public.studio_subscriptions s
-     where s.status in ('active', 'trial') and s.current_period_end between current_date and current_date + 7
-       and not exists (select 1 from public.subscription_payments sp where sp.org_id = s.org_id and sp.voided_at is null
-                        and sp.period_end is not null and sp.period_end > s.current_period_end)
-  on conflict (org_id, kind, period_end) do nothing;
-  get diagnostics n = row_count; n_rem := n_rem + n;
-  return jsonb_build_object('past_due_set', n_pd, 'reminders_queued', n_rem);
-end $$;
-
--- record one payment: invoice number from the sequence, GST split computed here (amount is GST-inclusive)
-create or replace function public._sub_record_payment(p_org uuid, p_amount numeric, p_currency text, p_paid_on date,
-  p_period_start date, p_period_end date, p_method text, p_reference text, p_actor uuid,
-  p_provider text default null, p_provider_payment_id text default null, p_provider_subscription_id text default null)
-returns uuid language plpgsql volatile security definer set search_path = '' as $$
-declare v_id uuid; v_seq bigint; b record; v_rate numeric; v_net numeric(12,2); v_plan text;
-begin
-  if not exists (select 1 from public.organizations o where o.id = p_org) then
-    raise exception 'unknown studio' using errcode = '22023'; end if;
-  if p_amount is null or p_amount <= 0 or p_amount > 100000000 then raise exception 'amount must be more than 0' using errcode = '22023'; end if;
-  if p_paid_on is null or p_paid_on > current_date + 1 or p_paid_on < date '2020-01-01' then
-    raise exception 'paid on date is not valid' using errcode = '22023'; end if;
-  if coalesce(p_method, '') not in ('upi','bank','cash','card','other') then raise exception 'method must be upi, bank, cash, card or other' using errcode = '22023'; end if;
-  if p_period_start is not null and p_period_end is not null and p_period_end < p_period_start then
-    raise exception 'period end is before period start' using errcode = '22023'; end if;
-  select * into b from public.helm_billing_settings where id;
-  v_rate := coalesce(b.gst_rate, 18);
-  v_net := round(p_amount / (1 + v_rate / 100), 2);
-  select p.code into v_plan from public.studio_subscriptions s join public.helm_plans p on p.id = s.plan_id where s.org_id = p_org;
-  v_seq := nextval('public.helm_invoice_seq');
-  insert into public.subscription_payments(org_id, amount, currency, paid_on, period_start, period_end, method, reference,
-      recorded_by, invoice_seq, invoice_no, gst_rate, net_amount, gst_amount, seller, plan_code,
-      provider, provider_payment_id, provider_subscription_id)
-    values (p_org, round(p_amount, 2), upper(coalesce(nullif(btrim(p_currency), ''), 'INR')), p_paid_on, p_period_start, p_period_end,
-      p_method, nullif(left(btrim(coalesce(p_reference, '')), 120), ''), p_actor, v_seq,
-      coalesce(b.invoice_prefix, 'HELM-') || lpad(v_seq::text, 6, '0'), v_rate, v_net, round(p_amount, 2) - v_net,
-      jsonb_build_object('legal_name', b.legal_name, 'gstin', b.gstin, 'address', b.address), v_plan,
-      p_provider, p_provider_payment_id, p_provider_subscription_id)
-    returning id into v_id;
-  return v_id;
-end $$;
-
-create or replace function public._sub_payment_json(p public.subscription_payments)
-returns jsonb language sql stable security definer set search_path = '' as $$
-  select jsonb_build_object('id', p.id, 'org_id', p.org_id, 'invoice_no', p.invoice_no, 'amount', p.amount,
-    'currency', p.currency, 'paid_on', p.paid_on, 'period_start', p.period_start, 'period_end', p.period_end,
-    'method', p.method, 'reference', p.reference, 'recorded_at', p.recorded_at, 'net_amount', p.net_amount,
-    'gst_amount', p.gst_amount, 'gst_rate', p.gst_rate, 'voided', p.voided_at is not null, 'voided_at', p.voided_at,
-    'void_reason', p.void_reason, 'provider', p.provider);
-$$;
-
-create or replace function public._sub_invoice_json(p_id uuid)
-returns jsonb language sql stable security definer set search_path = '' as $$
-  select jsonb_build_object(
-    'invoice_no', p.invoice_no, 'issued_on', p.paid_on, 'paid_on', p.paid_on, 'recorded_at', p.recorded_at,
-    'net', p.net_amount, 'amount', p.amount, 'provider_payment_id', p.provider_payment_id,
-    'status', case when p.voided_at is null then 'paid' else 'void' end,
-    'voided_at', p.voided_at, 'void_reason', p.void_reason,
-    'seller', coalesce(p.seller, '{}'::jsonb) || jsonb_build_object('gst_rate', p.gst_rate),
-    'buyer', jsonb_build_object('org_id', o.id, 'name', o.name, 'gstin', o.gst_number, 'email', o.business_email, 'address', o.location),
-    'plan', jsonb_build_object('code', p.plan_code, 'name', (select hp.name from public.helm_plans hp where hp.code = p.plan_code)),
-    'period_start', p.period_start, 'period_end', p.period_end, 'method', p.method, 'reference', p.reference,
-    'currency', p.currency, 'gst_rate', p.gst_rate, 'net_amount', p.net_amount, 'gst_amount', p.gst_amount, 'total', p.amount,
-    'lines', jsonb_build_array(jsonb_build_object(
-       'description', 'Helm subscription' || coalesce(' — ' || (select hp.name from public.helm_plans hp where hp.code = p.plan_code), '')
-                      || coalesce(' (' || p.period_start::text || ' to ' || p.period_end::text || ')', ''),
-       'amount', p.net_amount)))
-  from public.subscription_payments p join public.organizations o on o.id = p.org_id where p.id = p_id;
-$$;
-
--- ---- 4) HQ reads, redefined without any studio business data -----------------------------------
-drop function if exists public.hq_studios(text, int, int);
-drop function if exists public.hq_studios(text, text, int, int);
-drop function if exists public._hq_studio_rows();
-
-create or replace function public._hq_studio_rows()
-returns table(org_id uuid, name text, slug text, created_at timestamptz, owner_email text, users_count bigint,
-              plan_code text, plan_name text, status text, current_period_end date, last_activity timestamptz, total_paid numeric)
-language sql stable security definer set search_path = '' as $$
-  select o.id, o.name, o.slug, o.created_at,
-         coalesce(cu.email, (select p.email from public.profiles p where p.org_id = o.id and p.role = 'admin'
-                              order by p.created_at limit 1)),
-         (select count(*) from public.profiles p where p.org_id = o.id),
-         hp.code, hp.name, coalesce(s.status, 'none'), s.current_period_end,
-         (select max(u.last_sign_in_at) from public.profiles p join auth.users u on u.id = p.id where p.org_id = o.id),
-         coalesce((select sum(sp.amount) from public.subscription_payments sp where sp.org_id = o.id and sp.voided_at is null), 0)
-    from public.organizations o
-    left join auth.users cu on cu.id = o.created_by
-    left join public.studio_subscriptions s on s.org_id = o.id
-    left join public.helm_plans hp on hp.id = s.plan_id
-$$;
-
-create or replace function public.hq_studios(p_search text default null, p_status text default null,
-                                             p_limit int default 25, p_offset int default 0)
-returns table(org_id uuid, name text, slug text, created_at timestamptz, owner_email text, users_count bigint,
-              plan_code text, plan_name text, status text, current_period_end date, last_activity timestamptz,
-              total_paid numeric, total_count bigint)
-language plpgsql volatile security definer set search_path = '' as $$
-#variable_conflict use_column
-declare s text := nullif(btrim(coalesce(p_search, '')), ''); st text := nullif(btrim(coalesce(p_status, '')), '');
-begin
-  perform public._hq_gate('hq_studios', left(coalesce(s, '') || '|' || coalesce(st, ''), 80));
-  if st is not null and st not in ('trial','active','past_due','suspended','cancelled','none') then
-    raise exception 'unknown status filter' using errcode = '22023'; end if;
-  return query
-    select r.org_id, r.name, r.slug, r.created_at, r.owner_email, r.users_count, r.plan_code, r.plan_name, r.status,
-           r.current_period_end, r.last_activity, r.total_paid, count(*) over ()
-      from public._hq_studio_rows() r
-     where (st is null or r.status = st)
-       and (s is null or strpos(lower(r.name), lower(s)) > 0 or strpos(lower(coalesce(r.slug, '')), lower(s)) > 0
-            or strpos(lower(coalesce(r.owner_email, '')), lower(s)) > 0)
-     order by r.created_at desc, r.org_id
-     limit least(greatest(coalesce(p_limit, 25), 1), 200) offset greatest(coalesce(p_offset, 0), 0);
-end $$;
-
-create or replace function public.hq_overview()
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare r jsonb; v jsonb; n bigint; m bigint; today date := current_date;
-begin
-  perform public._hq_gate('hq_overview');
-  perform public._billing_refresh();
-  r := jsonb_build_object(
-    'generated_at', now(),
-    'studios', jsonb_build_object(
-      'total',  (select count(*) from public.organizations),
-      'new_7d', (select count(*) from public.organizations where created_at >= now() - interval '7 days'),
-      'new_30d',(select count(*) from public.organizations where created_at >= now() - interval '30 days'),
-      'by_status', (select jsonb_object_agg(t.st_k, t.st_c) from (
-          select coalesce(ss.status, 'none') st_k, count(*) st_c from public.organizations o
-            left join public.studio_subscriptions ss on ss.org_id = o.id group by 1) t)),
-    'users', jsonb_build_object(
-      'total',  (select count(*) from auth.users),
-      'new_7d', (select count(*) from auth.users where created_at >= now() - interval '7 days'),
-      'new_30d',(select count(*) from auth.users where created_at >= now() - interval '30 days'),
-      'active_7d', (select count(*) from auth.users where last_sign_in_at >= now() - interval '7 days'),
-      'active_30d',(select count(*) from auth.users where last_sign_in_at >= now() - interval '30 days')),
-    'billing', jsonb_build_object(
-      'mrr', public._hq_mrr(),
-      'paid_this_month', public._hq_money_by_currency(date_trunc('month', now())::date, today),
-      'past_due_count', (select count(*) from public.studio_subscriptions where status = 'past_due'),
-      'suspended_count', (select count(*) from public.studio_subscriptions where status = 'suspended'),
-      'reminders_pending', (select count(*) from public.billing_reminders where sent_at is null)));
-  select coalesce(jsonb_agg(jsonb_build_object('day', d::date, 'studios', coalesce(s.c, 0), 'users', coalesce(u.c, 0)) order by d), '[]'::jsonb)
-    into v
-    from generate_series(today - 29, today, interval '1 day') d
-    left join (select created_at::date k, count(*) c from public.organizations group by 1) s on s.k = d::date
-    left join (select created_at::date k, count(*) c from auth.users group by 1) u on u.k = d::date;
-  r := r || jsonb_build_object('signups_30d', v);
-  if to_regclass('auth.mfa_factors') is not null then
-    execute 'select count(distinct user_id) from auth.mfa_factors where status::text = ''verified''' into n;
-    select count(*) into m from auth.users;
-    r := r || jsonb_build_object('mfa', jsonb_build_object('users_with_mfa', n, 'users_total', m,
-             'pct', case when m > 0 then round(100.0 * n / m, 1) else 0 end));
-  end if;
-  if to_regclass('auth.audit_log_entries') is not null then
-    begin
-      execute $q$select count(*) from auth.audit_log_entries
-                  where created_at >= now() - interval '7 days'
-                    and payload ->> 'action' in ('login','user_signedin','token_refreshed')$q$ into n;
-      r := r || jsonb_build_object('auth_logins_7d', n);
-    exception when others then null;
-    end;
-  end if;
-  return r;
-end $$;
-
-create or replace function public.hq_studio_detail(p_org uuid)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare r jsonb; v_members jsonb; v_ban boolean; v_mfa boolean := to_regclass('auth.mfa_factors') is not null;
-begin
-  perform public._hq_gate('hq_studio_detail', p_org::text);
-  select jsonb_build_object('org_id', s.org_id, 'name', s.name, 'slug', s.slug, 'created_at', s.created_at,
-           'owner_email', s.owner_email, 'users_count', s.users_count, 'last_activity', s.last_activity,
-           'status', s.status, 'total_paid', s.total_paid)
-    into r from public._hq_studio_rows() s where s.org_id = p_org;
-  if r is null then return null; end if;
-  v_ban := exists (select 1 from pg_attribute a where a.attrelid = 'auth.users'::regclass and a.attname = 'banned_until' and not a.attisdropped);
-  execute format($q$
-    select coalesce(jsonb_agg(jsonb_build_object('display_name', p.full_name, 'email', coalesce(u.email, p.email), 'role', p.role,
-             'active', %s, 'last_sign_in_at', u.last_sign_in_at, 'mfa_enabled', %s) order by p.created_at), '[]'::jsonb)
-      from public.profiles p left join auth.users u on u.id = p.id where p.org_id = $1$q$,
-    case when v_ban then '(u.id is not null and (u.banned_until is null or u.banned_until < now()))' else '(u.id is not null)' end,
-    case when v_mfa then 'exists (select 1 from auth.mfa_factors f where f.user_id = p.id and f.status::text = ''verified'')' else 'false' end)
-    into v_members using p_org;
-  r := r || jsonb_build_object('members', v_members,
-    'subscription', (select jsonb_build_object('plan_code', hp.code, 'plan_name', hp.name, 'price_monthly', hp.price_monthly,
-         'currency', hp.currency, 'status', s.status, 'trial_ends_at', s.trial_ends_at,
-         'current_period_start', s.current_period_start, 'current_period_end', s.current_period_end, 'notes', s.notes,
-         'suspended_at', s.suspended_at, 'suspend_reason', s.suspend_reason, 'updated_at', s.updated_at,
-         'provider', s.provider)
-       from public.studio_subscriptions s left join public.helm_plans hp on hp.id = s.plan_id where s.org_id = p_org),
-    'payments', coalesce((select jsonb_agg(public._sub_payment_json(sp) order by sp.paid_on desc, sp.recorded_at desc)
-       from public.subscription_payments sp where sp.org_id = p_org), '[]'::jsonb));
-  return r;
-end $$;
-
-create or replace function public.hq_payments(p_from date default null, p_to date default null)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare f date := coalesce(p_from, current_date - 30); t date := coalesce(p_to, current_date);
-begin
-  perform public._hq_gate('hq_payments', f::text || '..' || t::text);
-  if t < f or t - f > 366 then raise exception 'date range must be 0..366 days' using errcode = '22023'; end if;
-  return jsonb_build_object('from', f, 'to', t,
-    'payments', coalesce((select jsonb_agg(public._sub_payment_json(sp) || jsonb_build_object('studio', o.name)
-                          order by sp.paid_on desc, sp.recorded_at desc)
-       from public.subscription_payments sp join public.organizations o on o.id = sp.org_id
-      where sp.paid_on between f and t), '[]'::jsonb));
-end $$;
-
--- ---- 5) HQ billing ---------------------------------------------------------------------------------
-create or replace function public.hq_refresh_billing_status()
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare r jsonb;
-begin
-  perform public._hq_wgate('hq.billing.refresh', 'studio_subscriptions', null);
-  r := public._billing_refresh();
-  return r;
-end $$;
-
-create or replace function public.hq_billing(p_from date default null, p_to date default null)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare f date := coalesce(p_from, date_trunc('month', now())::date); t date := coalesce(p_to, current_date);
-begin
-  perform public._hq_gate('hq_billing', f::text || '..' || t::text);
-  if t < f or t - f > 366 then raise exception 'date range must be 0..366 days' using errcode = '22023'; end if;
-  perform public._billing_refresh();
-  return jsonb_build_object('from', f, 'to', t,
-    'collected', public._hq_money_by_currency(f, t),
-    'payments_count', (select count(*) from public.subscription_payments where voided_at is null and paid_on between f and t),
-    'voided_count', (select count(*) from public.subscription_payments where voided_at is not null and paid_on between f and t),
-    'mrr', public._hq_mrr(),
-    'per_studio', coalesce((select jsonb_agg(jsonb_build_object('org_id', o.id, 'name', o.name, 'status', coalesce(s.status, 'none'),
-            'plan_code', hp.code, 'paid', x.paid, 'currency', x.currency, 'payments', x.n) order by o.name)
-         from (select sp.org_id, sp.currency, sum(sp.amount) paid, count(*) n from public.subscription_payments sp
-                where sp.voided_at is null and sp.paid_on between f and t group by sp.org_id, sp.currency) x
-         join public.organizations o on o.id = x.org_id
-         left join public.studio_subscriptions s on s.org_id = o.id left join public.helm_plans hp on hp.id = s.plan_id), '[]'::jsonb),
-    'past_due', coalesce((select jsonb_agg(jsonb_build_object('org_id', o.id, 'name', o.name, 'plan_code', hp.code,
-            'current_period_end', s.current_period_end, 'days_overdue', current_date - s.current_period_end) order by s.current_period_end)
-         from public.studio_subscriptions s join public.organizations o on o.id = s.org_id
-         left join public.helm_plans hp on hp.id = s.plan_id where s.status = 'past_due'), '[]'::jsonb),
-    'reminders', coalesce((select jsonb_agg(jsonb_build_object('id', br.id, 'org_id', br.org_id, 'studio', o.name, 'kind', br.kind,
-            'period_end', br.period_end, 'created_at', br.created_at, 'sent_at', br.sent_at, 'channel', br.channel) order by br.created_at desc)
-         from (select * from public.billing_reminders order by created_at desc limit 100) br
-         join public.organizations o on o.id = br.org_id), '[]'::jsonb),
-    'payments', coalesce((select jsonb_agg(public._sub_payment_json(sp) || jsonb_build_object('studio', o.name)
-                          order by sp.paid_on desc, sp.recorded_at desc)
-       from public.subscription_payments sp join public.organizations o on o.id = sp.org_id
-      where sp.paid_on between f and t), '[]'::jsonb));
-end $$;
-
-create or replace function public.hq_plans()
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-begin
-  perform public._hq_gate('hq_plans');
-  return coalesce((select jsonb_agg(jsonb_build_object('id', p.id, 'code', p.code, 'name', p.name, 'price_monthly', p.price_monthly,
-           'currency', p.currency, 'active', p.active, 'studios', (select count(*) from public.studio_subscriptions s where s.plan_id = p.id))
-           order by p.active desc, p.price_monthly, p.code) from public.helm_plans p), '[]'::jsonb);
-end $$;
-
-create or replace function public.hq_upsert_plan(p_code text, p_name text, p_price_monthly numeric,
-                                                 p_currency text default 'INR', p_active boolean default true)
-returns uuid language plpgsql volatile security definer set search_path = '' as $$
-declare v_id uuid; v_code text := lower(btrim(coalesce(p_code, '')));
-begin
-  perform public._hq_wgate('hq.plan.upsert', 'helm_plans', v_code,
-    jsonb_build_object('name', p_name, 'price_monthly', p_price_monthly, 'currency', p_currency, 'active', p_active));
-  if v_code !~ '^[a-z0-9][a-z0-9_-]{1,39}$' then raise exception 'plan code: 2-40 lowercase letters, numbers, - or _' using errcode = '22023'; end if;
-  if p_price_monthly is null or p_price_monthly < 0 then raise exception 'price must be 0 or more' using errcode = '22023'; end if;
-  insert into public.helm_plans(code, name, price_monthly, currency, active)
-    values (v_code, btrim(p_name), round(p_price_monthly, 2), upper(coalesce(nullif(btrim(p_currency), ''), 'INR')), coalesce(p_active, true))
-  on conflict (code) do update set name = excluded.name, price_monthly = excluded.price_monthly,
-    currency = excluded.currency, active = excluded.active, updated_at = now()
-  returning id into v_id;
-  return v_id;
-end $$;
-
-create or replace function public.hq_set_subscription(p_org uuid, p_plan_code text default null, p_status text default null,
-  p_trial_ends_at date default null, p_period_start date default null, p_period_end date default null, p_notes text default null)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare v_plan uuid; cur public.studio_subscriptions;
-begin
-  perform public._hq_wgate('hq.subscription.set', 'studio_subscriptions', p_org::text,
-    jsonb_build_object('plan', p_plan_code, 'status', p_status, 'trial_ends_at', p_trial_ends_at,
-                       'period_start', p_period_start, 'period_end', p_period_end));
-  if not exists (select 1 from public.organizations o where o.id = p_org) then raise exception 'unknown studio' using errcode = '22023'; end if;
-  if p_status is not null and p_status not in ('trial','active','past_due','cancelled') then
-    raise exception 'status must be trial, active, past_due or cancelled (use suspend / reactivate for suspension)' using errcode = '22023'; end if;
-  if p_plan_code is not null then
-    select id into v_plan from public.helm_plans where code = lower(btrim(p_plan_code));
-    if v_plan is null then raise exception 'unknown plan' using errcode = '22023'; end if;
-  end if;
-  if p_period_start is not null and p_period_end is not null and p_period_end < p_period_start then
-    raise exception 'period end is before period start' using errcode = '22023'; end if;
-  select * into cur from public.studio_subscriptions where org_id = p_org for update;
-  if found and cur.status = 'suspended' and p_status is not null then
-    raise exception 'this studio is suspended — reactivate it first' using errcode = '22023'; end if;
-  insert into public.studio_subscriptions(org_id, plan_id, status, trial_ends_at, current_period_start, current_period_end, notes, updated_at, updated_by)
-    values (p_org, v_plan, coalesce(p_status, 'trial'), p_trial_ends_at, p_period_start, p_period_end, nullif(left(p_notes, 1000), ''), now(), auth.uid())
-  on conflict (org_id) do update set
-    plan_id = coalesce(v_plan, studio_subscriptions.plan_id),
-    status = coalesce(p_status, studio_subscriptions.status),
-    trial_ends_at = coalesce(p_trial_ends_at, studio_subscriptions.trial_ends_at),
-    current_period_start = coalesce(p_period_start, studio_subscriptions.current_period_start),
-    current_period_end = coalesce(p_period_end, studio_subscriptions.current_period_end),
-    notes = coalesce(nullif(left(p_notes, 1000), ''), studio_subscriptions.notes),
-    updated_at = now(), updated_by = auth.uid();
-  return (select to_jsonb(s) - 'prev_status' from public.studio_subscriptions s where s.org_id = p_org);
-end $$;
-
-create or replace function public.hq_suspend_studio(p_org uuid, p_reason text)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare v_reason text := btrim(coalesce(p_reason, ''));
-begin
-  perform public._hq_wgate('hq.studio.suspend', 'studio_subscriptions', p_org::text, jsonb_build_object('reason', left(v_reason, 300)));
-  if not exists (select 1 from public.organizations o where o.id = p_org) then raise exception 'unknown studio' using errcode = '22023'; end if;
-  if length(v_reason) < 3 then raise exception 'a reason is required' using errcode = '22023'; end if;
-  insert into public.studio_subscriptions(org_id, status, prev_status, suspended_at, suspend_reason, updated_at, updated_by)
-    values (p_org, 'suspended', 'trial', now(), left(v_reason, 300), now(), auth.uid())
-  on conflict (org_id) do update set
-    prev_status = case when studio_subscriptions.status = 'suspended' then studio_subscriptions.prev_status else studio_subscriptions.status end,
-    status = 'suspended',
-    suspended_at = case when studio_subscriptions.status = 'suspended' then studio_subscriptions.suspended_at else now() end,
-    suspend_reason = left(v_reason, 300), updated_at = now(), updated_by = auth.uid();
-  return jsonb_build_object('org_id', p_org, 'status', 'suspended');
-end $$;
-
-create or replace function public.hq_reactivate_studio(p_org uuid)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare v_status text;
-begin
-  perform public._hq_wgate('hq.studio.reactivate', 'studio_subscriptions', p_org::text);
-  update public.studio_subscriptions set status = coalesce(prev_status, 'active'), prev_status = null, suspended_at = null,
-         suspend_reason = null, updated_at = now(), updated_by = auth.uid()
-   where org_id = p_org and status = 'suspended'
-  returning status into v_status;
-  if v_status is null then raise exception 'this studio is not suspended' using errcode = '22023'; end if;
-  return jsonb_build_object('org_id', p_org, 'status', v_status);
-end $$;
-
-create or replace function public.hq_record_payment(p_org uuid, p_amount numeric, p_paid_on date, p_method text,
-  p_currency text default 'INR', p_period_start date default null, p_period_end date default null, p_reference text default null)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare v_id uuid;
-begin
-  perform public._hq_wgate('hq.payment.record', 'subscription_payments', p_org::text,
-    jsonb_build_object('amount', p_amount, 'currency', p_currency, 'paid_on', p_paid_on, 'method', p_method,
-                       'period_start', p_period_start, 'period_end', p_period_end, 'reference', left(p_reference, 120)));
-  v_id := public._sub_record_payment(p_org, p_amount, p_currency, p_paid_on, p_period_start, p_period_end, p_method, p_reference, auth.uid());
-  return (select public._sub_payment_json(sp) from public.subscription_payments sp where sp.id = v_id);
-end $$;
-
-create or replace function public.hq_void_payment(p_id uuid, p_reason text)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare v_reason text := btrim(coalesce(p_reason, '')); n int;
-begin
-  perform public._hq_wgate('hq.payment.void', 'subscription_payments', p_id::text, jsonb_build_object('reason', left(v_reason, 300)));
-  if length(v_reason) < 3 then raise exception 'a reason is required' using errcode = '22023'; end if;
-  update public.subscription_payments set voided_at = now(), voided_by = auth.uid(), void_reason = left(v_reason, 300)
-   where id = p_id and voided_at is null;
-  get diagnostics n = row_count;
-  if n = 0 then raise exception 'payment not found or already void' using errcode = '22023'; end if;
-  return (select public._sub_payment_json(sp) from public.subscription_payments sp where sp.id = p_id);
-end $$;
-
-create or replace function public.hq_invoice(p_payment_id uuid)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-begin
-  perform public._hq_gate('hq_invoice', p_payment_id::text);
-  return public._sub_invoice_json(p_payment_id);
-end $$;
-
-create or replace function public.hq_billing_settings()
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-begin
-  perform public._hq_gate('hq_billing_settings');
-  return (select to_jsonb(b) - 'id' from public.helm_billing_settings b where b.id);
-end $$;
-
-create or replace function public.hq_set_billing_settings(p_legal_name text, p_gstin text, p_address text,
-                                                          p_gst_rate numeric, p_invoice_prefix text)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-begin
-  perform public._hq_wgate('hq.billing.settings', 'helm_billing_settings', null,
-    jsonb_build_object('legal_name', p_legal_name, 'gstin', p_gstin, 'gst_rate', p_gst_rate, 'invoice_prefix', p_invoice_prefix));
-  if length(btrim(coalesce(p_legal_name, ''))) not between 1 and 160 then raise exception 'legal name is required' using errcode = '22023'; end if;
-  if p_gst_rate is null or p_gst_rate < 0 or p_gst_rate > 50 then raise exception 'GST rate must be 0-50' using errcode = '22023'; end if;
-  if coalesce(p_invoice_prefix, '') !~ '^[A-Za-z0-9/_-]{0,16}$' then raise exception 'invoice prefix: up to 16 letters, numbers, / - _' using errcode = '22023'; end if;
-  if p_gstin is not null and btrim(p_gstin) <> '' and upper(btrim(p_gstin)) !~ '^[0-9]{2}[A-Z0-9]{13}$' then
-    raise exception 'GSTIN must be 15 characters' using errcode = '22023'; end if;
-  update public.helm_billing_settings set legal_name = btrim(p_legal_name), gstin = nullif(upper(btrim(coalesce(p_gstin, ''))), ''),
-         address = nullif(left(btrim(coalesce(p_address, '')), 500), ''), gst_rate = p_gst_rate,
-         invoice_prefix = coalesce(p_invoice_prefix, ''), updated_at = now(), updated_by = auth.uid()
-   where id;
-  return (select to_jsonb(b) - 'id' from public.helm_billing_settings b where b.id);
-end $$;
-
-create or replace function public.hq_audit(p_from date default null, p_to date default null)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare f date := coalesce(p_from, current_date - 30); t date := coalesce(p_to, current_date);
-begin
-  perform public._hq_gate('hq_audit', f::text || '..' || t::text);
-  if t < f or t - f > 366 then raise exception 'date range must be 0..366 days' using errcode = '22023'; end if;
-  return jsonb_build_object('from', f, 'to', t, 'rows', coalesce((select jsonb_agg(x order by x ->> 'at' desc) from (
-     select jsonb_build_object('at', a.at, 'actor_email', a.actor_email, 'action', a.action, 'entity', a.entity,
-              'entity_id', a.entity_id, 'changed', a.changed) x
-       from public.audit_log a
-      where a.action like 'hq.%' and a.org_id is null and a.at >= f and a.at < t + 1
-      order by a.at desc limit 1000) z), '[]'::jsonb));
-end $$;
-
--- ---- 6) operators -------------------------------------------------------------------------------------
-create or replace function public.hq_operators()
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare v_mfa boolean := to_regclass('auth.mfa_factors') is not null; r jsonb;
-begin
-  perform public._hq_gate('hq_operators');
-  execute format($q$
-    select coalesce(jsonb_agg(jsonb_build_object('email', pa.email, 'bound', pa.user_id is not null, 'added_at', pa.added_at,
-             'added_by', pa.added_by, 'require_mfa', pa.require_mfa, 'last_sign_in_at', u.last_sign_in_at,
-             'mfa_enabled', %s, 'is_me', u.id is not null and u.id = auth.uid()) order by pa.added_at, pa.email), '[]'::jsonb)
-      from public.platform_admins pa left join auth.users u on lower(u.email) = pa.email$q$,
-    case when v_mfa then 'exists (select 1 from auth.mfa_factors f where f.user_id = u.id and f.status::text = ''verified'')' else 'false' end)
-    into r;
-  return r;
-end $$;
-
-create or replace function public.hq_add_operator(p_email text)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare v_email text := lower(btrim(coalesce(p_email, ''))); v_uid uuid; v_by text;
-begin
-  perform public._hq_wgate('hq.operator.add', 'platform_admins', v_email);
-  if v_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' or length(v_email) > 254 then raise exception 'enter a valid e-mail' using errcode = '22023'; end if;
-  if exists (select 1 from public.profiles p where lower(p.email) = v_email and p.org_id is not null)
-     or exists (select 1 from public.profiles p join auth.users u on u.id = p.id where lower(u.email) = v_email and p.org_id is not null) then
-    raise exception 'this e-mail belongs to a studio member — an HQ operator must have its own account' using errcode = '22023'; end if;
-  if exists (select 1 from public.platform_admins where email = v_email) then raise exception 'already an operator' using errcode = '22023'; end if;
-  select u.id into v_uid from auth.users u where lower(u.email) = v_email and u.email_confirmed_at is not null;
-  select u.email into v_by from auth.users u where u.id = auth.uid();
-  insert into public.platform_admins(email, added_by, user_id) values (v_email, coalesce(v_by, 'hq'), v_uid);
-  return jsonb_build_object('email', v_email, 'bound', v_uid is not null);
-end $$;
-
-create or replace function public.hq_remove_operator(p_email text)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare v_email text := lower(btrim(coalesce(p_email, ''))); v_me text; v_row jsonb;
-begin
-  select lower(u.email) into v_me from auth.users u where u.id = auth.uid();
-  select to_jsonb(pa) into v_row from public.platform_admins pa where pa.email = v_email;
-  perform public._hq_wgate('hq.operator.remove', 'platform_admins', v_email, v_row);
-  if v_row is null then raise exception 'not an operator' using errcode = '22023'; end if;
-  perform 1 from public.platform_admins for update;
-  if (select count(*) from public.platform_admins) <= 1 then raise exception 'the last operator can''t be removed' using errcode = '22023'; end if;
-  if v_email = v_me then raise exception 'you can''t remove yourself' using errcode = '22023'; end if;
-  delete from public.platform_admins where email = v_email;
-  return jsonb_build_object('email', v_email, 'removed', true);
-end $$;
-
--- ---- 7) studio side: read-only view of the studio's own subscription ---------------------------------
-create or replace function public.my_subscription()
-returns jsonb language plpgsql stable security definer set search_path = '' as $$
-declare v_org uuid := public.current_org_id(); s public.studio_subscriptions; r jsonb;
-begin
-  if v_org is null then return null; end if;
-  select * into s from public.studio_subscriptions where org_id = v_org;
-  r := jsonb_build_object('status', s.status, 'read_only', coalesce(s.status = 'suspended', false));
-  if coalesce(public.user_role(), '') <> 'admin' then return r; end if;
-  return r || jsonb_build_object(
-    'plan', (select jsonb_build_object('code', hp.code, 'name', hp.name, 'price_monthly', hp.price_monthly, 'currency', hp.currency)
-               from public.helm_plans hp where hp.id = s.plan_id),
-    'trial_ends_at', s.trial_ends_at, 'current_period_start', s.current_period_start, 'current_period_end', s.current_period_end,
-    'payments', coalesce((select jsonb_agg(jsonb_build_object('id', sp.id, 'invoice_no', sp.invoice_no, 'paid_on', sp.paid_on,
-          'amount', sp.amount, 'currency', sp.currency, 'period_start', sp.period_start, 'period_end', sp.period_end,
-          'method', sp.method, 'voided', sp.voided_at is not null) order by sp.paid_on desc, sp.recorded_at desc)
-        from public.subscription_payments sp where sp.org_id = v_org), '[]'::jsonb));
-end $$;
-
-create or replace function public.my_invoice(p_payment_id uuid)
-returns jsonb language plpgsql stable security definer set search_path = '' as $$
-declare v_org uuid := public.current_org_id();
-begin
-  if v_org is null or coalesce(public.user_role(), '') <> 'admin' then raise exception 'not authorized' using errcode = '42501'; end if;
-  if not exists (select 1 from public.subscription_payments sp where sp.id = p_payment_id and sp.org_id = v_org) then
-    raise exception 'not found' using errcode = '42501'; end if;
-  return public._sub_invoice_json(p_payment_id);
-end $$;
-
--- ---- 8) provider settlement (dormant; service role only, idempotent on provider_payment_id) -------------
-create or replace function public.hq_settle_provider_payment(p_provider_payment_id text, p_org uuid, p_amount numeric,
-  p_paid_on date, p_period_start date default null, p_period_end date default null, p_currency text default 'INR',
-  p_provider text default 'razorpay', p_provider_subscription_id text default null)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare v_id uuid; v_created boolean := false; v_ppid text := btrim(coalesce(p_provider_payment_id, ''));
-begin
-  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role' then raise exception 'not authorized' using errcode = '42501'; end if;
-  if v_ppid = '' or length(v_ppid) > 100 then raise exception 'provider_payment_id is required' using errcode = '22023'; end if;
-  perform pg_advisory_xact_lock(hashtext('helm_settle:' || v_ppid));
-  select id into v_id from public.subscription_payments where provider_payment_id = v_ppid;
-  if v_id is null then
-    v_id := public._sub_record_payment(p_org, p_amount, p_currency, p_paid_on, p_period_start, p_period_end, 'other',
-              v_ppid, null, coalesce(nullif(btrim(p_provider), ''), 'razorpay'), v_ppid, p_provider_subscription_id);
-    v_created := true;
-    insert into public.audit_log(actor, actor_email, action, entity, entity_id, changed, org_id, at)
-      values (null, null, 'hq.payment.provider_settled', 'subscription_payments', v_id::text,
-              jsonb_build_object('org_id', p_org, 'provider_payment_id', v_ppid, 'amount', p_amount), null, now());
-  end if;
-  return (select public._sub_payment_json(sp) || jsonb_build_object('created', v_created,
-           'result', case when v_created then 'settled' else 'replay' end) from public.subscription_payments sp where sp.id = v_id);
-end $$;
-
--- ---- 9) grants ------------------------------------------------------------------------------------------
-do $$
-declare fn text;
-begin
-  -- signed-in callers (each RPC checks operator / studio itself)
-  foreach fn in array array['public.hq_overview()', 'public.hq_studios(text,text,int,int)', 'public.hq_studio_detail(uuid)',
-      'public.hq_users(text,int,int)', 'public.hq_payments(date,date)', 'public.hq_refresh_billing_status()',
-      'public.hq_billing(date,date)', 'public.hq_plans()', 'public.hq_upsert_plan(text,text,numeric,text,boolean)',
-      'public.hq_set_subscription(uuid,text,text,date,date,date,text)', 'public.hq_suspend_studio(uuid,text)',
-      'public.hq_reactivate_studio(uuid)', 'public.hq_record_payment(uuid,numeric,date,text,text,date,date,text)',
-      'public.hq_void_payment(uuid,text)', 'public.hq_invoice(uuid)', 'public.hq_billing_settings()',
-      'public.hq_set_billing_settings(text,text,text,numeric,text)', 'public.hq_audit(date,date)',
-      'public.hq_operators()', 'public.hq_add_operator(text)', 'public.hq_remove_operator(text)',
-      'public.my_subscription()', 'public.my_invoice(uuid)'] loop
-    execute 'revoke all on function ' || fn || ' from public';
-    if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on function ' || fn || ' from anon'; end if;
-    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'grant execute on function ' || fn || ' to authenticated'; end if;
-  end loop;
-  -- internal only
-  foreach fn in array array['public._hq_studio_rows()', 'public._hq_wgate(text,text,text,jsonb)', 'public._hq_money_by_currency(date,date)',
-      'public._hq_mrr()', 'public._billing_refresh()',
-      'public._sub_record_payment(uuid,numeric,text,date,date,date,text,text,uuid,text,text,text)',
-      'public._sub_payment_json(public.subscription_payments)', 'public._sub_invoice_json(uuid)', 'public._studio_writable(uuid)',
-      'public.tg_studio_read_only()', 'public._a45_attach_read_only_guards()', 'public.tg_subscription_payment_immutable()',
-      'public.hq_settle_provider_payment(text,uuid,numeric,date,date,date,text,text,text)'] loop
-    execute 'revoke all on function ' || fn || ' from public';
-    if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on function ' || fn || ' from anon'; end if;
-    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'revoke all on function ' || fn || ' from authenticated'; end if;
-  end loop;
-  if exists (select 1 from pg_roles where rolname = 'service_role') then
-    grant execute on function public.hq_settle_provider_payment(text,uuid,numeric,date,date,date,text,text,text) to service_role;
-    grant execute on function public._billing_refresh() to service_role;
-    grant execute on function public._studio_writable(uuid) to service_role;
-  end if;
-end $$;
-
--- ---- 10) schedule the billing refresh (only when pg_cron is installed) -------------------------------------
-do $$ begin
-  if exists (select 1 from pg_extension where extname = 'pg_cron') then
-    if not exists (select 1 from cron.job where jobname = 'helm_billing_refresh') then
-      perform cron.schedule('helm_billing_refresh', '15 0 * * *', 'select public._billing_refresh()');
-    end if;
-  else
-    raise notice '0045: pg_cron not installed — billing refresh runs when HQ opens Overview / Billing';
-  end if;
-end $$;
-
--- ============================================================================
--- 11) STUDIO ACCOUNT PROFILE (business account data only — never client / event data)
---   studio_account: one row per studio. Studio admins (or users-edit) edit via
---   my_studio_account_update; HQ reads via hq_studio_detail / hq_studios and edits via
---   hq_set_studio_account (audited). Phones are returned only to studio admins / users-edit
---   and HQ. Prefill fills EMPTY fields only, from the creating admin's profile.
---   Invoice buyer = legal_business_name, gstin, billing_address, state; gst_split is IGST
---   when buyer state <> seller state, else CGST + SGST (half each).
--- ============================================================================
-alter table public.helm_billing_settings add column if not exists seller_state text;
-
-create table if not exists public.studio_account (
-  org_id                 uuid primary key references public.organizations(id) on delete restrict,
-  country                text check (country is null or country ~ '^[A-Z]{2}$'),
-  state                  text check (state is null or length(state) <= 80),
-  city                   text check (city is null or length(city) <= 80),
-  billing_address        text check (billing_address is null or length(billing_address) <= 500),
-  legal_business_name    text check (legal_business_name is null or length(legal_business_name) <= 160),
-  gstin                  text check (gstin is null or gstin ~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$'),
-  website                text check (website is null or (length(website) <= 200 and website ~* '^https?://[^\s]+$')),
-  timezone               text check (timezone is null or length(timezone) <= 64),
-  primary_contact_name   text check (primary_contact_name is null or length(primary_contact_name) <= 120),
-  primary_contact_email  text check (primary_contact_email is null or primary_contact_email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
-  primary_contact_phone  text check (primary_contact_phone is null or primary_contact_phone ~ '^\+[1-9][0-9]{7,14}$'),
-  secondary_contact_name text check (secondary_contact_name is null or length(secondary_contact_name) <= 120),
-  secondary_contact_email text check (secondary_contact_email is null or secondary_contact_email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
-  secondary_contact_phone text check (secondary_contact_phone is null or secondary_contact_phone ~ '^\+[1-9][0-9]{7,14}$'),
-  billing_contact_email  text check (billing_contact_email is null or billing_contact_email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
-  team_size_band         text check (team_size_band is null or team_size_band in ('1','2-5','6-15','16-50','51+')),
-  signup_source          text check (signup_source is null or length(signup_source) <= 80),
-  updated_at             timestamptz not null default now(),
-  updated_by             uuid
-);
-alter table public.studio_account enable row level security;
-revoke all on table public.studio_account from public;
-do $$ begin
-  if exists (select 1 from pg_roles where rolname = 'anon') then revoke all on table public.studio_account from anon; end if;
-  if exists (select 1 from pg_roles where rolname = 'authenticated') then revoke all on table public.studio_account from authenticated; end if;
-end $$;
-select public._a45_attach_read_only_guards();   -- the new table is a studio table: suspend guard applies
-
--- prefill EMPTY fields only (never overwrites)
-create or replace function public._studio_account_prefill(p_org uuid)
-returns void language plpgsql volatile security definer set search_path = '' as $$
-declare v_uid uuid; v_name text; v_email text; v_phone text; v_city text; v_tz text;
-begin
-  select coalesce(o.created_by, (select p.id from public.profiles p where p.org_id = o.id and p.role = 'admin' order by p.created_at limit 1)), o.timezone
-    into v_uid, v_tz from public.organizations o where o.id = p_org;
-  if not found then return; end if;
-  select p.full_name, coalesce(u.email, p.email) into v_name, v_email
-    from public.profiles p left join auth.users u on u.id = p.id where p.id = v_uid and p.org_id = p_org;
-  if to_regclass('public.member_profiles') is not null then
-    execute 'select phone, city from public.member_profiles where user_id = $1' into v_phone, v_city using v_uid;
-  end if;
-  if v_phone is not null and v_phone !~ '^\+[1-9][0-9]{7,14}$' then v_phone := null; end if;
-  if v_email is not null and v_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then v_email := null; end if;
-  insert into public.studio_account(org_id) values (p_org) on conflict (org_id) do nothing;
-  update public.studio_account a set
-    country = coalesce(a.country, case when v_phone like '+91%' then 'IN' end),
-    city = coalesce(a.city, left(v_city, 80)),
-    timezone = coalesce(a.timezone, v_tz),
-    primary_contact_name = coalesce(a.primary_contact_name, left(v_name, 120)),
-    primary_contact_email = coalesce(a.primary_contact_email, lower(v_email)),
-    primary_contact_phone = coalesce(a.primary_contact_phone, v_phone)
-   where a.org_id = p_org
-     and (a.country is null or a.city is null or a.timezone is null or a.primary_contact_name is null
-          or a.primary_contact_email is null or a.primary_contact_phone is null);
-end $$;
-do $$ declare o uuid; begin
-  for o in select id from public.organizations loop perform public._studio_account_prefill(o); end loop;
-end $$;
-
--- validated patch (keys absent = unchanged, '' = clear)
-create or replace function public._studio_account_apply(p_org uuid, p jsonb)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare k text; v text; allowed text[] := array['country','state','city','billing_address','legal_business_name','gstin','website',
-  'timezone','primary_contact_name','primary_contact_email','primary_contact_phone','secondary_contact_name',
-  'secondary_contact_email','secondary_contact_phone','billing_contact_email','team_size_band','signup_source'];
-begin
-  if p is null or jsonb_typeof(p) <> 'object' then raise exception 'account must be an object' using errcode = '22023'; end if;
-  insert into public.studio_account(org_id) values (p_org) on conflict (org_id) do nothing;
-  for k, v in select key, nullif(btrim(value #>> '{}'), '') from jsonb_each(p) loop
-    if not (k = any(allowed)) then raise exception 'unknown field %', k using errcode = '22023'; end if;
-    if k in ('country') then v := upper(v); end if;
-    if k = 'gstin' then v := upper(replace(v, ' ', '')); end if;
-    if k like '%email' then v := lower(v); end if;
-    if k like '%phone' then v := regexp_replace(v, '[\s()-]', '', 'g'); end if;
-    if k like '%phone' and v is not null and v !~ '^\+[1-9][0-9]{7,14}$' then
-      raise exception 'phone must be in international format, e.g. +919876543210' using errcode = '22023'; end if;
-    if k = 'gstin' and v is not null and v !~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$' then
-      raise exception 'GSTIN is not valid' using errcode = '22023'; end if;
-    begin
-      execute format('update public.studio_account set %I = $1, updated_at = now(), updated_by = auth.uid() where org_id = $2', k) using v, p_org;
-    exception when check_violation then raise exception '% is not valid', replace(k, '_', ' ') using errcode = '22023';
-    end;
-  end loop;
-  return (select to_jsonb(a) from public.studio_account a where a.org_id = p_org);
-end $$;
-
-create or replace function public.my_studio_account()
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare v_org uuid := public.current_org_id(); r jsonb;
-begin
-  if v_org is null then raise exception 'not authorized' using errcode = '42501'; end if;
-  begin perform public._studio_account_prefill(v_org); exception when others then null; end;   -- empty fields only
-  select to_jsonb(a) into r from public.studio_account a where a.org_id = v_org;
-  r := coalesce(r, jsonb_build_object('org_id', v_org));
-  if not (public.is_admin() or public.has_area('users', 'edit')) then
-    r := r - 'primary_contact_phone' - 'secondary_contact_phone' - 'updated_by';
-  end if;
-  return r || jsonb_build_object('can_edit', public.is_admin() or public.has_area('users', 'edit'));
-end $$;
-
-create or replace function public.my_studio_account_update(p_account jsonb)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare v_org uuid := public.current_org_id(); r jsonb;
-begin
-  if v_org is null or not (public.is_admin() or public.has_area('users', 'edit')) then
-    raise exception 'not authorized' using errcode = '42501'; end if;
-  r := public._studio_account_apply(v_org, p_account);
-  insert into public.audit_log(actor, actor_email, action, entity, entity_id, changed, org_id, at)
-    select auth.uid(), u.email, 'studio_account.update', 'studio_account', v_org::text,
-           p_account - 'primary_contact_phone' - 'secondary_contact_phone', v_org, now()
-      from auth.users u where u.id = auth.uid();
-  return r;
-end $$;
-
-create or replace function public.hq_set_studio_account(p_org uuid, p_account jsonb)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-begin
-  perform public._hq_wgate('hq.studio_account.set', 'studio_account', p_org::text,
-    p_account - 'primary_contact_phone' - 'secondary_contact_phone');
-  if not exists (select 1 from public.organizations o where o.id = p_org) then raise exception 'unknown studio' using errcode = '22023'; end if;
-  return public._studio_account_apply(p_org, p_account);
-end $$;
-
--- hq_studios: + country, state, primary contact
-drop function if exists public.hq_studios(text, text, int, int);
-create or replace function public.hq_studios(p_search text default null, p_status text default null,
-                                             p_limit int default 25, p_offset int default 0)
-returns table(org_id uuid, name text, slug text, created_at timestamptz, owner_email text, users_count bigint,
-              plan_code text, plan_name text, status text, current_period_end date, last_activity timestamptz,
-              total_paid numeric, country text, state text, primary_contact_name text, primary_contact_email text,
-              primary_contact_phone text, total_count bigint)
-language plpgsql volatile security definer set search_path = '' as $$
-#variable_conflict use_column
-declare s text := nullif(btrim(coalesce(p_search, '')), ''); st text := nullif(btrim(coalesce(p_status, '')), '');
-begin
-  perform public._hq_gate('hq_studios', left(coalesce(s, '') || '|' || coalesce(st, ''), 80));
-  if st is not null and st not in ('trial','active','past_due','suspended','cancelled','none') then
-    raise exception 'unknown status filter' using errcode = '22023'; end if;
-  return query
-    select r.org_id, r.name, r.slug, r.created_at, r.owner_email, r.users_count, r.plan_code, r.plan_name, r.status,
-           r.current_period_end, r.last_activity, r.total_paid, a.country, a.state, a.primary_contact_name,
-           a.primary_contact_email, a.primary_contact_phone, count(*) over ()
-      from public._hq_studio_rows() r left join public.studio_account a on a.org_id = r.org_id
-     where (st is null or r.status = st)
-       and (s is null or strpos(lower(r.name), lower(s)) > 0 or strpos(lower(coalesce(r.slug, '')), lower(s)) > 0
-            or strpos(lower(coalesce(r.owner_email, '')), lower(s)) > 0
-            or strpos(lower(coalesce(a.primary_contact_email, '')), lower(s)) > 0)
-     order by r.created_at desc, r.org_id
-     limit least(greatest(coalesce(p_limit, 25), 1), 200) offset greatest(coalesce(p_offset, 0), 0);
-end $$;
-
--- hq_studio_detail: + account (wraps the section-4 body, kept as _hq_studio_detail_core)
-do $$ declare d text; begin
-  if to_regprocedure('public._hq_studio_detail_core(uuid)') is null
-     or position('studio_account' in pg_get_functiondef('public.hq_studio_detail(uuid)'::regprocedure)) = 0 then
-    d := pg_get_functiondef('public.hq_studio_detail(uuid)'::regprocedure);
-    if position('studio_account' in d) = 0 then
-      d := replace(d, 'FUNCTION public.hq_studio_detail(', 'FUNCTION public._hq_studio_detail_core(');
-      execute d;
-    end if;
-  end if;
-end $$;
-create or replace function public.hq_studio_detail(p_org uuid)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare r jsonb;
-begin
-  r := public._hq_studio_detail_core(p_org);   -- gates + audits
-  if r is null then return null; end if;
-  return r || jsonb_build_object('account', (select to_jsonb(a) - 'org_id' from public.studio_account a where a.org_id = p_org));
-end $$;
--- hq_studio_detail_core must stay gated even if called directly: it calls _hq_gate itself.
-
--- invoice: buyer from the account profile + GST split by place of supply
-create or replace function public._sub_invoice_json(p_id uuid)
-returns jsonb language sql stable security definer set search_path = '' as $$
-  select jsonb_build_object(
-    'invoice_no', p.invoice_no, 'issued_on', p.paid_on, 'paid_on', p.paid_on, 'recorded_at', p.recorded_at,
-    'net', p.net_amount, 'amount', p.amount, 'provider_payment_id', p.provider_payment_id,
-    'status', case when p.voided_at is null then 'paid' else 'void' end,
-    'voided_at', p.voided_at, 'void_reason', p.void_reason,
-    'seller', coalesce(p.seller, '{}'::jsonb) || jsonb_build_object('gst_rate', p.gst_rate),
-    'buyer', jsonb_build_object('org_id', o.id, 'name', coalesce(a.legal_business_name, o.name),
-              'gstin', coalesce(a.gstin, o.gst_number), 'email', coalesce(a.billing_contact_email, o.business_email),
-              'address', coalesce(a.billing_address, o.location), 'state', a.state),
-    'gst_split', case
-       when lower(btrim(coalesce(a.state, ''))) <> '' and lower(btrim(coalesce(p.seller ->> 'state', ''))) <> ''
-            and lower(btrim(a.state)) = lower(btrim(p.seller ->> 'state'))
-         then jsonb_build_object('type', 'CGST_SGST', 'igst', 0, 'cgst', round(p.gst_amount / 2, 2), 'sgst', p.gst_amount - round(p.gst_amount / 2, 2))
-       else jsonb_build_object('type', 'IGST', 'igst', p.gst_amount, 'cgst', 0, 'sgst', 0) end,
-    'plan', jsonb_build_object('code', p.plan_code, 'name', (select hp.name from public.helm_plans hp where hp.code = p.plan_code)),
-    'period_start', p.period_start, 'period_end', p.period_end, 'method', p.method, 'reference', p.reference,
-    'currency', p.currency, 'gst_rate', p.gst_rate, 'net_amount', p.net_amount, 'gst_amount', p.gst_amount, 'total', p.amount,
-    'lines', jsonb_build_array(jsonb_build_object(
-       'description', 'Helm subscription' || coalesce(' — ' || (select hp.name from public.helm_plans hp where hp.code = p.plan_code), '')
-                      || coalesce(' (' || p.period_start::text || ' to ' || p.period_end::text || ')', ''),
-       'amount', p.net_amount)))
-  from public.subscription_payments p join public.organizations o on o.id = p.org_id
-  left join public.studio_account a on a.org_id = p.org_id where p.id = p_id;
-$$;
-
--- seller snapshot now carries the seller state (set in hq_set_billing_settings_state)
-create or replace function public.hq_set_billing_state(p_state text)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-begin
-  perform public._hq_wgate('hq.billing.settings', 'helm_billing_settings', 'state', jsonb_build_object('state', p_state));
-  if length(coalesce(p_state, '')) > 80 then raise exception 'state too long' using errcode = '22023'; end if;
-  update public.helm_billing_settings set seller_state = nullif(btrim(coalesce(p_state, '')), ''), updated_at = now(), updated_by = auth.uid() where id;
-  return (select to_jsonb(b) - 'id' from public.helm_billing_settings b where b.id);
-end $$;
-
-do $$ declare fn text; begin
-  foreach fn in array array['public.hq_studios(text,text,int,int)', 'public.hq_set_studio_account(uuid,jsonb)',
-      'public.my_studio_account()', 'public.my_studio_account_update(jsonb)', 'public.hq_set_billing_state(text)'] loop
-    execute 'revoke all on function ' || fn || ' from public';
-    if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on function ' || fn || ' from anon'; end if;
-    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'grant execute on function ' || fn || ' to authenticated'; end if;
-  end loop;
-  foreach fn in array array['public._studio_account_prefill(uuid)', 'public._studio_account_apply(uuid,jsonb)',
-      'public._hq_studio_detail_core(uuid)', 'public._sub_invoice_json(uuid)'] loop
-    execute 'revoke all on function ' || fn || ' from public';
-    if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on function ' || fn || ' from anon'; end if;
-    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'revoke all on function ' || fn || ' from authenticated'; end if;
+    execute format('revoke all on function public.%I(%s) from public, anon, authenticated', f[1] || '__pre0049', f[2]);
+    execute format('grant execute on function public.%I(%s) to service_role', f[1] || '__pre0049', f[2]);
   end loop;
 end $$;
 
--- ============================================================================
--- 12) GLOBAL: extra account fields, country-aware tax engine, multi-currency, export
---     realisation, buyer + tax SNAPSHOT on every payment (old invoices never change).
---   !! Tax rates, regimes and invoice wording below are DEFAULTS ONLY. They must be
---   !! confirmed by the owner's Chartered Accountant before use. Helm (and this code)
---   !! is not giving tax advice.
---   Regime resolution (_resolve_tax, server-side only — never from the client):
---     buyer country = seller country (IN): same state → IN_GST_INTRA (CGST + SGST, half
---       each), otherwise IN_GST_INTER (IGST).
---     foreign buyer: active NO_TAX rule for the country → NO_TAX; active LOCAL_REGISTERED
---       rule → that rule's rate; otherwise export: valid LUT on paid_on → EXPORT_LUT_ZERO
---       (0%), no LUT → EXPORT_IGST_PAID (IN rate as IGST, refundable).
---       A foreign BUSINESS buyer with a tax_id gets the reverse-charge wording; when the
---       supply is zero-rated under LUT the regime is REVERSE_CHARGE (0%, both notes).
---   Amounts are tax-inclusive (net = amount / (1 + rate/100)).
--- ============================================================================
-alter table public.studio_account add column if not exists business_type text check (business_type is null or business_type in ('wedding','corporate','decor','catering','other'));
-alter table public.studio_account add column if not exists events_per_month_band text check (events_per_month_band is null or events_per_month_band in ('0-2','3-5','6-10','11-20','21+'));
-alter table public.studio_account add column if not exists preferred_contact_method text check (preferred_contact_method is null or preferred_contact_method in ('whatsapp','phone','email'));
-alter table public.studio_account add column if not exists preferred_language text check (preferred_language is null or preferred_language ~ '^[a-z]{2}(-[A-Z]{2})?$');
-alter table public.studio_account add column if not exists referral_code text check (referral_code is null or referral_code ~ '^[A-Z0-9-]{3,32}$');
-alter table public.studio_account add column if not exists referred_by text check (referred_by is null or length(referred_by) <= 80);
-alter table public.studio_account add column if not exists terms_version_accepted text check (terms_version_accepted is null or terms_version_accepted ~ '^[A-Za-z0-9._-]{1,32}$');
-alter table public.studio_account add column if not exists terms_accepted_at timestamptz;
-alter table public.studio_account add column if not exists consent_version text check (consent_version is null or consent_version ~ '^[A-Za-z0-9._-]{1,32}$');
-alter table public.studio_account add column if not exists data_processing_consent_at timestamptz;
-alter table public.studio_account add column if not exists marketing_opt_in boolean not null default false;
-alter table public.studio_account add column if not exists is_business boolean not null default true;
-alter table public.studio_account add column if not exists tax_id_type text check (tax_id_type is null or tax_id_type in ('IN_GSTIN','IN_PAN','EU_VAT','UK_VAT','AU_ABN','CA_GST','SG_GST','AE_TRN','US_EIN','OTHER'));
-alter table public.studio_account add column if not exists tax_id text check (tax_id is null or length(tax_id) <= 40);
-alter table public.studio_account add column if not exists pan text check (pan is null or pan ~ '^[A-Z]{5}[0-9]{4}[A-Z]$');
-alter table public.studio_account add column if not exists billing_currency text check (billing_currency is null or billing_currency ~ '^[A-Z]{3}$');
-alter table public.studio_account add column if not exists payment_mandate_ref text check (payment_mandate_ref is null or payment_mandate_ref ~ '^[A-Za-z0-9_-]{3,64}$');
-
-create table if not exists public.studio_consent_log (
-  id       uuid primary key default gen_random_uuid(),
-  org_id   uuid not null references public.organizations(id) on delete restrict,
-  kind     text not null check (kind in ('terms','data_processing','marketing')),
-  version  text,
-  value    boolean,
-  at       timestamptz not null default now(),
-  actor    uuid
-);
-alter table public.studio_consent_log enable row level security;
-revoke all on table public.studio_consent_log from public;
-do $$ begin
-  if exists (select 1 from pg_roles where rolname = 'anon') then revoke all on table public.studio_consent_log from anon; end if;
-  if exists (select 1 from pg_roles where rolname = 'authenticated') then revoke all on table public.studio_consent_log from authenticated; end if;
-end $$;
-
-alter table public.helm_billing_settings add column if not exists seller_country text not null default 'IN' check (seller_country ~ '^[A-Z]{2}$');
-alter table public.helm_billing_settings add column if not exists lut_number text check (lut_number is null or length(lut_number) <= 40);
-alter table public.helm_billing_settings add column if not exists lut_valid_from date;
-alter table public.helm_billing_settings add column if not exists lut_valid_to date;
-
-create table if not exists public.tax_rules (
+-- ---- 1) CLOSE GATE -----------------------------------------------------------------
+create table if not exists public.event_close_overrides (
   id             uuid primary key default gen_random_uuid(),
-  country        text not null check (country ~ '^[A-Z]{2}$'),
-  region         text check (region is null or length(region) <= 80),
-  regime         text not null check (regime in ('IN_GST_INTRA','IN_GST_INTER','EXPORT_LUT_ZERO','EXPORT_IGST_PAID','REVERSE_CHARGE','LOCAL_REGISTERED','NO_TAX')),
-  rate           numeric(5,2) not null default 0 check (rate >= 0 and rate <= 50),
-  invoice_note   text check (invoice_note is null or length(invoice_note) <= 300),
-  effective_from date not null default date '2017-07-01',
-  effective_to   date,
-  active         boolean not null default true,
-  updated_at     timestamptz not null default now(),
-  updated_by     uuid,
-  check (effective_to is null or effective_to >= effective_from)
+  org_id         uuid not null references public.organizations(id) on delete restrict,
+  quote_id       uuid not null,
+  actor          uuid,
+  actor_email    text,
+  reason         text not null check (length(btrim(reason)) between 5 and 1000),
+  balance_owed   numeric not null default 0,
+  open_checkouts integer not null default 0,
+  blockers       jsonb not null default '{}'::jsonb,
+  created_at     timestamptz not null default now()
 );
-create unique index if not exists tax_rules_key_uq on public.tax_rules(country, coalesce(region, ''), regime, effective_from);
-insert into public.tax_rules(country, regime, rate, invoice_note)
-  select 'IN', r, 18, null from (values ('IN_GST_INTRA'), ('IN_GST_INTER')) v(r)
-   where not exists (select 1 from public.tax_rules t where t.country = 'IN' and t.regime = v.r);
-
-create table if not exists public.helm_plan_prices (
-  plan_id       uuid not null references public.helm_plans(id) on delete restrict,
-  currency      text not null check (currency ~ '^[A-Z]{3}$'),
-  price_monthly numeric(12,2) not null check (price_monthly >= 0),
-  price_yearly  numeric(12,2) check (price_yearly is null or price_yearly >= 0),
-  updated_at    timestamptz not null default now(),
-  primary key (plan_id, currency)
-);
-
-alter table public.subscription_payments add column if not exists tax_regime text;
-alter table public.subscription_payments add column if not exists tax_components jsonb;
-alter table public.subscription_payments add column if not exists tax_note text;
-alter table public.subscription_payments add column if not exists tax_refundable boolean not null default false;
-alter table public.subscription_payments add column if not exists buyer jsonb;
-alter table public.subscription_payments add column if not exists place_of_supply text;
-alter table public.subscription_payments add column if not exists fx_rate_to_inr numeric(14,6) check (fx_rate_to_inr is null or fx_rate_to_inr > 0);
-alter table public.subscription_payments add column if not exists inr_equivalent numeric(14,2);
-alter table public.subscription_payments add column if not exists fira_firc_ref text check (fira_firc_ref is null or length(fira_firc_ref) <= 80);
-alter table public.subscription_payments add column if not exists realised_on date;
-
-do $$ declare t text; begin
-  foreach t in array array['tax_rules','helm_plan_prices'] loop
-    execute format('alter table public.%I enable row level security', t);
-    execute format('revoke all on table public.%I from public', t);
-    if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on table public.%I from anon', t); end if;
-    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on table public.%I from authenticated', t); end if;
-  end loop;
+create index if not exists event_close_overrides_quote_idx on public.event_close_overrides(org_id, quote_id);
+alter table public.event_close_overrides enable row level security;
+revoke all on public.event_close_overrides from public, anon, authenticated;
+grant select on public.event_close_overrides to authenticated;
+grant all on public.event_close_overrides to service_role;
+do $$ begin
+  if to_regprocedure('public.tg_quote_org_match()') is not null then                  -- G4: row's studio = quote's studio
+    drop trigger if exists zz_quote_org_match on public.event_close_overrides;
+    create trigger zz_quote_org_match before insert or update on public.event_close_overrides
+      for each row execute function public.tg_quote_org_match();
+  end if;
+  if to_regprocedure('public.tg_studio_read_only()') is not null then                 -- 0045: suspended studio = read-only
+    drop trigger if exists zzz_studio_read_only on public.event_close_overrides;
+    create trigger zzz_studio_read_only before insert or update or delete on public.event_close_overrides
+      for each row execute function public.tg_studio_read_only('org_id');
+  end if;
 end $$;
-select public._a45_attach_read_only_guards();   -- studio_consent_log is a studio table
+drop policy if exists "a49 close overrides read" on public.event_close_overrides;
+create policy "a49 close overrides read" on public.event_close_overrides for select to authenticated
+  using (org_id = (select public.current_org_id()) and public.has_area('closure', 'view'));
 
--- payments: only void fields (once) and realisation fields (once) may change; never deleted
-create or replace function public.tg_subscription_payment_immutable()
-returns trigger language plpgsql set search_path = '' as $$
-declare keep text[] := array['voided_at','voided_by','void_reason','fira_firc_ref','realised_on'];
-begin
-  if tg_op = 'DELETE' then
-    raise exception 'subscription payments are never deleted — void them with a reason' using errcode = '42501'; end if;
-  if (to_jsonb(new) - keep) is distinct from (to_jsonb(old) - keep) then
-    raise exception 'a recorded payment can only be voided, not changed' using errcode = '42501'; end if;
-  if old.voided_at is not null and (new.voided_at, new.void_reason) is distinct from (old.voided_at, old.void_reason) then
-    raise exception 'this payment is already void' using errcode = '42501'; end if;
-  if old.realised_on is not null and (new.realised_on, new.fira_firc_ref) is distinct from (old.realised_on, old.fira_firc_ref) then
-    raise exception 'realisation is already recorded' using errcode = '42501'; end if;
-  return new;
-end $$;
-
--- per-type tax id format (normalised: upper case, no spaces)
-create or replace function public._tax_id_ok(p_type text, p_id text)
-returns boolean language sql immutable set search_path = '' as $$
-  select case p_type
-    when 'IN_GSTIN' then p_id ~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$'
-    when 'IN_PAN'   then p_id ~ '^[A-Z]{5}[0-9]{4}[A-Z]$'
-    when 'EU_VAT'   then p_id ~ '^(AT|BE|BG|CY|CZ|DE|DK|EE|EL|ES|FI|FR|HR|HU|IE|IT|LT|LU|LV|MT|NL|PL|PT|RO|SE|SI|SK|XI)[0-9A-Z]{2,12}$'
-    when 'UK_VAT'   then p_id ~ '^GB([0-9]{9}|[0-9]{12}|GD[0-9]{3}|HA[0-9]{3})$'
-    when 'AU_ABN'   then p_id ~ '^[0-9]{11}$'
-    when 'CA_GST'   then p_id ~ '^[0-9]{9}RT[0-9]{4}$'
-    when 'SG_GST'   then p_id ~ '^(M[0-9]{8}[A-Z]|[0-9]{8,9}[A-Z])$'
-    when 'AE_TRN'   then p_id ~ '^[0-9]{15}$'
-    when 'US_EIN'   then p_id ~ '^[0-9]{2}-?[0-9]{7}$'
-    when 'OTHER'    then p_id ~ '^[A-Z0-9./-]{3,40}$'
-    else false end;
-$$;
-
--- validated account patch (keys absent = unchanged, '' = clear). Consent / terms timestamps
--- are set HERE from now() — the client can never send them.
-create or replace function public._studio_account_apply(p_org uuid, p jsonb)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare k text; v text; t text; a public.studio_account;
-  allowed text[] := array['country','state','city','billing_address','legal_business_name','gstin','website',
-  'timezone','primary_contact_name','primary_contact_email','primary_contact_phone','secondary_contact_name',
-  'secondary_contact_email','secondary_contact_phone','billing_contact_email','team_size_band','signup_source',
-  'business_type','events_per_month_band','preferred_contact_method','preferred_language','referral_code','referred_by',
-  'terms_version_accepted','consent_version','marketing_opt_in','is_business','tax_id_type','tax_id','pan',
-  'billing_currency','payment_mandate_ref'];
-begin
-  if p is null or jsonb_typeof(p) <> 'object' then raise exception 'account must be an object' using errcode = '22023'; end if;
-  insert into public.studio_account(org_id) values (p_org) on conflict (org_id) do nothing;
-  for k, v in select key, nullif(btrim(value #>> '{}'), '') from jsonb_each(p) loop
-    if not (k = any(allowed)) then raise exception 'unknown field %', k using errcode = '22023'; end if;
-    if k in ('country','billing_currency','tax_id_type','referral_code') then v := upper(v); end if;
-    if k in ('gstin','tax_id','pan') then v := upper(replace(v, ' ', '')); end if;
-    if k like '%email' then v := lower(v); end if;
-    if k like '%phone' then v := regexp_replace(v, '[\s()-]', '', 'g'); end if;
-    if k like '%phone' and v is not null and v !~ '^\+[1-9][0-9]{7,14}$' then
-      raise exception 'phone must be in international format, e.g. +919876543210' using errcode = '22023'; end if;
-    if k = 'gstin' and v is not null and v !~ '^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$' then
-      raise exception 'GSTIN is not valid' using errcode = '22023'; end if;
-    if k in ('marketing_opt_in','is_business') then
-      if v is null or lower(v) not in ('true','false') then raise exception '% must be true or false', k using errcode = '22023'; end if;
-    end if;
-    select format_type(at.atttypid, at.atttypmod) into t from pg_attribute at
-     where at.attrelid = 'public.studio_account'::regclass and at.attname = k;
-    begin
-      execute format('update public.studio_account set %I = $1::%s, updated_at = now(), updated_by = auth.uid() where org_id = $2', k, t) using v, p_org;
-    exception when check_violation or invalid_text_representation then
-      raise exception '% is not valid', replace(k, '_', ' ') using errcode = '22023';
-    end;
-    if k = 'terms_version_accepted' and v is not null then
-      update public.studio_account set terms_accepted_at = now() where org_id = p_org;
-      insert into public.studio_consent_log(org_id, kind, version, value, actor) values (p_org, 'terms', v, true, auth.uid());
-    elsif k = 'consent_version' then
-      update public.studio_account set data_processing_consent_at = case when v is null then null else now() end where org_id = p_org;
-      insert into public.studio_consent_log(org_id, kind, version, value, actor) values (p_org, 'data_processing', v, v is not null, auth.uid());
-    elsif k = 'marketing_opt_in' then
-      insert into public.studio_consent_log(org_id, kind, value, actor) values (p_org, 'marketing', v::boolean, auth.uid());
-    end if;
-  end loop;
-  select * into a from public.studio_account where org_id = p_org;
-  if (a.tax_id is null) <> (a.tax_id_type is null) then
-    raise exception 'tax ID and tax ID type go together' using errcode = '22023'; end if;
-  if a.tax_id is not null and not public._tax_id_ok(a.tax_id_type, a.tax_id) then
-    raise exception 'tax ID is not a valid % number', a.tax_id_type using errcode = '22023'; end if;
-  if a.pan is not null and coalesce(a.country, 'IN') <> 'IN' then
-    raise exception 'PAN applies to Indian studios only' using errcode = '22023'; end if;
-  return to_jsonb(a);
-end $$;
-
--- the tax engine
-create or replace function public._resolve_tax(p_org uuid, p_paid_on date, p_amount numeric default null)
+-- what still blocks closing (ledger balance + open checkouts); no auth here — callers check
+create or replace function public._a49_close_blockers(p_quote uuid)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
-declare a public.studio_account; b public.helm_billing_settings; v_country text; v_seller text; v_rate numeric;
-  r record; v_regime text; v_note text; v_comp jsonb := '[]'::jsonb; v_refund boolean := false; v_rc boolean := false;
-  v_lut boolean; v_net numeric; v_tax numeric; v_half numeric; d date := coalesce(p_paid_on, current_date);
+declare v_total numeric; v_paid numeric; v_owed numeric; v_items jsonb; v_n int;
 begin
-  select * into a from public.studio_account where org_id = p_org;
-  select * into b from public.helm_billing_settings where id;
-  v_seller := coalesce(b.seller_country, 'IN');
-  v_country := coalesce(a.country, v_seller);
-  select t.rate into v_rate from public.tax_rules t
-   where t.country = 'IN' and t.regime in ('IN_GST_INTER','IN_GST_INTRA') and t.active and t.region is null
-     and t.effective_from <= d and (t.effective_to is null or t.effective_to >= d)
-   order by (t.regime = 'IN_GST_INTER') desc, t.effective_from desc limit 1;
-  v_rate := coalesce(v_rate, 18);
-  if v_country = v_seller then
-    if lower(btrim(coalesce(a.state, ''))) <> '' and lower(btrim(coalesce(a.state, ''))) = lower(btrim(coalesce(b.seller_state, ''))) then
-      select coalesce((select t.rate from public.tax_rules t where t.country = 'IN' and t.regime = 'IN_GST_INTRA' and t.active and t.region is null
-         and t.effective_from <= d and (t.effective_to is null or t.effective_to >= d) order by t.effective_from desc limit 1), v_rate) into v_rate;
-      v_regime := 'IN_GST_INTRA';
-      v_comp := jsonb_build_array(jsonb_build_object('name', 'CGST', 'rate', round(v_rate / 2, 2)), jsonb_build_object('name', 'SGST', 'rate', round(v_rate / 2, 2)));
-    else
-      v_regime := 'IN_GST_INTER';
-      v_comp := jsonb_build_array(jsonb_build_object('name', 'IGST', 'rate', v_rate));
-    end if;
-  else
-    select t.* into r from public.tax_rules t
-     where t.country = v_country and t.regime in ('NO_TAX','LOCAL_REGISTERED') and t.active
-       and (t.region is null or lower(t.region) = lower(coalesce(a.state, '')))
-       and t.effective_from <= d and (t.effective_to is null or t.effective_to >= d)
-     order by (t.region is not null) desc, (t.regime = 'NO_TAX') desc, t.effective_from desc limit 1;
-    v_rc := coalesce(a.is_business, true) and a.tax_id is not null;
-    if found and r.regime = 'NO_TAX' then
-      v_regime := 'NO_TAX'; v_rate := 0; v_note := r.invoice_note;
-    elsif found then
-      v_regime := 'LOCAL_REGISTERED'; v_rate := r.rate; v_note := r.invoice_note; v_rc := false;
-      v_comp := jsonb_build_array(jsonb_build_object('name', 'Tax (' || v_country || ')', 'rate', r.rate));
-    else
-      v_lut := b.lut_number is not null and (b.lut_valid_from is null or b.lut_valid_from <= d)
-               and (b.lut_valid_to is null or b.lut_valid_to >= d);
-      if v_lut then
-        v_regime := case when v_rc then 'REVERSE_CHARGE' else 'EXPORT_LUT_ZERO' end; v_rate := 0;
-        v_note := 'Supply meant for export under LUT without payment of IGST — LUT ' || b.lut_number;
-      else
-        v_regime := 'EXPORT_IGST_PAID'; v_refund := true;
-        v_note := 'Export of services with payment of IGST (refund claimable)';
-        v_comp := jsonb_build_array(jsonb_build_object('name', 'IGST', 'rate', v_rate));
-      end if;
-    end if;
-    if v_rc then
-      v_note := concat_ws('. ', v_note, 'Reverse charge — VAT to be accounted for by the recipient');
-    end if;
-  end if;
-  if p_amount is not null then
-    v_net := round(p_amount / (1 + v_rate / 100), 2); v_tax := round(p_amount, 2) - v_net;
-    if v_regime = 'IN_GST_INTRA' then
-      v_half := round(v_tax / 2, 2);
-      v_comp := jsonb_build_array(jsonb_build_object('name', 'CGST', 'rate', round(v_rate / 2, 2), 'amount', v_half),
-                                  jsonb_build_object('name', 'SGST', 'rate', round(v_rate / 2, 2), 'amount', v_tax - v_half));
-    elsif jsonb_array_length(v_comp) = 1 then
-      v_comp := jsonb_build_array(v_comp -> 0 || jsonb_build_object('amount', v_tax));
-    end if;
-  end if;
-  return jsonb_build_object('regime', v_regime, 'rate', v_rate, 'components', v_comp, 'note', v_note,
-    'refundable', v_refund, 'reverse_charge', v_rc, 'net', v_net, 'tax', v_tax,
-    'place_of_supply', case when v_country = 'IN' then coalesce(nullif(btrim(a.state), ''), 'IN') else v_country end,
-    'lut_number', case when v_regime in ('EXPORT_LUT_ZERO','REVERSE_CHARGE') then b.lut_number end);
+  select coalesce(nullif(q.pricing ->> 'total', '')::numeric, 0) into v_total
+    from public.quotes q where q.id = p_quote;
+  v_paid := coalesce(public.helm_total_paid(p_quote, null, null), 0);    -- ledger: paid quote_payments
+  v_owed := greatest(coalesce(v_total, 0) - v_paid, 0);
+  if v_owed <= 0.5 then v_owed := 0; end if;                              -- same tolerance as the overpayment guard
+  select count(*), coalesce(jsonb_agg(jsonb_build_object(
+           'id', c.id, 'item', coalesce(i.name, 'item'), 'qty', c.qty_out, 'issued_to', c.issued_to)
+           order by c.checked_out_at), '[]'::jsonb)
+    into v_n, v_items
+    from public.inventory_checkouts c left join public.inventory_items i on i.id = c.item_id
+   where c.quote_id = p_quote and c.status = 'out';
+  return jsonb_build_object('total', coalesce(v_total, 0), 'paid', v_paid, 'balance_owed', v_owed,
+                            'open_checkouts', v_n, 'checkouts', v_items,
+                            'blocked', (v_owed > 0 or v_n > 0));
 end $$;
 
--- record one payment: tax ONLY from _resolve_tax; buyer, seller and tax snapshotted on the row
-drop function if exists public._sub_record_payment(uuid,numeric,text,date,date,date,text,text,uuid,text,text,text);
-create or replace function public._sub_record_payment(p_org uuid, p_amount numeric, p_currency text, p_paid_on date,
-  p_period_start date, p_period_end date, p_method text, p_reference text, p_actor uuid,
-  p_provider text, p_provider_payment_id text, p_provider_subscription_id text, p_fx_rate_to_inr numeric)
-returns uuid language plpgsql volatile security definer set search_path = '' as $$
-declare v_id uuid; v_seq bigint; b record; a public.studio_account; o public.organizations; v_plan text; tx jsonb;
-  v_cur text := upper(coalesce(nullif(btrim(p_currency), ''), 'INR')); v_fx numeric;
-begin
-  select * into o from public.organizations where id = p_org;
-  if not found then raise exception 'unknown studio' using errcode = '22023'; end if;
-  if p_amount is null or p_amount <= 0 or p_amount > 100000000 then raise exception 'amount must be more than 0' using errcode = '22023'; end if;
-  if p_paid_on is null or p_paid_on > current_date + 1 or p_paid_on < date '2020-01-01' then
-    raise exception 'paid on date is not valid' using errcode = '22023'; end if;
-  if coalesce(p_method, '') not in ('upi','bank','cash','card','other') then raise exception 'method must be upi, bank, cash, card or other' using errcode = '22023'; end if;
-  if p_period_start is not null and p_period_end is not null and p_period_end < p_period_start then
-    raise exception 'period end is before period start' using errcode = '22023'; end if;
-  if v_cur !~ '^[A-Z]{3}$' then raise exception 'currency must be a 3-letter ISO code' using errcode = '22023'; end if;
-  if v_cur = 'INR' then v_fx := 1;
-  elsif p_fx_rate_to_inr is null or p_fx_rate_to_inr <= 0 or p_fx_rate_to_inr > 100000 then
-    raise exception 'an exchange rate to INR is required for % payments', v_cur using errcode = '22023';
-  else v_fx := p_fx_rate_to_inr; end if;
-  select * into b from public.helm_billing_settings where id;
-  select * into a from public.studio_account where org_id = p_org;
-  select p.code into v_plan from public.studio_subscriptions s join public.helm_plans p on p.id = s.plan_id where s.org_id = p_org;
-  tx := public._resolve_tax(p_org, p_paid_on, p_amount);
-  v_seq := nextval('public.helm_invoice_seq');
-  insert into public.subscription_payments(org_id, amount, currency, paid_on, period_start, period_end, method, reference,
-      recorded_by, invoice_seq, invoice_no, gst_rate, net_amount, gst_amount, seller, plan_code,
-      provider, provider_payment_id, provider_subscription_id,
-      tax_regime, tax_components, tax_note, tax_refundable, buyer, place_of_supply, fx_rate_to_inr, inr_equivalent)
-    values (p_org, round(p_amount, 2), v_cur, p_paid_on, p_period_start, p_period_end,
-      p_method, nullif(left(btrim(coalesce(p_reference, '')), 120), ''), p_actor, v_seq,
-      coalesce(b.invoice_prefix, 'HELM-') || lpad(v_seq::text, 6, '0'), (tx ->> 'rate')::numeric, (tx ->> 'net')::numeric, (tx ->> 'tax')::numeric,
-      jsonb_build_object('legal_name', b.legal_name, 'gstin', b.gstin, 'address', b.address, 'state', b.seller_state,
-                         'country', coalesce(b.seller_country, 'IN'), 'lut_number', tx ->> 'lut_number'),
-      v_plan, p_provider, p_provider_payment_id, p_provider_subscription_id,
-      tx ->> 'regime', tx -> 'components', tx ->> 'note', coalesce((tx ->> 'refundable')::boolean, false),
-      jsonb_build_object('org_id', o.id, 'legal_name', coalesce(a.legal_business_name, o.name), 'name', o.name,
-        'country', coalesce(a.country, coalesce(b.seller_country, 'IN')), 'state', a.state,
-        'tax_id_type', coalesce(a.tax_id_type, case when coalesce(a.gstin, o.gst_number) is not null then 'IN_GSTIN' end),
-        'tax_id', coalesce(a.tax_id, a.gstin, o.gst_number), 'gstin', coalesce(a.gstin, o.gst_number),
-        'is_business', coalesce(a.is_business, true), 'address', coalesce(a.billing_address, o.location),
-        'email', coalesce(a.billing_contact_email, o.business_email), 'reverse_charge', coalesce((tx ->> 'reverse_charge')::boolean, false)),
-      tx ->> 'place_of_supply', v_fx, round(round(p_amount, 2) * v_fx, 2))
-    returning id into v_id;
-  return v_id;
-end $$;
-
-create or replace function public._sub_payment_json(p public.subscription_payments)
-returns jsonb language sql stable security definer set search_path = '' as $$
-  select jsonb_build_object('id', p.id, 'org_id', p.org_id, 'invoice_no', p.invoice_no, 'amount', p.amount,
-    'currency', p.currency, 'paid_on', p.paid_on, 'period_start', p.period_start, 'period_end', p.period_end,
-    'method', p.method, 'reference', p.reference, 'recorded_at', p.recorded_at, 'net_amount', p.net_amount,
-    'gst_amount', p.gst_amount, 'gst_rate', p.gst_rate, 'voided', p.voided_at is not null, 'voided_at', p.voided_at,
-    'void_reason', p.void_reason, 'provider', p.provider, 'tax_regime', p.tax_regime, 'fx_rate_to_inr', p.fx_rate_to_inr,
-    'inr_equivalent', p.inr_equivalent, 'place_of_supply', p.place_of_supply, 'fira_firc_ref', p.fira_firc_ref,
-    'realised_on', p.realised_on);
+create or replace function public._a49_blocker_text(b jsonb)
+returns text language sql immutable set search_path = '' as $$
+  select concat_ws('; ',
+    case when (b ->> 'balance_owed')::numeric > 0
+         then 'client balance still owed: ' || to_char((b ->> 'balance_owed')::numeric, 'FM999999999990.00') end,
+    case when (b ->> 'open_checkouts')::int > 0
+         then (b ->> 'open_checkouts') || ' equipment checkout(s) still out: '
+              || (select string_agg(x ->> 'item' || ' x' || (x ->> 'qty'), ', ')
+                    from (select x from jsonb_array_elements(b -> 'checkouts') x limit 8) s) end);
 $$;
 
--- invoice: built ONLY from the payment row's snapshots (old invoices never change)
-create or replace function public._sub_invoice_json(p_id uuid)
-returns jsonb language sql stable security definer set search_path = '' as $$
-  select jsonb_build_object(
-    'invoice_no', p.invoice_no, 'issued_on', p.paid_on, 'paid_on', p.paid_on, 'recorded_at', p.recorded_at,
-    'status', case when p.voided_at is null then 'paid' else 'void' end, 'voided_at', p.voided_at, 'void_reason', p.void_reason,
-    'currency', p.currency, 'fx_rate_to_inr', p.fx_rate_to_inr, 'inr_equivalent', p.inr_equivalent,
-    'amount', p.amount, 'total', p.amount, 'net', p.net_amount, 'net_amount', p.net_amount,
-    'gst_rate', p.gst_rate, 'gst_amount', p.gst_amount, 'provider_payment_id', p.provider_payment_id,
-    'method', p.method, 'reference', p.reference, 'period_start', p.period_start, 'period_end', p.period_end,
-    'place_of_supply', p.place_of_supply,
-    'seller', coalesce(p.seller, '{}'::jsonb) || jsonb_build_object('gst_rate', p.gst_rate),
-    'buyer', coalesce(p.buyer, jsonb_build_object('org_id', p.org_id)),
-    'tax', jsonb_build_object('regime', p.tax_regime, 'rate', p.gst_rate, 'components', coalesce(p.tax_components, '[]'::jsonb),
-           'note', p.tax_note, 'lut_number', p.seller ->> 'lut_number', 'refundable', p.tax_refundable,
-           'reverse_charge', coalesce((p.buyer ->> 'reverse_charge')::boolean, false)),
-    'gst_split', case
-       when p.tax_regime = 'IN_GST_INTRA' then jsonb_build_object('type', 'CGST_SGST', 'igst', 0,
-            'cgst', (p.tax_components -> 0 ->> 'amount')::numeric, 'sgst', (p.tax_components -> 1 ->> 'amount')::numeric)
-       when p.tax_regime = 'IN_GST_INTER' then jsonb_build_object('type', 'IGST', 'igst', p.gst_amount, 'cgst', 0, 'sgst', 0) end,
-    'plan', jsonb_build_object('code', p.plan_code, 'name', (select hp.name from public.helm_plans hp where hp.code = p.plan_code)),
-    'lines', jsonb_build_array(jsonb_build_object(
-       'description', 'Helm subscription' || coalesce(' — ' || (select hp.name from public.helm_plans hp where hp.code = p.plan_code), '')
-                      || coalesce(' (' || p.period_start::text || ' to ' || p.period_end::text || ')', ''),
-       'amount', p.net_amount)))
-  from public.subscription_payments p where p.id = p_id;
+do $$ declare f text; begin
+  foreach f in array array['_a49_close_blockers(uuid)', '_a49_blocker_text(jsonb)'] loop
+    execute 'revoke all on function public.' || f || ' from public, anon, authenticated';
+    execute 'grant execute on function public.' || f || ' to service_role';
+  end loop;
+end $$;
+
+-- read-only: what would block closing this event (own studio, closure view)
+create or replace function public.close_event_blockers(p_quote_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+begin
+  if not public.has_area('closure', 'view') then raise exception 'not authorized' using errcode = '42501'; end if;
+  if not exists (select 1 from public.quotes q where q.id = p_quote_id and q.org_id = public.current_org_id()) then
+    raise exception 'not authorized for this event' using errcode = '42501';
+  end if;
+  return public._a49_close_blockers(p_quote_id);
+end $$;
+
+-- the shared gate: lock the quote (serialises with payments), then check
+create or replace function public._a49_close_gate(p_quote uuid, p_reason text)
+returns void language plpgsql volatile security definer set search_path = '' as $$
+declare b jsonb; v_org uuid := public.current_org_id(); v_reason text := nullif(btrim(coalesce(p_reason, '')), '');
+begin
+  if not exists (select 1 from public.quotes q where q.id = p_quote and q.org_id = v_org) then
+    raise exception 'not authorized for this event' using errcode = '42501';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended('helm:pay:quote:' || p_quote::text, 0));
+  perform 1 from public.quotes q where q.id = p_quote for update;
+  b := public._a49_close_blockers(p_quote);
+  if not (b ->> 'blocked')::boolean then return; end if;
+  if v_reason is null then
+    raise exception 'Can''t close this event yet — %.', public._a49_blocker_text(b)
+      using errcode = 'P0001', detail = b::text,
+            hint = 'Collect the balance / return the equipment, or an admin can close with an override reason.';
+  end if;
+  if coalesce(public.user_role(), '') <> 'admin' then
+    raise exception 'Only an admin can close an event with something outstanding (%).', public._a49_blocker_text(b)
+      using errcode = '42501';
+  end if;
+  if length(v_reason) < 5 or length(v_reason) > 1000 then
+    raise exception 'override reason must be 5 to 1000 characters' using errcode = '22023';
+  end if;
+  insert into public.event_close_overrides(org_id, quote_id, actor, actor_email, reason, balance_owed, open_checkouts, blockers)
+    values (v_org, p_quote, auth.uid(), (select u.email from auth.users u where u.id = auth.uid()), v_reason,
+            (b ->> 'balance_owed')::numeric, (b ->> 'open_checkouts')::int, b);
+  insert into public.audit_log(actor, actor_email, action, entity, entity_id, quote_id, changed, org_id)
+    values (auth.uid(), (select u.email from auth.users u where u.id = auth.uid()), 'close_override', 'event_closure',
+            p_quote::text, p_quote, jsonb_build_object('reason', v_reason, 'blockers', b), v_org);
+end $$;
+revoke all on function public._a49_close_gate(uuid, text) from public, anon, authenticated;
+grant execute on function public._a49_close_gate(uuid, text) to service_role;
+
+create or replace function public.close_event(p_quote_id uuid, p_closed boolean)
+returns public.event_closure language plpgsql volatile security definer set search_path = '' as $$
+-- a49: closing is refused while money is owed on the ledger or equipment is still out
+begin
+  if not public.has_area('closure', 'edit') then raise exception 'not authorized' using errcode = '42501'; end if;
+  if p_closed then perform public._a49_close_gate(p_quote_id, null); end if;
+  return public.close_event__pre0049(p_quote_id, p_closed);
+end $$;
+
+-- admin override: same gate, but an admin may close with a recorded reason
+create or replace function public.close_event(p_quote_id uuid, p_closed boolean, p_override_reason text)
+returns public.event_closure language plpgsql volatile security definer set search_path = '' as $$
+begin
+  if not public.has_area('closure', 'edit') then raise exception 'not authorized' using errcode = '42501'; end if;
+  if p_closed then perform public._a49_close_gate(p_quote_id, p_override_reason); end if;
+  return public.close_event__pre0049(p_quote_id, p_closed);
+end $$;
+
+revoke all on function public.close_event(uuid, boolean) from public, anon;
+revoke all on function public.close_event(uuid, boolean, text) from public, anon;
+revoke all on function public.close_event_blockers(uuid) from public, anon;
+grant execute on function public.close_event(uuid, boolean) to authenticated, service_role;
+grant execute on function public.close_event(uuid, boolean, text) to authenticated, service_role;
+grant execute on function public.close_event_blockers(uuid) to authenticated, service_role;
+
+-- ---- 2) QUOTES WRITE LOCKDOWN ------------------------------------------------------
+-- (revoking table-level UPDATE also clears column grants; the allow-list is re-granted)
+-- DELETE stays granted: it is already limited to the Deleted shelf by can_delete() roles
+-- (0042 RESTRICTIVE policy) plus the 0026 paid-quote guard; the app itself only shelves.
+revoke insert, update, truncate, references, trigger on public.quotes from public, anon, authenticated;
+revoke delete on public.quotes from public, anon;
+do $$ declare c text; begin
+  foreach c in array array['title', 'event_type', 'client', 'pricing', 'event_date', 'event_time', 'manager_id'] loop
+    if exists (select 1 from information_schema.columns
+                where table_schema = 'public' and table_name = 'quotes' and column_name = c) then
+      execute format('grant update (%I) on public.quotes to authenticated', c);
+    else
+      raise notice '0049: quotes.% not on this database — not granted', c;
+    end if;
+  end loop;
+end $$;
+
+-- ---- 3) NV-08: clean default matrix for a NEW studio -----------------------------
+create or replace function public._a49_default_matrix()
+returns table(role text, area text, can_view boolean, can_edit boolean)
+language sql immutable set search_path = '' as $$
+  with areas(area, v, e) as (values
+    -- area,       roles that VIEW,                                                                    roles that EDIT
+    ('leads',      '{manager,planner,sales,coordinator}'::text[],                                     '{manager,planner,sales}'::text[]),
+    ('crm',        '{manager,planner,sales,coordinator}',                                             '{manager,planner,sales}'),
+    ('nurture',    '{manager,planner}',                                                               '{manager,planner}'),
+    ('discovery',  '{manager,planner}',                                                               '{manager,planner}'),
+    ('proposal',   '{manager,planner}',                                                               '{manager,planner}'),
+    ('quotes',     '{manager,planner,coordinator,supervisor,operations,quality}',                     '{manager,planner}'),
+    ('layouts',    '{manager,planner,coordinator,supervisor,operations,quality}',                     '{planner}'),
+    ('design',     '{manager,planner}',                                                               '{manager,planner}'),
+    ('staff',      '{manager,planner,coordinator,supervisor,operations,quality}',                     '{manager,planner,coordinator,operations}'),
+    ('inventory',  '{manager,planner,coordinator,supervisor,operations,quality}',                     '{manager,planner,coordinator,operations}'),
+    ('vendors',    '{manager,planner,coordinator,supervisor,operations,quality}',                     '{manager,planner,coordinator,operations}'),
+    ('calendar',   '{manager,planner,coordinator,supervisor,operations,quality}',                     '{manager,planner,coordinator}'),
+    ('templates',  '{manager,planner,coordinator,operations,quality}',                                '{manager,planner,coordinator}'),
+    ('resources',  '{manager,planner,coordinator,supervisor,operations,quality}',                     '{manager,planner,coordinator,operations}'),
+    ('runsheet',   '{manager,planner,coordinator,supervisor,operations,quality}',                     '{manager,planner,coordinator}'),
+    ('plan',       '{manager,planner,coordinator,supervisor,operations,quality}',                     '{manager,planner,coordinator}'),
+    ('logistics',  '{manager,planner,coordinator,supervisor,operations,quality}',                     '{manager,planner,coordinator}'),
+    ('ready',      '{manager,planner,coordinator,supervisor,quality}',                                '{manager,planner,coordinator}'),
+    ('finance',    '{manager,planner}',                                                               '{manager,planner}'),
+    ('settlement', '{manager,planner}',                                                               '{manager,planner}'),
+    ('closure',    '{manager,planner}',                                                               '{manager,planner}'),
+    ('command',    '{manager,planner,coordinator,supervisor,operations,quality}',                     '{manager,planner,coordinator,supervisor,quality}'),
+    ('issues',     '{manager,planner,coordinator,supervisor,operations,quality}',                     '{manager,planner,coordinator,supervisor,operations,quality}'),
+    ('media',      '{manager,planner,coordinator,supervisor,operations,quality}',                     '{manager,planner,coordinator,supervisor}'),
+    ('controls',   '{manager}',                                                                       '{manager}'),
+    ('codes',      '{manager,planner}',                                                               '{manager,planner}'),
+    ('users',      '{}',                                                                              '{}')),
+  roles(role) as (values ('admin'), ('manager'), ('planner'), ('sales'), ('coordinator'), ('supervisor'),
+                         ('quality'), ('operations'), ('crew'), ('worker'), ('client'))
+  select r.role, a.area,
+         r.role = 'admin' or r.role = any(a.v),
+         r.role = 'admin' or (r.role = any(a.e) and r.role = any(a.v))      -- edit implies view
+    from roles r cross join areas a;
 $$;
+revoke all on function public._a49_default_matrix() from public, anon, authenticated;
+grant execute on function public._a49_default_matrix() to service_role;
 
-drop function if exists public.hq_record_payment(uuid,numeric,date,text,text,date,date,text);
-create or replace function public.hq_record_payment(p_org uuid, p_amount numeric, p_paid_on date, p_method text,
-  p_currency text default 'INR', p_period_start date default null, p_period_end date default null, p_reference text default null,
-  p_fx_rate_to_inr numeric default null)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare v_id uuid;
-begin
-  perform public._hq_wgate('hq.payment.record', 'subscription_payments', p_org::text,
-    jsonb_build_object('amount', p_amount, 'currency', p_currency, 'paid_on', p_paid_on, 'method', p_method, 'fx_rate_to_inr', p_fx_rate_to_inr,
-                       'period_start', p_period_start, 'period_end', p_period_end, 'reference', left(p_reference, 120)));
-  v_id := public._sub_record_payment(p_org, p_amount, p_currency, p_paid_on, p_period_start, p_period_end, p_method, p_reference,
-            auth.uid(), null, null, null, p_fx_rate_to_inr);
-  return (select public._sub_payment_json(sp) from public.subscription_payments sp where sp.id = v_id);
-end $$;
-
-drop function if exists public.hq_settle_provider_payment(text,uuid,numeric,date,date,date,text,text,text);
-create or replace function public.hq_settle_provider_payment(p_provider_payment_id text, p_org uuid, p_amount numeric,
-  p_paid_on date, p_period_start date default null, p_period_end date default null, p_currency text default 'INR',
-  p_provider text default 'razorpay', p_provider_subscription_id text default null, p_fx_rate_to_inr numeric default null)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare v_id uuid; v_created boolean := false; v_ppid text := btrim(coalesce(p_provider_payment_id, ''));
-begin
-  if coalesce(auth.jwt() ->> 'role', '') <> 'service_role' then raise exception 'not authorized' using errcode = '42501'; end if;
-  if v_ppid = '' or length(v_ppid) > 100 then raise exception 'provider_payment_id is required' using errcode = '22023'; end if;
-  perform pg_advisory_xact_lock(hashtext('helm_settle:' || v_ppid));
-  select id into v_id from public.subscription_payments where provider_payment_id = v_ppid;
-  if v_id is null then
-    v_id := public._sub_record_payment(p_org, p_amount, p_currency, p_paid_on, p_period_start, p_period_end, 'other',
-              v_ppid, null, coalesce(nullif(btrim(p_provider), ''), 'razorpay'), v_ppid, p_provider_subscription_id, p_fx_rate_to_inr);
-    v_created := true;
-    insert into public.audit_log(actor, actor_email, action, entity, entity_id, changed, org_id, at)
-      values (null, null, 'hq.payment.provider_settled', 'subscription_payments', v_id::text,
-              jsonb_build_object('org_id', p_org, 'provider_payment_id', v_ppid, 'amount', p_amount, 'currency', p_currency), null, now());
-  end if;
-  return (select public._sub_payment_json(sp) || jsonb_build_object('created', v_created,
-           'result', case when v_created then 'settled' else 'replay' end) from public.subscription_payments sp where sp.id = v_id);
-end $$;
-
--- HQ: tax rules, seller tax settings, plan prices, realisation
-create or replace function public.hq_tax_rules()
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-begin
-  perform public._hq_gate('hq_tax_rules');
-  return coalesce((select jsonb_agg(to_jsonb(t) - 'updated_by' order by t.country, t.regime, t.effective_from desc) from public.tax_rules t), '[]'::jsonb);
-end $$;
-
-create or replace function public.hq_upsert_tax_rule(p_country text, p_region text, p_regime text, p_rate numeric,
-  p_invoice_note text default null, p_effective_from date default null, p_effective_to date default null, p_active boolean default true)
-returns uuid language plpgsql volatile security definer set search_path = '' as $$
-declare v_id uuid; v_c text := upper(btrim(coalesce(p_country, ''))); v_r text := nullif(btrim(coalesce(p_region, '')), '');
-  v_f date := coalesce(p_effective_from, current_date);
-begin
-  perform public._hq_wgate('hq.tax_rule.upsert', 'tax_rules', v_c || ':' || coalesce(v_r, '') || ':' || coalesce(p_regime, ''),
-    jsonb_build_object('rate', p_rate, 'note', p_invoice_note, 'from', v_f, 'to', p_effective_to, 'active', p_active));
-  if v_c !~ '^[A-Z]{2}$' then raise exception 'country must be a 2-letter ISO code' using errcode = '22023'; end if;
-  if coalesce(p_regime, '') not in ('IN_GST_INTRA','IN_GST_INTER','EXPORT_LUT_ZERO','EXPORT_IGST_PAID','REVERSE_CHARGE','LOCAL_REGISTERED','NO_TAX') then
-    raise exception 'unknown regime' using errcode = '22023'; end if;
-  if p_rate is null or p_rate < 0 or p_rate > 50 then raise exception 'rate must be 0-50' using errcode = '22023'; end if;
-  if p_effective_to is not null and p_effective_to < v_f then raise exception 'effective to is before effective from' using errcode = '22023'; end if;
-  select id into v_id from public.tax_rules where country = v_c and coalesce(region, '') = coalesce(v_r, '') and regime = p_regime and effective_from = v_f;
-  if v_id is null then
-    insert into public.tax_rules(country, region, regime, rate, invoice_note, effective_from, effective_to, active, updated_by)
-      values (v_c, v_r, p_regime, p_rate, nullif(left(btrim(coalesce(p_invoice_note, '')), 300), ''), v_f, p_effective_to, coalesce(p_active, true), auth.uid())
-      returning id into v_id;
-  else
-    update public.tax_rules set rate = p_rate, invoice_note = nullif(left(btrim(coalesce(p_invoice_note, '')), 300), ''),
-           effective_to = p_effective_to, active = coalesce(p_active, true), updated_at = now(), updated_by = auth.uid() where id = v_id;
-  end if;
-  return v_id;
-end $$;
-
-create or replace function public.hq_set_seller_tax(p_seller_country text, p_seller_state text, p_lut_number text,
-  p_lut_valid_from date, p_lut_valid_to date)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-begin
-  perform public._hq_wgate('hq.billing.settings', 'helm_billing_settings', 'seller_tax',
-    jsonb_build_object('seller_country', p_seller_country, 'seller_state', p_seller_state, 'lut_number', p_lut_number,
-                       'lut_valid_from', p_lut_valid_from, 'lut_valid_to', p_lut_valid_to));
-  if upper(coalesce(p_seller_country, 'IN')) !~ '^[A-Z]{2}$' then raise exception 'country must be a 2-letter ISO code' using errcode = '22023'; end if;
-  if p_lut_valid_from is not null and p_lut_valid_to is not null and p_lut_valid_to < p_lut_valid_from then
-    raise exception 'LUT end is before LUT start' using errcode = '22023'; end if;
-  update public.helm_billing_settings set seller_country = upper(coalesce(nullif(btrim(p_seller_country), ''), 'IN')),
-         seller_state = nullif(btrim(coalesce(p_seller_state, '')), ''), lut_number = nullif(left(btrim(coalesce(p_lut_number, '')), 40), ''),
-         lut_valid_from = p_lut_valid_from, lut_valid_to = p_lut_valid_to, updated_at = now(), updated_by = auth.uid() where id;
-  return (select to_jsonb(b) - 'id' from public.helm_billing_settings b where b.id);
-end $$;
-
-create or replace function public.hq_upsert_plan_price(p_plan_code text, p_currency text, p_price_monthly numeric, p_price_yearly numeric default null)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
-declare v_plan uuid; v_cur text := upper(btrim(coalesce(p_currency, '')));
-begin
-  perform public._hq_wgate('hq.plan.price', 'helm_plan_prices', coalesce(p_plan_code, '') || ':' || v_cur,
-    jsonb_build_object('monthly', p_price_monthly, 'yearly', p_price_yearly));
-  select id into v_plan from public.helm_plans where code = lower(btrim(coalesce(p_plan_code, '')));
-  if v_plan is null then raise exception 'unknown plan' using errcode = '22023'; end if;
-  if v_cur !~ '^[A-Z]{3}$' then raise exception 'currency must be a 3-letter ISO code' using errcode = '22023'; end if;
-  if p_price_monthly is null or p_price_monthly < 0 or (p_price_yearly is not null and p_price_yearly < 0) then
-    raise exception 'prices must be 0 or more' using errcode = '22023'; end if;
-  insert into public.helm_plan_prices(plan_id, currency, price_monthly, price_yearly) values (v_plan, v_cur, p_price_monthly, p_price_yearly)
-  on conflict (plan_id, currency) do update set price_monthly = excluded.price_monthly, price_yearly = excluded.price_yearly, updated_at = now();
-  return jsonb_build_object('plan', lower(p_plan_code), 'currency', v_cur, 'price_monthly', p_price_monthly, 'price_yearly', p_price_yearly);
-end $$;
-
-create or replace function public.hq_record_realisation(p_id uuid, p_fira_firc_ref text, p_realised_on date)
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+-- set (never delete) the matrix of one studio to the defaults; rows outside the defaults
+-- are switched off for non-admins
+create or replace function public._a49_seed_clean_matrix(p_org uuid)
+returns integer language plpgsql volatile security definer set search_path = '' as $$
 declare n int;
 begin
-  perform public._hq_wgate('hq.payment.realised', 'subscription_payments', p_id::text,
-    jsonb_build_object('fira_firc_ref', p_fira_firc_ref, 'realised_on', p_realised_on));
-  if length(btrim(coalesce(p_fira_firc_ref, ''))) < 3 or p_realised_on is null or p_realised_on > current_date + 1 then
-    raise exception 'FIRA / FIRC reference and realised date are required' using errcode = '22023'; end if;
-  update public.subscription_payments set fira_firc_ref = left(btrim(p_fira_firc_ref), 80), realised_on = p_realised_on
-   where id = p_id and realised_on is null and voided_at is null;
+  insert into public.role_access(org_id, role, area, can_view, can_edit, updated_at)
+    select p_org, d.role, d.area, d.can_view, d.can_edit, now() from public._a49_default_matrix() d
+  on conflict (org_id, role, area) do update
+    set can_view = excluded.can_view, can_edit = excluded.can_edit, updated_at = now();
   get diagnostics n = row_count;
-  if n = 0 then raise exception 'payment not found, void, or already realised' using errcode = '22023'; end if;
-  return (select public._sub_payment_json(sp) from public.subscription_payments sp where sp.id = p_id);
+  update public.role_access ra set can_view = (ra.role = 'admin'), can_edit = (ra.role = 'admin'), updated_at = now()
+   where ra.org_id = p_org
+     and not exists (select 1 from public._a49_default_matrix() d where d.role = ra.role and d.area = ra.area)
+     and (ra.can_view is distinct from (ra.role = 'admin') or ra.can_edit is distinct from (ra.role = 'admin'));
+  return n;
 end $$;
+revoke all on function public._a49_seed_clean_matrix(uuid) from public, anon, authenticated;
+grant execute on function public._a49_seed_clean_matrix(uuid) to service_role;
 
-create or replace function public.hq_unrealised_exports()
-returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+create or replace function public.create_studio(p_name text, p_email text default null,
+                                                p_currency text default 'INR', p_timezone text default 'Asia/Kolkata')
+returns uuid language plpgsql volatile security definer set search_path = '' as $$
+-- a49 (NV-08): a NEW studio gets the clean default access matrix, not the template's
+declare v_had uuid; v_org uuid;
 begin
-  perform public._hq_gate('hq_unrealised_exports');
-  return coalesce((select jsonb_agg(public._sub_payment_json(sp) || jsonb_build_object('studio', o.name) order by sp.paid_on)
-    from public.subscription_payments sp join public.organizations o on o.id = sp.org_id
-   where sp.voided_at is null and sp.realised_on is null
-     and sp.tax_regime in ('EXPORT_LUT_ZERO','EXPORT_IGST_PAID','REVERSE_CHARGE')), '[]'::jsonb);
+  select p.org_id into v_had from public.profiles p where p.id = auth.uid();
+  v_org := public.create_studio__pre0049(p_name, p_email, p_currency, p_timezone);
+  if v_had is null and v_org is not null then
+    perform public._a49_seed_clean_matrix(v_org);
+  end if;
+  return v_org;
+end $$;
+revoke all on function public.create_studio(text, text, text, text) from public, anon;
+grant execute on function public.create_studio(text, text, text, text) to authenticated, service_role;
+
+-- ---- 4a) statement timeouts (tighten only; needs the postgres role) ----------------
+do $$ declare r text[]; v_cur text; v_ms bigint; v_target bigint; m text[]; begin
+  foreach r slice 1 in array array[['anon', '8000'], ['authenticated', '15000']] loop
+    v_target := r[2]::bigint;
+    select substring(s from '^statement_timeout=(.*)$') into v_cur
+      from pg_db_role_setting d join pg_roles ro on ro.oid = d.setrole, unnest(d.setconfig) s
+     where ro.rolname = r[1] and d.setdatabase = 0 and s like 'statement_timeout=%';
+    v_ms := null;
+    if v_cur is not null then
+      m := regexp_match(btrim(v_cur, ' '''), '^([0-9]+)\s*(ms|s|min|h)?$');
+      if m is not null then
+        v_ms := m[1]::bigint * case coalesce(m[2], 'ms') when 'ms' then 1 when 's' then 1000 when 'min' then 60000 else 3600000 end;
+      end if;
+    end if;
+    if v_cur is not null and (v_ms is null or (v_ms > 0 and v_ms <= v_target)) then
+      raise notice '0049: % statement_timeout already % — kept (never loosened)', r[1], v_cur; continue;
+    end if;
+    begin
+      execute format('alter role %I set statement_timeout = %L', r[1], (v_target / 1000)::text || 's');
+    exception when insufficient_privilege or undefined_object then
+      raise notice '0049: could not set % statement_timeout (%): run as the postgres role', r[1], sqlerrm;
+    end;
+  end loop;
 end $$;
 
--- MRR in INR: plan price in the studio's billing currency (if priced) × that currency's latest recorded rate
-create or replace function public._hq_mrr_inr()
-returns numeric language sql stable security definer set search_path = '' as $$
-  select coalesce(round(sum(
-           case when pp.price_monthly is not null and coalesce(a.billing_currency, 'INR') <> 'INR'
-                then pp.price_monthly * coalesce((select sp.fx_rate_to_inr from public.subscription_payments sp
-                       where sp.currency = a.billing_currency and sp.fx_rate_to_inr is not null and sp.voided_at is null
-                       order by sp.paid_on desc, sp.recorded_at desc limit 1), 0)
-                when p.currency = 'INR' then p.price_monthly
-                else p.price_monthly * coalesce((select sp.fx_rate_to_inr from public.subscription_payments sp
-                       where sp.currency = p.currency and sp.fx_rate_to_inr is not null and sp.voided_at is null
-                       order by sp.paid_on desc, sp.recorded_at desc limit 1), 0) end), 2), 0)
-    from public.studio_subscriptions s join public.helm_plans p on p.id = s.plan_id
-    left join public.studio_account a on a.org_id = s.org_id
-    left join public.helm_plan_prices pp on pp.plan_id = p.id and pp.currency = a.billing_currency
-   where s.status in ('active', 'past_due');
+-- ---- 4b) per-studio storage quota + uploads per hour ---------------------------
+alter table public.helm_plans           add column if not exists storage_quota_bytes bigint;
+alter table public.helm_plans           add column if not exists uploads_per_hour integer;
+alter table public.studio_subscriptions add column if not exists storage_quota_bytes bigint;
+alter table public.studio_subscriptions add column if not exists uploads_per_hour integer;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'helm_plans_a49_limits_chk') then
+    alter table public.helm_plans add constraint helm_plans_a49_limits_chk
+      check ((storage_quota_bytes is null or storage_quota_bytes >= 0) and (uploads_per_hour is null or uploads_per_hour >= 0));
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'studio_subscriptions_a49_limits_chk') then
+    alter table public.studio_subscriptions add constraint studio_subscriptions_a49_limits_chk
+      check ((storage_quota_bytes is null or storage_quota_bytes >= 0) and (uploads_per_hour is null or uploads_per_hour >= 0));
+  end if;
+end $$;
+
+-- effective limits: studio override → plan → default (2 GB, 200 uploads / hour)
+create or replace function public.studio_upload_limits(p_org uuid)
+returns table(storage_quota_bytes bigint, uploads_per_hour integer)
+language sql stable security definer set search_path = '' as $$
+  select coalesce(s.storage_quota_bytes, p.storage_quota_bytes, 2147483648::bigint),
+         coalesce(s.uploads_per_hour, p.uploads_per_hour, 200)
+    from (select 1) one
+    left join public.studio_subscriptions s on s.org_id = p_org
+    left join public.helm_plans p on p.id = s.plan_id;
 $$;
-do $$ declare d text; begin
-  d := pg_get_functiondef('public.hq_overview()'::regprocedure);
-  if position('_hq_mrr_inr' in d) = 0 then
-    d := replace(d, '''mrr'', public._hq_mrr(),', '''mrr'', public._hq_mrr(), ''mrr_inr'', public._hq_mrr_inr(),');
-    execute d;
+revoke all on function public.studio_upload_limits(uuid) from public, anon, authenticated;
+grant execute on function public.studio_upload_limits(uuid) to service_role;
+
+create or replace function public.storage_quota_ok(p_bucket text, p_name text, p_metadata jsonb)
+returns boolean language plpgsql stable security definer set search_path = '' as $$
+declare v_org text := split_part(coalesce(p_name, ''), '/', 1); v_quota bigint; v_rate int;
+        v_used bigint; v_new bigint := 0; v_n int;
+begin
+  if v_org !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then return false; end if;
+  select l.storage_quota_bytes, l.uploads_per_hour into v_quota, v_rate from public.studio_upload_limits(v_org::uuid) l;
+  if coalesce(p_metadata ->> 'size', '') ~ '^[0-9]{1,15}$' then v_new := (p_metadata ->> 'size')::bigint; end if;
+  select coalesce(sum(case when coalesce(o.metadata ->> 'size', '') ~ '^[0-9]{1,15}$' then (o.metadata ->> 'size')::bigint else 0 end), 0),
+         count(*) filter (where o.created_at > now() - interval '1 hour')
+    into v_used, v_n
+    from storage.objects o
+   where o.bucket_id in ('invite-media', 'event-docs', 'chat-media', 'task-proof', 'member-avatars')
+     and o.name like v_org || '/%';
+  if v_used + v_new > v_quota then
+    raise exception 'Your studio''s storage is full (% MB of % MB used). Delete old files or ask Helm to raise the limit.',
+      round(v_used / 1048576.0), round(v_quota / 1048576.0) using errcode = '53400';
   end if;
-  d := pg_get_functiondef('public.hq_billing(date,date)'::regprocedure);
-  if position('_hq_mrr_inr' in d) = 0 then
-    d := replace(d, '''mrr'', public._hq_mrr(),', '''mrr'', public._hq_mrr(), ''mrr_inr'', public._hq_mrr_inr(), ''unrealised_exports'',
-      (select count(*) from public.subscription_payments x where x.voided_at is null and x.realised_on is null
-         and x.tax_regime in (''EXPORT_LUT_ZERO'',''EXPORT_IGST_PAID'',''REVERSE_CHARGE'')),');
-    execute d;
+  if v_n >= v_rate then
+    raise exception 'Too many uploads from your studio in the last hour (limit %). Try again later.', v_rate
+      using errcode = '53400';
   end if;
+  return true;
+end $$;
+revoke all on function public.storage_quota_ok(text, text, jsonb) from public;
+grant execute on function public.storage_quota_ok(text, text, jsonb) to anon, authenticated, service_role;
+
+drop policy if exists upload_quota_insert on storage.objects;
+create policy upload_quota_insert on storage.objects as restrictive for insert to anon, authenticated
+  with check ( public.storage_quota_ok(bucket_id, name, metadata) );
+
+notify pgrst, 'reload schema';
+
+-- VERIFY — every row must say ok = true
+select item, ok from (values
+  ('close_event wrapped once (old body kept)',
+     to_regprocedure('public.close_event__pre0049(uuid, boolean)') is not null
+     and pg_get_functiondef('public.close_event(uuid,boolean)'::regprocedure) like '%_a49_close_gate%'),
+  ('admin override entry point exists',
+     to_regprocedure('public.close_event(uuid, boolean, text)') is not null
+     and has_function_privilege('authenticated', 'public.close_event(uuid,boolean,text)', 'execute')
+     and not has_function_privilege('anon', 'public.close_event(uuid,boolean,text)', 'execute')),
+  ('close gate uses the ledger (helm_total_paid), not milestones',
+     pg_get_functiondef('public._a49_close_blockers(uuid)'::regprocedure) like '%helm_total_paid%'
+     and pg_get_functiondef('public._a49_close_blockers(uuid)'::regprocedure) not like '%payment_milestones%'),
+  ('override log: RLS on, API cannot write',
+     (select relrowsecurity from pg_class where oid = 'public.event_close_overrides'::regclass)
+     and not has_table_privilege('authenticated', 'public.event_close_overrides', 'INSERT')),
+  ('quotes: no direct INSERT/DELETE/table UPDATE for API roles',
+     not has_table_privilege('authenticated', 'public.quotes', 'INSERT')
+     and not has_table_privilege('anon', 'public.quotes', 'DELETE')
+     and not has_table_privilege('authenticated', 'public.quotes', 'UPDATE')
+     and not has_table_privilege('anon', 'public.quotes', 'UPDATE')),
+  ('quotes: app columns still updatable, status/lifecycle not',
+     has_column_privilege('authenticated', 'public.quotes', 'pricing', 'UPDATE')
+     and has_column_privilege('authenticated', 'public.quotes', 'manager_id', 'UPDATE')
+     and not has_column_privilege('authenticated', 'public.quotes', 'status', 'UPDATE')
+     and not has_column_privilege('authenticated', 'public.quotes', 'lifecycle_stage', 'UPDATE')),
+  ('create_studio wrapped with the clean matrix seed',
+     to_regprocedure('public.create_studio__pre0049(text,text,text,text)') is not null
+     and pg_get_functiondef('public.create_studio(text,text,text,text)'::regprocedure) like '%_a49_seed_clean_matrix%'),
+  ('statement_timeout set for anon and authenticated',
+     (select count(*) from pg_db_role_setting d join pg_roles r on r.oid = d.setrole, unnest(d.setconfig) s
+       where r.rolname in ('anon', 'authenticated') and d.setdatabase = 0 and s like 'statement_timeout=%') = 2),
+  ('upload quota policy is RESTRICTIVE',
+     exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects'
+              and policyname = 'upload_quota_insert' and permissive = 'RESTRICTIVE')),
+  ('default limits 2 GB / 200 per hour',
+     (select storage_quota_bytes = 2147483648 and uploads_per_hour = 200
+        from public.studio_upload_limits('00000000-0000-0000-0000-000000000000')))
+) v(item, ok);
+-- informational: current role timeouts
+select r.rolname, s from pg_db_role_setting d join pg_roles r on r.oid = d.setrole, unnest(d.setconfig) s
+ where r.rolname in ('anon', 'authenticated') and s like 'statement_timeout=%';
+
+-- ═══════════════════════════════ PART 0050 ═══════════════════════════════
+-- ════════════════════════════════════════════════════════════════════════════
+-- HELM — 0050 server-side two-step lockout + durable Edge rate limits (one paste)  (2026-10-07)
+--   * 5 wrong two-step codes → that account's code entry is locked for 15 minutes,
+--     counted on the SERVER (was: per-browser localStorage). Locks are audited.
+--   * rate_hit(bucket, key, window_s, max) — durable counter for Edge Functions
+--     (service role only).
+-- REQUIRES the base audit_log table. Independent of 0049 (apply in either order).
+-- WHAT IT TOUCHES: 2 new private tables, 5 new functions. NO existing row, table or
+--   function is changed or deleted. SAFE TO RE-RUN. STAGING first, then PROD.
+-- ════════════════════════════════════════════════════════════════════════════
+do $$ begin
+  if to_regclass('public.audit_log') is null then raise exception 'STOP: public.audit_log missing'; end if;
+  raise notice 'Preflight OK — applying 0050…';
 end $$;
 
-do $$ declare fn text; begin
-  foreach fn in array array['public.hq_record_payment(uuid,numeric,date,text,text,date,date,text,numeric)', 'public.hq_tax_rules()',
-      'public.hq_upsert_tax_rule(text,text,text,numeric,text,date,date,boolean)', 'public.hq_set_seller_tax(text,text,text,date,date)',
-      'public.hq_upsert_plan_price(text,text,numeric,numeric)', 'public.hq_record_realisation(uuid,text,date)', 'public.hq_unrealised_exports()'] loop
-    execute 'revoke all on function ' || fn || ' from public';
-    if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on function ' || fn || ' from anon'; end if;
-    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'grant execute on function ' || fn || ' to authenticated'; end if;
-  end loop;
-  foreach fn in array array['public._resolve_tax(uuid,date,numeric)', 'public._tax_id_ok(text,text)', 'public._hq_mrr_inr()',
-      'public._sub_record_payment(uuid,numeric,text,date,date,date,text,text,uuid,text,text,text,numeric)',
-      'public._sub_payment_json(public.subscription_payments)', 'public._sub_invoice_json(uuid)', 'public._studio_account_apply(uuid,jsonb)',
-      'public.hq_settle_provider_payment(text,uuid,numeric,date,date,date,text,text,text,numeric)'] loop
-    execute 'revoke all on function ' || fn || ' from public';
-    if exists (select 1 from pg_roles where rolname = 'anon') then execute 'revoke all on function ' || fn || ' from anon'; end if;
-    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute 'revoke all on function ' || fn || ' from authenticated'; end if;
-  end loop;
-  if exists (select 1 from pg_roles where rolname = 'service_role') then
-    grant execute on function public.hq_settle_provider_payment(text,uuid,numeric,date,date,date,text,text,text,numeric) to service_role;
+-- Additive + idempotent: 2 new private tables, 5 new functions. No existing row,
+-- table or function is changed or deleted.
+-- ============================================================================
+
+-- ---- 1. durable rate-limit counters -------------------------------------------------
+create table if not exists public.auth_rate_hits (
+  bucket       text        not null,
+  key          text        not null,
+  window_start timestamptz not null default now(),
+  n            integer     not null default 0,
+  primary key (bucket, key)
+);
+alter table public.auth_rate_hits enable row level security;
+revoke all on table public.auth_rate_hits from public;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then revoke all on table public.auth_rate_hits from anon; end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then revoke all on table public.auth_rate_hits from authenticated; end if;
+end $$;
+
+create or replace function public.rate_hit(p_bucket text, p_key text, p_window_s integer, p_max integer)
+returns integer language plpgsql volatile security definer set search_path = '' as $$
+declare v_n integer; v_start timestamptz; v_win interval;
+begin
+  if p_bucket is null or p_bucket !~ '^[a-z0-9_.:-]{1,64}$' then raise exception 'rate_hit: bad bucket' using errcode = '22023'; end if;
+  if p_key is null or length(p_key) < 1 or length(p_key) > 128 then raise exception 'rate_hit: bad key' using errcode = '22023'; end if;
+  if p_window_s is null or p_window_s < 1 or p_window_s > 86400 then raise exception 'rate_hit: bad window' using errcode = '22023'; end if;
+  if p_max is null or p_max < 1 or p_max > 1000000 then raise exception 'rate_hit: bad max' using errcode = '22023'; end if;
+  v_win := make_interval(secs => p_window_s);
+  insert into public.auth_rate_hits as h (bucket, key, window_start, n)
+    values (p_bucket, p_key, now(), 1)
+  on conflict (bucket, key) do update set
+    n            = case when h.window_start <= now() - v_win then 1 else h.n + 1 end,
+    window_start = case when h.window_start <= now() - v_win then now() else h.window_start end
+  returning h.n, h.window_start into v_n, v_start;
+  if v_n > p_max then
+    return greatest(1, ceil(extract(epoch from (v_start + v_win - now())))::integer);
   end if;
+  return 0;
+end $$;
+revoke all on function public.rate_hit(text, text, integer, integer) from public;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then revoke all on function public.rate_hit(text, text, integer, integer) from anon; end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then revoke all on function public.rate_hit(text, text, integer, integer) from authenticated; end if;
+  if exists (select 1 from pg_roles where rolname = 'service_role') then grant execute on function public.rate_hit(text, text, integer, integer) to service_role; end if;
+end $$;
+
+-- ---- 2. server-side MFA wrong-code lockout -----------------------------------------
+create table if not exists public.auth_mfa_attempts (
+  user_id      uuid        primary key,
+  fails        integer     not null default 0,
+  window_start timestamptz not null default now(),
+  locked_until timestamptz,
+  updated_at   timestamptz not null default now()
+);
+alter table public.auth_mfa_attempts enable row level security;
+revoke all on table public.auth_mfa_attempts from public;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then revoke all on table public.auth_mfa_attempts from anon; end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then revoke all on table public.auth_mfa_attempts from authenticated; end if;
+end $$;
+
+-- policy constants in one place (5 wrong codes → 15 minutes; counter window 15 minutes)
+create or replace function public._mfa_lock_policy()
+returns jsonb language sql immutable set search_path = '' as $$
+  select jsonb_build_object('max_fails', 5, 'lock_s', 900, 'window_s', 900);
+$$;
+revoke all on function public._mfa_lock_policy() from public;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then revoke all on function public._mfa_lock_policy() from anon; end if;
+  if exists (select 1 from pg_roles where rolname = 'authenticated') then revoke all on function public._mfa_lock_policy() from authenticated; end if;
+end $$;
+
+create or replace function public.mfa_lock_status()
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+declare v_uid uuid := auth.uid(); r public.auth_mfa_attempts; p jsonb := public._mfa_lock_policy();
+begin
+  if v_uid is null then raise exception 'not signed in' using errcode = '42501'; end if;
+  select * into r from public.auth_mfa_attempts where user_id = v_uid;
+  if not found then return jsonb_build_object('locked', false, 'retry_after', 0, 'fails', 0); end if;
+  if r.locked_until is not null and r.locked_until > now() then
+    return jsonb_build_object('locked', true, 'retry_after', greatest(1, ceil(extract(epoch from (r.locked_until - now())))::integer), 'fails', r.fails);
+  end if;
+  if r.window_start <= now() - make_interval(secs => (p->>'window_s')::int) or r.locked_until is not null then
+    return jsonb_build_object('locked', false, 'retry_after', 0, 'fails', 0);
+  end if;
+  return jsonb_build_object('locked', false, 'retry_after', 0, 'fails', r.fails);
+end $$;
+
+create or replace function public.mfa_record_failure()
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+declare v_uid uuid := auth.uid(); r public.auth_mfa_attempts; p jsonb := public._mfa_lock_policy();
+        v_rl integer; v_max int := (p->>'max_fails')::int;
+begin
+  if v_uid is null then raise exception 'not signed in' using errcode = '42501'; end if;
+  -- the recorder itself is rate-limited (a script can't churn the row / audit log)
+  v_rl := public.rate_hit('mfa.record', v_uid::text, 600, 30);
+  if v_rl > 0 then
+    return jsonb_build_object('locked', true, 'retry_after', v_rl, 'fails', v_max);
+  end if;
+  insert into public.auth_mfa_attempts(user_id) values (v_uid) on conflict (user_id) do nothing;
+  select * into r from public.auth_mfa_attempts where user_id = v_uid for update;
+  -- already locked: count nothing more, report the remaining time
+  if r.locked_until is not null and r.locked_until > now() then
+    return jsonb_build_object('locked', true, 'retry_after', greatest(1, ceil(extract(epoch from (r.locked_until - now())))::integer), 'fails', r.fails);
+  end if;
+  -- an expired lock or an old window starts a fresh count
+  if r.locked_until is not null or r.window_start <= now() - make_interval(secs => (p->>'window_s')::int) then
+    r.fails := 0; r.window_start := now(); r.locked_until := null;
+  end if;
+  r.fails := r.fails + 1;
+  if r.fails >= v_max then
+    r.locked_until := now() + make_interval(secs => (p->>'lock_s')::int);
+    insert into public.audit_log(actor, actor_email, action, entity, entity_id, changed, org_id, at)
+      values (v_uid, (select u.email from auth.users u where u.id = v_uid), 'auth.mfa.locked', 'auth_mfa_attempts', v_uid::text,
+              jsonb_build_object('fails', r.fails, 'locked_until', r.locked_until), null, now());
+  end if;
+  update public.auth_mfa_attempts
+     set fails = r.fails, window_start = r.window_start, locked_until = r.locked_until, updated_at = now()
+   where user_id = v_uid;
+  return jsonb_build_object('locked', r.locked_until is not null,
+    'retry_after', case when r.locked_until is null then 0 else greatest(1, ceil(extract(epoch from (r.locked_until - now())))::integer) end,
+    'fails', r.fails);
+end $$;
+
+create or replace function public.mfa_record_success()
+returns boolean language plpgsql volatile security definer set search_path = '' as $$
+declare v_uid uuid := auth.uid(); v_had integer;
+begin
+  if v_uid is null then raise exception 'not signed in' using errcode = '42501'; end if;
+  -- only a session that has really passed the code may clear the counter
+  if coalesce(auth.jwt() ->> 'aal', '') <> 'aal2' then return false; end if;
+  update public.auth_mfa_attempts set fails = 0, locked_until = null, window_start = now(), updated_at = now()
+   where user_id = v_uid and (fails > 0 or locked_until is not null)
+  returning 1 into v_had;
+  if v_had is not null then
+    insert into public.audit_log(actor, actor_email, action, entity, entity_id, changed, org_id, at)
+      values (v_uid, (select u.email from auth.users u where u.id = v_uid), 'auth.mfa.counter_cleared', 'auth_mfa_attempts', v_uid::text,
+              jsonb_build_object('by', 'successful_code'), null, now());
+  end if;
+  return true;
+end $$;
+
+do $$ declare f text; begin
+  foreach f in array array['public.mfa_lock_status()', 'public.mfa_record_failure()', 'public.mfa_record_success()'] loop
+    execute format('revoke all on function %s from public', f);
+    if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', f); end if;
+    if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('grant execute on function %s to authenticated', f); end if;
+  end loop;
 end $$;
 
 -- VERIFY — every row must say ok = true
 select item, ok from (values
-  ('new billing tables are private (RLS on, no anon / authenticated access)',
-     (select bool_and(c.relrowsecurity) from pg_class c where c.oid in ('public.helm_plans'::regclass, 'public.studio_subscriptions'::regclass,
-        'public.subscription_payments'::regclass, 'public.helm_billing_settings'::regclass, 'public.billing_reminders'::regclass))
-     and not has_table_privilege('authenticated', 'public.studio_subscriptions', 'select')
-     and not has_table_privilege('authenticated', 'public.subscription_payments', 'select')
-     and not has_table_privilege('anon', 'public.subscription_payments', 'select')
-     and not has_table_privilege('authenticated', 'public.billing_reminders', 'select')),
-  ('every studio table has the read-only guard',
-     not exists (select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
-                  where n.nspname = 'public' and c.relkind = 'r'
-                    and exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'org_id' and not a.attisdropped)
-                    and c.relname not in ('audit_log','notification_seen','studio_subscriptions','subscription_payments','billing_reminders','helm_audit_0044_reverted')
-                    and not exists (select 1 from pg_trigger t where t.tgrelid = c.oid and t.tgname = 'zzz_studio_read_only'))),
-  ('no hq_* function reads studio business tables',
-     not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-                  where n.nspname = 'public' and (p.proname like 'hq\_%' or p.proname like '\_hq\_%')
-                    and p.prosrc ~* '\m(quotes|quote_payments|payment_milestones|leads|clients|crew|crew_members|event_[a-z_]+)\M')),
-  ('HQ RPCs: signed-in only; settlement is service-role only',
-     has_function_privilege('authenticated', 'public.hq_record_payment(uuid,numeric,date,text,text,date,date,text,numeric)', 'execute')
-     and not has_function_privilege('anon', 'public.hq_record_payment(uuid,numeric,date,text,text,date,date,text,numeric)', 'execute')
-     and not has_function_privilege('authenticated', 'public.hq_settle_provider_payment(text,uuid,numeric,date,date,date,text,text,text,numeric)', 'execute')
-     and has_function_privilege('authenticated', 'public.my_subscription()', 'execute')
-     and not has_function_privilege('authenticated', 'public._billing_refresh()', 'execute')),
-  ('payments can never be deleted (immutability trigger present)',
-     exists (select 1 from pg_trigger where tgname = 'subscription_payments_immutable')),
-  ('studio account table is private + guarded, phones not exposed by API',
-     (select relrowsecurity from pg_class where oid = 'public.studio_account'::regclass)
-     and not has_table_privilege('authenticated', 'public.studio_account', 'select')
-     and exists (select 1 from pg_trigger where tgrelid = 'public.studio_account'::regclass and tgname = 'zzz_studio_read_only')),
-  ('tax engine: tax rules + plan prices private, India 18% default seeded',
-     (select relrowsecurity from pg_class where oid = 'public.tax_rules'::regclass)
-     and not has_table_privilege('authenticated', 'public.tax_rules', 'select')
-     and not has_table_privilege('authenticated', 'public.studio_consent_log', 'select')
-     and exists (select 1 from public.tax_rules where country = 'IN' and regime = 'IN_GST_INTER')
-     and not has_function_privilege('authenticated', 'public._resolve_tax(uuid,date,numeric)', 'execute')),
-  ('billing settings row present',
-     exists (select 1 from public.helm_billing_settings where id))
+  ('tables are private (RLS on, no anon / authenticated access)',
+     (select relrowsecurity from pg_class where oid = 'public.auth_rate_hits'::regclass)
+     and (select relrowsecurity from pg_class where oid = 'public.auth_mfa_attempts'::regclass)
+     and not has_table_privilege('authenticated', 'public.auth_rate_hits', 'select')
+     and not has_table_privilege('authenticated', 'public.auth_mfa_attempts', 'select')
+     and not has_table_privilege('anon', 'public.auth_mfa_attempts', 'select')),
+  ('rate_hit is service-role only',
+     has_function_privilege('service_role', 'public.rate_hit(text,text,integer,integer)', 'execute')
+     and not has_function_privilege('authenticated', 'public.rate_hit(text,text,integer,integer)', 'execute')
+     and not has_function_privilege('anon', 'public.rate_hit(text,text,integer,integer)', 'execute')),
+  ('MFA lockout RPCs: signed-in users only',
+     has_function_privilege('authenticated', 'public.mfa_record_failure()', 'execute')
+     and has_function_privilege('authenticated', 'public.mfa_lock_status()', 'execute')
+     and has_function_privilege('authenticated', 'public.mfa_record_success()', 'execute')
+     and not has_function_privilege('anon', 'public.mfa_record_failure()', 'execute')
+     and not has_function_privilege('anon', 'public.mfa_lock_status()', 'execute'))
 ) v(item, ok);
+
+-- ═══════════════════════════════ PART 0051 ═══════════════════════════════
+-- ════════════════════════════════════════════════════════════════════════════
+-- HELM — 0051 upload verification + quarantine (one paste)                  (2026-10-07)
+--   * Every new upload in event-docs / chat-media / invite-media / task-proof is recorded as
+--     "pending" until the verify-upload Edge Function checks its bytes (and optional antivirus)
+--     and marks it clean or rejected. Files that exist today are grandfathered as clean.
+--   * A rejected file is hidden from everyone (and moved to the private upload-quarantine bucket
+--     by the function). An audit row 'upload.rejected' is written.
+--   * DORMANT: pending files stay readable exactly as today until YOU deploy verify-upload and run
+--       update public.upload_scan_config set enforce = true, updated_at = now();
+--     Only then are pending files hidden from everyone but the uploader.
+--     Turn it off again any time with  ... set enforce = false.
+-- REQUIRES 0048 — the preflight stops if not. STAGING first, then PROD.
+-- WHAT IT TOUCHES: 2 new tables (RLS on, no client access), new functions, 1 AFTER trigger on
+--   storage.objects, 1 RESTRICTIVE select policy on storage.objects, 1 config row, 1 private
+--   bucket. NO existing object, app row or policy is changed or deleted.
+-- SAFE TO RE-RUN. If anything fails, it rolls back.
+-- ════════════════════════════════════════════════════════════════════════════
+do $$ begin
+  if to_regprocedure('public.storage_object_name_ok(text,text)') is null then raise exception 'STOP: 0048 not installed'; end if;
+  if to_regprocedure('public.current_org_id()') is null then raise exception 'STOP: current_org_id() missing'; end if;
+  if to_regclass('public.audit_log') is null then raise exception 'STOP: audit_log missing'; end if;
+  raise notice 'Preflight OK — applying 0051…';
+end $$;
+-- ---- tables ---------------------------------------------------------------------------
+create table if not exists public.upload_scans (
+  object_id  uuid primary key,
+  bucket_id  text not null,
+  name       text not null,
+  org_id     uuid,
+  owner_id   uuid,
+  status     text not null default 'pending' check (status in ('pending', 'clean', 'rejected')),
+  reason     text check (reason is null or length(reason) <= 200),
+  size_bytes bigint,
+  attempts   int not null default 0,
+  claimed_at timestamptz,
+  created_at timestamptz not null default now(),
+  scanned_at timestamptz
+);
+create index if not exists upload_scans_pending_idx on public.upload_scans (created_at) where status = 'pending';
+create index if not exists upload_scans_bucket_name_idx on public.upload_scans (bucket_id, name);
+alter table public.upload_scans enable row level security;
+revoke all on table public.upload_scans from public, anon, authenticated;
+
+create table if not exists public.upload_scan_config (
+  id         boolean primary key default true check (id),
+  enforce    boolean not null default false,     -- OWNER FLIPS to true after deploying verify-upload
+  updated_at timestamptz not null default now()
+);
+insert into public.upload_scan_config (id, enforce) values (true, false) on conflict (id) do nothing;
+alter table public.upload_scan_config enable row level security;
+revoke all on table public.upload_scan_config from public, anon, authenticated;
+
+-- ---- helpers ----------------------------------------------------------------------------
+create or replace function public.upload_scan_bucket(p_bucket text)
+returns boolean language sql immutable set search_path = '' as $$
+  select coalesce(p_bucket in ('event-docs', 'chat-media', 'invite-media', 'task-proof'), false);
+$$;
+revoke all on function public.upload_scan_bucket(text) from public;
+grant execute on function public.upload_scan_bucket(text) to anon, authenticated, service_role;
+
+create or replace function public.upload_scan_enforced()
+returns boolean language sql stable security definer set search_path = '' as $$
+  select coalesce((select c.enforce from public.upload_scan_config c where c.id), false);
+$$;
+revoke all on function public.upload_scan_enforced() from public;
+grant execute on function public.upload_scan_enforced() to anon, authenticated, service_role;
+
+-- first path folder as a studio id (null when it isn't a uuid)
+create or replace function public.upload_scan_org(p_name text)
+returns uuid language sql immutable set search_path = '' as $$
+  select case when split_part(coalesce(p_name, ''), '/', 1) ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+              then split_part(p_name, '/', 1)::uuid end;
+$$;
+revoke all on function public.upload_scan_org(text) from public;
+grant execute on function public.upload_scan_org(text) to anon, authenticated, service_role;
+
+-- storage.objects carries owner (uuid, legacy) and/or owner_id (text) depending on version
+create or replace function public.upload_scan_owner(p_row jsonb)
+returns uuid language plpgsql immutable set search_path = '' as $$
+declare v text := coalesce(nullif(p_row ->> 'owner_id', ''), nullif(p_row ->> 'owner', ''));
+begin
+  if v ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' then return v::uuid; end if;
+  return null;
+end $$;
+revoke all on function public.upload_scan_owner(jsonb) from public, anon, authenticated;
+
+-- RLS gate (restrictive): may the CURRENT caller see this object?
+create or replace function public.upload_scan_read_ok(p_id uuid, p_bucket text)
+returns boolean language plpgsql stable security definer set search_path = '' as $$
+declare s record;
+begin
+  if not public.upload_scan_bucket(p_bucket) then return true; end if;
+  select us.status, us.owner_id into s from public.upload_scans us where us.object_id = p_id;
+  if not found then
+    -- no row: only possible if the trigger was bypassed; fail closed when enforcing
+    return not public.upload_scan_enforced();
+  end if;
+  if s.status = 'clean' then return true; end if;
+  if s.status = 'rejected' then return false; end if;                 -- always hidden
+  -- pending
+  if not public.upload_scan_enforced() then return true; end if;     -- dormant: unchanged behaviour
+  return s.owner_id is not null and s.owner_id = auth.uid();          -- uploader only
+end $$;
+revoke all on function public.upload_scan_read_ok(uuid, text) from public;
+grant execute on function public.upload_scan_read_ok(uuid, text) to anon, authenticated;
+
+-- ---- trigger: every new / rewritten object in a scanned bucket → pending -----------------
+create or replace function public._tg_upload_scan_record()
+returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.upload_scan_bucket(new.bucket_id) then return null; end if;
+  if tg_op = 'INSERT' then
+    insert into public.upload_scans (object_id, bucket_id, name, org_id, owner_id, status)
+    values (new.id, new.bucket_id, new.name, public.upload_scan_org(new.name),
+            public.upload_scan_owner(to_jsonb(new)), 'pending')
+    on conflict (object_id) do update
+      set bucket_id = excluded.bucket_id, name = excluded.name, org_id = excluded.org_id,
+          status = 'pending', reason = null, scanned_at = null, attempts = 0, claimed_at = null;
+  elsif (to_jsonb(new) - 'last_accessed_at') is distinct from (to_jsonb(old) - 'last_accessed_at') then
+    -- content / path rewritten in place (upsert, move within a scanned bucket) → re-scan
+    insert into public.upload_scans (object_id, bucket_id, name, org_id, owner_id, status)
+    values (new.id, new.bucket_id, new.name, public.upload_scan_org(new.name),
+            public.upload_scan_owner(to_jsonb(new)), 'pending')
+    on conflict (object_id) do update
+      set bucket_id = excluded.bucket_id, name = excluded.name, org_id = excluded.org_id,
+          status = case when public.upload_scans.status = 'rejected' then 'rejected' else 'pending' end,
+          scanned_at = case when public.upload_scans.status = 'rejected' then public.upload_scans.scanned_at end,
+          attempts = 0, claimed_at = null;
+  end if;
+  return null;
+end $$;
+revoke all on function public._tg_upload_scan_record() from public, anon, authenticated;
+drop trigger if exists zz_upload_scan_record on storage.objects;
+create trigger zz_upload_scan_record after insert or update on storage.objects
+  for each row execute function public._tg_upload_scan_record();
+
+-- ---- grandfather: objects that exist now are treated as clean ----------------------------
+insert into public.upload_scans (object_id, bucket_id, name, org_id, owner_id, status, reason, scanned_at)
+select o.id, o.bucket_id, o.name, public.upload_scan_org(o.name), public.upload_scan_owner(to_jsonb(o)),
+       'clean', 'grandfathered', now()
+  from storage.objects o
+ where public.upload_scan_bucket(o.bucket_id)
+on conflict (object_id) do nothing;
+
+-- ---- restrictive read policy -------------------------------------------------------------
+drop policy if exists upload_scan_read_gate on storage.objects;
+create policy upload_scan_read_gate on storage.objects as restrictive for select to anon, authenticated
+  using ( public.upload_scan_read_ok(id, bucket_id) );
+
+-- ---- member read of scan status (own studio / own uploads only) ---------------------------
+create or replace function public.upload_scan_status(p_bucket text, p_names text[])
+returns table (name text, status text) language plpgsql stable security definer set search_path = '' as $$
+declare v_org uuid := public.current_org_id();
+begin
+  if auth.uid() is null or not public.upload_scan_bucket(p_bucket) or p_names is null
+     or coalesce(array_length(p_names, 1), 0) > 200 then return; end if;
+  return query
+    select us.name, us.status from public.upload_scans us
+     where us.bucket_id = p_bucket and us.name = any(p_names)
+       and ((v_org is not null and us.org_id = v_org) or us.owner_id = auth.uid());
+end $$;
+revoke all on function public.upload_scan_status(text, text[]) from public;
+grant execute on function public.upload_scan_status(text, text[]) to authenticated;
+
+-- ---- scanner RPCs (service_role ONLY) -----------------------------------------------------
+create or replace function public.upload_scan_claim(p_limit int default 20)
+returns table (object_id uuid, bucket_id text, name text, mimetype text, size_bytes bigint, attempts int)
+language plpgsql volatile security definer set search_path = '' as $$
+begin
+  return query
+  with c as (
+    select us.object_id from public.upload_scans us
+     where us.status = 'pending' and us.attempts < 10
+       and (us.claimed_at is null or us.claimed_at < now() - interval '5 minutes')
+     order by us.created_at
+     limit greatest(1, least(coalesce(p_limit, 20), 100))
+     for update skip locked
+  ), u as (
+    update public.upload_scans us set claimed_at = now(), attempts = us.attempts + 1
+      from c where us.object_id = c.object_id
+    returning us.object_id, us.bucket_id, us.name, us.attempts
+  )
+  select u.object_id, u.bucket_id, u.name,
+         (o.metadata ->> 'mimetype')::text, nullif(o.metadata ->> 'size', '')::bigint, u.attempts
+    from u left join storage.objects o on o.id = u.object_id;
+end $$;
+revoke all on function public.upload_scan_claim(int) from public, anon, authenticated;
+
+create or replace function public.upload_scan_mark(p_object uuid, p_status text, p_reason text, p_size bigint default null)
+returns text language plpgsql volatile security definer set search_path = '' as $$
+declare r record;
+begin
+  if p_status not in ('clean', 'rejected', 'retry') then raise exception 'bad status' using errcode = '22023'; end if;
+  select * into r from public.upload_scans where object_id = p_object for update;
+  if not found then return 'missing'; end if;
+  if r.status <> 'pending' then return r.status; end if;            -- idempotent: never flips a decided row
+  if p_status = 'retry' then
+    update public.upload_scans set claimed_at = null, reason = left(p_reason, 200) where object_id = p_object;
+    return 'pending';
+  end if;
+  update public.upload_scans
+     set status = p_status, reason = left(p_reason, 200), size_bytes = coalesce(p_size, size_bytes),
+         scanned_at = now(), claimed_at = null
+   where object_id = p_object;
+  if p_status = 'rejected' then
+    insert into public.audit_log (actor, actor_email, action, entity, entity_id, changed, org_id, at)
+    values (null, null, 'upload.rejected', 'storage.objects', p_object::text,
+            jsonb_build_object('bucket', r.bucket_id, 'name', r.name, 'reason', left(p_reason, 200), 'owner', r.owner_id),
+            r.org_id, now());
+  end if;
+  return p_status;
+end $$;
+revoke all on function public.upload_scan_mark(uuid, text, text, bigint) from public, anon, authenticated;
+
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'service_role') then
+    grant execute on function public.upload_scan_claim(int) to service_role;
+    grant execute on function public.upload_scan_mark(uuid, text, text, bigint) to service_role;
+    grant select on table public.upload_scans to service_role;
+  end if;
+end $$;
+
+-- ---- quarantine bucket (private; no client policy → no client access) ---------------------
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('upload-quarantine', 'upload-quarantine', false, 20971520, null)
+on conflict (id) do nothing;
+update storage.buckets set public = false where id = 'upload-quarantine' and public is distinct from false;
+
+
+-- VERIFY — every row must say ok = true
+select item, ok from (values
+  ('read gate policy exists and is RESTRICTIVE',
+     exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects'
+               and policyname = 'upload_scan_read_gate' and permissive = 'RESTRICTIVE')),
+  ('record trigger on storage.objects',
+     exists (select 1 from pg_trigger where tgname = 'zz_upload_scan_record' and tgrelid = 'storage.objects'::regclass)),
+  ('every existing object in a scanned bucket has a scan row',
+     not exists (select 1 from storage.objects o where public.upload_scan_bucket(o.bucket_id)
+                   and not exists (select 1 from public.upload_scans s where s.object_id = o.id))),
+  ('clients have no table access',
+     not has_table_privilege('authenticated', 'public.upload_scans', 'select')
+     and not has_table_privilege('anon', 'public.upload_scan_config', 'select')),
+  ('scanner RPCs not callable by clients',
+     not has_function_privilege('authenticated', 'public.upload_scan_claim(int)', 'execute')
+     and not has_function_privilege('anon', 'public.upload_scan_mark(uuid,text,text,bigint)', 'execute')),
+  ('quarantine bucket private', exists (select 1 from storage.buckets where id = 'upload-quarantine' and public = false))
+) v(item, ok);
+-- informational: enforce stays false until you deploy verify-upload and flip it
+select enforce from public.upload_scan_config;
+select status, count(*) from public.upload_scans group by 1 order by 1;
