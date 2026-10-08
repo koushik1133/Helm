@@ -95,8 +95,8 @@ t('destination target: allow-listed ids only', () => {
   assert.equal(ctx.target('?quote=q', '#other'), null);
 });
 t('bell + toast use the resolver and mark read on click', () => {
-  assert.equal((fnSrc(api, 'bellPanelView').match(/notifLink\(n\)/g) || []).length, 2);
-  assert.equal((fnSrc(api, 'bellToastPick').match(/notifLink\(n\)/g) || []).length, 2);
+  assert.equal((fnSrc(api, 'bellPanelView').match(/notif(?:Link|Href)\(n\)/g) || []).length, 2);
+  assert.equal((fnSrc(api, 'bellToastPick').match(/notif(?:Link|Href)\(n\)/g) || []).length, 2);
   assert.doesNotMatch(fnSrc(api, 'bellPanelView') + fnSrc(api, 'bellToastPick'), /"event\.html\?id="|"chat\.html\?c="/);
   assert.match(api, /onOpen: \(\) => \{ if \(x\.rk && readKeys\.indexOf\(x\.rk\) === -1\) \{ readKeys\.push\(x\.rk\); saveRead\(\);/);
   assert.match(api, /closest\("a\.bpb-item"\);\s*if \(it\) \{ const k = it\.getAttribute\("data-k"\); if \(k && readKeys\.indexOf\(k\) === -1\) \{ readKeys\.push\(k\); saveRead\(\); \} close\(false\); \}/);

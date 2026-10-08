@@ -17,7 +17,7 @@
   function quoteIdFor(btn) {
     const q = btn && btn.getAttribute("data-quote");
     if (q && UUID_RE.test(q)) return q;
-    if (btn && btn.hasAttribute("data-quote-from-url")) { const id = new URLSearchParams(global.location.search).get("id"); if (id && UUID_RE.test(id)) return id; }
+    if (btn && btn.hasAttribute("data-quote-from-url")) { const id = global.HelmUrl ? global.HelmUrl.value("id") : new URLSearchParams(global.location.search).get("id"); if (id && UUID_RE.test(id)) return id; }
     return null;
   }
   function toast(msg, type) { try { if (global.BPUI && global.BPUI.toast) { global.BPUI.toast(msg, { type: type || "ok" }); return; } } catch (e) {} }

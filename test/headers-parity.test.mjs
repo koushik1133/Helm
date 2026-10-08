@@ -68,6 +68,7 @@ function serverHeaders(p, query = '') {
   const branded = /^\/[a-z0-9-]{3,40}\/(invite|quote|proposal|portal|work)\/[^/]+$/.exec(p);
   if (p === '/') file = 'index.html';
   else if (p === '/i' || p.startsWith('/i/')) file = 'invite.html';
+  else if (server.prettyPage(p)) file = server.prettyPage(p) + '.html';
   else if (branded) file = { invite: 'invite', quote: 'approve', proposal: 'proposal-view', portal: 'portal', work: 'work' }[branded[1]] + '.html';
   else if (/\.[a-z0-9]+$/i.test(p)) file = p.slice(1);
   else file = p.slice(1) + '.html';
@@ -93,6 +94,11 @@ const paths = ['/', '/i', '/i/some-slug', '/docs/USER-MANUAL', '/docs/USER-MANUA
 for (const p of PAGES) paths.push('/' + p, '/' + p + '.html');
 const BRANDED = ['invite', 'quote', 'proposal', 'portal', 'work'].map((k) => `/aurora-events/${k}/tok-123`);
 paths.push(...BRANDED);
+// 0067 pretty studio URLs: same headers as the page they serve
+const PRETTY = ['/sharma-events/dashboard', '/sharma-events/quotes', '/sharma-events/leads', '/sharma-events/chat', '/sharma-events/settings',
+  '/sharma-events/events/EVT-0912', '/sharma-events/events/EVT-0912/floor-plan', '/sharma-events/events/EVT-0912/tasks',
+  '/sharma-events/clients/priya-sharma-cafe1234', '/sharma-events/booklet/tok-123'];
+paths.push(...PRETTY);
 
 for (const p of paths) {
   const v = vercelHeaders(p), nf = netlifyHeaders(p);
@@ -123,7 +129,7 @@ for (const p of paths) {
 }
 
 t('client-link (token) pages: Referrer-Policy no-referrer + Cache-Control no-store, private on every host', () => {
-  const tokenPaths = ['/i', '/i/some-slug', ...BRANDED];
+  const tokenPaths = ['/i', '/i/some-slug', ...BRANDED, '/sharma-events/booklet/tok-123'];
   for (const pg of ['approve', 'portal', 'booklet', 'proposal-view', 'work', 'invite']) tokenPaths.push('/' + pg, '/' + pg + '.html');
   for (const p of tokenPaths) {
     for (const [host, h] of [['vercel.json', vercelHeaders(p)], ['_headers', netlifyHeaders(p)], ['server.js', serverHeaders(p.replace(/\.html$/, ''))]]) {
@@ -237,7 +243,7 @@ t('security.txt: e-mail contact + Expires (RFC 9116), no internal notes, no unve
 });
 
 t('microphone: only /chat and the crew work link may use it (voice notes), self only; camera stays off everywhere', () => {
-  const MIC = (p) => p === '/chat' || p === '/chat.html' || p === '/work' || p === '/work.html' || /^\/[a-z0-9-]+\/work\/[^/]+$/.test(p);
+  const MIC = (p) => p === '/chat' || p === '/chat.html' || p === '/work' || p === '/work.html' || /^\/[a-z0-9-]+\/work\/[^/]+$/.test(p) || /^\/[a-z0-9-]+\/chat$/.test(p);
   for (const p of paths) {
     const want = MIC(p) ? /microphone=\(self\)/ : /microphone=\(\)/;
     for (const [host, h] of [['vercel.json', vercelHeaders(p)], ['_headers', netlifyHeaders(p)], ['server.js', serverHeaders(p.replace(/\.html$/, ''))]]) {

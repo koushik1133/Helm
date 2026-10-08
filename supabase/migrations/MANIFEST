@@ -79,3 +79,4 @@ forward  supabase/migrations/0063_notification_mutes.sql
 forward  supabase/migrations/0064_saved_views.sql
 forward  supabase/migrations/0065_client_booklet.sql
 forward  supabase/migrations/0066_notification_task_ref.sql
+forward  supabase/migrations/0067_pretty_urls.sql

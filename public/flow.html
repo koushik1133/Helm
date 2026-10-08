@@ -310,7 +310,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=97"></script>
 <script src="phone-input.js?v=1"></script>
-<script src="store-api.js?v=129"></script>
+<script src="store-api.js?v=130"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -958,8 +958,8 @@
       const acc=$("#account"); acc.hidden=false;
       if(u){ const role=await BPStore.auth.role(); acc.innerHTML=`<span class="role">${esc(role||"")}</span><span>${esc(u.email)}</span><button type="button" id="logoutBtn">Log out</button>`;
         $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";}); }
-      else { acc.innerHTML=`<button type="button" id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search))); }
-      if(BPStore.auth.required() && !u){ location.replace("login.html?next="+encodeURIComponent(location.pathname.split('/').pop()+location.search)); return; }
+      else { acc.innerHTML=`<button type="button" id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(HelmUrl.here()))); }
+      if(BPStore.auth.required() && !u){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     }
     if(!id){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:var(--ink-2)">No quote selected. Start one from <a href="dashboard.html" style="color:var(--accent);text-decoration:underline">Home</a> or <a href="leads.html" style="color:var(--accent);text-decoration:underline">Leads</a>.</p>'; return; }
     try{ canEdit=await BPStore.auth.canEditArea("quotes"); }catch{ canEdit=true; }

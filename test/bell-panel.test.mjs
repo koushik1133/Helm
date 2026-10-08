@@ -16,7 +16,7 @@ const fnSrc = (src, name) => {
   throw new Error(name + ' unterminated');
 };
 const labelsSrc = api.slice(api.indexOf('const BELL_TYPE_LABELS'), api.indexOf('};', api.indexOf('const BELL_TYPE_LABELS')) + 2);
-const ctx = {}; vm.runInNewContext(labelsSrc + '\n' + ['notifLink', 'bellTypeOf', 'bellLabel', 'bellPanelView'].map((f) => fnSrc(api, f)).join('\n') + '\nglobalThis.view=bellPanelView; globalThis.label=bellLabel; globalThis.typeOf=bellTypeOf;', ctx);
+const ctx = {}; vm.runInNewContext(labelsSrc + '\n' + ['notifLink', 'notifHref', 'bellTypeOf', 'bellLabel', 'bellPanelView'].map((f) => fnSrc(api, f)).join('\n') + '\nglobalThis.view=bellPanelView; globalThis.label=bellLabel; globalThis.typeOf=bellTypeOf;', ctx);
 const view = (items, filter, now, extra) => JSON.parse(JSON.stringify(ctx.view(items, Object.assign({ filter, now, label: ctx.label }, extra || {}))));   // plain objects (vm realm)
 
 // a fixed local "now": 7 Oct 2026, 15:00 local time

@@ -302,11 +302,18 @@
   function show(id) { ["#loading", "#bad", "#err", "#app"].forEach((s) => { $(s).hidden = s !== id; }); }
   const isBad = (e) => { const m = String((e && e.message) || ""); return /invalid link|expired/i.test(m) || (e && (e.code === "22P02" || e.code === "PGRST116")); };
   async function start() {
-    const token = tokenFrom(global.location.search);
+    // 0067: /<studio>/booklet/<token> — the token is the secret; the studio part must match it
+    const R = global.HelmUrl && global.HelmUrl.route();
+    const pretty = R && R.kind === "booklet" ? R : null;
+    const token = pretty ? tokenFrom("?t=" + encodeURIComponent(pretty.ref || "")) : tokenFrom(global.location.search);
     if (!token) { show("#bad"); return; }
     show("#loading");
     let d;
-    try { await global.BPStore.init(); d = await global.BPStore.booklet.get(token); }
+    try {
+      await global.BPStore.init();
+      if (pretty && !(await global.BPStore.booklet.studioOk(token, pretty.studio))) { show("#bad"); return; }
+      d = await global.BPStore.booklet.get(token);
+    }
     catch (e) {
       if (isBad(e)) { show("#bad"); return; }
       $("#errMsg").textContent = /too many/i.test(String((e && e.message) || "")) ? "Too many requests — please wait a few minutes and try again." : "Please check your connection and try again.";

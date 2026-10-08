@@ -149,9 +149,9 @@
   async function start() {
     const st = global.BPStore;
     await st.init();
-    const id = new URLSearchParams(global.location.search).get("id") || "";
+    const id = (await global.HelmUrl.get("id", new URLSearchParams(global.location.search).get("id") || "")) || "";
     if (st.auth.enabled() && st.auth.required() && !st.auth.user()) {
-      global.location.replace("login.html?next=" + encodeURIComponent(global.location.pathname.split("/").pop() + global.location.search)); return;
+      global.location.replace("login.html?next=" + encodeURIComponent(global.HelmUrl.here())); return;
     }
     if (!UUID_RE.test(id)) { notFound(); return; }
     let data;

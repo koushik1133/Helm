@@ -344,6 +344,14 @@ function serveStatic(req, res) {
     return serveFile(res, req, path.join(PUBLIC_DIR, 'invite.html'));
   }
 
+  // Pretty studio URLs (migration 0067): /<studio>/<section>[/<ref>[/<sub>]] → the app
+  // page. Same pattern + page mapping as the vercel.json rewrites; the page resolves
+  // <studio>/<ref> for the signed-in caller's OWN studio only (HelmUrl in store-api.js).
+  {
+    const page = prettyPage(rel);
+    if (page && !path.extname(rel)) return serveFile(res, req, path.join(PUBLIC_DIR, page + '.html'));
+  }
+
   // Branded client links (migration 0020): /<studio>/<kind>/<ref> → the client page.
   // Same pattern + page mapping as the vercel.json rewrites. The page asks the server
   // whether <studio> owns <ref> before showing anything (anti-phishing).
@@ -370,6 +378,18 @@ function serveStatic(req, res) {
   const file = path.extname(rel) ? lookupFile(rel) : lookupFile(rel + '.html');
   if (!file) return sendNotFound(res, req);
   serveFile(res, req, file);
+}
+
+// /<studio>/<section>… → page name (or null). Mirrors vercel.json "rewrites".
+function prettyPage(rel) {
+  const m = /^\/[a-z0-9-]{3,40}\/(dashboard|quotes|leads|chat|settings|events|clients|booklet)(?:\/([^/]+)(?:\/(floor-plan|tasks))?)?\/?$/.exec(rel || '');
+  if (!m) return null;
+  const sec = m[1], ref = m[2], sub = m[3];
+  if (sec === 'events') return ref ? (sub === 'floor-plan' ? 'builder' : sub === 'tasks' ? 'ops' : 'event') : null;
+  if (sub) return null;
+  if (sec === 'clients' || sec === 'booklet') return ref ? (sec === 'clients' ? 'client' : 'booklet') : null;
+  if (ref) return null;
+  return { dashboard: 'dashboard', quotes: 'quotes', leads: 'leads', chat: 'chat', settings: 'control' }[sec];
 }
 
 /* ----------------------------------------------------- rate limiting */
@@ -505,7 +525,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 // Exported for test/headers-parity.test.mjs (requiring this file does not listen).
-module.exports = { CSP, CSP_BY_PAGE, SECURITY_HEADERS, INDEXABLE_PAGES, NOINDEX, TOKEN_PAGES, securityHeadersFor, cacheControlFor, layoutApiAllowed, isLoopbackClient, isInternalFile };
+module.exports = { prettyPage, CSP, CSP_BY_PAGE, SECURITY_HEADERS, INDEXABLE_PAGES, NOINDEX, TOKEN_PAGES, securityHeadersFor, cacheControlFor, layoutApiAllowed, isLoopbackClient, isInternalFile };
 
 if (require.main === module) {
   server.listen(PORT, () => {
