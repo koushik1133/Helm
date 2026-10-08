@@ -215,3 +215,38 @@ and the HQ "Security" panel work without it.
 4. Schedule a POST every 5 minutes with header `x-helm-cron-secret: <secret>`.
 5. Turn it on: `supabase secrets set HELM_SECURITY_ALERTS_ENABLED=true`.
 Studios can switch security e-mails off in Control Center → Notifications → Security.
+
+## Welcome e-mails (LATER — owner only, DORMANT)
+`welcome-mailer` e-mails the welcomes queued by migration 0057 (`welcome_email_outbox`):
+"Welcome to Helm" (3 first steps, manual, support contact) when someone **creates a new studio**,
+and "You've joined <studio>" when an **invited member joins**. One per person per kind, ever.
+It is a **no-op (200)** until enabled; studios work exactly the same without it. Only people
+who create / join a studio after 0057 is applied are queued (no back-fill).
+Template source: `supabase/functions/welcome-mailer/templates.ts` (previews in
+`docs/email-templates/welcome-*.html`, light-only).
+
+1. Apply 0057 (staging, then prod): paste `supabase/APPLY-0057.sql`. Every verify row must be `t`.
+2. Deploy (called by cron with its own shared secret, no Supabase JWT):
+   ```bash
+   supabase functions deploy welcome-mailer --no-verify-jwt
+   ```
+3. Secrets:
+   ```bash
+   supabase secrets set HELM_WELCOME_EMAIL_SECRET="$(openssl rand -hex 32)"
+   # optional: WELCOME_EMAIL_BATCH=25. RESEND_API_KEY / RESEND_FROM are shared with the
+   # other mailers (use a verified helm.events sender, e.g. "Helm <hello@helm.events>");
+   # without a key rows are marked status='skipped' (never sent later).
+   ```
+4. Schedule a POST every 5 minutes (pg_cron + pg_net):
+   ```sql
+   select cron.schedule('welcome-mailer', '*/5 * * * *', $$
+     select net.http_post('https://<project-ref>.supabase.co/functions/v1/welcome-mailer',
+       '{}'::jsonb, '{}'::jsonb, jsonb_build_object('x-helm-cron-secret', '<the secret>'), 15000) $$);
+   ```
+5. Turn it on LAST (after RESEND_API_KEY is set, or queued rows get marked skipped):
+   `supabase secrets set HELM_WELCOME_EMAILS_ENABLED=true`. Unset to go dormant again.
+6. Check: `select kind, status, count(*) from public.welcome_email_outbox group by 1, 2;`
+   Failed sends retry every run (5 tries max, then `failed`).
+
+Tests: `tests/edge/welcome-mailer.test.ts` (dormant, secret, sends, marks, retry, no PII in logs)
+and `tests/db/welcome-email.sql` (enqueue once, no duplicates, org isolation, clients locked out).
