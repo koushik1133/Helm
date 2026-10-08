@@ -64,3 +64,4 @@ forward  supabase/migrations/0048_upload_hardening.sql
 forward  supabase/migrations/0049_db_gates.sql
 forward  supabase/migrations/0050_auth_limits.sql
 forward  supabase/migrations/0051_upload_quarantine.sql
+forward  supabase/migrations/0052_lifecycle_reapproval.sql
