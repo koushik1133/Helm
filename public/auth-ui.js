@@ -134,7 +134,14 @@
       ".hpf .hpf-legend{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hpf-ink2);margin:6px 0 10px;padding:0}",
       ".hpf fieldset{border:0;margin:0;padding:0;min-width:0}",
     ].join("\n");
-    (doc.head || doc.documentElement).appendChild(s);
+    // CSP: style-src-elem has no 'unsafe-inline' — inject via a constructable stylesheet.
+    if (typeof window.__helmAdoptCss === "function") window.__helmAdoptCss(doc, s.textContent);
+    else {
+      try {
+        var sh = new CSSStyleSheet(); sh.replaceSync(s.textContent);
+        doc.adoptedStyleSheets = Array.prototype.slice.call(doc.adoptedStyleSheets).concat([sh]);
+      } catch (e) { (doc.head || doc.documentElement).appendChild(s); }
+    }
   }
 
   /* ------------------------------------------------------------ CAPTCHA */
