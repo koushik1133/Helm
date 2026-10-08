@@ -900,6 +900,16 @@
    "file": "public/trusted-types.js",
    "expr": "raw.createHTML(String(html))",
    "why": "the sanitizer itself: parses into an inert <template> (no script runs, nothing loads) and then strips everything not on the allowlist"
+  },
+  {
+   "file": "public/onboarding.js",
+   "expr": "stepsNav",
+   "why": "HTML fragment assembled by render* helpers in onboarding.js; every dynamic value inside is wrapped in esc() or Number() (reviewed at the definitions)"
+  },
+  {
+   "file": "public/onboarding.js",
+   "expr": "body",
+   "why": "HTML fragment assembled by render* helpers in onboarding.js; every dynamic value inside is wrapped in esc() or Number() (reviewed at the definitions)"
   }
  ]
 }
