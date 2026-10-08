@@ -165,7 +165,13 @@
       const dmg=dr.ok?dr.value:NaN;
       if(!dr.ok || !(dmg>=0&&dmg<=Number(b.dataset.qty))){ BPUI.toast(dr.ok?"Damaged must be between 0 and "+b.dataset.qty+".":dr.error,{type:"err"}); if(inp) inp.focus(); return; }
       const good=Number(b.dataset.qty)-dmg;
-      if(!(await BPUI.confirm(`Return ${b.dataset.name}: ${good} back to stock`+(dmg?`, ${dmg} written off as damaged/lost (this reduces what you own).`:".")+" This can't be undone here.",{title:"Return equipment?",okLabel:"Return",danger:dmg>0}))) return;
+      // warn (not block) when units of this item are still checked out on loan for this event
+      let loanWarn="";
+      try{ const cos=await BPStore.inventory.checkouts.list(id);
+        const out=cos.filter(c=>c.item_id===b.dataset.item && (c.status==="out"||c.status==="partial")).reduce((a,c)=>a+Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0),0);
+        if(out>0) loanWarn=` ${out} of this item ${out===1?"is":"are"} still checked out on loan for this event; check ${out===1?"it":"them"} in first, or the stock count may be wrong.`;
+      }catch(_){}
+      if(!(await BPUI.confirm(`Return ${b.dataset.name}: ${good} back to stock`+(dmg?`, ${dmg} written off as damaged/lost (this reduces what you own).`:".")+" This can't be undone here."+loanWarn,{title:"Return equipment?",okLabel:"Return",danger:dmg>0}))) return;
       await act(b,async()=>{ await BPStore.inventory.returnReservation(b.dataset.ret,b.dataset.item,dmg);
         await section(renderInventory,$("#invRows"),"inventory returns"); },"return the item"); }));
   }
@@ -189,7 +195,7 @@
     $("#bkRows").innerHTML = bk.length ? bk.map(b=>`<div class="rowline">
       <div><div class="nm">${esc(b.label||"Partner")}</div></div>
       <span class="st ${esc(b.status)}">${esc(BK[b.status]||b.status)}</span>
-      ${canEdit&&b.status!=="delivered"&&b.status!=="cancelled"?`<div class="acts"><button type="button" class="btn go" data-exit="${esc(b.id)}" aria-label="Mark ${esc(b.label||"partner")} returned or exited">Mark returned/exited</button></div>`:""}
+      ${canEdit&&(b.status==="booked"||b.status==="confirmed")?`<div class="acts"><button type="button" class="btn go" data-exit="${esc(b.id)}" aria-label="Mark ${esc(b.label||"partner")} returned or exited">Mark returned/exited</button></div>`:""}
     </div>`).join("") : '<div class="empty">No vendors or rentals booked.</div>';
     $("#bkRows").querySelectorAll("[data-exit]").forEach(b=>b.addEventListener("click",()=>act(b,async()=>{ await BPStore.bookings.update(b.dataset.exit,{status:"delivered"}); await section(renderBookings,$("#bkRows"),"vendor bookings"); },"update the booking")));
   }

@@ -106,7 +106,7 @@
       <div class="addr" id="rateAdd" hidden>
         <div class="fld s-1169661"><label for="r_kind">Type</label><select id="r_kind"><option value="vendor">Vendor</option><option value="staff">Staff</option></select></div>
         <div class="fld s-1169661"><label for="r_name">Name</label><input id="r_name" list="rnames" placeholder="who"></div>
-        <div class="fld s-1169661"><label for="r_stars">Stars</label><select id="r_stars"><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div>
+        <div class="fld s-1169661"><label for="r_stars">Stars</label><select id="r_stars"><option value="">Select…</option><option>5</option><option>4</option><option>3</option><option>2</option><option>1</option></select></div>
         <div class="fld s-1169661"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="r_add">＋ Rate</button></div>
       </div>
       <datalist id="rnames"></datalist>
@@ -202,8 +202,9 @@
     },{busyLabel:"Saving…"});
   }
   function addRating(){ const name=$("#r_name").value.trim(); if(!name){ $("#r_name").focus(); return; }
+    const stars=clampStars($("#r_stars").value); if(!stars){ BPUI.toast("Choose a star rating (1 to 5) first.",{type:"err"}); $("#r_stars").focus(); return; }
     return BPUI.guard($("#r_add"),async()=>{
-      try{ await BPStore.closure.addRating(id,{ kind:$("#r_kind").value, name, stars:clampStars($("#r_stars").value)||5 }); $("#r_name").value=""; await renderRatingsSafe(); }
+      try{ await BPStore.closure.addRating(id,{ kind:$("#r_kind").value, name, stars:stars }); $("#r_name").value=""; $("#r_stars").value=""; await renderRatingsSafe(); }
       catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"add the rating"}),{type:"err"}); } }); }
   async function closeEvent(){
     // Gate 1 — every piece of equipment booked for this event must be back
@@ -213,7 +214,7 @@
     try{
       const [res, items] = await Promise.all([
         BPStore.inventory.reservations(id).catch(()=>{ invUnverified=true; return []; }),
-        BPStore.inventory.items(false).catch(()=>[])
+        BPStore.inventory.items(true).catch(()=>[])   // include deactivated items so their names show in the blocker list
       ]);
       const nameOf={}; (items||[]).forEach(it=>{ nameOf[it.id]=it.name||it.label||"item"; });
       outstanding = (res||[]).filter(r=> r.status==="reserved" || r.status==="allocated")

@@ -226,25 +226,34 @@
         <td class="num">${b.advance!=null?"₹"+num(b.advance):""}</td>
         <td>${b.contract?'<span class="cov ok">✓ Signed</span>':'<span class="muted">—</span>'}</td>
         <td>${canEdit?`<select class="rm" data-bkstatus="${esc(b.id)}" aria-label="Status for ${esc(v?v.name:(b.label||"partner"))}">${opts}</select>`:esc(BK[b.status]||b.status)}</td>
-        <td>${canDelete?`<button type="button" class="rm" data-bkdel="${esc(b.id)}" aria-label="Remove booking for ${esc(v?v.name:(b.label||"partner"))}">Remove</button>`:""}</td>
+        <td>${canEdit?`<button type="button" class="rm" data-bkedit="${esc(b.id)}" aria-label="Edit cost and advance for ${esc(v?v.name:(b.label||"partner"))}">Edit</button> `:""}${canDelete?`<button type="button" class="rm" data-bkdel="${esc(b.id)}" aria-label="Remove booking for ${esc(v?v.name:(b.label||"partner"))}">Remove</button>`:""}</td>
       </tr>`;
     }).join("");
     $("#bookRows").querySelectorAll("select[data-bkstatus]").forEach(s=>s.addEventListener("change",()=>BPUI.guard(s,async()=>{ try{ await BPStore.bookings.update(s.dataset.bkstatus,{status:s.value}); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"update the booking"}),{type:"err"}); } await load(); })));
+    $("#bookRows").querySelectorAll("[data-bkedit]").forEach(b=>b.addEventListener("click",()=>openBooking(null,bookings.find(x=>x.id===b.dataset.bkedit))));
     $("#bookRows").querySelectorAll("[data-bkdel]").forEach(b=>b.addEventListener("click",async()=>{
       if(!(await BPUI.confirm("Remove this booking? Its cost and advance will no longer count toward the event.",{title:"Remove booking?",danger:true}))) return;
       await BPUI.guard(b,async()=>{ try{ await BPStore.bookings.remove(b.dataset.bkdel); BPUI.toast("Booking removed.",{type:"ok"}); await load(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"remove the booking"}),{type:"err"}); } }); }));
   }
 
-  function openBooking(need){
+  let editBk=null;
+  function openBooking(need,existing){
+    editBk=existing||null;
     bookNeed=need||null;
-    $("#bm_title").textContent = need ? "Book a partner for this gap" : "Book a partner";
+    $("#bm_title").textContent = existing ? "Edit booking" : need ? "Book a partner for this gap" : "Book a partner";
     $("#bk_label").value = need ? (need.label||"") : "";
     $("#bk_vendor").innerHTML = vendors.length ? vendors.map(v=>`<option value="${esc(v.id)}">${esc(v.name)} — ${esc(KIND[v.kind]||v.kind||"")}</option>`).join("") : `<option value="">(add partners in Vendors first)</option>`;
     $("#bk_cost").value=""; $("#bk_adv").value=""; $("#bk_status").value="booked"; $("#bk_contract").checked=false; $("#bk_note").value="";
+    if(existing){
+      if(!vendors.some(v=>v.id===existing.vendor_id)) $("#bk_vendor").innerHTML+=`<option value="${esc(existing.vendor_id||"")}">(current partner)</option>`;
+      $("#bk_vendor").value=existing.vendor_id||""; $("#bk_label").value=existing.label||""; $("#bk_cost").value=existing.cost!=null?existing.cost:""; $("#bk_adv").value=existing.advance!=null?existing.advance:"";
+      $("#bk_status").value=existing.status||"booked"; $("#bk_contract").checked=!!existing.contract; $("#bk_note").value=existing.note||"";
+    }
+    $("#bk_vendor").disabled=!!existing; $("#bk_status").disabled=!!existing;   // partner & status are not edited here (status has its own control)
     $("#bm_err").hidden=true; $("#bookModal").hidden=false; bookDirty.clean(); setTimeout(()=>$("#bk_label").focus(),50);
   }
   const bookDirty=BPUI.trackDirty($("#bookModal"));
-  function closeBooking(){ $("#bookModal").hidden=true; bookNeed=null; bookDirty.clean(); }
+  function closeBooking(){ $("#bookModal").hidden=true; bookNeed=null; editBk=null; $("#bk_vendor").disabled=false; $("#bk_status").disabled=false; bookDirty.clean(); }
   async function requestCloseBooking(){ if($("#bookModal").hidden) return; if(!(await BPUI.confirmDiscard(bookDirty))) return; closeBooking(); }
   async function saveBooking(){
     const vendor_id=$("#bk_vendor").value||null;
@@ -259,6 +268,17 @@
       qty: bookNeed?bookNeed.qty:null,
       cost, advance,
       contract:$("#bk_contract").checked, status:$("#bk_status").value, note:$("#bk_note").value.trim()||null };
+    if(editBk){
+      await BPUI.guard($("#bm_save"),async()=>{
+        try{ await BPStore.bookings.update(editBk.id,{ label, cost, advance, contract:rec.contract, note:rec.note }); closeBooking(); BPUI.toast("Booking updated.",{type:"ok"}); await load(); }
+        catch(e){ $("#bm_err").textContent=BPUI.friendlyError(e,{action:"update the booking"}); $("#bm_err").hidden=false; }
+      },{busyLabel:"Saving…"});
+      return;
+    }
+    // block booking the same partner for the same need (or same label when no need) twice
+    const nl=t=>String(t||"").trim().toLowerCase();
+    const dupBk=bookings.find(b=>b.status!=="cancelled" && vendor_id && b.vendor_id===vendor_id && (rec.need_id ? b.need_id===rec.need_id : (!b.need_id && nl(b.label)===nl(label))));
+    if(dupBk){ $("#bm_err").textContent=`${v?v.name:"This partner"} is already booked for "${label}" on this event. Edit that booking instead (or cancel it first).`; $("#bm_err").hidden=false; return; }
     await BPUI.guard($("#bm_save"),async()=>{
       try{ await BPStore.bookings.add(id, rec); closeBooking(); BPUI.toast("Booking saved.",{type:"ok"}); await load(); }
       catch(e){ $("#bm_err").textContent=BPUI.friendlyError(e,{action:"save the booking",setupHint:"phase9-vendors.sql"}); $("#bm_err").hidden=false; }
@@ -287,9 +307,10 @@
     try{
       const reqs=await BPStore.discovery.listReqs(id);
       if(!reqs.length){ $("#pullMsg").textContent="No discovery requirements to pull."; return; }
-      const existing=new Set(checked.map(c=>(c.label||"").toLowerCase()));
+      const nl=t=>String(t||"").trim().toLowerCase();
+      const existing=new Set(checked.map(c=>(c.kind||"other")+"|"+nl(c.kind==="inventory"?c.detail:c.label)));
       let added=0;
-      for(const r of reqs){ if(existing.has((r.service||"").toLowerCase())) continue;
+      for(const r of reqs){ const key="other|"+nl(r.service); if(!nl(r.service)||existing.has(key)) continue; existing.add(key);
         await BPStore.resources.addNeed(id,{ kind:"other", label:r.service, qty:r.qty||1, note:"from requirements" }); added++; }
       $("#pullMsg").textContent = added?`Added ${added} need${added===1?"":"s"}.`:"Already up to date.";
       await load();
