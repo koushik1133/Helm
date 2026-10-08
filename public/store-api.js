@@ -842,6 +842,18 @@
     const s = document.createElement("script");
     s.src = vendorUrl("studio-search.js?v=" + STUDIO_SEARCH_VERSION);
     document.head.appendChild(s);
+    loadMobileNav();
+  }
+  // Mobile bottom bar (< 768px): same pages as the studio search; mobile-nav.js re-checks the role.
+  const MOBILE_NAV_VERSION = "1";
+  let mobileNavLoading = false;
+  function loadMobileNav() {
+    if (mobileNavLoading || typeof document === "undefined" || global.HelmMobileNav) return;
+    if (NO_SEARCH_PAGES[pageKey()] || PUBLIC_PAGES[pageKey()] || publicLinkPath()) return;
+    mobileNavLoading = true;
+    const s = document.createElement("script");
+    s.src = vendorUrl("mobile-nav.js?v=" + MOBILE_NAV_VERSION);
+    document.head.appendChild(s);
   }
 
   // capability matrix per role (10 roles)
