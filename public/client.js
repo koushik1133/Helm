@@ -132,6 +132,9 @@
   }
   async function wireBooklet(m, id) {
     const q = bookletQuote(m, id), btn = $("#bkShare"), link = $("#bkLink");
+    // 0069: the package-selections panel follows the same event
+    const pk = $("#pkg-selections");
+    if (q && pk) { pk.setAttribute("data-quote", q); if (global.HelmPkgReview) global.HelmPkgReview.wire().catch(() => {}); }
     if (!q || !btn) return;
     btn.setAttribute("data-quote", q);
     if (global.HelmBookletShare) global.HelmBookletShare.reveal(btn);

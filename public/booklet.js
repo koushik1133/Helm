@@ -27,21 +27,41 @@
 
   /* ---- pure helpers (exported for tests) ---- */
   function num(v) { const n = Number(v); return isFinite(n) ? n : null; }
+  // 0069: language / currency come from the quote (validated; default en-IN / INR)
+  const FMT = { locale: "en-IN", currency: "INR" };
+  function setFormat(locale, currency) {
+    try { if (locale && typeof locale === "string" && locale.length < 36) { new Intl.DateTimeFormat(locale); FMT.locale = locale; } } catch (e) {}
+    if (currency && /^[A-Z]{3}$/.test(String(currency))) FMT.currency = String(currency);
+    try { if (doc && /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/.test(FMT.locale)) doc.documentElement.setAttribute("lang", FMT.locale); } catch (e) {}
+    return { locale: FMT.locale, currency: FMT.currency };
+  }
   function money(n) {
     const v = num(n); if (v == null) return "—";
-    try { return "₹" + v.toLocaleString("en-IN", { maximumFractionDigits: 0 }); } catch (e) { return "₹" + Math.round(v); }
+    try { return new Intl.NumberFormat(FMT.locale, { style: "currency", currency: FMT.currency, maximumFractionDigits: 0 }).format(v); } catch (e) { return String(Math.round(v)); }
+  }
+  function fmtTime(t) {
+    const m = /^(\d{1,2}):(\d{2})/.exec(String(t || "")); if (!m) return t ? String(t).slice(0, 40) : "";
+    const dt = new Date(2000, 0, 1, Number(m[1]), Number(m[2]));
+    try { return dt.toLocaleTimeString(FMT.locale, { hour: "numeric", minute: "2-digit" }); } catch (e) { return m[1] + ":" + m[2]; }
+  }
+  // a maps search link for the venue (external, no app links); only https and a text query
+  function mapLink(e) {
+    e = e || {};
+    if (typeof e.venue_map_url === "string" && /^https:\/\/[^\s"'<>]+$/i.test(e.venue_map_url) && e.venue_map_url.length <= 500) return e.venue_map_url;
+    const q = [e.venue_name, e.venue_address].filter(Boolean).join(", ").slice(0, 300);
+    return q ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q) : null;
   }
   function fmtDate(d) {
     if (!d) return "";
     const s = String(d); const dt = new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? s + "T00:00:00" : s);
     if (isNaN(dt.getTime())) return s;
-    try { return dt.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" }); } catch (e) { return s; }
+    try { return dt.toLocaleDateString(FMT.locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" }); } catch (e) { return s; }
   }
   function shortDate(d) {
     if (!d) return "";
     const dt = new Date(String(d).length === 10 ? d + "T00:00:00" : d);
     if (isNaN(dt.getTime())) return String(d);
-    try { return dt.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return String(d); }
+    try { return dt.toLocaleDateString(FMT.locale, { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return String(d); }
   }
   function safeHex(c) { return typeof c === "string" && HEX_RE.test(c.trim()) ? c.trim() : null; }
   function safeLogo(u) { return typeof u === "string" && /^https:\/\/[^\s"'<>]+$/i.test(u) && u.length <= 500 ? u : null; }
@@ -109,6 +129,7 @@
     return "#" + [16, 8, 0].map((s) => ch(s).toString(16).padStart(2, "0")).join("");
   }
 
+  let VISIBLE = {};
   /* ---- DOM ---- */
   const $ = (s) => doc.querySelector(s);
   function el(tag, cls, text) { const n = doc.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
@@ -138,7 +159,7 @@
   }
   function renderToc() {
     const ol = clear($("#tocList"));
-    SECTIONS.forEach((s, i) => {
+    SECTIONS.filter((s) => VISIBLE[s[0]] !== false).forEach((s, i) => {
       const li = el("li"); const a = el("a"); a.setAttribute("href", "#" + s[0]);
       a.appendChild(el("span", "n", String(i + 1).padStart(2, "0"))); a.appendChild(doc.createTextNode(s[1]));
       li.appendChild(a); ol.appendChild(li);
@@ -151,20 +172,31 @@
     }, { rootMargin: "-20% 0px -70% 0px" });
     SECTIONS.forEach((s) => { const n = doc.getElementById(s[0]); if (n) io.observe(n); });
   }
-  function fact(dl, k, v) { if (v == null || v === "") return; const d = el("div"); d.appendChild(el("dt", "", k)); d.appendChild(el("dd", "", String(v))); dl.appendChild(d); }
+  function fact(dl, k, v) { if (v == null || v === "") return null; const d = el("div"); d.appendChild(el("dt", "", k)); const dd = el("dd", "", String(v)); d.appendChild(dd); dl.appendChild(d); return dd; }
   function renderDetails(d) {
     const e = d.event || {}, dl = clear($("#factList"));
     fact(dl, "Event", e.title || e.code);
     fact(dl, "Occasion", e.event_type);
     fact(dl, "Date", fmtDate(e.event_date));
-    fact(dl, "Time", e.event_time);
+    const st = fmtTime(e.start_time || e.event_time), en = fmtTime(e.end_time);
+    fact(dl, "Time", st && en ? st + " – " + en : st);
     fact(dl, "Venue", e.venue_name);
-    fact(dl, "Address", e.venue_address);
-    fact(dl, "Guests", num(e.guests) != null ? Number(e.guests).toLocaleString("en-IN") : "");
+    const ad = fact(dl, "Address", e.venue_address), ml = mapLink(e);
+    if (ml && (e.venue_name || e.venue_address)) {
+      const a = el("a", "map-link", "Open in Maps"); a.setAttribute("href", ml); a.setAttribute("target", "_blank"); a.setAttribute("rel", "noopener noreferrer");
+      (ad || fact(dl, "Map", " ")).appendChild(a);
+    }
+    const co = (d.coordinator && typeof d.coordinator === "object") ? d.coordinator : { name: e.coordinator_name, phone: e.coordinator_phone };
+    if (co.name || co.phone) {
+      const cd = fact(dl, "Your coordinator", co.name || "");
+      if (cd && co.phone) { const a = el("a", "tel", String(co.phone).slice(0, 32)); a.setAttribute("href", "tel:" + String(co.phone).replace(/[^\d+]/g, "")); cd.appendChild(doc.createTextNode(co.name ? " · " : "")); cd.appendChild(a); }
+    }
+    fact(dl, "Guests", num(e.guests) != null ? Number(e.guests).toLocaleString(FMT.locale) : "");
     fact(dl, "Reference", e.code);
   }
-  function render2d(d) {
-    const fig = clear($("#plan2d")), leg = clear($("#legend2d"));
+  function render2d(d, figEl, legEl) {
+    const fig = clear(figEl || $("#plan2d")), leg = clear(legEl || $("#legend2d") || el("ul"));
+    if (!figEl && snapUrl(d, "layout2d")) { snapFigure(fig, snapUrl(d, "layout2d"), "Floor plan of the event", () => render2d(Object.assign({}, d, { snapshots: null }))); return; }
     const m = normalizeItems(d.layout);
     if (!m.items.length) { emptyNote(fig, "The floor plan will appear here once it's ready."); return; }
     const b = bounds(m), pad = 4, w = b.x1 - b.x0 + pad * 2, h = b.y1 - b.y0 + pad * 2;
@@ -192,8 +224,9 @@
       const li = el("li"); li.appendChild(el("span", "sw sw-" + c)); li.appendChild(doc.createTextNode(CAT_LABEL[c] || "Other")); leg.appendChild(li);
     });
   }
-  function render3d(d) {
-    const fig = clear($("#plan3d"));
+  function render3d(d, figEl) {
+    const fig = clear(figEl || $("#plan3d"));
+    if (!figEl && snapUrl(d, "layout3d")) { snapFigure(fig, snapUrl(d, "layout3d"), "3D view of the event", () => render3d(Object.assign({}, d, { snapshots: null }))); return; }
     const m = normalizeItems(d.layout);
     if (!m.items.length) { emptyNote(fig, "A 3D preview will appear here once the floor plan is ready."); return; }
     const b = bounds(m);
@@ -291,12 +324,60 @@
     const box = clear($("#termsBody"));
     const paras = d.terms ? String(d.terms).split(/\n{2,}/) : DEFAULT_TERMS;
     paras.forEach((t) => { if (t.trim()) box.appendChild(el("p", "", t.trim())); });
+    renderFoot(d);
+  }
+  function renderFoot(d) {
     const s = d.studio || {};
     $("#footLine").textContent = "Prepared by " + (s.name || "your event studio") + (d.shared_at ? " on " + shortDate(d.shared_at) : "");
     $("#expLine").textContent = d.expires_at ? "This link is valid until " + shortDate(d.expires_at) + "." : "";
   }
+  // 0069: studio-captured screenshots (signed https URLs from the server) win over the drawn plan
+  function snapUrl(d, k) {
+    const sn = d && d.snapshots && typeof d.snapshots === "object" ? d.snapshots : null;
+    const kind = k === "layout3d" ? "3d" : "2d";
+    let u = sn ? (sn[kind] != null ? sn[kind] : sn[k]) : null;
+    if (u === true) { try { u = d.__token && global.BPStore && global.BPStore.booklet && global.BPStore.booklet.snapshotUrl ? global.BPStore.booklet.snapshotUrl(d.__token, kind) : null; } catch (e) { u = null; } }
+    if (u && typeof u === "object") u = u.url;
+    return typeof u === "string" && /^https:\/\/[^\s"'<>]+$/i.test(u) && u.length <= 2000 ? u : null;
+  }
+  function snapFigure(fig, url, alt, fallback) {
+    const img = el("img", "snap"); img.setAttribute("src", url); img.setAttribute("alt", alt); img.setAttribute("referrerpolicy", "no-referrer"); img.setAttribute("loading", "lazy");
+    if (fallback) img.addEventListener("error", fallback, { once: true });   // edge function dormant → drawn plan
+    fig.appendChild(img);
+  }
+  // 0069: which sections the studio chose to share. No `sections` from the server → legacy booklet (all on).
+  const SEC_MAP = { details: ["client", "venue"], layout2d: ["layout2d"], layout3d: ["layout3d"], menu: ["menu"], packages: ["menu"],
+    quote: ["quotation"], versions: ["quotation"], payments: ["payments"], terms: ["terms"] };
+  function visibleSections(d) {
+    const sc = d && d.sections && typeof d.sections === "object" ? d.sections : null;
+    const on = (k) => !sc || sc[k] === true;
+    const out = {};
+    Object.keys(SEC_MAP).forEach((id) => { out[id] = SEC_MAP[id].some(on); });
+    out.details = true;                                   // event date / title always shown
+    if (sc) {                                             // hide empty sections — never placeholders
+      const lay = normalizeItems(d.layout).items.length;
+      if (!lay && !snapUrl(d, "layout2d")) out.layout2d = false;
+      if (!lay && !snapUrl(d, "layout3d")) out.layout3d = false;
+      const mn = d.menu || {};
+      if (!(mn.selected_package || mn.package || mn.menu || (Array.isArray(mn.items) && mn.items.length))) out.menu = false;
+      if (!quoteLines(d.quote).lines.length && quoteLines(d.quote).total == null) out.quote = false;
+      if (!(Array.isArray(d.versions) && d.versions.length)) out.versions = false;
+      const p = d.payments || {}; if (!(Array.isArray(p.milestones) && p.milestones.length) && p.paid == null && p.outstanding == null) out.payments = false;
+    }
+    return { show: out, studio: on("studio"), client: on("client"), venue: on("venue") };
+  }
   function render(d) {
-    renderCover(d); renderToc(); renderDetails(d); render2d(d); render3d(d); renderMenu(d); renderQuote(d); renderVersions(d); renderPayments(d); renderTerms(d);
+    const q = d.quote || {}; setFormat(d.locale || q.locale, q.currency || d.currency);
+    const vis = visibleSections(d);
+    if (!vis.studio) d = Object.assign({}, d, { studio: { name: (d.studio || {}).name, accent: (d.studio || {}).accent } });
+    if (!vis.client) d = Object.assign({}, d, { event: Object.assign({}, d.event, { client_name: null }) });
+    if (!vis.venue) d = Object.assign({}, d, { event: Object.assign({}, d.event, { venue_name: null, venue_address: null, venue_map_url: null }) });
+    VISIBLE = vis.show;
+    Object.keys(vis.show).forEach((id) => { const n = doc.getElementById(id); if (n && id !== "packages") n.hidden = !vis.show[id]; });
+    let ix = 0; SECTIONS.forEach((x) => { const h = doc.getElementById(x[0]); const nm = h && h.querySelector(".num"); if (nm && vis.show[x[0]] !== false) nm.textContent = String(++ix).padStart(2, "0"); });
+    renderCover(d); renderToc(); renderDetails(d);
+    if (vis.show.layout2d) render2d(d); if (vis.show.layout3d) render3d(d); if (vis.show.menu) renderMenu(d);
+    if (vis.show.quote) renderQuote(d); if (vis.show.versions) renderVersions(d); if (vis.show.payments) renderPayments(d); if (vis.show.terms) renderTerms(d); else renderFoot(d);
   }
 
   function show(id) { ["#loading", "#bad", "#err", "#app"].forEach((s) => { $(s).hidden = s !== id; }); }
@@ -320,10 +401,12 @@
       show("#err"); return;
     }
     if (!d || typeof d !== "object") { show("#bad"); return; }
+    d.__token = token;
     render(d); show("#app");
+    if (global.HelmBookletPkg && VISIBLE.packages !== false && !(d.menu && (d.menu.mode === "selected" || d.menu.mode === "hidden"))) global.HelmBookletPkg.mount(token, d).catch(() => {});
   }
 
-  global.HelmBooklet = { money, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
+  global.HelmBooklet = { render2d, render3d, visibleSections, snapUrl, money, setFormat, fmtTime, mapLink, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
   if (doc && doc.getElementById("tocList")) {
     const pb = doc.getElementById("printBtn"); if (pb) pb.addEventListener("click", () => global.print());
     const rt = doc.getElementById("retry"); if (rt) rt.addEventListener("click", () => start());

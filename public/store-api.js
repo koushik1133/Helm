@@ -1025,12 +1025,14 @@ window.HelmUrl = HelmUrl;
     { key: "finance",    label: "Budget & finance",  icon: "💰", page: null,             group: "Finance" },
     { key: "settlement", label: "Settlement",        icon: "🧾", page: null,             group: "Finance" },
     { key: "closure",    label: "Closure & P&L",     icon: "🏁", page: null,             group: "Finance" },
+    // 0069 client package flow: pkg_review view = notified of client choices, edit = accept / decline;
+    // pkg_payments view = package payment alerts
+    { key: "pkg_review",   label: "Package selections (review)", icon: "📦", page: null, group: "Finance" },
+    { key: "pkg_payments", label: "Package payment alerts",      icon: "💸", page: null, group: "Finance" },
     { key: "command",    label: "Event-day command", icon: "🎛", page: null,             group: "Event day" },
     { key: "issues",     label: "Issues & incidents",icon: "🚨", page: null,             group: "Event day" },
     { key: "media",      label: "Media & gallery",   icon: "📸", page: null,             group: "Event day" },
     { key: "controls",   label: "Control Center",    icon: "⚙", page: "control.html",   group: "Admin" },
-    { key: "pkg_review", label: "Package review",    icon: "🍽", page: null,             group: "Workspace" },
-    { key: "pkg_payments", label: "Package payments", icon: "💳", page: null,             group: "Finance" },
     { key: "codes",      label: "Coupons & codes",   icon: "🔑", page: null,             group: "Admin" },
     { key: "users",      label: "Users & access",    icon: "👥", page: "control.html",   group: "Admin" },
   ];
@@ -5572,19 +5574,29 @@ window.HelmUrl = HelmUrl;
       if (!has(n.conversation_id)) return "chat.html";
       return "chat.html?c=" + enc(n.conversation_id) + (has(n.msg_id) ? "&msg=" + enc(n.msg_id) : "");
     }
-    const k = String(n.kind || "").toLowerCase().trim(), q = has(n.quote_id) ? n.quote_id : null;
+    const k0 = String(n.kind || "").toLowerCase().trim();
     const d = (n.detail && typeof n.detail === "object") ? n.detail : {};
+    // 0069: package-flow notifications carry their own deep link in detail.path — internal relative pages only
+    if (/^pkg_(selected|accepted|declined|payment)$/.test(k0)) {
+      const p = typeof d.path === "string" ? d.path.trim() : "";
+      if (/^(event|settlement)\.html\?(id|quote)=[0-9a-f-]{36}(#[a-z-]{1,32})?$/i.test(p))
+        return k0 === "pkg_payment" ? p.replace(/#.*$/, "") + "#payments" : p.replace(/#.*$/, "") + "#pkg-selections";
+      if (!has(n.quote_id) && has(d.quote_id)) n = Object.assign({}, n, { quote_id: d.quote_id });
+    }
+    const k = k0, q = has(n.quote_id) ? n.quote_id : null;
     if (k === "trial_reminder") return "checkout.html";
     if (k === "security_alert") return "control.html#users";
     if (k.indexOf("chat_") === 0) return "chat.html";
     if (k.indexOf("nurture_") === 0) return "nurture.html";
     if (!q) return "";
     if (k.indexOf("task_") === 0) return "ops.html?quote=" + enc(q) + (has(d.task_id) ? "&task=" + enc(d.task_id) : "");
-    if (/^(payment_link|payment_reminder|payment_receipt|payment|payment_received|advance_paid|payment_reconcile)$/.test(k))
+    if (/^(payment_link|payment_reminder|payment_receipt|payment|payment_received|advance_paid|payment_reconcile|pkg_payment)$/.test(k))
       return "settlement.html?quote=" + enc(q) + "#payments";
     if (/^(approval_link|otp|reapproval_required|quote_approved|quote_changed|approved|change_order)$/.test(k))
       return "quotes.html?focus=" + enc(has(n.event_code) ? n.event_code : q);
     if (k.indexOf("design_") === 0) return "design.html?quote=" + enc(q);
+    if (/^pkg_(selected|accepted|declined)$/.test(k)) return "event.html?id=" + enc(q) + "#pkg-selections";
+    if (k === "pkg_payment") return "settlement.html?quote=" + enc(q) + "#payments";
     return "event.html?id=" + enc(q);
   }
   /* ---------------- notification bell: view (pure — unit-tested in test/bell-panel.test.mjs) ----------------
@@ -5600,6 +5612,7 @@ window.HelmUrl = HelmUrl;
          "task_assigned", "task_reminder", "task_due", "security_alert"].indexOf(k) !== -1) return k;
     if (k === "payment" || k === "payment_received") return "payment_receipt";
     if (k === "trial_reminder") return "billing_trial";
+    if (/^pkg_(selected|accepted|declined|payment)$/.test(k)) return k;
     if (/^task_(accept|reject|start|complete)$/.test(k)) return "task_update";
     if (k.indexOf("design_") === 0) return "design_update";
     if (k.indexOf("nurture_") === 0) return "nurture_greeting";
@@ -5612,7 +5625,8 @@ window.HelmUrl = HelmUrl;
     nurture_greeting: "Greetings", design_update: "Design stage changes", task_assigned: "Tasks assigned", task_update: "Task updates",
     task_reminder: "Task reminders", task_due: "Tasks due", payment_link: "Payment links", payment_reminder: "Payment reminders",
     payment_receipt: "Payment receipts", advance_paid: "Payments received", payment_reconcile: "Payments needing attention",
-    chat_message: "Chat messages", security_alert: "Security alerts", billing_trial: "Free trial reminders", other: "Other updates" };
+    chat_message: "Chat messages", pkg_selected: "Client package choices", pkg_accepted: "Package choices accepted",
+    pkg_declined: "Package choices declined", pkg_payment: "Package payments", security_alert: "Security alerts", billing_trial: "Free trial reminders", other: "Other updates" };
   function bellPanelView(items, opts) {
     opts = opts || {};
     const muted = Array.isArray(opts.muted) ? opts.muted : [], readKeys = Array.isArray(opts.read) ? opts.read : [];
@@ -5874,6 +5888,11 @@ window.HelmUrl = HelmUrl;
         + (d.event_code ? " · " + d.event_code : "")],
       // 0058: free-trial reminders (admins only — the server decides)
       trial_reminder: ["⏳", String(d.label || "Free trial update")],
+      // 0069 client package flow
+      pkg_selected: ["📦", "Client chose a package" + (d.package ? ": " + d.package : "") + (d.event_code ? " · " + d.event_code : "")],
+      pkg_accepted: ["✅", "Package choice accepted" + (d.event_code ? " · " + d.event_code : "")],
+      pkg_declined: ["↩️", "Package choice declined" + (d.event_code ? " · " + d.event_code : "")],
+      pkg_payment: ["💸", "Package payment received" + (d.event_code ? " · " + d.event_code : "")],
     };
     const hit = m[k] || (k.indexOf("design_") === 0 ? ["🎨", "Design stage: " + k.slice(7).replace(/_/g, " ")]
                       : k.indexOf("nurture_") === 0 ? ["🌱", "Greeting queued" + (k.length > 8 ? " · " + k.slice(8).replace(/_/g, " ") : "")] : null);
@@ -5894,6 +5913,7 @@ window.HelmUrl = HelmUrl;
     if (task) return '.trow[data-id="' + task + '"]';
     if (msg) return '.m[data-mid="' + msg + '"]';
     if (hash === "#payments") return "#payments";
+    if (hash === "#pkg-selections") return "#pkg-selections";
     return null;
   }
   function deeplinkFocus() {
