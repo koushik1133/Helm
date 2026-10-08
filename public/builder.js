@@ -3091,6 +3091,7 @@ async function init(){
       const q=await BPStore.quotes.get(quoteId);
       currentQuoteId=q.id; currentQuoteCode=q.code; currentClient=q.client||{}; currentPricing=q.pricing||{};
       const pn=$('#projName'); if(pn) pn.value=q.title||q.code;
+      try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[q.code,q.title].filter(Boolean).join(' '),kind:'builder',href:'builder.html?quote='+encodeURIComponent(q.id),recordHref:'event.html?id='+encodeURIComponent(q.id)}); }catch(e){}
       const verNo = openVer ? parseInt(openVer,10) : q.currentVersion;
       const ver = await BPStore.quotes.getVersion(q.id, verNo);
       currentVersionNo = ver.versionNo;

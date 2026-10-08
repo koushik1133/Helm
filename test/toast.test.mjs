@@ -15,7 +15,7 @@ const fnSrc = (src, name) => {
   for (; i < src.length; i++) { if (src[i] === '{') depth++; else if (src[i] === '}' && --depth === 0) return src.slice(at, i + 1); }
   throw new Error(name + ' unterminated');
 };
-const ctx = {}; vm.runInNewContext(['bellLabel', 'bellToastPick'].map((f) => fnSrc(api, f)).join('\n') + '\nglobalThis.pick=bellToastPick; globalThis.label=bellLabel;', ctx);
+const ctx = {}; vm.runInNewContext(['notifLink', 'bellTypeOf', 'bellLabel', 'bellToastPick'].map((f) => fnSrc(api, f)).join('\n') + '\nglobalThis.pick=bellToastPick; globalThis.label=bellLabel;', ctx);
 const pick = (items, seen) => JSON.parse(JSON.stringify(ctx.pick(items, seen, { label: ctx.label })));
 
 const FEED = [
@@ -51,7 +51,7 @@ t('content: title, one-line message, type mapping, encoded links', () => {
   const by = Object.fromEntries(r.toasts.map((x) => [x.key.split('@')[0], x]));
   assert.equal(by['n:s'].type, 'security'); assert.match(by['n:s'].title, /^Security: New sign-in/);
   assert.equal(by['n:n1'].type, 'info'); assert.equal(by['n:n1'].title, '2 task(s) assigned · Decor');
-  assert.equal(by['n:n1'].message, 'C-101 · Sharma wedding'); assert.equal(by['n:n1'].href, 'event.html?id=q%201');
+  assert.equal(by['n:n1'].message, 'C-101 · Sharma wedding'); assert.equal(by['n:n1'].href, 'ops.html?quote=q%201');
   assert.equal(by['c:g1'].title, 'Crew · Ravi'); assert.equal(by['c:g1'].message, 'on my way'); assert.equal(by['c:g1'].href, 'chat.html?c=g1');
   const pay = pick([FEED[1]], { t: '2026-10-01T00:00:00Z', ids: [] }).toasts[0];
   assert.equal(pay.type, 'success'); assert.equal(pay.message, 'Open to see details');

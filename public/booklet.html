@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your event booklet</title>
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta name="referrer" content="no-referrer">
+<link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
+<link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
+<link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/booklet.css?v=1">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<div id="loading" class="state" role="status" aria-live="polite"><div class="spinner" aria-hidden="true"></div><p>Opening your booklet…</p></div>
+<div id="bad" class="state" hidden>
+  <h1>This booklet link isn't available</h1>
+  <p>It may have expired or been replaced with a newer one. Please ask your event studio to send you a fresh link.</p>
+</div>
+<div id="err" class="state" hidden>
+  <h1>We couldn't open your booklet</h1>
+  <p id="errMsg">Please check your connection and try again.</p>
+  <button type="button" class="btn" id="retry">Try again</button>
+</div>
+
+<div id="app" hidden>
+  <header class="cover" id="cover">
+    <div class="cover-inner">
+      <div class="studio">
+        <img id="s_logo" class="logo" alt="" hidden>
+        <div class="studio-mark" id="s_mark" aria-hidden="true"></div>
+        <div>
+          <div class="studio-name" id="s_name"></div>
+          <div class="studio-contact" id="s_contact"></div>
+        </div>
+      </div>
+      <p class="eyebrow">Event booklet</p>
+      <h1 class="title" id="e_title"></h1>
+      <p class="subtitle" id="e_sub"></p>
+      <p class="prepared" id="e_for"></p>
+      <blockquote class="note" id="b_note" hidden></blockquote>
+      <div class="cover-actions">
+        <button type="button" class="btn" id="printBtn">Download PDF</button>
+        <a class="btn ghost" href="#toc">Contents</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="toc" id="toc" aria-label="Contents">
+      <p class="toc-title">Contents</p>
+      <ol id="tocList"></ol>
+    </nav>
+
+    <main id="main" tabindex="-1">
+      <section class="sec" id="details" aria-labelledby="h_details">
+        <h2 id="h_details"><span class="num">01</span>Event details</h2>
+        <dl class="facts" id="factList"></dl>
+      </section>
+
+      <section class="sec" id="layout2d" aria-labelledby="h_layout2d">
+        <h2 id="h_layout2d"><span class="num">02</span>Floor plan</h2>
+        <p class="lede">The layout we've planned for your venue, seen from above.</p>
+        <figure class="plan" id="plan2d"></figure>
+        <ul class="legend" id="legend2d"></ul>
+      </section>
+
+      <section class="sec" id="layout3d" aria-labelledby="h_layout3d">
+        <h2 id="h_layout3d"><span class="num">03</span>3D view</h2>
+        <p class="lede">An illustrative three-dimensional preview drawn from the same floor plan.</p>
+        <figure class="plan plan3d" id="plan3d"></figure>
+      </section>
+
+      <section class="sec" id="menu" aria-labelledby="h_menu">
+        <h2 id="h_menu"><span class="num">04</span>Menu</h2>
+        <div id="menuBody"></div>
+      </section>
+
+      <section class="sec" id="quote" aria-labelledby="h_quote">
+        <h2 id="h_quote"><span class="num">05</span>Quotation</h2>
+        <table class="lines" id="quoteTable">
+          <caption class="sr-only">Quotation line items</caption>
+          <thead><tr><th scope="col">Item</th><th scope="col" class="amt">Amount</th></tr></thead>
+          <tbody id="quoteLines"></tbody>
+          <tfoot><tr class="grand"><th scope="row">Total</th><td class="amt" id="quoteTotal"></td></tr></tfoot>
+        </table>
+        <p class="words" id="quoteWords"></p>
+      </section>
+
+      <section class="sec" id="versions" aria-labelledby="h_versions">
+        <h2 id="h_versions"><span class="num">06</span>Quote history</h2>
+        <ol class="versions" id="versionList"></ol>
+      </section>
+
+      <section class="sec" id="payments" aria-labelledby="h_payments">
+        <h2 id="h_payments"><span class="num">07</span>Payments</h2>
+        <div class="paysum" id="paySum"></div>
+        <table class="lines" id="payTable">
+          <caption class="sr-only">Payment milestones</caption>
+          <thead><tr><th scope="col">Milestone</th><th scope="col">Due</th><th scope="col">Status</th><th scope="col" class="amt">Amount</th></tr></thead>
+          <tbody id="payLines"></tbody>
+        </table>
+      </section>
+
+      <section class="sec" id="terms" aria-labelledby="h_terms">
+        <h2 id="h_terms"><span class="num">08</span>Terms</h2>
+        <div class="terms" id="termsBody"></div>
+      </section>
+
+      <footer class="foot">
+        <p id="footLine"></p>
+        <p class="muted" id="expLine"></p>
+      </footer>
+    </main>
+  </div>
+</div>
+
+<script src="/trusted-types.js?v=2"></script>
+<script src="/telemetry.js?v=3"></script>
+<script src="/config.js?v=97"></script>
+<script src="/store-api.js?v=129"></script>
+<script src="/booklet.js?v=1"></script>
+</body>
+</html>

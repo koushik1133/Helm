@@ -16,7 +16,7 @@ const fnSrc = (src, name) => {
   for (; i < src.length; i++) { if (src[i] === '{') depth++; else if (src[i] === '}' && --depth === 0) return src.slice(at, i + 1); }
   throw new Error(name + ' unterminated');
 };
-const ctx = {}; vm.runInNewContext(fnSrc(AUI, 'trialNotice') + '\n' + ['bellLabel', 'bellToastPick'].map((f) => fnSrc(API, f)).join('\n')
+const ctx = {}; vm.runInNewContext(fnSrc(AUI, 'trialNotice') + '\n' + ['notifLink', 'bellTypeOf', 'bellLabel', 'bellToastPick'].map((f) => fnSrc(API, f)).join('\n')
   + '\nglobalThis.notice=trialNotice; globalThis.pick=bellToastPick; globalThis.label=bellLabel;', ctx);
 const notice = (x) => JSON.parse(JSON.stringify(ctx.notice(x)));
 const admin = (o) => Object.assign({ is_admin: true, can_pay: true }, o);
@@ -75,7 +75,7 @@ t('toast: warning type, /checkout link, plan message', () => {
   assert.equal(r.toasts[0].type, 'warning'); assert.equal(r.toasts[0].href, 'checkout.html');
   assert.equal(r.toasts[0].message, 'Choose a plan to keep using Helm');
 });
-t('bell panel item links trial reminders to /checkout', () => assert.match(API, /n\.kind === "trial_reminder" \? "checkout\.html"/));
+t('bell panel item links trial reminders to /checkout', () => assert.match(API, /if \(k === "trial_reminder"\) return "checkout\.html";/));
 
 t('checkout: in-trial / ended trial = upgrade (no new trial, test bypass hidden)', () => {
   assert.match(CO, /st\.upgrade = st\.opts\.status === "trial" \|\| st\.opts\.status === "past_due";/);

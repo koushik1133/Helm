@@ -15,8 +15,9 @@ const fnSrc = (src, name) => {
   for (; i < src.length; i++) { if (src[i] === '{') depth++; else if (src[i] === '}' && --depth === 0) return src.slice(at, i + 1); }
   throw new Error(name + ' unterminated');
 };
-const ctx = {}; vm.runInNewContext(['bellLabel', 'bellPanelView'].map((f) => fnSrc(api, f)).join('\n') + '\nglobalThis.view=bellPanelView; globalThis.label=bellLabel;', ctx);
-const view = (items, filter, now) => JSON.parse(JSON.stringify(ctx.view(items, { filter, now, label: ctx.label })));   // plain objects (vm realm)
+const labelsSrc = api.slice(api.indexOf('const BELL_TYPE_LABELS'), api.indexOf('};', api.indexOf('const BELL_TYPE_LABELS')) + 2);
+const ctx = {}; vm.runInNewContext(labelsSrc + '\n' + ['notifLink', 'bellTypeOf', 'bellLabel', 'bellPanelView'].map((f) => fnSrc(api, f)).join('\n') + '\nglobalThis.view=bellPanelView; globalThis.label=bellLabel; globalThis.typeOf=bellTypeOf;', ctx);
+const view = (items, filter, now, extra) => JSON.parse(JSON.stringify(ctx.view(items, Object.assign({ filter, now, label: ctx.label }, extra || {}))));   // plain objects (vm realm)
 
 // a fixed local "now": 7 Oct 2026, 15:00 local time
 const NOW = new Date(2026, 9, 7, 15, 0, 0).getTime();
@@ -40,14 +41,18 @@ t('groups rows into Today / Yesterday / Earlier, newest first', () => {
   assert.match(v.html, /<time datetime="[^"]+">6d<\/time>/);      // 1 Oct
 });
 
-t('filter tabs: counts, Payments only when present, unknown filter falls back to All', () => {
+t('filter tabs: unread counts, Billing / Security only when present, unknown filter falls back to All', () => {
   const v = view(FEED, 'all', NOW);
-  assert.deepEqual(v.tabs.map((x) => [x.id, x.count]), [['all', 5], ['mentions', 1], ['tasks', 1], ['payments', 1], ['chat', 2]]);
+  assert.deepEqual(v.tabs.map((x) => [x.id, x.count]), [['all', 3], ['mentions', 1], ['tasks', 1], ['billing', 0], ['chat', 2]]);
   assert.match(v.tabsHtml, /role="tab"[^>]*id="bpBellTab-all"[^>]*aria-selected="true"[^>]*tabindex="0"/);
-  const noPay = view(FEED.filter((x) => x.kind !== 'payment_received'), 'payments', NOW);
-  assert.equal(noPay.tabs.some((x) => x.id === 'payments'), false);
+  const noPay = view(FEED.filter((x) => x.kind !== 'payment_received'), 'billing', NOW);
+  assert.equal(noPay.tabs.some((x) => x.id === 'billing'), false);
   assert.equal(noPay.filter, 'all');
-  assert.doesNotMatch(noPay.tabsHtml, /Payments/);
+  assert.doesNotMatch(noPay.tabsHtml, /Billing/);
+  const sec = view(FEED.concat([{ id: 's1', kind: 'security_alert', detail: { label: 'Role changed' }, created_at: at(7, 12), unread: true },
+    { id: 't1', kind: 'trial_reminder', detail: {}, created_at: at(7, 11), unread: true }]), 'security', NOW);
+  assert.deepEqual(sec.tabs.map((x) => [x.id, x.count]), [['all', 5], ['mentions', 1], ['tasks', 1], ['billing', 1], ['security', 1], ['chat', 2]]);
+  assert.deepEqual([...sec.html.matchAll(/data-k="([^"]+)"/g)].map((m) => m[1]), ['n:s1']);
   assert.equal(view(FEED, 'bogus', NOW).filter, 'all');
 });
 
@@ -55,7 +60,7 @@ t('each filter shows only its rows; Chat includes mentions', () => {
   const keys = (f) => [...view(FEED, f, NOW).html.matchAll(/data-k="([^"]+)"/g)].map((m) => m[1]);
   assert.deepEqual(keys('mentions'), ['c:g2']);
   assert.deepEqual(keys('tasks'), ['n:n1']);
-  assert.deepEqual(keys('payments'), ['n:n2']);
+  assert.deepEqual(keys('billing'), ['n:n2']);
   assert.deepEqual(keys('chat'), ['c:g1', 'c:g2']);
   const v = view(FEED, 'tasks', NOW);
   assert.match(v.tabsHtml, /id="bpBellTab-tasks"[^>]*aria-selected="true"/);
@@ -64,13 +69,60 @@ t('each filter shows only its rows; Chat includes mentions', () => {
 
 t('rows: type chip per group, bold title, preview, unread dot, links to the target', () => {
   const h = view(FEED, 'all', NOW).html;
-  assert.match(h, /<a class="bpb-item g-task is-unread" href="event\.html\?id=q-1" data-k="n:n1"><span class="bpb-chip" aria-hidden="true">🛠️<\/span><span class="bpb-body"><span class="bpb-t">3 task\(s\) assigned · Decor<\/span><span class="bpb-p">C-101 · Sharma wedding<\/span>/);
-  assert.match(h, /<a class="bpb-item g-payment" href="event\.html\?id=q-2"/);       // read → no is-unread
+  assert.match(h, /<a class="bpb-item g-task is-unread" href="ops\.html\?quote=q-1" data-k="n:n1"><span class="bpb-chip" aria-hidden="true">🛠️<\/span><span class="bpb-body"><span class="bpb-t">3 task\(s\) assigned · Decor<\/span><span class="bpb-p">C-101 · Sharma wedding<\/span>/);
+  assert.match(h, /<a class="bpb-item g-billing" href="settlement\.html\?quote=q-2#payments"/);       // read → no is-unread
   assert.match(h, /<div class="bpb-item g-other" tabindex="0" data-k="n:n3">/);       // no quote → not a link, still focusable
   assert.match(h, /<a class="bpb-item g-chat is-unread" href="chat\.html\?c=g1"[^>]*><span class="bpb-chip" aria-hidden="true">💬<\/span><span class="bpb-body"><span class="bpb-t">Crew · Ravi <span class="bpb-c">\(3\)<\/span>/);
   assert.match(h, /<a class="bpb-item g-mention is-unread" href="chat\.html\?c=g2"[^>]*><span class="bpb-chip" aria-hidden="true">@<\/span>/);
   assert.equal((h.match(/class="bpb-u"/g) || []).length, 3);
   assert.match(h, /<span class="sr-only">Unread<\/span>/);
+});
+
+t('0063: catalog type per row (mirrors notification_type_of)', () => {
+  assert.equal(ctx.typeOf({ kind: 'task_accept' }), 'task_update');
+  assert.equal(ctx.typeOf({ kind: 'payment_received' }), 'payment_receipt');
+  assert.equal(ctx.typeOf({ kind: 'trial_reminder' }), 'billing_trial');
+  assert.equal(ctx.typeOf({ kind: 'security_alert' }), 'security_alert');
+  assert.equal(ctx.typeOf({ kind: 'design_moodboard' }), 'design_update');
+  assert.equal(ctx.typeOf({ __chat: true, kind: 'group' }), 'chat_message');
+  assert.equal(ctx.typeOf({ __chat: true, mention: true }), null);
+  assert.equal(ctx.typeOf({ kind: 'weird' }), 'other');
+});
+
+t('0063: muted types vanish (mentions never), mark-read clears the dot, per-row menu button', () => {
+  const v = view(FEED, 'all', NOW, { muted: ['task_update', 'task_assigned', 'chat_message'] });
+  assert.deepEqual([...v.html.matchAll(/data-k="([^"]+)"/g)].map((m) => m[1]), ['c:g2', 'n:n2', 'n:n3']);
+  const r = view(FEED, 'all', NOW, { read: ['n:n1', 'c:g1'] });
+  assert.equal(r.unread, 1);
+  assert.equal(r.tabs.find((x) => x.id === 'tasks').count, 0);
+  assert.doesNotMatch(r.html, /class="bpb-item g-task is-unread"/);
+  const h = view(FEED, 'all', NOW).html;
+  assert.match(h, /<button type="button" class="bpb-more" data-mk="n:n1" data-ty="task_assigned" aria-haspopup="menu" aria-expanded="false" aria-label="More actions">/);
+  assert.match(h, /data-mk="c:g2" data-ty=""/);                                     // a mention can only be marked read
+});
+
+t('0063: security muted → Security tab stays with a "turn back on" line; muted-types view', () => {
+  const v = view(FEED, 'security', NOW, { muted: ['security_alert'] });
+  assert.equal(v.filter, 'security');
+  assert.match(v.html, /Security alerts muted - <button type="button" class="bpb-link" data-unmute="security_alert">turn back on<\/button>/);
+  assert.doesNotMatch(view(FEED, 'security', NOW).tabsHtml, /Security/);
+  const m = view(FEED, 'muted', NOW, { muted: ['security_alert', '<x>'] });
+  assert.equal(m.filter, 'muted');
+  assert.match(m.html, /Security alerts<\/span><button type="button" class="bpb-link" data-unmute="security_alert">Unmute/);
+  assert.match(m.html, /&lt;x&gt;/); assert.doesNotMatch(m.html, /<x>/);
+  assert.match(view(FEED, 'muted', NOW).html, /Nothing muted/);
+});
+
+t('0063: mount wires the menu, undo toast, mutes RPCs and toast filtering', () => {
+  assert.match(api, /rpc\("my_notification_mutes", \{\}\)/);
+  assert.match(api, /rpc\("set_notification_mute", \{ p_type: String\(type \|\| ""\), p_muted: !!muted \}\)/);
+  assert.match(api, /add\("Mute this type"/); assert.match(api, /add\("Mark read"/);
+  assert.match(api, /action: undo \? \{ label: "Undo", onClick: undo \}/);
+  assert.match(api, /bellToastPick\(merged, readSeen\(\), \{ label: bellLabel, muted \}\)/);
+  assert.match(api, /id="bpBellMuted" class="bpb-link">Muted types</);
+  const mig = readFileSync(new URL('../supabase/migrations/0063_notification_mutes.sql', import.meta.url), 'utf8');
+  assert.match(mig, /create or replace function public\.set_notification_mute\(p_type text, p_muted boolean\)/);
+  assert.match(mig, /enable row level security/);
 });
 
 t('unread = unread server rows + chat message counts', () => {
@@ -89,7 +141,7 @@ t('escaping: server + chat text never becomes markup; ids are URL-encoded', () =
   assert.doesNotMatch(v.html, /<img|<script|<svg|<i>|<u>|<s>|<b>/);
   assert.match(v.html, /Task accepted by &lt;img src=x onerror=alert\(1\)&gt;/);
   assert.match(v.html, /&quot;quoted&quot; &amp; &#39;x&#39;/);
-  assert.match(v.html, /href="event\.html\?id=q%22%2F%3E%3Cscript%3E"/);
+  assert.match(v.html, /href="ops\.html\?quote=q%22%2F%3E%3Cscript%3E"/);
   assert.match(v.html, /href="chat\.html\?c=c%22%3E%3Csvg%20onload%3D1%3E"/);
   assert.match(v.html, /data-k="n:&quot;&gt;&lt;b&gt;"/);
   assert.match(v.html, /<span class="bpb-t">&lt;i&gt;Mallory&lt;\/i&gt;<\/span>/);        // DM title = sender
@@ -129,7 +181,7 @@ t('mount: dialog semantics, own focus trap (BPUI skip), Esc closes, arrows walk 
   assert.match(api, /\["ArrowDown", "ArrowUp", "Home", "End"\]/);
   assert.match(api, /e\.key === "ArrowLeft" \|\| e\.key === "ArrowRight"/);
   assert.match(api, /document\.body\.appendChild\(root\);/);                // portalled: headers can't clip it
-  assert.match(api, /const v = bellPanelView\(lastItems, \{ filter, now: Date\.now\(\), label: bellLabel \}\);/);
+  assert.match(api, /const v = bellPanelView\(lastItems, \{ filter, now: Date\.now\(\), label: bellLabel, muted, read: readKeys \}\);/);
 });
 
 t('mount keeps the data flow: feed + chat merge, 0036 hidden chat, markSeen on open, live refresh', () => {

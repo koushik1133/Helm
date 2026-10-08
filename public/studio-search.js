@@ -78,6 +78,16 @@
       });
       if (items.length) out.push({ type: t.key, label: t.label, icon: t.icon, items });
     });
+    // 0062: leads and events also open their client's one-page timeline (client.html?id=)
+    const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const clients = [];
+    out.forEach((g) => {
+      if (g.type !== "leads" && g.type !== "events") return;
+      g.items.forEach((it) => {
+        if (clients.length < 3 && UUID.test(it.id)) clients.push({ id: "c:" + it.id, title: it.title, subtitle: "Client page", href: "client.html?id=" + it.id });
+      });
+    });
+    if (clients.length) out.push({ type: "clients", label: "Client pages", icon: "🧑", items: clients });
     return out;
   }
   // split text into [{t, hit}] runs for highlighting (case-insensitive, every occurrence)
@@ -314,10 +324,27 @@
   }
 
   // flattened model of what's on screen: [{group, rows:[{kind, label, sub, icon, href, q?}]}]
+  // empty-state hook: recently opened records from nav-trail.js (HelmTrail.recent()); own pages only
+  function recentRecords() {
+    let list = [];
+    try { const t = global.HelmTrail; list = t && typeof t.recent === "function" ? t.recent() : []; } catch (e) { list = []; }
+    if (!Array.isArray(list)) return [];
+    const t = global.HelmTrail || {};
+    return list.slice(0, 5).map((r) => {
+      const href = r && typeof r.href === "string" ? r.href : "";
+      if (!href || !/^[a-z0-9-]+\.html(?:[?#][^\s\\]*)?$/i.test(href)) return null;
+      const kind = String(r.kind || "record");
+      return { title: String(r.title || "").slice(0, 120), href, icon: (t.ICONS && t.ICONS[kind]) || "📄",
+        sub: ((t.KIND_LABEL && t.KIND_LABEL[kind]) || "Record") + (r.at && t.timeAgo ? " · " + t.timeAgo(r.at) : "") };
+    }).filter((r) => r && r.title);
+  }
   function sections() {
     const out = [];
     const q = S.q;
     if (q.length < MIN) {
+      const recs = recentRecords();
+      if (recs.length) out.push({ key: "records", label: "Recently opened",
+        rows: recs.map((r) => ({ kind: "record", label: r.title, sub: r.sub, icon: r.icon, href: r.href })) });
       const rec = recentGet();
       if (rec.length) out.push({ key: "recent", label: "Recent searches", clear: true,
         rows: rec.map((r) => ({ kind: "recent", label: r, sub: "", icon: "🕘", q: r })) });
@@ -524,7 +551,7 @@
   }
   if (doc) { if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", auto); else auto(); }
 
-  const api = { open, close, boot, placeTrigger, normalize, highlight, cleanQuery, safeLink, matchAction, sections, recentGet, recentAdd, recentClear,
+  const api = { open, close, boot, placeTrigger, normalize, highlight, cleanQuery, safeLink, matchAction, sections, recentRecords, recentGet, recentAdd, recentClear,
     TYPES, ACTIONS, MIN, MAX, DEBOUNCE, _css: CSS, _state: S };
   global.HelmStudioSearch = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

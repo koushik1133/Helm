@@ -44,7 +44,7 @@
       var page = (location.pathname.split("/").pop() || "dashboard.html").toLowerCase().replace(/\.html$/, "") || "index";
       if (page === "index" || page === "welcome" || page === "login") return;   // home / auth pages: no self-link
       // client-facing token pages: clients have no dashboard to go "home" to
-      if (/^(approve|portal|proposal-view|invite|work|sim-pay)$/.test(page) || location.pathname.indexOf("/i/") === 0) return;
+      if (/^(approve|portal|booklet|proposal-view|invite|work|sim-pay)$/.test(page) || location.pathname.indexOf("/i/") === 0) return;
       var mark = document.querySelector("header .mark") || document.querySelector(".mark");
       if (!mark) return;
       if (mark.tagName !== "A" && mark.closest("a[href]")) return;   // brand already WRAPPED in one home link (e.g. builder)
@@ -284,7 +284,7 @@
      expired" when expired=1.
      Only pages that GATE on auth (called auth.required() or auth.requireView())
      redirect, and never the public token pages below. */
-  const PUBLIC_PAGES = { approve: 1, portal: 1, "proposal-view": 1, invite: 1, work: 1, "sim-pay": 1,
+  const PUBLIC_PAGES = { approve: 1, portal: 1, booklet: 1, "proposal-view": 1, invite: 1, work: 1, "sim-pay": 1,
     index: 1, login: 1, about: 1, services: 1, privacy: 1, terms: 1, "refund-policy": 1, "reset-password": 1 };
   let authGateUsed = false;     // page called auth.required()/requireView()
   let hadSession = false;       // a user was signed in at some point on this page
@@ -832,7 +832,14 @@
   }
   // 0061 universal search (top-bar trigger + Cmd/Ctrl+K palette). Studio pages only:
   // never on HQ / public client pages; studio-search.js re-checks the role (no clients).
-  const STUDIO_SEARCH_VERSION = "1";
+  const STUDIO_SEARCH_VERSION = "2";
+  // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
+  // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
+  const NAV_TRAIL_VERSION = "1";
+  if (typeof global.HelmTrail === "undefined") {
+    global.HelmTrail = { setCurrent(o) { if (o) (global.__helmTrailQ = global.__helmTrailQ || []).push(o); }, recent() { return []; }, _stub: true };
+  }
+  function navTrailClear() { try { const del = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.indexOf("helm_trail_") === 0) del.push(k); } del.forEach((k) => localStorage.removeItem(k)); } catch (e) {} }
   const NO_SEARCH_PAGES = { hq: 1, login: 1, "reset-password": 1, "profile-setup": 1 };
   let studioSearchLoading = false;
   function loadStudioSearch() {
@@ -841,6 +848,21 @@
     studioSearchLoading = true;
     const s = document.createElement("script");
     s.src = vendorUrl("studio-search.js?v=" + STUDIO_SEARCH_VERSION);
+    document.head.appendChild(s);
+    const t = document.createElement("script");
+    t.src = vendorUrl("nav-trail.js?v=" + NAV_TRAIL_VERSION);
+    document.head.appendChild(t);
+    loadMobileNav();
+  }
+  // Mobile bottom bar (< 768px): same pages as the studio search; mobile-nav.js re-checks the role.
+  const MOBILE_NAV_VERSION = "1";
+  let mobileNavLoading = false;
+  function loadMobileNav() {
+    if (mobileNavLoading || typeof document === "undefined" || global.HelmMobileNav) return;
+    if (NO_SEARCH_PAGES[pageKey()] || PUBLIC_PAGES[pageKey()] || publicLinkPath()) return;
+    mobileNavLoading = true;
+    const s = document.createElement("script");
+    s.src = vendorUrl("mobile-nav.js?v=" + MOBILE_NAV_VERSION);
     document.head.appendChild(s);
   }
 
@@ -1403,7 +1425,7 @@
       return data; // browser navigates away to Google
     },
     // Explicit "Log out" = global sign-out (revokes every device's refresh token).
-    async signOut() { explicitSignOut = true; reauthClear(); if (supa) { try { await supa.auth.signOut(); } catch (e) { try { await supa.auth.signOut({ scope: "local" }); } catch (x) {} } } currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; pendingStep = null; sessClear(); userLocalClear(); studioSlugCache = null;
+    async signOut() { explicitSignOut = true; reauthClear(); if (supa) { try { await supa.auth.signOut(); } catch (e) { try { await supa.auth.signOut({ scope: "local" }); } catch (x) {} } } currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; pendingStep = null; sessClear(); userLocalClear(); navTrailClear(); studioSlugCache = null;
       lsDel(SESSION_START_KEY); lsDel(RECOVERY_KEY);
       if (mode === "supabase") authRequired = true; },
     // End every OTHER session of this account (other browsers / devices); this one stays.
@@ -3748,8 +3770,8 @@
       const { m, n } = byConv[cid];
       const title = m.conv_kind === "dm" ? (m.who + " mentioned you") : (m.who + " mentioned you in " + m.title);
       const item = out.find((x) => x.conversation_id === cid);
-      if (item) { item.kind = "mention"; item.mention = true; item.title = title; item.who = ""; item.preview = m.preview; if (String(m.created_at) > String(item.created_at)) item.created_at = m.created_at; }
-      else out.push({ conversation_id: cid, kind: "mention", mention: true, title, who: "", preview: m.preview, created_at: m.created_at, count: n });
+      if (item) { item.kind = "mention"; item.mention = true; item.title = title; item.who = ""; item.preview = m.preview; if (m.id) item.msg_id = m.id; if (String(m.created_at) > String(item.created_at)) item.created_at = m.created_at; }
+      else out.push({ conversation_id: cid, msg_id: m.id, kind: "mention", mention: true, title, who: "", preview: m.preview, created_at: m.created_at, count: n });
     });
     out.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
     return out;
@@ -4437,7 +4459,7 @@
           const last = unread[unread.length - 1];
           let title; if (c.kind === "broadcast") title = c.title || "Everyone"; else if (c.kind === "group") title = c.title || "Group";
           else { const ids = (c.dm_key || "").split(":"); const o = ids[0] === me ? ids[1] : ids[0]; title = nameFor(o); }
-          out.push({ conversation_id: c.id, kind: c.kind, title, who: nameFor(last.sender_id), preview: chatPreviewText(last), created_at: last.created_at, count: unread.length });
+          out.push({ conversation_id: c.id, msg_id: last.id, kind: c.kind, title, who: nameFor(last.sender_id), preview: chatPreviewText(last), created_at: last.created_at, count: unread.length });
         });
         out.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
         try { chatMergeMentions(out, await this.mentionsForMe(cap)); } catch (e) {}   // @mentions: even when muted
@@ -4463,7 +4485,7 @@
         if (seen[m.conversation_id]) { seen[m.conversation_id].count++; return; }
         let title; if (c.kind === "broadcast") title = c.title || "Everyone"; else if (c.kind === "group") title = c.title || "Group";
         else { const ids = (c.dm_key || "").split(":"); const o = ids[0] === me ? ids[1] : ids[0]; title = nameById[o] || "Direct message"; }
-        const item = { conversation_id: m.conversation_id, kind: c.kind, title, who: nameById[m.sender_id] || "Member", preview: chatPreviewText(m), created_at: m.created_at, count: 1 };
+        const item = { conversation_id: m.conversation_id, msg_id: m.id, kind: c.kind, title, who: nameById[m.sender_id] || "Member", preview: chatPreviewText(m), created_at: m.created_at, count: 1 };
         seen[m.conversation_id] = item; out.push(item);
       });
       try { chatMergeMentions(out, await this.mentionsForMe(cap, nameById)); } catch (e) {}   // @mentions: even when muted
@@ -5432,35 +5454,92 @@
     },
   };
 
+  /* ---------------- notification deep links (pure — unit-tested in test/notif-deeplinks.test.mjs) ----------------
+     notifLink(n) → a RELATIVE link to one of the app's own pages ("" when there is nowhere to go).
+     Every id is encodeURIComponent'd; the destination page reads ?task= / ?msg= / #payments and
+     scrolls to + briefly highlights the row (deeplinkFocus below). */
+  function notifLink(n) {
+    if (!n || typeof n !== "object") return "";
+    const enc = (v) => encodeURIComponent(String(v));
+    const has = (v) => v != null && String(v) !== "";
+    if (n.__chat) {
+      if (!has(n.conversation_id)) return "chat.html";
+      return "chat.html?c=" + enc(n.conversation_id) + (has(n.msg_id) ? "&msg=" + enc(n.msg_id) : "");
+    }
+    const k = String(n.kind || "").toLowerCase().trim(), q = has(n.quote_id) ? n.quote_id : null;
+    const d = (n.detail && typeof n.detail === "object") ? n.detail : {};
+    if (k === "trial_reminder") return "checkout.html";
+    if (k === "security_alert") return "control.html#users";
+    if (k.indexOf("chat_") === 0) return "chat.html";
+    if (k.indexOf("nurture_") === 0) return "nurture.html";
+    if (!q) return "";
+    if (k.indexOf("task_") === 0) return "ops.html?quote=" + enc(q) + (has(d.task_id) ? "&task=" + enc(d.task_id) : "");
+    if (/^(payment_link|payment_reminder|payment_receipt|payment|payment_received|advance_paid|payment_reconcile)$/.test(k))
+      return "settlement.html?quote=" + enc(q) + "#payments";
+    if (/^(approval_link|otp|reapproval_required|quote_approved|quote_changed|approved|change_order)$/.test(k))
+      return "quotes.html?focus=" + enc(has(n.event_code) ? n.event_code : q);
+    if (k.indexOf("design_") === 0) return "design.html?quote=" + enc(q);
+    return "event.html?id=" + enc(q);
+  }
   /* ---------------- notification bell: view (pure — unit-tested in test/bell-panel.test.mjs) ----------------
      bellPanelView(items, { filter, now, label }) → { filter, tabs, tabsHtml, html, unread }
      items = the merged feed: bell_feed rows + chat rows ({ __chat:true, … }). Every piece of
      server / chat text goes through esc(); hrefs are built from encodeURIComponent'd ids. */
+  // 0063: a feed row → its catalog type (mirrors notification_type_of in SQL). @mentions → null (never muted).
+  function bellTypeOf(n) {
+    if (!n || typeof n !== "object") return "other";
+    if (n.__chat) return n.mention ? null : "chat_message";
+    const k = String(n.kind || "").toLowerCase().trim();
+    if (["approval_link", "otp", "payment_link", "payment_reminder", "payment_receipt", "advance_paid", "payment_reconcile",
+         "task_assigned", "task_reminder", "task_due", "security_alert"].indexOf(k) !== -1) return k;
+    if (k === "payment" || k === "payment_received") return "payment_receipt";
+    if (k === "trial_reminder") return "billing_trial";
+    if (/^task_(accept|reject|start|complete)$/.test(k)) return "task_update";
+    if (k.indexOf("design_") === 0) return "design_update";
+    if (k.indexOf("nurture_") === 0) return "nurture_greeting";
+    if (k.indexOf("chat_") === 0) return "chat_message";
+    if (n.channel === "whatsapp") return "whatsapp_message";
+    return "other";
+  }
+  // friendly names for the muted-types list (types the bell can show)
+  const BELL_TYPE_LABELS = { approval_link: "Approval links", otp: "Approval codes (OTP)", whatsapp_message: "WhatsApp messages",
+    nurture_greeting: "Greetings", design_update: "Design stage changes", task_assigned: "Tasks assigned", task_update: "Task updates",
+    task_reminder: "Task reminders", task_due: "Tasks due", payment_link: "Payment links", payment_reminder: "Payment reminders",
+    payment_receipt: "Payment receipts", advance_paid: "Payments received", payment_reconcile: "Payments needing attention",
+    chat_message: "Chat messages", security_alert: "Security alerts", billing_trial: "Free trial reminders", other: "Other updates" };
   function bellPanelView(items, opts) {
     opts = opts || {};
+    const muted = Array.isArray(opts.muted) ? opts.muted : [], readKeys = Array.isArray(opts.read) ? opts.read : [];
     const esc = (t) => String(t == null ? "" : t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
     const label = opts.label || ((n) => ({ icon: "🔔", text: String((n && n.kind) || "Update").replace(/_/g, " ") }));
     const now = Number(opts.now) || Date.now();
-    const list = (items || []).filter((n) => n && typeof n === "object");
+    // 0063: a type this person muted never shows (an @mention always does)
+    const list = (items || []).filter((n) => n && typeof n === "object" && muted.indexOf(bellTypeOf(n)) === -1);
     // which filter group a row belongs to (also drives the icon-chip colour)
     const groupOf = (n) => {
       if (n.__chat) return n.mention ? "mention" : "chat";
       const k = String(n.kind || "").toLowerCase();
+      if (k === "security_alert") return "security";
       if (k.indexOf("task_") === 0) return "task";
-      if (/payment|advance_paid/.test(k)) return "payment";
+      if (/payment|advance_paid|trial_reminder/.test(k)) return "billing";
       return "other";
     };
     const inFilter = (f, g) => f === "all" || (f === "mentions" && g === "mention") || (f === "tasks" && g === "task")
-      || (f === "payments" && g === "payment") || (f === "chat" && (g === "chat" || g === "mention"));
-    const rows = list.map((n, i) => ({ n, i, g: groupOf(n) }));
-    const count = (f) => rows.filter((r) => inFilter(f, r.g)).length;
-    // Payments only when the feed carries any (bell_feed already hides money types this role can't see)
-    const tabs = [["all", "All"], ["mentions", "Mentions"], ["tasks", "Tasks"], ["payments", "Payments"], ["chat", "Chat"]]
-      .filter(([id]) => id !== "payments" || count("payments") > 0)
-      .map(([id, name]) => ({ id, label: name, count: count(id) }));
-    let filter = String(opts.filter || "all"); if (!tabs.some((t) => t.id === filter)) filter = "all";
+      || (f === "billing" && g === "billing") || (f === "security" && g === "security") || (f === "chat" && (g === "chat" || g === "mention"));
+    const keyOf = (n, i) => n.__chat ? "c:" + (n.conversation_id || i) : "n:" + (n.id || i);
+    const rows = list.map((n, i) => { const k = keyOf(n, i);
+      return { n, i, g: groupOf(n), k, un: readKeys.indexOf(k) === -1 && (n.__chat || !!n.unread) }; });
+    const has = (f) => rows.some((r) => inFilter(f, r.g));
+    const unreadIn = (f) => rows.filter((r) => r.un && inFilter(f, r.g)).length;
+    const secMuted = muted.indexOf("security_alert") !== -1;
+    // Billing only when the feed carries any (bell_feed already hides money types this role can't see);
+    // Security when there are alerts or they are muted (so the "turn back on" line stays reachable)
+    const tabs = [["all", "All"], ["mentions", "Mentions"], ["tasks", "Tasks"], ["billing", "Billing"], ["security", "Security"], ["chat", "Chat"]]
+      .filter(([id]) => (id !== "billing" || has("billing")) && (id !== "security" || has("security") || secMuted))
+      .map(([id, name]) => ({ id, label: name, count: unreadIn(id) }));
+    let filter = String(opts.filter || "all"); if (filter !== "muted" && !tabs.some((t) => t.id === filter)) filter = "all";
     const tabsHtml = tabs.map((t) => `<button type="button" role="tab" class="bpb-tab" id="bpBellTab-${t.id}" data-f="${t.id}" aria-selected="${t.id === filter}" aria-controls="bpBellList" tabindex="${t.id === filter ? 0 : -1}">${t.label}${t.count ? `<span class="bpb-n">${t.count > 99 ? "99+" : t.count}</span>` : ""}</button>`).join("");
-    const unread = rows.reduce((s, r) => s + (r.n.__chat ? (Number(r.n.count) || 1) : (r.n.unread ? 1 : 0)), 0);
+    const unread = rows.reduce((s, r) => s + (!r.un ? 0 : r.n.__chat ? (Number(r.n.count) || 1) : 1), 0);
     // relative time + Today / Yesterday / Earlier (local calendar days)
     const ts = (n) => { const t = new Date(n.created_at).getTime(); return Number.isFinite(t) ? t : NaN; };
     const rel = (t) => {
@@ -5479,38 +5558,50 @@
         const who = n.who || "";
         title = esc(n.kind === "dm" ? (who || n.title || "Direct message") : ((n.title || "Chat") + (who ? " · " + who : "")));
         if (Number(n.count) > 1) title += ` <span class="bpb-c">(${Number(n.count) > 99 ? "99+" : Number(n.count)})</span>`;
-        preview = esc(n.preview || ""); icon = n.mention ? "@" : "💬"; isUnread = true;
-        href = "chat.html?c=" + encodeURIComponent(n.conversation_id || ""); key = "c:" + (n.conversation_id || r.i);
+        preview = esc(n.preview || ""); icon = n.mention ? "@" : "💬"; isUnread = r.un;
+        href = notifLink(n); key = r.k;
       } else {
         const L = label(n) || {}; icon = esc(L.icon || "🔔"); title = esc(L.text || "Update");
         preview = esc([n.event_code, n.event_title].filter(Boolean).join(" · "));
-        href = n.kind === "trial_reminder" ? "checkout.html" : n.quote_id ? "event.html?id=" + encodeURIComponent(n.quote_id) : ""; isUnread = !!n.unread; key = "n:" + (n.id || r.i);
+        href = notifLink(n); isUnread = r.un; key = r.k;
       }
       const cls = `bpb-item g-${r.g}${isUnread ? " is-unread" : ""}`;
       const inner = `<span class="bpb-chip" aria-hidden="true">${icon}</span>`
         + `<span class="bpb-body"><span class="bpb-t">${title}</span>${preview ? `<span class="bpb-p">${preview}</span>` : ""}</span>`
         + `<span class="bpb-meta">${Number.isFinite(t) ? `<time datetime="${esc(new Date(t).toISOString())}">${esc(rel(t))}</time>` : ""}`
         + `${isUnread ? '<span class="bpb-u"><span class="sr-only">Unread</span></span>' : ""}</span>`;
-      return href ? `<a class="${cls}" href="${esc(href)}" data-k="${esc(key)}">${inner}</a>`
-                  : `<div class="${cls}" tabindex="0" data-k="${esc(key)}">${inner}</div>`;
+      const ty = bellTypeOf(n);
+      const more = `<button type="button" class="bpb-more" data-mk="${esc(key)}" data-ty="${esc(ty || "")}" aria-haspopup="menu" aria-expanded="false" aria-label="More actions">⋯</button>`;
+      return `<div class="bpb-row">` + (href ? `<a class="${cls}" href="${esc(href)}" data-k="${esc(key)}">${inner}</a>`
+                  : `<div class="${cls}" tabindex="0" data-k="${esc(key)}">${inner}</div>`) + more + `</div>`;
     };
-    const shown = rows.filter((r) => inFilter(filter, r.g));
+    const shown = filter === "muted" ? [] : rows.filter((r) => inFilter(filter, r.g));
+    const secLine = secMuted && (filter === "security" || filter === "all")
+      ? `<div class="bpb-mline">Security alerts muted - <button type="button" class="bpb-link" data-unmute="security_alert">turn back on</button></div>` : "";
     let html;
-    if (!shown.length) {
+    if (filter === "muted") {
+      html = `<div class="bpb-mhead"><button type="button" class="bpb-link" data-f-back>‹ Back</button><b>Muted types</b></div>`
+        + (muted.length ? `<ul class="bpb-mlist">` + muted.map((ty) => `<li><span>${esc(BELL_TYPE_LABELS[ty] || String(ty).replace(/_/g, " "))}</span>`
+          + `<button type="button" class="bpb-link" data-unmute="${esc(ty)}">Unmute</button></li>`).join("") + `</ul>`
+          : `<div class="bpb-empty"><b>Nothing muted</b><span>Use the ⋯ menu on a notification to mute that type.</span></div>`);
+    } else if (!shown.length) {
       const msg = { all: ["You’re all caught up", "New tasks, payments and messages will show up here."],
         mentions: ["No mentions", "When a teammate @mentions you in chat, it lands here."],
         tasks: ["No task updates", "Assignments, check-ins and reminders will appear here."],
-        payments: ["No payment updates", "Payment links, receipts and reminders will appear here."],
+        billing: ["No billing updates", "Payment links, receipts, reminders and trial notices will appear here."],
+        security: ["No security alerts", "Admin overrides, lockouts and role changes will appear here."],
         chat: ["No unread messages", "Unread chats from your team show up here."] }[filter];
       html = `<div class="bpb-empty"><svg class="bpb-art" viewBox="0 0 120 96" aria-hidden="true" focusable="false">`
         + `<circle cx="60" cy="50" r="38" class="bpb-art-bg"/><path class="bpb-art-bell" d="M60 26c-10 0-17 8-17 18v11l-6 8h46l-6-8V44c0-10-7-18-17-18z"/>`
         + `<circle cx="60" cy="69" r="5" class="bpb-art-bell"/><path class="bpb-art-z" d="M84 18h8l-8 9h8M96 8h5l-5 6h5"/></svg>`
         + `<b>${msg[0]}</b><span>${msg[1]}</span></div>`;
+      html = secLine + html;
     } else {
       const order = ["Today", "Yesterday", "Earlier"], by = { Today: [], Yesterday: [], Earlier: [] };
       shown.slice().sort((a, b) => (ts(b.n) || 0) - (ts(a.n) || 0)).forEach((r) => by[bucket(ts(r.n))].push(r));
       html = order.filter((d) => by[d].length).map((d) =>
         `<div class="bpb-sec" role="group" aria-label="${d}"><div class="bpb-day" aria-hidden="true">${d}</div>${by[d].map(item).join("")}</div>`).join("");
+      html = secLine + html;
     }
     return { filter, tabs, tabsHtml, html, unread };
   }
@@ -5523,7 +5614,8 @@
   function bellToastPick(items, seen, opts) {
     opts = opts || {};
     const label = opts.label || ((n) => ({ icon: "🔔", text: String((n && n.kind) || "Update").replace(/_/g, " ") }));
-    const list = (items || []).filter((n) => n && typeof n === "object");
+    const muted = Array.isArray(opts.muted) ? opts.muted : [];   // 0063: muted types never pop up (mentions always do)
+    const list = (items || []).filter((n) => n && typeof n === "object" && muted.indexOf(bellTypeOf(n)) === -1);
     const keyOf = (n) => n.__chat ? "c:" + (n.conversation_id || "") + "@" + (n.created_at || "") : "n:" + (n.id || "") + "@" + (n.created_at || "");
     const newest = list.reduce((m, n) => { const c = String(n.created_at || ""); return c > m ? c : m; }, String((seen && seen.t) || ""));
     const ids = (seen && Array.isArray(seen.ids)) ? seen.ids.slice(-60) : [];
@@ -5538,12 +5630,12 @@
         const who = n.who || "";
         return { key: keyOf(n), type: "info", icon: n.mention ? "@" : "💬",
           title: n.mention ? (n.title || "You were mentioned") : n.kind === "dm" ? (who || n.title || "Direct message") : ((n.title || "Chat") + (who ? " · " + who : "")),
-          message: String(n.preview || "New message"), href: "chat.html?c=" + encodeURIComponent(n.conversation_id || "") };
+          message: String(n.preview || "New message"), href: notifLink(n), rk: "c:" + (n.conversation_id || "") };
       }
       const L = label(n) || {}, k = String(n.kind || "").toLowerCase();
       return { key: keyOf(n), type: typeOf(k), icon: L.icon || "🔔", title: String(L.text || "Update"),
         message: k === "trial_reminder" ? "Choose a plan to keep using Helm" : [n.event_code, n.event_title].filter(Boolean).join(" · ") || "Open to see details",
-        href: k === "trial_reminder" ? "checkout.html" : n.quote_id ? "event.html?id=" + encodeURIComponent(n.quote_id) : "" };
+        href: notifLink(n), rk: "n:" + (n.id || "") };
     });
     return { toasts, seen: { t: newest, ids: ids.concat(fresh.map(keyOf)).slice(-60) } };
   }
@@ -5605,7 +5697,19 @@
     ".g-mention .bpb-chip{background:var(--bpb-mention-bg);color:var(--bpb-mention);font-size:19px}",
     ".g-chat .bpb-chip{background:var(--bpb-chat-bg);color:var(--bpb-chat)}",
     ".g-task .bpb-chip{background:var(--bpb-task-bg);color:var(--bpb-task)}",
-    ".g-payment .bpb-chip{background:var(--bpb-pay-bg);color:var(--bpb-pay)}",
+    ".g-billing .bpb-chip{background:var(--bpb-pay-bg);color:var(--bpb-pay)}",
+    ".g-security .bpb-chip{background:var(--bpb-mention-bg);color:var(--bpb-mention)}",
+    // 0063: per-row ⋯ menu, muted line, muted-types list
+    ".bpb-row{position:relative}.bpb-row .bpb-item{padding-right:40px}",
+    ".bpb-more{position:absolute;right:14px;bottom:8px;width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:var(--bpb-ink3);font:inherit;font-size:16px;line-height:1;cursor:pointer}",
+    ".bpb-more:hover,.bpb-more[aria-expanded=true]{background:var(--bpb-bg2);color:var(--bpb-ink)}.bpb-more:focus-visible{outline:2px solid var(--bpb-acc)}",
+    ".bpb-menu{position:absolute;right:14px;top:calc(100% - 6px);z-index:3;min-width:170px;padding:4px;background:var(--bpb-bg);border:1px solid var(--bpb-line);border-radius:10px;box-shadow:var(--bpb-shadow)}",
+    ".bpb-menu button{display:block;width:100%;text-align:left;border:0;background:transparent;color:var(--bpb-ink);font:inherit;font-size:13px;padding:8px 10px;border-radius:7px;cursor:pointer}",
+    ".bpb-menu button:hover,.bpb-menu button:focus-visible{background:var(--bpb-bg2);outline:none}",
+    ".bpb-mline{margin:8px 16px 4px;padding:8px 10px;border-radius:10px;background:var(--bpb-bg2);color:var(--bpb-ink2);font-size:12.5px}",
+    ".bpb-mhead{display:flex;align-items:center;gap:8px;padding:10px 12px}.bpb-mlist{list-style:none;margin:0;padding:0 8px}",
+    ".bpb-mlist li{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px;border-bottom:1px solid var(--bpb-line)}",
+    ".bpb-foot{border-top:1px solid var(--bpb-line);padding:6px 10px;text-align:right}",
     ".bpb-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:1px}",
     ".bpb-t{font-size:13.5px;font-weight:650;color:var(--bpb-ink);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}",
     ".bpb-chip{width:36px;height:36px;font-size:16px}",
@@ -5674,7 +5778,40 @@
   }
 
   /* ---------------- notification center: in-app bell (Phase 48) ---------------- */
+  /* destination side of a notification deep link: ?task=<id> (ops), ?msg=<id> (chat), #payments
+     (settlement). Waits for the row to render (≤15 s), scrolls it into view and highlights it briefly.
+     Ids are allow-listed ([A-Za-z0-9_-]) before going into a selector. */
+  function deeplinkTarget(search, hash) {
+    let p; try { p = new URLSearchParams(search || ""); } catch (e) { return null; }
+    const ok = (v) => (v && /^[A-Za-z0-9_-]{1,64}$/.test(v)) ? v : null;
+    const task = ok(p.get("task")), msg = ok(p.get("msg"));
+    if (task) return '.trow[data-id="' + task + '"]';
+    if (msg) return '.m[data-mid="' + msg + '"]';
+    if (hash === "#payments") return "#payments";
+    return null;
+  }
+  function deeplinkFocus() {
+    if (typeof document === "undefined" || typeof location === "undefined") return;
+    const sel = deeplinkTarget(location.search, location.hash); if (!sel) return;
+    __helmAdoptCss(document, "@keyframes bpDlFlash{0%,60%{box-shadow:0 0 0 3px var(--accent,#c8a24a);background-color:var(--accent-soft,rgba(200,162,74,.18))}100%{box-shadow:0 0 0 0 transparent}}"
+      + ".bp-dl-hl{animation:bpDlFlash 2.4s ease-out 1;scroll-margin:96px}@media (prefers-reduced-motion:reduce){.bp-dl-hl{animation:none;outline:3px solid var(--accent,#c8a24a)}}");
+    let tries = 0, done = 0, last = null;
+    const tick = () => {
+      const el = document.querySelector(sel);
+      if (el && el !== last) {
+        last = el; el.classList.add("bp-dl-hl"); done++;
+        try { el.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { try { el.scrollIntoView(); } catch (x) {} }
+        setTimeout(() => { try { el.classList.remove("bp-dl-hl"); } catch (e) {} }, 2600);
+      }
+      // keep watching briefly: pages re-render lists after load (chat scrolls to the bottom)
+      if (++tries < 60 && done < 2) setTimeout(tick, done ? 700 : 250);
+    };
+    tick();
+  }
+  try { if (typeof document !== "undefined") { if (document.readyState !== "loading") setTimeout(deeplinkFocus, 0); else document.addEventListener("DOMContentLoaded", deeplinkFocus); } } catch (e) {}
+
   const bell = {
+    link: notifLink,
     feed: (limit) => rpc("bell_feed", limit ? { p_limit: limit } : {}),
     markSeen: () => rpc("bell_mark_seen", {}),
     label: bellLabel,
@@ -5692,6 +5829,12 @@
       set: (type, channel, role, enabled, userId) => rpc("admin_set_notification_pref",
         { p_type: type, p_channel: channel, p_role: role || null, p_enabled: enabled === null || enabled === undefined ? null : !!enabled, p_user: userId || null }),
       reset: () => rpc("admin_reset_notification_prefs", {}),
+      // 0063: types this person muted for themselves (fail-open: no 0063 → nothing muted)
+      async mutes() {
+        if (mode !== "supabase" || !supa || !currentUser) return [];
+        try { const r = await rpc("my_notification_mutes", {}); return Array.isArray(r) ? r.map(String) : []; } catch (e) { return []; }
+      },
+      setMute: (type, muted) => rpc("set_notification_mute", { p_type: String(type || ""), p_muted: !!muted }),
     },
     // Mount the bell into `el` (works on any page): a button in the header + a panel portalled
     // to <body> (blurred backdrop; anchored popover on desktop, full-height sheet on phones).
@@ -5717,6 +5860,7 @@
             <div id="bpBellTabs" class="bpb-tabs" role="tablist" aria-label="Filter notifications"></div>
           </header>
           <div id="bpBellList" class="bpb-list" role="tabpanel" aria-labelledby="bpBellTitle"><div class="bpb-skel"></div><div class="bpb-skel"></div><div class="bpb-skel"></div></div>
+          <div class="bpb-foot"><button type="button" id="bpBellMuted" class="bpb-link">Muted types</button></div>
         </section>`;
       document.body.appendChild(root);
       const btn = el.querySelector("#bpBellBtn"), dot = el.querySelector("#bpBellDot");
@@ -5728,23 +5872,33 @@
       // Chat notifications (my unread DMs/groups/broadcast) merged into the same bell.
       let chatItems = [];
       const chatUnread = () => chatItems.reduce((s, c) => s + (c.count || 1), 0);
+      const chatReadCount = () => chatItems.reduce((s, c) => s + (readKeys.indexOf("c:" + c.conversation_id) !== -1 ? (c.count || 1) : 0), 0);
+      // server unread minus muted / marked-read rows (only recounted when something is muted or read)
+      const serverUnread = (f) => !f ? 0 : (muted.length || readKeys.length)
+        ? bellPanelView((f.items || []), { muted, read: readKeys }).unread : f.unread;
       const mergedFeed = (serverItems) => (serverItems || []).slice()
         .concat(chatItems.map((c) => Object.assign({ __chat: true }, c)))
         .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
       // 0036: the studio admin can switch chat off in the bell for a role / person
       // (re-checked every 5 minutes; server-side types are already filtered by bell_feed).
-      let hiddenTypes = [], hiddenAt = 0;
-      const loadHidden = async () => { if (Date.now() - hiddenAt < 300000) return; hiddenAt = Date.now(); hiddenTypes = (await this.prefs.mine()).hidden; };
+      let hiddenTypes = [], hiddenAt = 0, muted = [];
+      const loadHidden = async () => { if (Date.now() - hiddenAt < 300000) return; hiddenAt = Date.now(); hiddenTypes = (await this.prefs.mine()).hidden;
+        muted = await this.prefs.mutes(); };
+      // 0063: rows this person marked read from the ⋯ menu (this browser only; try/catch for private mode)
+      const readKey = "bpBellRead:" + ((auth.user() && auth.user().id) || "anon");
+      let readKeys = (() => { try { const v = JSON.parse(localStorage.getItem(readKey) || "[]"); return Array.isArray(v) ? v.slice(-200) : []; } catch (e) { return []; } })();
+      const saveRead = () => { try { localStorage.setItem(readKey, JSON.stringify(readKeys.slice(-200))); } catch (e) {} };
       const loadChat = async () => { try { await loadHidden(); } catch (e) {} const chatOff = hiddenTypes.indexOf("chat_message") !== -1;   // chat switched off → @mentions still come through
         try { chatItems = (chat && chat.notifications) ? (await chat.notifications(20)) : []; } catch (e) { chatItems = []; }
-        if (chatOff) chatItems = chatItems.filter((c) => c && c.mention); };
-      const setDot = (serverUnread) => { const total = (serverUnread || 0) + chatUnread();
+        if (chatOff) chatItems = chatItems.filter((c) => c && c.mention);
+        if (muted.indexOf("chat_message") !== -1) chatItems = chatItems.filter((c) => c && c.mention); };
+      const setDot = (serverUnread) => { const total = (serverUnread || 0) + chatUnread() - chatReadCount();
         if (total > 0) { dot.hidden = false; dot.textContent = total > 99 ? "99+" : total; } else dot.hidden = true;
         btn.setAttribute("aria-label", total > 0 ? `Notifications, ${total > 99 ? "99+" : total} unread` : "Notifications"); };
       // render the open panel, keeping keyboard focus on the same row / tab across live refreshes
       const render = () => {
         const ae = document.activeElement, keepKey = ae && root.contains(ae) && ae.getAttribute ? (ae.getAttribute("data-k") || (ae.getAttribute("data-f") ? "tab:" + ae.getAttribute("data-f") : null)) : null;
-        const v = bellPanelView(lastItems, { filter, now: Date.now(), label: bellLabel });
+        const v = bellPanelView(lastItems, { filter, now: Date.now(), label: bellLabel, muted, read: readKeys });
         filter = v.filter; tabsEl.innerHTML = v.tabsHtml; list.innerHTML = v.html;
         list.setAttribute("aria-labelledby", "bpBellTab-" + filter);
         if (v.unread > 0) { countEl.hidden = false; countEl.textContent = (v.unread > 99 ? "99+" : v.unread) + " new"; } else countEl.hidden = true;
@@ -5758,11 +5912,12 @@
       const readSeen = () => { try { const v = JSON.parse(localStorage.getItem(seenKey) || "null"); return v && typeof v === "object" ? v : null; } catch (e) { return null; } };
       const writeSeen = (v) => { try { localStorage.setItem(seenKey, JSON.stringify(v)); } catch (e) {} };
       const popToasts = (merged) => {
-        const r = bellToastPick(merged, readSeen(), { label: bellLabel }); writeSeen(r.seen);
+        const r = bellToastPick(merged, readSeen(), { label: bellLabel, muted }); writeSeen(r.seen);
         if (isOpen || !window.BPUI || !window.BPUI.toast) return;
-        r.toasts.slice().reverse().forEach((x) => { try { window.BPUI.toast(x.message, { title: x.title, type: x.type, icon: x.icon, href: x.href || null, linkLabel: "View", timeout: 5000 }); } catch (e) {} });
+        r.toasts.slice().reverse().forEach((x) => { try { window.BPUI.toast(x.message, { title: x.title, type: x.type, icon: x.icon, href: x.href || null, linkLabel: "View", timeout: 5000,
+          onOpen: () => { if (x.rk && readKeys.indexOf(x.rk) === -1) { readKeys.push(x.rk); saveRead(); } } }); } catch (e) {} });
       };
-      const refresh = async () => { let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(f && f.unread);
+      const refresh = async () => { let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(serverUnread(f));
         const merged = mergedFeed(f && f.items); if (f) popToasts(merged);
         if (isOpen) { lastItems = merged; loaded = true; render(); } return f; };
       // desktop: anchor the popover under the bell; phone: the CSS sheet takes over
@@ -5797,16 +5952,46 @@
         if (restore !== false) { const t = (lastFocus && lastFocus.isConnected && lastFocus !== document.body) ? lastFocus : btn; try { t.focus({ preventScroll: true }); } catch (e) {} }
       };
       btn.addEventListener("click", (e) => { e.stopPropagation(); if (isOpen) close(); else open(); });
+      // 0063: per-row ⋯ menu (Mute this type / Mark read) with an Undo toast
+      const say = (msg, undo) => { try { window.BPUI && window.BPUI.toast && window.BPUI.toast(msg, { type: "info", timeout: 6000, action: undo ? { label: "Undo", onClick: undo } : undefined }); } catch (x) {} };
+      const closeMenu = () => { const m = root.querySelector(".bpb-menu"); if (m) { const b = m.__btn; m.remove(); if (b) b.setAttribute("aria-expanded", "false"); return b; } return null; };
+      const setMuted = async (ty, on) => {
+        try { const r = await this.prefs.setMute(ty, on); muted = Array.isArray(r) ? r.map(String) : muted; }
+        catch (x) { say("Could not update muted types. Try again."); return false; }
+        await refresh(); if (isOpen) render(); return true;
+      };
+      const markRead = (k, on) => { readKeys = readKeys.filter((x) => x !== k); if (on) readKeys.push(k); saveRead(); render(); refresh(); };
+      const openMenu = (btn) => {
+        closeMenu();
+        const k = btn.getAttribute("data-mk") || "", ty = btn.getAttribute("data-ty") || "";
+        const m = document.createElement("div"); m.className = "bpb-menu"; m.setAttribute("role", "menu"); m.__btn = btn;
+        const add = (text, fn) => { const b = document.createElement("button"); b.type = "button"; b.setAttribute("role", "menuitem"); b.textContent = text;
+          b.addEventListener("click", (ev) => { ev.preventDefault(); ev.stopPropagation(); closeMenu(); fn(); }); m.appendChild(b); return b; };
+        if (ty) add("Mute this type", async () => { if (await setMuted(ty, true))
+          say("Muted: " + (BELL_TYPE_LABELS[ty] || ty.replace(/_/g, " ")), () => { setMuted(ty, false); }); });
+        add("Mark read", () => { markRead(k, true); say("Marked as read", () => markRead(k, false)); });
+        btn.parentNode.appendChild(m); btn.setAttribute("aria-expanded", "true");
+        try { m.querySelector("button").focus(); } catch (x) {}
+      };
       root.addEventListener("click", (e) => {
+        const mb = e.target.closest && e.target.closest(".bpb-more");
+        if (mb) { e.preventDefault(); e.stopPropagation(); if (mb.getAttribute("aria-expanded") === "true") closeMenu(); else openMenu(mb); return; }
+        if (!(e.target.closest && e.target.closest(".bpb-menu"))) closeMenu();
+        const um = e.target.closest && e.target.closest("[data-unmute]");
+        if (um) { e.preventDefault(); const ty = um.getAttribute("data-unmute"); setMuted(ty, false).then((ok) => { if (ok) say("Turned back on: " + (BELL_TYPE_LABELS[ty] || ty)); }); return; }
+        if (e.target.closest && e.target.closest("#bpBellMuted")) { e.preventDefault(); filter = "muted"; render(); return; }
+        if (e.target.closest && e.target.closest("[data-f-back]")) { e.preventDefault(); filter = "all"; render(); return; }
         const c = e.target.closest && e.target.closest("[data-bpb-close]"); if (c) { e.preventDefault(); close(); return; }
         const tab = e.target.closest && e.target.closest(".bpb-tab"); if (tab) { filter = tab.getAttribute("data-f") || "all"; render(); try { root.querySelector(`[data-f="${filter}"]`).focus(); } catch (x) {} return; }
-        const it = e.target.closest && e.target.closest("a.bpb-item"); if (it) close(false);   // navigating away
+        const it = e.target.closest && e.target.closest("a.bpb-item");
+        if (it) { const k = it.getAttribute("data-k"); if (k && readKeys.indexOf(k) === -1) { readKeys.push(k); saveRead(); } close(false); }   // mark read, navigate away
       });
       root.querySelector("#bpBellClear").addEventListener("click", async (e) => { e.stopPropagation(); const b = e.currentTarget; b.disabled = true;
         try { await this.markSeen(); } catch {} await refresh(); b.disabled = false; });
       // keyboard: Esc closes, Tab is trapped, arrows walk the list, ←/→ switch tabs
       root.addEventListener("keydown", (e) => {
         if (!isOpen) return;
+        if ((e.key === "Escape" || e.key === "Esc") && root.querySelector(".bpb-menu")) { e.preventDefault(); e.stopPropagation(); const b = closeMenu(); try { b && b.focus(); } catch (x) {} return; }
         if (e.key === "Escape" || e.key === "Esc") { e.preventDefault(); e.stopPropagation(); close(); return; }
         const ae = document.activeElement;
         if (e.key === "Tab") {
@@ -6346,6 +6531,62 @@
         }
         return data && typeof data === "object" && !Array.isArray(data) ? data : {};
       });
+    },
+    // 0062 — one page per client (client.html?id=<lead or event id>). client_timeline()
+    // merges that person's leads, events, payments, files, tasks and event-chat messages in
+    // the caller's own studio, only for the areas their role may view. Returns
+    // {client:{name,phone,email,status}, totals, sections, counts, items:[{kind,at,id,title,subtitle,link}]}.
+    // Not found / not allowed → the RPC error (P0002 / 42501). Before 0062 or local mode → null.
+    clientTimeline: (id) => {
+      const ref = String(id == null ? "" : id).trim();
+      if (!supa || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref)) return Promise.resolve(null);
+      return rpc("client_timeline", { p_ref: ref, p_limit: 300 }).catch((e) => { if (rpcMissing(e)) return null; throw e; });
+    },
+    // 0065 — client event booklet (public/booklet.html?t=<token>). Staff whose role may EDIT
+    // quotes share / revoke; current() needs quotes VIEW. get() is the signed-out client read
+    // (client-safe fields only, rate-limited + logged server-side). Before 0065 / local mode:
+    // current() → null and share() rejects with a friendly message.
+    booklet: {
+      get: (token) => rpc("public_get_booklet", { p_token: token }),
+      current: (quoteId) => (supa ? rpc("booklet_current", { p_quote_id: quoteId }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      share: (quoteId, o) => { o = o || {};
+        if (!supa) return Promise.reject(new Error("Sharing a booklet needs a signed-in studio."));
+        return rpc("booklet_share", { p_quote_id: quoteId, p_days: Math.max(1, Math.min(365, Math.round(Number(o.days) || 30))),
+          p_version_ids: Array.isArray(o.versionIds) ? o.versionIds : null,
+          p_terms: o.terms ? String(o.terms).slice(0, 8000) : null, p_note: o.note ? String(o.note).slice(0, 1000) : null }); },
+      revoke: (quoteId) => rpc("booklet_revoke", { p_quote_id: quoteId }),
+      url: (token) => links.base() + "/booklet?t=" + encodeURIComponent(String(token || "")),
+    },
+    // 0064 — saved filters / views for list pages (public/saved-filters.js). RLS: own rows +
+    // studio-shared rows the role may view; the DB stamps owner + studio and refuses shared
+    // from non-admins. Before 0064 / local mode → list() is [] and writes are refused.
+    savedViews: {
+      list: (page) => {
+        if (!supa) return Promise.resolve([]);
+        return Promise.resolve(supa.from("saved_views").select("id,user_id,page,name,state,shared,is_default,updated_at")
+          .eq("page", String(page || "")).order("name", { ascending: true }).limit(200)).then(({ data, error }) => {
+            if (error) { if (rpcMissing(error) || error.code === "42P01" || error.code === "PGRST205") return []; if (looksLikeAuthError(error)) onAuthFailure(); throw error; }
+            return Array.isArray(data) ? data : [];
+          });
+      },
+      save: (page, name, state, shared) => {
+        if (!supa) return Promise.reject(new Error("Saved views need a signed-in studio."));
+        return Promise.resolve(supa.from("saved_views").insert({ page: String(page), name: String(name).trim().slice(0, 60), state: state || {}, shared: !!shared })
+          .select("id,user_id,page,name,state,shared,is_default,updated_at").single()).then(({ data, error }) => { if (error) throw error; return data; });
+      },
+      update: (id, patch) => {
+        if (!supa) return Promise.reject(new Error("Saved views need a signed-in studio."));
+        const p = {};
+        if (patch && "name" in patch) p.name = String(patch.name).trim().slice(0, 60);
+        if (patch && "shared" in patch) p.shared = !!patch.shared;
+        if (patch && "state" in patch) p.state = patch.state || {};
+        return Promise.resolve(supa.from("saved_views").update(p).eq("id", id).select("id").single()).then(({ error }) => { if (error) throw error; return true; });
+      },
+      remove: (id) => {
+        if (!supa) return Promise.reject(new Error("Saved views need a signed-in studio."));
+        return Promise.resolve(supa.from("saved_views").delete().eq("id", id)).then(({ error }) => { if (error) throw error; return true; });
+      },
+      setDefault: (id, on) => rpc("saved_view_set_default", { p_id: id, p_on: on !== false }),
     },
     gettingStarted: {
       get: () => (supa ? rpc("my_getting_started").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),

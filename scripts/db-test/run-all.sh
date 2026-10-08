@@ -46,12 +46,16 @@ run "token-otp"          "TOKEN-OTP: ALL PASS"             psql -q -f tests/db/t
 run "worker-token"       "WORKER-TOKEN: ALL PASS"          psql -q -f tests/db/worker-token.sql
 # before rescore2: that suite re-applies 0032, whose anon allowlist predates 0038's link RPCs
 run "worker-evidence"    "WORKER-EVIDENCE: ALL PASS \(38/38\)" psql -q -f tests/db/worker-evidence.sql
+# before rescore2 too: its 0032 re-apply resets the anon allowlist (public_get_booklet is a 0065 link RPC)
+run "client-booklet"     "CLIENT-BOOKLET: ALL PASS \(44/44\)" psql -q -f tests/db/client-booklet.sql
 run "advisor-hardening"  "ADVISOR-HARDENING: ALL PASS"     psql -q -f tests/db/advisor-hardening.sql
 run "storage-policy"     "STORAGE-POLICY: ALL PASS"        psql -q -f tests/db/storage-policy.sql
 run "upload-hardening"   "UPLOAD-HARDENING: ALL PASS \(20/20\)" psql -q -f tests/db/upload-hardening.sql
 run "db-gates-0049"     "DB-GATES-0049: ALL PASS \(51/51\)" psql -q -f tests/db/db-gates-0049.sql
 run "lifecycle-reapproval-0052" "LIFECYCLE-REAPPROVAL-0052: ALL PASS \(49/49\)" psql -q -f tests/db/lifecycle-reapproval-0052.sql
 run "password-lockout"   "PASSWORD-LOCKOUT: ALL PASS \(34/34\)" psql -q -f tests/db/password-lockout.sql
+run "notification-mutes" "NOTIFICATION-MUTES: ALL PASS \(17/17\)" psql -q -f tests/db/notification-mutes.sql
+run "notification-task-ref" "NOTIFICATION-TASK-REF: ALL PASS \(12/12\)" psql -q -f tests/db/notification-task-ref.sql
 # before security-alerts / notification-prefs: they re-apply 0054 / 0036 over the 0058 catalog wrappers
 run "trial-reminders"    "TRIAL-REMINDERS: ALL PASS \(36/36\)" psql -q -f tests/db/trial-reminders.sql
 # before notification-prefs: that suite re-applies 0036 (which resets the 0054 catalog wrapper)
@@ -87,6 +91,8 @@ run "studio-avatars"    "STUDIO-AVATARS: ALL PASS \(20/20\)" psql -q -f tests/db
 run "onboarding-checkout" "ONBOARDING-CHECKOUT: ALL PASS \(47/47\)" psql -q -f tests/db/onboarding-checkout.sql
 run "welcome-email"      "WELCOME-EMAIL: ALL PASS \(31/31\)" psql -q -f tests/db/welcome-email.sql
 run "studio-search"      "STUDIO-SEARCH: ALL PASS \(52/52\)" psql -q -f tests/db/studio-search.sql
+run "client-360"         "CLIENT-360: ALL PASS \(44/44\)"  psql -q -f tests/db/client-360.sql
+run "saved-views"        "SAVED-VIEWS: ALL PASS \(28/28\)" psql -q -f tests/db/saved-views.sql
 run "concurrency-overpay" "REJECTED .*overlap proven"      bash tests/db/concurrency-overpay.sh
 run "concurrency-otp"    "OTP-CONCURRENCY: PASS"           bash tests/db/concurrency-otp.sh
 

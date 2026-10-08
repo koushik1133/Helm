@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en" data-theme="light" class="auth-pending">
+<head>
+<style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Client — Helm Events</title>
+<link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
+<link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
+<link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="client.css?v=1">
+<link rel="stylesheet" href="booklet-share.css?v=1">
+<link rel="stylesheet" href="theme.css?v=76">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="wrap">
+  <header>
+    <a href="dashboard.html" class="mark" title="Home" aria-label="Home"></a>
+    <div><h1>Client</h1><small>Helm Events</small></div>
+    <nav class="nav" aria-label="Main"><a href="dashboard.html">Home</a><a href="leads.html">Leads</a><a href="quotes.html">Quotes</a><a href="#" id="bkLink" hidden>Booklet</a></nav>
+    <button type="button" class="bk-share" id="bkShare" data-booklet-share data-wait-quote hidden>📖 Share booklet</button>
+  </header>
+  <main id="main">
+  <div id="boot" aria-busy="true"></div>
+  <div id="notfound" class="card" hidden><p>Client not found, or your role can't open it. Go to <a href="leads.html">Leads</a> or <a href="quotes.html">Quotes</a>.</p></div>
+
+  <div id="app" hidden>
+    <section class="card head" aria-labelledby="c_name">
+      <div class="who">
+        <div class="avatar" id="c_avatar" aria-hidden="true"></div>
+        <div class="min0">
+          <h2 id="c_name"></h2>
+          <div class="contact" id="c_contact"></div>
+          <div class="chips-row"><span class="pill" id="c_status" hidden></span><span class="muted" id="c_counts"></span></div>
+        </div>
+      </div>
+      <dl class="totals" id="c_totals" hidden>
+        <div><dt>Quoted</dt><dd id="t_quoted">—</dd></div>
+        <div><dt>Paid</dt><dd id="t_paid">—</dd></div>
+        <div><dt>Due</dt><dd id="t_due">—</dd></div>
+      </dl>
+    </section>
+
+    <div class="filters" id="filters" role="group" aria-label="Filter the timeline"></div>
+    <ol class="timeline" id="timeline" aria-live="polite"></ol>
+  </div>
+  </main>
+  <footer>Helm Events — one page per client.</footer>
+</div>
+<script src="/trusted-types.js?v=2"></script>
+<script src="telemetry.js?v=3"></script>
+<script src="config.js?v=97"></script>
+<script src="store-api.js?v=129"></script>
+<script src="client.js?v=1"></script>
+<script src="booklet-share.js?v=1"></script>
+</body>
+</html>

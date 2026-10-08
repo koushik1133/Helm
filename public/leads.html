@@ -212,7 +212,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=97"></script>
 <script src="phone-input.js?v=1"></script>
-<script src="store-api.js?v=127"></script>
+<script src="store-api.js?v=129"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
@@ -257,10 +257,11 @@
         ${l.budget?`<span class="amt">${fmt(l.budget)}</span>`:""}
         ${l.source?`<span class="src">${esc(l.source)}</span>`:""}
       </button>
-      ${(l.quote_id||canConvert)?`<div class="acts">
+      <div class="acts">
+        <button type="button" class="ic go" data-act="client" aria-label="Open the client page for ${esc(l.name||"lead")}">Client →</button>
         ${l.quote_id?`<button type="button" class="ic go" data-act="workspace" aria-label="Open workspace for ${esc(l.name||"lead")}">Workspace →</button>`:""}
         ${canConvert?`<button type="button" class="ic go" data-act="convert" aria-label="Convert ${esc(l.name||"lead")} to a quote">Convert →</button>`:""}
-      </div>`:""}
+      </div>
     </div>`;
   }
 
@@ -319,6 +320,7 @@
     e.stopPropagation();
     const id=cardEl.dataset.id, act=btn.dataset.act, l=leadById(id);
     if(!l) return;
+    if(act==="client"){ location.href="client.html?id="+encodeURIComponent(id); return; }
     if(act==="workspace"){ location.href="event.html?id="+encodeURIComponent(l.quote_id); return; }
     if(act==="convert"){
       await BPUI.guard(btn, async()=>{
@@ -441,6 +443,7 @@
   function syncDetail(){ if($("#detailModal").hidden||!detailId) return; const l=leadById(detailId); if(l) fillDetail(l); }
   function openDetail(id){
     const l=leadById(id); if(!l) return; editingId=id; detailId=id;
+    try{ if(window.HelmTrail&&l.name) HelmTrail.setCurrent({title:l.name,kind:"lead",href:"leads.html?hs="+encodeURIComponent(String(l.name).slice(0,80))}); }catch(e){}
     fillDetail(l);
     $("#dt_del").hidden=!canDelete;
     $("#dt_edit").hidden=!canEdit;
@@ -620,5 +623,6 @@
     startRealtime();
   });
 </script>
+<script src="saved-filters.js?v=1"></script>
 </body>
 </html>

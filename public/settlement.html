@@ -94,7 +94,7 @@
       <div class="tile margin"><div class="l">Final margin</div><div class="n" id="t_mar">—</div></div>
     </div>
 
-    <div class="card">
+    <div class="card" id="payments">
       <h2>💳 Client invoice</h2>
       <p class="sub">The final bill = quote + approved change orders, less what's already paid.</p>
       <div class="table-scroll"><table><tbody id="invBody"><tr><td class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody></table></div>
@@ -160,7 +160,7 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=97"></script>
-<script src="store-api.js?v=127"></script>
+<script src="store-api.js?v=129"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

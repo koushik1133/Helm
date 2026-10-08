@@ -51,6 +51,6 @@ t('0031: private bucket + ONE staff-read policy, no write policy; in MANIFEST', 
   assert.ok(!/for (insert|update|delete|all)/i.test(m), 'no write policy');
   assert.match(read('supabase/migrations/MANIFEST'), /^forward\s+supabase\/migrations\/0031_manual_private_bucket\.sql$/m);
 });
-t('dashboard "📖 Manual" opens the gated page', () =>
-  assert.match(read('public/dashboard.html'), /<a href="manual"[^>]*>📖 Manual<\/a>/));
+t('profile menu "User manual" opens the gated page (dashboard button moved into the menu)', () =>
+  assert.match(read('public/auth-ui.js'), /id: "manual", label: "User manual", href: "manual\.html"/));
 console.log(`\nmanual-gate: ${n} passed`);
