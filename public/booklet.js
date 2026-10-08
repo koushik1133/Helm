@@ -1,0 +1,325 @@
+/* booklet.js — the client event booklet (booklet.html?t=<token>, 0065).
+   • Data comes only from BPStore.booklet.get() → public_get_booklet(token), which returns
+     client-safe fields for ONE event (server is the authority; expired / revoked → "invalid link").
+   • Every value is inserted with textContent / setAttribute — no HTML strings, no innerHTML.
+   • The floor plan is drawn read-only as SVG from the saved layout shapes; the 3D view is an
+     isometric extrusion of the same shapes (no WebGL, no external libraries).
+   • "Download PDF" = window.print() with the print stylesheet in booklet.css. */
+(function (global) {
+  "use strict";
+  const doc = global.document;
+  const SVGNS = "http://www.w3.org/2000/svg";
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const HEX_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+  const CAT_COLOR = { structure: "#8b7cf6", seating: "#d4a373", av: "#4f9bd9", decor: "#e07a9a", logistics: "#8a9a5b",
+    safety: "#e0a33a", security: "#6b7280" };
+  const CAT_LABEL = { structure: "Structure", seating: "Seating", av: "Sound & light", decor: "Décor", logistics: "Logistics",
+    safety: "Safety", security: "Security" };
+  const CAT_HEIGHT = { structure: 4, seating: 2.6, av: 7, decor: 6, logistics: 4, safety: 3, security: 3 };
+  const SECTIONS = [["details", "Event details"], ["layout2d", "Floor plan"], ["layout3d", "3D view"], ["menu", "Menu"],
+    ["quote", "Quotation"], ["versions", "Quote history"], ["payments", "Payments"], ["terms", "Terms"]];
+  const DEFAULT_TERMS = [
+    "This booklet summarises the event as planned on the date shown. Final quantities, menu and layout may be adjusted with your agreement.",
+    "Prices include the taxes shown. Any change to guest numbers, menu or set-up after confirmation may change the total.",
+    "Payments are due on the dates listed in the payment schedule. Bookings are held once the first payment is received.",
+    "Please contact the studio with any questions about this booklet.",
+  ];
+
+  /* ---- pure helpers (exported for tests) ---- */
+  function num(v) { const n = Number(v); return isFinite(n) ? n : null; }
+  function money(n) {
+    const v = num(n); if (v == null) return "—";
+    try { return "₹" + v.toLocaleString("en-IN", { maximumFractionDigits: 0 }); } catch (e) { return "₹" + Math.round(v); }
+  }
+  function fmtDate(d) {
+    if (!d) return "";
+    const s = String(d); const dt = new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? s + "T00:00:00" : s);
+    if (isNaN(dt.getTime())) return s;
+    try { return dt.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" }); } catch (e) { return s; }
+  }
+  function shortDate(d) {
+    if (!d) return "";
+    const dt = new Date(String(d).length === 10 ? d + "T00:00:00" : d);
+    if (isNaN(dt.getTime())) return String(d);
+    try { return dt.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return String(d); }
+  }
+  function safeHex(c) { return typeof c === "string" && HEX_RE.test(c.trim()) ? c.trim() : null; }
+  function safeLogo(u) { return typeof u === "string" && /^https:\/\/[^\s"'<>]+$/i.test(u) && u.length <= 500 ? u : null; }
+  function tokenFrom(search) {
+    const p = new URLSearchParams(search || "");
+    const t = String(p.get("t") || p.get("token") || "").trim();
+    return UUID_RE.test(t) ? t : null;
+  }
+  // client-facing quotation lines from the allow-listed pricing object
+  function quoteLines(q) {
+    q = q || {}; const c = q.computed || {}; const out = [];
+    const chairs = num(q.chairs) || 0, chairPrice = num(q.chairPrice) || 0, other = num(q.other) || 0;
+    const guests = num(q.guests) || 0, plate = num(q.platePrice) || 0, catAmt = num(q.cateringAmount) || 0;
+    if (chairs && chairPrice) out.push({ label: "Seating", detail: chairs + " chairs × " + money(chairPrice), amount: chairs * chairPrice });
+    if (other) out.push({ label: "Décor, staging & equipment", detail: "", amount: other });
+    if (q.cateringMode === "client") out.push({ label: "Catering", detail: "Arranged by you", amount: 0 });
+    else {
+      if (guests && plate) out.push({ label: "Catering", detail: guests + " plates × " + money(plate), amount: guests * plate });
+      if (catAmt) out.push({ label: "Additional catering", detail: "", amount: catAmt });
+    }
+    const svc = num(c.serviceCharge);
+    if (svc) out.push({ label: "Service charge", detail: q.serviceChargePct ? q.serviceChargePct + "%" : "", amount: svc });
+    const sub = num(c.subtotal);
+    if (sub != null && out.length) out.push({ label: "Subtotal", detail: "", amount: sub, kind: "sub" });
+    const disc = num(c.discount);
+    if (disc) out.push({ label: "Discount", detail: q.couponCode ? "Code " + String(q.couponCode).slice(0, 32) : "", amount: -disc, kind: "neg" });
+    const igst = num(c.igst), cgst = num(c.cgst), sgst = num(c.sgst), gst = num(c.totalGst);
+    const pct = num(q.gstPct);
+    if (igst) out.push({ label: "IGST", detail: pct ? pct + "%" : "", amount: igst });
+    else if (cgst || sgst) {
+      out.push({ label: "CGST", detail: pct ? pct / 2 + "%" : "", amount: cgst || 0 });
+      out.push({ label: "SGST", detail: pct ? pct / 2 + "%" : "", amount: sgst || 0 });
+    } else if (gst) out.push({ label: "GST", detail: pct ? pct + "%" : "", amount: gst });
+    const total = num(q.total) != null ? num(q.total) : num(c.total);
+    return { lines: out, total: total };
+  }
+  function normalizeItems(layout) {
+    const items = (layout && Array.isArray(layout.items) ? layout.items : []).map((it) => {
+      const x = num(it && it.x), y = num(it && it.y), w = num(it && it.width), h = num(it && it.height);
+      if (x == null || y == null || !w || !h || w <= 0 || h <= 0 || w > 5000 || h > 5000) return null;
+      const cat = CAT_COLOR[it.category] ? it.category : "other";
+      return { x: x, y: y, w: w, h: h, r: num(it.rotation) || 0, type: String(it.type || ""), cat: cat,
+        label: String(it.label || it.type || "").slice(0, 60), color: safeHex(it.color) || CAT_COLOR[cat] || "#a59e94" };
+    }).filter(Boolean);
+    let room = layout && layout.room ? { w: num(layout.room.w), h: num(layout.room.h) } : null;
+    if (!room || !room.w || !room.h) room = null;
+    return { items: items, room: room };
+  }
+  function bounds(m) {
+    let x0 = 0, y0 = 0, x1 = m.room ? m.room.w : 0, y1 = m.room ? m.room.h : 0;
+    m.items.forEach((i) => { x0 = Math.min(x0, i.x); y0 = Math.min(y0, i.y); x1 = Math.max(x1, i.x + i.w); y1 = Math.max(y1, i.y + i.h); });
+    if (x1 - x0 < 1) x1 = x0 + 10; if (y1 - y0 < 1) y1 = y0 + 10;
+    return { x0: x0, y0: y0, x1: x1, y1: y1 };
+  }
+  function corners(i) {
+    const cx = i.x + i.w / 2, cy = i.y + i.h / 2, a = (i.r * Math.PI) / 180, ca = Math.cos(a), sa = Math.sin(a);
+    return [[-i.w / 2, -i.h / 2], [i.w / 2, -i.h / 2], [i.w / 2, i.h / 2], [-i.w / 2, i.h / 2]]
+      .map((p) => [cx + p[0] * ca - p[1] * sa, cy + p[0] * sa + p[1] * ca]);
+  }
+  function iso(x, y, z) { return [(x - y) * 0.866, (x + y) * 0.5 - z]; }
+  function shade(hex, f) {
+    let h = hex.replace("#", ""); if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+    const n = parseInt(h.slice(0, 6), 16); if (!isFinite(n)) return hex;
+    const ch = (s) => Math.max(0, Math.min(255, Math.round(((n >> s) & 255) * f)));
+    return "#" + [16, 8, 0].map((s) => ch(s).toString(16).padStart(2, "0")).join("");
+  }
+
+  /* ---- DOM ---- */
+  const $ = (s) => doc.querySelector(s);
+  function el(tag, cls, text) { const n = doc.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  function svg(tag, attrs) { const n = doc.createElementNS(SVGNS, tag); Object.keys(attrs || {}).forEach((k) => n.setAttribute(k, String(attrs[k]))); return n; }
+  function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); return n; }
+  function emptyNote(box, text) { box.appendChild(el("p", "empty", text)); }
+
+  function renderCover(d) {
+    const s = d.studio || {}, e = d.event || {};
+    const accent = safeHex(s.accent);
+    if (accent) { try { doc.documentElement.style.setProperty("--accent", accent); doc.documentElement.style.setProperty("--accent-soft", accent + "1a"); } catch (x) {} }
+    $("#s_name").textContent = s.name || "Your event studio";
+    const logo = safeLogo(s.logo), img = $("#s_logo");
+    if (logo) { img.setAttribute("src", logo); img.setAttribute("alt", (s.name || "Studio") + " logo"); img.setAttribute("referrerpolicy", "no-referrer");
+      img.hidden = false; $("#s_mark").classList.add("has-logo");
+      img.addEventListener("error", () => { img.hidden = true; $("#s_mark").classList.remove("has-logo"); }); }
+    const ct = clear($("#s_contact"));
+    if (s.phone) { const a = el("a", "", String(s.phone)); a.setAttribute("href", "tel:" + String(s.phone).replace(/[^\d+]/g, "")); ct.appendChild(a); }
+    if (s.email && /^[^\s@<>"]+@[^\s@<>"]+$/.test(s.email)) { const a = el("a", "", s.email); a.setAttribute("href", "mailto:" + s.email); ct.appendChild(a); }
+    if (s.location) ct.appendChild(el("span", "", String(s.location)));
+    const title = e.title || e.code || "Your event";
+    $("#e_title").textContent = title;
+    $("#e_sub").textContent = [fmtDate(e.event_date), e.venue_name].filter(Boolean).join(" · ");
+    $("#e_for").textContent = e.client_name ? "Prepared for " + e.client_name : "";
+    const note = $("#b_note"); note.hidden = !d.note; note.textContent = d.note || "";
+    try { doc.title = title + " — Event booklet" + (s.name ? " · " + s.name : ""); } catch (x) {}
+  }
+  function renderToc() {
+    const ol = clear($("#tocList"));
+    SECTIONS.forEach((s, i) => {
+      const li = el("li"); const a = el("a"); a.setAttribute("href", "#" + s[0]);
+      a.appendChild(el("span", "n", String(i + 1).padStart(2, "0"))); a.appendChild(doc.createTextNode(s[1]));
+      li.appendChild(a); ol.appendChild(li);
+    });
+    if (!("IntersectionObserver" in global)) return;
+    const links = Array.from(ol.querySelectorAll("a"));
+    const io = new global.IntersectionObserver((ents) => {
+      ents.forEach((en) => { if (!en.isIntersecting) return;
+        links.forEach((a) => a.setAttribute("aria-current", String(a.getAttribute("href") === "#" + en.target.id))); });
+    }, { rootMargin: "-20% 0px -70% 0px" });
+    SECTIONS.forEach((s) => { const n = doc.getElementById(s[0]); if (n) io.observe(n); });
+  }
+  function fact(dl, k, v) { if (v == null || v === "") return; const d = el("div"); d.appendChild(el("dt", "", k)); d.appendChild(el("dd", "", String(v))); dl.appendChild(d); }
+  function renderDetails(d) {
+    const e = d.event || {}, dl = clear($("#factList"));
+    fact(dl, "Event", e.title || e.code);
+    fact(dl, "Occasion", e.event_type);
+    fact(dl, "Date", fmtDate(e.event_date));
+    fact(dl, "Time", e.event_time);
+    fact(dl, "Venue", e.venue_name);
+    fact(dl, "Address", e.venue_address);
+    fact(dl, "Guests", num(e.guests) != null ? Number(e.guests).toLocaleString("en-IN") : "");
+    fact(dl, "Reference", e.code);
+  }
+  function render2d(d) {
+    const fig = clear($("#plan2d")), leg = clear($("#legend2d"));
+    const m = normalizeItems(d.layout);
+    if (!m.items.length) { emptyNote(fig, "The floor plan will appear here once it's ready."); return; }
+    const b = bounds(m), pad = 4, w = b.x1 - b.x0 + pad * 2, h = b.y1 - b.y0 + pad * 2;
+    const s = svg("svg", { viewBox: (b.x0 - pad) + " " + (b.y0 - pad) + " " + w + " " + h, role: "img", "aria-label": "Floor plan of the event (" + m.items.length + " items)" });
+    s.appendChild(svg("rect", { x: b.x0 - pad, y: b.y0 - pad, width: w, height: h, fill: "#fbf8f3" }));
+    if (m.room) s.appendChild(svg("rect", { x: 0, y: 0, width: m.room.w, height: m.room.h, fill: "#ffffff", stroke: "#cdbfae", "stroke-width": 0.4 }));
+    const fs = Math.max(1.2, Math.min(w, h) / 45);
+    m.items.forEach((i) => {
+      const g = svg("g", { transform: "rotate(" + i.r + " " + (i.x + i.w / 2) + " " + (i.y + i.h / 2) + ")" });
+      const round = /round|cocktail|chandelier|fountain/.test(i.type);
+      g.appendChild(round ? svg("ellipse", { cx: i.x + i.w / 2, cy: i.y + i.h / 2, rx: i.w / 2, ry: i.h / 2, fill: i.color, "fill-opacity": 0.82, stroke: shade(i.color, 0.7), "stroke-width": 0.25 })
+        : svg("rect", { x: i.x, y: i.y, width: i.w, height: i.h, rx: Math.min(i.w, i.h) * 0.08, fill: i.color, "fill-opacity": 0.82, stroke: shade(i.color, 0.7), "stroke-width": 0.25 }));
+      const t = svg("title", {}); t.textContent = i.label; g.appendChild(t);
+      if (i.w * i.h > fs * fs * 14 && i.label) {
+        const tx = svg("text", { x: i.x + i.w / 2, y: i.y + i.h / 2, "text-anchor": "middle", "dominant-baseline": "central", "font-size": fs,
+          fill: "#1f1a17", "font-family": "IBM Plex Sans, sans-serif" });
+        tx.textContent = i.label.length > 18 ? i.label.slice(0, 17) + "…" : i.label; g.appendChild(tx);
+      }
+      s.appendChild(g);
+    });
+    fig.appendChild(s);
+    const cap = el("figcaption", "", m.room ? "Room " + Math.round(m.room.w) + " × " + Math.round(m.room.h) + " ft · " + m.items.length + " items" : m.items.length + " items");
+    fig.appendChild(cap);
+    Array.from(new Set(m.items.map((i) => i.cat))).forEach((c) => {
+      const li = el("li"); li.appendChild(el("span", "sw sw-" + c)); li.appendChild(doc.createTextNode(CAT_LABEL[c] || "Other")); leg.appendChild(li);
+    });
+  }
+  function render3d(d) {
+    const fig = clear($("#plan3d"));
+    const m = normalizeItems(d.layout);
+    if (!m.items.length) { emptyNote(fig, "A 3D preview will appear here once the floor plan is ready."); return; }
+    const b = bounds(m);
+    const floor = [[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1]].map((p) => iso(p[0], p[1], 0));
+    const shapes = m.items.map((i) => ({ i: i, c: corners(i), z: (CAT_HEIGHT[i.cat] || 3) * (/stage|dancefloor|redcarpet|riser/.test(i.type) ? 0.35 : 1) }))
+      .sort((a, b2) => (a.i.x + a.i.w / 2 + a.i.y + a.i.h / 2) - (b2.i.x + b2.i.w / 2 + b2.i.y + b2.i.h / 2));
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const grow = (p) => { minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]); minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]); };
+    floor.forEach(grow); shapes.forEach((sh) => sh.c.forEach((p) => grow(iso(p[0], p[1], sh.z))));
+    const pad = 4, s = svg("svg", { viewBox: (minX - pad) + " " + (minY - pad) + " " + (maxX - minX + pad * 2) + " " + (maxY - minY + pad * 2),
+      role: "img", "aria-label": "Illustrative 3D view of the floor plan" });
+    const pts = (a) => a.map((p) => p[0].toFixed(2) + "," + p[1].toFixed(2)).join(" ");
+    s.appendChild(svg("polygon", { points: pts(floor), fill: "#efe7da", stroke: "#cdbfae", "stroke-width": 0.4 }));
+    shapes.forEach((sh) => {
+      const g = svg("g", {}), c = sh.c, z = sh.z, col = sh.i.color;
+      for (let k = 0; k < 4; k++) {
+        const p = c[k], q = c[(k + 1) % 4];
+        const nx = q[1] - p[1], ny = -(q[0] - p[0]);            // outward-ish edge normal
+        if (nx + ny <= 0) continue;                              // faces away from the viewer
+        g.appendChild(svg("polygon", { points: pts([iso(p[0], p[1], 0), iso(q[0], q[1], 0), iso(q[0], q[1], z), iso(p[0], p[1], z)]),
+          fill: shade(col, nx > ny ? 0.72 : 0.86), stroke: shade(col, 0.6), "stroke-width": 0.15 }));
+      }
+      g.appendChild(svg("polygon", { points: pts(c.map((p) => iso(p[0], p[1], z))), fill: col, stroke: shade(col, 0.65), "stroke-width": 0.15 }));
+      const t = svg("title", {}); t.textContent = sh.i.label; g.appendChild(t);
+      s.appendChild(g);
+    });
+    fig.appendChild(s);
+    fig.appendChild(el("figcaption", "", "Illustrative preview — heights and finishes are indicative."));
+  }
+  function renderMenu(d) {
+    const box = clear($("#menuBody")), mn = d.menu || {}, pk = mn.selected_package;
+    let any = false;
+    if (pk && pk.name) {
+      any = true; const c = el("div", "pkg"); c.appendChild(el("h3", "", pk.name));
+      const meta = [pk.tier, pk.diet, num(pk.price_per_plate) ? money(pk.price_per_plate) + " per plate" : ""].filter(Boolean).join(" · ");
+      if (meta) c.appendChild(el("p", "meta", meta));
+      const dishes = Array.isArray(pk.dishes) ? pk.dishes.map((x) => (x && typeof x === "object" ? x.name : x)).filter((x) => typeof x === "string" && x) : [];
+      if (dishes.length) { const ul = el("ul", "chips"); dishes.slice(0, 80).forEach((x) => ul.appendChild(el("li", "", x.slice(0, 60)))); c.appendChild(ul); }
+      box.appendChild(c);
+    } else if (mn.package) {
+      any = true; const c = el("div", "pkg"); c.appendChild(el("h3", "", String(mn.package)));
+      if (num(mn.plate_price)) c.appendChild(el("p", "meta", money(mn.plate_price) + " per plate")); box.appendChild(c);
+    }
+    if (mn.menu) { any = true; box.appendChild(el("p", "menu-text", String(mn.menu))); }
+    const items = Array.isArray(mn.items) ? mn.items.filter((x) => x && x.name) : [];
+    if (items.length) {
+      any = true; const groups = {};
+      items.forEach((x) => { const k = String(x.category || "Menu"); (groups[k] = groups[k] || []).push(x); });
+      Object.keys(groups).forEach((k) => {
+        const g = el("div", "dish-group"); g.appendChild(el("h3", "", k)); const ul = el("ul");
+        groups[k].forEach((x) => ul.appendChild(el("li", "", String(x.name) + (x.kind ? " (" + x.kind + ")" : "")))); g.appendChild(ul); box.appendChild(g);
+      });
+    }
+    if (!any) emptyNote(box, "Your menu is still being finalised with the studio.");
+  }
+  function renderQuote(d) {
+    const tb = clear($("#quoteLines")), r = quoteLines(d.quote);
+    if (!r.lines.length) { const tr = el("tr"); const td = el("td", "empty", "Detailed line items will be added by the studio."); td.setAttribute("colspan", "2"); tr.appendChild(td); tb.appendChild(tr); }
+    r.lines.forEach((l) => {
+      const tr = el("tr", l.kind || ""); const th = el("th"); th.setAttribute("scope", "row"); th.textContent = l.label;
+      if (l.detail) th.appendChild(el("span", "detail", l.detail));
+      tr.appendChild(th); tr.appendChild(el("td", "amt", l.amount < 0 ? "− " + money(-l.amount) : money(l.amount))); tb.appendChild(tr);
+    });
+    $("#quoteTotal").textContent = r.total != null ? money(r.total) : "—";
+    let words = ""; try { if (r.total != null && global.BPStore && global.BPStore.amountInWords) words = global.BPStore.amountInWords(r.total); } catch (e) {}
+    $("#quoteWords").textContent = words || "";
+  }
+  function renderVersions(d) {
+    const ol = clear($("#versionList")), vs = Array.isArray(d.versions) ? d.versions : [];
+    if (!vs.length) { ol.appendChild(el("li", "empty", "This is the first version of your quotation.")); return; }
+    vs.forEach((v) => {
+      const li = el("li"); const left = el("div"); const lab = el("span", "v-label", String(v.label || "Quotation")); left.appendChild(lab);
+      if (v.latest) left.appendChild(el("span", "badge", "Latest"));
+      if (v.created_at) { const t = el("time", "", shortDate(v.created_at)); t.setAttribute("datetime", String(v.created_at)); left.appendChild(t); }
+      li.appendChild(left); li.appendChild(el("span", "v-total", money(v.total))); ol.appendChild(li);
+    });
+  }
+  function renderPayments(d) {
+    const p = d.payments || {}, ms = Array.isArray(p.milestones) ? p.milestones : [];
+    const total = quoteLines(d.quote).total;
+    const sum = clear($("#paySum"));
+    [["Total", total], ["Paid", p.paid], ["Balance", p.outstanding]].forEach((x) => {
+      const b = el("div"); b.appendChild(el("div", "k", x[0])); b.appendChild(el("div", "v", money(x[1]))); sum.appendChild(b);
+    });
+    const tb = clear($("#payLines"));
+    if (!ms.length) { const tr = el("tr"); const td = el("td", "empty", "The payment schedule will be shared by the studio."); td.setAttribute("colspan", "4"); tr.appendChild(td); tb.appendChild(tr); return; }
+    ms.forEach((m) => {
+      const tr = el("tr"); tr.appendChild(el("td", "", String(m.label || "Payment"))); tr.appendChild(el("td", "", shortDate(m.due_date) || "—"));
+      const st = String(m.status || "due").toLowerCase().replace(/[^a-z_]/g, "");
+      const td = el("td"); td.appendChild(el("span", "st " + st, st.replace(/_/g, " "))); tr.appendChild(td);
+      tr.appendChild(el("td", "amt", money(m.amount))); tb.appendChild(tr);
+    });
+  }
+  function renderTerms(d) {
+    const box = clear($("#termsBody"));
+    const paras = d.terms ? String(d.terms).split(/\n{2,}/) : DEFAULT_TERMS;
+    paras.forEach((t) => { if (t.trim()) box.appendChild(el("p", "", t.trim())); });
+    const s = d.studio || {};
+    $("#footLine").textContent = "Prepared by " + (s.name || "your event studio") + (d.shared_at ? " on " + shortDate(d.shared_at) : "");
+    $("#expLine").textContent = d.expires_at ? "This link is valid until " + shortDate(d.expires_at) + "." : "";
+  }
+  function render(d) {
+    renderCover(d); renderToc(); renderDetails(d); render2d(d); render3d(d); renderMenu(d); renderQuote(d); renderVersions(d); renderPayments(d); renderTerms(d);
+  }
+
+  function show(id) { ["#loading", "#bad", "#err", "#app"].forEach((s) => { $(s).hidden = s !== id; }); }
+  const isBad = (e) => { const m = String((e && e.message) || ""); return /invalid link|expired/i.test(m) || (e && (e.code === "22P02" || e.code === "PGRST116")); };
+  async function start() {
+    const token = tokenFrom(global.location.search);
+    if (!token) { show("#bad"); return; }
+    show("#loading");
+    let d;
+    try { await global.BPStore.init(); d = await global.BPStore.booklet.get(token); }
+    catch (e) {
+      if (isBad(e)) { show("#bad"); return; }
+      $("#errMsg").textContent = /too many/i.test(String((e && e.message) || "")) ? "Too many requests — please wait a few minutes and try again." : "Please check your connection and try again.";
+      show("#err"); return;
+    }
+    if (!d || typeof d !== "object") { show("#bad"); return; }
+    render(d); show("#app");
+  }
+
+  global.HelmBooklet = { money, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
+  if (doc && doc.getElementById("tocList")) {
+    const pb = doc.getElementById("printBtn"); if (pb) pb.addEventListener("click", () => global.print());
+    const rt = doc.getElementById("retry"); if (rt) rt.addEventListener("click", () => start());
+    if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", start); else start();
+  }
+})(typeof window !== "undefined" ? window : globalThis);

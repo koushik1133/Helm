@@ -121,6 +121,29 @@
       list.appendChild(li);
     });
   }
+  // 0065 — the event this client page shares a booklet for: the opened event (?id=) when it is
+  // one, else the newest event on the timeline (from its own event.html?id= link).
+  function bookletQuote(m, id) {
+    const ids = [];
+    (m && m.items || []).forEach((it) => { const r = /^event\.html\?id=([0-9a-f-]{36})$/i.exec(it.href || ""); if (r && ids.indexOf(r[1]) < 0) ids.push(r[1]); });
+    if (id && ids.indexOf(id) >= 0) return id;
+    return ids[0] || null;
+  }
+  async function wireBooklet(m, id) {
+    const q = bookletQuote(m, id), btn = $("#bkShare"), link = $("#bkLink");
+    if (!q || !btn) return;
+    btn.setAttribute("data-quote", q);
+    if (global.HelmBookletShare) global.HelmBookletShare.reveal(btn);
+    if (!link) return;
+    let cur = null;
+    try { cur = await global.BPStore.booklet.current(q); } catch (e) { cur = null; }
+    if (cur && cur.token && !cur.expired) {
+      link.setAttribute("href", global.BPStore.booklet.url(cur.token)); link.setAttribute("target", "_blank"); link.setAttribute("rel", "noopener noreferrer");
+      link.hidden = false;
+    } else if (btn.dataset.bkCan === "1") {
+      link.addEventListener("click", (e) => { e.preventDefault(); btn.click(); }); link.hidden = false;
+    }
+  }
   function notFound() { $("#app").hidden = true; $("#notfound").hidden = false; }
 
   async function start() {
@@ -142,8 +165,9 @@
     model = normalize(data); active = "all";
     renderHead(model); renderFilters(model); renderList(model);
     $("#app").hidden = false;
+    wireBooklet(model, id).catch(() => {});
   }
 
-  global.HelmClient360 = { safeLink, money, when, initials, normalize, filterItems, KINDS };
+  global.HelmClient360 = { bookletQuote, safeLink, money, when, initials, normalize, filterItems, KINDS };
   if (doc && global.BPUI && typeof global.BPUI.boot === "function" && doc.getElementById("timeline")) global.BPUI.boot(start);
 })(typeof window !== "undefined" ? window : globalThis);

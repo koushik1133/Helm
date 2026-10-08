@@ -124,7 +124,7 @@ for (const p of paths) {
 
 t('client-link (token) pages: Referrer-Policy no-referrer + Cache-Control no-store, private on every host', () => {
   const tokenPaths = ['/i', '/i/some-slug', ...BRANDED];
-  for (const pg of ['approve', 'portal', 'proposal-view', 'work', 'invite']) tokenPaths.push('/' + pg, '/' + pg + '.html');
+  for (const pg of ['approve', 'portal', 'booklet', 'proposal-view', 'work', 'invite']) tokenPaths.push('/' + pg, '/' + pg + '.html');
   for (const p of tokenPaths) {
     for (const [host, h] of [['vercel.json', vercelHeaders(p)], ['_headers', netlifyHeaders(p)], ['server.js', serverHeaders(p.replace(/\.html$/, ''))]]) {
       assert.equal(h['referrer-policy'], 'no-referrer', `${host}: ${p} Referrer-Policy`);
