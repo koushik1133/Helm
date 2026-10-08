@@ -274,13 +274,13 @@ await t('pages: CSP-clean markup, panels + settings card + scripts wired', () =>
     const h = read(f); const added = h.match(/<(section|div)[^>]*(data-pkg-review|data-pkg-settings|id="packages"|id="pkModal")[^>]*>/g) || [];
     added.forEach((tag) => assert.doesNotMatch(tag, /\sstyle=|\son[a-z]+=/i, f));
   }
-  assert.match(read('public/booklet.html'), /booklet-pkg\.js\?v=1/); assert.match(read('public/booklet.html'), /booklet-pkg\.css\?v=1/);
+  assert.match(read('public/booklet.html'), /booklet-pkg\.js\?v=2/); assert.match(read('public/booklet.html'), /booklet-pkg\.css\?v=1/);
   assert.match(read('public/booklet.html'), /id="pkModal" role="dialog" aria-modal="true"/);
   assert.match(read('public/booklet.html'), /id="pkLive" role="status" aria-live="polite"/);
   assert.match(read('public/event.html'), /id="pkg-selections" class="card" data-pkg-review data-quote-from-url/);
   assert.match(read('public/client.html'), /id="pkg-selections" class="card" data-pkg-review data-wait-quote/);
   assert.match(read('public/control.html'), /id="pkgFlowCard" data-pkg-settings hidden/);
-  for (const f of ['public/event.html', 'public/client.html', 'public/control.html']) assert.match(read(f), /pkg-review\.js\?v=2/, f);
+  for (const f of ['public/event.html', 'public/client.html', 'public/control.html']) assert.match(read(f), /pkg-review\.js\?v=3/, f);
   for (const f of ['public/booklet-pkg.js', 'public/pkg-review.js', 'public/booklet.js'])
     assert.doesNotMatch(read(f), /\.innerHTML|\.outerHTML|insertAdjacentHTML|document\.write/, f);
   assert.match(read('public/booklet-pkg.css'), /@media print\{[^}]*\.pk-ctl/);

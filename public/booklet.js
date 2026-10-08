@@ -191,6 +191,7 @@
       const cd = fact(dl, "Your coordinator", co.name || "");
       if (cd && co.phone) { const a = el("a", "tel", String(co.phone).slice(0, 32)); a.setAttribute("href", "tel:" + String(co.phone).replace(/[^\d+]/g, "")); cd.appendChild(doc.createTextNode(co.name ? " · " : "")); cd.appendChild(a); }
     }
+    global.HelmBookletGuests = num(e.guests) || 0;
     fact(dl, "Guests", num(e.guests) != null ? Number(e.guests).toLocaleString(FMT.locale) : "");
     fact(dl, "Reference", e.code);
   }
@@ -308,7 +309,7 @@
     const p = d.payments || {}, ms = Array.isArray(p.milestones) ? p.milestones : [];
     const total = quoteLines(d.quote).total;
     const sum = clear($("#paySum"));
-    [["Total", total], ["Paid", p.paid], ["Balance", p.outstanding]].forEach((x) => {
+    [["Total", total], ["Paid", p.paid], ["Balance", (ms.length && p.outstanding != null) ? p.outstanding : (total != null ? total - (Number(p.paid) || 0) : p.outstanding)]].forEach((x) => {
       const b = el("div"); b.appendChild(el("div", "k", x[0])); b.appendChild(el("div", "v", money(x[1]))); sum.appendChild(b);
     });
     const tb = clear($("#payLines"));

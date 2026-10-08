@@ -182,12 +182,16 @@
     if (st.mode && st.mode() !== "supabase") return;
     let view = false, edit = false;
     try { view = await st.auth.canView("pkg_review"); edit = view && await st.auth.canEditArea("pkg_review"); } catch (e) { view = edit = false; }
-    panels.forEach((p) => {
-      const q = quoteIdFor(p);
-      if (!view || !q) { p.hidden = true; return; }
-      if (p.dataset.pkrWired === q) return; p.dataset.pkrWired = q;
+    for (const p of panels) {
+      let q = quoteIdFor(p);
+      // pretty URLs (/<studio>/events/<number>) carry no ?id= — ask HelmUrl to resolve it
+      if (!q && p.hasAttribute("data-quote-from-url") && global.HelmUrl && typeof global.HelmUrl.get === "function") {
+        try { const id = await global.HelmUrl.get("id"); if (id && UUID_RE.test(String(id))) q = String(id); } catch (e) { q = null; }
+      }
+      if (!view || !q) { p.hidden = true; continue; }
+      if (p.dataset.pkrWired === q) continue; p.dataset.pkrWired = q;
       p.dataset.pkrEdit = edit ? "1" : "0"; build(p); p.hidden = false; load(p, q, null);
-    });
+    }
     if (sets.length) { let can = false; try { can = await st.auth.canEditArea("controls"); } catch (e) { can = false; } sets.forEach((c) => wireSettings(c, can)); }
   }
 

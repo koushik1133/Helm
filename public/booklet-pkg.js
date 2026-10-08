@@ -128,7 +128,7 @@
     const minus = btn("pk-sb", "−"), plus = btn("pk-sb", "+");
     minus.setAttribute("aria-label", "Fewer guests"); plus.setAttribute("aria-label", "More guests");
     const inp = el("input", "pk-g"); inp.id = id + "_g"; inp.type = "number"; inp.inputMode = "numeric";
-    inp.min = String(l.min); inp.max = String(l.max); inp.step = "1"; inp.value = String(clampGuests(p.min_guests || l.min, p));
+    inp.min = String(l.min); inp.max = String(l.max); inp.step = "1"; inp.value = String(clampGuests(Number(global.HelmBookletGuests) || p.min_guests || l.min, p));
     const hint = el("span", "pk-hint", l.min + "–" + l.max + " guests"); hint.id = id + "_h"; inp.setAttribute("aria-describedby", hint.id);
     const set = (v) => { inp.value = String(clampGuests(v, p)); onChange(Number(inp.value)); };
     minus.addEventListener("click", () => set(Number(inp.value) - 1));
