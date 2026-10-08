@@ -28,6 +28,7 @@
 //   { "quote_id": "<uuid>", "number": "<phone>", "text": "<message>" }  (if allowed)
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { bearer, errTag, responders, UUID_RE } from "../_shared/cors.ts";
+import { BodyTooLarge, clientIp, rateLimitAll, readJsonCapped, tooMany } from "../_shared/limits.ts";
 
 const TOKEN = Deno.env.get("WHATSAPP_TOKEN") || "";
 const PHONE_ID = Deno.env.get("WHATSAPP_PHONE_ID") || "";
@@ -59,6 +60,10 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
   try {
+    const ipWait = await rateLimitAll([["wa:ip:" + clientIp(req), 60, 60_000]]);
+    if (ipWait) return tooMany(json, ipWait);
+    // size cap BEFORE any auth round-trip or parsing (413)
+    const body: any = await readJsonCapped(req);
     if (!TOKEN || !PHONE_ID) {
       return json({ error: "WhatsApp Cloud API not configured (set WHATSAPP_TOKEN / WHATSAPP_PHONE_ID)" }, 500);
     }
@@ -74,8 +79,8 @@ Deno.serve(async (req) => {
     });
     const { data: { user } } = await asCaller.auth.getUser(jwt);
     if (!user) return json({ error: "sign in as a staff user" }, 401);
-
-    const body = await req.json().catch(() => ({}));
+    const userWait = await rateLimitAll([["wa:user:" + user.id, 30, 60_000]]);
+    if (userWait) return tooMany(json, userWait);
 
     // ---- credential / connection check (no message sent) ----
     if (body && body.ping === true) {
@@ -151,6 +156,7 @@ Deno.serve(async (req) => {
     try { id = JSON.parse(out)?.messages?.[0]?.id ?? null; } catch (_) { /* keep null */ }
     return json({ sent: true, id });
   } catch (e) {
+    if (e instanceof BodyTooLarge) return json({ error: "payload too large" }, 413);
     return serverError(e);
   }
 });

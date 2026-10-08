@@ -1,7 +1,7 @@
 /* reset-password.js — the "choose a new password" page (audit Phase 3-4 follow-up).
    Two ways in:
-     1. the link from a "Forgot password?" email (Supabase recovery session in the
-        URL fragment, type=recovery) → set a new password → every session is signed
+     1. the link from a "Forgot password?" email (PKCE: ?code= exchanged for a
+        recovery session in the same browser that requested it) → set a new password → every session is signed
         out → back to the sign-in page;
      2. Account → "Change password" (?mode=change, already signed in) → confirm the
         current password (+ CAPTCHA when on) → set a new one → other devices are
@@ -12,10 +12,12 @@
 (function () {
   "use strict";
   var $ = function (s) { return document.querySelector(s); };
-  // read the fragment BEFORE supabase-js consumes it
-  var hp = new URLSearchParams((location.hash || "").replace(/^#/, ""));
-  var RECOVERY_LINK = hp.get("type") === "recovery";
-  var LINK_ERROR = hp.get("error_code") || hp.get("error") || "";
+  // PKCE flow: the reset email link lands here as ?code=… (never tokens in the
+  // fragment). store-api init exchanges it using the code verifier saved in the
+  // browser that REQUESTED the reset; read the query BEFORE init cleans it up.
+  var qp = new URLSearchParams(location.search || "");
+  var RECOVERY_LINK = !!qp.get("code");
+  var LINK_ERROR = qp.get("error_code") || qp.get("error") || "";
   var MODE_CHANGE = new URLSearchParams(location.search).get("mode") === "change";
   var recovering = false, cap = null;
 
@@ -44,6 +46,13 @@
   async function start() {
     await BPStore.init();
     if (!BPStore.auth.enabled()) { $("#title").textContent = "Password reset unavailable"; sub("Accounts aren't enabled in this environment."); return; }
+    if (!LINK_ERROR && RECOVERY_LINK && BPStore.auth.linkError && BPStore.auth.linkError() && !BPStore.auth.pendingUser()) {
+      // the code could not be exchanged: almost always a different browser / device
+      $("#title").textContent = "Open the link in the same browser";
+      sub("Open the link in the same browser you requested it from. If you did, the link may have been used or expired — request a new one.");
+      $("#toLogin").setAttribute("href", "login#forgot"); $("#toLogin").textContent = "Request a new link →";
+      return;
+    }
     if (LINK_ERROR) {
       $("#title").textContent = "This link has expired";
       sub("Reset links work once and expire after a short time. Request a new one from the sign-in page.");
@@ -59,7 +68,7 @@
       return;
     }
     $("#acct_email").value = u.email || "";
-    // "#type=recovery" in the URL is NOT proof (anyone can type it): only a session
+    // "?code=" in the URL is NOT proof (anyone can type it): only a session
     // whose signed token says it came from a reset link skips the current-password step.
     var realRecovery = await BPStore.auth.isRecoverySession();
     if (RECOVERY_LINK && realRecovery) BPStore.auth.recovery.mark(u.id);

@@ -1,3 +1,4 @@
+import { _resetRateLimits } from "../../supabase/functions/_shared/limits.ts";
 // Shared harness: stub Deno.env, global fetch, and Deno.serve so an edge
 // function's handler can be invoked in-process with NO real network/provider calls.
 
@@ -48,6 +49,7 @@ export function textResponse(body: string, status = 200): Response {
  */
 export async function loadHandler(relPath: string): Promise<(req: Request) => Promise<Response> | Response> {
   let captured: any = null;
+  _resetRateLimits();   // per-isolate limiter state must not leak between tests
   const origServe = (Deno as any).serve;
   (Deno as any).serve = (h: any) => {
     captured = h;

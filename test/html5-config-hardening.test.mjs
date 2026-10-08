@@ -384,4 +384,45 @@ t('CSV-01: CSV export neutralises formula cells, incl. leading whitespace and fu
   assert.equal(cellOf('Plain'), 'Plain');
 });
 
+/* ------------------------------------------------------------------ STYLE-01 / SIM-01 / CORS-02 */
+t("STYLE-01: no 'unsafe-inline' in style-src / style-src-elem anywhere; only style-src-attr keeps it", () => {
+  const pols = [];
+  for (const r of vercel.headers) for (const h of r.headers) if (/^content-security-policy$/i.test(h.key)) pols.push(['vercel ' + r.source, h.value]);
+  for (const m of headersFile.matchAll(/^\s+Content-Security-Policy:\s*(.*)$/gm)) pols.push(['_headers', m[1]]);
+  for (const p of ['dashboard', 'login', 'invite', 'builder', 'index'])
+    pols.push(['server ' + p, server.securityHeadersFor({ headers: { host: 'www.helm.events' } }, join(PUB, p + '.html'))['Content-Security-Policy']]);
+  assert.ok(pols.length > 10);
+  for (const [where, csp] of pols) {
+    const d = Object.fromEntries(csp.split(';').map((x) => x.trim().split(/\s+/)).map((p) => [p[0], p.slice(1)]));
+    for (const k of ['style-src', 'style-src-elem']) {
+      assert.ok(d[k], where + ' missing ' + k);
+      assert.ok(!d[k].includes("'unsafe-inline'"), where + ' ' + k + " has 'unsafe-inline'");
+      assert.ok(d[k].some((x) => /^'sha256-/.test(x)), where + ' ' + k + ' has no <style> hashes');
+    }
+    assert.deepEqual(d['style-src-attr'], ["'unsafe-inline'"], where);
+  }
+});
+t('STYLE-01: runtime CSS uses constructable sheets, not new inline <style> elements', () => {
+  for (const f of ['manual.js', 'tour.js', 'hq-invoice.js', 'store-api.js']) {
+    const src = read('public/' + f);
+    assert.match(src, /function __helmAdoptCss\(doc, css\)/, f);
+    assert.equal((src.match(/createElement\(["']style["']\)/g) || []).length, 1, f + ': only the fallback may create <style>');
+  }
+});
+t('SIM-01: /sim-pay is redirected to /404 on every production host (staging + local keep it)', () => {
+  for (const host of ['helm.events', 'www.helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app']) {
+    for (const p of ['/sim-pay', '/sim-pay.html']) {
+      const r = vercel.redirects.find((x) => x.has && x.has.some((h) => h.type === 'host' && h.value === host) && vercelRe(x.source).test(p) && x.destination === '/404');
+      assert.ok(r, host + p);
+    }
+  }
+  assert.ok(!vercel.redirects.some((x) => !x.has && vercelRe(x.source).test('/sim-pay')), 'staging must keep /sim-pay');
+  assert.equal(vercel.redirects[0].has[0].value, 'helm.events', 'apex redirect still first');
+});
+t('CORS-02 / HSTS-01: server.js local API sends no Access-Control-* and carries HSTS', () => {
+  const src = read('server.js');
+  assert.ok(!/Access-Control-Allow-Origin/.test(src));
+  assert.ok((src.match(/includeSubDomains; preload/g) || []).length >= 4);
+});
+
 console.log(`\nhtml5-config-hardening: ${passed} test(s) passed.`);

@@ -137,10 +137,32 @@ No link variable is needed; the only link is the optional `{{ .SiteURL }}/reset-
 </table>
 ```
 
-## 8. Recommendation (not applied): PKCE for Google sign-in
-The app still uses the implicit OAuth flow (tokens in the URL fragment). Switching to
-`flowType: 'pkce'` in `store-api.js` createClient is recommended, but must be tested on
-staging with Google + the reset-password link first (both change how the return URL is handled).
+## 8. PKCE auth flow (applied in code, 2026-10)
+`store-api.js` creates the client with `flowType: 'pkce'` + `detectSessionInUrl: true`. Every auth link
+(Google return, password reset, sign-up confirmation, magic link) now comes back as `?code=…`, which
+supabase-js exchanges for a session using the code verifier saved in the **same browser** that started
+the flow. Tokens are never put in or read from the URL fragment (a legacy `#access_token` is stripped).
+
+Owner dashboard steps (both projects, staging first):
+1. **Email templates: no change needed.** Keep `{{ .ConfirmationURL }}` exactly as in 7a (and in the
+   Confirm signup / Magic link / Invite templates). In PKCE mode Supabase builds that URL so it redirects
+   to `redirect_to?code=…`. Do NOT switch templates to `{{ .TokenHash }}` links — the app has no
+   `verifyOtp` landing page for them.
+2. **Redirect URLs (section 6) must include** `/reset-password` and `/login.html**` for every host —
+   reset links return to `/reset-password?code=…`, confirm/Google links to `/login.html?…&code=…`.
+   A redirect that is not allowed falls back to the Site URL; the app still routes a recovery session
+   to `/reset-password`, but add the URLs so this never happens.
+3. Test on staging: Google sign-in, Forgot password → link → new password, new sign-up → confirm link,
+   invite link → sign-up → confirm → joined the studio.
+4. Behaviour change users may notice: a reset / confirm link opened in a **different browser or device**
+   cannot sign in. The reset page says "Open the link in the same browser you requested it from";
+   for sign-up confirmation the email is still confirmed, so the person just signs in.
+
+### Account enumeration
+Sign-in errors are always "Invalid email or password." (including unconfirmed accounts); sign-up and
+password reset always answer "If this email can be used, we've sent a link." Keep **Confirm email ON**
+(Providers → Email) — with it off, Supabase returns "User already registered" (the app hides it, but
+an existing account would then never get a session, so turning it off breaks nothing yet leaks timing).
 Google sign-in no longer requests offline access (no Google refresh token).
 
 ## 9. Optional server-side MFA backstop

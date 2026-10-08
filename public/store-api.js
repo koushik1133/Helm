@@ -88,6 +88,7 @@
 
   let mode = "local";           // resolved backend: 'supabase' | 'server' | 'local'
   let supa = null;              // Supabase client (lazy)
+  let urlAuthCode = false, urlAuthError = "";   // PKCE ?code= return (see init)
   let ready = null;             // init() promise
   let currentUser = null;       // signed-in Supabase user (or null)
   let roleCache = null;         // this user's RBAC role
@@ -917,26 +918,57 @@
     async remove(id) { needUser(); const { error } = await supa.from(TABLE).delete().eq("id", id); if (error) throw error; return true; },
   };
 
+  // Account enumeration: one answer whether or not an email is registered.
+  const GENERIC_SIGNIN = "Invalid email or password.";
+  const GENERIC_SENT = "If this email can be used, we've sent a link. It can take a few minutes — check spam too.";
+  function genericSignInError(error) {
+    const c = String((error && error.code) || ""), m = String((error && error.message) || ""), st = Number(error && error.status) || 0;
+    if (st === 429 || /rate limit|too many/i.test(m) || /captcha/i.test(m + " " + c)) return error;
+    if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) return error;
+    if (/invalid_credentials|email_not_confirmed|user_not_found|user_banned|invalid login|not confirmed|credentials|user not found/i.test(c + " " + m) || st === 400) {
+      const e = new Error(GENERIC_SIGNIN); e.code = "invalid_credentials"; return e; }
+    return error;
+  }
+
   /* ---------------- init: pick the best available backend ---------------- */
   async function init() {
     if (ready) return ready;
     ready = (async () => {
-      // A password-reset email link that landed on any other page (e.g. the Site
-      // URL) must NOT just sign the person in: hand it to the reset page.
+      // PKCE flow (no tokens in the URL): email / OAuth links return with ?code=,
+      // which supabase-js exchanges (detectSessionInUrl) using the code verifier it
+      // saved in THIS browser when the link was requested. Note it before init so a
+      // failed exchange (link opened in another browser / already used) can be shown.
+      // A legacy implicit-flow fragment (#access_token=…) is never read: strip it.
       try {
-        if (/(^#|&)type=recovery(&|$)/.test(location.hash || "") && pageKey() !== "reset-password") {
-          location.replace("/reset-password" + location.hash);
-          return new Promise(() => {});
-        }
+        const qs = new URLSearchParams(location.search || "");
+        urlAuthCode = !!qs.get("code");
+        urlAuthError = qs.get("error_code") || qs.get("error") || "";
+        if (/(^#|&)(access_token|refresh_token|provider_token)=/.test(location.hash || "") && global.history && global.history.replaceState)
+          global.history.replaceState(null, "", location.pathname + location.search);
       } catch (e) {}
       if (supaConfigured()) {
         try { const ok = await loadSupabaseLib();
           if (ok && global.supabase && global.supabase.createClient) {
             supa = global.supabase.createClient(CFG.url, CFG.anonKey,
-              { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage },
+              { auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage },
                 global: { fetch: authAwareFetch } });
-            const { data: { session } } = await supa.auth.getSession();
+            const gs = await supa.auth.getSession();
+            const session = gs && gs.data ? gs.data.session : null;
             currentUser = session ? session.user : null;
+            if (urlAuthCode) {
+              // the code was exchanged (or failed): drop ?code= from the address bar
+              if (!session && !urlAuthError) urlAuthError = "pkce_exchange_failed";
+              try { const q = new URLSearchParams(location.search || ""); ["code", "type"].forEach((k) => q.delete(k)); const qs = q.toString();
+                if (global.history && global.history.replaceState) global.history.replaceState(null, "", location.pathname + (qs ? "?" + qs : "") + (location.hash || "")); } catch (e) {}
+            }
+            // a reset link that landed on another page (e.g. the Site URL) must not just
+            // sign the person in: the signed token says "recovery" → the reset page
+            try {
+              if (session && pageKey() !== "reset-password" && jwtAmrMethods(session.access_token).indexOf("recovery") !== -1 && urlAuthCode) {
+                location.replace("/reset-password");
+                return new Promise(() => {});
+              }
+            } catch (e) {}
             if (currentUser) hadSession = true;
             // Session-expiry watcher: a SIGNED_OUT we did not ask for (refresh token
             // failed / revoked / signed out in another tab) → back to login.
@@ -1117,6 +1149,10 @@
     user: () => (pendingStep ? null : currentUser),
     // the signed-in account even while a step is pending (login / reset pages only)
     pendingUser: () => currentUser,
+    // "" | the error from an auth link return: "pkce_exchange_failed" = the ?code=
+    // could not be exchanged (opened in a different browser, or used / expired).
+    linkError: () => urlAuthError,
+    linkReturned: () => urlAuthCode,
     pendingStep: () => pendingStep,
     resolveGate: () => evaluateGate(),
     // same-site ?next= sanitiser (login.html) — always returns one of the app's own pages
@@ -1212,7 +1248,7 @@
         const prev = currentUser;
         if (prev) { explicitSignOut = true; try { await supa.auth.signOut({ scope: "local" }); } catch (e) {} currentUser = null; pendingStep = null; }
         const { data, error } = await supa.auth.signInWithPassword(captchaToken ? { email, password, options: { captchaToken } } : { email, password });
-        if (error) throw error;
+        if (error) throw genericSignInError(error);
         const st = sessionStart();
         if ((prev && prev.id !== data.user.id) || (st && st.uid !== data.user.id)) userLocalClear();
         currentUser = data.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = false;
@@ -1231,8 +1267,19 @@
       if (CAPTCHA && !captchaToken) { const e = new Error("Please complete the security check."); e.code = "captcha_required"; throw e; }
       localAuthOp++;
       try {
-        const { data, error } = await supa.auth.signUp(captchaToken ? { email, password, options: { captchaToken } } : { email, password });
-        if (error) throw error;
+        // emailRedirectTo: the confirm link returns to the sign-in page with ?code= (PKCE)
+        const so = { emailRedirectTo: (opts && opts.emailRedirectTo) || (location.origin + "/login.html") };
+        if (captchaToken) so.captchaToken = captchaToken;
+        const { data, error } = await supa.auth.signUp({ email, password, options: so });
+        if (error) {
+          const c = String(error.code || ""), m = String(error.message || ""), st = Number(error.status) || 0;
+          if (st === 429 || /rate limit|too many/i.test(m)) { const e = new Error("Too many requests — please wait a few minutes and try again."); e.code = "rate_limited"; throw e; }
+          if (/captcha/i.test(m)) { const e = new Error("The security check failed — please try again."); e.code = "captcha_failed"; throw e; }
+          // "already registered" must look exactly like a fresh sign-up awaiting confirmation
+          if (/user_already_exists|email_exists|already registered|already exists/i.test(c + " " + m)) return { user: null, session: null, generic: GENERIC_SENT };
+          throw error;
+        }
+        if (!data.session) return { user: null, session: null, generic: GENERIC_SENT };
         if (data.session) { userLocalClear(); currentUser = data.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = false; stampSessionStart(currentUser.id, true); await evaluateGate(); }
         return { user: data.user, session: data.session };   // session null when email confirmation is required
       } finally { localAuthOp--; }
@@ -1242,8 +1289,8 @@
     // pending studio signup, calls create_studio). redirectTo must be an allowed
     // Redirect URL in Supabase → Authentication → URL Configuration.
     // No offline access is requested: Helm never calls Google APIs, so it neither
-    // needs nor should receive a long-lived Google refresh token. The implicit flow
-    // is kept on purpose (PKCE recommended later — docs/AUTH-DASHBOARD-SETTINGS.md).
+    // needs nor should receive a long-lived Google refresh token. PKCE flow: Google
+    // returns to redirectTo with ?code=, exchanged in init() (detectSessionInUrl).
     async signInWithGoogle(redirectTo) {
       if (!supa) throw new Error("Supabase not configured");
       const { data, error } = await supa.auth.signInWithOAuth({
@@ -1305,6 +1352,7 @@
       return true;
     },
     // ---- self-service password reset / change -----------------------------------
+    genericMessages: { signIn: GENERIC_SIGNIN, sent: GENERIC_SENT },
     passwordRule: { min: PW_MIN, symbols: PW_SYMBOLS, hint: PW_HINT, problem: passwordProblem, checks: passwordChecks, attachChecklist: attachPasswordChecklist },
     // Resolves the same way whether or not the email has an account (the caller
     // shows one generic message). Only rate-limit / network / CAPTCHA errors throw.
@@ -1941,7 +1989,13 @@
       rpc("verify_and_consent", { p_token: token, p_phone: phone, p_code: code, p_agreed: agreed,
         p_terms_version: termsVersion, p_consent_text: consentText, p_client_name: clientName, p_user_agent: ua }),
     // simulation → RPC (mock link); live → Razorpay via Edge Function (real payment link)
-    createPayment: (token) => LIVE.pay ? callFn("create-payment-link", { token }) : rpc("create_payment", { p_token: token }),
+    // Online pay is offered only when it is real (pay live) or off production: the
+    // simulated checkout (/sim-pay) is 404 on prod hosts, so prod never links there.
+    onlinePayAvailable: () => !!LIVE.pay || (typeof window === "undefined" || window.HELM_IS_PROD_HOST !== true),
+    createPayment: (token) => LIVE.pay ? callFn("create-payment-link", { token })
+      : (typeof window !== "undefined" && window.HELM_IS_PROD_HOST === true)
+        ? Promise.reject(new Error("Online payment isn't available — your planner will share payment details."))
+        : rpc("create_payment", { p_token: token }),
     // ---- manager (authenticated) ----
     generateToken: (quoteId) => rpc("generate_approval_token", { p_quote_id: quoteId }),
     markPaid: (quoteId, ref) => rpc("mark_paid", { p_quote_id: quoteId, p_provider_ref: ref || null }),
@@ -2022,9 +2076,17 @@
         if (!supa) throw new Error("Supabase not configured");
         if (!file) throw new Error("no file");
         if (file.size > TASK_PROOF_MAX) throw new Error("File too large (max 8 MB).");
-        const sniff = await sniffChat(file);
+        let sniff = await sniffChat(file);
         const allowed = kind === "proof_photo" ? /^image\/(jpeg|png|webp)$/ : /^audio\/(webm|ogg|mp4)$/;
         if (!sniff || !allowed.test(sniff.mime)) throw new Error(kind === "proof_photo" ? "Photos must be JPEG, PNG or WebP." : "That voice note format isn't supported.");
+        // 0048: proof photos re-encoded (EXIF/GPS stripped — a crew phone's location never
+        // leaves the device); voice notes must match their declared type
+        if (kind === "proof_photo") {
+          const img = await ugPrepareImage(file, { maxBytes: TASK_PROOF_MAX, maxPx: 2048, allow: ["image/png", "image/jpeg", "image/webp"] });
+          file = img.blob; sniff = { mime: img.mime, ext: img.ext };
+        } else {
+          await ugCheckFile(file, ["audio/webm", "audio/ogg", "audio/mp4"], TASK_PROOF_MAX);
+        }
         const g = await rpc("worker_evidence_upload", { p_token: token, p_task_id: taskId, p_kind: kind, p_mime: sniff.mime });
         if (!g || !TASK_PROOF_KEY.test(String(g.path || ""))) throw new Error("upload not available");
         const { error } = await supa.storage.from("task-proof").upload(g.path, file, { upsert: false, contentType: g.mime });
@@ -3082,6 +3144,151 @@
       if (error) throw error; return true; },
   };
 
+  /* ---------------- upload guard (0048): sniff · mismatch · re-encode · safe names ----------------
+     Every image that leaves the browser is decoded and re-drawn on a canvas, then saved as
+     WebP (JPEG fallback). That drops EXIF / GPS / XMP / ICC comments and any bytes appended
+     to the picture, and caps size + pixels. Type is always taken from the file's bytes; a
+     file whose declared type or extension disagrees with its bytes is refused. Object keys
+     are server-shaped (<org>/<folder>/<uuid>.<ext>), never the client's file name; the
+     storage policies in 0048 enforce the same shape server-side. */
+  const UG_SNIFF = [                                       // [mime, ext, magic-byte matcher]
+    ["image/png",  "png",  (b) => b[0]===0x89 && b[1]===0x50 && b[2]===0x4E && b[3]===0x47 && b[4]===0x0D && b[5]===0x0A && b[6]===0x1A && b[7]===0x0A],
+    ["image/jpeg", "jpg",  (b) => b[0]===0xFF && b[1]===0xD8 && b[2]===0xFF],
+    ["image/webp", "webp", (b) => b[0]===0x52 && b[1]===0x49 && b[2]===0x46 && b[3]===0x46 && b[8]===0x57 && b[9]===0x45 && b[10]===0x42 && b[11]===0x50],
+    ["image/gif",  "gif",  (b) => b[0]===0x47 && b[1]===0x49 && b[2]===0x46 && b[3]===0x38 && (b[4]===0x37 || b[4]===0x39) && b[5]===0x61],
+    ["application/pdf", "pdf", (b) => b[0]===0x25 && b[1]===0x50 && b[2]===0x44 && b[3]===0x46 && b[4]===0x2D],
+    ["audio/webm", "webm", (b) => b[0]===0x1A && b[1]===0x45 && b[2]===0xDF && b[3]===0xA3],
+    ["audio/ogg",  "ogg",  (b) => b[0]===0x4F && b[1]===0x67 && b[2]===0x67 && b[3]===0x53],
+    ["audio/mp4",  "m4a",  (b) => b[4]===0x66 && b[5]===0x74 && b[6]===0x79 && b[7]===0x70],
+    ["audio/mpeg", "mp3",  (b) => (b[0]===0x49 && b[1]===0x44 && b[2]===0x33) || (b[0]===0xFF && (b[1]&0xE0)===0xE0)],
+  ];
+  // declared type / extension → the sniffed mime it must agree with
+  const UG_ALIAS = { "image/jpg": "image/jpeg", "image/pjpeg": "image/jpeg", "audio/x-m4a": "audio/mp4", "audio/m4a": "audio/mp4",
+    "video/webm": "audio/webm", "video/mp4": "audio/mp4", "audio/mp3": "audio/mpeg", "application/x-pdf": "application/pdf" };
+  const UG_EXT = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", jpe: "image/jpeg", jfif: "image/jpeg", webp: "image/webp", gif: "image/gif",
+    pdf: "application/pdf", webm: "audio/webm", weba: "audio/webm", ogg: "audio/ogg", oga: "audio/ogg", opus: "audio/ogg",
+    m4a: "audio/mp4", mp4: "audio/mp4", aac: "audio/mp4", mp3: "audio/mpeg" };
+  function ugErr(msg, code) { const e = new Error(msg); e.code = code || "upload_invalid"; return e; }
+  function ugSniff(bytes) {
+    const b = bytes || [];
+    if (b.length < 12) return null;
+    for (const [mime, ext, ok] of UG_SNIFF) { if (ok(b)) return { mime, ext }; }
+    return null;
+  }
+  async function ugHead(file, n) {
+    const part = file.slice(0, n || 16);
+    if (part && typeof part.arrayBuffer === "function") return new Uint8Array(await part.arrayBuffer());
+    return new Uint8Array(await new Response(part).arrayBuffer());
+  }
+  // null when declared type + extension agree with the bytes; otherwise the reason
+  function ugMismatch(file, sniff) {
+    if (!sniff) return "unrecognised";
+    const norm = (m) => { m = String(m || "").split(";")[0].trim().toLowerCase(); return UG_ALIAS[m] || m; };
+    const declared = norm(file && file.type);
+    // (a recorder may label audio "video/webm" etc. — aliased above); anything else that differs is refused
+    if (declared && declared !== "application/octet-stream" && declared !== sniff.mime) return "type";
+    const name = String((file && file.name) || "");
+    const dot = name.lastIndexOf(".");
+    if (dot > 0) {
+      const ext = name.slice(dot + 1).toLowerCase();
+      if (UG_EXT[ext] && UG_EXT[ext] !== sniff.mime) return "extension";
+      if (!UG_EXT[ext] && /^(html?|svg|xml|js|mjs|php|exe|bat|cmd|sh|jar|com|scr|msi|dll|hta|xhtml)$/.test(ext)) return "extension";
+    }
+    return null;
+  }
+  // server-shaped object name: <uuid>.<ext> (ext from the allowlist only)
+  function ugObjectName(ext) {
+    if (!/^(png|jpg|webp|gif|pdf|webm|ogg|m4a|mp3)$/.test(String(ext || ""))) return null;
+    const id = newUuid();
+    return id ? id.toLowerCase() + "." + ext : null;
+  }
+  // display-only file name: no path, no control / markup characters, bounded
+  function ugDisplayName(name, fallback) {
+    let s = String(name || "").split(/[\\/]/).pop();
+    s = s.replace(/[\u0000-\u001f\u007f<>:"|?*`$;&{}\[\]]/g, "").replace(/\s+/g, " ").replace(/^\.+/, "").trim();
+    if (s.length > 120) { const d = s.lastIndexOf("."); const ext = d > 0 && s.length - d <= 8 ? s.slice(d) : ""; s = s.slice(0, 120 - ext.length) + ext; }
+    return s || String(fallback || "file");
+  }
+  // longest edge ≤ maxPx, aspect kept
+  function ugFit(w, h, maxPx) {
+    w = Math.floor(Number(w) || 0); h = Math.floor(Number(h) || 0);
+    if (!(w > 0 && h > 0)) return null;
+    const k = Math.min(1, (maxPx || 2560) / Math.max(w, h));
+    return { w: Math.max(1, Math.round(w * k)), h: Math.max(1, Math.round(h * k)) };
+  }
+  /* check + re-encode one picked image → { blob, mime, ext, sniffed }
+     opts: maxBytes (output cap), maxInput (input cap), maxPx (long edge), allow (sniffed mimes) */
+  async function ugPrepareImage(file, opts) {
+    opts = opts || {};
+    const maxBytes = opts.maxBytes || 8 * 1024 * 1024, maxInput = opts.maxInput || 25 * 1024 * 1024, maxPx = opts.maxPx || 2560;
+    const allow = opts.allow || ["image/png", "image/jpeg", "image/webp", "image/gif"];
+    if (!file || typeof file.size !== "number" || typeof file.slice !== "function") throw ugErr("Choose a photo to upload.");
+    if (file.size < 12) throw ugErr("That file is empty or not a photo.");
+    if (file.size > maxInput) throw ugErr("That photo is too large — choose one under " + Math.round(maxInput / 1048576) + " MB.", "upload_too_large");
+    const sniff = ugSniff(await ugHead(file, 16));
+    if (!sniff || allow.indexOf(sniff.mime) < 0) throw ugErr("Unsupported image type.", "upload_type");
+    if (ugMismatch(file, sniff)) throw ugErr("That file's name or type doesn't match its contents — it was not uploaded.", "upload_mismatch");
+    const doc = global.document;
+    if (!doc || typeof doc.createElement !== "function") throw ugErr("Photos can't be processed here.", "upload_unavailable");
+    let img = null, url = null;
+    try {
+      if (typeof global.createImageBitmap === "function") {
+        try { img = await global.createImageBitmap(file, { imageOrientation: "from-image" }); } catch (e) { img = null; }
+      }
+      if (!img) {
+        url = URL.createObjectURL(file);
+        img = await new Promise((resolve, reject) => {
+          const im = new global.Image();
+          im.onload = () => resolve(im); im.onerror = () => reject(ugErr("That photo couldn't be opened — try another one."));
+          im.src = url;
+        });
+      }
+      const w0 = img.naturalWidth || img.width, h0 = img.naturalHeight || img.height;
+      if (w0 * h0 > 80e6) throw ugErr("That photo is too large — choose a smaller one.", "upload_too_large");
+      const box = ugFit(w0, h0, maxPx);
+      if (!box) throw ugErr("That photo couldn't be opened — try another one.");
+      const cv = doc.createElement("canvas"); cv.width = box.w; cv.height = box.h;
+      const ctx = cv.getContext("2d");
+      if (!ctx) throw ugErr("Photos can't be processed in this browser.", "upload_unavailable");
+      ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, box.w, box.h);            // flatten transparency for JPEG
+      try { ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high"; } catch (e) {}
+      ctx.drawImage(img, 0, 0, box.w, box.h);
+      const toBlob = (type, q) => new Promise((resolve) => { try { cv.toBlob((b) => resolve(b), type, q); } catch (e) { resolve(null); } });
+      let out = null, cur = cv;
+      for (let pass = 0; pass < 3 && !out; pass++) {
+        for (const q of [0.9, 0.82, 0.74, 0.66, 0.58]) {
+          let b = await toBlob("image/webp", q);
+          if (!b || b.type !== "image/webp") b = await toBlob("image/jpeg", q);
+          if (b && b.size <= maxBytes) { out = b; break; }
+        }
+        if (!out && pass < 2) {                                                 // still too big: halve the pixels
+          const nw = Math.max(1, Math.round(cur.width * 0.7)), nh = Math.max(1, Math.round(cur.height * 0.7));
+          const c2 = doc.createElement("canvas"); c2.width = nw; c2.height = nh;
+          const g2 = c2.getContext("2d"); g2.fillStyle = "#ffffff"; g2.fillRect(0, 0, nw, nh); g2.drawImage(cur, 0, 0, nw, nh);
+          cv.width = nw; cv.height = nh; ctx.drawImage(c2, 0, 0); cur = cv;
+        }
+      }
+      if (!out) throw ugErr("That photo couldn't be made small enough — try another one.", "upload_too_large");
+      const outSniff = ugSniff(await ugHead(out, 16));
+      if (!outSniff || (outSniff.mime !== "image/webp" && outSniff.mime !== "image/jpeg")) throw ugErr("That photo couldn't be converted — try another one.");
+      return { blob: out, mime: outSniff.mime, ext: outSniff.ext, sniffed: sniff.mime };
+    } finally {
+      if (url) { try { URL.revokeObjectURL(url); } catch (e) {} }
+      if (img && typeof img.close === "function") { try { img.close(); } catch (e) {} }
+    }
+  }
+  // non-image (pdf / audio): bytes must match an allowed type AND the declared type / name
+  async function ugCheckFile(file, allow, maxBytes) {
+    if (!file || typeof file.size !== "number" || typeof file.slice !== "function") throw ugErr("Choose a file to upload.");
+    if (maxBytes && file.size > maxBytes) throw ugErr("File too large (max " + Math.round(maxBytes / 1048576) + " MB).", "upload_too_large");
+    const sniff = ugSniff(await ugHead(file, 16));
+    if (!sniff || (allow && allow.indexOf(sniff.mime) < 0)) throw ugErr("Unsupported file type.", "upload_type");
+    if (ugMismatch(file, sniff)) throw ugErr("That file's name or type doesn't match its contents — it was not uploaded.", "upload_mismatch");
+    return sniff;
+  }
+  const uploads = { sniff: ugSniff, mismatch: ugMismatch, objectName: ugObjectName, displayName: ugDisplayName, fit: ugFit,
+    prepareImage: ugPrepareImage, checkFile: ugCheckFile };
+
   /* ---------------- digital invitation sites (Phase 87) ---------------- */
   // A public "digital invitation" website for a CONFIRMED event. All manager-side
   // reads/writes are org-scoped by RLS; the ONLY anon path is public(slug), which
@@ -3103,6 +3310,23 @@
     return null;
   }
 
+  // one anon client per invitation slug; no session is stored or read (guests never sign in here)
+  const guestMediaClients = new Map();
+  function guestMediaClient(slug) {
+    slug = String(slug || "").trim();
+    if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,199}$/.test(slug)) return null;
+    if (guestMediaClients.has(slug)) return guestMediaClients.get(slug);
+    if (!(global.supabase && global.supabase.createClient) || !supaConfigured()) return null;
+    let c = null;
+    try {
+      c = global.supabase.createClient(CFG.url, CFG.anonKey, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: "helm-guest-media" },
+        global: { headers: { "x-helm-site-slug": slug } } });
+    } catch (e) { c = null; }
+    if (c) guestMediaClients.set(slug, c);
+    return c;
+  }
+
   const sites = {
     INVITE_IMG_LABEL: "PNG, JPG, WEBP or GIF, up to 8 MB",
     // manager side (authenticated, RLS-scoped) ----------------------------------
@@ -3121,18 +3345,22 @@
     async uploadPhoto(quoteId, file) {
       if (!supa) throw new Error("Supabase not configured");
       if (!file) throw new Error("no file");
-      if (file.size > INVITE_IMG_MAX) throw new Error("Image too large (max 8 MB).");
+      if (file.size > INVITE_IMG_MAX * 3) throw new Error("Image too large (max 8 MB).");
       // Validate by MAGIC BYTES — never trust the client-declared type or extension.
-      const sniff = await sniffInviteImage(file);
+      let sniff = await sniffInviteImage(file);
       if (!sniff) throw new Error("Unsupported image type — allowed: " + this.INVITE_IMG_LABEL + ".");
+      // 0048: declared type / extension must agree with the bytes; then re-encode on a
+      // canvas (strips EXIF/GPS, caps size at INVITE_IMG_MAX + pixels). The bytes uploaded
+      // are the re-encoded ones; type + extension come from re-sniffing them.
+      const img = await ugPrepareImage(file, { maxBytes: INVITE_IMG_MAX, maxInput: INVITE_IMG_MAX * 3, maxPx: 2560 });
+      sniff = { mime: img.mime, ext: img.ext };
       const orgId = await org.id();
       if (!orgId) throw new Error("no organization in context");
-      // Random object key; the client filename is discarded. Extension + content-type
-      // come from the sniff, not from anything the client declared.
+      // Random object key; the client filename is discarded.
       const uuid = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID()
         : Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
       const path = orgId + "/" + quoteId + "/" + uuid + "." + sniff.ext;
-      const { error } = await supa.storage.from("invite-media").upload(path, file, { upsert: false, contentType: sniff.mime });
+      const { error } = await supa.storage.from("invite-media").upload(path, img.blob, { upsert: false, contentType: sniff.mime });
       if (error) throw error;
       // The returned URL is a stable REFERENCE stored in site data; the bucket is private,
       // so render it through mediaUrls() (signed) — never assume it is publicly fetchable.
@@ -3143,7 +3371,9 @@
     // can sign only photos on a PUBLISHED site (storage policy 0019); staff sign their
     // own org's. Non-invite-media http(s) URLs pass through; a failed sign keeps the
     // original reference (still works on a DB whose bucket hasn't been made private yet).
-    async mediaUrls(urls, seconds) {
+    // slug (guest invitation page): 0048 binds a guest's read to the invitation it holds —
+    // the signing request carries x-helm-site-slug on its own session-less client.
+    async mediaUrls(urls, seconds, slug) {
       const list = Array.isArray(urls) ? urls.slice() : [];
       if (!supa) { try { await BPStore.init(); } catch (e) {} }
       if (!supa || !list.length) return list;
@@ -3152,7 +3382,8 @@
       list.forEach((u, i) => { const m = re.exec(String(u || "")); if (m) { idx.push(i); paths.push(decodeURIComponent(m[1])); } });
       if (!paths.length) return list;
       try {
-        const { data, error } = await supa.storage.from("invite-media").createSignedUrls(paths, seconds || 3600);
+        const client = slug ? (guestMediaClient(slug) || supa) : supa;
+        const { data, error } = await client.storage.from("invite-media").createSignedUrls(paths, seconds || 3600);
         if (error || !Array.isArray(data)) return list;
         data.forEach((r, k) => { if (r && r.signedUrl && !r.error) list[idx[k]] = r.signedUrl; });
       } catch (e) {}
@@ -3194,21 +3425,27 @@
     async upload(quoteId, file) {
       if (!supa) throw new Error("Supabase not configured");
       if (!file) throw new Error("no file");
-      if (file.size > FILE_MAX) throw new Error("File too large (max 10 MB).");
       const sniff = await sniffFile(file);
       if (!sniff) throw new Error("Unsupported file type — allowed: " + this.ALLOWED_LABEL + ".");
+      // 0048: images are re-encoded (EXIF/GPS stripped); PDFs must match their name/type
+      let body = file, mime = sniff.mime, ext = sniff.ext;
+      if (sniff.mime === "application/pdf") { await ugCheckFile(file, ["application/pdf"], FILE_MAX); }
+      else { const img = await ugPrepareImage(file, { maxBytes: FILE_MAX, maxPx: 3000, allow: ["image/png", "image/jpeg", "image/webp"] });
+             body = img.blob; mime = img.mime; ext = img.ext; }
       const orgId = await org.id();
       if (!orgId) throw new Error("no organization in context");
-      const uuid = (crypto && crypto.randomUUID) ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
-      const path = orgId + "/" + quoteId + "/" + uuid + "." + sniff.ext;   // client name discarded
-      const { error: upErr } = await supa.storage.from("event-docs").upload(path, file, {
-        upsert: false, contentType: sniff.mime, cacheControl: "3600" });
+      const name = ugObjectName(ext);
+      if (!name) throw new Error("upload not available");
+      const uuid = name.split(".")[0];
+      const path = orgId + "/" + quoteId + "/" + name;   // client name discarded
+      const { error: upErr } = await supa.storage.from("event-docs").upload(path, body, {
+        upsert: false, contentType: mime, cacheControl: "3600" });
       if (upErr) throw upErr;
       // record metadata (RLS re-checks org + has_area). Keep the original name for display only.
       const { data: uid } = await supa.auth.getUser().then((r) => ({ data: r && r.data && r.data.user && r.data.user.id })).catch(() => ({ data: null }));
       const { data: row, error: metaErr } = await supa.from("event_files").insert({
-        quote_id: quoteId, storage_path: path, filename: (file.name || uuid).slice(0, 200),
-        mime: sniff.mime, size_bytes: file.size, uploaded_by: uid || null }).select().single();
+        quote_id: quoteId, storage_path: path, filename: ugDisplayName(file.name, uuid + "." + ext).slice(0, 200),
+        mime: mime, size_bytes: body.size, uploaded_by: uid || null }).select().single();
       if (metaErr) { try { await supa.storage.from("event-docs").remove([path]); } catch (e) {} throw metaErr; }
       return row;
     },
@@ -3513,6 +3750,7 @@
     if (file.size > AVATAR_MAX_INPUT) throw photoErr("That photo is too large — choose one under 20 MB.");
     const kind = sniffImage(await readHead(file, 16));
     if (!kind) throw photoErr("Use a PNG, JPEG or WebP photo.");
+    if (ugMismatch(file, ugSniff(await readHead(file, 16)))) throw photoErr("That file's name or type doesn't match its contents — choose the original photo.");
     if (typeof document === "undefined") throw photoErr("Photos can't be processed here.");
     let img = null, url = null;
     try {
@@ -3834,13 +4072,21 @@
     async uploadMedia(convId, file, opts) {
       opts = opts || {};
       if (!file) throw new Error("no file");
-      if (file.size > CHAT_MEDIA_MAX) throw new Error("File too large (max 16 MB).");
-      const sniff = await sniffChat(file);
+      if (file.size > CHAT_MEDIA_MAX && !/^image\//.test(String(file.type || ""))) throw new Error("File too large (max 16 MB).");
+      let sniff = await sniffChat(file);
       if (!sniff) throw new Error("Unsupported file — images or voice notes only.");
+      // 0048: photos (incl. marked-up ones) are re-encoded → no EXIF/GPS; audio must match its type
+      if (/^image\//.test(sniff.mime)) {
+        const img = await ugPrepareImage(file, { maxBytes: 8 * 1024 * 1024, maxPx: 2560 });
+        file = img.blob; sniff = { mime: img.mime, ext: img.ext };
+      } else {
+        await ugCheckFile(file, ["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg"], CHAT_MEDIA_MAX);
+      }
       if (mode !== "supabase") { const dataUrl = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(file); }); return { path: dataUrl, mime: sniff.mime }; }
       const orgId = await org.id(); if (!orgId) throw new Error("no organization in context");
-      const u = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2);
-      const path = orgId + "/" + convId + "/" + u + "." + sniff.ext;
+      const name = ugObjectName(sniff.ext);
+      if (!name) throw new Error("upload not available");
+      const path = orgId + "/" + convId + "/" + name;
       const { error } = await supa.storage.from("chat-media").upload(path, file, { upsert: false, contentType: sniff.mime, cacheControl: "3600" });
       if (error) throw error;
       return { path, mime: sniff.mime };
@@ -5089,9 +5335,8 @@
     "@media print{.bpb-root{display:none!important}}",
   ].join("\n");
   function bellInjectCss() {
-    if (typeof document === "undefined" || document.getElementById("bpb-style")) return;
-    const st = document.createElement("style"); st.id = "bpb-style"; st.textContent = BELL_CSS;
-    (document.head || document.documentElement).appendChild(st);
+    if (typeof document === "undefined" || document.__bpbStyle) return;
+    document.__bpbStyle = true; __helmAdoptCss(document, BELL_CSS);
   }
   // friendly label + icon for a raw notification kind
   function bellLabel(n) {
@@ -5557,7 +5802,7 @@
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat, profile, quoteShelf,
+    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat, profile, quoteShelf, uploads,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.
@@ -5757,10 +6002,8 @@
     "@media print{.bpui-toasts,.bpui-offline,.bpui-boot-overlay{display:none!important}}",
   ].join("\n");
   function injectCSS() {
-    if (doc.getElementById("bpui-style")) return;
-    var s = doc.createElement("style");
-    s.id = "bpui-style"; s.textContent = CSS;
-    (doc.head || doc.documentElement).appendChild(s);
+    if (doc.__bpuiStyle) return;
+    doc.__bpuiStyle = true; __helmAdoptCss(doc, CSS);
   }
 
   /* -------------------------------------------------------------- helpers */
@@ -6779,12 +7022,10 @@
   }
   function boot() {
     try {
-      var st = document.createElement("style");
-      st.textContent = ".req-star{color:var(--danger,#c0392b);font-weight:700}"
+      __helmAdoptCss(document, ".req-star{color:var(--danger,#c0392b);font-weight:700}"
         + ".bpui-tel{display:flex;align-items:stretch;gap:0;width:100%}"
         + ".bpui-tel>.bpui-tel-cc{flex:0 0 auto;max-width:40%;border:1px solid var(--line,#d9d4cc);border-right:0;border-radius:9px 0 0 9px;background:var(--panel-2,#f4f1ea);color:var(--ink,#1b1930);font:inherit;padding:0 6px}"
-        + ".bpui-tel>input{flex:1 1 auto;min-width:0;border-radius:0 9px 9px 0!important}";
-      document.head.appendChild(st);
+        + ".bpui-tel>input{flex:1 1 auto;min-width:0;border-radius:0 9px 9px 0!important}");
     } catch (e) {}
     loadDefaultCountry();
     scan(document);
@@ -6805,3 +7046,20 @@
   }
   if (document.readyState !== "loading") boot(); else document.addEventListener("DOMContentLoaded", boot);
 })(window);
+
+/* CSP: style-src-elem carries no 'unsafe-inline', so runtime CSS goes through a
+   constructable stylesheet (CSSOM — not an inline <style>, not governed by CSP).
+   Falls back to a <style> element only on browsers without adoptedStyleSheets. */
+function __helmAdoptCss(doc, css) {
+  try {
+    var W = doc.defaultView || window;
+    if (W.CSSStyleSheet && "adoptedStyleSheets" in doc && "replaceSync" in W.CSSStyleSheet.prototype) {
+      var sh = new W.CSSStyleSheet(); sh.replaceSync(css);
+      doc.adoptedStyleSheets = Array.prototype.slice.call(doc.adoptedStyleSheets).concat([sh]);
+      return true;
+    }
+  } catch (e) {}
+  var st = doc.createElement("style"); st.textContent = css;
+  (doc.head || doc.documentElement).appendChild(st);
+  return true;
+}

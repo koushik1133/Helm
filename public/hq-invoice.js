@@ -233,9 +233,7 @@
   function render(doc, data) {
     var m = normalize(data);
     doc.title = m.title + ' ' + m.invoiceNo;
-    var style = doc.createElement('style');
-    style.textContent = CSS;
-    (doc.head || doc.documentElement).appendChild(style);
+    __helmAdoptCss(doc, CSS);
     var body = doc.body;
     while (body.firstChild) body.removeChild(body.firstChild);
     var w = el(doc, 'div', 'inv');
@@ -303,3 +301,20 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) root.HelmInvoice = api;
 })(typeof window !== 'undefined' ? window : null);
+
+/* CSP: style-src-elem carries no 'unsafe-inline', so runtime CSS goes through a
+   constructable stylesheet (CSSOM — not an inline <style>, not governed by CSP).
+   Falls back to a <style> element only on browsers without adoptedStyleSheets. */
+function __helmAdoptCss(doc, css) {
+  try {
+    var W = doc.defaultView || window;
+    if (W.CSSStyleSheet && "adoptedStyleSheets" in doc && "replaceSync" in W.CSSStyleSheet.prototype) {
+      var sh = new W.CSSStyleSheet(); sh.replaceSync(css);
+      doc.adoptedStyleSheets = Array.prototype.slice.call(doc.adoptedStyleSheets).concat([sh]);
+      return true;
+    }
+  } catch (e) {}
+  var st = doc.createElement("style"); st.textContent = css;
+  (doc.head || doc.documentElement).appendChild(st);
+  return true;
+}
