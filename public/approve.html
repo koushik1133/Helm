@@ -132,8 +132,8 @@
 </div>
 
 <script src="/telemetry.js?v=3"></script>
-<script src="/config.js?v=95"></script>
-<script src="/store-api.js?v=117"></script>
+<script src="/config.js?v=96"></script>
+<script src="/store-api.js?v=118"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -232,7 +232,8 @@
     $("#terms").innerHTML=TERMS_HTML; $("#tver").textContent="("+TERMS_VERSION+")";
     if(quote.client_name) $("#c_name").value=quote.client_name;
     // resume state
-    if(quote.approval_status==='paid'){ showStep('stepPaid'); }
+    if(quote.reapproval_required===true){ $("#approvedNote").textContent=""; setMsg("dev", "The price changed after your earlier approval — please review the updated total and approve again."); }
+    else if(quote.approval_status==='paid'){ showStep('stepPaid'); }
     else if(quote.approval_status==='approved'){ showStep('step3'); $("#approvedNote").textContent=recordedNote(quote); }
   }
   function showStep(id){ ['step1','step2','step3','step4','stepPaid'].forEach(s=>$('#'+s).hidden=(s!==id)); }

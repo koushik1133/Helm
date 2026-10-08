@@ -25,10 +25,12 @@ const PAGES = readdirSync(PUB).filter((f) => f.endsWith('.html')).map((f) => f.s
 
 /* ---- vercel.json: last matching rule wins per key (Vercel semantics) ---- */
 const vercel = JSON.parse(readFileSync(join(ROOT, 'vercel.json'), 'utf8'));
-function vercelHeaders(p) {
+// host = null → a non-production host (branch preview); a prod host also applies
+// the host-conditioned rules (prod-only CSP overrides, legacy alias noindex).
+function vercelHeaders(p, host = null) {
   const out = {};
   for (const r of vercel.headers) {
-    if (r.has) continue; // host-conditioned rules (legacy *.vercel.app noindex) — checked separately below
+    if (r.has && !(host && r.has.every((c) => c.type === 'host' && c.value === host))) continue;
     // Sources use only regex-compatible path-to-regexp syntax (groups, \\.),
     // verified against path-to-regexp@6 when written.
     if (new RegExp('^' + r.source + '$').test(p)) for (const h of r.headers) out[h.key.toLowerCase()] = h.value;
@@ -103,8 +105,11 @@ for (const p of paths) {
     }
   });
   t(`${p}: CSP directives match`, () => {
-    assert.deepEqual(cspMap(s['content-security-policy']), cspMap(v['content-security-policy']), `server.js CSP ≠ vercel.json for ${p}`);
-    assert.deepEqual(cspMap(nf['content-security-policy']), cspMap(v['content-security-policy']), `_headers CSP ≠ vercel.json for ${p}`);
+    // server.js is asked as www.helm.events and _headers is prod-only → compare with
+    // the PROD-host view of vercel.json (host-conditioned CSP overrides applied).
+    const vp = vercelHeaders(p, 'www.helm.events');
+    assert.deepEqual(cspMap(s['content-security-policy']), cspMap(vp['content-security-policy']), `server.js CSP ≠ vercel.json for ${p}`);
+    assert.deepEqual(cspMap(nf['content-security-policy']), cspMap(vp['content-security-policy']), `_headers CSP ≠ vercel.json for ${p}`);
   });
   t(`${p}: X-Robots-Tag matches`, () => {
     assert.equal(s['x-robots-tag'], v['x-robots-tag'], `server.js X-Robots-Tag ≠ vercel.json for ${p}`);
@@ -185,20 +190,36 @@ t('CAPTCHA CSP allowance (Turnstile) only on the login / reset pages', () => {
   }
 });
 
-t('CSP: Supabase allowed ONLY for the exact prod + staging projects (no *.supabase.co), on every host + page', () => {
-  const PROJ = ['nqltzgiwznphugcfhmbm.supabase.co', 'xizehqgeyjcfpzrdymly.supabase.co'];
+t('CSP: prod hosts allow ONLY the prod Supabase project; previews/local also allow staging (no *.supabase.co)', () => {
+  const PRODP = 'nqltzgiwznphugcfhmbm.supabase.co', STGP = 'xizehqgeyjcfpzrdymly.supabase.co';
   for (const [file, src] of [['vercel.json', readFileSync(join(ROOT, 'vercel.json'), 'utf8')], ['_headers', readFileSync(join(PUB, '_headers'), 'utf8')], ['server.js', readFileSync(join(ROOT, 'server.js'), 'utf8')]])
     assert.ok(!/\*\.supabase\.co/.test(src), file + ' still allows any *.supabase.co project');
+  assert.ok(!readFileSync(join(PUB, '_headers'), 'utf8').includes(STGP), '_headers (served from public/) must not name the staging project');
   const hostsIn = (v) => (v || '').split(/\s+/).filter((x) => /supabase\.co/.test(x));
+  const want = (projs) => [...projs.map((x) => 'https://' + x), ...projs.map((x) => 'wss://' + x)].sort();
+  const LOCAL_REQ = { headers: { host: 'localhost:3000' } };
   for (const p of PAGES) {
-    for (const [who, h] of [['vercel.json', vercelHeaders('/' + p)], ['_headers', netlifyHeaders('/' + p)], ['server.js', serverHeaders('/' + p)]]) {
+    const cases = [['_headers', netlifyHeaders('/' + p), [PRODP]], ['server.js@prod', serverHeaders('/' + p), [PRODP]],
+      ['vercel.json@preview', vercelHeaders('/' + p), [PRODP, STGP]],
+      ['server.js@localhost', { 'content-security-policy': server.securityHeadersFor(LOCAL_REQ, join(PUB, p + '.html'))['Content-Security-Policy'] }, [PRODP, STGP]]];
+    for (const host of ['www.helm.events', 'helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app'])
+      cases.push(['vercel.json@' + host, vercelHeaders('/' + p, host), [PRODP]]);
+    for (const [who, h, projs] of cases) {
       const c = cspMap(h['content-security-policy']);
-      const conn = hostsIn(c['connect-src']).sort();
-      assert.deepEqual(conn, [...PROJ.map((x) => 'https://' + x), ...PROJ.map((x) => 'wss://' + x)].sort(), `${who} /${p} connect-src supabase hosts`);
+      assert.deepEqual(hostsIn(c['connect-src']).sort(), want(projs), `${who} /${p} connect-src supabase hosts`);
       for (const d of ['img-src', 'media-src']) {
-        for (const x of hostsIn(c[d])) assert.ok(PROJ.some((pr) => x === 'https://' + pr), `${who} /${p} ${d} has unexpected ${x}`);
+        for (const x of hostsIn(c[d])) assert.ok(projs.some((pr) => x === 'https://' + pr), `${who} /${p} ${d} has unexpected ${x}`);
       }
+      if (projs.length === 1) assert.ok(!(h['content-security-policy'] || '').includes(STGP), `${who} /${p} CSP names staging`);
     }
+  }
+});
+
+t('config.staging.js is 404-redirected on every production host', () => {
+  for (const host of ['www.helm.events', 'helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app']) {
+    const r = vercel.redirects.find((x) => new RegExp('^' + x.source + '$').test('/config.staging.js') &&
+      x.has && x.has.some((c) => c.type === 'host' && c.value === host));
+    assert.ok(r && r.destination === '/404' && r.permanent === false, host + ' must 404 /config.staging.js');
   }
 });
 

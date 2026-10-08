@@ -17,7 +17,12 @@ import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const SRC = readFileSync(join(ROOT, 'public', 'config.js'), 'utf8');
+// Staging config now lives in public/config.staging.js (loaded only on non-prod
+// hosts). Evaluating it BEFORE config.js reproduces the browser order: when
+// SUPABASE_STAGING is already defined, config.js routes immediately.
+const CONFIG_SRC = readFileSync(join(ROOT, 'public', 'config.js'), 'utf8');
+const STAGING_SRC = readFileSync(join(ROOT, 'public', 'config.staging.js'), 'utf8');
+const SRC = STAGING_SRC + '\n' + CONFIG_SRC;
 let passed = 0;
 const t = (n, f) => { f(); passed++; console.log('  ✓ ' + n); };
 
@@ -91,6 +96,46 @@ t('7. production host never resolves to STAGING even when staging IS configured'
 t('router uses explicit allowlists, not broad substring match', () => {
   assert.ok(/PROD_HOSTS/.test(SRC) && /STAGING_HOSTS/.test(SRC), 'explicit allowlists present');
   assert.ok(!/\/staging\/\.test\(h\)/.test(SRC), 'no broad /staging/.test(h) substring rule');
+});
+
+// ---- browser load order: config.js alone, then (non-prod only) config.staging.js ----
+function browserLoad(host, { stagingLoads = true, store = {} } = {}) {
+  const writes = [];
+  const window = {};
+  const document = { readyState: 'loading', title: 'Helm', write: (h) => writes.push(h),
+    documentElement: { setAttribute() {} }, addEventListener() {}, getElementById: () => null, body: null };
+  const ls = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => (store[k] = v), removeItem: (k) => delete store[k] };
+  const con = { info() {}, warn() {}, error() {} };
+  const exec = (src) => new Function('window', 'location', 'localStorage', 'console', 'document', src)(window, { hostname: host }, ls, con, document);
+  exec(CONFIG_SRC);
+  const before = { ...window.SUPABASE_CONFIG };
+  if (writes.length && stagingLoads) exec(STAGING_SRC);
+  return { writes, before, after: window.SUPABASE_CONFIG };
+}
+t('8. config.js itself carries NO staging project URL/key (prod bundle is clean)', () => {
+  assert.ok(!/xizehqgeyjcfpzrdymly/.test(CONFIG_SRC), 'staging ref in config.js');
+  assert.ok(!/window\.SUPABASE_STAGING\s*=/.test(CONFIG_SRC), 'SUPABASE_STAGING defined in config.js');
+});
+t('9. production hosts never request config.staging.js and keep prod creds', () => {
+  for (const host of ['www.helm.events', 'helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app']) {
+    const r = browserLoad(host);
+    assert.equal(r.writes.length, 0, host + ' requested staging config');
+    assert.ok(/nqltzgiwznphugcfhmbm/.test(r.after.url), host);
+    assert.ok(!r.after.__staging, host);
+  }
+});
+t('10. localhost / preview load config.staging.js and are BLANK until it runs → STAGING', () => {
+  for (const host of ['localhost', 'helm-git-x-team.vercel.app']) {
+    const r = browserLoad(host);
+    assert.equal(r.writes.length, 1, host);
+    assert.match(r.writes[0], /<script src="\/config\.staging\.js\?v=[^"]+"><\/script>/);
+    assert.equal(r.before.url, '', host + ' must be blank before staging loads');
+    assert.ok(r.after.__staging && /xizehqgeyjcfpzrdymly/.test(r.after.url), host);
+  }
+});
+t('11. staging file fails to load → stays fail-closed (never prod), even with the localhost opt-in', () => {
+  const r = browserLoad('localhost', { stagingLoads: false, store: { 'helm.allowProdFromLocalhost': String(Date.now()) } });
+  assert.equal(r.after.url, ''); assert.equal(r.after.anonKey, ''); assert.ok(r.after.__localFallback);
 });
 
 console.log(`\nconfig-router: ${passed} assertion(s) passed.`);

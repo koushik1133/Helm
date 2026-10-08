@@ -98,6 +98,7 @@
         </div>
         <div class="tot"><div class="muted">Total</div><div class="amt" id="total">—</div></div>
       </div>
+      <div id="reapprBanner" role="status" hidden style="margin:10px 0;padding:10px 12px;border-radius:10px;background:#fff7e6;color:#7a4b00;border:1px solid #f5d28a"></div>
       <div class="steps" id="steps"></div>
       <div class="nextbar">
         <div class="hint" id="nextHint"></div>
@@ -137,8 +138,8 @@
 </div>
 
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=95"></script>
-<script src="store-api.js?v=117"></script>
+<script src="config.js?v=96"></script>
+<script src="store-api.js?v=118"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -219,6 +220,7 @@
       S(async()=>{ const [rs,td]=await Promise.all([BPStore.inventory.reservations(id), BPStore.checklist.list(id,"teardown")]);
         teardownSummary={ retDone:rs.filter(r=>r.status==='returned').length, retTotal:rs.length, tdDone:td.filter(t=>t.status==='done').length, tdTotal:td.length }; }),
       S(async()=>{ settleSummary=await BPStore.settlement.summary(id); }),
+      S(async()=>{ const st=await BPStore.quotes.staleApprovals([id]); staleInfo = st.has(id) ? ((st.detail||{})[id]||{}) : null; }),
       S(async()=>{ const [pl,c]=await Promise.all([BPStore.closure.pl(id), BPStore.closure.get(id)]);
         closureSummary={ profit:pl.profit, pct:pl.marginPct, closed:!!(c&&c.closed_at) }; }),
       S(async()=>{ const md=await BPStore.media.list(id); mediaSummary={ photos:md.filter(m=>m.kind==='photo').length, videos:md.filter(m=>m.kind==='video').length, gallery:md.filter(m=>m.in_gallery).length, total:md.length }; }),
@@ -230,7 +232,26 @@
   const statBadge=(s)=> s==="confirmed"?'<span class="stat ok">Confirmed</span>':s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
   const apprBadge=(a)=> a==="paid"?'<span class="stat ok">Paid</span>':a==="approved"?'<span class="stat ok">Approved</span>':a==="sent"?'<span class="stat st">Sent for approval</span>':"";
 
+  let staleInfo=null;   // 0052: client approval went stale after a price change
+  function renderReapproval(){
+    const el=$("#reapprBanner"); if(!el) return;
+    if(!staleInfo){ el.hidden=true; el.innerHTML=""; return; }
+    const amt=(v)=> (v==null||!canFin) ? "" : inr(Number(v));
+    const was=amt(staleInfo.prev), now=amt(staleInfo.next);
+    el.innerHTML=`<b>⚠ Price changed after approval — client must approve again.</b>${was&&now?` <span>Approved ${esc(was)} → now ${esc(now)}.</span>`:""}
+      <div class="muted" style="font-size:13px;margin-top:2px">Confirming, locking the plan and client payments are paused until the client approves the new total.</div>
+      ${canEdit?`<button type="button" class="btn" id="reapprBtn" style="margin-top:6px">Send new approval link</button>`:""}`;
+    el.hidden=false;
+    const b=$("#reapprBtn"); if(b) b.addEventListener("click",()=>BPUI.guard(b,async()=>{
+      try{ const tok=await BPStore.quotes.reissueApprovalLink(id);
+        const url=await BPStore.links.build("quote", tok, location.origin+"/approve.html?token="+encodeURIComponent(tok));
+        try{ await navigator.clipboard.writeText(url); }catch(_){}
+        await BPUI.prompt("New approval link (the old link no longer works). Send it to the client — they confirm with a fresh OTP.",{title:"New approval link",label:"Link",value:url,okLabel:"Done"});
+      }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"create a new approval link"}),{type:"err"}); }
+    }));
+  }
   function render(){
+    renderReapproval();
     $("#code").textContent=ev.code;
     $("#statusBadge").innerHTML=statBadge(ev.status);
     $("#apprBadge").innerHTML=apprBadge(ev.approvalStatus);
@@ -462,7 +483,7 @@
     try{
       await BPUI.guard(btn||$("#advBtn"), async()=>{
         lock(true);
-        try{ await BPStore.quotes.setStage(id, k); ev.lifecycleStage=k; BPUI.toast("Stage set to "+STAGES[stageIndex(k)].label+".",{type:"ok"}); }
+        try{ const r=await BPStore.quotes.setStageGuided(id, k); if(!r) return; ev.lifecycleStage=k; BPUI.toast("Stage set to "+STAGES[stageIndex(k)].label+".",{type:"ok"}); }
         catch(e){ if(await BPStore.auth.handleAuthError(e)) return;  // stale token → refresh silently instead of a scary popup
           BPUI.toast(BPUI.friendlyError(e,{action:"update the stage"}),{type:"err"}); }
       });

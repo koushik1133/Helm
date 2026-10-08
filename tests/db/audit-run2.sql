@@ -410,7 +410,7 @@ do $$ declare s text; begin
   s := pg_temp.try($q$select public.set_lifecycle_stage('a0000000-0000-4000-8000-00000042a003', 'closed')$q$);
   perform pg_temp.res('RC4-12 denied for everyone: set_lifecycle_stage can''t jump to closed', s like '22023%', s);
   perform pg_temp.login('a_admin@a.test');
-  s := pg_temp.try($q$select public.set_lifecycle_stage('a0000000-0000-4000-8000-00000042a003', 'planning')$q$);
+  s := pg_temp.try($q$select public.set_lifecycle_stage('a0000000-0000-4000-8000-00000042a003', 'planning', 'audit-run2: skip past consent (0052 admin override)')$q$);
   perform pg_temp.res('RC4-13 allowed: admin sets an ordinary stage', s = '', s);
   perform pg_temp.su();
   update public.role_access set can_edit = false where role = 'sales' and area = 'quotes' and org_id = 'a0000000-0000-4000-8000-000000000001';
