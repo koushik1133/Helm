@@ -470,6 +470,7 @@
             ? // finished event → read-only set: review its details, reopen the workspace, download
               `<button type="button" class="ic go" data-act="details" title="View closure, P&amp;L and feedback for this completed event" aria-label="Details for ${esc(x.code)}">📄 Details</button>
                <button type="button" class="ic go" data-act="workspace" title="Open the event workspace" aria-label="Open workspace for ${esc(x.code)}">⧉ Open</button>
+               <button type="button" class="ic go" data-act="edit" title="View the quotation, pricing and floor layout (don't save changes to a closed event)" aria-label="View quote and layout for ${esc(x.code)}">👁 View quote &amp; layout</button>
                ${egReady&&egIndex[x.id]?`<button type="button" class="ic go" data-act="egroup" aria-label="Open the event group for ${esc(x.code)}">💬 Event group</button>`:""}
                <button type="button" class="ic" data-act="download" aria-label="Download ${esc(x.code)}">Download</button>
                ${canDelete?`<button type="button" class="ic del" data-act="del" title="${shelf.ready?"Move to Deleted quotes (restorable)":"Delete permanently"}" aria-label="Delete ${esc(x.code)}">✕</button>`:""}`

@@ -447,7 +447,7 @@
     // stage has no visible recommended module.
     const focused=visible.filter(c=>recommended.includes(c.key));
     const rest=visible.filter(c=>!recommended.includes(c.key));
-    let showAll=false; try{ showAll=localStorage.getItem("helm_ev_showall")==="1"; }catch{}
+    let showAll=true; try{ showAll=localStorage.getItem("helm_ev_showall")!=="0"; }catch{}   // default: every tool visible; user can collapse
     if(!focused.length){
       // no specific recommendation for this stage — show all, no toggle
       $("#mods").innerHTML=visible.map(cardHtml).join("");
