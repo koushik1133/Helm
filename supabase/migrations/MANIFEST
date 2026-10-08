@@ -69,3 +69,6 @@ forward  supabase/migrations/0053_password_lockout.sql
 forward  supabase/migrations/0054_security_alerts.sql
 forward  supabase/migrations/0055_phone_verify.sql
 forward  supabase/migrations/0056_onboarding_checkout.sql
+forward  supabase/migrations/0057_welcome_email.sql
+forward  supabase/migrations/0058_trial_reminders.sql
+forward  supabase/migrations/0059_getting_started.sql

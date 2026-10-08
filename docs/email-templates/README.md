@@ -30,3 +30,12 @@ By default Supabase sends from "Supabase Auth" via a shared, heavily rate-limite
 4. Do this on staging first, test, then prod.
 
 The app side never reveals whether an email has an account: sign-up, "Resend email" and "Resend confirmation link" always show the same generic message.
+
+## Welcome e-mails (NOT Supabase Auth templates — sent by the `welcome-mailer` edge function)
+
+| File | When | Subject line |
+|---|---|---|
+| `welcome-owner.html` | someone creates a new studio (migration 0057) | `Welcome to Helm — {{ studio }} is ready` |
+| `welcome-member.html` | an invited member joins a studio (migration 0057) | `You've joined {{ studio }} on Helm` |
+
+These are light-only previews rendered from `supabase/functions/welcome-mailer/templates.ts` (the source of truth; `{{ name }}` / `{{ studio }}` are filled and HTML-escaped there). Do **not** paste them into Supabase. Setup steps are in `supabase/functions/README.md` → "Welcome e-mails".

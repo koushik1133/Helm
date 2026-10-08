@@ -84,6 +84,10 @@
       ".hau-note[hidden]{display:none}",
       ".hau-note-ic{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--accent-soft,#f1ebfd);color:var(--accent,#6d28d9)}",
       ".hau-note.warn .hau-note-ic{background:rgba(232,145,45,.14);color:var(--warn-text,#8f5f00)}",
+      /* 0058 free-trial notice: urgent at <= 3 days left and once the trial has ended */
+      ".hau-note.urgent{border-color:rgba(220,38,38,.45);box-shadow:0 0 0 1px rgba(220,38,38,.18),0 12px 32px rgba(20,27,46,.14)}",
+      ".hau-note.urgent .hau-note-ic{background:rgba(220,38,38,.12);color:var(--bad,#b91c1c)}",
+      "html[data-theme=dark] .hau-note.urgent .hau-note-ic{background:rgba(248,113,113,.16);color:#fca5a5}",
       ".hau-note-ic svg{width:18px;height:18px}.hau-note-x svg{width:16px;height:16px}",
       ".hau-note-t{margin:0;font-weight:650;font-size:14px;color:var(--ink,#141b2e)}",
       ".hau-note-b{margin:2px 0 0;color:var(--ink-2,#4a5673);font-size:13px}",
@@ -922,6 +926,7 @@
     shield: [["path", { d: "M12 3l7 3v5c0 4.5-3 8.3-7 9.5-4-1.2-7-5-7-9.5V6l7-3z" }], ["path", { d: "M9.5 12l1.8 1.8L15 10" }]],
     user: [["circle", { cx: "12", cy: "8", r: "3.5" }], ["path", { d: "M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" }]],
     lock: [["rect", { x: "5", y: "11", width: "14", height: "9", rx: "2" }], ["path", { d: "M8 11V8a4 4 0 018 0v3" }]],
+    clock: [["circle", { cx: "12", cy: "12", r: "8.5" }], ["path", { d: "M12 7.5V12l3 2" }]],
     x: [["path", { d: "M6 6l12 12M18 6L6 18" }]]
   };
   var notes = []; var noteHost = null; var NOTE_MAX = 2;
@@ -1154,6 +1159,40 @@
     }).catch(function () {});
   }
 
+  /* ------------------------------- free-trial notice (0058) — studio admins only */
+  // Pure (unit-tested): my_trial_status() answer → notice spec, or null (no notice).
+  //   trial, > 3 days → calm, dismissible (snoozed for a day); trial, <= 3 days → urgent,
+  //   dismissible; ended → urgent, NOT dismissible. Members / clients / paid studios → null.
+  function trialNotice(t) {
+    if (!t || typeof t !== "object" || t.is_admin !== true || t.can_pay !== true) return null;
+    if (t.state === "ended") return { id: "hauTrialNote", tone: "urgent", urgent: true, dismissible: false,
+      title: "Your trial has ended — choose a plan to keep using Helm",
+      body: "Your data is safe. Pick a plan to keep your team, events and clients running." };
+    if (t.state !== "trial") return null;
+    var n = Math.max(0, Math.floor(Number(t.days_left)));
+    if (!isFinite(n)) return null;
+    var when = n === 0 ? "today" : n === 1 ? "tomorrow" : "in " + n + " days";
+    var urgent = n <= 3;
+    return { id: "hauTrialNote", tone: urgent ? "urgent" : "", urgent: urgent, dismissible: true,
+      title: "Your free trial ends " + when, body: urgent ? "Choose a plan now so nothing stops on your studio." : "Choose a plan to keep using Helm after your trial." };
+  }
+  var trialShown = false;
+  function trialStatus() {
+    var st = S(); if (!st || !st.auth.user() || !st.subscription || !st.subscription.trial) return;
+    if (pageName() === "checkout") return;
+    st.subscription.trial().then(function (t) {
+      var spec = trialNotice(t);
+      if (!spec || trialShown || !doc.body) return;
+      var key = "trial_" + String(t.ends_at || "") + (spec.urgent ? "_u" : "");
+      if (spec.dismissible && noteSnoozed(key)) return;
+      trialShown = true;
+      showNote({ id: spec.id, priority: spec.urgent ? 1 : 4, icon: "clock", tone: spec.tone, role: spec.urgent ? "alert" : "status",
+        title: spec.title, body: spec.body,
+        primary: { label: "Choose a plan", onClick: function () { try { location.assign("checkout.html?next=" + encodeURIComponent(pageName() + ".html")); } catch (e) {} } },
+        onDismiss: spec.dismissible ? function () { snoozeNote(key, 1); } : null, dismissLabel: "Dismiss — remind me tomorrow" });
+    }).catch(function () {});
+  }
+
   var chromeMounted = false;
   function mountAppChrome() {
     if (chromeMounted) return; chromeMounted = true;
@@ -1168,6 +1207,7 @@
     adminTwoStep();
     profileNudge();
     subscriptionStatus();
+    trialStatus();
     accountCard(S());
   }
 
@@ -1179,6 +1219,7 @@
     profileForm: profileForm,
     showNote: showNote,
     hideNote: hideNote,
+    trialNotice: trialNotice,
     _safeQr: safeQr,
   };
 })(window);
