@@ -73,8 +73,8 @@ t('booklet.html: no inline script/style/style=, noindex, no-referrer, store-api 
   assert.match(h, /<meta name="robots" content="noindex,nofollow,noarchive">/);
   assert.match(h, /<meta name="referrer" content="no-referrer">/);
   assert.match(h, /store-api\.js\?v=132/);
-  assert.match(h, /booklet\.js\?v=3/);
-  for (const id of ['details', 'layout2d', 'layout3d', 'menu', 'quote', 'versions', 'payments', 'terms', 'printBtn', 'tocList'])
+  assert.match(h, /booklet\.js\?v=5/);
+  for (const id of ['details', 'layout2d', 'layout3d', 'menu', 'quote', 'versions', 'payments', 'receiptTable', 'receiptLines', 'terms', 'printBtn', 'tocList'])
     assert.match(h, new RegExp('id="' + id + '"'), id);
 });
 t('booklet.js + booklet-share.js: DOM APIs only, print via window.print', () => {
@@ -84,6 +84,13 @@ t('booklet.js + booklet-share.js: DOM APIs only, print via window.print', () => 
   }
   assert.match(read('public/booklet.js'), /global\.print\(\)/);
   assert.match(read('public/booklet.css'), /@media print/);
+});
+t('booklet.js: receipts rendered via textContent; 0070 outstanding wins, credit shown, client fallback kept', () => {
+  const s = read('public/booklet.js');
+  assert.match(s, /function renderReceipts\(rc\)/);
+  assert.match(s, /Array\.isArray\(p\.receipts\)/);
+  assert.match(s, /"Credit"/);
+  assert.match(s, /total - \(Number\(p\.paid\) \|\| 0\)/);
 });
 t('vercel.json: /booklet noindex + no-store + no-referrer + user-image CSP', () => {
   const v = JSON.parse(read('vercel.json'));

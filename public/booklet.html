@@ -114,6 +114,11 @@
           <thead><tr><th scope="col">Milestone</th><th scope="col">Due</th><th scope="col">Status</th><th scope="col" class="amt">Amount</th></tr></thead>
           <tbody id="payLines"></tbody>
         </table>
+        <table class="lines" id="receiptTable" hidden>
+          <caption class="sr-only">Payments received</caption>
+          <thead><tr><th scope="col">Receipt</th><th scope="col">Date</th><th scope="col">Method</th><th scope="col" class="amt">Amount</th></tr></thead>
+          <tbody id="receiptLines"></tbody>
+        </table>
       </section>
 
       <section class="sec" id="terms" aria-labelledby="h_terms">
@@ -140,7 +145,7 @@
 <script src="/telemetry.js?v=3"></script>
 <script src="/config.js?v=97"></script>
 <script src="/store-api.js?v=132"></script>
-<script src="/booklet-pkg.js?v=1"></script>
-<script src="/booklet.js?v=3"></script>
+<script src="/booklet-pkg.js?v=3"></script>
+<script src="/booklet.js?v=5"></script>
 </body>
 </html>

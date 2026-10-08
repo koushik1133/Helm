@@ -191,6 +191,7 @@
       const cd = fact(dl, "Your coordinator", co.name || "");
       if (cd && co.phone) { const a = el("a", "tel", String(co.phone).slice(0, 32)); a.setAttribute("href", "tel:" + String(co.phone).replace(/[^\d+]/g, "")); cd.appendChild(doc.createTextNode(co.name ? " · " : "")); cd.appendChild(a); }
     }
+    global.HelmBookletGuests = num(e.guests) || 0;
     fact(dl, "Guests", num(e.guests) != null ? Number(e.guests).toLocaleString(FMT.locale) : "");
     fact(dl, "Reference", e.code);
   }
@@ -308,9 +309,14 @@
     const p = d.payments || {}, ms = Array.isArray(p.milestones) ? p.milestones : [];
     const total = quoteLines(d.quote).total;
     const sum = clear($("#paySum"));
-    [["Total", total], ["Paid", p.paid], ["Balance", p.outstanding]].forEach((x) => {
+    const rc = Array.isArray(p.receipts) ? p.receipts.filter((x) => x && typeof x === "object") : null;
+    // 0070 servers send outstanding = total - paid (receipts present); older ones only the unpaid milestones
+    const bal = (rc || ms.length) && p.outstanding != null && num(p.outstanding) != null ? Number(p.outstanding) : (total != null ? total - (Number(p.paid) || 0) : p.outstanding);
+    const credit = bal != null && num(bal) != null && Number(bal) < 0;
+    [["Total", total], ["Paid", p.paid], [credit ? "Credit" : "Balance", credit ? -Number(bal) : bal]].forEach((x) => {
       const b = el("div"); b.appendChild(el("div", "k", x[0])); b.appendChild(el("div", "v", money(x[1]))); sum.appendChild(b);
     });
+    renderReceipts(rc || []);
     const tb = clear($("#payLines"));
     if (!ms.length) { const tr = el("tr"); const td = el("td", "empty", "The payment schedule will be shared by the studio."); td.setAttribute("colspan", "4"); tr.appendChild(td); tb.appendChild(tr); return; }
     ms.forEach((m) => {
@@ -318,6 +324,19 @@
       const st = String(m.status || "due").toLowerCase().replace(/[^a-z_]/g, "");
       const td = el("td"); td.appendChild(el("span", "st " + st, st.replace(/_/g, " "))); tr.appendChild(td);
       tr.appendChild(el("td", "amt", money(m.amount))); tb.appendChild(tr);
+    });
+  }
+  // receipts: number, date, amount, method (textContent only)
+  function renderReceipts(rc) {
+    const tb = $("#receiptLines"), wrap = $("#receiptTable");
+    if (!tb) return; clear(tb);
+    if (wrap) wrap.hidden = !rc.length;
+    rc.slice(0, 200).forEach((x) => {
+      const tr = el("tr");
+      tr.appendChild(el("td", "", x.number ? String(x.number).slice(0, 60) : "Receipt"));
+      tr.appendChild(el("td", "", shortDate(x.date) || "—"));
+      tr.appendChild(el("td", "", x.method ? String(x.method).slice(0, 40) : "—"));
+      tr.appendChild(el("td", "amt", money(x.amount))); tb.appendChild(tr);
     });
   }
   function renderTerms(d) {
