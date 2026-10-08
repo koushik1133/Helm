@@ -49,6 +49,16 @@ export function createClient(_url?: string, key?: string, opts?: any): SupabaseC
       },
     },
     from: (table: string) => makeBuilder(table, key),
+    // storage subset (0069 booklet-snapshot): globalThis.__supaStorage(bucket, op, path, key) -> { data, error }
+    storage: {
+      from: (bucket: string) => ({
+        download: (path: string) => {
+          g().__supaLog.push({ storage: bucket, op: "download", path, key });
+          const fn = g().__supaStorage || (() => ({ data: null, error: { message: "not found" } }));
+          return Promise.resolve(fn(bucket, "download", path, key));
+        },
+      }),
+    },
   };
 }
 
