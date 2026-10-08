@@ -88,6 +88,7 @@
 
   let mode = "local";           // resolved backend: 'supabase' | 'server' | 'local'
   let supa = null;              // Supabase client (lazy)
+  let urlAuthCode = false, urlAuthError = "";   // PKCE ?code= return (see init)
   let ready = null;             // init() promise
   let currentUser = null;       // signed-in Supabase user (or null)
   let roleCache = null;         // this user's RBAC role
@@ -917,26 +918,57 @@
     async remove(id) { needUser(); const { error } = await supa.from(TABLE).delete().eq("id", id); if (error) throw error; return true; },
   };
 
+  // Account enumeration: one answer whether or not an email is registered.
+  const GENERIC_SIGNIN = "Invalid email or password.";
+  const GENERIC_SENT = "If this email can be used, we've sent a link. It can take a few minutes — check spam too.";
+  function genericSignInError(error) {
+    const c = String((error && error.code) || ""), m = String((error && error.message) || ""), st = Number(error && error.status) || 0;
+    if (st === 429 || /rate limit|too many/i.test(m) || /captcha/i.test(m + " " + c)) return error;
+    if (global.BPUI && global.BPUI.isNetworkError && global.BPUI.isNetworkError(error)) return error;
+    if (/invalid_credentials|email_not_confirmed|user_not_found|user_banned|invalid login|not confirmed|credentials|user not found/i.test(c + " " + m) || st === 400) {
+      const e = new Error(GENERIC_SIGNIN); e.code = "invalid_credentials"; return e; }
+    return error;
+  }
+
   /* ---------------- init: pick the best available backend ---------------- */
   async function init() {
     if (ready) return ready;
     ready = (async () => {
-      // A password-reset email link that landed on any other page (e.g. the Site
-      // URL) must NOT just sign the person in: hand it to the reset page.
+      // PKCE flow (no tokens in the URL): email / OAuth links return with ?code=,
+      // which supabase-js exchanges (detectSessionInUrl) using the code verifier it
+      // saved in THIS browser when the link was requested. Note it before init so a
+      // failed exchange (link opened in another browser / already used) can be shown.
+      // A legacy implicit-flow fragment (#access_token=…) is never read: strip it.
       try {
-        if (/(^#|&)type=recovery(&|$)/.test(location.hash || "") && pageKey() !== "reset-password") {
-          location.replace("/reset-password" + location.hash);
-          return new Promise(() => {});
-        }
+        const qs = new URLSearchParams(location.search || "");
+        urlAuthCode = !!qs.get("code");
+        urlAuthError = qs.get("error_code") || qs.get("error") || "";
+        if (/(^#|&)(access_token|refresh_token|provider_token)=/.test(location.hash || "") && global.history && global.history.replaceState)
+          global.history.replaceState(null, "", location.pathname + location.search);
       } catch (e) {}
       if (supaConfigured()) {
         try { const ok = await loadSupabaseLib();
           if (ok && global.supabase && global.supabase.createClient) {
             supa = global.supabase.createClient(CFG.url, CFG.anonKey,
-              { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage },
+              { auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: window.localStorage },
                 global: { fetch: authAwareFetch } });
-            const { data: { session } } = await supa.auth.getSession();
+            const gs = await supa.auth.getSession();
+            const session = gs && gs.data ? gs.data.session : null;
             currentUser = session ? session.user : null;
+            if (urlAuthCode) {
+              // the code was exchanged (or failed): drop ?code= from the address bar
+              if (!session && !urlAuthError) urlAuthError = "pkce_exchange_failed";
+              try { const q = new URLSearchParams(location.search || ""); ["code", "type"].forEach((k) => q.delete(k)); const qs = q.toString();
+                if (global.history && global.history.replaceState) global.history.replaceState(null, "", location.pathname + (qs ? "?" + qs : "") + (location.hash || "")); } catch (e) {}
+            }
+            // a reset link that landed on another page (e.g. the Site URL) must not just
+            // sign the person in: the signed token says "recovery" → the reset page
+            try {
+              if (session && pageKey() !== "reset-password" && jwtAmrMethods(session.access_token).indexOf("recovery") !== -1 && urlAuthCode) {
+                location.replace("/reset-password");
+                return new Promise(() => {});
+              }
+            } catch (e) {}
             if (currentUser) hadSession = true;
             // Session-expiry watcher: a SIGNED_OUT we did not ask for (refresh token
             // failed / revoked / signed out in another tab) → back to login.
@@ -1117,6 +1149,10 @@
     user: () => (pendingStep ? null : currentUser),
     // the signed-in account even while a step is pending (login / reset pages only)
     pendingUser: () => currentUser,
+    // "" | the error from an auth link return: "pkce_exchange_failed" = the ?code=
+    // could not be exchanged (opened in a different browser, or used / expired).
+    linkError: () => urlAuthError,
+    linkReturned: () => urlAuthCode,
     pendingStep: () => pendingStep,
     resolveGate: () => evaluateGate(),
     // same-site ?next= sanitiser (login.html) — always returns one of the app's own pages
@@ -1212,7 +1248,7 @@
         const prev = currentUser;
         if (prev) { explicitSignOut = true; try { await supa.auth.signOut({ scope: "local" }); } catch (e) {} currentUser = null; pendingStep = null; }
         const { data, error } = await supa.auth.signInWithPassword(captchaToken ? { email, password, options: { captchaToken } } : { email, password });
-        if (error) throw error;
+        if (error) throw genericSignInError(error);
         const st = sessionStart();
         if ((prev && prev.id !== data.user.id) || (st && st.uid !== data.user.id)) userLocalClear();
         currentUser = data.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = false;
@@ -1231,8 +1267,19 @@
       if (CAPTCHA && !captchaToken) { const e = new Error("Please complete the security check."); e.code = "captcha_required"; throw e; }
       localAuthOp++;
       try {
-        const { data, error } = await supa.auth.signUp(captchaToken ? { email, password, options: { captchaToken } } : { email, password });
-        if (error) throw error;
+        // emailRedirectTo: the confirm link returns to the sign-in page with ?code= (PKCE)
+        const so = { emailRedirectTo: (opts && opts.emailRedirectTo) || (location.origin + "/login.html") };
+        if (captchaToken) so.captchaToken = captchaToken;
+        const { data, error } = await supa.auth.signUp({ email, password, options: so });
+        if (error) {
+          const c = String(error.code || ""), m = String(error.message || ""), st = Number(error.status) || 0;
+          if (st === 429 || /rate limit|too many/i.test(m)) { const e = new Error("Too many requests — please wait a few minutes and try again."); e.code = "rate_limited"; throw e; }
+          if (/captcha/i.test(m)) { const e = new Error("The security check failed — please try again."); e.code = "captcha_failed"; throw e; }
+          // "already registered" must look exactly like a fresh sign-up awaiting confirmation
+          if (/user_already_exists|email_exists|already registered|already exists/i.test(c + " " + m)) return { user: null, session: null, generic: GENERIC_SENT };
+          throw error;
+        }
+        if (!data.session) return { user: null, session: null, generic: GENERIC_SENT };
         if (data.session) { userLocalClear(); currentUser = data.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = false; stampSessionStart(currentUser.id, true); await evaluateGate(); }
         return { user: data.user, session: data.session };   // session null when email confirmation is required
       } finally { localAuthOp--; }
@@ -1242,8 +1289,8 @@
     // pending studio signup, calls create_studio). redirectTo must be an allowed
     // Redirect URL in Supabase → Authentication → URL Configuration.
     // No offline access is requested: Helm never calls Google APIs, so it neither
-    // needs nor should receive a long-lived Google refresh token. The implicit flow
-    // is kept on purpose (PKCE recommended later — docs/AUTH-DASHBOARD-SETTINGS.md).
+    // needs nor should receive a long-lived Google refresh token. PKCE flow: Google
+    // returns to redirectTo with ?code=, exchanged in init() (detectSessionInUrl).
     async signInWithGoogle(redirectTo) {
       if (!supa) throw new Error("Supabase not configured");
       const { data, error } = await supa.auth.signInWithOAuth({
@@ -1305,6 +1352,7 @@
       return true;
     },
     // ---- self-service password reset / change -----------------------------------
+    genericMessages: { signIn: GENERIC_SIGNIN, sent: GENERIC_SENT },
     passwordRule: { min: PW_MIN, symbols: PW_SYMBOLS, hint: PW_HINT, problem: passwordProblem, checks: passwordChecks, attachChecklist: attachPasswordChecklist },
     // Resolves the same way whether or not the email has an account (the caller
     // shows one generic message). Only rate-limit / network / CAPTCHA errors throw.

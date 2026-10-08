@@ -248,6 +248,10 @@
   // sanitiser in store-api.js takes the page from a fixed list, never from the URL,
   // and carries over only its query string. Anything else → dashboard.
   const nextUrl=()=>BPStore.auth.safeNext(new URLSearchParams(location.search).get("next")||"");
+  // where an email-confirm link returns (PKCE ?code= is exchanged on this page); an
+  // invitee's token rides along so the invite is accepted after confirming in a new tab
+  const confirmRedirect=()=>{ const q=new URLSearchParams(); const n=new URLSearchParams(location.search).get("next"); if(n) q.set("next",n);
+    const tok=pendingInvite(); if(tok) q.set("invite",tok); const s=q.toString(); return location.origin+"/login.html"+(s?"?"+s:""); };
   // Signed in and past every sign-in step: send the account where it belongs.
   // Decided HERE, before any app page is shown (so no dashboard flash and no
   // Back-button loop), always with location.replace:
@@ -348,7 +352,7 @@
       try{
         await BPStore.auth.requestPasswordReset(em,{ captchaToken:capToken(fgCap), redirectTo: location.origin+"/reset-password" });
         // Same message whether or not the account exists — never reveal which emails are registered.
-        $("#fgOk").textContent="If an account exists for that email, we've sent a link to reset your password. It can take a few minutes — check spam too.";
+        $("#fgOk").textContent=BPStore.auth.genericMessages.sent;
         $("#fgOk").hidden=false;
       }catch(err){
         const c=(err&&err.code)||"";
@@ -538,6 +542,11 @@
     await BPStore.init();
     if(!BPStore.auth.enabled()){ location.replace(nextUrl()); return false; }
     if(BPStore.auth.pendingUser()) return true;
+    // a ?code= link (Google / email confirm / magic link) that could not be exchanged
+    if(BPStore.auth.linkError && BPStore.auth.linkError()){
+      if(mode!=="signin") setMode("signin");
+      showErr($("#err"),"That sign-in link didn't work. Open the link in the same browser you requested it from — or, if you already confirmed your email, just sign in below.");
+    }
     if($("#forgotForm").hidden) ensureCap();
     if($("#forgotForm").hidden) setTimeout(()=>$(mode==="signup"&&!JOINING?"#studio":"#email").focus(),60);
     showInviteBanner();
@@ -570,9 +579,9 @@
             btn.textContent="Creating…";
             // retry after a partial failure: the account + session already exist → don't sign up again
             const existing=BPStore.auth.user();
-            const r=existing?{session:true}:await BPStore.auth.signUp(email, pw, {captchaToken:capToken(cap)});
+            const r=existing?{session:true}:await BPStore.auth.signUp(email, pw, {captchaToken:capToken(cap), emailRedirectTo:confirmRedirect()});
             if(r.session){ await acceptPendingInvite(); location.replace(nextUrl()); return; }
-            $("#okmsg").textContent="Account created. Confirm your email, then sign in here to join the studio.";
+            $("#okmsg").textContent=BPStore.auth.genericMessages.sent+" Confirm your email, then sign in here to join the studio.";
             $("#okmsg").hidden=false; setMode("signin"); return;
           }
           const studio=$("#studio").value.trim();
@@ -581,7 +590,7 @@
           // If an earlier attempt signed up (session exists) but createStudio failed,
           // a retry must NOT call signUp again — only create the studio.
           const existing=BPStore.auth.user();
-          const r=existing?{session:true}:await BPStore.auth.signUp(email, pw, {captchaToken:capToken(cap)});
+          const r=existing?{session:true}:await BPStore.auth.signUp(email, pw, {captchaToken:capToken(cap), emailRedirectTo:confirmRedirect()});
           if(r.session && existing){
             // already signed in: an account that has a studio goes to it; a Helm platform
             // operator (asked only when there is no studio) goes to HQ — never a new studio
@@ -592,7 +601,7 @@
           if(r.session){ await BPStore.org.createStudio(studio,{email:(existing&&existing.email)||email}); try{ localStorage.setItem("bp_force_tour","1"); }catch(e){} location.replace(nextUrl()); return; }
           // email confirmation required → save the name, finish after they confirm + sign in
           localStorage.setItem(PENDING, studio);
-          $("#okmsg").textContent="Studio saved. Check your email to confirm your address, then sign in here to finish setup.";
+          $("#okmsg").textContent=BPStore.auth.genericMessages.sent+" Confirm your email, then sign in here to finish setup.";
           $("#okmsg").hidden=false; setMode("signin"); return;
         }
         if(capMissing(cap)){ showErr($("#err"),"Please complete the security check."); return; }
@@ -610,7 +619,8 @@
         if(err&&err.code==="gate_verify"){ showErr($("#err"),m); return; }
         if(/captcha/i.test(m)){ showErr($("#err"),"The security check failed or expired — please try again."); return; }
         // credential / policy messages from Supabase Auth are written for users; everything else goes through friendlyError
-        const direct=/invalid login|credentials|password|already registered|email/i.test(m) && !/TypeError|undefined|fetch/i.test(m);
+        // never echo "already registered" / "not confirmed" (account enumeration): one answer
+        const direct=(err&&(err.code==="invalid_credentials"||err.code==="rate_limited"||err.code==="captcha_failed")) || (/^(Use at least|Include at least|Choose a)/.test(m));
         showErr($("#err"), direct ? m : BPUI.friendlyError(err,{action: mode==="signup"?"create the studio":"sign you in"}));
       }finally{ capReset(cap); btn.textContent=submitLabel(); }
     });
