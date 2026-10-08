@@ -202,7 +202,6 @@
     <a href="dashboard.html" class="mark" aria-label="Helm Events home"></a>
     <div><h1>Helm Events</h1><small>Event Layout Builder</small></div>
     <span class="spacer s-97445a8"></span>
-    <a href="manual" target="_blank" rel="noopener" class="helpbtn s-80d654f" title="Open the user manual (sign-in required)">📖 Manual</a>
     <button type="button" id="helpBtn" class="helpbtn" title="Take the guided tour" aria-label="Take the guided tour">? Tour</button>
     <span id="bell"></span>
     <span id="account" class="account" hidden></span>
@@ -374,7 +373,7 @@
       // (they need an event selected), so they are NOT header tabs.
       const navAreas = (() => {
         const seen = {}, out = [];
-        BPStore.auth.areas().forEach((a) => { if (!a.page || seen[a.page]) return; seen[a.page] = 1; out.push(a); });
+        BPStore.auth.areas().forEach((a) => { if (!a.page || a.key === "controls" || a.key === "users" || seen[a.page]) return; seen[a.page] = 1; out.push(a); });
         return out;   // leads, crm, nurture, quotes, design, staff, inventory, vendors, calendar, templates, controls
       })();
       const buildNav = async (fresh) => {
@@ -685,7 +684,7 @@
     {sel:'[data-nav="calendar"]', title:"Calendar", desc:"See every event and catch staff or stock clashes before they bite."},
     {sel:'[data-nav="templates"]', title:"Templates", desc:"Reusable checklists you can apply to any event in one click."},
     {sel:'[data-nav="quotes"]', title:"Quotes & confirmations", desc:"Price the event, confirm it, and take client approval by OTP / consent / payment link."},
-    {sel:'[data-nav="controls"]', title:"Control Center", desc:"Set default pricing, chair types and coupons, add teammates, and tick exactly who can view or edit each area."},
+    {sel:'#hauAccountBtn', title:"Your menu", desc:"Profile, account settings, the user manual and (for admins) Control Center live here. In Control Center: Set default pricing, chair types and coupons, add teammates, and tick exactly who can view or edit each area."},
     {sel:'#bpThemeToggle', title:"Light / dark mode", desc:"Tap this any time to switch the whole app between light and dark. Your choice is remembered on this device."},
   ];
   // The spotlight engine lives in tour.js (shared with every page): it re-glues the
