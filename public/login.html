@@ -210,8 +210,8 @@
   </main>
 
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=93"></script>
-<script src="store-api.js?v=114"></script>
+<script src="config.js?v=94"></script>
+<script src="store-api.js?v=115"></script>
 <script src="auth-ui.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -381,6 +381,8 @@
       $("#mfaEmail").textContent=((BPStore.auth.pendingUser()||{}).email)||"";
       setTimeout(()=>$("#mfa_code").focus(),60);
       mfaLockUi();
+      // the lock lives on the server (another tab/device may have set it): ask, then redraw
+      if(BPStore.auth.mfa.refreshLock) BPStore.auth.mfa.refreshLock().then(mfaLockUi,()=>{});
       const form=$("#mfaForm");
       const onSubmit=(e)=>{
         e.preventDefault();

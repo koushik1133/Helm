@@ -61,3 +61,5 @@ forward  supabase/migrations/0045_hq_subscriptions.sql
 forward  supabase/migrations/0046_d6_money_freeze.sql
 forward  supabase/migrations/0047_hq_mfa_optional.sql
 forward  supabase/migrations/0048_upload_hardening.sql
+# NOTE: 0050 was written in parallel with 0049 — on merge, keep 0049 ABOVE this line.
+forward  supabase/migrations/0050_auth_limits.sql

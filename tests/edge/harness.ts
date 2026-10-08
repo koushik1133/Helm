@@ -9,7 +9,9 @@ const g = globalThis as any;
 /** Replace Deno.env.get with a map lookup. Returns a restore fn. */
 export function setEnv(env: Record<string, string>) {
   const orig = Deno.env.get;
-  (Deno.env as any).get = (k: string) => (k in env ? env[k] : undefined);
+  // the durable (DB) rate limiter is OFF unless a test opts in (keeps per-test RPC logs exact)
+  const e: Record<string, string> = { HELM_DURABLE_RATE_LIMIT: "off", ...env };
+  (Deno.env as any).get = (k: string) => (k in e ? e[k] : undefined);
   return () => ((Deno.env as any).get = orig);
 }
 

@@ -10,6 +10,16 @@
 // single client hammering one warm isolate); the durable limits stay in the DB
 // (admin_store_otp, per-studio WhatsApp quota). Keys are hashed so no raw IP /
 // token / phone is kept in memory longer than needed.
+//
+// checkLimits(keys): the in-memory limiter FIRST, then the DURABLE limiter — the
+// service-role-only RPC public.rate_hit(bucket, key, window_s, max) (migration 0050),
+// shared by every isolate. Config (env):
+//   HELM_DURABLE_RATE_LIMIT = "on" (default) | "off"
+//   HELM_RATE_LIMIT_FAIL_CLOSED = "true" → a DB error refuses the request (429, 30 s);
+//                                 default fail-OPEN (the in-memory limit still applied)
+// Every DB error is logged (no key / IP in the log line).
+
+import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 
 export const DEFAULT_BODY_LIMIT = 16 * 1024;     // browser-called functions
 export const WEBHOOK_BODY_LIMIT = 64 * 1024;     // provider webhooks (Razorpay payloads are a few KB)
@@ -82,7 +92,58 @@ export async function rateLimitAll(keys: Array<[string, number, number]>, now = 
   return 0;
 }
 
-export function _resetRateLimits() { buckets.clear(); }   // tests only
+export function _resetRateLimits() { buckets.clear(); durableClient = null; durableClientFor = ""; }   // tests only
+
+// ---- durable (DB) layer -------------------------------------------------------------
+let durableClient: any = null, durableClientFor = "";
+function envGet(k: string): string { try { return Deno.env.get(k) || ""; } catch { return ""; } }
+export function durableEnabled(): boolean { return envGet("HELM_DURABLE_RATE_LIMIT").toLowerCase() !== "off"; }
+function getDurableClient(): any {
+  const url = envGet("SUPABASE_URL"), key = envGet("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return null;
+  if (!durableClient || durableClientFor !== url + "|" + key) {
+    durableClient = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+    durableClientFor = url + "|" + key;
+  }
+  return durableClient;
+}
+// "otp:ip:1.2.3.4" → bucket "otp.ip" (the part the RPC validates; never the raw value)
+export function bucketOf(key: string): string {
+  const b = key.split(":").slice(0, 2).join(".").toLowerCase().replace(/[^a-z0-9_.-]/g, "_").slice(0, 64);
+  return b || "default";
+}
+// 0 = allowed, else Retry-After seconds. Fail-open on DB error unless configured closed.
+export async function durableHit(key: string, limit: number, windowMs: number): Promise<number> {
+  if (!durableEnabled()) return 0;
+  const client = getDurableClient();
+  if (!client) return 0;   // no service role in this environment → in-memory only
+  const failClosed = envGet("HELM_RATE_LIMIT_FAIL_CLOSED") === "true";
+  const bucket = bucketOf(key);
+  try {
+    const { data, error } = await client.rpc("rate_hit", {
+      p_bucket: bucket, p_key: await hashKey(key),
+      p_window_s: Math.max(1, Math.ceil(windowMs / 1000)), p_max: Math.max(1, Math.floor(limit)),
+    });
+    if (error) throw error;
+    const n = Number(data);
+    if (!Number.isFinite(n) || n < 0) throw new Error("rate_hit returned a non-number");
+    return Math.ceil(n);
+  } catch (e) {
+    console.error("[limits] durable rate limit unavailable (" + bucket + "): " +
+      String((e as any)?.code || (e as any)?.message || e).slice(0, 80) + (failClosed ? " — failing CLOSED" : " — failing open"));
+    return failClosed ? 30 : 0;
+  }
+}
+// In-memory first (cheap, stops a hammering client without a DB round-trip), then durable.
+export async function checkLimits(keys: Array<[string, number, number]>): Promise<number> {
+  const mem = await rateLimitAll(keys);
+  if (mem) return mem;
+  for (const [key, limit, windowMs] of keys) {
+    const r = await durableHit(key, limit, windowMs);
+    if (r) return r;
+  }
+  return 0;
+}
 
 // 429 through the function's own CORS-aware json() responder, with Retry-After.
 export function tooMany(json: (b: unknown, s?: number) => Response, retryAfter: number): Response {

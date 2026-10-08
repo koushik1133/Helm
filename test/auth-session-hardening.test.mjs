@@ -106,7 +106,8 @@ t('committed config.js ships CAPTCHA off (empty siteKey) and the documented defa
   const cfg = read('public/config.js');
   assert.match(cfg, /captcha:\s*\{\s*provider:\s*"turnstile",\s*siteKey:\s*""\s*\}/);
   assert.match(cfg, /mfaRequiredForAdmins:\s*false/);
-  assert.match(cfg, /session:\s*\{\s*idleMinutes:\s*0,\s*warnSeconds:\s*60,\s*maxHours:\s*0\s*\}/, 'idle + max-age logout OFF by default (owner decision)');
+  assert.match(cfg, /session:\s*\{\s*idleMinutes:\s*60,\s*warnSeconds:\s*120,\s*maxHours:\s*12\s*\}/, 'idle 60 min (warning 2 min before) + 12 h absolute max');
+  assert.match(cfg, /mfaRequiredForAdmins:\s*false/, 'two-step stays optional (owner decision) — documented switch');
 });
 t('CAPTCHA ON: sign-in / sign-up / reset carry captchaToken; missing token is refused before any request', async () => {
   const e = makeEnv({ user: null, path: '/login', cfg: CAPTCHA_ON });
@@ -233,7 +234,7 @@ t('change password: re-sign-in uses the user\'s OWN email; then one change is al
   const si = e.calls.filter((x) => x[0] === 'signInWithPassword').pop();
   assert.equal(si[1].email, 'staff@a.test');
   await e.S.auth.updatePassword('Brand-new-pass12!');
-  assert.deepEqual(JSON.parse(JSON.stringify(updates(e)[0][1])), { password: 'Brand-new-pass12!', current_password: 'Old-password12!' });
+  assert.deepEqual(JSON.parse(JSON.stringify(updates(e)[0][1])), { password: 'Brand-new-pass12!' }, 'the current password is NOT retained after re-verification');
   await assert.rejects(e.S.auth.updatePassword('Another-pass12!'), (x) => x.code === 'reauth_required', 'proof is single-use');
   assert.equal(updates(e).length, 1);
 });
@@ -244,6 +245,17 @@ t('change password: the current-password proof expires after 10 minutes', async 
   e.clock.advance(10 * 60 * 1000 + 1);
   await assert.rejects(e.S.auth.updatePassword('Brand-new-pass12!'), (x) => x.code === 'reauth_required');
   assert.equal(updates(e).length, 0);
+});
+t('change password: the current password is never retained in memory after re-verification', async () => {
+  const src = readFileSync(new URL('../public/store-api.js', import.meta.url), 'utf8');
+  assert.ok(!/reauth\s*=\s*\{[^}]*\bpw\s*:/.test(src), 'reauth proof must not hold the password');
+  assert.ok(!/reauth\.pw/.test(src));
+  const e = makeEnv({ accessToken: PASSWORD_JWT });
+  await e.S.init();
+  await e.S.auth.reverifyPassword('Old-password12!');
+  // explicit, single-use pass-through when the Supabase "require current password" setting is on
+  await e.S.auth.updatePassword('Brand-new-pass12!', { currentPassword: 'Old-password12!' });
+  assert.deepEqual(JSON.parse(JSON.stringify(updates(e)[0][1])), { password: 'Brand-new-pass12!', current_password: 'Old-password12!' });
 });
 t('change password: a re-sign-in that returns a DIFFERENT account is refused', async () => {
   const e = makeEnv({ accessToken: PASSWORD_JWT, signInUser: { id: 'u-OTHER', email: 'staff@a.test' } });
@@ -382,6 +394,14 @@ t('session decision (when enabled): 30 min idle (60 s warning) and 12 h max; 0 t
   const e2 = makeEnv({ cfg: { auth: { session: { idleMinutes: 5, warnSeconds: 30, maxHours: 0 } } } });
   const c2 = e2.S.auth.sessionLimits.config();
   assert.equal(c2.idleMs, 5 * 60000); assert.equal(c2.warnMs, 30000); assert.equal(c2.maxMs, 0);
+});
+t('committed config: 60 min idle with the warning 2 min before, 12 h absolute max', () => {
+  const e = makeEnv({ cfg: { auth: { session: { idleMinutes: 60, warnSeconds: 120, maxHours: 12 } } } });
+  const cfg = e.S.auth.sessionLimits.config(); const d = e.S.auth.sessionLimits.decision; const T = 1e12;
+  assert.equal(d(T, T - 57 * 60000, T - 3600000, cfg), 'ok');
+  assert.equal(d(T, T - 58 * 60000, T - 3600000, cfg), 'warn');
+  assert.equal(d(T, T - 60 * 60000, T - 3600000, cfg), 'idle');
+  assert.equal(d(T, T, T - 12 * 3600000, cfg), 'max');
 });
 t('idle logout: after 30 min without activity → local sign-out + login?expired=1&reason=idle', async () => {
   const e = makeEnv({ path: '/quotes', cfg: SESSION_ON });

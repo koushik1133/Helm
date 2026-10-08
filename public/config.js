@@ -24,14 +24,21 @@ window.SUPABASE_CONFIG = {
   // the Turnstile SECRET key (docs/AUTH-DASHBOARD-SETTINGS.md) — never put the secret here.
   captcha: { provider: "turnstile", siteKey: "" },
   auth: {
-    // true = admins without two-step verification must set it up before using the app
+    // ── THE two-step switch (one place) ─────────────────────────────────────────
+    // false (now, owner decision: two-step OPTIONAL while testing) — admins may use
+    //   the app without setting up an authenticator; anyone who HAS set one up is
+    //   still asked for the code, and wrong codes lock the account's code entry on
+    //   the server (5 wrong → 15 min, migration 0050).
+    // true (later, for launch) — admins without two-step must set it up first.
+    //   Flip together with the HQ database switch:
+    //     update public.helm_hq_settings set hq_require_mfa = true where id;   (0047)
     mfaRequiredForAdmins: false,
-    // Optional app-side sign-out on signed-in staff pages: after idleMinutes without
-    // activity (warning warnSeconds before), and always after maxHours since sign-in.
-    // 0 = off (the default — people stay signed in like Google/consumer apps; session
-    // lifetime is governed by Supabase Auth → Sessions, see docs/AUTH-DASHBOARD-SETTINGS.md §3).
-    // Signing out in one tab still signs out every tab.
-    session: { idleMinutes: 0, warnSeconds: 60, maxHours: 0 }
+    // App-side sign-out on signed-in staff pages (studio app AND Helm HQ):
+    //   idleMinutes — sign out after this many minutes with no activity in any tab
+    //   warnSeconds — the "Still there?" warning appears this long before that
+    //   maxHours    — always sign out this long after sign-in (re-login required)
+    // 0 = that limit off. Signing out in one tab signs out every tab.
+    session: { idleMinutes: 60, warnSeconds: 120, maxHours: 12 }
   }
 };
 
