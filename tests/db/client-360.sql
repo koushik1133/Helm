@@ -174,6 +174,31 @@ do $$ declare j jsonb; begin
   perform pg_temp.res('44 no table owned by 0062', not exists (select 1 from pg_class where relname like 'client_timeline%'));
 end $$;
 
+-- ---- 0068 totals: Quoted falls back to an older top-level total; Paid = settlement rule ----------
+-- Milo: event M1 has empty pricing + legacy total 80000, no ledger rows, milestones (20000 paid, 5000 pending);
+-- event M2 has pricing.total 20000, one non-paid ledger row (so the ledger wins) and a paid milestone that must NOT count.
+do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001';
+  m1 uuid := 'a0000000-0000-4000-8000-00000000c681'; m2 uuid := 'a0000000-0000-4000-8000-00000000c682';
+begin perform pg_temp.su(); set local session_replication_role = replica;
+  alter table public.quotes add column if not exists total numeric;
+  insert into public.quotes (id, code, title, status, client, pricing, org_id) values
+    (m1, 'A-C681', 'Milo closed', 'confirmed', '{"name":"Milo Test","phone":"+91 96000 06801"}', '{}', a),
+    (m2, 'A-C682', 'Milo later', 'quote', '{"name":"Milo Test","phone":"+91 96000 06801"}', '{"total":20000}', a);
+  update public.quotes set total = 80000 where id = m1;
+  insert into public.payment_milestones (quote_id, label, amount, status, due_date, org_id) values
+    (m1, 'Advance', 20000, 'paid', current_date, a), (m1, 'Balance', 5000, 'due', current_date, a),
+    (m2, 'Advance', 9999, 'paid', current_date, a);
+  insert into public.quote_payments (quote_id, amount, status, org_id) values (m2, 1000, 'created', a);
+end $$;
+do $$ declare j jsonb; begin
+  j := pg_temp.t('a_admin@a.test', 'a0000000-0000-4000-8000-00000000c681');
+  perform pg_temp.res('45 0068 quoted falls back to legacy total = 100000', (j -> 'totals' ->> 'quoted')::numeric = 100000, j ->> 'totals');
+  perform pg_temp.res('46 0068 paid = milestones when no ledger, ledger when present = 20000', (j -> 'totals' ->> 'paid')::numeric = 20000, j ->> 'totals');
+  perform pg_temp.res('47 0068 due = 80000', (j -> 'totals' ->> 'due')::numeric = 80000, j ->> 'totals');
+  j := pg_temp.t('a_admin@a.test', 'a0000000-0000-4000-8000-00000000c601');
+  perform pg_temp.res('48 0068 Asha totals unchanged (150000 / 30000)', (j -> 'totals' ->> 'quoted')::numeric = 150000 and (j -> 'totals' ->> 'paid')::numeric = 30000, j ->> 'totals');
+end $$;
+
 select name, result from _ct order by name;
 select case when count(*) filter (where result <> 'PASS') = 0
             then format('CLIENT-360: ALL PASS (%s/%s)', count(*), count(*))
