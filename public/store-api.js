@@ -408,7 +408,7 @@ window.HelmUrl = HelmUrl;
   // ?next= may only name one of the app's own pages (fixed list — the page string is
   // never taken from the URL); only its query string is carried over, re-encoded.
   // Anything else (//host, https://…, /\host, javascript:, encoded tricks) → dashboard.
-  const NEXT_PAGES = ["audit", "budget", "builder", "calendar", "chat", "closure", "command", "control", "crm", "dashboard", "design", "discovery", "event", "flow", "insights", "inventory", "invite-studio", "issues", "leads", "logistics", "manual", "media", "nurture", "ops", "plan", "proposal", "quotes", "ready", "reports", "resources", "runsheet", "settlement", "staff", "teardown", "templates", "vendors"];
+  const NEXT_PAGES = ["audit", "budget", "builder", "calendar", "chat", "checkout", "client", "closure", "command", "control", "crm", "dashboard", "design", "discovery", "event", "flow", "insights", "inventory", "invite-studio", "issues", "leads", "logistics", "manual", "media", "nurture", "ops", "plan", "proposal", "quotes", "ready", "reports", "resources", "runsheet", "settlement", "staff", "teardown", "templates", "vendors"];
   function safeNext(raw) {
     // 0067: a pretty studio path (/<slug>/<section>…) is re-built from its parsed parts
     if (typeof raw === "string" && raw.charAt(0) === "/" && raw.charAt(1) !== "/" && raw.charAt(1) !== "\\") {
@@ -867,7 +867,14 @@ window.HelmUrl = HelmUrl;
     if (limitTimer) { clearInterval(limitTimer); limitTimer = null; }
     explicitSignOut = true;
     if (!fromOtherTab) { try { if (bc) bc.postMessage({ type: "logout", reason: reason }); } catch (e) {} }
-    try { if (supa) await supa.auth.signOut({ scope: "local" }); } catch (e) {}
+    // Max session age: revoke the refresh token server-side too (global) so it can't outlive
+    // the cap. Only the originating tab does this (the broadcast above tells other tabs, which
+    // just clear locally). If the network call fails, still sign out locally.
+    if (supa) {
+      const sc = (reason === "max" && !fromOtherTab) ? "global" : "local";
+      try { await supa.auth.signOut({ scope: sc }); }
+      catch (e) { if (sc !== "local") { try { await supa.auth.signOut({ scope: "local" }); } catch (x) {} } }
+    }
     currentUser = null; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; pendingStep = null;
     sessClear(); userLocalClear(); lsDel(SESSION_START_KEY); authRequired = true;
     let page = "dashboard.html";
@@ -3156,7 +3163,25 @@ window.HelmUrl = HelmUrl;
       const a = readLs(RES_LS); return quoteId ? a.filter((r) => r.quote_id === quoteId) : a;
     },
     async reserve(itemId, quoteId, qty, note) {
-      if (mode === "supabase") { const { data, error } = await supa.from("inventory_reservations").insert({ item_id: itemId, quote_id: quoteId, qty, note: note || null }).select().single(); if (error) throw error; return data; }
+      if (mode === "supabase") {
+        // Race guard: re-read fresh demand right before the insert so two people who both
+        // saw "3 left" can't both take them. Not atomic (see 0070 reserve_inventory RPC);
+        // a failed READ here never blocks the save, the database stays the final authority.
+        let d = null; try { d = await this._demand([quoteId]); } catch (e) { d = null; }
+        if (d) {
+          const it = d.items.find((i) => i.id === itemId), total = it ? Number(it.total_qty || 0) : null;
+          if (total != null && Number(qty) > 0) {
+            const qd = d.meta[quoteId] && d.meta[quoteId].date;
+            const have = qd ? ((d.dayTotals[itemId] || {})[qd] || 0) + (d.undated[itemId] || 0)
+                            : d.peakOf(d.dayTotals[itemId] || {}) + (d.undated[itemId] || 0);
+            if (have + Number(qty) > total) {
+              const err = new Error("Not enough " + (it.name || "stock") + " free: only " + Math.max(0, total - have) + " left. Someone else may have just reserved it.");
+              err.code = "INVENTORY_CONFLICT"; throw err;
+            }
+          }
+        }
+        const { data, error } = await supa.from("inventory_reservations").insert({ item_id: itemId, quote_id: quoteId, qty, note: note || null }).select().single(); if (error) throw error; return data;
+      }
       const a = readLs(RES_LS); const row = { id: uid(), item_id: itemId, quote_id: quoteId, qty, status: "reserved", note: note || null, created_at: now() }; a.push(row); localStorage.setItem(RES_LS, JSON.stringify(a)); return row;
     },
     async setResStatus(id, status) {
@@ -3186,29 +3211,65 @@ window.HelmUrl = HelmUrl;
       const items = await this.items(true); const it = items.find((i) => i.id === itemId); if (!it) return false;
       return this.updateItem(itemId, { total_qty: Math.max(0, Number(it.total_qty || 0) + Number(delta || 0)) });
     },
-    // committed & available per item id — DATE-AWARE.
-    // An item used on two different dates isn't gone twice: it comes back between
-    // events. So "committed" is the PEAK concurrent demand on any single event
-    // date (the busiest day), plus any reservations on events that have no date
-    // yet (those could land on any day, so we count them on top, conservatively).
-    // "available" = what you own minus that peak, i.e. how many are safe to commit.
-    async availability() {
-      const [items, res, quotesList] = await Promise.all([
-        this.items(false), this.reservations(), quotes.list().catch(() => []),
+    // Event rows (date + whether still live) for just the quotes the reservations/checkouts
+    // point at, not the capped quotes.list(). Archived / deleted / cancelled / closed events
+    // are "inactive": their reserved stock is free again.
+    async _quoteMeta(ids) {
+      const meta = {}; ids = [...new Set((ids || []).filter(Boolean))];
+      const put = (q) => { meta[q.id] = { date: q.eventDate || q.event_date || null,
+        active: !(q.deletedAt || q.deleted_at || q.archivedAt || q.archived_at || q.status === "cancelled" ||
+                  ((q.lifecycleStage || q.lifecycle_stage) === "closed" && q.status === "confirmed")) }; };
+      if (mode !== "supabase") { (await quotes.list().catch(() => [])).forEach(put); return meta; }
+      for (let i = 0; i < ids.length; i += 100) {
+        const chunk = ids.slice(i, i + 100);
+        let r = await supa.from("quotes").select("id,event_date,status,lifecycle_stage,archived_at,deleted_at").in("id", chunk);
+        if (r.error && isMissingColumn(r.error)) r = await supa.from("quotes").select("id,event_date,status,lifecycle_stage").in("id", chunk);
+        if (r.error) throw r.error;
+        (r.data || []).forEach(put);
+      }
+      return meta;
+    },
+    // Demand per item: by event date, plus undated. Counts live reservations AND open
+    // check-outs (out/partial, still-out qty). A checkout against an event that also
+    // holds a reservation for the same item is the same physical stock, so per
+    // (item, event) the larger of the two counts, not the sum.
+    async _demand(extraQuoteIds) {
+      const [items, res, cos] = await Promise.all([
+        this.items(false), this.reservations(), this.checkouts.list().catch(() => []),
       ]);
-      const dateByQuote = {}; (quotesList || []).forEach((q) => { dateByQuote[q.id] = q.eventDate || null; });
-      const dayTotals = {};  // item_id -> { date -> qty on that date }
-      const undated = {};    // item_id -> qty on dateless events
-      (res || []).forEach((r) => {
-        if (!ACTIVE_RES.includes(r.status)) return;
-        const q = Number(r.qty || 0); const d = dateByQuote[r.quote_id];
-        if (d) { (dayTotals[r.item_id] = dayTotals[r.item_id] || {}); dayTotals[r.item_id][d] = (dayTotals[r.item_id][d] || 0) + q; }
-        else { undated[r.item_id] = (undated[r.item_id] || 0) + q; }
+      const stillOut = (c) => Math.max(Number(c.qty_out || 0) - Number(c.qty_in || 0), 0);
+      const openCo = (cos || []).filter((c) => (c.status === "out" || c.status === "partial") && stillOut(c) > 0);
+      const liveRes = (res || []).filter((r) => ACTIVE_RES.includes(r.status));
+      const meta = await this._quoteMeta([].concat(liveRes.map((r) => r.quote_id), openCo.map((c) => c.quote_id), extraQuoteIds || []));
+      const per = {};   // item|quote -> { res, out }
+      const slot = (it, q) => { const k = it + "|" + (q || ""); return per[k] || (per[k] = { it, q: q || null, res: 0, out: 0 }); };
+      liveRes.forEach((r) => { slot(r.item_id, r.quote_id).res += Number(r.qty || 0); });
+      openCo.forEach((c) => { slot(c.item_id, c.quote_id).out += stillOut(c); });
+      const dayTotals = {}, undated = {};
+      Object.values(per).forEach((x) => {
+        const m = x.q ? meta[x.q] : null;
+        const shelved = !!(m && !m.active);
+        if (shelved && !x.out) return;                       // reservation on a shelved/cancelled event: stock is free
+        const q = shelved ? x.out : Math.max(x.res, x.out);  // stock physically still out stays committed
+        const d = m && m.active ? m.date : null;
+        if (d) { (dayTotals[x.it] = dayTotals[x.it] || {}); dayTotals[x.it][d] = (dayTotals[x.it][d] || 0) + q; }
+        else undated[x.it] = (undated[x.it] || 0) + q;
       });
       const peakOf = (m) => { let mx = 0; for (const k in m) if (m[k] > mx) mx = m[k]; return mx; };
+      return { items, meta, dayTotals, undated, peakOf };
+    },
+    // committed & available per item id, DATE-AWARE.
+    // An item used on two different dates isn't gone twice: it comes back between
+    // events. So "committed" is the PEAK concurrent demand on any single event
+    // date (the busiest day), plus anything on events with no date yet or checked
+    // out with no event (those could land on any day, so counted on top, conservatively).
+    // Shelved (archived/deleted/cancelled/closed) events release their reservations;
+    // stock physically checked out stays committed until it is checked back in.
+    async availability() {
+      const d = await this._demand();
       const map = {};
-      items.forEach((i) => {
-        const c = peakOf(dayTotals[i.id] || {}) + (undated[i.id] || 0);
+      d.items.forEach((i) => {
+        const c = d.peakOf(d.dayTotals[i.id] || {}) + (d.undated[i.id] || 0);
         map[i.id] = { ...i, committed: c, available: Number(i.total_qty || 0) - c };
       });
       return map;
@@ -4812,7 +4873,7 @@ window.HelmUrl = HelmUrl;
   const calendar = {
     // Pull every commitment across all events and detect date clashes.
     async load() {
-      const [events, invRes, vendorBk, items, team, vends, tasks, plans, pricingCfg] = await Promise.all([
+      let [events, invRes, vendorBk, items, team, vends, tasks, plans, pricingCfg] = await Promise.all([
         quotes.list(),
         inventory.reservations().catch(() => []),
         bookings.listAll().catch(() => []),
@@ -4821,7 +4882,7 @@ window.HelmUrl = HelmUrl;
         vendors.listAll(true).catch(() => []),
         (async () => {
           if (mode !== "supabase") return readLs("bp_tasks_stub") || [];
-          const { data, error } = await supa.from("event_tasks").select("quote_id,crew_id,title").not("crew_id", "is", null);
+          const { data, error } = await supa.from("event_tasks").select("quote_id,crew_id,title,status").not("crew_id", "is", null);
           if (error) throw error; return data;
         })().catch(() => []),
         (async () => {
@@ -4832,7 +4893,11 @@ window.HelmUrl = HelmUrl;
         })().catch(() => []),
         config.getPricing().catch(() => ({})),   // for the venue-clash buffer (parallel, no extra round-trip)
       ]);
-      const evById = {}; events.forEach((e) => { evById[e.id] = e; });
+      // Cancelled / closed events and finished tasks don't hold anything: leave them out of clash checks.
+      const evLive = (e) => !!e && e.status !== "cancelled" && !(e.lifecycleStage === "closed" && e.status === "confirmed");
+      const liveEvents = events.filter(evLive);
+      const evById = {}; liveEvents.forEach((e) => { evById[e.id] = e; });
+      tasks = (tasks || []).filter((t) => !["done", "completed", "cancelled"].includes(String(t.status || "").toLowerCase()));
       const itemById = {}; items.forEach((i) => { itemById[i.id] = i; });
       const staffById = {}; team.forEach((p) => { staffById[p.id] = p; });
       const vendById = {}; vends.forEach((v) => { vendById[v.id] = v; });
@@ -4901,7 +4966,7 @@ window.HelmUrl = HelmUrl;
       const vnorm = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
       const toMin = (t) => { const m = /^(\d{1,2}):(\d{2})/.exec(String(t || "")); return m ? (+m[1] * 60 + +m[2]) : null; };
       const byVenueDay = {};
-      events.forEach((e) => {
+      liveEvents.forEach((e) => {
         const d = e.eventDate; const v = venueOf(e);
         const vkey = vnorm(v.name) || vnorm(v.address);     // name preferred, address as fallback
         if (!d || !vkey) return;                             // need a date + some venue identity
@@ -8136,18 +8201,26 @@ window.HelmUrl = HelmUrl;
     el.setAttribute("data-date-hardened", "1");
     // Event/booking fields opt into a "no past dates" floor with data-min-today.
     // (Birthdays, anniversaries and DOB fields leave it off so past dates stay allowed.)
+    var todayFloor = false;
     if (el.hasAttribute("data-min-today") && !el.getAttribute("min")) {
-      el.setAttribute("min", new Date().toISOString().slice(0, 10));
+      todayFloor = true;
+      el.setAttribute("min", (function (d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); })(new Date()));
     }
     if (!el.getAttribute("min")) el.setAttribute("min", DATE_MIN);
     if (!el.getAttribute("max")) el.setAttribute("max", DATE_MAX);
     var lo = el.getAttribute("min"), hi = el.getAttribute("max");
-    var fix = function () {
-      var v = el.value; if (!v) return;
+    // A "min today" floor is only a picker hint: a prefilled past date (editing an old event)
+    // is kept. Only the implausible-year window (2000-2100) is ever cleared.
+    var hard = function (v) {
       var y = parseInt(String(v).slice(0, 4), 10);
-      if (!isFinite(y) || y < 2000 || y > 2100 || (v < lo) || (v > hi)) {
-        el.value = ""; el.dispatchEvent(new Event("change", { bubbles: true }));
-      }
+      return !isFinite(y) || y < 2000 || y > 2100 || (!todayFloor && v < lo) || v > hi;
+    };
+    var fix = function (ev) {
+      var v = el.value; if (!v) return;
+      if (!hard(v)) return;
+      // mid-typing the browser reports a partial value; don't clear or fire change under the user's fingers
+      if (ev && ev.type === "change" && document.activeElement === el && el.validity && el.validity.badInput) return;
+      el.value = ""; el.dispatchEvent(new Event("change", { bubbles: true }));
     };
     el.addEventListener("blur", fix); el.addEventListener("change", fix);
   }
