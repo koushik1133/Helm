@@ -116,3 +116,76 @@ Deno.test("billing-reminder: oversize -> 413, per-IP limit -> 429 (before the se
     assertEquals(s, 429);
   } finally { rF(); rEnv(); }
 });
+
+// ---- durable (DB) limiter: public.rate_hit via the service role ----------------------
+import { checkLimits, durableHit, bucketOf } from "../../supabase/functions/_shared/limits.ts";
+const DUR_ENV = { SUPABASE_URL: "https://p.supabase.co", SUPABASE_SERVICE_ROLE_KEY: "svc", HELM_DURABLE_RATE_LIMIT: "on" };
+const g = globalThis as any;
+
+Deno.test("durable: rate_hit called with service key, bucket + HASHED key, window seconds; its verdict is honoured", async () => {
+  _resetRateLimits(); resetSupaMock();
+  const rEnv = setEnv(DUR_ENV);
+  const seen: any[] = [];
+  g.__supaRpc = (name: string, args: any, key: string) => { seen.push([name, args, key]); return { data: seen.length >= 2 ? 17 : 0, error: null }; };
+  try {
+    assertEquals(await checkLimits([["otp:ip:1.2.3.4", 10, 60_000]]), 0);
+    assertEquals(await checkLimits([["otp:ip:1.2.3.4", 10, 60_000]]), 17, "another isolate's hits count");
+    assertEquals(seen[0][0], "rate_hit");
+    assertEquals(seen[0][2], "svc");
+    assertEquals(seen[0][1].p_bucket, "otp.ip");
+    assertEquals(seen[0][1].p_window_s, 60);
+    assertEquals(seen[0][1].p_max, 10);
+    assert(!JSON.stringify(seen).includes("1.2.3.4"), "raw IP never sent");
+  } finally { delete g.__supaRpc; rEnv(); }
+});
+
+Deno.test("durable: in-memory limit trips first without a DB round-trip", async () => {
+  _resetRateLimits(); resetSupaMock();
+  const rEnv = setEnv(DUR_ENV); let calls = 0;
+  g.__supaRpc = () => { calls++; return { data: 0, error: null }; };
+  try {
+    for (let i = 0; i < 2; i++) assertEquals(await checkLimits([["x:ip:a", 2, 60_000]]), 0);
+    assert(await checkLimits([["x:ip:a", 2, 60_000]]) > 0);
+    assertEquals(calls, 2);
+  } finally { delete g.__supaRpc; rEnv(); }
+});
+
+Deno.test("durable: DB error fails OPEN with a log line by default; CLOSED when configured", async () => {
+  _resetRateLimits(); resetSupaMock();
+  g.__supaRpc = () => ({ data: null, error: { code: "PGRST202", message: "not found" } });
+  const origErr = console.error; const logs: string[] = []; console.error = (m: string) => logs.push(String(m));
+  let rEnv = setEnv(DUR_ENV);
+  try {
+    assertEquals(await durableHit("otp:tok:abc", 5, 60_000), 0);
+    assert(logs.some((l) => /failing open/.test(l)) && !logs.some((l) => l.includes("abc")));
+    rEnv(); rEnv = setEnv({ ...DUR_ENV, HELM_RATE_LIMIT_FAIL_CLOSED: "true" });
+    assertEquals(await durableHit("otp:tok:abc", 5, 60_000), 30);
+    g.__supaRpc = () => { throw new Error("network"); };
+    assertEquals(await durableHit("otp:tok:abc", 5, 60_000), 30);
+  } finally { console.error = origErr; delete g.__supaRpc; rEnv(); }
+});
+
+Deno.test("durable: off switch / no service role → no DB call", async () => {
+  _resetRateLimits(); resetSupaMock(); let calls = 0;
+  g.__supaRpc = () => { calls++; return { data: 99, error: null }; };
+  let rEnv = setEnv({ ...DUR_ENV, HELM_DURABLE_RATE_LIMIT: "off" });
+  try {
+    assertEquals(await durableHit("a:b:c", 1, 1000), 0);
+    rEnv(); rEnv = setEnv({ HELM_DURABLE_RATE_LIMIT: "on" });
+    assertEquals(await durableHit("a:b:c", 1, 1000), 0);
+    assertEquals(calls, 0);
+    assertEquals(bucketOf("wa:user:UUID"), "wa.user");
+  } finally { delete g.__supaRpc; rEnv(); }
+});
+
+Deno.test("send-otp: durable limiter returns 429 from the DB verdict (cross-isolate)", async () => {
+  resetSupaMock();
+  const rEnv = setEnv({ ...JSON_FNS[0][1], HELM_DURABLE_RATE_LIMIT: "on" }), rF = noFetch();
+  g.__supaRpc = (name: string) => name === "rate_hit" ? { data: 42, error: null } : { data: null, error: null };
+  try {
+    const h = await loadHandler(F + "send-otp/index.ts");
+    const r = await h(post({ token: TOKEN, phone: "9800000001" }, { "x-forwarded-for": "5.5.5.5" }));
+    assertEquals(r.status, 429);
+    assertEquals(r.headers.get("retry-after"), "42");
+  } finally { delete g.__supaRpc; rF(); rEnv(); }
+});

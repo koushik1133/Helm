@@ -19,7 +19,7 @@
 //   * client email / phone are format-checked before they are sent to Razorpay.
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, normPhone, responders } from "../_shared/cors.ts";
-import { BodyTooLarge, clientIp, rateLimitAll, readJsonCapped, tooMany } from "../_shared/limits.ts";
+import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
 
 const PLINK = /^plink_[A-Za-z0-9]+$/;
 const RZP_URL = /^https:\/\/rzp\.io\/[A-Za-z0-9/_-]+$/;
@@ -32,11 +32,11 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
   try {
-    const ipWait = await rateLimitAll([["cpl:ip:" + clientIp(req), 30, 60_000]]);
+    const ipWait = await checkLimits([["cpl:ip:" + clientIp(req), 30, 60_000]]);
     if (ipWait) return tooMany(json, ipWait);
     const { token } = await readJsonCapped(req) as { token?: unknown };
     if (!token || typeof token !== "string") return json({ error: "token required" }, 400);
-    const idWait = await rateLimitAll([["cpl:tok:" + token.toLowerCase(), 10, 60_000]]);
+    const idWait = await checkLimits([["cpl:tok:" + token.toLowerCase(), 10, 60_000]]);
     if (idWait) return tooMany(json, idWait);
     if (!/^[0-9a-f-]{36}$/i.test(token)) return json({ error: "invalid link" }, 404);
     const keyId = Deno.env.get("RAZORPAY_KEY_ID") || "", keySecret = Deno.env.get("RAZORPAY_KEY_SECRET") || "";

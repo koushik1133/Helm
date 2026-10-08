@@ -37,7 +37,7 @@
   }
   function errText(e, action) {
     var UI = global.BPUI;
-    if (e && e.code && /^(mfa_invalid|mfa_locked|bad_current_password|captcha_|rate_limited)/.test(e.code)) return e.message;
+    if (e && e.code && /^(mfa_invalid|mfa_locked|bad_current_password|current_password_required|captcha_|rate_limited)/.test(e.code)) return e.message;
     if (e && e.message && /^(Use at least|Include at least|Enter the 6-digit|Choose a password)/.test(e.message)) return e.message;
     return UI && UI.friendlyError ? UI.friendlyError(e, { action: action }) : ((e && e.message) || "Something went wrong.");
   }

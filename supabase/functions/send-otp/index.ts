@@ -13,7 +13,7 @@
 // cap (public.otp_send_authorize, 0027). DB errors are mapped to generic messages.
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, responders } from "../_shared/cors.ts";
-import { BodyTooLarge, clientIp, rateLimitAll, readJsonCapped, tooMany } from "../_shared/limits.ts";
+import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
 
 // DB error → [http status, generic message] (never error.message)
 function otpFailure(code: string): [number, string] {
@@ -31,13 +31,13 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
   try {
-    const ipWait = await rateLimitAll([["otp:ip:" + clientIp(req), 10, 60_000]]);
+    const ipWait = await checkLimits([["otp:ip:" + clientIp(req), 10, 60_000]]);
     if (ipWait) return tooMany(json, ipWait);
     const { token, phone } = await readJsonCapped(req) as { token?: unknown; phone?: unknown };
     if (!token || !phone || typeof token !== "string" || typeof phone !== "string") {
       return json({ error: "token and phone are required" }, 400);
     }
-    const idWait = await rateLimitAll([["otp:tok:" + token.toLowerCase(), 5, 60_000]]);
+    const idWait = await checkLimits([["otp:tok:" + token.toLowerCase(), 5, 60_000]]);
     if (idWait) return tooMany(json, idWait);
     if (!/^[0-9a-f-]{36}$/i.test(token)) return json({ error: "invalid link" }, 404);
     if (phone.replace(/[^0-9]/g, "").length < 8 || phone.length > 32) return json({ error: "invalid phone" }, 400);
