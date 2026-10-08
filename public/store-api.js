@@ -3116,6 +3116,7 @@ window.HelmUrl = HelmUrl;
   /* ---------------- in-house inventory (Phase 7) ---------------- */
   const INV_LS = "bp_inventory", RES_LS = "bp_inv_res";
   const ACTIVE_RES = ["reserved", "allocated"];
+  let _reserveRpc = null;   // null = untried, true = RPC works, false = not deployed (use the client-side path)
   const inventory = {
     async items(includeInactive) {
       if (mode === "supabase") {
@@ -3164,6 +3165,22 @@ window.HelmUrl = HelmUrl;
     },
     async reserve(itemId, quoteId, qty, note) {
       if (mode === "supabase") {
+        // Preferred path: the atomic reserve_inventory RPC (0070) locks the item row and checks stock
+        // in one transaction. If the function isn't deployed yet (PGRST202 / 42883) fall through to the
+        // client-side re-check + plain insert below, exactly as before.
+        if (_reserveRpc !== false) {
+          const { data, error } = await supa.rpc("reserve_inventory", { p_item: itemId, p_quote: quoteId, p_qty: qty, p_note: note || null });
+          if (!error) { _reserveRpc = true; return data; }
+          const missing = error.code === "PGRST202" || error.code === "42883" || /could not find the function|does not exist/i.test(error.message || "");
+          if (!missing) {
+            if (error.code === "P0001" && /not enough stock/i.test(error.message || "")) {
+              const err = new Error("Not enough stock free (" + String(error.message).replace(/^.*\(/, "").replace(/\).*$/, "") + " left). Someone else may have just reserved it.");
+              err.code = "INVENTORY_CONFLICT"; throw err;
+            }
+            throw error;
+          }
+          _reserveRpc = false;   // not deployed: stop trying for this page load
+        }
         // Race guard: re-read fresh demand right before the insert so two people who both
         // saw "3 left" can't both take them. Not atomic (see 0070 reserve_inventory RPC);
         // a failed READ here never blocks the save, the database stays the final authority.
