@@ -5368,6 +5368,39 @@
     }
     return { filter, tabs, tabsHtml, html, unread };
   }
+  /* ---------------- notification toasts: which feed rows pop up (pure — unit-tested in test/toast.test.mjs) ----------------
+     bellToastPick(items, seen, { label }) → { toasts:[{ key, title, message, href, type, icon }], seen }
+     seen = { t: newest created_at already handled (ISO), ids: [recent keys] } or null.
+     null (first load for this person on this browser) → baseline only, nothing pops up, so an old
+     backlog never floods the screen. Only unread server rows / unread chats newer than the
+     baseline and not already seen become toasts (newest 3). Text is plain (BPUI.toast uses textContent). */
+  function bellToastPick(items, seen, opts) {
+    opts = opts || {};
+    const label = opts.label || ((n) => ({ icon: "🔔", text: String((n && n.kind) || "Update").replace(/_/g, " ") }));
+    const list = (items || []).filter((n) => n && typeof n === "object");
+    const keyOf = (n) => n.__chat ? "c:" + (n.conversation_id || "") + "@" + (n.created_at || "") : "n:" + (n.id || "") + "@" + (n.created_at || "");
+    const newest = list.reduce((m, n) => { const c = String(n.created_at || ""); return c > m ? c : m; }, String((seen && seen.t) || ""));
+    const ids = (seen && Array.isArray(seen.ids)) ? seen.ids.slice(-60) : [];
+    if (!seen || typeof seen !== "object") return { toasts: [], seen: { t: newest, ids: list.map(keyOf).slice(0, 60) } };
+    const since = String(seen.t || "");
+    const fresh = list.filter((n) => (n.__chat || n.unread) && String(n.created_at || "") > since && ids.indexOf(keyOf(n)) === -1)
+      .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))).slice(0, 3);
+    const typeOf = (k) => k === "security_alert" ? "security" : /^(payment_received|advance_paid|task_complete|task_accept)$/.test(k) ? "success"
+      : /^(payment_reconcile|task_reject|task_due)$/.test(k) ? "warning" : "info";
+    const toasts = fresh.map((n) => {
+      if (n.__chat) {
+        const who = n.who || "";
+        return { key: keyOf(n), type: "info", icon: n.mention ? "@" : "💬",
+          title: n.mention ? (n.title || "You were mentioned") : n.kind === "dm" ? (who || n.title || "Direct message") : ((n.title || "Chat") + (who ? " · " + who : "")),
+          message: String(n.preview || "New message"), href: "chat.html?c=" + encodeURIComponent(n.conversation_id || "") };
+      }
+      const L = label(n) || {}, k = String(n.kind || "").toLowerCase();
+      return { key: keyOf(n), type: typeOf(k), icon: L.icon || "🔔", title: String(L.text || "Update"),
+        message: [n.event_code, n.event_title].filter(Boolean).join(" · ") || "Open to see details",
+        href: n.quote_id ? "event.html?id=" + encodeURIComponent(n.quote_id) : "" };
+    });
+    return { toasts, seen: { t: newest, ids: ids.concat(fresh.map(keyOf)).slice(-60) } };
+  }
   // Bell styles: injected once (the bell must look the same on pages without theme.css).
   // Light/dark follow the page tokens (theme.css re-points them under html[data-theme=dark]).
   const BELL_CSS = [
@@ -5381,36 +5414,36 @@
     "--bpb-line:var(--line,#e8e3db);--bpb-acc:var(--accent,#6d28d9);--bpb-unread:#f7f3ff;",
     "--bpb-mention-bg:#ffe4ec;--bpb-mention:#be123c;--bpb-chat-bg:#e0ecff;--bpb-chat:#1d4ed8;--bpb-task-bg:#dcf5e7;--bpb-task:#0f7a43;",
     "--bpb-pay-bg:#fff1d6;--bpb-pay:#8f5f00;--bpb-other-bg:var(--accent-soft,#efe9ff);--bpb-other:var(--accent,#6d28d9);",
-    "--bpb-scrim:rgba(24,20,40,.42);--bpb-scrim-blur:rgba(24,20,40,.18);--bpb-shadow:0 24px 60px rgba(20,27,46,.22),0 2px 8px rgba(20,27,46,.08);",
+    "--bpb-scrim:rgba(24,20,40,.10);--bpb-scrim-phone:rgba(24,20,40,.38);--bpb-shadow:0 24px 60px rgba(20,27,46,.22),0 2px 8px rgba(20,27,46,.08);",
     "position:fixed;inset:0;z-index:2147482000;font:14px/1.4 var(--font,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif);color:var(--bpb-ink)}",
     "html[data-theme=dark] .bpb-root{--bpb-unread:#19152a;--bpb-mention-bg:#3a1424;--bpb-mention:#fda4af;--bpb-chat-bg:#172a4d;--bpb-chat:#93c5fd;--bpb-task-bg:#12301f;--bpb-task:#6ee7b7;",
-    "--bpb-pay-bg:#3a2a0c;--bpb-pay:#fcd34d;--bpb-other-bg:#1d1730;--bpb-other:#c4b5fd;--bpb-scrim:rgba(0,0,0,.66);--bpb-scrim-blur:rgba(0,0,0,.42);--bpb-shadow:0 24px 60px rgba(0,0,0,.7)}",
+    "--bpb-pay-bg:#3a2a0c;--bpb-pay:#fcd34d;--bpb-other-bg:#1d1730;--bpb-other:#c4b5fd;--bpb-scrim:rgba(0,0,0,.28);--bpb-scrim-phone:rgba(0,0,0,.55);--bpb-shadow:0 24px 60px rgba(0,0,0,.7)}",
     ".bpb-root[hidden]{display:none}",
-    // backdrop: solid scrim everywhere; a lighter, blurred one where backdrop-filter works
+    // backdrop: a light dim only (no blur — the page behind stays readable); darker under the phone sheet
     ".bpb-scrim{position:absolute;inset:0;background:var(--bpb-scrim);opacity:0;transition:opacity .2s ease}",
-    "@supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){.bpb-scrim{background:var(--bpb-scrim-blur);-webkit-backdrop-filter:blur(8px) saturate(120%);backdrop-filter:blur(8px) saturate(120%)}}",
     ".bpb-root.is-open .bpb-scrim{opacity:1}",
     // desktop: a popover anchored under the bell (top/right set from the button's position)
-    ".bpb-panel{position:absolute;top:56px;right:16px;width:420px;max-width:calc(100vw - 24px);max-height:min(640px,calc(100vh - 72px));display:flex;flex-direction:column;box-sizing:border-box;",
+    ".bpb-panel{position:absolute;top:56px;right:16px;width:min(420px,calc(100vw - 32px));max-height:min(640px,calc(100vh - 72px));display:flex;flex-direction:column;box-sizing:border-box;",
     "background:var(--bpb-bg);color:var(--bpb-ink);border:1px solid var(--bpb-line);border-radius:16px;box-shadow:var(--bpb-shadow);overflow:hidden;outline:none;",
     "opacity:0;transform:translateY(-8px) scale(.98);transform-origin:top right;transition:opacity .18s ease,transform .22s cubic-bezier(.2,.8,.2,1)}",
     ".bpb-root.is-open .bpb-panel{opacity:1;transform:none}",
     ".bpb-grab{display:none}",
-    ".bpb-head{padding:14px 14px 0;border-bottom:1px solid var(--bpb-line);background:var(--bpb-bg)}",
-    ".bpb-hrow{display:flex;align-items:center;gap:8px}",
-    ".bpb-title{margin:0;font-size:16px;font-weight:750;letter-spacing:-.01em;color:var(--bpb-ink)}",
-    ".bpb-count{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:var(--bpb-acc);color:#fff;font-size:11px;font-weight:700}",
+    ".bpb-head{display:block;position:static;height:auto;margin:0;box-shadow:none;padding:12px 10px 0 16px;border-bottom:1px solid var(--bpb-line);background:var(--bpb-bg)}",
+    // header = ONE row: title + count on the left, "Mark all read" + close on the right (never wraps)
+    ".bpb-hrow{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;min-width:0;white-space:nowrap}",
+    ".bpb-title{margin:0;font-size:16px;font-weight:750;letter-spacing:-.01em;color:var(--bpb-ink);white-space:nowrap;flex:0 0 auto}",
+    ".bpb-count{flex:0 0 auto;display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;background:var(--bpb-acc);color:#fff;font-size:11px;font-weight:700;white-space:nowrap}",
     "html[data-theme=dark] .bpb-count{color:#141418}",
     ".bpb-count[hidden]{display:none}",
-    ".bpb-sp{flex:1}",
-    ".bpb-link{border:0;background:transparent;color:var(--bpb-acc);font:inherit;font-size:12.5px;font-weight:650;cursor:pointer;padding:6px 8px;border-radius:8px}",
+    ".bpb-sp{flex:1 1 auto;min-width:4px}",
+    ".bpb-link{flex:0 0 auto;white-space:nowrap;border:0;background:transparent;color:var(--bpb-acc);font:inherit;font-size:12.5px;font-weight:650;cursor:pointer;padding:6px 8px;border-radius:8px}",
     ".bpb-link:hover{background:var(--bpb-other-bg)}.bpb-link[disabled]{opacity:.5;cursor:default}",
-    ".bpb-x{border:0;background:transparent;color:var(--bpb-ink3);font-size:16px;line-height:1;cursor:pointer;width:32px;height:32px;border-radius:8px}",
+    ".bpb-x{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--bpb-ink3);font-size:16px;line-height:1;cursor:pointer;width:32px;height:32px;border-radius:8px}",
     ".bpb-x:hover{background:var(--bpb-bg2);color:var(--bpb-ink)}",
-    ".bpb-tabs{display:flex;gap:2px;margin:10px -4px 0;overflow-x:auto;scrollbar-width:none}",
+    ".bpb-tabs{display:flex;gap:4px;margin:8px 0 0 -6px;padding-right:6px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}",
     ".bpb-tabs::-webkit-scrollbar{display:none}",
-    ".bpb-tab{flex:1 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:5px;border:0;background:transparent;color:var(--bpb-ink2);font:inherit;font-size:12.5px;font-weight:600;",
-    "padding:7px 6px 9px;border-bottom:2px solid transparent;border-radius:8px 8px 0 0;cursor:pointer}",
+    ".bpb-tab{flex:0 0 auto;white-space:nowrap;scroll-snap-align:start;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;background:transparent;color:var(--bpb-ink2);font:inherit;font-size:13px;font-weight:600;",
+    "padding:8px 10px 10px;border-bottom:2px solid transparent;border-radius:8px 8px 0 0;cursor:pointer}",
     ".bpb-tab:hover{color:var(--bpb-ink);background:var(--bpb-bg2)}",
     ".bpb-tab[aria-selected=true]{color:var(--bpb-acc);border-bottom-color:var(--bpb-acc)}",
     ".bpb-n{min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;border-radius:9px;background:var(--bpb-bg2);border:1px solid var(--bpb-line);color:var(--bpb-ink2);font-size:10.5px;font-weight:700;line-height:16px;text-align:center}",
@@ -5429,6 +5462,7 @@
     ".g-payment .bpb-chip{background:var(--bpb-pay-bg);color:var(--bpb-pay)}",
     ".bpb-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:1px}",
     ".bpb-t{font-size:13.5px;font-weight:650;color:var(--bpb-ink);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}",
+    ".bpb-chip{width:36px;height:36px;font-size:16px}",
     ".bpb-item.is-unread .bpb-t{font-weight:750}",
     ".bpb-c{color:var(--bpb-ink3);font-weight:600}",
     ".bpb-p{font-size:12.5px;color:var(--bpb-ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
@@ -5443,12 +5477,14 @@
     "@keyframes bpbShimmer{to{background-position:-200% 0}}",
     // phone: a full-height sheet that slides up from the bottom
     "@media (max-width:640px){",
-    ".bpb-panel{top:max(10px,env(safe-area-inset-top,0px))!important;right:0!important;left:0;bottom:0;width:auto;max-width:none;max-height:none;border-radius:20px 20px 0 0;border-bottom:0;",
+    ".bpb-panel{top:max(48px,env(safe-area-inset-top,0px))!important;right:0!important;left:0;bottom:0;width:auto;max-width:none;max-height:none;border-radius:20px 20px 0 0;border-bottom:0;",
     "padding-bottom:env(safe-area-inset-bottom,0px);transform:translateY(100%);opacity:1;transition:transform .28s cubic-bezier(.2,.8,.2,1)}",
     ".bpb-root.is-open .bpb-panel{transform:none}",
     ".bpb-grab{display:block;width:40px;height:4px;border-radius:2px;background:var(--bpb-line);margin:8px auto 0}",
+    ".bpb-scrim{background:var(--bpb-scrim-phone)}",
     ".bpb-head{padding-top:8px}.bpb-item{padding:12px 10px}.bpb-x{width:40px;height:40px}}",
     "@media (prefers-reduced-motion:reduce){.bpb-root .bpb-scrim,.bpb-root .bpb-panel,.bpb-btn{transition:none!important}.bpb-panel{transform:none!important}.bpb-skel{animation:none}}",
+    "@media (min-width:641px){html.bpb-is-open .bpui-toasts{right:calc(28px + min(420px,calc(100vw - 32px)))}}",
     "@media print{.bpb-root{display:none!important}}",
   ].join("\n");
   function bellInjectCss() {
@@ -5567,8 +5603,20 @@
         if (keepKey) { const sel = keepKey.indexOf("tab:") === 0 ? `[data-f="${keepKey.slice(4)}"]` : `[data-k="${String(keepKey).replace(/["\\]/g, "\\$&")}"]`;
           const t = root.querySelector(sel); if (t) try { t.focus(); } catch (e) {} }
       };
+      // On-screen toasts for NEW notifications (bell_feed already applies the per-role prefs; chat
+      // honours 0036 via loadChat). Last-seen is kept per user in localStorage (try/catch: private
+      // mode just means a fresh baseline). Nothing pops up while the panel is open.
+      const seenKey = "bpBellToastSeen:" + ((auth.user() && auth.user().id) || "anon");
+      const readSeen = () => { try { const v = JSON.parse(localStorage.getItem(seenKey) || "null"); return v && typeof v === "object" ? v : null; } catch (e) { return null; } };
+      const writeSeen = (v) => { try { localStorage.setItem(seenKey, JSON.stringify(v)); } catch (e) {} };
+      const popToasts = (merged) => {
+        const r = bellToastPick(merged, readSeen(), { label: bellLabel }); writeSeen(r.seen);
+        if (isOpen || !window.BPUI || !window.BPUI.toast) return;
+        r.toasts.slice().reverse().forEach((x) => { try { window.BPUI.toast(x.message, { title: x.title, type: x.type, icon: x.icon, href: x.href || null, linkLabel: "View", timeout: 5000 }); } catch (e) {} });
+      };
       const refresh = async () => { let f = null; try { f = await this.feed(20); } catch {} await loadChat(); setDot(f && f.unread);
-        if (isOpen) { lastItems = mergedFeed(f && f.items); loaded = true; render(); } return f; };
+        const merged = mergedFeed(f && f.items); if (f) popToasts(merged);
+        if (isOpen) { lastItems = merged; loaded = true; render(); } return f; };
       // desktop: anchor the popover under the bell; phone: the CSS sheet takes over
       const position = () => {
         if (isPhone()) { panel.style.top = ""; panel.style.right = ""; panel.style.maxHeight = ""; return; }
@@ -5584,17 +5632,17 @@
         lastFocus = document.activeElement;
         root.hidden = false; position(); btn.setAttribute("aria-expanded", "true");
         try { prevOverflow = document.documentElement.style.overflow; document.documentElement.style.overflow = "hidden"; } catch (e) {}
-        void root.offsetWidth; root.classList.add("is-open");     // next frame → CSS transition runs
+        void root.offsetWidth; root.classList.add("is-open"); document.documentElement.classList.add("bpb-is-open");     // next frame → CSS transition runs
         try { panel.focus({ preventScroll: true }); } catch (e) { panel.focus(); }
         if (loaded) render();                                       // show the last list at once, then refresh
         let f = null; try { f = await this.feed(20); } catch {} await loadChat();
         if (!isOpen) return;
-        lastItems = mergedFeed(f && f.items); loaded = true; render();
+        lastItems = mergedFeed(f && f.items); loaded = true; render(); if (f) popToasts(lastItems);   // panel open → just moves the baseline
         try { await this.markSeen(); } catch {} setDot(0);   // event notifs cleared; any chat unread keeps the dot until that chat is opened
       };
       const close = (restore) => {
         if (!isOpen) return; isOpen = false;
-        root.classList.remove("is-open"); btn.setAttribute("aria-expanded", "false");
+        root.classList.remove("is-open"); document.documentElement.classList.remove("bpb-is-open"); btn.setAttribute("aria-expanded", "false");
         try { document.documentElement.style.overflow = prevOverflow || ""; } catch (e) {}
         const hide = () => { if (!isOpen) root.hidden = true; };
         if (reduced()) hide(); else closeTimer = setTimeout(hide, 280);
@@ -6066,20 +6114,40 @@
     ".bpui-btn.bpui-primary{background:var(--bpui-accent);border-color:var(--bpui-accent);color:var(--bpui-on-accent)}",
     ".bpui-btn.bpui-primary:hover{filter:brightness(1.08)}",
     ".bpui-btn.bpui-danger{background:var(--bpui-danger);border-color:var(--bpui-danger);color:var(--bpui-on-danger)}",
-    ".bpui-btn:focus-visible,.bpui-toast button:focus-visible,.bpui-dialog :focus-visible{outline:2px solid var(--bpui-accent);outline-offset:2px}",
+    ".bpui-btn:focus-visible,.bpui-toast button:focus-visible,.bpui-toast a:focus-visible,.bpui-dialog :focus-visible{outline:2px solid var(--bpui-accent);outline-offset:2px}",
     ".bpui-btn[disabled]{opacity:.6;cursor:not-allowed}",
     "@media (pointer:coarse){.bpui-btn,.bpui-toast button{min-height:44px}}",
-    /* toasts */
-    ".bpui-toasts{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:2147483600;display:flex;flex-direction:column;gap:8px;",
-    "width:min(520px,calc(100vw - 32px));pointer-events:none}",
-    ".bpui-lane{display:flex;flex-direction:column;gap:8px}",
-    ".bpui-toast{pointer-events:auto;display:flex;align-items:center;gap:10px;padding:10px 10px 10px 14px;border-radius:10px;background:var(--bpui-toast-bg);",
-    "color:var(--bpui-toast-ink);border-left:4px solid var(--bpui-info);box-shadow:0 10px 30px rgba(0,0,0,.3);font:14px/1.4 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}",
-    ".bpui-toast.bpui-ok{border-left-color:var(--bpui-ok)}.bpui-toast.bpui-err{border-left-color:var(--bpui-err)}",
-    ".bpui-toast-msg{flex:1;min-width:0;overflow-wrap:anywhere}",
-    ".bpui-toast button{background:transparent;border:0;color:var(--bpui-toast-act);font:inherit;font-weight:700;cursor:pointer;min-height:32px;min-width:32px;padding:0 8px;border-radius:6px}",
-    ".bpui-toast button:hover{background:rgba(255,255,255,.1)}",
-    ".bpui-toast .bpui-x{color:var(--bpui-toast-ink);opacity:.85;font-size:18px;line-height:1}",
+    /* toasts — white cards, top-right stack (bottom on phones), max 3, title + message + link + close + progress */
+    ".bpui-toasts{position:fixed;top:72px;right:16px;z-index:2147483600;display:flex;flex-direction:column;gap:10px;",
+    "width:min(380px,calc(100vw - 32px));pointer-events:none;--bpui-t-bg:#fff;--bpui-t-ink:#1b1930;--bpui-t-ink2:#5b566b;--bpui-t-line:#e8e3db;",
+    "--bpui-t-info:#6d28d9;--bpui-t-info-bg:#efe9ff;--bpui-t-ok:#0f7a43;--bpui-t-ok-bg:#dcf5e7;--bpui-t-warn:#8f5f00;--bpui-t-warn-bg:#fff1d6;",
+    "--bpui-t-err:#c0262d;--bpui-t-err-bg:#ffe3e3;--bpui-t-sec:#1d4ed8;--bpui-t-sec-bg:#e0ecff;--bpui-t-shadow:0 12px 32px rgba(20,27,46,.16),0 2px 6px rgba(20,27,46,.06)}",
+    "html[data-theme=dark] .bpui-toasts{--bpui-t-bg:#221e2e;--bpui-t-ink:#f3f1fa;--bpui-t-ink2:#c6c2d6;--bpui-t-line:#3a3548;--bpui-t-info:#c4b5fd;--bpui-t-info-bg:#2c2346;",
+    "--bpui-t-ok:#6ee7b7;--bpui-t-ok-bg:#12301f;--bpui-t-warn:#fcd34d;--bpui-t-warn-bg:#3a2a0c;--bpui-t-err:#fca5a5;--bpui-t-err-bg:#3d1518;--bpui-t-sec:#93c5fd;--bpui-t-sec-bg:#172a4d;--bpui-t-shadow:0 14px 36px rgba(0,0,0,.6)}",
+    ".bpui-lane{display:flex;flex-direction:column;gap:10px}",
+    ".bpui-toast{--bpui-t-c:var(--bpui-t-info);--bpui-t-cbg:var(--bpui-t-info-bg);position:relative;overflow:hidden;pointer-events:auto;display:flex;align-items:flex-start;gap:12px;padding:12px 8px 14px 12px;",
+    "border-radius:14px;background:var(--bpui-t-bg);color:var(--bpui-t-ink);border:1px solid var(--bpui-t-line);box-shadow:var(--bpui-t-shadow);font:14px/1.4 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}",
+    ".bpui-toast.bpui-ok{--bpui-t-c:var(--bpui-t-ok);--bpui-t-cbg:var(--bpui-t-ok-bg)}.bpui-toast.bpui-err{--bpui-t-c:var(--bpui-t-err);--bpui-t-cbg:var(--bpui-t-err-bg)}",
+    ".bpui-toast.bpui-warn{--bpui-t-c:var(--bpui-t-warn);--bpui-t-cbg:var(--bpui-t-warn-bg)}.bpui-toast.bpui-sec{--bpui-t-c:var(--bpui-t-sec);--bpui-t-cbg:var(--bpui-t-sec-bg)}",
+    ".bpui-toast-ic{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:10px;background:var(--bpui-t-cbg);color:var(--bpui-t-c);font-size:16px;font-weight:800;line-height:1}",
+    ".bpui-toast-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;padding-top:1px}",
+    ".bpui-toast-title{font-weight:700;font-size:14px;color:var(--bpui-t-ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    ".bpui-toast-msg{font-size:13px;color:var(--bpui-t-ink2);overflow-wrap:anywhere}",
+    ".bpui-toast.has-title .bpui-toast-msg{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+    ".bpui-toast.no-title .bpui-toast-msg{color:var(--bpui-t-ink);font-size:13.5px;padding-top:5px}",
+    ".bpui-toast-act{align-self:flex-start;margin-top:4px;background:transparent;border:0;padding:0;color:var(--bpui-t-c);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:none}",
+    ".bpui-toast-act:hover{text-decoration:underline}",
+    ".bpui-toast .bpui-x{flex:0 0 auto;background:transparent;border:0;color:var(--bpui-t-ink2);font-size:18px;line-height:1;cursor:pointer;width:30px;height:30px;border-radius:8px}",
+    ".bpui-toast .bpui-x:hover{background:var(--bpui-t-cbg);color:var(--bpui-t-ink)}",
+    ".bpui-toast.is-link{cursor:pointer}",
+    ".bpui-toast-bar{position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--bpui-t-c);opacity:.7;transform-origin:left center}",
+    ".bpui-toast.is-paused .bpui-toast-bar{animation-play-state:paused!important}",
+    "@keyframes bpuiBar{from{transform:scaleX(1)}to{transform:scaleX(0)}}",
+    "@keyframes bpuiIn{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}",
+    "@media (max-width:640px){.bpui-toasts{top:auto;right:auto;left:50%;transform:translateX(-50%);bottom:max(16px,env(safe-area-inset-bottom,0px));flex-direction:column-reverse}",
+    ".bpui-lane{flex-direction:column-reverse}@keyframes bpuiIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}}",
+    "@media (pointer:coarse){.bpui-toast .bpui-x{width:44px;height:44px}}",
+    "@media (prefers-reduced-motion:reduce){.bpui-toast-bar{display:none}}",
     /* offline banner */
     ".bpui-offline{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:2147483500;max-width:calc(100vw - 32px);padding:8px 14px;border-radius:999px;",
     "background:var(--bpui-warn-bg);color:var(--bpui-warn-ink);border:1px solid var(--bpui-warn-line);font:600 13px/1.4 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.15);text-align:center}",
@@ -6104,7 +6172,7 @@
     "[aria-busy=true].bpui-busy{cursor:progress}",
     "@media (prefers-reduced-motion:no-preference){",
     ".bpui-overlay{animation:bpuiFade .14s ease-out}.bpui-dialog{animation:bpuiPop .16s ease-out}",
-    ".bpui-toast{animation:bpuiUp .18s ease-out}.bpui-spin,.bpui-spin2,:where(#boot:empty)::before{animation:bpuiSpin .8s linear infinite}",
+    ".bpui-toast{animation:bpuiIn .22s cubic-bezier(.2,.8,.2,1)}.bpui-spin,.bpui-spin2,:where(#boot:empty)::before{animation:bpuiSpin .8s linear infinite}",
     ".bpui-boot-overlay{animation:bpuiFade .2s ease-out}}",
     /* Reduced-motion users got a FROZEN ring that read as a broken/odd shape. Give the */
     /* spinners a gentle opacity pulse instead so a loading state never looks stuck. */
@@ -6261,52 +6329,88 @@
     doc.body.appendChild(toastRoot);
     return true;
   }
-  // toast(msg, {type:'ok'|'err'|'info', timeout:ms (0 = sticky), action:{label,onClick}})
-  // → { close() }. Same message+type already showing → its timer restarts (no stacking).
+  // toast(msg, {type, title, timeout:ms (0 = sticky), action:{label,onClick}, href, linkLabel, icon})
+  //   type: 'info' | 'ok'/'success' | 'warn'/'warning' | 'err'/'error' | 'security'
+  //   href: a same-site link — "Open" action + clicking the card opens it.
+  // → { close() }. Same title+message+type already showing → its timer restarts (no stacking).
+  // At most 3 cards are visible (oldest dropped). Auto-dismiss pauses on hover / focus.
+  var TOAST_TYPES = { ok: "ok", success: "ok", err: "err", error: "err", warn: "warn", warning: "warn", security: "sec", sec: "sec", info: "info" };
+  var TOAST_ICON = { info: "i", ok: "✓", warn: "!", err: "✕", sec: "🛡" };
+  function toastType(t) { return TOAST_TYPES[t] || "info"; }
+  // only relative / same-origin http(s) links (never javascript: / data:)
+  function safeHref(u) {
+    u = String(u == null ? "" : u).trim(); if (!u) return null;
+    if (/^[a-z][a-z0-9+.-]*:/i.test(u) || u.indexOf("//") === 0) {
+      try { var x = new URL(u, global.location.href); return x.origin === global.location.origin ? x.href : null; } catch (e) { return null; }
+    }
+    return u;
+  }
   function toast(msg, o) {
     o = o || {};
-    var type = o.type === "ok" || o.type === "err" ? o.type : "info";
-    var timeout = o.timeout != null ? +o.timeout : (type === "err" ? 8000 : 4000);
+    var type = toastType(o.type);
+    var timeout = o.timeout != null ? +o.timeout : (type === "err" ? 8000 : 5000);
     var handle = { close: function () {} };
     var run = function () {
       var fresh = !(toastRoot && toastRoot.isConnected);
       if (!ensureToasts()) return;
-      var lane = type === "err" ? lanes.assertive : lanes.polite;
-      var text = String(msg == null ? "" : msg);
-      var existing = null;
-      Array.prototype.forEach.call(lane.children, function (t) { if (t.__bpuiKey === type + "|" + text) existing = t; });
-      if (existing) { existing.__bpuiArm(); handle.close = existing.__bpuiClose; return; }
-      var t = h("div", { class: "bpui-toast bpui-" + type });
-      t.__bpuiKey = type + "|" + text;
+      var lane = (type === "err" || type === "sec") ? lanes.assertive : lanes.polite;
+      var text = String(msg == null ? "" : msg), title = o.title != null ? String(o.title) : "";
+      var key = type + "|" + title + "|" + text, existing = null;
+      Array.prototype.forEach.call(lane.children, function (t) { if (t.__bpuiKey === key) existing = t; });
+      if (existing) { existing.__bpuiArm(true); handle.close = existing.__bpuiClose; return; }
+      var href = safeHref(o.href);
+      var t = h("div", { class: "bpui-toast bpui-" + type + (title ? " has-title" : " no-title") + (href ? " is-link" : "") });
+      t.__bpuiKey = key;
+      t.appendChild(h("span", { class: "bpui-toast-ic", "aria-hidden": "true" }, o.icon ? String(o.icon).slice(0, 4) : TOAST_ICON[type]));
+      var col = h("div", { class: "bpui-toast-body" });
+      var tEl = title ? h("strong", { class: "bpui-toast-title" }) : null;
       var body = h("span", { class: "bpui-toast-msg" });
-      t.appendChild(body);
-      var timer = null, closed = false;
+      if (tEl) col.appendChild(tEl);
+      col.appendChild(body);
+      t.appendChild(col);
+      var timer = null, closed = false, left = timeout, startedAt = 0, bar = null;
       function close() {
         if (closed) return; closed = true; clearTimeout(timer);
         if (t.parentNode) t.parentNode.removeChild(t);
+        try { o.onClose && o.onClose(); } catch (e) {}
       }
-      function arm() { clearTimeout(timer); if (timeout > 0) timer = setTimeout(close, timeout); }
+      function pause() { if (!timer) return; clearTimeout(timer); timer = null; left = Math.max(800, left - (Date.now() - startedAt)); t.classList.add("is-paused"); }
+      function arm(restart) {
+        clearTimeout(timer); timer = null; t.classList.remove("is-paused");
+        if (!(timeout > 0)) return;
+        if (restart) { left = timeout; if (bar) { bar.style.animation = "none"; void bar.offsetWidth; bar.style.animation = "bpuiBar " + timeout + "ms linear forwards"; } }
+        startedAt = Date.now(); timer = setTimeout(close, left);
+      }
       t.__bpuiClose = close; t.__bpuiArm = arm;
       if (o.action && o.action.label) {
-        var a = h("button", { type: "button" }, o.action.label);
-        a.addEventListener("click", function () { try { o.action.onClick && o.action.onClick(); } finally { if (o.action.keepOpen !== true) close(); } });
-        t.appendChild(a);
+        var a = h("button", { type: "button", class: "bpui-toast-act" }, o.action.label);
+        a.addEventListener("click", function (ev) { ev.stopPropagation(); try { o.action.onClick && o.action.onClick(); } finally { if (o.action.keepOpen !== true) close(); } });
+        col.appendChild(a);
+      } else if (href) {
+        var ln = h("a", { class: "bpui-toast-act", href: href }, o.linkLabel || "Open");
+        ln.addEventListener("click", function (ev) { ev.stopPropagation(); try { o.onOpen && o.onOpen(); } catch (e) {} close(); });
+        col.appendChild(ln);
       }
       var x = h("button", { type: "button", class: "bpui-x", "aria-label": "Dismiss notification" }, "×");
-      x.addEventListener("click", close);
+      x.addEventListener("click", function (ev) { ev.stopPropagation(); close(); });
       t.appendChild(x);
+      if (href) t.addEventListener("click", function () { try { o.onOpen && o.onOpen(); } catch (e) {} close(); try { global.location.assign(href); } catch (e) {} });
+      if (timeout > 0) { bar = h("span", { class: "bpui-toast-bar", "aria-hidden": "true" }); bar.style.animation = "bpuiBar " + timeout + "ms linear forwards"; t.appendChild(bar); }
       // pause while hovered / focused so it can be read and acted on
-      t.addEventListener("mouseenter", function () { clearTimeout(timer); });
-      t.addEventListener("mouseleave", arm);
-      t.addEventListener("focusin", function () { clearTimeout(timer); });
-      t.addEventListener("focusout", arm);
+      t.addEventListener("mouseenter", pause);
+      t.addEventListener("mouseleave", function () { arm(false); });
+      t.addEventListener("focusin", pause);
+      t.addEventListener("focusout", function () { arm(false); });
       lane.appendChild(t);
-      while (lane.children.length > 3) lane.removeChild(lane.firstChild);
+      // at most 3 visible across both lanes — drop the oldest
+      var all = function () { return Array.prototype.slice.call(toastRoot.querySelectorAll(".bpui-toast")); };
+      var cards = all();
+      while (cards.length > 3) { var old = cards.filter(function (c) { return c !== t; })[0]; if (!old) break; if (old.__bpuiClose) old.__bpuiClose(); else old.remove(); cards = all(); }
       // Set the text AFTER insertion (and after a tick when the live region is
       // brand new) so screen readers reliably announce it.
-      var setText = function () { body.textContent = text; };
+      var setText = function () { if (tEl) tEl.textContent = title; body.textContent = text; };
       if (fresh) setTimeout(setText, 60); else setText();
-      arm();
+      arm(false);
       handle.close = close;
     };
     whenBody(run);
