@@ -817,7 +817,7 @@
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "14";
+  const AUTH_UI_VERSION = "15";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -5442,7 +5442,7 @@
       } else {
         const L = label(n) || {}; icon = esc(L.icon || "🔔"); title = esc(L.text || "Update");
         preview = esc([n.event_code, n.event_title].filter(Boolean).join(" · "));
-        href = n.quote_id ? "event.html?id=" + encodeURIComponent(n.quote_id) : ""; isUnread = !!n.unread; key = "n:" + (n.id || r.i);
+        href = n.kind === "trial_reminder" ? "checkout.html" : n.quote_id ? "event.html?id=" + encodeURIComponent(n.quote_id) : ""; isUnread = !!n.unread; key = "n:" + (n.id || r.i);
       }
       const cls = `bpb-item g-${r.g}${isUnread ? " is-unread" : ""}`;
       const inner = `<span class="bpb-chip" aria-hidden="true">${icon}</span>`
@@ -5489,7 +5489,7 @@
     const since = String(seen.t || "");
     const fresh = list.filter((n) => (n.__chat || n.unread) && String(n.created_at || "") > since && ids.indexOf(keyOf(n)) === -1)
       .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))).slice(0, 3);
-    const typeOf = (k) => k === "security_alert" ? "security" : /^(payment_received|advance_paid|task_complete|task_accept)$/.test(k) ? "success"
+    const typeOf = (k) => k === "security_alert" ? "security" : k === "trial_reminder" ? "warning" : /^(payment_received|advance_paid|task_complete|task_accept)$/.test(k) ? "success"
       : /^(payment_reconcile|task_reject|task_due)$/.test(k) ? "warning" : "info";
     const toasts = fresh.map((n) => {
       if (n.__chat) {
@@ -5500,8 +5500,8 @@
       }
       const L = label(n) || {}, k = String(n.kind || "").toLowerCase();
       return { key: keyOf(n), type: typeOf(k), icon: L.icon || "🔔", title: String(L.text || "Update"),
-        message: [n.event_code, n.event_title].filter(Boolean).join(" · ") || "Open to see details",
-        href: n.quote_id ? "event.html?id=" + encodeURIComponent(n.quote_id) : "" };
+        message: k === "trial_reminder" ? "Choose a plan to keep using Helm" : [n.event_code, n.event_title].filter(Boolean).join(" · ") || "Open to see details",
+        href: k === "trial_reminder" ? "checkout.html" : n.quote_id ? "event.html?id=" + encodeURIComponent(n.quote_id) : "" };
     });
     return { toasts, seen: { t: newest, ids: ids.concat(fresh.map(keyOf)).slice(-60) } };
   }
@@ -5620,6 +5620,8 @@
         + ((Number(d.count) || 1) > 1 ? " ×" + (Number(d.count) || 1) : "")
         + (d.subject_name ? " · " + d.subject_name : d.actor_name ? " · by " + d.actor_name : "")
         + (d.event_code ? " · " + d.event_code : "")],
+      // 0058: free-trial reminders (admins only — the server decides)
+      trial_reminder: ["⏳", String(d.label || "Free trial update")],
     };
     const hit = m[k] || (k.indexOf("design_") === 0 ? ["🎨", "Design stage: " + k.slice(7).replace(/_/g, " ")]
                       : k.indexOf("nurture_") === 0 ? ["🌱", "Greeting queued" + (k.length > 8 ? " · " + k.slice(8).replace(/_/g, " ") : "")] : null);
@@ -6278,6 +6280,8 @@
       invoice: (id) => rpc("my_invoice", { p_payment_id: id }),
       account: () => (supa ? rpc("my_studio_account").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
       updateAccount: (patch) => rpc("my_studio_account_update", { p_account: patch || {} }),
+      // 0058: {state:'trial'|'ended'|'none', days_left, ends_at, is_admin, can_pay}; null before 0058
+      trial: () => (supa ? rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
     },
     myTasks: () => (supa ? rpc("my_tasks") : Promise.resolve({ today: [], overdue: [], blocked: [], upcoming: [], completed: [], counts: {} })),
     // Build 1 — Designer 2D->3D design-approval state machine.

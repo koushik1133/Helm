@@ -15,7 +15,7 @@
     ["SA", "Saudi Arabia"], ["SG", "Singapore"], ["LK", "Sri Lanka"], ["US", "United States"], ["ZA", "South Africa"]];
   var FIELDS = { legal_business_name: "f_legal", gstin: "f_gstin", billing_address: "f_addr", city: "f_city", state: "f_state", country: "f_country" };
   var ERRS = { legal_business_name: "e_legal", gstin: "e_gstin", billing_address: "e_addr", city: "e_city", state: "e_state", country: "e_country" };
-  var st = { opts: null, plan: null, interval: "monthly", preview: null, seq: 0, busy: false, live: false, next: "dashboard.html", touched: {} };
+  var st = { upgrade: false, opts: null, plan: null, interval: "monthly", preview: null, seq: 0, busy: false, live: false, next: "dashboard.html", touched: {} };
 
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = String(text); return n; }
   function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); }
@@ -154,8 +154,8 @@
   function updateButton() {
     var b = $("#coPay");
     if (st.busy) return;
-    b.disabled = !st.preview;
-    b.textContent = !st.preview ? "Continue" : st.live ? "Pay " + money(st.preview.total, st.preview.currency) + " securely" : "Start 14-day free trial";
+    b.disabled = !st.preview || (st.upgrade && !st.live);
+    b.textContent = !st.preview ? "Continue" : st.upgrade && !st.live ? "Online payment coming soon" : st.live ? "Pay " + money(st.preview.total, st.preview.currency) + " securely" : "Start 14-day free trial";
   }
   function setBusy(on, label) {
     st.busy = on;
@@ -196,6 +196,7 @@
     setBusy(true, st.live ? "Processing payment…" : "Starting your trial…");
     try {
       await S.checkout.saveBilling(readFields(), st.opts.terms_version);   // also records the Terms (server time)
+      if (st.upgrade && !st.live) throw Object.assign(new Error("Online payment isn't switched on yet — contact Helm to activate your plan."), { kind: "validation" });
       if (st.live) {
         var p = (st.opts.prefill || {});
         var v = await S.checkout.pay(st.plan, st.interval, { name: $("#f_legal").value, email: p.email || "", contact: p.contact || "" });
@@ -270,7 +271,16 @@
     st.live = S.checkout.payLive(st.opts);
     $("#coDormant").hidden = st.live;
     $("#coSecure").hidden = !st.live;
-    $("#coTest").hidden = !(S.checkout.bypassEnabled() && st.opts.bypass_allowed === true);
+    // 0058: a studio already on (or just past) its free trial is upgrading — pay only, no new trial
+    st.upgrade = st.opts.status === "trial" || st.opts.status === "past_due";
+    $("#coTest").hidden = st.upgrade || !(S.checkout.bypassEnabled() && st.opts.bypass_allowed === true);
+    if (st.upgrade) {
+      $("#coDormant").hidden = true;
+      var up = $("#coUpgrade"); up.hidden = false;
+      up.textContent = st.opts.status === "trial" ? "You're on the free trial. Choose a plan now — your trial days are not lost."
+        : "Your free trial has ended. Choose a plan to keep using Helm — your data is safe.";
+      if (!st.live) up.textContent += " Online payment isn't switched on yet — contact Helm to activate your plan.";
+    }
     var list = plansList();
     st.plan = list.length ? list[Math.min(1, list.length - 1)].code : null;   // middle-of-range default
     renderPlans();
