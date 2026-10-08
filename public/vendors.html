@@ -141,7 +141,7 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=97"></script>
-<script src="store-api.js?v=131"></script>
+<script src="store-api.js?v=132"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -229,6 +229,19 @@
   const formDirty=BPUI.trackDirty($("#vModal"));
   function closeForm(){ $("#vModal").hidden=true; editingId=null; formDirty.clean(); }
   async function requestCloseForm(){ if($("#vModal").hidden) return; if(!(await BPUI.confirmDiscard(formDirty))) return; closeForm(); }
+  const dupNorm=t=>String(t==null?"":t).normalize('NFKC').toLowerCase().replace(/&/g,' and ').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+  const dupDigits=p=>String(p==null?"":p).replace(/\D+/g,"").slice(-10);
+  // returns {block:msg}|{ask:msg}|null — compares against ALL records incl. inactive
+  function dupCheck(rows,selfId,name,phone,noun){
+    const n=dupNorm(name); if(!n) return null; const pd=dupDigits(phone); let ask=null;
+    for(const r of rows||[]){
+      if(r.id===selfId || dupNorm(r.name)!==n) continue;
+      const rd=dupDigits(r.phone), tag=r.active===false?" (inactive)":"";
+      if(!pd||!rd||pd===rd) return {block:`A ${noun} named "${r.name}"${tag} already exists${pd&&rd?" with this phone number":""}. Open the existing record instead of adding a duplicate${r.active===false?" (tick \"Show inactive\" and reactivate it)":""}.`};
+      ask=ask||`A ${noun} named "${r.name}"${tag} already exists with a different phone number. Save this one as a separate person/partner anyway?`;
+    }
+    return ask?{ask}:null;
+  }
   async function save(){
     const fail=(m)=>{ $("#vm_err").textContent=m; $("#vm_err").hidden=false; };
     const V=BPStore.validate;
@@ -241,6 +254,12 @@
     const rec={ name, kind:$("#v_kind").value, category:$("#v_cat").value.trim()||null, phone,
       email, services, notes:$("#v_notes").value.trim()||null };
     await BPUI.guard($("#vm_save"),async()=>{
+      try{
+        const all=await BPStore.vendors.listAll(true);
+        const dc=dupCheck(all,editingId,name,phone,"partner");
+        if(dc&&dc.block){ fail(dc.block); return; }
+        if(dc&&dc.ask&&!(await BPUI.confirm(dc.ask,{title:"Possible duplicate",okLabel:"Save anyway"}))) return;
+      }catch(e){ /* lookup failed: don't block the save */ }
       try{ if(editingId) await BPStore.vendors.update(editingId,rec); else await BPStore.vendors.addFull(rec); closeForm(); BPUI.toast("Partner saved.",{type:"ok"}); await load(); }
       catch(e){ fail(BPUI.friendlyError(e,{action:"save the partner",setupHint:"phase9-vendors.sql"})); }
     },{busyLabel:"Saving…"});
@@ -259,7 +278,8 @@
   $("#vm_cancel").addEventListener("click",requestCloseForm);
   $("#vm_save").addEventListener("click",save);
   $("#vm_deact").addEventListener("click",async()=>{ const id=editingId; if(!id) return;
-    if(!(await BPUI.confirm("Deactivate this partner? They'll be hidden from vendor pickers until reactivated.",{title:"Deactivate partner?",okLabel:"Deactivate"}))) return;
+    let openBk=0; try{ const bl=await BPStore.bookings.forVendors([id]); openBk=bl.filter(b=>b.status&&b.status!=="cancelled"&&b.status!=="delivered").length; }catch(e){}
+    if(!(await BPUI.confirm((openBk?`This partner has ${openBk} open booking${openBk===1?"":"s"} (not yet delivered or cancelled) — existing bookings stay in place. `:"")+"Deactivate this partner? They'll be hidden from vendor pickers until reactivated.",{title:"Deactivate partner?",okLabel:"Deactivate"}))) return;
     await BPUI.guard($("#vm_deact"),async()=>{
       try{ await BPStore.vendors.update(id,{active:false}); closeForm(); BPUI.toast("Partner deactivated.",{type:"ok"}); await load(); }
       catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"deactivate the partner"}),{type:"err"}); } }); });

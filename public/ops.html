@@ -216,7 +216,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=97"></script>
 <script src="phone-input.js?v=1"></script>
-<script src="store-api.js?v=131"></script>
+<script src="store-api.js?v=132"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -515,12 +515,18 @@
   const pad2=(n)=>String(n).padStart(2,"0");
   const toLocalInput=(iso)=>{ const d=new Date(iso); if(isNaN(d)) return ""; return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
   let scTaskId=null; const scDirty=BPUI.trackDirty($("#schedForm"));
+  // would making `depId` a prerequisite of `id` create a cycle of any length? (walk depId's chain; bounded)
+  function wouldCycle(id, depId){
+    const seen=new Set(); let cur=depId;
+    while(cur && !seen.has(cur)){ if(cur===id) return true; seen.add(cur); const x=tasks.find(y=>y.id===cur); cur=x?x.depends_on:null; }
+    return false;
+  }
   function scheduleFlow(id){
     const t=tasks.find(x=>x.id===id); if(!t) return;
     scTaskId=id;
     $("#sc_task").textContent=t.title||"Task";
     $("#sc_when").value=t.planned_start?toLocalInput(t.planned_start):"";
-    const others=tasks.filter(x=>x.id!==id && x.depends_on!==id);   // no self / direct-cycle prerequisites
+    const others=tasks.filter(x=>x.id!==id && !wouldCycle(id,x.id));   // no self / any-length cycle prerequisites
     $("#sc_dep").innerHTML=`<option value="">— none —</option>`+others.map(x=>`<option value="${esc(x.id)}">${esc(x.category||"")} — ${esc(x.title||"task")}${x.assignee_name?" ("+esc(x.assignee_name)+")":""}</option>`).join("");
     $("#sc_dep").value=t.depends_on && others.some(x=>x.id===t.depends_on) ? t.depends_on : "";
     $("#sc_err").hidden=true; scDirty.clean(); $("#schedModal").hidden=false;
@@ -533,6 +539,11 @@
     if(when && isNaN(Date.parse(when))){ $("#sc_err").textContent="Couldn't read that date/time."; $("#sc_err").hidden=false; return; }
     const startISO = when ? new Date(when).toISOString() : null;
     const depId=$("#sc_dep").value||null;
+    if(depId){
+      if(wouldCycle(scTaskId,depId)){ $("#sc_err").textContent="That would create a circular dependency (the chosen task already depends on this one, directly or through other tasks)."; $("#sc_err").hidden=false; return; }
+      const dep=tasks.find(x=>x.id===depId);
+      if(startISO && dep && dep.planned_start && Date.parse(startISO) < Date.parse(dep.planned_start)){ $("#sc_err").textContent="This task can't start before its prerequisite does ("+fmtTime(dep.planned_start)+"). Pick a later start or a different prerequisite."; $("#sc_err").hidden=false; return; }
+    }
     BPUI.guard($("#schedForm"),async()=>{
       try{ await BPStore.ops.setSchedule(scTaskId, startISO, null, depId); await closeSched(true); BPUI.toast("Schedule updated.",{type:"ok"}); await refreshDashboard(); }
       catch(err){ $("#sc_err").textContent=BPUI.friendlyError(err,{action:"save the schedule"}); $("#sc_err").hidden=false; }

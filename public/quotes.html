@@ -277,7 +277,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=97"></script>
 <script src="phone-input.js?v=1"></script>
-<script src="store-api.js?v=131"></script>
+<script src="store-api.js?v=132"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
@@ -287,6 +287,7 @@
   const statBadge=(s)=> s==="confirmed"?'<span class="stat ok">Confirmed</span>':s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
   const apprBadge=(a)=> a==="paid"?'<span class="stat ok">Paid</span>':a==="approved"?'<span class="stat ap">Approved</span>':a==="sent"?'<span class="stat st">Sent</span>':"";
 
+  let focusPending=true;
   let quotes=[], filter="all", typeFilter="", canEdit=false, canDelete=false, canCreate=false, canMarkPaid=false;
   // Perf (Oct 2026): the list is server-paged — each tab / type / search asks the server for
   // the first page (light columns, no pricing JSON) and Load more / infinite scroll fetches
@@ -393,11 +394,12 @@
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     canEdit = await BPStore.auth.canEditArea("quotes"); canDelete = await BPStore.auth.can("delete"); canCreate = await BPStore.auth.can("create");
     // mark_paid is admin/manager only server-side (SEC-05 F11); offline mode has no roles
-    canMarkPaid = canEdit && (!BPStore.auth.enabled() || ["admin","manager"].includes(await BPStore.auth.role()));
+    canMarkPaid = !BPStore.auth.enabled() || await BPStore.auth.canEditArea("finance");   // server: mark_paid needs has_area(finance,edit)
     $("#newBtn").hidden = !canCreate;
     runShelfTick();   // 0040: client link expired → Archive / Deleted (rate-limited server-side; never awaited)
     // opened from an event workspace? focus that quote by pre-filling the search
-    const focus=new URLSearchParams(location.search).get("focus");
+    const focus=focusPending ? new URLSearchParams(location.search).get("focus") : null;
+    focusPending=false;   // apply the ?focus= prefill once, never overwrite what the user typed on later load()s
     if(focus){ $("#search").value=focus; }
     const [listR]=await Promise.allSettled([reloadList(), loadEventGroups(), fillTypeFilter()]);
     if(listR.status==="rejected"){ BPUI.loadError($("#rows"), listR.reason, load, {what:"quotes"}); return; }
@@ -431,12 +433,12 @@
     // Needs attention = the event date has passed but the event isn't wrapped up
     // (not closed / cancelled) — e.g. it happened but equipment isn't returned or
     // it was never settled & closed. Draft quotes with no date are never flagged.
-    const startOfToday=new Date(); startOfToday.setHours(0,0,0,0);
+    const _n=new Date(), todayISO=_n.getFullYear()+"-"+String(_n.getMonth()+1).padStart(2,"0")+"-"+String(_n.getDate()).padStart(2,"0");   // local date, compared as a string like the server view
     const sh=x=>shelf.byId[x.id];   // flagged Archive / Deleted (0040)
     const needsAttention=x=>{
       if(sh(x) || isArchived(x) || x.status==="cancelled" || !x.eventDate) return false;
-      const d=new Date(x.eventDate); if(isNaN(d)) return false;
-      return d < startOfToday;
+      const ds=String(x.eventDate).slice(0,10); if(!/^\d{4}-\d{2}-\d{2}$/.test(ds)) return false;
+      return ds < todayISO;
     };
     // The tab (BPStore.quotes.page view), type and search are applied by the SERVER, which
     // also orders the rows: confirmed rise to the top, then newest first.
@@ -481,7 +483,7 @@
                ${canEdit&&x.status==="confirmed"?`<button type="button" class="ic" data-act="link" title="Get the client approval link" aria-label="Approval link for ${esc(x.code)}">🔗 Approve link</button>`:""}
                <button type="button" class="ic go" data-act="ops" title="Assign & track work" aria-label="Operations for ${esc(x.code)}">⚙ Ops</button>
                ${egReady&&(egIndex[x.id]||x.status==="confirmed")?`<button type="button" class="ic go" data-act="egroup" title="${egIndex[x.id]?"Open this event's team chat":"Create a team chat for this event"}" aria-label="${egIndex[x.id]?"Open event group":"Create event group"} for ${esc(x.code)}">${egIndex[x.id]?"💬 Open event group":"💬 Event group"}</button>`:""}
-               ${canMarkPaid&&x.approvalStatus==="approved"?`<button type="button" class="ic confirm" data-act="paid" title="Mark payment received (dev)" aria-label="Mark ${esc(x.code)} paid">Mark paid</button>`:""}
+               ${canMarkPaid&&x.approvalStatus==="approved"?`<button type="button" class="ic confirm" data-act="paid" title="Mark payment received" aria-label="Mark ${esc(x.code)} paid">Mark paid</button>`:""}
                <button type="button" class="ic" data-act="download" aria-label="Download ${esc(x.code)}">Download</button>
                ${shelf.ready&&canEdit?`<button type="button" class="ic" data-act="archive" title="Move to the Archive (restorable)" aria-label="Archive ${esc(x.code)}">🗄 Archive</button>`:""}
                ${canDelete?`<button type="button" class="ic del" data-act="del" title="${shelf.ready?"Move to Deleted quotes (restorable)":"Delete permanently"}" aria-label="Delete ${esc(x.code)}">✕</button>`:""}`}
@@ -627,20 +629,34 @@
       const pv=V.phone(ph); if(!pv.ok){ errEl.textContent=pv.error; errEl.hidden=false; $("#c_phone").focus(); return; }
     }
     errEl.hidden=true;
+    // duplicate warning (never blocks): another quote with the same client name + event date
+    try{ const dn=$("#c_name").value.trim().toLowerCase(), dd=$("#c_date").value;
+      const orig=(detailCache[cmId]&&detailCache[cmId].client)||{};
+      if(dn && dd && (String(orig.name||"").trim().toLowerCase()!==dn || String(orig.eventDate||"")!==dd)){
+        const pg=await BPStore.quotes.page({ offset:0, view:"all", search:$("#c_name").value.trim() });
+        const rows=Array.isArray(pg)?pg:((pg&&(pg.rows||pg.items||pg.all))||[]);
+        const dup=rows.find(x=>x.id!==cmId && String(x.eventDate||"").slice(0,10)===dd && String((x.client&&x.client.name)||x.clientName||"").trim().toLowerCase()===dn);
+        if(dup && !(await BPUI.confirm(`Another quote (${dup.code||"existing"}) already exists for ${$("#c_name").value.trim()} on ${dd}. Save this one anyway?`,{title:"Possible duplicate",okLabel:"Save anyway"}))) return;
+      } }catch(_){}
     if(confirmIt){ const tt=calcPricing(gatherPricing()); const code=(detailCache[cmId]&&detailCache[cmId].code)||"this quote";
       if(!(await BPUI.confirm(`Confirm ${code} at ${inr(tt.total)}? This locks a priced snapshot for the client.`,{title:"Confirm & lock quote?",okLabel:"Confirm & lock"}))) return; }
     if(btn.disabled || other.disabled) return;
     btn.disabled=true; other.disabled=true;   // one save at a time (no concurrent confirm + save)
     btn.setAttribute("aria-busy","true");
-    const p=gatherPricing(), t=calcPricing(p), client=gatherClient();
+    const p=gatherPricing(), t=calcPricing(p);
+    // merge into the stored client JSON - never replace it (keeps guests/budget carried over from the lead)
+    const client=Object.assign({}, (detailCache[cmId]&&detailCache[cmId].client)||{}, gatherClient());
     const pricing = { ...p, computed:t, total:t.total, client };
     // B6 — optimistic lock: the updated_at captured when this modal loaded. If another
     // user/tab changed the quote since, updateMeta throws {code:"CONFLICT"} instead of
     // silently overwriting their edit.
     const expUpd = (detailCache[cmId] && detailCache[cmId].updatedAt) || null;
-    let confirmedId=null;
+    let confirmedId=null, dateSyncFailed=false;
     try{
-      if(confirmIt){ await BPStore.quotes.confirm(cmId, client, pricing); confirmedId=cmId;
+      if(confirmIt){
+        // confirm() has no lock parameter: check the quote hasn't changed since the modal opened
+        if(expUpd){ const cur=await BPStore.quotes.get(cmId); if(cur && cur.updatedAt && String(cur.updatedAt)!==String(expUpd)) throw Object.assign(new Error("conflict"),{code:"CONFLICT"}); }
+        await BPStore.quotes.confirm(cmId, client, pricing); confirmedId=cmId;
         // 0052: Confirmed needs the client's approval (or an admin override); the client's OTP
         // approval moves the event to Confirmed by itself, so a refusal here is informational
         try{ await BPStore.quotes.setStage(cmId, "confirmed"); }catch(e){ if(e&&e.code==="HL409") BPUI.toast("Quote locked. The event moves to Confirmed when the client approves it — send them the approval link.",{type:"info"}); else BPUI.toast(BPUI.friendlyError(e,{action:"move this event to Confirmed"}),{type:"err"}); }
@@ -649,10 +665,10 @@
       // keep the event_date column in sync, then re-brand the code to the event date (draft only)
       if(client.eventDate){
         try{ await BPStore.quotes.updateMeta(cmId, { eventDate: client.eventDate });
-             if(!confirmIt) await BPStore.quotes.rebrandCode(cmId); }catch(_){}
+             if(!confirmIt) await BPStore.quotes.rebrandCode(cmId); }catch(e){ dateSyncFailed=true; BPUI.toast(BPUI.friendlyError(e,{action:"update the event date on the calendar"}),{type:"err"}); }
       }
       delete detailCache[cmId];
-      closeConfirm(); BPUI.toast(confirmIt?"Quote confirmed and locked.":"Pricing saved.",{type:"ok"}); await load();
+      closeConfirm(); BPUI.toast((confirmIt?"Quote confirmed and locked.":"Pricing saved.")+(dateSyncFailed?" The event date could not be synced - re-check it in the event workspace.":""),{type:dateSyncFailed?"info":"ok"}); await load();
       if(confirmedId) showEventGroupPrompt(confirmedId);
     }catch(e){ const el=$("#cm_err");
       el.textContent = (e&&e.code==="CONFLICT")
@@ -677,7 +693,7 @@
     // Don't download an empty quote (QA): needs a client or some priced content.
     const hasContent=(grand>0)||(Number(p.chairs)>0)||(Number(p.guests)>0)||((cl.name||"").trim()!=="");
     if(!hasContent){ BPUI.toast("This quote is empty — add the client, seating, catering or décor before downloading.",{type:"info"}); return; }
-    const isInv=full.status==="confirmed"; const pos=p.placeOfSupply;
+    const isInv=full.status==="confirmed" && (full.approvalStatus==="approved"||full.approvalStatus==="paid"); const pos=p.placeOfSupply;
     // pricing is jsonb the server doesn't type-check for every shape — only numbers reach the popup HTML
     const num=(v)=>{ const x=Number(v); return Number.isFinite(x)?x:0; };
     const line=(l,a)=>`<tr><td>${l}</td><td style="text-align:right">${inr(a)}</td></tr>`;
@@ -690,7 +706,7 @@
     .badge{background:#eef2ff;color:#4457c8;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}</style>
     <div class=head><div><h1>Helm Events</h1><div class=muted>Event ${isInv?"Invoice":"Quotation"}</div></div>
       <div style="text-align:right"><div style="font-family:monospace;font-weight:700;font-size:16px">${esc(full.code)}</div>
-      <div class=muted>${isInv?"Confirmed "+fmtDate(full.confirmedAt):"Quote v"+full.currentVersion} · ${fmtDate(full.updatedAt)}</div>
+      <div class=muted>${isInv?"Confirmed "+fmtDate(full.confirmedAt):"Quote v"+full.currentVersion}${ver&&String(ver)!==String(full.currentVersion)?" · layout v"+esc(String(ver)):""} · ${fmtDate(full.updatedAt)}</div>
       <span class=badge>${isInv?"CONFIRMED":"QUOTE"}</span></div></div>
     <table><tr><td class=muted>Client</td><td>${esc(cl.name||"—")}${cl.company?" · "+esc(cl.company):""}</td></tr>
       ${cl.email?`<tr><td class=muted>Email</td><td>${esc(cl.email)}</td></tr>`:""}
@@ -738,11 +754,11 @@
   let markingPaid=false;   // one in-flight request only (a double click would fire twice)
   async function markPaid(id, btn){
     if(markingPaid) return;
-    if(!(await BPUI.confirm("Mark this event's payment as received? (In production this is automatic via the Razorpay webhook.)",{title:"Mark payment received?",okLabel:"Mark paid"}))) return;
+    if(!(await BPUI.confirm("Mark this event's payment as received? (Use this only for payments received outside the online payment link.)",{title:"Mark payment received?",okLabel:"Mark paid"}))) return;
     if(markingPaid) return;
     markingPaid=true;
     try{ await BPUI.guard(btn||null, async()=>{
-      try{ await BPStore.approval.markPaid(id, "manual-dev");
+      try{ await BPStore.approval.markPaid(id, "manual");
         try{ await BPStore.quotes.setStageGuided(id, "planning"); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"move this event to Planning"}),{type:"err"}); }   // paid → move the event into planning (0052 gates explained / admin override)
         BPUI.toast("Payment marked as received.",{type:"ok"});
         await load(); }

@@ -177,7 +177,7 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=97"></script>
-<script src="store-api.js?v=131"></script>
+<script src="store-api.js?v=132"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -261,6 +261,10 @@
   async function setPublished(v,btn){
     if(blocked()) return;
     if(!v && !(await BPUI.confirm("Unpublish the proposal? The client's link will stop working until you publish again.",{title:"Unpublish proposal?",okLabel:"Unpublish",danger:true}))) return;
+    if(v && dirty.isDirty()){   // unsaved edits would go live as the OLD content: save them first
+      await saveProposal();
+      if(dirty.isDirty()){ BPUI.toast("Your latest edits could not be saved, so the proposal was not published.",{type:"err"}); return; }
+    }
     await act(btn,async()=>{ const t=await BPStore.proposal.publish(id,v); if(t) token=t; published=v; renderPublish(); BPUI.toast(v?"Published — share the link with your client.":"Unpublished.",{type:"ok"}); },v?"publish":"unpublish");
   }
   function addRisk(){
@@ -290,7 +294,7 @@
     if(!id){ $("#notfound").hidden=false; return; }
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("pipeline"))) return;
-    canEdit=await BPStore.auth.canEditArea("proposal"); canDelete=await BPStore.auth.can("delete");
+    canEdit=await BPStore.auth.canEditArea("proposal"); canDelete=canEdit && await BPStore.auth.can("delete");
     let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
     if(!ev){ $("#notfound").hidden=false; return; }
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");

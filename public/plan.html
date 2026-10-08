@@ -153,7 +153,7 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=97"></script>
-<script src="store-api.js?v=131"></script>
+<script src="store-api.js?v=132"></script>
 <script src="tour.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -193,7 +193,7 @@
     if(!templates.length){ $("#pkgBlock").style.display="none"; return; }
     $("#pkgBlock").style.display="";
     const editable=dishEditable();
-    const guests=(ev&&(ev.guest_count||ev.guests))||null;
+    const guests=(ev&&((ev.pricing&&Number(ev.pricing.guests))||(ev.client&&Number(ev.client.guests))))||null;
     host.innerHTML=templates.map(t=>{
       const est=guests?` · est ${inr((t.price_per_plate||0)*guests)} / ${guests} pax`:"";
       const n=(t.dishes||[]).length;

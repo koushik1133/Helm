@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en" data-theme="light" class="auth-pending">
+<head>
+<style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studio setup — Helm Events</title>
+<link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
+<link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
+<link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
+    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#18a558;--warn:#e8912d;
+    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;}
+  *{box-sizing:border-box} [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;min-height:100vh}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px 60px}
+  header{display:flex;align-items:center;gap:11px;padding:18px 0;flex-wrap:wrap}
+  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
+  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.9);border-radius:3px}
+  header h1{font-size:16px;margin:0;font-weight:700} header small{display:block;font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+  .nav{display:flex;gap:14px;margin-left:18px;font-size:13px;font-weight:600;color:var(--ink-2);flex-wrap:wrap} .nav a:hover,.nav a.on{color:var(--accent)}
+  .btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+  .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff} .btn:hover{border-color:var(--accent)} .btn:disabled{opacity:.4;cursor:default}
+  @media (max-width:640px){.wrap{padding:0 14px 40px}.nav{margin-left:0;width:100%}}
+</style>
+<link rel="stylesheet" href="theme.css?v=76">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="wrap">
+  <header>
+    <a href="dashboard.html" class="mark" title="Home" aria-label="Home"></a>
+    <div><h1>Helm Events</h1><small>Studio setup</small></div>
+    <nav class="nav"><a href="dashboard.html">Dashboard</a><a href="control.html">Control Center</a><a href="inventory.html">Inventory</a><a href="vendors.html">Vendors</a><a href="staff.html">Staff</a></nav>
+  </header>
+  <main id="main">
+    <div id="boot" aria-busy="true"></div>
+    <div id="app" class="ob" hidden>
+      <div id="obLive" class="sr-only" role="status" aria-live="polite"></div>
+      <div id="obRoot"></div>
+    </div>
+  </main>
+</div>
+<script src="/trusted-types.js?v=2"></script>
+<script src="telemetry.js?v=3"></script>
+<script src="config.js?v=97"></script>
+<script src="store-api.js?v=132"></script>
+<script src="onboarding-core.js?v=1"></script>
+<script src="onboarding.js?v=1"></script>
+</body>
+</html>

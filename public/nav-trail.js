@@ -27,7 +27,7 @@
     inventory: ["Inventory", "inventory.html"], resources: ["Resources", "resources.html"], ops: ["Operations", "ops.html"],
     command: ["Operations", "ops.html", "Command"], flow: ["Operations", "ops.html", "Flow"], issues: ["Operations", "ops.html", "Issues"],
     reports: ["Reports", "reports.html"], insights: ["Reports", "reports.html", "Insights"], audit: ["Settings", "control.html", "Audit log"],
-    control: ["Settings", "control.html"], templates: ["Settings", "control.html", "Templates"], services: ["Settings", "control.html", "Services"],
+    control: ["Settings", "control.html"], onboarding: ["Settings", "control.html", "Studio setup"], templates: ["Settings", "control.html", "Templates"], services: ["Settings", "control.html", "Services"],
     media: ["Media", "media.html"], chat: ["Chat", "chat.html"], manual: ["Help", "manual.html"],
   };
   const ICONS = { event: "📅", quote: "📅", lead: "👤", builder: "📐", vendor: "🏷️", staff: "🧑", record: "📄" };

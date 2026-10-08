@@ -130,8 +130,8 @@
     <div class="fld s-fdf33f2"><label for="ch_title">Title</label><input id="ch_title" placeholder="e.g. Add photo booth"></div>
     <div class="fld s-fdf33f2"><label for="ch_detail">Detail</label><input id="ch_detail" placeholder="optional"></div>
     <div class="s-4e330d8">
-      <div class="fld"><label for="ch_price">Charge client ₹</label><input id="ch_price" type="number" value="0"></div>
-      <div class="fld"><label for="ch_cost">Extra cost ₹</label><input id="ch_cost" type="number" value="0"></div>
+      <div class="fld"><label for="ch_price">Charge client ₹ <span class="muted">(negative = credit/discount)</span></label><input id="ch_price" type="number" value="0" data-allow-negative></div>
+      <div class="fld"><label for="ch_cost">Extra cost ₹ <span class="muted">(negative = saving)</span></label><input id="ch_cost" type="number" value="0" data-allow-negative></div>
     </div>
     <div id="ch_err" class="err s-8a77e5a" hidden role="alert" aria-live="assertive"></div>
     <div class="foot"><button type="button" class="btn" id="ch_cancel" data-close>Cancel</button><button type="button" class="btn primary" id="ch_save">Add</button></div>
@@ -151,7 +151,7 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=97"></script>
-<script src="store-api.js?v=131"></script>
+<script src="store-api.js?v=132"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -223,8 +223,8 @@
   async function requestCloseChg(){ if($("#chgModal").hidden) return; if(!(await BPUI.confirmDiscard(chgDirty))) return; closeChg(); }
   async function saveChg(){ const t=$("#ch_title").value.trim(); if(!t){ $("#ch_err").textContent="Title is required."; $("#ch_err").hidden=false; return; }
     const V=BPStore.validate; const fail=(m)=>{ $("#ch_err").textContent=m; $("#ch_err").hidden=false; };
-    let priceDelta=0; if($("#ch_price").value!==""){ const r=V.money($("#ch_price").value,{field:"Charge to client"}); if(!r.ok){ fail(r.error); return; } priceDelta=r.value; }
-    let costDelta=0; if($("#ch_cost").value!==""){ const r=V.money($("#ch_cost").value,{field:"Extra cost"}); if(!r.ok){ fail(r.error); return; } costDelta=r.value; }
+    let priceDelta=0; if($("#ch_price").value!==""){ const r=V.num($("#ch_price").value,{allowNeg:true,max:1e9}); if(!r.ok) r.error="Charge to client "+r.error; else r.value=Math.round(r.value*100)/100; if(!r.ok){ fail(r.error); return; } priceDelta=r.value; }
+    let costDelta=0; if($("#ch_cost").value!==""){ const r=V.num($("#ch_cost").value,{allowNeg:true,max:1e9}); if(!r.ok) r.error="Extra cost "+r.error; else r.value=Math.round(r.value*100)/100; if(!r.ok){ fail(r.error); return; } costDelta=r.value; }
     await BPUI.guard($("#ch_save"),async()=>{
       try{ await BPStore.budget.addChange(id,{ title:t, detail:$("#ch_detail").value.trim()||null, price_delta:priceDelta, cost_delta:costDelta });
         closeChg(); await load(); }catch(e){ fail(BPUI.friendlyError(e,{action:"save the change request",setupHint:"phase12-budget.sql"})); } },{busyLabel:"Saving…"}); }
