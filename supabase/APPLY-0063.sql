@@ -90,9 +90,19 @@ do $$ begin
   end if;
 end $$;
 
+-- suspended studios are read-only here too (0045 guard, like every studio table)
+do $$ begin
+  if to_regprocedure('public.tg_studio_read_only()') is not null then
+    drop trigger if exists zzz_studio_read_only on public.notification_mutes;
+    create trigger zzz_studio_read_only before insert or update or delete on public.notification_mutes
+      for each row execute function public.tg_studio_read_only('org_id');
+  end if;
+end $$;
+
 -- ---- verify (every row should say ok = true) -----------------------------------------------
 select item, ok from (values
   ('mutes table exists', to_regclass('public.notification_mutes') is not null),
+  ('mutes table has read-only guard', exists (select 1 from pg_trigger where tgrelid = 'public.notification_mutes'::regclass and tgname = 'zzz_studio_read_only')),
   ('mutes table has RLS', (select relrowsecurity from pg_class where oid = 'public.notification_mutes'::regclass)),
   ('members cannot insert directly', not has_table_privilege('authenticated', 'public.notification_mutes', 'insert')),
   ('members cannot delete directly', not has_table_privilege('authenticated', 'public.notification_mutes', 'delete')),

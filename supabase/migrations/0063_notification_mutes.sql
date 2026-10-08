@@ -80,3 +80,12 @@ do $$ begin
     execute 'grant execute on function public.set_notification_mute(text, boolean) to authenticated';
   end if;
 end $$;
+
+-- suspended studios are read-only here too (0045 guard, like every studio table)
+do $$ begin
+  if to_regprocedure('public.tg_studio_read_only()') is not null then
+    drop trigger if exists zzz_studio_read_only on public.notification_mutes;
+    create trigger zzz_studio_read_only before insert or update or delete on public.notification_mutes
+      for each row execute function public.tg_studio_read_only('org_id');
+  end if;
+end $$;
