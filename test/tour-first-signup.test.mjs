@@ -40,3 +40,7 @@ t('decision table', () => {
   assert.equal(decide({ seen: true, forced: true, eligible: true }), false);
   assert.equal(decide({ seen: false, forced: false, eligible: false }), false); // legacy account, new browser
 });
+t('auth boots async: "auth off" is retried before falling back to the per-device demo check', () => {
+  const d = readFileSync(new URL('../public/dashboard.html', import.meta.url), 'utf8');
+  assert.match(d, /if\(!authOn\)\{ if\(tries\+\+ < 15\)\{ setTimeout\(go, 400\); return; \}/);
+});
