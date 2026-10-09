@@ -259,8 +259,8 @@
       <div class="csec">② Guests &amp; seating</div>
       <div class="cform">
         <label>Expected guests<input type="number" id="c_guests" min="0" max="20000" placeholder="e.g. 240"></label>
-        <label>Number of chairs<input type="number" id="c_chairs" min="0" max="20000" placeholder="auto from guests"></label>
-        <label>Number of round tables<input type="number" id="c_tables" min="0" max="2000" placeholder="auto"></label>
+        <label>Number of chairs <a href="#" id="c_chairsReset" hidden>reset to 70%</a><input type="number" id="c_chairs" min="0" max="20000" placeholder="70% of guests"></label>
+        <label>Number of round tables<input type="number" id="c_tables" min="0" max="2000" placeholder="auto from chairs"></label>
         <label>Seats per round table<input type="number" id="c_spt" min="2" max="40" placeholder="8"></label>
         <label>Aisle width (ft)<input type="number" id="c_aisle" min="3" max="30" placeholder="8"></label>
       </div>
@@ -282,6 +282,8 @@
         <label><input type="checkbox" id="c_press"> Press riser</label>
         <label><input type="checkbox" id="c_fence"> Perimeter fence</label>
       </div>
+      <div class="csec">Recommended templates <small>(built with your numbers)</small></div>
+      <div id="c_recs" class="cresults" aria-live="polite"></div>
       <div class="cactions"><button class="tbtn primary" id="c_generate">Generate layouts →</button></div>
       <div id="c_results" class="cresults"></div>
     </div>
@@ -404,6 +406,7 @@
 <script src="store-api.js?v=150"></script>
 <script src="tour.js?v=9"></script>
 <script src="flow-layout-sync.js?v=1"></script>
+<script src="event-sizing.js?v=1"></script>
 <script src="builder.js?v=20"></script>
 
 <!-- ================= 3D RENDERED VIEW (Three.js, lazy-loaded on first use) ================= -->
