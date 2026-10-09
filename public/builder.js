@@ -1863,9 +1863,10 @@ function supportZone(items, o){
   if(o.buffet)                     flow.push(['buffet','Buffet']);
   for(let i=0;i<(o.rest||0);i++)   flow.push(['restroom','Restrooms']);
   let lx=lo, lane=0;
+  const pitch=flow.reduce((m,f)=>Math.max(m, ASSETS[f[0]].h), 0)+3;   // lane spacing = tallest piece + walkway
   flow.forEach(([type,label])=>{ const a=ASSETS[type];
     if(lx+a.w>hi){ lx=lo; lane++; }                    // wrap to the next lane up
-    items.push(makeItem(type, lx, Math.max(4, laneBottom-a.h-lane*10), {label}));
+    items.push(makeItem(type, lx, Math.max(4, laneBottom-a.h-lane*pitch), {label}));
     lx += a.w+4;
   });
   if(o.fence){ items.push(makeItem('fence',4,4,{width:WORLD.w-8,label:'Perimeter'}));
@@ -1876,8 +1877,15 @@ function supportZone(items, o){
 }
 
 // ---- seating strategies fill [topY .. bottomY] and honour guest target ----
+// bottomY = just above the support band (bars/buffet/trucks/restrooms lanes + exits) that
+// supportZone() will lay down for these options, with a 1.5 ft walkway (fix #5).
+function seatBottom(o){
+  const tmp=[]; supportZone(tmp, o); let b=WORLD.h-16;
+  tmp.forEach(i=>{ if(i.type!=='fence') b=Math.min(b, i.y-1.5); });
+  return b;
+}
 function seatTheatre(items, o, topY){
-  const bottomY=WORLD.h - (16 + ((o.bars||o.trucks||o.buffet)?8:0));
+  const bottomY=seatBottom(o);
   const cx=WORLD.w/2, aisle=o.aisle||8, margin=8;
   const colW=(WORLD.w-2*margin-aisle)/2, regionH=Math.max(12, bottomY-topY);
   const cols=Math.max(4, Math.floor(colW/DESIGN_PITCH));    // walkable column pitch — never below comfort
@@ -1889,7 +1897,7 @@ function seatTheatre(items, o, topY){
   items.push(makeItem('seatblock', cx+aisle/2, topY, {width:colW,height:bH,properties:{rows,cols},label:'Right Seating'}));
 }
 function seatRounds(items, o, topY, mixed){
-  const bottomY=WORLD.h - (16 + ((o.bars||o.trucks||o.buffet)?8:0));
+  const bottomY=seatBottom(o);
   const spt=o.spt||8, margin=10, cell=9;
   const cols=Math.max(1,Math.floor((WORLD.w-2*margin)/cell));
   const rowsAvail=Math.max(1,Math.floor((bottomY-topY)/cell));
@@ -1914,7 +1922,7 @@ function seatRounds(items, o, topY, mixed){
     items.push(makeItem('cocktail', tx+2, ty+2, {label:'Highboy '+(hb+1)})); } }
 }
 function seatBanquetLong(items, o, topY){
-  const bottomY=WORLD.h-16, margin=12, cellW=46, cellH=18;
+  const bottomY=seatBottom(o), margin=12, cellW=46, cellH=18;
   const cols=Math.max(1,Math.floor((WORLD.w-2*margin+cellW-16)/cellW));
   const rows=Math.max(1,Math.floor((bottomY-topY)/cellH));
   const need=o.guests!=null?Math.ceil(o.guests/12):cols*rows;
@@ -1925,7 +1933,7 @@ function seatBanquetLong(items, o, topY){
 }
 function boothGrid(items, o, topY){
   const margin=16, cell=22, cols=Math.max(1,Math.floor((WORLD.w-2*margin+2)/cell));
-  const rows=Math.max(1,Math.floor((WORLD.h-topY-16)/cell));
+  const rows=Math.max(1,Math.floor((seatBottom(o)-topY)/cell));
   const need=o.booths!=null?o.booths:cols*rows; let n=1,placed=0;
   for(let r=0;r<rows && placed<need;r++)for(let c=0;c<cols && placed<need;c++){
     items.push(makeItem('booth', margin+c*cell, topY+r*cell, {label:'B'+(n++)})); placed++;
@@ -1936,7 +1944,7 @@ function boothGrid(items, o, topY){
 // hollow=false → U-shape (front edge left open toward the stage/screen);
 // hollow=true  → hollow square (closed ring). Seats counted via properties.seats.
 function seatPerimeter(items, o, topY, hollow){
-  const margin=16, bottomY=WORLD.h-16;
+  const margin=16, bottomY=seatBottom(o);
   const a=ASSETS.longtable, tw=a.w, th=a.h, gap=4;
   const left=margin, right=WORLD.w-margin, top=topY+4, bot=bottomY;
   let n=0;
@@ -1951,7 +1959,7 @@ function seatPerimeter(items, o, topY, hollow){
 }
 // cocktail / standing reception — mostly highboys with a few lounge clusters
 function seatCocktail(items, o, topY){
-  const bottomY=WORLD.h-16, margin=12, cell=10;
+  const bottomY=seatBottom(o), margin=12, cell=10;
   const cols=Math.max(1,Math.floor((WORLD.w-2*margin)/cell));
   const rows=Math.max(1,Math.floor((bottomY-topY)/cell));
   const capacity=Math.max(1,cols*rows);
@@ -1965,7 +1973,7 @@ function seatCocktail(items, o, topY){
 }
 // half-rounds theatre hybrid — front dinner rounds, rear theatre seat blocks
 function seatHalfRoundsTheatre(items, o, topY){
-  const bottomY=WORLD.h-16, mid=topY+(bottomY-topY)*0.5;
+  const bottomY=seatBottom(o), mid=topY+(bottomY-topY)*0.5;
   const spt=o.spt||8, margin=10, cell=9;
   const cols=Math.max(1,Math.floor((WORLD.w-2*margin)/cell));
   const rowsF=Math.max(1,Math.floor(Math.max(0,mid-topY)/cell));
@@ -1981,12 +1989,69 @@ function seatHalfRoundsTheatre(items, o, topY){
   items.push(makeItem('seatblock', WORLD.w/2+aisle/2, mid, {width:colW,height:bH,properties:{rows,cols:tcols},label:'Rear Right'}));
 }
 
+// ---- collision pass for generated layouts (fix #5): nothing overlaps -------------------
+// Rect of an item as drawn (rotation is about the centre; 90/270 swap width/height).
+function genRect(it){
+  const w=+it.width||0, h=+it.height||0, r=((+it.rotation||0)%180+180)%180;
+  const sw = (r>45 && r<135) ? h : w, sh = (r>45 && r<135) ? w : h;
+  const cx=(+it.x||0)+w/2, cy=(+it.y||0)+h/2;
+  return { x:cx-sw/2, y:cy-sh/2, w:sw, h:sh };
+}
+function rectsHit(a,b,gap){ gap=gap||0;
+  return a.x < b.x+b.w+gap && b.x < a.x+a.w+gap && a.y < b.y+b.h+gap && b.y < a.y+a.h+gap; }
+// Types allowed to sit on/over others: boundary lines and the podium (it stands ON the stage).
+const GEN_OVERLAY = new Set(['fence','podium']);
+const GEN_SEATING = new Set(['seatblock','table','longtable','cocktail','lounge','booth','chairrow']);
+// Deterministic: fixed items (stage, dance floor, exits, bars, buffet…) are placed first in their
+// generated order and RELOCATED to the nearest free spot if they collide; seating then yields to
+// them with a 1.5 ft walkway — a seat block is shortened (fewer rows), a table that still collides
+// is left out (the capacity check then reports any shortfall honestly). Seats never stack.
+function resolveOverlaps(items){
+  const W=WORLD.w, H=WORLD.h, AISLE=1.5;
+  const fixed=[], seats=[], overlay=[];
+  items.forEach(it=>{ (GEN_OVERLAY.has(it.type)?overlay:GEN_SEATING.has(it.type)?seats:fixed).push(it); });
+  const placed=[];                        // rects of accepted fixed items
+  const free=(r)=>r.x>=0 && r.y>=0 && r.x+r.w<=W+1e-6 && r.y+r.h<=H+1e-6 && !placed.some(p=>rectsHit(r,p,0.5));
+  const outFixed=[];
+  fixed.forEach(it=>{
+    let r=genRect(it);
+    if(!free(r)){
+      const step=Math.max(1, Math.ceil(Math.max(W,H)/120)), dx0=it.x, dy0=it.y;
+      let best=null, bd=Infinity;
+      for(let y=0;y+r.h<=H;y+=step) for(let x=0;x+r.w<=W;x+=step){
+        const d=Math.abs(x-r.x)+Math.abs(y-r.y); if(d>=bd) continue;
+        const c={x,y,w:r.w,h:r.h}; if(free(c)){ best=c; bd=d; }
+      }
+      if(!best) return;                    // no room anywhere in this hall → leave it out
+      it.x=round1(dx0+(best.x-r.x)); it.y=round1(dy0+(best.y-r.y)); r=genRect(it);
+      if(!free(r)) return;
+    }
+    placed.push(r); outFixed.push(it);
+  });
+  const seatRects=[], outSeats=[];
+  seats.forEach(it=>{
+    const hits=()=>{ const r=genRect(it); return placed.some(p=>rectsHit(r,p,AISLE)) || seatRects.some(p=>rectsHit(r,p,0)); };
+    if(hits() && it.type==='seatblock' && !(+it.rotation)){
+      // shorten from the bottom until clear of whatever is below/inside it
+      const pitch=DESIGN_PITCH, cols=(it.properties&&it.properties.cols)||1;
+      let rows=(it.properties&&it.properties.rows)||Math.floor(it.height/pitch);
+      while(rows>=1 && hits()){ rows--; it.height=Math.round(rows*pitch*10)/10; }
+      if(rows<1) return;
+      it.properties={...(it.properties||{}), rows, cols};
+    }
+    if(hits()) return;
+    seatRects.push(genRect(it)); outSeats.push(it);
+  });
+  items.length=0; outFixed.forEach(i=>items.push(i)); outSeats.forEach(i=>items.push(i)); overlay.forEach(i=>items.push(i));
+  return items;
+}
+
 function generateVariants(oIn){
   const o = {...oIn};
   if(o.chairs!=null) o.guests = o.chairs;   // an explicit chair count drives the seating target
   const variants=[];
   const base=()=>{ const it=[]; return it; };
-  const finish=(it,name,desc)=>{ const c=countSeats(it);
+  const finish=(it,name,desc)=>{ it.forEach(clampItem); resolveOverlaps(it); const c=countSeats(it);
     variants.push({name, desc, items:it.map(i=>({...i})),
       counts:{chairs:c.chairs, tables:c.tables, tables_round:tally(it,'table'), booths:tally(it,'booth'),
         bars:tally(it,'bar'), trucks:tally(it,'truck'), exits:tally(it,'exit'), objects:it.length}}); };
@@ -2031,7 +2096,7 @@ function generateVariants(oIn){
   }
   // Cabaret / crescent rounds — rounds set back from an open front facing the stage
   if(!isConf){ const it=base(); const o6={...o, stage:o.stage!==false}; const t=frontZone(it,o6);
-    const bY=WORLD.h-16, openTop=t+Math.max(0,(bY-t))/3;
+    const bY=seatBottom(o6), openTop=t+Math.max(0,(bY-t))/3;
     seatRounds(it,o6,openTop,false); supportZone(it,o6);
     finish(it,'Cabaret / crescent rounds','Rounds set back from an open front facing the stage'); }
   // Cocktail / standing reception — highboys + lounges, minimal fixed seating

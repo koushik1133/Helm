@@ -599,7 +599,7 @@
     try{ const oid=await BPStore.org.id(); if(oid) return;
       const name=localStorage.getItem(PENDING); if(!name) return;
       if(await BPStore.auth.isPlatformAdmin()) return;   // HQ operators never get a studio
-      await BPStore.org.createStudio(name,{email:(BPStore.auth.user()||{}).email}); localStorage.removeItem(PENDING);
+      await BPStore.org.createStudio(name,{}); localStorage.removeItem(PENDING);   // #16: never seed the business email with the login email
       try{ localStorage.setItem("bp_force_tour","1"); }catch(e){}   // brand-new studio → show the tour
     }catch(e){}
   }
@@ -664,8 +664,7 @@
       try{
         // a Helm platform operator must never create a studio from here → HQ
         if(await BPStore.auth.operatorToHq()) return;
-        await BPStore.org.createStudio(name,{ email:(BPStore.auth.user()||{}).email,
-          currency:$("#ob_currency").value, timezone:$("#ob_tz").value });
+        await BPStore.org.createStudio(name,{ currency:$("#ob_currency").value, timezone:$("#ob_tz").value });   // #16: no login email as business email
         const loc=$("#ob_location").value.trim();
         if(loc){ try{ await BPStore.org.save({ location: loc }); }catch(e){} }
         try{ localStorage.setItem("bp_force_tour","1"); }catch(e){}   // brand-new studio → show the tour
@@ -770,7 +769,7 @@
             if(o){ location.replace(nextUrl()); return; }
             if(await BPStore.auth.operatorToHq()) return;
           }
-          if(r.session){ await BPStore.org.createStudio(studio,{email:(existing&&existing.email)||email}); try{ localStorage.setItem("bp_force_tour","1"); }catch(e){} location.replace(nextUrl()); return; }
+          if(r.session){ await BPStore.org.createStudio(studio,{}); try{ localStorage.setItem("bp_force_tour","1"); }catch(e){} location.replace(nextUrl()); return; }
           // email confirmation required → save the name, finish after they confirm + sign in
           localStorage.setItem(PENDING, studio);
           showInbox(email); return;

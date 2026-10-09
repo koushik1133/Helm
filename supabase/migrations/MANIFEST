@@ -93,3 +93,5 @@ forward  supabase/migrations/0072_pending_fixes.sql
 forward  supabase/migrations/0073_inventory_cancel_and_unique_names.sql
 # 0074 (chat/admin fixes: invite revoke-only, last admin guard, chat_prefs, chat media scope) goes after 0073.
 forward  supabase/migrations/0074_chat_admin_fixes.sql
+# 0075 (UI fixes: start_blank_quote reuse, booklet studio e-mail only when confirmed) goes after 0072.
+forward  supabase/migrations/0075_ui_fixes.sql

@@ -21,7 +21,7 @@ t('vercel.json redirects the old public URLs to /manual; /manual is noindex + no
   const re = (s) => new RegExp('^' + s.replace(/:file\*/, '.*') + '$');
   for (const p of ['/docs/USER-MANUAL', '/docs/USER-MANUAL.html', '/docs/screenshots/a.webp'])
     assert.equal((v.redirects.find((r) => !r.has && re(r.source).test(p)) || {}).destination, '/manual', p);
-  const h = {}; for (const r of v.headers) if (new RegExp('^' + r.source + '$').test('/manual')) for (const x of r.headers) h[x.key.toLowerCase()] = x.value;
+  const h = {}; for (const r of v.headers) if (!r.has && new RegExp('^' + r.source + '$').test('/manual')) for (const x of r.headers) h[x.key.toLowerCase()] = x.value;
   assert.match(h['x-robots-tag'] || '', /noindex/); assert.match(h['cache-control'] || '', /no-store/);
   assert.match(read('public/_headers'), /^\/manual\n  X-Robots-Tag: noindex/m);
 });

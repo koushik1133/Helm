@@ -147,10 +147,17 @@
       img.hidden = false; $("#s_mark").classList.add("has-logo");
       img.addEventListener("error", () => { img.hidden = true; $("#s_mark").classList.remove("has-logo"); }); }
     const ct = clear($("#s_contact"));
-    if (s.phone) { const a = el("a", "", String(s.phone)); a.setAttribute("href", "tel:" + String(s.phone).replace(/[^\d+]/g, "")); ct.appendChild(a); }
-    // business contact email only (never the owner's personal login email); hidden when empty
-    const bizEmail = String(s.business_email || s.email || "").trim();
-    if (bizEmail && /^[^\s@<>"]+@[^\s@<>"]+$/.test(bizEmail)) { const a = el("a", "", bizEmail); a.setAttribute("href", "mailto:" + bizEmail); ct.appendChild(a); }
+    // #16 studio contact, first that exists: (1) the event coordinator's name + phone,
+    // (2) the studio business phone (Control Center > Studio details), (3) the business email -
+    // the server sends it only when an admin saved it there (0075), never the signup login email.
+    const co = (d.coordinator && typeof d.coordinator === "object") ? d.coordinator : { name: e.coordinator_name, phone: e.coordinator_phone };
+    const tel = (p) => { const a = el("a", "", String(p).slice(0, 32)); a.setAttribute("href", "tel:" + String(p).replace(/[^\d+]/g, "")); return a; };
+    const bizEmail = String(s.email || "").trim();
+    if (co && (co.name || co.phone)) {
+      if (co.name) ct.appendChild(el("span", "", String(co.name).slice(0, 80)));
+      if (co.phone) ct.appendChild(tel(co.phone));
+    } else if (s.phone) ct.appendChild(tel(s.phone));
+    else if (bizEmail && /^[^\s@<>"]+@[^\s@<>"]+$/.test(bizEmail)) { const a = el("a", "", bizEmail); a.setAttribute("href", "mailto:" + bizEmail); ct.appendChild(a); }
     if (s.location) ct.appendChild(el("span", "", String(s.location)));
     const title = e.title || e.code || "Your event";
     $("#e_title").textContent = title;

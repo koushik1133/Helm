@@ -146,11 +146,13 @@ t('sim-pay: refuses on production hosts and whenever wired to the production DB'
   const H = eval(host[1]), D = eval(db[1]);
   const allowed = (h, url) => !H.test(h) && !D.test(url);
   const PROD = 'https://nqltzgiwznphugcfhmbm.supabase.co', STG = 'https://xizehqgeyjcfpzrdymly.supabase.co';
-  for (const h of ['www.helm.events', 'helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app'])
+  for (const h of ['www.helm.events', 'helm.events', 'helm-alpha-nine.vercel.app'])
     assert.ok(!allowed(h, STG), 'prod host allowed: ' + h);
   assert.ok(!allowed('helm-v01-git-x-vk-hub.vercel.app', PROD), 'preview wired to prod DB allowed');
   assert.ok(allowed('localhost', ''), 'local dev must keep working');
   assert.ok(allowed('helm-staging.vercel.app', STG), 'staging must keep working');
+  assert.ok(allowed('helm-v01.vercel.app', STG), 'helm-v01 is the staging site');
+  assert.ok(!allowed('helm-v01.vercel.app', PROD), 'staging site wired to prod DB allowed');
   assert.match(sim, /if\(live \|\| !simAllowed\)\{[\s\S]{0,200}btn\.disabled=true/);
 });
 
