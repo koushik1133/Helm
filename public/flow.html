@@ -133,6 +133,7 @@
             <div class="fld"><label for="c_phone">Phone</label><input id="c_phone" type="tel" inputmode="tel" required></div>
             <div class="fld"><label for="c_type">Event type</label><input id="c_type" list="eventTypeList" placeholder="Pick or type a new one…"><datalist id="eventTypeList"></datalist></div>
             <div class="fld"><label for="c_date">Event date</label><input id="c_date" type="date" data-min-today></div>
+            <div class="fld"><label for="c_city">City</label><input id="c_city" maxlength="60" autocomplete="address-level2" placeholder="e.g. Hyderabad"></div>
             <div class="fld"><label for="c_guests">Guests</label><input id="c_guests" type="number" min="0"></div>
             <div class="fld"><label for="c_budget">Budget (₹)</label><input id="c_budget" type="number" min="0"></div>
           </div>
@@ -319,6 +320,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
+<script src="event-name.js?v=1"></script>
 <script src="store-api.js?v=139"></script>
 <script src="tour.js?v=9"></script>
 <script src="booklet.js?v=8"></script>
@@ -456,7 +458,7 @@
     const client=Object.assign({}, ev.client||{}, {
       name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:emailRaw,
       phone:phoneRaw,
-      guests:guestsN, budget:budgetN,
+      guests:guestsN, budget:budgetN, city:$("#c_city").value.trim().slice(0,60)||null,
       eventDate:$("#c_date").value||null });
     try{
       const row=await BPStore.quotes.updateMeta(id,{ client, eventType:$("#c_type").value.trim()||null, eventDate:$("#c_date").value||null }, ev.updatedAt);
@@ -510,7 +512,7 @@
       name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:$("#c_email").value.trim(),
       phone:$("#c_phone").value.trim(),
       guests:$("#c_guests").value!==""?+$("#c_guests").value:null, budget:$("#c_budget").value!==""?+$("#c_budget").value:null,
-      eventDate:$("#c_date").value||null });
+      city:$("#c_city").value.trim().slice(0,60)||null, eventDate:$("#c_date").value||null });
     // H-02: Client guests is the single source of truth — flow it forward to the Layout
     // (#g_guests) and Quotation (#q_guests) fields so all three agree. Skip #q_guests only
     // if the user manually overrode it there.
@@ -817,7 +819,7 @@
     const cl=ev.client||{};
     $("#c_name").value=cl.name||""; $("#c_company").value=cl.company||""; $("#c_email").value=cl.email||"";
     $("#c_phone").value=cl.phone||""; $("#c_type").value=ev.eventType||""; $("#c_date").value=cl.eventDate||ev.eventDate||"";
-    $("#c_guests").value=cl.guests!=null?cl.guests:""; $("#c_budget").value=cl.budget!=null?cl.budget:"";
+    $("#c_guests").value=cl.guests!=null?cl.guests:""; $("#c_city").value=typeof cl.city==="string"?cl.city:""; $("#c_budget").value=cl.budget!=null?cl.budget:"";
     $("#g_guests").value=cl.guests!=null?cl.guests:"";
     await runSection("rates");
     await runSection("discovery");
@@ -893,7 +895,7 @@
     // the live UI and marks the quote dirty (delegated listener below); the actual
     // writes happen on the explicit Save buttons or via the save-on-leave prompt.
     // This stops empty / barely-touched quotes from being silently saved.
-    ["c_name","c_company","c_email","c_phone","c_type","c_date","c_guests","c_budget"].forEach(f=>$("#"+f).addEventListener("input",()=>{ syncClientMem(); if(f==="c_guests"||f==="c_type") renderPrice(); }));
+    ["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_guests","c_budget"].forEach(f=>$("#"+f).addEventListener("input",()=>{ syncClientMem(); if(f==="c_guests"||f==="c_type") renderPrice(); }));
     ["v_name","v_addr"].forEach(f=>$("#"+f).addEventListener("input",syncVenueMem));
     ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount"].forEach(f=>$("#"+f).addEventListener("input",renderPrice));
     $("#q_guests").addEventListener("input",()=>{ qGuestsOverridden=true; });   // H-02: user took manual control of the quotation guest count

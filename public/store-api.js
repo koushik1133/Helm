@@ -2262,6 +2262,30 @@ window.HelmUrl = HelmUrl;
     async remove(id) { this.write(this.read().filter((x) => x.id !== id)); return true; },
   };
   const qt = () => (mode === "supabase" ? sbq : lsq);
+  // Adds an auto-generated title to an updateMeta patch when the event's current title is
+  // still automatic. Best-effort: any failure returns the patch unchanged (never blocks a save).
+  async function autoTitlePatch(id, patch) {
+    const EN = typeof window !== "undefined" && window.HelmEventName;
+    if (!EN || !patch || patch.title != null || !("client" in patch || "eventType" in patch || "eventDate" in patch)) return patch;
+    try {
+      let cur, taken = [];
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("quotes").select("id,code,title,event_type,event_date,client").eq("id", id).maybeSingle();
+        if (error || !data) return patch; cur = data;
+      } else { cur = (await lsq.list()).find((x) => x.id === id); if (!cur) return patch; }
+      const code = cur.code, title = cur.title;
+      if (!EN.isAuto(title, code)) return patch;
+      const merged = { client: patch.client || cur.client || {}, eventType: patch.eventType != null ? patch.eventType : (cur.eventType != null ? cur.eventType : cur.event_type),
+        eventDate: patch.eventDate !== undefined ? patch.eventDate : (cur.eventDate !== undefined ? cur.eventDate : cur.event_date) };
+      const base = EN.fromQuote(merged); if (!base) return patch;
+      if (title === base || (String(title || "").indexOf(base + "-") === 0 && /^-\d+$/.test(String(title).slice(base.length)))) return patch;
+      if (mode === "supabase") {
+        const { data } = await supa.from("quotes").select("title").like("title", base.replace(/[%_\\]/g, "\\$&") + "%").neq("id", id).limit(1000);
+        taken = (data || []).map((r) => r.title);
+      } else taken = (await lsq.list()).filter((x) => x.id !== id).map((x) => x.title);
+      return Object.assign({}, patch, { title: EN.unique(base, taken) });
+    } catch (e) { return patch; }
+  }
   const quotes = {
     list: () => qt().list(),
     // paged list view + counters (perf): see sbq.page / sbq.counts
@@ -2317,7 +2341,9 @@ window.HelmUrl = HelmUrl;
         return await qt().setStage(id, stage, reason.trim());
       }
     },
-    updateMeta: (id, patch, expectedUpdatedAt) => qt().updateMeta(id, patch, expectedUpdatedAt),
+    // Display title follows TYPE_LOC_GUESTS_DDMMMYY (event-name.js) and refreshes when type /
+    // city / guests / date change — unless the user renamed it. The code is never touched.
+    updateMeta: async (id, patch, expectedUpdatedAt) => qt().updateMeta(id, await autoTitlePatch(id, patch), expectedUpdatedAt),
     remove: (id) => qt().remove(id),
     // next MMDDYYYY-NN given a list of quote summaries (uses .code)
     nextCode(list, date) {

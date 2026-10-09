@@ -45,6 +45,7 @@
   .addrow{display:grid;grid-template-columns:1.4fr 1fr 1fr auto;gap:8px;align-items:end;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
   @media(max-width:640px){.addrow{grid-template-columns:1fr 1fr}}
   .msg{border-radius:8px;padding:8px 11px;font-size:13px;margin-bottom:10px}
+  .msg.warn{background:#fff7e8;color:#7a4a06;border:1px solid #f1d9a8}
   .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca} .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
   .actions{display:flex;justify-content:flex-end;margin-top:14px}
   .rm{border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:13px;padding:4px 8px;border-radius:6px;min-height:32px;min-width:32px} .rm:hover{color:#e5484d;background:#fdecec}
@@ -240,6 +241,7 @@
     </div>
     <div class="card">
       <h3>Organization / studio</h3>
+      <div id="billPrompt" class="msg warn" role="status" hidden></div>
       <div id="orgMsg" role="status" aria-live="polite"></div>
       <div id="orgErr"></div>
       <div class="grid">
@@ -251,7 +253,17 @@
         <div class="fld"><label for="o_accent">Accent colour</label><input id="o_accent" placeholder="#6d28d9"></div>
         <div class="fld"><label for="o_currency">Currency</label><input id="o_currency" placeholder="INR"></div>
         <div class="fld"><label for="o_tz">Timezone</label><input id="o_tz" placeholder="Asia/Kolkata"></div>
-        <div class="fld"><label for="o_gst">GSTIN</label><input id="o_gst" placeholder="22AAAAA0000A1Z5"></div>
+        <div class="fld"><label for="o_gst">GSTIN (optional)</label><input id="o_gst" placeholder="22AAAAA0000A1Z5"></div>
+      </div>
+      <h3>Billing details</h3>
+      <p class="mnote">Shown on quotations and invoices. Required: legal name, address, city, state, PIN, business phone and location.</p>
+      <div class="grid">
+        <div class="fld"><label for="o_legal">Legal / business name *</label><input id="o_legal" maxlength="120" autocomplete="organization"></div>
+        <div class="fld"><label for="o_line1">Billing address *</label><input id="o_line1" maxlength="160" autocomplete="address-line1"></div>
+        <div class="fld"><label for="o_line2">Address line 2</label><input id="o_line2" maxlength="160" autocomplete="address-line2"></div>
+        <div class="fld"><label for="o_city">City *</label><input id="o_city" maxlength="60" autocomplete="address-level2"></div>
+        <div class="fld"><label for="o_state">State *</label><input id="o_state" maxlength="60" autocomplete="address-level1"></div>
+        <div class="fld"><label for="o_pin">PIN code *</label><input id="o_pin" maxlength="6" inputmode="numeric" autocomplete="postal-code"></div>
       </div>
       <div class="actions"><button type="button" class="btn primary" id="o_save">Save studio settings</button></div>
       <div class="s-e3ae377" id="slugBox" hidden>
@@ -361,6 +373,12 @@
         <input id="co_val" type="number" min="0" step="1" placeholder="Value" aria-label="Coupon value">
         <button type="button" class="btn" id="co_add">+ Add coupon</button>
       </div>
+    </div>
+
+    <div class="card">
+      <h3>Import from Excel</h3>
+      <p class="mnote">Bring in your price list (chair / plate rates), dishes and inventory from an Excel (.xlsx / .xls) or CSV file. Download a template, check the preview (errors are shown per row), then confirm. New rows are added; rows with the exact same name are only updated if you choose to. Nothing is ever deleted.</p>
+      <div class="actions"><a class="btn" href="onboarding.html#s1">Import price list</a>&nbsp;<a class="btn" href="onboarding.html#s2">Import inventory</a>&nbsp;<a class="btn" href="onboarding.html#s0">Import dishes</a></div>
     </div>
 
     <div class="card">
@@ -592,10 +610,12 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
+<script src="event-name.js?v=1"></script>
 <script src="store-api.js?v=139"></script>
 <script src="hq-invoice.js?v=1"></script>
 <script src="tour.js?v=9"></script>
 <script src="pkg-review.js?v=4"></script>
+<script src="onboarding-core.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -881,9 +901,19 @@
     $("#o_name").value=o.name||""; $("#o_email").value=o.business_email||""; $("#o_logo").value=b.logo||"";
     $("#o_accent").value=b.accent||""; $("#o_currency").value=o.currency||""; $("#o_tz").value=o.timezone||""; $("#o_gst").value=o.gst_number||"";
     if($("#o_location")) $("#o_location").value=o.location||"";
+    paintBilling(o);
     orgMsg("",""); orgLoaded=true; $("#o_save").disabled=false;
     // branded client links (migration 0020) — only shown once the column exists
     if(Object.prototype.hasOwnProperty.call(o,"public_slug")){ $("#slugBox").hidden=false; $("#o_slug").value=o.public_slug||""; paintSlugPreview(); }
+  }
+  // billing details live in brand.billing (+ location, brand.phone, gst_number) — see onboarding-core.js
+  const OB=window.HelmOnboarding;
+  const BILL_IDS={legal_name:"o_legal",line1:"o_line1",line2:"o_line2",city:"o_city",state:"o_state",pin:"o_pin",phone:"o_phone",location:"o_location",gstin:"o_gst"};
+  function paintBilling(o){
+    if(!OB) return; const v=OB.billingFromOrg(o);
+    ["legal_name","line1","line2","city","state","pin"].forEach(k=>{ $("#"+BILL_IDS[k]).value=v[k]||""; });
+    const miss=OB.billingMissing(o), bp=$("#billPrompt");
+    bp.hidden=!miss.length; bp.textContent=miss.length?("Please complete your studio's billing details so they appear on quotations and invoices. Missing: "+miss.join(", ")+"."):"";
   }
   const SLUG_RE=/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
   function slugMsg(k,t){ $("#slugMsg").innerHTML=t?`<div class="msg ${k}"${k==="err"?' role="alert"':""}>${esc(t)}</div>`:""; }
@@ -908,6 +938,13 @@
     const phone=$("#o_phone")?$("#o_phone").value.trim():"";
     if(phone){ const r=V.phone(phone); if(!r.ok){ orgMsg("err",r.error); $("#o_phone").focus(); return; } }
     const gstRaw=$("#o_gst").value.trim().toUpperCase().replace(/\s+/g,"");
+    // billing: required fields only enforced once the studio has started filling them (or the prompt is shown)
+    let billing=null;
+    if(OB){ const vals={}; Object.keys(BILL_IDS).forEach(k=>{ vals[k]=$("#"+BILL_IDS[k]).value; });
+      const r=OB.validateBilling(vals);
+      const anyBill=["legal_name","line1","line2","city","state","pin"].some(k=>String(vals[k]||"").trim());
+      if(anyBill && !r.ok){ const k=OB.BILLING_FIELDS.find(f=>r.errors[f.key]).key; orgMsg("err",r.errors[k]); $("#"+BILL_IDS[k]).focus(); return; }
+      if(anyBill) billing=r.data; }
     if(gstRaw && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstRaw)){ orgMsg("err","Enter a valid 15-character GSTIN, e.g. 36ABCDE1234F1Z5 (or leave it blank)."); $("#o_gst").focus(); return; }
     // #16: an email saved HERE is the studio's public contact (business_email_confirmed); the booklet
     // never shows an unconfirmed (e.g. signup) email. Brand keys we don't edit here are kept.
@@ -916,7 +953,9 @@
       location:($("#o_location")?$("#o_location").value.trim():"")||null,
       gst_number:gstRaw||null,
       brand:Object.assign({}, orgBrand, { logo:logo||null, accent:accent||null, phone:phone?phone.slice(0,40):null }) };
-    try{ await BPStore.org.save(patch); orgMsg("ok","Studio settings saved."); setTimeout(()=>orgMsg("",""),2500); }
+    if(billing){ const bp=OB.billingPatch({ name:patch.name, brand:patch.brand }, billing);
+      patch.brand=bp.brand; patch.location=bp.location; patch.gst_number=bp.gst_number; if(!patch.name) patch.name=bp.name||null; }
+    try{ await BPStore.org.save(patch); orgBrand=patch.brand; paintBilling(Object.assign({}, patch)); orgMsg("ok","Studio settings saved."); setTimeout(()=>orgMsg("",""),2500); }
     catch(e){ orgMsg("err",errMsg(e,"save studio settings")); }
   }));
 

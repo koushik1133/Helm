@@ -24,6 +24,10 @@
   };
   const LS_DRAFT = "helm_onb_draft_v1:", LS_LEDGER = "helm_onb_ledger_v1:";
   let uid = "anon", S = null, ledger = { entries: {} }, perms = {}, busy = false, existingCache = {}, previews = {}, invCache = null;
+  // business / billing details (step 0): org row, whether this user may save it, last form values + errors
+  let org = null, orgErr = null, canBill = false, bill = { values: {}, errors: {} };
+  const billingOk = () => !!org && O.billingMissing(org).length === 0;
+  const BILL = -1;   // S.step value of the business-details step
 
   const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
   const lsSet = (k, v) => { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } };
@@ -49,6 +53,9 @@
     ".ob-err{color:#a12626;font-size:12px}.ob-note{font-size:12.5px;color:var(--ink-3,#6b6577)}.ob-warn{background:#fff7e8;border:1px solid #f1d9a8;border-radius:10px;padding:9px 12px;font-size:12.5px;margin:8px 0}",
     ".ob-map{display:grid;grid-template-columns:minmax(120px,200px) 1fr;gap:8px 12px;align-items:center}.ob-map select{padding:7px 8px;border-radius:8px;border:1px solid var(--line,#e8e3db);background:var(--panel,#fff);color:inherit;font:inherit}",
     ".ob-lock{padding:14px;border:1px dashed var(--line,#e8e3db);border-radius:12px;color:var(--ink-3,#6b6577)}",
+    ".ob-bf{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 14px}.ob-bf .full{grid-column:1/-1}.ob-bf label{display:block;font-size:12.5px;font-weight:600;margin:0 0 4px}",
+    ".ob-bf input{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--line,#e8e3db);border-radius:8px;font:inherit;background:var(--panel,#fff);color:inherit}",
+    ".ob-bf input[aria-invalid=true]{border-color:#c43c3c}.ob-bf .ob-err{margin-top:3px}@media (max-width:640px){.ob-bf{grid-template-columns:1fr}}",
     ".ob-bar{height:8px;border-radius:99px;background:var(--line-2,#f1ede7);overflow:hidden}.ob-bar i{display:block;height:100%;background:var(--accent,#6d28d9);width:0}",
     "@media (max-width:640px){.ob-card{padding:12px}.ob-map{grid-template-columns:1fr}.ob-row .btn{flex:1 1 100%}}",
   ].join("\n");
@@ -104,6 +111,11 @@
       const next = Math.min(O.MAX_QTY, (Number(cur.total_qty) || 0) + p.total_qty);
       await BPStore.inventory.updateItem(id, { total_qty: next }); cur.total_qty = next; return true;
     },
+    async update(kind, id, p) {                                               // only after the user picked "Update existing"
+      if (kind === "pricing") return (p.type === "chair" ? BPStore.chairTypes : BPStore.plateTypes).update(id, { price: p.price });
+      if (kind === "inventory") { invCache = null; return BPStore.inventory.updateItem(id, { total_qty: p.total_qty, unit: p.unit, unit_cost: p.unit_cost }); }
+      throw new Error("update not supported");
+    },
     async deactivate(kind, id) {                                              // SOFT delete only
       if (kind === "menu") return BPStore.dishCatalog.remove(id);
       if (kind === "pricing") { const [t, rid] = String(id).split(":"); return (t === "chair" ? BPStore.chairTypes : BPStore.plateTypes).remove(rid); }
@@ -130,12 +142,13 @@
   /* ---------- rendering ---------- */
   function render() {
     const root = $("#obRoot"); if (!root) return;
-    const stepsNav = `<ol class="ob-steps" aria-label="Setup steps">` + KEYS.map((k, i) => {
+    const stepsNav = `<ol class="ob-steps" aria-label="Setup steps"><li class="${billingOk() ? "done" : ""}"><button type="button" data-act="goto" data-i="${BILL}"${S.step === BILL ? ' aria-current="step"' : ""}><span class="n">${billingOk() ? "✓" : "0"}</span>Business details</button></li>` + KEYS.map((k, i) => {
       const st = S.steps[k]; const cls = st.done || st.skipped ? "done" : "";
       return `<li class="${esc(cls)}"><button type="button" data-act="goto" data-i="${Number(i)}"${S.step === i ? ' aria-current="step"' : ""}><span class="n">${st.done ? "✓" : Number(i) + 1}</span>${esc(O.KINDS[k].label)}${OPTIONAL[k] ? " (optional)" : ""}</button></li>`;
     }).join("") + `<li class="${S.step === KEYS.length ? "" : ""}"><button type="button" data-act="goto" data-i="${KEYS.length}"${S.step === KEYS.length ? ' aria-current="step"' : ""}><span class="n">★</span>Finish</button></li></ol>`;
     let body = "";
-    if (S.step >= KEYS.length) body = renderFinish();
+    if (S.step === BILL) body = renderBilling();
+    else if (S.step >= KEYS.length) body = renderFinish();
     else {
       const kind = KEYS[S.step], st = S.steps[kind];
       if (!perms[kind]) body = `<div class="ob-lock"><b>${esc(O.KINDS[kind].label)}</b> can only be set up by ${kind === "menu" || kind === "pricing" ? "an admin" : "a role that can edit this area"}. Ask your admin, or skip this step.</div><div class="ob-row"><button type="button" class="btn" data-act="skip">Skip this step</button></div>`;
@@ -148,17 +161,52 @@
     const live = $("#obLive"); if (live) live.textContent = "";
   }
 
+  function renderBilling() {
+    if (orgErr) return `<div class="ob-card"><h2>Business details</h2><div class="ob-warn">Could not load your studio details. Reload the page to try again.</div><div class="ob-row"><span class="ob-grow"></span><button type="button" class="btn" data-act="goto" data-i="0">Continue to menu</button></div></div>`;
+    if (!org) return `<div class="ob-card"><h2>Business details</h2><p class="ob-note">Studio details aren't available for this workspace.</p><div class="ob-row"><span class="ob-grow"></span><button type="button" class="btn primary" data-act="goto" data-i="0">Continue</button></div></div>`;
+    const v = Object.assign(O.billingFromOrg(org), bill.values); const e = bill.errors || {};
+    if (!canBill) return `<div class="ob-card"><h2>Business details</h2><div class="ob-lock">Only an admin can enter the studio's billing details${billingOk() ? " (already complete)." : ". Ask your admin to complete them in Control Center → Studio details."}</div><div class="ob-row"><span class="ob-grow"></span><button type="button" class="btn primary" data-act="goto" data-i="0">Continue</button></div></div>`;
+    const full = { legal_name: 1, line1: 1, line2: 1 };
+    const ac = { legal_name: "organization", line1: "address-line1", line2: "address-line2", city: "address-level2", state: "address-level1", pin: "postal-code", phone: "tel", location: "off", gstin: "off" };
+    const fields = O.BILLING_FIELDS.map((f) => {
+      const id = "ob_b_" + f.key, eid = id + "_err", bad = !!e[f.key];
+      const im = f.key === "pin" ? ' inputmode="numeric"' : f.key === "phone" ? ' inputmode="tel" type="tel"' : "";
+      return `<div class="${full[f.key] ? "full" : ""}"><label for="${esc(id)}">${esc(f.label)}${f.required ? " *" : ""}</label>`
+        + `<input id="${esc(id)}" data-bill="${esc(f.key)}" maxlength="${Number(f.key === "gstin" ? 20 : f.max)}" autocomplete="${esc(ac[f.key])}" value="${esc(v[f.key] || "")}"${im}${f.required ? ' aria-required="true"' : ""} aria-invalid="${bad}" aria-describedby="${esc(eid)}">`
+        + `<div class="ob-err" id="${esc(eid)}">${esc(e[f.key] || "")}</div></div>`;
+    }).join("");
+    return `<div class="ob-card"><h2>Business details</h2><p class="sub">Used on your quotations and invoices. Fields marked * are required to finish setup; GSTIN is optional. You can edit these later in Control Center → Studio details.</p>`
+      + `<form id="obBill" novalidate><div class="ob-bf">${fields}</div><div id="obErr" class="ob-err" role="alert"></div>`
+      + `<div class="ob-row"><span class="ob-grow"></span><button type="submit" class="btn primary" data-act="billsave">Save and continue</button></div></form></div>`;
+  }
+  async function saveBilling() {
+    const form = $("#obBill"); if (!form) return;
+    const vals = {}; form.querySelectorAll("[data-bill]").forEach((el) => { vals[el.dataset.bill] = el.value; });
+    const r = O.validateBilling(vals); bill = { values: vals, errors: r.errors };
+    if (!r.ok) {
+      render(); const first = O.BILLING_FIELDS.find((f) => r.errors[f.key]); const el = first && $("#ob_b_" + first.key); if (el) el.focus();
+      const live = $("#obLive"); if (live) live.textContent = "Please fix " + Object.keys(r.errors).length + " field(s).";
+      return;
+    }
+    try {
+      const fresh = await BPStore.org.current(); if (!fresh) throw new Error("Studio settings aren't available.");
+      await BPStore.org.save(O.billingPatch(fresh, r.data));
+      org = await BPStore.org.current(); bill = { values: {}, errors: {} };
+      BPUI.toast("Business details saved.", { type: "ok" }); go(0);
+    } catch (err) { const x = $("#obErr"); if (x) x.textContent = BPUI.friendlyError(err, { action: "save your business details" }); }
+  }
+
   function header(kind) { return `<h2>${esc(O.KINDS[kind].label)}</h2><p class="sub">${esc(INTRO[kind])}</p>`; }
 
   function renderInput(kind) {
     const st = S.steps[kind], def = O.KINDS[kind];
-    const tabs = `<div class="ob-tabs" role="group" aria-label="How do you want to add them?"><button type="button" data-act="mode" data-m="manual" aria-pressed="${st.mode === "manual"}">Type them in</button><button type="button" data-act="mode" data-m="csv" aria-pressed="${st.mode === "csv"}">Import a CSV</button></div>`;
+    const tabs = `<div class="ob-tabs" role="group" aria-label="How do you want to add them?"><button type="button" data-act="mode" data-m="manual" aria-pressed="${st.mode === "manual"}">Type them in</button><button type="button" data-act="mode" data-m="csv" aria-pressed="${st.mode === "csv"}">Import from Excel / CSV</button></div>`;
     let inner;
     if (st.mode === "csv") {
-      inner = `<div class="ob-row"><button type="button" class="btn" data-act="template">Download CSV template</button>`
-        + `<label class="btn" for="obFile">Choose a CSV file</label><input type="file" id="obFile" accept=".csv,.txt,text/csv,text/plain" hidden>`
+      inner = `<div class="ob-row"><button type="button" class="btn" data-act="template" data-fmt="xlsx">Download Excel template</button><button type="button" class="btn" data-act="template" data-fmt="csv">CSV template</button>`
+        + `<label class="btn" for="obFile">Choose a file (.xlsx, .xls, .csv)</label><input type="file" id="obFile" accept=".xlsx,.xls,.csv,.txt,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" hidden>`
         + `<span class="ob-note">${esc(st.fileName || "or paste below")}</span></div>`
-        + `<label class="ob-note" for="obText">Paste CSV (first row = column names). Up to ${Number(O.MAX_ROWS)} rows.</label>`
+        + `<label class="ob-note" for="obText">The first sheet of an Excel file is read (values only, formulas are not run). Or paste CSV (first row = column names). Up to ${Number(O.MAX_ROWS)} rows.</label>`
         + `<textarea id="obText" spellcheck="false" aria-describedby="obHint">${esc(st.text)}</textarea>`
         + `<p class="ob-note" id="obHint">Columns we understand: ${def.fields.map((f) => esc(f.label) + (f.required ? "*" : "")).join(", ")}. Prices may include ₹ and Indian commas (1,25,000).</p>`;
     } else {
@@ -204,6 +252,7 @@
         stat = `<span class="ob-st dup">Exists: ${esc(r.matchName)}</span>`;
         act = `<select data-line="${Number(r.line)}" aria-label="What to do with line ${Number(r.line)}"><option value="skip"${r.action === "skip" ? " selected" : ""}>Skip (keep existing)</option>`
           + (r.mergeable ? `<option value="merge"${r.action === "merge" ? " selected" : ""}>Add quantity to existing</option>` : "")
+          + (r.updatable ? `<option value="update"${r.action === "update" ? " selected" : ""}>Update existing (exact name)</option>` : "")
           + `<option value="rename"${r.action === "rename" ? " selected" : ""}>Keep both (rename)</option></select>`
           + (r.action === "rename" ? `<div class="ob-note">Will be saved as "${esc(r.renamedTo)}"</div>` : "");
       }
@@ -214,7 +263,7 @@
     return `<div class="ob-card">${header(kind)}${chips}`
       + (pv.truncated ? `<div class="ob-warn">Only the first ${Number(O.MAX_ROWS)} rows are shown and will be imported. Split larger files and import them in parts.</div>` : "")
       + ((st.warnings || []).map((w) => `<div class="ob-warn">${esc(w)}</div>`).join(""))
-      + `<p class="ob-note">Nothing has been saved yet. ${Number(nWrite)} row(s) will be written: ${Number(s.willAdd)} added, ${Number(s.willMerge)} merged; ${Number(s.willSkip)} skipped.</p>`
+      + `<p class="ob-note">Nothing has been saved yet. ${Number(nWrite)} row(s) will be written: ${Number(s.willAdd)} added, ${Number(s.willMerge)} updated/merged; existing rows are never deleted; ${Number(s.willSkip)} skipped.</p>`
       + `<div class="ob-scroll"><table><thead><tr><th>Line</th><th>Status</th>${O.KINDS[kind].fields.map((f) => `<th>${esc(f.label)}</th>`).join("")}<th>If it already exists</th></tr></thead><tbody>${rows}</tbody></table></div>`
       + `<div class="ob-bar" id="obBarWrap" hidden><i id="obBar"></i></div><div id="obErr" class="ob-err" role="alert"></div>`
       + `<div class="ob-row"><button type="button" class="btn" data-act="stage" data-s="${st.mode === "csv" ? "map" : "input"}">Back</button><span class="ob-grow"></span>`
@@ -240,6 +289,7 @@
   }
 
   function renderFinish() {
+    if (org && !billingOk()) return `<div class="ob-card"><h2>Almost there</h2><div class="ob-warn" role="alert">Your business details are incomplete (missing: ${esc(O.billingMissing(org).join(", "))}). They are required to finish setup.</div><div class="ob-row"><span class="ob-grow"></span><button type="button" class="btn primary" data-act="goto" data-i="${BILL}">${canBill ? "Complete business details" : "View business details"}</button></div></div>`;
     const lines = KEYS.map((k) => { const c = counts(k); const st = S.steps[k]; const st2 = st.skipped ? "skipped" : (st.done ? `${Number(c.ok)} added${undoneCount(st, k) ? " (" + undoneCount(st, k) + " undone)" : ""}, ${Number(c.merged)} merged` : "not done");
       return `<li><b>${esc(O.KINDS[k].label)}</b> — ${esc(st2)}</li>`; }).join("");
     return `<div class="ob-card"><h2>You're set up</h2><p class="sub">Here is what this session added.</p><ul>${lines}</ul>`
@@ -249,15 +299,15 @@
 
   /* ---------- navigation + history ---------- */
   function go(step, stage, push) {
-    S.step = Math.max(0, Math.min(KEYS.length, step));
-    if (stage && S.step < KEYS.length) S.steps[KEYS[S.step]].stage = stage;
-    if (push !== false) { try { history.pushState({ onb: 1, step: S.step, stage: S.step < KEYS.length ? S.steps[KEYS[S.step]].stage : "finish" }, "", "#s" + S.step); } catch (e) {} }
+    S.step = Math.max(BILL, Math.min(KEYS.length, step));
+    if (stage && S.step >= 0 && S.step < KEYS.length) S.steps[KEYS[S.step]].stage = stage;
+    if (push !== false) { try { history.pushState({ onb: 1, step: S.step, stage: S.step >= 0 && S.step < KEYS.length ? S.steps[KEYS[S.step]].stage : "finish" }, "", "#s" + S.step); } catch (e) {} }
     saveDraft(); render(); const h = $("#obRoot h2"); if (h) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: false }); }
   }
   window.addEventListener("popstate", (e) => {
     const s = e.state; if (!S || !s || !s.onb) return;
-    S.step = Math.max(0, Math.min(KEYS.length, s.step | 0));
-    if (S.step < KEYS.length) { const st = S.steps[KEYS[S.step]]; st.stage = ["input", "map", "preview", "result"].includes(s.stage) ? s.stage : "input"; if (st.stage === "result" && !st.batchKey) st.stage = "input"; if (st.stage === "preview" || st.stage === "map") prepare(KEYS[S.step]).then(render); }
+    S.step = Math.max(BILL, Math.min(KEYS.length, s.step | 0));
+    if (S.step >= 0 && S.step < KEYS.length) { const st = S.steps[KEYS[S.step]]; st.stage = ["input", "map", "preview", "result"].includes(s.stage) ? s.stage : "input"; if (st.stage === "result" && !st.batchKey) st.stage = "input"; if (st.stage === "preview" || st.stage === "map") prepare(KEYS[S.step]).then(render); }
     saveDraft(); render();
   });
 
@@ -325,19 +375,22 @@
     const a = b.dataset.act, kind = KEYS[S.step], st = kind ? S.steps[kind] : null;
     if (a === "goto") return go(Number(b.dataset.i));
     if (a === "prev") return go(S.step - 1);
+    if (a === "billsave") { ev.preventDefault(); return BPUI.guard(b, () => saveBilling(), { busyLabel: "Saving…" }); }
     if (a === "next") { if (st) st.skipped = false; return go(S.step + 1); }
     if (a === "skip") { st.skipped = true; return go(S.step + 1); }
     if (a === "mode") { st.mode = b.dataset.m === "csv" ? "csv" : "manual"; saveDraft(); return render(); }
     if (a === "stage") { st.stage = b.dataset.s; if (st.stage === "map" || st.stage === "input") return go(S.step, st.stage); return go(S.step, st.stage); }
     if (a === "addrow") { if (st.manual.length >= O.MAX_ROWS) return BPUI.toast("Row limit reached; use CSV import for more.", { type: "info" }); st.manual.push({}); saveDraft(); return render(); }
     if (a === "delrow") { st.manual.splice(Number(b.dataset.r), 1); if (!st.manual.length) st.manual.push({}); saveDraft(); return render(); }
-    if (a === "template") return downloadTemplate(kind);
+    if (a === "template") return downloadTemplate(kind, b.dataset.fmt);
     if (a === "reset") { try { localStorage.removeItem(LS_DRAFT + uid); } catch (e) {} S = freshState(); previews = {}; BPUI.toast("Saved draft cleared. Data already imported is untouched.", { type: "ok" }); return go(0); }
     if (["review", "preview", "import", "retry", "undo"].includes(a)) return BPUI.guard(b, () => act(kind, a, b), { busyLabel: a === "import" || a === "retry" ? "Importing…" : "Working…" });
   }
-  function downloadTemplate(kind) {
-    const blob = new Blob(["﻿" + O.templateCSV(kind)], { type: "text/csv;charset=utf-8" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "helm-" + kind + "-template.csv";
+  function downloadTemplate(kind, fmt) {
+    const xl = fmt === "xlsx" && window.HelmXlsx;
+    const blob = xl ? new Blob([window.HelmXlsx.buildXlsx(O.KINDS[kind].template, O.KINDS[kind].label)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+      : new Blob(["﻿" + O.templateCSV(kind)], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "helm-" + kind + "-template." + (xl ? "xlsx" : "csv");
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   function onInput(ev) {
@@ -360,7 +413,14 @@
     if (f.size > O.MAX_FILE_BYTES) return BPUI.toast("That file is over 2 MB. Split it into smaller files.", { type: "err" });
     const fr = new FileReader();
     fr.onerror = () => BPUI.toast("Could not read that file.", { type: "err" });
-    fr.onload = () => {
+    fr.onload = async () => {
+      const X = window.HelmXlsx; const kindF = X ? X.kindOf(new Uint8Array(fr.result)) : "text";
+      if (kindF !== "text") {
+        try { const r = await X.readXlsx(fr.result); st.text = X.toCSV(r.rows); st.fileName = f.name.slice(0, 80); st.mapping = null;
+          st.warnings = r.sheetNames.length > 1 ? ["Only the first sheet (" + r.sheetNames[0] + ") was read."] : []; saveDraft(); render(); }
+        catch (e) { BPUI.toast((e && e.message) || "Could not read that Excel file.", { type: "err" }); }
+        return;
+      }
       try { const d = O.decodeBytes(fr.result); st.text = d.text; st.fileName = f.name.slice(0, 80); st.mapping = null; st.warnings = d.warnings; saveDraft(); render(); }
       catch (e) { BPUI.toast("Could not decode that file. Save it as UTF-8 CSV and try again.", { type: "err" }); }
     };
@@ -374,15 +434,20 @@
     if (BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()) { location.replace("login.html?next=" + encodeURIComponent("onboarding.html")); return; }
     const u = BPStore.auth.user(); uid = (u && u.id) ? String(u.id).replace(/[^\w-]/g, "").slice(0, 40) : "anon";
     await computePerms();
-    if (!KEYS.some((k) => perms[k])) { $("#obRoot").innerHTML = '<div class="ob-lock">Your role cannot add menu, pricing, inventory, vendors or staff. Ask an admin to run this setup.</div>'; $("#app").hidden = false; return; }
+    try { org = await BPStore.org.current(); } catch (e) { org = null; orgErr = e; }
+    canBill = BPStore.mode() !== "supabase" || (await BPStore.auth.role()) === "admin";
+    if (!KEYS.some((k) => perms[k]) && (billingOk() || !canBill)) { $("#obRoot").innerHTML = '<div class="ob-lock">Your role cannot add menu, pricing, inventory, vendors or staff. Ask an admin to run this setup.</div>'; $("#app").hidden = false; return; }
     loadLedger();
     const d = loadDraft(); S = d.s;
-    if (!perms[KEYS[S.step]] && S.step < KEYS.length) S.step = Math.max(0, KEYS.findIndex((k) => perms[k]));
+    const hm = /^#s(\d)$/.exec(location.hash || ""); if (hm && Number(hm[1]) < KEYS.length && perms[KEYS[Number(hm[1])]]) { S.step = Number(hm[1]); S.steps[KEYS[S.step]].mode = "csv"; S.steps[KEYS[S.step]].stage = "input"; }
+    if (org && canBill && !billingOk()) S.step = BILL;
+    else if (S.step >= 0 && !perms[KEYS[S.step]] && S.step < KEYS.length) S.step = Math.max(0, KEYS.findIndex((k) => perms[k]));
     // after a refresh in the middle of preview/result, rebuild what the screen needs
     const cur = KEYS[S.step];
     if (cur && S.steps[cur].stage === "preview") { try { await prepare(cur); } catch (e) { S.steps[cur].stage = "input"; } }
     if (cur && S.steps[cur].stage === "map" && S.steps[cur].mode !== "csv") S.steps[cur].stage = "input";
     if (cur && S.steps[cur].stage === "result" && !S.steps[cur].batchKey) S.steps[cur].stage = "input";
+    document.addEventListener("submit", (ev) => { if (ev.target && ev.target.id === "obBill") { ev.preventDefault(); const b = $('[data-act="billsave"]'); BPUI.guard(b, () => saveBilling(), { busyLabel: "Saving…" }); } });
     document.addEventListener("click", onClick); document.addEventListener("input", onInput); document.addEventListener("change", onChange);
     try { history.replaceState({ onb: 1, step: S.step, stage: cur ? S.steps[cur].stage : "finish" }, "", "#s" + S.step); } catch (e) {}
     $("#app").hidden = false; render();
