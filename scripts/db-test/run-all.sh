@@ -60,6 +60,9 @@ run "client-booklet"     "CLIENT-BOOKLET: ALL PASS \(44/44\)" psql -q -f tests/d
 run "booklet-tax"        "BOOKLET-TAX: ALL PASS \(14/14\)" psql -q -f tests/db/booklet-tax.sql
 run "booklet-images"     "BOOKLET-IMAGES: ALL PASS \(25/25\)" psql -q -f tests/db/booklet-images.sql
 run "r7-polish"          "R7-POLISH: ALL PASS \(18/18\)" psql -q -f tests/db/r7-polish.sql
+run "venues"            "VENUES: ALL PASS \(27/27\)" psql -q -f tests/db/venues.sql
+run "item-specs"         "ITEM-SPECS: ALL PASS \(30/30\)" psql -q -f tests/db/item-specs.sql
+run "item-spec-parity"   "item-spec-parity: 9 parity case\(s\) passed, 0 failed" node tests/db/item-spec-parity.mjs
 # right after client-booklet: later suites re-apply 0036/0048/0054/0058 over the 0069 wrappers
 run "pkg-flow"           "PKG-FLOW: ALL PASS \(103/103\)" psql -q -f tests/db/pkg-flow.sql
 run "pretty-urls"        "PRETTY-URLS: ALL PASS \(35/35\)" psql -q -f tests/db/pretty-urls.sql
