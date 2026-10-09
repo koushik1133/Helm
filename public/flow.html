@@ -31,6 +31,7 @@
   .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
 
+  .lay-flash{outline:2px solid var(--accent,#2563eb);outline-offset:2px;transition:outline-color .6s}
   .layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
   @media(max-width:900px){.layout{grid-template-columns:1fr}}
   .col-main{display:flex;flex-direction:column;gap:16px;min-width:0}
@@ -322,6 +323,7 @@
 <script src="tour.js?v=9"></script>
 <script src="booklet.js?v=8"></script>
 <script src="share-checklist.js?v=2"></script>
+<script src="flow-layout-sync.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -811,7 +813,7 @@
     $("#code").textContent=ev.code||"—"; $("#title").textContent=ev.title||"";
     $("#statusBadge").textContent=ev.status||ev.lifecycleStage||"draft";
     $("#workspaceLink").href="event.html?id="+encodeURIComponent(id);
-    $("#openBuilder").href="builder.html?quote="+encodeURIComponent(id);
+    $("#openBuilder").href="builder.html?quote="+encodeURIComponent(id)+"&from=flow";
     const cl=ev.client||{};
     $("#c_name").value=cl.name||""; $("#c_company").value=cl.company||""; $("#c_email").value=cl.email||"";
     $("#c_phone").value=cl.phone||""; $("#c_type").value=ev.eventType||""; $("#c_date").value=cl.eventDate||ev.eventDate||"";
@@ -835,6 +837,54 @@
     $("#remindAfter").checked = false;
     // prefill complete — genuine user edits from here on may mark the quote dirty
     loading=false; dirty=false;
+    // back from the floor builder (Save & back, or a fresh load after it): re-price from the latest layout
+    const fromBuilder = HelmFlowLayout.consume(sessionStorage, id) || new URLSearchParams(location.search).get("from")==="builder";
+    if(fromBuilder){ try{ const u=new URL(location.href); u.searchParams.delete("from"); history.replaceState(history.state,"",u.pathname+u.search+u.hash); }catch{} }
+    if(fromBuilder){ await syncFromLayout(true); $("#sec-quote").scrollIntoView({behavior:"auto",block:"start"}); }
+  }
+  // The floor layout drives chairs + décor/setup ("other"). After the builder saves a new
+  // layout version, bring the quotation in line with it (same rules as the builder's own
+  // sync) and — when the user just came back from the builder — persist it through the SAME
+  // server path as "Save quotation" (save_quotation_version; D8 pricing authority applies).
+  // Never loops: it saves at most once per return (the one-shot flag is consumed first).
+  let layoutSyncBusy=false;
+  async function syncFromLayout(fromBuilder){
+    if(layoutSyncBusy || quoteBlocked()) return;
+    layoutSyncBusy=true;
+    try{
+      const oi=BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
+      const pr=ev.pricing||{};
+      const r=HelmFlowLayout.reconcile(pr,{ chairs:oi.chairs, objectsCost:oi.objectsCost, layoutBase:rates.layoutBase });
+      if(!r.changed){ if(fromBuilder) BPUI.toast("Back from the floor builder — quotation is up to date.",{type:"info"}); return; }
+      const before=BPStore.pricing.quoteTotal(currentInputs()).total;
+      const wasLoading=loading; loading=true;
+      if(r.chairsChanged) $("#q_chairs").value=r.chairs;
+      if(r.otherChanged) $("#q_other").value=r.other;
+      loading=wasLoading;
+      ev.pricing=Object.assign({}, pr, { otherAuto:r.otherAuto });   // remember the auto value so a later hand edit is recognised
+      const t=renderPrice(); updateAdvance(); updateProgress();
+      const flash=[r.chairsChanged&&"#q_chairs", r.otherChanged&&"#q_other", "#priceRows"].filter(Boolean).map(s=>$(s)).filter(Boolean);
+      flash.forEach(el=>el.classList.add("lay-flash")); setTimeout(()=>flash.forEach(el=>el.classList.remove("lay-flash")),2600);
+      const moved=before!==t.total ? " ("+inr(before)+" → "+inr(t.total)+")" : "";
+      if(fromBuilder && canEdit){
+        try{ await saveQuotation(); BPUI.toast("Layout updated — quotation recalculated"+moved,{type:"ok"}); }
+        catch(_){ dirty=true; }   // saveQuotation already surfaced the error; keep the numbers as unsaved edits
+      } else {
+        dirty=true;
+        BPUI.toast("Layout changed — quotation recalculated"+moved+". Save quotation to keep it.",{type:"info"});
+      }
+    } finally { layoutSyncBusy=false; }
+  }
+  // Browser Back from the builder restores this page from bfcache with stale state: refetch.
+  async function refreshAfterBuilder(){
+    try{
+      const fresh=await BPStore.quotes.get(id);
+      if(fresh){ ev.pricing=fresh.pricing; ev.currentVersion=fresh.currentVersion; if(fresh.updatedAt) ev.updatedAt=fresh.updatedAt; }
+    }catch(_){ return; }
+    const wasLoading=loading, wasDirty=dirty; loading=true;
+    try{ await runSection("layout"); if(!wasDirty && !quoteBlocked()) seedQuote(); }
+    finally{ loading=wasLoading; dirty=wasDirty; renderPrice(); updateAdvance(); updateProgress(); }
+    await syncFromLayout(true);
   }
 
   /* ---------- wire ---------- */
@@ -881,11 +931,13 @@
       if(dirty){ let ok=false; try{ ok=await saveAll(); }catch(_){}
         if(!ok && !(await confirmLeaveAnyway())){ btn.textContent=t; btn.removeAttribute("aria-busy"); return; } }
       leaving=true;   // intentional navigation — don't trip beforeunload
-      location.href="builder.html?quote="+encodeURIComponent(id);
+      HelmFlowLayout.mark(sessionStorage, id);   // re-price once when we come back
+      location.href="builder.html?quote="+encodeURIComponent(id)+"&from=flow";
     });
     // coming back via Back / bfcache restores this page with its JS state: undo the "leaving" state
     window.addEventListener("pageshow",(e)=>{ if(!e.persisted) return;
-      leaving=false; const b=$("#openBuilder");
+      leaving=false;
+      if(HelmFlowLayout.consume(sessionStorage, id)) refreshAfterBuilder().catch(()=>{}); const b=$("#openBuilder");
       if(b){ b.removeAttribute("aria-busy"); if(b.textContent==="Saving…") b.textContent=b.dataset.lbl||"🎨 Open floor builder →"; } });
     $("#genLayout").addEventListener("click",()=>BPUI.guard($("#genLayout"),async()=>{
       try{ if($("#remindAfter").checked) localStorage.setItem(REMIND_KEY,"1"); }catch{}
@@ -894,7 +946,8 @@
       leaving=true;
       const type=$("#c_type").value.trim()||(ev&&ev.eventType)||"";
       const guests=$("#g_guests").value||$("#c_guests").value||"";
-      const p=new URLSearchParams({ quote:id, gen:"1" });
+      const p=new URLSearchParams({ quote:id, gen:"1", from:"flow" });
+      HelmFlowLayout.mark(sessionStorage, id);
       if(type) p.set("type",type); if(guests) p.set("guests",guests);
       if($("#g_len").value) p.set("len",$("#g_len").value);
       if($("#g_wid").value) p.set("wid",$("#g_wid").value);
