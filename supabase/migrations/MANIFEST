@@ -109,5 +109,5 @@ forward  supabase/migrations/0080_notif_catalog_speed.sql
 forward  supabase/migrations/0081_booklet_tax_labels.sql
 # 0082 (round-4 review fixes: outbox claim re-checks recipient + switches, price-alert index, insights skip deleted) goes after 0080.
 forward  supabase/migrations/0082_r4_sql_fixes.sql
-# 0083 (booklet pictures in 3 label styles: none / numbers / names; variant snapshot kinds) goes after 0082.
-forward  supabase/migrations/0083_snapshot_label_variants.sql
+# 0083 (client booklet pictures stored in the database: 2D / 3D, with labels + plain; anon reader by live token) goes after 0082.
+forward  supabase/migrations/0083_booklet_images.sql

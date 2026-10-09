@@ -169,12 +169,10 @@
     ctx.restore(); return Lo;
   }
 
-  /* label modes for the client pictures + live 3D view: 'none' (plain), 'numbers' (badges + legend,
+  /* label modes for the live 3D view + client pictures (client pictures use 'numbers' = with labels and 'none' = plain): 'none' (plain), 'numbers' (badges + legend,
      the default and the original pictures), 'names' (small name tags, no legend). */
   const LABEL_MODES=['none','numbers','names'];
   function labelMode(v){ v=String(v==null?'':v).toLowerCase(); return LABEL_MODES.indexOf(v)>=0 ? v : 'numbers'; }
-  // booklet snapshot kind for a picture ('2d'|'3d') in a label mode; numbers keeps the original kind
-  function snapKind(base, mode){ base=base==='3d'?'3d':'2d'; mode=labelMode(mode); return mode==='numbers' ? base : base+'_'+mode; }
   /* name tags: one tag per anchor (same text closer than dupDist to a kept tag is dropped), each a
      w x h box centred on its anchor, pushed apart until no two boxes overlap (gap px) and kept
      inside [0,W]x[0,H]. anchors: [{x,y,text,w,h}]. Returns [{x,y,ax,ay,w,h,text}]. */
@@ -218,6 +216,6 @@
   }
   // final image split: render area on the left (~80%), legend panel on the right
   function legendSplit(W){ const panel=Math.round(W*0.2); return {renderW:W-panel, panelW:panel}; }
-  const api={ labelMode, snapKind, LABEL_MODES, layoutTags, drawNameTags, numberItems, layoutBadges, legendLayout, drawBadge, drawBadges, drawLegend, legendSplit, frameBox, projectBox, labelWorldHeight, labelScaleForDepth, unionFloor, pickLabels, LABEL_CAP_RATIO };
+  const api={ labelMode, LABEL_MODES, layoutTags, drawNameTags, numberItems, layoutBadges, legendLayout, drawBadge, drawBadges, drawLegend, legendSplit, frameBox, projectBox, labelWorldHeight, labelScaleForDepth, unionFloor, pickLabels, LABEL_CAP_RATIO };
   if(typeof module!=='undefined' && module.exports) module.exports=api; else root.HelmCaptureFrame=api;
 })(typeof window!=='undefined'?window:globalThis);

@@ -2406,8 +2406,45 @@ window.HelmUrl = HelmUrl;
   // Edge Function caller — used only when live channels are enabled in config.js
   // 0069 booklet share checklist keys (server validates the same list)
   const BOOKLET_SECTIONS = ["studio", "client", "venue", "menu", "layout2d", "layout3d", "quotation", "payments", "terms", "note"];
-  const SNAP_KINDS = ["2d", "3d", "2d_none", "3d_none", "2d_names", "3d_names"];
   const UUID_RE_PKG = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  // 0083: booklet pictures kept in the database
+  const BOOKLET_IMG_KINDS = ["2d", "3d"], BOOKLET_IMG_VARIANTS = ["labels", "plain"], BOOKLET_IMG_MAX = 1536 * 1024;
+  const BOOKLET_IMG_MIME = /^image\/(jpeg|png|webp)$/;
+  // server answer {mime, data(base64)} -> data: URL (only the three image types, only base64 characters)
+  function bookletDataUrl(r) {
+    if (!r || typeof r !== "object" || !BOOKLET_IMG_MIME.test(String(r.mime || ""))) return null;
+    const d = String(r.data || "");
+    if (!d || d.length > 2100000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(d)) return null;
+    return "data:" + r.mime + ";base64," + d;
+  }
+  // blob / canvas -> {mime:"image/jpeg", data(base64), bytes}; downscaled to maxW (1600) wide, JPEG quality q (0.85)
+  async function encodeBookletImage(src, maxW, q) {
+    maxW = Math.max(200, Math.min(4000, Number(maxW) || 1600)); q = Math.max(0.5, Math.min(0.95, Number(q) || 0.85));
+    if (!src || typeof document === "undefined") return null;
+    let w, h, draw;
+    if (src.getContext) { w = src.width; h = src.height; draw = src; }
+    else {
+      const url = URL.createObjectURL(src);
+      try { draw = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error("Couldn't read the picture.")); im.src = url; }); }
+      finally { setTimeout(() => { try { URL.revokeObjectURL(url); } catch (e) {} }, 0); }
+      w = draw.naturalWidth || draw.width; h = draw.naturalHeight || draw.height;
+    }
+    if (!(w > 0) || !(h > 0)) return null;
+    let s = Math.min(1, maxW / w);
+    for (let i = 0; i < 4; i++) {
+      const cv = document.createElement("canvas"); cv.width = Math.max(1, Math.round(w * s)); cv.height = Math.max(1, Math.round(h * s));
+      const cx = cv.getContext("2d"); cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, cv.width, cv.height); cx.drawImage(draw, 0, 0, cv.width, cv.height);
+      const b = await new Promise((res) => { try { cv.toBlob((x) => res(x), "image/jpeg", q); } catch (e) { res(null); } });
+      if (!b) return null;
+      if (b.size <= BOOKLET_IMG_MAX || i === 3) {
+        const buf = new Uint8Array(await b.arrayBuffer()); let bin = "";
+        for (let j = 0; j < buf.length; j += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(j, j + 0x8000));
+        return { mime: "image/jpeg", data: btoa(bin), bytes: buf.length };
+      }
+      s *= 0.75; q = Math.max(0.6, q - 0.1);
+    }
+    return null;
+  }
   const fnUrl = (name) => (CFG.url ? CFG.url.replace(/\/$/, "") + "/functions/v1/" + name : null);
   async function callFn(name, body) {
     // signed-in staff send their own access token (send-whatsapp requires it);
@@ -7180,11 +7217,11 @@ window.HelmUrl = HelmUrl;
       revoke: (quoteId) => rpc("booklet_revoke", { p_quote_id: quoteId }),
       url: (token) => (HelmUrl.studio() ? links.base() + "/" + HelmUrl.studio() + "/booklet/" + encodeURIComponent(String(token || "")) : links.base() + "/booklet?t=" + encodeURIComponent(String(token || ""))),
       sections: () => BOOKLET_SECTIONS.slice(),
-      // 0069 + 0083: 2D / 3D snapshot (and its _none / _names label variants) -> private bucket booklet-snapshots at <org>/<quote>/<kind>.<png|jpg|webp> (<= 3 MB),
+      // 0069: 2D / 3D snapshot -> private bucket booklet-snapshots at <org>/<quote>/<kind>.<png|jpg|webp> (<= 3 MB),
       // then recorded on the live booklet link. Returns the storage path.
       uploadSnapshot: async (quoteId, kind, blob) => {
         if (!supa || mode !== "supabase") throw new Error("Snapshots need a signed-in studio.");
-        if (!SNAP_KINDS.includes(kind)) throw new Error("Unknown snapshot kind.");
+        if (kind !== "2d" && kind !== "3d") throw new Error("Snapshot kind must be 2d or 3d.");
         if (!UUID_RE_PKG.test(String(quoteId || ""))) throw new Error("Unknown event.");
         const type = String((blob && blob.type) || "");
         const ext = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" }[type];
@@ -7204,7 +7241,7 @@ window.HelmUrl = HelmUrl;
         const oid = await orgIdStrict();
         const r = await supa.storage.from("booklet-snapshots").list(oid + "/" + quoteId, { limit: 20 });
         if (r && r.error) return out;
-        ((r && r.data) || []).forEach((f) => { const m = /^((?:2d|3d)(?:_none|_names)?)\.(png|jpg|webp)$/.exec(String((f && f.name) || ""));
+        ((r && r.data) || []).forEach((f) => { const m = /^(2d|3d)\.(png|jpg|webp)$/.exec(String((f && f.name) || ""));
           if (!m) return; const t = f.updated_at || f.created_at || null;
           if (!out[m[1]] || String(t) > String(out[m[1]].updatedAt)) out[m[1]] = { path: oid + "/" + quoteId + "/" + f.name, updatedAt: t }; });
         return out;
@@ -7214,12 +7251,39 @@ window.HelmUrl = HelmUrl;
         const r = await supa.storage.from("booklet-snapshots").createSignedUrl(String(path || ""), 300);
         return r && !r.error && r.data ? r.data.signedUrl : null; },
       // R2: (re)attach an already-uploaded snapshot to the live booklet link
-      attachSnapshot: (quoteId, kind, path) => rpc("booklet_set_snapshot", { p_quote_id: quoteId, p_kind: SNAP_KINDS.includes(kind) ? kind : "2d", p_path: path }),
+      attachSnapshot: (quoteId, kind, path) => rpc("booklet_set_snapshot", { p_quote_id: quoteId, p_kind: kind === "3d" ? "3d" : "2d", p_path: path }),
+      // 0083: booklet pictures stored IN THE DATABASE (no edge function / bucket needed).
+      // kind '2d' | '3d', variant 'labels' (numbered badges + legend) | 'plain'. JPEG ~0.85, <= 1600 px wide.
+      imageKinds: () => BOOKLET_IMG_KINDS.slice(), imageVariants: () => BOOKLET_IMG_VARIANTS.slice(),
+      encodeImage: (blob, maxW, q) => encodeBookletImage(blob, maxW, q),
+      putImage: async (quoteId, kind, variant, blob) => {
+        if (!supa || mode !== "supabase") throw new Error("Client pictures need a signed-in studio.");
+        if (!BOOKLET_IMG_KINDS.includes(kind) || !BOOKLET_IMG_VARIANTS.includes(variant)) throw new Error("Unknown picture kind.");
+        if (!UUID_RE_PKG.test(String(quoteId || ""))) throw new Error("Unknown event.");
+        const enc = await encodeBookletImage(blob);
+        if (!enc) throw new Error("Couldn't prepare the picture.");
+        if (enc.bytes > BOOKLET_IMG_MAX) throw new Error("Picture must be 1.5 MB or smaller.");
+        return rpc("booklet_put_image", { p_quote_id: quoteId, p_kind: kind, p_variant: variant, p_mime: enc.mime, p_data: enc.data });
+      },
+      // { "2d": { labels: iso, plain: iso }, "3d": { ... } } - newest picture per style (no bytes); {} before 0083
+      imageInfo: (quoteId) => (supa && mode === "supabase" && UUID_RE_PKG.test(String(quoteId || ""))
+        ? rpc("booklet_image_info", { p_quote_id: quoteId }).then((r) => (r && typeof r === "object" ? r : {})).catch((e) => { if (rpcMissing(e)) return {}; throw e; })
+        : Promise.resolve({})),
+      // staff preview: data: URL of the newest picture, or null
+      staffImage: (quoteId, kind, variant) => (supa && mode === "supabase" && UUID_RE_PKG.test(String(quoteId || "")) && BOOKLET_IMG_KINDS.includes(kind) && BOOKLET_IMG_VARIANTS.includes(variant)
+        ? rpc("booklet_staff_image", { p_quote_id: quoteId, p_kind: kind, p_variant: variant }).then(bookletDataUrl).catch((e) => { if (rpcMissing(e)) return null; throw e; })
+        : Promise.resolve(null)),
+      // which styles the live link shows: { "2d_labels": bool, "2d_plain": bool, "3d_labels": bool, "3d_plain": bool }
+      setImageVariants: (quoteId, v) => { const o = {};
+        ["2d_labels", "2d_plain", "3d_labels", "3d_plain"].forEach((k) => { if (v && typeof v[k] === "boolean") o[k] = v[k]; });
+        return rpc("booklet_set_image_variants", { p_quote_id: quoteId, p_variants: o }).catch((e) => { if (rpcMissing(e)) return null; throw e; }); },
+      // signed-out booklet page: data: URL of one picture of a live link (lazy), or null
+      publicImage: (token, kind, variant) => (supa && UUID_RE_PKG.test(String(token || "")) && BOOKLET_IMG_KINDS.includes(kind) && BOOKLET_IMG_VARIANTS.includes(variant)
+        ? rpc("public_get_booklet_image", { p_token: String(token), p_kind: kind, p_variant: variant }).then(bookletDataUrl).catch(() => null)
+        : Promise.resolve(null)),
       // signed-out booklet page: <img src> for a ticked snapshot (dormant edge function booklet-snapshot)
       snapshotUrl: (token, kind) => { const u = fnUrl("booklet-snapshot");
-        return u ? u + "?t=" + encodeURIComponent(String(token || "")) + "&k=" + (SNAP_KINDS.includes(kind) ? kind : "2d") : ""; },
-      // 0083: picture label styles. 2d / 3d = numbers (original), _none = plain, _names = name tags
-      snapshotKinds: () => SNAP_KINDS.slice(),
+        return u ? u + "?t=" + encodeURIComponent(String(token || "")) + "&k=" + (kind === "3d" ? "3d" : "2d") : ""; },
     },
     // 0069 - client package selection (booklet) + staff review. Before 0069 is applied (or local
     // mode) the reads return null / [] and writes reject with a friendly message.

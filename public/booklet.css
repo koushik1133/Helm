@@ -89,6 +89,7 @@ main:focus{outline:none}
 .plan .empty{padding:28px 16px;text-align:center}
 .snap-zoom{display:block;width:100%;padding:0;margin:0;border:0;background:none;cursor:zoom-in}
 .snap-zoom img.snap{display:block;width:100%;height:auto;max-height:70vh;object-fit:contain}
+.snap-zoom[hidden]{display:none}
 .snap-zoom:focus-visible{outline:3px solid var(--ink-3);outline-offset:-3px}
 .snap-labels{display:flex;align-items:center;gap:4px;margin:0 0 8px;flex-wrap:wrap;font-size:13px}
 .snap-labels-l{color:var(--ink-3);font-weight:600;margin-right:2px}

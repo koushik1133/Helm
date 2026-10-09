@@ -3212,11 +3212,14 @@ async function exportPNG(){
   download(name+'.png', b); toast('PNG downloaded');
 }
 
-/* ---- R2: client booklet images (real 2D plan + 3D render) ----
-   Uploaded to the tenant-scoped booklet-snapshots bucket (<org>/<quote>/2d.png, 3d.jpg) via
-   BPStore.booklet.uploadSnapshot, which also attaches them to the live booklet link. */
-function clientImagesSupported(){ return !!(currentQuoteId && !RO && BPStore.mode && BPStore.mode()==='supabase' && BPStore.booklet && BPStore.booklet.uploadSnapshot); }
+/* ---- R2 + 0083: client booklet images (real 2D plan + 3D render) ----
+   Each picture in two styles: 'labels' (numbered badges + legend, the approved look) and
+   'plain' (the model without labels). Stored IN THE DATABASE via BPStore.booklet.putImage
+   (JPEG ~0.85, <= 1600 px wide); the booklet link shows the newest ones. */
+function clientImagesSupported(){ return !!(currentQuoteId && !RO && BPStore.mode && BPStore.mode()==='supabase' && BPStore.booklet && BPStore.booklet.putImage); }
 let clientImgBusy=false;
+// capture style -> label mode used by planBlob / capture3D
+const CLIENT_IMG_STYLES=[['labels','numbers'],['plain','none']];
 async function captureClientImages(silent){
   if(!clientImagesSupported() || clientImgBusy || !store.items.length) return false;
   clientImgBusy=true;
@@ -3225,36 +3228,20 @@ async function captureClientImages(silent){
   const qid=currentQuoteId, vno=currentVersionNo, sig=docSig();
   const moved=()=> currentQuoteId!==qid || currentVersionNo!==vno || docSig()!==sig;
   try{
-    // 0083: every picture in all three label styles (numbers = the original '2d' / '3d' kinds) so the
-    // client can switch None / Numbers / Names in the booklet
-    const CF=window.HelmCaptureFrame, modes=CF ? CF.LABEL_MODES.slice() : ['numbers'];
-    const kind=(base,m)=>CF ? CF.snapKind(base,m) : base;
-    const p2={}, p3={};
-    for(const m of modes){
-      let b=await planBlob({clean:true, maxW:1920, labels:m});
-      if(b && b.size>3*1024*1024) b=await planBlob({clean:true, maxW:1280, labels:m});
-      if(b) p2[m]=b;
-    }
-    if(!p2.numbers) throw new Error('Couldn’t draw the floor plan');
-    let e3=null;
-    for(const m of modes){
-      try{ const b=window.__capture3D ? await window.__capture3D(1920,{labels:m}) : null; if(b) p3[m]=b; }catch(e){ e3=e; }
+    const p2={}, p3={}; let e3=null;
+    for(const [v,m] of CLIENT_IMG_STYLES){ const b=await planBlob({clean:true, maxW:1600, labels:m}); if(b) p2[v]=b; }
+    if(!p2.labels) throw new Error('Couldn’t draw the floor plan');
+    for(const [v,m] of CLIENT_IMG_STYLES){
+      try{ const b=window.__capture3D ? await window.__capture3D(1600,{labels:m}) : null; if(b) p3[v]=b; }catch(e){ e3=e; }
       if(moved()) return false;
     }
-    const b3=p3.numbers||null;
-    // numbers first (the original kinds every booklet reads); the variants are best effort, so a
-    // database without 0083 still gets the original pictures
     if(moved()) return false;
-    await BPStore.booklet.uploadSnapshot(qid,'2d',p2.numbers);
-    if(b3 && !moved()) await BPStore.booklet.uploadSnapshot(qid,'3d',b3);
-    for(const m of modes.filter(x=>x!=='numbers')){
-      if(moved()) break;
-      try{
-        if(p2[m]) await BPStore.booklet.uploadSnapshot(qid,kind('2d',m),p2[m]);
-        if(p3[m] && !moved()) await BPStore.booklet.uploadSnapshot(qid,kind('3d',m),p3[m]);
-      }catch(e){ console.warn('client image variant skipped'); break; }
+    for(const [v] of CLIENT_IMG_STYLES){
+      if(moved()) return false;
+      if(p2[v]) await BPStore.booklet.putImage(qid,'2d',v,p2[v]);
+      if(p3[v] && !moved()) await BPStore.booklet.putImage(qid,'3d',v,p3[v]);
     }
-    if(!silent) toast(b3 ? 'Client images updated (2D + 3D)' : 'Client 2D plan updated — 3D view couldn’t render');
+    if(!silent) toast(p3.labels ? 'Client images updated (2D + 3D, with and without labels)' : 'Client 2D plan updated — 3D view couldn’t render');
     else if(e3) console.warn('client 3D capture skipped');
     return true;
   }catch(e){ if(!silent) BPUI.toast(BPUI.friendlyError(e,{action:'update the client images'}),{type:'err'}); return false; }
@@ -3268,15 +3255,13 @@ async function autoCaptureIfStale(){
   try{
     const cur=await BPStore.booklet.current(qid);
     if(!cur || !cur.token || cur.revoked_at) return;
-    const info=await BPStore.booklet.snapshotInfo(qid);
+    const info=await BPStore.booklet.imageInfo(qid)||{};
     const vs=await BPStore.quotes.versions(qid)||[];
     const latest=vs.reduce((m,v)=>{ const t=Date.parse(v.createdAt||v.created_at||''); return isFinite(t)&&t>m?t:m; },0);
-    const old=k=>!info[k] || !(Date.parse(info[k].updatedAt||'')>=latest);
+    const old=(k,v)=>{ const t=info[k] && info[k][v]; return !t || !(Date.parse(t)>=latest); };
     // R4-E: the checks above were async — re-verify we are still on that quote's saved latest version
-    // variants count only once this event has any (a database without 0083 never gets them)
-    const kinds=['2d','3d'].concat(['2d_none','3d_none','2d_names','3d_names'].some(k=>info[k]) ? ['2d_none','3d_none','2d_names','3d_names'] : []);
     if(currentQuoteId!==qid || isViewingOlder() || docSig()!==savedSig) return;
-    if(old('2d') || old('3d') || kinds.some(old)) await captureClientImages(true);
+    if(['2d','3d'].some(k=>old(k,'labels') || old(k,'plain'))) await captureClientImages(true);
   }catch(e){ /* best effort */ }
 }
 function importJSON(file){ return new Promise(resolve=>{

@@ -1,7 +1,10 @@
 // booklet-snapshot - streams the 2D / 3D snapshot image of a client booklet (migration
 // 0069, private bucket booklet-snapshots). SQL can't sign storage URLs, so the booklet
-// page loads <img src=".../booklet-snapshot?t=<booklet token>&k=2d|3d|2d_none|3d_none|2d_names|3d_names">.
+// page loads <img src=".../booklet-snapshot?t=<booklet token>&k=2d|3d">.
 // DORMANT BY DEFAULT: unless HELM_BOOKLET_SNAPSHOT_ENABLED === "true" every request is 404.
+// LEGACY / OPTIONAL since 0083: the booklet's pictures are stored in the database
+// (client_booklet_images, read with public_get_booklet_image) - this function does NOT need
+// to be deployed and the flag does NOT need to be set. Kept only for old bucket snapshots.
 //
 // The database decides: booklet_snapshot_path(token, kind) (service role only) returns the
 // storage path ONLY for a live, unexpired, unrevoked link whose share checklist shows that
@@ -14,9 +17,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, UUID_RE } from "../_shared/cors.ts";
 import { clientIp, checkLimits } from "../_shared/limits.ts";
 
-const PATH = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(2d|3d)(_none|_names)?\.(png|jpg|webp)$/;
-// 0083: 2d / 3d = numbered pictures; _none = no labels, _names = name tags
-const KINDS = new Set(["2d", "3d", "2d_none", "3d_none", "2d_names", "3d_names"]);
+const PATH = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(2d|3d)\.(png|jpg|webp)$/;
 const TYPES: Record<string, string> = { png: "image/png", jpg: "image/jpeg", webp: "image/webp" };
 const MAX = 3 * 1024 * 1024;
 const notFound = () => new Response("not found", { status: 404, headers: { "Content-Type": "text/plain", "Cache-Control": "no-store" } });
@@ -27,7 +28,7 @@ Deno.serve(async (req) => {
     if (req.method !== "GET") return new Response("method not allowed", { status: 405 });
     const u = new URL(req.url);
     const token = u.searchParams.get("t") || "", kind = u.searchParams.get("k") || "";
-    if (!UUID_RE.test(token) || !KINDS.has(kind)) return notFound();
+    if (!UUID_RE.test(token) || (kind !== "2d" && kind !== "3d")) return notFound();
     const wait = await checkLimits([["bsnap:ip:" + clientIp(req), 120, 60_000]]);
     if (wait) return new Response("too many requests", { status: 429, headers: { "Retry-After": String(wait) } });
 

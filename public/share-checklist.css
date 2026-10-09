@@ -28,3 +28,6 @@
 .sc-warn{color:#9a5a12}
 .sc-err{min-height:1em;margin:6px 0 0;font-size:13px;font-weight:600;color:#b4231b}
 .sc-live{margin-top:12px}
+.sc-styles{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 0 0;font-size:13px}
+.sc-style{display:inline-flex;align-items:center;gap:6px;min-height:32px;cursor:pointer}
+.sc-thumb .sc-btn{margin-top:6px}

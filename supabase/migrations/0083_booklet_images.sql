@@ -1,6 +1,3 @@
--- APPLY-0083.sql - ONE paste. Run on STAGING first, then PROD, after APPLY-0082.
--- Pure ASCII, idempotent (safe to paste twice). Last grid: 10 rows, every ok = true.
--- No edge function, no dashboard setup, no JWT settings needed: the booklet pictures live in the database.
 -- 0083_booklet_images.sql - CANONICAL forward-only. Client booklet pictures stored in the database.
 --
 -- In plain words:
@@ -257,35 +254,3 @@ do $$ declare s text; begin
     grant execute on function public.public_get_booklet__pre0083(uuid) to service_role;
   end if;
 end $$;
-
--- VERIFY (expect 10 rows, ALL ok = true)
-select item, ok from (values
-  ('01 client_booklet_images table + RLS on', exists (select 1 from pg_class c where c.oid = to_regclass('public.client_booklet_images') and c.relrowsecurity)),
-  ('02 no direct table access for anon / authenticated', not has_table_privilege('anon', 'public.client_booklet_images', 'select')
-      and not has_table_privilege('authenticated', 'public.client_booklet_images', 'select')
-      and not has_table_privilege('authenticated', 'public.client_booklet_images', 'insert')),
-  ('03 checks: kind / variant / mime / size', (select count(*) from pg_constraint where conrelid = to_regclass('public.client_booklet_images')
-      and conname in ('client_booklet_images_kind_ck', 'client_booklet_images_variant_ck', 'client_booklet_images_mime_ck', 'client_booklet_images_bytes_ck')) = 4),
-  ('04 studio read-only + quote/org triggers', (select count(*) from pg_trigger where tgrelid = to_regclass('public.client_booklet_images')
-      and tgname in ('zzz_studio_read_only', 'zz_quote_org_match')) = 2),
-  ('05 image_variants column present', exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'client_booklets' and column_name = 'image_variants')),
-  ('06 magic bytes checker', public._bk_img_magic_ok('image/jpeg', '\xffd8ffe0'::bytea) and not public._bk_img_magic_ok('image/png', '\xffd8ffe0'::bytea)
-      and public._bk_img_magic_ok('image/png', '\x89504e470d0a1a0a'::bytea) and not public._bk_img_magic_ok('image/gif', '\x474946383961'::bytea)),
-  ('07 anon may only read (reader + image)', has_function_privilege('anon', 'public.public_get_booklet_image(uuid,text,text)', 'execute')
-      and has_function_privilege('anon', 'public.public_get_booklet(uuid)', 'execute')
-      and not has_function_privilege('anon', 'public.booklet_put_image(uuid,text,text,text,text)', 'execute')
-      and not has_function_privilege('anon', 'public.booklet_staff_image(uuid,text,text)', 'execute')
-      and not has_function_privilege('anon', 'public.booklet_set_image_variants(uuid,jsonb)', 'execute')),
-  ('08 reader wrapped; inner not anon-callable', position('booklet-images-0083' in (select p.prosrc from pg_proc p where p.oid = 'public.public_get_booklet(uuid)'::regprocedure)) > 0
-      and not has_function_privilege('anon', 'public.public_get_booklet__pre0083(uuid)', 'execute')
-      and not has_function_privilege('authenticated', 'public.public_get_booklet__pre0083(uuid)', 'execute')),
-  ('09 staff RPCs callable by signed-in users', has_function_privilege('authenticated', 'public.booklet_put_image(uuid,text,text,text,text)', 'execute')
-      and has_function_privilege('authenticated', 'public.booklet_image_info(uuid)', 'execute')
-      and has_function_privilege('authenticated', 'public.booklet_staff_image(uuid,text,text)', 'execute')
-      and has_function_privilege('authenticated', 'public.booklet_set_image_variants(uuid,jsonb)', 'execute')),
-  ('10 new functions definer-safe (search_path empty)', (select bool_and(p.prosecdef and coalesce(p.proconfig, '{}') @> array['search_path=""']) from pg_proc p
-      where p.oid in ('public.public_get_booklet(uuid)'::regprocedure, 'public.public_get_booklet_image(uuid,text,text)'::regprocedure,
-                      'public.booklet_put_image(uuid,text,text,text,text)'::regprocedure, 'public.booklet_image_info(uuid)'::regprocedure,
-                      'public.booklet_staff_image(uuid,text,text)'::regprocedure, 'public.booklet_set_image_variants(uuid,jsonb)'::regprocedure)))
-) v(item, ok)
-order by item;

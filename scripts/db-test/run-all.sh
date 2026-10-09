@@ -58,7 +58,7 @@ run "worker-evidence"    "WORKER-EVIDENCE: ALL PASS \(38/38\)" psql -q -f tests/
 # before rescore2 too: its 0032 re-apply resets the anon allowlist (public_get_booklet is a 0065 link RPC)
 run "client-booklet"     "CLIENT-BOOKLET: ALL PASS \(44/44\)" psql -q -f tests/db/client-booklet.sql
 run "booklet-tax"        "BOOKLET-TAX: ALL PASS \(14/14\)" psql -q -f tests/db/booklet-tax.sql
-run "label-variants"     "LABEL-VARIANTS: ALL PASS \(20/20\)" psql -q -f tests/db/label-variants.sql
+run "booklet-images"     "BOOKLET-IMAGES: ALL PASS \(25/25\)" psql -q -f tests/db/booklet-images.sql
 # right after client-booklet: later suites re-apply 0036/0048/0054/0058 over the 0069 wrappers
 run "pkg-flow"           "PKG-FLOW: ALL PASS \(103/103\)" psql -q -f tests/db/pkg-flow.sql
 run "pretty-urls"        "PRETTY-URLS: ALL PASS \(35/35\)" psql -q -f tests/db/pretty-urls.sql
