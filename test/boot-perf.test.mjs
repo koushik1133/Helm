@@ -92,6 +92,7 @@ function makeEnv(o = {}) {
     from(table) {
       const q = { select: () => q, eq: () => q, order: () => q,
         single: async () => { calls.push(['from', table]); return { data: { role: o.role || 'sales' }, error: null }; },
+        maybeSingle: async () => { calls.push(['from', table]); return { data: { role: o.role || 'sales' }, error: null }; },
         then: (res, rej) => { calls.push(['from', table]); return Promise.resolve({ data: [{ area: 'leads', can_view: true, can_edit: false }], error: null }).then(res, rej); } };
       return q;
     },

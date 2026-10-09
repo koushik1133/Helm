@@ -64,9 +64,10 @@ function makeEnv(o = {}) {
       return { data: null, error: null };
     },
     from(table) {
-      const q = { select: () => q, eq: () => q, order: () => q,
+      const q = { select: (c) => { q._cols = c; return q; }, eq: () => q, order: () => q,
         single: async () => ({ data: { role: o.role || 'planner' }, error: null }),
-        maybeSingle: async () => { calls.push(['from', table]); return { data: { id: UID, email: 'new@studio.test', full_name: 'Old Name', role: 'planner' }, error: null }; } };
+        maybeSingle: async () => { if (q._cols === 'role') return { data: { role: o.role || 'planner' }, error: null };   // getRole (L7: maybeSingle)
+          calls.push(['from', table]); return { data: { id: UID, email: 'new@studio.test', full_name: 'Old Name', role: 'planner' }, error: null }; } };
       return q;
     },
     storage,

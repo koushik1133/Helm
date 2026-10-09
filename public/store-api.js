@@ -1281,8 +1281,8 @@ window.HelmUrl = HelmUrl;
     if (accessRecheck || !supa || !uid) return;
     accessRecheck = true;
     (async () => {
-      const p = await supa.from("profiles").select("role").eq("id", uid).single();
-      if (!p || p.error || !currentUser || currentUser.id !== uid) return;
+      const p = await supa.from("profiles").select("role").eq("id", uid).maybeSingle();   // L7: no 406 on 0 rows
+      if (!p || p.error || !p.data || !currentUser || currentUser.id !== uid) return;
       const r = (p.data && p.data.role) || "client";
       const ra = await supa.from("role_access").select("area,can_view,can_edit").eq("role", r);
       if (!ra || ra.error || !currentUser || currentUser.id !== uid) return;
@@ -1301,8 +1301,9 @@ window.HelmUrl = HelmUrl;
     rolePromise = (async () => {
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
-          const { data, error } = await supa.from("profiles").select("role").eq("id", currentUser.id).single();
+          const { data, error } = await supa.from("profiles").select("role").eq("id", currentUser.id).maybeSingle();   // L7
           if (error) throw error;
+          if (!data) throw new Error("no profile row");   // same as .single()'s 0-row error: retry, then unknown
           roleCache = (data && data.role) || "client";
           sessSet("bp_sess_role", currentUser.id, roleCache);
           return roleCache;
@@ -4396,6 +4397,49 @@ window.HelmUrl = HelmUrl;
   };
   let chatDirectoryMissing = false;   // 0034 not installed yet → fall back to the RLS-scoped profiles read
 
+  // A12 (0074): pinned / muted / favourite chats are kept per user on the server (chat_prefs).
+  // The wa_pin / wa_mute / wa_fav localStorage sets stay as a cache (the bell reads wa_mute).
+  const CHAT_PREF_LS = { pinned: "wa_pin", muted: "wa_mute", favourite: "wa_fav" };
+  let chatPrefsAt = 0, chatPrefsMissing = false;
+  function chatPrefLocal(field) { try { const v = JSON.parse(localStorage.getItem(CHAT_PREF_LS[field]) || "[]"); return Array.isArray(v) ? v.map(String) : []; } catch (e) { return []; } }
+  function chatPrefWrite(field, ids) { try { localStorage.setItem(CHAT_PREF_LS[field], JSON.stringify(ids)); } catch (e) {} }
+  const chatPrefs = {
+    // → { pinned:[convId], muted:[...], favourite:[...] }; first run per user uploads the browser's old sets once
+    async sync(force) {
+      const local = () => ({ pinned: chatPrefLocal("pinned"), muted: chatPrefLocal("muted"), favourite: chatPrefLocal("favourite") });
+      const uidNow = currentUser && currentUser.id;
+      if (mode !== "supabase" || !supa || !uidNow || chatPrefsMissing) return local();
+      if (!force && Date.now() - chatPrefsAt < 60000) return local();
+      chatPrefsAt = Date.now();
+      const read = async () => { const { data, error } = await supa.from("chat_prefs").select("conversation_id,pinned,muted,favourite"); if (error) throw error; return data || []; };
+      let rows;
+      try { rows = await read(); } catch (e) { const U = global.BPUI; if (U && U.isMissingTable && U.isMissingTable(e)) chatPrefsMissing = true; return local(); }
+      const upKey = "wa_prefs_up:" + uidNow;
+      let uploaded = false; try { uploaded = localStorage.getItem(upKey) === "1"; } catch (e) {}
+      if (!uploaded) {
+        const l = local(), ids = Array.from(new Set(l.pinned.concat(l.muted, l.favourite)));
+        const have = new Set(rows.map((r) => String(r.conversation_id)));
+        for (const id of ids) {
+          if (have.has(id) || !/^[0-9a-f-]{36}$/i.test(id)) continue;
+          try { await rpc("chat_set_pref", { p_conversation: id, p_pinned: l.pinned.indexOf(id) !== -1, p_muted: l.muted.indexOf(id) !== -1, p_favourite: l.favourite.indexOf(id) !== -1 }); } catch (e) {}   // a chat I left: skipped
+        }
+        try { localStorage.setItem(upKey, "1"); } catch (e) {}
+        if (ids.length) { try { rows = await read(); } catch (e) { return local(); } }
+      }
+      const out = { pinned: [], muted: [], favourite: [] };
+      rows.forEach((r) => { ["pinned", "muted", "favourite"].forEach((f) => { if (r[f]) out[f].push(String(r.conversation_id)); }); });
+      Object.keys(out).forEach((f) => chatPrefWrite(f, out[f]));
+      return out;
+    },
+    // field: "pinned" | "muted" | "favourite"
+    async set(convId, field, on) {
+      if (!CHAT_PREF_LS[field] || !convId) return;
+      const cur = chatPrefLocal(field).filter((x) => x !== String(convId)); if (on) cur.push(String(convId)); chatPrefWrite(field, cur);
+      if (mode !== "supabase" || !supa || chatPrefsMissing) return;
+      const args = { p_conversation: convId, p_pinned: null, p_muted: null, p_favourite: null }; args["p_" + field] = !!on;
+      await rpc("chat_set_pref", args);
+    },
+  };
   const chat = {
     // Is the feature running on localStorage (true) or a real backend (false)?
     isLocal: () => mode !== "supabase",
@@ -4519,6 +4563,21 @@ window.HelmUrl = HelmUrl;
     async addMembers(convId, memberIds) {
       if (mode !== "supabase") { const convs = chatReadLs(CHAT_LS_C); const c = convs.find((x) => x.id === convId); if (c) { c.members = c.members || []; (memberIds || []).forEach((id) => { if (!c.members.some((m) => m.user_id === id)) c.members.push({ user_id: id }); }); chatWriteLs(CHAT_LS_C, convs); chatPing(); } return; }
       return rpc("chat_add_members", { p_conversation: convId, p_members: memberIds || [] });
+    },
+    prefs: chatPrefs,
+    // A6: forward a photo / voice note = COPY the object into the target conversation's folder.
+    // Storage checks both sides (chat-media policies: I can read the source conversation and
+    // upload into the target); 0074 refuses a message whose media key is under another conversation.
+    async forwardMedia(fromPath, toConv) {
+      if (mode !== "supabase") return { path: fromPath };   // local tier: data: URL, nothing to copy
+      const m = CHAT_MEDIA_KEY.exec(String(fromPath || "")); if (!m) throw new Error("This attachment can't be forwarded.");
+      const ext = String(fromPath).split(".").pop().toLowerCase();
+      const orgId = await org.id(); if (!orgId || String(fromPath).split("/")[0] !== String(orgId)) throw new Error("This attachment can't be forwarded.");
+      const name = ugObjectName(ext); if (!name) throw new Error("upload not available");
+      const path = orgId + "/" + toConv + "/" + name;
+      const { error } = await supa.storage.from("chat-media").copy(fromPath, path);
+      if (error) throw error;
+      return { path };
     },
     // Upload an image or voice note; returns { path, mime } to pass to send().
     async uploadMedia(convId, file, opts) {
@@ -5704,6 +5763,9 @@ window.HelmUrl = HelmUrl;
     payment_receipt: "Payment receipts", advance_paid: "Payments received", payment_reconcile: "Payments needing attention",
     chat_message: "Chat messages", pkg_selected: "Client package choices", pkg_accepted: "Package choices accepted",
     pkg_declined: "Package choices declined", pkg_payment: "Package payments", security_alert: "Security alerts", billing_trial: "Free trial reminders", other: "Other updates" };
+  // A4: a chat row's read key carries its newest message time, so marking a conversation read
+  // only covers what was there; a later message makes a new key and counts as unread again.
+  function bellChatKey(n) { return "c:" + ((n && n.conversation_id) || "") + "@" + ((n && n.created_at) || ""); }
   function bellPanelView(items, opts) {
     opts = opts || {};
     const muted = Array.isArray(opts.muted) ? opts.muted : [], readKeys = Array.isArray(opts.read) ? opts.read : [];
@@ -5723,7 +5785,7 @@ window.HelmUrl = HelmUrl;
     };
     const inFilter = (f, g) => f === "all" || (f === "mentions" && g === "mention") || (f === "tasks" && g === "task")
       || (f === "billing" && g === "billing") || (f === "security" && g === "security") || (f === "chat" && (g === "chat" || g === "mention"));
-    const keyOf = (n, i) => n.__chat ? "c:" + (n.conversation_id || i) : "n:" + (n.id || i);
+    const keyOf = (n, i) => n.__chat ? bellChatKey(n) : "n:" + (n.id || i);
     const rows = list.map((n, i) => { const k = keyOf(n, i);
       return { n, i, g: groupOf(n), k, un: readKeys.indexOf(k) === -1 && (n.__chat || !!n.unread) }; });
     const has = (f) => rows.some((r) => inFilter(f, r.g));
@@ -5827,7 +5889,7 @@ window.HelmUrl = HelmUrl;
         const who = n.who || "";
         return { key: keyOf(n), type: "info", icon: n.mention ? "@" : "💬",
           title: n.mention ? (n.title || "You were mentioned") : n.kind === "dm" ? (who || n.title || "Direct message") : ((n.title || "Chat") + (who ? " · " + who : "")),
-          message: String(n.preview || "New message"), href: notifHref(n), rk: "c:" + (n.conversation_id || "") };
+          message: String(n.preview || "New message"), href: notifHref(n), rk: bellChatKey(n) };
       }
       const L = label(n) || {}, k = String(n.kind || "").toLowerCase();
       return { key: keyOf(n), type: typeOf(k), icon: L.icon || "🔔", title: String(L.text || "Update"),
@@ -6075,7 +6137,7 @@ window.HelmUrl = HelmUrl;
       // Chat notifications (my unread DMs/groups/broadcast) merged into the same bell.
       let chatItems = [];
       const chatUnread = () => chatItems.reduce((s, c) => s + (c.count || 1), 0);
-      const chatReadCount = () => chatItems.reduce((s, c) => s + (readKeys.indexOf("c:" + c.conversation_id) !== -1 ? (c.count || 1) : 0), 0);
+      const chatReadCount = () => chatItems.reduce((s, c) => s + (readKeys.indexOf(bellChatKey(c)) !== -1 ? (c.count || 1) : 0), 0);
       // server unread minus muted / marked-read rows (only recounted when something is muted or read)
       const serverUnread = (f) => !f ? 0 : (muted.length || readKeys.length)
         ? bellPanelView((f.items || []), { muted, read: readKeys }).unread : f.unread;
@@ -6092,6 +6154,7 @@ window.HelmUrl = HelmUrl;
       let readKeys = (() => { try { const v = JSON.parse(localStorage.getItem(readKey) || "[]"); return Array.isArray(v) ? v.slice(-200) : []; } catch (e) { return []; } })();
       const saveRead = () => { try { localStorage.setItem(readKey, JSON.stringify(readKeys.slice(-200))); } catch (e) {} };
       const loadChat = async () => { try { await loadHidden(); } catch (e) {} const chatOff = hiddenTypes.indexOf("chat_message") !== -1;   // chat switched off → @mentions still come through
+        try { if (chat && chat.prefs) await chat.prefs.sync(); } catch (e) {}   // A12: server mutes → wa_mute cache
         try { chatItems = (chat && chat.notifications) ? (await chat.notifications(20)) : []; } catch (e) { chatItems = []; }
         if (chatOff) chatItems = chatItems.filter((c) => c && c.mention);
         if (muted.indexOf("chat_message") !== -1) chatItems = chatItems.filter((c) => c && c.mention); };

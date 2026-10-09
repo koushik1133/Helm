@@ -379,6 +379,10 @@
   let rec=null, recChunks=[], recStart=0, recTimer=null;
   let favs=new Set(); try{ favs=new Set(JSON.parse(localStorage.getItem("wa_fav")||"[]")); }catch(e){}
   const saveFavs=()=>{ try{ localStorage.setItem("wa_fav",JSON.stringify([...favs])); }catch(e){} };
+  /* A12: pin / mute / favourite are saved per user on the server (BPStore.chat.prefs); the sets above are the cache */
+  const savePref=(id,field,on)=>{ try{ if(BPStore.chat.prefs) BPStore.chat.prefs.set(id,field,on).catch(()=>{}); }catch(e){} };
+  async function loadPrefs(){ try{ if(!BPStore.chat.prefs) return; const p=await BPStore.chat.prefs.sync(true);
+    pins=new Set(p.pinned); mutes=new Set(p.muted); favs=new Set(p.favourite); }catch(e){} }
   let pins=new Set(); try{ pins=new Set(JSON.parse(localStorage.getItem("wa_pin")||"[]")); }catch(e){}
   const savePins=()=>{ try{ localStorage.setItem("wa_pin",JSON.stringify([...pins])); }catch(e){} };
   let mutes=new Set(); try{ mutes=new Set(JSON.parse(localStorage.getItem("wa_mute")||"[]")); }catch(e){}
@@ -678,8 +682,7 @@
     const msg=thread.messages.find(x=>x.id===mid); const mine=msg&&msg.sender_id===ME.id;
     const m=document.createElement("div"); m.className="rxpop";
     let html=RX_EMOJI.map(e=>`<button data-e="${esc(e)}">${e}</button>`).join("")+`<button data-reply="1" title="Reply" style="font-size:15px">↩</button>`;
-    if(mine&&msg&&(msg.kind==="image"||msg.kind==="voice")) html+=`<button type="button" disabled aria-disabled="true" title="Photos and voice messages can't be forwarded" aria-label="Forward unavailable for photos and voice messages" style="font-size:15px;opacity:.4;cursor:not-allowed">↪</button>`;
-    else if(mine) html+=`<button data-fwd="1" title="Forward" style="font-size:15px">↪</button>`;
+    if(mine) html+=`<button data-fwd="1" title="Forward" style="font-size:15px">↪</button>`;
     if(mine&&msg&&msg.kind==="text") html+=`<button data-edit="1" title="Edit" style="font-size:15px">✏️</button>`;
     if(mine) html+=`<button data-del="1" title="Delete" style="font-size:15px">🗑</button>`;
     m.innerHTML=html; document.body.appendChild(m);
@@ -698,10 +701,13 @@
   async function doDelete(mid){ let ok=false; try{ ok=await BPUI.confirm("Delete this message? Everyone in the chat will see it was removed.",{title:"Delete message",okLabel:"Delete",danger:true}); }catch(e){ return; }
     if(!ok) return;
     try{ await BPStore.chat.deleteMessage(mid); await loadThread(); await refresh(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"delete the message"}),{type:"err"}); } }
-  async function forwardMsg(mid){ const m=thread.messages.find(x=>x.id===mid); if(!m||m.kind==="image"||m.kind==="voice") return;
+  async function forwardMsg(mid){ const m=thread.messages.find(x=>x.id===mid); if(!m||m.deleted) return;
     const targets=convs.filter(c=>c.id!==activeId).map(c=>({id:c.id,icon:convAvatar(c).txt,title:convTitle(c),sub:c.kind==="dm"?"Direct message":c.kind==="broadcast"?"Everyone":"Group"}));
     pickerModal("Forward to…","↪",targets.map(t=>({icon:typeof t.icon==="string"&&Array.from(t.icon).length<=2?t.icon:"💬",title:t.title,sub:t.sub,meta:{__to:t.id}})),"No other chats to forward to.",async(meta)=>{
-      const to=meta.__to; try{ await BPStore.chat.send(to,{kind:m.kind,body:m.body,media_path:m.media_path,media_mime:m.media_mime,media_duration:m.media_duration,meta:m.meta||null}); await refresh(); await openConv(to); BPUI.toast("Forwarded.",{type:"ok"}); }
+      const to=meta.__to; try{
+        /* A6: a photo / voice note is copied into the target chat (never re-pointed at this chat's file) */
+        let mp=m.media_path||null; if(mp&&(m.kind==="image"||m.kind==="voice")) mp=(await BPStore.chat.forwardMedia(mp,to)).path;
+        await BPStore.chat.send(to,{kind:m.kind,body:m.body,media_path:mp,media_mime:m.media_mime,media_duration:m.media_duration,meta:m.meta||null}); await refresh(); await openConv(to); BPUI.toast("Forwarded.",{type:"ok"}); }
       catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"forward the message"}),{type:"err"}); } }); }
   async function toggleReact(mid,emoji,on){ try{ await BPStore.chat.react(mid,emoji,on); await loadThread(); }catch(e){} }
   function setReply(mid){ const m=thread.messages.find(x=>x.id===mid); if(!m) return; replyTo=m;
@@ -918,9 +924,9 @@
   ]));
   $("#headMenuBtn").addEventListener("click",()=>{ const c=convs.find(x=>x.id===activeId); if(!c) return;
     const items=[
-      {k:"pin",label:pins.has(c.id)?"📌  Unpin chat":"📌  Pin to top",on:()=>{ if(pins.has(c.id))pins.delete(c.id); else pins.add(c.id); savePins(); renderConvs(); }},
-      {k:"fav",label:favs.has(c.id)?"★  Remove from favorites":"☆  Add to favorites",on:()=>{ if(favs.has(c.id))favs.delete(c.id); else favs.add(c.id); saveFavs(); renderConvs(); }},
-      {k:"mute",label:mutes.has(c.id)?"🔔  Unmute":"🔕  Mute notifications",on:()=>{ if(mutes.has(c.id))mutes.delete(c.id); else mutes.add(c.id); saveMutes(); renderConvs(); }}
+      {k:"pin",label:pins.has(c.id)?"📌  Unpin chat":"📌  Pin to top",on:()=>{ const on=!pins.has(c.id); if(on)pins.add(c.id); else pins.delete(c.id); savePins(); savePref(c.id,"pinned",on); renderConvs(); }},
+      {k:"fav",label:favs.has(c.id)?"★  Remove from favorites":"☆  Add to favorites",on:()=>{ const on=!favs.has(c.id); if(on)favs.add(c.id); else favs.delete(c.id); saveFavs(); savePref(c.id,"favourite",on); renderConvs(); }},
+      {k:"mute",label:mutes.has(c.id)?"🔔  Unmute":"🔕  Mute notifications",on:()=>{ const on=!mutes.has(c.id); if(on)mutes.add(c.id); else mutes.delete(c.id); saveMutes(); savePref(c.id,"muted",on); renderConvs(); }}
     ];
     if(c.kind==="group") items.push({k:"add",label:"➕  Add members",on:addMembersModal});
     if(c.kind==="group"&&c.quote_id){
@@ -974,6 +980,7 @@
     try{
       if(!BPStore.chat) throw new Error("chat module unavailable");
       ME=await BPStore.chat.me();
+      await loadPrefs();
       const r=await BPStore.chat.roster().catch(()=>[]); roster={}; r.forEach(p=>roster[p.id]=p);
       await refresh();
       try{ sub=BPStore.chat.subscribe(onRealtime,()=>{}); }catch(e){}
