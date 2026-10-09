@@ -224,7 +224,13 @@ let _syncTimer=null, _lastAutoOther=null;
 function syncQuotePricing(){
   if(!currentQuoteId) return;
   clearTimeout(_syncTimer);
-  _syncTimer=setTimeout(async ()=>{
+  _syncTimer=setTimeout(()=>{ syncQuotePricingNow(); }, 600);
+}
+// Runs the pricing write immediately (used by "Save & back to quote", which must not leave
+// the page while a debounced write is still pending — that write would be lost).
+async function syncQuotePricingNow(){
+  if(!currentQuoteId) return false;
+  clearTimeout(_syncTimer);
     try{
       // refetch the latest saved pricing (discount/coupon/rates may have changed in quotes.html since
       // this page opened) and write back conditioned on its updated_at, so nothing is clobbered
@@ -255,8 +261,8 @@ function syncQuotePricing(){
       await BPStore.quotes.updateMeta(currentQuoteId, { pricing }, expectedUpdatedAt);
       currentPricing = pricing; _lastAutoOther = pricing.otherAuto;
       updateQuoteBadge && updateQuoteBadge();
-    }catch(e){ /* non-fatal */ }
-  }, 600);
+      return true;
+    }catch(e){ /* non-fatal */ return false; }
 }
 async function onPickPackage(){
   const tid=$('#bPkg').value;
@@ -3120,6 +3126,19 @@ function toggleTheme(){
 
 /* ---- wire project action buttons ---- */
 $('#saveBtn').addEventListener('click',()=>guardedSave());
+// Opened from the quote flow (?from=flow): "Save & back to quote" saves a new layout version,
+// writes the re-priced total now (not debounced), then returns to the same quote's quotation step.
+// Browser Back keeps the normal unsaved-changes guard (BPUI tracker / beforeunload).
+async function saveAndBackToFlow(){
+  if(!currentQuoteId) return;
+  // unchanged layout → no phantom version; just go back (the flow still re-checks the price)
+  const ok = (RO || !dirty.isDirty()) ? true : await saveLayout(false);
+  if(!ok) return;                               // save refused/failed: stay, the error is already shown
+  if(!RO) await syncQuotePricingNow();          // the flow page re-checks and saves the quotation too
+  location.href = HelmFlowLayout.returnUrl(currentQuoteId);
+}
+(function(){ const b=$('#backToFlowBtn'); if(!b) return;
+  b.addEventListener('click',()=>{ BPUI.guard(b, saveAndBackToFlow, {busyLabel:'Saving…'}).catch(()=>{}); }); })();
 $('#loadBtn').addEventListener('click',openLoadModal);
 $('#loadClose').addEventListener('click',closeLoadModal);
 /* ---- toolbox hint (dismissible) + shortcuts dialog ---- */
@@ -3222,6 +3241,7 @@ async function init(){
     try{
       const q=await BPStore.quotes.get(quoteId);
       currentQuoteId=q.id; currentQuoteCode=q.code; currentClient=q.client||{}; currentPricing=q.pricing||{};
+      { const bb=$('#backToFlowBtn'); if(bb && params.get('from')==='flow') bb.hidden=false; }
       currentQuoteGuard = { approved: q.status==='confirmed' || (q.approvalStatus && q.approvalStatus!=='none'), closed: q.lifecycleStage==='closed' };
       const pn=$('#projName'); if(pn) pn.value=q.title||q.code;
       try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[q.code,q.title].filter((v,i,a)=>v&&a.indexOf(v)===i).join(' '),kind:'builder',href:'builder.html?quote='+encodeURIComponent(q.id),recordHref:'event.html?id='+encodeURIComponent(q.id)}); }catch(e){}
