@@ -50,7 +50,7 @@
   function walkthroughStops(itemsIn, hall) {
     const W = Math.max(10, num(hall && hall.w, 200)), H = Math.max(10, num(hall && hall.h, 140));
     const items = (itemsIn || []).filter((it) => it && typeof it === 'object' && it.type)
-      .map((it) => Object.assign({}, it, { x: num(it.x, 0), y: num(it.y, 0), width: Math.max(0, num(it.width, 0)), height: Math.max(0, num(it.height, 0)) }));
+      .map((it) => Object.assign({}, it, { x: num(it.x, 0), y: num(it.y, 0), rotation: num(+it.rotation, 0), width: Math.max(0, num(it.width, 0)), height: Math.max(0, num(it.height, 0)) }));
     const M = 2;                                                   // keep eye-level cameras 2 ft inside the walls
     const clampX = (x) => Math.max(M, Math.min(W - M, x)), clampY = (y) => Math.max(M, Math.min(H - M, y));
     const S = (fx, fy, h) => [+(fx - W / 2).toFixed(2), +h.toFixed(2), +(fy - H / 2).toFixed(2)];

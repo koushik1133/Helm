@@ -300,6 +300,8 @@ async function persistSizing(patch){
 // 0085: the venue picked in Custom Event is linked on the quote's client JSON (id + name + setting)
 window.HelmBuilderVenue = {
   client: () => currentClient || {},
+  // the venue picker warns on the CURRENT layout: generator vs the venue's generator rule, DJ vs curfew, seats vs capacity
+  layout: () => ({ items: (store && store.items) || [], seats: sumSeats((store && store.items) || []) }),
   async link(v){
     if(!currentQuoteId) return;
     currentClient = Object.assign({}, currentClient || {}, v
@@ -4008,7 +4010,11 @@ function specApi(){ return (window.BPStore && BPStore.pricing && BPStore.pricing
 function specSyncAll(){
   const S=specApi(); if(!S || !store || !store.items) return;
   store.items.forEach(it=>{ const sp=it.properties&&it.properties.spec;
-    if(it.type==='stage' && sp && typeof sp==='object'){ sp.lengthM=Math.round(it.width*S.FT*100)/100; sp.widthM=Math.round(it.height*S.FT*100)/100; } });
+    // only when the footprint really changed (resize / clamp): re-rounding an unchanged stage to the cm would
+    // move the price away from the Adjust preview (26.25 ft typed -> 8.001 m -> 8.00 m = a different total)
+    if(it.type==='stage' && sp && typeof sp==='object'){
+      if(!(Math.abs(it.width-(+sp.lengthM)/S.FT)<0.01)) sp.lengthM=Math.round(it.width*S.FT*100)/100;
+      if(!(Math.abs(it.height-(+sp.widthM)/S.FT)<0.01)) sp.widthM=Math.round(it.height*S.FT*100)/100; } });
 }
 function specAdjustMount(it, box){
   const S=specApi(); if(!S || !box || !it || S.TYPES.indexOf(it.type)<0) return;
@@ -4078,6 +4084,7 @@ function specAdjustMount(it, box){
     if(it.type==='stage'){   // the stage's footprint follows its length x width (world units are feet)
       it.width=clamp(spec.lengthM/S.FT,0.5,WORLD.w); it.height=clamp(spec.widthM/S.FT,0.5,WORLD.h);
       it.x=clamp(it.x,0,WORLD.w-it.width); it.y=clamp(it.y,0,WORLD.h-it.height);
+      if(it.width<spec.lengthM/S.FT-0.01 || it.height<spec.widthM/S.FT-0.01) toast('Stage trimmed to fit the hall — its size and price follow the hall');
     }
     commit(); renderAll();
   });

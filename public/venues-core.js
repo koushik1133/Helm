@@ -24,11 +24,13 @@
   function label(list, key) { for (var i = 0; i < list.length; i++) if (list[i][0] === key) return list[i][1]; return key || ""; }
   function keys(list) { return list.map(function (x) { return x[0]; }); }
   function num(v) { if (v === null || v === undefined || String(v).trim() === "") return null; var n = Number(v); return isFinite(n) ? n : NaN; }
+  function seats0(v) { var n = num(v); return n && n > 0 ? Math.round(n) : 0; }
   function round2(n) { return Math.round(n * 100) / 100; }
 
   // canonical storage is metres; the UI may show feet
   function toMeters(v, unit) { var n = num(v); if (n === null || isNaN(n)) return n; return round2(unit === "ft" ? n / FT_PER_M : n); }
-  function fromMeters(m, unit) { var n = num(m); if (n === null || isNaN(n)) return n; return round2(unit === "ft" ? n * FT_PER_M : n); }
+  // feet are shown to 0.1 ft: metres are stored to the cm, so 2 decimals of feet would turn a typed 8 ft into 8.01
+  function fromMeters(m, unit) { var n = num(m); if (n === null || isNaN(n)) return n; return unit === "ft" ? Math.round(n * FT_PER_M * 10) / 10 : round2(n); }
   function mToFt(m) { var n = num(m); return n === null || isNaN(n) ? null : Math.round(n * FT_PER_M); }
 
   // Rupees in Indian short form: 350000 -> "3.5 L", 12000000 -> "1.2 Cr"
@@ -95,13 +97,14 @@
     var map = [["product_launch", /launch/], ["engagement", /engage|ring|sagai/], ["reception", /reception/],
       ["wedding", /wedding|shaadi|marriage|sangeet|mehendi|haldi/], ["birthday", /birthday|bday/],
       ["conference", /conference|expo|summit|seminar/], ["corporate", /corporate|office|offsite|award/],
-      ["political", /political|rally/], ["concert", /concert|music|dj|gig|live/], ["festival", /festival|mela|fest/]];
+      ["political", /political|rally/], ["festival", /festival|mela|fest\b/], ["concert", /concert|music|dj|gig|live/]];
     for (var i = 0; i < map.length; i++) if (map[i][1].test(t)) return map[i][0];
     return "other";
   }
   var LOUD = ["concert", "festival", "political", "wedding", "reception"];
 
-  // ctx: { guests, eventType (free text or key), loud (bool, e.g. DJ chosen) }
+  // ctx: { guests, eventType (free text or key), loud (bool, e.g. DJ chosen),
+  //        items (the layout's items, optional: generator / DJ in the plan), seats (seats in the layout, optional) }
   // -> [{ level: "warn"|"info", code, msg }]
   function warnings(v, ctx) {
     var out = []; if (!v) return out; ctx = ctx || {};
@@ -113,8 +116,13 @@
     var allowed = Array.isArray(v.event_types) ? v.event_types : [];
     if (key && allowed.length && allowed.indexOf(key) < 0)
       out.push({ level: "warn", code: "event_type", msg: label(EVENT_TYPES, key) + " is not listed as allowed at this venue." });
+    if (seats0(ctx.seats) && seat && seats0(ctx.seats) > seat)
+      out.push({ level: "warn", code: "seats", msg: seats0(ctx.seats) + " seats in the layout is more than the venue's " + seat + " seated capacity." });
     var r = Array.isArray(v.restrictions) ? v.restrictions : [];
-    var loud = !!ctx.loud || LOUD.indexOf(key) >= 0 || /dj|sangeet|music|band/i.test(String(ctx.eventType || ""));
+    var its = Array.isArray(ctx.items) ? ctx.items.filter(function (i) { return i && typeof i === "object"; }) : null;
+    var has = function (re) { return !!its && its.some(function (i) { return re.test(String(i.type || "")); }); };
+    var gen = has(/^generator$/);
+    var loud = !!ctx.loud || has(/^(dj|speaker|linearray)$/) || LOUD.indexOf(key) >= 0 || /dj|sangeet|music|band/i.test(String(ctx.eventType || ""));
     if (r.indexOf("sound_curfew") >= 0 && loud)
       out.push({ level: "warn", code: "sound_curfew", msg: "Sound curfew" + (v.sound_curfew ? " at " + String(v.sound_curfew).slice(0, 5) : "") + " - plan music / DJ to end on time." });
     if (r.indexOf("no_fireworks") >= 0 && (key === "wedding" || key === "festival" || key === "concert" || key === "reception"))
@@ -123,8 +131,12 @@
     if (r.indexOf("no_outside_catering") >= 0) out.push({ level: "warn", code: "no_outside_catering", msg: "Outside catering is not allowed - menu must come from the venue." });
     if (r.indexOf("decor_vendor_tieup") >= 0) out.push({ level: "info", code: "decor_vendor_tieup", msg: "Decor only through the venue's tied-up vendor." });
     if (r.indexOf("no_alcohol") >= 0) out.push({ level: "info", code: "no_alcohol", msg: "No alcohol at this venue." });
-    if (r.indexOf("generator_required") >= 0) out.push({ level: "info", code: "generator_required", msg: "Generator required - add power to the plan." });
-    if (r.indexOf("generator_not_allowed") >= 0) out.push({ level: "info", code: "generator_not_allowed", msg: "Generators are not allowed." });
+    if (r.indexOf("generator_required") >= 0) out.push(its && !gen
+      ? { level: "warn", code: "generator_required", msg: "Generator required at this venue - the layout has none yet." }
+      : { level: "info", code: "generator_required", msg: "Generator required - add power to the plan." });
+    if (r.indexOf("generator_not_allowed") >= 0) out.push(gen
+      ? { level: "warn", code: "generator_not_allowed", msg: "The layout has a generator, but this venue does not allow generators." }
+      : { level: "info", code: "generator_not_allowed", msg: "Generators are not allowed." });
     if (r.indexOf("parking_limited") >= 0) out.push({ level: "info", code: "parking_limited", msg: "Limited parking" + (v.parking_spaces ? " (" + v.parking_spaces + " spaces)" : "") + " - plan valet / shuttles." });
     if (r.indexOf("setup_window") >= 0) out.push({ level: "info", code: "setup_window", msg: "Setup window: " + (v.setup_window || "check with the venue") + "." });
     return out;

@@ -37,11 +37,12 @@
     ctx = { where: "builder", anchor: sec, guests: "c_guests", type: "c_type",
       fill: function (f) { setVal("c_len", f.lenFt); setVal("c_wid", f.widFt); setVal("c_setting", f.setting); setVal("capInput", f.capacity); },
       linked: function () { var B = window.HelmBuilderVenue, c = B ? B.client() : {}; return { id: c.venueId || "", name: c.venueName || "" }; },
-      link: function (v) { if (window.HelmBuilderVenue) window.HelmBuilderVenue.link(v); } };
+      link: function (v) { if (window.HelmBuilderVenue) window.HelmBuilderVenue.link(v); },
+      layout: function () { var B = window.HelmBuilderVenue; return B && B.layout ? B.layout() : null; } };
   }
   if (!ctx || !ctx.anchor) return;
 
-  var list = [];
+  var list = [], loaded = false;
   var sel = h("select", { id: "vp_pick", "aria-describedby": "vp_sum" }, [h("option", { value: "", text: "- type the venue by hand -" })]);
   var sum = h("div", { id: "vp_sum", cls: "vp-sum", "aria-live": "polite" });
   var warn = h("ul", { id: "vp_warn", cls: "vp-warn", "aria-live": "polite" });
@@ -60,14 +61,15 @@
     warn.textContent = "";
     if (!v) return;
     var g = $(ctx.guests), t = $(ctx.type);
-    V.warnings(v, { guests: g ? g.value : null, eventType: t ? t.value : null }).forEach(function (w) {
+    var lay = ctx.layout ? ctx.layout() : null;   // builder: generator / DJ / seats in the current layout
+    V.warnings(v, { guests: g ? g.value : null, eventType: t ? t.value : null, items: lay ? lay.items : null, seats: lay ? lay.seats : null }).forEach(function (w) {
       warn.appendChild(h("li", { cls: "vp-" + w.level, text: (w.level === "warn" ? "⚠ " : "ℹ ") + w.msg }));
     });
   }
   function paintLink() {
     var L = ctx.linked();
     linked.hidden = !L.id; linkName.textContent = L.name || "saved venue";
-    if (L.id && !picked() && list.length) linkName.textContent = (L.name || "saved venue") + " - not in the active list";
+    if (L.id && !picked() && loaded) linkName.textContent = (L.name || "saved venue") + " - not in the active list";
     if (L.id || list.length) box.hidden = false;
   }
   // the quote's saved link -> select it + re-show its warnings (called on load by the page too)
@@ -92,7 +94,7 @@
     var S = window.BPStore;
     if (!S || !S.venues || !S.auth || !S.auth.user || !S.auth.user()) { if (tries++ < 40) setTimeout(load, 500); return; }
     S.venues.list().then(function (rows) {
-      list = rows || [];
+      list = rows || []; loaded = true;
       list.forEach(function (v) { sel.appendChild(h("option", { value: v.id, text: v.name + (v.city ? " - " + v.city : "") })); });
       sync();
     }).catch(function () { /* no venues area / not migrated yet: keep manual entry only */ });
