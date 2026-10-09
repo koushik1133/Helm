@@ -9,3 +9,7 @@ assert.ok(!/uploadSnapshot\(currentQuoteId/.test(cap), "uploads use the pinned i
 const auto = src.slice(src.indexOf("async function autoCaptureIfStale"), src.indexOf("function importJSON"));
 assert.match(auto, /currentQuoteId!==qid \|\| isViewingOlder\(\) \|\| docSig\(\)!==savedSig\) return;\s*if\(old\('2d'\)/, "re-checks after async staleness lookups");
 console.log("r4e-bughunt: ok");
+// R4-E: no background booklet capture for closed / cancelled / archived events
+assert.match(src, /frozen: q\.lifecycleStage==='closed' \|\| q\.status==='cancelled' \|\| !!q\.archivedAt/);
+assert.match(auto, /if\(currentQuoteGuard\.frozen\) return;/);
+console.log("r4e-bughunt frozen: ok");
