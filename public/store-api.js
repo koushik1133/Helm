@@ -2121,6 +2121,17 @@ window.HelmUrl = HelmUrl;
         { p_code: code, p_title: title, p_event_type: eventType, p_data: data, p_object_count: objectCount, p_event_date: eventDate || null });
       if (error) throw error; return Array.isArray(q) ? q[0] : q;
     },
+    // L8 (0075): reuse MY most recent untouched blank quote in this studio, else create one.
+    // Server decides "untouched" + takes a per-user lock (two tabs never make two). Before
+    // 0075 is installed (PGRST202 / 42883) it falls back to a plain create, as before.
+    async startBlank(code) {
+      const { data: q, error } = await supa.rpc("start_blank_quote", { p_code: code, p_title: code });
+      if (error) {
+        if (error.code === "PGRST202" || error.code === "42883") return this.create(code, code, null, { items: [] }, 0);
+        throw error;
+      }
+      return Array.isArray(q) ? q[0] : q;
+    },
     // re-issue the code from the event date (idempotent); returns the (possibly new) code
     async rebrandCode(quoteId) {
       if (mode !== "supabase") return null;
@@ -2248,6 +2259,7 @@ window.HelmUrl = HelmUrl;
     getVersion: (id, no) => qt().getVersion(id, no),
     versions: (id) => qt().versions(id),
     create: (code, title, eventType, data, objectCount) => qt().create(code, title, eventType, data, objectCount),
+    startBlank: (code) => { const t = qt(); return typeof t.startBlank === "function" ? t.startBlank(code) : t.create(code, code, null, { items: [] }, 0); },
     addVersion: (id, label, data, objectCount) => qt().addVersion(id, label, data, objectCount),
     confirm: (id, client, pricing) => qt().confirm(id, client, pricing),
     setStage: (id, stage, overrideReason) => qt().setStage(id, stage, overrideReason),
@@ -3421,7 +3433,14 @@ window.HelmUrl = HelmUrl;
       const { data, error } = await supa.from("organizations").select("*").eq("id", (await this.id())).maybeSingle();
       if (error) throw error; return data; },
     async save(patch) { if (!supa) throw new Error("Supabase not configured");
-      const { error } = await supa.from("organizations").update(patch).eq("id", (await this.id())); if (error) throw error; return true; },
+      const oid = await this.id();
+      let { error } = await supa.from("organizations").update(patch).eq("id", oid);
+      // #16: business_email_confirmed arrives with 0075; on an older database save the rest
+      if (error && patch && "business_email_confirmed" in patch && (error.code === "PGRST204" || /business_email_confirmed/.test(error.message || ""))) {
+        const rest = Object.assign({}, patch); delete rest.business_email_confirmed;
+        ({ error } = await supa.from("organizations").update(rest).eq("id", oid));
+      }
+      if (error) throw error; return true; },
     createStudio: (name, opts) => rpc("create_studio", { p_name: name, p_email: (opts && opts.email) || null,
       p_currency: (opts && opts.currency) || "INR", p_timezone: (opts && opts.timezone) || "Asia/Kolkata" }),
     // GDPR / DPDP: admin downloads THIS org's data only (server re-scopes to current_org_id)

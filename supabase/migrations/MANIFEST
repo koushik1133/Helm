@@ -89,3 +89,5 @@ forward  supabase/migrations/0070_booklet_payments.sql
 forward  supabase/migrations/0071_reserve_inventory_atomic.sql
 # 0072 (pending fixes: roles, invites, chat cap, inventory locks/write-off, quote code tz) goes after 0071.
 forward  supabase/migrations/0072_pending_fixes.sql
+# 0075 (UI fixes: start_blank_quote reuse, booklet studio e-mail only when confirmed) goes after 0072.
+forward  supabase/migrations/0075_ui_fixes.sql

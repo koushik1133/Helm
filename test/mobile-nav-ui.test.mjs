@@ -37,8 +37,17 @@ t('hygiene', () => {
   assert.ok(/safe-area-inset-bottom/.test(M._css) && /max-width:767\.98px/.test(M._css));
   M.CREATES.forEach((c) => assert.match(c.href, /^[a-z-]+\.html(\?hs_act=new)?$/));
 });
+function NAVSRC_FOR_TOUR() { return readFileSync(new URL('../public/mobile-nav.js', import.meta.url), 'utf8'); }
 t('loader', () => {
   assert.match(STORE, /function loadMobileNav\(\)[\s\S]{0,300}NO_SEARCH_PAGES\[pageKey\(\)\] \|\| PUBLIC_PAGES\[pageKey\(\)\] \|\| publicLinkPath\(\)/);
   assert.match(STORE, /mobile-nav\.js\?v=/);
+});
+t('tour FAB sits above the bottom bar (never covers Profile) while the bar shows', () => {
+  const tour = readFileSync(new URL('../public/tour.js', import.meta.url), 'utf8');
+  const m = /@media \(max-width:767\.98px\)\{body\.hmn-on:not\(\.hmn-kb\) \.htour-fab\{bottom:calc\((\d+)px/.exec(tour);
+  assert.ok(m, 'tour.js must lift .htour-fab when body.hmn-on');
+  const bar = /\.hmn-bar\{[^}]*height:calc\((\d+)px/.exec(NAVSRC_FOR_TOUR());
+  assert.ok(bar && Number(m[1]) >= Number(bar[1]) + 8, 'FAB bottom must clear the bar height');
+  assert.match(NAVSRC_FOR_TOUR(), /@media \(max-width:767\.98px\)/, 'same breakpoint as the bar');
 });
 console.log(`mobile-nav-ui: ${n} checks passed`);
