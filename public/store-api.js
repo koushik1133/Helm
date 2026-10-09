@@ -923,7 +923,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "18";
+  const AUTH_UI_VERSION = "19";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -941,7 +941,7 @@ window.HelmUrl = HelmUrl;
   const STUDIO_SEARCH_VERSION = "3";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
-  const NAV_TRAIL_VERSION = "1";
+  const NAV_TRAIL_VERSION = "2";
   if (typeof global.HelmTrail === "undefined") {
     global.HelmTrail = { setCurrent(o) { if (o) (global.__helmTrailQ = global.__helmTrailQ || []).push(o); }, recent() { return []; }, _stub: true };
   }
@@ -2312,6 +2312,20 @@ window.HelmUrl = HelmUrl;
     get: (id) => qt().get(id),
     getVersion: (id, no) => qt().getVersion(id, no),
     versions: (id) => qt().versions(id),
+    // 0077: live version lists. cb(kind) whenever a floor-plan version ("layout") or a quotation
+    // version ("quotation") of this quote is saved on ANY device (Supabase realtime; row level
+    // security keeps it to the caller's studio). Fail-soft: no realtime -> a no-op handle.
+    subscribeVersions(id, cb) {
+      if (mode !== "supabase" || !supa || typeof supa.channel !== "function" || !/^[0-9a-f-]{36}$/i.test(String(id || ""))) return { unsubscribe() {} };
+      try {
+        const f = "quote_id=eq." + id;
+        const ch = supa.channel("qv-rt-" + id + "-" + Math.random().toString(36).slice(2, 8))
+          .on("postgres_changes", { event: "INSERT", schema: "public", table: "quote_versions", filter: f }, () => { try { cb && cb("layout"); } catch (e) {} })
+          .on("postgres_changes", { event: "INSERT", schema: "public", table: "quotation_versions", filter: f }, () => { try { cb && cb("quotation"); } catch (e) {} })
+          .subscribe();
+        return { unsubscribe() { try { supa.removeChannel(ch); } catch (e) {} } };
+      } catch (e) { return { unsubscribe() {} }; }
+    },
     create: (code, title, eventType, data, objectCount) => qt().create(code, title, eventType, data, objectCount),
     startBlank: (code) => { const t = qt(); return typeof t.startBlank === "function" ? t.startBlank(code) : t.create(code, code, null, { items: [] }, 0); },
     addVersion: (id, label, data, objectCount) => qt().addVersion(id, label, data, objectCount),
@@ -2366,6 +2380,9 @@ window.HelmUrl = HelmUrl;
   // so callers can fall back to an older path; every other error must still surface.
   const rpcMissing = (e) => { const c = (e && e.code) || ""; const m = String((e && e.message) || "");
     return c === "PGRST202" || c === "42883" || /could not find the function|function[^]*does not exist/i.test(m); };
+  // 0078: fire-and-forget "the client opened the link" (follow-up timing); never throws, never blocks
+  const linkOpened = (kind, token) => { try { if (supa && /^[0-9a-f-]{36}$/i.test(String(token || "")))
+    Promise.resolve(supa.rpc("public_link_opened", { p_kind: kind, p_token: String(token) })).catch(() => {}); } catch (e) {} };
   // Edge Function caller — used only when live channels are enabled in config.js
   // 0069 booklet share checklist keys (server validates the same list)
   const BOOKLET_SECTIONS = ["studio", "client", "venue", "menu", "layout2d", "layout3d", "quotation", "payments", "terms", "note"];
@@ -2384,7 +2401,7 @@ window.HelmUrl = HelmUrl;
   const LIVE = CFG.liveChannels || {};   // { sms:true, pay:true } flips to Edge Functions
   const approval = {
     // ---- public (token-scoped; works for anon on the approval page) ----
-    getByToken: (token) => rpc("public_get_quote", { p_token: token }),
+    getByToken: (token) => rpc("public_get_quote", { p_token: token }).then((r) => { linkOpened("quote", token); return r; }),
     // simulation → RPC (returns dev OTP); live → MSG91 via Edge Function (sends real SMS, no code returned)
     requestOtp: (token, phone) => LIVE.sms ? callFn("send-otp", { token, phone }) : rpc("request_otp", { p_token: token, p_phone: phone }),
     verifyConsent: (token, phone, code, agreed, termsVersion, consentText, clientName, ua) =>
@@ -2572,9 +2589,13 @@ window.HelmUrl = HelmUrl;
       if(a.coupon && a.coupon.value){ discount += a.coupon.kind==="percent" ? subtotal*(+a.coupon.value)/100 : (+a.coupon.value); }
       discount = Math.min(Math.max(0,discount), subtotal);          // D4 cap
       const taxed = Math.max(0, subtotal - discount);               // D1 base = post-discount
-      const gst = taxed * gstPct/100;                               // D5 single rate
-      const total = Math.round(taxed + gst);                        // D7 round final only
-      return { serviceCharge, subtotal, discount, taxed, gst, total };
+      // 0079: tax-inclusive prices — the post-discount value already contains the
+      // tax, so the total is the taxed value itself and the tax is extracted from
+      // it. Mirrors helm_quote_total (server) which prices it as gstPct 0.
+      const incl = String(a.taxInclusive).toLowerCase()==="true";
+      const gst = incl ? taxed - taxed/(1+gstPct/100) : taxed * gstPct/100;   // D5 single rate
+      const total = Math.round(incl ? taxed : taxed + gst);         // D7 round final only
+      return { serviceCharge, subtotal, discount, taxed, gst, total, taxInclusive:incl };
     },
     // Quote-total (confirm-modal / write-back input shape). Now routes through
     // _canon so it agrees with breakdown() to the rupee for equivalent inputs.
@@ -2586,7 +2607,7 @@ window.HelmUrl = HelmUrl;
       const cateringAmt = clientCater?0:(+((p.catering&&p.catering.amount))||0);
       const cateringBucket = plateSub + cateringAmt;
       const c = this._canon({ preSvc: rental+cateringBucket, svcPct:+p.serviceChargePct||0,
-        discountFixed:+p.discount||0, discountPct:+p.discountPct||0, coupon:p.coupon, gstPct:+p.gstPct||0 });
+        discountFixed:+p.discount||0, discountPct:+p.discountPct||0, coupon:p.coupon, gstPct:+p.gstPct||0, taxInclusive:p.taxInclusive });
       // Single-rate GST; CGST/SGST split kept for invoice display (intra-state
       // default; IGST only when place of supply is inter-state).
       const interstate = p.placeOfSupply==="inter";
@@ -2594,7 +2615,7 @@ window.HelmUrl = HelmUrl;
         serviceCharge:c.serviceCharge, subtotal:c.subtotal,
         gstRental:c.gst, gstCatering:0, totalGst:c.gst,
         cgst: interstate?0:c.gst/2, sgst: interstate?0:c.gst/2, igst: interstate?c.gst:0,
-        discount:c.discount, total:c.total };
+        discount:c.discount, total:c.total, taxInclusive:c.taxInclusive };
     },
     // THE unified breakdown. rates = getPricing() result.
     breakdown(inp, rates){
@@ -2617,11 +2638,11 @@ window.HelmUrl = HelmUrl;
       // D3: percent discount + coupon now honoured here too (were previously
       // dropped by the builder path). D1/D5/D7 via the shared core.
       const c = this._canon({ preSvc, svcPct, discountFixed:+inp.discount||0,
-        discountPct:+inp.discountPct||0, coupon:inp.coupon, gstPct });
+        discountPct:+inp.discountPct||0, coupon:inp.coupon, gstPct, taxInclusive:rates.taxInclusive });
       return { chairs, guests, chairPrice, platePrice, chairsCost, cateringCost,
         objectLines:oi.objectLines, objectsCost, layoutBase,
         serviceCharge:Math.round(c.serviceCharge), svcPct,
-        subtotal:c.subtotal, discount:c.discount, gstPct, gst:Math.round(c.gst), total:c.total };
+        subtotal:c.subtotal, discount:c.discount, gstPct, gst:Math.round(c.gst), total:c.total, taxInclusive:c.taxInclusive };
     },
   };
   const vendors = {
@@ -5807,14 +5828,21 @@ window.HelmUrl = HelmUrl;
     const k = k0, q = has(n.quote_id) ? n.quote_id : null;
     if (k === "trial_reminder") return "checkout.html";
     if (k === "security_alert") return "control.html#users";
+    // 0078: low stock -> the event's inventory page, the item row highlighted
+    if (k === "inventory_low_stock") {
+      const it = /^[0-9a-f-]{36}$/i.test(String(d.item_id || "")) ? String(d.item_id) : "";
+      if (!q) return it ? "inventory.html?item=" + enc(it) : "inventory.html";
+      return "inventory.html?quote=" + enc(q) + (it ? "&item=" + enc(it) : "");
+    }
     if (k.indexOf("chat_") === 0) return "chat.html";
     if (k.indexOf("nurture_") === 0) return "nurture.html";
     if (!q) return "";
     if (k.indexOf("task_") === 0) return "ops.html?quote=" + enc(q) + (has(d.task_id) ? "&task=" + enc(d.task_id) : "");
     if (/^(payment_link|payment_reminder|payment_receipt|payment|payment_received|advance_paid|payment_reconcile|pkg_payment)$/.test(k))
       return "settlement.html?quote=" + enc(q) + "#payments";
-    if (/^(approval_link|otp|reapproval_required|quote_approved|quote_changed|approved|change_order)$/.test(k))
+    if (/^(approval_link|otp|reapproval_required|quote_approved|quote_changed|approved|change_order|client_follow_up)$/.test(k))
       return "quotes.html?focus=" + enc(has(n.event_code) ? n.event_code : q);
+    if (k === "price_change") return "flow.html?id=" + enc(q) + "#sec-quote";
     if (k.indexOf("design_") === 0) return "design.html?quote=" + enc(q);
     if (/^pkg_(selected|accepted|declined)$/.test(k)) return "event.html?id=" + enc(q) + "#pkg-selections";
     if (k === "pkg_payment") return "settlement.html?quote=" + enc(q) + "#payments";
@@ -5830,7 +5858,7 @@ window.HelmUrl = HelmUrl;
     if (n.__chat) return n.mention ? null : "chat_message";
     const k = String(n.kind || "").toLowerCase().trim();
     if (["approval_link", "otp", "payment_link", "payment_reminder", "payment_receipt", "advance_paid", "payment_reconcile",
-         "task_assigned", "task_reminder", "task_due", "security_alert"].indexOf(k) !== -1) return k;
+         "task_assigned", "task_reminder", "task_due", "security_alert", "inventory_low_stock", "client_follow_up"].indexOf(k) !== -1) return k;
     if (k === "payment" || k === "payment_received") return "payment_receipt";
     if (k === "trial_reminder") return "billing_trial";
     if (/^pkg_(selected|accepted|declined|payment)$/.test(k)) return k;
@@ -5847,7 +5875,8 @@ window.HelmUrl = HelmUrl;
     task_reminder: "Task reminders", task_due: "Tasks due", payment_link: "Payment links", payment_reminder: "Payment reminders",
     payment_receipt: "Payment receipts", advance_paid: "Payments received", payment_reconcile: "Payments needing attention",
     chat_message: "Chat messages", pkg_selected: "Client package choices", pkg_accepted: "Package choices accepted",
-    pkg_declined: "Package choices declined", pkg_payment: "Package payments", security_alert: "Security alerts", billing_trial: "Free trial reminders", other: "Other updates" };
+    pkg_declined: "Package choices declined", pkg_payment: "Package payments", security_alert: "Security alerts", billing_trial: "Free trial reminders",
+    inventory_low_stock: "Low stock warnings", client_follow_up: "Client follow-ups", other: "Other updates" };
   // A4: a chat row's read key carries its newest message time, so marking a conversation read
   // only covers what was there; a later message makes a new key and counts as unread again.
   function bellChatKey(n) { return "c:" + ((n && n.conversation_id) || "") + "@" + ((n && n.created_at) || ""); }
@@ -6116,7 +6145,13 @@ window.HelmUrl = HelmUrl;
       pkg_selected: ["📦", "Client chose a package" + (d.package ? ": " + d.package : "") + (d.event_code ? " · " + d.event_code : "")],
       pkg_accepted: ["✅", "Package choice accepted" + (d.event_code ? " · " + d.event_code : "")],
       pkg_declined: ["↩️", "Package choice declined" + (d.event_code ? " · " + d.event_code : "")],
+      // 0077: Control Center prices changed after this future quote was priced (quote editors only — server-gated)
+      price_change: ["🏷️", "Prices changed — review & re-price" + (d.event_code ? " · " + d.event_code : "")],
       pkg_payment: ["💸", "Package payment received" + (d.event_code ? " · " + d.event_code : "")],
+      // 0078: low stock on an event date / automatic client follow-up
+      inventory_low_stock: ["📦", "Low stock: " + String(d.item || "an item") + (d.date ? " on " + d.date : "")
+        + (Number(d.short) > 0 ? " — short by " + Number(d.short) : "")],
+      client_follow_up: ["💬", "Follow-up sent to the client" + (d.auto === false ? "" : " (automatic)")],
     };
     const hit = m[k] || (k.indexOf("design_") === 0 ? ["🎨", "Design stage: " + k.slice(7).replace(/_/g, " ")]
                       : k.indexOf("nurture_") === 0 ? ["🌱", "Greeting queued" + (k.length > 8 ? " · " + k.slice(8).replace(/_/g, " ") : "")] : null);
@@ -6133,8 +6168,9 @@ window.HelmUrl = HelmUrl;
   function deeplinkTarget(search, hash) {
     let p; try { p = new URLSearchParams(search || ""); } catch (e) { return null; }
     const ok = (v) => (v && /^[A-Za-z0-9_-]{1,64}$/.test(v)) ? v : null;
-    const task = ok(p.get("task")), msg = ok(p.get("msg"));
+    const task = ok(p.get("task")), msg = ok(p.get("msg")), item = ok(p.get("item"));
     if (task) return '.trow[data-id="' + task + '"]';
+    if (item) return 'tr[data-item="' + item + '"]';
     if (msg) return '.m[data-mid="' + msg + '"]';
     if (hash === "#payments") return "#payments";
     if (hash === "#pkg-selections") return "#pkg-selections";
@@ -6386,9 +6422,27 @@ window.HelmUrl = HelmUrl;
   const portal = { get: (token) => rpc("public_get_portal", { p_token: token }) };
 
   /* ---------------- post-event insights (Phase 51) ---------------- */
+  // 0077: "Recently opened" records kept on the server per person + studio, so the clock
+  // menu is the same on every device. Fail-soft: null = server list unavailable (old DB).
+  const recents = {
+    async touch(href, title, kind) {
+      if (mode !== "supabase" || !supa) return false;
+      try { await rpc("recent_touch", { p_href: String(href || ""), p_title: String(title || ""), p_kind: kind || "record" }); return true; } catch (e) { return false; }
+    },
+    async list(limit) {
+      if (mode !== "supabase" || !supa) return null;
+      try { const r = await rpc("recent_list", { p_limit: limit || 10 }); return Array.isArray(r) ? r : []; } catch (e) { return null; }
+    },
+  };
   const insights = {
     presets: () => RANGE_PRESETS.map((p) => ({ key: p[0], label: p[1] })),
     rangeFor, rangeCheck, inRange,
+    // 0077 insights_events: per-event profit rows (money null without finance)
+    async events(from, to) {
+      if (mode !== "supabase" || !supa) return null;
+      try { return await rpc("insights_events", { p_from: from || null, p_to: to || null }); }
+      catch (e) { if (rpcMissing(e)) { const er = new Error("Per-event profit needs database update 0077 (ask your admin to run APPLY-0077.sql)."); er.code = "insights_events_missing"; throw er; } throw e; }
+    },
     // 0076 insights_range: counts, money (null without finance), top types, staff participation
     async range(from, to) {
       if (mode !== "supabase" || !supa) return null;
@@ -6721,7 +6775,8 @@ window.HelmUrl = HelmUrl;
     const what = ({ advance_paid: "Payment received — receipt sent", payment_received: "Payment received — receipt sent", pkg_payment: "Package payment received",
       payment_receipt: "Payment receipt sent", payment_link: "Payment link sent", payment_reminder: "Payment reminder sent", payment_reconcile: "Payment flagged for checking",
       approval_link: "Approval link sent", otp: "Approval code sent", pkg_selected: "Client chose a package", pkg_accepted: "Package choice accepted",
-      pkg_declined: "Package choice declined", task_assigned: "Tasks assigned", task_complete: "Task completed", booklet_shared: "Booklet shared" }[kind])
+      pkg_declined: "Package choice declined", task_assigned: "Tasks assigned", task_complete: "Task completed", booklet_shared: "Booklet shared",
+      client_follow_up: "Follow-up sent" }[kind])
       || auditHuman(kind) || "Notification";
     if (!to) return what;
     const via = /^(email|e-mail|mail)$/i.test(to) ? "by e-mail" : /^(whatsapp|wa|sms)$/i.test(to) ? "on " + (to.toLowerCase() === "sms" ? "SMS" : "WhatsApp")
@@ -6979,8 +7034,30 @@ window.HelmUrl = HelmUrl;
     done: () => noteCheckoutDone(),
   };
 
+  /* ---------------- 0078 automatic client messages + WhatsApp forwarding ----------------
+     Settings live server-side (comms_settings, Control Center admins). Sending is done ONLY by the
+     server (cron + the dormant comms-dispatch edge function); the browser never sends. */
+  // {placeholder} preview — mirrors public._comms_render (unknown placeholders stay as typed)
+  function commsRender(tpl, vars) {
+    let out = String(tpl == null ? "" : tpl); const v = vars || {};
+    Object.keys(v).forEach((k) => { out = out.split("{" + k + "}").join(String(v[k] == null ? "" : v[k])); });
+    return out.slice(0, 1000);
+  }
+  const COMMS_SAMPLE = { client: "Riya", studio: "your studio", event: "Riya's Wedding", label: "50% advance",
+    amount: "Rs. 50,000", due: "12 Nov 2026", status: "due in 3 days" };
+  const comms = {
+    render: commsRender, sample: COMMS_SAMPLE,
+    get: () => (supa ? rpc("comms_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+    set: (patch) => (supa ? rpc("comms_settings_set", { p: patch || {} }) : Promise.reject(new Error("Automatic messages need a signed-in studio."))),
+    // "Send reminder now" → { queued, already_queued }; null when the server is older than 0078
+    remindNow: (milestoneId) => (supa ? rpc("payment_reminder_send_now", { p_milestone: milestoneId }).catch((e) => { if (rpcMissing(e)) return null; throw e; })
+      : Promise.resolve(null)),
+    myForward: () => (supa ? rpc("my_wa_forward_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+    setMyForward: (on) => (supa ? rpc("my_wa_forward_set", { p_on: !!on }) : Promise.reject(new Error("Needs a signed-in studio."))),
+  };
+
   const BPStore = {
-    activityText, init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat, profile, quoteShelf, uploads,
+    activityText, init, mode: () => mode, auth, quotes, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat, profile, quoteShelf, uploads, comms,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.
@@ -7058,7 +7135,7 @@ window.HelmUrl = HelmUrl;
     // (client-safe fields only, rate-limited + logged server-side). Before 0065 / local mode:
     // current() → null and share() rejects with a friendly message.
     booklet: {
-      get: (token) => rpc("public_get_booklet", { p_token: token }),
+      get: (token) => rpc("public_get_booklet", { p_token: token }).then((r) => { linkOpened("booklet", token); return r; }),
       // 0067: /<studio>/booklet/<token> — the studio name must belong to the token's studio
       studioOk: (token, studio) => (supa ? rpc("public_booklet_studio", { p_token: String(token || ""), p_studio: String(studio || "") })
         .then((r) => { if (r && r !== studio) { try { history.replaceState(null, "", "/" + r + "/booklet/" + encodeURIComponent(String(token))); } catch (e) {} } return !!r; })
@@ -8314,6 +8391,84 @@ window.HelmUrl = HelmUrl;
     all: function (checks) { var out = { ok: true, errors: [] }; checks.forEach(function (c) { var r = c; if (!r.ok) { out.ok = false; out.errors.push(r.error); } }); return out; }
   };
   BPStore.validate = V;
+
+  // ---- country-based tax (0079) ------------------------------------------------
+  // The studio's country (brand.billing.country, mirrored into the pricing config as
+  // taxCountry) decides the tax name, the tax-ID label/format, the default rate and the
+  // currency. The money itself is still ONE rate (pricing.gstPct) through the shared
+  // engine above + the server's helm_quote_total, so totals never diverge. A studio
+  // with no country set is India / GST exactly as before.
+  BPStore.tax = (function () {
+    var C = {
+      IN: { name: "India", currency: "INR", symbol: "₹", locale: "en-IN", tax: "GST", idLabel: "GSTIN", idRe: /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, idEg: "36ABCDE1234F1Z5", rate: 18, rates: [18, 5, 12, 28, 0], split: true, regionLabel: "State" },
+      AE: { name: "United Arab Emirates", currency: "AED", symbol: "AED ", locale: "en-AE", tax: "VAT", idLabel: "TRN", idRe: /^[0-9]{15}$/, idEg: "100123456700003", rate: 5, rates: [5, 0], regionLabel: "Emirate" },
+      GB: { name: "United Kingdom", currency: "GBP", symbol: "£", locale: "en-GB", tax: "VAT", idLabel: "VAT number", idRe: /^(GB)?([0-9]{9}|[0-9]{12})$/, idEg: "GB123456789", rate: 20, rates: [20, 5, 0], regionLabel: "County" },
+      US: { name: "United States", currency: "USD", symbol: "$", locale: "en-US", tax: "Sales tax", idLabel: "Sales tax permit / EIN", idRe: /^[A-Z0-9-]{4,20}$/, idEg: "12-3456789", rate: null, rates: [], regionLabel: "State" },
+      SG: { name: "Singapore", currency: "SGD", symbol: "S$", locale: "en-SG", tax: "GST", idLabel: "GST reg. no.", idRe: /^([0-9]{8,9}[A-Z]|[TSR][0-9]{2}[A-Z]{2}[0-9]{4}[A-Z]|M[0-9A-Z][0-9]{7}[A-Z])$/, idEg: "200312345A", rate: 9, rates: [9, 0], regionLabel: "Region" },
+      AU: { name: "Australia", currency: "AUD", symbol: "A$", locale: "en-AU", tax: "GST", idLabel: "ABN", idRe: /^[0-9]{11}$/, idEg: "51824753556", rate: 10, rates: [10, 0], regionLabel: "State" },
+      CA: { name: "Canada", currency: "CAD", symbol: "C$", locale: "en-CA", tax: "GST/HST", idLabel: "GST/HST number", idRe: /^[0-9]{9}(RT[0-9]{4})?$/, idEg: "123456789RT0001", rate: null, rates: [5, 13, 15], regionLabel: "Province" },
+    };
+    var ISO = /^[A-Z]{2}$/;
+    function code(cc) { cc = String(cc || "").trim().toUpperCase(); return ISO.test(cc) ? cc : "IN"; }
+    function profile(cc) {
+      cc = code(cc); var p = C[cc];
+      if (p) return Object.assign({ code: cc, known: true }, p);
+      var nm = cc; try { var l = (BPStore.countries && BPStore.countries()) || []; for (var i = 0; i < l.length; i++) if (l[i].iso === cc) { nm = l[i].name; break; } } catch (e) {}
+      return { code: cc, known: false, name: nm, currency: "", symbol: "", locale: "en-GB", tax: "Tax", idLabel: "Tax ID", idRe: /^[A-Z0-9 ./-]{3,30}$/, idEg: "", rate: null, rates: [], regionLabel: "Region" };
+    }
+    var cleanName = function (v) { return String(v == null ? "" : v).replace(/[<>"'`\u0000-\u001f]/g, "").trim().slice(0, 24); };
+    var isTrue = function (v) { return String(v).toLowerCase() === "true"; };
+    // cfg = pricing config OR a quote's pricing snapshot ({taxCountry,taxName,gstPct,taxInclusive,currency})
+    function resolve(cfg) {
+      cfg = cfg || {}; var p = profile(cfg.taxCountry || "IN");
+      var r = Number(cfg.gstPct); var rate = (cfg.gstPct == null || cfg.gstPct === "" || !isFinite(r)) ? (p.rate == null ? 0 : p.rate) : r;
+      var cur = String(cfg.currency || "").trim().toUpperCase();
+      var currency = p.known ? p.currency : (/^[A-Z]{3}$/.test(cur) ? cur : "INR");
+      var name = (!p.known && cleanName(cfg.taxName)) || p.tax;
+      return { country: p.code, countryName: p.name, name: name, rate: rate, inclusive: isTrue(cfg.taxInclusive), currency: currency,
+        symbol: p.known ? p.symbol : (currency === "INR" ? "₹" : currency + " "), locale: p.locale, split: !!p.split,
+        idLabel: p.idLabel, idEg: p.idEg, rates: p.rates.slice(), regionLabel: p.regionLabel };
+    }
+    function money(n, res) {
+      res = res || resolve({}); var x = Number(n); if (!isFinite(x)) x = 0;
+      var neg = x < 0; x = Math.abs(x);
+      var s; try { s = x.toLocaleString(res.locale, { maximumFractionDigits: x % 1 ? 2 : 0, minimumFractionDigits: x % 1 ? 2 : 0 }); } catch (e) { s = String(Math.round(x)); }
+      return (neg ? "− " : "") + res.symbol + s;
+    }
+    function validateId(cc, raw) {
+      var p = profile(cc); var v = String(raw == null ? "" : raw).toUpperCase().replace(/\s+/g, "");
+      if (!v) return { ok: true, value: "" };
+      if (v.length > 30 || !p.idRe.test(v)) return { ok: false, value: v, error: "Enter a valid " + p.idLabel + (p.idEg ? ", e.g. " + p.idEg : "") + " (or leave it blank)." };
+      return { ok: true, value: v };
+    }
+    // India: same state -> intra (CGST+SGST), different -> inter (IGST); null when unknown
+    function placeOfSupply(studioState, otherState) {
+      var n = function (s) { return String(s || "").toLowerCase().replace(/[^a-z]/g, ""); };
+      var a = n(studioState), b = n(otherState); if (!a || !b) return null;
+      return a === b ? "intra" : "inter";
+    }
+    // display rows for the tax part of a breakdown: [{label, pct, amount}]
+    function rows(t, pricing, res) {
+      res = res || resolve(pricing); t = t || {}; pricing = pricing || {};
+      var gst = Number(t.totalGst != null ? t.totalGst : t.gst) || 0, pct = res.rate;
+      var inc = res.inclusive ? " (included)" : "";
+      if (res.split) {
+        if (pricing.placeOfSupply === "inter") return [{ label: "IGST" + inc, pct: pct, amount: gst }];
+        return [{ label: "CGST" + inc, pct: pct / 2, amount: gst / 2 }, { label: "SGST" + inc, pct: pct / 2, amount: gst / 2 }];
+      }
+      return [{ label: res.name + inc, pct: pct, amount: gst }];
+    }
+    // keys a quote's pricing snapshot carries so client pages (which can't read the
+    // studio config) label it right. India/exclusive adds nothing -> payload unchanged.
+    function snapshot(res) {
+      var o = {}; if (!res) return o;
+      if (res.country !== "IN") { o.taxCountry = res.country; o.taxName = res.name; o.currency = res.currency; }
+      if (res.inclusive) o.taxInclusive = true;
+      return o;
+    }
+    function countries() { return Object.keys(C).map(function (k) { return { iso: k, name: C[k].name }; }); }
+    return { COUNTRIES: C, profile: profile, resolve: resolve, money: money, validateId: validateId, placeOfSupply: placeOfSupply, rows: rows, snapshot: snapshot, countries: countries, code: code };
+  })();
 
   // ---- amount in words (Indian numbering: crore/lakh/thousand) — QA M-07 -----
   // Used on quotes/invoices so a large manually-influenced total is unambiguous

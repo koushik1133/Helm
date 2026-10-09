@@ -164,7 +164,7 @@
   </div>
   </main>
 
-  <footer>Every save is a version · confirm to price &amp; lock · GST per India (SAC 998596, 18%)</footer>
+  <footer id="taxFoot">Every save is a version · confirm to price &amp; lock · GST per India (SAC 998596, 18%)</footer>
 </div>
 
 <!-- Confirm / pricing modal -->
@@ -182,14 +182,15 @@
       <div class="fld"><label for="c_date">Event date</label><input id="c_date" type="date" data-min-today></div>
       <div class="fld"><label for="c_venue">Venue</label><input id="c_venue" placeholder="Venue name"></div>
       <div class="fld s-068a8dd"><label for="c_address">Venue address</label><input id="c_address" placeholder="Address"></div>
+      <div class="fld"><label for="c_state">Client / event state</label><input id="c_state" maxlength="60" placeholder="e.g. Telangana" title="Same state as your studio → CGST + SGST; another state → IGST"></div>
       <div class="fld s-068a8dd"><label for="c_notes">Notes</label><textarea id="c_notes" placeholder="Anything to remember…"></textarea></div>
     </div>
 
-    <div class="seclabel">Pricing (₹ INR) <span class="muted s-4496197" id="rateNote"></span></div>
+    <div class="seclabel"><span id="pricingHead">Pricing (₹ INR)</span> <span class="muted s-4496197" id="rateNote"></span></div>
     <div class="grid three">
       <div class="fld"><label for="p_chairs">Chairs (count)</label><input id="p_chairs" type="number" min="0" step="1"></div>
       <div class="fld"><label for="p_guests">Guests / plates</label><input id="p_guests" type="number" min="0" step="1"></div>
-      <div class="fld"><label for="p_pos">Place of supply</label>
+      <div class="fld" id="posFld"><label for="p_pos">Place of supply</label>
         <select id="p_pos"><option value="intra">Intra-state (CGST + SGST)</option><option value="inter">Inter-state (IGST)</option></select></div>
     </div>
     <div class="grid three s-d2c171b">
@@ -211,7 +212,7 @@
     <!-- rates come from the Control Center; kept as hidden inputs so the calculator stays unchanged -->
     <input type="hidden" id="p_chairPrice"><input type="hidden" id="p_platePrice"><input type="hidden" id="p_gst">
     <input type="hidden" id="p_cgst"><input type="hidden" id="p_svc"><input type="hidden" id="p_other" value="0">
-    <div class="taxnote">Rates (₹/chair, ₹/plate, GST) are set once in the <a class="s-a805525" href="control.html">Control Center</a>. Enter a coupon or discount here. Only GST applies as a tax in India; confirm with a CA.</div>
+    <div class="taxnote" id="taxNote">Rates (₹/chair, ₹/plate, GST) are set once in the <a class="s-a805525" href="control.html">Control Center</a>. Enter a coupon or discount here. Only GST applies as a tax in India; confirm with a CA.</div>
 
     <div class="totals" id="totals"></div>
     <div class="lerr" id="cm_err" role="alert" aria-live="assertive" hidden></div>
@@ -278,12 +279,14 @@
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="event-name.js?v=1"></script>
-<script src="store-api.js?v=140"></script>
+<script src="store-api.js?v=144"></script>
 <script src="tour.js?v=9"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
   const esc = (s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const inr = (n)=>"₹"+Number(n||0).toLocaleString("en-IN");
+  // 0079: studio tax country (India unless set) — money symbol + tax labels follow it
+  let curTax=null, studioTax=null, studioState="";
+  const inr = (n)=> (curTax && curTax.country!=="IN") ? BPStore.tax.money(Number(n||0), curTax) : "₹"+Number(n||0).toLocaleString("en-IN");
   const fmtDate=(iso)=>{try{return new Date(iso).toLocaleDateString();}catch{return "—";}};
   const statBadge=(s)=> s==="confirmed"?'<span class="stat ok">Confirmed</span>':s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
   const apprBadge=(a)=> a==="paid"?'<span class="stat ok">Paid</span>':a==="approved"?'<span class="stat ap">Approved</span>':a==="sent"?'<span class="stat st">Sent</span>':"";
@@ -374,7 +377,12 @@
   function countSeats(items){ let seats=0; (items||[]).forEach(i=>{ const p=i.properties||{};
     if(p.rows&&p.cols) seats+=p.rows*p.cols; else if(p.seats) seats+=p.seats; }); return seats; }
 
-  /* ---------- pricing engine (India GST) — one shared calc in BPStore.pricing ---------- */
+  function paintTaxCopy(r){ if(!r || r.country==="IN") return;
+    $("#taxFoot").textContent="Every save is a version · confirm to price & lock · "+r.name+" ("+r.countryName+")";
+    $("#pricingHead").textContent="Pricing ("+r.currency+")"; $("#posFld").hidden=true;
+    $("#taxNote").textContent="Rates and "+r.name+" are set once in the Control Center. Enter a coupon or discount here.";
+  }
+  /* ---------- pricing engine — one shared calc in BPStore.pricing (tax per studio country, 0079) ---------- */
   const calcPricing = (p)=>BPStore.pricing.quoteTotal(p);
 
   /* ---------- auth chip ---------- */
@@ -397,6 +405,8 @@
     // mark_paid is admin/manager only server-side (SEC-05 F11); offline mode has no roles
     canMarkPaid = !BPStore.auth.enabled() || await BPStore.auth.canEditArea("finance");   // server: mark_paid needs has_area(finance,edit)
     $("#newBtn").hidden = !canCreate;
+    try{ studioTax=curTax=BPStore.tax.resolve((await BPStore.config.getPricing())||{}); paintTaxCopy(studioTax); }catch{}
+    try{ const o=await BPStore.org.current(); const bl=o&&o.brand&&o.brand.billing; studioState=(bl&&typeof bl.state==="string")?bl.state:""; }catch{}
     runShelfTick();   // 0040: client link expired → Archive / Deleted (rate-limited server-side; never awaited)
     // opened from an event workspace? focus that quote by pre-filling the search
     const focus=focusPending ? new URLSearchParams(location.search).get("focus") : null;
@@ -532,14 +542,14 @@
     $("#cm_titleText").textContent = (full.status==="confirmed"?"Re-price ":"Confirm ")+full.code;
     $("#c_name").value=cl.name||""; $("#c_company").value=cl.company||""; $("#c_email").value=cl.email||"";
     $("#c_phone").value=cl.phone||""; $("#c_date").value=cl.eventDate||""; $("#c_venue").value=cl.venue||"";
-    $("#c_address").value=cl.address||""; $("#c_notes").value=cl.notes||"";
+    $("#c_address").value=cl.address||""; $("#c_notes").value=cl.notes||""; $("#c_state").value=cl.state||"";
     // central rates + vendors + coupons from the Control Center
     cmConfig={chairPrice:200,platePrice:500,gstPct:18,cateringGstPct:18,serviceChargePct:0};
     try{ cmConfig=(await BPStore.config.getPricing())||cmConfig; }catch{}
     try{ cmVendors=await BPStore.vendors.list(); }catch{ cmVendors=[]; }
     try{ cmCoupons=await BPStore.coupons.list(); }catch{ cmCoupons=[]; }
-    const cfg=cmConfig;
-    $("#rateNote").textContent = `· ₹${cfg.chairPrice}/chair · ₹${cfg.platePrice}/plate · GST ${cfg.gstPct}%  (edit in Control Center)`;
+    const cfg=cmConfig; curTax=BPStore.tax.resolve(cfg);
+    $("#rateNote").textContent = `· ${inr(cfg.chairPrice)}/chair · ${inr(cfg.platePrice)}/plate · ${curTax.name} ${curTax.rate}%${curTax.inclusive?" (included in prices)":""}  (edit in Control Center)`;
     // seat counts + object cost from current version (same engine as the builder)
     let seats=0, objectsCost=0; try{ const v=await BPStore.quotes.getVersion(id, full.currentVersion);
       const items=v.data&&v.data.items; seats=countSeats(items);
@@ -569,7 +579,7 @@
     $("#p_cmode").value = (pr.catering&&pr.catering.mode)||"inhouse";
     $("#p_camount").value = (pr.catering&&pr.catering.amount)||0;
     $("#p_discount").value = pr.discount||0; $("#p_discountPct").value = pr.discountPct||0;
-    $("#p_pos").value = pr.placeOfSupply||"intra";
+    $("#p_pos").value = pr.placeOfSupply||BPStore.tax.placeOfSupply(studioState, cl.state)||"intra";
     platesEdited = pr.guests!=null && pr.chairs!=null && pr.guests!==pr.chairs;
     recalc();
     cmDirty.clean();
@@ -586,19 +596,17 @@
       gstPct:+$("#p_gst").value||0, other:+$("#p_other").value||0,
       serviceChargePct:+$("#p_svc").value||0, discount:+$("#p_discount").value||0, discountPct:+$("#p_discountPct").value||0,
       couponCode: cp?couponCode:"", coupon: cp?{kind:cp.kind,value:cp.value}:null,
-      placeOfSupply:$("#p_pos").value, currency:"INR",
+      placeOfSupply:$("#p_pos").value, currency:"INR", ...BPStore.tax.snapshot(curTax),
       catering:{ mode:$("#p_cmode").value, vendor: vsel==="__new"?"":vsel, amount:+$("#p_camount").value||0, gstPct:+$("#p_cgst").value||0 } };
   }
   function gatherClient(){
     return { name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:$("#c_email").value.trim(),
       phone:$("#c_phone").value.trim(), eventDate:$("#c_date").value, venue:$("#c_venue").value.trim(),
-      address:$("#c_address").value.trim(), notes:$("#c_notes").value.trim() };
+      address:$("#c_address").value.trim(), notes:$("#c_notes").value.trim(), state:$("#c_state").value.trim().slice(0,60) };
   }
   function recalc(){
-    const p=gatherPricing(), t=calcPricing(p), pos=p.placeOfSupply;
-    const taxRows = pos==="inter"
-      ? `<div class="r"><span>IGST</span><span class="amt">${inr(t.igst)}</span></div>`
-      : `<div class="r"><span>CGST</span><span class="amt">${inr(t.cgst)}</span></div><div class="r"><span>SGST</span><span class="amt">${inr(t.sgst)}</span></div>`;
+    const p=gatherPricing(), t=calcPricing(p);
+    const taxRows = BPStore.tax.rows(t, p, BPStore.tax.resolve(p)).map(r=>`<div class="r"><span>${esc(r.label)}</span><span class="amt">${inr(r.amount)}</span></div>`).join("");
     $("#totals").innerHTML =
       `<div class="r"><span>Chairs (${p.chairs} × ${inr(p.chairPrice)})${p.other?` + other ${inr(p.other)}`:""}</span><span class="amt">${inr(t.rental)}</span></div>`+
       `<div class="r"><span>Catering${p.catering.mode==="client"?" (client-provided)":` (${p.guests} plates × ${inr(p.platePrice)}${p.catering.amount?` + ${inr(p.catering.amount)}`:""})`}</span><span class="amt">${inr(t.cateringBucket)}</span></div>`+
@@ -607,7 +615,7 @@
       taxRows+
       (t.discount?`<div class="r"><span>Discount</span><span class="amt">− ${inr(t.discount)}</span></div>`:"")+
       `<div class="r grand"><span>Grand total</span><span class="amt">${inr(t.total)}</span></div>`+
-      `<div class="r" style="font-style:italic;color:var(--ink-3);font-size:12px;justify-content:flex-end"><span>${esc(BPStore.amountInWords(t.total))}</span></div>`;
+      `<div class="r" style="font-style:italic;color:var(--ink-3);font-size:12px;justify-content:flex-end"><span>${curTax&&curTax.country!=="IN"?"":esc(BPStore.amountInWords(t.total))}</span></div>`;
   }
   async function savePricing(confirmIt){
     const btn = confirmIt?$("#cm_confirm"):$("#cm_savePricing");
@@ -698,7 +706,8 @@
     // pricing is jsonb the server doesn't type-check for every shape — only numbers reach the popup HTML
     const num=(v)=>{ const x=Number(v); return Number.isFinite(x)?x:0; };
     const line=(l,a)=>`<tr><td>${l}</td><td style="text-align:right">${inr(a)}</td></tr>`;
-    const tax = !t ? "" : pos==="inter" ? line("IGST", t.igst||0) : line("CGST", t.cgst||0)+line("SGST", t.sgst||0);
+    const qTax=BPStore.tax.resolve(p); curTax=qTax;   // this quote's own snapshot (India when absent)
+    const tax = !t ? "" : BPStore.tax.rows(t, p, qTax).map(r=>line(esc(r.label)+(r.pct?" ("+Number(r.pct)+"%)":""), r.amount||0)).join("");
     const html=`<!doctype html><meta charset=utf8><title>${isInv?"Invoice":"Quotation"} ${esc(full.code)}</title>
     <style>body{font-family:system-ui,sans-serif;max-width:720px;margin:32px auto;color:#141b2e;padding:0 20px}
     h1{font-size:20px;margin:0} .muted{color:#5b6475;font-size:12px} table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
@@ -723,11 +732,12 @@
       ${tax}
       ${t.discount?`<tr class=tot><td>Discount</td><td style="text-align:right">− ${inr(t.discount)}</td></tr>`:""}`:""}
       <tr class=grand><td>Grand total</td><td style="text-align:right">${inr(grand)}</td></tr>
-      <tr><td colspan=2 style="padding-top:6px;font-style:italic;color:#555;font-size:12px;border:0">${BPStore.amountInWords(grand)}</td></tr></table>
-    <p class=muted>Taxes per Indian GST (event management SAC 998596). ${p.catering&&p.catering.vendor?"Caterer: "+esc(p.catering.vendor)+". ":""}This is a computer-generated document.</p>`;
+      <tr><td colspan=2 style="padding-top:6px;font-style:italic;color:#555;font-size:12px;border:0">${qTax.country!=="IN"?"":BPStore.amountInWords(grand)}</td></tr></table>
+    <p class=muted>${qTax.country==="IN"?"Taxes per Indian GST (event management SAC 998596).":esc(qTax.name)+(qTax.inclusive?" included in the prices above.":" as applicable in "+esc(qTax.countryName)+".")} ${p.catering&&p.catering.vendor?"Caterer: "+esc(p.catering.vendor)+". ":""}This is a computer-generated document.</p>`;
     // No inline <script> in the popup (it inherits this page's CSP) — print from the opener instead.
     const w=window.open("","_blank"); if(w){ w.opener=null; w.document.write(html); w.document.close(); setTimeout(()=>{ try{ w.focus(); w.print(); }catch(_){} },250); }
     else BPUI.toast("Popup blocked — allow popups to download/print.",{type:"err"});
+    curTax=studioTax;
   }
 
   async function delQuote(id, btn){
@@ -862,6 +872,7 @@
   $("#confirmModal").addEventListener("input",e=>{ if(e.target.closest(".grid,.totals")||/^p_/.test(e.target.id)) recalc(); });
   // plates auto-follow chairs until the user edits plates
   $("#p_guests").addEventListener("input",()=>{ platesEdited=true; });
+  $("#c_state").addEventListener("input",()=>{ const r=BPStore.tax.placeOfSupply(studioState,$("#c_state").value); if(r){ $("#p_pos").value=r; recalc(); } });
   $("#p_chairs").addEventListener("input",()=>{ if(!platesEdited) $("#p_guests").value=$("#p_chairs").value; recalc(); });
   // vendor dropdown: "add new" → create + sync to DB
   $("#p_vendor").addEventListener("change",async e=>{

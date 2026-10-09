@@ -507,13 +507,28 @@
      never exposed by the public booklet RPCs (they pick brand keys one by one). */
   const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
   const PIN_RE = /^[1-9][0-9]{5}$/;
+  // Tax-ID formats per studio country (0079) - kept identical to BPStore.tax.COUNTRIES in
+  // store-api.js (test/country-tax.test.mjs checks they match). Unknown country: generic.
+  const TAX_IDS = {
+    IN: { label: "GSTIN", re: GSTIN_RE, eg: "36ABCDE1234F1Z5" },
+    AE: { label: "TRN", re: /^[0-9]{15}$/, eg: "100123456700003" },
+    GB: { label: "VAT number", re: /^(GB)?([0-9]{9}|[0-9]{12})$/, eg: "GB123456789" },
+    US: { label: "Sales tax permit / EIN", re: /^[A-Z0-9-]{4,20}$/, eg: "12-3456789" },
+    SG: { label: "GST reg. no.", re: /^([0-9]{8,9}[A-Z]|[TSR][0-9]{2}[A-Z]{2}[0-9]{4}[A-Z]|M[0-9A-Z][0-9]{7}[A-Z])$/, eg: "200312345A" },
+    AU: { label: "ABN", re: /^[0-9]{11}$/, eg: "51824753556" },
+    CA: { label: "GST/HST number", re: /^[0-9]{9}(RT[0-9]{4})?$/, eg: "123456789RT0001" },
+  };
+  const TAX_ID_OTHER = { label: "Tax ID", re: /^[A-Z0-9 ./-]{3,30}$/, eg: "" };
+  const countryCode = (v) => { const c = String(v || "").trim().toUpperCase(); return /^[A-Z]{2}$/.test(c) ? c : "IN"; };
+  const taxIdOf = (cc) => TAX_IDS[countryCode(cc)] || TAX_ID_OTHER;
   const BILLING_FIELDS = [
+    { key: "country", label: "Country", required: true, max: 2, type: "country" },
     { key: "legal_name", label: "Legal / business name", required: true, max: 120 },
     { key: "line1", label: "Billing address", required: true, max: 160 },
     { key: "line2", label: "Address line 2", required: false, max: 160 },
     { key: "city", label: "City", required: true, max: 60 },
     { key: "state", label: "State", required: true, max: 60 },
-    { key: "pin", label: "PIN code", required: true, max: 6 },
+    { key: "pin", label: "PIN code", required: true, max: 10 },
     { key: "phone", label: "Business phone", required: true, max: 24 },
     { key: "location", label: "Primary location / city", required: true, max: 80 },
     { key: "gstin", label: "GSTIN (optional)", required: false, max: 15 },
@@ -521,21 +536,24 @@
   const bstr = (v, max) => stripMarkup(cleanText(v)).slice(0, max);
   function validateBilling(input) {
     const i = input || {}; const data = {}; const errors = {};
-    BILLING_FIELDS.forEach((f) => { data[f.key] = bstr(i[f.key], f.key === "gstin" ? 30 : f.max); });
+    BILLING_FIELDS.forEach((f) => { data[f.key] = bstr(i[f.key], f.key === "gstin" ? 30 : f.key === "country" ? 4 : f.max); });
+    data.country = countryCode(data.country); const india = data.country === "IN";
     data.gstin = data.gstin.toUpperCase().replace(/\s+/g, "");
-    data.pin = data.pin.replace(/\s+/g, "");
+    data.pin = india ? data.pin.replace(/\s+/g, "") : data.pin.trim().toUpperCase();
     BILLING_FIELDS.forEach((f) => { if (f.required && !data[f.key]) errors[f.key] = f.label + " is required."; });
     if (data.legal_name && !/[A-Za-z0-9]/.test(data.legal_name)) errors.legal_name = "Enter a real business name.";
-    if (data.pin && !PIN_RE.test(data.pin)) errors.pin = "PIN code must be 6 digits (not starting with 0).";
-    if (data.phone) { const d = data.phone.replace(/[^\d]/g, ""); if (!/^[+\d\s()-]+$/.test(data.phone) || d.length < 10 || d.length > 13) errors.phone = "Enter a valid phone number, e.g. +91 98765 43210."; }
-    if (data.gstin && !GSTIN_RE.test(data.gstin)) errors.gstin = "Enter a valid 15-character GSTIN, e.g. 36ABCDE1234F1Z5 (or leave it blank).";
+    if (data.pin && india && !PIN_RE.test(data.pin)) errors.pin = "PIN code must be 6 digits (not starting with 0).";
+    if (data.pin && !india && !/^[A-Z0-9][A-Z0-9 -]{1,9}$/.test(data.pin)) errors.pin = "Enter a valid postal code.";
+    if (data.phone) { const d = data.phone.replace(/[^\d]/g, ""); if (!/^[+\d\s()-]+$/.test(data.phone) || d.length < (india ? 10 : 7) || d.length > (india ? 13 : 15)) errors.phone = "Enter a valid phone number, e.g. " + (india ? "+91 98765 43210." : "+44 20 7946 0958."); }
+    if (data.gstin && india && !GSTIN_RE.test(data.gstin)) errors.gstin = "Enter a valid 15-character GSTIN, e.g. 36ABCDE1234F1Z5 (or leave it blank).";
+    if (data.gstin && !india) { const t = taxIdOf(data.country); if (data.gstin.length > 30 || !t.re.test(data.gstin)) errors.gstin = "Enter a valid " + t.label + (t.eg ? ", e.g. " + t.eg : "") + " (or leave it blank)."; }
     return { ok: Object.keys(errors).length === 0, data, errors };
   }
   function billingFromOrg(o) {
     o = o || {}; const b = (o.brand && typeof o.brand === "object" && !Array.isArray(o.brand)) ? o.brand : {};
     const bl = (b.billing && typeof b.billing === "object" && !Array.isArray(b.billing)) ? b.billing : {};
     const s = (v) => (typeof v === "string" ? v : "");
-    return { legal_name: s(bl.legal_name) || "", line1: s(bl.line1), line2: s(bl.line2), city: s(bl.city), state: s(bl.state), pin: s(bl.pin),
+    return { country: countryCode(bl.country), legal_name: s(bl.legal_name) || "", line1: s(bl.line1), line2: s(bl.line2), city: s(bl.city), state: s(bl.state), pin: s(bl.pin),
       phone: s(b.phone), location: s(o.location), gstin: s(o.gst_number) };
   }
   // fields still missing on an existing studio (labels) — [] when complete
@@ -546,14 +564,14 @@
   function billingPatch(o, data) {
     o = o || {}; const b = (o.brand && typeof o.brand === "object" && !Array.isArray(o.brand)) ? o.brand : {};
     const oldBl = (b.billing && typeof b.billing === "object" && !Array.isArray(b.billing)) ? b.billing : {};
-    const billing = Object.assign({}, oldBl, { legal_name: data.legal_name, line1: data.line1, line2: data.line2 || null, city: data.city, state: data.state, pin: data.pin });
+    const billing = Object.assign({}, oldBl, { legal_name: data.legal_name, line1: data.line1, line2: data.line2 || null, city: data.city, state: data.state, pin: data.pin, country: countryCode(data.country) });
     const patch = { location: data.location, gst_number: data.gstin || null, brand: Object.assign({}, b, { phone: data.phone, billing }) };
     if (!String(o.name || "").trim()) patch.name = data.legal_name;
     return patch;
   }
 
   const api = {
-    GSTIN_RE, PIN_RE, BILLING_FIELDS, validateBilling, billingFromOrg, billingMissing, billingPatch,
+    GSTIN_RE, PIN_RE, TAX_IDS, taxIdOf, countryCode, BILLING_FIELDS, validateBilling, billingFromOrg, billingMissing, billingPatch,
     MAX_ROWS, CHUNK, MAX_FILE_BYTES, MAX_PRICE, MAX_QTY, KINDS,
     cleanText, neutralise, safeText, normKey, parseNumber, decodeBytes, parseCSV, detectDelimiter, csvEscapeCell, templateCSV,
     mapHeaders, sanitizeMapping, validateRow, buildPreview, summarise, setAction, tableFromManual,

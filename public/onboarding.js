@@ -168,14 +168,24 @@
     if (!canBill) return `<div class="ob-card"><h2>Business details</h2><div class="ob-lock">Only an admin can enter the studio's billing details${billingOk() ? " (already complete)." : ". Ask your admin to complete them in Control Center → Studio details."}</div><div class="ob-row"><span class="ob-grow"></span><button type="button" class="btn primary" data-act="goto" data-i="0">Continue</button></div></div>`;
     const full = { legal_name: 1, line1: 1, line2: 1 };
     const ac = { legal_name: "organization", line1: "address-line1", line2: "address-line2", city: "address-level2", state: "address-level1", pin: "postal-code", phone: "tel", location: "off", gstin: "off" };
+    const cc = O.countryCode(v.country), india = cc === "IN", tid = O.taxIdOf(cc);
+    const label = (f) => f.key === "gstin" ? tid.label + " (optional)" : f.key === "pin" && !india ? "Postal code" : f.key === "state" && !india ? "State / region" : f.label;
+    const ctry = (BPStore.tax && BPStore.tax.countries()) || [{ iso: "IN", name: "India" }];
+    let others = []; try { others = (BPStore.countries() || []).filter((c) => !ctry.some((k) => k.iso === c.iso)); } catch (x) { others = []; }
     const fields = O.BILLING_FIELDS.map((f) => {
       const id = "ob_b_" + f.key, eid = id + "_err", bad = !!e[f.key];
+      if (f.type === "country") {
+        const opt = (c) => `<option value="${esc(c.iso)}"${c.iso === cc ? " selected" : ""}>${esc(c.name)}</option>`;
+        return `<div><label for="${esc(id)}">Country * <span class="ob-note">(sets tax, tax ID and currency)</span></label><select id="${esc(id)}" data-bill="country" data-billcountry="1" aria-describedby="${esc(eid)}">`
+          + ctry.map(opt).join("") + (others.length ? `<optgroup label="Other countries (custom tax)">${others.map(opt).join("")}</optgroup>` : "")
+          + `</select><div class="ob-err" id="${esc(eid)}">${esc(e[f.key] || "")}</div></div>`;
+      }
       const im = f.key === "pin" ? ' inputmode="numeric"' : f.key === "phone" ? ' inputmode="tel" type="tel"' : "";
-      return `<div class="${full[f.key] ? "full" : ""}"><label for="${esc(id)}">${esc(f.label)}${f.required ? " *" : ""}</label>`
-        + `<input id="${esc(id)}" data-bill="${esc(f.key)}" maxlength="${Number(f.key === "gstin" ? 20 : f.max)}" autocomplete="${esc(ac[f.key])}" value="${esc(v[f.key] || "")}"${im}${f.required ? ' aria-required="true"' : ""} aria-invalid="${bad}" aria-describedby="${esc(eid)}">`
+      return `<div class="${full[f.key] ? "full" : ""}"><label for="${esc(id)}">${esc(label(f))}${f.required ? " *" : ""}</label>`
+        + `<input id="${esc(id)}" data-bill="${esc(f.key)}" maxlength="${Number(f.key === "gstin" ? 30 : f.key === "pin" && india ? 6 : f.max)}" autocomplete="${esc(ac[f.key])}" value="${esc(v[f.key] || "")}"${im}${f.required ? ' aria-required="true"' : ""} aria-invalid="${bad}" aria-describedby="${esc(eid)}">`
         + `<div class="ob-err" id="${esc(eid)}">${esc(e[f.key] || "")}</div></div>`;
     }).join("");
-    return `<div class="ob-card"><h2>Business details</h2><p class="sub">Used on your quotations and invoices. Fields marked * are required to finish setup; GSTIN is optional. You can edit these later in Control Center → Studio details.</p>`
+    return `<div class="ob-card"><h2>Business details</h2><p class="sub">Used on your quotations and invoices. Fields marked * are required to finish setup; ${esc(tid.label)} is optional. You can edit these later in Control Center → Studio details.</p>`
       + `<form id="obBill" novalidate><div class="ob-bf">${fields}</div><div id="obErr" class="ob-err" role="alert"></div>`
       + `<div class="ob-row"><span class="ob-grow"></span><button type="submit" class="btn primary" data-act="billsave">Save and continue</button></div></form></div>`;
   }
@@ -191,11 +201,25 @@
     try {
       const fresh = await BPStore.org.current(); if (!fresh) throw new Error("Studio settings aren't available.");
       await BPStore.org.save(O.billingPatch(fresh, r.data));
+      await syncTaxCountry(r.data.country);
       org = await BPStore.org.current(); bill = { values: {}, errors: {} };
       BPUI.toast("Business details saved.", { type: "ok" }); go(0);
     } catch (err) { const x = $("#obErr"); if (x) x.textContent = BPUI.friendlyError(err, { action: "save your business details" }); }
   }
 
+  // 0079: the studio's country drives the tax (name, default rate, currency) used on new
+  // quotes. Only when the country actually changes; India with no config stays as is.
+  async function syncTaxCountry(cc) {
+    try {
+      const T = BPStore.tax; if (!T) return; cc = T.code(cc);
+      const cfg = (await BPStore.config.getPricing()) || {};
+      if (T.code(cfg.taxCountry || "IN") === cc) return;
+      const p = T.profile(cc);
+      const next = Object.assign({}, cfg, { taxCountry: cc, currency: p.known ? p.currency : (cfg.currency || "INR") });
+      if (p.rate != null) next.gstPct = p.rate;
+      await BPStore.config.setPricing(next);
+    } catch (x) { /* pricing is admin-only; the studio can set the tax in Control Center */ }
+  }
   function header(kind) { return `<h2>${esc(O.KINDS[kind].label)}</h2><p class="sub">${esc(INTRO[kind])}</p>`; }
 
   function renderInput(kind) {
@@ -394,12 +418,22 @@
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   function onInput(ev) {
-    if (!S) return; const kind = KEYS[S.step]; if (!kind) return; const st = S.steps[kind], t = ev.target;
+    if (!S) return;
+    if (ev.target && ev.target.dataset && ev.target.dataset.billcountry) {
+      const form = $("#obBill"); const vals = {}; if (form) form.querySelectorAll("[data-bill]").forEach((el) => { vals[el.dataset.bill] = el.value; });
+      bill = { values: vals, errors: {} }; render(); const again = $("#ob_b_country"); if (again) again.focus(); return;
+    }
+    const kind = KEYS[S.step]; if (!kind) return; const st = S.steps[kind], t = ev.target;
     if (t.id === "obText") { st.text = t.value.slice(0, O.MAX_FILE_BYTES); st.fileName = ""; st.mapping = null; saveDraft(); }
     else if (t.dataset && t.dataset.r !== undefined && t.dataset.f) { const r = st.manual[Number(t.dataset.r)]; if (r) { r[t.dataset.f] = t.value; saveDraft(); } }
   }
   function onChange(ev) {
-    if (!S) return; const kind = KEYS[S.step]; if (!kind) return; const st = S.steps[kind], t = ev.target;
+    if (!S) return;
+    if (ev.target && ev.target.dataset && ev.target.dataset.billcountry) {
+      const form = $("#obBill"); const vals = {}; if (form) form.querySelectorAll("[data-bill]").forEach((el) => { vals[el.dataset.bill] = el.value; });
+      bill = { values: vals, errors: {} }; render(); const again = $("#ob_b_country"); if (again) again.focus(); return;
+    }
+    const kind = KEYS[S.step]; if (!kind) return; const st = S.steps[kind], t = ev.target;
     if (t.id === "obFile") return readFile(kind, t.files && t.files[0]);
     if (t.dataset && t.dataset.map) { st.mapping = st.mapping || {}; st.mapping[t.dataset.map] = Number(t.value); saveDraft(); return; }
     if (t.dataset && t.dataset.line && previews[kind]) {

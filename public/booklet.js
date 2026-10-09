@@ -25,6 +25,8 @@
     "Please contact the studio with any questions about this booklet.",
   ];
 
+  // tax name per quote currency for non-India studios (India keeps CGST/SGST/IGST/GST) - 0079
+  const TAX_BY_CURRENCY = { AED: "VAT", GBP: "VAT", USD: "Sales tax", SGD: "GST", AUD: "GST", CAD: "GST/HST", EUR: "VAT" };
   /* ---- pure helpers (exported for tests) ---- */
   function num(v) { const n = Number(v); return isFinite(n) ? n : null; }
   // 0069: language / currency come from the quote (validated; default en-IN / INR)
@@ -90,7 +92,13 @@
     if (disc) out.push({ label: "Discount", detail: q.couponCode ? "Code " + String(q.couponCode).slice(0, 32) : "", amount: -disc, kind: "neg" });
     const igst = num(c.igst), cgst = num(c.cgst), sgst = num(c.sgst), gst = num(c.totalGst);
     const pct = num(q.gstPct);
-    if (igst) out.push({ label: "IGST", detail: pct ? pct + "%" : "", amount: igst });
+    // 0079: non-India studios — one tax line named for the country (from the quote currency);
+    // "(included)" when the total is the post-discount value itself (tax-inclusive prices).
+    const cur = String(q.currency || "INR").toUpperCase(); const tn = cur === "INR" ? null : (TAX_BY_CURRENCY[cur] || "Tax");
+    const incl = sub != null && gst && num(q.total) != null && Math.round(sub - (disc || 0)) === Math.round(num(q.total));
+    if (tn && (gst || igst || cgst || sgst)) out.push({ label: tn + (incl ? " (included)" : ""), detail: pct ? pct + "%" : "", amount: gst || ((igst || 0) + (cgst || 0) + (sgst || 0)) });
+    else if (tn) { /* no tax on this quote */ }
+    else if (igst) out.push({ label: "IGST", detail: pct ? pct + "%" : "", amount: igst });
     else if (cgst || sgst) {
       out.push({ label: "CGST", detail: pct ? pct / 2 + "%" : "", amount: cgst || 0 });
       out.push({ label: "SGST", detail: pct ? pct / 2 + "%" : "", amount: sgst || 0 });

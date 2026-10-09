@@ -41,6 +41,8 @@ const CASES = [
   ['pkg_accepted', ['pkg_accepted'], `event.html?id=${Q}#pkg-selections`],
   ['pkg_declined', ['pkg_declined'], `event.html?id=${Q}#pkg-selections`],
   ['pkg_payment', ['pkg_payment'], `settlement.html?quote=${Q}#payments`],
+  ['client_follow_up', ['client_follow_up'], 'quotes.html?focus=C-101'],
+  ['inventory_low_stock', ['inventory_low_stock'], `inventory.html?quote=${Q}`],
 ];
 t('every server catalog type → expected URL (table)', () => {
   for (const [type, kinds, url] of CASES) for (const k of kinds) {

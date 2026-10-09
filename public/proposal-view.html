@@ -81,7 +81,7 @@
 <script src="/telemetry.js?v=3"></script>
 <script src="/config.js?v=98"></script>
 <script src="/event-name.js?v=1"></script>
-<script src="/store-api.js?v=140"></script>
+<script src="/store-api.js?v=144"></script>
 <script>
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const LINK=BPStore.links.parse("proposal");   // branded /<studio>/proposal/<token> (server-verified below)
@@ -118,7 +118,8 @@
     // only when it adds up to the server-stamped total.
     const c=(function(){ try{ if(!("gstPct" in pr) || !BPStore.pricing || !BPStore.pricing.quoteTotal || !isFinite(+pr.total)) return {};
       const q=BPStore.pricing.quoteTotal(pr); if(!q || Math.round(q.total)!==Math.round(+pr.total)) return {}; const r={}; Object.keys(q).forEach(k=>{ r[k]=Math.round(+q[k]||0); }); return r; }catch(e){ return {}; } })();
-    const inr=(n)=> (n==null||n===""||isNaN(+n))?"":"₹"+Number(n).toLocaleString("en-IN");
+    let pvTax=null; try{ pvTax=BPStore.tax.resolve(pr); }catch(e){ pvTax=null; }   // 0079
+    const inr=(n)=> (n==null||n===""||isNaN(+n))?"":(pvTax&&pvTax.country!=="IN")?BPStore.tax.money(Number(n),pvTax):"₹"+Number(n).toLocaleString("en-IN");
     const num=(v)=>+v||0;
     const chairs=num(pr.chairs), chairPrice=num(pr.chairPrice), guests=num(pr.guests), platePrice=num(pr.platePrice), other=num(pr.other);
     const rows=[];
@@ -128,10 +129,11 @@
     if(num(c.serviceCharge)>0) rows.push(["Service charge", inr(c.serviceCharge)]);
     if(c.subtotal!=null)       rows.push(["Subtotal", inr(c.subtotal), "sub"]);
     if(num(c.discount)>0)      rows.push(["Discount", "− "+inr(c.discount), "sub"]);
+    if(pvTax && pvTax.country!=="IN"){ BPStore.tax.rows(c, pr, pvTax).forEach(r=>{ if(num(r.amount)>0) rows.push([r.label, inr(Math.round(r.amount)), "sub"]); }); } else {
     if(num(c.igst)>0)          rows.push(["IGST", inr(c.igst), "sub"]);
     if(num(c.cgst)>0)          rows.push(["CGST", inr(c.cgst), "sub"]);
     if(num(c.sgst)>0)          rows.push(["SGST", inr(c.sgst), "sub"]);
-    if(!num(c.igst)&&!num(c.cgst)&&num(c.totalGst)>0) rows.push(["GST", inr(c.totalGst), "sub"]);
+    if(!num(c.igst)&&!num(c.cgst)&&num(c.totalGst)>0) rows.push(["GST", inr(c.totalGst), "sub"]); }
     const total = p.total || c.total || pr.total;
     if(total)                  rows.push(["Total", inr(total), "total"]);
     if(rows.length){ $("#priceSec").hidden=false;

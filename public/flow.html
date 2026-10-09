@@ -83,6 +83,8 @@
   .secerr:empty{display:none} .secerr{margin:0 0 12px}
   .meta{color:var(--ink-3);font-size:12px}
   @media (prefers-reduced-motion:reduce){.saved{transition:none}}
+  .banner.reprice{align-items:flex-start;flex-wrap:wrap;margin:0 0 12px;background:var(--warn-soft,#fff6e0);border-color:var(--warn,#c98a00)}
+  .rp-body{flex:1;min-width:220px} .rp-lines{margin:6px 0 0;padding-left:18px} .rp-lines li{margin:2px 0} .rp-act{display:flex;gap:8px;flex-wrap:wrap}
   .banner{background:var(--accent-soft);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--ink);display:flex;gap:10px;align-items:center}
 </style>
 <link rel="stylesheet" href="share-checklist.css?v=1">
@@ -221,6 +223,13 @@
         <section class="card" id="sec-quote">
           <h2><span class="step-n">8</span> Quotation <span class="saved" id="sv-quote">Saved ✓</span></h2>
           <p class="sub">Live total from the layout, guests and package. Adjust and save.</p>
+          <div class="banner reprice" id="repriceBanner" role="status" hidden>
+            <div class="rp-body"><b>Prices changed since this quote was priced — Review &amp; re-price</b>
+              <div class="meta" id="repriceMeta"></div>
+              <ul class="rp-lines" id="repriceLines"></ul></div>
+            <div class="rp-act"><button type="button" class="btn primary" id="repriceBtn">Review &amp; re-price</button>
+              <button type="button" class="btn" id="repriceDismiss">Not now</button></div>
+          </div>
           <div class="secerr" id="err-rates"></div>
           <div class="grid">
             <div class="fld"><label for="q_chairs">Chairs (from layout)</label><input id="q_chairs" type="number" min="0"></div>
@@ -321,9 +330,9 @@
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="event-name.js?v=1"></script>
-<script src="store-api.js?v=140"></script>
+<script src="store-api.js?v=144"></script>
 <script src="tour.js?v=9"></script>
-<script src="booklet.js?v=9"></script>
+<script src="booklet.js?v=10"></script>
 <script src="share-checklist.js?v=3"></script>
 <script src="flow-layout-sync.js?v=1"></script>
 <script>
@@ -349,7 +358,8 @@
     const th=document.getElementById("themeList");      if(th) th.innerHTML=vocabAll("themes").map(v=>`<option value="${esc(v)}"></option>`).join("");
   }
   fillVocab();
-  const inr=(n)=>"₹"+Math.round(n||0).toLocaleString("en-IN");
+  const fTax=()=>BPStore.tax.resolve(rates||{});   // 0079: studio tax country (India unless set)
+  const inr=(n)=>{ const r=fTax(); return r.country!=="IN" ? BPStore.tax.money(Math.round(n||0), r) : "₹"+Math.round(n||0).toLocaleString("en-IN"); };
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   let ev=null, rates={chairPrice:200,platePrice:500,gstPct:18,layoutBase:0,serviceChargePct:0,assetPrices:null};
   let packages=[], plan=null, appliedPkg=null, layoutItems=[], canEdit=false;
@@ -426,7 +436,7 @@
       other, gstPct, serviceChargePct:+rates.serviceChargePct||0,
       discount:nn($("#q_discount").value||0), catering:{mode:"inhouse",gstPct},
       couponCode:($("#q_coupon")?$("#q_coupon").value.trim():""), coupon:appliedCoupon,
-      placeOfSupply:"intra", currency:"INR",
+      placeOfSupply:"intra", currency:"INR", ...BPStore.tax.snapshot(fTax()),
       _objectsCost:oi.objectsCost, _packageName:appliedPkg?appliedPkg.name:null };
   }
   function renderPrice(){
@@ -437,9 +447,9 @@
     if(p.other>0) rows+=`<div class="prow"><span>Décor / setup</span><span class="amt">${inr(p.other)}</span></div>`;
     rows+=`<div class="prow sub"><span>Subtotal</span><span class="amt">${inr(t.subtotal)}</span></div>`;
     if(t.discount>0) rows+=`<div class="prow"><span>Discount</span><span class="amt">− ${inr(t.discount)}</span></div>`;
-    rows+=`<div class="prow"><span>GST</span><span class="amt">${inr(t.totalGst)}</span></div>`;
+    rows+=`<div class="prow"><span>${esc(fTax().name)}${t.taxInclusive?" (included)":""}</span><span class="amt">${inr(t.totalGst)}</span></div>`;
     rows+=`<div class="prow total"><span>Total</span><span class="amt">${inr(t.total)}</span></div>`;
-    rows+=`<div class="prow" style="font-style:italic;color:var(--ink-3);font-size:11px;justify-content:flex-end">${esc(BPStore.amountInWords(t.total))}</div>`;
+    rows+=`<div class="prow" style="font-style:italic;color:var(--ink-3);font-size:11px;justify-content:flex-end">${fTax().country!=="IN"?"":esc(BPStore.amountInWords(t.total))}</div>`;
     $("#priceRows").innerHTML=rows;
     const oi=BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
     $("#layoutSummary").textContent = oi.chairs+" chairs · "+(layoutItems.length)+" objects";
@@ -563,10 +573,10 @@
       return;
     }
     if($("#q_msg")) $("#q_msg").style.color="";
-    const pricing=Object.assign({}, ev.pricing||{}, p, { computed:t, total:t.total, client:ev.client||{} });
+    const pricing=Object.assign({}, ev.pricing||{}, p, { computed:t, total:t.total, client:ev.client||{}, _ratesAt:ratesSnapshot() });
     try{
       const r=await BPStore.quotationVersions.save(id, pricing);   // keeps every Q-version; also updates current pricing
-      ev.pricing=pricing; saved("quote"); updateProgress(); await renderQuoteVersions();
+      ev.pricing=pricing; saved("quote"); updateProgress(); await renderQuoteVersions(); renderActivity(); renderReprice();
       $("#q_msg") && ($("#q_msg").textContent="Saved "+(r&&r.label||""));
     }catch(e){
       // REL-01: ONLY fall back when the versioning RPC is genuinely ABSENT
@@ -590,6 +600,95 @@
       if($("#q_msg")) $("#q_msg").textContent="Saved (legacy mode — versioning not enabled)";
     }
   }
+  /* ---------- live history (R3) ----------
+     The quotation-version list and the activity trail were read once on page load (and the
+     activity trail was not even re-read after "Save quotation"), so saves made on another
+     device / tab — or a new floor-plan version — never showed until a full reload. They now
+     re-read the server after every save, when the tab becomes visible again, and on realtime
+     inserts into quote_versions / quotation_versions (0077). */
+  let histT=null, histSub=null;
+  function refreshHistorySoon(){ clearTimeout(histT); histT=setTimeout(()=>{ renderQuoteVersions(); renderActivity(); }, 250); }
+  function watchHistory(){
+    if(histSub || !BPStore.quotes.subscribeVersions) return;
+    histSub=BPStore.quotes.subscribeVersions(id, ()=>refreshHistorySoon());
+    document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="visible") refreshHistorySoon(); });
+  }
+
+  /* ---------- re-pricing alert (R3) ----------
+     A saved quote keeps the rates it was priced at; Control Center prices are read live. When
+     they now differ on a FUTURE, open quote, show old -> new per line. Re-pricing is never
+     automatic: the button goes through saveQuotation() (the normal save path, D8 server
+     pricing authority) after the same stale-approval confirmation the builder uses. */
+  const nOrNull=v=>(v==null||v===""||!isFinite(+v))?null:+v;
+  function assetSig(a){ try{ const o=a&&typeof a==="object"?a:{}; return JSON.stringify(Object.keys(o).sort().map(k=>[k,+o[k]||0])); }catch(_){ return ""; } }
+  function liveGst(){ return (rates.gstPct==null||rates.gstPct===""||!isFinite(+rates.gstPct)) ? 18 : +rates.gstPct; }
+  function ratesSnapshot(){ return { chairPrice:nOrNull(rates.chairPrice), platePrice:nOrNull(rates.platePrice), gstPct:liveGst(),
+    serviceChargePct:+rates.serviceChargePct||0, layoutBase:+rates.layoutBase||0, assets:assetSig(rates.assetPrices),
+    pkg:appliedPkg?appliedPkg.name:null, pkgPrice:appliedPkg?nOrNull(appliedPkg.price_per_plate):null }; }
+  function todayIso(){ const t=new Date(); return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0"); }
+  function quoteIsFutureOpen(){
+    if(!ev) return false;
+    const st=String(ev.status||"").toLowerCase(), stage=String(ev.lifecycleStage||"").toLowerCase();
+    if(st==="cancelled" || stage==="settlement" || stage==="closed") return false;
+    const d=String(ev.eventDate||((ev.client||{}).eventDate)||"").slice(0,10);
+    return !(/^\d{4}-\d{2}-\d{2}$/.test(d) && d<todayIso());
+  }
+  function repriceDiff(){
+    const pr=ev&&ev.pricing;
+    if(!pr || !(+pr.total>0) || quoteBlocked() || !quoteIsFutureOpen()) return null;
+    const lines=[], next={}, snap=pr._ratesAt||null;
+    const chairs=nOrNull(pr.chairs)||0, guests=nOrNull(pr.guests)||0;
+    const oc=nOrNull(pr.chairPrice), nc=nOrNull(rates.chairPrice);
+    if(chairs>0 && oc!=null && nc!=null && oc!==nc){ lines.push({ label:"Chair rate · "+chairs+" chairs", from:oc, to:nc, a:chairs*oc, b:chairs*nc }); next.chairPrice=nc; }
+    const op=nOrNull(pr.platePrice), np=appliedPkg ? nOrNull(appliedPkg.price_per_plate) : nOrNull(rates.platePrice);
+    if(guests>0 && op!=null && np!=null && op!==np){ lines.push({ label:"Plate price"+(appliedPkg?" ("+appliedPkg.name+")":"")+" · "+guests+" plates", from:op, to:np, a:guests*op, b:guests*np }); next.platePrice=np; }
+    // décor / setup: only when the quote still follows the layout (not hand-edited) and the object
+    // prices / layout base themselves changed since it was priced (a layout change is synced elsewhere)
+    const oo=nOrNull(pr.other);
+    if(snap && oo!=null && pr.otherAuto!=null && oo===nOrNull(pr.otherAuto) && !failed.layout
+       && (snap.assets!==assetSig(rates.assetPrices) || (+snap.layoutBase||0)!==(+rates.layoutBase||0))){
+      const oi=BPStore.pricing.fromItems(layoutItems, rates.assetPrices), no=oi.objectsCost+(+rates.layoutBase||0);
+      if(no!==oo){ lines.push({ label:"Décor / setup (object prices)", from:oo, to:no, a:oo, b:no }); next.other=no; next.otherAuto=no; }
+    }
+    const og=nOrNull(pr.gstPct), ng=liveGst();
+    if(og!=null && og!==ng){ lines.push({ label:"GST", pct:true, from:og, to:ng }); next.gstPct=ng; }
+    const os=nOrNull(pr.serviceChargePct)||0, ns=+rates.serviceChargePct||0;
+    if(os!==ns){ lines.push({ label:"Service charge", pct:true, from:os, to:ns }); next.serviceChargePct=ns; }
+    if(!lines.length) return null;
+    const oldTotal=+pr.total, newTotal=BPStore.pricing.quoteTotal(Object.assign({}, pr, next, { catering:Object.assign({}, pr.catering||{}, next.gstPct!=null?{gstPct:next.gstPct}:{}) })).total;
+    return { lines, next, oldTotal, newTotal, sig:JSON.stringify(next) };
+  }
+  const dismissKey=()=>"helm_reprice_dismiss_"+id;
+  function renderReprice(){
+    const b=$("#repriceBanner"); if(!b) return;
+    const d=canEdit ? repriceDiff() : null;
+    let dismissed=""; try{ dismissed=sessionStorage.getItem(dismissKey())||""; }catch(_){}
+    if(!d || dismissed===d.sig){ b.hidden=true; return; }
+    $("#repriceMeta").textContent="Control Center prices changed after this quote was saved. Total "+inr(d.oldTotal)+" → "+inr(d.newTotal)+" at today's prices. Nothing changes until you re-price.";
+    const ul=$("#repriceLines"); ul.textContent="";
+    d.lines.forEach(l=>{ const li=document.createElement("li");
+      li.textContent=l.label+": "+(l.pct ? (l.from+"% → "+l.to+"%") : (inr(l.from)+" → "+inr(l.to)+(l.a!=null && l.label.indexOf("·")>0 ? " ("+inr(l.a)+" → "+inr(l.b)+")" : "")));
+      ul.appendChild(li); });
+    b.hidden=false;
+  }
+  async function applyReprice(){
+    const d=repriceDiff(); if(!d){ renderReprice(); return; }
+    const approved = ev.status==="confirmed" || (ev.approvalStatus && ev.approvalStatus!=="none");
+    const msg = approved
+      ? "This quote is already confirmed/approved. Re-pricing changes the total from "+inr(d.oldTotal)+" to "+inr(d.newTotal)+", so the client’s approval will go stale and they will need to approve again (payments pause until then). Re-price anyway?"
+      : "Re-price this quote at today’s Control Center prices? The total changes from "+inr(d.oldTotal)+" to "+inr(d.newTotal)+". A new quotation version is saved; earlier versions stay on record.";
+    if(!(await BPUI.confirm(msg,{ title: approved ? "Client approval will go stale" : "Re-price this quote?", okLabel:"Save and re-price" }))) return;
+    const wasLoading=loading; loading=true;
+    if(d.next.chairPrice!=null) $("#q_chairPrice").value=d.next.chairPrice;
+    if(d.next.platePrice!=null) $("#q_platePrice").value=d.next.platePrice;
+    if(d.next.other!=null){ $("#q_other").value=d.next.other; ev.pricing=Object.assign({}, ev.pricing, { otherAuto:d.next.otherAuto }); }
+    loading=wasLoading;
+    renderPrice(); updateAdvance();
+    try{ await saveQuotation(); BPUI.toast("Quote re-priced at today’s prices.",{type:"ok"}); }
+    catch(_){ dirty=true; }   // saveQuotation already surfaced the error; nothing was saved
+    renderReprice();
+  }
+
   async function renderQuoteVersions(){
     let vs=[];
     try{ vs=(await BPStore.quotationVersions.list(id))||[]; }
@@ -619,7 +718,7 @@
       <table>${rows.join('')}
         <tr><td>Subtotal</td><td style="text-align:right">${inr(t.subtotal)}</td></tr>
         ${t.discount>0?`<tr><td>Discount</td><td style="text-align:right">− ${inr(t.discount)}</td></tr>`:''}
-        <tr><td>GST</td><td style="text-align:right">${inr(t.totalGst)}</td></tr>
+        <tr><td>${esc(fTax().name)}${t.taxInclusive?" (included)":""}</td><td style="text-align:right">${inr(t.totalGst)}</td></tr>
         <tr class="tot"><td>Total</td><td style="text-align:right">${inr(t.total)}</td></tr>
       </table>
       <p class="muted" style="margin-top:20px">Generated by Helm Events. This is a quotation, not a tax invoice.</p>
@@ -832,8 +931,9 @@
     renderPrice(); updateProgress();
     // advance payment + activity
     updateAdvance();
-    if(ev.status==='confirmed' || (ev.approval_status==='paid')) $("#bookingBadge").hidden=false;
+    if(ev.status==='confirmed' || ((ev.approvalStatus||ev.approval_status)==='paid')) $("#bookingBadge").hidden=false;
     await renderReceipts(); await renderActivity(); await renderQuoteVersions();
+    renderReprice(); watchHistory();
     // reminder banner
     try{ if(localStorage.getItem(REMIND_KEY)==="1"){ $("#reminder").hidden=false; localStorage.removeItem(REMIND_KEY); $("#sec-quote").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"}); } }catch{}
     $("#remindAfter").checked = false;
@@ -887,6 +987,7 @@
     try{ await runSection("layout"); if(!wasDirty && !quoteBlocked()) seedQuote(); }
     finally{ loading=wasLoading; dirty=wasDirty; renderPrice(); updateAdvance(); updateProgress(); }
     await syncFromLayout(true);
+    renderReprice(); refreshHistorySoon();
   }
 
   /* ---------- wire ---------- */
@@ -956,6 +1057,8 @@
       location.href="builder.html?"+p.toString();
     }).catch(()=>{}));
     $("#dismissReminder").addEventListener("click",()=>$("#reminder").hidden=true);
+    $("#repriceBtn").addEventListener("click",()=>{ BPUI.guard($("#repriceBtn"),applyReprice,{busyLabel:"Re-pricing…"}).catch(()=>{}); });
+    $("#repriceDismiss").addEventListener("click",()=>{ const d=repriceDiff(); try{ if(d) sessionStorage.setItem(dismissKey(), d.sig); }catch(_){} $("#repriceBanner").hidden=true; });
 
     // ---- save-on-leave: intercept the in-page leave paths (header logo + nav
     // links Home/Quotes/Leads, and the "Open full workspace" link) so that if

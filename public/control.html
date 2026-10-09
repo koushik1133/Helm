@@ -202,6 +202,7 @@
   }
 </style>
 <link rel="stylesheet" href="pkg-review.css?v=1">
+<link rel="stylesheet" href="comms-settings.css?v=1">
 <link rel="stylesheet" href="theme.css?v=76">
 </head>
 <body>
@@ -245,6 +246,7 @@
       <div id="orgMsg" role="status" aria-live="polite"></div>
       <div id="orgErr"></div>
       <div class="grid">
+        <div class="fld"><label for="o_country">Country (sets tax &amp; currency)</label><select id="o_country"></select></div>
         <div class="fld"><label for="o_name">Studio / business name</label><input id="o_name" placeholder="e.g. Aurora Events"></div>
         <div class="fld"><label for="o_email">Business email</label><input id="o_email" type="email" placeholder="hello@studio.com"></div>
         <div class="fld"><label for="o_phone">Business phone</label><input id="o_phone" type="tel" autocomplete="tel" maxlength="24" placeholder="+91 98765 43210"></div>
@@ -253,7 +255,7 @@
         <div class="fld"><label for="o_accent">Accent colour</label><input id="o_accent" placeholder="#6d28d9"></div>
         <div class="fld"><label for="o_currency">Currency</label><input id="o_currency" placeholder="INR"></div>
         <div class="fld"><label for="o_tz">Timezone</label><input id="o_tz" placeholder="Asia/Kolkata"></div>
-        <div class="fld"><label for="o_gst">GSTIN (optional)</label><input id="o_gst" placeholder="22AAAAA0000A1Z5"></div>
+        <div class="fld"><label for="o_gst" id="o_gst_lbl">GSTIN (optional)</label><input id="o_gst" maxlength="30" placeholder="22AAAAA0000A1Z5"></div>
       </div>
       <h3>Billing details</h3>
       <p class="mnote">Shown on quotations and invoices. Required: legal name, address, city, state, PIN, business phone and location.</p>
@@ -262,8 +264,8 @@
         <div class="fld"><label for="o_line1">Billing address *</label><input id="o_line1" maxlength="160" autocomplete="address-line1"></div>
         <div class="fld"><label for="o_line2">Address line 2</label><input id="o_line2" maxlength="160" autocomplete="address-line2"></div>
         <div class="fld"><label for="o_city">City *</label><input id="o_city" maxlength="60" autocomplete="address-level2"></div>
-        <div class="fld"><label for="o_state">State *</label><input id="o_state" maxlength="60" autocomplete="address-level1"></div>
-        <div class="fld"><label for="o_pin">PIN code *</label><input id="o_pin" maxlength="6" inputmode="numeric" autocomplete="postal-code"></div>
+        <div class="fld"><label for="o_state" id="o_state_lbl">State *</label><input id="o_state" maxlength="60" autocomplete="address-level1"></div>
+        <div class="fld"><label for="o_pin" id="o_pin_lbl">PIN code *</label><input id="o_pin" maxlength="10" inputmode="numeric" autocomplete="postal-code"></div>
       </div>
       <div class="actions"><button type="button" class="btn primary" id="o_save">Save studio settings</button></div>
       <div class="s-e3ae377" id="slugBox" hidden>
@@ -326,8 +328,10 @@
       <div class="grid">
         <div class="fld"><label for="p_chair">Price / chair (₹)</label><input id="p_chair" type="number" min="0" step="1"></div>
         <div class="fld"><label for="p_plate">Price / plate (₹)</label><input id="p_plate" type="number" min="0" step="1"></div>
-        <div class="fld"><label for="p_gst">Chair/rental GST %</label><input id="p_gst" type="number" min="0" step="0.5"></div>
-        <div class="fld"><label for="p_cgst">Catering GST %</label><input id="p_cgst" type="number" min="0" step="0.5"></div>
+        <div class="fld"><label for="p_gst" id="p_gst_lbl">Chair/rental GST %</label><input id="p_gst" type="number" min="0" step="0.01" list="p_gst_rates"><datalist id="p_gst_rates"></datalist></div>
+        <div class="fld"><label for="p_cgst" id="p_cgst_lbl">Catering GST %</label><input id="p_cgst" type="number" min="0" step="0.5"></div>
+        <div class="fld" id="p_taxName_fld" hidden><label for="p_taxName">Tax name</label><input id="p_taxName" maxlength="24" placeholder="e.g. VAT"></div>
+        <div class="fld"><label class="mpchk" for="p_taxIncl"><input type="checkbox" id="p_taxIncl"> My prices already include tax</label><p class="mnote" id="p_taxNote"></p></div>
         <div class="fld"><label for="p_svc">Service charge % (optional)</label><input id="p_svc" type="number" min="0" step="0.5"></div>
         <div class="fld"><label for="p_layout">Layout &amp; setup fee (₹)</label><input id="p_layout" type="number" min="0" step="1" placeholder="0"></div>
         <div class="fld"><label for="p_buffer">Venue booking gap (hours)</label><input id="p_buffer" type="number" min="0" step="0.5" placeholder="3" title="Two events at the same venue on the same day that start closer together than this many hours are flagged as a clash on the calendar. A bigger gap (e.g. one ends 3pm, next starts 6pm) is fine."></div>
@@ -562,6 +566,59 @@
         <div class="ntools"><select id="np_user" aria-label="Person"><option value="">Choose a person…</option></select></div>
         <div id="np_list"></div>
       </div>
+
+      <!-- 0078: automatic client messages + WhatsApp forwarding (wired by comms-settings.js) -->
+      <div class="card" id="commsCard" hidden>
+        <h3>Automatic client messages &amp; WhatsApp</h3>
+        <p class="mnote">Helm can remind clients about payments, follow up on proposals they opened, warn your team about stock clashes and copy notifications to WhatsApp.
+          Everything here is <b>off</b> until you switch it on. Messages are sent by the server, never twice, and each one is logged on the event.
+          WhatsApp is used only after you add your studio's WhatsApp number below.</p>
+        <div id="cm_err"></div>
+        <fieldset class="cmset">
+          <legend>Payment reminders</legend>
+          <label class="cmchk" for="cm_pay_on"><input type="checkbox" id="cm_pay_on"> Send automatic payment reminders to clients</label>
+          <div class="cmchans"><span>Send by</span>
+            <label class="cmchk" for="cm_pay_email"><input type="checkbox" id="cm_pay_email"> E-mail</label>
+            <label class="cmchk" for="cm_pay_wa"><input type="checkbox" id="cm_pay_wa"> WhatsApp</label></div>
+          <div class="cmgrid">
+            <div class="fld"><label for="cm_pay_before">Days before the due date</label><input id="cm_pay_before" type="number" min="0" max="30" step="1" inputmode="numeric"></div>
+            <div class="fld"><label for="cm_pay_every">Then every N days overdue</label><input id="cm_pay_every" type="number" min="1" max="30" step="1" inputmode="numeric"></div>
+            <div class="fld"><label for="cm_pay_max">Max overdue reminders</label><input id="cm_pay_max" type="number" min="0" max="10" step="1" inputmode="numeric"></div>
+            <div class="fld"><span class="cmlbl">On the due date</span><label class="cmchk" for="cm_pay_due"><input type="checkbox" id="cm_pay_due"> Remind on the day</label></div>
+          </div>
+          <div class="fld"><label for="cm_pay_tpl">Message</label><textarea id="cm_pay_tpl" rows="3" maxlength="1000"></textarea></div>
+          <p class="mnote">Placeholders: {client} {studio} {event} {label} {amount} {due} {status}. Reminders stop as soon as the milestone is paid.</p>
+          <p class="cmprev" id="cm_pay_prev" aria-live="polite"></p>
+        </fieldset>
+        <fieldset class="cmset">
+          <legend>Client follow-ups</legend>
+          <label class="cmchk" for="cm_fu_on"><input type="checkbox" id="cm_fu_on"> Follow up when a client opened their booklet or quote but hasn't approved</label>
+          <div class="cmchans"><span>Send by</span>
+            <label class="cmchk" for="cm_fu_email"><input type="checkbox" id="cm_fu_email"> E-mail</label>
+            <label class="cmchk" for="cm_fu_wa"><input type="checkbox" id="cm_fu_wa"> WhatsApp</label></div>
+          <div class="cmgrid">
+            <div class="fld"><label for="cm_fu_delay">Days after opening</label><input id="cm_fu_delay" type="number" min="1" max="30" step="1" inputmode="numeric"></div>
+            <div class="fld"><label for="cm_fu_max">Max follow-ups</label><input id="cm_fu_max" type="number" min="1" max="5" step="1" inputmode="numeric"></div>
+          </div>
+          <div class="fld"><label for="cm_fu_tpl">Message</label><textarea id="cm_fu_tpl" rows="3" maxlength="1000"></textarea></div>
+          <p class="mnote">Placeholders: {client} {studio} {event}. Follow-ups stop once the client approves, picks a package, or the event is cancelled.</p>
+          <p class="cmprev" id="cm_fu_prev" aria-live="polite"></p>
+        </fieldset>
+        <fieldset class="cmset">
+          <legend>Inventory</legend>
+          <label class="cmchk" for="cm_low_on"><input type="checkbox" id="cm_low_on"> Warn in the 🔔 bell when events on the same date need more of an item than you own</label>
+        </fieldset>
+        <fieldset class="cmset">
+          <legend>WhatsApp forwarding</legend>
+          <p class="mnote">Team members who opt in on their profile get a WhatsApp copy of their bell notifications, with a link that opens the exact page. Max 30 per person per hour.</p>
+          <div class="cmgrid">
+            <div class="fld"><label for="cm_wa_num">Studio WhatsApp number</label><input id="cm_wa_num" type="tel" inputmode="tel" autocomplete="off" maxlength="20" placeholder="e.g. 98XXXXXXXX"></div>
+            <div class="fld"><span class="cmlbl">Forwarding</span><label class="cmchk" for="cm_wa_on"><input type="checkbox" id="cm_wa_on"> Forward notifications to WhatsApp</label></div>
+          </div>
+          <div class="table-scroll"><table class="ntable cmroles" id="cm_roles"><caption class="sr-only">Which notifications each role may receive on WhatsApp</caption></table></div>
+        </fieldset>
+        <div class="cmfoot"><span id="cm_msg" class="ncount" role="status" aria-live="polite"></span><button type="button" class="btn primary" id="cm_save">Save automatic messages</button></div>
+      </div>
     </div>
   </div>
   </main>
@@ -611,11 +668,12 @@
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="event-name.js?v=1"></script>
-<script src="store-api.js?v=140"></script>
+<script src="store-api.js?v=144"></script>
 <script src="hq-invoice.js?v=1"></script>
 <script src="tour.js?v=9"></script>
 <script src="pkg-review.js?v=4"></script>
-<script src="onboarding-core.js?v=2"></script>
+<script src="onboarding-core.js?v=3"></script>
+<script src="comms-settings.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -677,6 +735,17 @@
   document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>switchTab(t.dataset.pane)));
   // full pricing config blob (preserved across saves so builder item prices survive)
   let pricingCfg = { assetPrices:{} };
+  // 0079: labels/defaults for the studio's tax country (Studio details → Country)
+  function paintTaxFields(){
+    const T=BPStore.tax, r=T.resolve(Object.assign({},pricingCfg,{taxName:$("#p_taxName").value||pricingCfg.taxName}));
+    const known=T.profile(r.country).known;
+    $("#p_gst_lbl").textContent=(r.split?"Chair/rental ":"")+r.name+" %"+(r.country==="IN"?"":" ("+r.countryName+")");
+    $("#p_cgst_lbl").textContent=r.split?"Catering GST %":"Catering "+r.name+" % (not used — one rate applies)";
+    $("#p_taxName_fld").hidden=known;
+    $("#p_gst_rates").innerHTML=r.rates.map(x=>`<option value="${Number(x)}"></option>`).join("");
+    const p=T.profile(r.country);
+    $("#p_taxNote").textContent=(r.split?"India: CGST + SGST within your state, IGST for other states. Common rates 18% / 5%.":p.rate==null?"Set the "+r.name.toLowerCase()+" rate that applies to you (no default).":"Default "+r.name+" rate "+p.rate+"%.")+" Prices in "+r.currency+".";
+  }
   // If the pricing config didn't load, the form holds placeholders — saving it would
   // overwrite the studio's real rates. Block both pricing saves until a retry succeeds.
   let pricingLoaded = false;
@@ -689,6 +758,7 @@
       if(!pricingCfg.assetPrices) pricingCfg.assetPrices={};
       $("#p_chair").value=p.chairPrice??200; $("#p_plate").value=p.platePrice??500; $("#p_gst").value=p.gstPct??18;
       $("#p_cgst").value=p.cateringGstPct??18; $("#p_svc").value=p.serviceChargePct??0;
+      $("#p_taxIncl").checked=String(p.taxInclusive).toLowerCase()==="true"; $("#p_taxName").value=p.taxName||""; paintTaxFields();
       $("#p_layout").value=p.layoutBase??0;
       $("#p_buffer").value=p.conflictBufferHours??3;
       try{ const cc=$("#p_country"); if(cc && !cc.options.length){ cc.innerHTML=(BPStore.countries()||[]).map(c=>`<option value="${esc(c.iso)}">${esc(c.name)} (+${esc(c.dial)})</option>`).join(""); } if(cc) cc.value=p.country||"IN"; }catch(e){}
@@ -733,7 +803,12 @@
     let layoutBase=0; if($("#p_layout").value!==""){ const r=V.money($("#p_layout").value,{field:"Layout & setup fee"}); if(!r.ok){ fail(r.error); return; } layoutBase=r.value; }
     let conflictBufferHours=3; if($("#p_buffer").value!==""){ const r=V.num($("#p_buffer").value,{field:"Venue booking gap",min:0,max:48}); if(!r.ok){ fail(r.error); return; } conflictBufferHours=r.value; }
     const country=($("#p_country")&&$("#p_country").value)||"IN";
-    Object.assign(pricingCfg,{ chairPrice, platePrice, gstPct, cateringGstPct, serviceChargePct, layoutBase, currency:"INR", conflictBufferHours, country });
+    // 0079: tax country follows Studio details; India/exclusive keep the old blob shape
+    const taxRes=BPStore.tax.resolve(pricingCfg), taxIncl=$("#p_taxIncl").checked;
+    const taxName=String($("#p_taxName").value||"").replace(/[<>"'`]/g,"").trim().slice(0,24);
+    Object.assign(pricingCfg,{ chairPrice, platePrice, gstPct, cateringGstPct, serviceChargePct, layoutBase, currency:taxRes.currency, conflictBufferHours, country });
+    if(taxIncl) pricingCfg.taxInclusive=true; else delete pricingCfg.taxInclusive;
+    if(taxName && !BPStore.tax.profile(taxRes.country).known) pricingCfg.taxName=taxName; else delete pricingCfg.taxName;
     try{ localStorage.setItem("helm_org_country", country); }catch(e){}
     try{ await BPStore.config.setPricing(pricingCfg); setMsg("ok","Pricing saved — new quotes use these rates."); }
     catch(e){ setMsg("err",errMsg(e,"save pricing")); }
@@ -901,6 +976,7 @@
     $("#o_name").value=o.name||""; $("#o_email").value=o.business_email||""; $("#o_logo").value=b.logo||"";
     $("#o_accent").value=b.accent||""; $("#o_currency").value=o.currency||""; $("#o_tz").value=o.timezone||""; $("#o_gst").value=o.gst_number||"";
     if($("#o_location")) $("#o_location").value=o.location||"";
+    paintCountry(OB?OB.billingFromOrg(o).country:"IN");
     paintBilling(o);
     orgMsg("",""); orgLoaded=true; $("#o_save").disabled=false;
     // branded client links (migration 0020) — only shown once the column exists
@@ -908,7 +984,20 @@
   }
   // billing details live in brand.billing (+ location, brand.phone, gst_number) — see onboarding-core.js
   const OB=window.HelmOnboarding;
-  const BILL_IDS={legal_name:"o_legal",line1:"o_line1",line2:"o_line2",city:"o_city",state:"o_state",pin:"o_pin",phone:"o_phone",location:"o_location",gstin:"o_gst"};
+  const BILL_IDS={country:"o_country",legal_name:"o_legal",line1:"o_line1",line2:"o_line2",city:"o_city",state:"o_state",pin:"o_pin",phone:"o_phone",location:"o_location",gstin:"o_gst"};
+  let orgCountry="IN";
+  function paintCountry(cc){
+    const T=BPStore.tax, sel=$("#o_country"); cc=T.code(cc); orgCountry=cc;
+    if(!sel.options.length){ const top=T.countries(); let rest=[]; try{ rest=(BPStore.countries()||[]).filter(c=>!top.some(k=>k.iso===c.iso)); }catch(e){}
+      sel.innerHTML=top.map(c=>`<option value="${esc(c.iso)}">${esc(c.name)}</option>`).join("")+(rest.length?`<optgroup label="Other countries (custom tax)">${rest.map(c=>`<option value="${esc(c.iso)}">${esc(c.name)}</option>`).join("")}</optgroup>`:""); }
+    sel.value=cc; paintCountryLabels();
+  }
+  function paintCountryLabels(){
+    const cc=BPStore.tax.code($("#o_country").value), p=BPStore.tax.profile(cc), india=cc==="IN";
+    $("#o_gst_lbl").textContent=p.idLabel+" (optional)"; $("#o_gst").placeholder=p.idEg||"";
+    $("#o_pin_lbl").textContent=india?"PIN code *":"Postal code *"; $("#o_state_lbl").textContent=india?"State *":(p.regionLabel||"State / region")+" *";
+  }
+  $("#o_country").addEventListener("change",()=>{ paintCountryLabels(); const p=BPStore.tax.profile($("#o_country").value); if(p.known) $("#o_currency").value=p.currency; });
   function paintBilling(o){
     if(!OB) return; const v=OB.billingFromOrg(o);
     ["legal_name","line1","line2","city","state","pin"].forEach(k=>{ $("#"+BILL_IDS[k]).value=v[k]||""; });
@@ -945,7 +1034,8 @@
       const anyBill=["legal_name","line1","line2","city","state","pin"].some(k=>String(vals[k]||"").trim());
       if(anyBill && !r.ok){ const k=OB.BILLING_FIELDS.find(f=>r.errors[f.key]).key; orgMsg("err",r.errors[k]); $("#"+BILL_IDS[k]).focus(); return; }
       if(anyBill) billing=r.data; }
-    if(gstRaw && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(gstRaw)){ orgMsg("err","Enter a valid 15-character GSTIN, e.g. 36ABCDE1234F1Z5 (or leave it blank)."); $("#o_gst").focus(); return; }
+    const newCountry=BPStore.tax.code($("#o_country").value);
+    { const r=BPStore.tax.validateId(newCountry, gstRaw); if(!r.ok){ orgMsg("err", newCountry==="IN"?"Enter a valid 15-character GSTIN, e.g. 36ABCDE1234F1Z5 (or leave it blank).":r.error); $("#o_gst").focus(); return; } }
     // #16: an email saved HERE is the studio's public contact (business_email_confirmed); the booklet
     // never shows an unconfirmed (e.g. signup) email. Brand keys we don't edit here are kept.
     const patch={ name:$("#o_name").value.trim()||null, business_email:email?email.toLowerCase():null, business_email_confirmed:!!email,
@@ -955,7 +1045,17 @@
       brand:Object.assign({}, orgBrand, { logo:logo||null, accent:accent||null, phone:phone?phone.slice(0,40):null }) };
     if(billing){ const bp=OB.billingPatch({ name:patch.name, brand:patch.brand }, billing);
       patch.brand=bp.brand; patch.location=bp.location; patch.gst_number=bp.gst_number; if(!patch.name) patch.name=bp.name||null; }
-    try{ await BPStore.org.save(patch); orgBrand=patch.brand; paintBilling(Object.assign({}, patch)); orgMsg("ok","Studio settings saved."); setTimeout(()=>orgMsg("",""),2500); }
+    if(!billing && newCountry!==orgCountry){ patch.brand=Object.assign({}, patch.brand, { billing:Object.assign({}, (orgBrand&&orgBrand.billing)||{}, { country:newCountry }) }); }
+    try{ await BPStore.org.save(patch); orgBrand=patch.brand; paintBilling(Object.assign({}, patch));
+      if(newCountry!==BPStore.tax.code(pricingCfg.taxCountry||"IN") && pricingLoaded){
+        // 0079: a new country re-labels the tax and suggests its default rate for NEW quotes (saved quotes keep their price)
+        const tp=BPStore.tax.profile(newCountry);
+        const next=Object.assign({}, pricingCfg, { taxCountry:newCountry, currency:tp.known?tp.currency:(patch.currency||"INR") });
+        if(tp.rate!=null) next.gstPct=tp.rate;
+        try{ await BPStore.config.setPricing(next); pricingCfg=next; $("#p_gst").value=next.gstPct??""; paintTaxFields(); }catch(e){ orgMsg("err",errMsg(e,"update the tax for the new country")); return; }
+      }
+      orgCountry=newCountry;
+      orgMsg("ok","Studio settings saved."); setTimeout(()=>orgMsg("",""),2500); }
     catch(e){ orgMsg("err",errMsg(e,"save studio settings")); }
   }));
 
@@ -1449,6 +1549,7 @@
     npUsers.sort((a,b)=>String(a.full_name||a.email||"").localeCompare(String(b.full_name||b.email||"")));
     $("#np_user").innerHTML='<option value="">Choose a person…</option>'+npUsers.map(u=>`<option value="${esc(u.id)}">${esc((u.full_name||u.email||"user")+" · "+roleLbl(u.role))}</option>`).join("");
     renderPeople();
+    if(typeof HelmCommsSettings!=="undefined") HelmCommsSettings.init();   // 0078
   }
   function npMatches(c){
     const q=($("#nf_q").value||"").trim().toLowerCase(), g=$("#nf_grp").value;

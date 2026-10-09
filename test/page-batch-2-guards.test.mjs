@@ -27,9 +27,10 @@ t('control: studio GSTIN is format-checked and pricing needs both rates', () => 
   const h = read('public/control.html');
   assert.match(h, /Enter a valid 15-character GSTIN/);
   assert.match(h, /Enter a price for both chair and plate/);
-  // the GSTIN regex matches the one used at checkout
+  // the GSTIN regex matches the one used at checkout (0079: per-country check lives in BPStore.tax)
   const re = /\^\[0-9\]\{2\}\[A-Z\]\{5\}\[0-9\]\{4\}\[A-Z\]\[1-9A-Z\]Z\[0-9A-Z\]\$/;
-  assert.match(h, re);
+  assert.match(h, /BPStore\.tax\.validateId\(newCountry, gstRaw\)/);
+  assert.match(read('public/store-api.js'), re);
   assert.match(read('public/store-api.js'), re);
 });
 t('invite-studio: map link must be https and reply-by cannot be after the event (save + publish)', () => {

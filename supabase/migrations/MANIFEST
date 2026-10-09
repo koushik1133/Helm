@@ -97,3 +97,9 @@ forward  supabase/migrations/0074_chat_admin_fixes.sql
 forward  supabase/migrations/0075_ui_fixes.sql
 # 0076 (insights_range: date-ranged studio insights, read-only, insights area gate) goes after 0075.
 forward  supabase/migrations/0076_insights.sql
+# 0077 (recent records on the server, live version lists, re-pricing bell alerts, per-event profit) goes after 0076.
+forward  supabase/migrations/0077_r3_sync_reprice_profit.sql
+# 0078 (comms automation: payment reminders, client follow-ups, low-stock bell, WhatsApp forwarding; dormant until switched on) goes after 0076.
+forward  supabase/migrations/0078_comms_automation.sql
+# 0079 (country-based tax: helm_quote_total honours pricing.taxInclusive; labels are client-side) goes after 0076.
+forward  supabase/migrations/0079_country_tax.sql

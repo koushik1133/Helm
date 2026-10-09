@@ -136,11 +136,12 @@
 <script src="/config.js?v=98"></script>
 <script src="/phone-input.js?v=1"></script>
 <script src="/event-name.js?v=1"></script>
-<script src="/store-api.js?v=140"></script>
+<script src="/store-api.js?v=144"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-  const inr=(n)=>"₹"+Number(n||0).toLocaleString("en-IN");
+  let apTax=null;   // 0079: the quote's tax country snapshot (India when absent)
+  const inr=(n)=> (apTax && apTax.country!=="IN") ? BPStore.tax.money(Number(n||0), apTax) : "₹"+Number(n||0).toLocaleString("en-IN");
   const LINK=BPStore.links.parse("quote");   // branded /<studio>/quote/<token> (server-verified below)
   const token=LINK?LINK.ref:new URLSearchParams(location.search).get("token");
 
@@ -178,6 +179,7 @@
   }
   function renderPricing(p){
     const rows=[]; const b=serverBreakdown(p); const c=b?b.c:null;
+    try{ apTax=BPStore.tax.resolve(p||{}); }catch(e){ apTax=null; }
     const add=(l,a)=>rows.push(`<div class="r"><span>${esc(l)}</span><span class="amt">${inr(a)}</span></div>`);
     if(b && b.kind==="canonical"){
       add(`Chairs (${p.chairs||0} × ${inr(p.chairPrice||0)})`, (p.chairs||0)*(p.chairPrice||0));
@@ -189,7 +191,8 @@
     if(c){
       rows.push(`<div class="r"><span>Subtotal</span><span class="amt">${inr(Math.round(c.subtotal||0))}</span></div>`);
       if(c.discount) rows.push(`<div class="r"><span>Discount</span><span class="amt">− ${inr(Math.round(c.discount))}</span></div>`);
-      if(p.placeOfSupply==='inter') add("IGST", Math.round(c.igst||0)); else { add("CGST", Math.round(c.cgst||0)); add("SGST", Math.round(c.sgst||0)); }
+      if(apTax && apTax.country!=="IN") BPStore.tax.rows(c, p, apTax).forEach(r=>add(r.label, Math.round(r.amount||0)));
+      else if(p.placeOfSupply==='inter') add("IGST", Math.round(c.igst||0)); else { add("CGST", Math.round(c.cgst||0)); add("SGST", Math.round(c.sgst||0)); }
     }
     rows.push(`<div class="r grand"><span>Total payable</span><span class="amt">${inr((p&&Number(p.total))||0)}</span></div>`);
     return rows.join("");
