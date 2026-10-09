@@ -50,7 +50,8 @@ t("layout reconcile keeps hand-set chairs", () => {
 
 t("R8b: ONE chairs value per quote is the pricing source", () => {
   assert.equal(S.quoteChairs({ guests: 1000 }, {}), 700, "70% of guests, rounded up");
-  assert.equal(S.quoteChairs({ guests: 101 }, { chairs: 40 }), 71, "auto value follows guests");
+  assert.equal(S.quoteChairs({ guests: 101 }, { chairs: 40, chairsManual: false }), 71, "auto value follows guests");
+  assert.equal(S.quoteChairs({ guests: 101 }, { chairs: 40 }), 40, "R9: pre-R8 quote (no flags) keeps its billed chairs");
   assert.equal(S.quoteChairs({ guests: 1000, chairs: 650, chairsManual: true }, { chairs: 700 }, 999), 650, "edited value wins over layout + default");
   assert.equal(S.quoteChairs({ guests: 1000 }, { chairs: 640, chairsManual: true }, 999), 640, "edited on the quotation");
   assert.equal(S.quoteChairs({}, {}, 120), 120, "nothing on the quote → layout count");
@@ -68,7 +69,7 @@ t("R8b: pricing uses the quote's chairs on every screen; a differing layout only
 const flow = R("public/flow.html"), bjs = R("public/builder.js"), bhtml = R("public/builder.html");
 t("both pages load event-sizing.js before their code", () => {
   assert.match(flow, /<script src="event-sizing\.js\?v=\d+"><\/script>/);
-  assert.match(bhtml, /event-sizing\.js\?v=\d+[\s\S]*builder\.js\?v=22/);
+  assert.match(bhtml, /event-sizing\.js\?v=\d+[\s\S]*builder\.js\?v=23/);
 });
 t("flow: hall L×B restored on load and saved on the client; genLayout saves layout guests first", () => {
   assert.match(flow, /HelmSizing\.resolve\(cl, ev\.pricing, layoutRoom\)[^\n]*g_len/);
@@ -80,7 +81,7 @@ t("flow: hall L×B restored on load and saved on the client; genLayout saves lay
 });
 t("builder: Custom Event prefilled from the quote, 70% chairs, recommendations apply user numbers", () => {
   assert.match(bjs, /prefillCustomForm\(\); wireSizingForm\(\); renderRecommendations\(\);/);
-  assert.match(bjs, /HelmSizing\.resolve\(currentClient, currentPricing/);
+  assert.match(bjs, /HelmSizing\.dialogSizing\(cl, pr, store\.venue/);   // R9: dialog re-reads the quote each open
   assert.match(bjs, /HelmSizing\.rankTemplates\(/);
   assert.match(bjs, /function applyRecommendation[\s\S]{0,200}readCustomForm\(\)[\s\S]{0,400}generateVariants\(o\)/);
   assert.match(bjs, /persistSizing\(sizingPatch\(o\)\)/);

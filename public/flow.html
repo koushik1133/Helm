@@ -334,8 +334,8 @@
 <script src="tour.js?v=9"></script>
 <script src="booklet.js?v=13"></script>
 <script src="share-checklist.js?v=7"></script>
-<script src="flow-layout-sync.js?v=3"></script>
-<script src="event-sizing.js?v=2"></script>
+<script src="flow-layout-sync.js?v=4"></script>
+<script src="event-sizing.js?v=3"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -920,7 +920,7 @@
     const cl=ev.client||{};
     const oi=BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
     const pr=ev.pricing||{};
-    chairsManual=!!(cl.chairsManual||pr.chairsManual);
+    chairsManual=HelmSizing.isChairsManual(cl,pr);   // R9: legacy priced chairs count as hand-set
     { const qc=HelmSizing.quoteChairs(cl, pr, null); $("#q_chairs").value=qc==null?"":qc; }   // R8b: one chairs value per quote
     syncChairsUi();
     $("#q_guests").value=pr.guests!=null?pr.guests:(cl.guests!=null?cl.guests:(oi.chairs||""));  // H-02: empty, not "0", when unknown
