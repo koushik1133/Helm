@@ -169,3 +169,32 @@ for (const f of ['public/builder.html', 'public/flow.html', 'public/capture.html
   if (/flow-layout-sync\.js/.test(h)) assert.match(h, /flow-layout-sync\.js\?v=4/, f);
 }
 console.log(`r9-sizing-matrix: ${n} generated layouts + sizing cases OK`);
+
+// ---- 6. R9b: hand-set Décor / setup is honoured by the builder panel + saves; totals agree everywhere ----
+{
+  assert.equal(S.handOther({ other: 5000, otherAuto: 5000 }), null, 'auto');
+  assert.equal(S.handOther({ other: 1234, otherAuto: 5000 }), 1234, 'hand-set on the flow');
+  assert.equal(S.handOther({ other: 1234 }), 1234, 'no auto record → never clobber');
+  assert.equal(S.handOther({ other: 5000 }, 5000), null, 'session auto');
+  assert.equal(S.handOther({}), null); assert.equal(S.handOther({ other: '' }), null); assert.equal(S.handOther({ other: 'x' }), null);
+  // the builder writes exactly what the flow saved → same quoteTotal formula as flow / quotes.html / booklet; server = D8 (same terms)
+  const flowSaved = { chairs: 650, chairPrice: 200, guests: 1000, platePrice: 500, other: 1234, otherAuto: 9000, gstPct: 18, discount: 1000 };
+  const other = S.handOther(flowSaved, null) ?? 9999;   // builder: hand → keep 1234, never the layout's 9999
+  assert.equal(other, 1234);
+  const total = (p) => { const pre = p.chairs * p.chairPrice + p.other + p.guests * p.platePrice; const taxed = pre - p.discount; return Math.round(taxed * (1 + p.gstPct / 100)); };
+  assert.equal(total({ ...flowSaved, other }), total(flowSaved));
+  const bk = rd('public/booklet.js'); assert.match(bk, /other = num\(q\.other\)/);   // booklet reads the saved other
+  assert.match(bjs, /const hand = HelmSizing\.handOther\(currentPricing, _lastAutoOther\);/);
+  assert.match(bjs, /other: hand!=null \? hand : auto,/);
+  assert.match(bjs, /const p = quotePricingNow\(\);\n\s+const t = BPStore\.pricing\.quoteTotal\(p\);/);
+  assert.match(bjs, /qp=quotePricingNow\(\); qt=BPStore\.pricing\.quoteTotal\(qp\);/);
+  assert.match(bjs, /Décor \/ setup <span class="q">set on quote<\/span>/);
+  assert.match(flow, /otherAuto:\(ev\.pricing&&ev\.pricing\.otherAuto!=null\)/);
+  // 0 chairs rejected (min 1) everywhere a chairs value is typed
+  assert.equal((bjs.match(/if\(!chairsOk\(o\.chairs\)\) return;/g) || []).length, 2);
+  assert.match(bjs, /if\(!\(n>=1\)\)\{ toast\(CHAIRS_MIN_MSG\)/);
+  assert.match(bjs, /id="bChairs" type="number" min="1"/);
+  assert.match(rd('public/builder.html'), /id="c_chairs" min="1"/);
+  assert.match(flow, /id="q_chairs" type="number" min="1"/);
+}
+console.log('r9-sizing-matrix: décor/setup + chairs-min checks OK');

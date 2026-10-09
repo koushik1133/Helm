@@ -232,7 +232,7 @@
           </div>
           <div class="secerr" id="err-rates"></div>
           <div class="grid">
-            <div class="fld"><label for="q_chairs">Chairs <small id="q_chairsHint">(70% of guests — drives chairs pricing)</small> <a href="#" id="q_chairsReset" hidden>reset to 70%</a></label><input id="q_chairs" type="number" min="0"><p class="hint" id="q_chairsLayout" hidden><span id="q_chairsLayoutTxt"></span> <button type="button" class="btn ghost" id="q_chairsUseLayout">Use layout count</button></p></div>
+            <div class="fld"><label for="q_chairs">Chairs <small id="q_chairsHint">(70% of guests — drives chairs pricing)</small> <a href="#" id="q_chairsReset" hidden>reset to 70%</a></label><input id="q_chairs" type="number" min="1"><p class="hint" id="q_chairsLayout" hidden><span id="q_chairsLayoutTxt"></span> <button type="button" class="btn ghost" id="q_chairsUseLayout">Use layout count</button></p></div>
             <div class="fld"><label for="q_guests">Guests / plates</label><input id="q_guests" type="number" min="0"></div>
             <div class="fld"><label for="q_chairPrice">Chair rate (₹) <span class="s-c78b388">· set in Control Center</span></label><input class="s-10bfcec" id="q_chairPrice" type="number" min="0" readonly title="Fixed — change it in Control Center → Pricing"></div>
             <div class="fld"><label for="q_platePrice">Plate price (₹) <span class="s-c78b388">· from package / Control Center</span></label><input class="s-10bfcec" id="q_platePrice" type="number" min="0" readonly title="Fixed — set by the menu package or Control Center → Pricing"></div>
@@ -440,6 +440,8 @@
       couponCode:($("#q_coupon")?$("#q_coupon").value.trim():""), coupon:appliedCoupon,
       placeOfSupply:"intra", currency:"INR", taxCountry:undefined, taxName:undefined, taxInclusive:undefined, ...BPStore.tax.snapshot(fTax()),   // R4: undefined clears a stale snapshot key on re-save
       chairsManual,
+      // R9: remember the auto Décor / setup value beside `other` so every screen can tell a hand edit apart
+      otherAuto:(ev.pricing&&ev.pricing.otherAuto!=null)?+ev.pricing.otherAuto:(oi.objectsCost+(+rates.layoutBase||0)),
       _objectsCost:oi.objectsCost, _packageName:appliedPkg?appliedPkg.name:null };
   }
   function renderPrice(){
@@ -1035,6 +1037,8 @@
     $("#g_guests").addEventListener("input",()=>{ $("#c_guests").value=$("#g_guests").value; syncClientMem(); renderPrice(); });
     ["g_len","g_wid"].forEach(f=>$("#"+f).addEventListener("input",syncClientMem));
     $("#q_chairs").addEventListener("input",()=>{ chairsManual=true; syncClientMem(); });
+    // R9: chairs min 1 — 0 is rejected (clear the field for 70% of guests)
+    $("#q_chairs").addEventListener("change",()=>{ if($("#q_chairs").value!=="" && !(+$("#q_chairs").value>=1)){ BPUI.toast("Chairs must be at least 1 — clear the field to use 70% of guests.",{type:"err"}); chairsManual=false; syncClientMem(); renderPrice(); } });
     $("#q_chairsUseLayout").addEventListener("click",()=>{ const n=+($("#q_chairsLayout").dataset.n||0); if(!n) return;
       $("#q_chairs").value=n; chairsManual=true; syncClientMem(); markDirty(); renderPrice(); updateAdvance(); });
     $("#q_chairsReset").addEventListener("click",(e)=>{ e.preventDefault(); chairsManual=false; syncClientMem(); markDirty(); renderPrice(); updateAdvance(); });   // H-02: user took manual control of the quotation guest count

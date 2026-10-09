@@ -79,6 +79,15 @@
     var tables = sz.tablesManual ? sz.tables : defaultTables(chairs, spt);
     return { guests: sz.guests, chairs: chairs, chairsManual: chairsManual, tables: tables, tablesManual: sz.tablesManual, len: sz.len, wid: sz.wid };
   }
+  // R9: "Décor / setup" (pricing.other) is hand-set when it no longer equals the last auto value
+  // (objects + layout base) a screen computed. No record of an auto value → hand-set (never clobber).
+  // Returns the saved number when hand-set, else null (= follow the layout's objects).
+  function handOther(pricing, sessionAuto) {
+    var pr = pricing || {};
+    if (pr.other == null || pr.other === "" || !isFinite(+pr.other)) return null;
+    var prev = pr.otherAuto != null && pr.otherAuto !== "" ? +pr.otherAuto : (sessionAuto != null ? +sessionAuto : null);
+    return prev == null || +pr.other !== prev ? Math.max(0, +pr.other) : null;
+  }
   // R8b: the layout's real chair count differs from the quote → offer (never force) a one-click switch
   function layoutChairsNote(quoteValue, layoutValue) {
     var q = pos(quoteValue), l = pos(layoutValue);
@@ -120,7 +129,7 @@
     return scored.slice(0, limit || 3);
   }
   var api = { CHAIR_RATIO: CHAIR_RATIO, SEATS_PER_TABLE: SEATS_PER_TABLE, PRESETS: PRESETS,
-    defaultChairs: defaultChairs, quoteChairs: quoteChairs, isChairsManual: isChairsManual, dialogSizing: dialogSizing, layoutChairsNote: layoutChairsNote, defaultTables: defaultTables, resolve: resolve, merge: merge, rankTemplates: rankTemplates };
+    defaultChairs: defaultChairs, quoteChairs: quoteChairs, isChairsManual: isChairsManual, handOther: handOther, dialogSizing: dialogSizing, layoutChairsNote: layoutChairsNote, defaultTables: defaultTables, resolve: resolve, merge: merge, rankTemplates: rankTemplates };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else global.HelmSizing = api;
 })(typeof window !== "undefined" ? window : globalThis);

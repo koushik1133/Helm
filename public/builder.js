@@ -230,7 +230,8 @@ async function resetQuoteChairs(){
   renderPrice(); syncChairsPanel(); syncQuotePricing();
 }
 async function setQuoteChairs(n){
-  n=Math.max(0, Math.round(+n||0));
+  n=Math.round(+n);
+  if(!(n>=1)){ toast(CHAIRS_MIN_MSG); try{ syncChairsPanel(); const ci=$('#bChairs'); if(ci) ci.value=quoteChairsNow(); }catch(e){} return; }
   currentPricing=Object.assign({}, currentPricing||{}, { chairs:n, chairsManual:true });
   await persistSizing({ chairs:n, chairsManual:true });
   renderPrice(); syncChairsPanel(); syncQuotePricing();
@@ -245,7 +246,7 @@ function buildMenuControls(){
   box.innerHTML =
     `<label class="pfield">Menu package<select id="bPkg" ${CAN_CREATE?'':'disabled'}>${opts}</select></label>`+
     `<label class="pfield">Guests / plates <input id="bGuests" type="number" min="0" value="${PRICING.guests!=null?PRICING.guests:''}"></label>`+
-    `<label class="pfield">Chairs (priced) <input id="bChairs" type="number" min="0" ${RO?'disabled':''}></label>`+
+    `<label class="pfield">Chairs (priced) <input id="bChairs" type="number" min="1" ${RO?'disabled':''}></label>`+
     `<p class="delta" id="bChairsNote" hidden><span id="bChairsNoteTxt"></span> <button type="button" class="tbtn" id="bChairsUse">Use layout count</button></p>`+
     `<div class="delta" id="pkgDelta"></div>`;
   const bc=$('#bChairs'); if(bc) bc.addEventListener('change',()=>{ if(bc.value!=='') setQuoteChairs(bc.value); });
@@ -287,6 +288,32 @@ function syncQuotePricing(){
 }
 // Runs the pricing write immediately (used by "Save & back to quote", which must not leave
 // the page while a debounced write is still pending — that write would be lost).
+// R9: the exact pricing object the builder writes to the quote — also what the right panel totals,
+// so the panel, the flow, quotes.html, the booklet and the D8 server all price the same object.
+function quotePricingNow(){
+  currentPricing = currentPricing || {};
+  const oi = BPStore.pricing.fromItems(store.items, PRICING.assetPrices);
+  // R8b: the quote's ONE chairs value prices chairs (typed, else 70% of guests) — the layout count never overrides it
+  const chairsManual = HelmSizing.isChairsManual(currentClient, currentPricing);   // R9: client flag authoritative
+  const chairs = quoteChairsNow();
+  const guests = PRICING.guests!=null ? PRICING.guests : chairs;
+  const platePrice = PRICING.menuPlatePrice!=null ? PRICING.menuPlatePrice
+                    : (currentPricing.platePrice!=null?currentPricing.platePrice:PRICING.platePrice);
+  const auto = oi.objectsCost + (+PRICING.layoutBase||0);
+  const hand = HelmSizing.handOther(currentPricing, _lastAutoOther);   // R9: a hand-set Décor / setup is never overwritten
+  return Object.assign({}, currentPricing, {
+    chairs, guests, platePrice, chairsManual,
+    chairPrice: currentPricing.chairPrice!=null?currentPricing.chairPrice:PRICING.chairPrice,
+    gstPct: currentPricing.gstPct!=null?currentPricing.gstPct:PRICING.gstPct,
+    serviceChargePct: currentPricing.serviceChargePct!=null?currentPricing.serviceChargePct:PRICING.serviceChargePct,
+    // never overwrite a hand-edited 'other': it counts as hand-edited when it no longer matches the
+    // last value this builder computed (otherAuto, stored beside it, or this session's last write)
+    other: hand!=null ? hand : auto,
+    otherAuto: hand!=null && currentPricing.otherAuto!=null ? currentPricing.otherAuto : auto,
+    catering: currentPricing.catering || { mode:'inhouse', amount:0, gstPct:PRICING.gstPct },
+  // 0079: a NEW quote takes the studio's tax country/inclusive setting; a priced one keeps its own
+  }, currentPricing.gstPct==null ? BPStore.tax.snapshot(BPStore.tax.resolve(PRICING)) : {});
+}
 async function syncQuotePricingNow(){
   if(!currentQuoteId) return false;
   clearTimeout(_syncTimer);
@@ -296,28 +323,7 @@ async function syncQuotePricingNow(){
       let expectedUpdatedAt = null;
       try{ const latest = await BPStore.quotes.get(currentQuoteId);
         if(latest){ currentPricing = latest.pricing || currentPricing; expectedUpdatedAt = latest.updatedAt || null; } }catch(_){}
-      const oi = BPStore.pricing.fromItems(store.items, PRICING.assetPrices);
-      // R8b: the quote's ONE chairs value prices chairs (typed, else 70% of guests) — the layout count never overrides it
-      const chairsManual = HelmSizing.isChairsManual(currentClient, currentPricing);   // R9: client flag authoritative
-      const chairs = quoteChairsNow();
-      const guests = PRICING.guests!=null ? PRICING.guests : chairs;
-      const platePrice = PRICING.menuPlatePrice!=null ? PRICING.menuPlatePrice
-                        : (currentPricing.platePrice!=null?currentPricing.platePrice:PRICING.platePrice);
-      const p = Object.assign({}, currentPricing, {
-        chairs, guests, platePrice, chairsManual,
-        chairPrice: currentPricing.chairPrice!=null?currentPricing.chairPrice:PRICING.chairPrice,
-        gstPct: currentPricing.gstPct!=null?currentPricing.gstPct:PRICING.gstPct,
-        serviceChargePct: currentPricing.serviceChargePct!=null?currentPricing.serviceChargePct:PRICING.serviceChargePct,
-        // never overwrite a hand-edited 'other': it counts as hand-edited when it no longer matches the
-        // last value this builder computed (otherAuto, stored beside it, or this session's last write)
-        other: (()=>{ const auto = oi.objectsCost + (+PRICING.layoutBase||0);
-          const prevAuto = currentPricing.otherAuto!=null ? +currentPricing.otherAuto : _lastAutoOther;
-          const hand = currentPricing.other!=null && prevAuto!=null && +currentPricing.other !== prevAuto;
-          return hand ? currentPricing.other : auto; })(),
-        otherAuto: oi.objectsCost + (+PRICING.layoutBase||0),
-        catering: currentPricing.catering || { mode:'inhouse', amount:0, gstPct:PRICING.gstPct },
-      // 0079: a NEW quote takes the studio's tax country/inclusive setting; a priced one keeps its own
-      }, currentPricing.gstPct==null ? BPStore.tax.snapshot(BPStore.tax.resolve(PRICING)) : {});
+      const p = quotePricingNow();
       const t = BPStore.pricing.quoteTotal(p);
       const pricing = Object.assign({}, p, { computed:t, total:t.total, client: currentClient });
       await BPStore.quotes.updateMeta(currentQuoteId, { pricing }, expectedUpdatedAt);
@@ -351,20 +357,28 @@ function renderPrice(){
   try{ syncChairsPanel(); }catch(e){}
   const box=$('#pricePanel'); if(!box) return;
   const m=priceModel();
+  // R9: on a quote the panel prices the SAME object the builder saves (quotePricingNow → quoteTotal), so a
+  // hand-set Décor / setup, discount, coupon or catering amount gives the same total here as everywhere else
+  let qp=null, qt=null; if(currentQuoteId && window.HelmSizing){ try{ qp=quotePricingNow(); qt=BPStore.pricing.quoteTotal(qp); }catch(e){ qp=null; } }
+  const otherSet = qp ? HelmSizing.handOther(currentPricing, _lastAutoOther) : null;
+  if(qt){ m.subtotal=qt.subtotal; m.gst=Math.round(qt.totalGst); m.total=qt.total; m.serviceCharge=Math.round(qt.serviceCharge); m.discount=qt.discount;
+    m.chairsCost=qp.chairs*qp.chairPrice; m.cateringCost=qt.cateringBucket; m.svcPct=+qp.serviceChargePct||0; m.gstPct=+qp.gstPct||0; m.taxInclusive=qt.taxInclusive; }
   let rows='';
   if(m.chairs>0)
     rows+=`<div class="prow"><span>Chairs <span class="q">${m.chairs} × ${inr(m.chairPrice)}</span></span><span class="amt">${inr(m.chairsCost)}</span></div>`;
   if(m.cateringCost>0)
     rows+=`<div class="prow"><span>Catering${PRICING.menuPackageName?' <span class="q">'+esc(PRICING.menuPackageName)+'</span>':''} <span class="q">${m.guests} × ${inr(m.platePrice)}</span></span><span class="amt">${inr(m.cateringCost)}</span></div>`;
-  (m.objectLines||[]).forEach(l=>{
+  if(otherSet!=null){ if(otherSet>0) rows+=`<div class="prow"><span>Décor / setup <span class="q">set on quote</span></span><span class="amt">${inr(otherSet)}</span></div>`; }
+  else (m.objectLines||[]).forEach(l=>{
     const label=ASSETS[l.type]?ASSETS[l.type].label:l.type;
     const flag = (PRICING.assetPrices && !inCatalog(l.type, PRICING.assetPrices)) ? ' <span class="q nocat" title="No rate for this item in Control Center — using a default price">price not in catalog</span>' : '';
     rows+=`<div class="prow"><span>${esc(label)} <span class="q">${l.qty>1?l.qty+' × '+inr(l.unit):inr(l.unit)}</span>${flag}</span><span class="amt">${inr(l.cost)}</span></div>`;
   });
-  if(m.layoutBase>0) rows+=`<div class="prow"><span>Layout &amp; setup</span><span class="amt">${inr(m.layoutBase)}</span></div>`;
+  if(otherSet==null && m.layoutBase>0) rows+=`<div class="prow"><span>Layout &amp; setup</span><span class="amt">${inr(m.layoutBase)}</span></div>`;
   if(m.serviceCharge>0) rows+=`<div class="prow"><span>Service <span class="q">${m.svcPct}%</span></span><span class="amt">${inr(m.serviceCharge)}</span></div>`;
   if(!rows) rows='<div class="empty">Add items and pick a menu package to see the price build up.</div>';
   const tax = m.subtotal>0 ? `<div class="prow sub"><span>Subtotal</span><span class="amt">${inr(m.subtotal)}</span></div>`
+    + (m.discount>0 ? `<div class="prow"><span>Discount</span><span class="amt">− ${inr(m.discount)}</span></div>` : '')
     + `<div class="prow"><span>${esc(BPStore.tax.resolve(PRICING).name)}${m.taxInclusive?' (included)':''} <span class="q">${m.gstPct}%</span></span><span class="amt">${inr(m.gst)}</span></div>` : '';
   box.innerHTML = rows + tax +
     `<div class="prow total"><span>Total</span><span class="amt">${inr(m.total)}</span></div>`;
@@ -2268,6 +2282,9 @@ function generateVariants(oIn){
   return variants;
 }
 
+// R9: a chairs value must be a whole number ≥ 1 (empty = 70% of guests). 0 is rejected with a clear message.
+const CHAIRS_MIN_MSG='Chairs must be at least 1 — clear the field to use 70% of guests.';
+function chairsOk(v){ if(v===0){ toast(CHAIRS_MIN_MSG); return false; } return true; }
 function readCustomForm(){
   const num=id=>{ const v=$('#'+id).value.trim(); return v===''?null:Math.max(0,parseInt(v,10)||0); };
   return { type:$('#c_type').value, setting:$('#c_setting').value,
@@ -2295,6 +2312,7 @@ function runCustomGenerate(){
   // Enforce the Control-Center capacity ceilings so generation stays fast and honest
   // even if a field wasn't blurred (the blur clamp hadn't run yet).
   o.guests=clampCap(o.guests,CAPS.guests); o.chairs=clampCap(o.chairs,CAPS.chairs); o.tables=clampCap(o.tables,CAPS.tables);
+  if(!chairsOk(o.chairs)) return;   // R9: 0 chairs is rejected (min 1), never a silent "natural seats" layout
   o.bars=clampCap(o.bars,CAPS.bars); o.trucks=clampCap(o.trucks,CAPS.trucks); o.booths=clampCap(o.booths,CAPS.booths);
   o.rest=clampCap(o.rest,CAPS.rest); o.exits=clampCap(o.exits,CAPS.exits);
   if(applyRoomFromForm(o)===false) return;               // invalid hall dimension → abort (message already shown)
@@ -2419,6 +2437,7 @@ function applyRecommendation(rec){
   if(!rec) return;
   const o=Object.assign(readCustomForm(), rec.opts||{});
   o.guests=clampCap(o.guests,CAPS.guests); o.chairs=clampCap(o.chairs,CAPS.chairs); o.tables=clampCap(o.tables,CAPS.tables);
+  if(!chairsOk(o.chairs)) return;   // R9: 0 chairs is rejected (min 1), never a silent "natural seats" layout
   if(applyRoomFromForm(o)===false) return;
   sizeCanvas();
   const variants=generateVariants(o).map(v=>({...v, items:v.items.map(clampItem)}));
