@@ -23,7 +23,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="builder.css?v=7">
+<link rel="stylesheet" href="builder.css?v=8">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -324,6 +324,8 @@
 
   <!-- CENTER : canvas -->
   <section class="viewport">
+    <button type="button" class="ptoggle ptoggle-l" id="leftToggle" aria-controls="leftPanel" aria-expanded="true" aria-label="Collapse asset toolbox" title="Collapse asset toolbox">‹</button>
+    <button type="button" class="ptoggle ptoggle-r" id="rightToggle" aria-controls="rightPanel" aria-expanded="true" aria-label="Collapse price &amp; inspector panel" title="Collapse price &amp; inspector panel">›</button>
     <div class="corner"><span id="cornerUnit">ft</span></div>
     <canvas id="rulerTop"></canvas>
     <canvas id="rulerLeft"></canvas>
@@ -392,7 +394,7 @@
 <script src="store-api.js?v=138"></script>
 <script src="tour.js?v=9"></script>
 <script src="flow-layout-sync.js?v=1"></script>
-<script src="builder.js?v=9"></script>
+<script src="builder.js?v=10"></script>
 
 <!-- ================= 3D RENDERED VIEW (Three.js, lazy-loaded on first use) ================= -->
 <script src="builder-3d.js?v=3"></script>
