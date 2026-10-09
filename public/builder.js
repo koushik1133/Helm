@@ -28,6 +28,7 @@
    ========================================================================= */
 
 const PX_PER_FT = 12;
+const DEFAULT_WORLD = { w: 200, h: 140 };
 const WORLD = { w: 200, h: 140 };            // floor size in feet
 // Capacity ceilings, loaded from Control Center (config.getPricing). Defaults keep the
 // builder from being asked to render absurd counts (which used to freeze the app).
@@ -327,7 +328,31 @@ function layoutSig(items, margins, venue, world, name){
   return JSON.stringify([its, margins||null, venue||null, world?[world.w,world.h]:null, String(name==null?'':name).trim()]);
 }
 function docSig(){ const pn=$('#projName'); return layoutSig(store.items, store.margins, store.venue, WORLD, pn?pn.value:''); }
-function markDirty(){ if(savedSig!==null && docSig()===savedSig) dirty.clean(); else dirty.mark(); }
+function markDirty(){ if(savedSig!==null && docSig()===savedSig){ dirty.clean(); if(typeof clearDraft==='function' && draftReady) clearDraft(); } else { dirty.mark(); if(typeof scheduleDraft==='function') scheduleDraft(); } }
+/* ---- local DRAFT (quotes only): a crash-safety copy in this browser. It is NEVER sent to the server and
+   never replaces a saved version — on reload the planner is asked whether to restore it. ---- */
+let draftReady=false, draftT=null;
+const draftKey = id=>'bps.draft.'+userKey()+'.'+id;
+function clearDraft(){ clearTimeout(draftT); try{ if(currentQuoteId) localStorage.removeItem(draftKey(currentQuoteId)); }catch{} }
+function scheduleDraft(){
+  if(RO || !currentQuoteId || !draftReady) return;
+  clearTimeout(draftT);
+  draftT=setTimeout(()=>{ try{
+    const s=JSON.stringify({ savedAt:new Date().toISOString(), baseVersion:currentVersionNo, name:($('#projName').value||'').slice(0,120), data:serialize() });
+    if(s.length<=2000000) localStorage.setItem(draftKey(currentQuoteId), s);
+  }catch{} }, 3000);
+}
+function readDraft(id){ try{ const d=JSON.parse(localStorage.getItem(draftKey(id))||'null');
+  return d && d.data && Array.isArray(d.data.items) ? d : null; }catch{ return null; } }
+async function offerDraftRestore(){
+  const d=draftToRestore; draftToRestore=null; draftReady=true;
+  if(!d || RO || +d.baseVersion!==+currentVersionNo) { if(d) clearDraft(); return; }
+  if(layoutSig(d.data.items,d.data.margins,d.data.venue,d.data.scale&&d.data.scale.worldFt?{w:d.data.scale.worldFt.w,h:d.data.scale.worldFt.h}:WORLD,d.name)===docSig()){ clearDraft(); return; }
+  let go=false; try{ go=await BPUI.confirm('An unsaved draft of this quote from '+new Date(d.savedAt).toLocaleString()+' was found in this browser (it was never saved to the server). Restore it? Your saved versions are not changed until you press Save.',{title:'Restore unsaved draft?',okLabel:'Restore draft',cancelLabel:'Discard draft'}); }catch{}
+  if(!go){ clearDraft(); return; }
+  applyLayout(d.data); if(d.name) $('#projName').value=d.name;
+  markDirty(); toast('Draft restored — press Save to keep it');
+}
 // the document now matches what's stored (just opened or saved). Pass the signature captured when the
 // save STARTED so edits made while it was in flight keep the page dirty.
 function setSavedBaseline(sig){ savedSig = sig==null ? docSig() : sig; if(docSig()===savedSig) dirty.clean(); else dirty.mark(); }
@@ -354,14 +379,15 @@ let CAN_CREATE = true;   // roles without 'create' (e.g. operations) may edit ex
 function roLockInspector(){ if(!RO) return; const box=$('#inspector'); if(!box) return;
   box.querySelectorAll('input,select,button,textarea').forEach(el=>el.disabled=true);
   box.querySelectorAll('.swatches,.aligngrid').forEach(el=>el.style.pointerEvents='none'); }
-function applyReadonly(role){
+function applyReadonly(role, customMsg){
   RO = true;
   ['saveBtn','clearBtn','customBtn','importBtn','undoBtn','redoBtn'].forEach(id=>{ const b=$('#'+id); if(b) b.disabled=true; });
   const tb=$('#toolbox'); if(tb){ tb.style.pointerEvents='none'; tb.style.opacity='.45';
     tb.querySelectorAll('.tool').forEach(t=>{ t.tabIndex=-1; t.setAttribute('aria-disabled','true'); }); }
   document.querySelector('.viewport').classList.add('ro');
   const bar=document.createElement('div'); bar.className='robanner';
-  bar.innerHTML='👁 View only — signed in as <b>'+esc(role||'viewer')+'</b>. You can view, open, and export events, but not edit them.';
+  if(customMsg) bar.textContent=customMsg;
+  else bar.innerHTML='👁 View only — signed in as <b>'+esc(role||'viewer')+'</b>. You can view, open, and export events, but not edit them.';
   document.querySelector('header').insertAdjacentElement('afterend', bar);
 }
 
@@ -1729,6 +1755,7 @@ const TEMPLATES = {
   get festival(){ return this.festival_mainstage; },
   get concert(){ return this.concert_mainstage; }
 };
+const MAX_ITEMS=3000, MAX_BLOCK_SEATS=5000, MAX_IMPORT_BYTES=5*1024*1024, MAX_CAPACITY=100000;
 // keep every object fully inside the floor bounds
 function clampItem(it){
   const a = ASSETS[it.type] || {};
@@ -1746,6 +1773,9 @@ function clampItem(it){
 function sanitizeItem(it){
   if(!it.properties || typeof it.properties!=='object') it.properties={};
   ['rows','cols','seats','pitch'].forEach(k=>{ if(it.properties[k]!=null){ const v=+it.properties[k]; it.properties[k]=isFinite(v)?clamp(v,0,1000):0; } });
+  // a block is rows x cols seats: cap the product so one hostile/typo'd item can't mean 1,000,000 chairs
+  { const r=it.properties.rows, c=it.properties.cols;
+    if(r>0 && c>0 && r*c>MAX_BLOCK_SEATS) it.properties.cols = Math.max(1, Math.floor(MAX_BLOCK_SEATS/r)); }
   if(it.properties.model!=null && typeof it.properties.model!=='string') delete it.properties.model;
   if(typeof it.type!=='string' || it.type in Object.prototype) it.type='unknown';
   if(!it.category || !Object.prototype.hasOwnProperty.call(CATS, it.category)) it.category='structure';
@@ -2479,8 +2509,11 @@ function deleteSelected(){
 
 /* ---- clipboard + group operations ---- */
 let clipboard=[];
-const readClip = ()=>{ try{ return JSON.parse(localStorage.getItem('bps.clip')||'[]'); }catch{ return []; } };
-const writeClip = v=>{ clipboard=v; try{ localStorage.setItem('bps.clip', JSON.stringify(v)); }catch{} };
+// per-user key: a shared browser must never paste the previous account's objects; size-capped
+const userKey = ()=>{ try{ const u=BPStore.auth.user(); return u&&u.id ? String(u.id) : 'anon'; }catch{ return 'anon'; } };
+const clipKey = ()=>'bps.clip.'+userKey();
+const readClip = ()=>{ try{ const v=JSON.parse(localStorage.getItem(clipKey())||'[]'); return Array.isArray(v)?v.slice(0,500):[]; }catch{ return []; } };
+const writeClip = v=>{ clipboard=v.slice(0,500); try{ const s=JSON.stringify(clipboard); if(s.length<=1000000) localStorage.setItem(clipKey(), s); localStorage.removeItem('bps.clip'); }catch{} };
 function copySelection(){ const items=selectedItems(); if(!items.length) return; writeClip(items.map(clone)); toast(`Copied ${items.length}`); }
 function placeCopies(src, msg){
   if(!src.length) return; const off=cellFt()*2, ids=[];
@@ -2533,6 +2566,7 @@ window.addEventListener('keydown',e=>{
     if(d && e.shiftKey){ e.preventDefault(); panViewStep(d, 1); }
     return;
   }
+  if(mod||e.altKey) return;                       // Cmd/Ctrl/Alt combos (e.g. Cmd+R reload) are not r/d shortcuts
   const step=e.shiftKey?cellFt()*5:cellFt();
   if(e.key==='ArrowLeft'){ e.preventDefault(); nudgeSelection(-step,0); }
   else if(e.key==='ArrowRight'){ e.preventDefault(); nudgeSelection(step,0); }
@@ -2607,10 +2641,13 @@ function serialize(){
 }
 function applyLayout(data){
   if(!data || !Array.isArray(data.items)) return;
+  // start from defaults so a legacy/partial document never inherits the previous hall size or capacity
+  WORLD.w = DEFAULT_WORLD.w; WORLD.h = DEFAULT_WORLD.h; store.venue = { capacity:null };
   // restore the saved hall size FIRST so items clamp to the right room
   const rf = (data.scale && data.scale.worldFt) || (data.venue && data.venue.room);
   if(rf && rf.w && rf.h && isFinite(rf.w) && isFinite(rf.h)){ WORLD.w = clamp(Math.round(rf.w),20,1000); WORLD.h = clamp(Math.round(rf.h),20,1000); }
-  store.items = JSON.parse(JSON.stringify(data.items)).filter(it=>it && typeof it==='object');
+  if(data.items.length>MAX_ITEMS) toast('This layout has '+data.items.length+' objects — only the first '+MAX_ITEMS+' were loaded');
+  store.items = JSON.parse(JSON.stringify(data.items.slice(0,MAX_ITEMS))).filter(it=>it && typeof it==='object');
   // normalise externally-authored / legacy JSON so a missing field can't crash the render
   store.items.forEach(it=>{
     sanitizeItem(it);                    // properties / category / type / label / id
@@ -2681,6 +2718,7 @@ async function saveLayout(silent, opts){
       const v = await BPStore.quotes.addVersion(currentQuoteId, label, data, store.items.length);
       currentVersionNo = v.version_no || v.versionNo;
       noteSavedVersion(v, label);
+      clearDraft();
       updateQuoteBadge();
       syncQuotePricing();                       // keep the stored quote total in step with the layout
       if(silent){ if(btn){ btn.textContent='✓ v'+currentVersionNo; clearTimeout(saveBtnT); saveBtnT=setTimeout(()=>{ btn.innerHTML='💾 Save'; },1500); } }
@@ -2837,7 +2875,8 @@ function createVersionController(d){
       let target;
       try{ target=await d.fetchVersion(no); }
       catch(e){ d.notify('Couldn’t open V'+no+' — it may no longer exist.'); return 'error'; }
-      const data=(target && target.data && Array.isArray(target.data.items)) ? target.data : { items:[] };
+      if(!(target && target.data && Array.isArray(target.data.items))){ d.notify('V'+no+' has unreadable data, so it can’t be opened.'); return 'error'; }
+      const data=target.data;
       if(d.isDirty()){
         const choice=await d.ask({ fromNo:d.currentNo(), toNo:no, current:d.currentData(), target:data });
         if(choice==='save'){ if(!(await d.save())) return 'save-failed'; }
@@ -2988,12 +3027,14 @@ function exportPNG(){ return new Promise(resolve=>{
 }); }
 function importJSON(file){ return new Promise(resolve=>{
   const bad=()=>{ BPUI.toast('That file isn’t a valid layout JSON.',{type:'err'}); resolve(false); };
+  if(file && file.size>MAX_IMPORT_BYTES){ BPUI.toast('That file is too large to import (limit '+Math.round(MAX_IMPORT_BYTES/1048576)+' MB).',{type:'err'}); resolve(false); return; }
   const fr=new FileReader();
   fr.onload=()=>{ try{ const d=JSON.parse(fr.result);
     const src=d&&typeof d==='object'?(Array.isArray(d.items)?d:(d.data||d)):null;
     if(!src || typeof src!=='object' || !Array.isArray(src.items)){ bad(); return; }
     applyLayout(src); currentLayoutId=null;
-    $('#projName').value=(file.name||'Imported').replace(/\.json$/i,'').slice(0,120); toast('Imported');
+    if(!currentQuoteId) $('#projName').value=(file.name||'Imported').replace(/\.json$/i,'').slice(0,120);   // an open quote keeps its own title
+    toast('Imported');
     savedSig=null; markDirty();                    // an import is unsaved until the user saves it
     resolve(true); }
     catch{ bad(); } };
@@ -3051,7 +3092,7 @@ $('#importFile').addEventListener('change',e=>{ const f=e.target.files[0]; e.tar
 $('#themeBtn').addEventListener('click',toggleTheme);
 $('#projName').addEventListener('keydown',e=>{ if(e.key==='Enter') e.target.blur(); });
 $('#projName').addEventListener('input',()=>markDirty());
-$('#capInput').addEventListener('input',e=>{ const v=parseInt(e.target.value,10); store.venue.capacity = (isFinite(v)&&v>0)?v:null; updateCapacityUI(); markDirty(); });
+$('#capInput').addEventListener('input',e=>{ const v=parseInt(e.target.value,10); store.venue.capacity = (isFinite(v)&&v>0)?Math.min(v,MAX_CAPACITY):null; if(store.venue.capacity!==v && isFinite(v) && v>0) e.target.value=store.venue.capacity; updateCapacityUI(); markDirty(); });
 $('#capInput').addEventListener('change',()=>{ if(currentLayoutId) scheduleAutosave(); });
 $('#customBtn').addEventListener('click',openCustomModal);
 $('#customClose').addEventListener('click',closeCustomModal);
@@ -3067,6 +3108,7 @@ $('#arrShape').querySelectorAll('button').forEach(b=>b.addEventListener('click',
 /* ===================================================================
    BOOT
    =================================================================== */
+let draftToRestore=null;
 async function init(){
   buildToolbox();
   $('#cornerUnit').textContent=uLabel();
@@ -3135,16 +3177,19 @@ async function init(){
         }
       }catch{}
       buildMenuControls();
-      if(ver.data && (ver.data.items||[]).length){ applyLayout(ver.data); }
-      else {
-        // Empty layout → drop in the default layout for this event type so the
-        // client immediately sees the standard package (chairs, mandap, stage…).
+      // unreadable version data must lock the builder (catch below), never be shown as an empty floor to save over
+      if(!ver || !ver.data || !Array.isArray(ver.data.items)) throw new Error('version data unreadable');
+      draftToRestore = readDraft(q.id);
+      applyLayout(ver.data);                  // also restores hall size / margins / capacity of an empty version
+      if(!ver.data.items.length && ver.versionNo===1 && +q.currentVersion===1){
+        // Brand-new (never-edited) quote → drop in the default layout for this event type so the
+        // client immediately sees the standard package (chairs, mandap, stage…). Only ever for v1.
         const presetKey = EVENT_TYPE_PRESET[(q.eventType||'').toLowerCase()];
         if(presetKey && TEMPLATES[presetKey]){
           store.items = TEMPLATES[presetKey]();
           toast('Loaded default '+(q.eventType||'')+' layout');
-        } else { store.items=[]; }
-        resetHistory(); setSavedBaseline(); renderAll();
+          resetHistory(); setSavedBaseline(); renderAll();
+        }
       }
       versionsList = q.versions || [];
       latestVersionNo = Math.max(+q.currentVersion||0, ...versionsList.map(v=>+v.versionNo||0)) || currentVersionNo;
@@ -3152,11 +3197,12 @@ async function init(){
       refreshVersions();                     // adds who-saved names; non-blocking
       if(q.status==='confirmed'){ const b=$('#quoteBadge'); if(b) b.classList.add('confirmed'); }
       toast('Opened '+q.code+' · v'+currentVersionNo);
+      await offerDraftRestore();
     }catch(e){
       // The quote didn't fully load: unbind it and lock the builder so a Save can never write an
       // empty layout over a real quote (which would also zero its pricing).
       currentQuoteId=null; currentQuoteCode=null; currentVersionNo=null; currentClient={}; currentPricing={};
-      try{ applyReadonly('locked — that quote/version could not be opened; reload the page'); }catch{}
+      try{ applyReadonly('viewer','🔒 Editing is locked — that quote or version could not be opened. Reload the page to try again; nothing was changed.'); }catch{}
       toast('Could not open that quote — editing is locked so nothing gets overwritten');
     }
   } else if(evId){

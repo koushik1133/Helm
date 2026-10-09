@@ -224,7 +224,7 @@
       // anything else (offline, server error) is NOT "link not found" — offer a retry
       $("#loadErr").hidden=false; BPUI.loadError($("#loadErr"), e, load, {what:"your event"}); return;
     }
-    $("#loading").hidden=true;
+    $("#loading").hidden=true; $("#loading").textContent="";
     if(!quote){ $("#badlink").hidden=false; return; }
     $("#content").hidden=false;
     $("#title").textContent=quote.title||quote.code;

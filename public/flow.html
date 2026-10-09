@@ -319,8 +319,8 @@
 <script src="config.js?v=97"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="store-api.js?v=136"></script>
-<script src="tour.js?v=7"></script>
-<script src="booklet.js?v=6"></script>
+<script src="tour.js?v=8"></script>
+<script src="booklet.js?v=7"></script>
 <script src="share-checklist.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -875,7 +875,7 @@
       // (the layout section's guests wins if the user just typed it there)
       const gg=$("#g_guests").value; if(gg!=="" && $("#c_guests").value!==gg){ $("#c_guests").value=gg; syncClientMem(); markDirty(); }
       const btn=$("#openBuilder"); if(btn.getAttribute("aria-busy")==="true") return;
-      const t=btn.textContent; btn.textContent="Saving…"; btn.setAttribute("aria-busy","true");
+      const t=btn.textContent; btn.dataset.lbl=t; btn.textContent="Saving…"; btn.setAttribute("aria-busy","true");
       // Only persist if the user actually changed something — no phantom save when
       // the builder is opened on an untouched quote.
       if(dirty){ let ok=false; try{ ok=await saveAll(); }catch(_){}
@@ -883,6 +883,10 @@
       leaving=true;   // intentional navigation — don't trip beforeunload
       location.href="builder.html?quote="+encodeURIComponent(id);
     });
+    // coming back via Back / bfcache restores this page with its JS state: undo the "leaving" state
+    window.addEventListener("pageshow",(e)=>{ if(!e.persisted) return;
+      leaving=false; const b=$("#openBuilder");
+      if(b){ b.removeAttribute("aria-busy"); if(b.textContent==="Saving…") b.textContent=b.dataset.lbl||"🎨 Open floor builder →"; } });
     $("#genLayout").addEventListener("click",()=>BPUI.guard($("#genLayout"),async()=>{
       try{ if($("#remindAfter").checked) localStorage.setItem(REMIND_KEY,"1"); }catch{}
       if(dirty){ let ok=false; try{ ok=await saveAll(); }catch(_){}   // carry unsaved edits into the builder

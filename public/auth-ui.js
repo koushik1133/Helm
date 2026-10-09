@@ -86,6 +86,10 @@
       ".hau-note-ic{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--accent-soft,#f1ebfd);color:var(--accent,#6d28d9)}",
       ".hau-note.warn .hau-note-ic{background:rgba(232,145,45,.14);color:var(--warn-text,#8f5f00)}",
       /* 0058 free-trial notice: urgent at <= 3 days left and once the trial has ended */
+      /* compact trial notice: docked bottom-LEFT on desktop so it never covers the bottom-right page actions; stays in the (above-nav) stack on phones */
+      ".hau-note.compact{grid-template-columns:28px 1fr auto;gap:8px;padding:8px 8px 8px 10px;font-size:13px}",
+      ".hau-note.compact .hau-note-ic{width:28px;height:28px}.hau-note.compact .hau-note-t{font-size:13px}.hau-note.compact .hau-note-a{margin-top:6px}",
+      "@media (min-width:601px){.hau-note.dock-left{position:fixed;left:20px;bottom:20px;width:min(340px,calc(100vw - 40px));z-index:900}}",
       ".hau-note.urgent{border-color:rgba(220,38,38,.45);box-shadow:0 0 0 1px rgba(220,38,38,.18),0 12px 32px rgba(20,27,46,.14)}",
       ".hau-note.urgent .hau-note-ic{background:rgba(220,38,38,.12);color:var(--bad,#b91c1c)}",
       "html[data-theme=dark] .hau-note.urgent .hau-note-ic{background:rgba(248,113,113,.16);color:#fca5a5}",
@@ -1105,7 +1109,7 @@
     if (!doc.body || notes.some(function (n) { return n.id === o.id; })) return null;
     css();
     if (!noteHost || !noteHost.isConnected) { noteHost = el("div", { class: "hau-notes", "aria-label": "Notices" }); doc.body.appendChild(noteHost); }
-    var card = el("div", { class: "hau-note" + (o.tone ? " " + o.tone : ""), id: o.id, role: o.role || "status", "aria-labelledby": o.id + "T" });
+    var card = el("div", { class: "hau-note" + (o.tone ? " " + o.tone : "") + (o.compact ? " compact dock-left" : ""), id: o.id, role: o.role || "status", "aria-labelledby": o.id + "T" });
     var ic = el("div", { class: "hau-note-ic" }); ic.appendChild(svgIcon(o.icon)); card.appendChild(ic);
     var mid = el("div", null);
     mid.appendChild(el("p", { class: "hau-note-t", id: o.id + "T" }, o.title));
@@ -1511,6 +1515,7 @@
     return { id: "hauTrialNote", tone: urgent ? "urgent" : "", urgent: urgent, dismissible: true,
       title: "Your free trial ends " + when, body: urgent ? "Choose a plan now so nothing stops on your studio." : "Choose a plan to keep using Helm after your trial." };
   }
+  function trialDismissedThisSession(key) { try { return sessionStorage.getItem("helm_trial_dismissed_" + key) === "1"; } catch (e) { return false; } }
   var trialShown = false;
   function trialStatus() {
     var st = S(); if (!st || !st.auth.user() || !st.subscription || !st.subscription.trial) return;
@@ -1519,12 +1524,12 @@
       var spec = trialNotice(t);
       if (!spec || trialShown || !doc.body) return;
       var key = "trial_" + String(t.ends_at || "") + (spec.urgent ? "_u" : "");
-      if (spec.dismissible && noteSnoozed(key)) return;
+      if (spec.dismissible && (noteSnoozed(key) || trialDismissedThisSession(key))) return;
       trialShown = true;
-      showNote({ id: spec.id, priority: spec.urgent ? 1 : 4, icon: "clock", tone: spec.tone, role: spec.urgent ? "alert" : "status",
-        title: spec.title, body: spec.body,
+      showNote({ id: spec.id, priority: spec.urgent ? 1 : 4, icon: "clock", tone: spec.tone, role: spec.urgent ? "alert" : "status", compact: true,
+        title: spec.title, body: spec.dismissible ? "" : spec.body,
         primary: { label: "Choose a plan", onClick: function () { try { location.assign("checkout.html?next=" + encodeURIComponent(pageName() + ".html")); } catch (e) {} } },
-        onDismiss: spec.dismissible ? function () { snoozeNote(key, 1); } : null, dismissLabel: "Dismiss — remind me tomorrow" });
+        onDismiss: spec.dismissible ? function () { snoozeNote(key, 1); try { sessionStorage.setItem("helm_trial_dismissed_" + key, "1"); } catch (e) {} } : null, dismissLabel: "Dismiss — remind me tomorrow" });
     }).catch(function () {});
   }
 

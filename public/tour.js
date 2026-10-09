@@ -279,7 +279,7 @@
     root = document.createElement("div");
     root.className = "htour";
     root.innerHTML = `<div class="ring"></div><div class="arrow">▼</div>
-      <div class="tip" role="dialog" aria-live="polite"><div class="tstep"></div><h4></h4><p></p>
+      <div class="tip" role="dialog" aria-label="Guided tour" aria-live="polite"><div class="tstep"></div><h4></h4><p></p>
         <div class="trow"><button class="skip">Skip</button><span class="sp"></span>
         <button class="back">Back</button><button class="pri next">Next →</button></div></div>`;
     document.body.appendChild(root);
@@ -292,6 +292,7 @@
     if (window.visualViewport) { visualViewport.addEventListener("resize", onView); visualViewport.addEventListener("scroll", onView); }
     if (typeof ResizeObserver === "function") ro = new ResizeObserver(onView);
     place();
+    try { root.querySelector(".next").focus({ preventScroll: true }); } catch (e) {}
   }
 
   // Pure positioning from the target's CURRENT rect — no scrolling. Safe to call
@@ -365,9 +366,15 @@
     })();
   }
 
+  // another dialog (BPUI overlay, app modal) owns Escape while it is open
+  function otherModalOpen() {
+    try { return !!document.querySelector('.bpui-overlay, .modal:not([hidden]), .ov, .lightbox, [aria-modal="true"]:not([hidden])'); }
+    catch (e) { return false; }
+  }
+
   /* ---- mount: reuse #helpBtn if present, else a floating button ------- */
   function mount() {
-    document.addEventListener("keydown", e => { if (e.key === "Escape" && root) end(); });
+    document.addEventListener("keydown", e => { if (e.key === "Escape" && root && !otherModalOpen()) end(); });
     if (!steps.length) return;   // engine-only page: the page wires its own button
     const existing = document.getElementById("helpBtn");
     if (existing) { existing.addEventListener("click", () => start()); }
