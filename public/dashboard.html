@@ -706,7 +706,10 @@
     (function go(){
       const A = BPStore.auth;
       const authOn = A && A.enabled && A.enabled();
-      if(!authOn){ if(!localStorage.getItem("bp_seen_tour")) startTour(); return; }   // local/demo mode: per-device
+      // BPStore boots async: auth reads "off" for a moment on every load. Only treat it as
+      // local/demo mode once it is still off after the retries (otherwise a cleared
+      // browser re-ran the tour for signed-in users).
+      if(!authOn){ if(tries++ < 15){ setTimeout(go, 400); return; } if(!localStorage.getItem("bp_seen_tour")) startTour(); return; }   // local/demo mode: per-device
       const u = A.user && A.user();
       if(!u){ if(tries++ < 12) setTimeout(go, 400); return; }
       let forced=false; try{ forced=!!localStorage.getItem("bp_force_tour"); localStorage.removeItem("bp_force_tour"); }catch{}
