@@ -9,7 +9,7 @@ t('builder has the capture button + clean 2D / 3D capture hooks', () => {
   const b = read('public/builder.js');
   assert.match(b, /planBlob\(\{clean:true, maxW:1920\}\)/);
   assert.match(b, /querySelectorAll\('\.margins,\.measure'\)/);
-  assert.match(b, /uploadSnapshot\(currentQuoteId,'3d'/);
+  assert.match(b, /uploadSnapshot\(qid,'3d'/);
   const d = read('public/builder-3d.js');
   assert.match(d, /window\.__capture3D=capture3D/);
   assert.match(d, /grid\.visible=false/); assert.match(d, /transform\.visible=false/); assert.match(d, /selHelper\.visible=false/);

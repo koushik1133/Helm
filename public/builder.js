@@ -3199,13 +3199,19 @@ let clientImgBusy=false;
 async function captureClientImages(silent){
   if(!clientImagesSupported() || clientImgBusy || !store.items.length) return false;
   clientImgBusy=true;
+  // R4-E: pin the quote / version / layout the capture started on — if any changes while the
+  // (slow) renders run, the pictures no longer match that quote's saved layout: never upload them.
+  const qid=currentQuoteId, vno=currentVersionNo, sig=docSig();
+  const moved=()=> currentQuoteId!==qid || currentVersionNo!==vno || docSig()!==sig;
   try{
-    const b2=await planBlob({clean:true, maxW:1920});
+    let b2=await planBlob({clean:true, maxW:1920});
     if(!b2) throw new Error('Couldn’t draw the floor plan');
+    if(b2.size>3*1024*1024) b2=await planBlob({clean:true,maxW:1280});
     let b3=null, e3=null;
     try{ b3=window.__capture3D ? await window.__capture3D(1920) : null; }catch(e){ e3=e; }
-    await BPStore.booklet.uploadSnapshot(currentQuoteId,'2d',b2.size>3*1024*1024 ? await planBlob({clean:true,maxW:1280}) : b2);
-    if(b3) await BPStore.booklet.uploadSnapshot(currentQuoteId,'3d',b3);
+    if(moved()) return false;
+    await BPStore.booklet.uploadSnapshot(qid,'2d',b2);
+    if(b3 && !moved()) await BPStore.booklet.uploadSnapshot(qid,'3d',b3);
     if(!silent) toast(b3 ? 'Client images updated (2D + 3D)' : 'Client 2D plan updated — 3D view couldn’t render');
     else if(e3) console.warn('client 3D capture skipped');
     return true;
@@ -3215,13 +3221,16 @@ async function captureClientImages(silent){
 // after a save (or on open): recapture when a booklet link is live and its images are missing / older than the latest version
 async function autoCaptureIfStale(){
   if(!clientImagesSupported() || !store.items.length || isViewingOlder() || docSig()!==savedSig) return;   // only the saved latest version
+  const qid=currentQuoteId;
   try{
-    const cur=await BPStore.booklet.current(currentQuoteId);
+    const cur=await BPStore.booklet.current(qid);
     if(!cur || !cur.token || cur.revoked_at) return;
-    const info=await BPStore.booklet.snapshotInfo(currentQuoteId);
-    const vs=await BPStore.quotes.versions(currentQuoteId)||[];
+    const info=await BPStore.booklet.snapshotInfo(qid);
+    const vs=await BPStore.quotes.versions(qid)||[];
     const latest=vs.reduce((m,v)=>{ const t=Date.parse(v.createdAt||v.created_at||''); return isFinite(t)&&t>m?t:m; },0);
     const old=k=>!info[k] || !(Date.parse(info[k].updatedAt||'')>=latest);
+    // R4-E: the checks above were async — re-verify we are still on that quote's saved latest version
+    if(currentQuoteId!==qid || isViewingOlder() || docSig()!==savedSig) return;
     if(old('2d') || old('3d')) await captureClientImages(true);
   }catch(e){ /* best effort */ }
 }
