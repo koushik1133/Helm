@@ -246,7 +246,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=1"></script>
-<script src="store-api.js?v=141"></script>
+<script src="store-api.js?v=142"></script>
 <script src="tour.js?v=9"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -308,7 +308,7 @@
       const a=avail[i.id]||{committed:0,available:Number(i.total_qty||0)};
       const p=i.priority||"C";
       const inactive=i.active===false;
-      return `<tr${inactive?' style="opacity:.55"':''}>
+      return `<tr data-item="${esc(i.id)}"${inactive?' style="opacity:.55"':''}>
         <td><b>${esc(i.name)}</b>${inactive?' <span class="cat" style="background:var(--line);color:var(--ink-3)">Inactive</span>':''}</td>
         <td><span class="pri ${p}" title="Priority ${p}">${p}</span></td>
         <td>${i.category?`<span class="cat">${esc(i.category)}</span>`:""}</td>
@@ -386,7 +386,7 @@
     $("#resRows").innerHTML = rows.length ? rows.map(r=>{
       const it=byId[r.item_id]||{name:"(item)"};
       const opts=["reserved","allocated","returned","cancelled"].map(s=>`<option value="${s}" ${s===r.status?"selected":""}>${ST[s]}</option>`).join("");
-      return `<tr>
+      return `<tr data-item="${esc(r.item_id)}">
         <td><b>${esc(it.name)}</b>${r.note?`<div class="sub2">${esc(r.note)}</div>`:""}</td>
         <td class="num">${num(r.qty)} ${esc(it.unit||"")}</td>
         <td>${canEdit?`<select class="ssel" data-res="${esc(r.id)}" data-prev="${esc(r.status)}" aria-label="Reservation status for ${esc(it.name)}">${opts}</select>`:`<span class="stat ${esc(r.status)}">${ST[r.status]||esc(r.status)}</span>`}</td>

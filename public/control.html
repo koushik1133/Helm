@@ -202,6 +202,7 @@
   }
 </style>
 <link rel="stylesheet" href="pkg-review.css?v=1">
+<link rel="stylesheet" href="comms-settings.css?v=1">
 <link rel="stylesheet" href="theme.css?v=76">
 </head>
 <body>
@@ -562,6 +563,59 @@
         <div class="ntools"><select id="np_user" aria-label="Person"><option value="">Choose a person…</option></select></div>
         <div id="np_list"></div>
       </div>
+
+      <!-- 0078: automatic client messages + WhatsApp forwarding (wired by comms-settings.js) -->
+      <div class="card" id="commsCard" hidden>
+        <h3>Automatic client messages &amp; WhatsApp</h3>
+        <p class="mnote">Helm can remind clients about payments, follow up on proposals they opened, warn your team about stock clashes and copy notifications to WhatsApp.
+          Everything here is <b>off</b> until you switch it on. Messages are sent by the server, never twice, and each one is logged on the event.
+          WhatsApp is used only after you add your studio's WhatsApp number below.</p>
+        <div id="cm_err"></div>
+        <fieldset class="cmset">
+          <legend>Payment reminders</legend>
+          <label class="cmchk" for="cm_pay_on"><input type="checkbox" id="cm_pay_on"> Send automatic payment reminders to clients</label>
+          <div class="cmchans"><span>Send by</span>
+            <label class="cmchk" for="cm_pay_email"><input type="checkbox" id="cm_pay_email"> E-mail</label>
+            <label class="cmchk" for="cm_pay_wa"><input type="checkbox" id="cm_pay_wa"> WhatsApp</label></div>
+          <div class="cmgrid">
+            <div class="fld"><label for="cm_pay_before">Days before the due date</label><input id="cm_pay_before" type="number" min="0" max="30" step="1" inputmode="numeric"></div>
+            <div class="fld"><label for="cm_pay_every">Then every N days overdue</label><input id="cm_pay_every" type="number" min="1" max="30" step="1" inputmode="numeric"></div>
+            <div class="fld"><label for="cm_pay_max">Max overdue reminders</label><input id="cm_pay_max" type="number" min="0" max="10" step="1" inputmode="numeric"></div>
+            <div class="fld"><span class="cmlbl">On the due date</span><label class="cmchk" for="cm_pay_due"><input type="checkbox" id="cm_pay_due"> Remind on the day</label></div>
+          </div>
+          <div class="fld"><label for="cm_pay_tpl">Message</label><textarea id="cm_pay_tpl" rows="3" maxlength="1000"></textarea></div>
+          <p class="mnote">Placeholders: {client} {studio} {event} {label} {amount} {due} {status}. Reminders stop as soon as the milestone is paid.</p>
+          <p class="cmprev" id="cm_pay_prev" aria-live="polite"></p>
+        </fieldset>
+        <fieldset class="cmset">
+          <legend>Client follow-ups</legend>
+          <label class="cmchk" for="cm_fu_on"><input type="checkbox" id="cm_fu_on"> Follow up when a client opened their booklet or quote but hasn't approved</label>
+          <div class="cmchans"><span>Send by</span>
+            <label class="cmchk" for="cm_fu_email"><input type="checkbox" id="cm_fu_email"> E-mail</label>
+            <label class="cmchk" for="cm_fu_wa"><input type="checkbox" id="cm_fu_wa"> WhatsApp</label></div>
+          <div class="cmgrid">
+            <div class="fld"><label for="cm_fu_delay">Days after opening</label><input id="cm_fu_delay" type="number" min="1" max="30" step="1" inputmode="numeric"></div>
+            <div class="fld"><label for="cm_fu_max">Max follow-ups</label><input id="cm_fu_max" type="number" min="1" max="5" step="1" inputmode="numeric"></div>
+          </div>
+          <div class="fld"><label for="cm_fu_tpl">Message</label><textarea id="cm_fu_tpl" rows="3" maxlength="1000"></textarea></div>
+          <p class="mnote">Placeholders: {client} {studio} {event}. Follow-ups stop once the client approves, picks a package, or the event is cancelled.</p>
+          <p class="cmprev" id="cm_fu_prev" aria-live="polite"></p>
+        </fieldset>
+        <fieldset class="cmset">
+          <legend>Inventory</legend>
+          <label class="cmchk" for="cm_low_on"><input type="checkbox" id="cm_low_on"> Warn in the 🔔 bell when events on the same date need more of an item than you own</label>
+        </fieldset>
+        <fieldset class="cmset">
+          <legend>WhatsApp forwarding</legend>
+          <p class="mnote">Team members who opt in on their profile get a WhatsApp copy of their bell notifications, with a link that opens the exact page. Max 30 per person per hour.</p>
+          <div class="cmgrid">
+            <div class="fld"><label for="cm_wa_num">Studio WhatsApp number</label><input id="cm_wa_num" type="tel" inputmode="tel" autocomplete="off" maxlength="20" placeholder="e.g. 98XXXXXXXX"></div>
+            <div class="fld"><span class="cmlbl">Forwarding</span><label class="cmchk" for="cm_wa_on"><input type="checkbox" id="cm_wa_on"> Forward notifications to WhatsApp</label></div>
+          </div>
+          <div class="table-scroll"><table class="ntable cmroles" id="cm_roles"><caption class="sr-only">Which notifications each role may receive on WhatsApp</caption></table></div>
+        </fieldset>
+        <div class="cmfoot"><span id="cm_msg" class="ncount" role="status" aria-live="polite"></span><button type="button" class="btn primary" id="cm_save">Save automatic messages</button></div>
+      </div>
     </div>
   </div>
   </main>
@@ -611,11 +665,12 @@
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="event-name.js?v=1"></script>
-<script src="store-api.js?v=141"></script>
+<script src="store-api.js?v=142"></script>
 <script src="hq-invoice.js?v=1"></script>
 <script src="tour.js?v=9"></script>
 <script src="pkg-review.js?v=4"></script>
 <script src="onboarding-core.js?v=2"></script>
+<script src="comms-settings.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1449,6 +1504,7 @@
     npUsers.sort((a,b)=>String(a.full_name||a.email||"").localeCompare(String(b.full_name||b.email||"")));
     $("#np_user").innerHTML='<option value="">Choose a person…</option>'+npUsers.map(u=>`<option value="${esc(u.id)}">${esc((u.full_name||u.email||"user")+" · "+roleLbl(u.role))}</option>`).join("");
     renderPeople();
+    if(typeof HelmCommsSettings!=="undefined") HelmCommsSettings.init();   // 0078
   }
   function npMatches(c){
     const q=($("#nf_q").value||"").trim().toLowerCase(), g=$("#nf_grp").value;

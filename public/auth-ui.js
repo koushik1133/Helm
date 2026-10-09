@@ -758,6 +758,29 @@
     function syncWa() { wa.wrap.hidden = same.checked; if (same.checked && binds.whatsapp) binds.whatsapp.reset(); }
     same.addEventListener("change", function () { syncWa(); progress(); if (!same.checked) try { wa.input.focus(); } catch (x) {} });
     syncWa();
+    // 0078: opt in to WhatsApp copies of my Helm notifications (saved immediately; the server
+    // sends nothing until the studio adds its WhatsApp number and switches forwarding on)
+    (function () {
+      var C = global.BPStore && global.BPStore.comms;
+      if (!C || typeof C.myForward !== "function") return;
+      var fRow = el("div", { class: "hpf-cbrow" });
+      var fCb = el("input", { type: "checkbox", id: idp + "_wa_fwd", class: "hpf-cb" });
+      var fLb = el("label", { for: idp + "_wa_fwd" }, "Also send my Helm notifications to my WhatsApp");
+      var fSt = el("span", { class: "hpf-vstate", role: "status", "aria-live": "polite" });
+      fRow.appendChild(fCb); fRow.appendChild(fLb); fRow.appendChild(fSt); fRow.hidden = true;
+      sA.appendChild(fRow);
+      var paint = function (r) {
+        if (!r) { fRow.hidden = true; return; }
+        fRow.hidden = false; fCb.checked = !!r.opted_in;
+        fSt.textContent = !r.has_number ? "Save a WhatsApp number first." : !r.studio_ready ? "Your studio hasn't switched this on yet." : "";
+      };
+      C.myForward().then(paint).catch(function () { fRow.hidden = true; });
+      fCb.addEventListener("change", function () {
+        fCb.disabled = true;
+        C.setMyForward(fCb.checked).then(paint).catch(function () { fCb.checked = !fCb.checked; fSt.textContent = "Couldn't save - try again."; })
+          .then(function () { fCb.disabled = false; });
+      });
+    })();
 
     // ---- Work (optional)
     var wFilled = !!(P.job_title || P.department || P.city || (P.skills && P.skills.length));

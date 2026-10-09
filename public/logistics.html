@@ -116,7 +116,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=1"></script>
-<script src="store-api.js?v=141"></script>
+<script src="store-api.js?v=142"></script>
 <script src="tour.js?v=9"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -241,13 +241,18 @@
       if(!(await BPUI.confirm(`Remove the payment milestone “${m?m.label:""}” (${inr(m&&m.amount)})?`,{title:"Remove milestone?",danger:true}))) return;
       await act(b,async()=>{ await BPStore.milestones.remove(b.dataset.mdel); await renderPane(); },"remove the milestone"); }));
     document.querySelectorAll("#pane [data-remind]").forEach(b=>b.addEventListener("click",()=>{
-      const m=ms.find(x=>x.id===b.dataset.remind); if(!phone){ BPUI.toast("No client phone on this event.",{type:"err"}); return; }
-      act(b,async()=>{ await BPStore.milestones.sendReminder(id, phone, {label:m.label, amount:m.amount, due:m.due_date}); BPUI.toast("Reminder queued.",{type:"ok"}); },"send the reminder"); }));
+      const m=ms.find(x=>x.id===b.dataset.remind);
+      act(b,async()=>{
+        // 0078: the server sends it (e-mail / WhatsApp per Control Center), deduped + logged on the event
+        const r=await BPStore.comms.remindNow(m.id);
+        if(r){ BPUI.toast(r.queued?"Reminder queued — it goes out on the next send run.":"A reminder for this milestone was just queued.",{type:r.queued?"ok":"info"}); return; }
+        if(!phone){ BPUI.toast("No client phone on this event.",{type:"err"}); return; }
+        await BPStore.milestones.sendReminder(id, phone, {label:m.label, amount:m.amount, due:m.due_date}); BPUI.toast("Reminder queued.",{type:"ok"}); },"send the reminder"); }));
   }
   function rowPay(m){ const opts=["due","invoiced","paid","waived"].map(s=>`<option value="${s}" ${s===m.status?"selected":""}>${PAY_ST[s]}</option>`).join("");
     return `<tr><td><b>${esc(m.label)}</b></td><td class="muted">${esc(m.due_date||"")}</td><td class="num">${inr(m.amount)}</td>
       <td>${canEdit&&m.status!=="paid"?`<select class="ssel" data-mst="${esc(m.id)}" aria-label="Status for ${esc(m.label)}">${opts}</select>`:`<span class="st ${esc(m.status)}">${esc(PAY_ST[m.status]||m.status)}</span>`}</td>
-      <td>${canEdit&&m.status!=="paid"?`<button type="button" class="rm" data-remind="${esc(m.id)}" aria-label="Send reminder for ${esc(m.label)}">Remind</button> `:""}${canDelete&&m.status!=="paid"?`<button type="button" class="rm" data-mdel="${esc(m.id)}" aria-label="Remove milestone ${esc(m.label)}">✕</button>`:""}</td></tr>`; }
+      <td>${canEdit&&m.status!=="paid"?`<button type="button" class="rm" data-remind="${esc(m.id)}" aria-label="Send reminder now for ${esc(m.label)}">Send reminder now</button> `:""}${canDelete&&m.status!=="paid"?`<button type="button" class="rm" data-mdel="${esc(m.id)}" aria-label="Remove milestone ${esc(m.label)}">✕</button>`:""}</td></tr>`; }
   function addMile(){ const l=$("#m_label").value.trim(); if(!l){ $("#m_label").focus(); return; }
     const V=BPStore.validate;
     const ar=V.money($("#m_amt").value,{field:"Amount"}); if(!ar.ok){ BPUI.toast(ar.error,{type:"err"}); return; }
