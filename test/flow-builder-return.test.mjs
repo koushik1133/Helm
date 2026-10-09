@@ -9,9 +9,10 @@ const ctx = { window: {} }; vm.createContext(ctx);
 vm.runInContext(R("public/flow-layout-sync.js"), ctx);
 const L = ctx.window.HelmFlowLayout;
 
-t("chairs follow the layout", () => {
+t("R8b: the quote's chairs are the pricing source — the layout count only raises a mismatch note", () => {
   const r = L.reconcile({ chairs: 100, other: 5000, otherAuto: 5000 }, { chairs: 140, objectsCost: 5000, layoutBase: 0 });
-  assert.equal(r.chairs, 140); assert.equal(r.chairsChanged, true); assert.equal(r.otherChanged, false); assert.equal(r.changed, true);
+  assert.equal(r.chairs, 100); assert.equal(r.chairsChanged, false); assert.equal(r.otherChanged, false); assert.equal(r.changed, false);
+  assert.equal(r.layoutChairs, 140); assert.equal(r.chairsMismatch, true);
 });
 t("auto 'other' follows the objects cost", () => {
   const r = L.reconcile({ chairs: 10, other: 5000, otherAuto: 5000 }, { chairs: 10, objectsCost: 7000, layoutBase: 1000 });

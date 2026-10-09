@@ -41,6 +41,24 @@
     if (!out.tablesManual && (Object.prototype.hasOwnProperty.call(p, "guests") || Object.prototype.hasOwnProperty.call(p, "chairs"))) out.tables = defaultTables(out.chairs);
     return out;
   }
+  // R8b: the quote's ONE chairs value — the pricing source everywhere (chairs × chair rate).
+  // Hand-typed chairs (client first, then pricing) win; otherwise 70% of guests (rounded up);
+  // a saved pricing.chairs next; the layout's count only when the quote has nothing at all.
+  function quoteChairs(client, pricing, fallback) {
+    var cl = client || {}, pr = pricing || {};
+    if (cl.chairsManual && pos(cl.chairs) != null) return pos(cl.chairs);
+    if (pr.chairsManual && pos(pr.chairs) != null) return pos(pr.chairs);
+    var d = defaultChairs(cl.guests != null && cl.guests !== "" ? cl.guests : pr.guests);
+    if (d != null) return d;
+    if (pos(pr.chairs) != null) return pos(pr.chairs);
+    return pos(fallback);
+  }
+  // R8b: the layout's real chair count differs from the quote → offer (never force) a one-click switch
+  function layoutChairsNote(quoteValue, layoutValue) {
+    var q = pos(quoteValue), l = pos(layoutValue);
+    if (!l || q === l) return null;
+    return { n: l, text: "Layout has " + l + " chairs \u2014 use " + l + " for pricing?" };
+  }
   // Template recommendations. `variant` = the generator layout that is built WITH the user's
   // numbers (never the preset's own fixed counts); `sqft` = floor area per seated person.
   var PRESETS = [
@@ -76,7 +94,7 @@
     return scored.slice(0, limit || 3);
   }
   var api = { CHAIR_RATIO: CHAIR_RATIO, SEATS_PER_TABLE: SEATS_PER_TABLE, PRESETS: PRESETS,
-    defaultChairs: defaultChairs, defaultTables: defaultTables, resolve: resolve, merge: merge, rankTemplates: rankTemplates };
+    defaultChairs: defaultChairs, quoteChairs: quoteChairs, layoutChairsNote: layoutChairsNote, defaultTables: defaultTables, resolve: resolve, merge: merge, rankTemplates: rankTemplates };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else global.HelmSizing = api;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -31,7 +31,7 @@ await t('uploadSnapshots always re-checks and a failed check is not "missing"', 
   const s = read('public/share-checklist.js');
   assert.match(s, /always re-check[^\n]*\n\s*await loadInfo\(\);/);
   assert.match(s, /state\.infoErr = e/);
-  assert.match(s, /okLabel: "Use existing images", cancelLabel: "Open builder to update"/);
+  assert.ok(!/Open builder to update/.test(s), 'R8b: stale pictures are regenerated automatically, no detour');
 });
 await t('captureSummary: all ok, partial 3D failure, nothing saved', () => {
   const all = CF.captureSummary({ '2d_labels': true, '2d_plain': true, '3d_labels': true, '3d_plain': true });

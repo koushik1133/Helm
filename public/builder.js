@@ -200,12 +200,34 @@ function priceModel(){
   // Mirror the stored quote's catering MODE so the live panel matches quoteTotal()
   // (client-provided catering = ₹0). Without this the panel always billed in-house.
   return BPStore.pricing.breakdown(
-    { items: store.items, guests: PRICING.guests, menuPlatePrice: PRICING.menuPlatePrice,
+    { items: store.items, chairs: quoteChairsNow(), guests: PRICING.guests, menuPlatePrice: PRICING.menuPlatePrice,
       serviceChargePct: PRICING.serviceChargePct,
       clientCater: !!(typeof currentPricing!=="undefined" && currentPricing && currentPricing.catering && currentPricing.catering.mode === 'client') },
     PRICING);
 }
 
+// R8b: the quote's ONE chairs value (70% of guests unless typed) is the pricing source — never the
+// layout's count. When the layout differs, the right panel offers "Layout has N chairs — use N for pricing?".
+function layoutChairCount(){ try{ return totalSeats(); }catch(e){ return 0; } }
+function quoteChairsNow(){
+  const lay=layoutChairCount();
+  if(!window.HelmSizing) return lay;
+  let cl={}, pr={}; try{ cl=currentClient||{}; pr=currentPricing||{}; }catch(e){ /* not initialised yet */ }
+  const c=HelmSizing.quoteChairs(PRICING.guests!=null && cl.guests==null ? Object.assign({}, cl, { guests: PRICING.guests }) : cl, pr, lay);
+  return c==null ? lay : c;
+}
+function syncChairsPanel(){
+  const inp=$('#bChairs'); if(inp && document.activeElement!==inp) inp.value=quoteChairsNow();
+  const box=$('#bChairsNote'); if(!box || !window.HelmSizing) return;
+  const n=HelmSizing.layoutChairsNote(quoteChairsNow(), layoutChairCount());
+  box.hidden=!n || RO; if(n){ $('#bChairsNoteTxt').textContent=n.text; box.dataset.n=String(n.n); }
+}
+async function setQuoteChairs(n){
+  n=Math.max(0, Math.round(+n||0));
+  currentPricing=Object.assign({}, currentPricing||{}, { chairs:n, chairsManual:true });
+  await persistSizing({ chairs:n, chairsManual:true });
+  renderPrice(); syncChairsPanel(); syncQuotePricing();
+}
 // Build the menu-package + guests controls ONCE (rebuilding on every render
 // would steal focus from the guests field while typing).
 function buildMenuControls(){
@@ -216,7 +238,12 @@ function buildMenuControls(){
   box.innerHTML =
     `<label class="pfield">Menu package<select id="bPkg" ${CAN_CREATE?'':'disabled'}>${opts}</select></label>`+
     `<label class="pfield">Guests / plates <input id="bGuests" type="number" min="0" value="${PRICING.guests!=null?PRICING.guests:''}"></label>`+
+    `<label class="pfield">Chairs (priced) <input id="bChairs" type="number" min="0" ${RO?'disabled':''}></label>`+
+    `<p class="delta" id="bChairsNote" hidden><span id="bChairsNoteTxt"></span> <button type="button" class="tbtn" id="bChairsUse">Use layout count</button></p>`+
     `<div class="delta" id="pkgDelta"></div>`;
+  const bc=$('#bChairs'); if(bc) bc.addEventListener('change',()=>{ if(bc.value!=='') setQuoteChairs(bc.value); });
+  const bu=$('#bChairsUse'); if(bu) bu.addEventListener('click',()=>{ const n=+($('#bChairsNote').dataset.n||0); if(n) setQuoteChairs(n); });
+  syncChairsPanel();
   const sel=$('#bPkg'); if(sel) sel.addEventListener('change',onPickPackage);
   const g=$('#bGuests'); if(g){
     g.addEventListener('input',()=>{ PRICING.guests = g.value===''?null:Math.max(0,parseInt(g.value,10)||0); renderPrice(); });
@@ -262,10 +289,9 @@ async function syncQuotePricingNow(){
       try{ const latest = await BPStore.quotes.get(currentQuoteId);
         if(latest){ currentPricing = latest.pricing || currentPricing; expectedUpdatedAt = latest.updatedAt || null; } }catch(_){}
       const oi = BPStore.pricing.fromItems(store.items, PRICING.assetPrices);
-      // R8: chairs typed by hand on the quote are kept (until "reset to 70%"); otherwise they follow the layout
+      // R8b: the quote's ONE chairs value prices chairs (typed, else 70% of guests) — the layout count never overrides it
       const chairsManual = !!(currentPricing.chairsManual || (currentClient && currentClient.chairsManual));
-      const chairs = chairsManual && (currentPricing.chairs!=null || (currentClient&&currentClient.chairs!=null))
-        ? +(currentPricing.chairsManual && currentPricing.chairs!=null ? currentPricing.chairs : currentClient.chairs) : oi.chairs;
+      const chairs = quoteChairsNow();
       const guests = PRICING.guests!=null ? PRICING.guests : chairs;
       const platePrice = PRICING.menuPlatePrice!=null ? PRICING.menuPlatePrice
                         : (currentPricing.platePrice!=null?currentPricing.platePrice:PRICING.platePrice);
@@ -314,6 +340,7 @@ async function onPickPackage(){
 
 // Render the live price breakdown panel (called on every renderAll).
 function renderPrice(){
+  try{ syncChairsPanel(); }catch(e){}
   const box=$('#pricePanel'); if(!box) return;
   const m=priceModel();
   let rows='';
@@ -440,7 +467,7 @@ const DESIGN_PITCH=2.4;                                     // pitch the auto-ar
 const CONG_COLORS=['', '#e8912d', '#e5484d'];              // 0 ok · 1 tight(amber) · 2 packed(red)
 function seatPitchFt(it){ const c=Math.max(1,it.properties.cols||1), r=Math.max(1,it.properties.rows||1); return Math.min(it.width/c, it.height/r); }
 function congestionOf(it){ if(it.type!=='seatblock'&&it.type!=='chairrow') return 0; const p=seatPitchFt(it); return p<PACKED_PITCH?2:p<COMFORT_PITCH?1:0; }
-function totalSeats(){ let n=0; store.items.forEach(i=>{ const p=i.properties||{}; if(p.rows&&p.cols) n+=p.rows*p.cols; else if(p.seats) n+=p.seats; }); return n; }
+function totalSeats(){ return store.items.reduce((n,i)=>n+genSeats(i),0); }   // R8b: same per-item seat count the generator uses
 function updateCapacityUI(){
   const meter=$('#capMeter'), lbl=$('#capLbl'), banner=$('#capBanner'); if(!meter) return;
   const seats=totalSeats(), cap=store.venue.capacity;
@@ -1855,7 +1882,10 @@ function loadItems(items, name){
 function loadTemplate(key){
   if(!key){ return; }
   const lbl=document.querySelector('#preset option[value="'+key+'"]').textContent;
-  loadItems(TEMPLATES[key](), lbl);
+  // R8b: an open quote's seats value is the exact seating total for preset templates too
+  const tItems=TEMPLATES[key](); const N=currentQuoteId ? quoteChairsNow() : 0;
+  if(N>0){ const nat=sumSeats(tItems); exactSeats(tItems, N); const w=seatFitWarning(N, nat); if(w) setTimeout(()=>BPUI.toast('⚠ '+w,{type:'err'}),50); }
+  loadItems(tItems, lbl);
   toast(lbl + ' loaded');
 }
 
@@ -1872,6 +1902,66 @@ function countSeats(items){
     if(i.type==='table'||i.type==='longtable'||i.type==='cocktail'||i.type==='headtable') tables++;
   });
   return {chairs, tables};
+}
+/* R8b: the quote's seats value N is the EXACT total seating a generated layout gets. Seats are counted
+   per item (rows×cols, properties.seats, single-seat units). Excess: trailing seating (bottom-right
+   first) is dropped / its last table or row filled partially. Shortfall: tables gain seats round-robin,
+   else the biggest block is packed denser inside its own rect (the caller warns about the hall size).
+   Partial rows are split inside the original rect, so nothing new overlaps or leaves the hall. */
+// every seat on the floor counts toward N (owner rule) — lounge furniture without a seats property uses these
+const FLOOR_SEATS = { sofa:3, loveseat:2, armchair:1, ottoman:1, bench:2, lounge:4 };
+function genSeats(it){ const p=it.properties||{}; if(p.rows&&p.cols) return p.rows*p.cols; if(p.seats) return +p.seats||0; return SEAT_UNIT[it.type]||FLOOR_SEATS[it.type]||0; }
+function sumSeats(items){ return items.reduce((n,it)=>n+genSeats(it),0); }
+function setBlockSeats(items, it, T){
+  const p=it.properties||{}, c=Math.max(1,+p.cols||1), idx=items.indexOf(it);
+  if(T<=0){ items.splice(idx,1); return; }
+  const full=Math.floor(T/c), rem=T%c;
+  if(!full){ it.properties={...p, rows:1, cols:rem}; it.width=Math.round(it.width*rem/c*10)/10; return; }
+  const strips=full+(rem?1:0), rowH=it.height/strips;
+  it.properties={...p, rows:full, cols:c}; it.height=rowH*full;
+  if(rem) items.splice(idx+1,0,makeItem('chairrow', it.x, it.y, {y:it.y+it.height+0.02, width:it.width*rem/c, height:Math.max(0.1,rowH-0.04),
+    rotation:it.rotation||0, properties:{rows:1, cols:rem}, label:(it.label||'Seating')+' · last row'}));
+}
+function exactSeats(items, N){
+  N=Math.round(+N||0); if(!(N>0)) return items;
+  let S=sumSeats(items);
+  if(S>N){
+    const order=items.filter(it=>genSeats(it)>0).sort((a,b)=>(b.y+b.height)-(a.y+a.height) || b.x-a.x);
+    for(const it of order){
+      const ex=S-N; if(ex<=0) break;
+      const n=genSeats(it);
+      if(n<=ex){ items.splice(items.indexOf(it),1); S-=n; continue; }
+      const p=it.properties||{};
+      if(p.rows&&p.cols) setBlockSeats(items, it, n-ex);
+      else if(p.seats) it.properties={...p, seats:n-ex};
+      else { items.splice(items.indexOf(it),1); S-=n; continue; }
+      S=N;
+    }
+  }
+  S=sumSeats(items);
+  if(S<N){
+    let d=N-S;
+    const tabs=items.filter(it=>{ const p=it.properties||{}; return p.seats && !(p.rows&&p.cols); });
+    const blocks=items.filter(it=>{ const p=it.properties||{}; return p.rows&&p.cols; }).sort((a,b)=>genSeats(b)-genSeats(a));
+    if(blocks.length) setBlockSeats(items, blocks[0], genSeats(blocks[0])+d);
+    else if(tabs.length){ for(let i=0;d>0;i=(i+1)%tabs.length,d--) tabs[i].properties={...tabs[i].properties, seats:(+tabs[i].properties.seats||0)+1}; }
+    else { // no seating survived (tiny hall): pack all N into the largest free spot found
+      const taken=items.filter(it=>!GEN_OVERLAY.has(it.type)).map(genRect);
+      let spot=null;
+      for(const [w,h] of [[Math.min(40,WORLD.w-4),Math.min(20,WORLD.h-4)],[20,8],[12,5],[6,2.4],[3,2]]){
+        for(let y=0;!spot && y+h<=WORLD.h;y+=1) for(let x=0;!spot && x+w<=WORLD.w;x+=1){ const r={x,y,w,h}; if(!taken.some(t=>rectsHit(r,t,0.5))) spot=r; }
+        if(spot) break; }
+      spot=spot||{x:2,y:Math.max(0,WORLD.h-4),w:Math.max(2,WORLD.w-4),h:2};
+      const cols=Math.max(1,Math.min(N,Math.floor(spot.w/DESIGN_PITCH)||1)), rows=Math.ceil(N/cols);
+      const b=makeItem('seatblock', spot.x, spot.y, {width:spot.w, height:spot.h, properties:{rows, cols}, label:'Seating'}); items.push(b); setBlockSeats(items, b, d); }
+  }
+  return items;
+}
+// R8b: the honest hall-size warning when N seats exceed what the template fits at its density
+function seatFitWarning(N, natural){
+  N=Math.round(+N||0); if(!(N>0) || !(natural<N)) return '';
+  const hall=Math.round(WORLD.w*WORLD.h), need=natural>0 ? Math.ceil(hall*N/natural) : Math.ceil(N*DESIGN_PITCH*DESIGN_PITCH*2);
+  return N.toLocaleString('en-IN')+' seats need ~'+need.toLocaleString('en-IN')+' sq ft; hall is '+hall.toLocaleString('en-IN')+' sq ft';
 }
 function tally(items, type){ return items.filter(i=>i.type===type).length; }
 
@@ -2087,9 +2177,12 @@ function generateVariants(oIn){
   if(o.chairs!=null) o.guests = o.chairs;   // an explicit chair count drives the seating target
   const variants=[];
   const base=()=>{ const it=[]; return it; };
-  const finish=(it,name,desc)=>{ it.forEach(clampItem); resolveOverlaps(it); const c=countSeats(it);
+  const target = o.guests!=null ? o.guests : null;   // R8b: the quote's seats value — exact total seating
+  const finish=(it,name,desc)=>{ it.forEach(clampItem); resolveOverlaps(it); const natural=sumSeats(it);
+    if(target>0) exactSeats(it, target);
+    const c=countSeats(it);
     variants.push({name, desc, items:it.map(i=>({...i})),
-      counts:{chairs:c.chairs, tables:c.tables, tables_round:tally(it,'table'), booths:tally(it,'booth'),
+      counts:{chairs:sumSeats(it), natural, tables:c.tables, tables_round:tally(it,'table'), booths:tally(it,'booth'),
         bars:tally(it,'bar'), trucks:tally(it,'truck'), exits:tally(it,'exit'), objects:it.length}}); };
 
   if(o.type==='conference' && (o.booths||0)>0){
@@ -2181,14 +2274,12 @@ function runCustomGenerate(){
   // Honest capacity check: if the hall physically can't seat the headcount at a walkable pitch, say so.
   let fitNote='';
   if(o.guests){
-    const bestCap=Math.max(0,...variants.map(v=>v.counts.chairs));
-    if(bestCap>0 && o.guests>bestCap){
-      const shortfall=o.guests-bestCap;
-      const extraFt2=Math.ceil(shortfall*DESIGN_PITCH*DESIGN_PITCH);            // ~ area one more seat needs
-      const extraLen=Math.ceil(extraFt2/Math.max(20,WORLD.h));                  // as added length on the current breadth
+    const target=o.chairs!=null?o.chairs:o.guests;
+    const bestCap=Math.max(0,...variants.map(v=>v.counts.natural||0));
+    const warn=seatFitWarning(target, bestCap);
+    if(warn){
       fitNote=`<div style="grid-column:1/-1;background:color-mix(in srgb,var(--c-logistics) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--c-logistics) 45%,var(--line));border-radius:9px;padding:10px 12px;font-size:12px;color:var(--ink);line-height:1.5">
-        ⚠ This ${WORLD.w}×${WORLD.h} ft hall comfortably seats about <b>${bestCap}</b> at a walkable ${DESIGN_PITCH} ft spacing — <b>${shortfall}</b> short of your ${o.guests} guests.
-        Add roughly <b>${extraLen} ft</b> of length (≈${extraFt2.toLocaleString()} ft²), reduce the headcount, or drop the aisle/facilities to gain room. The layouts below still place the maximum that fits.</div>`;
+        ⚠ ${esc(warn)}. Every layout below still places all ${esc(String(target))} seats, packed tighter than the comfortable ${DESIGN_PITCH} ft spacing — enlarge the hall or reduce the seats.</div>`;
     }
   }
   host.innerHTML = fitNote + variants.map((v,idx)=>{
@@ -2295,6 +2386,7 @@ function applyRecommendation(rec){
   const variants=generateVariants(o).map(v=>({...v, items:v.items.map(clampItem)}));
   const v=variants.find(x=>x.name===rec.variant) || variants[0]; if(!v) return;
   loadItems(v.items, 'Template · '+rec.label);
+  { const w=seatFitWarning(o.chairs!=null?o.chairs:o.guests, v.counts.natural); if(w) BPUI.toast('⚠ '+w+' — all seats placed, packed tight.',{type:'err'}); }
   if(o.guests!=null){ PRICING.guests=o.guests; const g=$('#bGuests'); if(g) g.value=o.guests; }
   persistSizing(sizingPatch(o)).then(()=>{ if(o.guests!=null) persistGuests(); });
   closeCustomModal(); renderAll(); fitView(); renderPrice();
@@ -3296,7 +3388,22 @@ async function exportPNG(){
    'plain' (the model without labels). Stored IN THE DATABASE via BPStore.booklet.putImage
    (JPEG ~0.85, <= 1600 px wide); the booklet link shows the newest ones. */
 function clientImagesSupported(){ return !!(currentQuoteId && !RO && BPStore.mode && BPStore.mode()==='supabase' && BPStore.booklet && BPStore.booklet.putImage); }
-let clientImgBusy=null;   // R8: the in-flight capture promise (a second click / auto-capture waits for it)
+let clientImgBusy=null, captureProgressHook=null, lastCaptureResults=null;
+// R8b: capture.html (generated from builder.html, the ONLY framable page — frame-ancestors 'self')
+// runs this builder headless inside a hidden same-origin iframe from the share checklist.
+const CAPTURE_HOST = !!document.querySelector('meta[name="helm-capture"]') && window.parent!==window;
+function captureHostMessage(quoteId, m){ return Object.assign({ quoteId:String(quoteId||'') }, m); }
+async function runCaptureHost(){
+  const qid=currentQuoteId || new URLSearchParams(location.search).get('quote') || '';
+  // targetOrigin = our own origin: only a same-origin parent (the share card) can ever receive this
+  const post=m=>{ try{ window.parent.postMessage(captureHostMessage(qid, m), location.origin); }catch(e){} };
+  if(!currentQuoteId){ post({type:'helm-capture-done', ok:false, error:'That event could not be opened'}); return; }
+  if(!store.items.length){ post({type:'helm-capture-done', ok:true, empty:true, results:{}}); return; }
+  if(!clientImagesSupported()){ post({type:'helm-capture-done', ok:false, error:'You can’t update the pictures for this event'}); return; }
+  captureProgressHook=step=>post({type:'helm-capture-progress', step});
+  let ok=false; try{ ok=await captureClientImages(true); }catch(e){ ok=false; }
+  post({type:'helm-capture-done', ok:!!ok, results:lastCaptureResults||{}, error: ok ? null : 'The pictures could not be saved'});
+}   // R8: the in-flight capture promise (a second click / auto-capture waits for it)
 // capture style -> label mode used by planBlob / capture3D
 const CLIENT_IMG_STYLES=[['labels','numbers'],['plain','none']];
 function captureClientImages(silent){
@@ -3319,6 +3426,7 @@ async function captureClientImagesRun(silent){
       try{ const b=await planBlob({clean:true, maxW:1600, labels:m}); if(b) p2[v]=b; else res['2d_'+v]='couldn’t draw the floor plan'; }
       catch(e){ res['2d_'+v]=why(e); }
     }
+    try{ if(captureProgressHook) captureProgressHook('2d'); }catch(e){}
     say('Capturing 3D…');
     for(const [v,m] of CLIENT_IMG_STYLES){
       // R8: capture3D initialises the 3D scene offscreen when the 3D view was never opened; one retry
@@ -3329,6 +3437,7 @@ async function captureClientImagesRun(silent){
       if(moved()) break;
     }
     if(moved()){ if(!silent) BPUI.toast('The layout changed while capturing — press “Update client images” again.',{type:'err'}); return false; }
+    try{ if(captureProgressHook) captureProgressHook('3d'); }catch(e){}
     say('Uploading client images…');
     for(const [v] of CLIENT_IMG_STYLES) for(const [k,pics] of [['2d',p2],['3d',p3]]){
       if(!pics[v]) continue;
@@ -3336,6 +3445,7 @@ async function captureClientImagesRun(silent){
       try{ await BPStore.booklet.putImage(qid,k,v,pics[v]); res[k+'_'+v]=true; }
       catch(e){ res[k+'_'+v]=(BPUI.friendlyError ? BPUI.friendlyError(e,{action:'save the picture'}) : why(e)); }
     }
+    lastCaptureResults=res;
     const sum=window.HelmCaptureFrame && HelmCaptureFrame.captureSummary ? HelmCaptureFrame.captureSummary(res) : {ok:false, saved:[], message:'Client images updated'};
     if(!silent) BPUI.toast(sum.message,{type:sum.ok?'ok':'err'});
     else if(!sum.ok) console.warn('client image capture:', sum.message);
@@ -3539,8 +3649,9 @@ async function init(){
         // Brand-new (never-edited) quote → drop in the default layout for this event type so the
         // client immediately sees the standard package (chairs, mandap, stage…). Only ever for v1.
         const presetKey = EVENT_TYPE_PRESET[(q.eventType||'').toLowerCase()];
-        if(presetKey && TEMPLATES[presetKey]){
+        if(presetKey && TEMPLATES[presetKey] && !CAPTURE_HOST){
           store.items = TEMPLATES[presetKey]();
+          { const N=quoteChairsNow(); if(N>0) exactSeats(store.items, N); }   // R8b: exactly the quote's seats
           toast('Loaded default '+(q.eventType||'')+' layout');
           resetHistory(); setSavedBaseline(); renderAll();
         }
@@ -3552,8 +3663,8 @@ async function init(){
       watchVersions();                       // live: versions saved on another device / tab
       if(q.status==='confirmed'){ const b=$('#quoteBadge'); if(b) b.classList.add('confirmed'); }
       toast('Opened '+q.code+' · v'+currentVersionNo);
-      await offerDraftRestore();
-      setTimeout(()=>{ autoCaptureIfStale(); }, 2500);   // R2: refresh stale client booklet images
+      if(!CAPTURE_HOST){ await offerDraftRestore();
+        setTimeout(()=>{ autoCaptureIfStale(); }, 2500); }   // R2: refresh stale client booklet images
     }catch(e){
       // The quote didn't fully load: unbind it and lock the builder so a Save can never write an
       // empty layout over a real quote (which would also zero its pricing).
@@ -3567,7 +3678,7 @@ async function init(){
         const pn=$('#projName'); if(pn) pn.value=full.name; setSavedBaseline(); toast('Opened “'+full.name+'”'); } }
     catch{ toast('Could not open that event'); }
   }
-  if(layoutLoading) setLayoutLoading(false);   // blank-floor prompt only if the loaded layout truly has no items
+  if(layoutLoading) setLayoutLoading(false); if(CAPTURE_HOST){ runCaptureHost(); return; }   // blank-floor prompt only if the loaded layout truly has no items; R8b: headless picture capture
   populateRefEvents();   // fill the "Past events" reference picker
   // Guided default-layout generation from the flow: ?gen=1&type=&guests=&len=&wid=
   if(params.get('gen')==='1' && CAN_CREATE!==false){

@@ -232,7 +232,7 @@
           </div>
           <div class="secerr" id="err-rates"></div>
           <div class="grid">
-            <div class="fld"><label for="q_chairs">Chairs <small id="q_chairsHint">(70% of guests, or from layout)</small> <a href="#" id="q_chairsReset" hidden>reset to 70%</a></label><input id="q_chairs" type="number" min="0"></div>
+            <div class="fld"><label for="q_chairs">Chairs <small id="q_chairsHint">(70% of guests — drives chairs pricing)</small> <a href="#" id="q_chairsReset" hidden>reset to 70%</a></label><input id="q_chairs" type="number" min="0"><p class="hint" id="q_chairsLayout" hidden><span id="q_chairsLayoutTxt"></span> <button type="button" class="btn ghost" id="q_chairsUseLayout">Use layout count</button></p></div>
             <div class="fld"><label for="q_guests">Guests / plates</label><input id="q_guests" type="number" min="0"></div>
             <div class="fld"><label for="q_chairPrice">Chair rate (₹) <span class="s-c78b388">· set in Control Center</span></label><input class="s-10bfcec" id="q_chairPrice" type="number" min="0" readonly title="Fixed — change it in Control Center → Pricing"></div>
             <div class="fld"><label for="q_platePrice">Plate price (₹) <span class="s-c78b388">· from package / Control Center</span></label><input class="s-10bfcec" id="q_platePrice" type="number" min="0" readonly title="Fixed — set by the menu package or Control Center → Pricing"></div>
@@ -333,9 +333,9 @@
 <script src="store-api.js?v=150"></script>
 <script src="tour.js?v=9"></script>
 <script src="booklet.js?v=13"></script>
-<script src="share-checklist.js?v=6"></script>
-<script src="flow-layout-sync.js?v=2"></script>
-<script src="event-sizing.js?v=1"></script>
+<script src="share-checklist.js?v=7"></script>
+<script src="flow-layout-sync.js?v=3"></script>
+<script src="event-sizing.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -428,7 +428,7 @@
   }
   function currentInputs(){
     const oi = BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
-    const chairs = nn($("#q_chairs").value!==""?(+$("#q_chairs").value||0):oi.chairs);
+    const chairs = nn($("#q_chairs").value!==""?(+$("#q_chairs").value||0):(autoChairs()||0));   // R8b: the quote's chairs, never the layout's
     const guests = nn($("#q_guests").value!==""?(+$("#q_guests").value||0):chairs);
     const platePrice = nn($("#q_platePrice").value!==""?(+$("#q_platePrice").value||0):(appliedPkg?appliedPkg.price_per_plate:rates.platePrice));
     const other = nn($("#q_other").value!==""?(+$("#q_other").value||0):(oi.objectsCost+(+rates.layoutBase||0)));
@@ -539,14 +539,19 @@
       if($("#q_chairs") && a!=null && String($("#q_chairs").value)!==String(a)) $("#q_chairs").value=a; }
     syncChairsUi();
   }
-  // R8: default chairs = layout chairs when a floor exists, else 70% of guests (rounded up)
+  // R8b: default chairs = 70% of guests (rounded up). The layout never sets pricing silently —
+  // a differing layout count shows "Layout has N chairs — use N for pricing?" (one click).
   function autoChairs(){
-    const oi=BPStore.pricing.fromItems(layoutItems||[], rates&&rates.assetPrices);
-    if(oi.chairs>0) return oi.chairs;
     const g=$("#c_guests").value!==""?+$("#c_guests").value:null;
     return HelmSizing.defaultChairs(g);
   }
-  function syncChairsUi(){ const r=$("#q_chairsReset"); if(r) r.hidden=!chairsManual; }
+  function syncChairsUi(){ const r=$("#q_chairsReset"); if(r) r.hidden=!chairsManual; syncLayoutChairsNote(); }
+  function syncLayoutChairsNote(){
+    const box=$("#q_chairsLayout"); if(!box) return;
+    const oi=BPStore.pricing.fromItems(layoutItems||[], rates&&rates.assetPrices);
+    const n=HelmSizing.layoutChairsNote($("#q_chairs").value===""?null:+$("#q_chairs").value, oi.chairs);
+    box.hidden=!n || !canEdit; if(n){ $("#q_chairsLayoutTxt").textContent=n.text; box.dataset.n=String(n.n); }
+  }
   function syncVenueMem(){ ev.client=Object.assign({}, ev.client||{}, { venue:$("#v_name").value.trim()||null, address:$("#v_addr").value.trim()||null }); }
   // Persist every section that used to auto-save. saveVenue() also writes the
   // plan (venue + menu notes), so saveMenuNotes() is covered. Quotation versions
@@ -916,8 +921,7 @@
     const oi=BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
     const pr=ev.pricing||{};
     chairsManual=!!(cl.chairsManual||pr.chairsManual);
-    $("#q_chairs").value=chairsManual ? (pr.chairs!=null?pr.chairs:(cl.chairs!=null?cl.chairs:""))
-      : (oi.chairs>0 ? (pr.chairs!=null&&pr.chairs>0?pr.chairs:oi.chairs) : (pr.chairs>0?pr.chairs:(HelmSizing.defaultChairs(cl.guests)??"")));
+    { const qc=HelmSizing.quoteChairs(cl, pr, null); $("#q_chairs").value=qc==null?"":qc; }   // R8b: one chairs value per quote
     syncChairsUi();
     $("#q_guests").value=pr.guests!=null?pr.guests:(cl.guests!=null?cl.guests:(oi.chairs||""));  // H-02: empty, not "0", when unknown
     $("#q_platePrice").value=pr.platePrice!=null?pr.platePrice:(appliedPkg?appliedPkg.price_per_plate:rates.platePrice);
@@ -982,7 +986,8 @@
     try{
       const oi=BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
       const pr=ev.pricing||{};
-      const r=HelmFlowLayout.reconcile(pr,{ chairs:oi.chairs, objectsCost:oi.objectsCost, layoutBase:rates.layoutBase });
+      const r=HelmFlowLayout.reconcile(pr,{ chairs:oi.chairs, objectsCost:oi.objectsCost, layoutBase:rates.layoutBase }, ev.client);
+      syncLayoutChairsNote();
       if(!r.changed){ if(fromBuilder) BPUI.toast("Back from the floor builder — quotation is up to date.",{type:"info"}); return; }
       const before=BPStore.pricing.quoteTotal(currentInputs()).total;
       const wasLoading=loading; loading=true;
@@ -1030,6 +1035,8 @@
     $("#g_guests").addEventListener("input",()=>{ $("#c_guests").value=$("#g_guests").value; syncClientMem(); renderPrice(); });
     ["g_len","g_wid"].forEach(f=>$("#"+f).addEventListener("input",syncClientMem));
     $("#q_chairs").addEventListener("input",()=>{ chairsManual=true; syncClientMem(); });
+    $("#q_chairsUseLayout").addEventListener("click",()=>{ const n=+($("#q_chairsLayout").dataset.n||0); if(!n) return;
+      $("#q_chairs").value=n; chairsManual=true; syncClientMem(); markDirty(); renderPrice(); updateAdvance(); });
     $("#q_chairsReset").addEventListener("click",(e)=>{ e.preventDefault(); chairsManual=false; syncClientMem(); markDirty(); renderPrice(); updateAdvance(); });   // H-02: user took manual control of the quotation guest count
     $("#q_coupon").addEventListener("input",applyCoupon);   // coupon code → discount
     // dirty tracking: any genuine user input/change anywhere in the quote form

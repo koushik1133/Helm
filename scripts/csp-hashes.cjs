@@ -134,7 +134,7 @@ const SCRIPT_SRC_BUILDER = [...SCRIPT_SRC_BASE,
   'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/',
   'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/'];
 // Pages (clean URL or .html) whose policy may use SCRIPT_SRC_BUILDER.
-const BUILDER_SOURCES = new Set(['/builder', '/builder\\.html', '/builder.html', '/([a-z0-9-]+)/events/([^/]+)/floor-plan', '/:studio/events/:ref/floor-plan']);   // 0067 pretty floor-plan URL serves builder.html
+const BUILDER_SOURCES = new Set(['/builder', '/builder\\.html', '/builder.html', '/capture', '/capture\\.html', '/capture.html', '/(capture|capture\\.html)', '/([a-z0-9-]+)/events/([^/]+)/floor-plan', '/:studio/events/:ref/floor-plan']);   // 0067 pretty floor-plan URL serves builder.html
 
 // Sign-in / password-reset pages may also load the Cloudflare Turnstile CAPTCHA
 // widget (a single-purpose origin, not a library CDN).
@@ -167,8 +167,19 @@ function scriptSrcProblem(csp, route) {
   return '';
 }
 
+// R8b: the ONLY routes whose CSP may allow framing (frame-ancestors 'self'): the invitation
+// preview (/invite, /i/<slug>) and the headless picture-capture host (capture.html, framed by the
+// share checklist). Every other page — builder.html included — must stay frame-ancestors 'none'.
+const FRAME_SELF_ROUTES = new Set(['/invite', '/invite\\.html', '/invite.html', '/i', '/i/(.*)', '/i/*',
+  '/([a-z0-9-]+)/invite/([^/]+)', '/:studio/invite/:ref', '/capture', '/capture\\.html', '/capture.html', '/(capture|capture\\.html)']);
+function frameAncestorsProblem(value, route) {
+  const m = /frame-ancestors ([^;]*)/.exec(value || ''); const fa = m ? m[1].trim() : '';
+  if (!fa || fa === "'none'") return '';   // (a policy without frame-ancestors is checked by headers-parity)
+  if (fa === "'self'" && FRAME_SELF_ROUTES.has(route)) return '';
+  return "frame-ancestors " + (fa || '(missing)') + " is only allowed ('self') on " + [...FRAME_SELF_ROUTES].join(' ');
+}
 module.exports = {
   TRUSTED_TYPES_ENFORCE, TT_DIRECTIVES,
   computeHashes, computeStyleHashes, inlineScripts, inlineStyles, htmlFiles, withHashes,
-  SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER, BUILDER_SOURCES, RAZORPAY_SCRIPT, scriptHosts, scriptSrcProblem,
+  SCRIPT_SRC_BASE, SCRIPT_SRC_BUILDER, BUILDER_SOURCES, RAZORPAY_SCRIPT, scriptHosts, scriptSrcProblem, FRAME_SELF_ROUTES, frameAncestorsProblem,
 };

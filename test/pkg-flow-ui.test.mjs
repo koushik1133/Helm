@@ -346,7 +346,7 @@ await t('final contract: mode selected/hidden, choose error hints, review outcom
     assert.equal(pl.days, 14); assert.deepEqual(pl.versions, ['v1']); assert.deepEqual(pl.versionIds, ['v1']); assert.equal(pl.sections.menu, true); assert.equal(pl.sections.terms, false);
     assert.deepEqual(J(S.fitSize(3200, 1600)), { w: 1600, h: 800 }); assert.deepEqual(J(S.fitSize(800, 600)), { w: 800, h: 600 });
   });
-  await t('share checklist mount: toggles drive the preview; missing builder pictures block the share; styles saved', async () => {
+  await t('share checklist mount: toggles drive the preview; missing pictures are auto-captured (retry on failure); styles saved', async () => {
     const d = { documentElement: new Node_('html'), readyState: 'complete', createElement: (tg) => new Node_(tg), createTextNode: (x) => { const k = new Node_('#text'); k._text = String(x); return k; } };
     d.body = d.documentElement.appendChild(new Node_('body')); d.getElementById = (id) => d.documentElement.querySelector("#" + id); d.querySelector = (q) => d.documentElement.querySelector(q);
     const ups = []; let info = {};
@@ -365,8 +365,10 @@ await t('final contract: mode selected/hidden, choose error hints, review outcom
     assert.doesNotMatch(host.querySelector('.sc-pvl').textContent, /Terms/);
     const two = host.querySelectorAll('input').find((i) => i.getAttribute('data-sec') === 'layout2d');
     two.checked = true; two.dispatch('change'); await tick();
-    assert.match(host.textContent, /Open builder to capture/);
-    await assert.rejects(ck.uploadSnapshots(), /No 2D floor plan picture yet/);
+    assert.match(host.textContent, /prepared automatically/);
+    assert.doesNotMatch(host.textContent, /Open builder to capture/);
+    // R8b: no capture host in this harness → the auto-capture fails → a clear retry message
+    await assert.rejects(ck.uploadSnapshots(), /Couldn’t prepare the 2D \/ 3D pictures[\s\S]*retry/);
     const plain = host.querySelectorAll('input').find((i) => i.getAttribute('data-style') === 'plain');
     plain.checked = false; plain.dispatch('change');
     info = { '2d': { labels: '2026-10-09T00:00:00Z' } };
@@ -390,8 +392,8 @@ await t('final contract: mode selected/hidden, choose error hints, review outcom
   await t('share checklist wired on flow.html + Share booklet dialog', () => {
     const f = read('public/flow.html');
     assert.ok(f.indexOf('id="sec-share"') > f.indexOf('id="sec-pay"') && f.indexOf('id="sec-share"') < f.indexOf('id="sec-activity"'));
-    assert.match(f, /share-checklist\.js\?v=6/); assert.match(f, /share-checklist\.css\?v=2/);
-    for (const p of ['public/event.html', 'public/client.html']) assert.match(read(p), /share-checklist\.js\?v=6[\s\S]*booklet-share\.js/, p);
+    assert.match(f, /share-checklist\.js\?v=7/); assert.match(f, /share-checklist\.css\?v=2/);
+    for (const p of ['public/event.html', 'public/client.html']) assert.match(read(p), /share-checklist\.js\?v=7[\s\S]*booklet-share\.js/, p);
     assert.match(read('public/booklet-share.js'), /HelmShareChecklist\.mount\(form/);
     assert.doesNotMatch(read('public/share-checklist.js'), /\.innerHTML|\.outerHTML|insertAdjacentHTML|document\.write/);
   });

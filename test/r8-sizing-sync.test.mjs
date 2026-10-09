@@ -43,13 +43,32 @@ t("template ranking: type + capacity fit, with reasons", () => {
 t("layout reconcile keeps hand-set chairs", () => {
   const r = L.reconcile({ chairs: 90, chairsManual: true, other: 0, otherAuto: 0 }, { chairs: 140, objectsCost: 0 });
   assert.equal(r.chairs, 90); assert.equal(r.chairsChanged, false);
-  assert.equal(L.reconcile({ chairs: 90 }, { chairs: 140 }).chairs, 140);
+  assert.equal(L.reconcile({ chairs: 90 }, { chairs: 140 }).chairs, 90, "R8b: layout never overrides the quote's chairs");
+  assert.equal(L.reconcile({}, { chairs: 140 }, { guests: 100 }).chairs, 70, "no saved chairs → 70% of guests, not the layout");
+  assert.equal(L.reconcile({}, { chairs: 140 }, {}).chairs, 140, "nothing on the quote at all → the layout count");
 });
 
+t("R8b: ONE chairs value per quote is the pricing source", () => {
+  assert.equal(S.quoteChairs({ guests: 1000 }, {}), 700, "70% of guests, rounded up");
+  assert.equal(S.quoteChairs({ guests: 101 }, { chairs: 40 }), 71, "auto value follows guests");
+  assert.equal(S.quoteChairs({ guests: 1000, chairs: 650, chairsManual: true }, { chairs: 700 }, 999), 650, "edited value wins over layout + default");
+  assert.equal(S.quoteChairs({ guests: 1000 }, { chairs: 640, chairsManual: true }, 999), 640, "edited on the quotation");
+  assert.equal(S.quoteChairs({}, {}, 120), 120, "nothing on the quote → layout count");
+  assert.equal(S.layoutChairsNote(700, 712).text, "Layout has 712 chairs \u2014 use 712 for pricing?");
+  assert.equal(S.layoutChairsNote(700, 700), null); assert.equal(S.layoutChairsNote(700, 0), null);
+});
+t("R8b: pricing uses the quote's chairs on every screen; a differing layout only shows the one-click note", () => {
+  const fl = R("public/flow.html"), bj = R("public/builder.js");
+  assert.match(fl, /HelmSizing\.quoteChairs\(cl, pr, null\)/); assert.match(fl, /id="q_chairsUseLayout"/);
+  assert.match(fl, /HelmFlowLayout\.reconcile\(pr,\{[^\n]*\}, ev\.client\)/);
+  assert.ok(!/oi\.chairs>0\) return oi\.chairs/.test(fl), "layout no longer sets the default chairs");
+  assert.match(bj, /chairs: quoteChairsNow\(\), guests: PRICING\.guests/); assert.match(bj, /id="bChairs"/); assert.match(bj, /id="bChairsUse"/);
+  assert.match(bj, /HelmSizing\.layoutChairsNote\(quoteChairsNow\(\), layoutChairCount\(\)\)/);
+});
 const flow = R("public/flow.html"), bjs = R("public/builder.js"), bhtml = R("public/builder.html");
 t("both pages load event-sizing.js before their code", () => {
   assert.match(flow, /<script src="event-sizing\.js\?v=\d+"><\/script>/);
-  assert.match(bhtml, /event-sizing\.js\?v=\d+[\s\S]*builder\.js\?v=21/);
+  assert.match(bhtml, /event-sizing\.js\?v=\d+[\s\S]*builder\.js\?v=22/);
 });
 t("flow: hall L×B restored on load and saved on the client; genLayout saves layout guests first", () => {
   assert.match(flow, /HelmSizing\.resolve\(cl, ev\.pricing, layoutRoom\)[^\n]*g_len/);
@@ -66,7 +85,7 @@ t("builder: Custom Event prefilled from the quote, 70% chairs, recommendations a
   assert.match(bjs, /function applyRecommendation[\s\S]{0,200}readCustomForm\(\)[\s\S]{0,400}generateVariants\(o\)/);
   assert.match(bjs, /persistSizing\(sizingPatch\(o\)\)/);
   assert.match(bhtml, /id="c_recs"/); assert.match(bhtml, /id="c_chairsReset"/);
-  assert.match(bjs, /chairsManual && \(currentPricing\.chairs/);
+  assert.match(bjs, /const chairs = quoteChairsNow\(\);/);
   assert.match(bjs, /if\(rule\.seatsPerGuest!=null && guests && !params\.get\('chairs'\)\)/);
 });
 console.log("r8-sizing-sync: " + n + " passed");
