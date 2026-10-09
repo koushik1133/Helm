@@ -25,7 +25,7 @@
     for (let i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
     if (eocd < 0) throw new Error("Not a valid .xlsx file.");
     const n = dv.getUint16(eocd + 10, true); let p = dv.getUint32(eocd + 16, true);
-    const out = {}; const td = new TextDecoder("utf-8");
+    const out = Object.create(null); const td = new TextDecoder("utf-8");
     for (let k = 0; k < n && k < 2000; k++) {
       if (p + 46 > u8.length || dv.getUint32(p, true) !== 0x02014b50) throw new Error("Not a valid .xlsx file.");
       const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), usize = dv.getUint32(p + 24, true);
@@ -46,7 +46,8 @@
     const out = new Uint8Array(total); let o = 0; parts.forEach((x) => { out.set(x, o); o += x.length; }); return out;
   }
   async function readEntry(u8, dir, name) {
-    const e = dir[name]; if (!e) return null;
+    const e = Object.prototype.hasOwnProperty.call(dir, name) ? dir[name] : null; if (!e) return null;
+    if (e.offset + 30 > u8.length) throw new Error("Not a valid .xlsx file.");
     const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
     if (dv.getUint32(e.offset, true) !== 0x04034b50) throw new Error("Not a valid .xlsx file.");
     const start = e.offset + 30 + dv.getUint16(e.offset + 26, true) + dv.getUint16(e.offset + 28, true);

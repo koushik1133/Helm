@@ -65,7 +65,10 @@
   function isAuto(title, code) {
     const t = String(title == null ? "" : title).trim();
     if (!t || t === "Untitled event" || (code && t === code)) return true;
-    return AUTO_RE.test(t) && /_/.test(t) || /^[A-Z]{3}(?:-\d+)?$/.test(t);
+    if (AUTO_RE.test(t) && /_/.test(t)) return true;
+    // a bare 3-letter title is auto only when it is a known type code (a manual "VIP" / "DJS" is kept)
+    const bare = /^([A-Z]{3})(?:-\d+)?$/.exec(t);
+    return !!bare && Object.keys(TYPES).some((k) => TYPES[k] === bare[1]);
   }
   // add -2, -3… when another event already uses the name. taken: titles of OTHER events
   function unique(base, taken) {
