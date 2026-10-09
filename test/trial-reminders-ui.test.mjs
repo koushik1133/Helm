@@ -89,6 +89,6 @@ t('asset versions bumped everywhere', () => {
     const h = read('public/' + f);
     assert.doesNotMatch(h, /store-api\.js\?v=123\b/, f); assert.doesNotMatch(h, /auth-ui\.js\?v=14\b/, f); assert.doesNotMatch(h, /checkout\.js\?v=1"/, f);
   }
-  assert.match(API, /const AUTH_UI_VERSION = "16";/);
+  assert.match(API, /const AUTH_UI_VERSION = "18";/);
 });
 console.log(`trial-reminders-ui: ${n} passed`);

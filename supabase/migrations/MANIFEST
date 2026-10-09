@@ -95,3 +95,5 @@ forward  supabase/migrations/0073_inventory_cancel_and_unique_names.sql
 forward  supabase/migrations/0074_chat_admin_fixes.sql
 # 0075 (UI fixes: start_blank_quote reuse, booklet studio e-mail only when confirmed) goes after 0072.
 forward  supabase/migrations/0075_ui_fixes.sql
+# 0076 (insights_range: date-ranged studio insights, read-only, insights area gate) goes after 0075.
+forward  supabase/migrations/0076_insights.sql

@@ -41,7 +41,7 @@
   tbody tr:hover{background:var(--panel-2)}
   .when{white-space:nowrap;color:var(--ink-2)} .who{font-size:12px}
   .act{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
-  .act.insert{background:#e7f6ee;color:#0f7a43} .act.update{background:#eef2ff;color:#4457c8} .act.delete{background:#fdecec;color:#b42318}
+  .act.insert{background:#e7f6ee;color:#0f7a43} .act.update{background:#eef2ff;color:#4457c8} .act.delete{background:#fdecec;color:#b42318} .act.other{background:#f3f0f8;color:#4b475f;text-transform:none;letter-spacing:0}
   .ent{font-family:var(--mono);font-size:12px;font-weight:600}
   .chg{font-size:12px;color:var(--ink-2);max-width:420px}
   .chg .k{font-weight:600;color:var(--ink)} .chg .o{color:#b42318;text-decoration:line-through;opacity:.75} .chg .n{color:#0f7a43}
@@ -110,11 +110,11 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="store-api.js?v=138"></script>
+<script src="store-api.js?v=139"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-  let all=[], names={};   // names: audit_actor_names() (0041) → {id:{full_name,email}}; {} before 0041
+  let all=[], names={}, events={};   // events: { <quote id>: {code,title} } for the rows on screen   // names: audit_actor_names() (0041) → {id:{full_name,email}}; {} before 0041
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
@@ -124,10 +124,8 @@
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(HelmUrl.here()))); } }
 
   const fmt=(iso)=>{ try{ return new Date(iso).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }catch{ return iso; } };
-  const areaLabel=(e)=>({role_access:"Access matrix",app_config:"Pricing config",plate_types:"Plate types",chair_types:"Chair types",
-    quote_payments:"Payments",event_costs:"Budget/costs",inventory_items:"Inventory",inventory_checkouts:"Equipment check-in/out",
-    change_requests:"Change orders",expense_claims:"Expense claims",payment_milestones:"Payment milestones",
-    crew_members:"Crew",vendors:"Vendors",coupons:"Coupons",profiles:"Users/roles",quotes:"Event/quote",member_profiles:"Member profiles"}[e]||e);
+  // plain labels for areas / actions live in store-api (BPStore.audit.areaLabel / actionLabel / describe)
+  const areaLabel=(e)=>BPStore.audit.areaLabel(e);
 
   function renderChange(r){
     const c=r.changed||{};
@@ -152,7 +150,9 @@
     // insert / delete → show a few identifying fields
     const pick=["code","title","name","status","role","amount","price","qty","kind","key"].filter(k=>c[k]!=null).slice(0,4);
     const label=pick.map(k=>`<span class="k">${esc(k)}</span> ${esc(short(c[k]))}`).join(" · ");
-    return (r.action==='insert'?'Created ':'Deleted ')+(label||("id "+esc(short(r.entity_id))));
+    if(r.action==='insert') return 'Created '+(label||'a record');
+    if(r.action==='delete') return 'Deleted '+(label||'a record');
+    return label||'<span class="muted">—</span>';
   }
   function short(v){ if(v==null) return "∅"; if(typeof v==='object') { try{ return JSON.stringify(v).slice(0,40); }catch{ return "…"; } } const s=String(v); return s.length>40?s.slice(0,40)+"…":s; }
 
@@ -166,22 +166,30 @@
     $("#rows").innerHTML=list.map(r=>`<tr>
       <td class="when">${esc(fmt(r.at))}</td>
       ${whoCell(r)}
-      <td><span class="act ${esc(r.action)}">${esc(r.action)}</span></td>
+      <td><span class="act ${/^(insert|update|delete)$/.test(String(r.action))?esc(r.action):"other"}" title="${esc(r.action)}">${esc(BPStore.audit.actionLabel(r.action))}</span></td>
       <td><span class="ent">${esc(areaLabel(r.entity))}</span></td>
-      <td class="chg">${renderChange(r)}</td>
-      <td>${r.quote_id?`<a class="code" href="event.html?id=${encodeURIComponent(r.quote_id)}">open</a>`:'<span class="muted">—</span>'}</td>
+      <td class="chg">${changeCell(r)}</td>
+      <td>${eventCell(r)}</td>
     </tr>`).join("");
   }
 
-  // actor: display name (e-mail on hover), else e-mail, else "system"
-  function whoCell(r){ const l=BPStore.audit.actorLabel(r,names); return `<td class="who"${l.title?` title="${esc(l.title)}"`:""}>${esc(l.text)}</td>`; }
+  // a plain sentence for known actions ("Client viewed the booklet for W-0012 · …"), else the field diff
+  function changeCell(r){ const d=BPStore.audit.describe(r,events); return d!=null?esc(d):renderChange(r); }
+  // the event's code (title on hover) instead of a bare "open"
+  function eventCell(r){ if(!r.quote_id) return '<span class="muted">—</span>'; const ev=events[r.quote_id];
+    return `<a class="code" href="event.html?id=${encodeURIComponent(r.quote_id)}"${ev&&ev.title?` title="${esc(ev.title)}"`:""}>${esc(ev&&ev.code?ev.code:"open")}</a>`; }
+  // actor: display name (e-mail on hover), else e-mail, else "Client" (link actions) / "System"
+  function whoCell(r){ const l=BPStore.audit.who(r,names); return `<td class="who"${l.title?` title="${esc(l.title)}"`:""}>${esc(l.text)}</td>`; }
   let pager=null;
   async function loadData(){
     $("#empty").hidden=true;
     if(!pager) pager=BPUI.pager({ after: $("#rows").closest(".table-scroll"), what:"audit entries",
       fetch:(after)=>BPStore.audit.page({ entity: $("#fEntity").value||undefined, search: $("#fSearch").value.trim(), after: after||null, limit:50,
         actorIds: BPStore.audit.actorIdsMatching(names, $("#fSearch").value) }),
-      render:(rows,info)=>{ all=info.all; draw(); } });
+      render:async(rows,info)=>{ all=info.all;
+        const need=[...new Set(all.map(r=>r.quote_id).filter(id=>id&&!events[id]))];
+        if(need.length){ try{ Object.assign(events, await BPStore.audit.eventLabels(need)); }catch{} }
+        draw(); } });
     try{ await pager.reset(); }
     catch(e){ all=[]; BPUI.loadError($("#rows"), e, loadData, {what:"the audit log"}); return; }
   }

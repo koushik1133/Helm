@@ -65,6 +65,16 @@
   .rrow{flex-wrap:wrap}
   @media(max-width:480px){.wrap{padding:0 16px 48px} header{flex-wrap:wrap} .nav{margin-left:0;flex-wrap:wrap}}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
+  .rb{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;margin-bottom:16px;display:flex;flex-direction:column;gap:10px}
+  .rb-chips{display:flex;flex-wrap:wrap;gap:6px}
+  .rb-chip{min-height:34px;padding:0 12px;border:1px solid var(--line);background:var(--panel-2);border-radius:20px;font:inherit;font-size:12px;font-weight:600;color:var(--ink-2);cursor:pointer}
+  .rb-chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+  .rb-custom{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px}
+  .rb-f{display:flex;flex-direction:column;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--ink-3);gap:3px}
+  .rb-f input{height:36px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 10px;font:inherit;color:var(--ink)}
+  .rb-apply{min-height:36px;padding:0 16px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:inherit;font-weight:700;cursor:pointer}
+  .rb-err{color:#b42318;font-size:12px} .rb-label{font-size:12px;color:var(--ink-3);font-weight:600}
+  .rrow.rb-hide{display:none}
 </style>
 <link rel="stylesheet" href="theme.css?v=76">
 </head>
@@ -89,6 +99,8 @@
     <h2>Reports &amp; exports</h2>
     <p class="sub">Download your data as CSV (opens in Excel/Sheets) or print a clean PDF.</p>
     <div id="msg"></div>
+    <div id="rangeBar"></div>
+    <p class="muted s-bc23002">Leads, events, P&amp;L and settlements cover the period above (by event date; leads by the day they came in). Inventory is a current stock list.</p>
 
     <div class="card">
       <h3>📄 CSV exports</h3>
@@ -129,13 +141,17 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="store-api.js?v=138"></script>
+<script src="store-api.js?v=139"></script>
+<script src="range-bar.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const inr=(n)=>"₹"+Math.round(Number(n||0)).toLocaleString("en-IN");
   const today=()=>new Date().toISOString().slice(0,10);
-  let canFin=false;
+  let canFin=false, range=null;
+  const evDay=(e)=>e.eventDate||String(e.createdAt||"").slice(0,10);
+  const inR=(d)=>BPStore.insights.inRange(d, range);
+  const tag=()=>range?range.from+"_to_"+range.to:today();
   function setMsg(k,t){ const m=$("#msg"); if(!t){m.innerHTML="";return;} m.innerHTML=`<div class="msg ${k}" role="${k==="err"?"alert":"status"}">${esc(t)}</div>`; }
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
@@ -156,15 +172,15 @@
     const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500); }
 
   const builders={
-    async leads(){ const a=await BPStore.leads.list(); return a.map(l=>({ name:l.name, phone:l.phone, email:l.email, source:l.source,
+    async leads(){ const a=(await BPStore.leads.list()).filter(l=>inR(String(l.created_at||l.createdAt||l.event_date||"").slice(0,10))); return a.map(l=>({ name:l.name, phone:l.phone, email:l.email, source:l.source,
       event_type:l.event_type, event_date:l.event_date, budget:l.budget, guests:l.guest_count, status:l.status })); },
-    async events(){ const a=await BPStore.quotes.list(); return a.map(e=>({ code:e.code, title:e.title, type:e.eventType,
+    async events(){ const a=(await BPStore.quotes.list()).filter(e=>inR(evDay(e))); return a.map(e=>({ code:e.code, title:e.title, type:e.eventType,
       event_date:e.eventDate||"", event_time:e.eventTime||"", stage:e.lifecycleStage, status:e.status, approval:e.approvalStatus, total:e.total||0 })); },
     async inventory(){ const a=await BPStore.inventory.items(true); return a.map(i=>({ name:i.name, category:i.category, priority:i.priority||"",
       total_qty:i.total_qty, unit:i.unit||"", unit_cost:i.unit_cost||"", active:i.active!==false })); },
-    async pl(){ const d=await BPStore.insights.summary(); return d.margins.events.map(e=>({ code:e.code, event_date:e.date||"",
+    async pl(){ const d=await BPStore.insights.summary(range); return d.margins.events.map(e=>({ code:e.code, event_date:e.date||"",
       revenue:Math.round(e.revenue||0), profit:Math.round(e.profit||0), margin_pct:e.marginPct!=null?e.marginPct:"" })); },
-    async settlements(){ const evs=await BPStore.quotes.list(); builders.skipped=0;
+    async settlements(){ const evs=(await BPStore.quotes.list()).filter(e=>e.status!=="cancelled"&&inR(evDay(e))); builders.skipped=0;
       const rows=await Promise.all(evs.map(async e=>{ try{ const s=await BPStore.settlement.summary(e.id);
         return { code:e.code, event_date:e.eventDate||"", revenue:Math.round(s.revenue||0), received:Math.round(s.received||0),
           balance:Math.round(s.balance||0), vendor_outstanding:Math.round(s.vendorOutstanding||0), expenses_paid:Math.round(s.expPaid||0) };
@@ -173,15 +189,15 @@
 
   async function doCSV(kind){ setMsg(); const btns=[...document.querySelectorAll("[data-csv]")]; btns.forEach(b=>b.disabled=true);
     try{ builders.skipped=0; const rows=await builders[kind](); const sk=builders.skipped||0;
-      if(!rows.length){ setMsg("err",sk?`Couldn't load any ${kind} to export — try again.`:"Nothing to export for "+kind+"."); return; }
-      download("blueprint-"+kind+"-"+today()+".csv", toCSV(rows)); setMsg("ok", `Exported ${rows.length} ${kind} row(s).`+(sk?` ${sk} event(s) couldn't be loaded and were left out — try again to include them.`:""));
+      if(!rows.length){ setMsg("err",sk?`Couldn't load any ${kind} to export — try again.`:"Nothing to export for "+kind+(range?" in "+range.label:"")+"."); return; }
+      download("helm-"+kind+"-"+tag()+".csv", toCSV(rows)); setMsg("ok", `Exported ${rows.length} ${kind} row(s).`+(sk?` ${sk} event(s) couldn't be loaded and were left out — try again to include them.`:""));
     }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"export "+kind})); } finally{ btns.forEach(b=>b.disabled=false); } }
 
   async function printPL(){ setMsg();
-    try{ const d=await BPStore.insights.summary(); const evs=d.margins.events;
+    try{ const d=await BPStore.insights.summary(range); const evs=d.margins.events;
       const tot=evs.reduce((a,e)=>({rev:a.rev+(e.revenue||0),pr:a.pr+(e.profit||0)}),{rev:0,pr:0});
       $("#printArea").innerHTML=`<h1>Profit &amp; Loss — closed events</h1>
-        <div class="meta">Helm Events · generated ${esc(today())} · ${evs.length} event(s)</div>
+        <div class="meta">Helm Events · ${esc(range?range.label:"all time")} · generated ${esc(today())} · ${evs.length} event(s)</div>
         <table><thead><tr><th>Event</th><th>Date</th><th class="n">Revenue</th><th class="n">Profit</th><th class="n">Margin</th></tr></thead>
         <tbody>${evs.map(e=>`<tr><td>${esc(e.code)}</td><td>${esc(e.date||"")}</td><td class="n">${inr(e.revenue)}</td><td class="n">${inr(e.profit)}</td><td class="n">${e.marginPct!=null?esc(e.marginPct)+"%":"—"}</td></tr>`).join("")||'<tr><td colspan="5">No closed events.</td></tr>'}</tbody>
         <tfoot><tr><td colspan="2">Total</td><td class="n">${inr(tot.rev)}</td><td class="n">${inr(tot.pr)}</td><td class="n">${tot.rev?Math.round(tot.pr/tot.rev*100)+"%":"—"}</td></tr></tfoot></table>`;
@@ -197,7 +213,8 @@
     if(!ok){ $("#noaccess").hidden=false; return; }
     canFin=await BPStore.auth.canView("finance");
     $("#app").hidden=false;
-    if(!canFin){ document.querySelectorAll('[data-csv="pl"],[data-csv="settlements"]').forEach(b=>b.closest(".rrow").style.display="none"); $("#printPL").closest(".card").style.display="none"; }
+    if(!canFin){ document.querySelectorAll('[data-csv="pl"],[data-csv="settlements"]').forEach(b=>b.closest(".rrow").classList.add("rb-hide")); $("#printPL").closest(".card").hidden=true; }
+    if(!wired) HelmRange.mount($("#rangeBar"),{ storeKey:"helm_range_reports", defaultKey:"this_month", onChange:(r)=>{ range=r; setMsg(); } });
     if(!wired){ wired=true;
       document.querySelectorAll("[data-csv]").forEach(b=>b.addEventListener("click",()=>doCSV(b.dataset.csv)));
       $("#printPL").addEventListener("click",()=>BPUI.guard($("#printPL"),printPL)); }

@@ -319,7 +319,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
-<script src="store-api.js?v=138"></script>
+<script src="store-api.js?v=139"></script>
 <script src="tour.js?v=9"></script>
 <script src="booklet.js?v=8"></script>
 <script src="share-checklist.js?v=2"></script>
@@ -724,7 +724,7 @@
     let acts=[]; try{ acts=await BPStore.milestones.activity(id); }catch(e){ BPUI.loadError($("#activityList"), e, renderActivity, {what:"activity"}); return; }
     if(!acts||!acts.length){ $("#activityList").innerHTML='<div style="color:var(--ink-3)">No activity yet.</div>'; return; }
     const ic={version:'📐',payment:'💳',milestone:'✅',consent:'✍️',notify:'🔔'};
-    $("#activityList").innerHTML = acts.map(a=>`<div class="rowline"><span>${ic[a.kind]||'•'}</span><span class="g">${esc(a.text)}</span><span class="meta">${esc((a.at||'').slice(0,16).replace('T',' '))}</span></div>`).join('');
+    $("#activityList").innerHTML = acts.map(a=>`<div class="rowline"><span>${ic[a.kind]||'•'}</span><span class="g">${esc(BPStore.activityText(a,{clientName:ev&&ev.client&&ev.client.name}))}</span><span class="meta">${esc((a.at||'').slice(0,16).replace('T',' '))}</span></div>`).join('');
   }
 
   /* ---------- approval ---------- */

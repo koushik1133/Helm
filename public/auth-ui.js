@@ -1260,7 +1260,7 @@
     return h % AV_COLORS;
   }
   // pure (unit-tested): what the menu shows for a user / profile / role
-  function menuModel(u, prof, role, canControls) {
+  function menuModel(u, prof, role, canControls, canInsights) {
     u = u || {}; prof = prof || {};
     var name = String(prof.full_name || "").trim();
     var email = String(u.email || prof.email || "");
@@ -1270,6 +1270,8 @@
       { id: "settings", label: "Account settings" },
       { id: "manual", label: "User manual", href: "manual.html" },
     ];
+    // 0076: Insights only when the access matrix says canView('insights') === true
+    if (canInsights === true) items.push({ id: "insights", label: "Insights", href: "insights.html" });
     if (canControls === true) items.push({ id: "control", label: "Control Center", href: "control.html", sep: true });
     items.push({ id: "signout", label: "Sign out", sep: true });
     return { name: name || email.split("@")[0] || "Account", email: email, role: label,
@@ -1364,9 +1366,10 @@
       Promise.resolve().then(function () { return st.profile && st.profile.mine ? st.profile.mine() : null; }).catch(function () { return null; }),
       Promise.resolve().then(function () { return st.auth.role ? st.auth.role() : null; }).catch(function () { return null; }),
       Promise.resolve().then(function () { return st.auth.canView ? st.auth.canView("controls") : false; }).catch(function () { return false; }),
+      Promise.resolve().then(function () { return st.auth.canView ? st.auth.canView("insights") : false; }).catch(function () { return false; }),
     ]).then(function (r) {
       if (r[1] === "client") { if (menu.root) menu.root.remove(); return; }
-      var m = menuModel(u, r[0], r[1], r[2] === true);
+      var m = menuModel(u, r[0], r[1], r[2] === true, r[3] === true);
       menu.model = m;
       var ini = menu.btn.querySelector(".hau-av-i"); if (ini) ini.textContent = m.initials;
       var av = menu.btn.querySelector(".hau-av"); if (av) av.className = "hau-av hau-c" + m.color;
