@@ -130,10 +130,19 @@
   function maybeHint(card) {
     // One-time pointer to the checklist — only after the main dashboard tour was seen,
     // so the two never overlap. tour.js marks HINT_KEY when the hint closes.
-    if (!global.HelmTour || lsGet(HINT_KEY) || !lsGet("bp_seen_tour") || lsGet("bp_force_tour")) return;
+    // R4: "seen" lives on the ACCOUNT (auth user_metadata) so the hint never re-appears on
+    // a new device; localStorage is only a fast local cache of it.
+    if (!global.HelmTour || lsGet("bp_force_tour")) return;
+    const auth = global.BPStore && global.BPStore.auth;
+    const acctSeen = auth && typeof auth.gsHintSeen === "function" ? auth.gsHintSeen() : null;
+    if (acctSeen === true) { lsSet(HINT_KEY, "1"); return; }
+    if (lsGet(HINT_KEY)) { if (acctSeen === false && auth.markGsHintSeen) auth.markGsHintSeen(); return; }
+    const tourSeen = lsGet("bp_seen_tour") || (auth && typeof auth.tourSeen === "function" && auth.tourSeen() === true);
+    if (!tourSeen) return;
     if (global.document.querySelector(".htour")) return;
     setTimeout(() => {
       if (card.hidden || global.document.querySelector(".htour")) return;
+      if (auth && typeof auth.markGsHintSeen === "function") auth.markGsHintSeen();
       global.HelmTour.start([{ sel: "#gsCard", title: "Your getting-started checklist",
         desc: "Work through these steps to set up your studio. Each one ticks itself off as you do it, and you can collapse or dismiss the list any time." }], HINT_KEY);
     }, 700);

@@ -38,6 +38,7 @@ run "ui-fixes"           "UI-FIXES: ALL PASS \(27/27\)" psql -q -f tests/db/ui-f
 run "insights"           "INSIGHTS: ALL PASS \(19/19\)" psql -q -f tests/db/insights.sql
 run "r3-sync-reprice"    "R3-SYNC-REPRICE: ALL PASS \(22/22\)" psql -q -f tests/db/r3-sync-reprice.sql
 run "comms-automation"   "COMMS-AUTOMATION: ALL PASS \(54/54\)" psql -q -f tests/db/comms-automation.sql
+run "r4-sql-fixes"       "R4-SQL-FIXES: ALL PASS \(26/26\)" psql -q -f tests/db/r4-sql-fixes.sql
 # first: later suites re-apply older migrations (e.g. rescore2 → 0032) over the entry points
 run "audit-run2"         "AUDIT-RUN2: ALL PASS"            bash -c "cd tests/db && psql -q -f audit-run2.sql"
 run "d6-money-freeze"    "D6-MONEY-FREEZE: ALL PASS \(49/49\)" bash -c "cd tests/db && psql -q -f d6-money-freeze.sql"
@@ -56,6 +57,7 @@ run "worker-token"       "WORKER-TOKEN: ALL PASS"          psql -q -f tests/db/w
 run "worker-evidence"    "WORKER-EVIDENCE: ALL PASS \(38/38\)" psql -q -f tests/db/worker-evidence.sql
 # before rescore2 too: its 0032 re-apply resets the anon allowlist (public_get_booklet is a 0065 link RPC)
 run "client-booklet"     "CLIENT-BOOKLET: ALL PASS \(44/44\)" psql -q -f tests/db/client-booklet.sql
+run "booklet-tax"        "BOOKLET-TAX: ALL PASS \(14/14\)" psql -q -f tests/db/booklet-tax.sql
 # right after client-booklet: later suites re-apply 0036/0048/0054/0058 over the 0069 wrappers
 run "pkg-flow"           "PKG-FLOW: ALL PASS \(103/103\)" psql -q -f tests/db/pkg-flow.sql
 run "pretty-urls"        "PRETTY-URLS: ALL PASS \(35/35\)" psql -q -f tests/db/pretty-urls.sql

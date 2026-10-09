@@ -120,7 +120,16 @@ t('Control Center: deep-link anchors exist', () => {
 });
 t('tour hint: one-time, waits for the main tour', () => {
   assert.match(SRC, /HINT_KEY = "bp_seen_gs_hint"/);
-  assert.match(SRC, /!lsGet\("bp_seen_tour"\)/);
+  assert.match(SRC, /lsGet\("bp_seen_tour"\) \|\| \(auth && .*auth\.tourSeen\(\) === true\)/);
+  assert.match(SRC, /if \(!tourSeen\) return;/);
+});
+t('tour hint: seen state is per account (auth user_metadata), not per device', () => {
+  assert.match(SRC, /auth\.gsHintSeen\(\)/);
+  assert.match(SRC, /if \(acctSeen === true\) \{ lsSet\(HINT_KEY, "1"\); return; \}/);
+  assert.match(SRC, /auth\.markGsHintSeen\(\)/);
+  const api = read('public/store-api.js');
+  assert.match(api, /gsHintSeen: \(\) =>[^\n]*helm_gs_hint_seen === true/);
+  assert.match(api, /updateUser\(\{ data: \{ helm_gs_hint_seen: true \} \}\)/);
   assert.match(SRC, /HelmTour\.start\(\[\{ sel: "#gsCard"/);
 });
 

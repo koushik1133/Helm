@@ -105,3 +105,7 @@ forward  supabase/migrations/0078_comms_automation.sql
 forward  supabase/migrations/0079_country_tax.sql
 # 0080 (notification catalog speed: one call per layer, fixes Notifications settings timeout) goes after 0079.
 forward  supabase/migrations/0080_notif_catalog_speed.sql
+# 0081 (booklet tax labels: public_get_booklet also returns taxCountry/taxName/taxInclusive from the quote) goes after 0080.
+forward  supabase/migrations/0081_booklet_tax_labels.sql
+# 0082 (round-4 review fixes: outbox claim re-checks recipient + switches, price-alert index, insights skip deleted) goes after 0080.
+forward  supabase/migrations/0082_r4_sql_fixes.sql

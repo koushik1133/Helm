@@ -330,9 +330,9 @@
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="event-name.js?v=1"></script>
-<script src="store-api.js?v=146"></script>
+<script src="store-api.js?v=147"></script>
 <script src="tour.js?v=9"></script>
-<script src="booklet.js?v=10"></script>
+<script src="booklet.js?v=11"></script>
 <script src="share-checklist.js?v=3"></script>
 <script src="flow-layout-sync.js?v=1"></script>
 <script>
@@ -436,7 +436,7 @@
       other, gstPct, serviceChargePct:+rates.serviceChargePct||0,
       discount:nn($("#q_discount").value||0), catering:{mode:"inhouse",gstPct},
       couponCode:($("#q_coupon")?$("#q_coupon").value.trim():""), coupon:appliedCoupon,
-      placeOfSupply:"intra", currency:"INR", ...BPStore.tax.snapshot(fTax()),
+      placeOfSupply:"intra", currency:"INR", taxCountry:undefined, taxName:undefined, taxInclusive:undefined, ...BPStore.tax.snapshot(fTax()),   // R4: undefined clears a stale snapshot key on re-save
       _objectsCost:oi.objectsCost, _packageName:appliedPkg?appliedPkg.name:null };
   }
   function renderPrice(){
@@ -651,7 +651,11 @@
       if(no!==oo){ lines.push({ label:"Décor / setup (object prices)", from:oo, to:no, a:oo, b:no }); next.other=no; next.otherAuto=no; }
     }
     const og=nOrNull(pr.gstPct), ng=liveGst();
-    if(og!=null && og!==ng){ lines.push({ label:"GST", pct:true, from:og, to:ng }); next.gstPct=ng; }
+    const tx=fTax();
+    if(og!=null && og!==ng){ lines.push({ label:tx.name, pct:true, from:og, to:ng }); next.gstPct=ng; }
+    // R4: "prices include tax" switched since the quote was priced -> the total changes too
+    const oi2=String(pr.taxInclusive).toLowerCase()==="true";
+    if(oi2!==tx.inclusive){ lines.push({ label:"Prices include "+tx.name, flag:true, from:oi2, to:tx.inclusive }); next.taxInclusive=tx.inclusive; }
     const os=nOrNull(pr.serviceChargePct)||0, ns=+rates.serviceChargePct||0;
     if(os!==ns){ lines.push({ label:"Service charge", pct:true, from:os, to:ns }); next.serviceChargePct=ns; }
     if(!lines.length) return null;
@@ -667,7 +671,7 @@
     $("#repriceMeta").textContent="Control Center prices changed after this quote was saved. Total "+inr(d.oldTotal)+" → "+inr(d.newTotal)+" at today's prices. Nothing changes until you re-price.";
     const ul=$("#repriceLines"); ul.textContent="";
     d.lines.forEach(l=>{ const li=document.createElement("li");
-      li.textContent=l.label+": "+(l.pct ? (l.from+"% → "+l.to+"%") : (inr(l.from)+" → "+inr(l.to)+(l.a!=null && l.label.indexOf("·")>0 ? " ("+inr(l.a)+" → "+inr(l.b)+")" : "")));
+      li.textContent=l.label+": "+(l.flag ? ((l.from?"yes":"no")+" → "+(l.to?"yes":"no")) : l.pct ? (l.from+"% → "+l.to+"%") : (inr(l.from)+" → "+inr(l.to)+(l.a!=null && l.label.indexOf("·")>0 ? " ("+inr(l.a)+" → "+inr(l.b)+")" : "")));
       ul.appendChild(li); });
     b.hidden=false;
   }

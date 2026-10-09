@@ -457,7 +457,7 @@
   function label(text){
     text=String(text==null?'':text).slice(0,22);
     if(labelCache.has(text)) return labelCache.get(text).clone();
-    const cvs=document.createElement('canvas'); const s=2; cvs.width=256*s; cvs.height=64*s;
+    const cvs=document.createElement('canvas'); const s=2; cvs.width=256*s; cvs.height=64*s; cvs.__text=text;   // R4: capture dedupes identical labels
     const ctx=cvs.getContext('2d'); ctx.scale(s,s);
     ctx.fillStyle='rgba(20,27,46,.82)'; roundRect(ctx,0,14,256,36,8); ctx.fill();
     ctx.font='600 22px "IBM Plex Sans",sans-serif'; ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -719,22 +719,39 @@
       // same hemi 0.75 + sun 0.85, untouched material/floor colours); only the backdrop is a soft neutral
       renderMode=false; applyProfile();
       scene.background=new THREE.Color('#e9ecf2');
-      // frame the bounding box of the actual objects (labels excluded), fallback to the floor/hall
+      // frame the union of the objects' box and the whole hall floor rectangle (so its edges are visible),
+      // filled to ~88%; the ground plane is trimmed to the hall (+1ft) so the #e9ecf2 backdrop surrounds it
       const box=new THREE.Box3();
       root.traverse(o=>{ if((o.isMesh || o.isInstancedMesh) && !o.isSprite){ o.updateWorldMatrix(true,false); box.expandByObject(o); } });
-      if(box.isEmpty()){ const hw=(floorW||WORLD.w)/2, hh=(floorH||WORLD.h)/2; box.min.set(-hw,0,-hh); box.max.set(hw,4,hh); }
-      const pad=1; box.min.x-=pad; box.min.z-=pad; box.max.x+=pad; box.max.z+=pad; box.min.y=Math.min(box.min.y,0);
-      const fr=window.HelmCaptureFrame.frameBox({min:box.min.toArray(),max:box.max.toArray()},
+      const fw=floorW||WORLD.w, fh=floorH||WORLD.h, FM=1;
+      const pad=1; if(!box.isEmpty()){ box.min.x-=pad; box.min.z-=pad; box.max.x+=pad; box.max.z+=pad; }
+      const ub=window.HelmCaptureFrame.unionFloor(box.isEmpty()?null:{min:box.min.toArray(),max:box.max.toArray()}, fw, fh, FM);
+      if(box.isEmpty()) ub.max[1]=4;
+      box.min.fromArray(ub.min); box.max.fromArray(ub.max);
+      if(ground){ keep.groundScale=ground.scale.clone(); ground.scale.set((fw+2*FM)/(fw+40),(fh+2*FM)/(fh+40),1); }
+      const fr=window.HelmCaptureFrame.frameBox({min:ub.min,max:ub.max},
         {fovDeg:camera.fov, aspect:W/H, fill:0.88, elevationDeg:38, azimuthDeg:35, minDist:20});
       R.setPixelRatio(1); R.setSize(W*SS,H*SS,false);
       camera.aspect=W/H; camera.position.fromArray(fr.position); camera.lookAt(fr.target[0],fr.target[1],fr.target[2]);
-      camera.far=Math.max(keep.far, fr.distance*4); camera.updateProjectionMatrix();
+      camera.far=Math.max(keep.far, fr.distance*4); camera.updateProjectionMatrix(); camera.updateMatrixWorld();
       // same sun as the live view (intensity/direction unchanged); only tighten its shadow frustum
       const span=Math.max(Math.abs(box.min.x),Math.abs(box.max.x),Math.abs(box.min.z),Math.abs(box.max.z),20)+10;   // frustum is centred on the sun target (origin)
       sc.left=-span; sc.right=span; sc.top=span; sc.bottom=-span; sc.far=Math.max(keep.sc[4], span*4+200); sc.updateProjectionMatrix();
-      // readable labels: sized to ~3% of the image height at the framed distance (never smaller than live)
-      const ls=Math.max(1, window.HelmCaptureFrame.labelWorldHeight(fr.distance, camera.fov, 0.03)/2.5);
-      root.traverse(o=>{ if(o.isSprite){ keep.labels.push([o,o.scale.clone()]); o.scale.multiplyScalar(ls); } });
+      // screen-constant labels: each sprite scaled by its own camera depth so text cap height is ~1.7%
+      // of the image height everywhere (front labels no longer 3x the back ones); overlapping or
+      // duplicate-nearby labels are hidden (nearest kept)
+      const fwd=new THREE.Vector3(); camera.getWorldDirection(fwd);
+      const sprites=[], wp=new THREE.Vector3();
+      root.traverse(o=>{ if(o.isSprite){ keep.labels.push([o,o.scale.clone(),o.visible]); o.getWorldPosition(wp);
+        const depth=wp.clone().sub(camera.position).dot(fwd); if(depth<=0.1){ o.visible=false; return; }
+        const k=window.HelmCaptureFrame.labelScaleForDepth(depth, camera.fov, 0.017, o.scale.y);
+        o.scale.multiplyScalar(k); o.updateMatrixWorld();
+        const ndc=wp.clone().project(camera), vh=2*depth*Math.tan(camera.fov*Math.PI/360);
+        const text=(o.material&&o.material.map&&o.material.map.image&&o.material.map.image.__text)||o.uuid;
+        sprites.push({o, depth, text, x:ndc.x, y:ndc.y, w:o.scale.x/(vh*camera.aspect)*2*0.8, h:o.scale.y/vh*2*0.56}); } });
+      sprites.sort((a,b)=>a.depth-b.depth);
+      const keepIdx=new Set(window.HelmCaptureFrame.pickLabels(sprites, {maxOverlap:0.35, dupDist:0.12}));
+      sprites.forEach((L,i)=>{ if(!keepIdx.has(i)) L.o.visible=false; });
       R.render(scene,camera);
       const out=document.createElement('canvas'); out.width=W; out.height=H;
       const ctx=out.getContext('2d'); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
@@ -745,7 +762,8 @@
       if(!b || b.size<2000) throw new Error('The 3D render came out empty');
       return b;
     } finally {
-      keep.labels.forEach(([o,s])=>o.scale.copy(s));
+      keep.labels.forEach(([o,s,v])=>{ o.scale.copy(s); o.visible=v; });
+      if(ground && keep.groundScale) ground.scale.copy(keep.groundScale);
       if(grid && keep.grid!=null) grid.visible=keep.grid; if(edge && keep.edge!=null) edge.visible=keep.edge;
       if(transform){ transform.visible=keep.tr!==false; }
       if(selHelper && keep.sel!=null) selHelper.visible=keep.sel;

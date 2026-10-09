@@ -399,6 +399,7 @@ const clearSelection = () => setSelection([]);
 
 /* ---- read-only mode (view-only RBAC roles) ---- */
 let RO = false;
+let layoutLoading = false;   // R4: true while an existing event's layout is being fetched
 let CAN_CREATE = true;   // roles without 'create' (e.g. operations) may edit existing but not start new events
 function roLockInspector(){ if(!RO) return; const box=$('#inspector'); if(!box) return;
   box.querySelectorAll('input,select,button,textarea').forEach(el=>el.disabled=true);
@@ -2709,7 +2710,16 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('sh
 function updateEmptyState(){
   const es=$('#emptyState'); if(!es) return;
   const threeD = $('#stage3d') && !$('#stage3d').hidden;
-  es.hidden = RO || threeD || (store.items && store.items.length>0);
+  es.hidden = layoutLoading || RO || threeD || (store.items && store.items.length>0);
+  const ld=$('#layoutLoading'); if(ld) ld.hidden = !layoutLoading;
+}
+/* R4: while an existing event's quote/layout is being fetched, show a neutral loading state —
+   never the blank-floor prompt or "Untitled event" (they flashed for 1-2s before the layout arrived). */
+function setLayoutLoading(on){
+  layoutLoading=!!on;
+  const pn=$('#projName');
+  if(pn){ if(on){ pn.dataset.ph=pn.placeholder||''; pn.value=''; pn.placeholder='Loading…'; } else if(pn.dataset.ph!=null){ pn.placeholder=pn.dataset.ph; delete pn.dataset.ph; if(!pn.value) pn.value='Untitled event'; } }
+  updateEmptyState();
 }
 // clean template picker built from the #preset dropdown's optgroups
 function openTemplatePicker(){
@@ -3199,13 +3209,19 @@ let clientImgBusy=false;
 async function captureClientImages(silent){
   if(!clientImagesSupported() || clientImgBusy || !store.items.length) return false;
   clientImgBusy=true;
+  // R4-E: pin the quote / version / layout the capture started on — if any changes while the
+  // (slow) renders run, the pictures no longer match that quote's saved layout: never upload them.
+  const qid=currentQuoteId, vno=currentVersionNo, sig=docSig();
+  const moved=()=> currentQuoteId!==qid || currentVersionNo!==vno || docSig()!==sig;
   try{
-    const b2=await planBlob({clean:true, maxW:1920});
+    let b2=await planBlob({clean:true, maxW:1920});
     if(!b2) throw new Error('Couldn’t draw the floor plan');
+    if(b2.size>3*1024*1024) b2=await planBlob({clean:true,maxW:1280});
     let b3=null, e3=null;
     try{ b3=window.__capture3D ? await window.__capture3D(1920) : null; }catch(e){ e3=e; }
-    await BPStore.booklet.uploadSnapshot(currentQuoteId,'2d',b2.size>3*1024*1024 ? await planBlob({clean:true,maxW:1280}) : b2);
-    if(b3) await BPStore.booklet.uploadSnapshot(currentQuoteId,'3d',b3);
+    if(moved()) return false;
+    await BPStore.booklet.uploadSnapshot(qid,'2d',b2);
+    if(b3 && !moved()) await BPStore.booklet.uploadSnapshot(qid,'3d',b3);
     if(!silent) toast(b3 ? 'Client images updated (2D + 3D)' : 'Client 2D plan updated — 3D view couldn’t render');
     else if(e3) console.warn('client 3D capture skipped');
     return true;
@@ -3215,13 +3231,17 @@ async function captureClientImages(silent){
 // after a save (or on open): recapture when a booklet link is live and its images are missing / older than the latest version
 async function autoCaptureIfStale(){
   if(!clientImagesSupported() || !store.items.length || isViewingOlder() || docSig()!==savedSig) return;   // only the saved latest version
+  if(currentQuoteGuard.frozen) return;   // R4-E: no background writes for closed / cancelled / archived events
+  const qid=currentQuoteId;
   try{
-    const cur=await BPStore.booklet.current(currentQuoteId);
+    const cur=await BPStore.booklet.current(qid);
     if(!cur || !cur.token || cur.revoked_at) return;
-    const info=await BPStore.booklet.snapshotInfo(currentQuoteId);
-    const vs=await BPStore.quotes.versions(currentQuoteId)||[];
+    const info=await BPStore.booklet.snapshotInfo(qid);
+    const vs=await BPStore.quotes.versions(qid)||[];
     const latest=vs.reduce((m,v)=>{ const t=Date.parse(v.createdAt||v.created_at||''); return isFinite(t)&&t>m?t:m; },0);
     const old=k=>!info[k] || !(Date.parse(info[k].updatedAt||'')>=latest);
+    // R4-E: the checks above were async — re-verify we are still on that quote's saved latest version
+    if(currentQuoteId!==qid || isViewingOlder() || docSig()!==savedSig) return;
     if(old('2d') || old('3d')) await captureClientImages(true);
   }catch(e){ /* best effort */ }
 }
@@ -3330,6 +3350,7 @@ async function init(){
   const evId=params.get('id'), evName=params.get('event'), isNew=params.get('new')==='1';
   const quoteId=await HelmUrl.get('quote', params.get('quote')), openVer=params.get('v');
   store.items = (isNew||quoteId) ? [] : TEMPLATES.political();   // blank for a new event/quote, else a working default
+  if(quoteId || evId) setLayoutLoading(true);         // neutral loading state until the saved layout arrives
   if(evName){ const pn=$('#projName'); if(pn) pn.value=evName; }
   resetHistory();                                     // establish the initial undo baseline
   renderAll();
@@ -3376,7 +3397,7 @@ async function init(){
       const q=await BPStore.quotes.get(quoteId);
       currentQuoteId=q.id; currentQuoteCode=q.code; currentClient=q.client||{}; currentPricing=q.pricing||{};
       { const bb=$('#backToFlowBtn'); if(bb && params.get('from')==='flow') bb.hidden=false; }
-      currentQuoteGuard = { approved: q.status==='confirmed' || (q.approvalStatus && q.approvalStatus!=='none'), closed: q.lifecycleStage==='closed' };
+      currentQuoteGuard = { approved: q.status==='confirmed' || (q.approvalStatus && q.approvalStatus!=='none'), closed: q.lifecycleStage==='closed', frozen: q.lifecycleStage==='closed' || q.status==='cancelled' || !!q.archivedAt || !!q.deletedAt };
       const pn=$('#projName'); if(pn) pn.value=q.title||q.code;
       try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[q.code,q.title].filter((v,i,a)=>v&&a.indexOf(v)===i).join(' '),kind:'builder',href:'builder.html?quote='+encodeURIComponent(q.id),recordHref:'event.html?id='+encodeURIComponent(q.id)}); }catch(e){}
       const verNo = (openVer && /^\d{1,6}$/.test(String(openVer)) && +openVer>0) ? parseInt(openVer,10) : q.currentVersion;   // ignore junk like v=abc
@@ -3432,6 +3453,7 @@ async function init(){
         const pn=$('#projName'); if(pn) pn.value=full.name; setSavedBaseline(); toast('Opened “'+full.name+'”'); } }
     catch{ toast('Could not open that event'); }
   }
+  if(layoutLoading) setLayoutLoading(false);   // blank-floor prompt only if the loaded layout truly has no items
   populateRefEvents();   // fill the "Past events" reference picker
   // Guided default-layout generation from the flow: ?gen=1&type=&guests=&len=&wid=
   if(params.get('gen')==='1' && CAN_CREATE!==false){
