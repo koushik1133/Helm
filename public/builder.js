@@ -390,7 +390,10 @@ function renderPrice(){
   if(otherSet!=null){ if(otherSet>0) rows+=`<div class="prow"><span>Décor / setup <span class="q">set on quote</span></span><span class="amt">${inr(otherSet)}</span></div>`; }
   else (m.objectLines||[]).forEach(l=>{
     const label=ASSETS[l.type]?ASSETS[l.type].label:l.type;
-    const flag = (PRICING.assetPrices && !inCatalog(l.type, PRICING.assetPrices)) ? ' <span class="q nocat" title="No rate for this item in Control Center — using a default price">price not in catalog</span>' : '';
+    // 0086: a spec-priced item reads like "Stage 8 × 5 m (40 m²) @ ₹450/m² = ₹18,000"
+    if(l.spec && l.label){ rows+=`<div class="prow"><span><span class="q">${esc(l.label)}</span></span><span class="amt">${inr(l.cost)}</span></div>`; return; }
+    const flag = l.note ? ' <span class="q nocat" title="This item\'s adjusted spec could not be priced from Item pricing — using the catalog price">'+esc(l.note)+'</span>'
+      : (PRICING.assetPrices && !inCatalog(l.type, PRICING.assetPrices)) ? ' <span class="q nocat" title="No rate for this item in Control Center — using a default price">price not in catalog</span>' : '';
     rows+=`<div class="prow"><span>${esc(label)} <span class="q">${l.qty>1?l.qty+' × '+inr(l.unit):inr(l.unit)}</span>${flag}</span><span class="amt">${inr(l.cost)}</span></div>`;
   });
   if(otherSet==null && m.layoutBase>0) rows+=`<div class="prow"><span>Layout &amp; setup</span><span class="amt">${inr(m.layoutBase)}</span></div>`;
@@ -546,6 +549,7 @@ let historyBase = null;              // JSON of the last committed state (what's
 // call whenever the document is (re)established fresh — nothing to undo before this
 function resetHistory(){ historyBase = snapshot(); store.past.length=0; store.future.length=0; syncHistoryButtons(); }
 function commit(){
+  specSyncAll();   // 0086: a resized stage keeps its spec (and price) in step with its footprint
   // mutations happen BEFORE commit(); push the *previous* committed state, then rebaseline
   if(historyBase===null) historyBase = snapshot();
   else {
@@ -1194,6 +1198,7 @@ function renderInspector(){
     </div>`;
 
   wireInspector(it);
+  specAdjustMount(it, box);   // 0086 item specs: "Adjust" section (ITEM-SPEC ADJUST block at the end of this file)
 }
 
 function renderTypeSpecific(it){
@@ -3853,3 +3858,94 @@ const onDrawerMq=()=>{ if(!DRAWER_MQ.matches) DRAWERS.forEach(d=>setDrawer(d,fal
 if(DRAWER_MQ.addEventListener) DRAWER_MQ.addEventListener('change',onDrawerMq); else if(DRAWER_MQ.addListener) DRAWER_MQ.addListener(onDrawerMq);
 
 BPUI.boot(init);
+
+/* ===================== ITEM-SPEC ADJUST: BEGIN (0086 — owned by the item-spec/pricing work) =====================
+   Selecting a DJ, generator, stage, lighting, LED wall, chandelier, photo booth, chocolate fountain, chariot,
+   smoke effect or dancers shows an "Adjust" section in the inspector: spec fields (dropdowns / numbers,
+   dimensions in metres by default with a ft toggle), a live price preview from the studio's Item pricing
+   rate cards (BPStore.pricing.ITEM_SPEC), and Apply. The spec is stored on item.properties.spec, so the
+   price flows through pricing.fromItems -> objectsCost -> pricing.other (the server D8 total prices it).
+   A stage's length x width IS its footprint: editing either resizes the other. Built with the DOM API. */
+function specApi(){ return (window.BPStore && BPStore.pricing && BPStore.pricing.ITEM_SPEC) || null; }
+function specSyncAll(){
+  const S=specApi(); if(!S || !store || !store.items) return;
+  store.items.forEach(it=>{ const sp=it.properties&&it.properties.spec;
+    if(it.type==='stage' && sp && typeof sp==='object'){ sp.lengthM=Math.round(it.width*S.FT*100)/100; sp.widthM=Math.round(it.height*S.FT*100)/100; } });
+}
+function specAdjustMount(it, box){
+  const S=specApi(); if(!S || !box || !it || S.TYPES.indexOf(it.type)<0) return;
+  const mk=(tag,cls,text)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; };
+  const rates=BPStore.pricing.currentItemRates()[it.type]||null;
+  const saved=it.properties&&it.properties.spec&&typeof it.properties.spec==='object'?it.properties.spec:null;
+  const draft=Object.assign({}, S.defaultSpec(it.type, it)||{}, saved||{});
+  let unit=draft.unit==='ft'?'ft':'m';
+  const sec=mk('div','isec specadj'); sec.setAttribute('aria-label','Adjust item specification');
+  const head=mk('div','seclabel', saved?'Adjust (priced by spec)':'Adjust — price by spec'); sec.appendChild(head);
+  const form=mk('div'); sec.appendChild(form);
+  const prev=mk('div','pitchnote'); prev.setAttribute('aria-live','polite'); sec.appendChild(prev);
+  const btns=mk('div','colorbtns'); const apply=mk('button',null,'Apply'); apply.type='button';
+  const clr=mk('button',null,'Use flat catalog price'); clr.type='button'; clr.hidden=!saved;
+  btns.appendChild(apply); btns.appendChild(clr); sec.appendChild(btns);
+  const optKeys=(o)=>o&&typeof o==='object'?Object.keys(o):[];
+  const row=()=>{ const r=mk('div','irow'); r.style.marginTop='8px'; form.appendChild(r); return r; };
+  const fieldWrap=(r,id,label)=>{ const f=mk('div','ifield'); const l=mk('label',null,label); l.htmlFor=id; f.appendChild(l); r.appendChild(f); return f; };
+  function sel(r,key,label,opts){ const id='sp_'+key, f=fieldWrap(r,id,label), s=mk('select'); s.id=id;
+    opts.forEach(k=>{ const o=mk('option',null,S.label(k)); o.value=k; if(String(draft[key])===k) o.selected=true; s.appendChild(o); });
+    if(!opts.length){ const o=mk('option',null,'rate not set'); o.value=''; s.appendChild(o); }
+    if(draft[key]==null||opts.indexOf(String(draft[key]))<0) draft[key]=opts[0]||'';
+    s.addEventListener('change',()=>{ draft[key]=s.value; preview(); }); f.appendChild(s); }
+  function numf(r,key,label,o){ o=o||{}; const id='sp_'+key, f=fieldWrap(r,id,label+(o.dim?' ('+unit+')':'')), i=mk('input'); i.id=id; i.type='number';
+    i.min=String(o.min!=null?o.min:0); if(o.max!=null) i.max=String(o.max); i.step=String(o.step||'any');
+    const v=draft[key]; i.value=v==null||v===''?'':String(o.dim?Math.round(S.fromM(+v,unit)*100)/100:v);
+    if(o.list){ const dl=mk('datalist'); dl.id=id+'_l'; o.list.forEach(x=>{ const op=mk('option'); op.value=String(x); dl.appendChild(op); }); f.appendChild(dl); i.setAttribute('list',dl.id); }
+    i.addEventListener('input',()=>{ const raw=i.value.trim(); draft[key]= raw===''?null:(o.dim?S.toM(raw,unit):Number(raw)); preview(); });
+    f.appendChild(i); }
+  function chk(r,key,label){ const id='sp_'+key, f=fieldWrap(r,id,label), c=mk('input'); c.id=id; c.type='checkbox'; c.checked=!!draft[key];
+    c.addEventListener('change',()=>{ draft[key]=c.checked; preview(); }); f.appendChild(c); }
+  function build(){
+    while(form.firstChild) form.removeChild(form.firstChild);
+    const rr=rates||{};
+    switch(it.type){
+      case 'stage': { const r0=row(), f=fieldWrap(r0,'sp_unit','Units'), s=mk('select'); s.id='sp_unit';
+          [['m','metres'],['ft','feet']].forEach(([v,t])=>{ const o=mk('option',null,t); o.value=v; if(v===unit) o.selected=true; s.appendChild(o); });
+          s.addEventListener('change',()=>{ unit=s.value; draft.unit=unit; build(); preview(); }); f.appendChild(s);
+          const r=row(); numf(r,'lengthM','Length',{dim:1,min:0.5,step:0.1}); numf(r,'widthM','Width',{dim:1,min:0.5,step:0.1});
+          numf(row(),'heightM','Height',{dim:1,min:0,step:0.1}); break; }
+      case 'generator': { const r=row(); numf(r,'kva','Capacity (kVA)',{min:1,list:S.KVA_PRESETS}); numf(r,'days','Days',{min:1,step:1});
+          const r2=row(); chk(r2,'diesel','Diesel included'); chk(r2,'operator','Operator'); break; }
+      case 'dj': { const r=row(); sel(r,'setup','Setup',optKeys(rr.setup)); sel(r,'power','Power connection',optKeys(rr.power));
+          numf(row(),'extraSpeakers','Extra speakers',{min:0,step:1}); break; }
+      case 'lighting': { const r=row(); sel(r,'kind','Type',optKeys(rr.each).concat(optKeys(rr.perM))); numf(r,'qty','Quantity / runs',{min:1,step:1});
+          numf(row(),'lengthM','Length per run (m, string / truss)',{min:0.5,step:0.5}); break; }
+      case 'led': { sel(row(),'pitch','Screen type',optKeys(rr.perSqMDay)); const r=row(); numf(r,'widthM','Width (m)',{min:0.5,step:0.5}); numf(r,'heightM','Height (m)',{min:0.5,step:0.5});
+          numf(row(),'days','Days',{min:1,step:1}); break; }
+      case 'chandelier': { const r=row(); sel(r,'size','Size / type',optKeys(rr.each)); numf(r,'qty','Quantity',{min:1,step:1}); break; }
+      case 'photobooth': { const r=row(); sel(r,'kind','Booth type',optKeys(rr.perHour)); numf(r,'hours','Hours',{min:1,step:0.5}); break; }
+      case 'chocolatefountain': { const r=row(); sel(r,'size','Size',optKeys(rr.base)); numf(r,'servings','Servings',{min:0,step:10}); break; }
+      case 'chariot': { const r=row(); sel(r,'kind','Chariot',optKeys(rr.perTrip)); numf(r,'trips','Trips',{min:1,step:1}); break; }
+      case 'smoke': { const r=row(); sel(r,'kind','Effect',optKeys(rr.perUnit)); numf(r,'units','Units',{min:1,step:1}); break; }
+      case 'dancers': { const r=row(); numf(r,'count','Dancers',{min:1,step:1}); sel(r,'basis','Charged',['show','hour']); numf(row(),'qty',draft.basis==='hour'?'Hours':'Performances',{min:1,step:1}); break; }
+    }
+  }
+  function preview(){
+    if(!rates){ prev.textContent='Rate not set for this item in Control Center → Item pricing — the flat catalog price applies.'; apply.disabled=true; return; }
+    try{ const r=S.compute(it.type, draft, rates); prev.textContent=r.label; apply.disabled=!!RO; }
+    catch(e){ prev.textContent=(e&&e.rateNotSet?'Rate not set — ':'Check the values: ')+((e&&e.message)||e); apply.disabled=true; }
+  }
+  apply.addEventListener('click',()=>{
+    if(RO) return;
+    try{ S.compute(it.type, draft, rates); }catch(e){ preview(); return; }
+    const spec=Object.assign({}, draft); if(it.type==='stage') spec.unit=unit;
+    it.properties=it.properties||{}; it.properties.spec=spec;
+    if(it.type==='stage'){   // the stage's footprint follows its length x width (world units are feet)
+      it.width=clamp(spec.lengthM/S.FT,0.5,WORLD.w); it.height=clamp(spec.widthM/S.FT,0.5,WORLD.h);
+      it.x=clamp(it.x,0,WORLD.w-it.width); it.y=clamp(it.y,0,WORLD.h-it.height);
+    }
+    commit(); renderAll();
+  });
+  clr.addEventListener('click',()=>{ if(RO) return; if(it.properties) delete it.properties.spec; commit(); renderAll(); });
+  build(); preview();
+  if(RO){ sec.querySelectorAll('input,select,button').forEach(e=>{ e.disabled=true; }); }
+  const ibtns=box.querySelector('.ibtns'); if(ibtns) box.insertBefore(sec, ibtns); else box.appendChild(sec);
+}
+/* ===================== ITEM-SPEC ADJUST: END ===================== */

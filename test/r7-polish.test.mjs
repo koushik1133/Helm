@@ -82,9 +82,9 @@ t('closure.html: closed state, admin-only Re-open with reason, close hidden when
   assert.match(h, /Closed on /);
   assert.match(h, /BPStore\.closure\.reopen\(id,reason\)/);
 });
-t('store-api v=156 on every page', () => {
+t('store-api v=158 on every page', () => {
   for (const p of readdirSync(join(ROOT, 'public')).filter((f) => f.endsWith('.html'))) {
-    const m = read('public/' + p).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '156', p);
+    const m = read('public/' + p).match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '158', p);
   }
 });
 t('0084 SQL: additive, ASCII, no table constraint, APPLY verbatim + verify grid', () => {

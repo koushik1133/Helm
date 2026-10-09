@@ -113,3 +113,5 @@ forward  supabase/migrations/0082_r4_sql_fixes.sql
 forward  supabase/migrations/0083_booklet_images.sql
 # 0084 (r7: plain-ASCII stage/closed messages, phone checks on new/changed staff + nurture phones, nurture.phone, admin reopen_event) goes after 0083.
 forward  supabase/migrations/0084_r7_polish.sql
+# 0086 (item specifications: per-studio item rate cards, get/set RPCs gated by the new item_pricing area, defaults seeded without overwriting) goes after 0084 (0085 optional).
+forward  supabase/migrations/0086_item_specs.sql
