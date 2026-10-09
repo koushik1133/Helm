@@ -30,7 +30,7 @@
     })();
     return libsPromise;
   }
-  let R, scene, camera, controls, root, chairMesh, ground, grid, edge, sun, floorW=0, floorH=0, raf=null;
+  let R, scene, camera, controls, root, chairMesh, ground, grid, edge, sun, hemi, floorW=0, floorH=0, raf=null;
   const MAX_CHAIRS_3D=6000;
   let active=false, built=false, needsBuild=false, chairMap=[];
   let transform, gizmo, gltfLoader, tmode='translate', gizmoBase=null;   // 3D editing + model loading
@@ -479,7 +479,7 @@
     controls.enableDamping=true; controls.dampingFactor=0.08; controls.maxPolarAngle=Math.PI/2-0.03;
     controls.minDistance=20; controls.maxDistance=700; controls.target.set(0,0,0);
 
-    scene.add(new THREE.HemisphereLight(0xffffff,0x9fb0c8,0.75));
+    hemi=new THREE.HemisphereLight(0xffffff,0x9fb0c8,0.75); scene.add(hemi);
     sun=new THREE.DirectionalLight(0xffffff,0.85); sun.position.set(70,160,60); sun.castShadow=true;
     sun.shadow.mapSize.set(2048,2048); sun.shadow.camera.near=1; sun.shadow.camera.far=600;
     scene.add(sun);
@@ -707,34 +707,58 @@
     if(!libsReady){ const ok=await ensure3DLibs(); if(!ok) throw new Error('The 3D library couldn’t load'); }
     if(!built) initScene();
     syncFloor(); build();
-    const W=maxW, H=Math.round(maxW*9/16);
+    const W=maxW, H=Math.round(maxW*9/16), SS=2;           // render at 2x, downscale (anti-aliasing)
+    const sc=sun.shadow.camera;
     const keep={ pr:R.getPixelRatio(), size:R.getSize(new THREE.Vector2()), cam:camera.position.clone(), tgt:controls.target.clone(),
-      aspect:camera.aspect, render:renderMode, grid:grid?grid.visible:null, tr:transform?transform.visible:null,
-      sel:selHelper?selHelper.visible:null, obj:transform?transform.object:null };
+      aspect:camera.aspect, far:camera.far, render:renderMode, grid:grid?grid.visible:null, edge:edge?edge.visible:null, tr:transform?transform.visible:null,
+      sel:selHelper?selHelper.visible:null, sunI:sun.intensity, sunPos:sun.position.clone(), sunTgt:sun.target.position.clone(), sunR:sun.shadow.radius,
+      sc:[sc.left,sc.right,sc.top,sc.bottom,sc.far], hemiI:hemi?hemi.intensity:null, groundCol:ground?ground.material.color.clone():null, labels:[] };
     try{
-      if(grid) grid.visible=false; if(transform){ transform.detach(); transform.visible=false; } if(selHelper) selHelper.visible=false;
+      if(grid) grid.visible=false; if(edge) edge.visible=false; if(transform){ transform.detach(); transform.visible=false; } if(selHelper) selHelper.visible=false;
       renderMode=true; applyProfile();
-      R.setPixelRatio(1); R.setSize(W,H,false);
-      camera.aspect=W/H;
-      // three-quarter view from the front-right, framing the whole hall
-      const span=Math.max(floorW||WORLD.w, floorH||WORLD.h);
-      const fov=camera.fov*Math.PI/180, dist=(span*0.62)/Math.tan(fov/2)*Math.max(1, 1.25/camera.aspect);
-      const dir=new THREE.Vector3(0.55, 0.78, 0.95).normalize();
-      camera.position.copy(dir.multiplyScalar(dist)); camera.lookAt(0,0,0); camera.updateProjectionMatrix();
-      const far=camera.far; camera.far=Math.max(far, dist*4); camera.updateProjectionMatrix();
-      if(scene.fog){ scene.fog.near=dist*1.4; scene.fog.far=dist*4; }
+      // client look: darker backdrop + floor for contrast, no fog wash, stronger key light with soft shadows
+      scene.fog=null; scene.background=new THREE.Color('#3b4354');
+      if(ground) ground.material.color.multiplyScalar(0.72);
+      R.toneMapping=THREE.ACESFilmicToneMapping; R.toneMappingExposure=1.0; R.outputEncoding=THREE.sRGBEncoding;
+      if(hemi) hemi.intensity=0.5; sun.intensity=1.35;
+      // frame the bounding box of the actual objects (labels excluded), fallback to the floor
+      const box=new THREE.Box3();
+      root.traverse(o=>{ if(o.isMesh || o.isInstancedMesh){ o.updateWorldMatrix(true,false); box.expandByObject(o); } });
+      if(box.isEmpty()){ const hw=(floorW||WORLD.w)/2, hh=(floorH||WORLD.h)/2; box.min.set(-hw,0,-hh); box.max.set(hw,4,hh); }
+      const pad=2; box.min.x-=pad; box.min.z-=pad; box.max.x+=pad; box.max.z+=pad; box.min.y=Math.min(box.min.y,0);
+      const fr=window.HelmCaptureFrame.frameBox({min:box.min.toArray(),max:box.max.toArray()},
+        {fovDeg:camera.fov, aspect:W/H, fill:0.85, elevationDeg:38, azimuthDeg:35, minDist:20});
+      R.setPixelRatio(1); R.setSize(W*SS,H*SS,false);
+      camera.aspect=W/H; camera.position.fromArray(fr.position); camera.lookAt(fr.target[0],fr.target[1],fr.target[2]);
+      camera.far=Math.max(keep.far, fr.distance*4); camera.updateProjectionMatrix();
+      // key light from the front-left, shadow frustum hugging the objects (crisper shadows)
+      const span=Math.max(box.max.x-box.min.x, box.max.z-box.min.z, 20);
+      sun.target.position.fromArray(fr.target); sun.target.updateMatrixWorld();
+      sun.position.set(fr.target[0]-span*0.45, span*1.1+40, fr.target[2]+span*0.6);
+      sc.left=-span; sc.right=span; sc.top=span; sc.bottom=-span; sc.far=span*4+200; sc.updateProjectionMatrix(); sun.shadow.radius=3;
+      // readable labels: scale with the framed size
+      const ls=Math.max(1, Math.min(2.6, span/110));
+      root.traverse(o=>{ if(o.isSprite){ keep.labels.push([o,o.scale.clone()]); o.scale.multiplyScalar(ls); } });
       R.render(scene,camera);
-      const url=cv.toDataURL('image/jpeg',0.9);       // read back in the same task (no preserveDrawingBuffer)
-      camera.far=far;
+      const out=document.createElement('canvas'); out.width=W; out.height=H;
+      const ctx=out.getContext('2d'); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+      ctx.drawImage(cv,0,0,W*SS,H*SS,0,0,W,H);                // same task as render (no preserveDrawingBuffer)
+      const url=out.toDataURL('image/jpeg',0.92);
       const bin=atob(url.split(',')[1]||''), u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
       const b=new Blob([u8],{type:'image/jpeg'});
       if(!b || b.size<2000) throw new Error('The 3D render came out empty');
       return b;
     } finally {
-      if(grid && keep.grid!=null) grid.visible=keep.grid; if(transform){ transform.visible=keep.tr!==false; }
+      keep.labels.forEach(([o,s])=>o.scale.copy(s));
+      if(grid && keep.grid!=null) grid.visible=keep.grid; if(edge && keep.edge!=null) edge.visible=keep.edge;
+      if(transform){ transform.visible=keep.tr!==false; }
       if(selHelper && keep.sel!=null) selHelper.visible=keep.sel;
-      renderMode=keep.render; applyProfile();
-      R.setPixelRatio(keep.pr); camera.position.copy(keep.cam); controls.target.copy(keep.tgt); camera.aspect=keep.aspect; camera.updateProjectionMatrix();
+      if(ground && keep.groundCol) ground.material.color.copy(keep.groundCol);
+      sun.intensity=keep.sunI; sun.position.copy(keep.sunPos); sun.target.position.copy(keep.sunTgt); sun.target.updateMatrixWorld(); sun.shadow.radius=keep.sunR;
+      [sc.left,sc.right,sc.top,sc.bottom,sc.far]=keep.sc; sc.updateProjectionMatrix();
+      if(hemi && keep.hemiI!=null) hemi.intensity=keep.hemiI;
+      renderMode=keep.render; applyProfile();               // restores tone mapping / background / fog
+      R.setPixelRatio(keep.pr); camera.far=keep.far; camera.position.copy(keep.cam); controls.target.copy(keep.tgt); camera.aspect=keep.aspect; camera.updateProjectionMatrix();
       if(active){ resize(); updateGizmo(); controls.update(); try{ R.render(scene,camera); }catch(e){} } else R.setSize(keep.size.x,keep.size.y,false);
     }
   }

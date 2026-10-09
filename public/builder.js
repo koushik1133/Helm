@@ -2438,7 +2438,9 @@ function viewCenterFt(){
   const cy=(scrollEl.scrollTop+scrollEl.clientHeight/2)/(PX_PER_FT*store.view.zoom);
   return {x:clamp(cx,0,WORLD.w), y:clamp(cy,0,WORLD.h)};
 }
+let viewAtFit=true;   // still showing the "fit" zoom (no manual zoom since the last fit)
 function setZoom(z, anchor){
+  viewAtFit=false;
   const old=store.view.zoom;
   z=clamp(z,0.25,3);
   const a=anchor||{x:scrollEl.scrollLeft+scrollEl.clientWidth/2, y:scrollEl.scrollTop+scrollEl.clientHeight/2};
@@ -2455,6 +2457,7 @@ function fitView(){
   const zx=(scrollEl.clientWidth-pad)/(WORLD.w*PX_PER_FT);
   const zy=(scrollEl.clientHeight-pad)/(WORLD.h*PX_PER_FT);
   store.view.zoom=clamp(Math.min(zx,zy),0.25,3);
+  viewAtFit=true;
   sizeCanvas();
   $('#zoomLbl').textContent=Math.round(store.view.zoom*100)+'%';
   scrollEl.scrollLeft=(svg.width.baseVal.value-scrollEl.clientWidth)/2;
@@ -2542,7 +2545,8 @@ function initPanelToggles(){
     { btn:'#leftToggle',  panel:'#leftPanel',  side:'l', name:'asset toolbox' },
     { btn:'#rightToggle', panel:'#rightPanel', side:'r', name:'price & inspector panel' },
   ];
-  const kick=()=>{ try{ window.dispatchEvent(new Event('resize')); }catch{} };
+  // after a panel slides, re-fit the 2D plan to the new canvas size unless the user zoomed by hand
+  const kick=()=>{ try{ window.dispatchEvent(new Event('resize')); }catch{} try{ if(viewAtFit && !is3DActive()) fitView(); }catch{} };
   const apply=(d, collapsed, animate)=>{
     const b=$(d.btn), p=$(d.panel); if(!b||!p) return;
     p.classList.toggle('collapsed', collapsed);

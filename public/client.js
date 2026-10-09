@@ -168,6 +168,7 @@
     if (!data) { notFound(); return; }
     model = normalize(data); active = "all";
     renderHead(model); renderFilters(model); renderList(model);
+    try { if (global.HelmTrail) global.HelmTrail.setCurrent({ title: model.client.name, kind: "client", href: "client.html?id=" + encodeURIComponent(id) }); } catch (e) {}
     $("#app").hidden = false;
     wireBooklet(model, id).catch(() => {});
   }

@@ -111,7 +111,8 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=1"></script>
-<script src="store-api.js?v=145"></script>
+<script src="store-api.js?v=146"></script>
+<script src="audit-format.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -142,10 +143,9 @@
       return (html+more||'<span class="muted">—</span>')+by;
     }
     if(r.action==='update'){
-      const keys=Object.keys(c).slice(0,5);
-      const html=keys.map(k=>{ const pair=c[k]; const o=Array.isArray(pair)?pair[0]:null, n=Array.isArray(pair)?pair[1]:pair;
-        return `<div><span class="k">${esc(k)}</span>: <span class="o">${esc(short(o))}</span> → <span class="n">${esc(short(n))}</span></div>`; }).join("");
-      const more=Object.keys(c).length>5?`<div class="muted">+${Object.keys(c).length-5} more</div>`:"";
+      const d=AuditFormat.describeUpdate(c,5);   // friendly wording, no raw JSON
+      const html=d.lines.map(l=>`<div>${esc(l.text)}</div>`).join("");
+      const more=d.more?`<div class="muted">+${d.more} more</div>`:"";
       return html+more || '<span class="muted">—</span>';
     }
     // insert / delete → show a few identifying fields

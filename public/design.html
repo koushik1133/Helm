@@ -86,7 +86,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=1"></script>
-<script src="store-api.js?v=145"></script>
+<script src="store-api.js?v=146"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -116,6 +116,17 @@
     }).join("")+`</div>`;
   }
 
+  // one-line meaning of each stage, shown under its button
+  const STAGE_HINT={
+    draft_2d:"back to drafting — rework the 2D floor plan in the builder",
+    internal_review:"send the 2D floor plan to the team for an internal check",
+    approved_2d:"the floor plan is signed off internally; next build the 3D view",
+    build_3d:"start building the 3D view from the approved floor plan",
+    client_review:"share the design with the client for their feedback",
+    approved_3d:"the client has approved the 3D design; next lock it",
+    locked:"final — no more design changes for this event",
+    revise:"changes are needed — the design goes back to the 2D draft",
+  };
   function advanceControls(rec){
     if(!canEdit) return `<div class="muted">View only — you can't change design stages.</div>`;
     const next=D.NEXT[rec.state]||[];
@@ -124,8 +135,8 @@
     return `<textarea class="note" id="${noteId}" aria-label="Note for this design transition (optional)" placeholder="Optional note for this transition (e.g. what changed)"></textarea>
       <div class="acts">`+next.map(t=>{
         const warn=(t==="revise")?" warn":( ["approved_2d","approved_3d","locked"].includes(t)?" primary":"");
-        return `<button type="button" class="btn${warn}" data-adv="${esc(t)}" data-q="${esc(rec.quote_id)}" data-upd="${esc(rec.updated_at||"")}" data-note="${noteId}">${esc(D.LABEL[t]||t)}</button>`;
-      }).join("")+`</div><div class="err" id="err_${esc(rec.quote_id)}" role="alert" hidden></div>`;
+        return `<button type="button" class="btn${warn}" title="${esc(STAGE_HINT[t]||"")}" data-adv="${esc(t)}" data-q="${esc(rec.quote_id)}" data-upd="${esc(rec.updated_at||"")}" data-note="${noteId}">${esc(D.LABEL[t]||t)}</button>`;
+      }).join("")+`</div>`+next.map(t=>STAGE_HINT[t]?`<div class="muted stage-hint"><b>${esc(D.LABEL[t]||t)}</b> — ${esc(STAGE_HINT[t])}</div>`:"").join("")+`<div class="err" id="err_${esc(rec.quote_id)}" role="alert" hidden></div>`;
   }
 
   function wireAdvance(host){
@@ -181,13 +192,19 @@
           const er=document.getElementById("err_"+quoteId); if(er){er.textContent=BPUI.friendlyError(e,{action:"start the design"});er.hidden=false;} } }));
       return;
     }
-    $("#singleTitle").innerHTML=`Design — <span style="font-family:var(--mono)">${esc(rec.event_code||rec.quote_id)}</span>`;
+    // title: "<code> · <title>" (never a raw uuid) + quick links to the builder and the quote
+    let q=null; try{ q=await BPStore.quotes.get(quoteId); }catch(_){}
+    const code=(q&&q.code)||rec.event_code||"", ttl=(q&&q.title)||rec.event_title||"";
+    const isUuid=(v)=>/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(String(v||""));
+    const name=[code,ttl].filter((v,i,a)=>v&&!isUuid(v)&&a.indexOf(v)===i).join(" · ");
+    $("#singleTitle").textContent=name?("Design — "+name):"Event design";
     host.innerHTML=`<div style="display:flex;align-items:center;gap:10px">
         <span class="pill ${rec.state==='locked'?'done':(rec.state==='revise'?'rev':'')}">${esc(D.LABEL[rec.state]||rec.state)}</span>
         <small class="muted">revision ${esc(rec.revision||1)}</small></div>
       ${railHtml(rec.state,rec.revision)}
       ${rec.note?`<div class="muted">Last note: ${esc(rec.note)}</div>`:""}
-      ${advanceControls(rec)}`;
+      ${advanceControls(rec)}
+      <div class="acts"><a class="btn" href="builder.html?quote=${esc(encodeURIComponent(quoteId))}">Open floor builder</a> <a class="btn" href="flow.html?quote=${esc(encodeURIComponent(quoteId))}">Open quote</a></div>`;
     wireAdvance(host);
   }
 
