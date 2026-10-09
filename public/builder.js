@@ -2125,8 +2125,11 @@ function seatBanquetRounds(items, o, topY){
   const n=Math.min(need, cells.length); if(!n) return;
   // spread: take evenly spaced cells rather than packing the first rows
   const pick=[]; for(let i=0;i<n;i++) pick.push(cells[Math.floor(i*cells.length/n)]);
+  // R10: when every table fits, spread the seats evenly (105 → 7×8 + 7×7) instead of a near-empty
+  // last table (13×8 + 1×1 looked odd to clients). Otherwise fill tables of spt; the caller packs the rest.
+  const even=n===need && n>0, base=even?Math.floor(N/n):0, extra=even?N%n:0;
   let left=N;
-  pick.forEach(([x,y],i)=>{ const seats=i===n-1 && n===need ? Math.max(1, left) : Math.min(spt, left); left-=seats;
+  pick.forEach(([x,y],i)=>{ const seats=even ? base+(i<extra?1:0) : Math.min(spt, left); left-=seats;
     items.push(makeItem('table', x, y, {properties:{seats},label:'T'+(i+1)})); });
 }
 function seatBanquetLong(items, o, topY){

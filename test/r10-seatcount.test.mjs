@@ -19,3 +19,10 @@ const m = js.match(/const FLOOR_SEATS = (\{[^}]+\})/); const b = Function('retur
 const e = Function('return ' + readFileSync(new URL('../public/event-sizing.js', import.meta.url), 'utf8').match(/var FLOOR_SEATS = (\{[^}]+\})/)[1])();
 assert.deepEqual(b, e, 'FLOOR_SEATS maps agree');
 console.log('r10-seatcount: ok');
+// even spread of banquet table seats
+{ const src = readFileSync(new URL('../public/builder.js', import.meta.url), 'utf8');
+  assert.match(src, /const even=n===need && n>0, base=even\?Math\.floor\(N\/n\):0, extra=even\?N%n:0;/);
+  const spread = (N, n) => Array.from({ length: n }, (_, i) => Math.floor(N / n) + (i < N % n ? 1 : 0));
+  for (const N of [105, 300, 700, 9, 17]) { const n = Math.ceil(N / 8), s = spread(N, n);
+    assert.equal(s.reduce((a, b) => a + b, 0), N); assert.ok(Math.max(...s) <= 8 && Math.min(...s) >= Math.max(1, Math.floor(N / n))); }
+  console.log('r10-seatcount: even spread ok'); }
