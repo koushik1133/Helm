@@ -210,11 +210,6 @@
   },
   {
    "file": "public/builder.js",
-   "expr": "m.chairs",
-   "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
-  },
-  {
-   "file": "public/builder.js",
    "expr": "m.guests",
    "why": "integer/number computed locally (array index, .length count, reduce sum, or Number()-coerced pricing field)"
   },

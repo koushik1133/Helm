@@ -156,7 +156,7 @@ const bjs = rd('public/builder.js'), flow = rd('public/flow.html'), quotes = rd(
 assert.match(bjs, /const chairs = quoteChairsNow\(\);/);
 assert.match(flow, /HelmSizing\.quoteChairs\(cl, pr, null\)/);
 assert.match(flow, /chairsManual=HelmSizing\.isChairsManual\(cl,pr\)/);
-assert.match(quotes, /event-sizing\.js\?v=4/);
+assert.match(quotes, /event-sizing\.js\?v=5/);
 assert.match(quotes, /HelmSizing\.quoteChairs\(cl,pr,seats\)/);
 assert.match(quotes, /pricing = \{ \.\.\.p, computed:t, total:t\.total, client, chairsManual, otherAuto: prevPr\.otherAuto \}/);
 // builder: Custom Event dialog re-reads the quote on every open; writes chairs back; ?gen never beats saved guests
@@ -167,7 +167,7 @@ assert.match(bjs, /ceAutoFill\(\); resetQuoteChairs\(\);/);
 assert.match(bjs, /if\(guests && PRICING\.guests==null\)\{ PRICING\.guests=guests;/);
 assert.match(bjs, /renderPrice\(\); syncChairsPanel\(\); \}catch\(e\)\{\}   \/\/ R9/);
 for (const f of ['public/builder.html', 'public/flow.html', 'public/capture.html']) {
-  const h = rd(f); if (/event-sizing\.js/.test(h)) assert.match(h, /event-sizing\.js\?v=4/, f);
+  const h = rd(f); if (/event-sizing\.js/.test(h)) assert.match(h, /event-sizing\.js\?v=5/, f);
   if (/flow-layout-sync\.js/.test(h)) assert.match(h, /flow-layout-sync\.js\?v=4/, f);
 }
 console.log(`r9-sizing-matrix: ${n} generated layouts + sizing cases OK`);

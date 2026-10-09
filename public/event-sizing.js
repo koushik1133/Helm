@@ -89,6 +89,15 @@
     return prev == null || +pr.other !== prev ? Math.max(0, +pr.other) : null;
   }
   // R8b: the layout's real chair count differs from the quote → offer (never force) a one-click switch
+  // R10: sofas/benches/lounges count as seats (owner rule: every seat on the floor counts). Pricing's
+  // fromItems() bills them as furniture, so add their seats on top of its chair count wherever the
+  // layout's seat total is shown or compared. Same values as the builder's FLOOR_SEATS.
+  var FLOOR_SEATS = { sofa: 3, loveseat: 2, armchair: 1, ottoman: 1, bench: 2, lounge: 4 };
+  function extraFloorSeats(items) {
+    var n = 0; (items || []).forEach(function (it) { var p = (it && it.properties) || {};
+      if (p.rows && p.cols) return; if (p.seats) return; n += FLOOR_SEATS[it && it.type] || 0; });
+    return n;
+  }
   function layoutChairsNote(quoteValue, layoutValue) {
     var q = pos(quoteValue), l = pos(layoutValue);
     if (!l || q === l) return null;
@@ -137,7 +146,7 @@
     return scored.slice(0, limit || 3);
   }
   var api = { CHAIR_RATIO: CHAIR_RATIO, SEATS_PER_TABLE: SEATS_PER_TABLE, PRESETS: PRESETS,
-    defaultChairs: defaultChairs, quoteChairs: quoteChairs, isChairsManual: isChairsManual, handOther: handOther, dialogSizing: dialogSizing, layoutChairsNote: layoutChairsNote, defaultTables: defaultTables, resolve: resolve, merge: merge, rankTemplates: rankTemplates, seatSqft: seatSqft };
+    defaultChairs: defaultChairs, quoteChairs: quoteChairs, isChairsManual: isChairsManual, handOther: handOther, dialogSizing: dialogSizing, layoutChairsNote: layoutChairsNote, extraFloorSeats: extraFloorSeats, defaultTables: defaultTables, resolve: resolve, merge: merge, rankTemplates: rankTemplates, seatSqft: seatSqft };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else global.HelmSizing = api;
 })(typeof window !== "undefined" ? window : globalThis);

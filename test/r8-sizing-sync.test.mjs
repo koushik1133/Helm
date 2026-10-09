@@ -69,7 +69,7 @@ t("R8b: pricing uses the quote's chairs on every screen; a differing layout only
 const flow = R("public/flow.html"), bjs = R("public/builder.js"), bhtml = R("public/builder.html");
 t("both pages load event-sizing.js before their code", () => {
   assert.match(flow, /<script src="event-sizing\.js\?v=\d+"><\/script>/);
-  assert.match(bhtml, /event-sizing\.js\?v=\d+[\s\S]*builder\.js\?v=26/);
+  assert.match(bhtml, /event-sizing\.js\?v=\d+[\s\S]*builder\.js\?v=27/);
 });
 t("flow: hall L×B restored on load and saved on the client; genLayout saves layout guests first", () => {
   assert.match(flow, /HelmSizing\.resolve\(cl, ev\.pricing, layoutRoom\)[^\n]*g_len/);
