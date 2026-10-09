@@ -6907,6 +6907,24 @@ window.HelmUrl = HelmUrl;
         await rpc("booklet_set_snapshot", { p_quote_id: quoteId, p_kind: kind, p_path: path });
         return path;
       },
+      // R2: what's already in the bucket for this event -> { "2d": { path, updatedAt }, "3d": ... } (read policy = own studio).
+      snapshotInfo: async (quoteId) => {
+        const out = {};
+        if (!supa || mode !== "supabase" || !UUID_RE_PKG.test(String(quoteId || ""))) return out;
+        const oid = await orgIdStrict();
+        const r = await supa.storage.from("booklet-snapshots").list(oid + "/" + quoteId, { limit: 20 });
+        if (r && r.error) return out;
+        ((r && r.data) || []).forEach((f) => { const m = /^(2d|3d)\.(png|jpg|webp)$/.exec(String((f && f.name) || ""));
+          if (!m) return; const t = f.updated_at || f.created_at || null;
+          if (!out[m[1]] || String(t) > String(out[m[1]].updatedAt)) out[m[1]] = { path: oid + "/" + quoteId + "/" + f.name, updatedAt: t }; });
+        return out;
+      },
+      // R2: signed preview URL of a studio snapshot (staff only - storage read policy)
+      snapshotPreview: async (path) => { if (!supa) return null;
+        const r = await supa.storage.from("booklet-snapshots").createSignedUrl(String(path || ""), 300);
+        return r && !r.error && r.data ? r.data.signedUrl : null; },
+      // R2: (re)attach an already-uploaded snapshot to the live booklet link
+      attachSnapshot: (quoteId, kind, path) => rpc("booklet_set_snapshot", { p_quote_id: quoteId, p_kind: kind === "3d" ? "3d" : "2d", p_path: path }),
       // signed-out booklet page: <img src> for a ticked snapshot (dormant edge function booklet-snapshot)
       snapshotUrl: (token, kind) => { const u = fnUrl("booklet-snapshot");
         return u ? u + "?t=" + encodeURIComponent(String(token || "")) + "&k=" + (kind === "3d" ? "3d" : "2d") : ""; },

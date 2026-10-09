@@ -1,7 +1,7 @@
 // Client event booklet (0065) — front end + wiring.
 //  * pure helpers in public/booklet.js: token parsing, safe accent / logo, quotation lines,
 //    layout normalisation (bad shapes dropped), iso projection
-//  * booklet.html: no inline script/style/style=, noindex + no-referrer meta, store-api v=138
+//  * booklet.html: no inline script/style/style=, noindex + no-referrer meta, store-api v=139
 //  * booklet.js / booklet-share.js never use innerHTML / insertAdjacentHTML / document.write
 //  * vercel.json: /booklet is noindex, no-store, no-referrer and gets the user-image CSP
 //  * store-api: BPStore.booklet → public_get_booklet / booklet_share / booklet_revoke / booklet_current
@@ -64,7 +64,7 @@ t('iso projection + shade are numeric', () => {
   assert.deepEqual(J(api.iso(10, 0, 0).map((v) => Math.round(v * 100) / 100)), [8.66, 5]);
   assert.equal(api.shade('#ffffff', 0.5), '#808080');
 });
-t('booklet.html: no inline script/style/style=, noindex, no-referrer, store-api v=138', () => {
+t('booklet.html: no inline script/style/style=, noindex, no-referrer, store-api v=139', () => {
   const h = read('public/booklet.html');
   assert.doesNotMatch(h, /<script(?![^>]*\ssrc=)[^>]*>/i);
   assert.doesNotMatch(h, /<style/i);
@@ -72,8 +72,8 @@ t('booklet.html: no inline script/style/style=, noindex, no-referrer, store-api 
   assert.doesNotMatch(h, /\son[a-z]+=/i);
   assert.match(h, /<meta name="robots" content="noindex,nofollow,noarchive">/);
   assert.match(h, /<meta name="referrer" content="no-referrer">/);
-  assert.match(h, /store-api\.js\?v=138/);
-  assert.match(h, /booklet\.js\?v=8/);
+  assert.match(h, /store-api\.js\?v=139/);
+  assert.match(h, /booklet\.js\?v=9/);
   for (const id of ['details', 'layout2d', 'layout3d', 'menu', 'quote', 'versions', 'payments', 'receiptTable', 'receiptLines', 'terms', 'printBtn', 'tocList'])
     assert.match(h, new RegExp('id="' + id + '"'), id);
 });
@@ -117,10 +117,10 @@ t('store-api: booklet API + public page registration', () => {
 t('share buttons: event page + client page (with Booklet header link)', () => {
   const ev = read('public/event.html'), cl = read('public/client.html');
   assert.match(ev, /data-booklet-share data-quote-from-url hidden/);
-  assert.match(ev, /booklet-share\.js\?v=3/); assert.match(ev, /booklet-share\.css\?v=1/);
+  assert.match(ev, /booklet-share\.js\?v=4/); assert.match(ev, /booklet-share\.css\?v=1/);
   assert.match(cl, /data-booklet-share data-wait-quote hidden/);
   assert.match(cl, /id="bkLink" hidden>Booklet<\/a>/);
-  assert.match(cl, /booklet-share\.js\?v=3/);
+  assert.match(cl, /booklet-share\.js\?v=4/);
   assert.match(read('public/booklet-share.js'), /canEditArea\("quotes"\)/);
 });
 t('client.js bookletQuote: opened event wins, else newest event link', () => {

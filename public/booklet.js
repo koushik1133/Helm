@@ -370,8 +370,26 @@
   }
   function snapFigure(fig, url, alt, fallback) {
     const img = el("img", "snap"); img.setAttribute("src", url); img.setAttribute("alt", alt); img.setAttribute("referrerpolicy", "no-referrer"); img.setAttribute("loading", "lazy");
-    if (fallback) img.addEventListener("error", fallback, { once: true });   // edge function dormant → drawn plan
-    fig.appendChild(img);
+    const zoom = el("button", "snap-zoom"); zoom.type = "button"; zoom.setAttribute("aria-label", alt + " — open full size");
+    zoom.appendChild(img); zoom.addEventListener("click", () => openLightbox(url, alt));
+    if (fallback) img.addEventListener("error", () => { if (zoom.parentNode) zoom.parentNode.removeChild(zoom); fallback(); }, { once: true });   // edge function dormant → drawn plan
+    fig.appendChild(zoom);
+  }
+  // R2: full-size view of a studio image (click / tap to zoom in further, Esc or ✕ closes)
+  function openLightbox(url, alt) {
+    let dlg = doc.getElementById("bkLightbox");
+    if (!dlg) {
+      dlg = el("dialog", "lightbox"); dlg.id = "bkLightbox"; dlg.setAttribute("aria-label", "Image viewer");
+      const x = el("button", "lb-close", "✕"); x.type = "button"; x.setAttribute("aria-label", "Close"); x.addEventListener("click", () => dlg.close());
+      const wrap = el("div", "lb-wrap"); const im = el("img", "lb-img"); im.setAttribute("referrerpolicy", "no-referrer");
+      im.addEventListener("click", (e) => { e.stopPropagation(); wrap.classList.toggle("zoomed"); });
+      wrap.appendChild(im); dlg.appendChild(x); dlg.appendChild(wrap);
+      dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+      doc.body.appendChild(dlg);
+    }
+    const im = dlg.querySelector(".lb-img"); im.setAttribute("src", url); im.setAttribute("alt", alt);
+    dlg.querySelector(".lb-wrap").classList.remove("zoomed");
+    if (typeof dlg.showModal === "function") { if (!dlg.open) dlg.showModal(); } else global.open(url, "_blank", "noopener");
   }
   // 0069: which sections the studio chose to share. No `sections` from the server → legacy booklet (all on).
   const SEC_MAP = { details: ["client", "venue"], layout2d: ["layout2d"], layout3d: ["layout3d"], menu: ["menu"], packages: ["menu"],

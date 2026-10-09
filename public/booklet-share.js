@@ -116,6 +116,7 @@
         if (ck) await ck.uploadSnapshots();
         await st.booklet.share(quoteId, ck ? global.HelmShareChecklist.sharePayload({ days: sel.value, versions: vids, note: note.value.trim(), terms: terms.value.trim(), sections: ck.sections() })
           : { days: Number(sel.value), versionIds: vids, note: note.value.trim(), terms: terms.value.trim() });
+        if (ck && ck.attachSnapshots) await ck.attachSnapshots();
         toast("Booklet link ready"); await load(quoteId);
       } catch (err) { go.disabled = false; msg.textContent = errText(err); }
     });
