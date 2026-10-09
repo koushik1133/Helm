@@ -2,9 +2,10 @@
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 const src = readFileSync(new URL("../public/builder.js", import.meta.url), "utf8");
-const cap = src.slice(src.indexOf("async function captureClientImages"), src.indexOf("async function autoCaptureIfStale"));
+const cap = src.slice(src.indexOf("function captureClientImages"), src.indexOf("async function autoCaptureIfStale"));
 assert.match(cap, /const qid=currentQuoteId, vno=currentVersionNo, sig=docSig\(\)/, "capture pins quote/version/layout");
-assert.match(cap, /if\(moved\(\)\) return false;\s*if\(p2\[v\]\) await BPStore\.booklet\.putImage\(qid,'2d'/, "aborts before upload when switched");
+assert.match(cap, /if\(moved\(\)\)\{[^\n]*return false; \}/, "aborts before upload when switched");
+assert.match(cap, /if\(moved\(\)\)\{ res\[k\+'_'\+v\]='layout changed'; continue; \}\s*try\{ await BPStore\.booklet\.putImage\(qid,k,v,pics\[v\]\)/, "re-checks before each upload");
 assert.ok(!/putImage\(currentQuoteId/.test(cap), "uploads use the pinned id, not the live one");
 const auto = src.slice(src.indexOf("async function autoCaptureIfStale"), src.indexOf("function importJSON"));
 assert.match(auto, /currentQuoteId!==qid \|\| isViewingOlder\(\) \|\| docSig\(\)!==savedSig\) return;\s*if\(\['2d','3d'\]\.some\(k=>old\(k,'labels'\)/, "re-checks after async staleness lookups");

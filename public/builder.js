@@ -3217,35 +3217,51 @@ async function exportPNG(){
    'plain' (the model without labels). Stored IN THE DATABASE via BPStore.booklet.putImage
    (JPEG ~0.85, <= 1600 px wide); the booklet link shows the newest ones. */
 function clientImagesSupported(){ return !!(currentQuoteId && !RO && BPStore.mode && BPStore.mode()==='supabase' && BPStore.booklet && BPStore.booklet.putImage); }
-let clientImgBusy=false;
+let clientImgBusy=null;   // R8: the in-flight capture promise (a second click / auto-capture waits for it)
 // capture style -> label mode used by planBlob / capture3D
 const CLIENT_IMG_STYLES=[['labels','numbers'],['plain','none']];
-async function captureClientImages(silent){
-  if(!clientImagesSupported() || clientImgBusy || !store.items.length) return false;
-  clientImgBusy=true;
+function captureClientImages(silent){
+  if(!clientImagesSupported() || !store.items.length) return Promise.resolve(false);
+  if(clientImgBusy) return clientImgBusy;
+  clientImgBusy=captureClientImagesRun(silent).finally(()=>{ clientImgBusy=null; });
+  return clientImgBusy;
+}
+async function captureClientImagesRun(silent){
   // R4-E: pin the quote / version / layout the capture started on — if any changes while the
   // (slow) renders run, the pictures no longer match that quote's saved layout: never upload them.
   const qid=currentQuoteId, vno=currentVersionNo, sig=docSig();
   const moved=()=> currentQuoteId!==qid || currentVersionNo!==vno || docSig()!==sig;
+  const say=(m,o)=>{ if(!silent) toast(m,o); };
+  const why=e=>String((e && e.message) || e || 'failed').slice(0,120);
+  const res={}, p2={}, p3={};   // R8: per-picture result: true | reason
   try{
-    const p2={}, p3={}; let e3=null;
-    for(const [v,m] of CLIENT_IMG_STYLES){ const b=await planBlob({clean:true, maxW:1600, labels:m}); if(b) p2[v]=b; }
-    if(!p2.labels) throw new Error('Couldn’t draw the floor plan');
+    say('Capturing 2D…');
     for(const [v,m] of CLIENT_IMG_STYLES){
-      try{ const b=window.__capture3D ? await window.__capture3D(1600,{labels:m}) : null; if(b) p3[v]=b; }catch(e){ e3=e; }
-      if(moved()) return false;
+      try{ const b=await planBlob({clean:true, maxW:1600, labels:m}); if(b) p2[v]=b; else res['2d_'+v]='couldn’t draw the floor plan'; }
+      catch(e){ res['2d_'+v]=why(e); }
     }
-    if(moved()) return false;
-    for(const [v] of CLIENT_IMG_STYLES){
-      if(moved()) return false;
-      if(p2[v]) await BPStore.booklet.putImage(qid,'2d',v,p2[v]);
-      if(p3[v] && !moved()) await BPStore.booklet.putImage(qid,'3d',v,p3[v]);
+    say('Capturing 3D…');
+    for(const [v,m] of CLIENT_IMG_STYLES){
+      // R8: capture3D initialises the 3D scene offscreen when the 3D view was never opened; one retry
+      for(let a=0;a<2 && !p3[v];a++){
+        try{ if(!window.__capture3D) throw new Error('3D view not loaded'); const b=await window.__capture3D(1600,{labels:m}); if(b) p3[v]=b; else res['3d_'+v]='3D render was empty'; }
+        catch(e){ res['3d_'+v]=why(e); }
+      }
+      if(moved()) break;
     }
-    if(!silent) toast(p3.labels ? 'Client images updated (2D + 3D, with and without labels)' : 'Client 2D plan updated — 3D view couldn’t render');
-    else if(e3) console.warn('client 3D capture skipped');
-    return true;
+    if(moved()){ if(!silent) BPUI.toast('The layout changed while capturing — press “Update client images” again.',{type:'err'}); return false; }
+    say('Uploading client images…');
+    for(const [v] of CLIENT_IMG_STYLES) for(const [k,pics] of [['2d',p2],['3d',p3]]){
+      if(!pics[v]) continue;
+      if(moved()){ res[k+'_'+v]='layout changed'; continue; }
+      try{ await BPStore.booklet.putImage(qid,k,v,pics[v]); res[k+'_'+v]=true; }
+      catch(e){ res[k+'_'+v]=(BPUI.friendlyError ? BPUI.friendlyError(e,{action:'save the picture'}) : why(e)); }
+    }
+    const sum=window.HelmCaptureFrame && HelmCaptureFrame.captureSummary ? HelmCaptureFrame.captureSummary(res) : {ok:false, saved:[], message:'Client images updated'};
+    if(!silent) BPUI.toast(sum.message,{type:sum.ok?'ok':'err'});
+    else if(!sum.ok) console.warn('client image capture:', sum.message);
+    return sum.saved.length>0;
   }catch(e){ if(!silent) BPUI.toast(BPUI.friendlyError(e,{action:'update the client images'}),{type:'err'}); return false; }
-  finally{ clientImgBusy=false; }
 }
 // after a save (or on open): recapture when a booklet link is live and its images are missing / older than the latest version
 async function autoCaptureIfStale(){

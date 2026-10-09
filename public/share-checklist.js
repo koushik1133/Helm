@@ -41,6 +41,24 @@
     let latest = 0; (versions || []).forEach((v) => { const x = Date.parse((v && (v.createdAt || v.created_at)) || ""); if (isFinite(x) && x > latest) latest = x; });
     return t >= latest;
   }
+  // R8: accept the 0083 nested shape {"2d":{labels:iso,plain:iso}} and a flat {"2d_labels":iso} / {"2d":iso} shape
+  function normInfo(info) {
+    const out = { "2d": {}, "3d": {} }; if (!info || typeof info !== "object") return out;
+    ["2d", "3d"].forEach((k) => {
+      const x = info[k];
+      if (x && typeof x === "object") ["labels", "plain"].forEach((v) => { if (x[v]) out[k][v] = String(x[v]); });
+      else if (typeof x === "string" && x) out[k].labels = x;
+      ["labels", "plain"].forEach((v) => { const f = info[k + "_" + v]; if (f && !out[k][v]) out[k][v] = String(f); });
+    });
+    return out;
+  }
+  // R8: per kind / style: 'missing' (never captured), 'stale' (older than the newest layout version), 'ok'
+  function imageStatus(info, versions) {
+    const n = normInfo(info), out = {};
+    ["2d", "3d"].forEach((k) => { out[k] = {}; ["labels", "plain"].forEach((v) => {
+      const t = n[k][v]; out[k][v] = !t ? "missing" : (freshEnough(t, versions) ? "ok" : "stale"); }); });
+    return out;
+  }
   function quoteIdFor(n) {
     const q = n && n.getAttribute("data-quote");
     if (q && UUID_RE.test(q)) return q;
@@ -65,7 +83,7 @@
   function variantsFor(state, k) { const v = state.variants[k] || {}; return STYLES.filter((x) => v[x[0]] !== false).map((x) => x[0]); }
   // what is missing for the share: [{section, kind, variant}] for every ticked section + style without a stored picture
   function missingImages(sections, variants, info) {
-    const out = []; info = info && typeof info === "object" ? info : {};
+    const out = []; info = normInfo(info);
     [["layout2d", "2d"], ["layout3d", "3d"]].forEach((x) => {
       if (!sections || sections[x[0]] !== true) return;
       const v = (variants && variants[x[0]]) || {};
@@ -127,6 +145,7 @@
       box.appendChild(tg);
       if (!vs.length) box.appendChild(el("p", "sc-meta sc-warn", "Pick at least one style, or untick " + name + "."));
       else if (info === null) box.appendChild(el("p", "sc-meta", "Checking the builder pictures…"));
+      else if (state.infoErr) box.appendChild(el("p", "sc-meta sc-warn", "Couldn’t check the builder pictures — they are re-checked when you share."));
       else {
         const miss = missingImages({ [k]: true }, { [k]: state.variants[k] }, info);
         if (miss.length) {
@@ -134,7 +153,7 @@
             " yet. Open the builder and press “Update client images”, then come back."));
           const a = el("a", "sc-btn ghost", "Open builder to capture"); a.setAttribute("href", builderUrl(quoteId)); a.setAttribute("target", "_blank"); a.setAttribute("rel", "noopener");
           box.appendChild(a);
-        } else if (state.stale && state.stale[kind]) box.appendChild(el("p", "sc-meta", "These pictures are older than the latest layout — open the builder and press “Update client images” to refresh them."));
+        } else if (state.stale && state.stale[kind]) box.appendChild(el("p", "sc-meta", "These pictures are older than the latest layout. You can still share them, or open the builder and press “Update client images” to refresh them."));
       }
       const cap = el("figcaption"); cap.appendChild(el("span", "", name)); box.appendChild(cap);
       return box;
@@ -142,11 +161,12 @@
     // newest stored pictures (+ previews of the first chosen style)
     async function loadInfo() {
       const B = global.BPStore && global.BPStore.booklet;
-      try { state.info = (B && B.imageInfo ? await B.imageInfo(quoteId) : {}) || {}; } catch (e) { state.info = {}; }
+      // R8: a failed check is NOT "no pictures" — remember the error instead of claiming they are missing
+      state.infoErr = null;
+      try { state.info = normInfo(B && B.imageInfo ? await B.imageInfo(quoteId) : {}); } catch (e) { state.info = normInfo({}); state.infoErr = e || new Error("check failed"); }
       try {
-        const vs = (await global.BPStore.quotes.versions(quoteId)) || []; state.stale = {};
-        ["2d", "3d"].forEach((kind) => { const x = state.info[kind] || {}; const t = [x.labels, x.plain].filter(Boolean).sort()[0];
-          state.stale[kind] = !!t && !freshEnough(t, vs); });
+        const vs = (await global.BPStore.quotes.versions(quoteId)) || []; const st = imageStatus(state.info, vs); state.stale = {};
+        ["2d", "3d"].forEach((kind) => { state.stale[kind] = st[kind].labels === "stale" || st[kind].plain === "stale"; });
       } catch (e) { state.stale = {}; }
       refresh();
       for (const kind of ["2d", "3d"]) for (const st of STYLES) {
@@ -164,6 +184,8 @@
     refresh();
     host.appendChild(wrap);
     loadInfo();
+    // R8: re-check when the studio comes back from the builder tab
+    try { global.addEventListener("focus", () => { if (host.isConnected !== false) loadInfo(); }); } catch (e) {}
 
     return {
       sections: () => normalize(state.sections),
@@ -171,13 +193,24 @@
       // before the share: every ticked 2D / 3D section needs its stored builder pictures (never publish nothing)
       async uploadSnapshots() {
         const sec = normalize(state.sections);
-        if (state.info === null) await loadInfo();
+        // R8: always re-check — the pictures are usually captured in another tab (builder) after this page loaded
+        await loadInfo();
+        if (state.infoErr) throw new Error("Couldn’t check the builder pictures (" + errText(state.infoErr) + "). Please try again.");
         for (const k of ["layout2d", "layout3d"]) if (sec[k] && !variantsFor(state, k).length)
           throw new Error("Pick “With labels” and/or “Without labels” for the " + (k === "layout2d" ? "2D floor plan" : "3D view") + ", or untick it.");
         const miss = missingImages(sec, state.variants, state.info);
         if (miss.length) {
           const names = Array.from(new Set(miss.map((m) => (m.kind === "2d" ? "2D floor plan" : "3D view"))));
-          throw new Error("No " + names.join(" / ") + " picture yet — open the builder and press “Update client images”, or untick " + (names.length > 1 ? "them" : "it") + ".");
+          throw new Error("No " + names.join(" / ") + " picture yet (" + miss.map((m) => m.kind.toUpperCase() + (m.variant === "plain" ? " without" : " with") + " labels").join(", ") +
+            ") — open the builder and press “Update client images”, or untick that style.");
+        }
+        // R8: pictures exist but are older than the layout — offer to use them instead of hard-blocking
+        const old = ["2d", "3d"].filter((k) => sec[k === "2d" ? "layout2d" : "layout3d"] && state.stale && state.stale[k]);
+        if (old.length && global.BPUI && global.BPUI.confirm) {
+          let use = true;
+          try { use = await global.BPUI.confirm("The " + old.map((k) => (k === "2d" ? "2D floor plan" : "3D view")).join(" and ") + " pictures were captured before the latest layout change.",
+            { title: "Pictures are older than the layout", okLabel: "Use existing images", cancelLabel: "Open builder to update" }); } catch (e) { use = true; }
+          if (!use) { try { global.open(builderUrl(quoteId), "_blank", "noopener"); } catch (e) {} const ab = new Error("Update the pictures in the builder, then share again."); ab.cancelled = true; throw ab; }
         }
       },
       // after the link exists: which picture styles it shows
@@ -251,7 +284,7 @@
     cards.forEach((c) => { if (!can) { c.hidden = true; return; } if (c.dataset.scWired) return; c.dataset.scWired = "1"; c.hidden = false; renderCard(c).catch(() => {}); });
   }
 
-  global.HelmShareChecklist = { mount, wire, normalize, menuRule, preview, fitSize, sharePayload, freshEnough, missingImages, variantFlags, builderUrl, STYLES, SECTIONS };
+  global.HelmShareChecklist = { mount, wire, normalize, menuRule, preview, fitSize, sharePayload, freshEnough, missingImages, normInfo, imageStatus, variantFlags, builderUrl, STYLES, SECTIONS };
   if (doc && doc.querySelector("[data-share-checklist]")) {
     if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", wire); else wire();
   }
