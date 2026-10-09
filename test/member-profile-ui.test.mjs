@@ -310,7 +310,7 @@ t('staff: linked rows never send name / phone / email / department / role; dupli
   assert.equal(await g.S.staff.linkedOwnerOfPhone('9876543210'), null, 'before 0041 → no block (the DB guard is the backstop)');
 });
 t('task pickers / check-in / calendar read crew_members unfiltered — linked members included', () => {
-  assert.match(SRC, /async listCrew\(\) \{[^\n]*\n\s*const \{ data, error \} = await supa\.from\("crew_members"\)\.select\("\*"\)\.eq\("active", true\)\.order\("name"\);/);
+  assert.match(SRC, /async listCrew\(\) \{[^\n]*\n\s*return fetchAll\(\(\) => supa\.from\("crew_members"\)\.select\("\*"\)\.eq\("active", true\)\.order\("name"\)\.order\("id"\)\);/);
   assert.match(ops, /function crewOption\(c\)\{ return `<option value="\$\{esc\(c\.id\)\}">\$\{esc\(c\.name\)\}/);
   assert.match(ops, /crew\.map\(crewOption\)/);
   assert.match(SRC, /staff\.list\(true\)\.catch\(\(\) => \[\]\), vendors\.listAll\(true\)/, 'calendar + check-in roster use every staff row');
