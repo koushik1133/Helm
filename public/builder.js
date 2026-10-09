@@ -2841,6 +2841,7 @@ async function saveLayout(silent, opts){
       clearDraft();
       updateQuoteBadge();
       syncQuotePricing();                       // keep the stored quote total in step with the layout
+      setTimeout(()=>{ autoCaptureIfStale(); }, 400);   // R2: keep the client booklet images in step
       if(silent){ if(btn){ btn.textContent='✓ v'+currentVersionNo; clearTimeout(saveBtnT); saveBtnT=setTimeout(()=>{ btn.innerHTML='💾 Save'; },1500); } }
       else toast(fromOlder ? 'Saved as V'+currentVersionNo+' (new latest) — V'+fromNo+' is unchanged' : 'Saved version '+currentVersionNo);
     } else {
@@ -2863,6 +2864,7 @@ async function saveLayout(silent, opts){
   finally{ saving=false; if(btn) btn.disabled=false; }
 }
 function updateQuoteBadge(){
+  { const cb=document.getElementById('clientImgBtn'); if(cb) cb.hidden=!clientImagesSupported(); }
   const el=$('#quoteBadge'); if(!el) return;
   if(currentQuoteId && currentQuoteCode){ el.hidden=false; el.textContent=quoteBadgeText(); }
   else el.hidden=true;
@@ -3113,8 +3115,11 @@ function exportJSON(){
 }
 /* clone the live SVG, resolve every CSS-variable / color-mix paint to a concrete
    value from getComputedStyle so the standalone raster matches the screen. */
-function exportPNG(){ return new Promise(resolve=>{
-  const wasSel=store.selectedIds.slice(); setSelection([]); renderAll();  // hide handles
+/* render the plan SVG to a PNG blob. o.clean (client images): no grid, margins, measurements or
+   selection — only the hall and its objects; o.maxW caps the raster width. State is restored. */
+function planBlob(o){ o=o||{}; return new Promise(resolve=>{
+  const wasSel=store.selectedIds.slice(), wasGrid=store.grid.show, wasMeasure=showMeasure;
+  setSelection([]); if(o.clean){ store.grid.show=false; showMeasure=false; } renderAll();  // hide handles
   const live=svg, clone=live.cloneNode(true);
   const liveNodes=live.querySelectorAll('*'), cloneNodes=clone.querySelectorAll('*');
   for(let i=0;i<liveNodes.length;i++){
@@ -3126,7 +3131,9 @@ function exportPNG(){ return new Promise(resolve=>{
       cn.setAttribute('font-size',cs.fontSize); cn.setAttribute('font-weight',cs.fontWeight);
       cn.removeAttribute('stroke'); }
   }
-  const W=WORLD.w*PX_PER_FT, H=WORLD.h*PX_PER_FT, S=2;
+  if(o.clean) clone.querySelectorAll('.margins,.measure').forEach(n=>n.remove());
+  const restore=()=>{ store.grid.show=wasGrid; showMeasure=wasMeasure; setSelection(wasSel); renderAll(); };
+  const W=WORLD.w*PX_PER_FT, H=WORLD.h*PX_PER_FT, S=o.maxW ? Math.min(4, o.maxW/W) : 2;
   clone.setAttribute('width',W*S); clone.setAttribute('height',H*S);
   clone.insertBefore(el('rect',{x:0,y:0,width:W,height:H,
     fill:(getComputedStyle(document.body).getPropertyValue('--canvas').trim()||'#fff')}), clone.firstChild);
@@ -3134,17 +3141,56 @@ function exportPNG(){ return new Promise(resolve=>{
   const svgStr=new XMLSerializer().serializeToString(clone).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
   const img=new Image();
   img.onload=()=>{
-    const cv=document.createElement('canvas'); cv.width=W*S; cv.height=H*S;
+    const cv=document.createElement('canvas'); cv.width=Math.round(W*S); cv.height=Math.round(H*S);
     const ctx=cv.getContext('2d');
     ctx.fillStyle=(getComputedStyle(document.body).getPropertyValue('--canvas').trim()||'#fff');
-    ctx.fillRect(0,0,cv.width,cv.height); ctx.drawImage(img,0,0,W*S,H*S);
-    cv.toBlob(b=>{ if(!b){ BPUI.toast('PNG export failed',{type:'err'}); resolve(); return; } const name=($('#projName').value||'layout').trim().replace(/[^\w.-]+/g,'_');
-      download(name+'.png', b); toast('PNG downloaded'); resolve(); });
-    setSelection(wasSel); renderAll();
+    ctx.fillRect(0,0,cv.width,cv.height); ctx.drawImage(img,0,0,cv.width,cv.height);
+    restore(); cv.toBlob(b=>resolve(b||null),'image/png');
   };
-  img.onerror=()=>{ setSelection(wasSel); renderAll(); BPUI.toast('PNG export failed',{type:'err'}); resolve(); };
+  img.onerror=()=>{ restore(); resolve(null); };
   img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svgStr);
 }); }
+async function exportPNG(){
+  const b=await planBlob();
+  if(!b){ BPUI.toast('PNG export failed',{type:'err'}); return; }
+  const name=($('#projName').value||'layout').trim().replace(/[^\w.-]+/g,'_');
+  download(name+'.png', b); toast('PNG downloaded');
+}
+
+/* ---- R2: client booklet images (real 2D plan + 3D render) ----
+   Uploaded to the tenant-scoped booklet-snapshots bucket (<org>/<quote>/2d.png, 3d.jpg) via
+   BPStore.booklet.uploadSnapshot, which also attaches them to the live booklet link. */
+function clientImagesSupported(){ return !!(currentQuoteId && !RO && BPStore.mode && BPStore.mode()==='supabase' && BPStore.booklet && BPStore.booklet.uploadSnapshot); }
+let clientImgBusy=false;
+async function captureClientImages(silent){
+  if(!clientImagesSupported() || clientImgBusy || !store.items.length) return false;
+  clientImgBusy=true;
+  try{
+    const b2=await planBlob({clean:true, maxW:1920});
+    if(!b2) throw new Error('Couldn’t draw the floor plan');
+    let b3=null, e3=null;
+    try{ b3=window.__capture3D ? await window.__capture3D(1920) : null; }catch(e){ e3=e; }
+    await BPStore.booklet.uploadSnapshot(currentQuoteId,'2d',b2.size>3*1024*1024 ? await planBlob({clean:true,maxW:1280}) : b2);
+    if(b3) await BPStore.booklet.uploadSnapshot(currentQuoteId,'3d',b3);
+    if(!silent) toast(b3 ? 'Client images updated (2D + 3D)' : 'Client 2D plan updated — 3D view couldn’t render');
+    else if(e3) console.warn('client 3D capture skipped');
+    return true;
+  }catch(e){ if(!silent) BPUI.toast(BPUI.friendlyError(e,{action:'update the client images'}),{type:'err'}); return false; }
+  finally{ clientImgBusy=false; }
+}
+// after a save (or on open): recapture when a booklet link is live and its images are missing / older than the latest version
+async function autoCaptureIfStale(){
+  if(!clientImagesSupported() || !store.items.length || isViewingOlder() || docSig()!==savedSig) return;   // only the saved latest version
+  try{
+    const cur=await BPStore.booklet.current(currentQuoteId);
+    if(!cur || !cur.token || cur.revoked_at) return;
+    const info=await BPStore.booklet.snapshotInfo(currentQuoteId);
+    const vs=await BPStore.quotes.versions(currentQuoteId)||[];
+    const latest=vs.reduce((m,v)=>{ const t=Date.parse(v.createdAt||v.created_at||''); return isFinite(t)&&t>m?t:m; },0);
+    const old=k=>!info[k] || !(Date.parse(info[k].updatedAt||'')>=latest);
+    if(old('2d') || old('3d')) await captureClientImages(true);
+  }catch(e){ /* best effort */ }
+}
 function importJSON(file){ return new Promise(resolve=>{
   const bad=()=>{ BPUI.toast('That file isn’t a valid layout JSON.',{type:'err'}); resolve(false); };
   if(file && file.size>MAX_IMPORT_BYTES){ BPUI.toast('That file is too large to import (limit '+Math.round(MAX_IMPORT_BYTES/1048576)+' MB).',{type:'err'}); resolve(false); return; }
@@ -3215,6 +3261,7 @@ document.addEventListener('click',e=>{ document.querySelectorAll('header details
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') document.querySelectorAll('header details.hmenu[open]').forEach(d=>{ d.open=false; d.querySelector('summary')?.focus(); }); });
 $('#loadModal').addEventListener('click',e=>{ if(e.target.id==='loadModal') closeLoadModal(); });
 $('#exportBtn').addEventListener('click',()=>{ BPUI.guard($('#exportBtn'), exportPNG,{busyLabel:'Exporting…'}).catch(()=>{}); });
+$('#clientImgBtn').addEventListener('click',()=>{ BPUI.guard($('#clientImgBtn'), ()=>captureClientImages(false),{busyLabel:'Capturing…'}).catch(()=>{}); });
 $('#jsonBtn').addEventListener('click',()=>{ BPUI.guard($('#jsonBtn'), async()=>exportJSON()).catch(()=>{}); });
 $('#importBtn').addEventListener('click',async()=>{
   if(!(await BPUI.confirmDiscard(dirty,{message:'You have unsaved changes on this floor. Importing a file will replace them.'}))) return;
@@ -3333,6 +3380,7 @@ async function init(){
       if(q.status==='confirmed'){ const b=$('#quoteBadge'); if(b) b.classList.add('confirmed'); }
       toast('Opened '+q.code+' · v'+currentVersionNo);
       await offerDraftRestore();
+      setTimeout(()=>{ autoCaptureIfStale(); }, 2500);   // R2: refresh stale client booklet images
     }catch(e){
       // The quote didn't fully load: unbind it and lock the builder so a Save can never write an
       // empty layout over a real quote (which would also zero its pricing).

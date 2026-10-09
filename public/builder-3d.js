@@ -699,6 +699,47 @@
   }
   function deactivate(){ active=false; renderMode=false; viewport.classList.remove('is3d','isRender'); stage.hidden=true; if(transform) transform.detach(); if(raf){ cancelAnimationFrame(raf); raf=null; } }
 
+  /* R2: "Update client images" - a clean three-quarter render of the venue for the client booklet.
+     Offscreen-sized (maxW px wide, 16:9), realistic profile, no grid / gizmo / selection box;
+     every touched piece of state (size, camera, profile, helpers) is restored afterwards. */
+  async function capture3D(maxW){
+    maxW=Math.max(640, Math.min(2400, Number(maxW)||1920));
+    if(!libsReady){ const ok=await ensure3DLibs(); if(!ok) throw new Error('The 3D library couldn’t load'); }
+    if(!built) initScene();
+    syncFloor(); build();
+    const W=maxW, H=Math.round(maxW*9/16);
+    const keep={ pr:R.getPixelRatio(), size:R.getSize(new THREE.Vector2()), cam:camera.position.clone(), tgt:controls.target.clone(),
+      aspect:camera.aspect, render:renderMode, grid:grid?grid.visible:null, tr:transform?transform.visible:null,
+      sel:selHelper?selHelper.visible:null, obj:transform?transform.object:null };
+    try{
+      if(grid) grid.visible=false; if(transform){ transform.detach(); transform.visible=false; } if(selHelper) selHelper.visible=false;
+      renderMode=true; applyProfile();
+      R.setPixelRatio(1); R.setSize(W,H,false);
+      camera.aspect=W/H;
+      // three-quarter view from the front-right, framing the whole hall
+      const span=Math.max(floorW||WORLD.w, floorH||WORLD.h);
+      const fov=camera.fov*Math.PI/180, dist=(span*0.62)/Math.tan(fov/2)*Math.max(1, 1.25/camera.aspect);
+      const dir=new THREE.Vector3(0.55, 0.78, 0.95).normalize();
+      camera.position.copy(dir.multiplyScalar(dist)); camera.lookAt(0,0,0); camera.updateProjectionMatrix();
+      const far=camera.far; camera.far=Math.max(far, dist*4); camera.updateProjectionMatrix();
+      if(scene.fog){ scene.fog.near=dist*1.4; scene.fog.far=dist*4; }
+      R.render(scene,camera);
+      const url=cv.toDataURL('image/jpeg',0.9);       // read back in the same task (no preserveDrawingBuffer)
+      camera.far=far;
+      const bin=atob(url.split(',')[1]||''), u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
+      const b=new Blob([u8],{type:'image/jpeg'});
+      if(!b || b.size<2000) throw new Error('The 3D render came out empty');
+      return b;
+    } finally {
+      if(grid && keep.grid!=null) grid.visible=keep.grid; if(transform){ transform.visible=keep.tr!==false; }
+      if(selHelper && keep.sel!=null) selHelper.visible=keep.sel;
+      renderMode=keep.render; applyProfile();
+      R.setPixelRatio(keep.pr); camera.position.copy(keep.cam); controls.target.copy(keep.tgt); camera.aspect=keep.aspect; camera.updateProjectionMatrix();
+      if(active){ resize(); updateGizmo(); controls.update(); try{ R.render(scene,camera); }catch(e){} } else R.setSize(keep.size.x,keep.size.y,false);
+    }
+  }
+  window.__capture3D=capture3D;
+
   // public hooks
   window.__on3DStateChange=function(){ if(active && !transform?.dragging) requestBuild(); };
   window.__on3DSnapChange=function(){ syncGizmoSnap(); };
