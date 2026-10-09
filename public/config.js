@@ -75,8 +75,11 @@ var CONFIG_STAGING_V = '1';
   // EXPLICIT production allowlist (no broad substring matching). Unknown hosts fail closed.
   var PROD_HOSTS = {
     'www.helm.events': 1, 'helm.events': 1,
-    'helm-v01.vercel.app': 1, 'helm-alpha-nine.vercel.app': 1
+    'helm-alpha-nine.vercel.app': 1   // old alias; vercel.json also redirects it to www.helm.events
   };
+  // helm-v01.vercel.app is the STAGING site (staging Supabase), NOT production: it is
+  // listed in SUPABASE_STAGING.hosts (config.staging.js) and, as a *.vercel.app host,
+  // could never fall through to production anyway (step 2b fails closed).
   var PROD_URL = window.SUPABASE_CONFIG.url, PROD_KEY = window.SUPABASE_CONFIG.anonKey;
   var routed = false;
   function route() {
@@ -183,7 +186,7 @@ var CONFIG_STAGING_V = '1';
     // 2b) VERCEL BRANCH-PREVIEW host → STAGING (never production).
     //     Any *.vercel.app that reached this point is, by construction, NOT one of the
     //     production aliases: PROD_HOSTS is matched first (step 1) and returns early, so
-    //     helm-v01 / helm-alpha-nine can never fall through to here. Every remaining
+    //     helm-alpha-nine can never fall through to here. Every remaining
     //     *.vercel.app is a branch/preview deploy (e.g. the harden/pre-react-canonical
     //     preview alias), which must resolve to STAGING or FAIL CLOSED — it can NEVER
     //     reach production, and it ignores the localhost→prod opt-in entirely.

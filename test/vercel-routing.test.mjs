@@ -34,7 +34,7 @@ t('/i/<slug> invitation links are served by the invite page', () => {
 // ---- branded client links (0020): /<studio>/<kind>/<ref> ----
 const KIND_PAGE = { invite: '/invite', quote: '/approve', proposal: '/proposal-view', portal: '/portal', work: '/work' };
 const match = (src, p) => new RegExp('^' + src + '$').test(p);
-function vercelHeaders(p) { const o = {}; for (const r of v.headers) if (match(r.source, p)) for (const h of r.headers) o[h.key.toLowerCase()] = h.value; return o; }
+function vercelHeaders(p) { const o = {}; for (const r of v.headers) if (!r.has && match(r.source, p)) for (const h of r.headers) o[h.key.toLowerCase()] = h.value; return o; }
 
 t('every branded kind rewrites to its client page', () => {
   for (const [kind, dest] of Object.entries(KIND_PAGE)) {

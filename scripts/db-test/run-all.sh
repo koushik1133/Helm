@@ -32,6 +32,9 @@ run() { local name="$1" marker="$2"; shift 2; reseed; local out; out="$("$@" 2>&
 echo "== behavioral suites =="
 # before anything that re-applies older migrations (0011/0012/0015/0025/0026) over the 0071/0072 bodies
 run "pending-fixes"      "PENDING-FIXES: ALL PASS \(30/30\)" psql -q -f tests/db/pending-fixes.sql
+run "inv-fixes"          "INV-FIXES: ALL PASS \(24/24\)" psql -q -f tests/db/inv-fixes.sql
+run "chat-admin-fixes"   "CHAT-ADMIN-FIXES: ALL PASS \(21/21\)" psql -q -f tests/db/chat-admin-fixes.sql
+run "ui-fixes"           "UI-FIXES: ALL PASS \(27/27\)" psql -q -f tests/db/ui-fixes.sql
 # first: later suites re-apply older migrations (e.g. rescore2 → 0032) over the entry points
 run "audit-run2"         "AUDIT-RUN2: ALL PASS"            bash -c "cd tests/db && psql -q -f audit-run2.sql"
 run "d6-money-freeze"    "D6-MONEY-FREEZE: ALL PASS \(49/49\)" bash -c "cd tests/db && psql -q -f d6-money-freeze.sql"

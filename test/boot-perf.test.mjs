@@ -58,7 +58,7 @@ t('marketing pages without store-api.js get no Supabase hints', () => {
 });
 t('cache policy: config.js may be served stale while revalidating; versioned + vendor assets stay immutable', () => {
   const v = JSON.parse(read('vercel.json'));
-  const hdr = (path, key) => { let out; for (const h of v.headers) if (new RegExp('^' + h.source + '$').test(path)) for (const x of h.headers) if (x.key === key) out = x.value; return out; };
+  const hdr = (path, key) => { let out; for (const h of v.headers) if (!h.has && new RegExp('^' + h.source + '$').test(path)) for (const x of h.headers) if (x.key === key) out = x.value; return out; };
   assert.equal(hdr('/config.js', 'Cache-Control'), 'public, max-age=300, stale-while-revalidate=3600');
   assert.equal(hdr('/store-api.js', 'Cache-Control'), 'public, max-age=31536000, immutable');
   assert.equal(hdr('/' + SJS[1], 'Cache-Control'), 'public, max-age=31536000, immutable');
@@ -92,6 +92,7 @@ function makeEnv(o = {}) {
     from(table) {
       const q = { select: () => q, eq: () => q, order: () => q,
         single: async () => { calls.push(['from', table]); return { data: { role: o.role || 'sales' }, error: null }; },
+        maybeSingle: async () => { calls.push(['from', table]); return { data: { role: o.role || 'sales' }, error: null }; },
         then: (res, rej) => { calls.push(['from', table]); return Promise.resolve({ data: [{ area: 'leads', can_view: true, can_edit: false }], error: null }).then(res, rej); } };
       return q;
     },

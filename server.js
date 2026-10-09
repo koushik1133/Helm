@@ -207,7 +207,7 @@ const NOINDEX = 'noindex, nofollow, noarchive';
 // https://localhost and break them. Prod is https, where UIR is kept.
 // Production hosts (same list as public/config.js + scripts/gen-csp.mjs): their CSP
 // allows ONLY the production Supabase project — the staging origin is stripped.
-const PROD_HOSTS = new Set(['www.helm.events', 'helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app']);
+const PROD_HOSTS = new Set(['www.helm.events', 'helm.events', 'helm-alpha-nine.vercel.app']);   // helm-v01.vercel.app = staging site
 const STAGING_SUPABASE_REF = 'xizehqgeyjcfpzrdymly';
 function isProdHost(req) {
   return PROD_HOSTS.has(String((req && req.headers && req.headers.host) || '').toLowerCase().replace(/:\d+$/, ''));

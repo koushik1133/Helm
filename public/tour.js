@@ -150,7 +150,8 @@
   .htour-fab{position:fixed;left:16px;bottom:16px;z-index:8000;height:34px;padding:0 14px;border-radius:20px;
     border:1px solid var(--line,#e8e3db);background:var(--panel,#fff);color:var(--accent,#6d28d9);font-family:inherit;
     font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 4px 14px rgba(20,18,40,.14);display:inline-flex;align-items:center;gap:5px}
-  .htour-fab:hover{border-color:var(--accent,#6d28d9);background:var(--accent-soft,#efe9ff)}`;
+  .htour-fab:hover{border-color:var(--accent,#6d28d9);background:var(--accent-soft,#efe9ff)}
+  @media (max-width:767.98px){body.hmn-on:not(.hmn-kb) .htour-fab{bottom:calc(72px + env(safe-area-inset-bottom,0px))}}`;
   __helmAdoptCss(document, css);
 
   /* ---- engine -------------------------------------------------------- */

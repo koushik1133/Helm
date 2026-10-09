@@ -16,7 +16,7 @@ const fnSrc = (src, name) => {
   throw new Error(name + ' unterminated');
 };
 const labelsSrc = api.slice(api.indexOf('const BELL_TYPE_LABELS'), api.indexOf('};', api.indexOf('const BELL_TYPE_LABELS')) + 2);
-const ctx = {}; vm.runInNewContext(labelsSrc + '\n' + ['notifLink', 'notifHref', 'bellTypeOf', 'bellLabel', 'bellPanelView'].map((f) => fnSrc(api, f)).join('\n') + '\nglobalThis.view=bellPanelView; globalThis.label=bellLabel; globalThis.typeOf=bellTypeOf;', ctx);
+const ctx = {}; vm.runInNewContext(labelsSrc + '\n' + ['notifLink', 'notifHref', 'bellTypeOf', 'bellLabel', 'bellChatKey', 'bellPanelView'].map((f) => fnSrc(api, f)).join('\n') + '\nglobalThis.view=bellPanelView; globalThis.label=bellLabel; globalThis.typeOf=bellTypeOf;', ctx);
 const view = (items, filter, now, extra) => JSON.parse(JSON.stringify(ctx.view(items, Object.assign({ filter, now, label: ctx.label }, extra || {}))));   // plain objects (vm realm)
 
 // a fixed local "now": 7 Oct 2026, 15:00 local time
@@ -32,9 +32,9 @@ const FEED = [
 
 t('groups rows into Today / Yesterday / Earlier, newest first', () => {
   const v = view(FEED, 'all', NOW);
-  const days = [...v.html.matchAll(/<div class="bpb-day"[^>]*>([^<]+)</g)].map((m) => m[1]);
+  const days = [...v.html.matchAll(/<div class="bpb-day"[^>]*>([^<]+)</g)].map((m) => m[1].replace(/@.*$/, ''));
   assert.deepEqual(days, ['Today', 'Yesterday', 'Earlier']);
-  const keys = [...v.html.matchAll(/data-k="([^"]+)"/g)].map((m) => m[1]);
+  const keys = [...v.html.matchAll(/data-k="([^"]+)"/g)].map((m) => m[1].replace(/@.*$/, ''));
   assert.deepEqual(keys, ['c:g1', 'n:n1', 'c:g2', 'n:n2', 'n:n3']);
   assert.match(v.html, /<time datetime="[^"]+">2m<\/time>/);      // 14:58 → 2m
   assert.match(v.html, /<time datetime="[^"]+">30m<\/time>/);
@@ -52,12 +52,12 @@ t('filter tabs: unread counts, Billing / Security only when present, unknown fil
   const sec = view(FEED.concat([{ id: 's1', kind: 'security_alert', detail: { label: 'Role changed' }, created_at: at(7, 12), unread: true },
     { id: 't1', kind: 'trial_reminder', detail: {}, created_at: at(7, 11), unread: true }]), 'security', NOW);
   assert.deepEqual(sec.tabs.map((x) => [x.id, x.count]), [['all', 5], ['mentions', 1], ['tasks', 1], ['billing', 1], ['security', 1], ['chat', 2]]);
-  assert.deepEqual([...sec.html.matchAll(/data-k="([^"]+)"/g)].map((m) => m[1]), ['n:s1']);
+  assert.deepEqual([...sec.html.matchAll(/data-k="([^"]+)"/g)].map((m) => m[1].replace(/@.*$/, '')), ['n:s1']);
   assert.equal(view(FEED, 'bogus', NOW).filter, 'all');
 });
 
 t('each filter shows only its rows; Chat includes mentions', () => {
-  const keys = (f) => [...view(FEED, f, NOW).html.matchAll(/data-k="([^"]+)"/g)].map((m) => m[1]);
+  const keys = (f) => [...view(FEED, f, NOW).html.matchAll(/data-k="([^"]+)"/g)].map((m) => m[1].replace(/@.*$/, ''));
   assert.deepEqual(keys('mentions'), ['c:g2']);
   assert.deepEqual(keys('tasks'), ['n:n1']);
   assert.deepEqual(keys('billing'), ['n:n2']);
@@ -91,14 +91,14 @@ t('0063: catalog type per row (mirrors notification_type_of)', () => {
 
 t('0063: muted types vanish (mentions never), mark-read clears the dot, per-row menu button', () => {
   const v = view(FEED, 'all', NOW, { muted: ['task_update', 'task_assigned', 'chat_message'] });
-  assert.deepEqual([...v.html.matchAll(/data-k="([^"]+)"/g)].map((m) => m[1]), ['c:g2', 'n:n2', 'n:n3']);
-  const r = view(FEED, 'all', NOW, { read: ['n:n1', 'c:g1'] });
+  assert.deepEqual([...v.html.matchAll(/data-k="([^"]+)"/g)].map((m) => m[1].replace(/@.*$/, '')), ['c:g2', 'n:n2', 'n:n3']);
+  const r = view(FEED, 'all', NOW, { read: ['n:n1', 'c:g1@' + at(7, 14, 58)] });
   assert.equal(r.unread, 1);
   assert.equal(r.tabs.find((x) => x.id === 'tasks').count, 0);
   assert.doesNotMatch(r.html, /class="bpb-item g-task is-unread"/);
   const h = view(FEED, 'all', NOW).html;
   assert.match(h, /<button type="button" class="bpb-more" data-mk="n:n1" data-ty="task_assigned" aria-haspopup="menu" aria-expanded="false" aria-label="More actions">/);
-  assert.match(h, /data-mk="c:g2" data-ty=""/);                                     // a mention can only be marked read
+  assert.match(h, /data-mk="c:g2@[^"]+" data-ty=""/);                                     // a mention can only be marked read
 });
 
 t('0063: security muted → Security tab stays with a "turn back on" line; muted-types view', () => {

@@ -46,7 +46,7 @@
 </div>
 </main>
 <script src="/trusted-types.js?v=2"></script>
-<script src="config.js?v=97"></script>
+<script src="config.js?v=98"></script>
 <script>
   const p=new URLSearchParams(location.search);
   // amount: a finite, non-negative number with a sane upper bound; anything else shows "—"
@@ -63,7 +63,7 @@
   // Audit Phase 8: the simulated checkout only works on local / staging. On a
   // production host, or whenever the page is wired to the PRODUCTION database, it
   // refuses — a fake "payment" page must never exist where real clients pay.
-  const PROD_HOST=/^(www\.)?helm\.events$|^helm-v01\.vercel\.app$|^helm-alpha-nine\.vercel\.app$/i;
+  const PROD_HOST=/^(www\.)?helm\.events$|^helm-alpha-nine\.vercel\.app$/i;
   const PROD_DB=/^https:\/\/nqltzgiwznphugcfhmbm\.supabase\.co\/?$/i;
   const host=String(location.hostname||"").toLowerCase();
   const simAllowed=!PROD_HOST.test(host) && !PROD_DB.test(String((cfg&&cfg.url)||""));

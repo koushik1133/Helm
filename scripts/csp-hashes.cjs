@@ -155,6 +155,12 @@ function scriptHosts(csp) {
 function scriptSrcProblem(csp, route) {
   const hosts = scriptHosts(csp);
   if (!hosts) return 'no script-src directive';
+  // 'staging-site' = the ONE generated helm-v01.vercel.app (staging) rule: the union of
+  // every page policy, so it may carry each page's own allowed sources — nothing more.
+  if (route === 'staging-site') {
+    const extraS = hosts.filter((h) => !SCRIPT_SRC_BUILDER.includes(h) && !SCRIPT_SRC_BASE.includes(h) && !TURNSTILE.test(h) && h !== RAZORPAY_SCRIPT);
+    return extraS.length ? 'script-src allows ' + extraS.join(' ') : '';
+  }
   const allowed = BUILDER_SOURCES.has(route) ? SCRIPT_SRC_BUILDER : SCRIPT_SRC_BASE;
   const extra = hosts.filter((h) => !allowed.includes(h) && !(AUTH_ROUTE.test(route) && TURNSTILE.test(h)) && !(CHECKOUT_ROUTE.test(route) && h === RAZORPAY_SCRIPT));
   if (extra.length) return 'script-src allows ' + extra.join(' ') + (BUILDER_SOURCES.has(route) ? '' : ' (CDN sources are builder-only)');

@@ -58,6 +58,7 @@
   .stat.reserved{background:#fff7e6;color:#946200} .stat.allocated{background:#eef2ff;color:#4457c8}
   .stat.returned{background:#e7f6ee;color:#0f7a43} .stat.cancelled{background:#fdecec;color:#b42318}
   .ssel{height:32px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:12px;padding:0 6px;color:var(--ink)}
+  .co-cancelled td{opacity:.55} .co-cancelled .cxl{font-size:11px;font-weight:700;color:var(--ink-3);border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin-left:6px}
   .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:32px;padding:0 10px;font-size:12px;cursor:pointer;color:var(--ink-2)} .rm:hover{color:#b42318;border-color:#f5c6c6}
   .reserve-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,.8fr) minmax(0,1.4fr) auto;gap:8px;align-items:end} .reserve-row.co-row{grid-template-columns:minmax(0,1.6fr) minmax(0,.7fr) minmax(0,1.2fr) minmax(0,1.2fr) auto} @media(max-width:620px){.reserve-row,.reserve-row.co-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
   .fld{min-width:0} .fld input,.fld select{min-width:0;max-width:100%}
@@ -162,7 +163,7 @@
       </div>
 
       <div class="card table-scroll s-8d8d59e">
-        <div class="s-57844cb"><h2 class="s-62c1a69">Out on loan <span id="loanCount" class="onloan"></span></h2></div>
+        <div class="s-57844cb"><h2 class="s-62c1a69">Out on loan <span id="loanCount" class="onloan"></span></h2><label class="s-af1acab" title="Check-outs cancelled by mistake are kept for the record; tick to see them."><input type="checkbox" id="showCancelled"> Show cancelled</label></div>
         <table>
           <thead><tr><th scope="col">Item</th><th scope="col">Event</th><th scope="col">Pri</th><th scope="col" class="num">Out</th><th scope="col">Issued to</th><th scope="col">When</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
           <tbody id="loanRows"><tr><td colspan="7" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
@@ -243,9 +244,9 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=97"></script>
-<script src="store-api.js?v=136"></script>
-<script src="tour.js?v=8"></script>
+<script src="config.js?v=98"></script>
+<script src="store-api.js?v=137"></script>
+<script src="tour.js?v=9"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -253,7 +254,7 @@
   const fmtDate=(d)=>{ if(!d) return ""; const s=String(d); const dt=new Date(s.length===10?s+"T00:00:00":s); if(isNaN(dt)) return esc(s); return dt.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}); };
   const quoteId=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const ST={reserved:"Reserved",allocated:"Allocated",returned:"Returned",cancelled:"Cancelled"};
-  let canEdit=false, canDelete=false, avail={}, items=[], reservations=[], checkouts=[], quotesById={}, editingId=null, filter="", catF="", priF="", showInactive=false;
+  let canEdit=false, canDelete=false, avail={}, items=[], reservations=[], checkouts=[], quotesById={}, editingId=null, filter="", catF="", priF="", showInactive=false, showCancelled=false;
   const PRI={A:"A",B:"B",C:"C"};
   const INV_CATEGORIES=["Seating","Tables","Linens","Lighting","Sound & AV","Staging & Structures","Decor & Florals","Catering Equipment","Tableware","Power & Cabling","Tents & Canopies","Signage","Office & Misc"];
   const STARTER_ITEMS=[
@@ -366,8 +367,9 @@
       const toAdd=STARTER_ITEMS
         .filter(s=>!have.has(s.name.trim().toLowerCase()))
         .map(s=>({ name:s.name, category:s.category, total_qty:s.total_qty, unit:s.unit, priority:"C", unit_cost:0, notes:null }));
-      if(toAdd.length){ await BPStore.inventory.addItems(toAdd); }   // single bulk insert (fast)
-      st.textContent=toAdd.length?`Added ${toAdd.length} item${toAdd.length===1?"":"s"}`:"All starter items already present";
+      let made=[]; if(toAdd.length){ made=await BPStore.inventory.addItems(toAdd,{skipDuplicates:true}); }   // single bulk insert (fast); a name clash skips only that row
+      const sk=(made&&made.skipped)||[], nAdd=toAdd.length-sk.length;
+      st.textContent=toAdd.length?`Added ${nAdd} item${nAdd===1?"":"s"}`+(sk.length?` · skipped ${sk.length} already present: ${sk.map(x=>x.name).join(", ")}`:""):"All starter items already present";
       await load();
     }catch(e){ st.textContent=""; BPUI.toast(BPUI.friendlyError(e,{action:"add the starter items"}),{type:"err"}); }
     });
@@ -464,6 +466,7 @@
   $("#catFilter").addEventListener("change",e=>{ catF=e.target.value; renderStock(); });
   $("#priFilter").addEventListener("change",e=>{ priF=e.target.value; renderStock(); });
   $("#showInactive").addEventListener("change",e=>{ showInactive=e.target.checked; load(); });   // re-fetch to (not) include deactivated items
+  $("#showCancelled").addEventListener("change",e=>{ showCancelled=e.target.checked; renderCheckouts(); });
 
   /* ---- sub-tab switching ---- */
   function activatePane(pane){
@@ -490,10 +493,11 @@
     const remainingOut=(c)=>Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0);
     const isOpen=(c)=>c.status==="out"||(c.status==="partial"&&remainingOut(c)>0);
     const open=checkouts.filter(isOpen);
-    const closed=checkouts.filter(c=>!isOpen(c));
+    const cancelled=checkouts.filter(c=>c.status==="cancelled");
+    const closed=checkouts.filter(c=>!isOpen(c)&&c.status!=="cancelled");   // a cancelled check-out is never a loss
     $("#loanCount").textContent = open.length? `${open.length} open` : "";
     // open loans
-    $("#loanRows").innerHTML = open.length ? open.map(c=>{ const it=byId[c.item_id]||{name:"(item)"};
+    const openHtml = open.length ? open.map(c=>{ const it=byId[c.item_id]||{name:"(item)"};
       // still out = "left over" → show the outstanding qty in RED so it's obvious
       const goEvent = c.quote_id ? `<a class="btn sm" href="event.html?id=${esc(c.quote_id)}" title="Open the event to check this back in">Go to event →</a>` : "";
       return `<tr>
@@ -503,8 +507,20 @@
         <td class="num" style="color:#b42318;font-weight:700">${num(c.qty_out)}${c.status==="partial"?` <span style="color:var(--ink-3)">(${num(c.qty_in)} back)</span>`:""}</td>
         <td>${esc(c.issued_to||"")}</td>
         <td style="font-size:12px;color:var(--ink-3)">${c.checked_out_at?new Date(c.checked_out_at).toLocaleDateString():""}</td>
-        <td style="display:flex;gap:6px;flex-wrap:wrap">${goEvent}${canEdit?`<button type="button" class="btn sm" data-in="${esc(c.id)}" aria-label="Check in ${esc(it.name)}">Check in</button>`:""}</td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap">${goEvent}${canEdit?`<button type="button" class="btn sm" data-in="${esc(c.id)}" aria-label="Check in ${esc(it.name)}">Check in</button>`:""}${canEdit&&c.status==="out"&&!Number(c.qty_in||0)?`<button type="button" class="rm" data-cxl="${esc(c.id)}" data-name="${esc(it.name)}" aria-label="Cancel check-out of ${esc(it.name)}">Cancel</button>`:""}</td>
       </tr>`; }).join("") : '<tr><td colspan="7" class="empty">Nothing out on loan.</td></tr>';
+    // cancelled check-outs: kept for the record (never deleted), greyed, behind the toggle
+    const cxlHtml = (showCancelled && cancelled.length) ? cancelled.map(c=>{ const it=byId[c.item_id]||{name:"(item)"};
+      return `<tr class="co-cancelled">
+        <td><b>${esc(it.name)}</b><span class="cxl">cancelled</span>${c.note?`<div class="sub2">${esc(c.note)}</div>`:""}</td>
+        <td>${eventCell(c)}</td>
+        <td><span class="pri ${esc(it.priority||'C')}">${esc(it.priority||'C')}</span></td>
+        <td class="num">${num(c.qty_out)}</td>
+        <td>${esc(c.issued_to||"")}</td>
+        <td>${c.cancelled_at?esc(new Date(c.cancelled_at).toLocaleDateString()):""}</td>
+        <td></td>
+      </tr>`; }).join("") : "";
+    { const html = (open.length || !cxlHtml) ? openHtml + cxlHtml : cxlHtml; $("#loanRows").innerHTML = html; }
     // loss report (fully-closed loans with missing>0)
     let lostVal=0, lostUnits=0;
     const lossRows = closed.map(c=>{ const it=byId[c.item_id]||{name:"(item)"}; const missing=Math.max(Number(c.qty_out||0)-Number(c.qty_in||0),0);
@@ -522,8 +538,18 @@
     $("#lossRows").innerHTML = lossRows || '<tr><td colspan="8" class="empty">No missing items — everything came back. 🎉</td></tr>';
     $("#lossTotal").innerHTML = lostUnits? `<span class="miss">${num(lostUnits)} units missing · ₹${num(lostVal)} lost</span>` : '<span class="backok">All returned</span>';
     $("#loanRows").querySelectorAll("[data-in]").forEach(b=>b.addEventListener("click",()=>checkInFlow(b.dataset.in)));
+    $("#loanRows").querySelectorAll("[data-cxl]").forEach(b=>b.addEventListener("click",()=>cancelCheckout(b)));
   }
 
+  // Owner decision #4: a mistaken check-out is CANCELLED (kept for the record), never deleted
+  async function cancelCheckout(b){
+    const id=b.dataset.cxl, name=b.dataset.name||"this item";
+    if(!(await BPUI.confirm(`Cancel the check-out of ${name}? Use this only if it was recorded by mistake and nothing was handed over. The stock becomes available again; the record is kept (tick “Show cancelled” to see it).`,{title:"Cancel check-out?",okLabel:"Cancel check-out",danger:true}))) return;
+    await BPUI.guard(b,async()=>{
+      try{ await BPStore.inventory.checkouts.cancel(id); BPUI.toast("Check-out cancelled.",{type:"ok"}); await load(); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"cancel the check-out"}),{type:"err"}); }
+    });
+  }
   let checkInId=null;
   function ciOut(){ const c=checkouts.find(x=>x.id===checkInId)||{}; return Number(c.qty_out||0); }
   function ciItem(){ const c=checkouts.find(x=>x.id===checkInId)||{}; return items.find(x=>x.id===c.item_id)||{}; }

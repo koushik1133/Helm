@@ -59,9 +59,10 @@ function makeEnv(o = {}) {
       return { data: null, error: null };
     },
     from(table) {
-      const q = { select: () => q, eq: () => q, order: () => q,
+      const q = { select: (c) => { q._cols = c; return q; }, eq: () => q, order: () => q,
         single: async () => ({ data: { role: o.role || 'planner' }, error: null }),
-        maybeSingle: async () => { calls.push(['from', table]); return { data: { id: UID, email: 'new@studio.test', full_name: 'Old Name', role: 'planner' }, error: null }; } };
+        maybeSingle: async () => { if (q._cols === 'role') return { data: { role: o.role || 'planner' }, error: null };   // getRole (L7: maybeSingle)
+          calls.push(['from', table]); return { data: { id: UID, email: 'new@studio.test', full_name: 'Old Name', role: 'planner' }, error: null }; } };
       return q;
     },
     storage,
@@ -284,7 +285,7 @@ t('CSP + Trusted Types: Razorpay exact script on /checkout only', () => {
   assert.match(CSP.checkout, /connect-src [^;]*https:\/\/api\.razorpay\.com/);
   for (const k of Object.keys(CSP)) if (k !== 'checkout') assert.doesNotMatch(CSP[k], /razorpay/, k);
   const v = JSON.parse(read('vercel.json'));
-  for (const r of v.headers) for (const h of r.headers) if (/content-security-policy/i.test(h.key) && /razorpay/.test(h.value))
+  for (const r of v.headers) if (!r.has) for (const h of r.headers) if (/content-security-policy/i.test(h.key) && /razorpay/.test(h.value))   // host rules = staging site union
     assert.match(r.source, /^\/checkout/, 'razorpay only on /checkout, got ' + r.source);
   assert.ok(v.headers.some((r) => r.source === '/checkout' && r.headers.some((h) => /checkout\.razorpay\.com\/v1\/checkout\.js/.test(h.value))));
   assert.match(read('public/trusted-types.js'), /'https:\/\/checkout\.razorpay\.com\/v1\/checkout\.js'/);

@@ -39,7 +39,7 @@ function run({ host, withStaging, allow }) {
     // (The block may already be filled in the committed file; these replaces are
     // idempotent — they normalise it to the test's known STG/HOSTS values.)
     src = src
-      .replace('hosts: []', 'hosts: ' + JSON.stringify(HOSTS))
+      .replace(/hosts:\s*\[[^\]]*\]/, 'hosts: ' + JSON.stringify(HOSTS))
       .replace(/(window\.SUPABASE_STAGING\s*=\s*\{[\s\S]*?url:\s*")[^"]*(")/, '$1' + STG.url + '$2')
       .replace(/(window\.SUPABASE_STAGING\s*=\s*\{[\s\S]*?anonKey:\s*")[^"]*(")/, '$1' + STG.anonKey + '$2');
   } else {
@@ -64,7 +64,7 @@ function run({ host, withStaging, allow }) {
 }
 
 t('1. production hosts → PROD', () => {
-  for (const host of ['www.helm.events', 'helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app']) {
+  for (const host of ['www.helm.events', 'helm.events', 'helm-alpha-nine.vercel.app']) {
     assert.equal(run({ host }), 'PROD', host);
   }
 });
@@ -89,9 +89,19 @@ t('2b. Vercel branch-preview alias (NOT allow-listed) → STAGING, never PROD', 
   assert.equal(run({ host: 'helm-staging-abc123-koushik1133.vercel.app' }), 'DISABLED'); // no staging → blank, not PROD
 });
 t('7. production host never resolves to STAGING even when staging IS configured', () => {
-  for (const host of ['www.helm.events', 'helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app']) {
+  for (const host of ['www.helm.events', 'helm.events', 'helm-alpha-nine.vercel.app']) {
     assert.equal(run({ host, withStaging: true }), 'PROD', host);
   }
+});
+t('11. helm-v01.vercel.app is the STAGING site: staging when configured, fail-closed otherwise, never PROD', () => {
+  assert.equal(run({ host: 'helm-v01.vercel.app', withStaging: true }), 'STAGING');
+  assert.equal(run({ host: 'helm-v01.vercel.app', withStaging: true, allow: true }), 'STAGING');
+  assert.equal(run({ host: 'helm-v01.vercel.app' }), 'DISABLED');
+  const r = browserLoad('helm-v01.vercel.app');
+  assert.equal(r.writes.length, 1, 'helm-v01 must load config.staging.js');
+  assert.equal(r.before.url, '', 'blank before staging loads');
+  assert.ok(r.after.__staging && /xizehqgeyjcfpzrdymly/.test(r.after.url) && !/nqltzgiwznphugcfhmbm/.test(r.after.url));
+  assert.match(STAGING_SRC, /hosts:\s*\["helm-v01\.vercel\.app"\]/);
 });
 t('router uses explicit allowlists, not broad substring match', () => {
   assert.ok(/PROD_HOSTS/.test(SRC) && /STAGING_HOSTS/.test(SRC), 'explicit allowlists present');
@@ -117,7 +127,7 @@ t('8. config.js itself carries NO staging project URL/key (prod bundle is clean)
   assert.ok(!/window\.SUPABASE_STAGING\s*=/.test(CONFIG_SRC), 'SUPABASE_STAGING defined in config.js');
 });
 t('9. production hosts never request config.staging.js and keep prod creds', () => {
-  for (const host of ['www.helm.events', 'helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app']) {
+  for (const host of ['www.helm.events', 'helm.events', 'helm-alpha-nine.vercel.app']) {
     const r = browserLoad(host);
     assert.equal(r.writes.length, 0, host + ' requested staging config');
     assert.ok(/nqltzgiwznphugcfhmbm/.test(r.after.url), host);

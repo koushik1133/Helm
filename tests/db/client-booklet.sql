@@ -40,7 +40,7 @@ begin
     event_date = '2026-12-12', deleted_at = null, current_version = 1
    where id = qa;
   update public.organizations set brand = '{"accent":"#aa3355","logo":"https://cdn.example.test/logo.png","phone":"+91 40 1234"}'::jsonb,
-    business_email = 'hello@studio-a.test' where id = a;
+    business_email = 'hello@studio-a.test', business_email_confirmed = true where id = a;   -- 0075: admin-saved
   delete from public.quote_versions where quote_id = qa;
   insert into public.quote_versions(quote_id, version_no, data, object_count, org_id)
     values (qa, 1, '{"items":[{"id":"i1","type":"stage","category":"structure","label":"Stage","x":10,"y":5,"width":24,"height":12,"rotation":0,"color":"#7c3aed","properties":{"price":99999,"note":"SECRET-ITEM-NOTE"}}],"venue":{"room":{"w":100,"h":60}}}'::jsonb, 1, a);

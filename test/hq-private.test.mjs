@@ -16,7 +16,7 @@ const assert = (c, m) => { if (!c) throw new Error(m || 'assertion failed'); };
 t('vercel.json: /hq and /hq.html are noindex + no-store', () => {
   const v = JSON.parse(rd('vercel.json'));
   for (const path of ['/hq', '/hq.html']) {
-    const hit = v.headers.filter((h) => new RegExp('^' + h.source.replace(/:(\w+)\*/g, '.*') + '$').test(path));
+    const hit = v.headers.filter((h) => !h.has && new RegExp('^' + h.source.replace(/:(\w+)\*/g, '.*') + '$').test(path));
     const all = hit.flatMap((h) => h.headers);
     assert(all.some((h) => h.key === 'X-Robots-Tag' && /noindex/.test(h.value)), path + ' not noindex');
     assert(all.some((h) => h.key === 'Cache-Control' && /no-store/.test(h.value)), path + ' not no-store');
