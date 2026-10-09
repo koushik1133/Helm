@@ -443,6 +443,9 @@
           <input class="s-59eddc6" id="inv_link" readonly aria-label="Invitation link">
           <button class="btn" type="button" id="inv_copy">Copy</button>
         </div>
+        <h4 style="margin:16px 0 6px">Pending invites</h4>
+        <div class="table-scroll"><table class="utable"><thead><tr><th scope="col">Email</th><th scope="col">Role</th><th scope="col">Sent</th><th scope="col">Expires</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+          <tbody id="inv_rows"><tr><td colspan="5" style="color:var(--ink-3)">Loading…</td></tr></tbody></table></div>
       </div>
 
       <div class="card">
@@ -1023,6 +1026,7 @@
     const isel=$("#inv_role");
     if(isel && !isel.options.length){ isel.innerHTML = ROLES.map(r=>`<option value="${esc(r)}"${r==="coordinator"?" selected":""}>${esc(BPStore.auth.admin.roleLabel(r))}</option>`).join(""); }
     await renderUsers();
+    if(typeof renderInvites==="function") renderInvites();
   }
   // ---- User control table (0041 profiles; before 0041 → today's name / email / role list) ----
   let ucRows=[], ucProfiles=false;
@@ -1234,11 +1238,35 @@
       const link=location.origin+"/login?invite="+encodeURIComponent(r.token);
       $("#inv_link").value=link; $("#inv_out").hidden=false;
       setUMsg("ok",(r.reused?"Existing invite link ready for ":"Invite link created for ")+email+".");
-      $("#inv_email").value="";
+      $("#inv_email").value=""; renderInvites();
     }catch(err){ setUMsg("err",errMsg(err,"create the invite")); }
     }, {busyLabel:"Creating…"});
   });
   $("#inv_link").addEventListener("click",(e)=>e.target.select());
+  // ---- pending invites (existing invitations.list / .revoke; "Copy link" re-uses create(), which returns the same live token) ----
+  async function renderInvites(){
+    const tb=$("#inv_rows"); if(!tb) return;
+    let rows;
+    try{ rows=await BPStore.invitations.list(); }
+    catch(e){ BPUI.loadError(tb, e, renderInvites, {what:"pending invites"}); return; }
+    const now=Date.now();
+    const pend=(rows||[]).filter(i=>i.status==="pending" && (!i.expires_at || new Date(i.expires_at).getTime()>now));
+    tb.innerHTML=pend.map(i=>`<tr data-id="${esc(i.id)}" data-email="${esc(i.email)}" data-role="${esc(i.role)}"><td>${esc(i.email)}</td><td>${esc(BPStore.auth.admin.roleLabel(i.role))}</td><td>${esc(ucDate(i.created_at))}</td><td>${esc(ucDate(i.expires_at))}</td><td><button type="button" class="btn invCopy">Copy link</button> <button type="button" class="btn invRevoke">Revoke</button></td></tr>`).join("")
+      || `<tr><td colspan="5" style="color:var(--ink-3)">No pending invites.</td></tr>`;
+    tb.querySelectorAll(".invRevoke").forEach(btn=>btn.addEventListener("click", async ()=>{
+      const tr=btn.closest("tr"), email=tr.dataset.email||"this person";
+      if(!(await BPUI.confirm(`Revoke the invite for ${email}? Their link will stop working.`,{title:"Revoke invite?",okLabel:"Revoke invite",danger:true}))) return;
+      try{ await BPUI.guard(btn, ()=>BPStore.invitations.revoke(tr.dataset.id)); await renderInvites(); setUMsg("ok","Invite revoked."); }
+      catch(err){ setUMsg("err",errMsg(err,"revoke the invite")); }
+    }));
+    tb.querySelectorAll(".invCopy").forEach(btn=>btn.addEventListener("click", async ()=>{
+      const tr=btn.closest("tr");
+      try{ const r=await BPUI.guard(btn, ()=>BPStore.invitations.create(tr.dataset.email, tr.dataset.role)); if(!r||!r.token) return;
+        const link=location.origin+"/login?invite="+encodeURIComponent(r.token); $("#inv_link").value=link; $("#inv_out").hidden=false;
+        try{ await navigator.clipboard.writeText(link); setUMsg("ok","Link copied."); }catch(_){ $("#inv_link").select(); setUMsg("ok","Link ready to copy below."); } }
+      catch(err){ setUMsg("err",errMsg(err,"get the invite link")); }
+    }));
+  }
   // ---- GDPR / data portability export (Phase 85) ----
   $("#btn-export-gdpr").addEventListener("click", async ()=>{
     const btn=$("#btn-export-gdpr"), st=$("#exp_status");

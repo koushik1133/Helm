@@ -606,8 +606,15 @@
   // accept a stashed invite once a session exists (parallels finishPendingStudio)
   async function acceptPendingInvite(){
     const tok=pendingInvite(); if(!tok) return;
-    try{ await BPStore.invitations.accept(tok); }
-    finally{ clearInvite(); }
+    // Keep the token on transient / unconfirmed-email failures so the invitee can retry;
+    // clear it on success or a terminal answer (invalid / expired / revoked / used / wrong email).
+    try{ await BPStore.invitations.accept(tok); clearInvite(); }
+    catch(e){
+      const msg=String((e&&e.message)||e||"").toLowerCase();
+      const terminal=/invalid invitation|invitation is |has expired|different email|already|no longer/.test(msg) && !/confirm your e-?mail/.test(msg);
+      if(terminal) clearInvite();
+      throw e;
+    }
   }
   // show who/what the invitee is joining (no PII — org name + role only)
   async function showInviteBanner(){

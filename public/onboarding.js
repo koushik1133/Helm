@@ -221,10 +221,14 @@
       + `<button type="button" class="btn primary" data-act="import"${nWrite ? "" : " disabled"}>Import ${Number(nWrite)} row(s)</button></div></div>`;
   }
 
+  // every ledger row of this batch that was undone (any status)
+  function undoneCount(st, kind) {
+    return Object.keys(ledger.entries).filter((k) => st.batchKey && k.indexOf(st.batchKey + ":" + kind + ":") === 0 && ledger.entries[k] && ledger.entries[k].undone).length;
+  }
   function renderResult(kind) {
     const st = S.steps[kind]; const c = counts(kind); const pv = previews[kind];
     const errs = Object.keys(ledger.entries).filter((k) => k.indexOf(st.batchKey + ":" + kind + ":") === 0 && ledger.entries[k].status === "error").map((k) => ledger.entries[k]);
-    const undone = Object.keys(ledger.entries).filter((k) => k.indexOf(st.batchKey + ":" + kind + ":") === 0 && ledger.entries[k].undone).length;
+    const undone = undoneCount(st, kind);
     return `<div class="ob-card">${header(kind)}<div class="ob-chips" role="status"><span class="ob-chip ok">${Number(c.ok)} added${undone ? " (" + Number(undone) + " undone)" : ""}</span><span class="ob-chip ok">${Number(c.merged)} merged</span><span class="ob-chip ${c.error ? "bad" : ""}">${Number(c.error)} failed</span></div>`
       + (errs.length ? `<div class="ob-warn"><b>Some rows were not saved.</b> Nothing was lost; you can retry just these.<ul>${errs.slice(0, 50).map((e) => `<li>Line ${Number(e.line)} — ${esc(e.name)}: ${esc(e.error)}</li>`).join("")}</ul></div>` : "")
       + `<div id="obErr" class="ob-err" role="alert"></div><div class="ob-row">`
@@ -236,7 +240,7 @@
   }
 
   function renderFinish() {
-    const lines = KEYS.map((k) => { const c = counts(k); const st = S.steps[k]; const st2 = st.skipped ? "skipped" : (st.done ? `${Number(c.ok)} added, ${Number(c.merged)} merged` : "not done");
+    const lines = KEYS.map((k) => { const c = counts(k); const st = S.steps[k]; const st2 = st.skipped ? "skipped" : (st.done ? `${Number(c.ok)} added${undoneCount(st, k) ? " (" + undoneCount(st, k) + " undone)" : ""}, ${Number(c.merged)} merged` : "not done");
       return `<li><b>${esc(O.KINDS[k].label)}</b> — ${esc(st2)}</li>`; }).join("");
     return `<div class="ob-card"><h2>You're set up</h2><p class="sub">Here is what this session added.</p><ul>${lines}</ul>`
       + `<div class="ob-row"><a class="btn" href="inventory.html">Open Inventory</a><a class="btn" href="vendors.html">Open Vendors</a><a class="btn" href="staff.html">Open Staff</a><a class="btn" href="control.html#pricing">Open Control Center</a>`

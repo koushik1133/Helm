@@ -148,7 +148,9 @@
       img.addEventListener("error", () => { img.hidden = true; $("#s_mark").classList.remove("has-logo"); }); }
     const ct = clear($("#s_contact"));
     if (s.phone) { const a = el("a", "", String(s.phone)); a.setAttribute("href", "tel:" + String(s.phone).replace(/[^\d+]/g, "")); ct.appendChild(a); }
-    if (s.email && /^[^\s@<>"]+@[^\s@<>"]+$/.test(s.email)) { const a = el("a", "", s.email); a.setAttribute("href", "mailto:" + s.email); ct.appendChild(a); }
+    // business contact email only (never the owner's personal login email); hidden when empty
+    const bizEmail = String(s.business_email || s.email || "").trim();
+    if (bizEmail && /^[^\s@<>"]+@[^\s@<>"]+$/.test(bizEmail)) { const a = el("a", "", bizEmail); a.setAttribute("href", "mailto:" + bizEmail); ct.appendChild(a); }
     if (s.location) ct.appendChild(el("span", "", String(s.location)));
     const title = e.title || e.code || "Your event";
     $("#e_title").textContent = title;

@@ -196,6 +196,8 @@
   .cbar .ic:hover{background:var(--panel-2)}
   .inputwrap{flex:1;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;display:flex;align-items:center;padding:0 6px}
   .cbar textarea{flex:1;border:0;background:transparent;color:var(--ink);font-size:15px;resize:none;max-height:120px;padding:9px 6px;line-height:1.4;outline:none;font-family:inherit}
+  .msgcount{font-size:11px;color:var(--ink-3);align-self:flex-end;padding:0 4px 4px}
+  .prow{width:100%;border:0;background:none;color:inherit;font:inherit;text-align:left}
   .cbar textarea::placeholder{color:var(--ink-3)}
   .send{width:40px;height:40px;border-radius:50%;border:0;background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;font-size:17px;cursor:pointer;flex:0 0 auto;display:flex;align-items:center;justify-content:center}
   .recording{display:flex;align-items:center;gap:13px;width:100%}
@@ -317,7 +319,7 @@
         <button class="ic" id="attachBtn" type="button" title="Attach" aria-label="Attach" data-menu-anchor="1">📎</button>
         <div class="inputwrap">
           <button class="ic s-9877b0e" id="emojiBtn" type="button" title="Emoji" aria-label="Emoji">😊</button>
-          <textarea id="msgInput" rows="1" placeholder="Type a message" aria-label="Message"></textarea>
+          <textarea id="msgInput" rows="1" maxlength="4000" placeholder="Type a message" aria-label="Message"></textarea><span id="msgCount" class="msgcount" aria-live="polite" hidden></span>
         </div>
         <button class="ic s-4ff818f" id="camBtn" type="button" title="Take a photo" aria-label="Camera">📷</button>
         <button class="send" id="micBtn" type="button" title="Record voice note" aria-label="Record voice note">🎤</button>
@@ -676,7 +678,8 @@
     const msg=thread.messages.find(x=>x.id===mid); const mine=msg&&msg.sender_id===ME.id;
     const m=document.createElement("div"); m.className="rxpop";
     let html=RX_EMOJI.map(e=>`<button data-e="${esc(e)}">${e}</button>`).join("")+`<button data-reply="1" title="Reply" style="font-size:15px">↩</button>`;
-    if(mine) html+=`<button data-fwd="1" title="Forward" style="font-size:15px">↪</button>`;
+    if(mine&&msg&&(msg.kind==="image"||msg.kind==="voice")) html+=`<button type="button" disabled aria-disabled="true" title="Photos and voice messages can't be forwarded" aria-label="Forward unavailable for photos and voice messages" style="font-size:15px;opacity:.4;cursor:not-allowed">↪</button>`;
+    else if(mine) html+=`<button data-fwd="1" title="Forward" style="font-size:15px">↪</button>`;
     if(mine&&msg&&msg.kind==="text") html+=`<button data-edit="1" title="Edit" style="font-size:15px">✏️</button>`;
     if(mine) html+=`<button data-del="1" title="Delete" style="font-size:15px">🗑</button>`;
     m.innerHTML=html; document.body.appendChild(m);
@@ -695,7 +698,7 @@
   async function doDelete(mid){ let ok=false; try{ ok=await BPUI.confirm("Delete this message? Everyone in the chat will see it was removed.",{title:"Delete message",okLabel:"Delete",danger:true}); }catch(e){ return; }
     if(!ok) return;
     try{ await BPStore.chat.deleteMessage(mid); await loadThread(); await refresh(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"delete the message"}),{type:"err"}); } }
-  async function forwardMsg(mid){ const m=thread.messages.find(x=>x.id===mid); if(!m) return;
+  async function forwardMsg(mid){ const m=thread.messages.find(x=>x.id===mid); if(!m||m.kind==="image"||m.kind==="voice") return;
     const targets=convs.filter(c=>c.id!==activeId).map(c=>({id:c.id,icon:convAvatar(c).txt,title:convTitle(c),sub:c.kind==="dm"?"Direct message":c.kind==="broadcast"?"Everyone":"Group"}));
     pickerModal("Forward to…","↪",targets.map(t=>({icon:typeof t.icon==="string"&&Array.from(t.icon).length<=2?t.icon:"💬",title:t.title,sub:t.sub,meta:{__to:t.id}})),"No other chats to forward to.",async(meta)=>{
       const to=meta.__to; try{ await BPStore.chat.send(to,{kind:m.kind,body:m.body,media_path:m.media_path,media_mime:m.media_mime,media_duration:m.media_duration,meta:m.meta||null}); await refresh(); await openConv(to); BPUI.toast("Forwarded.",{type:"ok"}); }
@@ -705,7 +708,11 @@
     $("#replyBar").hidden=false; $("#replyWho").textContent=m.sender_id===ME.id?"You":personName(m.sender_id);
     $("#replyTxt").textContent=m.kind==="image"?"📷 Photo":m.kind==="voice"?"🎤 Voice message":m.kind==="card"?cardLabel(m):(m.body||""); $("#msgInput").focus(); }
   $("#replyX").addEventListener("click",()=>{ replyTo=null; $("#replyBar").hidden=true; });
-  function lightbox(src){ const o=document.createElement("div"); o.className="lightbox"; o.innerHTML=`<img src="${esc(src)}" alt="Photo">`; o.addEventListener("click",()=>o.remove()); document.body.appendChild(o); }
+  function lightbox(src){ const prev=document.activeElement; const o=document.createElement("div"); o.className="lightbox"; o.setAttribute("role","dialog"); o.setAttribute("aria-modal","true"); o.setAttribute("aria-label","Photo viewer"); o.tabIndex=-1;
+    o.innerHTML=`<img src="${esc(src)}" alt="Photo">`;
+    const close=()=>{ document.removeEventListener("keydown",onKey,true); o.remove(); if(prev&&prev.focus&&prev.isConnected){ try{ prev.focus(); }catch(e){} } };
+    const onKey=(e)=>{ if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); close(); } else if(e.key==="Tab"){ e.preventDefault(); } };
+    o.addEventListener("click",close); document.addEventListener("keydown",onKey,true); document.body.appendChild(o); o.focus(); }
 
   /* ---------- image editor: preview → crop / draw / caption → send ----------
      State = the photo (ieState.base: an off-screen canvas, cropped but never drawn on)
@@ -808,7 +815,8 @@
     try{ rec.stop(); }catch(e){} $("#recUI").hidden=true; $("#cbar").hidden=false; syncSend(); }
 
   function autoGrow(){ const ta=$("#msgInput"); ta.style.height="auto"; ta.style.height=Math.min(120,ta.scrollHeight)+"px"; }
-  function syncSend(){ const has=$("#msgInput").value.trim().length>0 || !!staged; $("#sendBtn").hidden=!has; $("#micBtn").hidden=has; }
+  function syncCount(){ const c=$("#msgCount"), n=$("#msgInput").value.length; if(!c) return; const near=n>=3500; c.hidden=!near; c.textContent=near?n+" / 4000":""; }
+  function syncSend(){ syncCount(); const has=$("#msgInput").value.trim().length>0 || !!staged; $("#sendBtn").hidden=!has; $("#micBtn").hidden=has; }
   $("#msgInput").addEventListener("input",()=>{ autoGrow(); syncSend(); mpUpdate(); });
   $("#msgInput").addEventListener("keydown",e=>{ if(mpKey(e)) return; if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); sendText(); } });
   $("#msgInput").addEventListener("click",mpUpdate);
@@ -931,7 +939,7 @@
   function others(){ return (BPStore.chat.isLocal()?BPStore.chat.localRoster():Object.values(roster)).filter(p=>p.id!==ME.id); }
   function prowAvatar(p){ return `<div class="av" style="width:40px;height:40px;font-size:14px;background:${colorFor(p.id)}"${p.avatar_path?` data-avatar-path="${esc(p.avatar_path)}"`:""}>${esc(initials(pname(p)))}</div>`; }
   function newDmModal(){ const people=others(); const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
-    ov.innerHTML=`<div class="modal"><h3>New chat</h3><div class="body">${people.map(p=>`<div class="prow" data-id="${esc(p.id)}">${prowAvatar(p)}<div class="nm">${esc(pname(p))}</div><span class="rl">${esc(roleLbl(p.role))}</span></div>`).join("")||'<div style="padding:16px;color:var(--ink-3)">No teammates in your organization yet.</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button></div></div>`;
+    ov.innerHTML=`<div class="modal"><h3>New chat</h3><div class="body">${people.map(p=>`<button type="button" class="prow" data-id="${esc(p.id)}" aria-label="${esc("Chat with "+pname(p)+", "+roleLbl(p.role))}">${prowAvatar(p)}<div class="nm">${esc(pname(p))}</div><span class="rl">${esc(roleLbl(p.role))}</span></button>`).join("")||'<div style="padding:16px;color:var(--ink-3)">No teammates in your organization yet.</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button></div></div>`;
     document.body.appendChild(ov); paintAv(ov); ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
     ov.querySelectorAll(".prow").forEach(r=>r.addEventListener("click",async()=>{ closeModal(); try{ const id=await BPStore.chat.startDm(r.dataset.id); await refresh(); await openConv(id); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"start the chat"}),{type:"err"}); } })); }
   function newGroupModal(){ const people=others(); const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
