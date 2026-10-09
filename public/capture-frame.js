@@ -94,13 +94,13 @@
   function legendBase(name){ const m=/^(.*?)[\s#-]*\d+$/.exec(name); const b=m && m[1].trim(); return b ? b : name; }
   /* R10: seating was skipped in the legend. Chair blocks / rows all become one "Guest seating — N seats"
      entry (badged on every block); tables with a seat count and a generic name ("T3", "Table 4", none)
-     group by kind + size: "Round table (8 seats) ×13". Custom names ("VIP Table") are kept. */
+     group by kind + size: "8-seat round table ×13". Custom names ("VIP Table") are kept. */
   const SEAT_KIND={table:'Round table', longtable:'Long table', headtable:'Head table', cocktail:'Highboy'};
   const GENERIC_TABLE=/^(t|tbl|table|round table|long table|highboy|head table)?$/i;
   function seatingName(it, base){
     const p=it.properties||{};
     if(NO_MARKER[it.type]) return { name:'Guest seating', seats:(+p.rows||0)*(+p.cols||0) || 0 };
-    if(SEAT_KIND[it.type] && +p.seats>0 && GENERIC_TABLE.test(base||'')) return { name:SEAT_KIND[it.type]+' ('+(+p.seats)+(+p.seats===1?' seat)':' seats)') };
+    if(SEAT_KIND[it.type] && +p.seats>0 && GENERIC_TABLE.test(base||'')) return { name:(+p.seats)+'-seat '+SEAT_KIND[it.type].toLowerCase() };   // "8-seat round table" fits the legend column
     return null;
   }
   function numberItems(items){
