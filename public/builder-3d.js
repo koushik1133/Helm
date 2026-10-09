@@ -466,6 +466,37 @@
     const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));
     spr.scale.set(10,2.5,1); labelCache.set(text,spr); return spr.clone();
   }
+  /* live label mode (Labels: None | Numbers | Names), remembered per browser. Name sprites are always
+     built (the client capture projects them); Numbers adds badge sprites + a floating legend card. */
+  let liveLabels='names';
+  try{ const v=localStorage.getItem('bps.labels3d'); if(v==='none'||v==='numbers'||v==='names') liveLabels=v; }catch(_){}
+  const badgeCache=new Map();
+  function badgeSprite(n){
+    if(badgeCache.has(n)) return badgeCache.get(n).clone();
+    const cvs=document.createElement('canvas'); cvs.width=cvs.height=128;
+    const ctx=cvs.getContext('2d'); window.HelmCaptureFrame.drawBadge(ctx,64,64,54,n);
+    const tex=new THREE.CanvasTexture(cvs); tex.anisotropy=4;
+    const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,depthTest:false,transparent:true}));
+    spr.scale.set(3,3,1); spr.userData.badge=true; badgeCache.set(n,spr); return spr.clone();
+  }
+  function flushBadgeCache(){ badgeCache.forEach(spr=>{ const m=spr.material; if(m){ if(m.map) m.map.dispose(); m.dispose(); } }); badgeCache.clear(); }
+  function renderLegendCard(legend){
+    const card=document.getElementById('legend3d'); if(!card) return;
+    const show=active && liveLabels==='numbers' && legend && legend.length>0;
+    card.hidden=!show; if(!show) return;
+    card.replaceChildren();
+    const h=document.createElement('div'); h.className='lg-title'; h.textContent='Legend'; card.appendChild(h);
+    const ol=document.createElement('ol'); ol.className='lg-list';
+    legend.forEach(L=>{ const li=document.createElement('li'); const b=document.createElement('span'); b.className='lg-n'; b.textContent=String(L.n);
+      const t=document.createElement('span'); t.className='lg-t'; t.textContent=L.name+(L.count>1?' ×'+L.count:''); li.append(b,t); ol.appendChild(li); });
+    card.appendChild(ol);
+  }
+  function setLiveLabels(m){
+    liveLabels=window.HelmCaptureFrame.labelMode(m);
+    try{ localStorage.setItem('bps.labels3d',liveLabels); }catch(_){}
+    document.querySelectorAll('#labels3d [data-l]').forEach(b=>{ const on=b.dataset.l===liveLabels; b.classList.toggle('on',on); b.setAttribute('aria-pressed',on?'true':'false'); });
+    if(active) requestBuild(); else renderLegendCard(null);
+  }
   function roundRect(c,x,y,w,h,r){ c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
 
   /* ---------------- scene assembly ---------------- */
@@ -572,7 +603,8 @@
     if(!built) initScene();
     clearRoot(); chairMap=[];
     syncFloor();
-    if(labelCache.size>LABEL_CACHE_MAX) flushLabelCache();   // no clones are in the scene right now
+    if(labelCache.size>LABEL_CACHE_MAX){ flushLabelCache(); flushBadgeCache(); }   // no clones are in the scene right now
+    const num=window.HelmCaptureFrame.numberItems(store.items);
     const chairs=[];
     chairs.push=function(){ if(this.length>=MAX_CHAIRS_3D) return this.length; return Array.prototype.push.apply(this,arguments); };   // never build more than we can draw
     for(const it of store.items){
@@ -580,8 +612,11 @@
       if(g){ g.position.set(sx(it.x+it.width/2),0,sz(it.y+it.height/2)); g.rotation.y=-(it.rotation||0)*Math.PI/180;
         g.userData.itemId=it.id; root.add(g);
         if(['seatblock','chairrow'].indexOf(it.type)===-1){ const lp=label(it.label);
-          lp.position.set(sx(it.x+it.width/2), objTopY(it)+3, sz(it.y+it.height/2)); lp.userData.itemId=it.id; root.add(lp); } }
+          lp.position.set(sx(it.x+it.width/2), objTopY(it)+3, sz(it.y+it.height/2)); lp.userData.itemId=it.id; lp.visible=liveLabels==='names'; root.add(lp);
+          const n=liveLabels==='numbers' ? num.byId.get(it.id) : null;
+          if(n){ const bp=badgeSprite(n); bp.position.copy(lp.position); bp.userData.itemId=it.id; root.add(bp); } } }
     }
+    renderLegendCard(liveLabels==='numbers' ? num.legend : null);
     buildChairs(chairs);
     if(!transform || !transform.dragging){ syncGizmoSnap(); updateGizmo(); }
     needsBuild=false;
@@ -697,18 +732,19 @@
     if(!raf) loop();
     if(renderMode) toast('Realistic render — image-based lighting on');
   }
-  function deactivate(){ active=false; renderMode=false; viewport.classList.remove('is3d','isRender'); stage.hidden=true; if(transform) transform.detach(); if(raf){ cancelAnimationFrame(raf); raf=null; } }
+  function deactivate(){ active=false; renderLegendCard(null); renderMode=false; viewport.classList.remove('is3d','isRender'); stage.hidden=true; if(transform) transform.detach(); if(raf){ cancelAnimationFrame(raf); raf=null; } }
 
   /* R2: "Update client images" - a clean three-quarter render of the venue for the client booklet.
      Offscreen-sized (maxW px wide, 16:9), realistic profile, no grid / gizmo / selection box;
      every touched piece of state (size, camera, profile, helpers) is restored afterwards. */
-  async function capture3D(maxW){
+  async function capture3D(maxW, opts){
+    const CF=window.HelmCaptureFrame, mode=CF.labelMode(opts && opts.labels);
     maxW=Math.max(640, Math.min(2400, Number(maxW)||1920));
     if(!libsReady){ const ok=await ensure3DLibs(); if(!ok) throw new Error('The 3D library couldn’t load'); }
     if(!built) initScene();
     syncFloor(); build();
     const W=maxW, H=Math.round(maxW*9/16), SS=2;           // render at 2x, downscale (anti-aliasing)
-    const RW=window.HelmCaptureFrame.legendSplit(W).renderW;   // R5: 3D render on the left, legend panel on the right
+    const RW=mode==='numbers' ? CF.legendSplit(W).renderW : W;   // R5: numbers = 3D render on the left, legend panel on the right
     const sc=sun.shadow.camera;
     const keep={ pr:R.getPixelRatio(), size:R.getSize(new THREE.Vector2()), cam:camera.position.clone(), tgt:controls.target.clone(),
       aspect:camera.aspect, far:camera.far, render:renderMode, grid:grid?grid.visible:null, edge:edge?edge.visible:null, tr:transform?transform.visible:null,
@@ -741,23 +777,29 @@
       // R5: no name tags in the client picture - every sprite is hidden and replaced by a small numbered
       // badge (same number for the same name), de-overlapped in screen space, plus a legend panel
       // composited on the right of the image (so it travels with the picture everywhere)
-      const CF=window.HelmCaptureFrame, num=CF.numberItems(store.items), anchors=[], wp=new THREE.Vector3();
+      const num=CF.numberItems(store.items), anchors=[], tags=[], wp=new THREE.Vector3();
+      // 0083: opts.labels 'none' = no marks, 'names' = uniform name tags (de-overlapped, no legend)
+      const nameOf=new Map(); store.items.forEach(it=>nameOf.set(it.id,it.label));
       root.traverse(o=>{ if(o.isSprite){ keep.labels.push([o,o.scale.clone(),o.visible]); o.visible=false;
-        const n=num.byId.get(o.userData.itemId); if(!n) return;
+        if(o.userData.badge || mode==='none') return;
         o.getWorldPosition(wp); const ndc=wp.clone().project(camera); if(ndc.z>1 || ndc.z<-1) return;
-        anchors.push({n, x:(ndc.x+1)/2*RW, y:(1-ndc.y)/2*H}); } });
+        const x=(ndc.x+1)/2*RW, y=(1-ndc.y)/2*H;
+        if(mode==='names'){ tags.push({x, y, text:nameOf.get(o.userData.itemId)}); return; }
+        const n=num.byId.get(o.userData.itemId); if(!n) return;
+        anchors.push({n, x, y}); } });
       R.render(scene,camera);
       const out=document.createElement('canvas'); out.width=W; out.height=H;
       const ctx=out.getContext('2d'); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
       ctx.drawImage(cv,0,0,RW*SS,H*SS,0,0,RW,H);              // same task as render (no preserveDrawingBuffer)
       const br=Math.round(H*0.011);                          // badge diameter ~2.2% of image height
-      CF.drawBadges(ctx, CF.layoutBadges(anchors, br, {w:RW, h:H}), br);
-      CF.drawLegend(ctx, num.legend, RW, 0, W-RW, H);
+      if(mode==='numbers'){ CF.drawBadges(ctx, CF.layoutBadges(anchors, br, {w:RW, h:H}), br);
+        CF.drawLegend(ctx, num.legend, RW, 0, W-RW, H); }
+      else if(mode==='names') CF.drawNameTags(ctx, tags, Math.max(11, Math.round(H*0.017)), {w:RW, h:H});
       const url=out.toDataURL('image/jpeg',0.92);
       const bin=atob(url.split(',')[1]||''), u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
       const b=new Blob([u8],{type:'image/jpeg'});
       if(!b || b.size<2000) throw new Error('The 3D render came out empty');
-      try{ b.legend=num.legend.map(L=>({n:L.n,name:L.name,count:L.count})); }catch(_){}   // R5: legend data for callers
+      try{ b.labels=mode; if(mode==='numbers') b.legend=num.legend.map(L=>({n:L.n,name:L.name,count:L.count})); }catch(_){}   // R5: legend data for callers
       return b;
     } finally {
       keep.labels.forEach(([o,s,v])=>{ o.scale.copy(s); o.visible=v; });
@@ -816,6 +858,11 @@
     if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
     if(e.key==='g') setTMode('translate'); else if(e.key==='t') setTMode('rotate'); else if(e.key==='y') setTMode('scale');
   });
+
+  /* ---------------- wire the Labels toggle ---------------- */
+  document.querySelectorAll('#labels3d [data-l]').forEach(b=>b.addEventListener('click',()=>setLiveLabels(b.dataset.l)));
+  setLiveLabels(liveLabels);
+  window.__set3DLabels=setLiveLabels;
 
   /* ---------------- wire the View toggle ---------------- */
   const seg=document.getElementById('viewSeg');

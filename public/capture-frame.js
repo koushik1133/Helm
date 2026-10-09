@@ -168,8 +168,56 @@
       ctx.fillText(R.text, x0+R.x+Lo.badgeR*2+Lo.font*0.6, y0+R.y+Lo.rowH/2); });
     ctx.restore(); return Lo;
   }
+
+  /* label modes for the client pictures + live 3D view: 'none' (plain), 'numbers' (badges + legend,
+     the default and the original pictures), 'names' (small name tags, no legend). */
+  const LABEL_MODES=['none','numbers','names'];
+  function labelMode(v){ v=String(v==null?'':v).toLowerCase(); return LABEL_MODES.indexOf(v)>=0 ? v : 'numbers'; }
+  // booklet snapshot kind for a picture ('2d'|'3d') in a label mode; numbers keeps the original kind
+  function snapKind(base, mode){ base=base==='3d'?'3d':'2d'; mode=labelMode(mode); return mode==='numbers' ? base : base+'_'+mode; }
+  /* name tags: one tag per anchor (same text closer than dupDist to a kept tag is dropped), each a
+     w x h box centred on its anchor, pushed apart until no two boxes overlap (gap px) and kept
+     inside [0,W]x[0,H]. anchors: [{x,y,text,w,h}]. Returns [{x,y,ax,ay,w,h,text}]. */
+  function layoutTags(anchors, bounds, o){
+    o=o||{}; const gap=o.gap!=null?o.gap:2, W=bounds&&bounds.w||Infinity, H=bounds&&bounds.h||Infinity;
+    const T=[];
+    (anchors||[]).forEach(a=>{ if(!a || !isFinite(a.x) || !isFinite(a.y) || !(a.w>0) || !(a.h>0)) return;
+      const dup=o.dupDist!=null?o.dupDist:a.w*0.75;
+      if(T.some(t=>t.text===a.text && Math.hypot(t.ax-a.x,t.ay-a.y)<dup)) return;
+      T.push({x:a.x, y:a.y, ax:a.x, ay:a.y, w:a.w, h:a.h, text:String(a.text==null?'':a.text)}); });
+    const clamp=t=>{ t.x=Math.min(Math.max(t.x,t.w/2+1),Math.max(t.w/2+1,W-t.w/2-1)); t.y=Math.min(Math.max(t.y,t.h/2+1),Math.max(t.h/2+1,H-t.h/2-1)); };
+    T.forEach(clamp);
+    for(let it=0; it<500; it++){
+      let moved=false;
+      for(let i=0;i<T.length;i++) for(let j=i+1;j<T.length;j++){
+        const p=T[i], q=T[j];
+        const ox=(p.w+q.w)/2+gap-Math.abs(q.x-p.x), oy=(p.h+q.h)/2+gap-Math.abs(q.y-p.y);
+        if(ox<=0 || oy<=0) continue;
+        // separate along the axis that needs the smaller move (vertical preferred for wide tags)
+        if(oy<=ox){ let d=q.y-p.y; const s=d>0?1:d<0?-1:((i+j)%2?1:-1); p.y-=s*(oy/2+0.01); q.y+=s*(oy/2+0.01); }
+        else { let d=q.x-p.x; const s=d>0?1:d<0?-1:((i+j)%2?1:-1); p.x-=s*(ox/2+0.01); q.x+=s*(ox/2+0.01); }
+        clamp(p); clamp(q); moved=true; }
+      if(!moved) break;
+    }
+    return T;
+  }
+  function tagFont(px){ return '600 '+Math.round(px)+'px system-ui,-apple-system,"Segoe UI",sans-serif'; }
+  // measure + place + draw name tags (browser). anchors: [{x,y,text}]; px = font size (uniform)
+  function drawNameTags(ctx, anchors, px, bounds){
+    ctx.save(); ctx.font=tagFont(px);
+    const padX=Math.round(px*0.5), h=Math.round(px*1.6);
+    const sized=(anchors||[]).map(a=>{ const text=legendName(a.text).slice(0,28); return text ? {x:a.x, y:a.y, text, h, w:Math.ceil(ctx.measureText(text).width)+padX*2} : null; }).filter(Boolean);
+    const placed=layoutTags(sized, bounds, {gap:Math.max(2,Math.round(px*0.2))});
+    ctx.lineWidth=Math.max(1,px*0.08); ctx.strokeStyle='rgba(27,34,54,.6)';
+    placed.forEach(t=>{ if(Math.hypot(t.x-t.ax,t.y-t.ay)>t.h*0.8){ ctx.beginPath(); ctx.moveTo(t.x,t.y); ctx.lineTo(t.ax,t.ay); ctx.stroke(); } });
+    placed.forEach(t=>{ const x=t.x-t.w/2, y=t.y-t.h/2, r=Math.round(t.h*0.3);
+      ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+t.w,y,x+t.w,y+t.h,r); ctx.arcTo(x+t.w,y+t.h,x,y+t.h,r); ctx.arcTo(x,y+t.h,x,y,r); ctx.arcTo(x,y,x+t.w,y,r); ctx.closePath();
+      ctx.fillStyle='rgba(20,27,46,.86)'; ctx.fill();
+      ctx.fillStyle='#ffffff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(t.text, t.x, t.y+px*0.04); });
+    ctx.restore(); return placed;
+  }
   // final image split: render area on the left (~80%), legend panel on the right
   function legendSplit(W){ const panel=Math.round(W*0.2); return {renderW:W-panel, panelW:panel}; }
-  const api={ numberItems, layoutBadges, legendLayout, drawBadge, drawBadges, drawLegend, legendSplit, frameBox, projectBox, labelWorldHeight, labelScaleForDepth, unionFloor, pickLabels, LABEL_CAP_RATIO };
+  const api={ labelMode, snapKind, LABEL_MODES, layoutTags, drawNameTags, numberItems, layoutBadges, legendLayout, drawBadge, drawBadges, drawLegend, legendSplit, frameBox, projectBox, labelWorldHeight, labelScaleForDepth, unionFloor, pickLabels, LABEL_CAP_RATIO };
   if(typeof module!=='undefined' && module.exports) module.exports=api; else root.HelmCaptureFrame=api;
 })(typeof window!=='undefined'?window:globalThis);

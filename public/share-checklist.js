@@ -18,6 +18,8 @@
   const MAX_W = 1600;
 
   /* ---- pure helpers (exported for tests) ---- */
+  // 0083: label variants of a picture kind (numbers = the original '2d' / '3d')
+  function variantKinds(base) { return base === "3d" ? ["3d_none", "3d_names"] : ["2d_none", "2d_names"]; }
   function normalize(s) {
     const src = s && typeof s === "object" ? s : null, out = {};
     SECTIONS.forEach((x) => { out[x[0]] = src ? src[x[0]] === true : true; });
@@ -184,6 +186,16 @@
           const s = state.snaps[k]; if (!state.sections[k] || !s || !s.path) continue;
           try { await B.attachSnapshot(quoteId, k === "layout2d" ? "2d" : "3d", s.path); } catch (e) {}
         }
+        // 0083: the builder's label variants (None / Names) of a stored picture go along with it
+        let info = null;
+        for (const k of ["layout2d", "layout3d"]) {
+          const s = state.snaps[k]; if (!state.sections[k] || !s || !s.stored) continue;
+          try { if (!info) info = (B.snapshotInfo && await B.snapshotInfo(quoteId)) || {}; } catch (e) { info = {}; }
+          for (const v of variantKinds(k === "layout2d" ? "2d" : "3d")) {
+            const x = info[v]; if (!x || !x.path) continue;
+            try { await B.attachSnapshot(quoteId, v, x.path); } catch (e) { return; }   // database without 0083
+          }
+        }
       },
     };
   }
@@ -251,7 +263,7 @@
     cards.forEach((c) => { if (!can) { c.hidden = true; return; } if (c.dataset.scWired) return; c.dataset.scWired = "1"; c.hidden = false; renderCard(c).catch(() => {}); });
   }
 
-  global.HelmShareChecklist = { mount, wire, normalize, menuRule, preview, fitSize, sharePayload, capture, freshEnough, SECTIONS };
+  global.HelmShareChecklist = { mount, wire, normalize, menuRule, preview, fitSize, sharePayload, capture, freshEnough, variantKinds, SECTIONS };
   if (doc && doc.querySelector("[data-share-checklist]")) {
     if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", wire); else wire();
   }

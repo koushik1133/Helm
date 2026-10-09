@@ -1,3 +1,18 @@
+// DASHBOARD-PASTE.ts - booklet-snapshot for setup from the Supabase WEBSITE (no terminal).
+//
+// HOW TO DEPLOY (Supabase Dashboard):
+//   1. Edge Functions -> Deploy a new function -> Via editor.
+//   2. Function name: booklet-snapshot   (exactly this name)
+//   3. Delete the sample code, paste THIS WHOLE FILE, Deploy.
+//   4. Function details / settings: turn OFF "Verify JWT" (the booklet page is signed out;
+//      the database checks the booklet token instead).
+//   5. Edge Functions -> Secrets: add HELM_BOOKLET_SNAPSHOT_ENABLED = true
+//      (SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected automatically).
+//
+// Same behaviour as index.ts (kept in sync by test/label-modes.test.mjs), with the
+// ../_shared helpers inlined. Rate limiting here is a simple in-memory per-IP limiter
+// (per instance); the database also rate-limits per booklet token.
+// ----------------------------------------------------------------------------
 // booklet-snapshot - streams the 2D / 3D snapshot image of a client booklet (migration
 // 0069, private bucket booklet-snapshots). SQL can't sign storage URLs, so the booklet
 // page loads <img src=".../booklet-snapshot?t=<booklet token>&k=2d|3d|2d_none|3d_none|2d_names|3d_names">.
@@ -11,8 +26,32 @@
 //
 // Secrets / env: HELM_BOOKLET_SNAPSHOT_ENABLED, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (injected).
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
-import { errTag, UUID_RE } from "../_shared/cors.ts";
-import { clientIp, checkLimits } from "../_shared/limits.ts";
+
+// ---- inlined from ../_shared/cors.ts + ../_shared/limits.ts ----
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function errTag(e: unknown): string {
+  const o = (e && typeof e === "object") ? e as Record<string, unknown> : {};
+  return String(o.code || o.name || "error").slice(0, 40);
+}
+function clientIp(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for") || "";
+  const first = xff.split(",")[0].trim();
+  return (first || req.headers.get("x-real-ip") || req.headers.get("cf-connecting-ip") || "unknown").slice(0, 64);
+}
+const buckets = new Map<string, { n: number; reset: number }>();
+// 0 = allowed, else seconds until the window resets
+async function checkLimits(keys: Array<[string, number, number]>): Promise<number> {
+  const now = Date.now(); let wait = 0;
+  if (buckets.size > 10_000) buckets.clear();
+  for (const [k, limit, windowMs] of keys) {
+    let b = buckets.get(k);
+    if (!b || b.reset <= now) { b = { n: 0, reset: now + windowMs }; buckets.set(k, b); }
+    b.n++;
+    if (b.n > limit) wait = Math.max(wait, Math.ceil((b.reset - now) / 1000));
+  }
+  return wait;
+}
+// ---- end inlined helpers ----
 
 const PATH = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(2d|3d)(_none|_names)?\.(png|jpg|webp)$/;
 // 0083: 2d / 3d = numbered pictures; _none = no labels, _names = name tags

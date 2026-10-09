@@ -3177,6 +3177,7 @@ function planBlob(o){ o=o||{}; return new Promise(resolve=>{
   }
   if(o.clean) clone.querySelectorAll('.margins,.measure').forEach(n=>n.remove());
   const CF=o.clean && window.HelmCaptureFrame;              // R5: client plan = numbered badges + legend (same numbers as 3D)
+  const LM=CF ? CF.labelMode(o.labels) : 'numbers';         // 0083: o.labels 'none' | 'numbers' (default) | 'names'
   if(CF) clone.querySelectorAll('text.lbl').forEach(n=>n.remove());
   const restore=()=>{ store.grid.show=wasGrid; showMeasure=wasMeasure; setSelection(wasSel); renderAll(); };
   const W=WORLD.w*PX_PER_FT, H=WORLD.h*PX_PER_FT, S=o.maxW ? Math.min(4, o.maxW/W) : 2;
@@ -3187,12 +3188,15 @@ function planBlob(o){ o=o||{}; return new Promise(resolve=>{
   const svgStr=new XMLSerializer().serializeToString(clone).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
   const img=new Image();
   img.onload=()=>{
-    const pw=Math.round(W*S), ph=Math.round(H*S), panel=CF ? Math.round(pw*0.25) : 0;
+    const pw=Math.round(W*S), ph=Math.round(H*S), panel=CF && LM==='numbers' ? Math.round(pw*0.25) : 0;
     const cv=document.createElement('canvas'); cv.width=pw+panel; cv.height=ph;
     const ctx=cv.getContext('2d');
     ctx.fillStyle=(getComputedStyle(document.body).getPropertyValue('--canvas').trim()||'#fff');
     ctx.fillRect(0,0,cv.width,cv.height); ctx.drawImage(img,0,0,pw,ph);
-    if(CF){ const num=CF.numberItems(store.items), br=Math.max(6,Math.round(ph*0.011));
+    if(CF && LM==='names'){ const tags=store.items.filter(it=>['seatblock','chairrow'].indexOf(it.type)===-1)
+        .map(it=>({text:it.label, x:(it.x+it.width/2)*PX_PER_FT*S, y:(it.y+it.height/2)*PX_PER_FT*S}));
+      CF.drawNameTags(ctx, tags, Math.max(10,Math.round(ph*0.016)), {w:pw, h:ph}); }
+    if(CF && LM==='numbers'){ const num=CF.numberItems(store.items), br=Math.max(6,Math.round(ph*0.011));
       const anchors=store.items.filter(it=>num.byId.has(it.id)).map(it=>({n:num.byId.get(it.id), x:(it.x+it.width/2)*PX_PER_FT*S, y:(it.y+it.height/2)*PX_PER_FT*S}));
       CF.drawBadges(ctx, CF.layoutBadges(anchors, br, {w:pw, h:ph}), br);
       CF.drawLegend(ctx, num.legend, pw, 0, panel, ph); }
@@ -3221,14 +3225,35 @@ async function captureClientImages(silent){
   const qid=currentQuoteId, vno=currentVersionNo, sig=docSig();
   const moved=()=> currentQuoteId!==qid || currentVersionNo!==vno || docSig()!==sig;
   try{
-    let b2=await planBlob({clean:true, maxW:1920});
-    if(!b2) throw new Error('Couldn’t draw the floor plan');
-    if(b2.size>3*1024*1024) b2=await planBlob({clean:true,maxW:1280});
-    let b3=null, e3=null;
-    try{ b3=window.__capture3D ? await window.__capture3D(1920) : null; }catch(e){ e3=e; }
+    // 0083: every picture in all three label styles (numbers = the original '2d' / '3d' kinds) so the
+    // client can switch None / Numbers / Names in the booklet
+    const CF=window.HelmCaptureFrame, modes=CF ? CF.LABEL_MODES.slice() : ['numbers'];
+    const kind=(base,m)=>CF ? CF.snapKind(base,m) : base;
+    const p2={}, p3={};
+    for(const m of modes){
+      let b=await planBlob({clean:true, maxW:1920, labels:m});
+      if(b && b.size>3*1024*1024) b=await planBlob({clean:true, maxW:1280, labels:m});
+      if(b) p2[m]=b;
+    }
+    if(!p2.numbers) throw new Error('Couldn’t draw the floor plan');
+    let e3=null;
+    for(const m of modes){
+      try{ const b=window.__capture3D ? await window.__capture3D(1920,{labels:m}) : null; if(b) p3[m]=b; }catch(e){ e3=e; }
+      if(moved()) return false;
+    }
+    const b3=p3.numbers||null;
+    // numbers first (the original kinds every booklet reads); the variants are best effort, so a
+    // database without 0083 still gets the original pictures
     if(moved()) return false;
-    await BPStore.booklet.uploadSnapshot(qid,'2d',b2);
+    await BPStore.booklet.uploadSnapshot(qid,'2d',p2.numbers);
     if(b3 && !moved()) await BPStore.booklet.uploadSnapshot(qid,'3d',b3);
+    for(const m of modes.filter(x=>x!=='numbers')){
+      if(moved()) break;
+      try{
+        if(p2[m]) await BPStore.booklet.uploadSnapshot(qid,kind('2d',m),p2[m]);
+        if(p3[m] && !moved()) await BPStore.booklet.uploadSnapshot(qid,kind('3d',m),p3[m]);
+      }catch(e){ console.warn('client image variant skipped'); break; }
+    }
     if(!silent) toast(b3 ? 'Client images updated (2D + 3D)' : 'Client 2D plan updated — 3D view couldn’t render');
     else if(e3) console.warn('client 3D capture skipped');
     return true;
@@ -3248,8 +3273,10 @@ async function autoCaptureIfStale(){
     const latest=vs.reduce((m,v)=>{ const t=Date.parse(v.createdAt||v.created_at||''); return isFinite(t)&&t>m?t:m; },0);
     const old=k=>!info[k] || !(Date.parse(info[k].updatedAt||'')>=latest);
     // R4-E: the checks above were async — re-verify we are still on that quote's saved latest version
+    // variants count only once this event has any (a database without 0083 never gets them)
+    const kinds=['2d','3d'].concat(['2d_none','3d_none','2d_names','3d_names'].some(k=>info[k]) ? ['2d_none','3d_none','2d_names','3d_names'] : []);
     if(currentQuoteId!==qid || isViewingOlder() || docSig()!==savedSig) return;
-    if(old('2d') || old('3d')) await captureClientImages(true);
+    if(old('2d') || old('3d') || kinds.some(old)) await captureClientImages(true);
   }catch(e){ /* best effort */ }
 }
 function importJSON(file){ return new Promise(resolve=>{

@@ -7,7 +7,7 @@ let n = 0; const t = (name, fn) => { fn(); n++; console.log('  ✓ ' + name); };
 t('builder has the capture button + clean 2D / 3D capture hooks', () => {
   assert.match(read('public/builder.html'), /id="clientImgBtn"[^>]*hidden/);
   const b = read('public/builder.js');
-  assert.match(b, /planBlob\(\{clean:true, maxW:1920\}\)/);
+  assert.match(b, /planBlob\(\{clean:true, maxW:1920, labels:m\}\)/);
   assert.match(b, /querySelectorAll\('\.margins,\.measure'\)/);
   assert.match(b, /uploadSnapshot\(qid,'3d'/);
   const d = read('public/builder-3d.js');

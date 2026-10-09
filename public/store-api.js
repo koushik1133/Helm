@@ -2406,6 +2406,7 @@ window.HelmUrl = HelmUrl;
   // Edge Function caller — used only when live channels are enabled in config.js
   // 0069 booklet share checklist keys (server validates the same list)
   const BOOKLET_SECTIONS = ["studio", "client", "venue", "menu", "layout2d", "layout3d", "quotation", "payments", "terms", "note"];
+  const SNAP_KINDS = ["2d", "3d", "2d_none", "3d_none", "2d_names", "3d_names"];
   const UUID_RE_PKG = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const fnUrl = (name) => (CFG.url ? CFG.url.replace(/\/$/, "") + "/functions/v1/" + name : null);
   async function callFn(name, body) {
@@ -7179,11 +7180,11 @@ window.HelmUrl = HelmUrl;
       revoke: (quoteId) => rpc("booklet_revoke", { p_quote_id: quoteId }),
       url: (token) => (HelmUrl.studio() ? links.base() + "/" + HelmUrl.studio() + "/booklet/" + encodeURIComponent(String(token || "")) : links.base() + "/booklet?t=" + encodeURIComponent(String(token || ""))),
       sections: () => BOOKLET_SECTIONS.slice(),
-      // 0069: 2D / 3D snapshot -> private bucket booklet-snapshots at <org>/<quote>/<kind>.<png|jpg|webp> (<= 3 MB),
+      // 0069 + 0083: 2D / 3D snapshot (and its _none / _names label variants) -> private bucket booklet-snapshots at <org>/<quote>/<kind>.<png|jpg|webp> (<= 3 MB),
       // then recorded on the live booklet link. Returns the storage path.
       uploadSnapshot: async (quoteId, kind, blob) => {
         if (!supa || mode !== "supabase") throw new Error("Snapshots need a signed-in studio.");
-        if (kind !== "2d" && kind !== "3d") throw new Error("Snapshot kind must be 2d or 3d.");
+        if (!SNAP_KINDS.includes(kind)) throw new Error("Unknown snapshot kind.");
         if (!UUID_RE_PKG.test(String(quoteId || ""))) throw new Error("Unknown event.");
         const type = String((blob && blob.type) || "");
         const ext = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" }[type];
@@ -7203,7 +7204,7 @@ window.HelmUrl = HelmUrl;
         const oid = await orgIdStrict();
         const r = await supa.storage.from("booklet-snapshots").list(oid + "/" + quoteId, { limit: 20 });
         if (r && r.error) return out;
-        ((r && r.data) || []).forEach((f) => { const m = /^(2d|3d)\.(png|jpg|webp)$/.exec(String((f && f.name) || ""));
+        ((r && r.data) || []).forEach((f) => { const m = /^((?:2d|3d)(?:_none|_names)?)\.(png|jpg|webp)$/.exec(String((f && f.name) || ""));
           if (!m) return; const t = f.updated_at || f.created_at || null;
           if (!out[m[1]] || String(t) > String(out[m[1]].updatedAt)) out[m[1]] = { path: oid + "/" + quoteId + "/" + f.name, updatedAt: t }; });
         return out;
@@ -7213,10 +7214,12 @@ window.HelmUrl = HelmUrl;
         const r = await supa.storage.from("booklet-snapshots").createSignedUrl(String(path || ""), 300);
         return r && !r.error && r.data ? r.data.signedUrl : null; },
       // R2: (re)attach an already-uploaded snapshot to the live booklet link
-      attachSnapshot: (quoteId, kind, path) => rpc("booklet_set_snapshot", { p_quote_id: quoteId, p_kind: kind === "3d" ? "3d" : "2d", p_path: path }),
+      attachSnapshot: (quoteId, kind, path) => rpc("booklet_set_snapshot", { p_quote_id: quoteId, p_kind: SNAP_KINDS.includes(kind) ? kind : "2d", p_path: path }),
       // signed-out booklet page: <img src> for a ticked snapshot (dormant edge function booklet-snapshot)
       snapshotUrl: (token, kind) => { const u = fnUrl("booklet-snapshot");
-        return u ? u + "?t=" + encodeURIComponent(String(token || "")) + "&k=" + (kind === "3d" ? "3d" : "2d") : ""; },
+        return u ? u + "?t=" + encodeURIComponent(String(token || "")) + "&k=" + (SNAP_KINDS.includes(kind) ? kind : "2d") : ""; },
+      // 0083: picture label styles. 2d / 3d = numbers (original), _none = plain, _names = name tags
+      snapshotKinds: () => SNAP_KINDS.slice(),
     },
     // 0069 - client package selection (booklet) + staff review. Before 0069 is applied (or local
     // mode) the reads return null / [] and writes reject with a friendly message.
