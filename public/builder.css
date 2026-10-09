@@ -525,3 +525,17 @@ header select.versel{max-width:220px;font-family:var(--mono)}
 .s-33fcd4c:not(#_):not(#_):not(#_){gap:8px}
 .s-97445a8:not(#_):not(#_):not(#_){flex:1}
 /* END generated: inline-style classes */
+
+/* ---------- collapsible side panels (desktop; ≤720px uses the drawers above) ---------- */
+aside.left,aside.right{transition:width .22s ease,border-width .22s ease}
+aside.left.collapsed,aside.right.collapsed{width:0;border-width:0;overflow:hidden}
+.ptoggle{position:absolute;z-index:12;width:18px;height:40px;padding:0;display:flex;align-items:center;justify-content:center;
+  background:var(--panel);color:var(--ink-2,var(--ink));border:1px solid var(--line);font:600 16px/1 inherit;cursor:pointer;
+  box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.ptoggle:hover{color:var(--accent)}
+.ptoggle:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.ptoggle-l{left:0;top:30px;border-left:0;border-radius:0 8px 8px 0}
+.ptoggle-r{right:0;top:30px;border-right:0;border-radius:8px 0 0 8px}
+@media (max-width:720px){ .ptoggle{display:none} aside.left.collapsed,aside.right.collapsed{width:min(280px,86vw);border-width:revert;overflow:visible} aside.right.collapsed{width:min(320px,92vw)} }
+@media (prefers-reduced-motion:reduce){ aside.left,aside.right{transition:none} }
+.pricebox .q.nocat{color:#b45309;font-weight:600}

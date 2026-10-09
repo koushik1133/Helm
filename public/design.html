@@ -85,7 +85,8 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="store-api.js?v=138"></script>
+<script src="event-name.js?v=1"></script>
+<script src="store-api.js?v=140"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -196,7 +197,7 @@
     try{ items=await D.queue(); }
     catch(e){ if(backendMissing(e)){ showGate("The Design Studio isn't set up on this environment yet (design tables/functions not deployed)."); return; }
       BPUI.loadError(host, e, loadQueue, {what:"the design queue"}); return; }
-    if(!items || !items.length){ host.innerHTML=`<div class="empty">No active designs. Open an event from <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a> to start one.</div>`; return; }
+    if(!items || !items.length){ host.innerHTML=`<div class="empty"><p><b>No events are in design review yet.</b></p><p>The Design Studio tracks each event's floor plan through draft → client review → locked. An event appears here once you design its floor in the builder.</p><p><a class="btn" href="builder.html">Open floor builder</a> <a class="btn" href="quotes.html">Pick an event from Quotes</a></p></div>`; return; }
     host.innerHTML=items.map(it=>{
       const st=it.state, pill=st==='locked'?'done':(st==='revise'?'rev':'');
       return `<a class="qrow" href="design.html?quote=${encodeURIComponent(it.quote_id)}">

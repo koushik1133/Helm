@@ -160,6 +160,22 @@ function unitPrice(type){
   if(DEFAULT_PRICES[type]!=null) return DEFAULT_PRICES[type];
   const a=ASSETS[type]; return (a && CAT_BASE_PRICE[a.category]) || 3000;
 }
+// Past layouts are always re-priced from the CURRENT Control Center catalog:
+// strip any price-like fields an old layout may carry so nothing stale can
+// leak into the breakdown (pricing is computed by type from PRICING.assetPrices).
+const STALE_PRICE_KEYS = ['price','unitPrice','unit_price','cost','rate','amount'];
+function stripStalePrices(items){
+  return (items||[]).map(it=>{
+    if(!it || typeof it!=='object') return it;
+    const c=Object.assign({}, it);
+    STALE_PRICE_KEYS.forEach(k=>{ delete c[k]; });
+    if(c.properties && typeof c.properties==='object'){
+      c.properties=Object.assign({}, c.properties); STALE_PRICE_KEYS.forEach(k=>{ delete c.properties[k]; }); }
+    return c;
+  });
+}
+// true when the Control Center catalog has a live rate for this object type
+function inCatalog(type, assetPrices){ return !!(assetPrices && assetPrices[type]!=null); }
 // runtime pricing config (loaded from Control Centre in init)
 // chairPrice/platePrice/gstPct/layoutBase/serviceChargePct/assetPrices = rates;
 // menuPlatePrice/menuPackageName/guests = the current event's menu + headcount.
@@ -295,7 +311,8 @@ function renderPrice(){
     rows+=`<div class="prow"><span>Catering${PRICING.menuPackageName?' <span class="q">'+esc(PRICING.menuPackageName)+'</span>':''} <span class="q">${m.guests} × ${inr(m.platePrice)}</span></span><span class="amt">${inr(m.cateringCost)}</span></div>`;
   (m.objectLines||[]).forEach(l=>{
     const label=ASSETS[l.type]?ASSETS[l.type].label:l.type;
-    rows+=`<div class="prow"><span>${esc(label)} <span class="q">${l.qty>1?l.qty+' × '+inr(l.unit):inr(l.unit)}</span></span><span class="amt">${inr(l.cost)}</span></div>`;
+    const flag = (PRICING.assetPrices && !inCatalog(l.type, PRICING.assetPrices)) ? ' <span class="q nocat" title="No rate for this item in Control Center — using a default price">price not in catalog</span>' : '';
+    rows+=`<div class="prow"><span>${esc(label)} <span class="q">${l.qty>1?l.qty+' × '+inr(l.unit):inr(l.unit)}</span>${flag}</span><span class="amt">${inr(l.cost)}</span></div>`;
   });
   if(m.layoutBase>0) rows+=`<div class="prow"><span>Layout &amp; setup</span><span class="amt">${inr(m.layoutBase)}</span></div>`;
   if(m.serviceCharge>0) rows+=`<div class="prow"><span>Service <span class="q">${m.svcPct}%</span></span><span class="amt">${inr(m.serviceCharge)}</span></div>`;
@@ -2516,6 +2533,38 @@ $('#preset').addEventListener('change',async e=>{
   loadTemplate(v);
   e.target.value='';
 });
+/* ---- collapsible side panels: arrow tab at the panel edge, state per user ---- */
+function initPanelToggles(){
+  const key=()=>'bps.panels.'+((()=>{ try{ const u=BPStore.auth.user(); return u&&u.id?String(u.id):'anon'; }catch{ return 'anon'; } })());
+  let st={}; try{ st=JSON.parse(localStorage.getItem(key())||'{}')||{}; }catch{ st={}; }
+  const defs=[
+    { btn:'#leftToggle',  panel:'#leftPanel',  side:'l', name:'asset toolbox' },
+    { btn:'#rightToggle', panel:'#rightPanel', side:'r', name:'price & inspector panel' },
+  ];
+  const kick=()=>{ try{ window.dispatchEvent(new Event('resize')); }catch{} };
+  const apply=(d, collapsed, animate)=>{
+    const b=$(d.btn), p=$(d.panel); if(!b||!p) return;
+    p.classList.toggle('collapsed', collapsed);
+    b.setAttribute('aria-expanded', String(!collapsed));
+    const label=(collapsed?'Expand ':'Collapse ')+d.name;
+    b.setAttribute('aria-label', label); b.title=label;
+    // left: ‹ open / › closed — right is mirrored
+    b.textContent = d.side==='l' ? (collapsed?'›':'‹') : (collapsed?'‹':'›');
+    if(!animate) kick();
+  };
+  defs.forEach(d=>{
+    const b=$(d.btn), p=$(d.panel); if(!b||!p) return;
+    apply(d, !!st[d.side], false);
+    p.addEventListener('transitionend', e=>{ if(e.target===p && e.propertyName==='width') kick(); });
+    b.addEventListener('click', ()=>{
+      const collapsed=!p.classList.contains('collapsed');
+      apply(d, collapsed, true);
+      st[d.side]=collapsed; try{ localStorage.setItem(key(), JSON.stringify(st)); }catch{}
+      setTimeout(kick, 260);   // fallback if transitions are disabled
+    });
+  });
+}
+
 /* ---- Past-events reference browser: load a previous event's saved layout ---- */
 async function populateRefEvents(){
   const sel=$('#refEvents'); if(!sel) return;
@@ -2541,8 +2590,8 @@ $('#refEvents').addEventListener('change', async (e)=>{
     const ver=await BPStore.quotes.getVersion(qid, q.currentVersion);
     const items=(ver && ver.data && ver.data.items)||[];
     if(!items.length){ toast('That event has no saved layout.'); e.target.value=''; return; }
-    loadItems(items, 'Ref: '+(q.code||'past event'));
-    toast('Loaded layout from '+(q.code||'past event'));
+    loadItems(stripStalePrices(items), 'Ref: '+(q.code||'past event'));
+    toast('Loaded layout from '+(q.code||'past event')+' · Prices updated to current rates');
   }catch(err){ toast('Could not load that layout'); }
   e.target.value='';
 });
@@ -2792,6 +2841,7 @@ async function saveLayout(silent, opts){
       clearDraft();
       updateQuoteBadge();
       syncQuotePricing();                       // keep the stored quote total in step with the layout
+      setTimeout(()=>{ autoCaptureIfStale(); }, 400);   // R2: keep the client booklet images in step
       if(silent){ if(btn){ btn.textContent='✓ v'+currentVersionNo; clearTimeout(saveBtnT); saveBtnT=setTimeout(()=>{ btn.innerHTML='💾 Save'; },1500); } }
       else toast(fromOlder ? 'Saved as V'+currentVersionNo+' (new latest) — V'+fromNo+' is unchanged' : 'Saved version '+currentVersionNo);
     } else {
@@ -2814,6 +2864,7 @@ async function saveLayout(silent, opts){
   finally{ saving=false; if(btn) btn.disabled=false; }
 }
 function updateQuoteBadge(){
+  { const cb=document.getElementById('clientImgBtn'); if(cb) cb.hidden=!clientImagesSupported(); }
   const el=$('#quoteBadge'); if(!el) return;
   if(currentQuoteId && currentQuoteCode){ el.hidden=false; el.textContent=quoteBadgeText(); }
   else el.hidden=true;
@@ -3064,8 +3115,11 @@ function exportJSON(){
 }
 /* clone the live SVG, resolve every CSS-variable / color-mix paint to a concrete
    value from getComputedStyle so the standalone raster matches the screen. */
-function exportPNG(){ return new Promise(resolve=>{
-  const wasSel=store.selectedIds.slice(); setSelection([]); renderAll();  // hide handles
+/* render the plan SVG to a PNG blob. o.clean (client images): no grid, margins, measurements or
+   selection — only the hall and its objects; o.maxW caps the raster width. State is restored. */
+function planBlob(o){ o=o||{}; return new Promise(resolve=>{
+  const wasSel=store.selectedIds.slice(), wasGrid=store.grid.show, wasMeasure=showMeasure;
+  setSelection([]); if(o.clean){ store.grid.show=false; showMeasure=false; } renderAll();  // hide handles
   const live=svg, clone=live.cloneNode(true);
   const liveNodes=live.querySelectorAll('*'), cloneNodes=clone.querySelectorAll('*');
   for(let i=0;i<liveNodes.length;i++){
@@ -3077,7 +3131,9 @@ function exportPNG(){ return new Promise(resolve=>{
       cn.setAttribute('font-size',cs.fontSize); cn.setAttribute('font-weight',cs.fontWeight);
       cn.removeAttribute('stroke'); }
   }
-  const W=WORLD.w*PX_PER_FT, H=WORLD.h*PX_PER_FT, S=2;
+  if(o.clean) clone.querySelectorAll('.margins,.measure').forEach(n=>n.remove());
+  const restore=()=>{ store.grid.show=wasGrid; showMeasure=wasMeasure; setSelection(wasSel); renderAll(); };
+  const W=WORLD.w*PX_PER_FT, H=WORLD.h*PX_PER_FT, S=o.maxW ? Math.min(4, o.maxW/W) : 2;
   clone.setAttribute('width',W*S); clone.setAttribute('height',H*S);
   clone.insertBefore(el('rect',{x:0,y:0,width:W,height:H,
     fill:(getComputedStyle(document.body).getPropertyValue('--canvas').trim()||'#fff')}), clone.firstChild);
@@ -3085,17 +3141,56 @@ function exportPNG(){ return new Promise(resolve=>{
   const svgStr=new XMLSerializer().serializeToString(clone).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
   const img=new Image();
   img.onload=()=>{
-    const cv=document.createElement('canvas'); cv.width=W*S; cv.height=H*S;
+    const cv=document.createElement('canvas'); cv.width=Math.round(W*S); cv.height=Math.round(H*S);
     const ctx=cv.getContext('2d');
     ctx.fillStyle=(getComputedStyle(document.body).getPropertyValue('--canvas').trim()||'#fff');
-    ctx.fillRect(0,0,cv.width,cv.height); ctx.drawImage(img,0,0,W*S,H*S);
-    cv.toBlob(b=>{ if(!b){ BPUI.toast('PNG export failed',{type:'err'}); resolve(); return; } const name=($('#projName').value||'layout').trim().replace(/[^\w.-]+/g,'_');
-      download(name+'.png', b); toast('PNG downloaded'); resolve(); });
-    setSelection(wasSel); renderAll();
+    ctx.fillRect(0,0,cv.width,cv.height); ctx.drawImage(img,0,0,cv.width,cv.height);
+    restore(); cv.toBlob(b=>resolve(b||null),'image/png');
   };
-  img.onerror=()=>{ setSelection(wasSel); renderAll(); BPUI.toast('PNG export failed',{type:'err'}); resolve(); };
+  img.onerror=()=>{ restore(); resolve(null); };
   img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svgStr);
 }); }
+async function exportPNG(){
+  const b=await planBlob();
+  if(!b){ BPUI.toast('PNG export failed',{type:'err'}); return; }
+  const name=($('#projName').value||'layout').trim().replace(/[^\w.-]+/g,'_');
+  download(name+'.png', b); toast('PNG downloaded');
+}
+
+/* ---- R2: client booklet images (real 2D plan + 3D render) ----
+   Uploaded to the tenant-scoped booklet-snapshots bucket (<org>/<quote>/2d.png, 3d.jpg) via
+   BPStore.booklet.uploadSnapshot, which also attaches them to the live booklet link. */
+function clientImagesSupported(){ return !!(currentQuoteId && !RO && BPStore.mode && BPStore.mode()==='supabase' && BPStore.booklet && BPStore.booklet.uploadSnapshot); }
+let clientImgBusy=false;
+async function captureClientImages(silent){
+  if(!clientImagesSupported() || clientImgBusy || !store.items.length) return false;
+  clientImgBusy=true;
+  try{
+    const b2=await planBlob({clean:true, maxW:1920});
+    if(!b2) throw new Error('Couldn’t draw the floor plan');
+    let b3=null, e3=null;
+    try{ b3=window.__capture3D ? await window.__capture3D(1920) : null; }catch(e){ e3=e; }
+    await BPStore.booklet.uploadSnapshot(currentQuoteId,'2d',b2.size>3*1024*1024 ? await planBlob({clean:true,maxW:1280}) : b2);
+    if(b3) await BPStore.booklet.uploadSnapshot(currentQuoteId,'3d',b3);
+    if(!silent) toast(b3 ? 'Client images updated (2D + 3D)' : 'Client 2D plan updated — 3D view couldn’t render');
+    else if(e3) console.warn('client 3D capture skipped');
+    return true;
+  }catch(e){ if(!silent) BPUI.toast(BPUI.friendlyError(e,{action:'update the client images'}),{type:'err'}); return false; }
+  finally{ clientImgBusy=false; }
+}
+// after a save (or on open): recapture when a booklet link is live and its images are missing / older than the latest version
+async function autoCaptureIfStale(){
+  if(!clientImagesSupported() || !store.items.length || isViewingOlder() || docSig()!==savedSig) return;   // only the saved latest version
+  try{
+    const cur=await BPStore.booklet.current(currentQuoteId);
+    if(!cur || !cur.token || cur.revoked_at) return;
+    const info=await BPStore.booklet.snapshotInfo(currentQuoteId);
+    const vs=await BPStore.quotes.versions(currentQuoteId)||[];
+    const latest=vs.reduce((m,v)=>{ const t=Date.parse(v.createdAt||v.created_at||''); return isFinite(t)&&t>m?t:m; },0);
+    const old=k=>!info[k] || !(Date.parse(info[k].updatedAt||'')>=latest);
+    if(old('2d') || old('3d')) await captureClientImages(true);
+  }catch(e){ /* best effort */ }
+}
 function importJSON(file){ return new Promise(resolve=>{
   const bad=()=>{ BPUI.toast('That file isn’t a valid layout JSON.',{type:'err'}); resolve(false); };
   if(file && file.size>MAX_IMPORT_BYTES){ BPUI.toast('That file is too large to import (limit '+Math.round(MAX_IMPORT_BYTES/1048576)+' MB).',{type:'err'}); resolve(false); return; }
@@ -3166,6 +3261,7 @@ document.addEventListener('click',e=>{ document.querySelectorAll('header details
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') document.querySelectorAll('header details.hmenu[open]').forEach(d=>{ d.open=false; d.querySelector('summary')?.focus(); }); });
 $('#loadModal').addEventListener('click',e=>{ if(e.target.id==='loadModal') closeLoadModal(); });
 $('#exportBtn').addEventListener('click',()=>{ BPUI.guard($('#exportBtn'), exportPNG,{busyLabel:'Exporting…'}).catch(()=>{}); });
+$('#clientImgBtn').addEventListener('click',()=>{ BPUI.guard($('#clientImgBtn'), ()=>captureClientImages(false),{busyLabel:'Capturing…'}).catch(()=>{}); });
 $('#jsonBtn').addEventListener('click',()=>{ BPUI.guard($('#jsonBtn'), async()=>exportJSON()).catch(()=>{}); });
 $('#importBtn').addEventListener('click',async()=>{
   if(!(await BPUI.confirmDiscard(dirty,{message:'You have unsaved changes on this floor. Importing a file will replace them.'}))) return;
@@ -3206,6 +3302,7 @@ async function init(){
   fitView();
   window.addEventListener('resize',()=>{ renderRulers(); });
   await initStore();
+  initPanelToggles();   // after initStore so the saved state is per signed-in user
   // load pricing rates from the Control Centre (fallbacks stay if unavailable)
   try{
     const pc = await BPStore.config.getPricing();
@@ -3283,6 +3380,7 @@ async function init(){
       if(q.status==='confirmed'){ const b=$('#quoteBadge'); if(b) b.classList.add('confirmed'); }
       toast('Opened '+q.code+' · v'+currentVersionNo);
       await offerDraftRestore();
+      setTimeout(()=>{ autoCaptureIfStale(); }, 2500);   // R2: refresh stale client booklet images
     }catch(e){
       // The quote didn't fully load: unbind it and lock the builder so a Save can never write an
       // empty layout over a real quote (which would also zero its pricing).

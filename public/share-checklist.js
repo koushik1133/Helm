@@ -35,6 +35,12 @@
     return out;
   }
   function fitSize(w, h, max) { max = max || MAX_W; w = Math.max(1, Number(w) || 1); h = Math.max(1, Number(h) || 1); if (w <= max) return { w: Math.round(w), h: Math.round(h) }; return { w: max, h: Math.round(h * max / w) }; }
+  // a stored image is usable when it was written at/after the newest saved layout version
+  function freshEnough(updatedAt, versions) {
+    const t = Date.parse(updatedAt || ""); if (!isFinite(t)) return false;
+    let latest = 0; (versions || []).forEach((v) => { const x = Date.parse((v && (v.createdAt || v.created_at)) || ""); if (isFinite(x) && x > latest) latest = x; });
+    return t >= latest;
+  }
   function quoteIdFor(n) {
     const q = n && n.getAttribute("data-quote");
     if (q && UUID_RE.test(q)) return q;
@@ -117,19 +123,33 @@
       const box = el("figure", "sc-thumb");
       if (s && s.url) { const img = el("img"); img.setAttribute("src", s.url); img.setAttribute("alt", (kind === "2d" ? "2D floor plan" : "3D view") + " screenshot"); box.appendChild(img); }
       else box.appendChild(el("p", "sc-meta", s && s.busy ? "Capturing…" : s && s.error ? s.error : "No screenshot yet"));
+      if (s && s.rough) box.appendChild(el("p", "sc-meta", "Quick sketch — for a real picture open the builder and press “Update client images”."));
       const cap = el("figcaption"); cap.appendChild(el("span", "", kind === "2d" ? "2D floor plan" : "3D view"));
       const rt = btn("sc-btn ghost", s && s.url ? "Retake" : "Capture"); rt.setAttribute("aria-label", (s && s.url ? "Retake " : "Capture ") + (kind === "2d" ? "2D floor plan" : "3D view") + " screenshot");
-      rt.disabled = !!(s && s.busy); rt.addEventListener("click", () => take(kind)); cap.appendChild(rt); box.appendChild(cap);
+      rt.disabled = !!(s && s.busy); rt.addEventListener("click", () => take(kind, !!(s && s.stored))); cap.appendChild(rt); box.appendChild(cap);
       return box;
     }
-    async function take(kind) {
+    // R2: the builder's real renders (📸 Update client images) win when they're at least as new as the latest layout version
+    async function stored(kind) {
+      const B = global.BPStore && global.BPStore.booklet;
+      if (!B || !B.snapshotInfo) return null;
+      try {
+        const info = await B.snapshotInfo(quoteId), s = info && info[kind]; if (!s || !s.path) return null;
+        const vs = (await global.BPStore.quotes.versions(quoteId)) || [];
+        if (!freshEnough(s.updatedAt, vs)) return null;
+        const url = B.snapshotPreview ? await B.snapshotPreview(s.path) : null;
+        return url ? { path: s.path, url: url, uploaded: true, stored: true } : null;
+      } catch (e) { return null; }
+    }
+    async function take(kind, force) {
       const k = kind === "2d" ? "layout2d" : "layout3d";
       const old = state.snaps[k]; state.snaps[k] = { busy: true }; refresh();
+      if (!force) { const st = await stored(kind); if (st) { state.snaps[k] = st; refresh(); return; } }
       try {
         const blob = await capture(kind, quoteId);
         if (!blob) throw new Error("Couldn't capture the screenshot");
-        if (old && old.url) { try { global.URL.revokeObjectURL(old.url); } catch (e) {} }
-        state.snaps[k] = { blob: blob, url: global.URL.createObjectURL(blob), uploaded: false };
+        if (old && old.url && !old.stored) { try { global.URL.revokeObjectURL(old.url); } catch (e) {} }
+        state.snaps[k] = { blob: blob, url: global.URL.createObjectURL(blob), uploaded: false, rough: true };
       } catch (e) { state.snaps[k] = { error: String((e && e.message) || "Couldn't capture").slice(0, 120) }; }
       refresh();
     }
@@ -154,7 +174,15 @@
           const s = state.snaps[k];
           if (!state.sections[k] || !s || !s.blob || s.uploaded) continue;
           if (typeof up !== "function") throw new Error("Screenshot upload isn't available yet — untick the screenshots or try again later.");
-          await up(quoteId, k === "layout2d" ? "2d" : "3d", s.blob); s.uploaded = true;
+          s.path = await up(quoteId, k === "layout2d" ? "2d" : "3d", s.blob); s.uploaded = true;
+        }
+      },
+      // R2: after the link exists, point it at the uploaded / builder images (a first share has no row to update before)
+      async attachSnapshots() {
+        const B = global.BPStore.booklet; if (!B || !B.attachSnapshot) return;
+        for (const k of ["layout2d", "layout3d"]) {
+          const s = state.snaps[k]; if (!state.sections[k] || !s || !s.path) continue;
+          try { await B.attachSnapshot(quoteId, k === "layout2d" ? "2d" : "3d", s.path); } catch (e) {}
         }
       },
     };
@@ -207,6 +235,7 @@
       try {
         await ck.uploadSnapshots();
         await st.booklet.share(quoteId, sharePayload({ days: days.value, versions: cur && cur.shared_versions, note: note.value.trim(), terms: (cur && cur.terms) || "", sections: ck.sections() }));
+        await ck.attachSnapshots();
         toast("Booklet link ready");
         try { cur = await st.booklet.current(quoteId); } catch (e) {}
         showLive(cur); go.textContent = "Update client booklet link";
@@ -222,7 +251,7 @@
     cards.forEach((c) => { if (!can) { c.hidden = true; return; } if (c.dataset.scWired) return; c.dataset.scWired = "1"; c.hidden = false; renderCard(c).catch(() => {}); });
   }
 
-  global.HelmShareChecklist = { mount, wire, normalize, menuRule, preview, fitSize, sharePayload, capture, SECTIONS };
+  global.HelmShareChecklist = { mount, wire, normalize, menuRule, preview, fitSize, sharePayload, capture, freshEnough, SECTIONS };
   if (doc && doc.querySelector("[data-share-checklist]")) {
     if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", wire); else wire();
   }

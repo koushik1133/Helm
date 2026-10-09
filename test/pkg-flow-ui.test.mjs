@@ -383,8 +383,8 @@ await t('final contract: mode selected/hidden, choose error hints, review outcom
   await t('share checklist wired on flow.html + Share booklet dialog', () => {
     const f = read('public/flow.html');
     assert.ok(f.indexOf('id="sec-share"') > f.indexOf('id="sec-pay"') && f.indexOf('id="sec-share"') < f.indexOf('id="sec-activity"'));
-    assert.match(f, /share-checklist\.js\?v=2/); assert.match(f, /share-checklist\.css\?v=1/);
-    for (const p of ['public/event.html', 'public/client.html']) assert.match(read(p), /share-checklist\.js\?v=2[\s\S]*booklet-share\.js/, p);
+    assert.match(f, /share-checklist\.js\?v=3/); assert.match(f, /share-checklist\.css\?v=1/);
+    for (const p of ['public/event.html', 'public/client.html']) assert.match(read(p), /share-checklist\.js\?v=3[\s\S]*booklet-share\.js/, p);
     assert.match(read('public/booklet-share.js'), /HelmShareChecklist\.mount\(form/);
     assert.doesNotMatch(read('public/share-checklist.js'), /\.innerHTML|\.outerHTML|insertAdjacentHTML|document\.write/);
   });

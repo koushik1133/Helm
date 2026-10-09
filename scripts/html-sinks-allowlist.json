@@ -148,6 +148,18 @@
   {
    "name": "clampStars",
    "why": "integer 0..5"
+  },
+  {
+   "name": "kpi",
+   "why": "insights (0076): n / l / h / cls are each esc()'d inside the template"
+  },
+  {
+   "name": "changeCell",
+   "why": "audit (0076): esc(describe(...)) or renderChange (itself a reviewed helper)"
+  },
+  {
+   "name": "eventCell",
+   "why": "audit (0076): encodeURIComponent(quote_id), esc(code/title)"
   }
  ],
  "sites": [
@@ -530,11 +542,6 @@
    "file": "public/flow.html",
    "expr": "waText",
    "why": "encodeURIComponent(...) — URL-encoded, no HTML metacharacters"
-  },
-  {
-   "file": "public/insights.html",
-   "expr": "(opts.empty||\"Nothing yet.\")",
-   "why": "opts.empty is a literal passed by each caller"
   },
   {
    "file": "public/inventory.html",

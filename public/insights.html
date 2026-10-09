@@ -51,6 +51,28 @@
   .lsheet .lclose{position:absolute;top:10px;right:10px;width:32px;height:32px;border:1px solid var(--line);background:var(--panel);border-radius:8px;cursor:pointer;color:var(--ink-2);font-size:15px}
   @media(max-width:480px){.wrap{padding:0 16px 48px} header{flex-wrap:wrap} .nav{margin-left:0;flex-wrap:wrap} .bar .lb{width:90px} .bar .v{width:auto;min-width:52px} .kpi .n{font-size:18px}}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
+  .rb{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;margin-bottom:16px;display:flex;flex-direction:column;gap:10px}
+  .rb-chips{display:flex;flex-wrap:wrap;gap:6px}
+  .rb-chip{min-height:34px;padding:0 12px;border:1px solid var(--line);background:var(--panel-2);border-radius:20px;font:inherit;font-size:12px;font-weight:600;color:var(--ink-2);cursor:pointer}
+  .rb-chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+  .rb-custom{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px}
+  .rb-f{display:flex;flex-direction:column;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--ink-3);gap:3px}
+  .rb-f input{height:36px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 10px;font:inherit;color:var(--ink)}
+  .rb-apply{min-height:36px;padding:0 16px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:inherit;font-weight:700;cursor:pointer}
+  .rb-err{color:#b42318;font-size:12px} .rb-label{font-size:12px;color:var(--ink-3);font-weight:600}
+  .kpi .h{font-size:11px;color:var(--ink-3);margin-top:3px}
+  .split{height:14px;border-radius:7px;overflow:hidden;display:flex;background:var(--panel-2);border:1px solid var(--line-2);margin:8px 0}
+  .split .a{background:var(--safe)} .split .b{background:var(--warn)}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)} .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .legend .la{background:var(--safe)} .legend .lb2{background:var(--warn)}
+  .fill.c-accent{background:var(--accent)} .fill.c-bad{background:var(--bad)} .fill.c-safe{background:var(--safe)} .fill.c-warn{background:var(--warn)}
+  .staff{width:100%;border-collapse:collapse;font-size:13px}
+  .staff th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);padding:6px 8px;border-bottom:1px solid var(--line)}
+  .staff td{padding:8px;border-bottom:1px solid var(--line-2);vertical-align:top} .staff td.n{font-family:var(--mono);text-align:right}
+  .staff button.who{border:0;background:none;padding:0;font:inherit;font-weight:600;color:var(--ink);cursor:pointer;text-align:left}
+  .staff button.who:hover{color:var(--accent)} .staff .tag{font-size:10px;font-weight:700;text-transform:uppercase;padding:2px 6px;border-radius:10px;background:var(--accent-soft);color:var(--accent);margin-left:6px}
+  .drill{margin:6px 0 2px;padding:0;list-style:none;font-size:12px} .drill li{padding:3px 0;color:var(--ink-2)} .drill a{color:var(--accent);font-weight:600}
+  .note{font-size:12px;color:var(--ink-3);margin:-6px 0 14px}
 </style>
 <link rel="stylesheet" href="theme.css?v=76">
 </head>
@@ -72,10 +94,35 @@
   <div id="noaccess" class="card" hidden><p class="muted">Your role doesn't have access to insights.</p></div>
 
   <div id="app" hidden>
-    <h2>Post-event insights</h2>
-    <p class="sub">Where things slip, what walks off, and how your margins trend — across every event.</p>
+    <h2>Insights</h2>
+    <p class="sub">How the studio is doing for the dates you pick — events, money, the team, and where things slip.</p>
 
-    <div class="kpis" id="kpis"></div>
+    <div id="rangeBar"></div>
+    <div id="rangeErr"></div>
+
+    <h3>📅 Events in this period</h3>
+    <div class="kpis" id="evKpis"></div>
+
+    <div id="moneyWrap" hidden>
+      <h3>💰 Money (confirmed events in this period)</h3>
+      <div class="kpis" id="moneyKpis"></div>
+      <div class="card">
+        <h3>Collected vs outstanding</h3>
+        <div id="collect"></div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>🏷 Top event types</h3>
+        <div id="types"></div>
+      </div>
+      <div class="card">
+        <h3>👷 Team participation</h3>
+        <p class="note">Events each person worked on (tasks assigned, or event manager). Click a name for the list.</p>
+        <div id="staff"></div>
+      </div>
+    </div>
 
     <div class="grid2">
       <div class="card">
@@ -100,7 +147,7 @@
     </div>
 
     <div class="card" id="marginCard">
-      <h3>💰 Margin trend (closed events)</h3>
+      <h3>📈 Margin trend (closed events)</h3>
       <div id="margins"></div>
     </div>
   </div>
@@ -122,12 +169,15 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="store-api.js?v=138"></script>
+<script src="event-name.js?v=1"></script>
+<script src="store-api.js?v=140"></script>
+<script src="range-bar.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const inr=(n)=>"₹"+Math.round(Number(n||0)).toLocaleString("en-IN");
-  let canFin=false;
+  const pct=(n)=>n==null?"—":n+"%";
+  let canFin=false, range=null, seq=0;
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   function closeLogin(){ $("#loginModal").hidden=true; $("#li_err").hidden=true; }
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
@@ -136,61 +186,77 @@
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";});
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(HelmUrl.here()))); } }
 
-  function bars(host, rows, opts){ opts=opts||{}; const el=$("#"+host);
-    if(!rows.length){ el.innerHTML='<div class="empty">'+(opts.empty||"Nothing yet.")+'</div>'; return; }
-    const max=Math.max(...rows.map(r=>r.value),1);
+  // bar rows: widths are set through the CSSOM after render (CSP: no style= attributes)
+  const COLORS={accent:1,bad:1,safe:1,warn:1};
+  function bars(host, rows, empty){ const el=$("#"+host);
+    if(!rows.length){ el.innerHTML='<div class="empty">'+esc(empty||"Nothing yet.")+'</div>'; return; }
+    const max=Math.max(...rows.map(r=>Math.abs(r.value)),1);
     el.innerHTML=rows.map(r=>`<div class="bar"><span class="lb" title="${esc(r.label)}">${esc(r.label)}</span>
-      <span class="track"><span class="fill" style="width:${Math.max(4,Math.round(r.value/max*100))}%;background:${esc(r.color||'var(--accent)')}"></span></span>
-      <span class="v">${esc(r.text!=null?r.text:r.value)}</span></div>`).join("");
+      <span class="track"><span class="fill c-${COLORS[r.color]?esc(r.color):"accent"}"></span></span>
+      <span class="v ${esc(r.cls||"")}">${esc(r.text!=null?r.text:r.value)}</span></div>`).join("");
+    el.querySelectorAll(".fill").forEach((f,i)=>{ f.style.width=Math.max(4,Math.round(Math.abs(rows[i].value)/max*100))+"%"; });
   }
+  function kpi(n,l,h,cls){ return `<div class="kpi"><div class="n ${esc(cls||"")}">${esc(n)}</div><div class="l">${esc(l)}</div>${h?`<div class="h">${esc(h)}</div>`:""}</div>`; }
 
   async function load(){
     await BPStore.init(); await renderAccount();
     try{ await BPStore.bell.mount($("#bell")); }catch{}
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
-    const role=await BPStore.auth.role();
-    const ok = ["admin","manager","planner"].includes(role) || await BPStore.auth.canView("controls");
-    if(!ok){ $("#noaccess").hidden=false; return; }
+    // 0076: the "insights" area of the access matrix (admins always) — same rule as the server
+    if(!(await BPStore.auth.canView("insights"))){ $("#noaccess").hidden=false; return; }
+    canFin=await BPStore.auth.canView("finance");
     $("#app").hidden=false;
-    // finance flag and the summary are independent — fetch together, keeping summary's null-on-error handling
-    const [finRes, dRes] = await Promise.allSettled([BPStore.auth.canView("finance"), BPStore.insights.summary()]);
-    if(finRes.status==="rejected") throw finRes.reason;   // preserve original propagation
-    canFin = finRes.value;
-    const d = dRes.status==="fulfilled" ? dRes.value : null;
-    if(!d){ showLoadError(dRes.status==="rejected"?dRes.reason:new Error("No data returned")); return; }
-    render(d);
+    if(!canFin) $("#marginCard").hidden=true;
+    HelmRange.mount($("#rangeBar"),{ storeKey:"helm_range_insights", defaultKey:"this_month", onChange:(r)=>{ range=r; refresh(); } });
   }
-  function showLoadError(err){
-    ["#vendors","#tasks","#lossItem","#lossMonth","#margins"].forEach(h=>{ $(h).innerHTML='<div class="empty">—</div>'; });
-    BPUI.loadError($("#kpis"),err,retrySummary,{what:"insights"});
-    const c=$("#kpis .bpui-loaderr"); if(c) c.style.gridColumn="1/-1";
+  async function refresh(){
+    const my=++seq, r=range; if(!r) return;
+    $("#rangeErr").innerHTML="";
+    ["#evKpis","#types","#staff","#vendors","#tasks","#lossItem","#lossMonth","#margins"].forEach(h=>{ $(h).innerHTML='<div class="empty">Loading…</div>'; });
+    const [rangeRes, sumRes]=await Promise.allSettled([BPStore.insights.range(r.from,r.to), BPStore.insights.summary({from:r.from,to:r.to})]);
+    if(my!==seq) return;   // a newer range was picked meanwhile
+    if(rangeRes.status==="fulfilled" && rangeRes.value) renderRange(rangeRes.value);
+    else { ["#evKpis","#types","#staff"].forEach(h=>{ $(h).innerHTML='<div class="empty">—</div>'; }); $("#moneyWrap").hidden=true;
+      BPUI.loadError($("#rangeErr"), rangeRes.reason||new Error("No data returned"), refresh, {what:"insights for this period"}); }
+    if(sumRes.status==="fulfilled" && sumRes.value) renderSummary(sumRes.value);
+    else ["#vendors","#tasks","#lossItem","#lossMonth","#margins"].forEach(h=>{ $(h).innerHTML='<div class="empty">Couldn’t load — try again.</div>'; });
   }
-  async function retrySummary(){ const d=await BPStore.insights.summary(); if(!d) throw new Error("No data returned"); render(d); }
-  function render(d){
-    const totalRejects=d.taskSlips.reduce((a,c)=>a+c.rejected,0);
-    $("#kpis").innerHTML=`
-      <div class="kpi"><div class="n">${d.vendors.length}</div><div class="l">Vendors tracked</div></div>
-      <div class="kpi"><div class="n">${esc(totalRejects)}</div><div class="l">QC rejections</div></div>
-      <div class="kpi"><div class="n">${esc(d.losses.total)}</div><div class="l">Items lost / not returned</div></div>
-      <div class="kpi"><div class="n ${d.margins.totalProfit>=0?'pos':'neg'}">${canFin?inr(d.margins.totalProfit):'—'}</div><div class="l">Profit · ${d.margins.events.length} closed</div></div>`;
-    // vendor reliability — bar = reject rate
-    bars("vendors", d.vendors.slice(0,8).map(v=>({label:v.name, value:v.rejectRate,
-      text:`${v.rejected}/${v.total} · ${v.rejectRate}%`, color:v.rejectRate>0?'var(--bad)':'var(--safe)'})),
-      {empty:"No outsourced tasks yet."});
-    // task rejections by section
-    bars("tasks", d.taskSlips.slice(0,8).map(c=>({label:c.category, value:c.rejected,
-      text:`${c.rejected} (${c.rejectRate}%)`, color:'var(--warn)'})), {empty:"No rejections — clean record."});
-    // losses by item / month
-    bars("lossItem", d.losses.byItem.slice(0,8).map(i=>({label:i.name, value:i.qty, text:i.qty, color:'var(--bad)'})), {empty:"No losses recorded 🎉"});
-    bars("lossMonth", d.losses.byMonth.slice(-8).map(m=>({label:m.month, value:m.qty, text:m.qty, color:'var(--warn)'})), {empty:"No losses recorded 🎉"});
-    // margins
-    if(!canFin){ $("#marginCard").hidden=true; }
-    else if(!d.margins.events.length){ $("#margins").innerHTML='<div class="empty">No closed events yet.</div>'; }
-    else { const maxRev=Math.max(...d.margins.events.map(e=>Math.abs(e.revenue||0)),1);
-      $("#margins").innerHTML=`<div class="muted" style="margin-bottom:10px">Average margin across closed events: <b>${d.margins.avgMargin!=null?esc(d.margins.avgMargin)+"%":"—"}</b></div>`+
-      d.margins.events.map(e=>`<div class="bar"><span class="lb" title="${esc(e.code)}">${esc(e.code)}${e.date?` · ${esc(e.date)}`:""}</span>
-        <span class="track"><span class="fill" style="width:${Math.max(4,Math.round(Math.abs(e.profit||0)/maxRev*100))}%;background:${(e.profit||0)>=0?'var(--safe)':'var(--bad)'}"></span></span>
-        <span class="v ${(e.profit||0)>=0?'pos':'neg'}">${inr(e.profit)}${e.marginPct!=null?` (${esc(e.marginPct)}%)`:""}</span></div>`).join(""); }
+  function renderRange(d){
+    const c=d.counts||{};
+    $("#evKpis").innerHTML=kpi(c.total||0,"Events","incl. open quotes: "+(c.open_quotes||0))+kpi(c.confirmed||0,"Confirmed")
+      +kpi(c.completed||0,"Completed","settlement or closed")+kpi(c.cancelled||0,"Cancelled","",c.cancelled?"neg":"");
+    const m=d.money;
+    if(canFin && m){ $("#moneyWrap").hidden=false;
+      $("#moneyKpis").innerHTML=kpi(inr(m.revenue),"Revenue",(m.events||0)+" confirmed event(s)")+kpi(inr(Number(m.cost||0)+Number(m.expenses||0)),"Costs","delivery "+inr(m.cost)+" · expenses "+inr(m.expenses))
+        +kpi(inr(m.profit),"Profit","margin "+(m.margin_pct==null?"—":m.margin_pct+"%"),(m.profit||0)>=0?"pos":"neg")+kpi(m.avg_event_value==null?"—":inr(m.avg_event_value),"Avg event value");
+      const col=Number(m.collected||0), out=Number(m.outstanding||0), tot=col+out;
+      $("#collect").innerHTML=`<div class="legend"><span><i class="la"></i>Collected <b>${esc(inr(col))}</b></span><span><i class="lb2"></i>Outstanding <b>${esc(inr(out))}</b></span></div>
+        <div class="split" role="img" aria-label="${esc("Collected "+inr(col)+", outstanding "+inr(out))}"><span class="a"></span><span class="b"></span></div>
+        <div class="muted">Cash received during this period (any event): <b>${esc(inr(m.cash_in_range))}</b></div>`;
+      const pa=tot?Math.round(col/tot*100):0; $("#collect .split .a").style.width=pa+"%"; $("#collect .split .b").style.width=(tot?100-pa:0)+"%";
+    } else $("#moneyWrap").hidden=true;
+    bars("types",(d.types||[]).slice(0,8).map(t=>({label:t.type,value:t.count,text:t.count+(canFin&&t.revenue!=null?" · "+inr(t.revenue):""),color:"accent"})),"No events in this period.");
+    renderStaff(d.staff||[]);
+  }
+  function renderStaff(list){
+    const el=$("#staff");
+    if(!list.length){ el.innerHTML='<div class="empty">Nobody was assigned to events in this period.</div>'; return; }
+    el.innerHTML=`<table class="staff"><thead><tr><th scope="col">Person</th><th scope="col" class="n">Events</th><th scope="col" class="n">Tasks</th></tr></thead><tbody>${
+      list.map((p,i)=>`<tr><td><button type="button" class="who" data-i="${Number(i)}" aria-expanded="false" aria-controls="drill${Number(i)}">${esc(p.name||"—")}</button>${p.kind==="manager"?'<span class="tag">Manager</span>':""}
+        <ul class="drill" id="drill${Number(i)}" hidden>${(p.list||[]).map(e=>`<li><a href="event.html?id=${encodeURIComponent(e.id)}">${esc(e.code||"Event")}</a> · ${esc(e.title||"")} · ${esc(e.date||"")}${e.role==="manager"?" · manager":` · ${esc(e.tasks)} task(s)`}</li>`).join("")}</ul></td>
+        <td class="n">${esc(p.events)}</td><td class="n">${p.kind==="manager"?"—":esc(p.tasks)+(p.tasks?` <span class="muted">(${esc(p.done)} done)</span>`:"")}</td></tr>`).join("")}</tbody></table>`;
+    el.querySelectorAll("button.who").forEach(b=>b.addEventListener("click",()=>{ const u=$("#drill"+b.dataset.i); const open=u.hidden; u.hidden=!open; b.setAttribute("aria-expanded",String(open)); }));
+  }
+  function renderSummary(d){
+    bars("vendors", d.vendors.slice(0,8).map(v=>({label:v.name, value:v.rejectRate, text:`${v.rejected}/${v.total} · ${v.rejectRate}%`, color:v.rejectRate>0?"bad":"safe"})), "No outsourced tasks in this period.");
+    bars("tasks", d.taskSlips.slice(0,8).map(c=>({label:c.category, value:c.rejected, text:`${c.rejected} (${c.rejectRate}%)`, color:"warn"})), "No rejections — clean record.");
+    bars("lossItem", d.losses.byItem.slice(0,8).map(i=>({label:i.name, value:i.qty, text:i.qty, color:"bad"})), "No losses recorded 🎉");
+    bars("lossMonth", d.losses.byMonth.slice(-8).map(m=>({label:m.month, value:m.qty, text:m.qty, color:"warn"})), "No losses recorded 🎉");
+    if(!canFin) return;
+    if(!d.margins.events.length){ $("#margins").innerHTML='<div class="empty">No closed events in this period.</div>'; return; }
+    bars("margins", d.margins.events.map(e=>({label:e.code+(e.date?" · "+e.date:""), value:e.profit||0,
+      text:inr(e.profit)+(e.marginPct!=null?` (${e.marginPct}%)`:""), color:(e.profit||0)>=0?"safe":"bad", cls:(e.profit||0)>=0?"pos":"neg"})));
+    $("#margins").insertAdjacentHTML("afterbegin",`<div class="muted note">Average margin across these closed events: <b>${esc(pct(d.margins.avgMargin))}</b></div>`);
   }
   $("#li_close").addEventListener("click",closeLogin);
   $("#loginForm").addEventListener("submit",e=>{ e.preventDefault();

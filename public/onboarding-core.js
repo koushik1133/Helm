@@ -302,6 +302,9 @@
   }
 
   const CAN_MERGE = { inventory: true };       // only inventory has an additive meaning (add the quantity)
+  // "update" overwrites the existing record's numbers with the file's — offered only when the
+  // name matches EXACTLY (same spelling + case, ignoring outer spaces) and only after the preview.
+  const CAN_UPDATE = { pricing: true, inventory: true };
   // Suggest a free "name (2)" given a Set of taken keys.
   function renameFree(kind, d, taken) {
     for (let n = 2; n < 1000; n++) {
@@ -344,8 +347,9 @@
       if (ex) {
         row.status = "dup-existing"; row.matchId = ex.id; row.matchName = ex.name;
         row.mergeable = !!CAN_MERGE[kind] && ex.active !== false;
+        row.updatable = !!CAN_UPDATE[kind] && ex.active !== false && String(ex.name == null ? "" : ex.name).trim() === String(v.data.name).trim();
         const a = prior[line];
-        row.action = (a === "merge" && row.mergeable) || a === "rename" || a === "skip" ? a : "skip";
+        row.action = (a === "merge" && row.mergeable) || (a === "update" && row.updatable) || a === "rename" || a === "skip" ? a : "skip";
       }
       rows.push(row);
     });
@@ -364,14 +368,15 @@
       if (r.status === "new") s.new++; else if (r.status === "dup-file") s.dupFile++;
       else if (r.status === "dup-existing") s.dupExisting++; else s.invalid++;
       if (r.status === "new" || (r.status === "dup-existing" && r.action === "rename")) s.willAdd++;
-      else if (r.status === "dup-existing" && r.action === "merge") s.willMerge++; else s.willSkip++;
+      else if (r.status === "dup-existing" && (r.action === "merge" || r.action === "update")) s.willMerge++; else s.willSkip++;
     });
     return s;
   }
   function setAction(preview, line, action) {
     const r = preview.rows.find((x) => x.line === line); if (!r || r.status !== "dup-existing") return preview;
     if (action === "merge" && !r.mergeable) return preview;
-    if (action !== "skip" && action !== "merge" && action !== "rename") return preview;
+    if (action === "update" && !r.updatable) return preview;
+    if (action !== "skip" && action !== "merge" && action !== "rename" && action !== "update") return preview;
     return { ...preview, rows: preview.rows.map((x) => x === r ? Object.assign({}, x, { action }) : x) };
   }
 
@@ -414,8 +419,9 @@
       const e = ledger.entries[ledgerKey(o.batchKey, o.kind, r.line)];
       return !(e && (e.status === "ok" || e.status === "merged"));
     });
-    const inserts = todo.filter((r) => !(r.status === "dup-existing" && r.action === "merge"));
-    const merges = todo.filter((r) => r.status === "dup-existing" && r.action === "merge");
+    const isChange = (r) => r.status === "dup-existing" && (r.action === "merge" || r.action === "update");
+    const inserts = todo.filter((r) => !isChange(r));
+    const merges = todo.filter(isChange);
     let done = 0; const total = todo.length;
     const rec = (r, v) => { ledger.entries[ledgerKey(o.batchKey, o.kind, r.line)] = Object.assign({ line: r.line, name: r.renamedTo || r.data.name }, v); };
     const tick = async () => { done++; if (o.onProgress) o.onProgress(done, total); };
@@ -442,7 +448,10 @@
     }
     for (const r of merges) {
       if (o.isCancelled && o.isCancelled()) break;
-      try { await o.api.merge(o.kind, r.matchId, toPayload(o.kind, r)); rec(r, { status: "merged", id: r.matchId }); }
+      try {
+        if (r.action === "update") { if (!o.api.update) throw new Error("update not supported"); await o.api.update(o.kind, r.matchId, toPayload(o.kind, r)); rec(r, { status: "merged", updated: true, id: r.matchId }); }
+        else { await o.api.merge(o.kind, r.matchId, toPayload(o.kind, r)); rec(r, { status: "merged", id: r.matchId }); }
+      }
       catch (e) { rec(r, { status: "error", error: String((e && e.message) || e).slice(0, 200) }); }
       await tick();
     }
@@ -492,7 +501,59 @@
     } catch (e) { return null; }
   }
 
+  /* ---------- studio billing details (onboarding + Control Center) ----------
+     Stored on organizations: name (studio), location (primary city), gst_number, and
+     brand.phone + brand.billing {legal_name,line1,line2,city,state,pin}. brand.billing is
+     never exposed by the public booklet RPCs (they pick brand keys one by one). */
+  const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+  const PIN_RE = /^[1-9][0-9]{5}$/;
+  const BILLING_FIELDS = [
+    { key: "legal_name", label: "Legal / business name", required: true, max: 120 },
+    { key: "line1", label: "Billing address", required: true, max: 160 },
+    { key: "line2", label: "Address line 2", required: false, max: 160 },
+    { key: "city", label: "City", required: true, max: 60 },
+    { key: "state", label: "State", required: true, max: 60 },
+    { key: "pin", label: "PIN code", required: true, max: 6 },
+    { key: "phone", label: "Business phone", required: true, max: 24 },
+    { key: "location", label: "Primary location / city", required: true, max: 80 },
+    { key: "gstin", label: "GSTIN (optional)", required: false, max: 15 },
+  ];
+  const bstr = (v, max) => stripMarkup(cleanText(v)).slice(0, max);
+  function validateBilling(input) {
+    const i = input || {}; const data = {}; const errors = {};
+    BILLING_FIELDS.forEach((f) => { data[f.key] = bstr(i[f.key], f.key === "gstin" ? 30 : f.max); });
+    data.gstin = data.gstin.toUpperCase().replace(/\s+/g, "");
+    data.pin = data.pin.replace(/\s+/g, "");
+    BILLING_FIELDS.forEach((f) => { if (f.required && !data[f.key]) errors[f.key] = f.label + " is required."; });
+    if (data.legal_name && !/[A-Za-z0-9]/.test(data.legal_name)) errors.legal_name = "Enter a real business name.";
+    if (data.pin && !PIN_RE.test(data.pin)) errors.pin = "PIN code must be 6 digits (not starting with 0).";
+    if (data.phone) { const d = data.phone.replace(/[^\d]/g, ""); if (!/^[+\d\s()-]+$/.test(data.phone) || d.length < 10 || d.length > 13) errors.phone = "Enter a valid phone number, e.g. +91 98765 43210."; }
+    if (data.gstin && !GSTIN_RE.test(data.gstin)) errors.gstin = "Enter a valid 15-character GSTIN, e.g. 36ABCDE1234F1Z5 (or leave it blank).";
+    return { ok: Object.keys(errors).length === 0, data, errors };
+  }
+  function billingFromOrg(o) {
+    o = o || {}; const b = (o.brand && typeof o.brand === "object" && !Array.isArray(o.brand)) ? o.brand : {};
+    const bl = (b.billing && typeof b.billing === "object" && !Array.isArray(b.billing)) ? b.billing : {};
+    const s = (v) => (typeof v === "string" ? v : "");
+    return { legal_name: s(bl.legal_name) || "", line1: s(bl.line1), line2: s(bl.line2), city: s(bl.city), state: s(bl.state), pin: s(bl.pin),
+      phone: s(b.phone), location: s(o.location), gstin: s(o.gst_number) };
+  }
+  // fields still missing on an existing studio (labels) — [] when complete
+  function billingMissing(o) {
+    const v = validateBilling(billingFromOrg(o)); return BILLING_FIELDS.filter((f) => v.errors[f.key]).map((f) => f.label);
+  }
+  // organizations update patch. Keeps every brand key it does not own; never clears the studio name.
+  function billingPatch(o, data) {
+    o = o || {}; const b = (o.brand && typeof o.brand === "object" && !Array.isArray(o.brand)) ? o.brand : {};
+    const oldBl = (b.billing && typeof b.billing === "object" && !Array.isArray(b.billing)) ? b.billing : {};
+    const billing = Object.assign({}, oldBl, { legal_name: data.legal_name, line1: data.line1, line2: data.line2 || null, city: data.city, state: data.state, pin: data.pin });
+    const patch = { location: data.location, gst_number: data.gstin || null, brand: Object.assign({}, b, { phone: data.phone, billing }) };
+    if (!String(o.name || "").trim()) patch.name = data.legal_name;
+    return patch;
+  }
+
   const api = {
+    GSTIN_RE, PIN_RE, BILLING_FIELDS, validateBilling, billingFromOrg, billingMissing, billingPatch,
     MAX_ROWS, CHUNK, MAX_FILE_BYTES, MAX_PRICE, MAX_QTY, KINDS,
     cleanText, neutralise, safeText, normKey, parseNumber, decodeBytes, parseCSV, detectDelimiter, csvEscapeCell, templateCSV,
     mapHeaders, sanitizeMapping, validateRow, buildPreview, summarise, setAction, tableFromManual,

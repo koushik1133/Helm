@@ -923,7 +923,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "16";
+  const AUTH_UI_VERSION = "18";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1040,6 +1040,8 @@ window.HelmUrl = HelmUrl;
     { key: "issues",     label: "Issues & incidents",icon: "🚨", page: null,             group: "Event day" },
     { key: "media",      label: "Media & gallery",   icon: "📸", page: null,             group: "Event day" },
     { key: "controls",   label: "Control Center",    icon: "⚙", page: "control.html",   group: "Admin" },
+    // 0076: date-ranged Insights page (insights_range). Money inside it also needs "finance".
+    { key: "insights",   label: "Insights",          icon: "📊", page: null,             group: "Admin" },
     { key: "codes",      label: "Coupons & codes",   icon: "🔑", page: null,             group: "Admin" },
     { key: "users",      label: "Users & access",    icon: "👥", page: "control.html",   group: "Admin" },
   ];
@@ -2260,6 +2262,30 @@ window.HelmUrl = HelmUrl;
     async remove(id) { this.write(this.read().filter((x) => x.id !== id)); return true; },
   };
   const qt = () => (mode === "supabase" ? sbq : lsq);
+  // Adds an auto-generated title to an updateMeta patch when the event's current title is
+  // still automatic. Best-effort: any failure returns the patch unchanged (never blocks a save).
+  async function autoTitlePatch(id, patch) {
+    const EN = typeof window !== "undefined" && window.HelmEventName;
+    if (!EN || !patch || patch.title != null || !("client" in patch || "eventType" in patch || "eventDate" in patch)) return patch;
+    try {
+      let cur, taken = [];
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("quotes").select("id,code,title,event_type,event_date,client").eq("id", id).maybeSingle();
+        if (error || !data) return patch; cur = data;
+      } else { cur = (await lsq.list()).find((x) => x.id === id); if (!cur) return patch; }
+      const code = cur.code, title = cur.title;
+      if (!EN.isAuto(title, code)) return patch;
+      const merged = { client: patch.client || cur.client || {}, eventType: patch.eventType != null ? patch.eventType : (cur.eventType != null ? cur.eventType : cur.event_type),
+        eventDate: patch.eventDate !== undefined ? patch.eventDate : (cur.eventDate !== undefined ? cur.eventDate : cur.event_date) };
+      const base = EN.fromQuote(merged); if (!base) return patch;
+      if (title === base || (String(title || "").indexOf(base + "-") === 0 && /^-\d+$/.test(String(title).slice(base.length)))) return patch;
+      if (mode === "supabase") {
+        const { data } = await supa.from("quotes").select("title").like("title", base.replace(/[%_\\]/g, "\\$&") + "%").neq("id", id).limit(1000);
+        taken = (data || []).map((r) => r.title);
+      } else taken = (await lsq.list()).filter((x) => x.id !== id).map((x) => x.title);
+      return Object.assign({}, patch, { title: EN.unique(base, taken) });
+    } catch (e) { return patch; }
+  }
   const quotes = {
     list: () => qt().list(),
     // paged list view + counters (perf): see sbq.page / sbq.counts
@@ -2315,7 +2341,9 @@ window.HelmUrl = HelmUrl;
         return await qt().setStage(id, stage, reason.trim());
       }
     },
-    updateMeta: (id, patch, expectedUpdatedAt) => qt().updateMeta(id, patch, expectedUpdatedAt),
+    // Display title follows TYPE_LOC_GUESTS_DDMMMYY (event-name.js) and refreshes when type /
+    // city / guests / date change — unless the user renamed it. The code is never touched.
+    updateMeta: async (id, patch, expectedUpdatedAt) => qt().updateMeta(id, await autoTitlePatch(id, patch), expectedUpdatedAt),
     remove: (id) => qt().remove(id),
     // next MMDDYYYY-NN given a list of quote summaries (uses .code)
     nextCode(list, date) {
@@ -6359,7 +6387,17 @@ window.HelmUrl = HelmUrl;
 
   /* ---------------- post-event insights (Phase 51) ---------------- */
   const insights = {
-    async summary() {
+    presets: () => RANGE_PRESETS.map((p) => ({ key: p[0], label: p[1] })),
+    rangeFor, rangeCheck, inRange,
+    // 0076 insights_range: counts, money (null without finance), top types, staff participation
+    async range(from, to) {
+      if (mode !== "supabase" || !supa) return null;
+      try { return await rpc("insights_range", { p_from: from || null, p_to: to || null }); }
+      catch (e) { if (rpcMissing(e)) { const er = new Error("Date-range insights need database update 0076 (ask your admin to run APPLY-0076.sql)."); er.code = "insights_missing"; throw er; } throw e; }
+    },
+    // r = { from, to } (optional): tasks of events dated in the range, losses checked in during
+    // it, closed events dated in it. No r = all time (Reports' P&L export without a range).
+    async summary(r) {
       const empty = { vendors: [], taskSlips: [], losses: { total: 0, byItem: [], byMonth: [] }, margins: { events: [], totalProfit: 0, avgMargin: null } };
       if (mode !== "supabase" || !supa) return empty;
       // Wave 16 perf: fetch the event list alongside the three aggregates instead
@@ -6371,7 +6409,10 @@ window.HelmUrl = HelmUrl;
         sbAll(() => supa.from("inventory_checkouts").select("id,item_id,qty_out,qty_in,checked_in_at,status").order("id")).then((data) => ({ data }), () => ({ data: null })),
         sbAll(() => supa.from("inventory_items").select("id,name,unit").order("id")).then((data) => ({ data }), () => ({ data: null })),
       ]);
-      const tasks = tR.data || [], chk = cR.data || [], items = iR.data || [];
+      const evDate = (e) => e.eventDate || String(e.createdAt || e.created_at || "").slice(0, 10);
+      const inEv = r ? new Set(events.filter((e) => inRange(evDate(e), r)).map((e) => e.id)) : null;
+      const tasks = (tR.data || []).filter((t) => !inEv || inEv.has(t.quote_id)), items = iR.data || [];
+      const chk = (cR.data || []).filter((c) => !r || inRange(c.checked_in_at, r));
       const itemById = {}; items.forEach((i) => (itemById[i.id] = i));
       // vendor reliability (outsourced tasks)
       const vmap = {};
@@ -6395,7 +6436,7 @@ window.HelmUrl = HelmUrl;
         byItem: Object.entries(byItem).map(([name, qty]) => ({ name, qty })).sort((a, b) => b.qty - a.qty),
         byMonth: Object.entries(byMonth).map(([month, qty]) => ({ month, qty })).sort((a, b) => a.month.localeCompare(b.month)) };
       // margin trends across closed events
-      const closed = events.filter((e) => e.lifecycleStage === "closed");
+      const closed = events.filter((e) => e.lifecycleStage === "closed" && (!r || inRange(evDate(e), r)));
       const pls = await Promise.all(closed.map((e) => closure.pl(e.id)
         .then((pl) => ({ code: e.code, date: e.eventDate, profit: pl.profit, marginPct: pl.marginPct, revenue: pl.revenue })).catch(() => null)));
       const mlist = pls.filter(Boolean).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
@@ -6577,6 +6618,146 @@ window.HelmUrl = HelmUrl;
     return memberDirPromise;
   }
 
+  /* ---------------- audit log: plain-words rendering (0076 pass) ----------------
+     Pure helpers (unit-tested in test/insights-audit.test.mjs). Rows like
+     "booklet.view · client_booklets" used to fall through to the insert/delete branch and
+     read "Deleted id <uuid>". Each known action now has its own sentence; unknown dotted
+     actions are humanised ("hq.plan.upsert" → "Hq plan upsert"), never called a deletion. */
+  const AUDIT_AREA_LABELS = { role_access: "Access matrix", app_config: "Pricing settings", plate_types: "Plate types", chair_types: "Chair types",
+    quote_payments: "Payments", event_costs: "Budget & costs", inventory_items: "Inventory", inventory_checkouts: "Equipment check-in/out",
+    change_requests: "Change orders", expense_claims: "Expense claims", payment_milestones: "Payment milestones", crew_members: "Crew",
+    vendors: "Vendors", coupons: "Coupons", profiles: "Users & roles", quotes: "Events", member_profiles: "Team profiles",
+    client_booklets: "Client booklet", package_selections: "Package choices", design_stages: "Design", "storage.objects": "File uploads",
+    work_links: "Work links", event_sites: "Invitation sites", notification_prefs: "Notification settings", studio_account: "Studio billing",
+    subscriptions: "Subscription", mfa: "Two-step sign-in", chat_conversations: "Team chat", organizations: "Studio details" };
+  function auditHuman(s) { s = String(s == null ? "" : s).replace(/[._]+/g, " ").replace(/\s+/g, " ").trim(); return s ? s.charAt(0).toUpperCase() + s.slice(1) : ""; }
+  function auditAreaLabel(e) { return AUDIT_AREA_LABELS[e] || auditHuman(e) || "—"; }
+  // actions a CLIENT triggers through a link (no signed-in actor) — shown as "Client", not "system"
+  const AUDIT_CLIENT_ACTIONS = /^(booklet\.(view|read)|pkg\.(view|read|choose|otp|otp_request))$/;
+  function auditActionLabel(a) {
+    a = String(a || "");
+    const m = { insert: "Created", update: "Edited", delete: "Deleted" };
+    if (m[a]) return m[a];
+    const fixed = { "booklet.view": "Viewed", "booklet.read": "Viewed", "booklet.share": "Shared", "booklet.revoke": "Link revoked",
+      "booklet.snapshot": "Snapshot", "booklet.snap": "Snapshot", "pkg.view": "Viewed", "pkg.choose": "Chose", "pkg.accept": "Accepted",
+      "pkg.decline": "Declined", "pkg.adjust": "Adjusted", "quote.moved_to_archive": "Archived", "quote.moved_to_deleted": "Moved to bin",
+      "quote.restored": "Restored", "design.advance": "Stage moved", "upload.rejected": "Rejected" };
+    if (fixed[a]) return fixed[a];
+    const last = a.split(".").pop(); return auditHuman(last) || "—";
+  }
+  // "for W-0012 · Sharma wedding" when the event is known, else ""
+  function auditEventText(row, events) {
+    const ev = row && row.quote_id && events ? events[row.quote_id] : null;
+    if (!ev) return "";
+    const t = [ev.code, ev.title].filter((x) => x && String(x).trim()).join(" · ");
+    return t ? " for " + t : "";
+  }
+  // One plain sentence for a row, or null when the generic field-diff view is better
+  // (insert / update / delete of ordinary tables and profile.* changes keep their detail view).
+  function auditDescribe(row, events) {
+    row = row || {}; const a = String(row.action || ""); const c = (row.changed && typeof row.changed === "object") ? row.changed : {};
+    const ev = auditEventText(row, events);
+    const kindLabel = (k) => ({ snapshot_3d: "3D snapshot", snapshot_2d: "2D snapshot", layout: "layout snapshot", cover: "cover image" }[k] || auditHuman(k) || "snapshot");
+    switch (a) {
+      case "booklet.view": case "booklet.read": return "Client viewed the booklet" + ev;
+      case "booklet.share": return "Booklet shared with the client" + ev + (c.expires_at ? " (link valid until " + String(c.expires_at).slice(0, 10) + ")" : "");
+      case "booklet.revoke": return "Booklet link revoked" + ev;
+      case "booklet.snapshot": case "booklet.snap": return auditHuman(kindLabel(c.kind)) + (c.set === false ? " removed" : " updated") + " in the booklet" + ev;
+      case "booklet.log": return "Booklet activity" + ev;
+      case "pkg.view": case "pkg.read": return "Client viewed the package options" + ev;
+      case "pkg.choose": return "Client chose a package" + ev + (c.guests ? " for " + c.guests + " guests" : "");
+      case "pkg.accept": return "Package choice accepted" + ev;
+      case "pkg.decline": return "Package choice declined" + ev + (c.reason ? " — " + String(c.reason).slice(0, 80) : "");
+      case "pkg.adjust": return "Package price adjusted" + ev + (c.per_person != null ? " (₹" + c.per_person + " per guest)" : "");
+      case "pkg.otp": case "pkg.otp_request": return "Client asked for a verification code" + ev;
+      case "pkg.self_approve_override": return "Package approved by the only admin (maker-checker override)" + ev;
+      case "quote.moved_to_archive": return "Event archived" + ev + (c.auto ? " automatically (link expired)" : "");
+      case "quote.moved_to_deleted": return "Event moved to the bin" + ev + (c.auto ? " automatically (link expired)" : "");
+      case "quote.restored": return "Event restored" + ev + (c.from ? " from " + c.from : "");
+      case "design.advance": return "Design stage moved" + ev + (c.from || c.to ? ": " + auditHuman(c.from || "start") + " → " + auditHuman(c.to || "") : "");
+      case "upload.rejected": return "Uploaded file rejected" + (c.reason ? " — " + String(c.reason).slice(0, 80) : "");
+      case "work_links.revoked": return "Work links revoked" + ev;
+      case "event_site.reslugged": return "Invitation site address changed" + ev;
+      case "chat.event_group.create": return "Event chat group created" + ev;
+      case "notification_pref.set": return "Notification setting changed";
+      case "notification_pref.reset": return "Notification settings reset to default";
+      case "link_autoexpire.set": return "Link auto-expiry setting changed";
+      case "link_expiry_shelf.set": return "Expired-link shelf setting changed";
+      case "profiles.role": return "Role changed" + (c.role ? " to " + auditHuman(c.role) : "");
+      case "profiles.delete": return "User removed from the studio";
+      case "mfa.record": return "Two-step sign-in updated";
+      case "subscription.trial_started": return "Free trial started";
+      case "subscription.checkout_created": return "Subscription checkout opened";
+      case "studio_account.update": return "Studio billing details updated";
+      default: break;
+    }
+    if (/^(insert|update|delete)$/.test(a) || /^profile\./.test(a)) return null;
+    return (auditHuman(a) || "Activity") + ev;
+  }
+  // who: display name, else e-mail, else "Client" for link-driven actions, else "System"
+  function auditWho(row, names) {
+    row = row || {}; const p = (names && row.actor && names[row.actor]) || null;
+    const nm = p && String(p.full_name || "").replace(/\s+/g, " ").trim();
+    const email = row.actor_email || (p && p.email) || "";
+    if (nm) return { text: nm, title: email || nm };
+    if (email) return { text: email, title: email };
+    if (!row.actor && AUDIT_CLIENT_ACTIONS.test(String(row.action || ""))) return { text: "Client", title: "Through the client's link" };
+    return { text: "System", title: "Automatic" };
+  }
+
+  /* quote activity trail (event_activity): "advance_paid → client@x.com" / "pkg_payment → " in plain words */
+  function activityText(a, ctx) {
+    a = a || {}; ctx = ctx || {}; const raw = String(a.text || "");
+    const money = (n) => "₹" + Number(n).toLocaleString("en-IN");
+    if (a.kind === "payment") {
+      const m = /^Payment (created|failed|refunded|cancelled) — (\d+(?:\.\d+)?)$/.exec(raw);
+      if (m) return ({ created: "Payment link created", failed: "Payment attempt failed", refunded: "Payment refunded", cancelled: "Payment link cancelled" }[m[1]]) + " — " + money(m[2]);
+      const p = /^Payment (\S*) — (\d+(?:\.\d+)?) \((.*)\)$/.exec(raw);
+      if (p) return "Payment received" + (ctx.clientName ? " from " + String(ctx.clientName).trim() : "") + " — " + money(p[2]) + " by " + auditHuman(p[3]).toLowerCase() + (p[1] ? " (receipt " + p[1] + ")" : "");
+      return raw;
+    }
+    if (a.kind !== "notify") return raw;
+    const i = raw.indexOf(" → "); const kind = (i >= 0 ? raw.slice(0, i) : raw).trim(); const to = (i >= 0 ? raw.slice(i + 3) : "").trim();
+    const what = ({ advance_paid: "Payment received — receipt sent", payment_received: "Payment received — receipt sent", pkg_payment: "Package payment received",
+      payment_receipt: "Payment receipt sent", payment_link: "Payment link sent", payment_reminder: "Payment reminder sent", payment_reconcile: "Payment flagged for checking",
+      approval_link: "Approval link sent", otp: "Approval code sent", pkg_selected: "Client chose a package", pkg_accepted: "Package choice accepted",
+      pkg_declined: "Package choice declined", task_assigned: "Tasks assigned", task_complete: "Task completed", booklet_shared: "Booklet shared" }[kind])
+      || auditHuman(kind) || "Notification";
+    if (!to) return what;
+    const via = /^(email|e-mail|mail)$/i.test(to) ? "by e-mail" : /^(whatsapp|wa|sms)$/i.test(to) ? "on " + (to.toLowerCase() === "sms" ? "SMS" : "WhatsApp")
+      : /@/.test(to) ? "by e-mail" : /^\+?[0-9 ()-]{7,}$/.test(to) ? "on WhatsApp/SMS" : "";
+    const who = ctx.clientName ? String(ctx.clientName).trim() : "";
+    const addr = (/@/.test(to) || /^\+?[0-9 ()-]{7,}$/.test(to)) ? to : "";
+    return what + (who || addr ? " to " + (who || addr) : "") + (who && addr ? " (" + addr + ")" : "") + (via ? " " + via : (!addr && to ? " · " + to : ""));
+  }
+
+  /* ---------------- date ranges for Insights / Reports (pure; local calendar dates) ---------------- */
+  const RANGE_PRESETS = [["this_month", "This month"], ["last_month", "Last month"], ["last_30", "Last 30 days"], ["last_60", "Last 60 days"],
+    ["last_90", "Last 90 days"], ["this_year", "This year"], ["custom", "Custom range"]];
+  function rangeFor(key, today) {
+    const d0 = (today && typeof today.getFullYear === "function") ? new Date(today.getFullYear(), today.getMonth(), today.getDate()) : new Date();
+    const iso = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    const y = d0.getFullYear(), m = d0.getMonth();
+    const back = (n) => { const d = new Date(y, m, d0.getDate() - (n - 1)); return { from: iso(d), to: iso(d0) }; };
+    switch (key) {
+      case "this_month": return { from: iso(new Date(y, m, 1)), to: iso(new Date(y, m + 1, 0)) };
+      case "last_month": return { from: iso(new Date(y, m - 1, 1)), to: iso(new Date(y, m, 0)) };
+      case "last_30": return back(30);
+      case "last_60": return back(60);
+      case "last_90": return back(90);
+      case "this_year": return { from: iso(new Date(y, 0, 1)), to: iso(new Date(y, 11, 31)) };
+      default: return null;
+    }
+  }
+  // a custom from/to: both real YYYY-MM-DD dates and from <= to → {from,to}, else null
+  function rangeCheck(from, to) {
+    const ok = (s) => { s = String(s || ""); if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false; const d = new Date(s + "T00:00:00Z"); return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s; };
+    if (!ok(from) || !ok(to) || String(from) > String(to)) return null;
+    return { from: String(from), to: String(to) };
+  }
+  // is a YYYY-MM-DD (or ISO timestamp) inside {from,to}? null range = everything
+  function inRange(date, r) { if (!r) return true; const d = String(date || "").slice(0, 10); if (!d) return false; return d >= r.from && d <= r.to; }
+
   /* ---------------- audit log (Phase 47) ---------------- */
   const audit = {
     async list(opts) { opts = opts || {}; if (!supa) throw new Error("Supabase not configured");
@@ -6624,6 +6805,12 @@ window.HelmUrl = HelmUrl;
     // ids of the people whose display name contains the search (for page({actorIds}))
     actorIdsMatching(names, term) { const t = String(term == null ? "" : term).trim().toLowerCase(); if (!t || !names) return [];
       return Object.keys(names).filter((id) => String((names[id] && names[id].full_name) || "").toLowerCase().indexOf(t) >= 0); },
+    describe: auditDescribe, actionLabel: auditActionLabel, areaLabel: auditAreaLabel, who: auditWho,
+    // { <quote id>: { code, title } } for the events named on a page of the log (RLS decides; {} on error)
+    async eventLabels(ids) { const list = [...new Set((ids || []).filter((x) => /^[0-9a-f-]{36}$/i.test(String(x))))].slice(0, 200);
+      if (!supa || !list.length) return {};
+      try { const { data, error } = await supa.from("quotes").select("id,code,title").in("id", list); if (error) return {};
+        const by = {}; (data || []).forEach((q) => { by[q.id] = { code: q.code, title: q.title }; }); return by; } catch (e) { return {}; } },
     async entities() { if (!supa) throw new Error("Supabase not configured");
       const { data, error } = await supa.from("audit_log").select("entity").order("at", { ascending: false }).limit(1000); if (error) throw error;
       return [...new Set(this.AREAS.concat((data || []).map((x) => x.entity).filter(Boolean)))].sort(); },
@@ -6793,7 +6980,7 @@ window.HelmUrl = HelmUrl;
   };
 
   const BPStore = {
-    init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat, profile, quoteShelf, uploads,
+    activityText, init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat, profile, quoteShelf, uploads,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.
@@ -6907,6 +7094,24 @@ window.HelmUrl = HelmUrl;
         await rpc("booklet_set_snapshot", { p_quote_id: quoteId, p_kind: kind, p_path: path });
         return path;
       },
+      // R2: what's already in the bucket for this event -> { "2d": { path, updatedAt }, "3d": ... } (read policy = own studio).
+      snapshotInfo: async (quoteId) => {
+        const out = {};
+        if (!supa || mode !== "supabase" || !UUID_RE_PKG.test(String(quoteId || ""))) return out;
+        const oid = await orgIdStrict();
+        const r = await supa.storage.from("booklet-snapshots").list(oid + "/" + quoteId, { limit: 20 });
+        if (r && r.error) return out;
+        ((r && r.data) || []).forEach((f) => { const m = /^(2d|3d)\.(png|jpg|webp)$/.exec(String((f && f.name) || ""));
+          if (!m) return; const t = f.updated_at || f.created_at || null;
+          if (!out[m[1]] || String(t) > String(out[m[1]].updatedAt)) out[m[1]] = { path: oid + "/" + quoteId + "/" + f.name, updatedAt: t }; });
+        return out;
+      },
+      // R2: signed preview URL of a studio snapshot (staff only - storage read policy)
+      snapshotPreview: async (path) => { if (!supa) return null;
+        const r = await supa.storage.from("booklet-snapshots").createSignedUrl(String(path || ""), 300);
+        return r && !r.error && r.data ? r.data.signedUrl : null; },
+      // R2: (re)attach an already-uploaded snapshot to the live booklet link
+      attachSnapshot: (quoteId, kind, path) => rpc("booklet_set_snapshot", { p_quote_id: quoteId, p_kind: kind === "3d" ? "3d" : "2d", p_path: path }),
       // signed-out booklet page: <img src> for a ticked snapshot (dormant edge function booklet-snapshot)
       snapshotUrl: (token, kind) => { const u = fnUrl("booklet-snapshot");
         return u ? u + "?t=" + encodeURIComponent(String(token || "")) + "&k=" + (kind === "3d" ? "3d" : "2d") : ""; },
