@@ -150,7 +150,7 @@
     <input id="search" class="search" type="search" aria-label="Search quotes" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search code, client, title…">
     <select id="typeFilter" class="typefilter" title="Filter by event type" aria-label="Filter by event type"><option value="">All types</option></select>
     <button type="button" class="btn" id="refresh">↻ Refresh</button>
-    <a class="btn primary" href="dashboard.html" id="newBtn">✨ New quote</a>
+    <button type="button" class="btn primary" id="newBtn" data-newquote>✨ New quote</button>
   </div>
 
   <div class="card table-scroll">
@@ -459,7 +459,7 @@
       // first run (no quotes at all) vs. nothing in this tab / filter — one HEAD count, only when empty
       if(anyQuotes===null){ anyQuotes="?"; BPStore.quotes.counts().then(c=>{ anyQuotes=c.total>0; if(!quotes.length) render(); }).catch(()=>{ anyQuotes=true; }); }
       tb.innerHTML = anyQuotes===false
-        ? `<tr><td colspan="8" class="empty"><b>No quotes yet.</b><br>${canCreate?'Design a layout and save it to create your first quote.<div style="margin-top:12px"><a class="btn primary" href="dashboard.html">✨ Create your first quote</a></div>':"Quotes will appear here once they're created."}</td></tr>`
+        ? `<tr><td colspan="8" class="empty"><b>No quotes yet.</b><br>${canCreate?'Design a layout and save it to create your first quote.<div style="margin-top:12px"><button type="button" class="btn primary" data-newquote>✨ Create your first quote</button></div>':"Quotes will appear here once they're created."}</td></tr>`
         : `<tr><td colspan="8" class="empty">${(q||typeFilter)?"No quotes match this search or filter.":"No quotes in this view."}</td></tr>`;
       return; }
     const visible=list;
@@ -899,7 +899,28 @@
     catch(err){ $("#li_err").textContent=(err&&err.message)||"Sign-in failed"; $("#li_err").hidden=false; }
     finally{ btn.disabled=false; btn.textContent="Sign in"; } });
   $("#loginModal").addEventListener("click",e=>{ if(e.target.id==="loginModal"&&BPStore.auth.user()) closeLogin(); });
-  BPUI.boot(load);
+  // R8: "New quote" creates the quote right here and opens its flow — it used to link to
+  // the home page, which never created anything (and could surface the dashboard tour).
+  async function startNewQuote(btn){
+    try{
+      await BPUI.guard(btn, async () => {
+        let code=""; try{ code = await BPStore.quotes.nextCodeFor(); }catch(e){}
+        if(!code) code = BPStore.quotes.nextCode(quotes);   // a guess — the server assigns the real code (M-04)
+        const q = await BPStore.quotes.startBlank(code);
+        if(!q || !q.id) throw new Error("The quote could not be created. Please try again.");
+        if(q.code && q.code !== q.title){ try{ await BPStore.quotes.updateMeta(q.id, { title: q.code }); }catch(e){} }
+        location.href = "flow.html?quote=" + encodeURIComponent(q.id);
+      }, { busyLabel: "Creating…" });
+    }catch(err){ BPUI.toast(BPUI.friendlyError(err, { action: "create the quote" }), { type: "err", duration: 8000 }); }
+  }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest("[data-newquote]"); if(!b) return;
+    e.preventDefault(); startNewQuote(b);
+  });
+  if(new URLSearchParams(location.search).get("new")==="1"){
+    try{ history.replaceState(null, "", location.pathname); }catch(e){}
+    BPUI.boot(async () => { await load(); if(canCreate) startNewQuote($("#newBtn")); });
+  } else BPUI.boot(load);
 </script>
 <script src="saved-filters.js?v=1"></script>
 </body>

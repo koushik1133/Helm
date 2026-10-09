@@ -43,7 +43,7 @@ t('deep links point at the right pages/sections', () => {
   assert.equal(GS.STEPS.team.href, 'control.html#users');
   assert.equal(GS.STEPS.lead.href, 'leads.html');
   assert.equal(GS.STEPS.floor_plan.href, 'builder.html');
-  assert.equal(GS.STEPS.quote.href, 'quotes.html');
+  assert.equal(GS.STEPS.quote.href, 'quotes.html?new=1');
   assert.equal(GS.STEPS.profile.act, 'profile');
   assert.equal(GS.STEPS.mfa.act, 'mfa');
 });

@@ -323,7 +323,7 @@
 <script src="event-name.js?v=1"></script>
 <script src="store-api.js?v=150"></script>
 <script src="tour.js?v=9"></script>
-<script src="getting-started.js?v=2"></script>
+<script src="getting-started.js?v=3"></script>
 <script>
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return "—"; } };
@@ -715,7 +715,11 @@
       let forced=false; try{ forced=!!localStorage.getItem("bp_force_tour"); localStorage.removeItem("bp_force_tour"); }catch{}
       const seen = A.tourSeen ? A.tourSeen() : true;
       const eligible = A.tourEligible ? A.tourEligible() : false;
-      if(seen || (!forced && !eligible)) return;
+      // R8: a device that already ran/finished the tour never auto-runs it again, even if the
+      // account flag write failed (that is what re-ran it on the next Home visit).
+      let localSeen=false; try{ localSeen=!!localStorage.getItem("bp_seen_tour") || !!localStorage.getItem("bp_tour_autorun"); }catch{}
+      if(seen || localSeen || (!forced && !eligible)) return;
+      try{ localStorage.setItem("bp_tour_autorun","1"); }catch{}
       if(A.markTourSeen) A.markTourSeen();
       startTour();
     })();
