@@ -330,7 +330,7 @@
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="event-name.js?v=1"></script>
-<script src="store-api.js?v=144"></script>
+<script src="store-api.js?v=146"></script>
 <script src="tour.js?v=9"></script>
 <script src="booklet.js?v=10"></script>
 <script src="share-checklist.js?v=3"></script>
@@ -1118,6 +1118,7 @@
       $("#gate").hidden=false; BPUI.loadError($("#gate"), e, openQuote, {what:"this quote"}); return;
     }
     if(!ev){ showNotFound(); return; }
+    try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[ev.code,ev.title].filter((v,i,a)=>v&&a.indexOf(v)===i).join(" "),kind:"quote",href:"flow.html?quote="+encodeURIComponent(id),recordHref:"event.html?id="+encodeURIComponent(id)}); }catch(e){}
     loading=true;
     await loadAll();
     $("#app").hidden=false;

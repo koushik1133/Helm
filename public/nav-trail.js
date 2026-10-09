@@ -32,8 +32,8 @@
     control: ["Settings", "control.html"], onboarding: ["Settings", "control.html", "Studio setup"], templates: ["Settings", "control.html", "Templates"], services: ["Settings", "control.html", "Services"],
     media: ["Media", "media.html"], chat: ["Chat", "chat.html"], manual: ["Help", "manual.html"],
   };
-  const ICONS = { event: "📅", quote: "📅", lead: "👤", builder: "📐", vendor: "🏷️", staff: "🧑", record: "📄" };
-  const KIND_LABEL = { event: "Event", quote: "Quote", lead: "Lead", builder: "Floor plan", vendor: "Vendor", staff: "Staff", record: "Record" };
+  const ICONS = { event: "📅", quote: "📅", lead: "👤", builder: "📐", vendor: "🏷️", staff: "🧑", client: "👥", record: "📄" };
+  const KIND_LABEL = { event: "Event", quote: "Quote", lead: "Lead", builder: "Floor plan", vendor: "Vendor", staff: "Staff", client: "Client", record: "Record" };
 
   function pageKey() {
     try { return (global.location.pathname.split("/").pop() || "index").toLowerCase().replace(/\.html$/, "") || "index"; } catch (e) { return "index"; }
@@ -45,6 +45,16 @@
     if (!s || s.length > 400) return "";
     if (!/^\/?[a-z0-9-]+\.html(?:[?#][^\s\\]*)?$/i.test(s)) return "";
     return s.charAt(0) === "/" ? s.slice(1) : s;
+  }
+  // one entry per RECORD: builder / flow / event pages of the same quote share a key (latest page wins)
+  const QUOTE_PAGES = { builder: 1, flow: 1, event: 1 };
+  function recKey(href) {
+    const h = safeHref(href); if (!h) return "";
+    const m = /^([a-z0-9-]+)\.html(?:\?([^#]*))?/i.exec(h); if (!m) return h;
+    let q; try { q = new URLSearchParams(m[2] || ""); } catch (e) { return h; }
+    const page = m[1].toLowerCase(), id = q.get("quote") || q.get("id") || "";
+    if (!id) return h;
+    return (QUOTE_PAGES[page] ? "quote" : page) + ":" + id;
   }
   function kindOf(k) { k = String(k || "").toLowerCase(); return ICONS[k] ? k : "record"; }
 
@@ -64,7 +74,8 @@
   function remember(rec) {
     const k = key(); if (!k) return;
     try {
-      const list = [rec].concat(recent().filter((r) => r.href !== rec.href)).slice(0, MAX);
+      const rk = recKey(rec.href);
+      const list = [rec].concat(recent().filter((r) => recKey(r.href) !== rk)).slice(0, MAX);
       global.localStorage.setItem(k, JSON.stringify(list));
     } catch (e) {}
   }
@@ -72,7 +83,7 @@
   function merge(server) {
     const by = {};
     recent().concat((server || []).map((r) => ({ title: clean(r && r.title), kind: kindOf(r && r.kind), href: safeHref(r && r.href), at: Date.parse(r && r.at) || 0 })))
-      .forEach((r) => { if (r.href && r.title && (!by[r.href] || r.at > by[r.href].at)) by[r.href] = r; });
+      .forEach((r) => { const k = recKey(r.href); if (k && r.title && (!by[k] || r.at > by[k].at)) by[k] = r; });
     const list = Object.keys(by).map((h) => by[h]).sort((a, b) => b.at - a.at).slice(0, MAX);
     const k = key(); if (k) { try { global.localStorage.setItem(k, JSON.stringify(list)); } catch (e) {} }
     return list;
@@ -285,7 +296,7 @@
   }
   if (doc) { if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", auto); else auto(); }
 
-  const api = { setCurrent, recent, merge, syncServer, clearAll, trail, timeAgo, safeHref, boot, PAGES, ICONS, KIND_LABEL, MAX, PREFIX, _css: CSS, _key: key };
+  const api = { setCurrent, recKey, recent, merge, syncServer, clearAll, trail, timeAgo, safeHref, boot, PAGES, ICONS, KIND_LABEL, MAX, PREFIX, _css: CSS, _key: key };
   global.HelmTrail = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

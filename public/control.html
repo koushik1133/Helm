@@ -668,7 +668,7 @@
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="event-name.js?v=1"></script>
-<script src="store-api.js?v=144"></script>
+<script src="store-api.js?v=146"></script>
 <script src="hq-invoice.js?v=1"></script>
 <script src="tour.js?v=9"></script>
 <script src="pkg-review.js?v=4"></script>
@@ -1544,6 +1544,7 @@
   async function reloadNotify(){ await loadNotify(); renderNotify(); renderPeople(); if(npErr) throw npErr; }
   async function initNotify(){
     if(npStarted) return; npStarted=true;
+    if(typeof HelmCommsSettings!=="undefined") HelmCommsSettings.init();   // 0078 (independent of the prefs load)
     await loadNotify(); renderNotify();
     try{ npUsers=(await BPStore.auth.admin.listUsers())||[]; }catch(e){ npUsers=[]; }
     npUsers.sort((a,b)=>String(a.full_name||a.email||"").localeCompare(String(b.full_name||b.email||"")));

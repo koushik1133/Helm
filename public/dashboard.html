@@ -321,7 +321,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=1"></script>
-<script src="store-api.js?v=144"></script>
+<script src="store-api.js?v=146"></script>
 <script src="tour.js?v=9"></script>
 <script src="getting-started.js?v=1"></script>
 <script>
@@ -695,19 +695,27 @@
   // the viewport, and shows a centered card when a target is hidden at this size.
   function startTour(){ if(window.HelmTour) window.HelmTour.start(TOUR, "bp_seen_tour"); }
   $("#helpBtn").addEventListener("click", startTour);
-  // Auto-start the tour once for a first-time visitor, and ALWAYS for a brand-new
-  // signup (onboarding sets bp_force_tour so it fires even if bp_seen_tour was set
-  // earlier on this browser). Waits for the session to be ready before starting.
+  // Auto-start the tour ONLY once, right after a brand-new studio sign-up (login.html
+  // sets bp_force_tour when it creates the studio) or on an invited member's
+  // first-ever login. "Seen" is stored on the ACCOUNT (BPStore.auth.markTourSeen →
+  // auth user_metadata), so new devices / browsers / cleared storage never re-run
+  // it. It is marked seen as soon as it auto-starts (not only on Done), so leaving
+  // mid-tour doesn't make it come back. The "? Tour" button always works.
   try{
-    const forced = localStorage.getItem("bp_force_tour");
-    if(forced || !localStorage.getItem("bp_seen_tour")){
-      let tries=0;
-      (function go(){
-        const ready = !BPStore.auth || !BPStore.auth.enabled || !BPStore.auth.enabled() || (BPStore.auth.user && BPStore.auth.user());
-        if(ready){ try{ localStorage.removeItem("bp_force_tour"); }catch{} startTour(); return; }
-        if(tries++ < 12) setTimeout(go, 400);
-      })();
-    }
+    let tries=0;
+    (function go(){
+      const A = BPStore.auth;
+      const authOn = A && A.enabled && A.enabled();
+      if(!authOn){ if(!localStorage.getItem("bp_seen_tour")) startTour(); return; }   // local/demo mode: per-device
+      const u = A.user && A.user();
+      if(!u){ if(tries++ < 12) setTimeout(go, 400); return; }
+      let forced=false; try{ forced=!!localStorage.getItem("bp_force_tour"); localStorage.removeItem("bp_force_tour"); }catch{}
+      const seen = A.tourSeen ? A.tourSeen() : true;
+      const eligible = A.tourEligible ? A.tourEligible() : false;
+      if(seen || (!forced && !eligible)) return;
+      if(A.markTourSeen) A.markTourSeen();
+      startTour();
+    })();
   }catch{}
 
   BPUI.boot(load);

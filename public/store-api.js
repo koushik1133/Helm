@@ -941,7 +941,7 @@ window.HelmUrl = HelmUrl;
   const STUDIO_SEARCH_VERSION = "3";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
-  const NAV_TRAIL_VERSION = "2";
+  const NAV_TRAIL_VERSION = "3";
   if (typeof global.HelmTrail === "undefined") {
     global.HelmTrail = { setCurrent(o) { if (o) (global.__helmTrailQ = global.__helmTrailQ || []).push(o); }, recent() { return []; }, _stub: true };
   }
@@ -1379,6 +1379,19 @@ window.HelmUrl = HelmUrl;
     required: () => { authGateUsed = true; if (currentUser && !pendingStep) startSessionLimits(); return authRequired || !!pendingStep; },
     // null while a sign-in step is pending (two-step code, temp password, reset) — see evaluateGate
     user: () => (pendingStep ? null : currentUser),
+    // Product tour "seen" flag, kept SERVER-side on the account (auth user_metadata,
+    // the user's own record — no SQL) so it follows the person across devices and
+    // browsers. localStorage alone reset per device → the tour re-ran on every new
+    // browser / cleared storage. → true | false | null (no signed-in user)
+    tourSeen: () => { const u = pendingStep ? null : currentUser; if (!u) return null; const m = u.user_metadata || {}; return m.helm_tour_seen === true; },
+    // Account created on/after the server-side flag shipped (older accounts have
+    // already been through onboarding, so they never auto-see the tour again).
+    tourEligible: () => { const u = pendingStep ? null : currentUser; if (!u) return false; const t = Date.parse(u.created_at || ""); return t >= Date.parse("2026-10-09T00:00:00Z"); },
+    markTourSeen: async () => {
+      const u = pendingStep ? null : currentUser; if (!u || !supa) return false;
+      if ((u.user_metadata || {}).helm_tour_seen === true) return true;
+      try { const { data, error } = await supa.auth.updateUser({ data: { helm_tour_seen: true } }); if (error) return false; if (data && data.user && currentUser && data.user.id === currentUser.id) currentUser = data.user; return true; } catch (e) { return false; }
+    },
     // the signed-in account even while a step is pending (login / reset pages only)
     pendingUser: () => currentUser,
     // "" | the error from an auth link return: "pkce_exchange_failed" = the ?code=
