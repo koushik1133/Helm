@@ -1,5 +1,6 @@
--- 0070_reserve_inventory_atomic.sql
--- PREPARED, NOT APPLIED, NOT IN MANIFEST. Review, validate on staging, then add to MANIFEST.
+-- 0071_reserve_inventory_atomic.sql
+-- (was the orphaned 0070_reserve_inventory_atomic.sql; an older body of this function was hand-pasted
+--  on prod + staging. This migration supersedes it: search_path = '' and created_by = auth.uid().)
 -- Additive + idempotent (CREATE OR REPLACE FUNCTION only; no table or data changes).
 --
 -- Atomic inventory reservation: locks the item row, re-computes demand for the event's
@@ -13,7 +14,7 @@ create or replace function public.reserve_inventory(p_item uuid, p_quote uuid, p
 returns public.inventory_reservations
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   v_total numeric; v_date date; v_org uuid := public.current_org_id();
@@ -58,8 +59,8 @@ begin
     raise exception 'not enough stock free (% left)', greatest(v_total - v_load - v_undated, 0) using errcode='P0001';
   end if;
 
-  insert into public.inventory_reservations (item_id, quote_id, qty, note)
-    values (p_item, p_quote, p_qty, nullif(btrim(coalesce(p_note,'')),''))
+  insert into public.inventory_reservations (item_id, quote_id, qty, note, created_by)
+    values (p_item, p_quote, p_qty, nullif(btrim(coalesce(p_note,'')),''), auth.uid())
     returning * into v_row;
   return v_row;
 end $$;

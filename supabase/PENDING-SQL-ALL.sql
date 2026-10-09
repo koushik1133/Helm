@@ -1,3 +1,4 @@
+-- SUPERSEDED by migrations 0071-0072 / APPLY-0071-0072.sql - do not paste
 -- =====================================================================
 -- PENDING-SQL-ALL.sql  --  running list of every SQL change still to be applied
 -- Owner: Koushik. Kept up to date during the Oct-2026 edge-case pass.
