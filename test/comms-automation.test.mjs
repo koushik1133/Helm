@@ -84,7 +84,7 @@ t('UI: Control Center card is DOM-built, admin tab only, hidden until the server
   const js = read('public/comms-settings.js'), cc = read('public/control.html');
   assert.doesNotMatch(js, /innerHTML|insertAdjacentHTML|outerHTML|\.style\./);
   assert.match(cc, /<div class="card" id="commsCard" hidden>/);
-  assert.match(cc, /<script src="comms-settings\.js\?v=1"><\/script>/);
+  assert.match(cc, /<script src="comms-settings\.js\?v=2"><\/script>/);
   assert.match(cc, /HelmCommsSettings\.init\(\)/);
   assert.match(js, /if \(!S\) return;/);
 });

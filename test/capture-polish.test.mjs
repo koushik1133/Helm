@@ -114,7 +114,7 @@ t('audit: friendly wording, no raw JSON', () => {
 });
 t('audit.html loads the formatter and uses it for updates', () => {
   const h = read('public/audit.html');
-  assert.match(h, /<script src="audit-format\.js\?v=1"><\/script>/); assert.match(h, /AuditFormat\.describeUpdate\(c,5\)/);
+  assert.match(h, /<script src="audit-format\.js\?v=2"><\/script>/); assert.match(h, /AuditFormat\.describeUpdate\(c,5\)/);
 });
 
 globalThis.window = undefined;

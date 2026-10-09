@@ -9,7 +9,9 @@
   var started = false, S = null;
 
   function num(id, lo, hi, dflt) {
-    var v = Number($(id).value);
+    var raw = String($(id).value == null ? "" : $(id).value).trim();
+    if (raw === "") return { ok: false, v: dflt };   // blank must not silently save as 0
+    var v = Number(raw);
     if (!Number.isInteger(v) || v < lo || v > hi) return { ok: false, v: dflt };
     return { ok: true, v: v };
   }
@@ -97,6 +99,10 @@
     });
     if (!bad && patch.pay_enabled && !patch.pay_channels.length) bad = "Pick at least one channel for payment reminders.";
     if (!bad && patch.fu_enabled && !patch.fu_channels.length) bad = "Pick at least one channel for follow-ups.";
+    if (!bad && patch.studio_whatsapp) {
+      var wd = patch.studio_whatsapp.replace(/\D/g, "");
+      if (!/^\+?[0-9\s().-]+$/.test(patch.studio_whatsapp) || wd.length < 8 || wd.length > 15) bad = "Enter the studio WhatsApp number with country code, e.g. +91 98765 43210.";
+    }
     if (!bad && patch.wa_forward_enabled && !patch.studio_whatsapp) bad = "Add the studio WhatsApp number before switching forwarding on.";
     return { patch: patch, bad: bad };
   }

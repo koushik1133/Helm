@@ -309,6 +309,7 @@
     renderPerEvent($("#perEventMsg").textContent && !peRows.length ? $("#perEventMsg").textContent : "");
   }));
   function renderSummary(d){
+    d=Object.assign({vendors:[],taskSlips:[]},d); d.losses=Object.assign({byItem:[],byMonth:[]},d.losses); d.margins=Object.assign({events:[]},d.margins);
     bars("vendors", d.vendors.slice(0,8).map(v=>({label:v.name, value:v.rejectRate, text:`${v.rejected}/${v.total} · ${v.rejectRate}%`, color:v.rejectRate>0?"bad":"safe"})), "No outsourced tasks in this period.");
     bars("tasks", d.taskSlips.slice(0,8).map(c=>({label:c.category, value:c.rejected, text:`${c.rejected} (${c.rejectRate}%)`, color:"warn"})), "No rejections — clean record.");
     bars("lossItem", d.losses.byItem.slice(0,8).map(i=>({label:i.name, value:i.qty, text:i.qty, color:"bad"})), "No losses recorded 🎉");
@@ -317,11 +318,11 @@
     const mw=d.margins.withRevenue||d.margins.events.filter(e=>Number(e.revenue)>0), mz=d.margins.noRevenue||[];
     if(!mw.length&&!mz.length){ $("#margins").innerHTML='<div class="empty">No closed events in this period.</div>'; return; }
     if(mw.length){
-      bars("margins", mw.map(e=>({label:e.code+(e.date?" · "+e.date:""), value:e.profit||0,
+      bars("margins", mw.map(e=>({label:(e.code||"Event")+(e.date?" · "+e.date:""), value:e.profit||0,
         text:inr(e.profit)+(e.marginPct!=null?` (${e.marginPct}%)`:""), color:(e.profit||0)>=0?"safe":"bad", cls:(e.profit||0)>=0?"pos":"neg"})));
       $("#margins").insertAdjacentHTML("afterbegin",`<div class="muted note">Average margin across these closed events: <b>${esc(pct(d.margins.avgMargin))}</b></div>`);
     } else $("#margins").innerHTML='<div class="empty">No closed events with revenue in this period.</div>';
-    if(mz.length) $("#margins").insertAdjacentHTML("beforeend",`<div class="muted note" id="marginsNoRev">No revenue recorded (not in the margin): ${mz.map(e=>esc(e.code+(e.date?" · "+e.date:""))).join(", ")}</div>`);
+    if(mz.length) $("#margins").insertAdjacentHTML("beforeend",`<div class="muted note" id="marginsNoRev">No revenue recorded (not in the margin): ${mz.map(e=>esc((e.code||"Event")+(e.date?" · "+e.date:""))).join(", ")}</div>`);
   }
   $("#li_close").addEventListener("click",closeLogin);
   $("#loginForm").addEventListener("submit",e=>{ e.preventDefault();
