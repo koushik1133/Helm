@@ -708,6 +708,7 @@
     if(!built) initScene();
     syncFloor(); build();
     const W=maxW, H=Math.round(maxW*9/16), SS=2;           // render at 2x, downscale (anti-aliasing)
+    const RW=window.HelmCaptureFrame.legendSplit(W).renderW;   // R5: 3D render on the left, legend panel on the right
     const sc=sun.shadow.camera;
     const keep={ pr:R.getPixelRatio(), size:R.getSize(new THREE.Vector2()), cam:camera.position.clone(), tgt:controls.target.clone(),
       aspect:camera.aspect, far:camera.far, render:renderMode, grid:grid?grid.visible:null, edge:edge?edge.visible:null, tr:transform?transform.visible:null,
@@ -730,36 +731,33 @@
       box.min.fromArray(ub.min); box.max.fromArray(ub.max);
       if(ground){ keep.groundScale=ground.scale.clone(); ground.scale.set((fw+2*FM)/(fw+40),(fh+2*FM)/(fh+40),1); }
       const fr=window.HelmCaptureFrame.frameBox({min:ub.min,max:ub.max},
-        {fovDeg:camera.fov, aspect:W/H, fill:0.88, elevationDeg:38, azimuthDeg:35, minDist:20});
-      R.setPixelRatio(1); R.setSize(W*SS,H*SS,false);
-      camera.aspect=W/H; camera.position.fromArray(fr.position); camera.lookAt(fr.target[0],fr.target[1],fr.target[2]);
+        {fovDeg:camera.fov, aspect:RW/H, fill:0.88, elevationDeg:38, azimuthDeg:35, minDist:20});
+      R.setPixelRatio(1); R.setSize(RW*SS,H*SS,false);
+      camera.aspect=RW/H; camera.position.fromArray(fr.position); camera.lookAt(fr.target[0],fr.target[1],fr.target[2]);
       camera.far=Math.max(keep.far, fr.distance*4); camera.updateProjectionMatrix(); camera.updateMatrixWorld();
       // same sun as the live view (intensity/direction unchanged); only tighten its shadow frustum
       const span=Math.max(Math.abs(box.min.x),Math.abs(box.max.x),Math.abs(box.min.z),Math.abs(box.max.z),20)+10;   // frustum is centred on the sun target (origin)
       sc.left=-span; sc.right=span; sc.top=span; sc.bottom=-span; sc.far=Math.max(keep.sc[4], span*4+200); sc.updateProjectionMatrix();
-      // screen-constant labels: each sprite scaled by its own camera depth so text cap height is ~1.7%
-      // of the image height everywhere (front labels no longer 3x the back ones); overlapping or
-      // duplicate-nearby labels are hidden (nearest kept)
-      const fwd=new THREE.Vector3(); camera.getWorldDirection(fwd);
-      const sprites=[], wp=new THREE.Vector3();
-      root.traverse(o=>{ if(o.isSprite){ keep.labels.push([o,o.scale.clone(),o.visible]); o.getWorldPosition(wp);
-        const depth=wp.clone().sub(camera.position).dot(fwd); if(depth<=0.1){ o.visible=false; return; }
-        const k=window.HelmCaptureFrame.labelScaleForDepth(depth, camera.fov, 0.017, o.scale.y);
-        o.scale.multiplyScalar(k); o.updateMatrixWorld();
-        const ndc=wp.clone().project(camera), vh=2*depth*Math.tan(camera.fov*Math.PI/360);
-        const text=(o.material&&o.material.map&&o.material.map.image&&o.material.map.image.__text)||o.uuid;
-        sprites.push({o, depth, text, x:ndc.x, y:ndc.y, w:o.scale.x/(vh*camera.aspect)*2*0.8, h:o.scale.y/vh*2*0.56}); } });
-      sprites.sort((a,b)=>a.depth-b.depth);
-      const keepIdx=new Set(window.HelmCaptureFrame.pickLabels(sprites, {maxOverlap:0.35, dupDist:0.12}));
-      sprites.forEach((L,i)=>{ if(!keepIdx.has(i)) L.o.visible=false; });
+      // R5: no name tags in the client picture - every sprite is hidden and replaced by a small numbered
+      // badge (same number for the same name), de-overlapped in screen space, plus a legend panel
+      // composited on the right of the image (so it travels with the picture everywhere)
+      const CF=window.HelmCaptureFrame, num=CF.numberItems(store.items), anchors=[], wp=new THREE.Vector3();
+      root.traverse(o=>{ if(o.isSprite){ keep.labels.push([o,o.scale.clone(),o.visible]); o.visible=false;
+        const n=num.byId.get(o.userData.itemId); if(!n) return;
+        o.getWorldPosition(wp); const ndc=wp.clone().project(camera); if(ndc.z>1 || ndc.z<-1) return;
+        anchors.push({n, x:(ndc.x+1)/2*RW, y:(1-ndc.y)/2*H}); } });
       R.render(scene,camera);
       const out=document.createElement('canvas'); out.width=W; out.height=H;
       const ctx=out.getContext('2d'); ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
-      ctx.drawImage(cv,0,0,W*SS,H*SS,0,0,W,H);                // same task as render (no preserveDrawingBuffer)
+      ctx.drawImage(cv,0,0,RW*SS,H*SS,0,0,RW,H);              // same task as render (no preserveDrawingBuffer)
+      const br=Math.round(H*0.011);                          // badge diameter ~2.2% of image height
+      CF.drawBadges(ctx, CF.layoutBadges(anchors, br, {w:RW, h:H}), br);
+      CF.drawLegend(ctx, num.legend, RW, 0, W-RW, H);
       const url=out.toDataURL('image/jpeg',0.92);
       const bin=atob(url.split(',')[1]||''), u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
       const b=new Blob([u8],{type:'image/jpeg'});
       if(!b || b.size<2000) throw new Error('The 3D render came out empty');
+      try{ b.legend=num.legend.map(L=>({n:L.n,name:L.name,count:L.count})); }catch(_){}   // R5: legend data for callers
       return b;
     } finally {
       keep.labels.forEach(([o,s,v])=>{ o.scale.copy(s); o.visible=v; });
