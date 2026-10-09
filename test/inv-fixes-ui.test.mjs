@@ -70,7 +70,7 @@ t('L2: hardener shows an inline hint when it drops a minus sign', () => {
   assert.ok(/Negative numbers aren\\u2019t allowed here/.test(SRC));
   assert.ok(/e\.key === "-" && !allowNeg\) \{ e\.preventDefault\(\); negHint\(el\)/.test(SRC));
   assert.ok(/!allowNeg && v\.indexOf\("-"\) !== -1\) negHint\(el\)/.test(SRC));
-  assert.ok(/aria-live/.test(body('function negHint(el)', 600)));
+  assert.ok(/aria-live/.test(body('function negHint(el, text, ms)', 600)));
 });
 
 t('0073: cancelled excluded from sums, delete policy dropped, guarded unique indexes', () => {
