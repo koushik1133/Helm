@@ -95,7 +95,7 @@ t('suspended / trial-ended studio: create shows read-only reason', () => {
 t('nurture: existing invalid phone rows are flagged', () => assert.match(read('public/nurture.html'), /BPStore\.staff\.phoneInvalid\(n\)\?'<span class="due badphone"/));
 console.log(`r9-flow: ${n} passed (total)`);
 {
-  const a2 = S.indexOf('  function localDay(v)'), b2 = S.indexOf('\n', S.indexOf('  function inRange(date, r)'));
+  const a2 = S.indexOf('  function inRange(date, r)'), b2 = S.indexOf('d >= r.from && d <= r.to; }', a2) + 27;
   const inRange = new Function(S.slice(a2, b2) + '\nreturn inRange;')();
   const off = -new Date('2026-09-30T20:00:00Z').getTimezoneOffset();   // minutes east of UTC
   t('insights range: UTC timestamps use the local calendar day (IST month boundary)', () => {

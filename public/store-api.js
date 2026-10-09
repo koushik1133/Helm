@@ -6912,14 +6912,10 @@ window.HelmUrl = HelmUrl;
   // is a YYYY-MM-DD (or ISO timestamp) inside {from,to}? null range = everything
   // r9: a full timestamp (created_at / paid_at, stored in UTC) is compared by its LOCAL calendar
   // day — 2026-09-30T20:00Z is 1 Oct in IST and belongs to October, not September.
-  function localDay(v) {
-    const s = String(v || "");
-    if (s.length > 10 && /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s) && /(Z|[+-]\d{2}:?\d{2})$/.test(s)) {
-      const t = new Date(s.replace(" ", "T")); if (!isNaN(t.getTime())) return t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0");
-    }
-    return s.slice(0, 10);
-  }
-  function inRange(date, r) { if (!r) return true; const d = localDay(date); if (!d) return false; return d >= r.from && d <= r.to; }
+  function inRange(date, r) { if (!r) return true; const s = String(date || ""); let d = s.slice(0, 10);
+    if (s.length > 10 && /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s) && /(Z|[+-]\d{2}:?\d{2})$/.test(s)) { const t = new Date(s.replace(" ", "T"));
+      if (!isNaN(t.getTime())) d = t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0"); }
+    if (!d) return false; return d >= r.from && d <= r.to; }
 
   /* ---------------- audit log (Phase 47) ---------------- */
   const audit = {
