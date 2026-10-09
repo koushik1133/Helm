@@ -124,7 +124,7 @@ await t('capture.html is generated from builder.html (same drawing code), marked
   const b = R('public/builder.html'), c = R('public/capture.html');
   assert.equal(c, captureHtml(b), 'run: node scripts/gen-capture-host.mjs');
   assert.match(c, /<meta name="helm-capture" content="1">/); assert.ok(!/helm-capture/.test(b));
-  assert.ok(!/tour\.js/.test(c)); assert.match(c, /builder\.js\?v=33/);
+  assert.ok(!/tour\.js/.test(c)); assert.match(c, /builder\.js\?v=34/);
 });
 
 await t('CSP: frame-ancestors \'self\' only on the capture route (+ invite); builder stays none', () => {
