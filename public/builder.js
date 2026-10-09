@@ -3408,7 +3408,7 @@ function planBlob(o){ o=o||{}; return new Promise(resolve=>{
   const LM=CF ? CF.labelMode(o.labels) : 'numbers';         // 0083: o.labels 'none' | 'numbers' (default) | 'names'
   if(CF) clone.querySelectorAll('text.lbl').forEach(n=>n.remove());
   const restore=()=>{ store.grid.show=wasGrid; showMeasure=wasMeasure; setSelection(wasSel); renderAll(); };
-  const W=WORLD.w*PX_PER_FT, H=WORLD.h*PX_PER_FT, S=o.maxW ? Math.min(4, o.maxW/W) : 2;
+  const W=WORLD.w*PX_PER_FT, H=WORLD.h*PX_PER_FT, S=o.maxW ? Math.min(4, o.maxW/W, 4096/H) : 2;   // R9: cap the tall side at 4096 px (iOS Safari canvas limits)
   clone.setAttribute('width',W*S); clone.setAttribute('height',H*S);
   clone.insertBefore(el('rect',{x:0,y:0,width:W,height:H,
     fill:(getComputedStyle(document.body).getPropertyValue('--canvas').trim()||'#fff')}), clone.firstChild);
@@ -3456,7 +3456,9 @@ async function runCaptureHost(){
   const post=m=>{ try{ window.parent.postMessage(captureHostMessage(qid, m), location.origin); }catch(e){} };
   if(!currentQuoteId){ post({type:'helm-capture-done', ok:false, error:'That event could not be opened'}); return; }
   if(!store.items.length){ post({type:'helm-capture-done', ok:true, empty:true, results:{}}); return; }
-  if(!clientImagesSupported()){ post({type:'helm-capture-done', ok:false, error:'You can’t update the pictures for this event'}); return; }
+  // R9: R4-E — never write pictures for a closed / cancelled / archived event
+  if(currentQuoteGuard && currentQuoteGuard.frozen){ post({type:'helm-capture-done', ok:false, code:'frozen', error:'This event is closed, so its pictures can’t be updated'}); return; }
+  if(!clientImagesSupported()){ post({type:'helm-capture-done', ok:false, code:'readonly', error:'You can’t update the pictures for this event'}); return; }
   captureProgressHook=step=>post({type:'helm-capture-progress', step});
   let ok=false; try{ ok=await captureClientImages(true); }catch(e){ ok=false; }
   post({type:'helm-capture-done', ok:!!ok, results:lastCaptureResults||{}, error: ok ? null : 'The pictures could not be saved'});
@@ -3664,6 +3666,8 @@ async function init(){
   renderPrice();
   // Auth gate: if Supabase enforces login and nobody's signed in → go to the sign-in page
   if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){
+    // R9: the capture host must answer (not navigate the hidden iframe to /login and hang 60s)
+    if(CAPTURE_HOST){ try{ window.parent.postMessage({type:'helm-capture-done', quoteId:String(params.get('quote')||''), ok:false, code:'signin', error:'Please sign in again'}, location.origin); }catch(e){} return; }
     location.replace('/login?next='+encodeURIComponent('builder'+location.search)); return;
   }
   // Role gate: view-only roles (crew/client) get a read-only builder; capture create capability
