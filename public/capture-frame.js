@@ -103,9 +103,24 @@
     if(SEAT_KIND[it.type] && +p.seats>0 && GENERIC_TABLE.test(base||'')) return { name:(+p.seats)+'-seat '+SEAT_KIND[it.type].toLowerCase() };   // "8-seat round table" fits the legend column
     return null;
   }
+  /* V3: friendly names for the client picture legend / name tags. A blank (or raw type-key) label falls back
+     to the asset's plain name; a default "Generator" label carries its rating when a spec is set
+     ("Generator 125 kVA"). Custom names are always kept as typed. */
+  const FRIENDLY={dj:'DJ booth', speaker:'Speaker stack', generator:'Generator', lighting:'Lighting truss', led:'LED screen', ledscreen:'LED screen',
+    chandelier:'Chandelier', photobooth:'Photo booth', chocolatefountain:'Chocolate fountain', chariot:'Wedding chariot', smoke:'Smoke machine',
+    dancers:'Dancers', podium:'Podium', walkway:'Walkway / ramp', brandwall:'Branding wall', linearray:'Sound (line array)', barricade:'Barricade', stage:'Stage'};
+  function kvaOf(p){ p=p||{}; const sp=p.spec, v=p.kva!=null ? p.kva : (sp&&typeof sp==='object' ? sp.kva : null);
+    let n=+v; if(!(n>0) && typeof sp==='string'){ const m=/(\d+(?:\.\d+)?)\s*kva/i.exec(sp); if(m) n=+m[1]; }
+    return n>0 && isFinite(n) ? Math.round(n*10)/10 : null; }
+  function displayName(it){
+    if(!it) return ''; let n=legendName(it.label); const t=String(it.type||'');
+    if((!n || n.toLowerCase()===t.toLowerCase()) && Object.prototype.hasOwnProperty.call(FRIENDLY,t)) n=FRIENDLY[t];
+    if(t==='generator' && /^generator$/i.test(n)){ const k=kvaOf(it.properties); if(k) n='Generator '+k+' kVA'; }
+    return n;
+  }
   function numberItems(items){
     const rows=[];
-    (items||[]).forEach((it,i)=>{ if(!it) return; let name=legendBase(legendName(it.label)); const sk=seatingName(it, name);
+    (items||[]).forEach((it,i)=>{ if(!it) return; let name=legendBase(displayName(it)); const sk=seatingName(it, name);
       if(sk) name=sk.name; else if(NO_MARKER[it.type]) return; if(!name) return;
       rows.push({id:it.id, name, seats:sk&&sk.seats!=null?sk.seats:null, i, y:Math.round(((+it.y||0)+(+it.height||0)/2)*100)/100, x:Math.round(((+it.x||0)+(+it.width||0)/2)*100)/100}); });
     rows.sort((a,b)=>a.y-b.y || a.x-b.x || (a.name<b.name?-1:a.name>b.name?1:0) || a.i-b.i);
@@ -253,6 +268,6 @@
     const why=bad.map(k=>nm(k)+(typeof r[k]==='string' && r[k] ? ' ('+r[k]+')' : '')).join('; ');
     return {ok:false, saved:ok, failed:bad, message:(ok.length ? 'Saved '+ok.map(nm).join(', ')+'. ' : 'No client images saved. ')+'Not saved: '+why+'.'};
   }
-  const api={ captureSummary, labelMode, LABEL_MODES, layoutTags, drawNameTags, numberItems, layoutBadges, legendLayout, drawBadge, drawBadges, drawLegend, legendSplit, frameBox, projectBox, labelWorldHeight, labelScaleForDepth, unionFloor, pickLabels, LABEL_CAP_RATIO };
+  const api={ displayName, captureSummary, labelMode, LABEL_MODES, layoutTags, drawNameTags, numberItems, layoutBadges, legendLayout, drawBadge, drawBadges, drawLegend, legendSplit, frameBox, projectBox, labelWorldHeight, labelScaleForDepth, unionFloor, pickLabels, LABEL_CAP_RATIO };
   if(typeof module!=='undefined' && module.exports) module.exports=api; else root.HelmCaptureFrame=api;
 })(typeof window!=='undefined'?window:globalThis);
