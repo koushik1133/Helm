@@ -53,6 +53,35 @@
     return project(corners(box), fr.position, B, Math.tan(fovV/2), o.aspect||16/9); }
   // world height of a label so it renders at `frac` of the image height at the framed distance
   function labelWorldHeight(distance, fovDeg, frac){ return 2*distance*Math.tan((fovDeg||48)*Math.PI/360)*(frac||0.03); }
-  const api={ frameBox, projectBox, labelWorldHeight };
+  // R4: label sprites are screen-constant in the capture. The sprite canvas is 64px tall with a 22px
+  // font (cap height ~16px => 0.25 of the sprite), so a sprite at camera depth `depth` must be this
+  // tall in world units for its text cap height to be `capFrac` of the image height.
+  const LABEL_CAP_RATIO=0.25;
+  function labelScaleForDepth(depth, fovDeg, capFrac, spriteH){
+    const viewH=2*Math.max(depth,1e-3)*Math.tan((fovDeg||48)*Math.PI/360);
+    return viewH*(capFrac||0.017)/LABEL_CAP_RATIO/(spriteH||2.5);
+  }
+  // union of the objects' box and the hall floor rectangle (y=0), so the floor edges are in frame
+  function unionFloor(box, floorW, floorH, margin){
+    const m=margin||0, hw=floorW/2+m, hh=floorH/2+m;
+    if(!box) return {min:[-hw,0,-hh],max:[hw,0,hh]};
+    return { min:[Math.min(box.min[0],-hw), Math.min(box.min[1],0), Math.min(box.min[2],-hh)],
+             max:[Math.max(box.max[0], hw), Math.max(box.max[1],0), Math.max(box.max[2], hh)] };
+  }
+  // decide which labels to draw: drop a label whose projected box overlaps one already kept by more
+  // than `maxOverlap` of its own area, and dedupe identical text closer than `dupDist` (NDC units).
+  // labels: [{text, x, y, w, h}] in NDC, nearest first is best. Returns array of kept indices.
+  function pickLabels(labels, o){ o=o||{}; const maxOv=o.maxOverlap!=null?o.maxOverlap:0.35, dup=o.dupDist!=null?o.dupDist:0.12;
+    const kept=[];
+    labels.forEach((L,i)=>{
+      for(const k of kept){ const K=labels[k];
+        if(K.text===L.text && Math.hypot(K.x-L.x,K.y-L.y)<dup) return;
+        const ox=Math.max(0,Math.min(K.x+K.w/2,L.x+L.w/2)-Math.max(K.x-K.w/2,L.x-L.w/2));
+        const oy=Math.max(0,Math.min(K.y+K.h/2,L.y+L.h/2)-Math.max(K.y-K.h/2,L.y-L.h/2));
+        if(ox*oy > maxOv*L.w*L.h) return; }
+      kept.push(i); });
+    return kept;
+  }
+  const api={ frameBox, projectBox, labelWorldHeight, labelScaleForDepth, unionFloor, pickLabels, LABEL_CAP_RATIO };
   if(typeof module!=='undefined' && module.exports) module.exports=api; else root.HelmCaptureFrame=api;
 })(typeof window!=='undefined'?window:globalThis);

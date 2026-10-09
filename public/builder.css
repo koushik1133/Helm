@@ -279,6 +279,11 @@ details.state pre{margin:0;padding:0 14px 14px;font-family:var(--mono);font-size
 .qbadge{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-soft,#dbe6ff);border:1px solid var(--line);border-radius:20px;padding:5px 11px;white-space:nowrap}
 .emptystate{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:5}
 .viewport.is3d .emptystate{display:none!important}
+.layoutloading{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:12px 18px;font-size:13px;color:var(--ink-3);pointer-events:none}
+.layoutloading[hidden]{display:none}
+.layoutloading .ll-spin{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--ink-3);animation:llspin .8s linear infinite}
+@keyframes llspin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.layoutloading .ll-spin{animation:none}}
 .emptystate .es-card{pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:26px 30px;text-align:center;max-width:min(420px,calc(100% - 24px))}
 .emptystate .es-icon{font-size:40px;line-height:1}
 .emptystate h3{margin:10px 0 4px;font-size:18px;color:var(--ink)}
