@@ -654,6 +654,11 @@
    "why": "CSS class token: literal ('ok'/'err'/'done'/'active'…) at every call site / computed from literals in this function"
   },
   {
+   "file": "public/nurture.html",
+   "expr": "waLink(d)",
+   "why": "waLink builds the anchor itself: digits-only phone, encodeURIComponent text and the name all go through esc(); '' when the phone is invalid"
+  },
+  {
    "file": "public/ops.html",
    "expr": "badges",
    "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"

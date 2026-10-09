@@ -48,6 +48,8 @@
   .tag{font-size:12px;font-weight:600;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:3px 9px;color:var(--ink-2)}
   .tag.dept{background:var(--accent-soft);color:var(--accent);border-color:transparent}
   .tag.emp{background:#e7f6ee;color:#0f7a43;border-color:transparent}
+  .tag.badphone{background:#fdecec;color:#b42318;border-color:transparent}
+  html[data-theme="dark"] .tag.badphone{background:#4a1d1d;color:#fca5a5}
   .tag.linked{background:#e0ecff;color:#1d4ed8;border-color:transparent}
   html[data-theme="dark"] .tag.linked{background:#172a4d;color:#93c5fd}
   .av{position:relative;overflow:hidden}
@@ -149,7 +151,7 @@
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="event-name.js?v=1"></script>
-<script src="store-api.js?v=149"></script>
+<script src="store-api.js?v=150"></script>
 <script src="tour.js?v=9"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -179,6 +181,7 @@
         ${s.department?`<span class="tag dept">${esc(s.department)}</span>`:""}
         ${s.emp_type?`<span class="tag emp">${esc(EMP[s.emp_type]||s.emp_type)}</span>`:""}
         ${s.active===false?`<span class="tag">Inactive</span>`:""}
+        ${BPStore.staff.phoneInvalid(s)?`<span class="tag badphone" title="The saved phone number isn't valid. Edit this person to correct it.">Invalid phone — please fix</span>`:""}
       </div>
       ${skills.length?`<div class="tags">${skills.map(k=>`<span class="tag">${esc(k)}</span>`).join("")}</div>`:""}
       <div class="meta">${[s.phone,s.email].filter(Boolean).map(esc).join(" · ")}${s.day_rate?`<br>₹${Number(s.day_rate).toLocaleString("en-IN")}/day`:""}</div>
@@ -241,7 +244,9 @@
     $("#s_emp").value=s?s.emp_type||"":""; $("#s_phone").value=s?s.phone||"":""; $("#s_email").value=s?s.email||"":"";
     $("#s_rate").value=s&&s.day_rate!=null?s.day_rate:""; $("#s_skills").value=s&&Array.isArray(s.skills)?s.skills.join(", "):""; $("#s_notes").value=s?s.notes||"":"";
     editingRow=s||null; setLinkedLock(s);
-    $("#sm_err").hidden=true; $("#staffModal").hidden=false; formDirty.clean(); setTimeout(()=>(BPStore.staff.isLinked(s)?$("#s_emp"):$("#s_name")).focus(),50);
+    $("#sm_err").hidden=true;
+    if(s && !BPStore.staff.isLinked(s) && BPStore.staff.phoneInvalid(s)){ $("#sm_err").textContent=`Invalid phone — please fix. The saved number "${String(s.phone).slice(0,60)}" isn't a valid phone (7–15 digits, optional leading +).`; $("#sm_err").hidden=false; }
+    $("#staffModal").hidden=false; formDirty.clean(); setTimeout(()=>(BPStore.staff.isLinked(s)?$("#s_emp"):$("#s_name")).focus(),50);
   }
   let editingRow=null;
   const formDirty=BPUI.trackDirty($("#staffModal"));

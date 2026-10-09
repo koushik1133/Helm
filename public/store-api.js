@@ -2359,6 +2359,7 @@ window.HelmUrl = HelmUrl;
       try { return await qt().setStage(id, stage); }
       catch (e) {
         const code = e && e.code;
+        if (e && typeof e.message === "string") e.message = demojibake(e.message);
         if (code === "HL428") {
           await window.BPUI.alert(String(e.message || "Price changed after approval — client must approve again."),
             { title: "Client must approve again" });
@@ -2496,6 +2497,7 @@ window.HelmUrl = HelmUrl;
       const { data, error } = await supa.from("crew_members").select("*").eq("active", true).order("name");
       if (error) throw error; return data; },
     async addCrew(name, phone, department) { if (!supa) throw new Error("Supabase not configured");
+      phone = phoneOrThrow(phone, true);
       const { data, error } = await supa.from("crew_members").insert({ name, phone, department }).select().single();
       if (error) throw error; return data; },
     async deactivateCrew(id) { const { error } = await supa.from("crew_members").update({ active: false }).eq("id", id); if (error) throw error; return true; },
@@ -2918,10 +2920,12 @@ window.HelmUrl = HelmUrl;
       return readLs(NURTURE_LS).filter((n) => n.status === "active" && n.next_followup && n.next_followup <= today).length;
     },
     async add(n) {
+      n = { ...n, phone: phoneOrThrow(n && n.phone, false) };
       if (mode === "supabase") { const { data, error } = await supa.from("nurture").insert(n).select().single(); if (error) throw error; return data; }
       const a = readLs(NURTURE_LS); const row = { id: uid(), status: "active", ...n, created_at: now() }; a.push(row); localStorage.setItem(NURTURE_LS, JSON.stringify(a)); return row;
     },
     async update(id, patch) {
+      if (patch && Object.prototype.hasOwnProperty.call(patch, "phone")) patch = { ...patch, phone: phoneOrThrow(patch.phone, false) };
       if (mode === "supabase") { const { error } = await supa.from("nurture").update(patch).eq("id", id); if (error) throw error; return true; }
       const a = readLs(NURTURE_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(NURTURE_LS, JSON.stringify(a)); } return true;
     },
@@ -3173,6 +3177,7 @@ window.HelmUrl = HelmUrl;
         skills: [...new Set(rows.flatMap((r) => (Array.isArray(r.skills) ? r.skills : [])))].sort() };
     },
     async add(s) {
+      if (s && !s.profile_id) s = { ...s, phone: phoneOrThrow(s.phone, true) };
       if (mode === "supabase") {
         const { data, error } = await supa.from("crew_members").insert(s).select().single();
         if (error) throw error; return data;
@@ -3181,6 +3186,7 @@ window.HelmUrl = HelmUrl;
       a.push(row); localStorage.setItem(STAFF_LS, JSON.stringify(a)); return row;
     },
     async update(id, patch) {
+      if (patch && Object.prototype.hasOwnProperty.call(patch, "phone")) patch = { ...patch, phone: phoneOrThrow(patch.phone, true) };
       if (mode === "supabase") { const { error } = await supa.from("crew_members").update(patch).eq("id", id); if (error) throw error; return true; }
       const a = readLs(STAFF_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(STAFF_LS, JSON.stringify(a)); } return true;
     },
@@ -3189,6 +3195,9 @@ window.HelmUrl = HelmUrl;
     // department / title follow the member's profile (edited in Control Center → User control).
     isLinked: (s) => !!(s && s.profile_id),
     normPhone: memberNormPhone,
+    phoneE164: memberPhoneE164,
+    // r7: an existing row whose stored phone fails today's rule (shown as "Invalid phone — please fix")
+    phoneInvalid: (s) => !!(s && s.phone && !memberPhoneE164(s.phone).ok),
     // The linked staff record that already has this number (another row would be a second
     // record for one account) → { id, name } or null. Before 0041 / on error → null (the DB
     // guard still refuses it; its message is shown through linkErrorText).
@@ -5838,6 +5847,14 @@ window.HelmUrl = HelmUrl;
       try { await lsq.setStage(quoteId, closed ? "closed" : "settlement"); } catch {}
       return row;
     },
+    // r7 (0084): an admin re-opens a closed event (back to settlement). Reason required + audited;
+    // nothing is deleted - payments, ledger and costs stay as they are.
+    async reopen(quoteId, reason) {
+      const r = String(reason == null ? "" : reason).trim();
+      if (r.length < 5) throw new Error("Give a reason of at least 5 characters.");
+      if (mode === "supabase") return rpc("reopen_event", { p_quote_id: quoteId, p_reason: r });
+      return this.setClosed(quoteId, false);
+    },
     async listRatings(quoteId) {
       if (mode === "supabase") { const { data, error } = await supa.from("event_ratings").select("*").eq("quote_id", quoteId).order("created_at"); if (error) throw error; return data; }
       return readLs(RATE_LS).filter((r) => r.quote_id === quoteId);
@@ -6587,6 +6604,25 @@ window.HelmUrl = HelmUrl;
     return /^\+[0-9 ().-]{6,24}$/.test(s) && /^[1-9]\d{7,14}$/.test(d) ? "+" + d : null;
   }
   // same digits rule as the DB's helm_norm_phone (used to spot "the same number written differently")
+  // r7: repair UTF-8 text that was decoded as MacRoman / Windows-1252 ("long dash" garbage)
+  const MOJI = [["\u201a\u00c4\u00ee", "\u2014"], ["\u201a\u00c4\u00ec", "\u2013"], ["\u201a\u00c4\u00f4", "\u2019"], ["\u201a\u00c4\u00b6", "\u2026"],
+    ["\u00e2\u20ac\u201d", "\u2014"], ["\u00e2\u20ac\u201c", "\u2013"], ["\u00e2\u20ac\u2122", "\u2019"], ["\u00e2\u20ac\u00a6", "\u2026"]];
+  function demojibake(t) { let s = String(t == null ? "" : t); MOJI.forEach(([a, b]) => { s = s.split(a).join(b); }); return s; }
+  global.HelmDemojibake = demojibake;
+  // r7: a phone for staff / nurture → { ok, value: E.164 | null, error }. Digits with an optional
+  // leading +, 7–15 digits; spaces . - ( ) ignored; a bare 10-digit (or 0 + 10) number is India (+91).
+  function memberPhoneE164(raw, required) {
+    const s = String(raw == null ? "" : raw).trim();
+    if (!s) return required ? { ok: false, error: "Phone number is required." } : { ok: true, value: null };
+    let c = s.replace(/[\s\-().]/g, "");
+    if (/^00\d/.test(c)) c = "+" + c.slice(2);
+    if (!/^\+?\d{7,15}$/.test(c)) return { ok: false, error: "Enter a valid phone number: 7–15 digits, optional leading +." };
+    if (c[0] === "+") return { ok: true, value: c };
+    if (/^\d{10}$/.test(c)) return { ok: true, value: "+91" + c };
+    if (/^0\d{10}$/.test(c)) return { ok: true, value: "+91" + c.slice(1) };
+    return { ok: true, value: "+" + c };
+  }
+  function phoneOrThrow(raw, required) { const r = memberPhoneE164(raw, required); if (!r.ok) { const e = new Error(r.error); e.code = "invalid_phone"; throw e; } return r.value; }
   function memberNormPhone(p) {
     const d = String(p == null ? "" : p).replace(/\D/g, "");
     if (/^\d{10}$/.test(d)) return "91" + d;
@@ -7734,6 +7770,7 @@ window.HelmUrl = HelmUrl;
   // Never asks END USERS to run SQL; the setup hint is shown only to admins, as an admin notice.
   function friendlyError(e, o) {
     o = o || {};
+    if (e && typeof e.message === "string" && global.HelmDemojibake) { try { e.message = global.HelmDemojibake(e.message); } catch (_) {} }
     var action = o.action ? String(o.action) : "";
     var pre = action ? "Couldn’t " + action + ". " : "";
     if (isAuthError(e)) return "Your session expired — sign in again.";
