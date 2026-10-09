@@ -100,7 +100,7 @@ t('linked venue on the client JSON: flow + builder', () => {
   assert.match(f, /venueId:vid, venueName:vnm, setting:vs/, 'saveVenue persists the link + setting');
   assert.match(f, /cl\.venueId[\s\S]{0,400}HelmVenuePicker\.sync\(\)/, 'load restores the link and re-shows warnings');
   assert.match(b, /HelmBuilderVenue[\s\S]{0,400}venueId: v\.id, venueName: v\.name/);
-  assert.match(read('public/builder.html'), /builder\.js\?v=32/);
+  assert.match(read('public/builder.html'), /builder\.js\?v=33/);
   assert.match(pk, /Linked to saved venue: /); assert.match(pk, /text: "change"/); assert.match(pk, /text: "unlink"/);
 });
 console.log('venues: ok (' + n + ')');

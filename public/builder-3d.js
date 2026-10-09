@@ -550,6 +550,13 @@
       const t=document.createElement('span'); t.className='lg-t'; t.textContent=L.name+(L.count>1?' ×'+L.count:''); li.append(b,t); ol.appendChild(li); });
     card.appendChild(ol);
   }
+  /* walkthrough: temporarily hide name tags + badges at eye level without touching the saved mode */
+  let labelsHidden=false;
+  function setLabelsHidden(h){
+    labelsHidden=!!h; if(!scene) return;
+    scene.traverse(o=>{ if(o.userData && o.userData.nameTag) o.visible=!labelsHidden && liveLabels==='names';
+      else if(o.userData && o.userData.badge && o.userData.itemId!=null) o.visible=!labelsHidden; });
+  }
   function setLiveLabels(m){
     liveLabels=window.HelmCaptureFrame.labelMode(m);
     try{ localStorage.setItem('bps.labels3d',liveLabels); }catch(_){}
@@ -671,9 +678,9 @@
       if(g){ g.position.set(sx(it.x+it.width/2),0,sz(it.y+it.height/2)); g.rotation.y=-(it.rotation||0)*Math.PI/180;
         g.userData.itemId=it.id; root.add(g);
         if(['seatblock','chairrow'].indexOf(it.type)===-1){ const lp=label(window.HelmCaptureFrame&&HelmCaptureFrame.displayName?HelmCaptureFrame.displayName(it):it.label);
-          lp.position.set(sx(it.x+it.width/2), objTopY(it)+3, sz(it.y+it.height/2)); lp.userData.itemId=it.id; lp.visible=liveLabels==='names'; root.add(lp);
+          lp.position.set(sx(it.x+it.width/2), objTopY(it)+3, sz(it.y+it.height/2)); lp.userData.itemId=it.id; lp.userData.nameTag=true; lp.visible=liveLabels==='names'&&!labelsHidden; root.add(lp);
           const n=liveLabels==='numbers' ? num.byId.get(it.id) : null;
-          if(n){ const bp=badgeSprite(n); bp.position.copy(lp.position); bp.userData.itemId=it.id; root.add(bp); } } }
+          if(n){ const bp=badgeSprite(n); bp.position.copy(lp.position); bp.userData.itemId=it.id; bp.visible=!labelsHidden; root.add(bp); } } }
     }
     renderLegendCard(liveLabels==='numbers' ? num.legend : null);
     buildChairs(chairs);
@@ -895,10 +902,12 @@
   }
   window.__helm3D={
     isActive:()=>active,
-    getView:()=> camera&&controls ? {pos:camera.position.toArray(), target:controls.target.toArray(), minD:controls.minDistance} : null,
-    setView(pos,target,minD){ if(!camera||!controls) return;
+    getView:()=> camera&&controls ? {pos:camera.position.toArray(), target:controls.target.toArray(), minD:controls.minDistance, fov:camera.fov, aspect:camera.aspect} : null,
+    setView(pos,target,minD,fov){ if(!camera||!controls) return;
       camera.position.set(pos[0],pos[1],pos[2]); controls.target.set(target[0],target[1],target[2]);
+      if(fov!=null && isFinite(fov) && Math.abs(fov-camera.fov)>1e-3){ camera.fov=Math.max(20,Math.min(90,fov)); camera.updateProjectionMatrix(); }
       if(minD!=null) controls.minDistance=minD; controls.update(); },
+    setLabelsHidden,
     setEvening, isEvening:()=>!!evening,
   };
   window.__capture3D=async function(maxW,opts){ const ev=!!evening; if(ev) setEvening(false);

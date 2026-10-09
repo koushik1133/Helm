@@ -122,7 +122,7 @@ t('wiring: RBAC area, Control Center card, builder Adjust popup, versions', () =
   assert.match(s, /rpc\("set_item_rate_card"/); assert.match(s, /rpc\("get_item_rate_cards"\)/);
   assert.match(cc, /id="itemPricingCard"/); assert.match(cc, /<script src="item-pricing\.js\?v=1"><\/script>/); assert.match(read('public/item-pricing.js'), /setItemRate\(/); assert.ok(!/innerHTML/.test(read('public/item-pricing.js')));
   assert.match(bj, /ITEM-SPEC ADJUST: BEGIN/); assert.match(bj, /ITEM-SPEC ADJUST: END/);
-  assert.match(bh, /builder\.js\?v=32/); assert.match(bh, /store-api\.js\?v=159/);
+  assert.match(bh, /builder\.js\?v=33/); assert.match(bh, /store-api\.js\?v=159/);
   assert.match(read('supabase/migrations/MANIFEST'), /forward  supabase\/migrations\/0086_item_specs\.sql/);
   const ap = read('supabase/APPLY-0086.sql'); assert.ok(!/[^\x00-\x7f]/.test(ap), 'APPLY-0086 must be pure ASCII');
   assert.match(read('docs/ITEM-PRICING-DEFAULTS.md'), /Generator/);

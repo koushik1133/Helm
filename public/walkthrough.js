@@ -17,6 +17,9 @@
   'use strict';
   const EYE = 5.25;                 // 1.6 m in feet
   const FLY_MS = 1200;
+  const EYE_FOV = 65, OVERVIEW_FOV = 48, CLEAR = 2;   // eye-level FOV (deg); keep eye cameras 2 ft off footprints
+  // floor-level items a guest can stand on (never block an eye-level camera)
+  const WALKABLE = { dancefloor: 1, redcarpet: 1, exit: 1, arch: 1, checkpoint: 1, rug: 1, carpet: 1, aisle: 1 };
   const SEAT_TYPES = { seatblock: 1, chairrow: 1, chiavari: 1, bleacher: 1, sofa: 1, loveseat: 1, bench: 1 };
   const TABLE_TYPES = { table: 1, longtable: 1, headtable: 1 };
   const SPECIAL = [
@@ -47,7 +50,65 @@
   const isType = (it, t) => it.type === t || (t === 'chariot' && /chariot/i.test(String(it.label || '')));
   const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
 
-  function walkthroughStops(itemsIn, hall) {
+  // axis-aligned footprint of a (possibly rotated) item, grown by `pad` ft
+  function footprint(it, pad) {
+    const c = ctr(it), hw = it.width / 2, hh = it.height / 2, t = (it.rotation || 0) * Math.PI / 180;
+    const ex = Math.abs(hw * Math.cos(t)) + Math.abs(hh * Math.sin(t)), ey = Math.abs(hw * Math.sin(t)) + Math.abs(hh * Math.cos(t));
+    return { x0: c.x - ex - pad, y0: c.y - ey - pad, x1: c.x + ex + pad, y1: c.y + ey + pad };
+  }
+  const blockers = (items) => (items || []).filter((it) => it && it.type && !WALKABLE[it.type] && it.width > 0 && it.height > 0);
+  function isClear(p, items, pad) {
+    const c = pad == null ? CLEAR : pad;
+    return !blockers(items).some((it) => { const f = footprint(it, c); return p.x > f.x0 && p.x < f.x1 && p.y > f.y0 && p.y < f.y1; });
+  }
+  /* Nudge an eye-level camera spot `p` (layout ft) out of every object footprint (+CLEAR ft), keeping
+     it inside the hall. Tries backing away from `look` first, then sideways, then forward, in growing
+     steps; returns the nearest free spot (or p unchanged if it is already clear / nothing is free). */
+  function clearSpot(p, look, items, hall, pad) {
+    const W = Math.max(10, num(hall && hall.w, 200)), H = Math.max(10, num(hall && hall.h, 140)), M = 2;
+    const inHall = (q) => q.x >= M && q.x <= W - M && q.y >= M && q.y <= H - M;
+    const list = blockers(items);
+    if (isClear(p, list, pad)) return { x: p.x, y: p.y };
+    let fx = (look ? look.x : W / 2) - p.x, fy = (look ? look.y : H / 2) - p.y; const L = Math.hypot(fx, fy);
+    if (L < 1e-6) { fx = 0; fy = -1; } else { fx /= L; fy /= L; }
+    const dirs = [[-fx, -fy], [-fy, fx], [fy, -fx], [fx, fy],
+      [(-fx - fy) / Math.SQRT2, (-fy + fx) / Math.SQRT2], [(-fx + fy) / Math.SQRT2, (-fy - fx) / Math.SQRT2]];
+    for (let d = 0.5; d <= Math.max(W, H); d += 0.5) {
+      for (const [dx, dy] of dirs) {
+        const q = { x: p.x + dx * d, y: p.y + dy * d };
+        if (inHall(q) && isClear(q, list, pad)) return { x: +q.x.toFixed(2), y: +q.y.toFixed(2) };
+      }
+    }
+    return { x: p.x, y: p.y };
+  }
+  /* Overview camera: three-quarter view framing the hall floor box to `fill` (~80%) of the viewport on
+     the binding axis, for the live camera aspect / FOV. Uses HelmCaptureFrame.frameBox when loaded,
+     else an equivalent conservative fit. Scene units, hall centred on the origin. */
+  function overviewView(hall, aspect, fovDeg, fill) {
+    const W = Math.max(10, num(hall && hall.w, 200)), H = Math.max(10, num(hall && hall.h, 140));
+    const a = num(aspect, 16 / 9) > 0.2 ? num(aspect, 16 / 9) : 16 / 9, fov = num(fovDeg, OVERVIEW_FOV), f = num(fill, 0.8);
+    const box = { min: [-W / 2, 0, -H / 2], max: [W / 2, 4, H / 2] };
+    const o = { aspect: a, fovDeg: fov, fill: f, elevationDeg: 40, azimuthDeg: 30, minDist: 20 };
+    const CF = G.HelmCaptureFrame;
+    let pos, target;
+    if (CF && typeof CF.frameBox === 'function') { const fr = CF.frameBox(box, o); pos = fr.position; target = fr.target; }
+    else {
+      const el = 40 * Math.PI / 180, az = 30 * Math.PI / 180, dir = [Math.cos(el) * Math.sin(az), Math.sin(el), Math.cos(el) * Math.cos(az)];
+      const tanV = Math.tan(fov * Math.PI / 360), R = Math.hypot(W, H) / 2;
+      const d = R / (Math.min(tanV, tanV * a) * f) * 0.6 + 4;
+      target = [0, 0, 0]; pos = dir.map((v) => v * d);
+    }
+    const r2 = (v) => +v.toFixed(2);
+    return { pos: pos.map(r2), target: target.map(r2), fov };
+  }
+  // label sprites: shown at overview stops, hidden at eye level; an explicit user toggle wins
+  function stopShowsLabels(stop, override) {
+    if (override === true || override === false) return override;
+    return !!(stop && stop.view === 'overview');
+  }
+
+  function walkthroughStops(itemsIn, hall, opts) {
+    const aspect = opts && opts.aspect;
     const W = Math.max(10, num(hall && hall.w, 200)), H = Math.max(10, num(hall && hall.h, 140));
     const items = (itemsIn || []).filter((it) => it && typeof it === 'object' && it.type)
       .map((it) => Object.assign({}, it, { x: num(it.x, 0), y: num(it.y, 0), rotation: num(+it.rotation, 0), width: Math.max(0, num(it.width, 0)), height: Math.max(0, num(it.height, 0)) }));
@@ -60,8 +121,8 @@
     const stageFront = stage ? rot(0, 1, stage.rotation) : [0, 1];   // stage front faces +y (layout) at rotation 0
     const stops = [];
     const eyeStop = (key, title, desc, eye, look, lookH) => {
-      const ex = clampX(eye.x), ey = clampY(eye.y);
-      stops.push({ key, title, desc, pos: S(ex, ey, EYE), target: S(look.x, look.y, lookH == null ? 3 : lookH) });
+      const p = clearSpot({ x: clampX(eye.x), y: clampY(eye.y) }, look, items, { w: W, h: H });
+      stops.push({ key, title, desc, view: 'eye', fov: EYE_FOV, pos: S(p.x, p.y, EYE), target: S(look.x, look.y, lookH == null ? 3 : lookH) });
     };
     // camera outside the zone, on the side facing the hall centre (or the given side), looking in
     const zoneStop = (key, title, desc, list, side) => {
@@ -72,8 +133,8 @@
       eyeStop(key, title, desc, { x: b.x + dx * d, y: b.y + dy * d }, b);
     };
     const overview = (key, title, desc) => {
-      const R = Math.max(W, H);
-      stops.push({ key, title, desc, pos: [+(W * 0.32).toFixed(2), +(R * 0.62).toFixed(2), +(H * 0.5 + R * 0.38).toFixed(2)], target: [0, 0, 0] });
+      const v = overviewView({ w: W, h: H }, aspect, OVERVIEW_FOV, 0.8);
+      stops.push({ key, title, desc, view: 'overview', fov: v.fov, pos: v.pos, target: v.target });
     };
 
     overview('overview', 'Venue overview', `${Math.round(W)} × ${Math.round(H)} ft hall · ${plural(items.length, 'item')} in the layout`);
@@ -83,10 +144,10 @@
     const lookAt = stageC || { x: W / 2, y: H / 2 };
     if (ent) {
       const c = ctr(ent); let dx = lookAt.x - c.x, dy = lookAt.y - c.y; const L = Math.hypot(dx, dy) || 1;
-      eyeStop('entrance', 'Entrance', 'Where guests arrive — the first view of the venue', { x: c.x + dx / L * 6, y: c.y + dy / L * 6 }, lookAt, stage ? 6 : 3);
+      eyeStop('entrance', 'Entrance', 'Where guests arrive — the first view of the venue', { x: c.x + dx / L * 6, y: c.y + dy / L * 6 }, lookAt, 2.5);
     } else {
       const ex = stage ? stageC.x + stageFront[0] * W : W / 2, ey = stage ? stageC.y + stageFront[1] * H : H;
-      eyeStop('entrance', 'Entrance', 'Walking in from the hall entrance' + (stage ? ' facing the stage' : ''), { x: ex, y: ey }, lookAt, stage ? 6 : 3);
+      eyeStop('entrance', 'Entrance', 'Walking in from the hall entrance' + (stage ? ' facing the stage' : ''), { x: ex, y: ey }, lookAt, 2.5);
     }
 
     // Aisle / carpet: stand at the end farther from the stage and look along it
@@ -166,7 +227,7 @@
   const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
   const topDown = (hall) => { const R = Math.max(num(hall.w, 200), num(hall.h, 140)); return { pos: [0, +(R * 1.05).toFixed(2), 0.01], target: [0, 0, 0] }; };
 
-  const API = { walkthroughStops, eveningLightPoints, walkKey, flightMs, ease, topDown, EYE };
+  const API = { walkthroughStops, eveningLightPoints, walkKey, flightMs, ease, topDown, EYE, EYE_FOV, CLEAR, overviewView, clearSpot, isClear, stopShowsLabels };
   G.HelmWalkthrough = API;
 
   /* ------------------------------ UI ------------------------------ */
@@ -190,12 +251,13 @@
   function fly(to, done) {
     const h = H3(); if (!h) return; const from = h.getView(); if (anim) { G.cancelAnimationFrame(anim); anim = null; }
     const ms = flightMs(reduced());
-    if (!ms || !from) { h.setView(to.pos, to.target, 1); if (done) done(); return; }
+    const f0 = from && num(from.fov, 48), f1 = num(to.fov, f0 || 48);
+    if (!ms || !from) { h.setView(to.pos, to.target, 1, f1); if (done) done(); return; }
     const t0 = G.performance.now();
     const lerp = (a, b, k) => a.map((v, i) => v + (b[i] - v) * k);
     const step = (now) => {
       const k = ease(Math.min(1, (now - t0) / ms));
-      h.setView(lerp(from.pos, to.pos, k), lerp(from.target, to.target, k), 1);
+      h.setView(lerp(from.pos, to.pos, k), lerp(from.target, to.target, k), 1, f0 + (f1 - f0) * k);
       if (k < 1) anim = G.requestAnimationFrame(step); else { anim = null; if (done) done(); }
     };
     anim = G.requestAnimationFrame(step);
@@ -208,10 +270,12 @@
   const kicker = el('div', 'wt-kicker'), title = el('div', 'wt-title'), desc = el('div', 'wt-desc'), dots = el('div', 'wt-dots');
   const nav = el('div', 'wt-nav');
   const bPrev = el('button', 'wt-btn', '← Previous stop'), bNext = el('button', 'wt-btn wt-primary', 'Next stop →');
+  const bWLab = el('button', 'wt-btn', 'Labels');
   const bAuto = el('button', 'wt-btn', '▶ Auto-play'), bList = el('button', 'wt-btn', '☰ Zones'), bExit = el('button', 'wt-btn wt-exit', '✕ Exit');
-  [bPrev, bNext, bAuto, bList, bExit].forEach((b) => { b.type = 'button'; });
+  [bPrev, bNext, bAuto, bWLab, bList, bExit].forEach((b) => { b.type = 'button'; });
   bAuto.setAttribute('aria-pressed', 'false');
-  nav.append(bPrev, bNext, bAuto, bList, bExit);
+  bWLab.title = 'Show or hide name tags during the walkthrough';
+  nav.append(bPrev, bNext, bAuto, bWLab, bList, bExit);
   const list = el('ol', 'wt-list'); list.hidden = true; list.setAttribute('aria-label', 'Explore the venue');
   card.append(kicker, title, desc, dots, nav);
   ov.append(list, card);
@@ -223,7 +287,13 @@
     bPrev.disabled = W.i === 0; bNext.textContent = W.i === W.stops.length - 1 ? 'Finish ✓' : 'Next stop →';
     dots.replaceChildren(...W.stops.map((_, k) => { const d = el('span', 'wt-dot' + (k === W.i ? ' on' : '')); return d; }));
     list.querySelectorAll('button').forEach((b, k) => b.classList.toggle('on', k === W.i));
+    syncLabels();
     fly(s);
+  }
+  function syncLabels() {
+    if (!W) return; const on = stopShowsLabels(W.stops[W.i], W.labels);
+    bWLab.setAttribute('aria-pressed', String(on)); bWLab.textContent = on ? 'Labels on' : 'Labels off';
+    const h = H3(); if (h && h.setLabelsHidden) h.setLabelsHidden(!on);
   }
   function go(i) { if (!W) return; W.i = Math.max(0, Math.min(W.stops.length - 1, i)); show(); }
   function next() { if (!W) return; if (W.i >= W.stops.length - 1) { if (W.auto) setAuto(false); else exit(); return; } go(W.i + 1); }
@@ -236,8 +306,9 @@
     if (W) return;
     const from2D = !(H3() && H3().isActive());
     if (!(await ensure3D())) return;
-    const stops = walkthroughStops(itemsNow(), hallNow());
-    W = { stops, i: 0, saved: H3().getView(), from2D, auto: false, timer: null };
+    const saved = H3().getView();
+    const stops = walkthroughStops(itemsNow(), hallNow(), { aspect: saved && saved.aspect });
+    W = { stops, i: 0, saved, from2D, auto: false, timer: null, labels: null };
     list.replaceChildren(...stops.map((s, k) => {
       const li = el('li'); const b = el('button', 'wt-zone'); b.type = 'button';
       b.append(el('span', 'wt-zn', String(k + 1).padStart(2, '0')), el('span', null, s.title));
@@ -249,12 +320,14 @@
     if (!W) return; const w = W; W = null; setAuto(false); if (w.timer) clearInterval(w.timer);
     if (anim) { G.cancelAnimationFrame(anim); anim = null; }
     ov.hidden = true; list.hidden = true; doc.body.classList.remove('wt-on');
-    if (H3() && w.saved) H3().setView(w.saved.pos, w.saved.target, w.saved.minD);
+    if (H3() && H3().setLabelsHidden) H3().setLabelsHidden(false);   // back to the user's own label mode
+    if (H3() && w.saved) H3().setView(w.saved.pos, w.saved.target, w.saved.minD, w.saved.fov);
     if (w.from2D) { const b = doc.querySelector('#viewSeg [data-v="2d"]'); if (b) b.click(); }
   }
   bPrev.addEventListener('click', () => go(W ? W.i - 1 : 0));
   bNext.addEventListener('click', next);
   bAuto.addEventListener('click', () => setAuto(!(W && W.auto)));
+  bWLab.addEventListener('click', () => { if (!W) return; W.labels = !stopShowsLabels(W.stops[W.i], W.labels); syncLabels(); });
   bList.addEventListener('click', () => { list.hidden = !list.hidden; });
   bExit.addEventListener('click', exit);
   G.addEventListener('keydown', (e) => {
@@ -271,8 +344,9 @@
     if (W) exit();
     if (!(await ensure3D())) return;
     const h = H3(), hall = hallNow();
-    if (kind === 'overview') fly(walkthroughStops([], hall)[0]);
-    else if (kind === 'top') fly(topDown(hall));
+    const v0 = h.getView();
+    if (kind === 'overview') fly(overviewView(hall, v0 && v0.aspect, OVERVIEW_FOV, 0.8));
+    else if (kind === 'top') fly(Object.assign({ fov: OVERVIEW_FOV }, topDown(hall)));
     else if (kind === 'evening') { const on = h.setEvening(!h.isEvening()); bEve.setAttribute('aria-pressed', String(on)); bEve.classList.toggle('on', on); }
   }
   let lastLabels = 'names', labelsOn = false;
