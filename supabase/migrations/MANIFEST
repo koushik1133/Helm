@@ -115,3 +115,5 @@ forward  supabase/migrations/0083_booklet_images.sql
 forward  supabase/migrations/0084_r7_polish.sql
 # 0085 (studio venue list: venues table, RLS by studio + "venues" area, no hard delete, venue_save / venue_set_active / admin sample loader) goes after 0084.
 forward  supabase/migrations/0085_venues.sql
+# 0086 (item specifications: per-studio item rate cards, get/set RPCs gated by the new item_pricing area, defaults seeded without overwriting) goes after 0084 (0085 optional).
+forward  supabase/migrations/0086_item_specs.sql

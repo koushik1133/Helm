@@ -1045,6 +1045,9 @@ window.HelmUrl = HelmUrl;
     // 0076: date-ranged Insights page (insights_range). Money inside it also needs "finance".
     { key: "insights",   label: "Insights",          icon: "📊", page: null,             group: "Admin" },
     { key: "codes",      label: "Coupons & codes",   icon: "🔑", page: null,             group: "Admin" },
+    // 0086: item rate cards (Control Center -> Item pricing). view = see rates, edit = change them.
+    // Adjusting an item's spec on a quote stays with quotes edit rights.
+    { key: "item_pricing", label: "Item pricing (rate cards)", icon: "🏷", page: null, group: "Admin" },
     { key: "users",      label: "Users & access",    icon: "👥", page: "control.html",   group: "Admin" },
   ];
   // coarse keys the older per-page gates pass → the fine areas they cover
@@ -2592,9 +2595,34 @@ window.HelmUrl = HelmUrl;
     maxGuests:20000, maxChairs:20000, maxPlates:20000, maxRoundTables:2000, maxBars:200,
     maxFoodTrucks:200, maxExpoBooths:1000, maxRestrooms:200, maxExits:200, maxHallFt:1000 };
   const config = {
-    getPricing: () => mode === "supabase"
+    // also loads the studio's item rate cards (0086) so pricing.fromItems() prices spec'd items
+    // with them; a rate-card failure never blocks the pricing config (defaults apply).
+    getPricing: () => Promise.all([mode === "supabase"
       ? rpc("get_pricing_config")
       : Promise.resolve(Object.assign({}, PRICING_DEFAULTS, (() => { try { return JSON.parse(localStorage.getItem("bp_pricing_cfg") || "{}"); } catch (e) { return {}; } })())),
+      config.loadItemRates().catch(() => null)]).then((r) => r[0]),
+    // 0086 item rate cards: { rates:{type:{...}}, canEdit, custom:[types the studio changed] }.
+    // Every reader gets the merged card (studio edits over the shipped defaults).
+    _itemRatesP: null,
+    itemRates: () => mode === "supabase"
+      ? rpc("get_item_rate_cards")
+      : Promise.resolve((() => { let o = {}; try { o = JSON.parse(localStorage.getItem("bp_item_rates") || "{}") || {}; } catch (e) {}
+          return { rates: Object.assign({}, ITEM_SPEC.DEFAULT_RATES, o), canEdit: true, custom: Object.keys(o) }; })()),
+    loadItemRates(force) {
+      if (!force && config._itemRatesP) return config._itemRatesP;
+      config._itemRatesP = config.itemRates().then((r) => { if (r && r.rates) pricing.setItemRates(r.rates); return r; })
+        .catch((e) => { config._itemRatesP = null; throw e; });
+      return config._itemRatesP;
+    },
+    // admin / item_pricing editors only (server re-checks has_area('item_pricing','edit'))
+    setItemRate: (type, rates) => {
+      if (ITEM_SPEC.TYPES.indexOf(type) < 0) return Promise.reject(new Error("Unknown item type."));
+      if (!ITEM_SPEC.ratesOk(rates)) return Promise.reject(new Error("Rates must be numbers between 0 and 1,00,00,000."));
+      const done = (r) => { config._itemRatesP = null; return config.loadItemRates(true).then(() => r); };
+      if (mode === "supabase") return rpc("set_item_rate_card", { p_type: type, p_rates: rates }).then(done);
+      let o = {}; try { o = JSON.parse(localStorage.getItem("bp_item_rates") || "{}") || {}; } catch (e) {}
+      o[type] = rates; localStorage.setItem("bp_item_rates", JSON.stringify(o)); return done({ type, rates });
+    },
     setPricing: (p) => mode === "supabase"
       ? rpc("set_pricing_config", { p })
       : Promise.resolve((localStorage.setItem("bp_pricing_cfg", JSON.stringify(p || {})), p)),
@@ -2615,6 +2643,172 @@ window.HelmUrl = HelmUrl;
     bar:12000, buffet:9000, truck:25000, greenroom:8000, generator:15000, parking:10000,
     chandelier:12000, fountain:20000, restroom:12000, coatcheck:5000, firstaid:4000,
   };
+  /* ITEM-SPEC-ENGINE:BEGIN (0086 item specifications + spec-based pricing) ---------------
+     An item placed on the floor (item.properties.spec) can carry a SPEC — e.g. a stage's
+     length x width x height, a generator's kVA and days, a DJ's power connection. When it
+     does, its price comes from the studio's RATE CARD for that item type (editable in
+     Control Center -> Item pricing, stored per studio in item_rate_cards, 0086). Items
+     WITHOUT a spec keep the old flat catalog price, so existing quotes never change.
+     A missing / zero-length rate falls back to the catalog price with a "rate not set" note;
+     a bad spec (negative, absurd, not a number) falls back the same way ("spec invalid").
+     Dimensions are always STORED in metres; spec.unit ("m" default | "ft") is display only.
+     Defaults below mirror public._a86_default_rates() (0086) and docs/ITEM-PRICING-DEFAULTS.md. */
+  const ITEM_SPEC = (function () {
+    const FT = 0.3048;
+    const TYPES = ["dj", "generator", "stage", "lighting", "led", "chandelier", "photobooth", "chocolatefountain", "chariot", "smoke", "dancers"];
+    const DEFAULT_RATES = {
+      dj:        { setup: { console: 15000, speakers2: 25000, speakers4: 40000 }, power: { pin2: 0, pin3: 1500, pin4: 4000 }, perExtraSpeaker: 3000 },
+      generator: { base: 2000, perKvaDay: 60, dieselPerKvaDay: 100, operatorPerDay: 1000 },
+      stage:     { base: 0, perSqM: 450, stdHeightM: 0.6, heightPerSqMPerM: 150 },
+      lighting:  { each: { par: 600, moving_head: 2500, uplighter: 500 }, perM: { fairy: 40, truss_wash: 800 } },
+      led:       { perSqMDay: { p39_indoor: 1100, p48_outdoor: 900, p6_outdoor: 650 } },
+      chandelier:{ each: { small: 3000, medium: 6000, large: 12000, grand: 25000 } },
+      photobooth:{ perHour: { standard: 2500, spin360: 5000, mirror: 4000 }, minHours: 2 },
+      chocolatefountain: { base: { small: 6000, medium: 9000, large: 14000 }, perServing: 40 },
+      chariot:   { perTrip: { horse: 15000, vintage_car: 12000, flower: 20000 } },
+      smoke:     { perUnit: { cold_pyro: 2500, low_fog: 6000, dry_ice: 5000 } },
+      dancers:   { perDancerShow: 3500, perDancerHour: 1500 },
+    };
+    // option labels for the Adjust popup + the Control Center card (keys = rate keys)
+    const LABELS = {
+      pin2: "2-pin (single phase, small)", pin3: "3-pin (single phase, earthed)", pin4: "4-pin (3-phase)",
+      console: "DJ + console", speakers2: "DJ + console + 2 speakers", speakers4: "DJ + console + 4 speakers",
+      par: "PAR can", moving_head: "Moving head", uplighter: "Uplighter", fairy: "Fairy / string lights", truss_wash: "Truss wash",
+      p39_indoor: "Indoor P3.9", p48_outdoor: "Outdoor P4.8", p6_outdoor: "Outdoor P6",
+      small: "Small", medium: "Medium", large: "Large", grand: "Grand crystal",
+      standard: "Standard booth", spin360: "360° spin booth", mirror: "Mirror booth",
+      horse: "Horse (ghodi)", vintage_car: "Vintage car", flower: "Flower chariot",
+      cold_pyro: "Cold pyro", low_fog: "Low fog", dry_ice: "Dry ice",
+      show: "per performance", hour: "per hour",
+    };
+    const KVA_PRESETS = [15, 25, 62.5, 125, 250, 500];
+    const MAX = { dim: 200, height: 10, kva: 3000, days: 60, qty: 10000, hours: 72, servings: 20000, rate: 10000000 };
+    const fmt = (n) => "₹" + Math.round(n).toLocaleString("en-IN");
+    const num = (v) => (typeof v === "number" ? v : (typeof v === "string" && v.trim() !== "" ? Number(v) : NaN));
+    const toM = (v, unit) => unit === "ft" ? num(v) * FT : num(v);
+    const fromM = (m, unit) => unit === "ft" ? m / FT : m;
+    const r2 = (n) => Math.round(n * 100) / 100;
+    // a finite number in [lo, hi]; else throws (caller turns it into a "spec invalid" fallback)
+    function need(v, lo, hi, what) { const n = num(v); if (!Number.isFinite(n) || n < lo || n > hi) throw new Error(what + " must be between " + lo + " and " + hi); return n; }
+    function rate(v) { const n = num(v); return (Number.isFinite(n) && n >= 0 && n <= MAX.rate) ? n : null; }
+    function pick(map, key) { if (!map || typeof map !== "object" || !Object.prototype.hasOwnProperty.call(map, key)) return null; return rate(map[key]); }
+    const NOT_SET = (what) => { const e = new Error("rate not set: " + what); e.rateNotSet = true; return e; };
+    const req = (v, what) => { if (v == null) throw NOT_SET(what); return v; };
+    const lbl = (k) => LABELS[k] || k;
+
+    // compute(type, spec, rates) -> { price, label } ; throws on bad spec / missing rate
+    function compute(type, spec, rates) {
+      spec = spec || {}; rates = rates || {};
+      switch (type) {
+        case "stage": {
+          const L = need(spec.lengthM, 0.5, MAX.dim, "Length"), W = need(spec.widthM, 0.5, MAX.dim, "Width");
+          const H = spec.heightM == null || spec.heightM === "" ? 0 : need(spec.heightM, 0, MAX.height, "Height");
+          const per = req(rate(rates.perSqM), "stage per m²"), base = rate(rates.base) || 0;
+          const area = L * W, std = rate(rates.stdHeightM) || 0, hs = rate(rates.heightPerSqMPerM) || 0;
+          const extraH = Math.max(0, H - std), hCost = extraH * area * hs;
+          const price = Math.round(base + area * per + hCost);
+          const u = spec.unit === "ft" ? "ft" : "m";
+          const dims = u === "ft" ? r2(fromM(L, "ft")) + " × " + r2(fromM(W, "ft")) + " ft" : r2(L) + " × " + r2(W) + " m";
+          return { price, label: "Stage " + dims + " (" + r2(area) + " m²) @ " + fmt(per) + "/m²" + (base ? " + base " + fmt(base) : "") + (hCost ? " + height " + fmt(hCost) : "") + " = " + fmt(price) };
+        }
+        case "generator": {
+          const kva = need(spec.kva, 1, MAX.kva, "Capacity (kVA)"), days = need(spec.days == null ? 1 : spec.days, 1, MAX.days, "Days");
+          const per = req(rate(rates.perKvaDay), "generator per kVA/day"), base = rate(rates.base) || 0;
+          let price = base * days + kva * per * days, extra = "";
+          if (spec.diesel) { const d = req(rate(rates.dieselPerKvaDay), "diesel per kVA/day"); price += kva * d * days; extra += " + diesel"; }
+          if (spec.operator) { const o = req(rate(rates.operatorPerDay), "operator per day"); price += o * days; extra += " + operator"; }
+          price = Math.round(price);
+          return { price, label: "Generator " + r2(kva) + " kVA × " + days + " day" + (days === 1 ? "" : "s") + extra + " = " + fmt(price) };
+        }
+        case "dj": {
+          const s = req(pick(rates.setup, spec.setup), "DJ setup " + spec.setup), p = req(pick(rates.power, spec.power || "pin3"), "power " + spec.power);
+          const xs = spec.extraSpeakers == null ? 0 : need(spec.extraSpeakers, 0, 100, "Extra speakers");
+          const xr = xs ? req(rate(rates.perExtraSpeaker), "extra speaker") : 0;
+          const price = Math.round(s + p + xs * xr);
+          const pin = { pin2: "2-pin", pin3: "3-pin", pin4: "4-pin, 3-phase" }[spec.power || "pin3"] || spec.power;
+          return { price, label: "DJ " + lbl(spec.setup).replace(/^DJ \+ /, "") + " (" + pin + ")" + (xs ? " + " + xs + " extra speaker" + (xs === 1 ? "" : "s") : "") + " = " + fmt(price) };
+        }
+        case "lighting": {
+          const qty = need(spec.qty == null ? 1 : spec.qty, 1, MAX.qty, "Quantity");
+          const each = pick(rates.each, spec.kind);
+          if (each != null) { const price = Math.round(qty * each); return { price, label: "Lighting " + lbl(spec.kind) + " × " + qty + " @ " + fmt(each) + " = " + fmt(price) }; }
+          const pm = req(pick(rates.perM, spec.kind), "lighting " + spec.kind);
+          const len = need(spec.lengthM, 0.5, 1000, "Length");
+          const price = Math.round(qty * len * pm);
+          return { price, label: "Lighting " + lbl(spec.kind) + " " + r2(len) + " m × " + qty + " @ " + fmt(pm) + "/m = " + fmt(price) };
+        }
+        case "led": {
+          const W = need(spec.widthM, 0.5, 100, "Width"), H = need(spec.heightM, 0.5, 50, "Height"), days = need(spec.days == null ? 1 : spec.days, 1, MAX.days, "Days");
+          const per = req(pick(rates.perSqMDay, spec.pitch), "LED " + spec.pitch);
+          const area = W * H, price = Math.round(area * per * days);
+          return { price, label: "LED wall " + lbl(spec.pitch) + " " + r2(W) + " × " + r2(H) + " m (" + r2(area) + " m²) @ " + fmt(per) + "/m²" + (days > 1 ? " × " + days + " days" : "") + " = " + fmt(price) };
+        }
+        case "chandelier": {
+          const qty = need(spec.qty == null ? 1 : spec.qty, 1, MAX.qty, "Quantity"), e = req(pick(rates.each, spec.size), "chandelier " + spec.size);
+          const price = Math.round(qty * e);
+          return { price, label: "Chandelier " + lbl(spec.size) + " × " + qty + " @ " + fmt(e) + " = " + fmt(price) };
+        }
+        case "photobooth": {
+          const h = need(spec.hours, 1, MAX.hours, "Hours"), ph = req(pick(rates.perHour, spec.kind), "photo booth " + spec.kind);
+          const billed = Math.max(h, rate(rates.minHours) || 0), price = Math.round(billed * ph);
+          return { price, label: "Photo booth " + lbl(spec.kind) + " × " + billed + " h" + (billed > h ? " (minimum)" : "") + " @ " + fmt(ph) + "/h = " + fmt(price) };
+        }
+        case "chocolatefountain": {
+          const sv = need(spec.servings, 0, MAX.servings, "Servings"), b = req(pick(rates.base, spec.size), "fountain " + spec.size);
+          const ps = sv ? req(rate(rates.perServing), "per serving") : 0, price = Math.round(b + sv * ps);
+          return { price, label: "Chocolate fountain " + lbl(spec.size) + " + " + sv + " servings = " + fmt(price) };
+        }
+        case "chariot": {
+          const t = need(spec.trips == null ? 1 : spec.trips, 1, 50, "Trips"), pt = req(pick(rates.perTrip, spec.kind), "chariot " + spec.kind);
+          const price = Math.round(t * pt);
+          return { price, label: "Chariot " + lbl(spec.kind) + " × " + t + " trip" + (t === 1 ? "" : "s") + " = " + fmt(price) };
+        }
+        case "smoke": {
+          const u = need(spec.units == null ? 1 : spec.units, 1, 500, "Units"), pu = req(pick(rates.perUnit, spec.kind), "smoke " + spec.kind);
+          const price = Math.round(u * pu);
+          return { price, label: "Smoke " + lbl(spec.kind) + " × " + u + " @ " + fmt(pu) + " = " + fmt(price) };
+        }
+        case "dancers": {
+          const c = need(spec.count, 1, 500, "Dancers"), q = need(spec.qty == null ? 1 : spec.qty, 1, 100, spec.basis === "hour" ? "Hours" : "Performances");
+          const hour = spec.basis === "hour";
+          const r = req(rate(hour ? rates.perDancerHour : rates.perDancerShow), hour ? "dancer per hour" : "dancer per performance");
+          const price = Math.round(c * q * r);
+          return { price, label: "Dancers " + c + " × " + q + (hour ? " h" : " performance" + (q === 1 ? "" : "s")) + " @ " + fmt(r) + " = " + fmt(price) };
+        }
+        default: throw NOT_SET(type);
+      }
+    }
+    // price(item, cardRates, fallbackUnit) -> { price, label, spec:true|false, note? }
+    // fallbackUnit = the existing flat catalog price for this item.
+    function price(item, allRates, fallbackUnit) {
+      const p = (item && item.properties) || {}, s = p.spec, t = item && item.type;
+      if (!s || typeof s !== "object" || TYPES.indexOf(t) < 0) return { price: fallbackUnit, spec: false };
+      const rates = (allRates && allRates[t]) || null;
+      if (!rates) return { price: fallbackUnit, spec: false, note: "rate not set" };
+      try { const r = compute(t, s, rates); return { price: r.price, label: r.label, spec: true }; }
+      catch (e) { return { price: fallbackUnit, spec: false, note: e.rateNotSet ? "rate not set" : "spec invalid: " + e.message }; }
+    }
+    // rate-card sanity (mirrors public._a86_rates_ok): numbers 0..1e7, one level of nesting
+    function ratesOk(r) {
+      if (!r || typeof r !== "object" || Array.isArray(r)) return false;
+      const keys = Object.keys(r); if (!keys.length || keys.length > 40) return false;
+      return keys.every((k) => /^[A-Za-z0-9_]{1,40}$/.test(k) && (typeof r[k] === "number" ? rate(r[k]) != null
+        : (r[k] && typeof r[k] === "object" && !Array.isArray(r[k]) && Object.keys(r[k]).length >= 1 && Object.keys(r[k]).length <= 40
+           && Object.keys(r[k]).every((k2) => /^[A-Za-z0-9_]{1,40}$/.test(k2) && typeof r[k][k2] === "number" && rate(r[k][k2]) != null))));
+    }
+    // sensible starting spec when an item is first adjusted
+    function defaultSpec(type, item) {
+      const d = { dj: { setup: "speakers2", power: "pin3", extraSpeakers: 0 }, generator: { kva: 125, days: 1, diesel: false, operator: false },
+        lighting: { kind: "par", qty: 8, lengthM: 10 }, led: { pitch: "p39_indoor", widthM: 4, heightM: 2.5, days: 1 },
+        chandelier: { size: "medium", qty: 1 }, photobooth: { kind: "standard", hours: 3 }, chocolatefountain: { size: "medium", servings: 100 },
+        chariot: { kind: "horse", trips: 1 }, smoke: { kind: "cold_pyro", units: 2 }, dancers: { count: 6, basis: "show", qty: 1 } }[type];
+      if (type === "stage") { const w = item && +item.width > 0 ? +item.width * FT : 8, h = item && +item.height > 0 ? +item.height * FT : 5;
+        return { lengthM: r2(w), widthM: r2(h), heightM: 0.6, unit: "m" }; }
+      return d ? Object.assign({}, d) : null;
+    }
+    return { TYPES, DEFAULT_RATES, LABELS, KVA_PRESETS, MAX, FT, toM, fromM, compute, price, ratesOk, defaultSpec, label: lbl };
+  })();
+  /* ITEM-SPEC-ENGINE:END */
   const SEAT_TYPES = { chiavari:1, barstool:1 };   // chairs with no explicit seat count
   const pricing = {
     OBJECT_CAT_PRICE, OBJECT_PRICE, SEAT_TYPES,
@@ -2625,12 +2819,32 @@ window.HelmUrl = HelmUrl;
       if(OBJECT_PRICE[t]!=null) return OBJECT_PRICE[t];
       return OBJECT_CAT_PRICE[it.category] || 3000; },
     // chairs + itemised object lines from a layout items array
-    fromItems(items, assetPrices){
-      items = items||[]; let chairs=0; const groups={};
+    // 0086: the studio's item rate cards (Control Center -> Item pricing). Loaded by
+    // config.getPricing(); until then the shipped defaults (same as the DB seed) apply.
+    ITEM_SPEC, itemRates: null,
+    setItemRates(r){ this.itemRates = (r && typeof r === "object") ? r : null; },
+    currentItemRates(){ return this.itemRates || ITEM_SPEC.DEFAULT_RATES; },
+    // one item's price: spec-based when it has item.properties.spec (0086), else the flat catalog unit
+    itemPrice(it, assetPrices, itemRates){
+      const unit=this.unitPrice(it, assetPrices);
+      return ITEM_SPEC.price(it, itemRates||this.currentItemRates(), unit);
+    },
+    // chairs + itemised object lines from a layout items array. Items WITHOUT a spec are grouped
+    // per type at the flat catalog price exactly as before (old quotes unchanged); each item WITH a
+    // spec is its own line priced from the rate card (label e.g. "Stage 8 × 5 m (40 m²) @ ₹450/m² = ₹18,000").
+    fromItems(items, assetPrices, itemRates){
+      items = items||[]; let chairs=0; const groups={}, specLines=[]; const cards=itemRates||this.currentItemRates();
       items.forEach(it=>{ if(this.isSeat(it)){ chairs+=this.seatCount(it); return; }
+        const sp=it.properties&&it.properties.spec;
+        if(sp && typeof sp==="object" && ITEM_SPEC.TYPES.indexOf(it.type)>=0){
+          const r=this.itemPrice(it, assetPrices, cards);
+          if(r.spec){ specLines.push({ type:it.type, qty:1, unit:r.price, cost:r.price, label:r.label, spec:true, id:it.id }); return; }
+          const g=(groups[it.type]=groups[it.type]||{qty:0,cat:it.category}); g.qty++; if(r.note) g.note=r.note; return;
+        }
         (groups[it.type]=groups[it.type]||{qty:0,cat:it.category}).qty++; });
       const lines=Object.keys(groups).map(t=>{ const g=groups[t], unit=this.unitPrice({type:t,category:g.cat},assetPrices);
-        return { type:t, qty:g.qty, unit, cost:g.qty*unit }; }).filter(l=>l.unit>0).sort((a,b)=>b.cost-a.cost);
+        const l={ type:t, qty:g.qty, unit, cost:g.qty*unit }; if(g.note) l.note=g.note; return l; }).filter(l=>l.unit>0)
+        .concat(specLines.filter(l=>l.cost>0)).sort((a,b)=>b.cost-a.cost);
       return { chairs, objectLines:lines, objectsCost:lines.reduce((s,l)=>s+l.cost,0) };
     },
     // ── CANONICAL money core (Wave 6 MONEY-01, locked decisions) ────────────

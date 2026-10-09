@@ -342,6 +342,13 @@
       <div class="actions"><button type="button" class="btn primary" id="savePricing">Save pricing</button></div>
     </div>
 
+    <div class="card" id="itemPricingCard" hidden>
+      <h3>Item pricing (rate cards)</h3>
+      <p class="mnote">Prices for items you adjust in the layout builder: stage by size (m²), generator by kVA and days, DJ by setup and power connection, lighting, LED wall, chandelier, photo booth, chocolate fountain, chariot, smoke effects and dancers. Items that are not adjusted keep their flat catalog price. Who can change these is set in the role matrix (“Item pricing (rate cards)”).</p>
+      <p class="mnote" data-ip-ro hidden>Read-only: your role can view these rates but not change them.</p>
+      <div data-ip-body></div>
+    </div>
+
     <div class="card">
       <h3>Capacity limits (layout builder)</h3>
       <p class="mnote s-020d693">The most the layout builder will accept for each. Going over shows a red “Maximum is …” note under the field in the builder and keeps the app fast on very large events.</p>
@@ -679,7 +686,7 @@
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="event-name.js?v=2"></script>
-<script src="store-api.js?v=157"></script>
+<script src="store-api.js?v=158"></script>
 <script src="hq-invoice.js?v=1"></script>
 <script src="tour.js?v=9"></script>
 <script src="pkg-review.js?v=4"></script>
@@ -687,6 +694,7 @@
 <script src="comms-settings.js?v=2"></script>
 <script src="venues-core.js?v=1"></script>
 <script src="venues-admin.js?v=1"></script>
+<script src="item-pricing.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
