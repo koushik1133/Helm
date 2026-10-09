@@ -82,6 +82,94 @@
       kept.push(i); });
     return kept;
   }
-  const api={ frameBox, projectBox, labelWorldHeight, labelScaleForDepth, unionFloor, pickLabels, LABEL_CAP_RATIO };
+
+  /* R5: numbered markers + legend for the client captures (3D and 2D share this, so the same layout
+     gets the same numbers in both pictures). items: [{id, label, x, y, width, height, type}] in
+     floor feet. Each distinct name gets one number; numbers follow the first occurrence in
+     back-to-front (y), left-to-right (x) order, ties by name - stable and deterministic. */
+  const NO_MARKER={seatblock:1, chairrow:1};
+  function legendName(s){ return String(s==null?'':s).replace(/\s+/g,' ').trim().slice(0,40); }
+  function numberItems(items){
+    const rows=[];
+    (items||[]).forEach((it,i)=>{ if(!it || NO_MARKER[it.type]) return; const name=legendName(it.label); if(!name) return;
+      rows.push({id:it.id, name, i, y:Math.round(((+it.y||0)+(+it.height||0)/2)*100)/100, x:Math.round(((+it.x||0)+(+it.width||0)/2)*100)/100}); });
+    rows.sort((a,b)=>a.y-b.y || a.x-b.x || (a.name<b.name?-1:a.name>b.name?1:0) || a.i-b.i);
+    const byName=new Map(), legend=[], byId=new Map();
+    rows.forEach(r=>{ let L=byName.get(r.name); if(!L){ L={n:legend.length+1, name:r.name, count:0}; byName.set(r.name,L); legend.push(L); }
+      L.count++; if(r.id!=null) byId.set(r.id, L.n); });
+    return { legend, byId };
+  }
+  /* place round badges (radius r px) at their anchors without overlap: same-number badges closer than
+     `dupDist` (default 2.5r) to one already shown are dropped, the rest are pushed apart by iterative
+     pairwise repulsion and kept inside [0,w]x[0,h]. anchors: [{x,y,n}]. Returns [{x,y,ax,ay,n,i}]. */
+  function layoutBadges(anchors, r, bounds, o){
+    o=o||{}; const gap=o.gap!=null?o.gap:Math.max(1,r*0.15), dup=o.dupDist!=null?o.dupDist:2.5*r, minD=2*r+gap;
+    const W=bounds&&bounds.w||Infinity, H=bounds&&bounds.h||Infinity;
+    const B=[];
+    (anchors||[]).forEach((a,i)=>{ if(!isFinite(a.x)||!isFinite(a.y)) return;
+      if(B.some(b=>b.n===a.n && Math.hypot(b.ax-a.x,b.ay-a.y)<dup)) return;
+      B.push({x:a.x, y:a.y, ax:a.x, ay:a.y, n:a.n, i}); });
+    const clamp=b=>{ b.x=Math.min(Math.max(b.x,r+1),W-r-1); b.y=Math.min(Math.max(b.y,r+1),H-r-1); };
+    B.forEach(clamp);
+    for(let it=0; it<400; it++){
+      let moved=false;
+      for(let i=0;i<B.length;i++) for(let j=i+1;j<B.length;j++){
+        const p=B[i], q=B[j]; let dx=q.x-p.x, dy=q.y-p.y, d=Math.hypot(dx,dy);
+        if(d>=minD) continue;
+        if(d<1e-6){ const ang=(i*2.399+j*0.7); dx=Math.cos(ang); dy=Math.sin(ang); d=1; } else { dx/=d; dy/=d; }
+        const push=(minD-d)/2+0.01;
+        p.x-=dx*push; p.y-=dy*push; q.x+=dx*push; q.y+=dy*push; clamp(p); clamp(q); moved=true; }
+      if(!moved) break;
+    }
+    return B;
+  }
+  // legend panel geometry: rows of (badge + "Name ×count"), one column, or two when they would not fit.
+  // Returns {cols, rowH, font, badgeR, colW, rows:[{x,y,n,text}]} relative to the panel's top-left.
+  function legendLayout(legend, panelW, panelH, o){
+    o=o||{}; const pad=o.pad||Math.round(panelW*0.07), titleH=o.titleH||Math.round(panelH*0.075);
+    const avail=panelH-titleH-pad*1.5, n=(legend||[]).length;
+    let cols=1, rowH=Math.min(Math.round(panelH*0.05), 54);
+    const minRow=Math.max(16, Math.round(panelH*0.026));
+    if(n*rowH>avail){ rowH=Math.max(minRow, Math.floor(avail/n)); if(n*rowH>avail){ cols=2; rowH=Math.min(Math.round(panelH*0.05), Math.max(minRow, Math.floor(avail/Math.ceil(n/2)))); } }
+    const perCol=cols===1?n:Math.ceil(n/2), font=Math.max(10, Math.round(rowH*0.46)), badgeR=Math.round(rowH*0.3);
+    const colW=(panelW-pad*2-(cols-1)*pad*0.5)/cols, maxRows=Math.max(1,Math.floor(avail/rowH));
+    const maxChars=Math.max(4, Math.floor((colW-badgeR*2-font*0.8)/(font*0.56)));
+    const rows=[];
+    (legend||[]).forEach((L,k)=>{ const c=Math.floor(k/perCol), r=k%perCol; if(r>=maxRows) return;
+      let t=L.name; const suf=L.count>1?' ×'+L.count:'';
+      if(t.length+suf.length>maxChars) t=t.slice(0,Math.max(1,maxChars-suf.length-1))+'…';
+      rows.push({x:pad+c*(colW+pad*0.5), y:titleH+pad*0.5+r*rowH, n:L.n, text:t+suf}); });
+    return {cols, rowH, font, badgeR, colW, pad, titleH, rows, truncated:rows.length<n};
+  }
+  // canvas drawing (browser only): a dark disc, white bold number, thin white ring
+  function drawBadge(ctx, x, y, r, n){
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fillStyle='#1b2236'; ctx.fill();
+    ctx.lineWidth=Math.max(1.2,r*0.14); ctx.strokeStyle='#ffffff'; ctx.stroke();
+    const s=String(n); ctx.fillStyle='#ffffff'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font='700 '+Math.round(r*(s.length>2?0.85:s.length>1?1.0:1.15))+'px system-ui,-apple-system,"Segoe UI",sans-serif';
+    ctx.fillText(s, x, y+r*0.05);
+  }
+  function drawBadges(ctx, placed, r){
+    ctx.save(); ctx.lineWidth=Math.max(1,r*0.12); ctx.strokeStyle='rgba(27,34,54,.75)';
+    placed.forEach(b=>{ if(Math.hypot(b.x-b.ax,b.y-b.ay)>r*0.9){ ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.lineTo(b.ax,b.ay); ctx.stroke();
+      ctx.beginPath(); ctx.arc(b.ax,b.ay,Math.max(1.5,r*0.18),0,Math.PI*2); ctx.fillStyle='#1b2236'; ctx.fill(); } });
+    placed.forEach(b=>drawBadge(ctx,b.x,b.y,r,b.n)); ctx.restore();
+  }
+  function drawLegend(ctx, legend, x0, y0, w, h){
+    const Lo=legendLayout(legend, w, h);
+    ctx.save(); ctx.fillStyle='#f7f8fb'; ctx.fillRect(x0,y0,w,h);
+    ctx.fillStyle='#d9dde6'; ctx.fillRect(x0,y0,Math.max(1,Math.round(h*0.002)),h);
+    ctx.fillStyle='#1b2236'; ctx.textAlign='left'; ctx.textBaseline='middle';
+    ctx.font='700 '+Math.round(Lo.titleH*0.42)+'px system-ui,-apple-system,"Segoe UI",sans-serif';
+    ctx.fillText('Legend', x0+Lo.pad, y0+Lo.titleH*0.6);
+    Lo.rows.forEach(R=>{ drawBadge(ctx, x0+R.x+Lo.badgeR, y0+R.y+Lo.rowH/2, Lo.badgeR, R.n);
+      ctx.fillStyle='#262c3a'; ctx.textAlign='left'; ctx.textBaseline='middle';
+      ctx.font='500 '+Lo.font+'px system-ui,-apple-system,"Segoe UI",sans-serif';
+      ctx.fillText(R.text, x0+R.x+Lo.badgeR*2+Lo.font*0.6, y0+R.y+Lo.rowH/2); });
+    ctx.restore(); return Lo;
+  }
+  // final image split: render area on the left (~80%), legend panel on the right
+  function legendSplit(W){ const panel=Math.round(W*0.2); return {renderW:W-panel, panelW:panel}; }
+  const api={ numberItems, layoutBadges, legendLayout, drawBadge, drawBadges, drawLegend, legendSplit, frameBox, projectBox, labelWorldHeight, labelScaleForDepth, unionFloor, pickLabels, LABEL_CAP_RATIO };
   if(typeof module!=='undefined' && module.exports) module.exports=api; else root.HelmCaptureFrame=api;
 })(typeof window!=='undefined'?window:globalThis);

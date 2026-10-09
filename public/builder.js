@@ -3176,6 +3176,8 @@ function planBlob(o){ o=o||{}; return new Promise(resolve=>{
       cn.removeAttribute('stroke'); }
   }
   if(o.clean) clone.querySelectorAll('.margins,.measure').forEach(n=>n.remove());
+  const CF=o.clean && window.HelmCaptureFrame;              // R5: client plan = numbered badges + legend (same numbers as 3D)
+  if(CF) clone.querySelectorAll('text.lbl').forEach(n=>n.remove());
   const restore=()=>{ store.grid.show=wasGrid; showMeasure=wasMeasure; setSelection(wasSel); renderAll(); };
   const W=WORLD.w*PX_PER_FT, H=WORLD.h*PX_PER_FT, S=o.maxW ? Math.min(4, o.maxW/W) : 2;
   clone.setAttribute('width',W*S); clone.setAttribute('height',H*S);
@@ -3185,10 +3187,15 @@ function planBlob(o){ o=o||{}; return new Promise(resolve=>{
   const svgStr=new XMLSerializer().serializeToString(clone).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
   const img=new Image();
   img.onload=()=>{
-    const cv=document.createElement('canvas'); cv.width=Math.round(W*S); cv.height=Math.round(H*S);
+    const pw=Math.round(W*S), ph=Math.round(H*S), panel=CF ? Math.round(pw*0.25) : 0;
+    const cv=document.createElement('canvas'); cv.width=pw+panel; cv.height=ph;
     const ctx=cv.getContext('2d');
     ctx.fillStyle=(getComputedStyle(document.body).getPropertyValue('--canvas').trim()||'#fff');
-    ctx.fillRect(0,0,cv.width,cv.height); ctx.drawImage(img,0,0,cv.width,cv.height);
+    ctx.fillRect(0,0,cv.width,cv.height); ctx.drawImage(img,0,0,pw,ph);
+    if(CF){ const num=CF.numberItems(store.items), br=Math.max(6,Math.round(ph*0.011));
+      const anchors=store.items.filter(it=>num.byId.has(it.id)).map(it=>({n:num.byId.get(it.id), x:(it.x+it.width/2)*PX_PER_FT*S, y:(it.y+it.height/2)*PX_PER_FT*S}));
+      CF.drawBadges(ctx, CF.layoutBadges(anchors, br, {w:pw, h:ph}), br);
+      CF.drawLegend(ctx, num.legend, pw, 0, panel, ph); }
     restore(); cv.toBlob(b=>resolve(b||null),'image/png');
   };
   img.onerror=()=>{ restore(); resolve(null); };
