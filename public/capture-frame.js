@@ -89,13 +89,16 @@
      back-to-front (y), left-to-right (x) order, ties by name - stable and deterministic. */
   const NO_MARKER={seatblock:1, chairrow:1};
   function legendName(s){ return String(s==null?'':s).replace(/\s+/g,' ').trim().slice(0,40); }
+  // R9: "Table 1" … "Table 16" are the same kind of thing — one legend number ("Table ×16"); custom names
+  // ("VIP Table", "Head Table") stay separate. Grouping key = the label without its trailing number.
+  function legendBase(name){ const m=/^(.*?)[\s#-]*\d+$/.exec(name); const b=m && m[1].trim(); return b ? b : name; }
   function numberItems(items){
     const rows=[];
-    (items||[]).forEach((it,i)=>{ if(!it || NO_MARKER[it.type]) return; const name=legendName(it.label); if(!name) return;
+    (items||[]).forEach((it,i)=>{ if(!it || NO_MARKER[it.type]) return; const name=legendBase(legendName(it.label)); if(!name) return;
       rows.push({id:it.id, name, i, y:Math.round(((+it.y||0)+(+it.height||0)/2)*100)/100, x:Math.round(((+it.x||0)+(+it.width||0)/2)*100)/100}); });
     rows.sort((a,b)=>a.y-b.y || a.x-b.x || (a.name<b.name?-1:a.name>b.name?1:0) || a.i-b.i);
     const byName=new Map(), legend=[], byId=new Map();
-    rows.forEach(r=>{ let L=byName.get(r.name); if(!L){ L={n:legend.length+1, name:r.name, count:0}; byName.set(r.name,L); legend.push(L); }
+    rows.forEach(r=>{ const k=r.name.toLowerCase(); let L=byName.get(k); if(!L){ L={n:legend.length+1, name:r.name, count:0}; byName.set(k,L); legend.push(L); }
       L.count++; if(r.id!=null) byId.set(r.id, L.n); });
     return { legend, byId };
   }

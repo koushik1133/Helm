@@ -44,7 +44,7 @@ await t('message protocol: only same origin + our iframe + our quote + known typ
   assert.equal(S.acceptCaptureMessage({ ...ok, data: { ...ok.data, type: 'x' } }, o), null, 'unknown type');
   assert.equal(S.acceptCaptureMessage({ ...ok, data: 'helm-capture-done' }, o), null, 'non-object');
   assert.equal(S.acceptCaptureMessage(ok, { ...o, quoteId: '' }), null, 'no expected quote');
-  assert.equal(S.captureUrl(Q), 'capture.html?quote=' + Q);
+  assert.equal(S.captureUrl(Q), '/capture.html?quote=' + Q);
 });
 
 await t('autoCapture: hidden iframe, resolves on the right message, ignores spoofs, 60s timeout', async () => {
@@ -53,7 +53,7 @@ await t('autoCapture: hidden iframe, resolves on the right message, ignores spoo
   const S = cx.HelmShareChecklist; const steps = [];
   const p = S.autoCapture(Q, { onProgress: (s) => steps.push(s) });
   const fr = cx.document.body.children[0]; fr.contentWindow = {};
-  assert.equal(fr.tagName, 'IFRAME'); assert.equal(fr.getAttribute('src'), 'capture.html?quote=' + Q);
+  assert.equal(fr.tagName, 'IFRAME'); assert.equal(fr.getAttribute('src'), '/capture.html?quote=' + Q);
   assert.match(fr.getAttribute('style'), /left:-12000px/);
   const send = (ev) => listeners.slice().forEach((f) => f(ev));
   send({ origin: 'https://evil.example', source: fr.contentWindow, data: { type: 'helm-capture-done', quoteId: Q, ok: true } });
@@ -124,7 +124,7 @@ await t('capture.html is generated from builder.html (same drawing code), marked
   const b = R('public/builder.html'), c = R('public/capture.html');
   assert.equal(c, captureHtml(b), 'run: node scripts/gen-capture-host.mjs');
   assert.match(c, /<meta name="helm-capture" content="1">/); assert.ok(!/helm-capture/.test(b));
-  assert.ok(!/tour\.js/.test(c)); assert.match(c, /builder\.js\?v=22/);
+  assert.ok(!/tour\.js/.test(c)); assert.match(c, /builder\.js\?v=24/);
 });
 
 await t('CSP: frame-ancestors \'self\' only on the capture route (+ invite); builder stays none', () => {
@@ -141,4 +141,74 @@ await t('CSP: frame-ancestors \'self\' only on the capture route (+ invite); bui
   const srv = R('server.js');
   assert.match(srv, /capture: buildCsp\(\{ 'script-src': SCRIPT_SRC_BUILDER\.join\(' '\), 'frame-ancestors': "'self'" \}\)/);
 });
+/* ---- R9 edge cases ---- */
+const fail = (msg, code) => () => { throw Object.assign(new Error(msg), { code }); };
+await t('R9: two share clicks → ONE iframe (second joins the running capture); next one after it finishes is new', async () => {
+  const listeners = [];
+  const cx = load({ addEventListener: (e, f) => listeners.push(f), removeEventListener: (e, f) => { const i = listeners.indexOf(f); if (i >= 0) listeners.splice(i, 1); } });
+  const S = cx.HelmShareChecklist;
+  const a = S.autoCapture(Q), b = S.autoCapture(Q);
+  assert.equal(a, b); assert.equal(cx.document.body.children.length, 1, 'no duplicate iframe');
+  const fr = cx.document.body.children[0]; fr.contentWindow = {};
+  // a message for ANOTHER quote (e.g. client.html listing several events) is ignored
+  listeners.slice().forEach((f) => f({ origin: 'https://www.helm.events', source: fr.contentWindow, data: { type: 'helm-capture-done', quoteId: '99999999-2222-4333-8444-555555555555', ok: true } }));
+  assert.equal(cx.document.body.children.length, 1);
+  listeners.slice().forEach((f) => f({ origin: 'https://www.helm.events', source: fr.contentWindow, data: { type: 'helm-capture-done', quoteId: Q, ok: false, code: 'frozen', error: 'closed' } }));
+  await assert.rejects(a, (e) => e.code === 'frozen');
+  await tick();
+  const c = S.autoCapture(Q, { timeoutMs: 5 }); assert.notEqual(c, a); await assert.rejects(c, /longer/);
+  assert.equal(cx.document.body.children.length, 0);
+});
+await t('R9: capture URL is root-absolute (pretty URLs like /studio/events/<id>)', () => {
+  assert.equal(load().HelmShareChecklist.captureUrl(Q), '/capture.html?quote=' + Q);
+});
+await t('R9: closed / view-only event with stale (not missing) pictures → shares with the saved ones, no block', async () => {
+  for (const code of ['frozen', 'readonly']) {
+    const s = await share(() => all(OLD), V, fail('x', code), { layout2d: true, layout3d: true });
+    await s.ck.uploadSnapshots();
+    assert.match(s.host.textContent, /last saved pictures/); assert.equal(s.ck.sections().layout2d, true);
+  }
+});
+await t('R9: closed / view-only / signed-out with MISSING pictures → specific clear message', async () => {
+  let s = await share(() => ({}), V, fail('x', 'frozen'), { layout2d: true });
+  await assert.rejects(s.ck.uploadSnapshots(), /closed, cancelled or archived[\s\S]*Untick/);
+  s = await share(() => ({}), V, fail('x', 'readonly'), { layout3d: true });
+  await assert.rejects(s.ck.uploadSnapshots(), /permission/);
+  s = await share(() => ({}), V, fail('x', 'signin'), { layout2d: true });
+  await assert.rejects(s.ck.uploadSnapshots(), /sign in again/);
+});
+await t('R9: WebGL unavailable → 2D saved, 3D-specific message', async () => {
+  let info = {};
+  const s = await share(() => info, V, () => { info = { '2d': { labels: FRESH, plain: FRESH } }; return { ok: true }; }, { layout2d: true, layout3d: true });
+  await assert.rejects(s.ck.uploadSnapshots(), /3D pictures couldn’t be rendered[\s\S]*2D pictures were saved/);
+});
+await t('R9: only one style ticked → only that style is required', async () => {
+  for (const st of ['labels', 'plain']) {
+    const s = await share(() => ({ '2d': { [st]: FRESH } }), V, () => ({ ok: true }), { layout2d: true });
+    for (const n of s.host.all()) if (n.attrs && n.attrs['data-style'] && n.attrs['data-style'] !== st) { n.checked = false; n.listeners.change.forEach((f) => f()); }
+    await s.ck.uploadSnapshots(); assert.equal(s.calls.length, 0, st);
+  }
+});
+await t('R9: builder capture host — frozen check, signed-out answers instead of redirecting, 4096px cap', () => {
+  const b = R('public/builder.js');
+  assert.match(b, /currentQuoteGuard\.frozen\)\{ post\(\{type:'helm-capture-done', ok:false, code:'frozen'/);
+  assert.match(b, /code:'readonly'/);
+  assert.match(b, /if\(CAPTURE_HOST\)\{ try\{ window\.parent\.postMessage\(\{type:'helm-capture-done'[^}]*code:'signin'[^\n]*location\.origin\); \}catch\(e\)\{\} return; \}\s*location\.replace\('\/login/);
+  assert.match(b, /Math\.min\(4, o\.maxW\/W, 4096\/H\)/);
+});
 console.log('r8b-capture-host: ' + n + ' passed');
+{ // R9: numbered template labels collapse into one legend entry
+  const { readFileSync: rf } = await import('node:fs'); const vm2 = (await import('node:vm')).default;
+  const cx = { window: {} }; cx.globalThis = cx; vm2.createContext(cx); vm2.runInContext(rf(new URL('../public/capture-frame.js', import.meta.url), 'utf8'), cx);
+  const CF = cx.window.HelmCaptureFrame || cx.HelmCaptureFrame;
+  const items = [];
+  for (let i = 1; i <= 16; i++) items.push({ id: 't' + i, type: 'table', label: 'Table ' + i, x: i * 5, y: 10, width: 4, height: 4 });
+  items.push({ id: 'v', type: 'table', label: 'VIP Table', x: 1, y: 30, width: 4, height: 4 }, { id: 'h', type: 'table', label: 'Head Table', x: 9, y: 30, width: 4, height: 4 }, { id: 'b', type: 'bar', label: 'Bar 1', x: 1, y: 50, width: 4, height: 4 }, { id: 'b2', type: 'bar', label: 'bar #2', x: 9, y: 50, width: 4, height: 4 });
+  const r = CF.numberItems(items);
+  const tbl = r.legend.find((l) => l.name === 'Table'); assert.equal(tbl.count, 16);
+  assert.equal(new Set(items.slice(0, 16).map((it) => r.byId.get(it.id))).size, 1, 'all tables share one badge');
+  assert.ok(r.legend.find((l) => l.name === 'VIP Table') && r.legend.find((l) => l.name === 'Head Table'), 'custom names kept');
+  assert.equal(r.legend.find((l) => l.name === 'Bar').count, 2);
+  assert.equal(r.legend.length, 4);
+  console.log('  ok  R9: "Table 1..16" → one legend number ×16; custom names separate');
+}

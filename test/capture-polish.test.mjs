@@ -42,7 +42,7 @@ t('capture3D uses the framing helper, hides grid/edge, 2x supersample, restores 
   const cap = js.slice(js.indexOf('async function capture3D'), js.indexOf('window.__capture3D='));
   assert.doesNotMatch(cap, /ACESFilmic|toneMappingExposure|multiplyScalar\(0\.72\)|sun\.intensity=1|hemi\.intensity=0/); assert.match(js, /keep\.labels\.forEach/);
   const html = read('public/builder.html');
-  assert.match(html, /capture-frame\.js\?v=7"><\/script>\n<script src="builder-3d\.js\?v=9"/);
+  assert.match(html, /capture-frame\.js\?v=8"><\/script>\n<script src="builder-3d\.js\?v=9"/);
 });
 t('panel toggle re-fits the 2D plan only while at fit zoom', () => {
   const js = read('public/builder.js');
@@ -114,7 +114,7 @@ t('audit: friendly wording, no raw JSON', () => {
 });
 t('audit.html loads the formatter and uses it for updates', () => {
   const h = read('public/audit.html');
-  assert.match(h, /<script src="audit-format\.js\?v=1"><\/script>/); assert.match(h, /AuditFormat\.describeUpdate\(c,5\)/);
+  assert.match(h, /<script src="audit-format\.js\?v=2"><\/script>/); assert.match(h, /AuditFormat\.describeUpdate\(c,5\)/);
 });
 
 globalThis.window = undefined;

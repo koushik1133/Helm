@@ -278,8 +278,9 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
-<script src="event-name.js?v=1"></script>
-<script src="store-api.js?v=150"></script>
+<script src="event-name.js?v=2"></script>
+<script src="store-api.js?v=156"></script>
+<script src="event-sizing.js?v=3"></script>
 <script src="tour.js?v=9"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
@@ -531,7 +532,7 @@
   }
 
   /* ---------- confirm / pricing modal ---------- */
-  let cmId=null, cmConfig=null, cmVendors=[], cmCoupons=[], platesEdited=false;
+  let cmChairsSeed="", cmId=null, cmConfig=null, cmVendors=[], cmCoupons=[], platesEdited=false;
   async function openConfirm(id){
     $("#cm_err").hidden=true;
     let full; try{ full=detailCache[id]||(detailCache[id]=await BPStore.quotes.get(id)); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"open this quote"}),{type:"err"}); return; }
@@ -558,7 +559,9 @@
     // menu package (set on the plan by the builder / plan screen) → its per-plate price drives catering
     let planRow=null; try{ planRow=await BPStore.plan.get(id); }catch{}
     const menuPlate = planRow && planRow.menu_plate_price!=null ? +planRow.menu_plate_price : null;
-    $("#p_chairs").value = pr.chairs!=null?pr.chairs:seats;
+    // R9: the quote's ONE chairs value (typed, else 70% of guests) — the layout count only when nothing else exists
+    $("#p_chairs").value = pr.chairs!=null?HelmSizing.quoteChairs(cl,pr,pr.chairs):(HelmSizing.quoteChairs(cl,pr,seats)??seats);
+    cmChairsSeed = String($("#p_chairs").value);
     // guests: last-priced value → layout seats → the count carried over from the lead
     $("#p_guests").value = pr.guests!=null?pr.guests:(pr.chairs!=null?pr.chairs:(seats||(cl.guests!=null?cl.guests:"")));
     // rates from the Control Center, but plate price follows the applied menu package when there is one
@@ -654,8 +657,13 @@
     btn.setAttribute("aria-busy","true");
     const p=gatherPricing(), t=calcPricing(p);
     // merge into the stored client JSON - never replace it (keeps guests/budget carried over from the lead)
-    const client=Object.assign({}, (detailCache[cmId]&&detailCache[cmId].client)||{}, gatherClient());
-    const pricing = { ...p, computed:t, total:t.total, client };
+    let client=Object.assign({}, (detailCache[cmId]&&detailCache[cmId].client)||{}, gatherClient());
+    // R9: keep the one-chairs-value flags in step — a chairs value changed here is hand-set on BOTH records
+    // (otherwise the flow / builder would re-derive 70% of guests and silently re-price the quote)
+    const prevPr=(detailCache[cmId]&&detailCache[cmId].pricing)||{};
+    const chairsManual = String($("#p_chairs").value)!==cmChairsSeed ? true : HelmSizing.isChairsManual(client, prevPr);
+    client=HelmSizing.merge(client, chairsManual ? { chairs:p.chairs, chairsManual:true } : { chairsManual:false });
+    const pricing = { ...p, computed:t, total:t.total, client, chairsManual, otherAuto: prevPr.otherAuto };
     // B6 — optimistic lock: the updated_at captured when this modal loaded. If another
     // user/tab changed the quote since, updateMeta throws {code:"CONFLICT"} instead of
     // silently overwriting their edit.

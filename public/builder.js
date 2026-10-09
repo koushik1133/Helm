@@ -222,8 +222,16 @@ function syncChairsPanel(){
   const n=HelmSizing.layoutChairsNote(quoteChairsNow(), layoutChairCount());
   box.hidden=!n || RO; if(n){ $('#bChairsNoteTxt').textContent=n.text; box.dataset.n=String(n.n); }
 }
+// R9: "reset to 70%" — drop the manual flag on BOTH records so every screen re-derives from guests
+async function resetQuoteChairs(){
+  if(!currentQuoteId || RO) return;
+  currentPricing=Object.assign({}, currentPricing||{}, { chairsManual:false });
+  await persistSizing({ chairsManual:false, guests:(currentClient&&currentClient.guests!=null)?currentClient.guests:PRICING.guests });
+  renderPrice(); syncChairsPanel(); syncQuotePricing();
+}
 async function setQuoteChairs(n){
-  n=Math.max(0, Math.round(+n||0));
+  n=Math.round(+n);
+  if(!(n>=1)){ toast(CHAIRS_MIN_MSG); try{ syncChairsPanel(); const ci=$('#bChairs'); if(ci) ci.value=quoteChairsNow(); }catch(e){} return; }
   currentPricing=Object.assign({}, currentPricing||{}, { chairs:n, chairsManual:true });
   await persistSizing({ chairs:n, chairsManual:true });
   renderPrice(); syncChairsPanel(); syncQuotePricing();
@@ -238,7 +246,7 @@ function buildMenuControls(){
   box.innerHTML =
     `<label class="pfield">Menu package<select id="bPkg" ${CAN_CREATE?'':'disabled'}>${opts}</select></label>`+
     `<label class="pfield">Guests / plates <input id="bGuests" type="number" min="0" value="${PRICING.guests!=null?PRICING.guests:''}"></label>`+
-    `<label class="pfield">Chairs (priced) <input id="bChairs" type="number" min="0" ${RO?'disabled':''}></label>`+
+    `<label class="pfield">Chairs (priced) <input id="bChairs" type="number" min="1" ${RO?'disabled':''}></label>`+
     `<p class="delta" id="bChairsNote" hidden><span id="bChairsNoteTxt"></span> <button type="button" class="tbtn" id="bChairsUse">Use layout count</button></p>`+
     `<div class="delta" id="pkgDelta"></div>`;
   const bc=$('#bChairs'); if(bc) bc.addEventListener('change',()=>{ if(bc.value!=='') setQuoteChairs(bc.value); });
@@ -264,6 +272,7 @@ async function persistGuests(){
   try{ currentClient = window.HelmSizing ? HelmSizing.merge(currentClient, { guests: PRICING.guests }) : Object.assign({}, currentClient, { guests: PRICING.guests });
     await BPStore.quotes.updateMeta(currentQuoteId, { client: currentClient }); }
   catch(e){ /* non-fatal */ }
+  try{ renderPrice(); syncChairsPanel(); }catch(e){}   // R9: chairs follow guests only while not hand-set
   syncQuotePricing();
 }
 
@@ -279,6 +288,32 @@ function syncQuotePricing(){
 }
 // Runs the pricing write immediately (used by "Save & back to quote", which must not leave
 // the page while a debounced write is still pending — that write would be lost).
+// R9: the exact pricing object the builder writes to the quote — also what the right panel totals,
+// so the panel, the flow, quotes.html, the booklet and the D8 server all price the same object.
+function quotePricingNow(){
+  currentPricing = currentPricing || {};
+  const oi = BPStore.pricing.fromItems(store.items, PRICING.assetPrices);
+  // R8b: the quote's ONE chairs value prices chairs (typed, else 70% of guests) — the layout count never overrides it
+  const chairsManual = HelmSizing.isChairsManual(currentClient, currentPricing);   // R9: client flag authoritative
+  const chairs = quoteChairsNow();
+  const guests = PRICING.guests!=null ? PRICING.guests : chairs;
+  const platePrice = PRICING.menuPlatePrice!=null ? PRICING.menuPlatePrice
+                    : (currentPricing.platePrice!=null?currentPricing.platePrice:PRICING.platePrice);
+  const auto = oi.objectsCost + (+PRICING.layoutBase||0);
+  const hand = HelmSizing.handOther(currentPricing, _lastAutoOther);   // R9: a hand-set Décor / setup is never overwritten
+  return Object.assign({}, currentPricing, {
+    chairs, guests, platePrice, chairsManual,
+    chairPrice: currentPricing.chairPrice!=null?currentPricing.chairPrice:PRICING.chairPrice,
+    gstPct: currentPricing.gstPct!=null?currentPricing.gstPct:PRICING.gstPct,
+    serviceChargePct: currentPricing.serviceChargePct!=null?currentPricing.serviceChargePct:PRICING.serviceChargePct,
+    // never overwrite a hand-edited 'other': it counts as hand-edited when it no longer matches the
+    // last value this builder computed (otherAuto, stored beside it, or this session's last write)
+    other: hand!=null ? hand : auto,
+    otherAuto: hand!=null && currentPricing.otherAuto!=null ? currentPricing.otherAuto : auto,
+    catering: currentPricing.catering || { mode:'inhouse', amount:0, gstPct:PRICING.gstPct },
+  // 0079: a NEW quote takes the studio's tax country/inclusive setting; a priced one keeps its own
+  }, currentPricing.gstPct==null ? BPStore.tax.snapshot(BPStore.tax.resolve(PRICING)) : {});
+}
 async function syncQuotePricingNow(){
   if(!currentQuoteId) return false;
   clearTimeout(_syncTimer);
@@ -288,28 +323,7 @@ async function syncQuotePricingNow(){
       let expectedUpdatedAt = null;
       try{ const latest = await BPStore.quotes.get(currentQuoteId);
         if(latest){ currentPricing = latest.pricing || currentPricing; expectedUpdatedAt = latest.updatedAt || null; } }catch(_){}
-      const oi = BPStore.pricing.fromItems(store.items, PRICING.assetPrices);
-      // R8b: the quote's ONE chairs value prices chairs (typed, else 70% of guests) — the layout count never overrides it
-      const chairsManual = !!(currentPricing.chairsManual || (currentClient && currentClient.chairsManual));
-      const chairs = quoteChairsNow();
-      const guests = PRICING.guests!=null ? PRICING.guests : chairs;
-      const platePrice = PRICING.menuPlatePrice!=null ? PRICING.menuPlatePrice
-                        : (currentPricing.platePrice!=null?currentPricing.platePrice:PRICING.platePrice);
-      const p = Object.assign({}, currentPricing, {
-        chairs, guests, platePrice, chairsManual,
-        chairPrice: currentPricing.chairPrice!=null?currentPricing.chairPrice:PRICING.chairPrice,
-        gstPct: currentPricing.gstPct!=null?currentPricing.gstPct:PRICING.gstPct,
-        serviceChargePct: currentPricing.serviceChargePct!=null?currentPricing.serviceChargePct:PRICING.serviceChargePct,
-        // never overwrite a hand-edited 'other': it counts as hand-edited when it no longer matches the
-        // last value this builder computed (otherAuto, stored beside it, or this session's last write)
-        other: (()=>{ const auto = oi.objectsCost + (+PRICING.layoutBase||0);
-          const prevAuto = currentPricing.otherAuto!=null ? +currentPricing.otherAuto : _lastAutoOther;
-          const hand = currentPricing.other!=null && prevAuto!=null && +currentPricing.other !== prevAuto;
-          return hand ? currentPricing.other : auto; })(),
-        otherAuto: oi.objectsCost + (+PRICING.layoutBase||0),
-        catering: currentPricing.catering || { mode:'inhouse', amount:0, gstPct:PRICING.gstPct },
-      // 0079: a NEW quote takes the studio's tax country/inclusive setting; a priced one keeps its own
-      }, currentPricing.gstPct==null ? BPStore.tax.snapshot(BPStore.tax.resolve(PRICING)) : {});
+      const p = quotePricingNow();
       const t = BPStore.pricing.quoteTotal(p);
       const pricing = Object.assign({}, p, { computed:t, total:t.total, client: currentClient });
       await BPStore.quotes.updateMeta(currentQuoteId, { pricing }, expectedUpdatedAt);
@@ -343,20 +357,28 @@ function renderPrice(){
   try{ syncChairsPanel(); }catch(e){}
   const box=$('#pricePanel'); if(!box) return;
   const m=priceModel();
+  // R9: on a quote the panel prices the SAME object the builder saves (quotePricingNow → quoteTotal), so a
+  // hand-set Décor / setup, discount, coupon or catering amount gives the same total here as everywhere else
+  let qp=null, qt=null; if(currentQuoteId && window.HelmSizing){ try{ qp=quotePricingNow(); qt=BPStore.pricing.quoteTotal(qp); }catch(e){ qp=null; } }
+  const otherSet = qp ? HelmSizing.handOther(currentPricing, _lastAutoOther) : null;
+  if(qt){ m.subtotal=qt.subtotal; m.gst=Math.round(qt.totalGst); m.total=qt.total; m.serviceCharge=Math.round(qt.serviceCharge); m.discount=qt.discount;
+    m.chairsCost=qp.chairs*qp.chairPrice; m.cateringCost=qt.cateringBucket; m.svcPct=+qp.serviceChargePct||0; m.gstPct=+qp.gstPct||0; m.taxInclusive=qt.taxInclusive; }
   let rows='';
   if(m.chairs>0)
     rows+=`<div class="prow"><span>Chairs <span class="q">${m.chairs} × ${inr(m.chairPrice)}</span></span><span class="amt">${inr(m.chairsCost)}</span></div>`;
   if(m.cateringCost>0)
     rows+=`<div class="prow"><span>Catering${PRICING.menuPackageName?' <span class="q">'+esc(PRICING.menuPackageName)+'</span>':''} <span class="q">${m.guests} × ${inr(m.platePrice)}</span></span><span class="amt">${inr(m.cateringCost)}</span></div>`;
-  (m.objectLines||[]).forEach(l=>{
+  if(otherSet!=null){ if(otherSet>0) rows+=`<div class="prow"><span>Décor / setup <span class="q">set on quote</span></span><span class="amt">${inr(otherSet)}</span></div>`; }
+  else (m.objectLines||[]).forEach(l=>{
     const label=ASSETS[l.type]?ASSETS[l.type].label:l.type;
     const flag = (PRICING.assetPrices && !inCatalog(l.type, PRICING.assetPrices)) ? ' <span class="q nocat" title="No rate for this item in Control Center — using a default price">price not in catalog</span>' : '';
     rows+=`<div class="prow"><span>${esc(label)} <span class="q">${l.qty>1?l.qty+' × '+inr(l.unit):inr(l.unit)}</span>${flag}</span><span class="amt">${inr(l.cost)}</span></div>`;
   });
-  if(m.layoutBase>0) rows+=`<div class="prow"><span>Layout &amp; setup</span><span class="amt">${inr(m.layoutBase)}</span></div>`;
+  if(otherSet==null && m.layoutBase>0) rows+=`<div class="prow"><span>Layout &amp; setup</span><span class="amt">${inr(m.layoutBase)}</span></div>`;
   if(m.serviceCharge>0) rows+=`<div class="prow"><span>Service <span class="q">${m.svcPct}%</span></span><span class="amt">${inr(m.serviceCharge)}</span></div>`;
   if(!rows) rows='<div class="empty">Add items and pick a menu package to see the price build up.</div>';
   const tax = m.subtotal>0 ? `<div class="prow sub"><span>Subtotal</span><span class="amt">${inr(m.subtotal)}</span></div>`
+    + (m.discount>0 ? `<div class="prow"><span>Discount</span><span class="amt">− ${inr(m.discount)}</span></div>` : '')
     + `<div class="prow"><span>${esc(BPStore.tax.resolve(PRICING).name)}${m.taxInclusive?' (included)':''} <span class="q">${m.gstPct}%</span></span><span class="amt">${inr(m.gst)}</span></div>` : '';
   box.innerHTML = rows + tax +
     `<div class="prow total"><span>Total</span><span class="amt">${inr(m.total)}</span></div>`;
@@ -1922,6 +1944,7 @@ function setBlockSeats(items, it, T){
   if(rem) items.splice(idx+1,0,makeItem('chairrow', it.x, it.y, {y:it.y+it.height+0.02, width:it.width*rem/c, height:Math.max(0.1,rowH-0.04),
     rotation:it.rotation||0, properties:{rows:1, cols:rem}, label:(it.label||'Seating')+' · last row'}));
 }
+let _packFit=null;   // R9: set by exactSeats' tiny-hall fallback — {fit} or {fit:false, free sq ft}
 function exactSeats(items, N){
   N=Math.round(+N||0); if(!(N>0)) return items;
   let S=sumSeats(items);
@@ -1948,9 +1971,19 @@ function exactSeats(items, N){
     else { // no seating survived (tiny hall): pack all N into the largest free spot found
       const taken=items.filter(it=>!GEN_OVERLAY.has(it.type)).map(genRect);
       let spot=null;
-      for(const [w,h] of [[Math.min(40,WORLD.w-4),Math.min(20,WORLD.h-4)],[20,8],[12,5],[6,2.4],[3,2]]){
+      // R9: first look for a free spot that holds all N at the comfortable pitch — if one exists the seats
+      // genuinely fit (no warning); otherwise record the free area really left for seating, for the message
+      const P=DESIGN_PITCH, comfy=[];
+      for(const cols of [Math.ceil(Math.sqrt(N*2)), Math.ceil(Math.sqrt(N)), N, Math.ceil(N/2), 1]){
+        const c=Math.max(1,Math.min(N,cols)), w=c*P, h=Math.ceil(N/c)*P; if(w<=WORLD.w && h<=WORLD.h) comfy.push([w,h]); }
+      for(const [w,h] of comfy){
         for(let y=0;!spot && y+h<=WORLD.h;y+=1) for(let x=0;!spot && x+w<=WORLD.w;x+=1){ const r={x,y,w,h}; if(!taken.some(t=>rectsHit(r,t,0.5))) spot=r; }
         if(spot) break; }
+      _packFit = spot ? { fit:true } : { fit:false, free:0 };
+      if(!spot) for(const [w,h] of [[Math.min(40,WORLD.w-4),Math.min(20,WORLD.h-4)],[20,8],[12,5],[6,2.4],[3,2]]){
+        for(let y=0;!spot && y+h<=WORLD.h;y+=1) for(let x=0;!spot && x+w<=WORLD.w;x+=1){ const r={x,y,w,h}; if(!taken.some(t=>rectsHit(r,t,0.5))) spot=r; }
+        if(spot) break; }
+      if(!_packFit.fit && spot) _packFit.free=Math.round(spot.w*spot.h);
       spot=spot||{x:2,y:Math.max(0,WORLD.h-4),w:Math.max(2,WORLD.w-4),h:2};
       const cols=Math.max(1,Math.min(N,Math.floor(spot.w/DESIGN_PITCH)||1)), rows=Math.ceil(N/cols);
       const b=makeItem('seatblock', spot.x, spot.y, {width:spot.w, height:spot.h, properties:{rows, cols}, label:'Seating'}); items.push(b); setBlockSeats(items, b, d); }
@@ -1958,9 +1991,14 @@ function exactSeats(items, N){
   return items;
 }
 // R8b: the honest hall-size warning when N seats exceed what the template fits at its density
-function seatFitWarning(N, natural){
+function seatFitWarning(N, natural, free){
   N=Math.round(+N||0); if(!(N>0) || !(natural<N)) return '';
-  const hall=Math.round(WORLD.w*WORLD.h), need=natural>0 ? Math.ceil(hall*N/natural) : Math.ceil(N*DESIGN_PITCH*DESIGN_PITCH*2);
+  const hall=Math.round(WORLD.w*WORLD.h);
+  // R9: nothing of the template's own seating fit (tiny hall) — the old area maths said "need ~116 sq ft;
+  // hall is 400" (need < hall), which read as if it fitted. Say plainly that the hall is too small.
+  if(!(natural>0) && free>0) return N.toLocaleString('en-IN')+' seats need ~'+Math.ceil(N*DESIGN_PITCH*DESIGN_PITCH).toLocaleString('en-IN')+' sq ft at '+DESIGN_PITCH+' ft spacing; the seating area left after the stage, dance floor, buffet & bars is ~'+free.toLocaleString('en-IN')+' sq ft';
+  if(!(natural>0)) return N.toLocaleString('en-IN')+' seats don\u2019t fit this template in a '+hall.toLocaleString('en-IN')+' sq ft hall \u2014 enlarge the hall or pick another template';
+  const need=natural>0 ? Math.ceil(hall*N/natural) : Math.ceil(N*DESIGN_PITCH*DESIGN_PITCH*2);
   return N.toLocaleString('en-IN')+' seats need ~'+need.toLocaleString('en-IN')+' sq ft; hall is '+hall.toLocaleString('en-IN')+' sq ft';
 }
 function tally(items, type){ return items.filter(i=>i.type===type).length; }
@@ -2174,15 +2212,21 @@ function resolveOverlaps(items){
 
 function generateVariants(oIn){
   const o = {...oIn};
+  // R9: only a real positive whole number is a seat target — '', 0, negatives, NaN, 'abc' mean "not set"
+  // (they used to leak into the strategies and give 0 / odd seat counts); decimals round.
+  const seatN=v=>{ if(v==null||v==='') return null; const n=Math.round(+v); return isFinite(n)&&n>0 ? n : null; };
+  o.guests=seatN(o.guests); o.chairs=seatN(o.chairs);
   if(o.chairs!=null) o.guests = o.chairs;   // an explicit chair count drives the seating target
   const variants=[];
   const base=()=>{ const it=[]; return it; };
   const target = o.guests!=null ? o.guests : null;   // R8b: the quote's seats value — exact total seating
-  const finish=(it,name,desc)=>{ it.forEach(clampItem); resolveOverlaps(it); const natural=sumSeats(it);
-    if(target>0) exactSeats(it, target);
+  const finish=(it,name,desc)=>{ it.forEach(clampItem); resolveOverlaps(it); let natural=sumSeats(it), free=null;
+    if(target>0){ _packFit=null; exactSeats(it, target);
+      // R9: the template's own zones held no seats, but all N fit comfortably in the space left → it fits
+      if(_packFit){ if(_packFit.fit) natural=target; else free=_packFit.free; } }
     const c=countSeats(it);
     variants.push({name, desc, items:it.map(i=>({...i})),
-      counts:{chairs:sumSeats(it), natural, tables:c.tables, tables_round:tally(it,'table'), booths:tally(it,'booth'),
+      counts:{chairs:sumSeats(it), natural, free, tables:c.tables, tables_round:tally(it,'table'), booths:tally(it,'booth'),
         bars:tally(it,'bar'), trucks:tally(it,'truck'), exits:tally(it,'exit'), objects:it.length}}); };
 
   if(o.type==='conference' && (o.booths||0)>0){
@@ -2238,6 +2282,9 @@ function generateVariants(oIn){
   return variants;
 }
 
+// R9: a chairs value must be a whole number ≥ 1 (empty = 70% of guests). 0 is rejected with a clear message.
+const CHAIRS_MIN_MSG='Chairs must be at least 1 — clear the field to use 70% of guests.';
+function chairsOk(v){ if(v===0){ toast(CHAIRS_MIN_MSG); return false; } return true; }
 function readCustomForm(){
   const num=id=>{ const v=$('#'+id).value.trim(); return v===''?null:Math.max(0,parseInt(v,10)||0); };
   return { type:$('#c_type').value, setting:$('#c_setting').value,
@@ -2265,6 +2312,7 @@ function runCustomGenerate(){
   // Enforce the Control-Center capacity ceilings so generation stays fast and honest
   // even if a field wasn't blurred (the blur clamp hadn't run yet).
   o.guests=clampCap(o.guests,CAPS.guests); o.chairs=clampCap(o.chairs,CAPS.chairs); o.tables=clampCap(o.tables,CAPS.tables);
+  if(!chairsOk(o.chairs)) return;   // R9: 0 chairs is rejected (min 1), never a silent "natural seats" layout
   o.bars=clampCap(o.bars,CAPS.bars); o.trucks=clampCap(o.trucks,CAPS.trucks); o.booths=clampCap(o.booths,CAPS.booths);
   o.rest=clampCap(o.rest,CAPS.rest); o.exits=clampCap(o.exits,CAPS.exits);
   if(applyRoomFromForm(o)===false) return;               // invalid hall dimension → abort (message already shown)
@@ -2276,7 +2324,8 @@ function runCustomGenerate(){
   if(o.guests){
     const target=o.chairs!=null?o.chairs:o.guests;
     const bestCap=Math.max(0,...variants.map(v=>v.counts.natural||0));
-    const warn=seatFitWarning(target, bestCap);
+    const bestFree=Math.max(0,...variants.map(v=>v.counts.free||0));
+    const warn=seatFitWarning(target, bestCap, bestFree);
     if(warn){
       fitNote=`<div style="grid-column:1/-1;background:color-mix(in srgb,var(--c-logistics) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--c-logistics) 45%,var(--line));border-radius:9px;padding:10px 12px;font-size:12px;color:var(--ink);line-height:1.5">
         ⚠ ${esc(warn)}. Every layout below still places all ${esc(String(target))} seats, packed tighter than the comfortable ${DESIGN_PITCH} ft spacing — enlarge the hall or reduce the seats.</div>`;
@@ -2323,21 +2372,26 @@ function applyCapHints(){
     el.addEventListener('change',()=>{ try{ if(applyRoomFromForm(readCustomForm())===false) return; sizeCanvas(); renderAll(); fitView(); }catch(e){} });
   });
 }
-function openCustomModal(){ $('#customModal').hidden=false; $('#c_results').innerHTML=''; try{ applyCapHints(); }catch(e){}
+function openCustomModal(){ const wasOpen=!$('#customModal').hidden; $('#customModal').hidden=false;
+  if(!wasOpen) _ceFresh=true;   // R9: re-read the quote's sizing each time it opens (never mid-edit) $('#c_results').innerHTML=''; try{ applyCapHints(); }catch(e){}
   try{ prefillCustomForm(); wireSizingForm(); renderRecommendations(); }catch(e){} }
 /* R8: the Custom Event dialog is prefilled from the quote (guests, chairs, tables, hall, type) and
    keeps chairs = 70% of guests / tables = chairs ÷ seats-per-table until the user types their own. */
 const CE_TYPE = { wedding:'wedding', reception:'wedding', engagement:'wedding', gala:'wedding', cocktail:'wedding', birthday:'wedding',
   concert:'concert', festival:'festival', political:'political', rally:'political',
   conference:'conference', corporate:'conference', expo:'conference', product_launch:'conference' };
-let ceChairsManual=false, ceTablesManual=false;
+let ceChairsManual=false, ceTablesManual=false, _ceFresh=true;
 function prefillCustomForm(){
-  const sz=HelmSizing.resolve(currentClient, currentPricing, store.venue&&store.venue.room);
-  const fill=(id,v)=>{ const el=$('#'+id); if(el && el.value==='' && v!=null && v!=='') el.value=v; };
-  if(PRICING.guests!=null && sz.guests==null) sz.guests=PRICING.guests;
+  // R9: on every (re)open the dialog shows the quote's CURRENT sizing — guests, chairs (incl. a hand
+  // edit made in the right panel / flow), tables = ceil(chairs ÷ seats-per-table) unless typed, hall
+  // L×B. Saved values win over ?gen URL params; only values the quote doesn't have are left alone.
+  const fresh=_ceFresh; _ceFresh=false;
+  let cl={}, pr={}; try{ cl=currentClient||{}; pr=currentPricing||{}; }catch(e){}
+  const sz=HelmSizing.dialogSizing(cl, pr, store.venue&&store.venue.room, PRICING.guests, +$('#c_spt').value||null);
+  const fill=(id,v)=>{ const el=$('#'+id); if(el && (fresh || el.value==='') && v!=null && v!=='') el.value=v; };
   fill('c_guests', sz.guests); fill('c_len', sz.len); fill('c_wid', sz.wid);
-  ceChairsManual = ceChairsManual || sz.chairsManual; ceTablesManual = ceTablesManual || sz.tablesManual;
-  fill('c_chairs', sz.chairsManual ? sz.chairs : HelmSizing.defaultChairs(+$('#c_guests').value||sz.guests));
+  if(fresh){ ceChairsManual=sz.chairsManual; ceTablesManual=sz.tablesManual; }
+  if(currentQuoteId) fill('c_chairs', quoteChairsNow()); else fill('c_chairs', sz.chairsManual ? sz.chairs : HelmSizing.defaultChairs(+$('#c_guests').value||sz.guests));
   fill('c_tables', sz.tablesManual ? sz.tables : HelmSizing.defaultTables(+$('#c_chairs').value||null, +$('#c_spt').value||null));
   const t=CE_TYPE[String(PRICING.eventType||'').toLowerCase()], sel=$('#c_type');
   if(t && sel && !sel.dataset.touched && [...sel.options].some(o=>o.value===t)) sel.value=t;
@@ -2355,10 +2409,12 @@ function wireSizingForm(){
   $('#c_guests').addEventListener('input',ceAutoFill);
   $('#c_spt').addEventListener('input',ceAutoFill);
   $('#c_chairs').addEventListener('input',()=>{ ceChairsManual=$('#c_chairs').value!==''; ceAutoFill(); });
+  // R9: a chairs value typed here is the quote's chairs — write it back (quote + right panel #bChairs)
+  $('#c_chairs').addEventListener('change',()=>{ const v=$('#c_chairs').value; if(v!=='' && currentQuoteId && !RO) setQuoteChairs(v); });
   $('#c_tables').addEventListener('input',()=>{ ceTablesManual=$('#c_tables').value!==''; renderRecommendations(); });
   ['c_len','c_wid'].forEach(id=>$('#'+id).addEventListener('input',renderRecommendations));
   $('#c_type').addEventListener('change',()=>{ $('#c_type').dataset.touched='1'; renderRecommendations(); });
-  $('#c_chairsReset').addEventListener('click',e=>{ e.preventDefault(); ceChairsManual=false; ceAutoFill(); });
+  $('#c_chairsReset').addEventListener('click',e=>{ e.preventDefault(); ceChairsManual=false; ceAutoFill(); resetQuoteChairs(); });
 }
 function sizingPatch(o){
   const p={ chairsManual:ceChairsManual, tablesManual:ceTablesManual };
@@ -2381,12 +2437,13 @@ function applyRecommendation(rec){
   if(!rec) return;
   const o=Object.assign(readCustomForm(), rec.opts||{});
   o.guests=clampCap(o.guests,CAPS.guests); o.chairs=clampCap(o.chairs,CAPS.chairs); o.tables=clampCap(o.tables,CAPS.tables);
+  if(!chairsOk(o.chairs)) return;   // R9: 0 chairs is rejected (min 1), never a silent "natural seats" layout
   if(applyRoomFromForm(o)===false) return;
   sizeCanvas();
   const variants=generateVariants(o).map(v=>({...v, items:v.items.map(clampItem)}));
   const v=variants.find(x=>x.name===rec.variant) || variants[0]; if(!v) return;
   loadItems(v.items, 'Template · '+rec.label);
-  { const w=seatFitWarning(o.chairs!=null?o.chairs:o.guests, v.counts.natural); if(w) BPUI.toast('⚠ '+w+' — all seats placed, packed tight.',{type:'err'}); }
+  { const w=seatFitWarning(o.chairs!=null?o.chairs:o.guests, v.counts.natural, v.counts.free); if(w) BPUI.toast('⚠ '+w+' — all seats placed, packed tight.',{type:'err'}); }
   if(o.guests!=null){ PRICING.guests=o.guests; const g=$('#bGuests'); if(g) g.value=o.guests; }
   persistSizing(sizingPatch(o)).then(()=>{ if(o.guests!=null) persistGuests(); });
   closeCustomModal(); renderAll(); fitView(); renderPrice();
@@ -3351,7 +3408,7 @@ function planBlob(o){ o=o||{}; return new Promise(resolve=>{
   const LM=CF ? CF.labelMode(o.labels) : 'numbers';         // 0083: o.labels 'none' | 'numbers' (default) | 'names'
   if(CF) clone.querySelectorAll('text.lbl').forEach(n=>n.remove());
   const restore=()=>{ store.grid.show=wasGrid; showMeasure=wasMeasure; setSelection(wasSel); renderAll(); };
-  const W=WORLD.w*PX_PER_FT, H=WORLD.h*PX_PER_FT, S=o.maxW ? Math.min(4, o.maxW/W) : 2;
+  const W=WORLD.w*PX_PER_FT, H=WORLD.h*PX_PER_FT, S=o.maxW ? Math.min(4, o.maxW/W, 4096/H) : 2;   // R9: cap the tall side at 4096 px (iOS Safari canvas limits)
   clone.setAttribute('width',W*S); clone.setAttribute('height',H*S);
   clone.insertBefore(el('rect',{x:0,y:0,width:W,height:H,
     fill:(getComputedStyle(document.body).getPropertyValue('--canvas').trim()||'#fff')}), clone.firstChild);
@@ -3399,7 +3456,9 @@ async function runCaptureHost(){
   const post=m=>{ try{ window.parent.postMessage(captureHostMessage(qid, m), location.origin); }catch(e){} };
   if(!currentQuoteId){ post({type:'helm-capture-done', ok:false, error:'That event could not be opened'}); return; }
   if(!store.items.length){ post({type:'helm-capture-done', ok:true, empty:true, results:{}}); return; }
-  if(!clientImagesSupported()){ post({type:'helm-capture-done', ok:false, error:'You can’t update the pictures for this event'}); return; }
+  // R9: R4-E — never write pictures for a closed / cancelled / archived event
+  if(currentQuoteGuard && currentQuoteGuard.frozen){ post({type:'helm-capture-done', ok:false, code:'frozen', error:'This event is closed, so its pictures can’t be updated'}); return; }
+  if(!clientImagesSupported()){ post({type:'helm-capture-done', ok:false, code:'readonly', error:'You can’t update the pictures for this event'}); return; }
   captureProgressHook=step=>post({type:'helm-capture-progress', step});
   let ok=false; try{ ok=await captureClientImages(true); }catch(e){ ok=false; }
   post({type:'helm-capture-done', ok:!!ok, results:lastCaptureResults||{}, error: ok ? null : 'The pictures could not be saved'});
@@ -3607,6 +3666,8 @@ async function init(){
   renderPrice();
   // Auth gate: if Supabase enforces login and nobody's signed in → go to the sign-in page
   if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){
+    // R9: the capture host must answer (not navigate the hidden iframe to /login and hang 60s)
+    if(CAPTURE_HOST){ try{ window.parent.postMessage({type:'helm-capture-done', quoteId:String(params.get('quote')||''), ok:false, code:'signin', error:'Please sign in again'}, location.origin); }catch(e){} return; }
     location.replace('/login?next='+encodeURIComponent('builder'+location.search)); return;
   }
   // Role gate: view-only roles (crew/client) get a read-only builder; capture create capability
@@ -3693,7 +3754,7 @@ async function init(){
     const guests=+params.get('guests')||0;
     setV('c_guests', params.get('guests')); setV('c_len', params.get('len')); setV('c_wid', params.get('wid'));
     if(params.get('chairs')){ setV('c_chairs', params.get('chairs')); }   // R8: the quote's chairs (70% default or hand-set) drive the generator
-    if(guests){ PRICING.guests=guests; const g=$('#bGuests'); if(g) g.value=guests; }
+    if(guests && PRICING.guests==null){ PRICING.guests=guests; const g=$('#bGuests'); if(g) g.value=guests; }   // R9: a saved guest count beats the URL
     // apply the admin-configured layout rule for this event type (seats/guest, buffet, bars, components)
     try{
       const rule = await BPStore.layoutRules.get(rawType) || await BPStore.layoutRules.get(ct);

@@ -101,7 +101,8 @@
   }
   /* ---- R8b: offscreen capture host protocol ---- */
   const CAPTURE_TIMEOUT_MS = 60000;
-  function captureUrl(quoteId) { return "capture.html?quote=" + encodeURIComponent(String(quoteId || "")); }
+  // R9: root-absolute — a relative URL breaks on pretty URLs (/studio/events/<id> → /studio/events/capture.html)
+  function captureUrl(quoteId) { return "/capture.html?quote=" + encodeURIComponent(String(quoteId || "")); }
   // a message from the capture host is trusted only when it is same-origin, from OUR iframe, for OUR quote
   function acceptCaptureMessage(ev, o) {
     if (!ev || !o || ev.origin !== o.origin) return null;
@@ -121,8 +122,16 @@
     return out;
   }
   // render + upload the pictures in a hidden capture host; resolves { ok, empty, results } or rejects (timeout / failure)
+  // R9: one capture per quote at a time — a second share click joins the running one (no duplicate iframes)
+  const inflight = {};
   function autoCapture(quoteId, o) {
     o = o || {};
+    if (quoteId && inflight[quoteId]) return inflight[quoteId];
+    const p = autoCaptureRun(quoteId, o);
+    if (quoteId) { inflight[quoteId] = p; const clr = () => { if (inflight[quoteId] === p) delete inflight[quoteId]; }; p.then(clr, clr); }
+    return p;
+  }
+  function autoCaptureRun(quoteId, o) {
     const win = o.win || global, d = o.doc || doc, ms = o.timeoutMs || CAPTURE_TIMEOUT_MS;
     return new Promise((resolve, reject) => {
       if (!quoteId || !UUID_RE.test(quoteId) || !d) { reject(new Error("Save the event first.")); return; }
@@ -140,7 +149,7 @@
         const m = acceptCaptureMessage(ev, { origin: win.location.origin, source: fr.contentWindow, quoteId: quoteId });
         if (!m) return;
         if (m.type === "helm-capture-progress") { try { if (o.onProgress) o.onProgress(m.step); } catch (e) {} return; }
-        if (m.error && !m.empty) finish(new Error(String(m.error).slice(0, 200)));
+        if (m.error && !m.empty) finish(Object.assign(new Error(String(m.error).slice(0, 200)), { code: typeof m.code === "string" ? m.code.slice(0, 20) : "" }));
         else finish(null, { ok: !!m.ok, empty: !!m.empty, results: m.results || {} });
       }
       win.addEventListener("message", onMsg);
@@ -257,12 +266,23 @@
           show();
           let r;
           try { r = await (o.autoCapture || autoCapture)(quoteId, { onProgress: (step) => { if (step === "2d" || step === "3d") { mark[step] = "\u2713"; show(); } } }); }
-          catch (e) { prog.textContent = ""; prog.hidden = true;
+          catch (e) {
+            // R9: a closed / cancelled / archived (or view-only) event can't re-render — share with the
+            // pictures it already has when every ticked one exists (stale only); never hang or block on that
+            if (!missingImages(sec, state.variants, state.info).length) {
+              prog.hidden = false; prog.textContent = (e && e.code === "frozen" ? "This event is closed, so its pictures can’t be refreshed" : "The pictures couldn’t be refreshed (" + String((e && e.message) || "failed") + ")") + " — the link uses the last saved pictures.";
+              return;
+            }
+            prog.textContent = ""; prog.hidden = true;
+            if (e && e.code === "frozen") throw new Error("This event is closed, cancelled or archived, so its 2D / 3D pictures can’t be prepared. Untick them to share the booklet.");
+            if (e && e.code === "readonly") throw new Error("You don’t have permission to update this event’s pictures. Untick the 2D / 3D pictures, or ask someone who can edit the event.");
+            if (e && e.code === "signin") throw new Error("Your session expired — sign in again, then share.");
             throw new Error("Couldn’t prepare the 2D / 3D pictures (" + String((e && e.message) || "failed") + "). Press the button again to retry, or untick them."); }
           if (r && r.empty) { state.skipPics = true; prog.textContent = "The floor layout has no items yet — the 2D / 3D pictures are skipped for this link."; refresh(); return; }
           mark["2d"] = mark["3d"] = "\u2713"; show();
           await loadInfo();
           const still = missingImages(sec, state.variants, state.info);
+          if (still.length && still.every((m) => m.kind === "3d")) throw new Error("The 3D pictures couldn’t be rendered on this device (3D graphics may be unavailable). The 2D pictures were saved — untick 3D view to share without it, or retry on another browser.");
           if (still.length) throw new Error("Some pictures couldn’t be prepared (" + still.map((m) => m.kind.toUpperCase() + (m.variant === "plain" ? " without" : " with") + " labels").join(", ") + "). Press the button again to retry, or untick them.");
           prog.textContent = "Pictures ready — 2D \u2713 3D \u2713";
         }
