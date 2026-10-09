@@ -204,6 +204,9 @@
     $("#loadErr").innerHTML=""; $("#notfound").hidden=true;
     try{ ev=await BPStore.quotes.get(id); }
     catch(e){ if(BPUI.isNotFound(e)) $("#notfound").hidden=false; else BPUI.loadError($("#loadErr"), e, load, {what:"this event"}); return; }
+    // Pretty URLs (/studio/events/<code>) carry no ?id=, so hand the resolved quote id to the
+    // Share booklet button (it could not open, so links could not be revoked from here).
+    { const bk=document.getElementById("bkShare"); if(bk && ev && ev.id){ bk.setAttribute("data-quote", ev.id); if(window.HelmBookletShare) HelmBookletShare.reveal(bk); } }
     if(!ev){ $("#notfound").hidden=false; return; }
     $("#app").hidden=false; render();   // paint the workspace shell instantly; summaries fill in below
     // All module summaries fire CONCURRENTLY (one burst of requests instead of ~22 serial
