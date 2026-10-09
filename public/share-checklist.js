@@ -1,11 +1,11 @@
 /* share-checklist.js — "Share with client" checklist (flow.html card + the Share booklet dialog, 0069).
    The studio picks which booklet sections the client sees; the server filters the booklet to
    exactly these (contract: sections = {studio, client, venue, menu, layout2d, layout3d, quotation,
-   payments, terms}). 2D / 3D ticked → PNG screenshots (≤1600 px) are captured and uploaded with
-   BPStore.booklet.uploadSnapshot(quoteId, '2d'|'3d', blob):
-     • 2D — the saved layout drawn by the booklet's own plan renderer (booklet.js), rasterised offscreen
-     • 3D — the live 3D viewer's WebGL canvas (#scene3d) when this page has one, else the booklet's
-       isometric render of the same layout (the builder can't be framed: frame-ancestors 'none').
+   payments, terms}). 0083: the 2D / 3D sections show the builder's real pictures, stored in the
+   database in two styles — "With labels" (numbered badges + legend) and "Without labels" — and the
+   studio picks which styles the client sees (default both). These pages have no 3D scene, so they
+   use the newest pictures from the builder ("Update client images" / auto-capture); when a picture
+   is missing the share is blocked with an "Open builder to capture" button (never publish nothing).
    DOM via createElement / textContent / setAttribute only. */
 (function (global) {
   "use strict";
@@ -56,51 +56,43 @@
   function errText(e) { try { if (global.BPUI && global.BPUI.friendlyError) return global.BPUI.friendlyError(e, { action: "share the booklet" }); } catch (x) {} return String((e && e.message) || "Something went wrong"); }
   function when(t) { const d = new Date(t); if (!t || isNaN(d.getTime())) return ""; try { return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return d.toISOString().slice(0, 10); } }
 
-  async function layoutFor(quoteId) {
-    const st = global.BPStore;
-    const q = await st.quotes.get(quoteId); if (!q) return null;
-    const v = await st.quotes.getVersion(quoteId, q.currentVersion);
-    const data = (v && v.data) || {};
-    return { items: Array.isArray(data.items) ? data.items : [], room: data.room || null };
-  }
   async function hasSelectedPackage(quoteId) {
     try { const p = global.BPStore.plan && await global.BPStore.plan.get(quoteId); return !!(p && (p.menu_template || p.package)); } catch (e) { return false; }
   }
-  function canvasToBlob(cv) { return new Promise((res) => { try { cv.toBlob((b) => res(b), "image/png"); } catch (e) { res(null); } }); }
-  async function rasterSvg(svgEl) {
-    const vb = (svgEl.getAttribute("viewBox") || "0 0 800 600").split(/\s+/).map(Number);
-    const sz = fitSize(vb[2] * 8, vb[3] * 8, MAX_W);
-    svgEl.setAttribute("width", String(sz.w)); svgEl.setAttribute("height", String(sz.h)); svgEl.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    const src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new global.XMLSerializer().serializeToString(svgEl));
-    const img = new global.Image();
-    await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error("Couldn't draw the layout")); img.src = src; });
-    const cv = doc.createElement("canvas"); cv.width = sz.w; cv.height = sz.h;
-    const cx = cv.getContext("2d"); cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, sz.w, sz.h); cx.drawImage(img, 0, 0, sz.w, sz.h);
-    return canvasToBlob(cv);
+  // 0083: the pictures come from the builder ("Update client images" / auto-capture), stored in the
+  // database in two styles. kind '2d' | '3d', variant 'labels' | 'plain'.
+  const STYLES = [["labels", "With labels"], ["plain", "Without labels"]];
+  function variantsFor(state, k) { const v = state.variants[k] || {}; return STYLES.filter((x) => v[x[0]] !== false).map((x) => x[0]); }
+  // what is missing for the share: [{section, kind, variant}] for every ticked section + style without a stored picture
+  function missingImages(sections, variants, info) {
+    const out = []; info = info && typeof info === "object" ? info : {};
+    [["layout2d", "2d"], ["layout3d", "3d"]].forEach((x) => {
+      if (!sections || sections[x[0]] !== true) return;
+      const v = (variants && variants[x[0]]) || {};
+      STYLES.forEach((st) => { if (v[st[0]] !== false && !(info[x[1]] && info[x[1]][st[0]])) out.push({ section: x[0], kind: x[1], variant: st[0] }); });
+    });
+    return out;
   }
-  async function capture(kind, quoteId) {
-    if (kind === "3d") {
-      const live = doc.getElementById("scene3d");
-      if (live && live.width > 10 && typeof live.toBlob === "function") {
-        const sz = fitSize(live.width, live.height, MAX_W), cv = doc.createElement("canvas"); cv.width = sz.w; cv.height = sz.h;
-        try { cv.getContext("2d").drawImage(live, 0, 0, sz.w, sz.h); const b = await canvasToBlob(cv); if (b && b.size > 2000) return b; } catch (e) {}
-      }
-    }
-    const B = global.HelmBooklet; if (!B) throw new Error("Screenshot tools aren't loaded on this page.");
-    const layout = await layoutFor(quoteId);
-    if (!layout || !B.normalizeItems(layout).items.length) throw new Error("Draw the floor plan in the builder first.");
-    const fig = el("figure");
-    if (kind === "2d") B.render2d({ layout: layout }, fig, el("ul")); else B.render3d({ layout: layout }, fig);
-    const svgEl = fig.querySelector("svg"); if (!svgEl) throw new Error("Couldn't draw the layout");
-    return rasterSvg(svgEl);
+  // server style flags for the link: { "2d_labels": bool, ... }
+  function variantFlags(variants) {
+    const o = {}; [["layout2d", "2d"], ["layout3d", "3d"]].forEach((x) => { const v = (variants && variants[x[0]]) || {};
+      STYLES.forEach((st) => { o[x[1] + "_" + st[0]] = v[st[0]] !== false; }); });
+    return o;
+  }
+  function builderUrl(quoteId) {
+    try { if (global.HelmUrl && global.HelmUrl.build) return global.HelmUrl.build("floor-plan", { id: quoteId }); } catch (e) {}
+    return "builder.html?quote=" + encodeURIComponent(quoteId);
   }
 
-  /* mount(host, { quoteId, cur, embedded }) → { sections(), snapshots, uploadSnapshots() }
+  /* mount(host, { quoteId, cur, embedded }) → { sections(), variants(), uploadSnapshots(), attachSnapshots() }
      embedded = inside the Share booklet dialog (the dialog owns note / days / submit). */
   function mount(host, o) {
     o = o || {};
     const quoteId = o.quoteId, cur = o.cur || null;
-    const state = { sections: normalize(cur && cur.sections), snaps: {}, hasPkg: false };
+    const iv = cur && cur.image_variants && typeof cur.image_variants === "object" ? cur.image_variants : {};
+    const state = { sections: normalize(cur && cur.sections), hasPkg: false, info: null, previews: {},
+      variants: { layout2d: { labels: iv["2d_labels"] !== false, plain: iv["2d_plain"] !== false },
+                  layout3d: { labels: iv["3d_labels"] !== false, plain: iv["3d_plain"] !== false } } };
     const wrap = el("div", "sc-wrap");
     const fs = el("fieldset", "sc-fs"); fs.appendChild(el("legend", "sc-lab", "What the client will see"));
     const list = el("div", "sc-list"); fs.appendChild(list); wrap.appendChild(fs);
@@ -108,50 +100,59 @@
     const thumbs = el("div", "sc-thumbs");
     const pv = el("div", "sc-preview"); pv.appendChild(el("p", "sc-lab", "Client will see"));
     const pvl = el("ul", "sc-pvl"); pvl.setAttribute("aria-live", "polite"); pv.appendChild(pvl);
+    const sfx = o.embedded ? "_d" : "";
     SECTIONS.forEach((x) => {
-      const id = "sc_" + x[0] + (o.embedded ? "_d" : "");
+      const id = "sc_" + x[0] + sfx;
       const lab = el("label", "sc-item"); lab.setAttribute("for", id);
       const cb = el("input"); cb.type = "checkbox"; cb.id = id; cb.setAttribute("role", "switch"); cb.checked = state.sections[x[0]]; cb.setAttribute("data-sec", x[0]);
-      cb.addEventListener("change", () => { state.sections[x[0]] = cb.checked; if ((x[0] === "layout2d" || x[0] === "layout3d") && cb.checked && !state.snaps[x[0]]) take(x[0] === "layout2d" ? "2d" : "3d"); refresh(); });
-      lab.appendChild(cb); lab.appendChild(el("span", "", x[1])); list.appendChild(lab);
+      cb.addEventListener("change", () => { state.sections[x[0]] = cb.checked; refresh(); });
+      lab.appendChild(cb); lab.appendChild(el("span", "", x[1].replace(/ screenshot$/, ""))); list.appendChild(lab);
       if (x[0] === "menu") list.appendChild(rule);
     });
     wrap.appendChild(thumbs); wrap.appendChild(pv);
 
     function thumb(k) {
-      const kind = k === "layout2d" ? "2d" : "3d", s = state.snaps[k];
-      const box = el("figure", "sc-thumb");
-      if (s && s.url) { const img = el("img"); img.setAttribute("src", s.url); img.setAttribute("alt", (kind === "2d" ? "2D floor plan" : "3D view") + " screenshot"); box.appendChild(img); }
-      else box.appendChild(el("p", "sc-meta", s && s.busy ? "Capturing…" : s && s.error ? s.error : "No screenshot yet"));
-      if (s && s.rough) box.appendChild(el("p", "sc-meta", "Quick sketch — for a real picture open the builder and press “Update client images”."));
-      const cap = el("figcaption"); cap.appendChild(el("span", "", kind === "2d" ? "2D floor plan" : "3D view"));
-      const rt = btn("sc-btn ghost", s && s.url ? "Retake" : "Capture"); rt.setAttribute("aria-label", (s && s.url ? "Retake " : "Capture ") + (kind === "2d" ? "2D floor plan" : "3D view") + " screenshot");
-      rt.disabled = !!(s && s.busy); rt.addEventListener("click", () => take(kind, !!(s && s.stored))); cap.appendChild(rt); box.appendChild(cap);
+      const kind = k === "layout2d" ? "2d" : "3d", name = kind === "2d" ? "2D floor plan" : "3D view";
+      const box = el("figure", "sc-thumb"); box.setAttribute("data-kind", kind);
+      const vs = variantsFor(state, k), info = state.info;
+      const first = vs[0] || "labels", url = state.previews[kind + "_" + first];
+      if (url) { const img = el("img"); img.setAttribute("src", url); img.setAttribute("alt", name + (first === "plain" ? " without labels" : " with labels")); box.appendChild(img); }
+      const tg = el("div", "sc-styles"); tg.setAttribute("role", "group"); tg.setAttribute("aria-label", name + " picture styles");
+      STYLES.forEach((st) => {
+        const id = "sc_" + kind + "_" + st[0] + sfx, lab = el("label", "sc-style"); lab.setAttribute("for", id);
+        const cb = el("input"); cb.type = "checkbox"; cb.id = id; cb.checked = state.variants[k][st[0]] !== false; cb.setAttribute("data-style", st[0]);
+        cb.addEventListener("change", () => { state.variants[k][st[0]] = cb.checked; refresh(); });
+        lab.appendChild(cb); lab.appendChild(doc.createTextNode(" " + st[1])); tg.appendChild(lab);
+      });
+      box.appendChild(tg);
+      if (!vs.length) box.appendChild(el("p", "sc-meta sc-warn", "Pick at least one style, or untick " + name + "."));
+      else if (info === null) box.appendChild(el("p", "sc-meta", "Checking the builder pictures…"));
+      else {
+        const miss = missingImages({ [k]: true }, { [k]: state.variants[k] }, info);
+        if (miss.length) {
+          box.appendChild(el("p", "sc-meta sc-warn", "No " + name + " picture " + miss.map((m) => (m.variant === "plain" ? "without" : "with") + " labels").join(" or ") +
+            " yet. Open the builder and press “Update client images”, then come back."));
+          const a = el("a", "sc-btn ghost", "Open builder to capture"); a.setAttribute("href", builderUrl(quoteId)); a.setAttribute("target", "_blank"); a.setAttribute("rel", "noopener");
+          box.appendChild(a);
+        } else if (state.stale && state.stale[kind]) box.appendChild(el("p", "sc-meta", "These pictures are older than the latest layout — open the builder and press “Update client images” to refresh them."));
+      }
+      const cap = el("figcaption"); cap.appendChild(el("span", "", name)); box.appendChild(cap);
       return box;
     }
-    // R2: the builder's real renders (📸 Update client images) win when they're at least as new as the latest layout version
-    async function stored(kind) {
+    // newest stored pictures (+ previews of the first chosen style)
+    async function loadInfo() {
       const B = global.BPStore && global.BPStore.booklet;
-      if (!B || !B.snapshotInfo) return null;
+      try { state.info = (B && B.imageInfo ? await B.imageInfo(quoteId) : {}) || {}; } catch (e) { state.info = {}; }
       try {
-        const info = await B.snapshotInfo(quoteId), s = info && info[kind]; if (!s || !s.path) return null;
-        const vs = (await global.BPStore.quotes.versions(quoteId)) || [];
-        if (!freshEnough(s.updatedAt, vs)) return null;
-        const url = B.snapshotPreview ? await B.snapshotPreview(s.path) : null;
-        return url ? { path: s.path, url: url, uploaded: true, stored: true } : null;
-      } catch (e) { return null; }
-    }
-    async function take(kind, force) {
-      const k = kind === "2d" ? "layout2d" : "layout3d";
-      const old = state.snaps[k]; state.snaps[k] = { busy: true }; refresh();
-      if (!force) { const st = await stored(kind); if (st) { state.snaps[k] = st; refresh(); return; } }
-      try {
-        const blob = await capture(kind, quoteId);
-        if (!blob) throw new Error("Couldn't capture the screenshot");
-        if (old && old.url && !old.stored) { try { global.URL.revokeObjectURL(old.url); } catch (e) {} }
-        state.snaps[k] = { blob: blob, url: global.URL.createObjectURL(blob), uploaded: false, rough: true };
-      } catch (e) { state.snaps[k] = { error: String((e && e.message) || "Couldn't capture").slice(0, 120) }; }
+        const vs = (await global.BPStore.quotes.versions(quoteId)) || []; state.stale = {};
+        ["2d", "3d"].forEach((kind) => { const x = state.info[kind] || {}; const t = [x.labels, x.plain].filter(Boolean).sort()[0];
+          state.stale[kind] = !!t && !freshEnough(t, vs); });
+      } catch (e) { state.stale = {}; }
       refresh();
+      for (const kind of ["2d", "3d"]) for (const st of STYLES) {
+        if (!(state.info[kind] && state.info[kind][st[0]]) || !B || !B.staffImage) continue;
+        try { const u = await B.staffImage(quoteId, kind, st[0]); if (u) { state.previews[kind + "_" + st[0]] = u; refresh(); } } catch (e) {}
+      }
     }
     function refresh() {
       rule.textContent = state.sections.menu ? menuRule(state.hasPkg) : "Menu hidden — the client won't see packages or the menu.";
@@ -162,28 +163,27 @@
     hasSelectedPackage(quoteId).then((h) => { state.hasPkg = h; refresh(); });
     refresh();
     host.appendChild(wrap);
-    if (state.sections.layout2d) take("2d");
-    if (state.sections.layout3d) take("3d");
+    loadInfo();
 
     return {
       sections: () => normalize(state.sections),
-      snapshots: state.snaps,
+      variants: () => variantFlags(state.variants),
+      // before the share: every ticked 2D / 3D section needs its stored builder pictures (never publish nothing)
       async uploadSnapshots() {
-        const up = global.BPStore.booklet && global.BPStore.booklet.uploadSnapshot;
-        for (const k of ["layout2d", "layout3d"]) {
-          const s = state.snaps[k];
-          if (!state.sections[k] || !s || !s.blob || s.uploaded) continue;
-          if (typeof up !== "function") throw new Error("Screenshot upload isn't available yet — untick the screenshots or try again later.");
-          s.path = await up(quoteId, k === "layout2d" ? "2d" : "3d", s.blob); s.uploaded = true;
+        const sec = normalize(state.sections);
+        if (state.info === null) await loadInfo();
+        for (const k of ["layout2d", "layout3d"]) if (sec[k] && !variantsFor(state, k).length)
+          throw new Error("Pick “With labels” and/or “Without labels” for the " + (k === "layout2d" ? "2D floor plan" : "3D view") + ", or untick it.");
+        const miss = missingImages(sec, state.variants, state.info);
+        if (miss.length) {
+          const names = Array.from(new Set(miss.map((m) => (m.kind === "2d" ? "2D floor plan" : "3D view"))));
+          throw new Error("No " + names.join(" / ") + " picture yet — open the builder and press “Update client images”, or untick " + (names.length > 1 ? "them" : "it") + ".");
         }
       },
-      // R2: after the link exists, point it at the uploaded / builder images (a first share has no row to update before)
+      // after the link exists: which picture styles it shows
       async attachSnapshots() {
-        const B = global.BPStore.booklet; if (!B || !B.attachSnapshot) return;
-        for (const k of ["layout2d", "layout3d"]) {
-          const s = state.snaps[k]; if (!state.sections[k] || !s || !s.path) continue;
-          try { await B.attachSnapshot(quoteId, k === "layout2d" ? "2d" : "3d", s.path); } catch (e) {}
-        }
+        const B = global.BPStore.booklet; if (!B || !B.setImageVariants) return;
+        await B.setImageVariants(quoteId, variantFlags(state.variants));
       },
     };
   }
@@ -251,7 +251,7 @@
     cards.forEach((c) => { if (!can) { c.hidden = true; return; } if (c.dataset.scWired) return; c.dataset.scWired = "1"; c.hidden = false; renderCard(c).catch(() => {}); });
   }
 
-  global.HelmShareChecklist = { mount, wire, normalize, menuRule, preview, fitSize, sharePayload, capture, freshEnough, SECTIONS };
+  global.HelmShareChecklist = { mount, wire, normalize, menuRule, preview, fitSize, sharePayload, freshEnough, missingImages, variantFlags, builderUrl, STYLES, SECTIONS };
   if (doc && doc.querySelector("[data-share-checklist]")) {
     if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", wire); else wire();
   }

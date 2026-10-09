@@ -3177,6 +3177,7 @@ function planBlob(o){ o=o||{}; return new Promise(resolve=>{
   }
   if(o.clean) clone.querySelectorAll('.margins,.measure').forEach(n=>n.remove());
   const CF=o.clean && window.HelmCaptureFrame;              // R5: client plan = numbered badges + legend (same numbers as 3D)
+  const LM=CF ? CF.labelMode(o.labels) : 'numbers';         // 0083: o.labels 'none' | 'numbers' (default) | 'names'
   if(CF) clone.querySelectorAll('text.lbl').forEach(n=>n.remove());
   const restore=()=>{ store.grid.show=wasGrid; showMeasure=wasMeasure; setSelection(wasSel); renderAll(); };
   const W=WORLD.w*PX_PER_FT, H=WORLD.h*PX_PER_FT, S=o.maxW ? Math.min(4, o.maxW/W) : 2;
@@ -3187,12 +3188,15 @@ function planBlob(o){ o=o||{}; return new Promise(resolve=>{
   const svgStr=new XMLSerializer().serializeToString(clone).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
   const img=new Image();
   img.onload=()=>{
-    const pw=Math.round(W*S), ph=Math.round(H*S), panel=CF ? Math.round(pw*0.25) : 0;
+    const pw=Math.round(W*S), ph=Math.round(H*S), panel=CF && LM==='numbers' ? Math.round(pw*0.25) : 0;
     const cv=document.createElement('canvas'); cv.width=pw+panel; cv.height=ph;
     const ctx=cv.getContext('2d');
     ctx.fillStyle=(getComputedStyle(document.body).getPropertyValue('--canvas').trim()||'#fff');
     ctx.fillRect(0,0,cv.width,cv.height); ctx.drawImage(img,0,0,pw,ph);
-    if(CF){ const num=CF.numberItems(store.items), br=Math.max(6,Math.round(ph*0.011));
+    if(CF && LM==='names'){ const tags=store.items.filter(it=>['seatblock','chairrow'].indexOf(it.type)===-1)
+        .map(it=>({text:it.label, x:(it.x+it.width/2)*PX_PER_FT*S, y:(it.y+it.height/2)*PX_PER_FT*S}));
+      CF.drawNameTags(ctx, tags, Math.max(10,Math.round(ph*0.016)), {w:pw, h:ph}); }
+    if(CF && LM==='numbers'){ const num=CF.numberItems(store.items), br=Math.max(6,Math.round(ph*0.011));
       const anchors=store.items.filter(it=>num.byId.has(it.id)).map(it=>({n:num.byId.get(it.id), x:(it.x+it.width/2)*PX_PER_FT*S, y:(it.y+it.height/2)*PX_PER_FT*S}));
       CF.drawBadges(ctx, CF.layoutBadges(anchors, br, {w:pw, h:ph}), br);
       CF.drawLegend(ctx, num.legend, pw, 0, panel, ph); }
@@ -3208,11 +3212,14 @@ async function exportPNG(){
   download(name+'.png', b); toast('PNG downloaded');
 }
 
-/* ---- R2: client booklet images (real 2D plan + 3D render) ----
-   Uploaded to the tenant-scoped booklet-snapshots bucket (<org>/<quote>/2d.png, 3d.jpg) via
-   BPStore.booklet.uploadSnapshot, which also attaches them to the live booklet link. */
-function clientImagesSupported(){ return !!(currentQuoteId && !RO && BPStore.mode && BPStore.mode()==='supabase' && BPStore.booklet && BPStore.booklet.uploadSnapshot); }
+/* ---- R2 + 0083: client booklet images (real 2D plan + 3D render) ----
+   Each picture in two styles: 'labels' (numbered badges + legend, the approved look) and
+   'plain' (the model without labels). Stored IN THE DATABASE via BPStore.booklet.putImage
+   (JPEG ~0.85, <= 1600 px wide); the booklet link shows the newest ones. */
+function clientImagesSupported(){ return !!(currentQuoteId && !RO && BPStore.mode && BPStore.mode()==='supabase' && BPStore.booklet && BPStore.booklet.putImage); }
 let clientImgBusy=false;
+// capture style -> label mode used by planBlob / capture3D
+const CLIENT_IMG_STYLES=[['labels','numbers'],['plain','none']];
 async function captureClientImages(silent){
   if(!clientImagesSupported() || clientImgBusy || !store.items.length) return false;
   clientImgBusy=true;
@@ -3221,15 +3228,20 @@ async function captureClientImages(silent){
   const qid=currentQuoteId, vno=currentVersionNo, sig=docSig();
   const moved=()=> currentQuoteId!==qid || currentVersionNo!==vno || docSig()!==sig;
   try{
-    let b2=await planBlob({clean:true, maxW:1920});
-    if(!b2) throw new Error('Couldn’t draw the floor plan');
-    if(b2.size>3*1024*1024) b2=await planBlob({clean:true,maxW:1280});
-    let b3=null, e3=null;
-    try{ b3=window.__capture3D ? await window.__capture3D(1920) : null; }catch(e){ e3=e; }
+    const p2={}, p3={}; let e3=null;
+    for(const [v,m] of CLIENT_IMG_STYLES){ const b=await planBlob({clean:true, maxW:1600, labels:m}); if(b) p2[v]=b; }
+    if(!p2.labels) throw new Error('Couldn’t draw the floor plan');
+    for(const [v,m] of CLIENT_IMG_STYLES){
+      try{ const b=window.__capture3D ? await window.__capture3D(1600,{labels:m}) : null; if(b) p3[v]=b; }catch(e){ e3=e; }
+      if(moved()) return false;
+    }
     if(moved()) return false;
-    await BPStore.booklet.uploadSnapshot(qid,'2d',b2);
-    if(b3 && !moved()) await BPStore.booklet.uploadSnapshot(qid,'3d',b3);
-    if(!silent) toast(b3 ? 'Client images updated (2D + 3D)' : 'Client 2D plan updated — 3D view couldn’t render');
+    for(const [v] of CLIENT_IMG_STYLES){
+      if(moved()) return false;
+      if(p2[v]) await BPStore.booklet.putImage(qid,'2d',v,p2[v]);
+      if(p3[v] && !moved()) await BPStore.booklet.putImage(qid,'3d',v,p3[v]);
+    }
+    if(!silent) toast(p3.labels ? 'Client images updated (2D + 3D, with and without labels)' : 'Client 2D plan updated — 3D view couldn’t render');
     else if(e3) console.warn('client 3D capture skipped');
     return true;
   }catch(e){ if(!silent) BPUI.toast(BPUI.friendlyError(e,{action:'update the client images'}),{type:'err'}); return false; }
@@ -3243,13 +3255,13 @@ async function autoCaptureIfStale(){
   try{
     const cur=await BPStore.booklet.current(qid);
     if(!cur || !cur.token || cur.revoked_at) return;
-    const info=await BPStore.booklet.snapshotInfo(qid);
+    const info=await BPStore.booklet.imageInfo(qid)||{};
     const vs=await BPStore.quotes.versions(qid)||[];
     const latest=vs.reduce((m,v)=>{ const t=Date.parse(v.createdAt||v.created_at||''); return isFinite(t)&&t>m?t:m; },0);
-    const old=k=>!info[k] || !(Date.parse(info[k].updatedAt||'')>=latest);
+    const old=(k,v)=>{ const t=info[k] && info[k][v]; return !t || !(Date.parse(t)>=latest); };
     // R4-E: the checks above were async — re-verify we are still on that quote's saved latest version
     if(currentQuoteId!==qid || isViewingOlder() || docSig()!==savedSig) return;
-    if(old('2d') || old('3d')) await captureClientImages(true);
+    if(['2d','3d'].some(k=>old(k,'labels') || old(k,'plain'))) await captureClientImages(true);
   }catch(e){ /* best effort */ }
 }
 function importJSON(file){ return new Promise(resolve=>{

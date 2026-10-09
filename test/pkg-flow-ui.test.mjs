@@ -346,12 +346,13 @@ await t('final contract: mode selected/hidden, choose error hints, review outcom
     assert.equal(pl.days, 14); assert.deepEqual(pl.versions, ['v1']); assert.deepEqual(pl.versionIds, ['v1']); assert.equal(pl.sections.menu, true); assert.equal(pl.sections.terms, false);
     assert.deepEqual(J(S.fitSize(3200, 1600)), { w: 1600, h: 800 }); assert.deepEqual(J(S.fitSize(800, 600)), { w: 800, h: 600 });
   });
-  await t('share checklist mount: toggles drive the preview; uploads snapshots via uploadSnapshot', async () => {
+  await t('share checklist mount: toggles drive the preview; missing builder pictures block the share; styles saved', async () => {
     const d = { documentElement: new Node_('html'), readyState: 'complete', createElement: (tg) => new Node_(tg), createTextNode: (x) => { const k = new Node_('#text'); k._text = String(x); return k; } };
     d.body = d.documentElement.appendChild(new Node_('body')); d.getElementById = (id) => d.documentElement.querySelector("#" + id); d.querySelector = (q) => d.documentElement.querySelector(q);
-    const ups = [];
+    const ups = []; let info = {};
     const cx = { console, URLSearchParams, Intl, document: d, location: { search: '' }, URL: { createObjectURL: () => 'blob:x', revokeObjectURL() {} },
-      BPStore: { plan: { get: async () => ({ menu_template: 'Gold' }) }, booklet: { uploadSnapshot: async (q, k, b) => { ups.push([q, k, b.size]); } } },
+      BPStore: { plan: { get: async () => ({ menu_template: 'Gold' }) }, booklet: { imageInfo: async () => info, staffImage: async () => null, setImageVariants: async (q, v) => { ups.push([q, v]); } },
+        quotes: { versions: async () => [] } },
       HelmBooklet: null };
     cx.window = cx; cx.globalThis = cx; vm.createContext(cx); vm.runInContext(read('public/share-checklist.js'), cx);
     const host = d.body.appendChild(new Node_('div'));
@@ -364,10 +365,16 @@ await t('final contract: mode selected/hidden, choose error hints, review outcom
     assert.doesNotMatch(host.querySelector('.sc-pvl').textContent, /Terms/);
     const two = host.querySelectorAll('input').find((i) => i.getAttribute('data-sec') === 'layout2d');
     two.checked = true; two.dispatch('change'); await tick();
-    assert.match(host.textContent, /Screenshot tools aren't loaded|Retake|Capture/);
-    ck.snapshots.layout2d = { blob: { size: 4096 }, url: 'blob:x' };
-    await ck.uploadSnapshots();
-    assert.deepEqual(ups, [['q1', '2d', 4096]]);
+    assert.match(host.textContent, /Open builder to capture/);
+    await assert.rejects(ck.uploadSnapshots(), /No 2D floor plan picture yet/);
+    const plain = host.querySelectorAll('input').find((i) => i.getAttribute('data-style') === 'plain');
+    plain.checked = false; plain.dispatch('change');
+    info = { '2d': { labels: '2026-10-09T00:00:00Z' } };
+    const ck2 = cx.HelmShareChecklist.mount(d.body.appendChild(new Node_('div')), { quoteId: 'q1', cur: { sections: { layout2d: true }, image_variants: { '2d_plain': false } } });
+    await tick(); await tick();
+    await ck2.uploadSnapshots();
+    await ck2.attachSnapshots();
+    assert.equal(ups.length, 1); assert.equal(ups[0][1]['2d_plain'], false); assert.equal(ups[0][1]['2d_labels'], true);
   });
   await t('booklet renders only shared sections and hides empty ones', () => {
     const H = (() => { const c = { console, URLSearchParams }; c.window = c; c.globalThis = c; vm.createContext(c); vm.runInContext(read('public/booklet.js'), c); return c.HelmBooklet; })();
@@ -383,8 +390,8 @@ await t('final contract: mode selected/hidden, choose error hints, review outcom
   await t('share checklist wired on flow.html + Share booklet dialog', () => {
     const f = read('public/flow.html');
     assert.ok(f.indexOf('id="sec-share"') > f.indexOf('id="sec-pay"') && f.indexOf('id="sec-share"') < f.indexOf('id="sec-activity"'));
-    assert.match(f, /share-checklist\.js\?v=3/); assert.match(f, /share-checklist\.css\?v=1/);
-    for (const p of ['public/event.html', 'public/client.html']) assert.match(read(p), /share-checklist\.js\?v=3[\s\S]*booklet-share\.js/, p);
+    assert.match(f, /share-checklist\.js\?v=5/); assert.match(f, /share-checklist\.css\?v=2/);
+    for (const p of ['public/event.html', 'public/client.html']) assert.match(read(p), /share-checklist\.js\?v=5[\s\S]*booklet-share\.js/, p);
     assert.match(read('public/booklet-share.js'), /HelmShareChecklist\.mount\(form/);
     assert.doesNotMatch(read('public/share-checklist.js'), /\.innerHTML|\.outerHTML|insertAdjacentHTML|document\.write/);
   });

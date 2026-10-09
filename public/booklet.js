@@ -220,6 +220,7 @@
   }
   function render2d(d, figEl, legEl) {
     const fig = clear(figEl || $("#plan2d")), leg = clear(legEl || $("#legend2d") || el("ul"));
+    if (!figEl && dbImages(d, "layout2d").length) { dbFigure(fig, d, "2d", dbImages(d, "layout2d"), "Floor plan of the event", () => render2d(Object.assign({}, d, { images: null }))); return; }
     if (!figEl && snapUrl(d, "layout2d")) { snapFigure(fig, snapUrl(d, "layout2d"), "Floor plan of the event", () => render2d(Object.assign({}, d, { snapshots: null }))); return; }
     const m = normalizeItems(d.layout);
     if (!m.items.length) { emptyNote(fig, "The floor plan will appear here once it's ready."); return; }
@@ -250,6 +251,7 @@
   }
   function render3d(d, figEl) {
     const fig = clear(figEl || $("#plan3d"));
+    if (!figEl && dbImages(d, "layout3d").length) { dbFigure(fig, d, "3d", dbImages(d, "layout3d"), "3D view of the event", () => render3d(Object.assign({}, d, { images: null }))); return; }
     if (!figEl && snapUrl(d, "layout3d")) { snapFigure(fig, snapUrl(d, "layout3d"), "3D view of the event", () => render3d(Object.assign({}, d, { snapshots: null }))); return; }
     const m = normalizeItems(d.layout);
     if (!m.items.length) { emptyNote(fig, "A 3D preview will appear here once the floor plan is ready."); return; }
@@ -389,6 +391,41 @@
     if (fallback) img.addEventListener("error", () => { if (zoom.parentNode) zoom.parentNode.removeChild(zoom); fallback(); }, { once: true });   // edge function dormant → drawn plan
     fig.appendChild(zoom);
   }
+  // 0083: pictures stored in the database. d.images = { "2d": { labels: bool, plain: bool }, "3d": {...} }
+  // (flags only; the bytes come from public_get_booklet_image, one picture at a time, when shown)
+  const IMG_VARIANTS = [["labels", "With labels"], ["plain", "Without labels"]];
+  function dbImages(d, k) {
+    const im = d && d.images && typeof d.images === "object" ? d.images[k === "layout3d" ? "3d" : "2d"] : null;
+    if (!im || typeof im !== "object") return [];
+    return IMG_VARIANTS.filter((v) => im[v[0]] === true).map((v) => ({ variant: v[0], label: v[1] }));
+  }
+  const isDataImg = (u) => typeof u === "string" && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(u);
+  function dbFigure(fig, d, kind, variants, alt, fallback) {
+    const cache = {}, B = global.BPStore && global.BPStore.booklet;
+    const load = (v) => cache[v] || (cache[v] = (d.__token && B && B.publicImage ? B.publicImage(d.__token, kind, v) : Promise.resolve(null))
+      .then((u) => (isDataImg(u) ? u : null)).catch(() => null));
+    let cur = null, seq = 0, bar = null;
+    const img = el("img", "snap"); img.setAttribute("alt", alt);
+    const zoom = el("button", "snap-zoom"); zoom.type = "button"; zoom.setAttribute("aria-label", alt + " — open full size"); zoom.hidden = true;
+    zoom.appendChild(img); zoom.addEventListener("click", () => { if (cur) openLightbox(cur, alt); });   // lightbox follows the chosen style
+    const gone = () => { if (bar && bar.parentNode) bar.parentNode.removeChild(bar); if (zoom.parentNode) zoom.parentNode.removeChild(zoom); fallback(); };
+    const pick = (v, first) => {
+      const my = ++seq;
+      if (bar) bar.querySelectorAll("button").forEach((b) => { const on = b.getAttribute("data-v") === v; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on ? "true" : "false"); });
+      load(v).then((u) => {
+        if (my !== seq) return;
+        if (!u) { if (first) gone(); return; }
+        cur = u; img.setAttribute("src", u); img.setAttribute("data-variant", v); zoom.hidden = false;
+      });
+    };
+    if (variants.length > 1) {   // "With labels | Without labels" - only when both styles exist
+      bar = el("div", "snap-labels"); bar.setAttribute("role", "group"); bar.setAttribute("aria-label", "Labels");
+      variants.forEach((v) => { const b = el("button", "", v.label); b.type = "button"; b.setAttribute("data-v", v.variant); b.addEventListener("click", () => pick(v.variant)); bar.appendChild(b); });
+      fig.appendChild(bar);
+    }
+    fig.appendChild(zoom);
+    pick((variants.find((v) => v.variant === "labels") || variants[0]).variant, true);
+  }
   // R2: full-size view of a studio image (click / tap to zoom in further, Esc or ✕ closes)
   function openLightbox(url, alt) {
     let dlg = doc.getElementById("bkLightbox");
@@ -416,8 +453,8 @@
     out.details = true;                                   // event date / title always shown
     if (sc) {                                             // hide empty sections — never placeholders
       const lay = normalizeItems(d.layout).items.length;
-      if (!lay && !snapUrl(d, "layout2d")) out.layout2d = false;
-      if (!lay && !snapUrl(d, "layout3d")) out.layout3d = false;
+      if (!lay && !snapUrl(d, "layout2d") && !dbImages(d, "layout2d").length) out.layout2d = false;
+      if (!lay && !snapUrl(d, "layout3d") && !dbImages(d, "layout3d").length) out.layout3d = false;
       const mn = d.menu || {};
       if (!(mn.selected_package || mn.package || mn.menu || (Array.isArray(mn.items) && mn.items.length))) out.menu = false;
       if (!quoteLines(d.quote).lines.length && quoteLines(d.quote).total == null) out.quote = false;
@@ -466,7 +503,7 @@
     if (global.HelmBookletPkg && VISIBLE.packages !== false && !(d.menu && d.menu.mode === "hidden")) global.HelmBookletPkg.mount(token, d).catch(() => {});
   }
 
-  global.HelmBooklet = { render2d, render3d, visibleSections, snapUrl, money, setFormat, fmtTime, mapLink, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
+  global.HelmBooklet = { render2d, render3d, visibleSections, snapUrl, dbImages, dbFigure, isDataImg, IMG_VARIANTS, money, setFormat, fmtTime, mapLink, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
   if (doc && doc.getElementById("tocList")) {
     const pb = doc.getElementById("printBtn"); if (pb) pb.addEventListener("click", () => global.print());
     const rt = doc.getElementById("retry"); if (rt) rt.addEventListener("click", () => start());

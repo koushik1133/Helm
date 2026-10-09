@@ -7,9 +7,9 @@ let n = 0; const t = (name, fn) => { fn(); n++; console.log('  ✓ ' + name); };
 t('builder has the capture button + clean 2D / 3D capture hooks', () => {
   assert.match(read('public/builder.html'), /id="clientImgBtn"[^>]*hidden/);
   const b = read('public/builder.js');
-  assert.match(b, /planBlob\(\{clean:true, maxW:1920\}\)/);
+  assert.match(b, /planBlob\(\{clean:true, maxW:1600, labels:m\}\)/);
   assert.match(b, /querySelectorAll\('\.margins,\.measure'\)/);
-  assert.match(b, /uploadSnapshot\(qid,'3d'/);
+  assert.match(b, /putImage\(qid,'3d'/);
   const d = read('public/builder-3d.js');
   assert.match(d, /window\.__capture3D=capture3D/);
   assert.match(d, /grid\.visible=false/); assert.match(d, /transform\.visible=false/); assert.match(d, /selHelper\.visible=false/);

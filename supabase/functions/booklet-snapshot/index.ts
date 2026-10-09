@@ -2,6 +2,9 @@
 // 0069, private bucket booklet-snapshots). SQL can't sign storage URLs, so the booklet
 // page loads <img src=".../booklet-snapshot?t=<booklet token>&k=2d|3d">.
 // DORMANT BY DEFAULT: unless HELM_BOOKLET_SNAPSHOT_ENABLED === "true" every request is 404.
+// LEGACY / OPTIONAL since 0083: the booklet's pictures are stored in the database
+// (client_booklet_images, read with public_get_booklet_image) - this function does NOT need
+// to be deployed and the flag does NOT need to be set. Kept only for old bucket snapshots.
 //
 // The database decides: booklet_snapshot_path(token, kind) (service role only) returns the
 // storage path ONLY for a live, unexpired, unrevoked link whose share checklist shows that

@@ -23,7 +23,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="builder.css?v=9">
+<link rel="stylesheet" href="builder.css?v=10">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -354,7 +354,14 @@
         <button data-m="translate" class="on" title="Move (G)">✥ Move</button>
         <button data-m="rotate" title="Rotate (T)">⟳ Rotate</button>
         <button data-m="scale" title="Resize (Y)">⤢ Scale</button>
+        <span class="labels3d" id="labels3d" role="group" aria-label="Labels">
+          <span class="l3-lbl">Labels:</span>
+          <button type="button" data-l="none" aria-pressed="false" title="Plain 3D model">None</button>
+          <button type="button" data-l="numbers" aria-pressed="false" title="Numbered badges + legend">Numbers</button>
+          <button type="button" data-l="names" aria-pressed="false" title="Name tags">Names</button>
+        </span>
       </div>
+      <div class="legend3d" id="legend3d" hidden aria-live="polite"></div>
       <div class="hint3d" id="hint3d">Select an object, then use the gizmo to Move / Rotate / Scale · drag empty space to orbit · scroll to zoom</div>
     </div>
     <div class="statusbar" id="status">—</div>
@@ -394,13 +401,13 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=1"></script>
-<script src="store-api.js?v=147"></script>
+<script src="store-api.js?v=149"></script>
 <script src="tour.js?v=9"></script>
 <script src="flow-layout-sync.js?v=1"></script>
-<script src="builder.js?v=17"></script>
+<script src="builder.js?v=19"></script>
 
 <!-- ================= 3D RENDERED VIEW (Three.js, lazy-loaded on first use) ================= -->
-<script src="capture-frame.js?v=4"></script>
-<script src="builder-3d.js?v=8"></script>
+<script src="capture-frame.js?v=6"></script>
+<script src="builder-3d.js?v=9"></script>
 </body>
 </html>
