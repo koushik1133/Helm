@@ -58,7 +58,7 @@ t('store-api bookletDataUrl: only jpeg/png/webp + base64 characters', () => {
 t('builder: Labels None | Numbers | Names control in the 3D toolbar + legend card', () => {
   const h = read('public/builder.html');
   assert.match(h, /<span class="labels3d" id="labels3d" role="group" aria-label="Labels">[\s\S]*data-l="none"[\s\S]*data-l="numbers"[\s\S]*data-l="names"[\s\S]*<\/span>\s*<\/div>\s*<div class="legend3d" id="legend3d" hidden/);
-  assert.match(h, /builder\.js\?v=27/); assert.match(h, /builder-3d\.js\?v=9/); assert.match(h, /capture-frame\.js\?v=10/); assert.match(h, /builder\.css\?v=10/);
+  assert.match(h, /builder\.js\?v=27/); assert.match(h, /builder-3d\.js\?v=9/); assert.match(h, /capture-frame\.js\?v=11/); assert.match(h, /builder\.css\?v=10/);
   assert.match(read('public/builder.css'), /\.legend3d\[hidden\]\{display:none\}/);
 });
 t('builder-3d: live mode remembered (try/catch), badges + legend in Numbers, capture honours opts.labels', () => {

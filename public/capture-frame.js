@@ -152,8 +152,18 @@
     const rows=[];
     (legend||[]).forEach((L,k)=>{ const c=Math.floor(k/perCol), r=k%perCol; if(r>=maxRows) return;
       let t=L.name; const suf=L.seats!=null ? ' \u2014 '+L.seats+' seats' : (L.count>1?' ×'+L.count:'');
-      if(t.length+suf.length>maxChars) t=t.slice(0,Math.max(1,maxChars-suf.length-1))+'…';
-      rows.push({x:pad+c*(colW+pad*0.5), y:titleH+pad*0.5+r*rowH, n:L.n, text:t+suf}); });
+      // R10: long names wrap onto a second line (slightly smaller) instead of being cut ("8-seat round ta…").
+      let lines=null; const cap2=Math.floor(maxChars*1.12);
+      if(t.length+suf.length>maxChars){
+        const words=(t+suf).split(' '); let a='', i=0;
+        while(i<words.length && (a?a+' '+words[i]:words[i]).length<=cap2){ a=a?a+' '+words[i]:words[i]; i++; }
+        let b=words.slice(i).join(' ');
+        if(!a){ a=(t+suf).slice(0,cap2); b=(t+suf).slice(cap2); }
+        if(b.length>cap2){ const keep=b.endsWith(suf)&&suf?suf:''; const body=keep?b.slice(0,b.length-keep.length):b;
+          b=body.slice(0,Math.max(1,cap2-1-keep.length))+'…'+keep; }   // the count (×N / — N seats) always survives
+        lines=b?[a,b]:[a];
+      }
+      rows.push({x:pad+c*(colW+pad*0.5), y:titleH+pad*0.5+r*rowH, n:L.n, text:lines?lines.join(' '):t+suf, lines}); });
     return {cols, rowH, font, badgeR, colW, pad, titleH, rows, truncated:rows.length<n};
   }
   // canvas drawing (browser only): a dark disc, white bold number, thin white ring
@@ -179,8 +189,11 @@
     ctx.fillText('Legend', x0+Lo.pad, y0+Lo.titleH*0.6);
     Lo.rows.forEach(R=>{ drawBadge(ctx, x0+R.x+Lo.badgeR, y0+R.y+Lo.rowH/2, Lo.badgeR, R.n);
       ctx.fillStyle='#262c3a'; ctx.textAlign='left'; ctx.textBaseline='middle';
-      ctx.font='500 '+Lo.font+'px system-ui,-apple-system,"Segoe UI",sans-serif';
-      ctx.fillText(R.text, x0+R.x+Lo.badgeR*2+Lo.font*0.6, y0+R.y+Lo.rowH/2); });
+      const tx=x0+R.x+Lo.badgeR*2+Lo.font*0.6, ty=y0+R.y+Lo.rowH/2;
+      if(R.lines && R.lines.length>1){ const f=Math.max(9, Math.round(Lo.font*0.86));
+        ctx.font='500 '+f+'px system-ui,-apple-system,"Segoe UI",sans-serif';
+        ctx.fillText(R.lines[0], tx, ty-f*0.56); ctx.fillText(R.lines[1], tx, ty+f*0.56); }
+      else { ctx.font='500 '+Lo.font+'px system-ui,-apple-system,"Segoe UI",sans-serif'; ctx.fillText(R.text, tx, ty); } });
     ctx.restore(); return Lo;
   }
 
