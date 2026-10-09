@@ -335,7 +335,7 @@
 <script src="booklet.js?v=13"></script>
 <script src="share-checklist.js?v=8"></script>
 <script src="flow-layout-sync.js?v=4"></script>
-<script src="event-sizing.js?v=4"></script>
+<script src="event-sizing.js?v=5"></script>
 <script src="flow-autosave.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -565,7 +565,7 @@
   function syncLayoutChairsNote(){
     const box=$("#q_chairsLayout"); if(!box) return;
     const oi=BPStore.pricing.fromItems(layoutItems||[], rates&&rates.assetPrices);
-    const n=HelmSizing.layoutChairsNote($("#q_chairs").value===""?null:+$("#q_chairs").value, oi.chairs);
+    const n=HelmSizing.layoutChairsNote($("#q_chairs").value===""?null:+$("#q_chairs").value, oi.chairs+(HelmSizing.extraFloorSeats?HelmSizing.extraFloorSeats(layoutItems):0));
     box.hidden=!n || !canEdit; if(n){ $("#q_chairsLayoutTxt").textContent=n.text; box.dataset.n=String(n.n); }
   }
   function syncVenueMem(){ ev.client=Object.assign({}, ev.client||{}, { venue:$("#v_name").value.trim()||null, address:$("#v_addr").value.trim()||null }); }

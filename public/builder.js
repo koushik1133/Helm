@@ -402,7 +402,7 @@ function renderPrice(){
   box.innerHTML = rows + tax +
     `<div class="prow total"><span>Total</span><span class="amt">${inr(m.total)}</span></div>`;
   const gd=$('#bGuests'); if(gd && document.activeElement!==gd) gd.placeholder = m.chairs+' (= chairs)';
-  const d=$('#pkgDelta'); if(d) d.innerHTML=`Chairs from layout: <b>${m.chairs}</b> · plates billed: <b>${m.guests}</b>`;
+  const d=$('#pkgDelta'); if(d) d.innerHTML=`Seats in layout: <b>${esc(sumSeats(store.items))}</b> · plates billed: <b>${m.guests}</b>`;
 }
 
 
@@ -1072,8 +1072,7 @@ const toHexColor=(c)=>{ c=(c||'').trim(); if(HEXRE.test(c)){ if(c.length===4) c=
 
 function renderMultiInspector(box){
   const items=selectedItems(), n=items.length;
-  let chairs=0, tables=0; items.forEach(i=>{ const p=i.properties||{};
-    if(p.rows&&p.cols) chairs+=p.rows*p.cols; else if(p.seats) chairs+=p.seats;
+  let chairs=sumSeats(items), tables=0; items.forEach(i=>{
     if(['table','longtable','cocktail','headtable'].includes(i.type)) tables++; });
   box.innerHTML=`
     <div class="isec">
@@ -1521,11 +1520,10 @@ function renderSceneOnly(){
 function updateStatus(p){
   const it=selected();
   // live counts — chairs (theatre seats + table seats), tables, guests capacity
-  let chairs=0, tables=0;
-  store.items.forEach(i=>{ const pr=i.properties||{};
-    if(pr.rows&&pr.cols) chairs+=pr.rows*pr.cols;
-    else if(pr.seats) chairs+=pr.seats;
-    if(i.type==='table'||i.type==='longtable'||i.type==='cocktail'||i.type==='headtable') tables++; });
+  // R10: seats = every seat on the floor (rows×cols, table seats, sofas/benches/lounges…) — the same
+  // count the generator makes exact (sumSeats), so the status bar never disagrees with the quote's N.
+  let chairs=sumSeats(store.items), tables=0;
+  store.items.forEach(i=>{ if(i.type==='table'||i.type==='longtable'||i.type==='cocktail'||i.type==='headtable') tables++; });
   let s = `<b>${store.items.length}</b> objects · <b>${chairs}</b> seats`;
   if(tables) s += ` · <b>${tables}</b> tables`;
   if(store.selectedIds.length>1) s += ` · <b>${store.selectedIds.length}</b> selected`;
@@ -1936,13 +1934,9 @@ function loadTemplate(key){
    layout variants that fit the 200×140 floor, keeping every count.
    =================================================================== */
 function countSeats(items){
-  let chairs=0, tables=0;
-  items.forEach(i=>{ const p=i.properties||{};
-    if(p.rows&&p.cols) chairs+=p.rows*p.cols;
-    else if(p.seats){ chairs+=p.seats; }
-    if(i.type==='table'||i.type==='longtable'||i.type==='cocktail'||i.type==='headtable') tables++;
-  });
-  return {chairs, tables};
+  let tables=0;
+  items.forEach(i=>{ if(i.type==='table'||i.type==='longtable'||i.type==='cocktail'||i.type==='headtable') tables++; });
+  return {chairs:sumSeats(items), tables};   // R10: all seating, same as the generator's exact count
 }
 /* R8b: the quote's seats value N is the EXACT total seating a generated layout gets. Seats are counted
    per item (rows×cols, properties.seats, single-seat units). Excess: trailing seating (bottom-right
@@ -2131,8 +2125,11 @@ function seatBanquetRounds(items, o, topY){
   const n=Math.min(need, cells.length); if(!n) return;
   // spread: take evenly spaced cells rather than packing the first rows
   const pick=[]; for(let i=0;i<n;i++) pick.push(cells[Math.floor(i*cells.length/n)]);
+  // R10: when every table fits, spread the seats evenly (105 → 7×8 + 7×7) instead of a near-empty
+  // last table (13×8 + 1×1 looked odd to clients). Otherwise fill tables of spt; the caller packs the rest.
+  const even=n===need && n>0, base=even?Math.floor(N/n):0, extra=even?N%n:0;
   let left=N;
-  pick.forEach(([x,y],i)=>{ const seats=i===n-1 && n===need ? Math.max(1, left) : Math.min(spt, left); left-=seats;
+  pick.forEach(([x,y],i)=>{ const seats=even ? base+(i<extra?1:0) : Math.min(spt, left); left-=seats;
     items.push(makeItem('table', x, y, {properties:{seats},label:'T'+(i+1)})); });
 }
 function seatBanquetLong(items, o, topY){
