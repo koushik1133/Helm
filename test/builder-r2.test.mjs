@@ -36,5 +36,5 @@ ok(/aria-controls="leftPanel"/.test(html) && /aria-controls="rightPanel"/.test(h
 ok(/function initPanelToggles/.test(js) && /localStorage\.setItem\(key\(\)/.test(js) && /'bps\.panels\.'/.test(js), 'per-user persisted state');
 ok(/dispatchEvent\(new Event\('resize'\)\)/.test(js), 'canvas resize triggered after toggle');
 ok(/aside\.left\.collapsed/.test(css) && /transition:width/.test(css), 'slide animation css');
-ok(/builder\.js\?v=24/.test(html) && /builder\.css\?v=10/.test(html), 'cache-bust bumped');
+ok(/builder\.js\?v=25/.test(html) && /builder\.css\?v=10/.test(html), 'cache-bust bumped');
 console.log('builder-r2: ' + n + ' checks passed');

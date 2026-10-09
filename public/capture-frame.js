@@ -92,14 +92,26 @@
   // R9: "Table 1" … "Table 16" are the same kind of thing — one legend number ("Table ×16"); custom names
   // ("VIP Table", "Head Table") stay separate. Grouping key = the label without its trailing number.
   function legendBase(name){ const m=/^(.*?)[\s#-]*\d+$/.exec(name); const b=m && m[1].trim(); return b ? b : name; }
+  /* R10: seating was skipped in the legend. Chair blocks / rows all become one "Guest seating — N seats"
+     entry (badged on every block); tables with a seat count and a generic name ("T3", "Table 4", none)
+     group by kind + size: "Round table (8 seats) ×13". Custom names ("VIP Table") are kept. */
+  const SEAT_KIND={table:'Round table', longtable:'Long table', headtable:'Head table', cocktail:'Highboy'};
+  const GENERIC_TABLE=/^(t|tbl|table|round table|long table|highboy|head table)?$/i;
+  function seatingName(it, base){
+    const p=it.properties||{};
+    if(NO_MARKER[it.type]) return { name:'Guest seating', seats:(+p.rows||0)*(+p.cols||0) || 0 };
+    if(SEAT_KIND[it.type] && +p.seats>0 && GENERIC_TABLE.test(base||'')) return { name:SEAT_KIND[it.type]+' ('+(+p.seats)+(+p.seats===1?' seat)':' seats)') };
+    return null;
+  }
   function numberItems(items){
     const rows=[];
-    (items||[]).forEach((it,i)=>{ if(!it || NO_MARKER[it.type]) return; const name=legendBase(legendName(it.label)); if(!name) return;
-      rows.push({id:it.id, name, i, y:Math.round(((+it.y||0)+(+it.height||0)/2)*100)/100, x:Math.round(((+it.x||0)+(+it.width||0)/2)*100)/100}); });
+    (items||[]).forEach((it,i)=>{ if(!it) return; let name=legendBase(legendName(it.label)); const sk=seatingName(it, name);
+      if(sk) name=sk.name; else if(NO_MARKER[it.type]) return; if(!name) return;
+      rows.push({id:it.id, name, seats:sk&&sk.seats!=null?sk.seats:null, i, y:Math.round(((+it.y||0)+(+it.height||0)/2)*100)/100, x:Math.round(((+it.x||0)+(+it.width||0)/2)*100)/100}); });
     rows.sort((a,b)=>a.y-b.y || a.x-b.x || (a.name<b.name?-1:a.name>b.name?1:0) || a.i-b.i);
     const byName=new Map(), legend=[], byId=new Map();
     rows.forEach(r=>{ const k=r.name.toLowerCase(); let L=byName.get(k); if(!L){ L={n:legend.length+1, name:r.name, count:0}; byName.set(k,L); legend.push(L); }
-      L.count++; if(r.id!=null) byId.set(r.id, L.n); });
+      L.count++; if(r.seats!=null) L.seats=(L.seats||0)+r.seats; if(r.id!=null) byId.set(r.id, L.n); });
     return { legend, byId };
   }
   /* place round badges (radius r px) at their anchors without overlap: same-number badges closer than
@@ -139,7 +151,7 @@
     const maxChars=Math.max(4, Math.floor((colW-badgeR*2-font*0.8)/(font*0.56)));
     const rows=[];
     (legend||[]).forEach((L,k)=>{ const c=Math.floor(k/perCol), r=k%perCol; if(r>=maxRows) return;
-      let t=L.name; const suf=L.count>1?' ×'+L.count:'';
+      let t=L.name; const suf=L.seats!=null ? ' \u2014 '+L.seats+' seats' : (L.count>1?' ×'+L.count:'');
       if(t.length+suf.length>maxChars) t=t.slice(0,Math.max(1,maxChars-suf.length-1))+'…';
       rows.push({x:pad+c*(colW+pad*0.5), y:titleH+pad*0.5+r*rowH, n:L.n, text:t+suf}); });
     return {cols, rowH, font, badgeR, colW, pad, titleH, rows, truncated:rows.length<n};

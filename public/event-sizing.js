@@ -107,6 +107,14 @@
     { key: "concert_mainstage", label: "Concert (main stage)", variant: "Theatre rows", types: ["concert", "festival"], sqft: 6, tag: "Concert" }
   ];
   var TYPE_ALIAS = { rally: "political", expo: "conference", product_launch: "corporate", party: "birthday" };
+  // R10: comfortable floor area per seat for an event type — the smallest sqft of the presets
+  // rankTemplates would recommend for it (so "Fits N guests" and the hall-size warning agree).
+  function seatSqft(type) {
+    var t = String(type || "").toLowerCase(); t = TYPE_ALIAS[t] || t;
+    var hit = PRESETS.filter(function (p) { return p.types.indexOf(t) >= 0; });
+    var list = hit.length ? hit : PRESETS;
+    return Math.min.apply(null, list.map(function (p) { return p.sqft; }));
+  }
   function rankTemplates(input, presets, limit) {
     var o = input || {}, list = presets || PRESETS;
     var type = String(o.type || "").toLowerCase(); type = TYPE_ALIAS[type] || type;
@@ -129,7 +137,7 @@
     return scored.slice(0, limit || 3);
   }
   var api = { CHAIR_RATIO: CHAIR_RATIO, SEATS_PER_TABLE: SEATS_PER_TABLE, PRESETS: PRESETS,
-    defaultChairs: defaultChairs, quoteChairs: quoteChairs, isChairsManual: isChairsManual, handOther: handOther, dialogSizing: dialogSizing, layoutChairsNote: layoutChairsNote, defaultTables: defaultTables, resolve: resolve, merge: merge, rankTemplates: rankTemplates };
+    defaultChairs: defaultChairs, quoteChairs: quoteChairs, isChairsManual: isChairsManual, handOther: handOther, dialogSizing: dialogSizing, layoutChairsNote: layoutChairsNote, defaultTables: defaultTables, resolve: resolve, merge: merge, rankTemplates: rankTemplates, seatSqft: seatSqft };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else global.HelmSizing = api;
 })(typeof window !== "undefined" ? window : globalThis);

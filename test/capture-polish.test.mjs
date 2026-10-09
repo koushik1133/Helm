@@ -42,7 +42,7 @@ t('capture3D uses the framing helper, hides grid/edge, 2x supersample, restores 
   const cap = js.slice(js.indexOf('async function capture3D'), js.indexOf('window.__capture3D='));
   assert.doesNotMatch(cap, /ACESFilmic|toneMappingExposure|multiplyScalar\(0\.72\)|sun\.intensity=1|hemi\.intensity=0/); assert.match(js, /keep\.labels\.forEach/);
   const html = read('public/builder.html');
-  assert.match(html, /capture-frame\.js\?v=8"><\/script>\n<script src="builder-3d\.js\?v=9"/);
+  assert.match(html, /capture-frame\.js\?v=9"><\/script>\n<script src="builder-3d\.js\?v=9"/);
 });
 t('panel toggle re-fits the 2D plan only while at fit zoom', () => {
   const js = read('public/builder.js');
@@ -148,9 +148,10 @@ const items = [
   { id: 'g', label: '', x: 5, y: 5, width: 2, height: 2, type: 'table' }];
 t('R5 numbering: same name -> same number, back-to-front then left-to-right, deterministic', () => {
   const r = CF.numberItems(items);
-  assert.deepEqual(r.legend, [{ n: 1, name: 'LED Screen', count: 1 }, { n: 2, name: 'Speaker Stack', count: 2 }, { n: 3, name: 'Exit', count: 2 }]);
+  // R10: seating is in the legend — chair blocks as "Guest seating — N seats"; an unnamed table without seats still gets none
+  assert.deepEqual(r.legend, [{ n: 1, name: 'LED Screen', count: 1 }, { n: 2, name: 'Speaker Stack', count: 2 }, { n: 3, name: 'Guest seating', count: 1, seats: 0 }, { n: 4, name: 'Exit', count: 2 }]);
   assert.equal(r.byId.get('a'), r.byId.get('c')); assert.equal(r.byId.get('d'), r.byId.get('e'));
-  assert.ok(!r.byId.has('f') && !r.byId.has('g'), 'seat blocks / unnamed get no marker');
+  assert.ok(r.byId.has('f') && !r.byId.has('g'), 'seat block badged; unnamed seatless table gets no marker');
   const r2 = CF.numberItems(items.slice().reverse());
   assert.deepEqual(r2.legend, r.legend); assert.deepEqual([...r2.byId].sort(), [...r.byId].sort());
 });
