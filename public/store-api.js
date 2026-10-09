@@ -7780,6 +7780,11 @@ window.HelmUrl = HelmUrl;
     if (e && e.hint === "money_frozen" && e.message && !TECHNICAL.test(e.message)) return pre + endDot(clip(String(e.message), 240));
     // 0052 lifecycle gates / re-approval: the DB message is written for people
     if (e && (e.code === "HL409" || e.code === "HL428") && e.message) return endDot(clip(String(e.message), 300));
+    // r9: a server-raised 22023 / 42501 written as a sentence for people ("Only an admin can
+    // re-open a closed event.", "This event is not closed.") is shown as-is instead of a generic line
+    var hc = errCode(e), hm = errMsg(e);
+    if ((hc === "22023" || hc === "42501") && hm && /^[A-Z][^]*[.!?]$/.test(hm) && !TECHNICAL.test(hm)
+        && !/permission denied|not authori[sz]ed|row-level security|insufficient privilege/i.test(hm)) return pre + clip(hm, 300);
     if (isPermissionError(e)) return "You don’t have permission to " + (action || "do that") + ".";
     if (isMissingTable(e) || isMissingFunction(e)) {
       if (isAdmin()) return "Admin notice: this feature’s database setup hasn’t been applied yet" +

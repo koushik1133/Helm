@@ -55,7 +55,7 @@ t('event-name.js loads before store-api on every page', () => {
   const fs = require('node:fs');
   for (const p of fs.readdirSync(new URL('../public/', import.meta.url)).filter((f) => f.endsWith('.html'))) {
     const h = read('public/' + p); const i = h.search(/store-api\.js\?v=/); if (i < 0) continue;
-    const j = h.search(/event-name\.js\?v=1/); assert.ok(j >= 0 && j < i, p);
+    const j = h.search(/event-name\.js\?v=2/); assert.ok(j >= 0 && j < i, p);
   }
 });
 console.log(`event-name: ${n} passed`);

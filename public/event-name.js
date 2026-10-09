@@ -65,6 +65,9 @@
   function isAuto(title, code) {
     const t = String(title == null ? "" : title).trim();
     if (!t || t === "Untitled event" || (code && t === code)) return true;
+    // r9: a quote-code-shaped title (MMDDYYYY-NN) is the creation placeholder even when it no
+    // longer equals the code (the client guessed -01, the server issued -02) - still automatic
+    if (/^\d{8}-\d{2,}$/.test(t)) return true;
     if (AUTO_RE.test(t) && /_/.test(t)) return true;
     // a bare 3-letter title is auto only when it is a known type code (a manual "VIP" / "DJS" is kept)
     const bare = /^([A-Z]{3})(?:-\d+)?$/.exec(t);
