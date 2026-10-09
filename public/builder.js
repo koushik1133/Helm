@@ -986,7 +986,7 @@ function renderItem(it){
       for(let i=1;i<4;i++) body.appendChild(el('line',{x1:-w/2,y1:-h/2+i*(h/4),x2:w/2,y2:-h/2+i*(h/4),stroke:c,'stroke-width':1.5,'stroke-opacity':.7})); break; }
     /* ---- V3 event-production pack ---- */
     case 'lighting': { drawBox({fill:'transparent',sw:1.2});      // truss span with par cans hanging under it
-      body.appendChild(el('path',{d:Array.from({length:Math.max(2,Math.floor(w/8))},(_,i,a)=>{ const s=w/a.length, x=-w/2+i*s; return `M ${x} ${-h/2} L ${x+s/2} ${h/2} L ${x+s} ${-h/2}`; }).join(' '),fill:'none',stroke:c,'stroke-width':1,'stroke-opacity':.7}));
+      { const nz=Math.max(2,Math.floor(w/8)), s=w/nz; body.appendChild(el('path',{d:Array.from({length:nz},(_,i)=>{ const x=-w/2+i*s; return `M ${x} ${-h/2} L ${x+s/2} ${h/2} L ${x+s} ${-h/2}`; }).join(' '),fill:'none',stroke:c,'stroke-width':1,'stroke-opacity':.7})); }   // V3 fix: Array.from's map gets no 3rd arg
       for(let x=-w/2+6;x<w/2-2;x+=Math.max(8,w/6)) body.appendChild(el('circle',{cx:x,cy:0,r:Math.min(3,h/2+1),fill:c})); break; }
     case 'led': case 'brandwall': { drawBox({fill:it.type==='led'?`color-mix(in srgb, ${c} 45%, var(--canvas))`:fillSoft, rx:1});
       if(it.type==='led') for(let x=-w/2+w/8;x<w/2;x+=w/8) body.appendChild(el('line',{x1:x,y1:-h/2,x2:x,y2:h/2,stroke:c,'stroke-width':.6,'stroke-opacity':.6}));
