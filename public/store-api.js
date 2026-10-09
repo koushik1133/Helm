@@ -1931,6 +1931,18 @@ window.HelmUrl = HelmUrl;
     return vals.some((v) => String(v == null ? "" : v).toLowerCase().indexOf(t) !== -1); }
   // HEAD count: no rows travel, only the Content-Range total
   async function sbCount(query) { const { count, error } = await query; if (error) throw error; return count || 0; }
+  // D4: read EVERY row of a list by walking .range() pages (PostgREST caps one response at ~1000).
+  // `build` returns a fresh query each call; stops on a short page; hard cap with a console warning.
+  async function fetchAll(build, pageSize, cap) {
+    const size = pageSize || 1000, max = cap || 20000; const out = [];
+    for (let from = 0; ; from += size) {
+      const { data, error } = await build().range(from, from + size - 1); if (error) throw error;
+      const rows = data || []; out.push.apply(out, rows);
+      if (rows.length < size) break;
+      if (out.length >= max) { try { console.warn("[store-api] list capped at " + max + " rows"); } catch (e) {} break; }
+    }
+    return out;
+  }
   // a column the query names doesn't exist on this database yet (older schema)
   const isMissingColumn = (e) => { const c = (e && e.code) || ""; return c === "42703" || c === "PGRST204" || /column .* does not exist/i.test(String((e && e.message) || "")); };
   const localISODate = (d) => { const x = d || new Date(); return x.getFullYear() + "-" + String(x.getMonth() + 1).padStart(2, "0") + "-" + String(x.getDate()).padStart(2, "0"); };
@@ -2012,13 +2024,15 @@ window.HelmUrl = HelmUrl;
     // Quotes moved to Archive / Deleted (0040) are left out, guarded like page().
     async list() {
       const r = await withShelf(async (shelf) => {
-        let q = supa.from("quotes").select(QUOTE_LIST_COLS + (shelf ? QUOTE_SHELF_COLS : ""));
-        if (shelf) q = q.is("archived_at", null).is("deleted_at", null);
-        const x = await q.order("updated_at", { ascending: false });
-        if (x.error) throw x.error; return x;
+        const data = await fetchAll(() => { let qq = supa.from("quotes").select(QUOTE_LIST_COLS + (shelf ? QUOTE_SHELF_COLS : ""));
+          if (shelf) qq = qq.is("archived_at", null).is("deleted_at", null); return qq.order("updated_at", { ascending: false }).order("id"); });
+        return { data };
       }).catch(async (e) => {
         if (!isMissingColumn(e)) throw e;   // an even older schema (pre lifecycle columns): select *
-        const x = await supa.from("quotes").select("*").order("updated_at", { ascending: false }); if (x.error) throw x.error; return x;
+        // D9: still hide archived / deleted rows when those columns exist
+        const data = await fetchAll(() => supa.from("quotes").select("*").is("archived_at", null).is("deleted_at", null).order("updated_at", { ascending: false }).order("id"))
+          .catch(async (e2) => { if (!isMissingColumn(e2)) throw e2; return fetchAll(() => supa.from("quotes").select("*").order("updated_at", { ascending: false }).order("id")); });
+        return { data };
       });
       return (r.data || []).map(mapQuoteSummary);
     },
@@ -2240,7 +2254,9 @@ window.HelmUrl = HelmUrl;
     async byIds(ids) {
       const a = [...new Set((ids || []).filter((x) => typeof x === "string" && x))]; if (!a.length) return [];
       if (mode !== "supabase") { const set = new Set(a); return (await lsq.list()).filter((q) => set.has(q.id)); }
-      let r = await supa.from("quotes").select(QUOTE_LIST_COLS).in("id", a);
+      // D9: by-id reads skip archived / deleted rows when the 0040 columns exist
+      let r = await supa.from("quotes").select(QUOTE_LIST_COLS).in("id", a).is("archived_at", null).is("deleted_at", null);
+      if (r.error && isMissingColumn(r.error)) r = await supa.from("quotes").select(QUOTE_LIST_COLS).in("id", a);
       if (r.error && isMissingColumn(r.error)) r = await supa.from("quotes").select("*").in("id", a);
       if (r.error) throw r.error; return (r.data || []).map(mapQuoteSummary);
     },
@@ -2350,8 +2366,7 @@ window.HelmUrl = HelmUrl;
       const { data, error } = await q; if (error) throw error; return data; },
     async categories() { const t = await this.templates(); return [...new Set(t.map((x) => x.category))]; },
     async listCrew() { if (!supa) throw new Error("Supabase not configured");
-      const { data, error } = await supa.from("crew_members").select("*").eq("active", true).order("name");
-      if (error) throw error; return data; },
+      return fetchAll(() => supa.from("crew_members").select("*").eq("active", true).order("name").order("id")); },
     async addCrew(name, phone, department) { if (!supa) throw new Error("Supabase not configured");
       const { data, error } = await supa.from("crew_members").insert({ name, phone, department }).select().single();
       if (error) throw error; return data; },
@@ -2558,7 +2573,7 @@ window.HelmUrl = HelmUrl;
   };
   const vendors = {
     async list() { if (!supa) throw new Error("Supabase not configured");
-      const { data, error } = await supa.from("vendors").select("*").eq("active", true).order("name"); if (error) throw error; return data; },
+      return fetchAll(() => supa.from("vendors").select("*").eq("active", true).order("name").order("id")); },
     async add(name, category, phone) { const { data, error } = await supa.from("vendors").insert({ name, category, phone }).select().single(); if (error) throw error; return data; },
     async remove(id) { const { error } = await supa.from("vendors").update({ active: false }).eq("id", id); if (error) throw error; return true; },
     // Phase 9 — richer directory (kind / email / services)
@@ -2612,8 +2627,7 @@ window.HelmUrl = HelmUrl;
   const leads = {
     async list() {
       if (mode === "supabase") {
-        const { data, error } = await supa.from("leads").select("*").order("updated_at", { ascending: false });
-        if (error) throw error; return data;
+        return fetchAll(() => supa.from("leads").select("*").order("updated_at", { ascending: false }).order("id"));
       }
       return readLeadsLs();
     },
@@ -3064,9 +3078,8 @@ window.HelmUrl = HelmUrl;
     // crew actually assigned to ONE event (derived from their tasks) — for event-scoped views
     async forEvent(quoteId) {
       if (mode === "supabase") {
-        const { data, error } = await supa.from("event_tasks")
-          .select("crew_id,assignee_name,assignee_phone,status").eq("quote_id", quoteId).not("crew_id", "is", null);
-        if (error) throw error;
+        const data = await fetchAll(() => supa.from("event_tasks")
+          .select("crew_id,assignee_name,assignee_phone,status").eq("quote_id", quoteId).not("crew_id", "is", null).order("id"));
         const by = {};
         (data || []).forEach((t) => { const k = t.crew_id;
           by[k] = by[k] || { crew_id: k, name: t.assignee_name, phone: t.assignee_phone, tasks: 0, done: 0 };
@@ -3087,7 +3100,7 @@ window.HelmUrl = HelmUrl;
           const { data: evs } = await supa.from("quotes").select("id").eq("event_date", date);
           const ids = (evs || []).map((e) => e.id).filter((i) => i !== excludeQuote);
           if (ids.length) {
-            const { data: ts } = await supa.from("event_tasks").select("crew_id").in("quote_id", ids).not("crew_id", "is", null);
+            const ts = await fetchAll(() => supa.from("event_tasks").select("crew_id").in("quote_id", ids).not("crew_id", "is", null).order("id"));
             (ts || []).forEach((t) => busy.add(t.crew_id));
           }
         } catch {}
@@ -3113,9 +3126,8 @@ window.HelmUrl = HelmUrl;
   const inventory = {
     async items(includeInactive) {
       if (mode === "supabase") {
-        let q = supa.from("inventory_items").select("*").order("name");
-        if (!includeInactive) q = q.eq("active", true);
-        const { data, error } = await q; if (error) throw error; return data;
+        return fetchAll(() => { let q = supa.from("inventory_items").select("*").order("name").order("id");
+          if (!includeInactive) q = q.eq("active", true); return q; });
       }
       const a = readLs(INV_LS); return includeInactive ? a : a.filter((i) => i.active !== false);
     },
@@ -4894,8 +4906,7 @@ window.HelmUrl = HelmUrl;
         vendors.listAll(true).catch(() => []),
         (async () => {
           if (mode !== "supabase") return readLs("bp_tasks_stub") || [];
-          const { data, error } = await supa.from("event_tasks").select("quote_id,crew_id,title,status").not("crew_id", "is", null);
-          if (error) throw error; return data;
+          return fetchAll(() => supa.from("event_tasks").select("quote_id,crew_id,title,status").not("crew_id", "is", null).order("id"));
         })().catch(() => []),
         (async () => {
           // venue name/address per event (for the venue-double-booking check)
@@ -5723,7 +5734,7 @@ window.HelmUrl = HelmUrl;
     };
     const inFilter = (f, g) => f === "all" || (f === "mentions" && g === "mention") || (f === "tasks" && g === "task")
       || (f === "billing" && g === "billing") || (f === "security" && g === "security") || (f === "chat" && (g === "chat" || g === "mention"));
-    const keyOf = (n, i) => n.__chat ? "c:" + (n.conversation_id || i) : "n:" + (n.id || i);
+    const keyOf = (n, i) => n.__chat ? "c:" + (n.conversation_id || i) + "@" + (n.msg_id || n.created_at || "") : "n:" + (n.id || i);   // A4: a NEW message changes the key, so the row lights again
     const rows = list.map((n, i) => { const k = keyOf(n, i);
       return { n, i, g: groupOf(n), k, un: readKeys.indexOf(k) === -1 && (n.__chat || !!n.unread) }; });
     const has = (f) => rows.some((r) => inFilter(f, r.g));
@@ -5827,7 +5838,7 @@ window.HelmUrl = HelmUrl;
         const who = n.who || "";
         return { key: keyOf(n), type: "info", icon: n.mention ? "@" : "💬",
           title: n.mention ? (n.title || "You were mentioned") : n.kind === "dm" ? (who || n.title || "Direct message") : ((n.title || "Chat") + (who ? " · " + who : "")),
-          message: String(n.preview || "New message"), href: notifHref(n), rk: "c:" + (n.conversation_id || "") };
+          message: String(n.preview || "New message"), href: notifHref(n), rk: "c:" + (n.conversation_id || "") + "@" + (n.msg_id || n.created_at || "") };
       }
       const L = label(n) || {}, k = String(n.kind || "").toLowerCase();
       return { key: keyOf(n), type: typeOf(k), icon: L.icon || "🔔", title: String(L.text || "Update"),
@@ -6075,7 +6086,7 @@ window.HelmUrl = HelmUrl;
       // Chat notifications (my unread DMs/groups/broadcast) merged into the same bell.
       let chatItems = [];
       const chatUnread = () => chatItems.reduce((s, c) => s + (c.count || 1), 0);
-      const chatReadCount = () => chatItems.reduce((s, c) => s + (readKeys.indexOf("c:" + c.conversation_id) !== -1 ? (c.count || 1) : 0), 0);
+      const chatReadCount = () => chatItems.reduce((s, c) => s + (readKeys.indexOf("c:" + c.conversation_id + "@" + (c.msg_id || c.created_at || "")) !== -1 ? (c.count || 1) : 0), 0);
       // server unread minus muted / marked-read rows (only recounted when something is muted or read)
       const serverUnread = (f) => !f ? 0 : (muted.length || readKeys.length)
         ? bellPanelView((f.items || []), { muted, read: readKeys }).unread : f.unread;
@@ -6190,7 +6201,9 @@ window.HelmUrl = HelmUrl;
         if (it) { const k = it.getAttribute("data-k"); if (k && readKeys.indexOf(k) === -1) { readKeys.push(k); saveRead(); } close(false); }   // mark read, navigate away
       });
       root.querySelector("#bpBellClear").addEventListener("click", async (e) => { e.stopPropagation(); const b = e.currentTarget; b.disabled = true;
-        try { await this.markSeen(); } catch {} await refresh(); b.disabled = false; });
+        try { await this.markSeen(); } catch {}
+        chatItems.forEach((c) => { const k = "c:" + c.conversation_id + "@" + (c.msg_id || c.created_at || ""); if (readKeys.indexOf(k) === -1) readKeys.push(k); }); saveRead();   // A4: Mark all read clears chat rows too
+        try { render(); } catch (x) {} await refresh(); b.disabled = false; });
       // keyboard: Esc closes, Tab is trapped, arrows walk the list, ←/→ switch tabs
       root.addEventListener("keydown", (e) => {
         if (!isOpen) return;
@@ -6244,13 +6257,13 @@ window.HelmUrl = HelmUrl;
       if (mode !== "supabase" || !supa) return empty;
       // Wave 16 perf: fetch the event list alongside the three aggregates instead
       // of awaiting it first (it isn't an input to them) — removes one serial round-trip.
-      const [events, tR, cR, iR] = await Promise.all([
+      // D4: each aggregate source is read page by page so a big studio is never silently truncated at 1000 rows
+      const [events, tasks, chk, items] = await Promise.all([
         quotes.list(),
-        supa.from("event_tasks").select("category,status,verify_status,assignee_kind,assignee_name,quote_id"),
-        supa.from("inventory_checkouts").select("item_id,qty_out,qty_in,checked_in_at"),
-        supa.from("inventory_items").select("id,name,unit"),
+        fetchAll(() => supa.from("event_tasks").select("category,status,verify_status,assignee_kind,assignee_name,quote_id").order("id")),
+        fetchAll(() => supa.from("inventory_checkouts").select("item_id,qty_out,qty_in,checked_in_at").order("id")),
+        fetchAll(() => supa.from("inventory_items").select("id,name,unit").order("id")),
       ]);
-      const tasks = tR.data || [], chk = cR.data || [], items = iR.data || [];
       const itemById = {}; items.forEach((i) => (itemById[i.id] = i));
       // vendor reliability (outsourced tasks)
       const vmap = {};
@@ -8013,6 +8026,21 @@ window.HelmUrl = HelmUrl;
 
   // ---- global input[type=number] hardener -------------------------------
   if (typeof document === "undefined") return;
+  // L2: when a minus sign is removed from a field that can't be negative, say so (non-blocking,
+  // rate-limited) instead of silently turning -5 into 5. Uses BPUI.toast when present.
+  var lastNegHint = 0;
+  function negHint() {
+    var t = Date.now(); if (t - lastNegHint < 3000) return; lastNegHint = t;
+    var msg = "This field can't be negative \u2014 the minus sign was removed.";
+    try { if (window.BPUI && window.BPUI.toast) { window.BPUI.toast(msg, { type: "info", timeout: 3500 }); return; } } catch (e) {}
+    try {
+      var n = document.getElementById("bpNegHint");
+      if (!n) { n = document.createElement("div"); n.id = "bpNegHint"; n.setAttribute("role", "status"); n.setAttribute("aria-live", "polite");
+        n.style.cssText = "position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#222;color:#fff;padding:8px 14px;border-radius:8px;font:13px system-ui,sans-serif;z-index:99999";
+        (document.body || document.documentElement).appendChild(n); }
+      n.textContent = msg; n.hidden = false; clearTimeout(n._t); n._t = setTimeout(function () { n.hidden = true; }, 3500);
+    } catch (e) {}
+  }
   function harden(el) {
     if (el.getAttribute("data-hardened") === "1") return;
     el.setAttribute("data-hardened", "1");
@@ -8032,7 +8060,7 @@ window.HelmUrl = HelmUrl;
       if (v === "") return;
       var n = Number(v);
       if (!isFinite(n)) { el.value = ""; el.dispatchEvent(new Event("change", { bubbles: true })); return; }
-      if (!allowNeg && n < 0) n = 0;
+      if (!allowNeg && n < 0) { n = 0; negHint(); }
       var mn = el.getAttribute("min"), mx = el.getAttribute("max");
       if (mn !== null && mn !== "" && n < Number(mn)) n = Number(mn);
       if (mx !== null && mx !== "" && n > Number(mx)) n = Number(mx);
@@ -8057,6 +8085,7 @@ window.HelmUrl = HelmUrl;
       // keep only the first decimal point
       var dot = cleaned.indexOf(".");
       if (dot !== -1) cleaned = cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replace(/\./g, "");
+      if (!allowNeg && v.indexOf("-") !== -1) negHint();
       if (cleaned !== v) el.value = cleaned;
     };
     el.addEventListener("input", strip);

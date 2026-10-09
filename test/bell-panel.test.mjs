@@ -22,6 +22,8 @@ const view = (items, filter, now, extra) => JSON.parse(JSON.stringify(ctx.view(i
 // a fixed local "now": 7 Oct 2026, 15:00 local time
 const NOW = new Date(2026, 9, 7, 15, 0, 0).getTime();
 const at = (d, h, m = 0) => new Date(2026, 9, d, h, m).toISOString();
+// A4: chat read-keys carry the last-message marker, so a NEW message re-lights a read row
+const K1 = 'c:g1@' + at(7, 14, 58), K2 = 'c:g2@' + at(6, 20);
 const FEED = [
   { id: 'n1', kind: 'task_assigned', detail: { count: 3, category: 'Decor' }, quote_id: 'q-1', event_code: 'C-101', event_title: 'Sharma wedding', created_at: at(7, 14, 30), unread: true },
   { id: 'n2', kind: 'payment_received', detail: {}, quote_id: 'q-2', event_code: 'C-102', created_at: at(6, 11), unread: false },
@@ -35,7 +37,7 @@ t('groups rows into Today / Yesterday / Earlier, newest first', () => {
   const days = [...v.html.matchAll(/<div class="bpb-day"[^>]*>([^<]+)</g)].map((m) => m[1]);
   assert.deepEqual(days, ['Today', 'Yesterday', 'Earlier']);
   const keys = [...v.html.matchAll(/data-k="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(keys, ['c:g1', 'n:n1', 'c:g2', 'n:n2', 'n:n3']);
+  assert.deepEqual(keys, [K1, 'n:n1', K2, 'n:n2', 'n:n3']);
   assert.match(v.html, /<time datetime="[^"]+">2m<\/time>/);      // 14:58 → 2m
   assert.match(v.html, /<time datetime="[^"]+">30m<\/time>/);
   assert.match(v.html, /<time datetime="[^"]+">6d<\/time>/);      // 1 Oct
@@ -58,10 +60,10 @@ t('filter tabs: unread counts, Billing / Security only when present, unknown fil
 
 t('each filter shows only its rows; Chat includes mentions', () => {
   const keys = (f) => [...view(FEED, f, NOW).html.matchAll(/data-k="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(keys('mentions'), ['c:g2']);
+  assert.deepEqual(keys('mentions'), [K2]);
   assert.deepEqual(keys('tasks'), ['n:n1']);
   assert.deepEqual(keys('billing'), ['n:n2']);
-  assert.deepEqual(keys('chat'), ['c:g1', 'c:g2']);
+  assert.deepEqual(keys('chat'), [K1, K2]);
   const v = view(FEED, 'tasks', NOW);
   assert.match(v.tabsHtml, /id="bpBellTab-tasks"[^>]*aria-selected="true"/);
   assert.match(v.tabsHtml, /id="bpBellTab-all"[^>]*aria-selected="false"[^>]*tabindex="-1"/);
@@ -91,14 +93,14 @@ t('0063: catalog type per row (mirrors notification_type_of)', () => {
 
 t('0063: muted types vanish (mentions never), mark-read clears the dot, per-row menu button', () => {
   const v = view(FEED, 'all', NOW, { muted: ['task_update', 'task_assigned', 'chat_message'] });
-  assert.deepEqual([...v.html.matchAll(/data-k="([^"]+)"/g)].map((m) => m[1]), ['c:g2', 'n:n2', 'n:n3']);
-  const r = view(FEED, 'all', NOW, { read: ['n:n1', 'c:g1'] });
+  assert.deepEqual([...v.html.matchAll(/data-k="([^"]+)"/g)].map((m) => m[1]), [K2, 'n:n2', 'n:n3']);
+  const r = view(FEED, 'all', NOW, { read: ['n:n1', K1] });
   assert.equal(r.unread, 1);
   assert.equal(r.tabs.find((x) => x.id === 'tasks').count, 0);
   assert.doesNotMatch(r.html, /class="bpb-item g-task is-unread"/);
   const h = view(FEED, 'all', NOW).html;
   assert.match(h, /<button type="button" class="bpb-more" data-mk="n:n1" data-ty="task_assigned" aria-haspopup="menu" aria-expanded="false" aria-label="More actions">/);
-  assert.match(h, /data-mk="c:g2" data-ty=""/);                                     // a mention can only be marked read
+  assert.match(h, new RegExp('data-mk="' + K2 + '" data-ty=""'));                                     // a mention can only be marked read
 });
 
 t('0063: security muted → Security tab stays with a "turn back on" line; muted-types view', () => {
