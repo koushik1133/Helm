@@ -1392,6 +1392,13 @@ window.HelmUrl = HelmUrl;
       if ((u.user_metadata || {}).helm_tour_seen === true) return true;
       try { const { data, error } = await supa.auth.updateUser({ data: { helm_tour_seen: true } }); if (error) return false; if (data && data.user && currentUser && data.user.id === currentUser.id) currentUser = data.user; return true; } catch (e) { return false; }
     },
+    // R4: getting-started checklist hint "seen" - same per-account flag pattern as the tour
+    gsHintSeen: () => { const u = pendingStep ? null : currentUser; if (!u) return null; return (u.user_metadata || {}).helm_gs_hint_seen === true; },
+    markGsHintSeen: async () => {
+      const u = pendingStep ? null : currentUser; if (!u || !supa) return false;
+      if ((u.user_metadata || {}).helm_gs_hint_seen === true) return true;
+      try { const { data, error } = await supa.auth.updateUser({ data: { helm_gs_hint_seen: true } }); if (error) return false; if (data && data.user && currentUser && data.user.id === currentUser.id) currentUser = data.user; return true; } catch (e) { return false; }
+    },
     // the signed-in account even while a step is pending (login / reset pages only)
     pendingUser: () => currentUser,
     // "" | the error from an auth link return: "pkce_exchange_failed" = the ?code=
@@ -6465,7 +6472,7 @@ window.HelmUrl = HelmUrl;
     // r = { from, to } (optional): tasks of events dated in the range, losses checked in during
     // it, closed events dated in it. No r = all time (Reports' P&L export without a range).
     async summary(r) {
-      const empty = { vendors: [], taskSlips: [], losses: { total: 0, byItem: [], byMonth: [] }, margins: { events: [], totalProfit: 0, avgMargin: null } };
+      const empty = { vendors: [], taskSlips: [], losses: { total: 0, byItem: [], byMonth: [] }, margins: { events: [], withRevenue: [], noRevenue: [], totalProfit: 0, avgMargin: null } };
       if (mode !== "supabase" || !supa) return empty;
       // Wave 16 perf: fetch the event list alongside the three aggregates instead
       // of awaiting it first (it isn't an input to them) — removes one serial round-trip.
@@ -6508,8 +6515,13 @@ window.HelmUrl = HelmUrl;
         .then((pl) => ({ code: e.code, date: e.eventDate, profit: pl.profit, marginPct: pl.marginPct, revenue: pl.revenue })).catch(() => null)));
       const mlist = pls.filter(Boolean).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
       const totalProfit = mlist.reduce((a, x) => a + (x.profit || 0), 0);
-      const avgMargin = mlist.length ? Math.round(mlist.reduce((a, x) => a + (x.marginPct || 0), 0) / mlist.length) : null;
-      return { vendors, taskSlips, losses, margins: { events: mlist, totalProfit, avgMargin } };
+      // R4: a closed event with no revenue recorded has no margin - keep it out of the chart
+      // and the average (it is listed separately as "no revenue recorded"); events stays the
+      // full list for the Reports P&L export.
+      const withRevenue = mlist.filter((x) => Number(x.revenue) > 0);
+      const noRevenue = mlist.filter((x) => !(Number(x.revenue) > 0));
+      const avgMargin = withRevenue.length ? Math.round(withRevenue.reduce((a, x) => a + (x.marginPct || 0), 0) / withRevenue.length) : null;
+      return { vendors, taskSlips, losses, margins: { events: mlist, withRevenue, noRevenue, totalProfit, avgMargin } };
     },
   };
 

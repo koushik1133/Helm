@@ -442,6 +442,13 @@
       const again = $('select[data-line="' + line + '"]'); if (again) again.focus();
     }
   }
+  function showXlsHelp(msg) {
+    const x = $("#obErr"); if (!x) return BPUI.toast(msg, { type: "err" });
+    x.textContent = "";
+    const p = document.createElement("div"); p.textContent = msg; x.appendChild(p);
+    const b = document.createElement("button"); b.type = "button"; b.className = "btn"; b.id = "obXlsTpl";
+    b.dataset.act = "template"; b.dataset.fmt = "xlsx"; b.textContent = "Download template (.xlsx)"; x.appendChild(b);
+  }
   function readFile(kind, f) {
     const st = S.steps[kind]; if (!f) return;
     if (f.size > O.MAX_FILE_BYTES) return BPUI.toast("That file is over 2 MB. Split it into smaller files.", { type: "err" });
@@ -452,7 +459,11 @@
       if (kindF !== "text") {
         try { const r = await X.readXlsx(fr.result); st.text = X.toCSV(r.rows); st.fileName = f.name.slice(0, 80); st.mapping = null;
           st.warnings = r.sheetNames.length > 1 ? ["Only the first sheet (" + r.sheetNames[0] + ") was read."] : []; saveDraft(); render(); }
-        catch (e) { BPUI.toast((e && e.message) || "Could not read that Excel file.", { type: "err" }); }
+        catch (e) {
+          // R4: legacy .xls stays rejected (security) - say so plainly, with a one-click template right there
+          if (e && e.code === "xls_legacy") return showXlsHelp(e.message);
+          BPUI.toast((e && e.message) || "Could not read that Excel file.", { type: "err" });
+        }
         return;
       }
       try { const d = O.decodeBytes(fr.result); st.text = d.text; st.fileName = f.name.slice(0, 80); st.mapping = null; st.warnings = d.warnings; saveDraft(); render(); }

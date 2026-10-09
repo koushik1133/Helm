@@ -79,7 +79,7 @@ t('xlsx: old binary .xls is refused with a clear message', async () => {
 });
 t('UI wiring: onboarding loads xlsx-lite, accepts .xlsx/.xls/.csv, requires billing to finish', () => {
   const h = read('public/onboarding.html'), js = read('public/onboarding.js');
-  assert.match(h, /<script src="xlsx-lite\.js\?v=1"><\/script>\n<script src="onboarding-core\.js\?v=3"><\/script>\n<script src="onboarding\.js\?v=4"><\/script>/);
+  assert.match(h, /<script src="xlsx-lite\.js\?v=2"><\/script>\n<script src="onboarding-core\.js\?v=3"><\/script>\n<script src="onboarding\.js\?v=5"><\/script>/);
   assert.match(js, /accept="\.xlsx,\.xls,\.csv/);
   assert.match(js, /Download Excel template/);
   assert.match(js, /if \(org && !billingOk\(\)\) return `<div class="ob-card"><h2>Almost there/);

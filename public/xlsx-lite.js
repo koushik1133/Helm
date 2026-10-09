@@ -125,7 +125,7 @@
   async function readXlsx(buf) {
     const u8 = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
     const k = kindOf(u8);
-    if (k === "ole") throw new Error("This is an old-format .xls file. In Excel choose File > Save As > Excel Workbook (.xlsx) or CSV, then import that.");
+    if (k === "ole") { const e = new Error("Old Excel (.xls) files can't be imported, for safety. Download the .xlsx template below and copy your rows into it, or in Excel choose File > Save As > Excel Workbook (.xlsx), then import that."); e.code = "xls_legacy"; throw e; }
     if (k !== "zip") throw new Error("Not a valid .xlsx file.");
     const dir = listZip(u8);
     const wb = await readEntry(u8, dir, "xl/workbook.xml");

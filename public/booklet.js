@@ -92,17 +92,23 @@
     if (disc) out.push({ label: "Discount", detail: q.couponCode ? "Code " + String(q.couponCode).slice(0, 32) : "", amount: -disc, kind: "neg" });
     const igst = num(c.igst), cgst = num(c.cgst), sgst = num(c.sgst), gst = num(c.totalGst);
     const pct = num(q.gstPct);
-    // 0079: non-India studios — one tax line named for the country (from the quote currency);
-    // "(included)" when the total is the post-discount value itself (tax-inclusive prices).
-    const cur = String(q.currency || "INR").toUpperCase(); const tn = cur === "INR" ? null : (TAX_BY_CURRENCY[cur] || "Tax");
-    const incl = sub != null && gst && num(q.total) != null && Math.round(sub - (disc || 0)) === Math.round(num(q.total));
-    if (tn && (gst || igst || cgst || sgst)) out.push({ label: tn + (incl ? " (included)" : ""), detail: pct ? pct + "%" : "", amount: gst || ((igst || 0) + (cgst || 0) + (sgst || 0)) });
+    // 0079/0081: the server now returns the quote's own tax keys (taxCountry / taxName /
+    // taxInclusive); use them for the exact label. Older servers: infer from the currency.
+    const cur = String(q.currency || "INR").toUpperCase();
+    const cc = /^[A-Z]{2}$/.test(String(q.taxCountry || "")) ? String(q.taxCountry) : null;
+    const nm = String(q.taxName == null ? "" : q.taxName).replace(/[<>"'`\u0000-\u001f]/g, "").trim().slice(0, 24);
+    const india = cc ? cc === "IN" : cur === "INR";
+    const tn = india ? null : (nm || TAX_BY_CURRENCY[cur] || "Tax");
+    const incl = q.taxInclusive === true || String(q.taxInclusive).toLowerCase() === "true"
+      || (!india && q.taxInclusive == null && sub != null && !!gst && num(q.total) != null && Math.round(sub - (disc || 0)) === Math.round(num(q.total)));
+    const inc = incl ? " (included)" : "";
+    if (tn && (gst || igst || cgst || sgst)) out.push({ label: tn + inc, detail: pct ? pct + "%" : "", amount: gst || ((igst || 0) + (cgst || 0) + (sgst || 0)) });
     else if (tn) { /* no tax on this quote */ }
-    else if (igst) out.push({ label: "IGST", detail: pct ? pct + "%" : "", amount: igst });
+    else if (igst) out.push({ label: "IGST" + inc, detail: pct ? pct + "%" : "", amount: igst });
     else if (cgst || sgst) {
-      out.push({ label: "CGST", detail: pct ? pct / 2 + "%" : "", amount: cgst || 0 });
-      out.push({ label: "SGST", detail: pct ? pct / 2 + "%" : "", amount: sgst || 0 });
-    } else if (gst) out.push({ label: "GST", detail: pct ? pct + "%" : "", amount: gst });
+      out.push({ label: "CGST" + inc, detail: pct ? pct / 2 + "%" : "", amount: cgst || 0 });
+      out.push({ label: "SGST" + inc, detail: pct ? pct / 2 + "%" : "", amount: sgst || 0 });
+    } else if (gst) out.push({ label: "GST" + inc, detail: pct ? pct + "%" : "", amount: gst });
     const total = num(q.total) != null ? num(q.total) : num(c.total);
     return { lines: out, total: total };
   }
