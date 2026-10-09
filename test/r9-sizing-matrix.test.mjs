@@ -19,8 +19,8 @@ const line = (head) => { const s = js.indexOf(head); assert.ok(s >= 0, head); re
 const src = [
   decl('const ASSETS = {'), 'const WORLD = { w: 200, h: 140 };', line('const clamp = '), line('const round1 = '),
   line('const DESIGN_PITCH='), 'let _packFit = null; let uid = 1; const nid = () => "o" + (uid++); const catColor = () => "#000";',
-  line('const GEN_OVERLAY = '), line('const SEAT_UNIT = '), line('const FLOOR_SEATS = '), line('const GEN_SEATING = '),
-  ...['makeItem', 'genSeats', 'sumSeats', 'setBlockSeats', 'exactSeats', 'seatFitWarning', 'seatBottom', 'countSeats', 'tally', 'frontZone', 'supportZone', 'seatTheatre', 'seatRounds', 'seatBanquetLong', 'boothGrid',
+  line('const GEN_OVERLAY = '), line('const SEAT_SQFT_FALLBACK='), line('const SEAT_UNIT = '), line('const FLOOR_SEATS = '), line('const GEN_SEATING = '),
+  ...['makeItem', 'genSeats', 'sumSeats', 'setBlockSeats', 'exactSeats', 'seatSqftFor', 'seatFitWarning', 'seatBottom', 'countSeats', 'tally', 'frontZone', 'supportZone', 'seatTheatre', 'seatRounds', 'seatBanquetLong', 'seatBanquetRounds', 'boothGrid',
     'seatPerimeter', 'seatCocktail', 'seatHalfRoundsTheatre', 'clampItem', 'genRect', 'rectsHit', 'resolveOverlaps', 'generateVariants'].map(fn),
   'return { WORLD, ASSETS, generateVariants, sumSeats, exactSeats, seatFitWarning, genRect, rectsHit, GEN_OVERLAY, GEN_SEATING };',
 ].join('\n');
@@ -52,7 +52,8 @@ for (const [w, h] of HALLS) for (const type of TYPES) for (const N of NS) {
       assert.ok([r.x, r.y, r.w, r.h].every(Number.isFinite), tag + ' finite');
       assert.ok(r.x >= -1e-6 && r.y >= -1e-6 && r.x + r.w <= w + 1e-6 && r.y + r.h <= h + 1e-6, tag + ' inside hall');
     }
-    if (v.counts.natural < N) assert.ok(G.seatFitWarning(N, v.counts.natural).length > 0, tag + ' warns');
+    if (v.counts.natural < N && w * h < N * 6) assert.ok(G.seatFitWarning(N, v.counts.natural).length > 0, tag + ' warns');
+    if (w * h >= N * 6) assert.equal(G.seatFitWarning(N, v.counts.natural, v.counts.free), '', tag + ' hall is big enough — no warning');
     // a 20x20 hall cannot hold a stage/dance floor AND seats — that case must warn (asserted above), not be silent
     if (w >= 60 && N <= 100) for (let a = 0; a < its.length; a++) for (let b = a + 1; b < its.length; b++)
       assert.ok(!G.rectsHit(G.genRect(its[a]), G.genRect(its[b]), 0), `${tag}: ${its[a].type} overlaps ${its[b].type}`);
@@ -61,7 +62,8 @@ for (const [w, h] of HALLS) for (const type of TYPES) for (const N of NS) {
 }
 // R9 fix: the tiny-hall warning no longer claims "need ~116 sq ft; hall is 400" (need < hall)
 G.WORLD.w = 20; G.WORLD.h = 20;
-assert.match(G.seatFitWarning(10, 0), /don’t fit this template in a 400 sq ft hall/);
+assert.equal(G.seatFitWarning(10, 0), '');   // R10: 10 seats × 6 sq ft fit a 400 sq ft hall
+assert.match(G.seatFitWarning(100, 0), /don’t fit this template in a 400 sq ft hall/);
 assert.match(G.seatFitWarning(700, 300), /^700 seats need ~[\d,]+ sq ft; hall is 400 sq ft$/);
 
 // R9 live bug: Birthday 7 guests → 5 seats in a 30x20 hall warned "5 seats need ~58 sq ft; hall is 600".
@@ -154,18 +156,18 @@ const bjs = rd('public/builder.js'), flow = rd('public/flow.html'), quotes = rd(
 assert.match(bjs, /const chairs = quoteChairsNow\(\);/);
 assert.match(flow, /HelmSizing\.quoteChairs\(cl, pr, null\)/);
 assert.match(flow, /chairsManual=HelmSizing\.isChairsManual\(cl,pr\)/);
-assert.match(quotes, /event-sizing\.js\?v=3/);
+assert.match(quotes, /event-sizing\.js\?v=4/);
 assert.match(quotes, /HelmSizing\.quoteChairs\(cl,pr,seats\)/);
 assert.match(quotes, /pricing = \{ \.\.\.p, computed:t, total:t\.total, client, chairsManual, otherAuto: prevPr\.otherAuto \}/);
 // builder: Custom Event dialog re-reads the quote on every open; writes chairs back; ?gen never beats saved guests
 assert.match(bjs, /if\(!wasOpen\) _ceFresh=true;/);
 assert.match(bjs, /if\(currentQuoteId\) fill\('c_chairs', quoteChairsNow\(\)\)/);
-assert.match(bjs, /\$\('#c_chairs'\)\.addEventListener\('change',\(\)=>\{ const v=\$\('#c_chairs'\)\.value; if\(v!=='' && currentQuoteId && !RO\) setQuoteChairs\(v\); \}\);/);
+assert.match(bjs, /\$\('#c_chairs'\)\.addEventListener\('change',\(\)=>\{ const v=\$\('#c_chairs'\)\.value; if\(v!=='' && \+v>=1 && currentQuoteId && !RO\) setQuoteChairs\(v\); \}\);/);
 assert.match(bjs, /ceAutoFill\(\); resetQuoteChairs\(\);/);
 assert.match(bjs, /if\(guests && PRICING\.guests==null\)\{ PRICING\.guests=guests;/);
 assert.match(bjs, /renderPrice\(\); syncChairsPanel\(\); \}catch\(e\)\{\}   \/\/ R9/);
 for (const f of ['public/builder.html', 'public/flow.html', 'public/capture.html']) {
-  const h = rd(f); if (/event-sizing\.js/.test(h)) assert.match(h, /event-sizing\.js\?v=3/, f);
+  const h = rd(f); if (/event-sizing\.js/.test(h)) assert.match(h, /event-sizing\.js\?v=4/, f);
   if (/flow-layout-sync\.js/.test(h)) assert.match(h, /flow-layout-sync\.js\?v=4/, f);
 }
 console.log(`r9-sizing-matrix: ${n} generated layouts + sizing cases OK`);
@@ -194,7 +196,7 @@ console.log(`r9-sizing-matrix: ${n} generated layouts + sizing cases OK`);
   assert.equal((bjs.match(/if\(!chairsOk\(o\.chairs\)\) return;/g) || []).length, 2);
   assert.match(bjs, /if\(!\(n>=1\)\)\{ toast\(CHAIRS_MIN_MSG\)/);
   assert.match(bjs, /id="bChairs" type="number" min="1"/);
-  assert.match(rd('public/builder.html'), /id="c_chairs" min="1"/);
+  assert.match(rd('public/builder.html'), /id="c_chairs" min="0"/);   // R10: min 0 so the global hardener never turns a typed 0 into 1 — chairsOk rejects it
   assert.match(flow, /id="q_chairs" type="number" min="1"/);
 }
 console.log('r9-sizing-matrix: décor/setup + chairs-min checks OK');

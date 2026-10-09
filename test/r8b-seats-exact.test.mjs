@@ -21,8 +21,8 @@ const line = (head) => { const s = js.indexOf(head); assert.ok(s >= 0, head); re
 const src = [
   decl('const ASSETS = {'), 'const WORLD = { w: 200, h: 140 };', line('const clamp = '), line('const round1 = '),
   line('const DESIGN_PITCH='), 'let _packFit = null; let uid = 1; const nid = () => "o" + (uid++); const catColor = () => "#000";',
-  line('const GEN_OVERLAY = '), line('const SEAT_UNIT = '), line('const FLOOR_SEATS = '), line('const GEN_SEATING = '),
-  ...['makeItem', 'genSeats', 'sumSeats', 'setBlockSeats', 'exactSeats', 'seatFitWarning', 'seatBottom', 'countSeats', 'tally', 'frontZone', 'supportZone', 'seatTheatre', 'seatRounds', 'seatBanquetLong', 'boothGrid',
+  line('const GEN_OVERLAY = '), line('const SEAT_SQFT_FALLBACK='), line('const SEAT_UNIT = '), line('const FLOOR_SEATS = '), line('const GEN_SEATING = '),
+  ...['makeItem', 'genSeats', 'sumSeats', 'setBlockSeats', 'exactSeats', 'seatSqftFor', 'seatFitWarning', 'seatBottom', 'countSeats', 'tally', 'frontZone', 'supportZone', 'seatTheatre', 'seatRounds', 'seatBanquetLong', 'seatBanquetRounds', 'boothGrid',
     'seatPerimeter', 'seatCocktail', 'seatHalfRoundsTheatre', 'clampItem', 'genRect', 'rectsHit', 'resolveOverlaps', 'generateVariants'].map(fn),
   'return { WORLD, ASSETS, generateVariants, sumSeats, exactSeats, seatFitWarning, genRect, rectsHit, GEN_OVERLAY, GEN_SEATING };',
 ].join('\n');
@@ -47,6 +47,9 @@ for (const N of [1, 13, 140, 141, 333]) { const it = G.exactSeats(blk(), N); ass
 const tabs = [0, 1, 2].map((i) => ({ id: 't' + i, type: 'table', x: 10 + i * 9, y: 10, width: 6, height: 6, properties: { seats: 8 } }));
 assert.equal(G.sumSeats(G.exactSeats(tabs.map((t) => ({ ...t, properties: { ...t.properties } })), 19)), 19);
 assert.equal(G.sumSeats(G.exactSeats(tabs.map((t) => ({ ...t, properties: { ...t.properties } })), 30)), 30);
-assert.match(G.seatFitWarning(700, 300), /^700 seats need ~[\d,]+ sq ft; hall is 28,000 sq ft$/);
+assert.equal(G.seatFitWarning(700, 300), '');   // R10: 700 × 6 sq ft fit a 28,000 sq ft hall
+G.WORLD.w = 60; G.WORLD.h = 40;
+assert.match(G.seatFitWarning(700, 300), /^700 seats need ~4,200 sq ft; hall is 2,400 sq ft$/);
+G.WORLD.w = 200; G.WORLD.h = 140;
 assert.equal(G.seatFitWarning(700, 900), '');
 console.log(`r8b-seats-exact: ${n} generated layouts have exactly N seats`);

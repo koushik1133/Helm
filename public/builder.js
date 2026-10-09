@@ -209,6 +209,21 @@ function priceModel(){
 // R8b: the quote's ONE chairs value (70% of guests unless typed) is the pricing source — never the
 // layout's count. When the layout differs, the right panel offers "Layout has N chairs — use N for pricing?".
 function layoutChairCount(){ try{ return totalSeats(); }catch(e){ return 0; } }
+/* R10: the seats target for a layout auto-built on arrival. The quote's saved sizing wins; when the
+   quote has none yet (fresh flow hand-off) the ?gen URL's chairs, else 70% of its guests — never the
+   template's own natural seat count (that gave "101 seats" for a 105-seat Reception). */
+let _autoDefaultLoaded=false;
+function genTargetSeats(saved, urlChairs, urlGuests){
+  const p=v=>{ const n=Math.round(+v); return v!=null && v!=='' && isFinite(n) && n>0 ? n : null; };
+  return p(saved) || p(urlChairs) || (p(urlGuests) ? Math.ceil(p(urlGuests)*7/10) : null) || 0;
+}
+function arrivalSeats(){
+  let saved=null;
+  try{ if(window.HelmSizing){ const cl=currentClient||{}, pr=currentPricing||{};
+    saved=HelmSizing.quoteChairs(PRICING.guests!=null && cl.guests==null ? Object.assign({}, cl, { guests: PRICING.guests }) : cl, pr, null); } }catch(e){}
+  let u=null; try{ u=new URLSearchParams(location.search); }catch(e){}
+  return genTargetSeats(saved, u&&u.get('chairs'), u&&u.get('guests')) || quoteChairsNow();
+}
 function quoteChairsNow(){
   const lay=layoutChairCount();
   if(!window.HelmSizing) return lay;
@@ -1906,7 +1921,7 @@ function loadTemplate(key){
   const lbl=document.querySelector('#preset option[value="'+key+'"]').textContent;
   // R8b: an open quote's seats value is the exact seating total for preset templates too
   const tItems=TEMPLATES[key](); const N=currentQuoteId ? quoteChairsNow() : 0;
-  if(N>0){ const nat=sumSeats(tItems); exactSeats(tItems, N); const w=seatFitWarning(N, nat); if(w) setTimeout(()=>BPUI.toast('⚠ '+w,{type:'err'}),50); }
+  if(N>0){ const nat=sumSeats(tItems); exactSeats(tItems, N); const w=seatFitWarning(N, nat, null, PRICING.eventType); if(w) setTimeout(()=>BPUI.toast('⚠ '+w,{type:'err'}),50); }
   loadItems(tItems, lbl);
   toast(lbl + ' loaded');
 }
@@ -1991,14 +2006,20 @@ function exactSeats(items, N){
   return items;
 }
 // R8b: the honest hall-size warning when N seats exceed what the template fits at its density
-function seatFitWarning(N, natural, free){
+// R10: the old estimate scaled the hall by the template's own seat count (hall×N÷natural → "105 seats need
+// ~12,728 sq ft" in a 4,000 sq ft hall that rankTemplates said fits 150). The need is now the same capacity
+// model as the recommendations (seats × comfortable sq ft per seat); a hall that big never warns.
+const SEAT_SQFT_FALLBACK=6;
+function seatSqftFor(type){ try{ if(window.HelmSizing && HelmSizing.seatSqft) return HelmSizing.seatSqft(type); }catch(e){} return SEAT_SQFT_FALLBACK; }
+function seatFitWarning(N, natural, free, type){
   N=Math.round(+N||0); if(!(N>0) || !(natural<N)) return '';
-  const hall=Math.round(WORLD.w*WORLD.h);
+  const hall=Math.round(WORLD.w*WORLD.h), needArea=Math.ceil(N*seatSqftFor(type));
+  if(hall>=needArea) return '';
   // R9: nothing of the template's own seating fit (tiny hall) — the old area maths said "need ~116 sq ft;
   // hall is 400" (need < hall), which read as if it fitted. Say plainly that the hall is too small.
   if(!(natural>0) && free>0) return N.toLocaleString('en-IN')+' seats need ~'+Math.ceil(N*DESIGN_PITCH*DESIGN_PITCH).toLocaleString('en-IN')+' sq ft at '+DESIGN_PITCH+' ft spacing; the seating area left after the stage, dance floor, buffet & bars is ~'+free.toLocaleString('en-IN')+' sq ft';
   if(!(natural>0)) return N.toLocaleString('en-IN')+' seats don\u2019t fit this template in a '+hall.toLocaleString('en-IN')+' sq ft hall \u2014 enlarge the hall or pick another template';
-  const need=natural>0 ? Math.ceil(hall*N/natural) : Math.ceil(N*DESIGN_PITCH*DESIGN_PITCH*2);
+  const need=needArea;
   return N.toLocaleString('en-IN')+' seats need ~'+need.toLocaleString('en-IN')+' sq ft; hall is '+hall.toLocaleString('en-IN')+' sq ft';
 }
 function tally(items, type){ return items.filter(i=>i.type===type).length; }
@@ -2008,11 +2029,13 @@ function frontZone(items, o){
   const cx=WORLD.w/2; let top=8;
   if(o.canopy){ items.push(makeItem('canopy', cx-11, 8, {label:'Ceremony Canopy'}));
     items.push(makeItem('arch', cx-6, 32, {label:'Backdrop'})); top=44; }
-  else if(o.stage){ const sw=o.type==='festival'?56:44;
-    items.push(makeItem('stage', cx-sw/2, 8, {width:sw,height:16,label:'Stage'}));
-    items.push(makeItem('podium', cx-1.5, 18, {label:'Podium'}));
-    if(o.press) items.push(makeItem('press', cx+sw/2-2, 8, {width:16,height:8,label:'Press'}));
-    top=30;
+  else if(o.stage){ // R10: the stage scales with the hall — at most ~30% of its width, ~18% of its depth
+    const sw=Math.min(o.type==='festival'?56:44, Math.max(12, Math.round(WORLD.w*0.3)));
+    const sh=Math.min(16, Math.max(8, Math.round(WORLD.h*0.18))), sy=Math.min(8, Math.max(2, Math.round(WORLD.h*0.06)));
+    items.push(makeItem('stage', cx-sw/2, sy, {width:sw,height:sh,label:'Stage'}));
+    items.push(makeItem('podium', cx-1.5, sy+sh*0.625, {label:'Podium'}));
+    if(o.press) items.push(makeItem('press', cx+sw/2-2, sy, {width:16,height:8,label:'Press'}));
+    top=sy+sh+6;
     if(o.type==='political'||o.type==='festival'){ items.push(makeItem('barricade', cx-30, top, {width:60,label:'Buffer'})); top+=6; }
   }
   if(o.head){ items.push(makeItem('headtable', cx-9, top, {label:'Head Table',properties:{seats:10}})); top+=8; }
@@ -2084,6 +2107,29 @@ function seatRounds(items, o, topY, mixed){
     items.push(makeItem('table', tx, ty, {properties:{seats:spt},label:'T'+n})); n++; }
   if(mixed){ let hb=0; for(; i<cells.length && hb<8; i++,hb++){ const [tx,ty]=cells[i];
     items.push(makeItem('cocktail', tx+2, ty+2, {label:'Highboy '+(hb+1)})); } }
+}
+/* R10: banquet seating — a dance floor sized to the crowd in front of the stage, then ROUND TABLES of
+   spt (8) for exactly ceil(N/spt) tables (last one partial), spread evenly over the free floor at a
+   comfortable 10 ft table pitch and never over the stage, dance floor, buffet, bars or exits. Only when
+   the free floor genuinely can't hold them does the pitch tighten (to 8 ft); exactSeats tops up the rest. */
+function seatBanquetRounds(items, o, topY){
+  const N=o.guests!=null?o.guests:0, spt=o.spt||8;
+  const df=Math.round(clamp(Math.sqrt(Math.max(1,N)*2.5), 12, 24)), dside=Math.min(df, Math.round(WORLD.w*0.3), Math.round((WORLD.h-topY)*0.4));
+  const dcx=WORLD.w/2;
+  if(dside>=8){ items.push(makeItem('dancefloor', dcx-dside/2, topY, {width:dside,height:dside,label:'Dance Floor'})); }
+  const taken=items.filter(it=>!GEN_OVERLAY.has(it.type)).map(genRect);
+  const need=N>0 ? Math.ceil(N/spt) : 0, T=ASSETS.table.w;
+  const cellsAt=(pitch)=>{ const out=[], m=Math.max(2,(pitch-T)/2+1);
+    for(let y=Math.max(2,topY-dside*0); y+T<=WORLD.h-2; y+=pitch) for(let x=m; x+T<=WORLD.w-m+1e-6; x+=pitch){
+      const r={x,y,w:T,h:T}; if(!taken.some(t=>rectsHit(r,t,1.5))) out.push([x,y]); }
+    return out; };
+  let cells=cellsAt(10); if(cells.length<need) { const c8=cellsAt(8); if(c8.length>cells.length) cells=c8; }
+  const n=Math.min(need, cells.length); if(!n) return;
+  // spread: take evenly spaced cells rather than packing the first rows
+  const pick=[]; for(let i=0;i<n;i++) pick.push(cells[Math.floor(i*cells.length/n)]);
+  let left=N;
+  pick.forEach(([x,y],i)=>{ const seats=i===n-1 && n===need ? Math.max(1, left) : Math.min(spt, left); left-=seats;
+    items.push(makeItem('table', x, y, {properties:{seats},label:'T'+(i+1)})); });
 }
 function seatBanquetLong(items, o, topY){
   const bottomY=seatBottom(o), margin=12, cellW=46, cellH=18;
@@ -2235,14 +2281,14 @@ function generateVariants(oIn){
   // Variant 1 — Theatre rows
   { const it=base(); const t=frontZone(it,o); seatTheatre(it,o,t); supportZone(it,o); finish(it,'Theatre rows','Rows facing the stage — max capacity'); }
   // Variant 2 — Round tables (+ dance if wedding/gala)
-  { const it=base(); const o2={...o, dance:o.dance||o.type==='wedding'}; const t=frontZone(it,o2); seatRounds(it,o2,t,false); supportZone(it,o2); finish(it,'Round tables','Banquet rounds — seated dinner'); }
+  { const it=base(); const o2={...o, dance:o.dance||o.type==='wedding'||o.type==='reception'}; const t=frontZone(it,o2); seatRounds(it,o2,t,false); supportZone(it,o2); finish(it,'Round tables','Banquet rounds — seated dinner'); }
   // Variant 3 — Mixed reception OR banquet long tables
   if(o.type==='conference'){ const it=base(); const t=frontZone(it,o); seatBanquetLong(it,o,t); supportZone(it,o); finish(it,'Classroom','Long tables in rows'); }
   else { const it=base(); const o3={...o, dance:true}; const t=frontZone(it,o3); seatRounds(it,o3,t,true);
     if(o.lounge) it.push(makeItem('lounge', 8, 8, {label:'Lounge'})); supportZone(it,o3); finish(it,'Mixed reception','Rounds + highboys + dance floor'); }
   // Variant 4 — Custom mix: honours EXACTLY the toggles/counts you set, then fully editable on the floor
   { const it=base(); const t=frontZone(it,o);
-    const useRounds = (o.spt!=null) || o.type==='wedding';
+    const useRounds = (o.spt!=null) || o.type==='wedding' || o.type==='reception';
     if((o.booths||0)>0) boothGrid(it,o,t);
     else if(useRounds) seatRounds(it,{...o,dance:o.dance},t,!!o.lounge);
     else seatTheatre(it,o,t);
@@ -2261,10 +2307,8 @@ function generateVariants(oIn){
   }
   // Banquet + stage + dance — weddings, galas, receptions
   if(o.type==='wedding'||o.type==='gala'||o.type==='reception'){
-    const it=base(); const o5={...o,stage:true}; const t=frontZone(it,o5); const dcx=WORLD.w/2;
-    it.push(makeItem('dancefloor', dcx-12, t, {width:24,height:22,label:'Dance Floor'}));
-    it.push(makeItem('dj', dcx-4, Math.max(4,t-2), {label:'DJ'}));
-    seatBanquetLong(it,o,t+26); supportZone(it,o5);
+    const it=base(); const o5={...o,stage:true}; const t=frontZone(it,o5); supportZone(it,o5);
+    seatBanquetRounds(it,o5,t);
     finish(it,'Banquet + stage + dance','Long banquet tables with a stage & dance floor');
   }
   // Cabaret / crescent rounds — rounds set back from an open front facing the stage
@@ -2325,7 +2369,7 @@ function runCustomGenerate(){
     const target=o.chairs!=null?o.chairs:o.guests;
     const bestCap=Math.max(0,...variants.map(v=>v.counts.natural||0));
     const bestFree=Math.max(0,...variants.map(v=>v.counts.free||0));
-    const warn=seatFitWarning(target, bestCap, bestFree);
+    const warn=seatFitWarning(target, bestCap, bestFree, PRICING.eventType||o.type);
     if(warn){
       fitNote=`<div style="grid-column:1/-1;background:color-mix(in srgb,var(--c-logistics) 12%,var(--panel));border:1px solid color-mix(in srgb,var(--c-logistics) 45%,var(--line));border-radius:9px;padding:10px 12px;font-size:12px;color:var(--ink);line-height:1.5">
         ⚠ ${esc(warn)}. Every layout below still places all ${esc(String(target))} seats, packed tighter than the comfortable ${DESIGN_PITCH} ft spacing — enlarge the hall or reduce the seats.</div>`;
@@ -2377,7 +2421,7 @@ function openCustomModal(){ const wasOpen=!$('#customModal').hidden; $('#customM
   try{ prefillCustomForm(); wireSizingForm(); renderRecommendations(); }catch(e){} }
 /* R8: the Custom Event dialog is prefilled from the quote (guests, chairs, tables, hall, type) and
    keeps chairs = 70% of guests / tables = chairs ÷ seats-per-table until the user types their own. */
-const CE_TYPE = { wedding:'wedding', reception:'wedding', engagement:'wedding', gala:'wedding', cocktail:'wedding', birthday:'wedding',
+const CE_TYPE = { wedding:'wedding', reception:'reception', engagement:'wedding', gala:'wedding', cocktail:'wedding', birthday:'wedding',
   concert:'concert', festival:'festival', political:'political', rally:'political',
   conference:'conference', corporate:'conference', expo:'conference', product_launch:'conference' };
 let ceChairsManual=false, ceTablesManual=false, _ceFresh=true;
@@ -2410,7 +2454,7 @@ function wireSizingForm(){
   $('#c_spt').addEventListener('input',ceAutoFill);
   $('#c_chairs').addEventListener('input',()=>{ ceChairsManual=$('#c_chairs').value!==''; ceAutoFill(); });
   // R9: a chairs value typed here is the quote's chairs — write it back (quote + right panel #bChairs)
-  $('#c_chairs').addEventListener('change',()=>{ const v=$('#c_chairs').value; if(v!=='' && currentQuoteId && !RO) setQuoteChairs(v); });
+  $('#c_chairs').addEventListener('change',()=>{ const v=$('#c_chairs').value; if(v!=='' && +v>=1 && currentQuoteId && !RO) setQuoteChairs(v); });   // R10: 0 is rejected at generate time, never saved
   $('#c_tables').addEventListener('input',()=>{ ceTablesManual=$('#c_tables').value!==''; renderRecommendations(); });
   ['c_len','c_wid'].forEach(id=>$('#'+id).addEventListener('input',renderRecommendations));
   $('#c_type').addEventListener('change',()=>{ $('#c_type').dataset.touched='1'; renderRecommendations(); });
@@ -2443,7 +2487,7 @@ function applyRecommendation(rec){
   const variants=generateVariants(o).map(v=>({...v, items:v.items.map(clampItem)}));
   const v=variants.find(x=>x.name===rec.variant) || variants[0]; if(!v) return;
   loadItems(v.items, 'Template · '+rec.label);
-  { const w=seatFitWarning(o.chairs!=null?o.chairs:o.guests, v.counts.natural, v.counts.free); if(w) BPUI.toast('⚠ '+w+' — all seats placed, packed tight.',{type:'err'}); }
+  { const w=seatFitWarning(o.chairs!=null?o.chairs:o.guests, v.counts.natural, v.counts.free, PRICING.eventType||o.type); if(w) BPUI.toast('⚠ '+w+' — all seats placed, packed tight.',{type:'err'}); }
   if(o.guests!=null){ PRICING.guests=o.guests; const g=$('#bGuests'); if(g) g.value=o.guests; }
   persistSizing(sizingPatch(o)).then(()=>{ if(o.guests!=null) persistGuests(); });
   closeCustomModal(); renderAll(); fitView(); renderPrice();
@@ -3712,7 +3756,8 @@ async function init(){
         const presetKey = EVENT_TYPE_PRESET[(q.eventType||'').toLowerCase()];
         if(presetKey && TEMPLATES[presetKey] && !CAPTURE_HOST){
           store.items = TEMPLATES[presetKey]();
-          { const N=quoteChairsNow(); if(N>0) exactSeats(store.items, N); }   // R8b: exactly the quote's seats
+          { const N=arrivalSeats(); if(N>0) exactSeats(store.items, N); }   // R8b/R10: exactly the quote's (or flow's) seats
+          _autoDefaultLoaded=true;
           toast('Loaded default '+(q.eventType||'')+' layout');
           resetHistory(); setSavedBaseline(); renderAll();
         }
@@ -3743,11 +3788,10 @@ async function init(){
   populateRefEvents();   // fill the "Past events" reference picker
   // Guided default-layout generation from the flow: ?gen=1&type=&guests=&len=&wid=
   if(params.get('gen')==='1' && CAN_CREATE!==false){
-    const TMAP={ wedding:'wedding', reception:'wedding', engagement:'wedding', gala:'wedding', cocktail:'wedding',
-      concert:'concert', festival:'festival', political:'political', rally:'political',
-      conference:'conference', corporate:'conference', expo:'conference', product_launch:'conference', birthday:'wedding' };
-    const rawType=(params.get('type')||'').toLowerCase();
-    const ct=TMAP[rawType]||'wedding';
+    // R10: the default layout auto-built on arrival carries EXACTLY the flow's seats (all seating counted)
+    if(_autoDefaultLoaded){ const N=arrivalSeats(); if(N>0 && sumSeats(store.items)!==N){ exactSeats(store.items, N); resetHistory(); setSavedBaseline(); renderAll(); } }
+    // R10: one event-type map for the flow arrival and the dialog prefill (Reception stays Reception)
+    const ct=CE_TYPE[rawType]||'wedding';
     const setV=(id,v)=>{ const el=$('#'+id); if(el&&v!=null&&v!=='') el.value=v; };
     const setChk=(id,v)=>{ const el=$('#'+id); if(el) el.checked=!!v; };
     const sel=$('#c_type'); if(sel && [...sel.options].some(o=>o.value===ct)) sel.value=ct;
