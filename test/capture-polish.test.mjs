@@ -42,7 +42,7 @@ t('capture3D uses the framing helper, hides grid/edge, 2x supersample, restores 
   const cap = js.slice(js.indexOf('async function capture3D'), js.indexOf('window.__capture3D='));
   assert.doesNotMatch(cap, /ACESFilmic|toneMappingExposure|multiplyScalar\(0\.72\)|sun\.intensity=1|hemi\.intensity=0/); assert.match(js, /keep\.labels\.forEach/);
   const html = read('public/builder.html');
-  assert.match(html, /capture-frame\.js\?v=10"><\/script>\n<script src="builder-3d\.js\?v=9"/);
+  assert.match(html, /capture-frame\.js\?v=11"><\/script>\n<script src="builder-3d\.js\?v=9"/);
 });
 t('panel toggle re-fits the 2D plan only while at fit zoom', () => {
   const js = read('public/builder.js');
@@ -170,7 +170,8 @@ t('R5 legend: rows fit the panel, wraps into 2 columns when many', () => {
   assert.equal(one.cols, 1); assert.equal(two.cols, 2); assert.equal(two.rows.length, 60);
   for (const L of [one, two]) for (const R of L.rows) {
     assert.ok(R.x >= 0 && R.x + L.colW <= 384 + 1e-6 && R.y >= L.titleH && R.y + L.rowH <= 1080, 'row inside panel');
-    assert.ok(R.text.length * L.font * 0.56 + L.badgeR * 2 + L.font * 0.6 <= L.colW + 1, 'text fits column: ' + R.text); }
+    const lines = R.lines || [R.text], f = R.lines && R.lines.length > 1 ? Math.max(9, Math.round(L.font * 0.86)) : L.font;   // R10: long names wrap to 2 lines
+    for (const ln of lines) assert.ok(ln.length * f * 0.56 + L.badgeR * 2 + L.font * 0.6 <= L.colW + 1, 'text fits column: ' + ln); }
   assert.match(one.rows.find(R => R.n === 2).text, /×2$/);
   const sp = CF.legendSplit(1920); assert.equal(sp.renderW + sp.panelW, 1920); assert.equal(sp.panelW, 384);
 });
