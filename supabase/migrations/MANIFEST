@@ -89,3 +89,5 @@ forward  supabase/migrations/0070_booklet_payments.sql
 forward  supabase/migrations/0071_reserve_inventory_atomic.sql
 # 0072 (pending fixes: roles, invites, chat cap, inventory locks/write-off, quote code tz) goes after 0071.
 forward  supabase/migrations/0072_pending_fixes.sql
+# 0073 (inventory check-out cancel instead of delete + duplicate active-name unique indexes) goes after 0072.
+forward  supabase/migrations/0073_inventory_cancel_and_unique_names.sql
