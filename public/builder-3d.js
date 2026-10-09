@@ -715,29 +715,25 @@
       sc:[sc.left,sc.right,sc.top,sc.bottom,sc.far], hemiI:hemi?hemi.intensity:null, groundCol:ground?ground.material.color.clone():null, labels:[] };
     try{
       if(grid) grid.visible=false; if(edge) edge.visible=false; if(transform){ transform.detach(); transform.visible=false; } if(selHelper) selHelper.visible=false;
-      renderMode=true; applyProfile();
-      // client look: darker backdrop + floor for contrast, no fog wash, stronger key light with soft shadows
-      scene.fog=null; scene.background=new THREE.Color('#3b4354');
-      if(ground) ground.material.color.multiplyScalar(0.72);
-      R.toneMapping=THREE.ACESFilmicToneMapping; R.toneMappingExposure=1.0; R.outputEncoding=THREE.sRGBEncoding;
-      if(hemi) hemi.intensity=0.5; sun.intensity=1.35;
-      // frame the bounding box of the actual objects (labels excluded), fallback to the floor
+      // client look = the live interactive 3D view: same profile (NoToneMapping, linear output, no IBL,
+      // same hemi 0.75 + sun 0.85, untouched material/floor colours); only the backdrop is a soft neutral
+      renderMode=false; applyProfile();
+      scene.background=new THREE.Color('#e9ecf2');
+      // frame the bounding box of the actual objects (labels excluded), fallback to the floor/hall
       const box=new THREE.Box3();
-      root.traverse(o=>{ if(o.isMesh || o.isInstancedMesh){ o.updateWorldMatrix(true,false); box.expandByObject(o); } });
+      root.traverse(o=>{ if((o.isMesh || o.isInstancedMesh) && !o.isSprite){ o.updateWorldMatrix(true,false); box.expandByObject(o); } });
       if(box.isEmpty()){ const hw=(floorW||WORLD.w)/2, hh=(floorH||WORLD.h)/2; box.min.set(-hw,0,-hh); box.max.set(hw,4,hh); }
-      const pad=2; box.min.x-=pad; box.min.z-=pad; box.max.x+=pad; box.max.z+=pad; box.min.y=Math.min(box.min.y,0);
+      const pad=1; box.min.x-=pad; box.min.z-=pad; box.max.x+=pad; box.max.z+=pad; box.min.y=Math.min(box.min.y,0);
       const fr=window.HelmCaptureFrame.frameBox({min:box.min.toArray(),max:box.max.toArray()},
-        {fovDeg:camera.fov, aspect:W/H, fill:0.85, elevationDeg:38, azimuthDeg:35, minDist:20});
+        {fovDeg:camera.fov, aspect:W/H, fill:0.88, elevationDeg:38, azimuthDeg:35, minDist:20});
       R.setPixelRatio(1); R.setSize(W*SS,H*SS,false);
       camera.aspect=W/H; camera.position.fromArray(fr.position); camera.lookAt(fr.target[0],fr.target[1],fr.target[2]);
       camera.far=Math.max(keep.far, fr.distance*4); camera.updateProjectionMatrix();
-      // key light from the front-left, shadow frustum hugging the objects (crisper shadows)
-      const span=Math.max(box.max.x-box.min.x, box.max.z-box.min.z, 20);
-      sun.target.position.fromArray(fr.target); sun.target.updateMatrixWorld();
-      sun.position.set(fr.target[0]-span*0.45, span*1.1+40, fr.target[2]+span*0.6);
-      sc.left=-span; sc.right=span; sc.top=span; sc.bottom=-span; sc.far=span*4+200; sc.updateProjectionMatrix(); sun.shadow.radius=3;
-      // readable labels: scale with the framed size
-      const ls=Math.max(1, Math.min(2.6, span/110));
+      // same sun as the live view (intensity/direction unchanged); only tighten its shadow frustum
+      const span=Math.max(Math.abs(box.min.x),Math.abs(box.max.x),Math.abs(box.min.z),Math.abs(box.max.z),20)+10;   // frustum is centred on the sun target (origin)
+      sc.left=-span; sc.right=span; sc.top=span; sc.bottom=-span; sc.far=Math.max(keep.sc[4], span*4+200); sc.updateProjectionMatrix();
+      // readable labels: sized to ~3% of the image height at the framed distance (never smaller than live)
+      const ls=Math.max(1, window.HelmCaptureFrame.labelWorldHeight(fr.distance, camera.fov, 0.03)/2.5);
       root.traverse(o=>{ if(o.isSprite){ keep.labels.push([o,o.scale.clone()]); o.scale.multiplyScalar(ls); } });
       R.render(scene,camera);
       const out=document.createElement('canvas'); out.width=W; out.height=H;
