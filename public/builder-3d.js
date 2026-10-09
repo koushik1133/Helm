@@ -31,6 +31,7 @@
     return libsPromise;
   }
   let R, scene, camera, controls, root, chairMesh, ground, grid, edge, sun, floorW=0, floorH=0, raf=null;
+  const MAX_CHAIRS_3D=6000;
   let active=false, built=false, needsBuild=false, chairMap=[];
   let transform, gizmo, gltfLoader, tmode='translate', gizmoBase=null;   // 3D editing + model loading
   const modelCache={};
@@ -500,6 +501,8 @@
     let down=null;
     cv.addEventListener('pointerdown',e=>{ down={x:e.clientX,y:e.clientY}; });
     cv.addEventListener('pointerup',e=>{ if(down && !transform.dragging && Math.hypot(e.clientX-down.x,e.clientY-down.y)<5) doPick(e); down=null; });
+    cv.addEventListener('webglcontextlost',e=>{ e.preventDefault(); });          // allow the browser to restore it
+    cv.addEventListener('webglcontextrestored',()=>{ try{ needsBuild=true; if(active) build(); }catch(_){} });
     built=true;
   }
   // (Re)build the ground plane, grid, floor border and shadow frustum for the CURRENT hall size.
@@ -571,6 +574,7 @@
     syncFloor();
     if(labelCache.size>LABEL_CACHE_MAX) flushLabelCache();   // no clones are in the scene right now
     const chairs=[];
+    chairs.push=function(){ if(this.length>=MAX_CHAIRS_3D) return this.length; return Array.prototype.push.apply(this,arguments); };   // never build more than we can draw
     for(const it of store.items){
       const g=buildFurniture(it, chairs);
       if(g){ g.position.set(sx(it.x+it.width/2),0,sz(it.y+it.height/2)); g.rotation.y=-(it.rotation||0)*Math.PI/180;
@@ -590,7 +594,7 @@
 
   function buildChairs(chairs){
     if(chairMesh){ root.remove(chairMesh); chairMesh.geometry.dispose(); chairMesh.material.dispose(); chairMesh=null; }
-    const n=Math.min(chairs.length, 6000);
+    const n=Math.min(chairs.length, MAX_CHAIRS_3D);
     if(!n) return;
     const geo=chairGeometry();
     chairMesh=new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({roughness:.7,metalness:.05,vertexColors:false}), n);
@@ -623,7 +627,8 @@
 
   /* ---------------- loop / resize / activation ---------------- */
   function resize(){ if(!R) return; const w=stage.clientWidth,h=stage.clientHeight; R.setSize(w,h,false); camera.aspect=w/Math.max(1,h); camera.updateProjectionMatrix(); }
-  function loop(){ if(!active) return; controls.update(); refreshSel(); R.render(scene,camera); raf=requestAnimationFrame(loop); }
+  function loop(){ if(!active) return; raf=requestAnimationFrame(loop);   // schedule first: a throwing frame (lost context) must not kill the loop
+    try{ controls.update(); refreshSel(); R.render(scene,camera); }catch(e){ /* skip this frame */ } }
   let selHelper=null, selKey='';
   function refreshSel(){
     const it=store.items.find(i=>i.id===store.selectedId);
@@ -680,8 +685,15 @@
         seg.querySelector('[data-v="2d"]').classList.add('on'); seg.querySelector('[data-v="'+(render?'render':'3d')+'"]').classList.remove('on'); return; } }
     renderMode=!!render;
     active=true; viewport.classList.add('is3d'); viewport.classList.toggle('isRender',renderMode); stage.hidden=false;
-    if(!built) initScene();
-    applyProfile(); build(); resize();
+    try{ if(!built) initScene(); applyProfile(); build(); resize(); }
+    catch(e){
+      try{ if(R && !built){ R.dispose(); R=null; } }catch(_){}
+      deactivate();
+      const sg=document.getElementById('viewSeg');
+      if(sg){ sg.querySelectorAll('button').forEach(x=>x.classList.remove('on')); const b2=sg.querySelector('[data-v="2d"]'); if(b2) b2.classList.add('on'); }
+      BPUI.toast('3D view isn’t supported on this device — the 2D plan still works.',{type:'err'});
+      return;
+    }
     if(!raf) loop();
     if(renderMode) toast('Realistic render — image-based lighting on');
   }
