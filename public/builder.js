@@ -2838,6 +2838,7 @@ async function saveLayout(silent, opts){
       const v = await BPStore.quotes.addVersion(currentQuoteId, label, data, store.items.length);
       currentVersionNo = v.version_no || v.versionNo;
       noteSavedVersion(v, label);
+      refreshVersionsSoon(true);                // re-read the server list (names, teammates' saves)
       clearDraft();
       updateQuoteBadge();
       syncQuotePricing();                       // keep the stored quote total in step with the layout
@@ -2908,6 +2909,29 @@ async function refreshVersions(){
   if(versionsList.some(v=>v.createdBy)) await loadVersionNames();
   updateQuoteBadge();
 }
+// Live version list (R3): the list used to be read once when the quote opened, so a version
+// saved on another device / tab never appeared (and "latest" stayed wrong) until a reload.
+// Now it re-reads the server when the dropdown is opened, when the tab comes back into view,
+// after every save, and on realtime inserts into quote_versions (0077 publication).
+let verSub=null, verRefreshAt=0, verRefreshT=null;
+function refreshVersionsSoon(force){
+  if(!currentQuoteId) return;
+  const now=Date.now(); if(!force && now-verRefreshAt<3000) return;
+  verRefreshAt=now; clearTimeout(verRefreshT);
+  verRefreshT=setTimeout(async()=>{
+    const before=latestVersionNo||0;
+    await refreshVersions();
+    if((latestVersionNo||0)>before && before && currentVersionNo<latestVersionNo && !verBusy)
+      BPUI.toast('V'+latestVersionNo+' was just saved by a teammate — pick it from the version list to view it.',{type:'info'});
+  }, force?0:150);
+}
+function watchVersions(){
+  if(verSub){ try{ verSub.unsubscribe(); }catch{} verSub=null; }
+  if(!currentQuoteId || !BPStore.quotes.subscribeVersions) return;
+  verSub=BPStore.quotes.subscribeVersions(currentQuoteId, kind=>{ if(kind==='layout') refreshVersionsSoon(true); });
+}
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') refreshVersionsSoon(false); });
+window.addEventListener('pageshow',e=>{ if(e.persisted) refreshVersionsSoon(true); });
 // a save just appended version v — reflect it without another round trip
 function noteSavedVersion(v, label){
   const no = currentVersionNo;
@@ -2929,9 +2953,13 @@ function renderVersionUI(){
   if(show){
     const list=versionsList.slice().sort((a,b)=>b.versionNo-a.versionNo);
     if(currentVersionNo && !list.some(v=>v.versionNo===currentVersionNo)) list.unshift({ versionNo:currentVersionNo });
-    sel.textContent='';
-    list.forEach(v=>{ const o=document.createElement('option'); o.value=String(v.versionNo);
-      o.textContent=versionOptionLabel(v, latestVersionNo, versionNames, myUserId); sel.appendChild(o); });
+    const labels=list.map(v=>v.versionNo+'|'+versionOptionLabel(v, latestVersionNo, versionNames, myUserId));
+    const sig=labels.join('\n');
+    if(sel.__sig!==sig){                     // unchanged list → leave the (possibly open) native picker alone
+      sel.__sig=sig; sel.textContent='';
+      labels.forEach(l=>{ const i=l.indexOf('|'), o=document.createElement('option'); o.value=l.slice(0,i);
+        o.textContent=l.slice(i+1); sel.appendChild(o); });
+    }
     sel.value=String(currentVersionNo||'');
     sel.disabled = verBusy;
   }
@@ -3036,6 +3064,7 @@ function switchVersion(no){
     return r; });
 }
 $('#verSel').addEventListener('change',e=>{ switchVersion(e.target.value); });
+['focus','mousedown','touchstart'].forEach(ev=>$('#verSel').addEventListener(ev,()=>refreshVersionsSoon(false),{passive:true}));
 $('#verLatestBtn').addEventListener('click',()=>{ if(latestVersionNo) switchVersion(latestVersionNo); });
 $('#verRestoreBtn').addEventListener('click',()=>{
   const from=currentVersionNo;
@@ -3377,6 +3406,7 @@ async function init(){
       latestVersionNo = Math.max(+q.currentVersion||0, ...versionsList.map(v=>+v.versionNo||0)) || currentVersionNo;
       updateQuoteBadge();
       refreshVersions();                     // adds who-saved names; non-blocking
+      watchVersions();                       // live: versions saved on another device / tab
       if(q.status==='confirmed'){ const b=$('#quoteBadge'); if(b) b.classList.add('confirmed'); }
       toast('Opened '+q.code+' · v'+currentVersionNo);
       await offerDraftRestore();

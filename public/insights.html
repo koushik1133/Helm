@@ -42,6 +42,14 @@
   .bar .v{width:70px;flex:0 0 auto;text-align:right;font-family:var(--mono);font-size:12px;color:var(--ink-2)}
   .empty{color:var(--ink-3);font-size:13px;padding:14px 0} .muted{color:var(--ink-3);font-size:12px}
   .pos{color:var(--safe-text,#0f7a43)} .neg{color:#b42318}
+  .tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.pe{width:100%;border-collapse:collapse;font-size:13px}
+  table.pe th,table.pe td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+  table.pe .n{text-align:right;font-family:var(--mono)}
+  table.pe th button{background:none;border:0;font:inherit;font-weight:600;color:var(--ink-2);cursor:pointer;padding:0}
+  table.pe th button:focus-visible,table.pe tbody tr:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  table.pe tbody tr{cursor:pointer} table.pe tbody tr:hover{background:var(--panel-2)}
+  table.pe td a{color:inherit;font-weight:600;text-decoration:none} table.pe td a:hover{text-decoration:underline}
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
   .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,94vw);padding:26px;text-align:center}
@@ -110,6 +118,24 @@
         <h3>Collected vs outstanding</h3>
         <div id="collect"></div>
       </div>
+      <div class="card" id="perEventCard">
+        <h3>🧾 Profit per event</h3>
+        <p class="note">Confirmed events in this period. Cost includes paid expense claims. Click a column to sort, a row to open the event.</p>
+        <div class="tscroll"><table class="pe" id="perEvent">
+          <thead><tr>
+            <th scope="col" aria-sort="none"><button type="button" data-k="code">Event</button></th>
+            <th scope="col" aria-sort="ascending"><button type="button" data-k="date">Date</button></th>
+            <th scope="col" class="n" aria-sort="none"><button type="button" data-k="revenue">Revenue</button></th>
+            <th scope="col" class="n" aria-sort="none"><button type="button" data-k="cost">Cost</button></th>
+            <th scope="col" class="n" aria-sort="none"><button type="button" data-k="profit">Profit</button></th>
+            <th scope="col" class="n" aria-sort="none"><button type="button" data-k="margin_pct">Margin</button></th>
+            <th scope="col" class="n" aria-sort="none"><button type="button" data-k="collected">Collected</button></th>
+            <th scope="col" class="n" aria-sort="none"><button type="button" data-k="outstanding">Outstanding</button></th>
+          </tr></thead>
+          <tbody id="perEventBody"></tbody>
+        </table></div>
+        <div class="muted" id="perEventMsg" role="status"></div>
+      </div>
     </div>
 
     <div class="grid2">
@@ -170,7 +196,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=1"></script>
-<script src="store-api.js?v=140"></script>
+<script src="store-api.js?v=141"></script>
 <script src="range-bar.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -213,8 +239,11 @@
     const my=++seq, r=range; if(!r) return;
     $("#rangeErr").innerHTML="";
     ["#evKpis","#types","#staff","#vendors","#tasks","#lossItem","#lossMonth","#margins"].forEach(h=>{ $(h).innerHTML='<div class="empty">Loading…</div>'; });
-    const [rangeRes, sumRes]=await Promise.allSettled([BPStore.insights.range(r.from,r.to), BPStore.insights.summary({from:r.from,to:r.to})]);
+    const [rangeRes, sumRes, evRes]=await Promise.allSettled([BPStore.insights.range(r.from,r.to), BPStore.insights.summary({from:r.from,to:r.to}),
+      canFin && BPStore.insights.events ? BPStore.insights.events(r.from,r.to) : Promise.resolve(null)]);
     if(my!==seq) return;   // a newer range was picked meanwhile
+    if(evRes.status==="fulfilled"){ peRows=(evRes.value&&Array.isArray(evRes.value.events))?evRes.value.events:[]; renderPerEvent(""); }
+    else { peRows=[]; renderPerEvent((evRes.reason&&evRes.reason.code==="insights_events_missing") ? evRes.reason.message : "Couldn’t load the per-event table — try again."); }
     if(rangeRes.status==="fulfilled" && rangeRes.value) renderRange(rangeRes.value);
     else { ["#evKpis","#types","#staff"].forEach(h=>{ $(h).innerHTML='<div class="empty">—</div>'; }); $("#moneyWrap").hidden=true;
       BPUI.loadError($("#rangeErr"), rangeRes.reason||new Error("No data returned"), refresh, {what:"insights for this period"}); }
@@ -247,6 +276,38 @@
         <td class="n">${esc(p.events)}</td><td class="n">${p.kind==="manager"?"—":esc(p.tasks)+(p.tasks?` <span class="muted">(${esc(p.done)} done)</span>`:"")}</td></tr>`).join("")}</tbody></table>`;
     el.querySelectorAll("button.who").forEach(b=>b.addEventListener("click",()=>{ const u=$("#drill"+b.dataset.i); const open=u.hidden; u.hidden=!open; b.setAttribute("aria-expanded",String(open)); }));
   }
+  // 0077 per-event profit table — DOM only (textContent), sortable, rows open the event
+  let peRows=[], peSort={ k:"date", dir:1 };
+  function peVal(r,k){ const v=r[k]; if(k==="code") return String(r.code||r.title||"").toLowerCase(); if(k==="date") return String(v||"");
+    return v==null ? -Infinity : Number(v); }
+  function renderPerEvent(msg){
+    const body=$("#perEventBody"); if(!body) return; body.textContent="";
+    $("#perEventMsg").textContent = msg || (peRows.length ? "" : "No confirmed events in this period.");
+    $("#perEventCard").querySelectorAll("th").forEach(th=>{ const b=th.querySelector("button");
+      th.setAttribute("aria-sort", b && b.dataset.k===peSort.k ? (peSort.dir>0?"ascending":"descending") : "none"); });
+    const rows=peRows.slice().sort((a,b)=>{ const x=peVal(a,peSort.k), y=peVal(b,peSort.k); return (x<y?-1:x>y?1:0)*peSort.dir || String(a.code||"").localeCompare(String(b.code||"")); });
+    rows.forEach(r=>{
+      const href="event.html?id="+encodeURIComponent(r.id||"");
+      const tr=document.createElement("tr"); tr.tabIndex=0;
+      const td=(t,cls)=>{ const c=document.createElement("td"); if(cls) c.className=cls; c.textContent=t; tr.appendChild(c); return c; };
+      const first=document.createElement("td"); const a=document.createElement("a"); a.href=href;
+      a.textContent=(r.code||"Event")+(r.title&&r.title!==r.code?" · "+r.title:""); first.appendChild(a); tr.appendChild(first);
+      td(r.date||"—");
+      const money=v=>v==null?"—":inr(v);
+      td(money(r.revenue),"n"); td(money(r.cost),"n");
+      td(money(r.profit),"n "+((r.profit||0)>=0?"pos":"neg"));
+      td(r.margin_pct==null?"—":r.margin_pct+"%","n"); td(money(r.collected),"n");
+      td(money(r.outstanding),"n"+((r.outstanding||0)>0?" neg":""));
+      const go=()=>{ location.href=href; };
+      tr.addEventListener("click",e=>{ if(e.target.closest("a")) return; go(); });
+      tr.addEventListener("keydown",e=>{ if(e.key==="Enter" && e.target===tr){ e.preventDefault(); go(); } });
+      body.appendChild(tr);
+    });
+  }
+  $("#perEventCard").querySelectorAll("th button").forEach(b=>b.addEventListener("click",()=>{
+    const k=b.dataset.k; peSort = peSort.k===k ? { k, dir:-peSort.dir } : { k, dir:(k==="code"||k==="date")?1:-1 };
+    renderPerEvent($("#perEventMsg").textContent && !peRows.length ? $("#perEventMsg").textContent : "");
+  }));
   function renderSummary(d){
     bars("vendors", d.vendors.slice(0,8).map(v=>({label:v.name, value:v.rejectRate, text:`${v.rejected}/${v.total} · ${v.rejectRate}%`, color:v.rejectRate>0?"bad":"safe"})), "No outsourced tasks in this period.");
     bars("tasks", d.taskSlips.slice(0,8).map(c=>({label:c.category, value:c.rejected, text:`${c.rejected} (${c.rejectRate}%)`, color:"warn"})), "No rejections — clean record.");

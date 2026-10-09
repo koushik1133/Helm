@@ -941,7 +941,7 @@ window.HelmUrl = HelmUrl;
   const STUDIO_SEARCH_VERSION = "3";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
-  const NAV_TRAIL_VERSION = "1";
+  const NAV_TRAIL_VERSION = "2";
   if (typeof global.HelmTrail === "undefined") {
     global.HelmTrail = { setCurrent(o) { if (o) (global.__helmTrailQ = global.__helmTrailQ || []).push(o); }, recent() { return []; }, _stub: true };
   }
@@ -2312,6 +2312,20 @@ window.HelmUrl = HelmUrl;
     get: (id) => qt().get(id),
     getVersion: (id, no) => qt().getVersion(id, no),
     versions: (id) => qt().versions(id),
+    // 0077: live version lists. cb(kind) whenever a floor-plan version ("layout") or a quotation
+    // version ("quotation") of this quote is saved on ANY device (Supabase realtime; row level
+    // security keeps it to the caller's studio). Fail-soft: no realtime -> a no-op handle.
+    subscribeVersions(id, cb) {
+      if (mode !== "supabase" || !supa || typeof supa.channel !== "function" || !/^[0-9a-f-]{36}$/i.test(String(id || ""))) return { unsubscribe() {} };
+      try {
+        const f = "quote_id=eq." + id;
+        const ch = supa.channel("qv-rt-" + id + "-" + Math.random().toString(36).slice(2, 8))
+          .on("postgres_changes", { event: "INSERT", schema: "public", table: "quote_versions", filter: f }, () => { try { cb && cb("layout"); } catch (e) {} })
+          .on("postgres_changes", { event: "INSERT", schema: "public", table: "quotation_versions", filter: f }, () => { try { cb && cb("quotation"); } catch (e) {} })
+          .subscribe();
+        return { unsubscribe() { try { supa.removeChannel(ch); } catch (e) {} } };
+      } catch (e) { return { unsubscribe() {} }; }
+    },
     create: (code, title, eventType, data, objectCount) => qt().create(code, title, eventType, data, objectCount),
     startBlank: (code) => { const t = qt(); return typeof t.startBlank === "function" ? t.startBlank(code) : t.create(code, code, null, { items: [] }, 0); },
     addVersion: (id, label, data, objectCount) => qt().addVersion(id, label, data, objectCount),
@@ -5815,6 +5829,7 @@ window.HelmUrl = HelmUrl;
       return "settlement.html?quote=" + enc(q) + "#payments";
     if (/^(approval_link|otp|reapproval_required|quote_approved|quote_changed|approved|change_order)$/.test(k))
       return "quotes.html?focus=" + enc(has(n.event_code) ? n.event_code : q);
+    if (k === "price_change") return "flow.html?id=" + enc(q) + "#sec-quote";
     if (k.indexOf("design_") === 0) return "design.html?quote=" + enc(q);
     if (/^pkg_(selected|accepted|declined)$/.test(k)) return "event.html?id=" + enc(q) + "#pkg-selections";
     if (k === "pkg_payment") return "settlement.html?quote=" + enc(q) + "#payments";
@@ -6116,6 +6131,8 @@ window.HelmUrl = HelmUrl;
       pkg_selected: ["📦", "Client chose a package" + (d.package ? ": " + d.package : "") + (d.event_code ? " · " + d.event_code : "")],
       pkg_accepted: ["✅", "Package choice accepted" + (d.event_code ? " · " + d.event_code : "")],
       pkg_declined: ["↩️", "Package choice declined" + (d.event_code ? " · " + d.event_code : "")],
+      // 0077: Control Center prices changed after this future quote was priced (quote editors only — server-gated)
+      price_change: ["🏷️", "Prices changed — review & re-price" + (d.event_code ? " · " + d.event_code : "")],
       pkg_payment: ["💸", "Package payment received" + (d.event_code ? " · " + d.event_code : "")],
     };
     const hit = m[k] || (k.indexOf("design_") === 0 ? ["🎨", "Design stage: " + k.slice(7).replace(/_/g, " ")]
@@ -6386,9 +6403,27 @@ window.HelmUrl = HelmUrl;
   const portal = { get: (token) => rpc("public_get_portal", { p_token: token }) };
 
   /* ---------------- post-event insights (Phase 51) ---------------- */
+  // 0077: "Recently opened" records kept on the server per person + studio, so the clock
+  // menu is the same on every device. Fail-soft: null = server list unavailable (old DB).
+  const recents = {
+    async touch(href, title, kind) {
+      if (mode !== "supabase" || !supa) return false;
+      try { await rpc("recent_touch", { p_href: String(href || ""), p_title: String(title || ""), p_kind: kind || "record" }); return true; } catch (e) { return false; }
+    },
+    async list(limit) {
+      if (mode !== "supabase" || !supa) return null;
+      try { const r = await rpc("recent_list", { p_limit: limit || 10 }); return Array.isArray(r) ? r : []; } catch (e) { return null; }
+    },
+  };
   const insights = {
     presets: () => RANGE_PRESETS.map((p) => ({ key: p[0], label: p[1] })),
     rangeFor, rangeCheck, inRange,
+    // 0077 insights_events: per-event profit rows (money null without finance)
+    async events(from, to) {
+      if (mode !== "supabase" || !supa) return null;
+      try { return await rpc("insights_events", { p_from: from || null, p_to: to || null }); }
+      catch (e) { if (rpcMissing(e)) { const er = new Error("Per-event profit needs database update 0077 (ask your admin to run APPLY-0077.sql)."); er.code = "insights_events_missing"; throw er; } throw e; }
+    },
     // 0076 insights_range: counts, money (null without finance), top types, staff participation
     async range(from, to) {
       if (mode !== "supabase" || !supa) return null;
@@ -6980,7 +7015,7 @@ window.HelmUrl = HelmUrl;
   };
 
   const BPStore = {
-    activityText, init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat, profile, quoteShelf, uploads,
+    activityText, init, mode: () => mode, auth, quotes, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat, profile, quoteShelf, uploads,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.

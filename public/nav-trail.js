@@ -2,8 +2,10 @@
  * Loaded by store-api.js on signed-in studio pages (same gate as studio-search.js).
  *  - Pages call window.HelmTrail.setCurrent({ title, kind, href }) once a record is open
  *    (store-api defines a queueing stub so calls before this file loads are not lost).
- *  - Recent records: last 10, per user + org, localStorage (try/catch; never required),
- *    cleared on sign out (store-api removes every helm_trail_* key).
+ *  - Recent records: last 10, per user + org. Source of truth is the server (0077
+ *    recent_touch / recent_list via BPStore.recents) so the list is the same on every
+ *    device; localStorage (try/catch) is only a fast cache, cleared on sign out
+ *    (store-api removes every helm_trail_* key). Re-fetched each time the menu opens.
  *  - HelmTrail.recent() feeds studio-search's empty state.
  * No HTML-string sinks / inline style: DOM via textContent, CSS via __helmAdoptCss. */
 (function (global) {
@@ -66,6 +68,24 @@
       global.localStorage.setItem(k, JSON.stringify(list));
     } catch (e) {}
   }
+  // server copy wins on conflicts (newest "at" per href); result is cached locally
+  function merge(server) {
+    const by = {};
+    recent().concat((server || []).map((r) => ({ title: clean(r && r.title), kind: kindOf(r && r.kind), href: safeHref(r && r.href), at: Date.parse(r && r.at) || 0 })))
+      .forEach((r) => { if (r.href && r.title && (!by[r.href] || r.at > by[r.href].at)) by[r.href] = r; });
+    const list = Object.keys(by).map((h) => by[h]).sort((a, b) => b.at - a.at).slice(0, MAX);
+    const k = key(); if (k) { try { global.localStorage.setItem(k, JSON.stringify(list)); } catch (e) {} }
+    return list;
+  }
+  function serverApi() { const st = global.BPStore; return st && st.recents && typeof st.recents.list === "function" ? st.recents : null; }
+  let syncSeq = 0;
+  async function syncServer() {
+    const api = serverApi(); if (!api) return recent();
+    const my = ++syncSeq;
+    const rows = await api.list(MAX).catch(() => null);
+    if (my !== syncSeq || !Array.isArray(rows)) return recent();
+    return merge(rows);
+  }
   function clearAll() {
     try {
       const ls = global.localStorage, del = [];
@@ -102,7 +122,10 @@
     let href = safeHref(o.href);
     if (!href) { try { href = safeHref(pageKey() + ".html" + global.location.search); } catch (e) {} }
     current = { title: clean(o.title), kind, href, recordHref: safeHref(o.recordHref) };
-    if (href) remember({ title: current.title, kind, href, at: Date.now() });
+    if (href) {
+      remember({ title: current.title, kind, href, at: Date.now() });
+      const api = serverApi(); if (api && typeof api.touch === "function") api.touch(href, current.title, kind).catch(() => {});
+    }
     renderTrail();
   }
 
@@ -197,7 +220,11 @@
   }
   function setOpen(on, focusFirst) {
     R.open = on; R.pop.hidden = !on; R.btn.setAttribute("aria-expanded", on ? "true" : "false");
-    if (on) { renderPop(); const f = focusFirst && R.pop.querySelector(".htr-it"); if (f) f.focus(); }
+    if (on) {
+      renderPop(); const f = focusFirst && R.pop.querySelector(".htr-it"); if (f) f.focus();
+      // refresh from the server (other devices / tabs) and re-render if still open
+      syncServer().then(() => { if (R.open) { const had = doc.activeElement && R.pop.contains(doc.activeElement); renderPop(); if (had) { const g = R.pop.querySelector(".htr-it"); if (g) g.focus(); } } }).catch(() => {});
+    }
   }
   function placeRecent() {
     const tb = doc.getElementById("hauTopbar");
@@ -241,6 +268,7 @@
       // replay calls made before this file loaded
       const q = global.__helmTrailQ; global.__helmTrailQ = null;
       if (Array.isArray(q)) q.forEach((o) => setCurrent(o));
+      syncServer().catch(() => {});   // warm the cache from the server (cross-device)
       const tick = () => { placeRecent(); renderTrail(); };
       tick();
       try {
@@ -257,7 +285,7 @@
   }
   if (doc) { if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", auto); else auto(); }
 
-  const api = { setCurrent, recent, clearAll, trail, timeAgo, safeHref, boot, PAGES, ICONS, KIND_LABEL, MAX, PREFIX, _css: CSS, _key: key };
+  const api = { setCurrent, recent, merge, syncServer, clearAll, trail, timeAgo, safeHref, boot, PAGES, ICONS, KIND_LABEL, MAX, PREFIX, _css: CSS, _key: key };
   global.HelmTrail = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
