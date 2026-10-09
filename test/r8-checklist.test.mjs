@@ -21,4 +21,8 @@ function gate(ls, seen, forced, eligible) {
 const ls = {};
 assert.equal(gate(ls, false, true, true), true, 'first visit after sign-up runs tour');
 assert.equal(gate(ls, false, false, true), false, 'later visit (account flag write failed) does not re-run');
+assert.ok(gs.includes('href: "quotes.html?new=1&open=builder"'), 'floor plan step opens builder on a quote');
+assert.ok(q.includes('"&from=flow"') && q.includes('x.status==="quote"'), 'builder: reuse latest open quote, else create');
+assert.ok(/done = await A\.markTourSeen\(\)[\s\S]{0,80}await A\.markTourSeen\(\)/.test(d), 'markTourSeen awaited with one retry');
+assert.ok(!/tries\+\+ < 12/.test(d), 'no fixed 5s user poll');
 console.log('r8-checklist: ok');
