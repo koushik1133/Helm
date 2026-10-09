@@ -94,10 +94,10 @@ for (const f of ['function runCustomGenerate(', 'function applyRecommendation(']
   items.push({ id: 't14', type: 'table', label: 'T14', x: 5, y: 40, width: 6, height: 6, properties: { seats: 1 } });
   items.push({ id: 's1', type: 'seatblock', label: 'Left Seating', x: 5, y: 60, width: 20, height: 10, properties: { rows: 4, cols: 8 } }, { id: 's2', type: 'chairrow', label: 'Seating · last row', x: 5, y: 72, width: 6, height: 2, properties: { rows: 1, cols: 3 } });
   const r = CF.numberItems(items);
-  assert.equal(r.legend.find((l) => l.name === 'Round table (8 seats)').count, 13);
-  assert.ok(r.legend.find((l) => l.name === 'Round table (1 seat)'));
+  assert.equal(r.legend.find((l) => l.name === '8-seat round table').count, 13);
+  assert.ok(r.legend.find((l) => l.name === '1-seat round table'));
   assert.equal(r.legend.find((l) => l.name === 'Guest seating').seats, 35);
   assert.ok(items.every((it) => r.byId.has(it.id)), 'every table / block gets a badge');
-  const L = CF.legendLayout(r.legend, 600, 1000); assert.ok(L.rows.some((x) => /Guest seating — 35 seats/.test(x.text)) && L.rows.some((x) => /Round table \(8 seats\) ×13/.test(x.text)));
+  const L = CF.legendLayout(r.legend, 600, 1000); assert.ok(L.rows.some((x) => /Guest seating — 35 seats/.test(x.text)) && L.rows.some((x) => /8-seat round table ×13/.test(x.text)));
 }
 console.log(`r10-gen: ${n} ?gen=1 arrivals exact + warning / Reception / banquet quality / 0-chairs / legend OK`);
