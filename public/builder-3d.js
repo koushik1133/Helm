@@ -817,6 +817,33 @@
     }
   }
   window.__capture3D=capture3D;
+  /* Walkthrough hook (public/walkthrough.js): camera get/set + Evening lighting. Evening is
+     switched off around a client capture so the pictures are unaffected. */
+  let evening=null;
+  function setEvening(on){
+    if(!scene) return false;
+    if(on && !evening){
+      evening={hemi:hemi.intensity, sun:sun.intensity, bg:scene.background, lights:[]};
+      hemi.intensity=0.22; sun.intensity=0.12; scene.background=new THREE.Color('#0d1020');
+      const pts=(window.HelmWalkthrough && window.HelmWalkthrough.eveningLightPoints(store.items, WORLD))||[];
+      for(const p of pts){ const L=new THREE.PointLight(0xffc27a, p.k||1.1, p.r||60, 2); L.position.set(p.x,p.y,p.z); scene.add(L); evening.lights.push(L); }
+    } else if(!on && evening){
+      hemi.intensity=evening.hemi; sun.intensity=evening.sun; scene.background=evening.bg;
+      evening.lights.forEach(L=>{ scene.remove(L); L.dispose&&L.dispose(); }); evening=null;
+      if(renderMode) applyProfile();
+    }
+    return !!evening;
+  }
+  window.__helm3D={
+    isActive:()=>active,
+    getView:()=> camera&&controls ? {pos:camera.position.toArray(), target:controls.target.toArray(), minD:controls.minDistance} : null,
+    setView(pos,target,minD){ if(!camera||!controls) return;
+      camera.position.set(pos[0],pos[1],pos[2]); controls.target.set(target[0],target[1],target[2]);
+      if(minD!=null) controls.minDistance=minD; controls.update(); },
+    setEvening, isEvening:()=>!!evening,
+  };
+  window.__capture3D=async function(maxW,opts){ const ev=!!evening; if(ev) setEvening(false);
+    try{ return await capture3D(maxW,opts); } finally{ if(ev) setEvening(true); } };
 
   // public hooks
   window.__on3DStateChange=function(){ if(active && !transform?.dragging) requestBuild(); };

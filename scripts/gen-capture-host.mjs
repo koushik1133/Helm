@@ -22,6 +22,8 @@ export function captureHtml(builder) {
   must(/<title>[^<]*<\/title>/, '<title>Helm Events · preparing pictures</title>\n<meta name="helm-capture" content="1">\n<meta name="robots" content="noindex, nofollow">');
   must(/<!doctype html>\n/i, '<!doctype html>\n<!-- GENERATED from builder.html by scripts/gen-capture-host.mjs — do not edit by hand -->\n');
   s = s.replace(/<script src="tour\.js\?v=\d+"><\/script>\n/, '');   // no product tour in the headless host
+  s = s.replace(/<link rel="stylesheet" href="walkthrough\.css\?v=\d+">\n/, '');   // no walkthrough UI in the headless host
+  s = s.replace(/<script src="walkthrough\.js\?v=\d+"><\/script>\n/, '');
   return s;
 }
 const out = join(PUB, 'capture.html');
