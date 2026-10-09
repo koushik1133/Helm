@@ -235,7 +235,9 @@
     // Edit capability is derived from role for the UI; the server (design_advance)
     // is the real gate — it re-checks has_area('design','edit') on every call.
     let role=null; try{ role=await BPStore.auth.role(); }catch(_){}
-    canEdit=["admin","manager","planner","designer"].includes(role);
+    // follow the configurable access matrix (Control Center), same as the server's has_area('design','edit')
+    try{ canEdit=(typeof BPStore.auth.canEditArea==="function") ? !!(await BPStore.auth.canEditArea("design")) : ["admin","manager","planner","designer"].includes(role); }
+    catch(_){ canEdit=false; }
     // Accurate access gate: only tell someone to "ask an admin" when their role
     // genuinely can't view Design. Admins (and granted roles) pass straight through,
     // so a load failure below shows the REAL reason, not a misleading access message.

@@ -39,3 +39,22 @@ els.cm_pay_before.value = '0';
 await saveFn();
 assert.equal(setCalled, true, '0 is still a valid explicit value');
 console.log('r9d-pages: ok');
+// studio WhatsApp number: letters / too short rejected client-side (server strips non-digits)
+for (const junk of ['abc12345678xyz', '12345', '+91 98765 43210 ext 5', '1234567890123456']) {
+  setCalled = false; els.cm_wa_num.value = junk; await saveFn();
+  assert.equal(setCalled, false, 'junk WhatsApp accepted: ' + junk); assert.match(errText, /WhatsApp number with country code/);
+}
+setCalled = false; els.cm_wa_num.value = '+91 98765-43210'; await saveFn(); assert.equal(setCalled, true);
+console.log('r9d-pages wa: ok');
+// design.html: edit rights follow the access matrix (canEditArea('design')), not a hard-coded role list
+const dh = readFileSync(new URL('../public/design.html', import.meta.url), 'utf8');
+assert.match(dh, /canEditArea\("design"\)/);
+// insights.html: closed events without a code never print "null"; partial summaries don't crash
+const ih = readFileSync(new URL('../public/insights.html', import.meta.url), 'utf8');
+assert.doesNotMatch(ih, /label:e\.code\+/); assert.doesNotMatch(ih, /esc\(e\.code\+/);
+assert.match(ih, /d=Object\.assign\(\{vendors:\[\],taskSlips:\[\]\},d\)/);
+// control.html pricing: blank tax rate refused; failed save doesn't mutate the loaded config
+const ch = readFileSync(new URL('../public/control.html', import.meta.url), 'utf8');
+assert.match(ch, /a blank rate would drop tax from new quotes/);
+assert.match(ch, /setPricing\(nextCfg\); pricingCfg=nextCfg;/);
+console.log('r9d-pages static: ok');

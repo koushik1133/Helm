@@ -797,6 +797,7 @@
     if($("#p_chair").value===""||$("#p_plate").value===""){ fail("Enter a price for both chair and plate (0 is allowed)."); return; }
     let chairPrice=0; if($("#p_chair").value!==""){ const r=V.money($("#p_chair").value,{field:"Price / chair"}); if(!r.ok){ fail(r.error); return; } chairPrice=r.value; }
     let platePrice=0; if($("#p_plate").value!==""){ const r=V.money($("#p_plate").value,{field:"Price / plate"}); if(!r.ok){ fail(r.error); return; } platePrice=r.value; }
+    if(String($("#p_gst").value).trim()===""){ fail("Enter the tax rate (0 is allowed) — a blank rate would drop tax from new quotes."); $("#p_gst").focus(); return; }
     let gstPct=0; if($("#p_gst").value!==""){ const r=V.pct($("#p_gst").value,{field:"Chair/rental GST %"}); if(!r.ok){ fail(r.error); return; } gstPct=r.value; }
     let cateringGstPct=0; if($("#p_cgst").value!==""){ const r=V.pct($("#p_cgst").value,{field:"Catering GST %"}); if(!r.ok){ fail(r.error); return; } cateringGstPct=r.value; }
     let serviceChargePct=0; if($("#p_svc").value!==""){ const r=V.pct($("#p_svc").value,{field:"Service charge %"}); if(!r.ok){ fail(r.error); return; } serviceChargePct=r.value; }
@@ -806,11 +807,12 @@
     // 0079: tax country follows Studio details; India/exclusive keep the old blob shape
     const taxRes=BPStore.tax.resolve(pricingCfg), taxIncl=$("#p_taxIncl").checked;
     const taxName=String($("#p_taxName").value||"").replace(/[<>"'`]/g,"").trim().slice(0,24);
-    Object.assign(pricingCfg,{ chairPrice, platePrice, gstPct, cateringGstPct, serviceChargePct, layoutBase, currency:taxRes.currency, conflictBufferHours, country });
-    if(taxIncl) pricingCfg.taxInclusive=true; else delete pricingCfg.taxInclusive;
-    if(taxName && !BPStore.tax.profile(taxRes.country).known) pricingCfg.taxName=taxName; else delete pricingCfg.taxName;
+    // build a copy: a failed save must not leave the in-memory config ahead of the server
+    const nextCfg=Object.assign({}, pricingCfg, { chairPrice, platePrice, gstPct, cateringGstPct, serviceChargePct, layoutBase, currency:taxRes.currency, conflictBufferHours, country });
+    if(taxIncl) nextCfg.taxInclusive=true; else delete nextCfg.taxInclusive;
+    if(taxName && !BPStore.tax.profile(taxRes.country).known) nextCfg.taxName=taxName; else delete nextCfg.taxName;
     try{ localStorage.setItem("helm_org_country", country); }catch(e){}
-    try{ await BPStore.config.setPricing(pricingCfg); setMsg("ok","Pricing saved — new quotes use these rates."); }
+    try{ await BPStore.config.setPricing(nextCfg); pricingCfg=nextCfg; setMsg("ok","Pricing saved — new quotes use these rates."); }
     catch(e){ setMsg("err",errMsg(e,"save pricing")); }
   }));
   $("#saveCaps").addEventListener("click",()=>BPUI.guard($("#saveCaps"),async()=>{
