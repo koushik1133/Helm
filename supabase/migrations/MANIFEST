@@ -85,3 +85,7 @@ forward  supabase/migrations/0068_client_timeline_totals.sql
 forward  supabase/migrations/0069_package_flow.sql
 # 0070 (booklet payments: ledger-else-milestones paid + receipts) goes after 0069.
 forward  supabase/migrations/0070_booklet_payments.sql
+# 0071 (atomic reserve_inventory; was the orphaned 0070_reserve_inventory_atomic) goes after 0070.
+forward  supabase/migrations/0071_reserve_inventory_atomic.sql
+# 0072 (pending fixes: roles, invites, chat cap, inventory locks/write-off, quote code tz) goes after 0071.
+forward  supabase/migrations/0072_pending_fixes.sql
