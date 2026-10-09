@@ -222,6 +222,10 @@ function arrivalSeats(){
   try{ if(window.HelmSizing){ const cl=currentClient||{}, pr=currentPricing||{};
     saved=HelmSizing.quoteChairs(PRICING.guests!=null && cl.guests==null ? Object.assign({}, cl, { guests: PRICING.guests }) : cl, pr, null); } }catch(e){}
   let u=null; try{ u=new URLSearchParams(location.search); }catch(e){}
+  // R10 hotfix: arriving from the flow, the URL carries the flow's current seats — fresher than a
+  // half-loaded quote record — so it wins; otherwise the saved quote seats, then 70% of guests.
+  const fromFlow = u && u.get('from')==='flow' && u.get('chairs');
+  if(fromFlow) return genTargetSeats(u.get('chairs'), null, u.get('guests')) || quoteChairsNow();
   return genTargetSeats(saved, u&&u.get('chairs'), u&&u.get('guests')) || quoteChairsNow();
 }
 function quoteChairsNow(){
@@ -3791,6 +3795,7 @@ async function init(){
     // R10: the default layout auto-built on arrival carries EXACTLY the flow's seats (all seating counted)
     if(_autoDefaultLoaded){ const N=arrivalSeats(); if(N>0 && sumSeats(store.items)!==N){ exactSeats(store.items, N); resetHistory(); setSavedBaseline(); renderAll(); } }
     // R10: one event-type map for the flow arrival and the dialog prefill (Reception stays Reception)
+    const rawType=(params.get('type')||'').toLowerCase().trim();   // R10 hotfix: declared here (it went missing in R10)
     const ct=CE_TYPE[rawType]||'wedding';
     const setV=(id,v)=>{ const el=$('#'+id); if(el&&v!=null&&v!=='') el.value=v; };
     const setChk=(id,v)=>{ const el=$('#'+id); if(el) el.checked=!!v; };
