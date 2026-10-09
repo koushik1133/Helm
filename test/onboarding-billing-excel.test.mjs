@@ -79,7 +79,7 @@ t('xlsx: old binary .xls is refused with a clear message', async () => {
 });
 t('UI wiring: onboarding loads xlsx-lite, accepts .xlsx/.xls/.csv, requires billing to finish', () => {
   const h = read('public/onboarding.html'), js = read('public/onboarding.js');
-  assert.match(h, /<script src="xlsx-lite\.js\?v=1"><\/script>\n<script src="onboarding-core\.js\?v=2"><\/script>\n<script src="onboarding\.js\?v=3"><\/script>/);
+  assert.match(h, /<script src="xlsx-lite\.js\?v=1"><\/script>\n<script src="onboarding-core\.js\?v=3"><\/script>\n<script src="onboarding\.js\?v=4"><\/script>/);
   assert.match(js, /accept="\.xlsx,\.xls,\.csv/);
   assert.match(js, /Download Excel template/);
   assert.match(js, /if \(org && !billingOk\(\)\) return `<div class="ob-card"><h2>Almost there/);
@@ -88,7 +88,7 @@ t('UI wiring: onboarding loads xlsx-lite, accepts .xlsx/.xls/.csv, requires bill
 t('Control Center: billing fields, missing-details prompt, Import from Excel', () => {
   const c = read('public/control.html');
   for (const id of ['o_legal', 'o_line1', 'o_line2', 'o_city', 'o_state', 'o_pin', 'billPrompt']) assert.match(c, new RegExp('id="' + id + '"'));
-  assert.match(c, /<script src="onboarding-core\.js\?v=2"><\/script>/);
+  assert.match(c, /<script src="onboarding-core\.js\?v=3"><\/script>/);
   assert.match(c, /<h3>Import from Excel<\/h3>/);
   assert.match(c, /href="onboarding\.html#s1">Import price list/);
 });

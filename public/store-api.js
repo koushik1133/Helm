@@ -2589,9 +2589,13 @@ window.HelmUrl = HelmUrl;
       if(a.coupon && a.coupon.value){ discount += a.coupon.kind==="percent" ? subtotal*(+a.coupon.value)/100 : (+a.coupon.value); }
       discount = Math.min(Math.max(0,discount), subtotal);          // D4 cap
       const taxed = Math.max(0, subtotal - discount);               // D1 base = post-discount
-      const gst = taxed * gstPct/100;                               // D5 single rate
-      const total = Math.round(taxed + gst);                        // D7 round final only
-      return { serviceCharge, subtotal, discount, taxed, gst, total };
+      // 0079: tax-inclusive prices — the post-discount value already contains the
+      // tax, so the total is the taxed value itself and the tax is extracted from
+      // it. Mirrors helm_quote_total (server) which prices it as gstPct 0.
+      const incl = String(a.taxInclusive).toLowerCase()==="true";
+      const gst = incl ? taxed - taxed/(1+gstPct/100) : taxed * gstPct/100;   // D5 single rate
+      const total = Math.round(incl ? taxed : taxed + gst);         // D7 round final only
+      return { serviceCharge, subtotal, discount, taxed, gst, total, taxInclusive:incl };
     },
     // Quote-total (confirm-modal / write-back input shape). Now routes through
     // _canon so it agrees with breakdown() to the rupee for equivalent inputs.
@@ -2603,7 +2607,7 @@ window.HelmUrl = HelmUrl;
       const cateringAmt = clientCater?0:(+((p.catering&&p.catering.amount))||0);
       const cateringBucket = plateSub + cateringAmt;
       const c = this._canon({ preSvc: rental+cateringBucket, svcPct:+p.serviceChargePct||0,
-        discountFixed:+p.discount||0, discountPct:+p.discountPct||0, coupon:p.coupon, gstPct:+p.gstPct||0 });
+        discountFixed:+p.discount||0, discountPct:+p.discountPct||0, coupon:p.coupon, gstPct:+p.gstPct||0, taxInclusive:p.taxInclusive });
       // Single-rate GST; CGST/SGST split kept for invoice display (intra-state
       // default; IGST only when place of supply is inter-state).
       const interstate = p.placeOfSupply==="inter";
@@ -2611,7 +2615,7 @@ window.HelmUrl = HelmUrl;
         serviceCharge:c.serviceCharge, subtotal:c.subtotal,
         gstRental:c.gst, gstCatering:0, totalGst:c.gst,
         cgst: interstate?0:c.gst/2, sgst: interstate?0:c.gst/2, igst: interstate?c.gst:0,
-        discount:c.discount, total:c.total };
+        discount:c.discount, total:c.total, taxInclusive:c.taxInclusive };
     },
     // THE unified breakdown. rates = getPricing() result.
     breakdown(inp, rates){
@@ -2634,11 +2638,11 @@ window.HelmUrl = HelmUrl;
       // D3: percent discount + coupon now honoured here too (were previously
       // dropped by the builder path). D1/D5/D7 via the shared core.
       const c = this._canon({ preSvc, svcPct, discountFixed:+inp.discount||0,
-        discountPct:+inp.discountPct||0, coupon:inp.coupon, gstPct });
+        discountPct:+inp.discountPct||0, coupon:inp.coupon, gstPct, taxInclusive:rates.taxInclusive });
       return { chairs, guests, chairPrice, platePrice, chairsCost, cateringCost,
         objectLines:oi.objectLines, objectsCost, layoutBase,
         serviceCharge:Math.round(c.serviceCharge), svcPct,
-        subtotal:c.subtotal, discount:c.discount, gstPct, gst:Math.round(c.gst), total:c.total };
+        subtotal:c.subtotal, discount:c.discount, gstPct, gst:Math.round(c.gst), total:c.total, taxInclusive:c.taxInclusive };
     },
   };
   const vendors = {
@@ -8387,6 +8391,84 @@ window.HelmUrl = HelmUrl;
     all: function (checks) { var out = { ok: true, errors: [] }; checks.forEach(function (c) { var r = c; if (!r.ok) { out.ok = false; out.errors.push(r.error); } }); return out; }
   };
   BPStore.validate = V;
+
+  // ---- country-based tax (0079) ------------------------------------------------
+  // The studio's country (brand.billing.country, mirrored into the pricing config as
+  // taxCountry) decides the tax name, the tax-ID label/format, the default rate and the
+  // currency. The money itself is still ONE rate (pricing.gstPct) through the shared
+  // engine above + the server's helm_quote_total, so totals never diverge. A studio
+  // with no country set is India / GST exactly as before.
+  BPStore.tax = (function () {
+    var C = {
+      IN: { name: "India", currency: "INR", symbol: "₹", locale: "en-IN", tax: "GST", idLabel: "GSTIN", idRe: /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/, idEg: "36ABCDE1234F1Z5", rate: 18, rates: [18, 5, 12, 28, 0], split: true, regionLabel: "State" },
+      AE: { name: "United Arab Emirates", currency: "AED", symbol: "AED ", locale: "en-AE", tax: "VAT", idLabel: "TRN", idRe: /^[0-9]{15}$/, idEg: "100123456700003", rate: 5, rates: [5, 0], regionLabel: "Emirate" },
+      GB: { name: "United Kingdom", currency: "GBP", symbol: "£", locale: "en-GB", tax: "VAT", idLabel: "VAT number", idRe: /^(GB)?([0-9]{9}|[0-9]{12})$/, idEg: "GB123456789", rate: 20, rates: [20, 5, 0], regionLabel: "County" },
+      US: { name: "United States", currency: "USD", symbol: "$", locale: "en-US", tax: "Sales tax", idLabel: "Sales tax permit / EIN", idRe: /^[A-Z0-9-]{4,20}$/, idEg: "12-3456789", rate: null, rates: [], regionLabel: "State" },
+      SG: { name: "Singapore", currency: "SGD", symbol: "S$", locale: "en-SG", tax: "GST", idLabel: "GST reg. no.", idRe: /^([0-9]{8,9}[A-Z]|[TSR][0-9]{2}[A-Z]{2}[0-9]{4}[A-Z]|M[0-9A-Z][0-9]{7}[A-Z])$/, idEg: "200312345A", rate: 9, rates: [9, 0], regionLabel: "Region" },
+      AU: { name: "Australia", currency: "AUD", symbol: "A$", locale: "en-AU", tax: "GST", idLabel: "ABN", idRe: /^[0-9]{11}$/, idEg: "51824753556", rate: 10, rates: [10, 0], regionLabel: "State" },
+      CA: { name: "Canada", currency: "CAD", symbol: "C$", locale: "en-CA", tax: "GST/HST", idLabel: "GST/HST number", idRe: /^[0-9]{9}(RT[0-9]{4})?$/, idEg: "123456789RT0001", rate: null, rates: [5, 13, 15], regionLabel: "Province" },
+    };
+    var ISO = /^[A-Z]{2}$/;
+    function code(cc) { cc = String(cc || "").trim().toUpperCase(); return ISO.test(cc) ? cc : "IN"; }
+    function profile(cc) {
+      cc = code(cc); var p = C[cc];
+      if (p) return Object.assign({ code: cc, known: true }, p);
+      var nm = cc; try { var l = (BPStore.countries && BPStore.countries()) || []; for (var i = 0; i < l.length; i++) if (l[i].iso === cc) { nm = l[i].name; break; } } catch (e) {}
+      return { code: cc, known: false, name: nm, currency: "", symbol: "", locale: "en-GB", tax: "Tax", idLabel: "Tax ID", idRe: /^[A-Z0-9 ./-]{3,30}$/, idEg: "", rate: null, rates: [], regionLabel: "Region" };
+    }
+    var cleanName = function (v) { return String(v == null ? "" : v).replace(/[<>"'`\u0000-\u001f]/g, "").trim().slice(0, 24); };
+    var isTrue = function (v) { return String(v).toLowerCase() === "true"; };
+    // cfg = pricing config OR a quote's pricing snapshot ({taxCountry,taxName,gstPct,taxInclusive,currency})
+    function resolve(cfg) {
+      cfg = cfg || {}; var p = profile(cfg.taxCountry || "IN");
+      var r = Number(cfg.gstPct); var rate = (cfg.gstPct == null || cfg.gstPct === "" || !isFinite(r)) ? (p.rate == null ? 0 : p.rate) : r;
+      var cur = String(cfg.currency || "").trim().toUpperCase();
+      var currency = p.known ? p.currency : (/^[A-Z]{3}$/.test(cur) ? cur : "INR");
+      var name = (!p.known && cleanName(cfg.taxName)) || p.tax;
+      return { country: p.code, countryName: p.name, name: name, rate: rate, inclusive: isTrue(cfg.taxInclusive), currency: currency,
+        symbol: p.known ? p.symbol : (currency === "INR" ? "₹" : currency + " "), locale: p.locale, split: !!p.split,
+        idLabel: p.idLabel, idEg: p.idEg, rates: p.rates.slice(), regionLabel: p.regionLabel };
+    }
+    function money(n, res) {
+      res = res || resolve({}); var x = Number(n); if (!isFinite(x)) x = 0;
+      var neg = x < 0; x = Math.abs(x);
+      var s; try { s = x.toLocaleString(res.locale, { maximumFractionDigits: x % 1 ? 2 : 0, minimumFractionDigits: x % 1 ? 2 : 0 }); } catch (e) { s = String(Math.round(x)); }
+      return (neg ? "− " : "") + res.symbol + s;
+    }
+    function validateId(cc, raw) {
+      var p = profile(cc); var v = String(raw == null ? "" : raw).toUpperCase().replace(/\s+/g, "");
+      if (!v) return { ok: true, value: "" };
+      if (v.length > 30 || !p.idRe.test(v)) return { ok: false, value: v, error: "Enter a valid " + p.idLabel + (p.idEg ? ", e.g. " + p.idEg : "") + " (or leave it blank)." };
+      return { ok: true, value: v };
+    }
+    // India: same state -> intra (CGST+SGST), different -> inter (IGST); null when unknown
+    function placeOfSupply(studioState, otherState) {
+      var n = function (s) { return String(s || "").toLowerCase().replace(/[^a-z]/g, ""); };
+      var a = n(studioState), b = n(otherState); if (!a || !b) return null;
+      return a === b ? "intra" : "inter";
+    }
+    // display rows for the tax part of a breakdown: [{label, pct, amount}]
+    function rows(t, pricing, res) {
+      res = res || resolve(pricing); t = t || {}; pricing = pricing || {};
+      var gst = Number(t.totalGst != null ? t.totalGst : t.gst) || 0, pct = res.rate;
+      var inc = res.inclusive ? " (included)" : "";
+      if (res.split) {
+        if (pricing.placeOfSupply === "inter") return [{ label: "IGST" + inc, pct: pct, amount: gst }];
+        return [{ label: "CGST" + inc, pct: pct / 2, amount: gst / 2 }, { label: "SGST" + inc, pct: pct / 2, amount: gst / 2 }];
+      }
+      return [{ label: res.name + inc, pct: pct, amount: gst }];
+    }
+    // keys a quote's pricing snapshot carries so client pages (which can't read the
+    // studio config) label it right. India/exclusive adds nothing -> payload unchanged.
+    function snapshot(res) {
+      var o = {}; if (!res) return o;
+      if (res.country !== "IN") { o.taxCountry = res.country; o.taxName = res.name; o.currency = res.currency; }
+      if (res.inclusive) o.taxInclusive = true;
+      return o;
+    }
+    function countries() { return Object.keys(C).map(function (k) { return { iso: k, name: C[k].name }; }); }
+    return { COUNTRIES: C, profile: profile, resolve: resolve, money: money, validateId: validateId, placeOfSupply: placeOfSupply, rows: rows, snapshot: snapshot, countries: countries, code: code };
+  })();
 
   // ---- amount in words (Indian numbering: crore/lakh/thousand) — QA M-07 -----
   // Used on quotes/invoices so a large manually-influenced total is unambiguous

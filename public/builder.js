@@ -190,7 +190,7 @@ const EVENT_TYPE_PRESET = {
   political:'political_theatre', birthday:'birthday_party', gala:'gala_awards',
 };
 
-function inr(n){ return '₹'+Math.round(n||0).toLocaleString('en-IN'); }
+function inr(n){ const T=window.BPStore&&BPStore.tax; if(T && PRICING.taxCountry && T.code(PRICING.taxCountry)!=='IN') return T.money(Math.round(n||0), T.resolve(PRICING)); return '₹'+Math.round(n||0).toLocaleString('en-IN'); }
 function esc(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
 // The ONE breakdown — delegated to BPStore.pricing so the builder and the
@@ -271,7 +271,8 @@ async function syncQuotePricingNow(){
           return hand ? currentPricing.other : auto; })(),
         otherAuto: oi.objectsCost + (+PRICING.layoutBase||0),
         catering: currentPricing.catering || { mode:'inhouse', amount:0, gstPct:PRICING.gstPct },
-      });
+      // 0079: a NEW quote takes the studio's tax country/inclusive setting; a priced one keeps its own
+      }, currentPricing.gstPct==null ? BPStore.tax.snapshot(BPStore.tax.resolve(PRICING)) : {});
       const t = BPStore.pricing.quoteTotal(p);
       const pricing = Object.assign({}, p, { computed:t, total:t.total, client: currentClient });
       await BPStore.quotes.updateMeta(currentQuoteId, { pricing }, expectedUpdatedAt);
@@ -318,7 +319,7 @@ function renderPrice(){
   if(m.serviceCharge>0) rows+=`<div class="prow"><span>Service <span class="q">${m.svcPct}%</span></span><span class="amt">${inr(m.serviceCharge)}</span></div>`;
   if(!rows) rows='<div class="empty">Add items and pick a menu package to see the price build up.</div>';
   const tax = m.subtotal>0 ? `<div class="prow sub"><span>Subtotal</span><span class="amt">${inr(m.subtotal)}</span></div>`
-    + `<div class="prow"><span>GST <span class="q">${m.gstPct}%</span></span><span class="amt">${inr(m.gst)}</span></div>` : '';
+    + `<div class="prow"><span>${esc(BPStore.tax.resolve(PRICING).name)}${m.taxInclusive?' (included)':''} <span class="q">${m.gstPct}%</span></span><span class="amt">${inr(m.gst)}</span></div>` : '';
   box.innerHTML = rows + tax +
     `<div class="prow total"><span>Total</span><span class="amt">${inr(m.total)}</span></div>`;
   const gd=$('#bGuests'); if(gd && document.activeElement!==gd) gd.placeholder = m.chairs+' (= chairs)';
@@ -3339,6 +3340,9 @@ async function init(){
       if(pc.chairPrice!=null) PRICING.chairPrice=+pc.chairPrice;
       if(pc.platePrice!=null) PRICING.platePrice=+pc.platePrice;
       if(pc.gstPct!=null)     PRICING.gstPct=+pc.gstPct;
+      // 0079: studio tax country / inclusive prices (labels + the inclusive money rule)
+      ['taxCountry','taxName','currency'].forEach(k=>{ if(pc[k]!=null) PRICING[k]=pc[k]; });
+      if(String(pc.taxInclusive).toLowerCase()==='true') PRICING.taxInclusive=true;
       if(pc.layoutBase!=null) PRICING.layoutBase=+pc.layoutBase;
       if(pc.serviceChargePct!=null) PRICING.serviceChargePct=+pc.serviceChargePct;
       if(pc.assetPrices)      PRICING.assetPrices=pc.assetPrices;
