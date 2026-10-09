@@ -17,6 +17,8 @@
     // no record of the last auto value → treat an existing `other` as hand-set (never clobber it)
     var hand = pr.other != null && (prevAuto == null || +pr.other !== prevAuto);
     var other = hand ? num(pr.other) : auto;
+    // R8: chairs typed by hand (pricing.chairsManual) are kept until the user resets them to 70%
+    if (pr.chairsManual && pr.chairs != null) chairs = Math.round(num(pr.chairs));
     var chairsChanged = pr.chairs == null ? chairs > 0 : +pr.chairs !== chairs;
     var otherChanged = pr.other == null ? other > 0 : +pr.other !== other;
     return { chairs: chairs, other: other, otherAuto: auto, otherHand: hand,

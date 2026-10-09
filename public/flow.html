@@ -232,7 +232,7 @@
           </div>
           <div class="secerr" id="err-rates"></div>
           <div class="grid">
-            <div class="fld"><label for="q_chairs">Chairs (from layout)</label><input id="q_chairs" type="number" min="0"></div>
+            <div class="fld"><label for="q_chairs">Chairs <small id="q_chairsHint">(70% of guests, or from layout)</small> <a href="#" id="q_chairsReset" hidden>reset to 70%</a></label><input id="q_chairs" type="number" min="0"></div>
             <div class="fld"><label for="q_guests">Guests / plates</label><input id="q_guests" type="number" min="0"></div>
             <div class="fld"><label for="q_chairPrice">Chair rate (₹) <span class="s-c78b388">· set in Control Center</span></label><input class="s-10bfcec" id="q_chairPrice" type="number" min="0" readonly title="Fixed — change it in Control Center → Pricing"></div>
             <div class="fld"><label for="q_platePrice">Plate price (₹) <span class="s-c78b388">· from package / Control Center</span></label><input class="s-10bfcec" id="q_platePrice" type="number" min="0" readonly title="Fixed — set by the menu package or Control Center → Pricing"></div>
@@ -334,7 +334,8 @@
 <script src="tour.js?v=9"></script>
 <script src="booklet.js?v=13"></script>
 <script src="share-checklist.js?v=5"></script>
-<script src="flow-layout-sync.js?v=1"></script>
+<script src="flow-layout-sync.js?v=2"></script>
+<script src="event-sizing.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -363,7 +364,8 @@
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   let ev=null, rates={chairPrice:200,platePrice:500,gstPct:18,layoutBase:0,serviceChargePct:0,assetPrices:null};
   let packages=[], plan=null, appliedPkg=null, layoutItems=[], canEdit=false;
-  let qGuestsOverridden=false;   // H-02: true once the user edits the Quotation guest count directly
+  let qGuestsOverridden=false;
+  let chairsManual=false, layoutRoom=null;   // R8: one sizing source — chairs typed by hand stay put until "reset to 70%"   // H-02: true once the user edits the Quotation guest count directly
   const REMIND_KEY = "bp_flow_remind_"+id;
   // ---- unsaved-changes tracking ----
   // `loading` is true while loadAll() prefills the form so programmatic fills
@@ -437,6 +439,7 @@
       discount:nn($("#q_discount").value||0), catering:{mode:"inhouse",gstPct},
       couponCode:($("#q_coupon")?$("#q_coupon").value.trim():""), coupon:appliedCoupon,
       placeOfSupply:"intra", currency:"INR", taxCountry:undefined, taxName:undefined, taxInclusive:undefined, ...BPStore.tax.snapshot(fTax()),   // R4: undefined clears a stale snapshot key on re-save
+      chairsManual,
       _objectsCost:oi.objectsCost, _packageName:appliedPkg?appliedPkg.name:null };
   }
   function renderPrice(){
@@ -529,7 +532,21 @@
     var gv=$("#c_guests").value;
     if($("#g_guests")) $("#g_guests").value=gv;
     if(!qGuestsOverridden && $("#q_guests")) $("#q_guests").value=gv;
+    // R8: hall size + chairs ride on the same client record the builder reads
+    ev.client=HelmSizing.merge(ev.client,{ hallLen:$("#g_len").value, hallWid:$("#g_wid").value, chairsManual });
+    if(chairsManual) ev.client=HelmSizing.merge(ev.client,{ chairs:$("#q_chairs").value });
+    else { const a=autoChairs(); ev.client=HelmSizing.merge(ev.client,{ chairs:a });
+      if($("#q_chairs") && a!=null && String($("#q_chairs").value)!==String(a)) $("#q_chairs").value=a; }
+    syncChairsUi();
   }
+  // R8: default chairs = layout chairs when a floor exists, else 70% of guests (rounded up)
+  function autoChairs(){
+    const oi=BPStore.pricing.fromItems(layoutItems||[], rates&&rates.assetPrices);
+    if(oi.chairs>0) return oi.chairs;
+    const g=$("#c_guests").value!==""?+$("#c_guests").value:null;
+    return HelmSizing.defaultChairs(g);
+  }
+  function syncChairsUi(){ const r=$("#q_chairsReset"); if(r) r.hidden=!chairsManual; }
   function syncVenueMem(){ ev.client=Object.assign({}, ev.client||{}, { venue:$("#v_name").value.trim()||null, address:$("#v_addr").value.trim()||null }); }
   // Persist every section that used to auto-save. saveVenue() also writes the
   // plan (venue + menu notes), so saveMenuNotes() is covered. Quotation versions
@@ -883,7 +900,7 @@
     if(plan&&plan.menu_template) appliedPkg=packages.find(p=>p.name===plan.menu_template)||null;
     renderPackages(); }
   async function loadProposal(){ const pr=await BPStore.proposal.get(id); if(pr){ $("#pr_concept").value=pr.concept||""; $("#pr_theme").value=pr.theme||""; $("#pr_scope").value=(pr.scope||[]).join("\n"); } }
-  async function loadLayout(){ const v=await BPStore.quotes.getVersion(id, ev.currentVersion); layoutItems=(v&&v.data&&v.data.items)||[]; }
+  async function loadLayout(){ const v=await BPStore.quotes.getVersion(id, ev.currentVersion); layoutItems=(v&&v.data&&v.data.items)||[]; layoutRoom=(v&&v.data&&v.data.venue&&v.data.venue.room)||null; }
   const SECTIONS={
     rates:    ["#err-rates","pricing rates",loadRates],
     discovery:["#err-discovery","discovery notes",loadDiscovery],
@@ -898,7 +915,10 @@
     const cl=ev.client||{};
     const oi=BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
     const pr=ev.pricing||{};
-    $("#q_chairs").value=pr.chairs!=null?pr.chairs:oi.chairs;
+    chairsManual=!!(cl.chairsManual||pr.chairsManual);
+    $("#q_chairs").value=chairsManual ? (pr.chairs!=null?pr.chairs:(cl.chairs!=null?cl.chairs:""))
+      : (oi.chairs>0 ? (pr.chairs!=null&&pr.chairs>0?pr.chairs:oi.chairs) : (pr.chairs>0?pr.chairs:(HelmSizing.defaultChairs(cl.guests)??"")));
+    syncChairsUi();
     $("#q_guests").value=pr.guests!=null?pr.guests:(cl.guests!=null?cl.guests:(oi.chairs||""));  // H-02: empty, not "0", when unknown
     $("#q_platePrice").value=pr.platePrice!=null?pr.platePrice:(appliedPkg?appliedPkg.price_per_plate:rates.platePrice);
     $("#q_other").value=pr.other!=null?pr.other:(oi.objectsCost+(+rates.layoutBase||0));
@@ -931,6 +951,8 @@
     await runSection("packages");
     await runSection("proposal");
     await runSection("layout");
+    // R8: hall length/breadth persist on the quote (client.hallLen/hallWid; fallback: the saved layout's hall)
+    { const sz=HelmSizing.resolve(cl, ev.pricing, layoutRoom); $("#g_len").value=sz.len||""; $("#g_wid").value=sz.wid||""; }
     seedQuote();
     renderPrice(); updateProgress();
     // advance payment + activity
@@ -1003,7 +1025,12 @@
     ["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_guests","c_budget"].forEach(f=>$("#"+f).addEventListener("input",()=>{ syncClientMem(); if(f==="c_guests"||f==="c_type") renderPrice(); }));
     ["v_name","v_addr"].forEach(f=>$("#"+f).addEventListener("input",syncVenueMem));
     ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount"].forEach(f=>$("#"+f).addEventListener("input",renderPrice));
-    $("#q_guests").addEventListener("input",()=>{ qGuestsOverridden=true; });   // H-02: user took manual control of the quotation guest count
+    $("#q_guests").addEventListener("input",()=>{ qGuestsOverridden=true; });
+    // R8: one sizing source — layout-section fields mirror the client record live
+    $("#g_guests").addEventListener("input",()=>{ $("#c_guests").value=$("#g_guests").value; syncClientMem(); renderPrice(); });
+    ["g_len","g_wid"].forEach(f=>$("#"+f).addEventListener("input",syncClientMem));
+    $("#q_chairs").addEventListener("input",()=>{ chairsManual=true; syncClientMem(); });
+    $("#q_chairsReset").addEventListener("click",(e)=>{ e.preventDefault(); chairsManual=false; syncClientMem(); markDirty(); renderPrice(); updateAdvance(); });   // H-02: user took manual control of the quotation guest count
     $("#q_coupon").addEventListener("input",applyCoupon);   // coupon code → discount
     // dirty tracking: any genuine user input/change anywhere in the quote form
     // flips `dirty` (guarded by `loading` so prefills don't count).
@@ -1030,7 +1057,7 @@
       try{ if($("#remindAfter").checked) localStorage.setItem(REMIND_KEY,"1"); }catch{}
       // flush the current form so the builder opens with up-to-date guests/venue
       // (the layout section's guests wins if the user just typed it there)
-      const gg=$("#g_guests").value; if(gg!=="" && $("#c_guests").value!==gg){ $("#c_guests").value=gg; syncClientMem(); markDirty(); }
+      const gg=$("#g_guests").value; if(gg!=="" && $("#c_guests").value!==gg){ $("#c_guests").value=gg; markDirty(); } syncClientMem();
       const btn=$("#openBuilder"); if(btn.getAttribute("aria-busy")==="true") return;
       const t=btn.textContent; btn.dataset.lbl=t; btn.textContent="Saving…"; btn.setAttribute("aria-busy","true");
       // Only persist if the user actually changed something — no phantom save when
@@ -1048,6 +1075,9 @@
       if(b){ b.removeAttribute("aria-busy"); if(b.textContent==="Saving…") b.textContent=b.dataset.lbl||"🎨 Open floor builder →"; } });
     $("#genLayout").addEventListener("click",()=>BPUI.guard($("#genLayout"),async()=>{
       try{ if($("#remindAfter").checked) localStorage.setItem(REMIND_KEY,"1"); }catch{}
+      // R8 root cause (b): the layout-section guests were never copied to the client record on this
+      // path, so they were not saved and came back blank. Mirror first, then save.
+      { const gg=$("#g_guests").value; if(gg!=="" && $("#c_guests").value!==gg){ $("#c_guests").value=gg; markDirty(); } syncClientMem(); }
       if(dirty){ let ok=false; try{ ok=await saveAll(); }catch(_){}   // carry unsaved edits into the builder
         if(!ok && !(await confirmLeaveAnyway())) return; }
       leaving=true;
@@ -1058,6 +1088,7 @@
       if(type) p.set("type",type); if(guests) p.set("guests",guests);
       if($("#g_len").value) p.set("len",$("#g_len").value);
       if($("#g_wid").value) p.set("wid",$("#g_wid").value);
+      if($("#q_chairs").value!=="") p.set("chairs",$("#q_chairs").value);
       location.href="builder.html?"+p.toString();
     }).catch(()=>{}));
     $("#dismissReminder").addEventListener("click",()=>$("#reminder").hidden=true);

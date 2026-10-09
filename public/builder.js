@@ -224,9 +224,17 @@ function buildMenuControls(){
     g.addEventListener('change', persistGuests);
   }
 }
+// R8: write a sizing patch (guests / chairs / tables / hall L×B) onto the quote's client record —
+// the same record the quote flow reads, so both screens show one set of numbers.
+async function persistSizing(patch){
+  if(!currentQuoteId || !window.HelmSizing) return;
+  try{ currentClient = HelmSizing.merge(currentClient, patch);
+    await BPStore.quotes.updateMeta(currentQuoteId, { client: currentClient }); }
+  catch(e){ /* non-fatal */ }
+}
 async function persistGuests(){
   if(!currentQuoteId || PRICING.guests==null) return;
-  try{ currentClient = Object.assign({}, currentClient, { guests: PRICING.guests });
+  try{ currentClient = window.HelmSizing ? HelmSizing.merge(currentClient, { guests: PRICING.guests }) : Object.assign({}, currentClient, { guests: PRICING.guests });
     await BPStore.quotes.updateMeta(currentQuoteId, { client: currentClient }); }
   catch(e){ /* non-fatal */ }
   syncQuotePricing();
@@ -254,12 +262,15 @@ async function syncQuotePricingNow(){
       try{ const latest = await BPStore.quotes.get(currentQuoteId);
         if(latest){ currentPricing = latest.pricing || currentPricing; expectedUpdatedAt = latest.updatedAt || null; } }catch(_){}
       const oi = BPStore.pricing.fromItems(store.items, PRICING.assetPrices);
-      const chairs = oi.chairs;
+      // R8: chairs typed by hand on the quote are kept (until "reset to 70%"); otherwise they follow the layout
+      const chairsManual = !!(currentPricing.chairsManual || (currentClient && currentClient.chairsManual));
+      const chairs = chairsManual && (currentPricing.chairs!=null || (currentClient&&currentClient.chairs!=null))
+        ? +(currentPricing.chairsManual && currentPricing.chairs!=null ? currentPricing.chairs : currentClient.chairs) : oi.chairs;
       const guests = PRICING.guests!=null ? PRICING.guests : chairs;
       const platePrice = PRICING.menuPlatePrice!=null ? PRICING.menuPlatePrice
                         : (currentPricing.platePrice!=null?currentPricing.platePrice:PRICING.platePrice);
       const p = Object.assign({}, currentPricing, {
-        chairs, guests, platePrice,
+        chairs, guests, platePrice, chairsManual,
         chairPrice: currentPricing.chairPrice!=null?currentPricing.chairPrice:PRICING.chairPrice,
         gstPct: currentPricing.gstPct!=null?currentPricing.gstPct:PRICING.gstPct,
         serviceChargePct: currentPricing.serviceChargePct!=null?currentPricing.serviceChargePct:PRICING.serviceChargePct,
@@ -2191,7 +2202,8 @@ function runCustomGenerate(){
     const v=variants[+card.dataset.idx];
     loadItems(v.items, 'Custom · '+v.name);
     // one headcount: the "Expected guests" from the generator also becomes the plates/guests for pricing
-    if(o.guests!=null){ PRICING.guests=o.guests; const g=$('#bGuests'); if(g) g.value=o.guests; persistGuests(); }
+    if(o.guests!=null){ PRICING.guests=o.guests; const g=$('#bGuests'); if(g) g.value=o.guests; }
+    persistSizing(sizingPatch(o)).then(()=>{ if(o.guests!=null) persistGuests(); });
     closeCustomModal();
     renderPrice();
     toast(v.name+' · '+v.counts.chairs+' chairs, '+v.counts.objects+' objects');
@@ -2220,7 +2232,74 @@ function applyCapHints(){
     el.addEventListener('change',()=>{ try{ if(applyRoomFromForm(readCustomForm())===false) return; sizeCanvas(); renderAll(); fitView(); }catch(e){} });
   });
 }
-function openCustomModal(){ $('#customModal').hidden=false; $('#c_results').innerHTML=''; try{ applyCapHints(); }catch(e){} }
+function openCustomModal(){ $('#customModal').hidden=false; $('#c_results').innerHTML=''; try{ applyCapHints(); }catch(e){}
+  try{ prefillCustomForm(); wireSizingForm(); renderRecommendations(); }catch(e){} }
+/* R8: the Custom Event dialog is prefilled from the quote (guests, chairs, tables, hall, type) and
+   keeps chairs = 70% of guests / tables = chairs ÷ seats-per-table until the user types their own. */
+const CE_TYPE = { wedding:'wedding', reception:'wedding', engagement:'wedding', gala:'wedding', cocktail:'wedding', birthday:'wedding',
+  concert:'concert', festival:'festival', political:'political', rally:'political',
+  conference:'conference', corporate:'conference', expo:'conference', product_launch:'conference' };
+let ceChairsManual=false, ceTablesManual=false;
+function prefillCustomForm(){
+  const sz=HelmSizing.resolve(currentClient, currentPricing, store.venue&&store.venue.room);
+  const fill=(id,v)=>{ const el=$('#'+id); if(el && el.value==='' && v!=null && v!=='') el.value=v; };
+  if(PRICING.guests!=null && sz.guests==null) sz.guests=PRICING.guests;
+  fill('c_guests', sz.guests); fill('c_len', sz.len); fill('c_wid', sz.wid);
+  ceChairsManual = ceChairsManual || sz.chairsManual; ceTablesManual = ceTablesManual || sz.tablesManual;
+  fill('c_chairs', sz.chairsManual ? sz.chairs : HelmSizing.defaultChairs(+$('#c_guests').value||sz.guests));
+  fill('c_tables', sz.tablesManual ? sz.tables : HelmSizing.defaultTables(+$('#c_chairs').value||null, +$('#c_spt').value||null));
+  const t=CE_TYPE[String(PRICING.eventType||'').toLowerCase()], sel=$('#c_type');
+  if(t && sel && !sel.dataset.touched && [...sel.options].some(o=>o.value===t)) sel.value=t;
+  syncCeChairsUi();
+}
+function syncCeChairsUi(){ const r=$('#c_chairsReset'); if(r) r.hidden=!ceChairsManual; }
+function ceAutoFill(){
+  const g=$('#c_guests').value===''?null:+$('#c_guests').value;
+  if(!ceChairsManual){ const c=HelmSizing.defaultChairs(g); $('#c_chairs').value=c==null?'':c; }
+  if(!ceTablesManual){ const tb=HelmSizing.defaultTables($('#c_chairs').value===''?null:+$('#c_chairs').value, +$('#c_spt').value||null); $('#c_tables').value=tb==null?'':tb; }
+  syncCeChairsUi(); renderRecommendations();
+}
+function wireSizingForm(){
+  const m=$('#customModal'); if(!m || m.dataset.sizingWired) return; m.dataset.sizingWired='1';
+  $('#c_guests').addEventListener('input',ceAutoFill);
+  $('#c_spt').addEventListener('input',ceAutoFill);
+  $('#c_chairs').addEventListener('input',()=>{ ceChairsManual=$('#c_chairs').value!==''; ceAutoFill(); });
+  $('#c_tables').addEventListener('input',()=>{ ceTablesManual=$('#c_tables').value!==''; renderRecommendations(); });
+  ['c_len','c_wid'].forEach(id=>$('#'+id).addEventListener('input',renderRecommendations));
+  $('#c_type').addEventListener('change',()=>{ $('#c_type').dataset.touched='1'; renderRecommendations(); });
+  $('#c_chairsReset').addEventListener('click',e=>{ e.preventDefault(); ceChairsManual=false; ceAutoFill(); });
+}
+function sizingPatch(o){
+  const p={ chairsManual:ceChairsManual, tablesManual:ceTablesManual };
+  if(o.guests!=null) p.guests=o.guests;
+  if(o.chairs!=null) p.chairs=o.chairs;
+  if(o.tables!=null) p.tables=o.tables;
+  if(o.len) p.hallLen=o.len; if(o.wid) p.hallWid=o.wid;
+  return p;
+}
+function renderRecommendations(){
+  const host=$('#c_recs'); if(!host || !window.HelmSizing) return;
+  const o=readCustomForm();
+  const recs=HelmSizing.rankTemplates({ type:PRICING.eventType||o.type, guests:o.guests, chairs:o.chairs, len:o.len||WORLD.w, wid:o.wid||WORLD.h }, null, 3);
+  host.innerHTML = recs.map((r,idx)=>`<button type="button" class="ccard" data-rec="${idx}" aria-label="Use template: ${esc(r.label)}"><span class="ch">${esc(r.label)}</span>`+
+    r.why.map(w=>`<span class="cp">${esc(w)}</span>`).join('')+`<span class="use">Use with my numbers →</span></button>`).join('');
+  host.querySelectorAll('[data-rec]').forEach(b=>b.addEventListener('click',()=>applyRecommendation(recs[+b.dataset.rec])));
+}
+// one-click apply: build the recommended style from the USER's guests/chairs/tables/hall (never the preset's fixed counts)
+function applyRecommendation(rec){
+  if(!rec) return;
+  const o=Object.assign(readCustomForm(), rec.opts||{});
+  o.guests=clampCap(o.guests,CAPS.guests); o.chairs=clampCap(o.chairs,CAPS.chairs); o.tables=clampCap(o.tables,CAPS.tables);
+  if(applyRoomFromForm(o)===false) return;
+  sizeCanvas();
+  const variants=generateVariants(o).map(v=>({...v, items:v.items.map(clampItem)}));
+  const v=variants.find(x=>x.name===rec.variant) || variants[0]; if(!v) return;
+  loadItems(v.items, 'Template · '+rec.label);
+  if(o.guests!=null){ PRICING.guests=o.guests; const g=$('#bGuests'); if(g) g.value=o.guests; }
+  persistSizing(sizingPatch(o)).then(()=>{ if(o.guests!=null) persistGuests(); });
+  closeCustomModal(); renderAll(); fitView(); renderPrice();
+  toast(rec.label+' · '+v.counts.chairs+' chairs');
+}
 function closeCustomModal(){ $('#customModal').hidden=true; }
 
 /* ===================================================================
@@ -3486,12 +3565,13 @@ async function init(){
     const sel=$('#c_type'); if(sel && [...sel.options].some(o=>o.value===ct)) sel.value=ct;
     const guests=+params.get('guests')||0;
     setV('c_guests', params.get('guests')); setV('c_len', params.get('len')); setV('c_wid', params.get('wid'));
+    if(params.get('chairs')){ setV('c_chairs', params.get('chairs')); }   // R8: the quote's chairs (70% default or hand-set) drive the generator
     if(guests){ PRICING.guests=guests; const g=$('#bGuests'); if(g) g.value=guests; }
     // apply the admin-configured layout rule for this event type (seats/guest, buffet, bars, components)
     try{
       const rule = await BPStore.layoutRules.get(rawType) || await BPStore.layoutRules.get(ct);
       if(rule){
-        if(rule.seatsPerGuest!=null && guests) setV('c_chairs', Math.round(guests*(+rule.seatsPerGuest)));
+        if(rule.seatsPerGuest!=null && guests && !params.get('chairs')) setV('c_chairs', Math.round(guests*(+rule.seatsPerGuest)));
         if(rule.bars!=null) setV('c_bars', rule.bars);
         if(rule.buffetPer!=null && guests) setChk('c_buffet', guests>=(+rule.buffetPer));
         if(rule.stage!=null) setChk('c_stage', rule.stage);
