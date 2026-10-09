@@ -36,7 +36,7 @@ t('closure re-open: server sentence shown, not a generic retry line', () => {
 t('pages bumped', () => {
   for (const p of ['quotes.html', 'dashboard.html', 'closure.html', 'flow.html']) {
     const h = read('public/' + p);
-    assert.match(h, /store-api\.js\?v=158/, p);
+    assert.match(h, /store-api\.js\?v=159/, p);
   }
 });
 console.log(`r9-flow: ${n} passed`);

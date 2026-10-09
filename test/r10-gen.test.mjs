@@ -43,7 +43,7 @@ assert.equal(G.genTargetSeats(null, '', '150'), 105, 'no chairs in the URL → 7
 assert.equal(G.genTargetSeats(null, '0', 'abc'), 0, 'garbage → no target');
 const gen = js.slice(js.indexOf("if(params.get('gen')==='1'"), js.indexOf("openCustomModal();", js.indexOf("if(params.get('gen')==='1'")));
 assert.match(gen, /if\(_autoDefaultLoaded\)\{ const N=arrivalSeats\(\); if\(N>0 && sumSeats\(store\.items\)!==N\)\{ exactSeats\(store\.items, N\)/);
-assert.match(js, /\{ const N=arrivalSeats\(\); if\(N>0\) exactSeats\(store\.items, N\); \}/);
+assert.match(js, /const N=arrivalSeats\(\);[\s\S]{0,200}if\(N>0\) exactSeats\(store\.items, N\);/);
 
 // 2. warning: same capacity model as rankTemplates — 105 seats in 80x50 fits (no "12,728 sq ft")
 G.WORLD.w = 80; G.WORLD.h = 50;

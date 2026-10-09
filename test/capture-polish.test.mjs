@@ -42,7 +42,7 @@ t('capture3D uses the framing helper, hides grid/edge, 2x supersample, restores 
   const cap = js.slice(js.indexOf('async function capture3D'), js.indexOf('window.__capture3D='));
   assert.doesNotMatch(cap, /ACESFilmic|toneMappingExposure|multiplyScalar\(0\.72\)|sun\.intensity=1|hemi\.intensity=0/); assert.match(js, /keep\.labels\.forEach/);
   const html = read('public/builder.html');
-  assert.match(html, /capture-frame\.js\?v=11"><\/script>\n<script src="builder-3d\.js\?v=11"/);
+  assert.match(html, /capture-frame\.js\?v=12"><\/script>\n<script src="builder-3d\.js\?v=12"/);
 });
 t('panel toggle re-fits the 2D plan only while at fit zoom', () => {
   const js = read('public/builder.js');
