@@ -216,6 +216,15 @@
   }
   // final image split: render area on the left (~80%), legend panel on the right
   function legendSplit(W){ const panel=Math.round(W*0.2); return {renderW:W-panel, panelW:panel}; }
-  const api={ labelMode, LABEL_MODES, layoutTags, drawNameTags, numberItems, layoutBadges, legendLayout, drawBadge, drawBadges, drawLegend, legendSplit, frameBox, projectBox, labelWorldHeight, labelScaleForDepth, unionFloor, pickLabels, LABEL_CAP_RATIO };
+  // R8: per-picture capture result -> one message. r = { '2d_labels': true | 'reason', ... } (missing key = not tried)
+  function captureSummary(r){
+    r=r||{}; const KEYS=['2d_labels','2d_plain','3d_labels','3d_plain'];
+    const nm=k=>(k.slice(0,2)==='2d'?'2D ':'3D ')+(k.slice(3)==='plain'?'without labels':'with labels');
+    const ok=KEYS.filter(k=>r[k]===true), bad=KEYS.filter(k=>r[k]!==true);
+    if(!bad.length) return {ok:true, saved:ok, failed:[], message:'Client images updated (2D + 3D, with and without labels)'};
+    const why=bad.map(k=>nm(k)+(typeof r[k]==='string' && r[k] ? ' ('+r[k]+')' : '')).join('; ');
+    return {ok:false, saved:ok, failed:bad, message:(ok.length ? 'Saved '+ok.map(nm).join(', ')+'. ' : 'No client images saved. ')+'Not saved: '+why+'.'};
+  }
+  const api={ captureSummary, labelMode, LABEL_MODES, layoutTags, drawNameTags, numberItems, layoutBadges, legendLayout, drawBadge, drawBadges, drawLegend, legendSplit, frameBox, projectBox, labelWorldHeight, labelScaleForDepth, unionFloor, pickLabels, LABEL_CAP_RATIO };
   if(typeof module!=='undefined' && module.exports) module.exports=api; else root.HelmCaptureFrame=api;
 })(typeof window!=='undefined'?window:globalThis);

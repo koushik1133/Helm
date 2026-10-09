@@ -58,7 +58,7 @@ t('store-api bookletDataUrl: only jpeg/png/webp + base64 characters', () => {
 t('builder: Labels None | Numbers | Names control in the 3D toolbar + legend card', () => {
   const h = read('public/builder.html');
   assert.match(h, /<span class="labels3d" id="labels3d" role="group" aria-label="Labels">[\s\S]*data-l="none"[\s\S]*data-l="numbers"[\s\S]*data-l="names"[\s\S]*<\/span>\s*<\/div>\s*<div class="legend3d" id="legend3d" hidden/);
-  assert.match(h, /builder\.js\?v=19/); assert.match(h, /builder-3d\.js\?v=9/); assert.match(h, /capture-frame\.js\?v=6/); assert.match(h, /builder\.css\?v=10/);
+  assert.match(h, /builder\.js\?v=20/); assert.match(h, /builder-3d\.js\?v=9/); assert.match(h, /capture-frame\.js\?v=7/); assert.match(h, /builder\.css\?v=10/);
   assert.match(read('public/builder.css'), /\.legend3d\[hidden\]\{display:none\}/);
 });
 t('builder-3d: live mode remembered (try/catch), badges + legend in Numbers, capture honours opts.labels', () => {
@@ -78,8 +78,8 @@ t('builder.js: Update client images stores 2D + 3D, with and without labels, in 
   assert.match(b, /const LM=CF \? CF\.labelMode\(o\.labels\) : 'numbers';/);
   assert.match(b, /const CLIENT_IMG_STYLES=\[\['labels','numbers'\],\['plain','none'\]\];/);
   assert.match(b, /await window\.__capture3D\(1600,\{labels:m\}\)/);
-  assert.match(b, /await BPStore\.booklet\.putImage\(qid,'2d',v,p2\[v\]\);/);
-  assert.match(b, /await BPStore\.booklet\.putImage\(qid,'3d',v,p3\[v\]\);/);
+  assert.match(b, /for\(const \[k,pics\] of \[\['2d',p2\],\['3d',p3\]\]\)/);
+  assert.match(b, /await BPStore\.booklet\.putImage\(qid,k,v,pics\[v\]\);/);
   assert.match(b, /const info=await BPStore\.booklet\.imageInfo\(qid\)\|\|\{\};/);
   assert.ok(!/uploadSnapshot|snapKind|2d_none/.test(b.slice(b.indexOf('client booklet images'), b.indexOf('function importJSON'))));
 });
