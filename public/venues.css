@@ -32,3 +32,6 @@
 .vp-warn .vp-warn{color:#a0490a}
 .vp-warn li.vp-warn{color:#a0490a;font-weight:600}
 .vp-warn li.vp-info{color:var(--ink-2,#444)}
+.vp-linked{margin:0;font-size:12.5px}
+.vp-linked[hidden]{display:none}
+.vp-a{background:none;border:0;padding:0;color:var(--accent,#1a5fb4);text-decoration:underline;cursor:pointer;font:inherit}

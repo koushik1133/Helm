@@ -68,8 +68,8 @@ t('pages wire the venue scripts (no inline), store-api v=157', () => {
   assert.match(cc, /<script src="venues-core\.js\?v=1"><\/script>\s*<script src="venues-admin\.js\?v=1"><\/script>/);
   for (const p of ['flow.html', 'builder.html']) {
     const h = read('public/' + p);
-    assert.match(h, /<script src="venues-core\.js\?v=1"><\/script>\s*<script src="venue-picker\.js\?v=1"><\/script>/, p);
-    assert.match(h, /venues\.css\?v=1/, p);
+    assert.match(h, /<script src="venues-core\.js\?v=1"><\/script>\s*<script src="venue-picker\.js\?v=2"><\/script>/, p);
+    assert.match(h, /venues\.css\?v=2/, p);
     assert.match(h, /store-api\.js\?v=157/, p);
   }
   for (const f of ['venues-core.js', 'venue-picker.js', 'venues-admin.js']) {
@@ -93,5 +93,14 @@ t('SQL: additive, tenant + area gated, no delete, ASCII APPLY', () => {
   assert.ok(!/[^\x00-\x7e]/.test(a), 'APPLY pure ASCII');
   assert.match(a, /select item, ok from \(values/);
   assert.match(read('supabase/migrations/MANIFEST'), /forward  supabase\/migrations\/0085_venues\.sql/);
+});
+t('linked venue on the client JSON: flow + builder', () => {
+  const f = read('public/flow.html'), b = read('public/builder.js'), pk = read('public/venue-picker.js');
+  assert.match(f, /<select id="v_setting">/); assert.match(f, /id="v_venue_id"/); assert.match(f, /id="v_venue_name"/);
+  assert.match(f, /venueId:vid, venueName:vnm, setting:vs/, 'saveVenue persists the link + setting');
+  assert.match(f, /cl\.venueId[\s\S]{0,400}HelmVenuePicker\.sync\(\)/, 'load restores the link and re-shows warnings');
+  assert.match(b, /HelmBuilderVenue[\s\S]{0,400}venueId: v\.id, venueName: v\.name/);
+  assert.match(read('public/builder.html'), /builder\.js\?v=28/);
+  assert.match(pk, /Linked to saved venue: /); assert.match(pk, /text: "change"/); assert.match(pk, /text: "unlink"/);
 });
 console.log('venues: ok (' + n + ')');

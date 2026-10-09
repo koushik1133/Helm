@@ -286,6 +286,17 @@ async function persistSizing(patch){
     await BPStore.quotes.updateMeta(currentQuoteId, { client: currentClient }); }
   catch(e){ /* non-fatal */ }
 }
+// 0085: the venue picked in Custom Event is linked on the quote's client JSON (id + name + setting)
+window.HelmBuilderVenue = {
+  client: () => currentClient || {},
+  async link(v){
+    if(!currentQuoteId) return;
+    currentClient = Object.assign({}, currentClient || {}, v
+      ? { venueId: v.id, venueName: v.name, setting: v.setting === 'outdoor' ? 'outdoor' : (v.setting === 'both' ? 'both' : 'indoor') }
+      : { venueId: null, venueName: null });
+    try{ await BPStore.quotes.updateMeta(currentQuoteId, { client: currentClient }); }catch(e){ /* non-fatal */ }
+  },
+};
 async function persistGuests(){
   if(!currentQuoteId || PRICING.guests==null) return;
   try{ currentClient = window.HelmSizing ? HelmSizing.merge(currentClient, { guests: PRICING.guests }) : Object.assign({}, currentClient, { guests: PRICING.guests });

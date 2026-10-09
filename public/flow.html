@@ -89,7 +89,7 @@
 </style>
 <link rel="stylesheet" href="share-checklist.css?v=2">
 <link rel="stylesheet" href="theme.css?v=76">
-<link rel="stylesheet" href="venues.css?v=1">
+<link rel="stylesheet" href="venues.css?v=2">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -176,6 +176,7 @@
           <div class="grid">
             <div class="fld"><label for="v_name">Venue name</label><input id="v_name"></div>
             <div class="fld"><label for="v_contact">Venue contact</label><input id="v_contact" placeholder="name / phone"></div>
+            <div class="fld"><label for="v_setting">Indoor / outdoor</label><select id="v_setting"><option value="">—</option><option value="indoor">Indoor</option><option value="outdoor">Outdoor</option><option value="both">Indoor + outdoor</option></select><input type="hidden" id="v_venue_id"><input type="hidden" id="v_venue_name"></div>
             <div class="fld full"><label for="v_addr">Address</label><input id="v_addr"></div>
             <div class="fld full"><label for="v_access">Access / load-in notes</label><textarea id="v_access" placeholder="Gate, lift, load-in window, parking…"></textarea></div>
           </div>
@@ -339,7 +340,7 @@
 <script src="event-sizing.js?v=5"></script>
 <script src="flow-autosave.js?v=1"></script>
 <script src="venues-core.js?v=1"></script>
-<script src="venue-picker.js?v=1"></script>
+<script src="venue-picker.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -517,9 +518,11 @@
     // Venue is entered ONCE here; mirror it back onto the client record so the
     // quote header, lists and lead stay in sync (no separate re-entry elsewhere).
     const vn=$("#v_name").value.trim(), va=$("#v_addr").value.trim();
+    // 0085: linked saved venue (id + name) and indoor/outdoor ride on the client JSON
+    const vid=$("#v_venue_id").value||null, vnm=vid?($("#v_venue_name").value||null):null, vs=$("#v_setting").value||null;
     const cur=ev&&ev.client||{};
-    if((cur.venue||"")!==vn || (cur.address||"")!==va){
-      const client=Object.assign({}, cur, { venue:vn||null, address:va||null });
+    if((cur.venue||"")!==vn || (cur.address||"")!==va || (cur.venueId||null)!==vid || (cur.venueName||null)!==vnm || (cur.setting||null)!==vs){
+      const client=Object.assign({}, cur, { venue:vn||null, address:va||null, venueId:vid, venueName:vnm, setting:vs });
       ev.client=client;
       try{ await BPStore.quotes.updateMeta(id,{ client }); }catch{}
     }
@@ -571,7 +574,8 @@
     const n=HelmSizing.layoutChairsNote($("#q_chairs").value===""?null:+$("#q_chairs").value, oi.chairs+(HelmSizing.extraFloorSeats?HelmSizing.extraFloorSeats(layoutItems):0));
     box.hidden=!n || !canEdit; if(n){ $("#q_chairsLayoutTxt").textContent=n.text; box.dataset.n=String(n.n); }
   }
-  function syncVenueMem(){ ev.client=Object.assign({}, ev.client||{}, { venue:$("#v_name").value.trim()||null, address:$("#v_addr").value.trim()||null }); }
+  function syncVenueMem(){ const vid=$("#v_venue_id").value||null; ev.client=Object.assign({}, ev.client||{}, { venue:$("#v_name").value.trim()||null, address:$("#v_addr").value.trim()||null,
+    venueId:vid, venueName:vid?($("#v_venue_name").value||null):null, setting:$("#v_setting").value||null }); }
   // Persist every section that used to auto-save. saveVenue() also writes the
   // plan (venue + menu notes), so saveMenuNotes() is covered. Quotation versions
   // are intentionally NOT auto-created here — that stays on the explicit button.
@@ -917,6 +921,10 @@
       $("#d_att").value=d.attendees||""; $("#d_notes").value=d.notes||""; $("#d_bmin").value=d.budget_min!=null?d.budget_min:""; $("#d_bmax").value=d.budget_max!=null?d.budget_max:""; }
     else if(cl.budget!=null){ $("#d_bmax").value=cl.budget; } }
   async function loadPlan(){ const cl=ev.client||{};
+    // 0085: linked saved venue + indoor/outdoor (client JSON); the picker re-shows its warnings
+    $("#v_venue_id").value=typeof cl.venueId==="string"?cl.venueId:""; $("#v_venue_name").value=typeof cl.venueName==="string"?cl.venueName:"";
+    $("#v_setting").value=["indoor","outdoor","both"].indexOf(cl.setting)>=0?cl.setting:"";
+    if(window.HelmVenuePicker) HelmVenuePicker.sync();
     plan=await BPStore.plan.get(id);
     if(plan){ $("#v_name").value=plan.venue_name||cl.venue||""; $("#v_addr").value=plan.venue_address||cl.address||"";
       $("#v_contact").value=plan.venue_contact||""; $("#v_access").value=plan.access_notes||""; $("#p_menu").value=plan.menu||""; if(plan.package) $("#p_menu").dataset.pkg=plan.package; } }
@@ -1048,7 +1056,7 @@
     // writes happen on the explicit Save buttons or via the save-on-leave prompt.
     // This stops empty / barely-touched quotes from being silently saved.
     ["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_guests","c_budget"].forEach(f=>$("#"+f).addEventListener("input",()=>{ syncClientMem(); if(f==="c_guests"||f==="c_type") renderPrice(); }));
-    ["v_name","v_addr"].forEach(f=>$("#"+f).addEventListener("input",syncVenueMem));
+    ["v_name","v_addr","v_venue_id","v_setting"].forEach(f=>{ $("#"+f).addEventListener("input",syncVenueMem); $("#"+f).addEventListener("change",syncVenueMem); });
     ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount"].forEach(f=>$("#"+f).addEventListener("input",renderPrice));
     $("#q_guests").addEventListener("input",()=>{ qGuestsOverridden=true; });
     // R8: one sizing source — layout-section fields mirror the client record live
