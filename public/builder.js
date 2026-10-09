@@ -160,6 +160,22 @@ function unitPrice(type){
   if(DEFAULT_PRICES[type]!=null) return DEFAULT_PRICES[type];
   const a=ASSETS[type]; return (a && CAT_BASE_PRICE[a.category]) || 3000;
 }
+// Past layouts are always re-priced from the CURRENT Control Center catalog:
+// strip any price-like fields an old layout may carry so nothing stale can
+// leak into the breakdown (pricing is computed by type from PRICING.assetPrices).
+const STALE_PRICE_KEYS = ['price','unitPrice','unit_price','cost','rate','amount'];
+function stripStalePrices(items){
+  return (items||[]).map(it=>{
+    if(!it || typeof it!=='object') return it;
+    const c=Object.assign({}, it);
+    STALE_PRICE_KEYS.forEach(k=>{ delete c[k]; });
+    if(c.properties && typeof c.properties==='object'){
+      c.properties=Object.assign({}, c.properties); STALE_PRICE_KEYS.forEach(k=>{ delete c.properties[k]; }); }
+    return c;
+  });
+}
+// true when the Control Center catalog has a live rate for this object type
+function inCatalog(type, assetPrices){ return !!(assetPrices && assetPrices[type]!=null); }
 // runtime pricing config (loaded from Control Centre in init)
 // chairPrice/platePrice/gstPct/layoutBase/serviceChargePct/assetPrices = rates;
 // menuPlatePrice/menuPackageName/guests = the current event's menu + headcount.
@@ -295,7 +311,8 @@ function renderPrice(){
     rows+=`<div class="prow"><span>Catering${PRICING.menuPackageName?' <span class="q">'+esc(PRICING.menuPackageName)+'</span>':''} <span class="q">${m.guests} × ${inr(m.platePrice)}</span></span><span class="amt">${inr(m.cateringCost)}</span></div>`;
   (m.objectLines||[]).forEach(l=>{
     const label=ASSETS[l.type]?ASSETS[l.type].label:l.type;
-    rows+=`<div class="prow"><span>${esc(label)} <span class="q">${l.qty>1?l.qty+' × '+inr(l.unit):inr(l.unit)}</span></span><span class="amt">${inr(l.cost)}</span></div>`;
+    const flag = (PRICING.assetPrices && !inCatalog(l.type, PRICING.assetPrices)) ? ' <span class="q nocat" title="No rate for this item in Control Center — using a default price">price not in catalog</span>' : '';
+    rows+=`<div class="prow"><span>${esc(label)} <span class="q">${l.qty>1?l.qty+' × '+inr(l.unit):inr(l.unit)}</span>${flag}</span><span class="amt">${inr(l.cost)}</span></div>`;
   });
   if(m.layoutBase>0) rows+=`<div class="prow"><span>Layout &amp; setup</span><span class="amt">${inr(m.layoutBase)}</span></div>`;
   if(m.serviceCharge>0) rows+=`<div class="prow"><span>Service <span class="q">${m.svcPct}%</span></span><span class="amt">${inr(m.serviceCharge)}</span></div>`;
@@ -2516,6 +2533,38 @@ $('#preset').addEventListener('change',async e=>{
   loadTemplate(v);
   e.target.value='';
 });
+/* ---- collapsible side panels: arrow tab at the panel edge, state per user ---- */
+function initPanelToggles(){
+  const key=()=>'bps.panels.'+((()=>{ try{ const u=BPStore.auth.user(); return u&&u.id?String(u.id):'anon'; }catch{ return 'anon'; } })());
+  let st={}; try{ st=JSON.parse(localStorage.getItem(key())||'{}')||{}; }catch{ st={}; }
+  const defs=[
+    { btn:'#leftToggle',  panel:'#leftPanel',  side:'l', name:'asset toolbox' },
+    { btn:'#rightToggle', panel:'#rightPanel', side:'r', name:'price & inspector panel' },
+  ];
+  const kick=()=>{ try{ window.dispatchEvent(new Event('resize')); }catch{} };
+  const apply=(d, collapsed, animate)=>{
+    const b=$(d.btn), p=$(d.panel); if(!b||!p) return;
+    p.classList.toggle('collapsed', collapsed);
+    b.setAttribute('aria-expanded', String(!collapsed));
+    const label=(collapsed?'Expand ':'Collapse ')+d.name;
+    b.setAttribute('aria-label', label); b.title=label;
+    // left: ‹ open / › closed — right is mirrored
+    b.textContent = d.side==='l' ? (collapsed?'›':'‹') : (collapsed?'‹':'›');
+    if(!animate) kick();
+  };
+  defs.forEach(d=>{
+    const b=$(d.btn), p=$(d.panel); if(!b||!p) return;
+    apply(d, !!st[d.side], false);
+    p.addEventListener('transitionend', e=>{ if(e.target===p && e.propertyName==='width') kick(); });
+    b.addEventListener('click', ()=>{
+      const collapsed=!p.classList.contains('collapsed');
+      apply(d, collapsed, true);
+      st[d.side]=collapsed; try{ localStorage.setItem(key(), JSON.stringify(st)); }catch{}
+      setTimeout(kick, 260);   // fallback if transitions are disabled
+    });
+  });
+}
+
 /* ---- Past-events reference browser: load a previous event's saved layout ---- */
 async function populateRefEvents(){
   const sel=$('#refEvents'); if(!sel) return;
@@ -2541,8 +2590,8 @@ $('#refEvents').addEventListener('change', async (e)=>{
     const ver=await BPStore.quotes.getVersion(qid, q.currentVersion);
     const items=(ver && ver.data && ver.data.items)||[];
     if(!items.length){ toast('That event has no saved layout.'); e.target.value=''; return; }
-    loadItems(items, 'Ref: '+(q.code||'past event'));
-    toast('Loaded layout from '+(q.code||'past event'));
+    loadItems(stripStalePrices(items), 'Ref: '+(q.code||'past event'));
+    toast('Loaded layout from '+(q.code||'past event')+' · Prices updated to current rates');
   }catch(err){ toast('Could not load that layout'); }
   e.target.value='';
 });
@@ -3206,6 +3255,7 @@ async function init(){
   fitView();
   window.addEventListener('resize',()=>{ renderRulers(); });
   await initStore();
+  initPanelToggles();   // after initStore so the saved state is per signed-in user
   // load pricing rates from the Control Centre (fallbacks stay if unavailable)
   try{
     const pc = await BPStore.config.getPricing();
