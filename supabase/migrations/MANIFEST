@@ -97,3 +97,5 @@ forward  supabase/migrations/0074_chat_admin_fixes.sql
 forward  supabase/migrations/0075_ui_fixes.sql
 # 0076 (insights_range: date-ranged studio insights, read-only, insights area gate) goes after 0075.
 forward  supabase/migrations/0076_insights.sql
+# 0079 (country-based tax: helm_quote_total honours pricing.taxInclusive; labels are client-side) goes after 0076.
+forward  supabase/migrations/0079_country_tax.sql
