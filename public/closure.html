@@ -118,6 +118,7 @@
       <div class="foot s-a562f4f">
         <a class="btn" id="followBtn" href="#">＋ Add CRM follow-up lead</a>
         <button type="button" class="btn go" id="closeBtn" hidden>Mark event closed &amp; archived</button>
+        <button type="button" class="btn" id="reopenBtn" hidden>Re-open event</button>
       </div>
     </div>
   </div>
@@ -139,7 +140,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=1"></script>
-<script src="store-api.js?v=149"></script>
+<script src="store-api.js?v=150"></script>
 <script src="tour.js?v=9"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -296,6 +297,22 @@
   $("#c_save").addEventListener("click",save);
   $("#r_add").addEventListener("click",addRating);
   $("#closeBtn").addEventListener("click",closeEvent);
+  // r7: a closed event can't be closed again; an admin may re-open it (reason required, audited)
+  let isAdmin=false;
+  function syncCloseButtons(){
+    $("#closeBtn").hidden=!canEdit||!!closedAt;
+    $("#reopenBtn").hidden=!(closedAt&&canEdit&&isAdmin);
+  }
+  async function reopenEvent(){
+    const reason=await BPUI.prompt("Re-opening moves this event back to Settlement so its costs and payments can be corrected. Nothing is deleted. The reason is recorded in the audit log.",
+      { title:"Re-open this event?", label:"Reason (5–1000 characters)", required:true, multiline:true, okLabel:"Re-open event",
+        validate:(v)=>(String(v||"").trim().length<5?"Give a reason of at least 5 characters.":"") });
+    if(!reason) return;
+    await BPUI.guard($("#reopenBtn"),async()=>{
+      try{ await BPStore.closure.reopen(id,reason); BPUI.allowUnload(); location.reload(); }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"re-open the event"}),{type:"err"}); } },{busyLabel:"Re-opening…"});
+  }
+  $("#reopenBtn").addEventListener("click",reopenEvent);
 
   async function fillNames(){ try{ const [vs, tm]=await Promise.all([BPStore.vendors.listAll(false).catch(()=>[]), BPStore.staff.list(false).catch(()=>[])]);
     $("#rnames").innerHTML=[...vs.map(v=>v.name),...tm.map(t=>t.name)].map(n=>`<option value="${esc(n)}">`).join(""); }catch{} }
@@ -305,7 +322,8 @@
       closureFailed=false; $("#closureErr").hidden=true;
       if(c){ rating=clampStars(c.client_rating); $("#c_feedback").value=c.feedback||""; $("#c_testi").value=c.testimonial||"";
       $("#c_consent").checked=!!c.media_consent; $("#c_lessons").value=c.lessons||""; closedAt=c.closed_at;
-      if(c.closed_at){ $("#closedBanner").hidden=false; $("#closedWhen").textContent="· "+new Date(c.closed_at).toLocaleDateString("en-IN"); } }
+      if(c.closed_at){ $("#closedBanner").hidden=false; $("#closedWhen").textContent="· Closed on "+new Date(c.closed_at).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}); } }
+      syncCloseButtons();
       dirty.clean(); }
     catch(e){ closureFailed=true;
       $("#closureErrMsg").textContent="Couldn't load the saved feedback — "+BPUI.friendlyError(e,{setupHint:"phase20-closure.sql"})+" Editing is paused so nothing gets overwritten.";
@@ -327,6 +345,7 @@
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
     $("#followBtn").href="leads.html";
     $("#app").hidden=false; $("#c_save").hidden=!canEdit; $("#rateAdd").hidden=!canEdit; $("#closeBtn").hidden=!canEdit;
+    try{ isAdmin=(await BPStore.auth.role())==="admin"; }catch(_){ isAdmin=false; }
     renderStars(); await fillNames();
     const plSafe=async()=>{ try{ await renderPL(); }catch(e){ BPUI.loadError($("#plBody"),e,plSafe,{what:"the P&L"}); const c=$("#plBody .bpui-loaderr"); if(c) c.style.gridColumn="1/-1"; } };
     await plSafe();

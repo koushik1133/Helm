@@ -101,6 +101,7 @@
         <div class="fld"><label for="n_name">Name</label><input id="n_name" list="clientList" placeholder="Pick a client or type a new one" autocomplete="off">
           <datalist id="clientList"></datalist></div>
         <div class="fld"><label for="n_email">Email</label><input id="n_email" type="email" placeholder="for greetings"></div>
+        <div class="fld"><label for="n_phone">Phone (WhatsApp)</label><input id="n_phone" type="tel" inputmode="tel" autocomplete="off" maxlength="20" placeholder="+91 98765 43210"></div>
         <div class="fld"><label for="n_type">Type</label><select id="n_type">
           <option value="birthday">🎂 Birthday</option><option value="anniversary" selected>💐 Anniversary</option>
           <option value="festival">✨ Festival</option><option value="custom">📌 Custom</option></select></div>
@@ -171,7 +172,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=1"></script>
-<script src="store-api.js?v=149"></script>
+<script src="store-api.js?v=150"></script>
 <script src="tour.js?v=9"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -231,15 +232,23 @@
   }
 
   const converting=new Set();
+  // r7: a WhatsApp greeting link when the contact has a valid phone (opens WhatsApp; nothing is sent automatically)
+  function waLink(d){
+    const p=BPStore.staff.phoneE164(d&&d.phone); if(!p.ok||!p.value) return "";
+    const txt=encodeURIComponent("Hi "+(d.name||"")+", warm wishes on your "+(d.occasion||d.occasion_type||"special day")+"!");
+    return ` <a class="lnk" target="_blank" rel="noopener" href="https://wa.me/${esc(p.value.replace(/\D/g,""))}?text=${esc(txt)}" aria-label="WhatsApp ${esc(d.name)}">WhatsApp</a>`;
+  }
   async function addOne(){ const name=$("#n_name").value.trim(); if(!name){ $("#n_name").focus(); BPUI.toast("Enter a name first.",{type:"info"}); return; }
     const type=$("#n_type").value;
     const em=$("#n_email").value.trim();
     if(em){ const r=BPStore.validate.email(em); if(!r.ok){ BPUI.toast("Enter a valid email address.",{type:"err"}); $("#n_email").focus(); return; } }
+    const pv=BPStore.staff.phoneE164($("#n_phone").value);
+    if(!pv.ok){ BPUI.toast(pv.error,{type:"err"}); $("#n_phone").focus(); return; }
     const btn=$("#n_add");
     return BPUI.guard(btn,async()=>{   // no duplicate rows on double-click
-    try{ await BPStore.nurture.add({ name, email:$("#n_email").value.trim()||null, occasion:$("#n_occ").value.trim()||null,
+    try{ await BPStore.nurture.add({ name, email:$("#n_email").value.trim()||null, phone:pv.value, occasion:$("#n_occ").value.trim()||null,
         occasion_type:type, occasion_date:$("#n_occd").value||null, auto_on:$("#n_auto").checked });
-      ["n_name","n_email","n_occ","n_occd"].forEach(k=>$("#"+k).value=""); $("#n_auto").checked=false;
+      ["n_name","n_email","n_phone","n_occ","n_occd"].forEach(k=>$("#"+k).value=""); $("#n_auto").checked=false;
       await render(); await renderAuto(); }
     catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"add to the nurture list"}),{type:"err"}); }
     });
@@ -260,11 +269,11 @@
     try{ due=await BPStore.nurture.due(Math.max(30,+$("#autoDays").value||0)); }
     catch(e){ BPUI.loadError($("#occBody"), e, renderAuto, {what:"upcoming occasions"}); return; }
     $("#occBody").innerHTML = due.length ? due.map(d=>`<tr>
-      <td><b>${esc(d.name)}</b><div class="muted" style="font-size:12px">${esc(d.email||"no email")}</div></td>
+      <td><b>${esc(d.name)}</b><div class="muted" style="font-size:12px">${[d.email||"no email",d.phone].filter(Boolean).map(esc).join(" · ")}</div></td>
       <td><span class="occ">${esc(d.occasion_type)}</span> ${esc(d.occasion||"")}</td>
       <td>${esc(d.next_date||"—")}${d.greeted_this_year?' <span class="occ greeted">greeted</span>':""}</td>
       <td><label class="switch" style="width:40px;height:23px"><input type="checkbox" data-auto="${esc(d.id)}" aria-label="Auto-greet ${esc(d.name)}" ${d.auto_on?"checked":""}><span class="slider"></span></label> <span class="autolab"></span></td>
-      <td><button type="button" class="lnk" data-greet="${esc(d.id)}" aria-label="Send greeting to ${esc(d.name)}" ${d.email?"":"disabled title='no email on file'"}>Send greeting</button></td>
+      <td><button type="button" class="lnk" data-greet="${esc(d.id)}" aria-label="Send greeting to ${esc(d.name)}" ${d.email?"":"disabled title='no email on file'"}>Send greeting</button>${waLink(d)}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="empty">No occasions coming up. Add an occasion date above.</td></tr>';
     $("#occBody").querySelectorAll("[data-auto]").forEach(c=>c.addEventListener("change",async()=>{
       try{ await BPStore.nurture.update(c.dataset.auto,{auto_on:c.checked}); autoMsg("ok","Auto-greet "+(c.checked?"on":"off")+" for this contact."); }
@@ -335,6 +344,7 @@
         if(!CLIENTS[key]) CLIENTS[key] = {
           name,
           email: l.email || "",
+          phone: l.phone || "",
           occasion: l.event_type || l.occasion || "",
           date: l.event_date || l.occasion_date || ""
         };
@@ -348,6 +358,7 @@
     const c = CLIENTS[($("#n_name").value||"").trim().toLowerCase()];
     if(!c) return;                 // a new/unknown name → leave fields for manual entry
     if(c.email && !$("#n_email").value) $("#n_email").value = c.email;
+    if(c.phone && !$("#n_phone").value) $("#n_phone").value = c.phone;
     if(c.occasion && !$("#n_occ").value) $("#n_occ").value = c.occasion;
     if(c.date && !$("#n_occd").value) $("#n_occd").value = String(c.date).slice(0,10);
   }

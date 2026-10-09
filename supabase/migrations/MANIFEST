@@ -111,3 +111,5 @@ forward  supabase/migrations/0081_booklet_tax_labels.sql
 forward  supabase/migrations/0082_r4_sql_fixes.sql
 # 0083 (client booklet pictures stored in the database: 2D / 3D, with labels + plain; anon reader by live token) goes after 0082.
 forward  supabase/migrations/0083_booklet_images.sql
+# 0084 (r7: plain-ASCII stage/closed messages, phone checks on new/changed staff + nurture phones, nurture.phone, admin reopen_event) goes after 0083.
+forward  supabase/migrations/0084_r7_polish.sql

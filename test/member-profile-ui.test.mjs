@@ -282,7 +282,7 @@ t('control.html wiring: members() + edit dialog fields + Day rate / Employment t
 /* ------------------------------------------------------------ Staff directory */
 t('staff: linked rows get the "Linked account" badge + photo; unlinked unchanged; escaped', () => {
   const ctx = { esc, EMP: { full_time: 'Full-time' }, canEdit: true, memberDir: { [U(7)]: { avatar_path: AV(U(7)) } },
-    initials: (n) => String(n || '?').slice(0, 1), BPStore: { staff: { isLinked: (s) => !!(s && s.profile_id) } } };
+    initials: (n) => String(n || '?').slice(0, 1), BPStore: { staff: { isLinked: (s) => !!(s && s.profile_id), phoneInvalid: () => false } } };
   vm.runInNewContext(fnSrc(staffHtml, 'personCard') + '\nglobalThis.f=personCard;', ctx);
   const linked = ctx.f({ id: 'c1', name: 'Ravi', role: 'Rigger', department: 'AV', phone: '+919876543210', profile_id: U(7), skills: [] });
   assert.match(linked, /🔗 Linked account/); assert.match(linked, /data-avatar-path="[^"]+\.webp"/);
