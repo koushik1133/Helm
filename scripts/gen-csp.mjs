@@ -12,10 +12,10 @@
  * javascript: URL, which a hash-based CSP blocks.
  *
  * Env split: every vercel.json and public/_headers CSP is STAGING-FREE (staging
- * Supabase origins are stripped), so production never allows staging. Only
- * server.js (localhost dev) adds staging to its CSP. Trade-off: Vercel preview
- * deployments cannot reach the staging Supabase (CSP blocks it) — use localhost
- * for staging work (see docs/STAGING-SETUP.md). We deliberately do NOT emit
+ * Supabase origins are stripped), so production never allows staging — EXCEPT
+ * one generated host-conditioned rule per STAGING_CSP_HOSTS entry (the staging
+ * site helm-v01.vercel.app), which allows the staging project. server.js
+ * (localhost dev) also adds staging to its CSP. We deliberately do NOT emit
  * per-host duplicate CSP rules: that grew vercel.json to 700 KB and Vercel
  * rejected it ("Invalid vercel.json file provided"). Guard: vercel.json must
  * stay < 200 KB and < 200 header+redirect rules, with only documented keys.
@@ -30,7 +30,33 @@ const { computeHashes, computeStyleHashes, withHashes, htmlFiles, scriptSrcProbl
 
 // Production hosts (must match PROD_HOSTS in public/config.js) and the staging
 // Supabase project ref (from public/config.staging.js) that they must never allow.
-export const PROD_HOSTS = ['www.helm.events', 'helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app'];
+export const PROD_HOSTS = ['www.helm.events', 'helm.events', 'helm-alpha-nine.vercel.app'];
+// STAGING site host(s) served by the SAME Vercel project (must match
+// SUPABASE_STAGING.hosts in public/config.staging.js). Each gets ONE generated
+// host-conditioned CSP rule (appended last, so it overrides the per-page rules)
+// = the union of every page policy + the staging Supabase origins. This is the
+// ONLY place vercel.json may name the staging project; production hosts never do.
+export const STAGING_CSP_HOSTS = ['helm-v01.vercel.app'];
+export function isStagingCspRule(r) {
+  return Array.isArray(r.has) && r.has.length === 1 && r.has[0].type === 'host' && STAGING_CSP_HOSTS.includes(r.has[0].value) &&
+    r.source === '/(.*)' && (r.headers || []).length === 1 && r.headers[0].key.toLowerCase() === 'content-security-policy';
+}
+function unionPolicy(values) {
+  const m = new Map();
+  for (const v of values) for (const d of v.split(';').map((x) => x.trim()).filter(Boolean)) {
+    const [k, ...toks] = d.split(/\s+/);
+    if (!m.has(k)) m.set(k, new Set());
+    toks.forEach((t) => { if (!PROD_REF || !t.includes(PROD_REF)) m.get(k).add(t); });   // staging site never allows production
+  }
+  if (m.has('frame-ancestors') && m.get('frame-ancestors').size > 1) m.get('frame-ancestors').delete("'none'");
+  if (STAGING_REF) {
+    const add = (k, list) => { if (m.has(k)) list.forEach((x) => m.get(k).add(x)); };
+    add('connect-src', ['https://' + STAGING_REF + '.supabase.co', 'wss://' + STAGING_REF + '.supabase.co']);
+    add('img-src', ['https://' + STAGING_REF + '.supabase.co']);
+    add('media-src', ['https://' + STAGING_REF + '.supabase.co']);
+  }
+  return [...m].map(([k, set]) => [k, ...set].join(' ')).join('; ');
+}
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = join(ROOT, 'public');
 const check = process.argv.includes('--check');
@@ -38,6 +64,7 @@ let problems = 0;
 const STAGING_PATH = join(PUBLIC, 'config.staging.js');
 const STAGING_REF = existsSync(STAGING_PATH)
   ? (/https:\/\/([a-z0-9]{20})\.supabase\.co/.exec(readFileSync(STAGING_PATH, 'utf8')) || [])[1] : '';
+const PROD_REF = (/url:\s*"https:\/\/([a-z0-9]{20})\.supabase\.co"/.exec((existsSync(join(PUBLIC, 'config.js')) ? readFileSync(join(PUBLIC, 'config.js'), 'utf8') : '')) || [])[1] || '';
 function stripStaging(v) {
   if (!STAGING_REF) return v;   // no staging project configured → nothing to strip
   return v.split(';').map((d) => d.split(' ').filter((tok) => !tok.includes(STAGING_REF)).join(' ')).join(';');
@@ -68,7 +95,7 @@ const vRaw = readFileSync(vPath, 'utf8');
 const vercel = JSON.parse(vRaw);
 let cspCount = 0;
 // drop previously generated prod-host overrides; they are rebuilt below
-vercel.headers = (vercel.headers || []).filter((r) => !r.__prodCsp && !isProdCspRule(r));
+vercel.headers = (vercel.headers || []).filter((r) => !r.__prodCsp && !isProdCspRule(r) && !isStagingCspRule(r));
 for (const rule of vercel.headers || []) {
   for (const h of rule.headers || []) {
     if (h.key.toLowerCase() === 'content-security-policy') {
@@ -79,6 +106,15 @@ for (const rule of vercel.headers || []) {
   }
 }
 if (!cspCount) { console.error('  ✗ vercel.json has no Content-Security-Policy header'); problems++; }
+{ // staging-site host rules (generated; appended last so they override the page rules)
+  const pols = [];
+  for (const rule of vercel.headers || []) for (const h of rule.headers || [])
+    if (h.key.toLowerCase() === 'content-security-policy') pols.push(h.value);
+  const staged = unionPolicy(pols);
+  for (const host of STAGING_CSP_HOSTS)
+    vercel.headers.push({ source: '/(.*)', has: [{ type: 'host', value: host }], headers: [{ key: 'Content-Security-Policy', value: staged }] });
+}
+const stagingFree = (v) => JSON.stringify({ ...v, headers: (v.headers || []).filter((r) => !isStagingCspRule(r)) });
 const vNext = JSON.stringify(vercel, null, 2) + '\n';
 { // Vercel config limits + documented schema keys
   const MAX_BYTES = 200 * 1024, MAX_RULES = 200;
@@ -92,7 +128,7 @@ const vNext = JSON.stringify(vercel, null, 2) + '\n';
       if (!keys.includes(key)) { console.error(`  ✗ vercel.json ${k}[${i}] has undocumented key "${key}"`); problems++; }
     }));
   }
-  if (STAGING_REF && vNext.includes(STAGING_REF)) { console.error('  ✗ vercel.json names the staging Supabase project'); problems++; }
+  if (STAGING_REF && stagingFree(vercel).includes(STAGING_REF)) { console.error('  ✗ vercel.json names the staging Supabase project outside the staging-host CSP rule'); problems++; }
 }
 
 // 3) public/_headers (Netlify / Cloudflare Pages format)

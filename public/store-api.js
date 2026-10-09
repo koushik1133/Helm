@@ -3437,7 +3437,7 @@ window.HelmUrl = HelmUrl;
      <studio> really owns that link (current or retired name), so nobody can dress
      their own token up in another studio's name. Legacy URLs keep working. */
   const LINK_KINDS = { invite: 1, quote: 1, proposal: 1, portal: 1, work: 1 };
-  const LINK_PROD_HOSTS = ["helm-v01.vercel.app", "helm.events", "www.helm.events"];
+  const LINK_PROD_HOSTS = ["helm.events", "www.helm.events"];   // helm-v01.vercel.app is the staging site: keeps its own host
   const LINK_RE = /^\/([a-z0-9-]{3,40})\/(invite|quote|proposal|portal|work)\/([^\/?#]+)\/?$/;
   let studioSlugCache = null, studioSlugPromise = null;
   const links = {

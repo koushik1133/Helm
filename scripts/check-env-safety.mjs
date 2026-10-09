@@ -74,12 +74,22 @@ console.log('Env-safety: production hosts never receive the staging project:');
     hdr.includes(stgRef) ? fail('public/_headers (served on prod) names the staging project') : ok('public/_headers is prod-only');
     const vRaw = readFileSync(join(ROOT, 'vercel.json'), 'utf8');
     const vercel = JSON.parse(vRaw);
-    // Base CSP is staging-free (no per-host duplicates; Vercel previews can't reach staging by design).
-    vRaw.includes(stgRef) ? fail('vercel.json names the staging project') : ok('vercel.json CSP is staging-free');
-    (vercel.headers || []).some((r) => (r.has || []).some((c) => c.type === 'host') &&
+    // Every CSP is staging-free EXCEPT the one generated rule per staging-site host
+    // (helm-v01.vercel.app, conditioned on that exact host). No other per-host CSP rules.
+    const STG_SITE = ['helm-v01.vercel.app'];
+    const isStgRule = (r) => r.source === '/(.*)' && (r.has || []).length === 1 && r.has[0].type === 'host' &&
+      STG_SITE.includes(r.has[0].value) && (r.headers || []).length === 1 && r.headers[0].key === 'Content-Security-Policy';
+    const rest = { ...vercel, headers: (vercel.headers || []).filter((r) => !isStgRule(r)) };
+    JSON.stringify(rest).includes(stgRef) ? fail('vercel.json names the staging project outside the staging-site rule') : ok('vercel.json CSP is staging-free on every non-staging host');
+    for (const host of STG_SITE) {
+      const r = (vercel.headers || []).filter(isStgRule).find((x) => x.has[0].value === host);
+      r && r.headers[0].value.includes('https://' + stgRef + '.supabase.co') && !r.headers[0].value.includes(prodRef)
+        ? ok(host + ': staging-site CSP allows staging only') : fail(host + ': staging-site CSP rule missing or names production');
+    }
+    rest.headers.some((r) => (r.has || []).some((c) => c.type === 'host') &&
       (r.headers || []).some((h) => h.key.toLowerCase() === 'content-security-policy'))
       ? fail('vercel.json has host-conditioned CSP rules (per-host CSP duplicates must not return)') : ok('vercel.json has no per-host CSP duplicates');
-    for (const host of ['www.helm.events', 'helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app']) {
+    for (const host of ['www.helm.events', 'helm.events', 'helm-alpha-nine.vercel.app']) {
       const blocked = (vercel.redirects || []).some((r) => r.destination === '/404' && /config\\?\.staging\\?\.js/.test(r.source) &&
         (r.has || []).some((c) => c.type === 'host' && c.value === host));
       blocked ? ok(host + ': /config.staging.js → 404') : fail(host + ': /config.staging.js is not blocked in vercel.json');

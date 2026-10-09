@@ -92,7 +92,7 @@ const ALLOW_LS = { 'helm.allowProdFromLocalhost': OPT_IN_TS };
 console.log('env-routing.test.mjs — fail-closed host->project routing\n');
 
 // 1) PRODUCTION hosts -> PRODUCTION ref
-for (const host of ['helm-v01.vercel.app', 'www.helm.events', 'helm.events', 'helm-alpha-nine.vercel.app']) {
+for (const host of ['www.helm.events', 'helm.events', 'helm-alpha-nine.vercel.app']) {
   check(`prod host ${host} -> PROD ref`, () => {
     const r = evalConfig({ hostname: host });
     assert(resolvesToProd(r), `expected PROD ref, got "${r.url}"`);
@@ -105,6 +105,7 @@ for (const host of [
   'helm-git-harden-pre-react-canonical-koushik1133.vercel.app',
   'helm-abc123xyz-koushik1133.vercel.app',
   'helm-staging.vercel.app',
+  'helm-v01.vercel.app',          // the staging site (was a prod alias until Oct 2026)
 ]) {
   check(`preview host ${host} -> STAGING ref`, () => {
     const r = evalConfig({ hostname: host });

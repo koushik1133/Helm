@@ -622,7 +622,7 @@ t('reset-password page: exists, no inline script, external logic, noindex, no-re
 });
 t('vercel.json: reset-password is noindex + no-store; Turnstile CSP only on login/reset', () => {
   const v = JSON.parse(read('vercel.json'));
-  const hdr = (p) => { const o = {}; for (const r of v.headers) if (new RegExp('^' + r.source + '$').test(p)) for (const x of r.headers) o[x.key.toLowerCase()] = x.value; return o; };
+  const hdr = (p) => { const o = {}; for (const r of v.headers) if (!r.has && new RegExp('^' + r.source + '$').test(p)) for (const x of r.headers) o[x.key.toLowerCase()] = x.value; return o; };
   for (const p of ['/reset-password', '/reset-password.html', '/login', '/dashboard', '/control.html']) {
     assert.match(hdr(p)['x-robots-tag'] || '', /noindex/, p);
     assert.equal(hdr(p)['cache-control'], 'no-store', p);

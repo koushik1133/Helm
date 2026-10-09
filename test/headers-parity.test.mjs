@@ -208,25 +208,32 @@ t('CSP: vercel.json/_headers allow ONLY the prod Supabase project (previews cann
     const cases = [['_headers', netlifyHeaders('/' + p), [PRODP]], ['server.js@prod', serverHeaders('/' + p), [PRODP]],
       ['vercel.json@preview', vercelHeaders('/' + p), [PRODP]],
       ['server.js@localhost', { 'content-security-policy': server.securityHeadersFor(LOCAL_REQ, join(PUB, p + '.html'))['Content-Security-Policy'] }, [PRODP, STGP]]];
-    for (const host of ['www.helm.events', 'helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app'])
+    for (const host of ['www.helm.events', 'helm.events', 'helm-alpha-nine.vercel.app'])
       cases.push(['vercel.json@' + host, vercelHeaders('/' + p, host), [PRODP]]);
+    cases.push(['vercel.json@helm-v01.vercel.app (staging site)', vercelHeaders('/' + p, 'helm-v01.vercel.app'), [STGP]]);
     for (const [who, h, projs] of cases) {
       const c = cspMap(h['content-security-policy']);
       assert.deepEqual(hostsIn(c['connect-src']).sort(), want(projs), `${who} /${p} connect-src supabase hosts`);
       for (const d of ['img-src', 'media-src']) {
         for (const x of hostsIn(c[d])) assert.ok(projs.some((pr) => x === 'https://' + pr), `${who} /${p} ${d} has unexpected ${x}`);
       }
-      if (projs.length === 1) assert.ok(!(h['content-security-policy'] || '').includes(STGP), `${who} /${p} CSP names staging`);
+      if (projs.length === 1 && projs[0] === PRODP) assert.ok(!(h['content-security-policy'] || '').includes(STGP), `${who} /${p} CSP names staging`);
     }
   }
 });
 
 t('config.staging.js is 404-redirected on every production host', () => {
-  for (const host of ['www.helm.events', 'helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app']) {
+  for (const host of ['www.helm.events', 'helm.events', 'helm-alpha-nine.vercel.app']) {
     const r = vercel.redirects.find((x) => new RegExp('^' + x.source + '$').test('/config.staging.js') &&
       x.has && x.has.some((c) => c.type === 'host' && c.value === host));
     assert.ok(r && r.destination === '/404' && r.permanent === false, host + ' must 404 /config.staging.js');
   }
+  assert.ok(!vercel.redirects.some((x) => x.has && x.has.some((c) => c.value === 'helm-v01.vercel.app')),
+    'helm-v01.vercel.app is the staging site: no redirects (needs config.staging.js, must not bounce to prod)');
+  const old = vercel.redirects.find((x) => x.has && x.has.some((c) => c.value === 'helm-alpha-nine.vercel.app') && /helm\.events/.test(x.destination));
+  assert.ok(old && old.destination === 'https://www.helm.events/:path', 'old prod alias redirects to the live domain');
+  const re = /^\/((?!api\/).*)$/;
+  assert.ok(re.test('/dashboard') && !re.test('/api/x'), 'old-alias redirect leaves /api alone');
 });
 
 t('security.txt: e-mail contact + Expires (RFC 9116), no internal notes, no unverified GitHub channel', () => {

@@ -44,13 +44,13 @@ function vercelRe(src) {
 }
 function vercelHeaders(p) {
   const o = {};
-  for (const r of vercel.headers) if (vercelRe(r.source).test(p)) for (const h of r.headers) o[h.key.toLowerCase()] = h.value;
+  for (const r of vercel.headers) if (!(r.has || []).some((c) => c.type === "host") && vercelRe(r.source).test(p)) for (const h of r.headers) o[h.key.toLowerCase()] = h.value;   // host-less request (host rules model other hosts)
   return o;
 }
 // every CSP in all three places: [where, route, value]
 function allPolicies() {
   const out = [];
-  for (const r of vercel.headers) for (const h of r.headers) if (h.key.toLowerCase() === 'content-security-policy') out.push(['vercel.json', r.source, h.value]);
+  for (const r of vercel.headers) for (const h of r.headers) if (h.key.toLowerCase() === 'content-security-policy') out.push(['vercel.json', (r.has || []).some((c) => c.type === 'host' && c.value === 'helm-v01.vercel.app') ? 'staging-site' : r.source, h.value]);
   let route = '';
   for (const line of headersFile.split('\n')) {
     if (line.trim() && !line.trim().startsWith('#') && !/^\s/.test(line)) route = line.trim();
@@ -278,7 +278,7 @@ function evalConfig(hostname, ls = {}, win = {}, src = read('public/config.js'))
 const PROD_REF = 'nqltzgiwznphugcfhmbm';
 t('STOR-01: production hosts can never select staging or a storage/window override', () => {
   const evil = JSON.stringify({ url: 'https://abcdefghijklmnopqrst.supabase.co', anonKey: 'x' });
-  for (const h of ['www.helm.events', 'helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app']) {
+  for (const h of ['www.helm.events', 'helm.events', 'helm-alpha-nine.vercel.app']) {
     const c = evalConfig(h, { 'helm.staging': evil, 'helm.allowProdFromLocalhost': '1' },
       { HELM_STAGING_SUPABASE: { url: 'https://abcdefghijklmnopqrst.supabase.co', anonKey: 'y' } });
     assert.ok(c.url.includes(PROD_REF) && !c.__staging, h + ' -> ' + c.url);
@@ -412,7 +412,7 @@ t('STYLE-01: runtime CSS uses constructable sheets, not new inline <style> eleme
   }
 });
 t('SIM-01: /sim-pay is redirected to /404 on every production host (staging + local keep it)', () => {
-  for (const host of ['helm.events', 'www.helm.events', 'helm-v01.vercel.app', 'helm-alpha-nine.vercel.app']) {
+  for (const host of ['helm.events', 'www.helm.events', 'helm-alpha-nine.vercel.app']) {
     for (const p of ['/sim-pay', '/sim-pay.html']) {
       const r = vercel.redirects.find((x) => x.has && x.has.some((h) => h.type === 'host' && h.value === host) && vercelRe(x.source).test(p) && x.destination === '/404');
       assert.ok(r, host + p);
