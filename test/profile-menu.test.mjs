@@ -103,10 +103,10 @@ t('CSP: new CSS goes through __helmAdoptCss; no style= in the menu code', () => 
   assert.doesNotMatch(menuCode, /style:|\.style\.|innerHTML/);
   assert.match(AUI, /\.hau-menu\{/); assert.match(AUI, /html\[data-theme=dark\] \.hau-menu/);
 });
-t('versions bumped: AUTH_UI_VERSION 16, every page on store-api v=136', () => {
+t('versions bumped: AUTH_UI_VERSION 16, every page on store-api v=137', () => {
   assert.match(API, /const AUTH_UI_VERSION = "16";/);
   const pages = readdirSync(new URL('../public/', import.meta.url)).filter((f) => f.endsWith('.html'));
-  pages.forEach((p) => { const h = read('public/' + p); const m = h.match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '136', p); });
+  pages.forEach((p) => { const h = read('public/' + p); const m = h.match(/store-api\.js\?v=(\d+)/); if (m) assert.equal(m[1], '137', p); });
 });
 t('migration 0060 + APPLY are additive, ASCII, verified', () => {
   const mig = read('supabase/migrations/0060_studio_avatars.sql'), ap = read('supabase/APPLY-0060.sql');
