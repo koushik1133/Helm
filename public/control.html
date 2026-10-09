@@ -1544,6 +1544,7 @@
   async function reloadNotify(){ await loadNotify(); renderNotify(); renderPeople(); if(npErr) throw npErr; }
   async function initNotify(){
     if(npStarted) return; npStarted=true;
+    if(typeof HelmCommsSettings!=="undefined") HelmCommsSettings.init();   // 0078 (independent of the prefs load)
     await loadNotify(); renderNotify();
     try{ npUsers=(await BPStore.auth.admin.listUsers())||[]; }catch(e){ npUsers=[]; }
     npUsers.sort((a,b)=>String(a.full_name||a.email||"").localeCompare(String(b.full_name||b.email||"")));
