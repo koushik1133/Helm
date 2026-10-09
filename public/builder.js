@@ -399,6 +399,7 @@ const clearSelection = () => setSelection([]);
 
 /* ---- read-only mode (view-only RBAC roles) ---- */
 let RO = false;
+let layoutLoading = false;   // R4: true while an existing event's layout is being fetched
 let CAN_CREATE = true;   // roles without 'create' (e.g. operations) may edit existing but not start new events
 function roLockInspector(){ if(!RO) return; const box=$('#inspector'); if(!box) return;
   box.querySelectorAll('input,select,button,textarea').forEach(el=>el.disabled=true);
@@ -2709,7 +2710,16 @@ function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('sh
 function updateEmptyState(){
   const es=$('#emptyState'); if(!es) return;
   const threeD = $('#stage3d') && !$('#stage3d').hidden;
-  es.hidden = RO || threeD || (store.items && store.items.length>0);
+  es.hidden = layoutLoading || RO || threeD || (store.items && store.items.length>0);
+  const ld=$('#layoutLoading'); if(ld) ld.hidden = !layoutLoading;
+}
+/* R4: while an existing event's quote/layout is being fetched, show a neutral loading state —
+   never the blank-floor prompt or "Untitled event" (they flashed for 1-2s before the layout arrived). */
+function setLayoutLoading(on){
+  layoutLoading=!!on;
+  const pn=$('#projName');
+  if(pn){ if(on){ pn.dataset.ph=pn.placeholder||''; pn.value=''; pn.placeholder='Loading…'; } else if(pn.dataset.ph!=null){ pn.placeholder=pn.dataset.ph; delete pn.dataset.ph; if(!pn.value) pn.value='Untitled event'; } }
+  updateEmptyState();
 }
 // clean template picker built from the #preset dropdown's optgroups
 function openTemplatePicker(){
@@ -3330,6 +3340,7 @@ async function init(){
   const evId=params.get('id'), evName=params.get('event'), isNew=params.get('new')==='1';
   const quoteId=await HelmUrl.get('quote', params.get('quote')), openVer=params.get('v');
   store.items = (isNew||quoteId) ? [] : TEMPLATES.political();   // blank for a new event/quote, else a working default
+  if(quoteId || evId) setLayoutLoading(true);         // neutral loading state until the saved layout arrives
   if(evName){ const pn=$('#projName'); if(pn) pn.value=evName; }
   resetHistory();                                     // establish the initial undo baseline
   renderAll();
@@ -3432,6 +3443,7 @@ async function init(){
         const pn=$('#projName'); if(pn) pn.value=full.name; setSavedBaseline(); toast('Opened “'+full.name+'”'); } }
     catch{ toast('Could not open that event'); }
   }
+  if(layoutLoading) setLayoutLoading(false);   // blank-floor prompt only if the loaded layout truly has no items
   populateRefEvents();   // fill the "Past events" reference picker
   // Guided default-layout generation from the flow: ?gen=1&type=&guests=&len=&wid=
   if(params.get('gen')==='1' && CAN_CREATE!==false){

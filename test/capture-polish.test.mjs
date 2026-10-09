@@ -42,13 +42,57 @@ t('capture3D uses the framing helper, hides grid/edge, 2x supersample, restores 
   const cap = js.slice(js.indexOf('async function capture3D'), js.indexOf('window.__capture3D='));
   assert.doesNotMatch(cap, /ACESFilmic|toneMappingExposure|multiplyScalar\(0\.72\)|sun\.intensity=1|hemi\.intensity=0/); assert.match(js, /keep\.labels\.forEach/);
   const html = read('public/builder.html');
-  assert.match(html, /capture-frame\.js\?v=2"><\/script>\n<script src="builder-3d\.js\?v=6"/);
+  assert.match(html, /capture-frame\.js\?v=3"><\/script>\n<script src="builder-3d\.js\?v=7"/);
 });
 t('panel toggle re-fits the 2D plan only while at fit zoom', () => {
   const js = read('public/builder.js');
   assert.match(js, /function setZoom\(z, anchor\)\{\n  viewAtFit=false;/);
   assert.match(js, /viewAtFit=true;/);
   assert.match(js, /if\(viewAtFit && !is3DActive\(\)\) fitView\(\)/);
+});
+
+const CF = require('../public/capture-frame.js');
+for (const [name, objs, fw, fh] of [['200x140 hall, 18 objects clustered', { min: [-70, 0, -40], max: [60, 12, 55] }, 200, 140],
+  ['objects past the floor', { min: [-110, 0, -20], max: [30, 8, 20] }, 200, 140], ['empty hall', null, 120, 80], ['narrow hall', { min: [-5, 0, -60], max: [5, 6, 60] }, 30, 150]]) {
+  t('R4 floor framing: ' + name + ' - all 8 union corners inside [4%,96%], fills >= 85%', () => {
+    const u = CF.unionFloor(objs, fw, fh, 1);
+    assert.ok(u.min[0] <= -fw / 2 && u.max[0] >= fw / 2 && u.min[2] <= -fh / 2 && u.max[2] >= fh / 2, 'union covers the floor');
+    if (objs) assert.ok(u.min[0] <= objs.min[0] && u.max[2] >= objs.max[2] && u.max[1] >= objs.max[1], 'union covers objects');
+    const o = { fovDeg: 48, aspect: 16 / 9, fill: 0.88, elevationDeg: 38, azimuthDeg: 35, minDist: 20 };
+    const f = CF.frameBox(u, o), P = CF.projectBox(u, f, o);
+    let x0 = 1, x1 = 0, y0 = 1, y1 = 0;
+    for (const [nx, ny, z] of P) { assert.ok(z > 0);
+      const fx = (nx + 1) / 2, fy = (ny + 1) / 2;
+      assert.ok(fx >= 0.04 && fx <= 0.96 && fy >= 0.04 && fy <= 0.96, name + ' corner ' + fx.toFixed(3) + ',' + fy.toFixed(3));
+      x0 = Math.min(x0, fx); x1 = Math.max(x1, fx); y0 = Math.min(y0, fy); y1 = Math.max(y1, fy); }
+    assert.ok(Math.max(x1 - x0, y1 - y0) >= 0.85, 'layout still as large as possible');
+  });
+}
+t('R4 labels: screen-constant size (scale proportional to depth, cap height ~1.7% of image)', () => {
+  const near = CF.labelScaleForDepth(100, 48, 0.017, 2.5), far = CF.labelScaleForDepth(300, 48, 0.017, 2.5);
+  assert.ok(Math.abs(far / near - 3) < 1e-9, 'front and back labels render the same size');
+  const capFrac = (2.5 * near * CF.LABEL_CAP_RATIO) / (2 * 100 * Math.tan(24 * Math.PI / 180));
+  assert.ok(capFrac >= 0.016 && capFrac <= 0.018, 'cap height ' + capFrac);
+});
+t('R4 labels: overlap + nearby-duplicate culling keeps the nearest', () => {
+  const L = [{ text: 'Exit', x: 0, y: 0, w: 0.1, h: 0.03 }, { text: 'Exit', x: 0.05, y: 0.02, w: 0.1, h: 0.03 },
+    { text: 'Bar', x: 0.01, y: 0.005, w: 0.1, h: 0.03 }, { text: 'Bar', x: 0.5, y: 0.5, w: 0.1, h: 0.03 }, { text: 'Exit', x: -0.6, y: 0, w: 0.1, h: 0.03 }];
+  assert.deepEqual(CF.pickLabels(L), [0, 3, 4]);
+});
+t('R4 capture3D: frames floor union, trims ground, depth-scales + culls labels, restores', () => {
+  const cap = read('public/builder-3d.js');
+  assert.match(cap, /HelmCaptureFrame\.unionFloor\(/); assert.match(cap, /labelScaleForDepth\(depth, camera\.fov, 0\.017/);
+  assert.match(cap, /HelmCaptureFrame\.pickLabels\(/); assert.match(cap, /ground\.scale\.copy\(keep\.groundScale\)/);
+  assert.match(cap, /o\.visible=v;/); assert.doesNotMatch(cap, /labelWorldHeight\(fr\.distance/);
+});
+t('R4 builder: neutral loading state while an existing event loads (no blank-floor flash)', () => {
+  const js = read('public/builder.js'), html = read('public/builder.html');
+  assert.match(html, /id="layoutLoading"[^>]*hidden>/);
+  assert.match(js, /es\.hidden = layoutLoading \|\| RO/);
+  assert.match(js, /if\(quoteId \|\| evId\) setLayoutLoading\(true\);/);
+  assert.match(js, /if\(layoutLoading\) setLayoutLoading\(false\);[^\n]*\n  populateRefEvents\(\);/);
+  assert.ok(js.indexOf('setLayoutLoading(true)') < js.indexOf('renderAll();\n  fitView();'), 'set before the first render');
+  assert.match(js, /pn\.placeholder='Loading…'/);
 });
 
 const A = require('../public/audit-format.js');
