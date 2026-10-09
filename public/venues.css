@@ -1,0 +1,34 @@
+/* venues.css (0085) - Control Center Venues tab + "Pick a saved venue" box (flow, builder) */
+.vn-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 12px}
+.vn-tools input[type=search]{flex:1 1 200px;min-width:0}
+.vn-tools select{max-width:100%}
+.vn-chk{display:inline-flex;align-items:center;gap:4px;font-size:13px;white-space:nowrap}
+.vn-unit{display:inline-flex;gap:0}
+.vn-unit .btn.on{background:var(--ink,#111);color:var(--panel,#fff)}
+.vn-list{display:grid;gap:10px}
+.vn-card{border:1px solid var(--line,#ddd);border-radius:10px;padding:10px 12px;background:var(--panel,#fff)}
+.vn-card.off{opacity:.65}
+.vn-head{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.vn-city{font-size:12px;color:var(--ink-3,#666)}
+.vn-tag{font-size:11px;padding:1px 6px;border-radius:999px;background:var(--line-2,#eee)}
+.vn-tag.off{background:#fde2e2;color:#8a1c1c}
+.vn-meta{font-size:13px;color:var(--ink-2,#333);margin-top:4px;overflow-wrap:anywhere}
+.vn-chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.vn-chip{font-size:11.5px;padding:2px 8px;border-radius:999px;border:1px solid var(--line,#ddd)}
+.vn-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.vn-form .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px 12px}
+.vn-form .fld{display:flex;flex-direction:column;gap:3px;min-width:0}
+.vn-form .fld.full{grid-column:1/-1}
+.vn-form input,.vn-form select,.vn-form textarea{max-width:100%}
+.vn-form [aria-invalid=true]{outline:2px solid #c0392b}
+.vn-fs{border:1px solid var(--line,#ddd);border-radius:8px;margin:10px 0;padding:8px 10px;min-width:0}
+.vn-multi{display:flex;flex-wrap:wrap;gap:6px 12px}
+.vn-lbl{font-size:12px;color:var(--ink-3,#666)}
+.vp-box{margin:0 0 10px;padding:8px 10px;border:1px dashed var(--line,#ccc);border-radius:8px;display:flex;flex-direction:column;gap:4px}
+.vp-box[hidden]{display:none}
+.vp-lbl{font-size:12px;font-weight:600}
+.vp-sum{font-size:12.5px;color:var(--ink-3,#666);overflow-wrap:anywhere}
+.vp-warn{list-style:none;margin:0;padding:0;font-size:12.5px}
+.vp-warn .vp-warn{color:#a0490a}
+.vp-warn li.vp-warn{color:#a0490a;font-weight:600}
+.vp-warn li.vp-info{color:var(--ink-2,#444)}

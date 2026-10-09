@@ -113,3 +113,5 @@ forward  supabase/migrations/0082_r4_sql_fixes.sql
 forward  supabase/migrations/0083_booklet_images.sql
 # 0084 (r7: plain-ASCII stage/closed messages, phone checks on new/changed staff + nurture phones, nurture.phone, admin reopen_event) goes after 0083.
 forward  supabase/migrations/0084_r7_polish.sql
+# 0085 (studio venue list: venues table, RLS by studio + "venues" area, no hard delete, venue_save / venue_set_active / admin sample loader) goes after 0084.
+forward  supabase/migrations/0085_venues.sql

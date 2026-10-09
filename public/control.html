@@ -203,6 +203,7 @@
 </style>
 <link rel="stylesheet" href="pkg-review.css?v=1">
 <link rel="stylesheet" href="comms-settings.css?v=1">
+<link rel="stylesheet" href="venues.css?v=1">
 <link rel="stylesheet" href="theme.css?v=76">
 </head>
 <body>
@@ -225,6 +226,7 @@
       <button type="button" class="tab active" data-pane="pricing" id="tab-pricing" aria-pressed="true">💲 Pricing</button>
       <button type="button" class="tab" data-pane="users" id="tab-users" aria-pressed="false" hidden>👥 User control</button>
       <button type="button" class="tab" data-pane="notify" id="tab-notify" aria-pressed="false" hidden>🔔 Notifications</button>
+      <button type="button" class="tab" data-pane="venues" id="tab-venues" aria-pressed="false" hidden>🏛 Venues</button>
     </div>
 
     <div id="msg" role="status" aria-live="polite"></div>
@@ -501,6 +503,15 @@
       </div>
     </div>
 
+    <!-- ============ VENUES PANE (0085: "venues" area, admin always) ============ -->
+    <div id="pane-venues" hidden>
+      <div class="card" id="venuesCard">
+        <h3>Venues</h3>
+        <p class="mnote">The venues your studio works with. Pick one in the quote flow or the builder to fill in the hall details. Venues are never deleted - deactivate one you no longer use.</p>
+        <div id="vn_root"></div>
+      </div>
+    </div>
+
     <!-- ============ NOTIFICATIONS PANE (admin only, 0036) ============ -->
     <div id="pane-notify" hidden>
       <style>
@@ -668,12 +679,14 @@
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="event-name.js?v=2"></script>
-<script src="store-api.js?v=156"></script>
+<script src="store-api.js?v=157"></script>
 <script src="hq-invoice.js?v=1"></script>
 <script src="tour.js?v=9"></script>
 <script src="pkg-review.js?v=4"></script>
 <script src="onboarding-core.js?v=3"></script>
 <script src="comms-settings.js?v=2"></script>
+<script src="venues-core.js?v=1"></script>
+<script src="venues-admin.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

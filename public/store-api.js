@@ -1024,6 +1024,8 @@ window.HelmUrl = HelmUrl;
     { key: "vendors",    label: "Vendors",           icon: "🤝", page: "vendors.html",   group: "Resources" },
     { key: "calendar",   label: "Calendar",          icon: "📅", page: "calendar.html",  group: "Resources" },
     { key: "templates",  label: "Templates",         icon: "🧩", page: "templates.html", group: "Resources" },
+    // 0085: studio venue list (Control Center -> Venues; picker in the quote flow + builder)
+    { key: "venues",     label: "Venues",            icon: "🏛", page: null,             group: "Resources" },
     { key: "resources",  label: "Resource plan",     icon: "🧮", page: null,             group: "Planning" },
     { key: "runsheet",   label: "Run-sheet",         icon: "🗓", page: null,             group: "Planning" },
     { key: "plan",       label: "Venue & menu",      icon: "📍", page: null,             group: "Planning" },
@@ -6509,6 +6511,20 @@ window.HelmUrl = HelmUrl;
       try { const r = await rpc("recent_list", { p_limit: limit || 10 }); return Array.isArray(r) ? r : []; } catch (e) { return null; }
     },
   };
+  // 0085 venues: read under RLS (own studio + "venues" view); writes only via RPCs
+  const venues = {
+    async list(opts) {
+      if (mode !== "supabase" || !supa) return [];
+      let q = supa.from("venues").select("*").order("active", { ascending: false }).order("name");
+      if (!(opts && opts.all)) q = q.eq("active", true);
+      const { data, error } = await q;
+      if (error) { if (/venues/.test(String(error.message || "")) && /does not exist|schema cache/i.test(String(error.message || ""))) { const er = new Error("Venues need database update 0085 (ask your admin to run APPLY-0085.sql)."); er.code = "venues_missing"; throw er; } throw error; }
+      return data || [];
+    },
+    async save(id, data) { return rpc("venue_save", { p_id: id || null, p: data || {} }); },
+    async setActive(id, on) { return rpc("venue_set_active", { p_id: id, p_active: !!on }); },
+    async loadSamples() { return rpc("venue_load_samples", {}); },
+  };
   const insights = {
     presets: () => RANGE_PRESETS.map((p) => ({ key: p[0], label: p[1] })),
     rangeFor, rangeCheck, inRange,
@@ -7161,7 +7177,7 @@ window.HelmUrl = HelmUrl;
   };
 
   const BPStore = {
-    activityText, init, mode: () => mode, auth, quotes, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat, profile, quoteShelf, uploads, comms,
+    activityText, init, mode: () => mode, auth, quotes, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, venues, portal, files, chat, profile, quoteShelf, uploads, comms,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.
