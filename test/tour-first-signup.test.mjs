@@ -20,7 +20,7 @@ t('store-api keeps the tour flag on the account (user_metadata), not only localS
 
 t('dashboard no longer auto-starts just because this browser lacks bp_seen_tour', () => {
   assert.doesNotMatch(D, /if\(forced \|\| !localStorage\.getItem\("bp_seen_tour"\)\)/);
-  assert.match(D, /if\(seen \|\| \(!forced && !eligible\)\) return;/);
+  assert.match(D, /if\(seen \|\| localSeen \|\| \(!forced && !eligible\)\) return;/);
   assert.match(D, /A\.markTourSeen\(\)/);
   // marked seen BEFORE starting (leaving mid-tour must not re-trigger it)
   assert.ok(D.indexOf('A.markTourSeen()') < D.indexOf('startTour();\n    })();'));
