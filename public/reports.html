@@ -148,7 +148,7 @@
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const inr=(n)=>"₹"+Math.round(Number(n||0)).toLocaleString("en-IN");
-  const today=()=>new Date().toISOString().slice(0,10);
+  const today=()=>{ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };   // r9: local (IST) day, not UTC
   let canFin=false, range=null;
   const evDay=(e)=>e.eventDate||String(e.createdAt||"").slice(0,10);
   const inR=(d)=>BPStore.insights.inRange(d, range);

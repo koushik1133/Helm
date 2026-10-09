@@ -6910,7 +6910,16 @@ window.HelmUrl = HelmUrl;
     return { from: String(from), to: String(to) };
   }
   // is a YYYY-MM-DD (or ISO timestamp) inside {from,to}? null range = everything
-  function inRange(date, r) { if (!r) return true; const d = String(date || "").slice(0, 10); if (!d) return false; return d >= r.from && d <= r.to; }
+  // r9: a full timestamp (created_at / paid_at, stored in UTC) is compared by its LOCAL calendar
+  // day — 2026-09-30T20:00Z is 1 Oct in IST and belongs to October, not September.
+  function localDay(v) {
+    const s = String(v || "");
+    if (s.length > 10 && /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s) && /(Z|[+-]\d{2}:?\d{2})$/.test(s)) {
+      const t = new Date(s.replace(" ", "T")); if (!isNaN(t.getTime())) return t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0");
+    }
+    return s.slice(0, 10);
+  }
+  function inRange(date, r) { if (!r) return true; const d = localDay(date); if (!d) return false; return d >= r.from && d <= r.to; }
 
   /* ---------------- audit log (Phase 47) ---------------- */
   const audit = {
@@ -7778,6 +7787,8 @@ window.HelmUrl = HelmUrl;
     if (isNetworkError(e)) return pre + "Couldn’t reach the server — check your connection and try again.";
     // 0046 D6: a locked (approved / paid / closed-event) money record — the DB message says why
     if (e && e.hint === "money_frozen" && e.message && !TECHNICAL.test(e.message)) return pre + endDot(clip(String(e.message), 240));
+    // 0045 / 0069: a suspended (or lapsed-trial) studio is read-only — say so, not "something went wrong"
+    if (e && (e.hint === "studio_suspended" || errCode(e) === "25006")) return pre + "This studio is read-only because its Helm subscription is suspended or the trial has ended — contact Helm (or an admin can renew in Billing).";
     // 0052 lifecycle gates / re-approval: the DB message is written for people
     if (e && (e.code === "HL409" || e.code === "HL428") && e.message) return endDot(clip(String(e.message), 300));
     // r9: a server-raised 22023 / 42501 written as a sentence for people ("Only an admin can

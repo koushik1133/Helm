@@ -89,3 +89,23 @@ t('flow.html wiring: badges start empty, autosave sections, beforeunload uses un
   assert.doesNotMatch(h, /save:\{[^}]*quote/);
 });
 console.log(`r9-flow: ${n} passed (total)`);
+t('suspended / trial-ended studio: create shows read-only reason', () => {
+  assert.match(fe({ code: '25006', hint: 'studio_suspended', message: "Read-only: this studio's Helm subscription is suspended — contact Helm" }, { action: 'create the quote' }), /^Couldn’t create the quote\. This studio is read-only/);
+});
+t('nurture: existing invalid phone rows are flagged', () => assert.match(read('public/nurture.html'), /BPStore\.staff\.phoneInvalid\(n\)\?'<span class="due badphone"/));
+console.log(`r9-flow: ${n} passed (total)`);
+{
+  const a2 = S.indexOf('  function localDay(v)'), b2 = S.indexOf('\n', S.indexOf('  function inRange(date, r)'));
+  const inRange = new Function(S.slice(a2, b2) + '\nreturn inRange;')();
+  const off = -new Date('2026-09-30T20:00:00Z').getTimezoneOffset();   // minutes east of UTC
+  t('insights range: UTC timestamps use the local calendar day (IST month boundary)', () => {
+    const oct = { from: '2026-10-01', to: '2026-10-31' }, sep = { from: '2026-09-01', to: '2026-09-30' };
+    assert.equal(inRange('2026-10-01', oct), true);              // plain dates untouched
+    assert.equal(inRange('2026-09-30', oct), false);
+    if (off >= 240) { assert.equal(inRange('2026-09-30T20:00:00+00:00', oct), true); assert.equal(inRange('2026-09-30T20:00:00Z', sep), false); }
+    else assert.equal(inRange('2026-09-30T12:00:00Z', sep), true);
+    assert.equal(inRange('', oct), false); assert.equal(inRange('x', null), true);
+  });
+  t('reports: "today" is the local day', () => assert.doesNotMatch(read('public/reports.html'), /new Date\(\)\.toISOString\(\)\.slice\(0,10\)/));
+}
+console.log(`r9-flow: ${n} passed (total)`);
