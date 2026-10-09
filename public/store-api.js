@@ -923,7 +923,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "18";
+  const AUTH_UI_VERSION = "19";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -2366,6 +2366,9 @@ window.HelmUrl = HelmUrl;
   // so callers can fall back to an older path; every other error must still surface.
   const rpcMissing = (e) => { const c = (e && e.code) || ""; const m = String((e && e.message) || "");
     return c === "PGRST202" || c === "42883" || /could not find the function|function[^]*does not exist/i.test(m); };
+  // 0078: fire-and-forget "the client opened the link" (follow-up timing); never throws, never blocks
+  const linkOpened = (kind, token) => { try { if (supa && /^[0-9a-f-]{36}$/i.test(String(token || "")))
+    Promise.resolve(supa.rpc("public_link_opened", { p_kind: kind, p_token: String(token) })).catch(() => {}); } catch (e) {} };
   // Edge Function caller — used only when live channels are enabled in config.js
   // 0069 booklet share checklist keys (server validates the same list)
   const BOOKLET_SECTIONS = ["studio", "client", "venue", "menu", "layout2d", "layout3d", "quotation", "payments", "terms", "note"];
@@ -2384,7 +2387,7 @@ window.HelmUrl = HelmUrl;
   const LIVE = CFG.liveChannels || {};   // { sms:true, pay:true } flips to Edge Functions
   const approval = {
     // ---- public (token-scoped; works for anon on the approval page) ----
-    getByToken: (token) => rpc("public_get_quote", { p_token: token }),
+    getByToken: (token) => rpc("public_get_quote", { p_token: token }).then((r) => { linkOpened("quote", token); return r; }),
     // simulation → RPC (returns dev OTP); live → MSG91 via Edge Function (sends real SMS, no code returned)
     requestOtp: (token, phone) => LIVE.sms ? callFn("send-otp", { token, phone }) : rpc("request_otp", { p_token: token, p_phone: phone }),
     verifyConsent: (token, phone, code, agreed, termsVersion, consentText, clientName, ua) =>
@@ -5807,13 +5810,19 @@ window.HelmUrl = HelmUrl;
     const k = k0, q = has(n.quote_id) ? n.quote_id : null;
     if (k === "trial_reminder") return "checkout.html";
     if (k === "security_alert") return "control.html#users";
+    // 0078: low stock -> the event's inventory page, the item row highlighted
+    if (k === "inventory_low_stock") {
+      const it = /^[0-9a-f-]{36}$/i.test(String(d.item_id || "")) ? String(d.item_id) : "";
+      if (!q) return it ? "inventory.html?item=" + enc(it) : "inventory.html";
+      return "inventory.html?quote=" + enc(q) + (it ? "&item=" + enc(it) : "");
+    }
     if (k.indexOf("chat_") === 0) return "chat.html";
     if (k.indexOf("nurture_") === 0) return "nurture.html";
     if (!q) return "";
     if (k.indexOf("task_") === 0) return "ops.html?quote=" + enc(q) + (has(d.task_id) ? "&task=" + enc(d.task_id) : "");
     if (/^(payment_link|payment_reminder|payment_receipt|payment|payment_received|advance_paid|payment_reconcile|pkg_payment)$/.test(k))
       return "settlement.html?quote=" + enc(q) + "#payments";
-    if (/^(approval_link|otp|reapproval_required|quote_approved|quote_changed|approved|change_order)$/.test(k))
+    if (/^(approval_link|otp|reapproval_required|quote_approved|quote_changed|approved|change_order|client_follow_up)$/.test(k))
       return "quotes.html?focus=" + enc(has(n.event_code) ? n.event_code : q);
     if (k.indexOf("design_") === 0) return "design.html?quote=" + enc(q);
     if (/^pkg_(selected|accepted|declined)$/.test(k)) return "event.html?id=" + enc(q) + "#pkg-selections";
@@ -5830,7 +5839,7 @@ window.HelmUrl = HelmUrl;
     if (n.__chat) return n.mention ? null : "chat_message";
     const k = String(n.kind || "").toLowerCase().trim();
     if (["approval_link", "otp", "payment_link", "payment_reminder", "payment_receipt", "advance_paid", "payment_reconcile",
-         "task_assigned", "task_reminder", "task_due", "security_alert"].indexOf(k) !== -1) return k;
+         "task_assigned", "task_reminder", "task_due", "security_alert", "inventory_low_stock", "client_follow_up"].indexOf(k) !== -1) return k;
     if (k === "payment" || k === "payment_received") return "payment_receipt";
     if (k === "trial_reminder") return "billing_trial";
     if (/^pkg_(selected|accepted|declined|payment)$/.test(k)) return k;
@@ -5847,7 +5856,8 @@ window.HelmUrl = HelmUrl;
     task_reminder: "Task reminders", task_due: "Tasks due", payment_link: "Payment links", payment_reminder: "Payment reminders",
     payment_receipt: "Payment receipts", advance_paid: "Payments received", payment_reconcile: "Payments needing attention",
     chat_message: "Chat messages", pkg_selected: "Client package choices", pkg_accepted: "Package choices accepted",
-    pkg_declined: "Package choices declined", pkg_payment: "Package payments", security_alert: "Security alerts", billing_trial: "Free trial reminders", other: "Other updates" };
+    pkg_declined: "Package choices declined", pkg_payment: "Package payments", security_alert: "Security alerts", billing_trial: "Free trial reminders",
+    inventory_low_stock: "Low stock warnings", client_follow_up: "Client follow-ups", other: "Other updates" };
   // A4: a chat row's read key carries its newest message time, so marking a conversation read
   // only covers what was there; a later message makes a new key and counts as unread again.
   function bellChatKey(n) { return "c:" + ((n && n.conversation_id) || "") + "@" + ((n && n.created_at) || ""); }
@@ -6117,6 +6127,10 @@ window.HelmUrl = HelmUrl;
       pkg_accepted: ["✅", "Package choice accepted" + (d.event_code ? " · " + d.event_code : "")],
       pkg_declined: ["↩️", "Package choice declined" + (d.event_code ? " · " + d.event_code : "")],
       pkg_payment: ["💸", "Package payment received" + (d.event_code ? " · " + d.event_code : "")],
+      // 0078: low stock on an event date / automatic client follow-up
+      inventory_low_stock: ["📦", "Low stock: " + String(d.item || "an item") + (d.date ? " on " + d.date : "")
+        + (Number(d.short) > 0 ? " — short by " + Number(d.short) : "")],
+      client_follow_up: ["💬", "Follow-up sent to the client" + (d.auto === false ? "" : " (automatic)")],
     };
     const hit = m[k] || (k.indexOf("design_") === 0 ? ["🎨", "Design stage: " + k.slice(7).replace(/_/g, " ")]
                       : k.indexOf("nurture_") === 0 ? ["🌱", "Greeting queued" + (k.length > 8 ? " · " + k.slice(8).replace(/_/g, " ") : "")] : null);
@@ -6133,8 +6147,9 @@ window.HelmUrl = HelmUrl;
   function deeplinkTarget(search, hash) {
     let p; try { p = new URLSearchParams(search || ""); } catch (e) { return null; }
     const ok = (v) => (v && /^[A-Za-z0-9_-]{1,64}$/.test(v)) ? v : null;
-    const task = ok(p.get("task")), msg = ok(p.get("msg"));
+    const task = ok(p.get("task")), msg = ok(p.get("msg")), item = ok(p.get("item"));
     if (task) return '.trow[data-id="' + task + '"]';
+    if (item) return 'tr[data-item="' + item + '"]';
     if (msg) return '.m[data-mid="' + msg + '"]';
     if (hash === "#payments") return "#payments";
     if (hash === "#pkg-selections") return "#pkg-selections";
@@ -6721,7 +6736,8 @@ window.HelmUrl = HelmUrl;
     const what = ({ advance_paid: "Payment received — receipt sent", payment_received: "Payment received — receipt sent", pkg_payment: "Package payment received",
       payment_receipt: "Payment receipt sent", payment_link: "Payment link sent", payment_reminder: "Payment reminder sent", payment_reconcile: "Payment flagged for checking",
       approval_link: "Approval link sent", otp: "Approval code sent", pkg_selected: "Client chose a package", pkg_accepted: "Package choice accepted",
-      pkg_declined: "Package choice declined", task_assigned: "Tasks assigned", task_complete: "Task completed", booklet_shared: "Booklet shared" }[kind])
+      pkg_declined: "Package choice declined", task_assigned: "Tasks assigned", task_complete: "Task completed", booklet_shared: "Booklet shared",
+      client_follow_up: "Follow-up sent" }[kind])
       || auditHuman(kind) || "Notification";
     if (!to) return what;
     const via = /^(email|e-mail|mail)$/i.test(to) ? "by e-mail" : /^(whatsapp|wa|sms)$/i.test(to) ? "on " + (to.toLowerCase() === "sms" ? "SMS" : "WhatsApp")
@@ -6979,8 +6995,30 @@ window.HelmUrl = HelmUrl;
     done: () => noteCheckoutDone(),
   };
 
+  /* ---------------- 0078 automatic client messages + WhatsApp forwarding ----------------
+     Settings live server-side (comms_settings, Control Center admins). Sending is done ONLY by the
+     server (cron + the dormant comms-dispatch edge function); the browser never sends. */
+  // {placeholder} preview — mirrors public._comms_render (unknown placeholders stay as typed)
+  function commsRender(tpl, vars) {
+    let out = String(tpl == null ? "" : tpl); const v = vars || {};
+    Object.keys(v).forEach((k) => { out = out.split("{" + k + "}").join(String(v[k] == null ? "" : v[k])); });
+    return out.slice(0, 1000);
+  }
+  const COMMS_SAMPLE = { client: "Riya", studio: "your studio", event: "Riya's Wedding", label: "50% advance",
+    amount: "Rs. 50,000", due: "12 Nov 2026", status: "due in 3 days" };
+  const comms = {
+    render: commsRender, sample: COMMS_SAMPLE,
+    get: () => (supa ? rpc("comms_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+    set: (patch) => (supa ? rpc("comms_settings_set", { p: patch || {} }) : Promise.reject(new Error("Automatic messages need a signed-in studio."))),
+    // "Send reminder now" → { queued, already_queued }; null when the server is older than 0078
+    remindNow: (milestoneId) => (supa ? rpc("payment_reminder_send_now", { p_milestone: milestoneId }).catch((e) => { if (rpcMissing(e)) return null; throw e; })
+      : Promise.resolve(null)),
+    myForward: () => (supa ? rpc("my_wa_forward_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+    setMyForward: (on) => (supa ? rpc("my_wa_forward_set", { p_on: !!on }) : Promise.reject(new Error("Needs a signed-in studio."))),
+  };
+
   const BPStore = {
-    activityText, init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, portal, files, chat, profile, quoteShelf, uploads,
+    activityText, init, mode: () => mode, auth, quotes, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, comms, audit, insights, portal, files, chat, profile, quoteShelf, uploads,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.
@@ -7058,7 +7096,7 @@ window.HelmUrl = HelmUrl;
     // (client-safe fields only, rate-limited + logged server-side). Before 0065 / local mode:
     // current() → null and share() rejects with a friendly message.
     booklet: {
-      get: (token) => rpc("public_get_booklet", { p_token: token }),
+      get: (token) => rpc("public_get_booklet", { p_token: token }).then((r) => { linkOpened("booklet", token); return r; }),
       // 0067: /<studio>/booklet/<token> — the studio name must belong to the token's studio
       studioOk: (token, studio) => (supa ? rpc("public_booklet_studio", { p_token: String(token || ""), p_studio: String(studio || "") })
         .then((r) => { if (r && r !== studio) { try { history.replaceState(null, "", "/" + r + "/booklet/" + encodeURIComponent(String(token))); } catch (e) {} } return !!r; })
