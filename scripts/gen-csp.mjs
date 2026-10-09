@@ -26,7 +26,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { computeHashes, computeStyleHashes, withHashes, htmlFiles, scriptSrcProblem } = require('./csp-hashes.cjs');
+const { computeHashes, computeStyleHashes, withHashes, htmlFiles, scriptSrcProblem, frameAncestorsProblem } = require('./csp-hashes.cjs');   // R8b: frame-ancestors route allowlist lives there
 
 // Production hosts (must match PROD_HOSTS in public/config.js) and the staging
 // Supabase project ref (from public/config.staging.js) that they must never allow.
@@ -100,6 +100,8 @@ for (const rule of vercel.headers || []) {
   for (const h of rule.headers || []) {
     if (h.key.toLowerCase() === 'content-security-policy') {
       h.value = stripStaging(withHashes(h.value, hashes, styleHashes)); cspCount++;
+      const fbad = frameAncestorsProblem(h.value, rule.source);
+      if (fbad) { console.error(`  ✗ vercel.json ${rule.source}: ${fbad}`); problems++; }
       const bad = scriptSrcProblem(h.value, rule.source);
       if (bad) { console.error(`  ✗ vercel.json ${rule.source}: ${bad} — host sources live in scripts/csp-hashes.cjs`); problems++; }
     }
@@ -140,6 +142,8 @@ const hNext = hRaw.replace(/^(\s*Content-Security-Policy:\s*)(.*)$/gm, (_, k, v)
   for (const line of hRaw.split('\n')) {
     if (line.trim() && !line.trim().startsWith('#') && !/^\s/.test(line)) route = line.trim();
     const m = /^\s+Content-Security-Policy:\s*(.*)$/.exec(line);
+    const fbad = m && frameAncestorsProblem(m[1], route);
+    if (fbad) { console.error(`  ✗ public/_headers ${route}: ${fbad}`); problems++; }
     const bad = m && scriptSrcProblem(m[1], route);
     if (bad) { console.error(`  ✗ public/_headers ${route}: ${bad} — host sources live in scripts/csp-hashes.cjs`); problems++; }
   }

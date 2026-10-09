@@ -20,10 +20,10 @@ t('store-api keeps the tour flag on the account (user_metadata), not only localS
 
 t('dashboard no longer auto-starts just because this browser lacks bp_seen_tour', () => {
   assert.doesNotMatch(D, /if\(forced \|\| !localStorage\.getItem\("bp_seen_tour"\)\)/);
-  assert.match(D, /if\(seen \|\| \(!forced && !eligible\)\) return;/);
+  assert.match(D, /if\(seen \|\| localSeen \|\| \(!forced && !eligible\)\) return;/);
   assert.match(D, /A\.markTourSeen\(\)/);
   // marked seen BEFORE starting (leaving mid-tour must not re-trigger it)
-  assert.ok(D.indexOf('A.markTourSeen()') < D.indexOf('startTour();\n    })();'));
+  assert.ok(D.indexOf('A.markTourSeen()') < D.indexOf('startTour();\n      await mark;'));
 });
 
 t('manual Tour button still wired; signup still forces it', () => {
@@ -40,7 +40,8 @@ t('decision table', () => {
   assert.equal(decide({ seen: true, forced: true, eligible: true }), false);
   assert.equal(decide({ seen: false, forced: false, eligible: false }), false); // legacy account, new browser
 });
-t('auth boots async: "auth off" is retried before falling back to the per-device demo check', () => {
+t('auth boots async: the tour waits for BPStore.init() before the per-device demo check', () => {
   const d = readFileSync(new URL('../public/dashboard.html', import.meta.url), 'utf8');
-  assert.match(d, /if\(!authOn\)\{ if\(tries\+\+ < 15\)\{ setTimeout\(go, 400\); return; \}/);
+  assert.match(d, /await Promise\.race\(\[ Promise\.resolve\(BPStore\.init/);
+  assert.ok(d.indexOf('BPStore.init()') < d.indexOf('if(!(A && A.enabled && A.enabled()))'));
 });

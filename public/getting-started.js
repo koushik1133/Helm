@@ -20,8 +20,8 @@
     studio:     { icon: "🏢", title: "Fill in studio details", why: "Your legal name and billing address appear on every Helm invoice.", href: "control.html#account" },
     pricing:    { icon: "💲", title: "Set your prices", why: "New quotes use your default rates and menu packages automatically.", href: "control.html#pricing" },
     lead:       { icon: "📥", title: "Add your first lead", why: "Log each enquiry so you can follow it up and turn it into an event.", href: "leads.html" },
-    floor_plan: { icon: "📐", title: "Design your first floor plan", why: "Plan the hall layout. The chairs you place are added to the quote.", href: "builder.html" },
-    quote:      { icon: "📨", title: "Send your first quote", why: "Send the client an approval link they can approve and pay from.", href: "quotes.html" },
+    floor_plan: { icon: "📐", title: "Design your first floor plan", why: "Plan the hall layout. The chairs you place are added to the quote.", href: "quotes.html?new=1&open=builder" },
+    quote:      { icon: "📨", title: "Send your first quote", why: "Send the client an approval link they can approve and pay from.", href: "quotes.html?new=1" },
     team:       { icon: "👥", title: "Invite your team", why: "Add your staff and choose what each role can see and edit.", href: "control.html#users" },
     mfa:        { icon: "🔐", title: "Turn on two-step sign-in", why: "A code at sign-in protects your studio even if a password leaks.", href: "", act: "mfa" },
   };

@@ -152,6 +152,8 @@ const CSP = {
   studio: buildCsp({ 'img-src': USER_IMG, 'media-src': USER_MEDIA }),
   invite: buildCsp({ 'img-src': USER_IMG, 'media-src': USER_MEDIA, 'frame-ancestors': "'self'" }),
   builder: buildCsp({ 'script-src': SCRIPT_SRC_BUILDER.join(' ') }),
+  // R8b: capture.html = the builder run headless in a hidden same-origin iframe (share card pictures)
+  capture: buildCsp({ 'script-src': SCRIPT_SRC_BUILDER.join(' '), 'frame-ancestors': "'self'" }),
 };
 //  • login / reset-password may load the Cloudflare Turnstile CAPTCHA (script + iframe
 //    from challenges.cloudflare.com) — those two pages only (auth hardening)
@@ -171,7 +173,7 @@ CSP.checkout = buildCsp({
 });
 const CSP_BY_PAGE = {
   portal: 'userImg', booklet: 'userImg', 'proposal-view': 'userImg', proposal: 'userImg', media: 'userImg',
-  'invite-studio': 'studio', invite: 'invite', builder: 'builder',
+  'invite-studio': 'studio', invite: 'invite', builder: 'builder', capture: 'capture',
   login: 'auth', 'reset-password': 'auth', checkout: 'checkout',
 };
 const SECURITY_HEADERS = {
@@ -234,7 +236,7 @@ function securityHeadersFor(req, filePath) {
   const page = rel.includes('/') ? null : pageName(rel);
   const variant = page && CSP_BY_PAGE[page];
   if (variant) h['Content-Security-Policy'] = CSP[variant];
-  if (page === 'invite') h['X-Frame-Options'] = 'SAMEORIGIN';   // Invitation Studio preview (same-origin only)
+  if (page === 'invite' || page === 'capture') h['X-Frame-Options'] = 'SAMEORIGIN';   // R8b: capture host (same-origin only)   // Invitation Studio preview (same-origin only)
   if (page && MIC_PAGES.has(page)) h['Permissions-Policy'] = CHAT_PERMISSIONS; // voice notes (same rule as vercel.json / _headers)
   // Client-link (bearer token) pages: the token is in the URL, so never send it
   // on as a Referer (same rule as vercel.json / _headers).

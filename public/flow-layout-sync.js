@@ -2,16 +2,21 @@
    Pure helpers (no DOM) so they can be unit-tested in node:
    - reconcile(): given the quote's saved pricing and the layout's counts, work out the
      chairs / "Décor / setup" (other) values the quotation should now show. Mirrors the
-     builder's syncQuotePricing rules: chairs always follow the layout; `other` follows the
+     builder's syncQuotePricing rules: R8b — chairs NEVER follow the layout (the quote's one chairs
+     value is the pricing source; a differing layout count only raises chairsMismatch for a note); `other` follows the
      layout's objects cost UNLESS it was hand-edited (other !== the last auto value).
    - flag helpers: a one-shot per-quote marker set when the flow opens the builder, so the
      return trip (Save & back, browser Back, bfcache) re-prices exactly once. */
 (function (global) {
   "use strict";
   var num = function (v) { var n = +v; return isFinite(n) && n >= 0 ? n : 0; };
-  function reconcile(pricing, layout) {
+  function reconcile(pricing, layout, client) {
     var pr = pricing || {}, lo = layout || {};
-    var chairs = Math.round(num(lo.chairs));
+    var layoutChairs = Math.round(num(lo.chairs));
+    var S = global.HelmSizing, chairs;
+    if (pr.chairs != null && isFinite(+pr.chairs)) chairs = Math.round(num(pr.chairs));
+    else if (S && S.quoteChairs) chairs = S.quoteChairs(client, pr, layoutChairs) || 0;
+    else chairs = layoutChairs;
     var auto = num(lo.objectsCost) + num(lo.layoutBase);
     var prevAuto = pr.otherAuto != null ? +pr.otherAuto : null;
     // no record of the last auto value → treat an existing `other` as hand-set (never clobber it)
@@ -19,7 +24,7 @@
     var other = hand ? num(pr.other) : auto;
     var chairsChanged = pr.chairs == null ? chairs > 0 : +pr.chairs !== chairs;
     var otherChanged = pr.other == null ? other > 0 : +pr.other !== other;
-    return { chairs: chairs, other: other, otherAuto: auto, otherHand: hand,
+    return { chairs: chairs, layoutChairs: layoutChairs, chairsMismatch: layoutChairs > 0 && layoutChairs !== chairs, other: other, otherAuto: auto, otherHand: hand,
       chairsChanged: chairsChanged, otherChanged: otherChanged, changed: chairsChanged || otherChanged };
   }
   var KEY = "helm_flow_builder:";

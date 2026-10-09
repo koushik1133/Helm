@@ -4,8 +4,10 @@
    payments, terms}). 0083: the 2D / 3D sections show the builder's real pictures, stored in the
    database in two styles — "With labels" (numbered badges + legend) and "Without labels" — and the
    studio picks which styles the client sees (default both). These pages have no 3D scene, so they
-   use the newest pictures from the builder ("Update client images" / auto-capture); when a picture
-   is missing the share is blocked with an "Open builder to capture" button (never publish nothing).
+   use the newest pictures from the builder. R8b: ZERO manual picture-taking — when a ticked picture
+   is missing or older than the latest layout, Create/Update link renders them automatically in a
+   hidden same-origin capture host (capture.html, the only page that may be framed, by 'self'),
+   which uploads them and reports back by postMessage (origin + source + quote id are checked).
    DOM via createElement / textContent / setAttribute only. */
 (function (global) {
   "use strict";
@@ -41,6 +43,24 @@
     let latest = 0; (versions || []).forEach((v) => { const x = Date.parse((v && (v.createdAt || v.created_at)) || ""); if (isFinite(x) && x > latest) latest = x; });
     return t >= latest;
   }
+  // R8: accept the 0083 nested shape {"2d":{labels:iso,plain:iso}} and a flat {"2d_labels":iso} / {"2d":iso} shape
+  function normInfo(info) {
+    const out = { "2d": {}, "3d": {} }; if (!info || typeof info !== "object") return out;
+    ["2d", "3d"].forEach((k) => {
+      const x = info[k];
+      if (x && typeof x === "object") ["labels", "plain"].forEach((v) => { if (x[v]) out[k][v] = String(x[v]); });
+      else if (typeof x === "string" && x) out[k].labels = x;
+      ["labels", "plain"].forEach((v) => { const f = info[k + "_" + v]; if (f && !out[k][v]) out[k][v] = String(f); });
+    });
+    return out;
+  }
+  // R8: per kind / style: 'missing' (never captured), 'stale' (older than the newest layout version), 'ok'
+  function imageStatus(info, versions) {
+    const n = normInfo(info), out = {};
+    ["2d", "3d"].forEach((k) => { out[k] = {}; ["labels", "plain"].forEach((v) => {
+      const t = n[k][v]; out[k][v] = !t ? "missing" : (freshEnough(t, versions) ? "ok" : "stale"); }); });
+    return out;
+  }
   function quoteIdFor(n) {
     const q = n && n.getAttribute("data-quote");
     if (q && UUID_RE.test(q)) return q;
@@ -65,7 +85,7 @@
   function variantsFor(state, k) { const v = state.variants[k] || {}; return STYLES.filter((x) => v[x[0]] !== false).map((x) => x[0]); }
   // what is missing for the share: [{section, kind, variant}] for every ticked section + style without a stored picture
   function missingImages(sections, variants, info) {
-    const out = []; info = info && typeof info === "object" ? info : {};
+    const out = []; info = normInfo(info);
     [["layout2d", "2d"], ["layout3d", "3d"]].forEach((x) => {
       if (!sections || sections[x[0]] !== true) return;
       const v = (variants && variants[x[0]]) || {};
@@ -78,6 +98,56 @@
     const o = {}; [["layout2d", "2d"], ["layout3d", "3d"]].forEach((x) => { const v = (variants && variants[x[0]]) || {};
       STYLES.forEach((st) => { o[x[1] + "_" + st[0]] = v[st[0]] !== false; }); });
     return o;
+  }
+  /* ---- R8b: offscreen capture host protocol ---- */
+  const CAPTURE_TIMEOUT_MS = 60000;
+  function captureUrl(quoteId) { return "capture.html?quote=" + encodeURIComponent(String(quoteId || "")); }
+  // a message from the capture host is trusted only when it is same-origin, from OUR iframe, for OUR quote
+  function acceptCaptureMessage(ev, o) {
+    if (!ev || !o || ev.origin !== o.origin) return null;
+    if (o.source && ev.source !== o.source) return null;
+    const d = ev.data;
+    if (!d || typeof d !== "object" || (d.type !== "helm-capture-done" && d.type !== "helm-capture-progress")) return null;
+    if (!o.quoteId || d.quoteId !== o.quoteId) return null;
+    return d;
+  }
+  // kinds ('2d' / '3d') whose ticked pictures are missing or older than the latest layout
+  function needsCapture(sections, variants, info, stale) {
+    const out = [], miss = missingImages(sections, variants, info);
+    [["layout2d", "2d"], ["layout3d", "3d"]].forEach((x) => {
+      if (!sections || sections[x[0]] !== true) return;
+      if (miss.some((m) => m.kind === x[1]) || (stale && stale[x[1]])) out.push(x[1]);
+    });
+    return out;
+  }
+  // render + upload the pictures in a hidden capture host; resolves { ok, empty, results } or rejects (timeout / failure)
+  function autoCapture(quoteId, o) {
+    o = o || {};
+    const win = o.win || global, d = o.doc || doc, ms = o.timeoutMs || CAPTURE_TIMEOUT_MS;
+    return new Promise((resolve, reject) => {
+      if (!quoteId || !UUID_RE.test(quoteId) || !d) { reject(new Error("Save the event first.")); return; }
+      const fr = d.createElement("iframe");
+      fr.setAttribute("title", "Preparing client pictures"); fr.setAttribute("aria-hidden", "true"); fr.setAttribute("tabindex", "-1");
+      fr.setAttribute("style", "position:fixed;left:-12000px;top:0;width:1400px;height:900px;border:0;opacity:0;pointer-events:none");
+      let done = false, timer = null;
+      const finish = (err, val) => {
+        if (done) return; done = true; clearTimeout(timer);
+        try { win.removeEventListener("message", onMsg); } catch (e) {}
+        try { if (fr.parentNode) fr.parentNode.removeChild(fr); } catch (e) {}
+        if (err) reject(err); else resolve(val);
+      };
+      function onMsg(ev) {
+        const m = acceptCaptureMessage(ev, { origin: win.location.origin, source: fr.contentWindow, quoteId: quoteId });
+        if (!m) return;
+        if (m.type === "helm-capture-progress") { try { if (o.onProgress) o.onProgress(m.step); } catch (e) {} return; }
+        if (m.error && !m.empty) finish(new Error(String(m.error).slice(0, 200)));
+        else finish(null, { ok: !!m.ok, empty: !!m.empty, results: m.results || {} });
+      }
+      win.addEventListener("message", onMsg);
+      timer = setTimeout(() => finish(Object.assign(new Error("Preparing the pictures took longer than 60 seconds."), { timeout: true })), ms);
+      fr.setAttribute("src", captureUrl(quoteId));
+      (d.body || d.documentElement).appendChild(fr);
+    });
   }
   function builderUrl(quoteId) {
     try { if (global.HelmUrl && global.HelmUrl.build) return global.HelmUrl.build("floor-plan", { id: quoteId }); } catch (e) {}
@@ -109,7 +179,8 @@
       lab.appendChild(cb); lab.appendChild(el("span", "", x[1].replace(/ screenshot$/, ""))); list.appendChild(lab);
       if (x[0] === "menu") list.appendChild(rule);
     });
-    wrap.appendChild(thumbs); wrap.appendChild(pv);
+    const prog = el("p", "sc-meta sc-prog"); prog.setAttribute("aria-live", "polite"); prog.hidden = true;
+    wrap.appendChild(thumbs); wrap.appendChild(prog); wrap.appendChild(pv);
 
     function thumb(k) {
       const kind = k === "layout2d" ? "2d" : "3d", name = kind === "2d" ? "2D floor plan" : "3D view";
@@ -127,14 +198,11 @@
       box.appendChild(tg);
       if (!vs.length) box.appendChild(el("p", "sc-meta sc-warn", "Pick at least one style, or untick " + name + "."));
       else if (info === null) box.appendChild(el("p", "sc-meta", "Checking the builder pictures…"));
+      else if (state.infoErr) box.appendChild(el("p", "sc-meta sc-warn", "Couldn’t check the builder pictures — they are re-checked when you share."));
       else {
         const miss = missingImages({ [k]: true }, { [k]: state.variants[k] }, info);
-        if (miss.length) {
-          box.appendChild(el("p", "sc-meta sc-warn", "No " + name + " picture " + miss.map((m) => (m.variant === "plain" ? "without" : "with") + " labels").join(" or ") +
-            " yet. Open the builder and press “Update client images”, then come back."));
-          const a = el("a", "sc-btn ghost", "Open builder to capture"); a.setAttribute("href", builderUrl(quoteId)); a.setAttribute("target", "_blank"); a.setAttribute("rel", "noopener");
-          box.appendChild(a);
-        } else if (state.stale && state.stale[kind]) box.appendChild(el("p", "sc-meta", "These pictures are older than the latest layout — open the builder and press “Update client images” to refresh them."));
+        if (miss.length) box.appendChild(el("p", "sc-meta", "The " + name + " pictures are prepared automatically from the latest layout when you create or update the link."));
+        else if (state.stale && state.stale[kind]) box.appendChild(el("p", "sc-meta", "The layout changed since these pictures — they are refreshed automatically when you share."));
       }
       const cap = el("figcaption"); cap.appendChild(el("span", "", name)); box.appendChild(cap);
       return box;
@@ -142,11 +210,12 @@
     // newest stored pictures (+ previews of the first chosen style)
     async function loadInfo() {
       const B = global.BPStore && global.BPStore.booklet;
-      try { state.info = (B && B.imageInfo ? await B.imageInfo(quoteId) : {}) || {}; } catch (e) { state.info = {}; }
+      // R8: a failed check is NOT "no pictures" — remember the error instead of claiming they are missing
+      state.infoErr = null;
+      try { state.info = normInfo(B && B.imageInfo ? await B.imageInfo(quoteId) : {}); } catch (e) { state.info = normInfo({}); state.infoErr = e || new Error("check failed"); }
       try {
-        const vs = (await global.BPStore.quotes.versions(quoteId)) || []; state.stale = {};
-        ["2d", "3d"].forEach((kind) => { const x = state.info[kind] || {}; const t = [x.labels, x.plain].filter(Boolean).sort()[0];
-          state.stale[kind] = !!t && !freshEnough(t, vs); });
+        const vs = (await global.BPStore.quotes.versions(quoteId)) || []; const st = imageStatus(state.info, vs); state.stale = {};
+        ["2d", "3d"].forEach((kind) => { state.stale[kind] = st[kind].labels === "stale" || st[kind].plain === "stale"; });
       } catch (e) { state.stale = {}; }
       refresh();
       for (const kind of ["2d", "3d"]) for (const st of STYLES) {
@@ -164,20 +233,38 @@
     refresh();
     host.appendChild(wrap);
     loadInfo();
+    // R8: re-check when the studio comes back from the builder tab
+    try { global.addEventListener("focus", () => { if (host.isConnected !== false) loadInfo(); }); } catch (e) {}
 
     return {
-      sections: () => normalize(state.sections),
+      // R8b: an empty layout has no pictures — the 2D / 3D sections are skipped (with a note) instead of blocking
+      sections: () => { const s = normalize(state.sections); if (state.skipPics) { s.layout2d = false; s.layout3d = false; } return s; },
       variants: () => variantFlags(state.variants),
       // before the share: every ticked 2D / 3D section needs its stored builder pictures (never publish nothing)
       async uploadSnapshots() {
         const sec = normalize(state.sections);
-        if (state.info === null) await loadInfo();
+        // R8: always re-check — the pictures are usually captured in another tab (builder) after this page loaded
+        await loadInfo();
+        if (state.infoErr) throw new Error("Couldn’t check the builder pictures (" + errText(state.infoErr) + "). Please try again.");
         for (const k of ["layout2d", "layout3d"]) if (sec[k] && !variantsFor(state, k).length)
           throw new Error("Pick “With labels” and/or “Without labels” for the " + (k === "layout2d" ? "2D floor plan" : "3D view") + ", or untick it.");
-        const miss = missingImages(sec, state.variants, state.info);
-        if (miss.length) {
-          const names = Array.from(new Set(miss.map((m) => (m.kind === "2d" ? "2D floor plan" : "3D view"))));
-          throw new Error("No " + names.join(" / ") + " picture yet — open the builder and press “Update client images”, or untick " + (names.length > 1 ? "them" : "it") + ".");
+        // R8b: missing / stale pictures are rendered automatically (no trip to the builder)
+        state.skipPics = false;
+        const need = needsCapture(sec, state.variants, state.info, state.stale);
+        if (need.length) {
+          const mark = { "2d": "…", "3d": "…" };
+          const show = () => { prog.hidden = false; prog.textContent = "Preparing pictures… 2D " + mark["2d"] + " 3D " + mark["3d"]; };
+          show();
+          let r;
+          try { r = await (o.autoCapture || autoCapture)(quoteId, { onProgress: (step) => { if (step === "2d" || step === "3d") { mark[step] = "\u2713"; show(); } } }); }
+          catch (e) { prog.textContent = ""; prog.hidden = true;
+            throw new Error("Couldn’t prepare the 2D / 3D pictures (" + String((e && e.message) || "failed") + "). Press the button again to retry, or untick them."); }
+          if (r && r.empty) { state.skipPics = true; prog.textContent = "The floor layout has no items yet — the 2D / 3D pictures are skipped for this link."; refresh(); return; }
+          mark["2d"] = mark["3d"] = "\u2713"; show();
+          await loadInfo();
+          const still = missingImages(sec, state.variants, state.info);
+          if (still.length) throw new Error("Some pictures couldn’t be prepared (" + still.map((m) => m.kind.toUpperCase() + (m.variant === "plain" ? " without" : " with") + " labels").join(", ") + "). Press the button again to retry, or untick them.");
+          prog.textContent = "Pictures ready — 2D \u2713 3D \u2713";
         }
       },
       // after the link exists: which picture styles it shows
@@ -251,7 +338,7 @@
     cards.forEach((c) => { if (!can) { c.hidden = true; return; } if (c.dataset.scWired) return; c.dataset.scWired = "1"; c.hidden = false; renderCard(c).catch(() => {}); });
   }
 
-  global.HelmShareChecklist = { mount, wire, normalize, menuRule, preview, fitSize, sharePayload, freshEnough, missingImages, variantFlags, builderUrl, STYLES, SECTIONS };
+  global.HelmShareChecklist = { mount, wire, normalize, menuRule, preview, fitSize, sharePayload, freshEnough, missingImages, normInfo, imageStatus, variantFlags, builderUrl, captureUrl, acceptCaptureMessage, needsCapture, autoCapture, CAPTURE_TIMEOUT_MS, STYLES, SECTIONS };
   if (doc && doc.querySelector("[data-share-checklist]")) {
     if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", wire); else wire();
   }
