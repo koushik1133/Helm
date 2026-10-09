@@ -44,14 +44,49 @@
   // R8b: the quote's ONE chairs value — the pricing source everywhere (chairs × chair rate).
   // Hand-typed chairs (client first, then pricing) win; otherwise 70% of guests (rounded up);
   // a saved pricing.chairs next; the layout's count only when the quote has nothing at all.
+  function has(o, k) { return Object.prototype.hasOwnProperty.call(o, k); }
+  // R9: a quote priced before R8 has pricing.chairs but no chairsManual flag on either record. Its
+  // saved chairs are what the server billed (D8 helm_quote_total reads pricing.chairs), so they are
+  // treated as hand-set — re-deriving 70% of guests would silently change an existing total.
+  function legacyChairs(cl, pr) {
+    if (has(cl, "chairsManual") || has(pr, "chairsManual") || pos(pr.chairs) == null) return false;
+    return pos(pr.chairs) !== defaultChairs(cl.guests != null && cl.guests !== "" ? cl.guests : pr.guests);
+  }
+  function isChairsManual(client, pricing) {
+    var cl = client || {}, pr = pricing || {};
+    if (has(cl, "chairsManual")) return !!(cl.chairsManual && pos(cl.chairs) != null);
+    return !!((pr.chairsManual && pos(pr.chairs) != null) || legacyChairs(cl, pr));
+  }
+  // The client record is written first by every screen (flow, builder, quotes) — when it carries the
+  // flag it is authoritative, so a "reset to 70%" there is never undone by a stale pricing flag.
   function quoteChairs(client, pricing, fallback) {
     var cl = client || {}, pr = pricing || {};
-    if (cl.chairsManual && pos(cl.chairs) != null) return pos(cl.chairs);
-    if (pr.chairsManual && pos(pr.chairs) != null) return pos(pr.chairs);
+    if (has(cl, "chairsManual")) { if (cl.chairsManual && pos(cl.chairs) != null) return pos(cl.chairs); }
+    else if (pr.chairsManual && pos(pr.chairs) != null) return pos(pr.chairs);
+    else if (legacyChairs(cl, pr)) return pos(pr.chairs);
     var d = defaultChairs(cl.guests != null && cl.guests !== "" ? cl.guests : pr.guests);
     if (d != null) return d;
     if (pos(pr.chairs) != null) return pos(pr.chairs);
     return pos(fallback);
+  }
+  // R9: what the Custom Event dialog shows EVERY time it opens — the quote's current sizing
+  // (chairs incl. hand edits from any screen; tables = ceil(chairs / seats-per-table) unless typed).
+  function dialogSizing(client, pricing, room, guestsFallback, spt) {
+    var cl = Object.assign({}, client || {}), pr = pricing || {};
+    if (pos(cl.guests) == null && pos(guestsFallback) != null) cl.guests = pos(guestsFallback);
+    var sz = resolve(cl, pr, room);
+    var chairs = quoteChairs(cl, pr, null), chairsManual = isChairsManual(cl, pr);
+    var tables = sz.tablesManual ? sz.tables : defaultTables(chairs, spt);
+    return { guests: sz.guests, chairs: chairs, chairsManual: chairsManual, tables: tables, tablesManual: sz.tablesManual, len: sz.len, wid: sz.wid };
+  }
+  // R9: "Décor / setup" (pricing.other) is hand-set when it no longer equals the last auto value
+  // (objects + layout base) a screen computed. No record of an auto value → hand-set (never clobber).
+  // Returns the saved number when hand-set, else null (= follow the layout's objects).
+  function handOther(pricing, sessionAuto) {
+    var pr = pricing || {};
+    if (pr.other == null || pr.other === "" || !isFinite(+pr.other)) return null;
+    var prev = pr.otherAuto != null && pr.otherAuto !== "" ? +pr.otherAuto : (sessionAuto != null ? +sessionAuto : null);
+    return prev == null || +pr.other !== prev ? Math.max(0, +pr.other) : null;
   }
   // R8b: the layout's real chair count differs from the quote → offer (never force) a one-click switch
   function layoutChairsNote(quoteValue, layoutValue) {
@@ -94,7 +129,7 @@
     return scored.slice(0, limit || 3);
   }
   var api = { CHAIR_RATIO: CHAIR_RATIO, SEATS_PER_TABLE: SEATS_PER_TABLE, PRESETS: PRESETS,
-    defaultChairs: defaultChairs, quoteChairs: quoteChairs, layoutChairsNote: layoutChairsNote, defaultTables: defaultTables, resolve: resolve, merge: merge, rankTemplates: rankTemplates };
+    defaultChairs: defaultChairs, quoteChairs: quoteChairs, isChairsManual: isChairsManual, handOther: handOther, dialogSizing: dialogSizing, layoutChairsNote: layoutChairsNote, defaultTables: defaultTables, resolve: resolve, merge: merge, rankTemplates: rankTemplates };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else global.HelmSizing = api;
 })(typeof window !== "undefined" ? window : globalThis);

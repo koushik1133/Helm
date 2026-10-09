@@ -14,8 +14,10 @@
     var pr = pricing || {}, lo = layout || {};
     var layoutChairs = Math.round(num(lo.chairs));
     var S = global.HelmSizing, chairs;
-    if (pr.chairs != null && isFinite(+pr.chairs)) chairs = Math.round(num(pr.chairs));
-    else if (S && S.quoteChairs) chairs = S.quoteChairs(client, pr, layoutChairs) || 0;
+    // R9: the quote's ONE chairs value (same rule as the flow seed + builder panel) — a stale saved
+    // pricing.chairs no longer wins over a newer client-side edit/reset made in the builder
+    if (S && S.quoteChairs) chairs = S.quoteChairs(client, pr, pr.chairs != null ? pr.chairs : layoutChairs) || 0;
+    else if (pr.chairs != null && isFinite(+pr.chairs)) chairs = Math.round(num(pr.chairs));
     else chairs = layoutChairs;
     var auto = num(lo.objectsCost) + num(lo.layoutBase);
     var prevAuto = pr.otherAuto != null ? +pr.otherAuto : null;
