@@ -7,21 +7,28 @@ const read = (f) => readFileSync(new URL('../' + f, import.meta.url), 'utf8');
 let n = 0; const t = (name, fn) => { fn(); n++; };
 
 const { frameBox } = require('../public/capture-frame.js');
-t('frameBox: every bbox corner projects inside ~85% of a 16:9 frame, and one touches the edge', () => {
-  const box = { min: [-60, 0, -40], max: [60, 6, 40] }, o = { fovDeg: 48, aspect: 16 / 9, fill: 0.85 };
-  const f = frameBox(box, o);
-  assert.deepEqual(f.target, [0, 3, 0]);
-  const fw = f.dir.map((x) => -x), r0 = [-fw[2], 0, fw[0]], rl = Math.hypot(r0[0], r0[2]), r = [r0[0] / rl, 0, r0[2] / rl];
-  const u = [r[1] * fw[2] - r[2] * fw[1], r[2] * fw[0] - r[0] * fw[2], r[0] * fw[1] - r[1] * fw[0]];
-  const tv = Math.tan(24 * Math.PI / 180), th = tv * 16 / 9; let maxFill = 0;
-  for (let i = 0; i < 8; i++) {
-    const p = [(i & 1 ? 60 : -60) - f.position[0], (i & 2 ? 6 : 0) - f.position[1], (i & 4 ? 40 : -40) - f.position[2]];
-    const z = p[0] * fw[0] + p[1] * fw[1] + p[2] * fw[2]; assert.ok(z > 0);
-    const x = Math.abs(p[0] * r[0] + p[2] * r[2]) / z / th, y = Math.abs(p[0] * u[0] + p[1] * u[1] + p[2] * u[2]) / z / tv;
-    assert.ok(x <= 0.8501 && y <= 0.8501); maxFill = Math.max(maxFill, x, y);
-  }
-  assert.ok(maxFill > 0.84, 'tight framing ' + maxFill);
-  const el = Math.asin(f.dir[1]) * 180 / Math.PI; assert.ok(el > 34 && el < 41, 'elevated ~38deg');
+const { projectBox, labelWorldHeight } = require('../public/capture-frame.js');
+for (const [name, box, aspect] of [['wide hall', { min: [-60, 0, -40], max: [60, 6, 40] }, 16 / 9],
+  ['deep hall', { min: [-20, 0, -90], max: [25, 10, 70] }, 16 / 9], ['off-centre cluster', { min: [30, 0, 10], max: [70, 4, 35] }, 16 / 9],
+  ['square frame', { min: [-50, 0, -50], max: [50, 8, 50] }, 1]]) {
+  t('frameBox: ' + name + ' - projected 8 corners within [5%,95%], binding extent >= 85%', () => {
+    const o = { fovDeg: 48, aspect, fill: 0.88, elevationDeg: 38, azimuthDeg: 35 };
+    const f = frameBox(box, o), P = projectBox(box, f, o);
+    let x0 = 1, x1 = 0, y0 = 1, y1 = 0;
+    for (const [nx, ny, z] of P) {
+      assert.ok(z > 0, 'in front of camera');
+      const fx = (nx + 1) / 2, fy = (ny + 1) / 2;
+      assert.ok(fx >= 0.05 && fx <= 0.95 && fy >= 0.05 && fy <= 0.95, name + ' corner at ' + fx.toFixed(3) + ',' + fy.toFixed(3));
+      x0 = Math.min(x0, fx); x1 = Math.max(x1, fx); y0 = Math.min(y0, fy); y1 = Math.max(y1, fy);
+    }
+    assert.ok(Math.max(x1 - x0, y1 - y0) >= 0.85, 'tight framing ' + (x1 - x0) + ' x ' + (y1 - y0));
+    assert.ok(Math.abs((x0 + x1) / 2 - 0.5) < 0.01 && Math.abs((y0 + y1) / 2 - 0.5) < 0.01, 'centred');
+    const el = Math.asin(f.dir[1]) * 180 / Math.PI; assert.ok(el >= 35 && el <= 40, 'elevated ~38deg');
+  });
+}
+t('labelWorldHeight scales with framed distance (constant fraction of image height)', () => {
+  assert.ok(Math.abs(labelWorldHeight(200, 48, 0.03) / labelWorldHeight(100, 48, 0.03) - 2) < 1e-9);
+  assert.ok(Math.abs(labelWorldHeight(100, 90, 0.5) - 100) < 1e-9);
 });
 t('frameBox: bigger layout -> farther camera; tiny box respects minDist', () => {
   const a = frameBox({ min: [-20, 0, -20], max: [20, 4, 20] }), b = frameBox({ min: [-80, 0, -80], max: [80, 4, 80] });
@@ -31,9 +38,11 @@ t('frameBox: bigger layout -> farther camera; tiny box respects minDist', () => 
 t('capture3D uses the framing helper, hides grid/edge, 2x supersample, restores state', () => {
   const js = read('public/builder-3d.js');
   assert.match(js, /HelmCaptureFrame\.frameBox/); assert.match(js, /SS=2/); assert.match(js, /edge\.visible=false/);
-  assert.match(js, /ACESFilmicToneMapping/); assert.match(js, /keep\.labels\.forEach/);
+  assert.match(js, /renderMode=false; applyProfile\(\);\n      scene\.background=new THREE\.Color\('#e9ecf2'\)/);
+  const cap = js.slice(js.indexOf('async function capture3D'), js.indexOf('window.__capture3D='));
+  assert.doesNotMatch(cap, /ACESFilmic|toneMappingExposure|multiplyScalar\(0\.72\)|sun\.intensity=1|hemi\.intensity=0/); assert.match(js, /keep\.labels\.forEach/);
   const html = read('public/builder.html');
-  assert.match(html, /capture-frame\.js\?v=1"><\/script>\n<script src="builder-3d\.js\?v=5"/);
+  assert.match(html, /capture-frame\.js\?v=2"><\/script>\n<script src="builder-3d\.js\?v=6"/);
 });
 t('panel toggle re-fits the 2D plan only while at fit zoom', () => {
   const js = read('public/builder.js');
