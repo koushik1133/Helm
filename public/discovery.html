@@ -90,7 +90,7 @@
       <p class="sub">Capture what you learned before quoting. Saved to this event.</p>
       <div id="discErr" class="loadbanner" role="alert" hidden><span id="discErrMsg"></span><button type="button" class="btn s-268b76c" id="discRetry">Retry</button></div>
       <div class="grid">
-        <div class="fld"><label for="d_date">Meeting date</label><input type="date" id="d_date"></div>
+        <div class="fld"><label for="d_date">Meeting date</label><input type="date" id="d_date" data-date-window="recent"></div>
         <div class="fld"><label for="d_mode">Mode</label>
           <select id="d_mode"><option value="">—</option><option value="in_person">In person</option><option value="call">Phone call</option><option value="video">Video call</option></select></div>
         <div class="fld full"><label for="d_loc">Location / meeting link</label><input id="d_loc" placeholder="Venue address or video link"></div>
@@ -136,7 +136,7 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="store-api.js?v=137"></script>
+<script src="store-api.js?v=138"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

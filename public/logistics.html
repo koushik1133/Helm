@@ -115,7 +115,7 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="store-api.js?v=137"></script>
+<script src="store-api.js?v=138"></script>
 <script src="tour.js?v=9"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -158,7 +158,7 @@
       ${canEdit?`<div class="addrow chk">
         <div class="fld"><label for="a_title">Item</label><input id="a_title" placeholder="what needs doing"></div>
         <div class="fld"><label for="a_owner">Owner</label>${peopleSelectHTML("a_owner","")}</div>
-        <div class="fld"><label for="a_due">Due</label><input id="a_due" type="date"></div>
+        <div class="fld"><label for="a_due">Due</label><input id="a_due" type="date" data-date-window="recent"></div>
         <div class="fld">${SPACER}<button type="button" class="btn primary" id="a_add">＋ Add</button></div></div>`:""}
       ${canEdit?'<div id="tplBar" style="margin:6px 0 12px"></div>':""}
       <div class="table-scroll"><table><thead><tr><th scope="col">Item</th><th scope="col">Owner</th><th scope="col">Due</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
@@ -224,7 +224,7 @@
     $("#pane").innerHTML = `<h2>Payment schedule</h2><p class="sub">Milestones the client pays across the event. Reminders go through the notification outbox.</p>
       ${canEdit?`<div class="addrow pay">
         <div class="fld"><label for="m_label">Milestone</label><input id="m_label" placeholder="e.g. 50% advance"></div>
-        <div class="fld"><label for="m_due">Due date</label><input id="m_due" type="date"></div>
+        <div class="fld"><label for="m_due">Due date</label><input id="m_due" type="date" data-date-window="recent"></div>
         <div class="fld"><label for="m_amt">Amount ₹</label><input id="m_amt" type="number" min="0" value="0"></div>
         <div class="fld">${SPACER}<button type="button" class="btn primary" id="m_add">＋ Add</button></div></div>`:""}
       <div class="table-scroll"><table><thead><tr><th scope="col">Milestone</th><th scope="col">Due</th><th scope="col" class="num">Amount</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>

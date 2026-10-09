@@ -8137,15 +8137,16 @@ window.HelmUrl = HelmUrl;
   // L2: a minus sign that the hardener drops must not vanish silently — say why, inline,
   // next to the field (text only; aria-live so screen readers hear it too).
   var NEG_HINT = "Negative numbers aren\u2019t allowed here";
-  function negHint(el) {
+  function negHint(el, text, ms) {
     try {
       var h = el.__negHint;
       if (!h || !h.isConnected) {
         __helmAdoptNegCss();
         h = document.createElement("span"); h.className = "neg-hint"; h.setAttribute("role", "status"); h.setAttribute("aria-live", "polite");
-        h.textContent = NEG_HINT; el.insertAdjacentElement("afterend", h); el.__negHint = h;
+        el.insertAdjacentElement("afterend", h); el.__negHint = h;
       }
-      h.hidden = false; clearTimeout(h.__t); h.__t = setTimeout(function () { h.hidden = true; }, 3500);
+      h.textContent = text || NEG_HINT;
+      h.hidden = false; clearTimeout(h.__t); h.__t = setTimeout(function () { h.hidden = true; }, ms || 3500);
     } catch (_) {}
   }
   var __negCss = false;
@@ -8347,31 +8348,43 @@ window.HelmUrl = HelmUrl;
   // nonsense year can't be saved or propagated. A field needing a different window
   // sets its own min=/max=.
   var DATE_MIN = "2000-01-01", DATE_MAX = "2100-12-31";
+  function isoDay(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function addYears(n) { var d = new Date(); d.setFullYear(d.getFullYear() + n); return isoDay(d); }
+  function prettyDay(v) { try { var p = String(v).split("-"); return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return v; } }
   function hardenDate(el) {
     if (el.getAttribute("data-date-hardened") === "1") return;
     el.setAttribute("data-date-hardened", "1");
-    // Event/booking fields opt into a "no past dates" floor with data-min-today.
-    // (Birthdays, anniversaries and DOB fields leave it off so past dates stay allowed.)
-    var todayFloor = false;
-    if (el.hasAttribute("data-min-today") && !el.getAttribute("min")) {
-      todayFloor = true;
-      el.setAttribute("min", (function (d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); })(new Date()));
-    }
-    if (!el.getAttribute("min")) el.setAttribute("min", DATE_MIN);
-    if (!el.getAttribute("max")) el.setAttribute("max", DATE_MAX);
+    // Windows (a field can still set its own min=/max=):
+    //   data-min-today            event / booking dates: today .. today + 5 years
+    //   data-date-window="recent" meetings, follow-ups:   today - 2 years .. today + 1 year
+    //   (none)                    other dates (birthdays, invoices, history): 2000 .. 2100
+    var win = el.getAttribute("data-date-window") || (el.hasAttribute("data-min-today") ? "future" : "");
+    if (!el.getAttribute("min")) el.setAttribute("min", win === "future" ? isoDay(new Date()) : win === "recent" ? addYears(-2) : DATE_MIN);
+    if (!el.getAttribute("max")) el.setAttribute("max", win === "future" ? addYears(5) : win === "recent" ? addYears(1) : DATE_MAX);
     var lo = el.getAttribute("min"), hi = el.getAttribute("max");
-    // A "min today" floor is only a picker hint: a prefilled past date (editing an old event)
-    // is kept. Only the implausible-year window (2000-2100) is ever cleared.
-    var hard = function (v) {
-      var y = parseInt(String(v).slice(0, 4), 10);
-      return !isFinite(y) || y < 2000 || y > 2100 || (!todayFloor && v < lo) || v > hi;
+    // A value that was already saved (editing an old event) is kept even if it is now in the past;
+    // only a value the user types or picks must fall inside the window.
+    var original = null; var seen = false;
+    var snapshot = function () { if (!seen) { seen = true; original = el.value || null; } };
+    el.addEventListener("focus", snapshot); el.addEventListener("pointerdown", snapshot);
+    var bad = function (v) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return true;
+      if (original && v === original) return false;
+      return v < lo || v > hi;
     };
+    var msg = function () { return "Pick a date between " + prettyDay(lo) + " and " + prettyDay(hi); };
     var fix = function (ev) {
+      var typingNow = ev && ev.type === "change" && document.activeElement === el;
+      // half-typed year (e.g. 0026): the browser reports value "" + badInput while the box still shows text
+      if (!el.value && el.validity && el.validity.badInput) {
+        if (typingNow) return;
+        el.value = ""; negHint(el, msg(), 5000); return;
+      }
       var v = el.value; if (!v) return;
-      if (!hard(v)) return;
-      // mid-typing the browser reports a partial value; don't clear or fire change under the user's fingers
-      if (ev && ev.type === "change" && document.activeElement === el && el.validity && el.validity.badInput) return;
-      el.value = ""; el.dispatchEvent(new Event("change", { bubbles: true }));
+      if (!bad(v)) return;
+      if (typingNow && el.validity && el.validity.badInput) return;
+      el.value = ""; negHint(el, msg(), 5000);
+      el.dispatchEvent(new Event("change", { bubbles: true }));
     };
     el.addEventListener("blur", fix); el.addEventListener("change", fix);
   }

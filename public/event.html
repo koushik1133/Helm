@@ -150,7 +150,7 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="store-api.js?v=137"></script>
+<script src="store-api.js?v=138"></script>
 <script src="tour.js?v=9"></script>
 <script src="booklet.js?v=8"></script>
 <script src="share-checklist.js?v=2"></script>
@@ -479,7 +479,7 @@
     const early = ["lead","discovery","proposal","quote"].includes(ev.lifecycleStage||"quote");
     const missing = early && (!d || !tm);
     const warn = missing ? `<span class="stat q" style="background:#fff7e6;color:#946200;margin-left:8px">⚠️ Set the event date &amp; time first</span>` : "";
-    if(canEdit){ el.innerHTML=`📅 Event date: <input type="date" id="evDate" aria-label="Event date" value="${esc(d)}" style="${inp}">
+    if(canEdit){ el.innerHTML=`📅 Event date: <input type="date" data-min-today id="evDate" aria-label="Event date" value="${esc(d)}" style="${inp}">
         <span style="margin-left:8px">🕒 Time:</span> <input type="time" id="evTime" aria-label="Event time" value="${esc(tm)}" style="${inp}">${warn}`;
       const di=$("#evDate"), ti=$("#evTime");
       // Save only a complete, plausible date (a half-typed year like 0002-10-08 or a hardener-cleared
