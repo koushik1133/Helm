@@ -3,7 +3,7 @@
 (function(root){
   const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   function inr(n){ n=Number(n); if(!isFinite(n)) return '—';
-    const neg=n<0; n=Math.round(Math.abs(n)); const s=String(n);
+    const neg=n<0; n=Math.round(Math.abs(n)); const s=n.toLocaleString('fullwide',{useGrouping:false,maximumFractionDigits:0});
     let out=s; if(s.length>3){ const last=s.slice(-3); let rest=s.slice(0,-3); const parts=[];
       while(rest.length>2){ parts.unshift(rest.slice(-2)); rest=rest.slice(0,-2); } if(rest) parts.unshift(rest);
       out=parts.join(',')+','+last; }
@@ -17,7 +17,8 @@
   function fmtDate(v){ const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(v||'')); if(!m) return trunc(v);
     return (+m[3])+' '+MONTHS[+m[2]-1]+' '+m[1]; }
   function obj(v){ if(typeof v==='string'){ try{ v=JSON.parse(v); }catch{ return null; } } return v&&typeof v==='object'&&!Array.isArray(v)?v:null; }
-  function total(v){ const o=obj(v); if(o) return o.total!=null?o.total:(o.grand_total!=null?o.grand_total:o.grandTotal); return typeof v==='number'?v:null; }
+  function num(x){ if(x==null||x==='') return null; const n=Number(x); return isFinite(n)?n:null; }
+  function total(v){ const o=obj(v); if(o) return num(o.total!=null&&o.total!==''?o.total:(o.grand_total!=null&&o.grand_total!==''?o.grand_total:o.grandTotal)); return typeof v==='number'&&isFinite(v)?v:null; }
   const CLIENT_FIELDS={name:'name',phone:'phone',email:'email',city:'city',guests:'guests',company:'company',address:'address'};
   function describe(k,o,n){
     switch(k){

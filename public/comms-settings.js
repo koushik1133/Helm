@@ -9,7 +9,9 @@
   var started = false, S = null;
 
   function num(id, lo, hi, dflt) {
-    var v = Number($(id).value);
+    var raw = String($(id).value == null ? "" : $(id).value).trim();
+    if (raw === "") return { ok: false, v: dflt };   // blank must not silently save as 0
+    var v = Number(raw);
     if (!Number.isInteger(v) || v < lo || v > hi) return { ok: false, v: dflt };
     return { ok: true, v: v };
   }
