@@ -538,16 +538,6 @@
   },
   {
    "file": "public/inventory.html",
-   "expr": "c.checked_out_at?new Date(c.checked_out_at).toLocaleDateString():\"\"",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-  },
-  {
-   "file": "public/inventory.html",
-   "expr": "goEvent",
-   "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-  },
-  {
-   "file": "public/inventory.html",
    "expr": "html",
    "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
   },
@@ -555,11 +545,6 @@
    "file": "public/inventory.html",
    "expr": "lossRows || '<tr><td colspan=\"8\" class=\"empty\">No missing items — everything came back. 🎉</td></tr>'",
    "why": "HTML fragment variable built in this function from esc()'d values, numbers and literals (reviewed at the definition just above the sink)"
-  },
-  {
-   "file": "public/inventory.html",
-   "expr": "open.length ? open.map(c=>{ const it=byId[c.item_id]||{name:\"(item)\"}; // still out = \"left over\" → show the outstanding qty in RED so it's obvious const goEvent = c.quote_id ? `<a class=\"btn sm\" href=\"event.html?id=${esc(c.quote_id)}\" title=\"Open the event to check this back in\">Go to event →</a>` : \"\"; return `<tr> <td><b>${esc(it.name)}</b>${c.note?`<div class=\"sub2\">${esc(c.note)}</div>`:\"\"}${c.status===\"partial\"?' <span class=\"miss\">partial</span>':\"\"}</td> <td>${eventCell(c)}</td> <td><span class=\"pri ${esc(it.priority||'C')}\">${esc(it.priority||'C')}</span></td> <td class=\"num\" style=\"color:#b42318;font-weight:700\">${num(c.qty_out)}${c.status===\"partial\"?` <span style=\"color:var(--ink-3)\">(${num(c.qty_in)} back)</span>`:\"\"}</td> <td>${esc(c.issued_to||\"\")}</td> <td style=\"font-size:12px;color:var(--ink-3)\">${c.checked_out_at?new Date(c.checked_out_at).toLocaleDateString():\"\"}</td> <td style=\"display:flex;gap:6px;flex-wrap:wrap\">${goEvent}${canEdit?`<button type=\"button\" class=\"btn sm\" data-in=\"${esc(c.id)}\" aria-label=\"Check in ${esc(it.name)}\">Check in</button>`:\"\"}</td> </tr>`; }).join(\"\") : '<tr><td colspan=\"7\" class=\"empty\">Nothing out on loan.</td></tr>'",
-   "why": "every dynamic part is esc()'d / inr()'d inside this expression; the checker cannot see through the nested template/arrow"
   },
   {
    "file": "public/inventory.html",

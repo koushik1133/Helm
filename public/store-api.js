@@ -1921,6 +1921,31 @@ window.HelmUrl = HelmUrl;
     if (typeof count === "number") out.total = count;   // only when the query asked for { count: "exact" }
     return out;
   }
+  // D4: EVERY row of a list (PostgREST silently caps one response at max-rows, 1000 by
+  // default). `build` returns a FRESH query each call (ordered, with a unique tie-breaker
+  // such as id); we walk it with .range() in 1000-row pages up to SB_ALL_MAX rows. Past
+  // the cap the result is flagged (.truncated = true) and a warning is logged, never cut silently.
+  const SB_ALL_CHUNK = 1000, SB_ALL_MAX = 20000;
+  async function sbAll(build, max) {
+    const cap = Math.max(1, max || SB_ALL_MAX); let out = [];
+    for (let off = 0; off < cap; off += SB_ALL_CHUNK) {
+      const want = Math.min(SB_ALL_CHUNK, cap - off);
+      const { data, error } = await build().range(off, off + want - 1);
+      if (error) throw error;
+      const rows = data || []; out = out.concat(rows);
+      if (rows.length < want) return out;
+    }
+    try { console.warn("[helm] list reached the " + cap + "-row safety cap; older rows are not shown"); } catch (_) {}
+    out.truncated = true; return out;
+  }
+  // D12: a unique-name clash (23505 from the 0073 partial unique indexes) as a message people can act on
+  function dupError(e, what, name) {
+    if (!e || e.code !== "23505") return e;
+    const n = String(name == null ? "" : name).trim().slice(0, 80);
+    const x = new Error((n ? "A " + what + " named \u201c" + n + "\u201d" : "An active " + what + " with this name") +
+      " already exists \u2014 open it from the list instead of adding it again.");
+    x.duplicate = true; x.cause = e; return x;
+  }
   // the same contract over an in-memory array (local / offline mode)
   function arrPage(arr, o) {
     const limit = pageLimit(o && o.limit), offset = pageOffset(o && o.offset), a = arr || [];
@@ -2013,13 +2038,15 @@ window.HelmUrl = HelmUrl;
     // Quotes moved to Archive / Deleted (0040) are left out, guarded like page().
     async list() {
       const r = await withShelf(async (shelf) => {
-        let q = supa.from("quotes").select(QUOTE_LIST_COLS + (shelf ? QUOTE_SHELF_COLS : ""));
-        if (shelf) q = q.is("archived_at", null).is("deleted_at", null);
-        const x = await q.order("updated_at", { ascending: false });
-        if (x.error) throw x.error; return x;
+        const data = await sbAll(() => {
+          let q = supa.from("quotes").select(QUOTE_LIST_COLS + (shelf ? QUOTE_SHELF_COLS : ""));
+          if (shelf) q = q.is("archived_at", null).is("deleted_at", null);
+          return q.order("updated_at", { ascending: false }).order("id", { ascending: false });
+        });
+        return { data };
       }).catch(async (e) => {
         if (!isMissingColumn(e)) throw e;   // an even older schema (pre lifecycle columns): select *
-        const x = await supa.from("quotes").select("*").order("updated_at", { ascending: false }); if (x.error) throw x.error; return x;
+        return { data: await sbAll(() => supa.from("quotes").select("*").order("updated_at", { ascending: false }).order("id", { ascending: false })) };
       });
       return (r.data || []).map(mapQuoteSummary);
     },
@@ -2559,13 +2586,12 @@ window.HelmUrl = HelmUrl;
   };
   const vendors = {
     async list() { if (!supa) throw new Error("Supabase not configured");
-      const { data, error } = await supa.from("vendors").select("*").eq("active", true).order("name"); if (error) throw error; return data; },
-    async add(name, category, phone) { const { data, error } = await supa.from("vendors").insert({ name, category, phone }).select().single(); if (error) throw error; return data; },
+      return sbAll(() => supa.from("vendors").select("*").eq("active", true).order("name").order("id")); },
+    async add(name, category, phone) { const { data, error } = await supa.from("vendors").insert({ name, category, phone }).select().single(); if (error) throw dupError(error, "partner", name); return data; },
     async remove(id) { const { error } = await supa.from("vendors").update({ active: false }).eq("id", id); if (error) throw error; return true; },
     // Phase 9 — richer directory (kind / email / services)
     async listAll(includeInactive) { if (!supa) throw new Error("Supabase not configured");
-      let q = supa.from("vendors").select("*").order("name"); if (!includeInactive) q = q.eq("active", true);
-      const { data, error } = await q; if (error) throw error; return data; },
+      return sbAll(() => { let q = supa.from("vendors").select("*").order("name").order("id"); if (!includeInactive) q = q.eq("active", true); return q; }); },
     // one page of the directory, by name (perf). o.includeInactive, o.kind, o.ids (only
     // these partners — "this event only"), o.search (name / category / email / phone, or
     // an exact service). Needs Supabase, like listAll().
@@ -2581,8 +2607,8 @@ window.HelmUrl = HelmUrl;
     async count(includeInactive) { if (!supa) throw new Error("Supabase not configured");
       let q = supa.from("vendors").select("id", { count: "exact", head: true }); if (!includeInactive) q = q.eq("active", true);
       return sbCount(q); },
-    async addFull(v) { const { data, error } = await supa.from("vendors").insert(v).select().single(); if (error) throw error; return data; },
-    async update(id, patch) { const { error } = await supa.from("vendors").update(patch).eq("id", id); if (error) throw error; return true; },
+    async addFull(v) { const { data, error } = await supa.from("vendors").insert(v).select().single(); if (error) throw dupError(error, "partner", v && v.name); return data; },
+    async update(id, patch) { const { error } = await supa.from("vendors").update(patch).eq("id", id); if (error) throw dupError(error, "partner", patch && patch.name); return true; },
   };
   const coupons = {
     async list() { if (!supa) throw new Error("Supabase not configured");
@@ -2613,8 +2639,7 @@ window.HelmUrl = HelmUrl;
   const leads = {
     async list() {
       if (mode === "supabase") {
-        const { data, error } = await supa.from("leads").select("*").order("updated_at", { ascending: false });
-        if (error) throw error; return data;
+        return sbAll(() => supa.from("leads").select("*").order("updated_at", { ascending: false }).order("id", { ascending: false }));
       }
       return readLeadsLs();
     },
@@ -2683,15 +2708,14 @@ window.HelmUrl = HelmUrl;
     },
     // Contact fields of every lead (duplicate check on "add lead") — four short columns, not the rows.
     async contacts() {
-      if (mode === "supabase") { const { data, error } = await supa.from("leads").select("id,name,phone,email"); if (error) throw error; return data || []; }
+      if (mode === "supabase") return sbAll(() => supa.from("leads").select("id,name,phone,email").order("id"));
       return readLeadsLs().map((l) => ({ id: l.id, name: l.name, phone: l.phone, email: l.email }));
     },
     // Read the immutable CRM archive (all snapshots, or just one lead's history).
     async archive(leadId) {
       if (mode === "supabase") {
-        let q = supa.from("lead_archive").select("*").order("archived_at", { ascending: false });
-        if (leadId) q = q.eq("lead_id", leadId);
-        const { data, error } = await q; if (error) throw error; return data;
+        return sbAll(() => { let q = supa.from("lead_archive").select("*").order("archived_at", { ascending: false }).order("id");
+          if (leadId) q = q.eq("lead_id", leadId); return q; });
       }
       let a = []; try { a = JSON.parse(localStorage.getItem(ARCH_LS) || "[]"); } catch {}
       return leadId ? a.filter((x) => x.lead_id === leadId) : a;
@@ -2993,9 +3017,8 @@ window.HelmUrl = HelmUrl;
   const staff = {
     async list(includeInactive) {
       if (mode === "supabase") {
-        let q = supa.from("crew_members").select("*").order("name");
-        if (!includeInactive) q = q.eq("active", true);
-        const { data, error } = await q; if (error) throw error; return data;
+        return sbAll(() => { let q = supa.from("crew_members").select("*").order("name").order("id");
+          if (!includeInactive) q = q.eq("active", true); return q; });
       }
       const a = readLs(STAFF_LS); return includeInactive ? a : a.filter((s) => s.active !== false);
     },
@@ -3114,9 +3137,8 @@ window.HelmUrl = HelmUrl;
   const inventory = {
     async items(includeInactive) {
       if (mode === "supabase") {
-        let q = supa.from("inventory_items").select("*").order("name");
-        if (!includeInactive) q = q.eq("active", true);
-        const { data, error } = await q; if (error) throw error; return data;
+        return sbAll(() => { let q = supa.from("inventory_items").select("*").order("name").order("id");
+          if (!includeInactive) q = q.eq("active", true); return q; });
       }
       const a = readLs(INV_LS); return includeInactive ? a : a.filter((i) => i.active !== false);
     },
@@ -3132,28 +3154,40 @@ window.HelmUrl = HelmUrl;
     },
     async addItem(it) {
       it = this._sanitize(it);
-      if (mode === "supabase") { const { data, error } = await supa.from("inventory_items").insert(it).select().single(); if (error) throw error; return data; }
+      if (mode === "supabase") { const { data, error } = await supa.from("inventory_items").insert(it).select().single(); if (error) throw dupError(error, "item", it.name); return data; }
       const a = readLs(INV_LS); const row = { id: uid(), active: true, total_qty: 0, ...it, created_at: now() }; a.push(row); localStorage.setItem(INV_LS, JSON.stringify(a)); return row;
     },
     // Bulk insert (one round-trip) — used by "Load starter items" so seeding ~20 rows
     // is instant instead of 20 sequential requests. Returns the inserted rows.
-    async addItems(list) {
+    // o.skipDuplicates: a name clash (23505) must not fail the whole batch — retry row by row
+    // and return the rows that went in, with .skipped = [{ name, error }] for the rest.
+    async addItems(list, o) {
       const rows = (list || []).map((it) => this._sanitize(it));
       if (!rows.length) return [];
-      if (mode === "supabase") { const { data, error } = await supa.from("inventory_items").insert(rows).select(); if (error) throw error; return data; }
+      if (mode === "supabase") {
+        const { data, error } = await supa.from("inventory_items").insert(rows).select();
+        if (!error) return data;
+        if (!(o && o.skipDuplicates) || error.code !== "23505") throw dupError(error, "item", rows.length === 1 ? rows[0].name : null);
+        const made = []; made.skipped = [];
+        for (const r of rows) {
+          const x = await supa.from("inventory_items").insert(r).select().single();
+          if (x.error) { if (x.error.code !== "23505") throw x.error; made.skipped.push({ name: r.name, error: dupError(x.error, "item", r.name).message }); }
+          else made.push(x.data);
+        }
+        return made;
+      }
       const a = readLs(INV_LS); const made = rows.map((it) => ({ id: uid(), active: true, total_qty: 0, ...it, created_at: now() })); a.push(...made); localStorage.setItem(INV_LS, JSON.stringify(a)); return made;
     },
     async updateItem(id, patch) {
       patch = this._sanitize(patch);
-      if (mode === "supabase") { const { error } = await supa.from("inventory_items").update(patch).eq("id", id); if (error) throw error; return true; }
+      if (mode === "supabase") { const { error } = await supa.from("inventory_items").update(patch).eq("id", id); if (error) throw dupError(error, "item", patch.name); return true; }
       const a = readLs(INV_LS); const r = a.find((x) => x.id === id); if (r) { Object.assign(r, patch); localStorage.setItem(INV_LS, JSON.stringify(a)); } return true;
     },
     // all active reservations (for availability math), or one event's reservations
     async reservations(quoteId) {
       if (mode === "supabase") {
-        let q = supa.from("inventory_reservations").select("*").order("created_at");
-        if (quoteId) q = q.eq("quote_id", quoteId);
-        const { data, error } = await q; if (error) throw error; return data;
+        return sbAll(() => { let q = supa.from("inventory_reservations").select("*").order("created_at").order("id");
+          if (quoteId) q = q.eq("quote_id", quoteId); return q; });
       }
       const a = readLs(RES_LS); return quoteId ? a.filter((r) => r.quote_id === quoteId) : a;
     },
@@ -3292,9 +3326,8 @@ window.HelmUrl = HelmUrl;
       // all checkouts, or just one event's; newest first
       async list(quoteId) {
         if (mode !== "supabase") return readLs("bp_checkouts").filter((c) => !quoteId || c.quote_id === quoteId);
-        let q = supa.from("inventory_checkouts").select("*").order("checked_out_at", { ascending: false });
-        if (quoteId) q = q.eq("quote_id", quoteId);
-        const { data, error } = await q; if (error) throw error; return data;
+        return sbAll(() => { let q = supa.from("inventory_checkouts").select("*").order("checked_out_at", { ascending: false }).order("id");
+          if (quoteId) q = q.eq("quote_id", quoteId); return q; });
       },
       // issue equipment out
       async out(itemId, quoteId, qty, issuedTo, crewId, note) {
@@ -3310,10 +3343,16 @@ window.HelmUrl = HelmUrl;
           { p_id: id, p_qty_in: Number(qtyIn), p_returned_by: returnedBy || null, p_writeoff: !!writeoff });
         if (error) throw error; return data;
       },
-      async remove(id) {
-        if (mode !== "supabase") { localStorage.setItem("bp_checkouts", JSON.stringify(readLs("bp_checkouts").filter((c) => c.id !== id))); return true; }
-        const { error } = await supa.from("inventory_checkouts").delete().eq("id", id); if (error) throw error; return true;
+      // Owner decision #4: a check-out record is never hard-deleted. A mistaken one (nothing
+      // returned yet) is CANCELLED server-side (0073 cancel_checkout): kept for audit, no longer
+      // counted as out. remove() stays as an alias so old callers cancel instead of deleting.
+      async cancel(id, reason) {
+        if (mode !== "supabase") { const a = readLs("bp_checkouts"); const r = a.find((c) => c.id === id);
+          if (r) { r.status = "cancelled"; r.cancelled_at = now(); localStorage.setItem("bp_checkouts", JSON.stringify(a)); } return r || null; }
+        const { data, error } = await supa.rpc("cancel_checkout", { p_id: id, p_reason: reason || null });
+        if (error) throw error; return data;
       },
+      remove(id) { return this.cancel(id); },
     },
   };
 
@@ -3365,13 +3404,12 @@ window.HelmUrl = HelmUrl;
   const dishCatalog = {
     async list(includeInactive) {
       if (mode !== "supabase") return readLs("bp_dish_catalog");
-      let q = supa.from("dish_catalog").select("*").order("category").order("name");
-      if (!includeInactive) q = q.eq("active", true);
-      const { data, error } = await q; if (error) throw error; return data;
+      return sbAll(() => { let q = supa.from("dish_catalog").select("*").order("category").order("name").order("id");
+        if (!includeInactive) q = q.eq("active", true); return q; });
     },
     async add(category, name, kind) {
       if (mode !== "supabase") { const a = readLs("bp_dish_catalog"); const r = { id: uid(), category, name, kind: kind || "veg", active: true }; a.push(r); localStorage.setItem("bp_dish_catalog", JSON.stringify(a)); return r; }
-      const { data, error } = await supa.from("dish_catalog").insert({ category, name, kind: kind || "veg" }).select().single(); if (error) throw error; return data;
+      const { data, error } = await supa.from("dish_catalog").insert({ category, name, kind: kind || "veg" }).select().single(); if (error) throw dupError(error, "dish", name); return data;
     },
     async remove(id) {
       if (mode !== "supabase") { localStorage.setItem("bp_dish_catalog", JSON.stringify(readLs("bp_dish_catalog").filter((c) => c.id !== id))); return true; }
@@ -6309,9 +6347,10 @@ window.HelmUrl = HelmUrl;
       // of awaiting it first (it isn't an input to them) — removes one serial round-trip.
       const [events, tR, cR, iR] = await Promise.all([
         quotes.list(),
-        supa.from("event_tasks").select("category,status,verify_status,assignee_kind,assignee_name,quote_id"),
-        supa.from("inventory_checkouts").select("item_id,qty_out,qty_in,checked_in_at"),
-        supa.from("inventory_items").select("id,name,unit"),
+        // D4: all rows, not the first 1000 (a failed read stays an empty aggregate, as before)
+        sbAll(() => supa.from("event_tasks").select("id,category,status,verify_status,assignee_kind,assignee_name,quote_id").order("id")).then((data) => ({ data }), () => ({ data: null })),
+        sbAll(() => supa.from("inventory_checkouts").select("id,item_id,qty_out,qty_in,checked_in_at,status").order("id")).then((data) => ({ data }), () => ({ data: null })),
+        sbAll(() => supa.from("inventory_items").select("id,name,unit").order("id")).then((data) => ({ data }), () => ({ data: null })),
       ]);
       const tasks = tR.data || [], chk = cR.data || [], items = iR.data || [];
       const itemById = {}; items.forEach((i) => (itemById[i.id] = i));
@@ -8076,6 +8115,23 @@ window.HelmUrl = HelmUrl;
 
   // ---- global input[type=number] hardener -------------------------------
   if (typeof document === "undefined") return;
+  // L2: a minus sign that the hardener drops must not vanish silently — say why, inline,
+  // next to the field (text only; aria-live so screen readers hear it too).
+  var NEG_HINT = "Negative numbers aren\u2019t allowed here";
+  function negHint(el) {
+    try {
+      var h = el.__negHint;
+      if (!h || !h.isConnected) {
+        __helmAdoptNegCss();
+        h = document.createElement("span"); h.className = "neg-hint"; h.setAttribute("role", "status"); h.setAttribute("aria-live", "polite");
+        h.textContent = NEG_HINT; el.insertAdjacentElement("afterend", h); el.__negHint = h;
+      }
+      h.hidden = false; clearTimeout(h.__t); h.__t = setTimeout(function () { h.hidden = true; }, 3500);
+    } catch (_) {}
+  }
+  var __negCss = false;
+  function __helmAdoptNegCss() { if (__negCss) return; __negCss = true;
+    try { __helmAdoptCss(document, ".neg-hint{display:block;font-size:12px;color:var(--danger,#b42318);margin-top:2px}.neg-hint[hidden]{display:none}"); } catch (_) {} }
   function harden(el) {
     if (el.getAttribute("data-hardened") === "1") return;
     el.setAttribute("data-hardened", "1");
@@ -8087,7 +8143,7 @@ window.HelmUrl = HelmUrl;
     el.addEventListener("keydown", function (e) {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === "e" || e.key === "E" || e.key === "+") { e.preventDefault(); return; }
-      if (e.key === "-" && !allowNeg) { e.preventDefault(); return; }
+      if (e.key === "-" && !allowNeg) { e.preventDefault(); negHint(el); return; }
       if (e.key === "." && integer) { e.preventDefault(); return; }
     });
     var fix = function () {
@@ -8095,7 +8151,7 @@ window.HelmUrl = HelmUrl;
       if (v === "") return;
       var n = Number(v);
       if (!isFinite(n)) { el.value = ""; el.dispatchEvent(new Event("change", { bubbles: true })); return; }
-      if (!allowNeg && n < 0) n = 0;
+      if (!allowNeg && n < 0) { n = 0; negHint(el); }
       var mn = el.getAttribute("min"), mx = el.getAttribute("max");
       if (mn !== null && mn !== "" && n < Number(mn)) n = Number(mn);
       if (mx !== null && mx !== "" && n > Number(mx)) n = Number(mx);
@@ -8114,6 +8170,7 @@ window.HelmUrl = HelmUrl;
     // consumer. The blur `fix` still does the final min/max clamp.
     var strip = function () {
       var v = String(el.value);
+      if (!allowNeg && v.indexOf("-") !== -1) negHint(el);
       var cleaned = v.replace(allowNeg ? /[^\d.\-]/g : /[^\d.]/g, "");
       if (integer) cleaned = cleaned.replace(/\./g, "");
       if (allowNeg) { var neg = cleaned.charAt(0) === "-"; cleaned = (neg ? "-" : "") + cleaned.replace(/-/g, ""); }
