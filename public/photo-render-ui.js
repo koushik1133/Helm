@@ -52,6 +52,10 @@
     $('phGo').disabled = on;
     $('photoForm').querySelectorAll('select,input').forEach(function (n) { n.disabled = on; });
   }
+  var OFF_MSG = 'Photo renders aren’t switched on yet — ask your admin.';
+  function canManage() { return !!(state.cfg && state.cfg.can_manage); }
+  // fetch to an undeployed edge function: CORS preflight 404 -> TypeError "Failed to fetch"
+  function isNetErr(e) { return !!e && (e.name === 'TypeError' || /failed to fetch|networkerror|load failed/i.test(String(e.message || ''))); }
   function showOff(msg, admin) {
     $('photoOff').hidden = false;
     $('photoOffMsg').textContent = msg;
@@ -155,10 +159,10 @@
     } catch (e) {
       if (state.cancelled || (e && e.name === 'AbortError')) { toast('Render cancelled'); return; }
       var code = e && e.code;
-      if (code === 'render_not_configured') showOff('Photo renders aren’t switched on yet — ask your admin.', !!(state.cfg && state.cfg.can_manage));
+      if (code === 'render_not_configured' || isNetErr(e)) showOff(OFF_MSG, canManage());
       else if (code === 'render_quota') toast('Your studio has used this month’s photo renders. ' + String(e.message || ''), { type: 'err' });
       else if (code === 'render_disabled' || code === 'not_allowed') showOff(String(e.message || 'Photo renders are not available to you.'), !!(state.cfg && state.cfg.can_manage));
-      else toast(String((e && e.message) || 'The photo could not be made'), { type: 'err' });
+      else toast(window.BPUI && BPUI.friendlyError ? BPUI.friendlyError(e, { action: 'make the photo' }) : String((e && e.message) || 'The photo could not be made'), { type: 'err' });
     } finally {
       state.ac = null; showBusy(false);
     }
@@ -177,9 +181,14 @@
     $('photoOff').hidden = true; $('phResults').hidden = true;
     m.hidden = false;
     $('phGo').focus();
+    var settingsReady = refreshSettings();
     if (!c || !c.quoteId || !c.supported) showOff('Open a saved event (signed in to your studio) to make photo renders.', false);
-    else if (!api() || !api().available()) showOff('Photo renders aren’t switched on yet — ask your admin.', false);
-    refreshSettings(); loadHistory();
+    else if (!api() || !api().available()) showOff(OFF_MSG, false);
+    else if (api().probe) {
+      // cheap pre-check: the render-photo function may not be deployed yet (admins see the setup steps)
+      Promise.all([api().probe(), settingsReady]).then(function (r) { if (r[0] === false) showOff(OFF_MSG, canManage()); }).catch(function () {});
+    }
+    loadHistory();
   }
   function close() {
     if (state.busy) cancel();

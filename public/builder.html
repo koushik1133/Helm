@@ -200,7 +200,7 @@
         <p id="photoOffMsg">Photo renders aren’t switched on yet — ask your admin.</p>
         <ol class="ph-steps" id="photoSetup" hidden>
           <li>Create an OpenAI API key (platform.openai.com → API keys).</li>
-          <li>Set the server secret <code>OPENAI_API_KEY</code> for this project (see docs/PHOTO-RENDER-SETUP.md).</li>
+          <li>Add it as the server secret <code>OPENAI_API_KEY</code>: backend project dashboard → Edge Functions → Secrets (see docs/PHOTO-RENDER-SETUP.md).</li>
           <li>Deploy the <code>render-photo</code> function.</li>
           <li>Apply migration <code>0095_photo_render.sql</code>, then set who may render in Control Center → Users &amp; access → “Photo renders”.</li>
         </ol>
@@ -471,7 +471,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=170"></script>
+<script src="country-profile.js?v=3"></script><script src="store-api.js?v=171"></script>
 <script src="tour.js?v=9"></script>
 <script src="flow-layout-sync.js?v=4"></script>
 <script src="event-sizing.js?v=5"></script>
@@ -485,7 +485,7 @@
 <script src="capture-frame.js?v=12"></script>
 <script src="builder-3d.js?v=14"></script>
 <script src="photo-render-prompt.js?v=1"></script>
-<script src="photo-render-ui.js?v=2"></script>
+<script src="photo-render-ui.js?v=3"></script>
 <script src="walkthrough.js?v=3"></script>
 <script src="layout-wizard.js?v=5"></script>
 <script src="fullscreen.js?v=1"></script>

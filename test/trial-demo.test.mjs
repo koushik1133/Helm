@@ -82,4 +82,24 @@ t('MANIFEST + run-all + versions', () => {
   assert.match(read('scripts/db-test/run-all.sh'), /tests\/db\/trial-demo-0097\.sql/);
   assert.match(API, /const AUTH_UI_VERSION = "22";/);
 });
+t('0100: seed / reset / load errors are shown (friendlyError toast) with a busy button state', () => {
+  assert.match(TD, /BPUI\.friendlyError\(e, \{ action: action \|\| "load the demo data" \}\)/);
+  for (const f of ['seed', 'resetDemo']) {
+    const b = fnSrc(TD, f);
+    assert.match(b, /busy\(b, "/, f); assert.match(b, /catch \(e\) \{ done\(\); toast\(errMsg\(e, "[a-z ]+"\), "err", b\); \}/, f);
+  }
+  assert.match(fnSrc(TD, 'busy'), /aria-busy/);
+  assert.match(TD, /td-err/, 'inline error fallback when BPUI.toast is missing');
+});
+t('0100: demo seed fix - raw pricing inputs, server total re-read, no money row <= 0', () => {
+  const M = read('supabase/migrations/0100_demo_seed_fix.sql');
+  assert.match(M, /demo-seed-0100/);
+  assert.equal((M.match(/"platePrice":\d+,"chairs":\d+,"chairPrice":\d+,"other":\d+/g) || []).length, 4);
+  assert.doesNotMatch(M, /"subtotal":/);
+  assert.match(M, /where x\.amt > 0;/); assert.match(M, /if v_a1 > 0 then/);
+  assert.doesNotMatch(M, /drop table|drop column|truncate|delete from/i);
+  assert.match(read('supabase/migrations/MANIFEST'), /^forward {2}supabase\/migrations\/0100_demo_seed_fix\.sql$/m);
+  assert.match(read('scripts/db-test/run-all.sh'), /tests\/db\/demo-seed-0100\.sql/);
+  assert.doesNotMatch(read('supabase/APPLY-0100.sql'), /[^\x00-\x7f]/);
+});
 console.log(`trial-demo: ${n} passed`);

@@ -141,3 +141,5 @@ forward  supabase/migrations/0097_trial_demo.sql
 forward  supabase/migrations/0098_public_paid_status.sql
 # 0099 (staff pkg_payment WhatsApp carries balance due / paid in full: _pkg_tg_payment adds balance (quote total - quote_payments ledger) + currency to the payload; one function body, no table change) goes after 0098 (needs 0069, 0089).
 forward  supabase/migrations/0099_pkg_payment_balance.sql
+# 0100 (demo seed fix: demo events carry raw pricing inputs so the D8 server total is realistic; milestones/advance from the server total re-read after insert; no money row <= 0 (prod quote_payments_amount_pos); functions only) goes after 0099 (needs 0097, 0001, 0089).
+forward  supabase/migrations/0100_demo_seed_fix.sql
