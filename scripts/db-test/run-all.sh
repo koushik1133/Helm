@@ -38,6 +38,7 @@ run "ui-fixes"           "UI-FIXES: ALL PASS \(27/27\)" psql -q -f tests/db/ui-f
 run "insights"           "INSIGHTS: ALL PASS \(19/19\)" psql -q -f tests/db/insights.sql
 run "r3-sync-reprice"    "R3-SYNC-REPRICE: ALL PASS \(22/22\)" psql -q -f tests/db/r3-sync-reprice.sql
 run "comms-automation"   "COMMS-AUTOMATION: ALL PASS \(54/54\)" psql -q -f tests/db/comms-automation.sql
+run "country-templates-0092" "COUNTRY-TEMPLATES-0092: ALL PASS \(12/12\)" psql -q -f tests/db/country-templates-0092.sql
 run "r4-sql-fixes"       "R4-SQL-FIXES: ALL PASS \(26/26\)" psql -q -f tests/db/r4-sql-fixes.sql
 # first: later suites re-apply older migrations (e.g. rescore2 → 0032) over the entry points
 run "audit-run2"         "AUDIT-RUN2: ALL PASS"            bash -c "cd tests/db && psql -q -f audit-run2.sql"

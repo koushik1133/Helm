@@ -17,8 +17,16 @@
 //   * the approval token is NOT sent to Razorpay: callback_url is a token-free
 //     /approve.html?payment=done page (the token is a 30-day bearer secret).
 //   * client email / phone are format-checked before they are sent to Razorpay.
+//
+// 0092 country templates: Razorpay Payment Links are created in INR only. Razorpay
+// settles Indian merchant accounts in INR; other currencies need "International
+// payments" enabled per account, which Helm cannot verify. A quote in AED / USD (UAE /
+// US studio) is refused BEFORE anything is reserved ("currency_unsupported"); the
+// approval page shows "pay by bank transfer / card - the studio records it" instead.
+// The client phone gets the STUDIO's dial code (+91 / +971 / +1) when typed without one.
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, normPhone, responders } from "../_shared/cors.ts";
+import { dialFor, quoteCur, razorpaySupports } from "../_shared/money.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
 
 const PLINK = /^plink_[A-Za-z0-9]+$/;
@@ -42,6 +50,19 @@ Deno.serve(async (req) => {
     const keyId = Deno.env.get("RAZORPAY_KEY_ID") || "", keySecret = Deno.env.get("RAZORPAY_KEY_SECRET") || "";
     if (!keyId || !keySecret) return json({ error: "online payments are not configured" }, 503);
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+
+    // 0092: INR only - checked before payment_link_begin so nothing is reserved for AED / USD
+    const { data: qc, error: qcErr } = await admin.from("quotes").select("currency, tax_snapshot, pricing, org_id")
+      .eq("approval_token", token.toLowerCase()).maybeSingle();
+    if (qcErr) { console.error("quote currency load failed", errTag(qcErr)); return json({ error: "could not prepare the payment, please try again" }, 500); }
+    if (qc && !razorpaySupports(quoteCur(qc))) {
+      return json({ error: "online card payment is not available for this quote - please pay by bank transfer and your planner will record it", code: "currency_unsupported" }, 409);
+    }
+    let dial = "91";
+    if (qc?.org_id) {
+      const { data: org } = await admin.from("organizations").select("country").eq("id", qc.org_id).maybeSingle();
+      dial = dialFor(org?.country);
+    }
 
     const ttl = Math.min(43200, Math.max(20, Number(Deno.env.get("PAYMENT_LINK_TTL_MINUTES")) || 4320));
     const { data: b, error: bErr } = await admin.rpc("payment_link_begin", { p_token: token, p_ttl_minutes: ttl });
@@ -76,7 +97,7 @@ Deno.serve(async (req) => {
     const amount = Math.round(total * 100); // paise, from the server's quote total
     const cl = (b.client && typeof b.client === "object") ? b.client : {};
     const email = EMAIL.test(String(cl.email || "")) ? String(cl.email) : "";
-    const phone = normPhone(cl.phone);
+    const phone = normPhone(cl.phone, dial);
     const contact = /^[0-9]{10,15}$/.test(phone) ? "+" + phone : "";
     const name = String(cl.name || "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 100);
     const appUrl = (Deno.env.get("APP_URL") || "").replace(/\/+$/, "");

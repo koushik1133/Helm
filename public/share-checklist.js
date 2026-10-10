@@ -74,7 +74,9 @@
   function btn(cls, text) { const b = el("button", cls, text); b.type = "button"; return b; }
   function toast(msg, type) { try { if (global.BPUI && global.BPUI.toast) global.BPUI.toast(msg, { type: type || "ok" }); } catch (e) {} }
   function errText(e) { try { if (global.BPUI && global.BPUI.friendlyError) return global.BPUI.friendlyError(e, { action: "share the booklet" }); } catch (x) {} return String((e && e.message) || "Something went wrong"); }
-  function when(t) { const d = new Date(t); if (!t || isNaN(d.getTime())) return ""; try { return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return d.toISOString().slice(0, 10); } }
+  // 0092: studio date order - "12 Oct 2026" (India / UAE) or "Oct 12, 2026" (USA)
+  function dateLocale() { try { const B = (typeof window !== "undefined" && window.BPStore) || null; return B && B.studioTax && B.studioTax().country === "US" ? "en-US" : "en-IN"; } catch (e) { return "en-IN"; } }
+  function when(t) { const d = new Date(t); if (!t || isNaN(d.getTime())) return ""; try { return d.toLocaleDateString(dateLocale(), { day: "numeric", month: "short", year: "numeric" }); } catch (e) { return d.toISOString().slice(0, 10); } }
 
   async function hasSelectedPackage(quoteId) {
     try { const p = global.BPStore.plan && await global.BPStore.plan.get(quoteId); return !!(p && (p.menu_template || p.package)); } catch (e) { return false; }

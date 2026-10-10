@@ -172,7 +172,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=165"></script>
+<script src="country-profile.js?v=3"></script><script src="store-api.js?v=166"></script>
 <script src="tour.js?v=9"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -234,9 +234,9 @@
   const converting=new Set();
   // r7: a WhatsApp greeting link when the contact has a valid phone (opens WhatsApp; nothing is sent automatically)
   function waLink(d){
-    const p=BPStore.staff.phoneE164(d&&d.phone); if(!p.ok||!p.value) return "";
+    const wa=BPStore.waNumber(d&&d.phone); if(!wa) return "";   // 0092: studio dial code (+91 / +971 / +1)
     const txt=encodeURIComponent("Hi "+(d.name||"")+", warm wishes on your "+(d.occasion||d.occasion_type||"special day")+"!");
-    return ` <a class="lnk" target="_blank" rel="noopener" href="https://wa.me/${esc(p.value.replace(/\D/g,""))}?text=${esc(txt)}" aria-label="WhatsApp ${esc(d.name)}">WhatsApp</a>`;
+    return ` <a class="lnk" target="_blank" rel="noopener" href="https://wa.me/${esc(wa)}?text=${esc(txt)}" aria-label="WhatsApp ${esc(d.name)}">WhatsApp</a>`;
   }
   async function addOne(){ const name=$("#n_name").value.trim(); if(!name){ $("#n_name").focus(); BPUI.toast("Enter a name first.",{type:"info"}); return; }
     const type=$("#n_type").value;

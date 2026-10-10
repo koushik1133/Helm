@@ -6861,6 +6861,9 @@ window.HelmUrl = HelmUrl;
     if (/^00\d/.test(c)) c = "+" + c.slice(2);
     if (!/^\+?\d{7,15}$/.test(c)) return { ok: false, error: "Enter a valid phone number: 7–15 digits, optional leading +." };
     if (c[0] === "+") return { ok: true, value: c };
+    // 0092: a UAE / US studio's numbers typed without a code get +971 / +1 (India unchanged below)
+    var k0 = ""; try { k0 = (BPStore.studioTax() || {}).country || ""; } catch (e) {}
+    if ((k0 === "AE" || k0 === "US") && BPStore.waNumber) { var w0 = BPStore.waNumber(c, k0); if (w0) return { ok: true, value: "+" + w0 }; }
     if (/^\d{10}$/.test(c)) return { ok: true, value: "+91" + c };
     if (/^0\d{10}$/.test(c)) return { ok: true, value: "+91" + c.slice(1) };
     return { ok: true, value: "+" + c };
@@ -7064,7 +7067,7 @@ window.HelmUrl = HelmUrl;
       case "pkg.choose": return "Client chose a package" + ev + (c.guests ? " for " + c.guests + " guests" : "");
       case "pkg.accept": return "Package choice accepted" + ev;
       case "pkg.decline": return "Package choice declined" + ev + (c.reason ? " — " + String(c.reason).slice(0, 80) : "");
-      case "pkg.adjust": return "Package price adjusted" + ev + (c.per_person != null ? " (₹" + c.per_person + " per guest)" : "");
+      case "pkg.adjust": return "Package price adjusted" + ev + (c.per_person != null ? " (" + (typeof BPStore !== "undefined" && BPStore.studioMoney ? BPStore.studioMoney(c.per_person) : "\u20b9" + c.per_person) + " per guest)" : "");
       case "pkg.otp": case "pkg.otp_request": return "Client asked for a verification code" + ev;
       case "pkg.self_approve_override": return "Package approved by the only admin (maker-checker override)" + ev;
       case "quote.moved_to_archive": return "Event archived" + ev + (c.auto ? " automatically (link expired)" : "");
@@ -7104,7 +7107,9 @@ window.HelmUrl = HelmUrl;
   /* quote activity trail (event_activity): "advance_paid → client@x.com" / "pkg_payment → " in plain words */
   function activityText(a, ctx) {
     a = a || {}; ctx = ctx || {}; const raw = String(a.text || "");
-    const money = (n) => "₹" + Number(n).toLocaleString("en-IN");
+    // 0092: the quote's own currency when the caller passes it (ctx.quote), else the studio's (India unchanged)
+    const B = typeof BPStore !== "undefined" ? BPStore : null;
+    const money = (n) => B && ctx.quote && B.quoteMoney ? B.quoteMoney(Number(n), ctx.quote) : B && B.studioMoney ? B.studioMoney(Number(n)) : "\u20b9" + Number(n).toLocaleString("en-IN");
     if (a.kind === "payment") {
       const m = /^Payment (created|failed|refunded|cancelled) — (\d+(?:\.\d+)?)$/.exec(raw);
       if (m) return ({ created: "Payment link created", failed: "Payment attempt failed", refunded: "Payment refunded", cancelled: "Payment link cancelled" }[m[1]]) + " — " + money(m[2]);
@@ -8961,6 +8966,19 @@ window.HelmUrl = HelmUrl;
     var r = BPStore.studioTax(), x = Number(n || 0); if (opts && opts.round) x = Math.round(x);
     if (r.country === "IN") return "\u20b9" + x.toLocaleString("en-IN");
     return BPStore.tax.money(x, r);
+  };
+  // ---- 0092: a client's WhatsApp number for wa.me links (digits, full E.164 without "+") ----
+  // A number with "+" / "00" keeps its own country code; one typed without a code gets the
+  // given country's (else the studio's) dial code: IN +91 (as before), AE +971, US +1. "" if invalid.
+  BPStore.waNumber = function (raw, cc) {
+    var s = String(raw == null ? "" : raw).trim(); if (!s) return "";
+    var c = s.replace(/[\s\-().]/g, ""); if (/^00\d/.test(c)) c = "+" + c.slice(2);
+    if (c[0] === "+") { var d0 = c.slice(1); return /^\d{7,15}$/.test(d0) ? d0 : ""; }
+    var d = c; if (!/^\d{7,15}$/.test(d)) return "";
+    var k = BPStore.tax.code(cc || (BPStore.studioTax() || {}).country);
+    if (k === "US") return /^\d{10}$/.test(d) ? "1" + d : d;
+    if (k === "AE") { if (/^971\d{8,9}$/.test(d)) return d; if (/^0\d{8,9}$/.test(d)) return "971" + d.slice(1); return /^\d{8,9}$/.test(d) ? "971" + d : d; }
+    if (/^\d{10}$/.test(d)) return "91" + d; if (/^0\d{10}$/.test(d)) return "91" + d.slice(1); return d;
   };
   // ---- payment terms from onboarding (pricing config: advancePct / balanceDueDays / paymentTermsNote) ----
   // {advancePct (0-100, null when the studio never set one), balanceDueDays, note, balanceDue: "YYYY-MM-DD"|null}
