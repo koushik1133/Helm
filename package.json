@@ -41,7 +41,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@supabase/supabase-js": "2.117.2"
+    "@supabase/supabase-js": "2.117.3"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
