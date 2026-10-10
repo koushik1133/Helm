@@ -348,10 +348,10 @@
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=165"></script>
+<script src="country-profile.js?v=3"></script><script src="store-api.js?v=166"></script>
 <script src="tour.js?v=9"></script>
-<script src="booklet.js?v=13"></script>
-<script src="share-checklist.js?v=8"></script>
+<script src="booklet.js?v=14"></script>
+<script src="share-checklist.js?v=9"></script>
 <script src="flow-layout-sync.js?v=4"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="flow-autosave.js?v=1"></script>
@@ -913,7 +913,7 @@
     let acts=[]; try{ acts=await BPStore.milestones.activity(id); }catch(e){ BPUI.loadError($("#activityList"), e, renderActivity, {what:"activity"}); return; }
     if(!acts||!acts.length){ $("#activityList").innerHTML='<div style="color:var(--ink-3)">No activity yet.</div>'; return; }
     const ic={version:'📐',payment:'💳',milestone:'✅',consent:'✍️',notify:'🔔'};
-    $("#activityList").innerHTML = acts.map(a=>`<div class="rowline"><span>${ic[a.kind]||'•'}</span><span class="g">${esc(BPStore.activityText(a,{clientName:ev&&ev.client&&ev.client.name}))}</span><span class="meta">${esc((a.at||'').slice(0,16).replace('T',' '))}</span></div>`).join('');
+    $("#activityList").innerHTML = acts.map(a=>`<div class="rowline"><span>${ic[a.kind]||'•'}</span><span class="g">${esc(BPStore.activityText(a,{clientName:ev&&ev.client&&ev.client.name,quote:ev}))}</span><span class="meta">${esc((a.at||'').slice(0,16).replace('T',' '))}</span></div>`).join('');
   }
 
   /* ---------- approval ---------- */
@@ -924,7 +924,7 @@
       const r=await BPStore.approval.generateToken(id);
       const token=(r&&(r.token||r.approval_token))||r;
       const link=await BPStore.links.build("portal", token, location.origin+"/portal.html?token="+encodeURIComponent(token));
-      const phone=(ev.client&&ev.client.phone||"").replace(/[^0-9]/g,"");
+      const phone=BPStore.waNumber(ev.client&&ev.client.phone);   // 0092: full E.164 (+91 / +971 / +1)
       const waText=encodeURIComponent(`Hi ${ev.client&&ev.client.name||""}, here's your event proposal & quote: ${link}`);
       // URL-encode the address so a stored "a@b.com?bcc=…" can't add mail headers (Cc/Bcc) to the link email
       const mailHref="mailto:"+encodeURIComponent(ev.client&&ev.client.email||"").replace(/%40/g,"@")+"?subject="+encodeURIComponent("Your event proposal")+"&body="+waText;

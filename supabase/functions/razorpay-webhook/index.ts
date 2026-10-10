@@ -22,6 +22,7 @@
 //     not a global manager address or hard-coded branding.
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, escHtml, UUID_RE } from "../_shared/cors.ts";
+import { quoteCur, symMoney } from "../_shared/money.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped, WEBHOOK_BODY_LIMIT } from "../_shared/limits.ts";
 
 const enc = new TextEncoder();
@@ -107,7 +108,7 @@ Deno.serve(async (req) => {
     if (out.result === "replay") return new Response("already recorded (idempotent)", { status: 200 });
 
     // per-studio details for the emails
-    const { data: q, error: qErr } = await admin.from("quotes").select("id, code, title, client, pricing, org_id").eq("id", out.quote_id).maybeSingle();
+    const { data: q, error: qErr } = await admin.from("quotes").select("id, code, title, client, pricing, org_id, currency, tax_snapshot").eq("id", out.quote_id).maybeSingle();
     if (qErr) { console.error("quote load failed", errTag(qErr)); return new Response("error", { status: 500 }); }
     if (!q) return new Response("ok", { status: 200 });
     const { data: org, error: oErr } = await admin.from("organizations").select("name, business_email").eq("id", q.org_id).maybeSingle();
@@ -128,7 +129,7 @@ Deno.serve(async (req) => {
     }
 
     // settled → confirmations (title/code are staff-entered — escaped)
-    const total = "₹" + Number(q.pricing?.total || 0).toLocaleString("en-IN");
+    const total = symMoney(q.pricing?.total || 0, quoteCur(q));   // 0092: the quote's own currency
     const html = `<h2>Payment received — ${escHtml(q.code)}</h2><p>Your event <b>${escHtml(q.title || q.code)}</b> is confirmed.</p><p>Amount: <b>${total}</b></p><p>Thank you — ${escHtml(studio)}.</p>`;
     const clientEmail = String(q.client?.email || "");
     const clientStatus = await sendEmail(clientEmail, `Payment received — ${subjCode}`, html, from, studioEmail);

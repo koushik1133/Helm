@@ -3,6 +3,8 @@
 // tracking. Every dynamic value is HTML-escaped. The only link is the client's approval
 // page on the FIXED site origin; its path must match /approve?token=<uuid>.
 
+import { codeMoney } from "../_shared/money.ts";
+
 export const SITE = "https://www.helm.events";
 const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif";
 const INK = "#1b1930", BODY = "#4b475f", FAINT = "#8b8698", RULE = "#e8e3db", BRAND = "#6C4CF1";
@@ -18,12 +20,8 @@ export function approveLink(path: unknown): string {
   return APPROVE.test(p) ? SITE + p : "";
 }
 
-function money(n: unknown, cur: unknown): string {
-  const v = Number(n);
-  if (!Number.isFinite(v)) return "";
-  const c = /^[A-Z]{3}$/.test(String(cur ?? "")) ? String(cur) : "INR";
-  return `${c} ${Math.round(v).toLocaleString("en-IN")}`;
-}
+// 0092: the payload's own currency, grouped for that currency (INR output unchanged)
+const money = codeMoney;
 
 function shell(title: string, inner: string) {
   return `<!DOCTYPE html>

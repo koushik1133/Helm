@@ -317,7 +317,7 @@
       tr.appendChild(th); tr.appendChild(el("td", "amt", l.amount < 0 ? "− " + money(-l.amount) : money(l.amount))); tb.appendChild(tr);
     });
     $("#quoteTotal").textContent = r.total != null ? money(r.total) : "—";
-    let words = ""; try { if (r.total != null && global.BPStore && global.BPStore.amountInWords) words = global.BPStore.amountInWords(r.total); } catch (e) {}
+    let words = ""; try { if (r.total != null && FMT.currency === "INR" && global.BPStore && global.BPStore.amountInWords) words = global.BPStore.amountInWords(r.total); } catch (e) {}
     $("#quoteWords").textContent = words || "";
   }
   function renderVersions(d) {

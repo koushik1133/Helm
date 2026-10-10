@@ -136,7 +136,7 @@
 <script src="/config.js?v=98"></script>
 <script src="/phone-input.js?v=1"></script>
 <script src="/event-name.js?v=3"></script>
-<script src="/country-profile.js?v=3"></script><script src="/store-api.js?v=165"></script>
+<script src="/country-profile.js?v=3"></script><script src="/store-api.js?v=166"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -235,6 +235,8 @@
     $("#code").textContent=quote.code;
     $("#meta").textContent=(quote.event_type?quote.event_type+" · ":"")+"For "+(quote.client_name||"you");
     $("#pricing").innerHTML=renderPricing(quote.pricing);
+    // 0092: Razorpay payment links are INR only - an AED / USD quote is paid by bank transfer / card with the studio
+    if(apTax && apTax.country!=="IN"){ $("#payBtn").hidden=true; $("#payBtn").style.display="none"; $("#payManual").textContent="Your planner will share bank transfer or card payment details and record your payment."; $("#payManual").hidden=false; }
     $("#terms").innerHTML=TERMS_HTML; $("#tver").textContent="("+TERMS_VERSION+")";
     if(quote.client_name) $("#c_name").value=quote.client_name;
     // resume state

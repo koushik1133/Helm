@@ -84,12 +84,23 @@ export function bearer(req: Request): string {
 }
 
 // Digits with country code: Indian 10-digit / 0-prefixed → 91…, 00… → … (mirrors
-// public.helm_norm_phone in 0027 so the Edge layer and the DB agree).
-export function normPhone(p: unknown): string {
+// public.helm_norm_phone in 0027 so the Edge layer and the DB agree). With a studio dial
+// code (0092, mirrors public.helm_norm_phone_cc): UAE 05x / 5x → 971…, US 10-digit → 1….
+export function normPhone(p: unknown, dial = "91"): string {
   const d = String(p ?? "").replace(/[^0-9]/g, "");
-  if (/^[0-9]{10}$/.test(d)) return "91" + d;
-  if (/^0[0-9]{10}$/.test(d)) return "91" + d.slice(1);
+  if (dial === "91" || !dial) {
+    if (/^[0-9]{10}$/.test(d)) return "91" + d;
+    if (/^0[0-9]{10}$/.test(d)) return "91" + d.slice(1);
+    if (/^00[0-9]{8,15}$/.test(d)) return d.slice(2);
+    return d;
+  }
   if (/^00[0-9]{8,15}$/.test(d)) return d.slice(2);
+  if (dial === "1") return /^[0-9]{10}$/.test(d) ? "1" + d : d;
+  if (dial === "971") {
+    if (/^971[0-9]{8,9}$/.test(d)) return d;
+    if (/^0[0-9]{8,9}$/.test(d)) return "971" + d.slice(1);
+    if (/^[0-9]{8,9}$/.test(d)) return "971" + d;
+  }
   return d;
 }
 

@@ -72,8 +72,8 @@ t('booklet.html: no inline script/style/style=, noindex, no-referrer, store-api 
   assert.doesNotMatch(h, /\son[a-z]+=/i);
   assert.match(h, /<meta name="robots" content="noindex,nofollow,noarchive">/);
   assert.match(h, /<meta name="referrer" content="no-referrer">/);
-  assert.match(h, /store-api\.js\?v=165/);
-  assert.match(h, /booklet\.js\?v=13/);
+  assert.match(h, /store-api\.js\?v=166/);
+  assert.match(h, /booklet\.js\?v=14/);
   for (const id of ['details', 'layout2d', 'layout3d', 'menu', 'quote', 'versions', 'payments', 'receiptTable', 'receiptLines', 'terms', 'printBtn', 'tocList'])
     assert.match(h, new RegExp('id="' + id + '"'), id);
 });
@@ -117,10 +117,10 @@ t('store-api: booklet API + public page registration', () => {
 t('share buttons: event page + client page (with Booklet header link)', () => {
   const ev = read('public/event.html'), cl = read('public/client.html');
   assert.match(ev, /data-booklet-share data-quote-from-url hidden/);
-  assert.match(ev, /booklet-share\.js\?v=5/); assert.match(ev, /booklet-share\.css\?v=1/);
+  assert.match(ev, /booklet-share\.js\?v=6/); assert.match(ev, /booklet-share\.css\?v=1/);
   assert.match(cl, /data-booklet-share data-wait-quote hidden/);
   assert.match(cl, /id="bkLink" hidden>Booklet<\/a>/);
-  assert.match(cl, /booklet-share\.js\?v=5/);
+  assert.match(cl, /booklet-share\.js\?v=6/);
   assert.match(read('public/booklet-share.js'), /canEditArea\("quotes"\)/);
 });
 t('client.js bookletQuote: opened event wins, else newest event link', () => {

@@ -154,3 +154,17 @@ ready.
   allowed only with `ALLOW_LOCALHOST=1` (never set this on production).
   `razorpay-webhook` is server-to-server and sends no CORS headers.
   See `supabase/functions/_shared/cors.ts`.
+
+## Country support (0092)
+
+- **Razorpay Payment Links are INR only.** Razorpay settles Indian merchant accounts in INR;
+  other currencies need "International payments" enabled on the Razorpay account, which Helm
+  cannot verify. `create-payment-link` therefore refuses a quote whose currency snapshot is not
+  INR (`409 currency_unsupported`) *before* anything is reserved, and the approval page hides
+  "Proceed to payment" for UAE / US quotes ("Your planner will share bank transfer or card payment
+  details and record your payment."). The studio records the payment by hand as usual.
+- WhatsApp numbers typed without a country code get the **studio's** code (+91 / +971 / +1),
+  in the Edge layer (`normPhone(p, dial)`), the DB (`helm_norm_phone_cc`, 0092) and wa.me links
+  (`BPStore.waNumber`). Numbers with `+` / `00` keep their own code. India is unchanged.
+- Receipt e-mails and package e-mails format money in the quote's own currency
+  (`supabase/functions/_shared/money.ts`).
