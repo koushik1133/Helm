@@ -23,7 +23,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="builder.css?v=11">
+<link rel="stylesheet" href="builder.css?v=12">
 <link rel="stylesheet" href="venues.css?v=3">
 <link rel="stylesheet" href="studio-templates.css?v=1">
 <link rel="stylesheet" href="walkthrough.css?v=2">
@@ -197,13 +197,8 @@
     <div class="sheet-body pad14">
       <p class="ph-note" id="photoNote">Turns this plan into a realistic photograph of the event — same layout, real decor.</p>
       <div class="ph-off" id="photoOff" hidden>
-        <p id="photoOffMsg">Photo renders aren’t switched on yet — ask your admin.</p>
-        <ol class="ph-steps" id="photoSetup" hidden>
-          <li>Create an OpenAI API key (platform.openai.com → API keys).</li>
-          <li>Add it as the server secret <code>OPENAI_API_KEY</code>: backend project dashboard → Edge Functions → Secrets (see docs/PHOTO-RENDER-SETUP.md).</li>
-          <li>Deploy the <code>render-photo</code> function.</li>
-          <li>Apply migration <code>0095_photo_render.sql</code>, then set who may render in Control Center → Users &amp; access → “Photo renders”.</li>
-        </ol>
+        <p id="photoOffMsg">Photo renders aren’t switched on for your studio yet.</p>
+        <p class="ph-offhelp" id="photoSetup" hidden>Contact Helm support to switch them on.</p>
       </div>
       <form class="ph-form" id="photoForm" novalidate>
         <div class="ph-grid">
@@ -216,19 +211,46 @@
             </select></label>
           <label class="pfield">Camera
             <select id="phCamera">
-              <option value="hero">Hero aerial (current 3D view)</option>
-              <option value="top">Top-down</option>
-              <option value="eye">Eye-level from the entrance</option>
+              <option value="auto" selected>Best angle (automatic)</option>
+              <option value="current">My current 3D view</option>
+              <option value="top">Top-down (plan view)</option>
+              <option value="eye">From the entrance (eye level)</option>
             </select></label>
           <label class="pfield">Quality
             <select id="phQuality">
-              <option value="standard">Standard (faster)</option>
-              <option value="high">High</option>
+              <option value="standard">Standard</option>
+              <option value="high">High detail (slower)</option>
             </select></label>
-          <label class="pfield">Photos
+          <label class="pfield">Photos: 1–4
             <select id="phCount"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label>
         </div>
-        <label class="pfield ph-wide">Decor theme (optional)
+        <p class="ph-hint" id="phCamHint" hidden>Turn the 3D view to the angle you like, then render.</p>
+        <div class="ph-grid ph-grid2">
+          <label class="pfield">Highlight (optional)
+            <select id="phFocus">
+              <option value="" selected>Whole venue</option>
+              <option value="stage">Stage</option>
+              <option value="dance">Dance floor</option>
+              <option value="entrance">Entrance</option>
+              <option value="seating">Seating</option>
+            </select></label>
+          <label class="pfield">Decor theme
+            <select id="phThemeSel">
+              <option value="none" selected>None — just make it realistic</option>
+              <option value="royal">Royal Indian (gold &amp; marigold)</option>
+              <option value="pastel">Pastel floral (blush &amp; ivory)</option>
+              <option value="whitegreen">Classic white &amp; green</option>
+              <option value="minimal">Modern minimal</option>
+              <option value="rustic">Rustic garden (fairy lights &amp; wood)</option>
+              <option value="arabian">Arabian luxury (gold &amp; ivory, Dubai)</option>
+              <option value="bollywood">Bollywood glam (bold colours &amp; lights)</option>
+              <option value="corporate">Corporate clean (brand blue &amp; white)</option>
+              <option value="rally">Political rally (flags &amp; podium)</option>
+              <option value="concert">Concert stage (lights &amp; haze)</option>
+              <option value="other">Other…</option>
+            </select></label>
+        </div>
+        <label class="pfield ph-wide" id="phThemeWrap" hidden>Describe the decor
           <input id="phTheme" type="text" maxlength="160" placeholder="e.g. royal gold &amp; blush florals" autocomplete="off"></label>
         <p class="ph-quota" id="phQuota"></p>
         <div class="ph-acts">
@@ -484,8 +506,8 @@
 <!-- ================= 3D RENDERED VIEW (Three.js, lazy-loaded on first use) ================= -->
 <script src="capture-frame.js?v=12"></script>
 <script src="builder-3d.js?v=14"></script>
-<script src="photo-render-prompt.js?v=1"></script>
-<script src="photo-render-ui.js?v=3"></script>
+<script src="photo-render-prompt.js?v=2"></script>
+<script src="photo-render-ui.js?v=4"></script>
 <script src="walkthrough.js?v=3"></script>
 <script src="layout-wizard.js?v=5"></script>
 <script src="fullscreen.js?v=1"></script>

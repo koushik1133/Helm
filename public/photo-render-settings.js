@@ -13,7 +13,7 @@
     $("pr_quota").value = String(s.monthly_quota != null ? s.monthly_quota : 60);
     $("pr_hourly").value = String(s.hourly_limit != null ? s.hourly_limit : 20);
     $("pr_status").textContent = "This month: " + (s.used_this_month || 0) + " photos made, about US$" +
-      Number(s.cost_this_month_usd || 0).toFixed(2) + " (estimate). If the server key is not set yet, the builder shows “ask your admin” — see docs/PHOTO-RENDER-SETUP.md.";
+      Number(s.cost_this_month_usd || 0).toFixed(2) + " (estimate). If photos aren’t available in the builder yet, contact Helm support to switch them on.";
   }
   async function save() {
     var q = Number($("pr_quota").value), h = Number($("pr_hourly").value), m = $("pr_msg");
@@ -21,7 +21,7 @@
     if (!Number.isInteger(h) || h < 1 || h > 500) { m.textContent = "Requests per hour must be a whole number from 1 to 500."; return; }
     var b = $("pr_save"); b.disabled = true; m.textContent = "Saving…";
     try { paint(await global.BPStore.photoRender.setSettings($("pr_on").checked, q, h) || {}); m.textContent = "Saved."; }
-    catch (e) { m.textContent = (e && e.message) ? "Couldn't save: " + e.message : "Couldn't save — try again."; }
+    catch (e) { m.textContent = (e && e.code === "42501") ? "You don't have permission to change these settings." : "Couldn't save — please try again."; }
     finally { b.disabled = false; }
   }
   async function init() {

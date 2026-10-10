@@ -568,7 +568,9 @@ aside.left.collapsed,aside.right.collapsed{width:0;border-width:0;overflow:hidde
 .ph-quota{font-size:12px;color:var(--ink-3);margin:8px 0}
 .ph-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .ph-off{border:1px solid var(--line);background:var(--panel-2);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:13px}
-.ph-steps{margin:8px 0 0 18px;padding:0;font-size:12px;line-height:1.6}
+.ph-offhelp{margin:6px 0 0;font-size:12px;color:var(--ink-2)}
+.ph-hint{margin:6px 0 0;font-size:12px;color:var(--ink-3)}
+.ph-grid2{grid-template-columns:1fr 1fr;margin-top:10px}
 .ph-progress{margin-top:12px}
 .ph-bar{height:6px;border-radius:4px;background:var(--panel-2);overflow:hidden}
 .ph-bar span{display:block;height:100%;width:0;background:var(--accent);transition:width .4s}

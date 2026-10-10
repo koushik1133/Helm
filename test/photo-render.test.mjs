@@ -85,7 +85,7 @@ t('style mapping: defaults from venue setting + Evening toggle; explicit style w
 t('cameras: hero / top-down / eye-level from the entrance', () => {
   assert.match(P.build({ items: WEDDING, world: W, camera: 'top' }).prompt, /Straight-down aerial/);
   assert.match(P.build({ items: WEDDING, world: W, camera: 'eye' }).prompt, /Eye-level photograph from the guest entrance/);
-  assert.equal(P.build({ items: WEDDING, world: W, camera: 'nope' }).camera, 'hero');
+  assert.equal(P.build({ items: WEDDING, world: W, camera: 'nope' }).camera, 'auto');
 });
 
 t('regions: India default, Dubai luxury for UAE, US styling for US', () => {
@@ -126,21 +126,21 @@ const html = rd('public/builder.html'), ui = rd('public/photo-render-ui.js'), ca
 t('builder: Render dialog markup with style / camera / theme / quality / count, progress, cancel, gallery, history', () => {
   for (const id of ['photoModal', 'phStyle', 'phCamera', 'phTheme', 'phQuality', 'phCount', 'phProgress', 'phCancel', 'phGallery', 'phAgain', 'phHistList', 'photoSetup'])
     assert.match(html, new RegExp('id="' + id + '"'), id);
-  for (const v of ['golden', 'evening', 'daylight', 'ballroom', 'hero', 'top', 'eye', 'standard', 'high']) assert.match(html, new RegExp('value="' + v + '"'));
+  for (const v of ['golden', 'evening', 'daylight', 'ballroom', 'auto', 'current', 'top', 'eye', 'standard', 'high']) assert.match(html, new RegExp('value="' + v + '"'));
   assert.match(html, /<option value="4">4<\/option>/);
-  assert.match(html, /Photo renders aren’t switched on yet — ask your admin/);
-  assert.match(html, /server secret <code>OPENAI_API_KEY<\/code>/);
-  assert.match(html, /builder-3d\.js\?v=14"><\/script>\n<script src="photo-render-prompt\.js\?v=1"><\/script>\n<script src="photo-render-ui\.js\?v=3"><\/script>/);
-  assert.match(cap, /photo-render-ui\.js\?v=3/);
+  assert.match(html, /Photo renders aren’t switched on for your studio yet\./);
+  assert.doesNotMatch(html, /OPENAI_API_KEY/);
+  assert.match(html, /builder-3d\.js\?v=14"><\/script>\n<script src="photo-render-prompt\.js\?v=2"><\/script>\n<script src="photo-render-ui\.js\?v=4"><\/script>/);
+  assert.match(cap, /photo-render-ui\.js\?v=4/);
   assert.doesNotMatch(html, /style="/);
 });
 t('dialog: three captures (clean 3D labels none, plan plain, plan names + measure), ≤1536 px, render via BPStore', () => {
   assert.match(ui, /MAX_W = 1536/);
-  assert.match(ui, /__capture3D\(MAX_W, cameraOpts\(params\.camera, c\)\)/);
+  assert.match(ui, /__capture3D\(MAX_W, cameraOpts\(params\.camera, c, params\.focus\)\)/);
   assert.match(ui, /planBlob\(\{ clean: true, maxW: MAX_W, labels: 'none' \}\)/);
   assert.match(ui, /planBlob\(\{ clean: true, maxW: MAX_W, labels: 'names', measure: true \}\)/);
   assert.match(ui, /var o = \{ labels: 'none' \}/);
-  assert.match(ui, /walkthroughStops/); assert.match(ui, /key === 'entrance'/);
+  assert.match(ui, /P\.cameraView\(kind, c\.items, c\.world/);
   assert.match(ui, /__helm3D; if \(h && h\.isActive && h\.isActive\(\) && h\.getView\)/);
   assert.match(ui, /A\.render\(/); assert.match(ui, /useInBooklet/); assert.match(ui, /api\(\)\.list\(/);
   assert.match(ui, /AbortController/); assert.match(ui, /render_not_configured/);
@@ -156,7 +156,7 @@ t('store-api: render goes to the render-photo edge function only; area + RPCs', 
   assert.match(s, /key: "photo_render"/);
   for (const r of ['photo_render_list', 'photo_render_image', 'photo_render_use_in_booklet', 'photo_render_settings_get', 'photo_render_settings_set']) assert.match(s, new RegExp('"' + r + '"'));
   assert.match(rd('public/control.html'), /id="prCard"/);
-  assert.match(rd('public/control.html'), /photo-render-settings\.js\?v=1/);
+  assert.match(rd('public/control.html'), /photo-render-settings\.js\?v=2/);
 });
 
 // ---- no key in client code; OpenAI only server-side ----
@@ -211,13 +211,13 @@ t('0095: additive, RLS on, definer + empty search_path, MANIFEST + run-all', () 
 });
 
 t('not-deployed render-photo (fetch TypeError / 404) shows the setup card, not nothing', () => {
-  assert.match(ui, /code === 'render_not_configured' \|\| isNetErr\(e\)\) showOff\(OFF_MSG, canManage\(\)\)/);
+  assert.match(ui, /code === 'render_not_configured' \|\| code === 'render_disabled' \|\| isNetErr\(e\)\) showOff\(OFF_MSG, canManage\(\)\)/);
   assert.match(ui, /failed to fetch/i);
   assert.match(ui, /api\(\)\.probe\(\)/);
   const api = rd('public/store-api.js');
   assert.match(api, /probe: \(\) => \{/); assert.match(api, /method: "OPTIONS"/);
   assert.match(api, /res\.status === 404 && !j\.error\) \{ const e = new Error\("Photo renders aren't switched on yet\."\); e\.code = "render_not_configured"/);
   assert.match(api, /e\.code = "render_not_configured"; e\.cause = fe; throw e;/);
-  assert.match(html, /backend project dashboard → Edge Functions → Secrets/);
+  assert.match(html, /Contact Helm support to switch them on\./);
 });
 console.log('\nphoto-render: ' + n + ' passed.');
