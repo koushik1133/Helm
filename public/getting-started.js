@@ -23,6 +23,8 @@
     floor_plan: { icon: "📐", title: "Design your first floor plan", why: "Plan the hall layout. The chairs you place are added to the quote.", href: "quotes.html?new=1&open=builder" },
     quote:      { icon: "📨", title: "Send your first quote", why: "Send the client an approval link they can approve and pay from.", href: "quotes.html?new=1" },
     team:       { icon: "👥", title: "Invite your team", why: "Add your staff and choose what each role can see and edit.", href: "control.html#users" },
+    // 0096 (client-side, optional): the studio has saved at least one layout template of its own
+    my_templates: { icon: "🧩", title: "Customize your own templates", why: "Save your own floor layouts so every new event starts from your studio's style.", href: "builder.html?new=1&tplEdit=new" },
     mfa:        { icon: "🔐", title: "Turn on two-step sign-in", why: "A code at sign-in protects your studio even if a password leaks.", href: "", act: "mfa" },
   };
   const COLLAPSE_KEY = "bp_gs_collapsed";
@@ -148,6 +150,14 @@
     }, 700);
   }
 
+  // 0096: optional "Customize your own templates" step, worked out here (no server change); skipped when unavailable
+  async function addTemplatesStep(data, store) {
+    if (!data || !Array.isArray(data.steps) || !store.layoutTemplates || data.steps.some((s) => s && s.key === "my_templates")) return;
+    let n; try { n = ((await store.layoutTemplates.list({ lite: true })) || []).length; } catch (e) { return; }
+    const i = data.steps.findIndex((s) => s && s.key === "floor_plan");
+    const step = { key: "my_templates", done: n > 0, optional: true };
+    if (i >= 0) data.steps.splice(i + 1, 0, step); else data.steps.push(step);
+  }
   async function mount(opts) {
     const o = opts || {};
     const doc = global.document;
@@ -156,6 +166,7 @@
     if (!card || !store || !store.gettingStarted) return null;
     let data;
     try { data = await store.gettingStarted.get(); } catch (e) { card.hidden = true; return null; }
+    await addTemplatesStep(data, store);
     const m = model(data);
     if (!m || m.dismissed) { card.hidden = true; return m; }
     css();
@@ -209,7 +220,7 @@
     if (global.document.readyState === "loading") global.document.addEventListener("DOMContentLoaded", auto); else auto();
   }
 
-  const api = { mount, auto, model, render: gsMarkup, ringOffset, STEPS, esc, _css: CSS };
+  const api = { mount, auto, model, addTemplatesStep, render: gsMarkup, ringOffset, STEPS, esc, _css: CSS };
   global.HelmGettingStarted = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

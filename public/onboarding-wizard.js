@@ -178,7 +178,13 @@
     if (cd.currency && typed.currency === undefined && (!out.currency || AUTO_CUR.indexOf(String(out.currency).toUpperCase()) >= 0)) out.currency = cd.currency;
     return out;
   }
-  const api = { FLOW, followCountry, DEFAULT_ADVANCE_PCT, SETTINGS, REQUIRED, LABELS, LEGACY_KEYS, IMPORT_ENTITY, countryDefaults, validTz,
+  // 0096: step 11 "Packages & templates" checklist - the studio's own layout templates open the builder in template-edit mode
+  const TEMPLATE_ITEMS = [
+    { key: "pkgs", label: "Review menu packages", href: "control.html#pricing" },
+    { key: "lists", label: "Review checklist templates", href: "templates.html" },
+    { key: "layouts", label: "Customize your own templates", href: "builder.html?new=1&tplEdit=new", why: "Save your own floor layouts so every new event starts from your studio's style." },
+  ];
+  const api = { FLOW, TEMPLATE_ITEMS, followCountry, DEFAULT_ADVANCE_PCT, SETTINGS, REQUIRED, LABELS, LEGACY_KEYS, IMPORT_ENTITY, countryDefaults, validTz,
     studioFromOrg, validateStudio, studioPatch, brandFromOrg, validateBrand, brandPatch,
     paymentFromCfg, validatePayment, paymentPatch, progressFromOrg, progressPatch, percent, requiredMissing, stepFromHash, nudgeFor, mountNudge };
   if (typeof module !== "undefined" && module.exports) module.exports = api;

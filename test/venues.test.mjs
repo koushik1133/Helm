@@ -24,7 +24,7 @@ t('validation: capacity > 0, length/width > 0, cost min <= max', () => {
   assert.ok(!V.validate({ name: 'X' }).ok, 'some capacity needed');
   assert.ok(!V.validate({ name: 'X', floating_capacity: '10', length: '-2' }).ok);
   assert.ok(!V.validate({ name: 'X', floating_capacity: '10', width: '0' }).ok);
-  const c = V.validate({ name: 'X', floating_capacity: '10', cost_min: '5', cost_max: '1' });
+  const c = V.validate({ name: 'X', floating_capacity: '10', length: '30', width: '20', cost_min: '5', cost_max: '1' });
   assert.ok(!c.ok); assert.equal(c.errors[0].field, 'cost_max');
   assert.ok(!V.validate({ name: '', seated_capacity: 5 }).ok);
   assert.ok(!V.validate({ name: 'X', seated_capacity: 5, map_url: 'javascript:alert(1)' }).ok);
@@ -65,11 +65,11 @@ t('cost text in lakh', () => {
 t('pages wire the venue scripts (no inline), store-api v=157', () => {
   const cc = read('public/control.html');
   assert.match(cc, /id="tab-venues"[^>]*hidden/); assert.match(cc, /id="pane-venues" hidden/);
-  assert.match(cc, /<script src="venues-core\.js\?v=3"><\/script>\s*<script src="venues-admin\.js\?v=1"><\/script>/);
+  assert.match(cc, /<script src="venues-core\.js\?v=4"><\/script>\s*<script src="venues-admin\.js\?v=2"><\/script>/);
   for (const p of ['flow.html', 'builder.html']) {
     const h = read('public/' + p);
-    assert.match(h, /<script src="venues-core\.js\?v=3"><\/script>\s*<script src="venue-picker\.js\?v=3"><\/script>/, p);
-    assert.match(h, /venues\.css\?v=2/, p);
+    assert.match(h, /<script src="venues-core\.js\?v=4"><\/script>\s*<script src="venue-picker\.js\?v=4"><\/script>/, p);
+    assert.match(h, /venues\.css\?v=3/, p);
     assert.match(h, /store-api\.js\?v=169/, p);
   }
   for (const f of ['venues-core.js', 'venue-picker.js', 'venues-admin.js']) {

@@ -35,3 +35,7 @@
 .vp-linked{margin:0;font-size:12.5px}
 .vp-linked[hidden]{display:none}
 .vp-a{background:none;border:0;padding:0;color:var(--accent,#1a5fb4);text-decoration:underline;cursor:pointer;font:inherit}
+/* 0096: quote flow - venue full size vs the usable area laid out */
+.g-area{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin:6px 0 2px;font-size:13px;color:var(--ink-2,#333)}
+.g-area #g_area_lbl{font-weight:600}
+.g-area-warn{flex-basis:100%;margin:2px 0 0;color:#8a4b00;font-size:12.5px}

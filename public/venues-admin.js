@@ -147,11 +147,11 @@
     var inp = function (id, val, type, extra) { return h("input", Object.assign({ id: id, type: type || "text", value: val === null || val === undefined ? "" : String(val) }, extra || {})); };
     var lenIn = inp("vf_len", v.length_m ? V.fromMeters(v.length_m, unit) : "", "number", { min: "0", step: "any" });
     var widIn = inp("vf_wid", v.width_m ? V.fromMeters(v.width_m, unit) : "", "number", { min: "0", step: "any" });
-    var lenLbl = h("label", { "for": "vf_len", text: "Length (" + unit + ")" }), widLbl = h("label", { "for": "vf_wid", text: "Width (" + unit + ")" });
+    var lenLbl = h("label", { "for": "vf_len", text: "Length (" + unit + ") *" }), widLbl = h("label", { "for": "vf_wid", text: "Breadth (" + unit + ") *" });
     function setUnit(u) {
       if (u === unit) return;
       [lenIn, widIn].forEach(function (el) { var n = el.value === "" ? null : V.toMeters(el.value, unit); if (n !== null && !isNaN(n)) el.value = V.fromMeters(n, u); });
-      unit = u; state.unit = u; lenLbl.textContent = "Length (" + u + ")"; widLbl.textContent = "Width (" + u + ")";
+      unit = u; state.unit = u; lenLbl.textContent = "Length (" + u + ") *"; widLbl.textContent = "Breadth (" + u + ") *";
       tog.querySelectorAll(".btn").forEach(function (b) { var on = (b.textContent === "Feet") === (u === "ft"); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
     }
     var tog = unitToggle(setUnit);

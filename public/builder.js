@@ -311,7 +311,9 @@ window.HelmBuilderVenue = {
   async link(v){
     if(!currentQuoteId) return;
     currentClient = Object.assign({}, currentClient || {}, v
-      ? { venueId: v.id, venueName: v.name, setting: v.setting === 'outdoor' ? 'outdoor' : (v.setting === 'both' ? 'both' : 'indoor') }
+      ? { venueId: v.id, venueName: v.name, setting: v.setting === 'outdoor' ? 'outdoor' : (v.setting === 'both' ? 'both' : 'indoor'),
+          // 0096: the venue's full size (ft) is kept for reference; hallLen/hallWid stay the usable area
+          venueLen: (window.HelmVenues && HelmVenues.mToFt(v.length_m)) || null, venueWid: (window.HelmVenues && HelmVenues.mToFt(v.width_m)) || null }
       : { venueId: null, venueName: null });
     try{ await BPStore.quotes.updateMeta(currentQuoteId, { client: currentClient }); }catch(e){ /* non-fatal */ }
   },
@@ -1975,6 +1977,8 @@ function loadItems(items, name){
 }
 function loadTemplate(key){
   if(!key){ return; }
+  // 0096: the studio's own templates ("st:<id>") are fitted to this hall + exact seats by studio-templates.js
+  if(String(key).indexOf('st:')===0){ if(window.HelmStudioTemplates) window.HelmStudioTemplates.apply(String(key).slice(3)); return; }
   const lbl=document.querySelector('#preset option[value="'+key+'"]').textContent;
   // R8b: an open quote's seats value is the exact seating total for preset templates too
   const tItems=TEMPLATES[key](); const N=currentQuoteId ? quoteChairsNow() : 0;
@@ -2532,7 +2536,10 @@ function applyRoomFromForm(o){
   store.venue.setting = o.setting || store.venue.setting || 'indoor';
   updateDimsLabel();
 }
-function updateDimsLabel(){ const el=$('#dimsLabel'); if(el) el.textContent = `${WORLD.w} × ${WORLD.h} ft · ${PX_PER_FT} px/ft${store.venue&&store.venue.setting==='outdoor'?' · outdoor':''}`; }
+function updateDimsLabel(){ const el=$('#dimsLabel'); if(!el) return;
+  // 0096: the floor is the USABLE area; show the venue's full size alongside when it differs
+  let vref=''; try{ const c=currentClient||{}; if(+c.venueLen>0 && +c.venueWid>0 && (+c.venueLen!==WORLD.w || +c.venueWid!==WORLD.h)) vref=` · venue ${+c.venueLen} × ${+c.venueWid} ft`; }catch(e){}
+  el.textContent = `${WORLD.w} × ${WORLD.h} ft${vref} · ${PX_PER_FT} px/ft${store.venue&&store.venue.setting==='outdoor'?' · outdoor':''}`; }
 function runCustomGenerate(){
   const o=readCustomForm();
   // Enforce the Control-Center capacity ceilings so generation stays fast and honest
