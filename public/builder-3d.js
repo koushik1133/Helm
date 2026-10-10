@@ -832,9 +832,14 @@
       if(box.isEmpty()) ub.max[1]=4;
       box.min.fromArray(ub.min); box.max.fromArray(ub.max);
       if(ground){ keep.groundScale=ground.scale.clone(); ground.scale.set((fw+2*FM)/(fw+40),(fh+2*FM)/(fh+40),1); }
-      const fr=window.HelmCaptureFrame.frameBox({min:ub.min,max:ub.max},
-        {fovDeg:camera.fov, aspect:RW/H, fill:0.88, elevationDeg:38, azimuthDeg:35, minDist:20});
+      // 0095 photo render: opts.view {pos,target,fov} = an exact camera (current view / walkthrough stop);
+      // opts.topDown = straight-down framing of the whole venue; default = the client 3/4 overview
+      const OV=opts && opts.view && Array.isArray(opts.view.pos) && Array.isArray(opts.view.target) ? opts.view : null;
+      const fr=OV ? {position:OV.pos.slice(0,3), target:OV.target.slice(0,3), distance:Math.hypot(OV.pos[0]-OV.target[0],OV.pos[1]-OV.target[1],OV.pos[2]-OV.target[2])||50}
+        : window.HelmCaptureFrame.frameBox({min:ub.min,max:ub.max},
+          {fovDeg:camera.fov, aspect:RW/H, fill:0.88, elevationDeg:(opts && opts.topDown) ? 89 : 38, azimuthDeg:(opts && opts.topDown) ? 0 : 35, minDist:20});
       R.setPixelRatio(1); R.setSize(RW*SS,H*SS,false);
+      keep.fov=camera.fov; if(OV && isFinite(OV.fov)) camera.fov=Math.max(20,Math.min(90,+OV.fov));
       camera.aspect=RW/H; camera.position.fromArray(fr.position); camera.lookAt(fr.target[0],fr.target[1],fr.target[2]);
       camera.far=Math.max(keep.far, fr.distance*4); camera.updateProjectionMatrix(); camera.updateMatrixWorld();
       // same sun as the live view (intensity/direction unchanged); only tighten its shadow frustum
@@ -877,6 +882,7 @@
       sun.intensity=keep.sunI; sun.position.copy(keep.sunPos); sun.target.position.copy(keep.sunTgt); sun.target.updateMatrixWorld(); sun.shadow.radius=keep.sunR;
       [sc.left,sc.right,sc.top,sc.bottom,sc.far]=keep.sc; sc.updateProjectionMatrix();
       if(hemi && keep.hemiI!=null) hemi.intensity=keep.hemiI;
+      if(keep.fov!=null) camera.fov=keep.fov;
       renderMode=keep.render; applyProfile();               // restores tone mapping / background / fog
       R.setPixelRatio(keep.pr); camera.far=keep.far; camera.position.copy(keep.cam); controls.target.copy(keep.tgt); camera.aspect=keep.aspect; camera.updateProjectionMatrix();
       if(active){ resize(); updateGizmo(); controls.update(); try{ R.render(scene,camera); }catch(e){} } else R.setSize(keep.size.x,keep.size.y,false);

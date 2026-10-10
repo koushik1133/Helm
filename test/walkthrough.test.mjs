@@ -48,7 +48,7 @@ assert.ok(WT.eveningLightPoints(full, hall).length <= 8);
 const b = rd('public/builder.html'), c = rd('public/capture.html');
 assert.match(b, /<script src="walkthrough\.js\?v=\d+"><\/script>/); assert.match(b, /walkthrough\.css\?v=\d+/);
 assert.doesNotMatch(c, /walkthrough/);
-assert.match(b, /builder-3d\.js\?v=13/);
+assert.match(b, /builder-3d\.js\?v=14/);
 const b3 = rd('public/builder-3d.js');
 assert.match(b3, /window\.__helm3D=/); assert.match(b3, /if\(ev\) setEvening\(false\)/, 'evening is off during client capture');
 const w = rd('public/walkthrough.js');

@@ -1019,6 +1019,8 @@ window.HelmUrl = HelmUrl;
     { key: "quotes",     label: "Quotes & workspace",icon: "📋", page: "quotes.html",    group: "Workspace" },
     { key: "layouts",    label: "Floor layouts",     icon: "📐", page: null,             group: "Workspace" },
     { key: "design",     label: "Design studio",     icon: "🎨", page: "design.html",    group: "Workspace" },
+    // 0095: photo-realistic renders (builder ✦ Render). edit = may make photos (also needs quotes edit)
+    { key: "photo_render", label: "Photo renders",    icon: "✦", page: null,             group: "Workspace" },
     { key: "staff",      label: "Staff",             icon: "👷", page: "staff.html",     group: "Resources" },
     { key: "inventory",  label: "Inventory",         icon: "📦", page: "inventory.html", group: "Resources" },
     { key: "vendors",    label: "Vendors",           icon: "🤝", page: "vendors.html",   group: "Resources" },
@@ -2420,6 +2422,13 @@ window.HelmUrl = HelmUrl;
   const BOOKLET_IMG_KINDS = ["2d", "3d"], BOOKLET_IMG_VARIANTS = ["labels", "plain"], BOOKLET_IMG_MAX = 1536 * 1024;
   const BOOKLET_IMG_MIME = /^image\/(jpeg|png|webp)$/;
   // server answer {mime, data(base64)} -> data: URL (only the three image types, only base64 characters)
+  // 0095: stored photo render -> data: URL (<= 6 MB)
+  function photoDataUrl(r) {
+    if (!r || typeof r !== "object" || !BOOKLET_IMG_MIME.test(String(r.mime || ""))) return null;
+    const d = String(r.data || "");
+    if (!d || d.length > 8400000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(d)) return null;
+    return "data:" + r.mime + ";base64," + d;
+  }
   function bookletDataUrl(r) {
     if (!r || typeof r !== "object" || !BOOKLET_IMG_MIME.test(String(r.mime || ""))) return null;
     const d = String(r.data || "");
@@ -7490,6 +7499,39 @@ window.HelmUrl = HelmUrl;
       const ref = String(id == null ? "" : id).trim();
       if (!supa || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref)) return Promise.resolve(null);
       return rpc("client_timeline", { p_ref: ref, p_limit: 300 }).catch((e) => { if (rpcMissing(e)) return null; throw e; });
+    },
+    // 0095 — photo-realistic renders. The image model is called ONLY by the edge function
+    // render-photo (its OpenAI key is a server secret, never in the browser). Dormant until the
+    // owner sets OPENAI_API_KEY: render() then rejects with e.code === "render_not_configured".
+    photoRender: {
+      available: () => !!(supa && mode === "supabase" && fnUrl("render-photo")),
+      // { quote_id, prompt, n, quality, size, style, camera, theme, images:[{data}] } -> { renders:[{id,mime,data}], used, quota }
+      render: async (payload, signal) => {
+        if (!supa || mode !== "supabase" || !fnUrl("render-photo")) { const e = new Error("Photo renders need a signed-in studio."); e.code = "render_not_configured"; throw e; }
+        let token = "";
+        try { const { data: { session } } = await supa.auth.getSession(); token = (session && session.access_token) || ""; } catch (e) {}
+        if (!token) { const e = new Error("Please sign in again."); e.code = "signed_out"; e.status = 401; throw e; }
+        const res = await fetch(fnUrl("render-photo"), { method: "POST", signal,
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token, "apikey": CFG.anonKey },
+          body: JSON.stringify(payload || {}) });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) { const e = new Error(String(j.message || j.error || ("HTTP " + res.status))); e.code = String(j.error || ""); e.status = res.status; throw e; }
+        return j;
+      },
+      list: (quoteId) => (supa && mode === "supabase" && UUID_RE_PKG.test(String(quoteId || ""))
+        ? rpc("photo_render_list", { p_quote_id: quoteId }).then((r) => (Array.isArray(r) ? r : [])).catch((e) => { if (rpcMissing(e)) return []; throw e; })
+        : Promise.resolve([])),
+      // data: URL of one stored render (lazy), or null
+      image: (renderId) => (supa && mode === "supabase" && UUID_RE_PKG.test(String(renderId || ""))
+        ? rpc("photo_render_image", { p_render_id: renderId }).then(photoDataUrl).catch((e) => { if (rpcMissing(e)) return null; throw e; })
+        : Promise.resolve(null)),
+      // copy into the client booklet (0083 picture "3D without labels")
+      useInBooklet: (renderId) => rpc("photo_render_use_in_booklet", { p_render_id: renderId }),
+      settings: () => (supa && mode === "supabase"
+        ? rpc("photo_render_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; })
+        : Promise.resolve(null)),
+      setSettings: (enabled, monthlyQuota, hourlyLimit) => rpc("photo_render_settings_set",
+        { p_enabled: !!enabled, p_monthly_quota: Math.round(Number(monthlyQuota) || 0), p_hourly_limit: Math.round(Number(hourlyLimit) || 0) }),
     },
     // 0065 — client event booklet (public/booklet.html?t=<token>). Staff whose role may EDIT
     // quotes share / revoke; current() needs quotes VIEW. get() is the signed-out client read

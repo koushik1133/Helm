@@ -133,3 +133,5 @@ forward  supabase/migrations/0093_country_terms.sql
 forward  supabase/migrations/0094_per_currency_totals.sql
 # 0098 (client approval link: paid vs total from the quote_payments ledger - "Advance received, balance due" instead of "Payment received"; one read-only function) goes after 0094 (needs 0010, 0042).
 forward  supabase/migrations/0098_public_paid_status.sql
+# 0095 (photo-realistic event renders: photo_render_settings / photo_render_usage / photo_renders tables (RLS, no grants), area "photo_render", begin / list / image / use-in-booklet / settings RPCs; additive) goes after 0094 (needs 0050, 0065, 0083).
+forward  supabase/migrations/0095_photo_render.sql

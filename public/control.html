@@ -203,7 +203,7 @@
   .cfline{display:block;font-size:12px;color:var(--ink-3)}.cfname{flex:1;min-width:0}.cfmeta{font-size:12px;color:var(--ink-3)}.cfoff{opacity:.6}
 </style>
 <link rel="stylesheet" href="pkg-review.css?v=1">
-<link rel="stylesheet" href="comms-settings.css?v=1">
+<link rel="stylesheet" href="comms-settings.css?v=2">
 <link rel="stylesheet" href="venues.css?v=2">
 <link rel="stylesheet" href="theme.css?v=76">
 </head>
@@ -599,6 +599,22 @@
         <div id="np_list"></div>
       </div>
 
+      <!-- 0095: photo-realistic renders (wired by photo-render-settings.js; the image model runs server-side) -->
+      <div class="card" id="prCard" hidden>
+        <h3>✦ Photo renders</h3>
+        <p class="mnote">The builder’s “✦ Render” button turns a floor plan into a realistic photograph of the event. Photos are made on the server
+          (the image-service key never reaches the browser) and each one costs money, so set a monthly limit. Who may make them:
+          <b>Users &amp; access → Photo renders</b> (edit).</p>
+        <p class="mnote" id="pr_status"></p>
+        <label class="cmchk" for="pr_on"><input type="checkbox" id="pr_on"> Photo renders switched on for this studio</label>
+        <div class="cmgrid">
+          <label for="pr_quota">Photos per month <input type="number" id="pr_quota" min="0" max="10000" step="1"></label>
+          <label for="pr_hourly">Render requests per hour <input type="number" id="pr_hourly" min="1" max="500" step="1"></label>
+        </div>
+        <p class="mnote" id="pr_msg" role="status"></p>
+        <button type="button" class="btn" id="pr_save">Save photo render settings</button>
+      </div>
+
       <!-- 0078: automatic client messages + WhatsApp forwarding (wired by comms-settings.js) -->
       <div class="card" id="commsCard" hidden>
         <h3>Automatic client messages &amp; WhatsApp</h3>
@@ -709,6 +725,7 @@
 <script src="pkg-review.js?v=4"></script>
 <script src="onboarding-core.js?v=3"></script>
 <script src="comms-settings.js?v=2"></script>
+<script src="photo-render-settings.js?v=1"></script>
 <script src="venues-core.js?v=3"></script>
 <script src="venues-admin.js?v=1"></script>
 <script src="item-pricing.js?v=1"></script>

@@ -26,7 +26,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="builder.css?v=10">
+<link rel="stylesheet" href="builder.css?v=11">
 <link rel="stylesheet" href="venues.css?v=2">
 </head>
 <body>
@@ -103,7 +103,7 @@
     </div>
     <div class="field">
       <span class="flabel" id="viewLbl">View</span>
-      <div class="seg" id="viewSeg" role="group" aria-labelledby="viewLbl"><button data-v="2d" class="on" title="2D blueprint (edit)">2D Plan</button><button data-v="3d" title="3D rendered view">3D View</button><button data-v="render" title="Ultra-realistic render (image-based lighting)">✦ Render</button></div>
+      <div class="seg" id="viewSeg" role="group" aria-labelledby="viewLbl"><button data-v="2d" class="on" title="2D blueprint (edit)">2D Plan</button><button data-v="3d" title="3D rendered view">3D View</button><button data-v="render" title="Ultra-realistic photo of this plan (AI photograph)">✦ Render</button></div>
     </div>
     <div class="field">
       <span class="flabel" id="workLbl">Work</span>
@@ -186,6 +186,68 @@
         <button type="button" class="tbtn danger" data-choice="discard">Discard changes and switch</button>
         <button type="button" class="tbtn" data-choice="cancel">Cancel</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 0095 PHOTO RENDER (photo-render-ui.js; the image model runs server-side in render-photo) -->
+<div class="modal" id="photoModal" hidden role="dialog" aria-modal="true" aria-labelledby="photoTitle">
+  <div class="sheet sheet-photo">
+    <div class="sheet-head"><b id="photoTitle">✦ Photo render</b><button type="button" class="tbtn icon" id="photoX" title="Close" aria-label="Close">✕</button></div>
+    <div class="sheet-body pad14">
+      <p class="ph-note" id="photoNote">Turns this plan into a realistic photograph of the event — same layout, real decor.</p>
+      <div class="ph-off" id="photoOff" hidden>
+        <p id="photoOffMsg">Photo renders aren’t switched on yet — ask your admin.</p>
+        <ol class="ph-steps" id="photoSetup" hidden>
+          <li>Create an OpenAI API key (platform.openai.com → API keys).</li>
+          <li>Set the server secret <code>OPENAI_API_KEY</code> for this project (see docs/PHOTO-RENDER-SETUP.md).</li>
+          <li>Deploy the <code>render-photo</code> function.</li>
+          <li>Apply migration <code>0095_photo_render.sql</code>, then set who may render in Control Center → Users &amp; access → “Photo renders”.</li>
+        </ol>
+      </div>
+      <form class="ph-form" id="photoForm" novalidate>
+        <div class="ph-grid">
+          <label class="pfield">Style
+            <select id="phStyle">
+              <option value="golden">Golden hour outdoor</option>
+              <option value="evening">Evening lights</option>
+              <option value="daylight">Daylight</option>
+              <option value="ballroom">Indoor ballroom</option>
+            </select></label>
+          <label class="pfield">Camera
+            <select id="phCamera">
+              <option value="hero">Hero aerial (current 3D view)</option>
+              <option value="top">Top-down</option>
+              <option value="eye">Eye-level from the entrance</option>
+            </select></label>
+          <label class="pfield">Quality
+            <select id="phQuality">
+              <option value="standard">Standard (faster)</option>
+              <option value="high">High</option>
+            </select></label>
+          <label class="pfield">Photos
+            <select id="phCount"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label>
+        </div>
+        <label class="pfield ph-wide">Decor theme (optional)
+          <input id="phTheme" type="text" maxlength="160" placeholder="e.g. royal gold &amp; blush florals" autocomplete="off"></label>
+        <p class="ph-quota" id="phQuota"></p>
+        <div class="ph-acts">
+          <button type="submit" class="tbtn primary" id="phGo">Create photo</button>
+        </div>
+      </form>
+      <div class="ph-progress" id="phProgress" hidden aria-live="polite">
+        <div class="ph-bar"><span id="phBarFill"></span></div>
+        <p id="phStep">Preparing…</p>
+        <button type="button" class="tbtn" id="phCancel">Cancel</button>
+      </div>
+      <div class="ph-results" id="phResults" hidden>
+        <div class="ph-gallery" id="phGallery"></div>
+        <div class="ph-acts"><button type="button" class="tbtn" id="phAgain">Regenerate</button></div>
+      </div>
+      <details class="ph-history" id="phHistory">
+        <summary>Past renders for this event</summary>
+        <div class="ph-gallery" id="phHistList"></div>
+      </details>
     </div>
   </div>
 </div>
@@ -418,6 +480,8 @@
 
 <!-- ================= 3D RENDERED VIEW (Three.js, lazy-loaded on first use) ================= -->
 <script src="capture-frame.js?v=12"></script>
-<script src="builder-3d.js?v=13"></script>
+<script src="builder-3d.js?v=14"></script>
+<script src="photo-render-prompt.js?v=1"></script>
+<script src="photo-render-ui.js?v=1"></script>
 </body>
 </html>

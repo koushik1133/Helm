@@ -8,7 +8,7 @@ t('builder has the capture button + clean 2D / 3D capture hooks', () => {
   assert.match(read('public/builder.html'), /id="clientImgBtn"[^>]*hidden/);
   const b = read('public/builder.js');
   assert.match(b, /planBlob\(\{clean:true, maxW:1600, labels:m\}\)/);
-  assert.match(b, /querySelectorAll\('\.margins,\.measure'\)/);
+  assert.match(b, /querySelectorAll\(o\.measure \? '\.margins' : '\.margins,\.measure'\)/);
   assert.match(b, /putImage\(qid,k,v,pics\[v\]\)/); assert.match(b, /\['3d',p3\]/);
   const d = read('public/builder-3d.js');
   assert.match(d, /window\.__capture3D=capture3D/);

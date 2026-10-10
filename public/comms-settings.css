@@ -15,3 +15,7 @@
 #commsCard .cmroles input{width:16px;height:16px;margin:0;accent-color:var(--accent)}
 #commsCard .cmfoot{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:10px;margin-top:14px}
 #commsCard .cmerr{color:var(--danger,#c0392b);font-size:13px;margin:6px 0}
+/* 0095 photo render card (control.html #prCard) */
+#prCard .cmchk{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);margin:4px 14px 4px 0;font-weight:500}
+#prCard .cmchk input{width:16px;height:16px;margin:0;accent-color:var(--accent)}
+#prCard .cmgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:6px 0 10px}
