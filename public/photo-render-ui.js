@@ -2,7 +2,8 @@
    Captures three reference pictures in the browser - (a) a clean 3D snapshot from the chosen
    camera (no labels), (b) the 2D plan without labels, (c) the 2D plan with names + measurements -
    builds the layout-exact prompt (HelmPhotoPrompt) and sends everything to the edge function
-   render-photo (BPStore.photoRender.render). The OpenAI key lives ONLY in that function's secrets.
+   render-photo (BPStore.photoRender.render). The image-service key lives ONLY on the server.
+   Every user-facing string here is plain language (test/render-dialog-polish.test.mjs).
    Results: gallery with download, "Use in client booklet", regenerate, and past renders per event. */
 (function () {
   'use strict';
@@ -20,19 +21,20 @@
     if (camera === 'top' && world && world.h > world.w * 1.1) return '1024x1536';
     return '1536x1024';
   }
-  function eyeView(c) {
-    try {
-      var W = window.HelmWalkthrough; if (!W || !W.walkthroughStops) return null;
-      var stops = W.walkthroughStops(c.items, c.world, { aspect: 16 / 9 }) || [];
-      var s = stops.filter(function (x) { return x.key === 'entrance'; })[0] || stops.filter(function (x) { return x.view === 'eye'; })[0];
-      return s ? { pos: s.pos, target: s.target, fov: s.fov } : null;
-    } catch (e) { return null; }
-  }
-  function cameraOpts(camera, c) {
-    var o = { labels: 'none' };
+  function aspectFor(camera, world) { var o = outputSize(camera, world).split('x'); return (+o[0]) / (+o[1]); }
+  // camera presets are computed from the layout itself (HelmPhotoPrompt.cameraView); "current" = the live 3D view
+  function cameraOpts(camera, c, focus) {
+    var o = { labels: 'none' }, P = window.HelmPhotoPrompt;
+    if (camera === 'current') {
+      try { var h = window.__helm3D; if (h && h.isActive && h.isActive() && h.getView) { var g = h.getView(); if (g) { o.view = { pos: g.pos, target: g.target, fov: g.fov }; return o; } } } catch (e) {}
+      camera = 'auto';   // 3D view not open: fall back to the best angle
+    }
+    if (camera === 'hero') camera = 'auto';
+    if (!P || !P.cameraView || !c) { if (camera === 'top') o.topDown = true; return o; }
+    var kind = camera === 'auto' && focus ? 'focus' : camera;
+    var v = P.cameraView(kind, c.items, c.world, { aspect: aspectFor(camera, c.world), fov: camera === 'eye' ? 65 : 45, focus: focus });
     if (camera === 'top') o.topDown = true;
-    else if (camera === 'eye') { var v = eyeView(c); if (v) o.view = v; }
-    else { try { var h = window.__helm3D; if (h && h.isActive && h.isActive() && h.getView) { var g = h.getView(); if (g) o.view = { pos: g.pos, target: g.target, fov: g.fov }; } } catch (e) {} }
+    else if (v && v.ok) o.view = { pos: v.pos, target: v.target, fov: v.fov };
     return o;
   }
   async function encode(blob) {
@@ -51,8 +53,22 @@
     $('phProgress').hidden = !on;
     $('phGo').disabled = on;
     $('photoForm').querySelectorAll('select,input').forEach(function (n) { n.disabled = on; });
+    if (!on) syncForm();
   }
-  var OFF_MSG = 'Photo renders aren’t switched on yet — ask your admin.';
+  var OFF_MSG = 'Photo renders aren’t switched on for your studio yet.';
+  var NO_PERM_MSG = 'You don’t have permission to make photo renders — ask your studio admin.';
+  /* error code -> plain message (never shows server / technical wording) */
+  var PLAIN = {
+    render_not_configured: OFF_MSG, render_disabled: OFF_MSG, not_allowed: NO_PERM_MSG,
+    render_quota: 'Your studio has used all of this month’s photo renders.',
+    render_rate_limited: 'Too many photos requested in the last hour — please try again a little later.',
+    render_blocked: 'That photo couldn’t be made from this plan — try a different style or decor theme.',
+    render_busy: 'Photo renders are very busy right now — please try again in a minute.',
+    not_found: 'This event couldn’t be found — save it and try again.',
+    render_failed: 'The photo couldn’t be made this time — please try again.',
+    render_timeout: 'The photo took too long — please try again.',
+  };
+  function plainError(e) { var c = e && e.code; return (c && PLAIN[c]) || 'The photo couldn’t be made this time — please try again.'; }
   function canManage() { return !!(state.cfg && state.cfg.can_manage); }
   // fetch to an undeployed edge function: CORS preflight 404 -> TypeError "Failed to fetch"
   function isNetErr(e) { return !!e && (e.name === 'TypeError' || /failed to fetch|networkerror|load failed/i.test(String(e.message || ''))); }
@@ -80,14 +96,14 @@
     if (src) dl.href = src;
     else {
       var show = el('button', 'tbtn', 'Show'); show.type = 'button';
-      show.addEventListener('click', async function () { try { var u = await ensureSrc(); dl.href = u; show.remove(); } catch (e) { toast(String(e.message || e), { type: 'err' }); } });
+      show.addEventListener('click', async function () { try { var u = await ensureSrc(); dl.href = u; show.remove(); } catch (e) { toast('That photo couldn’t be loaded — please try again.', { type: 'err' }); } });
       acts.appendChild(show);
-      dl.addEventListener('click', async function (ev) { if (dl.href) return; ev.preventDefault(); try { dl.href = await ensureSrc(); dl.click(); } catch (e) { toast(String(e.message || e), { type: 'err' }); } });
+      dl.addEventListener('click', async function (ev) { if (dl.href) return; ev.preventDefault(); try { dl.href = await ensureSrc(); dl.click(); } catch (e) { toast('That photo couldn’t be loaded — please try again.', { type: 'err' }); } });
     }
     use.addEventListener('click', async function () {
       use.disabled = true;
       try { await api().useInBooklet(r.id); toast('Added to the client booklet as its own photo (shown in the 3D section)', { type: 'ok' }); }
-      catch (e) { toast(window.BPUI && BPUI.friendlyError ? BPUI.friendlyError(e, { action: 'add the photo to the booklet' }) : String(e.message || e), { type: 'err' }); }
+      catch (e) { toast('The photo couldn’t be added to the booklet — please try again.', { type: 'err' }); }
       finally { use.disabled = false; }
     });
     acts.appendChild(dl); acts.appendChild(use);
@@ -113,8 +129,8 @@
     try { state.cfg = api() ? await api().settings() : null; } catch (e) { state.cfg = null; }
     var s = state.cfg;
     if (!s) return;
-    if (s.enabled === false) showOff('Photo renders are switched off for your studio — ask your admin.', !!s.can_manage);
-    else if (s.can_render === false) showOff('You don’t have permission to make photo renders — ask your admin (Control Center → Users & access → Photo renders).', !!s.can_manage);
+    if (s.enabled === false) showOff(OFF_MSG, !!s.can_manage);
+    else if (s.can_render === false) showOff(NO_PERM_MSG, false);
     q.textContent = 'This month: ' + (s.used_this_month || 0) + ' of ' + (s.monthly_quota != null ? s.monthly_quota : '—') + ' photos used.';
   }
 
@@ -130,10 +146,10 @@
     try {
       var evening = false; try { evening = !!(window.__helm3D && __helm3D.isEvening && __helm3D.isEvening()); } catch (e) {}
       var P = window.HelmPhotoPrompt.build({ items: c.items, world: c.world, eventType: c.eventType, guests: c.guests, setting: c.setting,
-        evening: evening, style: params.style, camera: params.camera, theme: params.theme, country: c.country });
+        evening: evening, style: params.style, camera: params.camera, themeKey: params.themeKey, theme: params.theme, focus: params.focus, country: c.country });
       setStep('Capturing the 3D view…', 10);
       if (!window.__capture3D) throw new Error('The 3D view is not loaded');
-      var b3 = await window.__capture3D(MAX_W, cameraOpts(params.camera, c));
+      var b3 = await window.__capture3D(MAX_W, cameraOpts(params.camera, c, params.focus));
       if (state.cancelled) return;
       setStep('Capturing the floor plan…', 25);
       var b2 = await c.planBlob({ clean: true, maxW: MAX_W, labels: 'none' });
@@ -146,7 +162,7 @@
       var res;
       try {
         res = await A.render({ quote_id: c.quoteId, prompt: P.prompt, n: params.n, quality: params.quality === 'high' ? 'high' : 'standard',
-          size: outputSize(params.camera, c.world), style: P.style, camera: P.camera, theme: params.theme, images: images }, state.ac.signal);
+          size: outputSize(params.camera, c.world), style: P.style, camera: P.camera + (P.focus ? ':' + P.focus : ''), theme: P.theme || 'none', images: images }, state.ac.signal);
       } finally { clearTimeout(slow); }
       setStep('Done', 100);
       var g = $('phGallery'); g.replaceChildren();
@@ -159,18 +175,27 @@
     } catch (e) {
       if (state.cancelled || (e && e.name === 'AbortError')) { toast('Render cancelled'); return; }
       var code = e && e.code;
-      if (code === 'render_not_configured' || isNetErr(e)) showOff(OFF_MSG, canManage());
-      else if (code === 'render_quota') toast('Your studio has used this month’s photo renders. ' + String(e.message || ''), { type: 'err' });
-      else if (code === 'render_disabled' || code === 'not_allowed') showOff(String(e.message || 'Photo renders are not available to you.'), !!(state.cfg && state.cfg.can_manage));
-      else toast(window.BPUI && BPUI.friendlyError ? BPUI.friendlyError(e, { action: 'make the photo' }) : String((e && e.message) || 'The photo could not be made'), { type: 'err' });
+      if (code === 'render_not_configured' || code === 'render_disabled' || isNetErr(e)) showOff(OFF_MSG, canManage());
+      else if (code === 'not_allowed') showOff(NO_PERM_MSG, false);
+      else toast(plainError(e), { type: 'err' });
     } finally {
       state.ac = null; showBusy(false);
     }
   }
 
   function readForm() {
-    return { style: $('phStyle').value, camera: $('phCamera').value, quality: $('phQuality').value === 'high' ? 'high' : 'standard',
-      n: Math.max(1, Math.min(4, parseInt($('phCount').value, 10) || 1)), theme: String($('phTheme').value || '').trim().slice(0, 160) };
+    var sel = $('phThemeSel').value, other = sel === 'other';
+    var themeKey = other ? null : (window.HelmPhotoPrompt && HelmPhotoPrompt.THEMES[sel] ? sel : 'none');
+    return { style: $('phStyle').value, camera: $('phCamera').value, focus: $('phFocus').value || '', quality: $('phQuality').value === 'high' ? 'high' : 'standard',
+      n: Math.max(1, Math.min(4, parseInt($('phCount').value, 10) || 1)), themeKey: themeKey,
+      theme: other ? String($('phTheme').value || '').trim().slice(0, 160) : '' };
+  }
+  function syncForm() {
+    $('phCamHint').hidden = $('phCamera').value !== 'current';
+    var other = $('phThemeSel').value === 'other';
+    $('phThemeWrap').hidden = !other;
+    // a highlight is an aerial close-up: only with the automatic camera
+    var f = $('phFocus'); f.disabled = state.busy || $('phCamera').value !== 'auto'; if (f.disabled && !state.busy) f.value = '';
   }
 
   function open() {
@@ -179,13 +204,14 @@
     var evening = false; try { evening = !!(window.__helm3D && __helm3D.isEvening && __helm3D.isEvening()); } catch (e) {}
     if (c && window.HelmPhotoPrompt) $('phStyle').value = HelmPhotoPrompt.defaultStyle(c.setting, evening);
     $('photoOff').hidden = true; $('phResults').hidden = true;
+    syncForm();
     m.hidden = false;
     $('phGo').focus();
     var settingsReady = refreshSettings();
     if (!c || !c.quoteId || !c.supported) showOff('Open a saved event (signed in to your studio) to make photo renders.', false);
     else if (!api() || !api().available()) showOff(OFF_MSG, false);
     else if (api().probe) {
-      // cheap pre-check: the render-photo function may not be deployed yet (admins see the setup steps)
+      // cheap pre-check: renders may not be switched on yet (admins see "contact Helm support")
       Promise.all([api().probe(), settingsReady]).then(function (r) { if (r[0] === false) showOff(OFF_MSG, canManage()); }).catch(function () {});
     }
     loadHistory();
@@ -204,14 +230,16 @@
     var m = $('photoModal'); if (!m) return;
     $('photoForm').addEventListener('submit', function (ev) { ev.preventDefault(); if (!state.busy) run(readForm()); });
     $('phCancel').addEventListener('click', cancel);
+    $('phCamera').addEventListener('change', syncForm);
+    $('phThemeSel').addEventListener('change', syncForm);
     $('phAgain').addEventListener('click', function () { if (!state.busy) run(state.last || readForm()); });
     $('photoX').addEventListener('click', close);
     m.addEventListener('click', function (ev) { if (ev.target === m) close(); });
     m.addEventListener('keydown', function (ev) { if (ev.key === 'Escape') close(); });
     var b = document.querySelector('#viewSeg [data-v="render"]');
-    // the 3D render view still opens behind the dialog (that is the "Hero aerial" camera)
+    // the 3D render view still opens behind the dialog (used by the "My current 3D view" camera)
     if (b) b.addEventListener('click', function () { setTimeout(open, 0); });
   }
-  window.HelmPhotoRenderUI = { open: open, close: close, outputSize: outputSize, cameraOpts: cameraOpts };
+  window.HelmPhotoRenderUI = { open: open, close: close, outputSize: outputSize, cameraOpts: cameraOpts, plainError: plainError, readForm: readForm };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
 })();
