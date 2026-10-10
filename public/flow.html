@@ -55,6 +55,17 @@
   .pill{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .pkgcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
   .pkgcard{text-align:left;border:1px solid var(--line);border-radius:10px;padding:10px 11px;background:var(--panel);cursor:pointer;font-family:inherit}
+  .dished{margin-top:14px;border-top:1px solid var(--line-2);padding-top:10px}
+  .dished .dish-h{font-size:13px;margin:0 0 6px} .dished .dish-empty,.dished .dish-err{font-size:12px;color:var(--ink-3);margin:4px 0}
+  .dished .dish-c{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin:10px 0 4px}
+  .dished .dish-ul{list-style:none;margin:0;padding:0}
+  .dished .dish-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 0;border-top:1px solid var(--line-2);font-size:13px}
+  .dished .dish-n{flex:1;min-width:120px;overflow-wrap:anywhere}
+  .dished .dish-add{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-top:10px}
+  .dished .dish-lbl{font-size:12px;font-weight:600;color:var(--ink-2)}
+  .dished .dish-sel,.dished .dish-in{height:34px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink);min-width:0}
+  .dished .dish-in{flex:1 1 160px} .dished .dish-sel{max-width:100%}
+  .dished button:focus-visible,.dished input:focus-visible,.dished select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .pkgcard.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
   .pkgcard b{font-size:13px} .pkgcard .m{font-size:12px;color:var(--ink-3);margin-top:2px} .pkgcard .p{font-size:12px;color:var(--accent);font-weight:700;margin-top:4px}
 
@@ -188,6 +199,7 @@
           <p class="sub">Pick a package — it pre-fills the dishes and drives the catering price.</p>
           <div class="secerr" id="err-menu"></div>
           <div class="pkgcards" id="pkgCards"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
+          <div class="dished" id="dishEditor" aria-live="polite"></div>
           <div class="fld full s-56f4356"><label for="p_menu">Menu / service notes</label><textarea id="p_menu" placeholder="Courses, dietary options, service style, timings…"></textarea></div>
         </section>
 
@@ -333,13 +345,14 @@
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="event-name.js?v=2"></script>
-<script src="store-api.js?v=159"></script>
+<script src="store-api.js?v=160"></script>
 <script src="tour.js?v=9"></script>
 <script src="booklet.js?v=13"></script>
 <script src="share-checklist.js?v=8"></script>
 <script src="flow-layout-sync.js?v=4"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="flow-autosave.js?v=1"></script>
+<script src="flow-dish-editor.js?v=1"></script>
 <script src="venues-core.js?v=2"></script>
 <script src="venue-picker.js?v=3"></script>
 <script>
@@ -802,22 +815,21 @@
     }).join("") || '<div class="meta">No menu packages set up yet — <a href="control.html#menu">add them in Control Center</a>.</div>';
     $("#pkgCards").querySelectorAll(".pkgcard").forEach(b=>b.addEventListener("click",()=>applyPackage(b.dataset.id,b)));
   }
-  // Pre-fill the editable dish list (menu notes) from the package, grouped by course.
-  // Switching packages replaces the previous package's pre-filled text; hand-edited
-  // text is only replaced after the user confirms.
-  function packageDishText(t){
-    const by={}; (Array.isArray(t&&t.dishes)?t.dishes:[]).forEach(d=>{ const c=(d&&(d.c||d.category))||"Other"; const n=d&&(d.n||d.dish_name||d.name); if(n) (by[c]=by[c]||[]).push(n); });
-    return Object.keys(by).map(c=>c+": "+by[c].join(", ")).join("\n"); }
-  function fillPackageDishes(t){
-    const ta=$("#p_menu"), next=packageDishText(t), cur=ta.value.trim();
-    const prev=appliedPkg?packageDishText(appliedPkg):"";
-    if(!next) return;
-    if(cur && cur!==prev.trim() && cur!==next && !confirm("Replace the current dish list with the "+t.name+" package dishes?")) return;
-    ta.value=next; }
+  // Dishes now live in the per-course dish editor below the cards (event_menu_items,
+  // the same list plan.html edits). The notes box keeps only service notes the user
+  // typed — applying a package no longer writes dishes into it, and never clears it.
+  let dishEd=null;
+  function mountDishEditor(){
+    const host=$("#dishEditor"); if(!host || !window.HelmDishEditor) return;
+    dishEd=HelmDishEditor.mount(host,{ store:BPStore, ui:BPUI, quoteId:id, editable:canEdit && !(plan&&plan.menu_locked) });
+    dishEd.init(); }
   async function applyPackage(tid,btn){
     const t=packages.find(x=>String(x.id)===String(tid)); if(!t) return;
+    if(appliedPkg && String(appliedPkg.id)===String(t.id) && dishEd && !dishEd.isCustom(t)) return;
+    // a hand-edited (custom) dish list is only replaced after the user confirms
+    if(dishEd && dishEd.isCustom(appliedPkg) && !(await BPUI.confirm(`Apply “${t.name}”? This replaces the ${dishEd.items().length} dishes on this event (including your edits) with the package's ${(t.dishes||[]).length} dishes.`,{title:"Replace your dishes?",okLabel:"Replace dishes",danger:true}))) return;
     try{ await BPUI.guard(btn||null, async()=>{ await BPStore.menuTemplates.apply(id, t.id);
-      fillPackageDishes(t); appliedPkg=t;
+      appliedPkg=t; if(dishEd) await dishEd.reload();
       $("#q_platePrice").value=t.price_per_plate; $("#p_menu").dataset.pkg=t.name;
       // Persist the chosen package name to the plan immediately so the workspace (event.html)
       // and the Venue & menu page (plan.html) reflect it without waiting for save-on-leave.
@@ -996,6 +1008,7 @@
     await renderReqs();
     await runSection("plan");
     await runSection("packages");
+    mountDishEditor();
     await runSection("proposal");
     await runSection("layout");
     // R8: hall length/breadth persist on the quote (client.hallLen/hallWid; fallback: the saved layout's hall)

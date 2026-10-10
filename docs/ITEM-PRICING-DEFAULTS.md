@@ -41,3 +41,64 @@ tax through the normal quote pricing.
 - Who can change rate cards is set by the access‑matrix area **“Item pricing (rate cards)”**
   (`item_pricing`). Admins always can. Editing an item's spec on a quote is controlled by quote
   edit rights.
+
+## Flat catalog defaults for newer builder items (2026-10)
+
+Items **without** a spec are priced per unit from the flat catalog: the studio's own price in
+Control Center → Pricing → Item prices (`config.assetPrices`) if it set one, otherwise the shipped
+default below. These defaults live only in code — `OBJECT_PRICE` (`public/store-api.js`),
+`DEFAULT_PRICES` (`public/builder.js`) and `ITEM_CATALOG` (`public/control.html`) — and
+`test/catalog-defaults.test.mjs` keeps the three identical. **No SQL is needed and nothing is
+written to any studio:** a price a studio already set always wins, and a blank Control Center field
+means "use the default". Admins can override any of these in Control Center.
+
+Before this change these items fell back to a category price (e.g. LED wall → ₹9,000, the AV
+category) and the builder flagged them "price not in catalog". That flag now shows only for an item
+with neither a studio price nor a shipped default. Seat-type items (chair rows, seating blocks,
+round/banquet/head/cocktail tables, chiavari chairs, bar stools) are billed through the chair rate,
+not here. Quotes already saved keep their stored totals; an open quote is re-priced from these
+defaults only when someone re-prices it.
+
+Each default is **per placed unit, per event day, before GST**, sized for the builder's default
+footprint (feet). Typical 2025–26 tier-1/tier-2 Indian rental ranges:
+
+| Type | Item | Default (₹/unit) | Reasoning |
+|---|---|---|---|
+| `led` | LED Wall | 18,000 | 16 × 9 ft ≈ 144 sq ft × ~₹125/sq ft/day (market ₹60–150/sq ft) |
+| `lighting` | Lighting Truss | 9,600 | 24 ft × ₹400 per running ft (lit truss ₹600–1,200/m) |
+| `walkway` | Walkway / Ramp | 6,000 | 6 × 24 ft ≈ 144 sq ft × ~₹40/sq ft (carpeted ramp/platform) |
+| `brandwall` | Branding Wall | 9,600 | 20 × 8 ft = 160 sq ft × ₹60/sq ft (flex/backdrop + frame) |
+| `podium` | Podium | 3,500 | Branded lectern with mic stand ₹2–5k/day |
+| `barricade` | Barricade | 1,800 | 30 ft MS barricade section ≈ ₹60 per running ft |
+| `stagebarrier` | Stage Barrier | 9,000 | 30 ft mojo/front-of-stage barrier ≈ ₹300 per running ft |
+| `fence` | Fence Line | 1,500 | 40 ft temporary fence/rope line |
+| `checkpoint` | Checkpoint | 3,000 | DFMD / frisking point ₹2.5–4k/day (staff extra) |
+| `exit` | Exit Zone | 500 | Nominal: exit signage and marking only (zones are not rented) |
+| `speaker` | Speaker Stack | 4,000 | Pair of tops on stands ₹3–5k/day |
+| `monitor` | Stage Monitor | 1,500 | Wedge monitor ₹1–2k/day |
+| `movinghead` | Moving Light | 2,500 | Same as the moving-head rate card (₹2–4k/day) |
+| `uplight` | Uplight | 500 | Same as the uplighter rate card |
+| `smoke` | Smoke Machine | 5,000 | Dry-ice/low-fog unit with consumables (₹4–8k) |
+| `dancers` | Dancers | 14,000 | 4-dancer troupe × ₹3,500 per performance |
+| `chocolatefountain` | Chocolate Fountain | 9,000 | Medium fountain (rate card) |
+| `chariot` | Wedding Chariot | 20,000 | Flower chariot per trip (rate card) |
+| `booth` | Expo Booth | 8,000 | 3 × 3 m octanorm shell ₹6–10k |
+| `desk` | Reg Desk | 2,500 | Draped registration counter |
+| `gifttable` | Gift Table | 1,500 | Draped table with décor |
+| `caketable` | Cake Table | 1,500 | Draped table with décor |
+| `heater` | Patio Heater | 2,500 | Gas patio heater incl. cylinder ₹2–3k/day |
+| `easel` | Signage Easel | 500 | Easel + printed board |
+| `distro` | Power Distro | 3,000 | Distribution board with cabling |
+| `cableramp` | Cable Ramp | 600 | Rubber cable protector run |
+| `lounge` | Lounge Set | 6,000 | Sofa + 2 chairs + coffee table |
+| `sofa` / `loveseat` / `armchair` / `ottoman` | Lounge furniture | 2,500 / 2,000 / 1,200 / 500 | Event furniture hire |
+| `bench` / `coffeetable` | Bench / Coffee table | 800 / 800 | Event furniture hire |
+| `bleacher` | Bleachers | 15,000 | 24 ft tiered seating section |
+| `floral` | Floral Centerpiece | 1,500 | Fresh-flower centrepiece ₹1–2.5k |
+| `pillar` | Decor Pillar | 2,000 | Fibre/floral pillar |
+| `drape` | Pipe & Drape | 2,400 | 16 ft × ₹150 per running ft |
+| `planter` | Greenery | 800 | Potted plant / planter |
+
+Items that already had a default keep it, for example `linearray` ₹40,000, `generator` ₹15,000,
+`photobooth` ₹12,000, `truss` (tower) ₹6,000 and `subwoofer` ₹12,000. Truss tower and subwoofer
+now also appear in Control Center so admins can override them.
