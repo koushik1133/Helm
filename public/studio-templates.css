@@ -1,0 +1,29 @@
+/* studio-templates.css (0096) - studio's own layout templates: manager grid, save form, template-edit bar */
+.st-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 12px}
+.st-chk{display:inline-flex;align-items:center;gap:4px;font-size:13px;white-space:nowrap}
+.st-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.st-card{border:1px solid var(--line,#ddd);border-radius:10px;padding:10px;background:var(--panel,#fff);display:flex;flex-direction:column;gap:6px;min-width:0}
+.st-card.st-archived{opacity:.65}
+.st-thumb{width:100%;aspect-ratio:10/7;object-fit:contain;border-radius:6px;background:var(--line-2,#f2f2f2);border:1px solid var(--line,#ddd)}
+.st-nothumb{display:flex;align-items:center;justify-content:center;font-size:28px}
+.st-name{overflow-wrap:anywhere}
+.st-badges{display:flex;flex-wrap:wrap;gap:4px}
+.st-badge{font-size:11px;padding:1px 7px;border-radius:999px;background:var(--line-2,#eee)}
+.st-badge.st-def{background:#fff4cc;color:#6b4b00}
+.st-badge.st-arc{background:#fde2e2;color:#8a1c1c}
+.st-desc{font-size:12.5px;color:var(--ink-2,#444);margin:0;overflow-wrap:anywhere}
+.st-acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:auto}
+.st-renbox{display:flex;flex-wrap:wrap;gap:6px}
+.st-renbox input,.st-renbox select{min-width:0;flex:1 1 140px}
+.st-form{display:grid;gap:4px 0;margin:8px 0}
+.st-form label{font-size:12.5px;font-weight:600;margin-top:6px}
+.st-form input,.st-form select,.st-form textarea{width:100%;box-sizing:border-box;min-width:0}
+.st-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+.st-err{color:#a11;font-size:13px;margin:6px 0}
+.st-ok{color:#176b2c;font-size:13px;margin:6px 0}
+.st-modal .sheet{max-width:min(860px,calc(100vw - 32px))}
+.st-editbar{position:sticky;top:0;z-index:60;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 16px;background:var(--panel,#fff);border-bottom:2px solid var(--accent,#2b6cb0)}
+.st-editbar .st-form{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0;flex:1 1 420px}
+.st-editbar .st-form label{margin:0}
+.st-editbar .st-form input,.st-editbar .st-form select{width:auto;flex:1 1 140px}
+.st-editbar .st-form textarea{flex:1 1 200px;width:auto;min-height:32px}

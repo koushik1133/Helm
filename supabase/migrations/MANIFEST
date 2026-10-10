@@ -131,3 +131,5 @@ forward  supabase/migrations/0092_country_templates.sql
 forward  supabase/migrations/0093_country_terms.sql
 # 0094 (per-currency money totals: insights_range money_by_currency / types_by_currency / cash_by_currency, insights_events currency, client_timeline totals.by_currency; functions only, old fields unchanged) goes after 0093 (needs 0068, 0082, 0089, 0091).
 forward  supabase/migrations/0094_per_currency_totals.sql
+# 0096 (studio's own floor-layout templates: studio_layout_templates table, RLS by studio + "layouts"/"controls" view, never hard-deleted (archive), save / archive / set-default (one per event type) / duplicate RPCs gated by layouts OR controls edit) goes after 0094 (needs 0045, 0085-era has_area).
+forward  supabase/migrations/0096_studio_layout_templates.sql

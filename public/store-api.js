@@ -6752,6 +6752,26 @@ window.HelmUrl = HelmUrl;
     async setActive(id, on) { return rpc("venue_set_active", { p_id: id, p_active: !!on }); },
     async loadSamples() { return rpc("venue_load_samples", {}); },
   };
+  // 0096 studio layout templates: read under RLS (own studio + layouts/controls view); writes only via RPCs
+  const layoutTemplates = {
+    async list(opts) {
+      if (mode !== "supabase" || !supa) return [];
+      let q = supa.from("studio_layout_templates").select(opts && opts.lite ? "id,name,event_type,description,thumbnail,is_default,archived,updated_at" : "*").order("archived").order("name");
+      if (!(opts && opts.all)) q = q.eq("archived", false);
+      const { data, error } = await q;
+      if (error) { if (/studio_layout_templates/.test(String(error.message || "")) && /does not exist|schema cache/i.test(String(error.message || ""))) { const er = new Error("Studio templates need database update 0096 (ask your admin to run it)."); er.code = "templates_missing"; throw er; } throw error; }
+      return data || [];
+    },
+    async get(id) {
+      if (mode !== "supabase" || !supa) return null;
+      const { data, error } = await supa.from("studio_layout_templates").select("*").eq("id", id).maybeSingle();
+      if (error) throw error; return data || null;
+    },
+    async save(id, data) { return rpc("studio_template_save", { p_id: id || null, p: data || {} }); },
+    async setArchived(id, on) { return rpc("studio_template_set_archived", { p_id: id, p_archived: !!on }); },
+    async setDefault(id, on) { return rpc("studio_template_set_default", { p_id: id, p_on: !!on }); },
+    async duplicate(id) { return rpc("studio_template_duplicate", { p_id: id }); },
+  };
   const insights = {
     presets: () => RANGE_PRESETS.map((p) => ({ key: p[0], label: p[1] })),
     rangeFor, rangeCheck, inRange,
@@ -7416,7 +7436,7 @@ window.HelmUrl = HelmUrl;
   };
 
   const BPStore = {
-    activityText, init, mode: () => mode, auth, quotes, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, venues, portal, files, chat, profile, quoteShelf, uploads, comms,
+    activityText, init, mode: () => mode, auth, quotes, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.

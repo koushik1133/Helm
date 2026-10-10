@@ -560,7 +560,10 @@
   const bBack = el('button', 'tbtn', '← Back', { type: 'button' });
   const bNext = el('button', 'tbtn primary', 'Next →', { type: 'button', id: 'wizNext' });
   const bClassic = el('button', 'tbtn lw-classic', 'Classic templates…', { type: 'button', title: 'Open the previous template-based Custom Event dialog' });
-  const nav = el('div', 'lw-nav'); nav.append(bClassic, bBack, bNext);
+  // 0096: the studio's own saved templates (studio-templates.js), shown only when the studio has some
+  const bMine = el('button', 'tbtn lw-mine', 'Start from my template', { type: 'button', id: 'wizMine', title: "Use one of your studio's own layout templates (fitted to this hall)" });
+  bMine.hidden = true;
+  const nav = el('div', 'lw-nav'); nav.append(bMine, bClassic, bBack, bNext);
   foot.append(live, nav);
   sheet.append(head, stepper, body, foot); modal.append(sheet);
 
@@ -735,12 +738,14 @@
   function open(e) {
     opener = (e && e.currentTarget) || doc.activeElement;
     spec = prefillSpec(); step = 0; modal.hidden = false; renderBody();
+    bMine.hidden = !(G.HelmStudioTemplates && G.HelmStudioTemplates.hasAny());
     const f = modal.querySelector('#wizType'); if (f) f.focus();
   }
   function close() { modal.hidden = true; if (opener && opener.focus) try { opener.focus(); } catch (_) {} }
   bClose.addEventListener('click', close);
   bBack.addEventListener('click', () => go(step - 1));
   bNext.addEventListener('click', () => { if (step < 3) { remember(); go(step + 1); } else { generate(); if (lastResult) apply(lastResult); } });
+  bMine.addEventListener('click', () => { close(); if (G.HelmStudioTemplates) G.HelmStudioTemplates.openPicker(); });
   bClassic.addEventListener('click', () => { close(); const f = g('openCustomModal'); if (typeof f === 'function') f(); });
   modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
   modal.addEventListener('keydown', (e) => {
