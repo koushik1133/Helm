@@ -229,7 +229,7 @@ do $$ declare r jsonb; v jsonb; begin
 exception when others then perform pg_temp.res('otp: request code -> enter it -> approved still works', false, sqlerrm);
 end $$;
 do $$ declare d text; begin
-  perform pg_temp.su(); d := pg_get_functiondef('public.request_otp(uuid,text)'::regprocedure);
+  perform pg_temp.su(); d := pg_get_functiondef(coalesce(to_regprocedure('public.request_otp__pre0093(uuid,text)'), 'public.request_otp(uuid,text)'::regprocedure));
   perform pg_temp.res('otp: code comes from gen_random_bytes, not random()', d ilike '%gen_random_bytes%' and d not ilike '%random()%', 'insecure generator');
 end $$;
 do $$ declare c record; begin

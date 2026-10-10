@@ -127,3 +127,5 @@ forward  supabase/migrations/0090_portal_quote_currency.sql
 forward  supabase/migrations/0091_quote_currency_backfill.sql
 # 0092 (country-aware client reminders/follow-ups: quote currency money, studio dial code for WhatsApp numbers, US date order; functions only, India output unchanged) goes after 0091 (needs 0078, 0082, 0089).
 forward  supabase/migrations/0092_country_templates.sql
+# 0093 (UAE / USA client approval OTP: typed +971 / +1 number matches the number on file; SMS to the number with its own code; India path unchanged; functions only) goes after 0092 (needs 0042, 0092).
+forward  supabase/migrations/0093_country_terms.sql

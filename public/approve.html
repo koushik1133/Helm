@@ -153,7 +153,31 @@
     <h4>3. Cancellation</h4><p>Cancellations must be made in writing. Refunds, if any, are governed by the timeline agreed with your event manager and applicable deductions for committed vendor costs.</p>
     <h4>4. Consent</h4><p>By verifying the OTP sent to your mobile and accepting these terms, you confirm you are authorised to approve this event and its charges on behalf of the client, and that the details are correct.</p>
     <h4>5. Liability & data</h4><p>The organiser is not liable for delays or failures due to circumstances beyond reasonable control. Your contact details are used only to administer this event and its payment.</p>`;
-  const CONSENT_TEXT="I have read and agree to the Terms & Conditions ("+TERMS_VERSION+"), and I authorise this event and its charges.";
+  // Country terms (new versions; India above stays byte-identical as v1-2026-09). Picked by the
+  // quote's tax country snapshot (apTax), India when absent. The exact id shown is stored with the consent.
+  const TERMS_BY_COUNTRY={
+    IN:{v:TERMS_VERSION, html:TERMS_HTML},
+    AE:{v:TERMS_VERSION+"-AE", html:`
+    <h4>1. Quotation & pricing</h4><p>All amounts are in UAE dirhams (AED) and include UAE Value Added Tax (VAT) at 5% where applicable. The supplier's Tax Registration Number (TRN) is shown on its tax invoices, and a VAT "Tax Invoice" is issued on request. Final billing may adjust for changes in guest count, scope, or statutory taxes.</p>
+    <h4>2. Booking & payment</h4><p>Your booking is confirmed only once your planner records your payment. Advance/booking amounts, once paid, are subject to the cancellation policy below.</p>
+    <h4>3. Cancellation</h4><p>Cancellations must be made in writing. Refunds, if any, are governed by the timeline agreed with your event manager and applicable deductions for committed vendor costs.</p>
+    <h4>4. Consent</h4><p>By verifying the OTP sent to your mobile and accepting these terms, you confirm you are authorised to approve this event and its charges on behalf of the client, and that the details are correct.</p>
+    <h4>5. Liability & data</h4><p>The organiser is not liable for delays or failures due to circumstances beyond reasonable control. Your contact details are used only to administer this event and its payment.</p>`},
+    US:{v:TERMS_VERSION+"-US", html:`
+    <h4>1. Quotation & pricing</h4><p>All amounts are in US dollars (USD). Applicable state and local sales tax is added as shown. Tax-exempt clients must provide a valid exemption certificate before the event; without one, sales tax applies. Final billing may adjust for changes in guest count, scope, or statutory taxes.</p>
+    <h4>2. Booking & payment</h4><p>Your booking is confirmed only once your planner records your payment. Advance/booking amounts, once paid, are subject to the cancellation policy below.</p>
+    <h4>3. Cancellation</h4><p>Cancellations must be made in writing. Refunds, if any, are governed by the timeline agreed with your event manager and applicable deductions for committed vendor costs.</p>
+    <h4>4. Consent</h4><p>By verifying the OTP sent to your mobile and accepting these terms, you confirm you are authorised to approve this event and its charges on behalf of the client, and that the details are correct.</p>
+    <h4>5. Liability & data</h4><p>The organiser is not liable for delays or failures due to circumstances beyond reasonable control. Your contact details are used only to administer this event and its payment.</p>`}
+  };
+  const termsKey=(tax)=>{ const c=(tax&&tax.country)||"IN"; return Object.prototype.hasOwnProperty.call(TERMS_BY_COUNTRY,c)?c:"IN"; };
+  const termsFor=(tax)=>TERMS_BY_COUNTRY[termsKey(tax)];
+  const consentText=(v)=>"I have read and agree to the Terms & Conditions ("+v+"), and I authorise this event and its charges.";
+  let shownTerms=TERMS_BY_COUNTRY.IN;
+  // the client's mobile: default the country picker to the quote's tax country (they can still change it)
+  function phoneCountry(tax){ const cc=(tax&&tax.country)||"IN"; const el=$("#c_phone"); if(!el) return;
+    el.setAttribute("data-country", cc); const dial={IN:"+91",AE:"+971",US:"+1"}[cc]; if(dial) el.setAttribute("placeholder", dial+" …");
+    if(el.helmPhone && !el.helmPhone.national()) el.helmPhone.setCountry(cc); }
 
   function setMsg(kind,text){ const m=$("#msg"); if(!text){m.innerHTML="";return;} m.innerHTML=`<div class="msg ${kind}">${esc(text)}</div>`; }
 
@@ -237,7 +261,8 @@
     $("#pricing").innerHTML=renderPricing(quote.pricing);
     // 0092: Razorpay payment links are INR only - an AED / USD quote is paid by bank transfer / card with the studio
     if(apTax && apTax.country!=="IN"){ $("#payBtn").hidden=true; $("#payBtn").style.display="none"; $("#payManual").textContent="Your planner will share bank transfer or card payment details and record your payment."; $("#payManual").hidden=false; }
-    $("#terms").innerHTML=TERMS_HTML; $("#tver").textContent="("+TERMS_VERSION+")";
+    shownTerms=termsFor(apTax); phoneCountry(apTax);
+    $("#terms").innerHTML=TERMS_BY_COUNTRY[termsKey(apTax)].html; $("#tver").textContent="("+shownTerms.v+")";
     if(quote.client_name) $("#c_name").value=quote.client_name;
     // resume state
     if(quote.reapproval_required===true){ $("#approvedNote").textContent=""; setMsg("dev", "The price changed after your earlier approval — please review the updated total and approve again."); }
@@ -269,7 +294,7 @@
     if(code.length!==6){ setMsg("err","Enter the 6-digit OTP."); $("#c_otp").focus(); return; }
     if(!agreed){ setMsg("err","Please tick the box to accept the terms."); $("#c_agree").focus(); return; }
     b.textContent="Verifying…";
-    try{ const r=await BPStore.approval.verifyConsent(token, phone, code, true, TERMS_VERSION, CONSENT_TEXT, $("#c_name").value.trim(), navigator.userAgent);
+    try{ const r=await BPStore.approval.verifyConsent(token, phone, code, true, shownTerms.v, consentText(shownTerms.v), $("#c_name").value.trim(), navigator.userAgent);
       // W10-D1: verify_and_consent now soft-returns {approved:false,message} on OTP
       // failure (so the attempts counter can persist and lockout works). Older DB
       // versions raise on failure instead — the catch below still handles those.

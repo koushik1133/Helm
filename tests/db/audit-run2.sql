@@ -112,7 +112,7 @@ do $$ declare j jsonb; i int; begin
   j := public.verify_and_consent('a0000000-0000-4000-8000-0000004200a3', '9000004301', '000000', true, 'v1', 'x', 'Ali', 'ua');
   perform pg_temp.res('RC1-07 denied: after the lock even a 6-digit guess is refused', j ->> 'error' = 'locked', j::text);
   perform pg_temp.res('RC1-08 static: the base NULL path is unreachable (wrapper checks p_code first)',
-    pg_get_functiondef('public.verify_and_consent(uuid,text,text,boolean,text,text,text,text)'::regprocedure) like '%p_code is null or p_code !~%', '');
+    pg_get_functiondef(coalesce(to_regprocedure('public.verify_and_consent__pre0093(uuid,text,text,boolean,text,text,text,text)'), 'public.verify_and_consent(uuid,text,text,boolean,text,text,text,text)'::regprocedure)) like '%p_code is null or p_code !~%', '');
 end $$;
 
 -- =====================================================================================
@@ -759,7 +759,7 @@ end $$;
 do $$ begin perform pg_temp.su();
   perform pg_temp.res('SHAPE-03 re-applying 0042 keeps one __pre0042 per function and the same wrappers',
     (select count(*) from pg_proc where pronamespace = 'public'::regnamespace and proname like '%\_\_pre0042') = 29
-    and pg_get_functiondef('public.verify_and_consent(uuid,text,text,boolean,text,text,text,text)'::regprocedure) like '%__pre0042%'
+    and pg_get_functiondef(coalesce(to_regprocedure('public.verify_and_consent__pre0093(uuid,text,text,boolean,text,text,text,text)'), 'public.verify_and_consent(uuid,text,text,boolean,text,text,text,text)'::regprocedure)) like '%__pre0042%'
     and pg_get_functiondef('public.verify_and_consent__pre0042(uuid,text,text,boolean,text,text,text,text)'::regprocedure) like '%__pre0039%', '');
 end $$;
 
