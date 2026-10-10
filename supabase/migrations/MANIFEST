@@ -139,3 +139,5 @@ forward  supabase/migrations/0096_studio_layout_templates.sql
 forward  supabase/migrations/0097_trial_demo.sql
 # 0098 (client approval link: paid vs total from the quote_payments ledger - "Advance received, balance due" instead of "Payment received"; one read-only function) goes after 0097 (needs 0010, 0042).
 forward  supabase/migrations/0098_public_paid_status.sql
+# 0099 (staff pkg_payment WhatsApp carries balance due / paid in full: _pkg_tg_payment adds balance (quote total - quote_payments ledger) + currency to the payload; one function body, no table change) goes after 0098 (needs 0069, 0089).
+forward  supabase/migrations/0099_pkg_payment_balance.sql

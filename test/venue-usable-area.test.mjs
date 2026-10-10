@@ -31,6 +31,15 @@ t('venues: length + breadth are required in Control Center', () => {
   assert.ok(!V.validate({ name: 'X', seated_capacity: 10, length: '50000', width: '10' }).ok, 'over the DB limit');
   assert.match(read('public/venues-admin.js'), /"Breadth \(" \+ unit \+ "\) \*"/);
 });
+t('venues: an EXISTING venue without a size still saves, with a warning', () => {
+  const r = V.validate({ name: 'Old hall', seated_capacity: 10 }, 'm', { existing: true });
+  assert.ok(r.ok); assert.equal(r.warnings.length, 1);
+  assert.match(r.warnings[0].msg, /Add length \u00d7 breadth so quotes can size the floor/);
+  assert.equal(r.value.length_m, null);
+  assert.ok(!V.validate({ name: 'Old', seated_capacity: 10, length: '-1' }, 'm', { existing: true }).ok, 'bad numbers still rejected');
+  assert.equal(V.validate({ name: 'N', seated_capacity: 10, length: '5', width: '5' }, 'm', { existing: true }).warnings.length, 0);
+  assert.match(read('public/venues-admin.js'), /\{ existing: !!v\.id \}/);
+});
 t('flow: full venue size kept on the client JSON; hall fields stay the usable area', () => {
   const f = read('public/flow.html');
   assert.match(f, /<input type="hidden" id="v_vlen"><input type="hidden" id="v_vwid">/);

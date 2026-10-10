@@ -212,7 +212,7 @@
         restrictions_note: val("vf_rnote"), cost_min: val("vf_cmin"), cost_max: val("vf_cmax"), cost_basis: val("vf_basis"),
         parking_spaces: val("vf_park"), rooms: val("vf_rooms"), power_backup_kw: val("vf_kw"), green_rooms: val("vf_green"),
         washrooms: val("vf_wash"), address: val("vf_addr"), city: val("vf_city"), map_url: val("vf_map"),
-        contact_name: val("vf_cname"), contact_phone: val("vf_cphone"), contact_email: val("vf_cemail"), notes: val("vf_notes") }, unit);
+        contact_name: val("vf_cname"), contact_phone: val("vf_cphone"), contact_email: val("vf_cemail"), notes: val("vf_notes") }, unit, { existing: !!v.id });
       el.querySelectorAll("[aria-invalid]").forEach(function (x) { x.removeAttribute("aria-invalid"); });
       if (!r.ok) {
         errBox.hidden = false; errBox.textContent = r.errors.map(function (x) { return x.msg; }).join(" ");
@@ -223,7 +223,7 @@
       }
       r.value.active = v.active !== false;
       var btn = document.getElementById("vf_save"); btn.disabled = true;
-      try { await S.venues.save(v.id || null, r.value); state.editing = null; state.msg = "Venue saved."; state.err = ""; await reload(); }
+      try { await S.venues.save(v.id || null, r.value); state.editing = null; state.msg = "Venue saved." + (r.warnings && r.warnings.length ? " " + r.warnings[0].msg : ""); state.err = ""; await reload(); }
       catch (err) { btn.disabled = false; errBox.hidden = false; errBox.textContent = friendly(err); }
     });
     return el;

@@ -152,20 +152,27 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; dq uuid; e text;
   select id into dq from public.quotes where org_id = a and is_demo and status = 'confirmed';
   update public.quotes set approval_token = tok where id = (select id from public.quotes where org_id = a and is_demo and status = 'quote' limit 1);
   perform pg_temp.login('a_admin@a.test');
-  e := pg_temp.try(format('select public.whatsapp_authorize(%L, %L)', dq, '+91 90000 00301'));
+  e := pg_temp.try(format('select public.whatsapp_authorize(%L, %L)', dq, '+91 00000 00301'));
   perform pg_temp.res('30 WhatsApp refused for a demo event', e like '42501%Demo%', e);
-  e := pg_temp.try(format('select public.whatsapp_authorize(%L, %L)', 'a0000000-0000-4000-8000-00000000da01', '+91 90000 00101'));
+  e := pg_temp.try(format('select public.whatsapp_authorize(%L, %L)', 'a0000000-0000-4000-8000-00000000da01', '+91 00000 00101'));
   perform pg_temp.res('31 WhatsApp refused for a demo contact number on a real event', e like '42501%Demo%', e);
+  e := pg_temp.try(format('select public.whatsapp_authorize(%L, %L)', 'a0000000-0000-4000-8000-00000000da01', '+91 00000 00999'));
+  perform pg_temp.res('31b any +91 00000 number is refused even with no demo row behind it', e like '42501%Demo%', e);
+  perform pg_temp.res('31c seeded demo phones are all +91 00000 00xxx; demo emails @example.com',
+    not exists (select 1 from public.leads where org_id = a and is_demo and (phone !~ '^\+91 00000 00[0-9]{3}$' or email !~ '@example\.com$'))
+    and not exists (select 1 from public.vendors where org_id = a and is_demo and (phone !~ '^\+91 00000 00[0-9]{3}$' or coalesce(email, 'x@example.com') !~ '@example\.com$'))
+    and not exists (select 1 from public.crew_members where org_id = a and is_demo and phone !~ '^\+91 00000 00[0-9]{3}$')
+    and not exists (select 1 from public.quotes where org_id = a and is_demo and (client ->> 'phone' !~ '^\+91 00000 00[0-9]{3}$' or client ->> 'email' !~ '@example\.com$')));
   perform pg_temp.su();
   r := public.payment_link_begin(tok, 60);
   perform pg_temp.res('32 payment link refused for a demo event', r ->> 'reason' = 'demo_data', r::text);
-  e := pg_temp.try(format('select public.otp_send_authorize(%L, %L)', tok, '9000000302'));
+  e := pg_temp.try(format('select public.otp_send_authorize(%L, %L)', tok, '0000000302'));
   perform pg_temp.res('33 approval OTP refused for a demo event', e like '42501%Demo%', e);
   perform pg_temp.anon();
   e := pg_temp.try(format('select public.create_payment(%L)', tok));
   perform pg_temp.res('34 client payment refused for a demo event', e like '42501%Demo%', e);
   perform pg_temp.su();
-  insert into public.comms_outbox(org_id, quote_id, purpose, channel, recipient, dedupe_key) values (a, dq, 'pay_reminder', 'whatsapp', '919000000301', 'demo-test-1')
+  insert into public.comms_outbox(org_id, quote_id, purpose, channel, recipient, dedupe_key) values (a, dq, 'pay_reminder', 'whatsapp', '910000000301', 'demo-test-1')
     returning status into st;
   perform pg_temp.res('35 demo outbox row stored as skipped', st = 'skipped', st);
   insert into public.comms_outbox(org_id, quote_id, purpose, channel, recipient, dedupe_key) values (a, 'a0000000-0000-4000-8000-00000000da01', 'pay_reminder', 'whatsapp', '919848011111', 'demo-test-2')

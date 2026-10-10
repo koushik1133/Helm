@@ -2,12 +2,12 @@
 --
 -- In plain words:
 --   The client's approval page said "Payment received - your event is confirmed" as soon as
---   ANY payment was recorded (approval_status = 'paid'), even when only a ₹50,000 advance
---   was in against a ₹3,06,800 quote. This adds ONE read-only function the approval page
+--   ANY payment was recorded (approval_status = 'paid'), even when only a Rs50,000 advance
+--   was in against a Rs3,06,800 quote. This adds ONE read-only function the approval page
 --   calls with the same link token: how much is paid (summed from the quote_payments
 --   LEDGER - the same source the settlement page uses), the latest receipt number, the
 --   quote total, the event date and the studio's "balance due N days before" term.
---   The page then says "Advance of ₹50,000 received ... Balance ₹2,56,800 due by ..."
+--   The page then says "Advance of Rs50,000 received ... Balance Rs2,56,800 due by ..."
 --   and only "Paid in full" when paid >= total.
 --
 -- Security: the link is checked by calling public_get_quote first (same expiry, shelving
