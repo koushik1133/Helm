@@ -3900,6 +3900,15 @@ async function init(){
         const fam=eventFamily(q.eventType);
         if((fam || (presetKey && TEMPLATES[presetKey])) && !CAPTURE_HOST){
           // V3: wedding / political / corporate / concert families get the validated item set scaled to this hall
+          // Vfix: size the floor to the quote's hall (flow / linked venue) — or the ?gen URL's len/wid — BEFORE
+          // building, so a 262×164 ft venue isn't laid out in the default 200×140 ft room.
+          { const cl=(q.client&&typeof q.client==='object')?q.client:{}; let u=null; try{ u=new URLSearchParams(location.search); }catch(_){}
+            const pick=(a,b)=>{ const n=+a; if(isFinite(n)&&n>0) return n; const m=+b; return isFinite(m)&&m>0?m:null; };
+            const hl=pick(cl.hallLen, u&&u.get('len')), hw=pick(cl.hallWid, u&&u.get('wid')), maxFt=(CAPS&&CAPS.hall)||1000;
+            if(hl&&hw){ WORLD.w=clamp(Math.round(hl),20,maxFt); WORLD.h=clamp(Math.round(hw),20,maxFt);
+              store.venue=store.venue||{}; store.venue.room={ w:WORLD.w, h:WORLD.h };
+              if(cl.setting==='outdoor'||cl.setting==='indoor') store.venue.setting=cl.setting;
+              if(typeof updateDimsLabel==='function') updateDimsLabel(); } }
           const N=arrivalSeats();
           store.items = fam ? buildEventDefault(fam, N) : TEMPLATES[presetKey]();
           if(N>0) exactSeats(store.items, N);   // R8b/R10: exactly the quote's (or flow's) seats
