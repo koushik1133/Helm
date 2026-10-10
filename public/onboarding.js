@@ -252,8 +252,11 @@
     if (kind === "venues") return form(`<div id="obVenuesSlot"></div>`);
     // templates
     const c = tplCounts;
-    const line = c ? `<ul><li><b>${Number(c.pkgs)}</b> menu package(s)</li><li><b>${Number(c.lists)}</b> checklist template(s)</li></ul>` : `<p class="ob-note">Loading…</p>`;
-    return form(`${line}<div class="ob-row"><a class="btn" href="control.html#pricing">Edit menu packages</a><a class="btn" href="templates.html">Open checklist templates</a></div>`, "Looks good — continue");
+    const line = c ? `<ul><li><b>${Number(c.pkgs)}</b> menu package(s)</li><li><b>${Number(c.lists)}</b> checklist template(s)</li><li><b>${Number(c.layouts)}</b> layout template(s) of your own</li></ul>` : `<p class="ob-note">Loading…</p>`;
+    // 0096: checklist item "Customize your own templates" -> builder in template-edit mode (blank hall + name + Save template)
+    const ti = (window.HelmOnbWizard && HelmOnbWizard.TEMPLATE_ITEMS || []).filter((x) => x.key === "layouts")[0];
+    const own = ti ? `<ul class="ob-check"><li>${c && c.layouts > 0 ? "✓" : "○"} <a href="${esc(ti.href)}">${esc(ti.label)}</a> <span class="ob-note">${esc(ti.why)}</span></li></ul>` : "";
+    return form(`${line}${own}<div class="ob-row"><a class="btn" href="control.html#pricing">Edit menu packages</a><a class="btn" href="templates.html">Open checklist templates</a>${ti ? `<a class="btn" href="${esc(ti.href)}">${esc(ti.label)}</a>` : ""}</div>`, "Looks good — continue");
   }
   // reuse Control Center's venues manager (venues-admin.js): its pane is parked off-screen and moved in/out
   function parkVenues() { const pane = $("#pane-venues"), park = $("#obPark"); if (pane && park && pane.parentNode !== park) { park.appendChild(pane); pane.hidden = true; } }
@@ -265,7 +268,8 @@
   }
   async function loadTplCounts() {
     if (tplCounts) return; const n = async (f) => { try { return ((await f()) || []).length; } catch (e) { return 0; } };
-    tplCounts = { pkgs: await n(() => BPStore.menuTemplates.list(false)), lists: await n(() => BPStore.templates.list()) };
+    tplCounts = { pkgs: await n(() => BPStore.menuTemplates.list(false)), lists: await n(() => BPStore.templates.list()),
+      layouts: await n(() => (BPStore.layoutTemplates ? BPStore.layoutTemplates.list({ lite: true }) : [])) };
     if (KEYS[S.step] === "templates") render();
   }
   function readSet() { const vals = {}; document.querySelectorAll("#obSet [data-set]").forEach((el) => { vals[el.dataset.set] = el.value; }); return vals; }

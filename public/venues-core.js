@@ -51,8 +51,9 @@
 
   // f = form values (strings ok). unit = the unit the length/width are typed in.
   // Returns { ok, errors: [{field, msg}], value: payload for venue_save (metres) }.
-  function validate(f, unit) {
-    f = f || {}; unit = unit === "ft" ? "ft" : "m";
+  function validate(f, unit, opts) {
+    f = f || {}; unit = unit === "ft" ? "ft" : "m"; opts = opts || {};
+    var warns = [];
     var errors = [], bad = function (field, msg) { errors.push({ field: field, msg: msg }); };
     var name = String(f.name || "").trim();
     if (!name) bad("name", "Give the venue a name."); else if (name.length > 200) bad("name", "Name is too long (200 characters max).");
@@ -61,8 +62,15 @@
     if (flt !== null && (isNaN(flt) || flt <= 0 || Math.floor(flt) !== flt)) bad("floating_capacity", "Floating capacity must be a whole number more than 0.");
     if (seat === null && flt === null) bad("seated_capacity", "Enter a seated or floating capacity (more than 0).");
     var len = num(f.length), wid = num(f.width);
-    if (len !== null && (isNaN(len) || len <= 0)) bad("length", "Length must be more than 0.");
-    if (wid !== null && (isNaN(wid) || wid <= 0)) bad("width", "Width must be more than 0.");
+    // 0096: every NEW venue needs its length x breadth (the quote flow + builder size the hall from it).
+    // An existing venue saved before 0096 without a size still saves - with a warning - so old venues are never blocked.
+    if ((len === null || wid === null) && opts.existing) warns.push({ field: len === null ? "length" : "width", msg: "Add length \u00d7 breadth so quotes can size the floor." });
+    if (len === null) { if (!opts.existing) bad("length", "Enter the venue length."); }
+    else if (isNaN(len) || len <= 0) bad("length", "Length must be more than 0.");
+    else if (toMeters(len, unit) > 10000) bad("length", "Length is too large.");
+    if (wid === null) { if (!opts.existing) bad("width", "Enter the venue breadth."); }
+    else if (isNaN(wid) || wid <= 0) bad("width", "Breadth must be more than 0.");
+    else if (toMeters(wid, unit) > 10000) bad("width", "Breadth is too large.");
     var cmin = num(f.cost_min), cmax = num(f.cost_max);
     if (cmin !== null && (isNaN(cmin) || cmin < 0)) bad("cost_min", "Minimum cost must be 0 or more.");
     if (cmax !== null && (isNaN(cmax) || cmax < 0)) bad("cost_max", "Maximum cost must be 0 or more.");
@@ -88,7 +96,7 @@
       green_rooms: num(f.green_rooms), washrooms: num(f.washrooms), address: t("address"), city: t("city"),
       map_url: map || null, contact_name: t("contact_name"), contact_phone: t("contact_phone"),
       contact_email: t("contact_email"), notes: t("notes") };
-    return { ok: errors.length === 0, errors: errors, value: value };
+    return { ok: errors.length === 0, errors: errors, warnings: warns, value: value };
   }
 
   // free-typed event type ("Wedding & gala", "Concert / live music", "DJ night") -> venue event key

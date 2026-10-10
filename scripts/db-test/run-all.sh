@@ -41,6 +41,9 @@ run "comms-automation"   "COMMS-AUTOMATION: ALL PASS \(54/54\)" psql -q -f tests
 run "country-templates-0092" "COUNTRY-TEMPLATES-0092: ALL PASS \(12/12\)" psql -q -f tests/db/country-templates-0092.sql
 run "country-terms-0093"  "COUNTRY-TERMS-0093: ALL PASS \(6/6\)" psql -q -f tests/db/country-terms-0093.sql
 run "per-currency-0094" "PER-CURRENCY-0094: ALL PASS \(12/12\)" psql -q -f tests/db/per-currency-0094.sql
+run "photo-render-0095" "PHOTO-RENDER-0095: ALL PASS \(20/20\)" psql -q -f tests/db/photo-render-0095.sql
+# early: later suites re-apply 0027 / 0052 / 0093 over the 0097 demo gate wrappers
+run "trial-demo-0097"   "TRIAL-DEMO-0097: ALL PASS \(51/51\)" psql -q -f tests/db/trial-demo-0097.sql
 run "r4-sql-fixes"       "R4-SQL-FIXES: ALL PASS \(26/26\)" psql -q -f tests/db/r4-sql-fixes.sql
 # first: later suites re-apply older migrations (e.g. rescore2 → 0032) over the entry points
 run "audit-run2"         "AUDIT-RUN2: ALL PASS"            bash -c "cd tests/db && psql -q -f audit-run2.sql"
@@ -67,11 +70,12 @@ run "portal-currency-0090" "PORTAL-CURRENCY-0090: ALL PASS \(7/7\)" psql -q -f t
 run "booklet-images"     "BOOKLET-IMAGES: ALL PASS \(25/25\)" psql -q -f tests/db/booklet-images.sql
 run "r7-polish"          "R7-POLISH: ALL PASS \(18/18\)" psql -q -f tests/db/r7-polish.sql
 run "venues"            "VENUES: ALL PASS \(27/27\)" psql -q -f tests/db/venues.sql
+run "studio-templates"  "STUDIO-TEMPLATES: ALL PASS \(26/26\)" psql -q -f tests/db/studio-templates-0096.sql
 run "item-specs"         "ITEM-SPECS: ALL PASS \(30/30\)" psql -q -f tests/db/item-specs.sql
 run "smart-import"       "SMART-IMPORT: ALL PASS \(30/30\)" psql -q -f tests/db/smart-import.sql
 run "item-spec-parity"   "item-spec-parity: 9 parity case\(s\) passed, 0 failed" node tests/db/item-spec-parity.mjs
 # right after client-booklet: later suites re-apply 0036/0048/0054/0058 over the 0069 wrappers
-run "pkg-flow"           "PKG-FLOW: ALL PASS \(103/103\)" psql -q -f tests/db/pkg-flow.sql
+run "pkg-flow"           "PKG-FLOW: ALL PASS \(104/104\)" psql -q -f tests/db/pkg-flow.sql
 run "pretty-urls"        "PRETTY-URLS: ALL PASS \(35/35\)" psql -q -f tests/db/pretty-urls.sql
 run "advisor-hardening"  "ADVISOR-HARDENING: ALL PASS"     psql -q -f tests/db/advisor-hardening.sql
 run "storage-policy"     "STORAGE-POLICY: ALL PASS"        psql -q -f tests/db/storage-policy.sql

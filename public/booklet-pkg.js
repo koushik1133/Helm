@@ -92,7 +92,7 @@
     if (p === "choose") return;
     const card = el("div", "pk-status pk-" + p);
     const title = { pending: "Thanks — your choice is with the studio", accepted: "Your package is confirmed",
-      ready: "Your updated quotation is ready", paid: "Payment received", locked: "Package choices are closed",
+      ready: "Your updated quotation is ready", paid: num(t.balance) > 0 ? "Advance received — balance due" : "Paid in full", locked: "Package choices are closed",
       declined: "The studio couldn't confirm this choice" }[p];
     card.appendChild(el("h3", "", title));
     if (pkg || sel.guests) card.appendChild(el("p", "pk-sel", [pkg ? pkg.name : "", num(sel.guests) ? sel.guests + " guests" : ""].filter(Boolean).join(" · ")));

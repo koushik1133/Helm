@@ -311,7 +311,9 @@ window.HelmBuilderVenue = {
   async link(v){
     if(!currentQuoteId) return;
     currentClient = Object.assign({}, currentClient || {}, v
-      ? { venueId: v.id, venueName: v.name, setting: v.setting === 'outdoor' ? 'outdoor' : (v.setting === 'both' ? 'both' : 'indoor') }
+      ? { venueId: v.id, venueName: v.name, setting: v.setting === 'outdoor' ? 'outdoor' : (v.setting === 'both' ? 'both' : 'indoor'),
+          // 0096: the venue's full size (ft) is kept for reference; hallLen/hallWid stay the usable area
+          venueLen: (window.HelmVenues && HelmVenues.mToFt(v.length_m)) || null, venueWid: (window.HelmVenues && HelmVenues.mToFt(v.width_m)) || null }
       : { venueId: null, venueName: null });
     try{ await BPStore.quotes.updateMeta(currentQuoteId, { client: currentClient }); }catch(e){ /* non-fatal */ }
   },
@@ -485,7 +487,7 @@ async function offerDraftRestore(){
   const d=draftToRestore; draftToRestore=null; draftReady=true;
   if(!d || RO || +d.baseVersion!==+currentVersionNo) { if(d) clearDraft(); return; }
   if(layoutSig(d.data.items,d.data.margins,d.data.venue,d.data.scale&&d.data.scale.worldFt?{w:d.data.scale.worldFt.w,h:d.data.scale.worldFt.h}:WORLD,d.name)===docSig()){ clearDraft(); return; }
-  let go=false; try{ go=await BPUI.confirm('An unsaved draft of this quote from '+new Date(d.savedAt).toLocaleString()+' was found in this browser (it was never saved to the server). Restore it? Your saved versions are not changed until you press Save.',{title:'Restore unsaved draft?',okLabel:'Restore draft',cancelLabel:'Discard draft'}); }catch{}
+  let go=false; try{ go=await BPUI.confirm('An unsaved draft of this quote from '+BPStore.fmtDateTime(d.savedAt)+' was found in this browser (it was never saved to the server). Restore it? Your saved versions are not changed until you press Save.',{title:'Restore unsaved draft?',okLabel:'Restore draft',cancelLabel:'Discard draft'}); }catch{}
   if(!go){ clearDraft(); return; }
   applyLayout(d.data); if(d.name) $('#projName').value=d.name;
   markDirty(); toast('Draft restored — press Save to keep it');
@@ -1975,6 +1977,8 @@ function loadItems(items, name){
 }
 function loadTemplate(key){
   if(!key){ return; }
+  // 0096: the studio's own templates ("st:<id>") are fitted to this hall + exact seats by studio-templates.js
+  if(String(key).indexOf('st:')===0){ if(window.HelmStudioTemplates) window.HelmStudioTemplates.apply(String(key).slice(3)); return; }
   const lbl=document.querySelector('#preset option[value="'+key+'"]').textContent;
   // R8b: an open quote's seats value is the exact seating total for preset templates too
   const tItems=TEMPLATES[key](); const N=currentQuoteId ? quoteChairsNow() : 0;
@@ -2532,7 +2536,10 @@ function applyRoomFromForm(o){
   store.venue.setting = o.setting || store.venue.setting || 'indoor';
   updateDimsLabel();
 }
-function updateDimsLabel(){ const el=$('#dimsLabel'); if(el) el.textContent = `${WORLD.w} × ${WORLD.h} ft · ${PX_PER_FT} px/ft${store.venue&&store.venue.setting==='outdoor'?' · outdoor':''}`; }
+function updateDimsLabel(){ const el=$('#dimsLabel'); if(!el) return;
+  // 0096: the floor is the USABLE area; show the venue's full size alongside when it differs
+  let vref=''; try{ const c=currentClient||{}; if(+c.venueLen>0 && +c.venueWid>0 && (+c.venueLen!==WORLD.w || +c.venueWid!==WORLD.h)) vref=` · venue ${+c.venueLen} × ${+c.venueWid} ft`; }catch(e){}
+  el.textContent = `${WORLD.w} × ${WORLD.h} ft${vref} · ${PX_PER_FT} px/ft${store.venue&&store.venue.setting==='outdoor'?' · outdoor':''}`; }
 function runCustomGenerate(){
   const o=readCustomForm();
   // Enforce the Control-Center capacity ceilings so generation stays fast and honest
@@ -3586,7 +3593,7 @@ async function openLoadModal(){
   host.innerHTML = list.map(l=>`
     <div class="lrow" data-id="${esc(l.id)}">
       <div class="li"><b>${escapeHtml(l.name)}</b>
-        <small>${esc(l.objectCount)} objects · ${l.updatedAt?new Date(l.updatedAt).toLocaleString():'—'}</small></div>
+        <small>${esc(l.objectCount)} objects · ${l.updatedAt?esc(BPStore.fmtDateTime(l.updatedAt)):'—'}</small></div>
       <div class="la">
         <button type="button" data-act="open" aria-label="Open ${escapeHtml(l.name)}">Open</button>
         <button type="button" class="del" data-act="del" aria-label="Delete ${escapeHtml(l.name)}">Delete</button>
@@ -3630,7 +3637,7 @@ function exportJSON(){
    selection — only the hall and its objects; o.maxW caps the raster width. State is restored. */
 function planBlob(o){ o=o||{}; return new Promise(resolve=>{
   const wasSel=store.selectedIds.slice(), wasGrid=store.grid.show, wasMeasure=showMeasure;
-  setSelection([]); if(o.clean){ store.grid.show=false; showMeasure=false; } renderAll();  // hide handles
+  setSelection([]); if(o.clean){ store.grid.show=false; showMeasure=!!o.measure; } renderAll();  // hide handles (0095: o.measure keeps the measurement overlay)
   const live=svg, clone=live.cloneNode(true);
   const liveNodes=live.querySelectorAll('*'), cloneNodes=clone.querySelectorAll('*');
   for(let i=0;i<liveNodes.length;i++){
@@ -3642,7 +3649,7 @@ function planBlob(o){ o=o||{}; return new Promise(resolve=>{
       cn.setAttribute('font-size',cs.fontSize); cn.setAttribute('font-weight',cs.fontWeight);
       cn.removeAttribute('stroke'); }
   }
-  if(o.clean) clone.querySelectorAll('.margins,.measure').forEach(n=>n.remove());
+  if(o.clean) clone.querySelectorAll(o.measure ? '.margins' : '.margins,.measure').forEach(n=>n.remove());
   const CF=o.clean && window.HelmCaptureFrame;              // R5: client plan = numbered badges + legend (same numbers as 3D)
   const LM=CF ? CF.labelMode(o.labels) : 'numbers';         // 0083: o.labels 'none' | 'numbers' (default) | 'names'
   if(CF) clone.querySelectorAll('text.lbl').forEach(n=>n.remove());
@@ -3679,6 +3686,17 @@ async function exportPNG(){
   download(name+'.png', b); toast('PNG downloaded');
 }
 
+/* ---- 0095: photo-realistic render bridge (photo-render-ui.js) ----
+   Read-only view of what the photo dialog needs; the image model runs server-side only. */
+window.__helmPhotoCtx = function(){
+  return {
+    quoteId: currentQuoteId, readOnly: !!RO, frozen: !!(currentQuoteGuard && currentQuoteGuard.frozen),
+    supported: clientImagesSupported(), items: store.items.slice(), world: { w: WORLD.w, h: WORLD.h },
+    eventType: PRICING.eventType || '', guests: PRICING.guests, setting: (store.venue && store.venue.setting) || 'indoor',
+    country: PRICING.taxCountry || '', title: ($('#projName') && $('#projName').value) || '',
+    planBlob: (o) => planBlob(o),
+  };
+};
 /* ---- R2 + 0083: client booklet images (real 2D plan + 3D render) ----
    Each picture in two styles: 'labels' (numbered badges + legend, the approved look) and
    'plain' (the model without labels). Stored IN THE DATABASE via BPStore.booklet.putImage

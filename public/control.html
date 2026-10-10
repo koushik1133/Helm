@@ -203,8 +203,9 @@
   .cfline{display:block;font-size:12px;color:var(--ink-3)}.cfname{flex:1;min-width:0}.cfmeta{font-size:12px;color:var(--ink-3)}.cfoff{opacity:.6}
 </style>
 <link rel="stylesheet" href="pkg-review.css?v=1">
-<link rel="stylesheet" href="comms-settings.css?v=1">
-<link rel="stylesheet" href="venues.css?v=2">
+<link rel="stylesheet" href="comms-settings.css?v=2">
+<link rel="stylesheet" href="venues.css?v=3">
+<link rel="stylesheet" href="studio-templates.css?v=1">
 <link rel="stylesheet" href="theme.css?v=76">
 </head>
 <body>
@@ -228,6 +229,7 @@
       <button type="button" class="tab" data-pane="users" id="tab-users" aria-pressed="false" hidden>👥 User control</button>
       <button type="button" class="tab" data-pane="notify" id="tab-notify" aria-pressed="false" hidden>🔔 Notifications</button>
       <button type="button" class="tab" data-pane="venues" id="tab-venues" aria-pressed="false" hidden>🏛 Venues</button>
+      <button type="button" class="tab" data-pane="ltemplates" id="tab-ltemplates" aria-pressed="false" hidden>📐 Layout templates</button>
     </div>
 
     <div id="msg" role="status" aria-live="polite"></div>
@@ -239,6 +241,7 @@
       <p class="mnote">Used on your Helm invoices (GST place of supply) and for Helm to reach you. Contact phone numbers are visible only to studio admins and Helm.</p>
       <div id="accBody"></div>
     </div>
+    <div class="card" id="tdControl" data-td-control hidden aria-label="Demo data"></div>
     <div class="card" id="subCard" hidden>
       <h3>Subscription</h3>
       <div id="subBody"></div>
@@ -533,6 +536,15 @@
       </div>
     </div>
 
+    <!-- ============ LAYOUT TEMPLATES PANE (0096: "layouts" or "controls" area, admin always) ============ -->
+    <div id="pane-ltemplates" hidden>
+      <div class="card" id="ltemplatesCard">
+        <h3>Layout templates</h3>
+        <p class="mnote">Your studio's own floor-layout templates. They are listed first in the builder's template pickers and fit themselves to each event's hall size. Templates are never deleted - archive one you no longer use.</p>
+        <div id="st_root"></div>
+      </div>
+    </div>
+
     <!-- ============ NOTIFICATIONS PANE (admin only, 0036) ============ -->
     <div id="pane-notify" hidden>
       <style>
@@ -597,6 +609,22 @@
         <p class="mnote">Mute a notification for one person, or show it to them even if their role hides it. Everyone else keeps their role's setting.</p>
         <div class="ntools"><select id="np_user" aria-label="Person"><option value="">Choose a person…</option></select></div>
         <div id="np_list"></div>
+      </div>
+
+      <!-- 0095: photo-realistic renders (wired by photo-render-settings.js; the image model runs server-side) -->
+      <div class="card" id="prCard" hidden>
+        <h3>✦ Photo renders</h3>
+        <p class="mnote">The builder’s “✦ Render” button turns a floor plan into a realistic photograph of the event. Photos are made on the server
+          (the image-service key never reaches the browser) and each one costs money, so set a monthly limit. Who may make them:
+          <b>Users &amp; access → Photo renders</b> (edit).</p>
+        <p class="mnote" id="pr_status"></p>
+        <label class="cmchk" for="pr_on"><input type="checkbox" id="pr_on"> Photo renders switched on for this studio</label>
+        <div class="cmgrid">
+          <label for="pr_quota">Photos per month <input type="number" id="pr_quota" min="0" max="10000" step="1"></label>
+          <label for="pr_hourly">Render requests per hour <input type="number" id="pr_hourly" min="1" max="500" step="1"></label>
+        </div>
+        <p class="mnote" id="pr_msg" role="status"></p>
+        <button type="button" class="btn" id="pr_save">Save photo render settings</button>
       </div>
 
       <!-- 0078: automatic client messages + WhatsApp forwarding (wired by comms-settings.js) -->
@@ -700,18 +728,22 @@
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=167"></script>
+<script src="country-profile.js?v=3"></script><script src="store-api.js?v=170"></script>
 <script src="xlsx-lite.js?v=2"></script>
-<script src="smart-import-core.js?v=4"></script>
+<script src="smart-import-core.js?v=5"></script>
 <script src="smart-import.js?v=3"></script>
 <script src="hq-invoice.js?v=1"></script>
 <script src="tour.js?v=9"></script>
 <script src="pkg-review.js?v=4"></script>
 <script src="onboarding-core.js?v=3"></script>
 <script src="comms-settings.js?v=2"></script>
-<script src="venues-core.js?v=3"></script>
-<script src="venues-admin.js?v=1"></script>
+<script src="photo-render-settings.js?v=1"></script>
+<script src="venues-core.js?v=5"></script>
+<script src="venues-admin.js?v=3"></script>
+<script src="studio-templates-core.js?v=1"></script>
+<script src="studio-templates.js?v=1"></script>
 <script src="item-pricing.js?v=1"></script>
+<script src="trial-demo.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

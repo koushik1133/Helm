@@ -129,8 +129,17 @@ Deno.serve(async (req) => {
     }
 
     // settled → confirmations (title/code are staff-entered — escaped)
-    const total = symMoney(q.pricing?.total || 0, quoteCur(q));   // 0092: the quote's own currency
-    const html = `<h2>Payment received — ${escHtml(q.code)}</h2><p>Your event <b>${escHtml(q.title || q.code)}</b> is confirmed.</p><p>Amount: <b>${total}</b></p><p>Thank you — ${escHtml(studio)}.</p>`;
+    // India audit: say what was PAID (this payment + ledger total) and the balance - never the quote total as if paid in full
+    const grand = Number(q.pricing?.total || 0);
+    const { data: pays, error: paysErr } = await admin.from("quote_payments").select("amount").eq("quote_id", q.id).eq("status", "paid");
+    if (paysErr) console.error("payments load failed", errTag(paysErr));   // email still goes, using this payment only
+    const paidSum = (pays || []).reduce((a: number, r: { amount: unknown }) => a + (Number(r.amount) || 0), 0);
+    const thisPay = Number.isFinite(paidPaise) ? Math.round(paidPaise) / 100 : paidSum;
+    const bal = Math.max(0, grand - paidSum);
+    const amt = symMoney(thisPay, quoteCur(q)), totalTxt = symMoney(grand, quoteCur(q));   // 0092: the quote's own currency
+    const html = `<h2>Payment received — ${escHtml(q.code)}</h2><p>Your booking for <b>${escHtml(q.title || q.code)}</b> is confirmed.</p><p>Amount received: <b>${amt}</b></p>`
+      + (bal > 0.5 ? `<p>Quote total: ${totalTxt} · Balance due: <b>${symMoney(bal, quoteCur(q))}</b></p>` : `<p>Your event is now paid in full (${totalTxt}).</p>`)
+      + `<p>Thank you — ${escHtml(studio)}.</p>`;
     const clientEmail = String(q.client?.email || "");
     const clientStatus = await sendEmail(clientEmail, `Payment received — ${subjCode}`, html, from, studioEmail);
     // studio copy: the studio admin may have switched the automatic "payment received"

@@ -27,8 +27,14 @@
     const s = clean(v).replace(/<[^>]*>/g, " ").replace(/[<>]/g, "").replace(/\s+/g, " ").trim();
     return /^[=+\-@\t\r]/.test(s) && !/^[+-]?\d/.test(s) ? "'" + s : s;
   }
+  // India: Hindi (Devanagari) / Hinglish sheet headers -> English words the matcher knows.
+  const HI_HDR = [[/नाम/g, " name "], [/मोबाइल|मोबाईल/g, " mobile "], [/फ़ोन|फोन/g, " phone "], [/दर|रेट/g, " rate "],
+    [/शहर/g, " city "], [/पता/g, " address "], [/ईमेल/g, " email "], [/वेतन|तनख्वाह/g, " salary "], [/पद|भूमिका/g, " role "],
+    [/मात्रा/g, " quantity "], [/कीमत|मूल्य/g, " price "], [/प्रति\s*दिन/g, " per day "], [/किराया/g, " rental "],
+    [/\bshahar\b/gi, " city "], [/\bpata\b/gi, " address "], [/\bvetan\b/gi, " salary "], [/\bkiraya\b/gi, " rental "]];
   function normHeader(v) {
-    return clean(v).normalize("NFKD").replace(/[\u0300-\u036F]/g, "").toLowerCase()
+    let t = clean(v); HI_HDR.forEach((r) => { t = t.replace(r[0], r[1]); });
+    return t.normalize("NFKD").replace(/[\u0300-\u036F]/g, "").toLowerCase()
       .replace(/&/g, " and ").replace(/#/g, " no ").replace(/[\u20B9$\u20AC\u00A3%]/g, " ")
       .replace(/\([^)]*\)/g, (m) => " " + m.slice(1, -1) + " ")
       .replace(/[^a-z0-9]+/g, " ").trim();

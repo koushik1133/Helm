@@ -77,12 +77,16 @@
     festival:       { label: 'Festival / outdoor',    seating: 'standing', objects: [['stage', 1, 1, 1], ['linearray', 1, 2, 1], ['barricade', 1, 1, 1], ['foh', 1, 1, 1],
       ['standing', 1, 1, 1], ['led', 1, 2], ['lighting', 1, 1], ['generator', 1, 1, 1], ['bar', 1, 2], ['restroom', 1, 4], ['firstaid', 1, 1, 1], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
   };
-  const TYPE_ALIAS = { gala: 'wedding', anniversary: 'wedding', sangeet: 'engagement', cocktail: 'reception', rally: 'political', public_meeting: 'political',
+  const TYPE_ALIAS = { gala: 'wedding', anniversary: 'wedding', sangeet: 'engagement', mehendi: 'engagement', mehndi: 'engagement', haldi: 'engagement', roka: 'engagement', cocktail: 'reception', rally: 'political', public_meeting: 'political',
     'public meeting': 'political', seminar: 'conference', expo: 'conference', 'product launch': 'product_launch', 'live music': 'concert' };
   function typeKey(t) {
     const k = String(t || '').toLowerCase().trim();
     if (TYPES[k]) return k; if (TYPE_ALIAS[k]) return TYPE_ALIAS[k];
     const u = k.replace(/[\s/]+/g, '_'); if (TYPES[u]) return u; if (TYPE_ALIAS[u]) return TYPE_ALIAS[u];
+    // India audit 2: free-text types ("Political rally", "Birthday party", "Corporate offsite",
+    // "Gala dinner") fell through to the wedding mandap — match any known word instead.
+    const words = k.split(/[^a-z]+/).filter(Boolean);
+    for (const w of words) { if (TYPES[w]) return w; if (TYPE_ALIAS[w]) return TYPE_ALIAS[w]; }
     return 'wedding';
   }
   const SEATING_STYLES = { rounds: 'Round tables', theatre: 'Theatre blocks', banquet: 'Banquet long tables', mixed: 'Mixed: rounds + theatre', standing: 'Standing (no main seating)' };
@@ -560,7 +564,10 @@
   const bBack = el('button', 'tbtn', '← Back', { type: 'button' });
   const bNext = el('button', 'tbtn primary', 'Next →', { type: 'button', id: 'wizNext' });
   const bClassic = el('button', 'tbtn lw-classic', 'Classic templates…', { type: 'button', title: 'Open the previous template-based Custom Event dialog' });
-  const nav = el('div', 'lw-nav'); nav.append(bClassic, bBack, bNext);
+  // 0096: the studio's own saved templates (studio-templates.js), shown only when the studio has some
+  const bMine = el('button', 'tbtn lw-mine', 'Start from my template', { type: 'button', id: 'wizMine', title: "Use one of your studio's own layout templates (fitted to this hall)" });
+  bMine.hidden = true;
+  const nav = el('div', 'lw-nav'); nav.append(bMine, bClassic, bBack, bNext);
   foot.append(live, nav);
   sheet.append(head, stepper, body, foot); modal.append(sheet);
 
@@ -735,12 +742,14 @@
   function open(e) {
     opener = (e && e.currentTarget) || doc.activeElement;
     spec = prefillSpec(); step = 0; modal.hidden = false; renderBody();
+    bMine.hidden = !(G.HelmStudioTemplates && G.HelmStudioTemplates.hasAny());
     const f = modal.querySelector('#wizType'); if (f) f.focus();
   }
   function close() { modal.hidden = true; if (opener && opener.focus) try { opener.focus(); } catch (_) {} }
   bClose.addEventListener('click', close);
   bBack.addEventListener('click', () => go(step - 1));
   bNext.addEventListener('click', () => { if (step < 3) { remember(); go(step + 1); } else { generate(); if (lastResult) apply(lastResult); } });
+  bMine.addEventListener('click', () => { close(); if (G.HelmStudioTemplates) G.HelmStudioTemplates.openPicker(); });
   bClassic.addEventListener('click', () => { close(); const f = g('openCustomModal'); if (typeof f === 'function') f(); });
   modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
   modal.addEventListener('keydown', (e) => {

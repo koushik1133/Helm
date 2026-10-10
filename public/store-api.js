@@ -923,7 +923,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "21";
+  const AUTH_UI_VERSION = "22";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1019,6 +1019,8 @@ window.HelmUrl = HelmUrl;
     { key: "quotes",     label: "Quotes & workspace",icon: "📋", page: "quotes.html",    group: "Workspace" },
     { key: "layouts",    label: "Floor layouts",     icon: "📐", page: null,             group: "Workspace" },
     { key: "design",     label: "Design studio",     icon: "🎨", page: "design.html",    group: "Workspace" },
+    // 0095: photo-realistic renders (builder ✦ Render). edit = may make photos (also needs quotes edit)
+    { key: "photo_render", label: "Photo renders",    icon: "✦", page: null,             group: "Workspace" },
     { key: "staff",      label: "Staff",             icon: "👷", page: "staff.html",     group: "Resources" },
     { key: "inventory",  label: "Inventory",         icon: "📦", page: "inventory.html", group: "Resources" },
     { key: "vendors",    label: "Vendors",           icon: "🤝", page: "vendors.html",   group: "Resources" },
@@ -2420,6 +2422,13 @@ window.HelmUrl = HelmUrl;
   const BOOKLET_IMG_KINDS = ["2d", "3d"], BOOKLET_IMG_VARIANTS = ["labels", "plain"], BOOKLET_IMG_MAX = 1536 * 1024;
   const BOOKLET_IMG_MIME = /^image\/(jpeg|png|webp)$/;
   // server answer {mime, data(base64)} -> data: URL (only the three image types, only base64 characters)
+  // 0095: stored photo render -> data: URL (<= 6 MB)
+  function photoDataUrl(r) {
+    if (!r || typeof r !== "object" || !BOOKLET_IMG_MIME.test(String(r.mime || ""))) return null;
+    const d = String(r.data || "");
+    if (!d || d.length > 8400000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(d)) return null;
+    return "data:" + r.mime + ";base64," + d;
+  }
   function bookletDataUrl(r) {
     if (!r || typeof r !== "object" || !BOOKLET_IMG_MIME.test(String(r.mime || ""))) return null;
     const d = String(r.data || "");
@@ -2469,6 +2478,8 @@ window.HelmUrl = HelmUrl;
   const approval = {
     // ---- public (token-scoped; works for anon on the approval page) ----
     getByToken: (token) => rpc("public_get_quote", { p_token: token }).then((r) => { linkOpened("quote", token); return r; }),
+    // 0098: paid vs total from the quote_payments ledger (null when the function is not deployed yet)
+    paidStatus: (token) => mode === "supabase" ? rpc("public_quote_paid_status", { p_token: token }).catch(() => null) : Promise.resolve(null),
     // simulation → RPC (returns dev OTP); live → MSG91 via Edge Function (sends real SMS, no code returned)
     requestOtp: (token, phone) => LIVE.sms ? callFn("send-otp", { token, phone }) : rpc("request_otp", { p_token: token, p_phone: phone }),
     verifyConsent: (token, phone, code, agreed, termsVersion, consentText, clientName, ua) =>
@@ -6752,6 +6763,26 @@ window.HelmUrl = HelmUrl;
     async setActive(id, on) { return rpc("venue_set_active", { p_id: id, p_active: !!on }); },
     async loadSamples() { return rpc("venue_load_samples", {}); },
   };
+  // 0096 studio layout templates: read under RLS (own studio + layouts/controls view); writes only via RPCs
+  const layoutTemplates = {
+    async list(opts) {
+      if (mode !== "supabase" || !supa) return [];
+      let q = supa.from("studio_layout_templates").select(opts && opts.lite ? "id,name,event_type,description,thumbnail,is_default,archived,updated_at" : "*").order("archived").order("name");
+      if (!(opts && opts.all)) q = q.eq("archived", false);
+      const { data, error } = await q;
+      if (error) { if (/studio_layout_templates/.test(String(error.message || "")) && /does not exist|schema cache/i.test(String(error.message || ""))) { const er = new Error("Studio templates need database update 0096 (ask your admin to run it)."); er.code = "templates_missing"; throw er; } throw error; }
+      return data || [];
+    },
+    async get(id) {
+      if (mode !== "supabase" || !supa) return null;
+      const { data, error } = await supa.from("studio_layout_templates").select("*").eq("id", id).maybeSingle();
+      if (error) throw error; return data || null;
+    },
+    async save(id, data) { return rpc("studio_template_save", { p_id: id || null, p: data || {} }); },
+    async setArchived(id, on) { return rpc("studio_template_set_archived", { p_id: id, p_archived: !!on }); },
+    async setDefault(id, on) { return rpc("studio_template_set_default", { p_id: id, p_on: !!on }); },
+    async duplicate(id) { return rpc("studio_template_duplicate", { p_id: id }); },
+  };
   const insights = {
     presets: () => RANGE_PRESETS.map((p) => ({ key: p[0], label: p[1] })),
     rangeFor, rangeCheck, inRange,
@@ -7416,7 +7447,7 @@ window.HelmUrl = HelmUrl;
   };
 
   const BPStore = {
-    activityText, init, mode: () => mode, auth, quotes, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, venues, portal, files, chat, profile, quoteShelf, uploads, comms,
+    activityText, init, mode: () => mode, auth, quotes, recents, approval, ops, config, vendors, coupons, chairTypes, plateTypes, dishCatalog, eventMenu, menuTemplates, quotationVersions, layoutRules, people, pricing, org, links, invitations, attendees, sites, leads, discovery, proposal, staff, inventory, resources, bookings, calendar, runsheet, budget, plan, checklist, milestones, readiness, dayops, guests, stockreq, issues, expenses, refunds, media, templates, nurture, settlement, closure, bell, audit, insights, venues, layoutTemplates, portal, files, chat, profile, quoteShelf, uploads, comms,
     // User manual (migration 0031): lives in the PRIVATE storage bucket "helm-manual",
     // readable only by signed-in users. Returns { html, files: { "screenshots/x.webp": signedUrl } }
     // or throws { code: "manual_missing" } when the owner hasn't uploaded it yet.
@@ -7488,6 +7519,64 @@ window.HelmUrl = HelmUrl;
       const ref = String(id == null ? "" : id).trim();
       if (!supa || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref)) return Promise.resolve(null);
       return rpc("client_timeline", { p_ref: ref, p_limit: 300 }).catch((e) => { if (rpcMissing(e)) return null; throw e; });
+    },
+    // 0095 — photo-realistic renders. The image model is called ONLY by the edge function
+    // render-photo (its OpenAI key is a server secret, never in the browser). Dormant until the
+    // owner sets OPENAI_API_KEY: render() then rejects with e.code === "render_not_configured".
+    photoRender: {
+      available: () => !!(supa && mode === "supabase" && fnUrl("render-photo")),
+      // { quote_id, prompt, n, quality, size, style, camera, theme, images:[{data}] } -> { renders:[{id,mime,data}], used, quota }
+      render: async (payload, signal) => {
+        if (!supa || mode !== "supabase" || !fnUrl("render-photo")) { const e = new Error("Photo renders need a signed-in studio."); e.code = "render_not_configured"; throw e; }
+        let token = "";
+        try { const { data: { session } } = await supa.auth.getSession(); token = (session && session.access_token) || ""; } catch (e) {}
+        if (!token) { const e = new Error("Please sign in again."); e.code = "signed_out"; e.status = 401; throw e; }
+        const res = await fetch(fnUrl("render-photo"), { method: "POST", signal,
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token, "apikey": CFG.anonKey },
+          body: JSON.stringify(payload || {}) });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) { const e = new Error(String(j.message || j.error || ("HTTP " + res.status))); e.code = String(j.error || ""); e.status = res.status; throw e; }
+        if (res.status !== 202 || !j.job_id) return j;
+        // async render (0095): the server answered at once; poll the job, then load each photo
+        const JOB_MSG = { timeout: ["render_timeout", "The render took too long - try standard quality or fewer images"],
+          blocked: ["render_blocked", "The image service refused this request - change the decor theme and try again"],
+          busy: ["render_busy", "The image service is busy - try again in a minute"],
+          failed: ["render_failed", "The image service could not make the photo"] };
+        const t0 = Date.now();
+        for (;;) {
+          if (signal && signal.aborted) { const e = new Error("Cancelled"); e.name = "AbortError"; throw e; }
+          if (Date.now() - t0 > 8 * 60 * 1000) { const e = new Error(JOB_MSG.timeout[1]); e.code = JOB_MSG.timeout[0]; throw e; }
+          await new Promise((ok) => setTimeout(ok, 4000));
+          let st = null;
+          try { st = await rpc("photo_render_job", { p_usage_id: j.job_id }); } catch (e) { if (e && (e.code === "42501" || e.code === "P0002")) throw e; continue; }
+          if (!st || st.status === "pending") continue;
+          if (st.status === "error") { const k = String(st.error || "failed").split(":")[0]; const m = JOB_MSG[k] || JOB_MSG.failed;
+            const e = new Error(m[1]); e.code = m[0]; throw e; }
+          const ids = Array.isArray(st.renders) ? st.renders : [];
+          const renders = [];
+          for (const id of ids) {
+            const r = await rpc("photo_render_image", { p_render_id: id }).catch(() => null);
+            if (r && r.data) renders.push({ id: String(id), mime: String(r.mime || "image/jpeg"), data: String(r.data) });
+          }
+          if (!renders.length) { const e = new Error("No photo came back - please try again"); e.code = "render_failed"; throw e; }
+          return { renders, used: j.used, quota: j.quota };
+        }
+      },
+      job: (jobId) => rpc("photo_render_job", { p_usage_id: jobId }),
+      list: (quoteId) => (supa && mode === "supabase" && UUID_RE_PKG.test(String(quoteId || ""))
+        ? rpc("photo_render_list", { p_quote_id: quoteId }).then((r) => (Array.isArray(r) ? r : [])).catch((e) => { if (rpcMissing(e)) return []; throw e; })
+        : Promise.resolve([])),
+      // data: URL of one stored render (lazy), or null
+      image: (renderId) => (supa && mode === "supabase" && UUID_RE_PKG.test(String(renderId || ""))
+        ? rpc("photo_render_image", { p_render_id: renderId }).then(photoDataUrl).catch((e) => { if (rpcMissing(e)) return null; throw e; })
+        : Promise.resolve(null)),
+      // copy into the client booklet as its own picture (kind "photo"; the 2D / 3D re-capture never replaces it)
+      useInBooklet: (renderId) => rpc("photo_render_use_in_booklet", { p_render_id: renderId }),
+      settings: () => (supa && mode === "supabase"
+        ? rpc("photo_render_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; })
+        : Promise.resolve(null)),
+      setSettings: (enabled, monthlyQuota, hourlyLimit) => rpc("photo_render_settings_set",
+        { p_enabled: !!enabled, p_monthly_quota: Math.round(Number(monthlyQuota) || 0), p_hourly_limit: Math.round(Number(hourlyLimit) || 0) }),
     },
     // 0065 — client event booklet (public/booklet.html?t=<token>). Staff whose role may EDIT
     // quotes share / revoke; current() needs quotes VIEW. get() is the signed-out client read
@@ -7574,7 +7663,7 @@ window.HelmUrl = HelmUrl;
         ["2d_labels", "2d_plain", "3d_labels", "3d_plain"].forEach((k) => { if (v && typeof v[k] === "boolean") o[k] = v[k]; });
         return rpc("booklet_set_image_variants", { p_quote_id: quoteId, p_variants: o }).catch((e) => { if (rpcMissing(e)) return null; throw e; }); },
       // signed-out booklet page: data: URL of one picture of a live link (lazy), or null
-      publicImage: (token, kind, variant) => (supa && UUID_RE_PKG.test(String(token || "")) && BOOKLET_IMG_KINDS.includes(kind) && BOOKLET_IMG_VARIANTS.includes(variant)
+      publicImage: (token, kind, variant) => (supa && UUID_RE_PKG.test(String(token || "")) && (BOOKLET_IMG_KINDS.includes(kind) || (kind === "photo" && variant === "plain")) && BOOKLET_IMG_VARIANTS.includes(variant)
         ? rpc("public_get_booklet_image", { p_token: String(token), p_kind: kind, p_variant: variant }).then(bookletDataUrl).catch(() => null)
         : Promise.resolve(null)),
       // signed-out booklet page: <img src> for a ticked snapshot (dormant edge function booklet-snapshot)
@@ -7677,6 +7766,16 @@ window.HelmUrl = HelmUrl;
         if (!supa) return Promise.reject(new Error("Importing needs a signed-in studio."));
         return rpc("smart_import_batch", { p_entity: entity, p_rows: rows || [], p_defs: defs || [] });
       },
+    },
+    // 0097 — free-trial demo data. status(): {trial_mode:'demo'|'own'|null, demo_rows, has_demo,
+    // is_admin}; null before 0097 / local mode. seed / clear / reset / setMode are studio-admin
+    // only and touch ONLY this studio's rows flagged is_demo (enforced in the database).
+    demo: {
+      status: () => (supa ? rpc("my_demo_status").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      setMode: (mode) => rpc("set_trial_mode", { p_mode: mode === "demo" ? "demo" : "own" }),
+      seed: () => rpc("seed_demo_data"),
+      clear: () => rpc("clear_demo_data"),
+      reset: () => rpc("reset_demo_data"),
     },
     gettingStarted: {
       get: () => (supa ? rpc("my_getting_started").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
@@ -9046,6 +9145,42 @@ window.HelmUrl = HelmUrl;
     return { advancePct: adv, balanceDueDays: days, note: note, balanceDue: due };
   };
   // ---- supplier block for printed quotes / invoices (UAE Art. 59: name, address, TRN) ----
+  // 0098: client-facing payment state from the LEDGER (never milestones / approval_status alone).
+  // st = public_quote_paid_status row; total falls back to the quote's own pricing.total.
+  // -> {full, paid, total, balance, receipt, balanceDue:"YYYY-MM-DD"|null} or null when unknown
+  // India date format dd/mm/yyyy for a "YYYY-MM-DD" (or ISO) date; anything else is returned as-is
+  BPStore.fmtDateIN = function (d) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || ""));
+    return m ? m[3] + "/" + m[2] + "/" + m[1] : String(d || "");
+  };
+  // the user's LOCAL calendar day (IST for an Indian studio) as YYYY-MM-DD - toISOString() is UTC
+  // and reads as "yesterday" from 00:00 to 05:30 IST
+  BPStore.todayLocal = function (d) {
+    d = d instanceof Date ? d : new Date();
+    var p = function (n) { return (n < 10 ? "0" : "") + n; };
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+  };
+  // date + time for display: dd/mm/yyyy, hh:mm (US studio: its own order) - never the browser's locale default
+  BPStore.fmtDay = function (iso) {
+    var d = new Date(iso); if (iso == null || iso === "" || isNaN(d.getTime())) return "";
+    var loc = "en-IN"; try { if (BPStore.studioTax && BPStore.studioTax().country === "US") loc = "en-US"; } catch (e) {}
+    try { return d.toLocaleDateString(loc, { day: "2-digit", month: "2-digit", year: "numeric" }); } catch (e) { return d.toISOString().slice(0, 10); }
+  };
+  BPStore.fmtDateTime = function (iso) {
+    var d = new Date(iso); if (iso == null || iso === "" || isNaN(d.getTime())) return "";
+    var loc = "en-IN"; try { if (BPStore.studioTax && BPStore.studioTax().country === "US") loc = "en-US"; } catch (e) {}
+    try { return d.toLocaleString(loc, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }); } catch (e) { return d.toISOString(); }
+  };
+  BPStore.paidState = function (st, fallbackTotal) {
+    if (!st || typeof st !== "object") return null;
+    var paid = Number(st.paid), total = st.total != null && st.total !== "" ? Number(st.total) : Number(fallbackTotal);
+    if (!isFinite(paid) || !isFinite(total) || total <= 0) return null;
+    var due = null, ev = String(st.event_date || "");
+    if (/^\d{4}-\d{2}-\d{2}$/.test(ev)) due = st.balance_due_days != null ? BPStore.paymentTerms({ balanceDueDays: st.balance_due_days }, ev).balanceDue || ev : ev;
+    var bal = Math.max(0, Math.round((total - paid) * 100) / 100);
+    return { full: paid >= total - 0.5, paid: paid, total: total, balance: bal,
+      receipt: typeof st.last_receipt === "string" ? st.last_receipt.replace(/[<>\u0000-\u001f]/g, "").slice(0, 60) : "", balanceDue: due };
+  };
   BPStore.studioHeader = function (org) {
     org = org && typeof org === "object" ? org : {};
     var b = org.brand && typeof org.brand === "object" ? org.brand : {}, bl = b.billing && typeof b.billing === "object" ? b.billing : {};
@@ -9115,8 +9250,9 @@ window.HelmUrl = HelmUrl;
   // Used on quotes/invoices so a large manually-influenced total is unambiguous
   // ("₹5,36,000" → "Rupees Five Lakh Thirty Six Thousand only").
   BPStore.amountInWords = function (amount) {
-    var num = Math.round(Math.abs(Number(amount) || 0));
-    if (num === 0) return "Rupees Zero only";
+    var cents = Math.round(Math.abs(Number(amount) || 0) * 100);   // #13: keep paise
+    var num = Math.floor(cents / 100), paise = cents % 100;
+    if (num === 0 && paise === 0) return "Rupees Zero only";
     var a = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
       "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
     var b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
@@ -9130,7 +9266,9 @@ window.HelmUrl = HelmUrl;
     if (lakh) out += two(lakh) + " Lakh ";
     if (thousand) out += two(thousand) + " Thousand ";
     if (num) out += three(num);
-    return "Rupees " + out.trim() + " only";
+    var p = paise ? two(paise) + " Paise" : "";
+    if (!out.trim()) return p + " only";
+    return "Rupees " + out.trim() + (p ? " and " + p : "") + " only";
   };
 
   // ---- global input[type=number] hardener -------------------------------

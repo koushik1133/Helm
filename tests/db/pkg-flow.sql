@@ -233,6 +233,10 @@ begin
   insert into public.quote_payments(quote_id, org_id, provider, amount, status, simulated, paid_at) values (qa::uuid, a, 'manual', 1000, 'paid', true, now());
   perform pg_temp.res('45 payment received -> pkg_payment bell row', exists (select 1 from public.notifications where quote_id = qa::uuid and kind = 'pkg_payment'
     and detail ->> 'path' like 'settlement.html?quote=%'), '');
+  perform pg_temp.res('45b 0099 pkg_payment carries balance (total - ledger) + currency', exists (select 1 from public.notifications n, public.quotes q
+    where n.quote_id = qa::uuid and n.kind = 'pkg_payment' and q.id = qa::uuid
+      and (n.detail ->> 'balance')::numeric = greatest((q.pricing ->> 'total')::numeric - (select sum(amount) from public.quote_payments where quote_id = qa::uuid and status = 'paid'), 0)
+      and (q.currency is null or n.detail ->> 'currency' = q.currency)), (select string_agg(detail::text, ' | ') from public.notifications where quote_id = qa::uuid and kind = 'pkg_payment'));
   perform pg_temp.res('46 pkg_payment hidden for a role without pkg_payments', 'pkg_payment' = any(public._notify_hidden_types(a, pg_temp.uid('pk_viewer@a.test'))), '');
 
   -- overpay: credit (default) - client paid more than the new package total

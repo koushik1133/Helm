@@ -22,15 +22,24 @@
     el.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
+  // like setVal but also clears (null / "") - the hidden venue-size fields must not keep an old venue's size
+  function setRaw(id, v) {
+    var el = $(id); if (!el) return;
+    el.value = v === null || v === undefined ? "" : String(v);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }
   // which page are we on
   var ctx = null;
   if ($("sec-venue") && $("v_name")) {
     ctx = { where: "flow", anchor: $("sec-venue").querySelector(".grid"), guests: "c_guests", type: "c_type",
       fill: function (f) { setVal("v_name", f.name); setVal("v_addr", f.address); setVal("v_contact", f.contact);
-        setVal("g_len", f.lenFt); setVal("g_wid", f.widFt); setVal("v_setting", f.setting); },
+        setVal("g_len", f.lenFt); setVal("g_wid", f.widFt); setVal("v_setting", f.setting);
+        // 0096: remember the venue's full size (ft) for "Venue size ... · Using ..." (usable area = g_len / g_wid)
+        setRaw("v_vlen", f.lenFt); setRaw("v_vwid", f.widFt); },
       linked: function () { var i = $("v_venue_id"), n = $("v_venue_name"); return { id: i ? i.value : "", name: n ? n.value : "" }; },
       link: function (v) { var i = $("v_venue_id"), n = $("v_venue_name"); if (!i || !n) return;
         n.value = v ? v.name : ""; i.value = v ? v.id : "";
+        if (!v) { setRaw("v_vlen", null); setRaw("v_vwid", null); }
         i.dispatchEvent(new Event("input", { bubbles: true })); } };
   } else if ($("customModal") && $("c_len")) {
     var sec = $("customModal").querySelector(".cform");

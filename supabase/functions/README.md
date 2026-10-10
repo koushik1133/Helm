@@ -16,7 +16,10 @@ supabase functions deploy send-otp
 supabase functions deploy create-payment-link
 supabase functions deploy razorpay-webhook
 supabase functions deploy send-whatsapp
+supabase functions deploy render-photo        # 0095 photo renders - dormant until OPENAI_API_KEY is set
 ```
+`render-photo` needs migration 0095 (see `docs/PHOTO-RENDER-SETUP.md`); without the secret
+`OPENAI_API_KEY` it answers 503 `render_not_configured` and does nothing.
 Apply migration `0027_uploads_payments.sql` first — the functions call its RPCs
 (`payment_link_begin/attach/fail`, `razorpay_settle`, `otp_send_authorize`,
 `whatsapp_authorize`) and fail closed without them.

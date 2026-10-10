@@ -72,8 +72,8 @@ t('booklet.html: no inline script/style/style=, noindex, no-referrer, store-api 
   assert.doesNotMatch(h, /\son[a-z]+=/i);
   assert.match(h, /<meta name="robots" content="noindex,nofollow,noarchive">/);
   assert.match(h, /<meta name="referrer" content="no-referrer">/);
-  assert.match(h, /store-api\.js\?v=167/);
-  assert.match(h, /booklet\.js\?v=14/);
+  assert.match(h, /store-api\.js\?v=170/);
+  assert.match(h, /booklet\.js\?v=15/);
   for (const id of ['details', 'layout2d', 'layout3d', 'menu', 'quote', 'versions', 'payments', 'receiptTable', 'receiptLines', 'terms', 'printBtn', 'tocList'])
     assert.match(h, new RegExp('id="' + id + '"'), id);
 });
