@@ -125,6 +125,7 @@
           <thead><tr>
             <th scope="col" aria-sort="none"><button type="button" data-k="code">Event</button></th>
             <th scope="col" aria-sort="ascending"><button type="button" data-k="date">Date</button></th>
+            <th scope="col" id="peCurTh" aria-sort="none" hidden><button type="button" data-k="currency">Currency</button></th>
             <th scope="col" class="n" aria-sort="none"><button type="button" data-k="revenue">Revenue</button></th>
             <th scope="col" class="n" aria-sort="none"><button type="button" data-k="cost">Cost</button></th>
             <th scope="col" class="n" aria-sort="none"><button type="button" data-k="profit">Profit</button></th>
@@ -196,12 +197,16 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=166"></script>
+<script src="country-profile.js?v=3"></script><script src="store-api.js?v=167"></script>
 <script src="range-bar.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const inr=(n)=>BPStore.studioMoney(n,{round:true});
+  // 0094: money is shown per currency — never ₹ + AED added together
+  const curM=(n,c)=>BPStore.moneyIn(n,c||BPStore.studioCurrency(),{round:true});
+  const homeFirst=(list)=>BPStore.sumByCurrency(list,()=>0,x=>x.currency).map(g=>list.find(x=>String(x.currency||"INR").toUpperCase()===g.currency));
+  const joinCur=(list,f)=>list.map(x=>curM(f(x),x.currency)).join(" · ");
   const pct=(n)=>n==null?"—":n+"%";
   let canFin=false, range=null, seq=0;
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
@@ -254,8 +259,10 @@
     const c=d.counts||{};
     $("#evKpis").innerHTML=kpi(c.total||0,"Events","incl. open quotes: "+(c.open_quotes||0))+kpi(c.confirmed||0,"Confirmed")
       +kpi(c.completed||0,"Completed","settlement or closed")+kpi(c.cancelled||0,"Cancelled","",c.cancelled?"neg":"");
-    const m=d.money;
-    if(canFin && m){ $("#moneyWrap").hidden=false;
+    const m=d.money, bc=Array.isArray(d.money_by_currency)?homeFirst(d.money_by_currency):null;
+    if(canFin && m && bc && bc.length>1){ $("#moneyWrap").hidden=false; renderMoneyMulti(bc,d); }
+    else if(canFin && m){ $("#moneyWrap").hidden=false;
+      const one=bc&&bc.length===1?bc[0].currency:null, inr=(n)=>one?curM(n,one):BPStore.studioMoney(n,{round:true});
       $("#moneyKpis").innerHTML=kpi(inr(m.revenue),"Revenue",(m.events||0)+" confirmed event(s)")+kpi(inr(Number(m.cost||0)+Number(m.expenses||0)),"Costs","delivery "+inr(m.cost)+" · expenses "+inr(m.expenses))
         +kpi(inr(m.profit),"Profit","margin "+(m.margin_pct==null?"—":m.margin_pct+"%"),(m.profit||0)>=0?"pos":"neg")+kpi(m.avg_event_value==null?"—":inr(m.avg_event_value),"Avg event value");
       const col=Number(m.collected||0), out=Number(m.outstanding||0), tot=col+out;
@@ -264,8 +271,31 @@
         <div class="muted">Cash received during this period (any event): <b>${esc(inr(m.cash_in_range))}</b></div>`;
       const pa=tot?Math.round(col/tot*100):0; $("#collect .split .a").style.width=pa+"%"; $("#collect .split .b").style.width=(tot?100-pa:0)+"%";
     } else $("#moneyWrap").hidden=true;
-    bars("types",(d.types||[]).slice(0,8).map(t=>({label:t.type,value:t.count,text:t.count+(canFin&&t.revenue!=null?" · "+inr(t.revenue):""),color:"accent"})),"No events in this period.");
+    const tbc=Array.isArray(d.types_by_currency)?d.types_by_currency:[], tMulti=bc&&bc.length>1;
+    const tRev=(t)=>{ if(tMulti){ const l=homeFirst(tbc.filter(x=>x.type===t.type)); return l.length?joinCur(l,x=>x.revenue):curM(0); }
+      return bc&&bc.length===1?curM(t.revenue,bc[0].currency):inr(t.revenue); };
+    bars("types",(d.types||[]).slice(0,8).map(t=>({label:t.type,value:t.count,text:t.count+(canFin&&t.revenue!=null?" · "+tRev(t):""),color:"accent"})),"No events in this period.");
     renderStaff(d.staff||[]);
+  }
+  // 0094: two or more currencies — each KPI shows one line per currency; the bar shows the
+  // studio's currency (default) or the one picked, with a note about the rest.
+  let collectCur=null;
+  function renderMoneyMulti(bc,d){
+    const cash=homeFirst(Array.isArray(d.cash_by_currency)?d.cash_by_currency:[]);
+    $("#moneyKpis").innerHTML=kpi(joinCur(bc,x=>x.revenue),"Revenue",bc.map(x=>(x.events||0)+" "+x.currency).join(" · ")+" confirmed event(s)")
+      +kpi(joinCur(bc,x=>Number(x.cost||0)+Number(x.expenses||0)),"Costs","delivery "+joinCur(bc,x=>x.cost)+" · expenses "+joinCur(bc,x=>x.expenses))
+      +kpi(joinCur(bc,x=>x.profit),"Profit","margin "+bc.map(x=>x.currency+" "+(x.margin_pct==null?"—":x.margin_pct+"%")).join(" · "),(bc[0].profit||0)>=0?"pos":"neg")
+      +kpi(bc.map(x=>x.avg_event_value==null?"—":curM(x.avg_event_value,x.currency)).join(" · "),"Avg event value","per currency");
+    if(!collectCur||!bc.some(x=>x.currency===collectCur)) collectCur=bc[0].currency;
+    const x=bc.find(r=>r.currency===collectCur), col=Number(x.collected||0), out=Number(x.outstanding||0), tot=col+out;
+    const others=bc.filter(r=>r.currency!==collectCur).reduce((a,r)=>a+(r.events||0),0);
+    $("#collect").innerHTML=`<div class="legend"><span><i class="la"></i>Collected <b>${esc(joinCur(bc,r=>r.collected))}</b></span><span><i class="lb2"></i>Outstanding <b>${esc(joinCur(bc,r=>r.outstanding))}</b></span></div>
+      <div class="muted"><label>Bar currency <select id="collectCur">${bc.map(r=>`<option value="${esc(r.currency)}"${r.currency===collectCur?" selected":""}>${esc(r.currency)}</option>`).join("")}</select></label>
+      <span id="collectNote"> ${esc(others+" event(s) in other currencies not shown in the bar")}</span></div>
+      <div class="split" role="img" aria-label="${esc(collectCur+": collected "+curM(col,collectCur)+", outstanding "+curM(out,collectCur))}"><span class="a"></span><span class="b"></span></div>
+      <div class="muted">Cash received during this period (any event): <b>${esc(cash.length?joinCur(cash,r=>r.amount):curM(0))}</b></div>`;
+    const pa=tot?Math.round(col/tot*100):0; $("#collect .split .a").style.width=pa+"%"; $("#collect .split .b").style.width=(tot?100-pa:0)+"%";
+    $("#collectCur").addEventListener("change",e=>{ collectCur=e.target.value; renderMoneyMulti(bc,d); });
   }
   function renderStaff(list){
     const el=$("#staff");
@@ -278,13 +308,14 @@
   }
   // 0077 per-event profit table — DOM only (textContent), sortable, rows open the event
   let peRows=[], peSort={ k:"date", dir:1 };
-  function peVal(r,k){ const v=r[k]; if(k==="code") return String(r.code||r.title||"").toLowerCase(); if(k==="date") return String(v||"");
+  function peVal(r,k){ const v=r[k]; if(k==="currency") return String(v||"INR"); if(k==="code") return String(r.code||r.title||"").toLowerCase(); if(k==="date") return String(v||"");
     return v==null ? -Infinity : Number(v); }
   function renderPerEvent(msg){
     const body=$("#perEventBody"); if(!body) return; body.textContent="";
     $("#perEventMsg").textContent = msg || (peRows.length ? "" : "No confirmed events in this period.");
     $("#perEventCard").querySelectorAll("th").forEach(th=>{ const b=th.querySelector("button");
       th.setAttribute("aria-sort", b && b.dataset.k===peSort.k ? (peSort.dir>0?"ascending":"descending") : "none"); });
+    const peMulti=new Set(peRows.map(r=>String(r.currency||"INR"))).size>1; $("#peCurTh").hidden=!peMulti;
     const rows=peRows.slice().sort((a,b)=>{ const x=peVal(a,peSort.k), y=peVal(b,peSort.k); return (x<y?-1:x>y?1:0)*peSort.dir || String(a.code||"").localeCompare(String(b.code||"")); });
     rows.forEach(r=>{
       const href="event.html?id="+encodeURIComponent(r.id||"");
@@ -292,8 +323,8 @@
       const td=(t,cls)=>{ const c=document.createElement("td"); if(cls) c.className=cls; c.textContent=t; tr.appendChild(c); return c; };
       const first=document.createElement("td"); const a=document.createElement("a"); a.href=href;
       a.textContent=(r.code||"Event")+(r.title&&r.title!==r.code?" · "+r.title:""); first.appendChild(a); tr.appendChild(first);
-      td(r.date||"—");
-      const money=v=>v==null?"—":inr(v);
+      td(r.date||"—"); if(peMulti) td(String(r.currency||"INR"));
+      const money=v=>v==null?"—":(r.currency?curM(v,r.currency):inr(v));
       td(money(r.revenue),"n"); td(money(r.cost),"n");
       td(money(r.profit),"n "+((r.profit||0)>=0?"pos":"neg"));
       td(r.margin_pct==null?"—":r.margin_pct+"%","n"); td(money(r.collected),"n");
@@ -317,11 +348,27 @@
     if(!canFin) return;
     const mw=d.margins.withRevenue||d.margins.events.filter(e=>Number(e.revenue)>0), mz=d.margins.noRevenue||[];
     if(!mw.length&&!mz.length){ $("#margins").innerHTML='<div class="empty">No closed events in this period.</div>'; return; }
+    const byC=Array.isArray(d.margins.byCurrency)?d.margins.byCurrency:[];
+    if(byC.length>1){ renderMarginsMulti(mw,mz,byC); return; }
     if(mw.length){
       bars("margins", mw.map(e=>({label:(e.code||"Event")+(e.date?" · "+e.date:""), value:e.profit||0,
-        text:inr(e.profit)+(e.marginPct!=null?` (${e.marginPct}%)`:""), color:(e.profit||0)>=0?"safe":"bad", cls:(e.profit||0)>=0?"pos":"neg"})));
+        text:(e.currency?curM(e.profit,e.currency):inr(e.profit))+(e.marginPct!=null?` (${e.marginPct}%)`:""), color:(e.profit||0)>=0?"safe":"bad", cls:(e.profit||0)>=0?"pos":"neg"})));
       $("#margins").insertAdjacentHTML("afterbegin",`<div class="muted note">Average margin across these closed events: <b>${esc(pct(d.margins.avgMargin))}</b></div>`);
     } else $("#margins").innerHTML='<div class="empty">No closed events with revenue in this period.</div>';
+    if(mz.length) $("#margins").insertAdjacentHTML("beforeend",`<div class="muted note" id="marginsNoRev">No revenue recorded (not in the margin): ${mz.map(e=>esc((e.code||"Event")+(e.date?" · "+e.date:""))).join(", ")}</div>`);
+  }
+  // 0094: margin chart with events in 2+ currencies — one currency at a time (studio's first)
+  let marginCur=null;
+  function renderMarginsMulti(mw,mz,byC){
+    if(!marginCur||!byC.some(g=>g.currency===marginCur)) marginCur=byC[0].currency;
+    const sel=mw.filter(e=>(e.currency||"INR")===marginCur), hiddenN=mw.length-sel.length;
+    if(sel.length) bars("margins", sel.map(e=>({label:(e.code||"Event")+(e.date?" · "+e.date:""), value:e.profit||0,
+        text:curM(e.profit,e.currency)+(e.marginPct!=null?` (${e.marginPct}%)`:""), color:(e.profit||0)>=0?"safe":"bad", cls:(e.profit||0)>=0?"pos":"neg"})));
+    else $("#margins").innerHTML='<div class="empty">No closed events with revenue in '+esc(marginCur)+'.</div>';
+    $("#margins").insertAdjacentHTML("afterbegin",`<div class="muted note"><label>Currency <select id="marginCur">${byC.map(g=>`<option value="${esc(g.currency)}"${g.currency===marginCur?" selected":""}>${esc(g.currency)}</option>`).join("")}</select></label>
+      ${hiddenN?esc(" "+hiddenN+" event(s) in other currencies not shown"):""}</div>
+      <div class="muted note">Average margin across these closed events: <b>${esc(byC.map(g=>g.currency+" "+pct(g.avgMargin)).join(" · "))}</b></div>`);
+    $("#marginCur").addEventListener("change",e=>{ marginCur=e.target.value; renderMarginsMulti(mw,mz,byC); });
     if(mz.length) $("#margins").insertAdjacentHTML("beforeend",`<div class="muted note" id="marginsNoRev">No revenue recorded (not in the margin): ${mz.map(e=>esc((e.code||"Event")+(e.date?" · "+e.date:""))).join(", ")}</div>`);
   }
   $("#li_close").addEventListener("click",closeLogin);
