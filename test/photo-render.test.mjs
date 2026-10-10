@@ -130,8 +130,8 @@ t('builder: Render dialog markup with style / camera / theme / quality / count, 
   assert.match(html, /<option value="4">4<\/option>/);
   assert.match(html, /Photo renders aren’t switched on yet — ask your admin/);
   assert.match(html, /server secret <code>OPENAI_API_KEY<\/code>/);
-  assert.match(html, /builder-3d\.js\?v=14"><\/script>\n<script src="photo-render-prompt\.js\?v=1"><\/script>\n<script src="photo-render-ui\.js\?v=2"><\/script>/);
-  assert.match(cap, /photo-render-ui\.js\?v=2/);
+  assert.match(html, /builder-3d\.js\?v=14"><\/script>\n<script src="photo-render-prompt\.js\?v=1"><\/script>\n<script src="photo-render-ui\.js\?v=3"><\/script>/);
+  assert.match(cap, /photo-render-ui\.js\?v=3/);
   assert.doesNotMatch(html, /style="/);
 });
 t('dialog: three captures (clean 3D labels none, plan plain, plan names + measure), ≤1536 px, render via BPStore', () => {
@@ -210,4 +210,14 @@ t('0095: additive, RLS on, definer + empty search_path, MANIFEST + run-all', () 
   assert.match(rd('scripts/db-test/run-all.sh'), /photo-render-0095/);
 });
 
+t('not-deployed render-photo (fetch TypeError / 404) shows the setup card, not nothing', () => {
+  assert.match(ui, /code === 'render_not_configured' \|\| isNetErr\(e\)\) showOff\(OFF_MSG, canManage\(\)\)/);
+  assert.match(ui, /failed to fetch/i);
+  assert.match(ui, /api\(\)\.probe\(\)/);
+  const api = rd('public/store-api.js');
+  assert.match(api, /probe: \(\) => \{/); assert.match(api, /method: "OPTIONS"/);
+  assert.match(api, /res\.status === 404 && !j\.error\) \{ const e = new Error\("Photo renders aren't switched on yet\."\); e\.code = "render_not_configured"/);
+  assert.match(api, /e\.code = "render_not_configured"; e\.cause = fe; throw e;/);
+  assert.match(html, /backend project dashboard → Edge Functions → Secrets/);
+});
 console.log('\nphoto-render: ' + n + ' passed.');

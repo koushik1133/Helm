@@ -28,14 +28,36 @@
     ".td-dlg{border:1px solid var(--line,#e8e3db);border-radius:14px;padding:20px;max-width:440px;width:calc(100vw - 32px);background:var(--panel,#fff);color:var(--ink,#1b1930)}",
     ".td-dlg::backdrop{background:rgba(20,27,46,.45)}.td-dlg h3{margin:0 0 6px;font-size:17px}.td-dlg p{margin:0 0 14px;font-size:14px;color:var(--ink-2,#4b475f)}",
     ".td-dlg .td-row{justify-content:flex-end}",
+    ".td-busy{opacity:.7;cursor:progress}",
+    ".td-err{color:var(--danger,#b42318);margin:8px 0 0;font-size:13px}",
   ].join("\n");
   let cssDone = false;
   function css() { if (cssDone) return; cssDone = true; if (typeof global.__helmAdoptCss === "function") global.__helmAdoptCss(doc, CSS); }
   function el(tag, cls, text) { const n = doc.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
   function btn(label, cls, onClick) { const b = el("button", cls || "btn", label); b.type = "button"; b.addEventListener("click", onClick); return b; }
   const S = () => global.BPStore;
-  const toast = (m, type) => { try { global.BPUI.toast(m, { type: type || "ok" }); } catch (e) {} };
-  const errMsg = (e) => (e && (e.message || e.error_description)) || "Something went wrong — please try again.";
+  // toast; if BPUI.toast is missing / throws, an error still shows (inline next to the button, else alert)
+  const toast = (m, type, near) => {
+    try { if (global.BPUI && typeof global.BPUI.toast === "function") { global.BPUI.toast(m, { type: type || "ok" }); return; } } catch (e) {}
+    if (type !== "err") return;
+    try {
+      const host = near && near.parentNode;
+      if (host) { let n = host.querySelector(".td-err"); if (!n) { n = el("p", "td-err"); n.setAttribute("role", "alert"); host.appendChild(n); } n.textContent = m; return; }
+    } catch (e) {}
+    try { global.alert(m); } catch (e) {}
+  };
+  const errMsg = (e, action) => {
+    try { if (global.BPUI && typeof global.BPUI.friendlyError === "function") { const m = global.BPUI.friendlyError(e, { action: action || "load the demo data" }); if (m) return String(m); } } catch (x) {}
+    return (e && (e.message || e.error_description)) || "Couldn't " + (action || "load the demo data") + " — please try again.";
+  };
+  // busy state on a button: disabled + aria-busy + "Working…" label; returns a restore fn
+  function busy(b, label) {
+    if (!b) return () => {};
+    const tgt = b.querySelector("b") || b, prev = tgt.textContent;
+    b.disabled = true; b.setAttribute("aria-busy", "true"); b.classList.add("td-busy");
+    if (label) tgt.textContent = label;
+    return () => { b.disabled = false; b.removeAttribute("aria-busy"); b.classList.remove("td-busy"); tgt.textContent = prev; };
+  }
 
   /* ---- pure model (exported for tests) ---------------------------------- */
   // d = my_demo_status(), t = my_trial_status() → which card to show
@@ -59,21 +81,23 @@
     return global.confirm(msg);
   }
   async function seed(b) {
-    if (b) b.disabled = true;
+    if (b && b.disabled) return;
+    const done = busy(b, "Loading demo data…");
     try { await S().demo.seed(); toast("Demo studio ready — look around! Everything marked “Demo ·” is sample data."); global.location.reload(); }
-    catch (e) { toast(errMsg(e), "err"); if (b) b.disabled = false; }
+    catch (e) { done(); toast(errMsg(e, "load the demo data"), "err", b); }
   }
   async function own(b) {
-    if (b) b.disabled = true;
+    if (b && b.disabled) return;
+    const done = busy(b, "Opening setup…");
     try { await S().demo.setMode("own"); global.location.assign("onboarding.html"); }
-    catch (e) { toast(errMsg(e), "err"); if (b) b.disabled = false; }
+    catch (e) { done(); toast(errMsg(e, "start with your own data"), "err", b); }
   }
   async function clearDemo(then) {
     const ok = await confirmDlg("This removes only the sample rows marked “Demo ·” (events, leads, staff, vendors, items, packages, layout). Your own data is never touched. Demo venues are switched off, and a demo item one of your real events uses is kept.",
       { title: "Remove all demo data?", okLabel: "Remove demo data", danger: true });
     if (!ok) return false;
     try { await S().demo.clear(); toast("Demo data removed. Your own data is untouched."); }
-    catch (e) { toast(errMsg(e), "err"); return false; }
+    catch (e) { toast(errMsg(e, "remove the demo data"), "err"); return false; }
     if (then) global.location.assign(then); else global.location.reload();
     return true;
   }
@@ -81,9 +105,9 @@
     const ok = await confirmDlg("All demo rows go back to how they started (your changes to demo rows are undone). Your own data is never touched.",
       { title: "Reset demo data?", okLabel: "Reset demo data" });
     if (!ok) return;
-    if (b) b.disabled = true;
+    const done = busy(b, "Resetting…");
     try { await S().demo.reset(); toast("Demo data reset."); global.location.reload(); }
-    catch (e) { toast(errMsg(e), "err"); if (b) b.disabled = false; }
+    catch (e) { done(); toast(errMsg(e, "reset the demo data"), "err", b); }
   }
   // "Start onboarding": keep the demo data, or clear it first (the owner chooses)
   function openSwitch() {
@@ -97,7 +121,7 @@
     const close = () => { try { dlg.close(); } catch (e) {} dlg.remove(); };
     row.appendChild(btn("Cancel", "btn", close));
     row.appendChild(btn("Keep demo data", "btn", async (ev) => { ev.currentTarget.disabled = true;
-      try { await S().demo.setMode("own"); global.location.assign("onboarding.html"); } catch (e) { toast(errMsg(e), "err"); close(); } }));
+      try { await S().demo.setMode("own"); global.location.assign("onboarding.html"); } catch (e) { toast(errMsg(e, "keep the demo data"), "err"); close(); } }));
     row.appendChild(btn("Clear demo data", "btn primary", async () => { close(); await clearDemo("onboarding.html"); }));
     dlg.appendChild(row);
     dlg.addEventListener("cancel", close);

@@ -184,6 +184,7 @@ window.HelmUrl = HelmUrl;
   let currentUser = null;       // signed-in Supabase user (or null)
   let roleCache = null;         // this user's RBAC role
   let accessCache = null;       // { role, map:{area:{view,edit}} | null } — the live access matrix for this user
+  let photoProbe = null;        // in-flight / cached render-photo deploy probe (0095)
   let rolePromise = null;       // in-flight getRole() (dedupes the parallel canView fan-out)
   let accessPromise = null;     // in-flight loadAccess()
   // Per-tab session cache (Wave 16 perf): a static multipage app re-fetches
@@ -7525,16 +7526,36 @@ window.HelmUrl = HelmUrl;
     // owner sets OPENAI_API_KEY: render() then rejects with e.code === "render_not_configured".
     photoRender: {
       available: () => !!(supa && mode === "supabase" && fnUrl("render-photo")),
+      // cheap pre-check: is the render-photo function deployed? (CORS preflight OPTIONS; no body,
+      // no token). Resolves true / false; a not-deployed function answers 404 or fails the fetch.
+      probe: () => {
+        if (!(supa && mode === "supabase" && fnUrl("render-photo"))) return Promise.resolve(false);
+        if (photoProbe) return photoProbe;
+        photoProbe = fetch(fnUrl("render-photo"), { method: "OPTIONS" })
+          .then((r) => r.status !== 404 && r.status < 500)
+          .catch(() => false)
+          .then((ok) => { if (!ok) photoProbe = null; return ok; });
+        return photoProbe;
+      },
       // { quote_id, prompt, n, quality, size, style, camera, theme, images:[{data}] } -> { renders:[{id,mime,data}], used, quota }
       render: async (payload, signal) => {
         if (!supa || mode !== "supabase" || !fnUrl("render-photo")) { const e = new Error("Photo renders need a signed-in studio."); e.code = "render_not_configured"; throw e; }
         let token = "";
         try { const { data: { session } } = await supa.auth.getSession(); token = (session && session.access_token) || ""; } catch (e) {}
         if (!token) { const e = new Error("Please sign in again."); e.code = "signed_out"; e.status = 401; throw e; }
-        const res = await fetch(fnUrl("render-photo"), { method: "POST", signal,
-          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token, "apikey": CFG.anonKey },
-          body: JSON.stringify(payload || {}) });
+        let res;
+        try {
+          res = await fetch(fnUrl("render-photo"), { method: "POST", signal,
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token, "apikey": CFG.anonKey },
+            body: JSON.stringify(payload || {}) });
+        } catch (fe) {
+          if (fe && fe.name === "AbortError") throw fe;
+          // network failure / CORS preflight 404 = the render-photo function is not deployed
+          const e = new Error("Photo renders aren't switched on yet."); e.code = "render_not_configured"; e.cause = fe; throw e;
+        }
         const j = await res.json().catch(() => ({}));
+        // 404 without the function's own error code = the function is not deployed
+        if (res.status === 404 && !j.error) { const e = new Error("Photo renders aren't switched on yet."); e.code = "render_not_configured"; e.status = 404; throw e; }
         if (!res.ok) { const e = new Error(String(j.message || j.error || ("HTTP " + res.status))); e.code = String(j.error || ""); e.status = res.status; throw e; }
         if (res.status !== 202 || !j.job_id) return j;
         // async render (0095): the server answered at once; poll the job, then load each photo
