@@ -25,7 +25,13 @@
 --       Reserves a 'pending' usage row and returns its id.
 --     * photo_render_list(event) / photo_render_image(render) - quotes VIEW, own studio.
 --     * photo_render_use_in_booklet(render) - quotes EDIT: copies the photo into the client
---       booklet pictures (0083, kind 3d / variant plain = "3D without labels"); <= 1.5 MB.
+--       booklet pictures (0083) as its OWN kind 'photo' (variant plain) - the automatic 2D / 3D
+--       re-capture only ever writes 2d / 3d, so it never replaces the photo; <= 1.5 MB.
+--       0083 extended additively: client_booklet_images kind may also be 'photo'; the signed-out
+--       readers public_get_booklet (images.photo.plain flag) and public_get_booklet_image
+--       (kind 'photo') show it inside the 3D section, same link / section / style rules.
+--     * photo_render_job(usage) - quotes VIEW, own studio: status of one render request
+--       (pending | ok | error) + its photo ids - the builder polls it (async renders).
 --     * photo_render_settings_get() / photo_render_settings_set(enabled, quota, hourly) -
 --       get: any staff member of the studio (+ this month's usage); set: Control Center EDIT.
 -- ============================================================================
@@ -222,8 +228,75 @@ begin
   select b.id into v_bk from public.client_booklets b where b.quote_id = r.quote_id and b.org_id = v_org and b.revoked_at is null
    order by b.created_at desc limit 1;
   insert into public.client_booklet_images(org_id, quote_id, booklet_id, kind, variant, mime, bytes, data, created_by)
-    values (v_org, r.quote_id, v_bk, '3d', 'plain', r.mime, r.bytes, r.data, auth.uid()) returning id into v_id;
-  return jsonb_build_object('ok', true, 'id', v_id, 'kind', '3d', 'variant', 'plain');
+    values (v_org, r.quote_id, v_bk, 'photo', 'plain', r.mime, r.bytes, r.data, auth.uid()) returning id into v_id;
+  return jsonb_build_object('ok', true, 'id', v_id, 'kind', 'photo', 'variant', 'plain');
+end $$;
+
+-- ---- async render status (the edge function answers at once; the builder polls this) --------
+create or replace function public.photo_render_job(p_usage_id uuid)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+declare u public.photo_render_usage;
+begin
+  select * into u from public.photo_render_usage x where x.id = p_usage_id;
+  if u.id is null then raise exception 'render not found' using errcode = 'P0002'; end if;
+  perform public._booklet_staff_quote(u.quote_id, false);         -- raises for another studio
+  if u.org_id is distinct from public.current_org_id() then raise exception 'not authorized' using errcode = '42501'; end if;
+  return jsonb_build_object('id', u.id, 'status', case when u.status = 'pending' and u.created_at < now() - interval '15 minutes' then 'error' else u.status end,
+    'error', case when u.status = 'pending' and u.created_at < now() - interval '15 minutes' then 'timeout' else u.error end,
+    'renders', coalesce((select jsonb_agg(r.id order by r.created_at) from public.photo_renders r where r.usage_id = u.id and r.org_id = u.org_id), '[]'::jsonb));
+end $$;
+
+-- ---- 0083 extended: booklet picture kind 'photo' (never written by the 2D / 3D re-capture) ----
+do $$ begin
+  if exists (select 1 from pg_constraint where conname = 'client_booklet_images_kind_ck'
+               and pg_get_constraintdef(oid) not like '%photo%') then
+    alter table public.client_booklet_images drop constraint client_booklet_images_kind_ck;
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'client_booklet_images_kind_ck') then
+    alter table public.client_booklet_images add constraint client_booklet_images_kind_ck check (kind in ('2d', '3d', 'photo'));
+  end if;
+end $$;
+
+create or replace function public.public_get_booklet_image(p_token uuid, p_kind text, p_variant text)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+-- booklet-images-0083 (+ 0095 kind photo)
+declare b public.client_booklets; i public.client_booklet_images; v_wait int;
+begin
+  if p_token is null or coalesce(p_kind, '') not in ('2d', '3d', 'photo') or coalesce(p_variant, '') not in ('labels', 'plain')
+     or (p_kind = 'photo' and p_variant <> 'plain') then return null; end if;
+  v_wait := public.rate_hit('booklet.read', md5('booklet:' || p_token::text), 600, 120);   -- the booklet read limiter
+  if v_wait > 0 then raise exception 'too many requests - try again in % seconds', v_wait using errcode = 'P0001'; end if;
+  select * into b from public.client_booklets x where x.token = p_token;
+  if b.id is null or b.revoked_at is not null or b.expires_at <= now()
+     or not exists (select 1 from public.quotes q where q.id = b.quote_id and q.org_id = b.org_id and q.deleted_at is null) then return null; end if;
+  if not public._bk_on(b.sections, case when p_kind = '2d' then 'layout2d' else 'layout3d' end) then return null; end if;
+  if not public._bk_img_on(b.image_variants, p_kind, p_variant) then return null; end if;
+  select * into i from public.client_booklet_images x
+   where x.quote_id = b.quote_id and x.org_id = b.org_id and x.kind = p_kind and x.variant = p_variant
+   order by x.created_at desc, x.id desc limit 1;
+  if i.id is null then return null; end if;
+  return jsonb_build_object('mime', i.mime, 'data', translate(encode(i.data, 'base64'), E'\n\r', ''));
+end $$;
+
+create or replace function public.public_get_booklet(p_token uuid)
+returns jsonb language plpgsql volatile security definer set search_path = '' as $$
+-- booklet-images-0083: the 0081 reader, then which database pictures this link shows (+ 0095 photo)
+declare r jsonb; b public.client_booklets; k text; v text; f jsonb := '{}'::jsonb; g jsonb;
+begin
+  r := public.public_get_booklet__pre0083(p_token);     -- validates token, rate limit, audit, sections
+  if r is null or jsonb_typeof(r) <> 'object' then return r; end if;
+  select * into b from public.client_booklets x where x.token = p_token;
+  if b.id is null then return r; end if;
+  foreach k in array array['2d', '3d', 'photo'] loop
+    g := '{}'::jsonb;
+    foreach v in array case when k = 'photo' then array['plain'] else array['labels', 'plain'] end loop
+      g := g || jsonb_build_object(v, public._bk_on(b.sections, case when k = '2d' then 'layout2d' else 'layout3d' end)
+               and public._bk_img_on(b.image_variants, k, v)
+               and exists (select 1 from public.client_booklet_images i where i.quote_id = b.quote_id and i.org_id = b.org_id and i.kind = k and i.variant = v));
+    end loop;
+    f := f || jsonb_build_object(k, g);
+  end loop;
+  return r || jsonb_build_object('images', f);
 end $$;
 
 -- ---- studio settings (Control Center) --------------------------------------------------------
@@ -262,7 +335,8 @@ do $$ declare s text; begin
   foreach s in array array['public._photo_render_cfg(uuid)', 'public._photo_render_used(uuid)',
       'public.photo_render_begin(uuid,integer,text,text,text,numeric)', 'public.photo_render_list(uuid)',
       'public.photo_render_image(uuid)', 'public.photo_render_use_in_booklet(uuid)',
-      'public.photo_render_settings_get()', 'public.photo_render_settings_set(boolean,integer,integer)'] loop
+      'public.photo_render_settings_get()', 'public.photo_render_settings_set(boolean,integer,integer)',
+      'public.photo_render_job(uuid)'] loop
     execute format('revoke all on function %s from public', s);
     if exists (select 1 from pg_roles where rolname = 'anon') then execute format('revoke all on function %s from anon', s); end if;
     if exists (select 1 from pg_roles where rolname = 'authenticated') then execute format('revoke all on function %s from authenticated', s); end if;
@@ -274,5 +348,13 @@ do $$ declare s text; begin
     grant execute on function public.photo_render_use_in_booklet(uuid) to authenticated;
     grant execute on function public.photo_render_settings_get() to authenticated;
     grant execute on function public.photo_render_settings_set(boolean, integer, integer) to authenticated;
+    grant execute on function public.photo_render_job(uuid) to authenticated;
+    -- the two re-created 0083 readers keep exactly their 0083 callers
+    grant execute on function public.public_get_booklet(uuid) to authenticated;
+    grant execute on function public.public_get_booklet_image(uuid, text, text) to authenticated;
+  end if;
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    grant execute on function public.public_get_booklet(uuid) to anon;
+    grant execute on function public.public_get_booklet_image(uuid, text, text) to anon;
   end if;
 end $$;

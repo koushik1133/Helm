@@ -7536,8 +7536,33 @@ window.HelmUrl = HelmUrl;
           body: JSON.stringify(payload || {}) });
         const j = await res.json().catch(() => ({}));
         if (!res.ok) { const e = new Error(String(j.message || j.error || ("HTTP " + res.status))); e.code = String(j.error || ""); e.status = res.status; throw e; }
-        return j;
+        if (res.status !== 202 || !j.job_id) return j;
+        // async render (0095): the server answered at once; poll the job, then load each photo
+        const JOB_MSG = { timeout: ["render_timeout", "The render took too long - try standard quality or fewer images"],
+          blocked: ["render_blocked", "The image service refused this request - change the decor theme and try again"],
+          busy: ["render_busy", "The image service is busy - try again in a minute"],
+          failed: ["render_failed", "The image service could not make the photo"] };
+        const t0 = Date.now();
+        for (;;) {
+          if (signal && signal.aborted) { const e = new Error("Cancelled"); e.name = "AbortError"; throw e; }
+          if (Date.now() - t0 > 8 * 60 * 1000) { const e = new Error(JOB_MSG.timeout[1]); e.code = JOB_MSG.timeout[0]; throw e; }
+          await new Promise((ok) => setTimeout(ok, 4000));
+          let st = null;
+          try { st = await rpc("photo_render_job", { p_usage_id: j.job_id }); } catch (e) { if (e && (e.code === "42501" || e.code === "P0002")) throw e; continue; }
+          if (!st || st.status === "pending") continue;
+          if (st.status === "error") { const k = String(st.error || "failed").split(":")[0]; const m = JOB_MSG[k] || JOB_MSG.failed;
+            const e = new Error(m[1]); e.code = m[0]; throw e; }
+          const ids = Array.isArray(st.renders) ? st.renders : [];
+          const renders = [];
+          for (const id of ids) {
+            const r = await rpc("photo_render_image", { p_render_id: id }).catch(() => null);
+            if (r && r.data) renders.push({ id: String(id), mime: String(r.mime || "image/jpeg"), data: String(r.data) });
+          }
+          if (!renders.length) { const e = new Error("No photo came back - please try again"); e.code = "render_failed"; throw e; }
+          return { renders, used: j.used, quota: j.quota };
+        }
       },
+      job: (jobId) => rpc("photo_render_job", { p_usage_id: jobId }),
       list: (quoteId) => (supa && mode === "supabase" && UUID_RE_PKG.test(String(quoteId || ""))
         ? rpc("photo_render_list", { p_quote_id: quoteId }).then((r) => (Array.isArray(r) ? r : [])).catch((e) => { if (rpcMissing(e)) return []; throw e; })
         : Promise.resolve([])),
@@ -7545,7 +7570,7 @@ window.HelmUrl = HelmUrl;
       image: (renderId) => (supa && mode === "supabase" && UUID_RE_PKG.test(String(renderId || ""))
         ? rpc("photo_render_image", { p_render_id: renderId }).then(photoDataUrl).catch((e) => { if (rpcMissing(e)) return null; throw e; })
         : Promise.resolve(null)),
-      // copy into the client booklet (0083 picture "3D without labels")
+      // copy into the client booklet as its own picture (kind "photo"; the 2D / 3D re-capture never replaces it)
       useInBooklet: (renderId) => rpc("photo_render_use_in_booklet", { p_render_id: renderId }),
       settings: () => (supa && mode === "supabase"
         ? rpc("photo_render_settings_get", {}).catch((e) => { if (rpcMissing(e)) return null; throw e; })
@@ -7638,7 +7663,7 @@ window.HelmUrl = HelmUrl;
         ["2d_labels", "2d_plain", "3d_labels", "3d_plain"].forEach((k) => { if (v && typeof v[k] === "boolean") o[k] = v[k]; });
         return rpc("booklet_set_image_variants", { p_quote_id: quoteId, p_variants: o }).catch((e) => { if (rpcMissing(e)) return null; throw e; }); },
       // signed-out booklet page: data: URL of one picture of a live link (lazy), or null
-      publicImage: (token, kind, variant) => (supa && UUID_RE_PKG.test(String(token || "")) && BOOKLET_IMG_KINDS.includes(kind) && BOOKLET_IMG_VARIANTS.includes(variant)
+      publicImage: (token, kind, variant) => (supa && UUID_RE_PKG.test(String(token || "")) && (BOOKLET_IMG_KINDS.includes(kind) || (kind === "photo" && variant === "plain")) && BOOKLET_IMG_VARIANTS.includes(variant)
         ? rpc("public_get_booklet_image", { p_token: String(token), p_kind: kind, p_variant: variant }).then(bookletDataUrl).catch(() => null)
         : Promise.resolve(null)),
       // signed-out booklet page: <img src> for a ticked snapshot (dormant edge function booklet-snapshot)

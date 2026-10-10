@@ -82,7 +82,7 @@
     }
     use.addEventListener('click', async function () {
       use.disabled = true;
-      try { await api().useInBooklet(r.id); toast('Added to the client booklet (3D picture without labels)', { type: 'ok' }); }
+      try { await api().useInBooklet(r.id); toast('Added to the client booklet as its own photo (shown in the 3D section)', { type: 'ok' }); }
       catch (e) { toast(window.BPUI && BPUI.friendlyError ? BPUI.friendlyError(e, { action: 'add the photo to the booklet' }) : String(e.message || e), { type: 'err' }); }
       finally { use.disabled = false; }
     });

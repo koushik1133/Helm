@@ -130,8 +130,8 @@ t('builder: Render dialog markup with style / camera / theme / quality / count, 
   assert.match(html, /<option value="4">4<\/option>/);
   assert.match(html, /Photo renders aren’t switched on yet — ask your admin/);
   assert.match(html, /server secret <code>OPENAI_API_KEY<\/code>/);
-  assert.match(html, /builder-3d\.js\?v=14"><\/script>\n<script src="photo-render-prompt\.js\?v=1"><\/script>\n<script src="photo-render-ui\.js\?v=1"><\/script>/);
-  assert.match(cap, /photo-render-ui\.js\?v=1/);
+  assert.match(html, /builder-3d\.js\?v=14"><\/script>\n<script src="photo-render-prompt\.js\?v=1"><\/script>\n<script src="photo-render-ui\.js\?v=2"><\/script>/);
+  assert.match(cap, /photo-render-ui\.js\?v=2/);
   assert.doesNotMatch(html, /style="/);
 });
 t('dialog: three captures (clean 3D labels none, plan plain, plan names + measure), ≤1536 px, render via BPStore', () => {
@@ -182,7 +182,18 @@ t('render-photo: dormant 503 render_not_configured before anything else; key fro
   assert.match(fn, /Deno\.env\.get\("OPENAI_API_KEY"\)/);
   assert.match(fn, /https:\/\/api\.openai\.com\/v1\/images\/edits/);
   assert.match(fn, /fd\.append\("image\[\]"/);
-  assert.match(fn, /"gpt-image-2"/);
+  assert.match(fn, /"gpt-image-2\.5-sunburst"/);
+  // async: answer 202 with the job, finish in the background, browser polls photo_render_job
+  assert.match(fn, /ER\.waitUntil\(work\(\)\)/);
+  assert.match(fn, /job_id: usageId, status: "pending"/);
+  assert.match(fn, /\|\| 140_000/);
+  const sa = rd('public/store-api.js');
+  assert.match(sa, /rpc\("photo_render_job", \{ p_usage_id: j\.job_id \}\)/);
+  assert.match(sa, /res\.status !== 202/);
+  // booklet: the photo is its own picture kind, shown in the 3D section
+  assert.match(rd('supabase/migrations/0095_photo_render.sql'), /'photo', 'plain', r\.mime/);
+  assert.match(rd('public/booklet.js'), /B\.publicImage\(d\.__token, "photo", "plain"\)/);
+  assert.match(rd('supabase/functions/README.md'), /supabase functions deploy render-photo/);
   assert.match(fn, /asCaller\.rpc\("photo_render_begin"/);
   assert.match(fn, /AbortController/);
   assert.match(fn, /BODY_LIMIT = 8 \* 1024 \* 1024/);

@@ -95,7 +95,10 @@ begin
   perform pg_temp.res('16 missing variant / bad args -> null', public.public_get_booklet_image(tok::uuid, '2d', 'plain') is null
     and public.public_get_booklet_image(tok::uuid, '3d_none', 'labels') is null and public.public_get_booklet_image(gen_random_uuid(), '3d', 'labels') is null);
 
-  -- newest upload supersedes, older row kept
+  -- newest upload supersedes, older row kept (older rows back-dated: one transaction shares now(),
+  -- so the id tie-break would make "newest" random)
+  perform pg_temp.su();
+  update public.client_booklet_images set created_at = created_at - interval '1 second' where quote_id = qa::uuid;
   perform pg_temp.login('a_staff@a.test');
   r := public.booklet_put_image(qa::uuid, '3d', 'labels', 'image/png', png);
   perform pg_temp.anon();

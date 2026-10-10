@@ -73,8 +73,9 @@ begin
 
   -- service role stores a picture (as the edge function does)
   perform pg_temp.su();
-  insert into public.photo_renders(org_id, quote_id, style, camera, mime, bytes, data, model, size)
-    values (oa, qa::uuid, 'golden', 'hero', 'image/jpeg', octet_length(jpg), jpg, 'gpt-image-2', '1536x1024') returning id into rid;
+  insert into public.photo_renders(org_id, quote_id, usage_id, style, camera, mime, bytes, data, model, size)
+    values (oa, qa::uuid, (select u.id from public.photo_render_usage u where u.quote_id = qa::uuid order by u.created_at limit 1),
+            'golden', 'hero', 'image/jpeg', octet_length(jpg), jpg, 'gpt-image-2', '1536x1024') returning id into rid;
   perform pg_temp.login('a_staff@a.test');
   r := public.photo_render_list(qa::uuid);
   perform pg_temp.res('09 list shows the render, no bytes', jsonb_array_length(r) = 1 and r::text not like '%/9j%' and not (r -> 0 ? 'data'), r::text);
@@ -88,8 +89,26 @@ begin
   perform pg_temp.login('a_staff@a.test');
   r := public.photo_render_use_in_booklet(rid);
   perform pg_temp.su();
-  select count(*) into n from public.client_booklet_images where quote_id = qa::uuid and kind = '3d' and variant = 'plain';
-  perform pg_temp.res('12 use in booklet copies to 3d/plain', (r ->> 'ok')::boolean and n = 1, r::text || ' n=' || n);
+  select count(*) into n from public.client_booklet_images where quote_id = qa::uuid and kind = 'photo' and variant = 'plain';
+  perform pg_temp.res('12 use in booklet copies to its own kind photo (not 3d)', (r ->> 'ok')::boolean and r ->> 'kind' = 'photo' and n = 1
+    and not exists (select 1 from public.client_booklet_images where quote_id = qa::uuid and kind = '3d'), r::text || ' n=' || n);
+  -- the automatic 3D re-capture writes 3d/plain and never touches the photo
+  perform pg_temp.login('a_staff@a.test');
+  perform public.booklet_put_image(qa::uuid, '3d', 'plain', 'image/jpeg', encode(jpg, 'base64'));
+  perform pg_temp.su();
+  perform pg_temp.res('17 3D re-capture keeps the booklet photo', (select count(*) from public.client_booklet_images where quote_id = qa::uuid and kind = 'photo') = 1
+    and (select count(*) from public.client_booklet_images where quote_id = qa::uuid and kind = '3d') = 1);
+  perform set_config('pr.usage', (select usage_id::text from public.photo_renders where id = rid), false);
+  perform pg_temp.login('a_staff@a.test');
+  r := public.photo_render_job(current_setting('pr.usage')::uuid);
+  perform pg_temp.res('18 job status lists the photo of that request', r ->> 'status' = 'pending' and r -> 'renders' @> to_jsonb(array[rid::text]), r::text);
+  perform pg_temp.login('b_admin@b.test');
+  e := pg_temp.try(format('select public.photo_render_job(%L)', current_setting('pr.usage')::uuid));
+  perform pg_temp.res('19 job status: other studio refused', e like '42501%' or e like 'P0002%', e);
+  perform pg_temp.res('20 photo kind allowed, signed-out photo reader: labels variant / bad token -> null',
+    public.public_get_booklet_image(gen_random_uuid(), 'photo', 'plain') is null and public.public_get_booklet_image(gen_random_uuid(), 'photo', 'labels') is null
+    and has_function_privilege('anon', 'public.public_get_booklet_image(uuid,text,text)', 'execute') and has_function_privilege('anon', 'public.public_get_booklet(uuid)', 'execute'));
+  perform pg_temp.login('a_staff@a.test');
 
   perform pg_temp.login('a_staff@a.test');
   e := pg_temp.try('select count(*) from public.photo_renders') || pg_temp.try('select count(*) from public.photo_render_usage')

@@ -73,7 +73,7 @@ Deno.test("render-photo: bad input -> 400 before the DB", async () => {
   } finally { rF(); rEnv(); }
 });
 
-Deno.test("render-photo: happy path -> OpenAI edits with image[] x3 + gpt-image-2, photo stored + returned", async () => {
+Deno.test("render-photo: happy path -> OpenAI edits with image[] x3 + gpt-image-2.5-sunburst, photo stored + returned", async () => {
   resetSupaMock(); allow();
   const rEnv = setEnv(ON);
   let form: FormData | null = null, auth = "";
@@ -89,7 +89,7 @@ Deno.test("render-photo: happy path -> OpenAI edits with image[] x3 + gpt-image-
     const j = await res.json();
     assertEquals(j.renders.length, 1); assertEquals(j.renders[0].mime, "image/jpeg");
     assertEquals(form!.getAll("image[]").length, 3);
-    assertEquals(form!.get("model"), "gpt-image-2");
+    assertEquals(form!.get("model"), "gpt-image-2.5-sunburst");
     assertEquals(form!.get("quality"), "high");
     assertEquals(form!.get("size"), "1536x1024");
     assertEquals(auth, "Bearer sk-test-not-real");
@@ -111,4 +111,28 @@ Deno.test("render-photo: OpenAI error -> 502, usage marked error", async () => {
     const u = supaLog().find((x) => x.table === "photo_render_usage");
     assert(u && JSON.stringify(u.calls).includes("error"));
   } finally { rF(); rEnv(); }
+});
+
+Deno.test("render-photo: async - 202 with the job at once, OpenAI call finishes in EdgeRuntime.waitUntil", async () => {
+  resetSupaMock(); allow();
+  const rEnv = setEnv(ON);
+  let bg: Promise<unknown> | null = null;
+  // deno-lint-ignore no-explicit-any
+  (globalThis as any).EdgeRuntime = { waitUntil: (p: Promise<unknown>) => { bg = p; } };
+  const rF = installFetch(async () => jsonResponse({ data: [{ b64_json: JPG }] }));
+  try {
+    const h = await loadHandler(FN);
+    const res = await h(post(body(), AUTH));
+    assertEquals(res.status, 202);
+    const j = await res.json();
+    assert(j.job_id); assertEquals(j.status, "pending"); assertEquals(j.renders, undefined);
+    assert(bg, "background task registered");
+    const out = (await (bg as unknown as Promise<unknown>)) as unknown[];
+    assert(Array.isArray(out) && out.length === 1);
+    assert(supaLog().some((x) => x.table === "photo_renders" && x.key === "service-role-secret"));
+    assert(supaLog().some((x) => x.table === "photo_render_usage" && JSON.stringify(x.calls).includes("ok")));
+  } finally {
+    // deno-lint-ignore no-explicit-any
+    delete (globalThis as any).EdgeRuntime; rF(); rEnv();
+  }
 });

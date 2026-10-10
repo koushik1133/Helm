@@ -397,12 +397,16 @@
   function dbImages(d, k) {
     const im = d && d.images && typeof d.images === "object" ? d.images[k === "layout3d" ? "3d" : "2d"] : null;
     if (!im || typeof im !== "object") return [];
-    return IMG_VARIANTS.filter((v) => im[v[0]] === true).map((v) => ({ variant: v[0], label: v[1] }));
+    const out = IMG_VARIANTS.filter((v) => im[v[0]] === true).map((v) => ({ variant: v[0], label: v[1] }));
+    // 0095: the studio's photo render - its own picture (kind "photo"), shown in the 3D section
+    const ph = k === "layout3d" && d.images.photo && typeof d.images.photo === "object" ? d.images.photo : null;
+    if (ph && ph.plain === true) out.push({ variant: "photo", label: "Photo" });
+    return out;
   }
   const isDataImg = (u) => typeof u === "string" && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(u);
   function dbFigure(fig, d, kind, variants, alt, fallback) {
     const cache = {}, B = global.BPStore && global.BPStore.booklet;
-    const load = (v) => cache[v] || (cache[v] = (d.__token && B && B.publicImage ? B.publicImage(d.__token, kind, v) : Promise.resolve(null))
+    const load = (v) => cache[v] || (cache[v] = (d.__token && B && B.publicImage ? (v === "photo" ? B.publicImage(d.__token, "photo", "plain") : B.publicImage(d.__token, kind, v)) : Promise.resolve(null))
       .then((u) => (isDataImg(u) ? u : null)).catch(() => null));
     let cur = null, seq = 0, bar = null;
     const img = el("img", "snap"); img.setAttribute("alt", alt);
