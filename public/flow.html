@@ -186,6 +186,7 @@
         <section class="card" id="sec-menu">
           <h2><span class="step-n">5</span> Menu package <span class="saved" id="sv-menu" aria-live="polite"></span></h2>
           <p class="sub">Pick a package — it pre-fills the dishes and drives the catering price.</p>
+          <div class="secerr" id="err-menu"></div>
           <div class="pkgcards" id="pkgCards"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
           <div class="fld full s-56f4356"><label for="p_menu">Menu / service notes</label><textarea id="p_menu" placeholder="Courses, dietary options, service style, timings…"></textarea></div>
         </section>
@@ -798,12 +799,25 @@
       return `<button type="button" class="pkgcard ${on?'on':''}" data-id="${esc(p.id)}" aria-pressed="${!!on}">
         <b>${esc(p.name)}</b><div class="m">${esc(p.diet||'')} · ${Array.isArray(p.dishes)?p.dishes.length:0} dishes</div>
         <div class="p">${inr(p.price_per_plate)} / plate</div></button>`;
-    }).join("") || '<div style="font-size:12px;color:var(--ink-3)">No menu packages set up yet — add them in Control Center.</div>';
+    }).join("") || '<div class="meta">No menu packages set up yet — <a href="control.html#menu">add them in Control Center</a>.</div>';
     $("#pkgCards").querySelectorAll(".pkgcard").forEach(b=>b.addEventListener("click",()=>applyPackage(b.dataset.id,b)));
   }
+  // Pre-fill the editable dish list (menu notes) from the package, grouped by course.
+  // Switching packages replaces the previous package's pre-filled text; hand-edited
+  // text is only replaced after the user confirms.
+  function packageDishText(t){
+    const by={}; (Array.isArray(t&&t.dishes)?t.dishes:[]).forEach(d=>{ const c=(d&&(d.c||d.category))||"Other"; const n=d&&(d.n||d.dish_name||d.name); if(n) (by[c]=by[c]||[]).push(n); });
+    return Object.keys(by).map(c=>c+": "+by[c].join(", ")).join("\n"); }
+  function fillPackageDishes(t){
+    const ta=$("#p_menu"), next=packageDishText(t), cur=ta.value.trim();
+    const prev=appliedPkg?packageDishText(appliedPkg):"";
+    if(!next) return;
+    if(cur && cur!==prev.trim() && cur!==next && !confirm("Replace the current dish list with the "+t.name+" package dishes?")) return;
+    ta.value=next; }
   async function applyPackage(tid,btn){
     const t=packages.find(x=>String(x.id)===String(tid)); if(!t) return;
-    try{ await BPUI.guard(btn||null, async()=>{ await BPStore.menuTemplates.apply(id, t.id); appliedPkg=t;
+    try{ await BPUI.guard(btn||null, async()=>{ await BPStore.menuTemplates.apply(id, t.id);
+      fillPackageDishes(t); appliedPkg=t;
       $("#q_platePrice").value=t.price_per_plate; $("#p_menu").dataset.pkg=t.name;
       // Persist the chosen package name to the plan immediately so the workspace (event.html)
       // and the Venue & menu page (plan.html) reflect it without waiting for save-on-leave.
@@ -930,7 +944,8 @@
       $("#v_contact").value=plan.venue_contact||""; $("#v_access").value=plan.access_notes||""; $("#p_menu").value=plan.menu||""; if(plan.package) $("#p_menu").dataset.pkg=plan.package; } }
   async function loadPackages(){
     packages=(await BPStore.menuTemplates.list())||[];
-    if(plan&&plan.menu_template) appliedPkg=packages.find(p=>p.name===plan.menu_template)||null;
+    const sel=plan&&(plan.menu_template||plan.package);
+    if(sel) appliedPkg=packages.find(p=>p.name===sel)||null;
     renderPackages(); }
   async function loadProposal(){ const pr=await BPStore.proposal.get(id); if(pr){ $("#pr_concept").value=pr.concept||""; $("#pr_theme").value=pr.theme||""; $("#pr_scope").value=(pr.scope||[]).join("\n"); } }
   async function loadLayout(){ const v=await BPStore.quotes.getVersion(id, ev.currentVersion); layoutItems=(v&&v.data&&v.data.items)||[]; layoutRoom=(v&&v.data&&v.data.venue&&v.data.venue.room)||null; }
@@ -938,7 +953,7 @@
     rates:    ["#err-rates","pricing rates",loadRates],
     discovery:["#err-discovery","discovery notes",loadDiscovery],
     plan:     ["#err-plan","venue & menu details",loadPlan],
-    packages: ["#pkgCards","menu packages",loadPackages],
+    packages: ["#err-menu","menu packages",loadPackages],
     proposal: ["#err-proposal","the proposal",loadProposal],
     layout:   ["#err-layout","the floor layout",loadLayout],
   };
