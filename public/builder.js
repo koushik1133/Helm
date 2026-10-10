@@ -152,6 +152,12 @@ const DEFAULT_PRICES = {          // per-unit overrides for big-ticket items (�
   bar:12000, buffet:9000, truck:25000, greenroom:8000, generator:15000, parking:10000,
   chandelier:12000, fountain:20000, mandap_decor:0,
   restroom:12000, coatcheck:5000, firstaid:4000,
+  // CATALOG-DEFAULTS (2026-10): newer builder items — see docs/ITEM-PRICING-DEFAULTS.md
+  led:18000, lighting:9600, walkway:6000, brandwall:9600, podium:3500, barricade:1800, stagebarrier:9000, fence:1500,
+  checkpoint:3000, exit:500, speaker:4000, monitor:1500, movinghead:2500, uplight:500, smoke:5000, dancers:14000,
+  chocolatefountain:9000, chariot:20000, booth:8000, desk:2500, gifttable:1500, caketable:1500, heater:2500, easel:500,
+  distro:3000, cableramp:600, lounge:6000, sofa:2500, loveseat:2000, armchair:1200, ottoman:500, bench:800,
+  coffeetable:800, bleacher:15000, floral:1500, pillar:2000, drape:2400, planter:800,
 };
 // object types whose seats are billed via the chair rate (so we don't
 // double-charge them as furniture units in the breakdown)
@@ -417,7 +423,7 @@ function renderPrice(){
     // 0086: a spec-priced item reads like "Stage 8 × 5 m (40 m²) @ ₹450/m² = ₹18,000"
     if(l.spec && l.label){ rows+=`<div class="prow"><span><span class="q">${esc(l.label)}</span></span><span class="amt">${inr(l.cost)}</span></div>`; return; }
     const flag = l.note ? ' <span class="q nocat" title="This item\'s adjusted spec could not be priced from Item pricing — using the catalog price">'+esc(l.note)+'</span>'
-      : (PRICING.assetPrices && !inCatalog(l.type, PRICING.assetPrices)) ? ' <span class="q nocat" title="No rate for this item in Control Center — using a default price">price not in catalog</span>' : '';
+      : (PRICING.assetPrices && !inCatalog(l.type, PRICING.assetPrices) && DEFAULT_PRICES[l.type]==null) ? ' <span class="q nocat" title="No rate for this item in Control Center — using a default price">price not in catalog</span>' : '';
     rows+=`<div class="prow"><span>${esc(label)} <span class="q">${l.qty>1?l.qty+' × '+inr(l.unit):inr(l.unit)}</span>${flag}</span><span class="amt">${inr(l.cost)}</span></div>`;
   });
   if(otherSet==null && m.layoutBase>0) rows+=`<div class="prow"><span>Layout &amp; setup</span><span class="amt">${inr(m.layoutBase)}</span></div>`;
