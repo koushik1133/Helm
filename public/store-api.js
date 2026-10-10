@@ -923,7 +923,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "21";
+  const AUTH_UI_VERSION = "22";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -7677,6 +7677,16 @@ window.HelmUrl = HelmUrl;
         if (!supa) return Promise.reject(new Error("Importing needs a signed-in studio."));
         return rpc("smart_import_batch", { p_entity: entity, p_rows: rows || [], p_defs: defs || [] });
       },
+    },
+    // 0097 — free-trial demo data. status(): {trial_mode:'demo'|'own'|null, demo_rows, has_demo,
+    // is_admin}; null before 0097 / local mode. seed / clear / reset / setMode are studio-admin
+    // only and touch ONLY this studio's rows flagged is_demo (enforced in the database).
+    demo: {
+      status: () => (supa ? rpc("my_demo_status").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      setMode: (mode) => rpc("set_trial_mode", { p_mode: mode === "demo" ? "demo" : "own" }),
+      seed: () => rpc("seed_demo_data"),
+      clear: () => rpc("clear_demo_data"),
+      reset: () => rpc("reset_demo_data"),
     },
     gettingStarted: {
       get: () => (supa ? rpc("my_getting_started").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),

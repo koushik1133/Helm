@@ -239,6 +239,7 @@
       <p class="mnote">Used on your Helm invoices (GST place of supply) and for Helm to reach you. Contact phone numbers are visible only to studio admins and Helm.</p>
       <div id="accBody"></div>
     </div>
+    <div class="card" id="tdControl" data-td-control hidden aria-label="Demo data"></div>
     <div class="card" id="subCard" hidden>
       <h3>Subscription</h3>
       <div id="subBody"></div>
@@ -700,7 +701,7 @@
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=167"></script>
+<script src="country-profile.js?v=3"></script><script src="store-api.js?v=168"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=4"></script>
 <script src="smart-import.js?v=3"></script>
@@ -712,6 +713,7 @@
 <script src="venues-core.js?v=3"></script>
 <script src="venues-admin.js?v=1"></script>
 <script src="item-pricing.js?v=1"></script>
+<script src="trial-demo.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
