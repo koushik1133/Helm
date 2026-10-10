@@ -51,6 +51,13 @@ Deno.serve(async (req) => {
       return json({ error: msg }, status);
     }
 
+    // 0093: the MSG91 DLT OTP template only reaches Indian (+91) numbers. Numbers outside India
+    // (UAE +971, USA +1, ...) need MSG91's international route enabled on the account - set
+    // MSG91_INTL=1 once it is; until then say so plainly instead of failing silently.
+    if (Deno.env.get("MSG91_AUTHKEY") && !String(dest.mobile).startsWith("91") && Deno.env.get("MSG91_INTL") !== "1") {
+      return json({ error: "SMS codes can't be sent to numbers outside India yet — please ask your planner to record your approval." }, 422);
+    }
+
     // CSPRNG (Math.random is predictable); rejection sampling avoids modulo bias
     const buf = new Uint32Array(1), lim = 4294967296 - (4294967296 % 900000);
     do crypto.getRandomValues(buf); while (buf[0] >= lim);
