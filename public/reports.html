@@ -142,12 +142,24 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=166"></script>
+<script src="country-profile.js?v=3"></script><script src="store-api.js?v=167"></script>
 <script src="range-bar.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const inr=(n)=>BPStore.studioMoney(n,{round:true});
+  const curM=(n,c)=>BPStore.moneyIn(n,c||BPStore.studioCurrency(),{round:true});
+  // 0094: exports with 2+ currencies get a currency column and one subtotal row per currency
+  // (money is never added across currencies). One currency = exactly the old CSV.
+  function perCurrency(rows, curs, moneyCols, labelCol){
+    if(new Set(curs).size<2) return rows;
+    const out=rows.map((r,i)=>{ const o={}; Object.keys(r).forEach((k,j)=>{ o[k]=r[k]; if(j===0) o.currency=curs[i]; }); return o; });
+    BPStore.sumByCurrency(out.map((r,i)=>({r,c:curs[i]})),()=>0,x=>x.c).forEach(g=>{
+      const sub={}; Object.keys(out[0]).forEach(k=>{ sub[k]=""; }); sub[labelCol]="Subtotal "+g.currency; sub.currency=g.currency;
+      moneyCols.forEach(k=>{ sub[k]=Math.round(out.filter(r=>r.currency===g.currency).reduce((a,r)=>a+(Number(r[k])||0),0)*100)/100; });
+      out.push(sub); });
+    return out;
+  }
   const today=()=>{ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };   // r9: local (IST) day, not UTC
   let canFin=false, range=null;
   const evDay=(e)=>e.eventDate||String(e.createdAt||"").slice(0,10);
@@ -175,17 +187,18 @@
   const builders={
     async leads(){ const a=(await BPStore.leads.list()).filter(l=>inR(String(l.created_at||l.createdAt||l.event_date||"").slice(0,10))); return a.map(l=>({ name:l.name, phone:l.phone, email:l.email, source:l.source,
       event_type:l.event_type, event_date:l.event_date, budget:l.budget, guests:l.guest_count, status:l.status })); },
-    async events(){ const a=(await BPStore.quotes.list()).filter(e=>inR(evDay(e))); return a.map(e=>({ code:e.code, title:e.title, type:e.eventType,
-      event_date:e.eventDate||"", event_time:e.eventTime||"", stage:e.lifecycleStage, status:e.status, approval:e.approvalStatus, total:e.total||0 })); },
+    async events(){ const a=(await BPStore.quotes.list()).filter(e=>inR(evDay(e))); return perCurrency(a.map(e=>({ code:e.code, title:e.title, type:e.eventType,
+      event_date:e.eventDate||"", event_time:e.eventTime||"", stage:e.lifecycleStage, status:e.status, approval:e.approvalStatus, total:e.total||0 })), a.map(e=>BPStore.quoteCurrency(e)), ["total"], "code"); },
     async inventory(){ const a=await BPStore.inventory.items(true); return a.map(i=>({ name:i.name, category:i.category, priority:i.priority||"",
       total_qty:i.total_qty, unit:i.unit||"", unit_cost:i.unit_cost||"", active:i.active!==false })); },
-    async pl(){ const d=await BPStore.insights.summary(range); return d.margins.events.map(e=>({ code:e.code, event_date:e.date||"",
-      revenue:Math.round(e.revenue||0), profit:Math.round(e.profit||0), margin_pct:e.marginPct!=null?e.marginPct:"" })); },
+    async pl(){ const d=await BPStore.insights.summary(range); return perCurrency(d.margins.events.map(e=>({ code:e.code, event_date:e.date||"",
+      revenue:Math.round(e.revenue||0), profit:Math.round(e.profit||0), margin_pct:e.marginPct!=null?e.marginPct:"" })), d.margins.events.map(e=>e.currency||"INR"), ["revenue","profit"], "code"); },
     async settlements(){ const evs=(await BPStore.quotes.list()).filter(e=>e.status!=="cancelled"&&inR(evDay(e))); builders.skipped=0;
       const rows=await Promise.all(evs.map(async e=>{ try{ const s=await BPStore.settlement.summary(e.id);
-        return { code:e.code, event_date:e.eventDate||"", revenue:Math.round(s.revenue||0), received:Math.round(s.received||0),
+        return { _cur:BPStore.quoteCurrency(e), code:e.code, event_date:e.eventDate||"", revenue:Math.round(s.revenue||0), received:Math.round(s.received||0),
           balance:Math.round(s.balance||0), vendor_outstanding:Math.round(s.vendorOutstanding||0), expenses_paid:Math.round(s.expPaid||0) };
-      }catch{ builders.skipped++; return null; } })); return rows.filter(Boolean); },
+      }catch{ builders.skipped++; return null; } })); const ok=rows.filter(Boolean), curs=ok.map(r=>r._cur); ok.forEach(r=>{ delete r._cur; });
+      return perCurrency(ok, curs, ["revenue","received","balance","vendor_outstanding","expenses_paid"], "code"); },
   };
 
   async function doCSV(kind){ setMsg(); const btns=[...document.querySelectorAll("[data-csv]")]; btns.forEach(b=>b.disabled=true);
@@ -196,12 +209,16 @@
 
   async function printPL(){ setMsg();
     try{ const d=await BPStore.insights.summary(range); const evs=d.margins.events;
-      const tot=evs.reduce((a,e)=>({rev:a.rev+(e.revenue||0),pr:a.pr+(e.profit||0)}),{rev:0,pr:0});
+      // 0094: totals per currency (one row each); one currency = the old single Total row
+      const groups=BPStore.sumByCurrency(evs,e=>e.revenue||0,e=>e.currency||"INR").map(g=>({currency:g.currency,
+        rev:g.total, pr:evs.filter(e=>(e.currency||"INR")===g.currency).reduce((a,e)=>a+(e.profit||0),0)}));
+      const multi=groups.length>1, mf=(n,e)=>multi?curM(n,e.currency):inr(n);
+      const foot=multi?groups:[{currency:null,rev:evs.reduce((a,e)=>a+(e.revenue||0),0),pr:evs.reduce((a,e)=>a+(e.profit||0),0)}];
       $("#printArea").innerHTML=`<h1>Profit &amp; Loss — closed events</h1>
         <div class="meta">Helm Events · ${esc(range?range.label:"all time")} · generated ${esc(today())} · ${evs.length} event(s)</div>
         <table><thead><tr><th>Event</th><th>Date</th><th class="n">Revenue</th><th class="n">Profit</th><th class="n">Margin</th></tr></thead>
-        <tbody>${evs.map(e=>`<tr><td>${esc(e.code)}</td><td>${esc(e.date||"")}</td><td class="n">${inr(e.revenue)}</td><td class="n">${inr(e.profit)}</td><td class="n">${e.marginPct!=null?esc(e.marginPct)+"%":"—"}</td></tr>`).join("")||'<tr><td colspan="5">No closed events.</td></tr>'}</tbody>
-        <tfoot><tr><td colspan="2">Total</td><td class="n">${inr(tot.rev)}</td><td class="n">${inr(tot.pr)}</td><td class="n">${tot.rev?Math.round(tot.pr/tot.rev*100)+"%":"—"}</td></tr></tfoot></table>`;
+        <tbody>${evs.map(e=>`<tr><td>${esc(e.code)}</td><td>${esc(e.date||"")}</td><td class="n">${esc(mf(e.revenue,e))}</td><td class="n">${esc(mf(e.profit,e))}</td><td class="n">${e.marginPct!=null?esc(e.marginPct)+"%":"—"}</td></tr>`).join("")||'<tr><td colspan="5">No closed events.</td></tr>'}</tbody>
+        <tfoot>${foot.map(t=>`<tr><td colspan="2">${esc(multi?"Total "+t.currency:"Total")}</td><td class="n">${esc(multi?curM(t.rev,t.currency):inr(t.rev))}</td><td class="n">${esc(multi?curM(t.pr,t.currency):inr(t.pr))}</td><td class="n">${t.rev?Math.round(t.pr/t.rev*100)+"%":"—"}</td></tr>`).join("")}</tfoot></table>`;
       window.print();
     }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"build the report"})); } }
 

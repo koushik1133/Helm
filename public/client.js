@@ -30,6 +30,14 @@
     if ((typeof window!=="undefined"&&window.BPStore&&window.BPStore.studioTax&&window.BPStore.studioTax().country!=="IN")) return window.BPStore.studioMoney(v);   // 0089
     try { return "₹" + v.toLocaleString("en-IN", { maximumFractionDigits: 2 }); } catch (e) { return "₹" + v.toFixed(2); }
   }
+  // [{currency, quoted, paid, due}] -> "₹1,00,000 · AED 80,000" for one field (studio currency first)
+  function moneyByCurrency(list, key) {
+    const B = typeof window !== "undefined" && window.BPStore;
+    const rows = (Array.isArray(list) ? list : []).filter((x) => x && x[key] != null);
+    if (!rows.length) return "—";
+    if (!B || !B.sumByCurrency) return rows.map((x) => String(x.currency || "INR") + " " + Number(x[key]).toLocaleString("en-US")).join(" · ");
+    return B.formatByCurrency(B.sumByCurrency(rows, (x) => x[key], (x) => x.currency));
+  }
   function when(t) {
     if (!t) return "";
     const d = new Date(t);
@@ -82,10 +90,13 @@
     const t = m.totals;
     $("#c_totals").hidden = !t;
     if (t) {
-      $("#t_quoted").textContent = t.quoted != null ? money(t.quoted) : "—";
-      $("#t_paid").textContent = t.paid != null ? money(t.paid) : "—";
-      const due = $("#t_due"); due.textContent = t.due != null ? money(t.due) : "—";
-      due.classList.toggle("due", Number(t.due) > 0);
+      // 0094: a client with events in 2+ currencies sees one figure per currency (never added up)
+      const bc = Array.isArray(t.by_currency) && t.by_currency.length > 1 ? t.by_currency : null;
+      const f = (k) => bc ? moneyByCurrency(bc, k) : (t[k] != null ? money(t[k]) : "—");
+      $("#t_quoted").textContent = f("quoted");
+      $("#t_paid").textContent = f("paid");
+      const due = $("#t_due"); due.textContent = f("due");
+      due.classList.toggle("due", bc ? bc.some((x) => Number(x.due) > 0) : Number(t.due) > 0);
     }
   }
   function renderFilters(m) {
@@ -174,6 +185,6 @@
     wireBooklet(model, id).catch(() => {});
   }
 
-  global.HelmClient360 = { bookletQuote, safeLink, money, when, initials, normalize, filterItems, KINDS };
+  global.HelmClient360 = { bookletQuote, safeLink, money, moneyByCurrency, when, initials, normalize, filterItems, KINDS };
   if (doc && global.BPUI && typeof global.BPUI.boot === "function" && doc.getElementById("timeline")) global.BPUI.boot(start);
 })(typeof window !== "undefined" ? window : globalThis);

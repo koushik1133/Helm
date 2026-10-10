@@ -6810,7 +6810,7 @@ window.HelmUrl = HelmUrl;
       // margin trends across closed events
       const closed = events.filter((e) => e.lifecycleStage === "closed" && (!r || inRange(evDate(e), r)));
       const pls = await Promise.all(closed.map((e) => closure.pl(e.id)
-        .then((pl) => ({ code: e.code, date: e.eventDate, profit: pl.profit, marginPct: pl.marginPct, revenue: pl.revenue })).catch(() => null)));
+        .then((pl) => ({ code: e.code, date: e.eventDate, profit: pl.profit, marginPct: pl.marginPct, revenue: pl.revenue, currency: BPStore.quoteCurrency(e) })).catch(() => null)));
       const mlist = pls.filter(Boolean).sort((a, b) => (a.date || "").localeCompare(b.date || ""));
       const totalProfit = mlist.reduce((a, x) => a + (x.profit || 0), 0);
       // R4: a closed event with no revenue recorded has no margin - keep it out of the chart
@@ -6819,7 +6819,14 @@ window.HelmUrl = HelmUrl;
       const withRevenue = mlist.filter((x) => Number(x.revenue) > 0);
       const noRevenue = mlist.filter((x) => !(Number(x.revenue) > 0));
       const avgMargin = withRevenue.length ? Math.round(withRevenue.reduce((a, x) => a + (x.marginPct || 0), 0) / withRevenue.length) : null;
-      return { vendors, taskSlips, losses, margins: { events: mlist, withRevenue, noRevenue, totalProfit, avgMargin } };
+      // 0094: profit and the average margin per currency (never ₹ + AED added together)
+      const byCurrency = BPStore.sumByCurrency(mlist, (x) => x.profit || 0, (x) => x.currency).map((g) => {
+        const w = withRevenue.filter((x) => x.currency === g.currency);
+        return { currency: g.currency, events: g.count, totalProfit: g.total,
+          revenue: Math.round(mlist.filter((x) => x.currency === g.currency).reduce((a, x) => a + (Number(x.revenue) || 0), 0) * 100) / 100,
+          avgMargin: w.length ? Math.round(w.reduce((a, x) => a + (x.marginPct || 0), 0) / w.length) : null };
+      });
+      return { vendors, taskSlips, losses, margins: { events: mlist, withRevenue, noRevenue, totalProfit, avgMargin, byCurrency } };
     },
   };
 
@@ -8966,6 +8973,47 @@ window.HelmUrl = HelmUrl;
     var r = BPStore.studioTax(), x = Number(n || 0); if (opts && opts.round) x = Math.round(x);
     if (r.country === "IN") return "\u20b9" + x.toLocaleString("en-IN");
     return BPStore.tax.money(x, r);
+  };
+  // ---- 0094: money across MANY quotes is totalled PER CURRENCY (never ₹ + AED together) ----
+  // A quote's currency = quotes.currency (stamped by 0089, backfilled by 0091), else its own
+  // pricing/tax snapshot (quoteTax), else INR. No FX conversion anywhere.
+  BPStore.quoteCurrency = function (q) {
+    var c = q && typeof q === "object" && typeof q.currency === "string" ? q.currency.trim().toUpperCase() : "";
+    if (/^[A-Z]{3}$/.test(c)) return c;
+    var r = BPStore.quoteTax(q); return (r && r.currency) || "INR";
+  };
+  BPStore.studioCurrency = function () {
+    var r = null; try { r = BPStore.studioTax(); } catch (e) {}
+    return (r && r.currency) || "INR";
+  };
+  // n in a given currency; the studio's own currency formats exactly like studioMoney
+  BPStore.moneyIn = function (n, cur, opts) {
+    cur = String(cur || "").trim().toUpperCase() || "INR";
+    var x = Number(n || 0); if (!isFinite(x)) x = 0; if (opts && opts.round) x = Math.round(x);
+    if (cur === BPStore.studioCurrency()) return BPStore.studioMoney(x);
+    if (cur === "INR") return "₹" + x.toLocaleString("en-IN");
+    var cc = { AED: "AE", USD: "US", GBP: "GB", SGD: "SG", AUD: "AU", CAD: "CA" }[cur];
+    if (cc) return BPStore.tax.money(x, BPStore.tax.resolve({ taxCountry: cc }));
+    return (x < 0 ? "− " : "") + cur + " " + Math.abs(x).toLocaleString("en-US");
+  };
+  // rows -> [{currency, symbol, total, count}], studio currency first, then most rows, then A-Z.
+  // amountFn(row) -> number (null/NaN rows are counted but add 0); curFn defaults to quoteCurrency.
+  BPStore.sumByCurrency = function (rows, amountFn, curFn) {
+    var by = {}, list = [], home = BPStore.studioCurrency();
+    (Array.isArray(rows) ? rows : []).forEach(function (r) {
+      var c = String((curFn ? curFn(r) : BPStore.quoteCurrency(r)) || "INR").trim().toUpperCase() || "INR";
+      var v = Number(amountFn ? amountFn(r) : 0);
+      if (!by[c]) { by[c] = { currency: c, symbol: c === "INR" ? "₹" : c === "USD" ? "$" : c + " ", total: 0, count: 0 }; list.push(by[c]); }
+      by[c].count++; if (isFinite(v)) by[c].total += v;
+    });
+    list.forEach(function (g) { g.total = Math.round(g.total * 100) / 100; });
+    return list.sort(function (a, b) { return (b.currency === home) - (a.currency === home) || b.count - a.count || (a.currency < b.currency ? -1 : a.currency > b.currency ? 1 : 0); });
+  };
+  // [{currency,total}] -> "₹12,66,494 · AED 615,300" (one currency = exactly one number)
+  BPStore.formatByCurrency = function (groups, opts) {
+    var g = Array.isArray(groups) ? groups.filter(Boolean) : [];
+    if (!g.length) return BPStore.moneyIn(0, BPStore.studioCurrency(), opts);
+    return g.map(function (x) { return BPStore.moneyIn(x.total, x.currency, opts); }).join(" · ");
   };
   // ---- 0092: a client's WhatsApp number for wa.me links (digits, full E.164 without "+") ----
   // A number with "+" / "00" keeps its own country code; one typed without a code gets the
