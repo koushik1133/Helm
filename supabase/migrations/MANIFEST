@@ -137,3 +137,5 @@ forward  supabase/migrations/0098_public_paid_status.sql
 forward  supabase/migrations/0095_photo_render.sql
 # 0096 (studio's own floor-layout templates: studio_layout_templates table, RLS by studio + "layouts"/"controls" view, never hard-deleted (archive), save / archive / set-default (one per event type) / duplicate RPCs gated by layouts OR controls edit) goes after 0094 (needs 0045, 0085-era has_area).
 forward  supabase/migrations/0096_studio_layout_templates.sql
+# 0097 (trial demo data: organizations.trial_mode, is_demo flags + app-proof guard, seed/clear/reset_demo_data admin RPCs touching ONLY the caller studio's is_demo rows, demo events/contacts never messaged or charged; additive, fill-only) goes after 0094 (needs 0052, 0056, 0058, 0085, 0093).
+forward  supabase/migrations/0097_trial_demo.sql

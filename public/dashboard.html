@@ -218,6 +218,7 @@
   </section>
 
   <section id="obNudge" class="ob-nudge" hidden aria-label="Studio setup"></section>
+  <section id="tdCard" data-td-auto hidden aria-label="Demo data"></section>
   <section id="gsCard" class="gs" data-gs-auto hidden aria-label="Getting started"></section>
 
   <section class="hero">
@@ -326,6 +327,7 @@
 <script src="tour.js?v=9"></script>
 <script src="getting-started.js?v=4"></script>
 <script src="onboarding-wizard.js?v=4"></script>
+<script src="trial-demo.js?v=1"></script>
 <script>
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return BPStore.fmtDateTime(iso) || "—"; } catch { return "—"; } };

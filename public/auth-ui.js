@@ -1100,6 +1100,7 @@
     user: [["circle", { cx: "12", cy: "8", r: "3.5" }], ["path", { d: "M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" }]],
     lock: [["rect", { x: "5", y: "11", width: "14", height: "9", rx: "2" }], ["path", { d: "M8 11V8a4 4 0 018 0v3" }]],
     clock: [["circle", { cx: "12", cy: "12", r: "8.5" }], ["path", { d: "M12 7.5V12l3 2" }]],
+    info: [["circle", { cx: "12", cy: "12", r: "8.5" }], ["path", { d: "M12 11v5M12 8h.01" }]],
     x: [["path", { d: "M6 6l12 12M18 6L6 18" }]]
   };
   var notes = []; var noteHost = null; var NOTE_MAX = 2;
@@ -1560,7 +1561,10 @@
   function trialStatus() {
     var st = S(); if (!st || !st.auth.user() || !st.subscription || !st.subscription.trial) return;
     if (pageName() === "checkout") return;
-    st.subscription.trial().then(function (t) {
+    var demoQ = st.demo && st.demo.status ? st.demo.status().catch(function () { return null; }) : Promise.resolve(null);
+    Promise.all([st.subscription.trial(), demoQ]).then(function (both) {
+      var t = both[0], d = both[1];
+      demoStatus(t, d);
       var spec = trialNotice(t);
       if (!spec || trialShown || !doc.body) return;
       var key = "trial_" + String(t.ends_at || "") + (spec.urgent ? "_u" : "");
@@ -1569,8 +1573,40 @@
       showNote({ id: spec.id, priority: spec.urgent ? 1 : 4, icon: "clock", tone: spec.tone, role: spec.urgent ? "alert" : "status", compact: true,
         title: spec.title, body: spec.dismissible ? "" : spec.body,
         primary: { label: "Choose a plan", onClick: function () { try { location.assign("checkout.html?next=" + encodeURIComponent(pageName() + ".html")); } catch (e) {} } },
+        secondary: d && d.trial_mode === "demo" && d.has_demo && d.is_admin ? { label: "Set up your studio", onClick: goDemoSwitch } : null,
         onDismiss: spec.dismissible ? function () { snoozeNote(key, 1); try { sessionStorage.setItem("helm_trial_dismissed_" + key, "1"); } catch (e) {} } : null, dismissLabel: "Dismiss — remind me tomorrow" });
     }).catch(function () {});
+  }
+
+  /* ------------------------------- demo data banner (0097) */
+  // Pure (unit-tested): my_demo_status() + my_trial_status() → banner spec, or null.
+  //   demo mode with demo rows → "You're exploring demo data" (dismissible for this session);
+  //   once the studio has converted (no trial any more) → "set up your studio" prompt.
+  //   Only admins get the action button; everyone in a demo studio sees the banner.
+  function demoNotice(d, t) {
+    if (!d || typeof d !== "object" || d.trial_mode !== "demo" || d.has_demo !== true) return null;
+    var converted = !!(t && typeof t === "object" && t.state === "none");
+    return { id: "hauDemoNote", tone: "", converted: converted,
+      title: converted ? "Your plan is active — your studio still shows demo data" : "You're exploring demo data",
+      body: converted ? "Set up your studio with your own clients, menu and team." : "Everything marked \u201cDemo \u00b7\u201d is sample data. No messages or payments go out for it.",
+      action: d.is_admin === true ? (converted ? "Set up your studio \u2192" : "Start onboarding with your data \u2192") : null };
+  }
+  function goDemoSwitch() {
+    try {
+      if (pageName() === "dashboard" && global.HelmTrialDemo && global.HelmTrialDemo.openSwitch) { global.HelmTrialDemo.openSwitch(); return; }
+      location.assign("dashboard.html?demo=switch");
+    } catch (e) {}
+  }
+  var demoShown = false;
+  function demoStatus(t, d) {
+    var spec = demoNotice(d, t);
+    if (!spec || demoShown || !doc.body || pageName() === "checkout") return;
+    var key = "helm_demo_dismissed_" + (spec.converted ? "c" : "d");
+    try { if (sessionStorage.getItem(key) === "1") return; } catch (e) {}
+    demoShown = true;
+    showNote({ id: spec.id, priority: 3, icon: "info", tone: spec.tone, role: "status", compact: true, title: spec.title, body: spec.body,
+      primary: spec.action ? { label: spec.action, onClick: goDemoSwitch } : null,
+      onDismiss: function () { try { sessionStorage.setItem(key, "1"); } catch (e) {} }, dismissLabel: "Hide for this session" });
   }
 
   var chromeMounted = false;
@@ -1602,6 +1638,7 @@
     showNote: showNote,
     hideNote: hideNote,
     trialNotice: trialNotice,
+    demoNotice: demoNotice,
     _safeQr: safeQr,
   };
 })(window);

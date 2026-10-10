@@ -241,6 +241,7 @@
       <p class="mnote">Used on your Helm invoices (GST place of supply) and for Helm to reach you. Contact phone numbers are visible only to studio admins and Helm.</p>
       <div id="accBody"></div>
     </div>
+    <div class="card" id="tdControl" data-td-control hidden aria-label="Demo data"></div>
     <div class="card" id="subCard" hidden>
       <h3>Subscription</h3>
       <div id="subBody"></div>
@@ -742,6 +743,7 @@
 <script src="studio-templates-core.js?v=1"></script>
 <script src="studio-templates.js?v=1"></script>
 <script src="item-pricing.js?v=1"></script>
+<script src="trial-demo.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
