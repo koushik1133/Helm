@@ -2090,10 +2090,18 @@ const EVENT_DEFAULT_REQUIRED = {
 };
 const EVENT_DEFAULT_NAME = { wedding:'Standard wedding setup', political:'Standard rally setup', corporate:'Standard corporate / launch setup', concert:'Standard concert setup' };
 function eventFamily(type){ const k=String(type||'').toLowerCase().trim(); return EVENT_FAMILY[k] || EVENT_FAMILY[k.replace(/\s+/g,'_')] || null; }
-// raw (pre-collision) item set for a family in the current hall; seating targets N (guests)
+// V-spread: the zones are laid out against the WHOLE hall — stage centred on the front wall, a seating
+// zone from just past the stage/walkway/standing area to ~12% short of the back wall (full width minus
+// side aisles), seats at comfortable spacing CENTRED in that zone (never stretched), a centre aisle on
+// the walkway line, exits at the back corners (+ a side emergency exit in long halls), generator /
+// registration tucked in a back corner beside an exit, wedding buffet + photo booth on the side walls.
 function eventDefaultItems(fam, o){
   o=o||{}; const it=[], W=WORLD.w, H=WORLD.h, cx=W/2, N=o.guests!=null?o.guests:0;
   const sc=(v,lo,hi)=>Math.round(clamp(v,lo,hi)*2)/2;
+  // place an item so its DRAWN rect (after rotation) starts at rx,ry
+  const put=(t, rx, ry, ov)=>{ ov=ov||{}; const a=ASSETS[t], w=ov.width!=null?ov.width:a.w, h=ov.height!=null?ov.height:a.h, rot=ov.rotation||0;
+    const q=(((rot%180)+180)%180), sw=(q>45&&q<135)?h:w, sh=(q>45&&q<135)?w:h;
+    const m=makeItem(t, rx+sw/2-w/2, ry+sh/2-h/2, ov); it.push(m); return m; };
   const sw=sc(W*0.3,12,60), sh=sc(H*0.14,6,20);
   const ledW=sc(W*0.1,6,20), brand=fam==='political'||fam==='corporate';
   let y=1;
@@ -2124,21 +2132,58 @@ function eventDefaultItems(fam, o){
   if(fam==='wedding'){
     it.push(makeItem('dj', cx+sw/2+3, sy+1, {label:'DJ'}));
     it.push(makeItem('chandelier', cx-sw/2-7, sy+1, {label:'Chandelier'}));
+    // dance floor between the stage and the tables, sized to the crowd
+    const df=Math.round(clamp(Math.sqrt(Math.max(1,N||80)*2.5), 12, 24)), ds=Math.max(8, Math.min(df, Math.round(W*0.3), Math.round((H-top)*0.3)));
+    it.push(makeItem('dancefloor', cx-ds/2, top, {width:ds, height:ds, label:'Dance Floor'})); top+=ds+2;
   }
-  // bottom band: support / service pieces along the back wall, clear of the corner exits
-  const by=H-6, back=[];
-  if(fam==='wedding'){ back.push(['buffet','Buffet'],['photobooth','Photo Booth']); }
-  if(fam==='corporate'){ back.push(['desk','Registration']); }
-  if(fam==='political'||fam==='concert'){ back.push(['generator','Generator']); }
-  let bx=22; back.forEach(([t,l])=>{ const a=ASSETS[t]; it.push(makeItem(t, bx, by-a.h, {label:l})); bx+=a.w+4; });
-  if(fam==='wedding'){ const rl=sc(H*0.2,6,30); it.push(makeItem('redcarpet', cx-2, H-rl-1, {width:4, height:rl, label:'Aisle Carpet'})); }
-  it.push(makeItem('exit', 1, H-7, {label:'Exit'})); it.push(makeItem('exit', W-13, H-7, {label:'Exit'}));
-  // seating — wedding: rounds around a dance floor; the rest: theatre rows facing the stage
-  const so={ guests:N||null, bars:0, buffet:fam==='wedding', exits:2, aisle:8 };
-  if(fam==='wedding'){ seatBanquetRounds(it, {...so, guests:N||80, spt:8}, top+2);
-    if(!it.some(i=>i.type==='dancefloor')) it.push(makeItem('dancefloor', cx-6, top+2, {width:12, height:12, label:'Dance Floor'}));
+  // back wall: exits in both back corners; long halls also get a side emergency exit
+  const ex=ASSETS.exit;
+  put('exit', 1, H-ex.h-1, {label:'Exit'}); put('exit', W-ex.w-1, H-ex.h-1, {label:'Exit'});
+  const sideExit=H>150;
+  if(sideExit) put('exit', 1, Math.round(H*0.55), {rotation:90, label:'Emergency Exit'});
+  // back corner service pieces beside the exits (outside the seating zone)
+  if(fam==='political'||fam==='concert'){ const g=ASSETS.generator; put('generator', ex.w+3, H-g.h-1, {label:'Generator'}); }
+  if(fam==='corporate'){ const d=ASSETS.desk; put('desk', W-ex.w-3-d.w, H-d.h-1, {label:'Registration'}); }
+  // wedding services on the side walls (buffet right, photo booth left), aisle carpet from the back entrance
+  const sideM=fam==='wedding' ? 9 : (sideExit?10:8);
+  const back=Math.max(9, Math.round(H*0.12));
+  const zTop=top+2, zBot=Math.max(zTop+6, H-back), zH=zBot-zTop;
+  if(fam==='wedding'){
+    const b=ASSETS.buffet; put('buffet', W-b.h-2, clamp(zTop, 2, Math.max(2,H-back-b.w)), {rotation:90, label:'Buffet'});
+    const pb=ASSETS.photobooth; put('photobooth', 2, clamp(zTop, 2, Math.max(2,H-ex.h-3-pb.h)), {label:'Photo Booth'});
+    put('redcarpet', cx-2, zTop, {width:4, height:Math.max(4,H-1-zTop), label:'Aisle Carpet'});
   }
-  else seatTheatre(it, so, top+2);
+  const aisle=8, sideW=(W-2*sideM-aisle)/2;          // one side of the centre aisle
+  if(fam==='wedding'){
+    const T=ASSETS.table.w, spt=8, want=Math.ceil((N||80)/spt), half=Math.ceil(want/2);
+    const taken=it.filter(i=>!GEN_OVERLAY.has(i.type)).map(genRect);
+    let cells=[];
+    for(const [pitch, zb] of [[10, zBot], [8, zBot], [8, H-2]]){   // tiny halls: use the floor between the back exits too
+      const zH=zb-zTop, maxC=Math.max(1, Math.floor((sideW-T)/pitch)+1), maxR=Math.max(1, Math.floor((zH-T)/pitch)+1);
+      let cols=clamp(Math.ceil(Math.sqrt(half*sideW/Math.max(1,zH))), 1, maxC), rows=Math.ceil(half/cols);
+      if(rows>maxR){ cols=maxC; rows=Math.min(maxR, Math.ceil(half/cols)); }
+      const bh=(rows-1)*pitch+T, y0=zTop+Math.max(0,(zH-bh)/2), out=[];
+      for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) for(const s of [-1,1]){
+        const x = s<0 ? cx-aisle/2-T-c*pitch : cx+aisle/2+c*pitch, rr={x, y:y0+r*pitch, w:T, h:T};
+        if(rr.x<sideM-1e-6 || rr.x+T>W-sideM+1e-6 || rr.y+T>H-2) continue;
+        if(!taken.some(t=>rectsHit(rr,t,1.5))) out.push(rr); }
+      if(out.length>cells.length) cells=out;
+      if(cells.length>=want) break;
+    }
+    const n=Math.min(want, cells.length), even=n===want && n>0, base=even?Math.floor((N||80)/n):0, extra=even?(N||80)%n:0;
+    let left=N||80;
+    cells.slice(0,n).forEach((r,i)=>{ const seats=even ? base+(i<extra?1:0) : Math.min(spt,left); left-=seats;
+      it.push(makeItem('table', r.x, r.y, {properties:{seats},label:'T'+(i+1)})); });
+  } else {
+    // theatre: two blocks either side of the centre aisle, 2.4 ft seats, 3 ft rows when the zone allows
+    const P=DESIGN_PITCH, maxC=Math.max(4, Math.floor(sideW/P));
+    const half=Math.ceil((N>0?N:Math.round(2*maxC*Math.floor(zH/3)*0.7))/2);
+    let cols=clamp(Math.ceil(Math.sqrt(half*(sideW/Math.max(1,zH))*(3/P))), 4, maxC), rows=Math.ceil(half/cols), rp=3;
+    if(rows*rp>zH){ cols=maxC; rows=Math.ceil(half/cols); if(rows*3>zH){ rp=P; rows=Math.max(1, Math.min(rows, Math.floor(zH/P))); } }
+    const bw=cols*P, bh=rows*rp, by=Math.max(zTop, Math.min(zBot-bh, (zTop+H)/2-bh/2));   // centred on the floor behind the front zone, clear of the back band
+    it.push(makeItem('seatblock', cx-aisle/2-bw, by, {width:bw,height:bh,properties:{rows,cols},label:'Left Seating'}));
+    it.push(makeItem('seatblock', cx+aisle/2, by, {width:bw,height:bh,properties:{rows,cols},label:'Right Seating'}));
+  }
   return it;
 }
 // the finished default: clamp → no overlaps → exactly N seats; required pieces re-checked by the tests
