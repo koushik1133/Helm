@@ -102,7 +102,7 @@
 <script src="/telemetry.js?v=3"></script>
 <script src="/config.js?v=98"></script>
 <script src="/event-name.js?v=3"></script>
-<script src="/country-profile.js?v=3"></script><script src="/store-api.js?v=167"></script>
+<script src="/country-profile.js?v=3"></script><script src="/store-api.js?v=168"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -125,7 +125,7 @@
       $("#loadErr").hidden=false; BPUI.loadError($("#loadErr"), e, load, {what:"your event"}); return; }
     $("#loading").hidden=true;
     if(!d){ $("#bad").hidden=false; return; }
-    $("#app").hidden=false; render(d);
+    $("#app").hidden=false; render(d); ledgerPaid();
   }
   function render(d){
     const e=d.event||{};
@@ -139,7 +139,7 @@
     $("#when").textContent=[e.event_type, fmtWhen(e.event_date,e.event_time)].filter(Boolean).join(" · ")||"Date to be confirmed";
     // badges
     const ap=d.approval_status;
-    const apBadge = ap==="paid"?'<span class="stat ok">Paid</span>':ap==="approved"?'<span class="stat ok">Approved</span>':ap==="sent"?'<span class="stat st">Awaiting your approval</span>':"";
+    const apBadge = ap==="paid"?'<span class="stat ok" id="paidBadge">Payment received</span>':ap==="approved"?'<span class="stat ok">Approved</span>':ap==="sent"?'<span class="stat st">Awaiting your approval</span>':"";
     $("#badges").innerHTML=`<span class="stat ${e.status==='confirmed'?'ok':'q'}">${esc(e.status||"")}</span>${apBadge}`;
     // approval CTA when pending
     if(ap==="sent"||ap==="none"||!ap){ const c=$("#approveCta"); c.hidden=false; c.href=LINK?("/"+LINK.studio+"/quote/"+encodeURIComponent(token)):("/approve.html?token="+encodeURIComponent(token)); }
@@ -155,7 +155,7 @@
     // payments
     $("#total").textContent=inr(d.total);
     const ms=(d.payment&&d.payment.milestones)||[];
-    $("#milestones").innerHTML = ms.length ? ms.map(m=>`<div class="prow"><span class="g">${esc(m.label)}${m.due_date?`<div class="due">due ${esc(m.due_date)}</div>`:""}</span>
+    $("#milestones").innerHTML = ms.length ? ms.map(m=>`<div class="prow"><span class="g">${esc(m.label)}${m.due_date?`<div class="due">due ${esc(BPStore.fmtDateIN(m.due_date))}</div>`:""}</span>
       <span class="amt">${inr(m.amount)}</span><span class="paybadge ${esc(m.status)}">${esc(m.status)}</span></div>`).join("")
       : '<div class="empty">No payment schedule yet — your planner will share one.</div>';
     const out=(d.payment&&d.payment.outstanding)||0;
@@ -167,6 +167,14 @@
       $("#gallery").innerHTML=g.filter(m=>isUrl(m.url)).map(m=> m.kind==="video"
         ? `<a href="${isUrl(m.url)?esc(m.url):"#"}" target="_blank" rel="noopener noreferrer" class="chip" style="height:120px;display:flex;align-items:center;justify-content:center"><span aria-hidden="true">▶</span>&nbsp;${esc(m.caption||"Video")}</a>`
         : `<img src="${isUrl(m.url)?esc(m.url):""}" alt="${esc(m.caption||("Event photo "+(++n)))}" loading="lazy" decoding="async">`).join(""); }
+  }
+  // 0098: "paid" status only means SOME money is in - the ledger says advance vs paid in full
+  async function ledgerPaid(){
+    let st=null; try{ st=await BPStore.approval.paidStatus(token); }catch(e){}
+    const ps=BPStore.paidState(st); if(!ps) return;
+    const b=$("#paidBadge"); if(b) b.textContent=ps.full?"Paid in full":"Advance received";
+    $("#outstanding").innerHTML = ps.full ? '<b style="color:var(--safe-text,#0f7a43)">Paid in full ✓</b>'
+      : `Received ${inr(ps.paid)}${ps.receipt?" (receipt "+esc(ps.receipt)+")":""} · Balance due: <b style="color:var(--warn-text,#8f5f00)">${inr(ps.balance)}</b>${ps.balanceDue?" by "+esc(BPStore.fmtDateIN(ps.balanceDue)):""}`;
   }
   BPUI.boot(load);
 </script>

@@ -152,7 +152,7 @@ t('edge: payment receipt e-mail uses the quote currency (₹ only for INR)', () 
   assert.equal(edge.quoteCur({ currency: 'AED' }), 'AED'); assert.equal(edge.quoteCur({ tax_snapshot: { currency: 'USD' } }), 'USD'); assert.equal(edge.quoteCur({}), 'INR');
   const w = read('supabase/functions/razorpay-webhook/index.ts');
   assert.ok(!w.includes('"₹" + Number(q.pricing'), 'no hardcoded ₹ in the receipt');
-  assert.match(w, /symMoney\(q\.pricing\?\.total \|\| 0, quoteCur\(q\)\)/); assert.match(w, /org_id, currency, tax_snapshot"\)/);
+  assert.match(w, /symMoney\(grand, quoteCur\(q\)\)/); assert.match(w, /org_id, currency, tax_snapshot"\)/);
 });
 t('edge: Razorpay payment links INR only; AED / USD refused before reserving', () => {
   assert.equal(edge.razorpaySupports('INR'), true); assert.equal(edge.razorpaySupports('AED'), false); assert.equal(edge.razorpaySupports('USD'), false);

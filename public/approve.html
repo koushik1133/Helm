@@ -120,8 +120,8 @@
       </div>
 
       <div id="stepPaid" hidden>
-        <div class="done"><div class="big" aria-hidden="true">🎉</div><h2>Payment received</h2>
-          <p class="muted">Your event is confirmed. A receipt has been sent to you and your manager.</p></div>
+        <div class="done"><div class="big" aria-hidden="true" id="paidIcon">🎉</div><h2 id="paidTitle">Payment received</h2>
+          <p class="muted" id="paidNote">Your event is confirmed. A receipt has been sent to you and your manager.</p></div>
       </div>
     </div>
   </div>
@@ -136,7 +136,7 @@
 <script src="/config.js?v=98"></script>
 <script src="/phone-input.js?v=1"></script>
 <script src="/event-name.js?v=3"></script>
-<script src="/country-profile.js?v=3"></script><script src="/store-api.js?v=167"></script>
+<script src="/country-profile.js?v=3"></script><script src="/store-api.js?v=168"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -234,7 +234,7 @@
   function recordedNote(src){
     const ts=src && (src.approved_at || src.consented_at || src.recorded_at || src.consent_at);
     const d=ts ? new Date(ts) : null;
-    return (d && !isNaN(d)) ? "Recorded on "+d.toLocaleString() : "Recorded";
+    return (d && !isNaN(d)) ? "Recorded on "+BPStore.fmtDateTime(d) : "Recorded";
   }
   const isBadLink=(e)=>BPUI.isNotFound(e) || /invalid link|expired/i.test((e&&e.message)||"") || (e&&e.code)==="22P02";
 
@@ -266,8 +266,18 @@
     if(quote.client_name) $("#c_name").value=quote.client_name;
     // resume state
     if(quote.reapproval_required===true){ $("#approvedNote").textContent=""; setMsg("dev", "The price changed after your earlier approval — please review the updated total and approve again."); }
-    else if(quote.approval_status==='paid'){ showStep('stepPaid'); }
+    else if(quote.approval_status==='paid'){ showStep('stepPaid'); await showPaid(); }
     else if(quote.approval_status==='approved'){ showStep('step3'); $("#approvedNote").textContent=recordedNote(quote); }
+  }
+  // 0098: "paid" only means SOME money is in - say advance vs paid-in-full from the payments ledger
+  async function showPaid(){
+    let st=null; try{ st=await BPStore.approval.paidStatus(token); }catch(e){}
+    const ps=BPStore.paidState(st, quote && quote.pricing && quote.pricing.total);
+    if(!ps){ $("#paidTitle").textContent="Payment recorded"; $("#paidNote").textContent="Your payment has been recorded and a receipt has been sent to you. Your planner will confirm any balance due."; return; }
+    const rc=ps.receipt?" (receipt "+ps.receipt+")":"";
+    if(ps.full){ $("#paidTitle").textContent="Paid in full"; $("#paidNote").textContent="We have received "+inr(ps.paid)+rc+". Your event is confirmed and fully paid."; return; }
+    $("#paidIcon").textContent="✅"; $("#paidTitle").textContent="Advance received";
+    $("#paidNote").textContent="Advance of "+inr(ps.paid)+" received"+rc+". Your booking is confirmed. Balance "+inr(ps.balance)+" due"+(ps.balanceDue?" by "+BPStore.fmtDateIN(ps.balanceDue):" before the event")+".";
   }
   function showStep(id){ ['step1','step2','step3','step4','stepPaid'].forEach(s=>$('#'+s).hidden=(s!==id)); }
 

@@ -348,7 +348,7 @@
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=167"></script>
+<script src="country-profile.js?v=3"></script><script src="store-api.js?v=168"></script>
 <script src="tour.js?v=9"></script>
 <script src="booklet.js?v=14"></script>
 <script src="share-checklist.js?v=9"></script>
@@ -463,6 +463,13 @@
     else { appliedCoupon=null; if(msg){ msg.style.color="var(--warn-text,#8f5f00)"; msg.textContent="No such coupon code."; } }
     renderPrice();
   }
+  // India audit: GST place of supply - keep what the quote already says (staff may set IGST on the
+  // Quotes page); else studio billing state vs client state (inter-state -> IGST); else intra
+  let flowStudioState="";
+  function flowPos(){
+    const kp=ev&&ev.pricing&&ev.pricing.placeOfSupply; if(kp==="inter"||kp==="intra") return kp;
+    return BPStore.tax.placeOfSupply(flowStudioState, ev&&ev.client&&ev.client.state)||"intra";
+  }
   function currentInputs(){
     const oi = BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
     const chairs = nn($("#q_chairs").value!==""?(+$("#q_chairs").value||0):(autoChairs()||0));   // R8b: the quote's chairs, never the layout's
@@ -476,7 +483,7 @@
       other, gstPct, serviceChargePct:+rates.serviceChargePct||0,
       discount:nn($("#q_discount").value||0), catering:{mode:"inhouse",gstPct},
       couponCode:($("#q_coupon")?$("#q_coupon").value.trim():""), coupon:appliedCoupon,
-      placeOfSupply:"intra", currency:"INR", taxCountry:undefined, taxName:undefined, taxInclusive:undefined, taxRegion:undefined, ...BPStore.tax.snapshot(fTax()),   // R4: undefined clears a stale snapshot key on re-save
+      placeOfSupply:flowPos(), currency:"INR", taxCountry:undefined, taxName:undefined, taxInclusive:undefined, taxRegion:undefined, ...BPStore.tax.snapshot(fTax()),   // R4: undefined clears a stale snapshot key on re-save
       taxExempt: exemptOn() ? true : undefined,
       chairsManual,
       // R9: remember the auto Décor / setup value beside `other` so every screen can tell a hand edit apart
@@ -1280,6 +1287,7 @@
       $("#gate").hidden=false; BPUI.loadError($("#gate"), e, openQuote, {what:"this quote"}); return;
     }
     if(!ev){ showNotFound(); return; }
+    try{ const o=await BPStore.org.current(); const bl=o&&o.brand&&o.brand.billing; flowStudioState=(bl&&typeof bl.state==="string")?bl.state:""; }catch{}
     try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[ev.code,ev.title].filter((v,i,a)=>v&&a.indexOf(v)===i).join(" "),kind:"quote",href:"flow.html?quote="+encodeURIComponent(id),recordHref:"event.html?id="+encodeURIComponent(id)}); }catch(e){}
     loading=true;
     await loadAll();

@@ -276,7 +276,7 @@ await t('pages: CSP-clean markup, panels + settings card + scripts wired', () =>
     const h = read(f); const added = h.match(/<(section|div)[^>]*(data-pkg-review|data-pkg-settings|id="packages"|id="pkModal")[^>]*>/g) || [];
     added.forEach((tag) => assert.doesNotMatch(tag, /\sstyle=|\son[a-z]+=/i, f));
   }
-  assert.match(read('public/booklet.html'), /booklet-pkg\.js\?v=3/); assert.match(read('public/booklet.html'), /booklet-pkg\.css\?v=1/);
+  assert.match(read('public/booklet.html'), /booklet-pkg\.js\?v=4/); assert.match(read('public/booklet.html'), /booklet-pkg\.css\?v=1/);
   assert.match(read('public/booklet.html'), /id="pkModal" role="dialog" aria-modal="true"/);
   assert.match(read('public/booklet.html'), /id="pkLive" role="status" aria-live="polite"/);
   assert.match(read('public/event.html'), /id="pkg-selections" class="card" data-pkg-review data-quote-from-url/);

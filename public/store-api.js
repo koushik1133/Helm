@@ -2469,6 +2469,8 @@ window.HelmUrl = HelmUrl;
   const approval = {
     // ---- public (token-scoped; works for anon on the approval page) ----
     getByToken: (token) => rpc("public_get_quote", { p_token: token }).then((r) => { linkOpened("quote", token); return r; }),
+    // 0098: paid vs total from the quote_payments ledger (null when the function is not deployed yet)
+    paidStatus: (token) => mode === "supabase" ? rpc("public_quote_paid_status", { p_token: token }).catch(() => null) : Promise.resolve(null),
     // simulation → RPC (returns dev OTP); live → MSG91 via Edge Function (sends real SMS, no code returned)
     requestOtp: (token, phone) => LIVE.sms ? callFn("send-otp", { token, phone }) : rpc("request_otp", { p_token: token, p_phone: phone }),
     verifyConsent: (token, phone, code, agreed, termsVersion, consentText, clientName, ua) =>
@@ -9046,6 +9048,42 @@ window.HelmUrl = HelmUrl;
     return { advancePct: adv, balanceDueDays: days, note: note, balanceDue: due };
   };
   // ---- supplier block for printed quotes / invoices (UAE Art. 59: name, address, TRN) ----
+  // 0098: client-facing payment state from the LEDGER (never milestones / approval_status alone).
+  // st = public_quote_paid_status row; total falls back to the quote's own pricing.total.
+  // -> {full, paid, total, balance, receipt, balanceDue:"YYYY-MM-DD"|null} or null when unknown
+  // India date format dd/mm/yyyy for a "YYYY-MM-DD" (or ISO) date; anything else is returned as-is
+  BPStore.fmtDateIN = function (d) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d || ""));
+    return m ? m[3] + "/" + m[2] + "/" + m[1] : String(d || "");
+  };
+  // the user's LOCAL calendar day (IST for an Indian studio) as YYYY-MM-DD - toISOString() is UTC
+  // and reads as "yesterday" from 00:00 to 05:30 IST
+  BPStore.todayLocal = function (d) {
+    d = d instanceof Date ? d : new Date();
+    var p = function (n) { return (n < 10 ? "0" : "") + n; };
+    return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+  };
+  // date + time for display: dd/mm/yyyy, hh:mm (US studio: its own order) - never the browser's locale default
+  BPStore.fmtDay = function (iso) {
+    var d = new Date(iso); if (iso == null || iso === "" || isNaN(d.getTime())) return "";
+    var loc = "en-IN"; try { if (BPStore.studioTax && BPStore.studioTax().country === "US") loc = "en-US"; } catch (e) {}
+    try { return d.toLocaleDateString(loc, { day: "2-digit", month: "2-digit", year: "numeric" }); } catch (e) { return d.toISOString().slice(0, 10); }
+  };
+  BPStore.fmtDateTime = function (iso) {
+    var d = new Date(iso); if (iso == null || iso === "" || isNaN(d.getTime())) return "";
+    var loc = "en-IN"; try { if (BPStore.studioTax && BPStore.studioTax().country === "US") loc = "en-US"; } catch (e) {}
+    try { return d.toLocaleString(loc, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }); } catch (e) { return d.toISOString(); }
+  };
+  BPStore.paidState = function (st, fallbackTotal) {
+    if (!st || typeof st !== "object") return null;
+    var paid = Number(st.paid), total = st.total != null && st.total !== "" ? Number(st.total) : Number(fallbackTotal);
+    if (!isFinite(paid) || !isFinite(total) || total <= 0) return null;
+    var due = null, ev = String(st.event_date || "");
+    if (/^\d{4}-\d{2}-\d{2}$/.test(ev)) due = st.balance_due_days != null ? BPStore.paymentTerms({ balanceDueDays: st.balance_due_days }, ev).balanceDue || ev : ev;
+    var bal = Math.max(0, Math.round((total - paid) * 100) / 100);
+    return { full: paid >= total - 0.5, paid: paid, total: total, balance: bal,
+      receipt: typeof st.last_receipt === "string" ? st.last_receipt.replace(/[<>\u0000-\u001f]/g, "").slice(0, 60) : "", balanceDue: due };
+  };
   BPStore.studioHeader = function (org) {
     org = org && typeof org === "object" ? org : {};
     var b = org.brand && typeof org.brand === "object" ? org.brand : {}, bl = b.billing && typeof b.billing === "object" ? b.billing : {};

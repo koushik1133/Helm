@@ -249,7 +249,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=167"></script>
+<script src="country-profile.js?v=3"></script><script src="store-api.js?v=168"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=4"></script>
 <script src="smart-import.js?v=3"></script>
@@ -518,7 +518,7 @@
         <td><span class="pri ${esc(it.priority||'C')}">${esc(it.priority||'C')}</span></td>
         <td class="num" style="color:#b42318;font-weight:700">${num(c.qty_out)}${c.status==="partial"?` <span style="color:var(--ink-3)">(${num(c.qty_in)} back)</span>`:""}</td>
         <td>${esc(c.issued_to||"")}</td>
-        <td style="font-size:12px;color:var(--ink-3)">${c.checked_out_at?new Date(c.checked_out_at).toLocaleDateString():""}</td>
+        <td style="font-size:12px;color:var(--ink-3)">${c.checked_out_at?BPStore.fmtDay(c.checked_out_at):""}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">${goEvent}${canEdit?`<button type="button" class="btn sm" data-in="${esc(c.id)}" aria-label="Check in ${esc(it.name)}">Check in</button>`:""}${canEdit&&c.status==="out"&&!Number(c.qty_in||0)?`<button type="button" class="rm" data-cxl="${esc(c.id)}" data-name="${esc(it.name)}" aria-label="Cancel check-out of ${esc(it.name)}">Cancel</button>`:""}</td>
       </tr>`; }).join("") : '<tr><td colspan="7" class="empty">Nothing out on loan.</td></tr>';
     // cancelled check-outs: kept for the record (never deleted), greyed, behind the toggle
@@ -529,7 +529,7 @@
         <td><span class="pri ${esc(it.priority||'C')}">${esc(it.priority||'C')}</span></td>
         <td class="num">${num(c.qty_out)}</td>
         <td>${esc(c.issued_to||"")}</td>
-        <td>${c.cancelled_at?esc(new Date(c.cancelled_at).toLocaleDateString()):""}</td>
+        <td>${c.cancelled_at?esc(BPStore.fmtDay(c.cancelled_at)):""}</td>
         <td></td>
       </tr>`; }).join("") : "";
     { const html = (open.length || !cxlHtml) ? openHtml + cxlHtml : cxlHtml; $("#loanRows").innerHTML = html; }
@@ -545,7 +545,7 @@
         <td class="num"><span class="miss">${num(missing)}</span></td>
         <td class="num">${val?BPStore.studioMoney(val):"—"}</td>
         <td>${esc(c.confirmed_by||c.returned_by||"—")}</td>
-        <td style="font-size:12px;color:var(--ink-3)">${c.checked_in_at?new Date(c.checked_in_at).toLocaleDateString():""}</td>
+        <td style="font-size:12px;color:var(--ink-3)">${c.checked_in_at?BPStore.fmtDay(c.checked_in_at):""}</td>
       </tr>`; }).join("");
     $("#lossRows").innerHTML = lossRows || '<tr><td colspan="8" class="empty">No missing items — everything came back. 🎉</td></tr>';
     $("#lossTotal").innerHTML = lostUnits? `<span class="miss">${num(lostUnits)} units missing · ${esc(BPStore.studioMoney(lostVal))} lost</span>` : '<span class="backok">All returned</span>';

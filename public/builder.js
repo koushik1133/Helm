@@ -485,7 +485,7 @@ async function offerDraftRestore(){
   const d=draftToRestore; draftToRestore=null; draftReady=true;
   if(!d || RO || +d.baseVersion!==+currentVersionNo) { if(d) clearDraft(); return; }
   if(layoutSig(d.data.items,d.data.margins,d.data.venue,d.data.scale&&d.data.scale.worldFt?{w:d.data.scale.worldFt.w,h:d.data.scale.worldFt.h}:WORLD,d.name)===docSig()){ clearDraft(); return; }
-  let go=false; try{ go=await BPUI.confirm('An unsaved draft of this quote from '+new Date(d.savedAt).toLocaleString()+' was found in this browser (it was never saved to the server). Restore it? Your saved versions are not changed until you press Save.',{title:'Restore unsaved draft?',okLabel:'Restore draft',cancelLabel:'Discard draft'}); }catch{}
+  let go=false; try{ go=await BPUI.confirm('An unsaved draft of this quote from '+BPStore.fmtDateTime(d.savedAt)+' was found in this browser (it was never saved to the server). Restore it? Your saved versions are not changed until you press Save.',{title:'Restore unsaved draft?',okLabel:'Restore draft',cancelLabel:'Discard draft'}); }catch{}
   if(!go){ clearDraft(); return; }
   applyLayout(d.data); if(d.name) $('#projName').value=d.name;
   markDirty(); toast('Draft restored — press Save to keep it');
@@ -3586,7 +3586,7 @@ async function openLoadModal(){
   host.innerHTML = list.map(l=>`
     <div class="lrow" data-id="${esc(l.id)}">
       <div class="li"><b>${escapeHtml(l.name)}</b>
-        <small>${esc(l.objectCount)} objects · ${l.updatedAt?new Date(l.updatedAt).toLocaleString():'—'}</small></div>
+        <small>${esc(l.objectCount)} objects · ${l.updatedAt?esc(BPStore.fmtDateTime(l.updatedAt)):'—'}</small></div>
       <div class="la">
         <button type="button" data-act="open" aria-label="Open ${escapeHtml(l.name)}">Open</button>
         <button type="button" class="del" data-act="del" aria-label="Delete ${escapeHtml(l.name)}">Delete</button>

@@ -280,7 +280,7 @@
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=167"></script>
+<script src="country-profile.js?v=3"></script><script src="store-api.js?v=168"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="tour.js?v=9"></script>
 <script>
@@ -289,7 +289,7 @@
   // 0079: studio tax country (India unless set) — money symbol + tax labels follow it
   let cmTaxSwitched=false, curTax=null, studioTax=null, studioState="", studioOrg=null, studioCfg={};
   const inr = (n)=> (curTax && curTax.country!=="IN") ? BPStore.tax.money(Number(n||0), curTax) : "₹"+Number(n||0).toLocaleString("en-IN");
-  const fmtDate=(iso)=>{try{return new Date(iso).toLocaleDateString();}catch{return "—";}};
+  const fmtDate=(iso)=>{try{return BPStore.fmtDay(iso)||"—";}catch{return "—";}};
   const statBadge=(s)=> s==="confirmed"?'<span class="stat ok">Confirmed</span>':s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
   const apprBadge=(a)=> a==="paid"?'<span class="stat ok">Paid</span>':a==="approved"?'<span class="stat ap">Approved</span>':a==="sent"?'<span class="stat st">Sent</span>':"";
 
@@ -741,7 +741,7 @@
     const tax = !t ? "" : BPStore.tax.rows(t, p, qTax).map(r=>line(esc(r.label)+(r.pct?" ("+Number(r.pct)+"%)":""), r.amount||0)).join("");
     let sup={}; try{ sup=BPStore.quoteSupplier(full, studioOrg); }catch(_){ sup={}; }   // B15
     const terms=BPStore.paymentTerms(studioCfg, cl.eventDate);
-    const termsHtml=(terms.advancePct!=null||terms.balanceDue||terms.note)?`<h3 style="font-size:13px;margin:18px 0 4px">Payment terms</h3><p class=muted style="margin:0">${terms.advancePct!=null?"Advance "+esc(String(terms.advancePct))+"% ("+inr(Math.round(grand*terms.advancePct/100))+") to confirm the booking. ":""}${terms.balanceDue?"Balance due by "+esc(terms.balanceDue)+(terms.balanceDueDays?" ("+terms.balanceDueDays+" days before the event)":" (event day)")+". ":""}${terms.note?esc(terms.note):""}</p>`:"";
+    const termsHtml=(terms.advancePct!=null||terms.balanceDue||terms.note)?`<h3 style="font-size:13px;margin:18px 0 4px">Payment terms</h3><p class=muted style="margin:0">${terms.advancePct!=null?"Advance "+esc(String(terms.advancePct))+"% ("+inr(Math.round(grand*terms.advancePct/100))+") to confirm the booking. ":""}${terms.balanceDue?"Balance due by "+esc(qTax.country==="US"?terms.balanceDue:BPStore.fmtDateIN(terms.balanceDue))+(terms.balanceDueDays?" ("+terms.balanceDueDays+" days before the event)":" (event day)")+". ":""}${terms.note?esc(terms.note):""}</p>`:"";
     const html=`<!doctype html><meta charset=utf8><title>${isInv?"Invoice":"Quotation"} ${esc(full.code)}</title>
     <style>body{font-family:system-ui,sans-serif;max-width:720px;margin:32px auto;color:#141b2e;padding:0 20px}
     h1{font-size:20px;margin:0} .muted{color:#5b6475;font-size:12px} table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
@@ -755,7 +755,8 @@
     <table><tr><td class=muted>Client</td><td>${esc(cl.name||"—")}${cl.company?" · "+esc(cl.company):""}</td></tr>
       ${cl.email?`<tr><td class=muted>Email</td><td>${esc(cl.email)}</td></tr>`:""}
       ${cl.phone?`<tr><td class=muted>Phone</td><td>${esc(cl.phone)}</td></tr>`:""}
-      ${cl.eventDate?`<tr><td class=muted>Event date</td><td>${esc(cl.eventDate)}</td></tr>`:""}
+      ${cl.eventDate?`<tr><td class=muted>Event date</td><td>${esc(qTax.country==="US"?cl.eventDate:BPStore.fmtDateIN(cl.eventDate))}</td></tr>`:""}
+      ${qTax.country==="IN"&&(cl.state||pos)?`<tr><td class=muted>Place of supply</td><td>${esc(cl.state||"—")}${pos==="inter"?" (inter-state · IGST)":pos==="intra"?" (intra-state · CGST + SGST)":""}</td></tr>`:""}
       ${cl.venue?`<tr><td class=muted>Venue</td><td>${esc(cl.venue)}${cl.address?", "+esc(cl.address):""}</td></tr>`:""}</table>
     <table><tr><th>Item</th><th style="text-align:right">Amount</th></tr>
       ${t?`${line(`Chairs (${num(p.chairs)} × ${inr(num(p.chairPrice))})`, num(p.chairs)*num(p.chairPrice))}
@@ -763,8 +764,8 @@
       ${p.catering&&p.catering.mode==="client"?`<tr><td>Catering</td><td style="text-align:right">Client-provided</td></tr>`:line(`Catering (${num(p.guests)} plates × ${inr(num(p.platePrice))}${p.catering&&p.catering.amount?" + "+inr(num(p.catering.amount)):""})`, (t.cateringBucket||0))}
       ${t.serviceCharge?line(`Service charge (${num(p.serviceChargePct)}%)`, t.serviceCharge):""}
       <tr class=tot><td>Subtotal</td><td style="text-align:right">${inr(t.subtotal||0)}</td></tr>
-      ${tax}
-      ${t.discount?`<tr class=tot><td>Discount</td><td style="text-align:right">− ${inr(t.discount)}</td></tr>`:""}`:""}
+      ${t.discount?`<tr class=tot><td>Discount</td><td style="text-align:right">− ${inr(t.discount)}</td></tr>`:""}
+      ${tax}`:""}
       <tr class=grand><td>Grand total</td><td style="text-align:right">${inr(grand)}</td></tr>
       <tr><td colspan=2 style="padding-top:6px;font-style:italic;color:#555;font-size:12px;border:0">${qTax.country!=="IN"?"":BPStore.amountInWords(grand)}</td></tr></table>
     <p class=muted>${qTax.exempt?"Tax-exempt client: no "+esc(qTax.name)+" charged. ":""}${qTax.country==="IN"?"Taxes per Indian GST (event management SAC 998596).":esc(qTax.name)+(qTax.inclusive?" included in the prices above.":" as applicable in "+esc(qTax.countryName)+".")} ${p.catering&&p.catering.vendor?"Caterer: "+esc(p.catering.vendor)+". ":""}This is a computer-generated document.</p>${termsHtml}`;

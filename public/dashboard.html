@@ -322,13 +322,13 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=167"></script>
+<script src="country-profile.js?v=3"></script><script src="store-api.js?v=168"></script>
 <script src="tour.js?v=9"></script>
 <script src="getting-started.js?v=3"></script>
 <script src="onboarding-wizard.js?v=3"></script>
 <script>
   const $ = (s) => document.querySelector(s);
-  const fmtDate = (iso) => { try { return new Date(iso).toLocaleString(); } catch { return "—"; } };
+  const fmtDate = (iso) => { try { return BPStore.fmtDateTime(iso) || "—"; } catch { return "—"; } };
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   // Structured internal diagnostic: console + telemetry only, never rendered to the DOM.
   const DIAG = { DASH_FALLBACK: "HELM-DASH-FALLBACK" };
@@ -462,7 +462,7 @@
     host.innerHTML = sorted.map((s) =>
       `<div class="ecard" data-id="${esc(s.id)}">${canDelete ? `<button type="button" class="del" data-id="${esc(s.id)}" title="Delete" aria-label="Delete quote ${esc(s.code)}">✕</button>` : ""}
         <a class="elink" href="event.html?id=${encodeURIComponent(s.id)}"><b>${esc(s.code)}</b></a> ${statBadge(s.status)}
-        <small>${esc(s.title || "")} · v${esc(s.currentVersion)}${s.total ? " · " + inr(s.total) : ""} · ${esc(fmtDate(s.updatedAt))}</small></div>`).join("");
+        <small>${esc(s.title || "")} · v${esc(s.currentVersion)}${s.total ? " · " + esc(BPStore.quoteMoney(s.total, s)) : ""} · ${esc(fmtDate(s.updatedAt))}</small></div>`).join("");
     host.querySelectorAll(".ecard").forEach((c) => c.addEventListener("click", (e) => {
       if (e.target.closest(".del, a")) return;
       location.href = "event.html?id=" + encodeURIComponent(c.dataset.id);   // open the Event Workspace hub
