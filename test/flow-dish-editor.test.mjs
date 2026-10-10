@@ -89,7 +89,7 @@ assert.equal(ed.isCustom(pkg), true);
 // ---- flow.html wiring
 const h = read('public/flow.html'), js = read('public/flow-dish-editor.js');
 assert.match(h, /<div class="dished" id="dishEditor"/);
-assert.match(h, /flow-dish-editor\.js\?v=1/);
+assert.match(h, /flow-dish-editor\.js\?v=2/);
 assert.match(h, /HelmDishEditor\.mount\(host,\{ store:BPStore, ui:BPUI, quoteId:id, editable:canEdit && !\(plan&&plan\.menu_locked\) \}\)/);
 assert.match(h, /dishEd\.isCustom\(appliedPkg\) && !\(await BPUI\.confirm\(/, 'custom list asks via BPUI.confirm before replacing');
 assert.doesNotMatch(h.slice(h.indexOf('async function applyPackage')), /[^.]confirm\("Replace/, 'no native confirm');

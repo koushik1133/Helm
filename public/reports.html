@@ -142,7 +142,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=168"></script>
+<script src="country-profile.js?v=3"></script><script src="store-api.js?v=169"></script>
 <script src="range-bar.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -181,7 +181,7 @@
     // forms some spreadsheets normalise) is prefixed with ' so it stays text.
     const cell=(v)=>{ const isStr=typeof v==="string"; v=(v==null?"":String(v)); if(isStr&&/^[\s 　]*[=+\-@\t\r＝＋－＠]/.test(v)) v="'"+v; return /[",\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; };
     return cols.join(",")+"\n"+rows.map(r=>cols.map(c=>cell(r[c])).join(",")).join("\n"); }
-  function download(name, text){ const blob=new Blob([text],{type:"text/csv;charset=utf-8"}); const url=URL.createObjectURL(blob);
+  function download(name, text){ const blob=new Blob(["\uFEFF"+text],{type:"text/csv;charset=utf-8"}); const url=URL.createObjectURL(blob);
     const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1500); }
 
   const builders={

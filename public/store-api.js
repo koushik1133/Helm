@@ -9153,8 +9153,9 @@ window.HelmUrl = HelmUrl;
   // Used on quotes/invoices so a large manually-influenced total is unambiguous
   // ("₹5,36,000" → "Rupees Five Lakh Thirty Six Thousand only").
   BPStore.amountInWords = function (amount) {
-    var num = Math.round(Math.abs(Number(amount) || 0));
-    if (num === 0) return "Rupees Zero only";
+    var cents = Math.round(Math.abs(Number(amount) || 0) * 100);   // #13: keep paise
+    var num = Math.floor(cents / 100), paise = cents % 100;
+    if (num === 0 && paise === 0) return "Rupees Zero only";
     var a = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
       "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
     var b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
@@ -9168,7 +9169,9 @@ window.HelmUrl = HelmUrl;
     if (lakh) out += two(lakh) + " Lakh ";
     if (thousand) out += two(thousand) + " Thousand ";
     if (num) out += three(num);
-    return "Rupees " + out.trim() + " only";
+    var p = paise ? two(paise) + " Paise" : "";
+    if (!out.trim()) return p + " only";
+    return "Rupees " + out.trim() + (p ? " and " + p : "") + " only";
   };
 
   // ---- global input[type=number] hardener -------------------------------

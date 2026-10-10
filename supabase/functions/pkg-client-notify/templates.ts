@@ -87,7 +87,10 @@ export function render(kind: string, p: P): Msg | null {
   if (kind === "pkg_selected" || kind === "pkg_payment") {   // staff WhatsApp only
     const t = kind === "pkg_selected"
       ? `Helm: a client picked a package (${clean(p.package, 60) || "package"}, ${Number(p.guests) || "?"} guests) for ${clean(p.code, 20) || "an event"}. Review it in Helm.`
-      : `Helm: a payment of ${money(p.amount, p.currency) || "an amount"} was received for ${clean(p.code, 20) || "an event"}.`;
+      : `Helm: a payment of ${money(p.amount, p.currency) || "an amount"} was received for ${clean(p.code, 20) || "an event"}.` +
+        // India audit #15: carry the balance still due when the caller sends it (0 -> paid in full).
+        (p.balance == null || p.balance === "" || !Number.isFinite(Number(p.balance)) ? ""
+          : Number(p.balance) <= 0 ? " Paid in full." : ` Balance due: ${money(p.balance, p.currency)}.`);
     return { subject: t, html: "", text: t };
   }
   return null;

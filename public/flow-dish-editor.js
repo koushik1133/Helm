@@ -39,6 +39,14 @@
     const pk = (Array.isArray(pkg.dishes) ? pkg.dishes : []).map((d) => d && (d.n || d.dish_name || d.name));
     return sig(items.map((m) => m.dish_name)) !== sig(pk);
   }
+  // India audit 2: a custom dish was always saved as "veg" — "Chicken 65" typed into the editor
+  // then showed a veg dot to the client. Infer from the course ("Starters (nonveg)") or the name.
+  const NONVEG = /\b(chicken|mutton|lamb|goat|gosht|murg[h]?|keema|kheema|fish|prawns?|shrimps?|crab|lobster|egg|eggs|anda|meat|beef|pork|bacon|ham|seafood|tuna|salmon|pomfret|surmai|nalli|paya|haleem|kebab\s+gosht)\b/i;
+  function kindOf(course, name) {
+    const c = String(course || "");
+    if (/non[\s-]?veg/i.test(c) || NONVEG.test(String(name || ""))) return "nonveg";
+    return "veg";
+  }
   function validName(name) {
     const n = norm(name);
     if (!n) return { ok: false, error: "Type a dish name." };
@@ -56,7 +64,7 @@
 
     async function resolve(course, name) {
       const hit = findDish(catalog, name); if (hit) return hit;
-      const d = await S.dishCatalog.add(course, name, "veg");
+      const d = await S.dishCatalog.add(course, name, kindOf(course, name));
       catalog.push(d); return d;
     }
     async function run(btn, action, fn) {
@@ -174,7 +182,7 @@
     };
   }
 
-  const api = { mount, group, courses, findDish, isCustom, validName };
+  const api = { mount, group, courses, findDish, isCustom, validName, kindOf };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.HelmDishEditor = api;
 })(typeof window !== "undefined" ? window : globalThis);

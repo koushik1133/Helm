@@ -77,12 +77,16 @@
     festival:       { label: 'Festival / outdoor',    seating: 'standing', objects: [['stage', 1, 1, 1], ['linearray', 1, 2, 1], ['barricade', 1, 1, 1], ['foh', 1, 1, 1],
       ['standing', 1, 1, 1], ['led', 1, 2], ['lighting', 1, 1], ['generator', 1, 1, 1], ['bar', 1, 2], ['restroom', 1, 4], ['firstaid', 1, 1, 1], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
   };
-  const TYPE_ALIAS = { gala: 'wedding', anniversary: 'wedding', sangeet: 'engagement', cocktail: 'reception', rally: 'political', public_meeting: 'political',
+  const TYPE_ALIAS = { gala: 'wedding', anniversary: 'wedding', sangeet: 'engagement', mehendi: 'engagement', mehndi: 'engagement', haldi: 'engagement', roka: 'engagement', cocktail: 'reception', rally: 'political', public_meeting: 'political',
     'public meeting': 'political', seminar: 'conference', expo: 'conference', 'product launch': 'product_launch', 'live music': 'concert' };
   function typeKey(t) {
     const k = String(t || '').toLowerCase().trim();
     if (TYPES[k]) return k; if (TYPE_ALIAS[k]) return TYPE_ALIAS[k];
     const u = k.replace(/[\s/]+/g, '_'); if (TYPES[u]) return u; if (TYPE_ALIAS[u]) return TYPE_ALIAS[u];
+    // India audit 2: free-text types ("Political rally", "Birthday party", "Corporate offsite",
+    // "Gala dinner") fell through to the wedding mandap — match any known word instead.
+    const words = k.split(/[^a-z]+/).filter(Boolean);
+    for (const w of words) { if (TYPES[w]) return w; if (TYPE_ALIAS[w]) return TYPE_ALIAS[w]; }
     return 'wedding';
   }
   const SEATING_STYLES = { rounds: 'Round tables', theatre: 'Theatre blocks', banquet: 'Banquet long tables', mixed: 'Mixed: rounds + theatre', standing: 'Standing (no main seating)' };
