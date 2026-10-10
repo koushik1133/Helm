@@ -3630,7 +3630,7 @@ function exportJSON(){
    selection — only the hall and its objects; o.maxW caps the raster width. State is restored. */
 function planBlob(o){ o=o||{}; return new Promise(resolve=>{
   const wasSel=store.selectedIds.slice(), wasGrid=store.grid.show, wasMeasure=showMeasure;
-  setSelection([]); if(o.clean){ store.grid.show=false; showMeasure=false; } renderAll();  // hide handles
+  setSelection([]); if(o.clean){ store.grid.show=false; showMeasure=!!o.measure; } renderAll();  // hide handles (0095: o.measure keeps the measurement overlay)
   const live=svg, clone=live.cloneNode(true);
   const liveNodes=live.querySelectorAll('*'), cloneNodes=clone.querySelectorAll('*');
   for(let i=0;i<liveNodes.length;i++){
@@ -3642,7 +3642,7 @@ function planBlob(o){ o=o||{}; return new Promise(resolve=>{
       cn.setAttribute('font-size',cs.fontSize); cn.setAttribute('font-weight',cs.fontWeight);
       cn.removeAttribute('stroke'); }
   }
-  if(o.clean) clone.querySelectorAll('.margins,.measure').forEach(n=>n.remove());
+  if(o.clean) clone.querySelectorAll(o.measure ? '.margins' : '.margins,.measure').forEach(n=>n.remove());
   const CF=o.clean && window.HelmCaptureFrame;              // R5: client plan = numbered badges + legend (same numbers as 3D)
   const LM=CF ? CF.labelMode(o.labels) : 'numbers';         // 0083: o.labels 'none' | 'numbers' (default) | 'names'
   if(CF) clone.querySelectorAll('text.lbl').forEach(n=>n.remove());
@@ -3679,6 +3679,17 @@ async function exportPNG(){
   download(name+'.png', b); toast('PNG downloaded');
 }
 
+/* ---- 0095: photo-realistic render bridge (photo-render-ui.js) ----
+   Read-only view of what the photo dialog needs; the image model runs server-side only. */
+window.__helmPhotoCtx = function(){
+  return {
+    quoteId: currentQuoteId, readOnly: !!RO, frozen: !!(currentQuoteGuard && currentQuoteGuard.frozen),
+    supported: clientImagesSupported(), items: store.items.slice(), world: { w: WORLD.w, h: WORLD.h },
+    eventType: PRICING.eventType || '', guests: PRICING.guests, setting: (store.venue && store.venue.setting) || 'indoor',
+    country: PRICING.taxCountry || '', title: ($('#projName') && $('#projName').value) || '',
+    planBlob: (o) => planBlob(o),
+  };
+};
 /* ---- R2 + 0083: client booklet images (real 2D plan + 3D render) ----
    Each picture in two styles: 'labels' (numbered badges + legend, the approved look) and
    'plain' (the model without labels). Stored IN THE DATABASE via BPStore.booklet.putImage

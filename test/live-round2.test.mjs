@@ -144,9 +144,9 @@ t('C4 fill-only migration note documented', () => {
   assert.match(d, /disable trigger quotes_set_updated/); assert.match(d, /enable trigger quotes_set_updated/); assert.match(d, /0091/);
 });
 t('versions bumped', () => {
-  assert.match(read('public/flow.html'), /store-api\.js\?v=167/);
+  assert.match(read('public/flow.html'), /store-api\.js\?v=168/);
   assert.match(read('public/inventory.html'), /smart-import-core\.js\?v=4/);
-  assert.match(read('public/builder.html'), /layout-wizard\.js\?v=3/); assert.match(read('public/builder.html'), /builder\.js\?v=38/);
+  assert.match(read('public/builder.html'), /layout-wizard\.js\?v=3/); assert.match(read('public/builder.html'), /builder\.js\?v=39/);
 });
 let pass = 0;
 for (const [n, f] of tests) { try { f(); pass++; console.log('ok  - ' + n); } catch (e) { console.error('FAIL - ' + n + '\n', e); process.exitCode = 1; } }

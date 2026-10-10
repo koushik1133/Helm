@@ -557,3 +557,29 @@ aside.left.collapsed,aside.right.collapsed{width:0;border-width:0;overflow:hidde
 @media (max-width:720px){ .ptoggle{display:none} aside.left.collapsed,aside.right.collapsed{width:min(280px,86vw);border-width:revert;overflow:visible} aside.right.collapsed{width:min(320px,92vw)} }
 @media (prefers-reduced-motion:reduce){ aside.left,aside.right{transition:none} }
 .pricebox .q.nocat{color:#b45309;font-weight:600}
+
+/* ---------- 0095 photo render dialog ---------- */
+.sheet-photo{width:min(760px,96vw);max-height:90vh}
+.ph-note{margin:0 0 10px;font-size:13px;color:var(--ink-2)}
+.ph-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:640px){.ph-grid{grid-template-columns:1fr 1fr}}
+.ph-wide{display:block;margin-top:10px}
+.ph-wide input{width:100%}
+.ph-quota{font-size:12px;color:var(--ink-3);margin:8px 0}
+.ph-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.ph-off{border:1px solid var(--line);background:var(--panel-2);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:13px}
+.ph-steps{margin:8px 0 0 18px;padding:0;font-size:12px;line-height:1.6}
+.ph-progress{margin-top:12px}
+.ph-bar{height:6px;border-radius:4px;background:var(--panel-2);overflow:hidden}
+.ph-bar span{display:block;height:100%;width:0;background:var(--accent);transition:width .4s}
+.ph-bar span.w10{width:10%}.ph-bar span.w25{width:25%}.ph-bar span.w40{width:40%}.ph-bar span.w60{width:60%}.ph-bar span.w85{width:85%}.ph-bar span.w100{width:100%}
+.ph-results{margin-top:12px}
+.ph-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.ph-card{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--panel-2)}
+.ph-card img{display:block;width:100%;height:auto;aspect-ratio:3/2;object-fit:cover;background:var(--canvas)}
+.ph-card .ph-meta{font-size:11px;color:var(--ink-3);padding:6px 8px 0}
+.ph-card .ph-acts{padding:0 8px 8px}
+.ph-card .ph-acts button,.ph-card .ph-acts a{height:28px;font-size:12px}
+.ph-history{margin-top:14px;font-size:13px}
+.ph-history summary{cursor:pointer;font-weight:600}
+.ph-history .ph-gallery{margin-top:8px}
