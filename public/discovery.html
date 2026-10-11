@@ -96,7 +96,7 @@
         <div class="fld full"><label for="d_loc">Location / meeting link</label><input id="d_loc" placeholder="Venue address or video link"></div>
         <div class="fld full"><label for="d_att">Who attended</label><input id="d_att" placeholder="e.g. Client + spouse, planner"></div>
         <div class="fld"><label for="d_bmin">Budget — min (₹)</label><input type="number" min="0" id="d_bmin" placeholder="e.g. 400000"></div>
-        <div class="fld"><label for="d_bmax">Budget — max (₹)</label><input type="number" min="0" id="d_bmax" placeholder="e.g. 600000"></div>
+        <div class="fld"><label for="d_bmax">Budget — max (₹)</label><input type="number" min="0" id="d_bmax" placeholder="e.g. 600000" aria-describedby="d_bmaxErr"><div id="d_bmaxErr" class="err" role="alert" hidden>Max should be at least the min</div></div>
         <div class="fld full"><label for="d_notes">Notes</label><textarea id="d_notes" placeholder="Theme ideas, constraints, preferences, must-avoids…"></textarea></div>
       </div>
       <div class="foot"><span id="d_msg" role="status" aria-live="polite"></span><button type="button" class="btn primary" id="d_save" hidden>Save discovery</button></div>
@@ -137,7 +137,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=171"></script>
+<script src="country-profile.js?v=3"></script><script src="store-api.js?v=172"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -181,7 +181,7 @@
     const V=BPStore.validate;
     let bmin=null; if($("#d_bmin").value!==""){ const r=V.money($("#d_bmin").value,{field:"Minimum budget"}); if(!r.ok){ $("#d_msg").className="err"; $("#d_msg").textContent=r.error; return; } bmin=r.value; }
     let bmax=null; if($("#d_bmax").value!==""){ const r=V.money($("#d_bmax").value,{field:"Maximum budget"}); if(!r.ok){ $("#d_msg").className="err"; $("#d_msg").textContent=r.error; return; } bmax=r.value; }
-    if(bmin!=null && bmax!=null && bmin>bmax){ $("#d_msg").className="err"; $("#d_msg").textContent="Minimum budget can't exceed maximum"; return; }
+    if(!budgetRangeOk() || (bmin!=null && bmax!=null && bmin>bmax)){ $("#d_msg").className="err"; $("#d_msg").textContent="Max should be at least the min"; $("#d_bmax").focus(); return; }
     const d={ meet_date:$("#d_date").value||null, mode:$("#d_mode").value||null,
       location:$("#d_loc").value.trim()||null, attendees:$("#d_att").value.trim()||null,
       notes:$("#d_notes").value.trim()||null,
@@ -209,6 +209,14 @@
     });
   }
   async function loadReqs(){ try{ reqs=await BPStore.discovery.listReqs(id); reqsFailed=null; }catch(e){ reqs=[]; reqsFailed=e||new Error("load failed"); } renderReqs(); }
+  // india-clickthrough D2: live inline check for an inverted budget range
+  function budgetRangeOk(){
+    const a=$("#d_bmin").value, b=$("#d_bmax").value, bad=a!=="" && b!=="" && +a > +b;
+    ["#d_bmin","#d_bmax"].forEach(s=>{ if(bad) $(s).setAttribute("aria-invalid","true"); else $(s).removeAttribute("aria-invalid"); });
+    const m=$("#d_bmaxErr"); if(m) m.hidden=!bad;
+    return !bad;
+  }
+  ["#d_bmin","#d_bmax"].forEach(s=>{ $(s).addEventListener("input",budgetRangeOk); $(s).addEventListener("change",budgetRangeOk); });
   const DFIELDS=["#d_date","#d_mode","#d_loc","#d_att","#d_bmin","#d_bmax","#d_notes"];
   async function loadDiscovery(){
     try{ const d=await BPStore.discovery.get(id);
