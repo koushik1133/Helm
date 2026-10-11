@@ -114,13 +114,14 @@ t('eye camera is nudged out of objects that block the entrance', () => {
 const LAY = [{ type: 'stage', x: 30, y: 2, width: 20, height: 8 }, { type: 'seatblock', x: 10, y: 20, width: 25, height: 20, properties: { rows: 5, cols: 10 } }];
 t('decor theme: None adds no theme sentence; each theme adds its own concise text; Other uses the typed text', () => {
   const none = P.build({ items: LAY, world: { w: 80, h: 50 }, themeKey: 'none' });
-  assert.doesNotMatch(none.prompt, /Decor theme/);
+  assert.doesNotMatch(none.prompt, /Decor theme requested/); assert.match(none.prompt, /Decor theme: none - realistic decor matching the objects as designed; no added theme\./);
   assert.equal(none.theme, '');
-  assert.doesNotMatch(P.build({ items: LAY, world: { w: 80, h: 50 } }).prompt, /Decor theme/, 'default = none');
+  assert.doesNotMatch(P.build({ items: LAY, world: { w: 80, h: 50 } }).prompt, /Decor theme requested/, 'default = none');
   const keys = Object.keys(P.THEMES).filter((k) => k !== 'none');
   assert.equal(keys.length, 10);
   for (const k of keys) {
-    const b = P.build({ items: LAY, world: { w: 80, h: 50 }, themeKey: k });
+    const ev = Object.keys(P.PROFILES).find((pk) => P.PROFILES[pk].themes.includes(k));   // each theme on an event type it fits
+    const b = P.build({ items: LAY, world: { w: 80, h: 50 }, themeKey: k, eventType: ev === 'political' ? 'Political rally' : ev });
     assert.ok(P.THEMES[k].text.length > 20 && P.THEMES[k].text.length <= 200, k);
     assert.ok(b.prompt.includes('Decor theme requested by the planner: ' + P.THEMES[k].text + '.'), k);
   }

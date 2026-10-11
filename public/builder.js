@@ -3694,7 +3694,7 @@ window.__helmPhotoCtx = function(){
     quoteId: currentQuoteId, readOnly: !!RO, frozen: !!(currentQuoteGuard && currentQuoteGuard.frozen),
     supported: clientImagesSupported(), items: store.items.slice(), world: { w: WORLD.w, h: WORLD.h },
     eventType: PRICING.eventType || '', guests: PRICING.guests, setting: (store.venue && store.venue.setting) || 'indoor',
-    country: PRICING.taxCountry || '', title: ($('#projName') && $('#projName').value) || '',
+    country: PRICING.taxCountry || '', eventDate: PRICING.eventDate || '', title: ($('#projName') && $('#projName').value) || '',
     planBlob: (o) => planBlob(o),
   };
 };
@@ -3949,6 +3949,7 @@ async function init(){
       const ver = await BPStore.quotes.getVersion(q.id, verNo);
       currentVersionNo = ver.versionNo;
       PRICING.eventType = q.eventType || null;
+      PRICING.eventDate = q.eventDate || null;   // photo render: season from the event date
       // pull the event's guest count + applied menu package so the price is synced
       if(q.client && q.client.guests!=null) PRICING.guests = +q.client.guests;
       else if(currentPricing.guests!=null) PRICING.guests = +currentPricing.guests;   // set in the Confirm modal

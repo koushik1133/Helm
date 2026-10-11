@@ -31,7 +31,7 @@
       remind: 'Reminder: open-air lawn at golden hour - low warm sun, long shadows, open sky, trees around the edges.',
     },
     evening: {
-      outdoor: 'ENVIRONMENT (mandatory, overrides anything the reference images suggest): an OPEN-AIR outdoor event at blue hour / early night: deep blue-to-indigo sky with the last glow on the horizon, a few stars. The venue glows with warm festoon string lights and fairy lights strung overhead on poles, amber uplights washing the trees and florals, candles on tables, LED screens and the stage lit brightly, pools of warm light on the lawn and dark landscaping beyond. Strong contrast between the warm-lit event and the cool dark sky.',
+      outdoor: 'ENVIRONMENT (mandatory, overrides anything the reference images suggest): an OPEN-AIR outdoor event at blue hour / early night: deep blue-to-indigo sky with the last glow on the horizon, a few stars. The venue glows with warm festoon string lights and fairy lights strung overhead, amber uplights washing the trees and florals, candles on tables, LED screens and the stage lit brightly, pools of warm light on the lawn and dark landscaping beyond. Strong contrast between the warm-lit event and the cool dark sky.',
       indoor: 'ENVIRONMENT (mandatory): an INDOOR ballroom in the evening with the house lights dimmed: crystal chandeliers glowing softly overhead, warm amber uplights washing the walls and drapes, candlelight on the tables, the stage and LED screens lit brightly as the focal point, a moody low-key atmosphere with deep shadows between light pools.',
       remind: 'Reminder: evening - dark sky or dimmed room, warm festoon/fairy lights and uplights glowing.',
       remindIndoor: 'Reminder: dimmed indoor ballroom in the evening - glowing chandeliers, warm uplights, candlelight.',
@@ -71,7 +71,7 @@
     arabian:   { label: 'Arabian luxury (gold & ivory, Dubai)', text: 'Arabian luxury styling as in Dubai - ivory and gold palette, ornate lanterns, mirrored and crystal accents, plush fabrics, white orchids' },
     bollywood: { label: 'Bollywood glam (bold colours & lights)', text: 'Bollywood glam - bold jewel colours (magenta, orange, emerald), sequins and drapes, dramatic coloured stage lights and sparkle' },
     corporate: { label: 'Corporate clean (brand blue & white)', text: 'clean corporate styling - crisp blue and white palette, modern furniture, neat signage frames without readable text, professional and tidy' },
-    rally:     { label: 'Political rally (flags & podium)', text: 'political rally styling - rows of plain coloured flags and bunting (no readable text or symbols), a prominent podium, bright daylight-style stage lighting' },
+    rally:     { label: 'Political rally (flags & podium)', text: 'political rally styling - rows of plain coloured flags and bunting (no readable text or symbols), the existing podium kept prominent, bright daylight-style stage lighting' },
     concert:   { label: 'Concert stage (lights & haze)', text: 'concert styling - dramatic coloured beams from moving lights, light haze in the air, LED walls glowing, high-energy stage atmosphere' },
   };
   /* "Highlight" focus areas: camera frames them closer + one prompt sentence */
@@ -82,18 +82,18 @@
     seating:  { label: 'Seating', types: ['seatblock', 'chairrow', 'table', 'longtable', 'chiavari', 'bleacher', 'sofa', 'lounge', 'cocktail'], text: 'the guest seating' },
   };
   var REGIONS = {
-    IN: { name: 'India', text: 'Luxury Indian wedding decor: lush marigold, rose and jasmine florals, hanging floral strings, rose-petal accents, brass urlis and diyas, rich jewel-tone and ivory fabrics with gold accents.' },
-    AE: { name: 'UAE', text: 'Dubai luxury event styling: white and champagne-gold palette, orchids and white roses, crystal and mirror accents, sleek modern furniture, manicured palms and desert landscaping.' },
-    US: { name: 'USA', text: 'Upscale American event styling: white hydrangeas, garden roses and abundant greenery, natural wood and brushed brass accents, bistro string lights, classic clean lines.' },
+    IN: { name: 'India', text: 'Luxury Indian wedding decor finish on the existing objects: marigold, rose and jasmine in the existing florals, rich jewel-tone and ivory fabrics with gold accents.' },
+    AE: { name: 'UAE', text: 'Dubai luxury event styling on the existing objects: white and champagne-gold palette, orchids and white roses in the existing florals, crystal and mirror accents, sleek modern finishes.' },
+    US: { name: 'USA', text: 'Upscale American event styling on the existing objects: white hydrangeas, garden roses and greenery in the existing florals, natural wood and brushed brass accents, classic clean lines.' },
   };
 
   /* every ASSETS type in builder.js -> a photographic description (materials / colours) */
   var DESC = {
-    stage: 'a raised event stage deck, skirted front, a large LED backdrop wall framed by lush floral installations',
+    stage: 'a raised event stage deck with a neatly skirted front and a finished top surface',
     dancefloor: 'a glossy black-and-white checkered dance floor laid flat on the ground',
     podium: 'a slim lectern podium in white and gold',
     press: 'a low black press riser platform for photographers and cameras',
-    dj: 'a DJ booth with a glowing LED facade, decks and a pair of speakers',
+    dj: 'a DJ booth with a glowing LED facade and decks on top',
     chairrow: 'a straight row of gold chiavari chairs with ivory cushions',
     seatblock: 'a theatre-style seating block of gold chiavari chairs with ivory cushions in neat straight rows',
     table: 'a round banquet table with a floor-length ivory tablecloth, gold charger plates, glassware and a floral centrepiece, surrounded by chiavari chairs',
@@ -110,9 +110,9 @@
     headtable: 'a head table for the couple / VIPs with lush floral frontage and two ornate chairs at the centre',
     cocktail: 'a tall cocktail table with a fitted ivory spandex cover and a small posy',
     lounge: 'a lounge set of cream sofas and armchairs around a low coffee table on a rug',
-    photobooth: 'a photo booth backdrop with a floral wall and a small ring light',
-    checkpoint: 'a security checkpoint with a walk-through frame and a small table',
-    bar: 'an illuminated bar counter with a polished top, bottles on a back shelf and bar stools',
+    photobooth: 'a photo booth backdrop dressed as a floral wall',
+    checkpoint: 'a security checkpoint walk-through frame',
+    bar: 'an illuminated bar counter with a polished top and bottles on a back shelf',
     buffet: 'a buffet line of tables with ivory skirting and rows of polished silver chafing dishes, food warmers and small floral accents',
     gifttable: 'a gift table with ivory linen and a floral arrangement',
     caketable: 'a round cake table with a tall tiered white wedding cake on a stand and florals',
@@ -123,7 +123,7 @@
     coatcheck: 'a coat-check counter with a rail of hangers',
     firstaid: 'a small first-aid tent / station with a discreet red cross marker',
     planter: 'lush potted greenery and topiary planters',
-    redcarpet: 'a red carpet aisle runner laid on the ground, lined with tall floral stands and chrome stanchions',
+    redcarpet: 'a red carpet aisle runner laid flat on the ground',
     parking: 'a parking area with parked cars on asphalt or gravel',
     sofa: 'a cream / ivory tufted sofa with cushions',
     loveseat: 'a cream two-seat loveseat with cushions',
@@ -148,14 +148,14 @@
     linearray: 'a flown / ground-stacked line-array speaker hang',
     subwoofer: 'a black subwoofer cabinet',
     monitor: 'a wedge stage monitor',
-    foh: 'a front-of-house sound and lighting console position under a small canopy',
+    foh: 'a front-of-house sound and lighting console desk',
     movinghead: 'a moving-head stage light',
     videowall: 'a large LED video wall glowing with an abstract visual (no readable text)',
     generator: 'a silent power generator in an enclosure, tucked away discreetly',
     distro: 'a small power distribution box',
     cableramp: 'a low cable ramp protector on the ground',
     greenroom: 'a private green room tent / cabin',
-    viprisers: 'a raised VIP riser platform with lounge seating',
+    viprisers: 'a raised VIP riser platform with a carpeted top',
     stagebarrier: 'a black steel stage barrier line',
     lighting: 'an overhead lighting truss span with stage lights and warm wash fixtures',
     led: 'a large LED wall glowing with a soft floral / abstract visual (no readable text)',
@@ -163,8 +163,8 @@
     chariot: 'an ornate decorated wedding chariot / carriage in white and gold with florals',
     smoke: 'a small low-fog machine (subtle haze, not visible as an object)',
     dancers: 'a group of performers in coordinated costumes',
-    walkway: 'a raised carpeted walkway / ramp lined with floral stands',
-    brandwall: 'a decorative branding / welcome wall with florals (no readable text)',
+    walkway: 'a raised carpeted walkway / ramp',
+    brandwall: 'a decorative branding / welcome wall dressed with florals (no readable text)',
   };
   var NAMES = {
     stage: 'stage', dancefloor: 'dance floor', podium: 'podium', press: 'press riser', dj: 'DJ booth', chairrow: 'chair row',
@@ -308,6 +308,218 @@
     return near.map(function (k) { return map[k]; });
   }
 
+  /* ---------- event-type profiles: the prompt first fixes WHAT kind of event this is, then styles only for it ----------
+     florals: may florals appear at all; regional: may the regional (celebration) decor line apply;
+     themes: decor-theme dropdown keys that fit; desc: object descriptions for this type; forbidden: explicit list. */
+  var PROFILES = {
+    wedding: { label: 'Wedding / reception / sangeet', florals: true, regional: true,
+      themes: ['royal', 'pastel', 'whitegreen', 'minimal', 'rustic', 'arabian', 'bollywood'],
+      summary: 'a celebration styled for a wedding - elegant, festive, rich in textiles and florals as designed',
+      decor: 'elegant celebration decor on the existing objects: draped fabrics, florals on the existing floral objects, warm accents',
+      palette: null, materials: 'silk and velvet fabrics, polished gold and brass, ivory linen', floral: null,
+      signage: 'no signs or flags unless they exist as objects; any welcome board stays blank or unreadable',
+      lighting: 'warm, flattering celebration lighting', stage: 'stage dressed with fabric skirting and the existing decor only',
+      forbidden: ['political flags, banners or podium branding', 'corporate signage', 'concert beams or haze', 'readable text'] },
+    political: { label: 'Political rally / public meeting', florals: false, regional: false, themes: ['rally', 'minimal', 'corporate'],
+      summary: 'a functional public political rally - disciplined, open and practical; nothing celebratory or romantic',
+      decor: 'functional rally dressing: plain-coloured flags and bunting (no readable text, no symbols), steel crowd barricades, practical stage dressing',
+      palette: 'plain bold flag colours with white, steel grey and black', materials: 'steel barricades, black staging and truss, plain cloth, matting or open ground', floral: 'none - no flowers of any kind',
+      signage: 'plain-coloured flags and bunting only, with no readable text, letters or symbols; any banner or screen shows no text',
+      lighting: 'daylight or bright, even stage wash from truss lighting; line-array speakers and large LED walls glowing',
+      stage: 'a podium with a plain neutral front on a stage with plain black / neutral skirting; press riser with cameras on tripods; generator tucked away',
+      forbidden: ['flowers, florals, garlands or petals of any kind', 'floral arches or floral stands', 'wedding decor of any kind', 'couple / bridal chairs', 'chandeliers', 'candles', 'draped romantic fabrics', 'balloons', 'readable text, slogans, party symbols or logos'],
+      desc: { stage: 'a raised stage deck with plain black / neutral skirting and a clean top', podium: 'a speaker podium / lectern with a plain neutral front (no text or symbol)',
+        redcarpet: 'a plain carpet runner laid flat on the ground', walkway: 'a plain raised walkway / ramp', seatblock: 'a theatre-style seating block of plain plastic / folding chairs in neat straight rows',
+        chairrow: 'a straight row of plain plastic / folding chairs', chiavari: 'a plain folding chair', table: 'a plain round table with a simple cloth', barricade: 'a line of steel crowd-control barricades',
+        press: 'a press riser platform with video cameras on tripods', led: 'a large LED wall glowing with an abstract visual (no readable text)', videowall: 'a large LED video wall glowing with an abstract visual (no readable text)',
+        floral: 'a plain decorative stand in a neutral finish', floralarch: 'a plain arch frame in neutral cloth', headtable: 'a long dais table with plain cloth and simple chairs', sofa: 'a plain upholstered sofa for guests',
+        arch: 'a plain arch frame in neutral cloth', drape: 'plain neutral fabric panels', desk: 'a plain registration desk' } },
+    corporate: { label: 'Corporate / conference', florals: false, regional: false, themes: ['corporate', 'minimal'],
+      summary: 'a clean, professional corporate event or conference - modern, tidy and brand-neutral',
+      decor: 'clean modern dressing: a branding wall with no readable text, lecterns, modern furniture, neat cable management',
+      palette: 'neutral whites, greys and charcoal with one calm brand accent colour', materials: 'matte laminates, brushed metal, upholstered modern seating, carpet tiles', floral: 'none - no wedding florals; at most plain green foliage on existing planters',
+      signage: 'branding walls and screens show abstract graphics only, with no readable text or logos',
+      lighting: 'even, bright, professional stage and room lighting', stage: 'a dark carpeted stage with a lectern and a clean LED backdrop if it exists as an object',
+      forbidden: ['wedding florals, garlands or floral arches', 'wedding decor', 'couple chairs', 'balloons', 'readable text or logos'],
+      desc: { stage: 'a raised stage with a dark carpeted top and a clean fascia', podium: 'a modern lectern with a clean neutral front (no text)', seatblock: 'a theatre-style block of upholstered conference chairs in neat rows',
+        chairrow: 'a straight row of upholstered conference chairs', chiavari: 'a modern upholstered chair', table: 'a round table with crisp white linen and water glasses', floral: 'a plain green foliage planter', floralarch: 'a plain modern arch frame',
+        brandwall: 'a clean branding wall with abstract graphics (no readable text)', redcarpet: 'a plain carpet runner laid flat on the ground', headtable: 'a panel table with a clean skirted front and chairs' } },
+    concert: { label: 'Concert / music show', florals: false, regional: false, themes: ['concert', 'minimal'],
+      summary: 'a live concert - high-energy staging, lighting beams and haze',
+      decor: 'concert production: stage lighting beams, light haze, LED walls, crowd barricade, front-of-house tent',
+      palette: 'deep blacks with saturated stage-light colours', materials: 'black staging, aluminium truss, steel barricades, matte black finishes', floral: 'none - no florals',
+      signage: 'LED walls show abstract visuals with no readable text', lighting: 'dramatic coloured beams from moving lights through light haze, bright stage wash',
+      stage: 'a black concert stage with truss, line-array speakers and LED walls as placed', forbidden: ['florals, garlands or floral arches', 'wedding decor', 'couple chairs', 'chandeliers', 'readable text or logos'],
+      desc: { stage: 'a black concert stage deck with a black skirted front', seatblock: 'a block of plain black chairs in neat rows', chairrow: 'a straight row of plain black chairs', chiavari: 'a plain black chair',
+        floral: 'a plain black decorative stand', floralarch: 'a plain black arch frame', foh: 'a front-of-house sound and lighting console in a small black tent', redcarpet: 'a plain dark carpet runner laid flat on the ground', table: 'a plain round table with a black cloth' } },
+    exhibition: { label: 'Exhibition / expo', florals: false, regional: false, themes: ['corporate', 'minimal'],
+      summary: 'a trade exhibition - orderly shell-scheme booths along carpeted aisles',
+      decor: 'shell-scheme booths with blank fascia signage, carpeted aisles, display counters', palette: 'clean white booth walls with neutral grey carpet and calm accent colours',
+      materials: 'white shell-scheme panels, aluminium frames, needle-punch carpet', floral: 'none - no florals', signage: 'booth fascias and signs are blank (no readable text or logos)',
+      lighting: 'bright, even hall lighting with booth spotlights', stage: 'a simple presentation stage if it exists as an object',
+      forbidden: ['wedding florals or floral arches', 'wedding decor', 'couple chairs', 'readable text or logos'],
+      desc: { redcarpet: 'a carpeted aisle runner laid flat on the ground', floral: 'a plain green foliage planter', floralarch: 'a plain entrance arch frame', seatblock: 'a block of plain conference chairs in rows', chiavari: 'a plain chair', table: 'a plain round table with a simple cloth' } },
+    birthday: { label: 'Birthday / party', florals: true, regional: false, themes: ['pastel', 'rustic', 'bollywood', 'whitegreen', 'minimal', 'royal'],
+      summary: 'a joyful birthday party - colourful and playful', decor: 'colourful party decor on the existing objects; balloons and colourful accents allowed',
+      palette: 'cheerful bright colours', materials: 'satin and sequinned fabrics, glossy finishes', floral: 'light florals on the existing floral objects only',
+      signage: 'any banner or board stays blank or unreadable', lighting: 'bright, cheerful party lighting', stage: 'stage dressed with colourful fabric skirting',
+      forbidden: ['political flags or banners', 'wedding mandap or couple chairs', 'readable text'] },
+    iftar: { label: 'Iftar / majlis', florals: true, regional: false, themes: ['arabian', 'minimal', 'whitegreen', 'royal'],
+      summary: 'a graceful iftar gathering - warm Middle-Eastern hospitality, majlis seating and lanterns as designed',
+      decor: 'majlis-style hospitality on the existing objects: rich textiles, cushions, brass and lantern accents', palette: 'ivory, gold, deep teal and warm earth tones',
+      materials: 'woven carpets, brocade cushions, brass and wood', floral: 'subtle white florals on the existing floral objects only', signage: 'no readable text',
+      lighting: 'warm lantern-like lighting', stage: 'low, elegant stage dressing if a stage exists',
+      forbidden: ['wedding mandap or couple chairs', 'political flags', 'concert beams or haze', 'alcohol or bar bottles', 'readable text'] },
+  };
+  function profileKey(eventType, items) {
+    var e = String(eventType || '').toLowerCase();
+    if (/politic|rally|campaign|election|public meeting|sabha/.test(e)) return 'political';
+    if (/corporate|conference|seminar|summit|launch|meeting|award|agm|townhall|town hall/.test(e)) return 'corporate';
+    if (/concert|music|gig|festival|live show|dj night/.test(e)) return 'concert';
+    if (/exhibit|expo|trade ?show|fair/.test(e)) return 'exhibition';
+    if (/birthday|party|baby shower|kids/.test(e)) return 'birthday';
+    if (/iftar|ramadan|eid|majlis/.test(e)) return 'iftar';
+    if (/wedding|reception|sangeet|mehndi|mehendi|haldi|engagement|nikah|shaadi/.test(e)) return 'wedding';
+    // no (known) event type: infer from the objects on the plan
+    var c = {}; (items || []).forEach(function (it) { if (it && it.type) c[it.type] = (c[it.type] || 0) + 1; });
+    var has = function (t) { return c[t] || 0; };
+    var sc = {
+      wedding: 4 * has('mandap') + 3 * has('chariot') + 2 * (has('headtable') ? 1 : 0) + (has('floralarch') ? 2 : 0) + (has('caketable') ? 2 : 0) + (has('floral') ? 1 : 0) + (has('loveseat') ? 1 : 0),
+      political: 3 * (has('podium') ? 1 : 0) + 3 * (has('press') ? 1 : 0) + 2 * (has('barricade') ? 1 : 0) + 2 * (has('stagebarrier') ? 1 : 0) + (has('linearray') ? 1 : 0) + 3 * (has('flag') + has('flags') ? 1 : 0) + (has('checkpoint') ? 1 : 0),
+      exhibition: has('booth') >= 3 ? 8 : 2 * has('booth'),
+      concert: 2 * (has('linearray') ? 1 : 0) + 2 * (has('foh') ? 1 : 0) + 2 * (has('standing') + has('standingzone') ? 1 : 0) + (has('movinghead') ? 1 : 0) + (has('stagebarrier') ? 1 : 0),
+      corporate: 2 * (has('desk') ? 1 : 0) + 2 * (has('brandwall') ? 1 : 0) + (has('podium') ? 1 : 0) + (has('ledscreen') ? 1 : 0),
+      iftar: 4 * (has('majlis') + has('prayer') + has('prayerarea') ? 1 : 0),
+      birthday: 4 * (has('balloon') + has('balloons') ? 1 : 0),
+    };
+    // a rally with a podium + press riser beats an incidental registration desk
+    var best = 'wedding', bv = 2;
+    Object.keys(sc).forEach(function (k) { if (sc[k] > bv) { bv = sc[k]; best = k; } });
+    return best;
+  }
+  function themesFor(eventType, items) { return PROFILES[profileKey(eventType, items)].themes.slice(); }
+  // text cleaner for profiles without florals / wedding decor (never touches the FORBIDDEN lines)
+  var NONFLORAL = [
+    [/trees, hedges and flower beds/g, 'trees and hedges'], [/ on florals/g, ' on edges'], [/ and florals/g, ''], [/florals and /g, ''],
+    [/mandap \/ /g, ''], [/ \/ mandap/g, ''], [/flower stands/g, 'decor stands'],
+    [/\b(florals?|flowers?|roses?|marigolds?|petals?|hydrangeas?|orchids?|peonies|garlands?|bouquets?|posy)\b/gi, 'decor'],
+    [/floral/gi, 'decor'], [/flower/gi, 'decor'], [/\bmandaps?\b/gi, 'ceremony stage'], [/\bcouples?\b/gi, 'VIP'], [/\bbridal\b/gi, 'VIP'], [/\bwedding\b/gi, 'event'],
+  ];
+  function deflower(text) {
+    return text.split('\n').map(function (l) { if (/FORBIDDEN/.test(l)) return l; NONFLORAL.forEach(function (r) { l = l.replace(r[0], r[1]); }); return l; }).join('\n');
+  }
+
+  /* ---------- owner's master prompt (Helm Events geometry-preserving renderer) - filled values ---------- */
+  // theme -> palette / florals / finishes (section 6). 'none' = only what the objects already imply.
+  var THEME_FIELDS = {
+    none: { palette: 'as implied by the objects as designed: ivory and gold chiavari chairs, cream / ivory sofas, white and ivory linen, natural greenery and soft floral tones', floral: 'only on the existing floral objects (arches, floral stands, centrepieces): roses, hydrangeas and greenery as designed', finish: 'gold chiavari chairs with ivory cushions, cream upholstered sofas, ivory linen, neatly skirted stage and tables' },
+    royal: { palette: 'rich gold, deep red and ivory', floral: 'marigold and rose garlands on the existing florals and arches', finish: 'gold and carved finishes, rich red and ivory fabrics, brass accents on existing objects' },
+    pastel: { palette: 'blush pink, ivory and soft sage', floral: 'blush and ivory roses, peonies and hydrangeas on the existing florals', finish: 'light sheer fabrics, ivory and gold furniture finishes' },
+    whitegreen: { palette: 'white, ivory and fresh green', floral: 'white roses and orchids with lush green foliage on the existing florals', finish: 'crisp white linen, clean white and gold furniture' },
+    minimal: { palette: 'neutral whites, greys and natural tones', floral: 'sculptural single-stem florals on the existing floral objects', finish: 'matte finishes, clean lines, uncluttered surfaces' },
+    rustic: { palette: 'natural wood, warm whites and greens', floral: 'wildflowers and greenery on the existing florals', finish: 'natural wood, linen and burlap textures on existing furniture' },
+    arabian: { palette: 'ivory and gold', floral: 'white orchids and roses on the existing florals', finish: 'mirrored and crystal accents, plush fabrics on existing furniture' },
+    bollywood: { palette: 'bold jewel colours - magenta, orange and emerald with gold', floral: 'vivid roses and marigolds on the existing florals', finish: 'sequinned and draped fabrics on existing objects, sparkle accents' },
+    corporate: { palette: 'crisp brand blue and white', floral: 'minimal white florals on the existing floral objects', finish: 'modern clean furniture finishes, tidy professional surfaces' },
+    rally: { palette: 'plain bold flag colours with white', floral: 'minimal, only on existing floral objects', finish: 'sturdy practical finishes, clean stage dressing' },
+    concert: { palette: 'deep blacks with saturated stage-light colours', floral: 'none beyond the existing floral objects', finish: 'black staging, metal truss and matte finishes' },
+  };
+  var LIGHT = {
+    golden: { time: 'golden hour', mood: 'warm, glowing and romantic', sun: 'a low sun from camera-left (from the side of the venue), so long shadows fall across the ground toward the right', art: 'none needed - natural sunlight; existing stage and screen lights may glow softly', design: 'natural warm low sunlight with subtle accents on the existing stage and screens' },
+    daylight: { time: 'midday', mood: 'bright, fresh and true-to-life', sun: 'high sun, slightly from the side opposite the camera, short shadows directly under objects', art: 'none - daylight only; LED screens on but subtle', design: 'clean natural daylight' },
+    evening: { time: 'blue hour', mood: 'warm and festive against a cool dark sky', sun: 'the sun has set - only a faint glow on the horizon on the side opposite the camera', art: 'warm festoon / fairy string lights, amber uplights on the existing florals and landscaping, candles on the existing tables, stage and LED screens brightly lit', design: 'warm festoon lighting, uplighting and candlelight' },
+    eveningIndoor: { time: 'indoor evening', mood: 'moody and intimate', sun: 'no sunlight (indoor, evening)', art: 'the venue\'s own fixtures dimmed, warm uplights, candlelight on the existing tables, stage and LED screens brightly lit', design: 'dimmed warm interior lighting with bright stage focus' },
+    ballroom: { time: 'indoor evening', mood: 'elegant and warm', sun: 'no sunlight (indoor)', art: 'chandeliers and ceiling cove light, soft pin-spots on tables and florals, warm wall uplighting', design: 'warm ambient interior light with pin-spots on the existing tables and florals' },
+  };
+  var TIME_DEF = [
+    'Morning: soft, cool-to-neutral low sun, gentle long shadows, fresh clear air.',
+    'Midday: high sun, neutral white balance, short shadows directly under objects.',
+    'Golden hour: low warm amber sun shortly before sunset, long soft shadows, glowing rim light.',
+    'Blue hour: just after sunset, deep blue sky, the event lit by its own warm lights.',
+    'Night: dark sky, the scene lit only by the event\'s own artificial lights.',
+    'Indoor daylight: soft daylight entering the room, natural neutral colours, gentle shadows.',
+    'Indoor evening: warm artificial light from the venue\'s own fixtures, dimmed ambient level, pools of light.',
+  ];
+  var WEATHER = { clear: 'clear sky', partly: 'partly cloudy - scattered soft clouds, sunlight still reaching the scene', overcast: 'overcast - an even layer of soft cloud, diffuse light and gentle shadows; keep the time-of-day colour' };
+  function seasonOf(date, region) {
+    var m = /^(\d{4})-(\d{2})/.exec(String(date || '')), mo = m ? +m[2] : 0;
+    if (!(mo >= 1 && mo <= 12)) return 'not specified - mild, pleasant conditions typical of the region';
+    if (region === 'AE') return mo >= 11 || mo <= 3 ? 'UAE winter - mild, clear and pleasant, soft sun' : 'UAE summer - hot, very bright sun, a light desert haze at the horizon';
+    if (region === 'US') return mo === 12 || mo <= 2 ? 'winter - crisp air, evergreen or bare trees, no snow on the event area' : mo <= 5 ? 'spring - fresh green growth and blossom on the existing landscaping' : mo <= 8 ? 'summer - lush green landscaping, warm bright air' : 'autumn - warm-toned foliage on the surrounding trees';
+    return mo === 12 || mo <= 2 ? 'Indian winter - cool, clear, dry air, soft winter sun, green lawns' : mo <= 5 ? 'Indian summer - hot, bright and dry, strong sun' : mo <= 9 ? 'monsoon season - lush deep-green vegetation, fresh damp air (no rain falling)' : 'post-monsoon autumn - clear, pleasant air and fresh green landscaping';
+  }
+  var COMPASS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+  function compass(deg) { deg = ((deg % 360) + 360) % 360; return COMPASS[Math.round(deg / 45) % 8]; }
+  var SEATING = { sofa: 1, loveseat: 1, armchair: 1, chairrow: 1, seatblock: 1, chiavari: 1, bench: 1, bleacher: 1, ottoman: 0 };
+  var FACES_AUDIENCE = { stage: 1, mandap: 1, led: 1, videowall: 1, ledscreen: 1, dj: 1, podium: 1, headtable: 1, brandwall: 1, photobooth: 1 };
+  /* facing of one object (plan compass: north = top edge of the 2D plans, rotation clockwise in degrees).
+     Seating at rotation 0 faces north; explicit rotation turns it; it is "faces <stage>" when the stage lies
+     within 60 deg of that heading. Stage / screens / DJ face the guests (toward the venue centre). */
+  function facingOf(it, W, H, stage, stageName) {
+    var t = it.type, rot = num(it.rotation, 0), b = ibox(it), cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
+    if (SEATING[t]) {
+      var hd = rot;
+      if (stage && stage !== it) {
+        var sb = ibox(stage), dx = (sb.x0 + sb.x1) / 2 - cx, dy = (sb.y0 + sb.y1) / 2 - cy;
+        var to = Math.atan2(dx, -dy) * 180 / Math.PI, diff = Math.abs((((to - hd) % 360) + 540) % 360 - 180);
+        if (diff <= 60) return 'faces ' + stageName + ' (' + compass(hd) + ')';
+      }
+      return 'faces ' + compass(hd);
+    }
+    if (FACES_AUDIENCE[t]) {
+      if (rot) return 'faces ' + compass(rot + 180);
+      var ux = W / 2 - cx, uy = H / 2 - cy, wide = (b.x1 - b.x0) >= (b.y1 - b.y0);
+      var d = wide ? (uy >= 0 ? 180 : 0) : (ux >= 0 ? 90 : 270);
+      return 'faces guests (' + compass(d) + ')';
+    }
+    return rot ? 'rotated ' + Math.round(rot) + ' deg' : null;
+  }
+  var r1 = function (v) { return Math.round(num(v, 0) * 10) / 10; }, r2m = function (v) { return Math.round(num(v, 0) * 0.3048 * 100) / 100; };
+  /* canonical event JSON (embedded as text - the image API takes only images + text).
+     level 0: every object; 1: same-type groups of 2+ become one entry with ids; 2: ids as first..last;
+     3: single objects of one type + size share one entry with every position.
+     never drops an object: every entry carries its count. */
+  function eventJson(level, ctx) {
+    var objs = [], singles = {};
+    ctx.groups.forEach(function (g) {
+      if (level >= 3 && g.items.length === 1) {   // scattered single objects: one entry per type, every position kept
+        var it1 = g.items[0], k = g.type + '|' + r1(it1.width) + '|' + r1(it1.height), e1 = singles[k];
+        if (!e1) { e1 = singles[k] = { t: g.type, n: 0, each: { w: r1(it1.width), h: r1(it1.height) }, at: [], gs: [] }; objs.push(e1); }
+        var f1 = facingOf(it1, ctx.W, ctx.H, ctx.stage, ctx.stageName);
+        e1.n++; e1.at.push(num(it1.rotation, 0) ? [r1(it1.x), r1(it1.y), Math.round(num(it1.rotation, 0))] : [r1(it1.x), r1(it1.y)]); e1.gs.push(g.id);
+        if (f1 && !e1.facing) e1.facing = f1;
+        return;
+      }
+      if (level === 0 || g.items.length === 1) {
+        g.items.forEach(function (it) {
+          var o = { id: clean(it.id != null ? it.id : g.type, 32), t: g.type, x: r1(it.x), y: r1(it.y), w: r1(it.width), h: r1(it.height) };
+          if (level < 2) { o.wm = r2m(it.width); o.hm = r2m(it.height); }
+          if (level < 2 || num(it.rotation, 0)) o.rot = Math.round(num(it.rotation, 0));
+          var f = facingOf(it, ctx.W, ctx.H, ctx.stage, ctx.stageName); if (f) o.facing = f;
+          o.g = g.id;
+          var p = it.properties || {};
+          if (p.rows && p.cols) { o.rows = num(p.rows, 0); o.cols = num(p.cols, 0); o.seats = o.rows * o.cols; }
+          else if (num(p.seats, 0) > 0) o.seats = num(p.seats, 0);
+          objs.push(o);
+        });
+      } else {
+        var it0 = g.items[0], ids = g.items.map(function (it) { return clean(it.id != null ? it.id : g.type, 32); });
+        var e = { g: g.id, t: g.type, n: g.items.length, rows: rowsOf(g.items, ctx.edge, ctx.W, ctx.H), x: r1(g.box.x0), y: r1(g.box.y0), w: r1(g.box.x1 - g.box.x0), h: r1(g.box.y1 - g.box.y0),
+          each: { w: r1(it0.width), h: r1(it0.height), wm: r2m(it0.width), hm: r2m(it0.height), rot: Math.round(num(it0.rotation, 0)) } };
+        var ff = facingOf(it0, ctx.W, ctx.H, ctx.stage, ctx.stageName); if (ff) e.facing = ff;
+        var s = 0; g.items.forEach(function (it) { s += seatsOf(it); }); if (s) e.seats = s;
+        e.ids = level === 1 ? ids : ids[0] + ' .. ' + ids[ids.length - 1] + ' (' + ids.length + ')';
+        if (level >= 3) delete e.each.wm, delete e.each.hm;
+        objs.push(e);
+      }
+    });
+    objs.forEach(function (e) { if (e.gs) e.gs = e.gs[0] + (e.gs.length > 1 ? ' .. ' + e.gs[e.gs.length - 1] : ''); });
+    return JSON.stringify({ units: level < 2 ? 'ft (wm / hm in metres; 1 ft = 0.3048 m)' : 'ft (metres = ft x 0.3048)', axes: 'x to the right (east), y downward (south) from the top-left corner of the 2D plans; x,y = top-left of the object; rot = clockwise degrees (missing = 0); north = top edge of the plans',
+      venue: { w: r1(ctx.W), h: r1(ctx.H), wm: r2m(ctx.W), hm: r2m(ctx.H), front: ctx.frontText, setting: ctx.where }, names: level < 2 ? ctx.names : undefined, objects: objs });
+  }
+  var PROMPT_LIMIT = 30000;   // OpenAI GPT image models accept up to 32,000 characters; render-photo also caps at 30,000
+  var JSON_TARGET = 12000;
+
   function build(input) {
     input = input || {};
     var W = Math.max(10, num(input.world && input.world.w, 200)), H = Math.max(10, num(input.world && input.world.h, 140));
@@ -317,11 +529,16 @@
     var env = envFor(style, setting);
     var camera = CAMERAS[input.camera] ? input.camera : 'auto';
     var region = regionOf(input.country);
+    var pk = profileKey(input.eventType, items), prof = PROFILES[pk];
     var themeKey = input.themeKey && THEMES[input.themeKey] ? input.themeKey : null;
+    if (themeKey && themeKey !== 'none' && prof.themes.indexOf(themeKey) < 0) themeKey = 'none';   // a theme that does not fit this event type is ignored
     var theme = themeKey ? THEMES[themeKey].text : clean(input.theme, 160);
+    function descOf(t) { return (prof.desc && prof.desc[t]) || DESC[t] || NAMES[t] || clean(t, 30); }
     var focus = input.focus && FOCUS[input.focus] ? input.focus : null;
-    var eventType = clean(input.eventType, 40) || 'wedding';
+    var eventType = clean(input.eventType, 40) || { wedding: 'wedding', political: 'political rally', corporate: 'corporate event', concert: 'concert', exhibition: 'exhibition', birthday: 'birthday party', iftar: 'iftar' }[pk];
     var nImages = Math.max(1, Math.min(4, num(input.images, 4)));
+    var weather = WEATHER[input.weather] ? input.weather : 'clear';
+    var quality = input.quality === 'high' ? 'high' : 'standard';
     var o = orientation(items, W, H);
     var stageItem = o.focal;
 
@@ -345,7 +562,6 @@
       counts[t] = byType[t].length;
       clusterType(byType[t], t === 'redcarpet' || t === 'walkway' ? null : aisleBox).forEach(function (g) { groups.push({ type: t, items: g, box: groupBox(g) }); });
     });
-    // sort: front to back, then left to right
     groups.forEach(function (g) { g.p = local(o.edge, (g.box.x0 + g.box.x1) / 2, (g.box.y0 + g.box.y1) / 2, W, H); });
     groups.sort(function (a, b) { return (a.p.depth - b.p.depth) || (a.p.lat - b.p.lat); });
     var typeGroups = {}; groups.forEach(function (g) { typeGroups[g.type] = (typeGroups[g.type] || 0) + 1; });
@@ -355,15 +571,16 @@
       if (typeGroups[g.type] > 1) side = (aisleLat != null && Math.abs(g.p.lat - aisleLat) > 0.02 ? (g.p.lat < aisleLat ? 'left ' : 'right ') : zone(g.p) + ' ');
       return 'the ' + side + nm + (g.items.length > 1 && g.type !== 'seatblock' ? ' group' : '');
     }
-    var lines = [], check = [];
-    groups.forEach(function (g, gi) {
+    var lines = [], shortLines = [], tinyLines = [], check = [];
+    groups.forEach(function (g, gi) { g.id = 'G' + (gi + 1); });
+    groups.forEach(function (g) {
       var t = g.type, n = g.items.length, name = NAMES[t] || clean(t, 30), it0 = g.items[0];
-      g.id = 'G' + (gi + 1);
       var rows = rowsOf(g.items, o.edge, W, H);
       var what, total = n + ' ' + plural(n, name);
       if (t === 'seatblock' || t === 'chairrow') {
         var r = 0, ch = 0, per = [];
         g.items.forEach(function (it) { var p = it.properties || {}; var rr = num(p.rows, 1), cc = num(p.cols, 0) || (rr ? Math.round(seatsOf(it) / rr) : 0); r += rr; ch += seatsOf(it); per.push(rr + ' rows x ' + cc + ' chairs per row'); });
+        if (per.length > 6) per = [per.slice(0, 3).join('; ') + '; ...'];
         what = (n > 1 ? n + ' ' + plural(n, name) + ' (' + per.join('; ') + ')' : 'one ' + name + ': ' + per[0]) + ' = ' + ch + ' chairs';
         total = (n > 1 ? n + ' blocks, ' : '') + r + ' rows, ' + ch + ' chairs';
       } else {
@@ -378,7 +595,6 @@
             where.push((g.p.lat < aisleLat ? 'LEFT' : 'RIGHT') + ' of the aisle');
         }
       }
-      // nearest anchor group of another type
       var best = null, bd = Infinity;
       groups.forEach(function (h) { if (h === g || h.type === t || anchorTypes.indexOf(h.type) < 0) return; var d = boxGap(g.box, h.box); if (d < bd) { bd = d; best = h; } });
       if (best && bd < 0.15 * Math.max(W, H) && anchorTypes.indexOf(t) < 0) where.push(relation(g.box, best.box, o.edge, W, H, stageItem && best.items.indexOf(stageItem) >= 0) + ' ' + shortName(best));
@@ -387,58 +603,225 @@
       var gw = Math.round(g.box.x1 - g.box.x0), gh = Math.round(g.box.y1 - g.box.y0);
       var size = n > 1 ? 'each about ' + ft(num(it0.width, 0)) + ' x ' + ft(num(it0.height, 0)) + ', group spans ' + gw + ' x ' + gh + ' ft' : 'about ' + ft(num(it0.width, 0)) + ' x ' + ft(num(it0.height, 0));
       var extra = t === 'sofa' && stageItem ? ', facing the ' + (NAMES[stageItem.type] || 'stage') : '';
-      lines.push('- ' + g.id + ': ' + what + ' - ' + (DESC[t] || name) + '; ' + where.join(', ') + '; ' + size + extra + '.');
+      lines.push('- ' + g.id + ': ' + what + ' - ' + descOf(t) + '; ' + where.join(', ') + '; ' + size + extra + '.');
+      tinyLines.push('- ' + g.id + ': ' + what + ' - ' + descOf(t) + '; ' + where[0] + '.');
+      shortLines.push('- ' + g.id + ': ' + what + ' - ' + descOf(t) + '; ' + where.slice(0, 2).join(', ') + '.');
       check.push('- ' + g.id + ' ' + shortName(g).replace(/^the /, '') + ': ' + (t === 'seatblock' || t === 'chairrow' ? total : (n > 1 && rows.length > 1 && rows.some(function (r) { return r > 1; }) ? rows.length + ' rows, ' + total : (n > 1 && rows.length === 1 ? '1 row, ' : '') + total)));
     });
 
     var front = stageItem ? (NAMES[stageItem.type] || 'stage') : null;
+    var edgeCompass = { top: 'north', bottom: 'south', left: 'west', right: 'east' }[o.edge];
     var orient = front
-      ? 'The ' + front + ' is along the ' + edgeWord(o.edge) + ' edge of the 2D plans; that is the FRONT of the venue. "Left" and "right" below are as seen by a guest facing the ' + front + '.'
+      ? 'The ' + front + ' is along the ' + edgeWord(o.edge) + ' edge of the 2D plans (' + edgeCompass + '); that is the FRONT of the venue. "Left" and "right" below are as seen by a guest facing the ' + front + '.'
       : 'There is no stage; "front" below means the top edge of the 2D plans, "left"/"right" as seen looking toward it.';
 
+    /* ---- filled placeholders ---- */
+    var outdoor = env.where === 'outdoor';
+    var L = style === 'evening' && !outdoor ? LIGHT.eveningIndoor : LIGHT[style];
+    var base = pk === 'wedding' ? THEME_FIELDS.none : { palette: prof.palette || THEME_FIELDS.none.palette, floral: prof.floral || THEME_FIELDS.none.floral, finish: prof.materials };
+    var tf = themeKey && themeKey !== 'none' ? THEME_FIELDS[themeKey] : (theme && !themeKey ? { palette: 'as described by the planner\'s theme, applied to the existing objects', floral: 'as described by the planner\'s theme, only on the existing floral objects', finish: 'as described by the planner\'s theme, on the existing furniture' }  : base);
+    if (!prof.florals) tf = { palette: tf.palette, floral: prof.floral, finish: tf.finish };
+    var camTop = camera === 'top', camEye = camera === 'eye', camCur = camera === 'current';
+    var aspect = camTop && H > W * 1.1 ? '2:3 portrait (1024 x 1536)' : '3:2 landscape (1536 x 1024)';
+    var F = {
+      VENUE_TYPE: outdoor ? 'open-air outdoor event venue' : (style === 'ballroom' || style === 'evening' ? 'indoor ballroom / banquet hall' : 'indoor event hall'),
+      VENUE_SETTING: outdoor ? 'outdoor - open to the sky on a manicured lawn and terrace' : 'indoor - a fully enclosed room',
+      WEATHER: outdoor ? WEATHER[weather] : 'not visible (indoor venue)',
+      SEASON: seasonOf(input.eventDate, region) + (outdoor ? '' : ' (indoor venue: nothing outdoors is visible)'),
+      EVENT_TYPE: eventType + (guests ? ' for about ' + guests + ' guests' : ''),
+      DECOR_THEME: theme ? 'Decor theme requested by the planner: ' + theme + '.' : 'none - realistic decor matching the objects as designed; no added theme.',
+      COLOR_PALETTE: tf.palette, FLORAL_STYLE: tf.floral, FURNITURE_FINISHES: tf.finish, LIGHTING_DESIGN: L.design,
+      TIME_OF_DAY: L.time, LIGHTING_MOOD: L.mood, SUN_DIRECTION: L.sun, ARTIFICIAL_LIGHTING: L.art,
+      CAMERA_MODE: camTop ? 'top-down nadir photograph' : camEye ? 'eye-level photograph' : camCur ? 'locked to Image 1 (the planner\'s chosen 3D view)' : 'locked to Image 1 (high three-quarter aerial)',
+      CAMERA_POSITION: camTop ? 'directly above the centre of the venue, oriented exactly like Image 2 (same edge at the top)' : camEye ? 'at the guest entrance at the back of the venue, looking toward the ' + (front || 'front') + ' along the main aisle' : 'exactly as in Image 1 - same position, height and side of the venue in the foreground',
+      CAMERA_ELEVATION: camTop ? '90 deg straight down' : camEye ? '1.6 m above the ground, level' : camCur ? 'as in Image 1' : 'about 40 deg looking down, as in Image 1',
+      FOCAL_LENGTH: camEye ? '35 mm full-frame equivalent' : '24 mm full-frame equivalent',
+      ASPECT_RATIO: aspect,
+      IMAGE_QUALITY: quality === 'high' ? 'maximum detail - magazine-grade luxury event photography' : 'high-quality professional event photography',
+    };
+
+    var usedCats = {}; semanticMap(items, { w: W, h: H }).legend.forEach(function (l) { usedCats[l.key] = 1; });
+    var legendText = CATS.filter(function (c) { return usedCats[c.key]; }).map(function (c) { return c.name; }).concat(usedCats.other ? [OTHER.name] : []).join('; ') || 'none';
     var roles = [
       'INPUT IMAGES (each has one job):',
-      'Image 1: camera / composition reference - a simple 3D model of the layout. Match its viewpoint, height, angle and framing exactly; replace every simplified grey shape with the real, richly detailed object.',
+      'Image 1: camera / composition reference - the actual 3D scene of the layout. Match its viewpoint, height, angle and framing exactly; replace every simplified grey shape with the real, richly detailed object.',
       'Image 2: top-down 2D floor plan without labels - ground truth for where every object stands.',
       'Image 3: the same plan with labels and measurements - use it ONLY to identify objects and read their sizes / scale; never draw any of it.',
     ];
-    if (nImages >= 4) roles.push('Image 4: colour-coded semantic map (top-down, same orientation as Image 2): every flat colour patch is exactly one real object - use it to verify exact positions, rows and counts. Colour key: ' + LEGEND_TEXT + '. White = empty ground. Never reproduce these flat colours.');
+    if (nImages >= 4) roles.push('Image 4: colour-coded semantic map (top-down, same orientation as Image 2): every flat colour patch is exactly one real object - use it to verify exact positions, rows and counts. Colour key: ' + legendText + '. White = empty ground. Never reproduce these flat colours.');
+    roles.push('No style reference image is supplied - do not imagine or copy one.');
 
-    var system = [
+    var head = [
+      'HELM EVENTS - GEOMETRY-PRESERVING PHOTOREALISTIC EVENT RENDERER',
+      '',
+      'ROLE: You are a professional architectural photographer, luxury event photographer, event-space visualization specialist and photorealistic renderer. Your task is to transform an existing, fully designed event scene into a premium, realistic photograph for a paying client. You are NOT designing a new event, NOT rearranging furniture and NOT inventing a better floor plan. Render the exact event the planner designed: ONE ultra-realistic professional event photograph of the planned ' + eventType + ' (not a 3D render, not an illustration). Change only the look (real materials, decor, light, environment); keep everything else exactly the same.',
+      '',
       env.text,
       '',
-      'TASK: Create ONE ultra-realistic professional event photograph (not a 3D render, not an illustration) of the planned ' + eventType + ' shown in the input images. Change only the look (real materials, decor, light, environment); keep everything else - layout, positions, counts, rows, spacing, orientation, camera angle - exactly the same.',
+      'EVENT TYPE (decided first - style ONLY for this type): ' + prof.label + ' (' + eventType + ') - ' + prof.summary + '.',
+      '- Decor vocabulary: ' + prof.decor + '.',
+      '- Colour palette: ' + (prof.palette || tf.palette) + '.',
+      '- Materials: ' + prof.materials + '.',
+      '- Florals: ' + (prof.florals ? (prof.floral || 'allowed on the existing floral objects, per the decor theme') : prof.floral) + '.',
+      '- Signage and flags: ' + prof.signage + '.',
+      '- Lighting design: ' + prof.lighting + '.',
+      '- Stage dressing: ' + prof.stage + '.',
+      '',
       roles.join('\n'),
-      'STRICT RULES:',
-      '- Keep the layout EXACTLY as planned: same objects, same counts, same rows, same positions, same spacing and orientation. Do not add, remove, move, merge or duplicate any object, row, group, table or chair. Two separate groups stay two separate groups.',
-      '- No text, letters, numbers, labels, badges, legends, logos, watermarks, measurement lines, dimension arrows, grid lines, colour-coded patches or plan symbols anywhere in the photo.',
-      '- Photorealistic: real materials, physically correct light and shadows, natural colour, fine detail, no CGI look, no cartoon look, no tilt-shift miniature effect.',
-      '- No people unless performers are part of the plan; the venue is styled and ready just before guests arrive.',
     ].join('\n');
 
-    var layout = [
-      'EVENT: ' + eventType + (guests ? ' for about ' + guests + ' guests' : '') + (seats ? ' (' + seats + ' seats on the plan)' : '') + '.',
-      'VENUE: ' + (env.where === 'indoor' ? 'indoor event space' : 'open-air outdoor venue') + ', ' + ft(W) + ' wide x ' + ft(H) + ' deep.',
-      'ORIENTATION: ' + orient,
-      aisle ? 'AISLE: a ' + (NAMES[aisle.type] || 'aisle') + ' runs ' + (aisleLat < 0.4 ? 'left of centre' : (aisleLat > 0.6 ? 'right of centre' : 'down the centre')) + ' from the back toward the ' + (front || 'front') + '; it splits the seating into a LEFT side and a RIGHT side.' : '',
-      'INVENTORY (front to back; every group must appear as its own group, with exactly this count and arrangement):',
-      lines.length ? lines.join('\n') : '- (empty floor - show the styled venue only)',
-      'COUNT CHECKLIST (exact numbers - ' + groups.length + ' groups):',
-      check.length ? check.join('\n') : '- nothing',
-      'TOTALS BY TYPE: ' + order.map(function (t) { var n = counts[t], nm = NAMES[t] || clean(t, 30), x = '';
-        if (t === 'seatblock' || t === 'chairrow') { var r = 0, c = 0; byType[t].forEach(function (it) { r += num((it.properties || {}).rows, 1); c += seatsOf(it); }); x = ' (' + r + ' rows, ' + c + ' chairs in total)'; }
-        return n + ' ' + plural(n, nm) + x; }).join(', ') + '.',
-      'Before finalising, verify every count, every row and every group in the checklist against Image 2' + (nImages >= 4 ? ' and Image 4' : '') + '; if anything is missing, merged or extra, fix it.',
-      'STYLE & DECOR: ' + REGIONS[region].text + (theme ? ' Decor theme requested by the planner: ' + theme + '.' : ''),
-      'LIGHT & TIME: ' + STYLES[style].light + '.',
-      'CAMERA: ' + CAMERAS[camera].text,
-      focus ? 'FOCUS: the photo should feature ' + FOCUS[focus].text + ' prominently - frame it as the hero of the picture while keeping everything else exactly as planned.' : '',
-      env.remind,
+    var s1 = [
+      '1. SOURCE-OF-TRUTH HIERARCHY',
+      'Use the inputs in this order of priority:',
+      '1) the canonical event JSON below - object identities, coordinates, dimensions, rotations, orientations, materials and relationships;',
+      '2) the actual 3D scene (Image 1) - geometry and camera;',
+      '3) the unlabeled 2D floor plan (Image 2) - secondary verification of positions;',
+      '4) the dimensioned floor plan (Image 3) - only to identify objects and verify measurements; never reproduce its annotations;',
+      nImages >= 4 ? '5) the colour-coded semantic map (Image 4) - verifies counts and positions only; never reproduce its colours;' : '',
+      (nImages >= 4 ? '6' : '5') + ') style reference image - none is supplied, so take photographic quality, materials and finish from these instructions alone;',
+      (nImages >= 4 ? '7' : '6') + ') the render settings in sections 5-8 (venue type, time of day, weather, lighting, camera, decor).',
+      'When sources conflict, the higher priority always wins. Never combine conflicting layouts and never copy furniture or layout from a style reference.',
     ].filter(Boolean).join('\n');
 
-    var prompt = system + '\n\n' + layout;
-    if (prompt.length > 30000) prompt = prompt.slice(0, 30000 - env.remind.length - 1) + '\n' + env.remind;
-    return { style: style, camera: camera, region: region, theme: theme, focus: focus, environment: env.where, system: system, layout: layout, prompt: prompt,
+    var s2 = [
+      '2. GEOMETRY AND LAYOUT LOCK',
+      '- Keep the layout EXACTLY as planned: same objects, same counts, same rows, same positions, same spacing and orientation. Preserve the position, rotation, dimensions and orientation of every object.',
+      '- Keep the exact number of objects, rows, columns and seating blocks. Preserve all aisles, gaps, walking routes, entrances, exits and distances between objects.',
+      '- Preserve the shapes and proportions of the stage, dance floor, seating areas, buffet, screens and venue boundaries.',
+      '- Preserve the camera viewpoint, azimuth, elevation, focal perspective and framing of Image 1.',
+      '- Do not add, remove, move, merge or duplicate any object, row, group, table or chair; do not resize, shift or rotate anything. Two separate groups stay two separate groups. Do not change the capacity.',
+      '- Do not infer layout from any style reference and do not invent structures that are not in the source scene.',
+      'ORIENTATION: ' + orient,
+      aisle ? 'AISLE: a ' + (NAMES[aisle.type] || 'aisle') + ' runs ' + (aisleLat < 0.4 ? 'left of centre' : (aisleLat > 0.6 ? 'right of centre' : 'down the centre')) + ' from the back toward the ' + (front || 'front') + '; it splits the seating into a LEFT side and a RIGHT side.' : '',
+      'VENUE: ' + (outdoor ? 'open-air outdoor venue' : 'indoor event space') + ', ' + ft(W) + ' wide x ' + ft(H) + ' deep.',
+      'EVENT: ' + eventType + (guests ? ' for about ' + guests + ' guests' : '') + (seats ? ' (' + seats + ' seats on the plan)' : '') + '.',
+    ].filter(Boolean).join('\n');
+
+    var s3 = [
+      '3. OBJECT ORIENTATION - CRITICAL',
+      '- Preserve the rotation and front-facing direction of every sofa, chair, bench, table, stage and screen exactly as in the JSON "facing" field and Image 1.',
+      '- Seating faces its target (normally the ' + (front || 'stage') + '). Never reverse, mirror or rotate seating toward the camera; keep every row in its row.',
+      '- Preserve angled LED screens, the DJ booth and stage elements at their exact angles.',
+      '- If an orientation is ambiguous, keep the source geometry exactly as it is.',
+    ].join('\n');
+
+    var s4 = [
+      '4. REALISTIC OBJECT TRANSFORMATION',
+      'Turn each placeholder into a realistic version of the SAME object, matching its dimensions, silhouette, footprint, orientation and location. Never split or merge objects and never substitute a different, merely similar object. Each object description below describes only that object\'s own materials and finish - it never adds other objects.',
+    ].join('\n');
+
+    var s5 = [
+      '5. VENUE ENVIRONMENT',
+      '- Venue type: ' + F.VENUE_TYPE + '.',
+      '- Venue setting: ' + F.VENUE_SETTING + '.',
+      '- Weather: ' + F.WEATHER + '.',
+      '- Season: ' + F.SEASON + '.',
+      outdoor
+        ? '- Outdoor: render a true open-air venue - open sky, natural landscaping and natural light. Nothing overhead but sky: do not enclose the space or add any roof or structure that is not in the source scene or selected.'
+        : '- Indoor: render a believable enclosed interior with its own ceiling, walls, flooring and interior lighting. No sky, no gardens and no direct sunlight.',
+      '- Preserve the venue boundaries and footprint exactly.',
+    ].join('\n');
+
+    var s6 = [
+      '6. EVENT STYLING',
+      '- Event type: ' + F.EVENT_TYPE + '.',
+      '- Decor theme: ' + F.DECOR_THEME,
+      '- Colour palette: ' + F.COLOR_PALETTE + '.',
+      '- Floral style: ' + F.FLORAL_STYLE + '.',
+      '- Furniture finishes: ' + F.FURNITURE_FINISHES + '.',
+      '- Lighting design: ' + F.LIGHTING_DESIGN + '.',
+      prof.regional ? '- Regional finish: ' + REGIONS[region].text : '',
+      '- Event-type decor: ' + prof.decor + '.',
+      '- FORBIDDEN for this event type: ' + prof.forbidden.join('; ') + '.',
+      '- Use believable materials, fabrics, florals and finishes. Decorate the existing objects without moving them. Do not introduce unselected arches, furniture, flower stands, screens, chandeliers, signs, water features or any other objects.',
+    ].join('\n');
+
+    s6 = s6.split('\n').filter(Boolean).join('\n');
+    var s7 = [
+      '7. LIGHTING AND TIME OF DAY',
+      '- Time of day: ' + F.TIME_OF_DAY + '. ' + STYLES[style].light.charAt(0).toUpperCase() + STYLES[style].light.slice(1) + '.',
+      '- Lighting mood: ' + F.LIGHTING_MOOD + '.',
+      '- Sun direction: ' + F.SUN_DIRECTION + '.',
+      '- Artificial lighting: ' + F.ARTIFICIAL_LIGHTING + '.',
+      'Definitions: ' + TIME_DEF.join(' '),
+      'Use only the selected lighting condition; never mix lighting from different times of day.',
+    ].join('\n');
+    if (outdoor) s7 = s7.replace(/chandeliers|ceiling|ballroom/gi, 'interior lights');
+
+    var s8 = [
+      '8. CAMERA AND PHOTOGRAPHIC QUALITY',
+      '- Camera mode: ' + F.CAMERA_MODE + '.',
+      '- Camera position: ' + F.CAMERA_POSITION + '.',
+      '- Camera elevation: ' + F.CAMERA_ELEVATION + '.',
+      '- Focal length: ' + F.FOCAL_LENGTH + '.',
+      '- Aspect ratio: ' + F.ASPECT_RATIO + '.',
+      '- Image quality: ' + F.IMAGE_QUALITY + '.',
+      'CAMERA: ' + CAMERAS[camera].text,
+      focus ? 'FOCUS: the photo should feature ' + FOCUS[focus].text + ' prominently - frame it as the hero of the picture while keeping everything else exactly as planned.' : '',
+      '- Photorealistic: natural perspective, consistent scale, accurate materials, reflections and shadows, physically correct light, fine detail, sharp edges, realistic colour grading and appropriate depth of field with the whole venue clear.',
+      '- No miniature / tilt-shift effect, no blur, no oversaturation, no plastic look, no artificial glow, no warped geometry, no CGI look, no cartoon look.',
+      '- No people unless performers are part of the plan; the venue is styled and ready just before guests arrive.',
+    ].filter(Boolean).join('\n');
+
+    var s9 = [
+      '9. TEXT AND SCREEN CONTENT',
+      '- No text, letters, numbers, labels, captions, badges, legends, logos, watermarks, measurement lines, dimension arrows, grid lines, colour-coded patches, plan symbols or UI elements anywhere in the photo.',
+      '- LED screens may show tasteful visuals that match the theme, without readable or misleading text.',
+    ].join('\n');
+
+    var totals = 'TOTALS BY TYPE: ' + order.map(function (t) { var n = counts[t], nm = NAMES[t] || clean(t, 30), x = '';
+      if (t === 'seatblock' || t === 'chairrow') { var r = 0, c = 0; byType[t].forEach(function (it) { r += num((it.properties || {}).rows, 1); c += seatsOf(it); }); x = ' (' + r + ' rows, ' + c + ' chairs in total)'; }
+      return n + ' ' + plural(n, nm) + x; }).join(', ') + '.';
+    var s10head = [
+      '10. FINAL VALIDATION',
+      'Before finalising, check: the layout is preserved; every seating block is in place; every facing direction is correct; aisles and gaps are intact; screens, stage and tables are where planned; the venue is ' + (outdoor ? 'outdoor (open-air)' : 'indoor') + ' as selected; the lighting matches the time of day; the decor was applied without redesigning anything and fits a ' + prof.label.toLowerCase() + '; there are no annotations.'
+      + '\n- FORBIDDEN check - none of these appear: ' + prof.forbidden.join('; ') + '.\nIf an exact constraint cannot be guaranteed, preserve the supplied scene - do not invent.',
+    ].join('\n');
+    var verify = 'Before finalising, verify every count, every row and every group in the checklist against Image 2' + (nImages >= 4 ? ' and Image 4' : '') + '; if anything is missing, merged or extra, fix it.';
+    var finalOut = 'FINAL OUTPUT: ONE photorealistic event photograph with the same arrangement, the same orientation and the same camera. No plan, no collage, no alternatives, no text.';
+
+    var names = {}; order.forEach(function (t) { names[t] = NAMES[t] || clean(t, 30); });
+    var jctx = { groups: groups, W: W, H: H, edge: o.edge, stage: stageItem, stageName: front || 'stage', names: names, where: env.where,
+      frontText: front ? edgeWord(o.edge) + ' edge (' + edgeCompass + ') - the ' + front : 'top edge (north) - no stage' };
+
+    function assemble(level, maxLines, brief) {
+      var json = eventJson(level, jctx);
+      if (!prof.florals) json = deflower(json);
+      var inv = lines.length ? (brief === 2 ? tinyLines : brief ? shortLines : lines) : ['- (empty floor - show the styled venue only)'];
+      var chk = check.length ? check : ['- nothing'];
+      if (maxLines != null && inv.length > maxLines) inv = inv.slice(0, maxLines).concat(['- ... ' + (inv.length - maxLines) + ' more groups: see the canonical event JSON (every object is listed there).']);
+      if (maxLines != null && chk.length > maxLines) chk = chk.slice(0, maxLines).concat(['- ... ' + (chk.length - maxLines) + ' more groups: counts as in the canonical event JSON.']);
+      var system = [head, s1, s2, s3, s4, s5, s6, s7, s8, s9].join('\n\n');
+      var layout = [
+        'CANONICAL EVENT JSON (priority 1; every object - "g" = its inventory group, "facing" = its front direction):',
+        json,
+        'INVENTORY (human-readable companion to the JSON, front to back; every group must appear as its own group, with exactly this count and arrangement):',
+        inv.join('\n'),
+        s10head,
+        'COUNT CHECKLIST (exact numbers - ' + groups.length + ' groups):',
+        chk.join('\n'),
+        brief === 2 ? '' : totals,
+        verify,
+        env.remind,
+        finalOut,
+      ].filter(Boolean).join('\n');
+      if (!prof.florals) { system = deflower(system); layout = deflower(layout); }
+      return { system: system, layout: layout, prompt: system + '\n\n' + layout, json: json, level: level };
+    }
+    var out = assemble(0, null);
+    var nObj = groups.reduce(function (a, g) { return a + g.items.length; }, 0);
+    if (nObj > 300 || out.json.length > JSON_TARGET || out.prompt.length > PROMPT_LIMIT) out = assemble(1, null);
+    if (out.json.length > JSON_TARGET || out.prompt.length > PROMPT_LIMIT) out = assemble(2, null);
+    if (out.json.length > JSON_TARGET || out.prompt.length > PROMPT_LIMIT) out = assemble(3, null);
+    if (out.prompt.length > PROMPT_LIMIT) out = assemble(3, null, true);   // sizes are in the JSON: drop them from the inventory first
+    if (out.prompt.length > PROMPT_LIMIT) out = assemble(3, null, 2);
+    for (var ml = 120; out.prompt.length > PROMPT_LIMIT && ml >= 0; ml = ml > 20 ? ml - 20 : ml - 5) out = assemble(3, Math.max(0, ml), 2);
+    if (out.prompt.length > PROMPT_LIMIT) {   // last resort: cut the middle of the data, never the end
+      var tail = '\n\n' + [s10head, totals.slice(0, 2000), verify, env.remind, finalOut].join('\n');
+      out.prompt = out.prompt.slice(0, PROMPT_LIMIT - tail.length) + tail;
+    }
+    return { profile: pk, style: style, camera: camera, region: region, theme: theme, focus: focus, environment: env.where, weather: weather, season: F.SEASON, fields: F,
+      system: out.system, layout: out.layout, prompt: out.prompt, json: out.json, jsonLevel: out.level,
       stats: { seats: seats, guests: guests, counts: counts, orientation: o.edge, groups: groups.map(function (g) { return { id: g.id, type: g.type, count: g.items.length, rows: rowsOf(g.items, o.edge, W, H) }; }) } };
   }
 
@@ -603,7 +986,7 @@
     return { ok: true };
   }
 
-  var api = { build: build, semanticMap: semanticMap, envFor: envFor, inferSetting: inferSetting, ENV: ENV, CATEGORIES: CATS, cameraView: cameraView, validView: validView, THEMES: THEMES, FOCUS: FOCUS, STYLES: STYLES, CAMERAS: CAMERAS, REGIONS: REGIONS, DESCRIPTIONS: DESC, defaultStyle: defaultStyle, regionOf: regionOf };
+  var api = { build: build, semanticMap: semanticMap, envFor: envFor, inferSetting: inferSetting, ENV: ENV, CATEGORIES: CATS, cameraView: cameraView, validView: validView, THEMES: THEMES, FOCUS: FOCUS, STYLES: STYLES, CAMERAS: CAMERAS, REGIONS: REGIONS, DESCRIPTIONS: DESC, PROFILES: PROFILES, profileKey: profileKey, themesFor: themesFor, WEATHER: WEATHER, seasonOf: seasonOf, facingOf: facingOf, PROMPT_LIMIT: PROMPT_LIMIT, defaultStyle: defaultStyle, regionOf: regionOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.HelmPhotoPrompt = api;
 })(typeof window !== 'undefined' ? window : this);

@@ -163,7 +163,7 @@
     try {
       var evening = false; try { evening = !!(window.__helm3D && __helm3D.isEvening && __helm3D.isEvening()); } catch (e) {}
       var P = window.HelmPhotoPrompt.build({ items: c.items, world: c.world, eventType: c.eventType, guests: c.guests, setting: c.setting,
-        evening: evening, style: params.style, images: 4, camera: params.camera, themeKey: params.themeKey, theme: params.theme, focus: params.focus, country: c.country });
+        evening: evening, style: params.style, images: 4, camera: params.camera, weather: params.weather, quality: params.quality, eventDate: c.eventDate, themeKey: params.themeKey, theme: params.theme, focus: params.focus, country: c.country });
       setStep('Capturing the 3D view…', 10);
       if (!window.__capture3D) throw new Error('The 3D view is not loaded');
       var b3 = await window.__capture3D(MAX_W, cameraOpts(params.camera, c, params.focus));
@@ -204,7 +204,8 @@
   function readForm() {
     var sel = $('phThemeSel').value, other = sel === 'other';
     var themeKey = other ? null : (window.HelmPhotoPrompt && HelmPhotoPrompt.THEMES[sel] ? sel : 'none');
-    return { style: $('phStyle').value, camera: $('phCamera').value, focus: $('phFocus').value || '', quality: $('phQuality').value === 'high' ? 'high' : 'standard',
+    var wx = $('phWeather') ? $('phWeather').value : 'clear';
+    return { weather: wx === 'partly' || wx === 'overcast' ? wx : 'clear', style: $('phStyle').value, camera: $('phCamera').value, focus: $('phFocus').value || '', quality: $('phQuality').value === 'high' ? 'high' : 'standard',
       n: Math.max(1, Math.min(4, parseInt($('phCount').value, 10) || 1)), themeKey: themeKey,
       theme: other ? String($('phTheme').value || '').trim().slice(0, 160) : '' };
   }
@@ -216,11 +217,24 @@
     var f = $('phFocus'); f.disabled = state.busy || $('phCamera').value !== 'auto'; if (f.disabled && !state.busy) f.value = '';
   }
 
+  // decor themes that don't fit this event type (e.g. pastel florals for a political rally) are hidden;
+  // 'None' then means the event type's own look
+  function fitThemes(c) {
+    var sel = $('phThemeSel'), P = window.HelmPhotoPrompt;
+    if (!sel || !sel.options || !c || !P || !P.themesFor) return;
+    var ok = P.themesFor(c.eventType, c.items);
+    Array.prototype.forEach.call(sel.options, function (o) {
+      var fits = o.value === 'none' || o.value === 'other' || ok.indexOf(o.value) >= 0;
+      o.hidden = !fits; o.disabled = !fits;
+    });
+    if (ok.indexOf(sel.value) < 0 && sel.value !== 'other') sel.value = 'none';
+  }
   function open() {
     var m = $('photoModal'); if (!m) return;
     var c = ctx();
     var evening = false; try { evening = !!(window.__helm3D && __helm3D.isEvening && __helm3D.isEvening()); } catch (e) {}
     if (c && window.HelmPhotoPrompt) $('phStyle').value = HelmPhotoPrompt.defaultStyle(c.setting, evening, c.items);
+    fitThemes(c);
     $('photoOff').hidden = true; $('phResults').hidden = true;
     syncForm();
     m.hidden = false;
@@ -258,6 +272,6 @@
     // the 3D render view still opens behind the dialog (used by the "My current 3D view" camera)
     if (b) b.addEventListener('click', function () { setTimeout(open, 0); });
   }
-  window.HelmPhotoRenderUI = { drawSemantic: drawSemantic, open: open, close: close, outputSize: outputSize, cameraOpts: cameraOpts, plainError: plainError, readForm: readForm };
+  window.HelmPhotoRenderUI = { fitThemes: fitThemes, drawSemantic: drawSemantic, open: open, close: close, outputSize: outputSize, cameraOpts: cameraOpts, plainError: plainError, readForm: readForm };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
 })();
