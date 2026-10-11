@@ -1976,16 +1976,34 @@ function loadItems(items, name){
   if(name){ const pn=$('#projName'); if(pn && (!pn.value.trim() || pn.value.trim()==='Untitled layout')) pn.value=name; }
   commit(); renderAll(); fitView();
 }
-function loadTemplate(key){
+/* load-fit.js: warn before loading a layout bigger than the current hall (Fit / Use the layout's size / Cancel) */
+function lfAsk(sz){   // → 'ok' (fits) | 'fit' | 'size' | 'cancel'
+  const LF=window.HelmLoadFit; if(!LF || !sz) return Promise.resolve('ok');
+  const hall={w:WORLD.w,h:WORLD.h}; if(!LF.compare(sz,hall).any) return Promise.resolve('ok');
+  return LF.ask(sz, hall, store.grid.unit, (CAPS&&CAPS.hall)||1000);
+}
+function lfUseSize(sz){
+  const t=window.HelmLoadFit.targetHall(sz,(CAPS&&CAPS.hall)||1000);
+  WORLD.w=t.w; WORLD.h=t.h; store.venue=store.venue||{}; store.venue.room={w:WORLD.w,h:WORLD.h};
+  updateDimsLabel(); sizeCanvas();
+  setTimeout(()=>BPUI.toast('Venue size changed to '+WORLD.w+' × '+WORLD.h+' ft'+(t.capped?' (the most your plan allows)':''),{type:'info'}),60);
+}
+function lfNote(before, opts){ if(window.HelmLoadFit) window.HelmLoadFit.note(before, store.items, ids=>{ setSelection(ids); renderAll(); }, opts); }
+async function loadTemplate(key){
   if(!key){ return; }
   // 0096: the studio's own templates ("st:<id>") are fitted to this hall + exact seats by studio-templates.js
   if(String(key).indexOf('st:')===0){ if(window.HelmStudioTemplates) window.HelmStudioTemplates.apply(String(key).slice(3)); return; }
   const lbl=document.querySelector('#preset option[value="'+key+'"]').textContent;
   // R8b: an open quote's seats value is the exact seating total for preset templates too
-  const tItems=TEMPLATES[key](); const N=currentQuoteId ? quoteChairsNow() : 0;
+  const tItems=TEMPLATES[key]();
+  const fitChoice=await lfAsk(window.HelmLoadFit && window.HelmLoadFit.size(tItems)); if(fitChoice==='cancel') return;
+  if(fitChoice==='size') lfUseSize(window.HelmLoadFit.size(tItems));
+  const N=currentQuoteId ? quoteChairsNow() : 0;
   if(N>0){ const nat=sumSeats(tItems); exactSeats(tItems, N); const w=seatFitWarning(N, nat, null, PRICING.eventType); if(w) setTimeout(()=>BPUI.toast('⚠ '+w,{type:'err'}),50); }
+  const lfBefore=fitChoice==='fit' ? JSON.parse(JSON.stringify(tItems)) : null;
   loadItems(tItems, lbl);
   toast(lbl + ' loaded');
+  if(lfBefore) lfNote(lfBefore, {clamp:true});
 }
 
 /* ===================================================================
@@ -3073,7 +3091,12 @@ $('#refEvents').addEventListener('change', async (e)=>{
     const ver=await BPStore.quotes.getVersion(qid, q.currentVersion);
     const items=(ver && ver.data && ver.data.items)||[];
     if(!items.length){ toast('That event has no saved layout.'); e.target.value=''; return; }
+    const lfSz=window.HelmLoadFit && window.HelmLoadFit.size(ver.data);
+    const fitChoice=await lfAsk(lfSz); if(fitChoice==='cancel'){ e.target.value=''; return; }
+    if(fitChoice==='size') lfUseSize(lfSz);
+    const lfBefore=fitChoice==='fit' ? JSON.parse(JSON.stringify(items)) : null;
     loadItems(stripStalePrices(items), 'Ref: '+(q.code||'past event'));
+    if(lfBefore) lfNote(lfBefore, {clamp:true});
     toast('Loaded layout from '+(q.code||'past event')+' · Prices updated to current rates');
   }catch(err){ toast('Could not load that layout'); }
   e.target.value='';
@@ -3609,7 +3632,16 @@ async function openLoadModal(){
       if(!(await BPUI.confirmDiscard(dirty,{message:'You have unsaved changes on this floor. Opening another layout will discard them.'}))) return;
       const full=await getLayout(id);
       if(!full){ BPUI.toast('Couldn’t open that layout — it may have been deleted.',{type:'err'}); return; }
-      applyLayout(full.data); currentLayoutId=id;
+      const lfSz=window.HelmLoadFit && full.data && window.HelmLoadFit.size(full.data);
+      const fitChoice=await lfAsk(lfSz); if(fitChoice==='cancel') return;
+      let openData=full.data;
+      if(fitChoice==='fit' || fitChoice==='size'){   // keep (fit) or set (size, capped) the hall instead of the saved one
+        if(fitChoice==='size') lfUseSize(lfSz);
+        const room={w:WORLD.w,h:WORLD.h};
+        openData={ ...full.data, scale:{ ...(full.data.scale||{}), worldFt:room }, venue:{ ...(full.data.venue||{}), room } };
+      }
+      applyLayout(openData); currentLayoutId=id;
+      if(fitChoice==='fit') lfNote(full.data.items, {clamp:true});
       $('#projName').value=full.name; setSavedBaseline(); closeLoadModal(); toast('Opened “'+full.name+'”');
     }).catch(()=>{}));
     delB.addEventListener('click',()=>BPUI.guard(delB, async()=>{
