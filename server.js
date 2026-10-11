@@ -272,12 +272,25 @@ function cacheControlFor(filePath, query) {
 function sendFileRes(res, filePath, buf, req, status = 200) {
   const ext = path.extname(filePath);
   const query = (req && req.url && req.url.includes('?')) ? req.url.slice(req.url.indexOf('?')) : '';
+  // gzip text assets like the production host (Vercel) does - keeps local / CI timings honest
+  const gz = buf && buf.length > 1024 && GZIP_EXT.has(ext) && /\bgzip\b/.test((req && req.headers && req.headers['accept-encoding']) || '');
+  const body = gz ? gzipCached(filePath, buf) : buf;
   res.writeHead(status, {
     'Content-Type': MIME[ext] || 'application/octet-stream',
     'Cache-Control': status === 200 ? cacheControlFor(filePath, query) : 'no-cache',
+    ...(gz ? { 'Content-Encoding': 'gzip', 'Vary': 'Accept-Encoding' } : {}),
     ...securityHeadersFor(req, filePath),
   });
-  res.end(buf);
+  res.end(body);
+}
+const GZIP_EXT = new Set(['.html', '.js', '.mjs', '.css', '.json', '.svg', '.txt', '.xml', '.map']);
+const GZ_CACHE = new Map();   // filePath -> { src, out } (re-compressed when the file changes)
+function gzipCached(filePath, buf) {
+  const hit = GZ_CACHE.get(filePath);
+  if (hit && hit.src.equals(buf)) return hit.out;
+  const out = require('zlib').gzipSync(buf, { level: 6 });
+  GZ_CACHE.set(filePath, { src: buf, out });
+  return out;
 }
 
 // Unknown URL → the branded 404 page with a real 404 status (was: dashboard.html, 200).

@@ -52,6 +52,13 @@
     firstaid:   { type: 'firstaid',    label: 'First aid',              size: null, zone: 'back' },
     entrance:   { type: 'arch',        label: 'Entrance',               size: null, zone: 'entrance' },
     exit:       { type: 'exit',        label: 'Exits',                  size: null, zone: 'exits', multi: true },
+    // UAE live test: Gulf gala / iftar / exhibition objects
+    headtable:  { type: 'headtable',   label: 'Head table',             size: null, zone: 'front', seats: 8 },
+    mocktail:   { type: 'bar',         label: 'Mocktail / bar counter', size: null, zone: 'wallLeft', multi: true },
+    majlis:     { type: 'lounge',      label: 'Majlis seating',         size: null, zone: 'vip', multi: true, seats: 4 },
+    shisha:     { type: 'lounge',      label: 'Shisha lounge',          size: null, zone: 'vip', seats: 4 },
+    prayer:     { type: 'redcarpet',   label: 'Prayer area',            size: 'wh', zone: 'wallLeft' },
+    booths:     { type: 'booth',       label: 'Exhibitor booths',       size: null, zone: 'middle', multi: true },
   };
   // [key, on by default, qty, mandatory]
   const WEDDING = [['stage', 1, 1, 1], ['mandap', 1, 1], ['backdrop', 1, 1], ['dj', 1, 1], ['dancefloor', 1, 1], ['led', 1, 2],
@@ -77,12 +84,16 @@
     festival:       { label: 'Festival / outdoor',    seating: 'standing', objects: [['stage', 1, 1, 1], ['linearray', 1, 2, 1], ['barricade', 1, 1, 1], ['foh', 1, 1, 1],
       ['standing', 1, 1, 1], ['led', 1, 2], ['lighting', 1, 1], ['generator', 1, 1, 1], ['bar', 1, 2], ['restroom', 1, 4], ['firstaid', 1, 1, 1], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
     // UAE audit (0102): Gulf event types - halal buffet + majlis seating, no dance-floor / bar defaults
-    galadinner:     { label: 'Gala dinner',           seating: 'rounds',  objects: WEDDING.map((o) => o[0] === 'mandap' || o[0] === 'caketable' ? [o[0], 0, o[2]] : o) },
-    iftar:          { label: 'Iftar / Ramadan tent',  seating: 'rounds',  objects: [['buffet', 1, 4, 1], ['vipsofa', 1, 6], ['backdrop', 1, 1], ['floral', 0, 2], ['lighting', 1, 1],
-      ['desk', 0, 1], ['stage', 0, 1], ['restroom', 0, 2], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
+    // gala: stage + LED + head table + mocktail/bar + service stations + VIP lounge + registration, entrance (aisle carpet optional, off like every type); NO mandap
+    galadinner:     { label: 'Gala dinner',           seating: 'rounds',  objects: [['stage', 1, 1, 1], ['backdrop', 1, 1], ['led', 1, 2], ['lighting', 1, 1],
+      ['headtable', 1, 1], ['mocktail', 1, 1], ['buffet', 1, 2], ['dj', 1, 1], ['linearray', 0, 2], ['dancefloor', 0, 1], ['photobooth', 0, 1],
+      ['desk', 1, 1], ['vipsofa', 1, 4], ['floral', 0, 2], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
+    // iftar: majlis + sofas + buffet stations + prayer area; shisha optional (off); no DJ / dance floor / bar
+    iftar:          { label: 'Iftar / Ramadan tent',  seating: 'rounds',  objects: [['buffet', 1, 4, 1], ['majlis', 1, 4], ['vipsofa', 1, 4], ['prayer', 1, 1], ['shisha', 0, 1],
+      ['backdrop', 1, 1], ['floral', 0, 2], ['lighting', 1, 1], ['desk', 0, 1], ['stage', 0, 1], ['restroom', 0, 2], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
     eid:            { label: 'Eid / National Day celebration', seating: 'rounds', objects: [['stage', 1, 1, 1], ['backdrop', 1, 1], ['dancefloor', 1, 1], ['led', 1, 2], ['linearray', 1, 2], ['buffet', 1, 2],
       ['lighting', 1, 1], ['photobooth', 1, 1], ['vipsofa', 1, 4], ['floral', 0, 2], ['firstaid', 0, 1], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
-    exhibition:     { label: 'Exhibition / trade show', seating: 'standing', objects: [['desk', 1, 2, 1], ['brandwall', 1, 1], ['standing', 1, 1, 1], ['led', 1, 2], ['cocktail', 1, 8],
+    exhibition:     { label: 'Exhibition / trade show', seating: 'standing', objects: [['desk', 1, 2, 1], ['booths', 1, 12, 1], ['brandwall', 1, 1], ['led', 1, 2], ['cocktail', 1, 4],
       ['lighting', 1, 1], ['stage', 0, 1], ['podium', 0, 1], ['buffet', 0, 1], ['restroom', 0, 2], ['firstaid', 0, 1], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
   };
   // UAE audit: which types a studio's country offers (India / others: every type, unchanged).
@@ -97,9 +108,12 @@
   function defaultUnit(cc) { return String(cc || '').toUpperCase() === 'IN' || !cc ? 'ft' : String(cc).toUpperCase() === 'US' ? 'ft' : 'm'; }
   const TYPE_ALIAS = { iftar: 'iftar', ramadan: 'iftar', suhoor: 'iftar', eid: 'eid', 'national day': 'eid', exhibition: 'exhibition', 'trade show': 'exhibition', gala: 'wedding', anniversary: 'wedding', sangeet: 'engagement', mehendi: 'engagement', mehndi: 'engagement', haldi: 'engagement', roka: 'engagement', cocktail: 'reception', rally: 'political', public_meeting: 'political',
     'public meeting': 'political', seminar: 'conference', expo: 'conference', 'product launch': 'product_launch', 'live music': 'concert' };
-  function typeKey(t) {
+  function typeKey(t, cc) {
     const k = String(t || '').toLowerCase().trim();
-    if (TYPES[k]) return k; if (TYPE_ALIAS[k]) return TYPE_ALIAS[k];
+    if (TYPES[k]) return k;
+    // UAE live test: outside India a "Gala dinner" quote gets the gala layout (no mandap / cake table);
+    // India keeps its wedding-style gala (india-polish-2)
+    if (cc && String(cc).toUpperCase() !== 'IN' && /(^|[^a-z])gala([^a-z]|$)/.test(k)) return 'galadinner'; if (TYPE_ALIAS[k]) return TYPE_ALIAS[k];
     const u = k.replace(/[\s/]+/g, '_'); if (TYPES[u]) return u; if (TYPE_ALIAS[u]) return TYPE_ALIAS[u];
     // India audit 2: free-text types ("Political rally", "Birthday party", "Corporate offsite",
     // "Gala dinner") fell through to the wedding mandap — match any known word instead.
@@ -116,6 +130,7 @@
     if (key === 'mandap') { const s = sc(Math.min(W, H) * 0.14, 8, 16); return { w: s, h: s }; }
     if (key === 'dancefloor') { const s = Math.round(clamp(Math.sqrt(Math.max(1, N || 80) * 2.5), 12, 24)); const m = Math.max(8, Math.min(s, Math.round(W * 0.3), Math.round(H * 0.25))); return { w: m, h: m }; }
     if (key === 'standing') return { w: sc(W * 0.45, 10, 80), h: sc(H * 0.16, 8, 40) };
+    if (key === 'prayer') return { w: sc(W * 0.06, 6, 12), h: sc(H * 0.16, 8, 24) };   // a narrow rug along the side wall (clear of the seating blocks)
     if (key === 'walkway') return { w: 4, h: sc(H * 0.12, 5, 30) };
     if (key === 'led') return { w: sc(W * 0.1, 6, 20) };
     if (key === 'backdrop') return { w: sc(W * 0.12, 6, 12) };
@@ -125,7 +140,7 @@
 
   /* ---------------- spec ---------------- */
   function defaults(type, o) {
-    o = o || {}; const tk = typeKey(type), T = TYPES[tk];
+    o = o || {}; const tk = typeKey(type, o.country), T = TYPES[tk];
     const W = +o.w || 200, H = +o.h || 140, guests = posInt(o.guests);
     const chairs = posInt(o.chairs) || (guests ? Math.ceil(guests * 7 / 10) : 0);
     const objects = {};
@@ -136,7 +151,7 @@
     });
     if (String(o.country || '').toUpperCase() === 'AE' && objects.mandap && !objects.mandap.mandatory) objects.mandap.on = false;
     const spec = { type: tk, hall: { w: W, h: H }, unit: o.unit === 'm' ? 'm' : o.unit === 'ft' ? 'ft' : defaultUnit(o.country), guests, chairs, carpet: false, objects,
-      seating: { style: T.seating, spt: 8, tables: 0, blocks: W >= 150 ? 4 : 2, rows: 0, cols: 14, aisle: 6, longTables: 0, perLong: 10, mixRounds: 0 } };
+      seating: { style: T.seating, spt: tk === 'galadinner' && String(o.country || '').toUpperCase() === 'AE' ? 10 : 8, tables: 0, blocks: W >= 150 ? 4 : 2, rows: 0, cols: 14, aisle: 6, longTables: 0, perLong: 10, mixRounds: 0 } };
     // theatre rows sized to the hall: blocks side by side fill ~85% of its width
     spec.seating.cols = clamp(Math.floor((W * 0.85 - (spec.seating.blocks - 1) * 6) / spec.seating.blocks / 2.4), 4, 30);
     fitSeating(spec);
@@ -276,6 +291,9 @@
         if (on('caketable')) { const a = asz('caketable'); place('caketable', a.w, a.h, p.x + p.w + 3, p.y + 1, { label: 'Cake table', region: [0, H * 0.7] }); } } }
     if (on('caketable') && !items.some((i) => i.type === 'caketable')) { const a = asz('caketable'); place('caketable', a.w, a.h, sx1 + 3, frontBottom + 2, { label: 'Cake table', region: [0, H * 0.7] }); }
 
+    if (on('headtable')) { const a = asz('headtable'); const it = place('headtable', a.w, a.h, cx - a.w / 2, frontBottom + 3, { label: 'Head table', region: [0, H * 0.6], props: { seats: 8 } });
+      if (it) { const p = placed[placed.length - 1]; frontBottom = Math.max(frontBottom, p.y + p.h); } }
+
     /* ---- 3. back wall: exits, entrance, FOH, service corners ---- */
     const ex = asz('exit'), nEx = on('exit') ? qty('exit') : 0;
     const exitSpots = [[1, H - ex.h - 1, 0], [W - ex.w - 1, H - ex.h - 1, 0], [1, H * 0.55, 90], [W - ex.h - 1, H * 0.55, 90], [1, H * 0.3, 90], [W - ex.h - 1, H * 0.3, 90]];
@@ -303,6 +321,10 @@
       for (let i = 0; i < n; i++) place('buffet', a.h, a.w, W - a.h - 2, frontBottom + 3 + i * (a.w + 4), { label: 'Buffet ' + (n > 1 ? i + 1 : ''), rot: 90 }); }
     if (on('bar')) { const a = asz('bar'), n = qty('bar');
       for (let i = 0; i < n; i++) place('bar', a.h, a.w, 2, H - ex.h - 4 - a.w - i * (a.w + 4), { label: 'Bar ' + (n > 1 ? i + 1 : ''), rot: 90 }); }
+    if (on('mocktail')) { const a = asz('bar'), n = qty('mocktail');
+      for (let i = 0; i < n; i++) place('bar', a.h, a.w, 2, H - ex.h - 4 - a.w - (i + (on('bar') ? qty('bar') : 0)) * (a.w + 4), { label: 'Mocktail counter' + (n > 1 ? ' ' + (i + 1) : ''), rot: 90 }); }
+    if (on('prayer')) { const w = clamp(+O.prayer.w || 8, 4, W * 0.3), h = clamp(+O.prayer.h || 12, 6, H * 0.3);
+      place('redcarpet', w, h, 2, 1, { label: 'Prayer area', region: [0, H * 0.3] }); }   // front corner, clear of the guest seating zone
     if (on('photobooth')) { const a = asz('photobooth'); place('photobooth', a.w, a.h, 2, frontBottom + 3, { label: 'Photo booth' }); }
     if (on('press')) { const a = asz('press'), w = Math.min(a.w, W * 0.2), h = Math.min(a.h, H * 0.15); place('press', w, h, W - w - 2, frontBottom + 3, { label: 'Press area' }); }
     items.forEach((it) => { if (it.label) it.label = String(it.label).trim(); });
@@ -313,6 +335,8 @@
     const vipUnits = [];
     if (on('vipsofa')) for (let i = 0; i < qty('vipsofa'); i++) vipUnits.push({ type: 'sofa', w: A.sofa.w, h: A.sofa.h, label: 'VIP sofa ' + (i + 1), props: { seats: 3 } });
     if (on('viprow')) { const n = posInt(O.viprow.seats) || 12; for (let i = 0; i < qty('viprow'); i++) vipUnits.push({ type: 'chairrow', w: r1(n * 2.2), h: 2, label: 'VIP row ' + (i + 1), props: { rows: 1, cols: n } }); }
+    if (on('majlis')) for (let i = 0; i < qty('majlis'); i++) vipUnits.push({ type: 'lounge', w: A.lounge.w, h: A.lounge.h, label: 'Majlis ' + (i + 1), props: { seats: 4 } });
+    if (on('shisha')) vipUnits.push({ type: 'lounge', w: A.lounge.w, h: A.lounge.h, label: 'Shisha lounge', props: { seats: 4 } });
     if (vipUnits.length) {
       let yL = frontBottom + 3, yR = frontBottom + 3, xL = cx - aisle / 2, xR = cx + aisle / 2;
       vipUnits.forEach((u, i) => { const left = i % 2 === 0;
@@ -322,6 +346,13 @@
         if (it) { const p = placed[placed.length - 1]; vipBottom = Math.max(vipBottom, p.y + p.h);
           if (Math.abs(p.y - py) < 0.01) { if (left) xL = p.x - 1.5; else xR = p.x + p.w + 1.5; } } });
     }
+
+    /* ---- 5b. exhibition: booths in a grid with walking aisles ---- */
+    if (on('booths')) { const a = asz('booth'), n = qty('booths'), gapX = 2, gapY = 8, per = Math.max(1, Math.floor((W - 8) / (a.w + gapX)));
+      const y0 = Math.max(vipBottom, frontBottom) + 6;
+      for (let i = 0; i < n; i++) { const r = Math.floor(i / per), c = i % per, rowN = Math.min(per, n - r * per), rowW = rowN * (a.w + gapX) - gapX;
+        place('booth', a.w, a.h, cx - rowW / 2 + c * (a.w + gapX), y0 + r * (a.h + gapY), { label: 'Booth ' + (i + 1), gap: 0.5, region: [y0 - 2, H] }); }
+      if (placed.length) vipBottom = Math.max(vipBottom, ...placed.slice(-1).map((p) => p.y + p.h)); }
 
     /* ---- 6. optional aisle carpet: entrance → front of the aisle only ---- */
     if (spec.carpet) {
@@ -526,7 +557,21 @@
     const full = Math.floor(per / C), rem = per % C;
     return `${B} blocks × ${full} row${full === 1 ? '' : 's'} × ${C}` + (rem ? ` + ${rem}${extra ? '–' + (rem + 1) : ''} in a last row` : extra ? ` (+1 seat in ${extra} blocks)` : '') + ` = ${main} seats`;
   }
-  const API = { typesFor, defaultUnit, theatreText, OBJECTS, TYPES, SEATING_STYLES, M2FT, typeKey, defaults, defaultSize, extraSeats, mainCapacity, seatPlan, fitSeating, layout };
+  /* U4: a layout needs a head-count — guests or seats > 0 (else the wizard silently drew 12 VIP seats) */
+  function needsGuests(sp) { return !sp || !(posInt(sp.guests) > 0 || posInt(sp.chairs) > 0); }
+  /* U5: remembered wizard choices vs the quote. The quote wins when the remembered spec has a blank
+     head-count, or when the quote's guests / chairs / hall / type changed since it was remembered. */
+  function srcOf(sp) { return { guests: posInt(sp.guests), chairs: posInt(sp.chairs), w: Math.round(+sp.hall.w || 0), h: Math.round(+sp.hall.h || 0), type: sp.type }; }
+  function mergeRemembered(saved, fresh) {
+    if (!fresh) return saved || null;
+    fresh._src = srcOf(fresh);
+    if (!saved || !saved.objects || !saved.seating || !saved.hall) return fresh;
+    if (needsGuests(saved) && !needsGuests(fresh)) return fresh;
+    const a = saved._src, b = fresh._src;
+    if (!a || a.guests !== b.guests || a.chairs !== b.chairs || a.w !== b.w || a.h !== b.h || a.type !== b.type) return needsGuests(fresh) && !needsGuests(saved) && !a ? saved : fresh;
+    return saved;
+  }
+  const API = { needsGuests, mergeRemembered, typesFor, defaultUnit, theatreText, OBJECTS, TYPES, SEATING_STYLES, M2FT, typeKey, defaults, defaultSize, extraSeats, mainCapacity, seatPlan, fitSeating, layout };
   G.HelmWizard = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof document === 'undefined' || !G.document) return;
@@ -565,7 +610,7 @@
   const studioCountry = () => { try { return (G.BPStore && G.BPStore.studioTax && G.BPStore.studioTax().country) || 'IN'; } catch (_) { return 'IN'; } };
   const STEPS = ['Venue & guests', 'Seating', 'Objects', 'Review'];
   const memKey = () => { const q = g('currentQuoteId'); return 'helm.layoutWizard.v1.' + (q || 'draft'); };
-  const remember = () => { try { G.localStorage.setItem(memKey(), JSON.stringify(spec)); } catch (_) {} };
+  const remember = () => { if (needsGuests(spec)) return; try { G.localStorage.setItem(memKey(), JSON.stringify(spec)); } catch (_) {} };
   const recall = () => { try { const s = JSON.parse(G.localStorage.getItem(memKey()) || 'null'); return s && s.objects && s.seating && s.hall ? s : null; } catch (_) { return null; } };
   const U = () => (spec.unit === 'm' ? 'm' : 'ft');
   const toU = (ft) => (spec.unit === 'm' ? Math.round(ft / M2FT * 10) / 10 : Math.round(ft * 10) / 10);
@@ -777,7 +822,7 @@
   // B9: the Review step draws its preview on open; ONE primary action ("Place on floor") below
   function go(i) { step = clamp(i, 0, 3); renderBody(); if (step === 3) generate(); const f = body.querySelector('input,select,button'); if (f) try { f.focus({ preventScroll: true }); } catch (_) {} }
   function prefillSpec() {
-    const saved = recall(); if (saved) return saved;
+    const saved = recall();
     const PR = g('PRICING') || {}, cl = g('currentClient') || {}, W = g('WORLD') || { w: 200, h: 140 };
     const room = (g('store') && g('store').venue && g('store').venue.room) || W;
     const guests = posInt(PR.guests) || posInt(cl.guests);
@@ -785,7 +830,7 @@
     const cc = studioCountry();
     const s = defaults(PR.eventType || cl.eventType || (cc === 'AE' ? 'galadinner' : 'wedding'), { country: cc, guests, chairs, w: posInt(cl.hallLen) || room.w, h: posInt(cl.hallWid) || room.h });
     s._chairsManual = !!(cl.chairsManual);
-    return s;
+    return mergeRemembered(saved, s);
   }
   function open(e) {
     opener = (e && e.currentTarget) || doc.activeElement;
@@ -796,7 +841,17 @@
   function close() { modal.hidden = true; if (opener && opener.focus) try { opener.focus(); } catch (_) {} }
   bClose.addEventListener('click', close);
   bBack.addEventListener('click', () => go(step - 1));
-  bNext.addEventListener('click', () => { if (step < 3) { remember(); go(step + 1); } else { generate(); if (lastResult) apply(lastResult); } });
+  // U4: inline validation - no Next / Place on floor without guests or seats
+  function guardGuests() {
+    if (!needsGuests(spec)) return true;
+    if (step !== 0) go(0);
+    const gi = body.querySelector('#wizGuests'); let er = body.querySelector('#wizErr');
+    if (!er) { er = el('p', 'lw-warn', null, { id: 'wizErr', role: 'alert' }); const pn = body.querySelector('.lw-panel'); (pn || body).prepend(er); }
+    er.textContent = 'Enter the expected guests (or seats needed) before placing a layout.';
+    if (gi) { gi.setAttribute('aria-invalid', 'true'); gi.setAttribute('aria-describedby', 'wizErr'); try { gi.focus(); } catch (_) {} }
+    return false;
+  }
+  bNext.addEventListener('click', () => { if (!guardGuests()) return; if (step < 3) { remember(); go(step + 1); } else { generate(); if (lastResult) apply(lastResult); } });
   bMine.addEventListener('click', () => { close(); if (G.HelmStudioTemplates) G.HelmStudioTemplates.openPicker(); });
   bClassic.addEventListener('click', () => { close(); const f = g('openCustomModal'); if (typeof f === 'function') f(); });
   modal.addEventListener('click', (e) => { if (e.target === modal) close(); });

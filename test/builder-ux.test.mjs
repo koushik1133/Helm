@@ -17,7 +17,7 @@ let n = 0; const ok = (c, m) => { assert.ok(c, m); n++; };
 // 1. units dropdown
 ok(/<select id="unitSel"[^>]*>\s*<option value="ft"[^>]*>Feet<\/option>\s*<option value="m">Metres<\/option>/.test(html), 'units is a Feet/Metres <select>');
 ok(!/id="unitSeg"/.test(html) && !/#unitSeg/.test(js), 'old unit button segment is gone');
-ok(/\$\('#unitSel'\)\.addEventListener\('change',e=>setUnit\(e\.target\.value\)\)/.test(js), 'select change calls setUnit');
+ok(/\$\('#unitSel'\)\.addEventListener\('change',e=>\{ setUnit\(e\.target\.value\);/.test(js), 'select change calls setUnit');
 const m = js.match(/function setUnit\(u\)\{[\s\S]*?\n\}/); ok(m, 'setUnit exists');
 {
   const store = { grid: { unit: 'ft', sizeFt: 1 } }; const sel = { value: 'ft' }; const corner = { textContent: 'ft' }; let renders = 0;
