@@ -33,6 +33,7 @@ echo "== behavioral suites =="
 # before anything that re-applies older migrations (0011/0012/0015/0025/0026) over the 0071/0072 bodies
 run "pending-fixes"      "PENDING-FIXES: ALL PASS \(30/30\)" psql -q -f tests/db/pending-fixes.sql
 run "inv-fixes"          "INV-FIXES: ALL PASS \(24/24\)" psql -q -f tests/db/inv-fixes.sql
+run "checkout-shortage-0105" "CHECKOUT-SHORTAGE-0105: ALL PASS \(24/24\)" psql -q -f tests/db/checkout-shortage-0105.sql
 run "chat-admin-fixes"   "CHAT-ADMIN-FIXES: ALL PASS \(21/21\)" psql -q -f tests/db/chat-admin-fixes.sql
 run "ui-fixes"           "UI-FIXES: ALL PASS \(27/27\)" psql -q -f tests/db/ui-fixes.sql
 run "insights"           "INSIGHTS: ALL PASS \(19/19\)" psql -q -f tests/db/insights.sql
@@ -73,7 +74,9 @@ run "portal-currency-0090" "PORTAL-CURRENCY-0090: ALL PASS \(7/7\)" psql -q -f t
 run "booklet-images"     "BOOKLET-IMAGES: ALL PASS \(25/25\)" psql -q -f tests/db/booklet-images.sql
 run "r7-polish"          "R7-POLISH: ALL PASS \(18/18\)" psql -q -f tests/db/r7-polish.sql
 run "venues"            "VENUES: ALL PASS \(27/27\)" psql -q -f tests/db/venues.sql
+run "venue4-0104"       "VENUE4-0104: ALL PASS \(11/11\)" psql -q -f tests/db/venue4-0104.sql
 run "studio-templates"  "STUDIO-TEMPLATES: ALL PASS \(26/26\)" psql -q -f tests/db/studio-templates-0096.sql
+run "staff-roles-0106"  "STAFF-ROLES-0106: ALL PASS \(20/20\)" psql -q -f tests/db/staff-roles-0106.sql
 run "item-specs"         "ITEM-SPECS: ALL PASS \(30/30\)" psql -q -f tests/db/item-specs.sql
 run "smart-import"       "SMART-IMPORT: ALL PASS \(30/30\)" psql -q -f tests/db/smart-import.sql
 run "item-spec-parity"   "item-spec-parity: 9 parity case\(s\) passed, 0 failed" node tests/db/item-spec-parity.mjs

@@ -104,7 +104,7 @@
   .firstrun .btn{margin:0 auto}
   .pill{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border-radius:20px;padding:2px 9px;background:var(--accent-soft);color:var(--accent)}
 </style>
-<link rel="stylesheet" href="theme.css?v=76">
+<link rel="stylesheet" href="theme.css?v=78">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -186,6 +186,8 @@
       <div class="fld"><label for="f_date">Event date</label><input id="f_date" type="date" data-min-today></div>
       <div class="fld"><label for="f_budget">Budget (₹)</label><input id="f_budget" type="number" min="0" placeholder="e.g. 500000"></div>
       <div class="fld"><label for="f_guests">Guest count</label><input id="f_guests" type="number" min="0" placeholder="e.g. 300"></div>
+      <div class="fld"><label for="f_bday">Birthday <span class="muted">(optional)</span></label><input id="f_bday" type="date"></div>
+      <div class="fld"><label for="f_anniv">Anniversary <span class="muted">(optional)</span></label><input id="f_anniv" type="date"></div>
       <div class="fld full"><label for="f_notes">Notes</label><textarea id="f_notes" placeholder="Anything the planner should know…"></textarea></div>
     </div>
     <div id="lm_err" class="err" role="alert" aria-live="assertive" hidden></div>
@@ -212,9 +214,9 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="phone-input.js?v=1"></script>
-<script src="event-name.js?v=5"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=174"></script>
+<script src="phone-input.js?v=3"></script>
+<script src="event-name.js?v=6"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=179"></script>
 <script src="tour.js?v=9"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
@@ -489,6 +491,7 @@
     $("#f_type").value=lead?lead.event_type||"":""; $("#f_date").value=lead?lead.event_date||"":"";
     $("#f_budget").value=lead&&lead.budget!=null?lead.budget:""; $("#f_guests").value=lead&&lead.guest_count!=null?lead.guest_count:"";
     $("#f_notes").value=lead?lead.notes||"":"";
+    $("#f_bday").value=lead&&lead.birthday?String(lead.birthday).slice(0,10):""; $("#f_anniv").value=lead&&lead.anniversary?String(lead.anniversary).slice(0,10):"";
     $("#f_stageWrap").hidden=!lead;                       // new leads always start in "New"
     if(lead) $("#f_stage").value=lead.status||"new";
     formDirty.clean();
@@ -515,6 +518,13 @@
       budget, guest_count,
       notes:$("#f_notes").value.trim()||null };
     const id=editingId, cur=id?leadById(id):null;
+    // 0105 optional personal dates (Nurture "upcoming" list). Sent only when set, or when clearing a saved one,
+    // so a database without the 0105 columns keeps saving leads as before.
+    const bd=$("#f_bday").value||null, an=$("#f_anniv").value||null, td=BPStore.todayLocal();
+    if(bd && bd>td){ fail("Birthday can't be in the future."); return; }
+    if(an && an>td){ fail("Anniversary can't be in the future."); return; }
+    if(bd || (cur&&cur.birthday)) patch.birthday=bd;
+    if(an || (cur&&cur.anniversary)) patch.anniversary=an;
     const toStage = id && !$("#f_stageWrap").hidden ? $("#f_stage").value : null;
     // H-05: soft duplicate warning (non-blocking — a client may genuinely book multiple
     // services). Only on NEW leads; match on normalized phone or email.

@@ -23,11 +23,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="builder.css?v=12">
+<link rel="stylesheet" href="builder.css?v=15">
 <link rel="stylesheet" href="venues.css?v=3">
 <link rel="stylesheet" href="studio-templates.css?v=1">
-<link rel="stylesheet" href="walkthrough.css?v=2">
-<link rel="stylesheet" href="layout-wizard.css?v=3">
+<link rel="stylesheet" href="walkthrough.css?v=5">
+<link rel="stylesheet" href="layout-wizard.css?v=4">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -95,7 +95,7 @@
   <div class="hgroup">
     <div class="field">
       <label for="unitSel">Units</label>
-      <select id="unitSel" class="unitsel" title="Measurement units"><option value="ft" selected>Feet</option><option value="m">Meter</option></select>
+      <select id="unitSel" class="unitsel" title="Measurement units"><option value="ft" selected>Feet</option><option value="m">Metres</option></select>
     </div>
     <div class="field">
       <span class="flabel" id="gridLbl">Grid</span>
@@ -125,6 +125,7 @@
     <div class="field">
       <label for="projName">Project</label>
       <input id="projName" class="nameinput" type="text" value="Untitled event" title="Event / quote name" maxlength="120">
+      <div id="projNameHint" class="namehint" hidden><span id="projNameHintText"></span> <button type="button" id="projNameReset" class="linkbtn" hidden>Reset to auto name</button></div>
     </div>
     <span id="quoteBadge" class="qbadge" hidden title="Quote code · current version"></span>
     <select id="verSel" class="versel" hidden aria-label="Layout version" title="Saved versions of this layout — pick one to view it (saved versions are never changed)"></select>
@@ -233,6 +234,12 @@
               <option value="dance">Dance floor</option>
               <option value="entrance">Entrance</option>
               <option value="seating">Seating</option>
+            </select></label>
+          <label class="pfield">Weather
+            <select id="phWeather">
+              <option value="clear" selected>Clear</option>
+              <option value="partly">Partly cloudy</option>
+              <option value="overcast">Overcast</option>
             </select></label>
           <label class="pfield">Decor theme
             <select id="phThemeSel">
@@ -457,18 +464,20 @@
       <div class="hint3d" id="hint3d">Select an object, then use the gizmo to Move / Rotate / Scale · drag empty space to orbit · scroll to zoom</div>
     </div>
     <div class="statusbar" id="status">—</div>
-    <div class="zoombar">
-      <button id="zoomOut" title="Zoom out" aria-label="Zoom out">−</button>
-      <span class="z" id="zoomLbl">100%</span>
-      <button id="zoomIn" title="Zoom in" aria-label="Zoom in">+</button>
-      <button id="zoomFit" title="Fit floor to view" aria-label="Fit floor to view" class="zfit">FIT</button>
-    </div>
-    <div class="navpad" id="navPad" role="group" aria-label="Pan the view">
+    <div class="fabstack" id="fabStack">
+      <div class="navpad" id="navPad" role="group" aria-label="Pan the view">
       <button type="button" data-pan="up" aria-label="Pan up" title="Pan up">▲</button>
       <button type="button" data-pan="left" aria-label="Pan left" title="Pan left">◀</button>
       <button type="button" data-pan="center" class="np-c" aria-label="Recenter view" title="Recenter / fit">◎</button>
       <button type="button" data-pan="right" aria-label="Pan right" title="Pan right">▶</button>
       <button type="button" data-pan="down" aria-label="Pan down" title="Pan down">▼</button>
+    </div>
+    <div class="zoombar">
+        <button id="zoomOut" title="Zoom out" aria-label="Zoom out">−</button>
+        <span class="z" id="zoomLbl">100%</span>
+        <button id="zoomIn" title="Zoom in" aria-label="Zoom in">+</button>
+        <button id="zoomFit" title="Fit floor to view" aria-label="Fit floor to view" class="zfit">FIT</button>
+      </div>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </section>
@@ -492,24 +501,25 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="event-name.js?v=5"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=174"></script>
+<script src="event-name.js?v=6"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=179"></script>
 <script src="tour.js?v=9"></script>
 <script src="flow-layout-sync.js?v=4"></script>
 <script src="event-sizing.js?v=5"></script>
-<script src="builder.js?v=42"></script>
+<script src="builder.js?v=50"></script>
 <script src="venues-core.js?v=5"></script>
 <script src="venue-picker.js?v=4"></script>
 <script src="studio-templates-core.js?v=1"></script>
-<script src="studio-templates.js?v=1"></script>
+<script src="studio-templates.js?v=2"></script>
+<script src="load-fit.js?v=1"></script>
 
 <!-- ================= 3D RENDERED VIEW (Three.js, lazy-loaded on first use) ================= -->
 <script src="capture-frame.js?v=12"></script>
-<script src="builder-3d.js?v=14"></script>
-<script src="photo-render-prompt.js?v=3"></script>
-<script src="photo-render-ui.js?v=5"></script>
-<script src="walkthrough.js?v=3"></script>
-<script src="layout-wizard.js?v=7"></script>
-<script src="fullscreen.js?v=1"></script>
+<script src="builder-3d.js?v=16"></script>
+<script src="photo-render-prompt.js?v=5"></script>
+<script src="photo-render-ui.js?v=7"></script>
+<script src="walkthrough.js?v=6"></script>
+<script src="layout-wizard.js?v=10"></script>
+<script src="fullscreen.js?v=2"></script>
 </body>
 </html>

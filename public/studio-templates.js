@@ -65,7 +65,8 @@
       sumSeats: typeof sumSeats !== "undefined" ? sumSeats : null, quoteChairsNow: typeof quoteChairsNow !== "undefined" ? quoteChairsNow : null,
       seatFitWarning: typeof seatFitWarning !== "undefined" ? seatFitWarning : null, sizeCanvas: typeof sizeCanvas !== "undefined" ? sizeCanvas : null,
       updateDimsLabel: typeof updateDimsLabel !== "undefined" ? updateDimsLabel : null, openTemplatePicker: typeof openTemplatePicker !== "undefined" ? openTemplatePicker : null,
-      renderAll: typeof renderAll !== "undefined" ? renderAll : null, fitView: typeof fitView !== "undefined" ? fitView : null }[n] || null; } catch (_) { return null; } },
+      renderAll: typeof renderAll !== "undefined" ? renderAll : null, lfAsk: typeof lfAsk !== "undefined" ? lfAsk : null,
+      lfUseSize: typeof lfUseSize !== "undefined" ? lfUseSize : null, lfNote: typeof lfNote !== "undefined" ? lfNote : null, fitView: typeof fitView !== "undefined" ? fitView : null }[n] || null; } catch (_) { return null; } },
   };
   /* eslint-enable no-undef */
   var isBuilder = !!$("preset");
@@ -101,6 +102,11 @@
     if (B.ro()) { toast("Read-only - cannot load a template here", true); return; }
     var row; try { row = await S().layoutTemplates.get(id); } catch (e) { toast(friendly(e, "load the template"), true); return; }
     if (!row || !row.data) { toast("That template could not be found.", true); return; }
+    // load-fit.js: bigger than this hall → Fit to my hall / Use the layout's size / Cancel
+    var lfSz = G.HelmLoadFit ? G.HelmLoadFit.size(row.data) : null, ask = B.fn("lfAsk");
+    var fitChoice = ask && lfSz ? await ask(lfSz) : "ok";
+    if (fitChoice === "cancel") return;
+    if (fitChoice === "size") { var us = B.fn("lfUseSize"); if (us) us(lfSz); }
     var W = B.world() || { w: 200, h: 140 }, caps = B.caps() || {};
     var fit = C.fitToHall(row.data, { w: W.w, h: W.h }, caps.hall || 1000);
     var items = fit.items, N = 0;
@@ -113,6 +119,7 @@
     }
     var li = B.fn("loadItems"); if (!li) return;
     li(items, row.name);
+    if (fitChoice === "fit") { var nt = B.fn("lfNote"); if (nt) nt(row.data.items || []); }
     var es = $("emptyState"); if (es) es.hidden = true;
     toast(row.name + " loaded" + (fit.scaled ? " · fitted to your " + fit.hall.w + "×" + fit.hall.h + " ft hall" : ""));
   }
@@ -285,8 +292,8 @@
   function mountBuilder() {
     var sel = $("preset"); if (!sel) return;
     var field = sel.closest(".field") || sel.parentNode;
-    var bSave = h("button", { type: "button", cls: "tbtn", id: "st_saveBtn", hidden: true, title: "Save the current floor as your studio's own template", text: "💾 Save as template" });
-    var bMgr = h("button", { type: "button", cls: "tbtn", id: "st_mgrBtn", hidden: true, title: "Your studio's own layout templates", text: "📐 My templates" });
+    var bSave = h("button", { type: "button", cls: "tbtn", id: "st_saveBtn", role: "menuitem", hidden: true, title: "Save the current floor as your studio's own template", text: "💾 Save as template" });
+    var bMgr = h("button", { type: "button", cls: "tbtn", id: "st_mgrBtn", role: "menuitem", hidden: true, title: "Your studio's own layout templates", text: "📐 My templates" });
     bSave.addEventListener("click", openSaveModal); bMgr.addEventListener("click", openManager);
     field.parentNode.insertBefore(bMgr, field.nextSibling); field.parentNode.insertBefore(bSave, field.nextSibling);
     var tries = 0;

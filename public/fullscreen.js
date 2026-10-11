@@ -103,9 +103,13 @@
   });
   function mount() {
     vp = doc.querySelector('.viewport'); if (!vp) return;
-    const viewField = doc.getElementById('viewSeg') && doc.getElementById('viewSeg').closest('.field');
-    if (viewField) viewField.after(bHead);
-    vp.append(bFab, bar); bar.hidden = true;
+    // the builder's View ▾ menu hosts the Fullscreen item; older hosts keep it beside the View switch
+    const slot = doc.getElementById('viewMenuSlot');
+    if (slot) { bHead.setAttribute('role', 'menuitem'); slot.append(bHead); }
+    else { const viewField = doc.getElementById('viewSeg') && doc.getElementById('viewSeg').closest('.field'); if (viewField) viewField.after(bHead); }
+    const stack = doc.getElementById('fabStack');
+    if (stack) { stack.prepend(bFab); vp.append(bar); } else vp.append(bFab, bar);
+    bar.hidden = true;
     // the 3D/2D switch may change while fullscreen — keep the 2D/3D buttons honest
     const seg = doc.getElementById('viewSeg'); if (seg) seg.addEventListener('click', () => setTimeout(syncView, 50));
   }

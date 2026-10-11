@@ -924,7 +924,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "22";
+  const AUTH_UI_VERSION = "24";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1019,7 +1019,7 @@ window.HelmUrl = HelmUrl;
     { key: "proposal",   label: "Proposal",          icon: "🎨", page: null,             group: "Pipeline" },
     { key: "quotes",     label: "Quotes & workspace",icon: "📋", page: "quotes.html",    group: "Workspace" },
     { key: "layouts",    label: "Floor layouts",     icon: "📐", page: null,             group: "Workspace" },
-    { key: "design",     label: "Design studio",     icon: "🎨", page: "design.html",    group: "Workspace" },
+    { key: "design",     label: "Design studio",     icon: "🎨", page: null,             group: "Workspace" },   // HIDDEN for now (owner, 2026-10-11) - restore page: "design.html" to bring it back
     // 0095: photo-realistic renders (builder ✦ Render). edit = may make photos (also needs quotes edit)
     { key: "photo_render", label: "Photo renders",    icon: "✦", page: null,             group: "Workspace" },
     { key: "staff",      label: "Staff",             icon: "👷", page: "staff.html",     group: "Resources" },
@@ -2191,7 +2191,14 @@ window.HelmUrl = HelmUrl;
         if (error.code === "PGRST202" || error.code === "42883") return this.create(code, code, null, { items: [] }, 0);
         throw error;
       }
-      return Array.isArray(q) ? q[0] : q;
+      const row = Array.isArray(q) ? q[0] : q;
+      // Owner bug: the server's "untouched" test only checks the client NAME, so a reused draft
+      // where someone had typed just a phone / e-mail came back with that number pre-filled in
+      // the NEW quote. Such a draft is not blank: leave it as-is (zero data loss) and start fresh.
+      const cl = row && row.client && typeof row.client === "object" ? row.client : {};
+      const clean = !["name", "phone", "email", "company"].some((k) => String(cl[k] == null ? "" : cl[k]).trim() !== "");
+      if (!clean) return this.create(code, code, null, { items: [] }, 0);
+      return row;
     },
     // re-issue the code from the event date (idempotent); returns the (possibly new) code
     async rebrandCode(quoteId) {
@@ -3378,6 +3385,27 @@ window.HelmUrl = HelmUrl;
 
   /* ---------------- in-house staff directory (Phase 6) ---------------- */
   const STAFF_LS = "bp_staff";
+  // 0106 helpers: free text → access-matrix role key when the match is obvious, else null
+  const STAFF_DEPT_LS = "bp_staff_departments";
+  let staffDeptMissing = false;
+  const STAFF_ROLE_WORDS = [["admin", /\b(admin|administrator|owner|director)\b/], ["manager", /\b(event manager|manager)\b/],
+    ["coordinator", /\bco-?ordinator\b/], ["planner", /\bplanner\b/], ["sales", /\bsales\b/], ["supervisor", /\bsupervisor\b/],
+    ["quality", /\bquality\b|\bqa\b/], ["operations", /\boperations?\b|\bops\b/], ["designer", /\bdesigner\b/],
+    ["crew", /\bcrew\b/], ["worker", /\bworker\b/]];
+  function staffMatchRole(text) {
+    const t = String(text == null ? "" : text).trim().toLowerCase().replace(/\s+/g, " ");
+    if (!t) return null;
+    for (const r of ALL_ROLES) if (r !== "client" && (t === r || t === roleLabel(r).toLowerCase())) return r;
+    const hits = STAFF_ROLE_WORDS.filter(([, re]) => re.test(t)).map(([r]) => r);
+    return hits.length === 1 ? hits[0] : null;   // ambiguous ("sales manager") → keep as custom
+  }
+  function staffMergeDepts(list, defaults) {
+    const seen = new Set(), out = [];
+    for (const d of [].concat(list || [], (list && list.length) ? [] : defaults || [])) {
+      const v = String(d == null ? "" : d).trim(); if (!v || seen.has(v.toLowerCase())) continue; seen.add(v.toLowerCase()); out.push(v);
+    }
+    return out.sort((a, b) => a.localeCompare(b));
+  }
   const staff = {
     async list(includeInactive) {
       if (mode === "supabase") {
@@ -3454,6 +3482,52 @@ window.HelmUrl = HelmUrl;
     linkErrorText: memberErrorText,
     // the fields a linked row must NOT send (the DB refuses changes to them from the Staff page)
     LINKED_FIELDS: ["name", "phone", "email", "department", "role"],
+    // ---- 0106: role / department drop-downs + login (invite) status ----------------------
+    // Roles = the studio's access-matrix roles (never "client" for staff). Stored on the staff
+    // row as the friendly label ("Event manager"); free text that isn't an obvious match stays
+    // as-is and is shown as "Custom: …" until an admin picks a role (zero data loss).
+    staffRoles: () => ALL_ROLES.filter((r) => r !== "client").map((r) => ({ key: r, label: roleLabel(r) })),
+    matchRole: staffMatchRole,
+    roleLabel,
+    DEFAULT_DEPARTMENTS: ["Management", "Planning", "Sales", "Operations", "Production", "Design", "Quality", "Crew"],
+    // the studio list + departments already used (0106). Before 0106 / offline → used + defaults.
+    async departments() {
+      const used = [];
+      try { const f = await this.facets(true); used.push(...f.depts); } catch (e) {}
+      let list = [];
+      if (mode === "supabase" && supa && !staffDeptMissing) {
+        const { data, error } = await supa.rpc("staff_departments");
+        if (!error) list = Array.isArray(data) ? data : [];
+        else if (rpcMissing(error)) staffDeptMissing = true; else throw error;
+      } else if (mode !== "supabase") { list = readLs(STAFF_DEPT_LS); }
+      return staffMergeDepts(list.length || used.length ? list.concat(used) : list, this.DEFAULT_DEPARTMENTS);
+    },
+    // add a department to the studio list (Staff EDIT, server-checked) → the new list
+    async addDepartment(name) {
+      const n = String(name == null ? "" : name).replace(/\s+/g, " ").trim();
+      if (!n || n.length > 60 || /[<>\u0000-\u001f]/.test(n)) { const e = new Error("Department names are 1-60 characters (no < or >)."); e.code = "22023"; throw e; }
+      if (mode === "supabase") {
+        const { data, error } = await supa.rpc("staff_department_add", { p_name: n });
+        if (error) throw error; return staffMergeDepts(data || [], this.DEFAULT_DEPARTMENTS);
+      }
+      const a = readLs(STAFF_DEPT_LS); if (!a.some((x) => String(x).toLowerCase() === n.toLowerCase())) a.push(n);
+      localStorage.setItem(STAFF_DEPT_LS, JSON.stringify(a)); return staffMergeDepts(a, this.DEFAULT_DEPARTMENTS);
+    },
+    // admin: change the LOGIN role of a staff member linked to a Helm account (0106 wraps admin_set_role)
+    async setLoginRole(staffId, role) {
+      if (!supa) throw new Error("Supabase not configured");
+      const { data, error } = await supa.rpc("staff_set_login_role", { p_staff: staffId, p_role: role });
+      if (error) throw error; accessCache = null; return data;
+    },
+    // "active" (linked account) | "invited" (pending, unexpired invite for their e-mail) | "none"
+    loginStatus(s, invites) {
+      if (s && s.profile_id) return "active";
+      const em = String((s && s.email) || "").trim().toLowerCase(); if (!em) return "none";
+      const now = Date.now();
+      return (invites || []).some((i) => i && i.status === "pending" && String(i.email || "").toLowerCase() === em &&
+        (!i.expires_at || new Date(i.expires_at).getTime() > now)) ? "invited" : "none";
+    },
+    inviteLink: (token) => location.origin + "/login?invite=" + encodeURIComponent(token),
     // crew actually assigned to ONE event (derived from their tasks) — for event-scoped views
     async forEvent(quoteId) {
       if (mode === "supabase") {
@@ -3704,6 +3778,28 @@ window.HelmUrl = HelmUrl;
         const { data, error } = await supa.rpc("checkout_equipment",
           { p_item: itemId, p_quote: quoteId || null, p_qty: Number(qty), p_issued_to: issuedTo, p_issued_to_id: crewId || null, p_note: note || null });
         if (error) throw error; return data;
+      },
+      // 0105: availability for a check-out on this event's date (open check-outs on any event +
+      // other events' same-day reservations), who holds the rest, due-back dates, substitutes.
+      // null when the RPC isn't deployed (older DB) - the page then computes it client-side.
+      async availability(itemId, quoteId) {
+        if (mode !== "supabase") return null;
+        const { data, error } = await supa.rpc("checkout_availability", { p_item: itemId, p_quote: quoteId || null });
+        if (error) { if (rpcMissing(error)) return null; throw error; }
+        return data;
+      },
+      // 0105: server-enforced check-out. A shortage is an ANSWER, not an error:
+      //   {ok:true, checkout_id, qty_out, partial, shortfall} | {ok:false, code:"shortage", requested, available, blocking, ...}
+      // partial=true checks out only what is free and records the shortfall. Falls back to the
+      // 0073 checkout_equipment when the RPC is missing (that one still refuses an over-issue).
+      async outSmart(itemId, quoteId, qty, issuedTo, crewId, note, partial) {
+        if (mode !== "supabase") throw new Error("Check-out needs Supabase");
+        const { data, error } = await supa.rpc("checkout_equipment_smart",
+          { p_item: itemId, p_quote: quoteId || null, p_qty: Number(qty), p_issued_to: issuedTo, p_issued_to_id: crewId || null, p_note: note || null, p_partial: !!partial });
+        if (!error) return data;
+        if (!rpcMissing(error)) throw error;
+        const row = await this.out(itemId, quoteId, qty, issuedTo, crewId, note);
+        return { ok: true, checkout_id: row && row.id, qty_out: Number(qty), partial: false, shortfall: 0, legacy: true };
       },
       // bring it back: returned count + who signed off; writeoff reduces stock by the missing amount
       async in(id, qtyIn, returnedBy, writeoff) {
@@ -6907,7 +7003,12 @@ window.HelmUrl = HelmUrl;
     let c = s.replace(/[\s\-().]/g, "");
     if (/^00\d/.test(c)) c = "+" + c.slice(2);
     if (!/^\+?\d{7,15}$/.test(c)) return { ok: false, error: "Enter a valid phone number: 7–15 digits, optional leading +." };
-    if (c[0] === "+") return { ok: true, value: c };
+    if (c[0] === "+") {
+      // per-country national length (UAE 9 / India 10 / US 10 …) when the phone library is loaded
+      const HP = typeof window !== "undefined" ? window.HelmPhone : null;
+      if (HP && HP.validate) { const r = HP.validate(c); return r.ok ? { ok: true, value: r.e164 } : { ok: false, error: r.error }; }
+      return { ok: true, value: c };
+    }
     // 0092: a UAE / US studio's numbers typed without a code get +971 / +1 (India unchanged below)
     var k0 = ""; try { k0 = (BPStore.studioTax() || {}).country || ""; } catch (e) {}
     if ((k0 === "AE" || k0 === "US") && BPStore.waNumber) { var w0 = BPStore.waNumber(c, k0); if (w0) return { ok: true, value: "+" + w0 }; }
@@ -9166,11 +9267,16 @@ window.HelmUrl = HelmUrl;
   BPStore.waNumber = function (raw, cc) {
     var s = String(raw == null ? "" : raw).trim(); if (!s) return "";
     var c = s.replace(/[\s\-().]/g, ""); if (/^00\d/.test(c)) c = "+" + c.slice(2);
-    if (c[0] === "+") { var d0 = c.slice(1); return /^\d{7,15}$/.test(d0) ? d0 : ""; }
+    if (c[0] === "+") { var d0 = c.slice(1); if (!/^\d{7,15}$/.test(d0)) return "";
+      if (/^971/.test(d0)) { var n0 = d0.slice(3).replace(/^0/, ""); return /^(5\d{8}|[234679]\d{7})$/.test(n0) ? "971" + n0 : ""; }
+      if (/^91/.test(d0) && d0.length > 12) { var n1 = d0.slice(2).replace(/^0/, ""); return n1.length === 10 ? "91" + n1 : ""; }
+      return d0; }
     var d = c; if (!/^\d{7,15}$/.test(d)) return "";
     var k = BPStore.tax.code(cc || (BPStore.studioTax() || {}).country);
     if (k === "US") return /^\d{10}$/.test(d) ? "1" + d : d;
-    if (k === "AE") { if (/^971\d{8,9}$/.test(d)) return d; if (/^0\d{8,9}$/.test(d)) return "971" + d.slice(1); return /^\d{8,9}$/.test(d) ? "971" + d : d; }
+    // UAE: 9 national digits for a mobile (5X XXX XXXX), 8 for a landline; trunk 0 dropped
+    if (k === "AE") { if (/^9710?\d{8,9}$/.test(d)) { var n = d.slice(3).replace(/^0/, ""); return /^(5\d{8}|[234679]\d{7})$/.test(n) ? "971" + n : ""; }
+      var a = d.replace(/^0/, ""); return /^(5\d{8}|[234679]\d{7})$/.test(a) ? "971" + a : ""; }
     if (/^\d{10}$/.test(d)) return "91" + d; if (/^0\d{10}$/.test(d)) return "91" + d.slice(1); return d;
   };
   // ---- payment terms from onboarding (pricing config: advancePct / balanceDueDays / paymentTermsNote) ----
@@ -9202,7 +9308,7 @@ window.HelmUrl = HelmUrl;
   // the user's LOCAL calendar day (IST for an Indian studio) as YYYY-MM-DD - toISOString() is UTC
   // and reads as "yesterday" from 00:00 to 05:30 IST
   BPStore.todayLocal = function (d) {
-    d = d instanceof Date ? d : new Date();
+    d = (d && typeof d.getFullYear === "function") ? d : new Date();   // also a Date from another realm (iframe / test vm)
     var p = function (n) { return (n < 10 ? "0" : "") + n; };
     return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
   };
@@ -9447,7 +9553,7 @@ window.HelmUrl = HelmUrl;
   // Every phone field becomes the HelmPhone component (phone-input.js: flag + searchable
   // country list + as-you-type format; .value stays E.164). Pages that don't include the
   // script get it loaded on demand; if it can't load, the legacy hardener below is used.
-  var PHONE_LIB_V = "1", phoneLib = null;
+  var PHONE_LIB_V = "3", phoneLib = null;
   function loadPhoneLib() {
     if (window.HelmPhone && window.HelmPhone.attach) return Promise.resolve(true);
     if (phoneLib) return phoneLib;

@@ -6,6 +6,9 @@
 .wt-kicker{font:600 12px/1.3 'IBM Plex Mono',monospace;letter-spacing:.04em;text-transform:uppercase;opacity:.7}
 .wt-title{font:700 clamp(20px,4vw,30px)/1.2 'IBM Plex Sans',sans-serif;margin:4px 0 2px}
 .wt-desc{font-size:14px;opacity:.85}
+.wt-from{display:inline-flex;gap:8px;align-items:center;margin-top:8px;font-size:13px}
+.wt-from-lbl{opacity:.75;font-weight:600}
+.wt-from-sel{min-height:36px;max-width:min(320px,70vw);padding:4px 8px;border-radius:8px;border:1px solid var(--line,#ddd);background:var(--panel,#fff);color:inherit;font:500 13px 'IBM Plex Sans',sans-serif}
 .wt-dots{display:flex;gap:6px;justify-content:center;margin:10px 0}
 .wt-dot{width:8px;height:8px;border-radius:50%;background:var(--line,#ccc)}
 .wt-dot.on{background:var(--accent,#6d28d9);transform:scale(1.25)}
@@ -27,3 +30,6 @@ body.wt-on .wt-fab,body.wt-on #hint3d{display:none}
   .wt-list{left:8px;right:8px;top:8px;max-height:40%}
   .wt-fab{right:12px;bottom:56px}
 }
+/* the walkthrough card never covers the canvas control stack (arrow pad / fullscreen / Tour) */
+body.wt-on .wt-overlay{padding-right:128px}
+@media (max-width:700px){ body.wt-on .wt-overlay{padding-right:16px} body.wt-on #fabStack,body.wt-on #navPad{display:none} }

@@ -682,6 +682,7 @@
       const carpet = spec.carpet; spec = defaults(typeSel.value, keep); spec.carpet = carpet; renderBody(); });
     const grid = el('div', 'lw-grid');
     grid.append(field('Event type', typeSel, 'Picks the suggested objects & seating'));
+    grid.append(field('Saved venue', venueSel(), 'Fills the hall size; restrictions show in Classic templates'));
     const unit = seg({ ft: 'Feet', m: 'Metres' }, spec.unit, (k) => { spec.unit = k; renderBody(); }, 'Units');
     grid.append(field('Units', unit));
     grid.append(field('Hall length (' + U() + ')', num(toU(spec.hall.w), 1, 3000, (v) => { const f = fromU(v); if (f) spec.hall.w = clamp(Math.round(f), 20, 1000); refit(true); }, { id: 'wizLen' })));
@@ -690,6 +691,31 @@
     grid.append(field('Expected guests', num(spec.guests, 0, 20000, (v) => { spec.guests = posInt(v); if (!spec._chairsManual) { spec.chairs = spec.guests ? Math.ceil(spec.guests * 7 / 10) : 0; chairsIn.value = spec.chairs || ''; } refit(); }, { id: 'wizGuests', step: '1' })));
     grid.append(field('Seats needed', chairsIn, '70% of guests by default — every seat counts (VIP, stage, sofas)'));
     p.append(grid);
+  }
+  // "Saved venue": pick one of the studio's venues -> hall length / width (ft) + link it to the event
+  let venueRows = null, venuePicked = '';
+  function venueSel() {
+    const sel = el('select', 'lw-in', null, { id: 'wizVenue', 'aria-label': 'Saved venue' });
+    sel.append(el('option', null, '- type the hall size by hand -', { value: '' }));
+    const B = window.HelmBuilderVenue, linkedId = venuePicked || (B && B.client && B.client().venueId) || '';
+    const fill = (rows) => {
+      (rows || []).forEach((v) => { const o = el('option', null, v.name + (v.city ? ' - ' + v.city : ''), { value: v.id }); if (v.id === linkedId) o.selected = true; sel.append(o); });
+      sel.disabled = !(rows || []).length;
+    };
+    if (venueRows) fill(venueRows);
+    else { sel.disabled = true; const S = window.BPStore;
+      if (S && S.venues && S.venues.list) S.venues.list().then((r) => { venueRows = r || []; fill(venueRows); }).catch(() => {}); }
+    sel.addEventListener('change', () => {
+      venuePicked = sel.value;
+      const v = (venueRows || []).find((x) => x.id === sel.value), V = window.HelmVenues;
+      if (B && B.link) B.link(v || null);
+      if (!v || !V || !V.fillFor) return;
+      const f = V.fillFor(v);
+      if (f.lenFt) spec.hall.w = clamp(Math.round(f.lenFt), 20, 1000);
+      if (f.widFt) spec.hall.h = clamp(Math.round(f.widFt), 20, 1000);
+      refit(true); renderBody();
+    });
+    return sel;
   }
   // the seating counts follow guests / chairs / hall until the user types their own seating numbers
   function refit(hall) {
@@ -842,7 +868,7 @@
     // the Custom Event / Create layout entry points open the wizard (capture: before builder.js's own handler)
     ['customBtn', 'es_custom'].forEach((id) => { const b = doc.getElementById(id); if (!b) return;
       b.addEventListener('click', (e) => { e.stopImmediatePropagation(); open(e); }, true);
-      if (id === 'customBtn') { b.textContent = '✨ Create layout'; b.title = 'Create a layout from your requirements: hall, guests, seating and objects'; } });
+      if (id === 'customBtn') { if (!b.querySelector('.tl')) b.textContent = '✨ Create layout'; b.title = 'Create a layout from your requirements: hall, guests, seating and objects'; } });
   }
   if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', mount); else mount();
   API._ui = { open, close, generate, apply, get spec() { return spec; }, set spec(v) { spec = v; }, get result() { return lastResult; }, go };

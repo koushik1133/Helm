@@ -92,8 +92,8 @@ t('U6 0103: AE demo seed returns the real inserted package count; India seed unt
 });
 t('cache-bust: store-api v174, builder v42, layout-wizard v7', () => {
   const bh = read('public/builder.html');
-  assert.match(bh, /store-api\.js\?v=174/); assert.match(bh, /builder\.js\?v=42/); assert.match(bh, /layout-wizard\.js\?v=7/);
-  assert.match(read('public/flow.html'), /store-api\.js\?v=174/);
+  assert.match(bh, /store-api\.js\?v=179/); assert.match(bh, /builder\.js\?v=50/); assert.match(bh, /layout-wizard\.js\?v=10/);
+  assert.match(read('public/flow.html'), /store-api\.js\?v=179/);
 });
 
 let fail = 0;

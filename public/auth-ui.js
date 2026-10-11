@@ -540,12 +540,12 @@
       });
     }
     libsP = Promise.all([
-      load("/phone-input.js?v=" + FORM_LIB_V, function () { return !!(global.HelmPhone && global.HelmPhone.attach); }),
+      load("/phone-input.js?v=" + PHONE_LIB_V, function () { return !!(global.HelmPhone && global.HelmPhone.attach); }),
       load("/form-validate.js?v=" + FORM_LIB_V, function () { return !!(global.HelmValidate && global.HelmValidate.bind); }),
     ]).then(function (r) { return r[0] && r[1]; });
     return libsP;
   }
-  var FORM_LIB_V = "1";
+  var FORM_LIB_V = "1", PHONE_LIB_V = "3";
   function pathIcon(path, cls) {
     var ns = "http://www.w3.org/2000/svg", s = doc.createElementNS(ns, "svg");
     s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("width", "16"); s.setAttribute("height", "16"); s.setAttribute("aria-hidden", "true"); if (cls) s.setAttribute("class", cls);

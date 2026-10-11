@@ -283,8 +283,8 @@ t('UI + store + pages wired', () => {
   assert.match(st, /smart_import_batch/); assert.match(st, /custom_field_defs/); assert.match(st, /import_mappings/);
   for (const p of ['staff', 'inventory', 'control']) {
     const h = readFileSync(new URL('../public/' + p + '.html', import.meta.url), 'utf8');
-    assert.match(h, /smart-import-core\.js\?v=5"/, p); assert.match(h, /smart-import\.js\?v=3"/, p);
-    assert.match(h, /xlsx-lite\.js\?v=2"/, p); assert.match(h, /store-api\.js\?v=174"/, p);
+    assert.match(h, /smart-import-core\.js\?v=6"/, p); assert.match(h, /smart-import\.js\?v=3"/, p);
+    assert.match(h, /xlsx-lite\.js\?v=2"/, p); assert.match(h, /store-api\.js\?v=179"/, p);
     assert.match(h, /HelmImport\.open\(\{\s*entity:/, p);
   }
   const sql = readFileSync(new URL('../supabase/migrations/0088_smart_import.sql', import.meta.url), 'utf8');

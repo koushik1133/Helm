@@ -569,7 +569,7 @@ function updateCapacityUI(){
   else if(packed){ msg=`⚠ ${packed} seating block${packed>1?'s':''} packed below ${PACKED_PITCH} ft spacing — very congested.`; bcls='over'; }
   else if(cap && seats>cap*0.9){ msg=`Near capacity — ${seats} of ${cap} seats.`; bcls='tight'; }
   else if(tight){ msg=`${tight} block${tight>1?'s':''} tight (under ${COMFORT_PITCH} ft spacing).`; bcls='tight'; }
-  if(msg){ banner.hidden=false; banner.className='capbanner '+bcls; banner.textContent=msg; } else banner.hidden=true;
+  if(msg){ banner.hidden=false; banner.className='capbanner '+bcls; banner.textContent=msg; banner.title=msg; } else banner.hidden=true;
 }
 
 function gridStepFt(){ return store.grid.unit==='m' ? 1/ FT_PER_M * FT_PER_M : 1; } // grid cell always 1 unit
@@ -651,8 +651,8 @@ function makeItem(type, x, y, overrides={}){
 }
 // Items most events only want ONE of — adding a second is usually a slip, so we ask first.
 const SINGULAR_ASSETS = new Set(['stage','dancefloor','dj','mandap','caketable','headtable','foh','videowall','piano','redcarpet','fountain']);
-async function addAsset(type, atFt){
-  const a = ASSETS[type];
+async function addAsset(type, atFt, opts){
+  const a = ASSETS[type], lbl = opts && opts.label;
   if(SINGULAR_ASSETS.has(type) && store.items.some(it=>it.type===type)){
     const ok = await BPUI.confirm('There’s already a '+a.label+' on this floor. Most events only need one — add another anyway?',
       {title:'Add another '+a.label+'?', okLabel:'Add another', cancelLabel:'Keep just one'});
@@ -662,11 +662,12 @@ async function addAsset(type, atFt){
   const cy = atFt ? atFt.y : viewCenterFt().y;
   let x = clamp(snapFt(cx - a.w/2), 0, WORLD.w-a.w);
   let y = clamp(snapFt(cy - a.h/2), 0, WORLD.h-a.h);
-  const it = makeItem(type, x, y);
+  // the Entrance marker gets its own blue (exits stay green); still editable in the Inspector
+  const it = makeItem(type, x, y, lbl ? Object.assign({label:lbl}, type==='exit' && /entr/i.test(lbl) ? {color:'#2563eb', colorCustom:true} : {}) : undefined);
   store.items.push(it);
   setSelection([it.id]);
   commit(); renderAll();
-  toast(a.label + ' added');
+  toast((lbl || a.label) + ' added');
 }
 
 /* ===================================================================
@@ -1984,16 +1985,34 @@ function loadItems(items, name){
   if(name){ const pn=$('#projName'); if(pn && (!pn.value.trim() || pn.value.trim()==='Untitled layout')) pn.value=name; }
   commit(); renderAll(); fitView();
 }
-function loadTemplate(key){
+/* load-fit.js: warn before loading a layout bigger than the current hall (Fit / Use the layout's size / Cancel) */
+function lfAsk(sz){   // → 'ok' (fits) | 'fit' | 'size' | 'cancel'
+  const LF=window.HelmLoadFit; if(!LF || !sz) return Promise.resolve('ok');
+  const hall={w:WORLD.w,h:WORLD.h}; if(!LF.compare(sz,hall).any) return Promise.resolve('ok');
+  return LF.ask(sz, hall, store.grid.unit, (CAPS&&CAPS.hall)||1000);
+}
+function lfUseSize(sz){
+  const t=window.HelmLoadFit.targetHall(sz,(CAPS&&CAPS.hall)||1000);
+  WORLD.w=t.w; WORLD.h=t.h; store.venue=store.venue||{}; store.venue.room={w:WORLD.w,h:WORLD.h};
+  updateDimsLabel(); sizeCanvas();
+  setTimeout(()=>BPUI.toast('Venue size changed to '+WORLD.w+' × '+WORLD.h+' ft'+(t.capped?' (the most your plan allows)':''),{type:'info'}),60);
+}
+function lfNote(before, opts){ if(window.HelmLoadFit) window.HelmLoadFit.note(before, store.items, ids=>{ setSelection(ids); renderAll(); }, opts); }
+async function loadTemplate(key){
   if(!key){ return; }
   // 0096: the studio's own templates ("st:<id>") are fitted to this hall + exact seats by studio-templates.js
   if(String(key).indexOf('st:')===0){ if(window.HelmStudioTemplates) window.HelmStudioTemplates.apply(String(key).slice(3)); return; }
   const lbl=document.querySelector('#preset option[value="'+key+'"]').textContent;
   // R8b: an open quote's seats value is the exact seating total for preset templates too
-  const tItems=TEMPLATES[key](); const N=currentQuoteId ? quoteChairsNow() : 0;
+  const tItems=TEMPLATES[key]();
+  const fitChoice=await lfAsk(window.HelmLoadFit && window.HelmLoadFit.size(tItems)); if(fitChoice==='cancel') return;
+  if(fitChoice==='size') lfUseSize(window.HelmLoadFit.size(tItems));
+  const N=currentQuoteId ? quoteChairsNow() : 0;
   if(N>0){ const nat=sumSeats(tItems); exactSeats(tItems, N); const w=seatFitWarning(N, nat, null, PRICING.eventType); if(w) setTimeout(()=>BPUI.toast('⚠ '+w,{type:'err'}),50); }
+  const lfBefore=fitChoice==='fit' ? JSON.parse(JSON.stringify(tItems)) : null;
   loadItems(tItems, lbl);
   toast(lbl + ' loaded');
+  if(lfBefore) lfNote(lfBefore, {clamp:true});
 }
 
 /* ===================================================================
@@ -2548,7 +2567,9 @@ function applyRoomFromForm(o){
 function updateDimsLabel(){ const el=$('#dimsLabel'); if(!el) return;
   // 0096: the floor is the USABLE area; show the venue's full size alongside when it differs
   let vref=''; try{ const c=currentClient||{}; if(+c.venueLen>0 && +c.venueWid>0 && (+c.venueLen!==WORLD.w || +c.venueWid!==WORLD.h)) vref=` · venue ${+c.venueLen} × ${+c.venueWid} ft`; }catch(e){}
-  el.textContent = `${WORLD.w} × ${WORLD.h} ft${vref} · ${PX_PER_FT} px/ft${store.venue&&store.venue.setting==='outdoor'?' · outdoor':''}`; }
+  const full = `${WORLD.w} × ${WORLD.h} ft${vref} · ${PX_PER_FT} px/ft${store.venue&&store.venue.setting==='outdoor'?' · outdoor':''}`;
+  // compact hall-size chip in the toolbar; the full detail (venue size, scale, outdoor) is in its tooltip
+  el.textContent = `${WORLD.w} × ${WORLD.h} ft${vref?' usable':''}`; el.title = 'Hall size · '+full; }
 function runCustomGenerate(){
   const o=readCustomForm();
   // Enforce the Control-Center capacity ceilings so generation stays fast and honest
@@ -2807,8 +2828,8 @@ function buildToolbox(){
     return `<div class="cat">
       <h3><span class="dot" style="background:${catColor(cat)}"></span>${CATS[cat].name}</h3>
       <div class="tools">
-        ${items.map(([type,a])=>`<div class="tool" draggable="true" role="button" tabindex="${RO?'-1':'0'}"${RO?' aria-disabled="true"':''} data-type="${type}" style="color:${catColor(cat)}" aria-label="Add ${a.label}">
-          ${assetGlyph(type)}<span style="color:var(--ink)">${a.label}</span></div>`).join('')}
+        ${items.flatMap(([type,a])=>type==='exit'?[[type,a,'Entrance'],[type,a,null]]:[[type,a,null]]).map(([type,a,vl])=>`<div class="tool" draggable="true" role="button" tabindex="${RO?'-1':'0'}"${RO?' aria-disabled="true"':''} data-type="${type}"${vl?` data-label="${esc(vl)}"`:''} style="color:${catColor(cat)}" aria-label="Add ${esc(vl||a.label)}">
+          ${vl?assetGlyph('entrance'):assetGlyph(type)}<span style="color:var(--ink)">${esc(vl||a.label)}</span></div>`).join('')}
       </div></div>`;
   }).join('');
   host.querySelectorAll('.tool').forEach(t=>{
@@ -2816,7 +2837,7 @@ function buildToolbox(){
       const ty=t.dataset.type;
       if(ty==='seatblock'||ty==='chairrow') openArrangeModal('chairs');   // pick a chair grid
       else if(ty==='table') openArrangeModal('tables');                   // pick a table grid + shape
-      else addAsset(ty);
+      else addAsset(ty, null, t.dataset.label ? {label:t.dataset.label} : undefined);
       closeDrawers();
     });
     // keyboard: Enter / Space drops the asset at the centre of the visible canvas (same path as a drop)
@@ -2825,10 +2846,10 @@ function buildToolbox(){
       e.preventDefault();
       if(RO) return;
       const ty=t.dataset.type; if(!ASSETS[ty]) return;
-      addAsset(ty);
+      addAsset(ty, null, t.dataset.label ? {label:t.dataset.label} : undefined);
       closeDrawers(true);
     });
-    t.addEventListener('dragstart',e=>{ e.dataTransfer.setData('type',t.dataset.type); e.dataTransfer.effectAllowed='copy'; });
+    t.addEventListener('dragstart',e=>{ e.dataTransfer.setData('type',t.dataset.type); e.dataTransfer.setData('label',t.dataset.label||''); e.dataTransfer.effectAllowed='copy'; });
   });
 }
 function assetGlyph(type){
@@ -2848,6 +2869,7 @@ function assetGlyph(type){
     case 'booth': return wrap('<rect x="5" y="4" width="16" height="12" rx="1"/><path d="M5 8h16"/>');
     case 'desk': return wrap('<rect x="4" y="7" width="18" height="6" rx="1"/><path d="M8 13v3M18 13v3"/>');
     case 'truck': return wrap('<rect x="3" y="6" width="13" height="8" rx="1"/><path d="M16 9h4l2 3v2h-6z"/><circle cx="8" cy="16" r="1.6"/><circle cx="19" cy="16" r="1.6"/>');
+    case 'entrance': return wrap('<rect x="4" y="4" width="18" height="12" rx="1"/><path d="M17 10h-6M13 7l-3 3 3 3"/>');
     case 'exit': return wrap('<rect x="4" y="4" width="18" height="12" rx="1"/><path d="M9 10h6M13 7l3 3-3 3"/>');
     case 'canopy': return wrap('<path d="M4 8h18M6 8v9M20 8v9M4 8l3-4h12l3 4"/>');
     case 'arch': return wrap('<path d="M4 16V11a9 9 0 0 1 18 0v5"/>');
@@ -2911,7 +2933,7 @@ scrollEl.addEventListener('drop',e=>{
   e.preventDefault();
   if(RO) return;
   const type=e.dataTransfer.getData('type'); if(!type||!ASSETS[type])return;
-  addAsset(type, svgPointFt(e));
+  const vl=e.dataTransfer.getData('label'); addAsset(type, svgPointFt(e), vl ? {label:vl} : undefined);
 });
 
 /* ===================================================================
@@ -2997,9 +3019,11 @@ function recenterView(){
 })();
 window.__builderPan={pan2D, panViewStep, recenterView};
 
-$('#zoomIn').addEventListener('click',()=>setZoom(store.view.zoom*1.2));
-$('#zoomOut').addEventListener('click',()=>setZoom(store.view.zoom/1.2));
-$('#zoomFit').addEventListener('click',()=>fitView());
+// in 3D the same buttons drive the 3D camera (smooth dolly / fit) instead of the hidden 2D canvas
+const in3D=()=>!!(window.__helm3D && window.__helm3D.isActive && window.__helm3D.isActive() && window.__zoom3D);
+$('#zoomIn').addEventListener('click',()=>{ if(in3D()) window.__zoom3D(1/1.25); else setZoom(store.view.zoom*1.2); });
+$('#zoomOut').addEventListener('click',()=>{ if(in3D()) window.__zoom3D(1.25); else setZoom(store.view.zoom/1.2); });
+$('#zoomFit').addEventListener('click',()=>{ if(in3D()) window.__zoom3D('fit'); else fitView(); });
 scrollEl.addEventListener('scroll',renderRulers,{passive:true});
 scrollEl.addEventListener('wheel',e=>{
   if(!(e.ctrlKey||e.metaKey))return;
@@ -3079,7 +3103,12 @@ $('#refEvents').addEventListener('change', async (e)=>{
     const ver=await BPStore.quotes.getVersion(qid, q.currentVersion);
     const items=(ver && ver.data && ver.data.items)||[];
     if(!items.length){ toast('That event has no saved layout.'); e.target.value=''; return; }
+    const lfSz=window.HelmLoadFit && window.HelmLoadFit.size(ver.data);
+    const fitChoice=await lfAsk(lfSz); if(fitChoice==='cancel'){ e.target.value=''; return; }
+    if(fitChoice==='size') lfUseSize(lfSz);
+    const lfBefore=fitChoice==='fit' ? JSON.parse(JSON.stringify(items)) : null;
     loadItems(stripStalePrices(items), 'Ref: '+(q.code||'past event'));
+    if(lfBefore) lfNote(lfBefore, {clamp:true});
     toast('Loaded layout from '+(q.code||'past event')+' · Prices updated to current rates');
   }catch(err){ toast('Could not load that layout'); }
   e.target.value='';
@@ -3572,6 +3601,7 @@ $('#verRestoreBtn').addEventListener('click',()=>{
 // Build 1 — show the current design stage (if any) with a link to the Design Studio. Best-effort.
 async function updateDesignChip(){
   const chip=$('#designChip'); if(!chip) return;
+  chip.hidden=true; return;   // Design studio hidden for now (owner, 2026-10-11) - remove this line to bring the chip back
   if(!currentQuoteId || !(BPStore.design && BPStore.auth && BPStore.auth.enabled && BPStore.auth.enabled())){ chip.hidden=true; return; }
   try{
     const rec=await BPStore.design.get(currentQuoteId);
@@ -3616,7 +3646,16 @@ async function openLoadModal(){
       if(!(await BPUI.confirmDiscard(dirty,{message:'You have unsaved changes on this floor. Opening another layout will discard them.'}))) return;
       const full=await getLayout(id);
       if(!full){ BPUI.toast('Couldn’t open that layout — it may have been deleted.',{type:'err'}); return; }
-      applyLayout(full.data); currentLayoutId=id;
+      const lfSz=window.HelmLoadFit && full.data && window.HelmLoadFit.size(full.data);
+      const fitChoice=await lfAsk(lfSz); if(fitChoice==='cancel') return;
+      let openData=full.data;
+      if(fitChoice==='fit' || fitChoice==='size'){   // keep (fit) or set (size, capped) the hall instead of the saved one
+        if(fitChoice==='size') lfUseSize(lfSz);
+        const room={w:WORLD.w,h:WORLD.h};
+        openData={ ...full.data, scale:{ ...(full.data.scale||{}), worldFt:room }, venue:{ ...(full.data.venue||{}), room } };
+      }
+      applyLayout(openData); currentLayoutId=id;
+      if(fitChoice==='fit') lfNote(full.data.items, {clamp:true});
       $('#projName').value=full.name; setSavedBaseline(); closeLoadModal(); toast('Opened “'+full.name+'”');
     }).catch(()=>{}));
     delB.addEventListener('click',()=>BPUI.guard(delB, async()=>{
@@ -3703,8 +3742,19 @@ window.__helmPhotoCtx = function(){
     quoteId: currentQuoteId, readOnly: !!RO, frozen: !!(currentQuoteGuard && currentQuoteGuard.frozen),
     supported: clientImagesSupported(), items: store.items.slice(), world: { w: WORLD.w, h: WORLD.h },
     eventType: PRICING.eventType || '', guests: PRICING.guests, setting: (store.venue && store.venue.setting) || 'indoor',
-    country: PRICING.taxCountry || '', title: ($('#projName') && $('#projName').value) || '',
+    country: PRICING.taxCountry || '', eventDate: PRICING.eventDate || '', title: ($('#projName') && $('#projName').value) || '',
+    // render context (data only; never shown as text in the photo)
+    client: currentClient || {}, menuPackage: PRICING.menuPackageName || '', venueSettingSet: !!(store.venue && store.venue.setting),
     planBlob: (o) => planBlob(o),
+    // the builder tab can be older than the flow's last save: re-read the quote's event type / date / guests
+    refreshMeta: async () => {
+      if(!currentQuoteId || !BPStore.quotes || !BPStore.quotes.get) return null;
+      const q=await BPStore.quotes.get(currentQuoteId); if(!q) return null;
+      PRICING.eventType = q.eventType || null; PRICING.eventDate = q.eventDate || PRICING.eventDate || null;
+      const c=window.__helmPhotoCtx(); c.client = Object.assign({}, currentClient || {}, q.client || {});   // read-only copy; never written back
+      if(c.guests==null && c.client.guests!=null) c.guests = +c.client.guests;
+      return c;
+    },
   };
 };
 /* ---- R2 + 0083: client booklet images (real 2D plan + 3D render) ----
@@ -3863,6 +3913,43 @@ document.querySelectorAll('header details.hmenu').forEach(d=>{
 });
 document.addEventListener('click',e=>{ document.querySelectorAll('header details.hmenu[open]').forEach(d=>{ if(!d.contains(e.target)) d.open=false; }); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') document.querySelectorAll('header details.hmenu[open]').forEach(d=>{ d.open=false; d.querySelector('summary')?.focus(); }); });
+/* toolbar menus (Layout ▾ / View ▾ / Share ▾): aria-expanded, Esc closes + returns focus, ↑↓/Home/End move,
+   outside click closes, picking a button item closes. Items injected later (walkthrough / fullscreen / studio templates) work too. */
+(function(){
+  const wraps=[...document.querySelectorAll('header .tmenu')];
+  const items=pop=>[...pop.querySelectorAll('button,select,input,a[href]')].filter(x=>!x.disabled && !x.hidden && x.offsetParent!==null);
+  function close(w,focus){ const b=w.querySelector('.tmenu-btn'), p=w.querySelector('.tmenu-pop'); if(p.hidden) return;
+    p.hidden=true; b.setAttribute('aria-expanded','false'); w.classList.remove('open'); if(focus) b.focus(); }
+  function open(w,first){ wraps.forEach(o=>{ if(o!==w) close(o,false); });
+    const b=w.querySelector('.tmenu-btn'), p=w.querySelector('.tmenu-pop'); const hb=document.querySelector('header').getBoundingClientRect(); p.style.setProperty('--tm-top', Math.round(hb.bottom+4)+'px'); p.hidden=false; b.setAttribute('aria-expanded','true'); w.classList.add('open');
+    if(first){ const f=items(p); if(f.length) (first==='last'?f[f.length-1]:f[0]).focus(); } }
+  wraps.forEach(w=>{
+    const b=w.querySelector('.tmenu-btn'), p=w.querySelector('.tmenu-pop');
+    b.addEventListener('click',e=>{ if(p.hidden) open(w, e.detail===0 ? 'first' : null); else close(w,false); });
+    b.addEventListener('keydown',e=>{ if(e.key==='ArrowDown'){ e.preventDefault(); open(w,'first'); } else if(e.key==='ArrowUp'){ e.preventDefault(); open(w,'last'); } });
+    p.addEventListener('keydown',e=>{
+      if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); close(w,true); return; }
+      if(e.target.tagName==='SELECT' || e.target.tagName==='INPUT') { if(e.key!=='Tab') return; }
+      const f=items(p), i=f.indexOf(document.activeElement);
+      if(e.key==='ArrowDown'){ e.preventDefault(); f[(i+1)%f.length]?.focus(); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); f[(i-1+f.length)%f.length]?.focus(); }
+      else if(e.key==='Home'){ e.preventDefault(); f[0]?.focus(); }
+      else if(e.key==='End'){ e.preventDefault(); f[f.length-1]?.focus(); }
+      else if(e.key==='Tab'){ close(w,false); }
+    });
+    // picking an action closes the menu (selects close once a choice is made)
+    p.addEventListener('click',e=>{ const t=e.target.closest('button'); if(t && p.contains(t)) close(w,false); });
+    p.addEventListener('change',e=>{ if(e.target.tagName==='SELECT') close(w,true); });
+  });
+  document.addEventListener('click',e=>{ wraps.forEach(w=>{ if(!w.contains(e.target)) close(w,false); }); });
+  document.addEventListener('keydown',e=>{ if(e.key!=='Escape') return; const w=wraps.find(x=>x.classList.contains('open')); if(w){ e.preventDefault(); close(w,true); } });
+  window.__toolbarMenus={ open:(id)=>{ const w=document.getElementById(id); if(w) open(w,'first'); }, closeAll:()=>wraps.forEach(w=>close(w,false)) };
+})();
+/* keep the "? Tour" pill inside the canvas control stack so it never sits on top of the zoom / pan controls */
+(function(){ const stack=$('#fabStack'); if(!stack || !window.MutationObserver) return;
+  const grab=()=>{ const f=document.querySelector('body > .htour-fab'); if(f){ f.classList.add('in-stack'); stack.append(f); } };
+  grab(); new MutationObserver(grab).observe(document.body,{childList:true});
+})();
 $('#loadModal').addEventListener('click',e=>{ if(e.target.id==='loadModal') closeLoadModal(); });
 $('#exportBtn').addEventListener('click',()=>{ BPUI.guard($('#exportBtn'), exportPNG,{busyLabel:'Exporting…'}).catch(()=>{}); });
 $('#clientImgBtn').addEventListener('click',()=>{ BPUI.guard($('#clientImgBtn'), ()=>captureClientImages(false),{busyLabel:'Capturing…'}).catch(()=>{}); });
@@ -3952,12 +4039,14 @@ async function init(){
       currentQuoteId=q.id; currentQuoteCode=q.code; currentClient=q.client||{}; currentPricing=q.pricing||{};
       { const bb=$('#backToFlowBtn'); if(bb && params.get('from')==='flow') bb.hidden=false; }
       currentQuoteGuard = { approved: q.status==='confirmed' || (q.approvalStatus && q.approvalStatus!=='none'), closed: q.lifecycleStage==='closed', frozen: q.lifecycleStage==='closed' || q.status==='cancelled' || !!q.archivedAt || !!q.deletedAt };
-      const pn=$('#projName'); if(pn) pn.value=q.title||q.code;
+      const pn=$('#projName'); if(pn) pn.value=quoteDisplayName(q);
+      currentQuoteRow=q; renderNameHint();
       try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[q.code,q.title].filter((v,i,a)=>v&&a.indexOf(v)===i).join(' '),kind:'builder',href:'builder.html?quote='+encodeURIComponent(q.id),recordHref:'event.html?id='+encodeURIComponent(q.id)}); }catch(e){}
       const verNo = (openVer && /^\d{1,6}$/.test(String(openVer)) && +openVer>0) ? parseInt(openVer,10) : q.currentVersion;   // ignore junk like v=abc
       const ver = await BPStore.quotes.getVersion(q.id, verNo);
       currentVersionNo = ver.versionNo;
       PRICING.eventType = q.eventType || null;
+      PRICING.eventDate = q.eventDate || null;   // photo render: season from the event date
       // pull the event's guest count + applied menu package so the price is synced
       if(q.client && q.client.guests!=null) PRICING.guests = +q.client.guests;
       else if(currentPricing.guests!=null) PRICING.guests = +currentPricing.guests;   // set in the Confirm modal
@@ -4185,3 +4274,25 @@ function specAdjustMount(it, box){
   const ibtns=box.querySelector('.ibtns'); if(ibtns) box.insertBefore(sec, ibtns); else box.appendChild(sec);
 }
 /* ===================== ITEM-SPEC ADJUST: END ===================== */
+
+/* Quote NAME in the builder: an automatic title (code / blank / TYPE_CITY_GUESTS_DATE) shows the
+   computed auto name; typing your own makes it custom (never auto-overwritten). Saving writes the
+   shown name (fill-only for old quotes whose title was the code). */
+var currentQuoteRow=null;
+function quoteDisplayName(q){ const H=window.HelmEventName; return (H&&H.displayName)?H.displayName(q):(q.title||q.code); }
+function renderNameHint(){
+  const h=document.getElementById('projNameHint'), pn=document.getElementById('projName'); if(!h||!pn) return;
+  const H=window.HelmEventName; if(!currentQuoteId||!H){ h.hidden=true; return; }
+  h.hidden=false;
+  const auto=H.isAuto(pn.value, currentQuoteCode);
+  const t=document.getElementById('projNameHintText'); if(t) t.textContent=auto?H.HINT:'Custom name';
+  const r=document.getElementById('projNameReset'); if(r) r.hidden=auto;
+}
+(function(){
+  const pn=document.getElementById('projName'); if(!pn) return;
+  pn.addEventListener('input',renderNameHint);
+  pn.addEventListener('blur',()=>{ const H=window.HelmEventName; if(currentQuoteId&&H&&!pn.value.trim()&&currentQuoteRow){ pn.value=H.fromQuote(currentQuoteRow)||currentQuoteCode||''; renderNameHint(); } });
+  pn.addEventListener('keydown',e=>{ if(e.key==='Escape'&&currentQuoteRow){ pn.value=quoteDisplayName(currentQuoteRow); renderNameHint(); pn.blur(); } });
+  const r=document.getElementById('projNameReset');
+  if(r) r.addEventListener('click',()=>{ const H=window.HelmEventName; if(!H||!currentQuoteRow) return; pn.value=H.fromQuote(currentQuoteRow)||currentQuoteCode||''; markDirty(); renderNameHint(); });
+})();

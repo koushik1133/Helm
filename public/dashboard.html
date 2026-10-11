@@ -106,6 +106,7 @@
   .events .head a,.linkbtn{font-size:12px;color:var(--accent);font-weight:600;cursor:pointer}
   .linkbtn{border:0;background:none;font-family:inherit;padding:4px 2px;min-height:32px}
   .linkbtn:hover{text-decoration:underline}
+  .refchip{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--ink-3);background:var(--accent-soft);border-radius:20px;padding:1px 7px;margin-left:4px}
   .elist{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   #mywork{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
   @media (max-width:840px){#mywork{grid-template-columns:1fr}}
@@ -194,7 +195,7 @@
     .btn:hover,.ecard:hover,.rcard.link:hover,.rcard.link:focus-visible,.modnav .pill:hover{transform:none}
   }
 </style>
-<link rel="stylesheet" href="theme.css?v=76">
+<link rel="stylesheet" href="theme.css?v=78">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -322,8 +323,8 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="event-name.js?v=5"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=174"></script>
+<script src="event-name.js?v=6"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=179"></script>
 <script src="tour.js?v=9"></script>
 <script src="getting-started.js?v=4"></script>
 <script src="onboarding-wizard.js?v=4"></script>
@@ -455,6 +456,7 @@
   const inr = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
   const statBadge = (s) => s === "confirmed" ? '<span class="stat ok">Confirmed</span>'
     : s === "cancelled" ? '<span class="stat no">Cancelled</span>' : '<span class="stat q">Quote</span>';
+  function qName(q) { const H = window.HelmEventName; return H && H.displayName ? H.displayName(q) : (q.title || q.code || ""); }
   function renderList() {
     const host = $("#elist");
     if (!summaries.length) { host.innerHTML = '<div class="empty">No quotes yet' + (canCreate ? ' — hit <b>Generate a quote</b> to create your first.' : '.') + '</div>'; return; }
@@ -463,8 +465,8 @@
     // card is a mouse convenience that follows the same link.
     host.innerHTML = sorted.map((s) =>
       `<div class="ecard" data-id="${esc(s.id)}">${canDelete ? `<button type="button" class="del" data-id="${esc(s.id)}" title="Delete" aria-label="Delete quote ${esc(s.code)}">✕</button>` : ""}
-        <a class="elink" href="event.html?id=${encodeURIComponent(s.id)}"><b>${esc(s.code)}</b></a> ${statBadge(s.status)}
-        <small>${esc(s.title || "")} · v${esc(s.currentVersion)}${s.total ? " · " + esc(BPStore.quoteMoney(s.total, s)) : ""} · ${esc(fmtDate(s.updatedAt))}</small></div>`).join("");
+        <a class="elink" href="event.html?id=${encodeURIComponent(s.id)}"><b>${esc(qName(s))}</b></a> <span class="refchip" title="Reference code">${esc(s.code)}</span> ${statBadge(s.status)}
+        <small>v${esc(s.currentVersion)}${s.total ? " · " + esc(BPStore.quoteMoney(s.total, s)) : ""} · ${esc(fmtDate(s.updatedAt))}</small></div>`).join("");
     host.querySelectorAll(".ecard").forEach((c) => c.addEventListener("click", (e) => {
       if (e.target.closest(".del, a")) return;
       location.href = "event.html?id=" + encodeURIComponent(c.dataset.id);   // open the Event Workspace hub
@@ -516,9 +518,9 @@
       const open = Number(e.open_tasks || 0), done = Number(e.done_tasks || 0);
       const badge = open > 0 ? `<span class="stat q">${open} open</span>` : (done > 0 ? `<span class="stat ok">all done</span>` : "");
       return `<div class="ecard pcard" data-id="${esc(e.id)}" style="cursor:pointer">
-        <b>${esc(e.code || e.title || "Event")}</b> ${badge}
+        <b>${esc(qName(e) || "Event")}</b> <span class="refchip" title="Reference code">${esc(e.code || "")}</span> ${badge}
         <a class="open" href="event.html?id=${encodeURIComponent(e.id)}" style="float:right;font-size:12px;color:var(--accent)" aria-label="Open ${esc(e.code || e.title || "event")}">Open →</a>
-        <small>${esc(e.title || e.event_type || "")} · ${esc(date)} · ${esc(e.lifecycle_stage || "")}</small>
+        <small>${esc(e.event_type || "")} · ${esc(date)} · ${esc(e.lifecycle_stage || "")}</small>
         <button type="button" class="ptoggle" aria-expanded="false" aria-controls="pt-${esc(e.id)}">Show tasks</button>
         <div class="ptasks" id="pt-${esc(e.id)}" hidden></div></div>`;
     }).join("");
@@ -578,7 +580,7 @@
         card(st.confirmed,"Confirmed","good"), card(tc.overdue||0,"Tasks overdue",(tc.overdue>0?"alert":"")) ] },
       manager:     { sub:"Events, approvals & delivery", cards:[
         card(up,"Upcoming events",""), card(st.quote,"Awaiting confirmation","warn"),
-        card(st.confirmed,"Confirmed","good"), card(dqAt('client_review'),"Designs at client review","link","design.html") ] },
+        card(st.confirmed,"Confirmed","good"), card(tc.overdue||0,"Tasks overdue",(tc.overdue>0?"alert":"")) ] },   // Design studio hidden for now
       planner:     { sub:"Pipeline to delivery", cards:[
         card(st.quote,"Open quotes","link","quotes.html"), card(st.confirmed,"Confirmed","good"),
         card(up,"Upcoming events",""), card(tc.overdue||0,"Tasks overdue",(tc.overdue>0?"alert":"")) ] },
@@ -598,7 +600,7 @@
         card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue>0?"alert":"")),
         card(up,"Upcoming events",""), card(tc.completed||0,"Completed","good") ] },
       designer:    { sub:"Design studio", cards:[
-        card(dqOk ? (dq||[]).length : "—","Active designs","link","design.html"), card(dqAt('client_review'),"At client review","warn"),
+        card(dqOk ? (dq||[]).length : "—","Active designs",""), card(dqAt('client_review'),"At client review","warn"),
         card(dqAt('locked'),"Locked","good"), card(dqAt('draft_2d','revise'),"On your board","") ] },
       crew:        { sub:"Your tasks", cards:[
         card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue>0?"alert":"")),

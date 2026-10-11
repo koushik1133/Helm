@@ -48,7 +48,7 @@ assert.ok(WT.eveningLightPoints(full, hall).length <= 8);
 const b = rd('public/builder.html'), c = rd('public/capture.html');
 assert.match(b, /<script src="walkthrough\.js\?v=\d+"><\/script>/); assert.match(b, /walkthrough\.css\?v=\d+/);
 assert.doesNotMatch(c, /walkthrough/);
-assert.match(b, /builder-3d\.js\?v=14/);
+assert.match(b, /builder-3d\.js\?v=16/);
 const b3 = rd('public/builder-3d.js');
 assert.match(b3, /window\.__helm3D=/); assert.match(b3, /if\(ev\) setEvening\(false\)/, 'evening is off during client capture');
 const w = rd('public/walkthrough.js');
@@ -96,9 +96,9 @@ for (const s of RS) {
   assert.ok(WT.isClear(p, rec), 'camera clear of footprints: ' + s.key + ' ' + JSON.stringify(p));
 }
 assert.equal(WT.stopShowsLabels(RS[1], true), true); assert.equal(WT.stopShowsLabels(RS[0], false), false, 'user toggle wins');
-// entrance: from the exit opposite the stage, looking slightly down toward the stage
+// entrance: from the exit opposite the stage, looking LEVEL (eye height) toward the stage
 const en = RS.find((s) => s.key === 'entrance');
-assert.ok(en.pos[2] > 15, 'entrance near the far edge'); assert.ok(en.target[1] < en.pos[1], 'looks slightly downward');
+assert.ok(en.pos[2] > 15, 'entrance near the far edge'); assert.equal(en.target[1], en.pos[1], 'level view at eye height');
 assert.ok(en.target[2] < en.pos[2], 'faces the stage');
 assert.match(b3, /setLabelsHidden/); assert.match(b3, /updateProjectionMatrix/);
 console.log('walkthrough: ok');
