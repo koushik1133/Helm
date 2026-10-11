@@ -174,11 +174,6 @@
   },
   {
    "file": "public/builder.js",
-   "expr": "a.label",
-   "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
-  },
-  {
-   "file": "public/builder.js",
    "expr": "c",
    "why": "field of a hard-coded constant table in this file (STAGES/TEMPLATES/SWATCH_CATS/COLORWAYS/ASSETS/INS_EMOJI/attach menu) or uLabel() unit literal — never user data"
   },
