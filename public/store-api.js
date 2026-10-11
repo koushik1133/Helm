@@ -1019,7 +1019,7 @@ window.HelmUrl = HelmUrl;
     { key: "proposal",   label: "Proposal",          icon: "🎨", page: null,             group: "Pipeline" },
     { key: "quotes",     label: "Quotes & workspace",icon: "📋", page: "quotes.html",    group: "Workspace" },
     { key: "layouts",    label: "Floor layouts",     icon: "📐", page: null,             group: "Workspace" },
-    { key: "design",     label: "Design studio",     icon: "🎨", page: "design.html",    group: "Workspace" },
+    { key: "design",     label: "Design studio",     icon: "🎨", page: null,             group: "Workspace" },   // HIDDEN for now (owner, 2026-10-11) - restore page: "design.html" to bring it back
     // 0095: photo-realistic renders (builder ✦ Render). edit = may make photos (also needs quotes edit)
     { key: "photo_render", label: "Photo renders",    icon: "✦", page: null,             group: "Workspace" },
     { key: "staff",      label: "Staff",             icon: "👷", page: "staff.html",     group: "Resources" },
