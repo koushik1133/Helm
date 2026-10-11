@@ -9,7 +9,7 @@ let n = 0; const t = (name, fn) => { fn(); n++; console.log('  ✓ ' + name); };
 
 t('spec example', () => assert.equal(N.format({ eventType: 'Wedding', city: 'Hyderabad', guests: 1000, eventDate: '2026-08-19' }), 'WED_HYD_1000_19AUG26'));
 t('type map + fallback', () => {
-  for (const [k, v] of [['Reception', 'REC'], ['engagement', 'ENG'], ['Birthday party', 'BDY'], ['Corporate', 'COR'], ['Conference', 'CON'],
+  for (const [k, v] of [['Reception', 'REC'], ['engagement', 'ENG'], ['Birthday party', 'BDAY'], ['Corporate', 'CORP'], ['Conference', 'CONF'],
     ['Sangeet', 'SAN'], ['Haldi', 'HAL'], ['Mehendi', 'MEH'], ['Anniversary', 'ANN'], ['  ', '']]) assert.equal(N.typeCode(k), v, k);
 });
 t('city map + fallback', () => {
@@ -29,7 +29,7 @@ t('missing parts are omitted', () => {
 });
 t('fromQuote reads both row shapes', () => {
   assert.equal(N.fromQuote({ event_type: 'Reception', event_date: '2026-08-19', client: { city: 'Pune', guests: '350' } }), 'REC_PUN_350_19AUG26');
-  assert.equal(N.fromQuote({ eventType: 'Birthday', client: { eventDate: '2026-02-03', guests: 50 } }), 'BDY_50_03FEB26');
+  assert.equal(N.fromQuote({ eventType: 'Birthday', client: { eventDate: '2026-02-03', guests: 50 } }), 'BDAY_50_03FEB26');
 });
 t('collisions get -2, -3', () => {
   assert.equal(N.unique('WED_HYD_1000_19AUG26', []), 'WED_HYD_1000_19AUG26');
@@ -55,7 +55,7 @@ t('event-name.js loads before store-api on every page', () => {
   const fs = require('node:fs');
   for (const p of fs.readdirSync(new URL('../public/', import.meta.url)).filter((f) => f.endsWith('.html'))) {
     const h = read('public/' + p); const i = h.search(/store-api\.js\?v=/); if (i < 0) continue;
-    const j = h.search(/event-name\.js\?v=5/); assert.ok(j >= 0 && j < i, p);
+    const j = h.search(/event-name\.js\?v=6/); assert.ok(j >= 0 && j < i, p);
   }
 });
 console.log(`event-name: ${n} passed`);

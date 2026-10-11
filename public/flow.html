@@ -97,6 +97,14 @@
   .banner.reprice{align-items:flex-start;flex-wrap:wrap;margin:0 0 12px;background:var(--warn-soft,#fff6e0);border-color:var(--warn,#c98a00)}
   .rp-body{flex:1;min-width:220px} .rp-lines{margin:6px 0 0;padding-left:18px} .rp-lines li{margin:2px 0} .rp-act{display:flex;gap:8px;flex-wrap:wrap}
   .banner{background:var(--accent-soft);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--ink);display:flex;gap:10px;align-items:center}
+  .qname{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .qname h2{margin:0;font-family:var(--mono);font-size:20px;font-weight:700;color:var(--accent);cursor:text;word-break:break-word}
+  .qname .pen{border:0;background:none;cursor:pointer;font-size:15px;padding:2px 4px;color:var(--ink-3)}
+  .qname input{font:inherit;font-family:var(--mono);font-size:18px;font-weight:700;padding:4px 8px;min-width:240px;max-width:100%}
+  .refchip{display:inline-block;font-family:var(--mono);font-size:11px;color:var(--ink-3);background:var(--accent-soft);border-radius:20px;padding:2px 8px}
+  .namehint{font-size:12px;color:var(--ink-3);margin-top:4px}
+  .namehint button{border:0;background:none;color:var(--accent);cursor:pointer;font-size:12px;padding:0 0 0 6px;text-decoration:underline}
+  .nameerr{font-size:12px;color:var(--warn-text,#8f5f00)}
 </style>
 <link rel="stylesheet" href="share-checklist.css?v=2">
 <link rel="stylesheet" href="theme.css?v=76">
@@ -125,8 +133,10 @@
 
     <div class="card s-f6c797b">
       <div>
-        <div class="s-25f7a3d" id="code">—</div>
-        <div class="s-fe496b8" id="title"></div>
+        <div class="qname"><h2 id="qName" title="Click to rename" tabindex="0">—</h2><button type="button" class="pen" id="qNameEdit" aria-label="Rename this quote">✎</button><span class="refchip" id="code">—</span></div>
+        <div class="namehint" id="qNameHint"><span id="qNameHintText"></span><button type="button" id="qNameReset" hidden>Reset to auto name</button></div>
+        <div class="nameerr" id="qNameErr" role="alert"></div>
+        <div class="s-fe496b8" id="title" hidden></div>
       </div>
       <span class="statusbadge" id="statusBadge">draft</span>
       <span class="spacer"></span>
@@ -348,7 +358,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
-<script src="event-name.js?v=5"></script>
+<script src="event-name.js?v=6"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=173"></script>
 <script src="tour.js?v=9"></script>
 <script src="booklet.js?v=16"></script>
@@ -565,6 +575,7 @@
     try{
       const row=await BPStore.quotes.updateMeta(id,{ client, eventType:$("#c_type").value.trim()||null, eventDate:$("#c_date").value||null }, ev.updatedAt);
       ev.client=client; if(row&&row.updated_at) ev.updatedAt=row.updated_at;   // refresh optimistic-lock base
+      ev.eventType=$("#c_type").value.trim()||null; if(row&&row.title!=null) ev.title=row.title; renderName();
     }catch(e){
       if(e&&e.code==="CONFLICT"){ await BPUI.alert(e.message,{title:"This quote was changed elsewhere"}); leaving=true; location.reload(); return false; }
       throw e;
@@ -1105,8 +1116,48 @@
       if(ok && (k==="rates"||k==="layout"||k==="packages"||k==="plan") && !quoteBlocked()) seedQuote();
     } finally { loading=wasLoading; dirty=wasDirty; renderPrice(); updateAdvance(); updateProgress(); }
   }
+  /* Quote NAME (TYPE_CITY_GUESTS_DATE auto name, or the user's own). quotes.code stays the Ref. */
+  const HEN_=()=>window.HelmEventName;
+  function liveParts(){ const cl=Object.assign({}, (ev&&ev.client)||{}); const g=(id)=>{ const el=$("#"+id); return el?el.value.trim():""; };
+    if(g("c_city")) cl.city=g("c_city"); if(g("c_guests")) cl.guests=g("c_guests"); if(g("c_date")) cl.eventDate=g("c_date");
+    return { code:ev&&ev.code, title:ev&&ev.title, eventType:g("c_type")||(ev&&ev.eventType)||"", eventDate:g("c_date")||(ev&&ev.eventDate)||"", client:cl }; }
+  function autoName(){ const H=HEN_(); return H?(H.fromQuote(liveParts())||""):""; }
+  function nameIsAuto(){ const H=HEN_(); return !ev || !H || H.isAuto(ev.title, ev.code); }
+  function renderName(){
+    if(!ev) return; const H=HEN_(); const h=$("#qName"); if(!h) return;
+    const auto=nameIsAuto(); const shown=H?(auto?(autoName()||H.displayName(liveParts())):ev.title):(ev.title||ev.code);
+    if(!h.querySelector("input")) h.textContent=shown||ev.code||"Untitled event";
+    $("#qNameHintText").textContent=auto?((H&&H.HINT)||""):"Custom name";
+    $("#qNameReset").hidden=auto;
+  }
+  async function saveName(title){
+    const H=HEN_(); const msg=H?H.validateName(title):(String(title||"").trim()?"":"The name can't be empty.");
+    if(msg){ $("#qNameErr").textContent=msg; return false; }
+    $("#qNameErr").textContent="";
+    try{ const row=await BPStore.quotes.updateMeta(id,{ title:String(title).trim() }, ev.updatedAt);
+      ev.title=(row&&row.title!=null)?row.title:String(title).trim(); if(row&&row.updated_at) ev.updatedAt=row.updated_at; renderName(); return true;
+    }catch(e){ if(e&&e.code==="CONFLICT"){ await BPUI.alert(e.message,{title:"This quote was changed elsewhere"}); leaving=true; location.reload(); return false; }
+      $("#qNameErr").textContent=BPUI.friendlyError?BPUI.friendlyError(e,{action:"rename the quote"}):String(e&&e.message||e); return false; }
+  }
+  function startNameEdit(){
+    const h=$("#qName"); if(!h||h.querySelector("input")||!ev) return;
+    const cur=h.textContent; const inp=document.createElement("input"); inp.type="text"; inp.maxLength=(HEN_()&&HEN_().NAME_MAX)||80; inp.value=cur;
+    inp.setAttribute("aria-label","Quote name"); h.textContent=""; h.appendChild(inp); inp.focus(); inp.select();
+    let done=false; const finish=async(save)=>{ if(done) return; done=true;
+      if(save && inp.value.trim()!==cur){ const ok=await saveName(inp.value); if(!ok){ done=false; inp.focus(); return; } }
+      $("#qNameErr").textContent=""; h.textContent=""; renderName(); };
+    inp.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); finish(true); } else if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); finish(false); } });
+    inp.addEventListener("blur",()=>finish(true));
+  }
+  function wireNameEdit(){
+    const h=$("#qName"); if(!h||h.dataset.wired) return; h.dataset.wired="1";
+    h.addEventListener("click",startNameEdit); h.addEventListener("keydown",(e)=>{ if(e.key==="Enter"&&!h.querySelector("input")){ e.preventDefault(); startNameEdit(); } });
+    $("#qNameEdit").addEventListener("click",startNameEdit);
+    // reset: store the code again (an automatic placeholder) so the auto name takes over and keeps updating
+    $("#qNameReset").addEventListener("click",async()=>{ const a=autoName(); await saveName(a||ev.code); });
+  }
   async function loadAll(){
-    $("#code").textContent=ev.code||"—"; $("#title").textContent=ev.title||"";
+    $("#code").textContent="Ref "+(ev.code||"—"); $("#title").textContent=ev.title||""; renderName();
     $("#statusBadge").textContent=ev.status||ev.lifecycleStage||"draft";
     $("#workspaceLink").href="event.html?id="+encodeURIComponent(id);
     $("#openBuilder").href="builder.html?quote="+encodeURIComponent(id)+"&from=flow";
@@ -1199,6 +1250,8 @@
     // writes happen on the explicit Save buttons or via the save-on-leave prompt.
     // This stops empty / barely-touched quotes from being silently saved.
     ["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_guests","c_budget"].forEach(f=>$("#"+f).addEventListener("input",()=>{ syncClientMem(); if(f==="c_guests"||f==="c_type") renderPrice(); }));
+    ["c_type","c_date","c_city","c_guests"].forEach(f=>{ const el=$("#"+f); el.addEventListener("input",renderName); el.addEventListener("change",renderName); });
+    wireNameEdit();
     $("#c_state").addEventListener("change",()=>{ syncClientMem(); renderPrice(); });
     $("#c_city").addEventListener("change",()=>{ if(!$("#c_state").value){ const g=guessClientState(ev.client||{}); if(g){ $("#c_state").value=g; syncClientMem(); renderPrice(); } } });
     ["v_name","v_addr","v_venue_id","v_setting","v_vlen","v_vwid"].forEach(f=>{ $("#"+f).addEventListener("input",syncVenueMem); $("#"+f).addEventListener("change",syncVenueMem); });

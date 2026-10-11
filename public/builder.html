@@ -23,7 +23,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="builder.css?v=13">
+<link rel="stylesheet" href="builder.css?v=14">
 <link rel="stylesheet" href="venues.css?v=3">
 <link rel="stylesheet" href="studio-templates.css?v=1">
 <link rel="stylesheet" href="walkthrough.css?v=3">
@@ -47,6 +47,7 @@
     <div class="field">
       <label for="projName">Event name</label>
       <input id="projName" class="nameinput" type="text" value="Untitled event" title="Event name — click to rename" maxlength="120">
+      <div id="projNameHint" class="namehint" hidden><span id="projNameHintText"></span> <button type="button" id="projNameReset" class="linkbtn" hidden>Reset to auto name</button></div>
     </div>
     <span id="quoteBadge" class="qbadge" hidden title="Quote code · current version"></span>
     <select id="verSel" class="versel" hidden aria-label="Layout version" title="Saved versions of this layout — pick one to view it (saved versions are never changed)"></select>
@@ -502,12 +503,12 @@
 
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="event-name.js?v=5"></script>
+<script src="event-name.js?v=6"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=173"></script>
 <script src="tour.js?v=9"></script>
 <script src="flow-layout-sync.js?v=4"></script>
 <script src="event-sizing.js?v=5"></script>
-<script src="builder.js?v=45"></script>
+<script src="builder.js?v=46"></script>
 <script src="venues-core.js?v=5"></script>
 <script src="venue-picker.js?v=4"></script>
 <script src="studio-templates-core.js?v=1"></script>

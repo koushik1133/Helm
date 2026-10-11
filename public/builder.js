@@ -4025,7 +4025,8 @@ async function init(){
       currentQuoteId=q.id; currentQuoteCode=q.code; currentClient=q.client||{}; currentPricing=q.pricing||{};
       { const bb=$('#backToFlowBtn'); if(bb && params.get('from')==='flow') bb.hidden=false; }
       currentQuoteGuard = { approved: q.status==='confirmed' || (q.approvalStatus && q.approvalStatus!=='none'), closed: q.lifecycleStage==='closed', frozen: q.lifecycleStage==='closed' || q.status==='cancelled' || !!q.archivedAt || !!q.deletedAt };
-      const pn=$('#projName'); if(pn) pn.value=q.title||q.code;
+      const pn=$('#projName'); if(pn) pn.value=quoteDisplayName(q);
+      currentQuoteRow=q; renderNameHint();
       try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[q.code,q.title].filter((v,i,a)=>v&&a.indexOf(v)===i).join(' '),kind:'builder',href:'builder.html?quote='+encodeURIComponent(q.id),recordHref:'event.html?id='+encodeURIComponent(q.id)}); }catch(e){}
       const verNo = (openVer && /^\d{1,6}$/.test(String(openVer)) && +openVer>0) ? parseInt(openVer,10) : q.currentVersion;   // ignore junk like v=abc
       const ver = await BPStore.quotes.getVersion(q.id, verNo);
@@ -4259,3 +4260,25 @@ function specAdjustMount(it, box){
   const ibtns=box.querySelector('.ibtns'); if(ibtns) box.insertBefore(sec, ibtns); else box.appendChild(sec);
 }
 /* ===================== ITEM-SPEC ADJUST: END ===================== */
+
+/* Quote NAME in the builder: an automatic title (code / blank / TYPE_CITY_GUESTS_DATE) shows the
+   computed auto name; typing your own makes it custom (never auto-overwritten). Saving writes the
+   shown name (fill-only for old quotes whose title was the code). */
+var currentQuoteRow=null;
+function quoteDisplayName(q){ const H=window.HelmEventName; return (H&&H.displayName)?H.displayName(q):(q.title||q.code); }
+function renderNameHint(){
+  const h=document.getElementById('projNameHint'), pn=document.getElementById('projName'); if(!h||!pn) return;
+  const H=window.HelmEventName; if(!currentQuoteId||!H){ h.hidden=true; return; }
+  h.hidden=false;
+  const auto=H.isAuto(pn.value, currentQuoteCode);
+  const t=document.getElementById('projNameHintText'); if(t) t.textContent=auto?H.HINT:'Custom name';
+  const r=document.getElementById('projNameReset'); if(r) r.hidden=auto;
+}
+(function(){
+  const pn=document.getElementById('projName'); if(!pn) return;
+  pn.addEventListener('input',renderNameHint);
+  pn.addEventListener('blur',()=>{ const H=window.HelmEventName; if(currentQuoteId&&H&&!pn.value.trim()&&currentQuoteRow){ pn.value=H.fromQuote(currentQuoteRow)||currentQuoteCode||''; renderNameHint(); } });
+  pn.addEventListener('keydown',e=>{ if(e.key==='Escape'&&currentQuoteRow){ pn.value=quoteDisplayName(currentQuoteRow); renderNameHint(); pn.blur(); } });
+  const r=document.getElementById('projNameReset');
+  if(r) r.addEventListener('click',()=>{ const H=window.HelmEventName; if(!H||!currentQuoteRow) return; pn.value=H.fromQuote(currentQuoteRow)||currentQuoteCode||''; markDirty(); renderNameHint(); });
+})();
