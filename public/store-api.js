@@ -924,7 +924,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "23";
+  const AUTH_UI_VERSION = "24";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -3385,6 +3385,27 @@ window.HelmUrl = HelmUrl;
 
   /* ---------------- in-house staff directory (Phase 6) ---------------- */
   const STAFF_LS = "bp_staff";
+  // 0106 helpers: free text → access-matrix role key when the match is obvious, else null
+  const STAFF_DEPT_LS = "bp_staff_departments";
+  let staffDeptMissing = false;
+  const STAFF_ROLE_WORDS = [["admin", /\b(admin|administrator|owner|director)\b/], ["manager", /\b(event manager|manager)\b/],
+    ["coordinator", /\bco-?ordinator\b/], ["planner", /\bplanner\b/], ["sales", /\bsales\b/], ["supervisor", /\bsupervisor\b/],
+    ["quality", /\bquality\b|\bqa\b/], ["operations", /\boperations?\b|\bops\b/], ["designer", /\bdesigner\b/],
+    ["crew", /\bcrew\b/], ["worker", /\bworker\b/]];
+  function staffMatchRole(text) {
+    const t = String(text == null ? "" : text).trim().toLowerCase().replace(/\s+/g, " ");
+    if (!t) return null;
+    for (const r of ALL_ROLES) if (r !== "client" && (t === r || t === roleLabel(r).toLowerCase())) return r;
+    const hits = STAFF_ROLE_WORDS.filter(([, re]) => re.test(t)).map(([r]) => r);
+    return hits.length === 1 ? hits[0] : null;   // ambiguous ("sales manager") → keep as custom
+  }
+  function staffMergeDepts(list, defaults) {
+    const seen = new Set(), out = [];
+    for (const d of [].concat(list || [], (list && list.length) ? [] : defaults || [])) {
+      const v = String(d == null ? "" : d).trim(); if (!v || seen.has(v.toLowerCase())) continue; seen.add(v.toLowerCase()); out.push(v);
+    }
+    return out.sort((a, b) => a.localeCompare(b));
+  }
   const staff = {
     async list(includeInactive) {
       if (mode === "supabase") {
@@ -3461,6 +3482,52 @@ window.HelmUrl = HelmUrl;
     linkErrorText: memberErrorText,
     // the fields a linked row must NOT send (the DB refuses changes to them from the Staff page)
     LINKED_FIELDS: ["name", "phone", "email", "department", "role"],
+    // ---- 0106: role / department drop-downs + login (invite) status ----------------------
+    // Roles = the studio's access-matrix roles (never "client" for staff). Stored on the staff
+    // row as the friendly label ("Event manager"); free text that isn't an obvious match stays
+    // as-is and is shown as "Custom: …" until an admin picks a role (zero data loss).
+    staffRoles: () => ALL_ROLES.filter((r) => r !== "client").map((r) => ({ key: r, label: roleLabel(r) })),
+    matchRole: staffMatchRole,
+    roleLabel,
+    DEFAULT_DEPARTMENTS: ["Management", "Planning", "Sales", "Operations", "Production", "Design", "Quality", "Crew"],
+    // the studio list + departments already used (0106). Before 0106 / offline → used + defaults.
+    async departments() {
+      const used = [];
+      try { const f = await this.facets(true); used.push(...f.depts); } catch (e) {}
+      let list = [];
+      if (mode === "supabase" && supa && !staffDeptMissing) {
+        const { data, error } = await supa.rpc("staff_departments");
+        if (!error) list = Array.isArray(data) ? data : [];
+        else if (rpcMissing(error)) staffDeptMissing = true; else throw error;
+      } else if (mode !== "supabase") { list = readLs(STAFF_DEPT_LS); }
+      return staffMergeDepts(list.length || used.length ? list.concat(used) : list, this.DEFAULT_DEPARTMENTS);
+    },
+    // add a department to the studio list (Staff EDIT, server-checked) → the new list
+    async addDepartment(name) {
+      const n = String(name == null ? "" : name).replace(/\s+/g, " ").trim();
+      if (!n || n.length > 60 || /[<>\u0000-\u001f]/.test(n)) { const e = new Error("Department names are 1-60 characters (no < or >)."); e.code = "22023"; throw e; }
+      if (mode === "supabase") {
+        const { data, error } = await supa.rpc("staff_department_add", { p_name: n });
+        if (error) throw error; return staffMergeDepts(data || [], this.DEFAULT_DEPARTMENTS);
+      }
+      const a = readLs(STAFF_DEPT_LS); if (!a.some((x) => String(x).toLowerCase() === n.toLowerCase())) a.push(n);
+      localStorage.setItem(STAFF_DEPT_LS, JSON.stringify(a)); return staffMergeDepts(a, this.DEFAULT_DEPARTMENTS);
+    },
+    // admin: change the LOGIN role of a staff member linked to a Helm account (0106 wraps admin_set_role)
+    async setLoginRole(staffId, role) {
+      if (!supa) throw new Error("Supabase not configured");
+      const { data, error } = await supa.rpc("staff_set_login_role", { p_staff: staffId, p_role: role });
+      if (error) throw error; accessCache = null; return data;
+    },
+    // "active" (linked account) | "invited" (pending, unexpired invite for their e-mail) | "none"
+    loginStatus(s, invites) {
+      if (s && s.profile_id) return "active";
+      const em = String((s && s.email) || "").trim().toLowerCase(); if (!em) return "none";
+      const now = Date.now();
+      return (invites || []).some((i) => i && i.status === "pending" && String(i.email || "").toLowerCase() === em &&
+        (!i.expires_at || new Date(i.expires_at).getTime() > now)) ? "invited" : "none";
+    },
+    inviteLink: (token) => location.origin + "/login?invite=" + encodeURIComponent(token),
     // crew actually assigned to ONE event (derived from their tasks) — for event-scoped views
     async forEvent(quoteId) {
       if (mode === "supabase") {
@@ -9486,7 +9553,7 @@ window.HelmUrl = HelmUrl;
   // Every phone field becomes the HelmPhone component (phone-input.js: flag + searchable
   // country list + as-you-type format; .value stays E.164). Pages that don't include the
   // script get it loaded on demand; if it can't load, the legacy hardener below is used.
-  var PHONE_LIB_V = "2", phoneLib = null;
+  var PHONE_LIB_V = "3", phoneLib = null;
   function loadPhoneLib() {
     if (window.HelmPhone && window.HelmPhone.attach) return Promise.resolve(true);
     if (phoneLib) return phoneLib;

@@ -53,6 +53,9 @@
   .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
   .empty{padding:22px;text-align:center;color:var(--ink-3);font-size:13px}
   .err{color:var(--danger);font-size:13px;margin:8px 0}
+  .purpose{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:12px;padding:12px 14px;margin:4px 0 14px;font-size:13px;line-height:1.55;color:var(--ink-2)}
+  .purpose b{color:var(--ink)} .purpose a{color:var(--accent);font-weight:600;text-decoration:underline}
+  .purpose .rel{margin-top:6px;font-size:12.5px;color:var(--ink-3)}
 </style>
 </head>
 <body>
@@ -61,12 +64,14 @@
   <header>
     <a href="dashboard.html" class="mark" title="Home" aria-label="Home"></a>
     <div><h1>Helm Events</h1><small>Design Studio</small></div>
-    <nav class="nav" aria-label="Main"><a href="dashboard.html">Dashboard</a><a href="quotes.html">Quotes</a><a href="builder.html">Builder</a><a href="design.html" class="on" aria-current="page">Design</a></nav>
+    <nav class="nav" aria-label="Main"><a href="dashboard.html">Dashboard</a><a href="quotes.html">Quotes</a><a href="builder.html?new=1">Builder</a><a href="design.html" class="on" aria-current="page">Design</a></nav>
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
   </header>
 
   <main id="main">
+  <p class="purpose" id="dsPurpose"><b>What this is for:</b> the Design Studio is the sign-off track for each event's floor plan — 2D draft → internal review → 3D → client review → locked — so everyone knows which version is approved.
+    <span class="rel" id="dsRelated">It doesn't store templates. Reusable floor layouts are <a href="control.html#ltemplates">Layout templates</a> (also “📐 My templates” in the <a href="builder.html?new=1">floor builder</a>, or <a href="builder.html?new=1&amp;tplEdit=new">start a new template</a>); invitation website designs are made per event in the Invitation Studio (event workspace → Invitation).</span></p>
   <div id="boot" aria-busy="true"></div>
   <div id="gate" class="card" hidden><div class="empty">You don't have access to the Design Studio. Ask an admin to grant the <b>Design</b> area for your role in Control Center.</div></div>
 
@@ -87,7 +92,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=175"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=176"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -205,7 +210,7 @@
       ${railHtml(rec.state,rec.revision)}
       ${rec.note?`<div class="muted">Last note: ${esc(rec.note)}</div>`:""}
       ${advanceControls(rec)}
-      <div class="acts"><a class="btn" href="builder.html?quote=${esc(encodeURIComponent(quoteId))}">Open floor builder</a> <a class="btn" href="flow.html?quote=${esc(encodeURIComponent(quoteId))}">Open quote</a></div>`;
+      <div class="acts"><a class="btn" href="builder.html?quote=${esc(encodeURIComponent(quoteId))}">Open floor builder</a> <a class="btn" href="flow.html?quote=${esc(encodeURIComponent(quoteId))}">Open quote</a> <a class="btn" href="invite-studio.html?quote=${esc(encodeURIComponent(quoteId))}" title="The event's invitation website (separate from the floor design)">Invitation website</a></div>`;
     wireAdvance(host);
   }
 
@@ -215,7 +220,7 @@
     try{ items=await D.queue(); }
     catch(e){ if(backendMissing(e)){ showGate("The Design Studio isn't set up on this environment yet (design tables/functions not deployed)."); return; }
       BPUI.loadError(host, e, loadQueue, {what:"the design queue"}); return; }
-    if(!items || !items.length){ host.innerHTML=`<div class="empty"><p><b>No events are in design review yet.</b></p><p>The Design Studio tracks each event's floor plan through draft → client review → locked. An event appears here once you design its floor in the builder.</p><p><a class="btn" href="builder.html">Open floor builder</a> <a class="btn" href="quotes.html">Pick an event from Quotes</a></p></div>`; return; }
+    if(!items || !items.length){ host.innerHTML=`<div class="empty"><p><b>No events are in design review yet.</b></p><p>The Design Studio tracks each event's floor plan through draft → client review → locked. An event appears here once you design its floor in the builder.</p><p><a class="btn" href="quotes.html">Pick an event from Quotes</a> <a class="btn" href="builder.html?new=1">Open a blank floor builder</a></p></div>`; return; }
     host.innerHTML=items.map(it=>{
       const st=it.state, pill=st==='locked'?'done':(st==='revise'?'rev':'');
       return `<a class="qrow" href="design.html?quote=${encodeURIComponent(it.quote_id)}">

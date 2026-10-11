@@ -23,8 +23,8 @@ t('country button never wraps and is not stretched by page button rules', () => 
   assert.match(rule('.hp .hp-cc'), /height:auto;min-height:0/);
 });
 t('touch / phone widths: 44px target + 16px text (no iOS zoom)', () => {
-  assert.match(css, /@media \(pointer:coarse\)\{\.hp\{min-height:44px\}\.hp > input\.hp-num\{font-size:16px\}/);
-  assert.match(css, /@media \(max-width:480px\)\{\.hp > input\.hp-num\{font-size:16px\}\}/);
+  assert.match(css, /@media \(pointer:coarse\)\{\.hp\{min-height:44px\}\.hp > input\.hp-num\{font-size:16px(?:!important)?\}/);
+  assert.match(css, /@media \(max-width:480px\)\{\.hp > input\.hp-num\{font-size:16px(?:!important)?\}\}/);
 });
 t('nurture add row: minmax(0,..) tracks, phone gets the widest track, 3 -> 1 columns on small screens', () => {
   assert.match(nur, /\.addgrid\{display:grid;grid-template-columns:minmax\(0,1\.1fr\) minmax\(0,\.95fr\) minmax\(0,1\.6fr\)/);

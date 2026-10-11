@@ -151,3 +151,5 @@ forward  supabase/migrations/0102_uae_demo_seed.sql
 forward  supabase/migrations/0104_venue_samples_4.sql
 # 0105 (check-out shortage: _checkout_free / checkout_availability / checkout_equipment_smart - structured shortage instead of a raw error, partial check-out, never negative; leads.birthday / leads.anniversary optional; nurture_templates fill-only seed of 12 new occasions (+ birthday/anniversary if missing)) goes after 0102 (needs 0073, 0071, 0025, phase59 pk).
 forward  supabase/migrations/0105_checkout_shortage_nurture.sql
+# 0106 (staff roles + departments: organizations.staff_departments text[] (additive); staff_departments() / staff_department_add(name) gated by staff view / edit; staff_set_login_role(staff, role) admin only, wraps admin_set_role and mirrors the role label onto an untitled linked staff row; nothing existing rewritten) goes after 0102 (needs 0041, 0045, 0074, has_area).
+forward  supabase/migrations/0106_staff_roles_departments.sql

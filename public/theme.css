@@ -391,23 +391,26 @@ html[data-theme="dark"] #conflictBanner .card { background:#241417 !important; b
    borderless so it reads as one control. Light + dark via the page tokens.
    ============================================================================ */
 .hp{position:relative;display:flex;align-items:stretch;width:100%;max-width:100%;min-width:0;min-height:var(--hp-h,38px);box-sizing:border-box;
-  border:1px solid var(--line-strong,#86808f);border-radius:10px;background:var(--panel,#fff);color:var(--ink,#1b1930);
+  font-size:var(--hp-fs,inherit);line-height:var(--hp-lh,normal);
+  border:1px solid var(--line-strong,#86808f);border-radius:var(--hp-r,10px);background:var(--panel,#fff);color:var(--ink,#1b1930);
   transition:border-color .15s,box-shadow .15s}
 .hp:focus-within{border-color:var(--accent,#6d28d9);box-shadow:0 0 0 3px var(--accent-soft,#efe9ff)}
 .hp .hp-cc{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;height:auto;min-height:0;min-width:0;margin:0;padding:0 8px 0 10px;border:0;
-  border-right:1px solid var(--line,#e8e3db);border-radius:9px 0 0 9px;background:transparent;color:inherit;font:inherit;font-size:15px;cursor:pointer}
+  border-right:1px solid var(--line,#e8e3db);border-radius:9px 0 0 9px;background:transparent;color:inherit;font:inherit;font-size:var(--hp-fs,inherit);line-height:inherit;cursor:pointer}
 .hp .hp-cc:hover{background:var(--accent-soft,#f4f2fb)}
 .hp .hp-cc:focus-visible{outline:2px solid var(--accent,#6d28d9);outline-offset:-2px}
-.hp-flag{font-size:18px;line-height:1;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.hp-flag{font-size:1.2em;line-height:1;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
 .hp-chev{width:14px;height:14px;color:var(--ink-3,#6b6577);transition:transform .15s}
 .hp.is-open .hp-chev{transform:rotate(180deg)}
 .hp-dial{font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink,#1b1930)}
 /* nurture-phone-align: flex-basis 0 + width 0 so the number box never forces the wrapper wider than its
-   grid/flex cell (its intrinsic size=20 width used to push neighbouring fields out of the card); the
-   wrapper (not a page's `.fld input{height:..}` rule) sets the height so it lines up with the other fields. */
+   grid/flex cell; the wrapper sets the height so it lines up with the other fields.
+   #phone-font: font-size / line-height / padding come from the page's own input metrics (--hp-*). */
 .hp > input.hp-num{flex:1 1 0;min-width:0;width:0!important;max-width:none!important;height:auto!important;margin:0!important;border:0!important;border-radius:0 9px 9px 0!important;
-  background:transparent!important;box-shadow:none!important;outline:none!important;padding:6px 10px!important;font:inherit;font-size:14px;
-  color:inherit;letter-spacing:.01em;font-variant-numeric:tabular-nums;min-height:0;text-overflow:ellipsis}
+  background:transparent!important;box-shadow:none!important;outline:none!important;padding:var(--hp-py,6px) var(--hp-px,10px)!important;
+  font:inherit!important;font-size:var(--hp-fs,inherit)!important;line-height:inherit!important;
+  color:inherit;font-variant-numeric:tabular-nums;min-height:0!important;text-overflow:ellipsis}
+.hp > input.hp-num::placeholder{font-size:inherit}
 .hp .hp-cc{white-space:nowrap}
 .hp-pop{position:absolute;left:-1px;top:calc(100% + 6px);z-index:1200;width:min(340px,calc(100vw - 32px));box-sizing:border-box;
   background:var(--panel,#fff);color:var(--ink,#1b1930);border:1px solid var(--line,#e8e3db);border-radius:12px;
@@ -428,8 +431,8 @@ html[data-theme="dark"] .hp-pop{box-shadow:0 1px 2px rgba(0,0,0,.5),0 18px 44px 
 .hp-empty{margin:6px 4px;color:var(--ink-3,#6b6577);font-size:13.5px}
 @keyframes hpIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.hp-pop{animation:none}.hp,.hp-chev{transition:none}}
-@media (pointer:coarse){.hp{min-height:44px}.hp > input.hp-num{font-size:16px}.hp-opt{min-height:44px}}
-@media (max-width:480px){.hp > input.hp-num{font-size:16px}}
+@media (pointer:coarse){.hp{min-height:44px}.hp > input.hp-num{font-size:16px!important}.hp-opt{min-height:44px}}
+@media (max-width:480px){.hp > input.hp-num{font-size:16px!important}}
 .hp.fv-error{border-color:var(--bad,#c0392b)}
 .hp.fv-ok{border-color:var(--safe-text,#0f7a43)}
 

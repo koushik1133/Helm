@@ -56,7 +56,14 @@
   .av{position:relative;overflow:hidden}
   .linknote{background:var(--accent-soft);color:var(--ink-2);border-radius:9px;padding:9px 12px;font-size:12.5px;line-height:1.5;margin:0 0 14px}
   .linknote a{color:var(--accent);font-weight:600;text-decoration:underline}
-  .fld input[readonly]{background:var(--line-2);color:var(--ink-3);cursor:not-allowed}
+  .fld input[readonly],.fld select:disabled{background:var(--line-2);color:var(--ink-3);cursor:not-allowed}
+  .tag.login-active{background:#e7f6ee;color:#0f7a43;border-color:transparent}
+  .tag.login-invited{background:#fdf6e3;color:#9a6700;border-color:transparent}
+  .tag.login-none{background:var(--panel-2);color:var(--ink-3)}
+  html[data-theme="dark"] .tag.login-active{background:#123524;color:#5fd49a} html[data-theme="dark"] .tag.login-invited{background:#3a2e10;color:#f5b454}
+  .fhint{font-size:11.5px;color:var(--ink-3);line-height:1.4}
+  .deptnew{display:flex;gap:6px;margin-top:6px}.deptnew input{flex:1 1 auto;min-width:0}
+  .invlink{display:flex;gap:8px;margin:10px 0}.invlink input{flex:1 1 auto;min-width:0;height:38px;border:1px solid var(--line);border-radius:9px;padding:0 10px;font-family:var(--mono,monospace);font-size:12px;background:var(--panel-2);color:var(--ink)}
   .meta{font-size:12px;color:var(--ink-3);line-height:1.5}
   .person .acts{display:flex;gap:6px;margin-top:auto;padding-top:6px}
   .ic{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:30px;padding:0 11px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)} .ic:hover{border-color:var(--accent);color:var(--accent)}
@@ -81,7 +88,7 @@
   .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px;margin-top:10px}
   .lsheet{width:min(400px,96vw);text-align:center} .lsheet input{width:100%}
 </style>
-<link rel="stylesheet" href="theme.css?v=77">
+<link rel="stylesheet" href="theme.css?v=78">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -120,8 +127,10 @@
     <div id="sm_link" class="linknote" role="note" hidden></div>
     <div class="fgrid">
       <div class="fld"><label for="s_name">Name *</label><input id="s_name" placeholder="e.g. Ravi Kumar"></div>
-      <div class="fld"><label for="s_role">Role / title</label><input id="s_role" placeholder="e.g. Lead planner, AV technician"></div>
-      <div class="fld"><label for="s_dept">Department</label><input id="s_dept" placeholder="e.g. Production, Catering" list="deptList"></div>
+      <div class="fld"><label for="s_role">Role</label><select id="s_role"><option value="">— Choose a role —</option></select>
+        <span class="fhint" id="s_role_hint">Roles come from Control Center → Users &amp; access.</span></div>
+      <div class="fld"><label for="s_dept">Department</label><select id="s_dept"><option value="">— Choose a department —</option></select>
+        <div id="s_dept_new" class="deptnew" hidden><input id="s_dept_new_in" maxlength="60" placeholder="New department name" aria-label="New department name"><button type="button" class="btn sm primary" id="s_dept_new_ok">Add</button><button type="button" class="btn sm" id="s_dept_new_x">Cancel</button></div></div>
       <div class="fld"><label for="s_emp">Employment</label><select id="s_emp"><option value="">—</option><option value="full_time">Full-time</option><option value="part_time">Part-time</option><option value="on_call">On-call</option></select></div>
       <div class="fld"><label for="s_phone">Phone *</label><input id="s_phone" type="tel" inputmode="tel" autocomplete="off" maxlength="16" placeholder="+91…"></div>
       <div class="fld"><label for="s_email">Email</label><input id="s_email" type="email" autocomplete="off" placeholder="name@email.com"></div>
@@ -130,12 +139,22 @@
       <div class="fld full"><label for="s_notes">Notes</label><input id="s_notes" placeholder="optional"></div>
     </div>
     <details id="s_attrs_box" class="attrbox"><summary>Custom fields</summary><div id="s_attrs"></div></details>
-    <datalist id="deptList"></datalist>
     <div id="sm_err" class="err" role="alert" aria-live="assertive" hidden></div>
     <div class="foot">
       <button type="button" class="btn" id="sm_cancel">Cancel</button>
       <button class="btn primary" id="sm_save">Save</button>
     </div>
+  </div>
+</div>
+
+<!-- invite a staff member to log in (link only — nothing is e-mailed) -->
+<div id="inviteModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="iv_title">
+  <div class="sheet">
+    <h3><span id="iv_title">Invite to log in</span><button type="button" class="close" id="iv_close" aria-label="Close" data-close>×</button></h3>
+    <p class="sub" id="iv_sub"></p>
+    <div class="invlink"><input id="iv_link" readonly aria-label="Invite link"><button type="button" class="btn primary" id="iv_copy">Copy link</button></div>
+    <p class="fhint">Send this link to them yourself (WhatsApp, e-mail…). Helm doesn't send anything. When they sign up with this e-mail, their staff card shows <b>Active user</b>. Pending invites are also listed in Control Center → Users.</p>
+    <div class="foot"><button type="button" class="btn" id="iv_done">Done</button></div>
   </div>
 </div>
 
@@ -152,9 +171,9 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="phone-input.js?v=2"></script>
+<script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=175"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=176"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=3"></script>
@@ -175,15 +194,43 @@
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(HelmUrl.here()))); } }
 
   // 0041: a staff row with profile_id is linked to a Helm account (photo from the member's profile)
-  let memberDir={}, isAdminUser=false;
+  let memberDir={}, isAdminUser=false, invites=[], loginRoles={}, deptList=[];
+  // 0106: role shown on the card — a defined role's label, or the old free text as "Custom: …"
+  function roleText(s){ if(!s.role) return "—"; return BPStore.staff.matchRole(s.role)?esc(s.role):`<span title="Not one of the studio's roles yet — edit to pick one">Custom: ${esc(s.role)}</span>`; }
+  function loginTag(s){
+    const st=BPStore.staff.loginStatus(s,invites);
+    if(st==="active"){ const r=loginRoles[s.profile_id]; return `<span class="tag login-active" title="Signs in to Helm${r?" as "+esc(BPStore.staff.roleLabel(r)):""}">Active user${r?" · "+esc(BPStore.staff.roleLabel(r)):""}</span>`; }
+    if(!isAdminUser) return "";
+    return st==="invited"?`<span class="tag login-invited" title="An invite link is waiting to be used">Invited</span>`:`<span class="tag login-none" title="This person has no Helm login">No login</span>`;
+  }
+  async function loadLoginInfo(){
+    if(!isAdminUser||!BPStore.auth.enabled()) return;
+    const [iv,us]=await Promise.allSettled([BPStore.invitations.list(), BPStore.auth.admin.listUsers()]);
+    invites=iv.status==="fulfilled"?(iv.value||[]):[];
+    loginRoles={}; if(us.status==="fulfilled") (us.value||[]).forEach(u=>{ loginRoles[u.id]=u.role; });
+  }
+  async function inviteStaff(s,btn){
+    const key=BPStore.staff.matchRole(s.role);
+    if(!key){ BPUI.toast(`Pick a role for ${s.name} first (Edit → Role), then invite them.`,{type:"info"}); return; }
+    await BPUI.guard(btn, async()=>{
+      try{
+        const r=await BPStore.invitations.create(s.email, key);
+        if(!r||!r.token) throw new Error("No invite link came back — try again.");
+        $("#iv_sub").textContent=`${s.name} (${s.email}) will join as ${BPStore.staff.roleLabel(key)}.`;
+        $("#iv_link").value=BPStore.staff.inviteLink(r.token); $("#iv_copy").textContent="Copy link"; $("#inviteModal").hidden=false;
+        await loadLoginInfo(); render();
+      }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"create the invite"}),{type:"err"}); }
+    },{busyLabel:"Creating…"});
+  }
   function personCard(s){
     const skills=Array.isArray(s.skills)?s.skills:[];
     const linked=BPStore.staff.isLinked(s), m=linked?memberDir[s.profile_id]:null, photo=m&&m.avatar_path;
     return `<div class="person ${s.active===false?'off':''}" data-id="${esc(s.id)}">
       <div class="top"><div class="av"${photo?` data-avatar-path="${esc(photo)}"`:""}>${esc(initials(s.name))}</div>
-        <div><div class="nm">${esc(s.name)}</div><div class="rl">${esc(s.role||"—")}</div></div></div>
+        <div><div class="nm">${esc(s.name)}</div><div class="rl">${roleText(s)}</div></div></div>
       <div class="tags">
         ${linked?`<span class="tag linked" title="Name, phone, e-mail, department and title follow this person's Helm profile">🔗 Linked account</span>`:""}
+        ${loginTag(s)}
         ${s.department?`<span class="tag dept">${esc(s.department)}</span>`:""}
         ${s.emp_type?`<span class="tag emp">${esc(EMP[s.emp_type]||s.emp_type)}</span>`:""}
         ${s.active===false?`<span class="tag">Inactive</span>`:""}
@@ -195,6 +242,7 @@
       ${canEdit?`<div class="acts">
         <button class="ic" data-act="edit">Edit</button>
         <button class="ic" data-act="toggle">${s.active===false?"Reactivate":"Deactivate"}</button>
+        ${isAdminUser&&!linked&&s.email&&s.active!==false?`<button class="ic" data-act="invite" title="Create a sign-up link for ${esc(s.email)} with their role">${BPStore.staff.loginStatus(s,invites)==="invited"?"Copy invite link":"Invite to log in"}</button>`:""}
       </div>`:""}
     </div>`;
   }
@@ -207,7 +255,6 @@
     const depts=facets.depts, skills=facets.skills;
     $("#deptFilter").innerHTML='<option value="">All departments</option>'+depts.map(d=>`<option ${d===deptF?"selected":""}>${esc(d)}</option>`).join("");
     $("#skillFilter").innerHTML='<option value="">All skills</option>'+skills.map(k=>`<option ${k===skillF?"selected":""}>${esc(k)}</option>`).join("");
-    $("#deptList").innerHTML=depts.map(d=>`<option value="${esc(d)}">`).join("");
   }
   // first page for the current filters / search / event scope
   function reloadList(){
@@ -229,15 +276,19 @@
     $("#grid").querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>{
       const id=b.closest(".person").dataset.id, s=team.find(x=>x.id===id);
       if(b.dataset.act==="edit") openForm(s);
+      else if(b.dataset.act==="invite") inviteStaff(s,b);
       else toggleActive(s,b);
     }));
   }
 
   // linked rows: who they are comes from the member's profile — those fields are read-only here
-  const LOCKED=[["#s_name","name"],["#s_role","role"],["#s_dept","department"],["#s_phone","phone"],["#s_email","email"]];
+  const LOCKED=[["#s_name","name"],["#s_dept","department"],["#s_phone","phone"],["#s_email","email"]];
   function setLinkedLock(s){
     const linked=BPStore.staff.isLinked(s), note=$("#sm_link");
-    LOCKED.forEach(([sel])=>{ const el=$(sel); el.readOnly=linked; if(linked) el.setAttribute("aria-readonly","true"); else el.removeAttribute("aria-readonly");
+    // the login role of a linked person: admins change it here (0106), everyone else sees it read-only
+    $("#s_role").disabled=linked&&!isAdminUser;
+    $("#s_role_hint").textContent=linked?(isAdminUser?"This is their Helm login role — changing it changes what they can open.":"Their Helm login role — an admin can change it."):"Roles come from Control Center → Users & access.";
+    LOCKED.forEach(([sel])=>{ const el=$(sel); if(el.tagName==="SELECT") el.disabled=linked; else el.readOnly=linked; if(linked) el.setAttribute("aria-readonly","true"); else el.removeAttribute("aria-readonly");
       const cc=el.parentNode&&el.parentNode.querySelector&&el.parentNode.querySelector(".bpui-tel-cc"); if(cc) cc.disabled=linked; });
     if(!linked){ note.hidden=true; note.innerHTML=""; return; }
     note.innerHTML=`🔗 <b>Linked to a Helm account.</b> Name, phone, e-mail, department and title follow ${esc(s.name||"this person")}'s profile`+
@@ -245,12 +296,50 @@
       ` Day rate, employment type, skills and notes stay editable here.`;
     note.hidden=false;
   }
+  // role drop-down: the studio's roles; old free text that isn't an obvious role stays as "Custom: …"
+  function fillRole(s){
+    const sel=$("#s_role"), linked=BPStore.staff.isLinked(s);
+    // exact role names are selected as-is; anything else (e.g. "Lead planner") is kept word-for-word
+    // as "Custom: …" with the closest role suggested, so opening + saving never rewrites it
+    const guess=s?BPStore.staff.matchRole(s.role):null;
+    const exact=guess&&String(s.role).trim().toLowerCase()===BPStore.staff.roleLabel(guess).toLowerCase()?guess:null;
+    const cur=linked?(loginRoles[s.profile_id]||guess):exact;
+    const custom=!linked&&s&&s.role&&!cur?s.role:null;
+    if(custom) $("#s_role_hint").textContent=guess?`Closest studio role: ${BPStore.staff.roleLabel(guess)} — pick it to switch.`:"Not one of the studio's roles — pick one to switch.";
+    sel.innerHTML=`<option value="">— Choose a role —</option>`+
+      (custom?`<option value="custom">Custom: ${esc(custom)}</option>`:"")+
+      BPStore.staff.staffRoles().map(r=>`<option value="${esc(r.key)}">${esc(r.label)}</option>`).join("");
+    sel.value=custom?"custom":(cur||""); sel.dataset.orig=sel.value; sel.dataset.custom=custom||"";
+  }
+  function fillDept(val){
+    const sel=$("#s_dept"), list=deptList.slice();
+    if(val && !list.some(d=>d.toLowerCase()===String(val).toLowerCase())) list.push(val);   // never drop a saved value
+    sel.innerHTML=`<option value="">— Choose a department —</option>`+list.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join("")+
+      (canEdit?`<option value="__new__">＋ Add new department…</option>`:"");
+    const hit=list.find(d=>d.toLowerCase()===String(val||"").toLowerCase()); sel.value=hit||""; sel.dataset.prev=sel.value;
+  }
+  async function loadDepts(){ try{ deptList=await BPStore.staff.departments(); }catch(e){ deptList=(facets.depts||[]).slice(); } }
+  $("#s_dept").addEventListener("change",()=>{
+    const sel=$("#s_dept"); if(sel.value!=="__new__"){ sel.dataset.prev=sel.value; return; }
+    sel.value=sel.dataset.prev||""; $("#s_dept_new").hidden=false; $("#s_dept_new_in").value=""; setTimeout(()=>$("#s_dept_new_in").focus(),20);
+  });
+  $("#s_dept_new_x").addEventListener("click",()=>{ $("#s_dept_new").hidden=true; });
+  async function addDept(){
+    const name=$("#s_dept_new_in").value;
+    await BPUI.guard($("#s_dept_new_ok"), async()=>{
+      try{ deptList=await BPStore.staff.addDepartment(name); const n=String(name).replace(/\s+/g," ").trim();
+        fillDept(n); $("#s_dept_new").hidden=true; BPUI.toast(`Department “${n}” added for your studio.`,{type:"ok"}); }
+      catch(e){ $("#sm_err").textContent=BPUI.friendlyError(e,{action:"add the department"}); $("#sm_err").hidden=false; }
+    });
+  }
+  $("#s_dept_new_ok").addEventListener("click",addDept);
+  $("#s_dept_new_in").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); addDept(); } else if(e.key==="Escape"){ e.stopPropagation(); $("#s_dept_new").hidden=true; } });
   function openForm(s){
     editingId=s?s.id:null; $("#sm_title").textContent=s?"Edit staff":"＋ Add staff";
-    $("#s_name").value=s?s.name||"":""; $("#s_role").value=s?s.role||"":""; $("#s_dept").value=s?s.department||"":"";
+    $("#s_name").value=s?s.name||"":""; fillDept(s?s.department||"":""); $("#s_dept_new").hidden=true;
     $("#s_emp").value=s?s.emp_type||"":""; $("#s_phone").value=s?s.phone||"":""; $("#s_email").value=s?s.email||"":"";
     $("#s_rate").value=s&&s.day_rate!=null?s.day_rate:""; $("#s_skills").value=s&&Array.isArray(s.skills)?s.skills.join(", "):""; $("#s_notes").value=s?s.notes||"":"";
-    editingRow=s||null; setLinkedLock(s);
+    editingRow=s||null; setLinkedLock(s); fillRole(s);
     attrEd=window.HelmImport?HelmImport.attrEditor("staff",s&&s.attributes,attrDefs):null;
     $("#s_attrs").replaceChildren(...(attrEd?[attrEd.el]:[])); $("#s_attrs_box").hidden=!attrEd;
     $("#sm_err").hidden=true;
@@ -283,7 +372,7 @@
     if(!linked){
       if(!name){ fail("Name is required."); return; }
       // QA M-08: a crew member needs an operational identity so they can be assigned to work
-      if(!$("#s_role").value.trim() && !$("#s_dept").value.trim()){ fail("Add a role or a department so this person can be assigned to the right work."); $("#s_dept").focus(); return; }
+      if(!$("#s_role").value && !$("#s_dept").value){ fail("Add a role or a department so this person can be assigned to the right work."); $("#s_dept").focus(); return; }
       phoneV=V.phone($("#s_phone").value);
       if(!phoneV.ok){ fail(phoneV.error); return; }
       if($("#s_email").value.trim()){ const ev=V.email($("#s_email").value); if(!ev.ok){ fail(ev.error); return; } email=ev.value; }
@@ -291,7 +380,10 @@
     let day_rate=null;
     if($("#s_rate").value!==""){ const rv=V.money($("#s_rate").value,{field:"Day rate"}); if(!rv.ok){ fail(rv.error); return; } day_rate=rv.value; }
     const skills=$("#s_skills").value.split(",").map(x=>x.trim()).filter(Boolean);
-    const rec={ name, phone:phoneV.value, role:$("#s_role").value.trim()||null, department:$("#s_dept").value.trim()||null,
+    const rsel=$("#s_role"), rkey=rsel.value;
+    const roleVal=rkey==="custom"?(rsel.dataset.custom||null):(rkey?BPStore.staff.roleLabel(rkey):null);
+    const loginRoleChange=linked&&isAdminUser&&rkey&&rkey!=="custom"&&rkey!==rsel.dataset.orig?rkey:null;
+    const rec={ name, phone:phoneV.value, role:roleVal, department:$("#s_dept").value||null,
       emp_type:$("#s_emp").value||null, email,
       day_rate, skills, notes:$("#s_notes").value.trim()||null };
     let attrCh=null;
@@ -311,7 +403,11 @@
         if(owner){ fail(`This number belongs to ${owner.name}, who already has a staff record linked to their Helm account. Find them in the directory instead of adding a second record.`); $("#s_phone").focus(); return; }
       }
       try{ if(editingId && attrCh) rec.attributes=await BPStore.mergeAttributes("crew_members", editingId, Object.assign({ base:editingRow&&editingRow.attributes }, attrCh));
-           if(editingId) await BPStore.staff.update(editingId,rec); else await BPStore.staff.add(rec); closeForm(); BPUI.toast("Staff saved.",{type:"ok"}); await load(); }
+           if(loginRoleChange){
+             if(!(await BPUI.confirm(`Change ${editingRow.name}'s Helm login role to ${BPStore.staff.roleLabel(loginRoleChange)}? This changes which pages they can open.`,{title:"Change login role?",okLabel:"Change role"}))) return;
+             await BPStore.staff.setLoginRole(editingId, loginRoleChange); }
+           if(editingId) await BPStore.staff.update(editingId,rec); else await BPStore.staff.add(rec); closeForm();
+           if(loginRoleChange) await loadLoginInfo(); BPUI.toast("Staff saved.",{type:"ok"}); await load(); }
       catch(e){ fail(BPStore.staff.linkErrorText(e)||BPUI.friendlyError(e,{action:"save the staff member",setupHint:"phase6-staff.sql"})); }
     },{busyLabel:"Saving…"});
   }
@@ -337,6 +433,11 @@
   });
 
   $("#newBtn").addEventListener("click",()=>openForm(null));
+  const closeInvite=()=>{ $("#inviteModal").hidden=true; };
+  $("#iv_close").addEventListener("click",closeInvite); $("#iv_done").addEventListener("click",closeInvite);
+  $("#inviteModal").addEventListener("click",e=>{ if(e.target.id==="inviteModal") closeInvite(); });
+  $("#iv_link").addEventListener("click",e=>e.target.select());
+  $("#iv_copy").addEventListener("click",async()=>{ try{ await navigator.clipboard.writeText($("#iv_link").value); $("#iv_copy").textContent="Copied"; }catch(_){ $("#iv_link").select(); } });
   // B5: refresh the list as soon as the import dialog closes after an import (no reload needed)
   let importRefreshing=null;
   async function refreshAfterImport(){ if(importRefreshing) return importRefreshing;
@@ -363,7 +464,7 @@
     const [lr,fr]=await Promise.allSettled([reloadList(), BPStore.staff.facets(showInactive)]);
     if(fr.status==="fulfilled") facets=fr.value;
     if(lr.status==="rejected"){ const e=lr.reason; $("#count").textContent=""; BPUI.loadError($("#grid"),e,load,{what:"staff"}); const c=$("#grid .bpui-loaderr"); if(c) c.style.gridColumn="1/-1"; return; }
-    applyFacets(); render();
+    applyFacets(); await loadDepts(); render();
   }
   function renderEventBar(){
     let bar=$("#eventBar");
@@ -385,6 +486,7 @@
     if(!(await BPStore.auth.requireView("ops"))) return;
     canEdit=await BPStore.auth.canEditArea("staff"); canDelete=await BPStore.auth.can("delete");
     isAdminUser=(await BPStore.auth.role())==="admin";
+    try{ await loadLoginInfo(); }catch(e){}
     $("#newBtn").hidden=!canEdit; $("#importBtn").hidden=!canEdit||!window.HelmImport;
     try{ attrDefs=await BPStore.smartImport.fieldDefs("staff"); }catch(e){ attrDefs=[]; }
     // photos for linked members (one chat_directory read; the directory never waits for it)
