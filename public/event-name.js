@@ -7,8 +7,13 @@
    ========================================================================= */
 (function (root) {
   "use strict";
-  const TYPES = { wedding: "WED", reception: "REC", engagement: "ENG", birthday: "BDY", corporate: "COR",
-    conference: "CON", sangeet: "SAN", haldi: "HAL", mehendi: "MEH", mehndi: "MEH" };
+  // Owner-defined type codes (Oct 2026). Multi-word types are matched as phrases first.
+  const TYPES = { wedding: "WED", reception: "REC", engagement: "ENG", birthday: "BDAY", corporate: "CORP",
+    conference: "CONF", sangeet: "SAN", haldi: "HAL", mehendi: "MEH", mehndi: "MEH", henna: "HEN", political: "POL", rally: "POL",
+    gala: "GAL", iftar: "IFT", exhibition: "EXH", "national day": "NAT", eid: "EID", concert: "CON", "product launch": "LAUNCH",
+    launch: "LAUNCH", festival: "FEST", anniversary: "ANN", seminar: "SEM", party: "PTY", housewarming: "HSW", "baby shower": "BABY" };
+  // codes written by older builds - still recognised as automatic names
+  const LEGACY_CODES = ["BDY", "COR", "CON"];
   // common Indian cities (lower-case key, aliases included) -> 3-letter code
   const CITIES = { hyderabad: "HYD", secunderabad: "HYD", bengaluru: "BLR", bangalore: "BLR", mumbai: "MUM", bombay: "MUM",
     delhi: "DEL", "new delhi": "DEL", chennai: "CHE", madras: "CHE", kolkata: "KOL", calcutta: "KOL", pune: "PUN", goa: "GOA",
@@ -16,12 +21,15 @@
     visakhapatnam: "VIZ", vizag: "VIZ", vijayawada: "VJA", warangal: "WGL", mysuru: "MYS", mysore: "MYS", noida: "NOI",
     gurugram: "GGN", gurgaon: "GGN", chandigarh: "CHD", indore: "IDR", bhopal: "BPL", nagpur: "NAG", surat: "SUR",
     coimbatore: "CBE", madurai: "MDU", thiruvananthapuram: "TRV", trivandrum: "TRV", tirupati: "TPT", amritsar: "ATQ",
-    agra: "AGR", varanasi: "VNS", patna: "PAT", bhubaneswar: "BBI", guwahati: "GAU", nashik: "NSK", mangaluru: "IXE", mangalore: "IXE" };
+    agra: "AGR", varanasi: "VNS", patna: "PAT", bhubaneswar: "BBI", guwahati: "GAU", nashik: "NSK", mangaluru: "IXE", mangalore: "IXE",
+    dubai: "DXB", "abu dhabi": "AUH", sharjah: "SHJ", ajman: "AJM", "ras al khaimah": "RAK", fujairah: "FUJ", "al ain": "AAN" };
   const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
   const letters = (s) => String(s == null ? "" : s).toUpperCase().replace(/[^A-Z]/g, "");
 
   function typeCode(t) {
     const k = String(t == null ? "" : t).trim().toLowerCase(); if (!k) return "";
+    const norm = " " + k.replace(/[^a-z]+/g, " ").trim() + " ";
+    for (const w of Object.keys(TYPES)) if (w.indexOf(" ") > 0 && norm.indexOf(" " + w + " ") >= 0) return TYPES[w];
     for (const w of Object.keys(TYPES)) if (k === w || k.split(/[^a-z]+/).indexOf(w) >= 0) return TYPES[w];
     return letters(k).slice(0, 3);
   }
@@ -64,7 +72,7 @@
     return format({ eventType: q.eventType != null ? q.eventType : q.event_type, city: c.city, venue: c.venue, address: c.address,
       guests: c.guests, eventDate: q.eventDate || q.event_date || c.eventDate });
   }
-  const AUTO_RE = /^[A-Z]{1,3}(?:_[A-Z0-9]+)*(?:-\d+)?$/;
+  const AUTO_RE = /^[A-Z]{1,6}(?:_[A-Z0-9]+)*(?:-\d+)?$/;
   // true when the current title was generated (code / blank / default / this format) — a manual rename is kept
   function isAuto(title, code) {
     const t = String(title == null ? "" : title).trim();
@@ -73,11 +81,33 @@
     // r9: a quote-code-shaped title (MMDDYYYY-NN) is the creation placeholder even when it no
     // longer equals the code (the client guessed -01, the server issued -02) - still automatic
     if (/^\d{8}-\d{2,}$/.test(t)) return true;
-    if (AUTO_RE.test(t) && /_/.test(t)) return true;
+    if (AUTO_RE.test(t) && /_/.test(t)) {
+      const head = t.split("_")[0];   // 4-6 letter heads only when they are a known type code (SHARMA_WEDDING stays manual)
+      if (head.length <= 3 || Object.keys(TYPES).some((k) => TYPES[k] === head)) return true;
+    }
     // a bare 3-letter title is auto only when it is a known type code (a manual "VIP" / "DJS" is kept)
-    const bare = /^([A-Z]{3})(?:-\d+)?$/.exec(t);
-    return !!bare && Object.keys(TYPES).some((k) => TYPES[k] === bare[1]);
+    const bare = /^([A-Z]{3,6})(?:-\d+)?$/.exec(t);
+    return !!bare && (Object.keys(TYPES).some((k) => TYPES[k] === bare[1]) || LEGACY_CODES.indexOf(bare[1]) >= 0);
   }
+  /* The name shown for a quote in lists / headers: a custom name is kept; an automatic one
+     (blank, the quote code, a bare number, an old format) is recomputed from the event's
+     current details. Falls back to the stored title / code when nothing is known. Display only. */
+  function displayName(q) {
+    q = q || {}; const title = String(q.title == null ? "" : q.title).trim();
+    if (title && !isAuto(title, q.code)) return title;
+    const auto = fromQuote(q);
+    if (auto) return (title && (title === auto || title.indexOf(auto + "-") === 0)) ? title : auto;
+    return title && !/^\d{8}-\d{2,}$/.test(title) && title !== q.code ? title : (title || q.code || "Untitled event");
+  }
+  const NAME_MAX = 80;
+  // validation for a typed name: returns "" when ok, else a message
+  function validateName(s) {
+    const t = String(s == null ? "" : s).trim();
+    if (!t) return "The name can't be empty.";
+    if (t.length > NAME_MAX) return "Keep the name to " + NAME_MAX + " characters or fewer.";
+    return "";
+  }
+  const HINT = "Auto name: TYPE_CITY_GUESTS_DATE — type your own to customise";
   // add -2, -3… when another event already uses the name. taken: titles of OTHER events
   function unique(base, taken) {
     if (!base) return base;
@@ -91,7 +121,7 @@
     mehendi: "Mehendi", mehndi: "Mehendi", birthday: "Birthday", corporate: "Corporate event", conference: "Conference",
     political: "Political rally", "political rally": "Political rally", rally: "Political rally", gala: "Gala", anniversary: "Anniversary",
     "baby shower": "Baby shower", housewarming: "Housewarming", "naming ceremony": "Naming ceremony", upanayanam: "Upanayanam",
-    seminar: "Seminar", "product launch": "Product launch", galadinner: "Gala dinner", "gala dinner": "Gala dinner", iftar: "Iftar", suhoor: "Suhoor", eid: "Eid celebration", "national day": "National Day celebration", exhibition: "Exhibition", concert: "Concert", party: "Party", general: "Event", other: "Event" };
+    seminar: "Seminar", "product launch": "Product launch", galadinner: "Gala dinner", henna: "Henna night", festival: "Festival", launch: "Product launch", "gala dinner": "Gala dinner", iftar: "Iftar", suhoor: "Suhoor", eid: "Eid celebration", "national day": "National Day celebration", exhibition: "Exhibition", concert: "Concert", party: "Party", general: "Event", other: "Event" };
   function label(t) {
     const raw = String(t == null ? "" : t).trim(); if (!raw) return "";
     const k = raw.toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
@@ -119,7 +149,7 @@
     const when = shortDate(q.eventDate || q.event_date || c.eventDate);
     return (who ? lbl + " for " + who : lbl) + (when ? " · " + when : "");
   }
-  const api = { TYPES, CITIES, LABELS, typeCode, cityCode, cityFromText, dateCode, guestsCode, format, fromQuote, isAuto, unique, label, shortDate, friendlyTitle };
+  const api = { TYPES, LEGACY_CODES, NAME_MAX, HINT, displayName, validateName, CITIES, LABELS, typeCode, cityCode, cityFromText, dateCode, guestsCode, format, fromQuote, isAuto, unique, label, shortDate, friendlyTitle };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (root) root.HelmEventName = api;
 })(typeof window !== "undefined" ? window : null);
