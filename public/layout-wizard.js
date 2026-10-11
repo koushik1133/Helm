@@ -648,11 +648,11 @@
     p.append(grid);
   }
   // "Saved venue": pick one of the studio's venues -> hall length / width (ft) + link it to the event
-  let venueRows = null;
+  let venueRows = null, venuePicked = '';
   function venueSel() {
     const sel = el('select', 'lw-in', null, { id: 'wizVenue', 'aria-label': 'Saved venue' });
     sel.append(el('option', null, '- type the hall size by hand -', { value: '' }));
-    const B = window.HelmBuilderVenue, linkedId = (B && B.client && B.client().venueId) || '';
+    const B = window.HelmBuilderVenue, linkedId = venuePicked || (B && B.client && B.client().venueId) || '';
     const fill = (rows) => {
       (rows || []).forEach((v) => { const o = el('option', null, v.name + (v.city ? ' - ' + v.city : ''), { value: v.id }); if (v.id === linkedId) o.selected = true; sel.append(o); });
       sel.disabled = !(rows || []).length;
@@ -661,6 +661,7 @@
     else { sel.disabled = true; const S = window.BPStore;
       if (S && S.venues && S.venues.list) S.venues.list().then((r) => { venueRows = r || []; fill(venueRows); }).catch(() => {}); }
     sel.addEventListener('change', () => {
+      venuePicked = sel.value;
       const v = (venueRows || []).find((x) => x.id === sel.value), V = window.HelmVenues;
       if (B && B.link) B.link(v || null);
       if (!v || !V || !V.fillFor) return;
