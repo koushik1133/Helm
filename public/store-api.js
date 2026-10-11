@@ -9044,8 +9044,23 @@ window.HelmUrl = HelmUrl;
       SOFT.forEach(function (k) { if (!(k in out) && prev[k] !== undefined) out[k] = prev[k]; });
       return out;
     }
+    // india-clickthrough D1: a quote that was NEVER priced (no gstPct/total, no approval sent, not
+    // confirmed) has no tax identity worth freezing - it adopts the studio's CURRENT country. Returns
+    // the re-stamped pricing, or null when nothing changes. Priced quotes are never touched here.
+    function isPricedQuote(q) {
+      q = q && typeof q === "object" ? q : {}; var p = q.pricing && typeof q.pricing === "object" ? q.pricing : {};
+      var ap = q.approvalStatus || q.approval_status || "none";
+      return ("gstPct" in p) || ("total" in p) || q.status === "confirmed" || !!(q.confirmedAt || q.confirmed_at) || (ap && ap !== "none");
+    }
+    function restampUnpriced(q, studioRes) {
+      if (!q || isPricedQuote(q) || !studioRes) return null;
+      var pr = q.pricing && typeof q.pricing === "object" ? q.pricing : {}, snap = snapshot(studioRes), out = Object.assign({}, pr);
+      IDENT.forEach(function (k) { delete out[k]; }); Object.assign(out, snap);
+      var same = IDENT.every(function (k) { return pr[k] === out[k]; });
+      return same ? null : out;
+    }
     function countries() { return Object.keys(C).map(function (k) { return { iso: k, name: C[k].name }; }); }
-    return { COUNTRIES: C, profile: profile, resolve: resolve, money: money, validateId: validateId, placeOfSupply: placeOfSupply, rows: rows, snapshot: snapshot, preserveSnapshot: preserveSnapshot, SNAPSHOT_KEYS: IDENT.concat(SOFT), countries: countries, code: code };
+    return { COUNTRIES: C, profile: profile, resolve: resolve, money: money, validateId: validateId, placeOfSupply: placeOfSupply, rows: rows, snapshot: snapshot, preserveSnapshot: preserveSnapshot, isPricedQuote: isPricedQuote, restampUnpriced: restampUnpriced, SNAPSHOT_KEYS: IDENT.concat(SOFT), countries: countries, code: code };
   })();
 
   // ---- studio money (0089) -------------------------------------------------------

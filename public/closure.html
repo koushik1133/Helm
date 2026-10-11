@@ -115,6 +115,7 @@
     <div class="card">
       <h2>🗄 Close &amp; archive</h2>
       <p class="sub">Marks the event complete and moves it to Closed. Follow-up: keep the client warm for the next occasion.</p>
+      <div id="closeBlockers" class="note" role="status" hidden></div>
       <div class="foot s-a562f4f">
         <a class="btn" id="followBtn" href="#">＋ Add CRM follow-up lead</a>
         <button type="button" class="btn go" id="closeBtn" hidden>Mark event closed &amp; archived</button>
@@ -140,7 +141,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=171"></script>
+<script src="country-profile.js?v=3"></script><script src="store-api.js?v=172"></script>
 <script src="tour.js?v=9"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -210,6 +211,30 @@
     return BPUI.guard($("#r_add"),async()=>{
       try{ await BPStore.closure.addRating(id,{ kind:$("#r_kind").value, name, stars:stars }); $("#r_name").value=""; $("#r_stars").value=""; await renderRatingsSafe(); }
       catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"add the rating"}),{type:"err"}); } }); }
+  // india-clickthrough D4: shared blocker wording for the close dialog AND the on-load summary
+  function closeBlockerLines(b, outstanding){
+    const money=n=>evTax?BPStore.quoteMoney(n,evTax,{round:true}):BPStore.studioMoney(n,{round:true});
+    const lines=[], owed=b&&b.blocked?Number(b.balance_owed)||0:0, co=b&&b.blocked?Number(b.open_checkouts)||0:0;
+    if(owed>0) lines.push("• Balance due from client: "+money(owed)+" (collect it in Settlement)");
+    if(co>0) lines.push("• "+co+" equipment checkout"+(co>1?"s":"")+" still out: "+(b.checkouts||[]).slice(0,8).map(c=>(c.item||"item")+" ×"+c.qty).join(", "));
+    if(outstanding&&outstanding.length) lines.push("• "+outstanding.length+" equipment reservation"+(outstanding.length>1?"s":"")+" not marked returned: "
+      +outstanding.slice(0,8).join(", ")+(outstanding.length>8?", …":"")+" (return them in Inventory)");
+    return { lines, owed, checkouts:co, server:owed>0||co>0 };
+  }
+  async function renderCloseSummary(){
+    const box=$("#closeBlockers"); if(!box || closedAt) { if(box) box.hidden=true; return; }
+    try{
+      const b=await BPStore.closure.blockers(id), bl=closeBlockerLines(b, []);
+      box.replaceChildren();
+      if(!bl.lines.length){ box.hidden=true; return; }
+      const h=document.createElement("strong"); h.textContent="Before this event can close:"; box.appendChild(h);
+      const ul=document.createElement("ul"); bl.lines.forEach(l=>{ const li=document.createElement("li"); li.textContent=l.replace(/^• /,""); ul.appendChild(li); }); box.appendChild(ul);
+      const links=document.createElement("div");
+      if(bl.owed>0){ const a=document.createElement("a"); a.href="settlement.html?quote="+encodeURIComponent(id); a.textContent="Open Settlement"; links.appendChild(a); }
+      if(bl.checkouts>0){ if(links.childNodes.length) links.appendChild(document.createTextNode(" · ")); const a=document.createElement("a"); a.href="inventory.html?quote="+encodeURIComponent(id); a.textContent="Open Inventory"; links.appendChild(a); }
+      box.appendChild(links); box.hidden=false;
+    }catch(_){ box.hidden=true; /* summary is advisory only */ }
+  }
   async function closeEvent(){
     // Gate 1 — every piece of equipment booked for this event must be back
     // (nothing still 'reserved' or 'allocated'). Closing is how the archive is built,
@@ -224,43 +249,32 @@
       outstanding = (res||[]).filter(r=> r.status==="reserved" || r.status==="allocated")
         .map(r=> (nameOf[r.item_id]||"item")+(r.qty?(" ×"+r.qty):""));
     }catch(e){ invUnverified=true; /* if inventory is unreadable, fall through to the manual confirmation */ }
-    if(outstanding.length){
-      await BPUI.alert("Can't close yet — "+outstanding.length+" equipment reservation"+(outstanding.length>1?"s are":" is")
-        +" still out and not marked returned:\n\n• "+outstanding.slice(0,8).join("\n• ")+(outstanding.length>8?"\n• …":"")
-        +"\n\nReturn them in Inventory first, then close the event.",{title:"Equipment still out"});
-      if(await BPUI.confirm("Open Inventory to return the equipment now?",{title:"Go to Inventory?",okLabel:"Open Inventory"})) location.href="inventory.html?quote="+encodeURIComponent(id);
-      return;
-    }
-    // Gate 1.2 — the SERVER gate (0049): close is refused while the client still owes money
-    // on the payment ledger or equipment checkouts are still out. Show the reasons here; an
-    // admin may close anyway with a written reason (recorded in the audit log).
-    let overrideReason=null;
-    try{
-      const b=await BPStore.closure.blockers(id);
-      if(b && b.blocked){
-        const money=n=>evTax?BPStore.quoteMoney(n,evTax,{round:true}):BPStore.studioMoney(n,{round:true});
-        const lines=[];
-        if(Number(b.balance_owed)>0) lines.push("• Client balance still owed (payment ledger): "+money(b.balance_owed));
-        if(Number(b.open_checkouts)>0) lines.push("• "+b.open_checkouts+" equipment checkout"+(b.open_checkouts>1?"s":"")+" still out: "
-          +(b.checkouts||[]).slice(0,8).map(c=>(c.item||"item")+" ×"+c.qty).join(", "));
-        const role=await BPStore.auth.role().catch(()=>"");
-        if(role!=="admin"){
-          await BPUI.alert("Can't close this event yet:\n\n"+lines.join("\n")
-            +"\n\nCollect the balance and check the equipment back in first. Only an admin can close with something outstanding.",{title:"Not ready to close"});
-          return;
-        }
-        if(!(await BPUI.confirm("This event still has:\n\n"+lines.join("\n")
-          +"\n\nAs an admin you can close it anyway. You'll be asked for a reason, which is saved in the audit log.",
-          {title:"Close with an override?",okLabel:"Override & close",danger:true}))) return;
-        for(;;){
-          const r=await BPUI.prompt("Why is it OK to close with this outstanding? (5–1000 characters — saved in the audit log)",{title:"Override reason",label:"Reason"});
-          if(r==null) return;
-          const t=String(r).trim();
-          if(t.length>=5 && t.length<=1000){ overrideReason=t; break; }
-          await BPUI.alert("Please write a reason of 5 to 1000 characters.",{title:"Reason needed"});
-        }
+    // india-clickthrough D4: ONE list of every blocker - money owed (server gate 0049 /
+    // close_event_blockers) AND equipment still out - with a way to Settlement / Inventory.
+    // An admin may still override the SERVER gate with a written reason (audited), as before.
+    let overrideReason=null, b=null;
+    try{ b=await BPStore.closure.blockers(id); }catch(e){ b=null; /* unreadable → the server still enforces the gate on close */ }
+    const bl=closeBlockerLines(b, outstanding);
+    if(bl.lines.length){
+      const role=await BPStore.auth.role().catch(()=>"");
+      if(outstanding.length || role!=="admin"){
+        await BPUI.alert("Can't close this event yet:\n\n"+bl.lines.join("\n")
+          +(role!=="admin"&&bl.server?"\n\nOnly an admin can close with something outstanding.":""),{title:"Not ready to close"});
+        if(bl.owed>0 && await BPUI.confirm("Open Settlement to collect the balance now?",{title:"Go to Settlement?",okLabel:"Open Settlement"})){ location.href="settlement.html?quote="+encodeURIComponent(id); return; }
+        if((outstanding.length||bl.checkouts>0) && await BPUI.confirm("Open Inventory to return the equipment now?",{title:"Go to Inventory?",okLabel:"Open Inventory"})) location.href="inventory.html?quote="+encodeURIComponent(id);
+        return;
       }
-    }catch(e){ /* blockers unreadable → the server still enforces the gate on close */ }
+      if(!(await BPUI.confirm("This event still has:\n\n"+bl.lines.join("\n")
+        +"\n\nAs an admin you can close it anyway. You'll be asked for a reason, which is saved in the audit log.",
+        {title:"Close with an override?",okLabel:"Override & close",danger:true}))) return;
+      for(;;){
+        const r=await BPUI.prompt("Why is it OK to close with this outstanding? (5–1000 characters — saved in the audit log)",{title:"Override reason",label:"Reason"});
+        if(r==null) return;
+        const t=String(r).trim();
+        if(t.length>=5 && t.length<=1000){ overrideReason=t; break; }
+        await BPUI.alert("Please write a reason of 5 to 1000 characters.",{title:"Reason needed"});
+      }
+    }
     // Gate 1.5 — financial caution. The server blocks only on the client LEDGER balance (above), so
     // surface any uncollected client balance or unsettled vendor amount and require an
     // explicit acknowledgement before archiving. Non-blocking (a manager may legitimately
@@ -353,6 +367,7 @@
     const plSafe=async()=>{ try{ await renderPL(); }catch(e){ BPUI.loadError($("#plBody"),e,plSafe,{what:"the P&L"}); const c=$("#plBody .bpui-loaderr"); if(c) c.style.gridColumn="1/-1"; } };
     await plSafe();
     await loadClosure();
+    renderCloseSummary();
     await renderRatingsSafe();
     if(!canEdit){ document.querySelectorAll("#app input,#app textarea,#app select").forEach(el=>el.disabled=true); }
   });

@@ -162,7 +162,7 @@
             <div class="fld"><label for="d_date">Meeting date</label><input id="d_date" type="date" data-date-window="recent"></div>
             <div class="fld"><label for="d_mode">Mode</label><select id="d_mode"><option value="">—</option><option value="in_person">In person</option><option value="call">Phone call</option><option value="video">Video call</option></select></div>
             <div class="fld"><label for="d_bmin">Budget — min (₹)</label><input id="d_bmin" type="number" min="0"></div>
-            <div class="fld"><label for="d_bmax">Budget — max (₹)</label><input id="d_bmax" type="number" min="0"></div>
+            <div class="fld"><label for="d_bmax">Budget — max (₹)</label><input id="d_bmax" type="number" min="0" aria-describedby="d_bmaxErr"><div id="d_bmaxErr" class="err" role="alert" hidden>Max should be at least the min</div></div>
             <div class="fld full"><label for="d_att">Who attended</label><input id="d_att" placeholder="e.g. Client + spouse, planner"></div>
             <div class="fld full"><label for="d_notes">Notes</label><textarea id="d_notes" placeholder="Theme ideas, constraints, preferences…"></textarea></div>
           </div>
@@ -348,7 +348,7 @@
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=171"></script>
+<script src="country-profile.js?v=3"></script><script src="store-api.js?v=172"></script>
 <script src="tour.js?v=9"></script>
 <script src="booklet.js?v=15"></script>
 <script src="share-checklist.js?v=9"></script>
@@ -537,8 +537,17 @@
     if($("#q_guests").value==="" && client.guests!=null){ $("#q_guests").value=client.guests; }
     saved("client"); renderPrice();
   }
+  // india-clickthrough D2: an inverted budget range (min > max) is flagged inline and never saved
+  function budgetRangeOk(){
+    const a=$("#d_bmin").value, b=$("#d_bmax").value, bad=a!=="" && b!=="" && +a > +b;
+    ["#d_bmin","#d_bmax"].forEach(s=>{ if(bad) $(s).setAttribute("aria-invalid","true"); else $(s).removeAttribute("aria-invalid"); });
+    const m=$("#d_bmaxErr"); if(m) m.hidden=!bad;
+    return !bad;
+  }
+  ["#d_bmin","#d_bmax"].forEach(s=>{ const el=$(s); if(el){ el.addEventListener("input",budgetRangeOk); el.addEventListener("change",budgetRangeOk); } });
   async function saveDiscovery(){
     if(failed.discovery) throw blockedError("discovery");
+    if(!budgetRangeOk()){ $("#d_bmax").focus(); throw new Error("Max should be at least the min"); }
     await BPStore.discovery.save(id, { meet_date:$("#d_date").value||null, mode:$("#d_mode").value||null,
       attendees:$("#d_att").value.trim()||null, notes:$("#d_notes").value.trim()||null,
       budget_min:$("#d_bmin").value!==""?+$("#d_bmin").value:null, budget_max:$("#d_bmax").value!==""?+$("#d_bmax").value:null });
@@ -655,6 +664,7 @@
     }
     if($("#q_msg")) $("#q_msg").style.color="";
     // C3: keep the quote's own tax snapshot unless the user explicitly switched it
+    { const rs=!taxSwitched && BPStore.tax.restampUnpriced(ev, BPStore.tax.resolve(rates||{})); if(rs) ev.pricing=rs; }   // D1: never-priced -> studio's current tax
     let pricing=Object.assign({}, ev.pricing||{}, p, { computed:t, total:t.total, client:ev.client||{}, _ratesAt:ratesSnapshot() });
     pricing=BPStore.tax.preserveSnapshot(ev.pricing||{}, pricing, { switch: taxSwitched });
     try{
@@ -1024,14 +1034,15 @@
   // C3: a brand-new (never priced) quote in a non-India studio is stamped with the studio's tax
   // snapshot straight away, so lists / tax_snapshot show AED/USD before the first quotation save.
   // Unpriced (no gstPct/total) so it stays "untouched"; India studios write nothing (snapshot is {}).
+  // india-clickthrough D1: ALSO re-stamps a never-priced draft whose snapshot came from a previous
+  // studio country (e.g. an AED draft reused after the studio moved back to India), so the saved
+  // currency always matches the live display. Priced quotes keep their snapshot (banner path).
   async function stampNewQuoteTax(){
     try{
-      const pr=(ev&&ev.pricing)||{}; if(!canEdit || quoteBlocked() || ("gstPct" in pr) || ("total" in pr)) return;
-      const snap=BPStore.tax.snapshot(BPStore.tax.resolve(rates||{})); if(!snap.taxCountry) return;
-      if(Object.keys(snap).every(k=>pr[k]===snap[k])) return;
-      const next=Object.assign({}, pr, snap);
-      await BPStore.quotes.updateMeta(id,{ pricing: next }); ev.pricing=next;
-    }catch(_){ /* best effort: the first quotation save stamps it anyway */ }
+      if(!canEdit || quoteBlocked() || !ev) return;
+      const next=BPStore.tax.restampUnpriced(ev, BPStore.tax.resolve(rates||{})); if(!next) return;
+      await BPStore.quotes.updateMeta(id,{ pricing: next }); ev.pricing=next; paintCurBanner();
+    }catch(_){ /* best effort: saveQuotation re-stamps an unpriced quote anyway */ }
   }
   // B11: "This quote is in INR - switch to AED?" instead of silently re-labelling an existing quote
   function paintCurBanner(){
