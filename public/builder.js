@@ -643,8 +643,8 @@ function makeItem(type, x, y, overrides={}){
 }
 // Items most events only want ONE of — adding a second is usually a slip, so we ask first.
 const SINGULAR_ASSETS = new Set(['stage','dancefloor','dj','mandap','caketable','headtable','foh','videowall','piano','redcarpet','fountain']);
-async function addAsset(type, atFt){
-  const a = ASSETS[type];
+async function addAsset(type, atFt, opts){
+  const a = ASSETS[type], lbl = opts && opts.label;
   if(SINGULAR_ASSETS.has(type) && store.items.some(it=>it.type===type)){
     const ok = await BPUI.confirm('There’s already a '+a.label+' on this floor. Most events only need one — add another anyway?',
       {title:'Add another '+a.label+'?', okLabel:'Add another', cancelLabel:'Keep just one'});
@@ -654,11 +654,11 @@ async function addAsset(type, atFt){
   const cy = atFt ? atFt.y : viewCenterFt().y;
   let x = clamp(snapFt(cx - a.w/2), 0, WORLD.w-a.w);
   let y = clamp(snapFt(cy - a.h/2), 0, WORLD.h-a.h);
-  const it = makeItem(type, x, y);
+  const it = makeItem(type, x, y, lbl ? {label:lbl} : undefined);
   store.items.push(it);
   setSelection([it.id]);
   commit(); renderAll();
-  toast(a.label + ' added');
+  toast((lbl || a.label) + ' added');
 }
 
 /* ===================================================================
@@ -2819,8 +2819,8 @@ function buildToolbox(){
     return `<div class="cat">
       <h3><span class="dot" style="background:${catColor(cat)}"></span>${CATS[cat].name}</h3>
       <div class="tools">
-        ${items.map(([type,a])=>`<div class="tool" draggable="true" role="button" tabindex="${RO?'-1':'0'}"${RO?' aria-disabled="true"':''} data-type="${type}" style="color:${catColor(cat)}" aria-label="Add ${a.label}">
-          ${assetGlyph(type)}<span style="color:var(--ink)">${a.label}</span></div>`).join('')}
+        ${items.flatMap(([type,a])=>type==='exit'?[[type,a,'Entrance'],[type,a,null]]:[[type,a,null]]).map(([type,a,vl])=>`<div class="tool" draggable="true" role="button" tabindex="${RO?'-1':'0'}"${RO?' aria-disabled="true"':''} data-type="${type}"${vl?` data-label="${esc(vl)}"`:''} style="color:${catColor(cat)}" aria-label="Add ${esc(vl||a.label)}">
+          ${vl?assetGlyph('entrance'):assetGlyph(type)}<span style="color:var(--ink)">${esc(vl||a.label)}</span></div>`).join('')}
       </div></div>`;
   }).join('');
   host.querySelectorAll('.tool').forEach(t=>{
@@ -2828,7 +2828,7 @@ function buildToolbox(){
       const ty=t.dataset.type;
       if(ty==='seatblock'||ty==='chairrow') openArrangeModal('chairs');   // pick a chair grid
       else if(ty==='table') openArrangeModal('tables');                   // pick a table grid + shape
-      else addAsset(ty);
+      else addAsset(ty, null, t.dataset.label ? {label:t.dataset.label} : undefined);
       closeDrawers();
     });
     // keyboard: Enter / Space drops the asset at the centre of the visible canvas (same path as a drop)
@@ -2837,10 +2837,10 @@ function buildToolbox(){
       e.preventDefault();
       if(RO) return;
       const ty=t.dataset.type; if(!ASSETS[ty]) return;
-      addAsset(ty);
+      addAsset(ty, null, t.dataset.label ? {label:t.dataset.label} : undefined);
       closeDrawers(true);
     });
-    t.addEventListener('dragstart',e=>{ e.dataTransfer.setData('type',t.dataset.type); e.dataTransfer.effectAllowed='copy'; });
+    t.addEventListener('dragstart',e=>{ e.dataTransfer.setData('type',t.dataset.type); e.dataTransfer.setData('label',t.dataset.label||''); e.dataTransfer.effectAllowed='copy'; });
   });
 }
 function assetGlyph(type){
@@ -2860,6 +2860,7 @@ function assetGlyph(type){
     case 'booth': return wrap('<rect x="5" y="4" width="16" height="12" rx="1"/><path d="M5 8h16"/>');
     case 'desk': return wrap('<rect x="4" y="7" width="18" height="6" rx="1"/><path d="M8 13v3M18 13v3"/>');
     case 'truck': return wrap('<rect x="3" y="6" width="13" height="8" rx="1"/><path d="M16 9h4l2 3v2h-6z"/><circle cx="8" cy="16" r="1.6"/><circle cx="19" cy="16" r="1.6"/>');
+    case 'entrance': return wrap('<rect x="4" y="4" width="18" height="12" rx="1"/><path d="M17 10h-6M13 7l-3 3 3 3"/>');
     case 'exit': return wrap('<rect x="4" y="4" width="18" height="12" rx="1"/><path d="M9 10h6M13 7l3 3-3 3"/>');
     case 'canopy': return wrap('<path d="M4 8h18M6 8v9M20 8v9M4 8l3-4h12l3 4"/>');
     case 'arch': return wrap('<path d="M4 16V11a9 9 0 0 1 18 0v5"/>');
@@ -2923,7 +2924,7 @@ scrollEl.addEventListener('drop',e=>{
   e.preventDefault();
   if(RO) return;
   const type=e.dataTransfer.getData('type'); if(!type||!ASSETS[type])return;
-  addAsset(type, svgPointFt(e));
+  const vl=e.dataTransfer.getData('label'); addAsset(type, svgPointFt(e), vl ? {label:vl} : undefined);
 });
 
 /* ===================================================================

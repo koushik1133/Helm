@@ -655,3 +655,6 @@ header .capbanner[hidden]{display:none}
 /* quote name hint (auto TYPE_CITY_GUESTS_DATE name vs custom) */
 .tb-event .namehint{font-size:11px;color:var(--ink-3,#6b7280);margin-top:2px;max-width:320px}
 .tb-event .namehint .linkbtn{border:0;background:none;color:var(--accent,#4457c8);cursor:pointer;font-size:11px;padding:0;text-decoration:underline}
+
+/* the auto-name hint stays out of the header (owner request) */
+#projNameHint{display:none!important}

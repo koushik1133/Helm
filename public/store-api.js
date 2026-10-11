@@ -9308,7 +9308,7 @@ window.HelmUrl = HelmUrl;
   // the user's LOCAL calendar day (IST for an Indian studio) as YYYY-MM-DD - toISOString() is UTC
   // and reads as "yesterday" from 00:00 to 05:30 IST
   BPStore.todayLocal = function (d) {
-    d = d instanceof Date ? d : new Date();
+    d = (d && typeof d.getFullYear === "function") ? d : new Date();   // also a Date from another realm (iframe / test vm)
     var p = function (n) { return (n < 10 ? "0" : "") + n; };
     return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
   };
