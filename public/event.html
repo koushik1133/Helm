@@ -150,8 +150,8 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="event-name.js?v=5"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=173"></script>
+<script src="event-name.js?v=6"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=174"></script>
 <script src="tour.js?v=9"></script>
 <script src="booklet.js?v=16"></script>
 <script src="share-checklist.js?v=9"></script>
@@ -277,7 +277,7 @@
     $("#code").textContent=ev.code;
     $("#statusBadge").innerHTML=statBadge(ev.status);
     $("#apprBadge").innerHTML=apprBadge(ev.approvalStatus);
-    $("#title").textContent=ev.title||ev.code;
+    $("#title").textContent=(window.HelmEventName&&HelmEventName.displayName)?HelmEventName.displayName(ev):(ev.title||ev.code);
     try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[ev.code,ev.title].filter((v,i,a)=>v&&a.indexOf(v)===i).join(" "),kind:"event",href:"event.html?id="+encodeURIComponent(id)}); }catch(e){}
     const cl=ev.client||{};
     $("#meta").textContent=[ev.eventType, cl.name?("for "+cl.name):"", cl.eventDate||""].filter(Boolean).join(" · ")||"No client details yet";
