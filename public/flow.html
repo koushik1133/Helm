@@ -1127,6 +1127,7 @@
     if(!ev) return; const H=HEN_(); const h=$("#qName"); if(!h) return;
     const auto=nameIsAuto(); const shown=H?(auto?(autoName()||H.displayName(liveParts())):ev.title):(ev.title||ev.code);
     if(!h.querySelector("input")) h.textContent=shown||ev.code||"Untitled event";
+    const tt=$("#title"); if(tt) tt.textContent=shown||ev.title||"";   // keep the (hidden) legacy header in step
     $("#qNameHintText").textContent=auto?((H&&H.HINT)||""):"Custom name";
     $("#qNameReset").hidden=auto;
   }
@@ -1251,6 +1252,15 @@
     // This stops empty / barely-touched quotes from being silently saved.
     ["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_guests","c_budget"].forEach(f=>$("#"+f).addEventListener("input",()=>{ syncClientMem(); if(f==="c_guests"||f==="c_type") renderPrice(); }));
     ["c_type","c_date","c_city","c_guests"].forEach(f=>{ const el=$("#"+f); el.addEventListener("input",renderName); el.addEventListener("change",renderName); });
+    // name-live-update: step-1 fields schedule the client autosave from their OWN listeners, so a
+    // datalist pick / programmatic or non-bubbling input|change|blur still persists (the delegated
+    // #app listener only sees bubbling events, and "blur" never bubbles).
+    let clientEdited=false;
+    const clientAuto=(e)=>{ if(loading||!AS||!AS.has("client")) return;
+      if(e&&e.type==="blur"){ if(clientEdited){ clientEdited=false; AS.now("client"); } return; }
+      clientEdited=true; renderName(); AS.schedule("client"); };
+    ["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_state","c_guests","c_budget"].forEach(f=>{ const el=$("#"+f); if(!el) return;
+      el.addEventListener("input",clientAuto); el.addEventListener("change",clientAuto); el.addEventListener("blur",clientAuto); });
     wireNameEdit();
     $("#c_state").addEventListener("change",()=>{ syncClientMem(); renderPrice(); });
     $("#c_city").addEventListener("change",()=>{ if(!$("#c_state").value){ const g=guessClientState(ev.client||{}); if(g){ $("#c_state").value=g; syncClientMem(); renderPrice(); } } });
