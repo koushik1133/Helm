@@ -30,3 +30,6 @@ body.wt-on .wt-fab,body.wt-on #hint3d{display:none}
   .wt-list{left:8px;right:8px;top:8px;max-height:40%}
   .wt-fab{right:12px;bottom:56px}
 }
+/* the walkthrough card never covers the canvas control stack (arrow pad / fullscreen / Tour) */
+body.wt-on .wt-overlay{padding-right:128px}
+@media (max-width:700px){ body.wt-on .wt-overlay{padding-right:16px} body.wt-on #fabStack,body.wt-on #navPad{display:none} }
