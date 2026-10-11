@@ -353,8 +353,13 @@
   }
   function fillTemplate(){ const t=TPLS.find(x=>x.occasion_type===curType)||{};
     $("#tplTabs").querySelectorAll(".ptab").forEach(b=>{ b.classList.toggle("active",b.dataset.t===curType); b.setAttribute("aria-pressed",String(b.dataset.t===curType)); });
-    $("#tplSubject").value=t.subject||""; $("#tplBody").value=t.body||""; $("#tplEnabled").checked=t.enabled!==false; tplDirty.clean(); }
-  async function saveTemplate(){ return BPUI.guard($("#tplSave"),async()=>{ try{
+    $("#tplSubject").value=t.subject||""; $("#tplBody").value=t.body||""; $("#tplEnabled").checked=t.enabled!==false; tplDirty.clean();
+    // a blank template would send an empty greeting: start from the library default (saved on Save)
+    const L=window.HelmNurtureTemplates, d=L&&L.LIBRARY.find(x=>x.auto===curType);
+    if(!String(t.body||"").trim() && d){ $("#tplBody").value=L.toServer(d.body); if(!String(t.subject||"").trim()) $("#tplSubject").value=L.toServer(d.subject);
+      BPUI.toast("This template was empty - showing the default text. Press Save to keep it.",{type:"info"}); } }
+  async function saveTemplate(){ if(!$("#tplBody").value.trim()){ BPUI.toast("Add a message before saving - an empty template would send a blank greeting.",{type:"err"}); $("#tplBody").focus(); return; }
+    return BPUI.guard($("#tplSave"),async()=>{ try{
       await BPStore.nurture.templates.save(curType,{subject:$("#tplSubject").value,body:$("#tplBody").value,enabled:$("#tplEnabled").checked});
       const t=TPLS.find(x=>x.occasion_type===curType); if(t){ t.subject=$("#tplSubject").value; t.body=$("#tplBody").value; t.enabled=$("#tplEnabled").checked; }
       tplDirty.clean();

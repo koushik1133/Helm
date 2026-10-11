@@ -44,7 +44,7 @@ t('blocking check-out: event, qty, due back = day after the event, overdue flag'
 t('headline / reasons read like the owner asked', () => {
   const i = C.compute(base), f = (d) => ({ '2026-12-28': '28 Dec', '2026-12-27': '27 Dec' }[d] || d);
   assert.equal(C.headline(i, 200, f), 'Only 120 of 200 Chiavari chairs are available for 28 Dec.');
-  assert.deepEqual(C.reasons(i, f), ['80 out with Event X (due back 27 Dec) - issued to Ravi', '0 in repair']);
+  assert.deepEqual(C.reasons(i, f), ['80 out with Event X (due back 27 Dec) - issued to Ravi']);
   assert.match(C.headline({ ...i, available: 0 }, 5, f), /^None of the 200 Chiavari chairs are available for 28 Dec\.$/);
   assert.match(C.headline(i, 150, f), /You own 200\.$/);
 });
@@ -73,7 +73,7 @@ t('server: 0105 functions are definer, empty search_path, row-locked, shortage i
 t('client: inventory uses outSmart + shortage panel, partial re-call, sub-rent via stock request, no raw error', () => {
   const inv = read('public/inventory.html'), api = read('public/store-api.js');
   assert.match(api, /rpc\("checkout_equipment_smart"/); assert.match(api, /rpc\("checkout_availability"/);
-  assert.match(inv, /<script src="checkout-shortage\.js\?v=1"><\/script>/);
+  assert.match(inv, /<script src="checkout-shortage\.js\?v=2"><\/script>/);
   assert.match(inv, /outSmart\(itemId, quoteId\|\|null, qty, to, crewId, coPending\.note, false\)/);
   assert.match(inv, /outSmart\(p\.itemId, quoteId\|\|null, p\.qty, p\.to, p\.crewId, p\.note, true\)/);
   assert.match(inv, /BPStore\.stockreq\.add\(quoteId,/);

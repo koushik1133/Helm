@@ -75,7 +75,7 @@
       out.push(n(b.qty) + " out with " + b.event + (b.due_back ? " (due back " + f(b.due_back) + (b.overdue ? " - overdue" : "") + ")" : "") + (b.issued_to ? " - issued to " + b.issued_to : ""));
     });
     (info.reserved_by || []).forEach(function (r) { out.push(n(r.qty) + " reserved for " + r.event + " on the same day"); });
-    out.push(n(info.in_repair) + " in repair");
+    if (n(info.in_repair) > 0) out.push(n(info.in_repair) + " in repair");
     return out;
   }
   // which actions to offer
