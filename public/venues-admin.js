@@ -1,5 +1,5 @@
 /* venues-admin.js (0085) - Control Center -> Venues tab. List + search / filters, add / edit,
- * deactivate / re-activate (never delete), m / ft toggle, admin "Load 3 sample venues".
+ * deactivate / re-activate (never delete), m / ft toggle, admin "Load sample venues" (adds only missing samples).
  * DOM nodes only (no HTML strings). Server enforces everything again (venue_save etc.). */
 (function () {
   "use strict";
@@ -79,7 +79,7 @@
       unitToggle(function () { paintList(); }),
       state.canEdit ? h("button", { type: "button", cls: "btn primary", id: "vn_add", text: "+ Add venue",
         onclick: function () { state.msg = ""; state.editing = { active: true, dim_unit: state.unit, event_types: [], restrictions: [] }; render(); } }) : null,
-      (state.isAdmin && !state.rows.length) ? h("button", { type: "button", cls: "btn", id: "vn_samples", text: "Load 3 sample venues", onclick: loadSamples }) : null
+      (state.isAdmin && (!state.rows.length || state.rows.some(function (r) { return r.is_sample; }))) ? h("button", { type: "button", cls: "btn", id: "vn_samples", text: "Load sample venues", onclick: loadSamples }) : null
     ]);
     root.appendChild(bar);
     root.appendChild(h("div", { id: "vn_list", cls: "vn-list" }));
@@ -100,7 +100,7 @@
     root.querySelectorAll(".vn-tools .vn-unit .btn").forEach(function (b) { var on = (b.textContent === "Feet") === (state.unit === "ft"); b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on)); });
     box.textContent = "";
     var rows = filtered();
-    if (!state.rows.length) { box.appendChild(h("p", { cls: "mnote", text: state.isAdmin ? "No venues yet. Add one, or load 3 sample venues to try it out." : "No venues yet." })); return; }
+    if (!state.rows.length) { box.appendChild(h("p", { cls: "mnote", text: state.isAdmin ? "No venues yet. Add one, or load 4 sample venues to try it out." : "No venues yet." })); return; }
     if (!rows.length) { box.appendChild(h("p", { cls: "mnote", text: "No venues match these filters." })); return; }
     rows.forEach(function (v) { box.appendChild(card(v)); });
   }
@@ -135,7 +135,7 @@
   }
   async function loadSamples() {
     var b = document.getElementById("vn_samples"); if (b) b.disabled = true;
-    try { var r = await S.venues.loadSamples(); state.msg = (r && r.added) ? "Added " + r.added + " sample venues (marked SAMPLE - edit or deactivate them)." : "This studio already has venues - no samples added."; state.err = ""; }
+    try { var r = await S.venues.loadSamples(); state.msg = (r && r.added) ? "Added " + r.added + " sample venue" + (r.added === 1 ? "" : "s") + " (marked SAMPLE - edit or deactivate them)." : (r && r.reason ? "This studio already has venues - no samples added." : "All sample venues are already loaded - nothing added."); state.err = ""; }
     catch (e) { state.err = friendly(e); }
     await reload();
   }
