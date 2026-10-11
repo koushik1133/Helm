@@ -135,8 +135,8 @@
 <script src="/telemetry.js?v=3"></script>
 <script src="/config.js?v=98"></script>
 <script src="/phone-input.js?v=1"></script>
-<script src="/event-name.js?v=3"></script>
-<script src="/country-profile.js?v=3"></script><script src="/store-api.js?v=172"></script>
+<script src="/event-name.js?v=4"></script>
+<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=173"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -255,9 +255,13 @@
     $("#loading").hidden=true; $("#loading").textContent="";
     if(!quote){ $("#badlink").hidden=false; return; }
     $("#content").hidden=false;
-    $("#title").textContent=quote.title||quote.code;
-    $("#code").textContent=quote.code;
-    $("#meta").textContent=(quote.event_type?quote.event_type+" · ":"")+"For "+(quote.client_name||"you");
+    // E3/E4: friendly client-facing title + proper event-type label; the auto code stays the reference
+    const HEN=window.HelmEventName;
+    $("#title").textContent=HEN?HEN.friendlyTitle(Object.assign({client:(quote.pricing&&quote.pricing.client)||{}}, quote)):(quote.title||quote.code);
+    try{ document.title=$("#title").textContent+" · Approve"; }catch(_){}
+    $("#code").textContent="Ref "+quote.code;
+    const etl=HEN?HEN.label(quote.event_type):(quote.event_type||"");
+    $("#meta").textContent=(etl?etl+" · ":"")+"For "+(quote.client_name||"you");
     $("#pricing").innerHTML=renderPricing(quote.pricing);
     // 0092: Razorpay payment links are INR only - an AED / USD quote is paid by bank transfer / card with the studio
     if(apTax && apTax.country!=="IN"){ $("#payBtn").hidden=true; $("#payBtn").style.display="none"; $("#payManual").textContent="Your planner will share bank transfer or card payment details and record your payment."; $("#payManual").hidden=false; }

@@ -74,6 +74,10 @@
    "why": "invite: cssUrl() percent-encodes quotes/parens then esc()"
   },
   {
+   "name": "rsvpHtml",
+   "why": "invite E10: host name / date esc()'d; wa.me number digits only + esc; text encodeURIComponent + esc; tel digits only + esc"
+  },
+  {
    "name": "factsHtml",
    "why": "invite: every field esc()'d; map URL https-only + esc"
   },

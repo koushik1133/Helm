@@ -173,7 +173,7 @@
     } else if (s.phone) ct.appendChild(tel(s.phone));
     else if (bizEmail && /^[^\s@<>"]+@[^\s@<>"]+$/.test(bizEmail)) { const a = el("a", "", bizEmail); a.setAttribute("href", "mailto:" + bizEmail); ct.appendChild(a); }
     if (s.location) ct.appendChild(el("span", "", String(s.location)));
-    const title = e.title || e.code || "Your event";
+    const title = clientTitle(e);
     $("#e_title").textContent = title;
     $("#e_sub").textContent = [fmtDate(e.event_date), e.venue_name].filter(Boolean).join(" · ");
     $("#e_for").textContent = e.client_name ? "Prepared for " + e.client_name : "";
@@ -195,11 +195,15 @@
     }, { rootMargin: "-20% 0px -70% 0px" });
     SECTIONS.forEach((s) => { const n = doc.getElementById(s[0]); if (n) io.observe(n); });
   }
+  // E3/E4: client-facing title / event type via the shared map (event-name.js); the code is the reference
+  function clientTitle(e) { e = e || {}; const H = global.HelmEventName; return H && H.friendlyTitle ? H.friendlyTitle(e) : (e.title || e.code || "Your event"); }
+  function typeLabel(t) { const H = global.HelmEventName; return H && H.label ? H.label(t) : (t || ""); }
   function fact(dl, k, v) { if (v == null || v === "") return null; const d = el("div"); d.appendChild(el("dt", "", k)); const dd = el("dd", "", String(v)); d.appendChild(dd); dl.appendChild(d); return dd; }
   function renderDetails(d) {
     const e = d.event || {}, dl = clear($("#factList"));
-    fact(dl, "Event", e.title || e.code);
-    fact(dl, "Occasion", e.event_type);
+    fact(dl, "Event", clientTitle(e));
+    if (e.code) fact(dl, "Reference", e.code);
+    fact(dl, "Occasion", typeLabel(e.event_type));
     fact(dl, "Date", fmtDate(e.event_date));
     const st = fmtTime(e.start_time || e.event_time), en = fmtTime(e.end_time);
     fact(dl, "Time", st && en ? st + " – " + en : st);
@@ -342,14 +346,32 @@
       const b = el("div"); b.appendChild(el("div", "k", x[0])); b.appendChild(el("div", "v", money(x[1]))); sum.appendChild(b);
     });
     renderReceipts(rc || []);
+    // E6: say what is due from the studio's payment terms + the event date (same rule as the portal)
+    const line = balanceLine(total, p.paid, bal, (d.event || {}).event_date, d.payTerms);
+    const pt = $("#payTerm"); if (pt) { pt.textContent = line || ""; pt.hidden = !line; }
     const tb = clear($("#payLines"));
-    if (!ms.length) { const tr = el("tr"); const td = el("td", "empty", "The payment schedule will be shared by the studio."); td.setAttribute("colspan", "4"); tr.appendChild(td); tb.appendChild(tr); return; }
+    if (!ms.length) { const tr = el("tr"); const td = el("td", "empty", line || "The payment schedule will be shared by the studio."); td.setAttribute("colspan", "4"); tr.appendChild(td); tb.appendChild(tr); return; }
     ms.forEach((m) => {
       const tr = el("tr"); tr.appendChild(el("td", "", String(m.label || "Payment"))); tr.appendChild(el("td", "", shortDate(m.due_date) || "—"));
       const st = String(m.status || "due").toLowerCase().replace(/[^a-z_]/g, "");
       const td = el("td"); td.appendChild(el("span", "st " + st, st.replace(/_/g, " "))); tr.appendChild(td);
       tr.appendChild(el("td", "amt", money(m.amount))); tb.appendChild(tr);
     });
+  }
+  // E6: "Paid in full" | "Balance ₹X due by dd/mm/yyyy" (terms.balance_due_days before the event) | null
+  function dmy(iso) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || "")); return m ? m[3] + "/" + m[2] + "/" + m[1] : ""; }
+  function balanceLine(total, paid, bal, eventDate, terms) {
+    const t = num(total), pd = num(paid) || 0, b = num(bal) != null ? Number(bal) : (t != null ? t - pd : null);
+    if (t == null || !(t > 0) || b == null) return null;
+    if (b <= 0.5 && pd > 0) return "Paid in full";
+    if (b <= 0.5) return null;
+    const ev = /^\d{4}-\d{2}-\d{2}/.test(String(eventDate || "")) ? String(eventDate).slice(0, 10) : "";
+    const days = terms && terms.balance_due_days != null && Number.isInteger(Number(terms.balance_due_days)) && Number(terms.balance_due_days) >= 0 && Number(terms.balance_due_days) <= 365 ? Number(terms.balance_due_days) : null;
+    let due = "";
+    if (ev && days != null) { const ms = Date.UTC(+ev.slice(0, 4), +ev.slice(5, 7) - 1, +ev.slice(8, 10)) - days * 86400000; if (isFinite(ms)) due = new Date(ms).toISOString().slice(0, 10); }
+    if (due) return "Balance " + money(b) + " due by " + dmy(due);
+    if (ev) return "Balance " + money(b) + " due before the event (" + dmy(ev) + ")";
+    return "Balance " + money(b) + " due";
   }
   // receipts: number, date, amount, method (textContent only)
   function renderReceipts(rc) {
@@ -504,10 +526,13 @@
     if (!d || typeof d !== "object") { show("#bad"); return; }
     d.__token = token;
     render(d); show("#app");
+    // E6 (0101): the studio's balance-due term for this link; older servers -> the event-date fallback
+    try { const pt = global.BPStore.booklet.payTerms ? await global.BPStore.booklet.payTerms(token) : null;
+      if (pt && typeof pt === "object" && VISIBLE.payments !== false && $("#payTerm")) { d.payTerms = pt; renderPayments(d); } } catch (e) {}
     if (global.HelmBookletPkg && VISIBLE.packages !== false && !(d.menu && d.menu.mode === "hidden")) global.HelmBookletPkg.mount(token, d).catch(() => {});
   }
 
-  global.HelmBooklet = { render2d, render3d, visibleSections, snapUrl, dbImages, dbFigure, isDataImg, IMG_VARIANTS, money, setFormat, fmtTime, mapLink, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
+  global.HelmBooklet = { balanceLine, render2d, render3d, visibleSections, snapUrl, dbImages, dbFigure, isDataImg, IMG_VARIANTS, money, setFormat, fmtTime, mapLink, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
   if (doc && doc.getElementById("tocList")) {
     const pb = doc.getElementById("printBtn"); if (pb) pb.addEventListener("click", () => global.print());
     const rt = doc.getElementById("retry"); if (rt) rt.addEventListener("click", () => start());

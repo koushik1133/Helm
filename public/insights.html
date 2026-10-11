@@ -196,8 +196,8 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=172"></script>
+<script src="event-name.js?v=4"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=173"></script>
 <script src="range-bar.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -255,6 +255,11 @@
     if(sumRes.status==="fulfilled" && sumRes.value) renderSummary(sumRes.value);
     else ["#vendors","#tasks","#lossItem","#lossMonth","#margins"].forEach(h=>{ $(h).innerHTML='<div class="empty">Couldn’t load — try again.</div>'; });
   }
+  // E13 (0101): revenue / profit / margin WITHOUT the tax collected; older servers send only the gross fields
+  const rx=(o)=>o&&o.revenue_ex_tax!=null?Number(o.revenue_ex_tax):Number((o&&o.revenue)||0);
+  const px=(o)=>o&&o.profit_ex_tax!=null?Number(o.profit_ex_tax):Number((o&&o.profit)||0);
+  const mx=(o)=>o&&o.revenue_ex_tax!=null?o.margin_pct_ex_tax:(o?o.margin_pct:null);
+  const revLbl=(o)=>o&&o.revenue_ex_tax!=null?"Revenue (ex-tax)":"Revenue";
   function renderRange(d){
     const c=d.counts||{};
     $("#evKpis").innerHTML=kpi(c.total||0,"Events","incl. open quotes: "+(c.open_quotes||0))+kpi(c.confirmed||0,"Confirmed")
@@ -263,8 +268,8 @@
     if(canFin && m && bc && bc.length>1){ $("#moneyWrap").hidden=false; renderMoneyMulti(bc,d); }
     else if(canFin && m){ $("#moneyWrap").hidden=false;
       const one=bc&&bc.length===1?bc[0].currency:null, inr=(n)=>one?curM(n,one):BPStore.studioMoney(n,{round:true});
-      $("#moneyKpis").innerHTML=kpi(inr(m.revenue),"Revenue",(m.events||0)+" confirmed event(s)")+kpi(inr(Number(m.cost||0)+Number(m.expenses||0)),"Costs","delivery "+inr(m.cost)+" · expenses "+inr(m.expenses))
-        +kpi(inr(m.profit),"Profit","margin "+(m.margin_pct==null?"—":m.margin_pct+"%"),(m.profit||0)>=0?"pos":"neg")+kpi(m.avg_event_value==null?"—":inr(m.avg_event_value),"Avg event value");
+      $("#moneyKpis").innerHTML=kpi(inr(rx(m)),revLbl(m),(m.events||0)+" confirmed event(s)"+(Number(m.tax)>0?" · tax collected "+inr(m.tax)+" (payable)":""))+kpi(inr(Number(m.cost||0)+Number(m.expenses||0)),"Costs","delivery "+inr(m.cost)+" · expenses "+inr(m.expenses))
+        +kpi(inr(px(m)),"Profit","margin "+(mx(m)==null?"—":mx(m)+"%"),(px(m)||0)>=0?"pos":"neg")+kpi(m.avg_event_value==null?"—":inr(m.avg_event_value),"Avg event value");
       const col=Number(m.collected||0), out=Number(m.outstanding||0), tot=col+out;
       $("#collect").innerHTML=`<div class="legend"><span><i class="la"></i>Collected <b>${esc(inr(col))}</b></span><span><i class="lb2"></i>Outstanding <b>${esc(inr(out))}</b></span></div>
         <div class="split" role="img" aria-label="${esc("Collected "+inr(col)+", outstanding "+inr(out))}"><span class="a"></span><span class="b"></span></div>
@@ -282,9 +287,9 @@
   let collectCur=null;
   function renderMoneyMulti(bc,d){
     const cash=homeFirst(Array.isArray(d.cash_by_currency)?d.cash_by_currency:[]);
-    $("#moneyKpis").innerHTML=kpi(joinCur(bc,x=>x.revenue),"Revenue",bc.map(x=>(x.events||0)+" "+x.currency).join(" · ")+" confirmed event(s)")
+    $("#moneyKpis").innerHTML=kpi(joinCur(bc,x=>rx(x)),revLbl(bc[0]),bc.map(x=>(x.events||0)+" "+x.currency).join(" · ")+" confirmed event(s)")
       +kpi(joinCur(bc,x=>Number(x.cost||0)+Number(x.expenses||0)),"Costs","delivery "+joinCur(bc,x=>x.cost)+" · expenses "+joinCur(bc,x=>x.expenses))
-      +kpi(joinCur(bc,x=>x.profit),"Profit","margin "+bc.map(x=>x.currency+" "+(x.margin_pct==null?"—":x.margin_pct+"%")).join(" · "),(bc[0].profit||0)>=0?"pos":"neg")
+      +kpi(joinCur(bc,x=>px(x)),"Profit","margin "+bc.map(x=>x.currency+" "+(mx(x)==null?"—":mx(x)+"%")).join(" · "),(px(bc[0])||0)>=0?"pos":"neg")
       +kpi(bc.map(x=>x.avg_event_value==null?"—":curM(x.avg_event_value,x.currency)).join(" · "),"Avg event value","per currency");
     if(!collectCur||!bc.some(x=>x.currency===collectCur)) collectCur=bc[0].currency;
     const x=bc.find(r=>r.currency===collectCur), col=Number(x.collected||0), out=Number(x.outstanding||0), tot=col+out;

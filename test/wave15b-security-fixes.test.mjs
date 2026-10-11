@@ -27,7 +27,9 @@ t('portal.html video href/img guard the URL scheme (no raw esc(m.url) in href)',
 t('invite.html map link scheme-allowlists d.mapUrl', () => {
   const s = read('public/invite.html');
   assert.ok(!/d\.mapUrl\?` <a href="\$\{esc\(d\.mapUrl\)\}"/.test(s), 'invite map href must not be unconditionally rendered');
-  assert.match(s, /d\.mapUrl&&\/\^https\?:\\\/\\\/\/i\.test\(d\.mapUrl\)/, 'invite map href must test https scheme');
+  // E9 (0101): https:// only (no http:, javascript:, quotes / spaces) - else a maps search built from venue + address
+  assert.match(s, /if\(\/\^https:\\\/\\\/\[\^\\s"'<>\\\\\]\+\$\/i\.test\(u\) && u\.length<=500\) return u;/, 'invite map href must test https scheme');
+  assert.match(s, /const mh=mapHref\(d\)/, 'invite map href goes through mapHref');
 });
 t('proposal-view.html filters gallery images to http(s)', () => {
   const s = read('public/proposal-view.html');

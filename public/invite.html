@@ -88,6 +88,10 @@
   .sched li{display:flex;gap:16px;padding:14px 0;border-top:1px dashed var(--line)}
   .sched li:first-child{border-top:0}
   .sched .t{font-weight:600;color:var(--accent);min-width:96px;font-variant-numeric:tabular-nums}
+  .rsvp{text-align:center} .rsvp .note{padding:4px 0 12px;font-size:18px}
+  .rsvp-btns{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+  .rsvp-b{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:12px 20px;border-radius:999px;background:var(--accent);color:#fff;font-weight:600;text-decoration:none}
+  .rsvp-b.alt{background:transparent;color:var(--accent);border:1px solid var(--accent)}
   .note{text-align:center;color:var(--soft);font-family:var(--serif);font-style:italic;font-size:21px;padding:14px 0}
   /* gallery */
   .gal{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
@@ -193,8 +197,8 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="/telemetry.js?v=3"></script>
 <script src="/config.js?v=98"></script>
-<script src="/event-name.js?v=3"></script>
-<script src="/country-profile.js?v=3"></script><script src="/store-api.js?v=172"></script>
+<script src="/event-name.js?v=4"></script>
+<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=173"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -206,19 +210,39 @@
   const EYEBROW={wedding:"Together with their families",engagement:"Save the date",
     birthday:"You're invited to celebrate",corporate:"You're invited",general:"You're invited"};
 
+  // E8: the studio's country style, never the guest browser's (IN/AE 28 December 2026, US December 28, 2026)
+  let CC="IN";
   function fmtDate(d){ if(!d) return "";
-    const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d));
-    const dt=m?new Date(+m[1],+m[2]-1,+m[3]):new Date(d);
-    if(isNaN(dt)) return String(d);
-    return dt.toLocaleDateString(undefined,{weekday:"long",year:"numeric",month:"long",day:"numeric"}); }
+    const HC=window.HelmCountry; const s=HC&&HC.formatDate?HC.formatDate(CC,String(d)):"";
+    return s||String(d); }
+  function fmtTime(t){ const HC=window.HelmCountry; return (HC&&HC.formatTime&&HC.formatTime(t))||String(t||""); }
+  function whenText(d){ return [fmtDate(d.date), d.time?fmtTime(d.time):""].filter(Boolean).join(" · "); }
+  // E9: only an https map link is used; else "Open in Maps" from the venue + address
+  function mapHref(d){
+    const u=typeof d.mapUrl==="string"?d.mapUrl.trim():"";
+    if(/^https:\/\/[^\s"'<>\\]+$/i.test(u) && u.length<=500) return u;
+    const q=[d.venue,d.address].filter(x=>typeof x==="string"&&x.trim()).join(", ").slice(0,300);
+    return q?"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(q):"";
+  }
+  // E10: a real way to reply - WhatsApp (prefilled) + Call when the host phone is set
+  function rsvpHtml(d, names){
+    const raw=typeof d.hostPhone==="string"?d.hostPhone:"", digits=raw.replace(/[^\d+]/g,"");
+    if(digits.replace(/\D/g,"").length<7) return "";
+    const wa=(window.BPStore&&BPStore.waNumber)?BPStore.waNumber(digits,CC):digits.replace(/\D/g,"");
+    const txt="Hi"+(d.host?" "+String(d.host).slice(0,60):"")+", I'll attend "+String(names||"the event").slice(0,80)+(d.date?" on "+fmtDate(d.date):"")+". Guests: ";
+    const by=d.rsvpBy?`<p class="note">Kindly reply by ${esc(fmtDate(d.rsvpBy))}</p>`:"";
+    return `<section class="blk rv"><div class="card rsvp"><h2 class="sec-t">RSVP</h2>${by}<div class="rsvp-btns">`
+      +(wa?`<a class="rsvp-b" href="https://wa.me/${esc(wa)}?text=${esc(encodeURIComponent(txt))}" target="_blank" rel="noopener noreferrer">RSVP on WhatsApp</a>`:"")
+      +`<a class="rsvp-b alt" href="${esc("tel:"+digits)}">Call</a></div></div></section>`;
+  }
   const initials=n=>{ const p=String(n||"").trim().split(/\s+|&/).filter(Boolean); return p.slice(0,2).map(x=>x[0]).join("").toUpperCase()||"♥"; };
 
   function factsHtml(d){
     const items=[];
-    const when=[fmtDate(d.date), d.time||""].filter(Boolean).join(" · ");
+    const when=whenText(d);
     if(when) items.push(`<div class="fact"><p class="k">When</p><p class="v">${esc(when)}</p></div>`);
     if(d.venue||d.address){
-      const map=(d.mapUrl&&/^https?:\/\//i.test(d.mapUrl))?` <a href="${esc(d.mapUrl)}" target="_blank" rel="noopener noreferrer">View map</a>`:"";
+      const mh=mapHref(d), map=mh?` <a href="${esc(mh)}" target="_blank" rel="noopener noreferrer">${/^https:\/\/www\.google\.com\/maps\/search\//.test(mh)&&mh!==d.mapUrl?"Open in Maps":"View map"}</a>`:"";
       items.push(`<div class="fact"><p class="k">Where</p><p class="v">${esc(d.venue||"")}${d.venue&&d.address?"<br>":""}<span style="font-weight:400;color:var(--soft)">${esc(d.address||"")}</span>${map}</p></div>`);
     }
     if(d.dressCode) items.push(`<div class="fact"><p class="k">Dress code</p><p class="v">${esc(d.dressCode)}</p></div>`);
@@ -242,17 +266,20 @@
   function render(site){
     SITE=site;
     const d=site.data||{};
+    { const c=String(d.country||site.country||"").toUpperCase(); CC=/^(IN|AE|US)$/.test(c)?c:(/^\+1\b/.test(String(d.hostPhone||""))?"US":/^\+971/.test(String(d.hostPhone||""))?"AE":"IN"); }
     document.body.className="t-"+(["eternal","promise","confetti","summit","soiree"].includes(site.template)?site.template:"soiree");
     const type=site.event_type||"general";
-    const names=d.names||site.title||"You're invited";
+    // E4: an auto event code (WED_HYD_300_28DEC26) is never shown to guests
+    const HEN=window.HelmEventName, tOk=site.title&&!(HEN&&HEN.isAuto(String(site.title)))?String(site.title):"";
+    const names=d.names||tOk||"You're invited";
     const eyebrow=d.eyebrow||EYEBROW[type]||"You're invited";
-    document.title=(site.title||names)+" — Invitation";
+    document.title=(tOk||names)+" — Invitation";
     // Scheme-allowlist every media URL to http(s) before it is rendered — a stored
     // value is never injected as HTML, only ever as an <img>/background url(). Matches
     // proposal-view's gallery guard; blocks javascript:/data:/vbscript: etc.
     const photos=Array.isArray(d.photos)?d.photos.filter(u=>/^https?:\/\//i.test(u||"")):[];
     const hero0=photos[0];
-    const when=[fmtDate(d.date), d.time||""].filter(Boolean).join(" · ");   // plain text
+    const when=whenText(d);   // plain text
 
     // cover gate
     $("#coverEyebrow").textContent=eyebrow;
@@ -285,7 +312,7 @@
       ${galleryHtml(photos)}
       ${factsHtml(d)}
       ${scheduleHtml(d.schedule)}
-      ${d.rsvpBy?`<p class="note rv">Kindly reply by ${esc(fmtDate(d.rsvpBy))}</p>`:""}
+      ${rsvpHtml(d, names)}
       <div class="foot rv">With love &amp; joy
         <span class="madeby">Made with <a href="/" target="_blank" rel="noopener">Helm Events</a></span>
       </div>`;

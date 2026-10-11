@@ -148,6 +148,7 @@
             <div class="fld"><label for="c_type">Event type</label><input id="c_type" list="eventTypeList" placeholder="Pick or type a new one…"><datalist id="eventTypeList"></datalist></div>
             <div class="fld"><label for="c_date">Event date</label><input id="c_date" type="date" data-min-today></div>
             <div class="fld"><label for="c_city">City</label><input id="c_city" maxlength="60" autocomplete="address-level2" placeholder="e.g. Hyderabad"></div>
+            <div class="fld"><label for="c_state" id="c_stateLbl">Client state</label><select id="c_state" autocomplete="address-level1"><option value="">Not set</option></select></div>
             <div class="fld"><label for="c_guests">Guests</label><input id="c_guests" type="number" min="0"></div>
             <div class="fld"><label for="c_budget">Budget (₹)</label><input id="c_budget" type="number" min="0"></div>
           </div>
@@ -257,7 +258,7 @@
               <div class="s-40d0688" id="q_couponMsg" role="status" aria-live="polite"></div></div>
             <div class="fld"><label for="q_taxExempt"><input type="checkbox" id="q_taxExempt"> Tax-exempt client (no tax charged)</label></div>
           </div>
-          <div class="msg warn" id="q_curBanner" role="status" hidden><span id="q_curBannerTxt"></span> <button type="button" class="btn" id="q_curSwitch">Switch</button></div>
+          <div class="msg warn" id="q_curBanner" hidden><span id="q_curBannerTxt" role="status"></span> <button type="button" class="btn" id="q_curSwitch" hidden></button></div>
           <div class="s-7ffa8ad">
             <button type="button" class="btn" id="q_pdf">⬇ Download quote PDF</button>
             <button type="button" class="btn primary" id="q_save">Save quotation (new version)</button>
@@ -347,10 +348,10 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
-<script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=172"></script>
+<script src="event-name.js?v=4"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=173"></script>
 <script src="tour.js?v=9"></script>
-<script src="booklet.js?v=15"></script>
+<script src="booklet.js?v=16"></script>
 <script src="share-checklist.js?v=9"></script>
 <script src="flow-layout-sync.js?v=4"></script>
 <script src="event-sizing.js?v=5"></script>
@@ -468,8 +469,38 @@
   // Quotes page); else studio billing state vs client state (inter-state -> IGST); else intra
   let flowStudioState="";
   function flowPos(){
+    // E1: when both the studio billing state and the client state are known they decide it
+    const auto=BPStore.tax.placeOfSupply(flowStudioState, ev&&ev.client&&ev.client.state);
+    if(auto) return auto;
     const kp=ev&&ev.pricing&&ev.pricing.placeOfSupply; if(kp==="inter"||kp==="intra") return kp;
-    return BPStore.tax.placeOfSupply(flowStudioState, ev&&ev.client&&ev.client.state)||"intra";
+    return "intra";
+  }
+  // E1: client state / emirate list (HelmCountry regions of the quote's tax country)
+  const CITY_STATE={hyderabad:"Telangana",secunderabad:"Telangana",warangal:"Telangana",bengaluru:"Karnataka",bangalore:"Karnataka",mysuru:"Karnataka",mysore:"Karnataka",mangaluru:"Karnataka",
+    mumbai:"Maharashtra",pune:"Maharashtra",nagpur:"Maharashtra",nashik:"Maharashtra",delhi:"Delhi","new delhi":"Delhi",chennai:"Tamil Nadu",coimbatore:"Tamil Nadu",madurai:"Tamil Nadu",
+    kolkata:"West Bengal",ahmedabad:"Gujarat",surat:"Gujarat",jaipur:"Rajasthan",udaipur:"Rajasthan",jodhpur:"Rajasthan",lucknow:"Uttar Pradesh",noida:"Uttar Pradesh",agra:"Uttar Pradesh",varanasi:"Uttar Pradesh",
+    kochi:"Kerala",cochin:"Kerala",thiruvananthapuram:"Kerala",trivandrum:"Kerala",visakhapatnam:"Andhra Pradesh",vizag:"Andhra Pradesh",vijayawada:"Andhra Pradesh",tirupati:"Andhra Pradesh",
+    goa:"Goa",gurugram:"Haryana",gurgaon:"Haryana",chandigarh:"Chandigarh",indore:"Madhya Pradesh",bhopal:"Madhya Pradesh",patna:"Bihar",bhubaneswar:"Odisha",guwahati:"Assam",amritsar:"Punjab",
+    dubai:"Dubai","abu dhabi":"Abu Dhabi",sharjah:"Sharjah",ajman:"Ajman"};
+  function clientRegions(){ const HC=window.HelmCountry; if(!HC) return {label:"Client state",regions:[]}; const cc=fTax().country||"IN"; const m=HC.formMeta(cc); return {label:"Client "+String(m.regionLabel||"state").toLowerCase(), regions:m.regions||[]}; }
+  function guessClientState(cl){
+    const {regions}=clientRegions(); if(!regions.length) return "";
+    const city=String(cl.city||"").trim().toLowerCase();
+    if(CITY_STATE[city] && regions.some(r=>r.name===CITY_STATE[city])) return CITY_STATE[city];
+    const txt=" "+[cl.address,cl.venue,cl.city].filter(Boolean).join(" ").toLowerCase().replace(/[^a-z]+/g," ")+" ";
+    for(const r of regions){ const n=" "+String(r.name).toLowerCase().replace(/[^a-z]+/g," ").trim()+" "; if(n.trim() && txt.indexOf(n)>=0) return r.name; }
+    for(const k of Object.keys(CITY_STATE)) if(txt.indexOf(" "+k+" ")>=0 && regions.some(r=>r.name===CITY_STATE[k])) return CITY_STATE[k];
+    return "";
+  }
+  function fillClientStates(cl){
+    const sel=$("#c_state"); if(!sel) return; const {label,regions}=clientRegions();
+    $("#c_stateLbl").textContent=label;
+    sel.innerHTML='<option value="">Not set</option>'+regions.map(r=>`<option value="${esc(r.name)}">${esc(r.name)}</option>`).join("");
+    let v=typeof cl.state==="string"?cl.state:"";
+    if(v && !regions.some(r=>r.name===v)){ const f=window.HelmCountry&&HelmCountry.findRegion(fTax().country,v); v=f?f.name:""; if(!v&&cl.state) sel.insertAdjacentHTML("beforeend",`<option>${esc(cl.state)}</option>`), v=cl.state; }
+    if(!v) v=guessClientState(cl);   // prefill from city / venue / address; saved with the client step
+    sel.value=v||"";
+    if(v && v!==cl.state) ev.client=Object.assign({}, ev.client||{}, {state:v});
   }
   function currentInputs(){
     const oi = BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
@@ -500,6 +531,7 @@
     rows+=`<div class="prow sub"><span>Subtotal</span><span class="amt">${inr(t.subtotal)}</span></div>`;
     if(t.discount>0) rows+=`<div class="prow"><span>Discount</span><span class="amt">− ${inr(t.discount)}</span></div>`;
     rows+=`<div class="prow"><span>${esc(fTax().name)}${t.taxExempt?" (exempt)":t.taxInclusive?" (included)":""}</span><span class="amt">${inr(t.totalGst)}</span></div>`;
+    if(fTax().country==="IN" && !t.taxExempt && t.totalGst>0) rows+=`<div class="prow posHint" style="color:var(--ink-3);font-size:11px"><span>${p.placeOfSupply==="inter"?"IGST (inter-state)":"CGST+SGST (intra-state)"}</span><span></span></div>`;
     rows+=`<div class="prow total"><span>Total</span><span class="amt">${inr(t.total)}</span></div>`;
     rows+=`<div class="prow" style="font-style:italic;color:var(--ink-3);font-size:11px;justify-content:flex-end">${fTax().country!=="IN"?"":esc(BPStore.amountInWords(t.total))}</div>`;
     $("#priceRows").innerHTML=rows;
@@ -524,6 +556,7 @@
       name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:emailRaw,
       phone:phoneRaw,
       guests:guestsN, budget:budgetN, city:$("#c_city").value.trim().slice(0,60)||null,
+      state:$("#c_state").value||null,
       eventDate:$("#c_date").value||null });
     try{
       const row=await BPStore.quotes.updateMeta(id,{ client, eventType:$("#c_type").value.trim()||null, eventDate:$("#c_date").value||null }, ev.updatedAt);
@@ -590,7 +623,7 @@
       name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:$("#c_email").value.trim(),
       phone:$("#c_phone").value.trim(),
       guests:$("#c_guests").value!==""?+$("#c_guests").value:null, budget:$("#c_budget").value!==""?+$("#c_budget").value:null,
-      city:$("#c_city").value.trim().slice(0,60)||null, eventDate:$("#c_date").value||null });
+      city:$("#c_city").value.trim().slice(0,60)||null, state:$("#c_state").value||null, eventDate:$("#c_date").value||null });
     // H-02: Client guests is the single source of truth — flow it forward to the Layout
     // (#g_guests) and Quotation (#q_guests) fields so all three agree. Skip #q_guests only
     // if the user manually overrode it there.
@@ -731,10 +764,14 @@
     if(!pr || !(+pr.total>0) || quoteBlocked() || !quoteIsFutureOpen()) return null;
     const lines=[], next={}, snap=pr._ratesAt||null;
     const chairs=nOrNull(pr.chairs)||0, guests=nOrNull(pr.guests)||0;
+    // E2: with a _ratesAt snapshot, only a change of the STUDIO rate since pricing counts - a hand-typed
+    // quote price, a package price or new catalog defaults never make a freshly saved quote look stale
+    const moved=(k,live)=>!snap || !(k in snap) || nOrNull(snap[k])!==live;
     const oc=nOrNull(pr.chairPrice), nc=nOrNull(rates.chairPrice);
-    if(chairs>0 && oc!=null && nc!=null && oc!==nc){ lines.push({ label:"Chair rate · "+chairs+" chairs", from:oc, to:nc, a:chairs*oc, b:chairs*nc }); next.chairPrice=nc; }
+    if(chairs>0 && oc!=null && nc!=null && oc!==nc && moved("chairPrice",nc)){ lines.push({ label:"Chair rate · "+chairs+" chairs", from:oc, to:nc, a:chairs*oc, b:chairs*nc }); next.chairPrice=nc; }
     const op=nOrNull(pr.platePrice), np=appliedPkg ? nOrNull(appliedPkg.price_per_plate) : nOrNull(rates.platePrice);
-    if(guests>0 && op!=null && np!=null && op!==np){ lines.push({ label:"Plate price"+(appliedPkg?" ("+appliedPkg.name+")":"")+" · "+guests+" plates", from:op, to:np, a:guests*op, b:guests*np }); next.platePrice=np; }
+    const pkgMoved=!snap ? true : appliedPkg ? (snap.pkg!==appliedPkg.name || nOrNull(snap.pkgPrice)!==np) : (snap.pkg ? true : nOrNull(snap.platePrice)!==np);
+    if(guests>0 && op!=null && np!=null && op!==np && pkgMoved){ lines.push({ label:"Plate price"+(appliedPkg?" ("+appliedPkg.name+")":"")+" · "+guests+" plates", from:op, to:np, a:guests*op, b:guests*np }); next.platePrice=np; }
     // décor / setup: only when the quote still follows the layout (not hand-edited) and the object
     // prices / layout base themselves changed since it was priced (a layout change is synced elsewhere)
     const oo=nOrNull(pr.other);
@@ -745,12 +782,12 @@
     }
     const og=nOrNull(pr.gstPct), ng=liveGst();
     const tx=fTax();
-    if(og!=null && og!==ng){ lines.push({ label:tx.name, pct:true, from:og, to:ng }); next.gstPct=ng; }
+    if(og!=null && og!==ng && moved("gstPct",ng)){ lines.push({ label:tx.name, pct:true, from:og, to:ng }); next.gstPct=ng; }
     // R4: "prices include tax" switched since the quote was priced -> the total changes too
     const oi2=String(pr.taxInclusive).toLowerCase()==="true";
     if(oi2!==tx.inclusive){ lines.push({ label:"Prices include "+tx.name, flag:true, from:oi2, to:tx.inclusive }); next.taxInclusive=tx.inclusive; }
     const os=nOrNull(pr.serviceChargePct)||0, ns=+rates.serviceChargePct||0;
-    if(os!==ns){ lines.push({ label:"Service charge", pct:true, from:os, to:ns }); next.serviceChargePct=ns; }
+    if(os!==ns && moved("serviceChargePct",ns)){ lines.push({ label:"Service charge", pct:true, from:os, to:ns }); next.serviceChargePct=ns; }
     if(!lines.length) return null;
     const oldTotal=+pr.total, newTotal=BPStore.pricing.quoteTotal(Object.assign({}, pr, next, { catering:Object.assign({}, pr.catering||{}, next.gstPct!=null?{gstPct:next.gstPct}:{}) })).total;
     return { lines, next, oldTotal, newTotal, sig:JSON.stringify(next) };
@@ -804,13 +841,15 @@
     if(p.chairs>0) rows.push(line(`Seating — ${p.chairs} chairs × ${inr(p.chairPrice)}`, p.chairs*p.chairPrice));
     if(p.guests>0) rows.push(line(`Catering${p._packageName?' ('+esc(p._packageName)+')':''} — ${p.guests} × ${inr(p.platePrice)}`, p.guests*p.platePrice));
     if(p.other>0) rows.push(line('Décor / equipment & setup', p.other));
-    const html=`<html><head><title>Quotation ${esc(ev.code||'')}</title>
+    // E4: the client sees a friendly title; the auto code stays as the reference
+    const fTitle=window.HelmEventName?HelmEventName.friendlyTitle(Object.assign({}, ev, {client:cl, eventType:$("#c_type").value||ev.eventType})):(ev.title||"");
+    const html=`<html><head><title>Quotation · ${esc(fTitle)}</title>
       <style>body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#1b1930;max-width:720px;margin:24px auto;padding:0 20px}
       h1{font-size:20px;margin:0} .muted{color:#8b8698;font-size:13px} table{width:100%;border-collapse:collapse;margin-top:16px;font-size:14px}
       td{padding:8px 0;border-bottom:1px solid #eee} .tot td{font-weight:800;font-size:16px;border-top:2px solid #333;border-bottom:none}
       .hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}</style></head>
       <body>
-      <div class="hd"><div><h1>Quotation</h1><div class="muted">${esc(ev.code||'')} · ${new Date().toLocaleDateString('en-IN')}</div></div>
+      <div class="hd"><div><h1>Quotation</h1><div style="font-weight:600;margin-top:4px">${esc(fTitle)}</div><div class="muted">Ref ${esc(ev.code||'')} · ${new Date().toLocaleDateString('en-IN')}</div></div>
         <div style="text-align:right"><div style="font-weight:700">${esc(cl.name||'')}</div><div class="muted">${esc(cl.phone||'')} ${esc(cl.email||'')}</div><div class="muted">${esc(cl.venue||'')}</div></div></div>
       <table>${rows.join('')}
         <tr><td>Subtotal</td><td style="text-align:right">${inr(t.subtotal)}</td></tr>
@@ -1050,6 +1089,8 @@
     const qT=BPStore.quoteTax(ev||{}), sT=BPStore.tax.resolve(rates||{});
     quoteKeep = !taxSwitched && priced && qT.country!==sT.country;   // C3: a re-render/reload of rates never undoes an explicit Switch
     const b=$("#q_curBanner"); if(!b) return; b.hidden=!quoteKeep;
+    // E2: the Switch button never shows (or is announced) on its own - only with its banner text
+    $("#q_curSwitch").hidden=!quoteKeep; if(!quoteKeep){ $("#q_curSwitch").textContent=""; $("#q_curBannerTxt").textContent=""; }
     if(quoteKeep){ $("#q_curBannerTxt").textContent=`This quote is in ${qT.currency} (${qT.name}). Your studio now prices in ${sT.currency} (${sT.name} ${sT.rate}%).`; $("#q_curSwitch").textContent=`Switch to ${sT.currency}`; }
   }
   async function retrySection(k){
@@ -1069,6 +1110,7 @@
     $("#c_name").value=cl.name||""; $("#c_company").value=cl.company||""; $("#c_email").value=cl.email||"";
     $("#c_phone").value=cl.phone||""; $("#c_type").value=ev.eventType||""; $("#c_date").value=cl.eventDate||ev.eventDate||"";
     $("#c_guests").value=cl.guests!=null?cl.guests:""; $("#c_city").value=typeof cl.city==="string"?cl.city:""; $("#c_budget").value=cl.budget!=null?cl.budget:"";
+    fillClientStates(cl);
     $("#g_guests").value=cl.guests!=null?cl.guests:"";
     await runSection("rates");
     await runSection("discovery");
@@ -1153,6 +1195,8 @@
     // writes happen on the explicit Save buttons or via the save-on-leave prompt.
     // This stops empty / barely-touched quotes from being silently saved.
     ["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_guests","c_budget"].forEach(f=>$("#"+f).addEventListener("input",()=>{ syncClientMem(); if(f==="c_guests"||f==="c_type") renderPrice(); }));
+    $("#c_state").addEventListener("change",()=>{ syncClientMem(); renderPrice(); });
+    $("#c_city").addEventListener("change",()=>{ if(!$("#c_state").value){ const g=guessClientState(ev.client||{}); if(g){ $("#c_state").value=g; syncClientMem(); renderPrice(); } } });
     ["v_name","v_addr","v_venue_id","v_setting","v_vlen","v_vwid"].forEach(f=>{ $("#"+f).addEventListener("input",syncVenueMem); $("#"+f).addEventListener("change",syncVenueMem); });
     ["q_chairs","q_guests","q_chairPrice","q_platePrice","q_other","q_discount"].forEach(f=>$("#"+f).addEventListener("input",renderPrice));
     $("#q_guests").addEventListener("input",()=>{ qGuestsOverridden=true; });
