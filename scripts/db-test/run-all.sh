@@ -74,6 +74,7 @@ run "booklet-images"     "BOOKLET-IMAGES: ALL PASS \(25/25\)" psql -q -f tests/d
 run "r7-polish"          "R7-POLISH: ALL PASS \(18/18\)" psql -q -f tests/db/r7-polish.sql
 run "venues"            "VENUES: ALL PASS \(27/27\)" psql -q -f tests/db/venues.sql
 run "studio-templates"  "STUDIO-TEMPLATES: ALL PASS \(26/26\)" psql -q -f tests/db/studio-templates-0096.sql
+run "staff-roles-0106"  "STAFF-ROLES-0106: ALL PASS \(20/20\)" psql -q -f tests/db/staff-roles-0106.sql
 run "item-specs"         "ITEM-SPECS: ALL PASS \(30/30\)" psql -q -f tests/db/item-specs.sql
 run "smart-import"       "SMART-IMPORT: ALL PASS \(30/30\)" psql -q -f tests/db/smart-import.sql
 run "item-spec-parity"   "item-spec-parity: 9 parity case\(s\) passed, 0 failed" node tests/db/item-spec-parity.mjs

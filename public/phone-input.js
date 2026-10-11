@@ -262,6 +262,26 @@
   var openInst = null;
   doc.addEventListener("mousedown", function (e) { if (openInst && !openInst.wrap.contains(e.target)) openInst.close(false); }, true);
 
+  // The page's computed metrics for this input → CSS custom properties on the wrapper
+  // (theme.css .hp reads --hp-fs / --hp-lh / --hp-h / --hp-py / --hp-px / --hp-r).
+  // Values that don't resolve to a length (e.g. "auto" in a hidden modal) are skipped,
+  // so the theme.css fallbacks apply.
+  function matchSiblingMetrics(wrap, input) {
+    try {
+      var cs = global.getComputedStyle && global.getComputedStyle(input); if (!cs) return;
+      var px = function (v) { return /^\d+(\.\d+)?px$/.test(String(v || "")) ? v : ""; };
+      var set = function (k, v) { if (v) wrap.style.setProperty(k, v); };
+      set("--hp-fs", px(cs.fontSize));
+      set("--hp-lh", cs.lineHeight && cs.lineHeight !== "normal" ? px(cs.lineHeight) : "");
+      var h = parseFloat(cs.height), mh = parseFloat(cs.minHeight);
+      var hh = Math.max(isFinite(h) && px(cs.height) ? h : 0, isFinite(mh) ? mh : 0);
+      if (hh > 0 && cs.boxSizing !== "border-box") hh += (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0) + (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+      if (hh > 0) set("--hp-h", hh + "px");
+      set("--hp-py", px(cs.paddingTop)); set("--hp-px", px(cs.paddingRight));
+      set("--hp-r", px(cs.borderTopLeftRadius));
+    } catch (e) {}
+  }
+
   function attach(input, opts) {
     if (!input || input.tagName !== "INPUT") return null;
     if (input.helmPhone) return input.helmPhone;
@@ -289,6 +309,9 @@
     var empty = el("p", "hp-empty", "No country matches."); empty.hidden = true;
     pop.appendChild(search); pop.appendChild(list); pop.appendChild(empty);
 
+    // #phone-font: the field must look exactly like its sibling inputs — copy the page's own
+    // font-size / line-height / height / padding / radius (measured BEFORE we restyle it).
+    matchSiblingMetrics(wrap, input);
     input.parentNode.insertBefore(wrap, input);
     wrap.appendChild(btn); wrap.appendChild(input); wrap.appendChild(pop);
     input.classList.add("hp-num");

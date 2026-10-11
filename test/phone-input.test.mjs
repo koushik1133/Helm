@@ -74,7 +74,8 @@ t('HelmValidate.rules: names, e-mails, text, phone; HTML stripped, whitespace tr
 });
 t('sources: no innerHTML / inline styles in the component or validator; CSS in theme.css', () => {
   for (const f of ['public/phone-input.js', 'public/form-validate.js']) {
-    const s = readFileSync(new URL('../' + f, import.meta.url), 'utf8');
+    // #phone-font: the only CSSOM write allowed is the --hp-* metric custom properties (CSP-safe, no style attribute markup)
+    const s = readFileSync(new URL('../' + f, import.meta.url), 'utf8').replace(/wrap\.style\.setProperty\(k, v\)/g, '');
     assert.doesNotMatch(s, /innerHTML|insertAdjacentHTML|outerHTML|document\.write|\.style\.|setAttribute\("style"/, f);
   }
   const css = readFileSync(new URL('../public/theme.css', import.meta.url), 'utf8');

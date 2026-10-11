@@ -147,3 +147,5 @@ forward  supabase/migrations/0100_demo_seed_fix.sql
 forward  supabase/migrations/0101_e2e_usability.sql
 # 0102 (UAE demo seed: _demo_seed_ae (Dubai venues, halal AED packages, +971 sample numbers, VAT 5% events, bank-transfer advance) + _demo_seed_for country dispatcher; seed_demo_data / reset_demo_data call the dispatcher; only is_demo rows; functions only) goes after 0101 (needs 0097, 0100, 0089).
 forward  supabase/migrations/0102_uae_demo_seed.sql
+# 0106 (staff roles + departments: organizations.staff_departments text[] (additive); staff_departments() / staff_department_add(name) gated by staff view / edit; staff_set_login_role(staff, role) admin only, wraps admin_set_role and mirrors the role label onto an untitled linked staff row; nothing existing rewritten) goes after 0102 (needs 0041, 0045, 0074, has_area).
+forward  supabase/migrations/0106_staff_roles_departments.sql
