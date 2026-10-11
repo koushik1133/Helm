@@ -147,3 +147,5 @@ forward  supabase/migrations/0100_demo_seed_fix.sql
 forward  supabase/migrations/0101_e2e_usability.sql
 # 0102 (UAE demo seed: _demo_seed_ae (Dubai venues, halal AED packages, +971 sample numbers, VAT 5% events, bank-transfer advance) + _demo_seed_for country dispatcher; seed_demo_data / reset_demo_data call the dispatcher; only is_demo rows; functions only) goes after 0101 (needs 0097, 0100, 0089).
 forward  supabase/migrations/0102_uae_demo_seed.sql
+# 0105 (check-out shortage: _checkout_free / checkout_availability / checkout_equipment_smart - structured shortage instead of a raw error, partial check-out, never negative; leads.birthday / leads.anniversary optional; nurture_templates fill-only seed of 12 new occasions (+ birthday/anniversary if missing)) goes after 0102 (needs 0073, 0071, 0025, phase59 pk).
+forward  supabase/migrations/0105_checkout_shortage_nurture.sql

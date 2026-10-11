@@ -3712,6 +3712,28 @@ window.HelmUrl = HelmUrl;
           { p_item: itemId, p_quote: quoteId || null, p_qty: Number(qty), p_issued_to: issuedTo, p_issued_to_id: crewId || null, p_note: note || null });
         if (error) throw error; return data;
       },
+      // 0105: availability for a check-out on this event's date (open check-outs on any event +
+      // other events' same-day reservations), who holds the rest, due-back dates, substitutes.
+      // null when the RPC isn't deployed (older DB) - the page then computes it client-side.
+      async availability(itemId, quoteId) {
+        if (mode !== "supabase") return null;
+        const { data, error } = await supa.rpc("checkout_availability", { p_item: itemId, p_quote: quoteId || null });
+        if (error) { if (rpcMissing(error)) return null; throw error; }
+        return data;
+      },
+      // 0105: server-enforced check-out. A shortage is an ANSWER, not an error:
+      //   {ok:true, checkout_id, qty_out, partial, shortfall} | {ok:false, code:"shortage", requested, available, blocking, ...}
+      // partial=true checks out only what is free and records the shortfall. Falls back to the
+      // 0073 checkout_equipment when the RPC is missing (that one still refuses an over-issue).
+      async outSmart(itemId, quoteId, qty, issuedTo, crewId, note, partial) {
+        if (mode !== "supabase") throw new Error("Check-out needs Supabase");
+        const { data, error } = await supa.rpc("checkout_equipment_smart",
+          { p_item: itemId, p_quote: quoteId || null, p_qty: Number(qty), p_issued_to: issuedTo, p_issued_to_id: crewId || null, p_note: note || null, p_partial: !!partial });
+        if (!error) return data;
+        if (!rpcMissing(error)) throw error;
+        const row = await this.out(itemId, quoteId, qty, issuedTo, crewId, note);
+        return { ok: true, checkout_id: row && row.id, qty_out: Number(qty), partial: false, shortfall: 0, legacy: true };
+      },
       // bring it back: returned count + who signed off; writeoff reduces stock by the missing amount
       async in(id, qtyIn, returnedBy, writeoff) {
         if (mode !== "supabase") throw new Error("Check-in needs Supabase");

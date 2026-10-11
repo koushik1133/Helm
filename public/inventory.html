@@ -75,6 +75,14 @@
   .tab:hover{color:var(--ink-2)} .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
   .miss{background:#fdecec;color:#b42318;font-size:12px;font-weight:700;padding:2px 9px;border-radius:20px}
   .backok{background:#e7f6ee;color:#0f7a43;font-size:12px;font-weight:700;padding:2px 9px;border-radius:20px}
+  /* 0105: friendly shortage panel at check-out */
+  .coshort{margin-top:12px;border:1px solid #f3d19e;background:#fffaf0;border-radius:12px;padding:12px 14px;color:var(--ink)}
+  .coshort h3{margin:0 0 6px;font-size:14px;line-height:1.4}
+  .coshort ul{margin:0 0 10px;padding-left:18px;font-size:13px;color:var(--ink-2);line-height:1.5}
+  .coshort .acts{display:flex;flex-wrap:wrap;gap:8px}
+  .coshort .acts .btn{height:auto;min-height:34px;white-space:normal;text-align:left}
+  .coshort .od{margin:0 0 10px;font-size:13px} .coshort .od li{margin-bottom:4px}
+  html[data-theme="dark"] .coshort{background:#2a2113;border-color:#6b5320}
   .onloan{background:#fff7e6;color:#946200;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px}
 
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -89,7 +97,7 @@
   .sub2{font-size:12px;color:var(--ink-3)}
   .attrbox{margin-top:12px}.attrbox summary{cursor:pointer;font-weight:600;font-size:13px;padding:4px 0}.attrline{font-size:12px;color:var(--ink-3);margin-top:2px}
 </style>
-<link rel="stylesheet" href="theme.css?v=76">
+<link rel="stylesheet" href="theme.css?v=77">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -162,6 +170,7 @@
           <div class="fld"><label for="co_note">Note</label><input id="co_note" placeholder="optional"></div>
           <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="co_add">Check out</button></div>
         </div>
+        <div id="coShort" class="coshort" role="alert" aria-live="assertive" hidden></div>
       </div>
 
       <div class="card table-scroll s-8d8d59e">
@@ -249,11 +258,12 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=174"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=175"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=3"></script>
 <script src="tour.js?v=9"></script>
+<script src="checkout-shortage.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -621,6 +631,57 @@
   $("#importBtn").addEventListener("click",()=>HelmImport.open({ entity:"inventory", onDone:(sum)=>{ if(sum) return refreshAfterImport(); } }));
   window.addEventListener("helm:import-done",(e)=>{ if(e.detail&&e.detail.entity==="inventory") refreshAfterImport(); });
 
+  /* ---- 0105: check-out with a friendly shortage panel (never a raw error, never negative stock) ---- */
+  let coPending=null;   // {itemId, qty, to, crewId, note, info}
+  const CS=window.HelmCheckoutShortage;
+  const fmtD=(d)=>d?(fmtDate(d)||d):"";
+  // older DB without checkout_availability: same math client-side
+  async function localShortage(itemId){
+    const [all,res]=await Promise.all([BPStore.inventory.checkouts.list(), BPStore.inventory.reservations()]);
+    const qmeta={}; ((await BPStore.quotes.list().catch(()=>[]))||[]).forEach(q=>{ qmeta[q.id]={ title:q.title||q.code, event_date:q.eventDate||q.event_date||null, status:q.status,
+      lifecycle_stage:q.lifecycleStage||q.lifecycle_stage, archived_at:q.archivedAt||q.archived_at, deleted_at:q.deletedAt||q.deleted_at }; });
+    const it=items.find(x=>x.id===itemId)||{};
+    const info=CS.compute({ item:it, checkouts:all, reservations:res, quotes:qmeta, quoteId:quoteId||null, today:BPStore.todayLocal() });
+    info.substitutes=CS.substitutes(items, itemId, (i)=>CS.compute({ item:i, checkouts:all, reservations:res, quotes:qmeta, quoteId:quoteId||null }).available);
+    return info;
+  }
+  function hideShort(){ $("#coShort").hidden=true; $("#coShort").innerHTML=""; coPending=null; }
+  function showShort(info, req){
+    coPending.info=info;
+    const lines=CS.reasons(info, fmtD), acts=CS.actions(info, req);
+    const od=(info.overdue||[]);
+    $("#coShort").innerHTML=`<h3>${esc(CS.headline(info, req, fmtD))}</h3>
+      <ul>${lines.map(l=>`<li>${esc(l)}</li>`).join("")}</ul>
+      ${od.length?`<ul class="od">${od.map(b=>`<li>${esc(b.event)}: ${esc(String(b.qty))} due back ${esc(fmtD(b.due_back))} <button type="button" class="btn sm" data-ci="${esc(b.checkout_id)}">Check in</button></li>`).join("")}</ul>`:""}
+      <div class="acts">${acts.map(a=>`<button type="button" class="btn${a.key==="partial"?" primary":""}" data-act="${esc(a.key)}" data-sub="${esc(a.item_id||"")}">${esc(a.label)}</button>`).join("")}<button type="button" class="btn" data-act="dismiss">Cancel</button></div>`;
+    $("#coShort").hidden=false;
+    $("#coShort").querySelectorAll("[data-ci]").forEach(b=>b.addEventListener("click",()=>{
+      const id=b.dataset.ci; if(checkouts.find(x=>x.id===id)){ hideShort(); checkInFlow(id); } else location.href="inventory.html?tab=loans"; }));
+    $("#coShort").querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>shortAction(b,b.dataset.act,b.dataset.sub)));
+  }
+  function coDone(msg){ $("#co_qty").value=1; $("#co_to").value=""; $("#co_note").value=""; hideShort(); BPUI.toast(msg,{type:"ok"}); return load(); }
+  async function shortAction(btn,key,itemId){
+    const p=coPending; if(!p) return;
+    if(key==="dismiss"){ hideShort(); return; }
+    if(key==="reduce"){ $("#co_qty").value=Number(p.info.available||0); hideShort(); $("#co_qty").focus(); return; }
+    if(key==="sub"){ $("#co_item").value=itemId; hideShort(); $("#co_qty").focus(); BPUI.toast("Switched to the substitute item - check the quantity and press Check out.",{type:"info"}); return; }
+    if(key==="checkin"){ const od=(p.info.overdue||[])[0]; if(od&&checkouts.find(x=>x.id===od.checkout_id)){ hideShort(); checkInFlow(od.checkout_id); } else location.href="inventory.html?tab=loans"; return; }
+    if(key==="subrent"){
+      const note=CS.subrentNote(p.info, p.qty, fmtD), short=Math.max(p.qty-Number(p.info.available||0),0);
+      if(!quoteId){ try{ await navigator.clipboard.writeText(note); }catch(e){} BPUI.toast("Open this from an event to add a vendor / sub-rent request. The note was copied: "+note,{type:"info"}); return; }
+      await BPUI.guard(btn,async()=>{ try{ await BPStore.stockreq.add(quoteId,{ item_id:p.itemId, label:note.slice(0,200), qty:short, note:"Raised from check-out shortage" });
+        BPUI.toast("Vendor / sub-rent request added to this event for "+short+" "+(p.info.item||"")+".",{type:"ok"}); }
+        catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"add the sub-rent request"}),{type:"err"}); } });
+      return;
+    }
+    if(key==="partial"){
+      await BPUI.guard(btn,async()=>{ try{
+        const r=await BPStore.inventory.checkouts.outSmart(p.itemId, quoteId||null, p.qty, p.to, p.crewId, p.note, true);
+        if(r&&r.ok){ await coDone(`Checked out ${r.qty_out} to ${p.to}. Short by ${r.shortfall} - noted on the check-out.`); }
+        else { showShort(r, p.qty); BPUI.toast("Stock changed in the meantime - here are the latest numbers.",{type:"info"}); } }
+      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"check out"}),{type:"err"}); } });
+    }
+  }
   $("#co_add").addEventListener("click",async()=>{
     const itemId=$("#co_item").value;
     const opt=$("#co_to").selectedOptions[0], to=($("#co_to").value||"").trim();
@@ -628,12 +689,18 @@
     if(!itemId){ BPUI.toast("Add a stock item first.",{type:"info"}); return; }
     const coV=BPStore.validate.count($("#co_qty").value,{allowZero:false,field:"Qty out"}); if(!coV.ok){ BPUI.toast(coV.error,{type:"err"}); $("#co_qty").focus(); return; } const qty=coV.value;
     if(!to){ BPUI.toast("Who is it issued to?",{type:"err"}); $("#co_to").focus(); return; }
+    coPending={ itemId, qty, to, crewId, note:$("#co_note").value.trim()||null, info:null };
     await BPUI.guard($("#co_add"),async()=>{
-      try{ await BPStore.inventory.checkouts.out(itemId, quoteId||null, qty, to, crewId, $("#co_note").value.trim()||null);
-        $("#co_qty").value=1; $("#co_to").value=""; $("#co_note").value=""; BPUI.toast("Checked out to "+to+".",{type:"ok"}); await load(); }
-      catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"check out"}),{type:"err"}); }
+      try{ const r=await BPStore.inventory.checkouts.outSmart(itemId, quoteId||null, qty, to, crewId, coPending.note, false);
+        if(r&&r.ok) await coDone("Checked out to "+to+".");
+        else showShort(r, qty); }
+      catch(e){
+        // older DB: the 0073 guard refused an over-issue -> show the same panel from client-side numbers
+        if(e&&e.code==="23514"){ try{ showShort(await localShortage(itemId), qty); return; }catch(_){} }
+        BPUI.toast(BPUI.friendlyError(e,{action:"check out"}),{type:"err"}); }
     });
   });
+  ["#co_item","#co_qty"].forEach(sel=>$(sel).addEventListener("change",()=>{ if(!$("#coShort").hidden) hideShort(); }));
   $("#rv_add").addEventListener("click",async()=>{
     if($("#rv_add").disabled) return;
     const itemId=$("#rv_item").value;
