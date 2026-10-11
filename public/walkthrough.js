@@ -374,10 +374,14 @@
   fab.addEventListener('click', start);
 
   function mount() {
-    const viewField = doc.getElementById('viewSeg') && doc.getElementById('viewSeg').closest('.field');
-    if (viewField) viewField.after(field);
+    // the builder's View ▾ menu hosts the explore controls; older hosts keep them beside the View switch
+    const slot = doc.getElementById('viewMenuSlot');
+    if (slot) { field.classList.add('tm-group'); seg.querySelectorAll('button').forEach((b) => b.setAttribute('role', 'menuitem')); slot.prepend(field); }
+    else { const viewField = doc.getElementById('viewSeg') && doc.getElementById('viewSeg').closest('.field'); if (viewField) viewField.after(field); }
     const vp = doc.querySelector('.viewport');
-    if (vp) vp.append(ov, fab);
+    // one floating stack (bottom-right) holds every canvas control so nothing overlaps
+    const stack = doc.getElementById('fabStack');
+    if (vp) { vp.append(ov); if (stack) stack.prepend(fab); else vp.append(fab); }
     const L = doc.getElementById('leftPanel'), R = doc.getElementById('rightPanel');
     const sync = () => { fab.hidden = !(L && R && L.classList.contains('collapsed') && R.classList.contains('collapsed')); };
     if (L && R && G.MutationObserver) { const mo = new G.MutationObserver(sync); mo.observe(L, { attributes: true, attributeFilter: ['class'] }); mo.observe(R, { attributes: true, attributeFilter: ['class'] }); }

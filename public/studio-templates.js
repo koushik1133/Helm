@@ -285,8 +285,8 @@
   function mountBuilder() {
     var sel = $("preset"); if (!sel) return;
     var field = sel.closest(".field") || sel.parentNode;
-    var bSave = h("button", { type: "button", cls: "tbtn", id: "st_saveBtn", hidden: true, title: "Save the current floor as your studio's own template", text: "💾 Save as template" });
-    var bMgr = h("button", { type: "button", cls: "tbtn", id: "st_mgrBtn", hidden: true, title: "Your studio's own layout templates", text: "📐 My templates" });
+    var bSave = h("button", { type: "button", cls: "tbtn", id: "st_saveBtn", role: "menuitem", hidden: true, title: "Save the current floor as your studio's own template", text: "💾 Save as template" });
+    var bMgr = h("button", { type: "button", cls: "tbtn", id: "st_mgrBtn", role: "menuitem", hidden: true, title: "Your studio's own layout templates", text: "📐 My templates" });
     bSave.addEventListener("click", openSaveModal); bMgr.addEventListener("click", openManager);
     field.parentNode.insertBefore(bMgr, field.nextSibling); field.parentNode.insertBefore(bSave, field.nextSibling);
     var tries = 0;

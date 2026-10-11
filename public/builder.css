@@ -585,3 +585,70 @@ aside.left.collapsed,aside.right.collapsed{width:0;border-width:0;overflow:hidde
 .ph-history{margin-top:14px;font-size:13px}
 .ph-history summary{cursor:pointer;font-weight:600}
 .ph-history .ph-gallery{margin-top:8px}
+/* ===================== Toolbar v2: one primary row (event · view · menus · tools · save/capacity) ===================== */
+.sr-only{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;margin:-1px;padding:0;border:0}
+header.tbar{flex-wrap:nowrap;gap:8px;padding:7px 12px;min-height:46px}
+header.tbar>*{flex:0 0 auto}
+header.tbar .tb-spacer{flex:1 1 0;min-width:0}
+header.tbar .tb-event{min-width:0;flex:0 1 auto;overflow:hidden}
+header.tbar .kbd{border:1px solid var(--line);border-radius:6px;padding:4px 7px;background:var(--panel-2)}
+header.tbar .tb-event .nameinput{min-width:110px;max-width:200px;font-weight:600}
+header.tbar select.versel{max-width:170px}
+header.tbar .tb-center{gap:8px}
+header.tbar .seg button{display:inline-flex;align-items:center;gap:0;padding:0 9px}
+.tb-viewseg button.tb-render{border-left:1px solid var(--line);color:var(--accent)}
+.tb-viewseg button.tb-render.on{color:#fff}
+.tb-tools button[disabled]{opacity:.4;cursor:default}
+.tb-tools button{min-width:30px;justify-content:center}
+header .caret{font-size:10px;opacity:.7}
+/* menus */
+.tmenu{position:relative}
+.tmenu.open>.tmenu-btn,.tmenu-btn[aria-expanded="true"]{border-color:var(--accent);color:var(--accent)}
+.tmenu-pop{position:absolute;left:0;top:calc(100% + 6px);z-index:50;display:flex;flex-direction:column;gap:4px;min-width:230px;max-width:min(320px,92vw);
+  max-height:calc(100vh - 80px);overflow:auto;padding:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}
+.tmenu-pop[hidden]{display:none}
+.tmenu-pop.tm-right{left:auto;right:0}
+.tmenu-pop .tbtn{width:100%;justify-content:flex-start;text-align:left;height:32px}
+.tmenu-pop .tbtn[hidden]{display:none}
+.tmenu-pop .field{flex-direction:column;gap:3px}
+header .tmenu-pop .field label,header .tmenu-pop .field .flabel{position:static;width:auto;height:auto;overflow:visible;clip:auto;font-size:10.5px}
+header .tmenu-pop select,header .tmenu-pop select#preset,header .tmenu-pop select#refEvents{max-width:none;width:100%;height:32px}
+.tm-sep{height:1px;background:var(--line);margin:4px 0}
+.tm-slot{display:flex;flex-direction:column;gap:4px}
+.tm-slot .field{flex-direction:column}
+.tm-slot .seg{display:flex;flex-direction:column;border:0;background:transparent;overflow:visible;gap:4px}
+.tm-slot .seg button,.tm-slot .fs-btn{height:32px;width:100%;text-align:left;border:1px solid var(--line);border-radius:6px;background:var(--panel-2);padding:0 10px;font-size:12px}
+.tm-slot .seg button+button{border-left:1px solid var(--line)}
+.tm-slot .seg button.on,.tm-slot .seg button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:var(--accent-soft,#efe9ff)}
+.tm-slot .field .flabel{display:none}
+.tmenu-pop .tbtn:focus-visible,.tm-slot button:focus-visible,.tmenu-btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+/* capacity: seats chip + capacity input as one control; warnings as a compact chip */
+.capctl{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:7px;background:var(--panel-2);height:28px;overflow:hidden}
+header .capctl .capmeter{border:0;border-radius:0;height:26px;white-space:nowrap}
+header .capctl .capsep{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);padding:0 2px 0 6px;border-left:1px solid var(--line);height:26px;display:inline-flex;align-items:center}
+header .capctl .capinput{width:64px;min-width:64px;max-width:64px;border:0;height:26px;background:transparent;padding:0 6px}
+header .capbanner{padding:0 9px;height:24px;line-height:24px;border-radius:999px;font-size:11.5px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:help}
+header .capbanner[hidden]{display:none}
+/* responsive: shed labels, never a second row on desktop */
+@media (max-width:1720px){ .tb-tools .tl{display:none} }
+@media (max-width:1500px){ header.tbar .brand-txt{display:none} header.tbar .tb-render .tl,#backToFlowBtn .tl{display:none} header.tbar .tb-event .nameinput{max-width:128px} header.tbar .caret{display:none} header.tbar{gap:6px} header.tbar .hgroup{gap:5px} header .capctl .capmeter{padding:0 6px} header .capctl .capsep{display:none} header .capbanner{max-width:150px} header.tbar select.versel{max-width:104px} }
+@media (max-width:1280px){ header.tbar .tl{display:none} header.tbar .tb-event .nameinput{max-width:128px} header.tbar .caret{display:none} header.tbar{gap:6px} header.tbar .hgroup{gap:5px} header .capctl .capmeter{padding:0 6px} header .capbanner{max-width:34px;padding:0 8px} }
+@media (min-width:1025px){ header.tbar .kbd{display:inline-block} }
+@media (max-width:1024px){ header.tbar .tb-event .nameinput{max-width:120px;min-width:90px} header.tbar select.versel{max-width:96px} header .capctl .capsep{display:none} }
+@media (max-width:768px){
+  header.tbar{overflow-x:auto;overflow-y:hidden;gap:8px;padding:6px 8px;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+  header.tbar .tb-spacer{display:none}
+  .tmenu-pop,.tmenu-pop.tm-right{position:fixed;left:8px;right:8px;top:var(--tm-top,56px);max-width:none;max-height:calc(100dvh - var(--tm-top,56px) - 12px)}
+}
+/* bottom-right canvas controls: one stack, fixed gaps, nothing overlaps */
+.fabstack{position:absolute;right:14px;bottom:14px;z-index:9;display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}
+.fabstack>*{pointer-events:auto}
+.fabstack .zoombar,.fabstack .navpad,.fabstack .wt-fab,.fabstack .fs-fab,.fabstack .htour-fab{position:static!important;right:auto;bottom:auto;top:auto;left:auto}
+.fabstack [hidden]{display:none!important}
+.viewport.is3d .fabstack .fs-fab{right:auto}
+.fabstack .htour-fab{z-index:auto}
+@media (max-width:720px){ .fabstack{bottom:56px;right:10px} .fabstack .wt-fab{right:auto;bottom:auto} }
+/* auth/trial notices: sit top-centre of the page in the builder so they never cover the canvas controls */
+.hau-notes{bottom:auto!important;top:64px;right:16px}
+@media (min-width:1281px){ .tmenu-btn>.ti{display:none} }
+@media (max-width:900px){ .viewport .hint3d{display:none} }

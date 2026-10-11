@@ -561,7 +561,7 @@ function updateCapacityUI(){
   else if(packed){ msg=`⚠ ${packed} seating block${packed>1?'s':''} packed below ${PACKED_PITCH} ft spacing — very congested.`; bcls='over'; }
   else if(cap && seats>cap*0.9){ msg=`Near capacity — ${seats} of ${cap} seats.`; bcls='tight'; }
   else if(tight){ msg=`${tight} block${tight>1?'s':''} tight (under ${COMFORT_PITCH} ft spacing).`; bcls='tight'; }
-  if(msg){ banner.hidden=false; banner.className='capbanner '+bcls; banner.textContent=msg; } else banner.hidden=true;
+  if(msg){ banner.hidden=false; banner.className='capbanner '+bcls; banner.textContent=msg; banner.title=msg; } else banner.hidden=true;
 }
 
 function gridStepFt(){ return store.grid.unit==='m' ? 1/ FT_PER_M * FT_PER_M : 1; } // grid cell always 1 unit
@@ -2540,7 +2540,9 @@ function applyRoomFromForm(o){
 function updateDimsLabel(){ const el=$('#dimsLabel'); if(!el) return;
   // 0096: the floor is the USABLE area; show the venue's full size alongside when it differs
   let vref=''; try{ const c=currentClient||{}; if(+c.venueLen>0 && +c.venueWid>0 && (+c.venueLen!==WORLD.w || +c.venueWid!==WORLD.h)) vref=` · venue ${+c.venueLen} × ${+c.venueWid} ft`; }catch(e){}
-  el.textContent = `${WORLD.w} × ${WORLD.h} ft${vref} · ${PX_PER_FT} px/ft${store.venue&&store.venue.setting==='outdoor'?' · outdoor':''}`; }
+  const full = `${WORLD.w} × ${WORLD.h} ft${vref} · ${PX_PER_FT} px/ft${store.venue&&store.venue.setting==='outdoor'?' · outdoor':''}`;
+  // compact hall-size chip in the toolbar; the full detail (venue size, scale, outdoor) is in its tooltip
+  el.textContent = `${WORLD.w} × ${WORLD.h} ft${vref?' usable':''}`; el.title = 'Hall size · '+full; }
 function runCustomGenerate(){
   const o=readCustomForm();
   // Enforce the Control-Center capacity ceilings so generation stays fast and honest
@@ -3854,6 +3856,43 @@ document.querySelectorAll('header details.hmenu').forEach(d=>{
 });
 document.addEventListener('click',e=>{ document.querySelectorAll('header details.hmenu[open]').forEach(d=>{ if(!d.contains(e.target)) d.open=false; }); });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') document.querySelectorAll('header details.hmenu[open]').forEach(d=>{ d.open=false; d.querySelector('summary')?.focus(); }); });
+/* toolbar menus (Layout ▾ / View ▾ / Share ▾): aria-expanded, Esc closes + returns focus, ↑↓/Home/End move,
+   outside click closes, picking a button item closes. Items injected later (walkthrough / fullscreen / studio templates) work too. */
+(function(){
+  const wraps=[...document.querySelectorAll('header .tmenu')];
+  const items=pop=>[...pop.querySelectorAll('button,select,input,a[href]')].filter(x=>!x.disabled && !x.hidden && x.offsetParent!==null);
+  function close(w,focus){ const b=w.querySelector('.tmenu-btn'), p=w.querySelector('.tmenu-pop'); if(p.hidden) return;
+    p.hidden=true; b.setAttribute('aria-expanded','false'); w.classList.remove('open'); if(focus) b.focus(); }
+  function open(w,first){ wraps.forEach(o=>{ if(o!==w) close(o,false); });
+    const b=w.querySelector('.tmenu-btn'), p=w.querySelector('.tmenu-pop'); const hb=document.querySelector('header').getBoundingClientRect(); p.style.setProperty('--tm-top', Math.round(hb.bottom+4)+'px'); p.hidden=false; b.setAttribute('aria-expanded','true'); w.classList.add('open');
+    if(first){ const f=items(p); if(f.length) (first==='last'?f[f.length-1]:f[0]).focus(); } }
+  wraps.forEach(w=>{
+    const b=w.querySelector('.tmenu-btn'), p=w.querySelector('.tmenu-pop');
+    b.addEventListener('click',e=>{ if(p.hidden) open(w, e.detail===0 ? 'first' : null); else close(w,false); });
+    b.addEventListener('keydown',e=>{ if(e.key==='ArrowDown'){ e.preventDefault(); open(w,'first'); } else if(e.key==='ArrowUp'){ e.preventDefault(); open(w,'last'); } });
+    p.addEventListener('keydown',e=>{
+      if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); close(w,true); return; }
+      if(e.target.tagName==='SELECT' || e.target.tagName==='INPUT') { if(e.key!=='Tab') return; }
+      const f=items(p), i=f.indexOf(document.activeElement);
+      if(e.key==='ArrowDown'){ e.preventDefault(); f[(i+1)%f.length]?.focus(); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); f[(i-1+f.length)%f.length]?.focus(); }
+      else if(e.key==='Home'){ e.preventDefault(); f[0]?.focus(); }
+      else if(e.key==='End'){ e.preventDefault(); f[f.length-1]?.focus(); }
+      else if(e.key==='Tab'){ close(w,false); }
+    });
+    // picking an action closes the menu (selects close once a choice is made)
+    p.addEventListener('click',e=>{ const t=e.target.closest('button'); if(t && p.contains(t)) close(w,false); });
+    p.addEventListener('change',e=>{ if(e.target.tagName==='SELECT') close(w,true); });
+  });
+  document.addEventListener('click',e=>{ wraps.forEach(w=>{ if(!w.contains(e.target)) close(w,false); }); });
+  document.addEventListener('keydown',e=>{ if(e.key!=='Escape') return; const w=wraps.find(x=>x.classList.contains('open')); if(w){ e.preventDefault(); close(w,true); } });
+  window.__toolbarMenus={ open:(id)=>{ const w=document.getElementById(id); if(w) open(w,'first'); }, closeAll:()=>wraps.forEach(w=>close(w,false)) };
+})();
+/* keep the "? Tour" pill inside the canvas control stack so it never sits on top of the zoom / pan controls */
+(function(){ const stack=$('#fabStack'); if(!stack || !window.MutationObserver) return;
+  const grab=()=>{ const f=document.querySelector('body > .htour-fab'); if(f){ f.classList.add('in-stack'); stack.append(f); } };
+  grab(); new MutationObserver(grab).observe(document.body,{childList:true});
+})();
 $('#loadModal').addEventListener('click',e=>{ if(e.target.id==='loadModal') closeLoadModal(); });
 $('#exportBtn').addEventListener('click',()=>{ BPUI.guard($('#exportBtn'), exportPNG,{busyLabel:'Exporting…'}).catch(()=>{}); });
 $('#clientImgBtn').addEventListener('click',()=>{ BPUI.guard($('#clientImgBtn'), ()=>captureClientImages(false),{busyLabel:'Capturing…'}).catch(()=>{}); });
