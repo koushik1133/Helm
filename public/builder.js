@@ -3592,6 +3592,7 @@ $('#verRestoreBtn').addEventListener('click',()=>{
 // Build 1 — show the current design stage (if any) with a link to the Design Studio. Best-effort.
 async function updateDesignChip(){
   const chip=$('#designChip'); if(!chip) return;
+  chip.hidden=true; return;   // Design studio hidden for now (owner, 2026-10-11) - remove this line to bring the chip back
   if(!currentQuoteId || !(BPStore.design && BPStore.auth && BPStore.auth.enabled && BPStore.auth.enabled())){ chip.hidden=true; return; }
   try{
     const rec=await BPStore.design.get(currentQuoteId);

@@ -324,7 +324,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=177"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
 <script src="tour.js?v=9"></script>
 <script src="getting-started.js?v=4"></script>
 <script src="onboarding-wizard.js?v=4"></script>
@@ -580,7 +580,7 @@
         card(st.confirmed,"Confirmed","good"), card(tc.overdue||0,"Tasks overdue",(tc.overdue>0?"alert":"")) ] },
       manager:     { sub:"Events, approvals & delivery", cards:[
         card(up,"Upcoming events",""), card(st.quote,"Awaiting confirmation","warn"),
-        card(st.confirmed,"Confirmed","good"), card(dqAt('client_review'),"Designs at client review","link","design.html") ] },
+        card(st.confirmed,"Confirmed","good"), card(tc.overdue||0,"Tasks overdue",(tc.overdue>0?"alert":"")) ] },   // Design studio hidden for now
       planner:     { sub:"Pipeline to delivery", cards:[
         card(st.quote,"Open quotes","link","quotes.html"), card(st.confirmed,"Confirmed","good"),
         card(up,"Upcoming events",""), card(tc.overdue||0,"Tasks overdue",(tc.overdue>0?"alert":"")) ] },
@@ -600,7 +600,7 @@
         card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue>0?"alert":"")),
         card(up,"Upcoming events",""), card(tc.completed||0,"Completed","good") ] },
       designer:    { sub:"Design studio", cards:[
-        card(dqOk ? (dq||[]).length : "—","Active designs","link","design.html"), card(dqAt('client_review'),"At client review","warn"),
+        card(dqOk ? (dq||[]).length : "—","Active designs",""), card(dqAt('client_review'),"At client review","warn"),
         card(dqAt('locked'),"Locked","good"), card(dqAt('draft_2d','revise'),"On your board","") ] },
       crew:        { sub:"Your tasks", cards:[
         card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue>0?"alert":"")),
