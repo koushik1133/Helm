@@ -15,7 +15,7 @@ const css = readFileSync(join(ROOT, 'public/builder.css'), 'utf8');
 let n = 0; const ok = (c, m) => { assert.ok(c, m); n++; };
 
 // 1. units dropdown
-ok(/<select id="unitSel"[^>]*>\s*<option value="ft"[^>]*>Feet<\/option>\s*<option value="m">Meter<\/option>/.test(html), 'units is a Feet/Meter <select>');
+ok(/<select id="unitSel"[^>]*>\s*<option value="ft"[^>]*>Feet<\/option>\s*<option value="m">Metres<\/option>/.test(html), 'units is a Feet/Metres <select>');
 ok(!/id="unitSeg"/.test(html) && !/#unitSeg/.test(js), 'old unit button segment is gone');
 ok(/\$\('#unitSel'\)\.addEventListener\('change',e=>setUnit\(e\.target\.value\)\)/.test(js), 'select change calls setUnit');
 const m = js.match(/function setUnit\(u\)\{[\s\S]*?\n\}/); ok(m, 'setUnit exists');
@@ -35,7 +35,8 @@ ok(/\$\('#unitSel'\)\.value = store\.grid\.unit/.test(js), 'syncGridUI reflects 
 ok(!/SUPABASE/i.test(html.replace(/<link\b[^>]*>/g, '')), 'no Supabase text in builder.html (head preconnect/preload <link>s are not UI text)');
 ok(!/id="conn"|id="connLbl"/.test(html) && !/#connLbl/.test(js), 'connection indicator removed');
 ok(/id="acctMenu"/.test(html) && /id="acct"/.test(html), 'account menu keeps role/email/sign-out');
-for (const id of ['exportBtn', 'jsonBtn', 'importBtn']) ok(new RegExp(`id="moreMenu"[\\s\\S]*id="${id}"[\\s\\S]*</details>`).test(html), `${id} lives in More menu`);
+// toolbar v2: the old "More ▾" items now live in the Share ▾ menu
+for (const id of ['exportBtn', 'jsonBtn', 'importBtn']) ok(new RegExp(`id="shareMenu"[\\s\\S]*id="${id}"`).test(html), `${id} lives in Share menu`);
 
 // 3. dismissible hint + shortcuts dialog
 ok(/id="toolHint"[^>]*data-tour="toolbox-shortcuts"/.test(html), 'hint has a data-tour anchor');

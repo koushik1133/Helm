@@ -70,7 +70,7 @@ t('smart import attribute edits merge (changes only, re-read before save)', () =
 });
 t('3D fullscreen: no ruler gutter', () => {
   assert.match(read('public/layout-wizard.css'), /body\.fs-on \.viewport\.is3d \.stage3d,\.viewport\.is3d:fullscreen \.stage3d\{left:0;top:0\}/);
-  assert.match(read('public/builder.html'), /layout-wizard\.css\?v=3/);
+  assert.match(read('public/builder.html'), /layout-wizard\.css\?v=4/);
 });
 t('APPLY-0088-0090: ASCII, all three migrations, verify grid', () => {
   const a = read('supabase/APPLY-0088-0090.sql');

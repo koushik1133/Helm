@@ -23,16 +23,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="builder.css?v=12">
+<link rel="stylesheet" href="builder.css?v=13">
 <link rel="stylesheet" href="venues.css?v=3">
 <link rel="stylesheet" href="studio-templates.css?v=1">
-<link rel="stylesheet" href="walkthrough.css?v=2">
-<link rel="stylesheet" href="layout-wizard.css?v=3">
+<link rel="stylesheet" href="walkthrough.css?v=3">
+<link rel="stylesheet" href="layout-wizard.css?v=4">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
 
-<header>
+<header class="tbar">
   <div class="hgroup drawer-btns">
     <button type="button" class="tbtn" id="toolsToggle" aria-controls="leftPanel" aria-expanded="false">🧰 Tools</button>
     <button type="button" class="tbtn" id="inspToggle" aria-controls="rightPanel" aria-expanded="false">☰ Inspector</button>
@@ -42,10 +42,32 @@
     <div class="brand-txt"><h1>Helm Events</h1><small>← All events</small></div>
   </a>
 
-  <div class="hgroup">
+  <!-- LEFT: event name · code · version -->
+  <div class="hgroup tb-event">
     <div class="field">
-      <label for="preset">Template</label>
-      <select id="preset" title="Load a foundational event layout">
+      <label for="projName">Event name</label>
+      <input id="projName" class="nameinput" type="text" value="Untitled event" title="Event name — click to rename" maxlength="120">
+    </div>
+    <span id="quoteBadge" class="qbadge" hidden title="Quote code · current version"></span>
+    <select id="verSel" class="versel" hidden aria-label="Layout version" title="Saved versions of this layout — pick one to view it (saved versions are never changed)"></select>
+    <a id="designChip" class="qbadge qlink" hidden title="Design stage — open the Design Studio"></a>
+  </div>
+
+  <!-- CENTRE: 2D | 3D · Create layout · Render -->
+  <div class="hgroup tb-center">
+    <span class="flabel sr-only" id="viewLbl">View</span>
+    <div class="seg tb-viewseg" id="viewSeg" role="group" aria-labelledby="viewLbl"><button data-v="2d" class="on" title="2D plan — edit the layout">2D</button><button data-v="3d" title="3D view of this layout">3D</button><button data-v="render" class="tb-render" title="Ultra-realistic photo of this plan (AI photograph)"><span aria-hidden="true">✦</span><span class="tl"> Render</span></button></div>
+    <button class="tbtn primary" id="customBtn" title="Create a layout from your requirements: hall, guests, seating and objects"><span aria-hidden="true">✨</span><span class="tl"> Create layout</span></button>
+  </div>
+
+  <!-- MENUS + TOOLS -->
+  <div class="hgroup tb-menus">
+    <div class="tmenu" id="layoutMenuWrap">
+      <button type="button" class="tbtn tmenu-btn" id="layoutMenuBtn" aria-haspopup="true" aria-expanded="false" aria-controls="layoutMenu" title="Layout: templates, past layouts, clear"><span class="ti" aria-hidden="true">▦</span><span class="tl">Layout</span> <span class="caret" aria-hidden="true">▾</span></button>
+      <div class="tmenu-pop" id="layoutMenu" role="menu" aria-labelledby="layoutMenuBtn" hidden>
+        <div class="field tm-field">
+          <label for="preset">Load a template</label>
+          <select id="preset" title="Load a foundational event layout">
         <option value="">Start blank…</option>
         <optgroup label="Political / Rally">
           <option value="political_theatre">Theatre seating rally</option>
@@ -80,90 +102,70 @@
           <option value="sports_stadium">Sports / stadium</option>
         </optgroup>
       </select>
-    </div>
-    <div class="field">
-      <label for="refEvents">Past events</label>
-      <select id="refEvents" title="Load a past event's layout for reference / reuse">
-        <option value="">Reference a past layout…</option>
-      </select>
-    </div>
-    <button class="tbtn primary" id="customBtn" title="Create a layout from your requirements: hall, guests, seating and objects">✨ Create layout</button>
-  </div>
-
-  <div class="hsep"></div>
-
-  <div class="hgroup">
-    <div class="field">
-      <label for="unitSel">Units</label>
-      <select id="unitSel" class="unitsel" title="Measurement units"><option value="ft" selected>Feet</option><option value="m">Meter</option></select>
-    </div>
-    <div class="field">
-      <span class="flabel" id="gridLbl">Grid</span>
-      <div class="seg" role="group" aria-labelledby="gridLbl"><button id="snapBtn" class="on" title="Snap: items jump to the nearest grid line when you move them">Snap</button><button id="gridBtn" class="on" title="Grid: show or hide the grid lines on the floor">Grid</button></div>
-    </div>
-    <div class="field">
-      <span class="flabel" id="viewLbl">View</span>
-      <div class="seg" id="viewSeg" role="group" aria-labelledby="viewLbl"><button data-v="2d" class="on" title="2D blueprint (edit)">2D Plan</button><button data-v="3d" title="3D rendered view">3D View</button><button data-v="render" title="Ultra-realistic photo of this plan (AI photograph)">✦ Render</button></div>
-    </div>
-    <div class="field">
-      <span class="flabel" id="workLbl">Work</span>
-      <div class="seg" role="group" aria-labelledby="workLbl"><button id="measureBtn" title="Show distances between objects and to the walls">📏 Measure</button></div>
-    </div>
-  </div>
-
-  <div class="hsep"></div>
-
-  <div class="hgroup">
-    <button class="tbtn icon" id="undoBtn" title="Undo (⌘Z)" aria-label="Undo" disabled>↶</button>
-    <button class="tbtn icon" id="redoBtn" title="Redo (⌘⇧Z)" aria-label="Redo" disabled>↷</button>
-    <button class="tbtn danger" id="clearBtn" title="Remove every object">Clear</button>
-  </div>
-
-  <div class="hsep"></div>
-
-  <div class="hgroup">
-    <div class="field">
-      <label for="projName">Project</label>
-      <input id="projName" class="nameinput" type="text" value="Untitled event" title="Event / quote name" maxlength="120">
-    </div>
-    <span id="quoteBadge" class="qbadge" hidden title="Quote code · current version"></span>
-    <select id="verSel" class="versel" hidden aria-label="Layout version" title="Saved versions of this layout — pick one to view it (saved versions are never changed)"></select>
-    <a id="designChip" class="qbadge qlink" hidden title="Design stage — open the Design Studio"></a>
-    <button type="button" class="tbtn primary" id="backToFlowBtn" hidden title="Save this layout and return to the quotation">✓ Save &amp; back to quote</button>
-    <button class="tbtn primary" id="saveBtn" title="Save a new version (⌘S)">💾 Save</button>
-    <button class="tbtn" id="loadBtn" title="Open a saved layout">📂 Open</button>
-    <button class="tbtn" id="clientImgBtn" hidden title="Capture a clean 2D plan and 3D view of this layout for the client booklet">📸 Update client images</button>
-    <details class="hmenu" id="moreMenu">
-      <summary class="tbtn" title="More actions" aria-label="More actions">More ▾</summary>
-      <div class="hmenu-pop" role="menu">
-        <button class="tbtn" id="exportBtn" role="menuitem" title="Download as PNG image">⤓ PNG</button>
-        <button class="tbtn" id="jsonBtn" role="menuitem" title="Download layout JSON">{ } JSON</button>
-        <button class="tbtn" id="importBtn" role="menuitem" title="Import a layout JSON file">⤒ Import</button>
+        </div>
+        <div class="field tm-field">
+          <label for="refEvents">Reference a past layout</label>
+          <select id="refEvents" title="Load a past event's layout for reference / reuse">
+            <option value="">Reference a past layout…</option>
+          </select>
+        </div>
+        <div class="tm-sep" role="separator"></div>
+        <button class="tbtn danger" id="clearBtn" role="menuitem" title="Remove every object (asks first)">🗑 Clear layout…</button>
       </div>
-    </details>
+    </div>
+
+    <div class="tmenu" id="viewMenuWrap">
+      <button type="button" class="tbtn tmenu-btn" id="viewMenuBtn" aria-haspopup="true" aria-expanded="false" aria-controls="viewMenu" title="View: guided 3D tour, camera presets, lighting, labels, fullscreen, units"><span class="ti" aria-hidden="true">◎</span><span class="tl">View</span> <span class="caret" aria-hidden="true">▾</span></button>
+      <div class="tmenu-pop" id="viewMenu" role="menu" aria-labelledby="viewMenuBtn" hidden>
+        <div class="tm-slot" id="viewMenuSlot"></div>
+        <div class="tm-sep" role="separator"></div>
+        <div class="field tm-field">
+          <label for="unitSel">Units</label>
+          <select id="unitSel" class="unitsel" title="Measurement units"><option value="ft" selected>Feet</option><option value="m">Metres</option></select>
+        </div>
+      </div>
+    </div>
+
+    <span class="flabel sr-only" id="toolsLbl">Tools</span>
+    <div class="seg tb-tools" role="group" aria-labelledby="toolsLbl">
+      <button id="snapBtn" class="on" title="Snap to grid — objects line up on the grid when you drag them" aria-label="Snap to grid"><span aria-hidden="true">⌗</span><span class="tl"> Snap</span></button><button id="gridBtn" class="on" title="Grid: show or hide the grid lines on the floor" aria-label="Show grid"><span aria-hidden="true">▤</span><span class="tl"> Grid</span></button><button id="measureBtn" title="Measure: show distances between objects and to the walls" aria-label="Measure"><span aria-hidden="true">📏</span><span class="tl"> Measure</span></button><button id="undoBtn" title="Undo (⌘Z)" aria-label="Undo" disabled>↶</button><button id="redoBtn" title="Redo (⌘⇧Z)" aria-label="Redo" disabled>↷</button>
+    </div>
+
+    <div class="tmenu" id="shareMenuWrap">
+      <button type="button" class="tbtn tmenu-btn" id="shareMenuBtn" aria-haspopup="true" aria-expanded="false" aria-controls="shareMenu" title="Share: client pictures, open, export, import"><span class="ti" aria-hidden="true">⇪</span><span class="tl">Share</span> <span class="caret" aria-hidden="true">▾</span></button>
+      <div class="tmenu-pop tm-right" id="shareMenu" role="menu" aria-labelledby="shareMenuBtn" hidden>
+        <button class="tbtn" id="clientImgBtn" role="menuitem" hidden title="Re-take the 2D/3D pictures used in the client booklet &amp; share link">📸 Refresh client pictures</button>
+        <button class="tbtn" id="loadBtn" role="menuitem" title="Open a saved layout">📂 Open saved layout</button>
+        <div class="tm-sep" role="separator"></div>
+        <button class="tbtn" id="exportBtn" role="menuitem" title="Download as PNG image">⤓ PNG export</button>
+        <button class="tbtn" id="jsonBtn" role="menuitem" title="Download layout JSON">{ } JSON export</button>
+        <button class="tbtn" id="importBtn" role="menuitem" title="Import a layout JSON file">⤒ Import JSON</button>
+      </div>
+    </div>
     <input type="file" id="importFile" accept="application/json,.json" hidden>
   </div>
 
-  <div class="hsep"></div>
-  <div class="hgroup">
-    <div class="field">
-      <label for="capInput">Venue capacity</label>
-      <input id="capInput" class="nameinput capinput" type="number" min="0" max="20000" placeholder="e.g. 500" title="The venue's stated max capacity — occupancy is checked against this">
-    </div>
-    <div class="capmeter" id="capMeter" title="Seats placed vs venue capacity"><span id="capLbl">—</span></div>
-  </div>
+  <div class="tb-spacer"></div>
 
-  <div class="s-97445a8"></div>
-  <div class="hgroup s-33fcd4c">
+  <!-- RIGHT: save · capacity · hall · account -->
+  <div class="hgroup tb-right">
+    <button type="button" class="tbtn primary" id="backToFlowBtn" hidden title="Save this layout and return to the quotation">✓ Save &amp; back<span class="tl"> to quote</span></button>
+    <button class="tbtn primary" id="saveBtn" title="Save a new version (⌘S)">💾 Save</button>
+    <div class="capctl" title="Seats placed vs the venue's stated capacity">
+      <label for="capInput" class="sr-only">Venue capacity</label>
+      <div class="capmeter" id="capMeter"><span id="capLbl">—</span></div>
+      <span class="capsep" aria-hidden="true">cap</span>
+      <input id="capInput" class="nameinput capinput" type="number" min="0" max="20000" placeholder="cap." title="The venue's stated max capacity — occupancy is checked against this">
+    </div>
+    <div class="capbanner" id="capBanner" role="status" hidden></div>
+    <span class="kbd" id="dimsLabel" title="Hall size · drawing scale">200 × 140 ft</span>
     <details class="hmenu acctmenu" id="acctMenu" hidden>
       <summary class="tbtn icon" title="Account" aria-label="Account menu">👤</summary>
       <div class="hmenu-pop" id="acct"></div>
     </details>
     <button class="tbtn icon" id="themeBtn" title="Toggle light / dark" aria-label="Toggle light or dark theme">◑</button>
-    <span class="kbd" id="dimsLabel">200 × 140 ft · 12 px/ft</span>
   </div>
 </header>
-<div class="capbanner" id="capBanner" role="status" hidden></div>
 <div class="verbanner" id="verBanner" role="status" hidden>
   <span id="verBannerTxt"></span>
   <button type="button" class="tbtn" id="verRestoreBtn" title="Save what you see as a brand-new latest version (older versions stay as they are)">Restore as new version</button>
@@ -463,18 +465,20 @@
       <div class="hint3d" id="hint3d">Select an object, then use the gizmo to Move / Rotate / Scale · drag empty space to orbit · scroll to zoom</div>
     </div>
     <div class="statusbar" id="status">—</div>
-    <div class="zoombar">
-      <button id="zoomOut" title="Zoom out" aria-label="Zoom out">−</button>
-      <span class="z" id="zoomLbl">100%</span>
-      <button id="zoomIn" title="Zoom in" aria-label="Zoom in">+</button>
-      <button id="zoomFit" title="Fit floor to view" aria-label="Fit floor to view" class="zfit">FIT</button>
-    </div>
-    <div class="navpad" id="navPad" role="group" aria-label="Pan the view">
+    <div class="fabstack" id="fabStack">
+      <div class="navpad" id="navPad" role="group" aria-label="Pan the view">
       <button type="button" data-pan="up" aria-label="Pan up" title="Pan up">▲</button>
       <button type="button" data-pan="left" aria-label="Pan left" title="Pan left">◀</button>
       <button type="button" data-pan="center" class="np-c" aria-label="Recenter view" title="Recenter / fit">◎</button>
       <button type="button" data-pan="right" aria-label="Pan right" title="Pan right">▶</button>
       <button type="button" data-pan="down" aria-label="Pan down" title="Pan down">▼</button>
+    </div>
+    <div class="zoombar">
+        <button id="zoomOut" title="Zoom out" aria-label="Zoom out">−</button>
+        <span class="z" id="zoomLbl">100%</span>
+        <button id="zoomIn" title="Zoom in" aria-label="Zoom in">+</button>
+        <button id="zoomFit" title="Fit floor to view" aria-label="Fit floor to view" class="zfit">FIT</button>
+      </div>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
   </section>
@@ -503,19 +507,20 @@
 <script src="tour.js?v=9"></script>
 <script src="flow-layout-sync.js?v=4"></script>
 <script src="event-sizing.js?v=5"></script>
-<script src="builder.js?v=42"></script>
+<script src="builder.js?v=45"></script>
 <script src="venues-core.js?v=5"></script>
 <script src="venue-picker.js?v=4"></script>
 <script src="studio-templates-core.js?v=1"></script>
-<script src="studio-templates.js?v=1"></script>
+<script src="studio-templates.js?v=2"></script>
+<script src="load-fit.js?v=1"></script>
 
 <!-- ================= 3D RENDERED VIEW (Three.js, lazy-loaded on first use) ================= -->
 <script src="capture-frame.js?v=12"></script>
 <script src="builder-3d.js?v=14"></script>
-<script src="photo-render-prompt.js?v=4"></script>
-<script src="photo-render-ui.js?v=6"></script>
-<script src="walkthrough.js?v=3"></script>
-<script src="layout-wizard.js?v=6"></script>
-<script src="fullscreen.js?v=1"></script>
+<script src="photo-render-prompt.js?v=5"></script>
+<script src="photo-render-ui.js?v=7"></script>
+<script src="walkthrough.js?v=4"></script>
+<script src="layout-wizard.js?v=7"></script>
+<script src="fullscreen.js?v=2"></script>
 </body>
 </html>
