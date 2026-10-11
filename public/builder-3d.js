@@ -575,6 +575,11 @@
     controls=new THREE.OrbitControls(camera,cv);
     controls.enableDamping=true; controls.dampingFactor=0.08; controls.maxPolarAngle=Math.PI/2-0.03;
     controls.minDistance=20; controls.maxDistance=700; controls.target.set(0,0,0);
+    // zoom is ours (r128 OrbitControls dollies a fixed 5% per wheel EVENT: a trackpad pinch fires dozens
+    // of events -> far too sensitive, mouse notches jump, no zoom-to-cursor, and it is not damped)
+    controls.enableZoom=false;
+    cv.addEventListener('wheel', onWheel3D, {passive:false});
+    syncZoomLimits();
 
     hemi=new THREE.HemisphereLight(0xffffff,0x9fb0c8,0.75); scene.add(hemi);
     sun=new THREE.DirectionalLight(0xffffff,0.85); sun.position.set(70,160,60); sun.castShadow=true;
@@ -620,7 +625,7 @@
       new THREE.LineBasicMaterial({color:col(themeVar('--grid-strong','#9fb4d8'))})); edge.position.y=0.05; scene.add(edge);
     if(sun){ const sc=sun.shadow.camera, hw=floorW, hh=floorH;   // same generous frustum as before (±W, ±H), now live
       sc.left=-hw; sc.right=hw; sc.top=hh; sc.bottom=-hh; sc.far=Math.max(600, Math.max(floorW,floorH)*3); sc.updateProjectionMatrix(); }
-    if(camera && controls){ controls.maxDistance=Math.max(700, Math.max(floorW,floorH)*3); }
+    if(camera && controls) syncZoomLimits();
     if(R) applyProfile();                           // re-apply Render-mode material tweaks to the new ground
   }
   const curItem=()=> store.items.find(i=>i.id===store.selectedId)||null;
@@ -729,7 +734,7 @@
   /* ---------------- loop / resize / activation ---------------- */
   function resize(){ if(!R) return; const w=stage.clientWidth,h=stage.clientHeight; R.setSize(w,h,false); camera.aspect=w/Math.max(1,h); camera.updateProjectionMatrix(); }
   function loop(){ if(!active) return; raf=requestAnimationFrame(loop);   // schedule first: a throwing frame (lost context) must not kill the loop
-    try{ controls.update(); refreshSel(); R.render(scene,camera); }catch(e){ /* skip this frame */ } }
+    try{ stepZoom(); controls.update(); refreshSel(); R.render(scene,camera); }catch(e){ /* skip this frame */ } }
   let selHelper=null, selKey='';
   function refreshSel(){
     const it=store.items.find(i=>i.id===store.selectedId);
@@ -906,6 +911,7 @@
     }
     return !!evening;
   }
+  let flyKeep=null, walkKeep=null;
   window.__helm3D={
     isActive:()=>active,
     getView:()=> camera&&controls ? {pos:camera.position.toArray(), target:controls.target.toArray(), minD:controls.minDistance, fov:camera.fov, aspect:camera.aspect} : null,
@@ -913,6 +919,18 @@
       camera.position.set(pos[0],pos[1],pos[2]); controls.target.set(target[0],target[1],target[2]);
       if(fov!=null && isFinite(fov) && Math.abs(fov-camera.fov)>1e-3){ camera.fov=Math.max(20,Math.min(90,fov)); camera.updateProjectionMatrix(); }
       if(minD!=null) controls.minDistance=minD; controls.update(); },
+    // walkthrough glide: pause user input and flush OrbitControls damping inertia so nothing fights the
+    // tween (update() with damping off zeroes the leftover rotate / pan deltas); restored on landing.
+    setFlying(on){ if(!controls) return;
+      if(on){ zoomGoal=null; zoomAnchor=null; zoomFit=null; if(!flyKeep) flyKeep={enabled:controls.enabled, damping:controls.enableDamping};
+        controls.enabled=false; controls.enableDamping=false; controls.update(); }
+      else if(flyKeep){ controls.enableDamping=flyKeep.damping; controls.enabled=flyKeep.enabled; flyKeep=null; } },
+    // whole walkthrough: eye stops may look slightly up and sit < 20 ft from their target - relax the
+    // polar clamp + min distance once so controls.update() never snaps / pushes the camera at a stop.
+    setWalkMode(on){ if(!controls) return;
+      if(on){ if(!walkKeep) walkKeep={maxPolar:controls.maxPolarAngle, minD:controls.minDistance};
+        controls.maxPolarAngle=Math.PI-0.05; controls.minDistance=1; }
+      else if(walkKeep){ controls.maxPolarAngle=walkKeep.maxPolar; controls.minDistance=walkKeep.minD; walkKeep=null; syncZoomLimits(); } },
     setLabelsHidden,
     setEvening, isEvening:()=>!!evening,
   };
@@ -949,6 +967,46 @@
     const off=new THREE.Vector3().subVectors(camera.position, controls.target);
     controls.target.set(0,0,0); camera.position.copy(off); controls.update();
   }
+  /* ---------------- smooth zoom (wheel / pinch / +- buttons / fit) ----------------
+     A zoom sets a GOAL distance; every frame the camera closes 22% of the remaining (log) gap, so the
+     distance changes monotonically with no overshoot or jumps. The dolly moves toward the point under
+     the cursor (on the floor) when there is one, else toward the orbit target. Limits follow the hall. */
+  let zoomGoal=null, zoomAnchor=null, zoomFit=null;
+  const ZOOM_SMOOTH=0.22;
+  function zoomLimits(){ const span=Math.max(floorW||WORLD.w||100, floorH||WORLD.h||100);
+    return { min:Math.max(6, Math.min(20, span*0.04)), max:Math.max(400, span*2.6+60) }; }
+  function syncZoomLimits(){ if(!controls || walkKeep) return; const L=zoomLimits(); controls.minDistance=L.min; controls.maxDistance=L.max; }
+  const wheelScale=(e)=>{ let dy=e.deltaY; if(e.deltaMode===1) dy*=16; else if(e.deltaMode===2) dy*=400;
+    dy=Math.max(-240, Math.min(240, dy));
+    return Math.exp(dy*(e.ctrlKey ? 0.008 : 0.0016)); };   // ctrlKey = trackpad pinch (small deltas, many events)
+  function floorPoint(cx,cy){ const r=cv.getBoundingClientRect(); if(!r.width||!r.height) return null;
+    const ray=new THREE.Raycaster(); ray.setFromCamera({x:((cx-r.left)/r.width)*2-1, y:-((cy-r.top)/r.height)*2+1}, camera);
+    const hit=new THREE.Vector3(); return ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),0), hit) ? hit : null; }
+  function zoomBy(scale, anchor){
+    if(!active || !camera || !controls || !controls.enabled || (transform && transform.dragging)) return;
+    const L=zoomLimits(), cur=zoomGoal!=null ? zoomGoal : camera.position.distanceTo(controls.target);
+    zoomGoal=Math.max(L.min, Math.min(L.max, cur*scale)); zoomFit=null;
+    zoomAnchor = anchor && anchor.distanceTo(controls.target) < Math.max(floorW,floorH) ? anchor : null;
+  }
+  function onWheel3D(e){ if(!active || !controls || !controls.enabled) return; e.preventDefault();
+    zoomBy(wheelScale(e), floorPoint(e.clientX, e.clientY)); }
+  function zoomFit3D(){ if(!active||!camera||!controls) return;
+    const W2=floorW||WORLD.w, H2=floorH||WORLD.h, a=camera.aspect||1.6, t=Math.tan(camera.fov*Math.PI/360);
+    const d=Math.hypot(W2,H2)/2/(Math.min(t, t*a)*0.85)+4, L=zoomLimits();
+    zoomFit={target:new THREE.Vector3(0,0,0)}; zoomAnchor=null; zoomGoal=Math.max(L.min, Math.min(L.max, d)); }
+  function stepZoom(){
+    if(zoomGoal==null || !controls) return;
+    if(!controls.enabled){ zoomGoal=null; zoomAnchor=null; zoomFit=null; return; }   // a walkthrough glide took over
+    const off=new THREE.Vector3().subVectors(camera.position, controls.target), d=off.length()||1;
+    const lg=Math.log(zoomGoal/d), done=Math.abs(lg)<0.002;
+    const s=done ? zoomGoal/d : Math.exp(lg*ZOOM_SMOOTH);
+    if(zoomAnchor){ controls.target.lerp(zoomAnchor, 1-s);            // dolly toward the cursor point
+    }
+    else if(zoomFit){ controls.target.lerp(zoomFit.target, done?1:ZOOM_SMOOTH); }
+    camera.position.copy(controls.target).add(off.multiplyScalar(s));
+    if(done){ zoomGoal=null; zoomAnchor=null; zoomFit=null; }
+  }
+  window.__zoom3D=function(k){ if(k==='fit') zoomFit3D(); else zoomBy(+k>0 ? +k : 1, null); };
   window.__pan3D=pan3D;
   window.__recenter3D=recenter3D;
 
