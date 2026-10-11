@@ -443,12 +443,20 @@ function renderPrice(){
 
 
 /* ---------------------------------------------------------------- store */
+/* U2: builder display unit. The user's explicit pick (remembered per signed-in user —
+   helm.builderUnit is cleared on sign-out) wins; otherwise India/US = feet, every other
+   studio country (AE, ...) = metres, for new AND existing quotes. */
+const UNIT_PREF_KEY='helm.builderUnit';
+function userUnitPref(){ try{ const v=localStorage.getItem(UNIT_PREF_KEY); return v==='m'||v==='ft'?v:''; }catch(_){ return ''; } }
+function countryUnit(){ try{ const c=(typeof BPStore!=='undefined'&&BPStore.studioTax&&BPStore.studioTax().country)||'IN'; return c==='IN'||c==='US'?'ft':'m'; }catch(_){ return 'ft'; } }
+function defaultUnit(){ return userUnitPref()||countryUnit(); }
+
 const store = {
   items: [],
   selectedId: null,        // primary selection (drives the single-object inspector, resize/rotate, 3D)
   selectedIds: [],         // full multi-selection set
   // UAE audit: metres by default outside India / US (a saved layout's own unit still wins on load)
-  grid: { snap:true, show:true, unit:(function(){ try{ const c=(typeof BPStore!=='undefined'&&BPStore.studioTax&&BPStore.studioTax().country)||'IN'; return c==='IN'||c==='US'?'ft':'m'; }catch(_){ return 'ft'; } })(), sizeFt:1 },
+  grid: { snap:true, show:true, unit:defaultUnit(), sizeFt:1 },
   margins: { left:0, right:0, top:0, bottom:0 },   // usable-area insets in feet (Excel-style draggable guides)
   venue: { capacity: null },       // planner-set venue max, for the capacity/congestion check
   view: { zoom:1 },
@@ -3083,7 +3091,7 @@ function setUnit(u){
   const sel=$('#unitSel'); if(sel && sel.value!==store.grid.unit) sel.value=store.grid.unit;
   renderAll();
 }
-$('#unitSel').addEventListener('change',e=>setUnit(e.target.value));
+$('#unitSel').addEventListener('change',e=>{ setUnit(e.target.value); try{ localStorage.setItem(UNIT_PREF_KEY, store.grid.unit); }catch(_){} });
 $('#measureBtn').addEventListener('click',()=>{
   showMeasure=!showMeasure;
   $('#measureBtn').classList.toggle('on', showMeasure);
@@ -3266,7 +3274,8 @@ function applyLayout(data){
     clampItem(it);                       // coerce geometry so a malformed/legacy item can't render NaN
   });
   dedupeIds(store.items);
-  if(data.grid){ store.grid = sanitizeGrid(data.grid); syncGridUI(); }
+  if(data.grid){ store.grid = sanitizeGrid(data.grid); }
+  { const pu=userUnitPref(); if(pu) store.grid.unit=pu; else if(countryUnit()==='m') store.grid.unit='m'; store.grid.sizeFt=cellFt(); syncGridUI(); }
   store.margins = sanitizeMargins(data.margins);   // restore draggable margins (0s if none saved)
   if(data.venue){ store.venue = sanitizeVenue(data.venue); }
   updateDimsLabel();

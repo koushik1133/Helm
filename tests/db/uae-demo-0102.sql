@@ -83,7 +83,9 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; r jsonb; v_tot n
   perform pg_temp.login('a_admin@a.test');
   r := public.seed_demo_data();
   perform pg_temp.su();
-  perform pg_temp.res('10 AE seed succeeds', (r ->> 'seeded')::boolean and r ->> 'country' = 'AE', r::text);
+  perform pg_temp.res('10 AE seed succeeds + reports the real package count (0103)', (r ->> 'seeded')::boolean and r ->> 'country' = 'AE'
+    and (r ->> 'packages')::int = (select count(*) from public.menu_templates where org_id = a and is_demo)
+    and (r ->> 'packages')::int + (r ->> 'packages_skipped')::int = 2, r::text);
   select (pricing ->> 'total')::numeric into v_tot from public.quotes where org_id = a and code = 'DEMO-101' and is_demo;
   perform pg_temp.res('11 demo wedding = (400x425 + 400x15 + 60000) + 5% VAT = AED 247,800', v_tot = 247800, coalesce(v_tot::text, 'null'));
   perform pg_temp.res('12 every demo event is AED / AE / 5%', not exists (select 1 from public.quotes where org_id = a and is_demo

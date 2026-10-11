@@ -79,7 +79,7 @@ for (const type of Object.keys(HW.TYPES)) for (const [W, H] of HALLS) for (const
   if (spec.seating.style === 'rounds' && !sc.spt) assert.equal(spec.seating.tables, Math.ceil((spec.chairs - plan.extras) / 8), tag + ' tables = chairs ÷ 8');
   const out = HW.layout(spec, D);
   check(spec, out, tag);
-  assert.ok(!out.items.some((i) => i.type === 'redcarpet'), tag + ' no carpet unless chosen');
+  assert.ok(!out.items.some((i) => i.type === 'redcarpet' && i.label !== 'Prayer area'), tag + ' no carpet unless chosen (the iftar prayer area is a rug)');
   if (out.fits) {
     assert.equal(out.seats, plan.total, tag + ' exact seats');
     for (const [k, o] of Object.entries(spec.objects)) { if (!o.on) continue; const c = HW.OBJECTS[k];
@@ -143,8 +143,8 @@ for (const t of Object.keys(HW.TYPES)) for (const k of Object.keys(HW.defaults(t
 
 // ---- wiring ----
 const bh = rd('public/builder.html');
-assert.match(bh, /<script src="layout-wizard\.js\?v=6"><\/script>/); assert.match(bh, /<link rel="stylesheet" href="layout-wizard\.css\?v=3">/);
-assert.match(bh, /builder\.js\?v=41/);
+assert.match(bh, /<script src="layout-wizard\.js\?v=7"><\/script>/); assert.match(bh, /<link rel="stylesheet" href="layout-wizard\.css\?v=3">/);
+assert.match(bh, /builder\.js\?v=42/);
 const lw = rd('public/layout-wizard.js');
 assert.ok(!/\beval\s*\(|new Function|\.style\.|innerHTML|on[a-z]+=\s*["']/.test(lw), 'CSP-safe: no eval / inline style / innerHTML');
 assert.match(lw, /helm\.layoutWizard\.v1\./, 'remembers per quote');

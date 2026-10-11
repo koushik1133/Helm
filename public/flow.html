@@ -349,7 +349,7 @@
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
 <script src="event-name.js?v=5"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=173"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=174"></script>
 <script src="tour.js?v=9"></script>
 <script src="booklet.js?v=16"></script>
 <script src="share-checklist.js?v=9"></script>
@@ -486,7 +486,15 @@
     kochi:"Kerala",cochin:"Kerala",thiruvananthapuram:"Kerala",trivandrum:"Kerala",visakhapatnam:"Andhra Pradesh",vizag:"Andhra Pradesh",vijayawada:"Andhra Pradesh",tirupati:"Andhra Pradesh",
     goa:"Goa",gurugram:"Haryana",gurgaon:"Haryana",chandigarh:"Chandigarh",indore:"Madhya Pradesh",bhopal:"Madhya Pradesh",patna:"Bihar",bhubaneswar:"Odisha",guwahati:"Assam",amritsar:"Punjab",
     dubai:"Dubai","abu dhabi":"Abu Dhabi",sharjah:"Sharjah",ajman:"Ajman"};
-  function clientRegions(){ const HC=window.HelmCountry; if(!HC) return {label:"Client state",regions:[]}; const cc=fTax().country||"IN"; const m=HC.formMeta(cc); return {label:"Client "+String(m.regionLabel||"state").toLowerCase(), regions:m.regions||[]}; }
+  // U1: the client's state/emirate list follows the QUOTE's country when it is priced
+  // (snapshot), otherwise the STUDIO's tax country (loaded pricing config > remembered studioTax)
+  function clientCountry(){
+    try{ const pr=(ev&&ev.pricing)||{}; if(("gstPct" in pr)||("total" in pr)||pr.taxCountry){ const q=BPStore.quoteTax(ev); if(q&&q.country) return q.country; } }catch(_){}
+    if(rates&&rates.taxCountry) return rates.taxCountry;
+    try{ const s=BPStore.studioTax(); if(s&&s.country) return s.country; }catch(_){}
+    return fTax().country||"IN";
+  }
+  function clientRegions(){ const HC=window.HelmCountry; if(!HC) return {label:"Client state",regions:[]}; const cc=clientCountry(); const m=HC.formMeta(cc); return {label:"Client "+String(m.regionLabel||"state").toLowerCase(), regions:m.regions||[]}; }
   function guessClientState(cl){
     const {regions}=clientRegions(); if(!regions.length) return "";
     const city=String(cl.city||"").trim().toLowerCase();
@@ -501,7 +509,7 @@
     $("#c_stateLbl").textContent=label;
     sel.innerHTML='<option value="">Not set</option>'+regions.map(r=>`<option value="${esc(r.name)}">${esc(r.name)}</option>`).join("");
     let v=typeof cl.state==="string"?cl.state:"";
-    if(v && !regions.some(r=>r.name===v)){ const f=window.HelmCountry&&HelmCountry.findRegion(fTax().country,v); v=f?f.name:""; if(!v&&cl.state) sel.insertAdjacentHTML("beforeend",`<option>${esc(cl.state)}</option>`), v=cl.state; }
+    if(v && !regions.some(r=>r.name===v)){ const f=window.HelmCountry&&HelmCountry.findRegion(clientCountry(),v); v=f?f.name:""; if(!v&&cl.state) sel.insertAdjacentHTML("beforeend",`<option>${esc(cl.state)}</option>`), v=cl.state; }
     if(!v) v=guessClientState(cl);   // prefill from city / venue / address; saved with the client step
     sel.value=v||"";
     if(v && v!==cl.state) ev.client=Object.assign({}, ev.client||{}, {state:v});
@@ -1017,7 +1025,8 @@
     let pc=null;
     try{ pc=await BPStore.config.getPricing(); }catch(e){ if(!noPricingBackend(e)) throw e; }
     if(pc) rates=Object.assign(rates,pc); $("#q_chairPrice").value=rates.chairPrice; applyPayTerms();
-    if(ev){ paintCurBanner(); if(quoteKeep && ev.pricing && ev.pricing.chairPrice!=null) $("#q_chairPrice").value=ev.pricing.chairPrice; } }
+    if(ev){ paintCurBanner(); try{ const cur=$("#c_state").value; fillClientStates(Object.assign({}, ev.client||{}, cur?{state:cur}:{})); }catch(_){}
+      if(quoteKeep && ev.pricing && ev.pricing.chairPrice!=null) $("#q_chairPrice").value=ev.pricing.chairPrice; } }
   // onboarding payment terms: default advance % (until the user types one) + balance due + note
   function applyPayTerms(){
     const t=BPStore.paymentTerms(rates, $("#c_date").value);
