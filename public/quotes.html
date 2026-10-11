@@ -279,9 +279,9 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="phone-input.js?v=1"></script>
+<script src="phone-input.js?v=2"></script>
 <script src="event-name.js?v=5"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=173"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=174"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="tour.js?v=9"></script>
 <script>
@@ -387,7 +387,7 @@
     // UAE audit: client emirate (list) + optional client TRN for a VAT-registered (B2B) client - Art. 59(1)(d)
     if(r.country==="AE"){ const st=$("#c_state"); st.previousElementSibling.textContent="Client emirate"; st.placeholder="e.g. Dubai"; st.title="";
       st.setAttribute("list","c_stateList"); $("#c_stateList").innerHTML=((window.HelmCountry&&HelmCountry.get("AE").regions)||[]).map(x=>`<option value="${esc(x.name)}"></option>`).join("");
-      $("#trnFld").hidden=false; $("#c_phone").placeholder="+971…"; }
+      $("#trnFld").hidden=false; if($("#c_phone").helmPhone) $("#c_phone").helmPhone.setDefault("AE"); }
   }
   /* ---------- pricing engine — one shared calc in BPStore.pricing (tax per studio country, 0079) ---------- */
   const calcPricing = (p)=>BPStore.pricing.quoteTotal(p);
