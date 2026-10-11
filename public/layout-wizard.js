@@ -76,8 +76,26 @@
       ['standing', 1, 1, 1], ['led', 1, 2], ['lighting', 1, 1], ['walkway', 0, 1], ['generator', 1, 1], ['bar', 1, 2], ['restroom', 1, 2], ['firstaid', 1, 1], ['vipsofa', 0, 4], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
     festival:       { label: 'Festival / outdoor',    seating: 'standing', objects: [['stage', 1, 1, 1], ['linearray', 1, 2, 1], ['barricade', 1, 1, 1], ['foh', 1, 1, 1],
       ['standing', 1, 1, 1], ['led', 1, 2], ['lighting', 1, 1], ['generator', 1, 1, 1], ['bar', 1, 2], ['restroom', 1, 4], ['firstaid', 1, 1, 1], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
+    // UAE audit (0102): Gulf event types - halal buffet + majlis seating, no dance-floor / bar defaults
+    galadinner:     { label: 'Gala dinner',           seating: 'rounds',  objects: WEDDING.map((o) => o[0] === 'mandap' || o[0] === 'caketable' ? [o[0], 0, o[2]] : o) },
+    iftar:          { label: 'Iftar / Ramadan tent',  seating: 'rounds',  objects: [['buffet', 1, 4, 1], ['vipsofa', 1, 6], ['backdrop', 1, 1], ['floral', 0, 2], ['lighting', 1, 1],
+      ['desk', 0, 1], ['stage', 0, 1], ['restroom', 0, 2], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
+    eid:            { label: 'Eid / National Day celebration', seating: 'rounds', objects: [['stage', 1, 1, 1], ['backdrop', 1, 1], ['dancefloor', 1, 1], ['led', 1, 2], ['linearray', 1, 2], ['buffet', 1, 2],
+      ['lighting', 1, 1], ['photobooth', 1, 1], ['vipsofa', 1, 4], ['floral', 0, 2], ['firstaid', 0, 1], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
+    exhibition:     { label: 'Exhibition / trade show', seating: 'standing', objects: [['desk', 1, 2, 1], ['brandwall', 1, 1], ['standing', 1, 1, 1], ['led', 1, 2], ['cocktail', 1, 8],
+      ['lighting', 1, 1], ['stage', 0, 1], ['podium', 0, 1], ['buffet', 0, 1], ['restroom', 0, 2], ['firstaid', 0, 1], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
   };
-  const TYPE_ALIAS = { gala: 'wedding', anniversary: 'wedding', sangeet: 'engagement', mehendi: 'engagement', mehndi: 'engagement', haldi: 'engagement', roka: 'engagement', cocktail: 'reception', rally: 'political', public_meeting: 'political',
+  // UAE audit: which types a studio's country offers (India / others: every type, unchanged).
+  // AE hides the political rally and the India-only wording; the wedding mandap starts OFF.
+  const AE_HIDE = { political: 1 };
+  const AE_LABEL = { engagement: 'Engagement / henna night', wedding: 'Wedding (kosha / stage)' };
+  function typesFor(cc) {
+    const ae = String(cc || '').toUpperCase() === 'AE', out = [];
+    Object.keys(TYPES).forEach((k) => { if (ae && AE_HIDE[k]) return; out.push({ key: k, label: (ae && AE_LABEL[k]) || TYPES[k].label }); });
+    return out;
+  }
+  function defaultUnit(cc) { return String(cc || '').toUpperCase() === 'IN' || !cc ? 'ft' : String(cc).toUpperCase() === 'US' ? 'ft' : 'm'; }
+  const TYPE_ALIAS = { iftar: 'iftar', ramadan: 'iftar', suhoor: 'iftar', eid: 'eid', 'national day': 'eid', exhibition: 'exhibition', 'trade show': 'exhibition', gala: 'wedding', anniversary: 'wedding', sangeet: 'engagement', mehendi: 'engagement', mehndi: 'engagement', haldi: 'engagement', roka: 'engagement', cocktail: 'reception', rally: 'political', public_meeting: 'political',
     'public meeting': 'political', seminar: 'conference', expo: 'conference', 'product launch': 'product_launch', 'live music': 'concert' };
   function typeKey(t) {
     const k = String(t || '').toLowerCase().trim();
@@ -116,7 +134,8 @@
       objects[k] = Object.assign({ on: !!(on || mand), qty: qty || 1, mandatory: !!mand }, sz,
         OBJECTS[k].seatsField ? { seats: OBJECTS[k].seats } : {});
     });
-    const spec = { type: tk, hall: { w: W, h: H }, unit: o.unit === 'm' ? 'm' : 'ft', guests, chairs, carpet: false, objects,
+    if (String(o.country || '').toUpperCase() === 'AE' && objects.mandap && !objects.mandap.mandatory) objects.mandap.on = false;
+    const spec = { type: tk, hall: { w: W, h: H }, unit: o.unit === 'm' ? 'm' : o.unit === 'ft' ? 'ft' : defaultUnit(o.country), guests, chairs, carpet: false, objects,
       seating: { style: T.seating, spt: 8, tables: 0, blocks: W >= 150 ? 4 : 2, rows: 0, cols: 14, aisle: 6, longTables: 0, perLong: 10, mixRounds: 0 } };
     // theatre rows sized to the hall: blocks side by side fill ~85% of its width
     spec.seating.cols = clamp(Math.floor((W * 0.85 - (spec.seating.blocks - 1) * 6) / spec.seating.blocks / 2.4), 4, 30);
@@ -507,7 +526,7 @@
     const full = Math.floor(per / C), rem = per % C;
     return `${B} blocks × ${full} row${full === 1 ? '' : 's'} × ${C}` + (rem ? ` + ${rem}${extra ? '–' + (rem + 1) : ''} in a last row` : extra ? ` (+1 seat in ${extra} blocks)` : '') + ` = ${main} seats`;
   }
-  const API = { theatreText, OBJECTS, TYPES, SEATING_STYLES, M2FT, typeKey, defaults, defaultSize, extraSeats, mainCapacity, seatPlan, fitSeating, layout };
+  const API = { typesFor, defaultUnit, theatreText, OBJECTS, TYPES, SEATING_STYLES, M2FT, typeKey, defaults, defaultSize, extraSeats, mainCapacity, seatPlan, fitSeating, layout };
   G.HelmWizard = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof document === 'undefined' || !G.document) return;
@@ -543,6 +562,7 @@
   /* eslint-enable no-undef */
   const g = (name) => { try { return GET[name] ? GET[name]() : undefined; } catch (_) { return undefined; } };
   let spec = null, step = 0, opener = null, lastResult = null;
+  const studioCountry = () => { try { return (G.BPStore && G.BPStore.studioTax && G.BPStore.studioTax().country) || 'IN'; } catch (_) { return 'IN'; } };
   const STEPS = ['Venue & guests', 'Seating', 'Objects', 'Review'];
   const memKey = () => { const q = g('currentQuoteId'); return 'helm.layoutWizard.v1.' + (q || 'draft'); };
   const remember = () => { try { G.localStorage.setItem(memKey(), JSON.stringify(spec)); } catch (_) {} };
@@ -611,8 +631,9 @@
   function stepVenue(p) {
     p.append(el('p', 'lw-note', 'Tell us the event and the hall. Everything is prefilled from the quote — change anything.'));
     const typeSel = el('select', 'lw-in', null, { id: 'wizType' });
-    Object.entries(TYPES).forEach(([k, t]) => { const o = el('option', null, t.label, { value: k }); if (k === spec.type) o.selected = true; typeSel.append(o); });
-    typeSel.addEventListener('change', () => { const keep = { guests: spec.guests, chairs: spec.chairs, w: spec.hall.w, h: spec.hall.h, unit: spec.unit };
+    const tl = typesFor(studioCountry()); if (!tl.some((x) => x.key === spec.type)) tl.push({ key: spec.type, label: TYPES[spec.type].label });
+    tl.forEach(({ key: k, label }) => { const o = el('option', null, label, { value: k }); if (k === spec.type) o.selected = true; typeSel.append(o); });
+    typeSel.addEventListener('change', () => { const keep = { guests: spec.guests, chairs: spec.chairs, w: spec.hall.w, h: spec.hall.h, unit: spec.unit, country: studioCountry() };
       const carpet = spec.carpet; spec = defaults(typeSel.value, keep); spec.carpet = carpet; renderBody(); });
     const grid = el('div', 'lw-grid');
     grid.append(field('Event type', typeSel, 'Picks the suggested objects & seating'));
@@ -735,7 +756,8 @@
     const room = (g('store') && g('store').venue && g('store').venue.room) || W;
     const guests = posInt(PR.guests) || posInt(cl.guests);
     let chairs = 0; try { const qc = g('quoteChairsNow'); if (g('currentQuoteId') && typeof qc === 'function') chairs = posInt(qc()); } catch (_) {}
-    const s = defaults(PR.eventType || cl.eventType || 'wedding', { guests, chairs, w: posInt(cl.hallLen) || room.w, h: posInt(cl.hallWid) || room.h });
+    const cc = studioCountry();
+    const s = defaults(PR.eventType || cl.eventType || (cc === 'AE' ? 'galadinner' : 'wedding'), { country: cc, guests, chairs, w: posInt(cl.hallLen) || room.w, h: posInt(cl.hallWid) || room.h });
     s._chairsManual = !!(cl.chairsManual);
     return s;
   }

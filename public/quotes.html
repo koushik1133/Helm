@@ -182,7 +182,8 @@
       <div class="fld"><label for="c_date">Event date</label><input id="c_date" type="date" data-min-today></div>
       <div class="fld"><label for="c_venue">Venue</label><input id="c_venue" placeholder="Venue name"></div>
       <div class="fld s-068a8dd"><label for="c_address">Venue address</label><input id="c_address" placeholder="Address"></div>
-      <div class="fld"><label for="c_state">Client / event state</label><input id="c_state" maxlength="60" placeholder="e.g. Telangana" title="Same state as your studio → CGST + SGST; another state → IGST"></div>
+      <div class="fld"><label for="c_state">Client / event state</label><input id="c_state" maxlength="60" placeholder="e.g. Telangana" title="Same state as your studio → CGST + SGST; another state → IGST"><datalist id="c_stateList"></datalist></div>
+      <div class="fld" id="trnFld" hidden><label for="c_trn">Client TRN (if VAT-registered)</label><input id="c_trn" maxlength="20" inputmode="numeric" autocomplete="off" placeholder="15 digits, optional"></div>
       <div class="fld s-068a8dd"><label for="c_notes">Notes</label><textarea id="c_notes" placeholder="Anything to remember…"></textarea></div>
     </div>
 
@@ -279,7 +280,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
-<script src="event-name.js?v=4"></script>
+<script src="event-name.js?v=5"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=173"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="tour.js?v=9"></script>
@@ -383,6 +384,10 @@
     $("#taxFoot").textContent="Every save is a version · confirm to price & lock · "+r.name+" ("+r.countryName+")";
     $("#pricingHead").textContent="Pricing ("+r.currency+")"; $("#posFld").hidden=true;
     $("#taxNote").textContent="Rates and "+r.name+" are set once in the Control Center. Enter a coupon or discount here.";
+    // UAE audit: client emirate (list) + optional client TRN for a VAT-registered (B2B) client - Art. 59(1)(d)
+    if(r.country==="AE"){ const st=$("#c_state"); st.previousElementSibling.textContent="Client emirate"; st.placeholder="e.g. Dubai"; st.title="";
+      st.setAttribute("list","c_stateList"); $("#c_stateList").innerHTML=((window.HelmCountry&&HelmCountry.get("AE").regions)||[]).map(x=>`<option value="${esc(x.name)}"></option>`).join("");
+      $("#trnFld").hidden=false; $("#c_phone").placeholder="+971…"; }
   }
   /* ---------- pricing engine — one shared calc in BPStore.pricing (tax per studio country, 0079) ---------- */
   const calcPricing = (p)=>BPStore.pricing.quoteTotal(p);
@@ -544,7 +549,7 @@
     $("#cm_titleText").textContent = (full.status==="confirmed"?"Re-price ":"Confirm ")+full.code;
     $("#c_name").value=cl.name||""; $("#c_company").value=cl.company||""; $("#c_email").value=cl.email||"";
     $("#c_phone").value=cl.phone||""; $("#c_date").value=cl.eventDate||""; $("#c_venue").value=cl.venue||"";
-    $("#c_address").value=cl.address||""; $("#c_notes").value=cl.notes||""; $("#c_state").value=cl.state||"";
+    $("#c_address").value=cl.address||""; $("#c_notes").value=cl.notes||""; $("#c_state").value=cl.state||""; $("#c_trn").value=cl.trn||"";
     // central rates + vendors + coupons from the Control Center
     cmConfig={chairPrice:200,platePrice:500,gstPct:18,cateringGstPct:18,serviceChargePct:0};
     try{ cmConfig=(await BPStore.config.getPricing())||cmConfig; }catch{}
@@ -623,7 +628,8 @@
   function gatherClient(){
     return { name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:$("#c_email").value.trim(),
       phone:$("#c_phone").value.trim(), eventDate:$("#c_date").value, venue:$("#c_venue").value.trim(),
-      address:$("#c_address").value.trim(), notes:$("#c_notes").value.trim(), state:$("#c_state").value.trim().slice(0,60) };
+      address:$("#c_address").value.trim(), notes:$("#c_notes").value.trim(), state:$("#c_state").value.trim().slice(0,60),
+      ...($("#trnFld").hidden ? {} : { trn:String($("#c_trn").value||"").replace(/\s+/g,"").slice(0,20) }) };
   }
   function recalc(){
     const p=gatherPricing(), t=calcPricing(p);
@@ -658,6 +664,9 @@
       if(!ph){ errEl.textContent="Client phone is required to confirm & lock the quote."; errEl.hidden=false; $("#c_phone").focus(); return; }
       const pv=V.phone(ph); if(!pv.ok){ errEl.textContent=pv.error; errEl.hidden=false; $("#c_phone").focus(); return; }
     }
+    // UAE audit: a client TRN, when given, must be 15 digits (it prints on the tax invoice)
+    if(!$("#trnFld").hidden && window.HelmCountry){ const tv=HelmCountry.validateTaxId("AE",$("#c_trn").value);
+      if(!tv.ok){ errEl.textContent=tv.error; errEl.hidden=false; $("#c_trn").focus(); return; } }
     errEl.hidden=true;
     // duplicate warning (never blocks): another quote with the same client name + event date
     try{ const dn=$("#c_name").value.trim().toLowerCase(), dd=$("#c_date").value;
@@ -718,6 +727,12 @@
     finally{ btn.disabled=false; other.disabled=false; btn.removeAttribute("aria-busy"); }
   }
 
+  /* UAE audit: Art. 59 - only a VAT-registered supplier (TRN on the header) issues a "Tax Invoice"; the
+     bilingual title is the common UAE practice. India keeps "Tax Invoice"; others "Invoice". */
+  function invTitle(qTax, sup){
+    if(qTax.country==="AE") return (sup&&sup.taxId) ? 'Tax Invoice / <span lang="ar" dir="rtl">\u0641\u0627\u062a\u0648\u0631\u0629 \u0636\u0631\u064a\u0628\u064a\u0629</span>' : "Invoice (supplier TRN not set - not a VAT tax invoice)";
+    return qTax.country==="IN" ? "Tax Invoice" : "Invoice";
+  }
   /* ---------- download (printable quote/invoice) ---------- */
   async function downloadQuote(id, ver){
     let full; try{ full=detailCache[id]||(detailCache[id]=await BPStore.quotes.get(id)); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"load the quote"}),{type:"err"}); return; }
@@ -748,7 +763,7 @@
     td,th{padding:8px;border-bottom:1px solid #e6ebf3;text-align:left} .tot td{border:0} .grand td{font-weight:700;font-size:16px;border-top:2px solid #141b2e}
     .head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #141b2e;padding-bottom:14px}
     .badge{background:#eef2ff;color:#4457c8;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}</style>
-    <div class=head><div><h1>${esc(sup.name||"Helm Events")}</h1>${sup.tradeName&&sup.tradeName!==sup.name?`<div class=muted>${esc(sup.tradeName)}</div>`:""}${sup.address?`<div class=muted>${esc(sup.address)}</div>`:""}${sup.taxId?`<div class=muted>${esc(sup.taxIdLabel)}: ${esc(sup.taxId)}</div>`:""}<div class=muted style="font-weight:700;margin-top:4px">${isInv?(qTax.country==="AE"||qTax.country==="IN"?"Tax Invoice":"Invoice"):"Event Quotation"}</div></div>
+    <div class=head><div><h1>${esc(sup.name||"Helm Events")}</h1>${sup.tradeName&&sup.tradeName!==sup.name?`<div class=muted>${esc(sup.tradeName)}</div>`:""}${sup.address?`<div class=muted>${esc(sup.address)}</div>`:""}${sup.taxId?`<div class=muted>${esc(sup.taxIdLabel)}: ${esc(sup.taxId)}</div>`:""}<div class=muted style="font-weight:700;margin-top:4px">${isInv?invTitle(qTax,sup):"Event Quotation"}</div></div>
       <div style="text-align:right"><div style="font-family:monospace;font-weight:700;font-size:16px">${esc(full.code)}</div>
       <div class=muted>${[isInv?(BPStore.quoteDate(full.confirmedAt,qTax)?"Confirmed "+BPStore.quoteDate(full.confirmedAt,qTax):"Confirmed"):"Quote v"+full.currentVersion, ver&&String(ver)!==String(full.currentVersion)?"layout v"+esc(String(ver)):"", BPStore.quoteDate(full.updatedAt,qTax)].filter(Boolean).join(" · ")}</div>
       <span class=badge>${isInv?"CONFIRMED":"QUOTE"}</span></div></div>
@@ -757,6 +772,8 @@
       ${cl.phone?`<tr><td class=muted>Phone</td><td>${esc(cl.phone)}</td></tr>`:""}
       ${cl.eventDate?`<tr><td class=muted>Event date</td><td>${esc(qTax.country==="US"?cl.eventDate:BPStore.fmtDateIN(cl.eventDate))}</td></tr>`:""}
       ${qTax.country==="IN"&&(cl.state||pos)?`<tr><td class=muted>Place of supply</td><td>${esc(cl.state||"—")}${pos==="inter"?" (inter-state · IGST)":pos==="intra"?" (intra-state · CGST + SGST)":""}</td></tr>`:""}
+      ${qTax.country==="AE"&&cl.state?`<tr><td class=muted>Emirate</td><td>${esc(cl.state)}</td></tr>`:""}
+      ${qTax.country==="AE"&&cl.trn?`<tr><td class=muted>Client TRN</td><td>${esc(cl.trn)}</td></tr>`:""}
       ${cl.venue?`<tr><td class=muted>Venue</td><td>${esc(cl.venue)}${cl.address?", "+esc(cl.address):""}</td></tr>`:""}</table>
     <table><tr><th>Item</th><th style="text-align:right">Amount</th></tr>
       ${t?`${line(`Chairs (${num(p.chairs)} × ${inr(num(p.chairPrice))})`, num(p.chairs)*num(p.chairPrice))}

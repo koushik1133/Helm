@@ -528,7 +528,7 @@
     { key: "line2", label: "Address line 2", required: false, max: 160 },
     { key: "city", label: "City", required: true, max: 60 },
     { key: "state", label: "State", required: true, max: 60 },
-    { key: "pin", label: "PIN code", required: true, max: 10 },
+    { key: "pin", label: "PIN code", required: true, max: 16 },
     { key: "phone", label: "Business phone", required: true, max: 24 },
     { key: "location", label: "Primary location / city", required: true, max: 80 },
     { key: "gstin", label: "GSTIN (optional)", required: false, max: 15 },
@@ -540,10 +540,13 @@
     data.country = countryCode(data.country); const india = data.country === "IN";
     data.gstin = data.gstin.toUpperCase().replace(/\s+/g, "");
     data.pin = india ? data.pin.replace(/\s+/g, "") : data.pin.trim().toUpperCase();
-    BILLING_FIELDS.forEach((f) => { if (f.required && !data[f.key]) errors[f.key] = f.label + " is required."; });
+    // UAE audit: the UAE has no postal codes - a P.O. box is optional there (digits only, up to 6)
+    const ae = data.country === "AE";
+    BILLING_FIELDS.forEach((f) => { if (f.required && !data[f.key] && !(ae && f.key === "pin")) errors[f.key] = f.label + " is required."; });
     if (data.legal_name && !/[A-Za-z0-9]/.test(data.legal_name)) errors.legal_name = "Enter a real business name.";
     if (data.pin && india && !PIN_RE.test(data.pin)) errors.pin = "PIN code must be 6 digits (not starting with 0).";
-    if (data.pin && !india && !/^[A-Z0-9][A-Z0-9 -]{1,9}$/.test(data.pin)) errors.pin = "Enter a valid postal code.";
+    if (data.pin && ae) { data.pin = data.pin.replace(/^P\.?\s*O\.?\s*BOX\s*/i, "").replace(/\s+/g, ""); if (!/^[0-9]{1,6}$/.test(data.pin)) errors.pin = "Enter the P.O. box number (digits only) or leave it blank."; }
+    else if (data.pin && !india && !/^[A-Z0-9][A-Z0-9 -]{1,9}$/.test(data.pin)) errors.pin = "Enter a valid postal code.";
     if (data.phone) { const d = data.phone.replace(/[^\d]/g, ""); if (!/^[+\d\s()-]+$/.test(data.phone) || d.length < (india ? 10 : 7) || d.length > (india ? 13 : 15)) errors.phone = "Enter a valid phone number, e.g. " + (india ? "+91 98765 43210." : "+44 20 7946 0958."); }
     if (data.gstin && india && !GSTIN_RE.test(data.gstin)) errors.gstin = "Enter a valid 15-character GSTIN, e.g. 36ABCDE1234F1Z5 (or leave it blank).";
     if (data.gstin && !india) { const t = taxIdOf(data.country); if (data.gstin.length > 30 || !t.re.test(data.gstin)) errors.gstin = "Enter a valid " + t.label + (t.eg ? ", e.g. " + t.eg : "") + " (or leave it blank)."; }

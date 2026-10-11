@@ -727,7 +727,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=1"></script>
-<script src="event-name.js?v=4"></script>
+<script src="event-name.js?v=5"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=173"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=5"></script>
@@ -735,7 +735,7 @@
 <script src="hq-invoice.js?v=1"></script>
 <script src="tour.js?v=9"></script>
 <script src="pkg-review.js?v=4"></script>
-<script src="onboarding-core.js?v=3"></script>
+<script src="onboarding-core.js?v=4"></script>
 <script src="comms-settings.js?v=2"></script>
 <script src="photo-render-settings.js?v=2"></script>
 <script src="venues-core.js?v=5"></script>
@@ -1162,7 +1162,7 @@
   function paintCountryLabels(){
     const cc=BPStore.tax.code($("#o_country").value), p=BPStore.tax.profile(cc), india=cc==="IN";
     $("#o_gst_lbl").textContent=p.idLabel+" (optional)"; $("#o_gst").placeholder=p.idEg||"";
-    $("#o_pin_lbl").textContent=india?"PIN code *":"Postal code *"; $("#o_state_lbl").textContent=india?"State *":(p.regionLabel||"State / region")+" *";
+    $("#o_pin_lbl").textContent=india?"PIN code *":cc==="AE"?"P.O. box (optional)":"Postal code *"; $("#o_state_lbl").textContent=india?"State *":(p.regionLabel||"State / region")+" *";
     // 0089: suggest the country's states / emirates (US options show the state base sales-tax rate)
     const dl=$("#o_state_list"); if(dl){ dl.textContent=""; const hc=window.HelmCountry;
       if(hc && ["IN","AE","US"].includes(cc)) hc.get(cc).regions.forEach(r=>{ const o=document.createElement("option"); o.value=r.name; if(r.rate!=null) o.label=r.name+" - "+r.rate+"% state sales tax"; dl.appendChild(o); }); }
@@ -1343,7 +1343,12 @@
   let dishDefs=[];
   let dishCache=[];
   const dishAttrText=(x)=>{ const al=typeof HelmImportCore!=="undefined"?HelmImportCore.attrList("menu",x.attributes,dishDefs):[]; return al.slice(0,4).map(a=>a.label+": "+a.value.slice(0,30)).join(" · ")+(al.length>4?" · +"+(al.length-4)+" more":""); };
-  const KINDLBL={veg:'<span style="color:#0f7a43">veg</span>',nonveg:'<span style="color:#b42318">non-veg</span>',special:'<span style="color:#7c3aed">special</span>'};
+  // UAE audit: vegetarian / halal wording for a UAE studio (the stored kinds stay veg | nonveg | special)
+  const MENU_AE=(()=>{ try{ return BPStore.studioTax().country==="AE"; }catch(_){ return false; } })();
+  const KINDLBL=MENU_AE?{veg:'<span style="color:#0f7a43">vegetarian</span>',nonveg:'<span style="color:#b42318">meat / fish (halal)</span>',special:'<span style="color:#7c3aed">special</span>'}
+    :{veg:'<span style="color:#0f7a43">veg</span>',nonveg:'<span style="color:#b42318">non-veg</span>',special:'<span style="color:#7c3aed">special</span>'};
+  if(MENU_AE){ try{ const k=document.getElementById("dc_kind"); if(k){ k.options[0].text="Vegetarian"; k.options[1].text="Meat / fish (halal)"; }
+    const pn=document.getElementById("pl_name"); if(pn) pn.placeholder="Package e.g. Arabic buffet / Emirati feast / Vegetarian"; }catch(_){} }
   async function renderDishes(){
     try{ dishDefs=await BPStore.smartImport.fieldDefs("menu"); }catch(e){ dishDefs=[]; }
     try{ dishCache=(await BPStore.dishCatalog.list())||[]; }catch(e){ dishCache=[]; BPUI.loadError($("#dishList"), e, renderDishes, {what:"dishes"}); return; }

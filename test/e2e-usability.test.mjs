@@ -78,7 +78,7 @@ t('E4 friendly title: names, else "<Type> for <client> · date"; manual renames 
 });
 t('E3/E4 approve, booklet, portal, invitation and the quote PDF use the shared map', () => {
   assert.match(approve, /HEN\.friendlyTitle\(/); assert.match(approve, /HEN\.label\(quote\.event_type\)/); assert.match(approve, /"Ref "\+quote\.code/);
-  assert.match(portal, /HEN\.friendlyTitle\(e\)/); assert.match(portal, /HEN\.label\(e\.event_type\)/);
+  assert.match(portal, /HEN\.friendlyTitle\(Object\.assign\(\{client_name:d\.client_name\},e\)\)/);   // live E2E: type is in the title, the second line is the date
   assert.match(bookletJs, /fact\(dl, "Occasion", typeLabel\(e\.event_type\)\)/); assert.match(bookletJs, /const title = clientTitle\(e\);/);
   assert.match(invite, /HEN\.isAuto\(String\(site\.title\)\)/);
   assert.match(flow, /HelmEventName\.friendlyTitle\(Object\.assign\(\{\}, ev/);
@@ -193,7 +193,7 @@ t('APPLY-0101.sql: ASCII, one transaction, verify rows', () => {
   assert.match(read('supabase/migrations/MANIFEST'), /forward  supabase\/migrations\/0101_e2e_usability\.sql/);
 });
 t('versions bumped', () => {
-  for (const f of [flow, approve, portal, invite, studio, settle, closure]) { assert.match(f, /store-api\.js\?v=173/); assert.match(f, /event-name\.js\?v=4/); assert.match(f, /country-profile\.js\?v=4/); }
+  for (const f of [flow, approve, portal, invite, studio, settle, closure]) { assert.match(f, /store-api\.js\?v=173/); assert.match(f, /event-name\.js\?v=5/); assert.match(f, /country-profile\.js\?v=4/); }
   assert.match(read('public/booklet.html'), /booklet\.js\?v=16/); assert.match(flow, /booklet\.js\?v=16/);
 });
 

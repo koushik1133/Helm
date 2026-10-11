@@ -146,7 +146,7 @@ t('B15 print header: frozen supplier, else current studio only when the country 
   const s3 = B.quoteSupplier({ pricing: { total: 1, supplier: { name: 'Old India Pvt Ltd', taxIdLabel: 'GSTIN', taxId: '36ABCDE1234F1Z5', country: 'IN' } } }, aeOrg);
   assert.equal(s3.name, 'Old India Pvt Ltd'); assert.equal(s3.taxId, '36ABCDE1234F1Z5');
   assert.equal(B.supplierSnapshot(aeOrg, 'IN'), null); assert.equal(B.supplierSnapshot(aeOrg, 'AE').taxId, '100123456700003');
-  const q = read('public/quotes.html'); assert.match(q, /pricing\.supplier=sp/); assert.match(q, /\(qTax\.country==="AE"\|\|qTax\.country==="IN"\?"Tax Invoice":"Invoice"\)/);
+  const q = read('public/quotes.html'); assert.match(q, /pricing\.supplier=sp/); assert.match(q, /isInv\?invTitle\(qTax,sup\)/); assert.match(q, /return qTax\.country==="IN" \? "Tax Invoice" : "Invoice";/);   // UAE audit: AE title in invTitle()
 });
 t('B16 missing / epoch dates are hidden; locale per quote country', () => {
   const B = storeCtx();
