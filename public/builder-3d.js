@@ -181,7 +181,8 @@
           const wheel=new THREE.Mesh(new THREE.CylinderGeometry(1,1,0.5,16),mat('#1b2233')); wheel.rotation.x=Math.PI/2; wheel.position.set(wx,1,wz); g.add(wheel); }
         break; }
       case 'exit': {
-        const sign=boxMesh(w,d*0.7,0.3,'#18a558',{emissive:col('#0d7a3f'),emissiveIntensity:.6}); sign.position.y=6; g.add(sign);
+        const ent=/entr/i.test(it.label||'');   // Entrance marker: blue sign; exits stay green
+        const sign=boxMesh(w,d*0.7,0.3,ent?'#2563eb':'#18a558',{emissive:col(ent?'#1e40af':'#0d7a3f'),emissiveIntensity:.6}); sign.position.y=6; g.add(sign);
         const post=boxMesh(0.2,6,0.2,'#9aa3b2'); post.position.y=3; g.add(post);
         break; }
       case 'seatblock': case 'chairrow': {
