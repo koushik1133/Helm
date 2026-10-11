@@ -4,12 +4,16 @@
 
    build({ items, world:{w,h}, eventType, guests, setting, evening, style, camera, theme, country })
      -> { style, camera, system, layout, prompt, stats }
-   The prompt has two blocks:
-     1. a fixed instruction block (what the three reference images are, hard constraints:
-        same layout / counts / positions, no text, no labels, no measurement lines, photographic)
-     2. a layout block derived from the plan: hall size + orientation, every object type with
-        its count, position (front / middle / back, left / centre / right relative to the stage,
-        aisle sides), size and a photographic description (materials / colours) for the region. */
+   Prompt structure (render fidelity, follows OpenAI's GPT-image prompting guide: labelled segments,
+   scene first, each input image labelled by index + role, preserve-list repeated):
+     1. ENVIRONMENT block FIRST - strong, style-specific (outdoor open sky vs indoor ballroom), never
+        overridden by the venue setting; a one-line environment reminder is repeated at the very end
+     2. image roles (Image 1 camera, 2 plan, 3 labelled plan for scale, 4 colour-coded semantic map)
+     3. hard rules (same layout / counts / positions, no text / labels / measurement lines)
+     4. INVENTORY: same-type objects clustered into groups by proximity + rows/columns, each group with
+        exact count, arrangement ("2 rows x 8 sofas = 16"), position relative to stage / aisle / other groups
+     5. COUNT CHECKLIST + explicit "verify every count before finalising"
+   semanticMap(items, world) -> flat colour shapes + legend for reference image 4 (drawn by photo-render-ui.js). */
 (function (root) {
   'use strict';
 
@@ -19,6 +23,35 @@
     daylight: { label: 'Daylight',           light: 'bright natural midday daylight, soft high clouds, true-to-life colours, gentle shadows directly under objects', setting: 'outdoor' },
     ballroom: { label: 'Indoor ballroom',    light: 'an elegant indoor ballroom: warm ambient light from chandeliers and ceiling coves, soft pin-spots on tables and florals, warm uplighting on walls and drapes, polished floor reflections', setting: 'indoor' },
   };
+  /* ENVIRONMENT blocks: the first thing in the prompt; the outdoor ones never mention interior
+     architecture (an interior word makes the model drift to a ballroom). */
+  var ENV = {
+    golden: {
+      outdoor: 'ENVIRONMENT (mandatory, overrides anything the reference images suggest): an OPEN-AIR outdoor event on a manicured green lawn and pale stone terrace, completely open to the sky. Golden hour about 40 minutes before sunset: the sun is LOW near the horizon, warm amber-orange light rakes across the scene from one side, every chair, sofa and floral stand casts a LONG shadow across the grass, glowing rim light on florals, a warm gradient sky with a few soft clouds. Mature trees, hedges and flower beds frame the venue edges; open landscape beyond. Nothing overhead but sky.',
+      remind: 'Reminder: open-air lawn at golden hour - low warm sun, long shadows, open sky, trees around the edges.',
+    },
+    evening: {
+      outdoor: 'ENVIRONMENT (mandatory, overrides anything the reference images suggest): an OPEN-AIR outdoor event at blue hour / early night: deep blue-to-indigo sky with the last glow on the horizon, a few stars. The venue glows with warm festoon string lights and fairy lights strung overhead on poles, amber uplights washing the trees and florals, candles on tables, LED screens and the stage lit brightly, pools of warm light on the lawn and dark landscaping beyond. Strong contrast between the warm-lit event and the cool dark sky.',
+      indoor: 'ENVIRONMENT (mandatory): an INDOOR ballroom in the evening with the house lights dimmed: crystal chandeliers glowing softly overhead, warm amber uplights washing the walls and drapes, candlelight on the tables, the stage and LED screens lit brightly as the focal point, a moody low-key atmosphere with deep shadows between light pools.',
+      remind: 'Reminder: evening - dark sky or dimmed room, warm festoon/fairy lights and uplights glowing.',
+      remindIndoor: 'Reminder: dimmed indoor ballroom in the evening - glowing chandeliers, warm uplights, candlelight.',
+    },
+    daylight: {
+      outdoor: 'ENVIRONMENT (mandatory, overrides anything the reference images suggest): an OPEN-AIR outdoor event at bright midday on a manicured green lawn, completely open to the sky. High sun, crisp neutral white balance, true-to-life colours, short sharp shadows directly under objects, clear blue sky with light high clouds, vivid green grass, trees and hedges around the venue edges.',
+      remind: 'Reminder: open-air lawn in bright midday sun - blue sky, short shadows, neutral colours.',
+    },
+    ballroom: {
+      indoor: 'ENVIRONMENT (mandatory): a grand INDOOR ballroom: high ceiling with ornate coffers and several large crystal chandeliers, walls dressed with soft ivory drapes and warm uplighting, a patterned luxury carpet / polished floor, warm ambient light, soft pin-spots on tables and florals. No sky and no outdoor landscaping visible.',
+      remind: 'Reminder: indoor ballroom - ceiling with chandeliers, draped walls, carpeted floor.',
+    },
+  };
+  // the environment actually rendered: the chosen style wins over the venue setting
+  function envFor(style, setting) {
+    var st = STYLES[style] || STYLES.golden;
+    var where = st.setting || (setting === 'indoor' ? 'indoor' : 'outdoor');
+    var e = ENV[style] || ENV.golden;
+    return { where: where, text: e[where] || e.outdoor || e.indoor, remind: where === 'indoor' && e.remindIndoor ? e.remindIndoor : e.remind };
+  }
   var CAMERAS = {
     hero: { label: 'Hero aerial', text: 'High aerial three-quarter drone photograph taken from EXACTLY the same position, height and angle as reference image 1 (the 3D overview) - same framing, same perspective, same side of the venue in the foreground. Shot on a full-frame camera with a 24mm lens at f/8, everything in sharp focus.' },
     top:  { label: 'Top-down',    text: 'Straight-down aerial drone photograph (nadir view, camera pointing directly at the ground) covering the whole venue, oriented exactly like reference image 2 (same edge at the top). 24mm lens, f/8, everything in sharp focus.' },
@@ -56,7 +89,7 @@
 
   /* every ASSETS type in builder.js -> a photographic description (materials / colours) */
   var DESC = {
-    stage: 'a raised event stage with a carpeted deck, skirted front, a large LED backdrop wall framed by lush floral installations',
+    stage: 'a raised event stage deck, skirted front, a large LED backdrop wall framed by lush floral installations',
     dancefloor: 'a glossy black-and-white checkered dance floor laid flat on the ground',
     podium: 'a slim lectern podium in white and gold',
     press: 'a low black press riser platform for photographers and cameras',
@@ -171,9 +204,15 @@
     if (c === 'US' || c === 'USA') return 'US';
     return 'IN';
   }
-  function defaultStyle(setting, evening) {
+  // objects that only exist at an outdoor venue: used when the venue setting is unknown
+  var OUTDOOR_HINTS = { fountain: 1, parking: 1, truck: 1, generator: 1, tent: 1, fence: 1 };
+  function inferSetting(setting, items) {
+    if (setting === 'indoor' || setting === 'outdoor') return setting;
+    return (items || []).some(function (it) { return it && OUTDOOR_HINTS[it.type]; }) ? 'outdoor' : 'indoor';
+  }
+  function defaultStyle(setting, evening, items) {
     if (evening) return 'evening';
-    return setting === 'indoor' ? 'ballroom' : 'golden';
+    return inferSetting(setting, items) === 'indoor' ? 'ballroom' : 'golden';
   }
 
   // where the stage sits: which plan edge is "front"
@@ -202,63 +241,154 @@
   }
   function edgeWord(edge) { return { top: 'top', bottom: 'bottom', left: 'left', right: 'right' }[edge]; }
 
+  /* ---------- inventory: cluster same-type objects into groups (proximity), rows within a group ---------- */
+  function boxGap(a, b) {
+    var dx = Math.max(0, Math.max(a.x0, b.x0) - Math.min(a.x1, b.x1)), dy = Math.max(0, Math.max(a.y0, b.y0) - Math.min(a.y1, b.y1));
+    return Math.max(dx, dy);
+  }
+  function ibox(it) { var x = num(it.x, 0), y = num(it.y, 0), w = Math.max(0, num(it.width, 0)), h = Math.max(0, num(it.height, 0));
+    if (num(it.rotation, 0) % 180) { var cx = x + w / 2, cy = y + h / 2; return { x0: cx - h / 2, y0: cy - w / 2, x1: cx + h / 2, y1: cy + w / 2 }; }
+    return { x0: x, y0: y, x1: x + w, y1: y + h }; }
+  var NO_GROUP = { seatblock: 1, stage: 1, mandap: 1, dancefloor: 1, redcarpet: 1, walkway: 1, tent: 1, parking: 1 };   // each one is its own group
+  function clusterType(list, aisleBox) {
+    var n = list.length, parent = list.map(function (_, i) { return i; });
+    function find(i) { while (parent[i] !== i) i = parent[i] = parent[parent[i]]; return i; }
+    var bx = list.map(ibox);
+    for (var i = 0; i < n; i++) for (var j = i + 1; j < n; j++) {
+      if (NO_GROUP[list[i].type]) continue;
+      var a = bx[i], b = bx[j];
+      var big = Math.max(a.x1 - a.x0, a.y1 - a.y0, b.x1 - b.x0, b.y1 - b.y0);
+      var acx = (a.x0 + a.x1) / 2, acy = (a.y0 + a.y1) / 2, bcx = (b.x0 + b.x1) / 2, bcy = (b.y0 + b.y1) / 2;
+      // aligned neighbours (same row or same column) may sit further apart than loose ones
+      var aligned = Math.abs(acy - bcy) <= Math.max(1, 0.5 * Math.min(a.y1 - a.y0, b.y1 - b.y0)) || Math.abs(acx - bcx) <= Math.max(1, 0.5 * Math.min(a.x1 - a.x0, b.x1 - b.x0));
+      var thr = aligned ? Math.max(3, 1.5 * big + 1) : Math.max(2, 0.5 * big);
+      if (boxGap(a, b) > thr) continue;
+      if (aisleBox) {   // never join two objects on opposite sides of the aisle
+        var vert = (aisleBox.y1 - aisleBox.y0) >= (aisleBox.x1 - aisleBox.x0), mid = vert ? (aisleBox.x0 + aisleBox.x1) / 2 : (aisleBox.y0 + aisleBox.y1) / 2;
+        var along = vert ? (acy >= aisleBox.y0 && acy <= aisleBox.y1) || (bcy >= aisleBox.y0 && bcy <= aisleBox.y1) : (acx >= aisleBox.x0 && acx <= aisleBox.x1) || (bcx >= aisleBox.x0 && bcx <= aisleBox.x1);
+        if (along && (vert ? ((acx < mid) !== (bcx < mid)) : ((acy < mid) !== (bcy < mid)))) continue;
+      }
+      parent[find(i)] = find(j);
+    }
+    var by = {}, out = [];
+    list.forEach(function (it, i) { var r = find(i); if (!by[r]) { by[r] = []; out.push(by[r]); } by[r].push(it); });
+    return out;
+  }
+  // rows of a group: items whose centre depth (distance from the front) is within half an item depth
+  function rowsOf(g, edge, W, H) {
+    var pts = g.map(function (it) { var b = ibox(it); var p = local(edge, (b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, W, H);
+      var dep = (edge === 'top' || edge === 'bottom') ? (b.y1 - b.y0) : (b.x1 - b.x0); return { d: p.depth * ((edge === 'top' || edge === 'bottom') ? H : W), dep: dep }; })
+      .sort(function (a, b) { return a.d - b.d; });
+    var rows = [];
+    pts.forEach(function (p) { var r = rows[rows.length - 1]; if (r && Math.abs(p.d - r.d) <= Math.max(1, r.dep * 0.5)) r.n++; else rows.push({ d: p.d, dep: p.dep, n: 1 }); });
+    return rows.map(function (r) { return r.n; });
+  }
+  function arrangement(g, name, rows) {
+    var n = g.length;
+    if (n === 1) return '1 ' + name;
+    var same = rows.every(function (r) { return r === rows[0]; });
+    if (rows.every(function (r) { return r === 1; })) return 'a line of ' + n + ' ' + plural(n, name) + ', one behind the other';
+    if (rows.length === 1) return '1 row of ' + n + ' ' + plural(n, name) + ' side by side';
+    if (same) return rows.length + ' rows x ' + rows[0] + ' ' + plural(rows[0], name) + ' = ' + n + ' ' + plural(n, name) + ' (' + rows.length + ' rows, one behind the other)';
+    return rows.length + ' rows (' + rows.join(' + ') + ') = ' + n + ' ' + plural(n, name);
+  }
+  function groupBox(g) { var b = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }; g.forEach(function (it) { var q = ibox(it); b.x0 = Math.min(b.x0, q.x0); b.y0 = Math.min(b.y0, q.y0); b.x1 = Math.max(b.x1, q.x1); b.y1 = Math.max(b.y1, q.y1); }); return b; }
+  // where a group sits relative to another (front = toward the stage, left/right = guest facing the stage)
+  function relation(a, b, edge, W, H, focal) {
+    var pa = local(edge, (a.x0 + a.x1) / 2, (a.y0 + a.y1) / 2, W, H), pb = local(edge, (b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, W, H);
+    var dd = (pa.depth - pb.depth) * ((edge === 'top' || edge === 'bottom') ? H : W), dl = (pa.lat - pb.lat) * ((edge === 'top' || edge === 'bottom') ? W : H);
+    if (Math.abs(dd) >= Math.abs(dl)) return focal ? (dd < 0 ? 'at the back of' : 'just in front of') : (dd < 0 ? 'directly in front of (stage side of)' : 'directly behind');
+    return dl < 0 ? 'to the left of' : 'to the right of';
+  }
+  function edgeOf(b, edge, W, H) {
+    var m = 0.06 * Math.max(W, H), near = [];
+    if (b.y0 <= m) near.push('top'); if (b.y1 >= H - m) near.push('bottom'); if (b.x0 <= m) near.push('left'); if (b.x1 >= W - m) near.push('right');
+    var map = { top: { top: 'front', bottom: 'back', left: 'left', right: 'right' }, bottom: { top: 'back', bottom: 'front', left: 'right', right: 'left' },
+      left: { left: 'front', right: 'back', top: 'right', bottom: 'left' }, right: { right: 'front', left: 'back', top: 'left', bottom: 'right' } }[edge];
+    return near.map(function (k) { return map[k]; });
+  }
+
   function build(input) {
     input = input || {};
     var W = Math.max(10, num(input.world && input.world.w, 200)), H = Math.max(10, num(input.world && input.world.h, 140));
     var items = (Array.isArray(input.items) ? input.items : []).filter(function (it) { return it && typeof it.type === 'string'; });
-    var setting = input.setting === 'outdoor' ? 'outdoor' : (input.setting === 'indoor' ? 'indoor' : 'outdoor');
-    var style = STYLES[input.style] ? input.style : defaultStyle(input.setting, !!input.evening);
+    var setting = inferSetting(input.setting, items);
+    var style = STYLES[input.style] ? input.style : defaultStyle(setting, !!input.evening);
+    var env = envFor(style, setting);
     var camera = CAMERAS[input.camera] ? input.camera : 'auto';
     var region = regionOf(input.country);
     var themeKey = input.themeKey && THEMES[input.themeKey] ? input.themeKey : null;
     var theme = themeKey ? THEMES[themeKey].text : clean(input.theme, 160);
     var focus = input.focus && FOCUS[input.focus] ? input.focus : null;
     var eventType = clean(input.eventType, 40) || 'wedding';
+    var nImages = Math.max(1, Math.min(4, num(input.images, 4)));
     var o = orientation(items, W, H);
     var stageItem = o.focal;
 
-    // aisle: a red carpet / walkway running away from the stage
     var aisle = null;
     items.forEach(function (it) { if (!aisle && (it.type === 'redcarpet' || it.type === 'walkway')) aisle = it; });
-    var aisleLat = aisle ? local(o.edge, num(aisle.x, 0) + num(aisle.width, 0) / 2, num(aisle.y, 0) + num(aisle.height, 0) / 2, W, H).lat : null;
+    var aisleBox = aisle ? ibox(aisle) : null;
+    var aisleLat = aisle ? local(o.edge, (aisleBox.x0 + aisleBox.x1) / 2, (aisleBox.y0 + aisleBox.y1) / 2, W, H).lat : null;
 
-    // group by type
-    var groups = {}, order = [], seats = 0;
+    var byType = {}, order = [], seats = 0;
     items.forEach(function (it) {
       if (SKIP[it.type]) return;
-      if (!groups[it.type]) { groups[it.type] = []; order.push(it.type); }
-      groups[it.type].push(it);
+      if (!byType[it.type]) { byType[it.type] = []; order.push(it.type); }
+      byType[it.type].push(it);
       seats += seatsOf(it);
     });
     var guests = num(input.guests, 0) > 0 ? Math.round(num(input.guests, 0)) : seats;
 
-    var lines = [], counts = {};
+    // groups
+    var groups = [], counts = {};
     order.forEach(function (t) {
-      var g = groups[t], n = g.length, name = NAMES[t] || clean(t, 30);
-      counts[t] = n;
-      var zs = {}, sides = { left: 0, right: 0 };
-      g.forEach(function (it) {
-        var w = num(it.width, 0), h = num(it.height, 0);
-        var p = local(o.edge, num(it.x, 0) + w / 2, num(it.y, 0) + h / 2, W, H);
-        var z = zone(p); zs[z] = (zs[z] || 0) + 1;
-        if (aisleLat != null && it !== aisle) { if (p.lat < aisleLat - 0.02) sides.left++; else if (p.lat > aisleLat + 0.02) sides.right++; }
-      });
-      var where = Object.keys(zs).map(function (z) { return (n > 1 ? zs[z] + ' at ' : 'at ') + 'the ' + z; }).join(', ');
-      var sz = g[0];
-      var size = ft(num(sz.width, 0)) + ' x ' + ft(num(sz.height, 0));
-      var extra = '';
+      counts[t] = byType[t].length;
+      clusterType(byType[t], t === 'redcarpet' || t === 'walkway' ? null : aisleBox).forEach(function (g) { groups.push({ type: t, items: g, box: groupBox(g) }); });
+    });
+    // sort: front to back, then left to right
+    groups.forEach(function (g) { g.p = local(o.edge, (g.box.x0 + g.box.x1) / 2, (g.box.y0 + g.box.y1) / 2, W, H); });
+    groups.sort(function (a, b) { return (a.p.depth - b.p.depth) || (a.p.lat - b.p.lat); });
+    var typeGroups = {}; groups.forEach(function (g) { typeGroups[g.type] = (typeGroups[g.type] || 0) + 1; });
+    var anchorTypes = ['seatblock', 'chairrow', 'dancefloor', 'stage', 'mandap', 'table', 'buffet'];
+    function shortName(g) {
+      var nm = NAMES[g.type] || clean(g.type, 30), side = '';
+      if (typeGroups[g.type] > 1) side = (aisleLat != null && Math.abs(g.p.lat - aisleLat) > 0.02 ? (g.p.lat < aisleLat ? 'left ' : 'right ') : zone(g.p) + ' ');
+      return 'the ' + side + nm + (g.items.length > 1 && g.type !== 'seatblock' ? ' group' : '');
+    }
+    var lines = [], check = [];
+    groups.forEach(function (g, gi) {
+      var t = g.type, n = g.items.length, name = NAMES[t] || clean(t, 30), it0 = g.items[0];
+      g.id = 'G' + (gi + 1);
+      var rows = rowsOf(g.items, o.edge, W, H);
+      var what, total = n + ' ' + plural(n, name);
       if (t === 'seatblock' || t === 'chairrow') {
-        var rows = 0, chairs = 0;
-        g.forEach(function (it) { var p = it.properties || {}; rows += num(p.rows, 1); chairs += seatsOf(it); });
-        extra = '; ' + chairs + ' chairs in total across ' + rows + ' rows (exactly this many rows - no extra rows)';
-      } else if (t === 'table' || t === 'longtable' || t === 'headtable' || t === 'cocktail') {
-        var s = 0; g.forEach(function (it) { s += seatsOf(it); });
-        if (s) extra = '; ' + s + ' seats in total';
+        var r = 0, ch = 0, per = [];
+        g.items.forEach(function (it) { var p = it.properties || {}; var rr = num(p.rows, 1), cc = num(p.cols, 0) || (rr ? Math.round(seatsOf(it) / rr) : 0); r += rr; ch += seatsOf(it); per.push(rr + ' rows x ' + cc + ' chairs per row'); });
+        what = (n > 1 ? n + ' ' + plural(n, name) + ' (' + per.join('; ') + ')' : 'one ' + name + ': ' + per[0]) + ' = ' + ch + ' chairs';
+        total = (n > 1 ? n + ' blocks, ' : '') + r + ' rows, ' + ch + ' chairs';
+      } else {
+        what = arrangement(g.items, name, rows);
+        var s = 0; g.items.forEach(function (it) { if (t !== 'sofa' && t !== 'chiavari') s += num((it.properties || {}).seats, 0); });
+        if (s && /table/.test(t)) what += ' (' + s + ' seats in total)';
       }
-      if (aisle && t !== aisle.type && sides.left && sides.right && (t === 'seatblock' || t === 'chairrow' || t === 'sofa' || t === 'floral' || t === 'barricade' || t === 'pillar' || t === 'table'))
-        extra += '; ' + sides.left + ' on the left and ' + sides.right + ' on the right of the aisle';
-      if (t === 'sofa' && stageItem) extra += '; placed in front of the seating, facing the stage';
-      lines.push('- ' + n + ' ' + plural(n, name) + ' (' + (DESC[t] || name) + '), ' + (n > 1 ? 'each ' : '') + 'about ' + size + ', ' + where + extra + '.');
+      var where = ['at the ' + zone(g.p) + ' of the venue'];
+      if (aisle && g.items.indexOf(aisle) < 0) {
+        if (g.box.x1 <= aisleBox.x0 || g.box.x0 >= aisleBox.x1 || g.box.y1 <= aisleBox.y0 || g.box.y0 >= aisleBox.y1) {
+          if (Math.abs(g.p.lat - aisleLat) > 0.02 && (t === 'seatblock' || t === 'chairrow' || t === 'sofa' || t === 'table' || t === 'floral' || t === 'pillar' || t === 'loveseat' || t === 'armchair'))
+            where.push((g.p.lat < aisleLat ? 'LEFT' : 'RIGHT') + ' of the aisle');
+        }
+      }
+      // nearest anchor group of another type
+      var best = null, bd = Infinity;
+      groups.forEach(function (h) { if (h === g || h.type === t || anchorTypes.indexOf(h.type) < 0) return; var d = boxGap(g.box, h.box); if (d < bd) { bd = d; best = h; } });
+      if (best && bd < 0.15 * Math.max(W, H) && anchorTypes.indexOf(t) < 0) where.push(relation(g.box, best.box, o.edge, W, H, stageItem && best.items.indexOf(stageItem) >= 0) + ' ' + shortName(best));
+      var edges = edgeOf(g.box, o.edge, W, H);
+      if (edges.length && t !== 'fence' && n > 1) where.push('along the ' + edges.join(' / ') + ' edge of the venue');
+      var gw = Math.round(g.box.x1 - g.box.x0), gh = Math.round(g.box.y1 - g.box.y0);
+      var size = n > 1 ? 'each about ' + ft(num(it0.width, 0)) + ' x ' + ft(num(it0.height, 0)) + ', group spans ' + gw + ' x ' + gh + ' ft' : 'about ' + ft(num(it0.width, 0)) + ' x ' + ft(num(it0.height, 0));
+      var extra = t === 'sofa' && stageItem ? ', facing the ' + (NAMES[stageItem.type] || 'stage') : '';
+      lines.push('- ' + g.id + ': ' + what + ' - ' + (DESC[t] || name) + '; ' + where.join(', ') + '; ' + size + extra + '.');
+      check.push('- ' + g.id + ' ' + shortName(g).replace(/^the /, '') + ': ' + (t === 'seatblock' || t === 'chairrow' ? total : (n > 1 && rows.length > 1 && rows.some(function (r) { return r > 1; }) ? rows.length + ' rows, ' + total : (n > 1 && rows.length === 1 ? '1 row, ' : '') + total)));
     });
 
     var front = stageItem ? (NAMES[stageItem.type] || 'stage') : null;
@@ -266,38 +396,82 @@
       ? 'The ' + front + ' is along the ' + edgeWord(o.edge) + ' edge of the 2D plans; that is the FRONT of the venue. "Left" and "right" below are as seen by a guest facing the ' + front + '.'
       : 'There is no stage; "front" below means the top edge of the 2D plans, "left"/"right" as seen looking toward it.';
 
+    var roles = [
+      'INPUT IMAGES (each has one job):',
+      'Image 1: camera / composition reference - a simple 3D model of the layout. Match its viewpoint, height, angle and framing exactly; replace every simplified grey shape with the real, richly detailed object.',
+      'Image 2: top-down 2D floor plan without labels - ground truth for where every object stands.',
+      'Image 3: the same plan with labels and measurements - use it ONLY to identify objects and read their sizes / scale; never draw any of it.',
+    ];
+    if (nImages >= 4) roles.push('Image 4: colour-coded semantic map (top-down, same orientation as Image 2): every flat colour patch is exactly one real object - use it to verify exact positions, rows and counts. Colour key: ' + LEGEND_TEXT + '. White = empty ground. Never reproduce these flat colours.');
+
     var system = [
-      'Create ONE ultra-realistic professional event photograph (not a 3D render, not an illustration) of the planned event shown in the reference images.',
-      'Reference image 1 is a simple 3D model of the layout: use it for the camera angle, the exact positions, proportions and counts of every object - then replace every simplified shape with the real, richly detailed object described below.',
-      'Reference image 2 is the 2D floor plan without labels (top-down): it is the ground truth for where every object stands.',
-      'Reference image 3 is the same 2D plan with labels and measurements: use it ONLY to identify objects and read their sizes - never draw any of it.',
+      env.text,
+      '',
+      'TASK: Create ONE ultra-realistic professional event photograph (not a 3D render, not an illustration) of the planned ' + eventType + ' shown in the input images. Change only the look (real materials, decor, light, environment); keep everything else - layout, positions, counts, rows, spacing, orientation, camera angle - exactly the same.',
+      roles.join('\n'),
       'STRICT RULES:',
-      '- Keep the layout EXACTLY as planned: same objects, same counts, same positions, same spacing and orientation. Do not add, remove, move or duplicate any object, row, table or chair; do not add extra rows of seating.',
-      '- No text, letters, numbers, labels, badges, legends, logos, watermarks, measurement lines, dimension arrows, grid lines or plan symbols anywhere in the photo.',
+      '- Keep the layout EXACTLY as planned: same objects, same counts, same rows, same positions, same spacing and orientation. Do not add, remove, move, merge or duplicate any object, row, group, table or chair. Two separate groups stay two separate groups.',
+      '- No text, letters, numbers, labels, badges, legends, logos, watermarks, measurement lines, dimension arrows, grid lines, colour-coded patches or plan symbols anywhere in the photo.',
       '- Photorealistic: real materials, physically correct light and shadows, natural colour, fine detail, no CGI look, no cartoon look, no tilt-shift miniature effect.',
       '- No people unless performers are part of the plan; the venue is styled and ready just before guests arrive.',
     ].join('\n');
 
     var layout = [
       'EVENT: ' + eventType + (guests ? ' for about ' + guests + ' guests' : '') + (seats ? ' (' + seats + ' seats on the plan)' : '') + '.',
-      'VENUE: ' + (setting === 'indoor' ? 'indoor hall / ballroom' : 'outdoor lawn venue') + ', ' + ft(W) + ' wide x ' + ft(H) + ' deep.',
+      'VENUE: ' + (env.where === 'indoor' ? 'indoor event space' : 'open-air outdoor venue') + ', ' + ft(W) + ' wide x ' + ft(H) + ' deep.',
       'ORIENTATION: ' + orient,
-      aisle ? 'AISLE: a ' + (NAMES[aisle.type] || 'aisle') + ' runs ' + (aisleLat < 0.4 ? 'left of centre' : (aisleLat > 0.6 ? 'right of centre' : 'down the centre')) + ' from the back toward the ' + (front || 'front') + '.' : '',
-      'OBJECTS (every one of them must appear, with exactly these counts and positions):',
+      aisle ? 'AISLE: a ' + (NAMES[aisle.type] || 'aisle') + ' runs ' + (aisleLat < 0.4 ? 'left of centre' : (aisleLat > 0.6 ? 'right of centre' : 'down the centre')) + ' from the back toward the ' + (front || 'front') + '; it splits the seating into a LEFT side and a RIGHT side.' : '',
+      'INVENTORY (front to back; every group must appear as its own group, with exactly this count and arrangement):',
       lines.length ? lines.join('\n') : '- (empty floor - show the styled venue only)',
-      'GROUND & SURROUNDINGS: ' + (setting === 'indoor'
-        ? 'polished ballroom floor or patterned carpet, elegant walls with drapes, ceiling with soft lighting.'
-        : 'manicured green lawn with neat landscaping, hedges, trees and flower beds around the edges; paths between areas.'),
+      'COUNT CHECKLIST (exact numbers - ' + groups.length + ' groups):',
+      check.length ? check.join('\n') : '- nothing',
+      'TOTALS BY TYPE: ' + order.map(function (t) { var n = counts[t], nm = NAMES[t] || clean(t, 30), x = '';
+        if (t === 'seatblock' || t === 'chairrow') { var r = 0, c = 0; byType[t].forEach(function (it) { r += num((it.properties || {}).rows, 1); c += seatsOf(it); }); x = ' (' + r + ' rows, ' + c + ' chairs in total)'; }
+        return n + ' ' + plural(n, nm) + x; }).join(', ') + '.',
+      'Before finalising, verify every count, every row and every group in the checklist against Image 2' + (nImages >= 4 ? ' and Image 4' : '') + '; if anything is missing, merged or extra, fix it.',
       'STYLE & DECOR: ' + REGIONS[region].text + (theme ? ' Decor theme requested by the planner: ' + theme + '.' : ''),
       'LIGHT & TIME: ' + STYLES[style].light + '.',
       'CAMERA: ' + CAMERAS[camera].text,
       focus ? 'FOCUS: the photo should feature ' + FOCUS[focus].text + ' prominently - frame it as the hero of the picture while keeping everything else exactly as planned.' : '',
+      env.remind,
     ].filter(Boolean).join('\n');
 
     var prompt = system + '\n\n' + layout;
-    if (prompt.length > 30000) prompt = prompt.slice(0, 30000);
-    return { style: style, camera: camera, region: region, theme: theme, focus: focus, system: system, layout: layout, prompt: prompt,
-      stats: { seats: seats, guests: guests, counts: counts, orientation: o.edge } };
+    if (prompt.length > 30000) prompt = prompt.slice(0, 30000 - env.remind.length - 1) + '\n' + env.remind;
+    return { style: style, camera: camera, region: region, theme: theme, focus: focus, environment: env.where, system: system, layout: layout, prompt: prompt,
+      stats: { seats: seats, guests: guests, counts: counts, orientation: o.edge, groups: groups.map(function (g) { return { id: g.id, type: g.type, count: g.items.length, rows: rowsOf(g.items, o.edge, W, H) }; }) } };
+  }
+
+  /* ---------- reference image 4: colour-coded semantic map (pure geometry; photo-render-ui.js draws it) ---------- */
+  var CATS = [
+    { key: 'chairs', color: '#00A6A6', name: 'teal = chairs / seating blocks', types: ['seatblock', 'chairrow', 'chiavari', 'bleacher', 'barstool'] },
+    { key: 'sofas', color: '#E6007E', name: 'magenta = sofas / lounge furniture', types: ['sofa', 'loveseat', 'armchair', 'ottoman', 'lounge', 'bench', 'coffeetable', 'viprisers'] },
+    { key: 'stage', color: '#1F3FFF', name: 'blue = stage / mandap / podium / head table', types: ['stage', 'mandap', 'podium', 'headtable', 'press'] },
+    { key: 'screens', color: '#00D5FF', name: 'cyan = LED walls / screens', types: ['led', 'videowall', 'ledscreen'] },
+    { key: 'dance', color: '#FFD400', name: 'yellow = dance floor', types: ['dancefloor'] },
+    { key: 'aisle', color: '#E10000', name: 'red = aisle / red carpet / walkway', types: ['redcarpet', 'walkway'] },
+    { key: 'floral', color: '#1E9E1E', name: 'green = florals / arches / planters / pillars', types: ['floral', 'floralarch', 'arch', 'planter', 'pillar', 'chariot'] },
+    { key: 'tables', color: '#FF7A00', name: 'orange = guest / cake / gift tables', types: ['table', 'longtable', 'cocktail', 'caketable', 'gifttable'] },
+    { key: 'food', color: '#8B4513', name: 'brown = buffet / bar / food stations', types: ['buffet', 'bar', 'truck', 'chocolatefountain'] },
+    { key: 'av', color: '#7B2FF7', name: 'purple = DJ / sound / lighting gear', types: ['dj', 'speaker', 'linearray', 'subwoofer', 'monitor', 'foh', 'movinghead', 'truss', 'lighting', 'uplight', 'piano'] },
+    { key: 'water', color: '#8FB8FF', name: 'light blue = fountain', types: ['fountain'] },
+    { key: 'service', color: '#808080', name: 'grey = restrooms / service / back-of-house', types: ['restroom', 'greenroom', 'generator', 'firstaid', 'coatcheck', 'heater', 'parking', 'tent', 'canopy', 'booth'] },
+    { key: 'edge', color: '#000000', name: 'black = fences / barriers / drapes', types: ['fence', 'barricade', 'stagebarrier', 'drape'] },
+    { key: 'entry', color: '#FF9EC7', name: 'pink = welcome desk / photo booth / signage', types: ['desk', 'checkpoint', 'photobooth', 'easel', 'brandwall'] },
+  ];
+  var OTHER = { key: 'other', color: '#9A9A00', name: 'olive = other decor' };
+  var CAT_OF = {}; CATS.forEach(function (c) { c.types.forEach(function (t) { CAT_OF[t] = c; }); });
+  var LEGEND_TEXT = CATS.map(function (c) { return c.name; }).join('; ') + '; ' + OTHER.name;
+  var UNDER = { dancefloor: 0, redcarpet: 0, walkway: 0, parking: 0, tent: 0 };
+  function semanticMap(itemsIn, world) {
+    var W = Math.max(10, num(world && world.w, 200)), H = Math.max(10, num(world && world.h, 140));
+    var items = (Array.isArray(itemsIn) ? itemsIn : []).filter(function (it) { return it && typeof it.type === 'string' && !SKIP[it.type]; });
+    var used = {};
+    var shapes = items.map(function (it) {
+      var c = CAT_OF[it.type] || OTHER; used[c.key] = c;
+      return { type: it.type, cat: c.key, color: c.color, x: num(it.x, 0), y: num(it.y, 0), w: Math.max(0, num(it.width, 0)), h: Math.max(0, num(it.height, 0)), rot: num(it.rotation, 0), z: it.type in UNDER ? 0 : 1 };
+    }).sort(function (a, b) { return a.z - b.z; });
+    return { world: { w: W, h: H }, background: '#FFFFFF', shapes: shapes, legend: Object.keys(used).map(function (k) { return { key: k, color: used[k].color, name: used[k].name }; }) };
   }
 
   /* ---------- camera presets (pure; scene units: 1 ft, x right, y up, z = plan y, hall centred) ----------
@@ -429,7 +603,7 @@
     return { ok: true };
   }
 
-  var api = { build: build, cameraView: cameraView, validView: validView, THEMES: THEMES, FOCUS: FOCUS, STYLES: STYLES, CAMERAS: CAMERAS, REGIONS: REGIONS, DESCRIPTIONS: DESC, defaultStyle: defaultStyle, regionOf: regionOf };
+  var api = { build: build, semanticMap: semanticMap, envFor: envFor, inferSetting: inferSetting, ENV: ENV, CATEGORIES: CATS, cameraView: cameraView, validView: validView, THEMES: THEMES, FOCUS: FOCUS, STYLES: STYLES, CAMERAS: CAMERAS, REGIONS: REGIONS, DESCRIPTIONS: DESC, defaultStyle: defaultStyle, regionOf: regionOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.HelmPhotoPrompt = api;
 })(typeof window !== 'undefined' ? window : this);

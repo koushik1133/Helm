@@ -9,7 +9,7 @@
 //
 // Request (POST, JSON, signed-in staff JWT):
 //   { quote_id, prompt, n (1-4), quality "standard"|"high", size "1536x1024"|"1024x1024"|"1024x1536",
-//     style, camera, theme, images: [{ mime: "image/jpeg"|"image/png", data: base64 }] (1-3, <= 2 MB each) }
+//     style, camera, theme, images: [{ mime: "image/jpeg"|"image/png", data: base64 }] (1-4, <= 2 MB each: 3D view, plan, labelled plan, semantic colour map) }
 // Who may: photo_render_begin runs AS THE CALLER - signed in, staff of the event's studio, quotes EDIT
 // + photo_render EDIT, studio writable, renders switched on, hourly limit + monthly quota.
 // The photos are stored in the database (photo_renders, like the 0083 booklet pictures - no
@@ -25,9 +25,10 @@ import { bearer, errTag, responders, UUID_RE } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
 
 const OPENAI_EDITS = "https://api.openai.com/v1/images/edits";
-const BODY_LIMIT = 8 * 1024 * 1024;           // three reference pictures + prompt
+const BODY_LIMIT = 11 * 1024 * 1024;          // four reference pictures (base64) + prompt
 const IMG_LIMIT = 2 * 1024 * 1024;            // per reference picture (decoded)
 const OUT_LIMIT = 6 * 1024 * 1024;            // per photo stored (photo_renders_bytes_ck)
+const MAX_IMAGES = 4;                         // 3D view, plan, labelled plan, semantic colour map
 const SIZES = new Set(["1536x1024", "1024x1024", "1024x1536"]);
 const MODEL_RE = /^[a-z0-9.-]{1,60}$/;
 const B64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
@@ -91,7 +92,7 @@ Deno.serve(async (req) => {
     const model = (Deno.env.get("OPENAI_IMAGE_MODEL") || "gpt-image-2.5-sunburst").trim();
     if (!MODEL_RE.test(model)) return json({ error: "render_not_configured" }, 503);
     const imgs = Array.isArray(body.images) ? body.images : [];
-    if (imgs.length < 1 || imgs.length > 3) return json({ error: "send 1 to 3 reference pictures" }, 400);
+    if (imgs.length < 1 || imgs.length > MAX_IMAGES) return json({ error: "send 1 to 4 reference pictures" }, 400);
     const files: Blob[] = [];
     for (const im of imgs) {
       const data = String(im?.data || "");
