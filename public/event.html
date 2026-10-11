@@ -150,7 +150,7 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="event-name.js?v=4"></script>
+<script src="event-name.js?v=5"></script>
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=173"></script>
 <script src="tour.js?v=9"></script>
 <script src="booklet.js?v=16"></script>
@@ -375,7 +375,7 @@
     const preConfirm = ["lead","discovery","proposal","quote"].includes(ev.lifecycleStage||"quote");
     const menuLocked = !!(planSummary && planSummary.menu_locked);
     const menuGate = (preConfirm && !menuLocked && ev.status!=='confirmed')
-      ? `<div class="stat q" style="display:block;background:#fff7e6;color:#946200;margin:0 0 6px;padding:5px 8px;border-radius:7px">⚠️ Lock the menu first — pricing depends on the veg/non-veg mix.</div>` : "";
+      ? `<div class="stat q" style="display:block;background:#fff7e6;color:#946200;margin:0 0 6px;padding:5px 8px;border-radius:7px">⚠️ Lock the menu first — pricing depends on the menu mix.</div>` : "";
     const discSum = discSummary && (discSummary.total || (discSummary.disc))
       ? `${discSummary.total} requirement${discSummary.total===1?"":"s"}${discSummary.must?` · <b>${discSummary.must} must-have${discSummary.must===1?"":"s"}</b>`:""}${budgetRange()?` · budget ${budgetRange()}`:""}`
       : "Meet the client and capture requirements &amp; budget.";

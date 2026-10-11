@@ -45,6 +45,7 @@ run "photo-render-0095" "PHOTO-RENDER-0095: ALL PASS \(20/20\)" psql -q -f tests
 # early: later suites re-apply 0027 / 0052 / 0093 over the 0097 demo gate wrappers
 run "trial-demo-0097"   "TRIAL-DEMO-0097: ALL PASS \(51/51\)" psql -q -f tests/db/trial-demo-0097.sql
 run "demo-seed-0100"   "DEMO-SEED-0100: ALL PASS \(18/18\)" psql -q -f tests/db/demo-seed-0100.sql
+run "uae-demo-0102"    "UAE-DEMO-0102: ALL PASS \(17/17\)" psql -q -f tests/db/uae-demo-0102.sql
 run "e2e-usability-0101" "E2E-USABILITY-0101: ALL PASS \(23/23\)" psql -q -f tests/db/e2e-usability-0101.sql
 run "r4-sql-fixes"       "R4-SQL-FIXES: ALL PASS \(26/26\)" psql -q -f tests/db/r4-sql-fixes.sql
 # first: later suites re-apply older migrations (e.g. rescore2 → 0032) over the entry points

@@ -447,7 +447,8 @@ const store = {
   items: [],
   selectedId: null,        // primary selection (drives the single-object inspector, resize/rotate, 3D)
   selectedIds: [],         // full multi-selection set
-  grid: { snap:true, show:true, unit:'ft', sizeFt:1 },
+  // UAE audit: metres by default outside India / US (a saved layout's own unit still wins on load)
+  grid: { snap:true, show:true, unit:(function(){ try{ const c=(typeof BPStore!=='undefined'&&BPStore.studioTax&&BPStore.studioTax().country)||'IN'; return c==='IN'||c==='US'?'ft':'m'; }catch(_){ return 'ft'; } })(), sizeFt:1 },
   margins: { left:0, right:0, top:0, bottom:0 },   // usable-area insets in feet (Excel-style draggable guides)
   venue: { capacity: null },       // planner-set venue max, for the capacity/congestion check
   view: { zoom:1 },

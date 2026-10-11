@@ -91,7 +91,7 @@
     mehendi: "Mehendi", mehndi: "Mehendi", birthday: "Birthday", corporate: "Corporate event", conference: "Conference",
     political: "Political rally", "political rally": "Political rally", rally: "Political rally", gala: "Gala", anniversary: "Anniversary",
     "baby shower": "Baby shower", housewarming: "Housewarming", "naming ceremony": "Naming ceremony", upanayanam: "Upanayanam",
-    seminar: "Seminar", "product launch": "Product launch", concert: "Concert", party: "Party", general: "Event", other: "Event" };
+    seminar: "Seminar", "product launch": "Product launch", galadinner: "Gala dinner", "gala dinner": "Gala dinner", iftar: "Iftar", suhoor: "Suhoor", eid: "Eid celebration", "national day": "National Day celebration", exhibition: "Exhibition", concert: "Concert", party: "Party", general: "Event", other: "Event" };
   function label(t) {
     const raw = String(t == null ? "" : t).trim(); if (!raw) return "";
     const k = raw.toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
