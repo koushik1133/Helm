@@ -97,6 +97,9 @@
     if (/^00/.test(p.trim())) d = d.replace(/^00/, "");
     if (!plus && d.length === 11 && d[0] === "0") d = d.slice(1);                     // 09848012345 (IN trunk 0)
     if (d.length < 7 || d.length > 15) return { value: null, error: "Phone needs 7\u201315 digits" };
+    if (plus && /^9710/.test(d)) d = "971" + d.slice(4);                                 // +971 050… (trunk 0)
+    if (plus && /^971/.test(d) && !/^971(5\d{8}|[234679]\d{7})$/.test(d)) return { value: null, error: "UAE mobile numbers have 9 digits after +971" };
+    if (plus && /^91/.test(d) && d.length !== 12) return { value: null, error: "Indian numbers have 10 digits after +91" };
     const extra = s !== first ? s.slice(first.length).replace(/^\s*(?:[,;\/|]|\bor\b)\s*/i, "") : "";
     return { value: (plus ? "+" : "") + d, extra: extra || null };
   }

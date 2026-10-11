@@ -924,7 +924,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "22";
+  const AUTH_UI_VERSION = "23";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -2191,7 +2191,14 @@ window.HelmUrl = HelmUrl;
         if (error.code === "PGRST202" || error.code === "42883") return this.create(code, code, null, { items: [] }, 0);
         throw error;
       }
-      return Array.isArray(q) ? q[0] : q;
+      const row = Array.isArray(q) ? q[0] : q;
+      // Owner bug: the server's "untouched" test only checks the client NAME, so a reused draft
+      // where someone had typed just a phone / e-mail came back with that number pre-filled in
+      // the NEW quote. Such a draft is not blank: leave it as-is (zero data loss) and start fresh.
+      const cl = row && row.client && typeof row.client === "object" ? row.client : {};
+      const clean = !["name", "phone", "email", "company"].some((k) => String(cl[k] == null ? "" : cl[k]).trim() !== "");
+      if (!clean) return this.create(code, code, null, { items: [] }, 0);
+      return row;
     },
     // re-issue the code from the event date (idempotent); returns the (possibly new) code
     async rebrandCode(quoteId) {
@@ -6907,7 +6914,12 @@ window.HelmUrl = HelmUrl;
     let c = s.replace(/[\s\-().]/g, "");
     if (/^00\d/.test(c)) c = "+" + c.slice(2);
     if (!/^\+?\d{7,15}$/.test(c)) return { ok: false, error: "Enter a valid phone number: 7–15 digits, optional leading +." };
-    if (c[0] === "+") return { ok: true, value: c };
+    if (c[0] === "+") {
+      // per-country national length (UAE 9 / India 10 / US 10 …) when the phone library is loaded
+      const HP = typeof window !== "undefined" ? window.HelmPhone : null;
+      if (HP && HP.validate) { const r = HP.validate(c); return r.ok ? { ok: true, value: r.e164 } : { ok: false, error: r.error }; }
+      return { ok: true, value: c };
+    }
     // 0092: a UAE / US studio's numbers typed without a code get +971 / +1 (India unchanged below)
     var k0 = ""; try { k0 = (BPStore.studioTax() || {}).country || ""; } catch (e) {}
     if ((k0 === "AE" || k0 === "US") && BPStore.waNumber) { var w0 = BPStore.waNumber(c, k0); if (w0) return { ok: true, value: "+" + w0 }; }
@@ -9166,11 +9178,16 @@ window.HelmUrl = HelmUrl;
   BPStore.waNumber = function (raw, cc) {
     var s = String(raw == null ? "" : raw).trim(); if (!s) return "";
     var c = s.replace(/[\s\-().]/g, ""); if (/^00\d/.test(c)) c = "+" + c.slice(2);
-    if (c[0] === "+") { var d0 = c.slice(1); return /^\d{7,15}$/.test(d0) ? d0 : ""; }
+    if (c[0] === "+") { var d0 = c.slice(1); if (!/^\d{7,15}$/.test(d0)) return "";
+      if (/^971/.test(d0)) { var n0 = d0.slice(3).replace(/^0/, ""); return /^(5\d{8}|[234679]\d{7})$/.test(n0) ? "971" + n0 : ""; }
+      if (/^91/.test(d0) && d0.length > 12) { var n1 = d0.slice(2).replace(/^0/, ""); return n1.length === 10 ? "91" + n1 : ""; }
+      return d0; }
     var d = c; if (!/^\d{7,15}$/.test(d)) return "";
     var k = BPStore.tax.code(cc || (BPStore.studioTax() || {}).country);
     if (k === "US") return /^\d{10}$/.test(d) ? "1" + d : d;
-    if (k === "AE") { if (/^971\d{8,9}$/.test(d)) return d; if (/^0\d{8,9}$/.test(d)) return "971" + d.slice(1); return /^\d{8,9}$/.test(d) ? "971" + d : d; }
+    // UAE: 9 national digits for a mobile (5X XXX XXXX), 8 for a landline; trunk 0 dropped
+    if (k === "AE") { if (/^9710?\d{8,9}$/.test(d)) { var n = d.slice(3).replace(/^0/, ""); return /^(5\d{8}|[234679]\d{7})$/.test(n) ? "971" + n : ""; }
+      var a = d.replace(/^0/, ""); return /^(5\d{8}|[234679]\d{7})$/.test(a) ? "971" + a : ""; }
     if (/^\d{10}$/.test(d)) return "91" + d; if (/^0\d{10}$/.test(d)) return "91" + d.slice(1); return d;
   };
   // ---- payment terms from onboarding (pricing config: advancePct / balanceDueDays / paymentTermsNote) ----
@@ -9447,7 +9464,7 @@ window.HelmUrl = HelmUrl;
   // Every phone field becomes the HelmPhone component (phone-input.js: flag + searchable
   // country list + as-you-type format; .value stays E.164). Pages that don't include the
   // script get it loaded on demand; if it can't load, the legacy hardener below is used.
-  var PHONE_LIB_V = "1", phoneLib = null;
+  var PHONE_LIB_V = "2", phoneLib = null;
   function loadPhoneLib() {
     if (window.HelmPhone && window.HelmPhone.attach) return Promise.resolve(true);
     if (phoneLib) return phoneLib;

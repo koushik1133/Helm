@@ -81,10 +81,15 @@
   // mobile: a regexp the national number must match when the field is a MOBILE field.
   var FORMATS = {
     IN: { len: [10], pat: { 10: "xxxxx xxxxx" }, mobile: /^[6-9]/, mobileMsg: "Indian mobile numbers are 10 digits starting with 6, 7, 8 or 9.", ex: "98765 43210" },
-    US: { len: [10], pat: { 10: "(xxx) xxx-xxxx" }, ex: "(201) 555-0123" },
-    CA: { len: [10], pat: { 10: "(xxx) xxx-xxxx" }, ex: "(506) 234-5678" },
+    US: { len: [10], pat: { 10: "(xxx) xxx-xxxx" }, rule: /^[2-9]\d{2}[2-9]/, ruleMsg: "US numbers have 10 digits after +1 (area code and exchange can't start with 0 or 1).", ex: "(201) 555-0123" },
+    CA: { len: [10], pat: { 10: "(xxx) xxx-xxxx" }, rule: /^[2-9]\d{2}[2-9]/, ruleMsg: "Canadian numbers have 10 digits after +1 (area code and exchange can't start with 0 or 1).", ex: "(506) 234-5678" },
     GB: { len: [10], pat: { 10: "xxxx xxxxxx" }, ex: "7400 123456" },
-    AE: { len: [8, 9], pat: { 8: "x xxx xxxx", 9: "xx xxx xxxx" }, ex: "50 123 4567" },
+    // UAE: mobiles are 9 digits after +971 starting with 5 (50/52/54/55/56/58 …); landlines are
+    // 8 digits with an area code 2/3/4/6/7/9 (04 Dubai → +971 4 xxx xxxx). A trunk 0 is dropped.
+    AE: { len: [8, 9], pat: { 8: "x xxx xxxx", 9: "xx xxx xxxx" }, rule: function (n) { return n.length === 9 ? /^5/.test(n) : /^[234679]/.test(n); },
+      ruleMsg: "UAE mobile numbers have 9 digits after +971 and start with 5 (e.g. 50 123 4567).",
+      lenMsg: "UAE mobile numbers have 9 digits after +971 (e.g. 50 123 4567).",
+      mobile: /^5\d{8}$/, mobileMsg: "UAE mobile numbers have 9 digits after +971 and start with 5 (e.g. 50 123 4567).", ex: "50 123 4567" },
     SG: { len: [8], pat: { 8: "xxxx xxxx" }, ex: "8123 4567" },
     AU: { len: [9], pat: { 9: "xxx xxx xxx" }, ex: "412 345 678" },
     SA: { len: [9], pat: { 9: "xx xxx xxxx" }, ex: "51 234 5678" },
@@ -102,6 +107,13 @@
     NZ: { len: [8, 9, 10], pat: { 8: "xx xxx xxx", 9: "xx xxx xxxx", 10: "xx xxxx xxxx" }, ex: "21 123 4567" },
     DE: { len: [10, 11], pat: { 10: "xxxx xxxxxx", 11: "xxx xxxxxxxx" }, ex: "1512 3456789" },
   };
+  var E164_MAX = 15;
+  // most national digits a country allows (E.164: 15 incl. the country code)
+  function maxNational(iso) {
+    var c = BY_ISO[String(iso || "").toUpperCase()], f = FORMATS[String(iso || "").toUpperCase()];
+    if (f) return Math.max.apply(null, f.len);
+    return Math.max(4, E164_MAX - (c ? c.code.length : 1));
+  }
   var KEEP_ZERO = { IT: 1, SM: 1, VA: 1, CI: 1, CG: 1, GA: 1 };   // the leading 0 is part of the number
 
   var defaultIso = "IN";
@@ -145,7 +157,7 @@
     else if (d.indexOf("00") === 0 && d.length > 6) { intl = true; d = d.slice(2); }
     if (intl) {
       var m = matchDial(d, fb.iso);
-      if (m) return { iso: m.country.iso, code: m.code, national: m.national };
+      if (m) return { iso: m.country.iso, code: m.code, national: stripTrunk(m.national, m.country.iso) };
       return { iso: fb.iso, code: fb.code, national: d, unknown: true };
     }
     var f = FORMATS[fb.iso], max = f ? Math.max.apply(null, f.len) : 0;
@@ -180,6 +192,7 @@
     return parts.join(" ");
   }
 
+  function stripTrunk(d, iso) { return (d.charAt(0) === "0" && !KEEP_ZERO[iso]) ? d.replace(/^0+/, "") : d; }
   function toE164(iso, national) {
     var c = country(iso); var d = digits(national);
     if (!c || !d) return "";
@@ -205,9 +218,11 @@
     if (f) {
       if (f.len.indexOf(nat.length) < 0) {
         var want = f.len.length === 1 ? f.len[0] + "-digit" : f.len.join(" or ") + "-digit";
+        if (f.lenMsg) return { ok: false, error: f.lenMsg };
         return { ok: false, error: (nat.length < Math.min.apply(null, f.len) ? "That number looks too short. " : "That number looks too long. ") + "Enter a " + want + " number for " + c.name + "." };
       }
       if (o.mobile && f.mobile && !f.mobile.test(nat)) return { ok: false, error: f.mobileMsg };
+      if (f.rule && !(typeof f.rule === "function" ? f.rule(nat) : f.rule.test(nat))) return { ok: false, error: f.ruleMsg };
     } else {
       if (total < 7 || nat.length < 4) return { ok: false, error: "That number looks too short. Phone numbers have 7–15 digits including the country code." };
       if (total > 15) return { ok: false, error: "That number looks too long. Phone numbers have 7–15 digits including the country code." };
@@ -217,11 +232,18 @@
   }
   function setDefaultCountry(iso) { if (country(iso)) defaultIso = country(iso).iso; }
   function example(iso) { var f = FORMATS[iso]; return f ? f.ex : "123 456 7890"; }
+  // the input's placeholder: a digit-free mask ("XX XXX XXXX") so an empty field can never be
+  // mistaken for a pre-filled number (owner bug: "98765 43210" looked like a default phone).
+  function mask(iso) {
+    var f = FORMATS[String(iso || "").toUpperCase()];
+    if (!f) return "Phone number";
+    return f.pat[Math.max.apply(null, f.len)].replace(/x/g, "X");
+  }
 
   var API = {
     COUNTRIES: COUNTRIES, FORMATS: FORMATS, flag: flag, country: country, parse: parse, format: format,
     toE164: toE164, display: display, validate: validate, setDefaultCountry: setDefaultCountry,
-    defaultCountry: function () { return defaultIso; }, example: example,
+    defaultCountry: function () { return defaultIso; }, example: example, mask: mask, maxNational: maxNational,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = API;
   if (typeof document === "undefined") { global.HelmPhone = API; return; }
@@ -271,8 +293,10 @@
     wrap.appendChild(btn); wrap.appendChild(input); wrap.appendChild(pop);
     input.classList.add("hp-num");
     input.setAttribute("type", "tel"); input.setAttribute("inputmode", "tel");
-    if (!input.getAttribute("autocomplete") || input.getAttribute("autocomplete") === "off") input.setAttribute("autocomplete", "tel-national");
-    input.setAttribute("maxlength", "24");
+    // Phone fields are usually SOMEONE ELSE's number (client / vendor / staff): no autocomplete
+    // hint unless the page asked for one (approve.html "tel" = the visitor's own number), so the
+    // browser never autofills the logged-in user's own phone into a client field.
+    if (!input.getAttribute("autocomplete")) input.setAttribute("autocomplete", "off");
     input.setAttribute("data-phone-hardened", "1"); input.removeAttribute("data-no-country");
 
     function nat() { return digits(NATIVE.get.call(input)); }
@@ -281,7 +305,10 @@
       fl.textContent = flag(c.iso); dl.textContent = "+" + c.code;
       btn.setAttribute("aria-label", "Country code: " + c.name + " +" + c.code + ". Change country");
       btn.title = c.name + " (+" + c.code + ")";
-      if (!input.hasAttribute("data-ph-own")) input.setAttribute("placeholder", example(c.iso));
+      if (!input.hasAttribute("data-ph-own")) input.setAttribute("placeholder", mask(c.iso));
+      var mx = maxNational(c.iso), fm = FORMATS[c.iso];
+      // formatted national digits + separators (+ room for a pasted "+code …" while typing)
+      input.setAttribute("maxlength", String(fm ? fm.pat[mx].length + 6 : 24));
     }
     function show(nationalDigits) {
       var f = format(nationalDigits, iso);
@@ -317,14 +344,17 @@
         var dd = digits(raw.replace(/^\s*00/, "+"));
         var m = dd ? matchDial(dd, iso) : null;
         if (m) {
-          iso = m.country.iso; userPicked = true; paint(); show(m.national.slice(0, 15));
+          iso = m.country.iso; userPicked = true; paint(); show(stripTrunk(m.national, iso).slice(0, maxNational(iso)));
           try { var L = NATIVE.get.call(input).length; if (doc.activeElement === input) input.setSelectionRange(L, L); } catch (e) {}
         } else if (raw !== "+" + dd.slice(0, 4)) NATIVE.set.call(input, "+" + dd.slice(0, 4));
         return;
       }
       var d = digits(raw);
-      if (d.charAt(0) === "0" && !KEEP_ZERO[iso] && d.length > 1) { d = d.replace(/^0+/, ""); before = Math.max(0, before - 1); }
-      show(d.slice(0, 15));
+      if (d.charAt(0) === "0" && !KEEP_ZERO[iso] && d.length > 1) { var z = d.length; d = d.replace(/^0+/, ""); before = Math.max(0, before - (z - d.length)); }
+      var mxn = maxNational(iso), cc = country(iso).code;
+      // "971501234567" typed into a UAE field: the country code was repeated — drop it
+      if (d.length > mxn && d.indexOf(cc) === 0 && d.length - cc.length <= mxn) { d = d.slice(cc.length); before = Math.max(0, before - cc.length); }
+      show(d.slice(0, mxn));
       var shown = NATIVE.get.call(input), pos = 0, seen = 0;
       while (pos < shown.length && seen < before) { if (/\d/.test(shown.charAt(pos))) seen++; pos++; }
       try { if (doc.activeElement === input) input.setSelectionRange(pos, pos); } catch (e) {}

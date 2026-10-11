@@ -548,6 +548,7 @@
     if (data.pin && ae) { data.pin = data.pin.replace(/^P\.?\s*O\.?\s*BOX\s*/i, "").replace(/\s+/g, ""); if (!/^[0-9]{1,6}$/.test(data.pin)) errors.pin = "Enter the P.O. box number (digits only) or leave it blank."; }
     else if (data.pin && !india && !/^[A-Z0-9][A-Z0-9 -]{1,9}$/.test(data.pin)) errors.pin = "Enter a valid postal code.";
     if (data.phone) { const d = data.phone.replace(/[^\d]/g, ""); if (!/^[+\d\s()-]+$/.test(data.phone) || d.length < (india ? 10 : 7) || d.length > (india ? 13 : 15)) errors.phone = "Enter a valid phone number, e.g. " + (india ? "+91 98765 43210." : "+44 20 7946 0958."); }
+    if (data.phone && !errors.phone && ae) { const d = data.phone.replace(/[^\d]/g, "").replace(/^00/, "").replace(/^9710/, "971").replace(/^0/, ""); const n = /^971/.test(d) ? d.slice(3) : d; if (!/^(5\d{8}|[234679]\d{7})$/.test(n)) errors.phone = "UAE mobile numbers have 9 digits after +971 (e.g. +971 50 123 4567)."; }
     if (data.gstin && india && !GSTIN_RE.test(data.gstin)) errors.gstin = "Enter a valid 15-character GSTIN, e.g. 36ABCDE1234F1Z5 (or leave it blank).";
     if (data.gstin && !india) { const t = taxIdOf(data.country); if (data.gstin.length > 30 || !t.re.test(data.gstin)) errors.gstin = "Enter a valid " + t.label + (t.eg ? ", e.g. " + t.eg : "") + " (or leave it blank)."; }
     return { ok: Object.keys(errors).length === 0, data, errors };
