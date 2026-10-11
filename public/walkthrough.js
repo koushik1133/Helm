@@ -465,6 +465,15 @@
   bWLab.addEventListener('click', () => { if (!W) return; W.labels = !stopShowsLabels(W.stops[W.i], W.labels); syncLabels(); });
   bList.addEventListener('click', () => { list.hidden = !list.hidden; });
   bExit.addEventListener('click', exit);
+  // using anything else in the builder (toolbar, panels, toolbox, 2D/3D switch...) ends the walkthrough first,
+  // so every feature works normally - no need to press Exit. Clicks on the walkthrough card or the 3D view itself don't.
+  doc.addEventListener('pointerdown', (e) => {
+    if (!W) return; const t = e.target;
+    if (!t || !t.closest || ov.contains(t) || t.closest('.wt-overlay, .wt-list, canvas, #scene3d, #fabStack, .modal, .bpui-overlay')) return;
+    const to2D = !!t.closest('#viewSeg [data-v="2d"]');
+    if (to2D) W.from2D = false;   // the click itself switches to 2D - don't switch twice
+    exit();
+  }, true);
   G.addEventListener('keydown', (e) => {
     if (!W) return;
     if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName || '')) return;
