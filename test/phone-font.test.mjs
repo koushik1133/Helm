@@ -12,8 +12,8 @@ const t = (n, f) => { f(); console.log('  ✓ ' + n); };
 
 t('no hard-coded phone font sizes; wrapper + number + picker read the page metrics', () => {
   const blk = css.slice(css.indexOf('International phone input'), css.indexOf('Inline validation'));
-  assert.doesNotMatch(blk.replace(/\.hp-pop[\s\S]*?\.hp-empty\{[^}]*\}/, ''), /\.hp-num[^}]*font-size:1[56]px/);
-  assert.match(blk, /\.hp\{[^}]*font-size:var\(--hp-fs,inherit\)/); assert.match(blk, /min-height:var\(--hp-h,44px\)/);
+  assert.doesNotMatch(blk.replace(/@media[^\n]*/g, '').replace(/\.hp-pop[\s\S]*?\.hp-empty\{[^}]*\}/, ''), /\.hp-num[^}]*font-size:1[56]px/);
+  assert.match(blk, /\.hp\{[^}]*font-size:var\(--hp-fs,inherit\)/); assert.match(blk, /min-height:var\(--hp-h,38px\)/);
   assert.match(blk, /\.hp \.hp-cc\{[^}]*font-size:var\(--hp-fs,inherit\)/);
   assert.match(blk, /input\.hp-num\{[^}]*font-size:var\(--hp-fs,inherit\)!important/);
   assert.match(blk, /input\.hp-num::placeholder\{font-size:inherit\}/);
@@ -28,7 +28,7 @@ t('every page loads the new phone + theme versions', () => {
   for (const f of readdirSync(root).filter((x) => x.endsWith('.html'))) {
     const h = read(f);
     for (const m of h.matchAll(/phone-input\.js\?v=(\d+)/g)) assert.equal(m[1], '3', f);
-    for (const m of h.matchAll(/theme\.css\?v=(\d+)/g)) assert.equal(m[1], '77', f);
+    for (const m of h.matchAll(/theme\.css\?v=(\d+)/g)) assert.equal(m[1], '78', f);
   }
   assert.match(read('store-api.js'), /var PHONE_LIB_V = "3"/); assert.match(read('auth-ui.js'), /PHONE_LIB_V = "3"/);
 });

@@ -42,7 +42,7 @@
   input,select{height:36px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 10px;font-family:inherit;font-size:13px;color:var(--ink)}
   input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   .crewrow{display:grid;grid-template-columns:1.3fr 1fr 1fr auto;gap:8px;align-items:center;margin-bottom:8px}
-  @media(max-width:640px){.crewrow{grid-template-columns:1fr 1fr}}
+  @media(max-width:640px){.crewrow{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.crewrow > .hp{grid-column:1/-1}}
   .chip{display:inline-flex;align-items:center;gap:8px;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-size:12px;margin:0 6px 6px 0}
   .chip{max-width:100%;min-width:0;flex-wrap:wrap;overflow-wrap:anywhere;word-break:break-word} #crewChips{min-width:0;max-width:100%}
   .chip .dep{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--ink-3)}
@@ -97,7 +97,7 @@
   .evgal a{display:block;border:1px solid var(--line);border-radius:8px;overflow:hidden;aspect-ratio:1/1;background:var(--panel)}
   .evgal img{width:100%;height:100%;object-fit:cover;display:block}
 </style>
-<link rel="stylesheet" href="theme.css?v=77">
+<link rel="stylesheet" href="theme.css?v=78">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -217,7 +217,7 @@
 <script src="config.js?v=98"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=175"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=176"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
