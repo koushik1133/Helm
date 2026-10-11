@@ -654,7 +654,8 @@ async function addAsset(type, atFt, opts){
   const cy = atFt ? atFt.y : viewCenterFt().y;
   let x = clamp(snapFt(cx - a.w/2), 0, WORLD.w-a.w);
   let y = clamp(snapFt(cy - a.h/2), 0, WORLD.h-a.h);
-  const it = makeItem(type, x, y, lbl ? {label:lbl} : undefined);
+  // the Entrance marker gets its own blue (exits stay green); still editable in the Inspector
+  const it = makeItem(type, x, y, lbl ? Object.assign({label:lbl}, type==='exit' && /entr/i.test(lbl) ? {color:'#2563eb', colorCustom:true} : {}) : undefined);
   store.items.push(it);
   setSelection([it.id]);
   commit(); renderAll();

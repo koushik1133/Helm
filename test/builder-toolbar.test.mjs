@@ -19,3 +19,7 @@ assert.match(bjs, /type==='exit'\?\[\[type,a,'Entrance'\],\[type,a,null\]\]/, 'E
 assert.match(bjs, /addAsset\(ty, null, t\.dataset\.label \? \{label:t\.dataset\.label\} : undefined\)/, 'click adds with the Entrance label');
 assert.match(bjs, /getData\('label'\); addAsset\(type, svgPointFt\(e\), vl/, 'drag-drop keeps the label');
 console.log('builder-toolbar entrance: ok');
+// the Entrance marker has its own colour: blue in 2D (editable) and a blue sign in 3D; exits stay green
+assert.match(bjs, /\/entr\/i\.test\(lbl\) \? \{color:'#2563eb', colorCustom:true\}/, '2D Entrance is blue');
+assert.match(readFileSync('public/builder-3d.js', 'utf8'), /ent\?'#2563eb':'#18a558'/, '3D Entrance sign is blue');
+console.log('builder-toolbar entrance colour: ok');
