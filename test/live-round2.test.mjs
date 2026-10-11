@@ -146,7 +146,7 @@ t('C4 fill-only migration note documented', () => {
 t('versions bumped', () => {
   assert.match(read('public/flow.html'), /store-api\.js\?v=173/);
   assert.match(read('public/inventory.html'), /smart-import-core\.js\?v=5/);
-  assert.match(read('public/builder.html'), /layout-wizard\.js\?v=6/); assert.match(read('public/builder.html'), /builder\.js\?v=41/);
+  assert.match(read('public/builder.html'), /layout-wizard\.js\?v=6/); assert.match(read('public/builder.html'), /builder\.js\?v=42/);
 });
 let pass = 0;
 for (const [n, f] of tests) { try { f(); pass++; console.log('ok  - ' + n); } catch (e) { console.error('FAIL - ' + n + '\n', e); process.exitCode = 1; } }

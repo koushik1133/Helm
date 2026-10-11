@@ -38,7 +38,7 @@ t('wedding prompt: every object type with its count + positions, aisle sides, se
   assert.match(p, /3 buffet lines/); assert.match(p, /1 row of 2 buffet lines side by side .*chafing dishes.* at the back-left/);
   assert.match(p, /1 fountain - .*at the back-centre/);
   assert.match(p, /2 floral arches/);
-  assert.match(p, /1 stage - .*LED backdrop.*at the front-centre/);
+  assert.match(p, /1 stage - .*skirted front.*at the front-centre/); assert.doesNotMatch(p, /LED backdrop|lined with/);
   assert.match(p, /1 DJ booth .*LED/);
   assert.match(p, /checkered dance floor/);
   assert.match(p, /1 cake table/); assert.match(p, /1 restroom kiosk/); assert.match(p, /1 fence line/);
@@ -49,7 +49,7 @@ t('wedding prompt: every object type with its count + positions, aisle sides, se
   assert.match(p, /marigold/);                          // India default
   assert.equal(r.style, 'golden'); assert.match(p, /golden-hour/);
   assert.match(p, /same position, height and angle as reference image 1/);
-  assert.match(p, /^ENVIRONMENT/); assert.match(p, /Reminder: open-air lawn at golden hour[^\n]*$/);
+  assert.match(p, /^ENVIRONMENT \(mandatory/m); assert.match(p, /Reminder: open-air lawn at golden hour[^\n]*\nFINAL OUTPUT: [^\n]*$/);
   assert.ok(r.system.length > 200 && r.layout.length > 400 && p === r.system + '\n\n' + r.layout);
 });
 
@@ -116,9 +116,9 @@ t('many event types / layouts: robust, bounded, never echoes unsafe text', () =>
   for (const ev of types) for (const c of ['IN', 'AE', 'US']) for (const cam of ['hero', 'top', 'eye']) {
     const r = P.build({ items: WEDDING.concat([it('table', 10, 10, 6, 6, { seats: 8 }), it('mandap', 150, 60, 16, 16)]), world: W, eventType: ev, country: c, camera: cam, theme: 'gold {x} `y` <b>' });
     assert.ok(r.prompt.length < 30001);
-    assert.doesNotMatch(r.prompt, /[<>{}`]/);
+    assert.doesNotMatch(r.prompt.replace(r.json, ''), /[<>{}`]/); assert.doesNotMatch(r.json, /[<>`]|gold \{x/);
     assert.match(r.prompt, /1 round banquet table .*8 seats in total/);
-    assert.match(r.prompt, /1 mandap/);
+    assert.match(r.prompt, P.PROFILES[r.profile].florals ? /1 mandap/ : /1 ceremony stage/);   // non-celebration types never say mandap
   }
   assert.match(P.build({}).prompt, /empty floor/);
   assert.match(P.build({ items: [it('chiavari', 5, 5, 1.6, 1.6), it('chiavari', 9, 5, 1.6, 1.6)], world: W }).prompt, /2 chiavari chairs/);
@@ -133,8 +133,8 @@ t('builder: Render dialog markup with style / camera / theme / quality / count, 
   assert.match(html, /<option value="4">4<\/option>/);
   assert.match(html, /Photo renders aren’t switched on for your studio yet\./);
   assert.doesNotMatch(html, /OPENAI_API_KEY/);
-  assert.match(html, /builder-3d\.js\?v=14"><\/script>\n<script src="photo-render-prompt\.js\?v=3"><\/script>\n<script src="photo-render-ui\.js\?v=5"><\/script>/);
-  assert.match(cap, /photo-render-ui\.js\?v=5/);
+  assert.match(html, /builder-3d\.js\?v=14"><\/script>\n<script src="photo-render-prompt\.js\?v=4"><\/script>\n<script src="photo-render-ui\.js\?v=6"><\/script>/);
+  assert.match(cap, /photo-render-ui\.js\?v=6/);
   assert.doesNotMatch(html, /style="/);
 });
 t('dialog: three captures (clean 3D labels none, plan plain, plan names + measure), ≤1536 px, render via BPStore', () => {

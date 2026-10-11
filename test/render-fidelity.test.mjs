@@ -77,10 +77,11 @@ await t('image roles: 4 images described precisely, colour key in the prompt', (
   assert.doesNotMatch(build({ images: 3 }).prompt, /Image 4/);
 });
 
-const ENV_OF = (p) => p.split('\n')[0];
+const ENV_OF = (p) => p.split('\n').find((l) => l.startsWith('ENVIRONMENT ('));
+const REMIND_OF = (p) => p.split('\n').find((l) => l.startsWith('Reminder: '));
 await t('styles: environment block first, strong and clearly different; reminder at the very end', () => {
   const g = build({ style: 'golden' }), e = build({ style: 'evening' }), d = build({ style: 'daylight' }), b = build({ style: 'ballroom' });
-  for (const r of [g, e, d, b]) { assert.match(r.prompt, /^ENVIRONMENT \(mandatory/); assert.match(r.prompt.split('\n').pop(), /^Reminder: /); }
+  for (const r of [g, e, d, b]) { const ls = r.prompt.split('\n'); assert.ok(ls.findIndex((l) => l.startsWith('ENVIRONMENT (')) < 6); assert.match(ls[ls.length - 2], /^Reminder: /); assert.match(ls[ls.length - 1], /^FINAL OUTPUT: /); }
   assert.match(ENV_OF(g.prompt), /OPEN-AIR.*sun is LOW.*LONG shadow.*trees/i);
   assert.match(ENV_OF(e.prompt), /blue hour.*festoon string lights.*uplights/);
   assert.match(ENV_OF(d.prompt), /bright midday.*neutral white balance/);
@@ -99,7 +100,7 @@ await t('outdoor styles never mention ceiling / walls / carpet / ballroom in the
     const r = build({ style, setting });
     if (style === 'evening' && setting === 'indoor') continue;          // evening follows the venue: dim ballroom
     assert.equal(r.environment, 'outdoor', style + '/' + setting);
-    const envText = [ENV_OF(r.prompt), r.prompt.split('\n').pop(), (r.prompt.match(/^VENUE: .*$/m) || [''])[0]].join(' ');
+    const envText = [ENV_OF(r.prompt), REMIND_OF(r.prompt), (r.prompt.match(/^VENUE: .*$/m) || [''])[0]].join(' ');
     assert.doesNotMatch(envText, /ceiling|walls?\b|carpet|ballroom|chandelier|indoor/i, style + '/' + setting);
   }
   const ei = build({ style: 'evening', setting: 'indoor' });
@@ -169,7 +170,7 @@ await t('dialog: 4 reference images (each <= 1536 px JPEG 0.85), chosen style pa
   const body = sent[0];
   assert.equal(body.images.length, 4);
   assert.equal(body.style, 'golden');
-  assert.match(body.prompt, /^ENVIRONMENT \(mandatory[^\n]*OPEN-AIR/);
+  assert.match(body.prompt, /^ENVIRONMENT \(mandatory[^\n]*OPEN-AIR/m);
   assert.match(body.prompt, /Image 4: colour-coded semantic map/);
   assert.equal(enc.length, 4); enc.forEach(([, w, q]) => { assert.equal(w, 1536); assert.equal(q, 0.85); });
   assert.equal(enc[3][0].kind, 'semantic');
