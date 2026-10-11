@@ -3695,7 +3695,18 @@ window.__helmPhotoCtx = function(){
     supported: clientImagesSupported(), items: store.items.slice(), world: { w: WORLD.w, h: WORLD.h },
     eventType: PRICING.eventType || '', guests: PRICING.guests, setting: (store.venue && store.venue.setting) || 'indoor',
     country: PRICING.taxCountry || '', eventDate: PRICING.eventDate || '', title: ($('#projName') && $('#projName').value) || '',
+    // render context (data only; never shown as text in the photo)
+    client: currentClient || {}, menuPackage: PRICING.menuPackageName || '', venueSettingSet: !!(store.venue && store.venue.setting),
     planBlob: (o) => planBlob(o),
+    // the builder tab can be older than the flow's last save: re-read the quote's event type / date / guests
+    refreshMeta: async () => {
+      if(!currentQuoteId || !BPStore.quotes || !BPStore.quotes.get) return null;
+      const q=await BPStore.quotes.get(currentQuoteId); if(!q) return null;
+      PRICING.eventType = q.eventType || null; PRICING.eventDate = q.eventDate || PRICING.eventDate || null;
+      const c=window.__helmPhotoCtx(); c.client = Object.assign({}, currentClient || {}, q.client || {});   // read-only copy; never written back
+      if(c.guests==null && c.client.guests!=null) c.guests = +c.client.guests;
+      return c;
+    },
   };
 };
 /* ---- R2 + 0083: client booklet images (real 2D plan + 3D render) ----

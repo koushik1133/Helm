@@ -329,8 +329,9 @@
       stage: 'a podium with a plain neutral front on a stage with plain black / neutral skirting; press riser with cameras on tripods; generator tucked away',
       forbidden: ['flowers, florals, garlands or petals of any kind', 'floral arches or floral stands', 'wedding decor of any kind', 'couple / bridal chairs', 'chandeliers', 'candles', 'draped romantic fabrics', 'balloons', 'readable text, slogans, party symbols or logos'],
       desc: { stage: 'a raised stage deck with plain black / neutral skirting and a clean top', podium: 'a speaker podium / lectern with a plain neutral front (no text or symbol)',
-        redcarpet: 'a plain carpet runner laid flat on the ground', walkway: 'a plain raised walkway / ramp', seatblock: 'a theatre-style seating block of plain plastic / folding chairs in neat straight rows',
-        chairrow: 'a straight row of plain plastic / folding chairs', chiavari: 'a plain folding chair', table: 'a plain round table with a simple cloth', barricade: 'a line of steel crowd-control barricades',
+        redcarpet: 'a plain carpet runner laid flat on the ground', walkway: 'a plain raised walkway / ramp', seatblock: 'a theatre-style seating block: rows of plain plastic or padded event chairs in neat straight rows',
+        chairrow: 'a straight row of plain plastic or padded event chairs', chiavari: 'a plain plastic or padded event chair', table: 'a plain round table with a simple cloth', barricade: 'a line of steel crowd-control barricades',
+        generator: 'a diesel power generator in a plain steel enclosure, set to one side', firstaid: 'a plain white first-aid tent with a small red cross marker', exit: 'a clear exit pathway kept free of chairs and people',
         press: 'a press riser platform with video cameras on tripods', led: 'a large LED wall glowing with an abstract visual (no readable text)', videowall: 'a large LED video wall glowing with an abstract visual (no readable text)',
         floral: 'a plain decorative stand in a neutral finish', floralarch: 'a plain arch frame in neutral cloth', headtable: 'a long dais table with plain cloth and simple chairs', sofa: 'a plain upholstered sofa for guests',
         arch: 'a plain arch frame in neutral cloth', drape: 'plain neutral fabric panels', desk: 'a plain registration desk' } },
@@ -383,9 +384,11 @@
     // no (known) event type: infer from the objects on the plan
     var c = {}; (items || []).forEach(function (it) { if (it && it.type) c[it.type] = (c[it.type] || 0) + 1; });
     var has = function (t) { return c[t] || 0; };
+    // big theatre-style crowd seating with no banquet tables = a public meeting, not a dinner
+    var crowd = has('seatblock') + has('bleacher') >= 4 && !has('table') && !has('longtable') && !has('mandap');
     var sc = {
       wedding: 4 * has('mandap') + 3 * has('chariot') + 2 * (has('headtable') ? 1 : 0) + (has('floralarch') ? 2 : 0) + (has('caketable') ? 2 : 0) + (has('floral') ? 1 : 0) + (has('loveseat') ? 1 : 0),
-      political: 3 * (has('podium') ? 1 : 0) + 3 * (has('press') ? 1 : 0) + 2 * (has('barricade') ? 1 : 0) + 2 * (has('stagebarrier') ? 1 : 0) + (has('linearray') ? 1 : 0) + 3 * (has('flag') + has('flags') ? 1 : 0) + (has('checkpoint') ? 1 : 0),
+      political: (crowd && (has('barricade') || has('firstaid') || has('generator')) ? 3 : 0) + 3 * (has('podium') ? 1 : 0) + 3 * (has('press') ? 1 : 0) + 2 * (has('barricade') ? 1 : 0) + 2 * (has('stagebarrier') ? 1 : 0) + (has('linearray') ? 1 : 0) + 3 * (has('flag') + has('flags') ? 1 : 0) + (has('checkpoint') ? 1 : 0),
       exhibition: has('booth') >= 3 ? 8 : 2 * has('booth'),
       concert: 2 * (has('linearray') ? 1 : 0) + 2 * (has('foh') ? 1 : 0) + 2 * (has('standing') + has('standingzone') ? 1 : 0) + (has('movinghead') ? 1 : 0) + (has('stagebarrier') ? 1 : 0),
       corporate: 2 * (has('desk') ? 1 : 0) + 2 * (has('brandwall') ? 1 : 0) + (has('podium') ? 1 : 0) + (has('ledscreen') ? 1 : 0),
@@ -393,9 +396,18 @@
       birthday: 4 * (has('balloon') + has('balloons') ? 1 : 0),
     };
     // a rally with a podium + press riser beats an incidental registration desk
-    var best = 'wedding', bv = 2;
-    Object.keys(sc).forEach(function (k) { if (sc[k] > bv) { bv = sc[k]; best = k; } });
+    // wedding is only the fallback when there is NO evidence; any non-wedding evidence that is not
+    // outweighed by wedding objects wins (a barricaded seating plan is never styled as a wedding)
+    var best = 'wedding', bv = Math.max(1, sc.wedding);
+    Object.keys(sc).forEach(function (k) { if (k !== 'wedding' && (sc[k] > bv || (sc[k] >= 2 && sc[k] === bv && !sc.wedding))) { bv = sc[k]; best = k; } });
     return best;
+  }
+  // event type for the render: the quote's type when it maps to a profile, else detected from the layout
+  function detect(eventType, items) {
+    var e = String(eventType || '').trim();
+    var known = e && profileKey(e, []) !== 'wedding' || /wedding|reception|sangeet|mehndi|mehendi|haldi|engagement|nikah|shaadi/i.test(e);
+    var key = profileKey(e, items);
+    return { key: key, label: PROFILES[key].label, detected: !known, typeText: e };
   }
   function themesFor(eventType, items) { return PROFILES[profileKey(eventType, items)].themes.slice(); }
   // text cleaner for profiles without florals / wedding decor (never touches the FORBIDDEN lines)
@@ -405,6 +417,43 @@
     [/\b(florals?|flowers?|roses?|marigolds?|petals?|hydrangeas?|orchids?|peonies|garlands?|bouquets?|posy)\b/gi, 'decor'],
     [/floral/gi, 'decor'], [/flower/gi, 'decor'], [/\bmandaps?\b/gi, 'ceremony stage'], [/\bcouples?\b/gi, 'VIP'], [/\bbridal\b/gi, 'VIP'], [/\bwedding\b/gi, 'event'],
   ];
+  var PROFILE_ENV = {
+    political: [
+      [/a manicured green lawn and pale stone terrace/g, 'a large levelled open ground (a maidan / stadium-like open field) of packed earth and trimmed grass, with plain matting under the seating'],
+      [/on a manicured (green )?lawn( and terrace)?/g, 'on a large levelled open ground (maidan)'],
+      [/across the grass/g, 'across the ground'], [/vivid green grass, trees and hedges around the venue edges/g, 'open levelled ground with sparse grass and a few trees at the far edges'],
+      [/Mature trees(,| and) hedges[^;.]*frame the venue edges/g, 'A few distant trees and open land frame the edges of the ground'],
+      [/warm festoon string lights and fairy lights strung overhead/g, 'tall truss floodlights and stage lighting'], [/warm festoon \/ fairy string lights/g, 'tall truss floodlights'],
+      [/warm festoon lighting, uplighting and candlelight/g, 'truss floodlights and bright stage wash'],
+      [/,? ?candles on (the existing )?tables/g, ''], [/amber uplights washing the trees( and decor)?/g, 'floodlights washing the ground'], [/amber uplights on the existing decor and landscaping/g, 'floodlights on the ground'],
+      [/pools of warm light on the lawn and dark landscaping beyond/g, 'pools of light on the open ground and dark surroundings beyond'],
+      [/natural landscaping/g, 'open ground'], [/the lawn/g, 'the ground'],
+      [/warm festoon string lights, uplighters, candles and stage lighting/g, 'truss floodlights and stage lighting'], [/warm festoon\/fairy lights and uplights glowing/g, 'truss floodlights and stage lighting glowing'],
+      [/open-air lawn/g, 'open ground'], [/warm, glowing and romantic/g, 'clear, bright and purposeful'], [/warm and festive/g, 'bright and purposeful'], [/candles?/gi, 'lights'], [/festoon/gi, 'flood'],
+    ],
+  };
+  function envFix(pk, text) {
+    var R = PROFILE_ENV[pk]; if (!R) return text;
+    return text.split('\n').map(function (l) { if (/FORBIDDEN/.test(l)) return l; R.forEach(function (r) { l = l.replace(r[0], r[1]); }); return l; }).join('\n');
+  }
+  // canonical event-type text per profile (the dialog's "change" override)
+  var PROFILE_TYPE = { wedding: 'wedding', political: 'political rally', corporate: 'corporate event', concert: 'concert', exhibition: 'exhibition', birthday: 'birthday party', iftar: 'iftar' };
+  // "Event: Political rally · 5,001 seats · 350×550 ft · Outdoor · 6 Oct 2026" - what the render will use
+  function contextLine(o) {
+    o = o || {};
+    var items = (Array.isArray(o.items) ? o.items : []).filter(function (it) { return it && typeof it.type === 'string'; });
+    var d = o.override && PROFILES[o.override] ? { key: o.override, label: PROFILES[o.override].label, detected: false, typeText: '' } : detect(o.eventType, items);
+    var typeText = o.override ? PROFILES[o.override].label : (d.detected ? PROFILES[d.key].label + ' (detected from layout)' : clean(o.eventType, 40));
+    var seats = 0; items.forEach(function (it) { if (!SKIP[it.type]) seats += seatsOf(it); });
+    var w = o.world || {}, setting = inferSetting(o.setting, items);
+    var parts = ['Event: ' + typeText];
+    if (seats) parts.push(Math.round(seats).toLocaleString('en-US') + ' seats');
+    if (num(w.w, 0) && num(w.h, 0)) parts.push(Math.round(w.w) + '\u00d7' + Math.round(w.h) + ' ft');
+    parts.push(setting === 'outdoor' ? 'Outdoor' : 'Indoor');
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(o.eventDate || ''));
+    if (m) parts.push((+m[3]) + ' ' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][+m[2] - 1] + ' ' + m[1]);
+    return { text: parts.join(' \u00b7 '), profile: d.key, detected: !o.override && d.detected, eventType: o.override ? PROFILE_TYPE[o.override] : (d.detected ? PROFILE_TYPE[d.key] : clean(o.eventType, 40)) };
+  }
   function deflower(text) {
     return text.split('\n').map(function (l) { if (/FORBIDDEN/.test(l)) return l; NONFLORAL.forEach(function (r) { l = l.replace(r[0], r[1]); }); return l; }).join('\n');
   }
@@ -537,6 +586,16 @@
     var focus = input.focus && FOCUS[input.focus] ? input.focus : null;
     var eventType = clean(input.eventType, 40) || { wedding: 'wedding', political: 'political rally', corporate: 'corporate event', concert: 'concert', exhibition: 'exhibition', birthday: 'birthday party', iftar: 'iftar' }[pk];
     var nImages = Math.max(1, Math.min(4, num(input.images, 4)));
+    // extra quote context (styling cues only - names are NEVER rendered as text)
+    var cx = [];
+    if (clean(input.eventName, 60)) cx.push('event name "' + clean(input.eventName, 60) + '" (context only - never write it anywhere in the photo)');
+    if (clean(input.venueName, 60)) cx.push('venue: ' + clean(input.venueName, 60));
+    var place = [clean(input.city, 40), REGIONS[region] && input.country ? REGIONS[region].name : ''].filter(Boolean).join(', ');
+    if (place) cx.push('location: ' + place);
+    if (clean(input.menuPackage, 60) && pk !== 'political') cx.push('catering: ' + clean(input.menuPackage, 60) + ' (style any buffet / food stations to suit)');
+    if (clean(input.seatColor, 30)) cx.push('chair colour: ' + clean(input.seatColor, 30));
+    cx.push('chair colours in Image 1 are planning markers (red / amber = densely packed seating), not real chair colours');
+    var ctxLine = 'CONTEXT: ' + cx.join('; ') + '.';
     var weather = WEATHER[input.weather] ? input.weather : 'clear';
     var quality = input.quality === 'high' ? 'high' : 'standard';
     var o = orientation(items, W, H);
@@ -695,6 +754,7 @@
       aisle ? 'AISLE: a ' + (NAMES[aisle.type] || 'aisle') + ' runs ' + (aisleLat < 0.4 ? 'left of centre' : (aisleLat > 0.6 ? 'right of centre' : 'down the centre')) + ' from the back toward the ' + (front || 'front') + '; it splits the seating into a LEFT side and a RIGHT side.' : '',
       'VENUE: ' + (outdoor ? 'open-air outdoor venue' : 'indoor event space') + ', ' + ft(W) + ' wide x ' + ft(H) + ' deep.',
       'EVENT: ' + eventType + (guests ? ' for about ' + guests + ' guests' : '') + (seats ? ' (' + seats + ' seats on the plan)' : '') + '.',
+      ctxLine,
     ].filter(Boolean).join('\n');
 
     var s3 = [
@@ -787,6 +847,7 @@
     function assemble(level, maxLines, brief) {
       var json = eventJson(level, jctx);
       if (!prof.florals) json = deflower(json);
+      json = envFix(pk, json);
       var inv = lines.length ? (brief === 2 ? tinyLines : brief ? shortLines : lines) : ['- (empty floor - show the styled venue only)'];
       var chk = check.length ? check : ['- nothing'];
       if (maxLines != null && inv.length > maxLines) inv = inv.slice(0, maxLines).concat(['- ... ' + (inv.length - maxLines) + ' more groups: see the canonical event JSON (every object is listed there).']);
@@ -806,6 +867,7 @@
         finalOut,
       ].filter(Boolean).join('\n');
       if (!prof.florals) { system = deflower(system); layout = deflower(layout); }
+      system = envFix(pk, system); layout = envFix(pk, layout);
       return { system: system, layout: layout, prompt: system + '\n\n' + layout, json: json, level: level };
     }
     var out = assemble(0, null);
@@ -986,7 +1048,7 @@
     return { ok: true };
   }
 
-  var api = { build: build, semanticMap: semanticMap, envFor: envFor, inferSetting: inferSetting, ENV: ENV, CATEGORIES: CATS, cameraView: cameraView, validView: validView, THEMES: THEMES, FOCUS: FOCUS, STYLES: STYLES, CAMERAS: CAMERAS, REGIONS: REGIONS, DESCRIPTIONS: DESC, PROFILES: PROFILES, profileKey: profileKey, themesFor: themesFor, WEATHER: WEATHER, seasonOf: seasonOf, facingOf: facingOf, PROMPT_LIMIT: PROMPT_LIMIT, defaultStyle: defaultStyle, regionOf: regionOf };
+  var api = { build: build, detect: detect, contextLine: contextLine, PROFILE_TYPE: PROFILE_TYPE, semanticMap: semanticMap, envFor: envFor, inferSetting: inferSetting, ENV: ENV, CATEGORIES: CATS, cameraView: cameraView, validView: validView, THEMES: THEMES, FOCUS: FOCUS, STYLES: STYLES, CAMERAS: CAMERAS, REGIONS: REGIONS, DESCRIPTIONS: DESC, PROFILES: PROFILES, profileKey: profileKey, themesFor: themesFor, WEATHER: WEATHER, seasonOf: seasonOf, facingOf: facingOf, PROMPT_LIMIT: PROMPT_LIMIT, defaultStyle: defaultStyle, regionOf: regionOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.HelmPhotoPrompt = api;
 })(typeof window !== 'undefined' ? window : this);

@@ -10,11 +10,52 @@
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
   var MAX_W = 1536;
-  var state = { busy: false, ac: null, cancelled: false, last: null, cfg: null };
+  var state = { busy: false, ac: null, cancelled: false, last: null, cfg: null, fresh: null };
 
   function toast(m, o) { try { if (window.BPUI && BPUI.toast) BPUI.toast(m, o || {}); } catch (e) {} }
   function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = String(text); return n; }
   function ctx() { return typeof window.__helmPhotoCtx === 'function' ? window.__helmPhotoCtx() : null; }
+  // the quote's freshest event meta (re-read on open / render: the builder tab may predate the flow's save)
+  function withFresh(c, f) {
+    if (!c) return c;
+    f = f || state.fresh;
+    if (f) { c.eventType = f.eventType || ''; c.eventDate = f.eventDate || c.eventDate; c.client = f.client || c.client; if (c.guests == null && f.guests != null) c.guests = f.guests; }
+    var cl = c.client || {};
+    if (!c.venueSettingSet && (cl.setting === 'outdoor' || cl.setting === 'indoor')) c.setting = cl.setting;
+    return c;
+  }
+  async function refreshMeta(c) {
+    if (!c || typeof c.refreshMeta !== 'function') return c;
+    try { var f = await c.refreshMeta(); if (f) state.fresh = f; } catch (e) {}
+    return withFresh(c);
+  }
+  // render context: what the photo will use (event type from the quote, else detected from the layout) + override
+  function typeOverride() { var s = $('phTypeSel'); return s && s.value ? s.value : ''; }
+  function renderContext(c) {
+    var P = window.HelmPhotoPrompt, form = $('photoForm');
+    if (!P || !P.contextLine || !form || !c) return null;
+    var row = $('phCtxRow');
+    if (!row) {
+      row = el('div', 'ph-ctx'); row.id = 'phCtxRow';
+      var line = el('p', 'ph-note'); line.id = 'phCtx'; line.setAttribute('aria-live', 'polite');
+      var lab = el('label', 'pfield', 'Change event type ');
+      var sel = el('select'); sel.id = 'phTypeSel';
+      var o0 = el('option', null, 'As on the quote'); o0.value = ''; sel.appendChild(o0);
+      Object.keys(P.PROFILES).forEach(function (k) { var o = el('option', null, P.PROFILES[k].label); o.value = k; sel.appendChild(o); });
+      sel.addEventListener('change', function () { var cc = withFresh(ctx()); renderContext(cc); fitThemes(effective(cc)); });
+      lab.appendChild(sel); row.appendChild(line); row.appendChild(lab);
+      form.insertBefore(row, form.firstChild);
+    }
+    var info = P.contextLine({ items: c.items, world: c.world, eventType: c.eventType, setting: c.setting, eventDate: c.eventDate, override: typeOverride() });
+    $('phCtx').textContent = info.text;
+    return info;
+  }
+  // the ctx with the event type the render will actually use
+  function effective(c) {
+    var P = window.HelmPhotoPrompt; if (!c || !P || !P.contextLine) return c;
+    var info = P.contextLine({ items: c.items, world: c.world, eventType: c.eventType, setting: c.setting, eventDate: c.eventDate, override: typeOverride() });
+    var e = Object.assign({}, c); e.eventType = info.eventType; e.profile = info.profile; return e;
+  }
   function api() { return window.BPStore && BPStore.photoRender ? BPStore.photoRender : null; }
 
   // which pictures go with which camera / plan shape
@@ -154,6 +195,8 @@
   async function run(params) {
     var c = ctx(), A = api();
     if (!c || !A) return;
+    c = effective(await refreshMeta(c));
+    var cl = c.client || {};
     if (!c.quoteId || !c.supported) { toast('Open a saved event to make photo renders.', { type: 'err' }); return; }
     if (c.frozen) { toast('This event is closed, so new photos can’t be made.', { type: 'err' }); return; }
     if (!c.items.length) { toast('Add some items to the floor first.', { type: 'err' }); return; }
@@ -163,7 +206,8 @@
     try {
       var evening = false; try { evening = !!(window.__helm3D && __helm3D.isEvening && __helm3D.isEvening()); } catch (e) {}
       var P = window.HelmPhotoPrompt.build({ items: c.items, world: c.world, eventType: c.eventType, guests: c.guests, setting: c.setting,
-        evening: evening, style: params.style, images: 4, camera: params.camera, weather: params.weather, quality: params.quality, eventDate: c.eventDate, themeKey: params.themeKey, theme: params.theme, focus: params.focus, country: c.country });
+        evening: evening, style: params.style, images: 4, camera: params.camera, weather: params.weather, quality: params.quality, eventDate: c.eventDate, themeKey: params.themeKey, theme: params.theme, focus: params.focus, country: c.country,
+        eventName: c.title, venueName: cl.venueName || cl.venue || '', city: cl.city || '', menuPackage: c.menuPackage || '' });
       setStep('Capturing the 3D view…', 10);
       if (!window.__capture3D) throw new Error('The 3D view is not loaded');
       var b3 = await window.__capture3D(MAX_W, cameraOpts(params.camera, c, params.focus));
@@ -231,7 +275,10 @@
   }
   function open() {
     var m = $('photoModal'); if (!m) return;
-    var c = ctx();
+    var c = withFresh(ctx());
+    var sel0 = $('phTypeSel'); if (sel0) sel0.value = '';
+    renderContext(c);
+    c = effective(c);
     var evening = false; try { evening = !!(window.__helm3D && __helm3D.isEvening && __helm3D.isEvening()); } catch (e) {}
     if (c && window.HelmPhotoPrompt) $('phStyle').value = HelmPhotoPrompt.defaultStyle(c.setting, evening, c.items);
     fitThemes(c);
@@ -247,6 +294,8 @@
       Promise.all([api().probe(), settingsReady]).then(function (r) { if (r[0] === false) showOff(OFF_MSG, canManage()); }).catch(function () {});
     }
     loadHistory();
+    var base = ctx();
+    if (base && base.refreshMeta) refreshMeta(base).then(function (fc) { if ($('photoModal').hidden || state.busy) return; renderContext(fc); fitThemes(effective(fc)); });
   }
   function close() {
     if (state.busy) cancel();
@@ -272,6 +321,6 @@
     // the 3D render view still opens behind the dialog (used by the "My current 3D view" camera)
     if (b) b.addEventListener('click', function () { setTimeout(open, 0); });
   }
-  window.HelmPhotoRenderUI = { fitThemes: fitThemes, drawSemantic: drawSemantic, open: open, close: close, outputSize: outputSize, cameraOpts: cameraOpts, plainError: plainError, readForm: readForm };
+  window.HelmPhotoRenderUI = { renderContext: renderContext, effective: effective, withFresh: withFresh, fitThemes: fitThemes, drawSemantic: drawSemantic, open: open, close: close, outputSize: outputSize, cameraOpts: cameraOpts, plainError: plainError, readForm: readForm };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
 })();
