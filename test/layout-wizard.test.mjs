@@ -143,7 +143,7 @@ for (const t of Object.keys(HW.TYPES)) for (const k of Object.keys(HW.defaults(t
 
 // ---- wiring ----
 const bh = rd('public/builder.html');
-assert.match(bh, /<script src="layout-wizard\.js\?v=7"><\/script>/); assert.match(bh, /<link rel="stylesheet" href="layout-wizard\.css\?v=4">/);
+assert.match(bh, /<script src="layout-wizard\.js\?v=8"><\/script>/); assert.match(bh, /<link rel="stylesheet" href="layout-wizard\.css\?v=4">/);
 assert.match(bh, /builder\.js\?v=47/);
 const lw = rd('public/layout-wizard.js');
 assert.ok(!/\beval\s*\(|new Function|\.style\.|innerHTML|on[a-z]+=\s*["']/.test(lw), 'CSP-safe: no eval / inline style / innerHTML');
