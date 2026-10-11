@@ -141,3 +141,11 @@ assert.match(bj, /if\(in3D\(\)\) window\.__zoom3D\(1\/1\.25\)/); assert.match(bj
   assert.equal(seq[seq.length - 1], goal);
 }
 console.log('walkthrough-smooth: all assertions passed');
+// using the rest of the builder ends the walkthrough (no stuck state); the card / 3D view don't
+{
+  const { readFileSync } = await import('node:fs');
+  const w = readFileSync('public/walkthrough.js', 'utf8');
+  if (!/doc\.addEventListener\('pointerdown', \(e\) => \{\s*if \(!W\) return;[\s\S]*?exit\(\);\s*\}, true\);/.test(w)) throw new Error('walkthrough auto-exit on outside use missing');
+  if (!/to2D\) W\.from2D = false/.test(w)) throw new Error('2D click should not double-switch');
+  console.log('walkthrough auto-exit: ok');
+}
