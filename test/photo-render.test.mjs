@@ -28,15 +28,17 @@ const W = { w: 200, h: 140 };
 t('wedding prompt: every object type with its count + positions, aisle sides, seats', () => {
   const r = P.build({ items: WEDDING, world: W, eventType: 'Wedding', guests: 320, setting: 'outdoor', camera: 'hero', theme: 'royal gold & blush florals', country: 'IN' });
   const p = r.prompt;
-  assert.match(p, /2 seating blocks .*320 chairs in total across 20 rows \(exactly this many rows - no extra rows\)/);
-  assert.match(p, /4 sofas .*facing the stage/);
+  assert.match(p, /TOTALS BY TYPE: .*2 seating blocks \(20 rows, 320 chairs in total\)/);
+  assert.match(p, /one seating block: 10 rows x 16 chairs per row = 160 chairs/);
+  assert.match(p, /1 row of 2 sofas side by side .*LEFT of the aisle.*facing the stage/);
+  assert.match(p, /4 sofas/);
   assert.match(p, /1 red carpet aisle/);
-  assert.match(p, /4 floral stands .*2 on the left and 2 on the right of the aisle/);
-  assert.match(p, /2 seating blocks.*1 on the left and 1 on the right of the aisle/);
-  assert.match(p, /3 buffet lines .*chafing dishes.* at the back/);
-  assert.match(p, /1 fountain .*at the back-centre/);
+  assert.match(p, /4 floral stands/);
+  assert.match(p, /seating block: 10 rows.*LEFT of the aisle/); assert.match(p, /seating block: 10 rows.*RIGHT of the aisle/);
+  assert.match(p, /3 buffet lines/); assert.match(p, /1 row of 2 buffet lines side by side .*chafing dishes.* at the back-left/);
+  assert.match(p, /1 fountain - .*at the back-centre/);
   assert.match(p, /2 floral arches/);
-  assert.match(p, /1 stage .*LED backdrop.*at the front-centre/);
+  assert.match(p, /1 stage - .*LED backdrop.*at the front-centre/);
   assert.match(p, /1 DJ booth .*LED/);
   assert.match(p, /checkered dance floor/);
   assert.match(p, /1 cake table/); assert.match(p, /1 restroom kiosk/); assert.match(p, /1 fence line/);
@@ -47,12 +49,13 @@ t('wedding prompt: every object type with its count + positions, aisle sides, se
   assert.match(p, /marigold/);                          // India default
   assert.equal(r.style, 'golden'); assert.match(p, /golden-hour/);
   assert.match(p, /same position, height and angle as reference image 1/);
+  assert.match(p, /^ENVIRONMENT/); assert.match(p, /Reminder: open-air lawn at golden hour[^\n]*$/);
   assert.ok(r.system.length > 200 && r.layout.length > 400 && p === r.system + '\n\n' + r.layout);
 });
 
 t('strict rules: keep layout, forbid text / labels / measurements / grid / watermarks', () => {
   const p = P.build({ items: WEDDING, world: W }).prompt;
-  for (const re of [/EXACTLY as planned/, /same counts, same positions/, /do not add extra rows/i, /No text, letters, numbers, labels/, /measurement lines/, /grid lines/, /watermarks/, /Reference image 3 .* never draw any of it/, /not a 3D render/, /Photorealistic/])
+  for (const re of [/EXACTLY as planned/, /same counts, same rows, same positions/, /merge or duplicate any object, row, group/i, /No text, letters, numbers, labels/, /measurement lines/, /grid lines/, /watermarks/, /Image 3: .* never draw any of it/, /not a 3D render/, /Photorealistic/])
     assert.match(p, re);
 });
 
@@ -79,7 +82,7 @@ t('style mapping: defaults from venue setting + Evening toggle; explicit style w
   const d = P.build({ items: WEDDING, world: W, style: 'daylight', evening: true });
   assert.equal(d.style, 'daylight'); assert.match(d.prompt, /midday daylight/);
   assert.match(P.build({ items: WEDDING, world: W, style: 'ballroom' }).prompt, /chandeliers/);
-  assert.match(P.build({ items: WEDDING, world: W, setting: 'indoor' }).prompt, /indoor hall \/ ballroom/);
+  assert.match(P.build({ items: WEDDING, world: W, setting: 'indoor' }).prompt, /indoor event space/);
 });
 
 t('cameras: hero / top-down / eye-level from the entrance', () => {
@@ -130,8 +133,8 @@ t('builder: Render dialog markup with style / camera / theme / quality / count, 
   assert.match(html, /<option value="4">4<\/option>/);
   assert.match(html, /Photo renders aren’t switched on for your studio yet\./);
   assert.doesNotMatch(html, /OPENAI_API_KEY/);
-  assert.match(html, /builder-3d\.js\?v=14"><\/script>\n<script src="photo-render-prompt\.js\?v=2"><\/script>\n<script src="photo-render-ui\.js\?v=4"><\/script>/);
-  assert.match(cap, /photo-render-ui\.js\?v=4/);
+  assert.match(html, /builder-3d\.js\?v=14"><\/script>\n<script src="photo-render-prompt\.js\?v=3"><\/script>\n<script src="photo-render-ui\.js\?v=5"><\/script>/);
+  assert.match(cap, /photo-render-ui\.js\?v=5/);
   assert.doesNotMatch(html, /style="/);
 });
 t('dialog: three captures (clean 3D labels none, plan plain, plan names + measure), ≤1536 px, render via BPStore', () => {
@@ -196,7 +199,7 @@ t('render-photo: dormant 503 render_not_configured before anything else; key fro
   assert.match(rd('supabase/functions/README.md'), /supabase functions deploy render-photo/);
   assert.match(fn, /asCaller\.rpc\("photo_render_begin"/);
   assert.match(fn, /AbortController/);
-  assert.match(fn, /BODY_LIMIT = 8 \* 1024 \* 1024/);
+  assert.match(fn, /BODY_LIMIT = 11 \* 1024 \* 1024/);
   assert.match(rd('docs/PHOTO-RENDER-SETUP.md'), /supabase secrets set OPENAI_API_KEY=/);
 });
 

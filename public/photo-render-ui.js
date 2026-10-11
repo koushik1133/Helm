@@ -1,6 +1,7 @@
 /* photo-render-ui.js - the builder's "✦ Render" dialog (migration 0095).
-   Captures three reference pictures in the browser - (a) a clean 3D snapshot from the chosen
-   camera (no labels), (b) the 2D plan without labels, (c) the 2D plan with names + measurements -
+   Captures four reference pictures in the browser - (a) a clean 3D snapshot from the chosen
+   camera (no labels), (b) the 2D plan without labels, (c) the 2D plan with names + measurements,
+   (d) a colour-coded semantic map (one flat colour per object category, no text; drawSemantic) -
    builds the layout-exact prompt (HelmPhotoPrompt) and sends everything to the edge function
    render-photo (BPStore.photoRender.render). The image-service key lives ONLY on the server.
    Every user-facing string here is plain language (test/render-dialog-polish.test.mjs).
@@ -42,6 +43,22 @@
     var enc = await BPStore.booklet.encodeImage(blob, MAX_W, 0.85);
     if (!enc || !enc.data) throw new Error('A reference picture could not be prepared');
     return { mime: enc.mime, data: enc.data };
+  }
+
+  // reference image 4: flat colour per category on white, drawn from HelmPhotoPrompt.semanticMap (no text)
+  function drawSemantic(items, world, maxW) {
+    var P = window.HelmPhotoPrompt; if (!P || !P.semanticMap) return Promise.resolve(null);
+    var m = P.semanticMap(items, world), S = Math.min(maxW / m.world.w, maxW / m.world.h);
+    var cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(m.world.w * S)); cv.height = Math.max(1, Math.round(m.world.h * S));
+    var g = cv.getContext('2d'); if (!g) return Promise.resolve(null);
+    g.fillStyle = m.background; g.fillRect(0, 0, cv.width, cv.height);
+    m.shapes.forEach(function (sh) {
+      g.save(); g.translate((sh.x + sh.w / 2) * S, (sh.y + sh.h / 2) * S); g.rotate((sh.rot || 0) * Math.PI / 180);
+      g.fillStyle = sh.color; g.fillRect(-sh.w * S / 2, -sh.h * S / 2, Math.max(1, sh.w * S), Math.max(1, sh.h * S));
+      g.strokeStyle = '#FFFFFF'; g.lineWidth = 1; g.strokeRect(-sh.w * S / 2, -sh.h * S / 2, sh.w * S, sh.h * S);   // keeps touching objects countable
+      g.restore();
+    });
+    return new Promise(function (res) { cv.toBlob(function (b) { res(b || null); }, 'image/png'); });
   }
 
   function setStep(text, pct) {
@@ -146,7 +163,7 @@
     try {
       var evening = false; try { evening = !!(window.__helm3D && __helm3D.isEvening && __helm3D.isEvening()); } catch (e) {}
       var P = window.HelmPhotoPrompt.build({ items: c.items, world: c.world, eventType: c.eventType, guests: c.guests, setting: c.setting,
-        evening: evening, style: params.style, camera: params.camera, themeKey: params.themeKey, theme: params.theme, focus: params.focus, country: c.country });
+        evening: evening, style: params.style, images: 4, camera: params.camera, themeKey: params.themeKey, theme: params.theme, focus: params.focus, country: c.country });
       setStep('Capturing the 3D view…', 10);
       if (!window.__capture3D) throw new Error('The 3D view is not loaded');
       var b3 = await window.__capture3D(MAX_W, cameraOpts(params.camera, c, params.focus));
@@ -155,7 +172,8 @@
       var b2 = await c.planBlob({ clean: true, maxW: MAX_W, labels: 'none' });
       var b2m = await c.planBlob({ clean: true, maxW: MAX_W, labels: 'names', measure: true });
       if (state.cancelled) return;
-      var images = [await encode(b3), await encode(b2), await encode(b2m)];
+      var bsem = await drawSemantic(c.items, c.world, MAX_W);
+      var images = [await encode(b3), await encode(b2), await encode(b2m), await encode(bsem)];
       setStep('Creating the photo… this takes about a minute' + (params.n > 1 ? ' (' + params.n + ' photos)' : ''), 40);
       state.ac = new AbortController();
       var slow = setTimeout(function () { if (state.busy) setStep('Still working — high quality photos can take up to 3 minutes…', 60); }, 45000);
@@ -202,7 +220,7 @@
     var m = $('photoModal'); if (!m) return;
     var c = ctx();
     var evening = false; try { evening = !!(window.__helm3D && __helm3D.isEvening && __helm3D.isEvening()); } catch (e) {}
-    if (c && window.HelmPhotoPrompt) $('phStyle').value = HelmPhotoPrompt.defaultStyle(c.setting, evening);
+    if (c && window.HelmPhotoPrompt) $('phStyle').value = HelmPhotoPrompt.defaultStyle(c.setting, evening, c.items);
     $('photoOff').hidden = true; $('phResults').hidden = true;
     syncForm();
     m.hidden = false;
@@ -240,6 +258,6 @@
     // the 3D render view still opens behind the dialog (used by the "My current 3D view" camera)
     if (b) b.addEventListener('click', function () { setTimeout(open, 0); });
   }
-  window.HelmPhotoRenderUI = { open: open, close: close, outputSize: outputSize, cameraOpts: cameraOpts, plainError: plainError, readForm: readForm };
+  window.HelmPhotoRenderUI = { drawSemantic: drawSemantic, open: open, close: close, outputSize: outputSize, cameraOpts: cameraOpts, plainError: plainError, readForm: readForm };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
 })();
