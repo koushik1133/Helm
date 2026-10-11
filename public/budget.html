@@ -89,7 +89,7 @@
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
 
     <div class="tiles">
-      <div class="tile"><div class="l">Revenue (quote)</div><div class="n" id="t_rev">—</div><div class="pct" id="t_revsub"></div></div>
+      <div class="tile"><div class="l">Revenue (ex-tax)</div><div class="n" id="t_rev">—</div><div class="pct" id="t_revsub"></div></div>
       <div class="tile"><div class="l">Estimated cost</div><div class="n" id="t_est">—</div></div>
       <div class="tile"><div class="l">Actual cost</div><div class="n" id="t_act">—</div></div>
       <div class="tile margin"><div class="l">Est. margin</div><div class="n" id="t_mar">—</div><div class="pct" id="t_marpct"></div></div>
@@ -151,8 +151,8 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=172"></script>
+<script src="event-name.js?v=4"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=173"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -172,8 +172,9 @@
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(HelmUrl.here()))); } }
 
   function render(){
-    $("#t_rev").textContent=inr(sum.revenue);
-    $("#t_revsub").textContent = sum.changeRevenue ? `quote ${inr(sum.baseRevenue)} + changes ${inr(sum.changeRevenue)}` : "";
+    // E13: margin is on revenue WITHOUT the tax collected (tax is payable, shown underneath)
+    $("#t_rev").textContent=inr(sum.revenueExTax!=null?sum.revenueExTax:sum.revenue);
+    $("#t_revsub").textContent = [sum.changeRevenue ? `quote ${inr(sum.baseRevenue)} + changes ${inr(sum.changeRevenue)}` : "", sum.tax>0 ? `+ tax ${inr(sum.tax)} collected (payable)` : ""].filter(Boolean).join(" · ");
     $("#t_est").textContent=inr(sum.estCost);
     $("#t_act").textContent=sum.actCost?inr(sum.actCost):"—";
     const m=sum.estMargin; const mn=$("#t_mar"); mn.textContent=inr(m); mn.className="n "+(m>=0?"pos":"neg");

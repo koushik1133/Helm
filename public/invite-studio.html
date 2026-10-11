@@ -55,6 +55,7 @@
   .btn:focus-visible,.tpl:focus-visible,.x:focus-visible,.account button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .mnote{font-size:12px;color:var(--ink-3);margin:0 0 10px}
   label.btn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+  .fv-msg{margin:6px 0 0;font-size:12.5px;color:#b42318;font-weight:500}
   .fld{margin-bottom:12px}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:520px){.two{grid-template-columns:1fr}}
   .btn{height:38px;padding:0 16px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;justify-content:center}
   .btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
@@ -153,7 +154,7 @@
           </div>
           <div class="fld"><label for="f_venue">Venue name</label><input id="f_venue" placeholder="e.g. The Grand Palm"></div>
           <div class="fld"><label for="f_address">Venue address</label><input id="f_address" placeholder="Street, city"></div>
-          <div class="fld"><label for="f_mapUrl">Map link (optional)</label><input id="f_mapUrl" placeholder="https://maps.google.com/…"></div>
+          <div class="fld"><label for="f_mapUrl">Map link (optional)</label><input id="f_mapUrl" type="url" inputmode="url" maxlength="500" placeholder="https://maps.google.com/…" aria-describedby="f_mapUrlErr"><div class="fv-msg" id="f_mapUrlErr" role="alert" hidden>Use an https:// maps link (Google Maps, Apple Maps…), or leave it blank - guests then get "Open in Maps" from the venue and address.</div></div>
           <div class="fld"><label id="l_message" for="f_message">Welcome message</label><textarea id="f_message" placeholder="A warm line or two for your guests…"></textarea></div>
           <div class="two">
             <div class="fld"><label for="f_host">Hosted by (optional)</label><input id="f_host" placeholder="Name"></div>
@@ -236,8 +237,8 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=172"></script>
+<script src="event-name.js?v=4"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=173"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -327,6 +328,26 @@
     return SONGS[pick]||"";
   }
 
+  function studioCC(){ try{ const t=ev&&BPStore.quoteTax?BPStore.quoteTax(ev):null; const c=(t&&t.country)||((BPStore.studioTax&&BPStore.studioTax())||{}).country; return /^(IN|AE|US)$/.test(c||"")?c:"IN"; }catch(_){ return "IN"; } }
+  // E9: only an https:// link (no quotes / spaces / angle brackets) is accepted as the map link
+  const MAP_RE=/^https:\/\/[^\s"'<>\\]+$/i;
+  function mapUrlOk(){ const v=$("#f_mapUrl").value.trim(), ok=!v||(MAP_RE.test(v)&&v.length<=500);
+    if(ok) $("#f_mapUrl").removeAttribute("aria-invalid"); else $("#f_mapUrl").setAttribute("aria-invalid","true"); $("#f_mapUrlErr").hidden=ok; return ok; }
+  // E7: a NEW invitation starts from what the quote already knows (all editable)
+  const SITE_TYPES={wedding:"wedding",reception:"wedding",sangeet:"wedding",haldi:"wedding",mehendi:"wedding",mehndi:"wedding",engagement:"engagement",birthday:"birthday",corporate:"corporate",conference:"corporate"};
+  function prefillFromQuote(){
+    if(!ev) return; const c=ev.client&&typeof ev.client==="object"?ev.client:{};
+    const k=String(ev.eventType||"").trim().toLowerCase(); const st=SITE_TYPES[k]||SITE_TYPES[k.split(/[^a-z]+/)[0]]||"general";
+    const d=TYPE_DEFAULTS[st]||TYPE_DEFAULTS.general; $("#f_type").value=st; tpl=d.tpl; $("#f_headline").value=d.headline;
+    const set=(id,v)=>{ if(v!=null && String(v).trim() && !$("#"+id).value) $("#"+id).value=String(v).trim(); };
+    const date=String(ev.eventDate||c.eventDate||"").slice(0,10); if(/^\d{4}-\d{2}-\d{2}$/.test(date)) set("f_date",date);
+    const tm=ev.eventTime||c.eventTime||c.time; if(tm){ const HC=window.HelmCountry; set("f_time",(HC&&HC.formatTime(tm))||tm); }
+    set("f_venue",c.venueName||c.venue); set("f_address",c.address);
+    if(typeof c.mapUrl==="string"&&MAP_RE.test(c.mapUrl.trim())) set("f_mapUrl",c.mapUrl);
+    set("f_host",c.name); set("f_hostPhone",c.phone);
+    const HEN=window.HelmEventName, tOk=ev.title&&HEN&&!HEN.isAuto(ev.title,ev.code)?ev.title:"";
+    set("f_names",c.names||c.coupleNames||tOk||(st==="corporate"?c.company:"")||c.name);
+  }
   function gather(){
     return {
       title: $("#f_names").value.trim() || "Invitation",
@@ -338,6 +359,7 @@
         venue:$("#f_venue").value.trim(), address:$("#f_address").value.trim(), mapUrl:$("#f_mapUrl").value.trim(),
         message:$("#f_message").value.trim(), host:$("#f_host").value.trim(), hostPhone:$("#f_hostPhone").value.trim(),
         dressCode:$("#f_dressCode").value.trim(), rsvpBy:$("#f_rsvpBy").value,
+        country:studioCC(),   // E8: guests see dates in the studio's country style
         photos:PHOTOS.slice(), music:musicUrl(),
         schedule:gatherSchedule()
       }
@@ -432,8 +454,8 @@
   }
   // input checks shared by Save and Publish: the map link must be https, and "reply by" can't be after the event
   function inputProblem(g){
-    if(g.mapUrl && !/^https:\/\/[^\s]+$/i.test(g.mapUrl)) return "Map link must start with https:// (or leave it blank).";
-    if(g.rsvpBy && g.date && g.rsvpBy>g.date) return "\u201cReply by\u201d can't be after the event date.";
+    if(g.data&&g.data.mapUrl && !(MAP_RE.test(g.data.mapUrl)&&g.data.mapUrl.length<=500)){ mapUrlOk(); return "Map link must start with https:// (or leave it blank)."; }
+    if(g.data&&g.data.rsvpBy && g.data.date && g.data.rsvpBy>g.data.date) return "\u201cReply by\u201d can't be after the event date.";
     return "";
   }
   function doSave(){
@@ -474,7 +496,7 @@
     }
     siteLoadFailed=false; paintActions(); $("#loadErrTop").hidden=true; $("#loadErrTop").innerHTML="";
     if(existing){ fill(existing); }
-    else { const d=TYPE_DEFAULTS.wedding; $("#f_type").value="wedding"; tpl=d.tpl; $("#f_headline").value=d.headline; applyTypeLabels(); paintTpls(); paintState(); }
+    else { prefillFromQuote(); applyTypeLabels(); paintTpls(); paintState(); }
     if(dirty) dirty.clean();
     preview();
   }
@@ -505,6 +527,8 @@
   // wire inputs
   ["f_names","f_headline","f_date","f_time","f_venue","f_address","f_mapUrl","f_message","f_host","f_hostPhone","f_dressCode","f_rsvpBy"]
     .forEach(id=>document.getElementById(id).addEventListener("input",preview));
+  $("#f_mapUrl").addEventListener("input",()=>{ if(!$("#f_mapUrlErr").hidden) mapUrlOk(); });
+  $("#f_mapUrl").addEventListener("blur",mapUrlOk);
   $("#f_type").addEventListener("change",()=>{
     const d=TYPE_DEFAULTS[$("#f_type").value]; if(d){ tpl=d.tpl; if(!$("#f_headline").value) $("#f_headline").value=d.headline; }
     applyTypeLabels(); paintTpls(); preview();

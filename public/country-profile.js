@@ -147,7 +147,28 @@
       postalLabel: p.postalLabel, postalPlaceholder: POSTAL_PH[c] || "", postalMax: c === "IN" ? 6 : 10, postalNumeric: true,
       phoneIso: c, phoneCode: p.phoneCode, currency: p.currency, timezone: timezone(c) };
   }
-  return { VERSION: "0089", formMeta: formMeta, timezone: timezone, isAutoTimezone: isAutoTimezone, COUNTRY_TZS: COUNTRY_TZS, DEFAULT: DEFAULT, get: get, list: list, code: code, findRegion: findRegion, defaultRate: defaultRate,
+  /* E8: client-facing dates in the studio's country style, no Intl dependency (same output everywhere).
+     IN/AE: "Monday, 28 December 2026 · 7:00 PM"; US: "Monday, December 28, 2026 · 7:00 PM". */
+  var WD = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  var MN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  function formatTime(t) {
+    var m = /^(\d{1,2}):(\d{2})/.exec(String(t || "")); if (!m) return "";
+    var h = +m[1], mi = m[2]; if (h > 23 || +mi > 59) return "";
+    return ((h % 12) || 12) + ":" + mi + " " + (h < 12 ? "AM" : "PM");
+  }
+  function formatDate(cc, iso, opts) {
+    opts = opts || {};
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || "")); if (!m) return "";
+    var y = +m[1], mo = +m[2] - 1, d = +m[3]; if (mo < 0 || mo > 11 || d < 1 || d > 31) return "";
+    var wd = WD[new Date(Date.UTC(y, mo, d)).getUTCDay()];
+    var body = code(cc) === "US" ? MN[mo] + " " + d + ", " + y : d + " " + MN[mo] + " " + y;
+    return opts.weekday === false ? body : wd + ", " + body;
+  }
+  function formatEventDate(cc, iso, time, opts) {
+    var dd = formatDate(cc, iso, opts), tt = formatTime(time);
+    return dd ? (tt ? dd + " \u00b7 " + tt : dd) : "";
+  }
+  return { VERSION: "0089", formMeta: formMeta, formatDate: formatDate, formatTime: formatTime, formatEventDate: formatEventDate, timezone: timezone, isAutoTimezone: isAutoTimezone, COUNTRY_TZS: COUNTRY_TZS, DEFAULT: DEFAULT, get: get, list: list, code: code, findRegion: findRegion, defaultRate: defaultRate,
     validateTaxId: validateTaxId, validatePostal: validatePostal, formatMoney: formatMoney, placeOfSupply: placeOfSupply,
     computeTax: computeTax, snapshot: snapshot };
 });

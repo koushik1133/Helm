@@ -5609,12 +5609,16 @@ window.HelmUrl = HelmUrl;
       const estCost = lineEst + changeCost + vendorExtra;             // full estimated cost to deliver
       const actCost = lineActuals;                                    // real money spent so far (entered actuals)
       const finalCost = lineBlend + changeCost + vendorExtra;         // best-known total cost (actuals where entered, else estimate)
-      const revenue = Number(baseRevenue) + changeRevenue;
-      const estMargin = revenue - estCost, actMargin = revenue - actCost, finalMargin = revenue - finalCost;
-      return { revenue, baseRevenue, changeRevenue, estCost, actCost, finalCost, changeCost, vendorExtra,
+      const revenue = Number(baseRevenue) + changeRevenue;   // what the client pays (incl. tax) - balances use this
+      // E13: GST / VAT / sales tax collected is payable to the government, not studio income -
+      // margins are on the ex-tax revenue (same rule as insights_range *_ex_tax, 0101)
+      const tax = BPStore.quoteTaxAmount(ev && ev.pricing, baseRevenue);
+      const revenueExTax = Math.round((revenue - tax) * 100) / 100;
+      const estMargin = revenueExTax - estCost, actMargin = revenueExTax - actCost, finalMargin = revenueExTax - finalCost;
+      return { revenue, revenueExTax, tax, baseRevenue, changeRevenue, estCost, actCost, finalCost, changeCost, vendorExtra,
         estMargin, actMargin, finalMargin,
-        estMarginPct: revenue ? Math.round(estMargin / revenue * 100) : null,
-        finalMarginPct: revenue ? Math.round(finalMargin / revenue * 100) : null,
+        estMarginPct: revenueExTax ? Math.round(estMargin / revenueExTax * 100) : null,
+        finalMarginPct: revenueExTax ? Math.round(finalMargin / revenueExTax * 100) : null,
         costs, changes, pendingChanges: changes.filter((c) => c.status === "requested").length };
     },
   };
@@ -6038,14 +6042,14 @@ window.HelmUrl = HelmUrl;
       const fromLedger = (pays || []).filter((p) => p.status === "paid").reduce((a, p) => a + Number(p.amount || 0), 0);
       const fromMilestones = ms.filter((m) => m.status === "paid").reduce((a, m) => a + Number(m.amount || 0), 0);
       const received = (pays && pays.length) ? fromLedger : fromMilestones;
-      const revenue = b.revenue, balance = revenue - received;
+      const revenue = b.revenue, balance = revenue - received;   // the client's balance includes tax
       const vend = bk.filter((x) => x.status !== "cancelled");
       const vendorCost = vend.reduce((a, x) => a + Number(x.cost || 0), 0);
       const vendorAdvance = vend.reduce((a, x) => a + Number(x.advance || 0), 0);
       const vendorOutstanding = vend.filter((x) => !x.settled).reduce((a, x) => a + Math.max(0, Number(x.cost || 0) - Number(x.advance || 0)), 0);
       const expTotal = exp.reduce((a, e) => a + Number(e.amount || 0), 0);
       const expPaid = exp.filter((e) => e.status === "paid").reduce((a, e) => a + Number(e.amount || 0), 0);
-      return { revenue, received, balance, estCost: b.estCost, actCost: b.actCost, finalCost: b.finalCost,
+      return { revenue, revenueExTax: b.revenueExTax != null ? b.revenueExTax : revenue, tax: b.tax || 0, received, balance, estCost: b.estCost, actCost: b.actCost, finalCost: b.finalCost,
         estMargin: b.estMargin, actMargin: b.actMargin, finalMargin: b.finalMargin,
         milestones: ms, bookings: vend, expenses: exp, vendorCost, vendorAdvance, vendorOutstanding, expTotal, expPaid };
     },
@@ -6112,9 +6116,11 @@ window.HelmUrl = HelmUrl;
     async pl(quoteId) {
       const s = await settlement.summary(quoteId);
       const cost = s.finalCost;                      // best-known total cost: actuals where entered, else the estimate — per line, plus vendor spend & approved change cost
-      const profit = s.revenue - cost - s.expPaid;
-      return { revenue: s.revenue, cost, expenses: s.expPaid, profit,
-        marginPct: s.revenue ? Math.round(profit / s.revenue * 100) : null, estCost: s.estCost, actCost: s.actCost, finalCost: s.finalCost };
+      // E13: revenue is EX-TAX; the tax collected is shown separately (payable), margin on ex-tax revenue
+      const rev = s.revenueExTax != null ? s.revenueExTax : s.revenue, tax = s.tax || 0;
+      const profit = rev - cost - s.expPaid;
+      return { revenue: rev, gross: s.revenue, tax, cost, expenses: s.expPaid, profit,
+        marginPct: rev ? Math.round(profit / rev * 100) : null, estCost: s.estCost, actCost: s.actCost, finalCost: s.finalCost };
     },
   };
 
@@ -6735,7 +6741,9 @@ window.HelmUrl = HelmUrl;
   };
 
   /* ---------------- client portal (Phase 53) ---------------- */
-  const portal = { get: (token) => rpc("public_get_portal", { p_token: token }) };
+  const portal = { get: (token) => rpc("public_get_portal", { p_token: token }),
+    // 0101 (E11): booklet link, published invitation, receipts, studio contact - read-only, same token; null before 0101
+    extras: (token) => (mode === "supabase" ? rpc("public_portal_extras", { p_token: token }).catch(() => null) : Promise.resolve(null)) };
 
   /* ---------------- post-event insights (Phase 51) ---------------- */
   // 0077: "Recently opened" records kept on the server per person + studio, so the clock
@@ -7605,6 +7613,8 @@ window.HelmUrl = HelmUrl;
     // current() → null and share() rejects with a friendly message.
     booklet: {
       get: (token) => rpc("public_get_booklet", { p_token: token }).then((r) => { linkOpened("booklet", token); return r; }),
+      // 0101 (E6): {event_date, balance_due_days, advance_pct} for this link; null before 0101 / on any error
+      payTerms: (token) => (supa ? rpc("public_booklet_pay_terms", { p_token: token }).catch(() => null) : Promise.resolve(null)),
       // 0067: /<studio>/booklet/<token> — the studio name must belong to the token's studio
       studioOk: (token, studio) => (supa ? rpc("public_booklet_studio", { p_token: String(token || ""), p_studio: String(studio || "") })
         .then((r) => { if (r && r !== studio) { try { history.replaceState(null, "", "/" + r + "/booklet/" + encodeURIComponent(String(token))); } catch (e) {} } return !!r; })
@@ -9206,6 +9216,18 @@ window.HelmUrl = HelmUrl;
     var d = new Date(iso); if (iso == null || iso === "" || isNaN(d.getTime())) return "";
     var loc = "en-IN"; try { if (BPStore.studioTax && BPStore.studioTax().country === "US") loc = "en-US"; } catch (e) {}
     try { return d.toLocaleString(loc, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }); } catch (e) { return d.toISOString(); }
+  };
+  // E13: the tax inside a quote's total (0 when exempt). The server total is the authority (D8); the
+  // saved computed.totalGst is used only when it belongs to that same total, else it is derived from gstPct.
+  BPStore.quoteTaxAmount = function (pricing, total) {
+    var p = pricing && typeof pricing === "object" ? pricing : {};
+    var t = Number(total != null ? total : p.total); if (!isFinite(t) || t <= 0) return 0;
+    if (p.taxExempt === true || String(p.taxExempt) === "true") return 0;
+    var c = p.computed && typeof p.computed === "object" ? p.computed : null;
+    if (c && isFinite(Number(c.totalGst)) && isFinite(Number(c.total)) && Math.abs(Number(c.total) - t) <= 1)
+      return Math.max(0, Math.min(t, Math.round(Number(c.totalGst) * 100) / 100));
+    var g = Number(p.gstPct); if (!isFinite(g) || g <= 0 || g > 100) return 0;
+    return Math.round((t - t / (1 + g / 100)) * 100) / 100;
   };
   BPStore.paidState = function (st, fallbackTotal) {
     if (!st || typeof st !== "object") return null;

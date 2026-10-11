@@ -140,8 +140,8 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=172"></script>
+<script src="event-name.js?v=4"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=173"></script>
 <script src="tour.js?v=9"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -174,10 +174,17 @@
     });
     if(focusN){ const f=$(`#stars .star[data-n="${focusN}"]`); if(f) f.focus(); } }
 
+  function taxLabel(){ try{ return (evTax&&evTax.name)||"tax"; }catch(_){ return "tax"; } }
+  // E14: the event's date (YYYY-MM-DD) when it is still in the future (studio's local day), else ""
+  function futureEventDate(){
+    const d=String((ev&&(ev.eventDate||(ev.client&&ev.client.eventDate)))||"").slice(0,10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(d) && d>BPStore.todayLocal() ? d : "";
+  }
   async function renderPL(){
     const pl=await BPStore.closure.pl(id);
     $("#plBody").innerHTML=`
-      <div class="k">Revenue (client)</div><div class="v">${inr(pl.revenue)}</div>
+      <div class="k">Revenue (ex-${esc(taxLabel())})</div><div class="v">${inr(pl.revenue)}</div>
+      ${pl.tax>0?`<div class="k">${esc(taxLabel())} collected (payable)</div><div class="v">${inr(pl.tax)}</div>`:""}
       <div class="k">Delivery cost${(pl.actCost&&pl.actCost>=pl.finalCost)?" (actual)":pl.actCost?" (actual + est.)":" (estimated)"}</div><div class="v">− ${inr(pl.cost)}</div>
       <div class="k">Staff expenses paid</div><div class="v">− ${inr(pl.expenses)}</div>
       <div class="k tot">Profit</div><div class="v tot ${pl.profit>=0?'pos':'neg'}">${inr(pl.profit)}${pl.marginPct!=null?`  ·  ${esc(pl.marginPct)}%`:""}</div>`;
@@ -291,6 +298,9 @@
           {title:"Outstanding balance — close anyway?",okLabel:"Close anyway",danger:true}))) return;
       }
     }catch(e){ /* settlement unreadable → fall through to the manual sign-off */ }
+    // E14: closing an event that has not happened yet needs an explicit yes
+    { const fd=futureEventDate(); if(fd){ const HEN=window.HelmEventName, nice=(HEN&&HEN.shortDate(fd))||fd;
+      if(!(await BPUI.confirm("This event hasn't happened yet ("+nice+"). Close it anyway?",{title:"Event is in the future",okLabel:"Close anyway",danger:true}))) return; } }
     // Gate 2 — explicit manager sign-off that the event is genuinely over
     if(!(await BPUI.confirm("Confirm the event has ENDED and ALL equipment has been returned."
       +(invUnverified?"\n\nNote: equipment returns couldn't be checked automatically right now — verify them yourself.":"")
@@ -312,7 +322,8 @@
   $("#closureRetry").addEventListener("click",()=>BPUI.guard($("#closureRetry"),loadClosure));
   $("#c_save").addEventListener("click",save);
   $("#r_add").addEventListener("click",addRating);
-  $("#closeBtn").addEventListener("click",closeEvent);
+  let closing=false;   // one close flow at a time (double-click opens no second set of dialogs)
+  $("#closeBtn").addEventListener("click",async()=>{ if(closing) return; closing=true; try{ await closeEvent(); } finally{ closing=false; } });
   // r7: a closed event can't be closed again; an admin may re-open it (reason required, audited)
   let isAdmin=false;
   function syncCloseButtons(){

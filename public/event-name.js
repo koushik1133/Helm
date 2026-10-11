@@ -86,7 +86,40 @@
     for (let i = 2; i < 10000; i++) if (!set.has(base + "-" + i)) return base + "-" + i;
     return base + "-" + Date.now();
   }
-  const api = { TYPES, CITIES, typeCode, cityCode, cityFromText, dateCode, guestsCode, format, fromQuote, isAuto, unique };
+  /* E3: one shared, client-facing label map for event types ("wedding" -> "Wedding") */
+  const LABELS = { wedding: "Wedding", reception: "Reception", engagement: "Engagement", sangeet: "Sangeet", haldi: "Haldi",
+    mehendi: "Mehendi", mehndi: "Mehendi", birthday: "Birthday", corporate: "Corporate event", conference: "Conference",
+    political: "Political rally", "political rally": "Political rally", rally: "Political rally", gala: "Gala", anniversary: "Anniversary",
+    "baby shower": "Baby shower", housewarming: "Housewarming", "naming ceremony": "Naming ceremony", upanayanam: "Upanayanam",
+    seminar: "Seminar", "product launch": "Product launch", concert: "Concert", party: "Party", general: "Event", other: "Event" };
+  function label(t) {
+    const raw = String(t == null ? "" : t).trim(); if (!raw) return "";
+    const k = raw.toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+    if (LABELS[k]) return LABELS[k];
+    for (const w of k.split(" ")) if (LABELS[w] && w !== "other" && w !== "general") return k.split(" ").length === 1 ? LABELS[w] : raw.charAt(0).toUpperCase() + raw.slice(1).replace(/[_]+/g, " ");
+    return k.charAt(0).toUpperCase() + k.slice(1);   // custom type: "baby shower" -> "Baby shower"
+  }
+  const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function shortDate(d) {
+    const r = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d == null ? "" : d)); if (!r) return "";
+    const m = +r[2] - 1; if (!(m >= 0 && m < 12)) return "";
+    return (+r[3]) + " " + MON[m] + " " + r[1];
+  }
+  /* E4: what a CLIENT sees as the event title. A manual rename is kept; an auto code
+     (WED_HYD_300_28DEC26 / the quote code / blank) becomes "Asha & Ravi's Wedding" when the
+     couple's names are known, else "Wedding for Asha Rao · 28 Dec 2026". The code stays the reference. */
+  function friendlyTitle(q) {
+    q = q || {}; const c = (q.client && typeof q.client === "object") ? q.client : {};
+    const title = String(q.title == null ? "" : q.title).trim();
+    if (title && !isAuto(title, q.code)) return title;
+    const lbl = label(q.eventType != null ? q.eventType : (q.event_type != null ? q.event_type : c.eventType)) || "Event";
+    const names = String(q.names || c.names || c.coupleNames || "").trim().slice(0, 80);
+    if (names) return names + "'s " + lbl;
+    const who = String(q.clientName || q.client_name || c.name || "").trim().slice(0, 60);
+    const when = shortDate(q.eventDate || q.event_date || c.eventDate);
+    return (who ? lbl + " for " + who : lbl) + (when ? " · " + when : "");
+  }
+  const api = { TYPES, CITIES, LABELS, typeCode, cityCode, cityFromText, dateCode, guestsCode, format, fromQuote, isAuto, unique, label, shortDate, friendlyTitle };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   if (root) root.HelmEventName = api;
 })(typeof window !== "undefined" ? window : null);

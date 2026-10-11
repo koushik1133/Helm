@@ -143,3 +143,5 @@ forward  supabase/migrations/0098_public_paid_status.sql
 forward  supabase/migrations/0099_pkg_payment_balance.sql
 # 0100 (demo seed fix: demo events carry raw pricing inputs so the D8 server total is realistic; milestones/advance from the server total re-read after insert; no money row <= 0 (prod quote_payments_amount_pos); functions only) goes after 0099 (needs 0097, 0001, 0089).
 forward  supabase/migrations/0100_demo_seed_fix.sql
+# 0101 (E2E usability: insights_range adds tax / revenue_ex_tax / profit_ex_tax / margin_pct_ex_tax (0094 body copied once to insights_range__pre0101); public_booklet_pay_terms + public_portal_extras token-scoped read-only RPCs; functions only) goes after 0100 (needs 0094, 0090, 0075, 0070, 0069, 0050, 0022).
+forward  supabase/migrations/0101_e2e_usability.sql

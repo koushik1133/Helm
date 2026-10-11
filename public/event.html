@@ -150,10 +150,10 @@
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=98"></script>
-<script src="event-name.js?v=3"></script>
-<script src="country-profile.js?v=3"></script><script src="store-api.js?v=172"></script>
+<script src="event-name.js?v=4"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=173"></script>
 <script src="tour.js?v=9"></script>
-<script src="booklet.js?v=15"></script>
+<script src="booklet.js?v=16"></script>
 <script src="share-checklist.js?v=9"></script>
 <script src="booklet-share.js?v=6"></script>
 <script src="pkg-review.js?v=4"></script>
@@ -432,7 +432,7 @@
         sum: teardownSummary && (teardownSummary.retTotal||teardownSummary.tdTotal) ? `${teardownSummary.retDone}/${teardownSummary.retTotal} stock returned · ${teardownSummary.tdDone}/${teardownSummary.tdTotal} teardown done` : "Return stock, exit vendors, hand over the venue.",
         acts:[{t: canEdit?"Open teardown":"View teardown", href:"teardown.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"budget", ic:"💰", title:"Budget & margin",
-        sum: budgetSummary && (budgetSummary.estCost || budgetSummary.revenue) ? `${inr(budgetSummary.revenue)} rev · ${inr(budgetSummary.estCost)} cost · <b style="color:${budgetSummary.estMargin>=0?'#0f7a43':'#b42318'}">${inr(budgetSummary.estMargin)} margin${budgetSummary.estMarginPct!=null?` (${budgetSummary.estMarginPct}%)`:""}</b>${budgetSummary.pendingChanges?` · ${budgetSummary.pendingChanges} change${budgetSummary.pendingChanges===1?"":"s"} pending`:""}` : "Track costs vs the quote and see your margin.",
+        sum: budgetSummary && (budgetSummary.estCost || budgetSummary.revenue) ? `${inr(budgetSummary.revenueExTax!=null?budgetSummary.revenueExTax:budgetSummary.revenue)} rev (ex-tax) · ${inr(budgetSummary.estCost)} cost · <b style="color:${budgetSummary.estMargin>=0?'#0f7a43':'#b42318'}">${inr(budgetSummary.estMargin)} margin${budgetSummary.estMarginPct!=null?` (${budgetSummary.estMarginPct}%)`:""}</b>${budgetSummary.pendingChanges?` · ${budgetSummary.pendingChanges} change${budgetSummary.pendingChanges===1?"":"s"} pending`:""}` : "Track costs vs the quote and see your margin.",
         acts:[{t: canEdit?"Open budget":"View budget", href:"budget.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"resourceplan", ic:"🧩", title:"Resource plan",
         sum: resSummary && resSummary.total ? `${resSummary.total} need${resSummary.total===1?"":"s"} · ${resSummary.gaps?`<b style="color:#b42318">${resSummary.gaps} gap${resSummary.gaps===1?"":"s"}</b>`:(resSummary.outsourced?`<span class="stat ok">all covered</span> · ${resSummary.outsourced} outsourced`:'<span class="stat ok">all in-house</span>')}` : "Map needs and flag what to outsource.",
