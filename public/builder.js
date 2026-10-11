@@ -3009,9 +3009,11 @@ function recenterView(){
 })();
 window.__builderPan={pan2D, panViewStep, recenterView};
 
-$('#zoomIn').addEventListener('click',()=>setZoom(store.view.zoom*1.2));
-$('#zoomOut').addEventListener('click',()=>setZoom(store.view.zoom/1.2));
-$('#zoomFit').addEventListener('click',()=>fitView());
+// in 3D the same buttons drive the 3D camera (smooth dolly / fit) instead of the hidden 2D canvas
+const in3D=()=>!!(window.__helm3D && window.__helm3D.isActive && window.__helm3D.isActive() && window.__zoom3D);
+$('#zoomIn').addEventListener('click',()=>{ if(in3D()) window.__zoom3D(1/1.25); else setZoom(store.view.zoom*1.2); });
+$('#zoomOut').addEventListener('click',()=>{ if(in3D()) window.__zoom3D(1.25); else setZoom(store.view.zoom/1.2); });
+$('#zoomFit').addEventListener('click',()=>{ if(in3D()) window.__zoom3D('fit'); else fitView(); });
 scrollEl.addEventListener('scroll',renderRulers,{passive:true});
 scrollEl.addEventListener('wheel',e=>{
   if(!(e.ctrlKey||e.metaKey))return;

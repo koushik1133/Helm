@@ -37,11 +37,11 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; b uuid := 'b0000
   -- admin A: samples
   perform pg_temp.login('a_admin@a.test');
   j := public.venue_load_samples();
-  perform pg_temp.res('01 admin loads 3 samples', (j ->> 'added')::int = 3, j::text);
+  perform pg_temp.res('01 admin loads 4 samples', (j ->> 'added')::int = 4, j::text);
   j := public.venue_load_samples();
   perform pg_temp.res('02 sample loader idempotent (2nd run adds 0)', (j ->> 'added')::int = 0, j::text);
   select count(*) into n from public.venues where is_sample and name like 'SAMPLE - %';
-  perform pg_temp.res('03 samples clearly marked + visible to admin', n = 3, n::text);
+  perform pg_temp.res('03 samples clearly marked + visible to admin', n = 4, n::text);
 
   -- admin A: add / validate
   j := public.venue_save(null, '{"name":"Test Hall","venue_type":"banquet_hall","seated_capacity":300,"length_m":30,"width_m":20,"cost_min":100000,"cost_max":200000,"event_types":["wedding","birthday"],"restrictions":["sound_curfew"],"sound_curfew":"22:00"}');
@@ -75,7 +75,7 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; b uuid := 'b0000
     on conflict (role, area, org_id) do update set can_view = true, can_edit = false;
   perform pg_temp.login('a_staff@a.test');
   select count(*) into n from public.venues;
-  perform pg_temp.res('15 staff with view reads own studio venues', n = 4, n::text);
+  perform pg_temp.res('15 staff with view reads own studio venues', n = 5, n::text);
   e := pg_temp.try(format('select public.venue_set_active(%L, false)', pg_temp.get('vid')));
   perform pg_temp.res('16 view-only cannot deactivate', e like '42501%', e);
   e := pg_temp.try('select public.venue_load_samples()');
@@ -98,7 +98,7 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; b uuid := 'b0000
   e := pg_temp.try(format('select public.venue_set_active(%L, true)', pg_temp.get('vid')));
   perform pg_temp.res('22 other studio cannot deactivate A venue', e like '42501%', e);
   j := public.venue_load_samples();
-  perform pg_temp.res('23 studio B gets its own samples', (j ->> 'added')::int = 3, j::text);
+  perform pg_temp.res('23 studio B gets its own samples', (j ->> 'added')::int = 4, j::text);
 
   -- anon
   perform pg_temp.anon();
@@ -110,7 +110,7 @@ do $$ declare a uuid := 'a0000000-0000-4000-8000-000000000001'; b uuid := 'b0000
   -- maintenance role cannot hard-delete either
   perform pg_temp.su();
   e := pg_temp.try('delete from public.venues');
-  perform pg_temp.res('26 hard delete blocked for everyone', e like '42501%' and (select count(*) from public.venues) = 7, e);
+  perform pg_temp.res('26 hard delete blocked for everyone', e like '42501%' and (select count(*) from public.venues) = 9, e);
   perform pg_temp.res('27 audit rows written', exists (select 1 from public.audit_log where entity = 'venues'));
 exception when others then perform pg_temp.su(); insert into _v85 values ('xx setup', 'FAIL: '||sqlstate||' '||sqlerrm); end $$;
 
