@@ -28,9 +28,10 @@ const MAP = {
   '/sharma-events/dashboard': 'dashboard', '/sharma-events/quotes': 'quotes', '/sharma-events/leads': 'leads',
   '/sharma-events/chat': 'chat', '/sharma-events/settings': 'control', '/sharma-events/events/EVT-0912': 'event',
   '/sharma-events/events/EVT-0912/floor-plan': 'builder', '/sharma-events/events/EVT-0912/tasks': 'ops',
+  '/sharma-events/events': 'quotes', '/sharma-events/settlement': 'settlement',
   '/sharma-events/clients/priya-sharma-cafe1234': 'client', '/sharma-events/booklet/a0000000-0000-4000-8000-00000000b0c1': 'booklet',
 };
-const NOT = ['/sharma-events', '/sharma-events/events', '/sharma-events/clients', '/sharma-events/booklet', '/sharma-events/quotes/x',
+const NOT = ['/sharma-events', '/sharma-events/clients', '/sharma-events/booklet', '/sharma-events/quotes/x',
   '/sharma-events/events/EVT-1/other', '/sharma-events/clients/x/tasks', '//evil.com/quotes', '/a/quotes', '/Sharma/quotes', '/dashboard', '/hq', '/login'];
 
 t('HelmUrl.parse: every pretty path → its page; malformed / open-redirect shapes → null', () => {
@@ -68,7 +69,8 @@ t('HelmUrl.upgrade: legacy app links → pretty; others untouched', () => {
   assert.equal(H.upgrade('quotes.html?focus=EVT-1'), '/sharma-events/quotes?focus=EVT-1');
   assert.equal(H.upgrade('control.html#users'), '/sharma-events/settings#users');
   assert.equal(H.upgrade('chat.html?c=c1&msg=m1'), '/sharma-events/chat?c=c1&msg=m1');
-  for (const h of ['settlement.html?quote=u1#payments', 'event.html', 'https://evil.com/event.html?id=1', 'booklet.html?t=x', 'login.html'])
+  assert.equal(H.upgrade('settlement.html?quote=u1#payments'), '/sharma-events/settlement?quote=u1#payments');
+  for (const h of ['event.html', 'https://evil.com/event.html?id=1', 'booklet.html?t=x', 'login.html'])
     assert.equal(H.upgrade(h), h, h);
   assert.equal(helm('/').upgrade('event.html?id=u1'), 'event.html?id=u1', 'no studio known → unchanged');
 });
@@ -87,7 +89,7 @@ t('vercel.json rewrites ≡ server.js prettyPage for every pretty path', () => {
     assert.equal(hit.length, 1, p + ': exactly one rewrite'); assert.equal(hit[0].destination, '/' + page, p);
     assert.equal(server.prettyPage(p), page, 'server.js ' + p);
   }
-  for (const p of ['/sharma-events', '/sharma-events/events', '/sharma-events/clients', '/sharma-events/quotes/x', '/a/b/c/d/e'])
+  for (const p of ['/sharma-events', '/sharma-events/clients', '/sharma-events/quotes/x', '/a/b/c/d/e'])
     { assert.ok(!v.rewrites.some((r) => r.source !== '/i/:slug*' && rx(r.source).test(p)), p); assert.equal(server.prettyPage(p), null, p); }
   assert.ok(Buffer.byteLength(read('vercel.json')) < 200 * 1024, 'vercel.json < 200KB');
 });

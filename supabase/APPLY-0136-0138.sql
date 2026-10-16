@@ -1,5 +1,5 @@
--- APPLY 0136 + 0137 (paste whole file; one transaction, then the read-only checks; expect every ok = true)
--- Idempotent: safe to run twice. ASCII only. No table, column or row is created, changed or deleted.
+-- APPLY 0136 + 0137 + 0138 (paste whole file; one transaction, then the read-only checks; expect every ok = true)
+-- Idempotent: safe to run twice. ASCII only. No table or column is created; only 0138 changes rows (demo sample staff phones only); nothing is deleted.
 begin;
 -- 0136_tenant_guard_catchup.sql - CANONICAL forward-only. REQUIRES 0004 (tg_quote_org_match).
 --
@@ -135,9 +135,28 @@ do $$ begin
     execute 'grant execute on function public.create_event_group(uuid, uuid[]) to authenticated'; end if;
 end $$;
 
+-- 0138_demo_staff_phones.sql - CANONICAL forward-only. REQUIRES 0122 (trial demo seed, crew_members.is_demo).
+--
+-- In plain words:
+--   The trial demo seed gives the three sample staff placeholder phones "+91 00000 001xx".
+--   Those are not valid Indian mobile numbers, so a fresh trial's Staff page showed a red
+--   "Invalid phone - please fix" on every demo row. This rewrites ONLY demo sample rows
+--   (is_demo = true, not linked to an account, phone starting "+91 00000") to the
+--   valid-looking dummy "+91 90000 001xx" (same last digits). Real staff rows are never
+--   touched. No table, column or row is created or deleted.
+--   (The app also hides the warning for demo rows, so trials seeded later look right too.)
+-- Idempotent: a second run matches no rows (the new numbers no longer start "+91 00000").
+
+update public.crew_members
+   set phone = '+91 9' || substr(phone, 6)
+ where is_demo is true
+   and profile_id is null
+   and phone like '+91 00000 %'
+   and length(phone) = 15;
+
 commit;
 
--- VERIFY 0136 + 0137 (read-only; expect every ok = true)
+-- VERIFY 0136 + 0137 + 0138 (read-only; expect every ok = true)
 select '0136 zz_quote_org_match on every quote_id+org_id table' as item,
        coalesce(bool_and(exists (select 1 from pg_trigger tg where tg.tgrelid = to_regclass('public.' || c.table_name) and tg.tgname = 'zz_quote_org_match')), true) as ok
   from information_schema.columns c
@@ -167,4 +186,7 @@ select '0137 create_event_group is security definer with empty search_path',
 union all
 select '0137 create_event_group: authenticated yes, anon no',
        coalesce(has_function_privilege('authenticated', to_regprocedure('public.create_event_group(uuid, uuid[])'), 'EXECUTE')
-                and not has_function_privilege('anon', to_regprocedure('public.create_event_group(uuid, uuid[])'), 'EXECUTE'), false);
+                and not has_function_privilege('anon', to_regprocedure('public.create_event_group(uuid, uuid[])'), 'EXECUTE'), false)
+union all
+select '0138 no demo staff row left on a +91 00000 placeholder phone',
+       not exists (select 1 from public.crew_members c where c.is_demo is true and c.profile_id is null and c.phone like '+91 00000 %');

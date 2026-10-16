@@ -1,9 +1,11 @@
 <!doctype html>
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
+<base href="/">
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
 <link rel="stylesheet" href="settlement-polish.css?v=1">
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Payments &amp; invoice — Helm Events</title>
 <link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -168,7 +170,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=206"></script><script src="vendor-bills-ui.js?v=4"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=207"></script><script src="vendor-bills-ui.js?v=4"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -288,8 +290,10 @@
     const notConfirmed=["quote","draft","sent","enquiry"].indexOf(String(evStatus||"").toLowerCase())!==-1;
     const q2=notConfirmed ? `This quote isn't confirmed yet — record the advance anyway? Then mark it Confirmed from the event workspace. ${q}` : q;
     if(paying) return; paying=true;
+    // The server refuses any payment above the balance (overpayment cap), so only explain it (OK) instead of offering to record it anyway.
+    if(over>0.5){ try{ await BPUI.alert((bal>0?`${inr(amt)} is ${inr(over)} more than the balance due (${inr(bal)}). `:`Nothing is due on this event. `)+"Payments can't exceed the balance. Approve a change order to increase the total first.",{title:"More than the balance due",reveal:true}); } finally{ paying=false; } return; }
     // Item 3: reveal:true keeps the real amount visible in the dialog even while amounts are hidden.
-    try{ if(!(await BPUI.confirm(q2,{title:notConfirmed?"Quote not confirmed yet":over>0.5?"More than the balance due":"Record payment?",okLabel:over>0.5?"Record anyway":"Record payment",reveal:true}))) return; }
+    try{ if(!(await BPUI.confirm(q2,{title:notConfirmed?"Quote not confirmed yet":"Record payment?",okLabel:"Record payment",reveal:true}))) return; }
     finally{ paying=false; }
     await BPUI.guard($("#pay_btn"),async()=>{
       msg.style.color="var(--safe-text,#0f7a43)"; msg.textContent="Recording…";

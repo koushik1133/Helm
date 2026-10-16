@@ -3930,7 +3930,7 @@ async function saveLayout(silent, opts){
       syncQuotePricing();                       // keep the stored quote total in step with the layout
       setTimeout(()=>{ autoCaptureIfStale(); }, 400);   // R2: keep the client booklet images in step
       if(silent){ if(btn){ btn.textContent='✓ v'+currentVersionNo; clearTimeout(saveBtnT); saveBtnT=setTimeout(()=>{ btn.innerHTML='💾 Save'; },1500); } }
-      else toast(fromOlder ? 'Saved as V'+currentVersionNo+' (new latest) — V'+fromNo+' is unchanged' : 'Saved version '+currentVersionNo);
+      else toast(fromOlder ? 'Saved as V'+currentVersionNo+' (new latest) — V'+fromNo+' is unchanged' : 'Saved V'+currentVersionNo);
     } else {
       const isLocalId = currentLayoutId && String(currentLayoutId).startsWith('local_');
       const saved = (!currentLayoutId || (isLocalId && BPStore.mode()!=='local'))
@@ -4657,7 +4657,7 @@ async function init(){
       refreshVersions();                     // adds who-saved names; non-blocking
       watchVersions();                       // live: versions saved on another device / tab
       if(q.status==='confirmed'){ const b=$('#quoteBadge'); if(b) b.classList.add('confirmed'); }
-      toast('Opened '+q.code+' · v'+currentVersionNo);
+      toast('Opened '+q.code+' · V'+currentVersionNo);
       if(!CAPTURE_HOST){ await offerDraftRestore();
         setTimeout(()=>{ autoCaptureIfStale(); }, 2500); }   // R2: refresh stale client booklet images
     }catch(e){

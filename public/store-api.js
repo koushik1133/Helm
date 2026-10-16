@@ -30,11 +30,11 @@ var HelmUrl = (function (global) {
     client: ["clients", "", "client", "id"], booklet: ["booklet", "", "booklet", "t"]
   };
   // plain sidebar pages served at /<studio>/<page> (no ref); control is reached via "settings"
-  "audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations".split("|").forEach(function (p) { KINDS[p] = [p, "", p, ""]; });
+  "audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|settlement|budget|closure|runsheet|resources|logistics|teardown|command|ready".split("|").forEach(function (p) { KINDS[p] = [p, "", p, ""]; });
   var PAGE_KIND = { dashboard: "dashboard", quotes: "quotes", leads: "leads", chat: "chat", control: "settings",
     event: "event", builder: "floor-plan", ops: "tasks", client: "client", booklet: "booklet" };
   Object.keys(KINDS).forEach(function (k) { if (!PAGE_KIND[KINDS[k][2]]) PAGE_KIND[KINDS[k][2]] = k; });
-  var RE = /^\/([a-z0-9-]{3,40})\/(dashboard|quotes|leads|chat|settings|events|clients|booklet|audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|control)(?:\/([^/?#]{1,160})(?:\/(floor-plan|tasks))?)?\/?$/;
+  var RE = /^\/([a-z0-9-]{3,40})\/(dashboard|quotes|leads|chat|settings|events|clients|booklet|audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|control|settlement|budget|closure|runsheet|resources|logistics|teardown|command|ready)(?:\/([^/?#]{1,160})(?:\/(floor-plan|tasks))?)?\/?$/;
   var slug = null;
   try { var s0 = global.sessionStorage && sessionStorage.getItem("bp_studio_slug"); if (s0 && SLUG.test(s0)) slug = s0; } catch (e) {}
   function dec(v) { try { return decodeURIComponent(v); } catch (e) { return null; } }
@@ -43,7 +43,7 @@ var HelmUrl = (function (global) {
     var sec = m[2], ref = m[3] ? dec(m[3]) : null, sub = m[4] || "";
     if (m[3] && ref == null) return null;
     var kind = null;
-    if (sec === "events") kind = ref ? (sub === "floor-plan" ? "floor-plan" : sub === "tasks" ? "tasks" : "event") : null;
+    if (sec === "events") kind = ref ? (sub === "floor-plan" ? "floor-plan" : sub === "tasks" ? "tasks" : "event") : "quotes";   // /<studio>/events → the events (quotes) list
     else if (sub) kind = null;
     else if (sec === "clients" || sec === "booklet") kind = ref ? (sec === "clients" ? "client" : "booklet") : null;
     else if (!ref) kind = (sec === "settings" || sec === "control") ? "settings" : sec;
@@ -1289,6 +1289,24 @@ window.HelmUrl = HelmUrl;
   function invitePwPending() {
     try { const id = sessionStorage.getItem(INVITE_SET_PW_KEY); return !!(id && currentUser && currentUser.id === id); } catch (e) { return false; }
   }   // { access_token, refresh_token } from a Supabase invite e-mail link (login page only)
+  // Workspace tool pages (settlement, budget, …) read ?quote=<uuid>. A link may carry the
+  // event NUMBER instead (/<studio>/settlement?quote=DEMO-202): resolve it (caller's org only,
+  // resolve_event_ref) and reload with the record id. true = a reload is under way.
+  const TOOL_PAGES = ["settlement", "budget", "closure", "runsheet", "resources", "logistics", "teardown", "command", "ready"];
+  async function toolQuoteRef() {
+    try {
+      if (!currentUser || TOOL_PAGES.indexOf(pageKey()) < 0) return false;
+      const q = new URLSearchParams(location.search || "");
+      const key = q.get("quote") ? "quote" : (q.get("id") ? "id" : "");
+      const ref = key ? String(q.get(key)) : "";
+      if (!ref || HelmUrl.isUuid(ref) || ref.length > 80) return false;
+      const e = await rpc("resolve_event_ref", { p_ref: ref });
+      if (!e || !e.id || !HelmUrl.isUuid(e.id)) return false;
+      q.set(key, e.id);
+      location.replace(location.pathname + "?" + q.toString() + (location.hash || ""));
+      return true;
+    } catch (e) { return false; }
+  }
   async function init() {
     if (ready) return ready;
     ready = (async () => {
@@ -1394,6 +1412,7 @@ window.HelmUrl = HelmUrl;
             }
             mode = "supabase";
             await runPageGate();          // protected page: confirm session + studio before it shows
+            if (await toolQuoteRef()) await HANG();
             return mode;
           }
         } catch (e) { console.warn("[BPStore] Supabase init error, falling back:", e && e.message); }
@@ -3654,7 +3673,9 @@ window.HelmUrl = HelmUrl;
     normPhone: memberNormPhone,
     phoneE164: memberPhoneE164,
     // r7: an existing row whose stored phone fails today's rule (shown as "Invalid phone — please fix")
-    phoneInvalid: (s) => !!(s && s.phone && !memberPhoneE164(s.phone).ok),
+    // demo/sample rows (trial seed: is_demo or "Demo · …" name) carry placeholder numbers on purpose: no red warning
+    isDemo: (s) => !!(s && (s.is_demo === true || /^Demo \u00b7 /.test(String(s.name || "")))),
+    phoneInvalid: (s) => !!(s && s.phone && !(s.is_demo === true || /^Demo \u00b7 /.test(String(s.name || ""))) && !memberPhoneE164(s.phone).ok),
     // The linked staff record that already has this number (another row would be a second
     // record for one account) → { id, name } or null. Before 0041 / on error → null (the DB
     // guard still refuses it; its message is shown through linkErrorText).

@@ -35,8 +35,8 @@ t('pure status helpers', () => {
 t('routing: pretty /<studio>/integrations wired in server, vercel, store-api, private headers', () => {
   const { prettyPage } = require('../server.js');
   assert.equal(prettyPage('/acme-events/integrations'), 'integrations');
-  const v = r('vercel.json'); assert.match(v, /"\/\(\[a-z0-9-\]\+\)\/integrations"/); assert.match(v, /\|integrations\|control\|events/);
-  assert.match(r('public/store-api.js'), /onboarding\|integrations"\.split/);
+  const v = r('vercel.json'); assert.match(v, /"\/\(\[a-z0-9-\]\+\)\/integrations"/); assert.match(v, /\|integrations\|control\|(?:[a-z|]+\|)?events/);
+  assert.match(r('public/store-api.js'), /onboarding\|integrations(?:\|[a-z|]+)?"\.split/);
   assert.match(r('public/_headers'), /\/integrations\.html\n  X-Robots-Tag: noindex/);
   assert.match(r('public/shell-b.js'), /"Integrations", "integrations\.html"/);
 });

@@ -145,8 +145,8 @@ t('E11 portal cards: documents, receipts, contact - only what exists, DOM text o
 });
 
 // ---- E12 record payment
-t('E12 more than the balance due needs an explicit "record anyway"; zero / negative blocked; one confirm at a time', () => {
-  assert.match(settle, /more than the balance due/); assert.match(settle, /okLabel:over>0\.5\?"Record anyway":"Record payment"/);
+t('E12 more than the balance due is explained (server refuses it, no "record anyway"); zero / negative blocked; one confirm at a time', () => {
+  assert.match(settle, /more than the balance due/); assert.match(settle, /if\(over>0\.5\)\{ try\{ await BPUI\.alert\(/); assert.doesNotMatch(settle, /okLabel:over>0\.5\?"Record anyway"/);
   assert.match(settle, /if\(!av\.ok \|\| av\.value<=0\)/);
   assert.match(settle, /if\(paying\) return; paying=true;/);
 });
@@ -193,7 +193,7 @@ t('APPLY-0101.sql: ASCII, one transaction, verify rows', () => {
   assert.match(read('supabase/migrations/MANIFEST'), /forward  supabase\/migrations\/0101_e2e_usability\.sql/);
 });
 t('versions bumped', () => {
-  for (const f of [flow, approve, portal, invite, studio, settle, closure]) { assert.match(f, /store-api\.js\?v=206/); assert.match(f, /event-name\.js\?v=6/); assert.match(f, /country-profile\.js\?v=4/); }
+  for (const f of [flow, approve, portal, invite, studio, settle, closure]) { assert.match(f, /store-api\.js\?v=207/); assert.match(f, /event-name\.js\?v=6/); assert.match(f, /country-profile\.js\?v=4/); }
   assert.match(read('public/booklet.html'), /booklet\.js\?v=18/); assert.match(flow, /booklet\.js\?v=18/);
 });
 

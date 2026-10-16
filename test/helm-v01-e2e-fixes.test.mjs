@@ -41,7 +41,7 @@ t('staging-site rule pairs frame-ancestors self with X-Frame-Options SAMEORIGIN'
   if (/frame-ancestors 'self'/.test(csp)) assert.deepEqual(rule.headers[1], { key: 'X-Frame-Options', value: 'SAMEORIGIN' });
 });
 t('0137 + APPLY-0136-0137: ASCII, chr(183), MANIFEST, verify rows', () => {
-  const m = r('supabase/migrations/0137_event_group_title_dot.sql'), a = r('supabase/APPLY-0136-0137.sql');
+  const m = r('supabase/migrations/0137_event_group_title_dot.sql'), a = r('supabase/APPLY-0136-0138.sql');
   assert.ok(/^[\x00-\x7f]*$/.test(m) && /^[\x00-\x7f]*$/.test(a), 'ASCII only');
   assert.match(m, /chr\(183\)/); assert.doesNotMatch(m.replace(/\$\$[\s\S]*?\$\$/g, ''), /\b(drop table|delete from|truncate|update public\.|alter table)/i, 'no top-level data / table change');
   assert.match(r('supabase/migrations/MANIFEST'), /forward\s+supabase\/migrations\/0137_event_group_title_dot\.sql/);
