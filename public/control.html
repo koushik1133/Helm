@@ -2,7 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<link rel="stylesheet" href="/control-polish.css?v=1">
+<link rel="stylesheet" href="/control-polish.css?v=2">
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -729,7 +729,7 @@
 <script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=208"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
@@ -1757,13 +1757,38 @@
       });
       html+=`</div>`;
     });
+    const hasAny = !locked && AREAS.some(a=>{ const c=MTX[selRole]&&MTX[selRole][a.key]; return c&&c.view; });
+    const sugg = ROLE_SUGGEST[selRole];
     $("#matrix").innerHTML = html + (locked?'<p class="mnote" style="margin-top:12px">Admin always has full access — nothing to change here.</p>':"");
+    if(!locked && !hasAny){
+      const box=document.createElement("div"); box.className="mnote mtx-empty";
+      const tx=document.createElement("span"); tx.textContent="This role has no areas switched on, so people with it only see their own portal."; box.appendChild(tx);
+      if(sugg){ const b=document.createElement("button"); b.type="button"; b.className="btn sm"; b.id="mtxSuggest"; b.textContent="Apply suggested access"; box.appendChild(b); }
+      $("#matrix").prepend(box);
+    }
     if(locked) return;
+    { const sb=$("#mtxSuggest"); if(sb) sb.addEventListener("click", ()=>applySuggested(selRole, sb)); }
     $("#matrix").querySelectorAll(".chip").forEach(chip=>{
       const area=chip.dataset.area;
       // ✎ toggles edit (auto-enables view); the rest of the chip toggles view (off view also clears edit)
       chip.addEventListener("click", (e)=>{ saveCell(selRole, area, e.target.closest("[data-pen]") ? "edit" : "view"); });
     });
+  }
+  // Suggested starting access for roles that ship with nothing on. Applied only when an admin
+  // clicks the button (owner decision D2: no automatic grants); every chip stays editable.
+  var ROLE_SUGGEST = {
+    designer: [["design",true],["layouts",true],["proposal",true],["quotes",false],["calendar",false],["templates",false],["media",true]],
+    crew:     [["runsheet",false],["briefing",false],["calendar",false]],
+    worker:   [["runsheet",false],["briefing",false]]
+  };
+  async function applySuggested(role, btn){
+    const list=(ROLE_SUGGEST[role]||[]).filter(([a])=>AREAS.some(x=>x.key===a));
+    if(!list.length) return;
+    if(!(await BPUI.confirm("Switch on "+list.map(([a,e])=>a+(e?" (edit)":" (view)")).join(", ")+" for "+role+"? You can change each one afterwards.",{title:"Apply suggested access?",okLabel:"Apply"}))) return;
+    btn.disabled=true;
+    try{ for(const [a,e] of list) await BPStore.auth.admin.setAccess(role, a, true, e); setUMsg("ok",role+": suggested access applied"); }
+    catch(err){ setUMsg("err",errMsg(err,"change access")); }
+    await loadMatrix(); renderMatrix();
   }
   // saveCell is SERIALIZED: quick clicks queue up and each one computes its toggle
   // from the matrix as re-read from the server after the previous save, so two fast

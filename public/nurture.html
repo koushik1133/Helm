@@ -65,6 +65,7 @@
   .autobar .lab{font-size:14px;font-weight:600} .autobar .desc{font-size:12px;color:var(--ink-3)}
   .occ{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;background:#eef2ff;color:#4457c8}
   .occ.greeted{background:#e7f6ee;color:#0f7a43}
+  .occ.fromlead{background:#fff4e5;color:#946200}
   .occ.paused{background:#f1f3f7;color:var(--ink-3)}
   .autolab{font-size:11px;font-weight:700;color:var(--ink-3)}
   .autolab::after{content:"Paused"}
@@ -211,7 +212,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=208"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script>
 <script src="tour.js?v=14"></script>
 <script src="nurture-templates.js?v=1"></script>
 <script>
@@ -246,7 +247,7 @@
     $("#nurBody").innerHTML = list.length ? list.map(n=>{ const isDue=n.status==="active"&&n.next_followup&&n.next_followup<=td;
       return `<tr>
         <td><b>${esc(n.name)}</b><div class="muted" style="font-size:12px">${[n.phone,n.email].filter(Boolean).map(esc).join(" · ")}</div>${BPStore.staff.phoneInvalid(n)?'<span class="due badphone" title="The saved phone number isn\'t valid (7–15 digits, optional leading +). WhatsApp greetings are skipped until it is fixed.">Invalid phone — please fix</span>':""}</td>
-        <td>${esc(n.occasion||"")}${n.occasion_date?`<div class="muted" style="font-size:12px">${esc(BPStore.fmtDateIN(n.occasion_date))}</div>`:""}</td>
+        <td>${esc(n.occasion||"")}${n.source==="lead"?' <span class="occ fromlead" title="Added automatically from the lead\'s Birthday / Anniversary. Change the date on the lead.">From lead</span>':""}${n.occasion_date?`<div class="muted" style="font-size:12px">${esc(BPStore.fmtDateIN(n.occasion_date))}</div>`:""}</td>
         <td>${n.next_followup?esc(BPStore.fmtDateIN(n.next_followup)):'<span class="muted">—</span>'} ${isDue?'<span class="due">Due</span>':""}</td>
         <td><span class="st ${esc(n.status)}">${NST[n.status]||esc(n.status)}</span></td>
         <td>${canEdit?`<button type="button" class="lnk" data-done="${esc(n.id)}" aria-label="Mark ${esc(n.name)} as followed up">Followed up</button> <button type="button" class="lnk" data-conv="${esc(n.id)}" data-status="${esc(n.status)}" data-name="${esc(n.name)}" aria-label="Convert ${esc(n.name)} to a lead">→ Lead</button> <button type="button" class="rm" data-del="${esc(n.id)}" data-name="${esc(n.name)}" aria-label="Remove ${esc(n.name)} from nurture">✕</button>`:""}</td>

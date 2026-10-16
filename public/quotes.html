@@ -122,7 +122,7 @@
   .eglist .rl{margin-left:auto;color:var(--ink-3);font-size:12px;text-transform:capitalize}
   .eglist .egav{width:28px;height:28px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;position:relative;overflow:hidden}
 </style>
-<link rel="stylesheet" href="quotes-polish.css?v=5">
+<link rel="stylesheet" href="quotes-polish.css?v=6">
 <link rel="stylesheet" href="theme.css?v=80">
 </head>
 <body>
@@ -147,6 +147,7 @@
       <button type="button" data-f="archived" aria-pressed="false">Archive<span class="tcount" id="cnt_archived" hidden></span></button>
       <button type="button" data-f="deleted" aria-pressed="false" id="tab_deleted" hidden>Deleted<span class="tcount" id="cnt_deleted"></span></button>
     </div>
+    <label class="discard-toggle" id="discardWrap" hidden title="Empty drafts (no client, date, guests, price or layout, untouched for 24h) are moved to Deleted automatically - restorable"><input type="checkbox" id="showDiscarded"> Show discarded drafts <span class="tcount" id="cnt_discarded"></span></label>
     <input id="search" class="search" type="search" aria-label="Search quotes" autocomplete="off" autocorrect="off" autocapitalize="off" name="helmSearch" placeholder="Search code, client, title…">
     <select id="typeFilter" class="typefilter" title="Filter by event type" aria-label="Filter by event type"><option value="">All types</option></select>
     <button type="button" class="btn" id="refresh">↻ Refresh</button>
@@ -281,7 +282,7 @@
 <script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=208"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="tour.js?v=14"></script>
 <script>
@@ -324,13 +325,19 @@
       updatedAt:r.updated_at, createdAt:r.created_at }; }
   function shelfNote(s){
     if(!s) return "";
+    if(s.reason==="auto_empty_draft"){ const d=shelfFmt(s.shelved_at); return "Discarded automatically — empty draft, untouched for 24 hours"+(d?" ("+d+")":"")+". Restore brings it back."; }
     if(s.reason==="link_expired"){ const d=shelfFmt(s.link_expired_at); return "Moved automatically — client link expired"+(d?" on "+d:""); }
     const d=shelfFmt(s.shelved_at); return (s.shelf==="deleted"?"Moved to Deleted":"Archived")+" by hand"+(d?" on "+d:"");
   }
   function paintShelfTabs(){
     $("#cnt_archived").hidden=!shelf.ready; $("#cnt_archived").textContent=shelf.ready?String(shelf.archived):"";
     $("#tab_deleted").hidden=!shelf.ready; $("#cnt_deleted").textContent=shelf.ready?String(shelf.deleted):"";
+    // 0141: auto-discarded empty drafts sit on the Deleted shelf, hidden until asked for
+    const nd=shelf.ready?shelf.rows.filter(isDiscarded).length:0;
+    $("#discardWrap").hidden=!nd; $("#cnt_discarded").textContent=nd?String(nd):"";
   }
+  const isDiscarded=(r)=>!!r&&r.shelf==="deleted"&&r.reason==="auto_empty_draft";
+  const showDiscarded=()=>!!($("#showDiscarded")&&$("#showDiscarded").checked);
   async function loadShelf(){
     if(BPStore.mode()!=="supabase" || !BPStore.quoteShelf){ shelf.ready=false; paintShelfTabs(); return; }
     try{ const r=(await BPStore.quoteShelf.list())||{}; const rows=Array.isArray(r.rows)?r.rows:[];
@@ -343,7 +350,7 @@
   // shelf, in parallel, so a tab switch costs no extra wait
   async function shelfPage(offset, base){
     const view=filter, term=($("#search").value||"").trim().toLowerCase(), type=(typeFilter||"").toLowerCase();
-    const mine=()=>shelf.rows.filter(r=>r.shelf===(view==="deleted"?"deleted":"archived")).map(shelfItem)
+    const mine=()=>shelf.rows.filter(r=>r.shelf===(view==="deleted"?"deleted":"archived") && (!isDiscarded(r) || showDiscarded())).map(shelfItem)
       .filter(x=>(!type || (x.eventType||"").toLowerCase()===type)
                && (!term || [x.code,x.title,x.client.name].some(v=>String(v||"").toLowerCase().includes(term))));
     if(view==="deleted"){ if(!offset) await loadShelf(); return { rows: shelf.ready?mine():[], hasMore:false, offset:0 }; }
@@ -358,6 +365,16 @@
     let t=null; try{ t=await BPStore.quoteShelf.tick(); }catch(e){ return; }
     const n=(t&&Number(t.moved))||0;
     if(n>0){ BPUI.toast(`${n} quote${n===1?"":"s"} moved to ${t.action==="delete"?"Deleted":"the Archive"} — the client link expired without approval.`,{type:"info"}); reloadQuiet(); }
+    runDiscardEmpty();
+  }
+  // 0141: tidy EMPTY drafts (server checks every field + every related table twice; soft
+  // move to Deleted, restorable). At most once per 6 hours per tab; never blocks the page.
+  async function runDiscardEmpty(){
+    if(!BPStore.quotes||!BPStore.quotes.discardEmptyDrafts) return;
+    try{ const last=Number(sessionStorage.getItem("bp_q_discard")||0); if(Date.now()-last<6*3600e3) return; sessionStorage.setItem("bp_q_discard",String(Date.now())); }catch(e){}
+    let r=null; try{ r=await BPStore.quotes.discardEmptyDrafts(); }catch(e){ return; }
+    const n=(r&&Number(r.discarded))||0;
+    if(n>0){ BPUI.toast(`${n} empty draft${n===1?"":"s"} tidied away — find ${n===1?"it":"them"} under Deleted › Show discarded drafts.`,{type:"info"}); reloadQuiet(); }
   }
   async function shelfMove(id, kind, btn){
     const q=quotes.find(x=>x.id===id), name=q&&q.code?q.code:"this quote", del=kind==="delete";
@@ -972,6 +989,7 @@
   /* ---------- wire up ---------- */
   $("#tabs").addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return;
     $("#tabs").querySelectorAll("button").forEach(x=>{ x.classList.toggle("on",x===b); x.setAttribute("aria-pressed",String(x===b)); }); filter=b.dataset.f; reloadQuiet(); });
+  $("#showDiscarded").addEventListener("change",()=>{ if($("#showDiscarded").checked && filter!=="deleted"){ $("#tab_deleted").click(); return; } reloadQuiet(); });
   // search asks the server (code / title / client name), after a 300 ms pause in typing
   $("#search").addEventListener("input",BPUI.debounce(reloadQuiet,300));
   $("#typeFilter").addEventListener("change",e=>{ typeFilter=e.target.value; reloadQuiet(); });

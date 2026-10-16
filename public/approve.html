@@ -92,7 +92,7 @@
         <div class="fld"><label for="c_phone">Mobile number</label><input id="c_phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+91 …"></div>
         <button class="btn primary" id="sendOtp" type="button">Send OTP to my phone</button>
         <div id="trialSkip" hidden>
-          <p class="muted"><b>Trial test mode</b> &mdash; this studio is on a free trial, so you can skip the OTP and approve as the client to test the full flow. No SMS or email is sent; the approval is recorded as a trial test.</p>
+          <p class="muted" id="trialSkipInfo"><b>Trial test mode</b> &mdash; In a real studio your client verifies with a one-time code sent to their phone, then pays by UPI/card through the payment link. In this trial you can skip that step. No SMS or email is sent; the approval is recorded as a trial test.</p>
           <label class="agree"><input type="checkbox" id="t_agree">
             <span>I have read and agree to the Terms &amp; Conditions above (trial test).</span></label>
           <button class="btn" id="trialSkipBtn" type="button">Skip OTP &amp; approve (trial test mode)</button>
@@ -142,7 +142,7 @@
 <script src="/config.js?v=100"></script>
 <script src="/phone-input.js?v=3"></script>
 <script src="/event-name.js?v=6"></script>
-<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=208"></script>
+<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=209"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -276,7 +276,7 @@
     if(quote.client_name) $("#c_name").value=quote.client_name;
     // 0128 trial test mode: only shown when the server says this link's studio is an active trial
     if(BPStore.approval.trialTestMode){ BPStore.approval.trialTestMode(token).then((on)=>{ if(on===true){ $("#trialSkip").hidden=false;
-      $("#payManual").textContent="Trial test mode: record this payment from your studio (Payments / Record payment). No payment gateway is needed."; } }).catch(()=>{}); }
+      $("#payManual").textContent="Trial test mode: in a real studio your client pays by UPI/card through the payment link. In this trial you can skip that step - record this payment from your studio (Payments / Record payment). No payment gateway is needed."; } }).catch(()=>{}); }
     // resume state
     if(quote.reapproval_required===true){ $("#approvedNote").textContent=""; setMsg("dev", "The price changed after your earlier approval — please review the updated total and approve again."); }
     else if(quote.approval_status==='paid'){ showStep('stepPaid'); await showPaid(); }

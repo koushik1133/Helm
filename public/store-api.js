@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=3"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=4"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -1040,7 +1040,7 @@ window.HelmUrl = HelmUrl;
   const STUDIO_SEARCH_VERSION = "3";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
-  const NAV_TRAIL_VERSION = "3";
+  const NAV_TRAIL_VERSION = "4";
   if (typeof global.HelmTrail === "undefined") {
     global.HelmTrail = { setCurrent(o) { if (o) (global.__helmTrailQ = global.__helmTrailQ || []).push(o); }, recent() { return []; }, _stub: true };
   }
@@ -2370,6 +2370,13 @@ window.HelmUrl = HelmUrl;
     // L8 (0075): reuse MY most recent untouched blank quote in this studio, else create one.
     // Server decides "untouched" + takes a per-user lock (two tabs never make two). Before
     // 0075 is installed (PGRST202 / 42883) it falls back to a plain create, as before.
+    // 0141: soft-move this studio's EMPTY drafts (>24h old, nothing filled, no related rows)
+    // to the Deleted shelf. Server-checked twice; restorable. Missing RPC → no-op.
+    async discardEmptyDrafts() {
+      const { data, error } = await supa.rpc("discard_empty_drafts", {});
+      if (error) { if (error.code === "PGRST202" || error.code === "42883") return { discarded: 0 }; throw error; }
+      return data || { discarded: 0 };
+    },
     async startBlank(code) {
       const { data: q, error } = await supa.rpc("start_blank_quote", { p_code: code, p_title: code });
       if (error) {
@@ -2550,6 +2557,7 @@ window.HelmUrl = HelmUrl;
       } catch (e) { return { unsubscribe() {} }; }
     },
     create: (code, title, eventType, data, objectCount) => qt().create(code, title, eventType, data, objectCount),
+    discardEmptyDrafts: () => { const t = qt(); return typeof t.discardEmptyDrafts === "function" ? t.discardEmptyDrafts() : Promise.resolve({ discarded: 0 }); },
     startBlank: (code) => { const t = qt(); return typeof t.startBlank === "function" ? t.startBlank(code) : t.create(code, code, null, { items: [] }, 0); },
     addVersion: (id, label, data, objectCount) => qt().addVersion(id, label, data, objectCount),
     confirm: (id, client, pricing) => qt().confirm(id, client, pricing),
@@ -3212,6 +3220,7 @@ window.HelmUrl = HelmUrl;
       localStorage.setItem(ARCH_LS, JSON.stringify(a));
     } catch {}
   };
+  let leadArchiveHasRestored = null;   // null = unknown, false = DB has no restored_at column yet (pre-0139)
   const leads = {
     async list() {
       if (mode === "supabase") {
@@ -3303,13 +3312,20 @@ window.HelmUrl = HelmUrl;
     //   fewer rows than the limit; hasMore / offset still describe the raw archive.
     async archivePage(o) {
       o = o || {};
-      const COLS = "id,lead_id,action,name,phone,email,source,event_type,event_date,budget,guest_count,status,quote_id,archived_at";
+      const COLS0 = "id,lead_id,action,name,phone,email,source,event_type,event_date,budget,guest_count,status,quote_id,archived_at";
       if (mode === "supabase") {
+        // restored_at arrives with migration 0139; until it is applied, fall back to the old column list
+        const COLS = leadArchiveHasRestored === false ? COLS0 : COLS0 + ",restored_at";
         let q = supa.from("lead_archive").select(COLS);
         if (o.stage) q = q.eq("status", o.stage);
         if (o.source) q = q.ilike("source", likeEscape(String(o.source).trim()));
         const s = orIlike(["name", "phone", "event_type", "source", "action"], o.search); if (s) q = q.or(s);
-        const r = await sbPage(q.order("archived_at", { ascending: false }).order("id", { ascending: false }), o);
+        let r;
+        try { r = await sbPage(q.order("archived_at", { ascending: false }).order("id", { ascending: false }), o); }
+        catch (err) {
+          if (leadArchiveHasRestored !== false && /restored_at/.test(String((err && err.message) || ""))) { leadArchiveHasRestored = false; return leads.archivePage(o); }
+          throw err;
+        }
         if (o.latest) {
           const ids = [...new Set(r.rows.map((x) => x.lead_id).filter(Boolean))];
           if (ids.length) {
@@ -3332,6 +3348,30 @@ window.HelmUrl = HelmUrl;
       if (o.latest) pg.rows = pg.rows.filter((x) => !x.lead_id || newest[x.lead_id] === x.id);
       pg.rows = pg.rows.map((x) => { const c = Object.assign({}, x); delete c.snapshot; return c; });
       return pg;
+    },
+    // CRM archive: re-create a DELETED lead from its saved snapshot (migration 0139). Server-side
+    // checks: same studio, leads edit access, no live lead with that id, not already restored.
+    // The archive row is kept and stamped restored; an audit row is written.
+    async restoreArchived(archiveId) {
+      if (!archiveId) throw new Error("Missing archive record.");
+      if (mode === "supabase") {
+        const { data, error } = await supa.rpc("restore_archived_lead", { p_archive_id: archiveId });
+        if (error) throw error; return data;
+      }
+      let a = []; try { a = JSON.parse(localStorage.getItem(ARCH_LS) || "[]"); } catch {}
+      const rec = a.find((x) => x.id === archiveId);
+      if (!rec) throw new Error("Archive record not found.");
+      if (rec.action !== "deleted") throw new Error("Only deleted leads can be restored.");
+      if (rec.restored_at) throw new Error("This lead was already restored.");
+      const live = readLeadsLs();
+      if (live.some((x) => x.id === rec.lead_id)) throw new Error("A live lead with this id already exists - nothing was changed.");
+      const row = Object.assign({}, rec.snapshot || {}, { id: rec.lead_id, updated_at: now() });
+      if (!row.name) row.name = rec.name || "Restored lead";
+      if (!row.status) row.status = rec.status || "new";
+      live.unshift(row); writeLeadsLs(live);
+      rec.restored_at = now(); localStorage.setItem(ARCH_LS, JSON.stringify(a));
+      pushArchiveLs("created", row);
+      return { result: "restored", lead_id: rec.lead_id };
     },
     // values for the CRM filter dropdowns (two short columns, capped)
     async archiveFacets() {
@@ -10213,8 +10253,10 @@ window.HelmUrl = HelmUrl;
         el.value = ""; negHint(el, msg(), 5000); return;
       }
       var v = el.value; if (!v) return;
-      if (!bad(v)) return;
+      if (!bad(v)) { try { el.removeAttribute("data-date-rejected"); } catch (e) {} return; }
       if (typingNow && el.validity && el.validity.badInput) return;
+      // remember what was rejected so a form's Save can refuse instead of silently saving no date
+      try { el.setAttribute("data-date-rejected", v < lo ? "past" : "range"); } catch (e) {}
       el.value = ""; negHint(el, msg(), 5000);
       el.dispatchEvent(new Event("change", { bubbles: true }));
     };

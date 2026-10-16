@@ -50,6 +50,9 @@
   .act.converted{background:#e7f6ee;color:#0f7a43}.act.deleted{background:#fdecec;color:#b42318}
   .muted{color:var(--ink-3)} .amt{font-family:var(--mono)}
   a.open{color:var(--accent);font-weight:600}
+  .restore-btn{border:1px solid var(--line,#d0d5dd);background:transparent;color:var(--accent);font-weight:600;border-radius:8px;padding:3px 10px;cursor:pointer;font-size:12px;white-space:nowrap}
+  .restore-btn:disabled{opacity:.5;cursor:default}
+  .restored-tag{font-size:12px;color:var(--ink-3);white-space:nowrap}
   .empty{text-align:center;color:var(--ink-3);padding:48px;font-size:14px}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
 </style>
@@ -97,14 +100,14 @@
     </div>
   </div>
   </main>
-  <footer>Helm Events — the CRM archive is append-only and read-only. Records are written automatically.</footer>
+  <footer>Helm Events — the CRM archive is append-only. Records are written automatically; deleted leads can be restored.</footer>
 </div>
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=208"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script>
 <script src="tour.js?v=14"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
@@ -114,7 +117,7 @@
   // Perf (Oct 2026): the archive is server-paged newest-first without the snapshot JSON;
   // filters + search run on the server (debounced). "Latest per lead" keeps only each
   // lead's newest snapshot (checked server-side), exactly as before. recs = rows loaded so far.
-  let recs=[], filter="", fSource="", fStage="", fAll=false, pager=null;
+  let recs=[], filter="", fSource="", fStage="", fAll=false, pager=null, canRestore=false;
   async function fillFilters(){
     let fx={sources:[],stages:[]}; try{ fx=await BPStore.leads.archiveFacets(); }catch(e){}
     // QA M-09: fold casing/whitespace variants (website/Website, referral/Referral) into one
@@ -162,15 +165,32 @@
       <td class="amt">${r.budget?fmt(r.budget):""}</td>
       <td class="muted">${r.guest_count!=null?esc(r.guest_count):""}</td>
       <td class="muted">${esc(r.status||"")}</td>
-      <td>${openable?`<a class="open" href="${esc(href)}" aria-label="Open ${esc(r.name||"record")} workspace">Open&nbsp;→</a>`:""}</td>
+      <td>${openable?`<a class="open" href="${esc(href)}" aria-label="Open ${esc(r.name||"record")} workspace">Open&nbsp;→</a>`:""}${restoreCell(r)}</td>
     </tr>`;}).join("");
     // click a row (or the Open link) → the event workspace hub (details + 2D/3D)
     // (the Open link is the keyboard/AT path; the whole row is a mouse convenience)
     $("#rows").querySelectorAll("tr[data-qid]").forEach(el=>el.addEventListener("click",(e)=>{
-      if(e.target.closest("a")) return;
+      if(e.target.closest("a,button")) return;
       location.href="event.html?id="+encodeURIComponent(el.dataset.qid);
     }));
   }
+
+  // Restore a DELETED lead (server re-checks studio, edit access and that no live lead has its id)
+  function restoreCell(r){
+    if(r.action!=="deleted"||!r.lead_id) return "";
+    if(r.restored_at) return ` <span class="restored-tag">Restored ${esc(when(r.restored_at))}</span>`;
+    if(!canRestore) return "";
+    return ` <button type="button" class="restore-btn" data-restore="${esc(r.id)}" data-name="${esc(r.name||"")}" aria-label="Restore ${esc(r.name||"lead")}">Restore</button>`;
+  }
+  $("#rows").addEventListener("click",async(e)=>{
+    const b=e.target.closest("button[data-restore]"); if(!b) return;
+    e.stopPropagation();
+    const nm=b.dataset.name||"this lead";
+    if(!(await BPUI.confirm(`Restore “${nm}” to Leads with its saved details? The archive record is kept.`,{title:"Restore lead?",okLabel:"Restore"}))) return;
+    b.disabled=true;
+    try{ await BPStore.leads.restoreArchived(b.dataset.restore); BPUI.toast(`Restored “${nm}” to Leads.`); await loadRecs(); }
+    catch(err){ b.disabled=false; BPUI.toast(BPUI.friendlyError(err,{action:"restore the lead"}),{type:"err"}); }
+  });
 
   const reload=()=>loadRecs();
   $("#search").addEventListener("input",BPUI.debounce((e)=>{ filter=$("#search").value; reload(); },300));   // server search after a pause in typing
@@ -191,6 +211,7 @@
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("pipeline"))) return;
+    try{ canRestore = await BPStore.auth.canEditArea("leads"); }catch(e){ canRestore=false; }
     await Promise.all([loadRecs(), fillFilters()]);
   });
 </script>

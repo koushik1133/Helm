@@ -15,7 +15,7 @@ function el(id) { const L = {}; return { id, value: "", textContent: "", hidden:
   addEventListener(t, f) { (L[t] = L[t] || []).push(f); },
   fire(t) { (L[t] || []).forEach((f) => f({ type: t, target: this, bubbles: false })); } }; }
 async function setup(title) {
-  const ids = ["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_state","c_guests","c_budget","qName","qNameHintText","qNameReset","title"];
+  const ids = ["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_state","c_guests","qName","qNameHintText","qNameReset","title"];
   const D = Object.fromEntries(ids.map((i) => [i, el(i)]));
   const ev = { id: "q1", code: "10102026-01", title, eventType: "wedding", client: { guests: 200 } };
   D.c_type.value = "wedding"; D.c_guests.value = "200";

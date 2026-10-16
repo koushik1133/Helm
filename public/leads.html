@@ -215,7 +215,7 @@
 <script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=208"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script>
 <script src="tour.js?v=14"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
@@ -475,7 +475,7 @@
     if(!(await BPUI.confirm(`Delete ${l&&l.name?"“"+l.name+"”":"this lead"}? It stays in the CRM archive.`,{title:"Delete lead?",danger:true}))) return;
     await BPUI.guard($("#dt_del"), async()=>{
       lastLocalWrite=Date.now();
-      try{ await BPStore.leads.remove(id); closeDetail(); BPUI.toast("Lead deleted.",{type:"ok"}); await load(); }
+      try{ await BPStore.leads.remove(id); closeDetail(); try{ if(window.HelmTrail&&HelmTrail.clearCurrent) HelmTrail.clearCurrent({forget:true}); }catch(_){} BPUI.toast("Lead deleted.",{type:"ok"}); await load(); }
       catch(err){ BPUI.toast(BPUI.friendlyError(err,{action:"delete the lead"}),{type:"err"}); }
     });
   });
@@ -487,7 +487,7 @@
     $("#lm_title").textContent = lead ? "Edit lead" : "＋ New lead";
     $("#f_name").value=lead?lead.name||"":""; $("#f_phone").value=lead?lead.phone||"":"";
     $("#f_email").value=lead?lead.email||"":""; $("#f_source").value=lead?lead.source||"":"";
-    $("#f_type").value=lead?lead.event_type||"":""; $("#f_date").value=lead?lead.event_date||"":"";
+    $("#f_type").value=lead?lead.event_type||"":""; $("#f_date").value=lead?lead.event_date||"":""; $("#f_date").removeAttribute("data-date-rejected");
     $("#f_budget").value=lead&&lead.budget!=null?lead.budget:""; $("#f_guests").value=lead&&lead.guest_count!=null?lead.guest_count:"";
     $("#f_notes").value=lead?lead.notes||"":"";
     $("#f_bday").value=lead&&lead.birthday?String(lead.birthday).slice(0,10):""; $("#f_anniv").value=lead&&lead.anniversary?String(lead.anniversary).slice(0,10):"";
@@ -511,6 +511,10 @@
     if($("#f_budget").value!==""){ const bv=V.money($("#f_budget").value,{field:"Budget"}); if(!bv.ok){ fail(bv.error); return; } budget=bv.value; }
     let guest_count=null;
     if($("#f_guests").value!==""){ const gv=V.count($("#f_guests").value,{field:"Guest count"}); if(!gv.ok){ fail(gv.error); return; } guest_count=gv.value; }
+    { const de=$("#f_date"), dv=de.value, dmin=de.getAttribute("min")||"", saved=(editingId&&leadById(editingId)||{}).event_date||"";
+      const rej=de.getAttribute("data-date-rejected");
+      if(!dv && rej){ fail(rej==="past"?"Event date can't be in the past.":"Pick an event date within the next 5 years."); return; }
+      if(dv && dmin && dv<dmin && dv!==saved){ fail("Event date can't be in the past."); return; } }
     const patch={ name, phone, email,
       source:$("#f_source").value||null, event_type:$("#f_type").value.trim()||null,
       event_date:$("#f_date").value||null,

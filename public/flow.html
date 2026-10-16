@@ -104,7 +104,7 @@
   .namehint button{border:0;background:none;color:var(--accent);cursor:pointer;font-size:12px;padding:0 0 0 6px;text-decoration:underline}
   .nameerr{font-size:12px;color:var(--warn-text,#8f5f00)}
 </style>
-<link rel="stylesheet" href="flow-polish.css?v=2">
+<link rel="stylesheet" href="flow-polish.css?v=3">
 <link rel="stylesheet" href="share-checklist.css?v=2">
 <link rel="stylesheet" href="theme.css?v=80">
 <link rel="stylesheet" href="venues.css?v=3">
@@ -160,9 +160,9 @@
             <div class="fld"><label for="c_city">City</label><input id="c_city" maxlength="60" autocomplete="address-level2" placeholder="e.g. Hyderabad"></div>
             <div class="fld"><label for="c_state" id="c_stateLbl">Client state</label><select id="c_state" autocomplete="address-level1"><option value="">Not set</option></select></div>
             <div class="fld"><label for="c_guests">Guests</label><input id="c_guests" type="number" min="0"></div>
-            <div class="fld"><label for="c_budget">Budget (₹)</label><input id="c_budget" type="number" min="0"></div>
+            <div class="fld full budget-range"><span class="lbl" id="budgetRangeLbl">Budget range (min – max, ₹)</span><div class="range2" role="group" aria-labelledby="budgetRangeLbl"><input id="d_bmin" type="number" min="0" placeholder="Min" aria-label="Budget minimum (₹)"><span class="range-sep" aria-hidden="true">–</span><input id="d_bmax" type="number" min="0" placeholder="Max" aria-label="Budget maximum (₹)" aria-describedby="d_bmaxErr"></div><div id="d_bmaxErr" class="err" role="alert" hidden>Max should be at least the min</div></div>
           </div>
-          <p class="hint next-step" data-next-step><b>Next step:</b> fill in Discovery (step 2) — what the client wants and their budget.</p>
+          <p class="hint next-step" data-next-step><b>Next step:</b> fill in Discovery (step 2) — what the client wants (the budget range is above).</p>
         </section>
 
         <!-- 2 DISCOVERY -->
@@ -173,8 +173,6 @@
           <div class="grid">
             <div class="fld"><label for="d_date">Meeting date</label><input id="d_date" type="date" data-date-window="recent"></div>
             <div class="fld"><label for="d_mode">Mode</label><select id="d_mode"><option value="">—</option><option value="in_person">In person</option><option value="call">Phone call</option><option value="video">Video call</option></select></div>
-            <div class="fld"><label for="d_bmin">Budget — min (₹)</label><input id="d_bmin" type="number" min="0"></div>
-            <div class="fld"><label for="d_bmax">Budget — max (₹)</label><input id="d_bmax" type="number" min="0" aria-describedby="d_bmaxErr"><div id="d_bmaxErr" class="err" role="alert" hidden>Max should be at least the min</div></div>
             <div class="fld full"><label for="d_att">Who attended</label><input id="d_att" placeholder="e.g. Client + spouse, planner"></div>
             <div class="fld full"><label for="d_notes">Notes</label><textarea id="d_notes" placeholder="Theme ideas, constraints, preferences…"></textarea></div>
           </div>
@@ -238,7 +236,7 @@
           <p class="sub">Enter the hall size &amp; headcount and generate a default layout for this event type — then tweak it freely. Chairs &amp; objects feed the price automatically.</p>
           <div class="secerr" id="err-layout"></div>
           <div class="row4 s-da12f28">
-            <div class="fld s-1169661"><label for="g_guests">Guests</label><input id="g_guests" type="number" min="0"></div>
+            <div class="fld s-1169661"><label for="g_guests">Guests <a href="#sec-client" class="edit-step1">edit in step 1</a></label><input class="s-10bfcec" id="g_guests" type="number" min="0" readonly title="Guests are set once in step 1"></div>
             <div class="fld s-1169661"><label for="g_len">Hall length (ft)</label><input id="g_len" type="number" min="20" placeholder="200"></div>
             <div class="fld s-1169661"><label for="g_wid">Hall breadth (ft)</label><input id="g_wid" type="number" min="20" placeholder="140"></div>
             <button type="button" class="btn primary" id="genLayout">✨ Generate default layout</button>
@@ -265,12 +263,13 @@
           </div>
           <div class="secerr" id="err-rates"></div>
           <div class="grid">
-            <div class="fld"><label for="q_chairs">Chairs <small id="q_chairsHint">(70% of guests — drives chairs pricing)</small> <a href="#" id="q_chairsReset" hidden>reset to 70%</a></label><input id="q_chairs" type="number" min="1"><p class="hint" id="q_chairsLayout" hidden><span id="q_chairsLayoutTxt"></span> <button type="button" class="btn ghost" id="q_chairsUseLayout">Use layout count</button></p></div>
-            <div class="fld"><label for="q_guests">Guests / plates</label><input id="q_guests" type="number" min="0"></div>
+            <div class="fld"><label for="q_chairs">Chairs <small id="q_chairsHint">(70% of guests — drives chairs pricing)</small> <a href="#" id="q_chairsReset" hidden>reset to 70%</a></label><input id="q_chairs" type="number" min="1"><p class="hint" id="q_chairsLayout" hidden><span id="q_chairsLayoutTxt"></span> <button type="button" class="btn ghost" id="q_chairsUseLayout">Use layout count</button></p><p class="hint qty-diff" id="q_chairsDiff" hidden></p></div>
+            <div class="fld"><label for="q_guestsRo">Guests <a href="#sec-client" class="edit-step1">edit in step 1</a></label><input class="s-10bfcec" id="q_guestsRo" type="number" readonly title="Guests are set once in step 1"></div>
+            <div class="fld"><label for="q_guests">Plates <small>(catering quantity — drives plate pricing)</small></label><input id="q_guests" type="number" min="0"><p class="hint qty-diff" id="q_platesDiff" hidden></p></div>
             <div class="fld"><label for="q_chairPrice">Chair rate (₹) <span class="s-c78b388">· set in Control Center</span></label><input class="s-10bfcec" id="q_chairPrice" type="number" min="0" readonly title="Fixed — change it in Control Center → Pricing"></div>
             <div class="fld"><label for="q_platePrice">Plate price (₹) <span class="s-c78b388">· from package / Control Center</span></label><input class="s-10bfcec" id="q_platePrice" type="number" min="0" readonly title="Fixed — set by the menu package or Control Center → Pricing"></div>
             <div class="fld"><label for="q_other">Décor / equipment &amp; setup (₹)</label><input id="q_other" type="number" min="0"></div>
-            <div class="fld"><label for="q_discount">Discount (₹)</label><input id="q_discount" type="number" min="0"></div>
+            <div class="fld"><label for="q_discount">Discount (₹)</label><input id="q_discount" type="number" min="0" aria-describedby="q_discount_err"><span class="hint" id="q_discount_err" role="alert" hidden></span></div>
             <div class="fld"><label for="q_coupon">Coupon code</label><input id="q_coupon" list="couponList" placeholder="optional"><datalist id="couponList"></datalist>
               <div class="s-40d0688" id="q_couponMsg" role="status" aria-live="polite"></div></div>
             <div class="fld"><label for="q_taxExempt"><input type="checkbox" id="q_taxExempt"> Tax-exempt client (no tax charged)</label></div>
@@ -368,7 +367,7 @@
 <script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=208"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script>
 <script src="tour.js?v=14"></script>
 <script src="booklet.js?v=18"></script>
 <script src="share-checklist.js?v=9"></script>
@@ -378,7 +377,7 @@
 <script src="flow-dish-editor.js?v=2"></script>
 <script src="venues-core.js?v=5"></script>
 <script src="venue-picker.js?v=4"></script>
-<script src="venue-area.js?v=1"></script>
+<script src="venue-area.js?v=1"></script><script src="trial-test-note.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -427,7 +426,7 @@
   let dirty=false, loading=true, leaving=false, pendingLeave=null;
   // r9 P0: client / discovery / venue / menu / proposal autosave (debounced, serialized, honest badge);
   // `dirty` now only tracks edits that are NOT autosaved (quotation numbers etc.)
-  const AUTO_IDS={ g_len:"client", g_wid:"client", g_guests:"client", q_chairs:"client" };
+  const AUTO_IDS={ g_len:"client", g_wid:"client", g_guests:"client", q_chairs:"client", d_bmin:"discovery", d_bmax:"discovery" };   // guest-budget: the range sits in step 1 but saves to Discovery
   let AS=null;
   function sectionOf(t){
     if(!t||!t.closest) return null; if(t.id && AUTO_IDS[t.id]) return AUTO_IDS[t.id];
@@ -545,8 +544,14 @@
       otherAuto:(ev.pricing&&ev.pricing.otherAuto!=null)?+ev.pricing.otherAuto:(oi.objectsCost+(+rates.layoutBase||0)),
       _objectsCost:oi.objectsCost, _packageName:appliedPkg?appliedPkg.name:null };
   }
-  function renderPrice(){
+  // guest-budget: chairs / plates are pricing quantities, editable on their own — say so when they differ from guests
+  function syncQtyHints(){ const g=$("#c_guests").value===""?null:+$("#c_guests").value;
+    const one=(inp,box,what)=>{ const b=$(box), i=$(inp); if(!b||!i) return; const v=i.value===""?null:+i.value;
+      const diff=g!=null && v!=null && v!==g; b.hidden=!diff; b.textContent=diff?(what+" ("+v+") differ from guests ("+g+") — that's fine, only "+what.toLowerCase()+" are priced."):""; };
+    one("#q_chairs","#q_chairsDiff","Chairs"); one("#q_guests","#q_platesDiff","Plates"); }
+  function renderPrice(){ syncQtyHints();
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p);
+    showDiscountError(p);
     let rows="";
     if(p.chairs>0) rows+=`<div class="prow"><span>Chairs <span class="q">${p.chairs} × ${inr(p.chairPrice)}</span></span><span class="amt">${inr(p.chairs*p.chairPrice)}</span></div>`;
     if(p.guests>0) rows+=`<div class="prow"><span>Catering${p._packageName?' <span class="q">'+esc(p._packageName)+'</span>':''} <span class="q">${p.guests} × ${inr(p.platePrice)}</span></span><span class="amt">${inr(p.guests*p.platePrice)}</span></div>`;
@@ -568,13 +573,15 @@
     const V=BPStore.validate;
     // quiet (autosave): mark the field + say why in the badge — no toast per keystroke
     const bad=(r,f)=>{ $(f).setAttribute("aria-invalid","true"); if(quiet) return { invalid:r.error }; BPUI.toast(r.error,{type:"err"}); $(f).focus(); return false; };
-    ["#c_email","#c_phone","#c_guests","#c_budget"].forEach(f=>$(f).removeAttribute("aria-invalid"));
+    ["#c_email","#c_phone","#c_guests"].forEach(f=>$(f).removeAttribute("aria-invalid"));
     const emailRaw=$("#c_email").value.trim(), phoneRaw=$("#c_phone").value.trim();
     if(emailRaw){ const r=V.email(emailRaw); if(!r.ok) return bad(r,"#c_email"); }
     if(phoneRaw){ const r=V.phone(phoneRaw); if(!r.ok) return bad(r,"#c_phone"); }
     let guestsN=null, budgetN=null;
     if($("#c_guests").value!==""){ const r=V.count($("#c_guests").value,{field:"Guests"}); if(!r.ok) return bad(r,"#c_guests"); guestsN=r.value; }
-    if($("#c_budget").value!==""){ const r=V.money($("#c_budget").value,{field:"Budget"}); if(!r.ok) return bad(r,"#c_budget"); budgetN=r.value; }
+    budgetN=(ev.client||{}).budget!=null?(ev.client||{}).budget:null;   // untouched range: keep the stored budget as-is
+    if(budgetTouched){ const bv=budgetFromRange(); budgetN=null;
+      if(bv.el){ const r=V.money(bv.el.value,{field:"Budget"}); if(!r.ok) return bad(r,"#"+bv.el.id); budgetN=r.value; } }
     const client=Object.assign({}, ev.client||{}, {
       name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:emailRaw,
       phone:phoneRaw,
@@ -594,6 +601,13 @@
     if($("#q_guests").value==="" && client.guests!=null){ $("#q_guests").value=client.guests; }
     saved("client"); renderPrice();
   }
+  // guest-budget: ONE budget range in step 1. min/max save to Discovery (budget_min/budget_max) and the
+  // client record's single "budget" mirrors max (or min if only min is set) — both old storage places
+  // stay filled. client.budget only changes once the user actually edits the range (no silent rewrite).
+  let budgetTouched=false;
+  function budgetFromRange(){ const a=$("#d_bmin"), b=$("#d_bmax");
+    if(b && b.value!=="") return { el:b, v:+b.value }; if(a && a.value!=="") return { el:a, v:+a.value }; return { el:null, v:null }; }
+  ["#d_bmin","#d_bmax"].forEach(s=>{ const el=$(s); if(el) el.addEventListener("input",()=>{ if(loading || failed.discovery) return; budgetTouched=true; syncClientMem(); if(AS) AS.schedule("client"); }); });
   // india-clickthrough D2: an inverted budget range (min > max) is flagged inline and never saved
   function budgetRangeOk(){
     const a=$("#d_bmin").value, b=$("#d_bmax").value, bad=a!=="" && b!=="" && +a > +b;
@@ -646,7 +660,7 @@
     ev.client=Object.assign({}, ev.client||{}, {
       name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:$("#c_email").value.trim(),
       phone:$("#c_phone").value.trim(),
-      guests:$("#c_guests").value!==""?+$("#c_guests").value:null, budget:$("#c_budget").value!==""?+$("#c_budget").value:null,
+      guests:$("#c_guests").value!==""?+$("#c_guests").value:null, budget:budgetTouched?budgetFromRange().v:((ev.client||{}).budget!=null?(ev.client||{}).budget:null),
       city:$("#c_city").value.trim().slice(0,60)||null, state:$("#c_state").value||null, eventDate:$("#c_date").value||null });
     // H-02: Client guests is the single source of truth — flow it forward to the Layout
     // (#g_guests) and Quotation (#q_guests) fields so all three agree. Skip #q_guests only
@@ -654,6 +668,7 @@
     var gv=$("#c_guests").value;
     if($("#g_guests")) $("#g_guests").value=gv;
     if(!qGuestsOverridden && $("#q_guests")) $("#q_guests").value=gv;
+    if($("#q_guestsRo")) $("#q_guestsRo").value=gv;
     // R8: hall size + chairs ride on the same client record the builder reads
     ev.client=HelmSizing.merge(ev.client,{ hallLen:$("#g_len").value, hallWid:$("#g_wid").value, chairsManual });
     if(chairsManual) ev.client=HelmSizing.merge(ev.client,{ chairs:$("#q_chairs").value });
@@ -705,6 +720,19 @@
   // A quotation must have at least one priced line — seating (chairs), catering
   // (guests), or décor/other — so an accidental all-empty submit can't persist a
   // ₹0 "quote" (Wave 16 data-integrity fix). Returns "" when OK, else a message.
+  // Gross subtotal before discount; a discount above it is an input error, not "nothing to quote".
+  function discountError(p){
+    const gross=(p.chairs>0?p.chairs*p.chairPrice:0)+(p.guests>0?p.guests*p.platePrice:0)+(p.other>0?p.other:0);
+    const d=Number(p.discount)||0;
+    return (d>0 && gross>0 && d>gross) ? "Discount can't exceed the subtotal ("+inr(gross)+")." : "";
+  }
+  function showDiscountError(p){
+    const el=$("#q_discount_err"), inp=$("#q_discount"); if(!el||!inp) return "";
+    const m=discountError(p); el.textContent=m; el.hidden=!m;
+    if(m) inp.setAttribute("aria-invalid","true"); else inp.removeAttribute("aria-invalid");
+    return m;
+  }
+  var lastSavedSig=null;
   function quoteEmptyReason(p,t){
     const hasLine = (p.chairs>0) || (p.guests>0) || (p.other>0);
     if(!hasLine || !(t.total>0)) return "Nothing to quote yet — add seating (chairs), catering (guests), or décor/other so the quotation has a value.";
@@ -713,6 +741,10 @@
   async function saveQuotation(){
     if(quoteBlocked()){ BPUI.toast("Pricing data didn't load, so the quotation can't be saved yet — use Retry in the quotation section.",{type:"err"}); return; }
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p);
+    const dErr=showDiscountError(p);
+    if(dErr){ if($("#q_msg")) $("#q_msg").textContent=dErr; BPUI.toast(dErr,{type:"err"}); $("#q_discount").focus(); return; }
+    const sig=JSON.stringify([p,t.total]);
+    if(lastSavedSig && sig===lastSavedSig){ if($("#q_msg")) $("#q_msg").textContent="No changes since the last saved version — nothing new to save."; BPUI.toast("No changes since the last version.",{type:"info"}); return; }
     const reason=quoteEmptyReason(p,t);
     if(reason){
       if($("#q_msg")){ $("#q_msg").style.color="var(--warn-text,#8f5f00)"; $("#q_msg").textContent=reason; }
@@ -726,7 +758,7 @@
     pricing=BPStore.tax.preserveSnapshot(ev.pricing||{}, pricing, { switch: taxSwitched });
     try{
       const r=await BPStore.quotationVersions.save(id, pricing);   // keeps every Q-version; also updates current pricing
-      ev.pricing=pricing; taxSwitched=false; saved("quote"); updateProgress(); await renderQuoteVersions(); renderActivity(); renderReprice();
+      ev.pricing=pricing; taxSwitched=false; lastSavedSig=sig; saved("quote"); updateProgress(); await renderQuoteVersions(); renderActivity(); renderReprice();
       $("#q_msg") && ($("#q_msg").textContent="Saved "+(r&&r.label||""));
     }catch(e){
       // REL-01: ONLY fall back when the versioning RPC is genuinely ABSENT
@@ -854,7 +886,7 @@
       BPUI.loadError($("#q_versions"), e, renderQuoteVersions, {what:"quotation versions"}); return; }
     if(!vs.length){ $("#q_versions").innerHTML=""; return; }
     $("#q_versions").innerHTML='<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:4px">Quotation versions</div>'+
-      vs.map((v,i)=>`<div class="rowline"><span class="g"><b>${esc(v.label)}</b>${i===0?' <span class="pill">current</span>':''}</span><span>${inr(v.total)}</span><span class="meta">${esc((v.created_at||'').slice(0,16).replace('T',' '))}</span></div>`).join('');
+      vs.map((v,i)=>`<div class="rowline"><span class="g"><b>${esc(v.label)}</b>${i===0?' <span class="pill">current</span>':''}</span><span>${inr(v.total)}</span><span class="meta">${esc(BPStore.fmtDateTime(v.created_at)||'')}</span></div>`).join('');
   }
   function downloadQuotePDF(){
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p), cl=ev.client||{};
@@ -1015,6 +1047,14 @@
 
   /* ---------- approval ---------- */
   async function sendApproval(){
+    { // a link is only useful if the client can be reached: need a valid email or phone
+      const em=$("#c_email").value.trim(), ph=$("#c_phone").value.trim();
+      const VV=BPStore.validate, er=em?VV.email(em):null, pr=ph?VV.phone(ph):null;
+      const flag=(sel,msg)=>{ $(sel).setAttribute("aria-invalid","true"); $(sel).focus(); BPUI.toast(msg,{type:"err"}); $("#apprState").textContent=msg; };
+      if(er && !er.ok){ flag("#c_email", "Fix the client email in step 1 before sending: "+er.error); return; }
+      if(pr && !pr.ok){ flag("#c_phone", "Fix the client phone in step 1 before sending: "+pr.error); return; }
+      if(!er && !pr){ flag("#c_phone", "Add the client's email or phone in step 1 before sending for approval."); return; }
+    }
     if(!ev || !(ev.pricing&&ev.pricing.total)){ if(!(await BPUI.confirm("No quotation total saved yet. Send anyway?",{title:"Send for approval?",okLabel:"Send anyway"}))) return; }
     await BPUI.guard($("#sendApproval"), async()=>{
     try{
@@ -1064,7 +1104,8 @@
     const d=await BPStore.discovery.get(id);
     if(d){ $("#d_date").value=d.meet_date||""; $("#d_mode").value=d.mode||"";
       $("#d_att").value=d.attendees||""; $("#d_notes").value=d.notes||""; $("#d_bmin").value=d.budget_min!=null?d.budget_min:""; $("#d_bmax").value=d.budget_max!=null?d.budget_max:""; }
-    else if(cl.budget!=null){ $("#d_bmax").value=cl.budget; } }
+    // guest-budget: legacy quotes kept only client.budget — show it as the max so nothing looks lost
+    if((!d || (d.budget_min==null && d.budget_max==null)) && cl.budget!=null){ $("#d_bmax").value=cl.budget; } }
   async function loadPlan(){ const cl=ev.client||{};
     // 0085: linked saved venue + indoor/outdoor (client JSON); the picker re-shows its warnings
     $("#v_venue_id").value=typeof cl.venueId==="string"?cl.venueId:""; $("#v_venue_name").value=typeof cl.venueName==="string"?cl.venueName:"";
@@ -1187,9 +1228,9 @@
     const cl=ev.client||{};
     $("#c_name").value=cl.name||""; $("#c_company").value=cl.company||""; $("#c_email").value=cl.email||"";
     $("#c_phone").value=cl.phone||""; $("#c_type").value=ev.eventType||""; $("#c_date").value=cl.eventDate||ev.eventDate||"";
-    $("#c_guests").value=cl.guests!=null?cl.guests:""; $("#c_city").value=typeof cl.city==="string"?cl.city:""; $("#c_budget").value=cl.budget!=null?cl.budget:"";
+    $("#c_guests").value=cl.guests!=null?cl.guests:""; $("#c_city").value=typeof cl.city==="string"?cl.city:"";
     fillClientStates(cl);
-    $("#g_guests").value=cl.guests!=null?cl.guests:"";
+    $("#g_guests").value=cl.guests!=null?cl.guests:""; $("#q_guestsRo").value=cl.guests!=null?cl.guests:"";
     await runSection("rates");
     await runSection("discovery");
     await renderReqs();
@@ -1277,7 +1318,7 @@
     // the live UI and marks the quote dirty (delegated listener below); the actual
     // writes happen on the explicit Save buttons or via the save-on-leave prompt.
     // This stops empty / barely-touched quotes from being silently saved.
-    ["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_guests","c_budget"].forEach(f=>$("#"+f).addEventListener("input",()=>{ syncClientMem(); if(f==="c_guests"||f==="c_type") renderPrice(); }));
+    ["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_guests"].forEach(f=>$("#"+f).addEventListener("input",()=>{ syncClientMem(); if(f==="c_guests"||f==="c_type") renderPrice(); }));
     ["c_type","c_date","c_city","c_guests"].forEach(f=>{ const el=$("#"+f); el.addEventListener("input",renderName); el.addEventListener("change",renderName); });
     // name-live-update: step-1 fields schedule the client autosave from their OWN listeners, so a
     // datalist pick / programmatic or non-bubbling input|change|blur still persists (the delegated
@@ -1286,7 +1327,7 @@
     const clientAuto=(e)=>{ if(loading||!AS||!AS.has("client")) return;
       if(e&&e.type==="blur"){ if(clientEdited){ clientEdited=false; AS.now("client"); } return; }
       clientEdited=true; renderName(); AS.schedule("client"); };
-    ["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_state","c_guests","c_budget"].forEach(f=>{ const el=$("#"+f); if(!el) return;
+    ["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_state","c_guests"].forEach(f=>{ const el=$("#"+f); if(!el) return;
       el.addEventListener("input",clientAuto); el.addEventListener("change",clientAuto); el.addEventListener("blur",clientAuto); });
     wireNameEdit();
     $("#c_state").addEventListener("change",()=>{ syncClientMem(); renderPrice(); });

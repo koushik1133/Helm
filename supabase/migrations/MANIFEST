@@ -213,3 +213,9 @@ forward  supabase/migrations/0136_tenant_guard_catchup.sql
 forward  supabase/migrations/0137_event_group_title_dot.sql
 # 0138 (demo staff phones: rewrite ONLY trial demo sample staff rows (is_demo, unlinked) from the placeholder "+91 00000 001xx" to the valid-looking "+91 90000 001xx"; no other row changed) goes after 0122.
 forward  supabase/migrations/0138_demo_staff_phones.sql
+# 0139 (CRM restore: restore_archived_lead(archive_id) re-creates a DELETED lead from its archive snapshot in the caller's studio (has_area leads edit), refuses if a live lead with that id exists or it was already restored, stamps lead_archive.restored_at/restored_by (two new nullable columns; archive row never deleted), writes audit_log 'lead.restored') goes after 0138.
+forward  supabase/migrations/0139_crm_restore_lead.sql
+# 0140 (lead dates -> nurture: nurture.source/lead_id nullable columns; trigger on leads upserts ONE auto occasion per lead+type (birthday/anniversary), clearing a date removes only an untouched auto row (worked-on rows kept as manual); manual rows never touched; insert-only backfill) goes after 0105 (needs phase30, 0084).
+forward  supabase/migrations/0140_lead_dates_to_nurture.sql
+# 0141 (empty draft clean-up: SOFT-moves drafts older than 24h with no content and no related rows in ANY quote-linked table to the Deleted shelf (deleted_reason 'auto_empty_draft', auto_discarded_at); checked twice, row-locked; restorable; never deletes) goes after 0040 + 0075.
+forward  supabase/migrations/0141_empty_draft_cleanup.sql

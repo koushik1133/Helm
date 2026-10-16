@@ -12,3 +12,6 @@
   html:not([data-shell]) .num,html:not([data-shell]) .kpi,html:not([data-shell]) .stat,html:not([data-shell]) .tile{font-variant-numeric:tabular-nums}
   @media (max-width:640px){ html:not([data-shell]) .wrap{padding-left:16px;padding-right:16px} html:not([data-shell]) .card{border-radius:12px} }
   @media (prefers-reduced-motion:reduce){ html:not([data-shell]) *{transition:none!important;animation:none!important} }
+
+/* dev pass 3: empty-role note in the access matrix */
+.mtx-empty{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px}
