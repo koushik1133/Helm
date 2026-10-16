@@ -1,24 +1,70 @@
-/* Control Center split (preview): left sub-nav + settings search. Pure layout layer. */
-#app.cs-on:not([hidden]){display:grid;grid-template-columns:220px minmax(0,1fr);gap:20px;align-items:start}
+/* Control Center settings layout (preview). Linear/Stripe/Vercel-style: grouped left nav,
+   page header, labelled cards, sticky unsaved-changes bar, ⌘K search. Uses theme tokens
+   only, so it follows light/dark and every data-hb-theme. Pure layout layer. */
+#app.cs-on:not([hidden]){display:grid;grid-template-columns:232px minmax(0,1fr);gap:var(--sp-6,32px);align-items:start;max-width:1120px;margin-inline:auto}
 #app.cs-on > .tabs{display:none}
-.cs-aside{position:sticky;top:12px;display:flex;flex-direction:column;gap:10px}
+
+/* ---- left settings nav ---- */
+.cs-aside{position:sticky;top:var(--sp-4,16px);display:flex;flex-direction:column;gap:var(--sp-4,16px);max-height:calc(100vh - 32px);overflow:auto;padding-bottom:var(--sp-4,16px)}
 .cs-search{position:relative}
-.cs-search input{width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid var(--line-strong,#86808f);border-radius:8px;background:var(--panel,#fff);color:inherit;font:inherit}
-.cs-results{position:absolute;left:0;right:0;top:100%;margin-top:4px;z-index:30;max-height:320px;overflow:auto;background:var(--panel,#fff);border:1px solid var(--line,#e8e3db);border-radius:8px;box-shadow:0 10px 30px -10px rgba(0,0,0,.3);padding:4px}
+.cs-search input{width:100%;box-sizing:border-box;height:36px;padding:0 52px 0 32px;border:1px solid var(--line,#e8e3db);border-radius:var(--r-ctl,8px);background:var(--panel,#fff);color:var(--ink,#1c1a1f);font:inherit;font-size:var(--fs-sm,13px);transition:border-color .15s,box-shadow .15s}
+.cs-search input::placeholder{color:var(--ink-3,#6b6573)}
+.cs-search input:focus{outline:none;border-color:var(--accent,#6d28d9);box-shadow:var(--focus-halo,0 0 0 3px rgba(109,40,217,.2))}
+.cs-search-ico{position:absolute;left:10px;top:50%;width:14px;height:14px;margin-top:-7px;border:2px solid var(--ink-3,#6b6573);border-radius:50%;box-sizing:border-box;pointer-events:none}
+.cs-search-ico::after{content:"";position:absolute;width:2px;height:6px;background:var(--ink-3,#6b6573);right:-4px;bottom:-5px;transform:rotate(-45deg);border-radius:1px}
+.cs-kbd{position:absolute;right:8px;top:50%;transform:translateY(-50%);font:500 11px/1 var(--mono,"IBM Plex Mono",monospace);color:var(--ink-3,#6b6573);border:1px solid var(--line,#e8e3db);border-bottom-width:2px;border-radius:4px;padding:3px 5px;background:var(--panel-2,#f1eee9);pointer-events:none}
+.cs-results{position:absolute;left:0;top:100%;margin-top:6px;z-index:40;width:max(100%,340px);max-height:360px;overflow:auto;background:var(--panel,#fff);border:1px solid var(--line,#e8e3db);border-radius:var(--r-card,12px);box-shadow:var(--elev-lg,0 16px 40px -12px rgba(0,0,0,.35));padding:6px}
 .cs-results[hidden]{display:none}
-.cs-results button{display:block;width:100%;text-align:left;border:0;background:none;padding:6px 8px;border-radius:6px;font:inherit;color:inherit;cursor:pointer}
-.cs-results button:hover,.cs-results button:focus{background:var(--panel-2,#f1eee9)}
-.cs-results small{display:block;font-size:11px;color:var(--ink-3,#6b6573)}
-.cs-results .cs-none{padding:6px 8px;font-size:13px;color:var(--ink-3,#6b6573)}
-.cs-nav{display:flex;flex-direction:column;gap:2px}
-.cs-nav a{display:block;padding:8px 10px;border-radius:8px;text-decoration:none;color:inherit;font-size:14px}
-.cs-nav a:hover{background:var(--panel-2,#f1eee9)}
-.cs-nav a[aria-current="page"]{background:var(--panel-2,#f1eee9);font-weight:600;box-shadow:inset 3px 0 0 var(--accent,#6d28d9)}
+.cs-results button{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:var(--r-ctl,8px);font:inherit;font-size:var(--fs-sm,13px);color:var(--ink,#1c1a1f);cursor:pointer}
+.cs-results button:hover,.cs-results button:focus,.cs-results button[aria-selected="true"]{background:var(--panel-2,#f1eee9);outline:none}
+.cs-results small{display:block;margin-top:2px;font-size:var(--fs-xs,11px);color:var(--ink-3,#6b6573)}
+.cs-results mark{background:transparent;color:var(--accent,#6d28d9);font-weight:600}
+.cs-results .cs-none{padding:10px;font-size:var(--fs-sm,13px);color:var(--ink-3,#6b6573)}
+.cs-nav{display:flex;flex-direction:column;gap:var(--sp-4,16px)}
+.cs-group{display:flex;flex-direction:column;gap:1px}
+.cs-group-h{margin:0 0 4px;padding:0 10px;font-size:var(--fs-xs,11px);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3,#6b6573)}
+#app.cs-on .cs-nav a{display:block;padding:7px 10px;border-radius:var(--r-ctl,8px);text-decoration:none;color:var(--ink-2,#3d3842);font-size:var(--fs-sm,13px);line-height:1.35;transition:background .12s,color .12s}
+#app.cs-on .cs-nav a:hover{background:var(--panel-2,#f1eee9);color:var(--ink,#1c1a1f)}
+#app.cs-on .cs-nav a:focus-visible{outline:none;box-shadow:var(--focus-halo,0 0 0 3px rgba(109,40,217,.2))}
+#app.cs-on .cs-nav a[aria-current="page"]{background:color-mix(in srgb,var(--accent,#6d28d9) 10%,transparent);color:var(--accent,#6d28d9);font-weight:600}
+.cs-mnav{display:none}
+
+/* ---- page header + cards ---- */
+.cs-main{min-width:0}
+#app.cs-on .cs-head{display:block;margin:0 0 var(--sp-5,24px);padding-bottom:var(--sp-4,16px);border-bottom:1px solid var(--line,#e8e3db)}
+.cs-head h2{margin:0;font-size:var(--fs-xl,20px);font-weight:600;letter-spacing:-.01em;color:var(--ink,#1c1a1f)}
+.cs-head p{margin:4px 0 0;font-size:var(--fs-sm,13px);color:var(--ink-3,#6b6573);max-width:62ch}
+#app.cs-on .cs-main .card{margin:0 0 var(--sp-4,16px);border:1px solid var(--line,#e8e3db);border-radius:var(--r-card,12px);background:var(--panel,#fff);box-shadow:var(--elev-sm,none);padding:var(--sp-5,24px)}
+#app.cs-on .cs-main .card > h3:first-child,#app.cs-on .cs-main .card > h3{margin-top:0;font-size:var(--fs-md,15px);font-weight:600;color:var(--ink,#1c1a1f)}
+#app.cs-on .cs-main .card > .mnote,#app.cs-on .cs-main .card > h3 + p{color:var(--ink-3,#6b6573);font-size:var(--fs-sm,13px);margin-top:4px}
+#app.cs-on .cs-main .fld label{font-weight:500;color:var(--ink-2,#3d3842)}
 .cs-off{display:none !important}
-.cs-flash{outline:2px solid var(--accent,#6d28d9);outline-offset:3px;transition:outline-color 1.2s}
-@media (max-width:760px){
-  #app.cs-on:not([hidden]){grid-template-columns:minmax(0,1fr);gap:12px}
-  .cs-aside{position:static}
-  .cs-nav{flex-direction:row;overflow-x:auto;gap:4px;padding-bottom:4px}
-  .cs-nav a{white-space:nowrap;flex:0 0 auto}
+.cs-flash{box-shadow:0 0 0 2px var(--accent,#6d28d9),var(--elev-md,none) !important;transition:box-shadow 1.2s}
+::highlight(cs-hit){background-color:color-mix(in srgb,var(--accent,#6d28d9) 28%,transparent);color:inherit}
+.cs-empty{padding:var(--sp-6,32px);text-align:center;color:var(--ink-3,#6b6573);border:1px dashed var(--line,#e8e3db);border-radius:var(--r-card,12px);font-size:var(--fs-sm,13px)}
+.cs-empty[hidden]{display:none}
+
+/* ---- sticky unsaved-changes bar (only when something changed) ---- */
+.cs-savebar{position:sticky;bottom:var(--sp-4,16px);z-index:35;display:flex;align-items:center;gap:var(--sp-3,12px);margin-top:var(--sp-4,16px);padding:10px 12px 10px 16px;border:1px solid var(--line,#e8e3db);border-radius:var(--r-card,12px);background:var(--panel,#fff);box-shadow:var(--elev-lg,0 16px 40px -12px rgba(0,0,0,.35));font-size:var(--fs-sm,13px);color:var(--ink,#1c1a1f);animation:cs-up .18s var(--ease-out,ease-out)}
+.cs-savebar[hidden]{display:none}
+.cs-savebar .cs-dot{width:8px;height:8px;border-radius:50%;background:var(--warn,#d97706);flex:0 0 auto}
+.cs-savebar span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cs-savebar button{height:32px;padding:0 12px;border-radius:var(--r-ctl,8px);font:inherit;font-size:var(--fs-sm,13px);font-weight:500;cursor:pointer;border:1px solid var(--line,#e8e3db);background:var(--panel,#fff);color:var(--ink,#1c1a1f)}
+.cs-savebar button.cs-primary{background:var(--accent,#6d28d9);border-color:var(--accent,#6d28d9);color:var(--accent-ink,#fff)}
+.cs-savebar button.cs-primary:hover{background:var(--accent-hover,var(--accent,#6d28d9))}
+@keyframes cs-up{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.cs-savebar{animation:none}.cs-flash{transition:none}}
+
+/* ---- mobile: nav becomes a top dropdown ---- */
+@media (max-width:820px){
+  #app.cs-on:not([hidden]){grid-template-columns:minmax(0,1fr);gap:var(--sp-4,16px)}
+  .cs-aside{position:static;max-height:none;overflow:visible;padding:0}
+  .cs-nav{display:none}
+  .cs-mnav{display:block;width:100%;box-sizing:border-box;height:40px;padding:0 12px;border:1px solid var(--line,#e8e3db);border-radius:var(--r-ctl,8px);background:var(--panel,#fff);color:var(--ink,#1c1a1f);font:inherit;font-size:var(--fs-base,14px);font-weight:500}
+  .cs-kbd{display:none}
+  .cs-search input{padding-right:12px}
+  .cs-results{width:100%}
+  #app.cs-on .cs-main .card{padding:var(--sp-4,16px)}
+  .cs-savebar{bottom:calc(var(--sp-3,12px) + env(safe-area-inset-bottom,0px))}
+  .cs-savebar .cs-ghost{display:none}
 }
