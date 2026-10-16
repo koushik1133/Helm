@@ -260,7 +260,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=210"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=3"></script>
@@ -717,7 +717,11 @@
     const a=avail[itemId]||{}; const free=Number(a.availableOnEvent!=null?a.availableOnEvent:(a.available!=null?a.available:(a.total_qty||0)));
     let overOk=false;   // user explicitly accepted an over-commit → the store must not hard-block it
     if(qty>free){ const it=items.find(x=>x.id===itemId)||{};
-      if(!(await BPUI.confirm(`Only ${Math.max(free,0)} ${it.unit||""} of ${it.name||"this item"} free — reserving ${qty} will over-commit by ${qty-free}. It'll show as a calendar conflict. Reserve anyway?`,{title:"Over-commit stock?",okLabel:"Reserve anyway",danger:true}))) return; overOk=true; }
+      // dev pass 3: one dialog at a time - Reserve stays disabled while the over-commit question is open
+      $("#rv_add").disabled=true; let yes=false;
+      try{ yes=await BPUI.confirm(`Only ${Math.max(free,0)} ${it.unit||""} of ${it.name||"this item"} free — reserving ${qty} will over-commit by ${qty-free}. It'll show as a calendar conflict. Reserve anyway?`,{title:"Over-commit stock?",okLabel:"Reserve anyway",danger:true}); }
+      finally{ $("#rv_add").disabled=false; }
+      if(!yes) return; overOk=true; }
     await BPUI.guard($("#rv_add"),async()=>{
       try{ await BPStore.inventory.reserve(itemId, quoteId, qty, $("#rv_note").value.trim()||null, {allowOver:overOk}); $("#rv_qty").value=1; $("#rv_note").value=""; BPUI.toast("Reserved.",{type:"ok"}); await load(); }
       catch(e){

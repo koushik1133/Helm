@@ -11,7 +11,12 @@
   function humanize(k){ const s=String(k||'').replace(/[_\.]+/g,' ').replace(/([a-z])([A-Z])/g,'$1 $2').trim().toLowerCase();
     return s ? s[0].toUpperCase()+s.slice(1) : 'Field'; }
   function title(v){ return String(v==null?'':v).replace(/[_-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase()); }
+  // dev pass 3: an ISO timestamp (2026-10-16T23:29:08.25+00:00) reads like the When column (local time)
+  const ISO_TS=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/;
+  function fmtTs(v){ const d=new Date(String(v)); if(isNaN(d.getTime())) return String(v);
+    try{ return d.toLocaleString(undefined,{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'}); }catch{ return d.toISOString(); } }
   function trunc(v,n){ n=n||60; let s; if(v==null||v==='') return '∅';
+    if(typeof v==='string' && ISO_TS.test(v)) return fmtTs(v);
     if(typeof v==='object'){ try{ s=JSON.stringify(v); }catch{ s='…'; } } else s=String(v);
     return s.length>n ? s.slice(0,n-1)+'…' : s; }
   function fmtDate(v){ const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(v||'')); if(!m) return trunc(v);
@@ -51,6 +56,6 @@
       return { key:k, text:describe(k,o,n) }; });
     return { lines, more:Math.max(0,keys.length-max) };
   }
-  const api={ describeUpdate, describe, inr, humanize, trunc, fmtDate };
+  const api={ describeUpdate, describe, inr, humanize, trunc, fmtDate, fmtTs };
   if(typeof module!=='undefined' && module.exports) module.exports=api; else root.AuditFormat=api;
 })(typeof window!=='undefined'?window:globalThis);

@@ -135,14 +135,17 @@
       var go = el("button", "btn primary", "Save payout"); go.type = "button";
       var row = el("div", "vb-grid"); row.appendChild(field("Amount (left " + fmt(left) + ")", amt)); row.appendChild(field("Paid on", dt));
       row.appendChild(field("How", how)); row.appendChild(field("Reference", ref)); var g = el("div", "vb-fld"); g.appendChild(go); row.appendChild(g); td.appendChild(row);
+      // dev pass 3: payout errors show right here, next to the payout amount (not under the Add-bill form)
+      var pmsg = el("p", "vb-err"); pmsg.setAttribute("role", "alert"); pmsg.hidden = true; td.appendChild(pmsg);
+      function perr(t) { pmsg.textContent = t; pmsg.hidden = !t; if (t) amt.setAttribute("aria-invalid", "true"); else amt.removeAttribute("aria-invalid"); }
       go.addEventListener("click", async function () {
         var a = Number(amt.value);
-        if (!(a > 0)) { msg.textContent = "Enter an amount above zero."; return; }
-        if (a > left + 0.005) { msg.textContent = "That's more than the " + fmt(left) + " left on this bill."; return; }
-        go.disabled = true; msg.textContent = "Saving…";
+        if (!(a > 0)) { perr("Enter an amount above zero."); amt.focus(); return; }
+        if (a > left + 0.005) { perr("That's more than the " + fmt(left) + " left on this bill."); amt.focus(); return; }
+        perr(""); go.disabled = true; msg.textContent = "Saving…";
         try { var r = await B.vendorBills.pay(b.id, a, dt.value, how.value, ref.value, k);
           msg.textContent = r && r.duplicate ? "Already recorded." : "Payout recorded."; await reload(); }
-        catch (e) { go.disabled = false; msg.textContent = errText(e); }
+        catch (e) { go.disabled = false; msg.textContent = ""; perr(errText(e)); }
       });
     }
     function openVoid(tr, b) {

@@ -71,7 +71,7 @@
   html[data-theme="dark"] .tile.bal .n.due,html[data-theme="dark"] .tile.margin .n.neg{color:var(--neg)} html[data-theme="dark"] .tile.bal .n.clear,html[data-theme="dark"] .tile.margin .n.pos,html[data-theme="dark"] .btn.go{color:var(--safe-text)}
 </style>
 <link rel="stylesheet" href="theme.css?v=80">
-<link rel="stylesheet" href="pages-polish-ops.css?v=1">
+<link rel="stylesheet" href="pages-polish-ops.css?v=2">
 <link rel="stylesheet" href="vendor-bills.css?v=1">
 </head>
 <body>
@@ -98,7 +98,7 @@
       <div class="tile"><div class="l">Invoice total</div><div class="n" id="t_rev">—</div></div>
       <div class="tile"><div class="l">Received</div><div class="n" id="t_recv">—</div></div>
       <div class="tile bal"><div class="l" id="t_bal_l">Balance due</div><div class="n" id="t_bal">—</div><div class="sub2" id="t_bal_sub" hidden></div></div>
-      <div class="tile margin"><div class="l">Final margin</div><div class="n" id="t_mar">—</div></div>
+      <div class="tile margin"><div class="l">Net profit</div><div class="n" id="t_mar">—</div></div>
     </div>
 
     <div class="card" id="payments">
@@ -170,7 +170,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script><script src="vendor-bills-ui.js?v=4"></script><script src="trial-test-note.js?v=1"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=210"></script><script src="vendor-bills-ui.js?v=5"></script><script src="trial-test-note.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -223,7 +223,8 @@
 
     $("#invBody").innerHTML = `
       <tr><td>Invoice total (quote + approved changes)</td><td class="num">${inr(s.revenue)}</td></tr>
-      <tr><td>Payments received</td><td class="num" style="color:var(--safe-text,#0f7a43)">− ${inr(s.received)}</td></tr>
+      <tr><td>Payments received</td><td class="num" style="color:var(--safe-text,#0f7a43)">− ${inr(s.refundedOut>0?s.receivedGross:s.received)}</td></tr>
+      ${s.refundedOut>0?`<tr><td>Refunded to client</td><td class="num">+ ${inr(s.refundedOut)}</td></tr>`:""}
       ${s.balance<0
         ? `<tr><td><b>Overpaid — credit due to client</b></td><td class="num"><b data-money style="color:var(--warn-text,#946200)">${inr(-s.balance)}</b></td></tr>`
         : `<tr><td><b>Balance due from client</b></td><td class="num"><b data-money style="color:${s.balance>0?'var(--neg)':'var(--safe-text,#0f7a43)'}">${inr(s.balance)}</b></td></tr>`}`;
@@ -243,7 +244,7 @@
     $("#expBody").innerHTML = s.expenses.length ? s.expenses.map(e=>`<tr>
       <td><b>${esc(e.who)}</b></td><td class="muted">${esc(e.description||"")}</td><td class="num">${inr(e.amount)}</td>
       <td><span class="st ${esc(e.status)}">${esc(EXP[e.status]||e.status)}</span></td>
-      <td>${canEdit?`${e.status==='pending'?`<button type="button" class="rm" data-est="${esc(e.id)}" data-s="approved" aria-label="Approve claim from ${esc(e.who)}">Approve</button> `:""}${(e.status==='pending'||e.status==='approved')?`<button type="button" class="rm" data-est="${esc(e.id)}" data-s="paid" data-amt="${esc(inr(e.amount))}" data-who="${esc(e.who)}" aria-label="Mark claim from ${esc(e.who)} paid">Mark paid</button> `:""}${canDelete&&e.status==='pending'?`<button type="button" class="rm" data-edel="${esc(e.id)}" aria-label="Remove claim from ${esc(e.who)}">✕</button>`:""}${e.status!=='pending'?`<span class="muted" title="Approved, paid or rejected claims are locked — add a correcting claim instead." style="font-size:12px">Locked</span>`:""}`:""}</td>
+      <td>${canEdit?`${e.status==='pending'?`<button type="button" class="rm" data-est="${esc(e.id)}" data-s="approved" aria-label="Approve claim from ${esc(e.who)}">Approve</button> `:""}${e.status==='approved'?`<button type="button" class="rm" data-est="${esc(e.id)}" data-s="paid" data-amt="${esc(inr(e.amount))}" data-who="${esc(e.who)}" aria-label="Mark claim from ${esc(e.who)} paid">Mark paid</button> `:""}${canDelete&&e.status==='pending'?`<button type="button" class="rm" data-edel="${esc(e.id)}" aria-label="Remove claim from ${esc(e.who)}">✕</button>`:""}${e.status!=='pending'?`<span class="muted" title="Approved, paid or rejected claims are locked — add a correcting claim instead." style="font-size:12px">Locked</span>`:""}`:""}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="empty">No claims.</td></tr>';
     $("#e_tot").textContent=inr(s.expTotal); $("#e_paid").textContent=inr(s.expPaid);
     $("#expBody").querySelectorAll("[data-est]").forEach(b=>b.addEventListener("click",async()=>{
@@ -332,17 +333,18 @@
     $("#refBody").innerHTML = list.length ? list.map(r=>`<tr>
       <td><b>${esc(RKIND[r.kind]||r.kind)}</b></td><td class="muted">${esc(r.reason||"")}</td><td class="num">${inr(r.amount)}</td>
       <td><span class="st ${refCls(r.status)}">${esc(REF[r.status]||r.status)}</span></td>
-      <td>${canEdit?`${r.status==='pending'?`<button type="button" class="rm" data-rst="${esc(r.id)}" data-s="approved" aria-label="Approve ${esc(RKIND[r.kind]||r.kind)} ${esc(inr(r.amount))}">Approve</button> `:""}${(r.status!=='processed'&&r.status!=='rejected')?`<button type="button" class="rm" data-rst="${esc(r.id)}" data-s="processed" data-amt="${esc(inr(r.amount))}" aria-label="Mark ${esc(RKIND[r.kind]||r.kind)} ${esc(inr(r.amount))} done">Mark done</button> `:""}${canDelete?`<button type="button" class="rm" data-rdel="${esc(r.id)}" aria-label="Remove ${esc(RKIND[r.kind]||r.kind)} ${esc(inr(r.amount))}">✕</button>`:""}`:""}</td>
+      <td>${canEdit?`${r.status==='pending'?`<button type="button" class="rm" data-rst="${esc(r.id)}" data-s="approved" aria-label="Approve ${esc(RKIND[r.kind]||r.kind)} ${esc(inr(r.amount))}">Approve</button> `:""}${r.status==='approved'?`<button type="button" class="rm" data-rst="${esc(r.id)}" data-s="processed" data-amt="${esc(inr(r.amount))}" aria-label="Mark ${esc(RKIND[r.kind]||r.kind)} ${esc(inr(r.amount))} done">Mark done</button> `:""}${canDelete?`<button type="button" class="rm" data-rdel="${esc(r.id)}" aria-label="Remove ${esc(RKIND[r.kind]||r.kind)} ${esc(inr(r.amount))}">✕</button>`:""}`:""}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="empty">None.</td></tr>';
-    const active=list.filter(r=>r.status!=='rejected');
+    // dev pass 3: only entries still to be paid out / recovered count as "due"; processed ones are done
+    const active=list.filter(r=>r.status==='pending'||r.status==='approved');
     $("#r_ref").textContent=inr(active.filter(r=>r.kind==='refund').reduce((a,r)=>a+Number(r.amount||0),0));
     $("#r_rec").textContent=inr(active.filter(r=>r.kind!=='refund').reduce((a,r)=>a+Number(r.amount||0),0));
     $("#refBody").querySelectorAll("[data-rst]").forEach(b=>b.addEventListener("click",async()=>{
       if(b.dataset.s==="processed" && !(await BPUI.confirm(`Mark this ${b.dataset.amt} entry as processed?`,{title:"Mark done?",okLabel:"Mark done"}))) return;
-      await act(b,async()=>{ await BPStore.refunds.setStatus(b.dataset.rst,b.dataset.s); await renderRefunds(); },"update the refund"); }));
+      await act(b,async()=>{ await BPStore.refunds.setStatus(b.dataset.rst,b.dataset.s); await load(); },"update the refund"); }));
     $("#refBody").querySelectorAll("[data-rdel]").forEach(b=>b.addEventListener("click",async()=>{
       if(!(await BPUI.confirm("Remove this refund / recovery entry?",{title:"Remove entry?",danger:true}))) return;
-      await act(b,async()=>{ await BPStore.refunds.remove(b.dataset.rdel); await renderRefunds(); },"remove the entry"); }));
+      await act(b,async()=>{ await BPStore.refunds.remove(b.dataset.rdel); await load(); },"remove the entry"); }));
   }
   async function addRefund(){ const av=BPStore.validate.money($("#r_amt").value,{field:"Refund amount"});
     if(!av.ok || av.value<=0){ BPUI.toast(av.ok?"Refund amount must be greater than "+BPStore.studioMoney(0)+".":av.error,{type:"err"}); $("#r_amt").focus(); return; }
@@ -362,8 +364,11 @@
   $("#e_add").addEventListener("click",addExpense);
   $("#r_add").addEventListener("click",addRefund);
 
+  // dev pass 3: the profit tile uses the same Net profit P&L as Budget / Closure (one number per event)
+  async function pnlTile(){ let p=null; try{ p=BPStore.vendorBills&&await BPStore.vendorBills.pnl(id); }catch(_){ return; } if(!p) return;
+    const n=Number(p.net_profit||0), mn=$("#t_mar"); mn.textContent=inr(n); mn.className="n "+(n>=0?"pos":"neg"); }
   async function load(){
-    try{ s=await BPStore.settlement.summary(id); await overlayBills(s); summaryFailed=false; $("#payLine").hidden=!canEdit; $("#expAdd").hidden=!canEdit; render(); }
+    try{ s=await BPStore.settlement.summary(id); await overlayBills(s); summaryFailed=false; $("#payLine").hidden=!canEdit; $("#expAdd").hidden=!canEdit; render(); await pnlTile(); }
     catch(e){ summaryFailed=true; $("#payLine").hidden=true; $("#expAdd").hidden=true;
       ["#t_rev","#t_recv","#t_bal","#t_mar"].forEach(x=>{ $(x).textContent="—"; });
       BPUI.loadError($("#invBody"),e,load,{what:"the invoice"});

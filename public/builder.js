@@ -710,11 +710,20 @@ async function offerDraftRestore(){
   let go=false; try{ go=await BPUI.confirm('An unsaved draft of this quote from '+BPStore.fmtDateTime(d.savedAt)+' was found in this browser (it was never saved to the server). Restore it? Your saved versions are not changed until you press Save.',{title:'Restore unsaved draft?',okLabel:'Restore draft',cancelLabel:'Discard draft'}); }catch{}
   if(!go){ clearDraft(); return; }
   applyLayout(d.data); if(d.name) $('#projName').value=d.name;
-  markDirty(); toast('Draft restored — press Save to keep it');
+  // dev pass 3: a restored draft lives only in this browser - it must read "Unsaved changes" until Save,
+  // even if a late load step re-baselines the page.
+  draftRestored=true; markDirty(); dirty.mark(); renderSaveState('dirty'); toast('Draft restored — press Save to keep it');
 }
 // the document now matches what's stored (just opened or saved). Pass the signature captured when the
 // save STARTED so edits made while it was in flight keep the page dirty.
-function setSavedBaseline(sig){ savedSig = sig==null ? docSig() : sig; if(docSig()===savedSig) dirty.clean(); else dirty.mark(); }
+let draftRestored=false;
+function setSavedBaseline(sig){
+  const dr = typeof draftRestored!=='undefined' && draftRestored;
+  if(dr && sig==null){ dirty.mark(); renderSaveState('dirty'); return; }   // keep a restored draft "unsaved"
+  if(dr && sig!=null) draftRestored=false;
+  savedSig = sig==null ? docSig() : sig; if(docSig()===savedSig) dirty.clean(); else dirty.mark(); }
+// dev pass 3: leaving while a Save is still going to the server loses it - warn first
+window.addEventListener('beforeunload', e=>{ let busy=false; try{ busy=!!saving; }catch{} if(busy){ e.preventDefault(); e.returnValue=''; return ''; } });
 const nid = () => 'obj_' + (uid++).toString(36) + Date.now().toString(36).slice(-3);
 
 /* ---- selection model (single "primary" + multi set kept in sync) ---- */

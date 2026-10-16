@@ -62,7 +62,7 @@
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
 </style>
 <link rel="stylesheet" href="theme.css?v=80">
-<link rel="stylesheet" href="pages-polish-ops.css?v=1">
+<link rel="stylesheet" href="pages-polish-ops.css?v=2">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -108,7 +108,7 @@
       <h2>✅ Teardown &amp; venue handover <span class="prog" id="tdProg"></span></h2>
       <p class="sub">Dismantle, clear, hand the venue back and verify.</p>
       <div id="tdRows"><div class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
-      <div class="addline" id="tdAdd" hidden><input id="td_title" placeholder="e.g. Venue walkthrough with manager" aria-label="Teardown item"><button type="button" class="btn primary" id="td_addb">＋ Add</button></div>
+      <div class="addline" id="tdAdd" hidden><input id="td_title" maxlength="200" required placeholder="e.g. Venue walkthrough with manager" aria-label="Teardown item"><button type="button" class="btn primary" id="td_addb">＋ Add</button></div>
     </div>
   </div>
   </main>
@@ -129,7 +129,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=210"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -226,7 +226,7 @@
     BPUI.guard($("#li_go"),async()=>{ try{ await BPStore.auth.signIn(em,pw); location.reload(); }
       catch(e){ $("#li_err").textContent=(e&&e.message)||"Sign in failed"; $("#li_err").hidden=false; } },{busyLabel:"Signing in…"});
   });
-  const addTd=()=>{ const t=$("#td_title").value.trim(); if(!t) return; return act($("#td_addb"),async()=>{ await BPStore.checklist.add(id,{section:"teardown",title:t}); $("#td_title").value=""; await section(renderTeardown,$("#tdRows"),"teardown items"); },"add the item"); };
+  const addTd=()=>{ const t=$("#td_title").value.trim(); if(!t){ BPUI.toast("Enter the teardown item first.",{type:"err"}); $("#td_title").focus(); return; } return act($("#td_addb"),async()=>{ await BPStore.checklist.add(id,{section:"teardown",title:t}); $("#td_title").value=""; await section(renderTeardown,$("#tdRows"),"teardown items"); },"add the item"); };
   $("#td_addb").addEventListener("click",addTd);
   $("#td_title").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); addTd(); } });
 

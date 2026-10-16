@@ -110,7 +110,7 @@ assert.ok(!/\.delete\(|vendorBills\.remove/.test(ui), "UI never deletes bills");
 for (const [p, m] of [["settlement", "bills"], ["closure", "pnl"], ["budget", "pnl"], ["business", "business"]]) {
   const h = readFileSync("public/" + p + ".html", "utf8");
   assert.ok(h.includes('data-vb-mount="' + m + '"'), p + " mounts " + m);
-  assert.match(h, /vendor-bills-ui\.js\?v=4"/); assert.match(h, /vendor-bills\.css\?v=1"/);
+  assert.match(h, /vendor-bills-ui\.js\?v=5"/); assert.match(h, /vendor-bills\.css\?v=1"/);
   assert.ok(h.indexOf("store-api.js") < h.indexOf("vendor-bills-ui.js"), p + ": store before UI");
 }
 // QA fixes (2026-10-15): one profit card on Closure, live refresh on Budget, upcoming events on Business,

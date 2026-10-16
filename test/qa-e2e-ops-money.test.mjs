@@ -13,7 +13,7 @@ const apply = rd("../supabase/APPLY-0110.sql");
 
 test("payment schedule warns (non-blocking) when milestones exceed the quote total", () => {
   assert.match(logistics, /msScheduled\+ar\.value>qTotal\+0\.5 && !\(await BPUI\.confirm\(/);
-  assert.match(logistics, /Scheduled is <b>\$\{inr\(total-qTotal\)\}<\/b> more than the quote total/);
+  assert.match(logistics, /Scheduled is <b>\$\{inr\(total-qTotal\)\}<\/b> more than the invoice total/);
   assert.match(logistics, /async function addMile\(\)/);
 });
 
@@ -24,7 +24,7 @@ test("payment totals use theme tokens, not hard-coded inline colours", () => {
 });
 
 test("budget revenue breakdown adds up (ex-tax base + changes)", () => {
-  assert.match(budget, /quote \$\{inr\(sum\.revenueExTax - sum\.changeRevenue\)\} \+ changes/);
+  assert.match(budget, /quote \$\{inr\(sum\.revenueExTax - chX\)\} \+ changes \$\{inr\(chX\)\}/);
 });
 
 test("settlement explains a server overpayment refusal instead of 'values are invalid'", () => {

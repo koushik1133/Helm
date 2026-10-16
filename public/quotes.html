@@ -184,7 +184,7 @@
       <div class="fld"><label for="c_venue">Venue</label><input id="c_venue" placeholder="Venue name"></div>
       <div class="fld s-068a8dd"><label for="c_address">Venue address</label><input id="c_address" placeholder="Address"></div>
       <div class="fld"><label for="c_state">Client / event state</label><input id="c_state" maxlength="60" placeholder="e.g. Telangana" title="Same state as your studio → CGST + SGST; another state → IGST"><datalist id="c_stateList"></datalist></div>
-      <div class="fld" id="trnFld" hidden><label for="c_trn">Client TRN (if VAT-registered)</label><input id="c_trn" maxlength="20" inputmode="numeric" autocomplete="off" placeholder="15 digits, optional"></div>
+      <div class="fld" id="trnFld" hidden><label for="c_trn">Client TRN (if VAT-registered)</label><input id="c_trn" maxlength="15" pattern="[0-9]{15}" inputmode="numeric" autocomplete="off" placeholder="15 digits, optional"></div>
       <div class="fld s-068a8dd"><label for="c_notes">Notes</label><textarea id="c_notes" placeholder="Anything to remember…"></textarea></div>
     </div>
 
@@ -209,7 +209,7 @@
     </div>
     <div class="grid three s-d2c171b">
       <div class="fld"><label for="p_coupon">Coupon</label><select id="p_coupon"><option value="">— none —</option></select></div>
-      <div class="fld"><label for="p_discount">Discount ₹</label><input id="p_discount" type="number" min="0" step="1" value="0"></div>
+      <div class="fld"><label for="p_discount">Discount ₹</label><input id="p_discount" type="number" min="0" step="1" value="0" aria-describedby="p_discount_err"><small class="cm-ferr" id="p_discount_err" role="alert" hidden></small></div>
       <div class="fld"><label for="p_discountPct">Discount %</label><input id="p_discountPct" type="number" min="0" max="100" step="0.5" value="0" aria-describedby="p_discountPct_err"><small class="cm-ferr" id="p_discountPct_err" role="alert" hidden></small></div>
     </div>
     <!-- rates come from the Control Center; kept as hidden inputs so the calculator stays unchanged -->
@@ -282,7 +282,7 @@
 <script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=210"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="tour.js?v=14"></script>
 <script>
@@ -629,7 +629,7 @@
     $("#p_chairPrice").value = cfg.chairPrice;
     $("#p_platePrice").value = menuPlate!=null ? menuPlate : cfg.platePrice;
     $("#p_gst").value = cmKeep && pr.gstPct!=null ? pr.gstPct : cfg.gstPct;
-    $("#p_cgst").value = cmKeep && pr.catering && pr.catering.gstPct!=null ? pr.catering.gstPct : cfg.cateringGstPct;
+    $("#p_cgst").value = cmKeep && pr.catering && pr.catering.gstPct!=null ? pr.catering.gstPct : (cfg.cateringGstPct!=null ? cfg.cateringGstPct : "");
     if(cmKeep && pr.chairPrice!=null) $("#p_chairPrice").value = pr.chairPrice;
     if(cmKeep && pr.platePrice!=null && menuPlate==null) $("#p_platePrice").value = pr.platePrice;
     $("#p_svc").value = cfg.serviceChargePct||0;
@@ -693,6 +693,7 @@
   }
   // inline checks on the counts + discount %: whole numbers 0–100,000 / a percent 0–100.
   // While any is invalid "Confirm & lock" stays disabled (Save pricing re-checks on click).
+  $("#c_trn").addEventListener("input",()=>{ const el=$("#c_trn"), v=el.value.replace(/\D+/g,"").slice(0,15); if(v!==el.value) el.value=v; });
   let cmSaving=false;   // one save / confirm in flight (incl. while its confirm prompt is open)
   const CM_CHECKS=[["p_chairs","Chairs","count"],["p_guests","Guests / plates","count"],["p_discount","Discount","money"],["p_discountPct","Discount %","pct"]];
   function cmFieldError(raw, label, kind){
@@ -714,8 +715,13 @@
     return ok;
   }
   function recalc(){
-    const valid=cmValidate();
+    let valid=cmValidate();
     const p=gatherPricing(), t=calcPricing(p);
+    // dev pass 3: a flat discount bigger than the subtotal silently made the quote free - say so and block it
+    if(valid && Number(p.discount)>0 && Number(p.discount)>Number(t.subtotal||0)+0.5){
+      const de=$("#p_discount_err"), di=$("#p_discount");
+      if(de){ de.textContent="Discount is more than the subtotal ("+inr(t.subtotal)+")."; de.hidden=false; } if(di) di.setAttribute("aria-invalid","true");
+      valid=false; const cb=$("#cm_confirm"); if(cb && !cmSaving) cb.disabled=true; }
     paintRateNote(p);
     // an invalid count / discount → no total is shown (never a number the quote can't be saved at)
     const saved=cmSavedTotal(), changes=valid && saved!=null && Math.abs(Math.round(saved)-Math.round(t.total))>=1;
@@ -736,6 +742,7 @@
     const other = confirmIt?$("#cm_savePricing"):$("#cm_confirm");
     if(cmSaving) return;   // a save / confirm is already in flight
     if(!cmValidate()){ const bad=document.querySelector('#confirmModal [aria-invalid="true"]'); if(bad) bad.focus(); return; }
+    { const p0=gatherPricing(), t0=calcPricing(p0); if(Number(p0.discount)>0 && Number(p0.discount)>Number(t0.subtotal||0)+0.5){ recalc(); $("#p_discount").focus(); return; } }
     // validate the raw inputs (no negative money, fractional counts, bad %, bad email) before saving
     const V=BPStore.validate, errEl=$("#cm_err");
     const checks=[["#p_chairs",v=>V.count(v,{field:"Chairs"})],["#p_guests",v=>V.count(v,{field:"Guests / plates"})],
