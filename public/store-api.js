@@ -1,6 +1,6 @@
-/* LOCAL PROTOTYPE HOOK (do not ship): layout comparison switcher, localhost only */
-(function () { try { if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=2"; document.head.appendChild(s); } } catch (e) {} })();
+/* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
+(function () { try { if (!document.getElementById("shellProto")) {
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=3"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:

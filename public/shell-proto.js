@@ -1,5 +1,5 @@
 /* shell-proto.js - loads the app layout (shell-b.*) on signed-in studio app pages. No switcher: this is THE layout.
- * Gate: store-api.js line ~2 injects this file (currently localhost-only). */
+ * Gate: store-api.js line ~2 injects this file on every host. */
 (function () {
   "use strict";
   var KEY = "helm.shell";
