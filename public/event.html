@@ -7,8 +7,6 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Event Workspace — Helm Events</title>
-<link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
-<link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
 <link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -183,14 +181,14 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=205"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=207"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="tour.js?v=14"></script>
 <script src="booklet.js?v=18"></script>
 <script src="share-checklist.js?v=9"></script>
 <script src="booklet-share.js?v=6"></script>
 <script src="pkg-review.js?v=4"></script>
-<script src="event-group-picker.js?v=1"></script>
+<script src="event-group-picker.js?v=2"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -289,12 +287,13 @@
       S(async()=>{ const md=await BPStore.media.list(id); mediaSummary={ photos:md.filter(m=>m.kind==='photo').length, videos:md.filter(m=>m.kind==='video').length, gallery:md.filter(m=>m.in_gallery).length, total:md.length }; }),
       S(async()=>{ conflictSummary=await BPStore.calendar.conflictsForEvent(id); }),
     ]);
+    if(budgetSummary && billsDelta && BPStore.settlement.applyBillsToBudget) BPStore.settlement.applyBillsToBudget(budgetSummary,billsDelta);
     if(closureSummary && billsDelta){ closureSummary.profit=Math.round((closureSummary.profit+billsDelta)*100)/100;
       closureSummary.pct=closureSummary.rev?Math.round(closureSummary.profit/closureSummary.rev*100):null; }
     render();   // re-paint with the loaded summaries
   }
 
-  const statBadge=(s)=> s==="confirmed"?'<span class="stat ok">Confirmed</span>':s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
+  const statBadge=(s,a)=> s==="confirmed"?(a==="approved"||a==="paid"?'<span class="stat ok">Confirmed</span>':'<span class="stat ok">Confirmed · awaiting client approval</span>'):s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
   const apprBadge=(a)=> a==="paid"?'<span class="stat ok" title="The client paid the advance; check Payments for the balance">Advance paid</span>':a==="approved"?'<span class="stat ok">Approved</span>':a==="sent"?'<span class="stat st">Sent for approval</span>':"";
 
   let staleInfo=null;   // 0052: client approval went stale after a price change
@@ -318,7 +317,7 @@
   function render(){
     renderReapproval();
     $("#code").textContent=ev.code;
-    $("#statusBadge").innerHTML=statBadge(ev.status);
+    $("#statusBadge").innerHTML=statBadge(ev.status,ev.approvalStatus);
     $("#apprBadge").innerHTML=apprBadge(ev.approvalStatus);
     $("#title").textContent=(window.HelmEventName&&HelmEventName.displayName)?HelmEventName.displayName(ev):(ev.title||ev.code);
     try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[ev.code,ev.title].filter((v,i,a)=>v&&a.indexOf(v)===i).join(" "),kind:"event",href:"event.html?id="+encodeURIComponent(id)}); }catch(e){}
@@ -337,9 +336,10 @@
     }).join("");
     if(canEdit) $("#steps").querySelectorAll(".step").forEach(b=>b.addEventListener("click",(e)=>{ if(e.detail>1) return; setStage(b.dataset.k,b); }));
     $("#nextHint").innerHTML=`<b>Now:</b> ${esc((STAGES[cur].k==="confirmed"&&advanceIn())?"Booked — the advance is in. Plan the day next.":STAGES[cur].hint)}`;
-    renderNextStep(cur);
+    const hasNext=renderNextStep(cur);
     const adv=$("#advBtn");
-    if(canEdit && cur<STAGES.length-1){ adv.hidden=false; adv.textContent="Advance to "+stageLabel(STAGES[cur+1])+" →"; adv.dataset.k=STAGES[cur+1].k; }
+    // one call-to-action: when the "Next step" bar shows, the stage stepper above still moves stages
+    if(canEdit && !hasNext && cur<STAGES.length-1){ adv.hidden=false; adv.textContent="Advance to "+stageLabel(STAGES[cur+1])+" →"; adv.dataset.k=STAGES[cur+1].k; }
     else adv.hidden=true;
     // Digital invitation website — unlocks once the event is confirmed (or beyond).
     const inv=$("#inviteBtn");
@@ -360,8 +360,8 @@
     else if(!advanceIn()){ t="Record advance"; href="logistics.html?quote="+q; w="Record the client's advance to book the date."; }
     else if(cur<stageIndex("event_day")){ t="Plan the day"; href="runsheet.html?quote="+q; w="Build the minute-by-minute plan for the day."; }
     else if(cur<stageIndex("closed")){ t="Close the event"; href="closure.html?quote="+q; w="Settle up, collect feedback and close the books."; }
-    if(!t || !canEdit){ bar.hidden=true; return; }
-    b.textContent=t+" →"; b.setAttribute("href",href); why.textContent=w; bar.hidden=false;
+    if(!t || !canEdit){ bar.hidden=true; return false; }
+    b.textContent=t+" →"; b.setAttribute("href",href); why.textContent=w; bar.hidden=false; return true;
   }
   // Event group (0035): after confirmation, a clear button at the bottom — "Create event group"
   // (managers only; opens the team picker on Quotes) or, once it exists, "Open event group".
@@ -383,7 +383,7 @@
   $("#egPanelBtn").addEventListener("click",(e)=>{
     if(!ev || egInfo || !window.HelmEventGroupPicker) return;   // "Open event group" → plain link to the chat
     e.preventDefault();
-    HelmEventGroupPicker.open({id:ev.id||id, code:ev.code, status:ev.status},{canEdit, onDone:()=>{ egInfo=undefined; renderEventGroup(); }});
+    HelmEventGroupPicker.open({id:ev.id||id, code:ev.code, status:ev.status},{canEdit, stay:true, onDone:()=>{ egInfo=undefined; renderEventGroup(); }});
   });
   // Build 4 — Attachments: private per-event documents. Best-effort; never blocks the page.
   const fmtBytes=(n)=>{ n=Number(n||0); return n<1024?n+" B":n<1048576?(n/1024).toFixed(0)+" KB":(n/1048576).toFixed(1)+" MB"; };
@@ -498,7 +498,7 @@
         sum: staffSummary && staffSummary.people ? `${staffSummary.people} staff assigned · ${staffSummary.tasks} task${staffSummary.tasks===1?"":"s"}` : "No staff assigned yet — assign staff in Operations.",
         acts:[{t:"View event staff", href:"staff.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"vendors", ic:"🤝", title:"Vendors & partners",
-        sum: vendorSummary && vendorSummary.total ? `${vendorSummary.total} booked · ${vendorSummary.confirmed} confirmed` : "No vendors booked — book partners for the gaps.",
+        sum: vendorSummary && vendorSummary.total ? (+vendorSummary.confirmed>=+vendorSummary.total ? `${vendorSummary.total} booked, all confirmed` : `${vendorSummary.total} booked (${+vendorSummary.confirmed||0} confirmed, ${vendorSummary.total-(+vendorSummary.confirmed||0)} to confirm)`) : "No vendors booked — book partners for the gaps.",
         acts:[{t:"View event vendors", href:"vendors.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"runsheet", ic:"🗓️", title:"Run-sheet",
         sum: runSummary && runSummary.total ? `${runSummary.total} item${runSummary.total===1?"":"s"}${runSummary.first?` · starts ${runSummary.first}`:""}` : "Build the minute-by-minute event-day schedule.",

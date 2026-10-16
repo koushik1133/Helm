@@ -1,5 +1,5 @@
 // boot-perf.test.mjs — page-load speed-ups must not loosen the auth gate.
-//  * every page that loads store-api.js preconnects to the production Supabase origin
+//  * every page that loads store-api.js has no hardcoded Supabase origin hint (runtime injects the configured one)
 //    and preloads the pinned supabase-js build with the SAME integrity store-api uses
 //  * a protected page asks for the studio id IN PARALLEL with the sign-in step check,
 //    but still shows only after both answered (and never when a step is pending)
@@ -31,12 +31,11 @@ t('the pinned supabase-js integrity in store-api.js matches the vendored file', 
   const sri = 'sha384-' + createHash('sha384').update(readFileSync(new URL('public/' + SJS[1], root))).digest('base64');
   assert.equal(SJS[2], sri);
 });
-t('every page that loads store-api.js preconnects to the production Supabase origin (+ dns-prefetch) in <head>', () => {
+t('no page hardcodes a Supabase preconnect/dns-prefetch (store-api injects the CONFIGURED origin, so staging never warms prod)', () => {
   assert.ok(APP_PAGES.length >= 40, 'found ' + APP_PAGES.length);
-  for (const f of APP_PAGES) {
+  for (const f of PAGES) {
     const h = read('public/' + f); const head = h.slice(0, h.indexOf('</head>'));
-    assert.ok(head.includes(`<link rel="preconnect" href="${PROD}" crossorigin>`), f + ': preconnect');
-    assert.ok(head.includes(`<link rel="dns-prefetch" href="${PROD}">`), f + ': dns-prefetch');
+    assert.doesNotMatch(head, /<link rel="(?:preconnect|dns-prefetch)" href="https:\/\/[a-z0-9]+\.supabase\.co"/, f + ': hardcoded Supabase hint');
   }
 });
 t('every page that loads store-api.js preloads supabase-js with the same URL + integrity + CORS mode', () => {

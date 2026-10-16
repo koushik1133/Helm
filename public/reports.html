@@ -6,8 +6,6 @@
 <meta charset="utf-8">
 <base href="/"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reports & exports — Helm Events</title>
-<link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
-<link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
 <link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -145,7 +143,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=205"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=207"></script>
 <script src="range-bar.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -212,6 +210,7 @@
           if(hit.length){ evs.push(e); inPer[e.id]=Math.round(hit.reduce((a,p)=>a+(Number(p.amount)||0),0)); } }); }
       else evs=all.filter(e=>inR(evDay(e)));
       const rows=await Promise.all(evs.map(async e=>{ try{ const s=await BPStore.settlement.summary(e.id);
+        if(BPStore.settlement.applyBills) await BPStore.settlement.applyBills(s,e.id);   // same vendor rule as Settlement: bills replace booked cost, payouts count as paid
         const r={ _cur:BPStore.quoteCurrency(e), code:e.code, event_date:e.eventDate||"" }; if(byPay) r.received_in_period=inPer[e.id]||0;
         return Object.assign(r,{ revenue:Math.round(s.revenue||0), revenue_ex_tax:Math.round(s.revenueExTax!=null?s.revenueExTax:(s.revenue||0)), gst:Math.round(s.tax||0), received:Math.round(s.received||0),
           balance:Math.round(s.balance||0), vendor_outstanding:Math.round(s.vendorOutstanding||0), expenses_paid:Math.round(s.expPaid||0) });

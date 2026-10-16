@@ -39,7 +39,8 @@ export const PROD_HOSTS = ['www.helm.events', 'helm.events', 'helm-alpha-nine.ve
 export const STAGING_CSP_HOSTS = ['helm-v01.vercel.app'];
 export function isStagingCspRule(r) {
   return Array.isArray(r.has) && r.has.length === 1 && r.has[0].type === 'host' && STAGING_CSP_HOSTS.includes(r.has[0].value) &&
-    r.source === '/(.*)' && (r.headers || []).length === 1 && r.headers[0].key.toLowerCase() === 'content-security-policy';
+    r.source === '/(.*)' && (r.headers || []).length >= 1 && (r.headers || []).length <= 2 && r.headers[0].key.toLowerCase() === 'content-security-policy' &&
+    (r.headers.length === 1 || r.headers[1].key.toLowerCase() === 'x-frame-options');
 }
 function unionPolicy(values) {
   const m = new Map();
@@ -114,7 +115,10 @@ if (!cspCount) { console.error('  ✗ vercel.json has no Content-Security-Policy
     if (h.key.toLowerCase() === 'content-security-policy') pols.push(h.value);
   const staged = unionPolicy(pols);
   for (const host of STAGING_CSP_HOSTS)
-    vercel.headers.push({ source: '/(.*)', has: [{ type: 'host', value: host }], headers: [{ key: 'Content-Security-Policy', value: staged }] });
+    vercel.headers.push({ source: '/(.*)', has: [{ type: 'host', value: host }], headers: [{ key: 'Content-Security-Policy', value: staged },
+      // keep the legacy X-Frame-Options header consistent with the union frame-ancestors (otherwise the
+      // catch-all DENY contradicts frame-ancestors 'self' on the staging site)
+      ...(/frame-ancestors 'self'/.test(staged) ? [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }] : [])] });
 }
 const stagingFree = (v) => JSON.stringify({ ...v, headers: (v.headers || []).filter((r) => !isStagingCspRule(r)) });
 const vNext = JSON.stringify(vercel, null, 2) + '\n';

@@ -7,8 +7,6 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Control Center — Helm Events</title>
-<link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
-<link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
 <link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -731,7 +729,7 @@
 <script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=205"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=207"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
@@ -825,13 +823,12 @@
       $("#tab-notify").hidden=false;   // loads on first open (initNotify)
       $("#lxCard").hidden=false; cards.push(initLinkExpiry);   // client link auto-expire (0039)
     }
-    await settle(cards);
+    try{ await settle(cards); } finally { focusHashCard(); }   // #account / #pricing open even if one card failed
     if(isAdmin){
       // the User-control tab (users + access matrix) loads on first open, not on every visit to Settings
       if(location.hash==="#users") switchTab("users");
       if(location.hash==="#notifications") switchTab("notify");
     }
-    focusHashCard();
   }
 
   // Deep links from the dashboard "Getting started" checklist: #account → Studio account
@@ -839,13 +836,15 @@
   function focusHashCard(){
     const id = ({"#account":"accCard","#pricing":"pricingCard","#menu":"menuCard"})[location.hash];
     if(!id) return;
+    switchTab("pricing");   // these cards live on the Pricing tab (the Studio account card is at its top)
     let tries=0;
     (function go(){
       const el=document.getElementById(id);
       if(el && !el.hidden){ try{ el.scrollIntoView({block:"start",behavior:"smooth"}); }catch{} return; }
-      if(tries++ < 20) setTimeout(go, 250);
+      if(tries++ < 40) setTimeout(go, 250);
     })();
   }
+  window.addEventListener("hashchange", focusHashCard);
 
   /* ---------------- tab switching ---------------- */
   function switchTab(name){
@@ -1625,6 +1624,12 @@
       $("#inv_link").value=link; $("#inv_out").hidden=false;
       setUMsg("ok",(r.reused?"Existing invite link ready for ":"Invite link created for ")+email+".");
       $("#inv_email").value=""; renderInvites();
+      // 0131: the invite row queues its e-mail; flush now and say what actually happened (same wording as Resend)
+      const sent=await BPStore.invitations.sendNow();
+      if(r.reused){ if(sent&&sent.status==="ok"&&sent.sent>0) setUMsg("ok",`Invitation email sent to ${email}. The link below also works.`); }
+      else if(sent&&sent.status==="ok"&&sent.sent>0) setUMsg("ok",`Invitation email sent to ${email}. The link below also works.`);
+      else if(sent&&sent.status==="ok"&&!(sent.skipped>0)) setUMsg("ok",`Invitation email queued for ${email}. The link below also works.`);
+      else setUMsg("info",`Invite link created for ${email}. Automatic emails aren't switched on yet — copy the link below and send it yourself.`);
     }catch(err){ setUMsg("err",errMsg(err,"create the invite")); }
     }, {busyLabel:"Creating…"});
   });

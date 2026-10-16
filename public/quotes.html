@@ -6,8 +6,6 @@
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Quotes &amp; Confirmations — Helm Events</title>
-<link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
-<link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
 <link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -283,7 +281,7 @@
 <script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=205"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=207"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="tour.js?v=14"></script>
 <script>
@@ -294,7 +292,8 @@
   const inr = (n)=> (curTax && curTax.country!=="IN") ? BPStore.tax.money(Number(n||0), curTax) : "₹"+Number(n||0).toLocaleString("en-IN");
   const fmtDate=(iso)=>{try{return BPStore.fmtDay(iso)||"—";}catch{return "—";}};
   // shared status pills (ui-kit .hs-pill); the old .stat class stays as the fallback if ui-kit.css doesn't load
-  const statBadge=(s)=> s==="confirmed"?'<span class="stat hs-pill hs-confirmed">Confirmed</span>':s==="cancelled"?'<span class="stat hs-pill hs-overdue">Cancelled</span>':'<span class="stat hs-pill hs-draft">Quote</span>';
+  // confirmed by the studio but not yet approved/paid by the client → say so (not a bare "Confirmed")
+  const statBadge=(s,a)=> s==="confirmed"?(a==="approved"||a==="paid"?'<span class="stat hs-pill hs-confirmed">Confirmed</span>':'<span class="stat hs-pill hs-confirmed">Confirmed · awaiting client approval</span>'):s==="cancelled"?'<span class="stat hs-pill hs-overdue">Cancelled</span>':'<span class="stat hs-pill hs-draft">Quote</span>';
   const apprBadge=(a)=> a==="paid"?'<span class="stat hs-pill hs-paid">Paid</span>':a==="approved"?'<span class="stat hs-pill hs-confirmed">Approved</span>':a==="sent"?'<span class="stat hs-pill hs-sent">Sent</span>':"";
 
   let focusPending=true;
@@ -501,8 +500,8 @@
         <td class="code"><span class="refchip" title="Reference code">${esc(x.code)}</span></td>
         <td><a class="qname" href="event.html?id=${esc(encodeURIComponent(x.id))}" title="Open the event workspace"><b>${esc(qName(x))}</b></a><div class="muted">${esc(x.eventType||"")}</div></td>
         <td>${esc(client)||'<span class="muted">—</span>'}</td>
-        <td><select class="vsel" data-role="vsel" aria-label="Version of ${esc(x.code)}"><option>v${esc(x.currentVersion)}</option></select></td>
-        <td>${sh(x)?(sh(x).shelf==="deleted"?'<span class="stat hs-pill hs-overdue">Deleted</span> ':'<span class="stat hs-pill hs-archived">Archived</span> '):''}${needsAttention(x)?'<span class="stat hs-pill hs-overdue" title="Event date has passed but this event isn\'t wrapped up — settle, return equipment and close it">⚠ Overdue</span> ':''}${isArchived(x)&&x.lifecycleStage==="closed"?'<span class="stat hs-pill hs-archived">Closed · Archived</span>':statBadge(x.status)} ${apprBadge(x.approvalStatus)}${staleSet.has(x.id)?`<div class="stat warn" role="status" style="margin-top:4px">⚠ Price changed after approval — client must approve again${canEdit?` <button type="button" class="ic" data-act="relink" aria-label="Send a new approval link for ${esc(x.code)}">Send new approval link</button>`:""}</div>`:""}${sh(x)?`<div class="shelfnote">${esc(shelfNote(sh(x)))}</div>`:""}</td>
+        <td><select class="vsel" data-role="vsel" aria-label="Version of ${esc(x.code)}"><option>V${esc(x.currentVersion)}</option></select></td>
+        <td>${sh(x)?(sh(x).shelf==="deleted"?'<span class="stat hs-pill hs-overdue">Deleted</span> ':'<span class="stat hs-pill hs-archived">Archived</span> '):''}${needsAttention(x)?'<span class="stat hs-pill hs-overdue" title="Event date has passed but this event isn\'t wrapped up — settle, return equipment and close it">⚠ Overdue</span> ':''}${isArchived(x)&&x.lifecycleStage==="closed"?'<span class="stat hs-pill hs-archived">Closed · Archived</span>':statBadge(x.status,x.approvalStatus)} ${apprBadge(x.approvalStatus)}${staleSet.has(x.id)?`<div class="stat warn" role="status" style="margin-top:4px">⚠ Price changed after approval — client must approve again${canEdit?` <button type="button" class="ic" data-act="relink" aria-label="Send a new approval link for ${esc(x.code)}">Send new approval link</button>`:""}</div>`:""}${sh(x)?`<div class="shelfnote">${esc(shelfNote(sh(x)))}</div>`:""}</td>
         <td style="text-align:right" class="amt">${x.total?esc(BPStore.quoteMoney(x.total,x)):'<span class="muted">—</span>'}</td>
         <td class="muted">${fmtDate(x.updatedAt)}</td>
         <td><div class="row-actions" style="justify-content:flex-end">
@@ -561,10 +560,10 @@
       }));
     });
   }
-  function selectedVersion(sel){ const m=/v(\d+)/.exec(sel.value||""); return m?parseInt(m[1],10):null; }
+  function selectedVersion(sel){ const m=/v(\d+)/i.exec(sel.value||""); return m?parseInt(m[1],10):null; }
   async function fillVersions(id,sel){
     try{ const full=detailCache[id]||(detailCache[id]=await BPStore.quotes.get(id));
-      sel.innerHTML=full.versions.map(v=>`<option value="v${esc(v.versionNo)}">v${esc(v.versionNo)} · ${esc(v.objectCount)} obj · ${fmtDate(v.createdAt)}</option>`).join("");
+      sel.innerHTML=full.versions.map(v=>`<option value="v${esc(v.versionNo)}">V${esc(v.versionNo)} · ${esc(v.objectCount)} obj · ${fmtDate(v.createdAt)}</option>`).join("");
     }catch(e){/* keep current */}
   }
 
@@ -619,7 +618,7 @@
     $("#p_svc").value = cfg.serviceChargePct||0;
     // fold the layout's décor/equipment + setup fee into "other" (first time only, so manual edits stick)
     $("#p_other").value = (pr.other!=null && pr.other!=="") ? pr.other : (objectsCost + (+cfg.layoutBase||0));
-    if(menuPlate!=null && planRow.menu_template) $("#rateNote").textContent += ` · package: ${planRow.menu_template}`;
+    cmPkgName = (menuPlate!=null && planRow.menu_template) ? String(planRow.menu_template) : "";
     // vendor dropdown (+ add new)
     $("#p_vendor").innerHTML = `<option value="">— none —</option>`+cmVendors.map(v=>`<option>${esc(v.name)}</option>`).join("")+`<option value="__new">＋ Add new vendor…</option>`;
     $("#p_vendor").value = (pr.catering&&pr.catering.vendor)||"";
@@ -640,6 +639,14 @@
   function closeConfirm(){ $("#confirmModal").hidden=true; cmDirty.clean(); }
   async function requestCloseConfirm(){ if($("#confirmModal").hidden) return; if(!(await BPUI.confirmDiscard(cmDirty))) return; closeConfirm(); }
   let cmKeep=false;
+  let cmPkgName="";   // applied menu package (its per-plate price overrides the studio default)
+  // the header shows the EFFECTIVE rates this quote is priced at (package plate price, kept chair price), not the studio defaults
+  function paintRateNote(p){
+    const rn=$("#rateNote"); if(!rn || !curTax) return;
+    rn.textContent = `· ${inr(p.chairPrice)}/chair · ${inr(p.platePrice)}/plate${cmPkgName?` (package: ${cmPkgName})`:""} · ${curTax.name} ${curTax.rate}%${curTax.inclusive?" (included in prices)":""}  (edit in Control Center)`;
+  }
+  // the total last saved on this quote (0 / unknown → no "changes from" line)
+  function cmSavedTotal(){ const d=detailCache[cmId]||{}; const v=Number(d.pricing&&d.pricing.total!=null?d.pricing.total:d.total); return Number.isFinite(v)&&v>0?v:null; }
   function paintCurBanner(show, qT, sT, pr, cfg){
     let b=document.getElementById("cmCurBanner");
     if(!b){ b=document.createElement("div"); b.id="cmCurBanner"; b.className="msg warn"; b.setAttribute("role","status"); const rn=$("#rateNote"); (rn&&rn.parentNode?rn.parentNode:$("#confirmModal")).insertBefore(b, rn?rn.nextSibling:null); }
@@ -670,11 +677,12 @@
   // inline checks on the counts + discount %: whole numbers 0–100,000 / a percent 0–100.
   // While any is invalid "Confirm & lock" stays disabled (Save pricing re-checks on click).
   let cmSaving=false;   // one save / confirm in flight (incl. while its confirm prompt is open)
-  const CM_CHECKS=[["p_chairs","Chairs","count"],["p_guests","Guests / plates","count"],["p_discountPct","Discount %","pct"]];
+  const CM_CHECKS=[["p_chairs","Chairs","count"],["p_guests","Guests / plates","count"],["p_discount","Discount","money"],["p_discountPct","Discount %","pct"]];
   function cmFieldError(raw, label, kind){
     const v=String(raw==null?"":raw).trim(); if(v==="") return "";
     const n=Number(v); if(!Number.isFinite(n)) return label+" must be a number.";
     if(kind==="count"){ if(!Number.isInteger(n)) return label+" must be a whole number."; if(n<0||n>100000) return label+" must be between 0 and 100,000."; }
+    else if(kind==="money"){ if(n<0) return label+" can't be negative."; }
     else if(n<0||n>100) return label+" must be between 0 and 100.";
     return "";
   }
@@ -689,8 +697,11 @@
     return ok;
   }
   function recalc(){
-    cmValidate();
+    const valid=cmValidate();
     const p=gatherPricing(), t=calcPricing(p);
+    paintRateNote(p);
+    // an invalid count / discount → no total is shown (never a number the quote can't be saved at)
+    const saved=cmSavedTotal(), changes=valid && saved!=null && Math.abs(Math.round(saved)-Math.round(t.total))>=1;
     const taxRows = BPStore.tax.rows(t, p, BPStore.tax.resolve(p)).map(r=>`<div class="r"><span>${esc(r.label)}</span><span class="amt">${inr(r.amount)}</span></div>`).join("");
     $("#totals").innerHTML =
       `<div class="r"><span>Chairs (${p.chairs} × ${inr(p.chairPrice)})${p.other?` + other ${inr(p.other)}`:""}</span><span class="amt">${inr(t.rental)}</span></div>`+
@@ -699,8 +710,9 @@
       `<div class="r"><span>Subtotal</span><span class="amt">${inr(t.subtotal)}</span></div>`+
       taxRows+
       (t.discount?`<div class="r"><span>Discount</span><span class="amt">− ${inr(t.discount)}</span></div>`:"")+
-      `<div class="r grand"><span>Grand total</span><span class="amt">${inr(t.total)}</span></div>`+
-      `<div class="r" style="font-style:italic;color:var(--ink-3);font-size:12px;justify-content:flex-end"><span>${curTax&&curTax.country!=="IN"?"":esc(BPStore.amountInWords(t.total))}</span></div>`;
+      `<div class="r grand"><span>Grand total</span><span class="amt">${valid?inr(t.total):"—"}</span></div>`+
+      `<div class="r" style="font-style:italic;color:var(--ink-3);font-size:12px;justify-content:flex-end"><span>${!valid||(curTax&&curTax.country!=="IN")?"":esc(BPStore.amountInWords(t.total))}</span></div>`+
+      (changes?`<div class="msg warn cm-total-change" role="status">Total changes from ${esc(inr(saved))} to ${esc(inr(t.total))}.</div>`:"");
   }
   async function savePricing(confirmIt){
     const btn = confirmIt?$("#cm_confirm"):$("#cm_savePricing");
@@ -742,7 +754,8 @@
         if(dup && !(await BPUI.confirm(`Another quote (${dup.code||"existing"}) already exists for ${$("#c_name").value.trim()} on ${dd}. Save this one anyway?`,{title:"Possible duplicate",okLabel:"Save anyway"}))) { unlock(); return; }
       } }catch(_){}
     if(confirmIt){ const tt=calcPricing(gatherPricing()); const code=(detailCache[cmId]&&detailCache[cmId].code)||"this quote";
-      let ok=false; try{ ok=await BPUI.confirm(`Confirm ${code} at ${inr(tt.total)}? This locks a priced snapshot for the client.`,{title:"Confirm & lock quote?",okLabel:"Confirm & lock"}); }catch(_){ ok=false; }
+      const sv=cmSavedTotal(), chg=sv!=null && Math.abs(Math.round(sv)-Math.round(tt.total))>=1 ? `Total changes from ${inr(sv)} to ${inr(tt.total)}. ` : "";
+      let ok=false; try{ ok=await BPUI.confirm(`${chg}Confirm ${code} at ${inr(tt.total)}? This locks a priced snapshot for the client.`,{title:"Confirm & lock quote?",okLabel:"Confirm & lock"}); }catch(_){ ok=false; }
       if(!ok){ unlock(); return; } }
     btn.setAttribute("aria-busy","true");
     const p=gatherPricing(), t=calcPricing(p);
@@ -828,7 +841,7 @@
     .badge{background:#eef2ff;color:#4457c8;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}</style>
     <div class=head><div><h1>${esc(sup.name||"Helm Events")}</h1>${sup.tradeName&&sup.tradeName!==sup.name?`<div class=muted>${esc(sup.tradeName)}</div>`:""}${sup.address?`<div class=muted>${esc(sup.address)}</div>`:""}${sup.taxId?`<div class=muted>${esc(sup.taxIdLabel)}: ${esc(sup.taxId)}</div>`:""}<div class=muted style="font-weight:700;margin-top:4px">${isInv?invTitle(qTax,sup):"Event Quotation"}</div></div>
       <div style="text-align:right"><div style="font-family:monospace;font-weight:700;font-size:16px">${esc(full.code)}</div>
-      <div class=muted>${[isInv?(BPStore.quoteDate(full.confirmedAt,qTax)?"Confirmed "+BPStore.quoteDate(full.confirmedAt,qTax):"Confirmed"):"Quote v"+full.currentVersion, ver&&String(ver)!==String(full.currentVersion)?"layout v"+esc(String(ver)):"", BPStore.quoteDate(full.updatedAt,qTax)].filter(Boolean).join(" · ")}</div>
+      <div class=muted>${[isInv?(BPStore.quoteDate(full.confirmedAt,qTax)?"Confirmed "+BPStore.quoteDate(full.confirmedAt,qTax):"Confirmed"):"Quote V"+full.currentVersion, ver&&String(ver)!==String(full.currentVersion)?"layout v"+esc(String(ver)):"", BPStore.quoteDate(full.updatedAt,qTax)].filter(Boolean).join(" · ")}</div>
       <span class=badge>${isInv?"CONFIRMED":"QUOTE"}</span></div></div>
     <table><tr><td class=muted>Client</td><td>${esc(cl.name||"—")}${cl.company?" · "+esc(cl.company):""}</td></tr>
       ${cl.email?`<tr><td class=muted>Email</td><td>${esc(cl.email)}</td></tr>`:""}

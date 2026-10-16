@@ -5,7 +5,7 @@
  * DOM is built with createElement/textContent only (no innerHTML with data). */
 (function (global) {
   "use strict";
-  var modal = null, people = [], quote = null, onDone = null;
+  var modal = null, people = [], quote = null, onDone = null, stay = false;
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
   function nm(p) { try { if (BPStore.chat.displayName) return BPStore.chat.displayName(p); } catch (_) {} return p.full_name || p.email || "Member"; }
   function rl(r) { try { return r ? BPStore.auth.admin.roleLabel(r) : ""; } catch (_) { return r || ""; } }
@@ -61,12 +61,14 @@
       var g = null; try { g = (await BPStore.chat.eventGroups.index())[qq.id] || null; } catch (_) {}
       close();
       if (g && !g.is_member) { BPUI.toast("This event already has a group. Ask someone in it to add you.", { type: "info" }); if (onDone) onDone(g); return; }
+      // opts.stay (event workspace): stay on the page — it re-renders "Open event group"
+      if (stay && onDone) { BPUI.toast("Event group created. Use Open event group to chat with the team.", { type: "ok" }); onDone(g || { conversation_id: cid, is_member: true }); return; }
       location.href = "chat.html?c=" + encodeURIComponent((g && g.conversation_id) || cid);
     } catch (e) { var er = q("#egp_err"); er.textContent = BPUI.friendlyError(e, { action: "create the event group" }); er.hidden = false; }
   }
   // open(quote, {canEdit, onDone}) — quote needs id, code, status
   async function open(qt, opts) {
-    opts = opts || {}; onDone = opts.onDone || null;
+    opts = opts || {}; onDone = opts.onDone || null; stay = !!opts.stay;
     if (!qt || !qt.id) return;
     if (qt.status !== "confirmed") { BPUI.toast("Confirm this quote before creating its event group.", { type: "info" }); return; }
     if (!opts.canEdit) { BPUI.toast("Ask an admin or manager to create this event's group.", { type: "info" }); return; }

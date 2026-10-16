@@ -30,11 +30,11 @@ var HelmUrl = (function (global) {
     client: ["clients", "", "client", "id"], booklet: ["booklet", "", "booklet", "t"]
   };
   // plain sidebar pages served at /<studio>/<page> (no ref); control is reached via "settings"
-  "audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations".split("|").forEach(function (p) { KINDS[p] = [p, "", p, ""]; });
+  "audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|settlement|budget|closure|runsheet|resources|logistics|teardown|command|ready".split("|").forEach(function (p) { KINDS[p] = [p, "", p, ""]; });
   var PAGE_KIND = { dashboard: "dashboard", quotes: "quotes", leads: "leads", chat: "chat", control: "settings",
     event: "event", builder: "floor-plan", ops: "tasks", client: "client", booklet: "booklet" };
   Object.keys(KINDS).forEach(function (k) { if (!PAGE_KIND[KINDS[k][2]]) PAGE_KIND[KINDS[k][2]] = k; });
-  var RE = /^\/([a-z0-9-]{3,40})\/(dashboard|quotes|leads|chat|settings|events|clients|booklet|audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|control)(?:\/([^/?#]{1,160})(?:\/(floor-plan|tasks))?)?\/?$/;
+  var RE = /^\/([a-z0-9-]{3,40})\/(dashboard|quotes|leads|chat|settings|events|clients|booklet|audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|control|settlement|budget|closure|runsheet|resources|logistics|teardown|command|ready)(?:\/([^/?#]{1,160})(?:\/(floor-plan|tasks))?)?\/?$/;
   var slug = null;
   try { var s0 = global.sessionStorage && sessionStorage.getItem("bp_studio_slug"); if (s0 && SLUG.test(s0)) slug = s0; } catch (e) {}
   function dec(v) { try { return decodeURIComponent(v); } catch (e) { return null; } }
@@ -43,7 +43,7 @@ var HelmUrl = (function (global) {
     var sec = m[2], ref = m[3] ? dec(m[3]) : null, sub = m[4] || "";
     if (m[3] && ref == null) return null;
     var kind = null;
-    if (sec === "events") kind = ref ? (sub === "floor-plan" ? "floor-plan" : sub === "tasks" ? "tasks" : "event") : null;
+    if (sec === "events") kind = ref ? (sub === "floor-plan" ? "floor-plan" : sub === "tasks" ? "tasks" : "event") : "quotes";   // /<studio>/events → the events (quotes) list
     else if (sub) kind = null;
     else if (sec === "clients" || sec === "booklet") kind = ref ? (sec === "clients" ? "client" : "booklet") : null;
     else if (!ref) kind = (sec === "settings" || sec === "control") ? "settings" : sec;
@@ -172,8 +172,8 @@ window.HelmUrl = HelmUrl;
   const LS_KEY = "bps.layouts";
   const API = "/api";
   // Warm the connection to the configured Supabase origin (DNS + TCP + TLS) while
-  // supabase-js loads. Pages already preconnect to the production origin in <head>;
-  // this covers staging / local. No-op when that origin is already preconnected.
+  // supabase-js loads. Pages carry NO hardcoded origin hint (staging must not warm prod);
+  // this covers prod / staging / local. No-op when that origin is already preconnected.
   (function preconnectSupabase() {
     try {
       if (typeof document === "undefined" || !document.head || !CFG.url || !/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(CFG.url)) return;
@@ -1022,7 +1022,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "29";
+  const AUTH_UI_VERSION = "30";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -1289,6 +1289,24 @@ window.HelmUrl = HelmUrl;
   function invitePwPending() {
     try { const id = sessionStorage.getItem(INVITE_SET_PW_KEY); return !!(id && currentUser && currentUser.id === id); } catch (e) { return false; }
   }   // { access_token, refresh_token } from a Supabase invite e-mail link (login page only)
+  // Workspace tool pages (settlement, budget, …) read ?quote=<uuid>. A link may carry the
+  // event NUMBER instead (/<studio>/settlement?quote=DEMO-202): resolve it (caller's org only,
+  // resolve_event_ref) and reload with the record id. true = a reload is under way.
+  const TOOL_PAGES = ["settlement", "budget", "closure", "runsheet", "resources", "logistics", "teardown", "command", "ready"];
+  async function toolQuoteRef() {
+    try {
+      if (!currentUser || TOOL_PAGES.indexOf(pageKey()) < 0) return false;
+      const q = new URLSearchParams(location.search || "");
+      const key = q.get("quote") ? "quote" : (q.get("id") ? "id" : "");
+      const ref = key ? String(q.get(key)) : "";
+      if (!ref || HelmUrl.isUuid(ref) || ref.length > 80) return false;
+      const e = await rpc("resolve_event_ref", { p_ref: ref });
+      if (!e || !e.id || !HelmUrl.isUuid(e.id)) return false;
+      q.set(key, e.id);
+      location.replace(location.pathname + "?" + q.toString() + (location.hash || ""));
+      return true;
+    } catch (e) { return false; }
+  }
   async function init() {
     if (ready) return ready;
     ready = (async () => {
@@ -1394,6 +1412,7 @@ window.HelmUrl = HelmUrl;
             }
             mode = "supabase";
             await runPageGate();          // protected page: confirm session + studio before it shows
+            if (await toolQuoteRef()) await HANG();
             return mode;
           }
         } catch (e) { console.warn("[BPStore] Supabase init error, falling back:", e && e.message); }
@@ -3654,7 +3673,9 @@ window.HelmUrl = HelmUrl;
     normPhone: memberNormPhone,
     phoneE164: memberPhoneE164,
     // r7: an existing row whose stored phone fails today's rule (shown as "Invalid phone — please fix")
-    phoneInvalid: (s) => !!(s && s.phone && !memberPhoneE164(s.phone).ok),
+    // demo/sample rows (trial seed: is_demo or "Demo · …" name) carry placeholder numbers on purpose: no red warning
+    isDemo: (s) => !!(s && (s.is_demo === true || /^Demo \u00b7 /.test(String(s.name || "")))),
+    phoneInvalid: (s) => !!(s && s.phone && !(s.is_demo === true || /^Demo \u00b7 /.test(String(s.name || ""))) && !memberPhoneE164(s.phone).ok),
     // The linked staff record that already has this number (another row would be a second
     // record for one account) → { id, name } or null. Before 0041 / on error → null (the DB
     // guard still refuses it; its message is shown through linkErrorText).
@@ -5199,7 +5220,11 @@ window.HelmUrl = HelmUrl;
       // ensure the org "Everyone" channel ONCE per page — not on every bell poll
       if (!chatBcastEnsured) { try { await rpc("chat_ensure_broadcast"); chatBcastEnsured = true; } catch (e) {} }
       const { data, error } = await supa.from("chat_conversations").select("*").order("last_message_at", { ascending: false });
-      if (error) throw error; return data || [];
+      if (error) throw error;
+      // event-group titles made while create_event_group's " \u00b7 " was mis-encoded (UTF-8 read as
+      // Mac Roman: "\u00ac\u2211") - show the intended middle dot (display only; 0137 fixes new ones)
+      (data || []).forEach((c) => { if (c && typeof c.title === "string" && c.title.indexOf("\u00ac\u2211") >= 0) c.title = c.title.split("\u00ac\u2211").join("\u00b7"); });
+      return data || [];
     },
     // My membership rows (→ last_read_at per conversation, for unread badges).
     async myMemberships() {
@@ -6390,6 +6415,22 @@ window.HelmUrl = HelmUrl;
       const delta = vendorPnlCalc(Object.assign({ bills: [] }, base)).vendors - vendorPnlCalc(Object.assign({ bills }, base)).vendors;
       sum.finalMargin = Math.round((Number(sum.finalMargin || 0) + delta) * 100) / 100;
       return delta;
+    },
+    // Shift a budget summary's estimated cost/margin by the vendor-bills delta so the Budget
+    // page + workspace Budget card show the same margin as Settlement / Closure once a bill
+    // replaces a booking's cost. delta = booked cost - billed cost (0 when there are no bills).
+    applyBillsToBudget(bs, delta) {
+      if (!bs || !delta) return bs;
+      const r2 = (n) => Math.round(n * 100) / 100;
+      bs.estCost = r2(Number(bs.estCost || 0) - delta); bs.estMargin = r2(Number(bs.estMargin || 0) + delta);
+      const rx = bs.revenueExTax != null ? bs.revenueExTax : bs.revenue;
+      bs.estMarginPct = rx ? Math.round(bs.estMargin / rx * 100) : null;
+      return bs;
+    },
+    async billsDelta(quoteId) {
+      let bk = []; try { bk = ((await bookings.list(quoteId)) || []).filter((x) => x.status !== "cancelled"); } catch (_) { return 0; }
+      if (!bk.length) return 0;
+      try { return await this.applyBills({ bookings: bk, finalMargin: 0 }, quoteId); } catch (_) { return 0; }
     },
   };
 
@@ -7775,6 +7816,13 @@ window.HelmUrl = HelmUrl;
       const { data, error } = await q.order("at", { ascending: false }).order("id", { ascending: false }).limit(limit + 1);
       if (error) throw error;
       const d = data || [], rows = d.slice(0, limit);
+      // vendor_payouts rows carry bill_id, not quote_id: resolve the event through the bill so the
+      // EVENT column links like the bill / payment rows (read-only, best effort; RLS-scoped).
+      const billIds = [...new Set(rows.filter((r) => r.entity === "vendor_payouts" && !r.quote_id && r.changed && r.changed.bill_id)
+        .map((r) => String(r.changed.bill_id)).filter((x) => /^[0-9a-f-]{36}$/i.test(x)))].slice(0, 100);
+      if (billIds.length) { try { const { data: bl } = await supa.from("vendor_bills").select("id, quote_id").in("id", billIds);
+        const m = {}; (bl || []).forEach((b) => { if (b && b.quote_id) m[b.id] = b.quote_id; });
+        rows.forEach((r) => { if (r.entity === "vendor_payouts" && !r.quote_id && r.changed && m[r.changed.bill_id]) r.quote_id = m[r.changed.bill_id]; }); } catch (_) {} }
       return { rows, hasMore: d.length > limit, offset: rows.length ? rows[rows.length - 1] : (o.after || null) }; },
     // Areas for the filter: every audited table, plus any other area seen in the recent
     // log (was: the WHOLE log's entity column, every row, on every visit).

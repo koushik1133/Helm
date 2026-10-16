@@ -209,3 +209,7 @@ forward  supabase/migrations/0134_integrations_overview.sql
 forward  supabase/migrations/0135_audit_more_tables.sql
 # 0136 (tenant guard catch-up: zz_quote_org_match on every quote_id+org_id table added since 0004 (vendor_bills, event_reminders, assign_notify_outbox, integration_webhook_events); zzz_studio_read_only on the 9 studio tables added in 0116-0132; revoke EXECUTE on trigger functions from public/anon/authenticated; no rows changed) goes after 0117 + 0124 + 0129 + 0132.
 forward  supabase/migrations/0136_tenant_guard_catchup.sql
+# 0137 (event-group title dot: re-create create_event_group with chr(183) instead of a literal middle dot that was mis-encoded on paste; same body + grants; no rows changed) goes after 0035.
+forward  supabase/migrations/0137_event_group_title_dot.sql
+# 0138 (demo staff phones: rewrite ONLY trial demo sample staff rows (is_demo, unlinked) from the placeholder "+91 00000 001xx" to the valid-looking "+91 90000 001xx"; no other row changed) goes after 0122.
+forward  supabase/migrations/0138_demo_staff_phones.sql
