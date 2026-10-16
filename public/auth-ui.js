@@ -106,6 +106,7 @@
       "@keyframes hauIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}",
       "@media (prefers-reduced-motion:reduce){.hau-note{animation:none}}",
       "@media (max-width:600px){.hau-notes{left:16px;right:16px;bottom:72px;width:auto}}",
+      ".hau-notes[hidden]{display:none}",
       /* profile form (Account panel + /profile-setup) — page tokens first, BPUI tokens as fallback */
       ".hpf{--hpf-ink:var(--ink,var(--bpui-ink,#141b2e));--hpf-ink2:var(--ink-2,var(--bpui-ink-2,#4a5673));--hpf-ink3:var(--ink-3,#6b6577);--hpf-line:var(--line-strong,var(--bpui-line,#86808f));--hpf-line2:var(--line,#e8e3db);--hpf-bg:var(--panel,var(--bpui-bg,#fff));--hpf-bg2:var(--panel-2,#faf8f5);--hpf-acc:var(--accent,var(--bpui-accent,#6d28d9));--hpf-soft:var(--accent-soft,var(--bpui-soft,#f4f2fb));--hpf-bad:var(--bad,var(--bpui-danger,#b91c1c));--hpf-ok:var(--safe-text,#0f7a43);color:var(--hpf-ink);font-size:15px}",
       ".hpf-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}",
@@ -1142,6 +1143,26 @@
       if (pad) doc.body.style.setProperty("--hau-notes-pad", pad + "px"); else doc.body.style.removeProperty("--hau-notes-pad");
     } catch (e) {}
   }
+  // Never float a notice over an open modal: it covered the modal's Save button, and a click on it
+  // could land on the modal backdrop and trigger "Discard changes?". Hidden while a VISIBLE modal
+  // is open (the bell panel etc. stay in the DOM with aria-modal, so check layout, not markup).
+  var modalWatch = null, modalRaf = 0;
+  function modalOpen() {
+    return Array.prototype.some.call(doc.querySelectorAll("[aria-modal='true'], dialog[open]"), function (m) {
+      if (noteHost && noteHost.contains(m)) return false;
+      return !!m.offsetParent || m.getClientRects().length > 0;
+    });
+  }
+  function syncNotesForModal() {
+    modalRaf = 0;
+    var hide = !!(notes.length && (modalOpen() || tourActive()));   // one prompt at a time: notices wait for the tour too
+    if (noteHost && noteHost.hidden !== hide) noteHost.hidden = hide;   // only on change (the observer sees our own write)
+  }
+  function watchModals() {
+    if (modalWatch || !global.MutationObserver || !doc.body) return;
+    modalWatch = new MutationObserver(function () { if (!modalRaf) modalRaf = setTimeout(syncNotesForModal, 60); });
+    modalWatch.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden", "class", "open", "style"] });
+  }
   function tourActive() {
     var t = doc.querySelector(".htour");
     return !!(t && !t.hidden && t.isConnected && t.getClientRects().length);
@@ -1172,6 +1193,7 @@
     card.addEventListener("keydown", function (e) { if (e.key === "Escape" && o.onDismiss) { o.onDismiss(); hideNote(o.id); } });
     notes.push({ id: o.id, priority: o.priority || 9, node: card });
     layoutNotes();
+    watchModals(); syncNotesForModal();
     return card;
   }
   function hideNote(id) {

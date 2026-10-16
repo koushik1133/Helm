@@ -56,8 +56,8 @@ do $$ declare t text; begin
                            'integration_webhook_events','trial_reminders','event_reminders','invite_email_outbox',
                            'assign_notify_outbox'] loop
     if to_regclass('public.' || t) is not null
-       and exists (select 1 from pg_attribute a where a.attrelid = ('public.' || t)::regclass and a.attname = 'org_id' and not a.attisdropped)
-       and not exists (select 1 from pg_trigger g where g.tgrelid = ('public.' || t)::regclass and g.tgname = 'zzz_studio_read_only') then
+       and exists (select 1 from pg_attribute a where a.attrelid = to_regclass('public.' || t) and a.attname = 'org_id' and not a.attisdropped)
+       and not exists (select 1 from pg_trigger g where g.tgrelid = to_regclass('public.' || t) and g.tgname = 'zzz_studio_read_only') then
       execute format('create trigger zzz_studio_read_only before insert or update or delete on public.%I for each row execute function public.tg_studio_read_only(%L)', t, 'org_id');
     end if;
   end loop;

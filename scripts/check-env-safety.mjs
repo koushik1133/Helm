@@ -78,7 +78,9 @@ console.log('Env-safety: production hosts never receive the staging project:');
     // (helm-v01.vercel.app, conditioned on that exact host). No other per-host CSP rules.
     const STG_SITE = ['helm-v01.vercel.app'];
     const isStgRule = (r) => r.source === '/(.*)' && (r.has || []).length === 1 && r.has[0].type === 'host' &&
-      STG_SITE.includes(r.has[0].value) && (r.headers || []).length === 1 && r.headers[0].key === 'Content-Security-Policy';
+      STG_SITE.includes(r.has[0].value) && (r.headers || []).length >= 1 && r.headers[0].key === 'Content-Security-Policy' &&
+      // + optional X-Frame-Options SAMEORIGIN, kept in step with the union frame-ancestors 'self'
+      r.headers.slice(1).every((h) => h.key === 'X-Frame-Options' && h.value === 'SAMEORIGIN') && r.headers.length <= 2;
     const rest = { ...vercel, headers: (vercel.headers || []).filter((r) => !isStgRule(r)) };
     JSON.stringify(rest).includes(stgRef) ? fail('vercel.json names the staging project outside the staging-site rule') : ok('vercel.json CSP is staging-free on every non-staging host');
     for (const host of STG_SITE) {

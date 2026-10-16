@@ -11,8 +11,6 @@
 <meta name="bp-theme-toggle" content="off">
 <title>Team Chat — Helm Events</title>
 <link rel="icon" href="/brand/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
-<link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
-<link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
 <link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -48,9 +46,9 @@
   .themebtn:hover{background:var(--panel-2)}
 
   /* ---------- two-pane chat ---------- */
-  .app{flex:1;display:grid;grid-template-columns:min(380px,34%) 1fr;min-height:0}
-  @media(max-width:760px){.app{grid-template-columns:1fr}.app.show-thread .side{display:none}.app:not(.show-thread) .thread{display:none}.nav{display:none}}
-  .side{background:var(--panel);display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line)}
+  .app{flex:1;display:grid;grid-template-columns:min(380px,34%) minmax(0,1fr);min-height:0;min-width:0}
+  @media(max-width:760px){.app{grid-template-columns:minmax(0,1fr)}.app.show-thread .side{display:none}.app:not(.show-thread) .thread{display:none}.nav{display:none}}
+  .side{background:var(--panel);display:flex;flex-direction:column;min-height:0;min-width:0;border-right:1px solid var(--line)}
   .sidehead{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:12px 10px 10px 16px}
   .sidehead h2{font-size:18px;font-weight:700;margin:0;flex:1}
   .circbtn{width:38px;height:38px;border-radius:50%;border:0;background:transparent;color:var(--ink-2);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
@@ -369,7 +367,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=205"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=206"></script>
 <script>
 (function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
 (function(){

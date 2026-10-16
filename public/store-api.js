@@ -172,8 +172,8 @@ window.HelmUrl = HelmUrl;
   const LS_KEY = "bps.layouts";
   const API = "/api";
   // Warm the connection to the configured Supabase origin (DNS + TCP + TLS) while
-  // supabase-js loads. Pages already preconnect to the production origin in <head>;
-  // this covers staging / local. No-op when that origin is already preconnected.
+  // supabase-js loads. Pages carry NO hardcoded origin hint (staging must not warm prod);
+  // this covers prod / staging / local. No-op when that origin is already preconnected.
   (function preconnectSupabase() {
     try {
       if (typeof document === "undefined" || !document.head || !CFG.url || !/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(CFG.url)) return;
@@ -1022,7 +1022,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "29";
+  const AUTH_UI_VERSION = "30";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -5199,7 +5199,11 @@ window.HelmUrl = HelmUrl;
       // ensure the org "Everyone" channel ONCE per page — not on every bell poll
       if (!chatBcastEnsured) { try { await rpc("chat_ensure_broadcast"); chatBcastEnsured = true; } catch (e) {} }
       const { data, error } = await supa.from("chat_conversations").select("*").order("last_message_at", { ascending: false });
-      if (error) throw error; return data || [];
+      if (error) throw error;
+      // event-group titles made while create_event_group's " \u00b7 " was mis-encoded (UTF-8 read as
+      // Mac Roman: "\u00ac\u2211") - show the intended middle dot (display only; 0137 fixes new ones)
+      (data || []).forEach((c) => { if (c && typeof c.title === "string" && c.title.indexOf("\u00ac\u2211") >= 0) c.title = c.title.split("\u00ac\u2211").join("\u00b7"); });
+      return data || [];
     },
     // My membership rows (→ last_read_at per conversation, for unread badges).
     async myMemberships() {
@@ -6390,6 +6394,22 @@ window.HelmUrl = HelmUrl;
       const delta = vendorPnlCalc(Object.assign({ bills: [] }, base)).vendors - vendorPnlCalc(Object.assign({ bills }, base)).vendors;
       sum.finalMargin = Math.round((Number(sum.finalMargin || 0) + delta) * 100) / 100;
       return delta;
+    },
+    // Shift a budget summary's estimated cost/margin by the vendor-bills delta so the Budget
+    // page + workspace Budget card show the same margin as Settlement / Closure once a bill
+    // replaces a booking's cost. delta = booked cost - billed cost (0 when there are no bills).
+    applyBillsToBudget(bs, delta) {
+      if (!bs || !delta) return bs;
+      const r2 = (n) => Math.round(n * 100) / 100;
+      bs.estCost = r2(Number(bs.estCost || 0) - delta); bs.estMargin = r2(Number(bs.estMargin || 0) + delta);
+      const rx = bs.revenueExTax != null ? bs.revenueExTax : bs.revenue;
+      bs.estMarginPct = rx ? Math.round(bs.estMargin / rx * 100) : null;
+      return bs;
+    },
+    async billsDelta(quoteId) {
+      let bk = []; try { bk = ((await bookings.list(quoteId)) || []).filter((x) => x.status !== "cancelled"); } catch (_) { return 0; }
+      if (!bk.length) return 0;
+      try { return await this.applyBills({ bookings: bk, finalMargin: 0 }, quoteId); } catch (_) { return 0; }
     },
   };
 
@@ -7775,6 +7795,13 @@ window.HelmUrl = HelmUrl;
       const { data, error } = await q.order("at", { ascending: false }).order("id", { ascending: false }).limit(limit + 1);
       if (error) throw error;
       const d = data || [], rows = d.slice(0, limit);
+      // vendor_payouts rows carry bill_id, not quote_id: resolve the event through the bill so the
+      // EVENT column links like the bill / payment rows (read-only, best effort; RLS-scoped).
+      const billIds = [...new Set(rows.filter((r) => r.entity === "vendor_payouts" && !r.quote_id && r.changed && r.changed.bill_id)
+        .map((r) => String(r.changed.bill_id)).filter((x) => /^[0-9a-f-]{36}$/i.test(x)))].slice(0, 100);
+      if (billIds.length) { try { const { data: bl } = await supa.from("vendor_bills").select("id, quote_id").in("id", billIds);
+        const m = {}; (bl || []).forEach((b) => { if (b && b.quote_id) m[b.id] = b.quote_id; });
+        rows.forEach((r) => { if (r.entity === "vendor_payouts" && !r.quote_id && r.changed && m[r.changed.bill_id]) r.quote_id = m[r.changed.bill_id]; }); } catch (_) {} }
       return { rows, hasMore: d.length > limit, offset: rows.length ? rows[rows.length - 1] : (o.after || null) }; },
     // Areas for the filter: every audited table, plus any other area seen in the recent
     // log (was: the WHOLE log's entity column, every row, on every visit).
