@@ -275,11 +275,13 @@
   var TITLES = { dashboard: 'Dashboard', leads: 'Leads', quotes: 'Quotes', proposal: 'Client proposal', calendar: 'Calendar', event: 'Event workspace', settlement: 'Settlement & P&L' };
   function render(focus) {
     var view = (location.hash || '').replace(/^#/, '');
-    if (ORDER.indexOf(view) < 0 || !Object.prototype.hasOwnProperty.call(V, view) || typeof V[view] !== 'function') view = 'dashboard';
+    // the hash only selects among the fixed ORDER names; the method name itself always comes from ORDER
+    var vi = ORDER.indexOf(view); view = vi < 0 ? 'dashboard' : ORDER[vi];
+    var build = Object.prototype.hasOwnProperty.call(V, view) && typeof V[view] === 'function' ? V[view] : V.dashboard;
     var main = D.getElementById('main');
     if (!main) return;
     while (main.firstChild) main.removeChild(main.firstChild);
-    V[view]().forEach(function (n) { if (n) main.appendChild(n); });
+    build().forEach(function (n) { if (n) main.appendChild(n); });
     var navs = D.querySelectorAll('.dm-nav[data-view]');
     for (var i = 0; i < navs.length; i++) {
       if (navs[i].getAttribute('data-view') === view) { navs[i].setAttribute('aria-current', 'page'); try { var side = navs[i].parentNode; if (side.scrollWidth > side.clientWidth) side.scrollLeft = Math.max(0, navs[i].offsetLeft - 16); } catch (e) {} } else navs[i].removeAttribute('aria-current');

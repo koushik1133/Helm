@@ -16,6 +16,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('node:crypto');
+const zlib = require('node:zlib');
 
 // Stability mandate: strict env validation BEFORE the server layer starts — fail
 // fast with an actionable message rather than silently binding somewhere unexpected.
@@ -272,13 +273,21 @@ function cacheControlFor(filePath, query) {
 function sendFileRes(res, filePath, buf, req, status = 200) {
   const ext = path.extname(filePath);
   const query = (req && req.url && req.url.includes('?')) ? req.url.slice(req.url.indexOf('?')) : '';
+  // Compress text responses like the production CDN (Vercel) does, so local runs and the
+  // Lighthouse CI budgets measure realistic transfer sizes.
+  const type = MIME[ext] || 'application/octet-stream';
+  const gz = buf.length > 1024 && COMPRESSIBLE.test(type) && /\bgzip\b/i.test(String((req && req.headers && req.headers['accept-encoding']) || ''));
+  const body = gz ? zlib.gzipSync(buf) : buf;
   res.writeHead(status, {
-    'Content-Type': MIME[ext] || 'application/octet-stream',
+    'Content-Type': type,
     'Cache-Control': status === 200 ? cacheControlFor(filePath, query) : 'no-cache',
+    'Vary': 'Accept-Encoding',
+    ...(gz ? { 'Content-Encoding': 'gzip' } : {}),
     ...securityHeadersFor(req, filePath),
   });
-  res.end(buf);
+  res.end(body);
 }
+const COMPRESSIBLE = /^(text\/|application\/(javascript|json|xml|manifest\+json)|image\/svg\+xml)/i;
 
 // Unknown URL → the branded 404 page with a real 404 status (was: dashboard.html, 200).
 function sendNotFound(res, req) {
