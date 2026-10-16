@@ -614,7 +614,7 @@
     sb.setAttribute("aria-label", "Search (" + kbd.textContent + ")");
     sb.addEventListener("click", function () { try { if (window.HelmStudioSearch && HelmStudioSearch.open) HelmStudioSearch.open(); } catch (e) {} });
     acts.appendChild(sb);
-    var nl = link("leads.html", "hd-btn hd-ghost"); nl.appendChild(icon(IC.user)); nl.appendChild(el("span", null, "New lead")); nl.hidden = true; acts.appendChild(nl);
+    var nl = link("leads.html#hb-new", "hd-btn hd-ghost"); nl.appendChild(icon(IC.user)); nl.appendChild(el("span", null, "New lead")); nl.hidden = true; acts.appendChild(nl);
     acts.appendChild(createSlot);
     var signIn = el("button", "hd-btn hd-primary"); signIn.type = "button"; signIn.hidden = true; signIn.appendChild(icon(IC.login)); signIn.appendChild(el("span", null, "Sign in"));
     signIn.addEventListener("click", function () { var b = document.getElementById("loginBtn"); if (b) b.click(); else location.href = "/login?next=dashboard"; });
@@ -708,7 +708,7 @@
     }
     if (createBtn && !createBtn.hidden && !signedOut) Promise.all([canEdit("inventory"), canEdit("vendors"), canEdit("staff"), canEdit("crm")]).then(function (pe) {
       var items = [{ t: "New quote", ic: IC.doc, act: function () { createBtn.click(); } }];
-      if (eLeads) items.push({ t: "New lead", ic: IC.user, href: "leads.html" });
+      if (eLeads) items.push({ t: "New lead", ic: IC.user, href: "leads.html#hb-new" });
       if (pe[3]) items.push({ t: "New client", ic: IC.people, href: "crm.html" });
       if (pe[0]) items.push({ t: "Inventory item", ic: IC.box, href: "inventory.html" });
       if (pe[1]) items.push({ t: "Vendor", ic: IC.shop, href: "vendors.html" });

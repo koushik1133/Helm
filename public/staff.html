@@ -175,7 +175,7 @@
 <script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=208"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=3"></script>
@@ -184,7 +184,7 @@
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const EMP={full_time:"Full-time",part_time:"Part-time",on_call:"On-call"};
-  const initials=(n)=>String(n||"?").trim().split(/\s+/).slice(0,2).map(w=>w[0]||"").join("").toUpperCase()||"?";
+  const initials=(n)=>String(n||"?").replace(/^\s*demo\s*[·•\-:]\s*/i,"").replace(/[^\p{L}\p{N}\s]/gu," ").trim().split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]||"").join("").toUpperCase()||"?";
   let attrDefs=[], attrEd=null, team=[], canEdit=false, canDelete=false, editingId=null, filter="", deptF="", skillF="", showInactive=false;
   const quoteId=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   let eventCrew=new Set(), eventOnly=!!quoteId, eventCode="";
@@ -309,7 +309,7 @@
   const reloadQuiet=()=>reloadList().catch(e=>{ $("#count").textContent=""; BPUI.loadError($("#grid"),e,reloadQuiet,{what:"staff"}); const c=$("#grid .bpui-loaderr"); if(c) c.style.gridColumn="1/-1"; });
   function render(){
     const shown=team;   // filtered on the server
-    $("#count").textContent=shownTotal+" of "+facets.total;
+    $("#count").textContent=(facets.total>0||shownTotal===0)?(shownTotal+" of "+facets.total):(shownTotal+" shown");
     if(shown.length){ $("#grid").innerHTML=shown.map(personCard).join(""); try{ BPStore.chat.paintAvatars($("#grid")); }catch(e){} }
     else if(!facets.total){
       $("#grid").innerHTML=`<div class="empty">${showInactive?"No staff records yet.":"No team members yet."}${canEdit?` Add your first team member to start matching people to event needs.<br><button type="button" class="btn primary" id="emptyAdd">＋ Add your first team member</button>`:""}</div>`;

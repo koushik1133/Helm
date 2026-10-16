@@ -104,7 +104,7 @@
   .namehint button{border:0;background:none;color:var(--accent);cursor:pointer;font-size:12px;padding:0 0 0 6px;text-decoration:underline}
   .nameerr{font-size:12px;color:var(--warn-text,#8f5f00)}
 </style>
-<link rel="stylesheet" href="flow-polish.css?v=2">
+<link rel="stylesheet" href="flow-polish.css?v=3">
 <link rel="stylesheet" href="share-checklist.css?v=2">
 <link rel="stylesheet" href="theme.css?v=80">
 <link rel="stylesheet" href="venues.css?v=3">
@@ -270,7 +270,7 @@
             <div class="fld"><label for="q_chairPrice">Chair rate (₹) <span class="s-c78b388">· set in Control Center</span></label><input class="s-10bfcec" id="q_chairPrice" type="number" min="0" readonly title="Fixed — change it in Control Center → Pricing"></div>
             <div class="fld"><label for="q_platePrice">Plate price (₹) <span class="s-c78b388">· from package / Control Center</span></label><input class="s-10bfcec" id="q_platePrice" type="number" min="0" readonly title="Fixed — set by the menu package or Control Center → Pricing"></div>
             <div class="fld"><label for="q_other">Décor / equipment &amp; setup (₹)</label><input id="q_other" type="number" min="0"></div>
-            <div class="fld"><label for="q_discount">Discount (₹)</label><input id="q_discount" type="number" min="0"></div>
+            <div class="fld"><label for="q_discount">Discount (₹)</label><input id="q_discount" type="number" min="0" aria-describedby="q_discount_err"><span class="hint" id="q_discount_err" role="alert" hidden></span></div>
             <div class="fld"><label for="q_coupon">Coupon code</label><input id="q_coupon" list="couponList" placeholder="optional"><datalist id="couponList"></datalist>
               <div class="s-40d0688" id="q_couponMsg" role="status" aria-live="polite"></div></div>
             <div class="fld"><label for="q_taxExempt"><input type="checkbox" id="q_taxExempt"> Tax-exempt client (no tax charged)</label></div>
@@ -368,7 +368,7 @@
 <script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=208"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script>
 <script src="tour.js?v=14"></script>
 <script src="booklet.js?v=18"></script>
 <script src="share-checklist.js?v=9"></script>
@@ -547,6 +547,7 @@
   }
   function renderPrice(){
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p);
+    showDiscountError(p);
     let rows="";
     if(p.chairs>0) rows+=`<div class="prow"><span>Chairs <span class="q">${p.chairs} × ${inr(p.chairPrice)}</span></span><span class="amt">${inr(p.chairs*p.chairPrice)}</span></div>`;
     if(p.guests>0) rows+=`<div class="prow"><span>Catering${p._packageName?' <span class="q">'+esc(p._packageName)+'</span>':''} <span class="q">${p.guests} × ${inr(p.platePrice)}</span></span><span class="amt">${inr(p.guests*p.platePrice)}</span></div>`;
@@ -705,6 +706,19 @@
   // A quotation must have at least one priced line — seating (chairs), catering
   // (guests), or décor/other — so an accidental all-empty submit can't persist a
   // ₹0 "quote" (Wave 16 data-integrity fix). Returns "" when OK, else a message.
+  // Gross subtotal before discount; a discount above it is an input error, not "nothing to quote".
+  function discountError(p){
+    const gross=(p.chairs>0?p.chairs*p.chairPrice:0)+(p.guests>0?p.guests*p.platePrice:0)+(p.other>0?p.other:0);
+    const d=Number(p.discount)||0;
+    return (d>0 && gross>0 && d>gross) ? "Discount can't exceed the subtotal ("+inr(gross)+")." : "";
+  }
+  function showDiscountError(p){
+    const el=$("#q_discount_err"), inp=$("#q_discount"); if(!el||!inp) return "";
+    const m=discountError(p); el.textContent=m; el.hidden=!m;
+    if(m) inp.setAttribute("aria-invalid","true"); else inp.removeAttribute("aria-invalid");
+    return m;
+  }
+  var lastSavedSig=null;
   function quoteEmptyReason(p,t){
     const hasLine = (p.chairs>0) || (p.guests>0) || (p.other>0);
     if(!hasLine || !(t.total>0)) return "Nothing to quote yet — add seating (chairs), catering (guests), or décor/other so the quotation has a value.";
@@ -713,6 +727,10 @@
   async function saveQuotation(){
     if(quoteBlocked()){ BPUI.toast("Pricing data didn't load, so the quotation can't be saved yet — use Retry in the quotation section.",{type:"err"}); return; }
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p);
+    const dErr=showDiscountError(p);
+    if(dErr){ if($("#q_msg")) $("#q_msg").textContent=dErr; BPUI.toast(dErr,{type:"err"}); $("#q_discount").focus(); return; }
+    const sig=JSON.stringify([p,t.total]);
+    if(lastSavedSig && sig===lastSavedSig){ if($("#q_msg")) $("#q_msg").textContent="No changes since the last saved version — nothing new to save."; BPUI.toast("No changes since the last version.",{type:"info"}); return; }
     const reason=quoteEmptyReason(p,t);
     if(reason){
       if($("#q_msg")){ $("#q_msg").style.color="var(--warn-text,#8f5f00)"; $("#q_msg").textContent=reason; }
@@ -726,7 +744,7 @@
     pricing=BPStore.tax.preserveSnapshot(ev.pricing||{}, pricing, { switch: taxSwitched });
     try{
       const r=await BPStore.quotationVersions.save(id, pricing);   // keeps every Q-version; also updates current pricing
-      ev.pricing=pricing; taxSwitched=false; saved("quote"); updateProgress(); await renderQuoteVersions(); renderActivity(); renderReprice();
+      ev.pricing=pricing; taxSwitched=false; lastSavedSig=sig; saved("quote"); updateProgress(); await renderQuoteVersions(); renderActivity(); renderReprice();
       $("#q_msg") && ($("#q_msg").textContent="Saved "+(r&&r.label||""));
     }catch(e){
       // REL-01: ONLY fall back when the versioning RPC is genuinely ABSENT
@@ -854,7 +872,7 @@
       BPUI.loadError($("#q_versions"), e, renderQuoteVersions, {what:"quotation versions"}); return; }
     if(!vs.length){ $("#q_versions").innerHTML=""; return; }
     $("#q_versions").innerHTML='<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:4px">Quotation versions</div>'+
-      vs.map((v,i)=>`<div class="rowline"><span class="g"><b>${esc(v.label)}</b>${i===0?' <span class="pill">current</span>':''}</span><span>${inr(v.total)}</span><span class="meta">${esc((v.created_at||'').slice(0,16).replace('T',' '))}</span></div>`).join('');
+      vs.map((v,i)=>`<div class="rowline"><span class="g"><b>${esc(v.label)}</b>${i===0?' <span class="pill">current</span>':''}</span><span>${inr(v.total)}</span><span class="meta">${esc(BPStore.fmtDateTime(v.created_at)||'')}</span></div>`).join('');
   }
   function downloadQuotePDF(){
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p), cl=ev.client||{};
@@ -1015,6 +1033,14 @@
 
   /* ---------- approval ---------- */
   async function sendApproval(){
+    { // a link is only useful if the client can be reached: need a valid email or phone
+      const em=$("#c_email").value.trim(), ph=$("#c_phone").value.trim();
+      const VV=BPStore.validate, er=em?VV.email(em):null, pr=ph?VV.phone(ph):null;
+      const flag=(sel,msg)=>{ $(sel).setAttribute("aria-invalid","true"); $(sel).focus(); BPUI.toast(msg,{type:"err"}); $("#apprState").textContent=msg; };
+      if(er && !er.ok){ flag("#c_email", "Fix the client email in step 1 before sending: "+er.error); return; }
+      if(pr && !pr.ok){ flag("#c_phone", "Fix the client phone in step 1 before sending: "+pr.error); return; }
+      if(!er && !pr){ flag("#c_phone", "Add the client's email or phone in step 1 before sending for approval."); return; }
+    }
     if(!ev || !(ev.pricing&&ev.pricing.total)){ if(!(await BPUI.confirm("No quotation total saved yet. Send anyway?",{title:"Send for approval?",okLabel:"Send anyway"}))) return; }
     await BPUI.guard($("#sendApproval"), async()=>{
     try{

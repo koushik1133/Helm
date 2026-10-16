@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=3"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=4"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -1040,7 +1040,7 @@ window.HelmUrl = HelmUrl;
   const STUDIO_SEARCH_VERSION = "3";
   // nav trail (breadcrumbs + Recent records). Pages may call HelmTrail.setCurrent before
   // nav-trail.js loads: this stub queues the calls; nav-trail.js replays them after boot.
-  const NAV_TRAIL_VERSION = "3";
+  const NAV_TRAIL_VERSION = "4";
   if (typeof global.HelmTrail === "undefined") {
     global.HelmTrail = { setCurrent(o) { if (o) (global.__helmTrailQ = global.__helmTrailQ || []).push(o); }, recent() { return []; }, _stub: true };
   }
@@ -10213,8 +10213,10 @@ window.HelmUrl = HelmUrl;
         el.value = ""; negHint(el, msg(), 5000); return;
       }
       var v = el.value; if (!v) return;
-      if (!bad(v)) return;
+      if (!bad(v)) { try { el.removeAttribute("data-date-rejected"); } catch (e) {} return; }
       if (typingNow && el.validity && el.validity.badInput) return;
+      // remember what was rejected so a form's Save can refuse instead of silently saving no date
+      try { el.setAttribute("data-date-rejected", v < lo ? "past" : "range"); } catch (e) {}
       el.value = ""; negHint(el, msg(), 5000);
       el.dispatchEvent(new Event("change", { bubbles: true }));
     };

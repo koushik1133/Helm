@@ -140,6 +140,16 @@
     renderTrail();
   }
 
+  // The open record was deleted: drop it from the trail (breadcrumb back to the page) and
+  // from local recents so it can't be reopened from the "recent" list.
+  function clearCurrent(opts) {
+    const was = current; current = null;
+    if (opts && opts.forget && was && was.href) {
+      try { const k = key(), rk = recKey(was.href); if (k && rk) { const keep = recent().filter((r) => recKey(r.href) !== rk); global.localStorage.setItem(k, JSON.stringify(keep)); } } catch (e) {}
+    }
+    try { renderTrail(); } catch (e) {}
+  }
+
   /* ---- styles ----------------------------------------------------------- */
   const CSS = [
     ".htr-bc{display:flex;align-items:center;gap:6px;min-width:0;padding:6px 16px;font-size:13px;color:var(--muted,#6b7280);border-bottom:1px solid var(--line,var(--border,rgba(127,127,127,.2)));background:var(--bg,transparent)}",
@@ -296,7 +306,7 @@
   }
   if (doc) { if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", auto); else auto(); }
 
-  const api = { setCurrent, recKey, recent, merge, syncServer, clearAll, trail, timeAgo, safeHref, boot, PAGES, ICONS, KIND_LABEL, MAX, PREFIX, _css: CSS, _key: key };
+  const api = { setCurrent, clearCurrent, recKey, recent, merge, syncServer, clearAll, trail, timeAgo, safeHref, boot, PAGES, ICONS, KIND_LABEL, MAX, PREFIX, _css: CSS, _key: key };
   global.HelmTrail = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

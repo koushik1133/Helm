@@ -324,7 +324,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=208"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=209"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="tour.js?v=14"></script>
 <script src="getting-started.js?v=5"></script>
@@ -589,7 +589,7 @@
         card(up,"Upcoming events",""), card(tc.overdue||0,"Tasks overdue",(tc.overdue>0?"alert":"")) ] },
       sales:       { sub:"Your pipeline", cards:[
         card(st.quote,"Open quotes","link","quotes.html"), card(st.confirmed,"Won / confirmed","good"),
-        card(st.total,"Total quotes",""), card("→","New lead","link","leads.html") ] },
+        card(st.total,"Total quotes",""), card("→","New lead","link","leads.html#hb-new") ] },
       coordinator: { sub:"Today's delivery", cards:[
         card(tc.today||0,"Tasks today",""), card(tc.overdue||0,"Overdue",(tc.overdue>0?"alert":"")),
         card(tc.blocked||0,"Blocked",(tc.blocked>0?"warn":"")), card(up,"Upcoming events","") ] },
