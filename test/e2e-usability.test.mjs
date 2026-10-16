@@ -99,7 +99,7 @@ t('E6 booklet: balance due by dd/mm/yyyy from terms + event date; paid in full',
 t('E7 a new invitation is prefilled from the quote (date, time, venue, address, host, names)', () => {
   assert.match(studio, /function prefillFromQuote\(\)/);
   for (const f of ['f_date', 'f_time', 'f_venue', 'f_address', 'f_host', 'f_hostPhone', 'f_names']) assert.match(studio, new RegExp('set\\("' + f + '"'));
-  assert.match(studio, /else \{ prefillFromQuote\(\); applyTypeLabels\(\);/);
+  assert.match(studio, /else \{ (?:await prefillFromPlan\(\); )?prefillFromQuote\(\); applyTypeLabels\(\);/);
 });
 
 // ---- E8 dates in the studio's country style
@@ -193,8 +193,8 @@ t('APPLY-0101.sql: ASCII, one transaction, verify rows', () => {
   assert.match(read('supabase/migrations/MANIFEST'), /forward  supabase\/migrations\/0101_e2e_usability\.sql/);
 });
 t('versions bumped', () => {
-  for (const f of [flow, approve, portal, invite, studio, settle, closure]) { assert.match(f, /store-api\.js\?v=178/); assert.match(f, /event-name\.js\?v=6/); assert.match(f, /country-profile\.js\?v=4/); }
-  assert.match(read('public/booklet.html'), /booklet\.js\?v=16/); assert.match(flow, /booklet\.js\?v=16/);
+  for (const f of [flow, approve, portal, invite, studio, settle, closure]) { assert.match(f, /store-api\.js\?v=204/); assert.match(f, /event-name\.js\?v=6/); assert.match(f, /country-profile\.js\?v=4/); }
+  assert.match(read('public/booklet.html'), /booklet\.js\?v=18/); assert.match(flow, /booklet\.js\?v=18/);
 });
 
 let pass = 0;

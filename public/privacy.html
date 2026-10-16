@@ -1,159 +1,139 @@
 <!doctype html>
-<!-- DRAFT — have your lawyer review before relying on this text (prepared 2026-10-08 for the onboarding checkout, 0056). -->
+<!-- DRAFT Template — have a qualified lawyer in each jurisdiction review before publishing. Replace every [OWNER TO FILL] / [BRACKETED] placeholder. Reviewed 2026-10-16. -->
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Privacy Policy · Helm</title>
-<meta name="description" content="How Helm collects, uses, protects and shares information for event businesses using the platform.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d28d9'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
+<meta name="description" content="How Helm collects, uses, shares and protects personal data, and the rights you have under DPDP, GDPR, UK GDPR and CCPA/CPRA.">
+<link rel="icon" href="/brand/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
 <link rel="canonical" href="https://www.helm.events/privacy">
-<link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
+
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Helm">
 <meta property="og:title" content="Privacy Policy · Helm">
-<meta property="og:description" content="How Helm collects, uses, protects and shares information for event businesses using the platform.">
+<meta property="og:description" content="How Helm collects, uses, shares and protects personal data, and the rights you have under DPDP, GDPR, UK GDPR and CCPA/CPRA.">
 <meta property="og:url" content="https://www.helm.events/privacy">
 <meta property="og:image" content="https://www.helm.events/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Privacy Policy · Helm">
-<meta name="twitter:description" content="How Helm collects, uses, protects and shares information for event businesses using the platform.">
+<meta name="twitter:description" content="How Helm collects, uses, shares and protects personal data, and the rights you have under DPDP, GDPR, UK GDPR and CCPA/CPRA.">
 <meta name="twitter:image" content="https://www.helm.events/og.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
-<style>
-  :root{--bg:#f6f4f1;--panel:#ffffff;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
-    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;
-    --shadow:0 1px 2px rgba(27,25,48,.05),0 14px 36px rgba(27,25,48,.11);
-    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
-  *{box-sizing:border-box}
-  body{margin:0;background:
-    radial-gradient(1000px 520px at 88% -14%, #ece3ff 0%, transparent 56%),
-    radial-gradient(760px 440px at -8% -6%, #ffe9d6 0%, transparent 50%), var(--bg);
-    color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;line-height:1.65}
-  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
-  .wrap{max-width:800px;margin:0 auto;padding:0 24px}
-  header{border-bottom:1px solid var(--line-2);background:rgba(246,244,241,.72);backdrop-filter:blur(8px)}
-  .bar{display:flex;align-items:center;gap:11px;padding:15px 0}
-  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative}
-  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.92);border-radius:3px}
-  .bar .logo-name{font-size:17px;margin:0;font-weight:700}
-  .bar a.home{margin-left:auto;font-size:14px;color:var(--ink-2);font-weight:500}
-  .doc{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);
-    padding:44px 46px;margin:34px 0 60px}
-  @media(max-width:560px){.doc{padding:30px 24px}}
-  .doc h1{font-size:32px;letter-spacing:-.02em;margin:0 0 6px}
-  .doc .upd{font-size:13px;color:var(--ink-3);margin:0 0 26px}
-  .doc .intro{font-size:16px;color:var(--ink-2);margin:0 0 28px}
-  .doc h2{font-size:19px;margin:32px 0 10px;letter-spacing:-.01em}
-  .doc p{font-size:15px;color:var(--ink-2);margin:0 0 14px}
-  .doc ul{margin:0 0 16px;padding-left:20px} .doc li{font-size:15px;color:var(--ink-2);margin-bottom:8px}
-  .doc b{color:var(--ink)}
-  .toc{background:var(--panel-2,#faf8f5);border:1px solid var(--line);border-radius:12px;padding:18px 22px;margin:0 0 30px}
-  .toc b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);margin-bottom:8px}
-  .toc a{display:block;font-size:14px;margin-bottom:5px}
-  footer{border-top:1px solid var(--line-2);padding:26px 0;font-size:13px;color:var(--ink-3)}
-  footer a{color:var(--ink-2)}
-  .skip-link{position:absolute;left:8px;top:-60px;z-index:1000;padding:10px 16px;border-radius:8px;background:var(--accent);color:#fff;font-weight:600;text-decoration:none}
-  .skip-link:focus,.skip-link:focus-visible{top:8px;text-decoration:none}
-  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
-  main:focus{outline:none}
-  .doc p a,.doc li a{text-decoration:underline;text-underline-offset:2px}
-  html{scroll-behavior:smooth}
-  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/legal.css?v=2">
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to content</a>
-  <header><div class="wrap bar">
-    <div class="mark" aria-hidden="true"></div><span class="logo-name">Helm</span>
-    <a class="home" href="/">← Back to home</a>
+  <a class="skip" href="#main">Skip to content</a>
+  <div class="lg-progress" aria-hidden="true"></div>
+  <header class="nav" id="top"><div class="nav-bar">
+    <a class="brand" href="/" aria-label="Helm home"><span class="mark" aria-hidden="true"><i></i><i></i></span>Helm</a>
+    <nav class="menu" aria-label="Main">
+      <a class="mlink" href="/">Home</a>
+      <a class="mlink" href="/services">Services</a>
+      <a class="mlink" href="/pricing">Pricing</a>
+      <a class="mlink" href="/about">About</a>
+    </nav>
+    <div class="nav-act"><a class="signin" href="/login">Log in</a><a class="btn btn-pill" href="/login?trial=1#signup">Start free trial</a></div>
   </div></header>
 
-  <main class="wrap" id="main" tabindex="-1">
-    <div class="doc">
+  <main id="main" tabindex="-1">
+    <div class="lg-hero"><div class="mesh" aria-hidden="true"><i class="m1"></i><i class="m2"></i><i class="m3"></i></div>
+      <span class="lg-kick">Legal</span>
       <h1>Privacy Policy</h1>
-      <p class="upd">Last updated: <time datetime="2026-09-24">September 24, 2026</time></p>
-      <p class="intro">Helm ("Helm", "we", "us") provides a platform that event businesses use to manage their operations. This policy explains what information we handle, why, and the choices you have. We've written it in plain language on purpose.</p>
-
-      <div class="toc"><b>On this page</b>
-        <a href="#who">1. Who this applies to</a>
-        <a href="#collect">2. Information we collect</a>
-        <a href="#use">3. How we use information</a>
-        <a href="#privacy">4. Keeping each business separate</a>
-        <a href="#share">5. When we share information</a>
-        <a href="#retain">6. How long we keep it</a>
-        <a href="#security">7. How we protect it</a>
-        <a href="#rights">8. Your rights &amp; choices</a>
-        <a href="#children">9. Children</a>
-        <a href="#changes">10. Changes to this policy</a>
-        <a href="#contact">11. Contact us</a>
-      </div>
-
-      <h2 id="who">1. Who this applies to</h2>
-      <p>Helm serves two kinds of people: the <b>businesses</b> that create a workspace on Helm (and their team members who sign in), and the <b>clients and contacts</b> whose details a business stores inside its own workspace. If you're a client of a business that uses Helm, that business controls your information — please contact them directly for requests about it.</p>
-
-      <h2 id="collect">2. Information we collect</h2>
-      <ul>
-        <li><b>Account details</b> — the name, email address and password you use to sign in, and your business/workspace name.</li>
-        <li><b>Business content</b> — the information you enter to run your events: enquiries, clients and contacts, quotes and pricing, layouts, bookings, payments you record, staff and inventory, suppliers, tasks and notes.</li>
-        <li><b>Usage information</b> — basic technical details such as the pages you use and the time of access, which help us keep the service running and secure.</li>
-        <li><b>Communications</b> — messages you send us for support.</li>
-      </ul>
-      <p>We do not ask for, and you should never store, more sensitive personal data than you actually need to run your events.</p>
-
-      <h2 id="use">3. How we use information</h2>
-      <ul>
-        <li>To provide the platform and the features you use.</li>
-        <li>To secure accounts, prevent misuse, and keep each workspace private.</li>
-        <li>To provide support and respond to your requests.</li>
-        <li>To maintain, troubleshoot and improve the service.</li>
-        <li>To meet legal and accounting obligations.</li>
-      </ul>
-      <p>We do <b>not</b> sell your information, and we do not use your business content to advertise to you.</p>
-
-      <h2 id="privacy">4. Keeping each business separate</h2>
-      <p>This is central to how Helm works. Every business on Helm has its own <b>private workspace</b>. Your events, clients, pricing and team are separated from every other business on the platform, and access rules make sure information from one workspace is never visible inside another. Within your own workspace, you decide what each team member can see and do.</p>
-
-      <h2 id="share">5. When we share information</h2>
-      <p>We only share information in limited, necessary ways:</p>
-      <ul>
-        <li><b>Service providers</b> who help us operate the platform (for example, secure hosting and email delivery), under agreements that require them to protect it.</li>
-        <li><b>Payment processing</b> — when you subscribe to a paid plan, payments are handled by our payment partner, Razorpay, inside its own secure checkout. We receive confirmation of the payment, the amount, and a reference — never your full card, UPI or bank login details. Your billing details (studio legal name, GSTIN, billing address) are kept to issue tax invoices and meet accounting and tax-law requirements.</li>
-        <li><b>At your direction</b> — for example, when you send a quote, receipt or message to your own client.</li>
-        <li><b>Legal reasons</b> — if required by law, or to protect the rights, safety and security of users and the public.</li>
-        <li><b>Business transfers</b> — if Helm is involved in a merger or acquisition, information may transfer as part of that, subject to this policy.</li>
-      </ul>
-
-      <h2 id="retain">6. How long we keep it</h2>
-      <p>We keep your information for as long as your workspace is active, and for a reasonable period afterwards to meet legal, accounting or dispute-resolution needs. You can ask us to delete your workspace and its content, subject to any records we're legally required to retain.</p>
-
-      <h2 id="security">7. How we protect it</h2>
-      <p>We use encrypted connections, strict access controls, and per-workspace separation to protect your information. While no online service can promise perfect security, we take reasonable and appropriate measures to safeguard it and to limit who can access it.</p>
-
-      <h2 id="rights">8. Your rights &amp; choices</h2>
-      <p>Depending on where you live, you may have the right to access, correct, export or delete your personal information, and to object to or restrict certain uses. You can update most details from inside your workspace, or contact us for help. If you're a client of a business using Helm, please reach out to that business for these requests.</p>
-
-      <h2 id="children">9. Children</h2>
-      <p>Helm is a tool for businesses and is not directed to children. We do not knowingly collect personal information from children.</p>
-
-      <h2 id="changes">10. Changes to this policy</h2>
-      <p>We may update this policy from time to time. If we make significant changes, we'll update the date above and, where appropriate, notify you.</p>
-
-      <h2 id="contact">11. Contact us</h2>
-      <p>Questions about privacy? Email us at <a href="mailto:privacy@helm.com">privacy@helm.com</a> and we'll be glad to help.</p>
+      <p class="lg-lead">How Helm handles personal data, written in plain language, for studios, their teams and their clients worldwide.</p>
+      <p class="lg-meta">Last updated: <time datetime="2026-10-16">October 16, 2026</time></p>
+    </div>
+    <div class="lg-layout">
+      <nav class="lg-toc" aria-label="On this page">
+      <b>On this page</b>
+      <a href="#who">1. Who we are and what this covers</a>
+      <a href="#collect">2. Personal data we collect</a>
+      <a href="#use">3. Why we use it and our lawful bases</a>
+      <a href="#notice">4. Notice and consent (India DPDP)</a>
+      <a href="#share">5. Who we share it with</a>
+      <a href="#transfers">6. International transfers</a>
+      <a href="#retain">7. How long we keep it</a>
+      <a href="#security">8. Security and breach notification</a>
+      <a href="#rights">9. Your rights</a>
+      <a href="#regional">10. Region-specific information</a>
+      <a href="#children">11. Children</a>
+      <a href="#cookies">12. Cookies</a>
+      <a href="#changes">13. Changes to this policy</a>
+      <a href="#contact">14. Contact and grievance officer</a>
+      </nav>
+      <article class="lg-doc">
+<section id="who" aria-labelledby="h-who">
+<h2 id="h-who">1. Who we are and what this covers</h2>
+<p>Helm is an event-management platform operated by <span class="lg-ph">[LEGAL ENTITY NAME]</span> (company no. <span class="lg-ph">[COMPANY REGISTRATION NUMBER]</span>), <span class="lg-ph">[REGISTERED ADDRESS]</span> ("Helm", "we", "us"). This policy explains how we handle personal data when you visit our website, start a trial, subscribe, or use the Helm app.</p><div class="lg-callout"><p><b>Two roles.</b> For account, billing, website and support data, Helm decides why and how data is used, so we are the <b>Data Fiduciary</b> (India DPDP Act) / <b>controller</b> (GDPR, UK GDPR) / <b>business</b> (CCPA). For the client, guest, vendor and event data a studio stores in its workspace, the <b>studio</b> is the Data Fiduciary / controller and Helm acts only as its <b>Data Processor</b> / <b>processor</b> / <b>service provider</b> under our <a href="dpa">Data Processing Addendum</a>.</p></div><p>If you are a client or guest of a studio that uses Helm, please contact that studio first about your data. We will help them answer you, and if you contact us directly we will pass your request to them.</p>
+</section>
+<section id="collect" aria-labelledby="h-collect">
+<h2 id="h-collect">2. Personal data we collect</h2>
+<div class="lg-table-wrap"><table class="lg-table"><thead><tr><th scope="col">Category</th><th scope="col">Examples</th><th scope="col">Source</th></tr></thead><tbody><tr><td>Account and identity</td><td>Name, work email, phone, role, password hash, sign-in provider (e.g. Google), profile photo</td><td>You or your studio admin</td></tr><tr><td>Studio and billing</td><td>Business name, billing address, tax ID (e.g. GSTIN / VAT), plan, invoices, payment status and reference</td><td>You; our payment processor</td></tr><tr><td>Workspace content (processed for studios)</td><td>Leads, clients, guests, quotes, layouts, tasks, crew, vendors, payments recorded, files and chat messages</td><td>The studio and its team</td></tr><tr><td>Usage and device</td><td>IP address, browser, pages used, timestamps, error logs, security events</td><td>Collected automatically</td></tr><tr><td>Communications</td><td>Support emails, feedback, survey answers, marketing preferences</td><td>You</td></tr></tbody></table></div><p>We do not ask for sensitive data (such as health, religion, biometric or government ID numbers) and studios should not store it in Helm unless they truly need it and have a lawful basis. We never receive full card numbers; payments are handled by <span class="lg-ph">[PAYMENT PROCESSOR, e.g. Stripe / Razorpay]</span>.</p>
+</section>
+<section id="use" aria-labelledby="h-use">
+<h2 id="h-use">3. Why we use it and our lawful bases</h2>
+<div class="lg-table-wrap"><table class="lg-table"><thead><tr><th scope="col">Purpose</th><th scope="col">Lawful basis (GDPR / UK GDPR)</th><th scope="col">DPDP Act ground</th></tr></thead><tbody><tr><td>Create and run your account, provide the service</td><td>Contract (Art. 6(1)(b))</td><td>Consent given at sign-up / legitimate use for the specified purpose</td></tr><tr><td>Billing, invoicing, tax and accounting records</td><td>Legal obligation (Art. 6(1)(c)); contract</td><td>Compliance with law (s. 7)</td></tr><tr><td>Security, fraud and abuse prevention, keeping workspaces separate</td><td>Legitimate interests (Art. 6(1)(f))</td><td>Legitimate use / consent</td></tr><tr><td>Support and service messages (e.g. trial ending, security alerts)</td><td>Contract; legitimate interests</td><td>Consent</td></tr><tr><td>Product improvement using aggregated, de-identified usage data</td><td>Legitimate interests</td><td>Consent</td></tr><tr><td>Marketing emails about Helm</td><td>Consent, or legitimate interests where allowed (you can opt out any time)</td><td>Consent (withdrawable)</td></tr><tr><td>Responding to legal requests and enforcing our terms</td><td>Legal obligation; legitimate interests</td><td>Compliance with law</td></tr></tbody></table></div><p>Where we rely on consent, you can withdraw it at any time as easily as you gave it (for example from your account settings or by writing to <span class="lg-ph">[PRIVACY EMAIL]</span>). Withdrawal does not affect processing already done. We do not sell personal data, we do not "share" it for cross-context behavioural advertising (CCPA/CPRA), and we do not use workspace content to train general-purpose AI models.</p>
+</section>
+<section id="notice" aria-labelledby="h-notice">
+<h2 id="h-notice">4. Notice and consent (India DPDP)</h2>
+<p>Before or at the time we ask for your personal data we tell you what we collect, the purpose, how to withdraw consent, how to exercise your rights and how to complain to the Data Protection Board of India. This notice is available in English and, on request, in any language listed in the Eighth Schedule to the Constitution of India. Where a Consent Manager registered with the Board is used, you may give, manage and withdraw consent through it.</p>
+</section>
+<section id="share" aria-labelledby="h-share">
+<h2 id="h-share">5. Who we share it with</h2>
+<ul><li><b>Subprocessors</b> that help us run Helm (hosting and database, email delivery, error monitoring, payments, messaging). They act on our instructions under written contracts. The current list is on our <a href="subprocessors">Sub-processors</a> page.</li><li><b>Your studio</b>: if you are a team member, your studio admin can see your activity in that workspace.</li><li><b>At your direction</b>: when you send a quote, invitation, receipt or message to a client, or connect an integration.</li><li><b>Legal and safety</b>: where required by law, court order or a lawful government request, or to protect people, our users or Helm.</li><li><b>Business transfers</b>: in a merger, acquisition or asset sale, under confidentiality and with this policy continuing to apply.</li></ul><p>We never sell personal data or rent mailing lists.</p>
+</section>
+<section id="transfers" aria-labelledby="h-transfers">
+<h2 id="h-transfers">6. International transfers</h2>
+<p>Helm is a global service and data is hosted in <span class="lg-ph">[HOSTING REGION(S)]</span>. When personal data moves across borders we use appropriate safeguards: for transfers out of the EEA, the European Commission's Standard Contractual Clauses (SCCs); for the UK, the International Data Transfer Addendum; and for India, we transfer only to countries not restricted by the Central Government under section 16 of the DPDP Act; for the UAE, to countries with adequate protection or under the safeguards in Articles 22–23 of the PDPL. You can ask us for a copy of the relevant safeguards.</p>
+</section>
+<section id="retain" aria-labelledby="h-retain">
+<h2 id="h-retain">7. How long we keep it</h2>
+<div class="lg-table-wrap"><table class="lg-table"><thead><tr><th scope="col">Data</th><th scope="col">Retention</th></tr></thead><tbody><tr><td>Active account and workspace content</td><td>For as long as the subscription or trial is active</td></tr><tr><td>Workspace after cancellation or trial expiry</td><td>Kept read-only for 30 days so you can export, then deleted within a further 60 days (backups roll off within 35 days after that)</td></tr><tr><td>Invoices, payment and tax records</td><td>As long as tax and accounting law requires (usually 8 years in India, up to 10 years in some countries)</td></tr><tr><td>Security and access logs</td><td>Up to 12 months, or 1 year minimum where the DPDP Rules require it for traffic data and logs</td></tr><tr><td>Marketing preferences / suppression list</td><td>Until you ask us to forget you (we keep a minimal "do not contact" entry so we honour your opt-out)</td></tr></tbody></table></div><p>Under the DPDP Rules, if a user has not interacted with us for the prescribed period we will erase their data, giving at least 48 hours' notice before doing so. See <a href="data-deletion">Data Deletion &amp; Export</a> for how to request deletion.</p>
+</section>
+<section id="security" aria-labelledby="h-security">
+<h2 id="h-security">8. Security and breach notification</h2>
+<p>We use encryption in transit (TLS) and at rest, row-level access controls that keep each studio's workspace separate, role-based permissions, multi-factor authentication options, least-privilege staff access, audit logging, backups and regular security testing.</p><p>If a personal data breach occurs we will contain it and, as the DPDP Rules require, inform affected people without delay and the Data Protection Board of India, with a detailed report within <b>72 hours</b> of becoming aware of it. Under GDPR / UK GDPR we notify the competent supervisory authority within 72 hours where required. Where we act as a processor we notify the studio without undue delay so it can meet its own duties.</p>
+</section>
+<section id="rights" aria-labelledby="h-rights">
+<h2 id="h-rights">9. Your rights</h2>
+<p>Depending on where you live you may have the right to:</p><ul><li><b>Access</b> a summary of your personal data and how it is processed, and who it has been shared with.</li><li><b>Correct, complete or update</b> it.</li><li><b>Erase</b> it (subject to legal retention).</li><li><b>Data portability</b>: receive it in a common machine-readable format (GDPR / UK GDPR).</li><li><b>Object</b> to or <b>restrict</b> processing based on legitimate interests, and object at any time to direct marketing.</li><li><b>Withdraw consent</b> at any time.</li><li><b>Nominate</b> another person to exercise your rights if you die or become incapable (DPDP Act s. 14).</li><li><b>Grievance redressal</b>: a response from our Grievance Officer within 90 days; then complain to the Data Protection Board of India.</li><li><b>California residents (CCPA/CPRA)</b>: know, delete, correct, opt out of sale/sharing (we do neither), limit use of sensitive data, and not be discriminated against for exercising rights. You may use an authorised agent.</li><li><b>Complain</b> to us (see our <a href="grievance">Grievance page</a>), then to your local supervisory authority (EU/EEA), the UK Information Commissioner's Office, the UAE Data Office or the Data Protection Board of India.</li></ul><p>To exercise a right, email <span class="lg-ph">[PRIVACY EMAIL]</span> or follow <a href="data-deletion">our data request steps</a>. We verify your identity before acting and reply within one month (GDPR), 45 days (CCPA) or the time required by the DPDP Rules, and in any case within 90 days. Requests are free unless clearly unfounded or excessive.</p>
+</section>
+<section id="regional" aria-labelledby="h-regional">
+<h2 id="h-regional">10. Region-specific information</h2>
+<p>The rights in the "Your rights" section apply everywhere we can offer them. The following adds what specific laws require.</p><div class="lg-table-wrap"><table class="lg-table"><thead><tr><th scope="col">Jurisdiction</th><th scope="col">Key points</th></tr></thead><tbody><tr><td>India (DPDP Act 2023 and DPDP Rules 2025, notified 13 Nov 2025)</td><td>Itemised notice in clear language; consent withdrawable as easily as given; rights to access, correction, erasure, nomination and grievance redressal (90 days). Rules phase in: Data Protection Board provisions from Nov 2025, Consent Manager registration from Nov 2026, and notice, consent, security, breach (Board report within 72 hours), retention (1-year log retention; erasure after the prescribed inactivity period with 48 hours' notice) and rights duties from <b>13 May 2027</b>. We are adopting them early. Until then the IT Act 2000 s. 43A and the SPDI Rules 2011 continue to apply, including reasonable security practices.</td></tr><tr><td>UAE (Federal Decree-Law No. 45 of 2021, PDPL)</td><td>Rights to information, access, portability, correction, erasure, restriction and objection, including to automated processing; breach notification to the UAE Data Office; cross-border transfers only to adequate countries or with safeguards. Executive Regulations may not yet be in force; we will update this section when they are. If your studio operates in the DIFC or ADGM free zones, the DIFC Data Protection Law No. 5 of 2020 or ADGM Data Protection Regulations 2021 may apply instead to that studio.</td></tr><tr><td>United States (state privacy laws)</td><td>Residents of California (CCPA/CPRA), Virginia, Colorado, Connecticut, Utah, Texas, Oregon, Montana, Iowa, Delaware, Nebraska, New Hampshire, New Jersey, Tennessee, Minnesota, Maryland, Indiana, Kentucky and Rhode Island may have rights to know/access, delete, correct, port, and opt out of sale, targeted advertising and profiling. We do not sell or share personal data for targeted advertising and we honour Global Privacy Control. If we deny a request you may appeal by replying to our decision; we answer appeals within the period your state law sets (generally 45–60 days) and you may then contact your state Attorney General. California: categories collected in the last 12 months are listed in section 2; we do not use sensitive personal information to infer characteristics; we retain data as in section 7.</td></tr><tr><td>United Kingdom (UK GDPR, DPA 2018 as amended by the Data (Use and Access) Act 2025)</td><td>You may complain to us first; we acknowledge data protection complaints within 30 days and respond without undue delay (DPA 2018 s. 164A). You may then complain to the ICO. Where we use recognised legitimate interests or automated decision-making, the DUAA safeguards apply: you can ask for human review of significant automated decisions.</td></tr><tr><td>European Union / EEA (GDPR)</td><td>Rights in the "Your rights" section; complaint to your local supervisory authority. Our lead contact is listed in section "Contact".</td></tr></tbody></table></div><p>Children: Helm is not directed to children under 13 and we do not knowingly collect their data (US COPPA, as amended effective 23 June 2025).</p>
+</section>
+<section id="children" aria-labelledby="h-children">
+<h2 id="h-children">11. Children</h2>
+<p>Helm is a business tool for adults and is not directed to children. Account holders must be 18 or older. We do not knowingly process data of children (under 18 in India; under 16 or the local age of digital consent elsewhere) except where a studio stores, for example, a child guest's name for an event; the studio must then obtain verifiable consent from a parent or lawful guardian as the DPDP Act s. 9 requires. We do not track, profile or target advertising at children. If you believe a child has given us data, contact <span class="lg-ph">[PRIVACY EMAIL]</span> and we will delete it.</p>
+</section>
+<section id="cookies" aria-labelledby="h-cookies">
+<h2 id="h-cookies">12. Cookies</h2>
+<p>We use essential cookies and browser storage to sign you in and keep Helm secure, and, only with your consent where required, analytics. Details and controls are in our <a href="cookie-policy">Cookie Policy</a>. We honour Global Privacy Control signals as an opt-out where applicable.</p>
+</section>
+<section id="changes" aria-labelledby="h-changes">
+<h2 id="h-changes">13. Changes to this policy</h2>
+<p>We will post updates here and change the date above. If a change is material we will tell you by email or in the app at least 30 days before it takes effect, and ask for fresh consent where the law requires it.</p>
+</section>
+<section id="contact" aria-labelledby="h-contact">
+<h2 id="h-contact">14. Contact and grievance officer</h2>
+<ul><li><b>Data Protection / Privacy contact:</b> <span class="lg-ph">[DPO / PRIVACY CONTACT NAME]</span>, <span class="lg-ph">[PRIVACY EMAIL]</span></li><li><b>Grievance Officer (India, DPDP Act 2023):</b> <span class="lg-ph">[GRIEVANCE OFFICER NAME]</span>, <span class="lg-ph">[GRIEVANCE OFFICER EMAIL]</span>, <span class="lg-ph">[GRIEVANCE OFFICER PHONE]</span></li><li><b>Postal address:</b> <span class="lg-ph">[LEGAL ENTITY NAME]</span>, <span class="lg-ph">[REGISTERED ADDRESS]</span></li><li><b>EU representative:</b> <span class="lg-ph">[EU REPRESENTATIVE (Art. 27 GDPR), IF REQUIRED]</span> &middot; <b>UK representative:</b> <span class="lg-ph">[UK REPRESENTATIVE, IF REQUIRED]</span></li></ul>
+</section>
+      <nav class="lg-related" aria-label="Related policies"><a href="terms">Terms of Service<span>The agreement for using Helm</span></a><a href="refund-policy">Refund Policy<span>Trial, cancellation, refunds</span></a><a href="data-deletion">Data Deletion<span>Export or erase your data</span></a><a href="cookie-policy">Cookie Policy<span>Cookies and local storage</span></a><a href="dpa">Data Processing Addendum<span>For studios as controllers</span></a><a href="acceptable-use">Acceptable Use<span>Rules for using the platform</span></a><a href="subprocessors">Sub-processors<span>Who processes data for us</span></a><a href="security">Security &amp; Trust<span>How we protect your workspace</span></a><a href="sla">Service Level Agreement<span>Uptime, support and credits</span></a><a href="accessibility">Accessibility Statement<span>WCAG 2.2 AA commitment</span></a><a href="grievance">Grievance &amp; DPO Contact<span>Complaints and privacy officers</span></a><a href="ai-notice">AI &amp; Automation Notice<span>Where Helm uses AI</span></a><a href="copyright">Copyright &amp; Takedown<span>Report infringing content</span></a></nav>
+      </article>
     </div>
   </main>
 
-  <footer><div class="wrap">
-    <a href="/">Home</a> · <a href="terms">Terms of Service</a> · © <span id="yr"></span> Helm
-  </div></footer>
-
+  <footer class="foot"><div class="wrap fgr">
+    <div class="fb"><a class="brand" href="/"><span class="mark" aria-hidden="true"><i></i><i></i></span>Helm</a><p>One workspace for event studios everywhere: leads, layouts, quotes, crew, payments and profit.</p></div>
+    <div><h4>Product</h4><a href="/#modules">Features</a><a href="/services">All services</a><a href="/pricing">Pricing</a></div>
+    <div><h4>Company</h4><a href="/about">About us</a><a href="/login">Sign in</a></div>
+    <nav aria-label="Legal"><h4>Legal</h4><a href="/privacy" aria-current="page">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/refund-policy">Refund Policy</a><a href="/data-deletion">Data Deletion</a><a href="/cookie-policy">Cookie Policy</a><a href="/dpa">Data Processing</a><a href="/acceptable-use">Acceptable Use</a><a href="/subprocessors">Sub-processors</a><a href="/security">Security</a><a href="/sla">Service Level</a><a href="/accessibility">Accessibility</a><a href="/grievance">Grievance &amp; DPO</a><a href="/ai-notice">AI Notice</a><a href="/copyright">Copyright &amp; IP</a></nav>
+    <div><h4>Contact</h4><a href="mailto:sales@helm.events">sales@helm.events</a><a href="mailto:support@helm.events">support@helm.events</a></div>
+  </div><div class="wrap copy"><span>&copy; <span id="yr"></span> Helm. Amateurs panic. Professionals go for Helm.</span><span class="big-word" aria-hidden="true">Helm</span></div></footer>
   <script src="/trusted-types.js?v=2"></script>
-  <script>
-    document.getElementById("yr").textContent=new Date().getFullYear();
-  </script>
+  <script src="/legal.js?v=2" defer></script>
 </body>
 </html>

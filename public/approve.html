@@ -54,7 +54,9 @@
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
   footer{text-align:center;color:var(--ink-3);font-size:12px;margin-top:8px;line-height:1.6}
 </style>
-<link rel="stylesheet" href="/theme.css?v=78">
+<link rel="stylesheet" href="/theme.css?v=80">
+<link rel="stylesheet" href="/public-pages-v2.css?v=3">
+<script src="/public-theme.js?v=2"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -91,6 +93,12 @@
         <div class="fld"><label for="c_name">Your name</label><input id="c_name" placeholder="Full name" autocomplete="name"></div>
         <div class="fld"><label for="c_phone">Mobile number</label><input id="c_phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+91 …"></div>
         <button class="btn primary" id="sendOtp" type="button">Send OTP to my phone</button>
+        <div id="trialSkip" hidden>
+          <p class="muted"><b>Trial test mode</b> &mdash; this studio is on a free trial, so you can skip the OTP and approve as the client to test the full flow. No SMS or email is sent; the approval is recorded as a trial test.</p>
+          <label class="agree"><input type="checkbox" id="t_agree">
+            <span>I have read and agree to the Terms &amp; Conditions above (trial test).</span></label>
+          <button class="btn" id="trialSkipBtn" type="button">Skip OTP &amp; approve (trial test mode)</button>
+        </div>
       </div>
 
       <div id="step2" hidden>
@@ -133,10 +141,10 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="/telemetry.js?v=3"></script>
-<script src="/config.js?v=98"></script>
+<script src="/config.js?v=100"></script>
 <script src="/phone-input.js?v=3"></script>
 <script src="/event-name.js?v=6"></script>
-<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=178"></script>
+<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=204"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -268,6 +276,9 @@
     shownTerms=termsFor(apTax); phoneCountry(apTax);
     $("#terms").innerHTML=TERMS_BY_COUNTRY[termsKey(apTax)].html; $("#tver").textContent="("+shownTerms.v+")";
     if(quote.client_name) $("#c_name").value=quote.client_name;
+    // 0128 trial test mode: only shown when the server says this link's studio is an active trial
+    if(BPStore.approval.trialTestMode){ BPStore.approval.trialTestMode(token).then((on)=>{ if(on===true){ $("#trialSkip").hidden=false;
+      $("#payManual").textContent="Trial test mode: record this payment from your studio (Payments / Record payment). No payment gateway is needed."; } }).catch(()=>{}); }
     // resume state
     if(quote.reapproval_required===true){ $("#approvedNote").textContent=""; setMsg("dev", "The price changed after your earlier approval — please review the updated total and approve again."); }
     else if(quote.approval_status==='paid'){ showStep('stepPaid'); await showPaid(); }
@@ -293,6 +304,9 @@
     if(phone.replace(/[^0-9]/g,"").length<8){ setMsg("err","Please enter a valid mobile number."); $("#c_phone").focus(); return; }
     b.textContent="Sending…"; $("#resend").disabled=true;
     try{ const r=await BPStore.approval.requestOtp(token, phone);
+      // The server answers {sent:false} when no delivery channel is configured —
+      // never tell the client an OTP is on its way when it isn't.
+      if(r && r.sent===false && !r.dev_code){ setMsg("err","We couldn't send the OTP right now. Please contact your event manager to approve this event."); return; }
       showStep('step2');
       if(r && r.dev_code) setMsg("dev","SIMULATION MODE — your OTP is "+r.dev_code+" (in production this is sent by SMS).");
       else setMsg("ok","An OTP has been sent to "+phone+".");
@@ -322,6 +336,17 @@
       }
     }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"verify the OTP"})); }
     finally{ b.textContent="✓ Confirm & approve"; }
+  }));
+
+  // 0128 trial test mode: the server re-checks the trial and runs the normal consent path
+  $("#trialSkipBtn").addEventListener("click", ()=>BPUI.guard($("#trialSkipBtn"), async ()=>{
+    setMsg(); const name=$("#c_name").value.trim();
+    if(name.length<2){ setMsg("err","Please enter your name."); $("#c_name").focus(); return; }
+    if(!$("#t_agree").checked){ setMsg("err","Please tick the box to accept the terms."); $("#t_agree").focus(); return; }
+    try{ const r=await BPStore.approval.trialTestApprove(token, $("#c_phone").value.trim(), name, shownTerms.v, consentText(shownTerms.v)+" [trial test - OTP skipped]", navigator.userAgent);
+      if(r && r.approved === true){ showStep('step3'); $("#approvedNote").textContent="Approved in trial test mode (OTP skipped)."; $("#payManual").hidden=false; setMsg(); }
+      else setMsg("err",(r&&r.message)||"Could not approve in trial test mode.");
+    }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"approve in trial test mode"})); }
   }));
 
   // No online pay on a production host until Razorpay is live (sim checkout is 404 there)

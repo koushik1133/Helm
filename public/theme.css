@@ -222,6 +222,135 @@ html[data-theme="dark"] .gate.special { background:#2b2545; color:#c9bcff; }
 /* the workspace conflict banner is an inline-styled light-red card → force it dark */
 html[data-theme="dark"] #conflictBanner .card { background:#241417 !important; border-color:#5c2a2e !important; }
 
+/* ============================================================================
+   CLASSIC-LAYOUT DESIGN SYSTEM (Helm v2 tokens) — old top-header layout only.
+   Every rule here is scoped to :where(html:not([data-shell])) so the new shell
+   is untouched, and :where() adds ZERO specificity: a rule here ties a page's
+   own single-class rule and wins only by load order, while any more specific
+   page rule (e.g. .addrow .btn, .utable th) still wins. Sizes that scripts
+   measure (heights, paddings, widths) are never changed here.
+
+   Token decisions (event-ops tool: calm, premium, one confident accent):
+   · Accent   — the existing Helm violet #6d28d9 (7.1:1 white-on-accent) is the
+                ONLY brand colour. Primary buttons are a flat accent fill (the
+                old violet->indigo gradient read as generic AI chrome); hover
+                deepens to #5b21b6. Dark: flat #7c3aed (5.7:1 white text).
+   · Neutrals — the pages' warm-grey ramp is kept (bg #f6f4f1, panel #fff,
+                ink #1b1930 / #4b475f / #6b6577 = 15.9 / 8.6 / 5.5 on white).
+   · Status   — green / amber / red / blue only ever mean safe / warn / bad /
+                info; text variants (--*-text) are all >=4.5:1 on panels.
+   · Type     — IBM Plex Sans (pages' --font). Scale 1.200 minor third on a
+                14px base: 12 · 13 · 14 · 16 · 19 · 23 · 28. Tabular numerals
+                in tables & money; headings balance, paragraphs avoid widows.
+   · Space    — 4px grid: 4 · 8 · 12 · 16 · 24 · 32 · 48.
+   · Radius   — documented rule: controls 9px, cards/modals 14px, pills full.
+   · Elevation— shadows tinted to the ink hue (rgb 27 25 48), never pure black
+                on light; three steps: sm (rest) · md (hover/popover) · lg (modal).
+   · Motion   — 120-180ms ease-out for responses to user action only; all of
+                it collapses under prefers-reduced-motion (block below).
+   · Focus    — 2px accent outline + 2px offset (existing !important rule) plus
+                a soft 3px accent halo on text fields.
+   ============================================================================ */
+:where(html:not([data-shell])) {
+  --fs-xs: 12px; --fs-sm: 13px; --fs-base: 14px; --fs-md: 16px;
+  --fs-lg: 19px; --fs-xl: 23px; --fs-2xl: 28px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+  --r-ctl: 9px; --r-card: 14px; --r-pill: 999px;
+  --accent-hover: #5b21b6;
+  --info-text: #1d4ed8;          /* 6.70 on #fff */
+  --bad-text: #b42318;           /* 6.53 on #fff */
+  --elev-sm: 0 1px 2px rgba(27,25,48,.06);
+  --elev-md: 0 1px 2px rgba(27,25,48,.06), 0 8px 24px rgba(27,25,48,.10);
+  --elev-lg: 0 2px 6px rgba(27,25,48,.08), 0 24px 64px rgba(27,25,48,.18);
+  --ease-out: cubic-bezier(.2,.7,.2,1);
+  --focus-halo: 0 0 0 3px var(--accent-soft, #efe9ff);
+}
+html[data-theme="dark"]:not([data-shell]) {
+  --accent-hover: #8b5cf6;
+  --info-text: #93b4ff; --bad-text: #fca5a5;
+  --elev-sm: 0 1px 2px rgba(0,0,0,.5);
+  --elev-md: 0 1px 2px rgba(0,0,0,.5), 0 10px 28px rgba(0,0,0,.6);
+  --elev-lg: 0 2px 6px rgba(0,0,0,.6), 0 28px 72px rgba(0,0,0,.75);
+  --focus-halo: 0 0 0 3px rgba(167,139,250,.28);
+}
+
+/* ---- typography ---- */
+:where(html:not([data-shell])) body {
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility; font-kerning: normal;
+}
+:where(html:not([data-shell])) :is(h1, h2, h3, h4) { text-wrap: balance; letter-spacing: -.011em; }
+:where(html:not([data-shell])) h1 { letter-spacing: -.018em; }
+:where(html:not([data-shell])) p { text-wrap: pretty; }
+:where(html:not([data-shell])) :is(td, th, .kpi, .money, .amt, .num, .total) { font-variant-numeric: tabular-nums; }
+:where(html:not([data-shell])) ::selection { background: var(--accent-soft, #efe9ff); color: var(--ink, #1b1930); }
+html[data-theme="dark"]:not([data-shell]) ::selection { background: #3b2a6b; color: #fff; }
+
+/* ---- buttons: one confident accent, flat ---- */
+:where(html:not([data-shell])) :is(.btn, button.btn, a.btn) { font-weight: 600; letter-spacing: .005em; }
+:where(html:not([data-shell])) :is(.btn, button.btn, a.btn):hover:not(:disabled):not(.primary):not(.danger) {
+  border-color: var(--line-strong, #86808f);
+}
+:where(html:not([data-shell])) :is(.btn.primary, button.primary, a.btn.primary) {
+  background: var(--accent, #6d28d9); border-color: transparent; color: #fff;
+  box-shadow: var(--elev-sm), inset 0 1px 0 rgba(255,255,255,.12);
+}
+:where(html:not([data-shell])) :is(.btn.primary, button.primary, a.btn.primary):hover:not(:disabled) {
+  background: var(--accent-hover, #5b21b6);
+}
+html[data-theme="dark"]:not([data-shell]) :is(.btn.primary, button.primary, a.btn.primary) { background: #7c3aed; }
+html[data-theme="dark"]:not([data-shell]) :is(.btn.primary, button.primary, a.btn.primary):hover:not(:disabled) { background: #6d28d9; }
+:where(html:not([data-shell])) :is(button, .btn):disabled,
+:where(html:not([data-shell])) .btn[aria-disabled="true"] { cursor: not-allowed; opacity: .55; transform: none; box-shadow: none; }
+
+/* ---- inputs / selects / textareas ---- */
+:where(html:not([data-shell])) :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="submit"], [type="button"], [type="reset"], [type="image"], [type="hidden"]), select, textarea):hover:not(:focus):not(:disabled):not([aria-invalid="true"]):not(.fv-error) {
+  border-color: var(--ink-3, #6b6577);
+}
+:where(html:not([data-shell])) :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="submit"], [type="button"], [type="reset"], [type="image"], [type="hidden"]), select, textarea):focus {
+  border-color: var(--accent, #6d28d9); box-shadow: var(--focus-halo);
+}
+:where(html:not([data-shell])) :is(input, select, textarea):disabled { cursor: not-allowed; opacity: .7; }
+:where(html:not([data-shell])) :is(input, textarea)::placeholder { color: var(--ink-3, #6b6577); opacity: 1; }
+:where(html:not([data-shell])) :is(input[type="checkbox"], input[type="radio"], input[type="range"], progress) { accent-color: var(--accent, #6d28d9); }
+
+/* ---- tables ---- */
+:where(html:not([data-shell])) thead th { font-weight: 600; }
+:where(html:not([data-shell])) tbody tr { transition: background-color .12s var(--ease-out); }
+:where(html:not([data-shell]) table:not(.no-hover) tbody tr:hover) > td { background-color: color-mix(in srgb, var(--accent, #6d28d9) 3.5%, transparent); }
+
+/* ---- cards & surfaces ---- */
+html[data-theme="dark"]:not([data-shell]) :is(.card, .mod, .kpi, .modal) { border-color: var(--line); }
+:where(html:not([data-shell])) .mod:hover { box-shadow: var(--elev-md); border-color: color-mix(in srgb, var(--accent, #6d28d9) 28%, var(--line, #e8e3db)); }
+
+/* ---- modals & toasts ---- */
+:where(html:not([data-shell])) .modal { box-shadow: var(--elev-lg); }
+:where(html:not([data-shell])) .toast { box-shadow: var(--elev-md); font-weight: 500; }
+
+/* ---- tabs, chips, pills, badges ---- */
+:where(html:not([data-shell])) :is(.tab, .rtab) { font-weight: 500; }
+:where(html:not([data-shell])) :is(.tab, .rtab):is(.on, .active, [aria-selected="true"]) { font-weight: 600; }
+:where(html:not([data-shell])) :is(.pill, .badge, .chip) { font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+
+/* ---- empty states: an invitation to act, not a dead end ---- */
+:where(html:not([data-shell])) .empty { color: var(--ink-2, #4b475f); line-height: 1.55; }
+:where(html:not([data-shell])) .empty :is(b, strong, h3, h4) { color: var(--ink, #1b1930); }
+
+/* ---- links inside body copy ---- */
+:where(html:not([data-shell])) :is(p, .empty, .hint, .muted) a:not(.btn) { text-underline-offset: 2px; text-decoration-thickness: from-font; }
+
+/* ---- QA fixes: dark-mode accent fills + breadcrumb contrast ----
+   In dark the page --accent is light violet (#a78bfa), so white text on an
+   accent-filled active chip/tab was 2.7:1. Use the same deep fill as dark
+   primary buttons (#7c3aed, 5.7:1 with white). */
+html[data-theme="dark"]:not([data-shell]) :is(.hsf-chip[aria-pressed="true"], .rb-chip[aria-pressed="true"], .ptab.active, .step.active, .circbtn.plus) {
+  background: #7c3aed; border-color: #7c3aed; color: #fff;
+}
+html[data-theme="dark"]:not([data-shell]) .step.active .n { color: #fff; }
+/* breadcrumb trail (nav-trail.js) used --muted #6b7280 = 4.4:1 on the warm bg */
+html:not([data-shell]) .htr-bc { color: var(--ink-3, #6b6577); }
+html[data-theme="dark"]:not([data-shell]) .htr-bc { color: var(--ink-2, #c6c2d6); }
+
 /* ---- reduced motion (accessibility) ----
    Honour the OS "reduce motion" setting: collapse animations, transitions and
    smooth scrolling everywhere so vestibular-sensitive users aren't affected. */
@@ -234,6 +363,77 @@ html[data-theme="dark"] #conflictBanner .card { background:#241417 !important; b
   }
   html, body { scroll-behavior: auto !important; }
 }
+
+/* ============================================================================
+   International phone input (phone-input.js · HelmPhone) — flag + ▾ + dial code
+   button, then the number. The wrapper is the visible "field"; the inner input is
+   borderless so it reads as one control. Light + dark via the page tokens.
+   ============================================================================ */
+.hp{position:relative;display:flex;align-items:stretch;width:100%;max-width:100%;min-width:0;min-height:var(--hp-h,38px);box-sizing:border-box;
+  font-size:var(--hp-fs,inherit);line-height:var(--hp-lh,normal);
+  border:1px solid var(--line-strong,#86808f);border-radius:var(--hp-r,10px);background:var(--panel,#fff);color:var(--ink,#1b1930);
+  transition:border-color .15s,box-shadow .15s}
+.hp:focus-within{border-color:var(--accent,#6d28d9);box-shadow:0 0 0 3px var(--accent-soft,#efe9ff)}
+.hp .hp-cc{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;height:auto;min-height:0;min-width:0;margin:0;padding:0 8px 0 10px;border:0;
+  border-right:1px solid var(--line,#e8e3db);border-radius:9px 0 0 9px;background:transparent;color:inherit;font:inherit;font-size:var(--hp-fs,inherit);line-height:inherit;cursor:pointer}
+.hp .hp-cc:hover{background:var(--accent-soft,#f4f2fb)}
+.hp .hp-cc:focus-visible{outline:2px solid var(--accent,#6d28d9);outline-offset:-2px}
+.hp-flag{font-size:1.2em;line-height:1;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.hp-chev{width:14px;height:14px;color:var(--ink-3,#6b6577);transition:transform .15s}
+.hp.is-open .hp-chev{transform:rotate(180deg)}
+.hp-dial{font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink,#1b1930)}
+/* nurture-phone-align: flex-basis 0 + width 0 so the number box never forces the wrapper wider than its
+   grid/flex cell; the wrapper sets the height so it lines up with the other fields.
+   #phone-font: font-size / line-height / padding come from the page's own input metrics (--hp-*). */
+.hp > input.hp-num{flex:1 1 0;min-width:0;width:0!important;max-width:none!important;height:auto!important;margin:0!important;border:0!important;border-radius:0 9px 9px 0!important;
+  background:transparent!important;box-shadow:none!important;outline:none!important;padding:var(--hp-py,6px) var(--hp-px,10px)!important;
+  font:inherit!important;font-size:var(--hp-fs,inherit)!important;line-height:inherit!important;
+  color:inherit;font-variant-numeric:tabular-nums;min-height:0!important;text-overflow:ellipsis}
+.hp > input.hp-num::placeholder{font-size:inherit}
+.hp .hp-cc{white-space:nowrap}
+.hp-pop{position:absolute;left:-1px;top:calc(100% + 6px);z-index:1200;width:min(340px,calc(100vw - 32px));box-sizing:border-box;
+  background:var(--panel,#fff);color:var(--ink,#1b1930);border:1px solid var(--line,#e8e3db);border-radius:12px;
+  box-shadow:0 1px 2px rgba(20,27,46,.06),0 16px 40px rgba(20,27,46,.18);padding:8px;animation:hpIn .14s ease-out}
+.hp.hp-up .hp-pop{top:auto;bottom:calc(100% + 6px)}
+html[data-theme="dark"] .hp-pop{box-shadow:0 1px 2px rgba(0,0,0,.5),0 18px 44px rgba(0,0,0,.7)}
+.hp-pop .hp-search{display:block;width:100%;box-sizing:border-box;min-height:40px;margin:0 0 6px;padding:8px 10px;border:1px solid var(--line-strong,#86808f);
+  border-radius:8px;background:var(--panel-2,#faf8f5);color:inherit;font:inherit;font-size:15px}
+.hp-pop .hp-search:focus{outline:none;border-color:var(--accent,#6d28d9);box-shadow:0 0 0 3px var(--accent-soft,#efe9ff)}
+.hp-list{list-style:none;margin:0;padding:0;max-height:260px;overflow-y:auto;overscroll-behavior:contain}
+.hp-opt{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:14.5px;line-height:1.3}
+.hp-opt:hover,.hp-opt.is-active{background:var(--accent-soft,#f1ebfd)}
+.hp-opt[aria-selected="true"]{font-weight:600}
+.hp-opt[aria-selected="true"] .hp-ocode{color:var(--accent,#6d28d9)}
+.hp-oflag{font-size:20px;line-height:1;width:24px;text-align:center;flex:0 0 auto;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.hp-oname{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hp-ocode{flex:0 0 auto;color:var(--ink-3,#6b6577);font-variant-numeric:tabular-nums}
+.hp-empty{margin:6px 4px;color:var(--ink-3,#6b6577);font-size:13.5px}
+@keyframes hpIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.hp-pop{animation:none}.hp,.hp-chev{transition:none}}
+@media (pointer:coarse){.hp{min-height:44px}.hp > input.hp-num{font-size:16px!important}.hp-opt{min-height:44px}}
+@media (max-width:480px){.hp > input.hp-num{font-size:16px!important}}
+.hp.fv-error{border-color:var(--bad,#c0392b)}
+.hp.fv-ok{border-color:var(--safe-text,#0f7a43)}
+
+/* ============================================================================
+   Inline validation (form-validate.js · HelmValidate) — error under the field on
+   blur, red border + icon + text; success = green border + check.
+   ============================================================================ */
+input.fv-error,select.fv-error,textarea.fv-error{border-color:var(--bad,#c0392b)!important}
+input.fv-ok,textarea.fv-ok{background-color:var(--panel,#fff)!important;border-color:var(--safe-text,#0f7a43)!important;padding-right:36px!important;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.2 3.2L15 7' fill='none' stroke='%230f7a43' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;
+  background-repeat:no-repeat!important;background-position:right 10px center!important;background-size:18px!important}
+html[data-theme="dark"] input.fv-ok{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.2 3.2L15 7' fill='none' stroke='%2334d399' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important}
+.hp.fv-ok::after{content:"";position:absolute;right:10px;top:50%;width:18px;height:18px;margin-top:-9px;pointer-events:none;
+  background:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.2 3.2L15 7' fill='none' stroke='%230f7a43' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center/18px}
+html[data-theme="dark"] .hp.fv-ok::after{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.2 3.2L15 7' fill='none' stroke='%2334d399' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important}
+.hp.fv-ok > input.hp-num{padding-right:36px!important}
+.fv-msg{display:flex;align-items:flex-start;gap:6px;margin:6px 0 0;font-size:13px;line-height:1.4;font-weight:500;color:var(--bad,#b42318)}
+.fv-msg[hidden]{display:none}
+html[data-theme="dark"] .fv-msg{color:#fca5a5}
+.fv-ic{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-top:1px;border-radius:50%;
+  background:var(--bad,#c0392b);color:#fff;font-size:11px;font-weight:800;line-height:1}
+.fv-opt{font-weight:400;color:var(--ink-3,#6b6577)}
 
 /* BEGIN generated: inline-style classes (scripts/extract-inline-styles.mjs) */
 .s-015a5e7:not(#_):not(#_):not(#_){display:flex;align-items:center;gap:8px}
@@ -385,73 +585,20 @@ html[data-theme="dark"] #conflictBanner .card { background:#241417 !important; b
 .s-ffac540:not(#_):not(#_):not(#_){margin:0 auto 10px}
 /* END generated: inline-style classes */
 
-/* ============================================================================
-   International phone input (phone-input.js · HelmPhone) — flag + ▾ + dial code
-   button, then the number. The wrapper is the visible "field"; the inner input is
-   borderless so it reads as one control. Light + dark via the page tokens.
-   ============================================================================ */
-.hp{position:relative;display:flex;align-items:stretch;width:100%;max-width:100%;min-width:0;min-height:var(--hp-h,38px);box-sizing:border-box;
-  font-size:var(--hp-fs,inherit);line-height:var(--hp-lh,normal);
-  border:1px solid var(--line-strong,#86808f);border-radius:var(--hp-r,10px);background:var(--panel,#fff);color:var(--ink,#1b1930);
-  transition:border-color .15s,box-shadow .15s}
-.hp:focus-within{border-color:var(--accent,#6d28d9);box-shadow:0 0 0 3px var(--accent-soft,#efe9ff)}
-.hp .hp-cc{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;height:auto;min-height:0;min-width:0;margin:0;padding:0 8px 0 10px;border:0;
-  border-right:1px solid var(--line,#e8e3db);border-radius:9px 0 0 9px;background:transparent;color:inherit;font:inherit;font-size:var(--hp-fs,inherit);line-height:inherit;cursor:pointer}
-.hp .hp-cc:hover{background:var(--accent-soft,#f4f2fb)}
-.hp .hp-cc:focus-visible{outline:2px solid var(--accent,#6d28d9);outline-offset:-2px}
-.hp-flag{font-size:1.2em;line-height:1;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
-.hp-chev{width:14px;height:14px;color:var(--ink-3,#6b6577);transition:transform .15s}
-.hp.is-open .hp-chev{transform:rotate(180deg)}
-.hp-dial{font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink,#1b1930)}
-/* nurture-phone-align: flex-basis 0 + width 0 so the number box never forces the wrapper wider than its
-   grid/flex cell; the wrapper sets the height so it lines up with the other fields.
-   #phone-font: font-size / line-height / padding come from the page's own input metrics (--hp-*). */
-.hp > input.hp-num{flex:1 1 0;min-width:0;width:0!important;max-width:none!important;height:auto!important;margin:0!important;border:0!important;border-radius:0 9px 9px 0!important;
-  background:transparent!important;box-shadow:none!important;outline:none!important;padding:var(--hp-py,6px) var(--hp-px,10px)!important;
-  font:inherit!important;font-size:var(--hp-fs,inherit)!important;line-height:inherit!important;
-  color:inherit;font-variant-numeric:tabular-nums;min-height:0!important;text-overflow:ellipsis}
-.hp > input.hp-num::placeholder{font-size:inherit}
-.hp .hp-cc{white-space:nowrap}
-.hp-pop{position:absolute;left:-1px;top:calc(100% + 6px);z-index:1200;width:min(340px,calc(100vw - 32px));box-sizing:border-box;
-  background:var(--panel,#fff);color:var(--ink,#1b1930);border:1px solid var(--line,#e8e3db);border-radius:12px;
-  box-shadow:0 1px 2px rgba(20,27,46,.06),0 16px 40px rgba(20,27,46,.18);padding:8px;animation:hpIn .14s ease-out}
-.hp.hp-up .hp-pop{top:auto;bottom:calc(100% + 6px)}
-html[data-theme="dark"] .hp-pop{box-shadow:0 1px 2px rgba(0,0,0,.5),0 18px 44px rgba(0,0,0,.7)}
-.hp-pop .hp-search{display:block;width:100%;box-sizing:border-box;min-height:40px;margin:0 0 6px;padding:8px 10px;border:1px solid var(--line-strong,#86808f);
-  border-radius:8px;background:var(--panel-2,#faf8f5);color:inherit;font:inherit;font-size:15px}
-.hp-pop .hp-search:focus{outline:none;border-color:var(--accent,#6d28d9);box-shadow:0 0 0 3px var(--accent-soft,#efe9ff)}
-.hp-list{list-style:none;margin:0;padding:0;max-height:260px;overflow-y:auto;overscroll-behavior:contain}
-.hp-opt{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:14.5px;line-height:1.3}
-.hp-opt:hover,.hp-opt.is-active{background:var(--accent-soft,#f1ebfd)}
-.hp-opt[aria-selected="true"]{font-weight:600}
-.hp-opt[aria-selected="true"] .hp-ocode{color:var(--accent,#6d28d9)}
-.hp-oflag{font-size:20px;line-height:1;width:24px;text-align:center;flex:0 0 auto;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
-.hp-oname{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hp-ocode{flex:0 0 auto;color:var(--ink-3,#6b6577);font-variant-numeric:tabular-nums}
-.hp-empty{margin:6px 4px;color:var(--ink-3,#6b6577);font-size:13.5px}
-@keyframes hpIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.hp-pop{animation:none}.hp,.hp-chev{transition:none}}
-@media (pointer:coarse){.hp{min-height:44px}.hp > input.hp-num{font-size:16px!important}.hp-opt{min-height:44px}}
-@media (max-width:480px){.hp > input.hp-num{font-size:16px!important}}
-.hp.fv-error{border-color:var(--bad,#c0392b)}
-.hp.fv-ok{border-color:var(--safe-text,#0f7a43)}
-
-/* ============================================================================
-   Inline validation (form-validate.js · HelmValidate) — error under the field on
-   blur, red border + icon + text; success = green border + check.
-   ============================================================================ */
-input.fv-error,select.fv-error,textarea.fv-error{border-color:var(--bad,#c0392b)!important}
-input.fv-ok,textarea.fv-ok{background-color:var(--panel,#fff)!important;border-color:var(--safe-text,#0f7a43)!important;padding-right:36px!important;
-  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.2 3.2L15 7' fill='none' stroke='%230f7a43' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important;
-  background-repeat:no-repeat!important;background-position:right 10px center!important;background-size:18px!important}
-html[data-theme="dark"] input.fv-ok{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.2 3.2L15 7' fill='none' stroke='%2334d399' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important}
-.hp.fv-ok::after{content:"";position:absolute;right:10px;top:50%;width:18px;height:18px;margin-top:-9px;pointer-events:none;
-  background:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.2 3.2L15 7' fill='none' stroke='%230f7a43' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center/18px}
-html[data-theme="dark"] .hp.fv-ok::after{background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M5 10.5l3.2 3.2L15 7' fill='none' stroke='%2334d399' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")!important}
-.hp.fv-ok > input.hp-num{padding-right:36px!important}
-.fv-msg{display:flex;align-items:flex-start;gap:6px;margin:6px 0 0;font-size:13px;line-height:1.4;font-weight:500;color:var(--bad,#b42318)}
-.fv-msg[hidden]{display:none}
-html[data-theme="dark"] .fv-msg{color:#fca5a5}
-.fv-ic{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-top:1px;border-radius:50%;
-  background:var(--bad,#c0392b);color:#fff;font-size:11px;font-weight:800;line-height:1}
-.fv-opt{font-weight:400;color:var(--ink-3,#6b6577)}
+/* ---- Shared inline add-row layout (run-sheet, checklist, resources, logistics,
+   inventory reservations, control). Flex-wrap instead of fixed grid columns so
+   the "+ Add" button can never be pushed past the card edge: fields shrink
+   (min-width:0), wrap onto new lines on narrow widths, and the button stays
+   bottom-aligned with the inputs and never clips its label. ---- */
+.addrow:not(#_),.reserve-row:not(#_){display:flex;flex-wrap:wrap;gap:10px 10px;align-items:flex-end;max-width:100%;box-sizing:border-box}
+.addrow:not(#_)>*,.reserve-row:not(#_)>*{flex:1 1 150px;min-width:0;box-sizing:border-box}
+.addrow:not(#_)>[hidden],.reserve-row:not(#_)>[hidden]{display:none!important}
+.addrow:not(#_)>:has(>input[type=number]),.addrow:not(#_)>:has(>input[type=time]),
+.reserve-row:not(#_)>:has(>input[type=number]){flex:.6 1 96px}
+.addrow:not(#_)>:has(>input:not([type])),.addrow:not(#_)>:has(>input[type=text]){flex:2 1 200px}
+.addrow:not(#_)>:has(>.btn),.reserve-row:not(#_)>:has(>.btn),
+.addrow:not(#_)>.btn,.reserve-row:not(#_)>.btn{flex:0 0 auto;margin-left:auto}
+.addrow:not(#_) .fld input,.addrow:not(#_) .fld select,.reserve-row:not(#_) .fld input,.reserve-row:not(#_) .fld select{width:100%;min-width:0;max-width:100%;box-sizing:border-box}
+.addrow:not(#_) .btn,.reserve-row:not(#_) .btn{white-space:nowrap}
+@media (max-width:480px){.addrow:not(#_)>:has(>.btn),.reserve-row:not(#_)>:has(>.btn),.addrow:not(#_)>.btn,.reserve-row:not(#_)>.btn{flex:1 1 100%;margin-left:0}
+  .addrow:not(#_)>:has(>.btn) .btn,.reserve-row:not(#_)>:has(>.btn) .btn{width:100%}}

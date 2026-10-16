@@ -90,7 +90,7 @@
   .lsheet input,.lsheet select{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;margin-bottom:12px;font-family:inherit;color:var(--ink)}
   .row4{display:grid;grid-template-columns:repeat(3,1fr) auto;gap:8px;align-items:end}
   .row3{display:grid;grid-template-columns:2fr 1fr auto;gap:8px}
-  @media(max-width:620px){.row4{grid-template-columns:1fr 1fr}.row4>.btn{grid-column:1/-1;justify-content:center}.row3{grid-template-columns:1fr 1fr}.row3>input{grid-column:1/-1}}
+  @media(max-width:620px){.row4{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.row4 input{min-width:0;width:100%}.row4>.btn{grid-column:1/-1;justify-content:center}.row3{grid-template-columns:1fr 1fr}.row3>input{grid-column:1/-1}}
   .secerr:empty{display:none} .secerr{margin:0 0 12px}
   .meta{color:var(--ink-3);font-size:12px}
   @media (prefers-reduced-motion:reduce){.saved{transition:none}}
@@ -106,9 +106,11 @@
   .namehint button{border:0;background:none;color:var(--accent);cursor:pointer;font-size:12px;padding:0 0 0 6px;text-decoration:underline}
   .nameerr{font-size:12px;color:var(--warn-text,#8f5f00)}
 </style>
+<link rel="stylesheet" href="flow-polish.css?v=2">
 <link rel="stylesheet" href="share-checklist.css?v=2">
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="theme.css?v=80">
 <link rel="stylesheet" href="venues.css?v=3">
+<link rel="stylesheet" href="pages-polish-ops.css?v=1">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -162,6 +164,7 @@
             <div class="fld"><label for="c_guests">Guests</label><input id="c_guests" type="number" min="0"></div>
             <div class="fld"><label for="c_budget">Budget (₹)</label><input id="c_budget" type="number" min="0"></div>
           </div>
+          <p class="hint next-step" data-next-step><b>Next step:</b> fill in Discovery (step 2) — what the client wants and their budget.</p>
         </section>
 
         <!-- 2 DISCOVERY -->
@@ -177,6 +180,7 @@
             <div class="fld full"><label for="d_att">Who attended</label><input id="d_att" placeholder="e.g. Client + spouse, planner"></div>
             <div class="fld full"><label for="d_notes">Notes</label><textarea id="d_notes" placeholder="Theme ideas, constraints, preferences…"></textarea></div>
           </div>
+          <p class="hint next-step" data-next-step><b>Next step:</b> add the services they need under Requirements (step 3).</p>
         </section>
 
         <!-- 3 REQUIREMENTS -->
@@ -187,8 +191,9 @@
           <div class="row3 s-d2c171b">
             <input id="rq_title" list="reqTypeList" aria-label="Requirement" class="fld s-f8eca89" placeholder="Pick or type a new one…"><datalist id="reqTypeList"></datalist>
             <select class="s-28098e6" id="rq_pri" aria-label="Requirement priority"><option value="mandatory">Must-have</option><option value="optional">Optional</option><option value="nice">Nice-to-have</option></select>
-            <button type="button" class="btn" id="rq_add">＋ Add</button>
+            <button type="button" class="btn" id="rq_add">＋ Add requirement</button>
           </div>
+          <p class="hint next-step" data-next-step><b>Next step:</b> record the venue and access details (step 4).</p>
         </section>
 
         <!-- 4 VENUE -->
@@ -202,6 +207,7 @@
             <div class="fld full"><label for="v_addr">Address</label><input id="v_addr"></div>
             <div class="fld full"><label for="v_access">Access / load-in notes</label><textarea id="v_access" placeholder="Gate, lift, load-in window, parking…"></textarea></div>
           </div>
+          <p class="hint next-step" data-next-step><b>Next step:</b> pick a menu package (step 5).</p>
         </section>
 
         <!-- 5 MENU -->
@@ -212,6 +218,7 @@
           <div class="pkgcards" id="pkgCards"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
           <div class="dished" id="dishEditor" aria-live="polite"></div>
           <div class="fld full s-56f4356"><label for="p_menu">Menu / service notes</label><textarea id="p_menu" placeholder="Courses, dietary options, service style, timings…"></textarea></div>
+          <p class="hint next-step" data-next-step><b>Next step:</b> review the Proposal (step 6).</p>
         </section>
 
         <!-- 6 PROPOSAL (moved above the floor layout so the concept is set before the room is laid out) -->
@@ -224,6 +231,7 @@
             <div class="fld"><label for="pr_theme">Theme</label><input id="pr_theme" list="themeList" placeholder="Pick or type a new one…"><datalist id="themeList"></datalist></div>
             <div class="fld full"><label for="pr_scope">Scope highlights (one per line)</label><textarea id="pr_scope" placeholder="Stage &amp; mandap decor&#10;Full catering&#10;Lighting &amp; sound"></textarea></div>
           </div>
+          <p class="hint next-step" data-next-step><b>Next step:</b> generate or adjust the Floor layout (step 7).</p>
         </section>
 
         <!-- 7 FLOOR LAYOUT -->
@@ -243,6 +251,7 @@
             <label class="s-af1acab"><input type="checkbox" id="remindAfter"> Remind me to finish this after the layout</label>
             <a class="btn primary" id="openBuilder" href="#">🎨 Open floor builder →</a>
           </div>
+          <p class="hint next-step" data-next-step><b>Next step:</b> check the Quotation (step 8), then use “Send for approval →” in the right rail.</p>
         </section>
 
         <!-- 8 QUOTATION -->
@@ -254,7 +263,7 @@
               <div class="meta" id="repriceMeta"></div>
               <ul class="rp-lines" id="repriceLines"></ul></div>
             <div class="rp-act"><button type="button" class="btn primary" id="repriceBtn">Review &amp; re-price</button>
-              <button type="button" class="btn" id="repriceDismiss">Not now</button></div>
+              <button type="button" class="btn" id="repriceDismiss">Keep current prices</button></div>
           </div>
           <div class="secerr" id="err-rates"></div>
           <div class="grid">
@@ -275,6 +284,7 @@
           </div>
           <div class="s-3e8ce99" id="q_msg" role="status" aria-live="polite"></div>
           <div class="s-56f4356" id="q_versions"></div>
+          <p class="hint next-step" data-next-step><b>Next step:</b> once the client approves, record the advance under step 9 to confirm the booking.</p>
         </section>
 
         <!-- 9 ADVANCE PAYMENT & BOOKING -->
@@ -285,12 +295,13 @@
             <div class="fld s-1169661"><label for="pay_pct">Advance %</label><input id="pay_pct" type="number" min="0" max="100" value="10"></div>
             <div class="fld s-1169661"><label for="pay_amount">Advance amount (₹)</label><input id="pay_amount" type="number" min="0"></div>
             <div class="fld s-1169661"><label for="pay_method">Method</label><select id="pay_method"><option value="cash">Cash / offline</option><option value="online">Online link</option></select></div>
-            <button type="button" class="btn primary" id="pay_record">Record payment</button>
+            <button type="button" class="btn primary" id="pay_record">Record advance payment</button>
           </div>
           <p class="hint" id="pay_terms" hidden></p>
           <div class="fld" id="pay_receiptWrap"><label for="pay_receipt">Receipt no. (offline — blank to auto‑generate)</label><input id="pay_receipt" placeholder="e.g. RCP‑001 / cash memo no."></div>
           <div class="s-4856645" id="pay_online" hidden></div>
           <div class="s-56f4356" id="pay_receipts"><div class="meta"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
+          <p class="hint next-step" data-next-step><b>Next step:</b> the booking is confirmed — move on to Resources and Logistics from the event page.</p>
         </section>
 
         <!-- SHARE WITH CLIENT (0069) — share-checklist.js fills it -->
@@ -339,7 +350,7 @@
     <div class="s-d50b8a8">
       <button type="button" class="btn" id="lv_stay" data-close>Stay on this page</button>
       <button type="button" class="btn" id="lv_discard">Leave without saving</button>
-      <button type="button" class="btn primary" id="lv_save">Save</button>
+      <button type="button" class="btn primary" id="lv_save">Save and leave</button>
     </div>
   </div>
 </div>
@@ -356,12 +367,12 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
-<script src="tour.js?v=9"></script>
-<script src="booklet.js?v=16"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=204"></script>
+<script src="tour.js?v=14"></script>
+<script src="booklet.js?v=18"></script>
 <script src="share-checklist.js?v=9"></script>
 <script src="flow-layout-sync.js?v=4"></script>
 <script src="event-sizing.js?v=5"></script>
@@ -958,7 +969,16 @@
     const vr=BPStore.validate.money($("#pay_amount").value,{field:"Advance amount"});
     if(!vr.ok || !(vr.value>0)){ BPUI.toast(vr.ok?"Enter the advance amount.":vr.error,{type:"err"}); $("#pay_amount").focus(); return; }
     const amount=vr.value;
-    if(!(await BPUI.confirm(`Record ${inr(amount)} (${method==='cash'?'cash / offline':'online'}) as the advance? This confirms the booking.`,{title:"Record advance payment?",okLabel:"Record payment"}))) return;
+    // More than the balance due is allowed by the client check but never silently
+    // (matches Settlement wording); balance = quote total minus paid receipts (best-effort).
+    let bal=null; try{ const tot=quoteTotal(); const pays=(await BPStore.milestones.payments(id))||[];
+      const paidSum=pays.filter(p=>p.status==='paid').reduce((a,p)=>a+(+p.amount||0),0);
+      if(isFinite(tot)) bal=Math.round((tot-paidSum)*100)/100; }catch(_){ bal=null; }
+    const over=bal!=null?Math.round((amount-Math.max(0,bal))*100)/100:0;
+    const mlabel=method==='cash'?'cash / offline':'online';
+    const q=over>0.5 ? (bal>0 ? `This is ${inr(over)} more than the balance due (${inr(bal)}) - record ${inr(amount)} (${mlabel}) as the advance anyway? This confirms the booking.` : `Nothing is due on this event - record ${inr(amount)} (${mlabel}) as an extra payment anyway?`)
+      : `Record ${inr(amount)} (${mlabel}) as the advance? This confirms the booking.`;
+    if(!(await BPUI.confirm(q,{title:over>0.5?"More than the balance due":"Record advance payment?",okLabel:over>0.5?"Record anyway":"Record payment"}))) return;
     if($("#pay_record").disabled) return;
     $("#pay_record").disabled=true; $("#pay_record").setAttribute("aria-busy","true");
     // W15B/CF (record_payment idempotency): one STABLE key per submission so a
@@ -975,7 +995,9 @@
       BPUI.toast("Payment recorded — receipt "+(r&&r.receipt_no||"")+". Booking confirmed.",{type:"ok",timeout:8000});
       // Leave the button disabled after a successful record so the same advance
       // cannot be submitted twice; re-enable only on failure below.
-    }catch(e){ $("#pay_record").disabled=false; $("#pay_record").removeAttribute("aria-busy"); BPUI.toast(BPUI.friendlyError(e,{action:"record the payment"}),{type:"err"}); }
+    }catch(e){ $("#pay_record").disabled=false; $("#pay_record").removeAttribute("aria-busy");
+      if(e&&(e.code==="23514"||/exceeds the outstanding balance/i.test(String(e.message||"")))){ BPUI.toast("This payment is more than the balance the server allows for this event, so it was not recorded. Check the amount (and that any change orders are approved).",{type:"err",timeout:8000}); return; }
+      BPUI.toast(BPUI.friendlyError(e,{action:"record the payment"}),{type:"err"}); }
   }
   async function renderReceipts(){
     let pays=[]; try{ pays=(await BPStore.milestones.payments(id))||[]; }catch(e){ BPUI.loadError($("#pay_receipts"), e, renderReceipts, {what:"receipts"}); return; }
@@ -1185,6 +1207,11 @@
     // advance payment + activity
     updateAdvance();
     if(ev.status==='confirmed' || ((ev.approvalStatus||ev.approval_status)==='paid')) $("#bookingBadge").hidden=false;
+    // QA-FR2: after a reload the approval card said "Not sent yet." even when a link exists / the booking is confirmed
+    { const ap=ev.approvalStatus||ev.approval_status||"", hasTok=!!(ev.approvalToken||ev.approval_token);
+      if(ap==='paid'||ev.status==='confirmed') $("#apprState").textContent="Booking confirmed.";
+      else if(ap==='approved') $("#apprState").textContent="Client approved the quote.";
+      else if(hasTok) $("#apprState").textContent="Approval link already created — use the button below to show it again."; }
     await renderReceipts(); await renderActivity(); await renderQuoteVersions();
     renderReprice(); watchHistory();
     // reminder banner

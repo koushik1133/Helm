@@ -356,12 +356,12 @@ t('chat.html: photo avatars in the DM list, thread header, senders, @mention + p
     colorFor: () => '#123', initials: (s) => s.slice(0, 2).toUpperCase(), personName: (id) => (ctx.roster[id] || {}).full_name || 'Member' };
   vm.runInNewContext(['photoOf', 'photoAttr', 'personAv'].map((f) => fnSrc(chat, f)).join('\n') + '\nglobalThis.av=personAv;', ctx);
   assert.match(ctx.av(U(2)), new RegExp(`data-avatar-path="${AV(U(2)).replace(/[.]/g, '\\.')}">RA</div>$`));
-  assert.equal(ctx.av(U(3)), '<div class="av" style="background:#123;">NO</div>', 'no photo → initials only');
+  assert.equal(ctx.av(U(3)), '<div class="av" data-st="background:#123;">NO</div>', 'no photo → initials only');
   assert.doesNotMatch(ctx.av(U(4)), /<script>/); assert.match(ctx.av(U(4)), /&quot;&gt;&lt;script&gt;/);
   assert.match(chat, /\$\{c\.kind==="dm"\?personAv\(convOther\(c\)\):avHtml\(a\)\}/, 'DM list');
   assert.match(chat, /const ph=c\.kind==="dm"\?photoOf\(convOther\(c\)\):""; av\.removeAttribute\("data-av-done"\)/, 'thread header');
-  assert.match(chat, /<div class="who" style="color:\$\{colorFor\(m\.sender_id\)\}">\$\{personAv\(m\.sender_id,/, 'message senders');
-  assert.match(chat, /<span class="av" style="background:\$\{colorFor\(p\.id\)\}"\$\{photoAttr\(p\.id\)\}>/, '@mention picker');
+  assert.match(chat, /<div class="who" data-st="color:\$\{colorFor\(m\.sender_id\)\}">\$\{personAv\(m\.sender_id,/, 'message senders');
+  assert.match(chat, /<span class="av" data-st="background:\$\{colorFor\(p\.id\)\}"\$\{photoAttr\(p\.id\)\}>/, '@mention picker');
   assert.match(fnSrc(chat, 'prowAvatar'), /data-avatar-path="\$\{esc\(p\.avatar_path\)\}"/, 'new chat / group / add members');
   assert.equal((chat.match(/document\.body\.appendChild\(ov\); paintAv\(ov\);/g) || []).length, 3);
   assert.match(chat, /\$\("#tSub"\)\.textContent=\(p&&p\.job_title\)\|\|\(p&&roleLbl\(p\.role\)\)\|\|""/);

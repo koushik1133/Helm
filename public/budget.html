@@ -67,7 +67,10 @@
   th{position:relative} .table-scroll{position:relative}
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
 </style>
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="budget-polish.css?v=1">
+<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="pages-polish-ops.css?v=1">
+<link rel="stylesheet" href="vendor-bills.css?v=1">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -94,6 +97,8 @@
       <div class="tile"><div class="l">Actual cost</div><div class="n" id="t_act">—</div></div>
       <div class="tile margin"><div class="l">Est. margin</div><div class="n" id="t_mar">—</div><div class="pct" id="t_marpct"></div></div>
     </div>
+
+    <div data-vb-mount="pnl" id="netProfit"></div>
 
     <div class="card">
       <div class="rowh"><h2 class="s-1169661">Cost lines</h2><span class="sub s-1169661">Estimated vs actual — internal &amp; vendor.</span>
@@ -150,9 +155,9 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=204"></script><script src="vendor-bills-ui.js?v=4"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -174,7 +179,7 @@
   function render(){
     // E13: margin is on revenue WITHOUT the tax collected (tax is payable, shown underneath)
     $("#t_rev").textContent=inr(sum.revenueExTax!=null?sum.revenueExTax:sum.revenue);
-    $("#t_revsub").textContent = [sum.changeRevenue ? `quote ${inr(sum.baseRevenue)} + changes ${inr(sum.changeRevenue)}` : "", sum.tax>0 ? `+ tax ${inr(sum.tax)} collected (payable)` : ""].filter(Boolean).join(" · ");
+    $("#t_revsub").textContent = [sum.changeRevenue ? `quote ${inr(sum.revenueExTax - sum.changeRevenue)} + changes ${inr(sum.changeRevenue)}` : "", sum.tax>0 ? `+ tax ${inr(sum.tax)} collected (payable)` : ""].filter(Boolean).join(" · ");
     $("#t_est").textContent=inr(sum.estCost);
     $("#t_act").textContent=sum.actCost?inr(sum.actCost):"—";
     const m=sum.estMargin; const mn=$("#t_mar"); mn.textContent=inr(m); mn.className="n "+(m>=0?"pos":"neg");
@@ -254,6 +259,7 @@
       ["#t_rev","#t_est","#t_act","#t_mar"].forEach(x=>{ $(x).textContent="—"; }); $("#addCost").hidden=true; $("#importBtn").hidden=true; $("#chgBtn").hidden=true; return; }
     $("#addCost").hidden=!canEdit; $("#importBtn").hidden=!canEdit; $("#chgBtn").hidden=!canEdit;
     render();
+    try{ document.dispatchEvent(new CustomEvent("helm:pnl-refresh")); }catch(_){}
   }
   BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();

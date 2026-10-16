@@ -51,7 +51,7 @@ await t('chat.html: event groups use the emoji; plain groups 👥; DMs initials;
   assert.equal(c2.f({ kind: 'broadcast' }).txt, '📢');
   // evEmoji degrades to 📅 when the store isn't loaded
   const c3 = {}; vm.runInNewContext(fnSrc(chat, 'evEmoji') + '\nglobalThis.f=evEmoji;', c3); assert.equal(c3.f('wedding'), '📅');
-  assert.match(chat, /function avHtml\(a,id\)\{ return `<div class="av"\$\{id\?' id="'\+id\+'"':''\} style="background:\$\{a\.bg\}">\$\{esc\(a\.txt\)\}<\/div>`; \}/);
+  assert.match(chat, /function avHtml\(a,id\)\{ return `<div class="av"\$\{id\?' id="'\+id\+'"':''\} data-st="background:\$\{a\.bg\}">\$\{esc\(a\.txt\)\}<\/div>`; \}/);
 });
 await t('event card header shows the event emoji (escaped)', () => {
   const src = ['evEmoji', 'fmtEvDate', 'eventCardHtml'].map((f) => fnSrc(chat, f)).join('\n');

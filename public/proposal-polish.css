@@ -1,0 +1,49 @@
+/* proposal.html old-layout polish (moved out of inline <style> to keep the CSP hash list small) */
+  /* ── Old-layout polish (scoped: never applies inside the new shell) ── */
+  html:not([data-shell]) body{line-height:1.5;font-feature-settings:"tnum" 1,"cv11" 1}
+  html:not([data-shell]) .card{border-radius:14px;border-color:var(--line);box-shadow:0 1px 2px rgba(20,27,46,.04)}
+  html:not([data-shell]) .card h2{letter-spacing:-.01em}
+  html:not([data-shell]) .toolbar{row-gap:10px}
+  html:not([data-shell]) .toolbar h2{letter-spacing:-.01em}
+  html:not([data-shell]) thead th{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);background:var(--panel-2);white-space:nowrap}
+  html:not([data-shell]) tbody td{vertical-align:middle;border-top-color:var(--line-2,var(--line))}
+  html:not([data-shell]) tbody tr{transition:background-color .12s ease}
+  html:not([data-shell]) .btn{transition:border-color .12s ease,background-color .12s ease,transform .08s ease}
+  html:not([data-shell]) .btn:active:not(:disabled){transform:translateY(1px)}
+  html:not([data-shell]) .btn:focus-visible,html:not([data-shell]) .search:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  html:not([data-shell]) .search:focus,html:not([data-shell]) .fld input:focus,html:not([data-shell]) .fld select:focus,html:not([data-shell]) .fld textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);background:var(--panel)}
+  html:not([data-shell]) .fld label{letter-spacing:.01em}
+  html:not([data-shell]) .empty,html:not([data-shell]) .colempty{color:var(--ink-3);font-size:13px;line-height:1.6}
+  html:not([data-shell]) .muted{color:var(--ink-3)}
+  html:not([data-shell]) footer{letter-spacing:.01em}
+  @media (max-width:720px){
+    html:not([data-shell]) .wrap{padding-left:16px;padding-right:16px}
+    html:not([data-shell]) header{flex-wrap:wrap;row-gap:8px}
+    html:not([data-shell]) .nav{order:3;width:100%;margin-left:0;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+    html:not([data-shell]) .nav a{white-space:nowrap}
+    html:not([data-shell]) .search{max-width:none;flex-basis:100%}
+    html:not([data-shell]) .btn{min-height:40px}
+  }
+  @media (prefers-reduced-motion:reduce){html:not([data-shell]) *{transition:none!important}}
+
+/* ── Shell (new layout) page-level consistency: header, toolbar, tables, empty states, modals ── */
+html[data-shell] .toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;margin:0 0 20px}
+html[data-shell] .toolbar h2{margin:0;font-size:20px;font-weight:700;line-height:1.25;letter-spacing:-.015em}
+html[data-shell] .toolbar .sub{font-size:13px;line-height:1.5;color:var(--ink-3)}
+html[data-shell] .toolbar :is(.search,select,.btn){min-height:36px}
+html[data-shell] .card{border-radius:14px}
+html[data-shell] .card>h2{font-size:15px;font-weight:650;letter-spacing:-.01em;margin:0 0 12px}
+html[data-shell] thead th{font-size:11px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
+html[data-shell] tbody td{vertical-align:middle}
+html[data-shell] tbody tr{transition:background-color .12s ease}
+html[data-shell] :is(.empty,.colempty){font-size:13px;line-height:1.6;color:var(--ink-3)}
+html[data-shell] .modal h3{margin:0 0 12px;font-size:16px;font-weight:650;letter-spacing:-.01em}
+html[data-shell] .modal .foot{display:flex;justify-content:flex-end;gap:8px}
+html[data-shell] .btn:focus-visible,html[data-shell] .search:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:720px){
+  html[data-shell] .toolbar{margin-bottom:16px}
+  html[data-shell] .toolbar h2{font-size:18px}
+  html[data-shell] .toolbar .search{flex:1 1 100%;max-width:none}
+  html[data-shell] .toolbar :is(.search,select,.btn){min-height:40px}
+}
+@media (prefers-reduced-motion:reduce){html[data-shell] tbody tr{transition:none}}

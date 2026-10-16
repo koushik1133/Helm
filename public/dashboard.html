@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
+<link rel="stylesheet" href="/dashboard-polish.css?v=1">
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,7 +12,7 @@
 <link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   :root{
     --bg:#f6f4f1;--panel:#ffffff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
@@ -195,7 +196,8 @@
     .btn:hover,.ecard:hover,.rcard.link:hover,.rcard.link:focus-visible,.modnav .pill:hover{transform:none}
   }
 </style>
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="event-reminders.css?v=1">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -220,7 +222,7 @@
 
   <section id="obNudge" class="ob-nudge" hidden aria-label="Studio setup"></section>
   <section id="tdCard" data-td-auto hidden aria-label="Demo data"></section>
-  <section id="gsCard" class="gs" data-gs-auto hidden aria-label="Getting started"></section>
+  <section id="gsCard" class="gs" data-gs-auto hidden data-tour="checklist" aria-label="Getting started"></section>
 
   <section class="hero">
     <div>
@@ -322,13 +324,15 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
-<script src="tour.js?v=9"></script>
-<script src="getting-started.js?v=4"></script>
-<script src="onboarding-wizard.js?v=4"></script>
-<script src="trial-demo.js?v=2"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=204"></script>
+<script src="event-reminders.js?v=1"></script>
+<script src="tour.js?v=14"></script>
+<script src="getting-started.js?v=5"></script>
+<script src="onboarding-wizard.js?v=5"></script>
+<script src="trial-demo.js?v=4"></script>
+<script src="dash-prompts.js?v=1"></script>
 <script>
   const $ = (s) => document.querySelector(s);
   const fmtDate = (iso) => { try { return BPStore.fmtDateTime(iso) || "—"; } catch { return "—"; } };
@@ -514,7 +518,8 @@
     if (!up.length) { sec.hidden = true; return; }          // role without quotes access / nothing active
     sec.hidden = false;
     host.innerHTML = up.map((e) => {
-      const date = e.event_date ? fmtDate(e.event_date) : "no date";
+      // QA-FR2: a date-only event_date must not go through new Date() (UTC midnight → previous day + "06:00 pm" west of UTC)
+      const date = e.event_date ? (/^\d{4}-\d{2}-\d{2}$/.test(String(e.event_date)) ? BPStore.fmtDateIN(e.event_date) : fmtDate(e.event_date)) : "no date";
       const open = Number(e.open_tasks || 0), done = Number(e.done_tasks || 0);
       const badge = open > 0 ? `<span class="stat q">${open} open</span>` : (done > 0 ? `<span class="stat ok">all done</span>` : "");
       return `<div class="ecard pcard" data-id="${esc(e.id)}" style="cursor:pointer">
@@ -682,24 +687,35 @@
   /* ---- interactive spotlight tour ---- */
   // Order matches the module nav bar left-to-right, so the spotlight walks the
   // pills one by one in the order you actually see them.
+  // First-run tour of the app shell + dashboard. Every step points at a real element
+  // tagged data-tour="…" (shell-b*.js, mobile-nav.js, getting-started card). sel may list
+  // fallbacks: the desktop control first, then its phone bottom-bar twin. A step whose
+  // element is missing or hidden (role, screen size) is skipped by tour.js.
   const TOUR=[
-    {sel:"#createBtn", title:"Start an event", desc:"Click here to generate a new quote. Everything — the 2D/3D floor, pricing, staff, inventory, tasks — hangs off this one event."},
-    {sel:'[data-nav="leads"]', title:"Leads", desc:"Capture and qualify enquiries on a pipeline, then convert a lead into an event in one click."},
-    {sel:'[data-nav="crm"]', title:"CRM archive", desc:"Every past client and enquiry is kept here for reference and follow-up."},
-    {sel:'[data-nav="nurture"]', title:"Nurture", desc:"Auto-send birthday & anniversary greetings (with photos) to past clients to win repeat business."},
-    {sel:'[data-nav="staff"]', title:"Staff", desc:"Your in-house team — assign them to event tasks, organised by section (stage, lighting…)."},
-    {sel:'[data-nav="inventory"]', title:"Inventory", desc:"Stock graded A/B/C by value. Check equipment out to a person and back in — anything missing is flagged with its rupee value."},
-    {sel:'[data-nav="vendors"]', title:"Vendors", desc:"Outside partners and rentals for the gaps your in-house team can't cover."},
-    {sel:'[data-nav="calendar"]', title:"Calendar", desc:"See every event and catch staff or stock clashes before they bite."},
-    {sel:'[data-nav="templates"]', title:"Templates", desc:"Reusable checklists you can apply to any event in one click."},
-    {sel:'[data-nav="quotes"]', title:"Quotes & confirmations", desc:"Price the event, confirm it, and take client approval by OTP / consent / payment link."},
-    {sel:'#hauAccountBtn', title:"Your menu", desc:"Profile, account settings, the user manual and (for admins) Control Center live here. In Control Center: Set default pricing, chair types and coupons, add teammates, and tick exactly who can view or edit each area."},
-    {sel:'#bpThemeToggle', title:"Light / dark mode", desc:"Tap this any time to switch the whole app between light and dark. Your choice is remembered on this device."},
+    {title:"Welcome to Helm 👋", desc:"Helm runs your events business in one place: quotes, leads, the calendar, staff, stock and payments. Your 8-day trial is loaded with sample data marked “Demo ·” so you can click around freely. This quick tour takes about a minute."},
+    {sel:['[data-tour="nav"]','[data-tour="tabs"]','[data-tour="m-nav"]'], title:"Find your way around", desc:"This is your main menu. Dashboard is home, Quotes holds every event you price, Leads tracks new enquiries, Calendar shows what's booked, and Chat is your team's message room. On a phone, “More” opens the full menu."},
+    {sel:'[data-tour="pin"]', title:"Keep the sidebar open", desc:"The sidebar tucks away to give you room. Click the pin to keep it open all the time; click it again to let it tuck away."},
+    {sel:['[data-tour="search"]','[data-tour="search-m"]','[data-tour="m-search"]'], title:"Search anything", desc:"Find a client, quote, lead or page by typing a few letters. Press ⌘K (Ctrl K on Windows) from anywhere to jump straight here."},
+    {sel:['[data-tour="new"]','[data-tour="m-add"]'], title:"Create something new", desc:"“New quote” starts pricing an event. The little arrow next to it opens more: a new lead, client, inventory item, vendor or staff member."},
+    {sel:['[data-tour="bell"]','[data-tour="m-bell"]'], title:"Notifications", desc:"The bell collects reminders, approvals waiting on you and trial reminders. Open it to act on one, or use “Mark all read” to clear the list."},
+    {sel:'[data-tour="chat"]', title:"Team chat", desc:"Talk to your team without leaving Helm. A small badge shows when there are messages you haven't read."},
+    {sel:'[data-tour="privacy"]', title:"Hide the money", desc:"Showing your screen to a client? Tap the eye to hide every amount. Showing them again asks for your PIN, so nobody else can peek."},
+    {sel:['[data-tour="today"]','[data-tour="customize"]','#hdDash'], title:"Your day at a glance", desc:"The Today strip shows events and tasks due today; the cards below cover your month, what needs attention, revenue and the pipeline. Use “Customize” to drag cards around, hide the ones you don't need, or reset to the default."},
+    {sel:'[data-tour="customize"]', title:"Make the dashboard yours", desc:"Click Customize to arrange your dashboard. Drag any card by its ⋮⋮ handle to change the order, tap the eye on a card to hide it, and use Reset to bring back the default layout. Press Done to save it — your layout follows your account to any computer."},
+    {sel:['[data-tour="setup"]','[data-tour="checklist"]'], title:"Getting started checklist", desc:"A short list of first steps, like adding your logo and sending your first quote. Click it to see what's left; it ticks itself off as you go."},
+    {sel:['[data-tour="theme"]','[data-tour="tabs-more"]'], title:"Light or dark", desc:"Switch the whole app between light and dark mode. Your choice is remembered on this device. (On a phone it's inside the “More” menu.)"},
+    {sel:['[data-tour="account"]','[data-tour="m-me"]','[data-tour="tabs-more"]'], title:"Your profile menu", desc:"Your account, settings, the user manual and sign out live here. Want this tour again? Click “Take a guided tour” in the sidebar (or the “More” menu on a phone) any time. You're all set!"},
   ];
   // The spotlight engine lives in tour.js (shared with every page): it re-glues the
   // ring on scroll/resize/orientation/layout changes, flips + clamps the tip inside
-  // the viewport, and shows a centered card when a target is hidden at this size.
+  // the viewport, and skips a step whose element is missing or hidden.
   function startTour(){ if(window.HelmTour) window.HelmTour.start(TOUR, "bp_seen_tour"); }
+  // auto-start: give the shell + dashboard cards a moment to render so no step is skipped early
+  function startTourWhenReady(){
+    const t0=Date.now();
+    (function wait(){ const d=document.getElementById("hdDash"), td=document.querySelector('[data-tour="today"]');
+      if((d && d.classList.contains("hd-ready") && td && !td.hidden) || Date.now()-t0>5000) startTour(); else setTimeout(wait,150); })();
+  }
   $("#helpBtn").addEventListener("click", startTour);
   // Auto-start the tour ONLY once, right after a brand-new studio sign-up (login.html
   // sets bp_force_tour when it creates the studio) or on an invited member's
@@ -716,7 +732,7 @@
                                       new Promise(r => setTimeout(() => r(false), 30000)) ]);
       if(!ok) return;
       const A = BPStore.auth;
-      if(!(A && A.enabled && A.enabled())){ if(!localStorage.getItem("bp_seen_tour")) startTour(); return; }   // local/demo mode: per-device
+      if(!(A && A.enabled && A.enabled())){ if(!localStorage.getItem("bp_seen_tour")) startTourWhenReady(); return; }   // local/demo mode: per-device
       const u = A.user && A.user(); if(!u) return;
       let forced=false; try{ forced=!!localStorage.getItem("bp_force_tour"); localStorage.removeItem("bp_force_tour"); }catch{}
       const seen = A.tourSeen ? A.tourSeen() : true;
@@ -728,7 +744,7 @@
       try{ localStorage.setItem("bp_tour_autorun","1"); }catch{}
       // marked seen BEFORE starting (leaving mid-tour must not re-trigger it); one retry
       const mark = (async () => { if(!A.markTourSeen) return; let done=false; try{ done = await A.markTourSeen(); }catch{} if(!done){ try{ await A.markTourSeen(); }catch{} } })();
-      startTour();
+      startTourWhenReady();
       await mark;
     }catch{}
   })();

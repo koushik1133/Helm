@@ -1,0 +1,67 @@
+/* shell-b-privacy.css — "Hide amounts" privacy screen (visual only; values are never changed). */
+
+/* ---- masked amounts ---- */
+html.hb-priv-on .hbp-m:not(svg *),
+html.hb-priv-on [data-money]:not(svg):not(svg *) {
+  color: transparent !important; text-shadow: none !important; -webkit-text-fill-color: transparent;
+  -webkit-user-select: none !important; user-select: none !important;
+  position: relative; border-radius: 5px; white-space: nowrap;
+  background: color-mix(in srgb, var(--hb-ink, #111) 9%, transparent) !important;
+  filter: none;
+}
+html.hb-priv-on .hbp-m:not(svg *)::after,
+html.hb-priv-on [data-money]:not(svg):not(svg *)::after {
+  content: "••••"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: var(--hb-ink3, #6b6577); -webkit-text-fill-color: var(--hb-ink3, #6b6577); font-size: .85em; letter-spacing: .12em; pointer-events: none;
+  overflow: hidden;
+}
+/* children of a masked block must not leak their own colour */
+html.hb-priv-on .hbp-m:not(svg *) *, html.hb-priv-on [data-money]:not(svg):not(svg *) * { color: transparent !important; -webkit-text-fill-color: transparent; }
+/* SVG: chart labels vanish, whole money charts blur */
+html.hb-priv-on svg .hbp-m, html.hb-priv-on svg [data-money] { fill: transparent !important; }
+html.hb-priv-on svg[data-money] { filter: blur(7px); -webkit-user-select: none; user-select: none; }
+/* editable inputs are never masked: the user must see what they type (QA: #pay_amt). Read-only values stay masked via .hbp-m/[data-money]. */
+html.hb-priv-on :is(input, textarea, select) { color: var(--hb-ink, inherit) !important; -webkit-text-fill-color: var(--hb-ink, currentColor) !important; }
+@media print { html.hb-priv-on .hbp-m, html.hb-priv-on [data-money] { visibility: hidden; } }
+
+/* ---- eye button ---- */
+.hbp-btn .hb-svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+html[data-shell="b"] .hbp-btn.hbp-on { color: var(--hb-acc-text, var(--hb-acc)); background: var(--hb-acc-soft); }
+.hbp-float { position: fixed; right: 14px; bottom: 64px; z-index: 950; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--hb-line, #ddd);
+  background: var(--hb-bg, #fff); color: var(--hb-ink, #111); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.15); }
+
+/* ---- PIN modal ---- */
+.hbp-ov { position: fixed; inset: 0; z-index: 100000; background: color-mix(in srgb, #0b1020 55%, transparent); display: flex; align-items: center; justify-content: center; padding: 16px;
+  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+.hbp-dlg { width: min(340px, 100%); background: var(--hb-bg, #fff); color: var(--hb-ink, #111); border: 1px solid var(--hb-line, #e3e8f2); border-radius: 18px;
+  box-shadow: 0 24px 60px -12px rgba(0,0,0,.45); padding: 22px 20px 16px; text-align: center; font-family: inherit; }
+.hbp-title { margin: 0 0 6px; font-size: 18px; font-weight: 650; letter-spacing: -.01em; }
+.hbp-desc { margin: 0 0 14px; font-size: 13px; color: var(--hb-ink2, #445); line-height: 1.45; }
+.hbp-dots { display: flex; justify-content: center; gap: 12px; margin: 4px 0 10px; }
+.hbp-dots i { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--hb-ink3, #889); transition: background-color .12s; }
+.hbp-dots i.on { background: var(--hb-ink, #111); border-color: var(--hb-ink, #111); }
+.hbp-input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.hbp-dlg:focus-within .hbp-dots i:not(.on):first-of-type { border-color: var(--hb-acc, #2450f0); }
+.hbp-err { min-height: 18px; margin: 0 0 8px; font-size: 12px; font-weight: 600; color: #c42b2b; }
+html[data-theme="dark"] .hbp-err { color: #f28b82; }
+.hbp-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.hbp-key { height: 50px; border-radius: 12px; border: 1px solid var(--hb-line, #e3e8f2); background: var(--hb-bg2, #f5f7fc); color: var(--hb-ink, #111);
+  font: 600 18px/1 inherit; font-family: inherit; cursor: pointer; transition: background-color .12s, transform .06s; }
+.hbp-key:hover { background: color-mix(in srgb, var(--hb-ink, #111) 7%, var(--hb-bg2, #f5f7fc)); }
+.hbp-key:active { transform: scale(.96); }
+.hbp-key-ok { background: var(--hb-on, #111); color: var(--hb-on-ink, #fff); border-color: var(--hb-on, #111); }
+.hbp-key-ok:hover { background: var(--hb-on, #111); opacity: .9; }
+.hbp-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: space-between; }
+.hbp-link { border: 0; background: none; color: var(--hb-ink2, #445); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; padding: 8px 6px; border-radius: 6px; }
+.hbp-link:hover { color: var(--hb-ink, #111); text-decoration: underline; }
+.hbp-ok { margin-left: auto; height: 36px; padding: 0 16px; border-radius: 9px; border: 0; background: var(--hb-on, #111); color: var(--hb-on-ink, #fff); font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }
+.hbp-ok:disabled, .hbp-input:disabled ~ .hbp-pad .hbp-key { opacity: .45; cursor: not-allowed; }
+.hbp-dlg button:focus-visible { outline: 2px solid var(--hb-acc, #2450f0); outline-offset: 2px; }
+.hbp-shake { animation: hbpShake .38s cubic-bezier(.36,.07,.19,.97); }
+@keyframes hbpShake { 10%, 90% { transform: translateX(-2px); } 20%, 80% { transform: translateX(4px); } 30%, 50%, 70% { transform: translateX(-7px); } 40%, 60% { transform: translateX(7px); } }
+@media (prefers-reduced-motion: reduce) { .hbp-shake { animation: none; } .hbp-key { transition: none; } }
+@media (max-width: 420px) { .hbp-key { height: 56px; } }
+
+/* ---- one-time hint chip under the eye button ---- */
+.hbp-hint { position: fixed; z-index: 1500; top: 64px; right: 16px; max-width: calc(100vw - 16px); padding: 6px 12px; border-radius: 999px; border: 1px solid var(--hb-line, rgba(0,0,0,.12));
+  background: var(--hb-ink, #111); color: var(--hb-bg, #fff); font: 600 12.5px/1.3 inherit; box-shadow: 0 6px 20px rgba(0,0,0,.18); cursor: pointer; white-space: nowrap; }

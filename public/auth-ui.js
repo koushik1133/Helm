@@ -130,6 +130,8 @@
       ".hpf-sect{display:block;font-size:15.5px;font-weight:650;color:var(--hpf-ink);letter-spacing:-.005em}",
       ".hpf-secs{display:block;margin:2px 0 14px;font-size:13px;color:var(--hpf-ink3);font-weight:400}",
       "details.hpf-sec{padding:0}",
+      "/* phone country picker inside the profile modal: stay within the field so the modal never scrolls sideways */",
+      ".hpf .hp-pop{left:0;right:0;width:auto;max-width:100%;min-width:0}",
       "details.hpf-sec>.hpf-secb{padding:2px 18px 4px}",
       ".hpf-sum{list-style:none;display:flex;align-items:center;gap:12px;padding:16px 18px;cursor:pointer;border-radius:14px}",
       ".hpf-sum::-webkit-details-marker{display:none}",
@@ -441,7 +443,13 @@
     close.addEventListener("click", closePanel);
     foot.appendChild(close); card.appendChild(foot);
     panel.addEventListener("click", function (e) { if (e.target === panel) closePanel(); });
-    panel.addEventListener("keydown", function (e) { if (e.key === "Escape") closePanel(); });
+    panel.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      // an open country picker (phone-input.js) owns Escape: close just the picker, keep the profile modal
+      var hp = panel.querySelector(".hp.is-open");
+      if (hp) { var b = hp.querySelector(".hp-cc"); if (b) b.click(); e.preventDefault(); return; }
+      closePanel();
+    });
     doc.body.appendChild(panel);
     if (!focusProfile) setTimeout(function () { try { close.focus(); } catch (e) {} }, 30);
   }
@@ -693,7 +701,7 @@
       var wrap = el("div", { class: "hpf-f" + (a.wide ? " hpf-wide" : "") });
       var lab = el("label", { for: id, class: "hpf-l" }, label);
       if (a.req) lab.appendChild(el("span", { class: "req-star", "aria-hidden": "true" }, " *"));
-      else lab.appendChild(el("span", { class: "hpf-opt" }, " (optional)"));
+      else if (!a.core) lab.appendChild(el("span", { class: "hpf-opt" }, " (optional)"));   // core = needed for a complete profile: never labelled optional
       var inp = el("input", { id: id, class: "hpf-i", type: a.type || "text", autocomplete: a.ac || "off", maxlength: String(a.max || lim.text) });
       if (a.ph) inp.setAttribute("placeholder", a.ph);
       if (a.type === "tel") { inp.setAttribute("inputmode", "tel"); inp.setAttribute("data-phone-hardened", "1"); if (a.mobile) inp.setAttribute("data-phone-mobile", "1"); }
@@ -738,9 +746,12 @@
 
     // ---- About you
     var sA = section("About you", "How your team will see and reach you.", false);
-    field(sA, "full_name", "Full name", { req: setup || hadName, ac: "name", max: 50, ph: "e.g. Ananya Rao", value: P.full_name, wide: true });
-    var mob = field(sA, "phone", "Mobile number", { req: setup || hadPhone, type: "tel", ac: "tel", max: 24, mobile: true, value: P.phone || "", wide: true,
+    field(sA, "full_name", "Full name", { req: setup || hadName, core: true, ac: "name", max: 50, ph: "e.g. Ananya Rao", value: P.full_name, wide: true });
+    var mob = field(sA, "phone", "Mobile number", { req: setup || hadPhone, core: true, type: "tel", ac: "tel", max: 24, mobile: true, value: P.phone || "", wide: true,
       hint: "We'll use this for event-day check-ins and urgent updates." });
+    // WhatsApp is parked for launch (owner, Oct 2026): while config.liveChannels.whatsapp is off,
+    // the WhatsApp checkboxes, number and the WhatsApp-code "Verify" button are not shown at all.
+    var waLive = !!(global.SUPABASE_CONFIG && global.SUPABASE_CONFIG.liveChannels && global.SUPABASE_CONFIG.liveChannels.whatsapp);
     // verify (0055)
     var vBtn = el("button", { type: "button", class: "hau-btn hpf-vbtn", "aria-describedby": idp + "_vstate" }, "Verify");
     var vState = el("span", { class: "hpf-vstate", id: idp + "_vstate", role: "status", "aria-live": "polite" });
@@ -753,16 +764,17 @@
     same.checked = P.whatsapp_same !== false;
     cbRow.appendChild(same); cbRow.appendChild(el("label", { for: idp + "_wa_same" }, "WhatsApp is on this number"));
     sA.appendChild(cbRow);
+    if (!waLive) { vBtn.hidden = true; cbRow.hidden = true; }
     var wa = field(sA, "whatsapp", "WhatsApp number", { type: "tel", ac: "off", max: 24, mobile: true, wide: true,
       value: P.whatsapp_same === false && P.whatsapp ? P.whatsapp : "" });
-    function syncWa() { wa.wrap.hidden = same.checked; if (same.checked && binds.whatsapp) binds.whatsapp.reset(); }
+    function syncWa() { wa.wrap.hidden = same.checked || !waLive; if (same.checked && binds.whatsapp) binds.whatsapp.reset(); }
     same.addEventListener("change", function () { syncWa(); progress(); if (!same.checked) try { wa.input.focus(); } catch (x) {} });
     syncWa();
     // 0078: opt in to WhatsApp copies of my Helm notifications (saved immediately; the server
     // sends nothing until the studio adds its WhatsApp number and switches forwarding on)
     (function () {
       var C = global.BPStore && global.BPStore.comms;
-      if (!C || typeof C.myForward !== "function") return;
+      if (!waLive || !C || typeof C.myForward !== "function") return;
       var fRow = el("div", { class: "hpf-cbrow" });
       var fCb = el("input", { type: "checkbox", id: idp + "_wa_fwd", class: "hpf-cb" });
       var fLb = el("label", { for: idp + "_wa_fwd" }, "Also send my Helm notifications to my WhatsApp");
@@ -844,7 +856,12 @@
 
     // ---- Emergency contact (optional)
     var eFilled = !!(P.emergency_contact_name || P.emergency_contact_phone);
-    var sE = section("Emergency contact", "Someone we can call if something happens on an event day.", true, eFilled);
+    var sE = section("Emergency contact", "A family member or friend we call if you are hurt or unwell while working an event.", true, eFilled);
+    // the studio owner / admin isn't asked on first setup (crew / staff are): for them it stays collapsed and
+    // does not count towards "profile complete". It is still shown and fillable. (Before: only the section BODY
+    // was hidden, so the "Emergency contact" row opened to an empty box - the reported "dropdown not working".)
+    var noEmerg = !!o.hideEmergency && !eFilled;
+    sE.appendChild(el("p", { class: "hpf-h" }, "Your studio admins see this so they can tell your family quickly if something happens to you at an event (an injury, an accident or a health problem). It is not shown to clients or other crew."));
     var gE = el("div", { class: "hpf-grid" }); sE.appendChild(gE);
     field(gE, "emergency_contact_name", "Contact name", { ac: "off", max: 50, ph: "e.g. Ravi Rao", value: P.emergency_contact_name });
     field(gE, "emergency_contact_phone", "Contact phone", { type: "tel", ac: "off", max: 24, value: P.emergency_contact_phone || "" });
@@ -886,15 +903,16 @@
       if (String(f.full_name).trim()) n++;
       var hasPhone = !!String(f.phone).trim(); if (hasPhone) n++;
       if (f.whatsapp_same ? hasPhone : String(f.whatsapp || "").trim()) n++;
-      ["job_title", "department", "city", "emergency_contact_name", "emergency_contact_phone"].forEach(function (k) { if (String(f[k] || "").trim()) n++; });
+      (noEmerg ? ["job_title", "department", "city"] : ["job_title", "department", "city", "emergency_contact_name", "emergency_contact_phone"]).forEach(function (k) { if (String(f[k] || "").trim()) n++; });
       if (skills.length) n++;
-      var pct = Math.round(n * 10);
+      var total = noEmerg ? 8 : 10;
+      var pct = Math.round(n * 100 / total);
       fill.style.width = pct + "%"; bar.setAttribute("aria-valuenow", String(pct));
       var need = [];
       if (!String(f.full_name).trim()) need.push("full name");
       if (!hasPhone) need.push("mobile number");
       progTxt.textContent = "";
-      progTxt.appendChild(el("b", null, n + " of 10"));
+      progTxt.appendChild(el("b", null, n + " of " + total));
       progTxt.appendChild(doc.createTextNode(" details added" + (need.length ? " · still needed: " + need.join(" and ") : (setup ? " · ready to save" : ""))));
       rowTx.textContent = need.length ? "Still needed: " + need.join(", ") : "All required details added";
       prog.classList.toggle("is-ready", !need.length);
@@ -1335,11 +1353,19 @@
   };
   function menuItems() { return menu.pop ? Array.prototype.slice.call(menu.pop.querySelectorAll("[role=menuitem]")) : []; }
   function focusItem(i) { var it = menuItems(); if (!it.length) return; i = (i + it.length) % it.length; try { it[i].focus(); } catch (e) {} }
-  function outside(e) { if (menu.root && !menu.root.contains(e.target)) closeMenu(false); }
+  // the app shell moves the button + menu (.hau-mw) out of #hauTopbar into the rail, so "inside" is
+  // the menu / its button wherever they live (was: root only -> a press on "Sign out" closed the menu
+  // on mousedown, before its click could run)
+  function outside(e) {
+    var t = e.target;
+    if ((menu.pop && menu.pop.contains(t)) || (menu.btn && menu.btn.contains(t)) || (menu.root && menu.root.contains(t))) return;
+    closeMenu(false);
+  }
   function closeMenu(refocus) {
     if (!menu.open) return; menu.open = false;
     if (menu.pop) menu.pop.hidden = true;
     if (menu.btn) menu.btn.setAttribute("aria-expanded", "false");
+    try { doc.documentElement.classList.remove("hau-menu-open"); } catch (e) {}
     doc.removeEventListener("mousedown", outside, true); doc.removeEventListener("touchstart", outside, true);
     if (refocus && menu.btn) try { menu.btn.focus(); } catch (e) {}
   }
@@ -1347,6 +1373,8 @@
     if (!menu.pop) return;
     buildPop(); menu.open = true; menu.pop.hidden = false;
     menu.btn.setAttribute("aria-expanded", "true");
+    // the open menu sits above every floating note / banner (they otherwise cover "Sign out")
+    try { doc.documentElement.classList.add("hau-menu-open"); } catch (e) {}
     doc.addEventListener("mousedown", outside, true); doc.addEventListener("touchstart", outside, true);
     focusItem(focusLast ? -1 : 0);
   }
@@ -1562,10 +1590,12 @@
     var st = S(); if (!st || !st.auth.user() || !st.subscription || !st.subscription.trial) return;
     if (pageName() === "checkout") return;
     var demoQ = st.demo && st.demo.status ? st.demo.status().catch(function () { return null; }) : Promise.resolve(null);
-    Promise.all([st.subscription.trial(), demoQ]).then(function (both) {
+    // 0119: a self-serve trial studio already shows the ONE trial strip (trial.js) — no second notice
+    var orgQ = st.trialOrg && st.trialOrg.status ? st.trialOrg.status().catch(function () { return null; }) : Promise.resolve(null);
+    Promise.all([st.subscription.trial(), demoQ, orgQ]).then(function (both) {
       var t = both[0], d = both[1];
       demoStatus(t, d);
-      var spec = trialNotice(t);
+      var spec = both[2] && both[2].is_trial_org === true ? null : trialNotice(t);
       if (!spec || trialShown || !doc.body) return;
       var key = "trial_" + String(t.ends_at || "") + (spec.urgent ? "_u" : "");
       if (spec.dismissible && (noteSnoozed(key) || trialDismissedThisSession(key))) return;
@@ -1620,7 +1650,13 @@
         setTimeout(function () { pending = false; placeAccountButton(); }, 50);
       }).observe(doc.body, { childList: true, subtree: true });
     } catch (e) {}
-    adminTwoStep();
+    /* perf (Oct 2026): the two-step NUDGE needs listFactors (= a GET /auth/v1/user round trip); it is display-only,
+       so it waits for idle. When two-step is REQUIRED for admins it still runs at once (forced enrolment). The sign-in
+       gate (aal check in store-api evaluateGate) is unchanged and still runs before the page opens. */
+    var st0 = S(), mfaReq = false; try { mfaReq = !!(st0 && st0.auth.mfa.requiredForAdmins()); } catch (e) {}
+    if (mfaReq) adminTwoStep();
+    else { var idle2 = function () { if (global.requestIdleCallback) global.requestIdleCallback(adminTwoStep, { timeout: 5000 }); else setTimeout(adminTwoStep, 2000); };
+      if (doc.readyState === "complete") setTimeout(idle2, 2000); else global.addEventListener("load", function () { setTimeout(idle2, 2000); }, { once: true }); }
     profileNudge();
     subscriptionStatus();
     trialStatus();

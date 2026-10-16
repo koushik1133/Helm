@@ -22,6 +22,10 @@ t('#13 amount in words keeps paise', () => {
   assert.equal(w(0.75), 'Seventy Five Paise only');
   assert.equal(w(0), 'Rupees Zero only');
   assert.equal(w(12345678.09), 'Rupees One Crore Twenty Three Lakh Forty Five Thousand Six Hundred Seventy Eight and Nine Paise only');
+  // 1000+ crore: the crore count is itself spelled in Indian words (was blank / "Twelve Hundred…")
+  assert.equal(w(10000000000), 'Rupees One Thousand Crore only');
+  assert.equal(w(250000000000), 'Rupees Twenty Five Thousand Crore only');
+  assert.equal(w(123456789012), 'Rupees Twelve Thousand Three Hundred Forty Five Crore Sixty Seven Lakh Eighty Nine Thousand Twelve only');
 });
 t('#15 pkg_payment WhatsApp text carries balance when sent', () => {
   const src = read('supabase/functions/pkg-client-notify/templates.ts');

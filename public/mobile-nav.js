@@ -110,7 +110,7 @@
   }
   function tab(id, label, ic, tag) {
     const b = el(tag || "button", tag === "a" ? { class: "hmn-t", href: "dashboard.html" } : { type: "button", class: "hmn-t" });
-    b.setAttribute("data-tab", id);
+    b.setAttribute("data-tab", id); b.setAttribute("data-tour", "m-" + id);
     b.appendChild(icon(ic)); b.appendChild(el("span", null, label));
     return b;
   }
@@ -138,13 +138,13 @@
   }
   function build() {
     css();
-    const nav = el("nav", { class: "hmn-bar", id: "hmnBar", "aria-label": "Quick navigation" });
+    const nav = el("nav", { class: "hmn-bar", id: "hmnBar", "aria-label": "Quick navigation", "data-tour": "m-nav" });
     const home = tab("home", "Home", "home", "a");
     if (activeTab(pageKey()) === "home") home.setAttribute("aria-current", "page");
     const search = tab("search", "Search", "search");
     search.setAttribute("aria-haspopup", "dialog");
     search.addEventListener("click", () => { const h = global.HelmStudioSearch; if (h && h.open) h.open(); });
-    const add = el("button", { type: "button", class: "hmn-t hmn-add", "data-tab": "add", "aria-haspopup": "dialog", "aria-expanded": "false", "aria-controls": "hmnSheet", "aria-label": "Create new" });
+    const add = el("button", { type: "button", class: "hmn-t hmn-add", "data-tab": "add", "aria-haspopup": "dialog", "aria-expanded": "false", "aria-controls": "hmnSheet", "aria-label": "Create new", "data-tour": "m-add" });
     const plus = el("span", { class: "hmn-plus" }); plus.appendChild(icon("add")); add.appendChild(plus);
     add.addEventListener("click", () => { if (S.sheet.hidden) openSheet(); else closeSheet(true); });
     const bell = tab("bell", "Alerts", "bell");

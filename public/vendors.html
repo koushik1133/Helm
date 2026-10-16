@@ -2,7 +2,8 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<base href="/"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vendors &amp; Partners — Helm Events</title>
 <link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
 <link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
@@ -52,6 +53,7 @@
   .ic{border:1px solid var(--line);background:var(--panel);border-radius:7px;height:30px;padding:0 11px;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2)} .ic:hover{border-color:var(--accent);color:var(--accent)}
   .empty{text-align:center;color:var(--ink-3);padding:48px 16px;font-size:14px;grid-column:1/-1}
   .empty .btn{margin-top:12px}
+  #grid > .hs-empty{grid-column:1/-1}
   .btn.sm{height:32px;padding:0 11px;font-size:12px}
   .grid{grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr))}
   @media(max-width:480px){.wrap{padding:0 16px 48px} header{flex-wrap:wrap} .nav{margin-left:0;flex-wrap:wrap} .tabs{flex-wrap:wrap} .search{max-width:none}}
@@ -71,7 +73,9 @@
   .lsheet{width:min(400px,96vw)}
   html[data-theme="dark"] .tabs button.on{background:#7c3aed;color:#fff}
 </style>
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="vendors-polish.css?v=1">
+<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="pages-polish-admin.css?v=1">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -140,10 +144,10 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
-<script src="tour.js?v=9"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=204"></script>
+<script src="tour.js?v=14"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -213,6 +217,10 @@
   function render(){
     const shown=list;   // filtered on the server
     if(shown.length) $("#grid").innerHTML=shown.map(card).join("");
+    else if(!anyPartners && window.HelmUI && HelmUI.emptyState){
+      $("#grid").textContent="";
+      $("#grid").appendChild(HelmUI.emptyState(canEdit?{icon:"🤝",title:"No partners yet",text:"Add the vendors, freelancers and rental partners you book for events.",actionLabel:"Add your first partner",onAction:()=>openForm(null)}:{icon:"🤝",title:"No partners yet",text:"Partners your studio adds will show here."}));
+    }
     else if(!anyPartners){
       $("#grid").innerHTML=`<div class="empty">No partners yet.${canEdit?` Add your first vendor, freelancer or rental partner.<br><button type="button" class="btn primary" id="emptyAdd">＋ Add your first partner</button>`:""}</div>`;
       const b=$("#emptyAdd"); if(b) b.addEventListener("click",()=>openForm(null));
@@ -329,6 +337,6 @@
     await load();
   });
 </script>
-<script src="saved-filters.js?v=1"></script>
+<script src="saved-filters.js?v=2"></script>
 </body>
 </html>

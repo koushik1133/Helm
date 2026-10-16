@@ -15,7 +15,7 @@ assert.match(html, /id="fabStack"/, 'canvas control stack kept');
 console.log('builder-toolbar: ok');
 // toolbox: "Entrance" tool = an exit-type marker labelled Entrance (walkthrough uses it as an entry point)
 const bjs = readFileSync('public/builder.js', 'utf8');
-assert.match(bjs, /type==='exit'\?\[\[type,a,'Entrance'\],\[type,a,null\]\]/, 'Entrance tool next to Exit Zone');
+assert.match(bjs, /type==='exit'\?\[\[type,'Entrance'\],\[type,null\]\]/, 'Entrance tool next to Exit Zone');
 assert.match(bjs, /addAsset\(ty, null, t\.dataset\.label \? \{label:t\.dataset\.label\} : undefined\)/, 'click adds with the Entrance label');
 assert.match(bjs, /getData\('label'\); addAsset\(type, svgPointFt\(e\), vl/, 'drag-drop keeps the label');
 console.log('builder-toolbar entrance: ok');

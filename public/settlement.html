@@ -2,8 +2,9 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
+<link rel="stylesheet" href="settlement-polish.css?v=1">
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Settlement — Helm Events</title>
+<title>Payments &amp; invoice — Helm Events</title>
 <link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
 <link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
 <link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
@@ -33,7 +34,10 @@
   .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px} @media(max-width:720px){.tiles{grid-template-columns:1fr 1fr}}
   .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:16px}
   .tile .l{font-size:12px;color:var(--ink-3)} .tile .n{font-family:var(--mono);font-weight:700;font-size:21px;margin-top:4px}
-  .tile.bal .n.due{color:#b42318} .tile.bal .n.clear{color:#0f7a43} .tile.margin .n.pos{color:#0f7a43} .tile.margin .n.neg{color:#b42318}
+  .tile.bal .n.due{color:#b42318} .tile.bal .n.clear{color:#0f7a43} .tile.bal .n.over{color:#946200} .tile .sub2{font-size:11.5px;color:var(--ink-3);margin-top:2px}
+  .pwarn{background:#fff7e6;color:#7a4a06;border:1px solid #f2d492;border-radius:11px;padding:11px 14px;font-size:13px;font-weight:600;margin-bottom:14px}
+  html[data-theme="dark"] .pwarn{background:rgba(245,180,40,.12);color:#ffd884;border-color:rgba(245,180,40,.32)} html[data-theme="dark"] .tile.bal .n.over{color:#ffd884}
+  @media (prefers-color-scheme: dark){html:not([data-theme]) .pwarn{background:rgba(245,180,40,.12);color:#ffd884;border-color:rgba(245,180,40,.32)}} .tile.margin .n.pos{color:#0f7a43} .tile.margin .n.neg{color:#b42318}
 
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
   .card h2{font-size:15px;margin:0 0 4px} .card .sub{font-size:12px;color:var(--ink-3);margin:0 0 12px}
@@ -66,14 +70,16 @@
   :root{--neg:#b42318} html[data-theme="dark"]{--neg:#f87171}
   html[data-theme="dark"] .tile.bal .n.due,html[data-theme="dark"] .tile.margin .n.neg{color:var(--neg)} html[data-theme="dark"] .tile.bal .n.clear,html[data-theme="dark"] .tile.margin .n.pos,html[data-theme="dark"] .btn.go{color:var(--safe-text)}
 </style>
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="pages-polish-ops.css?v=1">
+<link rel="stylesheet" href="vendor-bills.css?v=1">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
 <div class="wrap">
   <header>
     <a href="dashboard.html" class="mark" title="Home"></a>
-    <div><h1>Settlement &amp; billing</h1><small>Helm Events</small></div>
+    <div><h1>Payments &amp; invoice</h1><small>Helm Events</small></div>
     <nav class="nav"><a href="dashboard.html">Home</a><a href="calendar.html">Calendar</a><a href="quotes.html">Quotes</a></nav>
     <span class="spacer"></span>
     <span id="account" class="account" hidden></span>
@@ -87,10 +93,11 @@
   <div id="app" hidden>
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
 
+    <div id="priceWarn" class="pwarn" role="alert" hidden>This event has no priced invoice — price the quote to settle.</div>
     <div class="tiles">
       <div class="tile"><div class="l">Invoice total</div><div class="n" id="t_rev">—</div></div>
       <div class="tile"><div class="l">Received</div><div class="n" id="t_recv">—</div></div>
-      <div class="tile bal"><div class="l">Balance due</div><div class="n" id="t_bal">—</div></div>
+      <div class="tile bal"><div class="l" id="t_bal_l">Balance due</div><div class="n" id="t_bal">—</div><div class="sub2" id="t_bal_sub" hidden></div></div>
       <div class="tile margin"><div class="l">Final margin</div><div class="n" id="t_mar">—</div></div>
     </div>
 
@@ -114,6 +121,8 @@
         <tbody id="vendBody"><tr><td colspan="6" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody></table></div>
       <div class="totbar"><span>Owed to vendors: <b id="v_out">₹0</b></span></div>
     </div>
+
+    <div data-vb-mount="bills" id="vendorBills"></div>
 
     <div class="card">
       <h2>🧾 Staff expense claims</h2>
@@ -159,9 +168,9 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=204"></script><script src="vendor-bills-ui.js?v=4"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -170,7 +179,7 @@
   const inr=(n)=>evTax?BPStore.quoteMoney(n,evTax):BPStore.studioMoney(n);
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const EXP={pending:"Pending",approved:"Approved",paid:"Paid",rejected:"Rejected"};
-  let canEdit=false, canDelete=false, s=null, summaryFailed=false;
+  let canEdit=false, canDelete=false, s=null, summaryFailed=false, evStatus=null;
   // Capability state: when the settlement recorder RPC isn't deployed, we flip to a
   // controlled "unavailable" state (disable submit) instead of ever reporting success.
   let settleUnavailable=false;
@@ -197,19 +206,31 @@
       $("#logoutBtn").addEventListener("click",async()=>{await BPStore.auth.signOut();location.href="dashboard.html";});
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(HelmUrl.here()))); } }
 
+  // QA-E2E: a booking whose vendor bills are fully paid still showed its whole booked cost as
+  // "Owed to vendors" (and a Settle button), contradicting the Vendor bills card right below.
+  // Once a booking has (non-void) bills, what is owed is billed − paid out, same rule the P&L uses.
+  // One vendor rule, shared with the Vendor bills card + event workspace: BPStore.settlement.applyBills.
+  async function overlayBills(sum){ if(BPStore.settlement.applyBills) await BPStore.settlement.applyBills(sum,id); }
   function render(){
     $("#t_rev").textContent=inr(s.revenue); $("#t_recv").textContent=inr(s.received);
-    const bn=$("#t_bal"); bn.textContent=inr(s.balance); bn.className="n "+(s.balance>0?"due":"clear");
+    // Overpaid (balance < 0): show a positive credit, never "₹-X" in the 'clear' style. Display only.
+    const over=s.balance<0, bn=$("#t_bal");
+    $("#t_bal_l").textContent=over?"Overpaid":"Balance due";
+    bn.textContent=inr(over?-s.balance:s.balance); bn.setAttribute("data-money",""); bn.className="n "+(over?"over":s.balance>0?"due":"clear");
+    const bs=$("#t_bal_sub"); bs.textContent=over?"Credit due to client":""; bs.hidden=!over;
+    $("#priceWarn").hidden=!(s.pricingMissing && s.received>0);
     const mn=$("#t_mar"); mn.textContent=inr(s.finalMargin); mn.className="n "+(s.finalMargin>=0?"pos":"neg");
 
     $("#invBody").innerHTML = `
       <tr><td>Invoice total (quote + approved changes)</td><td class="num">${inr(s.revenue)}</td></tr>
       <tr><td>Payments received</td><td class="num" style="color:var(--safe-text,#0f7a43)">− ${inr(s.received)}</td></tr>
-      <tr><td><b>Balance due from client</b></td><td class="num"><b style="color:${s.balance>0?'var(--neg)':'var(--safe-text,#0f7a43)'}">${inr(s.balance)}</b></td></tr>`;
+      ${s.balance<0
+        ? `<tr><td><b>Overpaid — credit due to client</b></td><td class="num"><b data-money style="color:var(--warn-text,#946200)">${inr(-s.balance)}</b></td></tr>`
+        : `<tr><td><b>Balance due from client</b></td><td class="num"><b data-money style="color:${s.balance>0?'var(--neg)':'var(--safe-text,#0f7a43)'}">${inr(s.balance)}</b></td></tr>`}`;
 
     const byName=(b)=>b.label||"Partner";
-    $("#vendBody").innerHTML = s.bookings.length ? s.bookings.map(b=>{ const out=Math.max(0,Number(b.cost||0)-Number(b.advance||0));
-      return `<tr><td><b>${esc(byName(b))}</b></td><td class="num">${inr(b.cost)}</td><td class="num">${inr(b.advance)}</td>
+    $("#vendBody").innerHTML = s.bookings.length ? s.bookings.map(b=>{ const out=b._out!=null?b._out:Math.max(0,Number(b.cost||0)-Number(b.advance||0));
+      return `<tr><td><b>${esc(byName(b))}</b></td><td class="num">${inr(b._billed?b._cost:b.cost)}</td><td class="num">${inr(b._billed?b._paid:b.advance)}</td>
         <td class="num">${b.settled?'<span class="st yes">settled</span>':inr(out)}</td>
         <td><span class="st ${b.settled?'yes':'no'}">${b.settled?'Yes':'No'}</span></td>
         <td>${canEdit?`<button type="button" class="btn ${b.settled?'':'go'}" data-settle="${esc(b.id)}" data-v="${b.settled?0:1}" data-name="${esc(byName(b))}" aria-label="${b.settled?'Unsettle':'Settle'} ${esc(byName(b))}">${b.settled?'Unsettle':'Settle'}</button>`:""}</td></tr>`;
@@ -233,6 +254,15 @@
       await act(b,async()=>{ await BPStore.expenses.remove(b.dataset.edel); await load(); },"remove the claim"); }));
   }
 
+  // Item 1: the global number hardener silently strips a pasted/typed "-" (so "-500" became
+  // "500" and the confirm showed the absolute value). Watch the raw value in the capture phase
+  // (before the hardener's own listeners) and refuse to record while a negative was entered.
+  let payNeg=false;
+  (function(){ const line=$("#payLine"); if(!line) return;
+    line.addEventListener("paste",(e)=>{ if(e.target&&e.target.id==="pay_amt"){ try{ const tx=(e.clipboardData||window.clipboardData).getData("text"); if(/-/.test(tx)) payNeg=true; }catch(_){} } },true);
+    line.addEventListener("input",(e)=>{ if(!e.target||e.target.id!=="pay_amt") return; const v=String(e.target.value);
+      payNeg=/^\s*-/.test(v); },true);   // re-evaluated on every change: typing over a selected "-500" clears it
+  })();
   let paying=false;   // one confirm at a time (double-click on Record payment)
   async function recordPayment(){
     const msg=$("#pay_msg"), block=$("#pay_block");
@@ -242,6 +272,7 @@
     // recorder RPC is known-missing.
     if(settleUnavailable){ markSettlementUnavailable(); return; }
     if(summaryFailed){ BPUI.toast("The invoice couldn't be loaded — retry loading it before recording a payment.",{type:"err"}); return; }
+    if(payNeg){ showBlock("A payment can't be negative — enter the amount received (to give money back, use Refunds below)."); $("#pay_amt").focus(); return; }
     const av=BPStore.validate.money($("#pay_amt").value,{field:"Payment amount"});
     if(!av.ok || av.value<=0){ showBlock(av.ok?"Enter an amount greater than "+BPStore.studioMoney(0)+".":av.error); $("#pay_amt").focus(); return; }
     clearBlock();
@@ -254,18 +285,27 @@
     const bal=s&&isFinite(+s.balance)?+s.balance:null, over=bal!=null?Math.round((amt-Math.max(0,bal))*100)/100:0;
     const q=over>0.5 ? (bal>0 ? `This is ${inr(over)} more than the balance due (${inr(bal)}) - record ${inr(amt)} anyway?` : `Nothing is due on this event - record ${inr(amt)} as an extra payment anyway?`)
       : `Record a payment of ${inr(amt)} received from the client?`;
+    // Item 4: an advance on a quote that isn't confirmed yet — warn (confirming needs the
+    // client + pricing flow in the workspace, so it can't be done from here).
+    const notConfirmed=["quote","draft","sent","enquiry"].indexOf(String(evStatus||"").toLowerCase())!==-1;
+    const q2=notConfirmed ? `This quote isn't confirmed yet — record the advance anyway? Then mark it Confirmed from the event workspace. ${q}` : q;
     if(paying) return; paying=true;
-    try{ if(!(await BPUI.confirm(q,{title:over>0.5?"More than the balance due":"Record payment?",okLabel:over>0.5?"Record anyway":"Record payment"}))) return; }
+    // Item 3: reveal:true keeps the real amount visible in the dialog even while amounts are hidden.
+    try{ if(!(await BPUI.confirm(q2,{title:notConfirmed?"Quote not confirmed yet":over>0.5?"More than the balance due":"Record payment?",okLabel:over>0.5?"Record anyway":"Record payment",reveal:true}))) return; }
     finally{ paying=false; }
     await BPUI.guard($("#pay_btn"),async()=>{
       msg.style.color="var(--safe-text,#0f7a43)"; msg.textContent="Recording…";
       try{ await BPStore.milestones.recordSettlement(id, amt, "cash", null, null, "Settlement payment", idemKey);
-        $("#pay_amt").value=""; msg.style.color="var(--safe-text,#0f7a43)"; msg.textContent="Recorded ✓"; setTimeout(()=>{ msg.textContent=""; },1500); await load(); }
+        $("#pay_amt").value=""; payNeg=false; msg.style.color="var(--safe-text,#0f7a43)"; msg.textContent="Recorded ✓";
+        await load();
+        if(s && !summaryFailed){ msg.textContent=`Recorded ✓ Received ${inr(s.received)} — balance ${inr(Math.max(0,+s.balance||0))}`; }
+        clearTimeout(recordPayment._t); recordPayment._t=setTimeout(()=>{ msg.textContent=""; },6000); }
       catch(e){
         msg.textContent="";
         // RPC-missing is a capability gap, not a payment failure: flip to the controlled
         // unavailable state (disables submit) and NEVER fall through to the success path.
         if(BPUI.isRpcMissing(e)){ markSettlementUnavailable(e); return; }
+        if(e&&(e.code==="23514"||/exceeds the outstanding balance/i.test(String(e.message||"")))){ showBlock("This payment is more than the balance the server allows for this event, so it was not recorded. Check the amount (and that any change orders are approved)."); return; }
         showBlock(BPUI.friendlyError(e,{action:"record the payment"}));
       }
     });
@@ -321,7 +361,7 @@
   $("#r_add").addEventListener("click",addRefund);
 
   async function load(){
-    try{ s=await BPStore.settlement.summary(id); summaryFailed=false; $("#payLine").hidden=!canEdit; $("#expAdd").hidden=!canEdit; render(); }
+    try{ s=await BPStore.settlement.summary(id); await overlayBills(s); summaryFailed=false; $("#payLine").hidden=!canEdit; $("#expAdd").hidden=!canEdit; render(); }
     catch(e){ summaryFailed=true; $("#payLine").hidden=true; $("#expAdd").hidden=true;
       ["#t_rev","#t_recv","#t_bal","#t_mar"].forEach(x=>{ $(x).textContent="—"; });
       BPUI.loadError($("#invBody"),e,load,{what:"the invoice"});
@@ -339,6 +379,7 @@
     let ev; try{ ev=await BPStore.quotes.get(id); }catch(e){ if(BPUI.isNotFound(e)){ $("#notfound").hidden=false; return; } throw e; }
     try{ evTax=BPStore.quoteTax(ev); }catch(_){ evTax=null; }
     if(!ev){ $("#notfound").hidden=false; return; }
+    evStatus=ev.status||null;
     $("#evName").textContent=(ev.code||"")+(ev.title&&ev.title!==ev.code?(" · "+ev.title):"");
     $("#app").hidden=false; $("#payLine").hidden=!canEdit; $("#expAdd").hidden=!canEdit; $("#refAdd").hidden=!canEdit;
     await load();

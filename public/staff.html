@@ -2,7 +2,8 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<base href="/"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Staff Directory — Helm Events</title>
 <link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
 <link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
@@ -88,7 +89,9 @@
   .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px;margin-top:10px}
   .lsheet{width:min(400px,96vw);text-align:center} .lsheet input{width:100%}
 </style>
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="staff-polish.css?v=1">
+<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="pages-polish-admin.css?v=1">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -147,13 +150,14 @@
   </div>
 </div>
 
-<!-- invite a staff member to log in (link only — nothing is e-mailed) -->
+<!-- invite a staff member to log in (0131: e-mailed by invite-mailer when switched on; link always copyable) -->
 <div id="inviteModal" class="lmodal" hidden role="dialog" aria-modal="true" aria-labelledby="iv_title">
   <div class="sheet">
     <h3><span id="iv_title">Invite to log in</span><button type="button" class="close" id="iv_close" aria-label="Close" data-close>×</button></h3>
     <p class="sub" id="iv_sub"></p>
-    <div class="invlink"><input id="iv_link" readonly aria-label="Invite link"><button type="button" class="btn primary" id="iv_copy">Copy link</button></div>
-    <p class="fhint">Send this link to them yourself (WhatsApp, e-mail…). Helm doesn't send anything. When they sign up with this e-mail, their staff card shows <b>Active user</b>. Pending invites are also listed in Control Center → Users.</p>
+    <p class="sub" id="iv_mail" role="status" aria-live="polite"></p>
+    <div class="invlink"><input id="iv_link" readonly aria-label="Invite link"><button type="button" class="btn primary" id="iv_copy">Copy link</button><button type="button" class="btn" id="iv_resend">Resend email</button></div>
+    <p class="fhint" id="iv_hint">Helm e-mails the invitation automatically — they click <b>Join</b> in that email and land straight in your studio. The link below is a backup if the email doesn't arrive. When they sign up with this e-mail, their staff card shows <b>Active user</b>. Pending invites are also listed in Control Center → Users.</p>
     <div class="foot"><button type="button" class="btn" id="iv_done">Done</button></div>
   </div>
 </div>
@@ -170,14 +174,14 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=204"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=3"></script>
-<script src="tour.js?v=9"></script>
+<script src="tour.js?v=14"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -209,6 +213,42 @@
     invites=iv.status==="fulfilled"?(iv.value||[]):[];
     loginRoles={}; if(us.status==="fulfilled") (us.value||[]).forEach(u=>{ loginRoles[u.id]=u.role; });
   }
+  // 0131: what happened to the invitation e-mail, in plain words
+  let ivCurrent=null;   // { id, email } of the invite shown in the modal
+  function inviteMailText(r,email){
+    const st=r&&r.status;
+    if(st==="ok"&&r.sent>0) return `Invitation email sent to ${email}.`;
+    if(st==="ok"&&!(r.skipped>0)&&!(r.failed>0)) return `Invitation email queued for ${email} — it goes out within a few minutes.`;
+    if(st==="ok"&&r.failed>0) return `The email to ${email} didn't go through yet — Helm will retry automatically.`;
+    if(st==="dormant") return `Invitation emails are switched off — copy the link below and send it to ${email} yourself.`;
+    if(st==="unavailable") return `The invite is saved and queued, but Helm couldn't reach the email service just now — copy the link below and send it to ${email} yourself, or use Resend email later.`;
+    return `Invitation email is on its way to ${email}.`;
+  }
+  // keep the static footer consistent with the status line (it promises an automatic e-mail)
+  function setInviteMail(r,email){
+    const st=r&&r.status; $("#iv_mail").textContent=inviteMailText(r,email);
+    const h=$("#iv_hint"); if(h) h.hidden=(st==="dormant"||st==="unavailable");
+  }
+  function inviteFor(email){
+    const em=String(email||"").trim().toLowerCase(), now=Date.now();
+    return (invites||[]).find(i=>i&&i.status==="pending"&&String(i.email||"").toLowerCase()===em&&(!i.expires_at||new Date(i.expires_at).getTime()>now))||null;
+  }
+  async function resendInviteEmail(email,btn){
+    const inv=inviteFor(email);
+    if(!inv){ BPUI.toast("This invite is no longer pending — create a new one.",{type:"info"}); return; }
+    await BPUI.guard(btn, async()=>{
+      try{
+        const r=await BPStore.invitations.resendEmail(inv.id);
+        const st=r&&r.status;
+        if(st==="rate_limited"){ BPUI.toast(`Already sent recently — you can resend in ${Math.ceil((r.retry_in||600)/60)} min.`,{type:"info"}); return; }
+        if(st==="not_pending"){ BPUI.toast("This invite is no longer pending — create a new one.",{type:"info"}); return; }
+        const sent=await BPStore.invitations.sendNow();
+        const msg=inviteMailText(sent,email);
+        if(ivCurrent&&ivCurrent.email===email&&!$("#inviteModal").hidden) setInviteMail(sent,email);
+        BPUI.toast(msg,{type:sent&&sent.status==="ok"?"ok":"info"});
+      }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"resend the invite email"}),{type:"err"}); }
+    },{busyLabel:"Sending…"});
+  }
   async function inviteStaff(s,btn){
     const key=BPStore.staff.matchRole(s.role);
     if(!key){ BPUI.toast(`Pick a role for ${s.name} first (Edit → Role), then invite them.`,{type:"info"}); return; }
@@ -217,8 +257,12 @@
         const r=await BPStore.invitations.create(s.email, key);
         if(!r||!r.token) throw new Error("No invite link came back — try again.");
         $("#iv_sub").textContent=`${s.name} (${s.email}) will join as ${BPStore.staff.roleLabel(key)}.`;
-        $("#iv_link").value=BPStore.staff.inviteLink(r.token); $("#iv_copy").textContent="Copy link"; $("#inviteModal").hidden=false;
+        $("#iv_link").value=BPStore.staff.inviteLink(r.token); $("#iv_copy").textContent="Copy link";
+        ivCurrent={ email:s.email }; $("#iv_mail").textContent="Sending the invitation email…"; if($("#iv_hint")) $("#iv_hint").hidden=false; $("#inviteModal").hidden=false;
         await loadLoginInfo(); render();
+        // 0131: a brand-new invite (or a re-tokened one) is queued by the database; flush it now
+        if(r.reused) $("#iv_mail").textContent=`${s.email} already has a pending invite — use Resend email to send it again.`;
+        else setInviteMail(await BPStore.invitations.sendNow(),s.email);
       }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"create the invite"}),{type:"err"}); }
     },{busyLabel:"Creating…"});
   }
@@ -242,7 +286,7 @@
       ${canEdit?`<div class="acts">
         <button class="ic" data-act="edit">Edit</button>
         <button class="ic" data-act="toggle">${s.active===false?"Reactivate":"Deactivate"}</button>
-        ${isAdminUser&&!linked&&s.email&&s.active!==false?`<button class="ic" data-act="invite" title="Create a sign-up link for ${esc(s.email)} with their role">${BPStore.staff.loginStatus(s,invites)==="invited"?"Copy invite link":"Invite to log in"}</button>`:""}
+        ${isAdminUser&&!linked&&s.email&&s.active!==false?`<button class="ic" data-act="invite" title="Create a sign-up link for ${esc(s.email)} with their role">${BPStore.staff.loginStatus(s,invites)==="invited"?"Copy invite link":"Invite to log in"}</button>${BPStore.staff.loginStatus(s,invites)==="invited"?`<button class="ic" data-act="resend" title="E-mail the invite link to ${esc(s.email)} again">Resend email</button>`:""}`:""}
       </div>`:""}
     </div>`;
   }
@@ -277,6 +321,7 @@
       const id=b.closest(".person").dataset.id, s=team.find(x=>x.id===id);
       if(b.dataset.act==="edit") openForm(s);
       else if(b.dataset.act==="invite") inviteStaff(s,b);
+      else if(b.dataset.act==="resend") resendInviteEmail(s.email,b);
       else toggleActive(s,b);
     }));
   }
@@ -313,12 +358,14 @@
   }
   function fillDept(val){
     const sel=$("#s_dept"), list=deptList.slice();
+    (facets.depts||[]).forEach(d=>{ if(d && !list.some(x=>x.toLowerCase()===String(d).toLowerCase())) list.push(d); });   // the filter's departments always appear here too
     if(val && !list.some(d=>d.toLowerCase()===String(val).toLowerCase())) list.push(val);   // never drop a saved value
     sel.innerHTML=`<option value="">— Choose a department —</option>`+list.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join("")+
       (canEdit?`<option value="__new__">＋ Add new department…</option>`:"");
     const hit=list.find(d=>d.toLowerCase()===String(val||"").toLowerCase()); sel.value=hit||""; sel.dataset.prev=sel.value;
   }
-  async function loadDepts(){ try{ deptList=await BPStore.staff.departments(); }catch(e){ deptList=(facets.depts||[]).slice(); } }
+  async function loadDepts(){ try{ deptList=await BPStore.staff.departments(); }catch(e){ deptList=(facets.depts||[]).slice(); }
+    if(!deptList.length) deptList=((BPStore.staff&&BPStore.staff.DEFAULT_DEPARTMENTS)||[]).slice(); }
   $("#s_dept").addEventListener("change",()=>{
     const sel=$("#s_dept"); if(sel.value!=="__new__"){ sel.dataset.prev=sel.value; return; }
     sel.value=sel.dataset.prev||""; $("#s_dept_new").hidden=false; $("#s_dept_new_in").value=""; setTimeout(()=>$("#s_dept_new_in").focus(),20);
@@ -337,6 +384,7 @@
   function openForm(s){
     editingId=s?s.id:null; $("#sm_title").textContent=s?"Edit staff":"＋ Add staff";
     $("#s_name").value=s?s.name||"":""; fillDept(s?s.department||"":""); $("#s_dept_new").hidden=true;
+    if(!deptList.length) loadDepts().then(()=>{ if(!$("#staffModal")||!$("#staffModal").hidden) fillDept($("#s_dept").value||(s&&s.department)||""); }).catch(()=>{});
     $("#s_emp").value=s?s.emp_type||"":""; $("#s_phone").value=s?s.phone||"":""; $("#s_email").value=s?s.email||"":"";
     $("#s_rate").value=s&&s.day_rate!=null?s.day_rate:""; $("#s_skills").value=s&&Array.isArray(s.skills)?s.skills.join(", "):""; $("#s_notes").value=s?s.notes||"":"";
     editingRow=s||null; setLinkedLock(s); fillRole(s);
@@ -373,8 +421,11 @@
       if(!name){ fail("Name is required."); return; }
       // QA M-08: a crew member needs an operational identity so they can be assigned to work
       if(!$("#s_role").value && !$("#s_dept").value){ fail("Add a role or a department so this person can be assigned to the right work."); $("#s_dept").focus(); return; }
-      phoneV=V.phone($("#s_phone").value);
-      if(!phoneV.ok){ fail(phoneV.error); return; }
+      // demo seed rows carry placeholder numbers ("+91 00000 00103"): keep them as-is when unchanged instead of flagging them invalid
+      const isDemoRow=!!(editingRow&&(editingRow.is_demo===true||/^Demo \u00b7/.test(String(editingRow.name||""))));
+      const phoneRaw=$("#s_phone").value;
+      if(isDemoRow && phoneRaw.trim()===String(editingRow.phone||"").trim()) phoneV={ok:true,value:editingRow.phone||null};
+      else { phoneV=V.phone(phoneRaw); if(!phoneV.ok){ fail(phoneV.error); return; } }
       if($("#s_email").value.trim()){ const ev=V.email($("#s_email").value); if(!ev.ok){ fail(ev.error); return; } email=ev.value; }
     }
     let day_rate=null;
@@ -437,6 +488,7 @@
   $("#iv_close").addEventListener("click",closeInvite); $("#iv_done").addEventListener("click",closeInvite);
   $("#inviteModal").addEventListener("click",e=>{ if(e.target.id==="inviteModal") closeInvite(); });
   $("#iv_link").addEventListener("click",e=>e.target.select());
+  $("#iv_resend").addEventListener("click",()=>{ if(ivCurrent) resendInviteEmail(ivCurrent.email,$("#iv_resend")); });
   $("#iv_copy").addEventListener("click",async()=>{ try{ await navigator.clipboard.writeText($("#iv_link").value); $("#iv_copy").textContent="Copied"; }catch(_){ $("#iv_link").select(); } });
   // B5: refresh the list as soon as the import dialog closes after an import (no reload needed)
   let importRefreshing=null;
@@ -494,6 +546,6 @@
     await load();
   });
 </script>
-<script src="saved-filters.js?v=1"></script>
+<script src="saved-filters.js?v=2"></script>
 </body>
 </html>

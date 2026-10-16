@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
+<link rel="stylesheet" href="closure-polish.css?v=1">
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Closure &amp; P&amp;L — Helm Events</title>
 <link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
@@ -60,7 +61,9 @@
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
   :root{--neg:#b42318} html[data-theme="dark"]{--neg:#f87171}
 </style>
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="pages-polish-ops.css?v=1">
+<link rel="stylesheet" href="vendor-bills.css?v=1">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -82,11 +85,13 @@
     <div class="crumb"><a id="backLink" href="#">← Back to workspace</a> · <span id="evName"></span></div>
     <div id="closedBanner" class="closed-banner" hidden>✓ Event closed &amp; archived <span class="s-1afaaf4" id="closedWhen"></span></div>
 
-    <div class="card">
+    <div class="card" id="plCard">
       <h2>📊 Profit &amp; loss</h2>
       <p class="sub">Revenue from the client, less what it cost to deliver.</p>
       <div class="pl" id="plBody"></div>
     </div>
+
+    <div data-vb-mount="pnl" data-vb-replaces="plCard" id="netProfit"></div>
 
     <div class="card">
       <h2>⭐ Client feedback &amp; testimonial</h2>
@@ -139,10 +144,10 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
-<script src="tour.js?v=9"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=204"></script><script src="vendor-bills-ui.js?v=4"></script>
+<script src="tour.js?v=14"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

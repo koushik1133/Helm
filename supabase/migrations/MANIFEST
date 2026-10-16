@@ -155,3 +155,51 @@ forward  supabase/migrations/0105_checkout_shortage_nurture.sql
 forward  supabase/migrations/0106_staff_roles_departments.sql
 # 0107 (nurture: fill blank birthday / anniversary template bodies with the default text; rows with text never touched) goes after 0105.
 forward  supabase/migrations/0107_nurture_fill_blank.sql
+# 0108 (dashboard money: dashboard_money(months) read-only DEFINER function - booked by confirmation month, collected from the quote_payments ledger, outstanding, overdue milestones, exact pipeline / lead counts; quotes or finance view, money parts finance view; no table / column / row changed) goes after 0107 (needs 0040, 0082, 0089, has_area).
+forward  supabase/migrations/0108_dashboard_money.sql
+# 0109 (dashboard prefs: user_dashboard_prefs table - own row per user per studio, RLS own-row only, no delete, no anon; my_dashboard_prefs / save_dashboard_layout / save_desk_notes DEFINER functions deriving user + org from the session; additive, no existing row changed) goes after 0108.
+forward  supabase/migrations/0109_user_dashboard_prefs.sql
+# 0110 (overpay cap includes approved change orders: helm_invoice_total(uuid) read-only helper; enforce_no_overpayment / _ms compare against quote + approved changes; triggers untouched; no row changed) goes after 0109.
+forward  supabase/migrations/0110_overpay_cap_includes_changes.sql
+# 0111 (client booklet payments: _bk_payments total / outstanding = quote + approved change orders, same rule as 0110 helm_invoice_total; internal function, no grants added; no row changed) goes after 0110 (needs 0070).
+forward  supabase/migrations/0111_booklet_invoice_total.sql
+# 0112 (quotes.confirmed_at stamped by a BEFORE UPDATE trigger when status becomes 'confirmed' and confirmed_at is null - record_payment never set it, so "Booked this month" (0108) missed flow-confirmed events; 1 function + 1 trigger, no row changed) goes after 0111.
+forward  supabase/migrations/0112_confirmed_at_stamp.sql
+# 0113 (Insights per-event profit ex-tax: NEW wrapper insights_events_ex_tax adds tax / revenue_ex_tax / profit_ex_tax / margin_pct_ex_tax per row via _r101_quote_tax; insights_events untouched; no row changed) goes after 0112 (needs 0094 + 0101).
+forward  supabase/migrations/0113_insights_events_ex_tax.sql
+# 0114 (client booklet Quotation lists approved change orders: _bk_payments adds payments.changes [{title, amount, date}] for the booklet's own quote+org, approved only; body otherwise = 0111; no row changed) goes after 0113 (needs 0111).
+forward  supabase/migrations/0114_booklet_change_lines.sql
+# 0115 (task QC re-queue: re-completing a QC-rejected task puts it back to verify_status pending; tg_task_verify body only; no row changed) goes after 0114.
+forward  supabase/migrations/0115_task_requeue_after_rework.sql
+# 0117 (per-studio Razorpay + WhatsApp accounts; secrets only as Vault ids; webhook event log + WhatsApp opt-outs; razorpay_settle_for_org cross-tenant guard; DORMANT - nothing connected; no existing row changed) goes after 0027.
+forward  supabase/migrations/0117_integration_accounts.sql
+# 0116 (free-trial "Demo N" studios: start_trial, my_trial_org, trial_ends_at, read-only after trial; additive) goes after 0100.
+forward  supabase/migrations/0116_trial_orgs.sql
+# 0118 (trial studios use the visitor's time zone + currency: new start_trial(text,text); old start_trial() unchanged) goes after 0116.
+forward  supabase/migrations/0118_trial_locale.sql
+# 0119 (ONE 8-day self-serve trial: start_self_serve_trial(name, tz, currency, demo|own); helm_billing_settings.trial_days; checkout uses it; no role alert on a first role; additive) goes after 0118.
+forward  supabase/migrations/0119_unified_trial.sql
+# 0120 (8-day trial reminders on day 5 / 7 / 8 in the studio's zone: trial_reminders ledger + admin bell via hourly trial_reminders_tick(); dormant e-mail claim for comms-dispatch; 0058 7/3/1 job skips 8-day studios; my_trial_org + timezone; additive) goes after 0119.
+forward  supabase/migrations/0120_trial_reminders.sql
+# 0121 (dashboard_due_today: read-only list of payment milestones due today for the Today strip; finance view; no row changed) goes after 0108.
+forward  supabase/migrations/0121_dashboard_due_today.sql
+# 0122 (repairs "Demo ·" / "—" characters garbled when 0116/0119 were pasted; re-creates tg_studio_read_only, _trial_seed_extra, my_start_trial; sample quotes in studio currency; fixes is_demo rows in trial studios only) goes after 0119.
+forward  supabase/migrations/0122_trial_text_fix.sql
+# 0123 (adds a read-only per-type "counts" breakdown to my_demo_status for the "Start my own studio" confirm; deletes nothing) goes after 0097.
+forward  supabase/migrations/0123_trial_start_fresh.sql
+# 0124 (Phase C: NEW vendor_bills + vendor_payouts tables (no delete; void with reason), idempotent record_vendor_payout refusing overpayment, read-only event_pnl / vendor_payables_summary / business_pnl; existing tables untouched) goes after 0101 + 0116.
+forward  supabase/migrations/0124_vendor_bills.sql
+# 0125 (leads get the shared tg_audit audit_trg so lead edits show in Audit log + Recent activity; enforce_no_overpayment_ms counts each payment once (other paid milestones, not ledger + this row); same signature/definer/search_path/message; no row changed) goes after 0042 + 0110.
+forward  supabase/migrations/0125_lead_audit_and_milestone_fix.sql
+# 0127 (trial fresh start: owner-replaceable trial sample data via helm_env_settings 'trial_demo_seed' (trigger on trial start, fill-only, is_demo); trial_demo_choice('fresh'|'keep') after subscribing removes ONLY own is_demo rows via _demo_clear; my_demo_status + demo_choice/choice_pending; 2 nullable columns) goes after 0042 + 0097 + 0119 + 0123.
+forward  supabase/migrations/0127_trial_fresh_start.sql
+# 0129 (event-approaching reminders: organizations.event_reminder_days default 7 (1-30, Control Center); event_reminders dedupe ledger (RLS, no user access); hourly event_reminders_tick() -> one studio bell row (kind event_reminder, never forwarded) + a system message in the event's chat group at the window and the day before; event_reminder_upcoming() for the "Upcoming in N days" chips; additive) goes after 0128.
+forward  supabase/migrations/0129_event_approaching_reminders.sql
+# 0131 (invite e-mails: invite_email_outbox one row per invitation (RLS, no user access); trigger on invitations insert / re-token queues it; resend_invitation_email (admin, same studio, once per 10 min); invite_email_kick_org; service-role claim/mark for the dormant invite-mailer; additive) goes after phase83 + 0072.
+forward  supabase/migrations/0131_invite_mailer.sql
+# 0132 (assignment notify: run_sheet_items/event_tasks.assign_changed_at stamped by triggers when an owner/assignee is set or the line changes; assign_notify_outbox (RLS, no user access) queues ONE WhatsApp per item+person per 10 min, sent only by the dormant comms-dispatch when the studio's WhatsApp is on; worker_assignment_updates(token) for the "Updated" badge + run-sheet lines on the staff task link; runsheet_group_status / runsheet_post_to_group post into the event's own chat group; additive) goes after 0129 + 0117.
+forward  supabase/migrations/0132_assignment_notify.sql
+# 0134 (integrations overview: read-only integrations_overview() for the in-app Integrations page - studio WhatsApp number, WhatsApp / Razorpay account status (no ids, keys or tokens), invite e-mail counts for 30 days; Control Center view only; each source looked up with to_regclass so it works before 0078 / 0117 / 0131; no table changes) goes after 0131.
+forward  supabase/migrations/0134_integrations_overview.sql
+# 0135 (audit triggers: shared tg_audit() on vendor_bills, vendor_payouts, inventory_reservations, run_sheet_items; drop-if-exists + create, skipped when a table is missing; no table changes) goes after 0124/0125.
+forward  supabase/migrations/0135_audit_more_tables.sql

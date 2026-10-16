@@ -23,7 +23,7 @@ t('dashboard no longer auto-starts just because this browser lacks bp_seen_tour'
   assert.match(D, /if\(seen \|\| localSeen \|\| \(!forced && !eligible\)\) return;/);
   assert.match(D, /A\.markTourSeen\(\)/);
   // marked seen BEFORE starting (leaving mid-tour must not re-trigger it)
-  assert.ok(D.indexOf('A.markTourSeen()') < D.indexOf('startTour();\n      await mark;'));
+  assert.ok(D.indexOf('A.markTourSeen()') < D.indexOf('startTourWhenReady();\n      await mark;'));
 });
 
 t('manual Tour button still wired; signup still forces it', () => {

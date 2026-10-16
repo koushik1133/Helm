@@ -124,7 +124,8 @@
   .eglist .rl{margin-left:auto;color:var(--ink-3);font-size:12px;text-transform:capitalize}
   .eglist .egav{width:28px;height:28px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;position:relative;overflow:hidden}
 </style>
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="quotes-polish.css?v=5">
+<link rel="stylesheet" href="theme.css?v=80">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -160,7 +161,7 @@
         <th scope="col">Code</th><th scope="col">Event</th><th scope="col">Client</th><th scope="col">Version</th><th scope="col">Status</th>
         <th class="s-54c2afb" scope="col">Total</th><th scope="col">Updated</th><th class="s-54c2afb" scope="col">Actions</th>
       </tr></thead>
-      <tbody id="rows"><tr><td colspan="8" class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></td></tr></tbody>
+      <tbody id="rows" aria-busy="true"><tr class="q-skel-label"><td colspan="8" class="sr-only">Loading quotes…</td></tr><tr class="q-skel" aria-hidden="true"><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td></tr><tr class="q-skel" aria-hidden="true"><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td></tr><tr class="q-skel" aria-hidden="true"><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td></tr><tr class="q-skel" aria-hidden="true"><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td></tr><tr class="q-skel" aria-hidden="true"><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td></tr><tr class="q-skel" aria-hidden="true"><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td><td><i></i></td></tr></tbody>
     </table>
   </div>
   </main>
@@ -190,8 +191,8 @@
 
     <div class="seclabel"><span id="pricingHead">Pricing (₹ INR)</span> <span class="muted s-4496197" id="rateNote"></span></div>
     <div class="grid three">
-      <div class="fld"><label for="p_chairs">Chairs (count)</label><input id="p_chairs" type="number" min="0" step="1"></div>
-      <div class="fld"><label for="p_guests">Guests / plates</label><input id="p_guests" type="number" min="0" step="1"></div>
+      <div class="fld"><label for="p_chairs">Chairs (count)</label><input id="p_chairs" type="number" min="0" max="100000" step="1" aria-describedby="p_chairs_err"><small class="cm-ferr" id="p_chairs_err" role="alert" hidden></small></div>
+      <div class="fld"><label for="p_guests">Guests / plates</label><input id="p_guests" type="number" min="0" max="100000" step="1" aria-describedby="p_guests_err"><small class="cm-ferr" id="p_guests_err" role="alert" hidden></small></div>
       <div class="fld" id="posFld"><label for="p_pos">Place of supply</label>
         <select id="p_pos"><option value="intra">Intra-state (CGST + SGST)</option><option value="inter">Inter-state (IGST)</option></select></div>
       <div class="fld"><label for="p_taxExempt"><input type="checkbox" id="p_taxExempt"> Tax-exempt client (no tax charged)</label></div>
@@ -210,7 +211,7 @@
     <div class="grid three s-d2c171b">
       <div class="fld"><label for="p_coupon">Coupon</label><select id="p_coupon"><option value="">— none —</option></select></div>
       <div class="fld"><label for="p_discount">Discount ₹</label><input id="p_discount" type="number" min="0" step="1" value="0"></div>
-      <div class="fld"><label for="p_discountPct">Discount %</label><input id="p_discountPct" type="number" min="0" max="100" step="0.5" value="0"></div>
+      <div class="fld"><label for="p_discountPct">Discount %</label><input id="p_discountPct" type="number" min="0" max="100" step="0.5" value="0" aria-describedby="p_discountPct_err"><small class="cm-ferr" id="p_discountPct_err" role="alert" hidden></small></div>
     </div>
     <!-- rates come from the Control Center; kept as hidden inputs so the calculator stays unchanged -->
     <input type="hidden" id="p_chairPrice"><input type="hidden" id="p_platePrice"><input type="hidden" id="p_gst">
@@ -279,12 +280,12 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=204"></script>
 <script src="event-sizing.js?v=5"></script>
-<script src="tour.js?v=9"></script>
+<script src="tour.js?v=14"></script>
 <script>
   const $ = (s)=>document.querySelector(s);
   const esc = (s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -292,18 +293,21 @@
   let cmTaxSwitched=false, curTax=null, studioTax=null, studioState="", studioOrg=null, studioCfg={};
   const inr = (n)=> (curTax && curTax.country!=="IN") ? BPStore.tax.money(Number(n||0), curTax) : "₹"+Number(n||0).toLocaleString("en-IN");
   const fmtDate=(iso)=>{try{return BPStore.fmtDay(iso)||"—";}catch{return "—";}};
-  const statBadge=(s)=> s==="confirmed"?'<span class="stat ok">Confirmed</span>':s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
-  const apprBadge=(a)=> a==="paid"?'<span class="stat ok">Paid</span>':a==="approved"?'<span class="stat ap">Approved</span>':a==="sent"?'<span class="stat st">Sent</span>':"";
+  // shared status pills (ui-kit .hs-pill); the old .stat class stays as the fallback if ui-kit.css doesn't load
+  const statBadge=(s)=> s==="confirmed"?'<span class="stat hs-pill hs-confirmed">Confirmed</span>':s==="cancelled"?'<span class="stat hs-pill hs-overdue">Cancelled</span>':'<span class="stat hs-pill hs-draft">Quote</span>';
+  const apprBadge=(a)=> a==="paid"?'<span class="stat hs-pill hs-paid">Paid</span>':a==="approved"?'<span class="stat hs-pill hs-confirmed">Approved</span>':a==="sent"?'<span class="stat hs-pill hs-sent">Sent</span>':"";
 
   let focusPending=true;
   let quotes=[], filter="all", typeFilter="", canEdit=false, canDelete=false, canCreate=false, canMarkPaid=false;
   // Perf (Oct 2026): the list is server-paged — each tab / type / search asks the server for
   // the first page (light columns, no pricing JSON) and Load more / infinite scroll fetches
   // the next. `quotes` = the rows loaded so far for the current view.
+  /* HelmUI empty state (guarded: falls back to the plain message if the kit isn't loaded) */
+  const hEmpty=(host,o,cols)=>{ const H=window.HelmUI; if(!(H&&H.emptyState)||!host) return false; const n=H.emptyState(o); if(cols){ const tr=document.createElement("tr"),td=document.createElement("td"); td.colSpan=cols; td.className="hs-empty-cell"; td.appendChild(n); tr.appendChild(td); host.replaceChildren(tr); } else host.replaceChildren(n); return true; };
   let pager=null, anyQuotes=null;   // anyQuotes: does the studio have ANY quote (first-run empty state)
   const viewOf=(f)=> f==="all" ? "active" : f;   // the "Active" tab = everything not archived
   const detailCache={};   // id -> full quote (with versions)
-  let egIndex={}, egReady=false;   // event groups (0035): quote id -> { conversation_id, is_member }
+  let egIndex={}, egReady=false, egAutoPending=true;   // event groups (0035): quote id -> { conversation_id, is_member }
 
   /* ---------- Archive / Deleted shelves (0040) ---------- */
   // Soft flags on the quote (archived_at / deleted_at) — "Deleted" is a tab with Restore,
@@ -365,7 +369,11 @@
     await BPUI.guard(btn,async()=>{
       try{ await BPStore.quoteShelf.move(id, del?"delete":"archive");
         if(pager) pager.remove(id); quotes=quotes.filter(x=>x.id!==id); delete detailCache[id];
-        await loadShelf(); render(); BPUI.toast(del?"Moved to Deleted quotes.":"Moved to the Archive.",{type:"ok"}); }
+        await loadShelf(); render();
+        const msg=del?`${name} moved to Deleted quotes.`:`${name} moved to the Archive.`;
+        // the shelf move is restorable server-side, so offer Undo (calls the existing restore) when the kit is loaded
+        if(window.HelmUI&&HelmUI.undoable) HelmUI.undoable({mode:"immediate",message:msg,ms:6000,run:()=>{},undo:async()=>{ await restoreQuote(id,null); reloadQuiet(); }});  /* restoreQuote is built for the shelf view; redraw the active list so the row comes back */
+        else BPUI.toast(del?"Moved to Deleted quotes.":"Moved to the Archive.",{type:"ok"}); }
       catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:del?"delete the quote":"archive the quote"}),{type:"err"}); }
     });
   }
@@ -409,22 +417,34 @@
 
   /* ---------- load + render ---------- */
   async function load(){
-    await BPStore.init(); await renderAccount(); try{await BPStore.bell.mount(document.querySelector("#bell"));}catch{}
+    try{ performance.mark("quotes:load-start"); }catch(_){}
+    await BPStore.init();
+    // perf (Oct 2026): the account chip and the bell are independent of the list — never block the rows on them
+    renderAccount().catch(()=>{}); try{ Promise.resolve(BPStore.bell.mount(document.querySelector("#bell"))).catch(()=>{}); }catch{}
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
-    canEdit = await BPStore.auth.canEditArea("quotes"); canDelete = await BPStore.auth.can("delete"); canCreate = await BPStore.auth.can("create");
-    // mark_paid is admin/manager only server-side (SEC-05 F11); offline mode has no roles
-    canMarkPaid = !BPStore.auth.enabled() || await BPStore.auth.canEditArea("finance");   // server: mark_paid needs has_area(finance,edit)
+    // studio tax (money format in the rows) runs in parallel with the list; the org (supplier block) is only needed by modals
+    const taxP=Promise.resolve().then(()=>BPStore.config.getPricing()).then(c=>{ studioCfg=c||{}; studioTax=curTax=BPStore.tax.resolve(studioCfg); paintTaxCopy(studioTax); }).catch(()=>{});
+    Promise.resolve().then(()=>BPStore.org.current()).then(o=>{ studioOrg=o||null; const bl=o&&o.brand&&o.brand.billing; studioState=(bl&&typeof bl.state==="string")?bl.state:""; }).catch(()=>{});
+    // independent capability reads — in parallel (render() reads them)
+    [canEdit, canDelete, canCreate, canMarkPaid] = await Promise.all([BPStore.auth.canEditArea("quotes"), BPStore.auth.can("delete"), BPStore.auth.can("create"),
+      // mark_paid is admin/manager only server-side (SEC-05 F11); offline mode has no roles — server: mark_paid needs has_area(finance,edit)
+      BPStore.auth.enabled() ? BPStore.auth.canEditArea("finance") : true]);
     $("#newBtn").hidden = !canCreate;
-    try{ studioCfg=(await BPStore.config.getPricing())||{}; studioTax=curTax=BPStore.tax.resolve(studioCfg); paintTaxCopy(studioTax); }catch{}
-    try{ const o=await BPStore.org.current(); studioOrg=o||null; const bl=o&&o.brand&&o.brand.billing; studioState=(bl&&typeof bl.state==="string")?bl.state:""; }catch{}
     runShelfTick();   // 0040: client link expired → Archive / Deleted (rate-limited server-side; never awaited)
     // opened from an event workspace? focus that quote by pre-filling the search
     const focus=focusPending ? new URLSearchParams(location.search).get("focus") : null;
     focusPending=false;   // apply the ?focus= prefill once, never overwrite what the user typed on later load()s
     if(focus){ $("#search").value=focus; }
-    const [listR]=await Promise.allSettled([reloadList(), loadEventGroups(), fillTypeFilter()]);
+    // non-critical: event-group buttons + the type filter fill in after the rows
+    loadEventGroups().then(()=>{ if(egReady) render();
+      // opened from the event workspace's "Create event group" button → ?egroup=<quote id>
+      const egq=egAutoPending?new URLSearchParams(location.search).get("egroup"):null; egAutoPending=false;
+      if(egReady&&egq) openEventGroup(egq).catch(()=>{}); });
+    fillTypeFilter().catch(()=>{});
+    const [listR]=await Promise.allSettled([reloadList(), taxP]);
     if(listR.status==="rejected"){ BPUI.loadError($("#rows"), listR.reason, load, {what:"quotes"}); return; }
     render();
+    try{ performance.mark("quotes:first-rows"); performance.measure("quotes:time-to-first-rows","quotes:load-start","quotes:first-rows"); }catch(_){}
   }
   // first page of the current tab / type / search (resolves after it painted)
   function reloadList(){
@@ -442,6 +462,7 @@
   }
   const reloadQuiet=()=>reloadList().catch(e=>{ BPUI.loadError($("#rows"), e, reloadQuiet, {what:"quotes"}); });
   function render(){
+    $("#rows").removeAttribute("aria-busy");
     const q=($("#search").value||"").toLowerCase().trim();
     // Archived = closed or cancelled events — kept out of the day-to-day views,
     // browsable in their own tab so the active list stays focused (and un-scrolly).
@@ -471,39 +492,37 @@
       tb.innerHTML = anyQuotes===false
         ? `<tr><td colspan="8" class="empty"><b>No quotes yet.</b><br>${canCreate?'Design a layout and save it to create your first quote.<div style="margin-top:12px"><button type="button" class="btn primary" data-newquote>✨ Create your first quote</button></div>':"Quotes will appear here once they're created."}</td></tr>`
         : `<tr><td colspan="8" class="empty">${(q||typeFilter)?"No quotes match this search or filter.":"No quotes in this view."}</td></tr>`;
+      if(anyQuotes===false&&canCreate) hEmpty(tb,{icon:"✨",title:"No quotes yet",text:"Design a layout and save it to create your first quote.",actionLabel:"Create your first quote",onAction:()=>{ const b=$("#newBtn"); if(b) b.click(); }},8);
       return; }
     const visible=list;
     tb.innerHTML=visible.map(x=>{
       const pr=x.pricing||{}; const client=(x.client&&x.client.name)||(pr.client&&pr.client.name)||"";
       return `<tr data-id="${esc(x.id)}" class="${needsAttention(x)?'is-attention':(x.status==='confirmed'?'is-confirmed':'')}">
         <td class="code"><span class="refchip" title="Reference code">${esc(x.code)}</span></td>
-        <td><b class="qname">${esc(qName(x))}</b><div class="muted">${esc(x.eventType||"")}</div></td>
+        <td><a class="qname" href="event.html?id=${esc(encodeURIComponent(x.id))}" title="Open the event workspace"><b>${esc(qName(x))}</b></a><div class="muted">${esc(x.eventType||"")}</div></td>
         <td>${esc(client)||'<span class="muted">—</span>'}</td>
         <td><select class="vsel" data-role="vsel" aria-label="Version of ${esc(x.code)}"><option>v${esc(x.currentVersion)}</option></select></td>
-        <td>${sh(x)?(sh(x).shelf==="deleted"?'<span class="stat no">Deleted</span> ':'<span class="stat done">Archived</span> '):''}${needsAttention(x)?'<span class="stat warn" title="Event date has passed but this event isn\'t wrapped up — settle, return equipment and close it">⚠ Overdue</span> ':''}${isArchived(x)&&x.lifecycleStage==="closed"?'<span class="stat done">Closed · Archived</span>':statBadge(x.status)} ${apprBadge(x.approvalStatus)}${staleSet.has(x.id)?`<div class="stat warn" role="status" style="margin-top:4px">⚠ Price changed after approval — client must approve again${canEdit?` <button type="button" class="ic" data-act="relink" aria-label="Send a new approval link for ${esc(x.code)}">Send new approval link</button>`:""}</div>`:""}${sh(x)?`<div class="shelfnote">${esc(shelfNote(sh(x)))}</div>`:""}</td>
+        <td>${sh(x)?(sh(x).shelf==="deleted"?'<span class="stat hs-pill hs-overdue">Deleted</span> ':'<span class="stat hs-pill hs-archived">Archived</span> '):''}${needsAttention(x)?'<span class="stat hs-pill hs-overdue" title="Event date has passed but this event isn\'t wrapped up — settle, return equipment and close it">⚠ Overdue</span> ':''}${isArchived(x)&&x.lifecycleStage==="closed"?'<span class="stat hs-pill hs-archived">Closed · Archived</span>':statBadge(x.status)} ${apprBadge(x.approvalStatus)}${staleSet.has(x.id)?`<div class="stat warn" role="status" style="margin-top:4px">⚠ Price changed after approval — client must approve again${canEdit?` <button type="button" class="ic" data-act="relink" aria-label="Send a new approval link for ${esc(x.code)}">Send new approval link</button>`:""}</div>`:""}${sh(x)?`<div class="shelfnote">${esc(shelfNote(sh(x)))}</div>`:""}</td>
         <td style="text-align:right" class="amt">${x.total?esc(BPStore.quoteMoney(x.total,x)):'<span class="muted">—</span>'}</td>
         <td class="muted">${fmtDate(x.updatedAt)}</td>
         <td><div class="row-actions" style="justify-content:flex-end">
           ${sh(x)
             ? // in Archive / Deleted (0040) → put it back, look at it, download it — never erase
               `${canEdit?`<button type="button" class="ic restore" data-act="restore" title="Put it back in your quotes" aria-label="Restore ${esc(x.code)}">↩ Restore</button>`:""}
-               <button type="button" class="ic go" data-act="workspace" title="Open the event workspace" aria-label="Open workspace for ${esc(x.code)}">⧉ Open</button>
                <button type="button" class="ic" data-act="download" aria-label="Download ${esc(x.code)}">Download</button>`
           : isArchived(x)
-            ? // finished event → read-only set: review its details, reopen the workspace, download
+            ? // finished event → read-only set: review its details, download (the quote name opens the workspace)
               `<button type="button" class="ic go" data-act="details" title="View closure, P&amp;L and feedback for this completed event" aria-label="Details for ${esc(x.code)}">📄 Details</button>
-               <button type="button" class="ic go" data-act="workspace" title="Open the event workspace" aria-label="Open workspace for ${esc(x.code)}">⧉ Open</button>
                <button type="button" class="ic go" data-act="edit" title="View the quotation, pricing and floor layout (don't save changes to a closed event)" aria-label="View quote and layout for ${esc(x.code)}">👁 View quote &amp; layout</button>
                ${egReady&&egIndex[x.id]?`<button type="button" class="ic go" data-act="egroup" aria-label="Open the event group for ${esc(x.code)}">💬 Event group</button>`:""}
                <button type="button" class="ic" data-act="download" aria-label="Download ${esc(x.code)}">Download</button>
                ${canDelete?`<button type="button" class="ic del" data-act="del" title="${shelf.ready?"Move to Deleted quotes (restorable)":"Delete permanently"}" aria-label="Delete ${esc(x.code)}">✕</button>`:""}`
             : // active event → the full working set
-              `<button type="button" class="ic go" data-act="workspace" title="Open the event workspace" aria-label="Open workspace for ${esc(x.code)}">⧉ Open</button>
-               <button type="button" class="ic go" data-act="edit" aria-label="Edit ${esc(x.code)}">Edit</button>
+              `<button type="button" class="ic go" data-act="edit" title="Edit the floor layout in the builder" aria-label="Edit layout for ${esc(x.code)}">Edit layout</button>
                ${canEdit?`<button type="button" class="ic confirm" data-act="confirm" aria-label="${x.status==="confirmed"?"Re-price":"Confirm"} ${esc(x.code)}">${x.status==="confirmed"?"Re-price":"Confirm"}</button>`:""}
                ${canEdit&&x.status==="confirmed"?`<button type="button" class="ic" data-act="link" title="Get the client approval link" aria-label="Approval link for ${esc(x.code)}">🔗 Approve link</button>`:""}
                <button type="button" class="ic go" data-act="ops" title="Assign & track work" aria-label="Operations for ${esc(x.code)}">⚙ Ops</button>
-               ${egReady&&(egIndex[x.id]||x.status==="confirmed")?`<button type="button" class="ic go" data-act="egroup" title="${egIndex[x.id]?"Open this event's team chat":"Create a team chat for this event"}" aria-label="${egIndex[x.id]?"Open event group":"Create event group"} for ${esc(x.code)}">${egIndex[x.id]?"💬 Open event group":"💬 Event group"}</button>`:""}
+               ${egReady&&(egIndex[x.id]||(canEdit&&x.status==="confirmed"))?`<button type="button" class="ic go" data-act="egroup" title="${egIndex[x.id]?"Open this event's team chat":"Create a team chat for this event"}" aria-label="${egIndex[x.id]?"Open event group":"Create event group"} for ${esc(x.code)}">${egIndex[x.id]?"💬 Open event group":"💬 Create event group"}</button>`:""}
                ${canMarkPaid&&x.approvalStatus==="approved"?`<button type="button" class="ic confirm" data-act="paid" title="Mark payment received" aria-label="Mark ${esc(x.code)} paid">Mark paid</button>`:""}
                <button type="button" class="ic" data-act="download" aria-label="Download ${esc(x.code)}">Download</button>
                ${shelf.ready&&canEdit?`<button type="button" class="ic" data-act="archive" title="Move to the Archive (restorable)" aria-label="Archive ${esc(x.code)}">🗄 Archive</button>`:""}
@@ -513,14 +532,23 @@
     // lazy-load versions into each dropdown + wire actions
     tb.querySelectorAll("tr[data-id]").forEach(tr=>{
       const id=tr.dataset.id;
+      // keep the row calm: the first three actions stay visible, the rest go in a "⋯" menu (same buttons, same handlers)
+      const ra=tr.querySelector(".row-actions"), acts=ra?[...ra.querySelectorAll(":scope > [data-act]")]:[];
+      if(acts.length>4){
+        const dm=document.createElement("details"); dm.className="qmore";
+        const sm=document.createElement("summary"); sm.className="ic"; sm.textContent="⋯"; sm.setAttribute("aria-label","More actions"); sm.title="More actions";
+        const pop=document.createElement("div"); pop.className="qmore-pop"; pop.setAttribute("role","menu");
+        acts.slice(3).forEach(b=>{ b.setAttribute("role","menuitem"); if(b.textContent.trim()==="✕") b.textContent="✕ Delete"; pop.appendChild(b); b.addEventListener("click",()=>{ dm.open=false; }); });
+        dm.append(sm,pop); ra.appendChild(dm);
+        dm.addEventListener("toggle",()=>{ if(!dm.open) return; document.querySelectorAll("details.qmore[open]").forEach(o=>{ if(o!==dm) o.open=false; }); const r=sm.getBoundingClientRect(); dm.classList.toggle("up", window.innerHeight-r.bottom < pop.offsetHeight+16 && r.top > pop.offsetHeight+16); });
+      }
       const sel=tr.querySelector('[data-role="vsel"]');
       sel.addEventListener("focus",()=>fillVersions(id,sel),{once:true});
       tr.querySelectorAll("[data-act]").forEach(b=>b.addEventListener("click",()=>{
         const act=b.dataset.act, ver=selectedVersion(sel);
         if(act==="details") location.href="closure.html?id="+encodeURIComponent(id);
-        else if(act==="workspace") location.href="event.html?id="+encodeURIComponent(id);
         else if(act==="edit") location.href="builder.html?quote="+encodeURIComponent(id)+(ver?"&v="+ver:"");
-        else if(act==="confirm") BPUI.guard(b,()=>openConfirm(id));
+        else if(act==="confirm") BPUI.guard(b,()=>openConfirm(id)).catch(e=>{ try{ console.error("[quotes] open confirm failed",e); }catch(_){} BPUI.toast(BPUI.friendlyError(e,{action:"open the confirm dialog"}),{type:"err"}); });
         else if(act==="download") BPUI.guard(b,()=>downloadQuote(id, ver));
         else if(act==="ops") location.href="ops.html?quote="+encodeURIComponent(id);
         else if(act==="link") BPUI.guard(b,()=>sendApprovalLink(id));
@@ -554,22 +582,27 @@
     $("#c_phone").value=cl.phone||""; $("#c_date").value=cl.eventDate||""; $("#c_venue").value=cl.venue||"";
     $("#c_address").value=cl.address||""; $("#c_notes").value=cl.notes||""; $("#c_state").value=cl.state||""; $("#c_trn").value=cl.trn||"";
     // central rates + vendors + coupons from the Control Center
-    cmConfig={chairPrice:200,platePrice:500,gstPct:18,cateringGstPct:18,serviceChargePct:0};
-    try{ cmConfig=(await BPStore.config.getPricing())||cmConfig; }catch{}
-    try{ cmVendors=await BPStore.vendors.list(); }catch{ cmVendors=[]; }
-    try{ cmCoupons=await BPStore.coupons.list(); }catch{ cmCoupons=[]; }
+    // Each lookup is optional: run them together and give each a time limit, so one slow or
+    // failing read (vendors, coupons, the plan, the layout version) can never leave the row's
+    // Confirm button spinning with no dialog — the dialog opens with sensible fallbacks instead.
+    const soft=(fn,fb)=>Promise.race([Promise.resolve().then(fn), new Promise(r=>setTimeout(()=>r(fb),8000))]).then(v=>v==null?fb:v,()=>fb);
+    const [cfgR, vendR, coupR, verR, planR]=await Promise.all([
+      soft(()=>BPStore.config.getPricing(),null), soft(()=>BPStore.vendors.list(),[]), soft(()=>BPStore.coupons.list(),[]),
+      soft(()=>BPStore.quotes.getVersion(id, full.currentVersion),null), soft(()=>BPStore.plan.get(id),null)]);
+    cmConfig=cfgR||{chairPrice:200,platePrice:500,gstPct:18,cateringGstPct:18,serviceChargePct:0};
+    cmVendors=Array.isArray(vendR)?vendR:[]; cmCoupons=Array.isArray(coupR)?coupR:[];
     const cfg=cmConfig; const sT=BPStore.tax.resolve(cfg), qT=BPStore.quoteTax(full);
     // B11: an already-priced quote stays in ITS currency/tax; switching to the studio's country is an explicit choice
     const priced=("gstPct" in pr)||("total" in pr); cmKeep = priced && qT.country!==sT.country;
     cmTaxSwitched=false; curTax = cmKeep ? qT : sT; paintCurBanner(cmKeep, qT, sT, pr, cfg);
     $("#rateNote").textContent = `· ${inr(cfg.chairPrice)}/chair · ${inr(cfg.platePrice)}/plate · ${curTax.name} ${curTax.rate}%${curTax.inclusive?" (included in prices)":""}  (edit in Control Center)`;
     // seat counts + object cost from current version (same engine as the builder)
-    let seats=0, objectsCost=0; try{ const v=await BPStore.quotes.getVersion(id, full.currentVersion);
-      const items=v.data&&v.data.items; seats=countSeats(items);
+    let seats=0, objectsCost=0; try{ const v=verR;
+      const items=v&&v.data&&v.data.items; seats=countSeats(items);
       const oi=BPStore.pricing.fromItems(items, cfg.assetPrices); objectsCost=oi.objectsCost;
     }catch{}
     // menu package (set on the plan by the builder / plan screen) → its per-plate price drives catering
-    let planRow=null; try{ planRow=await BPStore.plan.get(id); }catch{}
+    const planRow=planR||null;
     const menuPlate = planRow && planRow.menu_plate_price!=null ? +planRow.menu_plate_price : null;
     // R9: the quote's ONE chairs value (typed, else 70% of guests) — the layout count only when nothing else exists
     $("#p_chairs").value = pr.chairs!=null?HelmSizing.quoteChairs(cl,pr,pr.chairs):(HelmSizing.quoteChairs(cl,pr,seats)??seats);
@@ -634,7 +667,29 @@
       address:$("#c_address").value.trim(), notes:$("#c_notes").value.trim(), state:$("#c_state").value.trim().slice(0,60),
       ...($("#trnFld").hidden ? {} : { trn:String($("#c_trn").value||"").replace(/\s+/g,"").slice(0,20) }) };
   }
+  // inline checks on the counts + discount %: whole numbers 0–100,000 / a percent 0–100.
+  // While any is invalid "Confirm & lock" stays disabled (Save pricing re-checks on click).
+  let cmSaving=false;   // one save / confirm in flight (incl. while its confirm prompt is open)
+  const CM_CHECKS=[["p_chairs","Chairs","count"],["p_guests","Guests / plates","count"],["p_discountPct","Discount %","pct"]];
+  function cmFieldError(raw, label, kind){
+    const v=String(raw==null?"":raw).trim(); if(v==="") return "";
+    const n=Number(v); if(!Number.isFinite(n)) return label+" must be a number.";
+    if(kind==="count"){ if(!Number.isInteger(n)) return label+" must be a whole number."; if(n<0||n>100000) return label+" must be between 0 and 100,000."; }
+    else if(n<0||n>100) return label+" must be between 0 and 100.";
+    return "";
+  }
+  function cmValidate(){
+    let ok=true;
+    CM_CHECKS.forEach(([id,label,kind])=>{ const inp=document.getElementById(id), er=document.getElementById(id+"_err"); if(!inp) return;
+      // a non-numeric entry in a number box reads as "" — badInput still flags it
+      const msg=(inp.validity&&inp.validity.badInput)?label+" must be a number.":cmFieldError(inp.value,label,kind);
+      if(er){ er.textContent=msg; er.hidden=!msg; }
+      if(msg){ ok=false; inp.setAttribute("aria-invalid","true"); } else inp.removeAttribute("aria-invalid"); });
+    const b=$("#cm_confirm"); if(b && !cmSaving) b.disabled=!ok;
+    return ok;
+  }
   function recalc(){
+    cmValidate();
     const p=gatherPricing(), t=calcPricing(p);
     const taxRows = BPStore.tax.rows(t, p, BPStore.tax.resolve(p)).map(r=>`<div class="r"><span>${esc(r.label)}</span><span class="amt">${inr(r.amount)}</span></div>`).join("");
     $("#totals").innerHTML =
@@ -650,7 +705,8 @@
   async function savePricing(confirmIt){
     const btn = confirmIt?$("#cm_confirm"):$("#cm_savePricing");
     const other = confirmIt?$("#cm_savePricing"):$("#cm_confirm");
-    if(btn.disabled || other.disabled) return;   // a save is already in flight
+    if(cmSaving) return;   // a save / confirm is already in flight
+    if(!cmValidate()){ const bad=document.querySelector('#confirmModal [aria-invalid="true"]'); if(bad) bad.focus(); return; }
     // validate the raw inputs (no negative money, fractional counts, bad %, bad email) before saving
     const V=BPStore.validate, errEl=$("#cm_err");
     const checks=[["#p_chairs",v=>V.count(v,{field:"Chairs"})],["#p_guests",v=>V.count(v,{field:"Guests / plates"})],
@@ -671,6 +727,11 @@
     if(!$("#trnFld").hidden && window.HelmCountry){ const tv=HelmCountry.validateTaxId("AE",$("#c_trn").value);
       if(!tv.ok){ errEl.textContent=tv.error; errEl.hidden=false; $("#c_trn").focus(); return; } }
     errEl.hidden=true;
+    if(cmSaving) return;
+    // one save at a time: lock both buttons BEFORE any prompt (duplicate / "Confirm & lock?"), so a
+    // double click can't queue a second prompt or a second confirm behind the first
+    cmSaving=true; btn.disabled=true; other.disabled=true;
+    const unlock=()=>{ cmSaving=false; btn.disabled=false; other.disabled=false; cmValidate(); };
     // duplicate warning (never blocks): another quote with the same client name + event date
     try{ const dn=$("#c_name").value.trim().toLowerCase(), dd=$("#c_date").value;
       const orig=(detailCache[cmId]&&detailCache[cmId].client)||{};
@@ -678,12 +739,11 @@
         const pg=await BPStore.quotes.page({ offset:0, view:"all", search:$("#c_name").value.trim() });
         const rows=Array.isArray(pg)?pg:((pg&&(pg.rows||pg.items||pg.all))||[]);
         const dup=rows.find(x=>x.id!==cmId && String(x.eventDate||"").slice(0,10)===dd && String((x.client&&x.client.name)||x.clientName||"").trim().toLowerCase()===dn);
-        if(dup && !(await BPUI.confirm(`Another quote (${dup.code||"existing"}) already exists for ${$("#c_name").value.trim()} on ${dd}. Save this one anyway?`,{title:"Possible duplicate",okLabel:"Save anyway"}))) return;
+        if(dup && !(await BPUI.confirm(`Another quote (${dup.code||"existing"}) already exists for ${$("#c_name").value.trim()} on ${dd}. Save this one anyway?`,{title:"Possible duplicate",okLabel:"Save anyway"}))) { unlock(); return; }
       } }catch(_){}
     if(confirmIt){ const tt=calcPricing(gatherPricing()); const code=(detailCache[cmId]&&detailCache[cmId].code)||"this quote";
-      if(!(await BPUI.confirm(`Confirm ${code} at ${inr(tt.total)}? This locks a priced snapshot for the client.`,{title:"Confirm & lock quote?",okLabel:"Confirm & lock"}))) return; }
-    if(btn.disabled || other.disabled) return;
-    btn.disabled=true; other.disabled=true;   // one save at a time (no concurrent confirm + save)
+      let ok=false; try{ ok=await BPUI.confirm(`Confirm ${code} at ${inr(tt.total)}? This locks a priced snapshot for the client.`,{title:"Confirm & lock quote?",okLabel:"Confirm & lock"}); }catch(_){ ok=false; }
+      if(!ok){ unlock(); return; } }
     btn.setAttribute("aria-busy","true");
     const p=gatherPricing(), t=calcPricing(p);
     // merge into the stored client JSON - never replace it (keeps guests/budget carried over from the lead)
@@ -721,13 +781,13 @@
       }
       delete detailCache[cmId];
       closeConfirm(); BPUI.toast((confirmIt?"Quote confirmed and locked.":"Pricing saved.")+(dateSyncFailed?" The event date could not be synced - re-check it in the event workspace.":""),{type:dateSyncFailed?"info":"ok"}); await load();
-      if(confirmedId) showEventGroupPrompt(confirmedId);
+      if(confirmedId) showEventGroupPrompt(confirmedId);   // set only after the lock succeeded
     }catch(e){ const el=$("#cm_err");
       el.textContent = (e&&e.code==="CONFLICT")
         ? "This quote was changed in another tab or by another user since you opened it. Reload to see the latest, then re-apply your changes."
         : BPUI.friendlyError(e,{action:confirmIt?"confirm the quote":"save the pricing"});
       el.hidden=false; }
-    finally{ btn.disabled=false; other.disabled=false; btn.removeAttribute("aria-busy"); }
+    finally{ cmSaving=false; btn.disabled=false; other.disabled=false; btn.removeAttribute("aria-busy"); cmValidate(); }
   }
 
   /* UAE audit: Art. 59 - only a VAT-registered supplier (TRN on the header) issues a "Tax Invoice"; the
@@ -837,22 +897,30 @@
     try{ egIndex=await BPStore.chat.eventGroups.index(); egReady=true; }
     catch(e){ egIndex={}; egReady=false; }   // 0035 not installed / no chat → no event-group buttons
   }
-  let egQuote=null, egPeople=[];
+  let egQuote=null, egPeople=[], egPre=null;   // egPre: ids to pre-tick on the first draw
   async function openEventGroup(id){
-    const q=quotes.find(x=>x.id===id); if(!q) return;
+    let q=quotes.find(x=>x.id===id);
+    if(!q){ try{ q=await BPStore.quotes.get(id); }catch(_){ q=null; } }   // deep link: may be off the current page
+    if(!q) return;
     const g=egIndex[id];
     if(g){ if(g.is_member) location.href="chat.html?c="+encodeURIComponent(g.conversation_id);
            else BPUI.toast("This event already has a group. Ask someone in it to add you.",{type:"info"});
            return; }
     if(q.status!=="confirmed"){ BPUI.toast("Confirm this quote before creating its event group.",{type:"info"}); return; }
+    if(!canEdit){ BPUI.toast("Ask an admin or manager to create this event's group.",{type:"info"}); return; }
     let me=null; try{ me=(BPStore.auth.user()||{}).id||(await BPStore.chat.me()).id; }catch(_){}
     try{ egPeople=(await BPStore.chat.roster()).filter(p=>p.id&&p.id!==me); }catch(_){ egPeople=[]; }
+    // pre-tick the admins/owners + the staff already assigned to this event (matched by name)
+    let crewNames=new Set(); try{ (await BPStore.staff.forEvent(id)).forEach(s=>{ if(s.name) crewNames.add(String(s.name).trim().toLowerCase()); }); }catch(_){}
+    const egNm=(p)=>String(p.full_name||"").trim().toLowerCase();
+    egPre=new Set(egPeople.filter(p=>p.role==="owner"||p.role==="admin"||(egNm(p)&&crewNames.has(egNm(p)))).map(p=>p.id));
     egQuote=q; $("#eg_err").hidden=true; $("#eg_search").value="";
     $("#eg_title").textContent="💬 Event group · "+(q.code||"");
-    drawEgList(""); $("#egModal").hidden=false; setTimeout(()=>$("#eg_search").focus(),50);
+    $("#eg_list").textContent="";
+    drawEgList(""); egPre=null; $("#egModal").hidden=false; setTimeout(()=>$("#eg_search").focus(),50);
   }
   function drawEgList(filterText){
-    const f=String(filterText||"").toLowerCase().trim(); const checked=new Set([...document.querySelectorAll("#eg_list input:checked")].map(i=>i.value));
+    const f=String(filterText||"").toLowerCase().trim(); const checked=egPre?new Set(egPre):new Set([...document.querySelectorAll("#eg_list input:checked")].map(i=>i.value));
     const nm=(p)=>BPStore.chat.displayName?BPStore.chat.displayName(p):(p.full_name||p.email||"Member");
     const rl=(r)=>{ try{ return r?BPStore.auth.admin.roleLabel(r):""; }catch(_){ return r||""; } };
     const rows=egPeople.filter(p=>!f||nm(p).toLowerCase().includes(f));
@@ -984,6 +1052,6 @@
     BPUI.boot(async () => { await load(); if(canCreate) startNewQuote($("#newBtn"), openTo); });
   } else BPUI.boot(load);
 </script>
-<script src="saved-filters.js?v=1"></script>
+<script src="saved-filters.js?v=2"></script>
 </body>
 </html>

@@ -28,8 +28,8 @@ t('L8: 0075 RPC keeps the gates, locks per user, never deletes', () => {
   assert.doesNotMatch(sql, /\bdelete\s+from\b|\bdrop\s+table\b|\btruncate\b/i);
 });
 t('#16: signup never seeds the business email with the login email', () => {
-  for (const m of login.matchAll(/createStudio\(([^;]*?)\)/g)) assert.doesNotMatch(m[1], /email/, m[0]);
-  assert.equal((login.match(/createStudio\(/g) || []).length, 3);
+  for (const m of login.matchAll(/(?:createStudio|makeStudio)\(([^;]*?)\)/g)) assert.doesNotMatch(m[1], /email/, m[0]);
+  assert.equal((login.match(/BPStore\.org\.createStudio\(/g) || []).length, 1); assert.equal((login.match(/await makeStudio\(/g) || []).length, 3);
 });
 t('#16: Control Center save confirms the business email + keeps brand keys + saves a phone', () => {
   assert.match(ctrl, /<input id="o_phone" type="tel"/);

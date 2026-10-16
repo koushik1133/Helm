@@ -74,8 +74,12 @@ t('a ResizeObserver watches the document AND the current target (layout shifts),
 });
 t('the ring has no CSS transition (it must not trail the target during scroll/resize)', () =>
   assert.ok(!/\.ring\{[^}]*transition/.test(SRC)));
-t('steps are NOT permanently dropped at start() because of a hidden-at-this-breakpoint target', () =>
-  assert.ok(/\.filter\(\s*s\s*=>\s*document\.querySelector\(\s*s\.sel\s*\)\s*\)/.test(SRC)));
+t('a step whose target is missing/hidden/off-canvas is skipped; sel may list fallbacks (desktop, then phone)', () => {
+  assert.ok(/\.filter\(usable\)/.test(SRC));
+  assert.ok(/function pick\(step\)[\s\S]{0,200}Array\.isArray\(step\.sel\)/.test(SRC));
+  assert.ok(/r\.right <= 0 \|\| r\.left >= vw/.test(SRC), 'off-canvas drawer is not a target');
+  assert.ok(/function usable\(step\) \{ return !step\.sel \|\| !!pick\(step\); \}/.test(SRC), 'no-sel step = centered card');
+});
 
 t('dashboard (first-login tour) delegates to the shared engine — no private fixed-timeout copy', () => {
   const D = readFileSync(join(ROOT, 'public', 'dashboard.html'), 'utf8');
@@ -161,5 +165,7 @@ t('present(): display:none / [hidden] ancestor / zero-size targets are NOT visib
   assert.ok(T2._present('#ok'));
   for (const s of ['#none', '#inHidden', '#zero', '#collapsed', '#missing']) assert.equal(T2._present(s), null, s);
 });
+// E2E sales: the lead-form field coach must end when its modal closes (it used to linger over the board / detail modal)
+assert.ok(/new MutationObserver\(\(\) => \{[^\n]*if \(!present\(form\.modal\)\) \{ mo\.disconnect\(\); end\(\); \}/.test(SRC), 'form coach ends when its modal closes'); passed++;
 
 console.log(`\ntour-positioning: ${passed} assertion(s) passed.`);

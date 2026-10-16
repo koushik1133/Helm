@@ -67,7 +67,9 @@
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
   html[data-theme="dark"] .tabs button.on{background:#7c3aed;color:#fff}
 </style>
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="logistics-polish.css?v=2">
+<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="pages-polish-ops.css?v=1">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -114,10 +116,10 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
-<script src="tour.js?v=9"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=204"></script>
+<script src="tour.js?v=14"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -160,7 +162,7 @@
         <div class="fld"><label for="a_title">Item</label><input id="a_title" placeholder="what needs doing"></div>
         <div class="fld"><label for="a_owner">Owner</label>${peopleSelectHTML("a_owner","")}</div>
         <div class="fld"><label for="a_due">Due</label><input id="a_due" type="date" data-date-window="recent"></div>
-        <div class="fld">${SPACER}<button type="button" class="btn primary" id="a_add">＋ Add</button></div></div>`:""}
+        <div class="fld">${SPACER}<button type="button" class="btn primary" id="a_add">＋ Add item</button></div></div>`:""}
       ${canEdit?'<div id="tplBar" style="margin:6px 0 12px"></div>':""}
       <div class="table-scroll"><table><thead><tr><th scope="col">Item</th><th scope="col">Owner</th><th scope="col">Due</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody>${items.length?items.map(rowChk).join(""):'<tr><td colspan="5" class="empty">Nothing here yet.</td></tr>'}</tbody></table></div>
@@ -200,7 +202,7 @@
       ${canEdit?`<div class="addrow guest">
         <div class="fld"><label for="g_name">Group</label><input id="g_name" placeholder="e.g. Bride's family"></div>
         <div class="fld"><label for="g_qty">Headcount</label><input id="g_qty" type="number" min="0" value="0"></div>
-        <div class="fld">${SPACER}<button type="button" class="btn primary" id="g_add">＋ Add</button></div></div>`:""}
+        <div class="fld">${SPACER}<button type="button" class="btn primary" id="g_add">＋ Add guest</button></div></div>`:""}
       <div class="table-scroll"><table><thead><tr><th scope="col">Group</th><th scope="col" class="num">Headcount</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody>${items.length?items.map(rowGuest).join(""):'<tr><td colspan="4" class="empty">No guest groups yet.</td></tr>'}</tbody></table></div>
       <div class="totbar"><span>Total expected guests: <b>${total}</b></span><span>${items.length} group${items.length===1?"":"s"}</span></div>`;
@@ -217,20 +219,28 @@
     return act($("#g_add"),async()=>{ await BPStore.checklist.add(id,{ section:"guests", title:t, qty:gr.value }); await renderPane(); },"add the group"); }
 
   async function renderPayments(){
-    const ms = await BPStore.milestones.list(id);
-    const total=ms.reduce((a,m)=>a+Number(m.amount||0),0);
-    const paid=ms.filter(m=>m.status==="paid").reduce((a,m)=>a+Number(m.amount||0),0);
-    const due=ms.filter(m=>m.status!=="paid"&&m.status!=="waived").reduce((a,m)=>a+Number(m.amount||0),0);
+    const [ms,pays] = await Promise.all([BPStore.milestones.list(id), BPStore.milestones.payments(id).catch(()=>[])]);
+    const total=ms.reduce((a,m)=>a+Number(m.amount||0),0); msScheduled=total;
+    const qTotal=Number((ev&&ev.pricing&&ev.pricing.total)||(ev&&ev.total)||0);
+    // Paid = the quote_payments LEDGER (same source as Settlement "Received"); milestone status only as a fallback.
+    const fromLedger=(pays||[]).filter(p=>p.status==="paid").reduce((a,p)=>a+Number(p.amount||0),0);
+    const paid=(pays&&pays.length)?fromLedger:ms.filter(m=>m.status==="paid").reduce((a,m)=>a+Number(m.amount||0),0);
+    const owed=ms.filter(m=>m.status!=="waived").reduce((a,m)=>a+Number(m.amount||0),0);
+    const due=Math.max(0,owed-paid);
+    // Display only: a milestone counts as covered when cumulative ledger payments reach it (in due-date order).
+    covered=new Set(); let cum=0;
+    ms.filter(m=>m.status!=="waived").slice().sort((a,b)=>String(a.due_date||"9999").localeCompare(String(b.due_date||"9999")))
+      .forEach(m=>{ cum+=Number(m.amount||0); if(m.status!=="paid"&&cum<=paid+0.005) covered.add(m.id); });
     const phone=(ev.client&&(ev.client.phone))||"";
     $("#pane").innerHTML = `<h2>Payment schedule</h2><p class="sub">Milestones the client pays across the event. Reminders go through the notification outbox.</p>
       ${canEdit?`<div class="addrow pay">
         <div class="fld"><label for="m_label">Milestone</label><input id="m_label" placeholder="e.g. 50% advance"></div>
         <div class="fld"><label for="m_due">Due date</label><input id="m_due" type="date" data-date-window="recent"></div>
         <div class="fld"><label for="m_amt">Amount ₹</label><input id="m_amt" type="number" min="0" value="0"></div>
-        <div class="fld">${SPACER}<button type="button" class="btn primary" id="m_add">＋ Add</button></div></div>`:""}
+        <div class="fld">${SPACER}<button type="button" class="btn primary" id="m_add">＋ Add milestone</button></div></div>`:""}
       <div class="table-scroll"><table><thead><tr><th scope="col">Milestone</th><th scope="col">Due</th><th scope="col" class="num">Amount</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
         <tbody>${ms.length?ms.map(rowPay).join(""):'<tr><td colspan="5" class="empty">No milestones yet.</td></tr>'}</tbody></table></div>
-      <div class="totbar"><span>Scheduled: <b>${inr(total)}</b></span><span style="color:#0f7a43">Paid: <b>${inr(paid)}</b></span><span style="color:#8f5f00">Outstanding: <b>${inr(due)}</b></span></div>`;
+      <div class="totbar"><span>Scheduled: <b>${inr(total)}</b></span><span class="tb-paid">Paid: <b>${inr(paid)}</b></span><span class="tb-due">Outstanding: <b>${inr(due)}</b></span>${qTotal>0&&total>qTotal?`<span>⚠ Scheduled is <b>${inr(total-qTotal)}</b> more than the quote total (${inr(qTotal)})</span>`:""}</div>`;
     if(canEdit) $("#m_add").addEventListener("click",addMile);
     document.querySelectorAll("#pane [data-mst]").forEach(s=>s.addEventListener("change",async()=>{
       const m=ms.find(x=>x.id===s.dataset.mst);
@@ -249,14 +259,20 @@
         if(!phone){ BPUI.toast("No client phone on this event.",{type:"err"}); return; }
         await BPStore.milestones.sendReminder(id, phone, {label:m.label, amount:m.amount, due:m.due_date}); BPUI.toast("Reminder queued.",{type:"ok"}); },"send the reminder"); }));
   }
-  function rowPay(m){ const opts=["due","invoiced","paid","waived"].map(s=>`<option value="${s}" ${s===m.status?"selected":""}>${PAY_ST[s]}</option>`).join("");
+  let covered=new Set();
+  function rowPay(m){ if(covered.has(m.id)) return `<tr><td><b>${esc(m.label)}</b></td><td class="muted">${esc(m.due_date||"")}</td><td class="num">${inr(m.amount)}</td>
+      <td><span class="st paid" title="Covered by payments recorded on this event">Covered</span></td><td></td></tr>`;
+    const opts=["due","invoiced","paid","waived"].map(s=>`<option value="${s}" ${s===m.status?"selected":""}>${PAY_ST[s]}</option>`).join("");
     return `<tr><td><b>${esc(m.label)}</b></td><td class="muted">${esc(m.due_date||"")}</td><td class="num">${inr(m.amount)}</td>
       <td>${canEdit&&m.status!=="paid"?`<select class="ssel" data-mst="${esc(m.id)}" aria-label="Status for ${esc(m.label)}">${opts}</select>`:`<span class="st ${esc(m.status)}">${esc(PAY_ST[m.status]||m.status)}</span>`}</td>
       <td>${canEdit&&m.status!=="paid"?`<button type="button" class="rm" data-remind="${esc(m.id)}" aria-label="Send reminder now for ${esc(m.label)}">Send reminder now</button> `:""}${canDelete&&m.status!=="paid"?`<button type="button" class="rm" data-mdel="${esc(m.id)}" aria-label="Remove milestone ${esc(m.label)}">✕</button>`:""}</td></tr>`; }
-  function addMile(){ const l=$("#m_label").value.trim(); if(!l){ $("#m_label").focus(); return; }
+  let msScheduled=0;
+  async function addMile(){ const l=$("#m_label").value.trim(); if(!l){ $("#m_label").focus(); return; }
     const V=BPStore.validate;
     const ar=V.money($("#m_amt").value,{field:"Amount"}); if(!ar.ok){ BPUI.toast(ar.error,{type:"err"}); return; }
     if(!(ar.value>0)){ BPUI.toast("Amount must be greater than 0 to add a milestone.",{type:"err"}); return; }
+    const qTotal=Number((ev&&ev.pricing&&ev.pricing.total)||(ev&&ev.total)||0);
+    if(qTotal>0 && msScheduled+ar.value>qTotal+0.5 && !(await BPUI.confirm(`This makes the schedule ${inr(msScheduled+ar.value)}, more than the quote total of ${inr(qTotal)}. Add it anyway?`,{title:"Schedule exceeds quote",okLabel:"Add anyway"}))) return;
     return act($("#m_add"),async()=>{ await BPStore.milestones.add(id,{ label:l, due_date:$("#m_due").value||null, amount:ar.value }); await renderPane(); },"add the milestone"); }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }

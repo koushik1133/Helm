@@ -29,6 +29,9 @@
     ".td-dlg::backdrop{background:rgba(20,27,46,.45)}.td-dlg h3{margin:0 0 6px;font-size:17px}.td-dlg p{margin:0 0 14px;font-size:14px;color:var(--ink-2,#4b475f)}",
     ".td-dlg .td-row{justify-content:flex-end}",
     ".td-busy{opacity:.7;cursor:progress}",
+    ".td-list{margin:0 0 12px;padding-left:20px;font-size:14px}.td-list li{margin:2px 0}",
+    ".td-safe{font-weight:600}.td-fresh{margin:0 0 14px}",
+    ".td-dlg .td-row .danger{background:var(--danger,#b42318);border-color:var(--danger,#b42318);color:#fff}",
     ".td-err{color:var(--danger,#b42318);margin:8px 0 0;font-size:13px}",
   ].join("\n");
   let cssDone = false;
@@ -109,26 +112,76 @@
     try { await S().demo.reset(); toast("Demo data reset."); global.location.reload(); }
     catch (e) { done(); toast(errMsg(e, "reset the demo data"), "err", b); }
   }
-  // "Start onboarding": keep the demo data, or clear it first (the owner chooses)
-  function openSwitch() {
+  /* ---- "Start my own studio" (0123) --------------------------------------- */
+  // Pure (unit-tested): my_demo_status().counts -> plain-words lines, biggest first; [] when unknown
+  const COUNT_LABELS = [["events", "sample event", "sample events"], ["leads", "sample lead", "sample leads"],
+    ["staff", "sample staff member", "sample staff members"], ["vendors", "sample vendor", "sample vendors"],
+    ["inventory", "sample inventory item", "sample inventory items"], ["packages", "sample menu package", "sample menu packages"],
+    ["dishes", "sample dish", "sample dishes"], ["layouts", "sample floor layout", "sample floor layouts"],
+    ["venues", "sample venue (switched off, not deleted)", "sample venues (switched off, not deleted)"]];
+  function countLines(c) {
+    if (!c || typeof c !== "object") return [];
+    const out = [];
+    COUNT_LABELS.forEach(function (x) { const n = Math.floor(Number(c[x[0]])); if (isFinite(n) && n > 0) out.push(n + " " + (n === 1 ? x[1] : x[2])); });
+    return out;
+  }
+  // only these follow-ups are allowed (never an arbitrary URL from the query string)
+  function nextAfterFresh(then) { return then === "checkout" ? "checkout.html?next=" + encodeURIComponent("onboarding.html?fresh=1") : "onboarding.html?fresh=1"; }
+
+  // One clear action: shows what goes (counts), what stays, then clear_demo_data() -> studio setup.
+  // opts.then: "checkout" when opened from "Choose a plan".
+  async function startFresh(opts) {
+    opts = opts || {};
+    let d = null;
+    try { d = await S().demo.status(); } catch (e) {}
+    if (d && d.has_demo === false) { global.location.assign(nextAfterFresh(opts.then)); return; }
     css();
     const dlg = el("dialog", "td-dlg");
     dlg.setAttribute("aria-labelledby", "tdDlgT");
-    const h = el("h3", null, "Set up your studio with your own data"); h.id = "tdDlgT";
+    const h = el("h3", null, opts.then === "checkout" ? "Start fresh before you choose a plan?" : "Ready to start your own studio?"); h.id = "tdDlgT";
     dlg.appendChild(h);
-    dlg.appendChild(el("p", null, "Keep the demo data to look back at while you set up (remove it any time from Control Center), or clear it now. Clearing removes only rows marked “Demo ·”."));
+    dlg.appendChild(el("p", null, "We'll remove only the sample rows marked “Demo ·”, then take you to studio setup (name, logo, currency, packages)."));
+    const lines = countLines(d && d.counts);
+    if (lines.length) { const ul = el("ul", "td-list"); lines.forEach((t) => ul.appendChild(el("li", null, t))); dlg.appendChild(ul); }
+    else if (d && d.demo_rows > 0) dlg.appendChild(el("p", null, d.demo_rows + " sample rows in total."));
+    dlg.appendChild(el("p", "td-safe", "Everything you added yourself stays exactly as it is. A sample item one of your real events uses is kept and switched off."));
     const row = el("div", "td-row");
     const close = () => { try { dlg.close(); } catch (e) {} dlg.remove(); };
     row.appendChild(btn("Cancel", "btn", close));
-    row.appendChild(btn("Keep demo data", "btn", async (ev) => { ev.currentTarget.disabled = true;
-      try { await S().demo.setMode("own"); global.location.assign("onboarding.html"); } catch (e) { toast(errMsg(e, "keep the demo data"), "err"); close(); } }));
-    row.appendChild(btn("Clear demo data", "btn primary", async () => { close(); await clearDemo("onboarding.html"); }));
+    row.appendChild(btn(opts.then === "checkout" ? "Keep samples, choose plan" : "Keep samples for now", "btn", async (ev) => {
+      if (opts.then === "checkout") { close(); global.location.assign("checkout.html?next=dashboard.html"); return; }
+      const done = busy(ev.currentTarget, "Opening setup…");
+      try { await S().demo.setMode("own"); global.location.assign("onboarding.html"); } catch (e) { done(); toast(errMsg(e, "keep the demo data"), "err", ev.currentTarget); } }));
+    const go = btn("Remove samples & set up my studio", "btn primary danger", async () => {
+      const done = busy(go, "Removing samples…");
+      try { await S().demo.clear(); }
+      catch (e) { done(); toast(errMsg(e, "remove the demo data"), "err", go); return; }
+      toast("Sample data removed. Your own data is untouched.");
+      global.location.assign(nextAfterFresh(opts.then));
+    });
+    row.appendChild(go);
     dlg.appendChild(row);
     dlg.addEventListener("cancel", close);
     doc.body.appendChild(dlg);
     try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); }
   }
+  function openSwitch() { return startFresh({}); }
 
+  // onboarding.html?fresh=1: a short welcome; offers to rename a "Demo N" studio in step 1
+  async function mountFresh() {
+    if (!/[?&]fresh=1\b/.test(global.location.search || "")) return;
+    const st = S(); let name = "";
+    try { const t = st && st.trialOrg ? await st.trialOrg.status() : null; name = (t && t.name) || ""; } catch (e) {}
+    css();
+    const box = el("div", "td td-fresh"); box.setAttribute("role", "status");
+    box.appendChild(el("span", "td-tag", "Fresh start"));
+    box.appendChild(el("h3", null, "Your studio is clean — let's set it up"));
+    box.appendChild(el("p", null, /^Demo [0-9]+$/.test(name)
+      ? "Your studio is still called “" + name + "”. Give it your real name in the first step, then add your logo, currency and packages."
+      : "Add your studio name, logo, currency and packages. You can change any of it later."));
+    const host = doc.getElementById("main") || doc.body;
+    host.insertBefore(box, host.firstChild);
+  }
   /* ---- rendering ---------------------------------------------------------- */
   function render(host, v, d, place) {
     while (host.firstChild) host.removeChild(host.firstChild);
@@ -138,7 +191,7 @@
     if (v === "choose") {
       host.appendChild(el("span", "td-tag", "Free trial"));
       host.appendChild(el("h3", null, "How would you like to start?"));
-      host.appendChild(el("p", null, "You can switch at any time during your 14-day trial."));
+      host.appendChild(el("p", null, "You can switch at any time during your 8-day free trial."));
       const pick = el("div", "td-pick");
       const a = el("button", "td-opt"); a.type = "button";
       a.appendChild(el("b", null, "Try with demo data"));
@@ -157,7 +210,7 @@
       host.appendChild(el("p", null, "Everything marked “Demo ·” is sample data. Messages, approval codes and payment links are switched off for it."));
       if (admin) {
         const row = el("div", "td-row");
-        row.appendChild(btn("Start onboarding with my data →", "btn primary", openSwitch));
+        row.appendChild(btn("Start my own studio →", "btn primary", () => startFresh({})));
         const r = btn("Reset demo data", "btn", () => resetDemo(r)); row.appendChild(r);
         if (place === "control") row.appendChild(btn("Remove demo data", "btn", () => clearDemo()));
         host.appendChild(row);
@@ -185,6 +238,7 @@
   }
 
   async function mount() {
+    if (/(^|\/)onboarding(\.html)?$/.test(global.location.pathname || "")) { mountFresh(); return; }
     const dash = doc.querySelector("[data-td-auto]"), ctl = doc.querySelector("[data-td-control]");
     if (!dash && !ctl) return;
     const st = S(); if (!st || !st.demo || !st.subscription) return;
@@ -195,9 +249,13 @@
     const v = view(d, t);
     if (dash) render(dash, v, d, "dashboard");
     if (ctl) { if (v === "demo" || v === "leftover") render(ctl, v, d, "control"); else renderControlEmpty(ctl, d, t); }
-    try { if (/[?&]demo=switch\b/.test(global.location.search) && d.is_admin && d.has_demo) openSwitch(); } catch (e) {}
+    try {
+      const q = global.location.search || "";
+      if (/[?&]demo=fresh\b/.test(q) && /[?&]then=checkout\b/.test(q) && !(d.is_admin && d.has_demo)) { global.location.assign("checkout.html?next=dashboard.html"); return; }
+      if (d.is_admin && d.has_demo && /[?&]demo=(switch|fresh)\b/.test(q)) startFresh({ then: /[?&]then=checkout\b/.test(q) ? "checkout" : "" });
+    } catch (e) {}
   }
 
-  global.HelmTrialDemo = { view: view, openSwitch: openSwitch, mount: mount };
+  global.HelmTrialDemo = { view: view, openSwitch: openSwitch, startFresh: startFresh, countLines: countLines, nextAfterFresh: nextAfterFresh, mount: mount };
   if (doc) { if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", mount); else mount(); }
 })(typeof window !== "undefined" ? window : globalThis);

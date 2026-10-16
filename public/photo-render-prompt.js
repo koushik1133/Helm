@@ -78,7 +78,7 @@
   var FOCUS = {
     stage:    { label: 'Stage', types: ['stage', 'mandap', 'videowall', 'led', 'podium', 'headtable'], text: 'the stage area' },
     dance:    { label: 'Dance floor', types: ['dancefloor', 'dj'], text: 'the dance floor' },
-    entrance: { label: 'Entrance', types: ['floralarch', 'arch', 'desk', 'checkpoint', 'redcarpet', 'walkway', 'easel', 'brandwall'], text: 'the entrance' },
+    entrance: { label: 'Entrance', types: ['floralarch', 'arch', 'desk', 'checkpoint', 'redcarpet', 'walkway', 'easel', 'brandwall', 'entrancegate', 'welcomeboard'], text: 'the entrance' },
     seating:  { label: 'Seating', types: ['seatblock', 'chairrow', 'table', 'longtable', 'chiavari', 'bleacher', 'sofa', 'lounge', 'cocktail'], text: 'the guest seating' },
   };
   var REGIONS = {
@@ -165,6 +165,72 @@
     dancers: 'a group of performers in coordinated costumes',
     walkway: 'a raised carpeted walkway / ramp',
     brandwall: 'a decorative branding / welcome wall dressed with florals (no readable text)',
+    entrancegate: 'a grand floral entrance gate with two dressed pillars, a crown, sheer drapes and marigold strings',
+    phoolchadar: 'a phoolon ki chadar: a canopy sheet of fresh flowers held on four slim gold poles with hanging jasmine strings',
+    jhoola: 'a decorated swing (jhoola) with a cushioned seat on a gold frame wrapped in flowers',
+    haldi: 'a bright haldi setup: low yellow platform, marigold backdrop with hanging flower strings, floor seating and brass urlis',
+    mehendi: 'a colourful mehendi lounge: floor rugs, gaddis with bolsters, low tables and bright umbrellas',
+    selfieframe: 'a standing floral selfie frame with flowers on two corners (no readable text)',
+    welcomeboard: 'a welcome sign on a gold easel with a floral spray (no readable text)',
+    fairylights: 'an overhead canopy of warm fairy-light strands radiating from a central ring',
+    couplesofa: 'an ornate carved couple sofa in gold with plush upholstery',
+    livecounter: 'a live food counter with a skirted front, griddle and steel pots under a small canopy header (no readable text)',
+    kidszone: 'a kids play zone with a colourful bouncy castle, slide and ball pit on soft mats',
+    aircooler: 'a portable mist air cooler on castors',
+    floralentrance: 'a grand floral entrance arch fully covered in roses, hydrangeas and greenery with flower-wrapped side columns',
+    stagebackdrop: 'a full-width stage floral backdrop: a fabric wall framed and studded with dense rose and hydrangea clusters',
+    flowerwall: 'a lush flower wall of densely packed roses and hydrangeas on a free-standing frame',
+    toran: 'a marigold and mango-leaf garland toran hanging across a doorway frame with jasmine strands',
+    floralpillar: 'a tall column wrapped top to bottom in roses, orchids and trailing greenery',
+    aislefloral: 'an aisle flower stand: a slim gold pedestal topped with a rounded bouquet',
+    centrepiece: 'a tall table centrepiece: a slim gold candelabra stand topped with a cascading floral ball',
+    balloonarch: 'a colourful organic balloon arch with mixed-size balloons on a curved frame',
+    balloonbunch: 'a bouquet of helium balloons on ribbons tied to a weighted base',
+    lectern: 'a solid wooden speaker lectern with a slanted top and a gooseneck microphone (no readable text)',
+    dais: 'a raised dais platform with a skirted table and a row of high-back chairs for guests of honour',
+    flagstand: 'a tall chrome flag pole on a round weighted base with a plain cloth flag (no readable text or emblem)',
+    hoarding: 'a large banner hoarding stretched on a steel scaffold frame with braced legs (no readable text)',
+    patower: 'a ground-stacked PA speaker tower on a braced scaffold frame',
+    lightingtree: 'a lighting tree: a black tripod stand with a telescopic pole and a T-bar carrying four PAR can lights',
+    diyastand: 'a tall brass oil-lamp deepam stand with several small flames',
+    trophytable: 'a skirted display table holding a row of gold trophies',
+    havankund: 'a square copper havan kund (stepped fire pit) on a low cream platform with a small ritual fire and brass kalash pots at the corners',
+    rangoli: 'a colourful rangoli / kolam floor design of concentric rings and petal motifs made of coloured powder and flower petals, ringed by small diyas',
+    lanterns: 'a cluster of three black metal lanterns of different heights with glowing candles inside',
+    hangingfloral: 'a suspended floral ceiling installation: hanging flower strands and floral clusters at about 11 ft over the area',
+    neonsign: 'a glowing neon script sign on a greenery backing wall (no readable text)',
+    backdrop: 'a free-standing event backdrop wall',
+    floralstand: 'a floral arrangement on a stand',
+    decorbox: 'a decorative prop',
+    signage: 'a free-standing sign (no readable text)',
+    recttable: 'a rectangular table with a floor-length cloth',
+    stageroof: 'a ground-support truss roof over the stage',
+    varmala: 'a round raised varmala platform with floral edging',
+    micstand: 'a microphone on a black stand',
+    teleprompter: 'a low confidence-monitor screen at the stage front',
+    projector: 'a large fast-fold projection screen on legs',
+    tvstand: 'a large flat TV screen on a floor stand',
+    interpreter: 'a small sound-proof interpreter booth',
+    pyro: 'a cold-spark fountain machine',
+    towerlight: 'a towable floodlight tower',
+    gaddi: 'floor seating with gaddis and bolsters on a rug',
+    urli: 'a brass urli bowl with floating flowers and candles',
+    umbrellas: 'a cluster of bright hanging decor umbrellas',
+    doli: 'a decorated doli palanquin',
+    kalash: 'a brass kalash with a coconut and mango leaves',
+    altar: 'a raised pooja altar with a draped back',
+    shoerack: 'a low shoe rack',
+    dessert: 'a dessert table with tiered cake stands and sweets',
+    coffee: 'a coffee and tea station with urns and cups',
+    stall: 'a canopy stall with a counter',
+    counter: 'a lit product display counter',
+    plinth: 'a white display plinth',
+    kiosk: 'a self check-in kiosk with a touch screen',
+    ticketbooth: 'a small ticket booth cabin',
+    stanchion: 'a row of chrome stanchions with a velvet rope',
+    watchtower: 'a scaffold watch tower with CCTV cameras',
+    extinguisher: 'a red fire extinguisher point',
+    ambulance: 'an ambulance parked in a marked bay',
   };
   var NAMES = {
     stage: 'stage', dancefloor: 'dance floor', podium: 'podium', press: 'press riser', dj: 'DJ booth', chairrow: 'chair row',
@@ -182,12 +248,54 @@
     cableramp: 'cable ramp', greenroom: 'green room', viprisers: 'VIP riser', stagebarrier: 'stage barrier', lighting: 'lighting truss',
     led: 'LED wall', chocolatefountain: 'chocolate fountain', chariot: 'wedding chariot', smoke: 'fog machine', dancers: 'performer group',
     walkway: 'walkway', brandwall: 'branding wall',
+    entrancegate: 'entrance gate', phoolchadar: 'phoolon ki chadar', jhoola: 'swing', haldi: 'haldi setup', mehendi: 'mehendi lounge',
+    selfieframe: 'selfie frame', welcomeboard: 'welcome board', fairylights: 'fairy-light canopy', couplesofa: 'couple sofa',
+    livecounter: 'live food counter', kidszone: 'kids zone', aircooler: 'air cooler',
+    floralentrance: 'floral entrance arch', stagebackdrop: 'stage floral backdrop', flowerwall: 'flower wall', toran: 'garland toran',
+    floralpillar: 'floral pillar', aislefloral: 'aisle flower stand', centrepiece: 'tall centrepiece', balloonarch: 'balloon arch',
+    balloonbunch: 'balloon bouquet', lectern: 'lectern', dais: 'dais', flagstand: 'flag stand', hoarding: 'banner hoarding',
+    patower: 'PA tower', lightingtree: 'lighting tree', diyastand: 'deepam stand', trophytable: 'trophy display',
+    havankund: 'havan kund', rangoli: 'rangoli', lanterns: 'lantern cluster', hangingfloral: 'hanging floral ceiling', neonsign: 'neon sign wall',
+    backdrop: 'backdrop', floralstand: 'floral stand', decorbox: 'decor prop', signage: 'standee sign', recttable: 'rectangular table', stageroof: 'stage roof truss', varmala: 'varmala platform', micstand: 'mic stand', teleprompter: 'confidence monitor', projector: 'projection screen', tvstand: 'TV screen', interpreter: 'interpreter booth', pyro: 'cold pyro', towerlight: 'light tower', gaddi: 'floor seating', urli: 'flower urli', umbrellas: 'decor umbrellas', doli: 'doli', kalash: 'kalash', altar: 'pooja altar', shoerack: 'shoe rack', dessert: 'dessert table', coffee: 'coffee station', stall: 'canopy stall', counter: 'display counter', plinth: 'display plinth', kiosk: 'check-in kiosk', ticketbooth: 'ticket booth', stanchion: 'stanchion line', watchtower: 'watch tower', extinguisher: 'fire point', ambulance: 'ambulance',
   };
   // what "front" is measured from: the first of these found on the plan
   var FOCAL = ['stage', 'mandap', 'videowall', 'led', 'headtable', 'dj'];
   // never mentioned as objects (invisible in a photo)
   var SKIP = { exit: 1, smoke: 1, cableramp: 1, distro: 1 };
 
+  /* décor variants (2026-10c): builder inspector properties.style / flower / palette → a short styling phrase.
+     Whitelisted words only (never raw property text). */
+  var VARIANT_WORDS = {
+    style: { hexagon: 'on a hexagon metal frame', ring: 'on a round ring (moon-gate) frame', square: 'on a square frame', rustic: 'on a rustic wooden arbour',
+      pillars: 'as two flower-wrapped pillars with no header', tunnel: 'as a walk-through tunnel of repeated arches', classic: 'in a classic spiral pattern',
+      garland: 'as a low garland across a backdrop top', drape: 'with draped fabric swags', panel: 'with tufted fabric panels', led: 'with an LED screen centre',
+      jaali: 'with a carved gold jaali screen', flat: 'with a flat fabric canopy and hanging floral strands', south: 'in South Indian style with banana-stem pillars and brass lamps',
+      glass: 'with clear acrylic pillars', low: 'as a low bowl arrangement', lantern: 'as a lantern with candles',
+      ghost: 'in clear acrylic ghost style', crossback: 'in wooden cross-back style', folding: 'as a folding chair', banquet: 'with a white cover and sash',
+      plastic: 'in moulded plastic', flex: 'as a printed flex panel on a frame (no readable text)', sequin: 'as a shimmering sequin wall', greenery: 'as a boxwood greenery wall',
+      wood: 'as a wooden panel wall', balloon: 'covered in balloons', urn: 'in a tall urn', pedestal: 'on a pedestal bowl', hoop: 'on a floral hoop',
+      cylinder: 'as a cylinder plinth', sphere: 'as a sphere', cutout: 'as a flat cut-out panel (no readable text)', standee: 'as a foam-board standee (no readable text)',
+      aframe: 'as an A-frame sign (no readable text)', direction: 'as a directional signpost (no readable text)', digital: 'as a digital screen standee',
+      co2: 'as a CO2 jet', confetti: 'as a confetti cannon', kiosk: 'as a hard-top kiosk' },
+    flower: { rose: 'roses', marigold: 'marigolds', orchid: 'orchids', hydrangea: 'hydrangeas', jasmine: 'jasmine', carnation: 'carnations', lily: 'lilies', mixed: 'mixed garden flowers' },
+    palette: { blush: 'blush and ivory', ivory: 'all-white / ivory', marigold: 'marigold yellow and orange', redgold: 'red and gold', pastel: 'soft pastel',
+      jewel: 'jewel-tone magenta and purple', whitegreen: 'white with greenery', rainbow: 'multicolour', goldchrome: 'gold and chrome' }
+  };
+  function variantPhrase(it) {
+    var p = (it && it.properties) || {}, out = [];
+    var st = VARIANT_WORDS.style[p.style], fl = VARIANT_WORDS.flower[p.flower], pa = VARIANT_WORDS.palette[p.palette];
+    if (st) out.push(st);
+    if (fl || pa) out.push('using ' + [pa, fl || 'flowers'].filter(Boolean).join(' '));
+    return out.length ? ' (' + out.join(', ') + ')' : '';
+  }
+  /* a group may mix variants (e.g. 2 hexagon arches + 1 ring arch): describe every distinct variant, not just the first item's */
+  function groupVariantPhrase(list) {
+    var seen = {}, order = [];
+    (list || []).forEach(function (it) { var v = variantPhrase(it); if (!v) return; if (!seen[v]) { seen[v] = 0; order.push(v); } seen[v]++; });
+    if (!order.length) return '';
+    if (order.length === 1 && seen[order[0]] === list.length) return order[0];
+    return ' (' + order.map(function (v) { return seen[v] + ' ' + v.slice(2, -1); }).join('; ') + (list.length > order.reduce(function (a, v) { return a + seen[v]; }, 0) ? '; rest plain' : '') + ')';
+  }
   function num(v, d) { v = Number(v); return isFinite(v) ? v : d; }
   function clean(s, max) { return String(s == null ? '' : s).replace(/[\u0000-\u001f<>{}`]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max || 120); }
   function ft(v) { v = Math.round(num(v, 0)); return v + ' ft (' + (Math.round(v * 0.3048 * 10) / 10) + ' m)'; }
@@ -436,6 +544,43 @@
     var R = PROFILE_ENV[pk]; if (!R) return text;
     return text.split('\n').map(function (l) { if (/FORBIDDEN/.test(l)) return l; R.forEach(function (r) { l = l.replace(r[0], r[1]); }); return l; }).join('\n');
   }
+  /* per-event-type VENUE STYLE: style descriptors + negative prompt, and (for functional, non-celebration
+     types) the indoor venue / lighting / photographer that replace the ballroom defaults. Wedding-family
+     profiles keep the ballroom look; every profile gets its own negative prompt. */
+  var VENUE_STYLE = {
+    wedding: { descriptors: 'elegant celebration: dressed stage or mandap only if placed, draped fabrics, florals only on the placed floral objects, warm festive light',
+      negative: ['political flags, banners or podium branding', 'steel crowd barricades', 'press risers', 'concert beams or haze', 'corporate signage', 'readable text or logos'] },
+    birthday: { descriptors: 'joyful party: colourful accents, balloons allowed, playful lighting', negative: ['political flags or banners', 'steel crowd barricades', 'wedding mandap', 'bridal / couple chairs', 'readable text'] },
+    iftar: { descriptors: 'graceful majlis hospitality: low seating, cushions, lanterns, brass and woven carpets', negative: ['wedding mandap', 'bridal / couple chairs', 'political flags', 'alcohol', 'concert haze', 'readable text'] },
+    political: {
+      descriptors: 'formal public political rally: a raised stage with a speaker podium / lectern, rows of plain-coloured flags and bunting, steel crowd-control barricades, an orderly seated / standing crowd area, press riser with cameras, PA line-array speakers and practical infrastructure; disciplined, formal and functional',
+      negative: ['wedding', 'bridal', 'bride or groom', 'mandap', 'flowers', 'florals', 'garlands', 'petals', 'floral arches', 'couple chairs or loveseats', 'wedding cake', 'chandeliers', 'candles', 'fairy / festoon string lights', 'ivory drapes', 'romantic decor', 'ballroom', 'banquet styling', 'champagne', 'balloons', 'readable text, slogans, party symbols or logos'],
+      indoor: 'ENVIRONMENT (mandatory): a large INDOOR public hall / auditorium (convention centre or indoor stadium): high plain ceiling with exposed steel trusses carrying rows of bright floodlights, plain painted walls, a hard floor or plain matting, bright even functional light, the stage and LED walls brightly lit. No sky visible. No chandeliers, no draped walls, no ornate decor.',
+      remind: 'Reminder: plain indoor public hall - steel ceiling trusses, floodlights, plain walls, bright even light.',
+      venue: 'indoor public hall / auditorium', mood: 'bright, formal and purposeful', art: 'truss-mounted floodlights and a bright stage wash, LED walls lit', design: 'bright, even truss floodlighting with a strong stage wash',
+      light: 'bright, even functional hall lighting from truss-mounted floodlights, the stage brightly washed', photographer: 'press / news event photographer' },
+    corporate: {
+      descriptors: 'professional corporate event: lectern, clean stage fascia, branding wall with abstract graphics, modern upholstered seating, neat cable management',
+      negative: ['wedding', 'bridal', 'mandap', 'wedding florals', 'garlands', 'floral arches', 'couple chairs', 'wedding cake', 'candles', 'fairy / festoon string lights', 'romantic decor', 'balloons', 'political flags', 'readable text or logos'],
+      indoor: 'ENVIRONMENT (mandatory): a modern INDOOR conference hall / convention ballroom with a clean contemporary ceiling grid and recessed lighting, neutral walls, carpet-tile floor, bright even professional light, the stage and screens lit. No sky visible. No crystal chandeliers, no draped romantic fabrics.',
+      remind: 'Reminder: modern indoor conference hall - clean ceiling grid, neutral walls, bright even light.',
+      venue: 'modern indoor conference hall', mood: 'bright, clean and professional', art: 'recessed ceiling lights, a clean stage wash, screens lit', design: 'bright, even professional room and stage lighting',
+      light: 'bright, even professional conference lighting from recessed ceiling fixtures', photographer: 'corporate event photographer' },
+    concert: {
+      descriptors: 'live concert production: black stage with truss, moving-light beams through light haze, LED walls, line-array speakers, crowd barricade, front-of-house tent',
+      negative: ['wedding', 'bridal', 'mandap', 'florals', 'garlands', 'floral arches', 'couple chairs', 'chandeliers', 'candles', 'ivory drapes', 'banquet styling', 'political flags', 'readable text or logos'],
+      indoor: 'ENVIRONMENT (mandatory): a large INDOOR arena / concert hall: dark high ceiling with exposed rigging and lighting truss, black walls, a plain floor, coloured beams from moving lights cutting through light haze, LED walls glowing. No sky visible. No chandeliers, no draped walls.',
+      remind: 'Reminder: indoor arena - dark rigged ceiling, coloured beams through haze, LED walls glowing.',
+      venue: 'indoor arena / concert hall', mood: 'high-energy and dramatic', art: 'moving-light beams through haze, bright stage wash, LED walls glowing', design: 'dramatic coloured concert lighting with a bright stage wash',
+      light: 'dramatic concert lighting: coloured beams through haze and a bright stage wash', photographer: 'concert / live-music photographer' },
+    exhibition: {
+      descriptors: 'trade exhibition: orderly shell-scheme booths with blank fascias, carpeted aisles, display counters',
+      negative: ['wedding', 'bridal', 'mandap', 'wedding florals', 'garlands', 'floral arches', 'couple chairs', 'chandeliers', 'candles', 'romantic decor', 'political flags', 'readable text or logos'],
+      indoor: 'ENVIRONMENT (mandatory): a large INDOOR exhibition hall: high plain ceiling with steel trusses and bright high-bay lights, plain walls, grey carpeted aisles, bright even light. No sky visible. No chandeliers, no draped walls.',
+      remind: 'Reminder: indoor exhibition hall - high plain ceiling, high-bay lights, carpeted aisles.',
+      venue: 'indoor exhibition hall', mood: 'bright, orderly and commercial', art: 'high-bay hall lights and booth spotlights', design: 'bright even hall lighting with booth spotlights',
+      light: 'bright, even exhibition-hall lighting from high-bay fixtures with booth spotlights', photographer: 'commercial event photographer' },
+  };
   // canonical event-type text per profile (the dialog's "change" override)
   var PROFILE_TYPE = { wedding: 'wedding', political: 'political rally', corporate: 'corporate event', concert: 'concert', exhibition: 'exhibition', birthday: 'birthday party', iftar: 'iftar' };
   // "Event: Political rally · 5,001 seats · 350×550 ft · Outdoor · 6 Oct 2026" - what the render will use
@@ -532,8 +677,8 @@
     var objs = [], singles = {};
     ctx.groups.forEach(function (g) {
       if (level >= 3 && g.items.length === 1) {   // scattered single objects: one entry per type, every position kept
-        var it1 = g.items[0], k = g.type + '|' + r1(it1.width) + '|' + r1(it1.height), e1 = singles[k];
-        if (!e1) { e1 = singles[k] = { t: g.type, n: 0, each: { w: r1(it1.width), h: r1(it1.height) }, at: [], gs: [] }; objs.push(e1); }
+        var it1 = g.items[0], v1 = variantPhrase(it1), k = g.type + '|' + r1(it1.width) + '|' + r1(it1.height) + '|' + v1, e1 = singles[k];
+        if (!e1) { e1 = singles[k] = { t: g.type, n: 0, each: { w: r1(it1.width), h: r1(it1.height) }, at: [], gs: [] }; if (v1) e1.v = v1.slice(2, -1); objs.push(e1); }
         var f1 = facingOf(it1, ctx.W, ctx.H, ctx.stage, ctx.stageName);
         e1.n++; e1.at.push(num(it1.rotation, 0) ? [r1(it1.x), r1(it1.y), Math.round(num(it1.rotation, 0))] : [r1(it1.x), r1(it1.y)]); e1.gs.push(g.id);
         if (f1 && !e1.facing) e1.facing = f1;
@@ -546,6 +691,7 @@
           if (level < 2 || num(it.rotation, 0)) o.rot = Math.round(num(it.rotation, 0));
           var f = facingOf(it, ctx.W, ctx.H, ctx.stage, ctx.stageName); if (f) o.facing = f;
           o.g = g.id;
+          var ov = variantPhrase(it); if (ov) o.v = ov.slice(2, -1);
           var p = it.properties || {};
           if (p.rows && p.cols) { o.rows = num(p.rows, 0); o.cols = num(p.cols, 0); o.seats = o.rows * o.cols; }
           else if (num(p.seats, 0) > 0) o.seats = num(p.seats, 0);
@@ -558,6 +704,7 @@
         var ff = facingOf(it0, ctx.W, ctx.H, ctx.stage, ctx.stageName); if (ff) e.facing = ff;
         var s = 0; g.items.forEach(function (it) { s += seatsOf(it); }); if (s) e.seats = s;
         e.ids = level === 1 ? ids : ids[0] + ' .. ' + ids[ids.length - 1] + ' (' + ids.length + ')';
+        var gv = groupVariantPhrase(g.items); if (gv) e.v = gv.slice(2, -1);
         if (level >= 3) delete e.each.wm, delete e.each.hm;
         objs.push(e);
       }
@@ -579,6 +726,9 @@
     var camera = CAMERAS[input.camera] ? input.camera : 'auto';
     var region = regionOf(input.country);
     var pk = profileKey(input.eventType, items), prof = PROFILES[pk];
+    var vs = VENUE_STYLE[pk] || VENUE_STYLE.wedding;
+    // functional event types never get the ballroom (chandeliers / ivory drapes / candlelight) interior
+    if (vs.indoor && env.where === 'indoor') env = { where: 'indoor', text: vs.indoor, remind: vs.remind };
     var themeKey = input.themeKey && THEMES[input.themeKey] ? input.themeKey : null;
     if (themeKey && themeKey !== 'none' && prof.themes.indexOf(themeKey) < 0) themeKey = 'none';   // a theme that does not fit this event type is ignored
     var theme = themeKey ? THEMES[themeKey].text : clean(input.theme, 160);
@@ -633,7 +783,7 @@
     var lines = [], shortLines = [], tinyLines = [], check = [];
     groups.forEach(function (g, gi) { g.id = 'G' + (gi + 1); });
     groups.forEach(function (g) {
-      var t = g.type, n = g.items.length, name = NAMES[t] || clean(t, 30), it0 = g.items[0];
+      var t = g.type, n = g.items.length, name = NAMES[t] || clean(t, 30), it0 = g.items[0], vp = groupVariantPhrase(g.items);
       var rows = rowsOf(g.items, o.edge, W, H);
       var what, total = n + ' ' + plural(n, name);
       if (t === 'seatblock' || t === 'chairrow') {
@@ -662,9 +812,9 @@
       var gw = Math.round(g.box.x1 - g.box.x0), gh = Math.round(g.box.y1 - g.box.y0);
       var size = n > 1 ? 'each about ' + ft(num(it0.width, 0)) + ' x ' + ft(num(it0.height, 0)) + ', group spans ' + gw + ' x ' + gh + ' ft' : 'about ' + ft(num(it0.width, 0)) + ' x ' + ft(num(it0.height, 0));
       var extra = t === 'sofa' && stageItem ? ', facing the ' + (NAMES[stageItem.type] || 'stage') : '';
-      lines.push('- ' + g.id + ': ' + what + ' - ' + descOf(t) + '; ' + where.join(', ') + '; ' + size + extra + '.');
-      tinyLines.push('- ' + g.id + ': ' + what + ' - ' + descOf(t) + '; ' + where[0] + '.');
-      shortLines.push('- ' + g.id + ': ' + what + ' - ' + descOf(t) + '; ' + where.slice(0, 2).join(', ') + '.');
+      lines.push('- ' + g.id + ': ' + what + ' - ' + descOf(t) + vp + '; ' + where.join(', ') + '; ' + size + extra + '.');
+      tinyLines.push('- ' + g.id + ': ' + what + ' - ' + descOf(t) + vp + '; ' + where[0] + '.');
+      shortLines.push('- ' + g.id + ': ' + what + ' - ' + descOf(t) + vp + '; ' + where.slice(0, 2).join(', ') + '.');
       check.push('- ' + g.id + ' ' + shortName(g).replace(/^the /, '') + ': ' + (t === 'seatblock' || t === 'chairrow' ? total : (n > 1 && rows.length > 1 && rows.some(function (r) { return r > 1; }) ? rows.length + ' rows, ' + total : (n > 1 && rows.length === 1 ? '1 row, ' : '') + total)));
     });
 
@@ -677,13 +827,14 @@
     /* ---- filled placeholders ---- */
     var outdoor = env.where === 'outdoor';
     var L = style === 'evening' && !outdoor ? LIGHT.eveningIndoor : LIGHT[style];
+    if (vs.mood) L = { time: L.time, sun: L.sun, mood: vs.mood, art: outdoor ? L.art : vs.art, design: outdoor ? L.design : vs.design };
     var base = pk === 'wedding' ? THEME_FIELDS.none : { palette: prof.palette || THEME_FIELDS.none.palette, floral: prof.floral || THEME_FIELDS.none.floral, finish: prof.materials };
     var tf = themeKey && themeKey !== 'none' ? THEME_FIELDS[themeKey] : (theme && !themeKey ? { palette: 'as described by the planner\'s theme, applied to the existing objects', floral: 'as described by the planner\'s theme, only on the existing floral objects', finish: 'as described by the planner\'s theme, on the existing furniture' }  : base);
     if (!prof.florals) tf = { palette: tf.palette, floral: prof.floral, finish: tf.finish };
     var camTop = camera === 'top', camEye = camera === 'eye', camCur = camera === 'current';
     var aspect = camTop && H > W * 1.1 ? '2:3 portrait (1024 x 1536)' : '3:2 landscape (1536 x 1024)';
     var F = {
-      VENUE_TYPE: outdoor ? 'open-air outdoor event venue' : (style === 'ballroom' || style === 'evening' ? 'indoor ballroom / banquet hall' : 'indoor event hall'),
+      VENUE_TYPE: outdoor ? 'open-air outdoor event venue' : vs.venue ? vs.venue : (style === 'ballroom' || style === 'evening' ? 'indoor ballroom / banquet hall' : 'indoor event hall'),
       VENUE_SETTING: outdoor ? 'outdoor - open to the sky on a manicured lawn and terrace' : 'indoor - a fully enclosed room',
       WEATHER: outdoor ? WEATHER[weather] : 'not visible (indoor venue)',
       SEASON: seasonOf(input.eventDate, region) + (outdoor ? '' : ' (indoor venue: nothing outdoors is visible)'),
@@ -713,7 +864,7 @@
     var head = [
       'HELM EVENTS - GEOMETRY-PRESERVING PHOTOREALISTIC EVENT RENDERER',
       '',
-      'ROLE: You are a professional architectural photographer, luxury event photographer, event-space visualization specialist and photorealistic renderer. Your task is to transform an existing, fully designed event scene into a premium, realistic photograph for a paying client. You are NOT designing a new event, NOT rearranging furniture and NOT inventing a better floor plan. Render the exact event the planner designed: ONE ultra-realistic professional event photograph of the planned ' + eventType + ' (not a 3D render, not an illustration). Change only the look (real materials, decor, light, environment); keep everything else exactly the same.',
+      'ROLE: You are a professional architectural photographer, ' + (vs.photographer || 'luxury event photographer') + ', event-space visualization specialist and photorealistic renderer. Your task is to transform an existing, fully designed event scene into a premium, realistic photograph for a paying client. You are NOT designing a new event, NOT rearranging furniture and NOT inventing a better floor plan. Render the exact event the planner designed: ONE ultra-realistic professional event photograph of the planned ' + eventType + ' (not a 3D render, not an illustration). Change only the look (real materials, decor, light, environment); keep everything else exactly the same.',
       '',
       env.text,
       '',
@@ -725,6 +876,8 @@
       '- Signage and flags: ' + prof.signage + '.',
       '- Lighting design: ' + prof.lighting + '.',
       '- Stage dressing: ' + prof.stage + '.',
+      '- Style descriptors: ' + vs.descriptors + '.',
+      '- FORBIDDEN / NEGATIVE PROMPT (must NOT appear anywhere in the photo): ' + vs.negative.join('; ') + '.',
       '',
       roles.join('\n'),
     ].join('\n');
@@ -799,7 +952,7 @@
     s6 = s6.split('\n').filter(Boolean).join('\n');
     var s7 = [
       '7. LIGHTING AND TIME OF DAY',
-      '- Time of day: ' + F.TIME_OF_DAY + '. ' + STYLES[style].light.charAt(0).toUpperCase() + STYLES[style].light.slice(1) + '.',
+      '- Time of day: ' + F.TIME_OF_DAY + '. ' + (function (lt) { return lt.charAt(0).toUpperCase() + lt.slice(1); })(vs.light && !outdoor ? vs.light : STYLES[style].light) + '.',
       '- Lighting mood: ' + F.LIGHTING_MOOD + '.',
       '- Sun direction: ' + F.SUN_DIRECTION + '.',
       '- Artificial lighting: ' + F.ARTIFICIAL_LIGHTING + '.',
@@ -882,7 +1035,7 @@
       var tail = '\n\n' + [s10head, totals.slice(0, 2000), verify, env.remind, finalOut].join('\n');
       out.prompt = out.prompt.slice(0, PROMPT_LIMIT - tail.length) + tail;
     }
-    return { profile: pk, style: style, camera: camera, region: region, theme: theme, focus: focus, environment: env.where, weather: weather, season: F.SEASON, fields: F,
+    return { profile: pk, negative: vs.negative.slice(), descriptors: vs.descriptors, style: style, camera: camera, region: region, theme: theme, focus: focus, environment: env.where, weather: weather, season: F.SEASON, fields: F,
       system: out.system, layout: out.layout, prompt: out.prompt, json: out.json, jsonLevel: out.level,
       stats: { seats: seats, guests: guests, counts: counts, orientation: o.edge, groups: groups.map(function (g) { return { id: g.id, type: g.type, count: g.items.length, rows: rowsOf(g.items, o.edge, W, H) }; }) } };
   }
@@ -1048,7 +1201,7 @@
     return { ok: true };
   }
 
-  var api = { build: build, detect: detect, contextLine: contextLine, PROFILE_TYPE: PROFILE_TYPE, semanticMap: semanticMap, envFor: envFor, inferSetting: inferSetting, ENV: ENV, CATEGORIES: CATS, cameraView: cameraView, validView: validView, THEMES: THEMES, FOCUS: FOCUS, STYLES: STYLES, CAMERAS: CAMERAS, REGIONS: REGIONS, DESCRIPTIONS: DESC, PROFILES: PROFILES, profileKey: profileKey, themesFor: themesFor, WEATHER: WEATHER, seasonOf: seasonOf, facingOf: facingOf, PROMPT_LIMIT: PROMPT_LIMIT, defaultStyle: defaultStyle, regionOf: regionOf };
+  var api = { build: build, detect: detect, contextLine: contextLine, PROFILE_TYPE: PROFILE_TYPE, semanticMap: semanticMap, envFor: envFor, inferSetting: inferSetting, ENV: ENV, CATEGORIES: CATS, cameraView: cameraView, validView: validView, THEMES: THEMES, FOCUS: FOCUS, STYLES: STYLES, CAMERAS: CAMERAS, REGIONS: REGIONS, DESCRIPTIONS: DESC, PROFILES: PROFILES, VENUE_STYLE: VENUE_STYLE, profileKey: profileKey, themesFor: themesFor, WEATHER: WEATHER, seasonOf: seasonOf, facingOf: facingOf, PROMPT_LIMIT: PROMPT_LIMIT, defaultStyle: defaultStyle, regionOf: regionOf };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.HelmPhotoPrompt = api;
 })(typeof window !== 'undefined' ? window : this);

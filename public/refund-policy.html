@@ -1,112 +1,109 @@
 <!doctype html>
-<!-- DRAFT — have your lawyer review before relying on this text (prepared 2026-10-08 for the onboarding checkout, 0056). -->
+<!-- DRAFT Template — have a qualified lawyer in each jurisdiction review before publishing. Replace every [OWNER TO FILL] / [BRACKETED] placeholder. Reviewed 2026-10-16. -->
 <html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Refund &amp; Cancellation Policy · Helm</title>
-<meta name="description" content="How cancelling a Helm subscription works, and when refunds apply.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d28d9'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
+<meta name="description" content="How Helm subscriptions, the free trial, cancellations and refunds work. All amounts in US dollars.">
+<link rel="icon" href="/brand/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
 <link rel="canonical" href="https://www.helm.events/refund-policy">
-<link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
+
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Helm">
 <meta property="og:title" content="Refund &amp; Cancellation Policy · Helm">
-<meta property="og:description" content="How cancelling a Helm subscription works, and when refunds apply.">
+<meta property="og:description" content="How Helm subscriptions, the free trial, cancellations and refunds work. All amounts in US dollars.">
 <meta property="og:url" content="https://www.helm.events/refund-policy">
 <meta property="og:image" content="https://www.helm.events/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Refund &amp; Cancellation Policy · Helm">
-<meta name="twitter:description" content="How cancelling a Helm subscription works, and when refunds apply.">
+<meta name="twitter:description" content="How Helm subscriptions, the free trial, cancellations and refunds work. All amounts in US dollars.">
 <meta name="twitter:image" content="https://www.helm.events/og.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
-<style>
-  :root{--bg:#f6f4f1;--panel:#ffffff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
-    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;
-    --shadow:0 1px 2px rgba(27,25,48,.05),0 14px 36px rgba(27,25,48,.11);
-    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
-  *{box-sizing:border-box}
-  body{margin:0;background:
-    radial-gradient(1000px 520px at 88% -14%, #ece3ff 0%, transparent 56%),
-    radial-gradient(760px 440px at -8% -6%, #ffe9d6 0%, transparent 50%), var(--bg);
-    color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;line-height:1.65}
-  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
-  .wrap{max-width:800px;margin:0 auto;padding:0 24px}
-  header{border-bottom:1px solid var(--line-2);background:rgba(246,244,241,.72);backdrop-filter:blur(8px)}
-  .bar{display:flex;align-items:center;gap:11px;padding:15px 0}
-  .mark{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative}
-  .mark::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.92);border-radius:3px}
-  .bar .logo-name{font-size:17px;margin:0;font-weight:700}
-  .bar a.home{margin-left:auto;font-size:14px;color:var(--ink-2);font-weight:500}
-  .doc{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);
-    padding:44px 46px;margin:34px 0 60px}
-  @media(max-width:560px){.doc{padding:30px 24px}}
-  .doc h1{font-size:32px;letter-spacing:-.02em;margin:0 0 6px}
-  .doc .upd{font-size:13px;color:var(--ink-3);margin:0 0 26px}
-  .doc .intro{font-size:16px;color:var(--ink-2);margin:0 0 28px}
-  .doc h2{font-size:19px;margin:32px 0 10px;letter-spacing:-.01em}
-  .doc p{font-size:15px;color:var(--ink-2);margin:0 0 14px}
-  .doc ul{margin:0 0 16px;padding-left:20px} .doc li{font-size:15px;color:var(--ink-2);margin-bottom:8px}
-  .doc b{color:var(--ink)}
-  footer{border-top:1px solid var(--line-2);padding:26px 0;font-size:13px;color:var(--ink-3)}
-  footer a{color:var(--ink-2)}
-  .skip-link{position:absolute;left:8px;top:-60px;z-index:1000;padding:10px 16px;border-radius:8px;background:var(--accent);color:#fff;font-weight:600;text-decoration:none}
-  .skip-link:focus,.skip-link:focus-visible{top:8px;text-decoration:none}
-  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
-  main:focus{outline:none}
-  .doc p a,.doc li a{text-decoration:underline;text-underline-offset:2px}
-  html{scroll-behavior:smooth}
-  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/legal.css?v=2">
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to content</a>
-  <header><div class="wrap bar">
-    <div class="mark" aria-hidden="true"></div><span class="logo-name">Helm</span>
-    <a class="home" href="/">← Back to home</a>
+  <a class="skip" href="#main">Skip to content</a>
+  <div class="lg-progress" aria-hidden="true"></div>
+  <header class="nav" id="top"><div class="nav-bar">
+    <a class="brand" href="/" aria-label="Helm home"><span class="mark" aria-hidden="true"><i></i><i></i></span>Helm</a>
+    <nav class="menu" aria-label="Main">
+      <a class="mlink" href="/">Home</a>
+      <a class="mlink" href="/services">Services</a>
+      <a class="mlink" href="/pricing">Pricing</a>
+      <a class="mlink" href="/about">About</a>
+    </nav>
+    <div class="nav-act"><a class="signin" href="/login">Log in</a><a class="btn btn-pill" href="/login?trial=1#signup">Start free trial</a></div>
   </div></header>
 
-  <main class="wrap" id="main" tabindex="-1">
-    <div class="doc">
+  <main id="main" tabindex="-1">
+    <div class="lg-hero"><div class="mesh" aria-hidden="true"><i class="m1"></i><i class="m2"></i><i class="m3"></i></div>
+      <span class="lg-kick">Legal</span>
       <h1>Refund &amp; Cancellation Policy</h1>
-      <p class="upd">Last updated: <time datetime="2026-10-08">October 8, 2026</time></p>
-      <p class="intro">This policy explains how you can cancel a Helm subscription and when we give refunds. It forms part of our <a href="terms">Terms of Service</a>.</p>
-
-      <h2>1. Free trials</h2>
-      <p>If your studio starts on a free trial, you are not charged during the trial. You can stop using Helm at any time during the trial at no cost. When the trial ends, you'll need to choose a paid plan to keep using the service.</p>
-
-      <h2>2. Cancelling your subscription</h2>
-      <p>You can cancel at any time by contacting us at <a href="mailto:support@helm.com">support@helm.com</a> from your studio's admin account. Cancellation stops future renewals. Your studio keeps full access until the end of the period you have already paid for.</p>
-
-      <h2>3. Refunds</h2>
-      <ul>
-        <li><b>Monthly plans</b> — payments are non-refundable once the billing period has started, except where the law requires otherwise.</li>
-        <li><b>Yearly plans</b> — if you cancel within 14 days of your first yearly payment, you can ask for a full refund. After that, yearly payments are non-refundable, but you keep access until the end of the year you paid for.</li>
-        <li><b>Charged in error</b> — if you were charged twice, charged after cancelling, or charged the wrong amount, tell us within 30 days and we'll refund the incorrect amount.</li>
-      </ul>
-      <p>Approved refunds go back to the original payment method through our payment partner, Razorpay, usually within 5–10 working days of approval, depending on your bank.</p>
-
-      <h2>4. Taxes</h2>
-      <p>Where a refund is approved, the tax charged on that amount (such as GST) is refunded too, and we issue a credit note where the law requires one.</p>
-
-      <h2>5. If we suspend or end the service</h2>
-      <p>If we end your access because the Terms were seriously broken, payments already made are not refunded. If we discontinue Helm entirely, we'll refund the unused part of any prepaid period.</p>
-
-      <h2>6. Contact us</h2>
-      <p>Questions about cancellations or refunds? Email <a href="mailto:support@helm.com">support@helm.com</a>.</p>
+      <p class="lg-lead">Free 8-day trial, cancel any time, and clear rules for refunds. Prices and refunds are in US dollars.</p>
+      <p class="lg-meta">Last updated: <time datetime="2026-10-16">October 16, 2026</time></p>
+    </div>
+    <div class="lg-layout">
+      <nav class="lg-toc" aria-label="On this page">
+      <b>On this page</b>
+      <a href="#summary">1. Summary</a>
+      <a href="#trial">2. 8-day free trial</a>
+      <a href="#cancel">3. How to cancel</a>
+      <a href="#refunds">4. Refunds</a>
+      <a href="#how">5. How refunds are paid</a>
+      <a href="#chargebacks">6. Disputes and chargebacks</a>
+      <a href="#data">7. Your data after cancellation</a>
+      <a href="#contact">8. Contact</a>
+      </nav>
+      <article class="lg-doc">
+<section id="summary" aria-labelledby="h-summary">
+<h2 id="h-summary">1. Summary</h2>
+<div class="lg-callout"><p>Try Helm free for 8 days with no card. Cancel any time and keep access until the end of the period you paid for. New annual plans can be refunded in full within 14 days. All amounts are in <b>US dollars (USD)</b>.</p></div><p>This policy forms part of our <a href="terms">Terms of Service</a>.</p>
+</section>
+<section id="trial" aria-labelledby="h-trial">
+<h2 id="h-trial">2. 8-day free trial</h2>
+<ul><li>The trial is free and does not require a payment card.</li><li>You are never charged automatically when the trial ends; you choose whether to subscribe.</li><li>If you add a card during the trial and pick a plan, billing starts on the date shown at checkout.</li><li>One trial per business. We may decline repeat trials.</li></ul>
+</section>
+<section id="cancel" aria-labelledby="h-cancel">
+<h2 id="h-cancel">3. How to cancel</h2>
+<ol class="lg-steps"><li>Workspace owner signs in and opens <b>Settings &rarr; Billing</b>.</li><li>Choose <b>Cancel subscription</b>, or email <span class="lg-ph">[BILLING EMAIL]</span> from the owner's email address.</li><li>We confirm by email. Renewal stops and access continues until the end of the paid period.</li></ol>
+</section>
+<section id="refunds" aria-labelledby="h-refunds">
+<h2 id="h-refunds">4. Refunds</h2>
+<div class="lg-table-wrap"><table class="lg-table"><thead><tr><th scope="col">Situation</th><th scope="col">What happens</th></tr></thead><tbody><tr><td>Monthly plan</td><td>Not refundable once the billing month has started. Cancelling stops the next renewal.</td></tr><tr><td>Annual plan, first purchase, within 14 days</td><td>Full refund on request.</td></tr><tr><td>Annual plan after 14 days</td><td>Not refundable; access continues to the end of the paid year.</td></tr><tr><td>Plan downgrade</td><td>Takes effect at the next renewal; no partial refund.</td></tr><tr><td>Plan upgrade</td><td>Charged pro rata for the remaining period, in USD.</td></tr><tr><td>Charged in error (duplicate, after cancelling, wrong amount)</td><td>Tell us within 60 days and we refund the incorrect amount in full.</td></tr><tr><td>Extended outage caused by us</td><td>Service credit or pro-rata refund at our discretion, or as required by any service level we have agreed with you.</td></tr><tr><td>We discontinue Helm</td><td>Pro-rata refund of any prepaid, unused period.</td></tr><tr><td>Account terminated for breach of our Terms or Acceptable Use Policy</td><td>No refund.</td></tr></tbody></table></div><p>Where local consumer law gives you a right to a refund or cooling-off period (for example, in the EU or UK for consumers), that right applies in addition to this policy.</p>
+</section>
+<section id="how" aria-labelledby="h-how">
+<h2 id="h-how">5. How refunds are paid</h2>
+<p>Approved refunds are made to the original payment method in USD through <span class="lg-ph">[PAYMENT PROCESSOR, e.g. Stripe / Razorpay]</span>, usually within 5 to 10 business days after approval. Your bank may take longer, and exchange-rate differences or fees charged by your card issuer are outside our control. Taxes charged on a refunded amount are refunded too, and we issue a credit note where required.</p>
+</section>
+<section id="chargebacks" aria-labelledby="h-chargebacks">
+<h2 id="h-chargebacks">6. Disputes and chargebacks</h2>
+<p>Please contact <span class="lg-ph">[BILLING EMAIL]</span> before raising a chargeback so we can fix the issue quickly. Accounts with an open chargeback may be suspended until it is resolved.</p>
+</section>
+<section id="data" aria-labelledby="h-data">
+<h2 id="h-data">7. Your data after cancellation</h2>
+<p>Cancelling does not immediately delete your data. You can export it for 30 days after access ends; see <a href="data-deletion">Data Deletion &amp; Export</a>.</p>
+</section>
+<section id="contact" aria-labelledby="h-contact">
+<h2 id="h-contact">8. Contact</h2>
+<p>Billing questions: <span class="lg-ph">[BILLING EMAIL]</span>. Postal: <span class="lg-ph">[LEGAL ENTITY NAME]</span>, <span class="lg-ph">[REGISTERED ADDRESS]</span>.</p>
+</section>
+      <nav class="lg-related" aria-label="Related policies"><a href="privacy">Privacy Policy<span>How we handle personal data</span></a><a href="terms">Terms of Service<span>The agreement for using Helm</span></a><a href="data-deletion">Data Deletion<span>Export or erase your data</span></a><a href="cookie-policy">Cookie Policy<span>Cookies and local storage</span></a><a href="dpa">Data Processing Addendum<span>For studios as controllers</span></a><a href="acceptable-use">Acceptable Use<span>Rules for using the platform</span></a><a href="subprocessors">Sub-processors<span>Who processes data for us</span></a><a href="security">Security &amp; Trust<span>How we protect your workspace</span></a><a href="sla">Service Level Agreement<span>Uptime, support and credits</span></a><a href="accessibility">Accessibility Statement<span>WCAG 2.2 AA commitment</span></a><a href="grievance">Grievance &amp; DPO Contact<span>Complaints and privacy officers</span></a><a href="ai-notice">AI &amp; Automation Notice<span>Where Helm uses AI</span></a><a href="copyright">Copyright &amp; Takedown<span>Report infringing content</span></a></nav>
+      </article>
     </div>
   </main>
 
-  <footer><div class="wrap">
-    <a href="/">Home</a> · <a href="terms">Terms of Service</a> · <a href="privacy">Privacy Policy</a> · © <span id="yr"></span> Helm
-  </div></footer>
-
+  <footer class="foot"><div class="wrap fgr">
+    <div class="fb"><a class="brand" href="/"><span class="mark" aria-hidden="true"><i></i><i></i></span>Helm</a><p>One workspace for event studios everywhere: leads, layouts, quotes, crew, payments and profit.</p></div>
+    <div><h4>Product</h4><a href="/#modules">Features</a><a href="/services">All services</a><a href="/pricing">Pricing</a></div>
+    <div><h4>Company</h4><a href="/about">About us</a><a href="/login">Sign in</a></div>
+    <nav aria-label="Legal"><h4>Legal</h4><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/refund-policy" aria-current="page">Refund Policy</a><a href="/data-deletion">Data Deletion</a><a href="/cookie-policy">Cookie Policy</a><a href="/dpa">Data Processing</a><a href="/acceptable-use">Acceptable Use</a><a href="/subprocessors">Sub-processors</a><a href="/security">Security</a><a href="/sla">Service Level</a><a href="/accessibility">Accessibility</a><a href="/grievance">Grievance &amp; DPO</a><a href="/ai-notice">AI Notice</a><a href="/copyright">Copyright &amp; IP</a></nav>
+    <div><h4>Contact</h4><a href="mailto:sales@helm.events">sales@helm.events</a><a href="mailto:support@helm.events">support@helm.events</a></div>
+  </div><div class="wrap copy"><span>&copy; <span id="yr"></span> Helm. Amateurs panic. Professionals go for Helm.</span><span class="big-word" aria-hidden="true">Helm</span></div></footer>
   <script src="/trusted-types.js?v=2"></script>
-  <script>
-    document.getElementById("yr").textContent=new Date().getFullYear();
-  </script>
+  <script src="/legal.js?v=2" defer></script>
 </body>
 </html>

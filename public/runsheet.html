@@ -66,7 +66,9 @@
   @media print{ header .nav,.account,#addCard,.rowacts,#printBtn,.crumb,footer{display:none!important} .wrap{max-width:100%} body{background:#fff} .card{box-shadow:none;border:none;padding:0} }
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
 </style>
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="runsheet-polish.css?v=2">
+<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="pages-polish-ops.css?v=1">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -96,12 +98,13 @@
     <div class="card" id="addCard" hidden>
       <div class="addrow">
         <div class="fld"><label for="r_time">Start time</label><input type="time" id="r_time"></div>
-        <div class="fld"><label for="r_dur">Mins</label><input type="number" min="0" id="r_dur" placeholder="e.g. 30"></div>
+        <div class="fld"><label for="r_dur">Mins</label><input type="number" min="1" id="r_dur" aria-describedby="addErr" placeholder="e.g. 30"></div>
         <div class="fld"><label for="r_title">Activity *</label><input id="r_title" placeholder="e.g. Guests arrive / Cake cutting"></div>
         <div class="fld"><label for="r_owner">Owner</label><select id="r_owner"><option value="">Select person…</option></select></div>
         <div class="fld"><label for="r_loc">Location</label><input id="r_loc" placeholder="e.g. Main hall"></div>
-        <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="r_add">＋ Add</button></div>
+        <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="r_add">＋ Add item</button></div>
       </div>
+      <label class="grpopt" id="r_grpWrap" hidden><input type="checkbox" id="r_grp"> Also post in the event group</label>
       <div id="addErr" class="err s-8a77e5a" hidden role="alert" aria-live="assertive"></div>
     </div>
 
@@ -118,11 +121,12 @@
   <div class="sheet">
     <h3 id="editTitle">Edit item</h3>
     <div class="fld s-fdf33f2"><label for="e_time">Start time</label><input type="time" id="e_time"></div>
-    <div class="fld s-fdf33f2"><label for="e_dur">Duration (mins)</label><input type="number" min="0" id="e_dur"></div>
+    <div class="fld s-fdf33f2"><label for="e_dur">Duration (mins)</label><input type="number" min="1" id="e_dur" aria-describedby="e_err"></div>
     <div class="fld s-fdf33f2"><label for="e_title">Activity</label><input id="e_title"></div>
     <div class="fld s-fdf33f2"><label for="e_owner">Owner</label><select id="e_owner"><option value="">Select person…</option></select></div>
     <div class="fld s-fdf33f2"><label for="e_loc">Location</label><input id="e_loc"></div>
     <div class="fld s-fdf33f2"><label for="e_note">Note</label><input id="e_note"></div>
+    <label class="grpopt" id="e_grpWrap" hidden><input type="checkbox" id="e_grp"> Also post in the event group</label>
     <div id="e_err" class="err s-fdf33f2" hidden role="alert" aria-live="assertive"></div>
     <div class="foot"><button type="button" class="btn" id="e_cancel" data-close>Cancel</button><button type="button" class="btn primary" id="e_save">Save</button></div>
   </div>
@@ -140,10 +144,10 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
-<script src="tour.js?v=9"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=204"></script>
+<script src="tour.js?v=14"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -158,7 +162,17 @@
   const id=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   const hhmm=(t)=> t? t.slice(0,5) : "";
   const addMin=(t,m)=>{ if(!t||m==null||m==="") return ""; const [h,mi]=t.slice(0,5).split(":").map(Number); const d=new Date(2000,0,1,h,mi+Number(m)); return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); };
-  let canEdit=false, canDelete=false, items=[], editingId=null;
+  /* HelmUI empty state (guarded: falls back to the plain message if the kit isn't loaded) */
+  const hEmpty=(host,o,cols)=>{ const H=window.HelmUI; if(!(H&&H.emptyState)||!host) return false; const n=H.emptyState(o); if(cols){ const tr=document.createElement("tr"),td=document.createElement("td"); td.colSpan=cols; td.className="hs-empty-cell"; td.appendChild(n); tr.appendChild(td); host.replaceChildren(tr); } else host.replaceChildren(n); return true; };
+  let canEdit=false, canDelete=false, items=[], editingId=null, GROUP={has_group:false,member:false};
+  // 0132: optional post into the event's own team chat group (never blocks the save)
+  async function postGroup(itemId, action){
+    try{ const r=await BPStore.runsheet.postToGroup(itemId, action);
+      if(r==="posted") BPUI.toast("Posted in the event group");
+      else if(r==="not_member") BPUI.toast("Saved. You're not in this event's group, so nothing was posted there.",{type:"err"});
+      else if(r==="no_group") BPUI.toast("Saved. This event has no team group yet.",{type:"err"}); }
+    catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"post in the event group"}),{type:"err"}); }
+  }
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
@@ -167,7 +181,7 @@
     } else { el.innerHTML=`<button id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(HelmUrl.here()))); } }
 
   function render(){
-    if(!items.length){ $("#rows").innerHTML='<div class="empty">No run-sheet items yet. Add the first one above.</div>'; $("#win").hidden=true; return; }
+    if(!items.length){ $("#rows").innerHTML='<div class="empty">No run-sheet items yet. Add the first one above.</div>'; hEmpty($("#rows"),{icon:"🕒",title:"No run-sheet items yet",text:"Plan the day minute by minute — arrivals, speeches, cake cutting.",actionLabel:canEdit?"Add the first item":"",onAction:()=>{ const i=$("#r_title"); if(i){ i.scrollIntoView({block:"center"}); i.focus(); } }}); $("#win").hidden=true; return; }
     // day window
     const withTime=items.filter(i=>i.start_time);
     if(withTime.length){ const first=hhmm(withTime[0].start_time); const last=withTime[withTime.length-1];
@@ -192,26 +206,28 @@
   async function add(){
     const title=$("#r_title").value.trim(); if(!title){ $("#addErr").textContent="Activity is required."; $("#addErr").hidden=false; return; }
     const V=BPStore.validate;
-    const dr=$("#r_dur").value.trim()===""?{ok:true,value:null}:V.count($("#r_dur").value,{field:"Duration (min)"}); if(!dr.ok){ $("#addErr").textContent=dr.error; $("#addErr").hidden=false; return; }
+    let dr=$("#r_dur").value.trim()===""?{ok:true,value:null}:V.count($("#r_dur").value,{field:"Duration (min)"}); if(dr.ok&&dr.value!=null&&(dr.value<1||dr.value>1440)) dr={ok:false,error:"Duration must be 1–1440 minutes"}; if(!dr.ok){ $("#addErr").textContent=dr.error; $("#addErr").hidden=false; return; }
     $("#addErr").hidden=true;
     await BPUI.guard($("#r_add"),async()=>{
-      try{ await BPStore.runsheet.add(id,{ start_time:$("#r_time").value||null, duration_min:dr.value,
+      try{ const row=await BPStore.runsheet.add(id,{ start_time:$("#r_time").value||null, duration_min:dr.value,
         title, owner:$("#r_owner").value.trim()||null, location:$("#r_loc").value.trim()||null });
+        if(GROUP.has_group && $("#r_grp").checked && row && row.id) await postGroup(row.id,"added");
         $("#r_title").value=""; $("#r_owner").value=""; $("#r_loc").value=""; $("#r_dur").value=""; await load(); $("#r_time").focus(); }
       catch(e){ $("#addErr").textContent=BPUI.friendlyError(e,{action:"add the item",setupHint:"phase11-runsheet.sql"}); $("#addErr").hidden=false; }
     });
   }
   const editDirty=BPUI.trackDirty($("#editModal"));
   function openEdit(i){ if(!i) return; editingId=i.id; $("#e_time").value=hhmm(i.start_time); $("#e_dur").value=i.duration_min!=null?i.duration_min:"";
-    $("#e_title").value=i.title||""; fillOwner($("#e_owner"), i.owner||""); $("#e_loc").value=i.location||""; $("#e_note").value=i.note||""; $("#e_err").hidden=true; $("#editModal").hidden=false; editDirty.clean(); setTimeout(()=>$("#e_time").focus(),50); }
+    $("#e_title").value=i.title||""; fillOwner($("#e_owner"), i.owner||""); $("#e_loc").value=i.location||""; $("#e_note").value=i.note||""; $("#e_grp").checked=GROUP.has_group&&GROUP.member; $("#e_err").hidden=true; $("#editModal").hidden=false; editDirty.clean(); setTimeout(()=>$("#e_time").focus(),50); }
   function closeEdit(){ $("#editModal").hidden=true; editingId=null; editDirty.clean(); }
   async function requestCloseEdit(){ if($("#editModal").hidden) return; if(!(await BPUI.confirmDiscard(editDirty))) return; closeEdit(); }
   async function saveEdit(){ const V=BPStore.validate; const fail=(m)=>{ $("#e_err").textContent=m; $("#e_err").hidden=false; };
-    const dr=$("#e_dur").value.trim()===""?{ok:true,value:null}:V.count($("#e_dur").value,{field:"Duration (min)"}); if(!dr.ok){ fail(dr.error); return; }
+    let dr=$("#e_dur").value.trim()===""?{ok:true,value:null}:V.count($("#e_dur").value,{field:"Duration (min)"}); if(dr.ok&&dr.value!=null&&(dr.value<1||dr.value>1440)) dr={ok:false,error:"Duration must be 1–1440 minutes"}; if(!dr.ok){ fail(dr.error); return; }
     await BPUI.guard($("#e_save"),async()=>{
       try{ await BPStore.runsheet.update(editingId,{ start_time:$("#e_time").value||null, duration_min:dr.value,
         title:$("#e_title").value.trim()||"Untitled", owner:$("#e_owner").value.trim()||null, location:$("#e_loc").value.trim()||null, note:$("#e_note").value.trim()||null });
-        closeEdit(); await load(); }catch(e){ fail(BPUI.friendlyError(e,{action:"save the item"})); } },{busyLabel:"Saving…"}); }
+        const savedId=editingId, post=GROUP.has_group && $("#e_grp").checked;
+        closeEdit(); if(post && savedId) await postGroup(savedId,"updated"); await load(); }catch(e){ fail(BPUI.friendlyError(e,{action:"save the item"})); } },{busyLabel:"Saving…"}); }
 
   function openLogin(){ $("#loginModal").hidden=false; setTimeout(()=>$("#li_email").focus(),50); }
   $("#li_go").addEventListener("click",()=>{
@@ -246,6 +262,9 @@
     $("#app").hidden=false; $("#addCard").hidden=!canEdit;
     try{ PEOPLE_OPTS=await BPStore.people.options(); }catch{ PEOPLE_OPTS=[]; }
     fillOwner($("#r_owner"),"");
+    GROUP=await BPStore.runsheet.groupStatus(id).catch(()=>({has_group:false,member:false}));
+    $("#r_grpWrap").hidden=$("#e_grpWrap").hidden=!GROUP.has_group;
+    $("#r_grp").checked=$("#e_grp").checked=GROUP.has_group&&GROUP.member;
     await load();
   });
 </script>

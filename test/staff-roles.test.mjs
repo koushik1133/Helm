@@ -37,8 +37,10 @@ t('invite to log in: admin only, needs e-mail + a defined role, uses invitations
   assert.match(html, /isAdminUser&&!linked&&s\.email&&s\.active!==false\?`<button class="ic" data-act="invite"/);
   assert.match(html, /const key=BPStore\.staff\.matchRole\(s\.role\);\s*if\(!key\)/);
   assert.match(html, /BPStore\.invitations\.create\(s\.email, key\)/);
-  assert.match(html, /Helm doesn't send anything/);
-  assert.doesNotMatch(html, /sendEmail|whatsapp\.send|comms\.send/i);
+  // 0131: the invite is e-mailed only through the invite-mailer queue (copy link still offered)
+  assert.match(html, /BPStore\.invitations\.sendNow\(\)/);
+  assert.match(html, /id="iv_copy">Copy link</);
+  assert.doesNotMatch(html, /whatsapp\.send|comms\.send/i);
 });
 t('login status: Active user / Invited / No login', () => {
   const ls = new Function('return ' + api.match(/loginStatus\(s, invites\) \{[\s\S]*?\n    \},/)[0].replace(/^loginStatus/, 'function').replace(/,$/, ''))();

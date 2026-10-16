@@ -96,8 +96,8 @@ t('chat: event group menu has Refresh event details + workspace; pinned card bar
   assert.match(chat, /if\(c\.kind==="group"\) items\.push\(\{k:"add",label:"➕  Add members"/);   // add members works for event groups
 });
 t('quotes: Event group button on confirmed quotes; "Open event group" when it exists; hidden without 0035', () => {
-  assert.match(quotes, /egReady&&\(egIndex\[x\.id\]\|\|x\.status==="confirmed"\)/);
-  assert.match(quotes, /\$\{egIndex\[x\.id\]\?"💬 Open event group":"💬 Event group"\}/);
+  assert.match(quotes, /egReady&&\(egIndex\[x\.id\]\|\|\(canEdit&&x\.status==="confirmed"\)\)/);
+  assert.match(quotes, /\$\{egIndex\[x\.id\]\?"💬 Open event group":"💬 Create event group"\}/);
   assert.match(quotes, /else if\(act==="egroup"\) BPUI\.guard\(b,\(\)=>openEventGroup\(id\)\)/);
   assert.match(quotes, /catch\(e\)\{ egIndex=\{\}; egReady=false; \}/);
   assert.match(quotes, /if\(g\.is_member\) location\.href="chat\.html\?c="\+encodeURIComponent\(g\.conversation_id\)/);

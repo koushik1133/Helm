@@ -28,6 +28,7 @@
     team: "Optional. Invite the people who will sign in to Helm and pick each person's role. They get a join link (valid 7 days). Crew who don't sign in can be added in the Staff step.",
     venues: "Optional. The halls and venues you work with. Pick one on a quote to fill in the hall details. Venues are never deleted, only deactivated.",
     payment: "Optional. Your default advance and when the balance is due. Shown as your standard terms; you can still change them per event.",
+    connect: "Optional. Email invites are already on: Helm e-mails every teammate you invite. Connect WhatsApp to send task assignments and event reminders to your crew.",
     templates: "Optional. Menu packages and checklist templates speed up every quote. Review them now or later in Control Center.",
     menu: "Add the dishes you serve. They appear in the menu picker on every quote. Dishes with the same name as an existing one are skipped by default.",
     pricing: "Your per-chair and per-plate rates. These feed live quote pricing. Existing rates are never changed here; duplicates are skipped by default.",
@@ -250,6 +251,12 @@
         invites.length ? "Save & continue" : "Continue");
     }
     if (kind === "venues") return form(`<div id="obVenuesSlot"></div>`);
+    // 0134: review-only - email invites (on via Helm) + WhatsApp setup guide on the Integrations page
+    if (kind === "connect") {
+      return form(`<ul class="ob-check"><li>✓ <b>Email invites</b> <span class="ob-note">On via Helm. Every teammate you invite gets the Join link by e-mail; Copy link stays as a backup.</span></li>`
+        + `<li>○ <a href="integrations.html#whatsapp"><b>Connect WhatsApp</b></a> <span class="ob-note">Step-by-step guide: Meta business account, phone number, message templates, then your studio WhatsApp number in Control Center.</span></li></ul>`
+        + `<div class="ob-row"><a class="btn" href="integrations.html#whatsapp">Open WhatsApp setup guide</a><a class="btn" href="integrations.html#email">How email invites work</a></div>`, "Continue");
+    }
     // templates
     const c = tplCounts;
     const line = c ? `<ul><li><b>${Number(c.pkgs)}</b> menu package(s)</li><li><b>${Number(c.lists)}</b> checklist template(s)</li><li><b>${Number(c.layouts)}</b> layout template(s) of your own</li></ul>` : `<p class="ob-note">Loading…</p>`;
@@ -292,7 +299,7 @@
         await BPStore.config.setPricing(next); pricingCfg = next;
       }
       setVals[kind] = {}; setErr[kind] = {}; st.done = true; st.skipped = false;
-      if (kind !== "templates" && kind !== "venues" && kind !== "team") BPUI.toast(lbl(kind) + " saved.", { type: "ok" });
+      if (kind !== "templates" && kind !== "venues" && kind !== "team" && kind !== "connect") BPUI.toast(lbl(kind) + " saved.", { type: "ok" });
       go(S.step + 1);
     } catch (err) { const x = $("#obErr"); if (x) x.textContent = BPUI.friendlyError(err, { action: "save " + lbl(kind).toLowerCase() }); }
   }
@@ -513,7 +520,7 @@
   function go(step, stage, push) {
     S.step = Math.max(BILL, Math.min(KEYS.length, step));
     if (stage && S.step >= 0 && S.step < KEYS.length) S.steps[KEYS[S.step]].stage = stage;
-    if (push !== false) { try { history.pushState({ onb: 1, step: S.step, stage: S.step >= 0 && S.step < KEYS.length ? S.steps[KEYS[S.step]].stage : "finish" }, "", "#step-" + keyOf(S.step)); } catch (e) {} }
+    if (push !== false) { try { history.pushState({ onb: 1, step: S.step, stage: S.step >= 0 && S.step < KEYS.length ? S.steps[KEYS[S.step]].stage : "finish" }, "", location.pathname + location.search + "#step-" + keyOf(S.step)); } catch (e) {} }
     if (KEYS[S.step] === "templates") loadTplCounts();
     saveDraft(); render(); persistProgress(S.step === KEYS.length && billingOk() && studioOk()); const h = $("#obRoot h2"); if (h) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: false }); }
   }
@@ -703,7 +710,7 @@
       if (ev.target && ev.target.id === "obSet") { ev.preventDefault(); const b = $('[data-act="setsave"]'); BPUI.guard(b, () => saveSetting(KEYS[S.step]), { busyLabel: "Saving…" }); }
     });
     document.addEventListener("click", onClick); document.addEventListener("input", onInput); document.addEventListener("change", onChange);
-    try { history.replaceState({ onb: 1, step: S.step, stage: cur ? S.steps[cur].stage : "finish" }, "", "#step-" + keyOf(S.step)); } catch (e) {}
+    try { history.replaceState({ onb: 1, step: S.step, stage: cur ? S.steps[cur].stage : "finish" }, "", location.pathname + location.search + "#step-" + keyOf(S.step)); } catch (e) {}
     if (KEYS[S.step] === "templates") loadTplCounts();
     $("#app").hidden = false; render();
     if (d.resumed) BPUI.toast("Welcome back — your draft was restored.", { type: "info" });

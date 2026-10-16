@@ -106,7 +106,7 @@ t('committed config.js ships CAPTCHA off (empty siteKey) and the documented defa
   const cfg = read('public/config.js');
   assert.match(cfg, /captcha:\s*\{\s*provider:\s*"turnstile",\s*siteKey:\s*""\s*\}/);
   assert.match(cfg, /mfaRequiredForAdmins:\s*false/);
-  assert.match(cfg, /session:\s*\{\s*idleMinutes:\s*60,\s*warnSeconds:\s*120,\s*maxHours:\s*72\s*\}/, 'idle 60 min (warning 2 min before) + 72 h absolute max (raised from 12h on 2026-10-08)');
+  assert.match(cfg, /session:\s*\{\s*idleMinutes:\s*0,\s*warnSeconds:\s*120,\s*maxHours:\s*0\s*\}/, 'no app-side session limit (owner decision 2026-10-16; 0 = off)');
   assert.match(cfg, /mfaRequiredForAdmins:\s*false/, 'two-step stays optional (owner decision) — documented switch');
 });
 t('CAPTCHA ON: sign-in / sign-up / reset carry captchaToken; missing token is refused before any request', async () => {

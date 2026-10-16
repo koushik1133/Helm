@@ -1,0 +1,62 @@
+/* marketing-media.css — "See it in action" showcase, real screenshots in feature cards,
+   client-experience phone strip. Emerald tokens from public-v2.css; light + dark. */
+.mm-sec { padding: 56px 0 24px; }
+.mm-kick { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--acc-text, #036b4d); }
+.mm-h2 { font-size: clamp(26px, 3.4vw, 38px); line-height: 1.15; margin: 8px 0 10px; color: var(--ink, #0b2a22); letter-spacing: -.02em; }
+.mm-lead { max-width: 640px; color: var(--ink-2, #2f4a42); font-size: 16px; line-height: 1.6; margin: 0 0 24px; }
+
+/* Tabs */
+.mm-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 18px; padding: 0; list-style: none; }
+.mm-tab { appearance: none; border: 1px solid var(--line, #e0eae5); background: var(--panel, #fff); color: var(--ink-2, #2f4a42);
+  border-radius: 999px; padding: 9px 16px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; min-height: 40px; }
+.mm-tab b { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--accent-soft, #e3f4ed); color: var(--acc-text, #036b4d); font-size: 12px; }
+.mm-tab[aria-selected="true"] { background: var(--accent, #047857); border-color: var(--accent, #047857); color: #fff; }
+.mm-tab[aria-selected="true"] b { background: rgba(255,255,255,.22); color: #fff; }
+.mm-tab:focus-visible, .mm-pp:focus-visible { outline: 3px solid var(--accent-2, #036b4d); outline-offset: 2px; }
+.mm-panel { margin: 0; }
+.mm-panel[hidden] { display: none; }
+
+/* Browser frame */
+.mm-frame { position: relative; border-radius: 14px; border: 1px solid var(--line, #e0eae5); background: var(--panel, #fff);
+  box-shadow: 0 1px 2px rgba(11,42,34,.06), 0 24px 48px -28px rgba(11,42,34,.35); overflow: hidden; }
+.mm-bar { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-bottom: 1px solid var(--line, #e0eae5); background: var(--panel-2, #f7faf9); }
+.mm-bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--line, #d5e2dc); }
+.mm-bar span { margin-left: 10px; font-size: 11px; color: var(--ink-3, #5a7068); font-family: "IBM Plex Mono", ui-monospace, monospace; }
+.mm-media { display: block; width: 100%; height: auto; aspect-ratio: var(--mm-ar, 800 / 504); background: var(--panel-2, #f7faf9); object-fit: cover; }
+.mm-cap { margin-top: 12px; color: var(--ink-2, #2f4a42); font-size: 15px; line-height: 1.5; }
+.mm-cap b { color: var(--ink, #0b2a22); }
+.mm-stage { position: relative; max-width: 960px; }
+.mm-pp { position: absolute; right: 10px; top: 40px; z-index: 2; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line, #e0eae5);
+  background: var(--panel, #fff); color: var(--ink, #0b2a22); cursor: pointer; display: grid; place-items: center; }
+.mm-pp::before { content: ""; width: 10px; height: 12px; border-left: 3px solid currentColor; border-right: 3px solid currentColor; box-sizing: border-box; }
+.mm-pp[aria-pressed="true"]::before { width: 0; height: 0; border: 0; border-left: 11px solid currentColor; border-top: 7px solid transparent; border-bottom: 7px solid transparent; margin-left: 3px; }
+
+/* Real screenshot in feature cards */
+.mm-shot { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; object-position: top left; border-radius: 10px;
+  border: 1px solid var(--line, #e0eae5); margin: 10px 0 4px; background: var(--panel-2, #f7faf9); }
+
+/* Client-experience phones */
+.mm-phones { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 28px; align-items: start; max-width: 760px; }
+.mm-phone { margin: 0; text-align: center; }
+.mm-phone-shell { margin: 0 auto; max-width: 260px; border-radius: 34px; padding: 10px; background: #0b2a22; box-shadow: 0 24px 48px -24px rgba(11,42,34,.5); }
+.mm-phone-shell .mm-media { border-radius: 26px; aspect-ratio: var(--mm-ar, 390 / 760); }
+.mm-phone figcaption { margin-top: 12px; color: var(--ink-2, #2f4a42); font-size: 14px; }
+.mm-ar-phone { --mm-ar: 390 / 760; }
+
+html[data-theme="dark"] .mm-frame { box-shadow: 0 24px 48px -28px rgba(0,0,0,.7); }
+html[data-theme="dark"] .mm-phone-shell { background: #1f3a33; }
+html[data-theme="dark"] .mm-tab[aria-selected="true"] { background: var(--accent, #08795a); }
+
+@media (max-width: 640px) {
+  .mm-sec { padding: 40px 0 16px; }
+  .mm-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; }
+  .mm-tab { flex: 0 0 auto; padding: 8px 12px; font-size: 13px; }
+  .mm-bar { height: 24px; }
+}
+@media (prefers-reduced-motion: reduce) { .mm-pp { display: none; } }
+.mm-ar-504 { --mm-ar: 800 / 504; }
+.mm-ar-352 { --mm-ar: 800 / 352; }
+.mm-ar-456 { --mm-ar: 800 / 456; }
+.mm-ar-608 { --mm-ar: 312 / 608; }
+.mm-phone-solo { max-width: 300px; margin: 0 auto; }
+.mm-panel-phone { display: grid; place-items: center; padding: 8px 0; }

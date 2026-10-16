@@ -27,6 +27,8 @@
   .code{font-family:var(--mono);font-weight:600;color:var(--accent)}
   .cat{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:700;margin:14px 0 6px}
   .task{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px}
+  .upd{display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:20px;background:#fff3cd;color:#7a5200;margin-left:6px;vertical-align:middle}
+  .rsl{font-size:13px;color:var(--ink-3);margin-top:4px}
   .task .tt{font-size:15px;font-weight:600;margin-bottom:8px}
   .st{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:2px 9px;border-radius:20px;float:right}
   .st.assigned{background:#eef2ff;color:#4457c8} .st.accepted{background:#e6f6f2;color:#0f766e}
@@ -67,7 +69,9 @@
   .thumbs button{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(20,27,46,.7);color:#fff;font-size:15px;line-height:26px;cursor:pointer;padding:0}
   .sheet .foot{display:flex;gap:8px;margin-top:16px}
 </style>
-<link rel="stylesheet" href="/theme.css?v=78">
+<link rel="stylesheet" href="/theme.css?v=80">
+<link rel="stylesheet" href="/public-pages-v2.css?v=3">
+<script src="/public-theme.js?v=2"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -89,6 +93,7 @@
     </div>
     <button class="btn refresh" id="refreshBtn" type="button">↻ Refresh</button>
     <div id="msg" role="alert"></div>
+    <div id="rsSec" hidden><div class="cat">🗓 Your run-sheet</div><div id="rs"></div></div>
     <div id="tasks"></div>
     <div id="equipSec" hidden><div class="cat">📦 Equipment to return</div><div id="equip"></div></div>
   </div>
@@ -133,16 +138,19 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="/telemetry.js?v=3"></script>
-<script src="/config.js?v=98"></script>
+<script src="/config.js?v=100"></script>
 <script src="/event-name.js?v=6"></script>
-<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=178"></script>
+<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=204"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s||"").replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   const LINK=BPStore.links.parse("work");   // branded /<studio>/work/<token> (server-verified below)
   const token=LINK?LINK.ref:new URLSearchParams(location.search).get("token");
   const LABEL={assigned:"Assigned",accepted:"Accepted",in_progress:"In progress",completed:"Completed",rejected:"Rejected"};
-  let data=null, equip=[];
+  let data=null, equip=[], upd=null;
+  // 0132: an item assigned/changed in the last 24 hours gets an "Updated" badge
+  const UPD_MS=24*60*60*1000;
+  const isUpd=(ts)=>{ if(!ts) return false; const t=Date.parse(ts); return !isNaN(t) && Date.now()-t < UPD_MS; };
   // Offline cache: sessionStorage only (cleared when the tab closes), keyed by a
   // SHA-256 hash of the token (the raw token never becomes a storage key), 12h TTL,
   // and only the fields this page renders.
@@ -196,13 +204,17 @@
     await BPStore.init();
     await refresh(!cached);
     window.addEventListener("online", ()=>refresh(false));
+    // 0132: pick up newly assigned / changed work while the link is open
+    setInterval(()=>{ if(document.visibilityState==="visible" && navigator.onLine!==false) refresh(false); }, 60000);
+    document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") refresh(false); });
   }
   async function refresh(strict){
     try{
       const [d,eq]=await Promise.all([
         BPStore.ops.worker.getTasks(token),
         BPStore.ops.worker.getEquipment(token).catch(()=>({equipment:[]})),
-      ]);
+        BPStore.ops.worker.updates(token).catch(()=>null),
+      ]).then(([d,eq,u])=>{ upd=u; return [d,eq]; });
       data=d; equip=(eq&&eq.equipment)||[]; writeCache();
       $("#offline").hidden=true; $("#loading").hidden=true; $("#badlink").hidden=true; $("#offlineFirst").hidden=true; $("#content").hidden=false;
       paintHeader(); render();
@@ -235,6 +247,8 @@
     $("#progTxt").textContent=`${done} / ${all.length}`;
     $("#progFill").style.width = all.length? Math.round(done/all.length*100)+"%" : "0%";
     // tasks
+    const changed={}; ((upd&&upd.tasks)||[]).forEach(x=>{ changed[String(x.id)]=x.changed_at; });
+    renderRunsheet();
     const byCat={}; all.forEach(t=>{ (byCat[t.category]=byCat[t.category]||[]).push(t); });
     const host=$("#tasks");
     host.innerHTML = all.length ? Object.entries(byCat).map(([cat,ts])=>`<div class="cat">${esc(cat)}</div>`+
@@ -246,12 +260,19 @@
         else if(t.status==='completed') acts=`<span class="done">✅ Completed — thank you</span>`;
         else if(t.status==='rejected') acts=`<span class="rej">Rejected</span>`;
         return `<div class="task" data-id="${esc(String(t.id))}"><span class="st ${esc(t.status)}">${LABEL[t.status]||esc(t.status)}</span>
-          <div class="tt">${esc(t.title)}</div><div class="acts">${acts}</div></div>`;
+          <div class="tt">${esc(t.title)}${isUpd(changed[String(t.id)])?`<span class="upd">Updated</span>`:""}</div><div class="acts">${acts}</div></div>`;
       }).join("")).join("") : '<div class="card muted">No tasks assigned to you yet.</div>';
     host.querySelectorAll(".task").forEach(card=>{
       card.querySelectorAll("[data-a]").forEach(b=>b.addEventListener("click",()=>respond(card.dataset.id,b.dataset.a,b)));
     });
     renderEquip();
+  }
+  function renderRunsheet(){
+    const sec=$("#rsSec"), host=$("#rs"), rows=(upd&&upd.runsheet)||[];
+    if(!rows.length){ sec.hidden=true; host.replaceChildren(); return; }
+    sec.hidden=false;
+    host.innerHTML=rows.map(r=>`<div class="task"><div class="tt">${r.start_time?esc(String(r.start_time))+" · ":""}${esc(String(r.title||""))}${isUpd(r.changed_at)?`<span class="upd">Updated</span>`:""}</div>`+
+      `<div class="rsl">${r.duration_min?esc(String(r.duration_min))+" min":""}${r.location?(r.duration_min?" · ":"")+"📍 "+esc(String(r.location)):""}${r.note?" · "+esc(String(r.note)):""}</div></div>`).join("");
   }
   function renderEquip(){
     const sec=$("#equipSec"), host=$("#equip");

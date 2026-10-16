@@ -102,3 +102,69 @@ footprint (feet). Typical 2025–26 tier-1/tier-2 Indian rental ranges:
 Items that already had a default keep it, for example `linearray` ₹40,000, `generator` ₹15,000,
 `photobooth` ₹12,000, `truss` (tower) ₹6,000 and `subwoofer` ₹12,000. Truss tower and subwoofer
 now also appear in Control Center so admins can override them.
+
+## Indian wedding + corporate pack (2026-10)
+
+| type | Item | Default ₹ | Basis |
+|---|---|---|---|
+| `entrancegate` | Entrance Gate | 25,000 | 16 ft floral gate: two pillars, crown, drapes, marigold strings |
+| `phoolchadar` | Phoolon ki Chadar | 6,000 | Floral sheet on four poles for the bride's entry |
+| `jhoola` | Swing / Jhoola | 12,000 | Decorated swing frame with floral wrap |
+| `haldi` | Haldi Setup | 18,000 | Low platform, marigold backdrop, gaddi seating, urlis |
+| `mehendi` | Mehendi Lounge | 15,000 | Floor rug, gaddis + bolsters, low tables, umbrellas |
+| `selfieframe` | Selfie Frame | 3,500 | Standing floral photo frame |
+| `welcomeboard` | Welcome Board | 2,500 | Printed welcome sign on easel with florals |
+| `fairylights` | Fairy Light Canopy | 8,000 | 24 × 24 ft overhead strands + four posts |
+| `couplesofa` | Couple Sofa | 8,000 | Maharaja-style stage sofa |
+| `livecounter` | Live Food Counter | 7,000 | Skirted live-cooking counter with header |
+| `kidszone` | Kids Zone | 15,000 | Bouncy castle, slide, ball pit, soft mat |
+| `aircooler` | Air Cooler / Fan | 1,500 | Mist / air cooler per unit |
+
+### Religious + ambience pack (2026-10c)
+
+| Type | Name | Default (₹) | What it is |
+|---|---|---|---|
+| `havankund` | Havan Kund | 3,500 | Copper stepped fire pit on a 4 × 4 ft platform, kalash at the corners |
+| `rangoli` | Rangoli / Kolam | 2,500 | 6 × 6 ft floor design (powder + petals) with diyas |
+| `lanterns` | Lantern Cluster | 1,200 | Three metal lanterns (1.5 / 2.2 / 3 ft) with candles |
+| `hangingfloral` | Hanging Floral Ceiling | 18,000 | 12 × 12 ft suspended floral strands + clusters at ~11 ft |
+| `neonsign` | Neon Sign Wall | 4,000 | 6 ft neon script on a greenery board |
+
+Décor **variants** (style / flower / colour story, chosen in the builder inspector) are visual only — they never change the price.
+
+### Complete-catalogue pack (2026-10d) — generic basics + every remaining event type
+
+| Type | Name | Default (₹) | Size / what it is |
+|---|---|---|---|
+| `backdrop` | Backdrop (generic) | 6,000 | 10 × 1 ft — a free-standing event backdrop wall |
+| `floralstand` | Floral Stand (generic) | 1,500 | 2 × 2 ft — a floral arrangement on a stand |
+| `decorbox` | Decor Item (generic) | 2,000 | 3 × 3 ft — a decorative prop |
+| `signage` | Signage / Standee | 1,200 | 2.5 × 1.5 ft — a free-standing sign (no readable text) |
+| `recttable` | Rectangular Table | chair rate | 6 × 2.5 ft — a rectangular table with a floor-length cloth |
+| `stageroof` | Stage Roof Truss | 60,000 | 40 × 24 ft — a ground-support truss roof over the stage |
+| `varmala` | Varmala Platform | 25,000 | 10 × 10 ft — a round raised varmala platform with floral edging |
+| `micstand` | Mic Stand | 500 | 1 × 1 ft — a microphone on a black stand |
+| `teleprompter` | Teleprompter / Confidence Monitor | 6,000 | 3 × 1.5 ft — a low confidence-monitor screen at the stage front |
+| `projector` | Projector Screen | 8,000 | 12 × 2 ft — a large fast-fold projection screen on legs |
+| `tvstand` | TV Screen on Stand | 4,000 | 4 × 2 ft — a large flat TV screen on a floor stand |
+| `interpreter` | Interpreter Booth | 15,000 | 6 × 6 ft — a small sound-proof interpreter booth |
+| `pyro` | Cold Pyro / CO2 Jet | 3,000 | 1.5 × 1.5 ft — a cold-spark fountain machine |
+| `towerlight` | Mobile Light Tower | 4,000 | 5 × 5 ft — a towable floodlight tower |
+| `gaddi` | Floor Seating (Gaddi) | 3,000 | 8 × 8 ft — floor seating with gaddis and bolsters on a rug |
+| `urli` | Flower Urli | 2,500 | 3 × 3 ft — a brass urli bowl with floating flowers and candles |
+| `umbrellas` | Decor Umbrellas | 5,000 | 8 × 8 ft — a cluster of bright hanging decor umbrellas |
+| `doli` | Doli / Palki | 12,000 | 6 × 3 ft — a decorated doli palanquin |
+| `kalash` | Kalash / Purna Kumbh | 800 | 1.5 × 1.5 ft — a brass kalash with a coconut and mango leaves |
+| `altar` | Pooja Altar / Idol Platform | 8,000 | 6 × 4 ft — a raised pooja altar with a draped back |
+| `shoerack` | Shoe Rack | 1,000 | 6 × 1.5 ft — a low shoe rack |
+| `dessert` | Dessert / Candy Table | 3,500 | 8 × 2.5 ft — a dessert table with tiered cake stands and sweets |
+| `coffee` | Coffee / Tea Station | 3,000 | 6 × 2.5 ft — a coffee and tea station with urns and cups |
+| `stall` | Food / Merch Stall | 6,000 | 10 × 10 ft — a canopy stall with a counter |
+| `counter` | Display Counter | 2,500 | 4 × 2 ft — a lit product display counter |
+| `plinth` | Display Plinth | 1,000 | 1.5 × 1.5 ft — a white display plinth |
+| `kiosk` | Check-in Kiosk | 3,000 | 2 × 2 ft — a self check-in kiosk with a touch screen |
+| `ticketbooth` | Ticket Booth | 5,000 | 8 × 6 ft — a small ticket booth cabin |
+| `stanchion` | Stanchions (rope & post) | 1,200 | 10 × 1 ft — a row of chrome stanchions with a velvet rope |
+| `watchtower` | Watch Tower / CCTV | 8,000 | 6 × 6 ft — a scaffold watch tower with CCTV cameras |
+| `extinguisher` | Fire Point | 300 | 1.5 × 1 ft — a red fire extinguisher point |
+| `ambulance` | Ambulance Bay | 6,000 | 22 × 9 ft — an ambulance parked in a marked bay |

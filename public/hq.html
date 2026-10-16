@@ -5,7 +5,7 @@
 <title>Helm</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
 <meta name="referrer" content="no-referrer">
-<link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
+<link rel="icon" href="/brand/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
 <link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
 <link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
 <link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
@@ -22,8 +22,8 @@
   [hidden]{display:none!important}
   .wrap{max-width:1240px;margin:0 auto;padding:20px 16px 56px}
   header.top{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
-  .mk{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:none}
-  .mk::after{content:"";position:absolute;inset:7px;border:2px solid rgba(255,255,255,.92);border-radius:3px}
+  .mk{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;flex:none}
+  .mk .helm-mark{width:20px;height:20px;color:#fff;stroke:rgba(255,255,255,.62)}
   header.top h1{font-size:18px;margin:0;letter-spacing:-.01em}
   header.top .sub{color:var(--ink-3);font-size:12px}
   header.top .sp{flex:1}
@@ -94,7 +94,9 @@
   tr.void td:last-child,tr.void td:nth-last-child(2){text-decoration:none}
   .okm{background:#e9f8ef;color:#126b39;border:1px solid #b8e6c9;border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:14px}
 </style>
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="/public-pages-v2.css?v=3">
+<script src="/public-theme.js?v=2"></script>
 </head>
 <body>
 <div id="vLoading" class="loading" aria-busy="true"></div>
@@ -110,7 +112,7 @@
 
 <div id="vApp" class="wrap" hidden>
   <header class="top">
-    <div class="mk" aria-hidden="true"></div>
+    <div class="mk" aria-hidden="true"><svg class="helm-mark" viewBox="0 0 48 48" focusable="false"><use href="/brand/mark.svg?v=2#helm-mark"/></svg></div>
     <div><h1>Helm HQ</h1><div class="sub">Studios · people · Helm subscriptions — no studio business data</div></div>
     <div class="sp"></div>
     <span class="who" id="who"></span>
@@ -201,7 +203,7 @@
       <h2 id="coSetH">Studio checkout (new studios)</h2>
       <p class="muted">Controls the plan page new studio owners see after sign-up (/checkout). Saved switches apply immediately.</p>
       <div class="form">
-        <label class="fld chk"><input type="checkbox" id="coLive"> <span><b>Online payment is live</b> — new studios pay by Razorpay. Turn on only after the payment function is deployed with its keys and every plan has its Razorpay plan ids. Off = new studios start a 14-day free trial.</span></label>
+        <label class="fld chk"><input type="checkbox" id="coLive"> <span><b>Online payment is live</b> — new studios pay by Razorpay. Turn on only after the payment function is deployed with its keys and every plan has its Razorpay plan ids. Off = new studios start an 8-day free trial.</span></label>
         <label class="fld chk"><input type="checkbox" id="coBypass"> <span><b>Testing bypass: show “Skip payment (testing only)”</b> — lets a new studio start a free trial without paying. For internal testing only. <b>Turn OFF before launch.</b></span></label>
         <label class="fld"><span>Terms version new studios accept</span><input type="text" id="coTermsV" maxlength="32" pattern="[A-Za-z0-9._-]{1,32}"></label>
         <button class="btn" id="btnCheckout" type="button">Save checkout settings</button>
@@ -291,10 +293,10 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=204"></script>
 <script src="hq-invoice.js?v=1"></script>
 <script src="hq.js?v=9"></script>
 </body>

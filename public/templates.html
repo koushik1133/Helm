@@ -2,7 +2,8 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<base href="/"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Checklist templates — Helm Events</title>
 <link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
 <link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
@@ -11,6 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
+.muted-ink{color:var(--ink-3);font-size:12px}
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
     --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#18a558;--warn:#e8912d;
     --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
@@ -51,7 +53,9 @@
   .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,96vw);padding:24px}
   .sheet h3{margin:0 0 12px}.foot{display:flex;gap:10px;justify-content:flex-end}
 </style>
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="templates-polish.css?v=1">
+<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="pages-polish-admin.css?v=1">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -102,9 +106,9 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=204"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -122,10 +126,11 @@
     try{ list=await BPStore.templates.list(); }
     catch(e){ BPUI.loadError($("#tplList"), e, render, {what:"templates"}); return; }
     $("#tplList").innerHTML = list.length ? list.map(t=>{ const items=Array.isArray(t.items)?t.items:[];
-      return `<div class="tpl"><div class="h"><b>${esc(t.name)}</b> <span class="badge">${SEC[t.section]||esc(t.section)}</span> <span style="color:var(--ink-3);font-size:12px">${items.length} item${items.length===1?"":"s"}</span>
+      return `<div class="tpl"><div class="h"><b>${esc(t.name)}</b> <span class="badge">${SEC[t.section]||esc(t.section)}</span> <span class="muted-ink">${items.length} item${items.length===1?"":"s"}</span>
         ${canEdit?`<span class="spacer"></span><button type="button" class="lnk" data-edit="${esc(t.id)}" aria-label="Edit template ${esc(t.name)}">Edit</button><button type="button" class="rm" data-del="${esc(t.id)}" aria-label="Delete template ${esc(t.name)}">✕</button>`:""}</div>
         ${items.length?`<ul>${items.slice(0,6).map(i=>`<li>${esc(typeof i==="string"?i:(i&&i.title)||"")}</li>`).join("")}${items.length>6?`<li>…and ${items.length-6} more</li>`:""}</ul>`:""}</div>`;
     }).join("") : `<div class="empty">No templates yet.${canEdit?" Add your first template above — turn a lesson learned into a checklist.":""}</div>`;
+    if(!list.length && window.HelmUI && HelmUI.emptyState) $("#tplList").replaceChildren(HelmUI.emptyState(canEdit?{icon:"📋",title:"No templates yet",text:"Turn a lesson learned into a reusable checklist.",actionLabel:"Add your first template",onAction:()=>{ const n=$("#t_name"); if(n){ n.scrollIntoView({block:"center"}); n.focus(); } }}:{icon:"📋",title:"No templates yet",text:"Templates your studio adds will show here."}));
     $("#tplList").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
       const t=list.find(x=>String(x.id)===b.dataset.del);
       if(!(await BPUI.confirm(`Delete the template "${(t&&t.name)||""}"? This can't be undone.`,{title:"Delete template?",danger:true})))return;
@@ -144,6 +149,7 @@
     const nk=(t)=>String(t||"").normalize("NFKC").toLowerCase().replace(/&/g," and ").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\p{L}\p{N}]+/gu," ").trim();
     const seenK=new Set(); const rawItems=$("#t_items").value.split(/\r?\n|\\n/).map(x=>x.trim()).filter(Boolean);
     const items=rawItems.filter(x=>{ const k=nk(x)||x; if(seenK.has(k)) return false; seenK.add(k); return true; });   // repeated lines (any case/spacing) are kept once
+    if(!items.length){ $("#t_err").textContent="Add at least one checklist item."; $("#t_err").hidden=false; $("#t_items").focus(); return; }   // an empty template applies nothing
     const droppedDup=rawItems.length-items.length;
     const rec={ name, section:$("#t_section").value, items };
     $("#t_err").hidden=true;

@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
+<link rel="stylesheet" href="media-polish.css?v=1">
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Media &amp; gallery · Helm</title>
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -12,6 +13,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
+.muted-ink{color:var(--ink-3)}
   :root{--bg:#f6f4f1;--panel:#fff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
     --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;--safe:#18a558;--warn:#e8912d;
     --shadow:0 1px 2px rgba(20,27,46,.06),0 10px 30px rgba(20,27,46,.10);
@@ -52,6 +54,7 @@
   .badge{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .rm{border:1px solid var(--line);background:var(--panel);border-radius:7px;min-width:32px;height:32px;padding:0 8px;font-size:13px;cursor:pointer;color:var(--ink-3)} .rm:hover{color:#b42318;border-color:#f5c6c6}
   .empty{text-align:center;color:var(--ink-3);padding:26px;font-size:13px}
+  #mediaGrid > .hs-empty{grid-column:1/-1}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
   .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:13px}
   .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
@@ -59,7 +62,8 @@
   .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,96vw);padding:24px}
   .sheet h3{margin:0 0 12px}.foot{display:flex;gap:10px;justify-content:flex-end}.fld2{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}.fld2 label{font-size:12px;font-weight:600;color:var(--ink-2)}.fld2 input{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;font-family:inherit}
 </style>
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="pages-polish-admin.css?v=1">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -116,9 +120,9 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=204"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -151,12 +155,13 @@
       ${thumb}
       <div class="body">
         <div class="cap">${esc(m.caption||"(no caption)")}</div>
-        <div class="row">${m.in_gallery?'<span class="badge">Gallery</span>':'<span style="color:var(--ink-3)">Not in gallery</span>'}
+        <div class="row">${m.in_gallery?'<span class="badge">Gallery</span>':'<span class="muted-ink">Not in gallery</span>'}
           ${(canEdit&&!galleryOnly)?`<span class="spacer"></span>
             <label class="toggle"><input type="checkbox" data-gal="${esc(m.id)}" ${m.in_gallery?"checked":""} aria-label="Show ${esc(name)} in client gallery"> gallery</label>
             <button class="rm" type="button" data-del="${esc(m.id)}" aria-label="Remove ${esc(name)}">✕</button>`:""}</div>
       </div>
     </div>`; }).join("") : `<div class="empty">${galleryOnly?"Nothing flagged for the client gallery yet.":(canEdit?"No media yet. Paste a photo or video link above.":"No media yet.")}</div>`;
+    if(!galleryOnly && !shown.length && window.HelmUI && HelmUI.emptyState){ const es=HelmUI.emptyState(canEdit?{icon:"🖼",title:"No media yet",text:"Paste a photo or video link to start this event's gallery.",actionLabel:"Add a link",onAction:()=>{ const u=$("#m_url"); if(u){ u.scrollIntoView({block:"center"}); u.focus(); } }}:{icon:"🖼",title:"No media yet",text:"Photos and videos for this event will show here."}); es.classList.add("hs-span"); $("#mediaGrid").replaceChildren(es); }
     $("#mediaGrid").querySelectorAll("[data-gal]").forEach(c=>c.addEventListener("change",()=>{
       const want=c.checked;
       BPUI.guard(c, async()=>{

@@ -21,7 +21,9 @@ const t = (name, fn) => tests.push([name, fn]);
 /* ---------------------------------------------------------- 1. <head> hints */
 const PROD = /url:\s*"(https:\/\/[a-z0-9]{20}\.supabase\.co)"/.exec(read('public/config.js'))[1];
 const PAGES = readdirSync(new URL('public/', root)).filter((f) => f.endsWith('.html'));
-const APP_PAGES = PAGES.filter((f) => /store-api\.js/.test(read('public/' + f)));
+// try.html = the public sandbox: store-api.js runs in its offline localStorage tier there
+// (try.js blanks the Supabase config), so it must NOT hint the Supabase origin.
+const APP_PAGES = PAGES.filter((f) => f !== 'try.html' && /store-api\.js/.test(read('public/' + f)));
 const SJS = /file:\s*"(vendor\/supabase-js-[0-9.]+\.min\.js)",\s*integrity:\s*"(sha384-[A-Za-z0-9+/=]+)"/.exec(SRC);
 
 t('the pinned supabase-js integrity in store-api.js matches the vendored file', () => {

@@ -1,0 +1,101 @@
+/* shell-b-pages.css - page-level theme bridge for the new shell (data-shell="b").
+   Loaded right after shell-b.css. Every selector is scoped html[data-shell="b"] and uses hb tokens,
+   so APP pages follow all 6 themes x light/dark. Status/category colours are left alone; never touches [data-money]/.hbp-m. */
+
+/* 1. Page vars theme.css defines but shell-b-style.css does not remap (base themes: cobalt/midnight/emerald/graphite).
+      studio/luxe set their own below in their theme files (loaded later, same specificity => they win). */
+html[data-shell="b"] {
+  --accent-hover: color-mix(in srgb, var(--hb-acc) 85%, var(--hb-ink));
+  --info-text: var(--hb-acc-text);
+  --focus-halo: 0 0 0 3px color-mix(in srgb, var(--hb-acc) 24%, transparent);
+  --cx-accent: var(--hb-acc); --cx-accent-2: var(--hb-acc2);
+}
+
+/* 2. Accent-filled controls that pages hard-code with color:#fff (unreadable on graphite-dark's white accent,
+      and violet in system-dark where [data-theme] is absent). */
+html[data-shell="b"] :is(.btn.primary, button.primary, a.btn.primary, .spot .tip button.pri, .send, .ie-send, .ie-apply, .rb-apply) {
+  background: var(--hb-grad); color: var(--hb-acc-ink); border-color: transparent;
+}
+html[data-shell="b"] :is(.btn.primary, button.primary, a.btn.primary, .rb-apply, .ie-apply):hover:not(:disabled) { background: var(--accent-hover); color: var(--hb-acc-ink); }
+html[data-shell="b"] :is(.tabs button.on, .rtab.active, .ptab.active, .step.active, .step.on, .chip[aria-pressed="true"],
+  .rb-chip[aria-pressed="true"], .hsf-chip[aria-pressed="true"], .ie-ic.on, .plus, .circbtn.plus, .skip-link) {
+  background: var(--hb-on); border-color: var(--hb-on); color: var(--hb-on-ink);
+}
+html[data-shell="b"] .unread { background: var(--hb-acc); color: var(--hb-acc-ink); }
+html[data-shell="b"] :is(.step.active, .step.on) .n { color: var(--hb-on-ink); }
+
+/* 3. Text-accent leftovers (design.html dark nav, wizard dots, smart import) */
+html[data-shell="b"] :not(header) > .nav a.on, html[data-shell="b"] :not(header) > .nav a:hover { color: var(--hb-acc-text); }
+html[data-shell="b"] .wt-dot.on { background: var(--hb-acc); }
+html[data-shell="b"] :is(.wt-primary, .wt-fab) { background: var(--hb-acc); border-color: var(--hb-acc); color: var(--hb-acc-ink); }
+html[data-shell="b"] :is(.hi-steps li.on, .hi-badge.new) { background: var(--hb-acc-soft); color: var(--hb-acc-text); }
+html[data-shell="b"] :is(.hi-drop.over, .hi-drop:focus) { border-color: var(--hb-acc); background: var(--hb-acc-soft); }
+html[data-shell="b"] .tag.linked { background: var(--hb-acc-soft); color: var(--hb-acc-text); }
+
+/* 4. Focus rings, form controls, hover tints */
+html[data-shell="b"] :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea):focus {
+  border-color: var(--hb-acc); box-shadow: var(--focus-halo); outline: none;
+}
+html[data-shell="b"] :is(a, button, [tabindex]):focus-visible { outline: 2px solid var(--hb-acc); outline-offset: 2px; }
+html[data-shell="b"] :is(input[type="checkbox"], input[type="radio"], input[type="range"], progress) { accent-color: var(--hb-acc); }
+
+/* 5. UI QA pass (Oct 2026) */
+/* 5a. theme.css paints .app/.page/.wrap/main #000 in dark: let the shell's themed body show through */
+html[data-shell="b"][data-theme="dark"] :is(.app, .page, .wrap, main) { background-color: transparent; }
+/* 5b. phones: give the page title real room; shrink the tool buttons, drop the desktop link row */
+@media (max-width: 767px) {
+  html[data-shell="b"] header.hb-header nav.nav.hb-navkeep { display: none; }
+}
+@media (max-width: 480px) {
+  html[data-shell="b"] header.hb-header { gap: 6px; }
+  html[data-shell="b"] header.hb-header > :not(.hb-tools):not(.hb-burger):not(nav):not(.mark):not(.spacer):not(.account) { flex: 1 1 0; min-width: 72px; overflow: hidden; }
+  html[data-shell="b"] header.hb-header > div:not([class]) small { display: none; }
+  html[data-shell="b"] header.hb-header h1 { font-size: 16px; }
+  html[data-shell="b"] header.hb-header .hb-tools { gap: 2px; flex: 0 0 auto; }
+  html[data-shell="b"] header.hb-header :is(.hb-burger, .hb-tools .hb-ibtn, .hb-tools .hb-bell .bpb-btn) { width: 36px; min-width: 36px; }
+  html[data-shell="b"] header.hb-header .hb-split .hb-chev { width: 26px; min-width: 26px; padding: 0; }
+}
+/* 5c. quotes: row actions on one horizontally scrollable line instead of a 470px stack */
+@media (max-width: 600px) {
+  html[data-shell="b"] td .row-actions { flex-wrap: nowrap; overflow-x: auto; max-width: 70vw; justify-content: flex-start !important; scrollbar-width: thin; }
+  html[data-shell="b"] td .row-actions > * { flex: 0 0 auto; white-space: nowrap; }
+}
+/* 5d. event: the "set date & time first" chip wraps as one clean pill */
+html[data-shell="b"] #evTime + .stat.q { display: inline-block; white-space: normal; line-height: 1.35; max-width: 100%; }
+@media (max-width: 600px) { html[data-shell="b"] #evTime + .stat.q { display: block; margin: 8px 0 0 !important; width: fit-content; } }
+/* 5e. inventory: empty state stays in view instead of scrolling with the wide table */
+@media (max-width: 767px) {
+  html[data-shell="b"] #stockRows td.empty[colspan] { position: sticky; left: 0; display: block; width: calc(100vw - 64px); box-sizing: border-box; white-space: normal; }
+}
+/* 5f. theme-tokened pills: Quote status, audit EDIT */
+html[data-shell="b"] :is(.stat.q, .act.update) { background: var(--hb-acc-soft); color: var(--hb-acc-text); }
+/* 5g. resources gap KPI: dark risk colour */
+html[data-shell="b"][data-theme="dark"] #s_gap { color: var(--bad-text, #fca5a5); }
+/* 5h. settlement: emoji clear of the heading text in the serif themes */
+html[data-shell="b"] body:has(#pay_amt) .card h2 { word-spacing: .22em; letter-spacing: 0; }
+/* 5i. issues + command: gap under the header */
+html[data-shell="b"] body:is(:has(#arrRows), :has(#openBadge)) .wrap > main#main { padding-top: 20px; }
+/* 5j. chat read ticks readable on light bubbles */
+html[data-shell="b"]:not([data-theme="dark"]) .tick.read { color: #0b7fb8; }
+/* 5k. no violet flash: accent controls don't animate colour from the pre-shell values */
+html[data-shell="b"] :is(.tab, .circbtn.plus, .chip) { transition-property: transform, box-shadow, opacity; }
+/* 5l. success / warn / error / info banners: soft dark fills instead of light glare (calendar "No conflicts", page msgs) */
+html[data-shell="b"][data-theme="dark"] :is(.allclear, .msg.ok, .alert.ok, .okmsg, .okm, .lok, .backok, .ucok) { background: rgba(46,184,114,.12); color: #7fe3a8; border-color: rgba(46,184,114,.32); }
+html[data-shell="b"][data-theme="dark"] :is(.msg.warn, .hi-warn, .info) { background: rgba(245,180,40,.12); color: #ffd884; border-color: rgba(245,180,40,.32); }
+html[data-shell="b"][data-theme="dark"] :is(.loadbanner, .alert.err, .msg.err) { background: rgba(240,80,90,.12); color: #ff9ea3; border-color: rgba(240,80,90,.32); }
+html[data-shell="b"][data-theme="dark"] .conflict { background: rgba(240,80,90,.10); border-color: rgba(240,80,90,.32); }
+html[data-shell="b"][data-theme="dark"] .conflict .when { color: #ff9ea3; }
+@media (prefers-color-scheme: dark) {
+  html[data-shell="b"]:not([data-theme]) :is(.allclear, .msg.ok, .alert.ok, .okmsg, .okm, .lok, .backok, .ucok) { background: rgba(46,184,114,.12); color: #7fe3a8; border-color: rgba(46,184,114,.32); }
+  html[data-shell="b"]:not([data-theme]) :is(.msg.warn, .hi-warn, .info) { background: rgba(245,180,40,.12); color: #ffd884; border-color: rgba(245,180,40,.32); }
+  html[data-shell="b"]:not([data-theme]) :is(.loadbanner, .alert.err, .msg.err) { background: rgba(240,80,90,.12); color: #ff9ea3; border-color: rgba(240,80,90,.32); }
+  html[data-shell="b"]:not([data-theme]) .conflict { background: rgba(240,80,90,.10); border-color: rgba(240,80,90,.32); }
+  html[data-shell="b"]:not([data-theme]) .conflict .when { color: #ff9ea3; }
+}
+
+/* 5f. inventory: availability colours were light-mode only (#b42318 on dark panels = 2.7:1) */
+html[data-shell="b"][data-theme="dark"] .avail.low { color: #f97066; }
+html[data-shell="b"][data-theme="dark"] .avail.mid { color: #fdb022; }
+html[data-shell="b"][data-theme="dark"] .avail.ok { color: #47cd89; }
+/* 5g. insights: negative-margin red was light-mode only (2.7:1 on dark panels) */
+html[data-shell="b"][data-theme="dark"] td.neg { color: #f97066; }

@@ -6,7 +6,7 @@ const ctl = rd("control.html"), chat = rd("chat.html"), login = rd("login.html")
 let n = 0; const t = (name, fn) => { fn(); n++; console.log("ok -", name); };
 t("A3 pending invites table with revoke+confirm", () => { assert.match(ctl, /id="inv_rows"/); assert.match(ctl, /invitations\.list\(\)/); assert.match(ctl, /invitations\.revoke\(/); assert.match(ctl, /Revoke the invite for/); });
 t("A5 chat maxlength 4000 + counter", () => { assert.match(chat, /id="msgInput"[^>]*maxlength="4000"/); assert.match(chat, /id="msgCount"/); assert.match(chat, /function syncCount/); });
-t("A6 forward disabled for media", () => { assert.match(chat, /msg\.kind==="image"\|\|msg\.kind==="voice"/); assert.match(chat, /m\.kind==="image"\|\|m\.kind==="voice"\) return;/); });
+t("A6 media forwarding copies the file (0074 replaced the old disable)", () => { assert.match(chat, /m\.kind==="image"\|\|m\.kind==="voice"\)\) mp=\(await BPStore\.chat\.forwardMedia\(mp,to\)\)\.path/); });
 t("A7 new-chat rows are buttons", () => { assert.match(chat, /<button type="button" class="prow" data-id=/); });
 t("A8 lightbox dialog semantics", () => { assert.match(chat, /setAttribute\("role","dialog"\)/); assert.match(chat, /aria-modal/); assert.match(chat, /e\.key==="Escape"/); assert.match(chat, /prev\.focus\(\)/); });
 t("A9 invite token cleared only on terminal errors", () => { assert.doesNotMatch(login, /finally\{ clearInvite\(\); \}/); assert.match(login, /const terminal=/); assert.match(login, /confirm your e-\?mail/); });

@@ -52,7 +52,9 @@ t('template preview mirrors _comms_render', () => {
   assert.match(mig, /return left\(v, 1000\)/);
 });
 t('edge function: dormant unless HELM_COMMS_ENABLED, shared-secret gated, fixed hosts, no PII logs', () => {
-  assert.match(fn, /if \(Deno\.env\.get\("HELM_COMMS_ENABLED"\) !== "true"\) return json\(\{ status: "dormant" \}\);/);
+  assert.match(fn, /if \(!commsOn\(Deno\.env\.get\("HELM_COMMS_ENABLED"\)\)\) return json\(\{ status: "dormant" \}\);/);
+  assert.match(fn, /WHATSAPP_TPL_TASK_ASSIGNED/); assert.match(fn, /WHATSAPP_TPL_EVENT_REMINDER/);
+  assert.match(fn, /sendWhatsApp\(to, text, "task_assigned"\)/);
   assert.ok(fn.indexOf('HELM_COMMS_ENABLED') < fn.indexOf('comms_outbox_claim'), 'claims before the dormant check');
   assert.match(fn, /secretMatches\(req\.headers\.get\("x-helm-cron-secret"\) \|\| "", Deno\.env\.get\("HELM_COMMS_SECRET"\) \|\| ""\)/);
   assert.match(fn, /new Set\(\["api\.resend\.com", "graph\.facebook\.com"\]\)/);

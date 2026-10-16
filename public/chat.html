@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
+<link rel="stylesheet" href="/chat-polish.css?v=2">
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,7 +10,7 @@
      button, so we opt out of it and put a theme toggle in the header instead. -->
 <meta name="bp-theme-toggle" content="off">
 <title>Team Chat — Helm Events</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d28d9'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
+<link rel="icon" href="/brand/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
 <link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
 <link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
 <link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
@@ -363,13 +364,14 @@
   </div>
 </div>
 
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="theme.css?v=80">
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=204"></script>
 <script>
+(function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
 (function(){
   const $=(s,r)=>(r||document).querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -421,13 +423,13 @@
   function evEmoji(type,title){ try{ return (typeof BPStore!=="undefined"&&BPStore.chat&&BPStore.chat.eventEmoji)?BPStore.chat.eventEmoji(type,title):"📅"; }catch(e){ return "📅"; } }
   const evTypeCache={};  /* quote id → {event_type,title}: one quotes read per refresh, only for groups not seen yet */
   function convAvatar(c){ if(c.kind==="broadcast") return {bg:"var(--accent)",txt:"📢"}; if(c.kind==="group") return {bg:colorFor(c.id),txt:c.quote_id?evEmoji(c._evType,c._evTitle||c.title):"👥"}; const o=convOther(c); return {bg:colorFor(o),txt:initials(personName(o))}; }
-  function avHtml(a,id){ return `<div class="av"${id?' id="'+id+'"':''} style="background:${a.bg}">${esc(a.txt)}</div>`; }
+  function avHtml(a,id){ return `<div class="av"${id?' id="'+id+'"':''} data-st="background:${a.bg}">${esc(a.txt)}</div>`; }
   /* member photos (0041): chat_directory's avatar_path → a lazily signed photo over the initials
      (initials stay underneath as the fallback). The path is escaped here and checked again
      (own bucket keys only) before anything is signed — see BPStore.chat.paintAvatars. */
   function photoOf(id){ const p=roster[id]; return (p&&p.avatar_path)||""; }
   function photoAttr(id){ const p=photoOf(id); return p?` data-avatar-path="${esc(p)}"`:""; }
-  function personAv(id,style){ return `<div class="av" style="background:${colorFor(id)};${style||""}"${photoAttr(id)}>${esc(initials(personName(id)))}</div>`; }
+  function personAv(id,style){ return `<div class="av" data-st="background:${colorFor(id)};${style||""}"${photoAttr(id)}>${esc(initials(personName(id)))}</div>`; }
   function paintAv(root){ try{ if(BPStore.chat.paintAvatars) BPStore.chat.paintAvatars(root); }catch(e){} }
 
   function closeMenus(){ document.querySelectorAll(".menu,.rxpop").forEach(m=>m.remove()); document.querySelectorAll(".m.menu-open").forEach(m=>m.classList.remove("menu-open")); }
@@ -524,7 +526,7 @@
       return `<div class="conv ${c.id===activeId?'on':''}" data-id="${esc(c.id)}" role="button" tabindex="0">
         ${c.kind==="dm"?personAv(convOther(c)):avHtml(a)}
         <div class="meta"><div class="r1"><span class="nm">${esc(convTitle(c))}</span><span class="tm ${c._unread?'hilite':''}">${esc(fmtListTime(t))}</span></div>
-          <div class="r2"><span class="pv">${lastPreview(c)}</span><span class="marks" style="display:inline-flex;gap:3px;align-items:center;color:var(--ink-3);font-size:12px">${mutes.has(c.id)?'🔕':''}${pins.has(c.id)?'📌':''}${favs.has(c.id)&&!c._unread?'★':''}${c._unread?`<span class="unread">${c._unread>99?'99+':c._unread}</span>`:''}</span></div></div>
+          <div class="r2"><span class="pv">${lastPreview(c)}</span><span class="marks" data-st="display:inline-flex;gap:3px;align-items:center;color:var(--ink-3);font-size:12px">${mutes.has(c.id)?'🔕':''}${pins.has(c.id)?'📌':''}${favs.has(c.id)&&!c._unread?'★':''}${c._unread?`<span class="unread">${c._unread>99?'99+':c._unread}</span>`:''}</span></div></div>
       </div>`; }).join("");
     paintAv(host);
     host.querySelectorAll(".conv").forEach(el=>{ const go=()=>openConv(el.dataset.id);
@@ -544,11 +546,13 @@
     convs.forEach(c=>{ const t=c.quote_id&&evTypeCache[c.quote_id]; if(t){ c._evType=t.event_type; c._evTitle=t.title; } });
   }
   async function refresh(){
+    const prev={}; convs.forEach(c=>{ prev[c.id]=c; });
     try{ convs=await BPStore.chat.conversations(); backendReady=true; }catch(e){ convs=[]; backendReady=false; }
     const mem=await BPStore.chat.myMemberships().catch(()=>({}));
     convs.forEach(c=>{ const m=mem[c.id]; c._lastRead=m&&m.last_read_at; });
     await Promise.all(convs.map(async c=>{ try{ const t=await BPStore.chat.thread(c.id,80,{light:true}); c._members=t.members; c._msgs=t.messages; c._last=t.messages[t.messages.length-1]||null; c._unread=unreadCount(c); }
-      catch(e){ c._members=[]; c._last=null; c._unread=0; } }));
+      catch(e){ const o=prev[c.id]; // keep the last good preview if a background re-read fails
+        c._members=o?o._members||[]:[]; c._msgs=o?o._msgs:undefined; c._last=o?o._last||null:null; c._unread=o?unreadCount(c):0; } }));
     await resolveEventTypes();
     renderConvs();
   }
@@ -633,7 +637,7 @@
   // the row at the top of the thread: Load earlier messages / Loading… / start of the chat
   function olderRowHtml(failed){
     if(loadingOlder) return '<div class="daysep" data-older role="status"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading earlier messages…</span></div>';
-    if(thread.hasMore) return `<div class="daysep" data-older>${failed?"Couldn’t load earlier messages · ":""}<button type="button" class="linkbtn" data-older-btn style="background:none;border:0;color:var(--accent);font:inherit;cursor:pointer;text-decoration:underline">${failed?"Retry":"Load earlier messages"}</button></div>`;
+    if(thread.hasMore) return `<div class="daysep" data-older>${failed?"Couldn’t load earlier messages · ":""}<button type="button" class="linkbtn" data-older-btn data-st="background:none;border:0;color:var(--accent);font:inherit;cursor:pointer;text-decoration:underline">${failed?"Retry":"Load earlier messages"}</button></div>`;
     return "";
   }
   function paintOlderRow(failed){ const host=$("#msgs"); const row=host.querySelector("[data-older]");
@@ -652,17 +656,17 @@
       const day=fmtDay(m.created_at); if(day!==lastDay){ html+=`<div class="daysep">${esc(day)}</div>`; lastDay=day; lastSender=null; }
       const mine=m.sender_id===ME.id; const grpStart=(m.sender_id!==lastSender); lastSender=m.sender_id;
       if(isEventCard(m)&&!m.deleted){ html+=`<div class="m sys" tabindex="0" data-mid="${esc(m.id)}"><div class="evcard">${eventCardHtml(m.meta)}<span class="meta-in">${fmtTime(m.created_at)}</span></div></div>`; lastSender=null; return; }
-      if(m.deleted){ html+=`<div class="m ${mine?'me':'them'} ${grpStart?'grpstart':''}"><div class="bub" style="opacity:.65;font-style:italic"><span class="txt">🚫 This message was deleted</span><span class="meta-in">${fmtTime(m.created_at)}</span></div></div>`; return; }
+      if(m.deleted){ html+=`<div class="m ${mine?'me':'them'} ${grpStart?'grpstart':''}"><div class="bub" data-st="opacity:.65;font-style:italic"><span class="txt">🚫 This message was deleted</span><span class="meta-in">${fmtTime(m.created_at)}</span></div></div>`; return; }
       const by=reactsFor(m.id); const rx=Object.keys(by).map(e=>`<span class="rx ${by[e].indexOf(ME.id)>=0?'on':''}" data-react="${esc(m.id)}" data-emoji="${esc(e)}">${esc(e)} ${by[e].length}</span>`).join("");
       let inner="";
-      if(isGroup&&!mine&&grpStart) inner+=`<div class="who" style="color:${colorFor(m.sender_id)}">${personAv(m.sender_id,"width:20px;height:20px;font-size:9px;display:inline-flex;vertical-align:-5px;margin-right:6px")}${esc(personName(m.sender_id))}</div>`;
+      if(isGroup&&!mine&&grpStart) inner+=`<div class="who" data-st="color:${colorFor(m.sender_id)}">${personAv(m.sender_id,"width:20px;height:20px;font-size:9px;display:inline-flex;vertical-align:-5px;margin-right:6px")}${esc(personName(m.sender_id))}</div>`;
       if(m.reply_to){ const rm=msgs.find(x=>x.id===m.reply_to); if(rm){ const rsnip=rm.kind==="image"?"📷 Photo":rm.kind==="voice"?"🎤 Voice message":rm.kind==="card"?cardLabel(rm):(rm.body||""); inner+=`<div class="reply" data-goto="${esc(rm.id)}"><b>${esc(rm.sender_id===ME.id?"You":personName(rm.sender_id))}</b><span class="rt">${esc(rsnip)}</span></div>`; } }
       if(m.kind==="image"){ inner+=`<img class="photo" data-media="${esc(m.media_path||"")}" alt="Photo" loading="lazy">`; if(m.body) inner+=`<div class="cap txt">${esc(m.body)}</div>`; }
       else if(m.kind==="voice"){ inner+=`<audio controls preload="none" data-media="${esc(m.media_path||"")}"></audio>`; }
       else if(m.kind==="card"){ inner+=cardHtml(m.meta); if(m.body) inner+=`<div class="cap txt">${mentionHtml(m.body,m.meta&&m.meta.mentions)}</div>`; }
       else inner+=`<span class="txt">${mentionHtml(m.body,m.meta&&m.meta.mentions)}</span>`;
       const ticks=mine?ticksHtml(m,thread.members,!!m._pending):"";
-      const edited=m.edited_at?'<span style="opacity:.7">(edited)</span> ':"";
+      const edited=m.edited_at?'<span data-st="opacity:.7">(edited)</span> ':"";
       inner+=`<span class="meta-in">${edited}${fmtTime(m.created_at)} ${ticks}</span>`;
       html+=`<div class="m ${mine?'me':'them'} ${grpStart?'grpstart':''}" tabindex="0" data-mid="${esc(m.id)}">
         <div class="bub">${inner}<div class="mtools"><button class="caret" data-caret="${esc(m.id)}" aria-label="Message menu">⌄</button></div></div>
@@ -682,10 +686,10 @@
   function msgMenu(anchor,mid){ const r=anchor.getBoundingClientRect(); closeMenus();
     const msg=thread.messages.find(x=>x.id===mid); const mine=msg&&msg.sender_id===ME.id;
     const m=document.createElement("div"); m.className="rxpop";
-    let html=RX_EMOJI.map(e=>`<button data-e="${esc(e)}">${e}</button>`).join("")+`<button data-reply="1" title="Reply" style="font-size:15px">↩</button>`;
-    if(mine) html+=`<button data-fwd="1" title="Forward" style="font-size:15px">↪</button>`;
-    if(mine&&msg&&msg.kind==="text") html+=`<button data-edit="1" title="Edit" style="font-size:15px">✏️</button>`;
-    if(mine) html+=`<button data-del="1" title="Delete" style="font-size:15px">🗑</button>`;
+    let html=RX_EMOJI.map(e=>`<button data-e="${esc(e)}">${e}</button>`).join("")+`<button data-reply="1" title="Reply" data-st="font-size:15px">↩</button>`;
+    if(mine) html+=`<button data-fwd="1" title="Forward" data-st="font-size:15px">↪</button>`;
+    if(mine&&msg&&msg.kind==="text") html+=`<button data-edit="1" title="Edit" data-st="font-size:15px">✏️</button>`;
+    if(mine) html+=`<button data-del="1" title="Delete" data-st="font-size:15px">🗑</button>`;
     m.innerHTML=html; document.body.appendChild(m);
     const mEl=anchor.closest(".m"); if(mEl) mEl.classList.add("menu-open");
     let left=Math.min(r.left-80,window.innerWidth-m.offsetWidth-8); if(left<8)left=8; let top=r.top-m.offsetHeight-4; if(top<8)top=r.bottom+4;
@@ -837,7 +841,7 @@
     return [...new Set(ids)].filter(id=>id&&id!==ME.id&&roster[id]).map(id=>({id,name:personName(id)})).sort((a,b)=>a.name.localeCompare(b.name)); }
   function mpClose(){ mp.open=false; mp.items=[]; const el=$("#mentionPop"); if(el){ el.hidden=true; el.innerHTML=""; } }
   function mpRender(){ const el=$("#mentionPop");
-    el.innerHTML=mp.items.map((p,i)=>`<button type="button" role="option" aria-selected="${i===mp.idx}" class="${i===mp.idx?'on':''}" data-i="${i}"><span class="av" style="background:${colorFor(p.id)}"${photoAttr(p.id)}>${esc(initials(p.name))}</span>${esc(p.name)}</button>`).join(""); paintAv(el);
+    el.innerHTML=mp.items.map((p,i)=>`<button type="button" role="option" aria-selected="${i===mp.idx}" class="${i===mp.idx?'on':''}" data-i="${i}"><span class="av" data-st="background:${colorFor(p.id)}"${photoAttr(p.id)}>${esc(initials(p.name))}</span>${esc(p.name)}</button>`).join(""); paintAv(el);
     el.hidden=false; mp.open=true;
     el.querySelectorAll("button[data-i]").forEach(b=>b.addEventListener("mousedown",e=>{ e.preventDefault(); mpPick(+b.dataset.i); })); }
   function mpUpdate(){ const ta=$("#msgInput"); if(!activeId||!ta) return mpClose(); const pos=ta.selectionStart; const before=ta.value.slice(0,pos);
@@ -870,7 +874,7 @@
 
   /* ---------- attach quote / layout ---------- */
   function stageAttachment(meta,icon,title,sub){ staged=meta; $("#attachBar").hidden=false;
-    $("#attachInfo").innerHTML=`<span class="ic">${icon}</span><div style="min-width:0"><b>${esc(title)}</b><span>${esc(sub||(meta.kind==="quote"?"Quote":"Layout"))}</span></div>`;
+    $("#attachInfo").innerHTML=`<span class="ic">${icon}</span><div data-st="min-width:0"><b>${esc(title)}</b><span>${esc(sub||(meta.kind==="quote"?"Quote":"Layout"))}</span></div>`;
     $("#msgInput").focus(); syncSend(); }
   async function quotePicker(){ let list=[]; try{ list=await BPStore.quotes.list(); }catch(e){ list=[]; }
     pickerModal("Attach a quote","📄",(list||[]).map(q=>({ icon:"📄",
@@ -888,7 +892,7 @@
     ov.innerHTML=`<div class="modal"><h3>${esc(title)}</h3><input class="gname" id="pkSearch" placeholder="Search…" aria-label="Search" autocomplete="off"><div class="body" id="pkBody"></div><div class="foot"><button class="btn" data-close>Cancel</button></div></div>`;
     document.body.appendChild(ov); const body=$("#pkBody",ov);
     const draw=(q)=>{ const ql=(q||"").toLowerCase(); const f=rows.filter(r=>!ql||((r.title+" "+(r.sub||"")).toLowerCase().includes(ql)));
-      body.innerHTML=f.length?f.map(r=>`<div class="prow" data-i="${rows.indexOf(r)}"><div class="av" style="width:40px;height:40px;font-size:18px;background:var(--accent-soft);color:var(--accent)">${esc(r.icon)}</div><div class="nm" style="font-weight:500"><b style="display:block;font-size:14.5px">${esc(r.title)}</b><span style="font-size:12px;color:var(--ink-3)">${esc(r.sub||"")}</span></div></div>`).join(""):`<div style="padding:18px;color:var(--ink-3)">${esc(emptyText)}</div>`;
+      body.innerHTML=f.length?f.map(r=>`<div class="prow" data-i="${rows.indexOf(r)}"><div class="av" data-st="width:40px;height:40px;font-size:18px;background:var(--accent-soft);color:var(--accent)">${esc(r.icon)}</div><div class="nm" data-st="font-weight:500"><b data-st="display:block;font-size:14.5px">${esc(r.title)}</b><span data-st="font-size:12px;color:var(--ink-3)">${esc(r.sub||"")}</span></div></div>`).join(""):`<div data-st="padding:18px;color:var(--ink-3)">${esc(emptyText)}</div>`;
       body.querySelectorAll(".prow[data-i]").forEach(el=>el.addEventListener("click",()=>{ const r=rows[+el.dataset.i]; closeModal(); if(onPick) onPick(r.meta); else stageAttachment(r.meta,r.icon,r.title,r.sub); })); };
     draw(""); $("#pkSearch",ov).addEventListener("input",e=>draw(e.target.value));
     ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); }); }
@@ -944,19 +948,19 @@
   /* ---------- modals ---------- */
   function closeModal(){ const m=$("#modalOv"); if(m) m.remove(); }
   function others(){ return (BPStore.chat.isLocal()?BPStore.chat.localRoster():Object.values(roster)).filter(p=>p.id!==ME.id); }
-  function prowAvatar(p){ return `<div class="av" style="width:40px;height:40px;font-size:14px;background:${colorFor(p.id)}"${p.avatar_path?` data-avatar-path="${esc(p.avatar_path)}"`:""}>${esc(initials(pname(p)))}</div>`; }
+  function prowAvatar(p){ return `<div class="av" data-st="width:40px;height:40px;font-size:14px;background:${colorFor(p.id)}"${p.avatar_path?` data-avatar-path="${esc(p.avatar_path)}"`:""}>${esc(initials(pname(p)))}</div>`; }
   function newDmModal(){ const people=others(); const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
-    ov.innerHTML=`<div class="modal"><h3>New chat</h3><div class="body">${people.map(p=>`<button type="button" class="prow" data-id="${esc(p.id)}" aria-label="${esc("Chat with "+pname(p)+", "+roleLbl(p.role))}">${prowAvatar(p)}<div class="nm">${esc(pname(p))}</div><span class="rl">${esc(roleLbl(p.role))}</span></button>`).join("")||'<div style="padding:16px;color:var(--ink-3)">No teammates in your organization yet.</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button></div></div>`;
+    ov.innerHTML=`<div class="modal"><h3>New chat</h3><div class="body">${people.map(p=>`<button type="button" class="prow" data-id="${esc(p.id)}" aria-label="${esc("Chat with "+pname(p)+", "+roleLbl(p.role))}">${prowAvatar(p)}<div class="nm">${esc(pname(p))}</div><span class="rl">${esc(roleLbl(p.role))}</span></button>`).join("")||'<div data-st="padding:16px;color:var(--ink-3)">No teammates in your organization yet.</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button></div></div>`;
     document.body.appendChild(ov); paintAv(ov); ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
     ov.querySelectorAll(".prow").forEach(r=>r.addEventListener("click",async()=>{ closeModal(); try{ const id=await BPStore.chat.startDm(r.dataset.id); await refresh(); await openConv(id); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"start the chat"}),{type:"err"}); } })); }
   function newGroupModal(){ const people=others(); const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
-    ov.innerHTML=`<div class="modal"><h3>New group</h3><input class="gname" id="gName" placeholder="Group name" aria-label="Group name"><div class="body">${people.map(p=>`<label class="prow">${prowAvatar(p)}<div class="nm">${esc(pname(p))}</div><input type="checkbox" value="${esc(p.id)}"></label>`).join("")||'<div style="padding:16px;color:var(--ink-3)">No teammates to add yet.</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="gCreate">Create</button></div></div>`;
+    ov.innerHTML=`<div class="modal"><h3>New group</h3><input class="gname" id="gName" placeholder="Group name" aria-label="Group name"><div class="body">${people.map(p=>`<label class="prow">${prowAvatar(p)}<div class="nm">${esc(pname(p))}</div><input type="checkbox" value="${esc(p.id)}"></label>`).join("")||'<div data-st="padding:16px;color:var(--ink-3)">No teammates to add yet.</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="gCreate">Create</button></div></div>`;
     document.body.appendChild(ov); paintAv(ov); ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
     $("#gCreate").addEventListener("click",async()=>{ const name=$("#gName").value.trim(); if(!name){ $("#gName").focus(); return; } const ids=[...ov.querySelectorAll("input[type=checkbox]:checked")].map(c=>c.value);
       closeModal(); try{ const id=await BPStore.chat.createGroup(name,ids); await refresh(); await openConv(id); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"create the group"}),{type:"err"}); } }); }
   function addMembersModal(){ const c=convs.find(x=>x.id===activeId); if(!c) return; const inIds=(thread.members||[]).map(m=>m.user_id);
     const people=others().filter(p=>inIds.indexOf(p.id)<0); const ov=document.createElement("div"); ov.className="ov"; ov.id="modalOv";
-    ov.innerHTML=`<div class="modal"><h3>Add members</h3><div class="body">${people.map(p=>`<label class="prow">${prowAvatar(p)}<div class="nm">${esc(pname(p))}</div><input type="checkbox" value="${esc(p.id)}"></label>`).join("")||'<div style="padding:16px;color:var(--ink-3)">Everyone is already in this group.</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="aAdd">Add</button></div></div>`;
+    ov.innerHTML=`<div class="modal"><h3>Add members</h3><div class="body">${people.map(p=>`<label class="prow">${prowAvatar(p)}<div class="nm">${esc(pname(p))}</div><input type="checkbox" value="${esc(p.id)}"></label>`).join("")||'<div data-st="padding:16px;color:var(--ink-3)">Everyone is already in this group.</div>'}</div><div class="foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="aAdd">Add</button></div></div>`;
     document.body.appendChild(ov); paintAv(ov); ov.addEventListener("click",e=>{ if(e.target===ov||e.target.hasAttribute("data-close")) closeModal(); });
     $("#aAdd").addEventListener("click",async()=>{ const ids=[...ov.querySelectorAll("input[type=checkbox]:checked")].map(c=>c.value); closeModal(); if(!ids.length) return;
       try{ await BPStore.chat.addMembers(activeId,ids); await loadThread(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"add members"}),{type:"err"}); } }); }

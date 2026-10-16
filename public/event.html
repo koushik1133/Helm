@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
+<link rel="stylesheet" href="/event-polish.css?v=1">
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -30,6 +31,10 @@
   .account{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)}
   .account .role{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:20px;background:var(--accent-soft);color:var(--accent)}
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .egpanel .egrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .egpanel .egtxt{flex:1;min-width:200px}
+  .egpanel .egtxt b{display:block;margin-bottom:2px}
+  .egpanel .egtxt span{font-size:13px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
   .ev{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap}
   .ev .code{font-family:var(--mono);font-weight:700;font-size:22px;color:var(--accent)}
@@ -37,7 +42,7 @@
   .ev .client-link{display:inline-block;margin-top:4px;font-size:12px;font-weight:600;color:var(--accent);text-decoration:underline;min-height:24px}
   .ev .tot{margin-left:auto;text-align:right} .ev .tot .amt{font-family:var(--mono);font-weight:700;font-size:20px}
   .stat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 9px;border-radius:20px;vertical-align:middle}
-  .stat.q{background:#eef2ff;color:#4457c8} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318} .stat.st{background:#fff7e6;color:#946200}
+  .stat.q{background:#eef2ff;color:#4457c8} .stat.ok{background:#e7f6ee;color:#0f7a43} .stat.no{background:#fdecec;color:#b42318} .stat.st{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn-text)}
   /* lifecycle stepper */
   .steps{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;margin-top:6px;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
   .step{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:5px 10px;border-radius:20px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink-3);cursor:pointer;white-space:nowrap;flex:0 0 auto}
@@ -68,12 +73,31 @@
   .lsheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(380px,94vw);padding:26px;text-align:center}
   .lsheet h3{font-size:18px;margin:8px 0 12px} .lsheet label{display:block;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px}
   .lsheet input{width:100%;height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:9px;padding:0 12px;margin-bottom:12px;font-family:inherit}
+  /* QA-FR2: summary emphasis colours readable in dark mode (were inline hex, ~2.6:1 on dark cards) */
+  .t-bad{color:#b42318} .t-ok{color:var(--safe-text,#0f7a43)} .t-warn{color:var(--warn-text,#8f5f00)}
+  html[data-theme=dark] .t-bad{color:#fca5a5}
+  /* single "Next step" call-to-action + plain-words tool descriptions */
+  .nextstep{height:40px;padding:0 20px;font-size:14px}
+  .mod .desc{color:var(--ink-3);font-size:12px;margin-top:-6px}
+  /* in-place event group picker (event-group-picker.js) */
+  .egp-sheet{width:min(460px,94vw);text-align:left} .egp-h{display:flex;align-items:center;gap:8px}
+  .egp-x{margin-left:auto;border:0;background:none;font-size:16px;cursor:pointer;color:var(--ink-3)}
+  .egp-sub{margin:0 0 12px;font-size:13px}
+  .egp-list{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:12px}
+  .egp-list .egp-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--line-2);margin:0;text-transform:none;font-size:13px;font-weight:500;color:var(--ink);cursor:pointer}
+  .egp-list .egp-row:first-child{border-top:0}
+  .egp-list input[type=checkbox]{width:auto;height:auto;margin:0}
+  .egp-list .egav{width:28px;height:28px;border-radius:50%;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--accent);font-size:11px;font-weight:700;position:relative;overflow:hidden}
+  .egp-rl{margin-left:auto;color:var(--ink-3);font-size:12px} .egp-empty{padding:14px}
+  .egp-btns{display:flex;justify-content:flex-end;gap:8px}
   .lerr{background:#fdecec;color:#b42318;border:1px solid #f5c6c6;border-radius:8px;padding:8px 11px;font-size:12px;margin-bottom:12px}
 </style>
-<link rel="stylesheet" href="booklet-share.css?v=1">
+<link rel="stylesheet" href="booklet-share.css?v=2">
 <link rel="stylesheet" href="pkg-review.css?v=1">
 <link rel="stylesheet" href="share-checklist.css?v=2">
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="event-reminders.css?v=1">
+<link rel="stylesheet" href="pages-polish-ops.css?v=1">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -107,12 +131,13 @@
         <div class="tot"><div class="muted">Total</div><div class="amt" id="total">—</div></div>
       </div>
       <div class="s-766d7d2" id="reapprBanner" role="status" hidden></div>
+      <div class="nextbar" id="nextStepBar" hidden><a class="btn primary nextstep" id="nextStepBtn" href="#">Next step →</a><span class="hint" id="nextStepWhy"></span></div>
       <div class="steps" id="steps"></div>
       <div class="nextbar">
         <div class="hint" id="nextHint"></div>
         <span class="spacer"></span>
         <a class="btn" id="inviteBtn" hidden>✨ Invitation site</a>
-        <button type="button" class="btn primary" id="advBtn" hidden>Advance to next stage →</button>
+        <button type="button" class="btn" id="advBtn" hidden>Advance to next stage →</button>
       </div>
     </div>
 
@@ -133,6 +158,13 @@
       <div id="filesList"><div class="muted s-5e0faad"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></div></div>
     </section>
   </div>
+    <!-- Event group (0035): team chat for a confirmed event — create once, then open -->
+    <section id="egPanel" class="card egpanel" aria-label="Event team chat" hidden>
+      <div class="egrow">
+        <div class="egtxt"><b id="egPanelTitle">💬 Event team chat</b><span class="muted" id="egPanelSub">One chat for this event's team. Helm posts the event details (no prices).</span></div>
+        <a class="btn primary" id="egPanelBtn" href="#">Create event group</a>
+      </div>
+    </section>
   </main>
 </div>
 
@@ -149,14 +181,16 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
-<script src="tour.js?v=9"></script>
-<script src="booklet.js?v=16"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=204"></script>
+<script src="event-reminders.js?v=1"></script>
+<script src="tour.js?v=14"></script>
+<script src="booklet.js?v=18"></script>
 <script src="share-checklist.js?v=9"></script>
 <script src="booklet-share.js?v=6"></script>
 <script src="pkg-review.js?v=4"></script>
+<script src="event-group-picker.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -171,7 +205,7 @@
     {k:"discovery",label:"Discovery",hint:"Meet the client and capture requirements before quoting.",mods:["discovery","quote"]},
     {k:"proposal",label:"Proposal",hint:"Share the concept and design direction.",mods:["proposal","layout","plandetails","quote"]},
     {k:"quote",label:"Quote",hint:"Lock the menu first, design the floor, then price the event.",mods:["plandetails","layout","quote"]},
-    {k:"confirmed",label:"Confirmed",hint:"Lock the details and get the client's approval.",mods:["approval","plandetails"]},
+    {k:"confirmed",label:"Confirmed",hint:"Lock the details and get the client's approval.",mods:["quote","plandetails"]},
     {k:"planning",label:"Planning",hint:"Assign tasks, plan resources and build the run-sheet.",mods:["resourceplan","runsheet","budget"]},
     {k:"resources",label:"Resources",hint:"Map needs, cover in-house, flag the gaps.",mods:["resourceplan","inventory","tasks"]},
     {k:"ready",label:"Ready",hint:"Pass the readiness gate, then brief the team.",mods:["readycheck","runsheet","logistics"]},
@@ -180,8 +214,15 @@
     {k:"closed",label:"Closed",hint:"Feedback, P&L and archive.",mods:["closure"]},
   ];
   const stageIndex=(k)=>Math.max(0,STAGES.findIndex(s=>s.k===k));
+  // The stored lifecycle stage can lag behind the quote: a confirmed quote is at least "Confirmed",
+  // and once the client's advance is recorded the event is "Booked". Display only — nothing is written.
+  const advanceIn=()=> !!ev && (ev.approvalStatus==="paid" || !!(settleSummary && Number(settleSummary.received)>0));
+  const effStage=()=>{ const k=(ev&&ev.lifecycleStage)||"quote";
+    return (ev && ev.status==="confirmed" && stageIndex(k)<stageIndex("confirmed")) ? "confirmed" : k; };
+  const isConfirmed=()=> !!ev && (ev.status==="confirmed" || stageIndex(effStage())>=stageIndex("confirmed"));
+  const stageLabel=(s)=> (s.k==="confirmed" && advanceIn()) ? "Booked" : s.label;
 
-  let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, staffSummary=null, vendorSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, closureSummary=null, mediaSummary=null, conflictSummary=null;
+  let ev=null, canEdit=false, canFin=false, canPipe=false, tasksSummary=null, staffSummary=null, vendorSummary=null, discSummary=null, propSummary=null, invSummary=null, resSummary=null, runSummary=null, budgetSummary=null, planSummary=null, logiSummary=null, readySummary=null, daySummary=null, issuesSummary=null, teardownSummary=null, settleSummary=null, billsDelta=0, closureSummary=null, mediaSummary=null, conflictSummary=null;
   const evTotal=()=> (ev && (ev.total!=null?ev.total:(ev.pricing&&ev.pricing.total))) || 0;
   const budgetRange=()=>{ const d=discSummary&&discSummary.disc; if(!d) return ""; const a=d.budget_min, b=d.budget_max;
     if(a!=null&&b!=null) return inr(a)+"–"+inr(b); if(a!=null) return "from "+inr(a); if(b!=null) return "up to "+inr(b); return ""; };
@@ -230,10 +271,9 @@
         runSummary={ total:rs.length, first: wt.length?wt[0].start_time.slice(0,5):null }; }),
       S(async()=>{ budgetSummary=await BPStore.budget.summary(id); }),
       S(async()=>{ planSummary=await BPStore.plan.get(id); }),
-      S(async()=>{ const [g,ms]=await Promise.all([BPStore.checklist.list(id,"guests"), BPStore.milestones.list(id)]);
+      S(async()=>{ const g=await BPStore.checklist.list(id,"guests");
         const guests=g.reduce((a,x)=>a+Number(x.qty||0),0);
-        const outstanding=ms.filter(m=>m.status!=="paid"&&m.status!=="waived").reduce((a,m)=>a+Number(m.amount||0),0);
-        logiSummary={ guests, outstanding }; }),
+        logiSummary={ guests }; }),   // money due lives once, on the Payments & invoice card
       S(async()=>{ readySummary=await BPStore.readiness.check(id); }),
       S(async()=>{ const [arr,chk]=await Promise.all([BPStore.dayops.list(id,"arrival"), BPStore.dayops.list(id,"check")]);
         daySummary={ here:arr.filter(a=>a.status==='arrived'||a.status==='left').length, arr:arr.length,
@@ -241,18 +281,21 @@
       S(async()=>{ const iss=await BPStore.issues.list(id); issuesSummary={ open:iss.filter(i=>i.status!=='resolved').length, total:iss.length }; }),
       S(async()=>{ const [rs,td]=await Promise.all([BPStore.inventory.reservations(id), BPStore.checklist.list(id,"teardown")]);
         teardownSummary={ retDone:rs.filter(r=>r.status==='returned').length, retTotal:rs.length, tdDone:td.filter(t=>t.status==='done').length, tdTotal:td.length }; }),
-      S(async()=>{ settleSummary=await BPStore.settlement.summary(id); }),
+      // vendor figures + profit use the same bills rule as Settlement (bills replace booked cost)
+      S(async()=>{ billsDelta=0; const sm=await BPStore.settlement.summary(id); billsDelta=BPStore.settlement.applyBills?await BPStore.settlement.applyBills(sm,id):0; settleSummary=sm; }),
       S(async()=>{ const st=await BPStore.quotes.staleApprovals([id]); staleInfo = st.has(id) ? ((st.detail||{})[id]||{}) : null; }),
       S(async()=>{ const [pl,c]=await Promise.all([BPStore.closure.pl(id), BPStore.closure.get(id)]);
-        closureSummary={ profit:pl.profit, pct:pl.marginPct, closed:!!(c&&c.closed_at) }; }),
+        closureSummary={ profit:pl.profit, rev:pl.revenue, pct:pl.marginPct, closed:!!(c&&c.closed_at) }; }),
       S(async()=>{ const md=await BPStore.media.list(id); mediaSummary={ photos:md.filter(m=>m.kind==='photo').length, videos:md.filter(m=>m.kind==='video').length, gallery:md.filter(m=>m.in_gallery).length, total:md.length }; }),
       S(async()=>{ conflictSummary=await BPStore.calendar.conflictsForEvent(id); }),
     ]);
+    if(closureSummary && billsDelta){ closureSummary.profit=Math.round((closureSummary.profit+billsDelta)*100)/100;
+      closureSummary.pct=closureSummary.rev?Math.round(closureSummary.profit/closureSummary.rev*100):null; }
     render();   // re-paint with the loaded summaries
   }
 
   const statBadge=(s)=> s==="confirmed"?'<span class="stat ok">Confirmed</span>':s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
-  const apprBadge=(a)=> a==="paid"?'<span class="stat ok">Paid</span>':a==="approved"?'<span class="stat ok">Approved</span>':a==="sent"?'<span class="stat st">Sent for approval</span>':"";
+  const apprBadge=(a)=> a==="paid"?'<span class="stat ok" title="The client paid the advance; check Payments for the balance">Advance paid</span>':a==="approved"?'<span class="stat ok">Approved</span>':a==="sent"?'<span class="stat st">Sent for approval</span>':"";
 
   let staleInfo=null;   // 0052: client approval went stale after a price change
   function renderReapproval(){
@@ -280,21 +323,23 @@
     $("#title").textContent=(window.HelmEventName&&HelmEventName.displayName)?HelmEventName.displayName(ev):(ev.title||ev.code);
     try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[ev.code,ev.title].filter((v,i,a)=>v&&a.indexOf(v)===i).join(" "),kind:"event",href:"event.html?id="+encodeURIComponent(id)}); }catch(e){}
     const cl=ev.client||{};
-    $("#meta").textContent=[ev.eventType, cl.name?("for "+cl.name):"", cl.eventDate||""].filter(Boolean).join(" · ")||"No client details yet";
-    { const cLink=$("#clientLink"); if(cLink){ cLink.href="client.html?id="+encodeURIComponent(ev.id||id); cLink.textContent=(cl.name?cl.name+" · ":"")+"Client page →"; cLink.hidden=false; } }
+    // the date has its own editable row (#dateRow) and the client name is on the meta line — each shown once
+    $("#meta").textContent=[ev.eventType, cl.name?("for "+cl.name):""].filter(Boolean).join(" · ")||"No client details yet";
+    { const cLink=$("#clientLink"); if(cLink){ cLink.href="client.html?id="+encodeURIComponent(ev.id||id); cLink.textContent="Client page →"; cLink.hidden=false; } }
     $("#total").textContent = canFin ? (evTotal()? inr(evTotal()):"—") : "—";
     const totWrap=$("#total").closest(".tot"); if(totWrap) totWrap.hidden=!canFin;
     renderDateRow();
 
-    const cur=stageIndex(ev.lifecycleStage);
+    const cur=stageIndex(effStage());
     $("#steps").innerHTML=STAGES.map((s,i)=>{
       const cls=i<cur?"done":i===cur?"active":"";
-      return `<button type="button" class="step ${cls}" data-k="${s.k}" ${i===cur?'aria-current="step"':""} ${canEdit&&!stageBusy?"":"disabled"}><span class="n">${i<cur?"✓":i+1}</span>${s.label}</button>`;
+      return `<button type="button" class="step ${cls}" data-k="${s.k}" ${i===cur?'aria-current="step"':""} ${canEdit&&!stageBusy?"":"disabled"}><span class="n">${i<cur?"✓":i+1}</span>${esc(stageLabel(s))}</button>`;
     }).join("");
     if(canEdit) $("#steps").querySelectorAll(".step").forEach(b=>b.addEventListener("click",(e)=>{ if(e.detail>1) return; setStage(b.dataset.k,b); }));
-    $("#nextHint").innerHTML=`<b>Now:</b> ${esc(STAGES[cur].hint)}`;
+    $("#nextHint").innerHTML=`<b>Now:</b> ${esc((STAGES[cur].k==="confirmed"&&advanceIn())?"Booked — the advance is in. Plan the day next.":STAGES[cur].hint)}`;
+    renderNextStep(cur);
     const adv=$("#advBtn");
-    if(canEdit && cur<STAGES.length-1){ adv.hidden=false; adv.textContent="Advance to "+STAGES[cur+1].label+" →"; adv.dataset.k=STAGES[cur+1].k; }
+    if(canEdit && cur<STAGES.length-1){ adv.hidden=false; adv.textContent="Advance to "+stageLabel(STAGES[cur+1])+" →"; adv.dataset.k=STAGES[cur+1].k; }
     else adv.hidden=true;
     // Digital invitation website — unlocks once the event is confirmed (or beyond).
     const inv=$("#inviteBtn");
@@ -304,7 +349,42 @@
     renderMods(STAGES[cur].mods);
     renderConflicts();
     renderFiles();
+    renderEventGroup();
   }
+  // One prominent "Next step" at the top, picked from where the event really is:
+  // Send quote → Record advance → Plan the day → Close the event.
+  function renderNextStep(cur){
+    const bar=$("#nextStepBar"), b=$("#nextStepBtn"), why=$("#nextStepWhy"); if(!bar||!b) return;
+    const q=encodeURIComponent(id); let t="", href="", w="";
+    if(!isConfirmed()){ t="Send quote"; href="quotes.html?focus="+encodeURIComponent(ev.code||id); w="Price it, then send the quote to the client for approval."; }
+    else if(!advanceIn()){ t="Record advance"; href="logistics.html?quote="+q; w="Record the client's advance to book the date."; }
+    else if(cur<stageIndex("event_day")){ t="Plan the day"; href="runsheet.html?quote="+q; w="Build the minute-by-minute plan for the day."; }
+    else if(cur<stageIndex("closed")){ t="Close the event"; href="closure.html?quote="+q; w="Settle up, collect feedback and close the books."; }
+    if(!t || !canEdit){ bar.hidden=true; return; }
+    b.textContent=t+" →"; b.setAttribute("href",href); why.textContent=w; bar.hidden=false;
+  }
+  // Event group (0035): after confirmation, a clear button at the bottom — "Create event group"
+  // (managers only; opens the team picker on Quotes) or, once it exists, "Open event group".
+  let egInfo=undefined;   // undefined = not loaded yet; null = feature off / not available
+  async function renderEventGroup(){
+    const sec=$("#egPanel"), btn=$("#egPanelBtn"); if(!sec||!btn||!ev) return;
+    if(ev.status!=="confirmed"){ sec.hidden=true; return; }
+    if(egInfo===undefined){ try{ const ix=await BPStore.chat.eventGroups.index(); egInfo=ix[ev.id||id]||false; }catch(_){ egInfo=null; } }
+    if(egInfo===null){ sec.hidden=true; return; }
+    if(egInfo){
+      sec.hidden=false; $("#egPanelSub").textContent=egInfo.is_member?"This event has a team chat.":"This event has a team chat. Ask someone in it to add you.";
+      btn.hidden=!egInfo.is_member; btn.textContent="💬 Open event group"; btn.href="chat.html?c="+encodeURIComponent(egInfo.conversation_id);
+    } else if(canEdit){
+      sec.hidden=false; $("#egPanelSub").textContent="One chat for this event's team. Helm posts the event details (no prices).";
+      btn.hidden=false; btn.textContent="💬 Create event group"; btn.href="quotes.html?egroup="+encodeURIComponent(ev.id||id);   // fallback if the picker script is missing
+    } else sec.hidden=true;
+  }
+  // "Create event group" opens the team picker right here (no trip to Quotes)
+  $("#egPanelBtn").addEventListener("click",(e)=>{
+    if(!ev || egInfo || !window.HelmEventGroupPicker) return;   // "Open event group" → plain link to the chat
+    e.preventDefault();
+    HelmEventGroupPicker.open({id:ev.id||id, code:ev.code, status:ev.status},{canEdit, onDone:()=>{ egInfo=undefined; renderEventGroup(); }});
+  });
   // Build 4 — Attachments: private per-event documents. Best-effort; never blocks the page.
   const fmtBytes=(n)=>{ n=Number(n||0); return n<1024?n+" B":n<1048576?(n/1024).toFixed(0)+" KB":(n/1048576).toFixed(1)+" MB"; };
   async function renderFiles(){
@@ -361,13 +441,31 @@
     const cs=conflictSummary||[];
     if(!cs.length){ el.innerHTML=""; return; }
     const ico={inventory:"📦",vendor:"🤝",staff:"👷",venue:"📍"};
-    el.innerHTML=`<div class="card" style="border-color:#f5c6c6;background:#fdf2f2">
+    el.innerHTML=`<div class="card" style="border-color:color-mix(in srgb,#b42318 35%,transparent);background:color-mix(in srgb,#b42318 8%,transparent)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <b style="color:#b42318">⚠️ ${cs.length} scheduling conflict${cs.length===1?"":"s"} on this event's date</b>
+        <b class="t-bad">⚠️ ${cs.length} scheduling conflict${cs.length===1?"":"s"} on this event's date</b>
         <a class="btn" href="calendar.html" style="margin-left:auto;height:30px">Open calendar →</a></div>
       ${cs.map(c=>`<div style="font-size:13px;color:var(--ink-2);padding:4px 0">${ico[c.type]||"⚠️"} <b>${esc(c.label||"")}</b> — ${esc(c.detail||"")}</div>`).join("")}</div>`;
   }
 
+  // Client approval card, in plain words, following the quote (not just the approval link state)
+  // (status badges live once, in the header — this line is words only)
+  function approvalText(){
+    const a=ev.approvalStatus||"none";
+    if(advanceIn()) return 'Advance received — the date is booked.';
+    if(ev.status==="confirmed") return a==="approved"
+      ? 'Client approved — record the advance to book the date.'
+      : a==="sent" ? 'Approval link sent — waiting for the client. Record the advance once it arrives.'
+      : 'Quote confirmed — record the client\'s advance to book the date.';
+    if(a==="none") return "Not sent yet — confirm the quote, then send the approval link.";
+    return `Approval: <b>${esc(a)}</b>`;
+  }
+  // Settlement keeps the studio's pretty address when the router knows the page (/<studio>/settlement?quote=…)
+  const settleHref=()=>{ try{ if(window.HelmUrl && HelmUrl.KINDS && HelmUrl.KINDS.settlement) return HelmUrl.build("settlement",{query:{quote:id}}); }catch(_){}
+    return "settlement.html?quote="+encodeURIComponent(id); };
+  // no costs entered yet → a margin would read 100%, so say it plainly instead
+  const noCosts=()=> !!budgetSummary && !Number(budgetSummary.estCost) && !Number(budgetSummary.actCost) && !Number(budgetSummary.finalCost);
+  const NOCOST='<span class="stat q">Estimated</span> — no costs added yet';
   function renderMods(recommended){
     const cl=ev.client||{};
     // menu-before-quote: pricing depends on the veg/non-veg plate mix, so warn until the menu is locked
@@ -375,35 +473,33 @@
     const preConfirm = ["lead","discovery","proposal","quote"].includes(ev.lifecycleStage||"quote");
     const menuLocked = !!(planSummary && planSummary.menu_locked);
     const menuGate = (preConfirm && !menuLocked && ev.status!=='confirmed')
-      ? `<div class="stat q" style="display:block;background:#fff7e6;color:#946200;margin:0 0 6px;padding:5px 8px;border-radius:7px">⚠️ Lock the menu first — pricing depends on the menu mix.</div>` : "";
+      ? `<div class="stat q" style="display:block;background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn-text);margin:6px 0 0;padding:5px 8px;border-radius:7px">⚠️ Lock the menu first — pricing depends on the menu mix.</div>` : "";
     const discSum = discSummary && (discSummary.total || (discSummary.disc))
       ? `${discSummary.total} requirement${discSummary.total===1?"":"s"}${discSummary.must?` · <b>${discSummary.must} must-have${discSummary.must===1?"":"s"}</b>`:""}${budgetRange()?` · budget ${budgetRange()}`:""}`
       : "Meet the client and capture requirements &amp; budget.";
-    const fromDisc = (discSummary && (budgetRange()||discSummary.must))
+    const fromDisc = (!canPipe && discSummary && (budgetRange()||discSummary.must))
       ? `<div class="muted" style="margin-top:4px">From discovery: ${budgetRange()?budgetRange():""}${(budgetRange()&&discSummary.must)?" · ":""}${discSummary.must?discSummary.must+" must-have"+(discSummary.must===1?"":"s"):""}</div>` : "";
     const cards=[
       { key:"discovery", ic:"🔎", title:"Discovery & requirements", sum:discSum,
         acts:[{t: canEdit?"Open discovery":"View discovery", href:"discovery.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"plandetails", ic:"🏛", title:"Venue & menu",
-        sum: planSummary && (planSummary.venue_name||planSummary.package||planSummary.menu) ? `${planSummary.venue_name?esc(planSummary.venue_name):"Venue set"}${planSummary.package?` · ${esc(planSummary.package)}`:""} ${planSummary.menu_locked?'<span class="stat ok">Menu locked</span>':'<span class="stat q">Draft</span>'}` : "Set the venue, access and lock the menu/package — decided before pricing.",
+        sum: planSummary && (planSummary.venue_name||planSummary.package||planSummary.menu) ? `${planSummary.venue_name?esc(planSummary.venue_name):"Venue set"}${planSummary.package?` · ${esc(planSummary.package)}`:""} ${planSummary.menu_locked?'<span class="stat ok">Menu locked</span>':'<span class="stat q">Draft</span>'}${menuGate}` : `${menuGate}Set the venue, access and lock the menu/package — decided before pricing.`,
         acts:[{t: canEdit?"Open details":"View details", href:"plan.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"proposal", ic:"🎨", title:"Proposal & mood-board",
         sum: propSummary ? `${propSummary.published?'<span class="stat ok">Published</span>':'<span class="stat q">Draft</span>'} · ${(propSummary.scope&&propSummary.scope.length)||0} scope item${(propSummary.scope&&propSummary.scope.length)===1?"":"s"}${(propSummary.images&&propSummary.images.length)?` · ${propSummary.images.length} image${propSummary.images.length===1?"":"s"}`:""}` : "Compose a shareable concept &amp; mood-board.",
         acts:[{t: canEdit?"Open proposal":"View proposal", href:"proposal.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"layout", ic:"📐", title:"Floor layout", sum:`Design the 2D/3D plan for this event.`,
         acts:[{t:"Open builder", href:"builder.html?quote="+encodeURIComponent(id), primary:true}] },
-      { key:"quote", ic:"🧾", title:"Quote & pricing", sum:`${menuGate}Version v${ev.currentVersion} · ${canFin?(evTotal()?inr(evTotal()):"not priced yet"):"—"} · <span class="stat ${ev.status==='confirmed'?'ok':'q'}">${esc(ev.status)}</span>${fromDisc}`,
+      { key:"quote", ic:"🧾", title:"Quote & approval", sum:`Version v${ev.currentVersion}${canFin&&!evTotal()?" · not priced yet":""}<div class="muted">${approvalText()}</div>${fromDisc}`,
         acts:[{t:"Open this quote", href:"quotes.html?focus="+encodeURIComponent(ev.code||id), primary:true}] },
-      { key:"approval", ic:"✅", title:"Client approval", sum: ev.approvalStatus==='none'?"Not sent yet — confirm the quote, then send the approval link.":`Status: <b>${esc(ev.approvalStatus)}</b>`,
-        acts:[{t:"Manage in Quotes", href:"quotes.html?focus="+encodeURIComponent(ev.code||id)}] },
-      { key:"tasks", ic:"🛠️", title:"Tasks & staff", sum: tasksSummary?`${tasksSummary.done}/${tasksSummary.total} tasks done`:"Assign predefined tasks to your staff.",
+      { key:"tasks", ic:"🛠️", title:"Tasks", sum: tasksSummary?`${tasksSummary.done}/${tasksSummary.total} tasks done`:"Assign predefined tasks to your staff.",
         acts:[{t:"Open operations", href:"ops.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"staff", ic:"👷", title:"Staff on this event",
         sum: staffSummary && staffSummary.people ? `${staffSummary.people} staff assigned · ${staffSummary.tasks} task${staffSummary.tasks===1?"":"s"}` : "No staff assigned yet — assign staff in Operations.",
-        acts:[{t:"View event staff", href:"staff.html?quote="+encodeURIComponent(id), primary:true},{t:"Assign", href:"ops.html?quote="+encodeURIComponent(id)}] },
+        acts:[{t:"View event staff", href:"staff.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"vendors", ic:"🤝", title:"Vendors & partners",
         sum: vendorSummary && vendorSummary.total ? `${vendorSummary.total} booked · ${vendorSummary.confirmed} confirmed` : "No vendors booked — book partners for the gaps.",
-        acts:[{t:"View event vendors", href:"vendors.html?quote="+encodeURIComponent(id), primary:true},{t:"Book partners", href:"resources.html?quote="+encodeURIComponent(id)}] },
+        acts:[{t:"View event vendors", href:"vendors.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"runsheet", ic:"🗓️", title:"Run-sheet",
         sum: runSummary && runSummary.total ? `${runSummary.total} item${runSummary.total===1?"":"s"}${runSummary.first?` · starts ${runSummary.first}`:""}` : "Build the minute-by-minute event-day schedule.",
         acts:[{t: canEdit?"Open run-sheet":"View run-sheet", href:"runsheet.html?quote="+encodeURIComponent(id), primary:true}] },
@@ -411,41 +507,56 @@
         sum: daySummary && (daySummary.arr||daySummary.checks) ? `${daySummary.here}/${daySummary.arr} arrived · ${daySummary.checksDone}/${daySummary.checks} checks done` : "Run the live day — arrivals, attendance &amp; checks.",
         acts:[{t: canEdit?"Open command":"View day", href:"command.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"issues", ic:"🎫", title:"Issues & incidents",
-        sum: issuesSummary && issuesSummary.total ? `${issuesSummary.open?`<b style="color:#b42318">${issuesSummary.open} open</b>`:'<span class="stat ok">all clear</span>'} · ${issuesSummary.total} logged` : "Log &amp; resolve live issues and incidents.",
+        sum: issuesSummary && issuesSummary.total ? `${issuesSummary.open?`<b class="t-bad">${issuesSummary.open} open</b>`:'<span class="stat ok">all clear</span>'} · ${issuesSummary.total} logged` : "Log &amp; resolve live issues and incidents.",
         acts:[{t: canEdit?"Open issues":"View issues", href:"issues.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"readycheck", ic:"🚦", title:"Readiness gate",
         sum: readySummary ? (readySummary.ready ? '<span class="stat ok">Event Ready ✓</span>' : `<b>${readySummary.criticalPassed}/${readySummary.criticalTotal}</b> checks passed — ${readySummary.criticalTotal-readySummary.criticalPassed} to go`) : "Check the event is ready across everything.",
         acts:[{t:"Open readiness", href:"ready.html?quote="+encodeURIComponent(id), primary:true}] },
-      { key:"logistics", ic:"🚚", title:"Logistics & payments",
-        sum: logiSummary && (logiSummary.guests||logiSummary.outstanding) ? `${logiSummary.guests?`${logiSummary.guests} guests`:""}${logiSummary.guests&&logiSummary.outstanding?" · ":""}${logiSummary.outstanding?`<b style="color:#946200">${inr(logiSummary.outstanding)} outstanding</b>`:""}` : "Guests, permits, comms &amp; the payment schedule.",
+      { key:"logistics", ic:"🚚", title:"Logistics",
+        sum: logiSummary && logiSummary.guests ? `${logiSummary.guests} guests` : "Guests, permits, comms &amp; the payment schedule.",
         acts:[{t: canEdit?"Open logistics":"View logistics", href:"logistics.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"closure", ic:"📊", title:"Closure & P&L",
-        sum: closureSummary ? `${closureSummary.closed?'<span class="stat ok">Closed</span> · ':''}Profit <b style="color:${closureSummary.profit>=0?'#0f7a43':'#b42318'}">${inr(closureSummary.profit)}</b>${closureSummary.pct!=null?` (${closureSummary.pct}%)`:""}` : "Feedback, P&amp;L, ratings &amp; archive.",
+        sum: closureSummary && noCosts() ? `${closureSummary.closed?'<span class="stat ok">Closed</span> · ':''}Profit ${NOCOST}` : closureSummary ? `${closureSummary.closed?'<span class="stat ok">Closed</span> · ':''}Profit <b class="${closureSummary.profit>=0?'t-ok':'t-bad'}">${inr(closureSummary.profit)}</b>${closureSummary.pct!=null?` (${closureSummary.pct}%)`:""}` : "Feedback, P&amp;L, ratings &amp; archive.",
         acts:[{t:"Open closure", href:"closure.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"media", ic:"📸", title:"Media & gallery",
         sum: mediaSummary && mediaSummary.total ? `${mediaSummary.photos} photo${mediaSummary.photos===1?"":"s"} · ${mediaSummary.videos} video${mediaSummary.videos===1?"":"s"} · ${mediaSummary.gallery} in gallery` : "Collect photos &amp; videos and pick the client gallery.",
         acts:[{t: canEdit?"Open media":"View media", href:"media.html?quote="+encodeURIComponent(id), primary:true}] },
-      { key:"settle", ic:"💳", title:"Settlement & billing",
-        sum: settleSummary ? `${settleSummary.balance>0?`<b style="color:#b42318">${inr(settleSummary.balance)} due</b>`:'<span class="stat ok">client settled</span>'}${settleSummary.vendorOutstanding?` · ${inr(settleSummary.vendorOutstanding)} to vendors`:""}` : "Final invoice, vendor settlement &amp; expenses.",
-        acts:[{t: canEdit?"Open settlement":"View settlement", href:"settlement.html?quote="+encodeURIComponent(id), primary:true}] },
+      { key:"settle", ic:"💳", title:"Payments & invoice",
+        sum: settleSummary ? `${settleSummary.balance>0?`<b class="t-bad">${inr(settleSummary.balance)} due</b>`:'<span class="stat ok">client settled</span>'}${settleSummary.vendorOutstanding?` · ${inr(settleSummary.vendorOutstanding)} to vendors`:""}` : "Final invoice, vendor settlement &amp; expenses.",
+        acts:[{t: canEdit?"Open settlement":"View settlement", href:settleHref(), primary:true}] },
       { key:"teardown", ic:"📦", title:"Teardown & returns",
         sum: teardownSummary && (teardownSummary.retTotal||teardownSummary.tdTotal) ? `${teardownSummary.retDone}/${teardownSummary.retTotal} stock returned · ${teardownSummary.tdDone}/${teardownSummary.tdTotal} teardown done` : "Return stock, exit vendors, hand over the venue.",
         acts:[{t: canEdit?"Open teardown":"View teardown", href:"teardown.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"budget", ic:"💰", title:"Budget & margin",
-        sum: budgetSummary && (budgetSummary.estCost || budgetSummary.revenue) ? `${inr(budgetSummary.revenueExTax!=null?budgetSummary.revenueExTax:budgetSummary.revenue)} rev (ex-tax) · ${inr(budgetSummary.estCost)} cost · <b style="color:${budgetSummary.estMargin>=0?'#0f7a43':'#b42318'}">${inr(budgetSummary.estMargin)} margin${budgetSummary.estMarginPct!=null?` (${budgetSummary.estMarginPct}%)`:""}</b>${budgetSummary.pendingChanges?` · ${budgetSummary.pendingChanges} change${budgetSummary.pendingChanges===1?"":"s"} pending`:""}` : "Track costs vs the quote and see your margin.",
+        sum: budgetSummary && noCosts() && budgetSummary.revenue ? `${inr(budgetSummary.revenueExTax!=null?budgetSummary.revenueExTax:budgetSummary.revenue)} rev (ex-tax) · margin ${NOCOST}` : budgetSummary && (budgetSummary.estCost || budgetSummary.revenue) ? `${inr(budgetSummary.revenueExTax!=null?budgetSummary.revenueExTax:budgetSummary.revenue)} rev (ex-tax) · ${inr(budgetSummary.estCost)} cost · <b class="${budgetSummary.estMargin>=0?'t-ok':'t-bad'}">${inr(budgetSummary.estMargin)} margin${budgetSummary.estMarginPct!=null?` (${budgetSummary.estMarginPct}%)`:""}</b>${budgetSummary.pendingChanges?` · ${budgetSummary.pendingChanges} change${budgetSummary.pendingChanges===1?"":"s"} pending`:""}` : "Track costs vs the quote and see your margin.",
         acts:[{t: canEdit?"Open budget":"View budget", href:"budget.html?quote="+encodeURIComponent(id), primary:true}] },
       { key:"resourceplan", ic:"🧩", title:"Resource plan",
-        sum: resSummary && resSummary.total ? `${resSummary.total} need${resSummary.total===1?"":"s"} · ${resSummary.gaps?`<b style="color:#b42318">${resSummary.gaps} gap${resSummary.gaps===1?"":"s"}</b>`:(resSummary.outsourced?`<span class="stat ok">all covered</span> · ${resSummary.outsourced} outsourced`:'<span class="stat ok">all in-house</span>')}` : "Map needs and flag what to outsource.",
+        sum: resSummary && resSummary.total ? `${resSummary.total} need${resSummary.total===1?"":"s"} · ${resSummary.gaps?`<b class="t-bad">${resSummary.gaps} gap${resSummary.gaps===1?"":"s"}</b>`:(resSummary.outsourced?`<span class="stat ok">all covered</span> · ${resSummary.outsourced} outsourced`:'<span class="stat ok">all in-house</span>')}` : "Map needs and flag what to outsource.",
         acts:[{t: canEdit?"Open resource plan":"View plan", href:"resources.html?quote="+encodeURIComponent(id), primary:true}] },
-      { key:"inventory", ic:"📦", title:"Inventory & resources",
+      { key:"inventory", ic:"📦", title:"Inventory",
         sum: invSummary && invSummary.total ? `${invSummary.active} item${invSummary.active===1?"":"s"} reserved / allocated${invSummary.total>invSummary.active?` · ${invSummary.total-invSummary.active} closed`:""}` : "Reserve in-house stock for this event.",
         acts:[{t: canEdit?"Reserve stock":"View inventory", href:"inventory.html?quote="+encodeURIComponent(id), primary:true}] },
     ];
+    // one plain-words line per tool, and the three groups the extra tools are shown in after confirmation
+    const DESC={discovery:"Discovery — what the client wants and their budget",plandetails:"Venue & menu — where it is and what's served",
+      proposal:"Proposal — the look and feel to show the client",layout:"Floor layout — where tables, stage and decor go",
+      quote:"Quote — the price the client sees, and their approval",
+      tasks:"Tasks — who does what, and when",staff:"Staff — your people working this event",vendors:"Vendors — outside partners you've booked",
+      runsheet:"Run-sheet — minute-by-minute plan for the day",command:"Event-day command — arrivals and checks, live",
+      issues:"Issues — problems on the day and how they were fixed",readycheck:"Readiness — is everything in place?",
+      logistics:"Logistics — guests, permits and the payment schedule",closure:"Closure — profit, feedback and archive",
+      media:"Media — photos and videos for the client",settle:"Settlement — final bill, payments in and vendors paid",
+      teardown:"Teardown — pack up, return stock, hand back the venue",budget:"Budget — costs against the quote, and your margin",
+      resourceplan:"Resource plan — what you need and what to hire in",inventory:"Inventory — your own stock set aside for this event"};
+    const GROUPS=[{t:"Plan",keys:["discovery","plandetails","proposal","layout","quote","tasks","staff","vendors","resourceplan","inventory","runsheet","readycheck","logistics"]},
+      {t:"Event day",keys:["command","issues","teardown","media"]},
+      {t:"Money",keys:["budget","settle","closure"]}];
     const hide=new Set([...(canFin?[]:["budget","settle","closure"]), ...(canPipe?[]:["discovery","proposal"])]);
     const visible=cards.filter(c=>!hide.has(c.key));
     const cardHtml=(c)=>{
       const reco=recommended.includes(c.key)?"reco":"";
       return `<div class="mod ${reco}"><div class="h"><span class="ic">${c.ic}</span><b>${c.title}</b>${reco?'<span class="stat q" style="margin-left:auto">Next</span>':""}</div>
+        ${DESC[c.key]?`<div class="desc">${esc(DESC[c.key])}</div>`:""}
         <div class="sum">${c.sum}</div>
         <div class="act">${c.acts.map(a=>`<a class="btn ${a.primary?'primary':''}" href="${a.href}">${a.t}</a>`).join("")}</div></div>`;
     };
@@ -454,6 +565,14 @@
     // stage has no visible recommended module.
     const focused=visible.filter(c=>recommended.includes(c.key));
     const rest=visible.filter(c=>!recommended.includes(c.key));
+    // Before the event is confirmed only the stage's own tools show — the rest unlock on confirmation.
+    if(!isConfirmed() && focused.length){
+      $("#mods").innerHTML=focused.map(cardHtml).join("");
+      setMoreToggle(null);
+      return;
+    }
+    const grouped=()=>GROUPS.map(g=>{ const cs=rest.filter(c=>g.keys.includes(c.key)); return cs.length?`<div class="morehead">${esc(g.t)}</div>`+cs.map(cardHtml).join(""):""; }).join("")
+      + (rest.some(c=>!GROUPS.some(g=>g.keys.includes(c.key)))?`<div class="morehead">More tools</div>`+rest.filter(c=>!GROUPS.some(g=>g.keys.includes(c.key))).map(cardHtml).join(""):"");
     let showAll=true; try{ showAll=localStorage.getItem("helm_ev_showall")!=="0"; }catch{}   // default: every tool visible; user can collapse
     if(!focused.length){
       // no specific recommendation for this stage — show all, no toggle
@@ -462,7 +581,7 @@
       return;
     }
     let html=focused.map(cardHtml).join("");
-    if(showAll && rest.length) html+=`<div class="morehead">More tools</div>`+rest.map(cardHtml).join("");
+    if(showAll && rest.length) html+=grouped();
     $("#mods").innerHTML=html;
     setMoreToggle(rest.length?{showAll, count:rest.length}:null);
   }
@@ -475,17 +594,18 @@
     bar.innerHTML=`<button type="button">${state.showAll?"Show less ▴":`Show all tools (${state.count} more) ▾`}</button>`;
     bar.querySelector("button").onclick=()=>{
       const next=!state.showAll; try{ localStorage.setItem("helm_ev_showall", next?"1":"0"); }catch{}
-      renderMods(STAGES[stageIndex(ev.lifecycleStage)].mods);
+      renderMods(STAGES[stageIndex(effStage())].mods);
     };
   }
 
   function renderDateRow(){
-    const el=$("#dateRow"); const d=ev.eventDate||"", tm=ev.eventTime||"";
+    // the quote's own event date (older quotes only carry it inside the client details)
+    const el=$("#dateRow"); const d=ev.eventDate||(ev.client&&ev.client.eventDate)||"", tm=ev.eventTime||"";
     const inp="height:28px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:12px;padding:0 6px;color:var(--ink)";
     // event date & time are decided first — warn while either is missing in the early stages
     const early = ["lead","discovery","proposal","quote"].includes(ev.lifecycleStage||"quote");
     const missing = early && (!d || !tm);
-    const warn = missing ? `<span class="stat q" style="background:#fff7e6;color:#946200;margin-left:8px">⚠️ Set the event date &amp; time first</span>` : "";
+    const warn = missing ? `<span class="stat q" style="background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn-text);margin-left:8px">⚠️ ${d?"Add a start time":"Set the event date &amp; time first"}</span>` : "";
     if(canEdit){ el.innerHTML=`📅 Event date: <input type="date" data-min-today id="evDate" aria-label="Event date" value="${esc(d)}" style="${inp}">
         <span style="margin-left:8px">🕒 Time:</span> <input type="time" id="evTime" aria-label="Event time" value="${esc(tm)}" style="${inp}">${warn}`;
       const di=$("#evDate"), ti=$("#evTime");
@@ -494,15 +614,15 @@
       const dateOk=(v)=>/^\d{4}-\d{2}-\d{2}$/.test(v) && +v.slice(0,4)>=2000 && +v.slice(0,4)<=2100;
       const commitDate=(fromBlur)=>{
         const raw=di.value;
-        if(raw===(ev.eventDate||"")) return;
+        if(raw===d) return;
         if(raw===""){ if(!fromBlur || di.validity.badInput) return; }
-        else if(!dateOk(raw)){ if(fromBlur){ di.value=ev.eventDate||""; } return; }
+        else if(!dateOk(raw)){ if(fromBlur){ di.value=d; } return; }
         return BPUI.guard(di,async()=>{ try{ const nd=raw||null;
           // merge into the FRESH client JSON (not the page-load copy) so other fields edited elsewhere aren't overwritten
           let base=ev.client||{}; try{ const fresh=await BPStore.quotes.get(id); if(fresh&&fresh.client) base=fresh.client; }catch(_){}
           const client=Object.assign({}, base, { eventDate: nd });   // keep client.eventDate in sync (invoice/meta read it)
           await BPStore.quotes.updateMeta(id,{eventDate:nd, client}); ev.eventDate=nd; ev.client=client; renderDateRow(); BPUI.toast("Event date saved.",{type:"ok"}); }
-        catch(e){ di.value=ev.eventDate||""; BPUI.toast(BPUI.friendlyError(e,{action:"save the event date"}),{type:"err"}); } });
+        catch(e){ di.value=d; BPUI.toast(BPUI.friendlyError(e,{action:"save the event date"}),{type:"err"}); } });
       };
       di.addEventListener("change",()=>commitDate(false));
       di.addEventListener("blur",()=>commitDate(true));

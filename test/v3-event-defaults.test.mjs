@@ -75,7 +75,7 @@ assert.match(bh, /<option value="product_launch">Corporate \/ product launch<\/o
 assert.match(bh, /<option value="political">Political \/ rally<\/option>/);
 assert.match(rd('public/flow.html'), /"Product launch","Political"/);
 for (const f of ['public/builder.html', 'public/capture.html']) { const h = rd(f);
-  assert.match(h, /builder\.js\?v=49/, f); assert.match(h, /builder-3d\.js\?v=16/, f); assert.match(h, /capture-frame\.js\?v=12/, f); }
+  assert.match(h, /builder\.js\?v=61/, f); assert.match(h, /builder-3d\.js\?v=24/, f); assert.match(h, /capture-frame\.js\?v=12/, f); }
 
 // ---- 4. every new asset: toolbox entry, 2D drawing + icon, 3D model builder that runs ----
 const NEW = ['dj', 'speaker', 'generator', 'stage', 'lighting', 'truss', 'led', 'ledscreen', 'chandelier', 'photobooth', 'chocolatefountain', 'chariot', 'smoke',
@@ -93,7 +93,7 @@ const v3 = () => ({ x: 0, y: 0, z: 0, set() { return this; }, setScalar() { retu
 class Obj { constructor(...a) { this.position = v3(); this.rotation = v3(); this.scale = v3(); this.children = []; this.material = a[1] || {}; } add(c) { assert.ok(c, 'add(undefined)'); this.children.push(c); return this; }
   translate() { return this; } rotateX() { return this; } rotateZ() { return this; } }
 const THREE = new Proxy({}, { get: () => Obj });
-const build3 = new Function('THREE', 'store', 'congestionOf', 'CONG_COLORS', 'label', 'chairs', [b3fn('rotOff'), b3line('const col = '), b3line('const mat = '), b3fn('boxMesh'), b3fn('buildFurniture'), 'return buildFurniture;'].join('\n'))(THREE, {}, () => 'ok', {}, () => new Obj(), []);
+const build3 = new Function('THREE', 'store', 'congestionOf', 'CONG_COLORS', 'label', 'chairs', [b3fn('rotOff'), b3line('const col = '), b3line('const mat = '), b3fn('boxMesh'), 'function buildPremium(){ return false; }   // premium kit is covered by builder-catalogue-complete; here we check every base model', b3fn('buildFurniture'), 'return buildFurniture;'].join('\n'))(THREE, {}, () => 'ok', {}, () => new Obj(), []);
 for (const t of Object.keys(G.ASSETS)) {
   const a = G.ASSETS[t];
   for (const props of [{}, { kva: 125 }]) {

@@ -65,7 +65,8 @@
   th{position:relative} .table-scroll{position:relative}
   .crumb a,.sub a,a#floorLink{text-decoration:underline}
 </style>
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="resources-polish.css?v=1">
+<link rel="stylesheet" href="theme.css?v=80">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -102,7 +103,7 @@
         <div class="fld" id="wrap_skill" hidden><label for="n_skill">Skill / role</label><input id="n_skill" placeholder="e.g. sound"></div>
         <div class="fld" id="wrap_item" hidden><label for="n_item">Item</label><select id="n_item"></select></div>
         <div class="fld"><label for="n_qty">Qty</label><input id="n_qty" type="number" min="1" value="1"></div>
-        <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="n_add">＋ Add</button></div>
+        <div class="fld"><span class="s-6cb285c" aria-hidden="true">&nbsp;</span><button type="button" class="btn primary" id="n_add">＋ Add need</button></div>
       </div>
       <div class="s-d2c171b"><button type="button" class="btn sm" id="pullBtn">↧ Pull from discovery requirements</button> <span class="muted" id="pullMsg" role="status" aria-live="polite"></span></div>
     </div>
@@ -161,9 +162,9 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=204"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -204,7 +205,7 @@
       </tr>`;
     }).join("");
     $("#gapHint").hidden = !gaps.length;
-    if(gaps.length) $("#gapHint").textContent = `${gaps.length} gap${gaps.length===1?"":"s"} to cover with vendors, freelancers or rentals (Phase 9).`;
+    if(gaps.length) $("#gapHint").textContent = `${gaps.length} gap${gaps.length===1?"":"s"} to cover with vendors, freelancers or rentals.`;
     $("#rows").querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
       if(!(await BPUI.confirm("Remove this resource need?",{title:"Remove need?",danger:true}))) return;
       await BPUI.guard(b,async()=>{ try{ await BPStore.resources.removeNeed(b.dataset.del); BPUI.toast("Need removed.",{type:"ok"}); await load(); }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"remove the need"}),{type:"err"}); } }); }));
@@ -281,7 +282,7 @@
     const dupBk=bookings.find(b=>b.status!=="cancelled" && vendor_id && b.vendor_id===vendor_id && (rec.need_id ? b.need_id===rec.need_id : (!b.need_id && nl(b.label)===nl(label))));
     if(dupBk){ $("#bm_err").textContent=`${v?v.name:"This partner"} is already booked for "${label}" on this event. Edit that booking instead (or cancel it first).`; $("#bm_err").hidden=false; return; }
     await BPUI.guard($("#bm_save"),async()=>{
-      try{ await BPStore.bookings.add(id, rec); closeBooking(); BPUI.toast("Booking saved.",{type:"ok"}); await load(); }
+      try{ const row=await BPStore.bookings.add(id, rec); closeBooking(); BPUI.toast("Booking saved.",{type:"ok"}); await load(); if(row&&row.id&&!bookings.some(b=>b.id===row.id)){ bookings.push(row); renderBookings(); } }
       catch(e){ $("#bm_err").textContent=BPUI.friendlyError(e,{action:"save the booking",setupHint:"phase9-vendors.sql"}); $("#bm_err").hidden=false; }
     },{busyLabel:"Saving…"});
   }

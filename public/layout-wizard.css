@@ -88,10 +88,14 @@
 .fs-b:hover{background:var(--accent-soft)}
 .fs-b.on{background:var(--accent);color:#fff}
 .fs-x{color:var(--danger-text-b)}
-body.fs-on .fs-fab{display:none}
+/* the bottom-right button stays visible while fullscreen and becomes the exit toggle (✕) */
+body.fs-on .fs-fab{display:inline-flex;align-items:center;justify-content:center}
 .viewport.is3d .fs-fab{top:auto;bottom:14px;right:106px}
 /* native fullscreen element / CSS pseudo-fullscreen (iOS Safari): the viewport fills the screen */
 .viewport:fullscreen{width:100vw;height:100vh;background:var(--canvas)}
+/* Safari: prefixed pseudo-classes in their OWN rules (an unknown selector in a list drops the whole rule) */
+.viewport:-webkit-full-screen{width:100vw;height:100vh;background:var(--canvas)}
+.viewport.is3d:-webkit-full-screen .stage3d{left:0;top:0}
 .viewport.fs-pseudo{position:fixed;inset:0;z-index:55;width:100vw;height:100vh;height:100dvh}
 body.fs-on{overflow:hidden}
 body.fs-on .viewport .ptoggle,body.fs-on .viewport .navpad,body.fs-on .viewport .tools3d,body.fs-on .viewport .hint3d,
