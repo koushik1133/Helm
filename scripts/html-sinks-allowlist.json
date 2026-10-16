@@ -164,6 +164,10 @@
   {
    "name": "eventCell",
    "why": "audit (0076): encodeURIComponent(quote_id), esc(code/title)"
+  },
+  {
+   "name": "restoreCell",
+   "why": "crm.html (0139): returns '' or fixed markup; every data value (archive id, name, restored_at) goes through esc()"
   }
  ],
  "sites": [

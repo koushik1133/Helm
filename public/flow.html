@@ -160,9 +160,9 @@
             <div class="fld"><label for="c_city">City</label><input id="c_city" maxlength="60" autocomplete="address-level2" placeholder="e.g. Hyderabad"></div>
             <div class="fld"><label for="c_state" id="c_stateLbl">Client state</label><select id="c_state" autocomplete="address-level1"><option value="">Not set</option></select></div>
             <div class="fld"><label for="c_guests">Guests</label><input id="c_guests" type="number" min="0"></div>
-            <div class="fld"><label for="c_budget">Budget (₹)</label><input id="c_budget" type="number" min="0"></div>
+            <div class="fld full budget-range"><span class="lbl" id="budgetRangeLbl">Budget range (min – max, ₹)</span><div class="range2" role="group" aria-labelledby="budgetRangeLbl"><input id="d_bmin" type="number" min="0" placeholder="Min" aria-label="Budget minimum (₹)"><span class="range-sep" aria-hidden="true">–</span><input id="d_bmax" type="number" min="0" placeholder="Max" aria-label="Budget maximum (₹)" aria-describedby="d_bmaxErr"></div><div id="d_bmaxErr" class="err" role="alert" hidden>Max should be at least the min</div></div>
           </div>
-          <p class="hint next-step" data-next-step><b>Next step:</b> fill in Discovery (step 2) — what the client wants and their budget.</p>
+          <p class="hint next-step" data-next-step><b>Next step:</b> fill in Discovery (step 2) — what the client wants (the budget range is above).</p>
         </section>
 
         <!-- 2 DISCOVERY -->
@@ -173,8 +173,6 @@
           <div class="grid">
             <div class="fld"><label for="d_date">Meeting date</label><input id="d_date" type="date" data-date-window="recent"></div>
             <div class="fld"><label for="d_mode">Mode</label><select id="d_mode"><option value="">—</option><option value="in_person">In person</option><option value="call">Phone call</option><option value="video">Video call</option></select></div>
-            <div class="fld"><label for="d_bmin">Budget — min (₹)</label><input id="d_bmin" type="number" min="0"></div>
-            <div class="fld"><label for="d_bmax">Budget — max (₹)</label><input id="d_bmax" type="number" min="0" aria-describedby="d_bmaxErr"><div id="d_bmaxErr" class="err" role="alert" hidden>Max should be at least the min</div></div>
             <div class="fld full"><label for="d_att">Who attended</label><input id="d_att" placeholder="e.g. Client + spouse, planner"></div>
             <div class="fld full"><label for="d_notes">Notes</label><textarea id="d_notes" placeholder="Theme ideas, constraints, preferences…"></textarea></div>
           </div>
@@ -238,7 +236,7 @@
           <p class="sub">Enter the hall size &amp; headcount and generate a default layout for this event type — then tweak it freely. Chairs &amp; objects feed the price automatically.</p>
           <div class="secerr" id="err-layout"></div>
           <div class="row4 s-da12f28">
-            <div class="fld s-1169661"><label for="g_guests">Guests</label><input id="g_guests" type="number" min="0"></div>
+            <div class="fld s-1169661"><label for="g_guests">Guests <a href="#sec-client" class="edit-step1">edit in step 1</a></label><input class="s-10bfcec" id="g_guests" type="number" min="0" readonly title="Guests are set once in step 1"></div>
             <div class="fld s-1169661"><label for="g_len">Hall length (ft)</label><input id="g_len" type="number" min="20" placeholder="200"></div>
             <div class="fld s-1169661"><label for="g_wid">Hall breadth (ft)</label><input id="g_wid" type="number" min="20" placeholder="140"></div>
             <button type="button" class="btn primary" id="genLayout">✨ Generate default layout</button>
@@ -265,8 +263,9 @@
           </div>
           <div class="secerr" id="err-rates"></div>
           <div class="grid">
-            <div class="fld"><label for="q_chairs">Chairs <small id="q_chairsHint">(70% of guests — drives chairs pricing)</small> <a href="#" id="q_chairsReset" hidden>reset to 70%</a></label><input id="q_chairs" type="number" min="1"><p class="hint" id="q_chairsLayout" hidden><span id="q_chairsLayoutTxt"></span> <button type="button" class="btn ghost" id="q_chairsUseLayout">Use layout count</button></p></div>
-            <div class="fld"><label for="q_guests">Guests / plates</label><input id="q_guests" type="number" min="0"></div>
+            <div class="fld"><label for="q_chairs">Chairs <small id="q_chairsHint">(70% of guests — drives chairs pricing)</small> <a href="#" id="q_chairsReset" hidden>reset to 70%</a></label><input id="q_chairs" type="number" min="1"><p class="hint" id="q_chairsLayout" hidden><span id="q_chairsLayoutTxt"></span> <button type="button" class="btn ghost" id="q_chairsUseLayout">Use layout count</button></p><p class="hint qty-diff" id="q_chairsDiff" hidden></p></div>
+            <div class="fld"><label for="q_guestsRo">Guests <a href="#sec-client" class="edit-step1">edit in step 1</a></label><input class="s-10bfcec" id="q_guestsRo" type="number" readonly title="Guests are set once in step 1"></div>
+            <div class="fld"><label for="q_guests">Plates <small>(catering quantity — drives plate pricing)</small></label><input id="q_guests" type="number" min="0"><p class="hint qty-diff" id="q_platesDiff" hidden></p></div>
             <div class="fld"><label for="q_chairPrice">Chair rate (₹) <span class="s-c78b388">· set in Control Center</span></label><input class="s-10bfcec" id="q_chairPrice" type="number" min="0" readonly title="Fixed — change it in Control Center → Pricing"></div>
             <div class="fld"><label for="q_platePrice">Plate price (₹) <span class="s-c78b388">· from package / Control Center</span></label><input class="s-10bfcec" id="q_platePrice" type="number" min="0" readonly title="Fixed — set by the menu package or Control Center → Pricing"></div>
             <div class="fld"><label for="q_other">Décor / equipment &amp; setup (₹)</label><input id="q_other" type="number" min="0"></div>
@@ -378,7 +377,7 @@
 <script src="flow-dish-editor.js?v=2"></script>
 <script src="venues-core.js?v=5"></script>
 <script src="venue-picker.js?v=4"></script>
-<script src="venue-area.js?v=1"></script>
+<script src="venue-area.js?v=1"></script><script src="trial-test-note.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -427,7 +426,7 @@
   let dirty=false, loading=true, leaving=false, pendingLeave=null;
   // r9 P0: client / discovery / venue / menu / proposal autosave (debounced, serialized, honest badge);
   // `dirty` now only tracks edits that are NOT autosaved (quotation numbers etc.)
-  const AUTO_IDS={ g_len:"client", g_wid:"client", g_guests:"client", q_chairs:"client" };
+  const AUTO_IDS={ g_len:"client", g_wid:"client", g_guests:"client", q_chairs:"client", d_bmin:"discovery", d_bmax:"discovery" };   // guest-budget: the range sits in step 1 but saves to Discovery
   let AS=null;
   function sectionOf(t){
     if(!t||!t.closest) return null; if(t.id && AUTO_IDS[t.id]) return AUTO_IDS[t.id];
@@ -545,7 +544,12 @@
       otherAuto:(ev.pricing&&ev.pricing.otherAuto!=null)?+ev.pricing.otherAuto:(oi.objectsCost+(+rates.layoutBase||0)),
       _objectsCost:oi.objectsCost, _packageName:appliedPkg?appliedPkg.name:null };
   }
-  function renderPrice(){
+  // guest-budget: chairs / plates are pricing quantities, editable on their own — say so when they differ from guests
+  function syncQtyHints(){ const g=$("#c_guests").value===""?null:+$("#c_guests").value;
+    const one=(inp,box,what)=>{ const b=$(box), i=$(inp); if(!b||!i) return; const v=i.value===""?null:+i.value;
+      const diff=g!=null && v!=null && v!==g; b.hidden=!diff; b.textContent=diff?(what+" ("+v+") differ from guests ("+g+") — that's fine, only "+what.toLowerCase()+" are priced."):""; };
+    one("#q_chairs","#q_chairsDiff","Chairs"); one("#q_guests","#q_platesDiff","Plates"); }
+  function renderPrice(){ syncQtyHints();
     const p=currentInputs(), t=BPStore.pricing.quoteTotal(p);
     showDiscountError(p);
     let rows="";
@@ -569,13 +573,15 @@
     const V=BPStore.validate;
     // quiet (autosave): mark the field + say why in the badge — no toast per keystroke
     const bad=(r,f)=>{ $(f).setAttribute("aria-invalid","true"); if(quiet) return { invalid:r.error }; BPUI.toast(r.error,{type:"err"}); $(f).focus(); return false; };
-    ["#c_email","#c_phone","#c_guests","#c_budget"].forEach(f=>$(f).removeAttribute("aria-invalid"));
+    ["#c_email","#c_phone","#c_guests"].forEach(f=>$(f).removeAttribute("aria-invalid"));
     const emailRaw=$("#c_email").value.trim(), phoneRaw=$("#c_phone").value.trim();
     if(emailRaw){ const r=V.email(emailRaw); if(!r.ok) return bad(r,"#c_email"); }
     if(phoneRaw){ const r=V.phone(phoneRaw); if(!r.ok) return bad(r,"#c_phone"); }
     let guestsN=null, budgetN=null;
     if($("#c_guests").value!==""){ const r=V.count($("#c_guests").value,{field:"Guests"}); if(!r.ok) return bad(r,"#c_guests"); guestsN=r.value; }
-    if($("#c_budget").value!==""){ const r=V.money($("#c_budget").value,{field:"Budget"}); if(!r.ok) return bad(r,"#c_budget"); budgetN=r.value; }
+    budgetN=(ev.client||{}).budget!=null?(ev.client||{}).budget:null;   // untouched range: keep the stored budget as-is
+    if(budgetTouched){ const bv=budgetFromRange(); budgetN=null;
+      if(bv.el){ const r=V.money(bv.el.value,{field:"Budget"}); if(!r.ok) return bad(r,"#"+bv.el.id); budgetN=r.value; } }
     const client=Object.assign({}, ev.client||{}, {
       name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:emailRaw,
       phone:phoneRaw,
@@ -595,6 +601,13 @@
     if($("#q_guests").value==="" && client.guests!=null){ $("#q_guests").value=client.guests; }
     saved("client"); renderPrice();
   }
+  // guest-budget: ONE budget range in step 1. min/max save to Discovery (budget_min/budget_max) and the
+  // client record's single "budget" mirrors max (or min if only min is set) — both old storage places
+  // stay filled. client.budget only changes once the user actually edits the range (no silent rewrite).
+  let budgetTouched=false;
+  function budgetFromRange(){ const a=$("#d_bmin"), b=$("#d_bmax");
+    if(b && b.value!=="") return { el:b, v:+b.value }; if(a && a.value!=="") return { el:a, v:+a.value }; return { el:null, v:null }; }
+  ["#d_bmin","#d_bmax"].forEach(s=>{ const el=$(s); if(el) el.addEventListener("input",()=>{ if(loading || failed.discovery) return; budgetTouched=true; syncClientMem(); if(AS) AS.schedule("client"); }); });
   // india-clickthrough D2: an inverted budget range (min > max) is flagged inline and never saved
   function budgetRangeOk(){
     const a=$("#d_bmin").value, b=$("#d_bmax").value, bad=a!=="" && b!=="" && +a > +b;
@@ -647,7 +660,7 @@
     ev.client=Object.assign({}, ev.client||{}, {
       name:$("#c_name").value.trim(), company:$("#c_company").value.trim(), email:$("#c_email").value.trim(),
       phone:$("#c_phone").value.trim(),
-      guests:$("#c_guests").value!==""?+$("#c_guests").value:null, budget:$("#c_budget").value!==""?+$("#c_budget").value:null,
+      guests:$("#c_guests").value!==""?+$("#c_guests").value:null, budget:budgetTouched?budgetFromRange().v:((ev.client||{}).budget!=null?(ev.client||{}).budget:null),
       city:$("#c_city").value.trim().slice(0,60)||null, state:$("#c_state").value||null, eventDate:$("#c_date").value||null });
     // H-02: Client guests is the single source of truth — flow it forward to the Layout
     // (#g_guests) and Quotation (#q_guests) fields so all three agree. Skip #q_guests only
@@ -655,6 +668,7 @@
     var gv=$("#c_guests").value;
     if($("#g_guests")) $("#g_guests").value=gv;
     if(!qGuestsOverridden && $("#q_guests")) $("#q_guests").value=gv;
+    if($("#q_guestsRo")) $("#q_guestsRo").value=gv;
     // R8: hall size + chairs ride on the same client record the builder reads
     ev.client=HelmSizing.merge(ev.client,{ hallLen:$("#g_len").value, hallWid:$("#g_wid").value, chairsManual });
     if(chairsManual) ev.client=HelmSizing.merge(ev.client,{ chairs:$("#q_chairs").value });
@@ -1090,7 +1104,8 @@
     const d=await BPStore.discovery.get(id);
     if(d){ $("#d_date").value=d.meet_date||""; $("#d_mode").value=d.mode||"";
       $("#d_att").value=d.attendees||""; $("#d_notes").value=d.notes||""; $("#d_bmin").value=d.budget_min!=null?d.budget_min:""; $("#d_bmax").value=d.budget_max!=null?d.budget_max:""; }
-    else if(cl.budget!=null){ $("#d_bmax").value=cl.budget; } }
+    // guest-budget: legacy quotes kept only client.budget — show it as the max so nothing looks lost
+    if((!d || (d.budget_min==null && d.budget_max==null)) && cl.budget!=null){ $("#d_bmax").value=cl.budget; } }
   async function loadPlan(){ const cl=ev.client||{};
     // 0085: linked saved venue + indoor/outdoor (client JSON); the picker re-shows its warnings
     $("#v_venue_id").value=typeof cl.venueId==="string"?cl.venueId:""; $("#v_venue_name").value=typeof cl.venueName==="string"?cl.venueName:"";
@@ -1213,9 +1228,9 @@
     const cl=ev.client||{};
     $("#c_name").value=cl.name||""; $("#c_company").value=cl.company||""; $("#c_email").value=cl.email||"";
     $("#c_phone").value=cl.phone||""; $("#c_type").value=ev.eventType||""; $("#c_date").value=cl.eventDate||ev.eventDate||"";
-    $("#c_guests").value=cl.guests!=null?cl.guests:""; $("#c_city").value=typeof cl.city==="string"?cl.city:""; $("#c_budget").value=cl.budget!=null?cl.budget:"";
+    $("#c_guests").value=cl.guests!=null?cl.guests:""; $("#c_city").value=typeof cl.city==="string"?cl.city:"";
     fillClientStates(cl);
-    $("#g_guests").value=cl.guests!=null?cl.guests:"";
+    $("#g_guests").value=cl.guests!=null?cl.guests:""; $("#q_guestsRo").value=cl.guests!=null?cl.guests:"";
     await runSection("rates");
     await runSection("discovery");
     await renderReqs();
@@ -1303,7 +1318,7 @@
     // the live UI and marks the quote dirty (delegated listener below); the actual
     // writes happen on the explicit Save buttons or via the save-on-leave prompt.
     // This stops empty / barely-touched quotes from being silently saved.
-    ["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_guests","c_budget"].forEach(f=>$("#"+f).addEventListener("input",()=>{ syncClientMem(); if(f==="c_guests"||f==="c_type") renderPrice(); }));
+    ["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_guests"].forEach(f=>$("#"+f).addEventListener("input",()=>{ syncClientMem(); if(f==="c_guests"||f==="c_type") renderPrice(); }));
     ["c_type","c_date","c_city","c_guests"].forEach(f=>{ const el=$("#"+f); el.addEventListener("input",renderName); el.addEventListener("change",renderName); });
     // name-live-update: step-1 fields schedule the client autosave from their OWN listeners, so a
     // datalist pick / programmatic or non-bubbling input|change|blur still persists (the delegated
@@ -1312,7 +1327,7 @@
     const clientAuto=(e)=>{ if(loading||!AS||!AS.has("client")) return;
       if(e&&e.type==="blur"){ if(clientEdited){ clientEdited=false; AS.now("client"); } return; }
       clientEdited=true; renderName(); AS.schedule("client"); };
-    ["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_state","c_guests","c_budget"].forEach(f=>{ const el=$("#"+f); if(!el) return;
+    ["c_name","c_company","c_email","c_phone","c_type","c_date","c_city","c_state","c_guests"].forEach(f=>{ const el=$("#"+f); if(!el) return;
       el.addEventListener("input",clientAuto); el.addEventListener("change",clientAuto); el.addEventListener("blur",clientAuto); });
     wireNameEdit();
     $("#c_state").addEventListener("change",()=>{ syncClientMem(); renderPrice(); });
