@@ -1,0 +1,207 @@
+/* shell-b-theme-studio.css - "Studio" theme (was Demo 8 skin) (localhost prototype).
+   Warm neutrals + one plum accent. Every rule scoped html[data-shell="b"][data-hb-theme="studio"].
+   Look only: no hiding/moving controls; never colours [data-money]/.hbp-m. */
+
+/* ---------- 1. TOKENS (light) — remap both shell (--hb-*) and page (theme.css) tokens ---------- */
+html[data-shell="b"][data-hb-theme="studio"],
+html[data-shell="b"][data-hb-theme="studio"] {
+  --c8-bg:#FAF8F5; --c8-su:#FFFFFF; --c8-s2:#F4F1EC; --c8-ln:#E7E2DA; --c8-ln2:#D6CFC4;
+  --c8-ink:#1F1A24; --c8-ink2:#4A4351; --c8-ink3:#6E6676;
+  --c8-ac:#5B2A86; --c8-ac-h:#4A1F70; --c8-acs:#F1EBF7; --c8-aci:#FFFFFF;
+  --c8-ok:#2F7D57; --c8-okb:#EAF4EE; --c8-wt:#A86B12; --c8-wtb:#FBF2E3; --c8-rk:#B3261E; --c8-rkb:#FBEAE8;
+  --c8-sh:0 1px 2px rgba(31,26,36,.05), 0 6px 18px -10px rgba(31,26,36,.12);
+  --c8-pop:0 18px 40px -14px rgba(31,26,36,.22), 0 2px 6px rgba(31,26,36,.06);
+  /* shell */
+  --hb-bg:var(--c8-bg); --hb-bg2:var(--c8-s2); --hb-line:var(--c8-ln);
+  --hb-ink:var(--c8-ink); --hb-ink2:var(--c8-ink2); --hb-ink3:var(--c8-ink3);
+  --hb-acc:var(--c8-ac); --hb-acc2:var(--c8-ac-h); --hb-acc-ink:var(--c8-aci);
+  --hb-acc-soft:var(--c8-acs); --hb-acc-text:var(--c8-ac);
+  --hb-on:var(--c8-ac); --hb-on-ink:var(--c8-aci);
+  --hb-glow:transparent; --hb-grad:var(--c8-ac); --hb-tile:var(--c8-s2);
+  --hb-lift:var(--c8-sh); --hb-pop:var(--c8-pop);
+  /* pages */
+  --bg:var(--c8-bg); --panel:var(--c8-su); --panel-2:var(--c8-s2);
+  --ink:var(--c8-ink); --ink-2:var(--c8-ink2); --ink-3:var(--c8-ink3); --muted:var(--c8-ink3);
+  --line:var(--c8-ln); --line-2:var(--c8-s2); --line-strong:#8F8797;
+  --accent:var(--c8-ac); --accent-2:var(--c8-ac-h); --accent-hover:var(--c8-ac-h); --accent-soft:var(--c8-acs);
+  --safe:var(--c8-ok); --safe-text:var(--c8-ok); --warn:var(--c8-wt); --warn-text:var(--c8-wt);
+  --gold:var(--c8-wt); --bad:var(--c8-rk); --bad-text:var(--c8-rk); --info-text:var(--c8-ac);
+  --shadow:var(--c8-sh); --elev-sm:var(--c8-sh); --elev-md:var(--c8-sh); --elev-lg:var(--c8-pop);
+  --focus-halo:0 0 0 3px color-mix(in srgb, var(--c8-ac) 28%, transparent);
+  --font:"Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  color-scheme:light;
+}
+
+/* ---------- 1b. TOKENS (dark: warm charcoal) ---------- */
+html[data-shell="b"][data-hb-theme="studio"][data-theme="dark"],
+html[data-shell="b"][data-hb-theme="studio"][data-theme="dark"][data-hb-theme] {
+  --c8-bg:#141216; --c8-su:#1C1A1F; --c8-s2:#242128; --c8-ln:#2F2B33; --c8-ln2:#3E3944;
+  --c8-ink:#F3F0F5; --c8-ink2:#CFC9D4; --c8-ink3:#A39CAB;
+  --c8-ac:#B794E0; --c8-ac-h:#C9AEE9; --c8-acs:#2A2233; --c8-aci:#141216;
+  --c8-ok:#6FCF97; --c8-okb:#6FCF9729; --c8-wt:#E6B35C; --c8-wtb:#E6B35C29; --c8-rk:#F2827A; --c8-rkb:#F2827A29;
+  --c8-sh:0 1px 2px rgba(0,0,0,.4); --c8-pop:0 18px 44px -10px rgba(0,0,0,.6);
+  --line-strong:#77707F; color-scheme:dark;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-shell="b"][data-hb-theme="studio"]:not([data-theme]),
+  html[data-shell="b"][data-hb-theme="studio"]:not([data-theme])[data-hb-theme] {
+    --c8-bg:#141216; --c8-su:#1C1A1F; --c8-s2:#242128; --c8-ln:#2F2B33; --c8-ln2:#3E3944;
+    --c8-ink:#F3F0F5; --c8-ink2:#CFC9D4; --c8-ink3:#A39CAB;
+    --c8-ac:#B794E0; --c8-ac-h:#C9AEE9; --c8-acs:#2A2233; --c8-aci:#141216;
+    --c8-ok:#6FCF97; --c8-okb:#6FCF9729; --c8-wt:#E6B35C; --c8-wtb:#E6B35C29; --c8-rk:#F2827A; --c8-rkb:#F2827A29;
+    --c8-sh:0 1px 2px rgba(0,0,0,.4); --c8-pop:0 18px 44px -10px rgba(0,0,0,.6);
+    --hb-on:var(--c8-ac); --hb-on-ink:var(--c8-aci);
+    --line-strong:#77707F; color-scheme:dark;
+  }
+}
+
+/* ---------- 2. BASE ---------- */
+html[data-shell="b"][data-hb-theme="studio"],
+html[data-shell="b"][data-hb-theme="studio"] body,
+html[data-shell="b"][data-hb-theme="studio"] .app,
+html[data-shell="b"][data-hb-theme="studio"] .page,
+html[data-shell="b"][data-hb-theme="studio"] .wrap,
+html[data-shell="b"][data-hb-theme="studio"] main { background:var(--c8-bg) !important; background-image:none !important; }
+html[data-shell="b"][data-hb-theme="studio"] body { color:var(--c8-ink2); font-family:var(--font); -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+html[data-shell="b"][data-hb-theme="studio"] h1,
+html[data-shell="b"][data-hb-theme="studio"] h2,
+html[data-shell="b"][data-hb-theme="studio"] h3 { color:var(--c8-ink); letter-spacing:-.015em; }
+html[data-shell="b"][data-hb-theme="studio"] h1 { font-weight:700; }
+html[data-shell="b"][data-hb-theme="studio"] a:not(.btn):not(.hb-item):not(.hb-mi):not([data-money]):not(.hbp-m) { color:var(--c8-ac); }
+html[data-shell="b"][data-hb-theme="studio"] :focus-visible { outline:2px solid var(--c8-ac); outline-offset:2px; }
+html[data-shell="b"][data-hb-theme="studio"] ::selection { background:var(--c8-acs); color:var(--c8-ink); }
+html[data-shell="b"][data-hb-theme="studio"] hr { border-color:var(--c8-ln); }
+
+/* ---------- 3. SHELL CHROME ---------- */
+html[data-shell="b"][data-hb-theme="studio"] .hb-rail { background:var(--c8-bg); border-right:1px solid var(--c8-ln); box-shadow:none; }
+html[data-shell="b"][data-hb-theme="studio"] .hb-logo { background:none; color:var(--c8-ink); box-shadow:none; }   /* bare mark: pills = --c8-ink + --c8-ac (via --hb-mark/--hb-mark2) */
+html[data-shell="b"][data-hb-theme="studio"] .hb-head { color:var(--c8-ink3); letter-spacing:.08em; text-transform:uppercase; font-size:11px; }
+html[data-shell="b"][data-hb-theme="studio"] .hb-item { color:var(--c8-ink2); border-radius:8px; background:none; box-shadow:none; }
+html[data-shell="b"][data-hb-theme="studio"] .hb-item .hb-ic { color:var(--c8-ink3); background:none; box-shadow:none; }
+html[data-shell="b"][data-hb-theme="studio"] .hb-item:hover { background:var(--c8-s2); color:var(--c8-ink); }
+html[data-shell="b"][data-hb-theme="studio"] .hb-item.on,
+html[data-shell="b"][data-hb-theme="studio"] .hb-rail .hb-item.on { background:var(--c8-acs); color:var(--c8-ac); box-shadow:none; }
+html[data-shell="b"][data-hb-theme="studio"] .hb-item.on .hb-ic { color:var(--c8-ac); }
+html[data-shell="b"][data-hb-theme="studio"] .hb-rail .hb-item.on::before { background:var(--c8-ac); box-shadow:none; }
+html[data-shell="b"][data-hb-theme="studio"] .hb-cnt,
+html[data-shell="b"][data-hb-theme="studio"] .hb-rail .hb-item.on .hb-cnt { background:var(--c8-s2); color:var(--c8-ink2); }
+html[data-shell="b"][data-hb-theme="studio"] .hb-badge { background:var(--c8-rk); color:#fff; box-shadow:none; }
+html[data-shell="b"][data-hb-theme="studio"] .hb-top { background:color-mix(in srgb, var(--c8-bg) 92%, transparent); border-bottom:1px solid var(--c8-ln); box-shadow:none; backdrop-filter:blur(8px); }
+html[data-shell="b"][data-hb-theme="studio"] .hb-search,
+html[data-shell="b"][data-hb-theme="studio"] .hb-msearch { background:var(--c8-su); border:1px solid var(--c8-ln); border-radius:10px; color:var(--c8-ink3); box-shadow:none; }
+html[data-shell="b"][data-hb-theme="studio"] .hb-search input { color:var(--c8-ink); background:transparent; }
+html[data-shell="b"][data-hb-theme="studio"] .hb-new { background:var(--c8-ac); color:var(--c8-aci); box-shadow:none; border-radius:10px; }
+html[data-shell="b"][data-hb-theme="studio"] .hb-new:hover { background:var(--c8-ac-h); }
+html[data-shell="b"][data-hb-theme="studio"] .hb-chat,
+html[data-shell="b"][data-hb-theme="studio"] .hb-help,
+html[data-shell="b"][data-hb-theme="studio"] .hb-burger,
+html[data-shell="b"][data-hb-theme="studio"] .hb-pin,
+html[data-shell="b"][data-hb-theme="studio"] #themeBtn { color:var(--c8-ink3); border-color:var(--c8-ln); background:var(--c8-su); box-shadow:none; }
+html[data-shell="b"][data-hb-theme="studio"] .hb-chat.on { color:var(--c8-ac); border-color:var(--c8-ac); }
+html[data-shell="b"][data-hb-theme="studio"] .hb-acct .hau-av { background:var(--c8-s2); color:var(--c8-ink2); border:1px solid var(--c8-ln); box-shadow:none; }
+html[data-shell="b"][data-hb-theme="studio"] .hb-menu,
+html[data-shell="b"][data-hb-theme="studio"] .hb-acct .hau-menu,
+html[data-shell="b"][data-hb-theme="studio"] .hb-help-dlg { background:var(--c8-su); border:1px solid var(--c8-ln); border-radius:12px; box-shadow:var(--c8-pop); color:var(--c8-ink2); }
+html[data-shell="b"][data-hb-theme="studio"] .hb-mi { color:var(--c8-ink2); border-radius:8px; }
+html[data-shell="b"][data-hb-theme="studio"] .hb-mi:hover { background:var(--c8-s2); color:var(--c8-ink); }
+html[data-shell="b"][data-hb-theme="studio"] .hb-help-list kbd,
+html[data-shell="b"][data-hb-theme="studio"] kbd { background:var(--c8-s2); border:1px solid var(--c8-ln); color:var(--c8-ink2); border-radius:5px; box-shadow:none; }
+
+/* ---------- 4. SHARED COMPONENTS ---------- */
+/* cards / panels */
+html[data-shell="b"][data-hb-theme="studio"] :is(.card,.panel,.tile,.kpi,.stat,.box,.section,.widget,.block) {
+  background:var(--c8-su); border:1px solid var(--c8-ln); border-radius:14px; box-shadow:var(--c8-sh); background-image:none; }
+html[data-shell="b"][data-hb-theme="studio"] :is(.card,.panel,.tile,.kpi,.stat) :is(.ic,.icon) { background:var(--c8-s2); color:var(--c8-ink3); box-shadow:none; }
+
+/* buttons */
+html[data-shell="b"][data-hb-theme="studio"] :is(.btn,button.btn,a.btn) {
+  background:var(--c8-su); color:var(--c8-ink); border:1px solid var(--c8-ln2); border-radius:10px; box-shadow:none; background-image:none; font-weight:600; }
+html[data-shell="b"][data-hb-theme="studio"] :is(.btn,button.btn,a.btn):hover { background:var(--c8-s2); border-color:var(--c8-ln2); }
+html[data-shell="b"][data-hb-theme="studio"] :is(.btn.primary,button.primary,a.btn.primary,.btn-primary,.primary-btn) {
+  background:var(--c8-ac) !important; background-image:none !important; color:var(--c8-aci) !important; border-color:var(--c8-ac); box-shadow:none; }
+html[data-shell="b"][data-hb-theme="studio"] :is(.btn.primary,button.primary,a.btn.primary,.btn-primary,.primary-btn):hover { background:var(--c8-ac-h) !important; }
+html[data-shell="b"][data-hb-theme="studio"] :is(.btn.danger,button.danger,.btn-danger) { background:var(--c8-su); color:var(--c8-rk); border-color:color-mix(in srgb, var(--c8-rk) 40%, var(--c8-ln)); }
+html[data-shell="b"][data-hb-theme="studio"] :is(.btn.ghost,button.ghost) { background:transparent; border-color:transparent; color:var(--c8-ink2); }
+html[data-shell="b"][data-hb-theme="studio"] :is(.btn,button):disabled { opacity:.55; }
+
+/* inputs */
+html[data-shell="b"][data-hb-theme="studio"] :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),select,textarea) {
+  background:var(--c8-su); color:var(--c8-ink); border:1px solid var(--c8-ln2); border-radius:10px; box-shadow:none; }
+html[data-shell="b"][data-hb-theme="studio"] :is(input,select,textarea)::placeholder { color:var(--c8-ink3); opacity:1; }
+html[data-shell="b"][data-hb-theme="studio"] :is(input,select,textarea):focus { border-color:var(--c8-ac); box-shadow:var(--focus-halo); outline:none; }
+html[data-shell="b"][data-hb-theme="studio"] :is(input[type=checkbox],input[type=radio],input[type=range]) { accent-color:var(--c8-ac); }
+html[data-shell="b"][data-hb-theme="studio"] label { color:var(--c8-ink2); }
+
+/* tables */
+html[data-shell="b"][data-hb-theme="studio"] table { border-color:var(--c8-ln); background:transparent; }
+html[data-shell="b"][data-hb-theme="studio"] thead th,
+html[data-shell="b"][data-hb-theme="studio"] table th { background:var(--c8-s2); color:var(--c8-ink3); font-weight:600; font-size:12px; letter-spacing:.03em; border-color:var(--c8-ln); }
+html[data-shell="b"][data-hb-theme="studio"] table td { border-color:var(--c8-ln); color:var(--c8-ink2); }
+html[data-shell="b"][data-hb-theme="studio"] tbody tr:hover > td { background:color-mix(in srgb, var(--c8-s2) 60%, transparent); }
+
+/* tabs / segmented */
+html[data-shell="b"][data-hb-theme="studio"] :is(.tabs,.tab-bar,.seg,.segmented,[role=tablist]) { border-color:var(--c8-ln); background:transparent; box-shadow:none; }
+html[data-shell="b"][data-hb-theme="studio"] :is(.tab,[role=tab]) { color:var(--c8-ink3); background:transparent; border-radius:8px; box-shadow:none; background-image:none; }
+html[data-shell="b"][data-hb-theme="studio"] :is(.tab,[role=tab]):hover { color:var(--c8-ink); background:var(--c8-s2); }
+html[data-shell="b"][data-hb-theme="studio"] :is(.tab.on,.tab.active,[role=tab][aria-selected=true]) { color:var(--c8-ac); background:var(--c8-acs); border-color:var(--c8-ac); }
+
+/* chips / pills / badges (neutral; status only for status) */
+html[data-shell="b"][data-hb-theme="studio"] :is(.chip,.pill,.tag,.badge):not([data-money]):not(.hbp-m) { background:var(--c8-s2); color:var(--c8-ink2); border:1px solid var(--c8-ln); box-shadow:none; background-image:none; }
+html[data-shell="b"][data-hb-theme="studio"] :is(.chip,.pill).on,
+html[data-shell="b"][data-hb-theme="studio"] :is(.chip,.pill).active,
+html[data-shell="b"][data-hb-theme="studio"] :is(.chip,.pill)[aria-pressed=true] { background:var(--c8-acs); color:var(--c8-ac); border-color:color-mix(in srgb, var(--c8-ac) 40%, transparent); }
+html[data-shell="b"][data-hb-theme="studio"] :is(.ok,.safe,.paid,.success,.confirmed):is(.chip,.pill,.tag,.badge,.status):not([data-money]):not(.hbp-m) { background:var(--c8-okb); color:var(--c8-ok); border-color:transparent; }
+html[data-shell="b"][data-hb-theme="studio"] :is(.warn,.pending,.wait,.draft):is(.chip,.pill,.tag,.badge,.status):not([data-money]):not(.hbp-m) { background:var(--c8-wtb); color:var(--c8-wt); border-color:transparent; }
+html[data-shell="b"][data-hb-theme="studio"] :is(.bad,.risk,.danger,.overdue,.error):is(.chip,.pill,.tag,.badge,.status):not([data-money]):not(.hbp-m) { background:var(--c8-rkb); color:var(--c8-rk); border-color:transparent; }
+
+/* modals / dialogs / drawers */
+html[data-shell="b"][data-hb-theme="studio"] :is(.modal,.dialog,.drawer,.sheet,dialog,[role=dialog]:not(.hb-help)) { background:var(--c8-su); color:var(--c8-ink2); border:1px solid var(--c8-ln); border-radius:16px; box-shadow:var(--c8-pop); }
+html[data-shell="b"][data-hb-theme="studio"] :is(.modal-backdrop,.overlay,.backdrop,dialog::backdrop) { background:rgba(20,18,22,.42); }
+
+/* toasts */
+html[data-shell="b"][data-hb-theme="studio"] :is(.toast,#toast,.snackbar) { background:var(--c8-ink); color:var(--c8-bg); border:0; border-radius:12px; box-shadow:var(--c8-pop); }
+
+/* empty states */
+html[data-shell="b"][data-hb-theme="studio"] :is(.empty,.empty-state,.no-data) { background:var(--c8-su); color:var(--c8-ink3); border:1px dashed var(--c8-ln2); border-radius:14px; }
+
+/* dropdown menus (page-level) */
+html[data-shell="b"][data-hb-theme="studio"] :is(.menu,.dropdown,.popover,.dd-menu) { background:var(--c8-su); border:1px solid var(--c8-ln); border-radius:12px; box-shadow:var(--c8-pop); color:var(--c8-ink2); }
+
+/* muted text helpers */
+html[data-shell="b"][data-hb-theme="studio"] :is(.muted,.sub,.meta,.hint,small):not([data-money]):not(.hbp-m) { color:var(--c8-ink3); }
+
+/* ---------- 5. KEY PAGES ---------- */
+/* dashboard: neutral hero + KPI tiles, single accent */
+html[data-shell="b"][data-hb-theme="studio"] :is(.hero,.dash-hero,.welcome) { background:var(--c8-su) !important; background-image:none !important; border:1px solid var(--c8-ln); border-radius:16px; color:var(--c8-ink2); box-shadow:var(--c8-sh); }
+html[data-shell="b"][data-hb-theme="studio"] :is(.hero,.dash-hero,.welcome) :is(h1,h2) { color:var(--c8-ink); }
+/* calendar */
+html[data-shell="b"][data-hb-theme="studio"] :is(.cal,.calendar,.cal-grid) { border-color:var(--c8-ln); background:var(--c8-su); }
+html[data-shell="b"][data-hb-theme="studio"] :is(.cal-day,.day,.cell) { border-color:var(--c8-ln); }
+html[data-shell="b"][data-hb-theme="studio"] :is(.cal-day,.day).today { box-shadow:inset 0 0 0 2px var(--c8-ac); }
+html[data-shell="b"][data-hb-theme="studio"] :is(.cal-day,.day):is(.sel,.selected) { background:var(--c8-acs); }
+/* quotes / event / client: section headers + summary blocks */
+html[data-shell="b"][data-hb-theme="studio"] :is(.section-title,.sec-h,.panel-h,.card-h) { color:var(--c8-ink); border-color:var(--c8-ln); }
+html[data-shell="b"][data-hb-theme="studio"] :is(.summary,.totals,.sticky-total) { background:var(--c8-su); border:1px solid var(--c8-ln); border-radius:14px; box-shadow:var(--c8-sh); }
+
+/* ---------- 6. SMALL SCREENS ---------- */
+@media (max-width: 480px) {
+  html[data-shell="b"][data-hb-theme="studio"] :is(.card,.panel,.tile,.kpi,.stat,.hero,.dash-hero) { border-radius:12px; }
+  html[data-shell="b"][data-hb-theme="studio"] :is(.modal,.dialog,.drawer,dialog) { max-width:calc(100vw - 24px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-shell="b"][data-hb-theme="studio"] * { transition:none !important; }
+}
+
+/* QA: confirmed quote rows — warm success tint instead of the old mint/forest green fill (bar kept) */
+html[data-shell="b"][data-hb-theme="studio"] tbody tr.is-confirmed { background:color-mix(in srgb, var(--c8-ok) 6%, var(--c8-su)); }
+html[data-shell="b"][data-hb-theme="studio"] tbody tr.is-confirmed:hover { background:color-mix(in srgb, var(--c8-ok) 10%, var(--c8-su)); }
+
+/* QA: chat avatars — page paints per-person colours inline; keep the initial readable on them */
+html[data-shell="b"][data-hb-theme="studio"] .hb-chatpage .av[style*="background:#"] { color:#fff; }
+html[data-shell="b"][data-hb-theme="studio"] .hb-chatpage .av[style*="var(--accent)"] { color:var(--c8-aci); }
+/* QA: quotes "Quote" status badge was the old indigo — neutral warm chip */
+html[data-shell="b"][data-hb-theme="studio"] .stat.q { background:var(--c8-s2); color:var(--c8-ink2); }
+/* QA: skip link rendered accent-on-accent in dark — pin ink to the accent-ink token */
+html[data-shell="b"][data-hb-theme="studio"][data-theme] a.skip-link.skip-link.skip-link.skip-link.skip-link.skip-link { background:var(--c8-ac); color:var(--c8-aci); border-color:var(--c8-ac); }
+/* QA: chat "read" double-tick was WhatsApp blue — use the accent */
+html[data-shell="b"][data-hb-theme="studio"] .hb-chatpage .tick.dbl { color:var(--c8-ac); }

@@ -37,8 +37,10 @@ t('invite to log in: admin only, needs e-mail + a defined role, uses invitations
   assert.match(html, /isAdminUser&&!linked&&s\.email&&s\.active!==false\?`<button class="ic" data-act="invite"/);
   assert.match(html, /const key=BPStore\.staff\.matchRole\(s\.role\);\s*if\(!key\)/);
   assert.match(html, /BPStore\.invitations\.create\(s\.email, key\)/);
-  assert.match(html, /Helm doesn't send anything/);
-  assert.doesNotMatch(html, /sendEmail|whatsapp\.send|comms\.send/i);
+  // 0131: the invite is e-mailed only through the invite-mailer queue (copy link still offered)
+  assert.match(html, /BPStore\.invitations\.sendNow\(\)/);
+  assert.match(html, /id="iv_copy">Copy link</);
+  assert.doesNotMatch(html, /whatsapp\.send|comms\.send/i);
 });
 t('login status: Active user / Invited / No login', () => {
   const ls = new Function('return ' + api.match(/loginStatus\(s, invites\) \{[\s\S]*?\n    \},/)[0].replace(/^loginStatus/, 'function').replace(/,$/, ''))();
@@ -61,7 +63,7 @@ t('0106 migration: additive, admin-gated, definer + empty search_path, wraps adm
   assert.doesNotMatch(mig, /\bdrop table\b|\bdelete from\b|\btruncate\b/i);
   assert.match(mig, /not public\.is_admin\(\)/); assert.match(mig, /perform public\.admin_set_role\(v_prof, p_role\)/);
   for (const f of ['staff_departments()', 'staff_department_add(p_name text)', 'staff_set_login_role(p_staff uuid, p_role text)'])
-    assert.match(mig, new RegExp('function public\\.' + f.replace(/[()[\]]/g, '\\$&') + '\\s*\\nreturns [^\\n]*security definer set search_path = \'\''), f);
+    assert.match(mig, new RegExp('function public\\.' + f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\nreturns [^\\n]*security definer set search_path = \'\''), f);
   const apply = read('supabase/APPLY-0106.sql'); assert.ok(/^[\x00-\x7f]*$/.test(apply), 'APPLY-0106 ASCII'); assert.match(apply, /\) v\(item, ok\)/);
   assert.match(read('supabase/migrations/MANIFEST'), /forward  supabase\/migrations\/0106_staff_roles_departments\.sql/);
   assert.match(read('scripts/db-test/run-all.sh'), /tests\/db\/staff-roles-0106\.sql/);

@@ -2,7 +2,7 @@
    HELM — shared per-page guided tour engine (zero-dependency, vanilla JS)
    -------------------------------------------------------------------------
    One engine, many pages. Each page's steps live in STEPS keyed by filename.
-   A page opts in simply by including  <script src="tour.js?v=1"></script>.
+   A page opts in simply by including  <script src="tour.js?v=14"></script>.
 
    • Injects its own spotlight CSS (pages need no markup).
    • Renders a floating "? Tour" button, or wires an existing #helpBtn.
@@ -135,22 +135,23 @@
   .htour .arrow{position:absolute;color:var(--gold,#e0a938);font-size:28px;line-height:1;
     filter:drop-shadow(0 2px 3px rgba(0,0,0,.25));animation:htbob 1s ease-in-out infinite}
   @keyframes htbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
-  .htour .tip{position:absolute;max-width:calc(100vw - 24px);box-sizing:border-box;max-height:calc(100vh - 24px);overflow:auto;background:var(--panel,#fff);color:var(--ink,#1b1930);
-    border:1px solid var(--line,#e8e3db);border-radius:14px;box-shadow:0 10px 30px rgba(20,18,40,.22);
+  .htour .tip{position:absolute;max-width:calc(100vw - 24px);box-sizing:border-box;max-height:calc(100vh - 24px);overflow:auto;background:var(--hb-bg,var(--panel,#fff));color:var(--hb-ink,var(--ink,#1b1930));
+    border:1px solid var(--hb-line,var(--line,#e8e3db));border-radius:14px;box-shadow:0 10px 30px rgba(20,18,40,.22);
     padding:16px 18px;pointer-events:auto}
-  .htour .tip .tstep{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--accent,#6d28d9)}
+  .htour .tip .tstep{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--hb-acc-text,var(--accent,#6d28d9))}
   .htour .tip h4{margin:4px 0 6px;font-size:16px}
-  .htour .tip p{margin:0 0 13px;font-size:13px;color:var(--ink-2,#4b475f);line-height:1.55}
+  .htour .tip p{margin:0 0 13px;font-size:13px;color:var(--hb-ink2,var(--ink-2,#4b475f));line-height:1.55}
   .htour .tip .trow{display:flex;gap:8px;align-items:center}
   .htour .tip .trow .sp{flex:1}
-  .htour .tip button{height:32px;padding:0 13px;border-radius:8px;border:1px solid var(--line,#e8e3db);
-    background:var(--panel,#fff);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;color:var(--ink-2,#4b475f)}
-  .htour .tip button.pri{background:linear-gradient(120deg,var(--accent,#6d28d9),#7c5cff);border-color:transparent;color:#fff}
-  .htour .tip button.skip{border:0;background:transparent;color:var(--ink-3,#6b6577)}
+  .htour .tip button{height:32px;padding:0 13px;border-radius:8px;border:1px solid var(--hb-line,var(--line,#e8e3db));
+    background:var(--hb-bg,var(--panel,#fff));font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;color:var(--hb-ink2,var(--ink-2,#4b475f))}
+  .htour .tip button.pri{background:var(--hb-acc,var(--accent,#6d28d9));border-color:transparent;color:var(--hb-acc-ink,#fff)}
+  .htour .tip button:focus-visible{outline:2px solid var(--hb-acc-text,var(--accent,#6d28d9));outline-offset:2px}
+  .htour .tip button.skip{border:0;background:transparent;color:var(--hb-ink3,var(--ink-3,#6b6577))}
   .htour-fab{position:fixed;left:16px;bottom:16px;z-index:8000;height:34px;padding:0 14px;border-radius:20px;
-    border:1px solid var(--line,#e8e3db);background:var(--panel,#fff);color:var(--accent,#6d28d9);font-family:inherit;
+    border:1px solid var(--hb-line,var(--line,#e8e3db));background:var(--hb-bg,var(--panel,#fff));color:var(--hb-acc-text,var(--accent,#6d28d9));font-family:inherit;
     font-weight:700;font-size:12px;cursor:pointer;box-shadow:0 4px 14px rgba(20,18,40,.14);display:inline-flex;align-items:center;gap:5px}
-  .htour-fab:hover{border-color:var(--accent,#6d28d9);background:var(--accent-soft,#efe9ff)}
+  .htour-fab:hover{border-color:var(--hb-acc-text,var(--accent,#6d28d9));background:var(--hb-acc-soft,var(--accent-soft,#efe9ff))}
   @media (max-width:767.98px){body.hmn-on:not(.hmn-kb) .htour-fab{bottom:calc(72px + env(safe-area-inset-bottom,0px))}}`;
   __helmAdoptCss(document, css);
 
@@ -163,7 +164,7 @@
   // space. We use getBoundingClientRect (not offsetParent) because position:fixed
   // elements always report a null offsetParent even when fully visible.
   function present(sel) {
-    const t = document.querySelector(sel);
+    const t = typeof sel === "string" ? document.querySelector(sel) : sel;
     if (!t || t.hidden || (t.closest && t.closest("[hidden]"))) return null;
     const cs = getComputedStyle(t);
     if (cs.display === "none" || cs.visibility === "hidden" || cs.visibility === "collapse") return null;
@@ -171,6 +172,26 @@
     const r = t.getBoundingClientRect();
     return (r.width > 1 && r.height > 1) ? t : null;
   }
+
+  // A step's sel may be one selector or an ordered list of fallbacks (e.g. the
+  // desktop rail first, then the phone bottom bar). The first VISIBLE match wins.
+  // A step without sel is a centered card (welcome / wrap-up).
+  function pick(step) {
+    if (!step.sel) return null;
+    const cands = Array.isArray(step.sel) ? step.sel : [step.sel];
+    for (const c of cands) {
+      let all; try { all = document.querySelectorAll(c); } catch (_) { continue; }
+      for (const t of all) {
+        if (!present(t)) continue;
+        // an off-canvas drawer (phone sidebar) is "present" but parked off-screen: skip it
+        const r = t.getBoundingClientRect(), vw = document.documentElement.clientWidth || window.innerWidth;
+        if (r.right <= 0 || r.left >= vw) continue;
+        return t;
+      }
+    }
+    return null;
+  }
+  function usable(step) { return !step.sel || !!pick(step); }
 
   // ---- pure geometry (exported for tests via HelmTour._layout) -------------
   // r: target rect in VIEWPORT coords (getBoundingClientRect — matches the
@@ -241,15 +262,45 @@
     return { left: l, top: tp, right: rt, bottom: b, width: rt - l, height: b - tp };
   }
 
-  let ro = null, rafPending = false;
+  let ro = null, rafPending = false, opener = null;
   function end() {
+    const had = !!root;
     if (root) { root.remove(); root = null; }
+    document.removeEventListener("keydown", onKey, true);
     window.removeEventListener("resize", onView);
     window.removeEventListener("scroll", onView, true);
     window.removeEventListener("orientationchange", onView);
     if (window.visualViewport) { visualViewport.removeEventListener("resize", onView); visualViewport.removeEventListener("scroll", onView); }
     if (ro) { ro.disconnect(); ro = null; }
     try { localStorage.setItem(endKey, "1"); } catch (_) {}
+    if (had && opener && opener.isConnected) { try { opener.focus({ preventScroll: true }); } catch (_) {} }
+    opener = null;
+  }
+  function go(d) {
+    // move d steps, skipping any step whose target vanished since the tour began
+    let j = i + d;
+    while (j >= 0 && j < list.length && !usable(list[j])) j += d;
+    if (j < 0) return;
+    if (j >= list.length) { end(); return; }
+    i = j; place();
+    try { root.querySelector(".next").focus({ preventScroll: true }); } catch (_) {}
+  }
+  // keyboard while the tour is open: Esc closes, arrows step, Tab stays in the card
+  function onKey(e) {
+    if (!root) return;
+    if (e.key === "Escape") { if (!otherModalOpen()) { e.preventDefault(); e.stopPropagation(); end(); } return; }
+    const tip = root.querySelector(".tip");
+    const inTip = tip.contains(document.activeElement);
+    if (e.key === "ArrowRight" && !e.altKey) { e.preventDefault(); go(1); }
+    else if (e.key === "ArrowLeft" && !e.altKey) { e.preventDefault(); if (i > 0) go(-1); }
+    else if (e.key === "Tab") {
+      const btns = Array.prototype.filter.call(tip.querySelectorAll("button"), b => b.offsetParent && getComputedStyle(b).visibility !== "hidden");
+      if (!btns.length) return;
+      const k = btns.indexOf(document.activeElement);
+      if (!inTip) { e.preventDefault(); btns[0].focus(); }
+      else if (e.shiftKey && k <= 0) { e.preventDefault(); btns[btns.length - 1].focus(); }
+      else if (!e.shiftKey && k === btns.length - 1) { e.preventDefault(); btns[0].focus(); }
+    }
   }
   // Re-glue the spotlight to its target whenever the viewport OR layout changes
   // (page/inner scroll, resize, orientation change, pinch-zoom, sidebar collapse,
@@ -274,19 +325,21 @@
     // Keep every step whose target EXISTS. Visibility is decided per render: a
     // target hidden at the current breakpoint gets a centered card instead of
     // being dropped, and a later resize brings the spotlight back.
-    list = (customSteps || steps).filter(s => document.querySelector(s.sel));
+    list = (customSteps || steps).filter(usable);
     if (!list.length) return;
+    opener = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
     i = 0;
     root = document.createElement("div");
     root.className = "htour";
     root.innerHTML = `<div class="ring"></div><div class="arrow">▼</div>
-      <div class="tip" role="dialog" aria-label="Guided tour" aria-live="polite"><div class="tstep"></div><h4></h4><p></p>
-        <div class="trow"><button class="skip">Skip</button><span class="sp"></span>
-        <button class="back">Back</button><button class="pri next">Next →</button></div></div>`;
+      <div class="tip" role="dialog" aria-modal="false" aria-label="Guided tour" aria-describedby="htourS htourT htourD"><div class="tstep" id="htourS" aria-live="polite" aria-atomic="true"></div><h4 id="htourT"></h4><p id="htourD"></p>
+        <div class="trow"><button type="button" class="skip">Skip tour</button><span class="sp"></span>
+        <button type="button" class="back">Back</button><button type="button" class="pri next">Next →</button></div></div>`;
     document.body.appendChild(root);
     root.querySelector(".skip").onclick = end;
-    root.querySelector(".back").onclick = () => { if (i > 0) { i--; place(); } };
-    root.querySelector(".next").onclick = () => { if (i < list.length - 1) { i++; place(); } else end(); };
+    root.querySelector(".back").onclick = () => { if (i > 0) go(-1); };
+    root.querySelector(".next").onclick = () => go(1);
+    document.addEventListener("keydown", onKey, true);
     window.addEventListener("resize", onView);
     window.addEventListener("scroll", onView, true);   // capture inner-scroll containers too
     window.addEventListener("orientationchange", onView);
@@ -301,14 +354,15 @@
   function position() {
     if (!root) return;
     if (i >= list.length) { end(); return; }
-    const step = list[i], el = present(step.sel), vr = el ? visibleRect(el) : null, tgt = vr ? el : null;
+    const step = list[i], el = pick(step), vr = el ? visibleRect(el) : null, tgt = vr ? el : null;
     const de = document.documentElement;
     const vw = de.clientWidth || window.innerWidth, vh = window.innerHeight || de.clientHeight;
     const ring = root.querySelector(".ring");
     const tip = root.querySelector(".tip"), arrow = root.querySelector(".arrow");
-    root.querySelector(".tstep").textContent = `Step ${i + 1} of ${list.length}`;
+    const stepTxt = `Step ${i + 1} of ${list.length}`, tsEl = root.querySelector(".tstep");
+    if (tsEl.textContent !== stepTxt) tsEl.textContent = stepTxt;
     root.querySelector("h4").textContent = step.title;
-    root.querySelector("p").textContent = tgt ? step.desc
+    root.querySelector("p").textContent = (tgt || !step.sel) ? step.desc
       : step.desc + " (This part isn't shown at the current screen size — widen the window or open the menu to see it.)";
     root.querySelector(".back").style.visibility = i ? "visible" : "hidden";
     root.querySelector(".next").textContent = i < list.length - 1 ? "Next →" : "Done";
@@ -336,7 +390,7 @@
   function place() {
     if (!root) return;
     if (i >= list.length) { end(); return; }
-    const tgt = present(list[i].sel);
+    const tgt = pick(list[i]);
     observe(tgt);
     if (tgt) {
       // Scroll the target into view BEFORE measuring (only when not already fully on screen).
@@ -369,13 +423,13 @@
 
   // another dialog (BPUI overlay, app modal) owns Escape while it is open
   function otherModalOpen() {
-    try { return !!document.querySelector('.bpui-overlay, .modal:not([hidden]), .ov, .lightbox, [aria-modal="true"]:not([hidden])'); }
+    try { return Array.prototype.some.call(document.querySelectorAll('.bpui-overlay, .modal:not([hidden]), .ov, .lightbox, [aria-modal="true"]:not([hidden])'),
+      m => !m.closest(".htour") && !!present(m)); }
     catch (e) { return false; }
   }
 
   /* ---- mount: reuse #helpBtn if present, else a floating button ------- */
   function mount() {
-    document.addEventListener("keydown", e => { if (e.key === "Escape" && root && !otherModalOpen()) end(); });
     if (!steps.length) return;   // engine-only page: the page wires its own button
     const existing = document.getElementById("helpBtn");
     if (existing) { existing.addEventListener("click", () => start()); }
@@ -394,7 +448,17 @@
       if (btn) btn.addEventListener("click", () => {
         try { if (localStorage.getItem(form.key)) return; } catch (_) {}
         // wait for the modal to actually render, then coach the fields
-        setTimeout(() => { if (present(form.modal)) start(form.steps, form.key); }, 300);
+        setTimeout(() => {
+          const m = present(form.modal); if (!m) return;
+          start(form.steps, form.key);
+          // the field coach belongs to the modal: stop it as soon as the modal closes (save/cancel),
+          // so it never lingers over the board or another dialog
+          const mine = root;
+          if (typeof MutationObserver === "function") {
+            const mo = new MutationObserver(() => { if (root !== mine) { mo.disconnect(); return; } if (!present(form.modal)) { mo.disconnect(); end(); } });
+            mo.observe(m, { attributes: true, attributeFilter: ["hidden", "class", "style"] });
+          }
+        }, 300);
       });
     }
 
@@ -405,7 +469,7 @@
     // for the form-coaching hints above, which remain click-triggered.)
   }
 
-  window.HelmTour = { start, end, _layout: layout, _present: present };
+  window.HelmTour = { start, end, hasSteps: steps.length > 0, _layout: layout, _present: present, _pick: pick };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
   else mount();
 })();

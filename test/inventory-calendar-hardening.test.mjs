@@ -147,7 +147,7 @@ t('calendar: cancelled/closed events and done tasks make no staff conflicts', as
 });
 t('source: local-date floor, prefilled past date kept, max logout global, BroadcastChannel kept, NEXT_PAGES', () => {
   assert.doesNotMatch(SRC, /el\.setAttribute\("min", new Date\(\)\.toISOString/);
-  assert.match(SRC, /todayFloor/);
+  assert.match(SRC, /win === "future" \? isoDay\(new Date\(\)\)/); assert.match(SRC, /function isoDay\(d\) \{ return d\.getFullYear\(\)/);
   assert.match(SRC, /reason === "max" && !fromOtherTab\) \? "global" : "local"/);
   assert.match(SRC, /bc\.postMessage\(\{ type: "logout"/);
 });t('reserve() prefers the atomic RPC and falls back when it is not deployed', () => {

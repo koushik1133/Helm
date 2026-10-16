@@ -1,0 +1,60 @@
+/* status-pills.css — one status-colour language across the app shell (loaded by ui-kit.css via @import).
+   Restyles the legacy per-page status badges (span.stat / span.st, built at render time from the record's
+   status) into the shared .hs-pill look, keyed on the class those pages already emit — markup unchanged.
+   Tone map (same as ui-kit .hs-draft/.hs-sent/... on Quotes):
+     draft  grey       q none unassigned requested enquiry open draft new na dormant
+     sent   blue       sent assigned invoiced booked reserved allocated active in_progress
+     due    amber      st pending due
+     ok     green      ok yes confirmed approved accepted completed done resolved delivered returned won
+     paid   dark green paid
+     bad    red        no rejected cancelled overdue
+     muted  outline    archived closed waived
+   Scoped to the new shell only; span-only so KPI tiles that reuse the .stat class are never touched. */
+html[data-shell] {
+  --sp-draft-bg:#eef0f4; --sp-draft-fg:#4b5565;
+  --sp-sent-bg:#e6efff;  --sp-sent-fg:#1d4ed8;
+  --sp-due-bg:#fff4dc;   --sp-due-fg:#8a5a00;
+  --sp-ok-bg:#e3f6ea;    --sp-ok-fg:#12703a;
+  --sp-paid-bg:#d6eedd;  --sp-paid-fg:#0c5a2a;
+  --sp-bad-bg:#fdeaea;   --sp-bad-fg:#b42318;
+  --sp-muted-fg:var(--hb-ink3,var(--ink-3,#6b7385)); --sp-muted-line:var(--hb-line,var(--line,#e3e8f2));
+}
+html[data-shell][data-theme="dark"] {
+  --sp-draft-bg:rgba(160,170,190,.16); --sp-draft-fg:#c3cad8;
+  --sp-sent-bg:rgba(80,130,255,.18);   --sp-sent-fg:#a9c0ff;
+  --sp-due-bg:rgba(240,170,40,.18);    --sp-due-fg:#ffd27a;
+  --sp-ok-bg:rgba(63,185,80,.16);      --sp-ok-fg:#7fe39a;
+  --sp-paid-bg:rgba(25,120,60,.34);    --sp-paid-fg:#b4f3c8;
+  --sp-bad-bg:rgba(240,90,90,.18);     --sp-bad-fg:#ffa3a3;
+}
+@media (prefers-color-scheme:dark) {
+  html[data-shell]:not([data-theme]) {
+    --sp-draft-bg:rgba(160,170,190,.16); --sp-draft-fg:#c3cad8;
+    --sp-sent-bg:rgba(80,130,255,.18);   --sp-sent-fg:#a9c0ff;
+    --sp-due-bg:rgba(240,170,40,.18);    --sp-due-fg:#ffd27a;
+    --sp-ok-bg:rgba(63,185,80,.16);      --sp-ok-fg:#7fe39a;
+    --sp-paid-bg:rgba(25,120,60,.34);    --sp-paid-fg:#b4f3c8;
+    --sp-bad-bg:rgba(240,90,90,.18);     --sp-bad-fg:#ffa3a3;
+  }
+}
+
+html[data-shell] :is(span.stat,span.st):not(.hs-pill) {
+  display:inline-flex; align-items:center; gap:6px; height:22px; padding:0 9px; border-radius:999px;
+  font-size:12px; font-weight:600; line-height:1; letter-spacing:0; text-transform:none; white-space:nowrap;
+  vertical-align:middle; border:1px solid transparent; background:var(--sp-draft-bg); color:var(--sp-draft-fg);
+}
+html[data-shell] :is(span.stat,span.st):not(.hs-pill)::before {
+  content:""; width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.85; flex:0 0 auto;
+}
+/* event header "starts …" chip wraps long text (shell-b-pages keeps its display rules) */
+html[data-shell] #evTime + span.stat.q { height:auto; min-height:22px; padding-top:3px; padding-bottom:3px; white-space:normal; }
+
+html[data-shell] :is(span.stat,span.st):is(.q,.none,.unassigned,.requested,.enquiry,.open,.draft,.new,.na,.dormant):not(.hs-pill) { background:var(--sp-draft-bg); color:var(--sp-draft-fg); }
+html[data-shell] :is(span.stat,span.st):is(.sent,.assigned,.invoiced,.booked,.reserved,.allocated,.active,.in_progress):not(.hs-pill) { background:var(--sp-sent-bg); color:var(--sp-sent-fg); }
+html[data-shell] :is(span.stat,span.st):is(.st,.pending,.due):not(.hs-pill) { background:var(--sp-due-bg); color:var(--sp-due-fg); }
+html[data-shell] :is(span.stat,span.st):is(.ok,.yes,.confirmed,.approved,.accepted,.completed,.done,.resolved,.delivered,.returned,.won):not(.hs-pill) { background:var(--sp-ok-bg); color:var(--sp-ok-fg); }
+html[data-shell] :is(span.stat,span.st).paid:not(.hs-pill) { background:var(--sp-paid-bg); color:var(--sp-paid-fg); }
+html[data-shell] :is(span.stat,span.st):is(.no,.rejected,.cancelled,.overdue):not(.hs-pill) { background:var(--sp-bad-bg); color:var(--sp-bad-fg); }
+html[data-shell] :is(span.stat,span.st):is(.archived,.closed,.waived):not(.hs-pill) { background:transparent; color:var(--sp-muted-fg); border-color:var(--sp-muted-line); }
+/* placeholder badges filled in later stay invisible until they have text */
+html[data-shell] :is(span.stat,span.st):not(.hs-pill):empty { display:none; }

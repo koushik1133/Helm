@@ -20,6 +20,17 @@
 //     the balance) is RECORDED in payment_reconciliation for a refund — never dropped;
 //   * emails are per studio: organizations.name / business_email of the quote's org,
 //     not a global manager address or hard-coded branding.
+//
+// 0117 (DORMANT until a studio connects its own Razorpay account):
+//   * per-studio webhook URL  .../razorpay-webhook?org=<studio uuid>  is verified with
+//     THAT studio's webhook secret (org_razorpay_creds, service role); a payment it signs
+//     may only settle a quote of that studio (razorpay_settle_for_org -> 'org_mismatch'
+//     is ignored, never settled). Without ?org= the global RAZORPAY_WEBHOOK_SECRET path
+//     is unchanged.
+//   * payment.failed, payment_link.cancelled, payment_link.expired, refund.processed
+//     are recorded idempotently (razorpay_record_event, unique per x-razorpay-event-id);
+//     a cancelled/expired link's open reservation is closed so it is never reused.
+//     Refunds are recorded only - the ledger is never rewritten automatically.
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, escHtml, UUID_RE } from "../_shared/cors.ts";
 import { quoteCur, symMoney } from "../_shared/money.ts";
@@ -67,6 +78,38 @@ async function sendEmail(to: string, subject: string, html: string, from: string
   }
 }
 
+// 0117: events that are RECORDED (idempotently), never settled
+export const RECORD_ONLY = ["payment.failed", "payment_link.cancelled", "payment_link.expired", "refund.processed"];
+const REF = (re: RegExp, v: unknown) => re.test(String(v || "")) ? String(v) : null;
+async function sha256Hex(s: string) {
+  const d = await crypto.subtle.digest("SHA-256", enc.encode(s));
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+// deno-lint-ignore no-explicit-any
+async function recordEvent(admin: any, req: Request, raw: string, evt: any, org: string | null): Promise<Response> {
+  const type = String(evt.event);
+  const hdrId = req.headers.get("x-razorpay-event-id") || "";
+  const eventId = /^[A-Za-z0-9_-]{6,100}$/.test(hdrId) ? hdrId : "body:" + await sha256Hex(raw);
+  const link = evt.payload?.payment_link?.entity || {};
+  const pay = evt.payload?.payment?.entity || {};
+  const rf = evt.payload?.refund?.entity || {};
+  const linkRef = REF(/^plink_[A-Za-z0-9]+$/, link.id);
+  const payRef = REF(/^pay_[A-Za-z0-9]+$/, pay.id) || REF(/^pay_[A-Za-z0-9]+$/, rf.payment_id);
+  const refundRef = REF(/^rfnd_[A-Za-z0-9]+$/, rf.id);
+  const hint = link.notes?.quote_id || pay.notes?.quote_id || rf.notes?.quote_id || null;
+  const amount = Number(type === "refund.processed" ? rf.amount : type === "payment.failed" ? pay.amount : link.amount);
+  const status = String((type === "refund.processed" ? rf.status : type === "payment.failed" ? pay.status : link.status) || "").slice(0, 40) || null;
+  const { data, error: recErr } = await admin.rpc("razorpay_record_event", {
+    p_event_id: eventId, p_org: org, p_type: type, p_link_ref: linkRef, p_payment_ref: payRef, p_refund_ref: refundRef,
+    p_amount_paise: Number.isFinite(amount) ? Math.round(amount) : null, p_status: status,
+    p_quote_hint: hint && UUID_RE.test(String(hint)) ? String(hint) : null,
+  });
+  if (recErr) { console.error("razorpay_record_event failed", errTag(recErr)); return new Response("error", { status: 500 }); }
+  if (data?.result === "replay") return new Response("already recorded (idempotent)", { status: 200 });
+  if (data?.result === "org_mismatch") return new Response("ignored", { status: 200 });
+  return new Response("recorded", { status: 200 });
+}
+
 const oneLine = (s: unknown) => String(s ?? "").replace(/[\r\n]/g, " ").slice(0, 120);
 
 Deno.serve(async (req) => {
@@ -75,12 +118,25 @@ Deno.serve(async (req) => {
     if (wait) return new Response("too many requests", { status: 429, headers: { "Retry-After": String(wait) } });
     const raw = await readBodyCapped(req, WEBHOOK_BODY_LIMIT);
     const sig = req.headers.get("x-razorpay-signature") || "";
-    const secret = Deno.env.get("RAZORPAY_WEBHOOK_SECRET") || "";
+    // 0117: ?org=<uuid> -> that studio's own webhook secret; otherwise the global one
+    const orgParam = new URL(req.url).searchParams.get("org");
+    if (orgParam !== null && !UUID_RE.test(orgParam)) return new Response("invalid signature", { status: 401 });
+    let secret = "";
+    let admin: any = null;
+    const db = () => admin ||= createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+    if (orgParam) {
+      const { data: cr, error: cErr } = await db().rpc("org_razorpay_creds", { p_org: orgParam });
+      if (cErr) { console.error("org_razorpay_creds failed", errTag(cErr)); return new Response("error", { status: 500 }); }
+      secret = typeof cr?.webhook_secret === "string" ? cr.webhook_secret : "";
+    } else {
+      secret = Deno.env.get("RAZORPAY_WEBHOOK_SECRET") || "";
+    }
     if (!secret || !timingSafeEqual(await hmacHex(secret, raw), sig)) return new Response("invalid signature", { status: 401 });
 
     let evt: any;
     try { evt = JSON.parse(raw); } catch (_) { return new Response("bad payload", { status: 200 }); }
     const type = evt?.event;
+    if (RECORD_ONLY.includes(type)) return await recordEvent(db(), req, raw, evt, orgParam);
     if (!["payment_link.paid", "payment.captured"].includes(type)) return new Response("ignored", { status: 200 });
 
     const linkEnt = evt.payload?.payment_link?.entity || {};
@@ -93,16 +149,24 @@ Deno.serve(async (req) => {
     if (!linkId && !quoteHint) return new Response("no quote", { status: 200 });
     const paidPaise = Number(linkEnt.amount_paid ?? payEnt.amount ?? NaN);
 
-    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
-
-    const { data: out, error: sErr } = await admin.rpc("razorpay_settle", {
+    admin = db();
+    const settleArgs = {
       p_quote: quoteHint, p_link_ref: linkId, p_payment_ref: payId,
       p_paid_paise: Number.isFinite(paidPaise) ? Math.round(paidPaise) : null, p_event: type,
-    });
+    };
+    let out: any = null, sErr: any = null;
+    if (orgParam) {
+      const { data: oOut, error: oErr } = await admin.rpc("razorpay_settle_for_org", { p_org: orgParam, ...settleArgs });
+      out = oOut; sErr = oErr;
+    } else {
+      const { data: gOut, error: gErr } = await admin.rpc("razorpay_settle", settleArgs);
+      out = gOut; sErr = gErr;
+    }
     if (sErr || !out) {
       console.error("razorpay_settle failed", errTag(sErr));
       return new Response("error", { status: 500 });                    // Razorpay retries
     }
+    if (out.result === "org_mismatch") { console.error("webhook: payment belongs to another studio - ignored", type); return new Response("ignored", { status: 200 }); }
     if (out.result === "unmatched") { console.error("webhook: payment matched no quote", type); return new Response("no quote", { status: 200 }); }
     // IDEMPOTENCY: a replayed delivery returns 200 WITHOUT re-notifying
     if (out.result === "replay") return new Response("already recorded (idempotent)", { status: 200 });

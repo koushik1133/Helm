@@ -1,0 +1,198 @@
+/* shell-b-style.css — "one calm visual style" layer for the new shell (data-shell="b").
+   Everything is scoped under html[data-shell="b"]; builder pages never load this file. */
+
+/* 1. Remap theme/page tokens to the chosen accent theme. html[data-shell] (0,1,1) beats page :root (0,1,0). */
+html[data-shell="b"] {
+  --accent: var(--hb-acc); --accent-2: var(--hb-acc); --accent-soft: var(--hb-acc-soft);
+  --bg: var(--hb-bg2); --panel: var(--hb-bg); --panel-2: var(--hb-bg2);
+  --ink: var(--hb-ink); --ink-2: var(--hb-ink2); --ink-3: var(--hb-ink3);
+  --line: var(--hb-line); --line-2: var(--hb-line);
+  --shadow: 0 1px 2px rgba(0,0,0,.04);
+  --sb-sk: color-mix(in srgb, var(--hb-acc) 7%, var(--hb-bg2)); --sb-sk-hi: color-mix(in srgb, var(--hb-acc) 16%, var(--hb-bg));
+}
+html[data-shell="b"][data-theme="dark"] {
+  --sb-sk: color-mix(in srgb, var(--hb-acc) 10%, var(--hb-bg)); --sb-sk-hi: color-mix(in srgb, var(--hb-acc) 22%, var(--hb-bg));
+  --shadow: none;
+}
+
+/* 2. Buttons */
+html[data-shell="b"] .btn:not(.viewport *),
+html[data-shell="b"] a.btn {
+  border-radius: 8px; border: 1px solid var(--hb-line); background: var(--hb-bg);
+  color: var(--hb-ink); box-shadow: none; background-image: none;
+}
+html[data-shell="b"] .btn { transition: transform .18s var(--hb-ease), box-shadow .18s var(--hb-ease), border-color .15s, color .15s; }
+html[data-shell="b"] .btn:hover { border-color: var(--hb-acc); color: var(--hb-acc-text); }
+html[data-shell="b"] .btn.primary, html[data-shell="b"] button.primary,
+html[data-shell="b"] a.btn.primary, html[data-shell="b"] .btn.go {
+  background: var(--hb-grad); color: var(--hb-acc-ink);
+  border-color: transparent; box-shadow: 0 6px 16px -8px var(--hb-glow), inset 0 1px 0 rgba(255,255,255,.16);
+}
+html[data-shell="b"] .btn.primary:hover, html[data-shell="b"] .btn.go:hover, html[data-shell="b"] button.primary:hover { color: var(--hb-acc-ink); transform: translateY(-1px); box-shadow: 0 10px 22px -8px var(--hb-glow), inset 0 1px 0 rgba(255,255,255,.16); }
+html[data-shell="b"] .btn:active { transform: none; }
+html[data-shell="b"] .btn.ghost { background: transparent; }
+/* semantic buttons keep colour, just flat */
+html[data-shell="b"] .btn.danger, html[data-shell="b"] .btn.no { color: #b42318; border-color: #f1c4bf; background: var(--hb-bg); }
+html[data-shell="b"][data-theme="dark"] .btn.danger, html[data-shell="b"][data-theme="dark"] .btn.no { color: #f87171; border-color: #5a2a2a; }
+html[data-shell="b"] .btn:disabled, html[data-shell="b"] .btn[disabled] { opacity: .45; }
+
+/* 3. Links */
+html[data-shell="b"] main a:not(.btn):not([class*="nav"]):not([class*="tab"]):not([class*="chip"]),
+html[data-shell="b"] .card a:not(.btn) { color: var(--hb-acc-text); text-decoration: none; }
+html[data-shell="b"] main a:not(.btn):hover, html[data-shell="b"] .card a:not(.btn):hover { text-decoration: underline; text-underline-offset: 2px; }
+
+/* 4. Cards / panels / modals */
+html[data-shell="b"] .card, html[data-shell="b"] .panel, html[data-shell="b"] .modal,
+html[data-shell="b"] .modal-card, html[data-shell="b"] .dialog {
+  background: var(--hb-bg); border: 1px solid var(--hb-line); border-radius: 12px;
+  box-shadow: none; background-image: none;
+}
+html[data-shell="b"] main .card { transition: transform .2s var(--hb-ease), box-shadow .2s var(--hb-ease), border-color .2s; }
+html[data-shell="b"] main a.card:hover, html[data-shell="b"] main .card.link:hover, html[data-shell="b"] main .card[onclick]:hover { transform: translateY(-2px); box-shadow: var(--hb-lift); border-color: color-mix(in srgb, var(--hb-acc) 35%, var(--hb-line)); }
+
+/* 5. Tables */
+html[data-shell="b"] table th { background: var(--hb-bg2); color: var(--hb-ink2); font-weight: 600; border-bottom: 1px solid var(--hb-line); }
+html[data-shell="b"] table td { border-bottom-color: var(--hb-line); }
+html[data-shell="b"] table tbody tr:hover > td { background: color-mix(in srgb, var(--hb-acc) 5%, var(--hb-bg)); }
+
+/* 6. Inputs */
+html[data-shell="b"] :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"], [type="hidden"], [type="submit"], [type="button"]), select):not(.viewport *) {
+  min-height: 38px; border-radius: 8px; background-color: var(--hb-bg); color: var(--hb-ink);
+}
+html[data-shell="b"] textarea { border-radius: 8px; background-color: var(--hb-bg); color: var(--hb-ink); }
+html[data-shell="b"] :is(input, select, textarea, button, .btn, a):focus-visible {
+  outline: 2px solid var(--hb-acc); outline-offset: 2px; box-shadow: none;
+}
+html[data-shell="b"] :is(input, select, textarea):focus { border-color: var(--hb-acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--hb-acc) 18%, transparent); }
+html[data-shell="b"] :is(input, select, textarea):focus-visible { outline: none; }
+html[data-shell="b"] input[type="checkbox"], html[data-shell="b"] input[type="radio"], html[data-shell="b"] input[type="range"] { accent-color: var(--hb-acc); }
+
+/* 7. Tabs / chips: active = accent */
+html[data-shell="b"] :is(.tab, .rtab, .chip, .ptab).active,
+html[data-shell="b"] :is(.tab, .rtab, .chip, .ptab)[aria-selected="true"] {
+  background: var(--hb-on); color: var(--hb-on-ink); border-color: var(--hb-on); background-image: none;
+}
+
+/* 8. Toasts */
+html[data-shell="b"] .toast { background: var(--hb-ink); color: var(--hb-bg); border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.12); background-image: none; }
+
+/* Pills/badges: deliberately untouched so status colours stay semantic. */
+
+/* 9. Icon SVGs injected by shell-b-style.js */
+html[data-shell="b"] .sb-ico { width: 1em; height: 1em; vertical-align: -.14em; flex: none;
+  stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+
+/* 10. Skeletons (Task B): text hidden, bars drawn; page JS replaces content later */
+html[data-shell="b"] .sb-skel { position: relative; color: transparent !important; min-height: 64px; text-align: left; }
+html[data-shell="b"] td.sb-skel, html[data-shell="b"] .sb-skel.sb-skel-sm { min-height: 22px; }
+html[data-shell="b"] .sb-skel::before, html[data-shell="b"] .sb-skel::after {
+  content: ""; position: absolute; left: 12px; height: 10px; border-radius: 6px;
+  background: linear-gradient(90deg, var(--sb-sk) 0%, var(--sb-sk-hi) 50%, var(--sb-sk) 100%);
+  background-size: 200% 100%; animation: sbShimmer 1.3s ease-in-out infinite;
+}
+html[data-shell="b"] .sb-skel::before { top: 14px; width: min(60%, 320px); }
+html[data-shell="b"] .sb-skel::after { top: 34px; width: min(40%, 200px); }
+html[data-shell="b"] .sb-skel.sb-skel-sm::before { top: calc(50% - 5px); }
+html[data-shell="b"] .sb-skel.sb-skel-sm::after { display: none; }
+html[data-shell="b"] .sb-skel .spinner, html[data-shell="b"] .sb-skel > * { visibility: hidden; }
+@keyframes sbShimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  html[data-shell="b"] .sb-skel::before, html[data-shell="b"] .sb-skel::after { animation: none; }
+}
+
+/* 11. Empty states */
+html[data-shell="b"] :is(.empty, .emptystate, .emptylist, .colempty, .bpb-empty):not(.sb-skel) {
+  color: var(--hb-ink3); font-size: 13px; text-align: center;
+  border: 1px dashed var(--hb-line); border-radius: 10px; background: transparent;
+}
+html[data-shell="b"] td.empty, html[data-shell="b"] td .empty { border: 0; }
+
+/* 12. Dark-mode fixes for page colours that were hard-coded light (QA pass) */
+html[data-shell="b"] .hsf-chip[aria-pressed="true"] { background: var(--hb-on) !important; color: var(--hb-on-ink) !important; border-color: var(--hb-on) !important; }
+html[data-shell="b"][data-theme="dark"] tbody tr.is-confirmed { background: #12241a; }
+html[data-shell="b"][data-theme="dark"] tbody tr.is-confirmed:hover { background: #163021; }
+html[data-shell="b"][data-theme="dark"] tbody tr.is-attention { background: #2a1616; }
+html[data-shell="b"][data-theme="dark"] tbody tr.is-attention:hover { background: #351b1b; }
+/* chat: white-on-accent pieces (avatar, +, unread, send) — in dark the accent is light, so use the inverted ink pair */
+html[data-shell="b"] .hb-chatpage :is(.plus, .av, .unread, .send, .ie-ic.on, .ie-apply, .ie-send) { background: var(--hb-on); color: var(--hb-on-ink); }
+html[data-shell="b"][data-theme="dark"] .occ.paused { background: var(--hb-bg2); color: var(--hb-ink2); }
+/* white-on-accent pieces outside chat (event stepper, insights/reports range chips): accent is light in dark mode */
+html[data-shell="b"] .step.active, html[data-shell="b"] .rb-chip[aria-pressed=true] { background: var(--hb-on); border-color: var(--hb-on); color: var(--hb-on-ink); }
+html[data-shell="b"] .step.active .n { background: color-mix(in srgb, var(--hb-on-ink) 22%, transparent); color: var(--hb-on-ink); }
+/* pages hardcode violet (#7c3aed) for selected tabs/steps/chips in dark mode — keep them monochrome */
+html[data-shell="b"][data-theme] .tabs button.on, html[data-shell="b"][data-theme] .step.on,
+html[data-shell="b"][data-theme] .chip[aria-pressed="true"], html[data-shell="b"][data-theme] .skip-link { background: var(--hb-on); border-color: var(--hb-on); color: var(--hb-on-ink); }
+
+/* 13. bpui spinner / loading / toast accents: violet -> ink. (0,2,1) beats store-api's injected :root / html[data-theme=dark] */
+html[data-shell="b"]:root {
+  --bpui-accent: var(--hb-acc); --bpui-on-accent: var(--hb-acc-ink); --bpui-soft: var(--hb-acc-soft);
+  --bpui-toast-act: currentColor; --bpui-info: var(--hb-ink3);
+  --accent: var(--hb-acc); --accent-2: var(--hb-acc); --accent-soft: var(--hb-acc-soft);
+}
+html[data-shell="b"] .bpui-loading { color: var(--hb-ink2); }
+/* 13b. Dark midnight/emerald: the base dark accent (#5b52e6 / #08795a) is too dim as TEXT on its own soft tint
+   (chips/tags/avatars using color: var(--accent) on var(--accent-soft) measured 2.5-2.7:1). Lift the page-level accent
+   just enough for >=3:1 on the soft tint while keeping >=4.3:1 for white text on accent buttons. */
+html[data-shell="b"][data-theme="dark"][data-hb-theme="midnight"]:root { --accent: #6b63f0; --accent-2: #6b63f0; --bpui-accent: #6b63f0; }
+html[data-shell="b"][data-theme="dark"][data-hb-theme="emerald"]:root { --accent: #0a8a66; --accent-2: #0a8a66; --bpui-accent: #0a8a66; }
+@media (prefers-color-scheme: dark) {
+  html[data-shell="b"]:not([data-theme])[data-hb-theme="midnight"]:root { --accent: #6b63f0; --accent-2: #6b63f0; --bpui-accent: #6b63f0; }
+  html[data-shell="b"]:not([data-theme])[data-hb-theme="emerald"]:root { --accent: #0a8a66; --accent-2: #0a8a66; --bpui-accent: #0a8a66; }
+}
+/* 13c. ...but white text on the lifted dark midnight/emerald accent fell to 4.34-4.50:1 on confirm-dialog buttons; keep primary FILLS on the base --hb-acc (>=5:1). */
+html[data-shell="b"][data-theme] .bpui-primary { background: var(--hb-acc); border-color: var(--hb-acc); color: var(--hb-acc-ink); }
+html[data-shell="b"] .hss-spin { border-top-color: var(--hb-acc) !important; }
+
+/* 14. Remaining hard-coded violet on common UI */
+html[data-shell="b"][data-theme] .btn.primary, html[data-shell="b"][data-theme] button.primary,
+html[data-shell="b"][data-theme] a.btn.primary { background: var(--hb-grad); color: var(--hb-acc-ink); border-color: transparent; }
+html[data-shell="b"] .hp:focus-within, html[data-shell="b"] .hp-pop .hp-search:focus { border-color: var(--hb-acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--hb-acc) 18%, transparent); }
+html[data-shell="b"] .hp-opt[aria-selected="true"] .hp-ocode { color: var(--hb-acc-text); }
+html[data-shell="b"] .dropzone { background: color-mix(in srgb, var(--hb-acc) 6%, transparent); border-color: color-mix(in srgb, var(--hb-acc) 45%, var(--hb-line)); }
+html[data-shell="b"] .bub .reply { background: color-mix(in srgb, var(--hb-ink) 6%, transparent); border-left-color: var(--hb-ink3); }
+
+/* 15. Palette icon tiles + row-action buttons holding a converted icon */
+html[data-shell="b"] .hss-oi { color: var(--hb-ink2); }
+html[data-shell="b"] .hss-oi .sb-ico { width: 15px; height: 15px; }
+html[data-shell="b"] button.ic .sb-ico { width: 15px; height: 15px; }
+
+/* 16. Accent polish: non-active tabs hover tint; links in main follow accent */
+html[data-shell="b"] :is(.tab, .rtab, .ptab):not(.active):not([aria-selected="true"]):hover { color: var(--hb-acc-text); }
+html[data-shell="b"] :is(.tab, .rtab, .chip, .ptab).active, html[data-shell="b"] :is(.tab, .rtab, .chip, .ptab)[aria-selected="true"] { box-shadow: 0 4px 12px -6px var(--hb-glow); }
+/* 17. accent used as TEXT on pages: use the contrast-tuned accent-text token (fills keep --accent) */
+html[data-shell="b"] .ic.go { color: var(--hb-acc-text); border-color: color-mix(in srgb, var(--hb-acc) 25%, var(--hb-line)); }
+html[data-shell="b"] .ic.go:hover { background: var(--hb-acc-soft); }
+html[data-shell="b"][data-theme="dark"] .ic.confirm { color: #6fd3a0; border-color: #1f5a3c; }
+html[data-shell="b"] .refchip { color: var(--hb-ink2); }
+
+/* 18. Production polish (calm, consistent controls) — visual only */
+html[data-shell="b"] .btn { font-weight: 550; letter-spacing: -.005em; }
+html[data-shell="b"] .btn:disabled, html[data-shell="b"] .btn[disabled] { cursor: not-allowed; transform: none; box-shadow: none; }
+html[data-shell="b"] :is(input, textarea)::placeholder { color: var(--hb-ink3); opacity: 1; }
+html[data-shell="b"] :is(input, select, textarea):not(.viewport *) { transition: border-color .15s, box-shadow .15s; }
+html[data-shell="b"] table th { font-size: 12px; letter-spacing: .02em; }
+html[data-shell="b"] table td { font-variant-numeric: tabular-nums; }
+html[data-shell="b"] :is(.empty, .emptystate, .emptylist, .colempty, .bpb-empty):not(.sb-skel):not(td) { padding: 20px 16px; line-height: 1.5; }
+
+/* ---------- keyboard shortcuts sheet: grouped + filterable (overrides shell-b.css basics) ---------- */
+html[data-shell="b"] .hb-help-dlg { width: min(480px, 100%); padding: 18px 20px 14px; }
+html[data-shell="b"] .hb-help-q { width: 100%; box-sizing: border-box; height: 36px; margin: 2px 0 12px; padding: 0 12px; border: 1px solid var(--hb-line); border-radius: 9px; background: var(--hb-bg2); color: var(--hb-ink); font: inherit; }
+html[data-shell="b"] .hb-help-q:focus { outline: none; border-color: var(--hb-acc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--hb-acc) 22%, transparent); }
+html[data-shell="b"] .hb-help-sec { margin: 0 0 12px; }
+html[data-shell="b"] .hb-help-sec[hidden], html[data-shell="b"] .hb-help-row[hidden], html[data-shell="b"] .hb-help-none[hidden] { display: none; }
+html[data-shell="b"] .hb-help-gh { margin: 0 0 4px; font: 600 11px/14px 'IBM Plex Sans', system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--hb-ink3); }
+html[data-shell="b"] .hb-help-sec .hb-help-list { display: block; }
+html[data-shell="b"] .hb-help-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--hb-line); }
+html[data-shell="b"] .hb-help-sec .hb-help-row:last-child { border-bottom: 0; }
+html[data-shell="b"] .hb-help-row dd { margin: 0; color: var(--hb-ink2); min-width: 0; }
+html[data-shell="b"] .hb-help-row dt { display: flex; align-items: center; gap: 4px; flex: none; }
+html[data-shell="b"] .hb-help-then { font-size: 11px; color: var(--hb-ink3); }
+html[data-shell="b"] .hb-help-none { margin: 8px 0 12px; color: var(--hb-ink3); }
+html[data-shell="b"] .hb-help-ft { margin: 4px 0 0; padding-top: 10px; border-top: 1px solid var(--hb-line); font-size: 12px; color: var(--hb-ink3); }
+html[data-shell="b"] .hb-help-ft kbd, html[data-shell="b"] .hb-help-row kbd { min-width: 22px; padding: 2px 6px; border: 1px solid var(--hb-line); border-bottom-width: 2px; border-radius: 6px; background: var(--hb-bg2);
+  font: 600 11.5px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; text-align: center; color: var(--hb-ink); }
+
+/* header search: subtle "Search or jump to… ⌘K" hint */
+html[data-shell="b"] .hb-search .hss-trig.hb-hint .hss-tl { color: var(--hb-ink3); }
+html[data-shell="b"] .hb-search .hss-trig.hb-hint .hss-kbd { margin-left: auto; opacity: .85; border: 1px solid var(--hb-line); border-radius: 6px; padding: 1px 6px; background: var(--hb-bg); color: var(--hb-ink3); font: 600 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+html[data-shell="b"] .hb-search .hss-trig.hb-hint:hover .hss-kbd { opacity: 1; color: var(--hb-ink2); }

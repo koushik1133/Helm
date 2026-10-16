@@ -16,6 +16,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('node:crypto');
+const zlib = require('node:zlib');
 
 // Stability mandate: strict env validation BEFORE the server layer starts — fail
 // fast with an actionable message rather than silently binding somewhere unexpected.
@@ -94,7 +95,7 @@ const MIME = {
   '.json': 'application/json', '.map': 'application/json', '.svg': 'image/svg+xml',
   '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
   '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8',
-  '.xml': 'application/xml; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8', '.mp4': 'video/mp4', '.webm': 'video/webm',
 };
 
 /* Security headers — MIRRORS vercel.json (production source of truth) and
@@ -173,7 +174,7 @@ CSP.checkout = buildCsp({
 });
 const CSP_BY_PAGE = {
   portal: 'userImg', booklet: 'userImg', 'proposal-view': 'userImg', proposal: 'userImg', media: 'userImg',
-  'invite-studio': 'studio', invite: 'invite', builder: 'builder', capture: 'capture',
+  'invite-studio': 'studio', invite: 'invite', builder: 'builder', try: 'builder', capture: 'capture',
   login: 'auth', 'reset-password': 'auth', checkout: 'checkout',
 };
 const SECURITY_HEADERS = {
@@ -197,7 +198,7 @@ const MIC_PAGES = new Set(['chat', 'work']);
 // Search-engine policy: only the marketing pages are indexable. Every other
 // page (app, token pages, login, sim-pay, 404), /docs/* and /.well-known/* get
 // X-Robots-Tag. Same list as vercel.json (derived from public/*.html).
-const INDEXABLE_PAGES = new Set(['index', 'about', 'services', 'privacy', 'terms', 'refund-policy']);
+const INDEXABLE_PAGES = new Set(['index', 'about', 'services', 'pricing', 'try', 'demo', 'privacy', 'terms', 'refund-policy', 'data-deletion', 'cookie-policy', 'dpa', 'acceptable-use', 'subprocessors', 'security', 'sla', 'accessibility', 'grievance', 'ai-notice', 'copyright']);
 // Pages served for client links that carry a bearer token in the URL (/approve?token=,
 // /<studio>/<kind>/<ref>, /i/<slug>): Referrer-Policy no-referrer + Cache-Control
 // no-store, private (audit Phase 9). Same list as vercel.json / _headers.
@@ -272,13 +273,21 @@ function cacheControlFor(filePath, query) {
 function sendFileRes(res, filePath, buf, req, status = 200) {
   const ext = path.extname(filePath);
   const query = (req && req.url && req.url.includes('?')) ? req.url.slice(req.url.indexOf('?')) : '';
+  // Compress text responses like the production CDN (Vercel) does, so local runs and the
+  // Lighthouse CI budgets measure realistic transfer sizes.
+  const type = MIME[ext] || 'application/octet-stream';
+  const gz = buf.length > 1024 && COMPRESSIBLE.test(type) && /\bgzip\b/i.test(String((req && req.headers && req.headers['accept-encoding']) || ''));
+  const body = gz ? zlib.gzipSync(buf) : buf;
   res.writeHead(status, {
-    'Content-Type': MIME[ext] || 'application/octet-stream',
+    'Content-Type': type,
     'Cache-Control': status === 200 ? cacheControlFor(filePath, query) : 'no-cache',
+    'Vary': 'Accept-Encoding',
+    ...(gz ? { 'Content-Encoding': 'gzip' } : {}),
     ...securityHeadersFor(req, filePath),
   });
-  res.end(buf);
+  res.end(body);
 }
+const COMPRESSIBLE = /^(text\/|application\/(javascript|json|xml|manifest\+json)|image\/svg\+xml)/i;
 
 // Unknown URL → the branded 404 page with a real 404 status (was: dashboard.html, 200).
 function sendNotFound(res, req) {
@@ -338,6 +347,9 @@ function serveStatic(req, res) {
   // vendor notes) are never served. Production: .vercelignore + vercel.json redirects.
   if (isInternalFile(rel)) return sendNotFound(res, req);
 
+  // Parity with the vercel.json redirect: /signup opens the sign-up form on the login page.
+  if (rel === '/signup') { res.writeHead(302, { Location: '/login#signup' }); return res.end(); }
+
   // Public digital-invitation sites: /i/<slug> is served by invite.html, which
   // reads the slug from the path and fetches ONLY the published display fields.
   // Guard: only treat it as a slug when there's no file extension, so asset
@@ -384,14 +396,15 @@ function serveStatic(req, res) {
 
 // /<studio>/<section>… → page name (or null). Mirrors vercel.json "rewrites".
 function prettyPage(rel) {
-  const m = /^\/[a-z0-9-]{3,40}\/(dashboard|quotes|leads|chat|settings|events|clients|booklet)(?:\/([^/]+)(?:\/(floor-plan|tasks))?)?\/?$/.exec(rel || '');
+  const m = /^\/[a-z0-9-]{3,40}\/(dashboard|quotes|leads|chat|settings|events|clients|booklet|audit|inventory|staff|vendors|templates|business|insights|reports|crm|nurture|calendar|onboarding|integrations|control)(?:\/([^/]+)(?:\/(floor-plan|tasks))?)?\/?$/.exec(rel || '');
   if (!m) return null;
   const sec = m[1], ref = m[2], sub = m[3];
   if (sec === 'events') return ref ? (sub === 'floor-plan' ? 'builder' : sub === 'tasks' ? 'ops' : 'event') : null;
   if (sub) return null;
   if (sec === 'clients' || sec === 'booklet') return ref ? (sec === 'clients' ? 'client' : 'booklet') : null;
   if (ref) return null;
-  return { dashboard: 'dashboard', quotes: 'quotes', leads: 'leads', chat: 'chat', settings: 'control' }[sec];
+  if (sec !== 'settings' && sec !== 'events' && sec !== 'clients' && sec !== 'booklet') return sec;  // /<studio>/<page> → <page>.html
+  return { settings: 'control' }[sec];
 }
 
 /* ----------------------------------------------------- rate limiting */
@@ -432,9 +445,11 @@ function isLoopbackClient(req) {
 function layoutApiAllowed(req) {
   if (isLoopbackClient(req)) return true;
   if (!LAYOUTS_API_TOKEN) return false;
-  const m = /^Bearer\s+(.+)$/i.exec(req.headers['authorization'] || '');
-  if (!m) return false;
-  const got = Buffer.from(m[1]);
+  const auth = String(req.headers['authorization'] || '');
+  if (auth.length > 4096 || !/^bearer[ \t]/i.test(auth)) return false;   // linear check, no backtracking
+  const tok = auth.slice(7).trim();
+  if (!tok) return false;
+  const got = Buffer.from(tok);
   const want = Buffer.from(LAYOUTS_API_TOKEN);
   return got.length === want.length && crypto.timingSafeEqual(got, want);
 }

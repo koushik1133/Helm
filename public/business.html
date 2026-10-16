@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en" data-theme="light" class="auth-pending">
+<head>
+<style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
+<meta charset="utf-8">
+<base href="/"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Business — Helm Events</title>
+<link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
+<link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
+<link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="business.css?v=1">
+<link rel="stylesheet" href="pages-polish-admin.css?v=1">
+<link rel="stylesheet" href="vendor-bills.css?v=1">
+</head>
+<body class="bz-body">
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="bz-page">
+  <header class="bz-header">
+    <a href="dashboard.html" class="mark" title="Home"></a>
+    <div><h1>Business</h1><small>Helm Events</small></div>
+    <nav class="nav"><a href="dashboard.html">Home</a><a href="reports.html">Reports</a><a href="insights.html">Insights</a></nav>
+    <span class="spacer"></span>
+    <span id="bell"></span>
+    <span id="account" class="account" hidden></span>
+  </header>
+  <main id="main">
+    <div id="boot" aria-busy="true"></div>
+    <div id="noaccess" class="bz-card" hidden><p class="bz-muted">Your role doesn't have access to the studio's money. Ask an admin for finance access.</p></div>
+    <div id="bzApp" hidden></div>
+    <div id="vbBiz" data-vb-mount="business" data-vb-gate="bzApp" hidden></div>
+  </main>
+</div>
+<script src="/trusted-types.js?v=2"></script>
+<script src="telemetry.js?v=3"></script>
+<script src="config.js?v=100"></script>
+<script src="event-name.js?v=6"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=205"></script>
+<script src="shell-b-money.js?v=3"></script>
+<script src="business.js?v=1"></script><script src="vendor-bills-ui.js?v=4"></script>
+</body>
+</html>

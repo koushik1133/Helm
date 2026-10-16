@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
+<link rel="stylesheet" href="/ops-polish.css?v=1">
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -97,7 +98,8 @@
   .evgal a{display:block;border:1px solid var(--line);border-radius:8px;overflow:hidden;aspect-ratio:1/1;background:var(--panel)}
   .evgal img{width:100%;height:100%;object-fit:cover;display:block}
 </style>
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="pages-polish-ops.css?v=1">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -138,6 +140,11 @@
       <label class="s-1c780c5">
         <input class="s-47124b2" type="checkbox" id="selAll"> Select all in this category</label>
       <div class="tasklist" id="taskList"></div>
+      <div class="crewrow" id="tplAddRow">
+        <input id="tpl_cat" maxlength="60" placeholder="Section (e.g. Stage)" aria-label="Template section">
+        <input id="tpl_title" maxlength="120" placeholder="New task (e.g. Venue recce)" aria-label="New template task">
+        <button type="button" class="btn" id="tpl_add">+ Add to template</button>
+      </div>
       <div class="assignbar">
         <span class="muted"><b id="selCount">0</b> selected →</span>
         <select class="s-b62dc2d" id="assignKind" aria-label="Assignment type">
@@ -214,10 +221,10 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=205"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -261,7 +268,8 @@
     $("#catTabs").innerHTML=CATS.map(c=>`<button type="button" data-c="${esc(c)}" class="${c===activeCat?'on':''}" aria-pressed="${c===activeCat}">${esc(c)}</button>`).join("");
     $("#catTabs").querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{ activeCat=b.dataset.c;
       $("#catTabs").querySelectorAll("button").forEach(x=>{ x.classList.toggle("on",x===b); x.setAttribute("aria-pressed",String(x===b)); }); $("#selAll").checked=false; renderTasks(); renderSuggestions(); }));
-    if(!canEdit){ ["cr_add","assignBtn"].forEach(id=>{const e=$("#"+id); if(e)e.disabled=true;}); setMsg("err","Your role is view-only for operations."); }
+    $("#tpl_cat").value=activeCat||"";
+    if(!canEdit){ ["cr_add","assignBtn","tpl_add"].forEach(id=>{const e=$("#"+id); if(e)e.disabled=true;}); setMsg("err","Your role is view-only for operations."); }
     try{ await refresh(); }
     catch(e){ BPUI.loadError($("#dashboard"), e, async()=>{ await refresh(); }, {what:"staff and tasks"}); }
     renderTasks();
@@ -316,6 +324,15 @@
     $("#taskList").innerHTML=tpl.map(t=>`<label class="titem"><input type="checkbox" class="tk" value="${esc(t.title)}"> ${esc(t.title)}</label>`).join("");
     $("#taskList").querySelectorAll(".tk").forEach(c=>c.addEventListener("change",updateSel)); updateSel();
   }
+  // task templates had no create UI — add a task (optionally a new section) to the org's template catalog
+  $("#tpl_add") && $("#tpl_add").addEventListener("click",()=>BPUI.guard($("#tpl_add"),async()=>{
+    setMsg();
+    const cat=($("#tpl_cat").value||"").trim(), title=($("#tpl_title").value||"").trim();
+    if(!cat||!title){ setMsg("err","Enter a section and a task title."); return; }
+    try{ await BPStore.ops.addTemplate(cat,title); }
+    catch(e){ setMsg("err", /duplicate|unique|23505/i.test(String(e&&(e.message||e.code)))?"That task is already in this section.":"Could not add the task: "+((e&&e.message)||e)); return; }
+    $("#tpl_title").value=""; activeCat=cat; await load(); setMsg("ok",`Added "${title}" to ${cat}.`);
+  }));
   function updateSel(){ $("#selCount").textContent=$("#taskList").querySelectorAll(".tk:checked").length; }
   $("#selAll") && $("#selAll").addEventListener("change",e=>{ $("#taskList").querySelectorAll(".tk").forEach(c=>c.checked=e.target.checked); updateSel(); });
 
@@ -377,7 +394,7 @@
       ${canEditOps?`<button type="button" class="btn sm sched" title="Set start time & prerequisite" aria-label="Schedule ${tn}">⏱</button>`:""}
       ${canEditOps?`<button type="button" class="btn sm spc" title="Toggle recurring reminder" aria-label="${t.is_special?"Turn off recurring reminder for":"Turn on recurring reminder for"} ${tn}">${t.is_special?'🔕':'🔔'}</button>`:""}
       ${['rejected','assigned'].includes(t.status)?`<button type="button" class="btn sm reassign" aria-label="Reassign ${tn}">Reassign</button>`:""}
-      ${canVerify && t.verify_status==='pending' ? `<button type="button" class="btn sm vpass" aria-label="Pass QC for ${tn}">✓ Pass</button><button type="button" class="btn sm vrej" aria-label="Reject QC for ${tn}">✗ Reject</button>`:""}</div>`;
+      ${canVerify && (t.verify_status==='pending' || (t.status==='completed' && t.verify_status==='rejected')) ? `<button type="button" class="btn sm vpass" aria-label="Pass QC for ${tn}">✓ Pass</button><button type="button" class="btn sm vrej" aria-label="Reject QC for ${tn}">✗ Reject</button>`:""}</div>`;
   }
   function renderDashboard(){
     if(!renderDashboard._s){ renderDashboard._s=1; BPStore.links.studio().then(s=>{ if(s) renderDashboard(); }).catch(()=>{}); }   // re-render once the branded studio link name is known

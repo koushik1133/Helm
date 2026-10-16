@@ -18,15 +18,20 @@
     if (e.key === 'Escape') return 'exit';
     return null;
   }
+  // vendor shim: standard → webkit (Safari 12+) → old webkit "FullScreen" spelling (Safari ≤ 11). Old Safari has no
+  // *Enabled flag at all, so a missing flag with a present method counts as enabled; an explicit false does not.
   function api(doc) {
     const de = doc.documentElement || {};
-    const req = de.requestFullscreen ? 'requestFullscreen' : de.webkitRequestFullscreen ? 'webkitRequestFullscreen' : null;
-    const native = !!(req && (doc.fullscreenEnabled || doc.webkitFullscreenEnabled));
+    const req = de.requestFullscreen ? 'requestFullscreen' : de.webkitRequestFullscreen ? 'webkitRequestFullscreen'
+      : de.webkitRequestFullScreen ? 'webkitRequestFullScreen' : null;
+    const flag = doc.fullscreenEnabled != null ? doc.fullscreenEnabled : doc.webkitFullscreenEnabled != null ? doc.webkitFullscreenEnabled
+      : doc.webkitFullScreenEnabled != null ? doc.webkitFullScreenEnabled : !!req;
+    const native = !!(req && flag);
     return {
       native,
-      request(el) { const f = el[req]; if (!native || !f) return Promise.reject(new Error('unsupported')); try { return Promise.resolve(f.call(el)); } catch (err) { return Promise.reject(err); } },
-      exit() { const f = doc.exitFullscreen || doc.webkitExitFullscreen; try { return Promise.resolve(f && f.call(doc)); } catch (err) { return Promise.resolve(); } },
-      element() { return doc.fullscreenElement || doc.webkitFullscreenElement || null; },
+      request(el) { const f = el && el[req]; if (!native || !f) return Promise.reject(new Error('unsupported')); try { return Promise.resolve(f.call(el)); } catch (err) { return Promise.reject(err); } },
+      exit() { const f = doc.exitFullscreen || doc.webkitExitFullscreen || doc.webkitCancelFullScreen; try { return Promise.resolve(f && f.call(doc)).catch(() => {}); } catch (err) { return Promise.resolve(); } },
+      element() { return doc.fullscreenElement || doc.webkitFullscreenElement || doc.webkitCurrentFullScreenElement || null; },
     };
   }
   const API = { fsKey, api };
@@ -60,15 +65,20 @@
     // let the browser apply the new size, then resize the 3D renderer (window resize) and refit the 2D plan
     G.requestAnimationFrame(() => G.requestAnimationFrame(() => {
       try { G.dispatchEvent(new G.Event('resize')); } catch (_) {}
-      try { if (typeof fitView === 'function') fitView(); } catch (_) {}   // eslint-disable-line no-undef
+      try { if (typeof fitView === 'function' && !(G.__helm3D && G.__helm3D.isActive && G.__helm3D.isActive())) fitView(); } catch (_) {}   // eslint-disable-line no-undef
     }));
   }
+  // native fullscreen animates (macOS / Safari ~0.5 s): the size read 2 frames in can be the OLD size, which left the
+  // 3D renderer letter-boxed. Re-run once the transition has settled, and whenever the viewport box changes size.
+  let ro = null;
+  function settle() { relayout(); [350, 800].forEach((ms) => { try { (G.setTimeout || setTimeout)(relayout, ms); } catch (_) {} }); }
   function apply(on) {
     doc.body.classList.toggle('fs-on', on);
     if (vp) vp.classList.toggle('fs-pseudo', on && pseudo);
     bHead.setAttribute('aria-pressed', String(on)); bHead.textContent = on ? '⛶ Exit fullscreen' : '⛶ Fullscreen';
-    bFab.setAttribute('aria-label', on ? 'Exit fullscreen' : 'Enter fullscreen');
-    bar.hidden = !on; syncView(); relayout();
+    bFab.setAttribute('aria-label', on ? 'Exit fullscreen' : 'Enter fullscreen'); bFab.setAttribute('aria-pressed', String(on));
+    bFab.title = on ? 'Exit fullscreen (Esc)' : 'Fullscreen (F)'; bFab.textContent = on ? '✕' : '⛶';
+    bar.hidden = !on; syncView(); settle();
     if (on) { try { bX.focus({ preventScroll: true }); } catch (_) {} }
     else if (opener && opener.focus && doc.contains(opener)) { try { opener.focus({ preventScroll: true }); } catch (_) {} }
   }
@@ -77,7 +87,11 @@
     opener = (e && e.currentTarget) || doc.activeElement;
     // close the mobile drawers first so nothing is left floating over the canvas
     try { doc.querySelectorAll('#leftPanel.open,#rightPanel.open').forEach((p) => p.classList.remove('open')); } catch (_) {}
-    F.request(vp).then(() => { pseudo = false; }).catch(() => { pseudo = true; apply(true); });
+    // some embedded browsers neither grant nor reject the request: fall back to full-window after 1s
+    let done = false;
+    const fallback = () => { if (done) return; done = true; if (!F.element()) { pseudo = true; apply(true); } };
+    try { (G.setTimeout || setTimeout)(fallback, 1000); } catch (_) {}
+    F.request(vp).then(() => { done = true; if (pseudo) { pseudo = false; apply(false); } }).catch(fallback);
   }
   function exit() {
     if (pseudo) { pseudo = false; apply(false); return; }
@@ -99,7 +113,7 @@
     const a = fsKey(e, typing); if (!a) return;
     if (doc.querySelector('.modal:not([hidden]), .bpui-overlay')) return;     // a dialog owns the keyboard
     if (a === 'toggle') { e.preventDefault(); toggle(e); }
-    else if (a === 'exit' && pseudo) { e.preventDefault(); exit(); }        // native fullscreen exits on Esc itself
+    else if (a === 'exit' && isOn()) { e.preventDefault(); exit(); }  // pseudo always; native usually eats Esc, but Safari / webviews may pass it through        // native fullscreen exits on Esc itself
   });
   function mount() {
     vp = doc.querySelector('.viewport'); if (!vp) return;
@@ -110,6 +124,7 @@
     const stack = doc.getElementById('fabStack');
     if (stack) { stack.prepend(bFab); vp.append(bar); } else vp.append(bFab, bar);
     bar.hidden = true;
+    if (G.ResizeObserver) { try { ro = new G.ResizeObserver(() => { if (isOn()) { try { G.dispatchEvent(new G.Event('resize')); } catch (_) {} } }); ro.observe(vp); } catch (_) {} }
     // the 3D/2D switch may change while fullscreen — keep the 2D/3D buttons honest
     const seg = doc.getElementById('viewSeg'); if (seg) seg.addEventListener('click', () => setTimeout(syncView, 50));
   }

@@ -64,7 +64,7 @@ t('D2 inverted budget range is flagged inline and blocks the save', () => {
   els['#d_bmax'].value = '700000'; assert.equal(ctx.f(), true); assert.equal(els['#d_bmaxErr'].hidden, true);
   els['#d_bmax'].value = ''; assert.equal(ctx.f(), true);
 });
-t('versions: store-api bumped to 172', () => { for (const f of [flow, closure, disc]) assert.match(f, /store-api\.js\?v=178/); });
+t('versions: store-api bumped to 172', () => { for (const f of [flow, closure, disc]) assert.match(f, /store-api\.js\?v=205/); });
 t('D4 closure lists money owed AND equipment together, with links + admin override', () => {
   const fn = closure.slice(closure.indexOf('function closeBlockerLines('), closure.indexOf('async function renderCloseSummary'));
   const ctx = { evTax: null, BPStore: { studioMoney: (n) => '₹' + n } }; vm.createContext(ctx); vm.runInContext(fn + ';this.f=closeBlockerLines;', ctx);

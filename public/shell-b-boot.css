@@ -1,0 +1,10 @@
+/* shell-b-boot.css - tiny critical CSS for layout B, loaded first by shell-proto.js.
+ * Reserves the rail/top-bar space and hides the old header chrome until shell-b.js has
+ * converted it (it adds header.hb-header). shell-proto adds html.hb-ready after a safety
+ * timeout so a JS failure can never leave the page without its header. */
+html[data-shell="b"] body { padding-left: 68px; }
+html[data-shell="b"].hb-pinned body { padding-left: 240px; }
+html[data-shell="b"]:not(.hb-ready) body > header:not(.hb-header) { visibility: hidden; min-height: 60px; }
+@media (max-width: 819px) { html[data-shell="b"] body, html[data-shell="b"].hb-pinned body { padding-left: 0; } }
+/* v86: once the entrance has played, blocks revealed later (after auth / data) must not replay the fade-in (it read as flicker) */
+html[data-shell="b"].hb-settled #main > *, html[data-shell="b"].hb-settled #main > .wrap > * { animation: none !important; }

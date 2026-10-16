@@ -15,11 +15,14 @@
   "use strict";
 
   // Whole flow, in order. "billing" and "finish" are handled by onboarding.js itself.
-  const FLOW = ["billing", "studio", "brand", "team", "venues", "menu", "pricing", "inventory", "vendors", "staff", "payment", "templates", "finish"];
-  const SETTINGS = { studio: 1, brand: 1, team: 1, venues: 1, payment: 1, templates: 1 };
+  // "connect" (WhatsApp & email, 0134) only when HELM_FEATURES.integrationsPage is on (config.js; off for the MVP/trial).
+  const INTEGRATIONS_ON = !!(global.HELM_FEATURES && global.HELM_FEATURES.integrationsPage === true);
+  const FLOW = ["billing", "studio", "brand", "team", "venues", "menu", "pricing", "inventory", "vendors", "staff", "payment"]
+    .concat(INTEGRATIONS_ON ? ["connect"] : [], ["templates", "finish"]);
+  const SETTINGS = { studio: 1, brand: 1, team: 1, venues: 1, payment: 1, connect: 1, templates: 1 };
   const REQUIRED = { billing: 1, studio: 1 };
   const LABELS = { billing: "Business details", studio: "Studio details", brand: "Branding", team: "Team", venues: "Venues", menu: "Menu dishes",
-    pricing: "Item prices", inventory: "Inventory", vendors: "Vendors", staff: "Staff", payment: "Payment terms", templates: "Packages & templates", finish: "Finish" };
+    pricing: "Item prices", inventory: "Inventory", vendors: "Vendors", staff: "Staff", payment: "Payment terms", connect: "WhatsApp & email", templates: "Packages & templates", finish: "Finish" };
   const LEGACY_KEYS = ["menu", "pricing", "inventory", "vendors", "staff"];   // old #s<n> links + v1 drafts
   const IMPORT_ENTITY = { staff: "staff", menu: "menu", inventory: "inventory" };
   const TZ = { IN: "Asia/Kolkata", AE: "Asia/Dubai", US: "America/New_York", GB: "Europe/London", SG: "Asia/Singapore" };
@@ -151,6 +154,8 @@
     let o = null, role = null;
     try { o = await S.org.current(); role = await S.auth.role(); } catch (e) { return; }
     const n = nudgeFor(o, role); if (!n) return;
+    // one shared setup-progress source: the dashboard "Setup" chip reads this same value
+    api.lastNudge = n; try { document.dispatchEvent(new CustomEvent("helm:onb-progress", { detail: n })); } catch (e) {}
     if (typeof global.__helmAdoptCss === "function") global.__helmAdoptCss(document, NUDGE_CSS);
     box.textContent = "";
     const t = document.createElement("div"); const b = document.createElement("b"); b.textContent = "Finish setting up your studio"; t.appendChild(b);

@@ -10,6 +10,7 @@ const tests = []; const t = (n, f) => tests.push([n, f]);
 
 t('flow order: billing → studio → brand → team → venues → imports → payment → templates → finish', () => {
   assert.deepEqual(W.FLOW, ['billing', 'studio', 'brand', 'team', 'venues', 'menu', 'pricing', 'inventory', 'vendors', 'staff', 'payment', 'templates', 'finish']);
+  assert.ok(!W.FLOW.includes('connect'), 'WhatsApp & email step hidden while HELM_FEATURES.integrationsPage is off');
   assert.deepEqual(Object.keys(W.REQUIRED), ['billing', 'studio']);
   for (const k of W.FLOW) assert.ok(W.LABELS[k], k);
 });
@@ -81,7 +82,7 @@ t('UI wiring: steps, Save & continue / Back / Skip for now, smart import feature
   assert.doesNotMatch(js + w, /\.delete\(|hardDelete/);
   assert.doesNotMatch(w, /style=|innerHTML/);
   assert.match(d, /<section id="obNudge" class="ob-nudge" hidden aria-label="Studio setup"><\/section>/);
-  assert.match(d, /<script src="onboarding-wizard\.js\?v=4"><\/script>/);
+  assert.match(d, /<script src="onboarding-wizard\.js\?v=5"><\/script>/);
   assert.match(w, /global\.HelmCountry/);
 });
 let n = 0;

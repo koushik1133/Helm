@@ -69,7 +69,7 @@ t('chat: event card renders escaped (client data never becomes markup)', () => {
   const html = ctx.f({ kind: 'event', quote_id: 'q-1', code: 'C<1>', title: '<img src=x onerror=alert(1)>',
     client: { name: '<b>x</b>', phone: '+91 98"765', email: 'a@b.in"><script>' }, venue: 'V&V', guests: 10,
     menu: { package: 'Royal', dishes: [{ name: '<i>Tikka</i>' }] }, layout: { version: 1, object_count: 4 } });
-  assert.doesNotMatch(html, /<img|<b>x|<script|<i>Tikka/);
+  assert.doesNotMatch(html, /<img|<b>x|<script|<i>Tikka/i);
   assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/); assert.match(html, /V&amp;V/);
   assert.match(html, /href="builder\.html\?quote=q-1"/); assert.match(html, /href="event\.html\?id=q-1"/); assert.match(html, /href="tel:\+9198765"/);
   assert.doesNotMatch(fnSrc(chat, 'eventCardHtml'), MONEY);
@@ -96,8 +96,8 @@ t('chat: event group menu has Refresh event details + workspace; pinned card bar
   assert.match(chat, /if\(c\.kind==="group"\) items\.push\(\{k:"add",label:"➕  Add members"/);   // add members works for event groups
 });
 t('quotes: Event group button on confirmed quotes; "Open event group" when it exists; hidden without 0035', () => {
-  assert.match(quotes, /egReady&&\(egIndex\[x\.id\]\|\|x\.status==="confirmed"\)/);
-  assert.match(quotes, /\$\{egIndex\[x\.id\]\?"💬 Open event group":"💬 Event group"\}/);
+  assert.match(quotes, /egReady&&\(egIndex\[x\.id\]\|\|\(canEdit&&x\.status==="confirmed"\)\)/);
+  assert.match(quotes, /\$\{egIndex\[x\.id\]\?"💬 Open event group":"💬 Create event group"\}/);
   assert.match(quotes, /else if\(act==="egroup"\) BPUI\.guard\(b,\(\)=>openEventGroup\(id\)\)/);
   assert.match(quotes, /catch\(e\)\{ egIndex=\{\}; egReady=false; \}/);
   assert.match(quotes, /if\(g\.is_member\) location\.href="chat\.html\?c="\+encodeURIComponent\(g\.conversation_id\)/);

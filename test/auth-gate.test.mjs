@@ -15,8 +15,8 @@ const t = (name, fn) => tests.push([name, fn]);
 
 // Pages anyone may open without a studio session. Everything else is protected
 // (default-deny: a NEW page must either get the gate or be added here on purpose).
-const PUBLIC = ['index', 'about', 'services', 'privacy', 'terms', 'refund-policy', 'login', 'reset-password',
-  'approve', 'portal', 'booklet', 'proposal-view', 'work', 'invite', 'sim-pay', '404', 'manual', 'hq'];
+const PUBLIC = ['index', 'about', 'services', 'privacy', 'terms', 'refund-policy', 'data-deletion', 'cookie-policy', 'dpa', 'acceptable-use', 'subprocessors', 'security', 'sla', 'accessibility', 'grievance', 'ai-notice', 'copyright', 'login', 'reset-password',
+  'approve', 'portal', 'booklet', 'proposal-view', 'work', 'invite', 'sim-pay', '404', 'manual', 'hq', 'pricing', 'try', 'demo'];
 const PAGES = readdirSync(new URL('public/', root)).filter((f) => f.endsWith('.html')).map((f) => f.slice(0, -5));
 const PROTECTED = PAGES.filter((p) => !PUBLIC.includes(p));
 const GATE_CSS = /<style[^>]*>[^<]*html\.auth-pending body[^{]*\{[^}]*visibility:\s*hidden/;
@@ -290,9 +290,9 @@ t('login.html: after sign-in, studio / HQ / onboarding is decided BEFORE leaving
 t('login.html: a platform operator can never create a studio from onboarding / sign-up / pending name', () => {
   const h = read('public/login.html');
   const sub = h.slice(h.indexOf('$("#onboardForm").addEventListener("submit"'));
-  assert.ok(sub.indexOf('operatorToHq()') > 0 && sub.indexOf('operatorToHq()') < sub.indexOf('createStudio('), 'onboarding submit: HQ check before createStudio');
+  assert.ok(sub.indexOf('operatorToHq()') > 0 && sub.indexOf('operatorToHq()') < sub.indexOf('makeStudio('), 'onboarding submit: HQ check before createStudio');
   const pend = /async function finishPendingStudio\(\)\{([\s\S]*?)\n  \}/.exec(h)[1];
-  assert.ok(pend.indexOf('isPlatformAdmin()') > 0 && pend.indexOf('isPlatformAdmin()') < pend.indexOf('createStudio('), 'pending studio: HQ check first');
+  assert.ok(pend.indexOf('isPlatformAdmin()') > 0 && pend.indexOf('isPlatformAdmin()') < pend.indexOf('makeStudio('), 'pending studio: HQ check first');
   assert.ok(pend.indexOf('org.id()') < pend.indexOf('isPlatformAdmin()'), 'pending studio: HQ asked only with no studio');
 });
 t('operatorToHq(): replace → /hq only when is_platform_admin() is true', async () => {

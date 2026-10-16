@@ -7,6 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Helm Events</title>
 <meta name="bp-theme-toggle" content="off"><!-- the builder has its own ◑ theme button -->
+<script src="/public-theme.js?v=2"></script>
 <script src="/trusted-types.js?v=2"></script>
 <script>
   /* Pin the builder to a light background by default (user preference persisted). */
@@ -23,11 +24,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="builder.css?v=15">
+<link rel="stylesheet" href="builder.css?v=21">
 <link rel="stylesheet" href="venues.css?v=3">
 <link rel="stylesheet" href="studio-templates.css?v=1">
 <link rel="stylesheet" href="walkthrough.css?v=5">
-<link rel="stylesheet" href="layout-wizard.css?v=4">
+<link rel="stylesheet" href="layout-wizard.css?v=5">
+<link rel="stylesheet" href="/builder-v2.css?v=1">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -107,7 +109,7 @@
     </div>
     <div class="field">
       <span class="flabel" id="workLbl">Work</span>
-      <div class="seg" role="group" aria-labelledby="workLbl"><button id="measureBtn" title="Show distances between objects and to the walls">📏 Measure</button></div>
+      <div class="seg" role="group" aria-labelledby="workLbl"><button id="measureBtn" title="Show distances between objects, to the walls and X / Y offsets from the origin and centre axes">📏 Measure</button></div>
     </div>
   </div>
 
@@ -127,6 +129,7 @@
       <input id="projName" class="nameinput" type="text" value="Untitled event" title="Event / quote name" maxlength="120">
       <div id="projNameHint" class="namehint" hidden><span id="projNameHintText"></span> <button type="button" id="projNameReset" class="linkbtn" hidden>Reset to auto name</button></div>
     </div>
+    <span id="saveState" class="savestate" role="status" aria-live="polite" hidden></span>
     <span id="quoteBadge" class="qbadge" hidden title="Quote code · current version"></span>
     <select id="verSel" class="versel" hidden aria-label="Layout version" title="Saved versions of this layout — pick one to view it (saved versions are never changed)"></select>
     <a id="designChip" class="qbadge qlink" hidden title="Design stage — open the Design Studio"></a>
@@ -413,6 +416,10 @@
   <!-- LEFT : toolbox -->
   <aside class="left" id="leftPanel" aria-label="Asset toolbox">
     <div class="panel-head">Asset Toolbox</div>
+    <div class="tsearch" role="search">
+      <input type="search" id="assetSearch" class="tsearch-in" placeholder="Search products…  ( / )" autocomplete="off" spellcheck="false" role="combobox" aria-label="Search products" aria-autocomplete="list" aria-expanded="false" aria-controls="assetSuggest" maxlength="60">
+      <ul id="assetSuggest" class="tsuggest" role="listbox" aria-label="Product suggestions" hidden></ul>
+    </div>
     <div class="scroller" id="toolbox"></div>
     <div class="hint hint1" id="toolHint" data-tour="toolbox-shortcuts">
       <span class="hint-txt">Click or drag a tool onto the floor.</span>
@@ -487,12 +494,13 @@
     <div class="panel-head">Menu package &amp; guests</div>
     <div id="pkgPanel" class="pricebox"></div>
     <div class="panel-head">Price breakdown</div>
+    <label class="pricehide" for="hidePriceChk" title="Hide the item-by-item calculation and show one amount you type"><input type="checkbox" id="hidePriceChk"> Hide price breakdown</label>
     <div id="pricePanel" class="pricebox"></div>
     <div class="panel-head">Inspector</div>
     <div class="scroller" tabindex="0" role="region" aria-label="Inspector">
       <div class="insp" id="inspector"></div>
     </div>
-    <details class="state" id="stateDetails">
+    <details class="state" id="stateDetails" hidden>
       <summary>Live State Schema</summary>
       <pre id="stateJson"></pre>
     </details>
@@ -500,13 +508,14 @@
 </main>
 
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
-<script src="tour.js?v=9"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=205"></script>
+<script src="tour.js?v=14"></script>
 <script src="flow-layout-sync.js?v=4"></script>
 <script src="event-sizing.js?v=5"></script>
-<script src="builder.js?v=49"></script>
+<script src="builder-tools.js?v=3"></script>
+<script src="builder.js?v=61"></script>
 <script src="venues-core.js?v=5"></script>
 <script src="venue-picker.js?v=4"></script>
 <script src="studio-templates-core.js?v=1"></script>
@@ -515,11 +524,11 @@
 
 <!-- ================= 3D RENDERED VIEW (Three.js, lazy-loaded on first use) ================= -->
 <script src="capture-frame.js?v=12"></script>
-<script src="builder-3d.js?v=16"></script>
-<script src="photo-render-prompt.js?v=5"></script>
+<script src="builder-3d.js?v=24"></script>
+<script src="photo-render-prompt.js?v=8"></script>
 <script src="photo-render-ui.js?v=7"></script>
 <script src="walkthrough.js?v=6"></script>
-<script src="layout-wizard.js?v=9"></script>
-<script src="fullscreen.js?v=2"></script>
+<script src="layout-wizard.js?v=12"></script>
+<script src="fullscreen.js?v=5"></script>
 </body>
 </html>

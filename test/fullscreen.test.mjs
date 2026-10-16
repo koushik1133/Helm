@@ -67,7 +67,7 @@ assert.match(css, /body\.fs-on header,body\.fs-on #leftPanel,body\.fs-on #rightP
 assert.match(css, /\.viewport:fullscreen/);
 assert.match(css, /100dvh/, 'iOS dynamic viewport height');
 const bh = rd('public/builder.html');
-assert.match(bh, /<script src="fullscreen\.js\?v=2"><\/script>/);
+assert.match(bh, /<script src="fullscreen\.js\?v=5"><\/script>/);
 assert.ok(!/fullscreen\.js|layout-wizard/.test(rd('public/capture.html')), 'not in the headless capture host');
 assert.ok(!/\.style\.|innerHTML|\beval\(/.test(src), 'CSP-safe');
 console.log('  ✓ fullscreen: keys, vendor shim, native + iOS pseudo fallback, chrome hidden, floating controls, Esc, wiring');

@@ -1,0 +1,416 @@
+/* shell-b.css - LOCAL PROTOTYPE: the new app layout. Six themes via html[data-hb-theme]: cobalt (default = unscoped base tokens), midnight, emerald, graphite, studio (shell-b-theme-studio.css), luxe (shell-b-theme-luxe.css); each with a dark mode. Unscoped tokens below are the fallback base. */
+html[data-shell="b"] { --hb-w: 68px; --hb-wx: 240px; --hb-top: 60px; --hb-ease: cubic-bezier(.22,1,.36,1); }
+/* ---- THEME TOKENS: base = cobalt + midnight | emerald | graphite. Light rules first, dark after. ---- */
+html[data-shell="b"] { --hb-bg: #ffffff; --hb-bg2: #f5f7fc; --hb-line: #e3e8f2; --hb-ink: #0b1b3f; --hb-ink2: #34405c; --hb-ink3: #5f6b88; --hb-acc: #2450f0; --hb-acc2: #4a72ff; --hb-acc-ink: #ffffff; --hb-acc-soft: #eaeffe; --hb-acc-text: #1d44d8; }
+html[data-shell="b"][data-hb-theme="emerald"] { --hb-bg: #ffffff; --hb-bg2: #f4f8f6; --hb-line: #e0eae5; --hb-ink: #0b2a22; --hb-ink2: #2f4a42; --hb-ink3: #5a7068; --hb-acc: #047857; --hb-acc2: #10a37a; --hb-acc-ink: #ffffff; --hb-acc-soft: #e3f4ed; --hb-acc-text: #036b4d; }
+html[data-shell="b"][data-hb-theme="midnight"] { --hb-bg: #ffffff; --hb-bg2: #f5f5fb; --hb-line: #e4e4f0; --hb-ink: #12133a; --hb-ink2: #3a3c5e; --hb-ink3: #62658a; --hb-acc: #4338ca; --hb-acc2: #6157e8; --hb-acc-ink: #ffffff; --hb-acc-soft: #eeedfc; --hb-acc-text: #3f34c2; }
+html[data-shell="b"][data-hb-theme="graphite"] { --hb-bg: #ffffff; --hb-bg2: #f6f6f5; --hb-line: #e6e6e3; --hb-ink: #111111; --hb-ink2: #3a3a3a; --hb-ink3: #6e6e6a; --hb-acc: #111111; --hb-acc2: #3a3a3a; --hb-acc-ink: #ffffff; --hb-acc-soft: #ececea; --hb-acc-text: #111111; }
+html[data-shell="b"][data-theme="dark"] { --hb-bg: #111833; --hb-bg2: #0a0f1e; --hb-line: #243056; --hb-ink: #e8edfb; --hb-ink2: #b9c3de; --hb-ink3: #8e9aba; --hb-acc: #3d63f5; --hb-acc2: #6d8cff; --hb-acc-ink: #ffffff; --hb-acc-soft: #1a2550; --hb-acc-text: #93acff; }
+html[data-shell="b"][data-theme="dark"][data-hb-theme="emerald"] { --hb-bg: #0f1f1c; --hb-bg2: #081311; --hb-line: #1f3a33; --hb-ink: #e6f4ef; --hb-ink2: #b5d0c7; --hb-ink3: #86a59b; --hb-acc: #08795a; --hb-acc2: #34d399; --hb-acc-ink: #ffffff; --hb-acc-soft: #123329; --hb-acc-text: #5fe0b0; }
+html[data-shell="b"][data-theme="dark"][data-hb-theme="midnight"] { --hb-bg: #14152f; --hb-bg2: #0b0b1c; --hb-line: #272a52; --hb-ink: #ebebfa; --hb-ink2: #c0c1e0; --hb-ink3: #9294bb; --hb-acc: #5b52e6; --hb-acc2: #8a83ff; --hb-acc-ink: #ffffff; --hb-acc-soft: #221f52; --hb-acc-text: #a9a4ff; }
+html[data-shell="b"][data-theme="dark"][data-hb-theme="graphite"] { --hb-bg: #161616; --hb-bg2: #0e0e0e; --hb-line: #2a2a2a; --hb-ink: #f2f2f2; --hb-ink2: #cfcfcf; --hb-ink3: #999999; --hb-acc: #f2f2f2; --hb-acc2: #d4d4d4; --hb-acc-ink: #111111; --hb-acc-soft: #242424; --hb-acc-text: #f2f2f2; }
+@media (prefers-color-scheme: dark) {
+  html[data-shell="b"]:not([data-theme]) { --hb-bg: #111833; --hb-bg2: #0a0f1e; --hb-line: #243056; --hb-ink: #e8edfb; --hb-ink2: #b9c3de; --hb-ink3: #8e9aba; --hb-acc: #3d63f5; --hb-acc2: #6d8cff; --hb-acc-ink: #ffffff; --hb-acc-soft: #1a2550; --hb-acc-text: #93acff; }
+  html[data-shell="b"]:not([data-theme])[data-hb-theme="emerald"] { --hb-bg: #0f1f1c; --hb-bg2: #081311; --hb-line: #1f3a33; --hb-ink: #e6f4ef; --hb-ink2: #b5d0c7; --hb-ink3: #86a59b; --hb-acc: #08795a; --hb-acc2: #34d399; --hb-acc-ink: #ffffff; --hb-acc-soft: #123329; --hb-acc-text: #5fe0b0; }
+  html[data-shell="b"]:not([data-theme])[data-hb-theme="midnight"] { --hb-bg: #14152f; --hb-bg2: #0b0b1c; --hb-line: #272a52; --hb-ink: #ebebfa; --hb-ink2: #c0c1e0; --hb-ink3: #9294bb; --hb-acc: #5b52e6; --hb-acc2: #8a83ff; --hb-acc-ink: #ffffff; --hb-acc-soft: #221f52; --hb-acc-text: #a9a4ff; }
+  html[data-shell="b"]:not([data-theme])[data-hb-theme="graphite"] { --hb-bg: #161616; --hb-bg2: #0e0e0e; --hb-line: #2a2a2a; --hb-ink: #f2f2f2; --hb-ink2: #cfcfcf; --hb-ink3: #999999; --hb-acc: #f2f2f2; --hb-acc2: #d4d4d4; --hb-acc-ink: #111111; --hb-acc-soft: #242424; --hb-acc-text: #f2f2f2; }
+}
+/* derived: everything that used the old inverted-ink pair now follows the accent */
+html[data-shell="b"] { --hb-on: var(--hb-acc); --hb-on-ink: var(--hb-acc-ink);
+  --hb-glow: color-mix(in srgb, var(--hb-acc) 32%, transparent);
+  --hb-grad: linear-gradient(180deg, color-mix(in srgb, var(--hb-acc) 86%, #fff) 0%, var(--hb-acc) 100%);
+  --hb-tile: linear-gradient(135deg, var(--hb-acc2) 0%, var(--hb-acc) 100%);
+  --hb-lift: 0 1px 2px color-mix(in srgb, var(--hb-ink) 6%, transparent), 0 10px 28px -12px color-mix(in srgb, var(--hb-acc) 30%, transparent);
+  --hb-pop: 0 18px 40px -12px color-mix(in srgb, var(--hb-ink) 28%, transparent), 0 2px 6px color-mix(in srgb, var(--hb-ink) 8%, transparent); }
+html[data-shell="b"][data-theme="dark"] { --hb-grad: linear-gradient(180deg, color-mix(in srgb, var(--hb-acc) 90%, #fff) 0%, var(--hb-acc) 100%);
+  --hb-lift: 0 1px 2px rgba(0,0,0,.4), 0 12px 30px -12px color-mix(in srgb, var(--hb-acc) 45%, transparent); --hb-pop: 0 18px 44px -10px rgba(0,0,0,.6); }
+@media (prefers-color-scheme: dark) { html[data-shell="b"]:not([data-theme]) { --hb-bg: #121212; --hb-bg2: #1c1c1c; --hb-line: #2a2a2a; --hb-ink: #f2f2f2; --hb-ink2: #cfcfcf; --hb-ink3: #8d8d8d; --hb-on: #f2f2f2; --hb-on-ink: #111111; } }
+
+html[data-shell="b"] body { padding-left: var(--hb-w); transition: padding-left .15s ease; }
+html[data-shell="b"].hb-pinned body { padding-left: var(--hb-wx); }
+html[data-shell="b"] .hb-svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; display: block; }
+
+/* ---------- rail ---------- */
+html[data-shell="b"] .hb-rail { position: fixed; z-index: 900; left: 0; top: 0; bottom: 0; width: var(--hb-w); display: flex; flex-direction: column;
+  background: var(--hb-bg); border-right: 1px solid var(--hb-line); color: var(--hb-ink); overflow: hidden; transition: width .15s ease, box-shadow .15s ease;
+  font: 500 13.5px/1.2 'IBM Plex Sans', system-ui, sans-serif; }
+html[data-shell="b"] .hb-rail:hover, html[data-shell="b"] .hb-rail:focus-within, html[data-shell="b"].hb-pinned .hb-rail { width: var(--hb-wx); }
+html[data-shell="b"]:not(.hb-pinned) .hb-rail:hover, html[data-shell="b"]:not(.hb-pinned) .hb-rail:focus-within { box-shadow: 10px 0 30px rgba(0,0,0,.10); }
+html[data-shell="b"] .hb-lb { white-space: nowrap; opacity: 0; transition: opacity .12s ease; overflow: hidden; text-overflow: ellipsis; }
+html[data-shell="b"] .hb-rail:hover .hb-lb, html[data-shell="b"] .hb-rail:focus-within .hb-lb, html[data-shell="b"].hb-pinned .hb-lb { opacity: 1; }
+
+html[data-shell="b"] .hb-top { display: flex; align-items: center; gap: 6px; height: var(--hb-top); padding: 0 12px 0 16px; border-bottom: 1px solid var(--hb-line); flex: 0 0 auto; }
+html[data-shell="b"] .hb-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; flex: 1; min-width: 0; }
+html[data-shell="b"] .hb-logo { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 9px; background: var(--hb-on); color: var(--hb-on-ink);
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; letter-spacing: -.02em; }
+html[data-shell="b"] .hb-logo .helm-mark { width: 26px; height: 26px; display: block; stroke: color-mix(in srgb, currentColor 58%, transparent); }
+html[data-shell="b"] .hb-name { font-weight: 650; font-size: 15px; }
+html[data-shell="b"] .hb-pin { border: 1px solid var(--hb-line); background: var(--hb-bg); color: var(--hb-ink3); border-radius: 8px; width: 30px; height: 30px;
+  cursor: pointer; opacity: 0; transition: opacity .12s ease; flex: 0 0 30px; display: flex; align-items: center; justify-content: center; padding: 0; }
+html[data-shell="b"] .hb-pin .hb-svg { width: 16px; height: 16px; }
+html[data-shell="b"] .hb-rail:hover .hb-pin, html[data-shell="b"] .hb-rail:focus-within .hb-pin, html[data-shell="b"].hb-pinned .hb-pin { opacity: 1; }
+html[data-shell="b"] .hb-pin:hover, html[data-shell="b"] .hb-pin[aria-pressed="true"] { color: var(--hb-ink); border-color: var(--hb-ink); }
+
+html[data-shell="b"] .hb-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; overflow-x: hidden; padding: 8px 12px; scrollbar-width: thin; }
+html[data-shell="b"] .hb-group { display: flex; flex-direction: column; gap: 2px; padding: 6px 0 8px; }
+html[data-shell="b"] .hb-group + .hb-group { border-top: 1px solid var(--hb-line); }
+html[data-shell="b"] .hb-group[hidden] { display: none; }
+html[data-shell="b"] .hb-head { font-size: 10.5px; font-weight: 650; letter-spacing: .09em; text-transform: uppercase; color: var(--hb-ink3);
+  padding: 6px 10px 4px; white-space: nowrap; height: 22px; overflow: hidden; opacity: 0; transition: opacity .12s ease; }
+html[data-shell="b"] .hb-rail:hover .hb-head, html[data-shell="b"] .hb-rail:focus-within .hb-head, html[data-shell="b"].hb-pinned .hb-head { opacity: 1; }
+
+html[data-shell="b"] .hb-item { display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 10px; color: var(--hb-ink2); text-decoration: none;
+  border: 1px solid transparent; background: transparent; font: inherit; cursor: pointer; width: 100%; text-align: left; transition: background .12s ease, color .12s ease, border-color .12s ease; }
+html[data-shell="b"] .hb-item:hover { background: var(--hb-bg2); color: var(--hb-ink); }
+html[data-shell="b"] .hb-item:focus-visible { outline: 2px solid var(--hb-acc); outline-offset: -2px; }
+html[data-shell="b"] .hb-item.on { background: var(--hb-on); color: var(--hb-on-ink); font-weight: 600; }
+html[data-shell="b"] .hb-ic { width: 22px; flex: 0 0 22px; display: flex; align-items: center; justify-content: center; }
+
+/* bottom: theme + profile */
+html[data-shell="b"] .hb-bottom { border-top: 1px solid var(--hb-line); padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 4px; flex: 0 0 auto; }
+html[data-shell="b"] .hb-slot { display: flex; align-items: center; min-height: 40px; }
+html[data-shell="b"] .hb-theme #bpThemeToggle { position: static !important; inset: auto !important; box-shadow: none !important; width: 100% !important; height: 40px !important;
+  border-radius: 10px !important; border: 1px solid transparent !important; background: transparent !important; color: var(--hb-ink2) !important; justify-content: flex-start; padding: 0 10px !important; font-size: 13.5px !important; }
+html[data-shell="b"] .hb-theme #bpThemeToggle:hover { background: var(--hb-bg2) !important; color: var(--hb-ink) !important; }
+html[data-shell="b"] .hb-acct { gap: 10px; padding: 6px 4px 0; border-top: 1px solid var(--hb-line); margin-top: 4px; min-height: 52px; }
+html[data-shell="b"] .hb-acct .hau-mw { flex: 0 0 auto; position: relative; }
+/* the rail clips its children (overflow hidden), so the account menu floats beside the rail instead */
+html[data-shell="b"] .hb-acct .hau-menu { position: fixed !important; left: calc(var(--hb-wx) + 10px) !important; right: auto !important; top: auto !important; bottom: 14px !important; max-height: calc(100vh - 28px); overflow-y: auto; z-index: 1200 !important; }
+@media (max-width: 819px) { html[data-shell="b"] .hb-acct .hau-menu { left: 12px !important; right: 12px !important; bottom: 76px !important; } }
+/* the rail is its own stacking context (z 900) and the floating notes (.hau-notes, z 900) come later in the DOM, so
+   they painted OVER the open account menu (it looked see-through and "Sign out" was unclickable). While the menu is
+   open the rail is lifted above them; the menu itself is fully opaque. */
+html[data-shell="b"].hau-menu-open .hb-rail, html[data-shell="b"] .hb-rail:has(.hau-menu:not([hidden])) { z-index: 2000 !important; }
+html[data-shell="b"] .hb-acct .hau-menu { background: var(--hb-bg, var(--panel, #fff)) !important; opacity: 1; isolation: isolate; }
+html[data-shell="b"] .hb-who { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
+html[data-shell="b"] .hb-who b { font-weight: 600; font-size: 13px; color: var(--hb-ink); overflow: hidden; text-overflow: ellipsis; }
+html[data-shell="b"] .hb-who small { font-size: 11.5px; color: var(--hb-ink3); }
+html[data-shell="b"] .hb-acct .hau-av { background: var(--hb-on) !important; color: var(--hb-on-ink) !important; }
+html[data-shell="b"] #account { display: none !important; }   /* its parts now live in the rail + top bar */
+
+/* ---------- top bar ---------- */
+html[data-shell="b"] header.hb-header { position: sticky; top: 0; z-index: 800; height: var(--hb-top); min-height: var(--hb-top); padding: 0 20px !important; margin: 0 !important;
+  gap: 12px; display: flex; align-items: center; flex-wrap: nowrap; background: var(--hb-bg); border-bottom: 1px solid var(--hb-line); box-shadow: none; max-width: none !important; }
+html[data-shell="b"] header.hb-header > a.mark, html[data-shell="b"] header.hb-header nav.nav:not(.hb-navkeep), html[data-shell="b"] #modnav,
+html[data-shell="b"] header.hb-header .spacer, html[data-shell="b"] header.hb-header nav.nav a.hb-dup { display: none !important; }
+/* page-specific header links (Builder, Event, Booklet...) stay in the bar next to the title */
+html[data-shell="b"] header.hb-header nav.nav.hb-navkeep { display: flex; align-items: center; gap: 4px; margin: 0 0 0 8px; padding: 0; border: 0; background: none; flex-wrap: nowrap; }
+html[data-shell="b"] header.hb-header nav.nav.hb-navkeep a { display: inline-flex; align-items: center; height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--hb-line);
+  color: var(--hb-ink2); background: var(--hb-bg); text-decoration: none; font: 500 13px 'IBM Plex Sans', system-ui, sans-serif; white-space: nowrap; }
+html[data-shell="b"] header.hb-header nav.nav.hb-navkeep a:hover { color: var(--hb-ink); border-color: var(--hb-ink); }
+html[data-shell="b"] header.hb-header nav.nav.hb-navkeep a[hidden] { display: none; }
+html[data-shell="b"] #themeBtn { display: none !important; }   /* one theme toggle per page: the rail's */
+html[data-shell="b"] .hb-row[hidden], html[data-shell="b"] .hb-item[hidden], html[data-shell="b"] .hb-tab[hidden] { display: none !important; }
+/* breadcrumb trail (nav-trail.js) sits under the moved top bar: indent it into the page column */
+html[data-shell="b"] body > #helmTrail { box-sizing: border-box; max-width: 1200px; margin: 12px auto 0; padding: 0 24px; }
+/* trial / setup notices docked bottom-left must clear the rail */
+@media (min-width: 820px) {
+  html[data-shell="b"] .hau-note.dock-left { left: calc(var(--hb-w) + 20px) !important; }
+  html[data-shell="b"].hb-pinned .hau-note.dock-left { left: calc(var(--hb-wx) + 20px) !important; }
+}
+html[data-shell="b"] header.hb-header h1 { font-size: 17px; font-weight: 650; margin: 0; color: var(--hb-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html[data-shell="b"] header.hb-header small { display: none; }
+/* the title block shrinks (ellipsis) instead of pushing the tools past the edge on phones */
+html[data-shell="b"] header.hb-header > :not(.hb-tools):not(.hb-burger) { min-width: 0; flex: 0 1 auto; overflow: hidden; }
+html[data-shell="b"] .hb-tools { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+html[data-shell="b"] .hb-tslot { display: flex; align-items: center; }
+html[data-shell="b"] .hb-tslot:empty { display: none; }
+html[data-shell="b"] .hb-search .hss-trig { min-width: 260px; height: 38px; border-radius: 10px; border: 1px solid var(--hb-line) !important; background: var(--hb-bg2) !important; color: var(--hb-ink3) !important; }
+html[data-shell="b"] .hb-search .hss-trig:hover { border-color: var(--hb-ink) !important; }
+/* every icon button in the bar: same outlined square */
+html[data-shell="b"] .hb-tools .bpb-btn, html[data-shell="b"] .hb-ibtn {
+  width: 38px; height: 38px; border-radius: 10px !important; border: 1px solid var(--hb-line) !important; background: var(--hb-bg) !important; color: var(--hb-ink) !important;
+  display: inline-flex; align-items: center; justify-content: center; box-shadow: none !important; cursor: pointer; padding: 0; flex-shrink: 0; min-width: 38px; }
+html[data-shell="b"] .hb-tools .bpb-btn:hover, html[data-shell="b"] .hb-ibtn:hover, html[data-shell="b"] .hb-chat.on { border-color: var(--hb-ink) !important; }
+html[data-shell="b"] .hb-new { height: 38px; padding: 0 16px 0 12px; border-radius: 10px; border: 1px solid var(--hb-on); background: var(--hb-on); color: var(--hb-on-ink);
+  font: 600 13px 'IBM Plex Sans', system-ui, sans-serif; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+html[data-shell="b"] .hb-new .hb-svg { width: 16px; height: 16px; stroke-width: 2.2; }
+html[data-shell="b"] .hb-new:hover { opacity: .88; }
+html[data-shell="b"] .hb-new[hidden] { display: none; }
+html[data-shell="b"] .hb-burger { display: none; }
+html[data-shell="b"] .hb-scrim { display: none; }
+html[data-shell="b"] #bpThemeToggle:not(.hb-item) { display: none; }   /* until it moves into the rail */
+
+@media (max-width: 900px) {
+  html[data-shell="b"] .hb-search .hss-trig { min-width: 0; }
+  html[data-shell="b"] .hb-search .hss-tl, html[data-shell="b"] .hb-search .hss-kbd { display: none; }
+}
+@media (max-width: 819px) {
+  html[data-shell="b"] body, html[data-shell="b"].hb-pinned body { padding-left: 0; }
+  html[data-shell="b"] .hb-rail { width: min(280px, 86vw) !important; transform: translateX(-100%); transition: transform .15s ease; box-shadow: none; z-index: 1001; }
+  html[data-shell="b"].hb-drawer .hb-rail { transform: none; box-shadow: 10px 0 30px rgba(0,0,0,.25); }
+  html[data-shell="b"] .hb-lb, html[data-shell="b"] .hb-head { opacity: 1 !important; }
+  html[data-shell="b"] .hb-pin { display: none; }
+  html[data-shell="b"] .hb-burger { display: inline-flex; }
+  html[data-shell="b"].hb-drawer .hb-scrim { display: block; position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.4); }
+  html[data-shell="b"] header.hb-header { padding: 0 12px !important; }
+  html[data-shell="b"] .hb-new span { display: none; }
+  html[data-shell="b"] header.hb-header nav.nav.hb-navkeep a { padding: 0 8px; }
+  html[data-shell="b"] .hb-new { padding: 0 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-shell="b"] body, html[data-shell="b"] .hb-rail, html[data-shell="b"] .hb-lb, html[data-shell="b"] .hb-head, html[data-shell="b"] .hb-pin, html[data-shell="b"] .hb-item { transition: none !important; }
+}
+
+/* rail bottom: Recent + Tour use the app's own widgets, styled as rail items */
+html[data-shell="b"] .hb-recent .htr-w, html[data-shell="b"] .hb-tour { width: 100%; position: relative; }
+html[data-shell="b"] .hb-rail .htr-btn.hb-item, html[data-shell="b"] .hb-rail #helpBtn.hb-item, html[data-shell="b"] .hb-rail .htour-fab.hb-item { position: static !important; inset: auto !important; box-shadow: none !important;
+  width: 100% !important; height: 40px !important; border-radius: 10px !important; border: 1px solid transparent !important; background: transparent !important;
+  color: var(--hb-ink2) !important; justify-content: flex-start !important; padding: 0 10px !important; font: 500 13.5px 'IBM Plex Sans', system-ui, sans-serif !important; gap: 12px !important; display: flex !important; }
+html[data-shell="b"] .hb-rail .htr-btn.hb-item:hover, html[data-shell="b"] .hb-rail #helpBtn.hb-item:hover, html[data-shell="b"] .hb-rail .htour-fab.hb-item:hover { background: var(--hb-bg2) !important; color: var(--hb-ink) !important; }
+html[data-shell="b"] .hb-recent .htr-pop { position: fixed !important; left: calc(var(--hb-wx) + 8px) !important; right: auto !important; top: auto !important; bottom: 120px !important; }
+html[data-shell="b"] .hb-chat { text-decoration: none; }
+html[data-shell="b"] .hb-chat.on { background: var(--hb-on) !important; color: var(--hb-on-ink) !important; }
+
+/* ---------- quick-create split button ---------- */
+html[data-shell="b"] .hb-split { position: relative; display: inline-flex; align-items: stretch; }
+html[data-shell="b"] .hb-split[hidden] { display: none; }
+html[data-shell="b"] .hb-split .hb-new:not(.hb-chev):not(:last-of-type) { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+html[data-shell="b"] .hb-chev { flex-shrink: 0; min-width: 32px; padding: 0 9px; border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 1px solid color-mix(in srgb, var(--hb-on-ink) 30%, transparent); }
+html[data-shell="b"] .hb-chev.hb-solo { border-radius: 10px; padding: 0 12px; border-left: 1px solid var(--hb-on); }
+html[data-shell="b"] .hb-chev[aria-expanded="true"] .hb-svg:last-child { transform: rotate(180deg); }
+html[data-shell="b"] .hb-new:focus-visible, html[data-shell="b"] .hb-ibtn:focus-visible, html[data-shell="b"] .hb-pin:focus-visible, html[data-shell="b"] .hb-brand:focus-visible,
+html[data-shell="b"] .hb-tab:focus-visible { outline: 2px solid var(--hb-acc); outline-offset: 2px; }
+html[data-shell="b"] .hb-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 1300; min-width: 220px; padding: 6px; border-radius: 12px;
+  background: var(--hb-bg); border: 1px solid var(--hb-line); box-shadow: 0 12px 32px rgba(0,0,0,.14); display: flex; flex-direction: column; gap: 2px; }
+html[data-shell="b"] .hb-menu[hidden] { display: none; }
+html[data-shell="b"] .hb-mi { text-align: left; border: 0; background: transparent; color: var(--hb-ink2); font: 500 13.5px 'IBM Plex Sans', system-ui, sans-serif;
+  padding: 9px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+html[data-shell="b"] .hb-mi:hover, html[data-shell="b"] .hb-mi:focus { background: var(--hb-bg2); color: var(--hb-ink); outline: none; }
+html[data-shell="b"] .hb-mi:focus-visible { outline: 2px solid var(--hb-acc); outline-offset: -2px; }
+
+/* ---------- chat unread badge ---------- */
+html[data-shell="b"] .hb-chat { position: relative; }
+html[data-shell="b"] .hb-badge { position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; box-sizing: border-box;
+  background: var(--hb-on); color: var(--hb-on-ink); border: 2px solid var(--hb-bg); font: 700 10px/14px 'IBM Plex Sans', system-ui, sans-serif; text-align: center; pointer-events: none; }
+html[data-shell="b"] .hb-badge[hidden] { display: none; }
+html[data-shell="b"] .hb-chat.on .hb-badge { background: var(--hb-bg); color: var(--hb-ink); border-color: var(--hb-on); }
+
+/* ---------- keep rail expanded while a popover inside it is open ---------- */
+html[data-shell="b"].hb-rail-hold .hb-rail { width: var(--hb-wx); }
+html[data-shell="b"].hb-rail-hold:not(.hb-pinned) .hb-rail { box-shadow: 10px 0 30px rgba(0,0,0,.10); }
+html[data-shell="b"].hb-rail-hold .hb-lb, html[data-shell="b"].hb-rail-hold .hb-head, html[data-shell="b"].hb-rail-hold .hb-pin { opacity: 1; }
+/* popovers are fixed beside the rail; never taller than the viewport */
+html[data-shell="b"] .hb-recent .htr-pop { max-height: calc(100vh - 140px); overflow-y: auto; z-index: 1200 !important; }
+
+/* ---------- mobile bottom tab bar ---------- */
+html[data-shell="b"] .hb-tabs { display: none; }
+@media (max-width: 819px) {
+  html[data-shell="b"] .hb-tabs { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 950; height: calc(58px + env(safe-area-inset-bottom, 0px));
+    padding: 0 4px env(safe-area-inset-bottom, 0px); background: var(--hb-bg); border-top: 1px solid var(--hb-line); justify-content: space-around; align-items: stretch; }
+  html[data-shell="b"] .hb-tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--hb-ink3); text-decoration: none;
+    border: 0; background: transparent; font: 600 10.5px 'IBM Plex Sans', system-ui, sans-serif; cursor: pointer; padding: 0; border-radius: 10px; }
+  html[data-shell="b"] .hb-tab.on, html[data-shell="b"] .hb-tab:hover { color: var(--hb-ink); }
+  html[data-shell="b"] .hb-tab.on .hb-svg { stroke-width: 2.2; }
+  html[data-shell="b"] body { padding-bottom: calc(66px + env(safe-area-inset-bottom, 0px)) !important; }
+  html[data-shell="b"].hb-kb .hb-tabs { display: none; }   /* on-screen keyboard open */
+  /* exactly one bottom bar: hide mobile-nav.js's */
+  html[data-shell="b"] .hmn-bar { display: none !important; }
+  html[data-shell="b"] #shellSwitch { bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important; }
+  html[data-shell="b"] .hb-acct .hau-menu, html[data-shell="b"] .hb-recent .htr-pop { left: 12px !important; right: 12px !important; bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important; }
+  html[data-shell="b"] .hb-menu { position: fixed; right: 12px; top: calc(var(--hb-top) + 6px); }
+}
+
+/* the tour widget's floating pill: hidden when the rail already has a tour item; adopted into the rail otherwise */
+html[data-shell="b"] body > .htour-fab { display: none !important; }   /* until shell-b moves it into the rail (it covered the avatar / tab bar) */
+/* the New/Old switcher floated above the open mobile drawer + scrim */
+html[data-shell="b"].hb-drawer #shellSwitch { display: none !important; }
+
+/* ---------- mobile search icon (the palette trigger is hidden on phones) ---------- */
+html[data-shell="b"] .hb-msearch { display: none; }
+@media (max-width: 819px) {
+  html[data-shell="b"] .hb-msearch { display: inline-flex; }
+  html[data-shell="b"] .hb-tools .hb-search { display: none; }
+}
+
+/* ---------- rail count badges: dot on the icon when collapsed, pill on the right when expanded ---------- */
+html[data-shell="b"] .hb-item { position: relative; }
+html[data-shell="b"] .hb-cnt { position: absolute; left: 26px; top: 8px; width: 8px; height: 8px; min-width: 0; padding: 0; border-radius: 50%;
+  background: var(--hb-ink); border: 2px solid var(--hb-bg); font-size: 0; line-height: 0; overflow: hidden; pointer-events: none; box-sizing: content-box; }
+html[data-shell="b"] .hb-cnt[hidden] { display: none; }
+html[data-shell="b"] .hb-item.on .hb-cnt { background: var(--hb-on-ink); border-color: var(--hb-on); }
+html[data-shell="b"] .hb-rail:hover .hb-cnt, html[data-shell="b"] .hb-rail:focus-within .hb-cnt, html[data-shell="b"].hb-pinned .hb-cnt, html[data-shell="b"].hb-rail-hold .hb-cnt {
+  position: static; margin-left: auto; width: auto; height: 18px; min-width: 18px; padding: 0 6px; border: 0; border-radius: 9px; box-sizing: border-box;
+  font: 700 10.5px/18px 'IBM Plex Sans', system-ui, sans-serif; text-align: center; color: var(--hb-on-ink); background: var(--hb-on); flex: 0 0 auto; }
+html[data-shell="b"] .hb-rail:hover .hb-item.on .hb-cnt, html[data-shell="b"] .hb-rail:focus-within .hb-item.on .hb-cnt, html[data-shell="b"].hb-pinned .hb-item.on .hb-cnt { background: var(--hb-on-ink); color: var(--hb-on); }
+
+/* ---------- shortcut hints in the expanded rail ---------- */
+html[data-shell="b"] .hb-kh { margin-left: auto; font: 600 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .06em; color: var(--hb-ink3); flex: 0 0 auto; }
+html[data-shell="b"] .hb-item.on .hb-kh { color: var(--hb-acc-text); opacity: .7; }
+html[data-shell="b"] .hb-kh + .hb-cnt { margin-left: 8px !important; }
+@media (max-width: 819px) { html[data-shell="b"] .hb-kh { display: none; } }
+
+/* ---------- favourites: star beside each rail item, Pinned group on top ---------- */
+html[data-shell="b"] .hb-row { position: relative; display: flex; }
+html[data-shell="b"] .hb-row > .hb-item { flex: 1; min-width: 0; }
+html[data-shell="b"] .hb-star { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 26px; height: 26px; padding: 0; border: 0; border-radius: 7px;
+  background: var(--hb-bg); color: var(--hb-ink3); cursor: pointer; display: none; align-items: center; justify-content: center; }
+html[data-shell="b"] .hb-star .hb-svg { width: 15px; height: 15px; }
+html[data-shell="b"] .hb-star[aria-pressed="true"] .hb-svg { fill: currentColor; }
+html[data-shell="b"] .hb-rail:hover .hb-row:hover .hb-star, html[data-shell="b"] .hb-rail .hb-star:focus-visible,
+html[data-shell="b"].hb-pinned .hb-row:hover .hb-star, html[data-shell="b"] .hb-rail:focus-within .hb-row:focus-within .hb-star { display: inline-flex; }
+@media (hover: none) { html[data-shell="b"] .hb-rail .hb-star { display: inline-flex; } }
+html[data-shell="b"] .hb-star:hover { color: var(--hb-ink); background: var(--hb-bg2); }
+html[data-shell="b"] .hb-star:focus-visible { outline: 2px solid var(--hb-acc); outline-offset: -2px; }
+html[data-shell="b"] .hb-row:hover .hb-kh, html[data-shell="b"] .hb-row:focus-within .hb-kh, html[data-shell="b"] .hb-row:hover .hb-cnt, html[data-shell="b"] .hb-row:focus-within .hb-cnt { margin-right: 28px; }
+
+/* ---------- keyboard shortcuts help sheet ---------- */
+html[data-shell="b"] .hb-help { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; padding: 16px; }
+html[data-shell="b"] .hb-help[hidden] { display: none; }
+html[data-shell="b"] .hb-help-dlg { width: min(420px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; background: var(--hb-bg); color: var(--hb-ink); border: 1px solid var(--hb-line);
+  border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,.25); padding: 16px 18px 18px; font: 500 13.5px/1.3 'IBM Plex Sans', system-ui, sans-serif; }
+html[data-shell="b"] .hb-help-dlg:focus { outline: none; }
+html[data-shell="b"] .hb-help-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+html[data-shell="b"] .hb-help-hd h2 { margin: 0; font-size: 16px; font-weight: 650; }
+html[data-shell="b"] .hb-help-x { width: 32px; height: 32px; font-size: 13px; }
+html[data-shell="b"] .hb-help-list { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 0; align-items: center; }
+html[data-shell="b"] .hb-help-list dt { display: flex; gap: 4px; margin: 0; }
+html[data-shell="b"] .hb-help-list dd { margin: 0; color: var(--hb-ink2); }
+html[data-shell="b"] .hb-help-list kbd { min-width: 22px; padding: 2px 6px; border: 1px solid var(--hb-line); border-bottom-width: 2px; border-radius: 6px; background: var(--hb-bg2);
+  font: 600 11.5px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; text-align: center; color: var(--hb-ink); }
+
+/* mobile-nav.js hides the bell on phones because its own bar carries one; the shell hides that bar, so keep the top-bar bell */
+@media (max-width: 767.98px) { html[data-shell="b"] body.hmn-on .hb-tools #bpBellBtn { display: inline-flex !important; } }
+@media (max-width: 767.98px) { html[data-shell="b"] .hb-tools .hb-chat { display: none; } }   /* Chat lives in the phone tab bar; frees room for title + bell */
+
+/* =====================================================================================
+   THEME POLISH (accent chrome + motion). transform/opacity-only animations; all off under reduced motion.
+   ===================================================================================== */
+html[data-shell="b"] body { background-color: var(--hb-bg2); }
+/* rail: eased expand, tinted hover, glowing accent pill for the current page */
+html[data-shell="b"] .hb-rail { transition: width .28s var(--hb-ease), box-shadow .28s var(--hb-ease); }
+html[data-shell="b"] .hb-lb, html[data-shell="b"] .hb-head { transition: opacity .2s var(--hb-ease); }
+html[data-shell="b"]:not(.hb-pinned) .hb-rail:hover, html[data-shell="b"]:not(.hb-pinned) .hb-rail:focus-within { box-shadow: var(--hb-pop); }
+html[data-shell="b"] .hb-item:hover { background: color-mix(in srgb, var(--hb-acc) 8%, transparent); color: var(--hb-ink); }
+/* active rail item (all themes): soft accent capsule + short accent bar on the left edge; no heavy fill */
+html[data-shell="b"] .hb-item.on, html[data-shell="b"] .hb-chat.on { background: var(--hb-acc-soft) !important; color: var(--hb-acc-text) !important; border-color: transparent !important; box-shadow: none; }
+html[data-shell="b"] .hb-item.on .hb-ic { color: var(--hb-acc-text); }
+html[data-shell="b"] .hb-rail .hb-item.on { animation: hbPill .45s var(--hb-ease) both; transform-origin: left center; }
+html[data-shell="b"] .hb-rail .hb-item.on::before { content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 3px; background: var(--hb-acc);
+  animation: hbBar .5s var(--hb-ease) .1s both; transform-origin: center; }
+@keyframes hbPill { from { opacity: 0; transform: scaleX(.6); } to { opacity: 1; transform: none; } }
+@keyframes hbBar { from { transform: scaleY(0); } to { transform: none; } }
+html[data-shell="b"] .hb-item .hb-ic { transition: transform .2s var(--hb-ease); }
+html[data-shell="b"] .hb-item:hover .hb-ic { transform: translateX(1px) scale(1.06); }
+/* brand tile */
+/* brand mark: bare (no tile). Pill 1 = --hb-mark (theme ink, max contrast on the rail), pill 2 = --hb-mark2 (theme accent text colour, AA on the rail). */
+html[data-shell="b"] { --hb-mark: var(--hb-ink); --hb-mark2: var(--hb-acc-text); }
+html[data-shell="b"][data-hb-theme="graphite"] { --hb-mark2: var(--hb-ink3); }   /* graphite accent == ink: use the grey so the two pills stay distinct */
+html[data-shell="b"] .hb-logo, html[data-shell="b"][data-hb-theme] .hb-logo { background: none; color: var(--hb-mark); box-shadow: none; border-radius: 0; }
+html[data-shell="b"] .hb-logo .helm-mark, html[data-shell="b"][data-hb-theme] .hb-logo .helm-mark { width: 32px; height: 32px; color: var(--hb-mark); stroke: var(--hb-mark2); }
+html[data-shell="b"] .hb-pin:hover, html[data-shell="b"] .hb-pin[aria-pressed="true"] { color: var(--hb-acc-text); border-color: var(--hb-acc); }
+/* top bar: frosted, hairline */
+html[data-shell="b"] header.hb-header { background: color-mix(in srgb, var(--hb-bg) 78%, transparent); -webkit-backdrop-filter: saturate(160%) blur(12px); backdrop-filter: saturate(160%) blur(12px);
+  border-bottom-color: color-mix(in srgb, var(--hb-line) 85%, transparent); }
+html[data-shell="b"] .hb-search .hss-trig:hover, html[data-shell="b"] .hb-tools .bpb-btn:hover, html[data-shell="b"] .hb-ibtn:hover { border-color: var(--hb-acc) !important; color: var(--hb-acc-text) !important; }
+html[data-shell="b"] .hb-tools .bpb-btn, html[data-shell="b"] .hb-ibtn, html[data-shell="b"] .hb-new { transition: transform .18s var(--hb-ease), box-shadow .18s var(--hb-ease), border-color .15s, color .15s; }
+/* New quote split button */
+html[data-shell="b"] .hb-new { background: var(--hb-grad); border-color: transparent; color: var(--hb-acc-ink); box-shadow: 0 6px 16px -8px var(--hb-glow), inset 0 1px 0 rgba(255,255,255,.18); }
+html[data-shell="b"] .hb-new:hover { opacity: 1; transform: translateY(-1px); box-shadow: 0 10px 22px -8px var(--hb-glow), inset 0 1px 0 rgba(255,255,255,.18); }
+html[data-shell="b"] .hb-new:active { transform: none; }
+html[data-shell="b"] .hb-split .hb-new + .hb-new, html[data-shell="b"] .hb-chev { border-left: 1px solid color-mix(in srgb, var(--hb-acc-ink) 28%, transparent) !important; }
+html[data-shell="b"] .hb-chev .hb-svg:last-child { transition: transform .2s var(--hb-ease); }
+/* badges */
+html[data-shell="b"] .hb-badge { background: #e5484d; color: #fff; }
+html[data-shell="b"] .hb-chat.on .hb-badge { border-color: var(--hb-acc-soft); }
+html[data-shell="b"] .hb-cnt { background: var(--hb-acc); }
+html[data-shell="b"] .hb-rail:hover .hb-cnt, html[data-shell="b"] .hb-rail:focus-within .hb-cnt, html[data-shell="b"].hb-pinned .hb-cnt, html[data-shell="b"].hb-rail-hold .hb-cnt, html[data-shell="b"].hb-sw-open .hb-cnt {
+  background: var(--hb-acc-soft); color: var(--hb-acc-text); }
+html[data-shell="b"] .hb-rail:hover .hb-item.on .hb-cnt, html[data-shell="b"] .hb-rail:focus-within .hb-item.on .hb-cnt, html[data-shell="b"].hb-pinned .hb-item.on .hb-cnt { background: var(--hb-bg2); color: var(--hb-ink2); }
+/* menus/popovers: soft elevation + scale/fade in */
+html[data-shell="b"] .hb-menu, html[data-shell="b"] .hb-swpop, html[data-shell="b"] .hb-acct .hau-menu, html[data-shell="b"] .hb-recent .htr-pop, html[data-shell="b"] .hb-help-dlg { box-shadow: var(--hb-pop); }
+html[data-shell="b"] .hb-menu:not([hidden]), html[data-shell="b"] .hb-swpop:not([hidden]), html[data-shell="b"] .hb-help-dlg { animation: hbPop .18s var(--hb-ease) both; transform-origin: top right; }
+html[data-shell="b"] .hb-swpop:not([hidden]) { transform-origin: bottom left; }
+html[data-shell="b"] .hb-help:not([hidden]) { animation: hbFade .18s ease both; }
+@keyframes hbPop { from { opacity: 0; transform: translateY(-4px) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes hbFade { from { opacity: 0; } to { opacity: 1; } }
+html[data-shell="b"] .hb-mi:hover, html[data-shell="b"] .hb-mi:focus { background: var(--hb-acc-soft); color: var(--hb-acc-text); }
+/* theme picker */
+html[data-shell="b"] .hb-theme { position: relative; gap: 4px; }
+html[data-shell="b"] .hb-theme > #bpThemeToggle { flex: 1; min-width: 0; }
+html[data-shell="b"] .hb-swbtn { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 9px; border: 1px solid var(--hb-line); background: var(--hb-bg); cursor: pointer; padding: 0;
+  display: none; align-items: center; justify-content: center; transition: border-color .15s, transform .18s var(--hb-ease); }
+html[data-shell="b"] .hb-rail:hover .hb-swbtn, html[data-shell="b"] .hb-rail:focus-within .hb-swbtn, html[data-shell="b"].hb-pinned .hb-swbtn, html[data-shell="b"].hb-sw-open .hb-swbtn { display: inline-flex; }
+html[data-shell="b"] .hb-swbtn:hover { border-color: var(--hb-acc); transform: rotate(-8deg); }
+html[data-shell="b"] .hb-swbtn:focus-visible { outline: 2px solid var(--hb-acc); outline-offset: 2px; }
+html[data-shell="b"] .hb-swdot { width: 16px; height: 16px; border-radius: 50%; background: conic-gradient(#2450f0 0 25%, #4338ca 0 50%, #047857 0 75%, #3a3a3a 0); box-shadow: 0 0 0 2px var(--hb-bg), 0 0 0 3px var(--hb-acc); }
+html[data-shell="b"] .hb-swpop { position: fixed; z-index: 1300; left: calc(var(--hb-wx) + 10px); bottom: 70px; width: 196px; padding: 8px; border-radius: 14px; background: var(--hb-bg); border: 1px solid var(--hb-line);
+  color: var(--hb-ink); font: 500 13px 'IBM Plex Sans', system-ui, sans-serif; display: flex; flex-direction: column; gap: 2px; }
+html[data-shell="b"] .hb-swpop[hidden] { display: none; }
+html[data-shell="b"] .hb-swhd { font-size: 10.5px; font-weight: 650; letter-spacing: .09em; text-transform: uppercase; color: var(--hb-ink3); padding: 4px 8px 6px; }
+html[data-shell="b"] .hb-swopt { display: flex; align-items: center; gap: 10px; padding: 8px; border: 0; border-radius: 9px; background: transparent; color: var(--hb-ink2); font: inherit; cursor: pointer; text-align: left; }
+html[data-shell="b"] .hb-swopt:hover { background: color-mix(in srgb, var(--hb-acc) 8%, transparent); color: var(--hb-ink); }
+html[data-shell="b"] .hb-swopt:focus-visible { outline: 2px solid var(--hb-acc); outline-offset: -2px; }
+html[data-shell="b"] .hb-swopt[aria-pressed="true"] { background: var(--hb-acc-soft); color: var(--hb-acc-text); font-weight: 600; }
+html[data-shell="b"] .hb-swopt[aria-pressed="true"]::after { content: "✓"; margin-left: auto; }
+html[data-shell="b"] .hb-swchip { width: 18px; height: 18px; border-radius: 6px; flex: 0 0 18px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.25), 0 2px 6px -2px rgba(0,0,0,.4); }
+html[data-shell="b"].hb-sw-open .hb-rail { width: var(--hb-wx); }
+html[data-shell="b"].hb-sw-open .hb-lb, html[data-shell="b"].hb-sw-open .hb-head, html[data-shell="b"].hb-sw-open .hb-pin { opacity: 1; }
+@media (max-width: 819px) { html[data-shell="b"] .hb-swbtn { display: inline-flex; } html[data-shell="b"] .hb-swpop { left: 12px; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); } }
+/* mobile tab bar: accent for current */
+html[data-shell="b"] .hb-tab.on { color: var(--hb-acc-text); }
+/* page entrance: content rises in, cards staggered 40ms */
+html[data-shell="b"] body > main, html[data-shell="b"] body > #main { animation: hbRise .42s var(--hb-ease) both; }
+html[data-shell="b"] main :is(.card, .panel):nth-child(-n+8) { animation: hbRise .42s var(--hb-ease) both; }
+html[data-shell="b"] main :is(.card, .panel):nth-child(2) { animation-delay: 40ms; } html[data-shell="b"] main :is(.card, .panel):nth-child(3) { animation-delay: 80ms; }
+html[data-shell="b"] main :is(.card, .panel):nth-child(4) { animation-delay: 120ms; } html[data-shell="b"] main :is(.card, .panel):nth-child(5) { animation-delay: 160ms; }
+html[data-shell="b"] main :is(.card, .panel):nth-child(6) { animation-delay: 200ms; } html[data-shell="b"] main :is(.card, .panel):nth-child(7) { animation-delay: 240ms; }
+html[data-shell="b"] main :is(.card, .panel):nth-child(8) { animation-delay: 280ms; }
+@keyframes hbRise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  html[data-shell="b"] *, html[data-shell="b"] *::before, html[data-shell="b"] *::after { animation: none !important; }
+  html[data-shell="b"] .hb-new, html[data-shell="b"] .hb-swbtn, html[data-shell="b"] .hb-item .hb-ic { transition: none !important; transform: none !important; }
+}
+
+/* ---------- create menu icons + profile "Customize dashboard" ---------- */
+html[data-shell="b"] .hb-menu { max-width: calc(100vw - 24px); box-sizing: border-box; }
+html[data-shell="b"] .hb-mi { display: flex; align-items: center; gap: 10px; }
+html[data-shell="b"] .hb-mi .hb-svg { width: 16px; height: 16px; flex: 0 0 auto; color: var(--hb-ink3, var(--hb-ink2)); }
+html[data-shell="b"] .hb-mi:hover .hb-svg, html[data-shell="b"] .hb-mi:focus .hb-svg { color: currentColor; }
+html[data-shell="b"] .hau-mi .hb-svg.hau-mi-ic { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* v67: short windows: nav scrolls, footer stays pinned and compact so Admin items never vanish */
+html[data-shell="b"] .hb-rail { min-height: 0; }
+html[data-shell="b"] .hb-top, html[data-shell="b"] .hb-bottom { flex-shrink: 0; }
+@media (max-height: 860px) {
+  html[data-shell="b"] .hb-bottom { padding: 4px 12px 8px; gap: 0; }
+  html[data-shell="b"] .hb-slot { min-height: 34px; }
+  html[data-shell="b"] .hb-bottom .hb-item { min-height: 34px; padding-top: 4px; padding-bottom: 4px; }
+}
+@media (max-height: 640px) {
+  html[data-shell="b"] .hb-recent, html[data-shell="b"] .hb-tour { display: none; }
+}
+/* pin star: never sits on top of a count badge */
+html[data-shell="b"] .hb-row:hover .hb-cnt, html[data-shell="b"] .hb-row:focus-within .hb-cnt { visibility: hidden; }
+html[data-shell="b"] .hb-star { opacity: .7; }
+html[data-shell="b"] .hb-star:hover, html[data-shell="b"] .hb-star[aria-pressed="true"] { opacity: 1; }
+/* count pill: small, consistent per theme */
+/* expanded rail only: the collapsed rail keeps the small dot on the icon */
+html[data-shell="b"] .hb-rail:hover .hb-cnt, html[data-shell="b"] .hb-rail:focus-within .hb-cnt, html[data-shell="b"].hb-pinned .hb-cnt, html[data-shell="b"].hb-rail-hold .hb-cnt, html[data-shell="b"].hb-sw-open .hb-cnt { font-variant-numeric: tabular-nums; min-width: 18px; height: 18px; line-height: 18px; padding: 0 6px; border-radius: 9px; font-size: 10.5px; font-weight: 650; text-align: center; }
+/* collapsed rail: one small dot at the icon's top-right corner, never a pill */
+html[data-shell="b"]:not(.hb-pinned):not(.hb-rail-hold):not(.hb-sw-open) .hb-rail:not(:hover):not(:focus-within) .hb-cnt { position: absolute; left: 30px; top: 7px; width: 8px; height: 8px; min-width: 0; padding: 0; font-size: 0; line-height: 0; border-radius: 50%; border: 2px solid var(--hb-bg); box-sizing: content-box; }
+/* bell / chat count: small pill tucked on the icon's corner, ringed so it reads on any header */
+html[data-shell="b"] .hb-badge { top: 3px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+  font: 700 9.5px/16px 'IBM Plex Sans', system-ui, sans-serif; letter-spacing: .01em; font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 2px var(--hb-bg); border: 0; }
+
+/* v86: Recently viewed + Tour live at the end of the scrolling nav on short windows (shell-b.js placeTools) */
+html[data-shell="b"] .hb-ftools { border-top: 1px solid var(--hb-line); margin-top: 6px; padding-top: 6px; }
+html[data-shell="b"] .hb-ftools[hidden] { display: none; }
+html[data-shell="b"] .hb-tourbtn { width: 100%; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; }
+html[data-shell="b"] #helpBtn:not(.hb-item), html[data-shell="b"] body > .htour-fab { display: none !important; }   /* the rail's tour button replaces them */
+@media (max-height: 640px) { html[data-shell="b"] .hb-ftools .hb-recent, html[data-shell="b"] .hb-ftools .hb-tour { display: flex; } }
+/* scroll cues: a soft fade where more nav items are hidden above / below */
+html[data-shell="b"] .hb-scroll { position: relative; }
+html[data-shell="b"] .hb-scroll.hb-more-b { -webkit-mask-image: linear-gradient(#000 calc(100% - 28px), transparent); mask-image: linear-gradient(#000 calc(100% - 28px), transparent); }
+html[data-shell="b"] .hb-scroll.hb-more-t { -webkit-mask-image: linear-gradient(transparent, #000 20px); mask-image: linear-gradient(transparent, #000 20px); }
+html[data-shell="b"] .hb-scroll.hb-more-t.hb-more-b { -webkit-mask-image: linear-gradient(transparent, #000 20px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(transparent, #000 20px, #000 calc(100% - 28px), transparent); }
+/* the rail has a fixed width from first paint (boot css): no width change while items/labels arrive */
+html[data-shell="b"] .hb-rail .hb-group[hidden] { display: none; }
+
+/* v88: a rail slot with nothing in it is not rendered - the rest moves up, no gaps (e.g. Recently viewed flagged off, a widget never adopted) */
+html[data-shell="b"] .hb-slot:empty, html[data-shell="b"] .hb-slot:not(:has(> :not([hidden]))) { display: none !important; }
+html[data-shell="b"] .hb-ftools:not(:has(.hb-slot > :not([hidden]))) { display: none !important; }
+html[data-shell="b"].hb-no-recent #account .htr-w { display: none !important; }
+html[data-shell="b"] .hb-theme:not(:has(#bpThemeToggle)) { display: none !important; }   /* page without the app theme toggle (e.g. chat): no empty 34px row */
+html[data-shell="b"] .hb-bottom:not(:has(#bpThemeToggle, .hau-mw, .hb-tourbtn, .htr-btn)) { display: none !important; }   /* footer with nothing in it (e.g. design studio on a short window) */

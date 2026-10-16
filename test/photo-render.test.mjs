@@ -67,9 +67,12 @@ t('every ASSETS type in builder.js has a photographic description', () => {
   const missing = keys.filter((k) => !P.DESCRIPTIONS[k] || P.DESCRIPTIONS[k].length < 12);
   assert.deepEqual(missing, []);
   // and a one-of-each layout mentions every visible type
-  const all = keys.map((k, i) => it(k, (i * 7) % 190, (i * 11) % 130, 4, 4));
-  const p = P.build({ items: all, world: W }).prompt;
-  for (const k of keys) if (!['exit', 'smoke', 'cableramp', 'distro'].includes(k)) assert.ok(p.includes(P.DESCRIPTIONS[k]), k);
+  // (split in halves: one layout holding all 88+ distinct types overflows PROMPT_LIMIT by design)
+  for (const part of [keys.filter((_, i) => i % 2 === 0), keys.filter((_, i) => i % 2 === 1)]) {
+    const all = part.map((k, i) => it(k, (i * 7) % 190, (i * 11) % 130, 4, 4));
+    const p = P.build({ items: all, world: W }).prompt;
+    for (const k of part) if (!['exit', 'smoke', 'cableramp', 'distro'].includes(k)) assert.ok(p.includes(P.DESCRIPTIONS[k]), k);
+  }
 });
 
 t('style mapping: defaults from venue setting + Evening toggle; explicit style wins', () => {
@@ -133,7 +136,7 @@ t('builder: Render dialog markup with style / camera / theme / quality / count, 
   assert.match(html, /<option value="4">4<\/option>/);
   assert.match(html, /Photo renders aren’t switched on for your studio yet\./);
   assert.doesNotMatch(html, /OPENAI_API_KEY/);
-  assert.match(html, /builder-3d\.js\?v=16"><\/script>\n<script src="photo-render-prompt\.js\?v=5"><\/script>\n<script src="photo-render-ui\.js\?v=7"><\/script>/);
+  assert.match(html, /builder-3d\.js\?v=24"><\/script>\n<script src="photo-render-prompt\.js\?v=8"><\/script>\n<script src="photo-render-ui\.js\?v=7"><\/script>/);
   assert.match(cap, /photo-render-ui\.js\?v=7/);
   assert.doesNotMatch(html, /style="/);
 });

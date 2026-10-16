@@ -1,0 +1,44 @@
+/* Admin pages shared polish (inventory, vendors, staff, templates, media, business,
+   control, insights, reports, audit, onboarding, profile-setup).
+   Visual-only: spacing/type rhythm, consistent cards, tables, inputs, empty states.
+   Uses theme tokens so Cobalt/Midnight/Emerald/Graphite/Studio x light/dark all follow. */
+:root{--ap-s1:4px;--ap-s2:8px;--ap-s3:12px;--ap-s4:16px;--ap-s5:24px;--ap-s6:32px;--ap-r:12px;--ap-r-sm:8px}
+
+/* Cards: one radius, one padding, one hairline shadow, calm headings */
+main .card{border-radius:var(--ap-r);padding:var(--ap-s5);margin-bottom:var(--ap-s4);box-shadow:0 1px 2px rgba(15,23,42,.04)}
+main .card > h2:first-child,main .card > h3:first-child{margin-top:0}
+main .card h2{font-size:16px;line-height:1.35;font-weight:600;letter-spacing:-.01em;margin-bottom:var(--ap-s1)}
+main .card h3{font-size:14px;line-height:1.4;font-weight:600}
+main .card .sub,main .sub{line-height:1.55;max-width:72ch}
+main .card .sub{margin-bottom:var(--ap-s4)}
+
+/* Toolbars: aligned, wrapping, even gaps */
+main .toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:var(--ap-s2) var(--ap-s3);margin:var(--ap-s3) 0 var(--ap-s5)}
+
+/* Controls: uniform radius + height + visible focus */
+main .btn{border-radius:var(--ap-r-sm);font-weight:500;transition:background-color .15s,border-color .15s,color .15s}
+main .fld input,main .fld select,main .fld textarea,main .search,main .sel{border-radius:var(--ap-r-sm)}
+main .fld label{font-weight:500}
+main :is(.btn,.tab,.fld input,.fld select,.fld textarea,.search,.sel):focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+/* Tables: quiet sentence-case headers, tabular numbers, gentle row hover */
+main thead th{text-transform:none;letter-spacing:0;font-size:12px;font-weight:600;color:var(--ink-3)}
+main td.num,main th.num,main .num{font-variant-numeric:tabular-nums}
+main tbody tr:hover > td{background:var(--panel-2)}
+main .table-scroll{border-radius:var(--ap-r-sm)}
+
+/* Empty states: centred, dashed, readable */
+main div.empty,main p.empty{border:1px dashed var(--line);border-radius:var(--ap-r);background:var(--panel-2);color:var(--ink-3);padding:var(--ap-s5);text-align:center;line-height:1.55}
+main td.empty{color:var(--ink-3);text-align:center;padding:var(--ap-s5) var(--ap-s3)}
+
+/* KPI rows (insights/reports) */
+main .kpis{gap:var(--ap-s3)}
+main .kpi{border-radius:var(--ap-r)}
+main .kpi :is(b,strong,.v){font-variant-numeric:tabular-nums}
+
+@media (max-width:640px){
+  main .card{padding:var(--ap-s4)}
+  main .toolbar > :is(.search,.sel){flex:1 1 100%;max-width:none}
+  main .btn{min-height:40px}
+}
+@media (prefers-reduced-motion:reduce){main .btn{transition:none}}

@@ -52,38 +52,126 @@
     firstaid:   { type: 'firstaid',    label: 'First aid',              size: null, zone: 'back' },
     entrance:   { type: 'arch',        label: 'Entrance',               size: null, zone: 'entrance' },
     exit:       { type: 'exit',        label: 'Exits',                  size: null, zone: 'exits', multi: true },
+    // Indian wedding pack (2026-10) - optional extras, off by default
+    couplesofa: { type: 'couplesofa',  label: 'Couple sofa on stage',   size: null, zone: 'onStage' },
+    welcomeboard:{ type: 'welcomeboard', label: 'Welcome board',        size: null, zone: 'nearEntrance' },
+    selfieframe:{ type: 'selfieframe', label: 'Selfie frame',           size: null, zone: 'wallLeft' },
+    livecounter:{ type: 'livecounter', label: 'Live food counters',     size: null, zone: 'wallRight', multi: true },
+    kidszone:   { type: 'kidszone',    label: 'Kids zone',              size: null, zone: 'back' },
+    // event-aware décor + production pack (2026-10b) — which ones a type gets, and where, comes from EVENT_RULES
+    stagebackdrop:{ type: 'stagebackdrop', label: 'Stage floral backdrop', size: 'w', zone: 'backdrop' },
+    balloonarch:{ type: 'balloonarch', label: 'Balloon arch',           size: 'w',  zone: 'backdrop' },
+    stagepillars:{ type: 'floralpillar', label: 'Floral pillars by the stage', size: null, zone: 'stageFlank', multi: true },
+    lamps:      { type: 'diyastand',   label: 'Brass deepam stands',    size: null, zone: 'stageFlank', multi: true },
+    flags:      { type: 'flagstand',   label: 'Flag stands',            size: null, zone: 'stageFlank', multi: true },
+    patower:    { type: 'patower',     label: 'PA towers',              size: null, zone: 'stageFlank', multi: true },
+    lightingtree:{ type: 'lightingtree', label: 'Lighting trees (T-bar)', size: null, zone: 'stageFlank', multi: true },
+    trophies:   { type: 'trophytable', label: 'Trophy display',         size: null, zone: 'stageFlank' },
+    havan:      { type: 'havankund',   label: 'Havan kund',             size: null, zone: 'stageFront' },
+    rangoli:    { type: 'rangoli',     label: 'Rangoli at the entrance', size: null, zone: 'entranceFlank', multi: true },
+    entrancefloral:{ type: 'floralpillar', label: 'Entrance floral pillars', size: null, zone: 'entranceFlank', multi: true },
+    balloons:   { type: 'balloonbunch', label: 'Balloon bouquets at the entrance', size: null, zone: 'entranceFlank', multi: true },
+    aisleflorals:{ type: 'aislefloral', label: 'Aisle flower stands (with carpet)', size: null, zone: 'aisle', multi: true },
+    flowerwall: { type: 'flowerwall',  label: 'Flower wall',            size: null, zone: 'perimeter' },
+    hoarding:   { type: 'hoarding',    label: 'Banner hoarding',        size: null, zone: 'perimeter' },
+    // complete-catalogue pack (2026-10d) - optional extras, off by default (EVENT_RULES still filters them)
+    varmala:    { type: 'varmala',     label: 'Varmala platform',       size: null, zone: 'nearDance' },
+    umbrellas:  { type: 'umbrellas',   label: 'Decor umbrellas',        size: null, zone: 'perimeter', multi: true },
+    kalash:     { type: 'kalash',      label: 'Kalash by the stage',    size: null, zone: 'stageFlank', multi: true },
+    altar:      { type: 'altar',       label: 'Pooja altar',            size: null, zone: 'stageFront' },
+    gaddi:      { type: 'gaddi',       label: 'Floor seating (gaddi)',  size: null, zone: 'front', multi: true },
+    shoerack:   { type: 'shoerack',    label: 'Shoe rack',              size: null, zone: 'nearEntrance', multi: true },
+    dessert:    { type: 'dessert',     label: 'Dessert / candy table',  size: null, zone: 'wallRight' },
+    coffee:     { type: 'coffee',      label: 'Coffee / tea station',   size: null, zone: 'wallRight', multi: true },
+    pyro:       { type: 'pyro',        label: 'Cold pyro at the stage', size: null, zone: 'stageFlank', multi: true },
+    projector:  { type: 'projector',   label: 'Projector screens',      size: null, zone: 'flank', multi: true },
+    teleprompter:{ type: 'teleprompter', label: 'Confidence monitor',   size: null, zone: 'stageFront' },
+    interpreter:{ type: 'interpreter', label: 'Interpreter booth',      size: null, zone: 'back' },
+    kiosk:      { type: 'kiosk',       label: 'Check-in kiosks',        size: null, zone: 'nearEntrance', multi: true },
+    stanchion:  { type: 'stanchion',   label: 'Queue stanchions',       size: null, zone: 'nearEntrance', multi: true },
+    counter:    { type: 'counter',     label: 'Display counters',       size: null, zone: 'back', multi: true },
+    plinth:     { type: 'plinth',      label: 'Display plinths',        size: null, zone: 'back', multi: true },
+    stall:      { type: 'stall',       label: 'Food / merch stalls',    size: null, zone: 'back', multi: true },
+    ticketbooth:{ type: 'ticketbooth', label: 'Ticket booth',           size: null, zone: 'nearEntrance' },
+    towerlight: { type: 'towerlight',  label: 'Mobile light towers',    size: null, zone: 'back', multi: true },
+    watchtower: { type: 'watchtower',  label: 'Watch tower / CCTV',     size: null, zone: 'back', multi: true },
+    extinguisher:{ type: 'extinguisher', label: 'Fire points',          size: null, zone: 'perimeter', multi: true },
+    ambulance:  { type: 'ambulance',   label: 'Ambulance bay',          size: null, zone: 'back' },
+  };
+
+  /* ---------------- event rules (2026-10b) ----------------
+   * Every product belongs to a décor GROUP. EVENT_RULES[type] says which groups an event may use (deny wins)
+   * and which décor it gets by default in each placement ZONE:
+   *   stage (backdrop stack + both stage flanks) · entrance (both sides of the entrance) · aisle (along the
+   *   carpet, only when the carpet is on) · perimeter (side walls) · seating (table dressing — drawn on every
+   *   round table in 3D, so nothing extra is placed).
+   * Zone entries are [objectKey, qty]; they are added to the type's suggested objects (switched ON) unless the
+   * type already lists that key. Denied groups are removed from the suggestions AND refused by layout(), and a
+   * stage at an event that denies florals is drawn plain in 3D (no flowers on a rally / conference stage).
+   * Exposed as HelmWizard.EVENT_RULES / allowsGroup(type, group) / allowsProduct(type, assetType). */
+  const PRODUCT_GROUP = {
+    floral: 'floral', floralarch: 'floral', floralentrance: 'floral', stagebackdrop: 'floral', flowerwall: 'floral', toran: 'floral',
+    floralpillar: 'floral', aislefloral: 'floral', centrepiece: 'floral', mandap: 'floral', phoolchadar: 'floral', entrancegate: 'floral',
+    pillar: 'floral', haldi: 'floral', mehendi: 'floral', jhoola: 'floral', selfieframe: 'floral', welcomeboard: 'floral', couplesofa: 'wedding', chariot: 'wedding',
+    balloonarch: 'balloon', balloonbunch: 'balloon', kidszone: 'kids',
+    flagstand: 'political', diyastand: 'religious', trophytable: 'award',
+    havankund: 'religious', rangoli: 'religious', hangingfloral: 'floral', lanterns: 'decor', neonsign: 'decor',
+    varmala: 'wedding', umbrellas: 'wedding', doli: 'wedding', urli: 'floral', floralstand: 'floral', altar: 'religious', kalash: 'decor',
+  };
+  const NO_FESTIVE = ['floral', 'balloon', 'kids', 'wedding'];
+  const WEDDING_RULE = { deny: ['political', 'award'], zones: { stage: [['stagebackdrop', 1], ['stagepillars', 2]], entrance: [['entrancefloral', 2]], aisle: [['aisleflorals', 4]], perimeter: [], seating: ['centrepiece'] } };
+  const EVENT_RULES = {
+    wedding: WEDDING_RULE, reception: WEDDING_RULE, engagement: WEDDING_RULE, galadinner: { deny: ['political'], zones: WEDDING_RULE.zones },
+    birthday: { deny: ['political', 'religious', 'award'], zones: { stage: [['balloonarch', 1]], entrance: [['balloons', 2]], aisle: [], perimeter: [], seating: [] } },
+    political: { deny: NO_FESTIVE.concat(['religious', 'award']), zones: { stage: [['flags', 2], ['patower', 2]], entrance: [], aisle: [], perimeter: [], seating: [] } },
+    corporate: { deny: ['balloon', 'kids', 'wedding', 'political', 'religious'], zones: { stage: [['lightingtree', 2]], entrance: [], aisle: [], perimeter: [], seating: [] } },
+    product_launch: { deny: ['balloon', 'kids', 'wedding', 'political', 'religious'], zones: { stage: [['lightingtree', 2]], entrance: [], aisle: [], perimeter: [], seating: [] } },
+    conference: { deny: ['balloon', 'kids', 'wedding', 'political', 'religious', 'award'], zones: { stage: [['lightingtree', 2]], entrance: [], aisle: [], perimeter: [], seating: [] } },
+    exhibition: { deny: ['balloon', 'kids', 'wedding', 'political', 'award'], zones: { stage: [], entrance: [], aisle: [], perimeter: [], seating: [] } },
+    concert: { deny: ['floral', 'wedding', 'political', 'religious', 'award'], zones: { stage: [['lightingtree', 2]], entrance: [], aisle: [], perimeter: [], seating: [] } },
+    festival: { deny: ['wedding', 'political', 'award'], zones: { stage: [], entrance: [], aisle: [], perimeter: [], seating: [] } },
+    religious: { deny: ['balloon', 'kids', 'wedding', 'political', 'award'], zones: { stage: [['stagebackdrop', 1], ['lamps', 2], ['stagepillars', 2]], entrance: [['entrancefloral', 2]], aisle: [], perimeter: [], seating: [] } },
+    award_night: { deny: ['balloon', 'kids', 'wedding', 'political', 'religious'], zones: { stage: [['trophies', 1], ['lightingtree', 2]], entrance: [], aisle: [], perimeter: [], seating: ['centrepiece'] } },
+    iftar: { deny: ['balloon', 'political', 'wedding', 'award'], zones: { stage: [], entrance: [], aisle: [], perimeter: [], seating: [] } },
+    eid: { deny: ['political', 'wedding', 'award'], zones: { stage: [], entrance: [], aisle: [], perimeter: [], seating: [] } },
   };
   // [key, on by default, qty, mandatory]
   const WEDDING = [['stage', 1, 1, 1], ['mandap', 1, 1], ['backdrop', 1, 1], ['dj', 1, 1], ['dancefloor', 1, 1], ['led', 1, 2],
     ['buffet', 1, 2], ['caketable', 1, 1], ['entrance', 1, 1, 1], ['floral', 1, 4], ['photobooth', 1, 1], ['bar', 0, 1],
-    ['gifttable', 1, 1], ['vipsofa', 1, 4], ['linearray', 0, 2], ['exit', 1, 2, 1]];
+    ['gifttable', 1, 1], ['vipsofa', 1, 4], ['linearray', 0, 2], ['couplesofa', 0, 1], ['welcomeboard', 0, 1], ['selfieframe', 0, 1],
+    ['livecounter', 0, 2], ['kidszone', 0, 1], ['varmala', 0, 1], ['umbrellas', 0, 2], ['kalash', 0, 2], ['dessert', 0, 1], ['pyro', 0, 2],
+    ['exit', 1, 2, 1]];
   const TYPES = {
     wedding:        { label: 'Wedding',               seating: 'rounds',  objects: WEDDING },
     reception:      { label: 'Reception',             seating: 'rounds',  objects: WEDDING.map((o) => o[0] === 'mandap' ? ['mandap', 0, 1] : o[0] === 'bar' ? ['bar', 1, 1] : o[0] === 'buffet' ? ['buffet', 1, 2, 1] : o) },
     engagement:     { label: 'Engagement / sangeet',  seating: 'rounds',  objects: WEDDING.map((o) => o[0] === 'mandap' ? ['mandap', 0, 1] : o[0] === 'led' ? ['led', 0, 2] : o) },
     birthday:       { label: 'Birthday / private party', seating: 'rounds', objects: [['stage', 1, 1], ['caketable', 1, 1, 1], ['dj', 1, 1], ['dancefloor', 1, 1],
-      ['backdrop', 1, 1], ['buffet', 1, 1], ['photobooth', 1, 1], ['gifttable', 1, 1], ['floral', 0, 2], ['bar', 0, 1], ['led', 0, 1], ['vipsofa', 0, 2], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
+      ['backdrop', 1, 1], ['buffet', 1, 1], ['photobooth', 1, 1], ['gifttable', 1, 1], ['floral', 0, 2], ['bar', 0, 1], ['led', 0, 1], ['vipsofa', 0, 2], ['dessert', 0, 1], ['pyro', 0, 2], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
     political:      { label: 'Political rally / public meeting', seating: 'theatre', objects: [['stage', 1, 1, 1], ['podium', 1, 1, 1], ['dais', 1, 1], ['brandwall', 1, 1],
       ['led', 1, 2], ['linearray', 1, 2, 1], ['barricade', 1, 1, 1], ['walkway', 1, 1], ['generator', 1, 1, 1], ['press', 1, 1], ['viprow', 1, 2],
-      ['lighting', 1, 1], ['entrance', 1, 1, 1], ['firstaid', 0, 1], ['restroom', 0, 2], ['exit', 1, 2, 1]] },
+      ['lighting', 1, 1], ['entrance', 1, 1, 1], ['firstaid', 0, 1], ['restroom', 0, 2], ['teleprompter', 0, 1], ['towerlight', 0, 2], ['watchtower', 0, 2], ['extinguisher', 0, 4], ['ambulance', 0, 1], ['exit', 1, 2, 1]] },
     corporate:      { label: 'Corporate event',       seating: 'theatre', objects: [['stage', 1, 1, 1], ['podium', 1, 1], ['led', 1, 2], ['brandwall', 1, 1],
-      ['desk', 1, 1, 1], ['cocktail', 1, 6], ['linearray', 1, 2], ['lighting', 0, 1], ['buffet', 0, 1], ['bar', 0, 1], ['photobooth', 0, 1], ['vipsofa', 0, 2], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
+      ['desk', 1, 1, 1], ['cocktail', 1, 6], ['linearray', 1, 2], ['lighting', 0, 1], ['buffet', 0, 1], ['bar', 0, 1], ['photobooth', 0, 1], ['vipsofa', 0, 2], ['projector', 0, 2], ['kiosk', 0, 2], ['coffee', 0, 1], ['teleprompter', 0, 1], ['stanchion', 0, 1], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
     product_launch: { label: 'Product launch',        seating: 'theatre', objects: [['stage', 1, 1, 1], ['podium', 1, 1], ['led', 1, 2, 1], ['brandwall', 1, 1, 1],
-      ['desk', 1, 1, 1], ['cocktail', 1, 8], ['linearray', 1, 2], ['lighting', 1, 1], ['photobooth', 1, 1], ['bar', 0, 1], ['vipsofa', 0, 2], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
+      ['desk', 1, 1, 1], ['cocktail', 1, 8], ['linearray', 1, 2], ['lighting', 1, 1], ['photobooth', 1, 1], ['bar', 0, 1], ['vipsofa', 0, 2], ['kiosk', 0, 2], ['pyro', 0, 2], ['teleprompter', 0, 1], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
     conference:     { label: 'Conference / seminar',  seating: 'theatre', objects: [['stage', 1, 1, 1], ['podium', 1, 1, 1], ['led', 1, 2], ['desk', 1, 2, 1],
-      ['brandwall', 0, 1], ['linearray', 1, 2], ['buffet', 0, 1], ['cocktail', 0, 4], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
+      ['brandwall', 0, 1], ['linearray', 1, 2], ['buffet', 0, 1], ['cocktail', 0, 4], ['projector', 0, 2], ['coffee', 0, 1], ['kiosk', 0, 2], ['interpreter', 0, 1], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
     concert:        { label: 'Concert / live music',  seating: 'standing', objects: [['stage', 1, 1, 1], ['linearray', 1, 2, 1], ['barricade', 1, 1, 1], ['foh', 1, 1, 1],
-      ['standing', 1, 1, 1], ['led', 1, 2], ['lighting', 1, 1], ['walkway', 0, 1], ['generator', 1, 1], ['bar', 1, 2], ['restroom', 1, 2], ['firstaid', 1, 1], ['vipsofa', 0, 4], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
+      ['standing', 1, 1, 1], ['led', 1, 2], ['lighting', 1, 1], ['walkway', 0, 1], ['generator', 1, 1], ['bar', 1, 2], ['restroom', 1, 2], ['firstaid', 1, 1], ['vipsofa', 0, 4], ['ticketbooth', 0, 1], ['stall', 0, 2], ['towerlight', 0, 2], ['watchtower', 0, 1], ['pyro', 0, 2], ['ambulance', 0, 1], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
     festival:       { label: 'Festival / outdoor',    seating: 'standing', objects: [['stage', 1, 1, 1], ['linearray', 1, 2, 1], ['barricade', 1, 1, 1], ['foh', 1, 1, 1],
-      ['standing', 1, 1, 1], ['led', 1, 2], ['lighting', 1, 1], ['generator', 1, 1, 1], ['bar', 1, 2], ['restroom', 1, 4], ['firstaid', 1, 1, 1], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
+      ['standing', 1, 1, 1], ['led', 1, 2], ['lighting', 1, 1], ['generator', 1, 1, 1], ['bar', 1, 2], ['restroom', 1, 4], ['firstaid', 1, 1, 1], ['ticketbooth', 0, 1], ['stall', 0, 4], ['towerlight', 0, 2], ['watchtower', 0, 2], ['ambulance', 0, 1], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
     // UAE audit (0102): Gulf event types - halal buffet + majlis seating, no dance-floor / bar defaults
     galadinner:     { label: 'Gala dinner',           seating: 'rounds',  objects: WEDDING.map((o) => o[0] === 'mandap' || o[0] === 'caketable' ? [o[0], 0, o[2]] : o) },
     iftar:          { label: 'Iftar / Ramadan tent',  seating: 'rounds',  objects: [['buffet', 1, 4, 1], ['vipsofa', 1, 6], ['backdrop', 1, 1], ['floral', 0, 2], ['lighting', 1, 1],
       ['desk', 0, 1], ['stage', 0, 1], ['restroom', 0, 2], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
     eid:            { label: 'Eid / National Day celebration', seating: 'rounds', objects: [['stage', 1, 1, 1], ['backdrop', 1, 1], ['dancefloor', 1, 1], ['led', 1, 2], ['linearray', 1, 2], ['buffet', 1, 2],
       ['lighting', 1, 1], ['photobooth', 1, 1], ['vipsofa', 1, 4], ['floral', 0, 2], ['firstaid', 0, 1], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
+    religious:      { label: 'Religious / puja / satsang', seating: 'theatre', objects: [['stage', 1, 1, 1], ['havan', 0, 1], ['rangoli', 0, 1], ['linearray', 1, 2], ['led', 0, 2], ['buffet', 0, 1], ['restroom', 0, 2],
+      ['firstaid', 0, 1], ['altar', 0, 1], ['kalash', 0, 2], ['gaddi', 0, 2], ['shoerack', 0, 2], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
+    award_night:    { label: 'Award night / gala awards', seating: 'rounds', objects: [['stage', 1, 1, 1], ['podium', 1, 1, 1], ['led', 1, 2], ['brandwall', 1, 1], ['lighting', 1, 1],
+      ['linearray', 1, 2], ['buffet', 1, 1], ['bar', 0, 1], ['photobooth', 1, 1], ['vipsofa', 0, 2], ['stanchion', 0, 2], ['pyro', 0, 2], ['teleprompter', 0, 1], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
     exhibition:     { label: 'Exhibition / trade show', seating: 'standing', objects: [['desk', 1, 2, 1], ['brandwall', 1, 1], ['standing', 1, 1, 1], ['led', 1, 2], ['cocktail', 1, 8],
-      ['lighting', 1, 1], ['stage', 0, 1], ['podium', 0, 1], ['buffet', 0, 1], ['restroom', 0, 2], ['firstaid', 0, 1], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
+      ['lighting', 1, 1], ['stage', 0, 1], ['podium', 0, 1], ['buffet', 0, 1], ['restroom', 0, 2], ['firstaid', 0, 1], ['counter', 0, 4], ['plinth', 0, 4], ['kiosk', 0, 2], ['stall', 0, 2], ['coffee', 0, 1], ['entrance', 1, 1, 1], ['exit', 1, 2, 1]] },
   };
   // UAE audit: which types a studio's country offers (India / others: every type, unchanged).
   // AE hides the political rally and the India-only wording; the wedding mandap starts OFF.
@@ -96,7 +184,10 @@
   }
   function defaultUnit(cc) { return String(cc || '').toUpperCase() === 'IN' || !cc ? 'ft' : String(cc).toUpperCase() === 'US' ? 'ft' : 'm'; }
   const TYPE_ALIAS = { iftar: 'iftar', ramadan: 'iftar', suhoor: 'iftar', eid: 'eid', 'national day': 'eid', exhibition: 'exhibition', 'trade show': 'exhibition', gala: 'wedding', anniversary: 'wedding', sangeet: 'engagement', mehendi: 'engagement', mehndi: 'engagement', haldi: 'engagement', roka: 'engagement', cocktail: 'reception', rally: 'political', public_meeting: 'political',
-    'public meeting': 'political', seminar: 'conference', expo: 'conference', 'product launch': 'product_launch', 'live music': 'concert' };
+    'public meeting': 'political', seminar: 'conference', expo: 'conference', 'product launch': 'product_launch', 'live music': 'concert',
+    puja: 'religious', pooja: 'religious', satsang: 'religious', temple: 'religious', church: 'religious', mosque: 'religious', jagran: 'religious', kirtan: 'religious', religious: 'religious',
+    award: 'award_night', awards: 'award_night', 'award night': 'award_night', 'awards night': 'award_night', 'award ceremony': 'award_night',
+    meeting: 'political', election: 'political', campaign: 'political' };
   function typeKey(t) {
     const k = String(t || '').toLowerCase().trim();
     if (TYPES[k]) return k; if (TYPE_ALIAS[k]) return TYPE_ALIAS[k];
@@ -107,6 +198,11 @@
     for (const w of words) { if (TYPES[w]) return w; if (TYPE_ALIAS[w]) return TYPE_ALIAS[w]; }
     return 'wedding';
   }
+  // rules lookups. Unknown / empty type → everything allowed (nothing is ever hidden by accident).
+  function rulesFor(type) { const k = String(type || '').trim(); return k ? EVENT_RULES[typeKey(k)] || null : null; }
+  function allowsGroup(type, group) { const r = rulesFor(type); return !group || !r || !(r.deny || []).includes(group); }
+  function allowsProduct(type, assetType) { return allowsGroup(type, PRODUCT_GROUP[assetType]); }
+  const keyAllowed = (type, k) => !OBJECTS[k] || allowsProduct(type, OBJECTS[k].type);
   const SEATING_STYLES = { rounds: 'Round tables', theatre: 'Theatre blocks', banquet: 'Banquet long tables', mixed: 'Mixed: rounds + theatre', standing: 'Standing (no main seating)' };
 
   // sensible default sizes (ft) for a hall
@@ -119,7 +215,8 @@
     if (key === 'walkway') return { w: 4, h: sc(H * 0.12, 5, 30) };
     if (key === 'led') return { w: sc(W * 0.1, 6, 20) };
     if (key === 'backdrop') return { w: sc(W * 0.12, 6, 12) };
-    if (key === 'brandwall' || key === 'lighting') return { w: sc(W * 0.3, 12, 60) };
+    if (key === 'brandwall' || key === 'lighting' || key === 'stagebackdrop') return { w: sc(W * 0.3, 12, 60) };
+    if (key === 'balloonarch') return { w: sc(W * 0.06, 8, 14) };
     return {};
   }
 
@@ -128,8 +225,15 @@
     o = o || {}; const tk = typeKey(type), T = TYPES[tk];
     const W = +o.w || 200, H = +o.h || 140, guests = posInt(o.guests);
     const chairs = posInt(o.chairs) || (guests ? Math.ceil(guests * 7 / 10) : 0);
-    const objects = {};
-    T.objects.forEach(([k, on, qty, mand]) => {
+    const objects = {}, rule = EVENT_RULES[tk], list = T.objects.slice();
+    // rules: the event's zone décor joins its suggestions (switched on); denied groups never appear
+    if (rule) ['stage', 'entrance', 'aisle', 'perimeter'].forEach((z) => ((rule.zones || {})[z] || []).forEach(([k, q]) => {
+      if (OBJECTS[k] && !list.some((o) => o[0] === k)) list.push([k, z === 'aisle' ? 0 : 1, q]); }));
+    // a balloon arch replaces the floral arch backdrop where the rules ask for one (birthdays)
+    if (list.some((o) => o[0] === 'balloonarch' && o[1])) list.forEach((o, i) => { if (o[0] === 'backdrop' && !o[3]) list[i] = ['backdrop', 0, o[2]]; });
+    // a full stage floral backdrop replaces the small floral arch behind the stage
+    if (list.some((o) => o[0] === 'stagebackdrop' && o[1])) list.forEach((o, i) => { if (o[0] === 'backdrop' && !o[3]) list[i] = ['backdrop', 0, o[2]]; });
+    list.filter(([k, , , mand]) => mand || keyAllowed(tk, k)).forEach(([k, on, qty, mand]) => {
       const sz = defaultSize(k, W, H, chairs || guests);
       objects[k] = Object.assign({ on: !!(on || mand), qty: qty || 1, mandatory: !!mand }, sz,
         OBJECTS[k].seatsField ? { seats: OBJECTS[k].seats } : {});
@@ -192,7 +296,7 @@
     const inside = (r) => r.x >= -1e-6 && r.y >= -1e-6 && r.x + r.w <= W + 1e-6 && r.y + r.h <= H + 1e-6;
     const free = (r, g) => inside(r) && !placed.some((p) => hit(r, p, g == null ? 1 : g));
     const O = spec.objects || {};
-    const on = (k) => O[k] && O[k].on;
+    const on = (k) => O[k] && O[k].on && (O[k].mandatory || keyAllowed(spec.type, k));   // event rules: denied décor is refused
     const qty = (k) => (OBJECTS[k].multi ? posInt(O[k].qty) : 1);
     const lbl = (k, i, n) => OBJECTS[k].label.replace(/s$/, '') + (n > 1 ? ' ' + (i + 1) : '');
     // drawn rect (dw×dh at rx,ry) → item; rot 90 swaps the item's own width/height
@@ -226,12 +330,15 @@
     /* ---- 1. front centre stack: backdrop → truss → stage ---- */
     const st = on('stage') ? { w: clamp(+O.stage.w || 24, 6, W - 4), h: clamp(+O.stage.h || 10, 4, H * 0.35) } : null;
     let y = 1;
-    for (const k of ['backdrop', 'brandwall', 'lighting']) {
+    for (const k of ['backdrop', 'stagebackdrop', 'balloonarch', 'brandwall', 'lighting']) {
       if (!on(k)) continue; const a = asz(OBJECTS[k].type), w = clamp(+O[k].w || a.w, 3, W - 4);
       if (place(OBJECTS[k].type, w, a.h, cx - w / 2, y, { label: OBJECTS[k].label, gap: 0.3 })) y += a.h + 0.5;
     }
     let stageR = null;
-    if (st) { const it = place('stage', st.w, st.h, cx - st.w / 2, y, { label: 'Stage', gap: 0.3 }); if (it) stageR = placed[placed.length - 1]; }
+    // 3D dressing follows the rules: no flowers on the stage where florals are denied; no built-in
+    // backdrop when a full stage floral backdrop stands right behind it
+    const stageProps = Object.assign({}, allowsGroup(spec.type, 'floral') ? {} : { plain: true }, on('stagebackdrop') ? { nobackdrop: true } : {});
+    if (st) { const it = place('stage', st.w, st.h, cx - st.w / 2, y, { label: 'Stage', gap: 0.3, props: Object.keys(stageProps).length ? stageProps : null }); if (it) stageR = placed[placed.length - 1]; }
     else if (on('mandap')) { const m = clamp(+O.mandap.w || 16, 6, W - 4), mh = clamp(+O.mandap.h || m, 6, H * 0.35);
       if (place('mandap', m, mh, cx - m / 2, y, { label: 'Mandap', gap: 0.3 })) stageR = placed[placed.length - 1]; }
     let frontBottom = stageR ? stageR.y + stageR.h : y;
@@ -254,6 +361,12 @@
     if (on('led')) { const n = qty('led'), w = clamp(+O.led.w || 12, 3, W * 0.3), h = A.led.h;
       for (let i = 0; i < n; i++) { const left = i % 2 === 0, tier = Math.floor(i / 2);
         place('led', w, h, left ? L - 3 - w - tier * (w + 2) : R + 3 + tier * (w + 2), sy + 1, { label: 'LED screen ' + (i + 1), region: [0, H * 0.45] }); } }
+    // event décor flanking the stage, outermost (pillars / lamps / flags / PA towers / lighting trees / trophies), in mirrored pairs
+    for (const k of ['stagepillars', 'lamps', 'flags', 'lightingtree', 'patower', 'trophies']) {
+      if (!on(k)) continue; const t = OBJECTS[k].type, a = asz(t), n = qty(k);
+      for (let i = 0; i < n; i++) { const left = n === 1 ? false : i % 2 === 0;
+        const it = place(t, a.w, a.h, left ? L - 1.5 - a.w : R + 1.5, sy + 1, { label: OBJECTS[k].label.replace(/s( by the stage| \(T-bar\))?$/, '$1') + (n > 1 ? ' ' + (left ? 'L' : 'R') + (i > 1 ? Math.floor(i / 2) + 1 : '') : ''), gap: 0.5, region: [0, H * 0.45] });
+        if (it) { const p = placed[placed.length - 1]; if (left) L = Math.min(L, p.x); else R = Math.max(R, p.x + p.w); } } }
     // flower decor along the stage front corners
     if (on('floral')) { const n = qty('floral'), a = asz('floral');
       for (let i = 0; i < n; i++) { const left = i % 2 === 0, k = Math.floor(i / 2);
@@ -283,6 +396,11 @@
       place('exit', dw, dh, s[0], s[1], { label: i < 2 ? 'Exit' : 'Emergency exit', rot, gap: 0.5 }); }
     let entR = null;
     if (on('entrance')) { const a = asz('arch'); if (place('arch', a.w, a.h, cx - a.w / 2, H - a.h - 1, { label: 'Entrance', gap: 0.5 })) entR = placed[placed.length - 1]; }
+    // décor either side of the entrance (floral pillars / balloon bouquets), mirrored outward
+    for (const k of ['entrancefloral', 'balloons']) {
+      if (!on(k)) continue; const t = OBJECTS[k].type, a = asz(t), n = qty(k), e0 = entR ? entR.x : cx - 6, e1 = entR ? entR.x + entR.w : cx + 6;
+      for (let i = 0; i < n; i++) { const left = i % 2 === 0, tier = Math.floor(i / 2);
+        place(t, a.w, a.h, left ? e0 - 1 - a.w - tier * (a.w + 1) : e1 + 1 + tier * (a.w + 1), H - a.h - 1, { label: OBJECTS[k].label.replace(/ at the entrance$/, '') + ' ' + (i + 1), gap: 0.4, region: [H * 0.6, H] }); } }
     let backTop = H - Math.max(ex.h + 2, 4);
     const bandY = (h) => H - h - 1;
     if (on('foh')) { const a = asz('foh'), fy = (entR ? entR.y : H) - a.h - 8;
@@ -305,6 +423,9 @@
       for (let i = 0; i < n; i++) place('bar', a.h, a.w, 2, H - ex.h - 4 - a.w - i * (a.w + 4), { label: 'Bar ' + (n > 1 ? i + 1 : ''), rot: 90 }); }
     if (on('photobooth')) { const a = asz('photobooth'); place('photobooth', a.w, a.h, 2, frontBottom + 3, { label: 'Photo booth' }); }
     if (on('press')) { const a = asz('press'), w = Math.min(a.w, W * 0.2), h = Math.min(a.h, H * 0.15); place('press', w, h, W - w - 2, frontBottom + 3, { label: 'Press area' }); }
+    // perimeter décor against the side walls, behind the front zone (flower wall left, hoarding right)
+    if (on('flowerwall')) { const a = asz('flowerwall'); place('flowerwall', a.h, a.w, 1, frontBottom + 3, { label: 'Flower wall', rot: 90, region: [frontBottom, H * 0.85] }); }
+    if (on('hoarding')) { const a = asz('hoarding'), hw = Math.min(a.w, H * 0.3); place('hoarding', a.h, hw, W - a.h - 1, frontBottom + 3, { label: 'Banner hoarding', rot: 90, region: [frontBottom, H * 0.85] }); }
     items.forEach((it) => { if (it.label) it.label = String(it.label).trim(); });
 
     /* ---- 5. VIP: sofas / rows either side of the centre aisle, right behind the front zone ---- */
@@ -330,7 +451,11 @@
       // the carpet stops at the first thing in the centre lane coming up from the entrance
       let top = Math.max(frontBottom + 1, 0);
       placed.forEach((p) => { if (p.x < lane.x + lane.w && lane.x < p.x + p.w && p.y + p.h <= bottom + 1e-6) top = Math.max(top, p.y + p.h + 0.3); });
-      if (bottom - top >= 4) mk('redcarpet', { x: lane.x, y: top, w: cw, h: bottom - top }, 0, 'Aisle carpet');
+      if (bottom - top >= 4) { mk('redcarpet', { x: lane.x, y: top, w: cw, h: bottom - top }, 0, 'Aisle carpet');
+        // aisle flower stands in mirrored pairs along the carpet: one pair at its head, the next at its foot, then in between
+        if (on('aisleflorals')) { const a = asz('aislefloral'), n = qty('aisleflorals'), pairs = Math.ceil(n / 2), len = bottom - top - a.h;
+          for (let p = 0; p < pairs; p++) { const f = pairs === 1 ? 0 : p === 0 ? 0 : p === 1 ? 1 : (p - 1) / (pairs - 1), yy = top + f * len;
+            for (const sd of [-1, 1]) if (p * 2 + (sd > 0 ? 1 : 0) < n) place('aislefloral', a.w, a.h, sd < 0 ? lane.x - 0.3 - a.w : lane.x + cw + 0.3, yy, { label: 'Aisle flowers ' + (p * 2 + (sd > 0 ? 2 : 1)), gap: 0.2, region: [top, bottom] }); } } }
       else warnings.push('No clear centre aisle for the carpet — it was left out.');
     }
 
@@ -526,7 +651,8 @@
     const full = Math.floor(per / C), rem = per % C;
     return `${B} blocks × ${full} row${full === 1 ? '' : 's'} × ${C}` + (rem ? ` + ${rem}${extra ? '–' + (rem + 1) : ''} in a last row` : extra ? ` (+1 seat in ${extra} blocks)` : '') + ` = ${main} seats`;
   }
-  const API = { typesFor, defaultUnit, theatreText, OBJECTS, TYPES, SEATING_STYLES, M2FT, typeKey, defaults, defaultSize, extraSeats, mainCapacity, seatPlan, fitSeating, layout };
+  const API = { typesFor, defaultUnit, theatreText, OBJECTS, TYPES, SEATING_STYLES, M2FT, typeKey, defaults, defaultSize, extraSeats, mainCapacity, seatPlan, fitSeating, layout,
+    EVENT_RULES, PRODUCT_GROUP, rulesFor, allowsGroup, allowsProduct };
   G.HelmWizard = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof document === 'undefined' || !G.document) return;

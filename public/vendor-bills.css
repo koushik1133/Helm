@@ -1,0 +1,31 @@
+/* vendor-bills.css - Phase C (0124) vendor bills, P&L card, business payables. Theme tokens only. */
+.vb-card h3{font-size:13px;margin:16px 0 6px;color:var(--ink-2)}
+.vb-muted{color:var(--ink-3);font-size:12px;margin:4px 0}
+.vb-err{background:var(--bad-bg,#fdecec);color:var(--bad-text,#b42318);border-radius:8px;padding:8px 12px;font-size:12px}
+.vb-note{background:var(--warn-bg,#fff7e6);color:var(--warn-text,#7a4a06);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12.5px;margin:6px 0}
+.vb-msg{font-size:12px;color:var(--ink-2);min-height:16px;margin-top:8px}
+.vb-sum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:6px 0 12px}
+.vb-chip{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--panel-2,var(--panel));min-width:0}
+.vb-chip span{display:block;font-size:11px;color:var(--ink-3)}
+.vb-chip b{display:block;font-family:var(--mono,monospace);font-size:15px;margin-top:2px;overflow-wrap:anywhere}
+.vb-chip.ok b{color:var(--safe-text,#0f7a43)} .vb-chip.due b{color:var(--warn-text,#946200)} .vb-chip.over b{color:var(--bad-text,#b42318)}
+.vb-table td,.vb-table th{white-space:nowrap} .vb-table td:first-child{white-space:normal;min-width:140px}
+.vb-act{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.vb-st{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;border:1px solid var(--line)}
+.vb-st.paid{color:var(--safe-text,#0f7a43)} .vb-st.part,.vb-st.unpaid{color:var(--warn-text,#946200)} .vb-st.overdue{color:var(--bad-text,#b42318);font-weight:800} .vb-st.void{color:var(--ink-3)}
+tr.vb-void td{opacity:.6} tr.vb-void td b{text-decoration:line-through}
+.vb-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 6px}
+.vb-tabs .vb-on{border-color:var(--accent);color:var(--accent)}
+.vb-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;align-items:end;margin-top:6px}
+.vb-fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.vb-fld>span{font-size:12px;font-weight:600;color:var(--ink-2)}
+.vb-fld input,.vb-fld select{height:36px;border:1px solid var(--line);background:var(--panel-2,var(--panel));color:var(--ink);border-radius:9px;padding:0 10px;font-family:inherit;font-size:13px;min-width:0;width:100%}
+.vb-fld input[type=file]{padding:6px;height:auto}
+.vb-pnl{display:flex;flex-direction:column;gap:2px;max-width:520px}
+.vb-pl-row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line-2,var(--line));font-size:13.5px}
+.vb-pl-row b{font-family:var(--mono,monospace)} .vb-pl-row b.neg{color:var(--ink-2)}
+.vb-pl-net{border-bottom:0;border-top:2px solid var(--line);font-size:15px;font-weight:700;margin-top:4px}
+.vb-pl-net b.pos{color:var(--safe-text,#0f7a43)} .vb-pl-net b.neg{color:var(--bad-text,#b42318)}
+.vb-biz{margin-top:16px}
+@media(max-width:720px){.vb-sum{grid-template-columns:1fr 1fr}.vb-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:420px){.vb-grid{grid-template-columns:1fr}}

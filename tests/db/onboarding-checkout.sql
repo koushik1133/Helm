@@ -1,5 +1,5 @@
 -- onboarding-checkout.sql — 0056 onboarding checkout: who must check out, plans + prices
--- per studio currency, server tax preview, terms recorded server-side, the 14-day trial
+-- per studio currency, server tax preview, terms recorded server-side, the free trial (8 days since 0119)
 -- (testing bypass + payment-pending) and the service-role attach used by the edge function.
 -- Uses its OWN studios (C, D, E) so no other suite's rows are touched; global billing
 -- settings are saved first and restored at the end.
@@ -140,7 +140,7 @@ do $$ declare j jsonb; j2 jsonb; begin
   perform pg_temp.res('22 unknown source / plan refused',
     pg_temp.try('select public.my_start_trial(''free-forever'')') = '22023' and pg_temp.try('select public.my_start_trial(''bypass'', ''nope-plan'')') = '22023');
   j := public.my_start_trial('bypass', 'zz-co-basic');
-  perform pg_temp.res('23 bypass starts a 14-day trial', j ->> 'result' = 'started' and (j ->> 'trial_ends_at')::date = current_date + 14, j::text);
+  perform pg_temp.res('23 bypass starts an 8-day trial (0119 unified trial)', j ->> 'result' = 'started' and (j ->> 'trial_ends_at')::date = current_date + 8, j::text);
   j2 := public.my_start_trial('bypass');
   perform pg_temp.res('24 idempotent: second call returns the same trial', j2 ->> 'result' = 'already_trial' and j2 ->> 'trial_ends_at' = j ->> 'trial_ends_at', j2::text);
   perform pg_temp.res('25 gate: subscribed studio no longer sent to checkout', not (public.my_checkout_status() ->> 'required')::boolean);

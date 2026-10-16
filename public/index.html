@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<head>
 <title>HELM — Turn event chaos into seamless success</title>
 <meta name="description" content="HELM is the complete event management platform — planning, cascading task management, CRM, marketing, bookings and real-time analytics in one secure, enterprise-grade system. Amateurs panic. Professionals go for HELM.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%236d28d9'/%3E%3Crect x='9' y='9' width='14' height='14' rx='3' fill='none' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
 <link rel="canonical" href="https://www.helm.events/">
-<link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
+<link rel="icon" href="/brand/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="HELM">
@@ -22,407 +22,789 @@
 <script type="application/ld+json">[{"@context": "https://schema.org", "@type": "Organization", "name": "HELM", "url": "https://www.helm.events/", "logo": "https://www.helm.events/apple-touch-icon.png"}, {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "HELM", "applicationCategory": "BusinessApplication", "operatingSystem": "Web", "url": "https://www.helm.events/", "description": "HELM is the complete event management platform — planning, task management, CRM, marketing, bookings and real-time analytics in one secure system."}]</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=optional">
-<style>
-  :root{
-    --bg:#f6f4f1;--panel:#ffffff;--panel-2:#faf8f5;--ink:#1b1930;--ink-2:#4b475f;--ink-3:#6b6577;
-    --line:#e8e3db;--line-2:#f1ede7;--accent:#6d28d9;--accent-2:#4f46e5;--accent-soft:#efe9ff;
-    --gold:#f59e0b;--safe:#12a150;--danger:#c0362c;
-    --shadow:0 1px 2px rgba(27,25,48,.05),0 14px 36px rgba(27,25,48,.11);
-    --font:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-  }
-  *{box-sizing:border-box}
-  html{scroll-behavior:smooth}
-  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-  body{margin:0;background:
-    radial-gradient(1100px 560px at 84% -12%, #ece3ff 0%, transparent 56%),
-    radial-gradient(820px 480px at -6% -4%, #ffe9d6 0%, transparent 50%), var(--bg);
-    color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;line-height:1.55}
-  a{color:inherit;text-decoration:none}
-  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
-
-  /* ---- top bar ---- */
-  header{position:sticky;top:0;z-index:20;backdrop-filter:saturate(1.4) blur(8px);
-    background:rgba(246,244,241,.72);border-bottom:1px solid var(--line-2)}
-  .bar{display:flex;align-items:center;gap:12px;padding:15px 0}
-  .logo{display:flex;align-items:center;gap:11px}
-  .mark{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent-2));position:relative;flex:0 0 auto}
-  .mark::after{content:"";position:absolute;inset:8px;border:2px solid rgba(255,255,255,.92);border-radius:3px}
-  .logo .logo-name{display:block;font-size:18px;margin:0;font-weight:700;letter-spacing:-.01em}
-  .logo small{display:block;font-size:9.5px;color:var(--ink-3);font-weight:600;letter-spacing:.09em;text-transform:uppercase}
-  .navlinks{margin-left:auto;display:flex;align-items:center;gap:24px}
-  .navlinks a.nl{font-size:14px;font-weight:500;color:var(--ink-2)}
-  .navlinks a.nl:hover{color:var(--ink)}
-  @media(max-width:860px){.navlinks a.nl{display:none}}
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:42px;padding:0 20px;border-radius:11px;
-    font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
-  .btn:hover{border-color:var(--accent)}
-  .btn.primary{border:0;background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#fff;box-shadow:var(--shadow)}
-  .btn.primary:hover{filter:brightness(1.05)}
-  .btn.lg{height:50px;padding:0 26px;font-size:15px}
-  .btn.ghost{background:transparent}
-
-  /* ---- hero ---- */
-  .hero{padding:72px 0 44px;text-align:center}
-  .pill{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--accent);
-    background:var(--accent-soft);border-radius:20px;padding:7px 15px;margin-bottom:24px;letter-spacing:.02em}
-  .hero h1{font-size:clamp(36px,5.6vw,60px);line-height:1.04;letter-spacing:-.028em;margin:0 auto 20px;max-width:15ch;font-weight:700}
-  .hero h1 .g{background:linear-gradient(120deg,var(--accent),var(--accent-2) 60%,#9333ea);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-  .hero p.lead{font-size:clamp(16px,2.2vw,20px);color:var(--ink-2);max-width:60ch;margin:0 auto 14px}
-  .hero p.pro{font-size:15px;font-weight:700;color:var(--ink);max-width:60ch;margin:0 auto 30px;letter-spacing:.01em}
-  .cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
-  .hero .fine{margin-top:16px;font-size:12.5px;color:var(--ink-3)}
-
-  /* ---- flow strip ---- */
-  .flowstrip{margin:10px auto 0;max-width:920px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center}
-  .flowstrip span{font-size:12.5px;font-weight:600;color:var(--ink-2);background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:6px 13px}
-  .flowstrip .arw{border:0;background:none;color:var(--ink-3);padding:0 2px;font-weight:400}
-
-  /* ---- trust/stats strip ---- */
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:46px 0 4px}
-  @media(max-width:720px){.stats{grid-template-columns:1fr 1fr}}
-  .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;text-align:center}
-  .stat b{display:block;font-size:22px;font-weight:700;letter-spacing:-.01em;color:var(--ink)}
-  .stat span{display:block;font-size:12.5px;color:var(--ink-2);margin-top:3px}
-
-  /* ---- section shell ---- */
-  section.blk{padding:54px 0}
-  .kicker{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);text-align:center;margin-bottom:10px}
-  .blk h2.t{font-size:clamp(26px,3.6vw,38px);line-height:1.12;letter-spacing:-.02em;text-align:center;margin:0 auto 12px;max-width:22ch;font-weight:700}
-  .blk p.st{font-size:16px;color:var(--ink-2);text-align:center;max-width:62ch;margin:0 auto 40px}
-
-  /* ---- feature / why grid ---- */
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-  @media(max-width:820px){.grid{grid-template-columns:1fr}}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px 24px;box-shadow:var(--shadow)}
-  .card .ic{width:46px;height:46px;border-radius:12px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:23px;margin-bottom:16px}
-  .card h3{margin:0 0 8px;font-size:18px;font-weight:700;letter-spacing:-.01em}
-  .card p{margin:0;font-size:14.5px;color:var(--ink-2)}
-  .card ul{margin:12px 0 0;padding-left:18px;font-size:13.5px;color:var(--ink-2)}
-  .card ul li{margin:4px 0}
-
-  /* ---- steps / cascade ---- */
-  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
-  @media(max-width:820px){.steps{grid-template-columns:1fr 1fr}}
-  @media(max-width:520px){.steps{grid-template-columns:1fr}}
-  .step{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px 22px;position:relative}
-  .step .n{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;
-    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;margin-bottom:14px}
-  .step h3{margin:0 0 7px;font-size:16.5px;font-weight:700}
-  .step p{margin:0;font-size:14px;color:var(--ink-2)}
-
-  /* ---- industries ---- */
-  .inds{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
-  .inds span{font-size:13.5px;font-weight:600;color:var(--ink-2);background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:9px 16px}
-
-  /* ---- comparison table ---- */
-  .compare-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);background:var(--panel)}
-  table.compare{border-collapse:collapse;width:100%;min-width:680px;font-size:14px}
-  table.compare th,table.compare td{padding:13px 16px;text-align:left;border-bottom:1px solid var(--line-2)}
-  table.compare thead th{font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:700;background:var(--panel-2)}
-  table.compare td:first-child,table.compare th:first-child{font-weight:600;color:var(--ink)}
-  table.compare .helmcol{background:var(--accent-soft)}
-  table.compare thead .helmcol{color:var(--accent)}
-  table.compare tbody tr:last-child td{border-bottom:0}
-  .yes{color:#0d7a3c;font-weight:700}
-  .no{color:var(--ink-3)}
-  .part{color:#9a5b00;font-weight:600}
-
-  /* ---- security band ---- */
-  .band{background:linear-gradient(150deg,#4f46e5 0%,#6d28d9 55%,#9333ea 100%);border-radius:24px;color:#fff;
-    padding:48px 44px;position:relative;overflow:hidden}
-  .band .glow{position:absolute;border-radius:50%;filter:blur(60px);opacity:.45}
-  .band .g1{width:300px;height:300px;background:#f59e0b;right:-80px;top:-70px}
-  .band .g2{width:260px;height:260px;background:#ec4899;left:-80px;bottom:-90px}
-  .band .kick{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.85;position:relative;margin-bottom:10px}
-  .band h2{font-size:clamp(24px,3.4vw,32px);letter-spacing:-.02em;margin:0 0 12px;max-width:24ch;position:relative}
-  .band p{font-size:16px;opacity:.94;max-width:62ch;margin:0 0 22px;position:relative}
-  .bandgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;position:relative}
-  @media(max-width:720px){.bandgrid{grid-template-columns:1fr}}
-  .bandgrid .bi{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:14px;padding:18px}
-  .bandgrid .bi b{display:block;font-size:15px;margin-bottom:5px}
-  .bandgrid .bi span{font-size:13.5px;opacity:.9}
-
-  /* ---- testimonials (placeholder until real ones are added) ---- */
-  .quotes{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-  @media(max-width:820px){.quotes{grid-template-columns:1fr}}
-  .qcard{background:var(--panel);border:1px dashed var(--line);border-radius:16px;padding:24px}
-  .qcard .qm{font-size:34px;line-height:1;color:var(--accent-soft);font-weight:700}
-  .qcard p{margin:6px 0 16px;font-size:14.5px;color:var(--ink-3);font-style:italic}
-  .qcard .who{font-size:13px;color:var(--ink-3);font-weight:600}
-
-  /* ---- faq ---- */
-  .faq{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
-  details.q{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:0 18px}
-  details.q summary{list-style:none;cursor:pointer;padding:16px 0;font-size:15.5px;font-weight:600;display:flex;align-items:center;gap:12px}
-  details.q summary::-webkit-details-marker{display:none}
-  details.q summary::after{content:"+";margin-left:auto;font-size:20px;color:var(--accent);font-weight:400}
-  details.q[open] summary::after{content:"–"}
-  details.q .a{padding:0 0 18px;font-size:14.5px;color:var(--ink-2)}
-
-  /* ---- final cta ---- */
-  .finalcta{text-align:center;padding:64px 0 10px}
-  .finalcta h2{font-size:clamp(26px,3.8vw,40px);letter-spacing:-.02em;margin:0 auto 14px;max-width:20ch;font-weight:700}
-  .finalcta p{font-size:16px;color:var(--ink-2);max-width:52ch;margin:0 auto 30px}
-
-  /* ---- contact ---- */
-  .contacts{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:820px;margin:0 auto}
-  @media(max-width:720px){.contacts{grid-template-columns:1fr}}
-  .ccard{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;text-align:center}
-  .ccard b{display:block;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin-bottom:6px}
-  .ccard a{font-size:15px;font-weight:600;color:var(--accent)}
-
-  /* ---- footer ---- */
-  footer{border-top:1px solid var(--line-2);margin-top:60px;padding:44px 0 30px}
-  .ftcols{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:28px}
-  @media(max-width:820px){.ftcols{grid-template-columns:1fr 1fr}}
-  @media(max-width:520px){.ftcols{grid-template-columns:1fr}}
-  .ftcols .flogo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;margin-bottom:10px}
-  .ftcols .ftagline{font-size:13.5px;color:var(--ink-2);max-width:30ch}
-  .ftcol h3{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);margin:0 0 12px}
-  .ftcol a{display:block;font-size:14px;color:var(--ink-2);margin:7px 0}
-  .ftcol a:hover{color:var(--accent)}
-  .copy{margin-top:30px;padding-top:20px;border-top:1px solid var(--line-2);font-size:12.5px;color:var(--ink-3);display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between}
-  .copy .tag{font-weight:700;color:var(--ink-2)}
-
-  /* ---- accessibility ---- */
-  .skip-link{position:absolute;left:8px;top:-60px;z-index:1000;padding:10px 16px;border-radius:8px;background:var(--accent);color:#fff;font-weight:600;text-decoration:none}
-  .skip-link:focus,.skip-link:focus-visible{top:8px}
-  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
-  .band :focus-visible{outline-color:#fff}
-  main:focus{outline:none}
-
-/* BEGIN generated: inline-style classes (scripts/extract-inline-styles.mjs) */
-.s-4260ebe:not(#_):not(#_):not(#_){padding-top:0}
-.s-bf26434:not(#_):not(#_):not(#_){padding-top:34px}
-.s-617185c:not(#_):not(#_):not(#_){width:26px;height:26px}
-/* END generated: inline-style classes */
-</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Caveat:wght@500;700&display=swap">
+<script src="/marketing-theme.js?v=3"></script>
+<link rel="stylesheet" href="/home.css?v=11">
+<link rel="stylesheet" href="/home-guide.css?v=1">
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to content</a>
-  <header>
-    <div class="wrap bar">
-      <div class="logo"><div class="mark"></div><div><span class="logo-name">HELM</span><small>Event Management Platform</small></div></div>
-      <nav class="navlinks">
-        <a class="nl" href="#services">Services</a>
-        <a class="nl" href="#why">Why HELM</a>
-        <a class="nl" href="#security">Security</a>
-        <a class="nl" href="#faq">FAQ</a>
-        <a class="nl" href="#contact">Contact</a>
-        <a class="btn ghost" href="login">Sign in</a>
-        <a class="btn primary" href="login#signup">Start free trial</a>
-      </nav>
+<svg class="sprite" aria-hidden="true" focusable="false"><defs>
+<symbol id="i-lead" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><path d="M16 7h5M16 11h5M18 15h3"/></symbol>
+<symbol id="i-layout" viewBox="0 0 24 24"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4"/><path d="M3 17l9 4 9-4"/></symbol>
+<symbol id="i-quote" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M9 12h7M9 16h5"/><path d="M9 8h3"/></symbol>
+<symbol id="i-ops" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 9l2 2 3-3M7 15l2 2 3-3M14 10h4M14 16h4"/></symbol>
+<symbol id="i-pay" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="13" rx="3"/><path d="M2.5 10h19"/><path d="M6.5 15h4"/><path d="M17 3l-2 3"/></symbol>
+<symbol id="i-portal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2.5"/><path d="M3 8h18"/><circle cx="6" cy="6" r=".4"/><path d="M8 21h8M12 18v3"/><path d="M9 13l2 2 4-4"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v10H9l-5 4z"/><path d="M8 9h8M8 12h5"/></symbol>
+<symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 16v-4M12 16V8M16 16v-6"/></symbol>
+<symbol id="i-arrow" viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17.2v.1"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></symbol>
+<symbol id="i-ruler" viewBox="0 0 24 24"><path d="M3 16L16 3l5 5L8 21z"/><path d="M7 12l2 2M10 9l2 2M13 6l2 2"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-ring" viewBox="0 0 24 24"><circle cx="12" cy="14" r="6"/><path d="M9 4h6l-1.5 3.5h-3z"/></symbol>
+<symbol id="i-brief" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M9 7V4.5h6V7M3 12h18"/></symbol>
+<symbol id="i-flag" viewBox="0 0 24 24"><path d="M5 21V4"/><path d="M5 4h12l-2 4 2 4H5"/></symbol>
+<symbol id="i-cake" viewBox="0 0 24 24"><path d="M4 21v-7h16v7z"/><path d="M4 17c2 1.5 4 1.5 6 0s4-1.5 6 0 3 1 4 0"/><path d="M12 14V9M12 6.5V5"/></symbol>
+<symbol id="i-lamp" viewBox="0 0 24 24"><path d="M12 3c2 2.5 3 4.2 3 6a3 3 0 01-6 0c0-1.8 1-3.5 3-6z"/><path d="M6 21h12M8 21l1-6h6l1 6"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 018 0v3"/></symbol>
+<symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.7 5.6 3.7 9s-1.2 6.4-3.7 9c-2.5-2.6-3.7-5.6-3.7-9S9.5 5.6 12 3z"/></symbol>
+<symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z"/><path d="M5 17a3 3 0 013-3h11"/><path d="M9 8h6"/></symbol>
+<symbol id="i-sheet" viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M3.5 9h17M3.5 14h17M9 4v16M15 4v16"/></symbol>
+<symbol id="i-msg" viewBox="0 0 24 24"><path d="M12 3.5a8.5 8.5 0 00-7.4 12.7L3.5 20.5l4.4-1.1A8.5 8.5 0 1012 3.5z"/><path d="M8.5 10.5h7M8.5 13.5h4"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24"><path d="M5 4h3.5l1.5 4-2 1.5a11 11 0 006.5 6.5l1.5-2 4 1.5V19a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z"/></symbol>
+<symbol id="i-calc" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2.5"/><rect x="8" y="6" width="8" height="3.5" rx=".8"/><path d="M8.5 13h.01M12 13h.01M15.5 13h.01M8.5 17h.01M12 17h.01M15.5 17h.01"/></symbol>
+<symbol id="i-sticky" viewBox="0 0 24 24"><path d="M4 4h16v10l-6 6H4z"/><path d="M14 20v-6h6"/><path d="M8 9h8M8 12h4"/></symbol>
+<symbol id="i-cad" viewBox="0 0 24 24"><path d="M12 3v3"/><circle cx="12" cy="7.5" r="1.5"/><path d="M11 9l-5 12M13 9l5 12M7.5 17h9"/></symbol>
+<symbol id="i-brush" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><circle cx="9" cy="9" r="2"/><path d="M20.5 15l-5-5-9 10"/></symbol>
+<symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 6.5l8.5 6.5 8.5-6.5"/></symbol>
+<symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14h2M12 14h2M8 17h2"/></symbol>
+<symbol id="i-ledger" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 3v18M11 8h6M11 12h6M11 16h4"/></symbol>
+<symbol id="i-upi" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10 7.5h4M10 10h4M12.5 10c0 2-1.5 2.5-2.5 2.5l3 3.5"/><path d="M11 19h2"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6.5A1.5 1.5 0 014.5 5H10l2 2.5h7.5A1.5 1.5 0 0121 9v9.5a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 18.5z"/><path d="M8 15l2.5-3 2 2 1.5-1.5L17 15"/></symbol>
+<symbol id="i-kanban" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><rect x="6" y="7" width="4" height="9" rx="1"/><rect x="14" y="7" width="4" height="5" rx="1"/></symbol>
+<symbol id="i-pdf" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/><path d="M4 17h12"/><path d="M9 11h6"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+<symbol id="i-box" viewBox="0 0 24 24"><path d="M3.5 7.5L12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5L12 12l8.5-4.5M12 12v9"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 19c.5-3 3-5 6-5s5.5 2 6 5"/><circle cx="17" cy="9" r="2.3"/><path d="M16.5 14c2.4 0 4 1.6 4.5 4"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-log" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></symbol>
+<symbol id="i-rupee" viewBox="0 0 24 24"><path d="M7 5h10M7 9h10M10 5c3 0 5 1.2 5 3.5S13 12 10 12H7l7.5 7"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0014.5 4h-9A1.5 1.5 0 004 5.5v9A1.5 1.5 0 005.5 16H8"/></symbol>
+<symbol id="i-coin" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M14.8 9.2c-.5-.9-1.5-1.4-2.8-1.4-1.6 0-2.7.8-2.7 2s1 1.7 2.7 2.1 2.9.9 2.9 2.2-1.2 2.1-2.9 2.1c-1.4 0-2.5-.6-3-1.6M12 6.3v1.5M12 16.2v1.5"/></symbol>
+<symbol id="i-group" viewBox="0 0 24 24"><path d="M3 5h12v8H8l-4 3z"/><path d="M15 9h6v8l-3-2h-6v-2"/></symbol>
+<symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></symbol>
+<symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/></symbol>
+</defs></svg>
+
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav" id="top"><div class="nav-bar">
+ <a class="brand" href="#top" aria-label="Helm home"><span class="mark" aria-hidden="true"><i></i><i></i></span>Helm</a>
+ <nav class="menu" id="menu" aria-label="Main">
+  <ul class="mlist">
+   <li class="mi has-mega"><button class="mlink" type="button" aria-expanded="false" aria-controls="mg-product">Product<svg><use href="#i-chev"/></svg></button>
+    <div class="mega" id="mg-product"><div class="mega-in">
+     <div class="mg-grid">
+      <a href="#modules" class="mg-item"><span class="ic"><svg><use href="#i-lead"/></svg></span><b>CRM &amp; leads</b><small>Pipeline, nurture, follow-ups</small></a>
+      <a href="#morph" class="mg-item"><span class="ic"><svg><use href="#i-layout"/></svg></span><b>Layout design</b><small>2D to measurement, 3D, render</small></a>
+      <a href="#modules" class="mg-item"><span class="ic"><svg><use href="#i-quote"/></svg></span><b>Quotes &amp; approvals</b><small>Live pricing, e-approval</small></a>
+      <a href="#modules" class="mg-item"><span class="ic"><svg><use href="#i-ops"/></svg></span><b>Event operations</b><small>Run sheet, crew, inventory</small></a>
+      <a href="#modules" class="mg-item"><span class="ic"><svg><use href="#i-pay"/></svg></span><b>Money</b><small>Milestones, settlement, P&amp;L</small></a>
+      <a href="#modules" class="mg-item"><span class="ic"><svg><use href="#i-chart"/></svg></span><b>Analytics</b><small>Profit per event, trends</small></a>
+      <a href="#modules" class="mg-item"><span class="ic"><svg><use href="#i-chat"/></svg></span><b>Team</b><small>Chat, roles, audit log</small></a>
+      <a href="#client" class="mg-item"><span class="ic"><svg><use href="#i-portal"/></svg></span><b>Client-facing</b><small>Portal, booklet, invite sites</small></a>
+     </div>
+     <a class="mg-feat" href="#converge"><img src="/mk/media/builder-3d.webp" alt="" width="648" height="404" loading="lazy"><b>All your apps in one place</b><small>See the tools Helm replaces <svg><use href="#i-arrow"/></svg></small></a>
+    </div></div></li>
+   <li class="mi has-mega"><button class="mlink" type="button" aria-expanded="false" aria-controls="mg-sol">Solutions<svg><use href="#i-chev"/></svg></button>
+    <div class="mega" id="mg-sol"><div class="mega-in">
+     <div class="mg-grid">
+      <a href="#solutions" class="mg-item"><span class="ic"><svg><use href="#i-ring"/></svg></span><b>Weddings</b><small>Multi-day functions, many vendors</small></a>
+      <a href="#solutions" class="mg-item"><span class="ic"><svg><use href="#i-brief"/></svg></span><b>Corporate &amp; conferences</b><small>Proposals, approvals, tax lines</small></a>
+      <a href="#solutions" class="mg-item"><span class="ic"><svg><use href="#i-flag"/></svg></span><b>Festivals &amp; public events</b><small>Big crowds, tight timelines</small></a>
+      <a href="#solutions" class="mg-item"><span class="ic"><svg><use href="#i-cake"/></svg></span><b>Private parties</b><small>Packages quoted in minutes</small></a>
+      <a href="#solutions" class="mg-item"><span class="ic"><svg><use href="#i-lamp"/></svg></span><b>Cultural &amp; religious</b><small>Rituals, timings, helpers</small></a>
+      <a href="#solutions" class="mg-item"><span class="ic"><svg><use href="#i-star"/></svg></span><b>Galas &amp; award nights</b><small>Seating and stage detail</small></a>
+     </div>
+     <a class="mg-feat" href="#repeat"><img src="/mk/media/event-workspace.webp" alt="" width="752" height="428" loading="lazy"><b>60+ events for one client?</b><small>One place for every one of them <svg><use href="#i-arrow"/></svg></small></a>
+    </div></div></li>
+   <li class="mi has-mega"><button class="mlink" type="button" aria-expanded="false" aria-controls="mg-res">Resources<svg><use href="#i-chev"/></svg></button>
+    <div class="mega sm" id="mg-res"><div class="mega-in">
+     <div class="mg-grid two">
+      <a href="#how" class="mg-item"><span class="ic"><svg><use href="#i-log"/></svg></span><b>How it works</b><small>Every step, no retyping</small></a>
+      <a href="#compare" class="mg-item"><span class="ic"><svg><use href="#i-sheet"/></svg></span><b>Compare</b><small>Helm vs the usual mix</small></a>
+      <a href="#security" class="mg-item"><span class="ic"><svg><use href="#i-shield"/></svg></span><b>Security</b><small>Your data, your business</small></a>
+      <a href="/about" class="mg-item"><span class="ic"><svg><use href="#i-users"/></svg></span><b>About Helm</b><small>Story, mission, team</small></a>
+      <a href="/try" class="mg-item"><span class="ic"><svg><use href="#i-layout"/></svg></span><b>Try the planner</b><small>Draw a layout, no sign-up</small></a>
+      <a href="/services" class="mg-item"><span class="ic"><svg><use href="#i-box"/></svg></span><b>All services</b><small>Every module in detail</small></a>
+      <a href="#faq" class="mg-item"><span class="ic"><svg><use href="#i-plus"/></svg></span><b>FAQ</b><small>Questions planners ask</small></a>
+      <a href="#contact" class="mg-item"><span class="ic"><svg><use href="#i-mail"/></svg></span><b>Contact</b><small>Demo or custom pricing</small></a>
+     </div>
+    </div></div></li>
+   <li class="mi has-mega"><button class="mlink" type="button" aria-expanded="false" aria-controls="mg-price">Pricing<svg><use href="#i-chev"/></svg></button>
+    <div class="mega sm" id="mg-price"><div class="mega-in">
+     <div class="mg-grid two">
+      <a href="#pricing" class="mg-item"><span class="ic"><svg><use href="#i-coin"/></svg></span><b>Starter</b><small>Solo planners · up to 3 people</small></a>
+      <a href="#pricing" class="mg-item"><span class="ic"><svg><use href="#i-users"/></svg></span><b>Studio</b><small>Growing teams · up to 15 people</small></a>
+      <a href="/pricing" class="mg-item"><span class="ic"><svg><use href="#i-globe"/></svg></span><b>Enterprise</b><small>Multi-city, multi-country</small></a>
+      <a href="/login?trial=1#signup" class="mg-item"><span class="ic"><svg><use href="#i-spark"/></svg></span><b>8-day free trial</b><small>Every feature, no card</small></a>
+     </div>
+    </div></div></li>
+  </ul>
+  <div class="m-cta"><a class="btn btn-line" href="/login">Log in</a><a class="btn btn-dark" href="/login?trial=1#signup">Start 8-day free trial <span class="bi"><svg><use href="#i-arrow"/></svg></span></a></div>
+ </nav>
+ <div class="nav-act"><a class="signin" href="/login">Log in</a><a class="btn btn-pill" href="/login?trial=1#signup">Start free trial</a></div>
+ <button class="burger" type="button" aria-expanded="false" aria-controls="menu" aria-label="Open menu"><span></span><span></span></button>
+</div></header>
+
+<main id="main">
+<!-- HERO -->
+<section class="hero" aria-labelledby="h1">
+ <div class="mesh" aria-hidden="true"><i class="m1"></i><i class="m2"></i><i class="m3"></i></div>
+ <div class="hero-copy wrap c">
+  <p class="eyebrow up"><span class="dotlive" aria-hidden="true"></span>For event studios, planners and decorators — worldwide</p>
+  <h1 id="h1" class="hl"><span class="ln"><span>Run every event</span></span><span class="ln"><span>like <em>clockwork.</em></span></span></h1>
+  <p class="lede up">Leads, venue layouts drawn to real measurements, 3D views, quotes clients approve online, crew, stock and payments — in one workspace instead of a dozen apps, chats and spreadsheets.</p>
+  <div class="cta-row c up"><a class="btn btn-dark" href="/login?trial=1#signup">Start your 8-day free trial <span class="bi"><svg><use href="#i-arrow"/></svg></span></a><a class="btn btn-line" href="/try">Try the planner</a></div>
+  <p class="hero-alt up"><a class="link-d" href="#film">Watch an event come together <svg><use href="#i-arrow"/></svg></a></p>
+  <p class="fine up">No card needed · Any currency · Works in the browser on laptop and phone</p>
+ </div>
+
+ <div class="trust" aria-label="What Helm gives you">
+  <div class="track">
+   <span><svg><use href="#i-shield"/></svg>Role-based access</span><span><svg><use href="#i-lock"/></svg>Per-studio data isolation</span><span><svg><use href="#i-coin"/></svg>Quote in your currency</span><span><svg><use href="#i-log"/></svg>Your time zone, your tax lines</span><span><svg><use href="#i-ruler"/></svg>Metric or imperial layouts</span><span><svg><use href="#i-globe"/></svg>Runs in any browser</span>
+   <span aria-hidden="true"><svg><use href="#i-shield"/></svg>Role-based access</span><span aria-hidden="true"><svg><use href="#i-lock"/></svg>Per-studio data isolation</span><span aria-hidden="true"><svg><use href="#i-coin"/></svg>Quote in your currency</span><span aria-hidden="true"><svg><use href="#i-log"/></svg>Your time zone, your tax lines</span><span aria-hidden="true"><svg><use href="#i-ruler"/></svg>Metric or imperial layouts</span><span aria-hidden="true"><svg><use href="#i-globe"/></svg>Runs in any browser</span>
+  </div>
+ </div>
+ <div class="hero-vid" id="heroVidWrap" hidden>
+  <div class="hv-sticky">
+   <div class="hv-card" id="hvCard">
+    <div class="stage-frame has-video">
+     <video class="hero-video" id="heroVideo" muted loop playsinline preload="none" poster="/mk/media/plan-to-3d-poster.webp" aria-label="Helm product film">
+      <source data-src="/home-assets/hero.webm" type="video/webm"><source data-src="/home-assets/hero.mp4" type="video/mp4">
+     </video>
+     <button type="button" class="hv-play" id="hvPlay" aria-pressed="false" aria-label="Pause film"><span class="hv-ico" aria-hidden="true"></span></button>
     </div>
-  </header>
-
-  <main class="wrap" id="main" tabindex="-1">
-    <!-- HERO -->
-    <section class="hero">
-      <span class="pill">✦ The complete event management platform</span>
-      <h1>Turn event chaos into <span class="g">seamless success.</span></h1>
-      <p class="lead">From planning to execution to analytics, HELM handles it all — one powerful platform that eliminates chaos, reduces costs, and maximizes every event's success. No more scattered spreadsheets, disconnected tools, or silos.</p>
-      <p class="pro">Amateurs panic. Professionals go for HELM.</p>
-      <div class="cta">
-        <a class="btn primary lg" href="login#signup">Start your free trial</a>
-        <a class="btn lg" href="#how">See how it works</a>
-      </div>
-      <div class="fine">No card needed to start · Your workspace is private to your business</div>
-    </section>
-
-    <!-- FLOW STRIP -->
-    <div class="flowstrip">
-      <span>Plan</span><span class="arw">→</span>
-      <span>Market</span><span class="arw">→</span>
-      <span>Book</span><span class="arw">→</span>
-      <span>Assign</span><span class="arw">→</span>
-      <span>Event day</span><span class="arw">→</span>
-      <span>Settle</span><span class="arw">→</span>
-      <span>Analyse</span>
+    <div class="hv-ui">
+     <p class="hv-cap" id="hvCap" aria-live="polite"><span></span></p>
+     <div class="hv-prog" id="hvProg" role="group" aria-label="Film chapters"></div>
     </div>
+   </div>
+   <div class="hv-chips" aria-hidden="true">
+    <span class="hv-chip c1"><i>Quote approved ✓</i></span>
+    <span class="hv-chip c2"><i>Layout measured · 1.2 m aisle</i></span>
+    <span class="hv-chip c3"><i>Profit +38%</i></span>
+   </div>
+  </div>
+ </div>
+ <a class="scroll-cue up" href="#problem"><span>Scroll the story</span><i aria-hidden="true"></i></a>
+</section>
 
-    <!-- TRUST STRIP -->
-    <div class="stats">
-      <div class="stat"><b>One platform</b><span>Plan, run &amp; analyse — end to end</span></div>
-      <div class="stat"><b>Real-time</b><span>Live tasks, budgets &amp; alerts</span></div>
-      <div class="stat"><b>Enterprise-grade</b><span>Security built in by design</span></div>
-      <div class="stat"><b>Built to scale</b><span>From local events to global</span></div>
+<!-- PROBLEM: the pinned-notes board (one problem section; the old vignettes were merged into it) -->
+<section class="sec problem" id="problem" aria-labelledby="p-h">
+ <div class="wrap">
+  <div class="head-split"><div><p class="eyebrow rv">The way it's done today</p>
+  <h2 id="p-h" class="h2 rv">Your studio runs on <em>scraps.</em></h2></div>
+  <p class="lead rv">Bookings in a diary. Quotes on a calculator. Layouts measured by guess. Payments in a chat thread. And nobody is quite sure who was supposed to do what — every handoff is a chance to lose a lead, misprice a quote or miss a delivery.</p></div>
+  <div class="board scraps" role="list" aria-label="How event work gets lost today">
+   <div class="note y n1 rv" role="listitem"><span class="pin" aria-hidden="true"></span><p class="hand">Priya — wedding — Dec??<br>call back re: stage</p><small>Paper diary</small></div>
+   <div class="note w n2 rv" role="listitem"><span class="pin" aria-hidden="true"></span><p class="hand">Decor 12,000<br>Catering 300 × 85<br>+ tax?? ____<br>Total ≈ 41k</p><small>Calculator quote</small></div>
+   <div class="wa rv" role="listitem"><span class="pin" aria-hidden="true"></span><small>Crew group · 412 unread</small><p class="b in">Who's bringing the generator??</p><p class="b out">I thought Ravi had it</p><p class="b in">Ravi thought Sita had it 🙃</p></div>
+   <div class="note b n3 rv" role="listitem"><span class="pin" aria-hidden="true"></span><p class="hand">stage ▭ ~6m?<br>○ ○ ○ ○ tables<br>entry ↑ (measure!)</p><small>Guessed measurements</small></div>
+   <div class="note p n4 rv" role="listitem"><span class="pin" aria-hidden="true"></span><p class="hand">Did anyone confirm<br>the florist?</p><small>Task — no owner</small></div>
+   <div class="xl rv" role="listitem"><span class="pin" aria-hidden="true"></span><small>quote_FINAL_v5 (2).xlsx</small><div class="cells" aria-hidden="true"><i></i><i></i><i></i><i class="r"></i><i></i><i></i><i class="r"></i><i></i><i></i></div><span class="ref">#REF!</span></div>
+   <div class="note g n5 rv" role="listitem"><span class="pin" aria-hidden="true"></span><p class="hand">Same lighting crew<br>booked Sat at 2 venues ✗</p><small>Double-booked crew</small></div>
+   <div class="note y n6 rv" role="listitem"><span class="pin" aria-hidden="true"></span><p class="hand">Night shift never<br>got the load-out list</p><small>Missed handover</small></div>
+   <div class="note w n7 rv" role="listitem"><span class="pin" aria-hidden="true"></span><p class="hand">Advance paid?<br>screenshot somewhere…</p><small>Payment proof</small></div>
+   <div class="note b n8 rv" role="listitem"><span class="pin" aria-hidden="true"></span><p class="hand">80 chairs promised,<br>62 in the store</p><small>Stock nobody checked</small></div>
+   <div class="note p n9 rv" role="listitem"><span class="pin" aria-hidden="true"></span><p class="hand">Client changed the<br>menu — kitchen knows?</p><small>Change not passed on</small></div>
+  </div>
+  <div class="ways scraps-ways">
+   <article class="way rv" data-way="paper">
+    <div class="way-top"><svg><use href="#i-book"/></svg><b>Paper &amp; diary</b><span>01</span></div>
+    <div class="vig vig-paper" aria-hidden="true">
+     <div class="sheet"><p class="hand"><span>Priya — wedding</span><span>Dec 14? 300 pax</span><span>stage ~6m?? call</span></p>
+      <svg class="scratch" viewBox="0 0 200 90"><path d="M10 20c30-8 60 10 90-2s60 8 90-4M14 46c40 10 70-12 110 2s50-6 70 4M8 70c50-12 90 14 120 0s44 6 62-2"/></svg></div>
+     <span class="bin"></span>
+    <p class="vig-cap"><svg><use href="#i-alert"/></svg>Measurements guessed — the stage blocks the exit</p>
     </div>
+    <p class="way-p"><b>Written, scratched out, thrown away.</b> The enquiry lives on one page — until the page is gone.</p>
+   </article>
+   <article class="way rv" data-way="excel">
+    <div class="way-top"><svg><use href="#i-sheet"/></svg><b>Excel sheets</b><span>02</span></div>
+    <div class="vig vig-excel" aria-hidden="true">
+     <div class="xtab"><span>quote_FINAL.xlsx</span><span>quote_FINAL_v3.xlsx</span><span>quote_FINAL_v7 (2).xlsx</span></div>
+     <div class="xgrid"><i>Decor</i><i class="v">$4,200</i><i>Catering</i><i class="v">$9,850</i><i>Lighting</i><i class="v e">#REF!</i><i>Tax</i><i class="v e">#VALUE!</i><i>Total</i><i class="v e">#REF!</i></div>
+    <p class="vig-cap"><svg><use href="#i-alert"/></svg>Wrong total sent to the client</p>
+    </div>
+    <p class="way-p"><b>Seven versions, one broken formula.</b> Nobody knows which total the client actually saw.</p>
+   </article>
+   <article class="way rv" data-way="chat">
+    <div class="way-top"><svg><use href="#i-msg"/></svg><b>WhatsApp threads</b><span>03</span></div>
+    <div class="vig vig-chat" aria-hidden="true">
+     <div class="ch-head"><b>Crew group</b><em>412 unread</em></div>
+     <div class="ch-list">
+      <p class="cb in">Who's bringing the generator?</p>
+      <p class="cb out">I thought Ravi had it</p>
+      <p class="cb in pic"><i></i>advance_receipt.jpg</p>
+      <p class="cb in">Client changed the menu again</p>
+      <p class="cb out">which version??</p>
+      <p class="cb in pic"><i></i>stage_ref_3.jpg</p>
+     </div>
+    <p class="vig-cap"><svg><use href="#i-alert"/></svg>Bill photo lost in the scroll</p>
+    </div>
+    <p class="way-p"><b>Bills and photos sink in the scroll.</b> The payment proof is somewhere above 400 messages.</p>
+   </article>
+   <article class="way rv" data-way="desk">
+    <div class="way-top"><svg><use href="#i-phone"/></svg><b>Calls &amp; sticky notes</b><span>04</span></div>
+    <div class="vig vig-desk" aria-hidden="true">
+     <div class="monitor"><i class="st s1">florist?</i><i class="st s2">80 chairs</i><i class="st s3">call DJ</i></div>
+     <div class="ringer"><svg><use href="#i-phone"/></svg><span></span><span></span></div>
+    <p class="vig-cap"><svg><use href="#i-alert"/></svg>Nobody confirmed the generator</p>
+    </div>
+    <p class="way-p"><b>Promised on a call, stuck on a screen.</b> The note falls off, and the promise goes with it.</p>
+   </article>
+  </div>
+  <div class="cta-row c rv scraps-cta"><a class="btn btn-dark" href="/try">Try the planner — no sign-up <span class="bi"><svg><use href="#i-arrow"/></svg></span></a></div>
+ </div>
+</section>
 
-    <!-- SERVICES -->
-    <section class="blk" id="services">
-      <div class="kicker">What you get</div>
-      <h2 class="t">Everything your event team needs, in one platform</h2>
-      <p class="st">From initial planning to post-event analytics, HELM provides integrated, intelligent tools that eliminate complexity and maximize success.</p>
-      <div class="grid">
-        <div class="card"><div class="ic">🧭</div><h3>End-to-end event management</h3><p>A unified command center replaces scattered spreadsheets and disconnected tools — complete visibility and control across every event.</p>
-          <ul><li>Manage multiple concurrent events</li><li>Unified team &amp; vendor communication</li><li>Customisable workflows</li></ul></div>
-        <div class="card"><div class="ic">✅</div><h3>Intelligent task management</h3><p>Every deliverable gets done on time. Tasks cascade from manager to floor staff to vendors, with real-time progress and automated reminders.</p>
-          <ul><li>Hierarchical task assignment</li><li>Deadline alerts &amp; dependencies</li><li>Milestone tracking</li></ul></div>
-        <div class="card"><div class="ic">🤝</div><h3>CRM &amp; client onboarding</h3><p>Turn client data into relationships. Streamline onboarding, personalise communication, and keep a full history of every interaction.</p>
-          <ul><li>Client database &amp; profiles</li><li>Automated onboarding</li><li>Segmentation &amp; outreach</li></ul></div>
-        <div class="card"><div class="ic">📣</div><h3>Marketing &amp; acquisition</h3><p>Reach the right clients and fill events faster with targeted, multi-channel campaigns and clear performance analytics.</p>
-          <ul><li>Audience segmentation</li><li>Multi-channel campaigns</li><li>Campaign ROI tracking</li></ul></div>
-        <div class="card"><div class="ic">📊</div><h3>Business analytics &amp; reporting</h3><p>Real-time dashboards surface the metrics that matter — revenue, expenses, profitability and ROI — so you decide with data, not guesswork.</p>
-          <ul><li>Revenue vs. budget</li><li>Profitability by event</li><li>Custom report builder</li></ul></div>
-        <div class="card"><div class="ic">🔄</div><h3>Complete event lifecycle</h3><p>Support for every phase — pre-event planning, event-day execution and post-event reconciliation — for continuous improvement.</p>
-          <ul><li>Planning &amp; budgeting</li><li>Live event-day monitoring</li><li>Feedback &amp; reconciliation</li></ul></div>
+
+<!-- CONVERGE: every tool folds into one Helm (visual only) -->
+<section class="apps" id="converge" aria-labelledby="cv-h">
+ <div class="apps-pin">
+  <div class="apps-head wrap c">
+   <p class="eyebrow">All your apps in one place</p>
+   <h2 id="cv-h" class="h2">Every tool in.<br><em>One Helm</em> out.</h2>
+  </div>
+  <div class="field" id="field" aria-hidden="true">
+   <span class="tile"><svg><use href="#i-book"/></svg>Diary</span>
+   <span class="tile"><svg><use href="#i-sheet"/></svg>Spreadsheets</span>
+   <span class="tile"><svg><use href="#i-msg"/></svg>Chats</span>
+   <span class="tile"><svg><use href="#i-phone"/></svg>Calls</span>
+   <span class="tile"><svg><use href="#i-calc"/></svg>Calculator</span>
+   <span class="tile"><svg><use href="#i-sticky"/></svg>Sticky notes</span>
+   <span class="tile"><svg><use href="#i-cad"/></svg>CAD files</span>
+   <span class="tile"><svg><use href="#i-brush"/></svg>Design apps</span>
+   <span class="tile"><svg><use href="#i-mail"/></svg>Email</span>
+   <span class="tile"><svg><use href="#i-cal"/></svg>Calendar</span>
+   <span class="tile"><svg><use href="#i-ledger"/></svg>Accounts</span>
+   <span class="tile"><svg><use href="#i-upi"/></svg>Payment proofs</span>
+   <span class="tile"><svg><use href="#i-folder"/></svg>Drive folders</span>
+   <span class="tile"><svg><use href="#i-kanban"/></svg>To-do apps</span>
+   <span class="tile"><svg><use href="#i-pdf"/></svg>PDF quotes</span>
+   <span class="tile"><svg><use href="#i-group"/></svg>Group chats</span>
+   <div class="core"><span class="ring r1"></span><span class="ring r2"></span><span class="mark big"><i></i><i></i></span><b>Helm</b><small>One event record</small></div>
+  </div>
+ </div>
+</section>
+
+<!-- FILM: one chapter per scroll step -->
+<section class="film" id="film" aria-labelledby="film-h">
+ <h2 id="film-h" class="sr">One event, start to finish, in Helm</h2>
+ <div class="film-pin">
+  <div class="film-glow" aria-hidden="true"><i></i><i></i></div>
+  <ol class="film-rail" id="filmRail" aria-hidden="true">
+   <li class="on"><i></i><span>Enquiry</span></li><li><i></i><span>Meeting</span></li><li><i></i><span>Design</span></li><li><i></i><span>Quote</span></li><li><i></i><span>Crew</span></li><li><i></i><span>Event day</span></li><li><i></i><span>Closure</span></li>
+  </ol>
+  <div class="wrap film-grid">
+   <div class="film-copy">
+    <article class="fc on" data-c="0"><p class="fc-n">01 · Enquiry</p><h3>A message arrives at 11:42 pm.</h3><p>It lands in the pipeline with the date, guest count, budget and a follow-up — not in a notebook or a chat you'll scroll past tomorrow.</p></article>
+    <article class="fc" data-c="1"><p class="fc-n">02 · Client meeting</p><h3>The client leaves with the whole picture.</h3><p>One link sends the 2D layout, the 3D view, a render and every requirement, priced line by line. They review it at home and approve with a tap.</p></article>
+    <article class="fc" data-c="2"><p class="fc-n">03 · Design</p><h3>Draw the lawn to measurement.</h3><p>Stage, tables and walkway placed at real dimensions, then lifted into 3D and rendered — all from the one drawing.</p></article>
+    <article class="fc" data-c="3"><p class="fc-n">04 · Quote</p><h3>The plan prices itself.</h3><p>Add a table, the total moves. Every change is saved as a version, so you always know which number the client said yes to.</p></article>
+    <article class="fc" data-c="4"><p class="fc-n">05 · Crew &amp; tasks</p><h3>Everyone knows their job — and said yes to it.</h3><p>The approved quote becomes tasks. Each assignment reaches the right person, and their answer shows up here.</p></article>
+    <article class="fc" data-c="5"><p class="fc-n">06 · Event day</p><h3>Doors open. You see everything.</h3><p>Crew check in on arrival, the run sheet moves live, and issues are logged and closed before the client notices.</p></article>
+    <article class="fc" data-c="6"><p class="fc-n">07 · Closure</p><h3>Invoiced, settled, closed.</h3><p>Final invoice out, vendors paid, profit worked out, feedback requested and photos archived — then the file is stamped closed.</p></article>
+   </div>
+   <div class="film-vis" aria-hidden="true">
+    <div class="dev">
+     <div class="dev-bar"><span class="lights"><i></i><i></i><i></i></span><span class="dev-url">app.helm.events</span><span class="dev-step" id="devStep">Leads</span></div>
+     <div class="dev-scr">
+      <!-- 0 enquiry -->
+      <div class="sc-p on" data-c="0">
+       <div class="ui-top"><b>Leads</b><span class="ui-chip">Pipeline</span></div>
+       <div class="pipe">
+        <div class="pcol"><small>New</small><div class="lcard hot"><span class="ui-badge">Just now</span><b>Garden wedding</b><span>Sat · 320 guests</span><span class="lmoney">$18,000 budget</span><span class="lnext"><svg><use href="#i-log"/></svg>Follow up 10:00</span></div><div class="lcard dim"><b>Product launch</b><span>Thu · 140 guests</span></div></div>
+        <div class="pcol"><small>Meeting</small><div class="lcard dim"><b>Anniversary dinner</b><span>Fri · 60 guests</span></div><div class="lcard dim"><b>Charity gala</b><span>Sat · 450 guests</span></div></div>
+        <div class="pcol hide-s"><small>Proposal</small><div class="lcard dim"><b>Offsite</b><span>2 days · 90 guests</span></div></div>
+       </div>
       </div>
-    </section>
-
-    <!-- HOW IT WORKS (CASCADE) -->
-    <section class="blk" id="how">
-      <div class="kicker">How it works</div>
-      <h2 class="t">Perfect task execution, from executive to floor</h2>
-      <p class="st">High-level decisions become clear, tracked tasks for everyone — so nothing gets lost in email chains, and managers always know where things stand.</p>
-      <div class="steps">
-        <div class="step"><div class="n">1</div><h3>Executive level</h3><p>Management defines the major deliverables for the event — venue setup, registration, catering and more.</p></div>
-        <div class="step"><div class="n">2</div><h3>Manager level</h3><p>Event managers break those into department tasks for A/V, registration, logistics and each team.</p></div>
-        <div class="step"><div class="n">3</div><h3>Vendor level</h3><p>Each vendor receives their specific assignment with clear requirements, deadlines and status.</p></div>
-        <div class="step"><div class="n">4</div><h3>Real-time tracking</h3><p>At any moment, management sees what's on track, what's ahead, and where attention is needed.</p></div>
-      </div>
-    </section>
-
-    <!-- WHY HELM -->
-    <section class="blk" id="why">
-      <div class="kicker">Why HELM</div>
-      <h2 class="t">One platform. Complete control. Professional results.</h2>
-      <p class="st">Discover why event professionals choose HELM to eliminate chaos and deliver exceptional results.</p>
-      <div class="grid">
-        <div class="card"><div class="ic">🧩</div><h3>Eliminate event chaos</h3><p>Consolidate project management, budgets, CRM, vendor comms and analytics into a single source of truth — no more context-switching across five tools.</p></div>
-        <div class="card"><div class="ic">⬇️</div><h3>Cascading task management</h3><p>Decisions flow cleanly from executive to manager to vendor to individual, so everyone knows exactly what to do and by when.</p></div>
-        <div class="card"><div class="ic">🎯</div><h3>Focus on what matters</h3><p>Management dashboards show green for on-track and red for issues — so your team stops micromanaging and starts strategising.</p></div>
-        <div class="card"><div class="ic">🔒</div><h3>Enterprise-grade security</h3><p>Built by a team with deep security experience — your event, client and payment data is protected by rigorous, security-first architecture.</p></div>
-        <div class="card"><div class="ic">🚀</div><h3>Continuous innovation</h3><p>Built by engineers who solve complex business problems, with regular feature updates driven by real user feedback.</p></div>
-        <div class="card"><div class="ic">🏆</div><h3>Multi-industry expertise</h3><p>Two decades of combined experience building trusted applications across finance, insurance, healthcare, manufacturing and events.</p></div>
-      </div>
-    </section>
-
-    <!-- INDUSTRIES -->
-    <section class="blk s-4260ebe">
-      <div class="kicker">Built for teams across industries</div>
-      <h2 class="t">From one local event to hundreds worldwide</h2>
-      <div class="inds">
-        <span>Corporate conferences</span><span>Music &amp; entertainment festivals</span><span>Trade shows &amp; exhibitions</span>
-        <span>Charity galas &amp; fundraisers</span><span>Weddings &amp; private events</span><span>Community events &amp; workshops</span>
-        <span>Virtual &amp; hybrid events</span>
-      </div>
-    </section>
-
-    <!-- COMPARISON -->
-    <section class="blk" id="compare">
-      <div class="kicker">How HELM compares</div>
-      <h2 class="t">Why professionals leave the spreadsheets behind</h2>
-      <div class="compare-wrap">
-        <table class="compare">
-          <thead><tr><th>Capability</th><th class="helmcol">HELM</th><th>Spreadsheets</th><th>Basic event tools</th><th>Enterprise suites</th></tr></thead>
-          <tbody>
-            <tr><td>Unified event management</td><td class="helmcol"><span class="yes">✓ Yes</span></td><td><span class="no">✗ No</span></td><td><span class="part">Partial</span></td><td><span class="yes">✓ Yes</span></td></tr>
-            <tr><td>Real-time collaboration</td><td class="helmcol"><span class="yes">✓ Yes</span></td><td><span class="no">✗ No</span></td><td><span class="part">Limited</span></td><td><span class="yes">✓ Yes</span></td></tr>
-            <tr><td>Vendor task management</td><td class="helmcol"><span class="yes">✓ Yes</span></td><td><span class="no">✗ No</span></td><td><span class="part">Limited</span></td><td><span class="yes">✓ Yes</span></td></tr>
-            <tr><td>Budget tracking &amp; alerts</td><td class="helmcol"><span class="yes">✓ Yes</span></td><td><span class="part">Manual</span></td><td><span class="yes">✓ Yes</span></td><td><span class="yes">✓ Yes</span></td></tr>
-            <tr><td>Management dashboards</td><td class="helmcol"><span class="yes">✓ Yes</span></td><td><span class="no">✗ No</span></td><td><span class="part">Basic</span></td><td><span class="yes">✓ Yes</span></td></tr>
-            <tr><td>CRM &amp; marketing tools</td><td class="helmcol"><span class="yes">✓ Yes</span></td><td><span class="no">✗ No</span></td><td><span class="part">Basic</span></td><td><span class="part">Add-on</span></td></tr>
-            <tr><td>Security &amp; compliance</td><td class="helmcol"><span class="yes">✓ Enterprise</span></td><td><span class="no">✗ No</span></td><td><span class="part">Basic</span></td><td><span class="yes">✓ Enterprise</span></td></tr>
-            <tr><td>Ease of use</td><td class="helmcol"><span class="yes">✓ Intuitive</span></td><td><span class="part">Complex</span></td><td><span class="yes">✓ Easy</span></td><td><span class="part">Complex</span></td></tr>
-            <tr><td>Scalability</td><td class="helmcol"><span class="yes">✓ Unlimited</span></td><td><span class="part">Limited</span></td><td><span class="part">Limited</span></td><td><span class="yes">✓ Unlimited</span></td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <!-- SECURITY -->
-    <section class="blk" id="security">
-      <div class="band">
-        <span class="glow g1"></span><span class="glow g2"></span>
-        <div class="kick">Security &amp; compliance</div>
-        <h2>Enterprise security protecting your business.</h2>
-        <p>Your platform handles sensitive information — attendee data, payment details, vendor contracts and proprietary strategies. HELM is engineered security-first, with every organisation's workspace fully walled off from every other.</p>
-        <div class="bandgrid">
-          <div class="bi"><b>Separate &amp; private</b><span>Each business is fully isolated — your data never mixes with anyone else's.</span></div>
-          <div class="bi"><b>Role-based access</b><span>You decide what each team member can see and do inside your workspace.</span></div>
-          <div class="bi"><b>Encrypted by design</b><span>Encrypted connections and strict access rules protect your data at every step.</span></div>
-          <div class="bi"><b>Audit logging</b><span>Key actions are recorded, so there's a clear trail of who did what and when.</span></div>
-          <div class="bi"><b>Tested before release</b><span>Features pass security and quality checks before they reach your account.</span></div>
-          <div class="bi"><b>Backups &amp; recovery</b><span>Automated backups keep your event data safe and recoverable.</span></div>
+      <!-- 1 meeting: client proposal -->
+      <div class="sc-p" data-c="1">
+       <div class="ui-top"><b>Proposal</b><span class="ui-chip"><svg><use href="#i-mail"/></svg>Sent to Priya &amp; Sam</span></div>
+       <div class="prop">
+        <div class="prop-cover"><small>Garden wedding · proposal</small><b>Lakeside lawn, Sat 14 Dec</b><span>320 guests · ceremony, dinner, live band</span></div>
+        <div class="prop-thumbs">
+         <figure><img class="ly-img" data-ly="wedding" data-v="2d" src="/mk/media/wedding-2d.webp" alt="" width="440" height="300" loading="lazy"><figcaption>2D layout</figcaption></figure>
+         <figure><img class="ly-img" data-ly="wedding" data-v="3d" src="/mk/media/wedding-3d-still.webp" alt="" width="680" height="300" loading="lazy"><figcaption>3D view</figcaption></figure>
+         <figure><img class="ly-img fallback" data-ly="wedding" data-v="measure" src="/mk/media/wedding-2d.webp" alt="" width="440" height="300" loading="lazy"><figcaption>Measure</figcaption></figure>
         </div>
-      </div>
-    </section>
-
-    <!-- TESTIMONIALS (placeholders — add real client stories here) -->
-    <section class="blk" id="stories">
-      <div class="kicker">Client stories</div>
-      <h2 class="t">Trusted by event professionals</h2>
-      <p class="st">Real results from real teams — client stories coming soon.</p>
-      <div class="quotes">
-        <div class="qcard"><div class="qm">&ldquo;</div><p>Your client's words here — a line or two on how HELM changed the way their team runs events.</p><div class="who">— Client name, Company</div></div>
-        <div class="qcard"><div class="qm">&ldquo;</div><p>Your client's words here — the result they achieved, in their own voice.</p><div class="who">— Client name, Company</div></div>
-        <div class="qcard"><div class="qm">&ldquo;</div><p>Your client's words here — why they'd recommend HELM to other organisers.</p><div class="who">— Client name, Company</div></div>
-      </div>
-    </section>
-
-    <!-- FAQ -->
-    <section class="blk" id="faq">
-      <div class="kicker">FAQ</div>
-      <h2 class="t">Questions, answered</h2>
-      <div class="faq">
-        <details class="q"><summary>What exactly is HELM?</summary><div class="a">HELM is a comprehensive event management platform that centralises every aspect of event operations — from planning and budgeting to execution and post-event analytics — in one unified system, replacing scattered spreadsheets and disconnected tools.</div></details>
-        <details class="q"><summary>Who should use HELM?</summary><div class="a">Event managers, coordinators, corporate event teams, non-profit organisers, venue managers — anyone responsible for running events. Whether you manage one large annual event or dozens a year, HELM scales to your needs.</div></details>
-        <details class="q"><summary>How is HELM different from spreadsheets and basic apps?</summary><div class="a">Unlike spreadsheets, HELM offers real-time collaboration, automatic task escalation, live budget tracking and instant visibility across your whole operation. Unlike basic apps, it combines event management with CRM, marketing and management-level analytics — a complete business solution, not just a task tracker.</div></details>
-        <details class="q"><summary>Can HELM handle multiple events at once?</summary><div class="a">Yes. HELM is designed to manage multiple concurrent events, each with its own budget, timeline, vendor network and client records — all within one platform.</div></details>
-        <details class="q"><summary>How secure is HELM?</summary><div class="a">HELM is built on security-first architecture. Each organisation's workspace is fully isolated, connections are encrypted, access is role-based, and features are security- and quality-checked before release.</div></details>
-        <details class="q"><summary>How do I get started?</summary><div class="a">Start a free trial from this page — you'll be guided through setup, can configure your first event, and have access to training resources and our support team. No card needed to begin.</div></details>
-      </div>
-    </section>
-
-    <!-- FINAL CTA -->
-    <section class="finalcta">
-      <h2>Ready to join professional event organisers?</h2>
-      <p>Stop managing event chaos. Start delivering professional results with HELM.</p>
-      <div class="cta">
-        <a class="btn primary lg" href="login#signup">Start your free trial</a>
-        <a class="btn lg" href="#contact">Book a demo</a>
-      </div>
-    </section>
-
-    <!-- CONTACT -->
-    <section class="blk s-bf26434" id="contact">
-      <div class="kicker">Get in touch</div>
-      <h2 class="t">Let's talk about your event challenges</h2>
-      <p class="st">Questions, a personalised demo, or custom pricing — our team is ready to help.</p>
-      <div class="contacts">
-        <div class="ccard"><b>Sales</b><a href="mailto:sales@helm.events">sales@helm.events</a></div>
-        <div class="ccard"><b>General</b><a href="mailto:info@helm.events">info@helm.events</a></div>
-        <div class="ccard"><b>Support</b><a href="mailto:support@helm.events">support@helm.events</a></div>
-      </div>
-    </section>
-  </main>
-
-  <footer>
-    <div class="wrap">
-      <div class="ftcols">
-        <div>
-          <div class="flogo"><div class="mark s-617185c"></div>HELM</div>
-          <p class="ftagline">The complete event management platform — plan, run and analyse every event in one secure place.</p>
+        <div class="prop-lines">
+         <div class="ql"><span>Stage, canopy &amp; lighting</span><b>$8,050</b></div>
+         <div class="ql"><span>Tables, linen &amp; seating</span><b>$5,120</b></div>
+         <div class="ql"><span>Florals, arch &amp; crew</span><b>$4,380</b></div>
+         <div class="ql tot"><span>Total</span><b>$17,550</b></div>
         </div>
-        <div class="ftcol"><h3>Product</h3>
-          <a href="#services">Services</a><a href="#why">Why HELM</a><a href="#compare">Compare</a><a href="#faq">FAQ</a></div>
-        <div class="ftcol"><h3>Company</h3>
-          <a href="about">About us</a><a href="#security">Security</a><a href="#contact">Contact</a><a href="login">Sign in</a></div>
-        <div class="ftcol"><h3>Legal</h3>
-          <a href="privacy">Privacy Policy</a><a href="terms">Terms of Service</a></div>
+        <div class="prop-side"><div class="prop-req"><span>Floral arch</span><span>Canopy dinner</span><span>Stage 7.3 m</span><span>Fairy lights</span></div>
+        <span class="prop-btn"><svg><use href="#i-check"/></svg>Approve proposal</span></div>
+       </div>
       </div>
-      <div class="copy">
-        <span>© <span id="yr"></span> HELM Event Management Platform. All rights reserved.</span>
-        <span class="tag">Amateurs panic. Professionals go for HELM.</span>
+      <!-- 2 design: wedding layout 2D -> 3D -> measure -->
+      <div class="sc-p" data-c="2">
+       <div class="ui-top"><b>Layout · Lakeside lawn</b><span class="ui-seg"><i class="on" id="dsg0">2D</i><i id="dsg1">3D</i><i id="dsg2">Measure</i></span></div>
+       <div class="dz" id="dz">
+        <img class="dz-i on ly-img" data-ly="wedding" data-v="2d" src="/mk/media/wedding-2d.webp" alt="" width="440" height="300" loading="lazy">
+        <img class="dz-i ly-img" data-ly="wedding" data-v="3d" src="/mk/media/wedding-3d-still.webp" alt="" width="680" height="300" loading="lazy">
+        <img class="dz-i ly-img fallback" data-ly="wedding" data-v="measure" src="/mk/media/wedding-2d.webp" alt="" width="440" height="300" loading="lazy">
+        <span class="plan-meas">Walkway 1.2 m · fits</span>
+        <span class="ly-sample" data-ly="wedding">Sample</span>
+       </div>
       </div>
+      <!-- 3 quote: live pricing + versions -->
+      <div class="sc-p" data-c="3">
+       <div class="ui-top"><b>Live quote</b><span class="vers"><i>v1</i><i>v2</i><i class="on">v3</i></span></div>
+       <div class="lq">
+        <div class="lq-items">
+         <div class="lqi"><span>Round table + linen</span><em>× 32</em><b>$3,840</b></div>
+         <div class="lqi add"><span>Chiavari chair</span><em>× 320</em><b>$1,280</b></div>
+         <div class="lqi"><span>Stage deck 7.3 m</span><em>× 1</em><b>$3,200</b></div>
+         <div class="lqi"><span>Canopy &amp; fairy lights</span><em>× 1</em><b>$4,850</b></div>
+        </div>
+        <div class="lq-tot"><small>Running total · before tax</small><b>$17,550</b><span class="lq-d">+ $1,280 chairs added</span><span class="lq-ok"><svg><use href="#i-check"/></svg>v3 approved by client</span></div>
+       </div>
+      </div>
+      <!-- 4 crew: assignment answers -->
+      <div class="sc-p" data-c="4">
+       <div class="ui-top"><b>Crew assignments</b><span class="ui-chip">Sent to phones</span></div>
+       <div class="tk">
+        <div class="tkr ok"><span class="av a1">MR</span><span class="tkt">Canopy &amp; stage</span><span class="tks">Accepted</span></div>
+        <div class="tkr ok"><span class="av a2">JL</span><span class="tkt">Lighting &amp; sound</span><span class="tks">Accepted</span></div>
+        <div class="tkr re"><span class="av a3">AK</span><span class="tkt">Florals <small>reassigned from Sana</small></span><span class="tks">Accepted</span></div>
+        <div class="tkr wait"><span class="av a4">DP</span><span class="tkt">Tables &amp; linen</span><span class="tks">Reminder sent</span></div>
+        <div class="tkr ok"><span class="av a1">MR</span><span class="tkt">Teardown</span><span class="tks">Accepted</span></div>
+       </div>
+      </div>
+      <!-- 5 event day: live command -->
+      <div class="sc-p" data-c="5">
+       <div class="ui-top"><b>Event day · command</b><span class="ui-chip live"><i></i>Live</span></div>
+       <div class="cmd">
+        <div class="cmd-k"><div><small>Crew checked in</small><b>14<span>/15</span></b></div><div><small>Schedule</small><b class="g">On time</b></div><div><small>Issues</small><b>1 <span>open</span> · 3 <span>fixed</span></b></div></div>
+        <div class="cmd-g">
+         <div class="runs"><div class="rs past"><time>18:00</time>Ceremony</div><div class="rs now"><time>19:30</time>Dinner service<span>now</span></div><div class="rs"><time>20:45</time>First dance</div><div class="rs"><time>22:30</time>Teardown</div></div>
+         <div class="iss"><p class="fx"><svg><use href="#i-check"/></svg>Generator 2 swapped</p><p class="fx"><svg><use href="#i-check"/></svg>High chair, table 6</p><p class="op"><i></i>Band mic feedback · JL</p></div>
+        </div>
+       </div>
+      </div>
+      <!-- 6 closure -->
+      <div class="sc-p" data-c="6">
+       <div class="ui-top"><b>Closure</b><span class="ui-chip ok"><svg><use href="#i-check"/></svg>Balance $0.00</span></div>
+       <div class="clo">
+        <div class="ct inv"><small>Final invoice</small><b>$3,510</b><span class="pd">Paid</span></div>
+        <div class="ct ven"><small>Vendors settled</small><p><span>Florist</span><b>$1,240</b></p><p><span>Lighting</span><b>$2,100</b></p><p><span>Rentals</span><b>$1,860</b></p></div>
+        <div class="ct prf"><small>Profit</small><b>$5,570</b><span>Revenue $17,550 · costs $11,980</span></div>
+        <div class="ct fb"><small>Client feedback</small><span class="stars">★★★★★</span><span>Request sent</span></div>
+        <div class="ct pho"><small>Photos</small><span class="thumbs"><i></i><i></i><i></i></span><span>Archived to the file</span></div>
+        <span class="closed">Event closed</span>
+       </div>
+      </div>
+     </div>
     </div>
-  </footer>
+    <p class="film-note">Sample event, illustrative figures.</p>
+   </div>
+  </div>
+  <div class="film-bar"><i id="filmBar"></i></div>
+ </div>
+</section>
 
-  <script src="/trusted-types.js?v=2"></script>
-  <script src="telemetry.js?v=3" defer></script>
+<!-- SCROLL MOMENT: words fill in as the line scrolls through the viewport -->
+<section class="fillsec" aria-label="What changes with Helm"><div class="wrap narrow"><p class="fill-line" data-fill>Imagine the enquiry, the layout, the quote, the crew call and the final payment sitting together — so the next decision takes seconds, not a search.</p></div></section>
+
+<!-- TOOLS: flip cards rendered from data in home.js -->
+<section class="sec tools" id="apps" aria-labelledby="a-h">
+ <div class="wrap">
+  <div class="head-split"><div><p class="eyebrow rv">Tool by tool</p><h2 id="a-h" class="h2 rv">All the tools you juggle —<br><em>and what replaces each.</em></h2></div><p class="lead rv">Each card is a tool event teams lean on today and the problem it causes. Hover, tap or press Enter to flip it and see the Helm feature that takes over.</p></div>
+  <div class="ftabs rv" role="group" aria-label="Filter tools by area" id="ftabs">
+   <button type="button" aria-pressed="true" data-f="all">All <span></span></button>
+   <button type="button" aria-pressed="false" data-f="sales">Sales <span></span></button>
+   <button type="button" aria-pressed="false" data-f="design">Design <span></span></button>
+   <button type="button" aria-pressed="false" data-f="money">Money <span></span></button>
+   <button type="button" aria-pressed="false" data-f="ops">Ops &amp; team <span></span></button>
+   <button type="button" aria-pressed="false" data-f="client">Client <span></span></button>
+  </div>
+  <div class="flips" id="flips" aria-live="polite"></div>
+  <noscript><p class="lead">Turn on JavaScript to see the tool-by-tool cards.</p></noscript>
+  <p class="map-cta rv">Tool names describe common workflows only; Helm is not affiliated with them. <a class="link-d" href="/login?trial=1#signup">Retire the stack — try Helm free for 8 days <svg><use href="#i-arrow"/></svg></a></p>
+ </div>
+</section>
+
+<!-- 2D -> 3D -> RENDER showcase: tab per layout, scroll or toggle -->
+<section class="morph" id="morph" aria-labelledby="mo3-h">
+ <div class="morph-pin">
+  <div class="wrap morph-grid">
+   <div class="morph-copy">
+    <p class="eyebrow">Plan → 3D → measure</p>
+    <h2 id="mo3-h" class="h2">Draw it once.<br><em>See it every way.</em></h2>
+    <div class="ly-tabs" role="tablist" aria-label="Sample layouts" id="lyTabs">
+     <button type="button" role="tab" aria-selected="true" data-ly="corporate">Corporate gala</button>
+     <button type="button" role="tab" aria-selected="false" data-ly="wedding">Garden wedding</button>
+    </div>
+    <ol class="mstages" id="mstages">
+     <li class="on"><b>2D plan, to measurement</b><span>Stage, tables, walkways and entries placed at real dimensions — metres or feet.</span></li>
+     <li><b>The same plan in 3D</b><span>Flip the layout to 3D so the client walks the venue before the day.</span></li>
+     <li><b>Measured to the centimetre</b><span>Every gap, aisle and wall clearance — read it in metres or feet.</span></li>
+    </ol>
+    <a class="btn btn-dark" href="/login?trial=1#signup">Design your first layout free <span class="bi"><svg><use href="#i-arrow"/></svg></span></a>
+   </div>
+   <div class="morph-vis">
+    <div class="mframe" role="tabpanel" aria-label="Layout views">
+     <img class="mimg mx0" src="/mk/media/builder-2d.webp" alt="2D venue plan" width="648" height="404" loading="lazy">
+     <img class="mimg mx1" src="/mk/media/builder-3d.webp" alt="The same plan in 3D" width="648" height="404" loading="lazy">
+     <img class="mimg mx3" src="/mk/media/builder-2d.webp" alt="The same plan with measurements" width="648" height="404" loading="lazy" decoding="async">
+     <span class="mtag" id="mtag">2D plan</span>
+     <div class="mlegend" id="mlegend" aria-live="polite">
+      <div class="munits" role="group" aria-label="Units"><button type="button" data-mu="m" aria-pressed="true">m</button><button type="button" data-mu="ft" aria-pressed="false">ft</button></div>
+      <ul class="mmeas" id="mmeas"></ul>
+     </div>
+     <span class="mnote" id="mnote">Sample image</span>
+    </div>
+    <div class="mseg" role="group" aria-label="Choose a view" id="mseg"><button type="button" data-v="0" aria-pressed="true">2D</button><button type="button" data-v="1" aria-pressed="false">3D</button><button type="button" data-v="2" aria-pressed="false">Measure</button></div>
+    <figure class="render-slot" aria-label="Photo render, coming soon">
+     <div class="render-slot-media"><!-- OWNER: render image here (e.g. <img class="render-slot-img" src="/home-assets/render.webp" alt="Photoreal render of the plan" width="648" height="404" loading="lazy">) --></div>
+     <figcaption><b>Photo render</b><span class="render-slot-tag">Coming soon</span></figcaption>
+    </figure>
+    <div class="mprog" aria-hidden="true"><i id="mbar"></i></div>
+   </div>
+  </div>
+ </div>
+</section>
+
+<!-- MEASURE WITH PRECISION -->
+<section class="sec measure" id="measure" aria-labelledby="ms-h">
+ <div class="wrap ms-grid">
+  <div class="ms-copy">
+   <p class="eyebrow rv">Measure with precision</p>
+   <h2 id="ms-h" class="h2 rv">Every gap measured —<br><em>before the truck leaves.</em></h2>
+   <p class="lead rv">Pick two objects, or an object and a wall, and Helm draws the dimension. Snap to the grid or to edges, and see at a glance whether aisles and exits keep their clearance.</p>
+   <ul class="crew-pts">
+    <li class="rv"><svg><use href="#i-ruler"/></svg><div><b>Object to object</b><span>Table to table, stage to first row — edge to edge or centre to centre.</span></div></li>
+    <li class="rv"><svg><use href="#i-layout"/></svg><div><b>From walls and axes</b><span>Distances to any wall, plus rulers along both axes of the venue.</span></div></li>
+    <li class="rv"><svg><use href="#i-sheet"/></svg><div><b>Snap and grid</b><span>Items lock to the grid, to edges and to each other's centres.</span></div></li>
+    <li class="rv"><svg><use href="#i-shield"/></svg><div><b>Clearance checks</b><span>Aisles and exits flagged the moment something sits too close.</span></div></li>
+   </ul>
+   <div class="unit rv" role="group" aria-label="Units"><button type="button" data-u="m" aria-pressed="true">Metres</button><button type="button" data-u="ft" aria-pressed="false">Feet</button></div>
+  </div>
+  <figure class="ms-vis rv" id="msVis">
+   <svg class="msvg" viewBox="0 0 560 380" role="img" aria-label="Venue plan with dimension lines, snap guides and clearance checks">
+    <defs><pattern id="msGrid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" class="mg"/></pattern></defs>
+    <rect x="40" y="40" width="480" height="300" fill="url(#msGrid)"/>
+    <rect class="room" x="40" y="40" width="480" height="300"/>
+    <g class="axis"><text x="40" y="30">0</text><text x="140" y="30" data-m="5" data-ax="1">5</text><text x="240" y="30" data-m="10" data-ax="1">10</text><text x="340" y="30" data-m="15" data-ax="1">15</text><text x="440" y="30" data-m="20" data-ax="1">20</text>
+     <text x="30" y="144" data-m="5" data-ax="1">5</text><text x="30" y="244" data-m="10" data-ax="1">10</text><path d="M140 34v6M240 34v6M340 34v6M440 34v6M34 140h6M34 240h6"/></g>
+    <rect class="aisle" x="238" y="130" width="84" height="210"/>
+    <rect class="door" x="252" y="336" width="56" height="8" rx="2"/>
+    <rect class="exitz" x="466" y="264" width="54" height="56"/>
+    <rect class="door" x="516" y="270" width="8" height="44" rx="2"/>
+    <rect class="stg" x="200" y="70" width="160" height="44" rx="4"/><text class="lbl" x="280" y="97">STAGE</text>
+    <g class="tbl"><circle cx="140" cy="170" r="18"/><circle cx="220" cy="170" r="18"/><circle cx="140" cy="250" r="18"/><circle cx="220" cy="250" r="18"/><circle cx="340" cy="170" r="18"/><circle cx="420" cy="170" r="18"/><circle cx="340" cy="250" r="18"/><circle cx="420" cy="250" r="18"/></g>
+    <rect class="bar" x="448" y="292" width="40" height="22" rx="3"/><text class="lbl s" x="468" y="307">BAR</text>
+    <path class="guide" d="M40 170H520"/>
+    <g class="snap"><circle cx="340" cy="170" r="24"/><path d="M340 140v60M310 170h60"/></g>
+    <g class="dims">
+     <path class="dl" d="M372 40V70M367 40h10M367 70h10"/><text class="dt" x="388" y="59" data-m="1.5">1.5 m</text>
+     <path class="dl" d="M40 196H122M40 191v10M122 191v10"/><text class="dt" x="81" y="212" data-m="4.1">4.1 m</text>
+     <path class="dl" d="M158 278H202M158 273v10M202 273v10"/><text class="dt" x="180" y="294" data-m="2.2">2.2 m</text>
+     <path class="dl" d="M238 214H322M238 209v10M322 209v10"/><text class="dt ok" x="280" y="206" data-m="4.2" data-suf=" aisle ✓">4.2 m aisle ✓</text>
+     <path class="dl warn" d="M488 303H516"/><text class="dt warn" x="512" y="290" data-m="0.9" data-suf=" to exit · needs 1.2" data-need="1.2">0.9 m to exit · needs 1.2</text>
+    </g>
+    <g class="pill"><rect x="352" y="128" width="96" height="22" rx="11"/><text x="400" y="143">Snap · centre</text></g>
+   </svg>
+   <figcaption>Sample hall plan. Dimensions update as items move.</figcaption>
+  </figure>
+ </div>
+</section>
+
+<!-- SOLUTION: pinned horizontal slider -->
+<section class="story" id="story" aria-labelledby="s-h">
+ <div class="story-pin">
+  <div class="wrap story-head">
+   <p class="eyebrow">The fix</p>
+   <h2 id="s-h" class="h2">One record that moves<br>from <em>enquiry</em> to <em>settlement.</em></h2>
+  </div>
+  <div class="wrap story-body">
+   <div class="sv">
+    <div class="sv-track" id="svTrack">
+     <article class="sl" data-i="0"><span class="sl-n">01</span><h3>Capture the lead</h3><p>The enquiry opens one event file. Date, guests, budget, source and the next follow-up live on it from minute one.</p></article>
+     <article class="sl" data-i="1"><span class="sl-n">02</span><h3>Design to measurement</h3><p>The layout attaches to the same file — dimensions, items and the 3D view travel with it.</p></article>
+     <article class="sl" data-i="2"><span class="sl-n">03</span><h3>Quote and approval</h3><p>Items on the plan become quote lines. The approved version is locked to the file, with history.</p></article>
+     <article class="sl" data-i="3"><span class="sl-n">04</span><h3>Run the day</h3><p>Tasks, crew, stock and vendors are created from the approved quote — nothing retyped.</p></article>
+     <article class="sl" data-i="4"><span class="sl-n">05</span><h3>Settle and close</h3><p>Payments reconcile against the ledger and the closure P&amp;L is written to the same record.</p></article>
+    </div>
+    <div class="sv-ctl"><ol class="sv-dots" id="svDots" aria-label="Stages"><li><button type="button" data-go="0" aria-current="step">Lead</button></li><li><button type="button" data-go="1">Layout</button></li><li><button type="button" data-go="2">Quote</button></li><li><button type="button" data-go="3">Run</button></li><li><button type="button" data-go="4">Settle</button></li></ol><span class="sv-count" aria-live="polite" id="svCount">1 / 5</span></div>
+   </div>
+   <div class="rec" aria-hidden="true">
+    <div class="rec-h"><span class="rec-ic"><svg><use href="#i-folder"/></svg></span><div><b>Garden wedding</b><small>Event file · one record</small></div><span class="rec-st" id="recSt">Lead</span></div>
+    <ul class="rec-rows" id="recRows">
+     <li class="on"><svg><use href="#i-lead"/></svg><span>Lead</span><b>Sat · 320 guests · $18,000</b></li>
+     <li><svg><use href="#i-layout"/></svg><span>Layout</span><b>Lawn A · 2D + 3D · v4</b></li>
+     <li><svg><use href="#i-quote"/></svg><span>Quote</span><b>v3 approved · $17,550</b></li>
+     <li><svg><use href="#i-ops"/></svg><span>Operations</span><b>18 tasks · 6 crew · 3 vendors</b></li>
+     <li><svg><use href="#i-pay"/></svg><span>Money</span><b>Settled · margin $5,570</b></li>
+    </ul>
+    <div class="rec-bar"><i id="recBar"></i></div>
+   </div>
+  </div>
+ </div>
+</section>
+
+<!-- CREW & TASKS: notify -> accept/decline -> reassign -> remind -> check in -->
+<section class="sec crew" id="crew" aria-labelledby="cr-h" data-tone="mint">
+ <div class="wrap crew-grid">
+  <div class="crew-copy">
+   <p class="eyebrow rv">Crew &amp; task management</p>
+   <h2 id="cr-h" class="h2 rv">Assigned, answered,<br><em>reminded, checked in.</em></h2>
+   <p class="lead rv">Each assignment goes straight to the person's phone. They accept or decline; a decline comes back to you with free crew already suggested.</p>
+   <ol class="cf-steps" id="cfSteps">
+    <li class="on"><b>Notified</b><span>The assignment arrives as a message with the date, place, call time and task.</span></li>
+    <li><b>Accept or decline</b><span>One tap. No answer by the deadline? Helm nudges them for you.</span></li>
+    <li><b>Reassign in a tap</b><span>A decline suggests crew who are free that day and have the right skills.</span></li>
+    <li><b>Automatic reminders</b><span>The day before and two hours before call time, without you sending anything.</span></li>
+    <li><b>Check-in on the day</b><span>Crew check in on arrival, and you see who is on site.</span></li>
+   </ol>
+  </div>
+  <div class="cflow" id="cflow" data-s="0">
+   <div class="cphone" aria-hidden="true">
+    <div class="cp-top"><span id="cpWho">Sana's phone</span><span>13:02</span></div>
+    <div class="cp-scr">
+     <div class="cps cs0"><div class="nban"><span class="nic"><span class="mark"><i></i><i></i></span></span><div><small>Helm · now</small><b>New assignment: Florals</b><span>Garden wedding · Sat 14 Dec</span></div></div></div>
+     <div class="cps cs1"><small class="cp-l">Message from your studio</small><div class="cmsg"></div><div class="cbtns"><span class="cb-a">Accept</span><span class="cb-d">Decline</span></div></div>
+     <div class="cps cs2"><div class="cdone dec"><svg><use href="#i-x"/></svg><b>You declined</b><span>Thanks for letting us know — the studio has been told.</span></div></div>
+     <div class="cps cs3"><div class="nban"><span class="nic"><span class="mark"><i></i><i></i></span></span><div><small>Helm · reminder</small><b>Tomorrow, call time 13:30</b><span>Lakeside lawn · Florals</span></div></div></div>
+     <div class="cps cs4"><div class="cdone"><svg><use href="#i-check"/></svg><b>Checked in · 13:24</b><span>Lakeside lawn · on site</span></div></div>
+    </div>
+   </div>
+   <div class="cstudio" aria-hidden="true">
+    <small>Studio view · Florals</small>
+    <p class="cr r0"><span class="av a3">SA</span>Sent to Sana<em>Waiting</em></p>
+    <p class="cr r1 bad"><span class="av a3">SA</span>Sana declined<em>Reassign</em></p>
+    <div class="cr r2 sug"><span>Free that day</span><p><span class="av a2">AK</span>Arun K · florals<em>Assigned ✓</em></p><p><span class="av a4">MD</span>Meera D · florals<em>Free</em></p></div>
+    <p class="cr r3"><span class="av a2">AK</span>Reminders scheduled<em>Auto</em></p>
+    <p class="cr r4 good"><span class="av a2">AK</span>Arun checked in<em>13:24</em></p>
+   </div>
+   <blockquote class="cquote sr" id="crewMsg">“Hi Sana — you're on Florals for the Garden wedding, Sat 14 Dec at Lakeside lawn. Call time 13:30, finish 17:00. Task: dress the entrance arch and the table centrepieces. Please accept or decline by 6 pm today.”</blockquote>
+  </div>
+ </div>
+  <div class="wrap facts">
+   <div class="rv"><b data-count="1">1</b><span>event record from enquiry to close</span></div>
+   <div class="rv"><b>Every</b><span>role with access you control</span></div>
+   <div class="rv"><b data-count="8">8</b><span>days free to run a real event through it</span></div>
+  </div>
+</section>
+
+<!-- MODULES -->
+<section class="sec modules" id="modules" aria-labelledby="mo-h">
+ <div class="wrap">
+  <div class="head-split"><div><p class="eyebrow rv">What you get</p><h2 id="mo-h" class="h2 rv">Every part of your business,<br><em>one connected platform.</em></h2></div><p class="lead rv">Each area works on its own — and gets more useful because it shares data with the others. From the first enquiry to the final profit figure.</p></div>
+  <div class="mods">
+   <article class="mod m-wide rv"><div class="mod-t"><span class="ic"><svg><use href="#i-layout"/></svg></span><h3>Layout design</h3><p>Plan the venue to the centimetre, then show the client exactly how it will look.</p><ul><li>2D builder with exact measurements</li><li>3D view and photoreal render</li><li>Layout wizard for a quick first draft</li><li>A wide décor library: arches, stages, canopies</li><li>Client booklet from the design</li></ul></div></article>
+   <article class="mod rv"><div class="mod-t"><span class="ic"><svg><use href="#i-lead"/></svg></span><h3>CRM &amp; leads</h3><p>Every enquiry captured and followed through, with the full client history.</p><ul><li>Leads pipeline from enquiry to booking</li><li>Nurture messages and discovery calls</li><li>Follow-up reminders</li><li>Client history and archive</li><li>Resource calendar across events</li></ul></div></article>
+   <article class="mod rv"><div class="mod-t"><span class="ic"><svg><use href="#i-quote"/></svg></span><h3>Quotes &amp; approvals</h3><p>The price updates as you design, and the client approves online.</p><ul><li>Live pricing while you build</li><li>Quote versions you can compare</li><li>Clean, shareable proposals</li><li>Client e-approval</li></ul></div></article>
+   <article class="mod rv"><div class="mod-t"><span class="ic"><svg><use href="#i-ops"/></svg></span><h3>Event operations</h3><p>From the plan to teardown, every task, person and item is tracked.</p><ul><li>Event plan, run sheet and quote flow</li><li>Crew task app, staff and vendors</li><li>Inventory with clash warnings across events</li><li>Event-day command and live issues</li><li>Teardown checklist</li></ul></div></article>
+   <article class="mod rv"><div class="mod-t"><span class="ic"><svg><use href="#i-pay"/></svg></span><h3>Money</h3><p>Know what has been paid, what is due and what you actually made.</p><ul><li>Budget per event</li><li>Payment milestones and receipts</li><li>Settlement and closure P&amp;L</li><li>Business overview behind a privacy PIN</li></ul></div></article>
+   <article class="mod rv"><div class="mod-t"><span class="ic"><svg><use href="#i-chart"/></svg></span><h3>Analytics</h3><p>See which events and clients make money.</p><ul><li>Reports with exports</li><li>Insights on profit per event</li><li>Trends across your events</li></ul></div></article>
+   <article class="mod rv"><div class="mod-t"><span class="ic"><svg><use href="#i-chat"/></svg></span><h3>Team</h3><p>Everyone on the same page, with access only to what they need.</p><ul><li>Team chat</li><li>Role-based access</li><li>Audit log of changes</li></ul></div></article>
+   <article class="mod rv"><div class="mod-t"><span class="ic"><svg><use href="#i-portal"/></svg></span><h3>Client-facing</h3><p>Give clients a polished experience that wins the booking.</p><ul><li>Client portal</li><li>Design booklet</li><li>Online approvals</li><li>Invitation websites for confirmed events</li></ul></div></article>
+  </div>
+  <div class="cta-row c rv"><a class="btn btn-dark" href="/login?trial=1#signup">Explore every module free <span class="bi"><svg><use href="#i-arrow"/></svg></span></a></div>
+ </div>
+</section>
+
+<!-- REPEAT CLIENTS -->
+<section class="sec repeat" id="repeat" aria-labelledby="re-h">
+ <div class="wrap rep-grid">
+  <div><p class="eyebrow rv">For repeat clients</p><h2 id="re-h" class="h2 rv">60+ events for one client?<br><em>One place for every one.</em></h2><p class="lead rv">Studios that run event after event for the same corporate client stop rebuilding the same layout, vendor list and costing every time.</p>
+   <a class="btn btn-dark rv" href="/login?trial=1#signup">Start a free trial for your studio <span class="bi"><svg><use href="#i-arrow"/></svg></span></a></div>
+  <ul class="rep-list">
+   <li class="rv"><span class="ic"><svg><use href="#i-copy"/></svg></span><b>Reuse what worked</b><span>Start a new event from a past layout, vendors and costing.</span></li>
+   <li class="rv"><span class="ic"><svg><use href="#i-eye"/></svg></span><b>Every event side by side</b><span>See status, money in and money out across a client's whole calendar.</span></li>
+   <li class="rv"><span class="ic"><svg><use href="#i-x"/></svg></span><b>No more spreadsheets and chat threads</b><span>Client records, bills and approvals in one tracked history.</span></li>
+  </ul>
+ </div>
+</section>
+
+<!-- CLIENT SIDE after approval: portal + floating cards -->
+<section class="sec phone-sec" id="client" aria-labelledby="ph-h">
+ <div class="wrap c">
+  <p class="eyebrow rv">Client experience</p>
+  <h2 id="ph-h" class="h2 rv">After they say yes,<br><em>clients stay in the loop.</em></h2>
+  <p class="lead rv">Your client gets their own portal: a countdown, the payment schedule with receipts, the design booklet and an invitation website for their guests.</p>
+  <div class="cta-row c rv"><a class="btn btn-dark" href="/login?trial=1#signup">Give your next client a portal <span class="bi"><svg><use href="#i-arrow"/></svg></span></a><a class="btn btn-line" href="#pricing">See pricing</a></div>
+ </div>
+ <div class="ph-stage" id="phStage">
+  <div class="arc" aria-hidden="true"></div>
+  <div class="phone" data-lerp="0.04" aria-hidden="true"><div class="pscr"><div class="ps-top"><small>Client portal</small><b>Priya &amp; Sam</b></div><div class="ps-count"><b>23</b><span>days to go</span></div><div class="ps-l"><span>Deposit</span><b class="pd">Paid</b></div><div class="ps-l"><span>Pre-event · 1 Dec</span><b>$8,775</b></div><div class="ps-l"><span>Final · after event</span><b>$3,510</b></div><div class="ps-l"><span>Design booklet</span><b>Open</b></div><span class="ps-btn"><svg><use href="#i-pay"/></svg>Pay pre-event instalment</span></div></div>
+  <div class="sc sc1" data-lerp="-0.16" aria-hidden="true"><svg><use href="#i-book"/></svg><div><small>Design booklet</small><b>Ready to share</b></div></div>
+  <div class="sc sc2" data-lerp="0.12" aria-hidden="true"><span class="bars"><i></i><i></i><i></i><i></i></span><div><small>Receipts</small><b>Sent automatically</b></div></div>
+  <div class="sc sc3" data-lerp="-0.1" aria-hidden="true"><svg><use href="#i-cal"/></svg><span>Milestones<br>on schedule</span></div>
+  <div class="sc sc4" data-lerp="0.18" aria-hidden="true"><svg><use href="#i-globe"/></svg><div><small>Invitation site</small><b>Live for guests</b></div></div>
+  <div class="sc sc5" data-lerp="-0.2" aria-hidden="true"><svg><use href="#i-portal"/></svg>Portal · booklet · invite site</div>
+ </div>
+</section>
+
+<!-- WHY -->
+<section class="sec why" id="why" aria-labelledby="w-h">
+ <div class="wrap">
+  <div class="head-split"><div><p class="eyebrow rv">Why Helm</p><h2 id="w-h" class="h2 rv">No more guessed distances,<br><em>chat-thread bills</em> or profit on paper.</h2></div><p class="lead rv">One place where the plan, the work and the money stay in step — wherever your studio is.</p></div>
+  <div class="why-grid">
+   <article class="wy rv"><span class="ic"><svg><use href="#i-ruler"/></svg></span><h3>Precision, not guesswork</h3><p>Exact distances on a measured plan, so the stage, tables and walkways fit on event day.</p></article>
+   <article class="wy rv"><span class="ic"><svg><use href="#i-layout"/></svg></span><h3>One source of truth</h3><p>Leads, layouts, quotes, tasks, stock and payments live together — everyone works from the same numbers.</p></article>
+   <article class="wy rv"><span class="ic"><svg><use href="#i-star"/></svg></span><h3>Client wow</h3><p>A 3D view, a photoreal render and a polished booklet help clients say yes faster.</p></article>
+   <article class="wy rv"><span class="ic"><svg><use href="#i-pay"/></svg></span><h3>Money clarity</h3><p>Payments, costs and profit per event, worked out for you instead of on paper.</p></article>
+   <article class="wy rv"><span class="ic"><svg><use href="#i-globe"/></svg></span><h3>Built for studios anywhere</h3><p>Your currency, your tax lines, your time zone and metric or imperial units — set per studio.</p></article>
+   <article class="wy rv"><span class="ic"><svg><use href="#i-lock"/></svg></span><h3>Secure &amp; private</h3><p>Each studio's data kept separate, with role-based access and a privacy PIN on business numbers.</p></article>
+  </div>
+ </div>
+</section>
+
+<!-- COMPARE -->
+<section class="sec compare" id="compare" aria-labelledby="c-h">
+ <div class="wrap">
+  <p class="eyebrow rv">Who gives you what</p>
+  <h2 id="c-h" class="h2 rv">Other tools cover a piece.<br><em>Helm covers the whole event.</em></h2>
+  <div class="tblw rv" tabindex="0" role="region" aria-label="Comparison table, scroll sideways on small screens"><table class="cmp"><caption class="sr">How the usual mix of tools compares with Helm</caption>
+   <thead><tr><th scope="col">What you need</th><th scope="col">Paper / spreadsheets + chat</th><th scope="col">Generic CRM</th><th scope="col">CAD / layout tools</th><th scope="col" class="hc">Helm</th></tr></thead>
+   <tbody>
+    <tr><th scope="row">CRM &amp; leads</th><td class="pt">Partly</td><td class="ys">Yes</td><td class="no">—</td><td class="ys hc">Yes</td></tr>
+    <tr><th scope="row">Layout with exact measurements</th><td class="no">—</td><td class="no">—</td><td class="pt">Partly</td><td class="ys hc">Yes</td></tr>
+    <tr><th scope="row">3D view &amp; photoreal render</th><td class="no">—</td><td class="no">—</td><td class="pt">Partly</td><td class="ys hc">Yes</td></tr>
+    <tr><th scope="row">Quotes &amp; approvals</th><td class="pt">Partly</td><td class="pt">Partly</td><td class="no">—</td><td class="ys hc">Yes</td></tr>
+    <tr><th scope="row">Event operations</th><td class="pt">Partly</td><td class="no">—</td><td class="no">—</td><td class="ys hc">Yes</td></tr>
+    <tr><th scope="row">Money &amp; profit per event</th><td class="pt">Partly</td><td class="no">—</td><td class="no">—</td><td class="ys hc">Yes</td></tr>
+    <tr><th scope="row">Analytics</th><td class="no">—</td><td class="pt">Partly</td><td class="no">—</td><td class="ys hc">Yes</td></tr>
+    <tr><th scope="row">Team chat &amp; access</th><td class="pt">Partly</td><td class="pt">Partly</td><td class="no">—</td><td class="ys hc">Yes</td></tr>
+    <tr><th scope="row">Client portal &amp; booklet</th><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="ys hc">Yes</td></tr>
+    <tr><th scope="row">Everything connected</th><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="ys hc">Yes</td></tr>
+   </tbody></table></div>
+  <p class="note-s rv">Yes = covered · Partly = partly covered · — = not covered. <a class="link-d" href="/login?trial=1#signup">Put Helm side by side, free <svg><use href="#i-arrow"/></svg></a></p>
+ </div>
+</section>
+
+<!-- SOLUTIONS -->
+<!-- CELEBRATIONS: pinned full-bleed background slider -->
+<section class="cel" id="solutions" aria-labelledby="so-h">
+ <div class="cel-pin">
+  <div class="cel-bgs" id="celBgs" aria-hidden="true"></div>
+  <div class="cel-scrim" aria-hidden="true"></div>
+  <div class="cel-in wrap">
+   <p class="eyebrow cel-eb">Solutions</p>
+   <h2 id="so-h" class="cel-h">Built for every kind of <em>celebration.</em></h2>
+   <div class="cel-slides" id="celSlides">
+    <article class="cel-s" data-ev="wedding"><p class="cel-n">01 · Weddings</p><h3>Every function, one event.</h3><p>Multi-day ceremonies, many vendors and staged payments — haldi to reception on a single record.</p></article>
+    <article class="cel-s" data-ev="corporate"><p class="cel-n">02 · Corporate &amp; conferences</p><h3>Proposals that pass procurement.</h3><p>Formal quotes, approvals and clean tax breakdowns for every session and breakout.</p></article>
+    <article class="cel-s" data-ev="birthday"><p class="cel-n">03 · Birthdays &amp; private parties</p><h3>Quoted in minutes.</h3><p>Small budgets and quick turnarounds — start from a package and adjust live.</p></article>
+    <article class="cel-s" data-ev="concert"><p class="cel-n">04 · Concerts &amp; festivals</p><h3>Big crowds, tight timelines.</h3><p>Stage plans, crew shifts and load-in run sheets the whole team can follow.</p></article>
+    <article class="cel-s" data-ev="gala"><p class="cel-n">05 · Galas &amp; awards</p><h3>Seating to the inch.</h3><p>Measured table plans and 3D previews so the room looks exactly as promised.</p></article>
+    <article class="cel-s" data-ev="cultural"><p class="cel-n">06 · Cultural &amp; religious</p><h3>Rituals on schedule.</h3><p>Timings, helpers and roles laid out so every ceremony starts on time.</p></article>
+   </div>
+   <ol class="cel-dots" id="celDots" aria-label="Event types"></ol>
+  </div>
+ </div>
+</section>
+
+<!-- SECURITY -->
+<section class="sec security" id="security" aria-labelledby="se-h">
+ <div class="wrap">
+  <div class="sec-box curtain">
+   <div class="sec-intro"><p class="eyebrow light rv">Why you can trust Helm</p><h2 id="se-h" class="h2 rv">Your events, your data,<br><em>your business.</em></h2><p class="lead rv">We'd rather show you how Helm works than show logos. Here is what is true today.</p></div>
+   <div class="sec-grid">
+    <div class="sg rv"><svg><use href="#i-lock"/></svg><h3>Separate and private</h3><p>Each business gets its own workspace. Database rules keep one studio's data out of every other studio's view.</p></div>
+    <div class="sg rv"><svg><use href="#i-users"/></svg><h3>You decide who sees what</h3><p>Built-in roles and an access matrix you can edit — crew, accounts and managers each see only their part.</p></div>
+    <div class="sg rv"><svg><use href="#i-shield"/></svg><h3>Your data stays yours</h3><p>We do not sell your information. Our <a href="/privacy">Privacy Policy</a> says exactly what we store and why.</p></div>
+    <div class="sg rv"><svg><use href="#i-globe"/></svg><h3>Encrypted connections</h3><p>Every page and request travels over HTTPS, with strict browser security headers.</p></div>
+    <div class="sg rv"><svg><use href="#i-log"/></svg><h3>Audit trail</h3><p>Key actions are logged — who changed a quote, a payment or a task, and when.</p></div>
+    <div class="sg rv"><svg><use href="#i-coin"/></svg><h3>Local money rules</h3><p>Quote in your currency with your own tax lines, set per studio.</p></div>
+   </div>
+  </div>
+ </div>
+</section>
+
+<!-- ABOUT -->
+<section class="sec about" id="about" aria-labelledby="ab-h">
+ <div class="wrap ab-grid">
+  <div><p class="eyebrow rv">Our story &amp; mission</p><h2 id="ab-h" class="h2 rv">Event professionals shouldn't<br>manage events <em>through chaos.</em></h2><p class="lead rv">Helm was built from a simple belief: teams deserve one unified platform that automates workflows and gives real-time visibility. It supports weddings, conferences, festivals, trade shows, hospitality and corporate events — for studios in India and beyond.</p>
+   <ul class="ab-pts">
+    <li class="rv"><b>Unified platform</b>Every part of the event journey in one place.</li>
+    <li class="rv"><b>Security-first</b>Every organisation's data kept private and protected.</li>
+    <li class="rv"><b>Scalable</b>From intimate gatherings to large productions.</li>
+    <li class="rv"><b>End-to-end visibility</b>Operational view across the event lifecycle.</li>
+   </ul></div>
+  <div class="team">
+   <p class="eyebrow rv">Leadership</p>
+   <div class="person rv"><span class="ini" aria-hidden="true">P</span><div><b>Praneeth</b><small>Managing Director</small><p>20+ years in IT — CRM and enterprise application development.</p></div></div>
+   <div class="person rv"><span class="ini" aria-hidden="true">AY</span><div><b>Anil Y</b><small>Business Development Manager</small><p>Builds partnerships and keeps Helm aligned with real market needs.</p></div></div>
+   <div class="person rv"><span class="ini" aria-hidden="true">A</span><div><b>Abdul</b><small>Senior Architect (Full Stack)</small><p>Leads technical architecture, performance and security-first engineering.</p></div></div>
+   <div class="person rv"><span class="ini" aria-hidden="true">S</span><div><b>Spandana</b><small>Sales &amp; Finance Director</small><p>Financial leadership across budgeting, sales operations and strategic finance.</p></div></div>
+   <a class="link-d rv" href="/about">More about Helm <svg><use href="#i-arrow"/></svg></a>
+  </div>
+ </div>
+</section>
+
+<!-- VOICES placeholder -->
+<section class="sec voices" aria-labelledby="v-h"><div class="wrap c"><p class="eyebrow rv">Client stories</p><h2 id="v-h" class="h2 rv">What studios say — <em>soon.</em></h2><p class="lead rv">We're collecting stories from our first studios. These slots are placeholders until real quotes are approved.</p>
+ <div class="vgrid"><div class="ph rv"><span>Placeholder</span>A real client quote will go here.<small>Studio name, city</small></div><div class="ph rv"><span>Placeholder</span>A real client quote will go here.<small>Studio name, city</small></div><div class="ph rv"><span>Placeholder</span>A real client quote will go here.<small>Studio name, city</small></div></div>
+ <a class="btn btn-dark rv" href="/login?trial=1#signup">Be one of our first studios, free <span class="bi"><svg><use href="#i-arrow"/></svg></span></a></div></section>
+
+<!-- PRICING -->
+<section class="sec pricing" id="pricing" data-tone="cream" aria-labelledby="pr-h">
+ <div class="wrap c"><p class="eyebrow rv">Pricing</p><h2 id="pr-h" class="h2 rv">Plans from <em>$24 a month.</em></h2><p class="lead rv">Final pricing coming soon. The figures below are proposed starting prices in US dollars, before tax — every plan starts with an 8-day free trial, no card needed.</p></div>
+ <div class="wrap pgrid">
+  <div class="plan rv"><h3>Starter</h3><p class="who">Solo planners and decorators</p><p class="price"><span class="from">from</span><span>$24</span><small>/month · proposed</small></p><ul><li>Up to 3 team members</li><li>CRM, 2D layout and 3D view</li><li>Quotes, tasks and payments</li></ul><a class="btn btn-line" href="/login?trial=1#signup">Start free</a></div>
+  <div class="plan hot rv"><span class="tagp">Most studios</span><h3>Studio</h3><p class="who">Growing event companies</p><p class="price"><span class="from">from</span><span>$59</span><small>/month · proposed</small></p><ul><li>Up to 15 team members</li><li>Inventory, crew app and team chat</li><li>Client portal, booklet and invite site</li></ul><a class="btn btn-dark" href="/login?trial=1#signup">Try Studio free for 8 days <span class="bi"><svg><use href="#i-arrow"/></svg></span></a></div>
+  <div class="plan rv"><h3>Enterprise</h3><p class="who">Multi-city and multi-country teams</p><p class="price">Custom</p><ul><li>Unlimited team members</li><li>Multiple branches and countries, local tax rules</li><li>Photoreal renders, priority onboarding</li></ul><a class="btn btn-line" href="#contact">Talk to sales</a></div>
+ </div>
+ <p class="wrap c note-s rv">All prices in USD, proposed and not final. <a class="link-d" href="/pricing">Compare all plans <svg><use href="#i-arrow"/></svg></a></p>
+</section>
+
+<!-- FAQ -->
+<section class="sec faq" id="faq" aria-labelledby="fq-h"><div class="wrap narrow"><p class="eyebrow rv">FAQ</p><h2 id="fq-h" class="h2 rv">Questions, <em>answered.</em></h2>
+ <details class="rv"><summary>What exactly is Helm?<svg><use href="#i-plus"/></svg></summary><p>A workspace for event studios, planners and decorators. It holds your leads, venue layouts (2D to exact measurements, plus 3D), quotes, tasks, crew, stock, vendors, payments and profit — in one place.</p></details>
+ <details class="rv"><summary>How long is the free trial?<svg><use href="#i-plus"/></svg></summary><p>8 days. Start without a card, set up a real event and invite your team.</p></details>
+ <details class="rv"><summary>Who is Helm for?<svg><use href="#i-plus"/></svg></summary><p>Event businesses anywhere: wedding planners, decorators, corporate and conference teams, festival organisers and studios running private, cultural and public events — from one person to multi-city teams.</p></details>
+ <details class="rv"><summary>Does it work in my country and currency?<svg><use href="#i-plus"/></svg></summary><p>Helm lets each studio set its currency, tax lines and time zone, and layouts work in metres or feet. Talk to us about local requirements for Enterprise.</p></details>
+ <details class="rv"><summary>Do I still need a separate CAD tool?<svg><use href="#i-plus"/></svg></summary><p>For event layouts, no. Helm's builder draws the venue to exact measurements and shows the same plan in 3D, and the items on the plan feed the quote.</p></details>
+ <details class="rv"><summary>Can clients and crew use it without installing anything?<svg><use href="#i-plus"/></svg></summary><p>Yes. Clients open a link to view the booklet and approve; crew open their own link to see only their tasks. It runs in the browser on laptop and phone.</p></details>
+ <details class="rv"><summary>Can Helm handle many events at once?<svg><use href="#i-plus"/></svg></summary><p>Yes. Each event keeps its own layout, quote, tasks and payments, and you can see all of a client's events side by side.</p></details>
+ <details class="rv"><summary>How is my data kept safe?<svg><use href="#i-plus"/></svg></summary><p>Each studio's workspace is kept separate by database rules, connections use HTTPS, access follows the roles you set, and key changes are logged. See our <a href="/privacy">Privacy Policy</a>.</p></details>
+ <details class="rv"><summary>Are prices inclusive of tax?<svg><use href="#i-plus"/></svg></summary><p>Proposed prices are shown before tax. Checkout shows the exact tax for your billing details.</p></details>
+ <details class="rv"><summary>Can I change plans later?<svg><use href="#i-plus"/></svg></summary><p>Yes. Your events, layouts and records stay with your workspace when you move between plans.</p></details>
+</div></section>
+
+<!-- CONTACT -->
+<section class="sec contact" id="contact" aria-labelledby="ct-h">
+ <div class="wrap ct-grid">
+  <div><p class="eyebrow rv">Get in touch</p><h2 id="ct-h" class="h2 rv">Let's talk about your <em>event challenges.</em></h2><p class="lead rv">Questions, a personalised demo, or custom pricing — our team is ready to help, whatever your time zone.</p>
+   <ul class="ct-mails">
+    <li class="rv"><small>Sales</small><a href="mailto:sales@helm.events">sales@helm.events</a></li>
+    <li class="rv"><small>General</small><a href="mailto:info@helm.events">info@helm.events</a></li>
+    <li class="rv"><small>Support</small><a href="mailto:support@helm.events">support@helm.events</a></li>
+   </ul></div>
+  <form class="ct-form rv" id="ctForm" novalidate>
+   <div class="fr"><label for="cf-n">Your name</label><input id="cf-n" name="name" autocomplete="name" required maxlength="80"></div>
+   <div class="fr"><label for="cf-s">Studio / company</label><input id="cf-s" name="studio" autocomplete="organization" maxlength="100"></div>
+   <div class="fr"><label for="cf-t">I'd like</label><select id="cf-t" name="topic"><option>A personalised demo</option><option>Custom / Enterprise pricing</option><option>Help getting started</option><option>Something else</option></select></div>
+   <div class="fr"><label for="cf-m">Tell us about your events</label><textarea id="cf-m" name="msg" rows="4" maxlength="1200" required></textarea></div>
+   <p class="ferr" id="cfErr" role="alert"></p>
+   <button class="btn btn-dark" type="submit">Write to sales <span class="bi"><svg><use href="#i-arrow"/></svg></span></button>
+   <p class="fine-d">Opens your own email app with this message to sales@helm.events — nothing is sent from this page.</p>
+  </form>
+ </div>
+</section>
+
+<!-- CTA -->
+<section class="final" aria-labelledby="cta-h"><div class="final-in">
+ <div class="mesh dark" aria-hidden="true"><i class="m1"></i><i class="m2"></i><i class="m3"></i></div>
+ <div class="fin rv"><h2 id="cta-h" class="h2">Your next event could be the first one<br><em>without the chaos.</em></h2><p>Swap the notebook, the spreadsheets and the chat threads for one workspace.</p><div class="cta-row c"><a class="btn btn-light" href="/login?trial=1#signup">Run your next event on Helm — 8 days free <span class="bi"><svg><use href="#i-arrow"/></svg></span></a><a class="link-w" href="/try">Try the planner <svg><use href="#i-arrow"/></svg></a></div></div>
+</div></section>
+</main>
+
+<footer class="foot"><div class="wrap fgr">
+ <div class="fb"><a class="brand" href="#top"><span class="mark" aria-hidden="true"><i></i><i></i></span>Helm</a><p>One workspace for event studios everywhere: leads, layouts, quotes, crew, payments and profit.</p></div>
+ <div><h4>Product</h4><a href="#modules">Features</a><a href="#solutions">Solutions</a><a href="/services">All services</a><a href="/pricing">Pricing</a><a href="/try">Try the planner</a><a href="#faq">FAQ</a></div>
+ <div><h4>Company</h4><a href="/about">About us</a><a href="#security">Security</a><a href="#contact">Contact</a><a href="/login">Sign in</a></div>
+ <div><h4>Legal</h4><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/refund-policy">Refund Policy</a><a href="/data-deletion">Data Deletion</a><a href="/cookie-policy">Cookie Policy</a><a href="/dpa">Data Processing</a><a href="/acceptable-use">Acceptable Use</a></div>
+ <div><h4>Contact</h4><a href="mailto:sales@helm.events">sales@helm.events</a><a href="mailto:support@helm.events">support@helm.events</a></div>
+</div><div class="wrap copy"><span>© 2026 Helm. Amateurs panic. Professionals go for Helm.</span><span class="big-word" aria-hidden="true">Helm</span></div></footer>
+<script src="/trusted-types.js?v=2"></script>
+<script src="/telemetry.js?v=3" defer></script>
+<script src="/home-assets/manifest.js?v=3" defer></script>
+<script src="/home.js?v=13" defer></script>
+<script src="/home-guide.js?v=1" defer></script>
   <script>
-    document.getElementById("yr").textContent = new Date().getFullYear();
     // If a signed-in user lands here, take them straight into their workspace.
     // (?preview=1 lets an admin view this intro page without being redirected.)
     // Cheap check without loading the app bundle: supabase-js keeps the session in

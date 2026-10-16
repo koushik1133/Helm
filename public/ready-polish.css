@@ -1,0 +1,14 @@
+/* ready.html old-layout polish (moved out of inline <style> to keep the CSP hash list small) */
+  /* old-layout polish (calm, consistent) */
+  html:not([data-shell]) .wrap h1{letter-spacing:-.02em;line-height:1.15}
+  html:not([data-shell]) .card{border-radius:14px}
+  html:not([data-shell]) .card h2,html:not([data-shell]) .card h3{letter-spacing:-.01em}
+  html:not([data-shell]) .empty{color:var(--ink-3);font-size:13.5px;line-height:1.5;padding:36px 20px;border:1px dashed var(--line);border-radius:12px;background:transparent}
+  html:not([data-shell]) table{font-variant-numeric:tabular-nums}
+  html:not([data-shell]) th{font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+  html:not([data-shell]) td,html:not([data-shell]) th{vertical-align:middle}
+  html:not([data-shell]) .btn:focus-visible,html:not([data-shell]) button:focus-visible,html:not([data-shell]) a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  html:not([data-shell]) input:focus-visible,html:not([data-shell]) select:focus-visible,html:not([data-shell]) textarea:focus-visible{outline:2px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:1px}
+  html:not([data-shell]) .num,html:not([data-shell]) .kpi,html:not([data-shell]) .stat,html:not([data-shell]) .tile{font-variant-numeric:tabular-nums}
+  @media (max-width:640px){ html:not([data-shell]) .wrap{padding-left:16px;padding-right:16px} html:not([data-shell]) .card{border-radius:12px} }
+  @media (prefers-reduced-motion:reduce){ html:not([data-shell]) *{transition:none!important;animation:none!important} }

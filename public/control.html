@@ -2,6 +2,7 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
+<link rel="stylesheet" href="/control-polish.css?v=1">
 <meta charset="utf-8">
 <base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -33,7 +34,7 @@
   .account button{height:30px;padding:0 12px;border:1px solid var(--line);background:var(--panel);border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px;margin-bottom:16px}
   h3{font-size:13px;margin:0 0 14px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3)}
-  .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px} @media(max-width:640px){.grid{grid-template-columns:1fr 1fr}}
+  .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px} @media(max-width:640px){.grid{grid-template-columns:1fr 1fr}} @media(max-width:560px){.grid{grid-template-columns:minmax(0,1fr)}}
   .fld{display:flex;flex-direction:column;gap:5px} .fld label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)}
   input,select{height:38px;border:1px solid var(--line);background:var(--panel-2);border-radius:8px;padding:0 10px;font-family:inherit;font-size:14px;color:var(--ink)}
   input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
@@ -46,7 +47,7 @@
   @media(max-width:640px){.addrow{grid-template-columns:1fr 1fr}}
   .msg{border-radius:8px;padding:8px 11px;font-size:13px;margin-bottom:10px}
   .msg.warn{background:#fff7e8;color:#7a4a06;border:1px solid #f1d9a8}
-  .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca} .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6}
+  .msg.ok{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca} .msg.err{background:#fdecec;color:#b42318;border:1px solid #f5c6c6} .msg.info{background:#eef4ff;color:#1d4ed8;border:1px solid #c7d7fe}
   .actions{display:flex;justify-content:flex-end;margin-top:14px}
   .rm{border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:13px;padding:4px 8px;border-radius:6px;min-height:32px;min-width:32px} .rm:hover{color:#e5484d;background:#fdecec}
   /* tab bar */
@@ -206,7 +207,9 @@
 <link rel="stylesheet" href="comms-settings.css?v=2">
 <link rel="stylesheet" href="venues.css?v=3">
 <link rel="stylesheet" href="studio-templates.css?v=1">
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="event-reminders.css?v=1">
+<link rel="stylesheet" href="pages-polish-admin.css?v=1">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -725,15 +728,16 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=205"></script>
+<script src="event-reminders.js?v=1"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=3"></script>
 <script src="hq-invoice.js?v=1"></script>
-<script src="tour.js?v=9"></script>
+<script src="tour.js?v=14"></script>
 <script src="pkg-review.js?v=4"></script>
 <script src="onboarding-core.js?v=5"></script>
 <script src="comms-settings.js?v=2"></script>
@@ -743,7 +747,7 @@
 <script src="studio-templates-core.js?v=1"></script>
 <script src="studio-templates.js?v=2"></script>
 <script src="item-pricing.js?v=1"></script>
-<script src="trial-demo.js?v=2"></script>
+<script src="trial-demo.js?v=4"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -811,14 +815,19 @@
     const canControls = await BPStore.auth.canView("controls");
     if(!canControls && !isAdmin){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:var(--ink-3)">Your role can\'t open the Control Center.</p>'; return; }
     $("#app").hidden=false;
-    await loadPricing();
-    await renderCoupons(); await renderChairs(); await renderPlates(); await renderDishes(); await initCustomFields(); await renderMenuTemplates(); await renderLayoutRules(); await renderOrg();
+    // perf (Oct 2026): the Pricing tab's independent cards load in PARALLEL (was one after another, ~4.5s);
+    // each card keeps its own error UI. The first failure is still re-thrown once every card has settled.
+    const settle=async(list)=>{ let first=null; await Promise.all(list.map(f=>Promise.resolve().then(f).catch(e=>{ if(!first) first=e; }))); if(first) throw first; };
+    const cards=[loadPricing, renderCoupons, renderChairs, renderPlates, renderDishes, initCustomFields, renderMenuTemplates, renderLayoutRules, renderOrg];
     // Only admins get the User-control tab (add/remove users + access matrix).
     if(isAdmin){
       $("#tab-users").hidden=false;
       $("#tab-notify").hidden=false;   // loads on first open (initNotify)
-      $("#lxCard").hidden=false; await initLinkExpiry();   // client link auto-expire (0039)
-      await initUsers(); await initMatrix();
+      $("#lxCard").hidden=false; cards.push(initLinkExpiry);   // client link auto-expire (0039)
+    }
+    await settle(cards);
+    if(isAdmin){
+      // the User-control tab (users + access matrix) loads on first open, not on every visit to Settings
       if(location.hash==="#users") switchTab("users");
       if(location.hash==="#notifications") switchTab("notify");
     }
@@ -845,7 +854,10 @@
     $("#pane-users").hidden   = name!=="users";
     $("#pane-notify").hidden  = name!=="notify";
     if(name==="notify") initNotify();
+    if(name==="users") initUsersTab();
   }
+  let usersTabP=null;
+  function initUsersTab(){ if(!isAdmin) return null; if(!usersTabP) usersTabP=(async()=>{ await initUsers(); await initMatrix(); })().catch(e=>{ usersTabP=null; throw e; }); return usersTabP; }
   document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>switchTab(t.dataset.pane)));
   // full pricing config blob (preserved across saves so builder item prices survive)
   let pricingCfg = { assetPrices:{} };
@@ -938,6 +950,27 @@
     ['loveseat','Loveseat',2000],['armchair','Armchair',1200],['ottoman','Ottoman',500],['bench','Bench',800],
     ['coffeetable','Coffee Table',800],['bleacher','Bleachers',15000],['floral','Floral Centerpiece',1500],['pillar','Decor Pillar',2000],
     ['drape','Pipe & Drape',2400],['planter','Greenery',800],
+    // INDIAN-WEDDING PACK (2026-10)
+    ['entrancegate','Entrance Gate',25000],['phoolchadar','Phoolon ki Chadar',6000],['jhoola','Swing / Jhoola',12000],['haldi','Haldi Setup',18000],
+    ['mehendi','Mehendi Lounge',15000],['selfieframe','Selfie Frame',3500],['welcomeboard','Welcome Board',2500],['fairylights','Fairy Light Canopy',8000],
+    ['couplesofa','Couple Sofa',8000],['livecounter','Live Food Counter',7000],['kidszone','Kids Zone',15000],['aircooler','Air Cooler / Fan',1500],
+    ['floralentrance','Entrance Floral Arch',30000],['stagebackdrop','Stage Floral Backdrop',35000],['flowerwall','Flower Wall',12000],['toran','Garland Toran',4000],
+    ['floralpillar','Floral Pillar',4500],['aislefloral','Aisle Floral Stand',1800],['centrepiece','Tall Centrepiece',2500],['balloonarch','Balloon Arch',6000],
+    ['balloonbunch','Balloon Bouquet',800],['lectern','Lectern',4000],['dais','Dais with Chairs',30000],['flagstand','Flag Stand',1500],
+    ['hoarding','Banner / Hoarding Frame',12000],['patower','PA Tower',15000],['lightingtree','Lighting Tree (T-Bar)',3500],['diyastand','Brass Deepam Stand',2500],
+    ['trophytable','Trophy Display',3000],
+    // RELIGIOUS + AMBIENCE PACK (2026-10c)
+    ['havankund','Havan Kund',3500],['rangoli','Rangoli / Kolam',2500],['lanterns','Lantern Cluster',1200],['hangingfloral','Hanging Floral Ceiling',18000],
+    ['neonsign','Neon Sign Wall',4000],
+    // COMPLETE-CATALOGUE PACK (2026-10d)
+    ['backdrop','Backdrop (generic)',6000],['floralstand','Floral Stand (generic)',1500],['decorbox','Decor Item (generic)',2000],['signage','Signage / Standee',1200],
+    ['stageroof','Stage Roof Truss',60000],['varmala','Varmala Platform',25000],['micstand','Mic Stand',500],['teleprompter','Teleprompter / Confidence Monitor',6000],
+    ['projector','Projector Screen',8000],['tvstand','TV Screen on Stand',4000],['interpreter','Interpreter Booth',15000],['pyro','Cold Pyro / CO2 Jet',3000],
+    ['towerlight','Mobile Light Tower',4000],['gaddi','Floor Seating (Gaddi)',3000],['urli','Flower Urli',2500],['umbrellas','Decor Umbrellas',5000],
+    ['doli','Doli / Palki',12000],['kalash','Kalash / Purna Kumbh',800],['altar','Pooja Altar / Idol Platform',8000],['shoerack','Shoe Rack',1000],
+    ['dessert','Dessert / Candy Table',3500],['coffee','Coffee / Tea Station',3000],['stall','Food / Merch Stall',6000],['counter','Display Counter',2500],
+    ['plinth','Display Plinth',1000],['kiosk','Check-in Kiosk',3000],['ticketbooth','Ticket Booth',5000],['stanchion','Stanchions (rope & post)',1200],
+    ['watchtower','Watch Tower / CCTV',8000],['extinguisher','Fire Point',300],['ambulance','Ambulance Bay',6000],
   ];
   function renderItemPrices(){
     const ap = pricingCfg.assetPrices || (pricingCfg.assetPrices={});
@@ -1604,13 +1637,25 @@
     catch(e){ BPUI.loadError(tb, e, renderInvites, {what:"pending invites"}); return; }
     const now=Date.now();
     const pend=(rows||[]).filter(i=>i.status==="pending" && (!i.expires_at || new Date(i.expires_at).getTime()>now));
-    tb.innerHTML=pend.map(i=>`<tr data-id="${esc(i.id)}" data-email="${esc(i.email)}" data-role="${esc(i.role)}"><td>${esc(i.email)}</td><td>${esc(BPStore.auth.admin.roleLabel(i.role))}</td><td>${esc(ucDate(i.created_at))}</td><td>${esc(ucDate(i.expires_at))}</td><td><button type="button" class="btn invCopy">Copy link</button> <button type="button" class="btn invRevoke">Revoke</button></td></tr>`).join("")
+    tb.innerHTML=pend.map(i=>`<tr data-id="${esc(i.id)}" data-email="${esc(i.email)}" data-role="${esc(i.role)}"><td>${esc(i.email)}</td><td>${esc(BPStore.auth.admin.roleLabel(i.role))}</td><td>${esc(ucDate(i.created_at))}</td><td>${esc(ucDate(i.expires_at))}</td><td><button type="button" class="btn invCopy">Copy link</button> <button type="button" class="btn invResend">Resend email</button> <button type="button" class="btn invRevoke">Revoke</button></td></tr>`).join("")
       || `<tr><td colspan="5" style="color:var(--ink-3)">No pending invites.</td></tr>`;
     tb.querySelectorAll(".invRevoke").forEach(btn=>btn.addEventListener("click", async ()=>{
       const tr=btn.closest("tr"), email=tr.dataset.email||"this person";
       if(!(await BPUI.confirm(`Revoke the invite for ${email}? Their link will stop working.`,{title:"Revoke invite?",okLabel:"Revoke invite",danger:true}))) return;
       try{ await BPUI.guard(btn, ()=>BPStore.invitations.revoke(tr.dataset.id)); await renderInvites(); setUMsg("ok","Invite revoked."); }
       catch(err){ setUMsg("err",errMsg(err,"revoke the invite")); }
+    }));
+    // 0131: re-queue the invitation e-mail (once per 10 min per invite, server-enforced), then flush
+    tb.querySelectorAll(".invResend").forEach(btn=>btn.addEventListener("click", async ()=>{
+      const tr=btn.closest("tr"), email=tr.dataset.email||"this person";
+      try{ const r=await BPUI.guard(btn, ()=>BPStore.invitations.resendEmail(tr.dataset.id)); const st=r&&r.status;
+        if(st==="rate_limited"){ setUMsg("info",`Already sent recently — you can resend in ${Math.ceil((r.retry_in||600)/60)} min.`); return; }
+        if(st==="not_pending"){ setUMsg("err","This invite is no longer pending — create a new one."); await renderInvites(); return; }
+        const sent=await BPStore.invitations.sendNow();
+        if(sent&&sent.status==="ok"&&sent.sent>0) setUMsg("ok",`Invitation email sent to ${email}.`);
+        else if(sent&&sent.status==="ok"&&!(sent.skipped>0)) setUMsg("ok",`Invitation email queued for ${email}.`);
+        else setUMsg("err",`Automatic emails aren't switched on yet — use Copy link and send it to ${email} yourself.`); }
+      catch(err){ setUMsg("err",errMsg(err,"resend the invite email")); }
     }));
     tb.querySelectorAll(".invCopy").forEach(btn=>btn.addEventListener("click", async ()=>{
       const tr=btn.closest("tr");

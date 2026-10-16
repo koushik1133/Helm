@@ -1,0 +1,71 @@
+/* Helm UI kit: confirm dialog, toast stack, status pills, empty state.
+   Theme-aware: uses --hb-* (new shell) with fallback to --panel/--ink/--line. */
+@import url("status-pills.css?v=1");   /* legacy .stat/.st badges -> shared pill palette */
+.hs-root{
+  --hs-bg:var(--hb-bg,var(--panel,#fff));
+  --hs-bg2:var(--hb-bg2,var(--paper,#f5f7fc));
+  --hs-ink:var(--hb-ink,var(--ink,#0b1b3f));
+  --hs-ink2:var(--hb-ink2,var(--ink2,#34405c));
+  --hs-ink3:var(--hb-ink3,var(--muted,#5f6b88));
+  --hs-line:var(--hb-line,var(--line,#e3e8f2));
+  --hs-acc:var(--hb-acc,var(--accent,#2450f0));
+  --hs-acc-ink:var(--hb-acc-ink,#fff);
+  --hs-danger:#c62828;--hs-danger-ink:#fff;
+  --hs-ok:#15803d;--hs-err:#c62828;--hs-info:var(--hs-acc);
+  --hs-ease:var(--hb-ease,cubic-bezier(.2,.8,.2,1));
+}
+html[data-theme="dark"] .hs-root{--hs-danger:#e5484d;--hs-ok:#3fb950;--hs-err:#f06a6f}
+/* dialog */
+.hs-overlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(8,12,24,.48);animation:hs-fade .16s var(--hs-ease)}
+.hs-dialog{width:100%;max-width:420px;background:var(--hs-bg);color:var(--hs-ink);border:1px solid var(--hs-line);border-radius:16px;box-shadow:0 24px 64px rgba(0,0,0,.28);padding:22px 22px 18px;animation:hs-pop .18s var(--hs-ease)}
+.hs-dialog:focus{outline:none}
+.hs-dialog h2{margin:0 0 8px;font-size:17px;font-weight:650;line-height:1.3;color:var(--hs-ink)}
+.hs-dialog p{margin:0 0 20px;font-size:14px;line-height:1.5;color:var(--hs-ink2)}
+.hs-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap}
+.hs-btn{font:inherit;font-size:14px;font-weight:600;min-height:40px;padding:0 16px;border-radius:10px;border:1px solid var(--hs-line);background:var(--hs-bg);color:var(--hs-ink);cursor:pointer;transition:filter .15s,background .15s}
+.hs-btn:hover{background:var(--hs-bg2)}
+.hs-btn:focus-visible{outline:2px solid var(--hs-acc);outline-offset:2px}
+.hs-btn-primary{background:var(--hs-acc);border-color:var(--hs-acc);color:var(--hs-acc-ink)}
+.hs-btn-primary:hover{background:var(--hs-acc);filter:brightness(1.08)}
+.hs-btn-danger{background:var(--hs-danger);border-color:var(--hs-danger);color:var(--hs-danger-ink)}
+.hs-btn-danger:hover{background:var(--hs-danger);filter:brightness(1.08)}
+@media (max-width:480px){.hs-overlay{align-items:flex-end}.hs-dialog{border-radius:16px 16px 12px 12px}.hs-actions .hs-btn{flex:1}}
+/* toasts */
+.hs-toasts{position:fixed;z-index:10001;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;max-width:min(380px,calc(100vw - 32px));pointer-events:none}
+.hs-toast{pointer-events:auto;display:flex;align-items:center;gap:12px;background:var(--hs-bg);color:var(--hs-ink);border:1px solid var(--hs-line);border-left:4px solid var(--hs-info);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.18);padding:12px 12px 12px 14px;font-size:14px;line-height:1.4;animation:hs-pop .18s var(--hs-ease)}
+.hs-toast.hs-success{border-left-color:var(--hs-ok)}
+.hs-toast.hs-error{border-left-color:var(--hs-err)}
+.hs-toast-msg{flex:1;min-width:0;overflow-wrap:anywhere}
+.hs-toast-act{font:inherit;font-size:13px;font-weight:650;background:none;border:0;color:var(--hs-acc);cursor:pointer;padding:6px 8px;border-radius:8px;min-height:32px}
+.hs-toast-act:hover{background:var(--hs-bg2)}
+.hs-toast-x{font:inherit;font-size:18px;line-height:1;background:none;border:0;color:var(--hs-ink3);cursor:pointer;padding:4px 6px;border-radius:6px;min-width:32px;min-height:32px}
+.hs-toast-x:hover{color:var(--hs-ink);background:var(--hs-bg2)}
+.hs-toast-act:focus-visible,.hs-toast-x:focus-visible{outline:2px solid var(--hs-acc);outline-offset:1px}
+@media (max-width:480px){.hs-toasts{left:16px;right:16px;max-width:none}}
+/* status pills */
+.hs-pill{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 9px;border-radius:999px;font-size:12px;font-weight:600;line-height:1;white-space:nowrap;border:1px solid transparent}
+.hs-pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.85}
+.hs-draft{background:#eef0f4;color:#4b5565}
+.hs-sent{background:#e6efff;color:#1d4ed8}
+.hs-confirmed{background:#e3f6ea;color:#12703a}
+.hs-paid{background:#d6eedd;color:#0c5a2a}
+.hs-overdue{background:#fdeaea;color:#b42318}
+.hs-archived{background:transparent;color:var(--hb-ink3,var(--muted,#7a8399));border-color:var(--hb-line,var(--line,#e3e8f2))}
+html[data-theme="dark"] .hs-draft{background:rgba(160,170,190,.16);color:#c3cad8}
+html[data-theme="dark"] .hs-sent{background:rgba(80,130,255,.18);color:#9db8ff}
+html[data-theme="dark"] .hs-confirmed{background:rgba(63,185,80,.16);color:#6fdc8c}
+html[data-theme="dark"] .hs-paid{background:rgba(25,120,60,.32);color:#a6f0bd}
+html[data-theme="dark"] .hs-overdue{background:rgba(240,90,90,.18);color:#ff9b9b}
+/* empty state */
+.hs-empty{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:40px 16px;color:var(--hs-ink2)}
+.hs-empty-icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;background:var(--hs-bg2);color:var(--hs-ink3);border:1px solid var(--hs-line);margin-bottom:6px}
+.hs-empty h3{margin:0;font-size:16px;font-weight:650;color:var(--hs-ink)}
+.hs-empty p{margin:0;max-width:360px;font-size:14px;line-height:1.5;color:var(--hs-ink3)}
+.hs-empty .hs-btn{margin-top:10px}
+@keyframes hs-fade{from{opacity:0}to{opacity:1}}
+@keyframes hs-pop{from{opacity:0;transform:translateY(6px) scale(.98)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.hs-overlay,.hs-dialog,.hs-toast{animation:none}}
+
+/* Studio (light): its warning amber #A86B12 is only 4.40:1 on white as text ("Part paid"/"Unpaid" vendor-bill status, warn chips). Deepen to 5.3:1. */
+html[data-shell="b"][data-hb-theme="studio"][data-theme="light"]:root { --c8-wt: #94600F; }
+@media (prefers-color-scheme: light) { html[data-shell="b"][data-hb-theme="studio"]:not([data-theme]):root { --c8-wt: #94600F; } }

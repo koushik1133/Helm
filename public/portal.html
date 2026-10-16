@@ -55,7 +55,9 @@
   .hero h1{overflow-wrap:anywhere}
   .loading,.bad{text-align:center;padding:60px 20px;color:var(--ink-3)}
 </style>
-<link rel="stylesheet" href="/theme.css?v=78">
+<link rel="stylesheet" href="/theme.css?v=80">
+<link rel="stylesheet" href="/public-pages-v2.css?v=3">
+<script src="/public-theme.js?v=2"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -117,9 +119,9 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="/telemetry.js?v=3"></script>
-<script src="/config.js?v=98"></script>
+<script src="/config.js?v=100"></script>
 <script src="/event-name.js?v=6"></script>
-<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=178"></script>
+<script src="/country-profile.js?v=4"></script><script src="/store-api.js?v=205"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>(s==null?"":String(s)).replace(/[&<>"]/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -197,6 +199,8 @@
     let st=null; try{ st=await BPStore.approval.paidStatus(token); }catch(e){}
     const ps=BPStore.paidState(st); if(!ps) return;
     const b=$("#paidBadge"); if(b) b.textContent=ps.full?"Paid in full":"Advance received";
+    // the ledger is the authority: once it says paid in full, no schedule row may still read "due"
+    if(ps.full) document.querySelectorAll("#milestones .paybadge").forEach(el=>{ if(!/^(paid|settled|waived)$/i.test(el.textContent.trim())){ el.className="paybadge paid"; el.textContent="paid"; } });
     // live E2E: no schedule + money in -> never "No payment schedule yet"; show the balance line instead
     if(!MS_N){ const box=$("#milestones"); box.textContent="";
       if(!ps.full){ const due=ps.balanceDue?" due by "+BPStore.fmtDateIN(ps.balanceDue):" due"; const el=document.createElement("div"); el.className="empty"; el.textContent="Balance "+inr(ps.balance)+due; box.appendChild(el); } }

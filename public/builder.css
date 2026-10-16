@@ -539,11 +539,6 @@ header select.versel{max-width:220px;font-family:var(--mono)}
 .veracts .tbtn{height:32px;padding:0 12px}
 @media (max-width:520px){ .vercmp{flex-direction:column} .verarrow{transform:rotate(90deg)} .vercmp figure{width:100%} .veracts .tbtn{flex:1 1 100%} }
 
-/* BEGIN generated: inline-style classes (scripts/extract-inline-styles.mjs) */
-.s-33fcd4c:not(#_):not(#_):not(#_){gap:8px}
-.s-97445a8:not(#_):not(#_):not(#_){flex:1}
-/* END generated: inline-style classes */
-
 /* ---------- collapsible side panels (desktop; ≤720px uses the drawers above) ---------- */
 aside.left,aside.right{transition:width .22s ease,border-width .22s ease}
 aside.left.collapsed,aside.right.collapsed{width:0;border-width:0;overflow:hidden}
@@ -658,3 +653,91 @@ header .capbanner[hidden]{display:none}
 
 /* the auto-name hint stays out of the header (owner request) */
 #projNameHint{display:none!important}
+/* product search (builder-tools.js) */
+.tsearch{position:relative;padding:0 12px 8px}
+.tsearch-in{width:100%;box-sizing:border-box;height:34px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:500 13px var(--font)}
+.tsearch-in:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+.tsuggest{position:absolute;left:12px;right:12px;top:38px;z-index:40;margin:0;padding:4px;list-style:none;max-height:320px;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}
+.tsuggest[hidden]{display:none}
+.tsuggest .ts-head{padding:6px 8px 2px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3)}
+.tsuggest .ts-opt{display:flex;justify-content:space-between;gap:8px;padding:7px 8px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--ink)}
+.tsuggest .ts-opt:hover,.tsuggest .ts-opt.on{background:var(--accent-soft)}
+.tsuggest .ts-cat{color:var(--ink-3);font-size:11px}
+.tsuggest .ts-none{padding:8px;color:var(--ink-3);font-size:12px}
+#toolbox .tool.ts-miss,#toolbox .cat.ts-empty{display:none}
+/* measure: origin marker, offset readout and hall centre axes */
+.measure .axis{color:var(--ink-3)}
+.measure .origin{color:var(--accent)}
+/* hide-price mode (price panel) */
+.pricehide{display:flex;align-items:center;gap:8px;padding:6px 14px 2px;font-size:12px;color:var(--ink-2,var(--ink))}
+.pricehide input{margin:0}
+.pmanual{display:flex;flex-direction:column;gap:6px}
+.pmanual label{font-size:12px;color:var(--ink-3)}
+.pmanual input{height:34px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:600 14px var(--mono)}
+.pmanual .pnote{font-size:11px;color:var(--ink-3)}
+
+/* BEGIN generated: inline-style classes (scripts/extract-inline-styles.mjs) */
+.s-33fcd4c:not(#_):not(#_):not(#_){gap:8px}
+.s-97445a8:not(#_):not(#_):not(#_){flex:1}
+/* END generated: inline-style classes */
+/* ===================== Header v3 (hx): one calm row — doc · view · tools · save ===================== */
+header.tbar.hx{gap:10px;padding:0 14px;height:52px;min-height:52px}
+header.hx .brand{display:inline-flex;align-items:center;gap:6px;text-decoration:none;color:var(--ink-2)}
+header.hx .hx-back{font-size:20px;line-height:1;color:var(--ink-3);padding:0 2px}
+header.hx .brand:hover .hx-back{color:var(--accent)}
+header.hx .tb-event .nameinput{border-color:transparent;background:transparent;font-size:13.5px;max-width:240px}
+header.hx .tb-event .nameinput:hover{border-color:var(--line)}
+header.hx .tb-event .nameinput:focus{border-color:var(--accent);background:var(--panel)}
+header.hx select,header.hx .tbtn,header.hx .seg button,header.hx .capmeter{height:32px}
+header.hx .seg button{height:30px}
+header.hx .tbtn.icon{width:32px}
+header.hx .tb-viewseg button{min-width:44px;justify-content:center;font-weight:600}
+header.hx .tb-menus,header.hx .tb-right{gap:8px}
+header.hx .tb-right .kbd{font-family:var(--mono);color:var(--ink-3)}
+header.hx .tb-spacer{flex:1 1 0;min-width:8px}
+header.hx .tmenu-pop .capinput{width:100%;min-width:0;max-width:none;height:32px}
+header.hx .tmenu-pop #customBtn{justify-content:center}
+@media (max-width:1500px){ header.hx .tb-right .kbd{display:none} }
+@media (max-width:1280px){ header.hx .tb-tools .tl{display:none} }
+@media (max-width:1024px){ header.hx{gap:8px;padding:0 10px} header.hx .capmeter{display:none} }
+@media (max-width:768px){
+  header.tbar.hx{height:auto;min-height:52px;padding:6px 8px;gap:6px}
+  header.hx .tb-spacer{display:none}
+  header.hx .drawer-btns .tbtn{padding:0 8px}
+  header.hx .tb-event .nameinput{max-width:112px;min-width:80px}
+  header.hx .brand .mark{display:none}
+}
+/* phone: two tidy rows, no sideways scroll — row 1 drawers · name · save, row 2 view · tools · menus */
+@media (max-width:768px){
+  header.tbar.hx{flex-wrap:wrap;overflow:visible;row-gap:6px}
+  header.hx .drawer-btns{order:1} header.hx .brand{order:2} header.hx .tb-event{order:3;flex:1 1 0;display:flex}
+  header.hx .tb-right{order:4} header.hx .tb-center{order:5} header.hx .tb-menus{order:6;margin-left:auto}
+  header.hx .tb-event .nameinput{max-width:none;width:100%}
+  header.hx .tb-event .field{flex:1 1 auto;min-width:0}
+  header.hx .tb-right .kbd,header.hx .tb-right #themeBtn{display:none}
+  header.hx .tb-menus .tmenu-btn .tl,header.hx .tb-menus .caret{display:none}
+  header.hx .tb-viewseg button{min-width:38px}
+}
+@media (max-width:768px){
+  header.tbar.hx{column-gap:4px}
+  header.hx .tb-center,header.hx .tb-menus{gap:4px}
+  header.hx .tb-viewseg button{min-width:32px;padding:0 6px}
+  header.hx .tb-tools button{min-width:28px;padding:0 4px}
+  header.hx .tb-menus .tmenu-btn,header.hx .tb-center .tmenu-btn{padding:0 7px}
+}
+
+/* save-state indicator beside the layout name */
+.savestate{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;font-size:11.5px;font-weight:600;white-space:nowrap;border:1px solid var(--line);color:var(--ink-3,var(--muted));background:var(--panel-2);transition:color .2s,background-color .2s,border-color .2s}
+.savestate[data-state="dirty"]{color:var(--warn-text-b,#8f5f00);border-color:color-mix(in srgb,var(--warn-text-b,#8f5f00) 45%,transparent);background:color-mix(in srgb,var(--warn-text-b,#8f5f00) 10%,transparent)}
+.savestate[data-state="saving"]{color:color-mix(in srgb,var(--accent) 50%,var(--ink,#1a1f2e));border-color:color-mix(in srgb,var(--accent) 45%,transparent);background:color-mix(in srgb,var(--accent) 8%,var(--panel-2,transparent))}   /* accent alone is ~3.5:1 on dark panels (Midnight): mix toward ink so it reads >=4.5:1 in every theme */
+.savestate[data-state="error"]{color:var(--danger-text-b,#c0262d);border-color:color-mix(in srgb,var(--danger-text-b,#c0262d) 50%,transparent);background:color-mix(in srgb,var(--danger-text-b,#c0262d) 10%,transparent)}
+@media (max-width:1280px){ .savestate{padding:0 6px;font-size:11px} }
+@media (prefers-reduced-motion:reduce){ .savestate{transition:none} }
+/* décor variants (2026-10c): one select per line so long option names stay readable */
+.variants .irow{flex-direction:column;gap:6px}
+.variants select{width:100%}
+
+/* toolbox "most used" view: rare tiles/sections hidden until "Show all tools"; always shown while searching */
+#toolbox.tb-compact:not(:has(.ts-miss)) .tb-rare{display:none}
+#toolbox .tb-more{display:block;width:calc(100% - 28px);margin:10px 14px 14px}
+details.state[hidden]{display:none}

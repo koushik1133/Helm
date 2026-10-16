@@ -1,0 +1,59 @@
+/* tables-mobile.css — stacked-card layout for long data tables on phones (<640px).
+   Works with tables-mobile.js, which tags tables with .tm-stack, cells with
+   data-label, the title cell with .tm-primary, the actions cell with .tm-actions,
+   blank cells with .tm-empty and colspan group/empty rows with .tm-full.
+   Opt a table out with data-tm="off". Uses theme tokens only, so every theme works. */
+@media (max-width: 639.98px) {
+  .table-scroll:has(> table.tm-stack) { overflow-x: visible; }
+  .card.table-scroll:has(> table.tm-stack) { background: transparent; border: 0; box-shadow: none; padding: 0; }
+
+  table.tm-stack, table.tm-stack > tbody { display: block; width: 100%; min-width: 0 !important; }
+  table.tm-stack > thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  table.tm-stack > tbody > tr {
+    display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px;
+    margin: 0 0 12px; padding: 14px 16px 12px;
+    background: var(--panel); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: var(--elev-sm, none);
+  }
+  table.tm-stack > tbody > tr > td {
+    display: flow-root; padding: 8px 0; border: 0; border-top: 1px dashed var(--line);
+    text-align: right !important; min-width: 0; overflow-wrap: anywhere;
+  }
+  table.tm-stack > tbody > tr > td[data-label]::before {
+    content: attr(data-label); float: left; max-width: 45%; margin-right: 12px; line-height: 1.9;
+    text-align: left; color: var(--ink-3); font-size: 12px; font-weight: 500;
+    letter-spacing: .02em; text-transform: uppercase;
+  }
+  table.tm-stack > tbody > tr > td.tm-empty { display: none; }
+
+  /* primary column becomes the card title */
+  table.tm-stack > tbody > tr > td.tm-primary {
+    order: -1; display: block; text-align: left !important;
+    border-top: 0; padding: 0 0 6px; font-size: 16px; font-weight: 600; color: var(--ink);
+  }
+  table.tm-stack > tbody > tr > td.tm-primary::before { content: none; }
+
+  /* actions sit at the bottom, full width, comfortable tap targets */
+  table.tm-stack > tbody > tr > td.tm-actions {
+    order: 99; display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px;
+    margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--line);
+  }
+  table.tm-stack > tbody > tr > td.tm-actions::before { content: none; }
+  table.tm-stack > tbody > tr > td.tm-actions :is(a, button, select) { min-height: 40px; }
+
+  /* group headers ("Chairs — 3 items") and empty-state rows */
+  table.tm-stack > tbody > tr.tm-full {
+    display: block; padding: 4px 2px; margin: 16px 0 8px;
+    background: transparent; border: 0; box-shadow: none;
+  }
+  table.tm-stack > tbody > tr.tm-full > td {
+    display: block; padding: 0; border: 0; text-align: left !important;
+    font-weight: 600; color: var(--ink-2);
+  }
+  table.tm-stack > tbody > tr.tm-full > td::before { content: none; }
+  table.tm-stack > tbody > tr.tm-full > td.empty { padding: 20px 16px; text-align: center !important; background: var(--panel); border: 1px dashed var(--line); border-radius: 14px; font-weight: 400; }
+
+  table.tm-stack > tfoot { display: block; }
+  table.tm-stack > tfoot > tr { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
+}

@@ -23,7 +23,7 @@ ok(/MAX_CHAIRS_3D/.test(js3d) && /chairs\.push=function/.test(js3d), 'B2 3D stop
   const t = f({ type: 'seatblock', properties: { rows: 10, cols: 14 } }); ok(t.properties.cols === 14, 'normal block untouched');
 }
 ok(/try\{ if\(!built\) initScene\(\);[\s\S]*?catch\(e\)[\s\S]*?deactivate\(\);/.test(js3d), 'B3 initScene guarded, falls back to 2D');
-ok(/raf=requestAnimationFrame\(loop\);[^\n]*\n\s*try\{ controls\.update/.test(js3d), 'B4 loop reschedules first');
+ok(/raf=requestAnimationFrame\(loop\);[^\n]*\n\s*try\{[^}]*controls\.update/.test(js3d), 'B4 loop reschedules first');
 ok(/webglcontextlost/.test(js3d) && /webglcontextrestored/.test(js3d), 'B4 context handlers');
 ok(/if\(mod\|\|e\.altKey\) return;[^\n]*\n\s*const step=/.test(js), 'B5 modifier guard before r/d');
 ok(/addEventListener\("pageshow"/.test(flow) && /leaving=false/.test(flow), 'B6 pageshow resets leaving');
@@ -33,7 +33,7 @@ ok(/version data unreadable/.test(js) && /has unreadable data/.test(js), 'B8 mal
 ok(/WORLD\.w = DEFAULT_WORLD\.w; WORLD\.h = DEFAULT_WORLD\.h; store\.venue = \{ capacity:null \}/.test(js), 'B9 defaults reset in applyLayout');
 ok(/bps\.clip\.'\+userKey\(\)/.test(js) && /slice\(0,500\)/.test(js), 'B10 per-user capped clipboard');
 ok(/Math\.min\(v,MAX_CAPACITY\)/.test(js), 'B11 capacity capped');
-ok(/bps\.draft\./.test(js) && /Restore unsaved draft\?/.test(js) && /noteSavedVersion\(v, label\);\n\s*clearDraft\(\);/.test(js), 'B12 local draft + restore prompt + cleared on save');
-ok(!/BPStore[^\n]*draft|draft[^\n]*BPStore\.(quotes|create|update)/i.test(js), 'B12 draft never touches the server');
+ok(/bps\.draft\./.test(js) && /Restore unsaved draft\?/.test(js) && /noteSavedVersion\(v, label\);(?:\n[^\n]*){0,2}\n\s*clearDraft\(\);/.test(js), 'B12 local draft + restore prompt + cleared on save');
+ok(!/BPStore\.(?!fmtDateTime)[^\n]*draft|draft[^\n]*BPStore\.(quotes|create|update)/i.test(js), 'B12 draft never touches the server');
 ok(!/applyReadonly\('locked/.test(js) && /Editing is locked/.test(js), 'L4 own wording');
 console.log('builder-hardening: ' + n + ' checks passed');

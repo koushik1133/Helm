@@ -22,7 +22,7 @@ await t('card exists, starts hidden, and is only revealed for admins', () => {
   // an on/off switch: still a real checkbox (role=switch) with an Enabled / Disabled state label (0040)
   assert.match(ctl, /<label class="lxtoggle" for="lx_on"><input type="checkbox" role="switch" id="lx_on" aria-describedby="lx_state">/);
   const adminBlock = ctl.slice(ctl.indexOf('if(isAdmin){'), ctl.indexOf('/* ---------------- tab switching'));
-  assert.match(adminBlock, /\$\("#lxCard"\)\.hidden=false; await initLinkExpiry\(\);/, 'must be revealed inside the isAdmin branch only');
+  assert.match(adminBlock, /\$\("#lxCard"\)\.hidden=false; cards\.push\(initLinkExpiry\);/, 'must be revealed inside the isAdmin branch only');
   assert.equal(ctl.split('$("#lxCard").hidden=false').length - 1, 1, 'revealed in exactly one place');
 });
 

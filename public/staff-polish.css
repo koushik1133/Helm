@@ -1,0 +1,46 @@
+/* staff.html old-layout polish (moved out of inline <style> to keep the CSP hash list small) */
+  /* --- page polish (old layout only) --- */
+  html:not([data-shell]) header small{text-transform:none;letter-spacing:0;font-weight:500;font-size:12px}
+  html:not([data-shell]) .account .role{text-transform:none;letter-spacing:0;font-weight:600;font-size:12px}
+  html:not([data-shell]) .wrap{padding-top:4px}
+  html:not([data-shell]) .crumb{font-size:12.5px;margin:4px 0 18px}
+  html:not([data-shell]) .card,html:not([data-shell]) .tile,html:not([data-shell]) .stt{border-radius:12px;box-shadow:0 1px 2px rgba(20,27,46,.05)}
+  html:not([data-shell]) .card h2,html:not([data-shell]) .toolbar h2{font-size:16px;letter-spacing:-.01em}
+  html:not([data-shell]) .card .sub{line-height:1.5;max-width:68ch}
+  html:not([data-shell]) .btn,html:not([data-shell]) .ic,html:not([data-shell]) .rm,html:not([data-shell]) .account button{border-radius:8px;transition:border-color .15s,background-color .15s,color .15s}
+  html:not([data-shell]) .btn.primary{background:var(--accent);border-color:var(--accent)}
+  html:not([data-shell]) .btn.primary:hover:not(:disabled){filter:brightness(1.08)}
+  html:not([data-shell]) .btn:focus-visible,html:not([data-shell]) .ic:focus-visible,html:not([data-shell]) .rm:focus-visible,html:not([data-shell]) .tab:focus-visible,
+  html:not([data-shell]) .fld input:focus-visible,html:not([data-shell]) .fld select:focus-visible,html:not([data-shell]) .fld textarea:focus-visible,html:not([data-shell]) .search:focus-visible,html:not([data-shell]) .sel:focus-visible,html:not([data-shell]) .ssel:focus-visible,html:not([data-shell]) .cin:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent)}
+  html:not([data-shell]) .search,html:not([data-shell]) .sel,html:not([data-shell]) .fld input,html:not([data-shell]) .fld select{border-radius:8px}
+  html:not([data-shell]) .fld label{font-weight:500;color:var(--ink-2)}
+  html:not([data-shell]) .toolbar{gap:8px 10px;margin:10px 0 20px}
+  html:not([data-shell]) thead th{text-transform:none;letter-spacing:0;font-size:12px;font-weight:600;color:var(--ink-3)}
+  html:not([data-shell]) tbody tr:hover td{background:var(--panel-2)}
+  html:not([data-shell]) .num,html:not([data-shell]) td.num{font-variant-numeric:tabular-nums}
+  html:not([data-shell]) .kind,html:not([data-shell]) .st,html:not([data-shell]) .stat,html:not([data-shell]) .badge,html:not([data-shell]) .ctype,html:not([data-shell]) .onloan{text-transform:none;letter-spacing:0;font-weight:600;font-size:12px}
+  html:not([data-shell]) .empty{border:1px dashed var(--line);border-radius:12px;background:var(--panel-2);color:var(--ink-3);line-height:1.5}
+  html:not([data-shell]) .lmodal{background:rgba(20,27,46,.42);backdrop-filter:blur(2px)}
+  html:not([data-shell]) .sheet{border-radius:14px;box-shadow:0 24px 60px rgba(20,27,46,.22)}
+  html:not([data-shell]) .sheet h3{letter-spacing:-.01em}
+  html:not([data-shell]) .foot{padding-top:14px;border-top:1px solid var(--line-2)}
+  html:not([data-shell]) .err{border:1px solid #f5c6c6;line-height:1.45}
+  html[data-theme="dark"]:not([data-shell]) .err{background:#3a1717;color:#fca5a5;border-color:#5b2323}
+  html[data-theme="dark"]:not([data-shell]) .empty{border-color:var(--line)}
+  html[data-theme="dark"]:not([data-shell]) :is(.kind,.st,.stat,.cov,.tag,.onloan,.ctype):is(.vendor,.rental,.inventory,.approved,.done,.paid,.returned,.ok,.emp){background:#123524;color:#5fd49a}
+  html[data-theme="dark"]:not([data-shell]) :is(.kind,.st,.stat,.cov,.onloan,.ctype):is(.supplier,.requested,.open,.due,.reserved,.out),html[data-theme="dark"]:not([data-shell]) .onloan{background:#3a2e10;color:#f5b454}
+  html[data-theme="dark"]:not([data-shell]) :is(.kind,.st,.stat,.cov):is(.rejected,.cancelled,.gap){background:#4a1d1d;color:#fca5a5}
+  html[data-theme="dark"]:not([data-shell]) :is(.kind,.st,.stat):is(.internal,.staff,.invoiced,.allocated){background:#1c2450;color:#a5b4fc}
+  html[data-theme="dark"]:not([data-shell]) :is(.kind):is(.other,.freelancer){background:#2a1f4a;color:#c4b5fd}
+  html[data-theme="dark"]:not([data-shell]) .st:is(.na,.waived){background:var(--panel-2)}
+  @media(max-width:640px){
+    html:not([data-shell]) .toolbar > .search,html:not([data-shell]) .toolbar > .sel{flex:1 1 100%;max-width:none}
+    html:not([data-shell]) .btn,html:not([data-shell]) .ic{min-height:40px}
+    html:not([data-shell]) .sheet{padding:20px;border-radius:12px}
+    html:not([data-shell]) .foot{flex-wrap:wrap} html:not([data-shell]) .foot .btn{flex:1 1 auto;justify-content:center}
+  }
+  html:not([data-shell]) .person{border-radius:12px;box-shadow:0 1px 2px rgba(20,27,46,.05);transition:border-color .15s}
+  html:not([data-shell]) .person:hover{border-color:var(--line-strong,var(--line))}
+  html:not([data-shell]) .person .rl{margin-top:1px}
+  html:not([data-shell]) .tag{font-weight:500}
+  html[data-theme="dark"]:not([data-shell]) .tag.emp{background:#123524;color:#5fd49a}

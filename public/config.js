@@ -6,6 +6,11 @@
 
    Schema: run supabase/schema.sql in the Supabase SQL editor (already done).
    ========================================================================= */
+// MVP/trial feature switches (one place). integrationsPage=false hides the Integrations page
+// (sidebar entry, /integrations + /<studio>/integrations redirect to the dashboard), the
+// "Connect WhatsApp" getting-started step and the "WhatsApp & email" onboarding step —
+// Helm's own e-mail and WhatsApp are used. Flip to true to bring all of it back.
+window.HELM_FEATURES = Object.assign({ integrationsPage: false }, window.HELM_FEATURES || {});
 window.SUPABASE_CONFIG = {
   url: "https://nqltzgiwznphugcfhmbm.supabase.co",
   anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xbHR6Z2l3em5waHVnY2ZobWJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzOTg5NDYsImV4cCI6MjEwNDk3NDk0Nn0.UWainTYBaCr8dNaugqWkCuLVh2H0TkiG6ZIFH6ZPKIQ",
@@ -44,7 +49,7 @@ window.SUPABASE_CONFIG = {
     //   warnSeconds — the "Still there?" warning appears this long before that
     //   maxHours    — always sign out this long after sign-in (re-login required)
     // 0 = that limit off. Signing out in one tab signs out every tab.
-    session: { idleMinutes: 60, warnSeconds: 120, maxHours: 72 }   // 12h forced re-login was too aggressive; the 60-min idle sign-out still protects unattended screens
+    session: { idleMinutes: 0, warnSeconds: 120, maxHours: 0 }   // owner 2026-10-16: no app-side session limit (0 = off); Supabase refresh tokens keep users signed in
   }
 };
 

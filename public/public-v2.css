@@ -1,0 +1,101 @@
+/* public-v2.css - restyle of the PUBLIC pages (landing, about, services, legal, 404, sign-in/up, reset password)
+   to match the app's Shell-B design. LOOK ONLY: overrides colour tokens + decoration; no layout/behaviour change.
+   Theme comes from public-theme.js -> html[data-pt] (cobalt|midnight|emerald|graphite|studio|luxe) + html[data-theme] (light|dark). */
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
+
+/* ---------- TOKENS: light ---------- */
+html[data-pt] { --acc-ink:#ffffff; --acc-text:var(--accent); --yes:#0d7a3c; --part:#9a5b00;
+  --font:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --shadow:0 1px 2px color-mix(in srgb,var(--ink) 5%,transparent),0 8px 24px -14px color-mix(in srgb,var(--ink) 22%,transparent);
+  color-scheme:light; }
+html[data-pt="cobalt"]   { --bg:#f5f7fc; --panel:#ffffff; --panel-2:#f8f9fd; --line:#e3e8f2; --line-2:#edf0f7; --ink:#0b1b3f; --ink-2:#34405c; --ink-3:#5f6b88; --accent:#2450f0; --accent-2:#1d44d8; --accent-soft:#eaeffe; --acc-text:#1d44d8; }
+html[data-pt="midnight"] { --bg:#f5f5fb; --panel:#ffffff; --panel-2:#f8f8fc; --line:#e4e4f0; --line-2:#eeeef6; --ink:#12133a; --ink-2:#3a3c5e; --ink-3:#62658a; --accent:#4338ca; --accent-2:#3f34c2; --accent-soft:#eeedfc; --acc-text:#3f34c2; }
+html[data-pt="emerald"]  { --bg:#f4f8f6; --panel:#ffffff; --panel-2:#f7faf9; --line:#e0eae5; --line-2:#ebf2ee; --ink:#0b2a22; --ink-2:#2f4a42; --ink-3:#5a7068; --accent:#047857; --accent-2:#036b4d; --accent-soft:#e3f4ed; --acc-text:#036b4d; }
+html[data-pt="graphite"] { --bg:#f6f6f5; --panel:#ffffff; --panel-2:#f9f9f8; --line:#e6e6e3; --line-2:#efefed; --ink:#111111; --ink-2:#3a3a3a; --ink-3:#6e6e6a; --accent:#111111; --accent-2:#3a3a3a; --accent-soft:#ececea; --acc-text:#111111; }
+html[data-pt="studio"]   { --bg:#faf8f5; --panel:#ffffff; --panel-2:#f8f6f2; --line:#e7e2da; --line-2:#f1ede7; --ink:#1f1a24; --ink-2:#4a4351; --ink-3:#6e6676; --accent:#5b2a86; --accent-2:#4a1f70; --accent-soft:#f1ebf7; --acc-text:#5b2a86; }
+html[data-pt="luxe"]     { --bg:#f7f3ea; --panel:#fffdf8; --panel-2:#fbf8f1; --line:#e3dccd; --line-2:#ece6da; --ink:#1b1814; --ink-2:#4f483f; --ink-3:#6b6358; --accent:#6b1e24; --accent-2:#5a181d; --accent-soft:#f1e3e1; --acc-text:#6b1e24; --acc-ink:#fffdf8; }
+
+/* ---------- TOKENS: dark ---------- */
+html[data-pt][data-theme="dark"] { color-scheme:dark; --yes:#6fcf97; --part:#e6b35c;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -14px rgba(0,0,0,.6); }
+html[data-pt="cobalt"][data-theme="dark"]   { --bg:#0a0f1e; --panel:#111833; --panel-2:#0d1428; --line:#243056; --line-2:#1a2445; --ink:#e8edfb; --ink-2:#b9c3de; --ink-3:#8e9aba; --accent:#3d63f5; --accent-2:#6d8cff; --accent-soft:#1a2550; --acc-text:#93acff; }
+html[data-pt="midnight"][data-theme="dark"] { --bg:#0b0b1c; --panel:#14152f; --panel-2:#101127; --line:#272a52; --line-2:#1d1f40; --ink:#ebebfa; --ink-2:#c0c1e0; --ink-3:#9294bb; --accent:#5b52e6; --accent-2:#8a83ff; --accent-soft:#221f52; --acc-text:#a9a4ff; }
+html[data-pt="emerald"][data-theme="dark"]  { --bg:#081311; --panel:#0f1f1c; --panel-2:#0c1916; --line:#1f3a33; --line-2:#172d27; --ink:#e6f4ef; --ink-2:#b5d0c7; --ink-3:#86a59b; --accent:#08795a; --accent-2:#34d399; --accent-soft:#123329; --acc-text:#5fe0b0; }
+html[data-pt="graphite"][data-theme="dark"] { --bg:#0e0e0e; --panel:#161616; --panel-2:#121212; --line:#2a2a2a; --line-2:#202020; --ink:#f2f2f2; --ink-2:#cfcfcf; --ink-3:#999999; --accent:#f2f2f2; --accent-2:#d4d4d4; --accent-soft:#242424; --acc-text:#f2f2f2; --acc-ink:#111111; }
+html[data-pt="studio"][data-theme="dark"]   { --bg:#141216; --panel:#1c1a1f; --panel-2:#18161b; --line:#2f2b33; --line-2:#242128; --ink:#f3f0f5; --ink-2:#cfc9d4; --ink-3:#a39cab; --accent:#b794e0; --accent-2:#c9aee9; --accent-soft:#2a2233; --acc-text:#c9aee9; --acc-ink:#141216; }
+html[data-pt="luxe"][data-theme="dark"]     { --bg:#14120f; --panel:#1c1915; --panel-2:#181512; --line:#332e27; --line-2:#28241e; --ink:#efe8db; --ink-2:#c4baa9; --ink-3:#a2988a; --accent:#d29a96; --accent-2:#c98a86; --accent-soft:#2e1d1c; --acc-text:#d29a96; --acc-ink:#14120f; }
+
+/* ---------- LOGO MARK: the ONE place to swap in the real logo later ----------
+   Every public page's mark (.mark landing/legal, .mk + .mmk sign-in/reset) is drawn here.
+   To use an image: set background:url(/logo.svg) center/contain no-repeat and content:none on ::after. */
+html[data-pt] .mark, html[data-pt] .mk, html[data-pt] .mmk { background:var(--accent); border-radius:9px; box-shadow:none; }
+html[data-pt] .mark::after, html[data-pt] .mk::after, html[data-pt] .mmk::after { border-color:var(--acc-ink); opacity:.92; }
+
+/* ---------- BASE ---------- */
+html[data-pt] body { background:var(--bg); color:var(--ink); font-family:var(--font); }
+html[data-pt] header { background:color-mix(in srgb,var(--bg) 82%,transparent); border-bottom:1px solid var(--line); }
+html[data-pt] .skip-link { background:var(--accent); color:var(--acc-ink); }
+html[data-pt] a:focus-visible, html[data-pt] button:focus-visible { outline-color:var(--accent); }
+
+/* buttons: solid accent, no gradients/glow */
+html[data-pt] .btn { border-radius:10px; }
+html[data-pt] .btn.primary, html[data-pt] .card .btn:not(.ghost), html[data-pt] main.card .btn { background:var(--accent); color:var(--acc-ink); border:0; box-shadow:none; filter:none; }
+html[data-pt] .btn.primary:hover, html[data-pt] .card .btn:not(.ghost):not(:disabled):hover { background:var(--accent-2); }
+html[data-pt][data-theme="dark"] .btn.primary:hover, html[data-pt][data-theme="dark"] .card .btn:not(.ghost):not(:disabled):hover { background:color-mix(in srgb,var(--accent) 88%,#fff); }
+html[data-pt] .btn:not(.primary) { border-color:var(--line); }
+html[data-pt] .btn:not(.primary):hover { border-color:var(--ink-3); }
+html[data-pt] .btn.ghost { background:transparent; color:var(--acc-text); border:1px solid var(--line); }
+
+/* accent text: plain colour, no gradient */
+html[data-pt] .hero h1 .g, html[data-pt] .hero h2 .g, html[data-pt] h1 .g, html[data-pt] .g { background:none; -webkit-text-fill-color:currentColor; color:var(--acc-text); }
+html[data-pt] .pill { background:var(--accent-soft); color:var(--acc-text); border:1px solid color-mix(in srgb,var(--accent) 18%,transparent); font-weight:600; }
+html[data-pt] .kicker { color:var(--acc-text); }
+
+/* cards / surfaces: hairlines, soft shadow */
+html[data-pt] .card, html[data-pt] .stat, html[data-pt] .step, html[data-pt] .qcard, html[data-pt] .ccard { background:var(--panel); border:1px solid var(--line); box-shadow:none; }
+html[data-pt] .card .ic { background:var(--accent-soft); color:var(--acc-text); }
+html[data-pt] .step .n { background:var(--accent-soft); color:var(--acc-text); }
+html[data-pt] .flowstrip span:not(.arw), html[data-pt] .inds span { background:var(--panel); border-color:var(--line); }
+html[data-pt] .compare-wrap { box-shadow:none; border-color:var(--line); background:var(--panel); }
+html[data-pt] table.compare thead th { background:var(--panel-2); }
+html[data-pt] table.compare .helmcol { background:color-mix(in srgb,var(--accent-soft) 70%,transparent); }
+html[data-pt] table.compare thead .helmcol { color:var(--acc-text); }
+html[data-pt] .yes { color:var(--yes); } html[data-pt] .part { color:var(--part); }
+
+/* security band (was loud violet gradient): calm panel */
+html[data-pt] .band { background:var(--panel); color:var(--ink); border:1px solid var(--line); }
+html[data-pt] .band .glow, html[data-pt] .brandpane .glow { display:none; }
+html[data-pt] .band .kick { color:var(--acc-text); opacity:1; }
+html[data-pt] .band p { color:var(--ink-2); opacity:1; }
+html[data-pt] .bandgrid .bi { background:var(--panel-2); border:1px solid var(--line); color:var(--ink); }
+html[data-pt] .band :focus-visible { outline-color:var(--accent); }
+
+/* ---------- SIGN-IN / SIGN-UP / RESET ---------- */
+html[data-pt] .brandpane { background:var(--panel); color:var(--ink); border-right:1px solid var(--line); }
+html[data-pt] .brandpane small, html[data-pt] .brandpane p, html[data-pt] .flist .fi { color:var(--ink-2); opacity:1; }
+html[data-pt] .brandpane .tagline { color:var(--ink); }
+html[data-pt] .flist .fi .d { color:var(--acc-text); }
+html[data-pt] .formpane { background:var(--bg); }
+html[data-pt] .card { border-radius:16px; }
+html[data-pt] .formpane .card, html[data-pt] main.card { box-shadow:var(--shadow); }
+html[data-pt] label { color:var(--ink-3); }
+html[data-pt] input, html[data-pt] select { background:var(--panel); border-color:var(--line); color:var(--ink); border-radius:10px; }
+html[data-pt] input:hover, html[data-pt] select:hover { border-color:color-mix(in srgb,var(--ink-3) 45%,var(--line)); }
+html[data-pt] input:focus, html[data-pt] select:focus { border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent); }
+html[data-pt] .modetabs { background:var(--panel-2); border-color:var(--line); border-radius:10px; }
+html[data-pt] .mtab { color:var(--ink-3); }
+html[data-pt] .mtab.on { background:var(--panel); color:var(--ink); box-shadow:0 0 0 1px var(--line); }
+html[data-pt] .gbtn { background:var(--panel); color:var(--ink); border-color:var(--line); border-radius:10px; }
+html[data-pt] .gbtn:hover { background:var(--panel-2); }
+html[data-pt] .linkbtn, html[data-pt] .foot a { color:var(--acc-text); }
+html[data-pt] .card a.mailbtn { background:var(--panel); border-color:var(--line); color:var(--ink); border-radius:10px; }
+html[data-pt] .card a.mailbtn:hover { background:var(--panel-2); }
+html[data-pt] .env-b { fill:var(--accent-soft); stroke:var(--accent); } html[data-pt] .env-f { stroke:var(--accent); }
+html[data-pt] .eye:focus-visible, html[data-pt] .mailbtn:focus-visible, html[data-pt] .btn:focus-visible, html[data-pt] .gbtn:focus-visible { outline-color:var(--accent); }
+/* dark-mode status boxes on pages whose inline CSS has no dark rules (reset-password) */
+html[data-pt][data-theme="dark"] .err { background:#3a1717; color:#fda29b; border-color:#5c2222; }
+html[data-pt][data-theme="dark"] .okmsg { background:#0f2e20; color:#75e0a7; border-color:#1d4d35; }
+html[data-pt][data-theme="dark"] .info { background:#3a2f14; color:#ffd884; border-color:#5a4a1e; }
+/* small screens: Jakarta is slightly wider than Plex - keep header buttons on one line */
+html[data-pt] header .btn { white-space:nowrap; }
+@media (max-width:480px) { html[data-pt] header .btn { padding:0 12px; height:38px; font-size:13px; } html[data-pt] header .logo small { display:none; } }

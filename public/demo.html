@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" data-theme="light" class="helm-demo">
+<head>
+<meta charset="utf-8">
+<base href="/">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demo Studio — look around Helm, no sign-up · Helm Events</title>
+<meta name="description" content="Walk through a sample Helm event studio: dashboard, quotes, a client proposal, leads, calendar, an event workspace, settlement and profit. Read-only, no sign-up.">
+<link rel="canonical" href="https://www.helm.events/demo">
+<script src="/public-theme.js?v=2"></script>
+<script src="/trusted-types.js?v=2"></script>
+<script src="/demo.js?v=6"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/demo.css?v=2">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="dm-banner" role="region" aria-label="Demo notice">
+  <p class="dm-msg"><b>Demo · read-only</b><span class="dm-more"> — a sample studio with made-up clients. Nothing here is real or saved.</span></p>
+  <div class="dm-acts">
+    <label class="dm-theme" for="dmTheme"><span class="sr-only">Theme</span>
+      <select id="dmTheme" aria-label="Theme">
+        <option value="cobalt">Cobalt</option>
+        <option value="midnight">Midnight</option>
+        <option value="emerald">Emerald</option>
+        <option value="graphite">Graphite</option>
+        <option value="studio">Studio</option>
+      </select></label>
+    <button type="button" class="dm-mode" id="dmMode" aria-label="Switch light or dark">◑</button>
+    <a class="dm-cta" href="/login?trial=1#signup">Start your 8-day free trial</a>
+  </div>
+</div>
+<div class="dm-app">
+  <nav class="dm-side" aria-label="Demo studio">
+    <div class="dm-brand"><span class="dm-mark" aria-hidden="true"></span><span><b>Marigold Events</b><small>Sample studio</small></span></div>
+    <a class="dm-nav" href="#dashboard" data-view="dashboard">Dashboard</a>
+    <a class="dm-nav" href="#leads" data-view="leads">Leads</a>
+    <a class="dm-nav" href="#quotes" data-view="quotes">Quotes</a>
+    <a class="dm-nav" href="#proposal" data-view="proposal">Client proposal</a>
+    <a class="dm-nav" href="#calendar" data-view="calendar">Calendar</a>
+    <a class="dm-nav" href="#event" data-view="event">Event workspace</a>
+    <a class="dm-nav" href="#settlement" data-view="settlement">Settlement &amp; P&amp;L</a>
+    <a class="dm-nav dm-ext" href="/try">2D/3D planner ↗</a>
+  </nav>
+  <main id="main" class="dm-main" tabindex="-1">
+    <noscript><p class="dm-note">The demo needs JavaScript. <a href="/try">Try the planner</a> or <a href="/login?trial=1#signup">start a free trial</a>.</p></noscript>
+  </main>
+</div>
+<div class="dm-toast" id="dmToast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

@@ -105,7 +105,7 @@ const ASSETS = {
   heater:     { label:'Patio Heater',  category:'logistics', w:2.5,h:2.5},
   easel:      { label:'Signage Easel', category:'logistics', w:2.5,h:2  },
   /* ---- realistic render pack (from the render reference) ---- */
-  chiavari:   { label:'Chiavari Chair',category:'seating',   w:1.6,h:1.6},
+  chiavari:   { label:'Chair (single)',category:'seating',   w:1.6,h:1.6},
   barstool:   { label:'Bar Stool',     category:'seating',   w:1.6,h:1.6},
   piano:      { label:'Grand Piano',   category:'av',        w:8,  h:6  },
   bleacher:   { label:'Bleachers',     category:'seating',   w:24, h:8  },
@@ -133,7 +133,173 @@ const ASSETS = {
   dancers:    { label:'Dancers',            category:'av',        w:12, h:8  },
   walkway:    { label:'Walkway / Ramp',     category:'structure', w:6,  h:24 },
   brandwall:  { label:'Branding Wall',      category:'decor',     w:20, h:1.5},
+  /* ---- Indian wedding + corporate pack (2026-10): real-world footprints in ft ---- */
+  entrancegate:{ label:'Entrance Gate',     category:'structure', w:16, h:4  },
+  phoolchadar:{ label:'Phoolon ki Chadar',  category:'decor',     w:8,  h:8  },
+  jhoola:     { label:'Swing / Jhoola',     category:'decor',     w:8,  h:4  },
+  haldi:      { label:'Haldi Setup',        category:'decor',     w:14, h:10 },
+  mehendi:    { label:'Mehendi Lounge',     category:'decor',     w:16, h:12 },
+  selfieframe:{ label:'Selfie Frame',       category:'decor',     w:6,  h:2  },
+  welcomeboard:{label:'Welcome Board',      category:'decor',     w:3,  h:2.5},
+  fairylights:{ label:'Fairy Light Canopy', category:'decor',     w:24, h:24 },
+  couplesofa: { label:'Couple Sofa',        category:'seating',   w:7,  h:3.5},
+  livecounter:{ label:'Live Food Counter',  category:'logistics', w:8,  h:4  },
+  kidszone:   { label:'Kids Zone',          category:'logistics', w:20, h:16 },
+  aircooler:  { label:'Air Cooler / Fan',   category:'logistics', w:2.5,h:2.5},
+  /* ---- event-aware décor + production pack (2026-10b): real-world footprints in ft.
+     Florals (weddings / receptions / religious), balloons (birthdays / kids), stage & political
+     infrastructure (rallies / public meetings / conferences), award-night and religious pieces.
+     Tags + allowed event types live in PRODUCT_META below (window.HelmCatalog). ---- */
+  floralentrance:{ label:'Entrance Floral Arch', category:'decor', w:14, h:4  },
+  stagebackdrop:{ label:'Stage Floral Backdrop', category:'decor',  w:24, h:2  },
+  flowerwall: { label:'Flower Wall',        category:'decor',     w:8,  h:1.5},
+  toran:      { label:'Garland Toran',      category:'decor',     w:12, h:1  },
+  floralpillar:{ label:'Floral Pillar',     category:'decor',     w:2.5,h:2.5},
+  aislefloral:{ label:'Aisle Floral Stand', category:'decor',     w:1.5,h:1.5},
+  centrepiece:{ label:'Tall Centrepiece',   category:'decor',     w:2,  h:2  },
+  balloonarch:{ label:'Balloon Arch',       category:'decor',     w:10, h:2  },
+  balloonbunch:{ label:'Balloon Bouquet',   category:'decor',     w:2,  h:2  },
+  lectern:    { label:'Lectern',            category:'av',        w:2.5,h:2  },
+  dais:       { label:'Dais with Chairs',   category:'structure', w:24, h:8,  props:{chairs:8} },
+  flagstand:  { label:'Flag Stand',         category:'decor',     w:2,  h:2  },
+  hoarding:   { label:'Banner / Hoarding Frame', category:'structure', w:20, h:2 },
+  patower:    { label:'PA Tower',           category:'av',        w:4,  h:4  },
+  lightingtree:{ label:'Lighting Tree (T-Bar)', category:'av',    w:3,  h:3  },
+  diyastand:  { label:'Brass Deepam Stand', category:'decor',     w:2,  h:2  },
+  trophytable:{ label:'Trophy Display',     category:'logistics', w:6,  h:2.5},
+  /* ---- religious + ambience pack (2026-10c): real-world footprints in ft (see docs/research/event-inventory-2026-10.md) ---- */
+  havankund:  { label:'Havan Kund',         category:'decor',     w:4,  h:4  },
+  rangoli:    { label:'Rangoli / Kolam',    category:'decor',     w:6,  h:6  },
+  lanterns:   { label:'Lantern Cluster',    category:'decor',     w:2,  h:2  },
+  hangingfloral:{ label:'Hanging Floral Ceiling', category:'decor', w:12, h:12 },
+  neonsign:   { label:'Neon Sign Wall',     category:'decor',     w:6,  h:1  },
+  /* ---- complete-catalogue pack (2026-10d): generic basics + the remaining pieces for every event type.
+     Real-world footprints in ft (docs/research/event-inventory-2026-10.md §9). ---- */
+  backdrop:   { label:'Backdrop (generic)', category:'decor', w:10, h:1 },
+  floralstand:{ label:'Floral Stand (generic)', category:'decor', w:2, h:2 },
+  decorbox:   { label:'Decor Item (generic)', category:'decor', w:3, h:3 },
+  signage:    { label:'Signage / Standee', category:'logistics', w:2.5, h:1.5 },
+  recttable:  { label:'Rectangular Table', category:'seating', w:6, h:2.5, props:{seats:3} },
+  stageroof:  { label:'Stage Roof Truss', category:'structure', w:40, h:24 },
+  varmala:    { label:'Varmala Platform', category:'structure', w:10, h:10 },
+  micstand:   { label:'Mic Stand', category:'av', w:1, h:1 },
+  teleprompter:{ label:'Teleprompter / Confidence Monitor', category:'av', w:3, h:1.5 },
+  projector:  { label:'Projector Screen', category:'av', w:12, h:2 },
+  tvstand:    { label:'TV Screen on Stand', category:'av', w:4, h:2 },
+  interpreter:{ label:'Interpreter Booth', category:'av', w:6, h:6 },
+  pyro:       { label:'Cold Pyro / CO2 Jet', category:'av', w:1.5, h:1.5 },
+  towerlight: { label:'Mobile Light Tower', category:'logistics', w:5, h:5 },
+  gaddi:      { label:'Floor Seating (Gaddi)', category:'seating', w:8, h:8 },
+  urli:       { label:'Flower Urli', category:'decor', w:3, h:3 },
+  umbrellas:  { label:'Decor Umbrellas', category:'decor', w:8, h:8 },
+  doli:       { label:'Doli / Palki', category:'decor', w:6, h:3 },
+  kalash:     { label:'Kalash / Purna Kumbh', category:'decor', w:1.5, h:1.5 },
+  altar:      { label:'Pooja Altar / Idol Platform', category:'decor', w:6, h:4 },
+  shoerack:   { label:'Shoe Rack', category:'logistics', w:6, h:1.5 },
+  dessert:    { label:'Dessert / Candy Table', category:'logistics', w:8, h:2.5 },
+  coffee:     { label:'Coffee / Tea Station', category:'logistics', w:6, h:2.5 },
+  stall:      { label:'Food / Merch Stall', category:'logistics', w:10, h:10 },
+  counter:    { label:'Display Counter', category:'logistics', w:4, h:2 },
+  plinth:     { label:'Display Plinth', category:'decor', w:1.5, h:1.5 },
+  kiosk:      { label:'Check-in Kiosk', category:'logistics', w:2, h:2 },
+  ticketbooth:{ label:'Ticket Booth', category:'logistics', w:8, h:6 },
+  stanchion:  { label:'Stanchions (rope & post)', category:'security', w:10, h:1 },
+  watchtower: { label:'Watch Tower / CCTV', category:'security', w:6, h:6 },
+  extinguisher:{ label:'Fire Point', category:'safety', w:1.5, h:1 },
+  ambulance:  { label:'Ambulance Bay', category:'safety', w:22, h:9 },
 };
+
+/* ---- searchable product list (window.HelmCatalog) ----
+   One row per ASSETS type: { type, name, category, tags[], eventTypes[] }. eventTypes are the
+   HelmWizard type keys a product suits ('*' = any event). Event rules (what each event type may
+   use, and where) live in layout-wizard.js (HelmWizard.EVENT_RULES); this list only describes
+   products so a search box / suggestion panel can filter them. Read-only; never priced here. */
+const PRODUCT_META = {
+  floral:['floral','flowers centrepiece table decor roses','wedding reception engagement birthday galadinner religious award_night'],
+  floralarch:['floral','flowers arch backdrop entrance roses','wedding reception engagement galadinner religious'],
+  floralentrance:['floral','entrance arch flowers gateway welcome','wedding reception engagement galadinner religious'],
+  stagebackdrop:['floral','stage backdrop flowers wall behind couple','wedding reception engagement galadinner religious'],
+  flowerwall:['floral','flower wall photo backdrop roses','wedding reception engagement birthday galadinner award_night'],
+  toran:['floral','garland toran marigold door hanging bandhanwar','wedding engagement religious'],
+  floralpillar:['floral','pillar column flowers stage entrance','wedding reception engagement galadinner religious'],
+  aislefloral:['floral','aisle stand flowers walkway pathway','wedding reception engagement galadinner'],
+  centrepiece:['floral','tall centrepiece table flowers candelabra','wedding reception engagement galadinner award_night'],
+  phoolchadar:['floral','phoolon ki chadar flower canopy bride entry','wedding'],
+  entrancegate:['floral','entrance gate flowers marigold','wedding reception engagement religious'],
+  mandap:['floral','mandap wedding ceremony pillars','wedding religious'],
+  pillar:['floral','decor pillar flowers','wedding reception engagement galadinner'],
+  haldi:['floral','haldi marigold setup','wedding engagement'],
+  mehendi:['floral','mehendi lounge','wedding engagement'],
+  selfieframe:['floral','selfie frame photo','wedding reception engagement birthday'],
+  balloonarch:['balloon','balloons arch birthday party kids','birthday'],
+  balloonbunch:['balloon','balloons bouquet bunch helium party','birthday'],
+  kidszone:['kids','kids play bouncy castle','birthday wedding reception'],
+  lectern:['stage','lectern podium speech mic','political corporate product_launch conference award_night religious exhibition'],
+  podium:['stage','podium speech','political corporate product_launch conference award_night'],
+  dais:['stage','dais chairs vip platform guests of honour','political corporate conference award_night religious'],
+  flagstand:['political','flag stand pole national party','political corporate conference'],
+  hoarding:['branding','banner hoarding frame flex scaffold','political corporate product_launch exhibition concert festival'],
+  patower:['av','pa tower speakers sound scaffold public address','political concert festival'],
+  lightingtree:['lighting','lighting tree stand t-bar par cans tripod','*'],
+  diyastand:['religious','deepam lamp diya brass inauguration','religious wedding corporate conference'],
+  trophytable:['award','trophy display awards table','award_night corporate'],
+  havankund:['religious','havan kund pooja fire ritual agni homam yagna','wedding religious'],
+  rangoli:['religious','rangoli kolam floor art flower petals muggu','wedding religious engagement festival corporate'],
+  lanterns:['decor','lanterns candles moroccan glow aisle','wedding reception engagement birthday galadinner iftar eid'],
+  hangingfloral:['floral','hanging flowers ceiling installation suspended floral','wedding reception engagement galadinner'],
+  neonsign:['decor','neon sign wall glow photo backdrop sangeet','wedding reception engagement birthday product_launch'],
+  backdrop:['generic','backdrop wall photo backdrop step and repeat fabric flex sequin greenery generic','*'],
+  floralstand:['floral','flower stand vase urn pedestal bouquet floral generic','wedding reception engagement birthday galadinner religious award_night corporate product_launch'],
+  decorbox:['generic','decor prop generic item box crate cylinder sphere cutout custom other','*'],
+  signage:['branding','sign signage standee roll-up rollup banner a-frame directional wayfinding cutout digital standee generic','*'],
+  recttable:['seating','rectangular table classroom training trestle 6ft table generic seminar','*'],
+  stageroof:['stage','stage roof ground support truss canopy concert festival rigging','concert festival political corporate product_launch award_night exhibition'],
+  varmala:['wedding','varmala jaimala garland exchange rotating platform stage couple','wedding engagement'],
+  micstand:['av','mic microphone stand podium speech singer','*'],
+  teleprompter:['av','teleprompter confidence monitor autocue speaker screen','political corporate product_launch conference award_night'],
+  projector:['av','projector screen fastfold presentation slides display','*'],
+  tvstand:['av','tv television display screen stand monitor 65 inch','*'],
+  interpreter:['av','interpreter translation booth simultaneous interpretation conference','corporate conference product_launch political exhibition'],
+  pyro:['av','cold pyro sparkular fireworks co2 jet confetti cannon special effects sfx entry','wedding reception engagement birthday concert festival award_night product_launch corporate galadinner'],
+  towerlight:['logistics','light tower mobile floodlight outdoor parking site lighting','concert festival political exhibition'],
+  gaddi:['seating','floor seating gaddi bolster durrie baithak majlis mattress cushions satsang','wedding engagement religious iftar eid'],
+  urli:['floral','urli brass bowl floating flowers candles water petals','wedding engagement religious reception galadinner corporate'],
+  umbrellas:['wedding','umbrella chhatri parasol mehendi haldi hanging umbrellas canopy','wedding engagement birthday'],
+  doli:['wedding','doli palki palanquin bride vidaai entry','wedding'],
+  kalash:['religious','kalash kumbh purna kumbh coconut pot pooja brass','wedding religious engagement corporate'],
+  altar:['religious','altar pooja puja idol platform deity temple mandir church','religious wedding'],
+  shoerack:['logistics','shoe rack stand footwear counter temple','religious wedding iftar eid'],
+  dessert:['food','dessert candy sweets mithai table cupcakes treats','*'],
+  coffee:['food','coffee tea station chai beverage break hi-tea','*'],
+  stall:['food','stall food stall merch merchandise canopy kiosk vendor counter','*'],
+  counter:['expo','display counter showcase info desk product counter exhibition','*'],
+  plinth:['expo','plinth pedestal product display podium column exhibit','*'],
+  kiosk:['expo','kiosk check-in self check in badge printing registration touch screen','corporate product_launch conference exhibition award_night concert festival'],
+  ticketbooth:['logistics','ticket booth box office counter entry wristband','concert festival exhibition'],
+  stanchion:['security','stanchion rope post queue line velvet rope crowd control red carpet','*'],
+  watchtower:['security','watch tower cctv camera security surveillance tower','political concert festival exhibition'],
+  extinguisher:['safety','fire extinguisher fire point safety sand bucket','*'],
+  ambulance:['safety','ambulance medical emergency bay standby','*'],
+  barricade:['security','barricade crowd control','political concert festival'],
+  led:['av','led wall screen','*'], press:['political','press riser media cameras','political product_launch concert'],
+  brandwall:['branding','branding wall step and repeat backdrop','corporate product_launch political exhibition award_night'],
+  chandelier:['decor','chandelier crystal','wedding reception galadinner award_night'],
+  fairylights:['lighting','fairy lights canopy','wedding reception birthday engagement'],
+};
+function productCatalog(){
+  return Object.entries(ASSETS).map(([type,a])=>{ const m=PRODUCT_META[type]||[];
+    const tags=String((m[1]||'')+' '+a.label+' '+a.category).toLowerCase().split(/[^a-z0-9-]+/).filter(Boolean);
+    return { type, name:a.label, category:a.category, group:m[0]||a.category, tags:[...new Set(tags)], eventTypes:(m[2]||'*').split(' ') }; });
+}
+if(typeof window!=='undefined') window.HelmCatalog = Object.freeze({
+  list: productCatalog,
+  // search('flower', 'wedding') → products whose name/tags match every word and that suit the event type
+  search(q, eventType){ const words=String(q||'').toLowerCase().split(/\s+/).filter(Boolean);
+    const ev=String(eventType||'').toLowerCase();
+    const rules=window.HelmWizard && window.HelmWizard.allowsProduct;
+    return productCatalog().filter(p=>words.every(w=>p.name.toLowerCase().includes(w)||p.tags.some(t=>t.startsWith(w)))
+      && (!ev || (rules ? rules(ev, p.type) : (p.eventTypes.includes('*')||p.eventTypes.includes(ev))))); },
+});
 
 /* ---------------------------------------------------------------- pricing
    Live price breakdown. Chairs/seats are priced per-seat from the Control
@@ -158,6 +324,13 @@ const DEFAULT_PRICES = {          // per-unit overrides for big-ticket items (�
   chocolatefountain:9000, chariot:20000, booth:8000, desk:2500, gifttable:1500, caketable:1500, heater:2500, easel:500,
   distro:3000, cableramp:600, lounge:6000, sofa:2500, loveseat:2000, armchair:1200, ottoman:500, bench:800,
   coffeetable:800, bleacher:15000, floral:1500, pillar:2000, drape:2400, planter:800,
+  entrancegate:25000, phoolchadar:6000, jhoola:12000, haldi:18000, mehendi:15000, selfieframe:3500, welcomeboard:2500,
+  fairylights:8000, couplesofa:8000, livecounter:7000, kidszone:15000, aircooler:1500,
+  floralentrance:30000, stagebackdrop:35000, flowerwall:12000, toran:4000, floralpillar:4500, aislefloral:1800, centrepiece:2500,
+  balloonarch:6000, balloonbunch:800, lectern:4000, dais:30000, flagstand:1500, hoarding:12000, patower:15000, lightingtree:3500,
+  diyastand:2500, trophytable:3000,
+  havankund:3500, rangoli:2500, lanterns:1200, hangingfloral:18000, neonsign:4000,
+  backdrop:6000, floralstand:1500, decorbox:2000, signage:1200, stageroof:60000, varmala:25000, micstand:500, teleprompter:6000, projector:8000, tvstand:4000, interpreter:15000, pyro:3000, towerlight:4000, gaddi:3000, urli:2500, umbrellas:5000, doli:12000, kalash:800, altar:8000, shoerack:1000, dessert:3500, coffee:3000, stall:6000, counter:2500, plinth:1000, kiosk:3000, ticketbooth:5000, stanchion:1200, watchtower:8000, extinguisher:300, ambulance:6000,
 };
 // object types whose seats are billed via the chair rate (so we don't
 // double-charge them as furniture units in the breakdown)
@@ -362,6 +535,8 @@ function quotePricingNow(){
     other: hand!=null ? hand : auto,
     otherAuto: hand!=null && currentPricing.otherAuto!=null ? currentPricing.otherAuto : auto,
     catering: currentPricing.catering || { mode:'inhouse', amount:0, gstPct:PRICING.gstPct },
+    // hide-price mode: display-only flags for every screen that shows this quote's price (computed totals unchanged)
+    ...(store.priceDisplay ? { priceDisplay: priceDisp() } : {}),
   // 0079: a NEW quote takes the studio's tax country/inclusive setting; a priced one keeps its own
   }, currentPricing.gstPct==null ? BPStore.tax.snapshot(BPStore.tax.resolve(PRICING)) : {});
 }
@@ -435,12 +610,42 @@ function renderPrice(){
   const tax = m.subtotal>0 ? `<div class="prow sub"><span>Subtotal</span><span class="amt">${inr(m.subtotal)}</span></div>`
     + (m.discount>0 ? `<div class="prow"><span>Discount</span><span class="amt">− ${inr(m.discount)}</span></div>` : '')
     + `<div class="prow"><span>${esc(BPStore.tax.resolve(PRICING).name)}${m.taxInclusive?' (included)':''} <span class="q">${m.gstPct}%</span></span><span class="amt">${inr(m.gst)}</span></div>` : '';
-  box.innerHTML = rows + tax +
+  const pd=priceDisp(), chk=$('#hidePriceChk'); if(chk) chk.checked=pd.hidden;
+  if(pd.hidden) renderManualPrice(box, pd);
+  else box.innerHTML = rows + tax +
     `<div class="prow total"><span>Total</span><span class="amt">${inr(m.total)}</span></div>`;
   const gd=$('#bGuests'); if(gd && document.activeElement!==gd) gd.placeholder = m.chairs+' (= chairs)';
   const d=$('#pkgDelta'); if(d) d.innerHTML=`Seats in layout: <b>${esc(sumSeats(store.items))}</b> · plates billed: <b>${m.guests}</b>`;
 }
 
+
+/* ---- hide-price mode: per-item calculations hidden, the planner types ONE amount ----
+   store.priceDisplay = { hidden, manualAmount } — saved in the layout doc (serialize) and in the quote's
+   pricing JSON (quotePricingNow → priceDisplay). Display only: pricing.computed / total are still calculated
+   (server pricing authority) so nothing downstream loses the real numbers. */
+function priceDisp(x){ const T=window.HelmBuilderTools; const src=x!==undefined?x:store.priceDisplay;
+  return T ? T.normPriceDisplay(src) : { hidden:!!(src&&src.hidden===true), manualAmount:null }; }
+function setPriceDisplay(patch){
+  store.priceDisplay = priceDisp(Object.assign({}, priceDisp(), patch));
+  try{ dirty.mark(); if(typeof scheduleDraft==='function') scheduleDraft(); }catch(_){}
+  syncQuotePricing();
+}
+function renderManualPrice(box, pd){
+  const cur=box.querySelector('#manualAmt');
+  if(cur && document.activeElement===cur) return;            // never rebuild under the planner's cursor
+  box.textContent='';
+  const wrap=document.createElement('div'); wrap.className='pmanual';
+  const lb=document.createElement('label'); lb.htmlFor='manualAmt'; lb.textContent='Event price (shown instead of the breakdown)';
+  const inp=document.createElement('input'); inp.type='number'; inp.id='manualAmt'; inp.min='0'; inp.step='1'; inp.inputMode='decimal';
+  inp.placeholder='Enter the amount'; inp.disabled=!!RO; if(pd.manualAmount!=null) inp.value=String(pd.manualAmount);
+  inp.addEventListener('change',()=>{ const v=inp.value.trim(); setPriceDisplay({ manualAmount: v==='' ? null : +v }); renderPrice(); });
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); inp.blur(); } });
+  const tot=document.createElement('div'); tot.className='prow total';
+  const a=document.createElement('span'); a.textContent='Total'; const b=document.createElement('span'); b.className='amt';
+  b.textContent = pd.manualAmount!=null ? inr(pd.manualAmount) : '—'; tot.append(a,b);
+  const note=document.createElement('div'); note.className='pnote'; note.textContent='Item-by-item prices are hidden. Untick “Hide price breakdown” to see them again.';
+  wrap.append(lb, inp, note); box.append(wrap, tot);
+}
 
 /* ---------------------------------------------------------------- store */
 const store = {
@@ -460,6 +665,20 @@ let uid = 1;
    name, capacity) calls markDirty(), which compares a content signature against the saved baseline —
    so undoing back to the saved state is clean again. BPUI's tracker drives the beforeunload warning. */
 const dirty = BPUI.trackDirty();
+/* Save-state indicator next to the layout name: Saved ✓ / Unsaved changes / Saving… / Save failed.
+   Hidden until a document baseline exists or the first edit happens. Driven by the dirty tracker. */
+let saveUi='idle';
+function renderSaveState(force){
+  const el=document.getElementById('saveState'); if(!el) return;
+  if(force) saveUi=force;
+  else if(saveUi!=='saving') saveUi = dirty.isDirty() ? (saveUi==='error'?'error':'dirty') : (savedSig!==null?'saved':'idle');
+  const txt={saved:'Saved ✓',dirty:'Unsaved changes',saving:'Saving…',error:'Save failed — retry'}[saveUi];
+  el.hidden=!txt || RO; el.textContent=txt||''; el.dataset.state=saveUi;
+  el.title = saveUi==='error' ? 'The last save did not go through. Press Save (⌘S) to try again.' : saveUi==='dirty' ? 'You have changes that are not saved yet (⌘S to save)' : '';
+}
+{ const m=dirty.mark.bind(dirty), c=dirty.clean.bind(dirty);
+  dirty.mark=function(){ const r=m.apply(null,arguments); renderSaveState(); return r; };
+  dirty.clean=function(){ const r=c.apply(null,arguments); if(saveUi==='error') saveUi='saved'; renderSaveState(); return r; }; }
 let savedSig = null;   // signature of the last saved / opened document; null = nothing saved yet → any edit is dirty
 // Content signature: items + margins + venue + hall size + name. A non-custom colour is theme-derived
 // (re-resolved on theme toggle), so it is left out — switching theme never makes the floor "unsaved".
@@ -522,7 +741,7 @@ function roLockInspector(){ if(!RO) return; const box=$('#inspector'); if(!box) 
   box.querySelectorAll('.swatches,.aligngrid').forEach(el=>el.style.pointerEvents='none'); }
 function applyReadonly(role, customMsg){
   RO = true;
-  ['saveBtn','clearBtn','customBtn','importBtn','undoBtn','redoBtn'].forEach(id=>{ const b=$('#'+id); if(b) b.disabled=true; });
+  ['saveBtn','clearBtn','customBtn','importBtn','undoBtn','redoBtn','hidePriceChk'].forEach(id=>{ const b=$('#'+id); if(b) b.disabled=true; });
   const tb=$('#toolbox'); if(tb){ tb.style.pointerEvents='none'; tb.style.opacity='.45';
     tb.querySelectorAll('.tool').forEach(t=>{ t.tabIndex=-1; t.setAttribute('aria-disabled','true'); }); }
   document.querySelector('.viewport').classList.add('ro');
@@ -543,7 +762,9 @@ const round1 = v => Math.round(v*10)/10;
 const COMFORT_PITCH=2.2, PACKED_PITCH=1.7;                 // ft between chairs: comfortable / packed
 const DESIGN_PITCH=2.4;                                     // pitch the auto-arranger designs to (always > COMFORT, so generated blocks are never flagged tight)
 const CONG_COLORS=['', '#e8912d', '#e5484d'];              // 0 ok · 1 tight(amber) · 2 packed(red)
-function seatPitchFt(it){ const c=Math.max(1,it.properties.cols||1), r=Math.max(1,it.properties.rows||1); return Math.min(it.width/c, it.height/r); }
+// a single row has no row-to-row pitch (its depth is just the chair), so only chair-to-chair spacing counts —
+// otherwise every 2 ft-deep chair row the wizard places was flagged "tight" on a fresh layout
+function seatPitchFt(it){ const c=Math.max(1,it.properties.cols||1), r=Math.max(1,it.properties.rows||1); return r<=1 ? it.width/c : Math.min(it.width/c, it.height/r); }
 function congestionOf(it){ if(it.type!=='seatblock'&&it.type!=='chairrow') return 0; const p=seatPitchFt(it); return p<PACKED_PITCH?2:p<COMFORT_PITCH?1:0; }
 function totalSeats(){ return store.items.reduce((n,i)=>n+genSeats(i),0); }   // R8b: same per-item seat count the generator uses
 function updateCapacityUI(){
@@ -567,7 +788,11 @@ function updateCapacityUI(){
 function gridStepFt(){ return store.grid.unit==='m' ? 1/ FT_PER_M * FT_PER_M : 1; } // grid cell always 1 unit
 // grid cell size in FEET for the active unit (1 ft, or 1 m expressed in ft)
 function cellFt(){ return store.grid.unit==='m' ? FT_PER_M : 1; }
-function snapFt(v){ if(!store.grid.snap) return round1(v); const c=cellFt(); return Math.round(v/c)*c; }
+// snap root cause (2026-10): snapped metre values were then re-rounded to 0.1 ft by the move path (round1), so a
+// 1 m cell landed at 3.3 ft / 3 m at 9.8 ft — off the drawn lines. snapTo keeps 4 decimals; posRound keeps it.
+function snapFt(v){ const T=window.HelmBuilderTools; if(T) return T.snapTo(v, cellFt(), !!store.grid.snap);
+  if(!store.grid.snap) return round1(v); const c=cellFt(); return Math.round(v/c)*c; }
+const posRound = v => store.grid.snap ? Math.round(v*1e4)/1e4 : round1(v);
 
 // unit conversion for display / inspector
 const toU  = ft => store.grid.unit==='m' ? ft/FT_PER_M : ft;
@@ -679,6 +904,8 @@ function sizeCanvas(){
   svg.setAttribute('width', w);
   svg.setAttribute('height', h);
   svg.setAttribute('viewBox', `0 0 ${WORLD.w*PX_PER_FT} ${WORLD.h*PX_PER_FT}`);
+  // selection handles are zoom-compensated — redraw just the overlay so they keep their on-screen size
+  try{ if(store.selectedIds && store.selectedIds.length===1 && !drag){ svg.querySelectorAll('[data-sel]').forEach(g=>g.remove()); const it=selected(); if(it) svg.appendChild(renderSelection(it)); } }catch(_){ /* called once during boot before drag/selection exist */ }
 }
 
 // The scene is rebuilt from scratch on every change, which would drop keyboard focus
@@ -779,7 +1006,12 @@ function renderMeasurements(){
   const g = el('g', { class:'measure' });
   const boxes = store.items
     .filter(it => it && isFinite(it.x) && isFinite(it.y) && it.width>0 && it.height>0)
-    .map(it => ({ it, l:it.x, r:it.x+it.width, t:it.y, b:it.y+it.height, cx:it.x+it.width/2, cy:it.y+it.height/2 }));
+    .map(it => {   // measure the footprint as drawn: a rotated item's axis-aligned box (a 90° riser is h wide, not w)
+      const cx=it.x+it.width/2, cy=it.y+it.height/2, a=((+it.rotation||0)%180)*Math.PI/180;
+      const c=Math.abs(Math.cos(a)), sn=Math.abs(Math.sin(a)), hw=(it.width*c+it.height*sn)/2, hh=(it.width*sn+it.height*c)/2;
+      const r2=v=>Math.round(v*100)/100;
+      return { it, l:r2(cx-hw), r:r2(cx+hw), t:r2(cy-hh), b:r2(cy+hh), cx, cy };
+    });
   const fmt = ft => (Math.round(toU(ft)*10)/10) + ' ' + uLabel();
 
   function dim(x1,y1,x2,y2, ft, cls){
@@ -833,9 +1065,39 @@ function renderMeasurements(){
       if(R){ const y=(Math.max(a.t,R.t)+Math.min(a.b,R.b))/2; g.appendChild(dim(a.r,y,R.l,y,rg)); }
       if(U){ const x=(Math.max(a.l,U.l)+Math.min(a.r,U.r))/2; g.appendChild(dim(x,U.b,x,a.t,ug)); }
       if(D){ const x=(Math.max(a.l,D.l)+Math.min(a.r,D.r))/2; g.appendChild(dim(x,a.b,x,D.t,dg)); }
+      // offsets from the hall's centre axes (dashed centre lines) + an X / Y readout from the origin
+      const T=window.HelmBuilderTools, o=T ? T.offsets({ x:a.l, y:a.t, width:a.r-a.l, height:a.b-a.t }, WORLD) : null;
+      if(o){
+        const ax=el('g',{ class:'axis' });
+        ax.appendChild(el('line',{ x1:WORLD.w/2*P, y1:0, x2:WORLD.w/2*P, y2:WORLD.h*P, stroke:'currentColor','stroke-width':1*s,'stroke-dasharray':(8*s)+' '+(5*s),'stroke-opacity':.5 }));
+        ax.appendChild(el('line',{ x1:0, y1:WORLD.h/2*P, x2:WORLD.w*P, y2:WORLD.h/2*P, stroke:'currentColor','stroke-width':1*s,'stroke-dasharray':(8*s)+' '+(5*s),'stroke-opacity':.5 }));
+        g.appendChild(ax);
+        if(Math.abs(o.fromCentreX)>EPS) g.appendChild(dim(WORLD.w/2, a.cy, a.cx, a.cy, Math.abs(o.fromCentreX), 'axis'));
+        if(Math.abs(o.fromCentreY)>EPS) g.appendChild(dim(a.cx, WORLD.h/2, a.cx, a.cy, Math.abs(o.fromCentreY), 'axis'));
+        tag(a.l, a.t, 'X '+fmt(o.x)+' · Y '+fmt(o.y), 'origin');
+      }
     }
+  } else if(store.selectedIds.length===0 && boxes.length && boxes.length<=30){
+    // nothing selected: every object's offset to its NEAREST wall on each axis (X and Y)
+    const T=window.HelmBuilderTools;
+    if(T) boxes.forEach(a=>{ const o=T.offsets({ x:a.l, y:a.t, width:a.r-a.l, height:a.b-a.t }, WORLD);
+      if(o.nearestX.gap>EPS){ const x2=o.nearestX.side==='left'?0:WORLD.w; g.appendChild(dim(Math.min(x2, o.nearestX.side==='left'?a.l:a.r), a.cy, Math.max(x2, o.nearestX.side==='left'?a.l:a.r), a.cy, o.nearestX.gap, 'wall')); }
+      if(o.nearestY.gap>EPS){ const y2=o.nearestY.side==='top'?0:WORLD.h; g.appendChild(dim(a.cx, Math.min(y2, o.nearestY.side==='top'?a.t:a.b), a.cx, Math.max(y2, o.nearestY.side==='top'?a.t:a.b), o.nearestY.gap, 'wall')); }
+    });
   }
+  // origin (0,0) marker — every X / Y offset is measured from this corner
+  { const og=el('g',{ class:'origin' }), r=5*s;
+    og.appendChild(el('circle',{ cx:0, cy:0, r, fill:'currentColor', 'fill-opacity':.85 }));
+    g.appendChild(og); tag(0, 0, '0,0 '+uLabel(), 'origin', true); }
   return g;
+  // small text chip anchored at a plan point (ft); inside=true nudges it into the floor from the corner
+  function tag(xFt, yFt, txt, cls, inside){
+    const fs=11*s, wLbl=(txt.length*6.4+8)*s, hLbl=fs+4*s, gx=xFt*P+(inside?wLbl/2+6*s:wLbl/2), gy=yFt*P-(inside?-hLbl:hLbl/2+4*s);
+    const gg=el('g',{ class:cls||'' });
+    gg.appendChild(el('rect',{ class:'mbg', x:gx-wLbl/2, y:gy-hLbl/2, width:wLbl, height:hLbl, rx:3*s, 'stroke-width':.6*s }));
+    const t=el('text',{ x:gx, y:gy+fs*0.34, 'text-anchor':'middle', 'font-size':fs }); t.textContent=txt; gg.appendChild(t);
+    g.appendChild(gg);
+  }
 }
 
 function renderItem(it){
@@ -861,9 +1123,14 @@ function renderItem(it){
   switch(it.type){
     case 'stage': case 'dancefloor': {
       drawBox({fill:`color-mix(in srgb, ${c} 22%, var(--canvas))`, rx:3});
-      if(it.type==='dancefloor'){ // checker hint
-        body.appendChild(el('line',{x1:-w/2,y1:0,x2:w/2,y2:0,stroke:c,'stroke-width':.75,'stroke-opacity':.5}));
-        body.appendChild(el('line',{x1:0,y1:-h/2,x2:0,y2:h/2,stroke:c,'stroke-width':.75,'stroke-opacity':.5}));
+      if(it.type==='dancefloor'){ // parquet / LED checker
+        const n=Math.max(2,Math.min(8,Math.round(Math.max(w,h)/(4*PX_PER_FT)))), tw=w/n, th=h/n;
+        for(let i=0;i<n;i++) for(let j=0;j<n;j++) if((i+j)%2) body.appendChild(el('rect',{x:-w/2+i*tw,y:-h/2+j*th,width:tw,height:th,fill:c,'fill-opacity':.22}));
+      } else {    // stage: backdrop band (rear), skirting edge (front) + centre steps
+        body.appendChild(el('rect',{x:-w/2,y:-h/2,width:w,height:Math.min(h*0.12,10),fill:c,'fill-opacity':.55}));
+        body.appendChild(el('line',{x1:-w/2+3,y1:h/2-2.5,x2:w/2-3,y2:h/2-2.5,stroke:c,'stroke-width':1,'stroke-dasharray':'2 2'}));
+        const sw=Math.min(8*PX_PER_FT,w*0.25);
+        for(let i=1;i<=3;i++) body.appendChild(el('line',{x1:-sw/2,y1:h/2+i*3.4,x2:sw/2,y2:h/2+i*3.4,stroke:c,'stroke-width':1,'stroke-opacity':.75}));
       }
       break; }
     case 'press': case 'desk': case 'truck': case 'booth': case 'exit': {
@@ -942,6 +1209,8 @@ function renderItem(it){
         body.appendChild(el('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:2,fill:fillSoft,stroke:c,'stroke-width':1.5}));
       else
         body.appendChild(el('circle',{cx:0,cy:0,r:rad,fill:fillSoft,stroke:c,'stroke-width':1.5}));
+      body.appendChild(el('circle',{cx:0,cy:0,r:rad*0.78,fill:'none',stroke:c,'stroke-width':.6,'stroke-opacity':.45}));   // cloth / plate ring
+      if(it.type==='table') body.appendChild(el('circle',{cx:0,cy:0,r:Math.max(2,rad*0.18),fill:c,'fill-opacity':.45}));   // centrepiece
       const seats=Math.max(0, it.properties.seats|0);
       for(let s=0;s<seats;s++){
         const ang=s/seats*Math.PI*2 - Math.PI/2;
@@ -967,22 +1236,31 @@ function renderItem(it){
     case 'coffeetable': { drawBox({fill:`color-mix(in srgb, ${c} 18%, var(--canvas))`,rx:3}); break; }
     case 'ottoman': case 'floral': case 'pillar': case 'heater': case 'uplight': {
       body.appendChild(el('circle',{cx:0,cy:0,r:Math.min(w,h)/2,fill:fillSoft,stroke:c,'stroke-width':1.5}));
-      if(it.type==='floral') body.appendChild(el('circle',{cx:0,cy:0,r:Math.min(w,h)/4,fill:c,'fill-opacity':.6}));
+      if(it.type==='floral' || it.type==='pillar'){ const R=Math.min(w,h)/2;
+        for(let i=0;i<6;i++){ const a=i/6*Math.PI*2; body.appendChild(el('circle',{cx:Math.cos(a)*R*0.45,cy:Math.sin(a)*R*0.45,r:R*0.28,fill:c,'fill-opacity':.45})); }
+        body.appendChild(el('circle',{cx:0,cy:0,r:R*0.22,fill:c,'fill-opacity':.85})); }
       break; }
     case 'fountain': {
       body.appendChild(el('circle',{cx:0,cy:0,r:Math.min(w,h)/2,fill:fillSoft,stroke:c,'stroke-width':1.5}));
       body.appendChild(el('circle',{cx:0,cy:0,r:Math.min(w,h)/4,fill:'none',stroke:c,'stroke-width':1,'stroke-opacity':.6})); break; }
     case 'floralarch': {
-      body.appendChild(el('path',{d:`M ${-w/2} ${h/2} Q 0 ${-h/2-6} ${w/2} ${h/2}`,fill:'none',stroke:c,'stroke-width':3}));
-      [-w/2,0,w/2].forEach(x=>body.appendChild(el('circle',{cx:x,cy: x===0?-h/2-4:h/2-2,r:2.4,fill:c}))); break; }
+      body.appendChild(el('path',{d:`M ${-w/2+3} ${h/2} Q 0 ${-h/2-6} ${w/2-3} ${h/2}`,fill:'none',stroke:c,'stroke-width':1.5,'stroke-opacity':.6}));
+      for(let i=0;i<=10;i++){ const t=i/10, x=(1-t)*(1-t)*(-w/2+3)+t*t*(w/2-3), y=(1-t)*(1-t)*(h/2)+2*t*(1-t)*(-h/2-6)+t*t*(h/2);
+        if(t<=0.6 || i%2===0) body.appendChild(el('circle',{cx:x,cy:y,r:t<=0.6?2.6:1.8,fill:c,'fill-opacity':i%3?0.6:0.9})); }
+      [-1,1].forEach(sx=>body.appendChild(el('rect',{x:sx*(w/2-3)-3,y:h/2-3,width:6,height:6,rx:1.5,fill:fillSoft,stroke:c,'stroke-width':1}))); break; }
     case 'mandap': {
       drawBox({fill:`color-mix(in srgb, ${c} 16%, var(--canvas))`, rx:2, dash:'6 4', sw:1.5});
-      [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([sxx,syy])=>body.appendChild(el('circle',{cx:sxx*(w/2-3),cy:syy*(h/2-3),r:2.4,fill:c})));
-      body.appendChild(el('line',{x1:-w/2,y1:-h/2,x2:w/2,y2:h/2,stroke:c,'stroke-width':.75,'stroke-opacity':.4}));
-      body.appendChild(el('line',{x1:w/2,y1:-h/2,x2:-w/2,y2:h/2,stroke:c,'stroke-width':.75,'stroke-opacity':.4})); break; }
+      body.appendChild(el('rect',{x:-w*0.41,y:-h*0.41,width:w*0.82,height:h*0.82,rx:2,fill:c,'fill-opacity':.12,stroke:c,'stroke-width':.75,'stroke-opacity':.5}));
+      [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([sxx,syy])=>{ const px=sxx*(w/2-1.2*PX_PER_FT), py=syy*(h/2-1.2*PX_PER_FT);
+        body.appendChild(el('circle',{cx:px,cy:py,r:Math.max(3,0.75*PX_PER_FT),fill:c,'fill-opacity':.8}));
+        body.appendChild(el('circle',{cx:px,cy:py,r:Math.max(5,1.3*PX_PER_FT),fill:'none',stroke:c,'stroke-width':.75,'stroke-opacity':.6})); });
+      body.appendChild(el('ellipse',{cx:0,cy:0,rx:w*0.36,ry:h*0.36,fill:'none',stroke:c,'stroke-width':.75,'stroke-dasharray':'3 3','stroke-opacity':.55}));   // canopy dome
+      body.appendChild(el('rect',{x:-0.7*PX_PER_FT,y:-0.7*PX_PER_FT,width:1.4*PX_PER_FT,height:1.4*PX_PER_FT,fill:c,'fill-opacity':.55,rx:1})); break; }
     case 'drape': { drawBox({fill:`color-mix(in srgb, ${c} 22%, var(--canvas))`});
       for(let x=-w/2+3;x<w/2;x+=4) body.appendChild(el('line',{x1:x,y1:-h/2,x2:x,y2:h/2,stroke:c,'stroke-width':.75,'stroke-opacity':.5})); break; }
-    case 'chandelier': { body.appendChild(el('circle',{cx:0,cy:0,r:Math.min(w,h)/2,fill:'none',stroke:c,'stroke-width':1.5,'stroke-dasharray':'3 2'}));
+    case 'chandelier': { const R=Math.min(w,h)/2;
+      [1,0.68,0.38].forEach(k=>body.appendChild(el('circle',{cx:0,cy:0,r:R*k,fill:'none',stroke:c,'stroke-width':k===1?1.5:.8,'stroke-opacity':k===1?1:.6})));
+      for(let i=0;i<8;i++){ const a=i/8*Math.PI*2; body.appendChild(el('circle',{cx:Math.cos(a)*R,cy:Math.sin(a)*R,r:1.6,fill:c})); }
       body.appendChild(el('circle',{cx:0,cy:0,r:2.5,fill:c})); break; }
     case 'easel': { drawBox({fill:fillSoft}); break; }
     case 'chiavari': { drawBox({fill:fillSoft,rx:2});
@@ -1014,6 +1292,155 @@ function renderItem(it){
       body.appendChild(el('path',{d:`M ${w*0.08} ${-h*0.32} L ${-w*0.06} ${h*0.04} L ${w*0.04} ${h*0.04} L ${-w*0.08} ${h*0.32}`,fill:'none',stroke:c,'stroke-width':1.5})); break; }
     case 'walkway': { drawBox({fill:`color-mix(in srgb, ${c} 24%, var(--canvas))`, rx:1});
       body.appendChild(el('line',{x1:0,y1:-h/2+2,x2:0,y2:h/2-2,stroke:c,'stroke-width':1,'stroke-dasharray':'6 4'})); break; }
+    /* ---- Indian wedding + corporate pack (2026-10) ---- */
+    case 'entrancegate': { const pw=Math.max(1.6,Math.min(2.6,it.width*0.14))*PX_PER_FT;
+      body.appendChild(el('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:2,fill:'none',stroke:c,'stroke-width':1,'stroke-dasharray':'4 3','stroke-opacity':.6}));
+      [-1,1].forEach(sx=>body.appendChild(el('rect',{x:sx>0?w/2-pw:-w/2,y:-h/2,width:pw,height:h,rx:2,fill:fillSoft,stroke:c,'stroke-width':1.5})));
+      for(let x=-w/2+pw+4;x<w/2-pw-2;x+=6) body.appendChild(el('circle',{cx:x,cy:0,r:1.7,fill:c,'fill-opacity':.75}));
+      break; }
+    case 'phoolchadar': { drawBox({fill:fillSoft,rx:2});
+      [[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([sx,sy])=>body.appendChild(el('circle',{cx:sx*(w/2-3),cy:sy*(h/2-3),r:2.4,fill:c})));
+      for(let x=-w/2+8;x<w/2-4;x+=8) for(let y=-h/2+8;y<h/2-4;y+=8) body.appendChild(el('circle',{cx:x,cy:y,r:2,fill:c,'fill-opacity':.45}));
+      break; }
+    case 'jhoola': { drawBox({fill:'transparent',dash:'4 3',sw:1});
+      body.appendChild(el('line',{x1:-w/2+4,y1:0,x2:w/2-4,y2:0,stroke:c,'stroke-width':2}));
+      body.appendChild(el('rect',{x:-w*0.31,y:-h*0.22,width:w*0.62,height:h*0.44,rx:3,fill:fillSoft,stroke:c,'stroke-width':1.5}));
+      [-1,1].forEach(sx=>body.appendChild(el('circle',{cx:sx*(w/2-4),cy:0,r:2.6,fill:c}))); break; }
+    case 'haldi': case 'mehendi': { drawBox({fill:`color-mix(in srgb, ${c} 20%, var(--canvas))`,rx:3});
+      body.appendChild(el('rect',{x:-w/2,y:-h/2,width:w,height:Math.min(h*0.1,8),fill:c,'fill-opacity':.6}));   // backdrop / rear edge
+      if(it.type==='haldi'){ body.appendChild(el('rect',{x:-w*0.2,y:-h/2+h*0.14,width:w*0.4,height:h*0.24,rx:3,fill:c,'fill-opacity':.45}));
+        [-1,1].forEach(sx=>body.appendChild(el('circle',{cx:sx*w*0.32,cy:h/2-h*0.16,r:Math.min(w,h)*0.07,fill:'none',stroke:c,'stroke-width':1.2}))); }
+      else { const n=Math.max(1,Math.round(it.width/8));
+        for(let i=0;i<n;i++){ const x=-w/2+(i+0.5)*w/n; body.appendChild(el('circle',{cx:x,cy:h*0.12,r:Math.min(w/n,h)*0.32,fill:'none',stroke:c,'stroke-width':1,'stroke-dasharray':'3 2'}));
+          body.appendChild(el('rect',{x:x-w/n*0.35,y:-h/4-6,width:w/n*0.7,height:8,rx:3,fill:c,'fill-opacity':.5})); } }
+      break; }
+    case 'selfieframe': case 'welcomeboard': { drawBox({fill:fillSoft,rx:1});
+      body.appendChild(el('rect',{x:-w/2+2,y:-h/2+2,width:w-4,height:h-4,fill:'none',stroke:c,'stroke-width':.8,'stroke-opacity':.6}));
+      [[-1,-1],[1,1]].forEach(([sx,sy])=>body.appendChild(el('circle',{cx:sx*(w/2-2),cy:sy*(h/2-2),r:2.6,fill:c,'fill-opacity':.8}))); break; }
+    case 'fairylights': { drawBox({fill:'transparent',dash:'2 4',sw:1});
+      for(let i=0;i<16;i++){ const a=i/16*Math.PI*2, k=Math.min(Math.abs(1/Math.cos(a)),Math.abs(1/Math.sin(a)));
+        body.appendChild(el('line',{x1:0,y1:0,x2:Math.cos(a)*k*w/2,y2:Math.sin(a)*k*h/2,stroke:c,'stroke-width':.7,'stroke-opacity':.55,'stroke-dasharray':'1 3'})); }
+      body.appendChild(el('circle',{cx:0,cy:0,r:3,fill:c})); break; }
+    case 'couplesofa': { drawBox({fill:fillSoft,rx:Math.min(w,h)*0.3});
+      body.appendChild(el('path',{d:`M ${-w/2+2} ${-h/2+h*0.4} Q 0 ${-h/2-4} ${w/2-2} ${-h/2+h*0.4}`,fill:'none',stroke:c,'stroke-width':2.2}));
+      body.appendChild(el('line',{x1:0,y1:-h/2+h*0.3,x2:0,y2:h/2-2,stroke:c,'stroke-width':.6,'stroke-opacity':.5})); break; }
+    case 'livecounter': { drawBox({fill:`color-mix(in srgb, ${c} 18%, var(--canvas))`});
+      body.appendChild(el('line',{x1:-w/2,y1:-h/2+3,x2:w/2,y2:-h/2+3,stroke:c,'stroke-width':2}));
+      body.appendChild(el('circle',{cx:-w*0.2,cy:h*0.1,r:Math.min(w,h)*0.18,fill:'none',stroke:c,'stroke-width':1.2})); break; }
+    case 'kidszone': { drawBox({fill:`color-mix(in srgb, ${c} 14%, var(--canvas))`,rx:6,dash:'6 3'});
+      body.appendChild(el('rect',{x:-w/2+6,y:-h/2+6,width:w*0.45,height:h*0.45,rx:3,fill:c,'fill-opacity':.3,stroke:c,'stroke-width':1}));
+      body.appendChild(el('circle',{cx:-w/4,cy:h/4,r:Math.min(w,h)*0.12,fill:'none',stroke:c,'stroke-width':1.2}));
+      body.appendChild(el('path',{d:`M ${w/2-3*PX_PER_FT} ${-h*0.3} L ${w/2-3*PX_PER_FT} ${h*0.3}`,stroke:c,'stroke-width':4,'stroke-opacity':.45,'stroke-linecap':'round'})); break; }
+    case 'aircooler': { drawBox({fill:fillSoft,rx:3});
+      body.appendChild(el('circle',{cx:0,cy:0,r:Math.min(w,h)*0.32,fill:'none',stroke:c,'stroke-width':1.2}));
+      body.appendChild(el('path',{d:`M 0 0 L ${Math.min(w,h)*0.28} ${-Math.min(w,h)*0.1} M 0 0 L ${-Math.min(w,h)*0.05} ${Math.min(w,h)*0.28} M 0 0 L ${-Math.min(w,h)*0.24} ${-Math.min(w,h)*0.16}`,stroke:c,'stroke-width':1.2,'stroke-linecap':'round'})); break; }
+    /* ---- event-aware décor + production pack (2026-10b) ---- */
+    case 'floralentrance': case 'stagebackdrop': case 'flowerwall': case 'toran': {   // florals along a frame / wall line
+      drawBox({fill:it.type==='toran'?'transparent':fillSoft, rx:1, sw:it.type==='toran'?0.8:1.5, dash:it.type==='toran'?'3 2':''});
+      const step=it.type==='flowerwall'?5:7, R=Math.max(1.4,Math.min(3,h*0.32));
+      for(let x=-w/2+step/2;x<w/2;x+=step) body.appendChild(el('circle',{cx:x,cy:it.type==='toran'?h*0.15:0,r:R,fill:c,'fill-opacity':(Math.round(x)%3)?0.55:0.9}));
+      if(it.type==='floralentrance') [-1,1].forEach(sx=>body.appendChild(el('rect',{x:sx>0?w/2-2.4*PX_PER_FT:-w/2,y:-h/2,width:2.4*PX_PER_FT,height:h,rx:2,fill:c,'fill-opacity':.35,stroke:c,'stroke-width':1})));
+      break; }
+    case 'floralpillar': case 'aislefloral': case 'centrepiece': case 'balloonbunch': case 'diyastand': {
+      const R=Math.min(w,h)/2, n=it.type==='balloonbunch'?5:it.type==='diyastand'?5:7;
+      body.appendChild(el('circle',{cx:0,cy:0,r:R,fill:fillSoft,stroke:c,'stroke-width':1.5}));
+      for(let i=0;i<n;i++){ const a=i/n*Math.PI*2; body.appendChild(el('circle',{cx:Math.cos(a)*R*0.5,cy:Math.sin(a)*R*0.5,r:R*(it.type==='diyastand'?0.14:0.3),fill:c,'fill-opacity':.6})); }
+      body.appendChild(el('circle',{cx:0,cy:0,r:R*0.2,fill:c})); break; }
+    case 'balloonarch': {
+      for(let i=0;i<=14;i++){ const t=i/14, x=-w/2+3+(w-6)*t, y=h/2-(h+8)*Math.sin(t*Math.PI)*0.6;
+        body.appendChild(el('circle',{cx:x,cy:y,r:Math.max(2,Math.min(4,h*0.3)),fill:c,'fill-opacity':i%2?0.5:0.85})); }
+      break; }
+    case 'lectern': { drawBox({fill:`color-mix(in srgb, ${c} 26%, var(--canvas))`, rx:2});
+      body.appendChild(el('line',{x1:-w/2+2,y1:h/2-3,x2:w/2-2,y2:h/2-3,stroke:c,'stroke-width':1.5}));
+      body.appendChild(el('circle',{cx:0,cy:-h*0.15,r:1.6,fill:c})); break; }
+    case 'dais': { drawBox({fill:`color-mix(in srgb, ${c} 16%, var(--canvas))`, rx:1});
+      body.appendChild(el('rect',{x:-w*0.4,y:-h*0.05,width:w*0.8,height:h*0.22,rx:1,fill:c,'fill-opacity':.35}));   // table
+      { const n=Math.max(1,Math.min(16,(it.properties&&it.properties.chairs)|0||8));
+        for(let i=0;i<n;i++) body.appendChild(el('rect',{x:-w*0.4+(i+0.5)*(w*0.8/n)-2.5,y:-h*0.32,width:5,height:5,rx:1,fill:c,'fill-opacity':.85})); }
+      break; }
+    case 'flagstand': { const R=Math.min(w,h)/2;
+      body.appendChild(el('circle',{cx:0,cy:0,r:R*0.6,fill:fillSoft,stroke:c,'stroke-width':1.2}));
+      body.appendChild(el('path',{d:`M 0 0 L ${R} ${-R*0.5} L ${R} ${R*0.2} Z`,fill:c,'fill-opacity':.7})); break; }
+    case 'hoarding': { drawBox({fill:fillSoft, rx:0});
+      for(let x=-w/2;x<=w/2+0.1;x+=w/4) body.appendChild(el('line',{x1:x,y1:-h/2,x2:x,y2:h/2,stroke:c,'stroke-width':1}));
+      body.appendChild(el('line',{x1:-w/2,y1:0,x2:w/2,y2:0,stroke:c,'stroke-width':.8,'stroke-dasharray':'4 3'})); break; }
+    case 'patower': { drawBox({fill:'transparent',sw:1.2});
+      body.appendChild(el('path',{d:`M ${-w/2} ${-h/2} L ${w/2} ${h/2} M ${w/2} ${-h/2} L ${-w/2} ${h/2}`,stroke:c,'stroke-width':.8,'stroke-opacity':.6}));
+      body.appendChild(el('rect',{x:-w*0.3,y:-h*0.3,width:w*0.6,height:h*0.6,rx:1,fill:c,'fill-opacity':.7})); break; }
+    case 'lightingtree': { const R=Math.min(w,h)/2;
+      [0,120,240].forEach(d=>{ const a=(d-90)*Math.PI/180; body.appendChild(el('line',{x1:0,y1:0,x2:Math.cos(a)*R,y2:Math.sin(a)*R,stroke:c,'stroke-width':1.2})); });
+      body.appendChild(el('line',{x1:-R,y1:0,x2:R,y2:0,stroke:c,'stroke-width':2}));
+      [-0.75,-0.25,0.25,0.75].forEach(k=>body.appendChild(el('circle',{cx:k*R,cy:0,r:Math.max(1.4,R*0.16),fill:c})));
+      break; }
+    case 'trophytable': { drawBox({fill:`color-mix(in srgb, ${c} 18%, var(--canvas))`, rx:1});
+      for(let i=0;i<5;i++){ const x=-w/2+(i+0.5)*w/5; body.appendChild(el('path',{d:`M ${x-2} ${-2} h 4 l -1 3 h -2 Z`,fill:c,'fill-opacity':.8})); }
+      break; }
+    case 'havankund': { const R=Math.min(w,h)/2;
+      body.appendChild(el('rect',{x:-R,y:-R,width:2*R,height:2*R,fill:`color-mix(in srgb, ${c} 22%, var(--canvas))`,stroke:c,'stroke-width':1.2}));
+      body.appendChild(el('rect',{x:-R*0.55,y:-R*0.55,width:R*1.1,height:R*1.1,fill:'#ff9a3c','fill-opacity':.75}));
+      [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sy])=>body.appendChild(el('circle',{cx:sx*R*0.8,cy:sy*R*0.8,r:Math.max(1,R*0.1),fill:c}))); break; }
+    case 'rangoli': { const R=Math.min(w,h)/2;
+      for(let k=0;k<3;k++) body.appendChild(el('circle',{cx:0,cy:0,r:R*(1-k*0.3),fill:'none',stroke:c,'stroke-width':1.2,'stroke-opacity':1-k*0.2}));
+      for(let i=0;i<8;i++){ const a=i/8*Math.PI*2; body.appendChild(el('ellipse',{cx:Math.cos(a)*R*0.55,cy:Math.sin(a)*R*0.55,rx:R*0.22,ry:R*0.1,transform:`rotate(${i*45} ${Math.cos(a)*R*0.55} ${Math.sin(a)*R*0.55})`,fill:c,'fill-opacity':.55})); }
+      break; }
+    case 'lanterns': { const R=Math.min(w,h)/2;
+      [[-0.4,-0.3,0.45],[0.35,-0.25,0.35],[0,0.35,0.5]].forEach(([x,y,r])=>{ body.appendChild(el('rect',{x:x*R*2-r*R,y:y*R*2-r*R,width:2*r*R,height:2*r*R,rx:1,fill:'#ffd98a','fill-opacity':.6,stroke:c,'stroke-width':1})); }); break; }
+    case 'hangingfloral': { drawBox({fill:'transparent',sw:1,dash:'4 3'});
+      for(let i=0;i<7;i++) for(let j=0;j<7;j++){ if((i+j)%2) continue; body.appendChild(el('circle',{cx:-w/2+(i+0.5)*w/7,cy:-h/2+(j+0.5)*h/7,r:Math.max(1.5,Math.min(w,h)/20),fill:c,'fill-opacity':.6})); }
+      break; }
+    case 'neonsign': { drawBox({fill:`color-mix(in srgb, ${c} 14%, var(--canvas))`, rx:1});
+      body.appendChild(el('path',{d:`M ${-w*0.35} 0 q ${w*0.12} ${-h*0.6} ${w*0.24} 0 t ${w*0.24} 0 t ${w*0.22} 0`,fill:'none',stroke:'#ff4fd8','stroke-width':2})); break; }
+    /* ---- complete-catalogue pack (2026-10d) ---- */
+    case 'backdrop': case 'projector': case 'teleprompter': { drawBox({fill:`color-mix(in srgb, ${c} 20%, var(--canvas))`, rx:1});
+      if(it.type!=='backdrop') body.appendChild(el('rect',{x:-w*0.42,y:-h*0.25,width:w*0.84,height:h*0.5,fill:'#9fb6ff','fill-opacity':.6}));
+      else for(let i=1;i<4;i++) body.appendChild(el('line',{x1:-w/2+i*w/4,y1:-h/2,x2:-w/2+i*w/4,y2:h/2,stroke:c,'stroke-width':.6,'stroke-opacity':.5}));
+      break; }
+    case 'floralstand': case 'urli': case 'kalash': case 'plinth': case 'micstand': case 'pyro': case 'extinguisher': { const R=Math.min(w,h)/2;
+      const ring=it.type==='urli'||it.type==='kalash';
+      body.appendChild(el(it.type==='plinth'||it.type==='extinguisher'?'rect':'circle', it.type==='plinth'||it.type==='extinguisher'
+        ? {x:-w/2,y:-h/2,width:w,height:h,rx:1,fill:it.type==='extinguisher'?'#dc2626':fillSoft,'fill-opacity':it.type==='extinguisher'?.7:1,stroke:c,'stroke-width':1.2}
+        : {cx:0,cy:0,r:R,fill:fillSoft,stroke:c,'stroke-width':1.2}));
+      if(ring) body.appendChild(el('circle',{cx:0,cy:0,r:R*0.55,fill:c,'fill-opacity':.45}));
+      else if(it.type==='floralstand') for(let i=0;i<6;i++){ const a=i/6*Math.PI*2; body.appendChild(el('circle',{cx:Math.cos(a)*R*0.5,cy:Math.sin(a)*R*0.5,r:R*0.28,fill:c,'fill-opacity':.55})); }
+      else if(it.type==='pyro') for(let i=0;i<8;i++){ const a=i/8*Math.PI*2; body.appendChild(el('line',{x1:0,y1:0,x2:Math.cos(a)*R,y2:Math.sin(a)*R,stroke:'#f59e0b','stroke-width':1})); }
+      else if(it.type==='micstand') body.appendChild(el('circle',{cx:0,cy:0,r:R*0.3,fill:c}));
+      break; }
+    case 'decorbox': case 'signage': case 'counter': case 'kiosk': case 'shoerack': case 'tvstand': { drawBox({fill:fillSoft, rx:it.type==='decorbox'?3:1});
+      if(it.type==='decorbox') body.appendChild(el('path',{d:`M ${-w/2} ${-h/2} L ${w/2} ${h/2} M ${w/2} ${-h/2} L ${-w/2} ${h/2}`,stroke:c,'stroke-width':.7,'stroke-opacity':.5}));
+      else if(it.type==='shoerack') for(let i=1;i<6;i++) body.appendChild(el('line',{x1:-w/2+i*w/6,y1:-h/2,x2:-w/2+i*w/6,y2:h/2,stroke:c,'stroke-width':.6}));
+      else body.appendChild(el('rect',{x:-w*0.35,y:-h*0.3,width:w*0.7,height:h*0.25,fill:c,'fill-opacity':.5}));
+      break; }
+    case 'recttable': {
+      drawBox({fill:fillSoft, rx:1});
+      const n=Math.max(0,Math.min(12,it.properties.seats|0));
+      for(let i=0;i<n;i++) body.appendChild(el('circle',{cx:-w/2+(i+0.5)/n*w,cy:h/2+3.2,r:clamp(Math.min(w/Math.max(1,n),6)*0.5,1.5,3.4),fill:c,'fill-opacity':.85}));
+      break; }
+    case 'stageroof': case 'interpreter': case 'ticketbooth': case 'watchtower': case 'towerlight': case 'stall': {
+      drawBox({fill:it.type==='stageroof'?'transparent':fillSoft, rx:1, dash:it.type==='stageroof'?'6 4':''});
+      const k=Math.min(w,h)*0.12;
+      [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sy])=>body.appendChild(el('rect',{x:sx*(w/2-k)-k/2,y:sy*(h/2-k)-k/2,width:k,height:k,fill:c,'fill-opacity':.8})));
+      if(it.type==='stageroof'||it.type==='watchtower') body.appendChild(el('path',{d:`M ${-w/2} ${-h/2} L ${w/2} ${h/2} M ${w/2} ${-h/2} L ${-w/2} ${h/2}`,stroke:c,'stroke-width':.7,'stroke-opacity':.45}));
+      break; }
+    case 'varmala': case 'umbrellas': case 'gaddi': { const R=Math.min(w,h)/2;
+      if(it.type==='gaddi'){ drawBox({fill:fillSoft, rx:2});
+        [[-1,0],[1,0],[0,-1],[0,1]].forEach(([sx,sy])=>body.appendChild(el('rect',{x:sx? sx*(w/2-w*0.08)-w*0.05 : -w*0.4, y:sy? sy*(h/2-h*0.08)-h*0.05 : -h*0.4, width:sx? w*0.1 : w*0.8, height:sy? h*0.1 : h*0.8, rx:2, fill:c,'fill-opacity':.45}))); break; }
+      body.appendChild(el('circle',{cx:0,cy:0,r:R,fill:fillSoft,stroke:c,'stroke-width':1.3}));
+      if(it.type==='umbrellas') for(let i=0;i<5;i++){ const a=i/5*Math.PI*2; body.appendChild(el('circle',{cx:Math.cos(a)*R*0.55,cy:Math.sin(a)*R*0.55,r:R*0.3,fill:c,'fill-opacity':.35,stroke:c,'stroke-width':.8})); }
+      else body.appendChild(el('circle',{cx:0,cy:0,r:R*0.75,fill:'none',stroke:c,'stroke-width':1,'stroke-dasharray':'3 2'}));
+      break; }
+    case 'doli': case 'altar': case 'dessert': case 'coffee': { drawBox({fill:`color-mix(in srgb, ${c} 18%, var(--canvas))`, rx:1});
+      if(it.type==='doli') body.appendChild(el('line',{x1:-w/2-4,y1:0,x2:w/2+4,y2:0,stroke:c,'stroke-width':1.6}));
+      else for(let i=0;i<3;i++) body.appendChild(el('circle',{cx:-w/3+i*w/3,cy:0,r:Math.max(1.5,Math.min(w/8,h*0.3)),fill:c,'fill-opacity':.5}));
+      break; }
+    case 'stanchion': { drawBox({fill:'transparent', sw:0.01});
+      const n=Math.max(2,Math.round(w/(5*PX_PER_FT))+1);
+      body.appendChild(el('line',{x1:-w/2,y1:0,x2:w/2,y2:0,stroke:'#b91c1c','stroke-width':1.6}));
+      for(let i=0;i<n;i++) body.appendChild(el('circle',{cx:-w/2+i*w/(n-1),cy:0,r:Math.max(1.6,h*0.3),fill:c}));
+      break; }
+    case 'ambulance': { drawBox({fill:'transparent', dash:'6 4'});
+      body.appendChild(el('rect',{x:-w*0.38,y:-h*0.3,width:w*0.76,height:h*0.6,rx:2,fill:'#ffffff','fill-opacity':.85,stroke:c,'stroke-width':1}));
+      body.appendChild(el('path',{d:`M ${-h*0.12} 0 h ${h*0.24} M 0 ${-h*0.12} v ${h*0.24}`,stroke:'#dc2626','stroke-width':2}));
+      break; }
     default: drawBox({});
   }
   g.appendChild(body);
@@ -1031,24 +1458,27 @@ function renderItem(it){
 function renderSelection(it){
   const w=it.width*PX_PER_FT, h=it.height*PX_PER_FT;
   const cx=(it.x+it.width/2)*PX_PER_FT, cy=(it.y+it.height/2)*PX_PER_FT;
+  // handles are drawn in world px, so divide by zoom to keep them a constant ~8 px on screen — at the 37% fit
+  // zoom they were ~3 px and the rotate knob sat on top of the top edge handle (drag resized instead of rotating)
+  const k=1/Math.max(0.05, (store.view&&store.view.zoom)||1), hs=8*k, hh=hs/2;
   const g = el('g',{transform:`translate(${cx} ${cy}) rotate(${it.rotation})`, 'data-sel':'1'});
   g.appendChild(el('rect',{class:'sel-outline', x:-w/2-2,y:-h/2-2,width:w+4,height:h+4,rx:3}));
   // corner resize handles (scale both dimensions)
   const corners=[[-1,-1],[1,-1],[1,1],[-1,1]];
   corners.forEach(([sx,sy])=>{
-    g.appendChild(el('rect',{class:'handle','data-handle':'resize', x:sx*w/2-4, y:sy*h/2-4, width:8,height:8, rx:1.5}));
+    g.appendChild(el('rect',{class:'handle','data-handle':'resize', x:sx*w/2-hh, y:sy*h/2-hh, width:hs,height:hs, rx:1.5*k}));
   });
   // edge handles → grab a side and stretch ONE dimension (extend carpets, aisles, fences, trusses)
   if(it.type!=='table' && it.type!=='cocktail'){       // round items stay circular, no edge stretch
     const edges=[[0,-1,'y','ns-resize'],[1,0,'x','ew-resize'],[0,1,'y','ns-resize'],[-1,0,'x','ew-resize']];
     edges.forEach(([sx,sy,axis,cur])=>{
       g.appendChild(el('rect',{class:'handle edge','data-handle':'resize','data-axis':axis,
-        x:sx*w/2-4, y:sy*h/2-4, width:8,height:8, rx:1.5, style:'cursor:'+cur}));
+        x:sx*w/2-hh, y:sy*h/2-hh, width:hs,height:hs, rx:1.5*k, style:'cursor:'+cur}));
     });
   }
   // rotate handle
-  g.appendChild(el('line',{class:'rot-line', x1:0,y1:-h/2-2, x2:0, y2:-h/2-22}));
-  g.appendChild(el('circle',{class:'rot-handle','data-handle':'rotate', cx:0, cy:-h/2-22, r:5}));
+  g.appendChild(el('line',{class:'rot-line', x1:0,y1:-h/2-2, x2:0, y2:-h/2-22*k}));
+  g.appendChild(el('circle',{class:'rot-handle','data-handle':'rotate', cx:0, cy:-h/2-22*k, r:5*k}));
   return g;
 }
 // light dashed outline for members of a multi-selection (no resize/rotate handles)
@@ -1078,6 +1508,7 @@ const rTop=$('#rulerTop'), rLeft=$('#rulerLeft');
 function renderRulers(){
   const dpr=window.devicePixelRatio||1;
   const vw=scrollEl.clientWidth, vh=scrollEl.clientHeight;
+  if(!vw||!vh) return;                                // 2D plan hidden (3D view / fullscreen in 3D): keep the last strips, a ResizeObserver redraws once it is shown
   const z=store.view.zoom, ppuFt=PX_PER_FT*z;         // px per foot on screen
   const cell=cellFt();                                // feet per grid unit
   const css=getComputedStyle(document.documentElement);
@@ -1131,7 +1562,7 @@ const toHexColor=(c)=>{ c=(c||'').trim(); if(HEXRE.test(c)){ if(c.length===4) c=
 function renderMultiInspector(box){
   const items=selectedItems(), n=items.length;
   let chairs=sumSeats(items), tables=0; items.forEach(i=>{
-    if(['table','longtable','cocktail','headtable'].includes(i.type)) tables++; });
+    if(['table','longtable','cocktail','headtable','recttable'].includes(i.type)) tables++; });
   box.innerHTML=`
     <div class="isec">
       <span class="itag" style="--tag:var(--accent)">${n} selected</span>
@@ -1252,6 +1683,7 @@ function renderInspector(){
     </div>`;
 
   wireInspector(it);
+  variantMount(it, box);      // 2026-10c décor variants: style / flower / palette (VARIANTS block at the end of this file)
   specAdjustMount(it, box);   // 0086 item specs: "Adjust" section (ITEM-SPEC ADJUST block at the end of this file)
 }
 
@@ -1496,7 +1928,7 @@ svg.addEventListener('pointermove',e=>{
       minDx=Math.max(minDx,-g.ox); maxDx=Math.min(maxDx,WORLD.w-it.width-g.ox);
       minDy=Math.max(minDy,-g.oy); maxDy=Math.min(maxDy,WORLD.h-it.height-g.oy); });
     dx=clamp(dx,minDx,maxDx); dy=clamp(dy,minDy,maxDy);
-    drag.group.forEach(g=>{ const it=store.items.find(i=>i.id===g.id); it.x=round1(g.ox+dx); it.y=round1(g.oy+dy); });
+    drag.group.forEach(g=>{ const it=store.items.find(i=>i.id===g.id); it.x=posRound(g.ox+dx); it.y=posRound(g.oy+dy); });
     renderSceneOnly(); return;
   }
 
@@ -1621,8 +2053,12 @@ const TEMPLATES = {
   /* =============== POLITICAL / RALLY =============== */
   political_theatre(){                 // ~576 seats
     const it=[], cx=WORLD.w/2;
-    it.push(makeItem('stage', cx-20, 8));
+    it.push(makeItem('stage', cx-20, 8, {properties:{plain:true}}));
     it.push(makeItem('podium', cx-1.5, 18, {label:'Podium'}));
+    it.push(makeItem('flagstand', cx-23, 9, {label:'Flag L'}));
+    it.push(makeItem('flagstand', cx+21, 9, {label:'Flag R'}));
+    it.push(makeItem('patower', cx-29, 10, {label:'PA Tower L'}));
+    it.push(makeItem('patower', cx+25, 10, {label:'PA Tower R'}));
     it.push(makeItem('barricade', cx-30, 30, {width:60, label:'Security Buffer'}));
     it.push(makeItem('press', cx-12, 40, {label:'Press Riser'}));
     const bW=38,bH=28,aisle=8, lX=cx-aisle/2-bW, rX=cx+aisle/2, topY=60, botY=60+bH+6;
@@ -1638,7 +2074,7 @@ const TEMPLATES = {
   },
   political_townhall(){                 // ~224 seats
     const it=[], cx=WORLD.w/2;
-    it.push(makeItem('stage', cx-14, 8, {width:28,height:12,label:'Stage'}));
+    it.push(makeItem('stage', cx-14, 8, {properties:{plain:true}, width:28,height:12,label:'Stage'}));
     it.push(makeItem('podium', cx-1.5, 16, {label:'Podium'}));
     it.push(makeItem('press', cx+22, 8, {width:16,height:8,label:'Press'}));
     it.push(makeItem('desk', 10, 22, {label:'Check-in'}));
@@ -1652,7 +2088,7 @@ const TEMPLATES = {
   political_arena(){                    // ~748 seats
     const it=[], cx=WORLD.w/2;
     it.push(makeItem('fence', 4, 4, {width:WORLD.w-8, label:'Perimeter'}));
-    it.push(makeItem('stage', cx-24, 8, {width:48,height:16,label:'Main Stage'}));
+    it.push(makeItem('stage', cx-24, 8, {properties:{plain:true}, width:48,height:16,label:'Main Stage'}));
     it.push(makeItem('podium', cx-1.5, 20, {label:'Podium'}));
     it.push(makeItem('barricade', cx-32, 28, {width:64, label:'Front Buffer'}));
     it.push(makeItem('press', cx-12, 36, {label:'Press Riser'}));
@@ -1680,7 +2116,7 @@ const TEMPLATES = {
   },
   conference_keynote(){                 // ~928 seats
     const it=[], cx=WORLD.w/2, bW=44,bH=30;
-    it.push(makeItem('stage', cx-24, 6, {width:48,height:14,label:'Keynote Stage'}));
+    it.push(makeItem('stage', cx-24, 6, {properties:{plain:true}, width:48,height:14,label:'Keynote Stage'}));
     it.push(makeItem('podium', cx-1.5, 15, {label:'Podium'}));
     it.push(makeItem('press', cx+26, 6, {width:16,height:8,label:'Press'}));
     it.push(makeItem('seatblock', cx-bW/2, 34, {width:bW,height:bH,properties:{rows:10,cols:20},label:'Center Front'}));
@@ -1694,7 +2130,7 @@ const TEMPLATES = {
   },
   conference_classroom(){               // 15 tables · 180 seats
     const it=[], cx=WORLD.w/2;
-    it.push(makeItem('stage', cx-12, 6, {width:24,height:10,label:'Front'}));
+    it.push(makeItem('stage', cx-12, 6, {properties:{plain:true}, width:24,height:10,label:'Front'}));
     it.push(makeItem('podium', cx-1.5, 12, {label:'Podium'}));
     it.push(makeItem('desk', 10, 8, {label:'Check-in'}));
     it.push(makeItem('booth', WORLD.w-24, 8, {label:'AV'}));
@@ -1761,7 +2197,7 @@ const TEMPLATES = {
     const it=[], cx=WORLD.w/2;
     it.push(makeItem('fence', 4, 4, {width:WORLD.w-8, label:'Perimeter'}));
     it.push(makeItem('fence', 4, WORLD.h-5, {width:WORLD.w-8, label:'Perimeter'}));
-    it.push(makeItem('stage', cx-28, 8, {width:56,height:20,label:'Main Stage'}));
+    it.push(makeItem('stage', cx-28, 8, {properties:{plain:true}, width:56,height:20,label:'Main Stage'}));
     it.push(makeItem('barricade', cx-32, 32, {width:64,label:'Front Barrier'}));
     it.push(makeItem('press', cx-12, 40, {label:'Press'}));
     it.push(makeItem('bar', 20, 60, {label:'Bar'}));
@@ -1777,9 +2213,9 @@ const TEMPLATES = {
     const it=[], cx=WORLD.w/2;
     it.push(makeItem('fence', 4, 4, {width:WORLD.w-8, label:'Perimeter'}));
     it.push(makeItem('fence', 4, WORLD.h-5, {width:WORLD.w-8, label:'Perimeter'}));
-    it.push(makeItem('stage', cx-24, 8, {width:48,height:16,label:'Main Stage'}));
+    it.push(makeItem('stage', cx-24, 8, {properties:{plain:true}, width:48,height:16,label:'Main Stage'}));
     it.push(makeItem('barricade', cx-26, 28, {width:52,label:'Barrier'}));
-    it.push(makeItem('stage', cx-18, WORLD.h-24, {width:36,height:14,label:'Second Stage'}));
+    it.push(makeItem('stage', cx-18, WORLD.h-24, {properties:{plain:true}, width:36,height:14,label:'Second Stage'}));
     it.push(makeItem('barricade', cx-20, WORLD.h-30, {width:40,label:'Barrier'}));
     for(let i=0;i<3;i++) it.push(makeItem('tent', 16+i*56, 40, {label:'Vendor '+(i+1)}));
     for(let i=0;i<3;i++) it.push(makeItem('truck', 24+i*50, 74, {label:'Food '+(i+1)}));
@@ -1794,7 +2230,7 @@ const TEMPLATES = {
   festival_market(){
     const it=[], cx=WORLD.w/2;
     it.push(makeItem('fence', 4, 4, {width:WORLD.w-8, label:'Perimeter'}));
-    it.push(makeItem('stage', cx-12, 6, {width:24,height:10,label:'Stage'}));
+    it.push(makeItem('stage', cx-12, 6, {properties:{plain:true}, width:24,height:10,label:'Stage'}));
     let n=1;
     for(let r=0;r<3;r++)for(let c=0;c<7;c++) it.push(makeItem('booth', 16+c*24, 24+r*22, {label:'Stall '+(n++)}));
     for(let i=0;i<3;i++) it.push(makeItem('truck', 24+i*50, WORLD.h-34, {label:'Food '+(i+1)}));
@@ -1811,7 +2247,7 @@ const TEMPLATES = {
   /* =============== CONCERT / LIVE MUSIC =============== */
   concert_mainstage(){
     const it=[], cx=WORLD.w/2;
-    it.push(makeItem('stage', cx-26, 8, {width:52,height:18,label:'Main Stage'}));
+    it.push(makeItem('stage', cx-26, 8, {properties:{plain:true}, width:52,height:18,label:'Main Stage'}));
     it.push(makeItem('videowall', cx-12, 6, {width:24,height:12,label:'LED Wall'}));
     it.push(makeItem('linearray', cx-32, 12, {label:'PA L'}));
     it.push(makeItem('linearray', cx+30, 12, {label:'PA R'}));
@@ -1833,7 +2269,7 @@ const TEMPLATES = {
   },
   concert_club(){
     const it=[], cx=WORLD.w/2;
-    it.push(makeItem('stage', cx-16, 8, {width:32,height:12,label:'Stage'}));
+    it.push(makeItem('stage', cx-16, 8, {properties:{plain:true}, width:32,height:12,label:'Stage'}));
     it.push(makeItem('dj', cx-4, 12, {label:'DJ Booth'}));
     it.push(makeItem('linearray', cx-20, 10, {label:'PA L'})); it.push(makeItem('linearray', cx+18, 10, {label:'PA R'}));
     it.push(makeItem('dancefloor', cx-16, 34, {width:32,height:28,label:'Dance Floor'}));
@@ -1857,6 +2293,9 @@ const TEMPLATES = {
     it.push(makeItem('bar', 12, WORLD.h-16, {label:'Bar'}));
     it.push(makeItem('buffet', WORLD.w-30, WORLD.h-16, {label:'Buffet'}));
     it.push(makeItem('chandelier', cx-2, 40, {label:'Chandelier'}));
+    it.push(makeItem('trophytable', cx+21, 12, {label:'Trophies'}));
+    it.push(makeItem('lightingtree', cx-23, 9, {label:'Lighting Tree L'}));
+    it.push(makeItem('lightingtree', cx+28, 9, {label:'Lighting Tree R'}));
     it.push(makeItem('coatcheck', 10, 24, {label:'Coat Check'}));
     it.push(makeItem('exit', 6, WORLD.h-9, {label:'Exit'}));
     it.push(makeItem('exit', WORLD.w-18, WORLD.h-9, {label:'Exit'}));
@@ -1865,7 +2304,9 @@ const TEMPLATES = {
   /* =============== BIRTHDAY / PRIVATE PARTY =============== */
   birthday_party(){
     const it=[], cx=WORLD.w/2;
-    it.push(makeItem('arch', cx-6, 8, {width:12,label:'Backdrop'}));
+    it.push(makeItem('balloonarch', cx-6, 8, {width:12,label:'Balloon Backdrop'}));   // birthdays get balloons, not a floral arch
+    it.push(makeItem('balloonbunch', cx-10, 8, {label:'Balloons'}));
+    it.push(makeItem('balloonbunch', cx+8, 8, {label:'Balloons'}));
     it.push(makeItem('dj', cx-3, 16, {label:'DJ'}));
     it.push(makeItem('dancefloor', cx-9, 30, {width:18,height:16,label:'Dance Floor'}));
     it.push(makeItem('caketable', cx-2, 52, {label:'Cake'}));
@@ -1880,7 +2321,7 @@ const TEMPLATES = {
   /* =============== PRODUCT LAUNCH =============== */
   product_launch(){
     const it=[], cx=WORLD.w/2;
-    it.push(makeItem('stage', cx-20, 8, {width:40,height:14,label:'Reveal Stage'}));
+    it.push(makeItem('stage', cx-20, 8, {properties:{plain:true}, width:40,height:14,label:'Reveal Stage'}));
     it.push(makeItem('videowall', cx-14, 5, {width:28,height:12,label:'LED Wall'}));
     it.push(makeItem('linearray', cx-24, 11, {label:'PA L'})); it.push(makeItem('linearray', cx+22, 11, {label:'PA R'}));
     for(let i=0;i<3;i++) it.push(makeItem('pillar', cx-16+i*16, 28, {label:'Product '+(i+1)}));
@@ -2139,7 +2580,7 @@ function eventDefaultItems(fam, o){
   if(brand){ it.push(makeItem('brandwall', cx-Math.min(sw,ledW*2)/2, y, {width:Math.min(sw,ledW*2), label:'Branding Wall'})); y+=3; }
   if(fam!=='wedding'){ it.push(makeItem('lighting', cx-sw/2, y, {width:sw, label:'Lighting Truss'})); y+=3; }
   else { it.push(makeItem('floralarch', cx-sc(sw*0.4,6,12)/2, y, {width:sc(sw*0.4,6,12), label:'Floral Backdrop'})); y+=4; }
-  const sy=y; it.push(makeItem('stage', cx-sw/2, sy, {width:sw, height:sh, label:'Stage'}));
+  const sy=y; it.push(makeItem('stage', cx-sw/2, sy, {width:sw, height:sh, label:'Stage', properties:fam==='wedding'?{}:{plain:true}}));   // no flowers on a rally / corporate / concert stage (3D)
   if(fam!=='wedding'){
     it.push(makeItem('podium', cx-1.5, sy+sh*0.6, {label:'Podium'}));
     it.push(makeItem('led', cx-sw/2-ledW-4, sy+1, {width:ledW, label:'LED Screen L'}));
@@ -2561,7 +3002,9 @@ function updateDimsLabel(){ const el=$('#dimsLabel'); if(!el) return;
   let vref=''; try{ const c=currentClient||{}; if(+c.venueLen>0 && +c.venueWid>0 && (+c.venueLen!==WORLD.w || +c.venueWid!==WORLD.h)) vref=` · venue ${+c.venueLen} × ${+c.venueWid} ft`; }catch(e){}
   const full = `${WORLD.w} × ${WORLD.h} ft${vref} · ${PX_PER_FT} px/ft${store.venue&&store.venue.setting==='outdoor'?' · outdoor':''}`;
   // compact hall-size chip in the toolbar; the full detail (venue size, scale, outdoor) is in its tooltip
-  el.textContent = `${WORLD.w} × ${WORLD.h} ft${vref?' usable':''}`; el.title = 'Hall size · '+full; }
+  // the chip follows the active unit (it stayed in ft after switching to metres); the tooltip keeps the exact ft
+  const u=store.grid.unit==='m', dU=v=>u ? (Math.round(v/FT_PER_M*10)/10) : v;
+  el.textContent = `${dU(WORLD.w)} × ${dU(WORLD.h)} ${u?'m':'ft'}${vref?' usable':''}`; el.title = 'Hall size · '+full; }
 function runCustomGenerate(){
   const o=readCustomForm();
   // Enforce the Control-Center capacity ceilings so generation stays fast and honest
@@ -2811,19 +3254,64 @@ function toolIcon(cat){
   const c='currentColor';
   return `<svg viewBox="0 0 26 20" fill="none" stroke="${c}" stroke-width="1.4"><rect x="3" y="3" width="20" height="14" rx="2"/></svg>`;
 }
+/* Toolbox sections (2026-10d): what a planner looks for, not the 7 pricing/colour categories. Every ASSETS
+   type sits in exactly one section (anything new and unlisted lands in "More"); the item keeps its category
+   colour. Generic basics come first so anything not specifically modelled can still be placed. */
+const TOOLBOX_SECTIONS = [
+  ['Generic basics', ['arch','backdrop','floralstand','decorbox','signage','recttable','chiavari','planter']],
+  ['Stage & presentation', ['stage','stageroof','dais','viprisers','walkway','dancefloor','varmala','podium','lectern','micstand','teleprompter','press']],
+  ['Screens, sound & effects', ['led','ledscreen','videowall','projector','tvstand','speaker','linearray','subwoofer','monitor','patower','foh','dj','piano','interpreter','smoke','pyro','dancers']],
+  ['Lighting', ['uplight','lighting','lightingtree','movinghead','truss','chandelier','fairylights','lanterns','towerlight']],
+  ['Seating & tables', ['table','longtable','headtable','cocktail','chairrow','seatblock','bleacher','barstool','sofa','loveseat','couplesofa','armchair','ottoman','bench','coffeetable','lounge','gaddi']],
+  ['Florals & mandap', ['mandap','floralarch','floralentrance','entrancegate','stagebackdrop','flowerwall','hangingfloral','floralpillar','aislefloral','centrepiece','floral','phoolchadar','toran','pillar','urli','fountain']],
+  ['Wedding functions', ['haldi','mehendi','umbrellas','jhoola','doli','chariot','selfieframe','welcomeboard','photobooth','neonsign']],
+  ['Religious & cultural', ['havankund','kalash','altar','rangoli','diyastand','shoerack']],
+  ['Balloons, kids & party', ['balloonarch','balloonbunch','kidszone','caketable','dessert','gifttable']],
+  ['Food & beverage', ['buffet','livecounter','bar','coffee','chocolatefountain','truck','stall']],
+  ['Branding, expo & registration', ['brandwall','hoarding','flagstand','booth','counter','plinth','desk','kiosk','easel','trophytable']],
+  ['Crowd, security & safety', ['barricade','stagebarrier','fence','stanchion','checkpoint','watchtower','exit','firstaid','extinguisher','ambulance']],
+  ['Venue & logistics', ['tent','canopy','drape','redcarpet','parking','restroom','coatcheck','greenroom','generator','distro','cableramp','heater','aircooler','ticketbooth']],
+];
+function toolboxSections(){
+  const seen=new Set(), out=TOOLBOX_SECTIONS.map(([name,types])=>[name, types.filter(t=>ASSETS[t] && !seen.has(t) && seen.add(t))]);
+  const rest=Object.keys(ASSETS).filter(t=>!seen.has(t)); if(rest.length) out.push(['More', rest]);
+  return out.filter(([,types])=>types.length);
+}
+if(typeof window!=='undefined') window.HelmToolboxSections = toolboxSections;
+// search words (PRODUCT_META tags) + the toolbox section name ride on each ASSETS entry so the product search
+// (builder-tools.js searchAssets) finds every item by what planners type ("kalash", "uplighter", "photo booth")
+toolboxSections().forEach(([name,types])=>types.forEach(t=>{ ASSETS[t].section=name; const m=PRODUCT_META[t]; if(m) ASSETS[t].tags=m[1]; }));
+/* Toolbox "most used" view (2026-10): new planners see the 20 everyday items first; "Show all tools" reveals the
+   rest (remembered per browser). The product search still finds every item (CSS shows rare tiles while searching). */
+const COMMON_TOOLS = new Set(['stage','dancefloor','table','longtable','headtable','chairrow','seatblock','buffet','bar','mandap',
+  'backdrop','arch','photobooth','dj','speaker','lighting','exit','caketable','sofa','floralstand']);
+const TB_ALL_KEY='helm.builder.toolsAll';
+function tbAllPref(v){ try{ if(v===undefined) return localStorage.getItem(TB_ALL_KEY)==='1'; localStorage.setItem(TB_ALL_KEY, v?'1':'0'); }catch(e){ return false; } }
 function buildToolbox(){
   const host=$('#toolbox');
-  const byCat={};
-  Object.entries(ASSETS).forEach(([type,a])=>{ (byCat[a.category]=byCat[a.category]||[]).push([type,a]); });
-  host.innerHTML = SWATCH_CATS.map(cat=>{
-    const items=byCat[cat]||[];
-    return `<div class="cat">
-      <h3><span class="dot" style="background:${catColor(cat)}"></span>${CATS[cat].name}</h3>
-      <div class="tools">
-        ${items.flatMap(([type,a])=>type==='exit'?[[type,a,'Entrance'],[type,a,null]]:[[type,a,null]]).map(([type,a,vl])=>`<div class="tool" draggable="true" role="button" tabindex="${RO?'-1':'0'}"${RO?' aria-disabled="true"':''} data-type="${type}"${vl?` data-label="${esc(vl)}"`:''} style="color:${catColor(cat)}" aria-label="Add ${esc(vl||a.label)}">
-          ${vl?assetGlyph('entrance'):assetGlyph(type)}<span style="color:var(--ink)">${esc(vl||a.label)}</span></div>`).join('')}
-      </div></div>`;
-  }).join('');
+  while(host.firstChild) host.removeChild(host.firstChild);
+  host.classList.toggle('tb-compact', !tbAllPref());
+  const mk=(tag,cls,text)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; };
+  const glyphNode=type=>{ const t=document.createElement('template'); t.innerHTML=assetGlyph(type); return t.content; };   // static SVG markup from assetGlyph (no data)
+  toolboxSections().forEach(([name,types])=>{
+    const sec=mk('div','cat'), h=mk('h3'), dot=mk('span','dot'), first=ASSETS[types[0]];
+    if(!types.some(t=>COMMON_TOOLS.has(t))) sec.classList.add('tb-rare');
+    dot.style.background=catColor(first.category); h.append(dot, document.createTextNode(name)); sec.appendChild(h);
+    const grid=mk('div','tools'); sec.appendChild(grid);
+    types.flatMap(type=>type==='exit'?[[type,'Entrance'],[type,null]]:[[type,null]]).forEach(([type,vl])=>{
+      const a=ASSETS[type], t=mk('div','tool'), lbl=vl||a.label;
+      t.draggable=true; t.setAttribute('role','button'); t.tabIndex=RO?-1:0; if(RO) t.setAttribute('aria-disabled','true');
+      if(!COMMON_TOOLS.has(type)) t.classList.add('tb-rare');
+      t.dataset.type=type; if(vl) t.dataset.label=vl; t.setAttribute('aria-label','Add '+lbl); t.title=lbl;
+      t.style.color=catColor(a.category);
+      t.appendChild(glyphNode(vl?'entrance':type)); const sp=mk('span',null,lbl); sp.style.color='var(--ink)'; t.appendChild(sp);
+      grid.appendChild(t); });
+    host.appendChild(sec);
+  });
+  const more=mk('button','tbtn tb-more'); more.type='button';
+  const paintMore=()=>{ const c=host.classList.contains('tb-compact'); more.textContent=c?'Show all tools':'Show most used only'; more.setAttribute('aria-expanded', String(!c)); };
+  more.addEventListener('click',()=>{ host.classList.toggle('tb-compact'); tbAllPref(!host.classList.contains('tb-compact')); paintMore(); });
+  paintMore(); host.appendChild(more);
   host.querySelectorAll('.tool').forEach(t=>{
     t.addEventListener('click',()=>{
       const ty=t.dataset.type;
@@ -2915,6 +3403,72 @@ function assetGlyph(type){
     case 'walkway': return wrap('<path d="M9 3h8l3 14H6z"/><path d="M13 5v2M13 9v2M13 13v2"/>');
     case 'brandwall': return wrap('<rect x="3" y="5" width="20" height="9" rx="1"/><path d="M7 9h12M9 11.5h8M6 14v3M20 14v3"/>');
     case 'generator': return wrap('<rect x="3" y="6" width="20" height="10" rx="1"/><path d="M14 8l-3 4h4l-3 4"/><path d="M6 6V4"/>');
+    case 'entrancegate': return wrap('<rect x="3" y="5" width="4" height="12"/><rect x="19" y="5" width="4" height="12"/><path d="M3 5c3-3 17-3 20 0M9 7v3M13 7v4M17 7v3"/>');
+    case 'phoolchadar': return wrap('<path d="M4 6h18M5 6v11M21 6v11"/><path d="M5 8c3 2 13 2 16 0"/><circle cx="9" cy="10" r="1"/><circle cx="13" cy="10.5" r="1"/><circle cx="17" cy="10" r="1"/>');
+    case 'jhoola': return wrap('<path d="M3 17L6 3h14l3 14M9 3v9M17 3v9"/><rect x="8" y="12" width="10" height="2.5" rx="1"/>');
+    case 'haldi': return wrap('<rect x="3" y="3" width="20" height="5" rx="1"/><path d="M6 8v4M10 8v5M14 8v4M18 8v5"/><path d="M5 17h16"/><circle cx="8" cy="15" r="1.4"/><circle cx="18" cy="15" r="1.4"/>');
+    case 'mehendi': return wrap('<path d="M5 9l4-5 4 5zM13 9l4-5 4 5z"/><path d="M9 9v6M17 9v6M3 17h20"/>');
+    case 'selfieframe': return wrap('<rect x="5" y="3" width="16" height="13" rx="1"/><circle cx="7" cy="5" r="1.4"/><circle cx="19" cy="14" r="1.4"/><path d="M7 16v2M19 16v2"/>');
+    case 'welcomeboard': return wrap('<rect x="7" y="3" width="12" height="10" rx="1"/><path d="M10 7h6M10 9.5h6M9 13l-2 5M17 13l2 5"/>');
+    case 'fairylights': return wrap('<path d="M3 4h20M3 4c3 4 7 4 10 0c3 4 7 4 10 0"/><circle cx="6" cy="7" r=".9"/><circle cx="10" cy="7" r=".9"/><circle cx="16" cy="7" r=".9"/><circle cx="20" cy="7" r=".9"/><path d="M5 4v13M21 4v13"/>');
+    case 'couplesofa': return wrap('<path d="M5 15V9c0-4 16-4 16 0v6"/><path d="M3 15h20v2H3zM13 7v8"/>');
+    case 'livecounter': return wrap('<rect x="4" y="10" width="18" height="6" rx="1"/><path d="M4 4h18M5 4v6M21 4v6"/><ellipse cx="10" cy="10" rx="3" ry="1"/>');
+    case 'kidszone': return wrap('<path d="M4 17V9l3-3 3 3v8M4 17h18M14 7l7 10"/><circle cx="17" cy="15" r="1.2"/>');
+    case 'aircooler': return wrap('<rect x="7" y="3" width="12" height="14" rx="2"/><circle cx="13" cy="9" r="3.5"/><path d="M13 9l2-1.5M13 9l-1 2.5"/>');
+    case 'floralentrance': return wrap('<path d="M4 17V8a9 5 0 0 1 18 0v9"/><circle cx="4" cy="9" r="1.3"/><circle cx="7" cy="5" r="1.3"/><circle cx="13" cy="3.5" r="1.3"/><circle cx="19" cy="5" r="1.3"/><circle cx="22" cy="9" r="1.3"/>');
+    case 'stagebackdrop': return wrap('<rect x="3" y="3" width="20" height="11" rx="1"/><circle cx="6" cy="6" r="1.4"/><circle cx="20" cy="6" r="1.4"/><circle cx="8" cy="11" r="1.2"/><circle cx="18" cy="11" r="1.2"/><path d="M2 17h22"/>');
+    case 'flowerwall': return wrap('<rect x="5" y="2" width="16" height="15" rx="1"/><circle cx="9" cy="6" r="1.5"/><circle cx="14" cy="6" r="1.5"/><circle cx="18" cy="9" r="1.5"/><circle cx="10" cy="11" r="1.5"/><circle cx="15" cy="13" r="1.5"/>');
+    case 'toran': return wrap('<path d="M3 4h20"/><path d="M3 4c3 4 6 4 10 0c3 4 7 4 10 0"/><path d="M6 6v5M10 7v7M13 4v8M16 7v7M20 6v5"/>');
+    case 'floralpillar': return wrap('<rect x="10" y="7" width="6" height="10" rx="1"/><circle cx="11" cy="5" r="1.6"/><circle cx="15" cy="5" r="1.6"/><circle cx="13" cy="3" r="1.6"/><path d="M8 17h10"/>');
+    case 'aislefloral': return wrap('<path d="M13 8v9M10 17h6"/><circle cx="13" cy="5" r="2.2"/><circle cx="10" cy="7" r="1.4"/><circle cx="16" cy="7" r="1.4"/>');
+    case 'centrepiece': return wrap('<path d="M13 9v6M9 17h8M11 15h4"/><circle cx="13" cy="5" r="2"/><circle cx="9.5" cy="6.5" r="1.6"/><circle cx="16.5" cy="6.5" r="1.6"/>');
+    case 'balloonarch': return wrap('<path d="M4 17C4 6 22 6 22 17"/><circle cx="5" cy="13" r="1.8"/><circle cx="8" cy="8" r="1.8"/><circle cx="13" cy="6" r="1.8"/><circle cx="18" cy="8" r="1.8"/><circle cx="21" cy="13" r="1.8"/>');
+    case 'balloonbunch': return wrap('<ellipse cx="10" cy="6" rx="2.6" ry="3.2"/><ellipse cx="16" cy="6" rx="2.6" ry="3.2"/><ellipse cx="13" cy="9" rx="2.6" ry="3.2"/><path d="M10 9l3 8M16 9l-3 8M13 12v5"/>');
+    case 'lectern': return wrap('<path d="M7 5h12l-2 3H9z"/><path d="M10 8l-1 9h8l-1-9"/><path d="M15 5l2-3"/>');
+    case 'dais': return wrap('<rect x="2" y="12" width="22" height="5" rx="1"/><rect x="5" y="9" width="16" height="2.5"/><path d="M7 9V5M11 9V5M15 9V5M19 9V5"/>');
+    case 'flagstand': return wrap('<path d="M10 18V2"/><path d="M10 3h10l-2 3 2 3H10"/><path d="M7 18h6"/>');
+    case 'hoarding': return wrap('<rect x="3" y="3" width="20" height="9"/><path d="M6 12v6M20 12v6M3 18h20M8 12l-2 6M18 12l2 6"/>');
+    case 'patower': return wrap('<path d="M7 18L9 2h8l2 16M8 10h10"/><rect x="10" y="3" width="6" height="4" rx=".5"/><rect x="10" y="11" width="6" height="4" rx=".5"/>');
+    case 'lightingtree': return wrap('<path d="M13 4v10M13 14l-5 4M13 14l5 4M13 14v4"/><path d="M6 4h14"/><path d="M7 4v2M11 4v2M15 4v2M19 4v2"/><circle cx="7" cy="7" r="1"/><circle cx="11" cy="7" r="1"/><circle cx="15" cy="7" r="1"/><circle cx="19" cy="7" r="1"/>');
+    case 'diyastand': return wrap('<path d="M13 6v11M9 17h8M10 8h6M11 12h4"/><path d="M13 2c1 1.5 1 2.5 0 3.5c-1-1-1-2 0-3.5z"/>');
+    case 'havankund': return wrap('<rect x="5" y="9" width="16" height="8"/><path d="M13 3c-2 2-2 4 0 6 2-2 2-4 0-6z"/>');
+    case 'rangoli': return wrap('<circle cx="13" cy="10" r="7"/><circle cx="13" cy="10" r="3"/><path d="M13 3v14M6 10h14"/>');
+    case 'lanterns': return wrap('<rect x="5" y="6" width="6" height="9" rx="1"/><rect x="14" y="4" width="7" height="11" rx="1"/><path d="M8 3v3M17.5 1v3"/>');
+    case 'hangingfloral': return wrap('<path d="M3 3h20M7 3v6M13 3v9M19 3v5"/><circle cx="7" cy="11" r="2"/><circle cx="13" cy="14" r="2"/><circle cx="19" cy="10" r="2"/>');
+    case 'neonsign': return wrap('<rect x="3" y="4" width="20" height="12" rx="2"/><path d="M7 12c2-4 3-4 4 0s2 4 4 0 3-4 4 0"/>');
+    case 'backdrop': return wrap('<rect x="3" y="3" width="20" height="12" rx="1"/><path d="M6 15v3M20 15v3"/>');
+    case 'floralstand': return wrap('<circle cx="13" cy="6" r="3.5"/><path d="M13 9.5V17M10 17h6"/>');
+    case 'decorbox': return wrap('<path d="M5 7l8-4 8 4v8l-8 4-8-4z"/><path d="M5 7l8 4 8-4M13 11v8"/>');
+    case 'signage': return wrap('<rect x="8" y="2" width="10" height="13" rx="1"/><path d="M13 15v3M9 18h8"/>');
+    case 'recttable': return wrap('<rect x="4" y="6" width="18" height="6" rx="1"/><circle cx="8" cy="15" r="1.2"/><circle cx="13" cy="15" r="1.2"/><circle cx="18" cy="15" r="1.2"/>');
+    case 'stageroof': return wrap('<path d="M3 6h20M4 6v11M22 6v11M3 6l5-3h10l5 3"/><rect x="6" y="12" width="14" height="5"/>');
+    case 'varmala': return wrap('<ellipse cx="13" cy="13" rx="9" ry="4"/><path d="M9 9c2 3 6 3 8 0"/>');
+    case 'micstand': return wrap('<circle cx="13" cy="4" r="2"/><path d="M13 6v10M9 17h8"/>');
+    case 'teleprompter': return wrap('<path d="M6 16l3-8h8l3 8z"/><path d="M10 11h6"/>');
+    case 'projector': return wrap('<rect x="3" y="3" width="20" height="11"/><path d="M5 14l-1 4M21 14l1 4"/>');
+    case 'tvstand': return wrap('<rect x="5" y="3" width="16" height="10" rx="1"/><path d="M13 13v4M9 17h8"/>');
+    case 'interpreter': return wrap('<rect x="5" y="4" width="16" height="12" rx="1"/><path d="M9 8h8"/><circle cx="13" cy="12" r="1.5"/>');
+    case 'pyro': return wrap('<path d="M10 17h6l-1-3h-4z"/><path d="M13 13V4M10 6l3-3 3 3M8 9l2 2M18 9l-2 2"/>');
+    case 'towerlight': return wrap('<path d="M13 5v12M9 17h8"/><rect x="8" y="2" width="10" height="4"/>');
+    case 'gaddi': return wrap('<rect x="3" y="5" width="20" height="10" rx="2"/><path d="M3 9h20"/><circle cx="7" cy="7" r="1"/><circle cx="19" cy="7" r="1"/>');
+    case 'urli': return wrap('<path d="M4 10h18a9 6 0 0 1-18 0z"/><circle cx="10" cy="9" r="1.3"/><circle cx="16" cy="9" r="1.3"/>');
+    case 'umbrellas': return wrap('<path d="M4 9a9 6 0 0 1 18 0z"/><path d="M13 9v8a2 2 0 0 1-3 0"/>');
+    case 'doli': return wrap('<rect x="8" y="6" width="10" height="9" rx="1"/><path d="M8 6l5-3 5 3M2 11h22"/>');
+    case 'kalash': return wrap('<path d="M9 9h8l1 4-3 4h-4l-3-4z"/><circle cx="13" cy="6" r="2.5"/><path d="M9 7l-2-2M17 7l2-2"/>');
+    case 'altar': return wrap('<rect x="5" y="9" width="16" height="8"/><rect x="9" y="3" width="8" height="6" rx="1"/>');
+    case 'shoerack': return wrap('<rect x="4" y="5" width="18" height="11"/><path d="M4 9h18M4 13h18"/>');
+    case 'dessert': return wrap('<rect x="3" y="12" width="20" height="5" rx="1"/><path d="M7 12V9h4v3M15 12V6h4v6"/>');
+    case 'coffee': return wrap('<rect x="3" y="12" width="20" height="5" rx="1"/><rect x="7" y="5" width="5" height="7" rx="1"/><path d="M16 9h3v3h-3z"/>');
+    case 'stall': return wrap('<path d="M3 8h20l-2-4H5z"/><path d="M5 8v9M21 8v9M5 12h16"/>');
+    case 'counter': return wrap('<rect x="5" y="7" width="16" height="9" rx="1"/><path d="M5 10h16"/>');
+    case 'plinth': return wrap('<rect x="9" y="7" width="8" height="10"/><path d="M8 7h10M11 4h4v3h-4z"/>');
+    case 'kiosk': return wrap('<rect x="9" y="3" width="8" height="8" rx="1"/><path d="M13 11v6M10 17h6"/>');
+    case 'ticketbooth': return wrap('<rect x="5" y="5" width="16" height="12" rx="1"/><path d="M5 5l8-3 8 3M9 10h8"/>');
+    case 'stanchion': return wrap('<path d="M5 6v11M21 6v11M5 8q8 5 16 0"/><path d="M3 17h4M19 17h4"/>');
+    case 'watchtower': return wrap('<path d="M8 17l2-10h6l2 10M9 12h8"/><rect x="8" y="3" width="10" height="4"/>');
+    case 'extinguisher': return wrap('<rect x="10" y="6" width="6" height="11" rx="2"/><path d="M13 6V3h3"/>');
+    case 'ambulance': return wrap('<rect x="3" y="6" width="15" height="9" rx="1"/><path d="M18 9h3l2 3v3h-5z"/><path d="M10 8v5M7.5 10.5h5"/><circle cx="8" cy="16" r="1.5"/><circle cx="19" cy="16" r="1.5"/>');
+    case 'trophytable': return wrap('<rect x="3" y="12" width="20" height="5" rx="1"/><path d="M9 4h6v3a3 3 0 0 1-6 0zM12 10v2M10 12h4"/>');
     default: return toolIcon();
   }
 }
@@ -3109,6 +3663,7 @@ function setUnit(u){
   store.grid.unit = (u==='m') ? 'm' : 'ft';     // allowlisted
   store.grid.sizeFt=cellFt();
   $('#cornerUnit').textContent=uLabel();
+  if(typeof updateDimsLabel==='function') updateDimsLabel();
   const sel=$('#unitSel'); if(sel && sel.value!==store.grid.unit) sel.value=store.grid.unit;
   renderAll();
 }
@@ -3120,8 +3675,15 @@ $('#measureBtn').addEventListener('click',()=>{
   if(showMeasure){ const b2d=document.querySelector('#viewSeg [data-v="2d"]'); if(b2d && !b2d.classList.contains('on')) b2d.click(); }
   renderAll();
 });
-$('#snapBtn').addEventListener('click',()=>{ store.grid.snap=!store.grid.snap; $('#snapBtn').classList.toggle('on',store.grid.snap); if(window.__on3DSnapChange) window.__on3DSnapChange(); });
-$('#gridBtn').addEventListener('click',()=>{ store.grid.show=!store.grid.show; $('#gridBtn').classList.toggle('on',store.grid.show); renderAll(); });
+(function wireHidePrice(){ const c=document.getElementById('hidePriceChk'); if(!c) return;
+  c.addEventListener('change',()=>{ setPriceDisplay({ hidden: c.checked }); renderPrice(); });
+})();
+const GRID_PREF_KEY='helm.builder.gridPref';
+function saveGridPref(){ try{ localStorage.setItem(GRID_PREF_KEY, JSON.stringify({snap:!!store.grid.snap, show:!!store.grid.show})); }catch(_){} }
+function readGridPref(){ try{ const g=JSON.parse(localStorage.getItem(GRID_PREF_KEY)||'null'); return g&&typeof g==='object'?g:null; }catch(_){ return null; } }
+(function(){ const g=readGridPref(); if(g){ if(typeof g.snap==='boolean') store.grid.snap=g.snap; if(typeof g.show==='boolean') store.grid.show=g.show; $('#snapBtn').classList.toggle('on',store.grid.snap); $('#gridBtn').classList.toggle('on',store.grid.show); } })();
+$('#snapBtn').addEventListener('click',()=>{ store.grid.snap=!store.grid.snap; $('#snapBtn').classList.toggle('on',store.grid.snap); saveGridPref(); if(window.__on3DSnapChange) window.__on3DSnapChange(); });
+$('#gridBtn').addEventListener('click',()=>{ store.grid.show=!store.grid.show; $('#gridBtn').classList.toggle('on',store.grid.show); saveGridPref(); renderAll(); if(window.__on3DGridChange) window.__on3DGridChange(); });
 $('#undoBtn').addEventListener('click',undo);
 $('#redoBtn').addEventListener('click',redo);
 $('#clearBtn').addEventListener('click',async()=>{
@@ -3276,6 +3838,7 @@ function serialize(){
     grid: { ...store.grid }, margins: { ...(store.margins||{left:0,right:0,top:0,bottom:0}) },
     venue: JSON.parse(JSON.stringify(store.venue||{})),
     scale:{ pxPerFt:PX_PER_FT, worldFt:{ w:WORLD.w, h:WORLD.h } },   // copy, not a live reference
+    ...(store.priceDisplay ? { priceDisplay: priceDisp() } : {}),     // hide-price mode travels with the layout
     savedAt: new Date().toISOString() };
 }
 function applyLayout(data){
@@ -3295,7 +3858,11 @@ function applyLayout(data){
     clampItem(it);                       // coerce geometry so a malformed/legacy item can't render NaN
   });
   dedupeIds(store.items);
-  if(data.grid){ store.grid = sanitizeGrid(data.grid); syncGridUI(); }
+  if(data.priceDisplay && typeof data.priceDisplay==='object') store.priceDisplay = priceDisp(data.priceDisplay);
+  if(data.grid){ const keep={snap:store.grid.snap, show:store.grid.show};
+    // snap / grid are the PLANNER's tool toggles, not part of the plan: an opened layout (saved with Snap off,
+    // or an old file) used to switch Snap off silently — "snap works sometimes". Only the unit comes from the file.
+    store.grid = Object.assign(sanitizeGrid(data.grid), keep); syncGridUI(); if(window.__on3DSnapChange) window.__on3DSnapChange(); if(window.__on3DGridChange) window.__on3DGridChange(); }
   store.margins = sanitizeMargins(data.margins);   // restore draggable margins (0s if none saved)
   if(data.venue){ store.venue = sanitizeVenue(data.venue); }
   updateDimsLabel();
@@ -3336,7 +3903,7 @@ async function saveLayout(silent, opts){
   if(RO){ if(!silent) toast('View only — you can’t save'); return false; }
   if(!currentQuoteId && !currentLayoutId && !CAN_CREATE){ if(!silent) toast('Your role can edit existing events, not create new ones'); return false; }
   if(saving) return false;                    // in-flight lock: a second Save/⌘S before the first resolves must not create a duplicate
-  saving=true;
+  saving=true; renderSaveState('saving');
   const sig = docSig();                        // edits made while this save is in flight keep the page dirty
   const name = ($('#projName').value || 'Untitled event').trim().slice(0,120);
   const data = serialize();
@@ -3375,13 +3942,14 @@ async function saveLayout(silent, opts){
       else toast('Saved “'+saved.name+'”');
     }
     setConn(BPStore.mode());
+    saveUi='saved';
     setSavedBaseline(sig);
     return true;
-  }catch(e){ if(btn) btn.innerHTML='💾 Save';
+  }catch(e){ if(btn) btn.innerHTML='💾 Save'; saveUi='error'; renderSaveState('error');
     if(!silent) BPUI.toast(BPUI.friendlyError(e,{action:'save the layout'}),{type:'err'});
     else toast('Autosave failed — press Save to retry');
     return false; }
-  finally{ saving=false; if(btn) btn.disabled=false; }
+  finally{ saving=false; if(btn) btn.disabled=false; if(saveUi==='saving'){ saveUi='dirty'; renderSaveState(); } }
 }
 function updateQuoteBadge(){
   { const cb=document.getElementById('clientImgBtn'); if(cb) cb.hidden=!clientImagesSupported(); }
@@ -3977,6 +4545,7 @@ async function init(){
   buildToolbox();
   $('#cornerUnit').textContent=uLabel();
   const params=new URLSearchParams(location.search);
+  if(params.get('debug')==='1' && $('#stateDetails')) $('#stateDetails').hidden=false;   // developer panel (raw state JSON) only with ?debug=1
   const evId=params.get('id'), evName=params.get('event'), isNew=params.get('new')==='1';
   const quoteId=await HelmUrl.get('quote', params.get('quote')), openVer=params.get('v');
   store.items = (isNew||quoteId) ? [] : TEMPLATES.political();   // blank for a new event/quote, else a working default
@@ -3986,6 +4555,8 @@ async function init(){
   renderAll();
   fitView();
   window.addEventListener('resize',()=>{ renderRulers(); });
+  // the plan's box also changes without a window resize (3D -> 2D switch, pseudo-fullscreen exit): redraw the rulers then too
+  if(window.ResizeObserver){ try{ new ResizeObserver(()=>{ renderRulers(); }).observe(scrollEl); }catch(_){} }
   await initStore();
   initPanelToggles();   // after initStore so the saved state is per signed-in user
   // load pricing rates from the Control Centre (fallbacks stay if unavailable)
@@ -4028,6 +4599,7 @@ async function init(){
     try{
       const q=await BPStore.quotes.get(quoteId);
       currentQuoteId=q.id; currentQuoteCode=q.code; currentClient=q.client||{}; currentPricing=q.pricing||{};
+      if(currentPricing.priceDisplay && typeof currentPricing.priceDisplay==='object') store.priceDisplay=priceDisp(currentPricing.priceDisplay);
       { const bb=$('#backToFlowBtn'); if(bb && params.get('from')==='flow') bb.hidden=false; }
       currentQuoteGuard = { approved: q.status==='confirmed' || (q.approvalStatus && q.approvalStatus!=='none'), closed: q.lifecycleStage==='closed', frozen: q.lifecycleStage==='closed' || q.status==='cancelled' || !!q.archivedAt || !!q.deletedAt };
       const pn=$('#projName'); if(pn) pn.value=quoteDisplayName(q);
@@ -4287,3 +4859,75 @@ function renderNameHint(){
   const r=document.getElementById('projNameReset');
   if(r) r.addEventListener('click',()=>{ const H=window.HelmEventName; if(!H||!currentQuoteRow) return; pn.value=H.fromQuote(currentQuoteRow)||currentQuoteCode||''; markDirty(); renderNameHint(); });
 })();
+/* Public /try sandbox only (try.js defines a read-only window.HELM_SANDBOX=true before this
+   script). A tiny API so the sandbox can load its demo floor and drop a few items — no-op elsewhere. */
+if(window.HELM_SANDBOX===true && !window.__helmSandbox) window.__helmSandbox = Object.freeze({
+  load(spec, hall){
+    if(hall && hall.w>0 && hall.h>0){ WORLD.w=hall.w; WORLD.h=hall.h; store.venue=store.venue||{}; store.venue.room={w:WORLD.w,h:WORLD.h}; updateDimsLabel(); sizeCanvas(); }
+    loadItems((spec||[]).filter(s=>s && ASSETS[s.t]).map(s=>makeItem(s.t, s.x, s.y, s.o||{})), '');
+  },
+  add(type, o){
+    if(!ASSETS[type]) return null;
+    const a=ASSETS[type], it=makeItem(type, WORLD.w/2-a.w/2, WORLD.h/2-a.h/2, (o&&typeof o.color==='string')?{color:o.color,colorCustom:true}:{});
+    store.items.push(clampItem(it)); setSelection([it.id]); commit(); renderAll(); return it.id;
+  },
+  rotate(){ const sel=selectedItems(); if(!sel.length) return false; sel.forEach(it=>it.rotation=(it.rotation+15)%360); commit(); renderAll(); return true; },
+  measure(on){ if(!!on!==showMeasure) $('#measureBtn').click(); },
+  unit(u){ setUnit(u); },
+  fit(){ fitView(); }
+});
+
+/* ===================== DÉCOR VARIANTS: BEGIN (2026-10c) =====================
+   One product, many looks: instead of hundreds of near-identical catalogue rows, a décor item carries
+   optional properties chosen in the inspector — style (frame / backdrop / mandap shape), flower (bloom
+   type) and palette (colour story). They are purely visual: the 3D model (builder-3d.js) and the photo
+   render prompt (photo-render-prompt.js) read them; the PRICE never changes with them (the server D8
+   total prices by type), so a variant can never move a quote total. Built with the DOM API (CSP-safe).
+   Research: docs/research/event-inventory-2026-10.md */
+const VARIANT_OPTS = {
+  flower: [['','Default mix'],['rose','Roses'],['marigold','Marigold (genda)'],['orchid','Orchids'],['hydrangea','Hydrangea'],
+    ['jasmine','Jasmine / mogra'],['carnation','Carnations'],['lily','Lilies'],['mixed','Mixed garden']],
+  palette: [['','Item colour'],['blush','Blush & ivory'],['ivory','All white / ivory'],['marigold','Marigold yellow-orange'],['redgold','Red & gold'],
+    ['pastel','Pastels'],['jewel','Jewel tones (magenta / purple)'],['whitegreen','White & greenery'],['rainbow','Rainbow / multicolour'],['goldchrome','Gold & chrome']],
+};
+const ENTRANCE_STYLES=[['','Classic round-top'],['hexagon','Hexagon metal frame'],['ring','Round ring / moon gate'],['square','Square frame'],
+  ['rustic','Rustic wooden arbour'],['pillars','Pillar gate (no header)'],['tunnel','Floral tunnel (walk-through)']];
+const VARIANT_STYLES = {
+  floralentrance: ENTRANCE_STYLES, floralarch: ENTRANCE_STYLES, arch: ENTRANCE_STYLES,
+  entrancegate: [['','Traditional pillars + crown'],['hexagon','Hexagon metal frame'],['ring','Round ring / moon gate'],['rustic','Rustic wooden arbour'],['tunnel','Floral tunnel (walk-through)']],
+  balloonarch: [['','Organic arch'],['classic','Classic spiral arch'],['ring','Balloon ring / hoop'],['garland','Low garland (backdrop top)']],
+  stagebackdrop: [['','Floral frame on fabric'],['drape','Draped fabric swags'],['panel','Tufted panels'],['led','LED screen centre'],['jaali','Carved jaali screen']],
+  mandap: [['','Dome canopy (four pillar)'],['flat','Flat floral canopy'],['south','South Indian (banana-stem pillars)'],['glass','Modern acrylic pillars']],
+  centrepiece: [['','Tall candelabra'],['low','Low bowl arrangement'],['lantern','Lantern + candles']],
+  // complete-catalogue pack (2026-10d): generic items take a look instead of being separate products
+  chiavari: [['','Gold chiavari'],['ghost','Ghost (clear acrylic)'],['crossback','Wooden cross-back'],['folding','Folding chair'],['banquet','Banquet chair with cover + sash'],['plastic','Plastic (outdoor)']],
+  backdrop: [['','Plain fabric'],['flex','Printed flex on frame'],['sequin','Sequin / shimmer wall'],['greenery','Greenery (boxwood) wall'],['wood','Wooden panel wall'],['balloon','Balloon wall']],
+  floralstand: [['','Tall gold stand'],['urn','Urn / vase'],['pedestal','Pedestal bowl'],['hoop','Floral hoop']],
+  decorbox: [['','Box / crate'],['cylinder','Cylinder plinth'],['sphere','Sphere / globe'],['cutout','Flat cut-out panel']],
+  signage: [['','Roll-up banner'],['standee','Foam-board standee'],['aframe','A-frame sign'],['direction','Directional post'],['digital','Digital standee screen'],['cutout','Life-size cut-out']],
+  pyro: [['','Cold pyro (sparkular)'],['co2','CO2 jet'],['confetti','Confetti cannon']],
+  stall: [['','Canopy stall'],['kiosk','Hard-top kiosk']],
+};
+const VARIANT_FLORAL = new Set(['floral','floralarch','floralentrance','stagebackdrop','flowerwall','toran','floralpillar','aislefloral','centrepiece',
+  'phoolchadar','entrancegate','mandap','pillar','haldi','selfieframe','hangingfloral','arch','floralstand','urli','kalash','doli','varmala','altar','jhoola']);
+const VARIANT_PALETTE = new Set([...VARIANT_FLORAL, 'balloonarch','balloonbunch','lanterns','neonsign','fairylights','backdrop','decorbox','umbrellas','dessert']);
+function variantFields(type){ const f=[]; if(VARIANT_STYLES[type]) f.push(['style','Style',VARIANT_STYLES[type]]);
+  if(VARIANT_FLORAL.has(type)) f.push(['flower','Flowers',VARIANT_OPTS.flower]);
+  if(VARIANT_PALETTE.has(type)) f.push(['palette','Colour story',VARIANT_OPTS.palette]); return f; }
+if(typeof window!=='undefined') window.HelmVariants = Object.freeze({ fields: variantFields, STYLES: VARIANT_STYLES, OPTS: VARIANT_OPTS });
+function variantMount(it, box){
+  const fields=variantFields(it.type); if(!fields.length || !box) return;
+  const mk=(tag,cls,text)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; };
+  const sec=mk('div','isec variants'); sec.setAttribute('aria-label','Décor variant');
+  sec.appendChild(mk('div','seclabel','Look & variant'));
+  const r=mk('div','irow'); sec.appendChild(r);
+  fields.forEach(([key,label,opts])=>{ const id='vr_'+key, f=mk('div','ifield'), l=mk('label',null,label), s=mk('select'); l.htmlFor=id; s.id=id;
+    const cur=String((it.properties&&it.properties[key])||'');
+    opts.forEach(([v,t])=>{ const o=mk('option',null,t); o.value=v; if(v===cur) o.selected=true; s.appendChild(o); });
+    s.addEventListener('change',()=>{ if(RO) return; it.properties=it.properties||{};
+      if(s.value) it.properties[key]=s.value; else delete it.properties[key]; commit(); renderAll(); });
+    if(RO) s.disabled=true; f.appendChild(l); f.appendChild(s); r.appendChild(f); });
+  sec.appendChild(mk('div','pitchnote','Changes the look in 3D and in the photo render. The price stays the catalogue price for this item.'));
+  const ibtns=box.querySelector('.ibtns'); if(ibtns) box.insertBefore(sec, ibtns); else box.appendChild(sec);
+}
+/* ===================== DÉCOR VARIANTS: END ===================== */

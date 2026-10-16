@@ -1,0 +1,126 @@
+/* try.css — the public "Try the planner" mini-demo (try.html, generated from builder.html).
+   The real builder runs underneath; everything except the plan / 3D stage is hidden and a
+   slim top bar, a 3-mode toggle (2D plan · 3D view · Measure) and a small dock sit on top. */
+html.helm-sandbox{
+  --try-em:#0f5c45; --try-em-2:#0b4535; --try-ivory:#fbf8f1; --try-ink:#16201b; --try-ink-2:#5b665f;
+  --try-glass:rgba(251,248,241,.82); --try-hair:rgba(22,32,27,.09);
+  --try-shadow:0 1px 1px rgba(22,32,27,.04),0 12px 32px -12px rgba(22,32,27,.18);
+  --try-ease:cubic-bezier(.32,.72,0,1);
+  --canvas:#efe9dc; --grid:rgba(120,104,72,.10); --grid-strong:rgba(120,104,72,.18); --accent:var(--try-em);
+}
+html.helm-sandbox[data-theme="dark"]{
+  --try-ivory:#0e1411; --try-ink:#eef2ee; --try-ink-2:#a7b3ab; --try-glass:rgba(16,22,19,.8); --try-hair:rgba(255,255,255,.09);
+  --try-em:#3fbf8f; --canvas:#0a0f0c; --grid:rgba(255,255,255,.04); --grid-strong:rgba(255,255,255,.08);
+}
+html.helm-sandbox body{background:var(--canvas)}
+
+/* ---- everything that is not part of the mini-demo ---- */
+html.helm-sandbox body > header,
+html.helm-sandbox #leftPanel, html.helm-sandbox #rightPanel,
+html.helm-sandbox .ptoggle, html.helm-sandbox .corner,
+html.helm-sandbox #rulerTop, html.helm-sandbox #rulerLeft,
+html.helm-sandbox #status, html.helm-sandbox #fabStack,
+html.helm-sandbox #emptyState, html.helm-sandbox #layoutLoading,
+html.helm-sandbox #tools3d, html.helm-sandbox #legend3d, html.helm-sandbox #hint3d,
+html.helm-sandbox .fs-fab, html.helm-sandbox #photoModal,
+html.helm-sandbox #acctMenu, html.helm-sandbox .skip-link{display:none!important}
+
+/* ---- full-bleed stage ---- */
+html.helm-sandbox main{position:fixed;inset:0;display:block}
+html.helm-sandbox .viewport{position:absolute;inset:0;background:var(--canvas)}
+html.helm-sandbox .stage3d{left:0;top:0;right:0;bottom:0}
+html.helm-sandbox .scroll{left:24px;top:124px;right:24px;bottom:64px}
+html.helm-sandbox .scroll{scrollbar-width:none}
+html.helm-sandbox .scroll::-webkit-scrollbar{display:none}
+html.helm-sandbox .scroll{display:flex}
+html.helm-sandbox #svg{background:transparent;margin:auto;flex:none}
+html.helm-sandbox #svg .margins{display:none}
+html.helm-sandbox .stage3d{background:radial-gradient(120% 120% at 50% 0%,#fbf8f1 0%,#efe9dc 70%)}
+html.helm-sandbox[data-theme="dark"] .stage3d{background:radial-gradient(120% 120% at 50% 0%,#18201b 0%,#0a0f0c 70%)}
+
+/* ---- the 2D plan: ivory planks, a thick wall, soft object shadows ---- */
+html.helm-sandbox #svg > rect:first-child{fill:url(#tryFloor);filter:drop-shadow(0 18px 30px rgba(60,48,24,.16))}
+html.helm-sandbox[data-theme="dark"] #svg > rect:first-child{fill:url(#tryFloorDark)}
+html.helm-sandbox #svg > rect[fill="none"]{stroke:#2b3a33;stroke-width:7px;stroke-linejoin:miter}
+html.helm-sandbox[data-theme="dark"] #svg > rect[fill="none"]{stroke:#c9d3cc}
+html.helm-sandbox #svg .obj .body{filter:drop-shadow(0 2px 2.5px rgba(40,32,16,.22))}
+html.helm-sandbox #svg .obj:hover .body{filter:drop-shadow(0 4px 6px rgba(40,32,16,.26))}
+html.helm-sandbox #svg .lbl{font-size:8px;font-weight:600;letter-spacing:.02em;fill:var(--try-ink);stroke:var(--try-ivory);stroke-width:2.4px}
+html.helm-sandbox .measure{color:var(--try-em)}
+html.helm-sandbox .measure .wall{color:#b0703a}
+html.helm-sandbox .measure .mbg{fill:var(--try-ivory)}
+
+/* ---- slim top bar ---- */
+.try-top{position:fixed;z-index:20;top:14px;left:16px;right:16px;display:flex;align-items:center;gap:16px;
+  padding:6px 6px 6px 14px;border-radius:999px;background:var(--try-glass);backdrop-filter:blur(18px) saturate(1.3);
+  -webkit-backdrop-filter:blur(18px) saturate(1.3);box-shadow:var(--try-shadow),inset 0 0 0 1px var(--try-hair);color:var(--try-ink)}
+.try-logo{display:inline-flex;align-items:center;gap:8px;color:inherit;text-decoration:none;font-weight:700;font-size:15px;letter-spacing:-.01em}
+.try-mark{width:22px;height:22px;border-radius:7px;background:linear-gradient(140deg,#1a7a5c,var(--try-em-2));box-shadow:inset 0 1px 0 rgba(255,255,255,.25)}
+.try-title{display:flex;align-items:baseline;gap:12px;min-width:0;flex:1 1 auto;padding-left:14px;border-left:1px solid var(--try-hair)}
+.try-title h1{margin:0;font-size:14px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
+.try-note{margin:0;display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--try-ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.try-dot{width:6px;height:6px;border-radius:50%;background:#d39b3a;box-shadow:0 0 0 3px rgba(211,155,58,.18)}
+.try-cta{display:inline-flex;align-items:center;gap:10px;padding:5px 5px 5px 16px;border-radius:999px;background:var(--try-em);color:#fff;
+  font-weight:600;font-size:13px;text-decoration:none;white-space:nowrap;transition:transform .5s var(--try-ease),background .3s var(--try-ease)}
+.try-cta-i{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.16);transition:transform .5s var(--try-ease)}
+.try-cta:hover{background:var(--try-em-2)}
+.try-cta:hover .try-cta-i{transform:translateX(2px) scale(1.05)}
+.try-cta:active{transform:scale(.98)}
+
+/* ---- the 3-mode toggle (sliding pill) ---- */
+.try-modes{position:fixed;z-index:20;top:76px;left:50%;transform:translateX(-50%);display:grid;grid-template-columns:repeat(3,1fr);
+  padding:4px;border-radius:999px;background:var(--try-glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  box-shadow:var(--try-shadow),inset 0 0 0 1px var(--try-hair)}
+.try-modes button{position:relative;z-index:1;min-width:96px;min-height:36px;padding:0 16px;border:0;border-radius:999px;background:none;
+  font-size:13px;font-weight:600;color:var(--try-ink-2);transition:color .4s var(--try-ease)}
+.try-modes button[aria-checked="true"]{color:#fff}
+.try-pill{position:absolute;top:4px;bottom:4px;left:4px;width:calc((100% - 8px)/3);border-radius:999px;background:var(--try-em);
+  box-shadow:0 6px 16px -6px rgba(15,92,69,.6),inset 0 1px 0 rgba(255,255,255,.18);transition:transform .55s var(--try-ease)}
+html[data-try-mode="3d"] .try-pill{transform:translateX(100%)}
+html[data-try-mode="measure"] .try-pill{transform:translateX(200%)}
+
+/* ---- dock (units · add · rotate · reset) ---- */
+.try-dock{position:fixed;z-index:20;right:16px;bottom:16px;display:flex;align-items:flex-end;gap:8px}
+.try-btn,.try-units{min-height:38px;border-radius:999px;background:var(--try-glass);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  box-shadow:var(--try-shadow),inset 0 0 0 1px var(--try-hair);color:var(--try-ink)}
+.try-btn{padding:0 16px;border:0;font-size:13px;font-weight:600;transition:transform .4s var(--try-ease),background .3s var(--try-ease)}
+.try-btn:hover{background:var(--try-ivory)}
+.try-btn:active{transform:scale(.97)}
+html[data-try-mode="3d"] #tryRotate{display:none}
+.try-units{display:inline-flex;padding:3px}
+.try-units[hidden],.try-tray[hidden]{display:none}
+.try-units button{min-width:40px;border:0;border-radius:999px;background:none;font-weight:700;font-size:13px;color:var(--try-ink-2);transition:background .3s var(--try-ease),color .3s var(--try-ease)}
+.try-units button[aria-checked="true"]{background:var(--try-ink);color:var(--try-ivory)}
+.try-tray{position:absolute;right:0;bottom:48px;display:grid;gap:2px;min-width:200px;padding:8px;border-radius:20px;background:var(--try-ivory);
+  box-shadow:0 24px 48px -16px rgba(22,32,27,.28),inset 0 0 0 1px var(--try-hair);animation:tryUp .45s var(--try-ease)}
+.try-tray-h{margin:2px 8px 6px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--try-ink-2)}
+.try-tray button{text-align:left;min-height:36px;padding:0 10px;border:0;border-radius:12px;background:none;font-size:13px;font-weight:500;color:var(--try-ink)}
+.try-tray button:hover,.try-tray button:focus-visible{background:rgba(15,92,69,.08);color:var(--try-em)}
+.try-hint{position:fixed;z-index:19;left:16px;bottom:22px;margin:0;font-size:12px;color:var(--try-ink-2);max-width:calc(100% - 420px)}
+.try-defs{position:absolute;width:0;height:0;overflow:hidden}
+.try-modes button:focus-visible,.try-btn:focus-visible,.try-units button:focus-visible,.try-cta:focus-visible,.try-logo:focus-visible{outline:2px solid var(--try-em);outline-offset:2px}
+
+/* smooth mode change */
+html.try-swap .viewport{animation:tryFade .42s var(--try-ease)}
+@keyframes tryFade{from{opacity:.35;transform:scale(.995)}to{opacity:1;transform:none}}
+@keyframes tryUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ---- phone: toggle at the bottom, full-screen canvas ---- */
+@media (max-width:720px){
+  .try-top{top:10px;left:10px;right:10px;gap:10px;padding-left:10px}
+  .try-word,.try-note{display:none}
+  .try-title{padding-left:10px}
+  .try-title h1{font-size:13px}
+  .try-cta{font-size:12px;padding-left:12px}
+  .try-modes{top:auto;bottom:14px;width:calc(100% - 20px);max-width:360px}
+  .try-modes button{min-width:0;padding:0 6px;min-height:40px}
+  .try-dock{right:10px;bottom:76px}
+  html.helm-sandbox .scroll{left:6px;top:64px;right:6px;bottom:124px}
+  .try-hint{display:none}
+}
+.try-cta-s{display:none}
+@media (max-width:460px){ .try-cta-l{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)} .try-cta-s{display:inline} }
+@media (prefers-reduced-motion:reduce){
+  .try-pill,.try-cta,.try-cta-i,.try-btn,.try-modes button,.try-units button{transition:none}
+  .try-tray,html.try-swap .viewport{animation:none}
+}

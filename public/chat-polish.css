@@ -1,0 +1,34 @@
+/* chat.html old-layout polish (moved out of inline <style> to keep the CSP hash list small) */
+  /* old-layout polish (calm, consistent) */
+  html:not([data-shell]) .wrap h1{letter-spacing:-.02em;line-height:1.15}
+    html:not([data-shell]) .card h2,html:not([data-shell]) .card h3{letter-spacing:-.01em}
+  html:not([data-shell]) .empty{color:var(--ink-3);font-size:13.5px;line-height:1.5;padding:36px 20px;border:1px dashed var(--line);border-radius:12px;background:transparent}
+  html:not([data-shell]) table{font-variant-numeric:tabular-nums}
+  html:not([data-shell]) th{font-size:11.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
+  html:not([data-shell]) td,html:not([data-shell]) th{vertical-align:middle}
+  html:not([data-shell]) .btn:focus-visible,html:not([data-shell]) button:focus-visible,html:not([data-shell]) a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  html:not([data-shell]) input:focus-visible,html:not([data-shell]) select:focus-visible,html:not([data-shell]) textarea:focus-visible{outline:2px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:1px}
+  html:not([data-shell]) .num,html:not([data-shell]) .kpi,html:not([data-shell]) .stat,html:not([data-shell]) .tile{font-variant-numeric:tabular-nums}
+  @media (prefers-reduced-motion:reduce){ html:not([data-shell]) *{transition:none!important;animation:none!important} }
+
+/* ── Shell (new layout) page-level consistency: header, toolbar, tables, empty states, modals ── */
+html[data-shell] .toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 12px;margin:0 0 20px}
+html[data-shell] .toolbar h2{margin:0;font-size:20px;font-weight:700;line-height:1.25;letter-spacing:-.015em}
+html[data-shell] .toolbar .sub{font-size:13px;line-height:1.5;color:var(--ink-3)}
+html[data-shell] .toolbar :is(.search,select,.btn){min-height:36px}
+html[data-shell] .card{border-radius:14px}
+html[data-shell] .card>h2{font-size:15px;font-weight:650;letter-spacing:-.01em;margin:0 0 12px}
+html[data-shell] thead th{font-size:11px;font-weight:650;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
+html[data-shell] tbody td{vertical-align:middle}
+html[data-shell] tbody tr{transition:background-color .12s ease}
+html[data-shell] :is(.empty,.colempty){font-size:13px;line-height:1.6;color:var(--ink-3)}
+html[data-shell] .modal h3{margin:0 0 12px;font-size:16px;font-weight:650;letter-spacing:-.01em}
+html[data-shell] .modal .foot{display:flex;justify-content:flex-end;gap:8px}
+html[data-shell] .btn:focus-visible,html[data-shell] .search:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:720px){
+  html[data-shell] .toolbar{margin-bottom:16px}
+  html[data-shell] .toolbar h2{font-size:18px}
+  html[data-shell] .toolbar .search{flex:1 1 100%;max-width:none}
+  html[data-shell] .toolbar :is(.search,select,.btn){min-height:40px}
+}
+@media (prefers-reduced-motion:reduce){html[data-shell] tbody tr{transition:none}}

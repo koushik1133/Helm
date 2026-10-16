@@ -253,3 +253,64 @@ Template source: `supabase/functions/welcome-mailer/templates.ts` (previews in
 
 Tests: `tests/edge/welcome-mailer.test.ts` (dormant, secret, sends, marks, retry, no PII in logs)
 and `tests/db/welcome-email.sql` (enqueue once, no duplicates, org isolation, clients locked out).
+
+## Invitation e-mails (`invite-mailer`, migration 0131) — ON as soon as it is deployed
+`invite-mailer` e-mails staff invitations: "<Admin> invited you to join <Studio> on Helm as <Role>"
+with a **Join** button to `<APP_URL>/login?invite=<token>`, the expiry date and a plain-text copy.
+Queue: `invite_email_outbox` (one row per invitation, so each invite is e-mailed once). A new invite
+(or a re-tokened one) is queued by a trigger; **Resend email** (Staff page / Control Center → Users)
+re-queues it, at most once per 10 minutes per invite. Copy link keeps working as a backup.
+
+**No Resend account yet?** Leave `RESEND_API_KEY` unset: the function sends through Supabase
+Auth's own mailer instead — a new address gets the **Invite user** e-mail, an existing account the
+**Magic Link** e-mail. Both open `<APP_URL>/login?invite=<token>` already signed in and the
+invitation is accepted automatically. Needs: Supabase → Authentication → URL Configuration →
+Redirect URLs contains `https://www.helm.events/login*` (and the staging site). Supabase's
+built-in mailer is limited to a few e-mails per hour — set custom SMTP (Authentication → SMTP,
+e.g. a Gmail/Workspace app password) for real use. Set `RESEND_API_KEY` later and it switches
+to the branded Resend e-mail automatically; nothing else changes.
+Invites created before 0131 are not back-filled (use Resend email for those).
+Template source: `supabase/functions/invite-mailer/templates.ts`.
+
+1. Apply 0131 (staging, then prod): paste `supabase/APPLY-0131.sql`. Every verify row must be `t`
+   (re-check any time with `supabase/VERIFY-0131.sql`).
+2. Verify the sending domain in Resend (helm.events: SPF / DKIM DNS records) so
+   `RESEND_FROM` can be e.g. `Helm <hello@helm.events>`.
+3. Deploy (no Supabase JWT check at the gateway: the function checks the cron secret OR the
+   signed-in admin's token itself):
+   ```bash
+   supabase functions deploy invite-mailer --no-verify-jwt --project-ref <project-ref>
+   ```
+4. Secrets (RESEND_API_KEY / RESEND_FROM / APP_URL are shared with the other mailers — set once):
+   ```bash
+   supabase secrets set --project-ref <project-ref> \
+     HELM_INVITE_EMAIL_SECRET="$(openssl rand -hex 32)" \
+     RESEND_API_KEY="re_..." \
+     RESEND_FROM="Helm <hello@helm.events>" \
+     APP_URL="https://www.helm.events"
+   # optional: INVITE_EMAIL_BATCH=25. Without RESEND_API_KEY → Supabase Auth e-mail fallback.
+   ```
+5. Safety-net schedule (the Staff page also flushes right after an invite), every 2 minutes:
+   ```sql
+   select cron.schedule('invite-mailer', '*/2 * * * *', $$
+     select net.http_post('https://<project-ref>.supabase.co/functions/v1/invite-mailer',
+       '{}'::jsonb, '{}'::jsonb, jsonb_build_object('x-helm-cron-secret', '<the secret>'), 15000) $$);
+   ```
+6. It is ON by default. Emergency kill switch:
+   `supabase secrets set --project-ref <project-ref> HELM_INVITE_EMAILS_ENABLED=false` (unset to resume).
+7. Check: `select status, count(*) from public.invite_email_outbox group by 1;`
+   Failed sends retry every run (5 tries max, then `failed`). Logs never contain addresses or tokens.
+
+Tests: `test/invite-mailer.test.mjs` (static: additive SQL, service-role-only claim/mark, RLS,
+rate-limited resend, escaping, no token logging, Staff page wiring).
+
+## WhatsApp templates for comms-dispatch (auto-on)
+`comms-dispatch` runs whenever its cron calls it (kill switch `HELM_COMMS_ENABLED=false`).
+WhatsApp turns on by itself once `WHATSAPP_TOKEN` + `WHATSAPP_PHONE_ID` are set. Approve these
+Utility templates in Meta (language English, ONE body variable `{{1}}`):
+`helm_task_assigned` and `helm_event_reminder`, then:
+```bash
+supabase secrets set --project-ref <project-ref> \
+  WHATSAPP_TPL_TASK_ASSIGNED=helm_task_assigned WHATSAPP_TPL_EVENT_REMINDER=helm_event_reminder
+```
+Unset → falls back to `COMMS_WHATSAPP_TEMPLATE`, then session text if `WHATSAPP_ALLOW_TEXT=1`.

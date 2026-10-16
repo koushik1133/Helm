@@ -1,0 +1,8 @@
+/* shell-b monochrome skin + mobile sheet for the Cmd/Ctrl+K palette (studio-search.js) */
+html[data-shell="b"] .hss-dlg{background:var(--hb-bg);color:var(--hb-ink);border-color:var(--hb-line)}
+html[data-shell="b"] .hss-dlg mark{background:transparent;color:var(--hb-ink);font-weight:700;text-decoration:underline}
+@media (max-width:819px){
+  html[data-shell="b"] .hss-ov{padding:0;align-items:stretch}
+  html[data-shell="b"] .hss-dlg{width:100%;max-height:none;height:100%;border-radius:0;border:0}
+  html[data-shell="b"] .hss-in{font-size:16px}
+}

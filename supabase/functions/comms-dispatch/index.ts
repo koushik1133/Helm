@@ -1,21 +1,29 @@
 // comms-dispatch - delivers the messages queued by migration 0078 (comms_outbox):
 //   * pay_reminder  client payment reminders (automatic + "Send reminder now")  e-mail / WhatsApp
 //   * follow_up     polite client follow-ups after the booklet / quote was opened e-mail / WhatsApp
+//   * trial reminders (0120) the studio's own 8-day free-trial reminders (day 5 / 7 / 8), e-mail only,
+//                   claimed from trial_reminders via trial_reminder_email_claim (re-checked there)
 //   * wa_forward    WhatsApp copies of a member's bell notifications (+ studio announcements),
 //                   each with a short deep link that opens the exact page in Helm.
-// DORMANT BY DEFAULT: unless HELM_COMMS_ENABLED === "true" every request is a no-op 200 and
-// nothing is claimed (rows stay queued). Invoked ONLY by a cron / service caller presenting a
+// AUTO-ON: runs whenever it is called with the shared secret; each channel switches itself on
+// when its secrets exist (e-mail: RESEND_API_KEY; WhatsApp: WHATSAPP_TOKEN + WHATSAPP_PHONE_ID).
+// Kill switch: HELM_COMMS_ENABLED="false" -> every request is a no-op 200 and nothing is
+// claimed (rows stay queued). Invoked ONLY by a cron / service caller presenting a
 // shared secret. The database decides WHAT is due (comms_tick, pg_cron) and re-checks every row
 // at claim time (paid / approved / opted out -> skipped).
 //
 // Secrets / env:
-//   HELM_COMMS_ENABLED="true"         turn it on (anything else -> dormant no-op)
+//   HELM_COMMS_ENABLED="false"        kill switch (unset / anything else -> on)
 //   HELM_COMMS_SECRET                 shared secret in the `x-helm-cron-secret` header; unset -> 401
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (injected)
 //   RESEND_API_KEY, RESEND_FROM       unset key -> e-mail rows are marked "skipped"
 //   WHATSAPP_TOKEN, WHATSAPP_PHONE_ID, WHATSAPP_API_VERSION (default v21.0)
-//   COMMS_WHATSAPP_TEMPLATE           approved template name with ONE body parameter (the text);
-//                                     unset -> free text only when WHATSAPP_ALLOW_TEXT=1, else skipped
+//   WHATSAPP_TPL_TASK_ASSIGNED        approved template for "you've been assigned" (e.g. helm_task_assigned)
+//   WHATSAPP_TPL_EVENT_REMINDER       approved template for event reminders  (e.g. helm_event_reminder)
+//   COMMS_WHATSAPP_TEMPLATE           approved template for everything else; each template has ONE
+//                                     body parameter {{1}} (the text). WHATSAPP_TPL_LANG (default en).
+//                                     No template for a kind -> session text when WHATSAPP_ALLOW_TEXT=1,
+//                                     else skipped
 //   APP_URL                           site origin for deep links (default https://www.helm.events)
 //   COMMS_BATCH                       rows per run, 1..100 (default 25)
 //
@@ -28,6 +36,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, escHtml } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readBodyCapped } from "../_shared/limits.ts";
 import { absoluteLink } from "./deeplink.js";
+import { trialReminderEmail } from "./trial-reminders.mjs";
 
 const enc = new TextEncoder();
 const ALLOWED_HOSTS = new Set(["api.resend.com", "graph.facebook.com"]);
@@ -77,17 +86,43 @@ async function sendEmail(id: string, to: string, subject: string, text: string, 
   } catch (e) { console.error("comms-dispatch: email error", errTag(e)); return "failed"; }
 }
 
-async function sendWhatsApp(to: string, text: string): Promise<Res> {
+// kill switch only: anything but an explicit "false" keeps the dispatcher on
+export function commsOn(v: string | undefined): boolean {
+  return String(v ?? "").trim().toLowerCase() !== "false";
+}
+
+export type WaKind = "task_assigned" | "event_reminder" | "general";
+const TPL_ENV: Record<WaKind, string> = {
+  task_assigned: "WHATSAPP_TPL_TASK_ASSIGNED", event_reminder: "WHATSAPP_TPL_EVENT_REMINDER", general: "COMMS_WHATSAPP_TEMPLATE",
+};
+const TPL_NAME = /^[a-z0-9_]{1,64}$/;
+// the approved template for this kind (falls back to the general one), or "" for none
+export function templateFor(kind: WaKind, env: (k: string) => string | undefined): string {
+  const own = String(env(TPL_ENV[kind]) || "").trim();
+  if (TPL_NAME.test(own)) return own;
+  const gen = String(env(TPL_ENV.general) || "").trim();
+  return TPL_NAME.test(gen) ? gen : "";
+}
+// Meta's template text parameter may not contain newlines / tabs / 4+ spaces in a row
+export function tplParam(text: string): string {
+  return String(text || "").replace(/[\r\n\t]+/g, " ").replace(/ {4,}/g, "   ").trim().slice(0, 1000);
+}
+export function waContent(kind: WaKind, text: string, env: (k: string) => string | undefined): Record<string, unknown> | null {
+  const tpl = templateFor(kind, env);
+  if (tpl) {
+    const lang = /^[a-z]{2}(_[A-Z]{2})?$/.test(String(env("WHATSAPP_TPL_LANG") || "")) ? String(env("WHATSAPP_TPL_LANG")) : "en";
+    return { type: "template", template: { name: tpl, language: { code: lang }, components: [{ type: "body", parameters: [{ type: "text", text: tplParam(text) }] }] } };
+  }
+  if (env("WHATSAPP_ALLOW_TEXT") === "1") return { type: "text", text: { preview_url: false, body: text.slice(0, 1000) } };
+  return null;
+}
+
+async function sendWhatsApp(to: string, text: string, kind: WaKind = "general"): Promise<Res> {
   const token = Deno.env.get("WHATSAPP_TOKEN") || "", phoneId = Deno.env.get("WHATSAPP_PHONE_ID") || "";
   if (!token || !/^[0-9]{5,20}$/.test(phoneId) || !PHONE.test(to) || !text) return "skipped";
   const ver = /^v[0-9]{1,2}\.[0-9]$/.test(Deno.env.get("WHATSAPP_API_VERSION") || "") ? Deno.env.get("WHATSAPP_API_VERSION")! : "v21.0";
-  const tpl = (Deno.env.get("COMMS_WHATSAPP_TEMPLATE") || "").trim();
-  let content: Record<string, unknown>;
-  if (/^[a-z0-9_]{1,64}$/.test(tpl)) {
-    content = { type: "template", template: { name: tpl, language: { code: "en" }, components: [{ type: "body", parameters: [{ type: "text", text: text.slice(0, 1000) }] }] } };
-  } else if (Deno.env.get("WHATSAPP_ALLOW_TEXT") === "1") {
-    content = { type: "text", text: { preview_url: false, body: text.slice(0, 1000) } };
-  } else return "skipped";
+  const content = waContent(kind, text, (k) => Deno.env.get(k));
+  if (!content) return "skipped";
   try {
     const r = await safeFetch(`https://graph.facebook.com/${ver}/${encodeURIComponent(phoneId)}/messages`, {
       method: "POST",
@@ -98,6 +133,15 @@ async function sendWhatsApp(to: string, text: string): Promise<Res> {
     if (!r.ok) console.error("comms-dispatch: whatsapp status", r.status);
     return r.ok ? "sent" : "failed";
   } catch (e) { console.error("comms-dispatch: whatsapp error", errTag(e)); return "failed"; }
+}
+
+// 0132: assignment text from the database + the person's own task link (path is validated
+// against the one shape the database writes; the host is always APP_URL, never the database)
+const ASSIGN_LINK = /^work\.html\?token=[0-9a-f-]{36}$/;
+export function assignMessage(text: string, linkPath: string, origin: string): string {
+  const t = String(text || "").slice(0, 880).trim();
+  if (!t) return "";
+  return ASSIGN_LINK.test(linkPath) ? t + " " + origin + "/" + linkPath : t;
 }
 
 // the message for one claimed row (text from the database + the deep link for forwards)
@@ -114,7 +158,7 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 
 Deno.serve(async (req) => {
   try {
-    if (Deno.env.get("HELM_COMMS_ENABLED") !== "true") return json({ status: "dormant" });
+    if (!commsOn(Deno.env.get("HELM_COMMS_ENABLED"))) return json({ status: "dormant" });
     if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
     const wait = await checkLimits([["comms:ip:" + clientIp(req), 30, 60_000]]);
     if (wait) return new Response(JSON.stringify({ error: "too many requests" }), { status: 429, headers: { "Content-Type": "application/json", "Retry-After": String(wait) } });
@@ -137,9 +181,33 @@ Deno.serve(async (req) => {
       const msg = messageFor(purpose, payload, origin);
       let res: Res = "skipped";
       if (channel === "email" && purpose !== "wa_forward") res = await sendEmail(id, to, msg.subject, msg.text, String(payload.studio ?? ""));
-      else if (channel === "whatsapp") res = await sendWhatsApp(to, msg.text);
+      else if (channel === "whatsapp") res = await sendWhatsApp(to, msg.text, purpose === "wa_forward" && String(payload.type ?? "") === "event_reminder" ? "event_reminder" : "general");
       const { error: mErr } = await admin.rpc("comms_outbox_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
       if (mErr) { console.error("comms-dispatch: mark failed", errTag(mErr)); counts.failed++; continue; }
+      counts[res]++;
+    }
+    // 0120: free-trial reminder e-mails (a database without 0120 just has nothing to claim)
+    const { data: trows, error: tErr } = await admin.rpc("trial_reminder_email_claim", { p_limit: batch });
+    if (tErr) console.error("comms-dispatch: trial claim skipped", errTag(tErr));
+    for (const r of (Array.isArray(trows) ? trows : [])) {
+      const id = String(r?.id ?? ""), to = String(r?.to ?? "");
+      if (!UUIDISH.test(id)) { counts.invalid++; continue; }
+      const msg = trialReminderEmail(String(r?.milestone ?? ""), String(r?.studio ?? ""), String(r?.ends_at ?? ""), String(r?.timezone ?? ""), origin);
+      const res: Res = msg ? await sendEmail(id, to, msg.subject, msg.text, "Helm") : "skipped";
+      const { error: mErr } = await admin.rpc("trial_reminder_email_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
+      if (mErr) { console.error("comms-dispatch: trial mark failed", errTag(mErr)); counts.failed++; continue; }
+      counts[res]++;
+    }
+    // 0132: "you've been assigned ..." WhatsApp to staff (a database without 0132 has nothing to claim)
+    const { data: arows, error: aErr } = await admin.rpc("assign_notify_claim", { p_limit: batch });
+    if (aErr) console.error("comms-dispatch: assign claim skipped", errTag(aErr));
+    for (const r of (Array.isArray(arows) ? arows : [])) {
+      const id = String(r?.id ?? ""), to = String(r?.to ?? "");
+      if (!UUIDISH.test(id)) { counts.invalid++; continue; }
+      const text = assignMessage(String(r?.text ?? ""), String(r?.link_path ?? ""), origin);
+      const res: Res = text ? await sendWhatsApp(to, text, "task_assigned") : "skipped";
+      const { error: mErr } = await admin.rpc("assign_notify_mark", { p_id: id, p_status: res === "failed" ? "retry" : res });
+      if (mErr) { console.error("comms-dispatch: assign mark failed", errTag(mErr)); counts.failed++; continue; }
       counts[res]++;
     }
     console.log("comms-dispatch: run", JSON.stringify(counts));

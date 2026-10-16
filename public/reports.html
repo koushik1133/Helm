@@ -2,7 +2,9 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/reports-polish.css?v=1">
+<meta charset="utf-8">
+<base href="/"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reports & exports — Helm Events</title>
 <link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
 <link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
@@ -76,7 +78,8 @@
   .rb-err{color:#b42318;font-size:12px} .rb-label{font-size:12px;color:var(--ink-3);font-weight:600}
   .rrow.rb-hide{display:none}
 </style>
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="theme.css?v=80">
+<link rel="stylesheet" href="pages-polish-admin.css?v=1">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -100,7 +103,7 @@
     <p class="sub">Download your data as CSV (opens in Excel/Sheets) or print a clean PDF.</p>
     <div id="msg"></div>
     <div id="rangeBar"></div>
-    <p class="muted s-bc23002">Leads, events, P&amp;L and settlements cover the period above (by event date; leads by the day they came in). Inventory is a current stock list.</p>
+    <p class="muted s-bc23002">Leads, events, P&amp;L and settlements cover the period above (by event date; leads by the day they came in; settlements by payment date unless you pick event date). Inventory is a current stock list.</p>
 
     <div class="card">
       <h3>📄 CSV exports</h3>
@@ -109,7 +112,7 @@
         <div class="rrow"><span class="ic">📅</span><div class="t"><b>Events</b><div class="d">All events — code, title, type, date, stage, status, total.</div></div><button type="button" class="btn" data-csv="events">Download CSV</button></div>
         <div class="rrow"><span class="ic">📦</span><div class="t"><b>Inventory</b><div class="d">Stock — item, category, priority, qty, unit cost.</div></div><button type="button" class="btn" data-csv="inventory">Download CSV</button></div>
         <div class="rrow"><span class="ic">💰</span><div class="t"><b>P&amp;L (closed events)</b><div class="d">Revenue, profit and margin per closed event.</div></div><button type="button" class="btn" data-csv="pl">Download CSV</button></div>
-        <div class="rrow"><span class="ic">💳</span><div class="t"><b>Settlements</b><div class="d">Per event — revenue, received, balance, vendor outstanding.</div></div><button type="button" class="btn" data-csv="settlements">Download CSV</button></div>
+        <div class="rrow"><span class="ic">💳</span><div class="t"><b>Settlements</b><div class="d">Per event — revenue, received, balance, vendor outstanding.</div></div><select id="setlBasis" aria-label="Settlements period basis"><option value="payment" selected>By payment date</option><option value="event">By event date</option></select> <button type="button" class="btn" data-csv="settlements">Download CSV</button></div>
       </div>
     </div>
 
@@ -140,9 +143,9 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=205"></script>
 <script src="range-bar.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
@@ -160,6 +163,7 @@
       out.push(sub); });
     return out;
   }
+  const dmy=(iso)=>{ const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso||"")); return m?m[3]+"/"+m[2]+"/"+m[1]:""; };   // print: Indian DD/MM/YYYY
   const today=()=>{ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };   // r9: local (IST) day, not UTC
   let canFin=false, range=null;
   const evDay=(e)=>e.eventDate||String(e.createdAt||"").slice(0,10);
@@ -187,23 +191,37 @@
   const builders={
     async leads(){ const a=(await BPStore.leads.list()).filter(l=>inR(String(l.created_at||l.createdAt||l.event_date||"").slice(0,10))); return a.map(l=>({ name:l.name, phone:l.phone, email:l.email, source:l.source,
       event_type:l.event_type, event_date:l.event_date, budget:l.budget, guests:l.guest_count, status:l.status })); },
-    async events(){ const a=(await BPStore.quotes.list()).filter(e=>inR(evDay(e))); return perCurrency(a.map(e=>({ code:e.code, title:e.title, type:e.eventType,
-      event_date:e.eventDate||"", event_time:e.eventTime||"", stage:e.lifecycleStage, status:e.status, approval:e.approvalStatus, total:e.total||0 })), a.map(e=>BPStore.quoteCurrency(e)), ["total"], "code"); },
+    async events(){ const a=(await BPStore.quotes.list()).filter(e=>inR(evDay(e))); builders.skipped=0;
+      // "total" stays the quote total; approved change orders (price_delta) are added in invoice_total - same rule as Settlement revenue
+      const chg=await Promise.all(a.map(e=>BPStore.budget.listChanges(e.id).then(l=>(l||[]).filter(c=>c.status==="approved").reduce((s,c)=>s+Number(c.price_delta||0),0)).catch(()=>{ builders.skipped++; return null; })));
+      return perCurrency(a.map((e,i)=>({ code:e.code, title:e.title, type:e.eventType,
+      event_date:e.eventDate||"", event_time:e.eventTime||"", stage:e.lifecycleStage, status:e.status, approval:e.approvalStatus, total:e.total||0,
+      approved_changes:chg[i]==null?"":chg[i], invoice_total:chg[i]==null?"":Math.round(((Number(e.total)||0)+chg[i])*100)/100 })), a.map(e=>BPStore.quoteCurrency(e)), ["total","approved_changes","invoice_total"], "code"); },
     async inventory(){ const a=await BPStore.inventory.items(true); return a.map(i=>({ name:i.name, category:i.category, priority:i.priority||"",
       total_qty:i.total_qty, unit:i.unit||"", unit_cost:i.unit_cost||"", active:i.active!==false })); },
-    async pl(){ const d=await BPStore.insights.summary(range); return perCurrency(d.margins.events.map(e=>({ code:e.code, event_date:e.date||"",
-      revenue:Math.round(e.revenue||0), profit:Math.round(e.profit||0), margin_pct:e.marginPct!=null?e.marginPct:"" })), d.margins.events.map(e=>e.currency||"INR"), ["revenue","profit"], "code"); },
-    async settlements(){ const evs=(await BPStore.quotes.list()).filter(e=>e.status!=="cancelled"&&inR(evDay(e))); builders.skipped=0;
+    async pl(){ const d=await BPStore.insights.summary(range); const evs=(d&&d.margins&&d.margins.events)||[]; return perCurrency(evs.map(e=>({ code:e.code, event_date:e.date||"",
+      revenue:Math.round(e.revenue||0), profit:Math.round(e.profit||0), margin_pct:e.marginPct!=null?e.marginPct:"" })), evs.map(e=>e.currency||"INR"), ["revenue","profit"], "code"); },
+    async settlements(){ builders.skipped=0;
+      // Basis: "payment" (default) = events with a paid receipt dated inside the period, plus a
+      // received_in_period column; "event" = the old filter by event date. No period = all events.
+      const byPay=!!range&&BPStore.mode()==="supabase"&&(($("#setlBasis")||{}).value||"payment")==="payment";
+      const all=(await BPStore.quotes.list()).filter(e=>e.status!=="cancelled");
+      let evs=all, inPer={};
+      if(byPay){ const pays=await Promise.all(all.map(e=>BPStore.approval.payments(e.id).catch(()=>{ builders.skipped++; return null; })));
+        evs=[]; all.forEach((e,i)=>{ if(!pays[i]) return; const hit=pays[i].filter(p=>p.status==="paid"&&inR(String(p.paid_at||p.created_at||"").slice(0,10)));
+          if(hit.length){ evs.push(e); inPer[e.id]=Math.round(hit.reduce((a,p)=>a+(Number(p.amount)||0),0)); } }); }
+      else evs=all.filter(e=>inR(evDay(e)));
       const rows=await Promise.all(evs.map(async e=>{ try{ const s=await BPStore.settlement.summary(e.id);
-        return { _cur:BPStore.quoteCurrency(e), code:e.code, event_date:e.eventDate||"", revenue:Math.round(s.revenue||0), received:Math.round(s.received||0),
-          balance:Math.round(s.balance||0), vendor_outstanding:Math.round(s.vendorOutstanding||0), expenses_paid:Math.round(s.expPaid||0) };
+        const r={ _cur:BPStore.quoteCurrency(e), code:e.code, event_date:e.eventDate||"" }; if(byPay) r.received_in_period=inPer[e.id]||0;
+        return Object.assign(r,{ revenue:Math.round(s.revenue||0), revenue_ex_tax:Math.round(s.revenueExTax!=null?s.revenueExTax:(s.revenue||0)), gst:Math.round(s.tax||0), received:Math.round(s.received||0),
+          balance:Math.round(s.balance||0), vendor_outstanding:Math.round(s.vendorOutstanding||0), expenses_paid:Math.round(s.expPaid||0) });
       }catch{ builders.skipped++; return null; } })); const ok=rows.filter(Boolean), curs=ok.map(r=>r._cur); ok.forEach(r=>{ delete r._cur; });
-      return perCurrency(ok, curs, ["revenue","received","balance","vendor_outstanding","expenses_paid"], "code"); },
+      return perCurrency(ok, curs, ["revenue","revenue_ex_tax","gst","received","balance","vendor_outstanding","expenses_paid"].concat(byPay?["received_in_period"]:[]), "code"); },
   };
 
   async function doCSV(kind){ setMsg(); const btns=[...document.querySelectorAll("[data-csv]")]; btns.forEach(b=>b.disabled=true);
     try{ builders.skipped=0; const rows=await builders[kind](); const sk=builders.skipped||0;
-      if(!rows.length){ setMsg("err",sk?`Couldn't load any ${kind} to export — try again.`:"Nothing to export for "+kind+(range?" in "+range.label:"")+"."); return; }
+      if(!rows||!rows.length){ const t=sk?`Couldn't load any ${kind} to export — try again.`:"Nothing to export for this period"; setMsg("err",sk?t:t+(range?" ("+range.label+")":"")+"."); BPUI.toast(t,{type:sk?"err":"info"}); return; }
       download("helm-"+kind+"-"+tag()+".csv", toCSV(rows)); setMsg("ok", `Exported ${rows.length} ${kind} row(s).`+(sk?` ${sk} event(s) couldn't be loaded and were left out — try again to include them.`:""));
     }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"export "+kind})); } finally{ btns.forEach(b=>b.disabled=false); } }
 
@@ -215,9 +233,9 @@
       const multi=groups.length>1, mf=(n,e)=>multi?curM(n,e.currency):inr(n);
       const foot=multi?groups:[{currency:null,rev:evs.reduce((a,e)=>a+(e.revenue||0),0),pr:evs.reduce((a,e)=>a+(e.profit||0),0)}];
       $("#printArea").innerHTML=`<h1>Profit &amp; Loss — closed events</h1>
-        <div class="meta">Helm Events · ${esc(range?range.label:"all time")} · generated ${esc(today())} · ${evs.length} event(s)</div>
+        <div class="meta">Helm Events · ${esc(range?range.label:"all time")} · generated ${esc(dmy(today()))} · ${evs.length} event(s)</div>
         <table><thead><tr><th>Event</th><th>Date</th><th class="n">Revenue</th><th class="n">Profit</th><th class="n">Margin</th></tr></thead>
-        <tbody>${evs.map(e=>`<tr><td>${esc(e.code)}</td><td>${esc(e.date||"")}</td><td class="n">${esc(mf(e.revenue,e))}</td><td class="n">${esc(mf(e.profit,e))}</td><td class="n">${e.marginPct!=null?esc(e.marginPct)+"%":"—"}</td></tr>`).join("")||'<tr><td colspan="5">No closed events.</td></tr>'}</tbody>
+        <tbody>${evs.map(e=>`<tr><td>${esc(e.code)}</td><td>${esc(dmy(e.date))}</td><td class="n">${esc(mf(e.revenue,e))}</td><td class="n">${esc(mf(e.profit,e))}</td><td class="n">${e.marginPct!=null?esc(e.marginPct)+"%":"—"}</td></tr>`).join("")||'<tr><td colspan="5">No closed events.</td></tr>'}</tbody>
         <tfoot>${foot.map(t=>`<tr><td colspan="2">${esc(multi?"Total "+t.currency:"Total")}</td><td class="n">${esc(multi?curM(t.rev,t.currency):inr(t.rev))}</td><td class="n">${esc(multi?curM(t.pr,t.currency):inr(t.pr))}</td><td class="n">${t.rev?Math.round(t.pr/t.rev*100)+"%":"—"}</td></tr>`).join("")}</tfoot></table>`;
       window.print();
     }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"build the report"})); } }

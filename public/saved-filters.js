@@ -23,6 +23,9 @@
         { key: "attention", name: "Needs attention", state: { tab: "attention" } },
         { key: "archived", name: "Archive", state: { tab: "archived" } },
       ],
+      // the tabs right below already are these three filters: keep the presets for ?view=preset:…
+      // deep links, but don't draw them as a second, duplicate set of chips
+      hidePresets: true,
     },
     staff: {
       search: "search", sel: ["deptFilter", "skillFilter"], chk: ["showInactive"], tabs: null,
@@ -155,7 +158,7 @@
     while (row.firstChild) row.removeChild(row.firstChild);
     var lbl = doc.createElement("span"); lbl.className = "hsf-lbl"; lbl.textContent = "Views:"; row.appendChild(lbl);
     row.appendChild(this.chip("All", !current.activeId, function () { self.select("", { q: "" }); }));
-    this.cfg.presets.forEach(function (p) {
+    if (!this.cfg.hidePresets) this.cfg.presets.forEach(function (p) {
       var id = "preset:" + p.key;
       row.appendChild(self.chip(p.name, current.activeId === id, function () { self.select(id, p.state); }));
     });

@@ -2,7 +2,8 @@
 <html lang="en" data-theme="light" class="auth-pending">
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8">
+<base href="/"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Resource Calendar — Helm Events</title>
 <link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
 <link rel="dns-prefetch" href="https://nqltzgiwznphugcfhmbm.supabase.co">
@@ -65,7 +66,8 @@
   .foot{display:flex;gap:10px;justify-content:flex-end}.btn{height:38px;padding:0 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer}.btn.primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
   .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px}
 </style>
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="calendar-polish.css?v=2">
+<link rel="stylesheet" href="theme.css?v=80">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -111,11 +113,12 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
-<script src="tour.js?v=9"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=205"></script>
+<script src="tour.js?v=14"></script>
 <script>
+(function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   // A usable calendar date is ISO YYYY-MM-DD and actually parses. Anything else
@@ -123,6 +126,8 @@
   const validDate=(d)=>!!d && /^\d{4}-\d{2}-\d{2}$/.test(d) && !isNaN(new Date(d+"T00:00:00").getTime());
   const fmtDate=(d)=>{ if(!validDate(d)) return "—"; const dt=new Date(d+"T00:00:00"); return dt.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}); };
   const weekday=(d)=>{ if(!validDate(d)) return ""; return new Date(d+"T00:00:00").toLocaleDateString("en-IN",{weekday:"long"}); };
+  /* HelmUI empty state (guarded: falls back to the plain message if the kit isn't loaded) */
+  const hEmpty=(host,o,cols)=>{ const H=window.HelmUI; if(!(H&&H.emptyState)||!host) return false; const n=H.emptyState(o); if(cols){ const tr=document.createElement("tr"),td=document.createElement("td"); td.colSpan=cols; td.className="hs-empty-cell"; td.appendChild(n); tr.appendChild(td); host.replaceChildren(tr); } else host.replaceChildren(n); return true; };
   let canEdit=false, data=null;
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
@@ -147,7 +152,7 @@
     const chip=(n,l)=>`<span class="chip ${n?'':'zero'}"><b>${Number(n)||0}</b> ${l}</span>`;
     return `<div class="ev ${clash?'clash':''}">
       <div><span class="code">${esc(e.code)}</span> <span class="ttl">${esc(e.title||"")}</span>
-        <div style="font-size:12px;color:var(--ink-3)">${esc((e.eventType||""))}</div></div>
+        <div data-st="font-size:12px;color:var(--ink-3)">${esc((e.eventType||""))}</div></div>
       <div class="chips">
         ${chip(a.staffCount,"staff")}${chip(a.invCount,"stock")}${chip(a.vendCount,"partners")}
         <a class="open" href="event.html?id=${encodeURIComponent(e.id)}" aria-label="Open ${esc(e.code)}">Open</a>
@@ -166,13 +171,14 @@
     const upcoming=allDays.filter(d=>d>=todayISO).sort();
     const past=allDays.filter(d=>d<todayISO).sort().reverse();
     const dayBlock=(d)=>`<div class="day">
-      <div class="hd"><span class="dt">${esc(fmtDate(d))}</span><span class="wk">${esc(weekday(d))}</span>${clashDates.has(d)?'<span class="ctype vendor" style="background:#fdecec;color:#b42318">conflict</span>':''}</div>
+      <div class="hd"><span class="dt">${esc(fmtDate(d))}</span><span class="wk">${esc(weekday(d))}</span>${clashDates.has(d)?'<span class="ctype vendor" data-st="background:#fdecec;color:#b42318">conflict</span>':''}</div>
       ${byDate[d].map(a=>eventRow(a,clashDates)).join("")}
     </div>`;
     let html="";
     if(upcoming.length) html+=upcoming.map(dayBlock).join("");
-    if(past.length) html+=`<div class="hd" style="margin:18px 0 8px;color:var(--ink-3);font-weight:600;border-top:1px solid var(--line);padding-top:14px">Past events</div>`+past.map(dayBlock).join("");
+    if(past.length) html+=`<div class="hd" data-st="margin:18px 0 8px;color:var(--ink-3);font-weight:600;border-top:1px solid var(--line);padding-top:14px">Past events</div>`+past.map(dayBlock).join("");
     $("#agenda").innerHTML = (upcoming.length||past.length) ? html : '<div class="empty">No dated events yet.</div>';
+    if(!(upcoming.length||past.length)) hEmpty($("#agenda"),{icon:"📅",title:"No dated events yet",text:"Events show up here once a quote has an event date.",actionLabel:"Open quotes",onAction:()=>{ location.href="quotes.html"; }});
 
     const nodate=data.agenda.filter(a=>!validDate(a.event.eventDate));
     $("#nodateWrap").hidden = !nodate.length;

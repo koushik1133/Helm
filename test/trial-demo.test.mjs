@@ -80,7 +80,7 @@ t('0097: admin-gated entry points, flag guard, gate wrappers', () => {
 t('MANIFEST + run-all + versions', () => {
   assert.match(read('supabase/migrations/MANIFEST'), /^forward {2}supabase\/migrations\/0097_trial_demo\.sql$/m);
   assert.match(read('scripts/db-test/run-all.sh'), /tests\/db\/trial-demo-0097\.sql/);
-  assert.match(API, /const AUTH_UI_VERSION = "24";/);
+  assert.match(API, /const AUTH_UI_VERSION = "29";/);
 });
 t('0100: seed / reset / load errors are shown (friendlyError toast) with a busy button state', () => {
   assert.match(TD, /BPUI\.friendlyError\(e, \{ action: action \|\| "load the demo data" \}\)/);
@@ -103,3 +103,26 @@ t('0100: demo seed fix - raw pricing inputs, server total re-read, no money row 
   assert.doesNotMatch(read('supabase/APPLY-0100.sql'), /[^\x00-\x7f]/);
 });
 console.log(`trial-demo: ${n} passed`);
+// 0123 — "Start my own studio"
+{
+  const ctx2 = {}; vm.runInNewContext('const COUNT_LABELS=' + TD.match(/const COUNT_LABELS = (\[[\s\S]*?\]\]);/)[1] + ';\n' + fnSrc(TD, 'countLines') + '\n' + fnSrc(TD, 'nextAfterFresh') + '\nglobalThis.c=countLines;globalThis.n=nextAfterFresh;', ctx2);
+  t('0123: counts in plain words, zero/unknown skipped', () => {
+    assert.deepEqual([...ctx2.c({ events: 4, leads: 1, staff: 0, venues: 2, junk: 9 })], ['4 sample events', '1 sample lead', '2 sample venues (switched off, not deleted)']);
+    assert.equal(ctx2.c(null).length, 0);
+  });
+  t('0123: after clearing only onboarding or checkout (no open redirect)', () => {
+    assert.equal(ctx2.n(''), 'onboarding.html?fresh=1');
+    assert.equal(ctx2.n('checkout'), 'checkout.html?next=onboarding.html%3Ffresh%3D1');
+    assert.equal(ctx2.n('https://evil.example'), 'onboarding.html?fresh=1');
+  });
+  t('0123: start fresh calls the existing clear RPC only; onboarding hook; read-only migration', () => {
+    const b = fnSrc(TD, 'startFresh');
+    assert.match(b, /S\(\)\.demo\.clear\(\)/); assert.doesNotMatch(b, /rpc\(|delete/);
+    assert.match(read('public/onboarding.html'), /<script src="trial-demo\.js\?v=4"><\/script>/);
+    const M = read('supabase/migrations/0123_trial_start_fresh.sql');
+    assert.doesNotMatch(M.replace(/--.*$/gm, ''), /delete from|update public|insert into|drop |truncate/i);
+    assert.doesNotMatch(M, /[^\x00-\x7f]/);
+    assert.match(read('supabase/migrations/MANIFEST'), /^forward {2}supabase\/migrations\/0123_trial_start_fresh\.sql$/m);
+  });
+}
+console.log(`trial-demo 0123: ok`);

@@ -1,7 +1,7 @@
 /* =========================================================================
    /checkout — onboarding step 3 (0056): plan → tax preview → billing → Terms →
    Razorpay Standard Checkout (its own modal) or, while online payment is dormant,
-   a 14-day free trial. The page gate in store-api.js has already decided this
+   an 8-day free trial. The page gate in store-api.js has already decided this
    account must be here (new studio owner, no subscription) before anything paints.
    Every value from the server is rendered with textContent / DOM nodes — no HTML.
    Prices, tax and totals come ONLY from the server (my_checkout_preview).
@@ -155,7 +155,7 @@
     var b = $("#coPay");
     if (st.busy) return;
     b.disabled = !st.preview || (st.upgrade && !st.live);
-    b.textContent = !st.preview ? "Continue" : st.upgrade && !st.live ? "Online payment coming soon" : st.live ? "Pay " + money(st.preview.total, st.preview.currency) + " securely" : "Start 14-day free trial";
+    b.textContent = !st.preview ? "Continue" : st.upgrade && !st.live ? "Online payment coming soon" : st.live ? "Pay " + money(st.preview.total, st.preview.currency) + " securely" : "Start 8-day free trial";
   }
   function setBusy(on, label) {
     st.busy = on;
@@ -200,13 +200,40 @@
       if (st.live) {
         var p = (st.opts.prefill || {});
         var v = await S.checkout.pay(st.plan, st.interval, { name: $("#f_legal").value, email: p.email || "", contact: p.contact || "" });
-        if (v && v.verified) finish("Payment received — welcome to Helm! Taking you to your dashboard…");
+        if (v && v.verified) { if (!(await offerDemoChoice())) finish("Payment received — welcome to Helm! Taking you to your dashboard…"); }
         else throw Object.assign(new Error("We couldn't confirm the payment yet. If money was taken it will show up shortly."), { kind: "declined" });
       } else {
         await S.checkout.startTrial("payment_pending", st.plan);
-        finish("Your 14-day free trial has started. Taking you to your dashboard…");
+        finish("Your 8-day free trial has started. Taking you to your dashboard…");
       }
     } catch (e) { fail(e); }
+  }
+  /* 0127 — after a trial studio pays: "Start fresh" (remove only sample rows) or keep them.
+     Resolves false when there is nothing to choose, so the normal redirect runs. */
+  async function offerDemoChoice() {
+    var d = null;
+    try { d = S.demo && S.demo.status ? await S.demo.status() : null; } catch (e) { d = null; }
+    if (!d || !d.choice_pending || !d.is_admin || !S.demo.choose) return false;
+    showErr("Payment received — welcome to Helm!", "ok");
+    var box = $("#coDemoChoice"), msg = $("#dcMsg"), fresh = $("#dcFresh"), keep = $("#dcKeep");
+    box.hidden = false; box.scrollIntoView({ block: "center" }); fresh.focus();
+    function pick(choice) {
+      fresh.disabled = keep.disabled = true;
+      msg.textContent = choice === "fresh" ? "Removing the sample data…" : "Keeping the sample data…";
+      S.demo.choose(choice).then(function () {
+        msg.textContent = choice === "fresh" ? "Done — your studio is empty and ready for your own data." : "Sample data kept. You can remove it later from the dashboard.";
+        setTimeout(function () { location.replace(st.next); }, 900);
+      }, function (e) {
+        fresh.disabled = keep.disabled = false;
+        msg.textContent = (S.checkout.classify(e).message) || "Something went wrong — please try again.";
+      });
+    }
+    fresh.addEventListener("click", function () {
+      if (!window.confirm("Remove all sample records marked \"Demo\" from this studio? Your own records are not touched.")) return;
+      pick("fresh");
+    });
+    keep.addEventListener("click", function () { pick("keep"); });
+    return true;
   }
   async function skip() {
     if (st.busy) return;

@@ -1,0 +1,60 @@
+/* shell-b-loader.css - branded load experience for layout B (CSP-safe: loader SVG built by shell-proto.js with createElementNS).
+ * 1) thin accent progress shimmer pinned to the top while html lacks .hb-loaded
+ * 2) blueprint intro #hb-ld (grid sweep, dimension ticks, self-drawing mark, 3D tilt) until .hb-loaded
+ * 3) staggered entrance of the page blocks once .hb-loaded is set (shell-proto: window load) and auth is revealed.
+ * Mark + bar also stay up while html.auth-pending (store-api hides the body until the session is checked).
+ * The mark is swappable: edit HB_MARK in shell-proto.js (same paths as shell-b-loader-mark.svg). Nothing waits on it. */
+
+/* 1. top progress shimmer */
+html[data-shell="b"]::before {
+  content: ""; position: fixed; z-index: 2147483000; left: 0; top: 0; height: 2px; width: 100%;
+  background: linear-gradient(90deg, transparent 0%, var(--hb-acc, #2450f0) 35%, var(--hb-acc2, #4a72ff) 60%, transparent 100%);
+  background-size: 50% 100%; background-repeat: no-repeat;
+  animation: hbLdBar 1.1s cubic-bezier(.4,0,.2,1) infinite; pointer-events: none;
+  opacity: 1; transition: opacity .3s ease .1s;
+}
+html[data-shell="b"].hb-loaded:not(.auth-pending)::before { opacity: 0; animation-play-state: paused; }
+@keyframes hbLdBar { from { background-position: -60% 0; } to { background-position: 160% 0; } }
+
+/* 2. blueprint intro (#hb-ld, injected by shell-proto.js via createElementNS - no innerHTML, CSP-safe):
+ *    grid sweeps in -> dimension ticks draw -> Helm mark strokes itself -> tilts into 3D with accent glow.
+ *    Hidden the instant html.hb-loaded is set (unless auth-pending). Mark path: HB_MARK in shell-proto.js
+ *    (mirrors shell-b-loader-mark.svg; swap both together). */
+#hb-ld { position: fixed; inset: 0; z-index: 2147482999; display: grid; place-items: center; pointer-events: none;
+  background: var(--hb-bg, #f6f7fb); opacity: 1; transition: opacity .22s ease, visibility 0s linear .22s; visibility: visible; }
+html[data-shell="b"].hb-loaded:not(.auth-pending) #hb-ld { opacity: 0; visibility: hidden; }
+html[data-shell="b"].hb-loaded:not(.auth-pending) #hb-ld * { animation: none !important; }
+#hb-ld .hbl-stage { width: 168px; height: 168px; perspective: 520px; }
+#hb-ld svg { width: 100%; height: 100%; overflow: visible; transform-style: preserve-3d; animation: hbLdTilt 1.1s cubic-bezier(.2,.7,.2,1) 1s both; }
+#hb-ld .hbl-grid line { stroke: var(--hb-acc, #2450f0); stroke-width: .35; opacity: .22; }
+#hb-ld .hbl-grid { -webkit-mask: linear-gradient(90deg, #000 40%, transparent 60%) 100% 0 / 260% 100% no-repeat; mask: linear-gradient(90deg, #000 40%, transparent 60%) 100% 0 / 260% 100% no-repeat;
+  animation: hbLdSweep .55s cubic-bezier(.4,0,.2,1) both; }
+#hb-ld .hbl-dim { stroke: var(--hb-acc2, #4a72ff); stroke-width: .7; fill: none; stroke-dasharray: 1; stroke-dashoffset: 1; animation: hbLdDraw .35s ease-out .4s both; }
+#hb-ld .hbl-mark { stroke: var(--hb-acc, #2450f0); fill: none; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1;
+  animation: hbLdDraw .6s cubic-bezier(.6,0,.3,1) .55s both, hbLdGlow 1.6s ease-in-out 1.2s infinite alternate; }
+#hb-ld .hbl-mark + .hbl-mark { animation-delay: .8s, 1.2s; }
+@keyframes hbLdSweep { from { -webkit-mask-position: 100% 0; mask-position: 100% 0; } to { -webkit-mask-position: 0 0; mask-position: 0 0; } }
+@keyframes hbLdDraw { to { stroke-dashoffset: 0; } }
+@keyframes hbLdTilt { from { transform: rotateX(0) rotateZ(0); } to { transform: rotateX(38deg) rotateZ(-8deg) translateY(-4px); } }
+@keyframes hbLdGlow { from { filter: drop-shadow(0 0 0 transparent); } to { filter: drop-shadow(0 0 6px var(--hb-acc2, #4a72ff)); } }
+
+/* 3. staggered entrance of main blocks */
+html[data-shell="b"].hb-loaded:not(.auth-pending) #main > *, html[data-shell="b"].hb-loaded:not(.auth-pending) #main > .wrap > * {
+  animation: hbLdIn .42s cubic-bezier(.2,.7,.2,1) both;
+}
+html[data-shell="b"].hb-loaded:not(.auth-pending) #main > :nth-child(2), html[data-shell="b"].hb-loaded:not(.auth-pending) #main > .wrap > :nth-child(2) { animation-delay: .04s; }
+html[data-shell="b"].hb-loaded:not(.auth-pending) #main > :nth-child(3), html[data-shell="b"].hb-loaded:not(.auth-pending) #main > .wrap > :nth-child(3) { animation-delay: .08s; }
+html[data-shell="b"].hb-loaded:not(.auth-pending) #main > :nth-child(4), html[data-shell="b"].hb-loaded:not(.auth-pending) #main > .wrap > :nth-child(4) { animation-delay: .12s; }
+html[data-shell="b"].hb-loaded:not(.auth-pending) #main > :nth-child(5), html[data-shell="b"].hb-loaded:not(.auth-pending) #main > .wrap > :nth-child(5) { animation-delay: .16s; }
+html[data-shell="b"].hb-loaded:not(.auth-pending) #main > :nth-child(n+6), html[data-shell="b"].hb-loaded:not(.auth-pending) #main > .wrap > :nth-child(n+6) { animation-delay: .2s; }
+@keyframes hbLdIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-shell="b"]::before { animation: none; background: var(--hb-acc, #2450f0); opacity: .5; }
+  #hb-ld *, #hb-ld svg { animation: none !important; }
+  #hb-ld .hbl-dim, #hb-ld .hbl-mark { stroke-dashoffset: 0; }
+  #hb-ld .hbl-grid { -webkit-mask: none; mask: none; }
+  html[data-shell="b"].hb-loaded:not(.auth-pending) #main > *, html[data-shell="b"].hb-loaded:not(.auth-pending) #main > .wrap > * { animation: hbLdFade .2s linear both; animation-delay: 0s; }
+  @keyframes hbLdFade { from { opacity: 0; } to { opacity: 1; } }
+}
+@media print { html[data-shell="b"]::before, #hb-ld { display: none; } }

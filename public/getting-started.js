@@ -22,7 +22,9 @@
     lead:       { icon: "📥", title: "Add your first lead", why: "Log each enquiry so you can follow it up and turn it into an event.", href: "leads.html" },
     floor_plan: { icon: "📐", title: "Design your first floor plan", why: "Plan the hall layout. The chairs you place are added to the quote.", href: "quotes.html?new=1&open=builder" },
     quote:      { icon: "📨", title: "Send your first quote", why: "Send the client an approval link they can approve and pay from.", href: "quotes.html?new=1" },
-    team:       { icon: "👥", title: "Invite your team", why: "Add your staff and choose what each role can see and edit.", href: "control.html#users" },
+    team:       { icon: "👥", title: "Invite your team", why: "Add your staff and choose what each role can see and edit. Helm e-mails each invite for you.", href: "control.html#users" },
+    // 0134 (client-side, optional, admins): WhatsApp for task assignments + event reminders
+    whatsapp:   { icon: "💬", title: "Connect WhatsApp", why: "Send task assignments and event reminders to your crew on WhatsApp. Email invites are already on via Helm.", href: "integrations.html#whatsapp" },
     // 0096 (client-side, optional): the studio has saved at least one layout template of its own
     my_templates: { icon: "🧩", title: "Customize your own templates", why: "Save your own floor layouts so every new event starts from your studio's style.", href: "builder.html?new=1&tplEdit=new" },
     mfa:        { icon: "🔐", title: "Turn on two-step sign-in", why: "A code at sign-in protects your studio even if a password leaks.", href: "", act: "mfa" },
@@ -158,6 +160,19 @@
     const step = { key: "my_templates", done: n > 0, optional: true };
     if (i >= 0) data.steps.splice(i + 1, 0, step); else data.steps.push(step);
   }
+  // 0134: optional "Connect WhatsApp" step for admins (no server change to my_getting_started);
+  // done = studio WhatsApp number saved AND the WhatsApp channel is live. Skipped when unavailable.
+  async function addWhatsappStep(data, store) {
+    // hidden while HELM_FEATURES.integrationsPage is off (MVP/trial: Helm's own e-mail + WhatsApp are used)
+    if (!(global.HELM_FEATURES && global.HELM_FEATURES.integrationsPage === true)) return;
+    if (!data || !Array.isArray(data.steps) || data.admin !== true || !store.integrations || data.steps.some((s) => s && s.key === "whatsapp")) return;
+    let ov = null; try { ov = await store.integrations.overview(); } catch (e) { ov = null; }
+    const lc = global.SUPABASE_CONFIG && global.SUPABASE_CONFIG.liveChannels;
+    const done = !!(ov && /^[0-9]{8,15}$/.test(String(ov.studio_whatsapp || "")) && lc && lc.whatsapp);
+    const i = data.steps.findIndex((s) => s && s.key === "team");
+    const step = { key: "whatsapp", done, optional: true };
+    if (i >= 0) data.steps.splice(i + 1, 0, step); else data.steps.push(step);
+  }
   async function mount(opts) {
     const o = opts || {};
     const doc = global.document;
@@ -167,6 +182,7 @@
     let data;
     try { data = await store.gettingStarted.get(); } catch (e) { card.hidden = true; return null; }
     await addTemplatesStep(data, store);
+    await addWhatsappStep(data, store);
     const m = model(data);
     if (!m || m.dismissed) { card.hidden = true; return m; }
     css();
@@ -220,7 +236,7 @@
     if (global.document.readyState === "loading") global.document.addEventListener("DOMContentLoaded", auto); else auto();
   }
 
-  const api = { mount, auto, model, addTemplatesStep, render: gsMarkup, ringOffset, STEPS, esc, _css: CSS };
+  const api = { mount, auto, model, addTemplatesStep, addWhatsappStep, render: gsMarkup, ringOffset, STEPS, esc, _css: CSS };
   global.HelmGettingStarted = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);

@@ -1,0 +1,74 @@
+/* public-pages-v2.css - LOOK ONLY restyle of the remaining standalone pages (onboarding, profile-setup, hq, manual, work,
+   capture, booklet, approve, portal, proposal-view, checkout, sim-pay, refund-policy) to the Shell-B design.
+   Re-maps each page's existing CSS variables to the Shell-B palette; theme from public-theme.js (html[data-pt] + data-theme).
+   Loaded LAST in <head> so html[data-pt=...] tokens beat the inline :root and theme.css dark tokens. No layout/behaviour change. */
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
+
+/* ---------- TOKENS: light ---------- */
+html[data-pt] { --acc-ink:#ffffff; --acc-text:var(--accent); --yes:#0d7a3c; --part:#9a5b00;
+  --font:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --shadow:0 1px 2px color-mix(in srgb,var(--ink) 5%,transparent),0 8px 24px -14px color-mix(in srgb,var(--ink) 22%,transparent);
+  color-scheme:light; }
+html[data-pt="cobalt"]   { --bg:#f5f7fc; --panel:#ffffff; --panel-2:#f8f9fd; --line:#e3e8f2; --line-2:#edf0f7; --ink:#0b1b3f; --ink-2:#34405c; --ink-3:#5f6b88; --accent:#2450f0; --accent-2:#1d44d8; --accent-soft:#eaeffe; --acc-text:#1d44d8; }
+html[data-pt="midnight"] { --bg:#f5f5fb; --panel:#ffffff; --panel-2:#f8f8fc; --line:#e4e4f0; --line-2:#eeeef6; --ink:#12133a; --ink-2:#3a3c5e; --ink-3:#62658a; --accent:#4338ca; --accent-2:#3f34c2; --accent-soft:#eeedfc; --acc-text:#3f34c2; }
+html[data-pt="emerald"]  { --bg:#f4f8f6; --panel:#ffffff; --panel-2:#f7faf9; --line:#e0eae5; --line-2:#ebf2ee; --ink:#0b2a22; --ink-2:#2f4a42; --ink-3:#5a7068; --accent:#047857; --accent-2:#036b4d; --accent-soft:#e3f4ed; --acc-text:#036b4d; }
+html[data-pt="graphite"] { --bg:#f6f6f5; --panel:#ffffff; --panel-2:#f9f9f8; --line:#e6e6e3; --line-2:#efefed; --ink:#111111; --ink-2:#3a3a3a; --ink-3:#6e6e6a; --accent:#111111; --accent-2:#3a3a3a; --accent-soft:#ececea; --acc-text:#111111; }
+html[data-pt="studio"]   { --bg:#faf8f5; --panel:#ffffff; --panel-2:#f8f6f2; --line:#e7e2da; --line-2:#f1ede7; --ink:#1f1a24; --ink-2:#4a4351; --ink-3:#6e6676; --accent:#5b2a86; --accent-2:#4a1f70; --accent-soft:#f1ebf7; --acc-text:#5b2a86; }
+html[data-pt="luxe"]     { --bg:#f7f3ea; --panel:#fffdf8; --panel-2:#fbf8f1; --line:#e3dccd; --line-2:#ece6da; --ink:#1b1814; --ink-2:#4f483f; --ink-3:#6b6358; --accent:#6b1e24; --accent-2:#5a181d; --accent-soft:#f1e3e1; --acc-text:#6b1e24; --acc-ink:#fffdf8; }
+
+/* ---------- TOKENS: dark ---------- */
+html[data-pt][data-theme="dark"] { color-scheme:dark; --yes:#6fcf97; --part:#e6b35c;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -14px rgba(0,0,0,.6); }
+html[data-pt="cobalt"][data-theme="dark"]   { --bg:#0a0f1e; --panel:#111833; --panel-2:#0d1428; --line:#243056; --line-2:#1a2445; --ink:#e8edfb; --ink-2:#b9c3de; --ink-3:#8e9aba; --accent:#3d63f5; --accent-2:#6d8cff; --accent-soft:#1a2550; --acc-text:#93acff; }
+html[data-pt="midnight"][data-theme="dark"] { --bg:#0b0b1c; --panel:#14152f; --panel-2:#101127; --line:#272a52; --line-2:#1d1f40; --ink:#ebebfa; --ink-2:#c0c1e0; --ink-3:#9294bb; --accent:#5b52e6; --accent-2:#8a83ff; --accent-soft:#221f52; --acc-text:#a9a4ff; }
+html[data-pt="emerald"][data-theme="dark"]  { --bg:#081311; --panel:#0f1f1c; --panel-2:#0c1916; --line:#1f3a33; --line-2:#172d27; --ink:#e6f4ef; --ink-2:#b5d0c7; --ink-3:#86a59b; --accent:#08795a; --accent-2:#34d399; --accent-soft:#123329; --acc-text:#5fe0b0; }
+html[data-pt="graphite"][data-theme="dark"] { --bg:#0e0e0e; --panel:#161616; --panel-2:#121212; --line:#2a2a2a; --line-2:#202020; --ink:#f2f2f2; --ink-2:#cfcfcf; --ink-3:#999999; --accent:#f2f2f2; --accent-2:#d4d4d4; --accent-soft:#242424; --acc-text:#f2f2f2; --acc-ink:#111111; }
+html[data-pt="studio"][data-theme="dark"]   { --bg:#141216; --panel:#1c1a1f; --panel-2:#18161b; --line:#2f2b33; --line-2:#242128; --ink:#f3f0f5; --ink-2:#cfc9d4; --ink-3:#a39cab; --accent:#b794e0; --accent-2:#c9aee9; --accent-soft:#2a2233; --acc-text:#c9aee9; --acc-ink:#141216; }
+html[data-pt="luxe"][data-theme="dark"]     { --bg:#14120f; --panel:#1c1915; --panel-2:#181512; --line:#332e27; --line-2:#28241e; --ink:#efe8db; --ink-2:#c4baa9; --ink-3:#a2988a; --accent:#d29a96; --accent-2:#c98a86; --accent-soft:#2e1d1c; --acc-text:#d29a96; --acc-ink:#14120f; }
+
+/* ---------- page-variable mappings ---------- */
+html[data-pt] { --line-strong:color-mix(in srgb,var(--ink-3) 55%,var(--line)); --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --safe:#0d7a3c; --safe-text:#0d7a3c; --warn:#b26a00; --warn-text:#8f5f00; --bad:#c0362c;
+  --warn-bg:#fdf6e7; --warn-ink:#7a4d00; --warn-line:#f0dcb0;
+  --paper:var(--panel); --sans:var(--font); --ok:var(--yes); --due:var(--part); }
+html[data-pt][data-theme="dark"] { --safe:#6fcf97; --safe-text:#6fcf97; --warn:#e6b35c; --warn-text:#e6b35c; --bad:#f08a80;
+  --warn-bg:#2e2512; --warn-ink:#ffd884; --warn-line:#5a4a1e; }
+
+/* ---------- base ---------- */
+html[data-pt] body { background:var(--bg); color:var(--ink); font-family:var(--font); }
+html[data-pt] .skip-link { background:var(--accent); color:var(--acc-ink); }
+html[data-pt] a:focus-visible, html[data-pt] button:focus-visible, html[data-pt] input:focus-visible,
+html[data-pt] select:focus-visible, html[data-pt] textarea:focus-visible { outline-color:var(--accent); }
+html[data-pt] input:not([type=checkbox]):not([type=radio]):not([type=range]), html[data-pt] select, html[data-pt] textarea {
+  background-color:var(--panel); border-color:var(--line); color:var(--ink); }
+html[data-pt] input:focus, html[data-pt] select:focus, html[data-pt] textarea:focus {
+  border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent); }
+html[data-pt] input::placeholder, html[data-pt] textarea::placeholder { color:var(--ink-3); }
+
+/* calm surfaces: hairlines, no heavy shadow, no gradient fills on primary actions */
+html[data-pt] .card, html[data-pt] .panel, html[data-pt] .box, html[data-pt] .sec, html[data-pt] .section { border-color:var(--line); }
+html[data-pt] .btn.primary, html[data-pt] button.primary, html[data-pt] .btn-primary { background:var(--accent); background-image:none; color:var(--acc-ink); border-color:var(--accent); box-shadow:none; }
+html[data-pt] .btn.primary:hover:not(:disabled), html[data-pt] button.primary:hover:not(:disabled), html[data-pt] .btn-primary:hover:not(:disabled) { background:var(--accent-2); }
+html[data-pt][data-theme="dark"] .btn.primary:hover:not(:disabled), html[data-pt][data-theme="dark"] button.primary:hover:not(:disabled) { background:color-mix(in srgb,var(--accent) 88%,#fff); }
+html[data-pt] .mark, html[data-pt] .mk { background:var(--accent); background-image:none; box-shadow:none; }
+
+/* booklet keeps its serif display face (studio print look); body text uses the shared sans */
+html[data-pt] .booklet, html[data-pt] .bk { font-family:var(--font); }
+
+/* theme.css paints dark-mode page containers with a fixed colour; use the theme background instead */
+html[data-pt][data-theme="dark"], html[data-pt][data-theme="dark"] .app, html[data-pt][data-theme="dark"] .page,
+html[data-pt][data-theme="dark"] .wrap, html[data-pt][data-theme="dark"] main { background-color:var(--bg); }
+
+/* ---------- sim-pay (simulated checkout): was hard-coded dark navy + gradients ---------- */
+html[data-pt] body:has(main .card .sim) { color:var(--ink); }
+html[data-pt] body:has(main .card .sim) .card { background:var(--panel); border-color:var(--line); box-shadow:var(--shadow); }
+html[data-pt] body:has(main .card .sim) .sim { background:var(--warn-bg); border-color:var(--warn-line); color:var(--warn-ink); }
+html[data-pt] body:has(main .card .sim) .sim strong { color:var(--warn-ink); }
+html[data-pt] body:has(main .card .sim) .logo { background:var(--accent); }
+html[data-pt] body:has(main .card .sim) .muted, html[data-pt] body:has(main .card .sim) .ref, html[data-pt] body:has(main .card .sim) .closed { color:var(--ink-3); }
+html[data-pt] body:has(main .card .sim) .note { background:var(--panel-2); border-color:var(--line); color:var(--ink-2); }
+html[data-pt] body:has(main .card .sim) .btn { background:var(--accent); color:var(--acc-ink); }
+html[data-pt] body:has(main .card .sim) .btn:hover:not(:disabled) { background:var(--accent-2); }
+html[data-pt] body:has(main .card .sim) .btn:focus-visible { outline-color:var(--accent); }
+html[data-pt][data-theme="dark"] body:has(main .card .sim) .unavail { background:#3a1717; border-color:#5c2222; color:#fda29b; }
+html[data-pt]:not([data-theme="dark"]) body:has(main .card .sim) .unavail { background:#fdecec; border-color:#f3c2c2; color:#9b1c1c; }

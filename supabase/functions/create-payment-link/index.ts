@@ -3,7 +3,7 @@
 //
 // Secrets / env:
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-//   RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET
+//   RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET   — global Helm account (FALLBACK only, see 0117 below)
 //   APP_URL                       — e.g. https://www.helm.events (Razorpay returns the payer here)
 //   PAYMENT_LINK_TTL_MINUTES      — optional, link lifetime (default 4320 = 3 days, 20..43200)
 //
@@ -24,6 +24,13 @@
 // US studio) is refused BEFORE anything is reserved ("currency_unsupported"); the
 // approval page shows "pay by bank transfer / card - the studio records it" instead.
 // The client phone gets the STUDIO's dial code (+91 / +971 / +1) when typed without one.
+//
+// 0117 per-studio accounts (DORMANT until a studio's org_payment_accounts row is
+// 'connected'): the quote's studio's own Razorpay keys are looked up through the
+// service-role RPC org_razorpay_creds(org). If the studio has none (or the lookup
+// fails / 0117 is not applied) the link is created exactly as before with the global
+// RAZORPAY_KEY_ID/SECRET. Set RAZORPAY_REQUIRE_STUDIO_ACCOUNT=1 to refuse the global
+// fallback (recommended once studios collect their own money).
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, normPhone, responders } from "../_shared/cors.ts";
 import { dialFor, quoteCur, razorpaySupports } from "../_shared/money.ts";
@@ -32,6 +39,24 @@ import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "..
 const PLINK = /^plink_[A-Za-z0-9]+$/;
 const RZP_URL = /^https:\/\/rzp\.io\/[A-Za-z0-9/_-]+$/;
 const EMAIL = /^[^\s@<>"',;:\\]{1,64}@[A-Za-z0-9.-]{1,190}\.[A-Za-z]{2,24}$/;
+
+const KEY_ID = /^rzp_(test|live)_[A-Za-z0-9]{6,40}$/;
+// 0117: per-studio credentials (service-role RPC) -> global env fallback -> null (503)
+// deno-lint-ignore no-explicit-any
+export async function resolveRazorpayCreds(admin: any, orgId: unknown): Promise<{ keyId: string; keySecret: string; source: "studio" | "env" } | null> {
+  if (orgId && typeof orgId === "string") {
+    try {
+      const { data, error } = await admin.rpc("org_razorpay_creds", { p_org: orgId });
+      if (error) console.error("org_razorpay_creds failed", errTag(error));
+      else if (data && KEY_ID.test(String(data.key_id || "")) && typeof data.key_secret === "string" && data.key_secret.length >= 8) {
+        return { keyId: String(data.key_id), keySecret: data.key_secret, source: "studio" };
+      }
+    } catch (e) { console.error("org_razorpay_creds failed", errTag(e)); }
+  }
+  if (Deno.env.get("RAZORPAY_REQUIRE_STUDIO_ACCOUNT") === "1") return null;
+  const keyId = Deno.env.get("RAZORPAY_KEY_ID") || "", keySecret = Deno.env.get("RAZORPAY_KEY_SECRET") || "";
+  return keyId && keySecret ? { keyId, keySecret, source: "env" } : null;
+}
 
 const isRazorpayLink = (ref: unknown, url: unknown) => PLINK.test(String(ref || "")) && RZP_URL.test(String(url || ""));
 
@@ -47,8 +72,6 @@ Deno.serve(async (req) => {
     const idWait = await checkLimits([["cpl:tok:" + token.toLowerCase(), 10, 60_000]]);
     if (idWait) return tooMany(json, idWait);
     if (!/^[0-9a-f-]{36}$/i.test(token)) return json({ error: "invalid link" }, 404);
-    const keyId = Deno.env.get("RAZORPAY_KEY_ID") || "", keySecret = Deno.env.get("RAZORPAY_KEY_SECRET") || "";
-    if (!keyId || !keySecret) return json({ error: "online payments are not configured" }, 503);
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 
     // 0092: INR only - checked before payment_link_begin so nothing is reserved for AED / USD
@@ -58,6 +81,10 @@ Deno.serve(async (req) => {
     if (qc && !razorpaySupports(quoteCur(qc))) {
       return json({ error: "online card payment is not available for this quote - please pay by bank transfer and your planner will record it", code: "currency_unsupported" }, 409);
     }
+    // 0117: the studio's own Razorpay account first, global env keys as the fallback
+    const creds = await resolveRazorpayCreds(admin, qc?.org_id);
+    if (!creds) return json({ error: "online payments are not configured" }, 503);
+    const { keyId, keySecret } = creds;
     let dial = "91";
     if (qc?.org_id) {
       const { data: org } = await admin.from("organizations").select("country").eq("id", qc.org_id).maybeSingle();

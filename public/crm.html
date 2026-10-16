@@ -3,6 +3,7 @@
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
 <meta charset="utf-8">
+<base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CRM Archive — Helm Events</title>
 <link rel="preconnect" href="https://nqltzgiwznphugcfhmbm.supabase.co" crossorigin>
@@ -54,7 +55,8 @@
   .empty{text-align:center;color:var(--ink-3);padding:48px;font-size:14px}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
 </style>
-<link rel="stylesheet" href="theme.css?v=78">
+<link rel="stylesheet" href="crm-polish.css?v=2">
+<link rel="stylesheet" href="theme.css?v=80">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -102,10 +104,10 @@
 
 <script src="/trusted-types.js?v=2"></script>
 <script src="telemetry.js?v=3"></script>
-<script src="config.js?v=98"></script>
+<script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=178"></script>
-<script src="tour.js?v=9"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=205"></script>
+<script src="tour.js?v=14"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -135,6 +137,8 @@
     } else { el.innerHTML=`<button type="button" id="loginBtn">Sign in</button>`; $("#loginBtn").addEventListener("click",()=>location.replace("login.html?next="+encodeURIComponent(HelmUrl.here()))); }
   }
 
+  /* HelmUI empty state (guarded: falls back to the plain message if the kit isn't loaded) */
+  const hEmpty=(host,o,cols)=>{ const H=window.HelmUI; if(!(H&&H.emptyState)||!host) return false; const n=H.emptyState(o); if(cols){ const tr=document.createElement("tr"),td=document.createElement("td"); td.colSpan=cols; td.className="hs-empty-cell"; td.appendChild(n); tr.appendChild(td); host.replaceChildren(tr); } else host.replaceChildren(n); return true; };
   let anyRecs=null;   // does the archive hold anything at all (first-run empty state)
   function render(){
     const shown = recs;   // filtered + de-duplicated by the server query
@@ -142,7 +146,9 @@
       if(pager&&pager.hasMore()) { $("#rows").innerHTML='<tr><td colspan="11" class="empty">Searching older records…</td></tr>'; return; }
       $("#rows").innerHTML = (anyRecs!==false)
       ? '<tr><td colspan="11" class="empty">No records match these filters.</td></tr>'
-      : '<tr><td colspan="11" class="empty">No CRM records yet. They appear here automatically as you <a class="open" href="leads.html">add and work leads</a>.</td></tr>'; return; }
+      : '<tr><td colspan="11" class="empty">No CRM records yet. They appear here automatically as you <a class="open" href="leads.html">add and work leads</a>.</td></tr>';
+      if(anyRecs===false) hEmpty($("#rows"),{icon:"🗂",title:"No CRM records yet",text:"Records appear here automatically as you add and work leads.",actionLabel:"Go to Leads",onAction:()=>{ location.href="leads.html"; }},11);
+      return; }
     $("#rows").innerHTML = shown.map(r=>{
       const qid = r.quote_id ? esc(r.quote_id) : "";
       const openable = !!qid;

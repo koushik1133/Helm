@@ -220,7 +220,6 @@
     }
     global.HelmBookletGuests = num(e.guests) || 0;
     fact(dl, "Guests", num(e.guests) != null ? Number(e.guests).toLocaleString(FMT.locale) : "");
-    fact(dl, "Reference", e.code);
   }
   function render2d(d, figEl, legEl) {
     const fig = clear(figEl || $("#plan2d")), leg = clear(legEl || $("#legend2d") || el("ul"));
@@ -321,8 +320,30 @@
       tr.appendChild(th); tr.appendChild(el("td", "amt", l.amount < 0 ? "− " + money(-l.amount) : money(l.amount))); tb.appendChild(tr);
     });
     $("#quoteTotal").textContent = r.total != null ? money(r.total) : "—";
-    let words = ""; try { if (r.total != null && FMT.currency === "INR" && global.BPStore && global.BPStore.amountInWords) words = global.BPStore.amountInWords(r.total); } catch (e) {}
+    // 0114: approved change orders (payments.changes) + the invoice total, same figure as Payments
+    const tf = $("#quoteTotal").closest("tfoot"), ch = quoteChanges(d, r.total);
+    if (tf) Array.from(tf.querySelectorAll("tr.chg, tr.chg-total")).forEach((x) => x.remove());
+    if (tf && ch.rows.length) {
+      ch.rows.forEach((c) => { const tr = el("tr", "chg"); const th = el("th", "", "Approved change: " + c.title); th.setAttribute("scope", "row");
+        if (c.date) th.appendChild(el("span", "detail", shortDate(c.date)));
+        tr.appendChild(th); tr.appendChild(el("td", "amt", c.amount < 0 ? "− " + money(-c.amount) : money(c.amount))); tf.appendChild(tr); });
+      if (ch.total != null) { const tr = el("tr", "chg-total sub"); const th = el("th", "", "Total incl. approved changes"); th.setAttribute("scope", "row");
+        tr.appendChild(th); tr.appendChild(el("td", "amt", money(ch.total))); tf.appendChild(tr); }
+    }
+    const wt = ch.rows.length && ch.total != null ? ch.total : r.total;
+    let words = ""; try { if (wt != null && FMT.currency === "INR" && global.BPStore && global.BPStore.amountInWords) words = global.BPStore.amountInWords(wt); } catch (e) {}
     $("#quoteWords").textContent = words || "";
+  }
+  // 0114: approved change orders from payments.changes (absent on older DBs -> no rows). The total
+  // prefers the server invoice (payments.total, 0111) so it always matches the Payments section.
+  function quoteChanges(d, quoteTotal) {
+    const p = (d && d.payments) || {}, raw = Array.isArray(p.changes) ? p.changes : [];
+    const rows = raw.filter((c) => c && typeof c === "object" && num(c.amount) != null && Number(c.amount) !== 0)
+      .map((c) => ({ title: String(c.title || "Change").slice(0, 120), amount: Number(c.amount), date: c.date || null }));
+    if (!rows.length) return { rows: [], total: null };
+    const sum = rows.reduce((a, c) => a + c.amount, 0);
+    const total = num(p.total) != null && num(p.total) > 0 ? num(p.total) : (num(quoteTotal) != null ? Math.round((num(quoteTotal) + sum) * 100) / 100 : null);
+    return { rows, total };
   }
   function renderVersions(d) {
     const ol = clear($("#versionList")), vs = Array.isArray(d.versions) ? d.versions : [];
@@ -336,7 +357,8 @@
   }
   function renderPayments(d) {
     const p = d.payments || {}, ms = Array.isArray(p.milestones) ? p.milestones : [];
-    const total = quoteLines(d.quote).total;
+    // 0111: the server's payments.total = quote + approved change orders (the invoice); else the quote total
+    const total = num(p.total) != null && num(p.total) > 0 ? num(p.total) : quoteLines(d.quote).total;
     const sum = clear($("#paySum"));
     const rc = Array.isArray(p.receipts) ? p.receipts.filter((x) => x && typeof x === "object") : null;
     // 0070 servers send outstanding = total - paid (receipts present); older ones only the unpaid milestones
@@ -351,11 +373,26 @@
     const pt = $("#payTerm"); if (pt) { pt.textContent = line || ""; pt.hidden = !line; }
     const tb = clear($("#payLines"));
     if (!ms.length) { const tr = el("tr"); const td = el("td", "empty", line || "The payment schedule will be shared by the studio."); td.setAttribute("colspan", "4"); tr.appendChild(td); tb.appendChild(tr); return; }
-    ms.forEach((m) => {
+    const shown = msDisplayStatus(ms, p.paid);
+    ms.forEach((m, i) => {
       const tr = el("tr"); tr.appendChild(el("td", "", String(m.label || "Payment"))); tr.appendChild(el("td", "", shortDate(m.due_date) || "—"));
-      const st = String(m.status || "due").toLowerCase().replace(/[^a-z_]/g, "");
+      const st = shown[i];
       const td = el("td"); td.appendChild(el("span", "st " + st, st.replace(/_/g, " "))); tr.appendChild(td);
       tr.appendChild(el("td", "amt", money(m.amount))); tb.appendChild(tr);
+    });
+  }
+  // Display only (no data change): milestones are a schedule, the ledger is the money truth. Money received
+  // beyond the milestones already marked paid covers the remaining ones in schedule order, so a fully
+  // paid event no longer lists them as "due". Stored milestone statuses are never rewritten.
+  function msDisplayStatus(ms, paid) {
+    const list = Array.isArray(ms) ? ms : [];
+    const st = list.map((m) => String((m && m.status) || "due").toLowerCase().replace(/[^a-z_]/g, ""));
+    let left = (num(paid) || 0) - list.reduce((a, m, i) => a + (st[i] === "paid" ? (num(m && m.amount) || 0) : 0), 0);
+    return st.map((x, i) => {
+      if (x !== "due" && x !== "overdue" && x !== "pending") return x;
+      const amt = num(list[i] && list[i].amount) || 0;
+      if (amt > 0 && left + 0.5 >= amt) { left -= amt; return "paid"; }
+      left = 0; return x;
     });
   }
   // E6: "Paid in full" | "Balance ₹X due by dd/mm/yyyy" (terms.balance_due_days before the event) | null
@@ -532,7 +569,7 @@
     if (global.HelmBookletPkg && VISIBLE.packages !== false && !(d.menu && d.menu.mode === "hidden")) global.HelmBookletPkg.mount(token, d).catch(() => {});
   }
 
-  global.HelmBooklet = { balanceLine, render2d, render3d, visibleSections, snapUrl, dbImages, dbFigure, isDataImg, IMG_VARIANTS, money, setFormat, fmtTime, mapLink, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
+  global.HelmBooklet = { quoteChanges, balanceLine, msDisplayStatus, render2d, render3d, visibleSections, snapUrl, dbImages, dbFigure, isDataImg, IMG_VARIANTS, money, setFormat, fmtTime, mapLink, fmtDate, shortDate, safeHex, safeLogo, tokenFrom, quoteLines, normalizeItems, bounds, corners, iso, shade, SECTIONS };
   if (doc && doc.getElementById("tocList")) {
     const pb = doc.getElementById("printBtn"); if (pb) pb.addEventListener("click", () => global.print());
     const rt = doc.getElementById("retry"); if (rt) rt.addEventListener("click", () => start());

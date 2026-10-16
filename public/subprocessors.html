@@ -1,0 +1,89 @@
+<!doctype html>
+<!-- DRAFT Template — have a qualified lawyer in each jurisdiction review before publishing. Replace every [OWNER TO FILL] / [BRACKETED] placeholder. Reviewed 2026-10-16. -->
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sub-processors · Helm</title>
+<meta name="description" content="The third-party sub-processors Helm uses to deliver the service, what they do, and where they process data.">
+<link rel="icon" href="/brand/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png">
+<link rel="canonical" href="https://www.helm.events/subprocessors">
+
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Helm">
+<meta property="og:title" content="Sub-processors · Helm">
+<meta property="og:description" content="The third-party sub-processors Helm uses to deliver the service, what they do, and where they process data.">
+<meta property="og:url" content="https://www.helm.events/subprocessors">
+<meta property="og:image" content="https://www.helm.events/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Sub-processors · Helm">
+<meta name="twitter:description" content="The third-party sub-processors Helm uses to deliver the service, what they do, and where they process data.">
+<meta name="twitter:image" content="https://www.helm.events/og.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="/legal.css?v=2">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <div class="lg-progress" aria-hidden="true"></div>
+  <header class="nav" id="top"><div class="nav-bar">
+    <a class="brand" href="/" aria-label="Helm home"><span class="mark" aria-hidden="true"><i></i><i></i></span>Helm</a>
+    <nav class="menu" aria-label="Main">
+      <a class="mlink" href="/">Home</a>
+      <a class="mlink" href="/services">Services</a>
+      <a class="mlink" href="/pricing">Pricing</a>
+      <a class="mlink" href="/about">About</a>
+    </nav>
+    <div class="nav-act"><a class="signin" href="/login">Log in</a><a class="btn btn-pill" href="/login?trial=1#signup">Start free trial</a></div>
+  </div></header>
+
+  <main id="main" tabindex="-1">
+    <div class="lg-hero"><div class="mesh" aria-hidden="true"><i class="m1"></i><i class="m2"></i><i class="m3"></i></div>
+      <span class="lg-kick">Legal</span>
+      <h1>Sub-processors</h1>
+      <p class="lg-lead">The service providers that may process personal data on our behalf, and how we tell you before we add a new one.</p>
+      <p class="lg-meta">Last updated: <time datetime="2026-10-16">October 16, 2026</time></p>
+    </div>
+    <div class="lg-layout">
+      <nav class="lg-toc" aria-label="On this page">
+      <b>On this page</b>
+      <a href="#what">1. What a sub-processor is</a>
+      <a href="#list">2. Current sub-processors</a>
+      <a href="#changes">3. Notice of new sub-processors</a>
+      <a href="#studio">4. Studio-chosen integrations</a>
+      </nav>
+      <article class="lg-doc">
+<section id="what" aria-labelledby="h-what">
+<h2 id="h-what">1. What a sub-processor is</h2>
+<p>A sub-processor is a third party that Helm engages to process personal data contained in a studio's workspace (Customer Data) or in our own account records. Each one is bound by a written contract with data protection terms at least as protective as our <a href="dpa">Data Processing Addendum</a> (GDPR Art. 28(4); UK GDPR Art. 28(4); India DPDP Act s. 8(2); UAE PDPL Art. 23).</p>
+</section>
+<section id="list" aria-labelledby="h-list">
+<h2 id="h-list">2. Current sub-processors</h2>
+<div class="lg-table-wrap"><table class="lg-table"><thead><tr><th scope="col">Provider</th><th scope="col">Purpose</th><th scope="col">Data processed</th><th scope="col">Location</th><th scope="col">Transfer safeguard</th></tr></thead><tbody><tr><td>Supabase, Inc.</td><td>Database, authentication, file storage, edge functions</td><td>All workspace and account data</td><td><span class="lg-ph">[OWNER TO FILL: SUPABASE REGION, e.g. ap-south-1 Mumbai]</span></td><td>SCCs / UK IDTA; DPA</td></tr><tr><td>Vercel Inc.</td><td>Website and app hosting, CDN</td><td>IP address, request logs</td><td>Global edge; USA</td><td>SCCs / UK IDTA; DPA</td></tr><tr><td>Resend, Inc.</td><td>Transactional email (invites, receipts, alerts)</td><td>Name, email address, message content</td><td>USA</td><td>SCCs / UK IDTA; DPA</td></tr><tr><td>Razorpay Software Pvt. Ltd.</td><td>Payment links and subscription billing (where enabled)</td><td>Name, email, phone, amount, payment reference</td><td>India</td><td>DPA; RBI PA guidelines</td></tr><tr><td>Meta Platforms (WhatsApp Business Cloud API)</td><td>WhatsApp notifications (only if the studio enables them)</td><td>Phone number, message content</td><td>USA / global</td><td>SCCs; Meta business terms</td></tr><tr><td>Functional Software, Inc. (Sentry)</td><td>Error monitoring</td><td>Technical logs, IP, user ID (no workspace content by design)</td><td>USA</td><td>SCCs / UK IDTA; DPA</td></tr><tr><td>OpenAI, L.L.C.</td><td>Optional AI photo render of a layout (only when a user starts it)</td><td>Layout description and images the user submits</td><td>USA</td><td>SCCs; API zero-retention where available</td></tr><tr><td>Google LLC</td><td>Optional "Sign in with Google"</td><td>Name, email, Google account ID</td><td>USA / global</td><td>SCCs; Google terms</td></tr><tr><td>Cloudflare, Inc.</td><td>Security, DNS and bot protection (where configured)</td><td>IP address, request metadata</td><td>Global</td><td>SCCs / UK IDTA; DPA</td></tr></tbody></table></div><p><span class="lg-ph">[OWNER TO FILL: confirm each provider, entity, region and signed DPA before publishing; remove any not in use]</span></p>
+</section>
+<section id="changes" aria-labelledby="h-changes">
+<h2 id="h-changes">3. Notice of new sub-processors</h2>
+<p>We will update this page and email workspace owners who have subscribed to updates at least <b>30 days</b> before a new sub-processor starts processing Customer Data. You may object on reasonable data protection grounds within that period; if we cannot address the objection, you may terminate the affected service and receive a pro-rata refund of prepaid fees, as set out in the <a href="dpa">DPA</a>. To subscribe, email <span class="lg-ph">[OWNER TO FILL: PRIVACY EMAIL]</span>.</p>
+</section>
+<section id="studio" aria-labelledby="h-studio">
+<h2 id="h-studio">4. Studio-chosen integrations</h2>
+<p>Integrations a studio switches on itself (for example its own Razorpay or WhatsApp account) are engaged by the studio as controller; the provider's own terms apply between the studio and that provider.</p>
+</section>
+      <nav class="lg-related" aria-label="Related policies"><a href="privacy">Privacy Policy<span>How we handle personal data</span></a><a href="terms">Terms of Service<span>The agreement for using Helm</span></a><a href="refund-policy">Refund Policy<span>Trial, cancellation, refunds</span></a><a href="data-deletion">Data Deletion<span>Export or erase your data</span></a><a href="cookie-policy">Cookie Policy<span>Cookies and local storage</span></a><a href="dpa">Data Processing Addendum<span>For studios as controllers</span></a><a href="acceptable-use">Acceptable Use<span>Rules for using the platform</span></a><a href="security">Security &amp; Trust<span>How we protect your workspace</span></a><a href="sla">Service Level Agreement<span>Uptime, support and credits</span></a><a href="accessibility">Accessibility Statement<span>WCAG 2.2 AA commitment</span></a><a href="grievance">Grievance &amp; DPO Contact<span>Complaints and privacy officers</span></a><a href="ai-notice">AI &amp; Automation Notice<span>Where Helm uses AI</span></a><a href="copyright">Copyright &amp; Takedown<span>Report infringing content</span></a></nav>
+      </article>
+    </div>
+  </main>
+
+  <footer class="foot"><div class="wrap fgr">
+    <div class="fb"><a class="brand" href="/"><span class="mark" aria-hidden="true"><i></i><i></i></span>Helm</a><p>One workspace for event studios everywhere: leads, layouts, quotes, crew, payments and profit.</p></div>
+    <div><h4>Product</h4><a href="/#modules">Features</a><a href="/services">All services</a><a href="/pricing">Pricing</a></div>
+    <div><h4>Company</h4><a href="/about">About us</a><a href="/login">Sign in</a></div>
+    <nav aria-label="Legal"><h4>Legal</h4><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/refund-policy">Refund Policy</a><a href="/data-deletion">Data Deletion</a><a href="/cookie-policy">Cookie Policy</a><a href="/dpa">Data Processing</a><a href="/acceptable-use">Acceptable Use</a><a href="/subprocessors" aria-current="page">Sub-processors</a><a href="/security">Security</a><a href="/sla">Service Level</a><a href="/accessibility">Accessibility</a><a href="/grievance">Grievance &amp; DPO</a><a href="/ai-notice">AI Notice</a><a href="/copyright">Copyright &amp; IP</a></nav>
+    <div><h4>Contact</h4><a href="mailto:sales@helm.events">sales@helm.events</a><a href="mailto:support@helm.events">support@helm.events</a></div>
+  </div><div class="wrap copy"><span>&copy; <span id="yr"></span> Helm. Amateurs panic. Professionals go for Helm.</span><span class="big-word" aria-hidden="true">Helm</span></div></footer>
+  <script src="/trusted-types.js?v=2"></script>
+  <script src="/legal.js?v=2" defer></script>
+</body>
+</html>

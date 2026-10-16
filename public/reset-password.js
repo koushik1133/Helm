@@ -47,6 +47,9 @@
   async function start() {
     await BPStore.init();
     if (!BPStore.auth.enabled()) { $("#title").textContent = "Password reset unavailable"; sub("Accounts aren't enabled in this environment."); return; }
+    // an expired / used link can also return its error in the #fragment: store-api init
+    // records only that short error code (never tokens) as linkError()
+    if (!LINK_ERROR && BPStore.auth.linkError && /otp_expired|access_denied/.test(String(BPStore.auth.linkError() || ""))) LINK_ERROR = String(BPStore.auth.linkError());
     if (!LINK_ERROR && RECOVERY_LINK && BPStore.auth.linkError && BPStore.auth.linkError() && !BPStore.auth.pendingUser()) {
       // the code could not be exchanged: almost always a different browser / device
       $("#title").textContent = "Open the link in the same browser";
