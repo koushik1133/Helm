@@ -63,7 +63,7 @@ t('0106 migration: additive, admin-gated, definer + empty search_path, wraps adm
   assert.doesNotMatch(mig, /\bdrop table\b|\bdelete from\b|\btruncate\b/i);
   assert.match(mig, /not public\.is_admin\(\)/); assert.match(mig, /perform public\.admin_set_role\(v_prof, p_role\)/);
   for (const f of ['staff_departments()', 'staff_department_add(p_name text)', 'staff_set_login_role(p_staff uuid, p_role text)'])
-    assert.match(mig, new RegExp('function public\\.' + f.replace(/[()[\]]/g, '\\$&') + '\\s*\\nreturns [^\\n]*security definer set search_path = \'\''), f);
+    assert.match(mig, new RegExp('function public\\.' + f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\nreturns [^\\n]*security definer set search_path = \'\''), f);
   const apply = read('supabase/APPLY-0106.sql'); assert.ok(/^[\x00-\x7f]*$/.test(apply), 'APPLY-0106 ASCII'); assert.match(apply, /\) v\(item, ok\)/);
   assert.match(read('supabase/migrations/MANIFEST'), /forward  supabase\/migrations\/0106_staff_roles_departments\.sql/);
   assert.match(read('scripts/db-test/run-all.sh'), /tests\/db\/staff-roles-0106\.sql/);

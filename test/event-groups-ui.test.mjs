@@ -69,7 +69,7 @@ t('chat: event card renders escaped (client data never becomes markup)', () => {
   const html = ctx.f({ kind: 'event', quote_id: 'q-1', code: 'C<1>', title: '<img src=x onerror=alert(1)>',
     client: { name: '<b>x</b>', phone: '+91 98"765', email: 'a@b.in"><script>' }, venue: 'V&V', guests: 10,
     menu: { package: 'Royal', dishes: [{ name: '<i>Tikka</i>' }] }, layout: { version: 1, object_count: 4 } });
-  assert.doesNotMatch(html, /<img|<b>x|<script|<i>Tikka/);
+  assert.doesNotMatch(html, /<img|<b>x|<script|<i>Tikka/i);
   assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;/); assert.match(html, /V&amp;V/);
   assert.match(html, /href="builder\.html\?quote=q-1"/); assert.match(html, /href="event\.html\?id=q-1"/); assert.match(html, /href="tel:\+9198765"/);
   assert.doesNotMatch(fnSrc(chat, 'eventCardHtml'), MONEY);

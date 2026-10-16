@@ -16,6 +16,7 @@
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
+const reEsc = (x) => String(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const root = new URL('..', import.meta.url);
 const read = (p) => readFileSync(new URL(p, root), 'utf8');
@@ -232,7 +233,7 @@ t('User control: Name / Phone / Job title / Department / Profile (+ joined) / ph
   assert.match(r.body, /\+91 98765 43210/, 'phone shown (admins get it) in a readable format');
   assert.match(r.body, /Rigger/); assert.match(r.body, /Production/);
   assert.match(r.body, /✓ Complete/); assert.match(r.body, /✗ Incomplete/); assert.match(r.body, /Joined /);
-  assert.match(r.body, new RegExp(`data-avatar-path="${AV(U(2)).replace(/[.]/g, '\\.')}"`), 'photo thumbnail painted from avatar_path');
+  assert.match(r.body, new RegExp(`data-avatar-path="${reEsc(AV(U(2)))}"`), 'photo thumbnail painted from avatar_path');
   assert.equal((r.body.match(/class="btn sm ucEdit"/g) || []).length, 3, 'admin Edit button per row');
   assert.equal((r.body.match(/class="rm"/g) || []).length, 2, 'no remove button on my own row');
   assert.match(r.body, /<span class="me">you<\/span>/);
@@ -355,9 +356,9 @@ t('chat.html: photo avatars in the DM list, thread header, senders, @mention + p
     [U(4)]: { id: U(4), full_name: 'Evil', avatar_path: '"><script>x</script>' } },
     colorFor: () => '#123', initials: (s) => s.slice(0, 2).toUpperCase(), personName: (id) => (ctx.roster[id] || {}).full_name || 'Member' };
   vm.runInNewContext(['photoOf', 'photoAttr', 'personAv'].map((f) => fnSrc(chat, f)).join('\n') + '\nglobalThis.av=personAv;', ctx);
-  assert.match(ctx.av(U(2)), new RegExp(`data-avatar-path="${AV(U(2)).replace(/[.]/g, '\\.')}">RA</div>$`));
+  assert.match(ctx.av(U(2)), new RegExp(`data-avatar-path="${reEsc(AV(U(2)))}">RA</div>$`));
   assert.equal(ctx.av(U(3)), '<div class="av" data-st="background:#123;">NO</div>', 'no photo → initials only');
-  assert.doesNotMatch(ctx.av(U(4)), /<script>/); assert.match(ctx.av(U(4)), /&quot;&gt;&lt;script&gt;/);
+  assert.doesNotMatch(ctx.av(U(4)), /<script>/i); assert.match(ctx.av(U(4)), /&quot;&gt;&lt;script&gt;/);
   assert.match(chat, /\$\{c\.kind==="dm"\?personAv\(convOther\(c\)\):avHtml\(a\)\}/, 'DM list');
   assert.match(chat, /const ph=c\.kind==="dm"\?photoOf\(convOther\(c\)\):""; av\.removeAttribute\("data-av-done"\)/, 'thread header');
   assert.match(chat, /<div class="who" data-st="color:\$\{colorFor\(m\.sender_id\)\}">\$\{personAv\(m\.sender_id,/, 'message senders');

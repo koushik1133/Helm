@@ -66,7 +66,7 @@
     var i = el("span", "hb-ic"); i.appendChild(icon(iconName)); a.appendChild(i);
     a.appendChild(el("span", "hb-lb", label));
     var sc = key && SC_HINT[key];
-    if (sc) a.setAttribute("aria-keyshortcuts", sc.replace(" ", " "));   /* no native title: the expanded rail already shows the label, and the OS tooltip overlapped the next row + pin star */
+    if (sc) a.setAttribute("aria-keyshortcuts", sc);   /* no native title: the expanded rail already shows the label, and the OS tooltip overlapped the next row + pin star */
     if (key && COUNT_KEYS[key]) { var c = el("span", "hb-cnt"); c.hidden = true; c.setAttribute("aria-hidden", "true"); a.appendChild(c); }
     var target = href.toLowerCase().split("?")[0].replace(/^\//, "");
     if (target === page || (target === "quotes.html" && /^(event|flow|ops|closure|settlement|proposal|runsheet|budget|logistics|plan|design|client)\.html$/.test(page))) { a.classList.add("on"); a.setAttribute("aria-current", "page"); }

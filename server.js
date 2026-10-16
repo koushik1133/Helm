@@ -436,9 +436,11 @@ function isLoopbackClient(req) {
 function layoutApiAllowed(req) {
   if (isLoopbackClient(req)) return true;
   if (!LAYOUTS_API_TOKEN) return false;
-  const m = /^Bearer\s+(.+)$/i.exec(req.headers['authorization'] || '');
-  if (!m) return false;
-  const got = Buffer.from(m[1]);
+  const auth = String(req.headers['authorization'] || '');
+  if (auth.length > 4096 || !/^bearer[ \t]/i.test(auth)) return false;   // linear check, no backtracking
+  const tok = auth.slice(7).trim();
+  if (!tok) return false;
+  const got = Buffer.from(tok);
   const want = Buffer.from(LAYOUTS_API_TOKEN);
   return got.length === want.length && crypto.timingSafeEqual(got, want);
 }

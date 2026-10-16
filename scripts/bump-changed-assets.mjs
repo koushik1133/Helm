@@ -15,7 +15,7 @@
  *   4. new static <script src>/<link href> with no ?v= at all  -> ?v=1
  * Idempotent: target version = max(current, baseVersion + 1), so re-running never double-bumps.
  */
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,12 +27,12 @@ const APPLY = args.includes('--apply');
 const VERIFY = args.includes('--verify');
 const BASE = args.includes('--base') ? args[args.indexOf('--base') + 1] : 'HEAD';
 
-const git = (c) => execSync('git ' + c, { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'] });
-const atBase = (rel) => { try { return git(`show ${BASE}:${rel}`); } catch { return null; } };
+const git = (...a) => execFileSync('git', a, { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'] });
+const atBase = (rel) => { try { return git('show', `${BASE}:${rel}`); } catch { return null; } };
 
 const changed = [...new Set([
-  ...git(`diff --name-only ${BASE} -- public`).split('\n'),
-  ...git('ls-files --others --exclude-standard public').split('\n'),
+  ...git('diff', '--name-only', BASE, '--', 'public').split('\n'),
+  ...git('ls-files', '--others', '--exclude-standard', 'public').split('\n'),
 ])].filter((f) => /\.(js|css)$/.test(f) && existsSync(join(ROOT, f))).map((f) => f.slice('public/'.length));
 const changedSet = new Set(changed);
 

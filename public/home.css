@@ -1186,3 +1186,8 @@ video.mimg{background:#1a231e}
 .render-slot figcaption{display:flex;flex-wrap:wrap;align-items:center;gap:8px;color:#fff;font-size:15px}
 .render-slot-tag{padding:3px 10px;border-radius:99px;background:rgba(184,240,211,.14);color:var(--acc-l);font-size:12px;font-weight:700}
 @media (max-width:640px){.render-slot{margin:12px auto 0}.render-slot-media{flex-basis:96px}}
+
+/* Perf: skip style/layout/paint of the plain below-the-fold sections until they near the
+   viewport (Lighthouse TBT on /). Only sections without sticky pins or scroll-driven JS;
+   "auto" remembers each section's real size once it has rendered, so anchors stay stable. */
+.crew,.modules,.repeat,.why,.compare,.security,.about,.voices,.pricing,.faq,.contact,.final,body>footer{content-visibility:auto;contain-intrinsic-size:auto 900px}

@@ -1,6 +1,6 @@
 /* LOCAL PROTOTYPE HOOK (do not ship): layout comparison switcher, localhost only */
 (function () { try { if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && !document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=1"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=2"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -1654,7 +1654,11 @@ window.HelmUrl = HelmUrl;
         if (error) throw genericSignInError(error);
         const st = sessionStart();
         if ((prev && prev.id !== data.user.id) || (st && st.uid !== data.user.id)) userLocalClear();
-        currentUser = data.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = false;
+        // Take the user from the stored session (same object signInWithPassword just saved), so the
+        // sign-in response itself never flows into web storage (CodeQL clear-text-storage).
+        const { data: sd } = await supa.auth.getSession();
+        if (!(sd && sd.session && sd.session.user && sd.session.user.id === data.user.id)) throw genericSignInError(new Error("no session after sign-in"));
+        currentUser = sd.session.user; roleCache = null; accessCache = null; rolePromise = null; accessPromise = null; sessClear(); authRequired = false;
         hadSession = true; explicitSignOut = false; sessionExpired = false; limitOut = false;
         stampSessionStart(currentUser.id, true);
         lsDel(RECOVERY_KEY);
@@ -1855,7 +1859,9 @@ window.HelmUrl = HelmUrl;
         const { data, error } = res || {};
         if (error && LOCKOUT_RE.test(String(error.message || ""))) { const e = new Error(String(error.message)); e.code = "account_locked"; throw e; }
         if (error || !data || !data.user || data.user.id !== uid) { const e = new Error("Your current password isn't right."); e.code = "bad_current_password"; e.cause = error; throw e; }
-        currentUser = data.user; explicitSignOut = false;
+        // currentUser is already this account (data.user.id === uid checked above); keep it rather than
+        // copying the sign-in response, which must not flow into web storage.
+        explicitSignOut = false;
         reauth = { uid, until: Date.now() + REAUTH_MS };
         const { data: lv } = await supa.auth.mfa.getAuthenticatorAssuranceLevel();
         return (lv && lv.nextLevel === "aal2" && lv.currentLevel !== "aal2") ? "mfa" : null;

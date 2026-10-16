@@ -275,7 +275,7 @@
   var TITLES = { dashboard: 'Dashboard', leads: 'Leads', quotes: 'Quotes', proposal: 'Client proposal', calendar: 'Calendar', event: 'Event workspace', settlement: 'Settlement & P&L' };
   function render(focus) {
     var view = (location.hash || '').replace(/^#/, '');
-    if (ORDER.indexOf(view) < 0) view = 'dashboard';
+    if (ORDER.indexOf(view) < 0 || !Object.prototype.hasOwnProperty.call(V, view) || typeof V[view] !== 'function') view = 'dashboard';
     var main = D.getElementById('main');
     if (!main) return;
     while (main.firstChild) main.removeChild(main.firstChild);

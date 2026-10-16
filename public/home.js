@@ -66,7 +66,8 @@
   var userPaused = reduce;
   function loadV(v) {
     if (v.dataset.ok) return;
-    $$('source[data-src]', v).forEach(function (s) { s.src = s.getAttribute('data-src'); });
+    // same-origin path only: no scheme, no protocol-relative //host, path characters only
+    $$('source[data-src]', v).forEach(function (s) { s.src = '/' + String(s.getAttribute('data-src') || '').replace(/^\/+/, '').replace(/[^A-Za-z0-9_\-.\/]/g, ''); });
     v.dataset.ok = '1'; v.load();
   }
   function tryPlay(v) { var p = v.play(); if (p && p.catch) p.catch(function () {}); }
@@ -852,7 +853,11 @@
   var ready = {}, names = { wedding: 'Garden wedding', corporate: 'Corporate gala' }, exts = {}, hasMeasure = {}, hasVideo = {}, meas = {};
   var M_TO_FT = 3.28084, mUnit = 'm';
   function extFor(id, v) { var e = exts[id] && exts[id][v]; return e === 'jpg' || e === 'png' ? e : 'webp'; }
+  // layout ids come from the page's data-ly attributes; only ids the script itself knows (SAMPLE / manifest)
+  // are ever put into a URL, so DOM text never becomes part of an image / video src.
+  function lyId(x) { var ids = Object.keys(SAMPLE).concat(Object.keys(ready)), i = ids.indexOf(String(x)); return i < 0 ? 'corporate' : ids[i]; }
   function srcFor(id, k) {
+    id = lyId(id);
     var own = k === 3 ? ready[id] && hasMeasure[id] : ready[id];
     return own ? '/home-assets/layouts/' + id + '/' + VIEWS[k] + '.' + extFor(id, VIEWS[k]) : (SAMPLE[id] || SAMPLE.corporate)[k];
   }
@@ -897,7 +902,7 @@
   }
   lyTabs.forEach(function (b) {
     b.addEventListener('click', function () {
-      curLy = b.getAttribute('data-ly');
+      curLy = lyId(b.getAttribute('data-ly'));
       lyTabs.forEach(function (x) { x.setAttribute('aria-selected', String(x === b)); });
       paintShowcase();
     });

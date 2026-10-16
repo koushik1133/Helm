@@ -191,8 +191,12 @@ forward  supabase/migrations/0123_trial_start_fresh.sql
 forward  supabase/migrations/0124_vendor_bills.sql
 # 0125 (leads get the shared tg_audit audit_trg so lead edits show in Audit log + Recent activity; enforce_no_overpayment_ms counts each payment once (other paid milestones, not ledger + this row); same signature/definer/search_path/message; no row changed) goes after 0042 + 0110.
 forward  supabase/migrations/0125_lead_audit_and_milestone_fix.sql
+# 0126 (trial staff + expiry: after an unpaid trial ends, non-owner members get current_org_id() = NULL (fail-closed, memberships untouched); my_trial_access for the Staff page note; owner keeps the 0116 read-only studio) goes after 0043 + 0116 + 0028.
+forward  supabase/migrations/0126_trial_staff_and_expiry.sql
 # 0127 (trial fresh start: owner-replaceable trial sample data via helm_env_settings 'trial_demo_seed' (trigger on trial start, fill-only, is_demo); trial_demo_choice('fresh'|'keep') after subscribing removes ONLY own is_demo rows via _demo_clear; my_demo_status + demo_choice/choice_pending; 2 nullable columns) goes after 0042 + 0097 + 0119 + 0123.
 forward  supabase/migrations/0127_trial_fresh_start.sql
+# 0128 (trial test mode: trial_test_mode_for_token + trial_test_approve let an ACTIVE-trial owner approve their own test quote without an SMS; server re-checks the trial, hashed one-time code, normal verify_and_consent, recorded verified_via_otp = false) goes after 0026 + 0042 + 0093 + 0116.
+forward  supabase/migrations/0128_trial_test_mode.sql
 # 0129 (event-approaching reminders: organizations.event_reminder_days default 7 (1-30, Control Center); event_reminders dedupe ledger (RLS, no user access); hourly event_reminders_tick() -> one studio bell row (kind event_reminder, never forwarded) + a system message in the event's chat group at the window and the day before; event_reminder_upcoming() for the "Upcoming in N days" chips; additive) goes after 0128.
 forward  supabase/migrations/0129_event_approaching_reminders.sql
 # 0131 (invite e-mails: invite_email_outbox one row per invitation (RLS, no user access); trigger on invitations insert / re-token queues it; resend_invitation_email (admin, same studio, once per 10 min); invite_email_kick_org; service-role claim/mark for the dormant invite-mailer; additive) goes after phase83 + 0072.
@@ -203,3 +207,5 @@ forward  supabase/migrations/0132_assignment_notify.sql
 forward  supabase/migrations/0134_integrations_overview.sql
 # 0135 (audit triggers: shared tg_audit() on vendor_bills, vendor_payouts, inventory_reservations, run_sheet_items; drop-if-exists + create, skipped when a table is missing; no table changes) goes after 0124/0125.
 forward  supabase/migrations/0135_audit_more_tables.sql
+# 0136 (tenant guard catch-up: zz_quote_org_match on every quote_id+org_id table added since 0004 (vendor_bills, event_reminders, assign_notify_outbox, integration_webhook_events); zzz_studio_read_only on the 9 studio tables added in 0116-0132; revoke EXECUTE on trigger functions from public/anon/authenticated; no rows changed) goes after 0117 + 0124 + 0129 + 0132.
+forward  supabase/migrations/0136_tenant_guard_catchup.sql
