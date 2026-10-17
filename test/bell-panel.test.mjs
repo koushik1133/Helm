@@ -188,7 +188,7 @@ t('mount keeps the data flow: feed + chat merge, 0036 hidden chat, markSeen on o
   assert.match(api, /const chatOff = hiddenTypes\.indexOf\("chat_message"\) !== -1;/);
   assert.match(api, /if \(chatOff\) chatItems = chatItems\.filter\(\(c\) => c && c\.mention\);/);
   assert.match(api, /lastItems = mergedFeed\(f && f\.items\); loaded = true; render\(\); if \(f\) popToasts\(lastItems\);[^\n]*\n\s*try \{ await this\.markSeen\(\); \} catch \{\} setDot\(0\);/);
-  assert.match(api, /chat\.subscribe\(function \(\) \{ refresh\(\); \}, function \(\) \{\}, "chat-rt-bell"\)/);
+  assert.match(api, /chat\.subscribe\(function \(\) \{ liveRefresh\(\); \}, function \(\) \{\}, "chat-rt-bell"\)/);
   assert.match(api, /window\.__bpBellRefresh = refresh;/);
   assert.match(api, /label: bellLabel,/);
   assert.doesNotMatch(fnSrc(api, 'bellPanelView'), /innerHTML|document\./);   // pure: returns strings only

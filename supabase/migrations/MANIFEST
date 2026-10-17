@@ -231,5 +231,7 @@ forward  supabase/migrations/0145_dashboard_money_currency_fix.sql
 forward  supabase/migrations/0146_audit_1017_pnl_trial.sql
 # 0147 (owner decision: managers create quotes by default; new access area 'quote_create' (edit = may create); can_create() = admin, or manager/planner/sales per their quote_create row with default ON when no row; ON rows added only where none exist, never overwrites; can_delete unchanged; no rows deleted) goes after 0143 + 0144.
 forward  supabase/migrations/0147_manager_quote_create.sql
+# 0148 (retest 2026-10-17: _a49_close_gate messages ASCII-only - the long dash came back garbled; tg_audit adds role + area (entity id role:area) to role_access audit rows, replaced only over the known 0042 body; CREATE OR REPLACE only, no rows changed) goes after 0042 + 0049.
+forward  supabase/migrations/0148_close_gate_text.sql
 # 0149 (sales-role test 2026-10-17: leads.guest_count CHECK 0..100000 or null, NOT VALID - existing rows are not checked or changed) goes after any.
 forward  supabase/migrations/0149_lead_guest_count_range.sql

@@ -168,6 +168,10 @@
   {
    "name": "restoreCell",
    "why": "crm.html (0139): returns '' or fixed markup; every data value (archive id, name, restored_at) goes through esc()"
+  },
+  {
+   "name": "workerLinksBlock",
+   "why": "ops.html (1017): returns '' or fixed markup; every data value (assignee name, worker link) goes through esc()"
   }
  ],
  "sites": [

@@ -66,10 +66,10 @@ t('hostile text stays plain strings (rendered via textContent), ids URL-encoded'
   assert.match(tsrc, /tEl\.textContent = title; body\.textContent = text;/);
 });
 
-t('BPUI.toast: top-right stack, bottom on phones, max 3, progress bar + hover pause, types, dark, reduced motion', () => {
-  assert.match(api, /\.bpui-toasts\{position:fixed;top:72px;right:16px;/);
+t('BPUI.toast: bottom-right stack, bottom on phones, max 2, progress bar + hover pause, types, dark, reduced motion', () => {
+  assert.match(api, /\.bpui-toasts\{position:fixed;bottom:20px;right:16px;/);
   assert.match(api, /@media \(max-width:640px\)\{\.bpui-toasts\{top:auto;[^}]*bottom:max\(16px/);
-  assert.match(api, /while \(cards\.length > 3\)/);
+  assert.match(api, /while \(cards\.length > 2\)/);
   assert.match(api, /bar\.style\.animation = "bpuiBar " \+ timeout \+ "ms linear forwards"/);
   assert.match(api, /\.bpui-toast\.is-paused \.bpui-toast-bar\{animation-play-state:paused!important\}/);
   assert.match(api, /t\.addEventListener\("mouseenter", pause\);/);

@@ -212,7 +212,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=217"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=218"></script>
 <script src="tour.js?v=14"></script>
 <script src="nurture-templates.js?v=1"></script>
 <script>
@@ -315,7 +315,7 @@
     $("#occBody").innerHTML = due.length ? due.map(d=>`<tr>
       <td><b>${esc(d.name)}</b><div class="muted" style="font-size:12px">${[d.email||"no email",d.phone].filter(Boolean).map(esc).join(" · ")}</div></td>
       <td><span class="occ">${esc(d.occasion_type)}</span> ${esc(d.occasion||"")}</td>
-      <td>${esc(d.next_date||"—")}${d.greeted_this_year?' <span class="occ greeted">greeted</span>':""}</td>
+      <td>${d.next_date?esc(BPStore.fmtDateIN(d.next_date)):"—"}${d.greeted_this_year?' <span class="occ greeted">greeted</span>':""}</td>
       <td><label class="switch" style="width:40px;height:23px"><input type="checkbox" data-auto="${esc(d.id)}" aria-label="Auto-greet ${esc(d.name)}" ${d.auto_on?"checked":""}><span class="slider"></span></label> <span class="autolab"></span></td>
       <td><button type="button" class="lnk" data-greet="${esc(d.id)}" aria-label="Send greeting to ${esc(d.name)}" ${d.email?"":"disabled title='no email on file'"}>Send greeting</button>${waLink(d)}</td>
     </tr>`).join("") : '<tr><td colspan="5" class="empty">No occasions coming up. Add an occasion date above.</td></tr>';
@@ -484,9 +484,12 @@
     if(!(await BPStore.auth.requireView("nurture"))) return;
     canEdit=await BPStore.auth.canEditArea("nurture");
     $("#app").hidden=false; $("#addCard").hidden=!canEdit; $("#autoCard").hidden=!canEdit; $("#tplCard").hidden=!canEdit;
+    // perf 1017: only the client list holds the loading overlay; the client picker, automation,
+    // templates and greeting library fill in alongside it (they used to load one after another).
+    const pClients=Promise.resolve(canEdit?loadClientOptions():null).catch(()=>{});
+    const extras=Promise.all([pClients.then(()=>libInit()), canEdit?renderAuto():null, canEdit?renderTemplates():null].map(p=>Promise.resolve(p).catch(()=>{})));
     await render();
-    if(canEdit){ await loadClientOptions(); await renderAuto(); await renderTemplates(); }
-    await libInit();
+    extras.catch(()=>{});
   });
 </script>
 </body>

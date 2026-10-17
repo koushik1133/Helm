@@ -113,6 +113,9 @@
   .chip .cview:focus-visible,.chip .pen:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
   .chip button:disabled{cursor:not-allowed}
   #matrix[aria-busy="true"] .chip{cursor:progress}
+  .ncell.saving,.nch.saving{cursor:progress;animation:npSave 0.9s ease-in-out infinite alternate}
+  @keyframes npSave{from{opacity:1}to{opacity:.55}}
+  @media (prefers-reduced-motion:reduce){.ncell.saving,.nch.saving{animation:none;opacity:.7}}
   .chip .tick{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:11px;color:transparent}
   .chip.on{border-color:#2eb872;background:#eafaf1;color:var(--ink)}
   .chip.on .tick{border-color:#2eb872;background:#2eb872;color:#fff}
@@ -732,7 +735,7 @@
 <script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=217"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=218"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
@@ -1791,8 +1794,8 @@
     if(!list.length) return;
     if(!(await BPUI.confirm("Switch on "+list.map(([a,e])=>a+(e?" (edit)":" (view)")).join(", ")+" for "+role+"? You can change each one afterwards.",{title:"Apply suggested access?",okLabel:"Apply"}))) return;
     btn.disabled=true;
-    try{ for(const [a,e] of list) await BPStore.auth.admin.setAccess(role, a, true, e); setUMsg("ok",role+": suggested access applied"); }
-    catch(err){ setUMsg("err",errMsg(err,"change access")); }
+    try{ for(const [a,e] of list) await BPStore.auth.admin.setAccess(role, a, true, e); BPUI.toast(role+": suggested access applied",{type:"ok"}); }
+    catch(err){ BPUI.toast(errMsg(err,"change access"),{type:"err"}); }
     await loadMatrix(); renderMatrix();
   }
   // saveCell is SERIALIZED: quick clicks queue up and each one computes its toggle
@@ -1808,11 +1811,11 @@
       else { view=!cur.view; edit=view?cur.edit:false; }
       let saved=false;
       try{ await BPStore.auth.admin.setAccess(role, area, view, edit); saved=true; }
-      catch(e){ setUMsg("err",errMsg(e,"change access")); }
+      catch(e){ BPUI.toast(errMsg(e,"change access"),{type:"err"}); }   // 1017: a toast, so the grid never moves under the pointer
       // always re-read the live matrix so the grid shows what the server really has
       const ok=await loadMatrix();
       if(!ok && saved){ mtxErr=null; (MTX[role]=MTX[role]||{})[area]={view, edit}; BPUI.toast("Saved, but couldn't refresh access — reload to double-check.",{type:"info"}); }
-      if(saved) setUMsg("ok",`${role} · ${area}: ${view?(edit?"view + edit":"view only"):"no access"}`);
+      if(saved) BPUI.toast(`${BPStore.auth.admin.roleLabel(role)} · ${(AREAS.find(x=>x.key===area)||{}).label||area}: ${view?(edit?"view + edit":"view only"):"no access"}`,{type:"ok",timeout:2500});
     }).catch(()=>{}).finally(()=>{
       cellPending--;
       if(!cellPending){ $("#matrix").removeAttribute("aria-busy"); }
@@ -1897,10 +1900,10 @@
       const a=build(); if(!a) return;
       let saved=false;
       try{ await BPStore.bell.prefs.set(a.type, a.channel, a.role, a.enabled, a.user); saved=true; }
-      catch(e){ setNMsg("err",errMsg(e,"change the notification")); }
+      catch(e){ BPUI.toast(errMsg(e,"change the notification"),{type:"err"}); }
       const ok=await loadNotify();
       if(!ok && saved){ npErr=null; BPUI.toast("Saved, but couldn't refresh — reload to double-check.",{type:"info"}); }
-      if(saved) setNMsg("ok",a.msg);
+      if(saved) BPUI.toast(a.msg,{type:"ok",timeout:2500});   // 1017: toast, no banner pushing the table down
     }).catch(()=>{}).finally(()=>{
       npPending--; if(!npPending){ $("#nf_rows").removeAttribute("aria-busy"); $("#np_list").removeAttribute("aria-busy"); }
       renderNotify(); renderPeople();
@@ -1908,8 +1911,18 @@
     return npQueue;
   }
   const npLabel=(t)=>(((NP&&NP.catalog)||[]).find(c=>c.type===t)||{}).label||t;
+  // 1017: flip the switch at once and mark it "saving" - the server round-trip (save + re-read) took
+  // 2s+ with no feedback. The grid is re-drawn from the server's answer when the queue settles.
+  function npOptimistic(btn, isCell){
+    if(!btn || !btn.classList || !btn.setAttribute) return;
+    const on=!btn.classList.contains("on");
+    btn.classList.toggle("on", on); btn.setAttribute("aria-pressed", String(on)); btn.classList.add("saving"); btn.setAttribute("aria-busy","true");
+    if(isCell) btn.textContent = on ? "✓" : "";
+    else btn.textContent = String(btn.textContent||"").replace(/ (on|off)$/, on ? " on" : " off");
+  }
   $("#nf_rows").addEventListener("click",(e)=>{
     const cell=e.target.closest(".ncell"), ch=e.target.closest("button.nch");
+    if(cell) npOptimistic(cell, true); else if(ch) npOptimistic(ch, false);
     if(cell){ const t=cell.dataset.type, r=cell.dataset.role;
       saveNotify(()=>{ const cur=(((NP||{}).in_app||{})[t]||{})[r]; const on=!(cur?cur.on:true);
         return {type:t, channel:"in_app", role:r, enabled:on, msg:`${npLabel(t)} · ${roleLbl(r)}: ${on?"shown in the bell":"hidden from the bell"}`}; }); }
