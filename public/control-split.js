@@ -1,5 +1,5 @@
 /* Control Center split (preview): groups the existing cards into sub-pages with a left
- * sub-nav, a settings search, and #section deep links. Layout-only: it never changes
+ * sub-nav, a universal smart settings search (settings-search-core.js), and #section deep links. Layout-only: it never changes
  * a setting, never removes an element, and never touches the `hidden` attribute that
  * the page's own JS uses for permissions. It drives the existing tab buttons. */
 (function(){
@@ -21,11 +21,13 @@
     clock:"M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2",
     image:"M3 5h18v14H3zM3 16l5-5 4 4 3-3 6 6M15.5 9.5h.01",
     pin:"M12 21s-7-6.2-7-12a7 7 0 0 1 14 0c0 5.8-7 12-7 12zM12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
-    layout:"M3 3h18v18H3zM3 9h18M9 9v12"
+    layout:"M3 3h18v18H3zM3 9h18M9 9v12",
+    lock:"M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4"
   };
   var SECTIONS=[
     {key:"general",  group:"Workspace",  label:"General",                icon:"home",  hash:"#general",       desc:"Studio name, country and tax, contact details, billing address and your client link name.", kw:"studio account organization business logo accent currency timezone gst gstin address demo trial slug"},
     {key:"billing",  group:"Workspace",  label:"Plan & billing",         icon:"card",  hash:"#billing",       desc:"Your Helm subscription, plan and invoices.", kw:"subscription plan invoice trial upgrade"},
+    {key:"privacy",  group:"Workspace",  label:"Hide amounts (privacy PIN)",icon:"lock",hash:"#privacy-pin",desc:"The 4-digit PIN that shows amounts again after you hide them in front of a client. One PIN for the studio; admins change it.", kw:"privacy pin passcode hide amounts money prices mask blur present client eye unlock 0000 change pin reset pin forgot pin"},
     {key:"links",    group:"Workspace",  label:"Client links & packages",icon:"link",  hash:"#client-links",  desc:"How long client links stay open and how clients choose a package.", kw:"expire expiry auto-expire link security package flow booklet"},
     {key:"pricing",  group:"Sales",      label:"Pricing & coupons",      icon:"tag",   hash:"#pricing",       desc:"Default pricing for new quotes, rate cards, builder prices and limits, and coupons.", kw:"price tax discount rate card coupon capacity object"},
     {key:"catalog",  group:"Sales",      label:"Menus & catalog",        icon:"menu",  hash:"#menu",          desc:"Chairs, plates, dishes and the menu packages clients pick from.", kw:"chair plate dish catering menu package standard gold premium"},
@@ -44,7 +46,7 @@
   function el(tag,cls,txt){ var e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; }
   var BYKEY={}, SECHASH={}, HASH={}; SECTIONS.forEach(function(x){ BYKEY[x.key]=x; SECHASH[x.key]=x.hash; HASH[x.hash]=x.key; });
   // legacy deep links (dashboard checklist, old bookmarks) -> section
-  Object.assign(HASH,{"#account":"general","#studio":"general","#team":"users","#notify":"notify","#security":"links","#link-expiry":"links","#pricing-packages":"pricing","#catalog":"catalog","#event-reminders":"reminders","#client-reminders":"reminders","#payment-reminders":"reminders","#whatsapp":"reminders"});
+  Object.assign(HASH,{"#account":"general","#studio":"general","#team":"users","#notify":"notify","#security":"links","#link-expiry":"links","#pricing-packages":"pricing","#catalog":"catalog","#event-reminders":"reminders","#client-reminders":"reminders","#payment-reminders":"reminders","#whatsapp":"reminders","#privacy":"privacy","#hide-amounts":"privacy","#pin":"privacy"});
   var OLDKEY={studio:"general",team:"users",security:"links"};
   function h3(c){ var h=c.querySelector("h3"); return h?h.textContent.trim():""; }
   function paneKey(c){ var p=c.closest("[id^='pane-']"); return p?p.id.slice(5):""; }
@@ -52,6 +54,7 @@
     var id=c.id||"", t=h3(c).toLowerCase(), pane=paneKey(c);
     if(id==="accCard"||id==="tdControl"||c.querySelector("#o_name")) return "general";
     if(id==="subCard") return "billing";
+    if(id==="privPinCard") return "privacy";
     if(id==="lxCard"||id==="pkgFlowCard") return "links";
     if(id==="menuCard"||/chair types|plate types|dishes catalog/.test(t)) return "catalog";
     if(/default layout rules/.test(t)) return "rules";
@@ -87,11 +90,14 @@
   while(app.firstChild) main.appendChild(app.firstChild);
   var aside=document.createElement("aside"); aside.className="cs-aside"; aside.setAttribute("aria-label","Settings sections");
   var sw=el("div","cs-search"), lab=el("label","sr-only","Search settings"); lab.htmlFor="csSearch";
-  var qi=el("input"); qi.id="csSearch"; qi.type="search"; qi.placeholder="Search settings"; qi.autocomplete="off";
+  var qi=el("input"); qi.id="csSearch"; qi.type="search"; qi.autocomplete="off";
   qi.setAttribute("aria-controls","csResults"); qi.setAttribute("aria-keyshortcuts","Control+K Meta+K /");
+  qi.setAttribute("role","combobox"); qi.setAttribute("aria-autocomplete","list"); qi.setAttribute("aria-expanded","false"); qi.spellcheck=false;
+  qi.placeholder="Search settings, roles, pages\u2026";
   var mac=/Mac|iPhone|iPad/.test(navigator.platform||navigator.userAgent||"");
-  var rl=el("div","cs-results"); rl.id="csResults"; rl.setAttribute("role","listbox"); rl.hidden=true;
-  sw.appendChild(lab); sw.appendChild(el("span","cs-search-ico")); sw.appendChild(qi); sw.appendChild(el("kbd","cs-kbd",mac?"\u2318K":"Ctrl K")); sw.appendChild(rl);
+  var rl=el("div","cs-results"); rl.id="csResults"; rl.setAttribute("role","listbox"); rl.setAttribute("aria-label","Matching settings"); rl.hidden=true;
+  var live=el("div","sr-only"); live.setAttribute("role","status"); live.setAttribute("aria-live","polite"); live.id="csLive";
+  sw.appendChild(lab); sw.appendChild(el("span","cs-search-ico")); sw.appendChild(qi); sw.appendChild(el("kbd","cs-kbd",mac?"\u2318K":"Ctrl K")); sw.appendChild(rl); sw.appendChild(live);
   var mlab=el("label","sr-only","Settings section"); mlab.htmlFor="csMnav";
   var msel=el("select","cs-mnav"); msel.id="csMnav";
   var nv=el("nav","cs-nav"); nv.id="csNav"; nv.setAttribute("aria-label","Settings");
@@ -168,55 +174,99 @@
   function fromHash(){ var k=HASH[location.hash]; if(k){ show(k,{noScroll:true}); return true; } return false; }
   window.addEventListener("hashchange",fromHash);
 
-  // ---- settings search ----
+  // ---- universal settings search ----
+  // Smart matching lives in settings-search-core.js (window.HelmSettingsSearch): synonyms ("hide money" ->
+  // Hide amounts, "gst" -> tax), typos ("whatsap", "notifcations") and word starts. It searches every setting
+  // label on this page, every section, the roles in the access matrix, the user's own account items
+  // (two-step sign-in, password, profile) and the related pages. ARIA combobox: arrows move, Enter opens,
+  // Esc closes. The result jumps to the setting, focuses it and highlights the words that matched.
+  var SSC=window.HelmSettingsSearch||null;
+  var PAGES=[   // the page itself still checks access when it opens
+    {text:"Integrations (WhatsApp, e-mail, payments)",href:"integrations.html",kw:"whatsapp email smtp webhook api connect payment gateway razorpay send test message"},
+    {text:"Audit log",href:"audit.html",kw:"audit history activity who changed log"},
+    {text:"Insights",href:"insights.html",kw:"insights analytics numbers"},
+    {text:"Reports",href:"reports.html",kw:"reports export analytics"},
+    {text:"Studio setup",href:"onboarding.html",kw:"onboarding wizard getting started setup"},
+    {text:"Staff & crew",href:"staff.html",kw:"staff crew worker people team"},
+    {text:"Team chat",href:"chat.html",kw:"chat messages team"},
+    {text:"User manual",href:"manual.html",kw:"help guide docs how to manual"}
+  ];
+  function openAcc(o){ try{ if(window.HelmAuthUI&&window.HelmAuthUI.openAccount) window.HelmAuthUI.openAccount(o); }catch(x){} }
+  var ACCOUNT=[ // every signed-in person, for their own account only (no role needed)
+    {text:"Two-step sign-in (2FA)",kw:"twostep 2fa mfa otp authenticator verification code security turn on off enable disable",run:function(){ openAcc({section:"settings",focus:"mfa"}); }},
+    {text:"Change password",kw:"password signin security",run:function(){ openAcc({section:"settings",focus:"password"}); }},
+    {text:"Your profile (name, mobile, photo)",kw:"profile name phone mobile avatar photo",run:function(){ openAcc({section:"profile"}); }},
+    {text:"Sign out other devices",kw:"devices sessions security signout logout",run:function(){ openAcc({section:"settings",focus:"devices"}); }},
+    {text:"Hide or show amounts now",kw:"privacy hide money amounts present eye",run:function(){ if(window.HelmPrivacy&&window.HelmPrivacy.toggle) window.HelmPrivacy.toggle(); }}
+  ];
+  var KIND={setting:"Setting",section:"Section",role:"Role",page:"Page",account:"Your account"};
   function entries(){
     var out=[];
     cards.forEach(function(c){
       var sec=c.getAttribute("data-cs-sec"), s=BYKEY[sec]; if(!s||!available(s)) return;
       if(c.hidden && paneKey(c)!=="notify") return;   // notify-pane cards load on first open: still searchable
       var title=h3(c)||c.getAttribute("aria-label")||s.label;
-      out.push({el:c,card:c,text:title,sec:sec,title:title});
+      out.push({kind:"setting",el:c,card:c,text:title,sec:sec,title:title,context:s.label,keywords:s.kw});
       Array.prototype.forEach.call(c.querySelectorAll("label, h3, h4, legend, summary, .nt, .cmlbl, th[scope=row]"),function(l){
         var tx=l.textContent.replace(/\s+/g," ").trim(); if(!tx||tx===title||tx.length>90) return;
-        out.push({el:l,card:c,text:tx,sec:sec,title:title});
+        out.push({kind:"setting",el:l,card:c,text:tx,sec:sec,title:title,context:s.label+" "+title});
       });
     });
+    if(BYKEY.access && available(BYKEY.access)) Array.prototype.forEach.call(document.querySelectorAll("#roleTabs .rtab"),function(b){
+      var c=b.closest(".card"), tx=b.textContent.replace(/\s+/g," ").trim(); if(!tx) return;
+      out.push({kind:"role",el:b,card:c,click:b,text:"Role: "+tx,sec:"access",title:c?h3(c):"Roles & access",context:"Roles & access",keywords:"role access permission "+(b.getAttribute("data-role")||"")});
+    });
     // every section by name, description and keywords (covers rows that load on first open)
-    SECTIONS.forEach(function(s){ if(!available(s)) return; out.push({el:null,card:null,text:s.label,sec:s.key,title:s.label,extra:s.desc+" "+s.kw}); });
+    SECTIONS.forEach(function(s){ if(!available(s)) return; out.push({kind:"section",el:null,card:null,text:s.label,sec:s.key,title:s.label,context:s.group,keywords:s.desc+" "+s.kw,boost:0.05}); });
+    ACCOUNT.forEach(function(a){ out.push({kind:"account",text:a.text,context:"Your account",keywords:a.kw,run:a.run}); });
+    PAGES.forEach(function(p){ out.push({kind:"page",text:p.text,context:"Page",keywords:p.kw,href:p.href}); });
     return out;
   }
-  function norm(s){ return s.toLowerCase().normalize("NFKD").replace(/[^\w\s]/g," "); }
+  function norm(s){ return SSC?SSC.normalize(s):String(s||"").toLowerCase().normalize("NFKD").replace(/[^\w\s]/g," ").replace(/\s+/g," ").trim(); }
+  function plainRank(v,list){   // fallback if settings-search-core.js did not load: every word must appear
+    var words=norm(v).split(" ").filter(Boolean);
+    return list.filter(function(e){ var hay=norm(e.text+" "+(e.context||"")+" "+(e.keywords||"")); return words.every(function(w){ return hay.indexOf(w)>=0; }); }).slice(0,25);
+  }
+  var hits=[], active=-1;
+  function setActive(i){
+    var opts=res.querySelectorAll("[role=option]"); if(!opts.length){ active=-1; q.removeAttribute("aria-activedescendant"); return; }
+    active=(i+opts.length)%opts.length;
+    Array.prototype.forEach.call(opts,function(o,j){ o.setAttribute("aria-selected",j===active?"true":"false"); });
+    q.setAttribute("aria-activedescendant",opts[active].id);
+    try{ opts[active].scrollIntoView({block:"nearest"}); }catch(x){}
+  }
+  function closeRes(){ res.hidden=true; q.setAttribute("aria-expanded","false"); q.removeAttribute("aria-activedescendant"); active=-1; }
   function search(){
-    var v=norm(q.value).trim(); res.textContent="";
-    if(!v){ res.hidden=true; return; }
-    var words=v.split(/\s+/), seen=new Set(), hits=[];
-    entries().forEach(function(e){
-      var hay=norm(e.text+" "+e.title+" "+BYKEY[e.sec].label+" "+(e.extra||""));
-      if(words.every(function(w){ return hay.indexOf(w)>=0; })){ var k=e.text+"|"+e.title; if(!seen.has(k)){ seen.add(k); hits.push(e); } }
-    });
-    function score(e){ var t=norm(e.text), ti=norm(e.title); return (t.indexOf(v)===0?0:t.indexOf(v)>0?1:ti.indexOf(v)>=0?2:3)+(e.extra?0.5:0)+(e.el===e.card&&e.card?-0.25:0); }
-    hits.forEach(function(e,i){ e._s=score(e); e._i=i; });
-    hits.sort(function(a,b){ return a._s-b._s || a._i-b._i; });
-    hits.slice(0,25).forEach(function(e){
-      var b=document.createElement("button"); b.type="button"; b.setAttribute("role","option");
-      mark(b,e.text,words); var sm=document.createElement("small"); sm.textContent=BYKEY[e.sec].label+(e.text!==e.title?" › "+e.title:""); b.appendChild(sm);
+    var v=q.value.trim(); res.textContent=""; hits=[];
+    if(!v){ closeRes(); live.textContent=""; return; }
+    var list=entries(), seen=new Set();
+    var ranked=SSC?SSC.rank(v,list,60):plainRank(v,list);
+    ranked.forEach(function(e){ var k=e.kind+"|"+e.text+"|"+(e.title||e.context||""); if(!seen.has(k)&&hits.length<25){ seen.add(k); hits.push(e); } });
+    hits.forEach(function(e,i){
+      var b=document.createElement("div"); b.setAttribute("role","option"); b.id="csOpt"+i; b.className="cs-opt"; b.setAttribute("aria-selected","false");
+      mark(b,e.text,v);
+      var where=e.kind==="setting"?BYKEY[e.sec].label+(e.text!==e.title?" › "+e.title:""):e.kind==="role"?"Roles & access":e.kind==="section"?e.context:"";
+      var sm=document.createElement("small"); sm.textContent=KIND[e.kind]+(where?" · "+where:""); b.appendChild(sm);
+      b.addEventListener("mousedown",function(ev){ ev.preventDefault(); });   // keep focus in the box
       b.addEventListener("click",function(){ jump(e); });
+      b.addEventListener("mousemove",function(){ if(active!==i) setActive(i); });
       res.appendChild(b);
     });
-    if(!hits.length){ var d=document.createElement("div"); d.className="cs-none"; d.textContent="No matching settings"; res.appendChild(d); }
-    res.hidden=false;
+    if(!hits.length){ var d=document.createElement("div"); d.className="cs-none"; d.textContent="No matching settings. Try another word, e.g. “pin”, “tax” or “invite”."; res.appendChild(d); }
+    res.hidden=false; q.setAttribute("aria-expanded","true");
+    live.textContent=hits.length?hits.length+(hits.length===1?" result":" results")+". Use the arrow keys, then Enter.":"No matching settings.";
+    if(hits.length) setActive(0); else { active=-1; q.removeAttribute("aria-activedescendant"); }
   }
-  function mark(node,text,words){
-    var low=norm(text), ranges=[];
-    words.forEach(function(w){ var i=low.indexOf(w); if(i>=0) ranges.push([i,i+w.length]); });
-    ranges.sort(function(a,b){return a[0]-b[0];}); var pos=0;
-    ranges.forEach(function(r){ if(r[0]<pos) return; node.appendChild(document.createTextNode(text.slice(pos,r[0]))); node.appendChild(el("mark",null,text.slice(r[0],r[1]))); pos=r[1]; });
+  function mark(node,text,v){
+    var rs=SSC?SSC.ranges(text,v):[], pos=0;
+    if(!SSC){ var low=norm(text); norm(v).split(" ").forEach(function(w){ var i=w?low.indexOf(w):-1; if(i>=0) rs.push([i,i+w.length]); }); rs.sort(function(a,b){return a[0]-b[0];}); }
+    rs.forEach(function(r){ if(r[0]<pos) return; node.appendChild(document.createTextNode(text.slice(pos,r[0]))); node.appendChild(el("mark",null,text.slice(r[0],r[1]))); pos=r[1]; });
     node.appendChild(document.createTextNode(text.slice(pos)));
   }
   var hasHL=typeof CSS!=="undefined" && CSS.highlights && typeof Highlight==="function";
   function clearHL(){ if(hasHL) CSS.highlights.delete("cs-hit"); }
   function highlightIn(root,words){
-    if(!hasHL||!words.length) return; clearHL();
+    if(!hasHL||!root||!words.length) return; clearHL();
     var hl=new Highlight(), tw=document.createTreeWalker(root,NodeFilter.SHOW_TEXT), n;
     while((n=tw.nextNode())){
       var t=n.nodeValue.toLowerCase();
@@ -224,34 +274,47 @@
     }
     CSS.highlights.set("cs-hit",hl); setTimeout(clearHL,4000);
   }
+  // the words to light up inside the card: the words of the result that matched, plus what was typed
+  function hitWords(e,v){
+    var w=[]; (SSC?SSC.ranges(e.text,v):[]).forEach(function(r){ var x=e.text.slice(r[0],r[1]).toLowerCase(); if(x.length>1&&w.indexOf(x)<0) w.push(x); });
+    norm(v).split(" ").forEach(function(x){ if(x.length>1&&w.indexOf(x)<0) w.push(x); });
+    return w;
+  }
   function jump(e){
-    var words=norm(q.value).trim().split(/\s+/).filter(Boolean);
-    res.hidden=true; q.value="";
+    var v=q.value.trim(), words=hitWords(e,v);
+    closeRes(); q.value=""; live.textContent="";
+    if(e.kind==="account"){ e.run(); return; }
+    if(e.kind==="page"){ location.href=e.href; return; }
     setHash(SECHASH[e.sec]); show(e.sec,{noScroll:true});
     if(!e.el){ try{ main.scrollIntoView({block:"start",behavior:"smooth"}); }catch(x){} return; }
-    var el=e.el, target=el;
-    if(el.tagName==="LABEL" && el.htmlFor){ var f=document.getElementById(el.htmlFor); if(f) target=f; }
+    var node=e.el, target=node;
+    if(node.tagName==="LABEL" && node.htmlFor){ var f=document.getElementById(node.htmlFor); if(f) target=f; }
+    if(e.click){ try{ e.click.click(); }catch(x){} target=e.click; }
     setTimeout(function(){
-      try{ el.scrollIntoView({block:"center",behavior:"smooth"}); }catch(x){}
+      try{ node.scrollIntoView({block:"center",behavior:"smooth"}); }catch(x){}
       highlightIn(e.card,words);
-      var box=e.card; box.classList.add("cs-flash"); setTimeout(function(){ box.classList.remove("cs-flash"); },1600);
-      if(target!==el && target.focus){ try{ target.focus({preventScroll:true}); }catch(x){} }
+      var box=e.card; if(box){ box.classList.add("cs-flash"); setTimeout(function(){ box.classList.remove("cs-flash"); },1600); }
+      // keyboard users land on the setting: its field, the role tab, or the heading itself (made focusable)
+      if(target===node && !e.click && !/^(INPUT|SELECT|TEXTAREA|BUTTON|A)$/.test(node.tagName) && !node.hasAttribute("tabindex")) node.setAttribute("tabindex","-1");
+      try{ target.focus({preventScroll:true}); }catch(x){}
     },60);
   }
   q.addEventListener("input",search);
+  q.addEventListener("focus",function(){ if(q.value.trim()) search(); });
   q.addEventListener("keydown",function(e){
-    if(e.key==="Escape"){ q.value=""; res.hidden=true; }
-    if(e.key==="Enter"){ var b=res.querySelector("button"); if(b){ e.preventDefault(); b.click(); } }
-    if(e.key==="ArrowDown"){ var f=res.querySelector("button"); if(f){ e.preventDefault(); f.focus(); } }
+    var open=!res.hidden && hits.length>0;
+    if(e.key==="Escape"){ if(!res.hidden){ e.preventDefault(); closeRes(); } else if(q.value){ e.preventDefault(); q.value=""; live.textContent=""; } return; }
+    if(e.key==="ArrowDown"){ e.preventDefault(); if(res.hidden&&q.value.trim()) search(); else if(open) setActive(active+1); return; }
+    if(e.key==="ArrowUp"){ if(open){ e.preventDefault(); setActive(active-1); } return; }
+    if(e.key==="Home"&&open&&e.ctrlKey){ e.preventDefault(); setActive(0); return; }
+    if(e.key==="End"&&open&&e.ctrlKey){ e.preventDefault(); setActive(hits.length-1); return; }
+    if(e.key==="Enter"){ if(open){ e.preventDefault(); jump(hits[active>=0?active:0]); } return; }
+    if(e.key==="Tab"){ closeRes(); }
   });
-  res.addEventListener("keydown",function(e){
-    var b=document.activeElement; if(!b||b.parentElement!==res) return;
-    if(e.key==="ArrowDown"&&b.nextElementSibling){ e.preventDefault(); b.nextElementSibling.focus(); }
-    if(e.key==="ArrowUp"){ e.preventDefault(); (b.previousElementSibling||q).focus(); }
-  });
-  document.addEventListener("click",function(e){ if(!aside.contains(e.target)) res.hidden=true; });
+  document.addEventListener("click",function(e){ if(!aside.contains(e.target)) closeRes(); });
   document.addEventListener("keydown",function(e){ if((e.metaKey||e.ctrlKey) && (e.key==="k"||e.key==="K") && !app.hidden){ e.preventDefault(); q.focus(); q.select(); } });
-  document.addEventListener("keydown",function(e){ if(e.key==="/" && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||"") && !app.hidden){ e.preventDefault(); q.focus(); } });
+  document.addEventListener("keydown",function(e){ if(e.key==="/" && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||"") && !(document.activeElement&&document.activeElement.isContentEditable) && !app.hidden){ e.preventDefault(); q.focus(); } });
+  window.HelmControlSearch={ entries:entries, open:function(v){ q.value=v||""; q.focus(); search(); } };
 
   // ---- unsaved-changes bar: shows only after the user edits a field in a card ----
   var dirty=null;

@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=12"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=13"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -246,7 +246,7 @@ window.HelmUrl = HelmUrl;
     return fetcher().then(store);
   }
   // writes that cannot touch the cached reads above (everything else drops the cache)
-  const SWR_KEEP_RPCS = /\/rest\/v1\/rpc\/(my_(?!start_trial|studio_account_update)|get_|is_|current_org_id|recent_|chat_|bell|my_notification|mfa_|resolve_|list_|pkg_selection_list|password_change_required|audit_actor_names|dashboard_|insights_|studio_search|studio_avatars|mark_|telemetry)/;
+  const SWR_KEEP_RPCS = /\/rest\/v1\/rpc\/(my_(?!start_trial|studio_account_update)|get_|is_|current_org_id|recent_|chat_|bell|my_notification|mfa_|resolve_|list_|pkg_selection_list|password_change_required|audit_actor_names|dashboard_|insights_|studio_search|studio_avatars|mark_|telemetry|privacy_pin_(?:check|status))/;
   const CHECKOUT_SESS_KEY = "bp_sess_checkout"; // per tab: my_checkout_status() answer (never a "must check out" one)
   const PROFILE_SESS_KEY = "bp_sess_profile";   // per tab: my_profile_status() answer (never a "must complete" one)
   const NUDGE_KEY = "helm_profile_nudge";       // localStorage {uid, until}: "complete your profile" banner snoozed
@@ -1022,7 +1022,7 @@ window.HelmUrl = HelmUrl;
     loadAuthUi();
   }
   // Account menu / two-step banner live in auth-ui.js (loaded on signed-in staff pages only).
-  const AUTH_UI_VERSION = "32";
+  const AUTH_UI_VERSION = "33";
   let authUiLoading = null;
   function loadAuthUi() {
     if (authUiLoading || typeof document === "undefined") return authUiLoading;
@@ -8297,6 +8297,17 @@ window.HelmUrl = HelmUrl;
       updateAccount: (patch) => rpc("my_studio_account_update", { p_account: patch || {} }),
       // 0058: {state:'trial'|'ended'|'none', days_left, ends_at, is_admin, can_pay}; null before 0058
       trial: () => (supa ? swr("trial", () => rpc("my_trial_status").catch((e) => { if (rpcMissing(e)) return null; throw e; })) : Promise.resolve(null)),
+    },
+    // 0157 — "Hide amounts" privacy PIN, ONE per studio. The server keeps only a bcrypt hash
+    // (default 0000 until an admin changes it) and counts wrong tries per person.
+    // status(): {is_default, can_change, updated_at, locked_seconds}; check(pin): {ok, tries_left, locked_seconds}.
+    // Both return null before 0157 / in local mode (callers then fall back to the default 0000);
+    // any other error still throws. set()/reset(): studio admins only (the server refuses others, 42501).
+    privacyPin: {
+      status: () => (supa ? rpc("privacy_pin_status").catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      check: (pin) => (supa ? rpc("privacy_pin_check", { p_pin: String(pin == null ? "" : pin) }).catch((e) => { if (rpcMissing(e)) return null; throw e; }) : Promise.resolve(null)),
+      set: (current, next) => rpc("privacy_pin_set", { p_current: String(current == null ? "" : current), p_new: String(next == null ? "" : next) }),
+      reset: () => rpc("privacy_pin_reset", {}),
     },
     // 0059 — dashboard "Getting started" checklist. Flags are computed server-side for the
     // caller's own studio (no personal data); dismissal is stored per member. Before 0059

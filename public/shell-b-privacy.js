@@ -5,7 +5,9 @@
  *   - [data-money] elements, text that looks like money (₹ / Rs / INR / AED / د.إ / $ …, 1,23,456, 12.3 L, 1.2 Cr)
  *   - title attributes and SVG <title> tooltips containing money (stashed while hidden, restored on show)
  *   - inputs that hold money get a CSS class (the value is untouched; editing one reveals it)
- * Default PIN 0000 until changed via "Change PIN"; a changed PIN is stored per user in localStorage as a PBKDF2-SHA-256 hash with a random salt, never in plain text.
+ * The PIN is ONE per studio and is checked on the server (0157): the server keeps only a bcrypt hash, counts wrong tries
+ * per person, and only a studio admin can change or reset it (Control Center > Hide amounts). Default 0000 until changed.
+ * Before 0157 / in local mode the default 0000 applies. The PIN is never stored in this browser.
  * This is a privacy screen, NOT security: the numbers are still in the page and in the user's account. */
 (function () {
   "use strict";
@@ -16,14 +18,12 @@
   var IDLE_MS = 5 * 60 * 1000;          // re-hide after 5 minutes without interaction
   var AWAY_MS = 60 * 1000;              // re-hide when the tab was hidden for longer than this
   var MAX_TRIES = 5, LOCK_MS = 30 * 1000;
-  var ITER = 150000;
-  var DEFAULT_PIN = "0000";              // owner decision: works until the user changes it (Change PIN stores only a salted hash)                    // PBKDF2 iterations
+  var DEFAULT_PIN = "0000";              // owner decision: the studio PIN until an admin changes it (server-side, 0157)
 
   var SK = "helm.priv.state", SK_T = "helm.priv.t", SK_AWAY = "helm.priv.away";
   function ss(k, v) { try { if (v === undefined) return sessionStorage.getItem(k); if (v === null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, v); } catch (e) { return null; } }
   function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { return null; } }
   function uid() { try { var u = window.BPStore && BPStore.auth && BPStore.auth.user && BPStore.auth.user(); if (u && u.id) return String(u.id); } catch (e) {} return "local"; }
-  function pinKey() { return "helm.priv.pin." + uid(); }
   function lockKey() { return "helm.priv.lock." + uid(); }
 
   /* ---------- state ---------- */
@@ -160,18 +160,25 @@
       e.clipboardData.setData("text/plain", txt); e.preventDefault(); } catch (x) {}
   }, true);
 
-  /* ---------- PIN (WebCrypto PBKDF2-SHA-256) ---------- */
-  function b64(buf) { var s = "", a = new Uint8Array(buf); for (var i = 0; i < a.length; i++) s += String.fromCharCode(a[i]); return btoa(s); }
-  function unb64(s) { var b = atob(s), a = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; }
-  async function derive(pin, salt, iter) {
-    var key = await crypto.subtle.importKey("raw", new TextEncoder().encode(String(pin)), "PBKDF2", false, ["deriveBits"]);
-    return b64(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: salt, iterations: iter }, key, 256));
+  /* ---------- PIN: checked on the server (0157). One PIN per studio, stored only as a bcrypt hash. ----------
+   * BPStore.privacyPin.check() returns {ok, tries_left, locked_seconds}; the server counts wrong tries per person.
+   * Before 0157 (or in local mode) it returns null and the default PIN 0000 applies, with a local try counter. */
+  function pinApi() { var s = window.BPStore; return s && s.privacyPin ? s.privacyPin : null; }
+  var pinStatus = null, pinStatusErr = false;
+  function loadPinStatus() {
+    var a = pinApi(); if (!a) return Promise.resolve(null);
+    return Promise.resolve().then(function () { return a.status(); })
+      .then(function (s) { pinStatus = s || null; pinStatusErr = false; return pinStatus; }, function () { pinStatusErr = true; return pinStatus; });
   }
-  function stored() { try { var r = JSON.parse(ls(pinKey()) || "null"); return r && r.h && r.s ? r : null; } catch (e) { return null; } }
-  async function savePin(pin) { var salt = crypto.getRandomValues(new Uint8Array(16)); ls(pinKey(), JSON.stringify({ v: 1, s: b64(salt), i: ITER, h: await derive(pin, salt, ITER) })); }
-  async function checkPin(pin) { var r = stored(); if (!r) return String(pin) === DEFAULT_PIN;   /* no PIN changed yet: the default */ var h = await derive(pin, unb64(r.s), r.i || ITER); if (h.length !== r.h.length) return false; var d = 0; for (var i = 0; i < h.length; i++) d |= h.charCodeAt(i) ^ r.h.charCodeAt(i); return d === 0; }
+  function canChangePin() { return !!(pinStatus && pinStatus.can_change); }
+  async function checkPin(pin) {
+    var a = pinApi(), r = a ? await a.check(pin) : null;   // throws on a network / server error
+    if (!r) return { ok: String(pin) === DEFAULT_PIN, local: true };
+    return { ok: r.ok === true, left: Math.max(0, +r.tries_left || 0), lock: Math.max(0, +r.locked_seconds || 0) };
+  }
   function lockState() { try { return JSON.parse(ls(lockKey()) || "null") || { n: 0, until: 0 }; } catch (e) { return { n: 0, until: 0 }; } }
   function setLock(o) { ls(lockKey(), o && (o.n || o.until) ? JSON.stringify(o) : null); }
+  var PIN_PAGE = "/control.html#privacy-pin";
 
   /* ---------- PIN modal ---------- */
   var modal = null;
@@ -204,23 +211,29 @@
       });
       pad.appendChild(b);
     });
-    var step = mode, first = "", busy = false, timer = null;
+    var step = mode, busy = false, timer = null;
     function sync() { inp.value = inp.value.replace(/\D/g, "").slice(0, 4); Array.prototype.forEach.call(dots.children, function (d, j) { d.classList.toggle("on", j < inp.value.length); }); }
     function shake(msg) { err.textContent = msg; dlg.classList.remove("hbp-shake"); void dlg.offsetWidth; dlg.classList.add("hbp-shake"); inp.value = ""; sync(); inp.focus(); }
+    function unlockDesc() {
+      var hint = !pinStatusErr && (!pinStatus || pinStatus.is_default)
+        ? " (Default PIN 0000" + (canChangePin() ? " — change it in Control Center.)" : " — your studio admin can change it.)") : "";
+      return "Amounts are hidden while you present. Enter your studio's privacy PIN to show them." + hint;
+    }
     function paint() {
       clearInterval(timer); err.textContent = ""; inp.disabled = false; ok.disabled = false; while (foot.firstChild) foot.removeChild(foot.firstChild);
-      if (step === "set") { ttl.textContent = "Choose a new PIN"; desc.textContent = "Hides amounts on screen while you present. Choose a 4-digit PIN you'll use to show them again."; ok.textContent = "Next"; }
-      else if (step === "confirm") { ttl.textContent = "Confirm your PIN"; desc.textContent = "Enter the same PIN again."; ok.textContent = "Save PIN"; }
-      else if (step === "change-old") { ttl.textContent = "Change privacy PIN"; desc.textContent = "Enter your current PIN first."; ok.textContent = "Next"; }
-      else if (step === "reset") { ttl.textContent = "Reset privacy PIN?"; desc.textContent = "This puts the PIN back to the default (0000). You can choose a new one with Change PIN."; ok.textContent = "Reset PIN"; }
-      else { ttl.textContent = "Show amounts"; desc.textContent = "Amounts are hidden while you present. Enter your PIN to show them." + (stored() ? "" : " (Default PIN 0000 — change it with Change PIN.)"); ok.textContent = "Unlock"; }
-      dots.hidden = inp.hidden = pad.hidden = step === "reset";
+      if (step === "forgot") {
+        ttl.textContent = "Forgot the PIN?";
+        desc.textContent = canChangePin()
+          ? "The privacy PIN is one PIN for the whole studio. As an admin you can change it, or put it back to 0000, in Control Center › Hide amounts."
+          : "The privacy PIN is one PIN for the whole studio. Only a studio admin can change or reset it — ask your admin for the PIN.";
+        ok.textContent = canChangePin() ? "Open Control Center" : "Back";
+      } else { ttl.textContent = "Show amounts"; desc.textContent = unlockDesc(); ok.textContent = "Unlock"; }
+      dots.hidden = inp.hidden = pad.hidden = step === "forgot";
       foot.appendChild(cancel);
-      if (step === "unlock" || step === "change-old") { var f = el("button", "hbp-link", "Forgot PIN?"); f.type = "button"; f.addEventListener("click", function () { step = "reset"; paint(); ok.focus(); }); foot.appendChild(f); }
+      if (step === "unlock") { var f = el("button", "hbp-link", "Forgot PIN?"); f.type = "button"; f.addEventListener("click", function () { step = "forgot"; paint(); ok.focus(); }); foot.appendChild(f); }
       foot.appendChild(ok);
       inp.value = ""; sync();
-      if (step === "unlock" || step === "change-old") lockPaint();
-      if (step !== "reset") setTimeout(function () { if (!inp.disabled) inp.focus(); }, 30);
+      if (step === "unlock") { lockPaint(); setTimeout(function () { if (!inp.disabled) inp.focus(); }, 30); }
     }
     function lockPaint() {
       var L = lockState(), left = L.until - Date.now();
@@ -230,24 +243,28 @@
         tick(); timer = setInterval(tick, 500);
       }
     }
+    function lockFor(sec) { setLock({ n: 0, until: Date.now() + sec * 1000 }); lockPaint(); }
     async function submit() {
       if (busy) return;
-      if (step === "reset") { ls(pinKey(), null); setLock(null); step = mode; paint(); err.textContent = "PIN reset to the default."; return; }
+      if (step === "forgot") { if (canChangePin()) { closeModal(); location.href = PIN_PAGE; } else { step = "unlock"; paint(); } return; }
       var v = inp.value;
       if (!/^\d{4}$/.test(v)) { shake("Enter 4 digits."); return; }
-      if (step === "set") { first = v; step = "confirm"; paint(); return; }
-      if (step === "confirm") { if (v !== first) { step = "set"; first = ""; paint(); shake("PINs didn't match. Start again."); return; }
-        busy = true; try { await savePin(v); } catch (e) { busy = false; shake("Couldn't save the PIN in this browser."); return; }
-        busy = false; closeModal(); done(); return; }
       if (lockState().until > Date.now()) { lockPaint(); return; }
-      busy = true; var good = false; try { good = await checkPin(v); } catch (e) {} busy = false;
-      if (!good) {
-        var L = lockState(); L.n = (L.n || 0) + 1;
-        if (L.n >= MAX_TRIES) { L = { n: 0, until: Date.now() + LOCK_MS }; setLock(L); shake("Wrong PIN."); lockPaint(); return; }
-        setLock(L); shake("Wrong PIN. " + (MAX_TRIES - L.n) + " " + (MAX_TRIES - L.n === 1 ? "try" : "tries") + " left."); return;
+      busy = true; var res = null;
+      try { res = await checkPin(v); } catch (e) { res = null; }
+      busy = false;
+      if (!modal) return;   // closed while checking
+      if (!res) { shake("Couldn't check the PIN. Check your connection and try again."); return; }
+      if (!res.ok) {
+        if (res.local) {   /* before 0157: local try counter, as before */
+          var L = lockState(); L.n = (L.n || 0) + 1;
+          if (L.n >= MAX_TRIES) { L = { n: 0, until: Date.now() + LOCK_MS }; setLock(L); shake("Wrong PIN."); lockPaint(); return; }
+          setLock(L); shake("Wrong PIN. " + (MAX_TRIES - L.n) + " " + (MAX_TRIES - L.n === 1 ? "try" : "tries") + " left."); return;
+        }
+        if (res.lock > 0) { shake("Wrong PIN."); lockFor(res.lock); return; }
+        shake("Wrong PIN. " + res.left + " " + (res.left === 1 ? "try" : "tries") + " left."); return;
       }
       setLock(null);
-      if (step === "change-old") { step = "set"; paint(); return; }
       closeModal(); done();
     }
     inp.addEventListener("input", function () { sync(); if (inp.value.length === 4) submit(); });   // 4th digit unlocks straight away
@@ -266,18 +283,16 @@
     document.body.appendChild(ov);
     modal = { ov: ov, prev: prevFocus, stop: function () { clearInterval(timer); } };
     paint();
+    loadPinStatus().then(function () { if (modal && modal.ov === ov && step === "unlock") desc.textContent = unlockDesc(); });
   }
   function closeModal() { if (!modal) return; var m = modal; modal = null; m.stop(); if (m.ov.parentNode) m.ov.parentNode.removeChild(m.ov); try { if (m.prev && m.prev.focus) m.prev.focus(); } catch (e) {} }
 
   function requestShow() {
     if (!hidden()) return;
-    if (!window.crypto || !crypto.subtle) { setHidden(false); return; }   // no WebCrypto (insecure context): no PIN possible
     openModal("unlock", function () { setHidden(false); });
   }
-  function changePin() {
-    if (!window.crypto || !crypto.subtle) return;
-    openModal("change-old", function () { try { window.BPUI && BPUI.toast && BPUI.toast("Privacy PIN saved.", { type: "success", timeout: 3000 }); } catch (e) {} });
-  }
+  /* the studio PIN is changed by an admin in Control Center (server-side, 0157) */
+  function changePin() { location.href = PIN_PAGE; }
   function toggle() { if (hidden()) requestShow(); else setHidden(true); }
 
   /* ---------- eye button in the top bar (next to search) ---------- */
@@ -330,7 +345,8 @@
     var api = window.HelmStudioSearch; if (!api || !Array.isArray(api.ACTIONS)) return false;
     var here = location.pathname + location.search;
     [{ id: "hbp-toggle", label: "Hide / show amounts", icon: "\u{1F441}", href: here + "#hbp-act-toggle", need: [], kw: "privacy money prices present client mask blur" },
-     { id: "hbp-pin", label: "Change privacy PIN", icon: "\u{1F512}", href: here + "#hbp-act-pin", need: [], kw: "privacy pin hide amounts reset" }]
+     /* 0157: one studio PIN, changed by an admin in Control Center (the card tells other roles who can change it) */
+     { id: "hbp-pin", label: "Change studio privacy PIN", icon: "\u{1F512}", href: PIN_PAGE, need: [["view", "controls"]], kw: "privacy pin passcode hide amounts money reset 0000" }]
       .forEach(function (a) { if (!api.ACTIONS.some(function (x) { return x.id === a.id; })) api.ACTIONS.push(a); });
     return true;
   }

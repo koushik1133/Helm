@@ -40,8 +40,11 @@
   /* ---- pure model (exported for tests) ---------------------------------- */
   function model(data) {
     if (!data || !Array.isArray(data.steps)) return null;
+    // two-step sign-in is optional for every role and only admins are reminded about it: other roles
+    // turn it on from Account settings themselves, so the checklist never nudges them (owner, Oct 2026)
     const steps = data.steps
       .filter((s) => s && Object.prototype.hasOwnProperty.call(STEPS, s.key))
+      .filter((s) => s.key !== "mfa" || data.admin === true)
       .map((s) => Object.assign({ key: s.key, done: s.done === true, optional: s.optional === true }, STEPS[s.key]));
     if (!steps.length) return null;
     const done = steps.filter((s) => s.done).length;

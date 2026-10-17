@@ -213,7 +213,7 @@
 <link rel="stylesheet" href="theme.css?v=80">
 <link rel="stylesheet" href="event-reminders.css?v=1">
 <link rel="stylesheet" href="pages-polish-admin.css?v=1">
-<link rel="stylesheet" href="control-split.css?v=4">
+<link rel="stylesheet" href="control-split.css?v=5">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -326,6 +326,22 @@
       </fieldset>
       <p class="mnote s-d2c171b">Links you already sent count from when they were sent, so any older than the limit stop working as soon as you save. Switching this off, or raising the number, makes them work again. To give someone a fresh link, send it again (Send approval link, publish the proposal again, or assign the crew member a task). Anyone opening an expired link sees the usual “this link has expired — please contact the studio for a new one” page.</p>
       <div class="actions"><button type="button" class="btn primary" id="lx_save">Save link expiry</button></div>
+    </div>
+
+    <!-- "Hide amounts" privacy PIN (0157) - privacy-pin-settings.js fills it; hidden until the server answers -->
+    <div class="card" id="privPinCard" hidden>
+      <h3>Hide amounts — privacy PIN</h3>
+      <p class="mnote">The eye button in the top bar hides every amount on screen while you present to a client. Showing them again needs this 4-digit PIN. It is one PIN for the whole studio, kept on the server as a secure hash. Only studio admins can change it. Until an admin changes it, the PIN is 0000.</p>
+      <p class="mnote" id="pp_state" aria-live="polite"></p>
+      <div id="pp_msg" role="status" aria-live="polite"></div>
+      <div id="pp_form" hidden>
+        <div class="grid">
+          <div class="fld"><label for="pp_cur">Current PIN</label><input id="pp_cur" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]*" autocomplete="off" data-lpignore="true" spellcheck="false"></div>
+          <div class="fld"><label for="pp_new">New PIN (4 digits)</label><input id="pp_new" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]*" autocomplete="new-password" data-lpignore="true" spellcheck="false"></div>
+          <div class="fld"><label for="pp_new2">Type the new PIN again</label><input id="pp_new2" type="password" inputmode="numeric" maxlength="4" pattern="[0-9]*" autocomplete="new-password" data-lpignore="true" spellcheck="false"></div>
+        </div>
+        <div class="actions"><button type="button" class="btn" id="pp_reset">Forgot the PIN? Reset to 0000</button><button type="button" class="btn primary" id="pp_save">Save privacy PIN</button></div>
+      </div>
     </div>
 
     <!-- client package flow (0069) — pkg-review.js fills it; hidden until the server answers -->
@@ -735,7 +751,7 @@
 <script src="config.js?v=101"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=226"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=227"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
@@ -746,13 +762,15 @@
 <script src="onboarding-core.js?v=5"></script>
 <script src="comms-settings.js?v=3"></script>
 <script src="photo-render-settings.js?v=2"></script>
+<script src="privacy-pin-settings.js?v=1"></script>
 <script src="venues-core.js?v=5"></script>
 <script src="venues-admin.js?v=4"></script>
 <script src="studio-templates-core.js?v=1"></script>
 <script src="studio-templates.js?v=2"></script>
 <script src="item-pricing.js?v=1"></script>
 <script src="trial-demo.js?v=4"></script>
-<script src="control-split.js?v=6"></script>
+<script src="settings-search-core.js?v=1"></script>
+<script src="control-split.js?v=7"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

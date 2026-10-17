@@ -56,9 +56,11 @@ t('complete when every REQUIRED step is done (two-step is optional)', () => {
   assert.equal(m.complete, true); assert.equal(m.done, 7);
   assert.equal(GS.model(data(ALL.filter((k) => k !== 'team'))).complete, false);
 });
-t('member list: shorter, keeps server order', () => {
+t('member list: shorter, keeps server order, no two-step nudge for non-admins', () => {
   const m = GS.model(data(['profile'], ['profile', 'lead', 'quote', 'mfa'], { admin: false }));
-  assert.equal(m.total, 4); assert.deepEqual(Array.from(m.steps, (s) => s.key), ['profile', 'lead', 'quote', 'mfa']);
+  assert.equal(m.total, 3); assert.deepEqual(Array.from(m.steps, (s) => s.key), ['profile', 'lead', 'quote']);
+  const a = GS.model(data(['profile'], ['profile', 'lead', 'quote', 'mfa'], { admin: true }));
+  assert.deepEqual(Array.from(a.steps, (s) => s.key), ['profile', 'lead', 'quote', 'mfa']);
 });
 t('unknown keys are ignored; bad input → null', () => {
   const m = GS.model({ steps: [{ key: 'profile', done: true }, { key: '<img src=x onerror=1>', done: true }] });
