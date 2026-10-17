@@ -1,0 +1,23 @@
+// Dashboard UI pass (Oct 2026): See more lists, two independent lanes, no duplicate follow-ups.
+import { readFileSync } from "node:fs";
+import assert from "node:assert/strict";
+const js = readFileSync(new URL("../public/shell-b-dash.js", import.meta.url), "utf8");
+const css = readFileSync(new URL("../public/shell-b-dash.css", import.meta.url), "utf8");
+let n = 0; const ok = (c, m) => { assert.ok(c, m); n++; console.log("ok - " + m); };
+ok(/var SM_N = 4/.test(js) && /function seeMore\(/.test(js), "shared See more helper shows 4 rows");
+ok(/setAttribute\("aria-expanded"/.test(js.slice(js.indexOf("function seeMore("))) && /"Show less"/.test(js), "toggle has aria-expanded and Show less");
+ok(!/\.slice\(0, 6 - shown\)/.test(js) && !/more — see My tasks/.test(js), "Needs attention no longer hard-caps at 6");
+ok(!/items\.slice\(0, 5\)/.test(js) && !/list\.slice\(0, 5\)/.test(js), "Follow-ups / Coming up no longer hard-cap at 5");
+ok(/folShows/.test(js) && /vLeads && !folShows/.test(js) && /vQuotes && !folShows/.test(js), "stale leads / awaiting-client only in Follow-ups when it shows");
+ok(/function masonry\(/.test(js) && /__helmAdoptCss\(document, css\)/.test(js), "independent lanes via adopted CSS (CSP-safe)");
+ok(/capLive\(elist/.test(js) && /\.hd-quotes\.hd-sm-closed \.bpui-pager/.test(css), "All quotes capped; pager hidden until expanded");
+ok(/\.hd-dash \.hd-sm-x \{ display: none !important; \}/.test(css) && /\.hd-sm-open \{ max-height: 480px/.test(css), "hidden rows + scrolling open list");
+ok(!/\.style\./.test(js.slice(js.indexOf("var SM_N"), js.indexOf("function moreLink"))), "no inline styles in the new helpers");
+ok(!/hd-delta-na", "—"\)/.test(js) && /"vs last month"/.test(js) && /"vs previous 7 days"/.test(js), "deltas: no bare dash, self-explanatory comparison text");
+ok(/t\.title = o\.tip/.test(js), "KPI tip visible as title on hover");
+ok(/" open in total"/.test(js) && /not contacted for 24h\+/.test(js) && /New leads · last 7 days/.test(js), "new leads sub wording");
+ok(/sent, waiting for client reply/.test(js), "open quotes sub wording");
+ok(/"hd-why hd-why-"/.test(js) && /"Settlement pending"/.test(js) && /"Not contacted"/.test(js) && /\.hd-why \{[^}]*white-space: normal/.test(css), "attention reasons as always-visible chips");
+ok(/Booked this month/.test(js) && /Collected last month/.test(js) && /payments actually received in that month/.test(js), "revenue month summary + plain footnote");
+ok(/No events on this day/.test(js) && /-webkit-line-clamp: 2/.test(css), "calendar empty day text + 2-line names");
+console.log("dashboard-seemore-1017: " + n + " checks passed");
