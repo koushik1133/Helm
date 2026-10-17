@@ -644,12 +644,29 @@
     return false;
   }
   let justPw=null;   // the password typed into the sign-in form this moment (memory only; cleared on use)
+  async function tempPwSignInAgain(){
+    const em=((BPStore.auth.pendingUser&&BPStore.auth.pendingUser())||{}).email||"";
+    try{ await BPStore.auth.signOut(); }catch(e){}
+    setMode("signin"); showView("#loginForm");
+    if(em) $("#email").value=em;
+    $("#pw").value="";
+    const ok=$("#okmsg"); ok.textContent="Sign in with the temporary password you were given — next you'll choose your own password."; ok.hidden=false;
+    setTimeout(()=>$("#pw").focus(),60);
+  }
   async function finishGate(){
     for(let i=0;i<5;i++){
       const step=BPStore.auth.pendingStep();
       if(!step) return true;
       if(step==="mfa"){ await askMfaCode(); continue; }
-      if(step==="password"){ showView("#loginForm"); const jp=justPw; justPw=null; await forcePasswordChange(jp); continue; }
+      if(step==="password"){
+        showView("#loginForm"); const jp=justPw; justPw=null;
+        // No just-typed password in memory (the page was reloaded / reopened, or another tab
+        // signed in): don't ask for the temporary password inside the "Set your password" box.
+        // End this half-finished session and ask them to sign in once more with it — the
+        // box then shows only New + Confirm (the password is kept in memory, never stored).
+        if(!jp){ await tempPwSignInAgain(); return false; }
+        await forcePasswordChange(jp); continue;
+      }
       if(step==="recovery"){ location.replace("reset-password"); return false; }
       // "verify": the account status couldn't be checked — fail closed, let them retry
       await BPStore.auth.resolveGate();
