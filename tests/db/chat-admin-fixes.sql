@@ -78,8 +78,12 @@ do $$ declare a_admin uuid; a_staff uuid; o uuid; t text; v_role text; begin
   insert into public.invitations(org_id, email, role, token) values (o, 'a_admin@a.test', 'sales', 'ca-tok-'||t);
   update auth.users set email_confirmed_at = coalesce(email_confirmed_at, now()) where id = a_admin;
   perform auth.login_as(a_admin);
+  -- 0156: a member of the same studio keeps their role (the stale invite is a no-op, not an error)
   begin perform public.accept_invitation('ca-tok-'||t);
-    insert into _ca values('09 last admin cannot be demoted via accept_invitation','FAIL: allowed');
+    perform auth.logout(); execute 'reset role';
+    insert into _ca values('09 last admin cannot be demoted via accept_invitation',
+      case when (select role from public.profiles where id = a_admin) = 'admin' then 'PASS' else 'FAIL: demoted' end);
+    perform auth.login_as(a_admin);
   exception when others then insert into _ca values('09 last admin cannot be demoted via accept_invitation', case when sqlstate='42501' then 'PASS' else 'FAIL: '||sqlstate||' '||sqlerrm end); end;
   -- with a second admin, demoting the first via admin_set_role works; demoting the last does not
   perform public.admin_set_role(a_staff, 'admin');

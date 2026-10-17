@@ -96,8 +96,11 @@ do $$ declare r text; begin
   perform pg_temp.t('overrides: no direct insert (forging) by API roles', r like 'err:42501%', r);
 
   -- reopen, return the kit → a normal close works with no override
+  -- 0156: close_event(id, false) is refused for a closed event; re-open goes through reopen_event (admin + reason)
   r := pg_temp.as_try('a_staff@a.test', $q$select public.close_event('a0000000-0000-4000-8000-00000000da01', false)$q$);
-  perform pg_temp.t('reopen (p_closed=false) is never gated', r = 'ok:1', r);
+  perform pg_temp.t('reopen: close_event(false) by a non-admin is refused', r like 'err:42501%', r);
+  r := pg_temp.as_try('a_admin@a.test', $q$select public.reopen_event('a0000000-0000-4000-8000-00000000da01', 'g49 kit returned, re-open')$q$);
+  perform pg_temp.t('reopen (admin, reason) is never gated', r = 'ok:1', r);
   update public.inventory_checkouts set status = 'returned', qty_in = qty_out where note = 'g49';
   r := pg_temp.as_try('a_staff@a.test', $q$select public.close_event('a0000000-0000-4000-8000-00000000da01', true)$q$);
   perform pg_temp.t('close: nothing outstanding → closes without override', r = 'ok:1'

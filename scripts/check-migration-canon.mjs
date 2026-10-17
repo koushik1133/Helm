@@ -154,6 +154,54 @@ for (const f of rootSql) {
 }
 if (!unmarked) ok('all standalone non-org-scoped privileged DEFINER mirrors carry a DEPRECATED/DO NOT RUN marker');
 
+/* ---- F. (audit run 3, 0156) legacy bundles that redefine the OTP consent function, and every
+ *        full-schema file, carry an EXECUTABLE refusal guard (not just a comment), and no SQL file
+ *        seeds an account with a literal password. --- */
+console.log('Migration-canon: legacy bundles carry an executable refusal guard (0156):');
+const SKIP_DIRS = new Set(['migrations', 'canonical-base', 'test-harness', 'tests', 'audit']);
+function walkAll(dir, out = []) {
+  let entries = [];
+  try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return out; }
+  for (const e of entries) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) { if (!(dir === SUPA && SKIP_DIRS.has(e.name))) walkAll(p, out); }
+    else if (e.name.endsWith('.sql')) out.push(p);
+  }
+  return out;
+}
+const activeSql = (src) => src.split('\n').map((l) => l.split('--')[0]).join('\n');
+const GUARD = /do\s+\$a(42|156)guard\$[\s\S]{0,1200}?raise\s+exception/i;
+const DDL = /create\s+or\s+replace\s+function|create\s+policy|drop\s+policy|create\s+trigger|alter\s+table|^\s*grant\s|^\s*revoke\s/im;
+// the newest MANIFEST migration that (re)defines verify_and_consent: an APPLY-<n> paste copy of that
+// layer (or newer) is the current canonical body; an OLDER APPLY copy must refuse to run.
+const consentRe = /create\s+or\s+replace\s+function\s+public\.verify_and_consent(__base)?\s*\(/i;
+let newestConsent = 0;
+for (const line of readFileSync(join(SUPA, 'migrations', 'MANIFEST'), 'utf8').split('\n')) {
+  const m = line.match(/^forward\s+(supabase\/migrations\/(\d{4})_\S+\.sql)/);
+  if (m && consentRe.test(activeSql(readFileSync(join(ROOT, m[1]), 'utf8')))) newestConsent = Math.max(newestConsent, Number(m[2]));
+}
+let unguarded = 0, literalPw = 0;
+for (const f of walkAll(SUPA)) {
+  const rel = f.replace(ROOT + '/', '');
+  const sql = readFileSync(f, 'utf8');
+  const act = activeSql(sql);
+  const head = sql.slice(0, 4000);
+  const applyN = (f.match(/\/APPLY-(\d{4})(?:-(\d{4}))?\.sql$/) || []);
+  const applyTop = applyN[0] ? Number(applyN[2] || applyN[1]) : 0;
+  const redefinesConsent = consentRe.test(act) && !(applyTop && applyTop >= newestConsent);
+  const fullSchema = /\/full-schema\//.test(f) && DDL.test(act);
+  if ((redefinesConsent || fullSchema) && !GUARD.test(head)) {
+    fail(`${rel} ${redefinesConsent ? 'redefines verify_and_consent' : 'is a full-schema DDL file'} but has no executable refusal guard (a156guard) at the top`);
+    unguarded++;
+  }
+  if (/create_helm_user\s*\(\s*'[^']*'\s*,\s*'[^']*'/i.test(act)) {
+    fail(`${rel} seeds an account with a literal password (create_helm_user(..., '<literal>', ...))`);
+    literalPw++;
+  }
+}
+if (!unguarded) ok('every legacy verify_and_consent redefinition and full-schema file refuses to run on a current DB');
+if (!literalPw) ok('no SQL file seeds an account with a literal password');
+
 console.log('');
 if (errors) { console.error(`FAILED — ${errors} migration-canon problem(s).`); process.exit(1); }
 console.log('Migration-canon checks passed.');

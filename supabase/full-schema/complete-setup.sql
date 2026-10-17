@@ -1,3 +1,15 @@
+-- ==== SUPERSEDED - DO NOT RUN on a current database (audit run 3, 0156 a156guard) ====
+-- This bundle is NOT in supabase/migrations/MANIFEST. Re-running it on a database that already has
+-- the canonical migrations would put back older, weaker function bodies or policies (for example
+-- the NULL-OTP consent bypass). It refuses to run once 0039+ is applied.
+-- Use scripts/db-migrate.sh or the APPLY-0xxx files in MANIFEST order instead.
+do $a156guard$ begin
+  if to_regprocedure('public.verify_and_consent__pre0039(uuid, text, text, boolean, text, text, text, text)') is not null
+     or to_regprocedure('public.verify_and_consent__pre0042(uuid, text, text, boolean, text, text, text, text)') is not null then
+    raise exception 'superseded - do not re-run this legacy bundle on a database that has newer canonical migrations (see supabase/migrations/MANIFEST)';
+  end if;
+end $a156guard$;
+-- ==========================================================================================
 -- =========================================================================
 -- DEPRECATED — DO NOT RUN / DO NOT DEPLOY (PR-DEPLOY-01 / DEPLOY-01).
 -- This is a HISTORICAL snapshot (~phase 55–58). It defines PRE-HARDENING,
@@ -280,7 +292,7 @@ grant execute on function public.confirm_quote(uuid,jsonb,jsonb)        to authe
 
 -- =========================================================================
 -- 6) (OPTIONAL) seed / reset the six team users — YOU ALREADY HAVE THESE.
---    Leave commented. Uncomment only to (re)create them or reset passwords to 'helm'.
+--    Leave commented. Uncomment only to (re)create them with your own strong passwords.
 -- =========================================================================
 -- create or replace function public.create_helm_user(p_email text, p_password text, p_role text)
 -- returns void language plpgsql security definer set search_path = auth, public, extensions as $$
@@ -303,12 +315,12 @@ grant execute on function public.confirm_quote(uuid,jsonb,jsonb)        to authe
 --   insert into public.profiles (id,email,role) values (uid,p_email,p_role)
 --     on conflict (id) do update set role=excluded.role, email=excluded.email;
 -- end; $$;
--- select public.create_helm_user('admin@helm.com','helm','admin');
--- select public.create_helm_user('planner@helm.com','helm','planner');
--- select public.create_helm_user('sales@helm.com','helm','sales');
--- select public.create_helm_user('operations@helm.com','helm','operations');
--- select public.create_helm_user('crew@helm.com','helm','crew');
--- select public.create_helm_user('client@helm.com','helm','client');
+-- select public.create_helm_user('admin@helm.com','<set-a-strong-password>','admin');
+-- select public.create_helm_user('planner@helm.com','<set-a-strong-password>','planner');
+-- select public.create_helm_user('sales@helm.com','<set-a-strong-password>','sales');
+-- select public.create_helm_user('operations@helm.com','<set-a-strong-password>','operations');
+-- select public.create_helm_user('crew@helm.com','<set-a-strong-password>','crew');
+-- select public.create_helm_user('client@helm.com','<set-a-strong-password>','client');
 
 -- =========================================================================
 -- VERIFY (expect: profiles listed, policies present, quotes/versions = 0)
@@ -2225,7 +2237,7 @@ end; $$;
 -- SOURCE: seed-users.sql
 
 -- =========================================================================
--- Blueprint Stage — seed team users (one per role), password "helm"
+-- Blueprint Stage — seed team users (one per role), random unknown passwords
 -- Run order in the Supabase SQL editor:
 --   1) schema.sql        (layouts table)
 --   2) auth-rbac.sql     (profiles + roles + RLS)
@@ -2234,7 +2246,7 @@ end; $$;
 -- Creates confirmed email/password users directly in the auth schema and
 -- assigns each an RBAC role. Idempotent — safe to re-run.
 --
--- Accounts (all password: helm):
+-- Accounts (random, unknown passwords - set them in the Supabase dashboard):
 --   admin@helm.com       → admin       (full access + user management)
 --   planner@helm.com     → planner     (full create/edit/delete)
 --   sales@helm.com       → sales       (create/edit)
@@ -2284,12 +2296,12 @@ begin
   on conflict (id) do update set role = excluded.role, email = excluded.email;
 end; $$;
 
-select public.create_helm_user('admin@helm.com',      'helm', 'admin');
-select public.create_helm_user('planner@helm.com',    'helm', 'planner');
-select public.create_helm_user('sales@helm.com',      'helm', 'sales');
-select public.create_helm_user('operations@helm.com', 'helm', 'operations');
-select public.create_helm_user('crew@helm.com',       'helm', 'crew');
-select public.create_helm_user('client@helm.com',     'helm', 'client');
+-- a156: random, unknown passwords (set each one from the Supabase dashboard), and an account that
+-- already exists is never touched (create_helm_user would reset its password).
+select public.create_helm_user(v.email, encode(extensions.gen_random_bytes(18), 'base64'), v.role)
+  from (values ('admin@helm.com', 'admin'), ('planner@helm.com', 'planner'), ('sales@helm.com', 'sales'),
+               ('operations@helm.com', 'operations'), ('crew@helm.com', 'crew'), ('client@helm.com', 'client')) v(email, role)
+ where not exists (select 1 from auth.users u where u.email = v.email);
 
 -- verify
 select p.email, p.role from public.profiles p order by p.role;

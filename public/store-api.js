@@ -6624,7 +6624,9 @@ window.HelmUrl = HelmUrl;
       if (mode === "supabase") {
         const reason = overrideReason == null ? "" : String(overrideReason).trim();
         if (closed && reason) return rpc("close_event", { p_quote_id: quoteId, p_closed: true, p_override_reason: reason });
-        return rpc("close_event", { p_quote_id: quoteId, p_closed: !!closed });
+        // 0156: re-opening is admin-only and needs a reason - it goes through reopen() / reopen_event
+        if (!closed) throw new Error("Only an admin can re-open a closed event - use Re-open and give a reason.");
+        return rpc("close_event", { p_quote_id: quoteId, p_closed: true });
       }
       const a = readLs(CLOSE_LS); let row = a.find((x) => x.quote_id === quoteId);
       if (!row) { row = { quote_id: quoteId }; a.push(row); }

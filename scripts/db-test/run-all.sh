@@ -30,6 +30,8 @@ psql -q -v ON_ERROR_STOP=1 -f supabase/test-harness/10-fixtures.sql >/dev/null 2
 reseed() { psql -q -v ON_ERROR_STOP=1 -f supabase/test-harness/10-fixtures.sql >/dev/null 2>&1; }
 run() { local name="$1" marker="$2"; shift 2; reseed; local out; out="$("$@" 2>&1)"; if echo "$out" | grep -qE "$marker"; then echo "  ✓ $name"; else echo "  ✗ $name"; echo "$out" | tail -3; fail=1; fi; }
 echo "== behavioral suites =="
+# 0156 first: later suites re-apply older migrations over the 0156 wrappers
+run "audit-p2-0156"      "AUDIT-P2-0156: ALL PASS \(75/75\)" psql -q -f tests/db/audit-p2-0156.sql
 # before anything that re-applies older migrations (0011/0012/0015/0025/0026) over the 0071/0072 bodies
 run "pending-fixes"      "PENDING-FIXES: ALL PASS \(30/30\)" psql -q -f tests/db/pending-fixes.sql
 run "inv-fixes"          "INV-FIXES: ALL PASS \(24/24\)" psql -q -f tests/db/inv-fixes.sql
@@ -87,7 +89,7 @@ run "pretty-urls"        "PRETTY-URLS: ALL PASS \(35/35\)" psql -q -f tests/db/p
 run "advisor-hardening"  "ADVISOR-HARDENING: ALL PASS"     psql -q -f tests/db/advisor-hardening.sql
 run "storage-policy"     "STORAGE-POLICY: ALL PASS"        psql -q -f tests/db/storage-policy.sql
 run "upload-hardening"   "UPLOAD-HARDENING: ALL PASS \(20/20\)" psql -q -f tests/db/upload-hardening.sql
-run "db-gates-0049"     "DB-GATES-0049: ALL PASS \(51/51\)" psql -q -f tests/db/db-gates-0049.sql
+run "db-gates-0049"     "DB-GATES-0049: ALL PASS \(52/52\)" psql -q -f tests/db/db-gates-0049.sql
 run "lifecycle-reapproval-0052" "LIFECYCLE-REAPPROVAL-0052: ALL PASS \(49/49\)" psql -q -f tests/db/lifecycle-reapproval-0052.sql
 run "password-lockout"   "PASSWORD-LOCKOUT: ALL PASS \(34/34\)" psql -q -f tests/db/password-lockout.sql
 run "notification-mutes" "NOTIFICATION-MUTES: ALL PASS \(17/17\)" psql -q -f tests/db/notification-mutes.sql
