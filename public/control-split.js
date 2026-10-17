@@ -29,11 +29,11 @@
     {key:"billing",  group:"Workspace",  label:"Plan & billing",         icon:"card",  hash:"#billing",       desc:"Your Helm subscription, plan and invoices.", kw:"subscription plan invoice trial upgrade"},
     {key:"privacy",  group:"Workspace",  label:"Hide amounts (privacy PIN)",icon:"lock",hash:"#privacy-pin",desc:"The 4-digit PIN that shows amounts again after you hide them in front of a client. One PIN for the studio; admins change it.", kw:"privacy pin passcode hide amounts money prices mask blur present client eye unlock 0000 change pin reset pin forgot pin"},
     {key:"links",    group:"Workspace",  label:"Client links & packages",icon:"link",  hash:"#client-links",  desc:"How long client links stay open and how clients choose a package.", kw:"expire expiry auto-expire link security package flow booklet"},
-    {key:"pricing",  group:"Sales",      label:"Pricing & coupons",      icon:"tag",   hash:"#pricing",       desc:"Default pricing for new quotes, rate cards, builder prices and limits, and coupons.", kw:"price tax discount rate card coupon capacity object"},
+    {key:"pricing",  group:"Sales",      label:"Pricing & coupons",      icon:"tag",   hash:"#pricing",       desc:"Default pricing for new quotes, rate cards, builder prices and limits, and coupons.", kw:"price tax gst vat discount rate card coupon promo capacity object service charge"},
     {key:"catalog",  group:"Sales",      label:"Menus & catalog",        icon:"menu",  hash:"#menu",          desc:"Chairs, plates, dishes and the menu packages clients pick from.", kw:"chair plate dish catering menu package standard gold premium"},
     {key:"rules",    group:"Sales",      label:"Layout rules",           icon:"grid",  hash:"#layout-rules",  desc:"What the layout generator uses for each event type.", kw:"seats guests buffet bar generator event type layout reminders"},
     {key:"data",     group:"Sales",      label:"Import & custom fields", icon:"upload",hash:"#data",          desc:"Bring catalogues and clients in from Excel, and add your own fields.", kw:"excel import xlsx csv custom field"},
-    {key:"users",    group:"People",     label:"Users & invites",        icon:"users", hash:"#users",         desc:"Add teammates, change roles and send join links.", kw:"team member invite role user add remove"},
+    {key:"users",    group:"People",     label:"Users & invites",        icon:"users", hash:"#users",         desc:"Add teammates, change roles and send join links.", kw:"team member invite role user users details staff login people accounts add remove"},
     {key:"access",   group:"People",     label:"Roles & access",         icon:"key",   hash:"#access",        desc:"Choose what each role can see and edit.", kw:"access matrix permission role view edit rbac"},
     {key:"compliance",group:"People",    label:"Data & compliance",      icon:"shield",hash:"#compliance",    desc:"Download a portable archive of your studio's data.", kw:"gdpr dpdp export archive download privacy security"},
     {key:"notify",   group:"Communication",label:"Notifications",        icon:"bell",  hash:"#notifications", desc:"Who on the team hears about what, in the bell and by text or e-mail, plus per-person overrides.", kw:"bell notification sms email override mute alert"},
@@ -181,24 +181,23 @@
   // (two-step sign-in, password, profile) and the related pages. ARIA combobox: arrows move, Enter opens,
   // Esc closes. The result jumps to the setting, focuses it and highlights the words that matched.
   var SSC=window.HelmSettingsSearch||null;
-  var PAGES=[   // the page itself still checks access when it opens
-    {text:"Integrations (WhatsApp, e-mail, payments)",href:"integrations.html",kw:"whatsapp email smtp webhook api connect payment gateway razorpay send test message"},
-    {text:"Audit log",href:"audit.html",kw:"audit history activity who changed log"},
-    {text:"Insights",href:"insights.html",kw:"insights analytics numbers"},
-    {text:"Reports",href:"reports.html",kw:"reports export analytics"},
-    {text:"Studio setup",href:"onboarding.html",kw:"onboarding wizard getting started setup"},
-    {text:"Staff & crew",href:"staff.html",kw:"staff crew worker people team"},
-    {text:"Team chat",href:"chat.html",kw:"chat messages team"},
-    {text:"User manual",href:"manual.html",kw:"help guide docs how to manual"}
-  ];
+  var CAT=window.HelmSearchCatalog||null;
+  // pages: search-catalog.js, filtered by the same gates as the sidebar (never a page this role can't open,
+  // never the Integrations page while HELM_FEATURES.integrationsPage is off on live)
+  var CATSEC={}; if(CAT) CAT.SECTIONS.forEach(function(x){ CATSEC[x.key]=x; });
+  var PAGES=[], pagesBusy=false, pagesDone=false;
+  function loadPages(){   // on first use (auth is ready by then); re-asks until the role answers
+    if(pagesDone||pagesBusy||!CAT||!window.BPStore||!BPStore.auth||!BPStore.auth.user||!BPStore.auth.user()) return;
+    pagesBusy=true;
+    CAT.entriesFor(BPStore.auth, window.HELM_FEATURES||{}).then(function(list){
+      PAGES=list.filter(function(e){ return e.kind==="page" && !/^control\.html/.test(e.href); }).map(function(e){ return {text:e.text,href:e.href,kw:e.keywords}; });
+      pagesDone=true; pagesBusy=false; if(q.value.trim()) search();
+    },function(){ pagesBusy=false; });
+  }
   function openAcc(o){ try{ if(window.HelmAuthUI&&window.HelmAuthUI.openAccount) window.HelmAuthUI.openAccount(o); }catch(x){} }
-  var ACCOUNT=[ // every signed-in person, for their own account only (no role needed)
-    {text:"Two-step sign-in (2FA)",kw:"twostep 2fa mfa otp authenticator verification code security turn on off enable disable",run:function(){ openAcc({section:"settings",focus:"mfa"}); }},
-    {text:"Change password",kw:"password signin security",run:function(){ openAcc({section:"settings",focus:"password"}); }},
-    {text:"Your profile (name, mobile, photo)",kw:"profile name phone mobile avatar photo",run:function(){ openAcc({section:"profile"}); }},
-    {text:"Sign out other devices",kw:"devices sessions security signout logout",run:function(){ openAcc({section:"settings",focus:"devices"}); }},
-    {text:"Hide or show amounts now",kw:"privacy hide money amounts present eye",run:function(){ if(window.HelmPrivacy&&window.HelmPrivacy.toggle) window.HelmPrivacy.toggle(); }}
-  ];
+  var ACCOUNT=(CAT?CAT.ACCOUNT:[]).map(function(a){ return {text:a.text,kw:a.kw,run:function(){ openAcc(a.open); }}; }); // every signed-in person, own account only
+  ACCOUNT.push({text:"Hide or show amounts now",kw:"privacy hide money amounts present eye",run:function(){ if(window.HelmPrivacy&&window.HelmPrivacy.toggle) window.HelmPrivacy.toggle(); }});
+  var GENERIC=/^(save|copy|cancel|close|remove|delete|edit|ok|done|yes|no|[^a-z0-9]{1,3})$/i;
   var KIND={setting:"Setting",section:"Section",role:"Role",page:"Page",account:"Your account"};
   function entries(){
     var out=[];
@@ -207,8 +206,9 @@
       if(c.hidden && paneKey(c)!=="notify") return;   // notify-pane cards load on first open: still searchable
       var title=h3(c)||c.getAttribute("aria-label")||s.label;
       out.push({kind:"setting",el:c,card:c,text:title,sec:sec,title:title,context:s.label,keywords:s.kw});
-      Array.prototype.forEach.call(c.querySelectorAll("label, h3, h4, legend, summary, .nt, .cmlbl, th[scope=row]"),function(l){
-        var tx=l.textContent.replace(/\s+/g," ").trim(); if(!tx||tx===title||tx.length>90) return;
+      Array.prototype.forEach.call(c.querySelectorAll("label, h3, h4, legend, summary, .nt, .cmlbl, th[scope=row], button, [role=switch]"),function(l){
+        var tx=(l.textContent||l.getAttribute("aria-label")||"").replace(/\s+/g," ").trim(); if(!tx||tx===title||tx.length>90) return;
+        if(l.tagName==="BUTTON" && (l.hidden || l.closest("label") || GENERIC.test(tx))) return;   // "Save", "Copy", "×": not a setting by itself
         out.push({kind:"setting",el:l,card:c,text:tx,sec:sec,title:title,context:s.label+" "+title});
       });
     });
@@ -217,7 +217,7 @@
       out.push({kind:"role",el:b,card:c,click:b,text:"Role: "+tx,sec:"access",title:c?h3(c):"Roles & access",context:"Roles & access",keywords:"role access permission "+(b.getAttribute("data-role")||"")});
     });
     // every section by name, description and keywords (covers rows that load on first open)
-    SECTIONS.forEach(function(s){ if(!available(s)) return; out.push({kind:"section",el:null,card:null,text:s.label,sec:s.key,title:s.label,context:s.group,keywords:s.desc+" "+s.kw,boost:0.05}); });
+    SECTIONS.forEach(function(s){ if(!available(s)) return; out.push({kind:"section",el:null,card:null,text:s.label,sec:s.key,title:s.label,context:s.group,keywords:s.desc+" "+s.kw,alias:CATSEC[s.key]&&CATSEC[s.key].alias,boost:0.05}); });
     ACCOUNT.forEach(function(a){ out.push({kind:"account",text:a.text,context:"Your account",keywords:a.kw,run:a.run}); });
     PAGES.forEach(function(p){ out.push({kind:"page",text:p.text,context:"Page",keywords:p.kw,href:p.href}); });
     return out;
@@ -239,8 +239,8 @@
   function search(){
     var v=q.value.trim(); res.textContent=""; hits=[];
     if(!v){ closeRes(); live.textContent=""; return; }
-    var list=entries(), seen=new Set();
-    var ranked=SSC?SSC.rank(v,list,60):plainRank(v,list);
+    loadPages(); var list=entries(), seen=new Set();
+    var ranked=CAT?CAT.rank(v,list,SSC,60):SSC?SSC.rank(v,list,60):plainRank(v,list);
     ranked.forEach(function(e){ var k=e.kind+"|"+e.text+"|"+(e.title||e.context||""); if(!seen.has(k)&&hits.length<25){ seen.add(k); hits.push(e); } });
     hits.forEach(function(e,i){
       var b=document.createElement("div"); b.setAttribute("role","option"); b.id="csOpt"+i; b.className="cs-opt"; b.setAttribute("aria-selected","false");
@@ -300,7 +300,7 @@
     },60);
   }
   q.addEventListener("input",search);
-  q.addEventListener("focus",function(){ if(q.value.trim()) search(); });
+  q.addEventListener("focus",function(){ loadPages(); if(q.value.trim()) search(); });
   q.addEventListener("keydown",function(e){
     var open=!res.hidden && hits.length>0;
     if(e.key==="Escape"){ if(!res.hidden){ e.preventDefault(); closeRes(); } else if(q.value){ e.preventDefault(); q.value=""; live.textContent=""; } return; }
@@ -315,6 +315,21 @@
   /* capture phase + stopImmediatePropagation: the global studio search (studio-search.js) also binds Cmd/Ctrl+K on document and would open over the settings search */
   window.addEventListener("keydown",function(e){ if((e.metaKey||e.ctrlKey) && !e.altKey && !e.shiftKey && (e.key==="k"||e.key==="K") && !app.hidden && !document.querySelector(".hss-ov:not([hidden])")){ e.preventDefault(); e.stopImmediatePropagation(); q.focus(); q.select(); } },true);
   document.addEventListener("keydown",function(e){ if(e.key==="/" && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||"") && !(document.activeElement&&document.activeElement.isContentEditable) && !app.hidden){ e.preventDefault(); q.focus(); } });
+  // deep link from the global palette: control.html?cs=<setting text>#section -> jump to that exact field.
+  // Cards load asynchronously, so retry for a few seconds until a matching entry exists.
+  (function(){
+    var want=""; try{ want=(new URLSearchParams(location.search).get("cs")||"").slice(0,80); }catch(x){}
+    if(!want) return;
+    try{ var u=new URLSearchParams(location.search); u.delete("cs"); var qs=u.toString(); history.replaceState(null,"",location.pathname+(qs?"?"+qs:"")+location.hash); }catch(x){}
+    var tries=0, lw=norm(want);
+    (function go(){
+      var list=entries().filter(function(e){ return e.kind==="setting"||e.kind==="role"; });
+      var hit=list.filter(function(e){ return e.card && !e.card.hidden && norm(e.text)===lw; })[0] || list.filter(function(e){ return e.card && !e.card.hidden && norm(e.text).indexOf(lw)===0; })[0];
+      if(!hit && tries>=12){ var r=SSC?SSC.rank(want,list,1):plainRank(want,list); hit=r[0]; }
+      if(hit){ q.value=want; jump(hit); return; }
+      if(tries++<24) setTimeout(go,250);
+    })();
+  })();
   window.HelmControlSearch={ entries:entries, open:function(v){ q.value=v||""; q.focus(); search(); } };
 
   // ---- unsaved-changes bar: shows only after the user edits a field in a card ----
