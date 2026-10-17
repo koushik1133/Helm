@@ -119,8 +119,11 @@
     if (denied) { doc.getElementById("noaccess").hidden = false; return; }
     var I = S.integrations || {};
     var srv = null, es = null;
-    try { srv = I.channelStatus ? await I.channelStatus() : null; } catch (e) { srv = null; }
-    try { es = I.emailSettings ? await I.emailSettings() : null; } catch (e) { es = null; }
+    // manager-1019: the two reads run side by side (they were one after the other)
+    var both = await Promise.all([
+      Promise.resolve().then(function () { return I.channelStatus ? I.channelStatus() : null; }).catch(function () { return null; }),
+      Promise.resolve().then(function () { return I.emailSettings ? I.emailSettings() : null; }).catch(function () { return null; })]);
+    srv = both[0]; es = both[1];
     var state = { ov: ov || {}, srv: srv, es: es };
     var repaint = function () {
       paint(doc, "itgEmail", emailStatus(state.ov, state.srv));
@@ -174,7 +177,7 @@
     var form = doc.getElementById("itgEmailForm"), ro = doc.getElementById("itgEmailRo");
     if (!form) return;
     if (!state.es) { // server older than 0150: nothing to edit yet
-      if (ro) { ro.textContent = "Sender name and reply-to arrive with the next Helm update (APPLY-0150)."; ro.hidden = false; }
+      if (ro) { ro.textContent = "Sender name and reply-to are not available for your studio yet."; ro.hidden = false; }
       return;
     }
     if (state.es.can_edit !== true) { if (ro) ro.hidden = false; return; }

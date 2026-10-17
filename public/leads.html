@@ -74,7 +74,7 @@
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
 
   /* modal */
-  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:24px}
+  .lmodal{position:fixed;inset:0;background:rgba(20,27,46,.5);z-index:850;/* manager-1019: above the shell header (800) so the title is not hidden */display:flex;align-items:center;justify-content:center;padding:24px}
   .lmodal[hidden]{display:none!important}
   .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(640px,96vw);max-height:90vh;overflow:auto;padding:24px}
   .sheet h3{margin:0 0 2px;font-size:18px;display:flex;align-items:center;gap:8px}
@@ -196,8 +196,8 @@
         </select></div>
       <div class="fld"><label for="f_type">Event type</label><input id="f_type" placeholder="e.g. Wedding, Corporate"></div>
       <div class="fld"><label for="f_date">Event date</label><input id="f_date" type="date" data-min-today></div>
-      <div class="fld"><label for="f_budget">Budget (₹)</label><input id="f_budget" type="number" data-allow-negative placeholder="e.g. 500000"></div>
-      <div class="fld"><label for="f_guests">Guest count</label><input id="f_guests" type="number" min="0" max="100000" data-allow-negative placeholder="e.g. 300"></div>
+      <div class="fld"><label for="f_budget">Budget (₹)</label><input id="f_budget" type="number" min="0" placeholder="e.g. 500000"></div>
+      <div class="fld"><label for="f_guests">Guest count</label><input id="f_guests" type="number" min="0" max="100000" placeholder="e.g. 300"></div>
       <div class="fld"><label for="f_bday">Birthday <span class="muted">(optional)</span></label><input id="f_bday" type="date" min="1900-01-01"></div>
       <div class="fld"><label for="f_anniv">Anniversary <span class="muted">(optional)</span></label><input id="f_anniv" type="date" min="1900-01-01"></div>
       <div class="fld full"><label for="f_notes">Notes</label><textarea id="f_notes" placeholder="Anything the planner should know…"></textarea></div>
@@ -228,7 +228,7 @@
 <script src="config.js?v=101"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=221"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=222"></script>
 <script src="tour.js?v=14"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
@@ -571,7 +571,8 @@
   function closeForm(){ $("#leadModal").hidden=true; editingId=null; formDirty.clean(); }
   async function requestCloseForm(){ if(!(await BPUI.confirmDiscard(formDirty))) return; closeForm(); }
   async function saveLead(){
-    const fail=(m)=>{ $("#lm_err").textContent=m; $("#lm_err").hidden=false; };
+    const fail=(m)=>{ const er=$("#lm_err"); er.textContent=m; er.hidden=false; try{ er.scrollIntoView({block:"nearest"}); }catch(_){}   // manager-1019: the error was below the fold, Save looked dead
+      if(window.BPUI&&BPUI.toast) BPUI.toast(m,{type:"err"}); };
     const V=BPStore.validate;
     const name=$("#f_name").value.trim();
     if(!name){ fail("Contact name is required."); return; }
