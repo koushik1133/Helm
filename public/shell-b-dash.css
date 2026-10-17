@@ -661,3 +661,19 @@ html[data-shell="b"] .hd-today-bad .hd-ic { color: var(--hd-risk); }
   html[data-shell="b"] .hd-today-seg + .hd-today-seg::before { display: none; }
 }
 html[data-shell="b"] nav.hd-today.hd-today-wait { visibility: hidden; min-height: 38px; }
+
+/* ---------- "See more" lists (Oct 2026): first rows only, the rest expand in place ---------- */
+html[data-shell="b"] .hd-dash .hd-sm-x { display: none !important; }
+html[data-shell="b"] .hd-dash .hd-sm-open { max-height: 480px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+html[data-shell="b"] .hd-seemore { display: flex; width: 100%; justify-content: center; gap: 6px; margin-top: 10px; }
+html[data-shell="b"] .hd-seemore .hd-sm-chev { width: 14px; height: 14px; transition: transform var(--hd-t-fast) var(--hd-ease); }
+html[data-shell="b"] .hd-seemore[aria-expanded="true"] .hd-sm-chev { transform: rotate(180deg); }
+/* All quotes: the pager (Load more / End of list) only once the list is expanded */
+html[data-shell="b"] .hd-quotes.hd-sm-closed .bpui-pager { display: none !important; }
+/* the adopted My tasks buckets: the toggle sits inside its bucket */
+html[data-shell="b"] .hd-mt .mtbucket .hd-seemore { margin-top: 6px; }
+/* cut-off text: KPI sub-lines and the next-up panel wrap to two lines instead of one */
+html[data-shell="b"] .hd-kpi-sub { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+html[data-shell="b"] .hd-main small { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+/* the floating demo/trial note docks bottom-left: leave room so the last card can scroll clear of it */
+@media (min-width: 601px) { html[data-shell="b"] body:has(.hau-note.dock-left:not([hidden])) .hd-dash { padding-bottom: 180px; } }

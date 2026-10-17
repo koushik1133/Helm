@@ -186,6 +186,85 @@
     for (var i = 0; i < (opts.skel || 3); i++) b.appendChild(el("div", "hd-skel"));
     return c;
   }
+  /* ---------- "See more" (Oct 2026): every dashboard list shows SM_N rows, then a toggle that expands
+     in place (the open list scrolls inside the card past ~480px) and turns into "Show less". The extra
+     rows are hidden with a class (no inline style); the button carries aria-expanded/aria-controls and
+     focus moves to the first newly shown row. Returns the button, or null when the list is short. ---- */
+  var SM_N = 4, smSeq = 0;
+  function seeMore(host, nodes, n, opts) {
+    opts = opts || {}; nodes = [].slice.call(nodes || []); n = n == null ? SM_N : n;
+    var old = host.__hdSm; if (old && old.parentNode) old.parentNode.removeChild(old); host.__hdSm = null;
+    host.classList.remove("hd-sm-open", "hd-sm-shut");
+    nodes.forEach(function (x) { x.classList.remove("hd-sm-x"); });
+    if (nodes.length <= n) { if (opts.onToggle) opts.onToggle(true, false); return null; }
+    if (!host.id) host.id = "hdSm" + (++smSeq);
+    var extra = nodes.slice(n), open = !!host.__hdSmOpen;
+    var btn = el("button", "hd-btn hd-ghost hd-sm hd-seemore"); btn.type = "button"; btn.setAttribute("aria-controls", host.id);
+    function set(o) {
+      open = o; host.__hdSmOpen = o;
+      extra.forEach(function (x) { x.classList.toggle("hd-sm-x", !o); });
+      host.classList.toggle("hd-sm-open", o); host.classList.toggle("hd-sm-shut", !o);
+      btn.setAttribute("aria-expanded", String(o)); clear(btn);
+      btn.appendChild(el("span", null, o ? "Show less" : "See more (" + extra.length + ")"));
+      btn.appendChild(icon(IC.chevDown, "hd-ic hd-sm-chev"));
+      if (opts.onToggle) opts.onToggle(o, true);
+    }
+    btn.addEventListener("click", function () {
+      set(!open);
+      if (open) { var f = extra[0], t = f && (f.matches("a,button") ? f : f.querySelector("a,button")); if (!t && f) { f.tabIndex = -1; t = f; } if (t) try { t.focus(); } catch (e) {} }
+    });
+    set(open);
+    (opts.after || host).insertAdjacentElement("afterend", btn); host.__hdSm = btn;
+    return btn;
+  }
+  /* adopted page lists re-render themselves: re-apply the cap after each render */
+  function capLive(host, pick, n, opts) {
+    if (!host) return;
+    var busy = false;
+    function run() { if (busy) return; busy = true; try { seeMore(host, pick(host), n, opts); } finally { busy = false; } }
+    run(); try { new MutationObserver(function () { run(); }).observe(host, { childList: true }); } catch (e) {}
+  }
+  /* cut-off one-line text gets the full text as a tooltip the first time it is hovered */
+  function fullTitles(rootN) {
+    rootN.addEventListener("pointerover", function (ev) {
+      var t = ev.target; if (!t || t.nodeType !== 1 || t.hasAttribute("title") || t.closest("button")) return;
+      if (t.scrollWidth > t.clientWidth + 1 || t.scrollHeight > t.clientHeight + 1) { var s = String(t.textContent || "").trim(); if (s) t.title = s; }
+    });
+  }
+  /* two independent lanes (Oct 2026): the 12-column grid used to size each row by its taller card, so the
+     shorter lane left big gaps. With 8px rows each item spans exactly its own height + the gap, and dense
+     auto-placement stacks every lane on its own (masonry). Off when the dashboard is one column. */
+  var MAS_ROW = 8, MAS_MAX = 700;
+  function masonry(dash, wrap) {
+    if (typeof ResizeObserver !== "function") return;
+    var css = "html[data-shell=\"b\"] .hd-dash.hd-mas{grid-auto-rows:" + MAS_ROW + "px;row-gap:0}";
+    for (var i = 1; i <= MAS_MAX; i++) css += "html[data-shell=\"b\"] .hd-mas .hd-rs-" + i + "{grid-row-end:span " + i + "}";
+    if (typeof window.__helmAdoptCss === "function") window.__helmAdoptCss(document, css); else return;
+    var items = [], raf = 0;
+    function collect() {
+      items = [];
+      for (var n = dash.firstElementChild; n; n = n.nextElementSibling) {
+        if (n.classList.contains("hd-grid")) { for (var m = n.firstElementChild; m; m = m.nextElementSibling) items.push(m); }
+        else items.push(n);
+      }
+    }
+    function lay() {
+      raf = 0;
+      var on = wrap.clientWidth >= 760; dash.classList.toggle("hd-mas", on);
+      var gap = parseFloat(getComputedStyle(dash).columnGap) || 16;
+      items.forEach(function (n) {
+        var old = n.__hdRs; if (old) n.classList.remove(old); n.__hdRs = null;
+        if (!on) return;
+        var h = n.getBoundingClientRect().height; if (!h) return;
+        var c = "hd-rs-" + Math.min(MAS_MAX, Math.ceil((h + gap) / MAS_ROW)); n.classList.add(c); n.__hdRs = c;
+      });
+    }
+    function queue() { if (!raf) raf = requestAnimationFrame(lay); }
+    var ro = new ResizeObserver(queue);
+    function watch() { ro.disconnect(); collect(); ro.observe(wrap); items.forEach(function (n) { ro.observe(n); }); queue(); }
+    watch();
+    try { new MutationObserver(watch).observe(dash.querySelector(".hd-grid") || dash, { childList: true }); } catch (e) {}
+  }
   function moreLink(href, text) { var a = link(href, "hd-more-link", text || "View all"); a.appendChild(icon(IC.arrow)); return a; }
   function body(c) { return clear(c.querySelector(".hd-body")); }
   function tools(c) { return c.querySelector(".hd-tools"); }
@@ -664,6 +743,13 @@
     if (secQuotes) { adopt(secQuotes, slotQuotes, "hd-quotes"); secQuotes.id = secQuotes.id || "hdQuotes";
       var qh = secQuotes.querySelector(".head h3"); if (qh) qh.textContent = "All quotes"; tagMoney(elist); }
     main.insertBefore(wrap, main.firstChild);
+    fullTitles(root); masonry(root, wrap);
+    // adopted lists: All quotes (first 5; the pager's Load more only shows once expanded), My work events, each My tasks bucket
+    capLive(elist, function (h) { return h.querySelectorAll(":scope > .ecard"); }, 5, { onToggle: function (o) { if (secQuotes) secQuotes.classList.toggle("hd-sm-closed", !o); } });
+    capLive(document.getElementById("mywork"), function (h) { return h.querySelectorAll(":scope > .pcard"); });
+    (function () { var mt = document.getElementById("mytasks"); if (!mt) return;
+      function each() { [].forEach.call(mt.querySelectorAll(":scope > .mtbucket"), function (bk) { if (bk.__hdCap) return; bk.__hdCap = 1; seeMore(bk, bk.querySelectorAll(":scope > .mtrow")); }); }
+      each(); try { new MutationObserver(each).observe(mt, { childList: true }); } catch (e) {} })();
 
     /* ---- store ---- */
     for (var w = 0; w < 100 && !(S() && S().quotes); w++) await new Promise(function (r) { setTimeout(r, 100); });
@@ -1014,8 +1100,9 @@
         if (dl != null && dl >= 0 && dl <= erWin) add(3, "warn", qName(q) + " — " + ER.chipText(dl).toLowerCase(), "check the checklist, staff and vendors", evHref(q.id), "Get ready", q.code);
       });
       ((tasks && tasks.blocked) || []).forEach(function (t) { add(4, "warn", (t.title || "Task") + " is blocked", t.event_title || "", t.quote_id ? evHref(t.quote_id) : "#mytasksSection", "Unblock", t.event_code); });
-      if (vLeads) staleLeads.forEach(function (l) { add(5, "warn", (l.name || "Unnamed lead") + " — new lead not contacted", [l.event_type, l.event_date ? fmtDay(l.event_date) : "", "came in " + ago(l.created_at)].filter(Boolean).join(" · "), "leads.html", "Reply"); });
-      if (vQuotes) rows.forEach(function (q) {
+      var folShows = !cFol.hidden && !signedOut;   // Follow-ups owns "waiting on a reply" (stale leads, unanswered quotes): no duplicates here
+      if (vLeads && !folShows) staleLeads.forEach(function (l) { add(5, "warn", (l.name || "Unnamed lead") + " — new lead not contacted", [l.event_type, l.event_date ? fmtDay(l.event_date) : "", "came in " + ago(l.created_at)].filter(Boolean).join(" · "), "leads.html", "Reply"); });
+      if (vQuotes && !folShows) rows.forEach(function (q) {
         if (q.status === "quote" && (q.approvalStatus === "sent" || q.approvalStatus === "viewed") && q.updatedAt && Date.now() - new Date(q.updatedAt).getTime() > 3 * DAY)
           add(6, "info", qName(q) + " — awaiting client", (q.approvalStatus === "viewed" ? "viewed " : "sent ") + Math.floor((Date.now() - new Date(q.updatedAt).getTime()) / DAY) + " days ago", evHref(q.id), "Follow up", q.code);
       });
@@ -1023,12 +1110,12 @@
       if (items.length) { var bd = pill(items[0].kind === "risk" ? "risk" : items[0].kind === "warn" ? "warn" : "info", items.length); bd.classList.add("hd-count-pill"); bd.setAttribute("aria-label", items.length + " items"); tools(cAtt).insertBefore(bd, tools(cAtt).firstChild); }
       if (!items.length) { empty(b, "All clear", null, "clear", "Nothing needs your attention right now."); return; }
       var GL = { risk: IC.alert, warn: IC.clock, info: IC.info };
-      var list = el("div", "hd-att-groups"), GN = { risk: "Urgent", warn: "Soon", info: "Follow up" }, shown = 0;
+      var list = el("div", "hd-att-groups"), GN = { risk: "Urgent", warn: "Soon", info: "Follow up" }, lis = [], grps = [];
       ["risk", "warn", "info"].forEach(function (k) {
-        var grp = items.filter(function (x) { return x.kind === k; }); if (!grp.length || shown >= 6) return;
+        var grp = items.filter(function (x) { return x.kind === k; }); if (!grp.length) return;
         var gh = el("p", "hd-att-gh hd-eyebrow hd-gh-" + k); gh.appendChild(el("span", null, GN[k])); gh.appendChild(el("span", "hd-pill hd-count-pill hd-" + k, grp.length)); list.appendChild(gh);
-        var ul = el("ul", "hd-att"); list.appendChild(ul);
-        grp.slice(0, 6 - shown).forEach(function (it) { shown++; addRow(ul, it); });
+        var ul = el("ul", "hd-att"); list.appendChild(ul); grps.push([gh, ul]);
+        grp.forEach(function (it) { lis.push(addRow(ul, it)); });
       });
       function addRow(ul, it) {
         var li = el("li"), a = link(it.href, "hd-att-i");
@@ -1037,10 +1124,11 @@
         if (it.code || it.ctx) { var sm = el("small"); if (it.code) sm.appendChild(el("span", "hd-code", it.code)); if (it.ctx) sm.appendChild(document.createTextNode((it.code ? " · " : "") + it.ctx)); m.appendChild(sm); }
         a.appendChild(m);
         var ac = el("span", "hd-act-l", it.act); ac.appendChild(icon(IC.arrow)); a.appendChild(ac);
-        li.appendChild(a); ul.appendChild(li);
+        li.appendChild(a); ul.appendChild(li); return li;
       }
       b.appendChild(list);
-      if (items.length > 6) b.appendChild(el("p", "hd-note", "+" + (items.length - 6) + " more — see My tasks, Leads and Quotes."));
+      // a group whose rows are all folded away hides its heading too
+      seeMore(list, lis, SM_N, { onToggle: function () { grps.forEach(function (g) { var vis = g[1].querySelector(":scope > li:not(.hd-sm-x)"); g[0].classList.toggle("hd-sm-x", !vis); g[1].classList.toggle("hd-sm-x", !vis); }); } });
     })();
 
     /* ---- S4 this week: agenda spine (7 days from today) ---- */
@@ -1193,15 +1281,14 @@
       if (items.length) { var bd = pill("warn", String(items.length)); bd.classList.add("hd-count-pill"); tools(cFol).insertBefore(bd, tools(cFol).firstChild); }
       if (!items.length) { empty(b, "No one is waiting on you", vLeads ? link("leads.html", "hd-btn hd-ghost", "Open leads") : null, "clear", "Every enquiry and sent quote is moving."); return; }
       var ul = el("ul", "hd-feed hd-fol");
-      items.slice(0, 5).forEach(function (it) {
+      items.forEach(function (it) {
         var li = el("li", "hd-act hd-fol-i");
         var ini = String(it.who).split(/\s+/).filter(Boolean).slice(0, 2).map(function (x) { return x.charAt(0).toUpperCase(); }).join("") || "•";
         li.appendChild(el("span", "hd-av", ini));
         var m = el("div", "hd-main"); m.appendChild(el("b", null, it.who)); m.appendChild(el("small", null, it.what + (it.ctx ? " · " + it.ctx : ""))); li.appendChild(m);
         li.appendChild(link(it.href, "hd-btn hd-ghost hd-sm", it.act)); ul.appendChild(li);
       });
-      b.appendChild(ul);
-      if (items.length > 5) b.appendChild(el("p", "hd-note", "+" + (items.length - 5) + " more waiting."));
+      b.appendChild(ul); seeMore(ul, ul.children);
       if (vLeads) { var ol = link("leads.html", "hd-btn hd-ghost hd-sm", "Open leads"); ol.appendChild(icon(IC.arrow)); b.appendChild(ol); }
     })();
 
@@ -1296,7 +1383,7 @@
         return;
       }
       var ul = el("ul", "hd-tickets");
-      list.slice(0, 5).forEach(function (e) {
+      list.forEach(function (e) {
         var li = el("li"), a = link(evHref(e.id), "hd-ticket hd-trow" + (e.date === today ? " hd-tk-today" : ""));
         a.appendChild(stub(e.date));
         var m = el("div", "hd-tk-body"); m.appendChild(el("b", "hd-tk-name", e.name));
@@ -1311,8 +1398,7 @@
         r.appendChild(icon(IC.chev, "hd-ic hd-chev")); a.appendChild(r);
         li.appendChild(a); ul.appendChild(li);
       });
-      b.appendChild(ul);
-      if (list.length > 5) b.appendChild(el("p", "hd-note", "+" + (list.length - 5) + " more in the next 30 days."));
+      b.appendChild(ul); seeMore(ul, ul.children);
     })();
 
     /* ---- S8 activity feed (audit log) ----
@@ -1329,7 +1415,7 @@
         var b = body(cAct);
         if (!rowsA.length) { empty(b, "No activity yet", null, "pulse", "Changes made by your team will appear here."); return; }
         var ul = el("ul", "hd-feed");
-        rowsA.slice(0, 8).forEach(function (r) {
+        rowsA.slice(0, 12).forEach(function (r) {
           var li = el("li", "hd-act");
           var who = String(r.actor_name || r.actor_email || "System"), ini = who.replace(/@.*/, "").split(/[\s._-]+/).filter(Boolean).slice(0, 2).map(function (x) { return x.charAt(0).toUpperCase(); }).join("") || "\u2022";
           li.appendChild(el("span", "hd-av", ini));
@@ -1342,9 +1428,10 @@
           li.appendChild(m); li.appendChild(t);
           ul.appendChild(li);
         });
-        b.appendChild(ul);
+        b.appendChild(ul); ul.__hdSmOpen = !!cAct.__hdSmOpen;
+        seeMore(ul, ul.children, SM_N, { onToggle: function (o, real) { if (real) cAct.__hdSmOpen = o; } });
       }
-      function sigOf(rows) { return (rows || []).slice(0, 8).map(function (r) { return r.id + "@" + r.at; }).join("|"); }
+      function sigOf(rows) { return (rows || []).slice(0, 12).map(function (r) { return r.id + "@" + r.at; }).join("|"); }
       function retick() { [].forEach.call(cAct.querySelectorAll("time.hd-ago[datetime]"), function (t) { var x = ago(t.getAttribute("datetime")); if (t.textContent !== x) t.textContent = x; }); }
       function refresh(force) {
         if (busy || (document.hidden && force !== true) || !document.body.contains(cAct)) return;
