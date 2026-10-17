@@ -732,7 +732,7 @@
 <script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=215"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=216"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
@@ -1717,6 +1717,8 @@
   const AREAS = BPStore.auth.admin.areas();
   let MTX = {};              // {role:{area:{view,edit}}}
   let selRole = "manager";
+  // 0147: an area with defaultOn (e.g. "Create new quotes") is ON for those roles until a row is saved
+  function cellDefault(role, key){ const a=AREAS.find(x=>x.key===key); const on=!!(a&&a.defaultOn&&a.defaultOn.includes(role)); return {view:on, edit:on}; }
 
   async function initMatrix(){
     // role tabs (admin first, shown as locked-full)
@@ -1752,7 +1754,7 @@
     Object.keys(byGroup).forEach(g=>{
       html+=`<div class="mgroup">${esc(g)}</div><div class="chips">`;
       byGroup[g].forEach(a=>{
-        const cell = locked ? {view:true,edit:true} : ((MTX[selRole]&&MTX[selRole][a.key])||{view:false,edit:false});
+        const cell = locked ? {view:true,edit:true} : ((MTX[selRole]&&MTX[selRole][a.key])||cellDefault(selRole,a.key));
         const lb=esc(a.label);
         html+=`<div class="chip${cell.view?" on":""}${locked?" locked":""}" data-area="${esc(a.key)}">
           <button type="button" class="cview" aria-pressed="${!!cell.view}" aria-label="${lb}: can view"${locked?" disabled":""}><span class="ic" aria-hidden="true">${a.icon}</span><span class="lb">${lb}</span></button>
@@ -1800,7 +1802,7 @@
   function saveCell(role, area, kind){
     cellPending++; $("#matrix").setAttribute("aria-busy","true");
     cellQueue = cellQueue.then(async()=>{
-      const cur=(MTX[role]&&MTX[role][area])||{view:false,edit:false};
+      const cur=(MTX[role]&&MTX[role][area])||cellDefault(role,area);
       let view, edit;
       if(kind==="edit"){ edit=!cur.edit; view=cur.view||edit; }
       else { view=!cur.view; edit=view?cur.edit:false; }
