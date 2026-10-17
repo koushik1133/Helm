@@ -291,6 +291,35 @@ t('CSP + Trusted Types: Razorpay exact script on /checkout only', () => {
   assert.match(read('public/trusted-types.js'), /'https:\/\/checkout\.razorpay\.com\/v1\/checkout\.js'/);
 });
 
+/* ------------------------------------------------- 5. direct studio (0159) */
+const pend = { data: { required: true, reason: 'pending_payment', is_admin: true, has_subscription: false, pending_payment: true }, error: null };
+t('0159 direct studio waiting for payment: every app page → /checkout first (not cached)', async () => {
+  for (const path of ['/dashboard', '/quotes', '/onboarding', '/control']) {
+    const e = makeEnv({ path, rpc: { my_profile_status: DONE_PROFILE, my_checkout_status: pend } });
+    assert.equal(await settles(e.S.init()), false, path + ': page code never runs');
+    assert.match(e.replaced()[0] || '', /^\/checkout\?next=/, path);
+    assert.equal(e.win.sessionStorage.getItem('bp_sess_checkout'), null);
+  }
+  const c = makeEnv({ path: '/checkout', rpc: { my_profile_status: DONE_PROFILE, my_checkout_status: pend } });
+  assert.equal(await c.S.init(), 'supabase'); assert.deepEqual(c.replaced(), [], '/checkout itself shows');
+  assert.equal((await c.S.checkout.status({ fresh: true })).pending_payment, true);
+});
+t('0159 switch to the free trial: my_pending_start_trial, then the gate is lifted for the tab', async () => {
+  const e = makeEnv({ path: '/login', gated: false, rpc: { my_pending_start_trial: { data: { result: 'started', trial_days: 8 }, error: null } } });
+  await e.S.init();
+  const out = await e.S.checkout.switchToTrial();
+  assert.equal(out.result, 'started');
+  assert.equal(e.rpcCalls('my_pending_start_trial').length, 1);
+  assert.match(e.win.sessionStorage.getItem('bp_sess_checkout') || '', /"required":false/);
+  assert.equal(e.rpcCalls('my_start_trial').length, 0, 'never the old checkout trial');
+});
+t('0159 a refused write while waiting reads as "choose a plan", not "suspended"', () => {
+  const e = makeEnv({ path: '/login', gated: false });
+  const msg = e.win.BPUI.friendlyError({ code: '25006', hint: 'payment_pending', message: 'x' }, { action: 'save the lead' });
+  assert.match(msg, /^Couldn’t save the lead\. Choose a plan and complete payment to start using Helm/);
+  assert.match(e.win.BPUI.friendlyError({ code: '25006', hint: 'studio_suspended', message: 'x' }), /suspended or the trial has ended/);
+});
+
 /* ------------------------------------------------------------- run */
 let pass = 0, fail = 0;
 for (const [name, fn] of tests) {

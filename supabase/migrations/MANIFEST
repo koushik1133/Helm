@@ -253,3 +253,5 @@ forward  supabase/migrations/0156_audit_p2_db_low.sql
 forward  supabase/migrations/0157_privacy_pin.sql
 # 0158 (audit run-3 auth/mfa-attempts: Supabase Auth "MFA Verification Attempt" hook hook_mfa_verification_attempt - 5 wrong two-step codes in 15 min lock every code for 15 min server-side, honours the 0050 browser-recorded lock; one new private counter table, dormant until the owner enables the hook; no rows changed) goes after 0050.
 forward  supabase/migrations/0158_mfa_verify_hook.sql
+# 0159 (direct "Create studio" must pick a plan and pay first: create_studio writes a private studio_payment_gate marker for NEW studios only (no backfill), _studio_payment_pending, read-only guard refuses studio writes while unpaid (hint payment_pending), my_checkout_status/options + pending_payment, my_pending_start_trial switches to the 8-day trial while payment is off, Starter/Studio plans added only when there is no active plan; trial + existing studios unaffected; no rows changed) goes after 0045 + 0056 + 0058 + 0119 + 0122.
+forward  supabase/migrations/0159_direct_studio_plan_gate.sql

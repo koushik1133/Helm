@@ -70,6 +70,7 @@
   .modetabs{display:flex;gap:6px;margin-bottom:16px;background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:4px}
   .mtab{flex:1;border:0;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink-2);padding:9px;border-radius:8px;cursor:pointer}
   .mtab.on{background:var(--panel);color:var(--accent);box-shadow:var(--shadow)}
+  .path-link{margin:6px 0 0;font-size:13px}.path-link a{color:var(--accent);font-weight:600;text-decoration:none}.path-link a:hover{text-decoration:underline}
   .okmsg{background:#e7f6ee;color:#0f7a43;border:1px solid #b6e3ca;border-radius:10px;padding:10px 13px;font-size:13px;margin-bottom:16px}
   .or{display:flex;align-items:center;gap:12px;margin:16px 0;color:var(--ink-3);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
   .or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
@@ -323,10 +324,10 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=101"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=229"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=230"></script>
 <script src="auth-ui.js?v=33"></script>
 <script src="/auth-visual.js?v=1"></script>
-<script src="/trial-signup.js?v=4"></script>
+<script src="/trial-signup.js?v=5"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const PENDING="bp_pending_studio";
@@ -361,7 +362,7 @@
   // 0119 ONE free trial for every self-serve studio: "demo data or own data?" is asked first,
   // then start_self_serve_trial() creates the studio (own name, or "Demo N" when left empty)
   const TRIAL=()=>!JOINING && !!(window.BPTrialSignup && BPTrialSignup.wanted());
-  const makeStudio=(name,opts)=>TRIAL()? BPTrialSignup.start(name,opts||{}) : BPStore.org.createStudio(name,opts||{});
+  const makeStudio=(name,opts)=>TRIAL()? BPTrialSignup.start(name,opts||{}) : BPStore.org.createStudio(name,opts||{}).then((r)=>{ try{ if(window.BPTrialSignup&&BPTrialSignup.clearDirect) BPTrialSignup.clearDirect(); }catch(e){} return r; });
   // ?next= may only name one of the app's own pages (no open redirect): the shared
   // sanitiser in store-api.js takes the page from a fixed list, never from the URL,
   // and carries over only its query string. Anything else → dashboard.
@@ -443,7 +444,7 @@
     $("#studioField").hidden = !needStudio;   // an invitee never names a studio
     $("#studio").required = needStudio;
     $("#formTitle").textContent = (JOINING&&INVITE_ORG) ? (m==="signup"?"Join "+INVITE_ORG:"Sign in to join "+INVITE_ORG) : (m==="signup" ? (JOINING?"Create your account":"Create your studio") : "Welcome back");
-    $("#formSub").textContent = m==="signup" ? (JOINING?"Create your account to join the studio you were invited to.":"Start a fresh workspace, pre-loaded with default templates and catalogs.") : (JOINING?"Sign in to accept your invitation.":"Sign in with the account your studio admin created for you.");
+    $("#formSub").textContent = m==="signup" ? (JOINING?"Create your account to join the studio you were invited to.":"Set up your studio, then choose a plan and complete payment to start. Want to try Helm first? Start the free trial instead.") : (JOINING?"Sign in to accept your invitation.":"Sign in with the account your studio admin created for you.");
     $("#submit").textContent = submitLabel();
     $("#pw").setAttribute("autocomplete", m==="signup" ? "new-password" : "current-password");
     // new passwords must meet the policy; existing ones are checked by the server

@@ -657,7 +657,7 @@ window.HelmUrl = HelmUrl;
     }
     if (!data || typeof data !== "object") return null;
     const v = { required: data.required === true, is_admin: data.is_admin === true, has_subscription: data.has_subscription === true,
-      reason: typeof data.reason === "string" ? data.reason : "" };
+      reason: typeof data.reason === "string" ? data.reason : "", pending_payment: data.pending_payment === true };
     if (!v.required) sessSet(CHECKOUT_SESS_KEY, uid, v); else { try { sessionStorage.removeItem(CHECKOUT_SESS_KEY); } catch (e) {} }
     return v;
   }
@@ -8227,6 +8227,16 @@ window.HelmUrl = HelmUrl;
       return v;
     },
     done: () => noteCheckoutDone(),
+    // 0159: a directly created studio waiting for its first payment can switch to the normal
+    // free trial (own data) while online payment is not live. Server decides; no card, no money.
+    async switchToTrial() {
+      if (mode !== "supabase" || !supa) { const e = new Error("Needs a signed-in studio."); e.kind = "validation"; throw e; }
+      const out = await rpc("my_pending_start_trial", {});
+      noteCheckoutDone();
+      return out;
+    },
+    // the contact address shown while online payment is being set up
+    SALES_EMAIL: "sales@helm.events",
   };
 
   /* ---------------- 0078 automatic client messages + WhatsApp forwarding ----------------
@@ -9066,6 +9076,8 @@ window.HelmUrl = HelmUrl;
     if (isNetworkError(e)) return pre + "Couldn’t reach the server — check your connection and try again.";
     // 0046 D6: a locked (approved / paid / closed-event) money record — the DB message says why
     if (e && e.hint === "money_frozen" && e.message && !TECHNICAL.test(e.message)) return pre + endDot(clip(String(e.message), 240));
+    // 0159: a directly created studio is read-only until its plan is paid (or it switches to the trial)
+    if (e && e.hint === "payment_pending") return pre + "Choose a plan and complete payment to start using Helm — or start a free trial instead.";
     // 0045 / 0069: a suspended (or lapsed-trial) studio is read-only — say so, not "something went wrong"
     if (e && (e.hint === "studio_suspended" || errCode(e) === "25006")) return pre + "This studio is read-only because its Helm subscription is suspended or the trial has ended — contact Helm (or an admin can renew in Billing).";
     // 0052 lifecycle gates / re-approval: the DB message is written for people
