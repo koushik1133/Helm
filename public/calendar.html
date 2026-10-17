@@ -126,7 +126,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=101"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=225"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=226"></script>
 <script src="tour.js?v=14"></script>
 <script>
 (function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
@@ -242,9 +242,11 @@
     const seen={}, evs=[];
     ["overdue","today","blocked","upcoming","completed"].forEach(k=>((r&&r[k])||[]).forEach(t=>{ if(t&&t.quote_id&&!seen[t.quote_id]){ seen[t.quote_id]=1; evs.push(t); } }));
     if(!evs.length){ $("#agenda").innerHTML='<div class="empty">No events assigned to you yet. New shifts will show here and on your dashboard.</div>'; return; }
+    // final-1022: a task with no start time has no date - take the event date from crew_event_brief
+    const C=BPStore.ops&&BPStore.ops.crew; await Promise.all(evs.filter(t=>!t.planned_start&&!t.event_date).map(async t=>{ try{ const b=C&&C.eventBrief?await C.eventBrief(t.quote_id):null; if(b&&b.event_date) t.event_date=b.event_date; }catch(e){} }));
     $("#agenda").innerHTML='<div class="empty">Events you are assigned to:</div>'+evs.map(t=>`<div class="ev confirmed">
       <div><span class="code">${esc(t.event_code||"")}</span> <span class="ttl">${esc(t.event_title||"")}</span>
-        <div class="sub">${t.planned_start?esc(fmtDate(String(t.planned_start).slice(0,10))):""}</div></div>
+        <div class="sub">${(t.planned_start||t.event_date)?esc(fmtDate(String(t.planned_start||t.event_date).slice(0,10))):""}</div></div>
       <div class="chips"><a class="open" href="runsheet.html?id=${encodeURIComponent(t.quote_id)}" aria-label="Open ${esc(t.event_code||"event")}">Open</a></div></div>`).join("");
   }
   BPUI.boot(async ()=>{

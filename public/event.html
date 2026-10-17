@@ -181,7 +181,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=101"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=225"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=226"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="tour.js?v=15"></script>
 <script src="booklet.js?v=18"></script>
@@ -305,7 +305,8 @@
     render();   // re-paint with the loaded summaries
   }
 
-  const statBadge=(s,a)=> s==="confirmed"?(a==="approved"||a==="paid"?'<span class="stat ok">Confirmed</span>':'<span class="stat ok">Confirmed</span>'):s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
+  // final-1022: a closed event (lifecycle stage closed / closed_at set) says Closed, not Confirmed
+  const statBadge=(s,a,lc)=> (s==="confirmed"&&lc==="closed")?'<span class="stat ok">Closed</span>':s==="confirmed"?(a==="approved"||a==="paid"?'<span class="stat ok">Confirmed</span>':'<span class="stat ok">Confirmed</span>'):s==="cancelled"?'<span class="stat no">Cancelled</span>':'<span class="stat q">Quote</span>';
   const apprBadge=(a)=> a==="paid"?'<span class="stat ok" title="The client paid the advance; check Payments for the balance">Advance paid</span>':a==="approved"?'<span class="stat ok">Approved</span>':a==="sent"?'<span class="stat st">Sent for approval</span>':"";
 
   let staleInfo=null;   // 0052: client approval went stale after a price change
@@ -329,9 +330,11 @@
   function render(){
     renderReapproval();
     $("#code").textContent=ev.code;
-    $("#statusBadge").innerHTML=statBadge(ev.status,ev.approvalStatus);
+    const evClosed=ev.lifecycleStage==="closed"||!!ev.closedAt;
+    $("#statusBadge").innerHTML=statBadge(ev.status,ev.approvalStatus,evClosed?"closed":ev.lifecycleStage);
     // confirmed by the studio but the client never opened/approved the link: one clear note, not "Confirmed" + "Sent for approval"
     $("#apprBadge").innerHTML=(ev.status==="confirmed"&&ev.approvalStatus==="sent")?'<span class="stat st" title="The studio confirmed this event; the client has not approved the online link">Client link not approved</span>':apprBadge(ev.approvalStatus);
+    if(evClosed) $("#apprBadge").textContent="";   // final-1022: a closed event drops the payment/approval badge
     $("#title").textContent=(window.HelmEventName&&HelmEventName.displayName)?HelmEventName.displayName(ev):(ev.title||ev.code);
     try{ if(window.HelmTrail) HelmTrail.setCurrent({title:[ev.code,ev.title].filter((v,i,a)=>v&&a.indexOf(v)===i).join(" "),kind:"event",href:"event.html?id="+encodeURIComponent(id)}); }catch(e){}
     const cl=ev.client||{};
