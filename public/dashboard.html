@@ -324,7 +324,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=216"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=217"></script>
 <script src="event-reminders.js?v=1"></script>
 <script src="tour.js?v=14"></script>
 <script src="getting-started.js?v=5"></script>
@@ -440,6 +440,9 @@
     if (deleteRes.status === "rejected") throw deleteRes.reason;
     canCreate = createRes.value;
     canDelete = deleteRes.value;
+    // QA1017 (sales role): create_quote() also needs the "quotes" EDIT area (has_area), not just the
+    // role cap - a Sales login with quotes switched off saw "Generate a quote" and got "not authorized".
+    try { if (canCreate && !(await BPStore.auth.canEditArea("quotes"))) canCreate = false; } catch (e) { canCreate = false; }
     $("#createBtn").hidden = !canCreate;                    // only create-capable roles can start new quotes
     if (listRes.status === "rejected") {
       const err = listRes.reason;
