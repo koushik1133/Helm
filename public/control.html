@@ -116,6 +116,8 @@
   .chip .tick{width:18px;height:18px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:11px;color:transparent}
   .chip.on{border-color:#2eb872;background:#eafaf1;color:var(--ink)}
   .chip.on .tick{border-color:#2eb872;background:#2eb872;color:#fff}
+  html[data-theme="dark"] .chip.on{background:rgba(46,184,114,.16);border-color:#2eb872;color:#d7f7e6}
+  html[data-theme="dark"] .msg.warn{background:rgba(245,180,40,.12);color:#ffd884;border-color:rgba(245,180,40,.32)}
   .chip .pen{appearance:none;width:32px;height:32px;padding:0;border-radius:8px;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center;
     font-family:inherit;font-size:12px;color:var(--ink-3);cursor:pointer}
   .chip .pen.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
