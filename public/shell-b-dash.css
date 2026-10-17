@@ -191,6 +191,12 @@ html[data-shell="b"] .hd-kpi-a:focus-visible { outline-offset: -3px; }
 html[data-shell="b"] .hd-kpi-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 html[data-shell="b"] .hd-kpi-l { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 html[data-shell="b"] .hd-kpi-ic { width: 14px; height: 14px; color: var(--hd-ink-3); }
+/* KPI period filter: a compact per-tile select that sits above the tile's full-cover link */
+html[data-shell="b"] .hd-kpi-per { position: relative; z-index: 2; margin-left: auto; max-width: 9.5em; min-height: 24px; padding: 1px 18px 1px 6px; border: 1px solid var(--hd-hair-2); border-radius: var(--hd-r-pill); background: var(--hd-card-2); color: var(--hd-ink-2); font: 500 11px/18px var(--hd-f-ui); cursor: pointer; text-overflow: ellipsis; }
+html[data-shell="b"] .hd-kpi-per:hover { color: var(--hd-ink); }
+html[data-shell="b"] .hd-kpi-per:focus-visible { outline: 2px solid var(--hd-accent, currentColor); outline-offset: 1px; }
+html[data-shell="b"] .hd-kpi-top .hd-kpi-per + .hd-kpi-ic { margin-left: 0; }
+@media (max-width: 640px) { html[data-shell="b"] .hd-kpi-top { flex-wrap: wrap; } html[data-shell="b"] .hd-kpi-per { min-height: 32px; font-size: 12px; max-width: 100%; } }
 html[data-shell="b"] .hd-kpi-vr { display: flex; align-items: baseline; gap: 10px; margin-top: 4px; }
 html[data-shell="b"] .hd-kpi-v { font-family: var(--hd-f-disp); font-weight: 500; font-size: 36px; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums lining-nums; color: var(--hd-ink);
   transition: color var(--hd-t-fast); white-space: nowrap; }

@@ -1,0 +1,36 @@
+// Dashboard KPI period filter: per-tile 7d / 1m / 6m / 1y, previous-equal-period comparison,
+// per-user localStorage memory (try/catch), counts only (no amounts), no SQL.
+import { readFileSync } from "node:fs";
+import assert from "node:assert/strict";
+const js = readFileSync(new URL("../public/shell-b-dash.js", import.meta.url), "utf8");
+const css = readFileSync(new URL("../public/shell-b-dash.css", import.meta.url), "utf8");
+let n = 0; const ok = (c, m) => { assert.ok(c, m); n++; console.log("ok - " + m); };
+const blk = js.slice(js.indexOf("/* DP:start"), js.indexOf("/* DP:end */"));
+ok(blk.length > 200, "pure helper block present");
+const store = {}; const localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } };
+const H = new Function("localStorage", blk + "; return { DP_OPTS, dpDays, dpName, dpVs, dpBack, dpFwd, dpLoad, dpSave };")(localStorage);
+ok(H.DP_OPTS.map((o) => o[0]).join() === "7d,1m,6m,1y" && H.dpDays("1y") === 365 && H.dpDays("x") === 0, "four periods, unknown rejected");
+const DAY = 864e5, now = Date.UTC(2026, 9, 17, 12);
+const at = (d) => ({ t: now - d * DAY });
+const L = [at(0.5), at(3), at(6.9), at(8), at(13), at(20), at(40), at(200)];
+let w = H.dpBack(L, (x) => x.t, now, 7); ok(w.cur === 3 && w.prev === 2 && w.items.length === 3, "7d: current vs previous 7 days");
+w = H.dpBack(L, (x) => x.t, now, 30); ok(w.cur === 6 && w.prev === 1, "1m: current vs previous 30 days");
+w = H.dpBack(L.concat([{ t: NaN }, { t: now + DAY }]), (x) => x.t, now, 365); ok(w.cur === 8 && w.prev === 0, "1y: bad / future dates ignored");
+const today = new Date(2026, 9, 17).getTime();
+const E = ["2026-10-17", "2026-10-23", "2026-10-24", "2026-10-10", "2026-10-09", "2026-11-30", "bad"].map((d) => ({ date: d }));
+w = H.dpFwd(E, (e) => e.date, today, 7); ok(w.cur === 2 && w.prev === 1 && w.items[0].date === "2026-10-17", "forward 7d window vs 7 days before today");
+w = H.dpFwd(E, (e) => e.date, today, 182); ok(w.cur === 4 && w.prev === 2, "forward 6m window");
+const defs = { up: "1m", conf: "1m", quotes: "1m", leads: "7d" };
+ok(JSON.stringify(H.dpLoad("u1", defs)) === JSON.stringify(defs), "defaults = each tile's previous period");
+H.dpSave("u1", Object.assign({}, defs, { leads: "6m" }));
+ok(H.dpLoad("u1", defs).leads === "6m" && H.dpLoad("u2", defs).leads === "7d", "remembered per user");
+store["helm.dash.kpiPeriod.u3"] = '{"up":"999d"'; ok(H.dpLoad("u3", defs).up === "1m", "corrupt / invalid stored value falls back");
+const thrower = { getItem() { throw new Error("blocked"); }, setItem() { throw new Error("blocked"); } };
+const H2 = new Function("localStorage", blk + "; return { dpLoad, dpSave };")(thrower);
+ok(H2.dpLoad("u", defs).up === "1m" && (H2.dpSave("u", defs), true), "storage errors are swallowed");
+ok(/hd-delta-same", "– no change "/.test(js), "unchanged shows a dash, not an arrow");
+ok(/dpTile\(tiles\[0\], "up", true/.test(js) && /dpTile\(tiles\[1\], "conf"/.test(js) && /dpTile\(tiles\[2\], "quotes"/.test(js) && /dpTile\(tiles\[3\], "leads"/.test(js), "each money-role tile has its own selector");
+const kp = js.slice(js.indexOf("var dpUid"), js.indexOf("// task-centric roles"));
+ok(!/HelmMoney|data-money|\.total\b/.test(kp), "period tiles show counts only (no amounts to hide)");
+ok(/\.hd-kpi-per \{ position: relative; z-index: 2/.test(css) && /max-width: 640px\) \{[^\n]*\.hd-kpi-per \{ min-height: 32px/.test(css), "select sits above tile link; touch-size on mobile");
+console.log("dashboard-period: " + n + " checks passed");
