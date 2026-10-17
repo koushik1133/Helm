@@ -257,3 +257,5 @@ forward  supabase/migrations/0158_mfa_verify_hook.sql
 forward  supabase/migrations/0159_direct_studio_plan_gate.sql
 # 0160 (client page money: client_timeline Due counts only CONFIRMED events, each max(quote total + approved change orders - paid, 0) - the settlement balance; unconfirmed quotes no longer inflate Due; "Status now" / client status read confirmed for a confirmed event left on stage quote; one read-only function re-issued, no rows changed) goes after 0094.
 forward  supabase/migrations/0160_client_due_confirmed_only.sql
+# 0161 (crew schedule calendar: read-only SECURITY DEFINER crew_schedule(p_from, p_to, p_staff) returns schedule fields only - event, date, start/end, venue name, role, shift - never money or client contact; crew see only their own assignments, staff/calendar viewers (not crew) see any crew in their org; org-scoped by current_org_id(); max 62 days; no tables, no rows changed) goes after 0153.
+forward  supabase/migrations/0161_crew_schedule.sql
