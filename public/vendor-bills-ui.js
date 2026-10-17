@@ -210,6 +210,9 @@
   // ---------------- Closure / Budget: per-event P&L ----------------
   async function mountPnl(box) {
     var B = S(), id = qid(); if (!id) return;
+    // QA1017: event_pnl needs finance view (42501 otherwise) - roles without it keep the page's older card
+    var finOk = true; try { finOk = await B.auth.canView("finance"); } catch (e) { finOk = false; }
+    if (!finOk) { box.hidden = true; return; }
     var fmt = await fmtFor(id);
     clear(box); box.classList.add("card", "vb-card");
     box.appendChild(el("h2", null, "📊 Net profit"));
@@ -260,9 +263,16 @@
         var c = el("div", "vb-chip " + x[2]); c.appendChild(el("span", null, x[0])); c.appendChild(money(el("b", null, fmt(Number(x[1] || 0))))); tiles.appendChild(c);
       });
       h.appendChild(tiles);
+      if (Array.isArray(pay.currencies) && pay.currencies.length > 1) h.appendChild(el("p", "vb-muted", "Bills are in more than one currency (" + pay.currencies.join(", ") + "); these totals add them together."));
     }
     var evs = biz && Array.isArray(biz.events) ? biz.events : [];
     if (!evs.length) { h.appendChild(el("p", "vb-muted", "No confirmed events in the last 12 months or the next 12 yet.")); return; }
+    // QA1017: never add amounts in different currencies - totals use the studio currency only, others are listed apart
+    var sCur = "INR"; try { sCur = String(B.studioCurrency() || "INR").toUpperCase(); } catch (e) {}
+    var other = evs.filter(function (e) { return e.currency && String(e.currency).toUpperCase() !== sCur; });
+    evs = evs.filter(function (e) { return !e.currency || String(e.currency).toUpperCase() === sCur; });
+    if (other.length) h.appendChild(el("p", "vb-muted", other.length + " event" + (other.length > 1 ? "s" : "") + " priced in another currency (" + other.map(function (e) { return String(e.currency).toUpperCase(); }).filter(function (c, i, a) { return a.indexOf(c) === i; }).join(", ") + ") not included in the " + sCur + " totals below."));
+    if (!evs.length) return;
     var byMonth = {};
     evs.forEach(function (e) { var m = String(e.date || "").slice(0, 7); if (!m) return; byMonth[m] = byMonth[m] || { rev: 0, net: 0, n: 0 }; byMonth[m].rev += Number(e.revenue || 0); byMonth[m].net += Number(e.net_profit || 0); byMonth[m].n++; });
     function table(head, rows) {

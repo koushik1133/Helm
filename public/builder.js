@@ -4605,7 +4605,8 @@ async function init(){
   }
   // Role gate: view-only roles (crew/client) get a read-only builder; capture create capability
   if(BPStore.auth.enabled() && BPStore.auth.user()){
-    const editable = await BPStore.auth.can('edit');
+    // QA1017: editable follows the has_area matrix (what add_quote_version enforces), not the fixed ROLE_CAPS list
+    const editable = (await BPStore.auth.canEditArea('layouts')) || (await BPStore.auth.canEditArea('quotes'));
     CAN_CREATE = await BPStore.auth.can('create');
     if(!editable) applyReadonly(await BPStore.auth.role());
   }

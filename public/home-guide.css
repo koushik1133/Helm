@@ -27,7 +27,7 @@
 .hg-link{align-self:flex-start;font-size:13px;font-weight:700;color:#08603f}
 .hg-ctas{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
 .hg-cta,.hg-cta2{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:99px;font-size:14px;font-weight:700;text-decoration:none}
-.hg-cta{background:#0d8a5c;color:#fff}.hg-cta:hover{background:#08603f}
+.hg-cta{background:#0b7d53;color:#fff}.hg-cta:hover{background:#08603f}
 .hg-cta2{background:#e3f5ec;color:#08603f}
 .hg-chips{display:flex;flex-wrap:wrap;gap:6px;padding:10px 14px;border-top:1px solid rgba(16,21,17,.07)}
 .hg-chips:empty{display:none}

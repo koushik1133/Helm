@@ -1108,7 +1108,7 @@ window.HelmUrl = HelmUrl;
     supervisor:  ["view", "edit"],
     quality:     ["view", "edit"],
     operations:  ["view", "edit"],
-    designer:    ["view", "create", "edit"],
+    designer:    ["view", "edit"],              // QA1017: server can_create() = admin/planner/sales - no create
     crew:        ["view"],
     worker:      ["view"],
     client:      ["view"],
