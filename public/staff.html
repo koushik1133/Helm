@@ -184,7 +184,7 @@
 <script src="config.js?v=102"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=232"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=233"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=3"></script>
@@ -194,7 +194,7 @@
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const EMP={full_time:"Full-time",part_time:"Part-time",on_call:"On-call"};
   const initials=(n)=>String(n||"?").replace(/^\s*demo\s*[·•\-:]\s*/i,"").replace(/[^\p{L}\p{N}\s]/gu," ").trim().split(/\s+/).filter(Boolean).slice(0,2).map(w=>w[0]||"").join("").toUpperCase()||"?";
-  let attrDefs=[], attrEd=null, team=[], canEdit=false, canDelete=false, editingId=null, filter="", deptF="", skillF="", showInactive=false;
+  let attrDefs=[], attrEd=null, team=[], canEdit=false, canDelete=false, canCal=false, editingId=null, filter="", deptF="", skillF="", showInactive=false;
   const quoteId=new URLSearchParams(location.search).get("quote")||new URLSearchParams(location.search).get("id");
   let eventCrew=new Set(), eventOnly=!!quoteId, eventCode="";
 
@@ -291,7 +291,7 @@
       ${(()=>{ const al=typeof HelmImportCore!=="undefined"?HelmImportCore.attrList("staff",s.attributes,attrDefs):[]; return al.length?`<div class="tags attrs">${al.slice(0,6).map(a=>`<span class="tag" title="${esc(a.label)}: ${esc(a.value)}"><b>${esc(a.label)}:</b> ${esc(a.value.slice(0,40))}</span>`).join("")}${al.length>6?`<span class="tag">+${al.length-6} more</span>`:""}</div>`:""; })()}
       <div class="meta">${[s.phone,s.email].filter(Boolean).map(esc).join(" · ")}${s.day_rate?`<br>${BPStore.studioMoney(s.day_rate)}/day`:""}</div>
       <div class="acts">
-        <a class="ic" href="calendar.html?staff=${encodeURIComponent(s.id)}#schedule" title="See ${esc(s.name||"this person")}'s event schedule (week / month)">Schedule</a>
+        ${canCal?`<a class="ic" href="calendar.html?staff=${encodeURIComponent(s.id)}#schedule" title="See ${esc(s.name||"this person")}'s event schedule (week / month)">Schedule</a>`:""}
         ${canEdit?`<button class="ic" data-act="edit">Edit</button>
         <button class="ic" data-act="toggle">${s.active===false?"Reactivate":"Deactivate"}</button>
         ${isAdminUser&&!linked&&s.email&&s.active!==false?`<button class="ic" data-act="invite" title="Create a sign-up link for ${esc(s.email)} with their role">${BPStore.staff.loginStatus(s,invites)==="invited"?"Copy invite link":"Invite to log in"}</button>${BPStore.staff.loginStatus(s,invites)==="invited"?`<button class="ic" data-act="resend" title="E-mail the invite link to ${esc(s.email)} again">Resend email</button>`:""}`:""}`:""}
@@ -554,6 +554,7 @@
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("staff"))) return;
     canEdit=await BPStore.auth.canEditArea("staff"); canDelete=await BPStore.auth.can("delete");
+    canCal=await BPStore.auth.canView("calendar").catch(()=>false);   // verify-166: the Schedule link opens calendar.html - hide it when the role can't open that page
     isAdminUser=(await BPStore.auth.role())==="admin";
     try{ await loadLoginInfo(); }catch(e){}
     $("#newBtn").hidden=!canEdit; $("#importBtn").hidden=!canEdit||!window.HelmImport;

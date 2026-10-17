@@ -120,7 +120,7 @@ t('task schedule: earlier today is blocked (time-level check)', () => {
 });
 t('dashboard: no "Good evening" before 5 AM', () => {
   const j = r('public/shell-b-dash.js');
-  assert.match(j, /var greet = hr < 5 \? "Hello"/); assert.match(r('public/shell-proto.js'), /SHELL_V = "114"/);
+  assert.match(j, /var greet = hr < 5 \? "Hello"/); assert.match(r('public/shell-proto.js'), /SHELL_V = "115"/);
 });
 t('flow step 9: next-step says confirmed only after an advance', () => {
   const h = r('public/flow.html');

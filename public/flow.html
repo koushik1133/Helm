@@ -368,7 +368,7 @@
 <script src="config.js?v=102"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=232"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=233"></script>
 <script src="tour.js?v=14"></script>
 <script src="booklet.js?v=18"></script>
 <script src="share-checklist.js?v=9"></script>
@@ -1293,7 +1293,14 @@
     if(fromBuilder){ try{ const u=new URL(location.href); u.searchParams.delete("from"); history.replaceState(history.state,"",u.pathname+u.search+u.hash); }catch{} }
     if(fromBuilder){ await syncFromLayout(true); $("#sec-quote").scrollIntoView({behavior:"auto",block:"start"}); }
     // money-1024: event page "Record advance" deep-links to the payment step (#sec-pay) - re-scroll once the content has loaded
-    else if(location.hash==="#sec-pay" && $("#sec-pay")){ try{ $("#sec-pay").scrollIntoView({behavior:"auto",block:"start"}); }catch{} }
+    // verify-166: the page is still hidden / laying out when loadAll ends (page ~700px tall), so one scroll lands at the top -
+    // retry for up to ~3s until #sec-pay sits at the top, and stop as soon as the user scrolls / taps / types themselves
+    else if(location.hash==="#sec-pay" && $("#sec-pay")){ let n=0, stop=false; const halt=()=>{ stop=true; };
+      ["wheel","touchstart","keydown","mousedown"].forEach(t=>addEventListener(t,halt,{once:true,passive:true}));
+      const go=()=>{ if(stop) return; const s=$("#sec-pay"); if(!s) return; try{ s.scrollIntoView({behavior:"auto",block:"start"}); }catch{}
+        const laidOut=s.getClientRects().length>0 && s.offsetHeight>0;   // still hidden while the page reveals - a 0 top means nothing then
+        if((!laidOut || Math.abs(s.getBoundingClientRect().top)>24) && ++n<20) setTimeout(go,150); };
+      go(); }
   }
   // The floor layout drives chairs + décor/setup ("other"). After the builder saves a new
   // layout version, bring the quotation in line with it (same rules as the builder's own

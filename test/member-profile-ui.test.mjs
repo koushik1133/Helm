@@ -282,7 +282,7 @@ t('control.html wiring: members() + edit dialog fields + Day rate / Employment t
 
 /* ------------------------------------------------------------ Staff directory */
 t('staff: linked rows get the "Linked account" badge + photo; unlinked unchanged; escaped', () => {
-  const ctx = { esc, EMP: { full_time: 'Full-time' }, canEdit: true, memberDir: { [U(7)]: { avatar_path: AV(U(7)) } },
+  const ctx = { esc, EMP: { full_time: 'Full-time' }, canEdit: true, canCal: true, memberDir: { [U(7)]: { avatar_path: AV(U(7)) } },
     initials: (n) => String(n || '?').slice(0, 1), isAdminUser: false, invites: [], loginRoles: {},
     BPStore: { staff: { isLinked: (s) => !!(s && s.profile_id), phoneInvalid: () => false, matchRole: () => null, roleLabel: (r) => r,
       loginStatus: (s) => (s && s.profile_id ? 'active' : 'none') } } };
