@@ -35,7 +35,7 @@ assert.match(code, /mny\(el\("b", "hd-rv-total"\)\)/, "revenue total is data-mon
 assert.match(code, /HM\(\)\.revenueBars\(booked, collected, now, "hd-rv-"\)/, "chart from shell-b-money.js (svg is data-money)");
 assert.match(code, /canView\("finance"\)\.then/, "revenue gated on finance view");
 for (const b of ["calendar", "revenue", "upcoming", "followups", "notes", "activity", "attention", "pipeline"]) assert.match(code, new RegExp('block: "' + b + '"'), "data-block " + b);
-assert.ok(code.includes("A free day, nothing booked."), "calendar empty day");
+assert.ok(code.includes("No events on this day"), "calendar empty day");
 assert.ok(!/dataset\.money\s*=/.test(code), "no dataset.money assignment");
 assert.match(css, /\.hd-dash \.hd-money\s*\{\s*display:\s*none/, "hd-money spans are hidden");
 console.log("dashboard-redesign: ok");

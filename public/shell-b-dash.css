@@ -677,3 +677,15 @@ html[data-shell="b"] .hd-kpi-sub { white-space: normal; display: -webkit-box; -w
 html[data-shell="b"] .hd-main small { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 /* the floating demo/trial note docks bottom-left: leave room so the last card can scroll clear of it */
 @media (min-width: 601px) { html[data-shell="b"] body:has(.hau-note.dock-left:not([hidden])) .hd-dash { padding-bottom: 180px; } }
+
+/* Dashboard clarity (Oct 2026): reason chips, revenue month summary, wrapped calendar names */
+html[data-shell="b"] .hd-why { display: inline-block; max-width: 100%; margin: 2px 0; padding: 1px 8px; border-radius: var(--hd-r-pill); font: 600 11px/16px var(--hd-f-ui); white-space: normal; color: var(--hd-ink-2); background: var(--hd-card-2); }
+html[data-shell="b"] .hd-why-risk { color: var(--hd-risk); background: var(--hd-risk-soft); }
+html[data-shell="b"] .hd-why-warn { color: var(--hd-warn, var(--hd-ink-2)); background: var(--hd-warn-soft, var(--hd-card-2)); }
+html[data-shell="b"] .hd-main .hd-why + small { display: block; }
+html[data-shell="b"] .hd-delta-new { font-weight: 500; }
+html[data-shell="b"] .hd-rv-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 8px 0 12px; }
+html[data-shell="b"] .hd-rv-sum-i { padding: 8px 10px; border-radius: var(--hd-r-md); background: var(--hd-card-2); }
+html[data-shell="b"] .hd-rv-sum-i small { display: block; }
+html[data-shell="b"] .hd-rv-sum-i b { font: 600 15px/22px var(--hd-f-ui); font-variant-numeric: tabular-nums; }
+html[data-shell="b"] .hd-ag-row .hd-main b { white-space: normal; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }

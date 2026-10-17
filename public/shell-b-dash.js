@@ -978,15 +978,16 @@
         var foot = el("div", "hd-kpi-foot hd-dots7"); foot.setAttribute("aria-hidden", "true");
         o.dots.forEach(function (on) { foot.appendChild(el("i", on ? "hd-on" : null)); }); t.appendChild(foot);
       }
-      if (o.tip) { var tp = el("span", "hd-tip", o.tip); tp.id = "hdTip" + tiles.indexOf(t); tp.setAttribute("role", "tooltip"); t.appendChild(tp); }
+      if (o.tip) { t.title = o.tip; var tp = el("span", "hd-tip", o.tip); tp.id = "hdTip" + tiles.indexOf(t); tp.setAttribute("role", "tooltip"); t.appendChild(tp); }
       if (o.href) { var a = link(o.href, "hd-kpi-a"); a.setAttribute("aria-label", o.label + ": open"); if (o.tip) a.setAttribute("aria-describedby", "hdTip" + tiles.indexOf(t)); t.appendChild(a); }
     }
-    function delta(curV, prevV, goodUp) {
-      if (!prevV) return el("span", "hd-delta hd-delta-na", "—");
+    function delta(curV, prevV, goodUp, vsTxt) {
+      vsTxt = vsTxt || "vs previous period";
+      if (!prevV) { var n0 = el("span", "hd-delta hd-delta-na hd-delta-new", curV ? "new" : "no data " + vsTxt.replace(/^vs /, "")); n0.title = "Nothing to compare with " + vsTxt.replace(/^vs /, ""); return n0; }
       var p = Math.round(((curV - prevV) / Math.abs(prevV)) * 100), up = p >= 0;
       var good = goodUp === false ? !up : up;
-      var d = el("span", "hd-delta " + (p === 0 ? "hd-delta-na" : good ? "hd-delta-up" : "hd-delta-dn"), (up ? "▲ " : "▼ ") + Math.abs(p) + "%");
-      d.title = "vs previous period"; return d;
+      var d = el("span", "hd-delta " + (p === 0 ? "hd-delta-na" : good ? "hd-delta-up" : "hd-delta-dn"), (up ? "▲ " : "▼ ") + Math.abs(p) + "% " + vsTxt);
+      d.title = (up ? "Up " : "Down ") + Math.abs(p) + "% " + vsTxt; return d;
     }
     if (!kpis.hidden) {
       if (isMoney) {
@@ -998,17 +999,17 @@
         tile(tiles[0], { label: "Upcoming · 30d", tip: "Events dated in the next 30 days. Dots show the next 7 days.", ic: IC.cal, value: up30.length, sub: nx0 ? "Next: " + nx0.name + ", " + (nx0.date === today ? "today" : fmtDay(nx0.date)) : "Nothing booked yet", dots: dots7, href: vCal ? "calendar.html" : null });
         var pc0 = mStage("confirmed"), confN = pc0 ? pc0.n : counts && typeof counts.confirmed === "number" ? counts.confirmed : curRows.filter(function (q) { return q.status === "confirmed" && q.lifecycleStage !== "closed"; }).length;
         var confSeries = monthSeries(rows.filter(function (q) { return q.status === "confirmed"; }), function (q) { return q.confirmedAt || q.eventDate || q.updatedAt; }, function () { return 1; }, 7);
-        tile(tiles[1], { label: "Confirmed events", tip: "Confirmed events not yet closed. The arrow compares confirmations this month with last month.", ic: IC.check, value: vQuotes ? confN : null, delta: vQuotes ? delta(confSeries[6], confSeries[5]) : null,
+        tile(tiles[1], { label: "Confirmed events", tip: "Confirmed events not yet closed. The arrow compares confirmations this month with last month.", ic: IC.check, value: vQuotes ? confN : null, delta: vQuotes ? delta(confSeries[6], confSeries[5], true, "vs last month") : null,
           sub: vQuotes ? confSeries[6] + " confirmed this month" : "No access to quotes", spark: vQuotes ? confSeries : null, href: vQuotes ? "quotes.html" : null });
         var mo = mStage("open"), ms = mStage("sent");
         var openN = mo && ms ? mo.n + ms.n : counts && typeof counts.quote === "number" ? counts.quote : rows.filter(function (q) { return q.status === "quote"; }).length;
         var waitN = rows.filter(function (q) { return q.status === "quote" && (q.approvalStatus === "sent" || q.approvalStatus === "viewed"); }).length;
-        tile(tiles[2], { label: "Open quotes", tip: "Quotes still in progress, including ones sent to clients.", ic: IC.doc, value: vQuotes ? openN : null, sub: vQuotes ? (waitN ? waitN + " awaiting client" : "None waiting on a client") : "No access to quotes", subKind: waitN ? "wait" : null,
+        tile(tiles[2], { label: "Open quotes", tip: "Quotes still in progress, including ones sent to clients.", ic: IC.doc, value: vQuotes ? openN : null, sub: vQuotes ? (waitN ? waitN + " sent, waiting for client reply" : "None waiting on a client") : "No access to quotes", subKind: waitN ? "wait" : null,
           spark: vQuotes ? monthSeries(rows, function (q) { return q.createdAt; }, function () { return 1; }, 7) : null, href: vQuotes ? "quotes.html" : null });
         if (vLeads) {
           var nowT = Date.now(), l7 = 0, lp7 = 0;
           leads.forEach(function (l) { var t = l.created_at ? new Date(l.created_at).getTime() : NaN; if (!isFinite(t)) return; var a = nowT - t; if (a >= 0 && a < 7 * DAY) l7++; else if (a >= 7 * DAY && a < 14 * DAY) lp7++; });
-          tile(tiles[3], { label: "New leads · 7d", tip: "Enquiries received in the last 7 days, compared with the 7 days before.", ic: IC.user, value: l7, delta: delta(l7, lp7), sub: (mOpenLeads != null ? mOpenLeads : openLeads.length) + " open" + (staleLeads.length ? " · " + staleLeads.length + " waiting > 24h" : ""),
+          tile(tiles[3], { label: "New leads · last 7 days", tip: "Enquiries received in the last 7 days, compared with the 7 days before.", ic: IC.user, value: l7, delta: delta(l7, lp7, true, "vs previous 7 days"), sub: (mOpenLeads != null ? mOpenLeads : openLeads.length) + " open in total" + (staleLeads.length ? " · " + staleLeads.length + " not contacted for 24h+" : ""),
             subKind: staleLeads.length ? "wait" : null, href: "leads.html" });
         } else {
           tile(tiles[3], { label: "Tasks overdue", tip: "Your tasks past their due date.", ic: IC.task, value: tasks ? (tc.overdue || 0) : null, sub: tasks ? (tc.today || 0) + " due today" : "Tasks unavailable", subKind: tc.overdue ? "bad" : null, href: "#mytasksSection" });
@@ -1076,35 +1077,36 @@
     /* ---- S3 needs attention ---- */
     (function () {
       var b = body(cAtt), items = [];
-      function add(rank, kind, title, ctx, href, act, code) { items.push({ rank: rank, kind: kind, title: title, ctx: ctx, href: href, act: act, code: code }); }
-      ((tasks && tasks.overdue) || []).forEach(function (t) { add(1, "risk", (t.title || "Task") + " is overdue", [t.event_title, t.planned_end ? "due " + fmtDay(t.planned_end) : ""].filter(Boolean).join(" · "), t.quote_id ? evHref(t.quote_id) : "#mytasksSection", "Open", t.event_code); });
+      function add(rank, kind, title, ctx, href, act, code, why) { items.push({ rank: rank, kind: kind, title: title, why: why, ctx: ctx, href: href, act: act, code: code }); }
+      ((tasks && tasks.overdue) || []).forEach(function (t) { add(1, "risk", t.title || "Task", [t.event_title, t.planned_end ? "due " + fmtDay(t.planned_end) : ""].filter(Boolean).join(" · "), t.quote_id ? evHref(t.quote_id) : "#mytasksSection", "Open", t.event_code, "Task overdue"); });
       if (vQuotes) rows.forEach(function (q) {
         if (q.status === "confirmed" && q.lifecycleStage !== "closed" && q.eventDate && String(q.eventDate).slice(0, 10) < today)
-          add(2, "risk", qName(q) + " — settlement pending", "event was " + fmtDay(q.eventDate), "settlement.html?quote=" + encodeURIComponent(q.id), "Settle", q.code);
+          add(2, "risk", qName(q), "event was " + fmtDay(q.eventDate), "settlement.html?quote=" + encodeURIComponent(q.id), "Settle", q.code, "Settlement pending");
       });
       if (MFIN) (M.overdue || []).forEach(function (o) {
         if (!o || !o.quote_id) return;
         // client-safe: no amount on the dashboard (the Business page has it)
-        add(2, "risk", "Payment overdue · " + (o.client || o.title || o.code || "Event"), [o.title && o.client ? o.title : "", "due " + fmtDay(o.due_date)].filter(Boolean).join(" · "),
-          "settlement.html?quote=" + encodeURIComponent(o.quote_id), "Collect", o.code);
+        add(2, "risk", o.client || o.title || o.code || "Event", [o.title && o.client ? o.title : "", "due " + fmtDay(o.due_date)].filter(Boolean).join(" · "),
+          "settlement.html?quote=" + encodeURIComponent(o.quote_id), "Collect", o.code, "Payment overdue");
       });
       events.forEach(function (e) {
         if (e.date >= today && (dOf(e.date) - todayD) <= 3 * DAY && e.open > 0)
-          add(3, "warn", e.name + " — " + e.open + " open task" + (e.open === 1 ? "" : "s"), e.date === today ? "Today" : fmtDay(e.date), evHref(e.id), "Review", e.code);
+          add(3, "warn", e.name, e.date === today ? "Today" : fmtDay(e.date), evHref(e.id), "Review", e.code, (e.date === today ? "Event today" : "Event in " + Math.round((dOf(e.date) - todayD) / DAY) + " days") + " - " + e.open + " open task" + (e.open === 1 ? "" : "s"));
       });
       // 0129: confirmed events inside the studio's reminder window ("Upcoming in N days")
       var ER = window.HelmEventReminders, erWin = ER ? ER.days() : 7;
       if (ER && vQuotes) rows.forEach(function (q) {
         if (q.status !== "confirmed" || q.lifecycleStage === "closed" || !q.eventDate) return;
         var dl = ER.daysUntil(q.eventDate);
-        if (dl != null && dl >= 0 && dl <= erWin) add(3, "warn", qName(q) + " — " + ER.chipText(dl).toLowerCase(), "check the checklist, staff and vendors", evHref(q.id), "Get ready", q.code);
+        if (dl != null && dl >= 0 && dl <= erWin) add(3, "warn", qName(q), "check the checklist, staff and vendors", evHref(q.id), "Get ready", q.code, ER.chipText(dl));
       });
-      ((tasks && tasks.blocked) || []).forEach(function (t) { add(4, "warn", (t.title || "Task") + " is blocked", t.event_title || "", t.quote_id ? evHref(t.quote_id) : "#mytasksSection", "Unblock", t.event_code); });
+      ((tasks && tasks.blocked) || []).forEach(function (t) { add(4, "warn", t.title || "Task", t.event_title || "", t.quote_id ? evHref(t.quote_id) : "#mytasksSection", "Unblock", t.event_code, "Task blocked"); });
       var folShows = !cFol.hidden && !signedOut;   // Follow-ups owns "waiting on a reply" (stale leads, unanswered quotes): no duplicates here
-      if (vLeads && !folShows) staleLeads.forEach(function (l) { add(5, "warn", (l.name || "Unnamed lead") + " — new lead not contacted", [l.event_type, l.event_date ? fmtDay(l.event_date) : "", "came in " + ago(l.created_at)].filter(Boolean).join(" · "), "leads.html", "Reply"); });
+      if (vLeads && !folShows) staleLeads.forEach(function (l) { add(5, "warn", l.name || "Unnamed lead", [l.event_type, l.event_date ? fmtDay(l.event_date) : "", "came in " + ago(l.created_at)].filter(Boolean).join(" · "), "leads.html", "Reply", null, "Not contacted"); });
       if (vQuotes && !folShows) rows.forEach(function (q) {
         if (q.status === "quote" && (q.approvalStatus === "sent" || q.approvalStatus === "viewed") && q.updatedAt && Date.now() - new Date(q.updatedAt).getTime() > 3 * DAY)
-          add(6, "info", qName(q) + " — awaiting client", (q.approvalStatus === "viewed" ? "viewed " : "sent ") + Math.floor((Date.now() - new Date(q.updatedAt).getTime()) / DAY) + " days ago", evHref(q.id), "Follow up", q.code);
+          var wd = Math.floor((Date.now() - new Date(q.updatedAt).getTime()) / DAY);
+          add(6, "info", qName(q), (q.approvalStatus === "viewed" ? "viewed " : "sent ") + wd + " days ago", evHref(q.id), "Follow up", q.code, "Waiting for client " + wd + " days");
       });
       items.sort(function (a, b2) { return a.rank - b2.rank; });
       if (items.length) { var bd = pill(items[0].kind === "risk" ? "risk" : items[0].kind === "warn" ? "warn" : "info", items.length); bd.classList.add("hd-count-pill"); bd.setAttribute("aria-label", items.length + " items"); tools(cAtt).insertBefore(bd, tools(cAtt).firstChild); }
@@ -1121,6 +1123,8 @@
         var li = el("li"), a = link(it.href, "hd-att-i");
         var g = el("span", "hd-glyph hd-g-" + it.kind); g.appendChild(icon(GL[it.kind] || IC.info)); a.appendChild(g);
         var m = el("span", "hd-main"); m.appendChild(el("b", null, it.title));
+        if (it.why) m.appendChild(el("span", "hd-why hd-why-" + it.kind, it.why));
+        a.title = [it.title, it.why, it.ctx].filter(Boolean).join(" — ");
         if (it.code || it.ctx) { var sm = el("small"); if (it.code) sm.appendChild(el("span", "hd-code", it.code)); if (it.ctx) sm.appendChild(document.createTextNode((it.code ? " · " : "") + it.ctx)); m.appendChild(sm); }
         a.appendChild(m);
         var ac = el("span", "hd-act-l", it.act); ac.appendChild(icon(IC.arrow)); a.appendChild(ac);
@@ -1192,6 +1196,14 @@
       hd.appendChild(el("span", "hd-rv-muted", "booked in the last 12 months"));
       if (collected) { var cc = el("span", "hd-rv-muted"); cc.appendChild(document.createTextNode("· ")); cc.appendChild(mny(el("span", null, cmpM(totC)))); cc.appendChild(document.createTextNode(" collected")); hd.appendChild(cc); }
       b.appendChild(hd);
+      var sumG = el("div", "hd-rv-sum");
+      function sumCell(lbl, val, money) { var c = el("div", "hd-rv-sum-i"); c.appendChild(el("small", "hd-eyebrow", lbl)); c.appendChild(money ? mny(el("b", null, cmpM(val))) : el("b", null, num(val))); sumG.appendChild(c); }
+      sumCell("Booked this month", booked[11], true);
+      if (collected) sumCell("Collected this month", collected[11], true);
+      sumCell("Booked last month", booked[10], true);
+      if (collected) sumCell("Collected last month", collected[10], true);
+      if (vLeads) sumCell("New leads this month", leads.filter(function (l) { var t = l.created_at ? new Date(l.created_at) : null; return t && t.getFullYear() === now.getFullYear() && t.getMonth() === now.getMonth(); }).length, false);
+      b.appendChild(sumG);
       if (collected) {
         var lg = el("div", "hd-rv-legend");
         [["hd-rv-lg-b", "Booked"], ["hd-rv-lg-c", "Collected"]].forEach(function (x) { var it = el("span", "hd-rv-lg-i"); it.appendChild(el("i", x[0])); it.appendChild(document.createTextNode(x[1])); lg.appendChild(it); });
@@ -1201,7 +1213,7 @@
       // QA: "no confirmed quotes" vs "confirmed quotes with no price / confirmed earlier" (0108 pipeline counts when present)
       var nConf = MP && MP.confirmed && MP.closed ? mN(MP.confirmed.count) + mN(MP.closed.count) : rows.filter(function (q) { return q.status === "confirmed"; }).length;
       if (!tot) b.appendChild(el("p", "hd-note", nConf ? "Your confirmed events add no booked value in the last 12 months yet \u2014 check that their quotes have a price." : "Revenue appears once your first quote is confirmed."));
-      b.appendChild(el("p", "hd-caption", (M ? "Exact numbers from your payment ledger. " : "Estimated from your latest quotes. ") + "Booked = confirmed value (" + CUR + ") by confirmation month." + (collected ? " Collected = payments recorded." : "")));
+      b.appendChild(el("p", "hd-caption", (M ? "Exact numbers from your payment ledger. " : "Estimated from your latest quotes. ") + "Booked = total value of events confirmed in that month (" + CUR + ")." + (collected ? " Collected = payments actually received in that month." : "")));
     });
 
     /* ---- S4b "Your month": month grid + selected day's events (real events, by date) ---- */
@@ -1226,7 +1238,7 @@
         hd.appendChild(el("b", null, d.toLocaleDateString(undefined, { day: "numeric", month: "long" })));
         agenda.appendChild(hd);
         var evs = byDay[ds] || [];
-        if (!evs.length) { var e0 = el("div", "hd-ag-empty"); e0.appendChild(icon(IC.cal)); e0.appendChild(el("span", null, "A free day, nothing booked.")); agenda.appendChild(e0); return; }
+        if (!evs.length) { var e0 = el("div", "hd-ag-empty"); e0.appendChild(icon(IC.cal)); e0.appendChild(el("span", null, "No events on this day")); agenda.appendChild(e0); return; }
         evs.forEach(function (e) {
           var a = link(evHref(e.id), "hd-ag-row hd-ag-" + stKey(e));
           a.appendChild(el("i", "hd-ag-bar"));
@@ -1285,7 +1297,7 @@
         var li = el("li", "hd-act hd-fol-i");
         var ini = String(it.who).split(/\s+/).filter(Boolean).slice(0, 2).map(function (x) { return x.charAt(0).toUpperCase(); }).join("") || "•";
         li.appendChild(el("span", "hd-av", ini));
-        var m = el("div", "hd-main"); m.appendChild(el("b", null, it.who)); m.appendChild(el("small", null, it.what + (it.ctx ? " · " + it.ctx : ""))); li.appendChild(m);
+        var m = el("div", "hd-main"); m.appendChild(el("b", null, it.who)); m.appendChild(el("span", "hd-why hd-why-warn", it.what)); if (it.ctx) m.appendChild(el("small", null, it.ctx)); li.title = [it.who, it.what, it.ctx].filter(Boolean).join(" — "); li.appendChild(m);
         li.appendChild(link(it.href, "hd-btn hd-ghost hd-sm", it.act)); ul.appendChild(li);
       });
       b.appendChild(ul); seeMore(ul, ul.children);
