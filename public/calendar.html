@@ -77,7 +77,7 @@
   .err{background:#fdecec;color:#b42318;border-radius:8px;padding:8px 12px;font-size:12px}
 </style>
 <link rel="stylesheet" href="calendar-polish.css?v=2">
-<link rel="stylesheet" href="crew-schedule.css?v=1">
+<link rel="stylesheet" href="crew-schedule.css?v=2">
 <link rel="stylesheet" href="theme.css?v=80">
 </head>
 <body>
@@ -128,9 +128,9 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=102"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=233"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=234"></script>
 <script src="tour.js?v=14"></script>
-<script src="crew-schedule.js?v=1"></script>
+<script src="crew-schedule.js?v=2"></script>
 <script>
 (function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
   const $=(s)=>document.querySelector(s);
@@ -142,7 +142,7 @@
   const weekday=(d)=>{ if(!validDate(d)) return ""; return new Date(d+"T00:00:00").toLocaleDateString("en-IN",{weekday:"long"}); };
   /* HelmUI empty state (guarded: falls back to the plain message if the kit isn't loaded) */
   const hEmpty=(host,o,cols)=>{ const H=window.HelmUI; if(!(H&&H.emptyState)||!host) return false; const n=H.emptyState(o); if(cols){ const tr=document.createElement("tr"),td=document.createElement("td"); td.colSpan=cols; td.className="hs-empty-cell"; td.appendChild(n); tr.appendChild(td); host.replaceChildren(tr); } else host.replaceChildren(n); return true; };
-  let canEdit=false, data=null, leadDates=[], canLeads=false, canQuotes=true;
+  let schedUI=null, canEdit=false, data=null, leadDates=[], canLeads=false, canQuotes=true;
   const isConfirmed=(e)=>String(e&&e.status||"").toLowerCase()==="confirmed";
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
@@ -236,7 +236,7 @@
     try{ data=await BPStore.calendar.load(); }
     catch(e){ $("#conflicts").innerHTML=""; $("#nodateWrap").hidden=true; BPUI.loadError($("#agenda"), e, load, {what:"the calendar"}); return; }
     leadDates=await pLeads; $("#lgLead").hidden=!canLeads;
-    render();
+    render(); if(schedUI&&schedUI.refresh) schedUI.refresh();
     if(!(data.agenda||[]).length && !canQuotes) await renderCrewEvents();
   }
   // crew-1020: crew can't read quotes, so the agenda is empty - list the events they are assigned to instead
@@ -259,7 +259,11 @@
     const canStaff=crewOnly?false:await BPStore.auth.canView("staff").catch(()=>false);
     const sp=new URLSearchParams(location.search), team=!crewOnly;
     const ui=HelmCrewSchedule.mount(el,{ team, staff:team?(sp.get("staff")||""):"", view:sp.get("view")||"week",
-      linkFor:(b)=>(crewOnly?"runsheet.html?id=":"event.html?id=")+encodeURIComponent(b.quote_id) });
+      linkFor:(b)=>(crewOnly?"runsheet.html?id=":"event.html?id=")+encodeURIComponent(b.quote_id),
+      // chip colour: quote status from the agenda (confirmed / tentative); open leads with a date as "Lead" chips
+      statusFor:(qid)=>{ const a=data&&(data.agenda||[]).find(x=>x.event&&x.event.id===qid); return a?a.event.status:""; },
+      extra:()=>leadDates.map(l=>({day:l.event_date,title:l.name||"Lead",href:"leads.html"})) });
+    schedUI=ui;
     if(team&&canStaff){ try{ const ppl=await BPStore.staff.list(); ui.setPeople((ppl||[]).map(p=>({id:p.id,name:p.name}))); }catch(e){} }
     if(sp.get("staff")&&location.hash==="#schedule") el.scrollIntoView({block:"start"});
   }

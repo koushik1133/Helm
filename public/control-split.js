@@ -194,7 +194,7 @@
       pagesDone=true; pagesBusy=false; if(q.value.trim()) search();
     },function(){ pagesBusy=false; });
   }
-  function openAcc(o){ try{ if(window.HelmAuthUI&&window.HelmAuthUI.openAccount) window.HelmAuthUI.openAccount(o); }catch(x){} }
+  function openAcc(o){ try{ if(CAT&&CAT.openAccountItem) CAT.openAccountItem(o,window); else if(window.HelmAuthUI&&window.HelmAuthUI.openAccount) window.HelmAuthUI.openAccount(o); }catch(x){} }
   var ACCOUNT=(CAT?CAT.ACCOUNT:[]).map(function(a){ return {text:a.text,kw:a.kw,run:function(){ openAcc(a.open); }}; }); // every signed-in person, own account only
   ACCOUNT.push({text:"Hide or show amounts now",kw:"privacy hide money amounts present eye",run:function(){ if(window.HelmPrivacy&&window.HelmPrivacy.toggle) window.HelmPrivacy.toggle(); }});
   var GENERIC=/^(save|copy|cancel|close|remove|delete|edit|ok|done|yes|no|[^a-z0-9]{1,3})$/i;
@@ -218,7 +218,7 @@
     });
     // every section by name, description and keywords (covers rows that load on first open)
     SECTIONS.forEach(function(s){ if(!available(s)) return; out.push({kind:"section",el:null,card:null,text:s.label,sec:s.key,title:s.label,context:s.group,keywords:s.desc+" "+s.kw,alias:CATSEC[s.key]&&CATSEC[s.key].alias,boost:0.05}); });
-    ACCOUNT.forEach(function(a){ out.push({kind:"account",text:a.text,context:"Your account",keywords:a.kw,run:a.run}); });
+    ACCOUNT.forEach(function(a){ out.push({kind:"account",text:a.text,context:"Your account",keywords:a.kw,run:a.run,boost:0.2}); });   // QA1026 #5: own-account items (2FA) beat cards that only share a synonym
     PAGES.forEach(function(p){ out.push({kind:"page",text:p.text,context:"Page",keywords:p.kw,href:p.href}); });
     return out;
   }

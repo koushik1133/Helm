@@ -56,7 +56,7 @@
   const doc = global.document;
   // search-catalog.js (pages, Control Center sections + settings, account items) and the smart matcher
   // settings-search-core.js load next to this file on first open (loader constants: bumped with the files)
-  const CATALOG_V = "1", SSC_V = "1";
+  const CATALOG_V = "2", SSC_V = "1";
   const SELF = (() => { try { return doc && doc.currentScript && doc.currentScript.src || ""; } catch (e) { return ""; } })();
   const isMac = (() => { try { return /Mac|iPhone|iPad/.test(global.navigator.platform || global.navigator.userAgent || ""); } catch (e) { return false; } })();
 
@@ -493,7 +493,10 @@
     if (r.kind === "result" || r.kind === "nav" || r.kind === "account") recentAdd(S.q);
     if (r.kind === "account") {
       close();
-      try { if (global.HelmAuthUI && global.HelmAuthUI.openAccount) global.HelmAuthUI.openAccount(r.open || {}); } catch (e) {}
+      try {
+        if (global.HelmSearchCatalog && global.HelmSearchCatalog.openAccountItem) global.HelmSearchCatalog.openAccountItem(r.open || {}, global);
+        else if (global.HelmAuthUI && global.HelmAuthUI.openAccount) global.HelmAuthUI.openAccount(r.open || {});
+      } catch (e) {}
       return;
     }
     if (!r.href) return;

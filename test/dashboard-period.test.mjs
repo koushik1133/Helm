@@ -1,4 +1,4 @@
-// Dashboard KPI period filter: per-tile 7d / 1m / 6m / 1y, previous-equal-period comparison,
+// Dashboard KPI period filter: ONE universal 7D / 1M / 6M / 1Y segmented control for all four tiles, previous-equal-period comparison,
 // per-user localStorage memory (try/catch), counts only (no amounts), no SQL.
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
@@ -8,7 +8,7 @@ let n = 0; const ok = (c, m) => { assert.ok(c, m); n++; console.log("ok - " + m)
 const blk = js.slice(js.indexOf("/* DP:start"), js.indexOf("/* DP:end */"));
 ok(blk.length > 200, "pure helper block present");
 const store = {}; const localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } };
-const H = new Function("localStorage", blk + "; return { DP_OPTS, dpDays, dpName, dpVs, dpBack, dpFwd, dpLoad, dpSave, dpLabel };")(localStorage);
+const H = new Function("localStorage", blk + "; return { DP_OPTS, dpDays, dpName, dpVs, dpBack, dpFwd, dpLoad, dpSave, dpLabel, dpDelta };")(localStorage);
 ok(H.DP_OPTS.map((o) => o[0]).join() === "7d,1m,6m,1y" && H.dpDays("1y") === 365 && H.dpDays("x") === 0, "four periods, unknown rejected");
 const DAY = 864e5, now = Date.UTC(2026, 9, 17, 12);
 const at = (d) => ({ t: now - d * DAY });
@@ -20,19 +20,25 @@ const today = new Date(2026, 9, 17).getTime();
 const E = ["2026-10-17", "2026-10-23", "2026-10-24", "2026-10-10", "2026-10-09", "2026-11-30", "bad"].map((d) => ({ date: d }));
 w = H.dpFwd(E, (e) => e.date, today, 7); ok(w.cur === 2 && w.prev === 1 && w.items[0].date === "2026-10-17", "forward 7d window vs 7 days before today");
 w = H.dpFwd(E, (e) => e.date, today, 182); ok(w.cur === 4 && w.prev === 2, "forward 6m window");
-const defs = { up: "1m", conf: "1m", quotes: "1m", leads: "7d" };
-ok(JSON.stringify(H.dpLoad("u1", defs)) === JSON.stringify(defs), "defaults = each tile's previous period");
-H.dpSave("u1", Object.assign({}, defs, { leads: "6m" }));
-ok(H.dpLoad("u1", defs).leads === "6m" && H.dpLoad("u2", defs).leads === "7d", "remembered per user");
-store["helm.dash.kpiPeriod.u3"] = '{"up":"999d"'; ok(H.dpLoad("u3", defs).up === "1m", "corrupt / invalid stored value falls back");
+ok(H.dpLoad("u1", "1m") === "1m", "default period is 1 month");
+H.dpSave("u1", "6m"); ok(H.dpLoad("u1", "1m") === "6m" && H.dpLoad("u2", "1m") === "1m", "remembered per user");
+H.dpSave("u1", "999d"); ok(H.dpLoad("u1", "1m") === "6m", "invalid period never saved");
+store["helm.dash.kpiPeriod.u3"] = '{"up":"999d"'; ok(H.dpLoad("u3", "1m") === "1m", "corrupt value falls back");
+store["helm.dash.kpiPeriod.u4"] = '{"up":"7d","conf":"1m"}'; ok(H.dpLoad("u4", "1m") === "1m", "legacy per-tile object falls back to default");
+ok(H.dpDelta(5, 0) === null && H.dpDelta(4, 4) === null && JSON.stringify(H.dpDelta(6, 4)) === '{"up":true,"pct":50}' && JSON.stringify(H.dpDelta(1, 4)) === '{"up":false,"pct":75}', "delta only when there is a previous period and a change");
 const thrower = { getItem() { throw new Error("blocked"); }, setItem() { throw new Error("blocked"); } };
 const H2 = new Function("localStorage", blk + "; return { dpLoad, dpSave };")(thrower);
-ok(H2.dpLoad("u", defs).up === "1m" && (H2.dpSave("u", defs), true), "storage errors are swallowed");
-ok(/hd-delta-same", "– no change "/.test(js), "unchanged shows a dash, not an arrow");
-ok(/dpTile\(tiles\[0\], "up", true/.test(js) && /dpTile\(tiles\[1\], "conf"/.test(js) && /dpTile\(tiles\[2\], "quotes"/.test(js) && /dpTile\(tiles\[3\], "leads"/.test(js), "each money-role tile has its own selector");
+ok(H2.dpLoad("u", "1m") === "1m" && (H2.dpSave("u", "7d"), true), "storage errors are swallowed");
+const dl = js.slice(js.indexOf("function delta(curV"), js.indexOf("if (!kpis.hidden)"));
+ok(dl.length > 50 && !/hd-delta-new|hd-delta-same|"new"|no change/.test(js.slice(js.indexOf("function delta(curV"), js.indexOf("// task-centric roles"))) && /if \(!m\) return null/.test(dl), "no confusing \"new\" / \"no change\" pill");
+ok(/dpTile\(tiles\[0\], "up", true/.test(js) && /dpTile\(tiles\[1\], "conf"/.test(js) && /dpTile\(tiles\[2\], "quotes"/.test(js) && /dpTile\(tiles\[3\], "leads"/.test(js), "all four money-role tiles follow the period");
+ok(!/hd-kpi-per/.test(js) && !/hd-kpi-per/.test(css), "per-tile dropdowns removed");
+ok(/el\("div", "hd-per-seg"\)/.test(js) && /root\.appendChild\(perRow\)/.test(js) && /perRow\.hidden = false/.test(js) && /dpDraws\.forEach\(function \(f\) \{ f\(dpCur\); \}\)/.test(js), "one segmented control above the row re-renders every tile");
+ok(/b\.setAttribute\("aria-pressed"/.test(js) && /b\.setAttribute\("aria-label", dpLabel\(o\[0\], false, false\)\)/.test(js), "buttons expose pressed state + full label");
 const kp = js.slice(js.indexOf("var dpUid"), js.indexOf("// task-centric roles"));
 ok(!/HelmMoney|data-money|\.total\b/.test(kp), "period tiles show counts only (no amounts to hide)");
-ok(/\.hd-kpi-per \{ position: relative; z-index: 2/.test(css) && /max-width: 640px\) \{[^\n]*\.hd-kpi-per \{ min-height: 32px/.test(css), "select sits above tile link; touch-size on mobile");
-ok(H.dpLabel("7d", false, true) === "7D" && H.dpLabel("1y", true, true) === "1Y" && H.dpLabel("6m", false, false) === "Last 6 months" && H.dpLabel("1m", true, false) === "Next 1 month", "phones show 7D/1M/6M/1Y, desktop full text");
-ok(/max-width: 480px/.test(js) && /op\.setAttribute\("aria-label", dpLabel\(o\[0\], fwd, false\)\)/.test(js) && /sel\.setAttribute\("aria-label", "Period for "/.test(js), "short labels only <=480px; aria-labels stay full");
+ok(/\.hd-kpi-l \{ min-width: 0; white-space: normal/.test(css), "tile labels wrap instead of truncating");
+ok(/\.hd-per-b\[aria-pressed="true"\] \{ background: var\(--hd-acc\)/.test(css) && /max-width: 640px\) \{ html\[data-shell="b"\] \.hd-per-row/.test(css), "accent pill; full-width touch-size control on phones");
+ok(H.dpLabel("7d", false, true) === "7D" && H.dpLabel("6m", false, false) === "Last 6 months" && H.dpLabel("1m", true, false) === "Next 1 month", "short + full labels");
+ok(/label: "Upcoming"/.test(js) && /label: "Confirmed"/.test(js) && /label: "Open quotes"/.test(js) && /label: "New leads"/.test(js), "short tile labels");
 console.log("dashboard-period: " + n + " checks passed");

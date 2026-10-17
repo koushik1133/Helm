@@ -3,6 +3,7 @@
 <head>
 <style id="bp-auth-gate">html.auth-pending body,html.auth-pending body *{visibility:hidden!important}</style>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<base href="/">
 <title>Quote flow — Helm Events</title>
 <link rel="preload" href="/vendor/supabase-js-2.117.2.min.js" as="script" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -368,9 +369,9 @@
 <script src="config.js?v=102"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=233"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=234"></script>
 <script src="tour.js?v=14"></script>
-<script src="booklet.js?v=18"></script>
+<script src="booklet.js?v=19"></script>
 <script src="share-checklist.js?v=9"></script>
 <script src="flow-layout-sync.js?v=4"></script>
 <script src="event-sizing.js?v=5"></script>
@@ -538,7 +539,10 @@
     const gstPct = (rg==null||rg===""||!isFinite(+rg)) ? 18 : +rg;
     return { chairs, guests, chairPrice:nn(+$("#q_chairPrice").value||rates.chairPrice), platePrice,
       other, gstPct, serviceChargePct:+rates.serviceChargePct||0,
-      discount:nn($("#q_discount").value||0), catering:{mode:"inhouse",gstPct},
+      discount:nn($("#q_discount").value||0),
+      // QA1026 #1: a % discount set on the Quotes list has no field here - carry it so the flow total,
+      // the advance default and the saved total all match the list's discounted grand total
+      discountPct:nn(ev&&ev.pricing&&ev.pricing.discountPct), catering:{mode:"inhouse",gstPct},
       couponCode:($("#q_coupon")?$("#q_coupon").value.trim():""), coupon:appliedCoupon,
       placeOfSupply:flowPos(), currency:"INR", taxCountry:undefined, taxName:undefined, taxInclusive:undefined, taxRegion:undefined, ...BPStore.tax.snapshot(fTax()),   // R4: undefined clears a stale snapshot key on re-save
       taxExempt: exemptOn() ? true : undefined,
@@ -566,6 +570,7 @@
     rows+=`<div class="prow total"><span>Total</span><span class="amt">${inr(t.total)}</span></div>`;
     rows+=`<div class="prow" data-money style="font-style:italic;color:var(--ink-3);font-size:11px;justify-content:flex-end">${fTax().country!=="IN"?"":esc(BPStore.amountInWords(t.total))}</div>`;
     $("#priceRows").innerHTML=rows;
+    try{ updateAdvance(); }catch(_){ }   // QA1026 #1: coupon / discount changes re-derive the advance from the final total
     const oi=BPStore.pricing.fromItems(layoutItems, rates.assetPrices);
     $("#layoutSummary").textContent = oi.chairs+" chairs · "+(layoutItems.length)+" objects";
     return t;
@@ -1041,7 +1046,7 @@
     try{
       const r=await BPStore.milestones.record(id, amount, method, $("#pay_receipt").value.trim()||null, null, null, idem);
       await relock();   // money-1024: recording the advance confirms the booking server-side (bumps quotes.updated_at)
-      $("#bookingBadge").hidden=false; payNextConfirmed(); $("#statusBadge").textContent="confirmed";
+      paintBookingBadge(1); $("#statusBadge").textContent="confirmed";
       $("#pay_receipt").value=""; $("#pay_amount").value="";
       if(method==='online' && BPStore.approval.onlinePayAvailable()){ const link=location.origin+"/sim-pay.html?ref="+encodeURIComponent(ev.code||"")+"&amount="+amount;
         $("#pay_online").hidden=false; $("#pay_online").style.display=""; $("#pay_online").innerHTML=`Online link (simulated): <a href="${esc(link)}" target="_blank" rel="noopener" style="color:var(--accent)">${esc(link)}</a> — real Razorpay link goes here in production.`; }
@@ -1054,9 +1059,15 @@
       if(e&&(e.code==="23514"||/exceeds the outstanding balance/i.test(String(e.message||"")))){ BPUI.toast("This payment is more than the balance the server allows for this event, so it was not recorded. Check the amount (and that any change orders are approved).",{type:"err",timeout:8000}); return; }
       BPUI.toast(BPUI.friendlyError(e,{action:"record the payment"}),{type:"err"}); }
   }
+  // QA1026 #13: "Confirmed" only once an advance is recorded; a confirmed quote with no advance says so
+  function paintBookingBadge(paidCount){ const b=$("#bookingBadge"); if(!b) return;
+    if(paidCount>0){ b.textContent="Confirmed"; b.hidden=false; payNextConfirmed(); return; }
+    if(ev&&ev.status==='confirmed'){ b.textContent="Advance pending"; b.hidden=false; return; }
+    b.hidden=true; }
   async function renderReceipts(){
     let pays=[]; try{ pays=(await BPStore.milestones.payments(id))||[]; }catch(e){ BPUI.loadError($("#pay_receipts"), e, renderReceipts, {what:"receipts"}); return; }
     const paid=pays.filter(p=>p.status==='paid');
+    paintBookingBadge(paid.length);
     $("#pay_receipts").innerHTML = paid.length ? '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);margin-bottom:4px">Receipts</div>'+
       paid.map(p=>`<div class="rowline"><span class="g">${esc(p.receipt_no||p.provider_ref||'')} · ${esc(p.method||p.provider)}</span><span>${inr(p.amount)}</span><span class="meta">${esc((p.paid_at||'').slice(0,10))}</span></div>`).join('')
       : '<div style="font-size:12px;color:var(--ink-3)">No payments recorded yet.</div>';
@@ -1275,7 +1286,8 @@
     stampNewQuoteTax();
     // advance payment + activity
     updateAdvance();
-    if(ev.status==='confirmed' || ((ev.approvalStatus||ev.approval_status)==='paid')){ $("#bookingBadge").hidden=false; payNextConfirmed(); }
+    // QA1026 #13: the step-9 badge follows the ADVANCE (receipts), not the quote status - see paintBookingBadge()
+    paintBookingBadge(((ev.approvalStatus||ev.approval_status)==='paid') ? 1 : 0);
     // QA-FR2: after a reload the approval card said "Not sent yet." even when a link exists / the booking is confirmed
     { const ap=ev.approvalStatus||ev.approval_status||"", hasTok=!!(ev.approvalToken||ev.approval_token);
       if(ap==='paid'||ev.status==='confirmed') $("#apprState").textContent="Booking confirmed.";

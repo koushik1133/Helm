@@ -107,7 +107,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=102"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=233"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=234"></script>
 <script src="tour.js?v=14"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
@@ -150,13 +150,17 @@
       : '<tr><td colspan="11" class="empty">No CRM records yet. They appear here automatically as you <a class="open" href="leads.html">add and work leads</a>.</td></tr>';
       if(anyRecs===false) hEmpty($("#rows"),{icon:"🗂",title:"No CRM records yet",text:"Records appear here automatically as you add and work leads.",actionLabel:"Go to Leads",onAction:()=>{ location.href="leads.html"; }},11);
       return; }
+    // QA1026 #8: the trigger writes "deleted" when a lead is archived and "created" when it is restored;
+    // show the words the user actually did (ARCHIVED / RESTORED). A "created" row is a restore when the
+    // same lead has an older row on screen or a deleted row restored at (about) that moment.
+    const actLabel=crmActionLabels(shown);
     $("#rows").innerHTML = shown.map(r=>{
       const qid = r.quote_id ? esc(r.quote_id) : "";
       const openable = !!qid && canQuotes;   // QA1017: a role without the quotes area gets the lead link instead
       const href = openable ? "event.html?id="+encodeURIComponent(r.quote_id) : "";
       return `<tr${openable?` class="openable" data-qid="${esc(r.quote_id)}" style="cursor:pointer"`:""}>
       <td class="when">${esc(when(r.archived_at))}</td>
-      <td><span class="act ${esc(r.action)}">${esc(r.action)}</span></td>
+      <td><span class="act ${esc(r.action)}">${esc(actLabel.get(r)||r.action)}</span></td>
       <td>${esc(r.name||"—")}</td>
       <td class="muted">${esc(r.phone||"")}</td>
       <td class="muted">${esc(r.source||"")}</td>
@@ -175,6 +179,22 @@
     }));
   }
 
+  function crmActionLabels(rows){
+    const m=new Map(), t=(x)=>{ const n=Date.parse(x||""); return isFinite(n)?n:NaN; };
+    rows.forEach(r=>{
+      let lab=r.action;
+      if(r.action==="deleted") lab="archived";
+      else if(r.action==="created" && r.lead_id){
+        const at=t(r.archived_at);
+        const restore=rows.some(o=>o!==r && o.lead_id===r.lead_id && (
+          (o.action==="deleted" && o.restored_at && Math.abs(t(o.restored_at)-at)<=120000) ||
+          (t(o.archived_at)<at && (o.action==="deleted" || o.action==="created"))));
+        if(restore) lab="restored";
+      }
+      m.set(r,lab);
+    });
+    return m;
+  }
   // Restore a DELETED lead (server re-checks studio, edit access and that no live lead has its id)
   function restoreCell(r){
     if(r.action!=="deleted"||!r.lead_id) return "";

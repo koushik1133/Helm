@@ -228,7 +228,7 @@
 <script src="config.js?v=102"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=233"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=234"></script>
 <script src="tour.js?v=14"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
@@ -346,7 +346,8 @@
         // area cannot open the new quote - stay on Leads instead of landing on "Quote not found".
         try{ const q=await BPStore.leads.convert(id);
           if(!canQuotes){ BPUI.toast(`${l.name||"Lead"} converted to quote ${q&&q.code?q.code:""}. A planner can take it from Quotes.`,{type:"ok",timeout:8000}); await load(); return; }
-          location.href="flow.html?quote="+encodeURIComponent(q.id); }
+          // QA1026 #9: the studio-prefixed route (/<studio>/flow?quote=…), like every other app link
+          { const h="flow.html?quote="+encodeURIComponent(q.id); location.href=(window.HelmUrl&&HelmUrl.upgrade)?HelmUrl.upgrade(h):h; } }
         catch(err){ BPUI.toast(BPUI.friendlyError(err,{action:"convert the lead"}),{type:"err"}); }
       },{busyLabel:"Converting…"});
     }

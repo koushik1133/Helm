@@ -156,8 +156,11 @@
     const accent = safeHex(s.accent);
     if (accent) { try { doc.documentElement.style.setProperty("--accent", accent); doc.documentElement.style.setProperty("--accent-soft", accent + "1a"); } catch (x) {} }
     $("#s_name").textContent = s.name || "Your event studio";
-    const logo = safeLogo(s.logo), img = $("#s_logo");
-    if (logo) { img.setAttribute("src", logo); img.setAttribute("alt", (s.name || "Studio") + " logo"); img.setAttribute("referrerpolicy", "no-referrer");
+    // QA1026 #3: the <img> is created only when there is a logo — no empty-src image in the DOM.
+    const logo = safeLogo(s.logo);
+    if (logo && !$("#s_logo")) { const im = doc.createElement("img"); im.id = "s_logo"; im.className = "logo"; im.alt = ""; im.hidden = true; $("#s_mark").parentNode.insertBefore(im, $("#s_mark")); }
+    const img = $("#s_logo");
+    if (logo && img) { img.setAttribute("src", logo); img.setAttribute("alt", (s.name || "Studio") + " logo"); img.setAttribute("referrerpolicy", "no-referrer");
       img.hidden = false; $("#s_mark").classList.add("has-logo");
       img.addEventListener("error", () => { img.hidden = true; $("#s_mark").classList.remove("has-logo"); }); }
     const ct = clear($("#s_contact"));

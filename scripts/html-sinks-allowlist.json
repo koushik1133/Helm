@@ -934,6 +934,26 @@
    "file": "public/manual.js",
    "expr": "res.html",
    "why": "DOMParser.parseFromString builds an INERT document (scripts never run, no network); the result goes through sanitize(doc) (script/iframe/object/embed/link/meta/base/form/template removed, every on* / srcset / formaction attribute and javascript:/data:/vbscript: URLs stripped) before any node is adopted into the page. The manual HTML itself is the studio's own published copy."
+  },
+  {
+   "file": "public/crew-schedule.js",
+   "expr": "(sh ? '<div class=\"cs-pop-s\">' + (allCrew() ? \"Shifts\" : \"Work\") + \"</div><ul>\" + sh + \"</ul>\" : \"\")",
+   "why": "crew schedule popover: sh is built in openPop from esc()'d shift title/time/crew + a fixed status word/class from workOf()"
+  },
+  {
+   "file": "public/crew-schedule.js",
+   "expr": "teamGrid(rg, all, today)",
+   "why": "crew schedule: teamGrid returns markup where every RPC value goes through esc() (names, ids via esc/encodeURIComponent, chips via chip())"
+  },
+  {
+   "file": "public/crew-schedule.js",
+   "expr": "monthGrid(rg, all, today)",
+   "why": "crew schedule: monthGrid returns markup where every value is esc()'d (dates, aria labels) or a fixed status class; chips via chip()"
+  },
+  {
+   "file": "public/crew-schedule.js",
+   "expr": "timeGrid(rg, all, today)",
+   "why": "crew schedule: timeGrid returns markup of numeric positions (toFixed) + fixed class names; chips via chip() which esc()'s all RPC text"
   }
  ]
 }
