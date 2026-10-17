@@ -326,7 +326,7 @@
 <script src="country-profile.js?v=4"></script><script src="store-api.js?v=213"></script>
 <script src="auth-ui.js?v=30"></script>
 <script src="/auth-visual.js?v=1"></script>
-<script src="/trial-signup.js?v=3"></script>
+<script src="/trial-signup.js?v=4"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const PENDING="bp_pending_studio";
@@ -435,14 +435,14 @@
       });
     });
   }
-  let mode="signin";
+  let mode="signin"; let INVITE_ORG="";
   function submitLabel(){ if(mode==="signup" && TRIAL()) return "Start free trial →"; return mode==="signup" ? (JOINING?"Create account & join →":"Create studio →") : (JOINING?"Sign in & join →":"Sign in →"); }
   function setMode(m){ mode=m; $("#err").hidden=true; $("#okmsg").hidden=true;
     document.querySelectorAll(".mtab").forEach(b=>{ const on=b.dataset.mode===m; b.classList.toggle("on",on); b.setAttribute("aria-pressed",on?"true":"false"); });
     const needStudio = !JOINING && m==="signup";
     $("#studioField").hidden = !needStudio;   // an invitee never names a studio
     $("#studio").required = needStudio;
-    $("#formTitle").textContent = m==="signup" ? (JOINING?"Create your account":"Create your studio") : "Welcome back";
+    $("#formTitle").textContent = (JOINING&&INVITE_ORG) ? (m==="signup"?"Join "+INVITE_ORG:"Sign in to join "+INVITE_ORG) : (m==="signup" ? (JOINING?"Create your account":"Create your studio") : "Welcome back");
     $("#formSub").textContent = m==="signup" ? (JOINING?"Create your account to join the studio you were invited to.":"Start a fresh workspace, pre-loaded with default templates and catalogs.") : (JOINING?"Sign in to accept your invitation.":"Sign in with the account your studio admin created for you.");
     $("#submit").textContent = submitLabel();
     $("#pw").setAttribute("autocomplete", m==="signup" ? "new-password" : "current-password");
@@ -713,7 +713,8 @@
   async function showInviteBanner(){
     const tok=pendingInvite(); if(!tok) return;
     try{ const info=await BPStore.invitations.preview(tok);
-      if(info && info.valid){ $("#okmsg").textContent="You're joining "+(info.org_name||"a studio")+" as "+(info.role||"a teammate")+" — sign in or create your account to accept."; $("#okmsg").hidden=false; }
+      if(info && info.valid){ if(info.org_name){ INVITE_ORG=String(info.org_name); setMode(mode); }
+        $("#okmsg").textContent="You're joining "+(info.org_name||"a studio")+" as "+(info.role||"a teammate")+" — sign in or create your account to accept."; $("#okmsg").hidden=false; }
       else if(info){ showErr($("#err"),"This invitation is "+(info.expired?"expired":(info.status||"no longer valid"))+"."); }
     }catch(e){}
   }

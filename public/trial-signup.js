@@ -151,7 +151,10 @@
     p.appendChild(a);
     tabs.parentNode.insertBefore(p, tabs.nextSibling);
     var signup = (global.location.hash || "").toLowerCase() === "#signup";
-    p.hidden = signup;
+    // an invitee joins an existing studio: never offer them a new trial
+    var invited = !!new URLSearchParams(global.location.search).get("invite");
+    try { invited = invited || !!global.sessionStorage.getItem("bp_pending_invite"); } catch (e) {}
+    p.hidden = signup || invited;
     setText("#obTitle", "Start your free trial");
     var ob = $("#ob_submit"); if (ob) ob.textContent = "Start free trial →";
     var obl = doc.querySelector('label[for="ob_name"]');
