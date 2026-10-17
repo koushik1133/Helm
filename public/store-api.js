@@ -4400,6 +4400,34 @@ window.HelmUrl = HelmUrl;
       catch (e) { return { status: "unavailable" }; } },
     accept:  (token) => rpc("accept_invitation", { p_token: token }),                        // signed-in invitee attaches to the org
     byToken: (token) => rpc("invitation_by_token", { p_token: token }),                      // minimal, no-PII info for the accept screen
+    // Direct invite sign-up (edge function invite-signup): the server creates the account,
+    // already confirmed, ONLY for the e-mail the invitation is bound to. → { ok:true } |
+    // { fallback:true } (use the normal confirm-by-e-mail sign-up: function not deployed, no
+    // bound e-mail, kill switch). A refusal throws an Error with .code (email_mismatch, …).
+    // the invited e-mail for a valid invitation (shown locked on the join form) → string | null
+    async invitedEmail(token) {
+      if (!supa || !fnUrl("invite-signup") || !token) return null;
+      try {
+        const res = await fetch(fnUrl("invite-signup"), { method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + CFG.anonKey, "apikey": CFG.anonKey },
+          body: JSON.stringify({ token, peek: true }) });
+        const j = await res.json().catch(() => ({}));
+        return res.ok && j && typeof j.email === "string" && j.email ? j.email : null;
+      } catch (e) { return null; }
+    },
+    async signupDirect(token, email, password, fullName) {
+      if (!supa || !fnUrl("invite-signup")) return { fallback: true };
+      let res;
+      try {
+        res = await fetch(fnUrl("invite-signup"), { method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + CFG.anonKey, "apikey": CFG.anonKey },
+          body: JSON.stringify({ token, email, password, full_name: fullName || "" }) });
+      } catch (e) { return { fallback: true }; }          // not deployed / CORS / offline → old path
+      const j = await res.json().catch(() => ({}));
+      if (res.ok) return j && j.ok ? { ok: true } : { fallback: true };
+      if (res.status === 404 || res.status >= 500 || !j || !j.code) return { fallback: true };
+      const e = new Error(String(j.error || "Couldn't create the account.")); e.code = j.code; e.status = res.status; throw e;
+    },
     async preview(token) {                                                                   // anon-safe banner info (SEC-06); falls back until deployed
       try { return await rpc("invitation_preview", { p_token: token }); }
       catch (e) { if (rpcMissing(e)) return rpc("invitation_by_token", { p_token: token }); throw e; } },

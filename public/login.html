@@ -87,6 +87,9 @@
   input.is-ok{border-color:#12b76a}
   .pwwrap{position:relative} .pwwrap input{padding-right:46px}
   .eye{position:absolute;right:4px;top:4px;width:36px;height:36px;border:0;background:transparent;border-radius:8px;cursor:pointer;color:var(--ink-3);display:flex;align-items:center;justify-content:center}
+  /* invite join: only e-mail (locked), name, password, confirm, one button */
+  body.invite-join .modetabs, body.invite-join #pwMeter, body.invite-join .or, body.invite-join #googleBtn, body.invite-join #confirmHelp{display:none!important}
+  body.invite-join #email[readonly]{background:var(--bg-2,#f4f4f4);color:var(--ink-2)}
   .eye:hover{color:var(--ink)} .eye:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
   .eye svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
   .eye .eye-off{display:none} .eye[aria-pressed="true"] .eye-on{display:none} .eye[aria-pressed="true"] .eye-off{display:block}
@@ -181,7 +184,7 @@
       <p class="ferr" id="email_err" hidden></p>
       <label for="pw">Password <span class="req" aria-hidden="true">*</span></label>
       <div class="pwwrap">
-        <input id="pw" type="password" autocomplete="current-password" placeholder="••••••••" required aria-describedby="pwHint pw_err">
+        <input id="pw" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="current-password" placeholder="••••••••" required aria-describedby="pwHint pw_err">
         <button type="button" class="eye" id="pwEye" aria-label="Show password" aria-pressed="false">
           <svg class="eye-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
           <svg class="eye-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.1A10.6 10.6 0 0 1 12 5c6.4 0 10 7 10 7a17.7 17.7 0 0 1-3.2 4.1M6.6 6.6C3.9 8.3 2 12 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/></svg>
@@ -193,8 +196,9 @@
       <ul id="pwRules" hidden></ul>
       <div id="pw2Row" hidden>
         <label for="pw2">Confirm password</label>
-        <input id="pw2" type="password" autocomplete="new-password" placeholder="Type the password again">
+        <input id="pw2" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="new-password" placeholder="Type the password again">
       </div>
+      <p class="hint" id="inviteHaveAcct" hidden>Already have a Helm account? <button type="button" class="linkbtn" id="inviteSigninBtn">Sign in instead</button></p>
       <p class="hint" id="forgotRow"><button type="button" class="linkbtn" id="forgotBtn">Forgot password?</button></p>
       <div class="captcha" id="captcha" hidden></div>
       <button class="btn" id="submit" type="submit">Sign in →</button>
@@ -252,10 +256,10 @@
       <label for="ip_name">Full name</label>
       <input id="ip_name" type="text" autocomplete="name" maxlength="80" placeholder="Your name" required>
       <label for="ip_pw">Password</label>
-      <input id="ip_pw" type="password" autocomplete="new-password" placeholder="••••••••" required>
+      <input id="ip_pw" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="new-password" placeholder="••••••••" required>
       <ul id="ipRules"></ul>
       <label for="ip_pw2">Confirm password</label>
-      <input id="ip_pw2" type="password" autocomplete="new-password" placeholder="••••••••" required>
+      <input id="ip_pw2" type="password" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="new-password" placeholder="••••••••" required>
       <button class="btn" id="ip_submit" type="submit">Set password &amp; continue →</button>
     </form>
 
@@ -324,7 +328,7 @@
 <script src="telemetry.js?v=4"></script>
 <script src="config.js?v=101"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=230"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=231"></script>
 <script src="auth-ui.js?v=33"></script>
 <script src="/auth-visual.js?v=1"></script>
 <script src="/trial-signup.js?v=5"></script>
@@ -395,7 +399,12 @@
 
   // Option A — force a user who signed in with a temporary password to set their own.
   // Blocks (returns a promise) until they successfully set a new password.
-  function forcePasswordChange(){
+  // justSignedPw: the temporary password the person typed into the sign-in form a moment ago
+  // (memory only, never stored). When present the "Temporary password" box is hidden — they
+  // just proved it — and it is sent as current_password for them. If it is missing (page was
+  // reloaded) or the server rejects it, the box is shown again as a fallback.
+  function forcePasswordChange(justSignedPw){
+    let known=typeof justSignedPw==="string" && justSignedPw ? justSignedPw : null; justSignedPw=null;
     return new Promise((resolve)=>{
       const ov=document.createElement("div");
       ov.setAttribute("role","dialog"); ov.setAttribute("aria-modal","true"); ov.setAttribute("aria-labelledby","fpc_title");
@@ -419,18 +428,24 @@
       document.body.appendChild(ov);
       const form=ov.querySelector("#fpc_form"), cur=ov.querySelector("#fpc_cur"), pw=ov.querySelector("#fpc_pw"), pw2=ov.querySelector("#fpc_pw2"), er=ov.querySelector("#fpc_err"), go=ov.querySelector("#fpc_go");
       if(BPStore.auth.passwordRule && BPStore.auth.passwordRule.attachChecklist) BPStore.auth.passwordRule.attachChecklist(pw, ov.querySelector("#fpc_rules"));
-      cur.focus();
+      const curLbl=ov.querySelector('label[for="fpc_cur"]');
+      const showCur=(on)=>{ cur.hidden=!on; curLbl.hidden=!on; cur.required=on; };
+      showCur(!known);
+      (known?pw:cur).focus();
       form.addEventListener("submit",(e)=>{
         e.preventDefault();
         BPUI.guard(go, async ()=>{
           er.textContent="";
           const bad=pwProblem(pw.value); if(bad){ er.textContent=bad; return; }
-          if(!cur.value){ er.textContent="Enter the temporary password you signed in with."; cur.focus(); return; }
+          if(!known && !cur.value){ er.textContent="Enter the temporary password you signed in with."; cur.focus(); return; }
           if(pw.value!==pw2.value){ er.textContent="Passwords don't match."; return; }
           go.textContent="Saving…";
-          const opts={ currentPassword: cur.value };
-          try{ await BPStore.auth.completePasswordChange(pw.value, opts); cur.value=""; ov.remove(); resolve(true); }
-          catch(e){ er.textContent=(e&&/^(bad_current_password|current_password_required|account_locked)$/.test(e.code||""))?e.message:BPUI.friendlyError(e,{action:"set your password"}); }
+          const opts={ currentPassword: known || cur.value };
+          try{ await BPStore.auth.completePasswordChange(pw.value, opts); cur.value=""; known=null; ov.remove(); resolve(true); }
+          catch(e){
+            // the remembered sign-in password was refused → fall back to asking for it
+            if(known && e && (e.code==="bad_current_password"||e.code==="current_password_required")){ known=null; showCur(true); er.textContent="Please enter the temporary password you signed in with."; cur.focus(); return; }
+            er.textContent=(e&&/^(bad_current_password|current_password_required|account_locked)$/.test(e.code||""))?e.message:BPUI.friendlyError(e,{action:"set your password"}); }
           finally{ opts.currentPassword=null; go.textContent="Set password & continue"; }
         });
       });
@@ -446,6 +461,8 @@
     $("#formTitle").textContent = (JOINING&&INVITE_ORG) ? (m==="signup"?"Join "+INVITE_ORG:"Sign in to join "+INVITE_ORG) : (m==="signup" ? (JOINING?"Create your account":"Create your studio") : "Welcome back");
     $("#formSub").textContent = m==="signup" ? (JOINING?"Create your account to join the studio you were invited to.":"Set up your studio, then choose a plan and complete payment to start. Want to try Helm first? Start the free trial instead.") : (JOINING?"Sign in to accept your invitation.":"Sign in with the account your studio admin created for you.");
     $("#submit").textContent = submitLabel();
+    document.body.classList.toggle("invite-join", JOINING && m==="signup");
+    { const sw=document.getElementById("inviteHaveAcct"); if(sw) sw.hidden=!(JOINING && m==="signup"); }
     $("#pw").setAttribute("autocomplete", m==="signup" ? "new-password" : "current-password");
     // new passwords must meet the policy; existing ones are checked by the server
     if(m==="signup") $("#pw").setAttribute("minlength", String(PW_MIN)); else $("#pw").removeAttribute("minlength");
@@ -626,12 +643,13 @@
     showErr($("#err"),"We couldn't confirm your two-step verification. Check your connection and try again.");
     return false;
   }
+  let justPw=null;   // the password typed into the sign-in form this moment (memory only; cleared on use)
   async function finishGate(){
     for(let i=0;i<5;i++){
       const step=BPStore.auth.pendingStep();
       if(!step) return true;
       if(step==="mfa"){ await askMfaCode(); continue; }
-      if(step==="password"){ showView("#loginForm"); await forcePasswordChange(); continue; }
+      if(step==="password"){ showView("#loginForm"); const jp=justPw; justPw=null; await forcePasswordChange(jp); continue; }
       if(step==="recovery"){ location.replace("reset-password"); return false; }
       // "verify": the account status couldn't be checked — fail closed, let them retry
       await BPStore.auth.resolveGate();
@@ -713,7 +731,7 @@
           const name=$("#ip_name").value.trim(), pw=$("#ip_pw").value;
           if(!name){ showErr(er,"Enter your full name."); $("#ip_name").focus(); return; }
           const bad=pwProblem(pw); if(bad){ showErr(er,bad); $("#ip_pw").focus(); return; }
-          if(pw!==$("#ip_pw2").value){ showErr(er,"Passwords don't match."); $("#ip_pw2").focus(); return; }
+          if(String(pw).normalize("NFC")!==String($("#ip_pw2").value).normalize("NFC")){ showErr(er,"Passwords don't match."); $("#ip_pw2").focus(); return; }
           try{ await BPStore.auth.setInvitePassword(pw, name); $("#ip_pw").value=""; $("#ip_pw2").value=""; form.removeEventListener("submit",onSubmit); resolve(true); }
           catch(x){ showErr(er,(x&&/^(name_required|weak_password|reauth_required)$/.test(x.code||""))?x.message:BPUI.friendlyError(x,{action:"set your password"})); }
         });
@@ -733,7 +751,11 @@
   // arriving from the intro page's "Sign up" button (login.html#signup) opens the create-studio tab
   if((location.hash||"").toLowerCase().replace("#","")==="signup"){ setMode("signup"); }
   // an invite implies "join", so default to the create-account tab for a new invitee
-  if(JOINING){ setMode("signup"); }
+  if(JOINING){ setMode("signup");
+    { const b=document.getElementById("inviteSigninBtn"); if(b) b.addEventListener("click",()=>{ setMode("signin"); }); }
+    // lock the e-mail to the invited address (the server enforces it too)
+    if(BPStore.invitations.invitedEmail) BPStore.invitations.invitedEmail(pendingInvite()).then((em)=>{ if(!em) return; const i=$("#email"); i.value=em; i.readOnly=true; i.setAttribute("aria-readonly","true"); }).catch(()=>{});
+  }
   // redirected here by the shared session-expiry handler (login.html?next=…&expired=1)
   // signed out on purpose in another tab (e.g. to create a new studio): no "expired" warning
   if(!EXPIRED && QS.get("reason")==="signout"){ $("#okmsg").textContent="You signed out in another tab."; $("#okmsg").hidden=false; if(mode!=="signin") setMode("signin"); }
@@ -864,13 +886,31 @@
       try{
         if(mode==="signup"){
           const bad=pwProblem(pw); if(bad){ showErr($("#err"),"Choose a stronger password: "+bad); $("#pw").focus(); return; }
-          if($("#pw2").value!==pw){ showErr($("#err"),"The two passwords don't match — type the same password in both boxes."); $("#pw2").focus(); return; }
+          if(String($("#pw2").value).normalize("NFC")!==String(pw).normalize("NFC")){ showErr($("#err"),"The two passwords don't match — type the same password in both boxes."); $("#pw2").focus(); return; }
           if(!BPStore.auth.user() && capMissing(cap)){ showErr($("#err"),"Please complete the security check."); return; }
           if(joining){
             // invitee creating an account, then accepting the invite (no studio to create)
             btn.textContent="Creating…";
             // retry after a partial failure: the account + session already exist → don't sign up again
             const existing=BPStore.auth.user();
+            // invite bound to this e-mail → the server creates the account already confirmed
+            // and we sign straight in (no inbox step). Other cases fall back to the confirm e-mail.
+            if(!existing && BPStore.invitations.signupDirect){
+              let d=null;
+              try{ d=await BPStore.invitations.signupDirect(inviteTok0, email, pw, fullName); }
+              catch(x){
+                if(x&&x.code==="account_exists"){ showErr($("#err"),x.message+" Use the Sign in tab above."); return; }
+                if(x&&/^(email_mismatch|invalid_invite|weak_password|bad_email)$/.test(x.code||"")){ showErr($("#err"),x.message); return; }
+                throw x;
+              }
+              if(d&&d.ok){
+                btn.textContent="Joining…";
+                await BPStore.auth.signIn(email, pw, {captchaToken:capToken(cap)});
+                justPw=pw;
+                try{ if(!(await finishGate())) return; } finally { justPw=null; }
+                await acceptPendingInvite(); await routeSignedIn(); return;
+              }
+            }
             const r=existing?{session:true}:await BPStore.auth.signUp(email, pw, {captchaToken:capToken(cap), emailRedirectTo:confirmRedirect(), fullName});
             if(r.session){ await acceptPendingInvite(); location.replace(nextUrl()); return; }
             showInbox(email); return;
@@ -898,7 +938,8 @@
         btn.textContent="Signing in…";
         await BPStore.auth.signIn(email, pw, {captchaToken:capToken(cap)});
         // Two-step code / temp password (Option A: MUST set their own now) — fails closed.
-        if(!(await finishGate())) return;
+        justPw=pw;
+        try{ if(!(await finishGate())) return; } finally { justPw=null; }
         if(joining){ await acceptPendingInvite(); } else { await finishPendingStudio(); }
         // decide studio / HQ / onboarding BEFORE leaving this page (was: straight to the
         // dashboard, which then bounced back here — the Back-button loop)

@@ -60,6 +60,10 @@
   .tag.login-invited{background:#fdf6e3;color:#9a6700;border-color:transparent}
   .tag.login-none{background:var(--panel-2);color:var(--ink-3)}
   html[data-theme="dark"] .tag.login-active{background:#123524;color:#5fd49a} html[data-theme="dark"] .tag.login-invited{background:#3a2e10;color:#f5b454}
+  .accessopt{border:1px solid var(--line,#e5e5e5);border-radius:10px;padding:8px 12px 10px;margin:0 0 14px}
+  .accessopt legend{font-size:12px;font-weight:600;padding:0 4px;color:var(--ink-2)}
+  .accessopt label{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.45;color:var(--ink-2);margin-top:6px;cursor:pointer;text-transform:none;letter-spacing:0}
+  .accessopt input{margin-top:3px;flex:none}
   .fhint{font-size:11.5px;color:var(--ink-3);line-height:1.4}
   .deptnew{display:flex;gap:6px;margin-top:6px}.deptnew input{flex:1 1 auto;min-width:0}
   .invlink{display:flex;gap:8px;margin:10px 0}.invlink input{flex:1 1 auto;min-width:0;height:38px;border:1px solid var(--line);border-radius:9px;padding:0 10px;font-family:var(--mono,monospace);font-size:12px;background:var(--panel-2);color:var(--ink)}
@@ -126,6 +130,11 @@
     <h3><span id="sm_title">＋ Add staff</span><button type="button" class="close" id="sm_close" aria-label="Close" data-close>×</button></h3>
     <p class="sub">Someone on your in-house team. Skills help you match people to event needs.</p>
     <div id="sm_link" class="linknote" role="note" hidden></div>
+    <fieldset id="s_access" class="accessopt" hidden>
+      <legend>Helm login</legend>
+      <label><input type="radio" name="s_access" value="record" checked> <b>Save as a record only</b> — no login. For crew who don't need the app (you can still assign them, call them and pay them).</label>
+      <label><input type="radio" name="s_access" value="invite"> <b>Save and invite to sign in</b> — they get an invitation e-mail (and a link you can copy) to create their own Helm login. Needs an e-mail and a role.</label>
+    </fieldset>
     <div class="fgrid">
       <div class="fld"><label for="s_name">Name *</label><input id="s_name" placeholder="e.g. Ravi Kumar"></div>
       <div class="fld"><label for="s_role">Role</label><select id="s_role"><option value="">— Choose a role —</option></select>
@@ -175,7 +184,7 @@
 <script src="config.js?v=101"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=230"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=231"></script>
 <script src="xlsx-lite.js?v=2"></script>
 <script src="smart-import-core.js?v=6"></script>
 <script src="smart-import.js?v=3"></script>
@@ -386,6 +395,8 @@
     $("#s_emp").value=s?s.emp_type||"":""; $("#s_phone").value=s?s.phone||"":""; $("#s_email").value=s?s.email||"":"";
     $("#s_rate").value=s&&s.day_rate!=null?s.day_rate:""; $("#s_skills").value=s&&Array.isArray(s.skills)?s.skills.join(", "):""; $("#s_notes").value=s?s.notes||"":"";
     editingRow=s||null; setLinkedLock(s); fillRole(s);
+    // new person + admin: choose "record only" (no login) or "invite to sign in" (reuses inviteStaff)
+    $("#s_access").hidden=!!s||!isAdminUser; const rec0=document.querySelector('input[name="s_access"][value="record"]'); if(rec0) rec0.checked=true;
     attrEd=window.HelmImport?HelmImport.attrEditor("staff",s&&s.attributes,attrDefs):null;
     $("#s_attrs").replaceChildren(...(attrEd?[attrEd.el]:[])); $("#s_attrs_box").hidden=!attrEd;
     $("#sm_err").hidden=true;
@@ -435,6 +446,11 @@
     const rec={ name, phone:phoneV.value, role:roleVal, department:$("#s_dept").value||null,
       emp_type:$("#s_emp").value||null, email,
       day_rate, skills, notes:$("#s_notes").value.trim()||null };
+    const wantInvite=!editingId && isAdminUser && !$("#s_access").hidden && (document.querySelector('input[name="s_access"]:checked')||{}).value==="invite";
+    if(wantInvite){
+      if(!email){ fail("Add an e-mail address so we can send the sign-in invitation — or choose “Save as a record only”."); $("#s_email").focus(); return; }
+      if(!rkey||rkey==="custom"||!BPStore.staff.matchRole(roleVal)){ fail("Pick a role (it decides which pages they can open) — or choose “Save as a record only”."); $("#s_role").focus(); return; }
+    }
     let attrCh=null;
     if(attrEd){ if(editingRow&&editingRow.id){ const ch=attrEd.changes(); if(ch.any) attrCh=ch; } else { const at=attrEd.read(); if(Object.keys(at).length) rec.attributes=at; } }
     if(linked) BPStore.staff.LINKED_FIELDS.forEach(k=>{ delete rec[k]; });   // follow the profile; the DB refuses changes here
@@ -455,8 +471,10 @@
            if(loginRoleChange){
              if(!(await BPUI.confirm(`Change ${editingRow.name}'s Helm login role to ${BPStore.staff.roleLabel(loginRoleChange)}? This changes which pages they can open.`,{title:"Change login role?",okLabel:"Change role"}))) return;
              await BPStore.staff.setLoginRole(editingId, loginRoleChange); }
-           if(editingId) await BPStore.staff.update(editingId,rec); else await BPStore.staff.add(rec); closeForm();
-           if(loginRoleChange) await loadLoginInfo(); BPUI.toast("Staff saved.",{type:"ok"}); await load(); }
+           let added=null;
+           if(editingId) await BPStore.staff.update(editingId,rec); else added=await BPStore.staff.add(rec); closeForm();
+           if(loginRoleChange) await loadLoginInfo(); BPUI.toast("Staff saved.",{type:"ok"}); await load();
+           if(wantInvite && added) await inviteStaff(Object.assign({}, rec, added), $("#newBtn")); }
       catch(e){ fail(BPStore.staff.linkErrorText(e)||BPUI.friendlyError(e,{action:"save the staff member",setupHint:"phase6-staff.sql"})); }
     },{busyLabel:"Saving…"});
   }
