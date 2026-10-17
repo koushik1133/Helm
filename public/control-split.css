@@ -23,11 +23,22 @@
 .cs-nav{display:flex;flex-direction:column;gap:var(--sp-4,16px)}
 .cs-group{display:flex;flex-direction:column;gap:1px}
 .cs-group-h{margin:0 0 4px;padding:0 10px;font-size:var(--fs-xs,11px);font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3,#6b6573)}
-#app.cs-on .cs-nav a{display:block;padding:7px 10px;border-radius:var(--r-ctl,8px);text-decoration:none;color:var(--ink-2,#3d3842);font-size:var(--fs-sm,13px);line-height:1.35;transition:background .12s,color .12s}
+#app.cs-on .cs-nav a{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:var(--r-ctl,8px);text-decoration:none;color:var(--ink-2,#3d3842);font-size:var(--fs-sm,13px);line-height:1.35;transition:background .12s,color .12s}
 #app.cs-on .cs-nav a:hover{background:var(--panel-2,#f1eee9);color:var(--ink,#1c1a1f)}
 #app.cs-on .cs-nav a:focus-visible{outline:none;box-shadow:var(--focus-halo,0 0 0 3px rgba(109,40,217,.2))}
 #app.cs-on .cs-nav a[aria-current="page"]{background:color-mix(in srgb,var(--accent,#6d28d9) 10%,transparent);color:var(--accent,#6d28d9);font-weight:600}
 .cs-mnav{display:none}
+.cs-ico{width:16px;height:16px;flex:0 0 16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
+#app.cs-on .cs-nav a[aria-current="page"] .cs-ico{opacity:1}
+
+/* ---- consistent controls inside cards ---- */
+#app.cs-on .cs-main .card .cmchk,#app.cs-on .cs-main .card .lxtoggle{display:flex;align-items:center;gap:8px;min-height:32px}
+#app.cs-on .cs-main .card input[type=checkbox]{width:16px;height:16px;margin:0;accent-color:var(--accent,#6d28d9);flex:0 0 auto}
+#app.cs-on .cs-main .card fieldset.cmset{border:1px solid var(--line-2,var(--line,#e8e3db));border-radius:var(--r-ctl,8px);padding:var(--sp-4,16px);margin:0 0 var(--sp-4,16px)}
+#app.cs-on .cs-main .card fieldset.cmset legend{padding:0 6px;font-weight:600;font-size:var(--fs-sm,13px);color:var(--ink,#1c1a1f)}
+#app.cs-on .cs-main .utable th{font-size:var(--fs-xs,11px);text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3,#6b6573);font-weight:600;text-align:left}
+#app.cs-on .cs-main .utable td,#app.cs-on .cs-main .utable th{padding:10px 8px;border-bottom:1px solid var(--line-2,var(--line,#e8e3db))}
+#app.cs-on .cs-main .actions,#app.cs-on .cs-main .cmfoot{display:flex;justify-content:flex-end;align-items:center;gap:var(--sp-3,12px);margin-top:var(--sp-4,16px);padding-top:var(--sp-4,16px);border-top:1px solid var(--line-2,var(--line,#e8e3db))}
 
 /* ---- page header + cards ---- */
 .cs-main{min-width:0}
