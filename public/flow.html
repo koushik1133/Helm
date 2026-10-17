@@ -368,7 +368,7 @@
 <script src="config.js?v=101"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=231"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=232"></script>
 <script src="tour.js?v=14"></script>
 <script src="booklet.js?v=18"></script>
 <script src="share-checklist.js?v=9"></script>
@@ -1528,6 +1528,8 @@
     }
     if(!id){ $("#gate").hidden=false; $("#gate").innerHTML='<p style="color:var(--ink-2)">No quote selected. Start one from <a href="dashboard.html" style="color:var(--accent);text-decoration:underline">Home</a> or <a href="leads.html" style="color:var(--accent);text-decoration:underline">Leads</a>.</p>'; return; }
     try{ canEdit=await BPStore.auth.canEditArea("quotes"); }catch{ canEdit=true; }
+    // planner-1023: save_quotation_version / generate_approval_token need quotes EDIT server-side - a view-only role sees why instead of a 403 toast
+    if(!canEdit) ["#q_save","#sendApproval"].forEach(sel=>{ const b=$(sel); if(b){ b.disabled=true; b.title="Your role can view quotes but not edit them — ask an admin."; } });
     await openQuote();
   });
 </script>
