@@ -13,12 +13,16 @@
   function num(v) { const n = Number(v); return isFinite(n) ? n : null; }
   function setFormat(locale, currency) {
     try { if (locale && typeof locale === "string") { new Intl.NumberFormat(locale); fmt.locale = locale; } } catch (e) {}
-    if (currency && /^[A-Z]{3}$/.test(String(currency))) fmt.currency = String(currency);
+    if (currency && /^[A-Z]{3}$/.test(String(currency))) { fmt.currency = String(currency); fmt.fixed = true; }
     return { locale: fmt.locale, currency: fmt.currency };
   }
+  // QA1026 #1: once the booklet set the quote's currency, it wins over a per-package
+  // currency (the org default), so the chooser never mixes $ with the rupee totals.
   function money(n, cur) {
     const v = num(n); if (v == null) return "—";
-    try { return new Intl.NumberFormat(fmt.locale, { style: "currency", currency: cur && /^[A-Z]{3}$/.test(cur) ? cur : fmt.currency, maximumFractionDigits: 0 }).format(v); }
+    // QA1026 #2: on the booklet page every amount goes through the booklet's own (studio/quote) formatter
+    try { const B = global.HelmBooklet; if (B && typeof B.money === "function") return B.money(v); } catch (e) {}
+    try { return new Intl.NumberFormat(fmt.locale, { style: "currency", currency: (!fmt.fixed && cur && /^[A-Z]{3}$/.test(cur)) ? cur : fmt.currency, maximumFractionDigits: 0 }).format(v); }
     catch (e) { return String(Math.round(v)); }
   }
   function limits(p) {

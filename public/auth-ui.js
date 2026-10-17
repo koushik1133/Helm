@@ -1394,12 +1394,16 @@
     if ((menu.pop && menu.pop.contains(t)) || (menu.btn && menu.btn.contains(t)) || (menu.root && menu.root.contains(t))) return;
     closeMenu(false);
   }
+  // QA1026 #11: Escape anywhere on the page closes the menu through closeMenu, so
+  // aria-expanded on #hauAccountBtn is reset too (not only Escape from a menu item).
+  function escDoc(e) { if (e.key === "Escape" && menu.open) closeMenu(true); }
   function closeMenu(refocus) {
     if (!menu.open) return; menu.open = false;
     if (menu.pop) menu.pop.hidden = true;
     if (menu.btn) menu.btn.setAttribute("aria-expanded", "false");
     try { doc.documentElement.classList.remove("hau-menu-open"); } catch (e) {}
     doc.removeEventListener("mousedown", outside, true); doc.removeEventListener("touchstart", outside, true);
+    doc.removeEventListener("keydown", escDoc);
     if (refocus && menu.btn) try { menu.btn.focus(); } catch (e) {}
   }
   function openMenu(focusLast) {
@@ -1409,6 +1413,7 @@
     // the open menu sits above every floating note / banner (they otherwise cover "Sign out")
     try { doc.documentElement.classList.add("hau-menu-open"); } catch (e) {}
     doc.addEventListener("mousedown", outside, true); doc.addEventListener("touchstart", outside, true);
+    doc.addEventListener("keydown", escDoc);
     focusItem(focusLast ? -1 : 0);
   }
   function runItem(id) {
