@@ -111,7 +111,7 @@ t('B11 every quote is shown in its OWN currency; no snapshot = INR', () => {
   assert.equal(B.quoteTax({ pricing: {}, tax_snapshot: { country: 'US', region: 'CA' } }).country, 'US');
   assert.match(store, /tax_country:pricing->>taxCountry/); assert.match(store, /pricing\.taxCountry = q\.tax_country/);
   const q = read('public/quotes.html');
-  assert.match(q, /esc\(BPStore\.quoteMoney\(x\.total,x\)\)/); assert.match(q, /const qTax=BPStore\.quoteTax\(full\)/); assert.match(q, /function paintCurBanner/);
+  assert.match(q, /esc\(BPStore\.quoteMoney\(listTotal\(x\),x\)\)/); assert.match(q, /const qTax=BPStore\.quoteTax\(full\)/); assert.match(q, /function paintCurBanner/);
   const f = read('public/flow.html'); assert.match(f, /This quote is in \$\{qT\.currency\}/); assert.match(f, /quoteKeep&&ev \? BPStore\.quoteTaxCfg\(ev\)/);
   for (const p of ['settlement.html', 'closure.html', 'event.html', 'budget.html']) assert.match(read('public/' + p), /evTax\?BPStore\.quoteMoney\(n,evTax\)/, p);
   assert.ok(!/BPStore\.studioMoney\(n,\{round:true\}\);\s*$/m.test(read('public/portal.html').split('\n').find((l) => /const inr=/.test(l))), 'portal falls back to INR');

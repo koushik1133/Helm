@@ -282,7 +282,7 @@
 <script src="config.js?v=101"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=231"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=232"></script>
 <script src="event-sizing.js?v=5"></script>
 <script src="tour.js?v=15"></script>
 <script>
@@ -470,7 +470,7 @@
   function reloadList(){
     if(!pager) pager=BPUI.pager({ after: $("#rows").closest(".card"), what:"quotes",
       fetch:(offset)=>shelfPage(offset, ()=>BPStore.quotes.page({ offset, view:viewOf(filter), eventType:typeFilter, search:($("#search").value||"").trim(), sort:"confirmedFirst" })),
-      render:(rows,info)=>{ quotes=info.all; render(); refreshStale(); } });
+      render:(rows,info)=>{ quotes=info.all; render(); refreshStale(); refreshChanges(); } });
     anyQuotes=null;
     return pager.reset();
   }
@@ -480,6 +480,15 @@
     const ids=quotes.map(x=>x.id), key=ids.join(","); if(key===staleKey) return; staleKey=key;
     try{ const s=await BPStore.quotes.staleApprovals(ids); const changed=s.size||staleSet.size; staleSet=s; if(changed) render(); }catch(_){}
   }
+  // money-1024: the list total = quote total + APPROVED change orders - the same invoice total the
+  // event workspace and settlement show (BPStore.budget.summary). Fail-soft: base total if unreadable.
+  let chgTotals={}, chgKey="";
+  async function refreshChanges(){
+    const ids=quotes.map(x=>x.id), key=ids.join(","); if(key===chgKey) return; chgKey=key;
+    try{ if(!(BPStore.budget&&BPStore.budget.approvedChangeTotals)) return; const m=await BPStore.budget.approvedChangeTotals(ids)||{};
+      const changed=Object.keys(m).length||Object.keys(chgTotals).length; chgTotals=m; if(changed) render(); }catch(_){}
+  }
+  const listTotal=(x)=>{ const b=Number(x.total)||0; return b ? Math.round((b+(Number(chgTotals[x.id])||0))*100)/100 : 0; };
   const reloadQuiet=()=>reloadList().catch(e=>{ BPUI.loadError($("#rows"), e, reloadQuiet, {what:"quotes"}); });
   function render(){
     $("#rows").removeAttribute("aria-busy");
@@ -523,7 +532,7 @@
         <td>${esc(client)||'<span class="muted">—</span>'}</td>
         <td><select class="vsel" data-role="vsel" aria-label="Version of ${esc(x.code)}"><option>V${esc(x.currentVersion)}</option></select></td>
         <td>${sh(x)?(sh(x).shelf==="deleted"?'<span class="stat hs-pill hs-overdue">Deleted</span> ':'<span class="stat hs-pill hs-archived">Archived</span> '):''}${needsAttention(x)?'<span class="stat hs-pill hs-overdue" title="Event date has passed but this event isn\'t wrapped up — settle, return equipment and close it">⚠ Overdue</span> ':''}${isArchived(x)&&x.lifecycleStage==="closed"?'<span class="stat hs-pill hs-archived">Closed · Archived</span>':statBadge(x.status,x.approvalStatus)} ${apprBadge(x.approvalStatus)}${staleSet.has(x.id)?`<div class="stat warn" role="status" style="margin-top:4px">⚠ Price changed after approval — client must approve again${canEdit?` <button type="button" class="ic" data-act="relink" aria-label="Send a new approval link for ${esc(x.code)}">Send new approval link</button>`:""}</div>`:""}${sh(x)?`<div class="shelfnote">${esc(shelfNote(sh(x)))}</div>`:""}</td>
-        <td style="text-align:right" class="amt">${x.total?esc(BPStore.quoteMoney(x.total,x)):'<span class="muted">—</span>'}</td>
+        <td style="text-align:right" class="amt">${listTotal(x)?esc(BPStore.quoteMoney(listTotal(x),x)):'<span class="muted">—</span>'}</td>
         <td class="muted">${fmtDate(x.updatedAt)}</td>
         <td><div class="row-actions" style="justify-content:flex-end">
           ${sh(x)
