@@ -302,7 +302,7 @@
       var bellSlot = el("div", "hb-tslot hb-bell"); bellSlot.setAttribute("data-tour", "bell");
       var chatBadge = el("span", "hb-badge"); chatBadge.hidden = true; chatBadge.setAttribute("aria-hidden", "true"); chat.appendChild(chatBadge);
       var split = el("div", "hb-split"); split.hidden = true; split.setAttribute("data-tour", "new");
-      var nq = el("button", "hb-new"); nq.type = "button";
+      var nq = el("button", "hb-new"); nq.type = "button"; nq.setAttribute("aria-label", "New quote");
       nq.appendChild(icon("plus")); nq.appendChild(el("span", null, "New quote"));
       nq.addEventListener("click", startQuote);
       split.appendChild(nq);

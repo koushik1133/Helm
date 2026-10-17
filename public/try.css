@@ -13,6 +13,8 @@ html.helm-sandbox[data-theme="dark"]{
   --try-em:#3fbf8f; --canvas:#0a0f0c; --grid:rgba(255,255,255,.04); --grid-strong:rgba(255,255,255,.08);
 }
 html.helm-sandbox body{background:var(--canvas)}
+/* QA1017: white on the light dark-mode green was 2.32:1; dark ink is ~8.3:1 */
+html.helm-sandbox[data-theme="dark"] .try-cta{color:#0a0f0c}html.helm-sandbox[data-theme="dark"] .try-cta-i{background:rgba(0,0,0,.12)}
 
 /* ---- everything that is not part of the mini-demo ---- */
 html.helm-sandbox body > header,

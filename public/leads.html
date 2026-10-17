@@ -197,7 +197,7 @@
       <div class="fld"><label for="f_type">Event type</label><input id="f_type" placeholder="e.g. Wedding, Corporate"></div>
       <div class="fld"><label for="f_date">Event date</label><input id="f_date" type="date" data-min-today></div>
       <div class="fld"><label for="f_budget">Budget (₹)</label><input id="f_budget" type="number" data-allow-negative placeholder="e.g. 500000"></div>
-      <div class="fld"><label for="f_guests">Guest count</label><input id="f_guests" type="number" data-allow-negative placeholder="e.g. 300"></div>
+      <div class="fld"><label for="f_guests">Guest count</label><input id="f_guests" type="number" min="0" max="100000" data-allow-negative placeholder="e.g. 300"></div>
       <div class="fld"><label for="f_bday">Birthday <span class="muted">(optional)</span></label><input id="f_bday" type="date" min="1900-01-01"></div>
       <div class="fld"><label for="f_anniv">Anniversary <span class="muted">(optional)</span></label><input id="f_anniv" type="date" min="1900-01-01"></div>
       <div class="fld full"><label for="f_notes">Notes</label><textarea id="f_notes" placeholder="Anything the planner should know…"></textarea></div>
@@ -228,7 +228,7 @@
 <script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=213"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=214"></script>
 <script src="tour.js?v=14"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
@@ -340,6 +340,8 @@
     if(act==="workspace"){ location.href="event.html?id="+encodeURIComponent(l.quote_id); return; }
     if(act==="convert"){
       await BPUI.guard(btn, async()=>{
+        // QA1017: same GUESTS_MAX as flow - an over-cap lead must not price a quote around the flow cap
+        { const cl=(typeof leads!=="undefined"&&Array.isArray(leads))?leads.find(x=>String(x.id)===String(id)):null; if(cl&&Number(cl.guest_count)>100000){ BPUI.toast("This lead has more than 100,000 guests. Edit the guest count first, then convert.",{type:"err"}); return; } }
         try{ const q=await BPStore.leads.convert(id); location.href="flow.html?quote="+encodeURIComponent(q.id); }
         catch(err){ BPUI.toast(BPUI.friendlyError(err,{action:"convert the lead"}),{type:"err"}); }
       },{busyLabel:"Converting…"});
@@ -569,7 +571,7 @@
     let budget=null;
     if($("#f_budget").value!==""){ const bv=V.money($("#f_budget").value,{field:"Budget"}); if(!bv.ok){ fail(bv.error); return; } budget=bv.value; }
     let guest_count=null;
-    if($("#f_guests").value!==""){ const gv=V.count($("#f_guests").value,{field:"Guest count"}); if(!gv.ok){ fail(gv.error); return; } guest_count=gv.value; }
+    if($("#f_guests").value!==""){ const gv=V.count($("#f_guests").value,{field:"Guest count",max:100000}); if(!gv.ok){ fail(gv.error); return; } guest_count=gv.value; }
     { const de=$("#f_date"), dv=de.value, dmin=de.getAttribute("min")||"", saved=(editingId&&leadById(editingId)||{}).event_date||"";
       const rej=de.getAttribute("data-date-rejected");
       if(!dv && rej){ fail(rej==="past"?"Event date can't be in the past.":"Pick an event date within the next 5 years."); return; }
