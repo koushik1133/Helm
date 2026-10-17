@@ -99,6 +99,7 @@ supabase functions deploy send-phone-code --project-ref xizehqgeyjcfpzrdymly
 supabase functions deploy wa-webhook      --project-ref xizehqgeyjcfpzrdymly --no-verify-jwt
 supabase functions deploy comms-dispatch  --project-ref xizehqgeyjcfpzrdymly --no-verify-jwt
 supabase functions deploy pkg-client-notify --project-ref xizehqgeyjcfpzrdymly --no-verify-jwt
+supabase functions deploy integrations-test --project-ref xizehqgeyjcfpzrdymly
 ```
 
 For production repeat the same commands with `nqltzgiwznphugcfhmbm` and `APP_URL="https://www.helm.events"`.
@@ -135,6 +136,17 @@ liveChannels: { sms: false, pay: false, whatsapp: true }
 ```
 Do this in the staging build first. The CI check `check-deferred-integrations` expects `false`; update that
 check in the same change (ask Claude to prepare it - owner pushes).
+
+## Step 9b - Integrations page check (0150, no curl needed)
+Apply `supabase/APPLY-0150.sql` (every VERIFY row `true`) and deploy `integrations-test` (above). Then, signed in
+as a studio admin, open **Integrations** (`/<studio>/integrations`):
+- WhatsApp card: enter the studio number as `+<country code> <number>` (E.164), **Save number**, **Send test WhatsApp**.
+  - **Simulated** = secrets not set yet (the result line says which one is missing); nothing leaves Helm.
+  - **Live** = `WHATSAPP_TOKEN` + `WHATSAPP_PHONE_ID` + `COMMS_WHATSAPP_TEMPLATE` are set; the test uses the
+    `helm_notice` template and goes ONLY to the studio's own saved number.
+- The status words are the same for every channel: **Not connected / Simulated / Live**. The page reads only
+  booleans from the server; no token, ID or key is ever sent to the browser or stored in a table.
+- Kill switch for the test button only: `HELM_INTEGRATIONS_TEST_ENABLED=false` (tests then always say Simulated).
 
 ## Step 10 - Test with ONE number
 1. Use your own phone as the test number. While the business is unverified, add it under

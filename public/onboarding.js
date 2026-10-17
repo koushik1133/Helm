@@ -28,7 +28,7 @@
     team: "Optional. Invite the people who will sign in to Helm and pick each person's role. They get a join link (valid 7 days). Crew who don't sign in can be added in the Staff step.",
     venues: "Optional. The halls and venues you work with. Pick one on a quote to fill in the hall details. Venues are never deleted, only deactivated.",
     payment: "Optional. Your default advance and when the balance is due. Shown as your standard terms; you can still change them per event.",
-    connect: "Optional. Email invites are already on: Helm e-mails every teammate you invite. Connect WhatsApp to send task assignments and event reminders to your crew.",
+    connect: "Optional. Check your e-mail sender name and reply-to, and save your studio WhatsApp number. Each has a Send test button on the Integrations page.",
     templates: "Optional. Menu packages and checklist templates speed up every quote. Review them now or later in Control Center.",
     menu: "Add the dishes you serve. They appear in the menu picker on every quote. Dishes with the same name as an existing one are skipped by default.",
     pricing: "Your per-chair and per-plate rates. These feed live quote pricing. Existing rates are never changed here; duplicates are skipped by default.",
@@ -253,9 +253,9 @@
     if (kind === "venues") return form(`<div id="obVenuesSlot"></div>`);
     // 0134: review-only - email invites (on via Helm) + WhatsApp setup guide on the Integrations page
     if (kind === "connect") {
-      return form(`<ul class="ob-check"><li>✓ <b>Email invites</b> <span class="ob-note">On via Helm. Every teammate you invite gets the Join link by e-mail; Copy link stays as a backup.</span></li>`
-        + `<li>○ <a href="integrations.html#whatsapp"><b>Connect WhatsApp</b></a> <span class="ob-note">Step-by-step guide: Meta business account, phone number, message templates, then your studio WhatsApp number in Control Center.</span></li></ul>`
-        + `<div class="ob-row"><a class="btn" href="integrations.html#whatsapp">Open WhatsApp setup guide</a><a class="btn" href="integrations.html#email">How email invites work</a></div>`, "Continue");
+      return form(`<ul class="ob-check"><li>✓ <b>Email invites</b> <span class="ob-note">Every teammate you invite gets the Join link by e-mail; Copy link stays as a backup. Set the sender name and reply-to address clients see on the Integrations page.</span></li>`
+        + `<li>○ <a href="integrations.html#whatsapp"><b>Connect WhatsApp</b></a> <span class="ob-note">Save your studio WhatsApp number (with + and country code) and press Send test. It shows Simulated until Helm switches WhatsApp on, then Live.</span></li></ul>`
+        + `<div class="ob-row"><a class="btn" href="integrations.html#whatsapp">Set up WhatsApp</a><a class="btn" href="integrations.html#email">Set up e-mail</a></div>`, "Continue");
     }
     // templates
     const c = tplCounts;

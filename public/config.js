@@ -10,7 +10,8 @@
 // (sidebar entry, /integrations + /<studio>/integrations redirect to the dashboard), the
 // "Connect WhatsApp" getting-started step and the "WhatsApp & email" onboarding step —
 // Helm's own e-mail and WhatsApp are used. Flip to true to bring all of it back.
-window.HELM_FEATURES = Object.assign({ integrationsPage: false }, window.HELM_FEATURES || {});
+// Local preview (owner 2026-10-17): the WhatsApp number + e-mail setup is ON on localhost only, still off on live sites.
+window.HELM_FEATURES = Object.assign({ integrationsPage: /^(localhost|127\.0\.0\.1)$/.test(location.hostname) }, window.HELM_FEATURES || {});
 window.SUPABASE_CONFIG = {
   url: "https://nqltzgiwznphugcfhmbm.supabase.co",
   anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xbHR6Z2l3em5waHVnY2ZobWJtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkzOTg5NDYsImV4cCI6MjEwNDk3NDk0Nn0.UWainTYBaCr8dNaugqWkCuLVh2H0TkiG6ZIFH6ZPKIQ",

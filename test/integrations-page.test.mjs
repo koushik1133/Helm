@@ -13,7 +13,7 @@ t('page: CSP-safe (no inline script, no style attrs, no on* handlers)', () => {
   assert.ok(!/<script(?![^>]*\bsrc=)[^>]*>/i.test(html), 'no inline <script>');
   assert.ok(!/\sstyle=/i.test(html)); assert.ok(!/\son[a-z]+=/i.test(html));
   assert.ok(!/innerHTML|insertAdjacentHTML|outerHTML/.test(js), 'status painted with textContent only');
-  assert.match(html, /class="auth-pending"/); assert.match(html, /integrations\.js\?v=1/);
+  assert.match(html, /class="auth-pending"/); assert.match(html, /integrations\.js\?v=2/);
 });
 t('page: three cards + WhatsApp guide names both templates and the Control Center number field', () => {
   for (const id of ['itgEmail', 'itgWa', 'itgPay']) assert.match(html, new RegExp('id="' + id + '"'));
@@ -25,9 +25,9 @@ t('pure status helpers', () => {
   const H = require('../public/integrations.js');
   assert.equal(H.emailStatus(null).state, 'off');
   assert.equal(H.emailStatus({ has_invite_mailer: true, email: { sent_30d: 3 } }).state, 'on');
-  assert.equal(H.emailStatus({ has_invite_mailer: true, email: { skipped_30d: 1 } }).state, 'wait');
-  assert.equal(H.whatsappStatus({ studio_whatsapp: '919876543210' }, true).state, 'on');
-  assert.equal(H.whatsappStatus({ studio_whatsapp: '919876543210' }, false).state, 'wait');
+  assert.equal(H.emailStatus({ has_invite_mailer: true, email: { skipped_30d: 1 } }, { email: { live: false } }).state, 'wait');
+  assert.equal(H.whatsappStatus({ studio_whatsapp: '919876543210' }, { whatsapp: { live: true } }).state, 'on');
+  assert.equal(H.whatsappStatus({ studio_whatsapp: '919876543210' }, null).state, 'wait');
   assert.equal(H.whatsappStatus({}, false).label, 'Not connected');
   assert.equal(H.razorpayStatus(null, false).label, 'Not connected');
   assert.equal(H.showPhone('919876543210'), '+91 98765 43210');
@@ -56,7 +56,7 @@ t('setup checklist + wizard link to the Integrations page', () => {
   assert.match(r('public/onboarding.js'), /kind === "connect"/);
 });
 t('MVP flag: HELM_FEATURES.integrationsPage=false hides sidebar entry, checklist step, wizard step; page redirects', () => {
-  assert.match(r('public/config.js'), /HELM_FEATURES = Object\.assign\(\{ integrationsPage: false \}/);
+  assert.match(r('public/config.js'), /HELM_FEATURES = Object\.assign\(\{ integrationsPage: \/\^\(localhost\|127\\\.0\\\.0\\\.1\)\$\/\.test\(location\.hostname\) \}/, 'page on for localhost only, hidden on live hosts');
   assert.match(r('public/shell-b.js'), /HELM_FEATURES\.integrationsPage === true\), "integrations", "Integrations"/);
   assert.match(js, /\/integrations\\\/\?\$\/[\s\S]*\/dashboard"[\s\S]*"\/dashboard\.html"/);
   const gs = require('../public/getting-started.js');
