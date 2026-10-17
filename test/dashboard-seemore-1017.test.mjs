@@ -15,7 +15,7 @@ ok(/\.hd-dash \.hd-sm-x \{ display: none !important; \}/.test(css) && /\.hd-sm-o
 ok(!/\.style\./.test(js.slice(js.indexOf("var SM_N"), js.indexOf("function moreLink"))), "no inline styles in the new helpers");
 ok(!/hd-delta-na", "—"\)/.test(js) && /"vs last month"/.test(js) && /"vs previous 7 days"/.test(js), "deltas: no bare dash, self-explanatory comparison text");
 ok(/t\.title = o\.tip/.test(js), "KPI tip visible as title on hover");
-ok(/" open in total"/.test(js) && /not contacted for 24h\+/.test(js) && /New leads · last 7 days/.test(js), "new leads sub wording");
+ok(/" became quotes"/.test(js) && /not contacted yet/.test(js) && /New leads · last 7 days/.test(js), "new leads sub wording");
 ok(/sent, waiting for client reply/.test(js), "open quotes sub wording");
 ok(/"hd-why hd-why-"/.test(js) && /"Settlement pending"/.test(js) && /"Not contacted"/.test(js) && /\.hd-why \{[^}]*white-space: normal/.test(css), "attention reasons as always-visible chips");
 ok(/Booked this month/.test(js) && /Collected last month/.test(js) && /payments actually received in that month/.test(js), "revenue month summary + plain footnote");

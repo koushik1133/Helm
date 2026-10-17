@@ -1009,7 +1009,7 @@
         if (vLeads) {
           var nowT = Date.now(), l7 = 0, lp7 = 0;
           leads.forEach(function (l) { var t = l.created_at ? new Date(l.created_at).getTime() : NaN; if (!isFinite(t)) return; var a = nowT - t; if (a >= 0 && a < 7 * DAY) l7++; else if (a >= 7 * DAY && a < 14 * DAY) lp7++; });
-          tile(tiles[3], { label: "New leads · last 7 days", tip: "Enquiries received in the last 7 days, compared with the 7 days before.", ic: IC.user, value: l7, delta: delta(l7, lp7, true, "vs previous 7 days"), sub: (mOpenLeads != null ? mOpenLeads : openLeads.length) + " open in total" + (staleLeads.length ? " · " + staleLeads.length + " not contacted for 24h+" : ""),
+          tile(tiles[3], { label: "New leads · last 7 days", tip: "Enquiries received in the last 7 days, how many of them became quotes, and how many nobody has contacted for over a day.", ic: IC.user, value: l7, delta: delta(l7, lp7, true, "vs previous 7 days"), sub: (function () { var conv7 = leads.filter(function (l) { var t = l.created_at ? new Date(l.created_at).getTime() : NaN; return isFinite(t) && nowT - t >= 0 && nowT - t < 7 * DAY && (l.quote_id || ["won", "converted"].indexOf(String(l.status || "")) >= 0); }).length; return conv7 + " of " + l7 + " became quotes" + (staleLeads.length ? " · " + staleLeads.length + " not contacted yet" : ""); })(),
             subKind: staleLeads.length ? "wait" : null, href: "leads.html" });
         } else {
           tile(tiles[3], { label: "Tasks overdue", tip: "Your tasks past their due date.", ic: IC.task, value: tasks ? (tc.overdue || 0) : null, sub: tasks ? (tc.today || 0) + " due today" : "Tasks unavailable", subKind: tc.overdue ? "bad" : null, href: "#mytasksSection" });
