@@ -139,11 +139,14 @@
       if (off >= 0 && off < days) { cur++; hit.push(x); } else if (off < 0 && off >= -days) prev++; });
     return { cur: cur, prev: prev, items: hit };
   }
-  function dpLoad(uid, defs) {
-    var o = {}; try { var r = JSON.parse(localStorage.getItem("helm.dash.kpiPeriod." + uid) || "null"); if (r && typeof r === "object") o = r; } catch (e) {}
-    var out = {}; Object.keys(defs).forEach(function (k) { out[k] = dpDays(o[k]) ? o[k] : defs[k]; }); return out;
+  /* one universal period for all four tiles, remembered per user on this device; legacy per-tile objects fall back */
+  function dpLoad(uid, def) {
+    var v = null; try { var r = localStorage.getItem("helm.dash.kpiPeriod." + uid); v = r ? JSON.parse(r) : null; } catch (e) { v = null; }
+    return typeof v === "string" && dpDays(v) ? v : def;
   }
-  function dpSave(uid, sel) { try { localStorage.setItem("helm.dash.kpiPeriod." + uid, JSON.stringify(sel)); } catch (e) {} }
+  function dpSave(uid, k) { if (!dpDays(k)) return; try { localStorage.setItem("helm.dash.kpiPeriod." + uid, JSON.stringify(k)); } catch (e) {} }
+  /* delta badge model: null when there is nothing meaningful to compare (no previous data, or no change) */
+  function dpDelta(cur, prev) { if (!prev || !isFinite(cur) || !isFinite(prev)) return null; var p = Math.round(((cur - prev) / Math.abs(prev)) * 100); return p ? { up: p > 0, pct: Math.abs(p) } : null; }
   /* DP:end */
   function iso(d) { var m = d.getMonth() + 1, x = d.getDate(); return d.getFullYear() + "-" + (m < 10 ? "0" : "") + m + "-" + (x < 10 ? "0" : "") + x; }
   function dOf(s) { var d = new Date(String(s || "").slice(0, 10) + "T00:00:00"); return isNaN(d) ? null : d; }
@@ -736,6 +739,7 @@
     root.appendChild(hero);
 
     /* S2 KPI strip (one banded card, 4 count tiles) */
+    var perRow = el("div", "hd-per-row hd-s-full"); perRow.hidden = true; root.appendChild(perRow);   // universal period control (money roles)
     var kpis = enter(el("div", "hd-kpis hd-s-full"), 1); kpis.setAttribute("aria-label", "Key numbers"); kpis.setAttribute("role", "group");
     var tiles = [];
     for (var i = 0; i < 4; i++) { var t = el("div", "hd-kpi"); t.appendChild(el("div", "hd-skel hd-skel-line")); t.appendChild(el("div", "hd-skel hd-skel-big")); kpis.appendChild(t); tiles.push(t); }
@@ -1011,34 +1015,33 @@
       if (o.href) { var a = link(o.href, "hd-kpi-a"); a.setAttribute("aria-label", o.label + ": open"); if (o.tip) a.setAttribute("aria-describedby", "hdTip" + tiles.indexOf(t)); t.appendChild(a); }
     }
     function delta(curV, prevV, goodUp, vsTxt) {
-      vsTxt = vsTxt || "vs previous period";
-      if (!prevV) { var n0 = el("span", "hd-delta hd-delta-na hd-delta-new", curV ? "new" : "no data " + vsTxt.replace(/^vs /, "")); n0.title = "Nothing to compare with " + vsTxt.replace(/^vs /, ""); return n0; }
-      var p = Math.round(((curV - prevV) / Math.abs(prevV)) * 100), up = p >= 0;
-      var good = goodUp === false ? !up : up;
-      if (p === 0) { var z = el("span", "hd-delta hd-delta-na hd-delta-same", "– no change " + vsTxt); z.title = "Same as " + vsTxt.replace(/^vs /, ""); return z; }
-      var d = el("span", "hd-delta " + (good ? "hd-delta-up" : "hd-delta-dn"), (up ? "▲ " : "▼ ") + Math.abs(p) + "% " + vsTxt);
-      d.title = (up ? "Up " : "Down ") + Math.abs(p) + "% " + vsTxt; return d;
+      var m = dpDelta(curV, prevV); if (!m) return null;                     // no badge when there is nothing to compare
+      var good = goodUp === false ? !m.up : m.up, words = (m.up ? "Up " : "Down ") + m.pct + "% " + (vsTxt || "vs previous period");
+      var d = el("span", "hd-delta " + (good ? "hd-delta-up" : "hd-delta-dn"), (m.up ? "▲ " : "▼ ") + m.pct + "%");
+      d.title = words; d.setAttribute("aria-label", words); return d;
     }
     if (!kpis.hidden) {
       if (isMoney) {
         // client-safe: counts only (money is on the Business page). Each tile has its own period (7d/1m/6m/1y),
         // remembered per user on this device; changing one re-renders just that tile.
         var dpUid = (user && (user.id || user.email)) || "local";
-        var dpSel = dpLoad(dpUid, { up: "1m", conf: "1m", quotes: "1m", leads: "7d" });
+        var dpCur = dpLoad(dpUid, "1m");
         var tsOf = function (v) { if (!v) return NaN; var t = new Date(v).getTime(); return isFinite(t) ? t : NaN; };
-        var nowT = Date.now();
-        var dpTile = function (t, key, fwd, render) {
-          var draw = function () {
-            render(dpSel[key]);
-            var top = t.querySelector(".hd-kpi-top"); if (!top) return;
-            var sel = el("select", "hd-kpi-per"); sel.setAttribute("aria-label", "Period for " + (t.querySelector(".hd-kpi-l") || {}).textContent);
-            var dpNarrow = false; try { dpNarrow = !!(window.matchMedia && window.matchMedia("(max-width: 480px)").matches); } catch (e) {}
-            DP_OPTS.forEach(function (o) { var op = el("option", null, dpLabel(o[0], fwd, dpNarrow)); op.value = o[0]; op.setAttribute("aria-label", dpLabel(o[0], fwd, false)); if (o[0] === dpSel[key]) op.selected = true; sel.appendChild(op); });
-            sel.addEventListener("change", function () { if (!dpDays(sel.value)) return; dpSel[key] = sel.value; dpSave(dpUid, dpSel); draw(); var n = t.querySelector(".hd-kpi-per"); if (n) n.focus(); });
-            var ic = top.querySelector(".hd-kpi-ic"); top.insertBefore(sel, ic || null);
-          };
-          draw();
-        };
+        var nowT = Date.now(), dpDraws = [];
+        // one universal segmented control above the row: [7D] [1M] [6M] [1Y]; Upcoming looks forward, the rest look back
+        clear(perRow); var perCap = el("span", "hd-per-cap");
+        var seg = el("div", "hd-per-seg"); seg.setAttribute("role", "group"); seg.setAttribute("aria-label", "Period for the key numbers");
+        var dpCap = function () { perCap.textContent = dpLabel(dpCur, false, false) + " · upcoming: " + dpLabel(dpCur, true, false).toLowerCase() + " · compared with the period before"; };
+        DP_OPTS.forEach(function (o) {
+          var b = el("button", "hd-per-b", DP_SHORT[o[0]]); b.type = "button"; b.setAttribute("data-per", o[0]);
+          b.setAttribute("aria-label", dpLabel(o[0], false, false)); b.setAttribute("aria-pressed", String(o[0] === dpCur));
+          b.addEventListener("click", function () { if (!dpDays(o[0]) || o[0] === dpCur) return; dpCur = o[0]; dpSave(dpUid, dpCur);
+            seg.querySelectorAll(".hd-per-b").forEach(function (x) { x.setAttribute("aria-pressed", String(x.getAttribute("data-per") === dpCur)); });
+            dpCap(); dpDraws.forEach(function (f) { f(dpCur); }); });
+          seg.appendChild(b);
+        });
+        dpCap(); perRow.appendChild(perCap); perRow.appendChild(seg); perRow.hidden = false;
+        var dpTile = function (t, key, fwd, render) { dpDraws.push(render); render(dpCur); };
         var dots7 = []; for (var dd = 0; dd < 7; dd++) { var dIso = iso(new Date(todayD.getTime() + dd * DAY)); dots7.push(future.some(function (e) { return e.date === dIso; })); }
         dpTile(tiles[0], "up", true, function (k) {
           var w = dpFwd(events, function (e) { return e.date; }, todayD.getTime(), dpDays(k)), nx0 = w.items[0];
@@ -1049,7 +1052,7 @@
         var confRows = rows.filter(function (q) { return q.status === "confirmed"; });
         if (vQuotes) dpTile(tiles[1], "conf", false, function (k) {
           var w = dpBack(confRows, function (q) { return tsOf(q.confirmedAt || q.eventDate || q.updatedAt); }, nowT, dpDays(k));
-          tile(tiles[1], { label: "Confirmed events", tip: "Confirmed events not yet closed. The arrow compares confirmations in the chosen period with the period before it.", ic: IC.check, value: confN,
+          tile(tiles[1], { label: "Confirmed", tip: "Confirmed events not yet closed. The arrow compares confirmations in the chosen period with the period before it.", ic: IC.check, value: confN,
             delta: delta(w.cur, w.prev, true, dpVs(k)), sub: w.cur + " confirmed in the last " + dpName(k), href: "quotes.html" });
         });
         else tile(tiles[1], { label: "Confirmed events", ic: IC.check, value: null, sub: "No access to quotes" });
