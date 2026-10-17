@@ -299,9 +299,10 @@
   function initTheme() {
     var root = D.documentElement, sel = D.getElementById('dmTheme'), mode = D.getElementById('dmMode');
     if (sel) {
-      sel.value = root.getAttribute('data-pt') || 'cobalt';
+      sel.value = root.getAttribute('data-pt') || 'emerald';
       sel.addEventListener('change', function () { root.setAttribute('data-pt', sel.value); root.setAttribute('data-hb-theme', sel.value); store('helm.shellb.theme', sel.value); });
     }
+    if (mode && W.HELM_DARK_MODE !== true) { mode.hidden = true; mode.style.display = 'none'; mode = null; }   /* dark mode off for now */
     if (mode) mode.addEventListener('click', function () {
       var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
       root.setAttribute('data-theme', next); store('bps.theme', next);

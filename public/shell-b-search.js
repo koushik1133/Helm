@@ -13,10 +13,13 @@
     { id: "go-insights-b", label: "Go to insights", icon: "\u{1F4CA}", href: "/insights.html", need: [["view", "insights"]], kw: "analytics trends" },
     { id: "go-setup", label: "Studio setup", icon: "\u2699", href: "/onboarding.html", need: [["view", "controls"]], kw: "onboarding import configure" },
     { id: "go-templates", label: "Go to templates", icon: "\u{1F4C4}", href: "/templates.html", need: [["view", "templates"]], kw: "proposal layouts" },
-    { id: "hsb-theme", label: "Toggle dark mode", icon: "\u{1F313}", href: "#hsb-act-theme", need: [], kw: "theme light night appearance", run: "bpThemeToggle" },
+    /* dark mode is off for now (window.HELM_DARK_MODE !== true): this action opens the colour theme picker instead */
+    window.HELM_DARK_MODE === true
+      ? { id: "hsb-theme", label: "Toggle dark mode", icon: "\u{1F313}", href: "#hsb-act-theme", need: [], kw: "theme light night appearance", run: "bpThemeToggle" }
+      : { id: "hsb-theme", label: "Change colour theme", icon: "\u{1F3A8}", href: "#hsb-act-theme", need: [], kw: "theme colour color appearance emerald graphite", run: "hbThemePick" },
     { id: "hsb-tour", label: "Take the tour", icon: "❓", href: "#hsb-act-tour", need: [], kw: "help guide onboarding", run: "helpBtn" }
   ];
-  var RUN = { "#hsb-act-theme": "bpThemeToggle", "#hsb-act-tour": "helpBtn" };
+  var RUN = { "#hsb-act-theme": window.HELM_DARK_MODE === true ? "bpThemeToggle" : "hbThemePick", "#hsb-act-tour": "helpBtn" };
 
   function btn(id) { return doc.getElementById(id) || (id === "helpBtn" ? doc.querySelector(".htour-fab") : null); }   /* some pages only have the tour pill */
   function css() {

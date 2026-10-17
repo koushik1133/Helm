@@ -1,6 +1,6 @@
 /* App layout loader: shell-proto.js decides (allowlist) which signed-in studio pages get the sidebar layout. All hosts. */
 (function () { try { if (!document.getElementById("shellProto")) {
-  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=13"; document.head.appendChild(s); } } catch (e) {} })();
+  var s = document.createElement("script"); s.id = "shellProto"; s.src = "/shell-proto.js?v=14"; document.head.appendChild(s); } } catch (e) {} })();
 /* =========================================================================
    BPStore — shared persistence for the landing page + builder.
    Tiered backend, chosen once at init(), with graceful fallback:
@@ -107,10 +107,26 @@ var HelmUrl = (function (global) {
 window.HelmUrl = HelmUrl;
 
 /* Phase 54 — apply the saved light/dark theme synchronously (before the body
-   paints, so there is no flash), and mount a floating theme toggle on every page. */
+   paints, so there is no flash), and mount a floating theme toggle on every page.
+   DARK MODE FLAG (Oct 2026, owner decision): dark mode is OFF everywhere for now. Every page renders LIGHT, saved
+   'bp_theme' / 'bps.theme' = dark and the OS prefers-color-scheme are ignored, and no light/dark toggle is shown.
+   The dark CSS is kept untouched: set window.HELM_DARK_MODE = true (e.g. in config.js) to bring it all back.
+   Colour themes (emerald default, cobalt, midnight, graphite, studio) are separate and still switchable. */
 (function () {
+  var DARK_ON = window.HELM_DARK_MODE === true;
+  var root = document.documentElement;
   // marketing + sign-in pages are always light (marketing-theme.js sets data-mk-lock): never apply the app's saved mode there
   var mkLock = false; try { mkLock = document.documentElement.getAttribute("data-mk-lock") != null; } catch (e) {}
+  if (!DARK_ON) {
+    // light lock: force light now, and revert any later attempt (page-level toggles in builder/chat/demo) back to light
+    if (!window.__helmLightLock) {
+      window.__helmLightLock = true;
+      var lock = function () { if (root.getAttribute("data-theme") !== "light") root.setAttribute("data-theme", "light"); try { root.style.colorScheme = "light"; } catch (e) {} };
+      lock();
+      try { new MutationObserver(lock).observe(root, { attributes: true, attributeFilter: ["data-theme"] }); } catch (e) {}
+    }
+    return;   // no floating toggle while dark mode is off
+  }
   try { var t = localStorage.getItem("bp_theme"); if (!mkLock && (t === "dark" || t === "light")) document.documentElement.setAttribute("data-theme", t); } catch (e) {}
   function mountToggle() {
     if (mkLock || document.getElementById("bpThemeToggle") || !document.body) return;
@@ -1062,7 +1078,7 @@ window.HelmUrl = HelmUrl;
   }
   // 0116 — "Demo N" free-trial strip (days left / read-only + upgrade). trial.js asks
   // my_trial_org() itself and shows nothing for a studio that isn't a start_trial() trial.
-  const TRIAL_BANNER_VERSION = "6";
+  const TRIAL_BANNER_VERSION = "7";
   let trialBannerLoading = false;
   function loadTrialBanner() {
     if (trialBannerLoading || typeof document === "undefined" || global.HelmTrial) return;

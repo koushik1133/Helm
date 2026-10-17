@@ -4534,7 +4534,8 @@ $('#importBtn').addEventListener('click',async()=>{
 });
 $('#importFile').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.value='';
   if(f) BPUI.guard($('#importBtn'), ()=>importJSON(f),{busyLabel:'Importing…'}).catch(()=>{}); });
-$('#themeBtn').addEventListener('click',toggleTheme);
+/* dark mode is OFF for now (window.HELM_DARK_MODE !== true): the light/dark button is hidden; store-api.js keeps the page light */
+if(window.HELM_DARK_MODE===true) $('#themeBtn').addEventListener('click',toggleTheme); else { const tb=$('#themeBtn'); if(tb){ tb.hidden=true; tb.style.display='none'; } }
 $('#projName').addEventListener('keydown',e=>{ if(e.key==='Enter') e.target.blur(); });
 $('#projName').addEventListener('input',()=>markDirty());
 $('#capInput').addEventListener('input',e=>{ const v=parseInt(e.target.value,10); store.venue.capacity = (isFinite(v)&&v>0)?Math.min(v,MAX_CAPACITY):null; if(store.venue.capacity!==v && isFinite(v) && v>0) e.target.value=store.venue.capacity; updateCapacityUI(); markDirty(); });

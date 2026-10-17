@@ -45,7 +45,7 @@
 
   /* ---- 3. theme (same key as the builder) ---- */
   try {
-    var t = localStorage.getItem('bps.theme');
+    var t = window.HELM_DARK_MODE === true ? localStorage.getItem('bps.theme') : 'light';   // dark mode off for now: always light
     document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
   } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
 

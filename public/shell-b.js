@@ -120,7 +120,7 @@
     { sel: "[data-tour='new']", title: "Create", desc: "Start a new quote, lead or event from any page." },
     { sel: "[data-tour='bell']", title: "Notifications", desc: "Approvals, payments and mentions arrive here." },
     { sel: ".hb-recent .htr-btn", title: "Recently viewed", desc: "Jump back to the pages and events you opened last." },
-    { sel: "[data-tour='theme']", title: "Look and feel", desc: "Switch dark mode and pick a colour theme." },
+    { sel: "[data-tour='theme']", title: "Look and feel", desc: window.HELM_DARK_MODE === true ? "Switch dark mode and pick a colour theme." : "Pick a colour theme: Emerald, Cobalt, Midnight, Graphite or Studio." },
     { sel: "[data-tour='account']", title: "Your account", desc: "Profile, studio settings and sign out." }
   ];
   function startTour() {
@@ -176,7 +176,8 @@
     var bottom = el("div", "hb-bottom");
     // theme toggle: move the app's own toggle in, give it a label + line icon that follow the theme
     var themeSlot = el("div", "hb-slot hb-theme"); themeSlot.setAttribute("data-tour", "theme");
-    adopt(function () { return document.getElementById("bpThemeToggle"); }, themeSlot, function (b) {
+    var DARK_ON = window.HELM_DARK_MODE === true;   /* dark mode off (Oct 2026): no light/dark toggle in the rail, only the colour theme picker */
+    if (DARK_ON) adopt(function () { return document.getElementById("bpThemeToggle"); }, themeSlot, function (b) {
       if (b.dataset.hbDone) return; b.dataset.hbDone = "1"; b.classList.add("hb-item");
       var paint = function () {
         var dark = root.getAttribute("data-theme") === "dark";
@@ -216,10 +217,16 @@
     tourSlot.appendChild(tourBtn);
     /* accent theme picker: swatch button beside the dark-mode toggle, popover floats beside the rail */
     safe(function () {
-      var TH = [["cobalt", "Cobalt", "#2450f0"], ["midnight", "Midnight", "#1e1b4b"], ["emerald", "Emerald", "#047857"], ["graphite", "Graphite", "#111111"], ["studio", "Studio", "#5B2A86"]];
-      var cur = function () { return root.getAttribute("data-hb-theme") || "cobalt"; };
-      var sw = el("button", "hb-swbtn"); sw.type = "button"; sw.title = "Colour theme"; sw.setAttribute("aria-label", "Colour theme");
-      sw.setAttribute("aria-haspopup", "true"); sw.setAttribute("aria-expanded", "false"); sw.appendChild(el("span", "hb-swdot"));
+      var TH = [["emerald", "Emerald", "#047857"], ["cobalt", "Cobalt", "#2450f0"], ["midnight", "Midnight", "#1e1b4b"], ["graphite", "Graphite", "#000000"], ["studio", "Studio", "#5B2A86"]];
+      var cur = function () { return root.getAttribute("data-hb-theme") || "emerald"; };
+      var sw;
+      if (DARK_ON) { sw = el("button", "hb-swbtn"); sw.appendChild(el("span", "hb-swdot")); }
+      else {   /* no dark toggle beside it: the picker is a full rail item ("Theme") so the footer row is never empty */
+        sw = el("button", "hb-item hb-switem"); sw.id = "hbThemePick"; var si = el("span", "hb-ic"); si.appendChild(el("span", "hb-swdot")); sw.appendChild(si);
+        sw.appendChild(el("span", "hb-lb", "Colour theme"));
+      }
+      sw.type = "button"; sw.title = "Colour theme"; sw.setAttribute("aria-label", "Colour theme");
+      sw.setAttribute("aria-haspopup", "true"); sw.setAttribute("aria-expanded", "false");
       var pop = el("div", "hb-swpop"); pop.hidden = true; pop.setAttribute("role", "group"); pop.setAttribute("aria-label", "Colour theme");
       pop.appendChild(el("div", "hb-swhd", "Theme"));
       var opts = [];

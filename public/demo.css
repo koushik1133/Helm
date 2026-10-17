@@ -6,7 +6,7 @@ html.helm-demo { --hb-bg:#ffffff; --hb-bg2:#f5f7fc; --hb-line:#e3e8f2; --hb-ink:
   --font:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace; color-scheme:light; }
 html.helm-demo[data-pt="emerald"]  { --hb-bg:#ffffff; --hb-bg2:#f4f8f6; --hb-line:#e0eae5; --hb-ink:#0b2a22; --hb-ink2:#2f4a42; --hb-ink3:#5a7068; --hb-acc:#047857; --hb-acc-ink:#ffffff; --hb-acc-soft:#e3f4ed; --hb-acc-text:#036b4d; }
 html.helm-demo[data-pt="midnight"] { --hb-bg:#ffffff; --hb-bg2:#f5f5fb; --hb-line:#e4e4f0; --hb-ink:#12133a; --hb-ink2:#3a3c5e; --hb-ink3:#62658a; --hb-acc:#4338ca; --hb-acc-ink:#ffffff; --hb-acc-soft:#eeedfc; --hb-acc-text:#3f34c2; }
-html.helm-demo[data-pt="graphite"] { --hb-bg:#ffffff; --hb-bg2:#f6f6f5; --hb-line:#e6e6e3; --hb-ink:#111111; --hb-ink2:#3a3a3a; --hb-ink3:#6e6e6a; --hb-acc:#111111; --hb-acc-ink:#ffffff; --hb-acc-soft:#ececea; --hb-acc-text:#111111; }
+html.helm-demo[data-pt="graphite"] { --hb-bg:#ffffff; --hb-bg2:#f5f5f5; --hb-line:#e5e5e5; --hb-ink:#000000; --hb-ink2:#333333; --hb-ink3:#666666; --hb-acc:#000000; --hb-acc-ink:#ffffff; --hb-acc-soft:#f0f0f0; --hb-acc-text:#000000; }
 html.helm-demo[data-pt="studio"]   { --hb-bg:#FAF8F5; --hb-bg2:#F4F1EC; --hb-line:#E7E2DA; --hb-ink:#1F1A24; --hb-ink2:#4A4351; --hb-ink3:#6E6676; --hb-acc:#5B2A86; --hb-acc-ink:#ffffff; --hb-acc-soft:#F1EBF7; --hb-acc-text:#5B2A86; }
 html.helm-demo[data-theme="dark"] { --hb-bg:#111833; --hb-bg2:#0a0f1e; --hb-line:#243056; --hb-ink:#e8edfb; --hb-ink2:#b9c3de; --hb-ink3:#8e9aba; --hb-acc:#3d63f5; --hb-acc-ink:#ffffff; --hb-acc-soft:#1a2550; --hb-acc-text:#93acff;
   --ok:#6ee7a8; --ok-bg:#0f2a1e; --wt:#f5c76b; --wt-bg:#2e2410; --rk:#ff9b93; --rk-bg:#3a1714; color-scheme:dark; }
