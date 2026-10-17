@@ -22,6 +22,7 @@ const LANG = Deno.env.get("WHATSAPP_TPL_LANG") || "en";
 
 function prepFailure(code: string): [number, string] {
   if (code === "HL429") return [429, "WhatsApp limit reached for your studio - try again later"];
+  if (code === "HL451") return [409, "the client replied STOP to WhatsApp messages - send the link another way"];   // 0155
   if (code === "22023") return [400, "check the client mobile number on the quote"];
   if (code === "P0001") return [409, "tick the opt-in box and create the approval link first"];
   return [403, "you can't send WhatsApp messages for this event"];

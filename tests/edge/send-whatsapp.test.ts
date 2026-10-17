@@ -175,3 +175,65 @@ Deno.test("send-whatsapp: token never echoed or logged; Meta failure -> 502 gene
     assert(!txt.includes("meta-secret-token") && !txt.includes("919800000001"));
   } finally { rF(); rEnv(); }
 });
+
+// ---- audit run-3 (0155): STOP, trial opt-in, template value hygiene ----
+Deno.test("send-whatsapp: number replied STOP (HL451) -> 409, Meta never called", async () => {
+  resetSupaMock();
+  allowAll();
+  g.__supaRpc = () => ({ data: null, error: { code: "HL451", message: "this person replied STOP", hint: "opted_out" } });
+  const rEnv = setEnv(CONFIGURED);
+  const rF = installFetch(() => { throw new Error("no fetch expected"); });
+  try {
+    const h = await loadHandler(FN);
+    const res = await h(post({ quote_id: QUOTE, number: "919800000001", template: "event_update" }, AUTH));
+    assertEquals(res.status, 409);
+    assert(/STOP/.test((await res.json()).error));
+  } finally { rF(); rEnv(); }
+});
+
+Deno.test("send-whatsapp: unpaid trial without opt-in -> 403 with the reason", async () => {
+  resetSupaMock();
+  allowAll();
+  g.__supaRpc = () => ({ data: null, error: { code: "42501", message: "trial", hint: "trial_optin" } });
+  const rEnv = setEnv(CONFIGURED);
+  const rF = installFetch(() => { throw new Error("no fetch expected"); });
+  try {
+    const h = await loadHandler(FN);
+    const res = await h(post({ quote_id: QUOTE, number: "919800000001", template: "event_update" }, AUTH));
+    assertEquals(res.status, 403);
+    assert(/free trial/.test((await res.json()).error));
+  } finally { rF(); rEnv(); }
+});
+
+Deno.test("send-whatsapp: a template value linking to another site -> 400, Meta never called", async () => {
+  resetSupaMock();
+  allowAll();
+  const rEnv = setEnv(CONFIGURED);
+  const rF = installFetch(() => { throw new Error("no fetch expected"); });
+  try {
+    const h = await loadHandler(FN);
+    for (const bad of ["pay at https://evil.example/pay", "see www.evil.example", "go evil.example/login", "HTTPS://helm.events.evil.example/x"]) {
+      const res = await h(post({ quote_id: QUOTE, number: "919800000001", template: "event_update", params: ["Hi", bad] }, AUTH));
+      assertEquals(res.status, 400, bad);
+    }
+  } finally { rF(); rEnv(); }
+});
+
+Deno.test("send-whatsapp: template values are one clean line (<= 200 chars); Helm links allowed", async () => {
+  resetSupaMock();
+  allowAll();
+  const rEnv = setEnv(CONFIGURED);
+  let sent: any = null;
+  const rF = installFetch((_url, init) => { sent = JSON.parse(String(init?.body)); return jsonResponse({ messages: [{ id: "wamid.x" }] }); });
+  try {
+    const h = await loadHandler(FN);
+    const res = await h(post({ quote_id: QUOTE, number: "919800000001", template: "event_update",
+      params: ["Line one\nline\ttwo\u0007    end", "https://www.helm.events/approve?token=x", "x".repeat(500), ""] }, AUTH));
+    assertEquals(res.status, 200);
+    const p = sent.template.components[0].parameters.map((x: any) => x.text);
+    assertEquals(p[0], "Line one line two end");
+    assertEquals(p[1], "https://www.helm.events/approve?token=x");
+    assertEquals(p[2].length, 200);
+    assertEquals(p[3], "-");
+  } finally { rF(); rEnv(); }
+});

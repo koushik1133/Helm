@@ -318,7 +318,8 @@ do $$ declare missing text; begin perform pg_temp.su();
      and c.relname not in ('audit_log','notification_seen','studio_subscriptions','subscription_payments','billing_reminders','helm_audit_0044_reverted',
                            'upload_scans',  -- 0051: system scan metadata (scanner must work for suspended studios too)
                            'security_alert_events', 'security_alert_outbox',  -- 0054: system alert log (written by triggers only)
-                           'welcome_email_outbox')  -- 0057: system welcome outbox (triggers + service role only)
+                           'welcome_email_outbox',  -- 0057: system welcome outbox (triggers + service role only)
+                           'a155_admin_created')  -- 0155: system record of admin-created accounts (release must work for a suspended creator)
      and not exists (select 1 from pg_trigger t where t.tgrelid = c.oid and t.tgname = 'zzz_studio_read_only');
   perform pg_temp.res('54 every studio table has the read-only guard', missing is null, missing);
 end $$;

@@ -18,7 +18,9 @@ from (values
    and pg_get_functiondef('public._comms_queue_pay(uuid, text, text, boolean, uuid)'::regprocedure) like '%_comms_quote_cur(q.id)%'
    and pg_get_functiondef('public.comms_tick()'::regprocedure) like '%_comms_client_to(f.client, v_ch, o.id)%'
    and pg_get_functiondef('public.payment_reminder_send_now(uuid)'::regprocedure) like '%_comms_client_to(q.client, c, v_org)%'
-   and pg_get_functiondef('public.comms_outbox_claim(integer)'::regprocedure) like '%r.channel, r.org_id)%'),
+   and (pg_get_functiondef('public.comms_outbox_claim(integer)'::regprocedure) like '%r.channel, r.org_id)%'
+        or (to_regprocedure('public.comms_outbox_claim__pre0155(integer)') is not null      -- 0155 STOP wrapper over the 0092 body
+            and pg_get_functiondef('public.comms_outbox_claim__pre0155(integer)'::regprocedure) like '%r.channel, r.org_id)%'))),
   ('12 helpers not callable by anon', not has_function_privilege('anon', 'public._comms_money(numeric, text)', 'execute')
        and not has_function_privilege('anon', 'public._comms_client_to(jsonb, text, uuid)', 'execute'))
 ) v(item, ok);

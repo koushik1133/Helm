@@ -20,6 +20,10 @@
 //     booked vendor) and that the studio is under its hourly WhatsApp limit,
 //   * use an allowlisted template (free text only when WHATSAPP_ALLOW_TEXT=1),
 //   * be logged to notifications with channel 'whatsapp' (insert error checked).
+// Audit run-3 (0155): the database also refuses a number that replied STOP (HL451), caps the
+// distinct numbers a studio may message per day, and limits an unpaid trial studio to clients
+// who opted in. Template values are plain one-line text (no control characters, at most 200
+// characters) and may link only to the Helm site (APP_URL), never to another host.
 //
 // Requests:
 //   { "ping": true }                                     → credential check, no send
@@ -44,14 +48,34 @@ function templateAllowlist(): string[] {
   return list.filter((n) => TEMPLATE_NAME.test(n));
 }
 
+// Template values: one line of plain text, <= 200 chars; a link only to the Helm site.
+const URL_HOST = /(?:\bhttps?:\/\/|\bwww\.)([^\s\/?#:@]+)|\b((?:[a-z0-9-]+\.)+[a-z]{2,24})\//gi;
+function siteHost(): string {
+  try { return new URL(Deno.env.get("APP_URL") || "https://www.helm.events").hostname.toLowerCase(); }
+  catch (_) { return "www.helm.events"; }
+}
+export function cleanParam(v: unknown, site: string): string | null {
+  // deno-lint-ignore no-control-regex
+  const t = String(v ?? "").replace(/[\u0000-\u001F\u007F-\u009F\u2028\u2029]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 200);
+  const base = site.replace(/^www\./, "");
+  for (const m of t.matchAll(URL_HOST)) {
+    const raw = (m[1] || m[2] || "").toLowerCase();
+    const h = m[1] && !/^https?:/i.test(m[0]) ? "www." + raw : raw;
+    if (h !== site && h !== base && !h.endsWith("." + base)) return null;
+  }
+  return t;
+}
+
 function authHeaders() {
   return { "Authorization": "Bearer " + TOKEN, "Content-Type": "application/json" };
 }
 
 // DB error → [http status, generic message] (never the raw message)
-function authzFailure(code: string): [number, string] {
+function authzFailure(code: string, hint = ""): [number, string] {
   if (code === "HL429") return [429, "WhatsApp limit reached for your studio — try again later"];
+  if (code === "HL451") return [409, "this person replied STOP to WhatsApp messages — reach them another way"];
   if (code === "22023") return [400, "invalid number"];
+  if (code === "42501" && hint === "trial_optin") return [403, "during the free trial, WhatsApp goes only to clients who opted in on the proposal screen"];
   return [403, "you can't send WhatsApp messages for this event to that number"];
 }
 
@@ -102,14 +126,16 @@ Deno.serve(async (req) => {
       if (!templateAllowlist().includes(name)) return json({ error: "template not allowed" }, 400);
       const lang = String(body.lang || "en_US");
       if (!LANG.test(lang)) return json({ error: "invalid language" }, 400);
-      const params = Array.isArray(body.params) ? body.params.slice(0, 10) : [];
+      const site = siteHost();
+      const params = (Array.isArray(body.params) ? body.params.slice(0, 10) : []).map((p: unknown) => cleanParam(p, site));
+      if (params.some((p: string | null) => p === null)) return json({ error: "template values may only link to the Helm site" }, 400);
       content = {
         type: "template",
         template: {
           name,
           language: { code: lang },
           ...(params.length
-            ? { components: [{ type: "body", parameters: params.map((p: unknown) => ({ type: "text", text: String(p ?? "").slice(0, 300) })) }] }
+            ? { components: [{ type: "body", parameters: params.map((p: string | null) => ({ type: "text", text: p || "-" })) }] }
             : {}),
         },
       };
@@ -128,7 +154,7 @@ Deno.serve(async (req) => {
     // ---- area right + number belongs to the event + per-studio rate limit ----
     const { data: ok, error: aErr } = await asCaller.rpc("whatsapp_authorize", { p_quote: quoteId, p_recipient: String(body.number || "") });
     if (aErr || !ok || !ok.to) {
-      const [status, msg] = authzFailure(String(aErr?.code || ""));
+      const [status, msg] = authzFailure(String(aErr?.code || ""), String((aErr as { hint?: string } | null)?.hint || ""));
       return json({ error: msg }, status);
     }
     const to = String(ok.to);
