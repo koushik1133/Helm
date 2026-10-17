@@ -2533,8 +2533,28 @@ window.HelmUrl = HelmUrl;
       return Object.assign({}, patch, { title: EN.unique(base, taken) });
     } catch (e) { return patch; }
   }
+  // perf 1017: share one in-flight read between callers that ask at the same moment (page + search
+  // prefetch + widgets). Nothing is cached after it settles, so a later list() always re-reads.
+  const _inflight = {};
+  function shareInflight(key, fn) {
+    if (_inflight[key]) return _inflight[key];
+    const p = Promise.resolve().then(fn);
+    _inflight[key] = p;
+    const done = () => { if (_inflight[key] === p) delete _inflight[key]; };
+    p.then(done, done);
+    return p;
+  }
+  // Any non-read method on the object forgets the shared read first, so a list() asked for after a
+  // save never gets an answer that started before it.
+  const READ_NAME = /^(list|page|get|counts|eventTypes|nextCode|byIds|isArchived|templates|categories|search|find|count|due|codes|lookup)/;
+  function dropInflightOnWrite(obj, prefix) {
+    Object.keys(obj).forEach((k) => { const fn = obj[k];
+      if (typeof fn !== "function" || READ_NAME.test(k)) return;
+      obj[k] = function () { Object.keys(_inflight).forEach((x) => { if (x.indexOf(prefix) === 0) delete _inflight[x]; }); return fn.apply(this, arguments); };
+    });
+  }
   const quotes = {
-    list: () => qt().list(),
+    list: () => shareInflight("quotes.list", () => qt().list()),
     // paged list view + counters (perf): see sbq.page / sbq.counts
     PAGE_SIZE,
     VIEWS: QUOTE_VIEWS.slice(),
@@ -2617,6 +2637,7 @@ window.HelmUrl = HelmUrl;
       return stamp + "-" + String(max + 1).padStart(2, "0");
     },
   };
+  dropInflightOnWrite(quotes, "quotes.list");
 
   /* ---------------- client approval: OTP + consent + payment ---------------- */
   const rpc = async (fn, args) => {
@@ -2731,9 +2752,10 @@ window.HelmUrl = HelmUrl;
   const ops = {
     // ---- manager (authenticated) ----
     async templates(category) { if (!supa) throw new Error("Supabase not configured");
-      let q = supa.from("task_templates").select("category,title,seq").order("category").order("seq");
-      if (category) q = q.eq("category", category);
-      const { data, error } = await q; if (error) throw error; return data; },
+      return shareInflight("ops.templates:" + (category || ""), async () => {
+        let q = supa.from("task_templates").select("category,title,seq").order("category").order("seq");
+        if (category) q = q.eq("category", category);
+        const { data, error } = await q; if (error) throw error; return data; }); },
     // add one task to the org's template catalog (seq = end of its section); insert only, never overwrites
     async addTemplate(category, title) { if (!supa) throw new Error("Supabase not configured");
       category = String(category || "").trim().slice(0, 60); title = String(title || "").trim().slice(0, 120);
@@ -3241,7 +3263,7 @@ window.HelmUrl = HelmUrl;
   const leads = {
     async list() {
       if (mode === "supabase") {
-        return sbAll(() => supa.from("leads").select("*").order("updated_at", { ascending: false }).order("id", { ascending: false }));
+        return shareInflight("leads.list", () => sbAll(() => supa.from("leads").select("*").order("updated_at", { ascending: false }).order("id", { ascending: false })));
       }
       return readLeadsLs();
     },
@@ -3432,6 +3454,8 @@ window.HelmUrl = HelmUrl;
       } catch { if (onStatus) onStatus("ERROR"); return { unsubscribe() {} }; }
     },
   };
+  dropInflightOnWrite(leads, "leads.list");
+  dropInflightOnWrite(ops, "ops.templates:");
 
   /* ---------------- CRM nurture / repeat business (Phase 27, spec step 94) ---------------- */
   const NURTURE_LS = "bp_nurture";
@@ -7363,8 +7387,14 @@ window.HelmUrl = HelmUrl;
          Off the chat page they start once the page is idle after load (or at once if the bell is opened first: open()
          fetches its own feed). The chat page keeps the immediate load. */
       var csub = null, kicked = false;
-      const kick = () => { if (kicked) return; kicked = true; refresh();
-        try { if (chat && chat.subscribe) { csub = chat.subscribe(function () { refresh(); }, function () {}, "chat-rt-bell"); window.addEventListener("beforeunload", function () { try { csub && csub.unsubscribe && csub.unsubscribe(); } catch (e) {} }); } } catch (e) {}
+      // perf 1017: realtime events (and the subscribe handshake right after kick) used to start a second
+      // full feed + chat bootstrap while the first was still loading. Coalesce: one in flight, one trailing.
+      let rfBusy = null, rfAgain = false;
+      const liveRefresh = () => { if (rfBusy) { rfAgain = true; return rfBusy; }
+        rfBusy = Promise.resolve(refresh()).catch(() => {}).then(() => { rfBusy = null; if (rfAgain) { rfAgain = false; return liveRefresh(); } });
+        return rfBusy; };
+      const kick = () => { if (kicked) return; kicked = true; liveRefresh();
+        try { if (chat && chat.subscribe) { csub = chat.subscribe(function () { liveRefresh(); }, function () {}, "chat-rt-bell"); window.addEventListener("beforeunload", function () { try { csub && csub.unsubscribe && csub.unsubscribe(); } catch (e) {} }); } } catch (e) {}
       };
       const timer = setInterval(() => { if (kicked && !document.hidden && !isOpen) refresh(); }, 30000);
       btn.addEventListener("click", kick);
@@ -8772,8 +8802,8 @@ window.HelmUrl = HelmUrl;
     ".bpui-btn:focus-visible,.bpui-toast button:focus-visible,.bpui-toast a:focus-visible,.bpui-dialog :focus-visible{outline:2px solid var(--bpui-accent);outline-offset:2px}",
     ".bpui-btn[disabled]{opacity:.6;cursor:not-allowed}",
     "@media (pointer:coarse){.bpui-btn,.bpui-toast button{min-height:44px}}",
-    /* toasts — white cards, top-right stack (bottom on phones), max 3, title + message + link + close + progress */
-    ".bpui-toasts{position:fixed;top:72px;right:16px;z-index:2147483600;display:flex;flex-direction:column;gap:10px;",
+    /* toasts — white cards, bottom-right stack (1017: off the page toolbars; bottom-centre on phones), max 2, title + message + link + close + progress */
+    ".bpui-toasts{position:fixed;bottom:20px;right:16px;z-index:2147483600;display:flex;flex-direction:column;gap:10px;",
     "width:min(380px,calc(100vw - 32px));pointer-events:none;--bpui-t-bg:#fff;--bpui-t-ink:#1b1930;--bpui-t-ink2:#5b566b;--bpui-t-line:#e8e3db;",
     "--bpui-t-info:#6d28d9;--bpui-t-info-bg:#efe9ff;--bpui-t-ok:#0f7a43;--bpui-t-ok-bg:#dcf5e7;--bpui-t-warn:#8f5f00;--bpui-t-warn-bg:#fff1d6;",
     "--bpui-t-err:#c0262d;--bpui-t-err-bg:#ffe3e3;--bpui-t-sec:#1d4ed8;--bpui-t-sec-bg:#e0ecff;--bpui-t-shadow:0 12px 32px rgba(20,27,46,.16),0 2px 6px rgba(20,27,46,.06)}",
@@ -9068,7 +9098,7 @@ window.HelmUrl = HelmUrl;
       // at most 3 visible across both lanes — drop the oldest
       var all = function () { return Array.prototype.slice.call(toastRoot.querySelectorAll(".bpui-toast")); };
       var cards = all();
-      while (cards.length > 3) { var old = cards.filter(function (c) { return c !== t; })[0]; if (!old) break; if (old.__bpuiClose) old.__bpuiClose(); else old.remove(); cards = all(); }
+      while (cards.length > 2) { var old = cards.filter(function (c) { return c !== t; })[0]; if (!old) break; if (old.__bpuiClose) old.__bpuiClose(); else old.remove(); cards = all(); }
       // Set the text AFTER insertion (and after a tick when the live region is
       // brand new) so screen readers reliably announce it.
       var setText = function () { if (tEl) tEl.textContent = title; body.textContent = text; };
@@ -9410,6 +9440,7 @@ window.HelmUrl = HelmUrl;
     }, o.delay == null ? 150 : o.delay);
     function clear() {
       finished = true; clearTimeout(timer);
+      try { if (global.performance && performance.mark) performance.mark("helm:boot-done"); } catch (e) {}
       if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
       if (bootEl) { bootEl.hidden = true; bootEl.removeAttribute("aria-busy"); }
     }

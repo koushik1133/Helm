@@ -53,6 +53,18 @@
   .chip b{color:var(--ink)} .chip.zero{color:var(--ink-3)}
   .open{border:1px solid var(--line);background:var(--panel);border-radius:8px;height:32px;padding:0 12px;font-size:12px;font-weight:600;cursor:pointer;color:var(--accent)} .open:hover{border-color:var(--accent)}
   .nodate .ev{opacity:.85}
+  /* 1017: tentative (quote-stage) vs confirmed events, and open lead dates */
+  .ev.tentative{border-style:dashed;background:var(--panel-2,var(--panel))}
+  .ev.leadmk{border-style:dotted;background:transparent;box-shadow:none;padding:10px 14px}
+  .stb{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:2px 8px;margin-left:6px;vertical-align:1px;border:1px solid transparent}
+  .stb.confirmed{background:#dcf5e7;color:#0f7a43}
+  .stb.tentative{background:#fff1d6;color:#8f5f00;border-style:dashed;border-color:#e2b35a}
+  .stb.lead{background:#efe9ff;color:#6d28d9;border-style:dotted;border-color:#b9a4f5}
+  html[data-theme=dark] .stb.confirmed{background:#123b27;color:#7ee2a8}
+  html[data-theme=dark] .stb.tentative{background:#3a2c0b;color:#f5c66b}
+  html[data-theme=dark] .stb.lead{background:#2c2346;color:#c4b5fd}
+  .cal-legend{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--ink-3);margin:-4px 0 12px}
+  .cal-legend .stb{margin-left:0;margin-right:4px}
   .empty{color:var(--ink-3);font-size:13px;padding:8px 0}
   .setdate{height:32px;border:1px solid var(--line);background:var(--panel-2);border-radius:7px;font-family:inherit;font-size:12px;padding:0 8px;color:var(--ink)}
   footer{padding:24px 0 40px;color:var(--ink-3);font-size:12px;text-align:center}
@@ -87,6 +99,7 @@
     <div id="conflicts"><p class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></p></div>
 
     <h2 class="s-a26bda7">Upcoming events &amp; commitments</h2>
+    <div class="cal-legend" aria-label="Legend"><span><span class="stb confirmed">Confirmed</span>booked event</span><span><span class="stb tentative">Tentative</span>still a quote, not confirmed</span><span id="lgLead" hidden><span class="stb lead">Lead</span>enquiry date, no quote yet</span></div>
     <div id="agenda"><p class="empty"><span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading…</span></p></div>
 
     <div id="nodateWrap" class="nodate" hidden>
@@ -113,7 +126,7 @@
 <script src="telemetry.js?v=3"></script>
 <script src="config.js?v=100"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=217"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=218"></script>
 <script src="tour.js?v=14"></script>
 <script>
 (function(){function hy(r){if(!r||!r.querySelectorAll)return;var l=r.matches&&r.matches("[data-st]")?[r]:[];l=l.concat([].slice.call(r.querySelectorAll("[data-st]")));l.forEach(function(e){e.style.cssText+=";"+e.getAttribute("data-st");e.removeAttribute("data-st");});}new MutationObserver(function(ms){ms.forEach(function(m){m.addedNodes.forEach(hy);});}).observe(document.documentElement,{childList:true,subtree:true});})();
@@ -126,7 +139,8 @@
   const weekday=(d)=>{ if(!validDate(d)) return ""; return new Date(d+"T00:00:00").toLocaleDateString("en-IN",{weekday:"long"}); };
   /* HelmUI empty state (guarded: falls back to the plain message if the kit isn't loaded) */
   const hEmpty=(host,o,cols)=>{ const H=window.HelmUI; if(!(H&&H.emptyState)||!host) return false; const n=H.emptyState(o); if(cols){ const tr=document.createElement("tr"),td=document.createElement("td"); td.colSpan=cols; td.className="hs-empty-cell"; td.appendChild(n); tr.appendChild(td); host.replaceChildren(tr); } else host.replaceChildren(n); return true; };
-  let canEdit=false, data=null;
+  let canEdit=false, data=null, leadDates=[], canLeads=false;
+  const isConfirmed=(e)=>String(e&&e.status||"").toLowerCase()==="confirmed";
 
   async function renderAccount(){ const el=$("#account"); if(!BPStore.auth.enabled()){el.hidden=true;return;} el.hidden=false;
     const u=BPStore.auth.user(); if(u){ const role=await BPStore.auth.role();
@@ -148,8 +162,9 @@
   function eventRow(a, clashDates){
     const e=a.event; const clash = e.eventDate && clashDates.has(e.eventDate);
     const chip=(n,l)=>`<span class="chip ${n?'':'zero'}"><b>${Number(n)||0}</b> ${l}</span>`;
-    return `<div class="ev ${clash?'clash':''}">
-      <div><span class="code">${esc(e.code)}</span> <span class="ttl">${esc(e.title||"")}</span>
+    const conf=isConfirmed(e);
+    return `<div class="ev ${clash?'clash':''} ${conf?'confirmed':'tentative'}">
+      <div><span class="code">${esc(e.code)}</span> <span class="ttl">${esc(e.title||"")}</span><span class="stb ${conf?'confirmed':'tentative'}">${conf?'Confirmed':'Tentative'}</span>
         <div data-st="font-size:12px;color:var(--ink-3)">${esc((e.eventType||""))}</div></div>
       <div class="chips">
         ${chip(a.staffCount,"staff")}${chip(a.invCount,"stock")}${chip(a.vendCount,"partners")}
@@ -162,6 +177,11 @@
     renderConflicts();
     const dated=data.agenda.filter(a=>validDate(a.event.eventDate));
     const byDate={}; dated.forEach(a=>{ (byDate[a.event.eventDate]=byDate[a.event.eventDate]||[]).push(a); });
+    // 1017: open leads with an event date show as a light "Lead" marker (roles that can view leads only)
+    const leadsByDate={}; leadDates.forEach(l=>{ (leadsByDate[l.event_date]=leadsByDate[l.event_date]||[]).push(l); if(!byDate[l.event_date]) byDate[l.event_date]=[]; });
+    const leadRow=(l)=>`<div class="ev leadmk"><div><span class="ttl">${esc(l.name||"Lead")}</span><span class="stb lead">Lead</span>
+        <div data-st="font-size:12px;color:var(--ink-3)">${esc([l.event_type, l.guest_count?(l.guest_count+" guests"):""].filter(Boolean).join(" · "))}</div></div>
+      <div class="chips"><a class="open" href="leads.html" aria-label="Open leads for ${esc(l.name||"this lead")}">Leads</a></div></div>`;
     // Nearest upcoming event first: upcoming days (today onward) ascending, then
     // past days most-recent-first below a divider.
     const todayISO=new Date().toLocaleDateString("en-CA"); // local YYYY-MM-DD
@@ -170,7 +190,7 @@
     const past=allDays.filter(d=>d<todayISO).sort().reverse();
     const dayBlock=(d)=>`<div class="day">
       <div class="hd"><span class="dt">${esc(fmtDate(d))}</span><span class="wk">${esc(weekday(d))}</span>${clashDates.has(d)?'<span class="ctype vendor" data-st="background:#fdecec;color:#b42318">conflict</span>':''}</div>
-      ${byDate[d].map(a=>eventRow(a,clashDates)).join("")}
+      ${byDate[d].map(a=>eventRow(a,clashDates)).join("")}${(leadsByDate[d]||[]).map(leadRow).join("")}
     </div>`;
     let html="";
     if(upcoming.length) html+=upcoming.map(dayBlock).join("");
@@ -201,16 +221,25 @@
       catch(e){ er.textContent=(e&&e.message)||"Sign in failed"; er.hidden=false; } }, {busyLabel:"Signing in…"}).catch(()=>{}); });
   ["#li_email","#li_pass"].forEach((s)=>$(s).addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); $("#li_go").click(); } }));
 
+  // open leads (not lost / won / quoted, no quote yet) that carry a usable event date
+  async function loadLeadDates(){
+    if(!canLeads) return [];
+    try{ const rows=await BPStore.leads.list();
+      return (rows||[]).filter(l=>l && !l.quote_id && validDate(l.event_date) && !["lost","won","quoted"].includes(String(l.status||"").toLowerCase())); }
+    catch(e){ return []; }   // advisory only - the calendar still works without lead dates
+  }
   async function load(){
+    const pLeads=loadLeadDates();
     try{ data=await BPStore.calendar.load(); }
     catch(e){ $("#conflicts").innerHTML=""; $("#nodateWrap").hidden=true; BPUI.loadError($("#agenda"), e, load, {what:"the calendar"}); return; }
+    leadDates=await pLeads; $("#lgLead").hidden=!canLeads;
     render();
   }
   BPUI.boot(async ()=>{
     await BPStore.init(); await renderAccount();
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     if(!(await BPStore.auth.requireView("calendar"))) return;
-    canEdit=await BPStore.auth.canEditArea("calendar"); $("#app").hidden=false;
+    [canEdit, canLeads]=await Promise.all([BPStore.auth.canEditArea("calendar"), BPStore.auth.canView("leads").catch(()=>false)]); $("#app").hidden=false;
     await load();
   });
 </script>

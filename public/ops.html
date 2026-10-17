@@ -222,7 +222,7 @@
 <script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=217"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=218"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -245,13 +245,17 @@
     if(BPStore.auth.enabled() && BPStore.auth.required() && !BPStore.auth.user()){ location.replace("login.html?next="+encodeURIComponent(HelmUrl.here())); return; }
     // 0143 role audit: tasks (event_tasks) are RLS-gated on the staff area
     if(!(await BPStore.auth.requireView("staff"))) return;
-    const canEdit=await BPStore.auth.canEditArea("staff");
-    canVerify=['admin','manager','planner','quality'].includes(await BPStore.auth.role());
-    canEditOps=await BPStore.auth.canEditArea("staff");
+    // perf 1017: start the event, its section catalog and the crew/task reads together (they used to run
+    // one after another behind the loading overlay); the role checks below come from the cached session.
+    const pQuote=BPStore.quotes.get(quoteId), pCats=BPStore.ops.categories().catch(()=>null), pOps=fetchOps();
+    pQuote.catch(()=>{}); pOps.catch(()=>{});
+    const [canEdit, role]=await Promise.all([BPStore.auth.canEditArea("staff"), BPStore.auth.role()]);
+    canVerify=['admin','manager','planner','quality'].includes(role);
+    canEditOps=canEdit;
     // photos for linked members (one chat_directory read; the page never waits for it)
     BPStore.chat.directory().then(d=>{ memberDir=d||{}; if(crew.some(c=>c.profile_id)){ renderCrew(); crewWho($("#assignCrew"),$("#assignWho")); } }).catch(()=>{});
     $("#loadErr").innerHTML=""; $("#noquote").hidden=true;
-    try{ quote=await BPStore.quotes.get(quoteId); }
+    try{ quote=await pQuote; }
     catch(e){
       if(BPUI.isNotFound(e)){ $("#noquoteMsg").innerHTML='Event not found. Open an event from <a href="quotes.html" style="color:var(--accent);text-decoration:underline">Quotes</a> → Operations.'; $("#noquote").hidden=false; }
       else BPUI.loadError($("#loadErr"), e, load, {what:"this event"});
@@ -261,7 +265,7 @@
     $("#evhead").innerHTML=`<span class="code">${esc(quote.code)}</span><span class="ttl">${esc(quote.title||"")}</span>
       <span class="muted">${esc(quote.eventType||"")} · ${esc(quote.status)}</span>`;
     // sections come from the template catalog (falls back to defaults)
-    try{ const cats=await BPStore.ops.categories(); if(cats && cats.length) CATS=cats; }catch{}
+    try{ const cats=await pCats; if(cats && cats.length) CATS=cats; }catch{}
     if(!CATS.includes(activeCat)) activeCat=CATS[0];
     // dept + crew dropdowns
     $("#cr_dept").innerHTML=CATS.map(c=>`<option>${esc(c)}</option>`).join("");
@@ -270,10 +274,14 @@
       $("#catTabs").querySelectorAll("button").forEach(x=>{ x.classList.toggle("on",x===b); x.setAttribute("aria-pressed",String(x===b)); }); $("#selAll").checked=false; renderTasks(); renderSuggestions(); }));
     $("#tpl_cat").value=activeCat||"";
     if(!canEdit){ ["cr_add","assignBtn","tpl_add"].forEach(id=>{const e=$("#"+id); if(e)e.disabled=true;}); setMsg("err","Your role is view-only for operations."); }
-    try{ await refresh(); }
+    try{ await refresh(pOps); }
     catch(e){ BPUI.loadError($("#dashboard"), e, async()=>{ await refresh(); }, {what:"staff and tasks"}); }
     renderTasks();
     renderSuggestions();
+  }
+  function fetchOps(){
+    return Promise.all([BPStore.ops.listCrew(), BPStore.ops.listTasks(quoteId), BPStore.ops.listTokens(quoteId),
+      BPStore.vendors.listAll(false).catch(()=>[]), BPStore.ops.listEvidence(quoteId).catch(()=>[])]);
   }
   // Phase 50 — suggest in-house crew for the active category, ranked by skill + availability
   async function renderSuggestions(){
@@ -286,9 +294,8 @@
         ${s.match?'⭐ ':''}${esc(s.name)}${s.department?` · ${esc(s.department)}`:''} ${s.available?'<span style="color:#0f7a43">● free</span>':'<span style="color:#b42318">● busy</span>'}</button>`).join("");
     host.querySelectorAll(".sugg").forEach(b=>b.addEventListener("click",()=>{ $("#assignKind").value="in_house"; $("#assignCrew").hidden=false; $("#assignVendor").hidden=true; $("#assignCrew").value=b.dataset.id; crewWho($("#assignCrew"),$("#assignWho")); }));
   }
-  async function refresh(){
-    [crew,tasks,tokens,vendors,evidence]=await Promise.all([BPStore.ops.listCrew(), BPStore.ops.listTasks(quoteId), BPStore.ops.listTokens(quoteId),
-      BPStore.vendors.listAll(false).catch(()=>[]), BPStore.ops.listEvidence(quoteId).catch(()=>[])]);
+  async function refresh(pending){
+    [crew,tasks,tokens,vendors,evidence]=await (pending||fetchOps());
     renderCrew(); renderDashboard();
     $("#assignCrew").innerHTML=`<option value="">— pick staff —</option>`+crew.map(crewOption).join(""); crewWho($("#assignCrew"),$("#assignWho"));
     $("#assignVendor").innerHTML = vendors.length
@@ -396,6 +403,15 @@
       ${['rejected','assigned'].includes(t.status)?`<button type="button" class="btn sm reassign" aria-label="Reassign ${tn}">Reassign</button>`:""}
       ${canVerify && (t.verify_status==='pending' || (t.status==='completed' && t.verify_status==='rejected')) ? `<button type="button" class="btn sm vpass" aria-label="Pass QC for ${tn}">✓ Pass</button><button type="button" class="btn sm vrej" aria-label="Reject QC for ${tn}">✗ Reject</button>`:""}</div>`;
   }
+  function workerLinkFor(phone){ const w=tokens.find(x=>x.phone===phone); return w? BPStore.links.url("work", w.token, location.origin+"/work.html?token="+w.token) : null; }
+  function workerLinksBlock(){
+    const seen=new Set(), rows=[];
+    tasks.forEach(t=>{ const ph=t.assignee_phone; if(!ph||seen.has(ph)) return; seen.add(ph); const link=workerLinkFor(ph); if(!link) return;
+      const name=t.assignee_name||ph;
+      rows.push(`<div class="linkline"><b>${esc(name)}</b><input readonly value="${esc(link)}" aria-label="Worker link for ${esc(name)}"><button type="button" class="btn sm copy" data-l="${esc(link)}" aria-label="Copy worker link for ${esc(name)}">Copy link</button></div>`); });
+    if(!rows.length) return "";
+    return `<div class="grp" id="workerLinks"><div class="gh"><b>🔗 Worker links</b><span class="muted">one per person - in simulation the link is shown here; when SMS is live it's texted to them</span></div>${rows.join("")}</div>`;
+  }
   function renderDashboard(){
     if(!renderDashboard._s){ renderDashboard._s=1; BPStore.links.studio().then(s=>{ if(s) renderDashboard(); }).catch(()=>{}); }   // re-render once the branded studio link name is known
     const host=$("#dashboard");
@@ -414,10 +430,12 @@
         return `<div class="grp"><div class="gh"><b>📋 ${esc(cat)}</b><span class="muted">${done}/${ts.length} done</span> ${badges}</div>
           ${ts.map(t=>taskRow(t,byId,t.assignee_name||"—")).join("")}</div>`;
       }).join("") || '<div class="empty">No tasks yet.</div>';
+      // 1017: "Worker link ready below" - the links used to show only in the By-person view
+      host.insertAdjacentHTML("beforeend", workerLinksBlock());
     } else {
       // group by assignee phone
       const byPhone={}; tasks.forEach(t=>{ const k=t.assignee_phone||"—"; (byPhone[k]=byPhone[k]||[]).push(t); });
-      const tokenFor=(phone)=>{ const w=tokens.find(x=>x.phone===phone); return w? BPStore.links.url("work", w.token, location.origin+"/work.html?token="+w.token) : null; };
+      const tokenFor=workerLinkFor;
       host.innerHTML=Object.entries(byPhone).map(([phone,ts])=>{
         const name=ts[0].assignee_name||"Unassigned"; const link=tokenFor(phone);
         const done=ts.filter(t=>t.status==='completed').length;
@@ -544,6 +562,7 @@
     scTaskId=id;
     $("#sc_task").textContent=t.title||"Task";
     $("#sc_when").value=t.planned_start?toLocalInput(t.planned_start):"";
+    $("#sc_when").min=BPStore.todayLocal()+"T00:00";
     const others=tasks.filter(x=>x.id!==id && !wouldCycle(id,x.id));   // no self / any-length cycle prerequisites
     $("#sc_dep").innerHTML=`<option value="">— none —</option>`+others.map(x=>`<option value="${esc(x.id)}">${esc(x.category||"")} — ${esc(x.title||"task")}${x.assignee_name?" ("+esc(x.assignee_name)+")":""}</option>`).join("");
     $("#sc_dep").value=t.depends_on && others.some(x=>x.id===t.depends_on) ? t.depends_on : "";
@@ -555,6 +574,9 @@
   $("#schedForm").addEventListener("submit",e=>{ e.preventDefault();
     const when=$("#sc_when").value;
     if(when && isNaN(Date.parse(when))){ $("#sc_err").textContent="Couldn't read that date/time."; $("#sc_err").hidden=false; return; }
+    // 1017: no start in the past (any time today is fine) - it accepted 2020
+    const scOrig=(()=>{ const t0=tasks.find(x=>x.id===scTaskId); return t0&&t0.planned_start?toLocalInput(t0.planned_start):""; })();
+    if(when && when!==scOrig && when.slice(0,10) < BPStore.todayLocal()){ $("#sc_err").textContent="Pick today or a later date - a task can't be scheduled to start in the past."; $("#sc_err").hidden=false; $("#sc_when").focus(); return; }
     const startISO = when ? new Date(when).toISOString() : null;
     const depId=$("#sc_dep").value||null;
     if(depId){

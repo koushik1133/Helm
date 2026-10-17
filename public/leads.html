@@ -228,7 +228,7 @@
 <script src="config.js?v=100"></script>
 <script src="phone-input.js?v=3"></script>
 <script src="event-name.js?v=6"></script>
-<script src="country-profile.js?v=4"></script><script src="store-api.js?v=217"></script>
+<script src="country-profile.js?v=4"></script><script src="store-api.js?v=218"></script>
 <script src="tour.js?v=14"></script>
 <script>
   const $=(s,r=document)=>r.querySelector(s);
@@ -264,7 +264,7 @@
     const canConvert = canCreate && !l.quote_id && l.status!=="lost";
     const bits=[];
     if(l.event_type) bits.push(esc(l.event_type));
-    if(l.event_date) bits.push(esc(l.event_date));
+    if(l.event_date) bits.push(esc(BPStore.fmtDateIN(l.event_date)));
     if(l.guest_count) bits.push(esc(l.guest_count)+" guests");
     return `<div class="lead" data-id="${esc(l.id)}">
       <button type="button" class="lead-open" data-open aria-haspopup="dialog">
@@ -517,10 +517,17 @@
     try{ await BPStore.leads.restoreArchived(arcId); BPUI.toast("Lead restored.",{type:"ok"}); await load(); if(!$("#archivedView").hidden) await loadArchived(); }
     catch(err){ if(btn) btn.disabled=false; BPUI.toast(BPUI.friendlyError(err,{action:"restore the lead"}),{type:"err"}); }
   }
+  // 1017: the panel showed nothing for ~2s while the list loaded - now a loading line, then the
+  // list, an empty message, or the error with a retry.
+  let archSeq=0;
   async function loadArchived(){
-    const ul=$("#archList"); let rows=[];
-    try{ rows=await BPStore.leads.archivedList(); }
-    catch(err){ BPUI.toast(BPUI.friendlyError(err,{action:"load archived leads"}),{type:"err"}); }
+    const ul=$("#archList"), seq=++archSeq; let rows=[];
+    $("#archEmpty").hidden=true; $("#archivedView").setAttribute("aria-busy","true");
+    { const li=document.createElement("li"); li.className="arch-loading"; li.innerHTML='<span class="bpui-loading"><i class="bpui-spin2" aria-hidden="true"></i>Loading archived leads…</span>'; ul.replaceChildren(li); }
+    try{ rows=(await BPStore.leads.archivedList())||[]; }
+    catch(err){ if(seq!==archSeq) return; $("#archivedView").removeAttribute("aria-busy"); BPUI.loadError(ul, err, loadArchived, {what:"archived leads"}); return; }
+    if(seq!==archSeq) return;
+    $("#archivedView").removeAttribute("aria-busy");
     ul.replaceChildren();
     $("#archEmpty").hidden=rows.length>0;
     rows.forEach(r=>{
@@ -528,7 +535,7 @@
       const txt=document.createElement("div");
       const nm=document.createElement("div"); nm.className="nm"; nm.textContent=r.name||"Unnamed lead";
       const meta=document.createElement("div"); meta.className="meta";
-      meta.textContent=[r.event_type,r.phone,r.archived_at?("Archived "+new Date(r.archived_at).toLocaleDateString()):""].filter(Boolean).join(" · ");
+      meta.textContent=[r.event_type,r.phone,r.archived_at?("Archived "+BPStore.fmtDateIN(BPStore.todayLocal(new Date(r.archived_at)))):""].filter(Boolean).join(" · ");
       txt.append(nm,meta); li.appendChild(txt);
       if(canEdit){
         const b=document.createElement("button"); b.type="button"; b.className="btn"; b.textContent="Restore";

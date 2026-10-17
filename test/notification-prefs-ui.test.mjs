@@ -76,7 +76,7 @@ function makeDom() {
   return { $: (s) => el(s.replace(/^#/, '')), els, fire: async (id, ev, e) => { for (const f of L[id + ':' + ev] || []) await f(e); } };
 }
 async function run() {
-  const dom = makeDom(); const calls = []; let srv = state();
+  const dom = makeDom(); const calls = []; const toasts = []; let srv = state();
   const BPStore = { auth: { admin: { roleLabel: (r) => r[0].toUpperCase() + r.slice(1), listUsers: async () => [
       { id: 'u-crew', email: 'c@x.test', full_name: 'Cara Crew', role: 'crew' }, { id: 'u-sales', email: 's@x.test', full_name: 'Sam Sales', role: 'sales' }] } },
     bell: { prefs: {
@@ -89,10 +89,10 @@ async function run() {
       reset: async () => { const k = srv.changed; srv = state(); return k; } } } };
   const ctx = { $: dom.$, esc: (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
     errMsg: (e) => String(e && e.message || e), setTimeout: () => 0, Promise, JSON, String, Number, Object,
-    BPUI: { loadError() {}, toast() {}, confirm: async () => true, guard: async (_b, fn) => fn() }, BPStore };
+    BPUI: { loadError() {}, toast(m) { toasts.push(String(m)); }, confirm: async () => true, guard: async (_b, fn) => fn() }, BPStore };
   vm.runInNewContext(src + '\nglobalThis.api={initNotify, saveNotify, renderNotify, renderPeople, get queue(){return npQueue;}};', ctx);
   await ctx.api.initNotify();
-  return { dom, calls, ctx, getSrv: () => srv };
+  return { dom, calls, ctx, toasts, getSrv: () => srv };
 }
 
 await t('matrix renders one column per staff role, groups, required = locked label, gated = button', async () => {
@@ -117,7 +117,7 @@ await t('matrix renders one column per staff role, groups, required = locked lab
 });
 
 await t('clicks → set(type, in_app, role, !on) / set(type, sms, null, false); changed marker + counter', async () => {
-  const { dom, calls, ctx } = await run();
+  const { dom, calls, ctx, toasts } = await run();
   await dom.fire('nf_rows', 'click', { target: { closest: (s) => s === '.ncell' ? { dataset: { type: 'task_reminder', role: 'crew' } } : null } });
   await ctx.api.queue;
   await dom.fire('nf_rows', 'click', { target: { closest: (s) => s === 'button.nch' ? { dataset: { type: 'task_reminder', ch: 'sms' } } : null } });
@@ -133,7 +133,8 @@ await t('clicks → set(type, in_app, role, !on) / set(type, sms, null, false); 
   assert.match(rows, /class="nch chg" data-type="task_reminder" data-ch="sms" aria-pressed="false"[^>]*>SMS off</);
   assert.equal(dom.els.nf_changed.textContent, '2 settings changed from the defaults');
   assert.equal(dom.els.nf_reset.disabled, false);
-  assert.match(dom.els.nmsg.innerHTML, /Task reminder · SMS to staff: off/);
+  // 1017: the saved message is a toast (no banner pushing the table down)
+  assert.ok(toasts.some((m) => /Task reminder · SMS to staff: off/.test(m)), 'saved toast');
 });
 
 await t('search + group filter narrow the rows', async () => {
