@@ -90,7 +90,9 @@
         <div class="seclabel">① Confirm it's you</div>
         <div class="fld"><label for="c_name">Your name</label><input id="c_name" placeholder="Full name" autocomplete="name"></div>
         <div class="fld"><label for="c_phone">Mobile number</label><input id="c_phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+91 …"></div>
-        <button class="btn primary" id="sendOtp" type="button">Send OTP to my phone</button>
+        <button class="btn primary" id="sendWa" type="button">Send code on WhatsApp</button>
+        <p class="muted" id="waNote">We send a one-time code by WhatsApp to the mobile number your planner has on file for you.</p>
+        <button class="btn" id="sendOtp" type="button">Send OTP to my phone by SMS</button>
         <div id="trialSkip" hidden>
           <p class="muted" id="trialSkipInfo"><b>Trial test mode</b> &mdash; In a real studio your client verifies with a one-time code sent to their phone, then pays by UPI/card through the payment link. In this trial you can skip that step. No SMS or email is sent; the approval is recorded as a trial test.</p>
           <label class="agree"><input type="checkbox" id="t_agree">
@@ -106,6 +108,7 @@
           <span id="agreeText">I have read and agree to the Terms &amp; Conditions above, and I authorise this event and its charges.</span></label>
         <button class="btn primary" id="confirmBtn" type="button">✓ Confirm &amp; approve</button>
         <button class="btn s-8a77e5a" id="resend" type="button">Resend OTP</button>
+        <button class="btn" id="emailFallback" type="button" hidden>Send code by email instead</button>
       </div>
 
       <div id="step3" hidden>
@@ -294,8 +297,28 @@
   }
   function showStep(id){ ['step1','step2','step3','step4','stepPaid'].forEach(s=>$('#'+s).hidden=(s!==id)); }
 
-  let phone="";
-  const sendOtp=()=>BPUI.guard($("#sendOtp"), async ()=>{
+  let phone="", otpChannel="sms", fbTimer=null;
+  // 0151: WhatsApp / e-mail code - ALWAYS to the number / address ON THE QUOTE (never a typed one)
+  const offerEmail=()=>{ if(otpChannel!=="email") $("#emailFallback").hidden=false; };
+  const sendChannel=(channel, btn)=>BPUI.guard(btn, async ()=>{
+    setMsg(); const name=$("#c_name").value.trim();
+    if(name.length<2){ setMsg("err","Please enter your name."); $("#c_name").focus(); return; }
+    const label=btn.textContent; btn.textContent="Sending…"; $("#resend").disabled=true;
+    try{ const r=await BPStore.approval.requestChannelOtp(token, channel);
+      if(r && r.sent===false && !r.dev_code){ setMsg("err",(r&&r.message)||"We couldn't send the code right now. Please contact your event manager to approve this event."); if(channel==="whatsapp"){ showStep('step2'); offerEmail(); } return; }
+      otpChannel=channel; showStep('step2');
+      const where=(r&&r.masked)||(channel==="email"?"your e-mail":"your WhatsApp");
+      if(r && r.dev_code) setMsg("dev","SIMULATION MODE — your code is "+r.dev_code+" (in production it is sent by "+(channel==="email"?"e-mail":"WhatsApp")+" to "+where+").");
+      else if(r && r.simulated) setMsg("dev","SIMULATION MODE — no "+(channel==="email"?"e-mail":"WhatsApp")+" was sent. Ask your planner to approve for you, or use SMS.");
+      else setMsg("ok","A code has been sent by "+(channel==="email"?"e-mail":"WhatsApp")+" to "+where+". It expires in 10 minutes.");
+      clearTimeout(fbTimer); $("#emailFallback").hidden=true;
+      if(channel==="whatsapp") fbTimer=setTimeout(offerEmail, 60000);
+    }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"send the code"})); if(channel==="whatsapp" && !/wait|too many/i.test(String(e&&e.message))){ showStep('step2'); offerEmail(); } }
+    finally{ btn.textContent=label; $("#resend").disabled=false; }
+  });
+  $("#sendWa").addEventListener("click", ()=>sendChannel("whatsapp", $("#sendWa")));
+  $("#emailFallback").addEventListener("click", ()=>sendChannel("email", $("#emailFallback")));
+  const sendOtp=()=>BPUI.guard($("#sendOtp"), async ()=>{ otpChannel="sms";
     setMsg(); const b=$("#sendOtp"); phone=$("#c_phone").value.trim();
     const name=$("#c_name").value.trim();
     if(name.length<2){ setMsg("err","Please enter your name."); $("#c_name").focus(); return; }
@@ -309,10 +332,10 @@
       if(r && r.dev_code) setMsg("dev","SIMULATION MODE — your OTP is "+r.dev_code+" (in production this is sent by SMS).");
       else setMsg("ok","An OTP has been sent to "+phone+".");
     }catch(e){ setMsg("err",BPUI.friendlyError(e,{action:"send the OTP"})); }
-    finally{ b.textContent="Send OTP to my phone"; $("#resend").disabled=false; }
+    finally{ b.textContent="Send OTP to my phone by SMS"; $("#resend").disabled=false; }
   });
   $("#sendOtp").addEventListener("click", sendOtp);
-  $("#resend").addEventListener("click", sendOtp);
+  $("#resend").addEventListener("click", ()=>otpChannel==="sms" ? sendOtp() : sendChannel(otpChannel, $("#resend")));
 
   $("#confirmBtn").addEventListener("click", ()=>BPUI.guard($("#confirmBtn"), async ()=>{
     setMsg(); const b=$("#confirmBtn");
@@ -320,7 +343,9 @@
     if(code.length!==6){ setMsg("err","Enter the 6-digit OTP."); $("#c_otp").focus(); return; }
     if(!agreed){ setMsg("err","Please tick the box to accept the terms."); $("#c_agree").focus(); return; }
     b.textContent="Verifying…";
-    try{ const r=await BPStore.approval.verifyConsent(token, phone, code, true, shownTerms.v, consentText(shownTerms.v), $("#c_name").value.trim(), navigator.userAgent);
+    try{ const r=otpChannel==="sms"
+        ? await BPStore.approval.verifyConsent(token, phone, code, true, shownTerms.v, consentText(shownTerms.v), $("#c_name").value.trim(), navigator.userAgent)
+        : await BPStore.approval.verifyChannel(token, otpChannel, code, true, shownTerms.v, consentText(shownTerms.v), $("#c_name").value.trim(), navigator.userAgent);
       // W10-D1: verify_and_consent now soft-returns {approved:false,message} on OTP
       // failure (so the attempts counter can persist and lockout works). Older DB
       // versions raise on failure instead — the catch below still handles those.

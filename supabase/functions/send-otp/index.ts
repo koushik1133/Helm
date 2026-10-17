@@ -11,9 +11,70 @@
 // exists (formats like +91 / 0 / spaces are normalized); with no phone on file, only an
 // Indian mobile (+91, 10 digits starting 6-9) is accepted. Each studio has a daily SMS
 // cap (public.otp_send_authorize, 0027). DB errors are mapped to generic messages.
+//
+// 0151: { token, channel: "whatsapp" | "email" } sends the code by the WhatsApp AUTHENTICATION
+// template proposal_approval_otp (copy-code) or by e-mail (Resend) - ALWAYS to the phone /
+// e-mail ON THE QUOTE (wa_otp_begin; a typed number is ignored), 30 s cooldown, 3 resends.
+// Simulated (nothing sent) while WHATSAPP_TOKEN+WHATSAPP_PHONE_ID / RESEND_API_KEY are unset.
+// Extra env: WHATSAPP_API_VERSION, WHATSAPP_TPL_LANG, RESEND_API_KEY, RESEND_FROM.
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { errTag, responders } from "../_shared/cors.ts";
 import { BodyTooLarge, clientIp, checkLimits, readJsonCapped, tooMany } from "../_shared/limits.ts";
+import { isLive, otpEmail, otpMessage } from "../wa-proposal/logic.mjs";
+
+function newCode(): string {
+  // CSPRNG (Math.random is predictable); rejection sampling avoids modulo bias
+  const buf = new Uint32Array(1), lim = 4294967296 - (4294967296 % 900000);
+  do crypto.getRandomValues(buf); while (buf[0] >= lim);
+  return String(100000 + (buf[0] % 900000));
+}
+
+// 0151: WhatsApp / e-mail code to the recipient ON THE QUOTE
+// deno-lint-ignore no-explicit-any
+async function sendByChannel(req: Request, json: any, admin: any, token: string, channel: "whatsapp" | "email") {
+  const ua = String(req.headers.get("user-agent") || "").slice(0, 400);
+  const { data: dest, error: bErr } = await admin.rpc("wa_otp_begin", { p_token: token, p_channel: channel, p_user_agent: ua });
+  if (bErr || !dest || !dest.phone_key) {
+    const [status, msg] = otpFailure(String(bErr?.code || ""));
+    return json({ error: msg }, status);
+  }
+  const { error: aErr } = await admin.rpc("otp_send_authorize", { p_token: token, p_phone: dest.phone_key });
+  if (aErr) { const [status, msg] = otpFailure(String(aErr.code || "")); return json({ error: msg }, status); }
+  const code = newCode();
+  const storeArgs = { p_token: token, p_phone: dest.phone_key, p_code: code };
+  const { error } = await admin.rpc("admin_store_otp", storeArgs);
+  if (error) { console.error("admin_store_otp failed", errTag(error)); return json({ error: "too many requests — please try again later" }, 429); }
+  let live = false;
+  if (channel === "whatsapp") {
+    live = isLive({ WHATSAPP_TOKEN: Deno.env.get("WHATSAPP_TOKEN"), WHATSAPP_PHONE_ID: Deno.env.get("WHATSAPP_PHONE_ID") });
+    if (live) {
+      const r = await fetch(`https://graph.facebook.com/${Deno.env.get("WHATSAPP_API_VERSION") || "v21.0"}/${encodeURIComponent(Deno.env.get("WHATSAPP_PHONE_ID")!)}/messages`, {
+        method: "POST", headers: { "Authorization": "Bearer " + Deno.env.get("WHATSAPP_TOKEN"), "Content-Type": "application/json" },
+        body: JSON.stringify(otpMessage(String(dest.to), code, Deno.env.get("WHATSAPP_TPL_LANG") || "en")),
+      });
+      await r.text();
+      if (!r.ok) { console.error("whatsapp otp status", r.status); return json({ error: "WhatsApp message could not be sent", fallback: "email" }, 502); }
+    }
+  } else {
+    const key = Deno.env.get("RESEND_API_KEY") || "", from = Deno.env.get("RESEND_FROM") || "";
+    live = !!(key && from);
+    if (live) {
+      const m = otpEmail(code, "your planner");
+      const r = await fetch("https://api.resend.com/emails", {
+        method: "POST", headers: { "Authorization": "Bearer " + key, "Content-Type": "application/json" },
+        body: JSON.stringify({ from, to: [String(dest.email)], subject: m.subject, text: m.text }),
+      });
+      await r.text();
+      if (!r.ok) { console.error("email otp status", r.status); return json({ error: "e-mail could not be sent" }, 502); }
+    }
+  }
+  const { error: logErr } = await admin.from("notifications").insert({
+    quote_id: dest.quote_id, channel: channel === "email" ? "email" : "whatsapp",
+    recipient: channel === "email" ? String(dest.email) : String(dest.to), kind: "otp", status: live ? "sent" : "simulated",
+  });
+  if (logErr) console.error("otp log insert failed", errTag(logErr));
+  return json({ sent: true, live, simulated: !live, channel, masked: dest.masked, resends_left: dest.resends_left });
+}
 
 // DB error → [http status, generic message] (never error.message)
 function otpFailure(code: string): [number, string] {
@@ -33,7 +94,14 @@ Deno.serve(async (req) => {
   try {
     const ipWait = await checkLimits([["otp:ip:" + clientIp(req), 10, 60_000]]);
     if (ipWait) return tooMany(json, ipWait);
-    const { token, phone } = await readJsonCapped(req) as { token?: unknown; phone?: unknown };
+    const { token, phone, channel } = await readJsonCapped(req) as { token?: unknown; phone?: unknown; channel?: unknown };
+    if ((channel === "whatsapp" || channel === "email") && typeof token === "string") {
+      const tWait = await checkLimits([["otp:tok:" + token.toLowerCase(), 5, 60_000]]);
+      if (tWait) return tooMany(json, tWait);
+      if (!/^[0-9a-f-]{36}$/i.test(token)) return json({ error: "invalid link" }, 404);
+      const admin0 = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
+      return await sendByChannel(req, json, admin0, token, channel);
+    }
     if (!token || !phone || typeof token !== "string" || typeof phone !== "string") {
       return json({ error: "token and phone are required" }, 400);
     }
@@ -58,10 +126,7 @@ Deno.serve(async (req) => {
       return json({ error: "SMS codes can't be sent to numbers outside India yet — please ask your planner to record your approval." }, 422);
     }
 
-    // CSPRNG (Math.random is predictable); rejection sampling avoids modulo bias
-    const buf = new Uint32Array(1), lim = 4294967296 - (4294967296 % 900000);
-    do crypto.getRandomValues(buf); while (buf[0] >= lim);
-    const code = String(100000 + (buf[0] % 900000));
+    const code = newCode();
 
     // store the hash (rate-limits + validates the token inside the DB)
     const { error } = await admin.rpc("admin_store_otp", { p_token: token, p_phone: phone, p_code: code });

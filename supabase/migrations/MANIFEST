@@ -237,3 +237,5 @@ forward  supabase/migrations/0148_close_gate_text.sql
 forward  supabase/migrations/0149_lead_guest_count_range.sql
 # 0150 (studio WhatsApp + e-mail setup: comms_settings.email_from_name / email_reply_to (optional, NULL = unchanged), NOT VALID checks, studio_email_settings_get/_set, integrations_test_target, service-role identity helpers; no rows changed) goes after 0078 + 0134.
 forward  supabase/migrations/0150_studio_channel_settings.sql
+# 0151 (send proposal on WhatsApp + WhatsApp / e-mail approval OTP: wa_proposal_optins + wa_proposal_audit append-only tables with RLS, prepare/mark/state + OTP begin/request/verify functions, webhook status trigger; no rows changed) goes after 0042 + 0092 + 0117.
+forward  supabase/migrations/0151_wa_proposal.sql

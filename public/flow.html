@@ -109,6 +109,7 @@
 <link rel="stylesheet" href="theme.css?v=80">
 <link rel="stylesheet" href="venues.css?v=3">
 <link rel="stylesheet" href="pages-polish-ops.css?v=2">
+<link rel="stylesheet" href="wa-proposal.css?v=1">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -377,7 +378,7 @@
 <script src="flow-dish-editor.js?v=2"></script>
 <script src="venues-core.js?v=5"></script>
 <script src="venue-picker.js?v=4"></script>
-<script src="venue-area.js?v=1"></script><script src="trial-test-note.js?v=1"></script>
+<script src="venue-area.js?v=1"></script><script src="wa-proposal.js?v=1"></script><script src="trial-test-note.js?v=1"></script>
 <script>
   const $=(s)=>document.querySelector(s);
   const esc=(s)=>String(s==null?"":s).replace(/[&<>"']/g,(c)=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1090,10 +1091,13 @@
         `<div class="fld"><input id="apprUrl" value="${esc(link)}" readonly aria-label="Approval link" style="font-size:12px"></div>`+
         `<div style="display:flex;gap:8px;flex-wrap:wrap">`+
         `<button type="button" class="btn sm" id="copyLink">Copy link</button>`+
-        (phone?`<a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/${phone}?text=${waText}">WhatsApp</a>`:``)+
+        (phone?`<a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/${phone}?text=${waText}">WhatsApp (manual)</a>`:``)+
         `<a class="btn sm" target="_blank" rel="noopener" href="${esc(mailHref)}">Email</a>`+
         `<a class="btn sm" target="_blank" rel="noopener" href="${esc(link)}">Preview</a></div>`;
       $("#copyLink").addEventListener("click",()=>{ Promise.resolve().then(()=>navigator.clipboard.writeText(link)).then(()=>{ $("#copyLink").textContent="Copied ✓"; }).catch(()=>{ const u=$("#apprUrl"); if(u){ u.focus(); u.select(); } BPUI.toast("Couldn't copy automatically — the link is selected, press Ctrl/⌘+C.",{type:"info"}); }); });
+      // 0151: send through the Helm Events WhatsApp number (simulated until it is connected)
+      if(window.HelmWaProposal) HelmWaProposal.mount($("#apprLinks"), { quoteId:id, country:flowCountry(),
+        getPhone:()=>(ev&&ev.client&&ev.client.phone)||"", getApproval:()=>(ev&&ev.approval_status)||"" });
       $("#statusBadge").textContent="sent for approval";
     }catch(e){ BPUI.toast(BPUI.friendlyError(e,{action:"create the approval link"}),{type:"err"}); }
     });

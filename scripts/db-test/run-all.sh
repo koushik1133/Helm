@@ -36,6 +36,7 @@ run "inv-fixes"          "INV-FIXES: ALL PASS \(24/24\)" psql -q -f tests/db/inv
 run "checkout-shortage-0105" "CHECKOUT-SHORTAGE-0105: ALL PASS \(24/24\)" psql -q -f tests/db/checkout-shortage-0105.sql
 run "chat-admin-fixes"   "CHAT-ADMIN-FIXES: ALL PASS \(21/21\)" psql -q -f tests/db/chat-admin-fixes.sql
 run "ui-fixes"           "UI-FIXES: ALL PASS \(27/27\)" psql -q -f tests/db/ui-fixes.sql
+run "wa-proposal-0151"   "WA-PROPOSAL-0151: ALL PASS \(24/24\)" psql -q -f tests/db/wa-proposal-0151.sql
 run "insights"           "INSIGHTS: ALL PASS \(19/19\)" psql -q -f tests/db/insights.sql
 run "r3-sync-reprice"    "R3-SYNC-REPRICE: ALL PASS \(22/22\)" psql -q -f tests/db/r3-sync-reprice.sql
 run "comms-automation"   "COMMS-AUTOMATION: ALL PASS \(54/54\)" psql -q -f tests/db/comms-automation.sql
