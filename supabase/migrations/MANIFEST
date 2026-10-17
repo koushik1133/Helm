@@ -225,3 +225,5 @@ forward  supabase/migrations/0142_money_currency_cotax_lengths.sql
 forward  supabase/migrations/0143_roles_crew_defaults.sql
 # 0144 (role audit: can_edit() follows the access matrix (admin or any edit area) and the RPCs that only checked can_edit() get their own area check first - add_quote_version, assign_tasks(+_vendor), reassign_task, set_plan_signoff, set_plan_lock, confirm_quote, publish_proposal, mgr_notify; quote_payments read needs finance/settlement/pkg_payments view and direct writes finance/settlement edit (restrictive policies); event_activity needs quotes view + money lines need a money area; task_verify_summary needs staff/quotes view; no rows changed) goes after 0039 + 0052 + 0143.
 forward  supabase/migrations/0144_role_gate_fixes.sql
+# 0145 (dashboard_money: the dominant-currency fallback from 0142 only looks at quotes with a stamped currency, so an empty-currency quote no longer pins an INR studio to a stale USD organizations.currency; no rows changed) goes after 0142.
+forward  supabase/migrations/0145_dashboard_money_currency_fix.sql
