@@ -2,7 +2,7 @@
    HELM — shared per-page guided tour engine (zero-dependency, vanilla JS)
    -------------------------------------------------------------------------
    One engine, many pages. Each page's steps live in STEPS keyed by filename.
-   A page opts in simply by including  <script src="tour.js?v=14"></script>.
+   A page opts in simply by including  <script src="tour.js?v=15"></script>.
 
    • Injects its own spotlight CSS (pages need no markup).
    • Renders a floating "? Tour" button, or wires an existing #helpBtn.
@@ -130,9 +130,9 @@
   /* ---- inject spotlight styles once ---------------------------------- */
   const css = `
   .htour{position:fixed;inset:0;z-index:9000;pointer-events:none;font-family:inherit}
-  .htour .ring{position:absolute;box-sizing:border-box;border:3px solid var(--gold,#e0a938);border-radius:12px;
+  .htour .ring{position:absolute;box-sizing:border-box;border:3px solid var(--hb-acc,var(--accent,#2450f0));border-radius:12px;
     box-shadow:0 0 0 9999px rgba(20,18,40,.58)}
-  .htour .arrow{position:absolute;color:var(--gold,#e0a938);font-size:28px;line-height:1;
+  .htour .arrow{position:absolute;color:var(--hb-acc,var(--accent,#2450f0));font-size:28px;line-height:1;
     filter:drop-shadow(0 2px 3px rgba(0,0,0,.25));animation:htbob 1s ease-in-out infinite}
   @keyframes htbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
   .htour .tip{position:absolute;max-width:calc(100vw - 24px);box-sizing:border-box;max-height:calc(100vh - 24px);overflow:auto;background:var(--hb-bg,var(--panel,#fff));color:var(--hb-ink,var(--ink,#1b1930));
