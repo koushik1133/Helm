@@ -44,6 +44,8 @@ assert.ok(!/quoteMoney|% paid/.test(dash), "dashboard shows no per-quote money")
 const bizJs = readFileSync("public/business.js", "utf8");
 assert.match(bizJs, /canView\("finance"\)/, "business page gated on finance view");
 const priv = readFileSync("public/shell-b-privacy.js", "utf8");
-assert.match(priv, /name: "PBKDF2", hash: "SHA-256"/, "PIN is a PBKDF2-SHA-256 hash");
-assert.ok(!/setItem\([^)]*pin\b[^)]*\)/i.test(priv.replace(/savePin|pinKey\(\)/g, "")), "plain PIN never stored");
+// 0157: the PIN is one per studio, checked on the server (bcrypt hash there); nothing about it is stored in the browser
+assert.match(priv, /a\.check\(pin\)/, "PIN checked on the server (BPStore.privacyPin.check)");
+assert.ok(!/helm\.priv\.pin|savePin|PBKDF2/.test(priv), "no PIN (or PIN hash) kept in this browser any more");
+assert.ok(!/setItem\([^)]*pin\b[^)]*\)/i.test(priv), "plain PIN never stored");
 console.log("dashboard-money: business page + privacy checks ok");

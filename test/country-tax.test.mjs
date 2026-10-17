@@ -194,7 +194,7 @@ t('pages load country-profile.js before store-api.js; no hardcoded rupee formatt
   const fs = require('node:fs');
   for (const f of fs.readdirSync(new URL('../public/', import.meta.url)).filter((x) => x.endsWith('.html'))) {
     const h = read('public/' + f); if (!/store-api\.js/.test(h)) continue;
-    assert.match(h, /country-profile\.js\?v=4"><\/script><script src="\/?store-api\.js\?v=226"/, f);
+    assert.match(h, /country-profile\.js\?v=4"><\/script><script src="\/?store-api\.js\?v=227"/, f);
   }
   for (const f of ['settlement.html', 'budget.html', 'closure.html', 'event.html', 'insights.html', 'reports.html', 'logistics.html', 'discovery.html', 'portal.html', 'plan.html', 'inventory.html', 'resources.html', 'crm.html', 'leads.html', 'staff.html'])
     assert.ok(!/"₹"\+(Number|Math)/.test(read('public/' + f)), f);

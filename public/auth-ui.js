@@ -355,6 +355,8 @@
   // openAccount({focus:"profile"}) opens the panel scrolled to "Your profile"
   // openAccount({section:"profile"|"settings"}) shows just that half (profile menu);
   // no section = everything (older callers, the profile / two-step notices).
+  // openAccount({section:"settings", focus:"mfa"|"password"|"devices"}) scrolls to that part and focuses
+  // its heading (Control Center search: "Two-step sign-in", "Change password", "Sign out other devices").
   function openAccount(opts) {
     if (opts && opts.type) opts = null;                 // called as a click handler
     var section = (opts && opts.section) || "all";
@@ -387,8 +389,8 @@
     if (limTxt.length) info.appendChild(el("p", { class: "hau-muted" }, "For security you're signed out " + limTxt.join(", and always ") + "."));
 
     // password
-    var pw = el("div", { class: "hau-sec" });
-    pw.appendChild(el("h3", null, "Password"));
+    var pw = el("div", { class: "hau-sec", id: "hauPwSec" });
+    pw.appendChild(el("h3", { tabindex: "-1" }, "Password"));
     if (st.auth.hasPassword && !st.auth.hasPassword()) {
       // Google-only account: no Helm password exists, so there's nothing to change here
       pw.appendChild(el("p", { class: "hau-muted" }, "You sign in with Google, so there's no Helm password. Manage your password in your Google account."));
@@ -401,14 +403,16 @@
     }
 
     // two-step verification
-    var mf = el("div", { class: "hau-sec" });
-    mf.appendChild(el("h3", null, "Two-step verification"));
+    // two-step is OPTIONAL for every role: each person turns it on / off here for their own account.
+    // Only admins are ever reminded about it (adminTwoStep); nobody else gets a pop-up.
+    var mf = el("div", { class: "hau-sec", id: "hauMfaSec" });
+    mf.appendChild(el("h3", { tabindex: "-1" }, "Two-step verification"));
     var mfBody = el("div", null); mfBody.appendChild(el("p", { class: "hau-muted" }, "Loading…"));
     mf.appendChild(mfBody); card.appendChild(mf);
 
     // other devices
-    var dv = el("div", { class: "hau-sec" });
-    dv.appendChild(el("h3", null, "Other devices"));
+    var dv = el("div", { class: "hau-sec", id: "hauDevSec" });
+    dv.appendChild(el("h3", { tabindex: "-1" }, "Other devices"));
     dv.appendChild(el("p", { class: "hau-muted" }, "Signed in somewhere you don't recognise? Sign out everywhere except this browser, then change your password."));
     var dvMsg = el("div", { class: "hau-err", role: "status" });
     var dvBtn = el("button", { type: "button", class: "hau-btn" }, "Sign out other devices");
@@ -420,6 +424,11 @@
     var dvRow = el("div", { class: "hau-row" }); dvRow.appendChild(dvBtn); dv.appendChild(dvRow); dv.appendChild(dvMsg); card.appendChild(dv);
 
     finishPanel(card, focusProfile);
+    var jumpTo = { mfa: mf, password: pw, devices: dv }[opts && opts.focus];
+    if (jumpTo) setTimeout(function () {
+      try { jumpTo.scrollIntoView({ block: "start", behavior: "smooth" }); } catch (e) {}
+      var h = jumpTo.querySelector("h3"); try { if (h) h.focus({ preventScroll: true }); } catch (e) {}
+    }, 80);
 
     st.auth.myAuthInfo().then(function (d) {
       infoBody.textContent = "";

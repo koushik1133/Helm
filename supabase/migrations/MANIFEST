@@ -245,3 +245,5 @@ forward  supabase/migrations/0152_manager_role_fixes.sql
 forward  supabase/migrations/0153_crew_fixes.sql
 # 0154 (final QA 1022: crew app task actions notify the studio like the worker link; new dashboard_money_for reports in the page's studio currency; rate limit on the public crew task link via _work_token_live; one new counter table, no rows changed) goes after 0012 + 0039 + 0145 + 0153.
 forward  supabase/migrations/0154_final_fixes.sql
+# 0157 (privacy PIN for "Hide amounts": one PIN per studio stored as a bcrypt hash on the server, default 0000 until an admin changes it in Control Center; only admins change / reset it; wrong tries locked on the server; two new tables, new functions only, no rows changed) needs only the base schema + pgcrypto.
+forward  supabase/migrations/0157_privacy_pin.sql
