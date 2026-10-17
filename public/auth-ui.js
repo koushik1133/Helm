@@ -861,13 +861,15 @@
     // the studio owner / admin isn't asked on first setup (crew / staff are): for them it stays collapsed and
     // does not count towards "profile complete". It is still shown and fillable. (Before: only the section BODY
     // was hidden, so the "Emergency contact" row opened to an empty box - the reported "dropdown not working".)
-    var noEmerg = !!o.hideEmergency && !eFilled;
+    // 2026-10-17 owner decision: emergency contact is not needed. The section is hidden for everyone and
+    // never counts towards "profile complete"; stored values are kept untouched (sent back unchanged).
+    var noEmerg = true; sE.hidden = true; sE.style.display = "none";
     sE.appendChild(el("p", { class: "hpf-h" }, "Your studio admins see this so they can tell your family quickly if something happens to you at an event (an injury, an accident or a health problem). It is not shown to clients or other crew."));
     var gE = el("div", { class: "hpf-grid" }); sE.appendChild(gE);
     field(gE, "emergency_contact_name", "Contact name", { ac: "off", max: 50, ph: "e.g. Ravi Rao", value: P.emergency_contact_name });
     field(gE, "emergency_contact_phone", "Contact phone", { type: "tel", ac: "off", max: 24, value: P.emergency_contact_phone || "" });
     var priv = el("p", { class: "hpf-priv" });
-    priv.appendChild(doc.createTextNode("Only you and your studio admins can see your mobile, WhatsApp, city and emergency contact."));
+    priv.appendChild(doc.createTextNode("Only you and your studio admins can see your mobile, WhatsApp and city."));
     form.appendChild(priv);
 
     // ---- actions (sticky on the setup page)
